@@ -235,7 +235,13 @@ function configDoc() {
 function paramsDoc() {
   const { execFileSync } = require('node:child_process');
   const body = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/params/doc.js')], { encoding: 'utf8', env: { ...process.env, DB_PATH: ':memory:' } });
-  return HEADER('Danh mục tham số lương', '`lib/params/registry.data.json` qua `scripts/params/doc.js`') + body.replace(/\r\n/g, '\n');
+  // Khoá đã bỏ (lớp "bỏ") không còn là tham số nên không liệt kê (test/unit/no-month-rules.test.js cấm tên các công tắc theo tháng cũ trong spec)
+  const live = body
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .filter(line => !/^\| `[^`]+` \|.*\| bỏ \| fixed \|/.test(line))
+    .join('\n');
+  return HEADER('Danh mục tham số lương', '`lib/params/registry.data.json` qua `scripts/params/doc.js` (không kể các khoá lớp "bỏ")') + live;
 }
 
 const FILES = {

@@ -1,6 +1,6 @@
 # Danh mục tham số lương
 
-> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/params/registry.data.json` qua `scripts/params/doc.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/params/registry.data.json` qua `scripts/params/doc.js` (không kể các khoá lớp "bỏ"). Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
 # Danh mục cấu hình (sinh từ registry)
 
@@ -20,8 +20,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `advance.untilDay` | Tạm ứng tính cho ngày đi làm từ ngày 1 đến ngày | số(day) | quantity |  | 15 ngày | admin | có | Quy chế công ty; mặc định ngày 15 theo chủ dự án 27/10/2026 (từ 23/10 đến 27/10 từng là 20) | V1-B |
 | `advance.basis` | Cách tính tạm ứng | chọn | choice | Theo ngày đi làm (mặc định) · % cố định theo level [chưa có] · Số tiền theo level [chưa có] · Chỉ khi nhân sự gửi yêu cầu [chưa có] | byWorkedDays | admin | có | Quy chế công ty | V2 |
 | `advance.eligibleTypes.<type>` | Loại nhân sự được tạm ứng | bảng | table |  | eligibleTypes.ctv: Có; eligibleTypes.nv: Có; eligibleTypes.tts: Có | admin | có | policy: chính sách | V2 |
-| `period.firstManagedMonth` | Mọi tháng đều chịu khoá kỳ | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `removed.period.firstPayrollDate` | (ngày "từ 7/9" trên tiêu đề phiếu) | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
 
 ## Nhóm 2. Loại nhân sự và bậc lương
 
@@ -66,7 +64,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `attendance.shortHoursRounding` | Làm tròn giờ thiếu chưa bù trước khi cộng vào giờ vượt ngưỡng | chọn | choice | Không làm tròn (mặc định) · Xuống 0,5 giờ [chưa có] · Xuống 1 giờ [chưa có] | none | admin | có | policy: chính sách | V2 |
 | `fixed.attendance.leaveCounts` | Phép năm tính là ngày nghỉ khi xét chuyên cần | cố định | fixed |  |  | locked | — | Bộ luật Lao động 2019, Điều 113 (cần pháp chế xác nhận) |  |
 | `fixed.attendance.proration` | Phụ cấp chuyên cần theo tỷ lệ ngày đi làm | cố định | fixed |  |  | locked | — | Quy chế công ty |  |
-| `removed.attendance.graceRounding` | Làm tròn hoặc có biên độ (công tắc) | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
 
 ## Nhóm 5. OT và làm thêm
 
@@ -97,8 +94,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `geofence.lat`, `geofence.lng` | Vị trí công ty (vĩ độ, kinh độ) | số(degree) | quantity |  | geofence.lat: trống; geofence.lng: trống | admin | — | structure: cấu trúc: cứng | V1-B |
 | `geofence.radiusM` | Bán kính chấm công | số(meter) | quantity |  | trống | admin | — | structure: Giới hạn cố định của hệ thống | V1-B |
 | `geofence.maxAccuracyM` | Độ chính xác GPS tối đa | số(meter) | quantity |  | 100 mét | admin | — | structure: Giới hạn cố định của hệ thống | V1-B |
-| `switch.checkinFrom` | Check-in luôn bật | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `switch.actualHoursFrom` | Giờ trả lương luôn lấy từ Check-in/out | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
 | `attendance.graceMin` | Đi trễ, về sớm tới … phút không trừ | số(minute) | quantity |  | 15 phút | admin | có | Chủ dự án chốt ngày 14/10/2026 | V1-B |
 | `attendance.stepMin` | Bậc trừ khi vượt mức | số(minute) | quantity |  | 30 phút | admin | có | Chủ dự án chốt ngày 14/10/2026 | V1-B |
 | `attendance.cutRounding` | Cách tính số phút bị trừ (từ mức miễn trở lên) | chọn | choice | Bậc làm tròn nửa lên (mặc định) · Làm tròn lên theo bậc [chưa có] · Đúng số phút [chưa có] | halfUpStep | admin | có | policy: Bộ luật Lao động 2019, Điều 127 khoản 2 | V2 |
@@ -162,7 +157,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `kpi.ratioRule` | Hệ số ngày đi làm của tiền KPI | chọn | choice | Chỉ khi giờ vượt ngưỡng > ngưỡng (mặc định) · Luôn nhân [chưa có] · Không nhân [chưa có] | whenOverLimit | admin | chưa | Quy chế lương 3P | V2 |
 | `kpi.payCurveRule` | Đường cong tiền KPI | chọn | choice | Tỷ lệ thuận (mặc định) · Theo bảng bậc [chưa có] | linear | admin | chưa | Quy chế lương 3P; chờ lead trả lời | V2 |
 | `fixed.kpi.formula` | Công thức thưởng KPI | cố định | fixed |  |  | locked | — | Quy chế lương 3P |  |
-| `switch.kpiFiveFrom` | KPI luôn tính theo 5 thành phần | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
 | `kpi.scoreMax` | Điểm KPI tối đa của một thành phần | cố định | fixed |  | 100 | locked | — | Quy chế lương 3P |  |
 | `kpi.scoreDecimals` | Điểm KPI: số chữ số thập phân | cố định(count) | fixed |  | 2 | locked | — | Quy chế lương 3P |  |
 
@@ -207,7 +201,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `tax.exempt.holidayRate` | Miễn thuế: hệ số làm ngày lễ (chỉ phần trên lương giờ thường) | số(ratio) | percent |  | 300 % | accounting | có | exact: Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8 | V1-B |
 | `tax.exempt.otMethod` | Cách tính phần làm thêm giờ được miễn thuế | chọn | choice | Theo đơn giá luật định (mặc định) · Theo số giờ [chưa có] | byRate | accounting | có | Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4; Nghị định 253/2026/NĐ-CP (chưa có văn bản hướng dẫn, cần kế toán hoặc pháp chế xác nhận) | V2 |
 | `tax.arise.mode` | Điều kiện phát sinh thuế của hợp đồng dài hạn | chọn | choice | Vượt mức giảm trừ bản thân (mặc định) · Vượt một ngưỡng riêng [chưa có] | personalDeduction | accounting | có | Luật Thuế thu nhập cá nhân số 109/2025/QH15; Nghị định 253/2026/NĐ-CP (cần kế toán xác nhận) | V2 |
-| `removed.tax.exempt.holidayNightAdd` | (miễn thuế giờ đêm ngày lễ 90 %) | bỏ | fixed |  |  | locked | — | exact: Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8 | V1-B |
 | `fixed.tax.method` | Cách tính thuế theo loại hợp đồng | cố định | fixed |  |  | locked | — | Luật Thuế thu nhập cá nhân số 109/2025/QH15; Nghị định 253/2026 |  |
 | `insurance.base` | Căn cứ đóng BH | chọn | choice | Lương cơ bản của level (hoặc lương riêng) (mặc định) · Lương cơ bản cộng phụ cấp có cờ "tính vào lương đóng BH" · Thuộc tính tiền của bậc (lương đóng BH) [chưa có] | baseSalary | accounting | có | exact: Luật Bảo hiểm xã hội số 41/2024/QH15, Điều 31 | V2 |
 | `insurance.coverage.long` | Hợp đồng dài hạn có đóng bảo hiểm | chọn | toggle | Có (mặc định) · Không [chưa có] | Có | accounting | có | Luật Bảo hiểm xã hội số 41/2024/QH15 (cần pháp chế xác nhận) | V2 |
@@ -216,7 +209,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `insurance.floorMode` | Sàn của nền đóng bảo hiểm | chọn | choice | Không áp sàn, chỉ cảnh báo (mặc định) · Nâng nền đóng lên lương tối thiểu vùng [chưa có] | none | accounting | có | Luật Bảo hiểm xã hội số 41/2024/QH15 (cần pháp chế xác nhận) | V2 |
 | `fixed.insurance.floor` | Lương đóng BH không thấp hơn lương tối thiểu vùng | cố định | fixed |  |  | locked | — | Luật Bảo hiểm xã hội số 41/2024/QH15 (cần pháp chế xác nhận) | V2 |
 | `fixed.tax.effectiveBy` | Tham số thuế và bảo hiểm áp theo tháng trả lương | cố định | fixed |  |  | locked | — | Thông tư 111/2013/TT-BTC về thời điểm tính thuế theo chi trả (cần pháp chế xác nhận) | V1-B |
-| `removed.union.fee` | Đoàn phí công đoàn (công tắc và tỷ lệ) | bỏ | fixed |  |  | locked | — | exact: Luật Công đoàn 2024 | V2 |
 
 ## Nhóm 11. AI (soát dữ liệu, chỉ gợi ý)
 
@@ -239,11 +231,6 @@ Sinh bởi `npm run params:doc` từ `lib/params/registry.data.json` và `public
 | `fixed.ai.dismissReason` | Bỏ qua cảnh báo bắt buộc ghi lý do | cố định | fixed |  |  | locked | — | Điều khiển bắt buộc của hệ thống |  |
 | `fixed.ai.lock` | AI không chạy thì khoá duyệt cả lô | cố định | fixed |  |  | locked | — | Điều khiển bắt buộc của hệ thống |  |
 | `fixed.ai.local` | AI chỉ chạy trong công ty, chỉ gợi ý | cố định | fixed |  |  | locked | — | Chủ dự án chốt ngày 14/10/2026 |  |
-| `removed.ai.threshold.reportDeadlineDay` | (ngưỡng AI bỏ) reportDeadlineDay | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `removed.ai.threshold.attendMaxAbsentDays` | (ngưỡng AI bỏ) attendMaxAbsentDays | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `removed.ai.threshold.overLimitHours` | (ngưỡng AI bỏ) overLimitHours | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `removed.ai.threshold.kpiFullPct` | (ngưỡng AI bỏ) kpiFullPct | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
-| `removed.ai.threshold.shiftSwitchDate` | (ngưỡng AI bỏ) shiftSwitchDate | bỏ | fixed |  |  | locked | — | Mặc định của hệ thống |  |
 | `ai.limit.evidenceListMax` | AI: số mục tối đa trong một danh sách ở bằng chứng của phát hiện | số(count) | quantity |  | 5 | ops | — | Cấu hình kỹ thuật, do bộ phận vận hành đặt | V1-A đọc |
 | `ai.threshold.paramChangePeoplePct` | Công thức hoặc tham số đổi làm đổi thực nhận từ … % số người thì gắn "Cần xem" | số(ratio) | percent |  | 20 % | admin | có | Đề xuất, chờ C&B chốt | V1-B |
 | `ai.threshold.formulaChangeTotalVnd` | Thay đổi cài đặt làm đổi tổng thực nhận từ … ₫ thì gắn "Cần xem" | số(vnd) | money |  | 5.000.000 ₫ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
