@@ -2,12 +2,10 @@
 // Chức vụ là dữ liệu: ba chức vụ mặc định (tts, ctv, nv) và bản sao của chúng (cùng bảng cờ quyền lợi, cùng bậc) cho CÙNG số tiền từng bit.
 // Gồm: bảng cờ quyền lợi mặc định = hành vi hiện hành; 300 ca vàng và một bộ ca hạt cố định chạy với bản sao chức vụ bằng chạy với chức vụ gốc;
 // bộ máy chịu được chức vụ sao chép; mã loại lạ không bao giờ rơi về `tts`.
-// Test bọc openBug chạy như `todo` (không làm npm test đỏ); RED=1 npm test để thấy từng test đỏ vì lý do gì.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, DEFAULTS, LEGACY_DEFAULTS, golden, clone, runGolden } = require('../helpers/pay-oracle');
 const { payrollEngineDifferential, digest } = require('../helpers/payroll-differential');
-const { openBug } = require('../helpers/open-bug');
 
 const NV1 = 'known-kpi-five-100-90-80-85-100';
 const NV3 = 's20261015-00018';

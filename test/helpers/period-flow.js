@@ -163,14 +163,24 @@ function legacyInput(username, month) {
 }
 // Kết quả mong đợi cho từng người: { net: {gross, insurance, tax, advance, net}, total, m }. Bộ máy chung chạy trên đầu vào đọc thẳng từ DB
 // (legacyInput), không qua loadInputs; hợp đồng theo thâm niên như bảng lương.
-function expectedFor(month) {
-  const params = service.paramsFor(month).params;
+// withoutBlocks: bỏ các khối phụ cấp (block.def.*) khỏi bộ tham số, để lấy kết quả "khối cũ" cho tháng mà khối đã mang sang từ tháng trước.
+function expectedFor(month, { withoutBlocks = false } = {}) {
+  const resolved = service.paramsFor(month).params;
+  const params = withoutBlocks
+    ? Object.fromEntries(Object.entries(resolved).filter(([key]) => !key.startsWith('block.def.')))
+    : resolved;
   return Object.fromEntries(
     PEOPLE.map(p => {
       const { m } = service.engineFor(params).computeMonth(legacyInput(p.username, month));
       return [p.username, { m, total: m.total, net: m.net }];
     })
   );
+}
+
+// Kết quả bộ máy cho MỘT người, đọc đầu vào từ DB, trên bộ tham số hiệu lực của tháng (thêm `over` nếu có)
+function computeFor(username, month, over = {}) {
+  const params = { ...service.paramsFor(month).params, ...over };
+  return service.engineFor(params).computeMonth(legacyInput(username, month)).m;
 }
 
 async function api(method, route, body) {
@@ -204,4 +214,14 @@ function payslipsOf(month) {
 // Bộ tham số hiệu lực của tháng như máy chủ dùng (gồm dòng danh mục ca, chức vụ)
 const paramsOf = month => service.paramsFor(month).params;
 
-module.exports = { PEOPLE, paramsOf, seedMonth, legacyInput, expectedFor, lockAndCalculate, payslipsOf, api };
+module.exports = {
+  PEOPLE,
+  paramsOf,
+  seedMonth,
+  legacyInput,
+  expectedFor,
+  computeFor,
+  lockAndCalculate,
+  payslipsOf,
+  api
+};

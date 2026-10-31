@@ -1,25 +1,21 @@
 {
-  "about": "Số test todo của npm test không được tăng. Ghi ở HEAD c50a415 (15/10/2026 tối): 21 todo, 0 đỏ. Ghi lại: node test/tools/check-todo.js --write (hạ), --write-sources (số chỗ nguồn tĩnh).",
+  "about": "Số test todo của npm test không được tăng. Ghi sau G0 (31/10/2026): 18 todo, 0 đỏ, 7 skipped (free-identifiers thiếu Prettier). Ghi lại: node test/tools/check-todo.js --write (hạ), --write-sources (số chỗ nguồn tĩnh).",
   "sources": {
     "test/api/audit-log.test.js": 1,
-    "test/api/correction-effective-date.test.js": 12,
     "test/api/period-aggregates.test.js": 1,
     "test/api/period-lock-guards.test.js": 1,
     "test/api/permissions-matrix.test.js": 1,
     "test/api/settings-engine-zero-drift.test.js": 5,
     "test/api/settings-preview.test.js": 1,
-    "test/api/settings-save-failures.test.js": 1,
     "test/api/settings-save.test.js": 1,
     "test/helpers/formula-fixture.js": 1,
     "test/helpers/open-bug.js": 1,
     "test/helpers/settings-api.js": 2,
-    "test/unit/actual-hours.test.js": 14,
+    "test/unit/actual-hours.test.js": 13,
     "test/unit/formula-golden.test.js": 3,
-    "test/unit/holiday-ot-split.test.js": 1,
-    "test/unit/payroll-engine-differential.test.js": 1,
     "test/unit/schedule-defaults-zero-drift.test.js": 1
   },
-  "todo": 21,
-  "tests": 1865,
-  "recordedOn": "2026-10-15"
+  "todo": 18,
+  "tests": 3097,
+  "recordedOn": "2026-10-31"
 }

@@ -47,3 +47,7 @@ Thực thi inline theo `superpowers:executing-plans` (không phái subagent vì 
 | Thời điểm | Sự kiện |
 |-----------|---------|
 | 2026-10-31 | Chốt lộ trình G0–G6 và ủy quyền. Baseline test: 3097 test, 3050 pass, 1 fail, 7 skipped, 39 todo. |
+| 2026-10-31 | **G0 xong.** `git init`, commit mốc `c074a2f`. Sửa 5 mục, `npm test`: 3097 test, 3072 pass, **0 fail**, 7 skipped, 18 todo (16 `# TODO` chờ chủ dự án + 2 mục R1). Chỉ 2 file mã sản phẩm đổi (`lib/db.js` chuẩn hoá `params_json`, `lib/periods.js` guard `allowanceStatus`); còn lại là test và helper. |
+| 2026-10-31 | Ruling: "thiếu lý do → 400" ở `block-allowance` là test cũ, trái chính sách lý do không bắt buộc (spec + `optionalReason`) → sửa test, không sửa mã. Cost nếu sai: chính sách đổi thì phải thêm kiểm tra lý do ở `addBlock`. |
+| 2026-10-31 | Ruling: test `advanceRate` giả định luôn trừ 80 % tạm ứng, trái spec (chỉ trừ khi Admin duyệt) → sửa test theo `input.advanceApproved`. Mã đúng. |
+| 2026-10-31 | Ruling: `params_json` không phải đối tượng coi như thiếu (`null`); `allowanceStatus` trả `{ hasAttendance: false }` khi thiếu. Cost nếu sai: nhân sự không thấy trạng thái chuyên cần trên phiếu của lần chạy hỏng dữ liệu. |

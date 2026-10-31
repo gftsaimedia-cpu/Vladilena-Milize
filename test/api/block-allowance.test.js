@@ -8,15 +8,12 @@
 //                       values: { <mã chức vụ>: { on, amount | byLevel: { <bậc>: số tiền } } }, effectiveMonth, reason }  →  200/201 { code, ... }
 //   PUT /api/blocks/:code/confirm  { basis, effectiveMonth }   (config.legal) xác nhận cờ đã đề nghị, hiệu lực từ tháng đó
 // Số tiền kiểm bằng khối cũ trên cùng dữ liệu (flow.expectedFor) cộng phần đuôi luật tái tính độc lập (helpers/pay-oracle.js → oracle.netAfter).
-// Các test chạy như `todo` qua openBug (không làm npm test đỏ); RED=1 npm test để thấy từng test đỏ vì lý do gì.
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { openBug } = require('../helpers/open-bug');
 const { oracle } = require('../helpers/pay-oracle');
 
 const { F, flow, store } = P;
-const RED = what => openBug('1b-1', 'backend-dev', what);
 const NV = ['qa_nv1', 'qa_nv2']; // hai NV của period-flow (bậc 1 và bậc 3)
 const OTHERS = ['qa_tts1', 'qa_ctv1'];
 
@@ -50,7 +47,6 @@ function expectSlip(slip, legacyM, adds, label) {
 
 test(
   'block-add-allowance: khối "ăn trưa" 500.000 cố định cho chức vụ NV, chịu thuế, không vào nền bảo hiểm: thêm đúng 500.000 vào tổng thu nhập của hai NV và thực lĩnh theo đuôi luật; TTS và CTV không đổi một đồng',
-  RED('chưa có POST /api/blocks'),
   async () => {
     const M = await P.setupMonth();
     const legacy = flow.expectedFor(M);
@@ -72,7 +68,6 @@ test(
 
 test(
   'block-add-allowance: khối hiện ở GET /api/entitlements (hàng của bảng quyền lợi, thành phần ③) và có trong nhật ký; không khối nào thì người dùng cũ không có trường mới (kiểm ở payroll-golden)',
-  RED('chưa có POST /api/blocks'),
   async () => {
     const M = await P.setupMonth();
     const audit0 = P.auditRows('param.set').length;
@@ -87,8 +82,7 @@ test(
 );
 
 test(
-  'block-add-allowance: đầu vào sai là 400 và không lưu gì: thiếu nhãn, số tiền âm hoặc lẻ, chức vụ lạ, thiếu lý do; nhân sự 403, chưa đăng nhập 401',
-  RED('chưa có POST /api/blocks'),
+  'block-add-allowance: đầu vào sai là 400 và không lưu gì: thiếu nhãn, số tiền âm hoặc lẻ, chức vụ lạ, lý do quá dài; nhân sự 403, chưa đăng nhập 401',
   async () => {
     const M = await P.setupMonth();
     const before = F.snapshot();
@@ -97,7 +91,8 @@ test(
       [{ ...lunch(-1) }, 'số tiền âm'],
       [{ ...lunch(1500.5) }, 'số tiền lẻ'],
       [{ label: 'Khối chức vụ lạ', method: 'fixed', values: { khongco: { on: true, amount: 1000 } } }, 'chức vụ lạ'],
-      [{ ...lunch(500000), reason: '' }, 'thiếu lý do']
+      // Lý do không bắt buộc ở mọi nơi trong dự án (lib/warnings.js optionalReason); chỉ quá dài (> REASON_MAX) mới là lỗi
+      [{ ...lunch(500000), reason: 'x'.repeat(301) }, 'lý do quá dài']
     ];
     for (const [body, what] of bad) {
       const res = await postBlock(M, body);
@@ -111,7 +106,6 @@ test(
 
 test(
   'block-flags-unconfirmed: cờ miễn thuế toàn bộ và tính vào bảo hiểm mới ĐỀ NGHỊ (chưa Kế toán xác nhận) thì tính như chịu thuế và không vào nền bảo hiểm, y số của khối chịu thuế',
-  RED('chưa có POST /api/blocks và cờ chưa xác nhận'),
   async () => {
     const M = await P.setupMonth();
     const legacy = flow.expectedFor(M);
@@ -127,7 +121,6 @@ test(
 
 test(
   'block-flags-unconfirmed: C&B (không có config.legal) không tự xác nhận được cờ (403); Kế toán xác nhận thì từ tháng đó cờ có hiệu lực: miễn thuế toàn bộ giữ nguyên thuế, bảo hiểm tính trên nền có khối khi insurance.base cho phép',
-  RED('chưa có PUT /api/blocks/:code/confirm'),
   async () => {
     const M2 = P.setupMonth.pool(); // tháng sau của hai tháng (dãy tháng giảm dần): khối thêm ở M1 mang sang M2
     const M1 = await P.setupMonth();
@@ -157,7 +150,8 @@ test(
       body: { basis: 'Căn cứ thử nghiệm của Kế toán', effectiveMonth: M2 }
     });
     assert.equal(ok.status, 200, JSON.stringify(ok.data));
-    const legacy = flow.expectedFor(M2);
+    // Khối đã mang sang M2 từ M1, nên "khối cũ" của M2 phải tính KHÔNG có khối (nếu không sẽ đếm 20 triệu hai lần)
+    const legacy = flow.expectedFor(M2, { withoutBlocks: true });
     const slips = await slipsOf(M2);
     for (const u of NV) expectSlip(slips[u], legacy[u].m, { addExempt: 20000000 }, u);
   }
@@ -165,7 +159,6 @@ test(
 
 test(
   'block-per-level: khối "theo bậc" (300.000 bậc 1, 500.000 bậc 3) cộng đúng theo bậc của từng người: NV bậc 1 +300.000, NV bậc 3 +500.000, người ngoài chức vụ không đổi',
-  RED('chưa có khối theo bậc'),
   async () => {
     const M = await P.setupMonth();
     const legacy = flow.expectedFor(M);
@@ -185,7 +178,6 @@ test(
 
 test(
   'block-per-level: khối thiếu giá trị của một bậc bị từ chối (400) và không lưu gì; ô tắt (on = false) của chức vụ thì chức vụ đó không nhận khối',
-  RED('chưa có khối theo bậc'),
   async () => {
     const M = await P.setupMonth();
     const before = F.snapshot();

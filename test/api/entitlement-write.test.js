@@ -2,16 +2,13 @@
 // matrix-cell-write, entitlement-override: bảng quyền lợi là MỘT GÓC NHÌN trên khoá có sẵn,
 // nên ghi một ô là PUT /api/settings/params (đường ghi duy nhất: tháng áp dụng, lý do, nhật ký, hoàn tác), đọc lại ở GET /api/entitlements và có hiệu lực ở
 // máy chủ và bộ máy. Ghi đè theo chức vụ (type.<mã>.ot.rate, advanceRate, overLimitHours; null = kế thừa) vẫn bị sàn luật chặn.
-// Ca bọc RED(...) (openBug) là phần máy chủ chưa đáp ứng; RED=1 npm test để thấy từng ca đỏ vì lý do gì.
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { openBug } = require('../helpers/open-bug');
 const { Engine, caseOf, clone } = require('../helpers/pay-oracle');
 const { SHIFT } = require('../../public/punch.js');
 
-const { F, flow, DEFAULTS } = P;
-const RED = (what, step = '1a-2') => openBug(step, 'backend-dev', what);
+const { F, flow } = P;
 const KNOWN = 'known-kpi-five-100-90-80-85-100';
 
 before(F.start);
@@ -80,7 +77,6 @@ test('matrix-cell-write: chỉ người có config.payroll ghi được ô (C&B,
 
 test(
   'entitlement-override: ghi đè theo chức vụ type.nv.ot.rate dưới sàn luật (1,4 < 1,5, Bộ luật Lao động 2019 Điều 98) vẫn lưu, kèm cảnh báo PARAM_BELOW_LEGAL_FLOOR; 2,5 được; null (kế thừa) được',
-  RED('khoá ghi đè type.<mã>.ot.rate chưa có trong registry', '1b-1'),
   async () => {
     const M = await P.setupMonth();
     const low = await P.saveChanges([{ key: 'type.nv.ot.rate', value: 1.4 }], { month: M });
@@ -98,21 +94,28 @@ test(
 
 test(
   'entitlement-override: type.nv.advanceRate = 0,5 lưu qua API làm tạm ứng của hai NV trên phiếu giảm theo 50 % (đúng bộ máy chạy bộ tham số đó), TTS và CTV giữ tạm ứng cũ',
-  RED('khoá ghi đè type.<mã>.advanceRate chưa có', '1b-1'),
   async () => {
     const M = await P.setupMonth();
     const legacy = flow.expectedFor(M);
     const save = await P.saveChanges([{ key: 'type.nv.advanceRate', value: 0.5 }], { month: M });
     assert.equal(save.status, 200, JSON.stringify(save.data));
+    assert.equal(P.paramsOf(M)['type.nv.advanceRate'], 0.5, 'bộ tham số hiệu lực của tháng mang ghi đè');
     await P.advance(M, 'calculated');
     const slips = flow.payslipsOf(M).slips;
-    const over = { ...DEFAULTS, 'type.nv.advanceRate': 0.5 };
+    // Tạm ứng chỉ trừ vào phiếu khi Admin đã duyệt yêu cầu của tháng (không duyệt thì 0), nên phiếu so với bộ máy chạy đúng bộ tham số đó,
+    // còn tác động của ghi đè đo ở mức tạm ứng tối đa theo quy tắc (trace.tamUngToiDa).
     for (const u of ['qa_nv1', 'qa_nv2']) {
-      const expected = Engine.computeMonth(flow.legacyInput(u, M), over).m.net;
-      assert.equal(slips[u].advance, expected.advance, `${u}: tạm ứng`);
-      assert.equal(slips[u].net, expected.net, `${u}: thực lĩnh`);
-      assert.ok(slips[u].advance < legacy[u].net.advance, `${u}: tạm ứng giảm so với 80 %`);
+      const expected = flow.computeFor(u, M);
+      assert.equal(slips[u].advance, expected.net.advance, `${u}: tạm ứng`);
+      assert.equal(slips[u].net, expected.net.net, `${u}: thực lĩnh`);
+      const before = legacy[u].m;
+      assert.ok(before.trace.tamUngToiDa > 0, `${u}: có mức tạm ứng tối đa để so`);
+      assert.ok(
+        Math.abs(expected.trace.tamUngToiDa - Math.round(before.advanceBase * 0.5)) <= 1,
+        `${u}: mức tạm ứng tối đa giảm còn 50 % cơ sở tạm ứng`
+      );
     }
-    for (const u of ['qa_tts1', 'qa_ctv1']) assert.equal(slips[u].advance, legacy[u].net.advance, u);
+    for (const u of ['qa_tts1', 'qa_ctv1'])
+      assert.equal(flow.computeFor(u, M).trace.tamUngToiDa, legacy[u].m.trace.tamUngToiDa, `${u}: không đổi`);
   }
 );

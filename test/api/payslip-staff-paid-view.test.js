@@ -13,7 +13,6 @@ const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
-const { openBug } = require('../helpers/open-bug');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -243,17 +242,11 @@ test('Lần tính có params_json là JSON null, chuỗi không phải JSON ho�
     assert.equal(status.list, 200, `danh sách vẫn đọc được, params_json=${broken}`);
   }
 });
-// Dữ liệu hỏng hiếm không được làm trả 500 (test gắn openBug):
 //   1. params_json là số hoặc chuỗi JSON: public/payroll-params.js → fillLate gọi WeakMap.set với khoá không phải đối tượng
 //      (TypeError qua lib/periods.js → workdaysStdOf) nên chi tiết phiếu trả 500;
 //   2. params_json = 'null': lib/periods.js → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
 test(
   'params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500',
-  openBug(
-    'PARAMS-BROKEN',
-    'backend-dev',
-    'fillLate (params là số/chuỗi) và allowanceStatus (params null) ném TypeError nên trả 500'
-  ),
   async () => {
     for (const broken of ['123', '"chuỗi"', 'null', '[]']) {
       const status = await brokenParamsStatuses(broken);

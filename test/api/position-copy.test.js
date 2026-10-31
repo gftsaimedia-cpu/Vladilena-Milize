@@ -4,12 +4,10 @@
 //     position.def.<mã> + mọi khoá type.<nguồn>.* và level.<nguồn>.* rồi gọi cùng save() (một giao dịch, tháng áp dụng, lý do, nhật ký).
 //   Trùng mã: 409 POSITION_CODE_CLASH; nguồn lạ: 400 POSITION_UNKNOWN; mã loại lạ khi tạo nhân sự là 400 (không rơi về tts).
 //   GET /api/positions?month= và GET /api/entitlements?month= ({ positions, blocks, cells, paramsRev }, quyền config.read).
-// Test gắn openBug chạy như todo khi còn lỗi; RED=1 npm test để thấy từng test đỏ vì lý do gì.
 // Tên trường chưa cố định nên test chấp nhận vài tên và kiểm số tiền (helpers/position-api.js → pick, findKey).
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { openBug } = require('../helpers/open-bug');
 const { Engine, clone } = require('../helpers/pay-oracle');
 const { LEGACY_OVERRIDE } = require('../helpers/legacy-params');
 const { caseOf } = require('../helpers/pay-oracle');
@@ -18,7 +16,6 @@ const { attendDeclaredDays } = require('../helpers/payroll-cases');
 const { F, store } = P;
 const NV1 = 'known-kpi-five-100-90-80-85-100';
 const NV3 = 's20261015-00018';
-const RED = (what, owner = 'backend-dev') => openBug('1a-2', owner, what);
 
 before(F.start);
 after(F.stop);
