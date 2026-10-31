@@ -19,7 +19,7 @@ function walk(dir) {
   return fs.readdirSync(abs, { withFileTypes: true }).flatMap(entry => {
     const rel = `${dir}/${entry.name}`;
     if (entry.isDirectory()) return walk(rel);
-    return entry.name.endsWith('.js') ? [rel] : [];
+    return /\.(js|ts)$/.test(entry.name) ? [rel] : [];
   });
 }
 
@@ -76,7 +76,7 @@ async function findCycles(graph) {
   return [...cycles.values()];
 }
 
-const FILES = ['server.js', ...walk('lib')];
+const FILES = ['server.js', ...walk('lib'), ...walk('src')];
 const GRAPH = buildGraph(FILES);
 
 test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể cả require trong hàm)', async () => {
@@ -86,7 +86,7 @@ test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể c�
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
   assert.ok(GRAPH.get('server.js').has('lib/db.js'), 'server.js → lib/db.js');
-  assert.ok(GRAPH.get('server.js').has('lib/authz.js'));
+  assert.ok(GRAPH.get('src/http/api-gate.ts').has('lib/authz.js'), 'cổng ApiGuard → lib/authz.js');
   assert.ok(GRAPH.get('lib/auth.js').has('lib/db.js'));
   const edges = [...GRAPH.values()].reduce((n, set) => n + set.size, 0);
   assert.ok(edges >= 30, `chỉ thấy ${edges} cạnh`);

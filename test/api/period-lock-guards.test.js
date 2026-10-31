@@ -210,6 +210,8 @@ const EXEMPT = {
   'POST /settings/params/preview': 'chỉ xem trước tác động, không ghi',
   'POST /settings/params/revert': 'hoàn tác bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu',
   'PUT /staff/shift-bulk': 'gán ca theo hồ sơ (profile.write), không ghi ngày công của một kỳ cụ thể',
+  'PUT /staff/:u/roles': 'gán vai trò cho tài khoản, không theo tháng',
+  'POST /staff/:u/password': 'đặt lại mật khẩu của tài khoản khác, không đổi dữ liệu lương',
   'PUT /staff/:u': 'hồ sơ ảnh hưởng lương: TK 6.2 nói "các trường ảnh hưởng lương, xem 8.6" nhưng chưa nói tháng nào',
   'POST /ai/findings':
     'bỏ qua cờ AI của lần tính nháp, không theo tháng của dữ liệu (kiểm theo lần chạy nháp: PERIOD_STATE khi đã chốt)'

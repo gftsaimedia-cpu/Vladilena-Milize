@@ -51,6 +51,7 @@ const ADMIN_ONLY = [
   ['PUT', '/staff/qa_nobody', {}],
   ['GET', '/roles'],
   ['PUT', '/staff/qa_nobody/roles', { roles: ['staff'], reason: 'Thử quyền của route vai trò' }],
+  ['POST', '/staff/qa_nobody/password', { password: 'MatKhau-Thu-12345' }],
   ['PUT', '/staff/shift-bulk', {}]
 ];
 const keyOf = ([method, url]) => `${method} ${'/' + url.slice(1).split('?')[0].split('/').slice(0, 2).join('/')}`;
@@ -59,13 +60,9 @@ const adminOnlyKeys = new Set(ADMIN_ONLY.map(keyOf).map(k => k.replace(/\/(qa_no
 test('permissions-matrix: mọi route chỉ-Admin trong server.js có mặt trong bảng của test này (thêm route Admin mới mà quên thì đỏ)', () => {
   const source = serverSource(); // mã máy chủ: server.js, lib/routes và lib/domain
   const lines = source.split('\n');
-  const found = new Set(adminRouteKeysInSource(source)); // `route === '…'` hoặc mục bảng, handler gọi needAdmin()
-  lines.forEach(line => {
-    if (/seg\[1\] === 'staff' && seg\[2\]/.test(line)) {
-      found.add('PUT /staff/:id');
-    }
-  });
-  assert.ok(found.size >= 20, `chỉ nhận ra ${found.size} route chỉ-Admin: mẫu nhận dạng đã lỗi thời`);
+  // khoá có tham số của nhóm /staff/:u (hồ sơ, vai trò, mật khẩu) gom về 'METHOD /staff/:id' như keyOf ở trên
+  const found = new Set([...adminRouteKeysInSource(source)].map(k => k.replace(/^(\w+) \/staff\/:u(\/.*)?$/, '$1 /staff/:id')));
+  assert.ok(found.size >= 19, `chỉ nhận ra ${found.size} route chỉ-Admin: mẫu nhận dạng đã lỗi thời`);
   assert.deepEqual(
     [...found].filter(k => !adminOnlyKeys.has(k)),
     [],

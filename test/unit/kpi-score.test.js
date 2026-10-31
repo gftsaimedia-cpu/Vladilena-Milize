@@ -71,10 +71,10 @@ test('COMPONENTS khớp SLIP_QTY của server.js: wework→kpiBase, user→kpiUs
   const map = { wework: 'kpiBase', user: 'kpiUser', peer: 'kpiPeer', manager: 'kpiQltt', self: 'kpiSelf' };
   assert.deepEqual(KpiScore.COMPONENTS.map(c => c.key).sort(), Object.keys(map).sort());
   // đọc đúng file khai báo SLIP_QTY (server.js hoặc lib/routes/slip.js), không ghép chuỗi: indexOf đầu tiên có thể trúng chỗ khác
-  const owner = serverFiles().find(rel => /^const SLIP_QTY = /m.test(serverSourceOf(rel)));
+  const owner = serverFiles().find(rel => /^(?:export )?const SLIP_QTY = /m.test(serverSourceOf(rel)));
   assert.ok(owner, 'không thấy khai báo const SLIP_QTY trong mã máy chủ');
   const text = await serverSourceOf(owner);
-  const at = text.search(/^const SLIP_QTY = /m);
+  const at = text.search(/^(?:export )?const SLIP_QTY = /m);
   const block = text.slice(at, at + 800);
   for (const name of Object.values(map)) assert.ok(block.includes(`'${name}'`), `SLIP_QTY thiếu ${name}`);
 });
