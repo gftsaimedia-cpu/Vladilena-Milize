@@ -123,6 +123,32 @@ export class AttendanceSessionsRepository {
     return Number(result.numUpdatedRows);
   }
 
+  /** Lượt bấm của nhiều phiên, id tăng dần. */
+  punchesOfSessions(sessionIds: number[]): Promise<PunchRow[]> {
+    return this.qb.selectFrom('punches').selectAll().where('session_id', 'in', sessionIds).orderBy('id').execute();
+  }
+
+  /** Người có phiên đang mở bắt đầu trước `before` (ISO). */
+  staleOpenUsers(before: string): Promise<{ username: string }[]> {
+    return this.qb
+      .selectFrom('attendance_sessions')
+      .select('username')
+      .where('state', '=', 'open')
+      .where(sql<boolean>`json_extract(entry_json,'$.presIn') < ${before}`)
+      .execute();
+  }
+
+  /** Xoá lượt do Admin khai (điều kiện origin nằm ngay trong câu lệnh: không bao giờ xoá nhầm lượt bấm thật); trả số dòng xoá. */
+  async removeOrigin(id: number, version: number, origin: string): Promise<number> {
+    const result = await this.qb
+      .deleteFrom('attendance_sessions')
+      .where('id', '=', id)
+      .where('version', '=', version)
+      .where(sql<boolean>`json_extract(entry_json,'$.origin') = ${origin}`)
+      .executeTakeFirst();
+    return Number(result.numDeletedRows);
+  }
+
   punchesOf(sessionId: number): Promise<PunchRow[]> {
     return this.qb.selectFrom('punches').selectAll().where('session_id', '=', sessionId).orderBy('id').execute();
   }

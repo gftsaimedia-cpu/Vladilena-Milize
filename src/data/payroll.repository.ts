@@ -20,6 +20,12 @@ export class PayrollPeriodsRepository {
     return query.orderBy('month').execute();
   }
 
+  /** Tháng nhỏ nhất đã có dòng, hoặc null khi chưa có kỳ nào. */
+  async firstMonth(): Promise<string | null> {
+    const row = await this.qb.selectFrom('payroll_periods').select(sql<string | null>`MIN(month)`.as('month')).executeTakeFirstOrThrow();
+    return row.month ?? null;
+  }
+
   async insertOpen(month: string): Promise<void> {
     await this.qb.insertInto('payroll_periods').values({ month, status: 'open', rev: 0 }).execute();
   }

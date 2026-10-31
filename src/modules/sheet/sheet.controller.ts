@@ -199,7 +199,7 @@ export class SheetController {
           unchanged.push(person.username);
           continue;
         }
-        await store.db.prepare('UPDATE staff SET shift_code = ? WHERE username = ?').run(shiftCode, person.username);
+        await store.repos.staff.setShift(person.username, shiftCode);
         await audit.write(actx, {
           action: 'staff.update',
           entityKind: 'staff',

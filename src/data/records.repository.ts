@@ -170,6 +170,16 @@ export class StaffRepository {
     return !!(await this.qb.selectFrom('staff').select('username').where('username', '=', username).executeTakeFirst());
   }
 
+  /** Tài khoản chưa khai đóng bảo hiểm (insured NULL: theo mặc định của hợp đồng). */
+  async usernamesWithUnsetInsured(): Promise<string[]> {
+    const rows = await this.qb.selectFrom('staff').select('username').where('insured', 'is', null).execute();
+    return rows.map(r => r.username);
+  }
+
+  async setShift(username: string, shiftCode: string | null): Promise<void> {
+    await this.qb.updateTable('staff').set({ shift_code: shiftCode }).where('username', '=', username).execute();
+  }
+
   roleAndLock(username: string): Promise<{ role: string; locked_at: string | null } | undefined> {
     return this.qb.selectFrom('staff').select(['role', 'locked_at']).where('username', '=', username).executeTakeFirst();
   }
@@ -315,6 +325,11 @@ export class CorrectionsRepository {
 
   find(id: number): Promise<CorrectionRow | undefined> {
     return this.qb.selectFrom('corrections').selectAll().where('id', '=', id).executeTakeFirst();
+  }
+
+  /** Yêu cầu của các phiên `sessionIds`, id giảm dần. */
+  ofSessions(sessionIds: number[]): Promise<CorrectionRow[]> {
+    return this.qb.selectFrom('corrections').selectAll().where('session_id', 'in', sessionIds).orderBy('id', 'desc').execute();
   }
 
   list(filter: CorrectionFilter, page?: { limit: number; offset: number }): Promise<CorrectionRow[]> {

@@ -1,4 +1,4 @@
-import { Kysely, Selectable, sql } from 'kysely';
+import { Insertable, Kysely, Selectable, sql } from 'kysely';
 import type { Schema } from './schema.generated';
 
 export type ParamVersionRow = Selectable<Schema['param_versions']>;
@@ -44,6 +44,17 @@ export class ParamVersionsRepository {
   async lastId(): Promise<number> {
     const row = await this.qb.selectFrom('param_versions').select(sql<number>`COALESCE(MAX(id), 0)`.as('id')).executeTakeFirstOrThrow();
     return Number(row.id);
+  }
+
+  /** Thêm một dòng; trả id mới. */
+  async insert(row: Insertable<Schema['param_versions']>): Promise<number> {
+    const result = await this.qb.insertInto('param_versions').values(row).executeTakeFirstOrThrow();
+    return Number(result.insertId);
+  }
+
+  /** Các dòng có hiệu lực từ đúng tháng `month` (khoá, tháng, lúc tạo), cũ → mới. */
+  inMonth(month: string): Promise<Pick<ParamVersionRow, 'key' | 'effective_month' | 'created_at'>[]> {
+    return this.qb.selectFrom('param_versions').select(['key', 'effective_month', 'created_at']).where('effective_month', '=', month).orderBy('id').execute();
   }
 
   async byBatch(batchId: string): Promise<ParamVersionRow[]> {
