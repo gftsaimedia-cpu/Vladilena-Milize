@@ -13,7 +13,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
 const SINGLE = ['server.js', 'lib/http.js', 'lib/request-rules.js', 'lib/announce.js'];
-const TREES = ['lib/routes', 'lib/domain'];
+const TREES = ['lib/routes', 'lib/domain', 'src']; // src: module NestJS (.ts)
 
 function walk(dir) {
   const abs = path.join(ROOT, dir);
@@ -22,7 +22,7 @@ function walk(dir) {
   for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
     const rel = `${dir}/${entry.name}`;
     if (entry.isDirectory()) out.push(...walk(rel));
-    else if (entry.isFile() && rel.endsWith('.js')) out.push(rel);
+    else if (entry.isFile() && (rel.endsWith('.js') || rel.endsWith('.ts'))) out.push(rel);
   }
   return out;
 }
@@ -56,10 +56,33 @@ const keysOnLine = line => [
   ...[...line.matchAll(ROUTE_CONDITION)].map(m => `${m[1]} ${m[2]}`),
   ...[...line.matchAll(TABLE_ENTRY)].map(m => `${m[1]} ${m[2]}`)
 ];
+// Dạng Nest (src/**/*.ts): @Controller('api/tiền-tố') rồi @Get|Post|Put|Patch|Delete('đường-dẫn') → khoá 'METHOD /tiền-tố/đường-dẫn'.
+const CONTROLLER = /@Controller\(\s*'([^']*)'\s*\)/;
+const NEST_ROUTE = /@(Get|Post|Put|Patch|Delete)\(\s*(?:'([^']*)')?\s*\)/;
+const joinPath = (...parts) =>
+  '/' +
+  parts
+    .join('/')
+    .split('/')
+    .filter(Boolean)
+    .join('/');
+// chỉ số dòng → khoá, theo @Controller gần nhất phía trên
+function nestKeysOf(lines) {
+  const keys = new Map();
+  let prefix = '';
+  lines.forEach((line, index) => {
+    const controller = CONTROLLER.exec(line);
+    if (controller) prefix = controller[1].replace(/^api\/?/, '');
+    const route = NEST_ROUTE.exec(line);
+    if (route) keys.set(index, `${route[1].toUpperCase()} ${joinPath(prefix, route[2] || '')}`);
+  });
+  return keys;
+}
 
 // Mọi khoá route khai báo trong mã máy chủ
 function routeKeysInSource(source = serverSource()) {
-  return new Set(source.split('\n').flatMap(keysOnLine));
+  const lines = source.split('\n');
+  return new Set([...lines.flatMap(keysOnLine), ...nestKeysOf(lines).values()]);
 }
 // Khoá route mà handler gọi needAdmin() trong 4 dòng đầu
 function adminRouteKeysInSource(source = serverSource()) {
@@ -69,6 +92,8 @@ function adminRouteKeysInSource(source = serverSource()) {
     const near = lines.slice(index, index + 4).join('\n');
     if (/needAdmin\(\)/.test(near)) for (const key of keysOnLine(line)) found.add(key);
   });
+  for (const [index, key] of nestKeysOf(lines))
+    if (/needAdmin\(\)/.test(lines.slice(index, index + 4).join('\n'))) found.add(key);
   return found;
 }
 

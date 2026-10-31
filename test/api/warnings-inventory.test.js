@@ -16,10 +16,11 @@ function sources() {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith('.js') && path.basename(full) !== 'warnings.js') out.push(full);
+      else if (/.(js|ts)$/.test(entry.name) && path.basename(full) !== 'warnings.js') out.push(full);
     }
   };
   walk(path.join(ROOT, 'lib'));
+  walk(path.join(ROOT, 'src'));
   return out.map(file => ({
     file: path.relative(ROOT, file).replaceAll('\\', '/'),
     text: fs.readFileSync(file, 'utf8')

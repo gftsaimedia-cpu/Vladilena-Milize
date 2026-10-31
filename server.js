@@ -1,7 +1,8 @@
 // Lương Nhân Sự — web app tính lương tự phục vụ. Chạy: node server.js (Node.js >= 22.13, không cần npm install).
 // Số luồng libuv phải đặt TRƯỚC khi có việc nền đầu tiên (băm mật khẩu, nén gzip); biến môi trường do người vận hành đặt thì giữ.
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || String(require('./lib/config').UV_THREADPOOL_SIZE);
-const http = require('node:http');
+require('./lib/register-ts'); // nạp TypeScript lúc chạy cho src/** (kiểm kiểu: npm run typecheck)
+const { createServer } = require('./src/bootstrap');
 const { AsyncList } = require('./lib/shared/async-list');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -101,25 +102,7 @@ const { attachAccessLog } = require('./lib/ops/access-log'); // nhật ký truy 
 const explanations = require('./lib/explanations'); // giải trình Check-out muộn
 const { container } = require('./lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
 const { PersonName } = require('./lib/domain/employee/person-name'); // họ trước, tên sau
-const { Overloaded, AsyncGate, RateLimiter, LoadShedder } = require('./lib/ops/limiters'); // giới hạn tải trong bộ nhớ
-const { HEAVY_ROUTES, UNLIMITED_WRITE_ROUTES } = require('./lib/ops/route-classes'); // route nặng bị từ chối khi quá tải; route ghi không bị giới hạn tốc độ
-const monitor = new RuntimeMonitor();
-let apiInflight = 0; // yêu cầu API đang xử lý (không tính luồng SSE sống lâu)
-// Biến môi trường (số dương) ghi đè giá trị mặc định trong lib/config.js: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
-const limitOf = (name, fallback) => (Number(process.env[name]) > 0 ? Number(process.env[name]) : fallback);
-const hashGate = new AsyncGate({
-  limit: limitOf('PASSWORD_HASH_CONCURRENCY', config.PASSWORD_HASH_CONCURRENCY),
-  maxQueue: config.PASSWORD_HASH_QUEUE_MAX,
-  retryAfterSec: config.OVERLOAD_RETRY_AFTER_SEC
-});
-const writeLimiter = new RateLimiter({ perMinute: limitOf('WRITE_RATE_PER_MINUTE', config.WRITE_RATE_PER_MINUTE) });
-const shedder = new LoadShedder({
-  lagMs: () => monitor.recent().p50, // trễ KÉO DÀI (trung vị): một phép tính nặng đơn lẻ làm p99/max vọt lên nhưng không phải quá tải
-  inflight: () => apiInflight,
-  maxLagMs: limitOf('SHED_MAX_LAG_MS', config.SHED_MAX_LAG_MS),
-  maxInflight: limitOf('SHED_MAX_INFLIGHT', config.SHED_MAX_INFLIGHT),
-  retryAfterSec: config.OVERLOAD_RETRY_AFTER_SEC
-});
+const { monitor, hashGate, writeLimiter, shedder } = require('./src/http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
 const warnings = require('./lib/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 // Lý do ghi nhận (đặt lại mật khẩu, gán vai trò, gán ca): không bắt buộc, quá ${config.REASON_MAX} ký tự là 400. Trả '' khi trống.
@@ -503,76 +486,9 @@ async function cleanDays(days) {
 const loginAddress = clientIp;
 
 /* ---------- API ---------- */
-// Ghi vào kỳ đã duyệt hoặc chi trả: phiếu của lần chạy đã chốt là bản chụp đóng băng (lib/db.js → freezeOverrides, trigger payslips_frozen_update),
-// số đã trả KHÔNG đổi theo dữ liệu vừa lưu cho tới khi kỳ được mở lại và tính lại. Cảnh báo nói thẳng điều đó.
-async function warnFrozen(month) {
-  const period = await store.periods.get(month);
-  if (period.status === 'approved' || period.status === 'paid')
-    warnings.warn(
-      'PERIOD_FROZEN',
-      `Kỳ ${month} đã ${period.status === 'paid' ? 'chi trả' : 'duyệt'}: số trên phiếu đã chốt KHÔNG đổi cho tới khi kỳ được mở lại và tính lại; thay đổi vừa lưu chỉ có tác dụng từ lúc đó.`,
-      { details: { month, status: period.status } }
-    );
-}
-async function api(req, res, url, me) {
-  const seg = url.pathname.split('/').filter(Boolean); // ['api', ...]
-  const route = `${req.method} /${seg.slice(1, 3).join('/')}`;
-  const need = () => {
-    if (!me) throw new HttpError(401, 'Chưa đăng nhập');
-    return me;
-  };
-  // Cổng quyền MỘT chỗ: route không có trong ROUTE_CAPS bị từ chối mặc định; thiếu năng lực thì 403 trước khi đọc thân yêu cầu.
-  const policy = authz.policyOf(authz.routeKey(req.method, seg));
-  if (!policy) {
-    need();
-    throw new HttpError(403, 'Đường dẫn này chưa có chính sách quyền, bị từ chối', { code: 'NO_ROUTE_POLICY' });
-  }
-  if (!policy.public) {
-    need();
-    if (await authz.gate(me, policy))
-      throw new HttpError(403, 'Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này', {
-        code: 'FORBIDDEN_CAP',
-        cap: policy.cap
-      });
-  }
-  // Giới hạn tải (sau cổng quyền, trước khi đọc thân yêu cầu): route nặng bị từ chối khi máy chủ nghẽn; lệnh ghi của một người bị giới hạn tốc độ
-  const routeKey = authz.routeKey(req.method, seg);
-  if (HEAVY_ROUTES.has(routeKey)) {
-    const reason = shedder.check();
-    if (reason)
-      throw new Overloaded(`Máy chủ đang bận (${reason}), thử lại sau ít giây`, config.OVERLOAD_RETRY_AFTER_SEC);
-  }
-  if (me && req.method !== 'GET' && !UNLIMITED_WRITE_ROUTES.has(routeKey)) {
-    const waitSec = writeLimiter.take(me.username);
-    if (waitSec > 0)
-      return send(
-        res,
-        429,
-        { error: `Bạn thao tác quá nhanh. Thử lại sau ${waitSec} giây.`, code: 'WRITE_RATE_LIMITED' },
-        { 'Retry-After': String(waitSec) }
-      );
-  }
-  const actx = me ? await audit.context(me) : null; // ngữ cảnh nhật ký của yêu cầu này
-  // Test tĩnh permissions-matrix nhận dạng route chỉ-Admin bằng tên hàm này. Cổng thật đã chạy ở trên;
-  // hàm này chỉ khẳng định route đã khai báo một năng lực và người gọi đã qua cổng đó.
-  const needAdmin = () => {
-    need();
-    if (!policy.cap) throw new Error('needAdmin() dùng ở route không khai báo năng lực trong ROUTE_CAPS');
-    return me;
-  };
-  // Cổng khoá kỳ: gọi ở route ghi sau khi kiểm đầu vào; kỳ đã khoá thì ghi cảnh báo PERIOD_LOCKED và route vẫn lưu. dates: ngày hoặc tháng (YYYY-MM-DD | YYYY-MM)
-  const guardPeriod = async (...dates) => {
-    if (!policy.periodScope) throw new Error('guardPeriod() dùng ở route không khai báo periodScope');
-    for (const month of new Set(
-      dates
-        .flat()
-        .filter(Boolean)
-        .map(d => String(d).slice(0, 7))
-    )) {
-      await store.assertPeriodOpen(month, policy.periodScope);
-      await warnFrozen(month);
-    }
-  };
+
+// Bộ xử lý cũ cho route chưa chuyển sang module Nest (src/). Cổng quyền, giới hạn tải, giới hạn tốc độ ghi đã chạy ở src/http (ApiGuard).
+async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmin, guardPeriod }) {
   const routed = domainRoutes.handlerFor(seg); // quyền đã kiểm ở cổng ROUTE_CAPS ở trên
   if (routed) return await routed({ req, res, seg, url, me, actx });
 
@@ -2369,41 +2285,8 @@ async function api(req, res, url, me) {
 
 /* ---------- server ---------- */
 Roles.reconcileStaffRole().catch(error => console.error('reconcileStaffRole:', error)); // tài khoản đã gán vai trò staff mà payrollSubject còn false thì bật (staff = nhân sự được trả lương)
-const server = http.createServer(async (req, res) => {
-  securityHeaders(res);
-  let url;
-  try {
-    url = new URL(req.url, 'http://localhost');
-  } catch {
-    return send(res, 400, { error: 'Địa chỉ yêu cầu không hợp lệ' });
-  }
-  if (!url.pathname.startsWith('/api/')) return serveStatic(req, res, url);
-  if (url.pathname !== '/api/events') {
-    apiInflight++;
-    res.once('close', () => apiInflight--);
-  }
-  try {
-    const sessionUser = await auth.readSession(req.headers.cookie);
-    const me = sessionUser ? await store.getStaff(sessionUser) : null;
-    await warnings.run(async () => await requestRules.run(new Map(), async () => await api(req, res, url, me)));
-    announceAttendance();
-    await announcePunches();
-  } catch (e) {
-    attendanceHints.clear(); // lỗi thì giao dịch đã hoàn tác: không báo
-    punchHints.clear();
-    // Lỗi xảy ra SAU khi đã trả lời (announce*, báo tin SSE): chỉ ghi log. Trả lời lần hai sẽ ném ERR_HTTP_HEADERS_SENT
-    // ngay trong catch này, và một rejection không ai bắt làm Node thoát tiến trình (mất cả hệ thống).
-    if (res.headersSent || res.writableEnded) return console.error(e);
-    if (e instanceof Overloaded)
-      return send(res, 503, { error: e.message, code: 'OVERLOADED' }, { 'Retry-After': String(e.retryAfterSec) });
-    if (e instanceof HttpError) return send(res, e.status, { error: e.message, ...e.details });
-    // Lỗi có mã của store (PERIOD_LOCKED, SLIP_STALE, REASON_REQUIRED...): code và mã HTTP do store quyết, chi tiết trải ra như HttpError
-    if (e && typeof e.code === 'string' && Number.isInteger(e.httpStatus) && e.httpStatus < 500)
-      return send(res, e.httpStatus, { error: e.message, code: e.code, ...e.details });
-    console.error(e);
-    send(res, 500, { error: 'Lỗi máy chủ' });
-  }
-});
+// HTTP do Nest đảm nhận (src/): route đã chuyển module chạy ở đó, phần còn lại rơi về api() ở trên.
+const server = createServer(api);
 // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem lib/config.js → HTTP_KEEP_ALIVE_MS)
 server.keepAliveTimeout = config.HTTP_KEEP_ALIVE_MS;
 server.headersTimeout = config.HTTP_HEADERS_TIMEOUT_MS;
