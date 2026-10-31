@@ -1,4 +1,3 @@
-'use strict';
 // Route yêu cầu tạm ứng theo tháng (lưu ở ./advance-approvals.js). lib/domain/routes.js gửi
 // /api/advance-approvals/... tới handle(). Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.js → figuresOf); không ai nhập số.
 // CHỈ người cần mới gửi yêu cầu; chỉ trừ vào phiếu khi Admin đã duyệt. Không xin, đang chờ, bị từ chối: 0.
@@ -15,18 +14,18 @@
 //        bỏ qua người không còn được ứng, chính người duyệt, người ngoài phạm vi duyệt và người có số đã chốt bằng 0 (trả trong skipped)
 // Quyền: gửi / rút chỉ cho chính mình (cổng ROUTE_CAPS: đã đăng nhập); duyệt, từ chối, huỷ duyệt cần request.decide.advance ở phạm vi từng người
 // (cổng: request.decide.*). Kỳ đã duyệt hoặc đã chi trả: luôn 409 PERIOD_LOCKED (phiếu đã chốt, không đổi khoản trừ; kiểm chống ghi đè). Ghi, nhật ký trong một giao dịch; sự kiện sau khi COMMIT.
-const store = require('../../db');
-const authz = require('../../authz');
-const audit = require('../../audit');
-const events = require('../../events');
-const advanceCap = require('../../advance-cap');
-const { DECIDE_CAP } = require('../../advance-requests');
-const { selfDecision, optionalReason } = require('../../warnings');
-const { HttpError, send, readJson } = require('../../http');
-const { validMonth, USERNAME_RE, NOTE_MAX } = require('../input');
-const { advanceWindow, assertAdvanceWindowOpen, assertAdvanceMonthCurrent } = require('../limits');
-const { DomainError } = require('../shared/domain-error');
-const { advanceApprovals } = require('./index');
+const store = require('../../../lib/db');
+const authz = require('../../../lib/authz');
+const audit = require('../../../lib/audit');
+const events = require('../../../lib/events');
+const advanceCap = require('../../../lib/advance-cap');
+const { DECIDE_CAP } = require('../../../lib/advance-requests');
+const { selfDecision, optionalReason } = require('../../../lib/warnings');
+const { HttpError, send, readJson } = require('../../../lib/http');
+const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input');
+const { advanceWindow, assertAdvanceWindowOpen, assertAdvanceMonthCurrent } = require('../../../lib/domain/limits');
+const { DomainError } = require('../../../lib/domain/shared/domain-error');
+const { advanceApprovals } = require('../../../lib/domain/advance/index');
 
 // Trạng thái kỳ khoá mọi thay đổi tạm ứng: phiếu đã duyệt hoặc đã chi trả không đổi nữa
 const LOCKED_STATUSES = Object.freeze(['approved', 'paid']);
@@ -120,7 +119,7 @@ async function announce(month, usernames, decision) {
   }
 }
 
-async function list({ res, url, me }) {
+export async function list({ res, url, me }) {
   const q = url.searchParams;
   const month = q.get('month');
   if (!validMonth(month)) throw new HttpError(400, 'month phải có dạng YYYY-MM', { code: 'BAD_MONTH' });
@@ -155,7 +154,7 @@ async function list({ res, url, me }) {
 }
 
 // Nhân sự gửi hoặc rút yêu cầu của chính mình
-async function own({ req, res, me, actx }, move) {
+export async function own({ req, res, me, actx }, move) {
   const body = await readJson(req);
   const month = monthOf(body);
   if (move === 'request') {
@@ -187,7 +186,7 @@ async function own({ req, res, me, actx }, move) {
 }
 
 // Admin duyệt, từ chối hoặc huỷ duyệt yêu cầu của một người
-async function decideOne({ req, res, me, actx }, move) {
+export async function decideOne({ req, res, me, actx }, move) {
   const body = await readJson(req);
   const month = monthOf(body);
   const username = userOf(body && body.username);
@@ -214,7 +213,7 @@ async function decideOne({ req, res, me, actx }, move) {
   return send(res, 200, { month, rev: (await advanceApprovals.read(month)).rev, item: await itemOf(username, figure, done.after) });
 }
 
-async function approveAll({ req, res, me, actx }) {
+export async function approveAll({ req, res, me, actx }) {
   const body = await readJson(req);
   const month = monthOf(body);
   const pendingUsers = [...await advanceApprovals.requests(month)].filter(([, e]) => e.status === 'pending').map(([u]) => u);
@@ -242,18 +241,3 @@ async function approveAll({ req, res, me, actx }) {
   if (approved.length) await announce(month, approved, 'approved');
   return send(res, 200, { month, rev: (await advanceApprovals.read(month)).rev, approved, skipped });
 }
-
-async function handle(ctx) {
-  const { req, seg } = ctx;
-  const method = req.method;
-  if (seg.length === 2 && method === 'GET') return await list(ctx);
-  if (seg.length === 3 && method === 'POST') {
-    const step = seg[2];
-    if (step === 'request' || step === 'withdraw') return own(ctx, step);
-    if (step === 'approve' || step === 'reject' || step === 'cancel') return decideOne(ctx, step);
-    if (step === 'approve-all') return approveAll(ctx);
-  }
-  throw new HttpError(404, 'Không có đường dẫn này');
-}
-
-module.exports = { handle };

@@ -17,12 +17,21 @@ import { AttendanceModule } from './modules/attendance/attendance.module';
 import { PeriodsModule } from './modules/periods/periods.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { StaffModule } from './modules/staff/staff.module';
+import { RolesModule } from './modules/roles/roles.module';
+import { BlocksModule } from './modules/blocks/blocks.module';
+import { PositionsModule } from './modules/positions/positions.module';
+import { CatalogModule } from './modules/catalog/catalog.module';
+import { EmployeesModule } from './modules/employees/employees.module';
+import { LeaveModule } from './modules/leave/leave.module';
+import { AdvanceModule } from './modules/advance/advance.module';
+import { ExplanationsModule } from './modules/explanations/explanations.module';
+import { PayEntriesModule } from './modules/pay-entries/pay-entries.module';
 
 /**
  * Thứ tự import là thứ tự đăng ký route: route cụ thể (ví dụ PUT /staff/shift-bulk) phải đứng trước route có tham số (PUT /staff/:u),
  * và LegacyModule (bắt-hết) luôn đứng cuối.
  */
-const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule, AttendanceModule, PeriodsModule, AuditModule, StaffModule];
+const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule, AttendanceModule, PeriodsModule, AuditModule, StaffModule, RolesModule, BlocksModule, PositionsModule, CatalogModule, EmployeesModule, LeaveModule, AdvanceModule, ExplanationsModule, PayEntriesModule];
 
 @Module({})
 export class AppModule {

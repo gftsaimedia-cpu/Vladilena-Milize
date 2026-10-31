@@ -1,12 +1,13 @@
 import { Controller, Get, Post, Put, Res } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { reasonOf } from '../../shared/reason';
+const { staffView: staffScheduleView } = require('../../../lib/domain/schedule');
 import { rolesOfStaff, rolesRevOf } from './staff.helpers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
 const auth = require('../../../lib/auth');
 const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, typeParam, benefitOf, levelCountOf } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { rulesFor, monthParams, typeParam, benefitOf, levelCountOf, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { estimateSheet, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
 const { staffForViewer, sheetForViewer, staffRevision } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
 const { closeStaleFor } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
@@ -553,5 +554,24 @@ export class StaffController {
         'Set-Cookie': auth.cookieHeader(await auth.createSession(username), auth.SESSION_MAX_AGE_SEC)
       });
     return send(res, 200, result);
+  }
+
+  /** ?month= lịch làm việc hiệu lực của một người (self-or:profile.read); kiểm quyền TRƯỚC khi tra tên để không dò được tên đăng nhập */
+  @Get('staff/:u/schedule')
+  async getStaffSchedule(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+    const { url, me, seg, res } = c;
+    let username: string;
+    try {
+      username = decodeURIComponent(seg[2]).toLowerCase();
+    } catch {
+      throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
+    }
+    if (!(await authz.can(me, 'profile.read', { username })))
+      throw new HttpError(403, 'Không được xem lịch của người khác', { code: 'FORBIDDEN_CAP' });
+    const staff = await store.getStaff(username);
+    if (!staff) throw new HttpError(404, 'Không có nhân sự này');
+    const month = url.searchParams.get('month') || vnToday().slice(0, 7);
+    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
+    return send(res, 200, await staffScheduleView(staff, month));
   }
 }

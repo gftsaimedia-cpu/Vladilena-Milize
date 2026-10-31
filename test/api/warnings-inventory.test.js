@@ -135,7 +135,7 @@ test('không còn câu lệnh throw nào ném thẳng mã cảnh báo (PERIOD_LO
   for (const { file, text } of SOURCES)
     for (const statement of throwStatements(text))
       if (new RegExp(`['"\`]${LOCKED_CODE}['"\`]`).test(statement.text)) locked.push(file);
-  assert.deepEqual([...new Set(locked)], ['lib/domain/advance/routes.js']);
+  assert.deepEqual([...new Set(locked)], ['src/modules/advance/advance-approvals.handlers.ts']);
 });
 
 test('đường mềm: mã ghi chú / lý do tuỳ chọn (NOTE_REQUIRED) chỉ còn được ném qua optionalReason, không ném thẳng', () => {

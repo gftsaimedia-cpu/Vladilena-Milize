@@ -217,6 +217,18 @@ const EXEMPT = {
     'bỏ qua cờ AI của lần tính nháp, không theo tháng của dữ liệu (kiểm theo lần chạy nháp: PERIOD_STATE khi đã chốt)'
 };
 
+// Route ghi của các module Nest (src/modules/*) khai periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module tự kiểm
+// (vd. tạm ứng luôn 409 PERIOD_LOCKED khi kỳ đã duyệt/chi trả, danh mục kiểm khoá kỳ trong applyCatalogChange); mỗi nhóm có test riêng.
+for (const key of [
+  'POST /advance-approvals/request', 'POST /advance-approvals/withdraw', 'POST /advance-approvals/approve', 'POST /advance-approvals/reject',
+  'POST /advance-approvals/cancel', 'POST /advance-approvals/approve-all', 'POST /blocks', 'PUT /blocks/:code/confirm',
+  'PUT /catalog/positions/:code', 'PUT /catalog/levels', 'PUT /catalog/shifts', 'POST /explanations', 'POST /explanations/:id/answer',
+  'POST /explanations/:id/decide', 'POST /leave/refresh', 'POST /pay-entries', 'POST /pay-entries/bulk', 'PUT /pay-entries/:id',
+  'PUT /pay-entries/:id/decide', 'POST /pay-entries/:id/void', 'POST /pay-entries/:id/confirm-flags', 'POST /positions',
+  'POST /positions/:code/levels', 'POST /roles', 'PUT /roles/:code', 'POST /roles/:code/deprecate', 'PUT /settings/shifts'
+])
+  EXEMPT[key] = 'route của module Nest, periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module kiểm';
+
 // Route có periodScope mà server.js không khai trực tiếp (nằm ở mô-đun lib/domain/*) và được test khác phủ khoá kỳ
 const COVERED_ELSEWHERE = {};
 

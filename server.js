@@ -29,7 +29,6 @@ const {
   nowIso
 } = require('./lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 // lượt gửi cho màn hình: kèm lượt bấm, yêu cầu điều chỉnh và status / statusNote
-const domainRoutes = require('./lib/domain/routes'); // khối phụ cấp, khoản điền thêm, lịch theo loại nhân sự
 const Roles = require('./lib/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
 const config = require('./lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
 const Positions = require('./lib/params/positions'); // chức vụ là dữ liệu: danh sách, quyền lợi, bảng quyền lợi
@@ -52,8 +51,6 @@ store.setDefaultContractResolver(async type => typeParam(await monthParams(), ty
 
 // Bộ xử lý cũ cho route chưa chuyển sang module Nest (src/). Cổng quyền, giới hạn tải, giới hạn tốc độ ghi đã chạy ở src/http (ApiGuard).
 async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmin, guardPeriod }) {
-  const routed = domainRoutes.handlerFor(seg); // quyền đã kiểm ở cổng ROUTE_CAPS ở trên
-  if (routed) return await routed({ req, res, seg, url, me, actx });
 
       
   

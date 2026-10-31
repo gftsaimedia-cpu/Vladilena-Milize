@@ -1,17 +1,16 @@
-'use strict';
-const { AsyncList } = require('../shared/async-list');
+const { AsyncList } = require('../../../lib/shared/async-list');
 // Route đọc lịch sử yêu cầu ứng lương.
 // server.js không có gì ở đây: lib/domain/routes.js gửi đường dẫn /api/advance-requests tới handle(). Quyền ở cổng ROUTE_CAPS (lib/authz.js);
 // đọc bảng ở lib/advance-requests.js; mức tối đa do bộ máy lương tính (lib/advance-cap.js).
 //   GET  /api/advance-requests?month=[&username=][&status=]   { month, scope, items, pending?, cap, granted, remaining, eligible, reason? }
 //        nhân sự: của mình, kèm cap (đồng) = mức tối đa của tháng; người có quyền duyệt (hoặc xem lương): mọi người (không có cap), hoặc một người nếu có username
 // Số đã duyệt ở đây không trừ vào phiếu; tạm ứng là số theo quy tắc, chỉ trừ khi Admin duyệt (lib/domain/advance/routes.js).
-const store = require('../db');
-const authz = require('../authz');
-const advances = require('../advance-requests');
-const advanceCap = require('../advance-cap');
-const { HttpError, send } = require('../http');
-const { validMonth, USERNAME_RE } = require('./input');
+const store = require('../../../lib/db');
+const authz = require('../../../lib/authz');
+const advances = require('../../../lib/advance-requests');
+const advanceCap = require('../../../lib/advance-cap');
+const { HttpError, send } = require('../../../lib/http');
+const { validMonth, USERNAME_RE } = require('../../../lib/domain/input');
 
 // Mức tối đa của một người trong tháng, phẳng để giao diện đọc thẳng: cap (đồng), granted (đã duyệt), remaining (còn được ứng), eligible và reason khi không được ứng
 const capView = info => ({
@@ -34,7 +33,7 @@ const wrap = async fn => {
 // Người xem được yêu cầu của người khác: có quyền duyệt (ở phạm vi tất cả) hoặc xem lương
 const viewsAll = async me => await authz.scopeOf(me, advances.DECIDE_CAP) === 'all' || await authz.scopeOf(me, 'payroll.view') === 'all';
 
-async function list({ res, url, me }) {
+export async function list({ res, url, me }) {
   const q = url.searchParams;
   const month = q.get('month');
   if (!validMonth(month)) throw new HttpError(400, 'month phải có dạng YYYY-MM', { code: 'BAD_MONTH' });
@@ -58,9 +57,3 @@ async function list({ res, url, me }) {
     items
   });
 }
-
-async function handle({ req, res, seg, url, me }) {
-  if (seg.length === 2 && req.method === 'GET') return await list({ res, url, me });
-  throw new HttpError(404, 'Không có đường dẫn này');
-}
-module.exports = { handle };
