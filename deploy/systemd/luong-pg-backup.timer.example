@@ -1,0 +1,11 @@
+# Hẹn giờ cho luong-pg-backup.service: 02:30 mỗi ngày giờ máy chủ.
+[Unit]
+Description=Luong Nhan Su: hen gio sao luu PostgreSQL
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

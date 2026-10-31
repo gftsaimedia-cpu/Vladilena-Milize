@@ -632,6 +632,21 @@ Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ 
 
 **params-mode.js** — `status` (chỉ đọc: mode, config_rev, số dòng param_versions, id audit cuối) hoặc `defaults-only --reason "<10..300>" --yes [--backup-dir=]`: đang `defaults-only` → không làm gì; nhật ký là HMAC mà thiếu `AUDIT_KEY` → từ chối; sao lưu bằng `backup-db.js` (bắt buộc); một giao dịch: `params_mode = 'defaults-only'`, `configRev.bump()`, audit `param.mode` với actor `ops:<user hệ điều hành>`. Không đụng `param_versions`.
 
+#### Sao lưu PostgreSQL (`scripts/ops/pg-backup.js`, `lib/ops/pg-backup.js`)
+
+Dành cho `DB_DIALECT=postgres` (các script SQLite ở trên không dùng được cho PostgreSQL). Không cần `pg_dump`; không đọc `.env`; không in dữ liệu hay mật khẩu (URL được che `//***@`).
+
+| Lệnh | Việc |
+| --- | --- |
+| `npm run pg:backup` (`pg-backup.js backup [--source=<DB>] [--dir=] [--keep=]`) | `--source` mặc định `DATABASE_URL`, `--dir` mặc định `BACKUP_DIR` hoặc `./backups`, `--keep` mặc định `BACKUP_KEEP` hoặc 30. Xuất mọi bảng trong MỘT giao dịch `REPEATABLE READ` chỉ đọc (ảnh chụp nhất quán dù app đang ghi) ra file `luong-YYYYMMDD-HHMMSS.pgbak.gz` (giờ VN); ghi file `.partial`, tự kiểm lại (`verifyFile`) rồi mới đổi tên và xoá các bản cũ vượt `keep` (chỉ file đúng mẫu tên). |
+| `npm run pg:verify` (`verify --backup=<file>`) | Đọc cả file, tính lại số dòng và dấu vân tay SHA-256 từng bảng, so với header; phát hiện file cắt dở (thiếu dòng kết thúc), sửa một ô, gzip/JSON hỏng. |
+| `npm run pg:drill` (`drill --backup=<file>`) | Khôi phục vào PGlite trong RAM rồi bỏ: chứng minh bản sao lưu dùng được mà không đụng DB nào; đối chiếu từng bảng và tổng tiền từng kỳ lương. |
+| `npm run pg:restore` (`restore --backup=<file> --to=<DB mới> --confirm-new-empty-db`) | Chỉ vào DB MỚI (đã chạy migration, chưa có dữ liệu ngoài các bảng gieo sẵn): thiếu migration hoặc đích không rỗng thì từ chối. Một giao dịch: xoá dòng gieo sẵn, chép theo thứ tự khoá ngoại (`OVERRIDING SYSTEM VALUE`), đặt lại dãy số tự tăng, đối chiếu dấu vân tay từng bảng và tổng tiền kỳ lương TRƯỚC khi COMMIT; lệch là hoàn tác. Thiếu cờ xác nhận thì không làm gì. |
+
+`<DB>` là `postgres://user:pass@host/db`, `pglite:<thư-mục>` hoặc `memory` (chỉ cho restore/drill). Định dạng file: gzip của NDJSON — dòng đầu là header (`format`, `version`, `createdAt`, `migrations`, `order`, `tables[{ name, rows, sha256, identity }]`, `payroll`), tiếp theo `{ t, r }` từng dòng (BYTEA dạng `{ $b64 }`), dòng cuối `{ end, rows }`. Mẫu hẹn giờ hằng ngày: `deploy/systemd/luong-pg-backup.service.example` và `deploy/systemd/luong-pg-backup.timer.example` (sao lưu rồi diễn tập khôi phục bản mới nhất). Test: `test/ops/pg-backup.test.js` (PGlite trong RAM và qua `pg.Pool` tới máy chủ socket giả).
+
+Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ cho quy mô hiện tại; bảng lớn hơn cần xuất theo lô); chưa có sao lưu liên tục (WAL/PITR) — cần `pg_basebackup`/dịch vụ quản lý nếu yêu cầu RPO thấp hơn một ngày. Sao chép bản sao lưu ra khỏi máy chủ là việc vận hành, ngoài phạm vi script.
+
 ### 4.12 Sandbox và máy chủ kịch bản
 
 **Sandbox** (`scripts/dev/sandbox-server.cjs`, `npm run sandbox`)

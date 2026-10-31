@@ -25,7 +25,11 @@
     "typecheck": "tsc --noEmit -p .",
     "spec:gen": "node --no-warnings=ExperimentalWarning scripts/docs/gen-spec.js",
     "spec:check": "node --no-warnings=ExperimentalWarning scripts/docs/gen-spec.js --check",
-    "db:types": "node scripts/docs/gen-db-types.js"
+    "db:types": "node scripts/docs/gen-db-types.js",
+    "pg:backup": "node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js backup",
+    "pg:verify": "node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js verify",
+    "pg:drill": "node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js drill",
+    "pg:restore": "node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js restore"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.22",

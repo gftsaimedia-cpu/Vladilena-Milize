@@ -1,0 +1,24 @@
+# Sao lưu PostgreSQL hằng ngày (đi cùng luong-pg-backup.timer.example). Chưa chạy thử trên máy chủ thật.
+# Cài: sudo cp luong-pg-backup.service.example /etc/systemd/system/luong-pg-backup.service (và timer), rồi:
+#   systemctl daemon-reload && systemctl enable --now luong-pg-backup.timer
+# /etc/luong/luong.env phải có DATABASE_URL (postgres://…), có thể có BACKUP_DIR và BACKUP_KEEP (mặc định ./backups, 30 bản).
+# Chép thư mục BACKUP_DIR ra nơi khác máy (rclone/rsync) nằm ngoài phạm vi: bản sao cùng ổ đĩa không cứu được khi ổ hỏng.
+[Unit]
+Description=Luong Nhan Su: sao luu PostgreSQL
+After=network.target
+
+[Service]
+Type=oneshot
+User=luong
+Group=luong
+WorkingDirectory=/opt/luong-app
+EnvironmentFile=/etc/luong/luong.env
+Environment=BACKUP_DIR=/var/lib/luong/backups
+ExecStart=/usr/bin/node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js backup
+# Kiểm bản mới nhất vừa ghi (đã tự kiểm lúc ghi; bước này đọc lại từ đĩa)
+ExecStartPost=/bin/sh -c 'f=$(ls -1t /var/lib/luong/backups/luong-*.pgbak.gz | head -n 1) && /usr/bin/node --no-warnings=ExperimentalWarning scripts/ops/pg-backup.js drill --backup="$f"'
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/luong
