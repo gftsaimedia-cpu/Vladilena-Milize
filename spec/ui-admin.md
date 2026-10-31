@@ -60,9 +60,9 @@ Admin không gọi `PayrollEngine`, `Formula`, `PayrollGraph` hay các `*-calc` 
 | `ho-so` | Nhân sự | `view-ho-so.js`, `staff-history.js` |
 | `tro-ly` | Trợ lý AI | `view-tro-ly.js`, `ai.js` |
 | `cai-dat` | Cài đặt (mục `so-do`, `quyen-loi`, `chuc-vu`, `cham-cong`, `kpi`, `nguong-ai`, `phan-quyen`, `nhat-ky`) | `view-cai-dat.js`, `cai-dat-so-do.js`, `cai-dat-quyen-loi.js`, `cai-dat-ky-luong.js`, `view-tham-so.js`, `tham-so-*.js`, `view-khung-luong.js`, `view-khung-xem-truoc.js`, `view-khung-chuc-vu.js`, `view-khoi-phu-cap.js`, `catalog-positions.js`, `catalog-shifts.js`, `view-phan-quyen.js`, `view-nhat-ky.js` |
-| `phuc-loi`, `bao-cao` | Phúc lợi, Báo cáo | `view-khac.js:452`, `view-khac.js:500` (không có trong menu) |
+| `phuc-loi`, `bao-cao` | Phúc lợi, Báo cáo | `view-khac.js`, `view-khac.js` (không có trong menu) |
 
-- Menu (`A.NAV_GROUPS`, `core.js:544`) gồm bốn nhóm:
+- Menu (`A.NAV_GROUPS`, `core.js`) gồm bốn nhóm:
   1. (không tiêu đề) Tổng quan, Yêu cầu
   2. "Kỳ lương": Chấm công & phép, Đánh giá KPI, Bảng lương
   3. "Đội ngũ": Nhân sự
@@ -79,7 +79,7 @@ Admin không gọi `PayrollEngine`, `Formula`, `PayrollGraph` hay các `*-calc` 
 - **Vẽ lại.** `A.render()` vẽ lại màn hiện tại và giữ con trỏ ở ô đang gõ.
 - **Thao tác.** Nút có `data-act="x"` gọi `A.actions.x(el, ev)`. Ô có `data-input="y"` gọi `A.inputs.y`.
 - **Đổi tháng.** `A.setMonth` lưu tháng vào `localStorage` (`aicb-admin-month`) rồi gọi `onMonth` của màn.
-- **Chống mất dữ liệu đang sửa.** `A.drafts` (`core.js:812`) có ba phạm vi: `month`, `params`, `roles`.
+- **Chống mất dữ liệu đang sửa.** `A.drafts` (`core.js`) có ba phạm vi: `month`, `params`, `roles`.
   - Rời màn hoặc đổi tháng khi còn bản nháp: `guard()` hỏi "Bỏ thay đổi chưa lưu?" trước.
   - Đóng tab trình duyệt: `beforeunload` cảnh báo.
 - **Chuỗi từ máy chủ.** Phải đi qua `A.esc()` trước khi đưa vào `innerHTML`.
@@ -112,9 +112,9 @@ Admin không lưu dữ liệu nghiệp vụ. Mọi số liệu đọc từ API. 
 
 Các giá trị này chỉ dùng khi máy chủ chưa trả số:
 
-- **`A.TYPE_LONG` / `A.TYPE_SHORT`** (`core.js:91-92`). Tên loại nhân sự `tts` (Thực tập sinh, TTS), `ctv` (Chuyên trách viên, CTV), `nv` (Nhân viên, NV). Dự phòng cho `GET /positions`.
-- **`FALLBACK_MAX_LEVEL = { tts: 6, ctv: 4, nv: 4 }`** (`core.js:102`). Số bậc tối đa khi máy chủ chưa gửi.
-- **`A.SHIFTS`** (`core.js:259`). Sáu ca dự phòng. Bị thay bằng `GET /settings/shifts?month` sau khi `A.shiftsLoad` chạy.
+- **`A.TYPE_LONG` / `A.TYPE_SHORT`** (`core.js`). Tên loại nhân sự `tts` (Thực tập sinh, TTS), `ctv` (Chuyên trách viên, CTV), `nv` (Nhân viên, NV). Dự phòng cho `GET /positions`.
+- **`FALLBACK_MAX_LEVEL = { tts: 6, ctv: 4, nv: 4 }`** (`core.js`). Số bậc tối đa khi máy chủ chưa gửi.
+- **`A.SHIFTS`** (`core.js`). Sáu ca dự phòng. Bị thay bằng `GET /settings/shifts?month` sau khi `A.shiftsLoad` chạy.
 
   | Ca | Giờ | Loại |
   | --- | --- | --- |
@@ -125,14 +125,14 @@ Các giá trị này chỉ dùng khi máy chủ chưa trả số:
   | Night1 | 21–06 | night |
   | Night2 | 22–07 | night |
 
-- **Quyền lợi theo loại ở màn khai thay.** Lấy từ `PayrollParams.DEFAULTS` (`cham-cong-khai.js:15`, `:174-182`). Riêng cờ `approved` được suy ra từ `type.<loại>.attendance > 0`.
+- **Quyền lợi theo loại ở màn khai thay.** Lấy từ `PayrollParams.DEFAULTS` (`cham-cong-khai.js`,). Riêng cờ `approved` được suy ra từ `type.<loại>.attendance > 0`.
 
 ## 3. API
 
-Quy ước chung của `A.api(method, path, body, { warnings })` (`core.js:358`):
+Quy ước chung của `A.api(method, path, body, { warnings })` (`core.js`):
 - 401: chuyển về `/dang-nhap.html`.
 - Mã khác không thành công: ném `ApiError(status, message, data)`. Màn hiển thị `A.errText(e)`.
-- `data.warnings[]`: `A.showWarnings` (`core.js:911`) hiện cảnh báo. Mức `danger` vào thanh cố định `#warnbar`; mức khác vào toast 8 giây.
+- `data.warnings[]`: `A.showWarnings` (`core.js`) hiện cảnh báo. Mức `danger` vào thanh cố định `#warnbar`; mức khác vào toast 8 giây.
   - `warnings: 'manual'`: màn tự hiện cảnh báo (dùng ở các bước kỳ lương, duyệt hàng loạt, duyệt OT).
 - Lý do: `A.reasonLabel`, `A.reasonField`, `A.readReason`. Lý do không bắt buộc, tối đa 300 ký tự (mục 4.6).
 - Quyền của từng route nằm ở `ROUTE_CAPS` trong `lib/authz.js`, mặc định từ chối (thiếu mục → 403 `NO_ROUTE_POLICY`).
@@ -149,7 +149,7 @@ Các cột dưới đây ghi những gì **giao diện** gửi, nhận và xử 
 | --- | --- | --- | --- |
 | `GET /me` (fetch thô ở `boot.js`, `A.refreshMe`) | public | Nhận `adminCapable`, `agentsEnabled`, `serverNow` (chỉnh lệch đồng hồ, `syncClock`), `holidays`, `geofence`, `geofenceRequired`, caps | Chưa đăng nhập → `HomeRoute.LOGIN_PAGE`. Không `adminCapable` → `/nhan-vien.html` |
 | `POST /logout` | public | — | — |
-| `PUT /password` | `A` | `{ current, next }` | Giao diện tự chặn mật khẩu mới dưới 6 ký tự (`view-cai-dat.js:186`) |
+| `PUT /password` | `A` | `{ current, next }` | Giao diện tự chặn mật khẩu mới dưới 6 ký tự (`view-cai-dat.js`) |
 | `GET /events` | `A` | SSE (mục 5) | Mất kết nối nhiều lần → bỏ cuộc |
 | `GET /alerts?month` | DECIDE_ALL | Chuông: `missingPunches`, `absentNoExplanation`, `pendingApprovals` | — |
 | `GET /approvals/count` | DECIDE_ALL | Số đếm trên menu | — |
@@ -190,7 +190,7 @@ Màn này chỉ đọc dữ liệu:
 
 **Thao tác.**
 - Mở lý do của cảnh báo AI (`A.openWhy`).
-- Bỏ qua cảnh báo, chỉ hiện khi `canDismiss()` đúng (`view-khac.js:433`). Điều kiện: kỳ `reviewed`, hoặc chưa biết trạng thái kỳ, hoặc kỳ `approved`/`paid`.
+- Bỏ qua cảnh báo, chỉ hiện khi `canDismiss()` đúng (`view-khac.js`). Điều kiện: kỳ `reviewed`, hoặc chưa biết trạng thái kỳ, hoặc kỳ `approved`/`paid`.
 
 **Màn ẩn.**
 - `bao-cao` gọi `GET /audit?limit=5` (cap `audit.read`) và hiện 5 thay đổi mới nhất.
@@ -211,7 +211,7 @@ Màn này chỉ đọc dữ liệu:
 
 **Lọc theo loại.**
 - Máy chủ trả 400, hoặc trả về dòng thuộc loại khác: giao diện bỏ bộ lọc loại và đặt `K.typeOk = false`.
-- Trang tối đa `SLIP_PAGE_MAX = 200` (`view-ky-luong.js:83`). Thẻ Kỳ lương của Tổng quan có `PREVIEW_ROWS = 5` dòng (`:81`); ô tìm kiếm chờ `SEARCH_DEBOUNCE_MS = 300` (`:80`).
+- Trang tối đa `SLIP_PAGE_MAX = 200` (`view-ky-luong.js`). Thẻ Kỳ lương của Tổng quan có `PREVIEW_ROWS = 5` dòng; ô tìm kiếm chờ `SEARCH_DEBOUNCE_MS = 300`.
 
 **Cột của một dòng phiếu.**
 - Thành phần (hiện khi "Xem đủ cột"): `tienNgayCong`, `phuCap`, `ot`, `kpi`, `khac`, và `khoanThem`, `khoanTru` khi có phiếu mang khoản.
@@ -219,12 +219,12 @@ Màn này chỉ đọc dữ liệu:
 - Ngày công: `daysWorked` / `workdaysStd`.
 - Trạng thái: `flags`, `errorCode` / `errorDetail`.
 - `truTreSom` đã nằm trong `tienNgayCong`: chỉ ghi chú dưới ô. `attendOk` hiện "Giữ chuyên cần" / "Mất chuyên cần" dưới ô Phụ cấp.
-- `ERR_FIX` (`view-ky-luong.js:79`) gợi ý chỗ sửa lỗi:
+- `ERR_FIX` (`view-ky-luong.js`) gợi ý chỗ sửa lỗi:
   - `PAYROLL_BAD_LEVEL`, `PAYROLL_BAD_TYPE` → nút "Sửa hồ sơ" (màn Nhân sự).
   - `PAYROLL_BAD_FORMULA` → nút "Mở Cách tính lương" (Cài đặt).
 
 **Các bước kỳ lương.**
-- Mọi bước đi qua `post(step)` (`view-ky-luong.js:748`) = `POST /periods/:m/<step>`, thân `{ rev, ... }`, `warnings: 'manual'`.
+- Mọi bước đi qua `post(step)` (`view-ky-luong.js`) = `POST /periods/:m/<step>`, thân `{ rev, ... }`, `warnings: 'manual'`.
 
 | Bước (nút) | Gọi | Cap | Thân thêm |
 | --- | --- | --- | --- |
@@ -239,14 +239,14 @@ Màn này chỉ đọc dữ liệu:
 - **Phê duyệt kỳ.**
   - Giao diện đọc trước `payslips?status=error&pageSize=200`.
   - Phiếu lỗi được đưa vào `excludeErrors`.
-- **Mở lại** (`reopenTargets`, `view-ky-luong.js:369`).
+- **Mở lại** (`reopenTargets`, `view-ky-luong.js`).
   - Đích `calculated`: cần `period.reopen`.
   - Đích `attendance_locked` và `open`: cần thêm `period.reopen.inputs`.
-  - Nút luôn hiện (`view-ky-luong.js:363`).
+  - Nút luôn hiện (`view-ky-luong.js`).
 - **Duyệt phiếu.**
-  - Gửi theo lô `DECIDE_CHUNK = 200` (`view-ky-luong-phieu.js:172`).
+  - Gửi theo lô `DECIDE_CHUNK = 200` (`view-ky-luong-phieu.js`).
   - `pickSlips` gom phiếu qua nhiều trang.
-- **`approving()`** (`view-ky-luong.js:314`). Phiếu được duyệt ngay từ trạng thái `calculated` (khi có lần tính).
+- **`approving()`** (`view-ky-luong.js`). Phiếu được duyệt ngay từ trạng thái `calculated` (khi có lần tính).
 - **Chế độ hiển thị `modeOf`**: `est`, `calc`, `review`, `final`.
 - **In cả loạt.** Nút "In N phiếu" hiện khi có phiếu `approved` (mục 3.5).
 
@@ -288,8 +288,8 @@ Màn này chỉ đọc dữ liệu:
 **Kiểm tra ở giao diện trước khi gửi.**
 - Ô tiền phải là số đồng nguyên.
 - Ô có giá trị bằng số tự tính thì không gửi.
-- Lý do: tối đa 300 ký tự, không bắt buộc (`view-phieu.js:155-156`).
-- Danh sách ô sửa được (`MONEY`, `PCT`, `INCOME`, `ALLOW`) phải khớp `SLIP_MONEY` / `SLIP_QTY` của `server.js:135,155`. Máy chủ từ chối ô lạ bằng 400 (`server.js:1196`).
+- Lý do: tối đa 300 ký tự, không bắt buộc (`view-phieu.js`).
+- Danh sách ô sửa được (`MONEY`, `PCT`, `INCOME`, `ALLOW`) phải khớp `SLIP_MONEY` / `SLIP_QTY` của `src/modules/periods/periods.helpers.ts` `155`. Máy chủ từ chối ô lạ bằng 400 (`src/modules/periods/periods.helpers.ts`).
 
 #### 3.4.1 Công thức dưới dòng Chi tiết (`payslip.formulas`)
 
@@ -301,7 +301,7 @@ Màn này chỉ đọc dữ liệu:
   - Các mảnh cộng/trừ cùng đơn giá và cùng hệ số được gộp thành một mảnh có số lượng ròng; mảnh ròng bằng 0 bị bỏ (`netSum`). Giờ lẻ ghi dạng phân số `p/q` để cộng lại đúng từng đồng.
   - Phép trừ có vế là tổng thì vế đó nằm trong ngoặc; nhóm cộng trừ nằm trong ngoặc khi đứng trong phép nhân.
   - Một công thức chỉ được giữ khi giá trị của nó bằng số tự tính của dòng (lệch không quá 1 đồng mỗi bước làm tròn; 0,01 cho tổng điểm KPI; 2 đồng cho bảo hiểm và miễn thuế). Không khớp thì dòng đó không có công thức; công thức không bao giờ bị chỉnh cho khớp. Công thức dạng chữ (giải thích vì sao bằng 0) được giữ nguyên.
-- **Nội dung từng khoá** (`formulasOf`, `lib/slip-formulas.js:519`).
+- **Nội dung từng khoá** (`formulasOf`, `lib/slip-formulas.js`).
 
 | Khoá | Công thức hiện |
 | --- | --- |
@@ -330,7 +330,7 @@ Màn này chỉ đọc dữ liệu:
 
 **Lấy dữ liệu.**
 - `printCurrent` in phiếu đang mở trong ngăn kéo (số hiện tại của hộp, kể cả số Admin sửa đã lưu); nút bị khoá khi đang ở chế độ sửa.
-- `printApproved` đọc `GET /periods/:m/payslips?status=approved` theo trang (`PAGE_SIZE_MAX = 200`, `phieu-a4.js:35`).
+- `printApproved` đọc `GET /periods/:m/payslips?status=approved` theo trang (`PAGE_SIZE_MAX = 200`, `phieu-a4.js`).
 - Với mỗi phiếu (4 yêu cầu song song, `FETCH_PARALLEL`): đọc `GET /periods/:m/payslips/:u`. Khi lần tính chưa `final`, đọc thêm `GET /slip-override`.
 - Tham số của tháng chỉ tải một lần cho cả loạt; phiếu không dựng được thì liệt kê lỗi, các phiếu còn lại vẫn in.
 
@@ -364,13 +364,13 @@ Màn này chỉ đọc dữ liệu:
 
 **Nội dung chung.**
 - Ngày trả lương (`metaOf`): `paidAt` nếu kỳ đã trả, không thì ngày trả dự kiến của kỳ.
-- Tỷ lệ phụ cấp đêm trên chip ca: `nightRateOf` (`phieu-a4-days.js:57`).
+- Tỷ lệ phụ cấp đêm trên chip ca: `nightRateOf` (`phieu-a4-days.js`).
 - Số ngày vắng nằm trong số nghỉ không lương và được ghi rõ.
 
 **Bản mẫu cổ điển (`phieu-co-dien.js`, `Phieu.classicSheet`).**
 - Một trang "PHIẾU LƯƠNG THÁNG MM/YYYY": đầu phiếu, khối thông tin (loại, vị trí / level, lương cơ bản / ngày công, lương ngày và lương giờ, lương KPI tối đa, phụ cấp ca, nơi ở), bảng Chấm công (Ngày, Ca, Vào – ra, Giờ làm, Lương ngày, Phụ cấp, Trừ giờ, Thành tiền), các dòng tổng nền xám, mục Tổng hợp từng dòng tiền → TỔNG THU NHẬP → khấu trừ → THỰC LĨNH, chỗ ký.
 - Ô Vào – ra của bảng cũng là giờ bấm thật (`HH:MM – HH:MM`, `--:--` khi thiếu một bên; kèm `(−Np)` khi có giờ nghỉ).
-- `classicSheet` (`phieu-co-dien.js:170`) và `A.Phieu.pageOf` (`view-phieu.js:605`, mẫu "BẢNG CHI TIẾT LƯƠNG NHÂN VIÊN") không dùng khi in; chỉ test đơn vị gọi.
+- `classicSheet` (`phieu-co-dien.js`) và `A.Phieu.pageOf` (`view-phieu.js`, mẫu "BẢNG CHI TIẾT LƯƠNG NHÂN VIÊN") không dùng khi in; chỉ test đơn vị gọi.
 
 ### 3.6 Khoản cộng/trừ thêm (`view-khoan-them.js`, `A.Entries`, trong màn Bảng lương)
 
@@ -394,7 +394,7 @@ Màn này chỉ đọc dữ liệu:
 **Ràng buộc trong giao diện.**
 - Tên khoản tối đa `LABEL_MAX = 80` ký tự.
 - Lý do 10–300 ký tự.
-- Danh sách chọn nhiều người hiện tối đa `PEOPLE_SHOW = 200` người (`view-khoan-them.js:15-17,37`).
+- Danh sách chọn nhiều người hiện tối đa `PEOPLE_SHOW = 200` người (`view-khoan-them.js,37`).
 - Chọn "tính bảo hiểm trên toàn bộ": giao diện gửi `insuranceBase = amount`.
 
 ### 3.7 Yêu cầu (`duyet`)
@@ -406,7 +406,7 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 | Gọi | Cap | Ghi chú |
 | --- | --- | --- |
 | `GET /approvals?status&month&limit=500&offset` | DECIDE_ALL | Đọc lặp theo trang tới tối đa 20 000 dòng; gọi thêm một lần để lấy số đếm của phạm vi còn lại (tháng đang xem / mọi tháng) |
-| `PUT /approvals/decide` | DECIDE_ALL, periodScope `attendance` theo `items[].date` | `{ action, note, items: [{ username, date, rev, fingerprint }] }`, lô `MAX_BATCH = 200` (`view-duyet.js:12`). Lỗi `409 APPROVAL_STALE`: nạp lại danh sách |
+| `PUT /approvals/decide` | DECIDE_ALL, periodScope `attendance` theo `items[].date` | `{ action, note, items: [{ username, date, rev, fingerprint }] }`, lô `MAX_BATCH = 200` (`view-duyet.js`). Lỗi `409 APPROVAL_STALE`: nạp lại danh sách |
 
 - Khoản yêu cầu (`A.ITEM_LABEL`): iSAT, Nghỉ được duyệt, OT (kể cả OT ngày lễ), Làm bù theo giờ, Nghỉ phép năm, Nghỉ sẽ làm bù, và `makeup_day` (Làm bù cả ngày, không tính lương).
 - Mọi yêu cầu chờ xử lý có ô chọn và vào loạt; ô được chọn sẵn chỉ gồm dòng không bị gắn cờ AI.
@@ -421,7 +421,7 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 | `POST /advance-approvals/approve-all` | DECIDE_ALL | `{ month, expectedRev }` |
 
 - Tạm ứng là số máy chủ tính theo tham số `advance.*` (`advance.rate` × lương cơ bản của ngày đi làm tới `advance.untilDay`); nhân viên bấm xin, không nhập số. Thẻ chỉ liệt kê người đã xin (Chờ duyệt, Đã duyệt, Từ chối). Số chỉ trừ vào phiếu khi Admin duyệt. Nút: Duyệt / Từ chối cho yêu cầu chờ, Huỷ duyệt cho yêu cầu đã duyệt, Duyệt tất cả khi còn yêu cầu chờ.
-- Kỳ `approved`/`paid`: giao diện ẩn nút (`view-ung-luong.js` `locked`). Máy chủ luôn trả 409 `PERIOD_LOCKED` (`lib/domain/advance/routes.js`).
+- Kỳ `approved`/`paid`: giao diện ẩn nút (`view-ung-luong.js` `locked`). Máy chủ luôn trả 409 `PERIOD_LOCKED` (`src/modules/advance/advance-approvals.handlers.ts`).
 
 **Giải trình** (`view-giai-trinh.js`, tab "Giải trình")
 
@@ -459,7 +459,7 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 - **Hôm nay** (`hom-nay`): lượt mới nhất của từng người trong ngày hiện tại: ca, giờ vào, giờ ra, phút muộn, nhãn trạng thái, số lượt; chip Tất cả / Đã Check-in / Chờ xử lý / Chưa có lượt.
 - **Giờ OT** (`ot`): lượt có khai OT, đối chiếu với giờ có mặt; chip Chờ xử lý / Được phê duyệt / Bị từ chối; nút Đồng ý / Từ chối (hộp xác nhận, ghi chú tuỳ chọn khi đồng ý, lý do theo chế độ khi từ chối). Cột "Duyệt OT" là chữ thường (OT chờ xử lý / được phê duyệt / bị từ chối), không phải nhãn của lượt.
 
-**Ô trên bảng công** (`cellOf`, `view-cham-cong.js:204`): ngày có lượt hiện nhãn của ngày `AttendanceStatus.dayStatus` (ưu tiên Chờ xử lý > Bị từ chối > Đã Check-in > Được phê duyệt > Đã chấm công > Đã Check-out), chú thích là nhãn kèm các `statusNote`. Chú giải đúng sáu nhãn. Ngày không có lượt giữ cách hiện của lịch khai (ký hiệu `P` cho xin nghỉ chờ xử lý, ký hiệu loại ngày đã khai). OT / làm bù / đi làm ngày lễ là dữ liệu trong khung ngày, không phải nhãn. Cột đếm: "Số ngày" (ngày có lượt), "Chờ xử lý" (ngày có nhãn Chờ xử lý). Dòng tóm tắt đếm cả ngày Chờ xử lý và Bị từ chối trên cả tháng.
+**Ô trên bảng công** (`cellOf`, `view-cham-cong.js`): ngày có lượt hiện nhãn của ngày `AttendanceStatus.dayStatus` (ưu tiên Chờ xử lý > Bị từ chối > Đã Check-in > Được phê duyệt > Đã chấm công > Đã Check-out), chú thích là nhãn kèm các `statusNote`. Chú giải đúng sáu nhãn. Ngày không có lượt giữ cách hiện của lịch khai (ký hiệu `P` cho xin nghỉ chờ xử lý, ký hiệu loại ngày đã khai). OT / làm bù / đi làm ngày lễ là dữ liệu trong khung ngày, không phải nhãn. Cột đếm: "Số ngày" (ngày có lượt), "Chờ xử lý" (ngày có nhãn Chờ xử lý). Dòng tóm tắt đếm cả ngày Chờ xử lý và Bị từ chối trên cả tháng.
 
 **Nhãn trạng thái của lượt** (máy chủ tính, `lib/domain/attendance/session-status.js`; giao diện chỉ đổi mã ra chữ):
 - Đã chấm công: lượt do Admin ghi (khai thay, hoặc ghi theo giờ ca khi duyệt giải trình quên chấm); không xét giờ.
@@ -467,7 +467,7 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 - Chờ xử lý: giờ vào / ra chưa hợp lệ và chưa có kết luận duyệt, hoặc đang có giải trình chờ. Lý do giờ không hợp lệ:
   - vào trễ hơn `attendance.graceMin` ("Vào trễ N phút");
   - về sớm bất kỳ ("Về sớm N phút");
-  - Check-out muộn hơn giờ kết thúc ca quá `CHECKOUT_GRACE_MIN` phút (`lib/config.js:119`, "Check-out muộn N phút");
+  - Check-out muộn hơn giờ kết thúc ca quá `CHECKOUT_GRACE_MIN` phút (`lib/config.js`, "Check-out muộn N phút");
   - quên Check-in / Check-out, ngoài ca, nhiều lượt trong một ca, ngoài vùng GPS, cần đối soát.
 - Đã Check-in: lượt đang mở, giờ vào hợp lệ. Đã Check-out: lượt đã đóng, giờ hợp lệ.
 - Duyệt OT, giờ làm thêm, đi làm ngày lễ không phải trạng thái: lượt có giờ hợp lệ vẫn là Đã Check-out.
@@ -483,12 +483,12 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 
 **Số giao diện tự tính.**
 - Phút đi trễ: `ActualHours.lateMinutes`.
-- Phút về sớm: `earlyMinutes` (`view-cham-cong.js:28`).
-- Trạng thái làm ngày lễ: `holidayWorkOf` (`view-cham-cong.js:183`).
+- Phút về sớm: `earlyMinutes` (`view-cham-cong.js`).
+- Trạng thái làm ngày lễ: `holidayWorkOf` (`view-cham-cong.js`).
 
 **Nút chuyển kỳ.** Dùng chung với Bảng lương qua `A.Ky.congActs`.
 
-**Nhân viên.** "Thay nhân viên" mở `/nhan-vien.html?thay=<user>&month=<m>` (`A.actForUrl`, `core.js:958`). Nút này chỉ hiện khi `A.canActFor`, tức khi có năng lực `request.decide.*`.
+**Nhân viên.** "Thay nhân viên" mở `/nhan-vien.html?thay=<user>&month=<m>` (`A.actForUrl`, `core.js`). Nút này chỉ hiện khi `A.canActFor`, tức khi có năng lực `request.decide.*`.
 
 ### 3.9 Nhân sự (`ho-so`, `view-ho-so.js`, `staff-history.js`, `leave-ledger.js`)
 
@@ -508,7 +508,7 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 
 **Ràng buộc trong giao diện.**
 - Mật khẩu đầu tiên: `PASSWORD_MIN = 6` ký tự.
-- Lý do 10–300 ký tự (`view-ho-so.js:20-22`).
+- Lý do 10–300 ký tự (`view-ho-so.js`).
 - Tên đăng nhập phải khớp `USERNAME_RE`; Tên (`givenName`) chỉ một chữ, phần còn lại nhập ở "Họ và tên đệm".
 
 ### 3.10 KPI (`kpi`, `view-kpi.js`)
@@ -517,8 +517,8 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 | --- | --- | --- |
 | `GET /kpi/scores?month` | `kpi.score.write` | `{ weights, items, method }` |
 | `PUT /kpi/scores` | `self-or:kpi.score.write`, periodScope `kpi` | `{ user, month, scores: { key: value } }`. Điểm 0–100, tối đa 2 chữ số thập phân |
-| `GET /settings/params?group=8` | `config.read` | Đọc `kpi.weworkMin` (`PARAM_GROUP = 8`, `view-kpi.js:38`) |
-| `GET /periods/:m/payslips` hoặc `/estimates` theo trang | `payroll.view` | Đọc số tiền `kpi` mỗi người (`SLIP_PAGE_MAX = 200`, `view-kpi.js:39`) |
+| `GET /settings/params?group=8` | `config.read` | Đọc `kpi.weworkMin` (`PARAM_GROUP = 8`, `view-kpi.js`) |
+| `GET /periods/:m/payslips` hoặc `/estimates` theo trang | `payroll.view` | Đọc số tiền `kpi` mỗi người (`SLIP_PAGE_MAX = 200`, `view-kpi.js`) |
 
 - Lưới điểm 5 thành phần (Base Wework, Người dùng, Đồng nghiệp, Quản lý trực tiếp, Tự đánh giá); nhập bằng bàn phím, ô tự lưu khi rời ô; mục "Lịch sử sửa điểm". Trọng số lấy từ `weights` của máy chủ. Tháng trước tháng KPI bắt đầu (`method` `legacy`) chỉ có ghi chú, điểm nhập ở đó không dùng để tính lương.
 
@@ -536,8 +536,8 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 **Bỏ qua cảnh báo** (`A.Dismiss`, `ai.js`).
 - Gọi `POST /ai/findings/dismiss`, thân `{ month, username, rule, reason }`.
 - Route khớp mục `POST /ai/findings`, cap `ai.review.dismiss`.
-- Lý do tối đa 300 ký tự, không bắt buộc (`ai.js:403-404`).
-- Nút chỉ hiện khi `canDismiss()` đúng (`view-tro-ly.js:69`).
+- Lý do tối đa 300 ký tự, không bắt buộc (`ai.js`).
+- Nút chỉ hiện khi `canDismiss()` đúng (`view-tro-ly.js`).
 
 ### 3.12 Cài đặt (`cai-dat`)
 
@@ -575,21 +575,21 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
   - Cảnh báo `PARAM_LATER_VERSION_EXISTS`: báo đã có phiên bản tham số ở tháng sau.
 - **Phân loại mục tham số** (`tham-so-sap-co.js`): sửa được / chỉ đọc / sửa ở màn khác (`backing`) / "Sắp có" (`wired: false`, không có ô nhập).
 - **Nhóm tham số đặt cứng trong giao diện.**
-  - Nhóm nâng cao: `ADVANCED_GROUPS = [14, 15]` (`view-tham-so.js:37`).
+  - Nhóm nâng cao: `ADVANCED_GROUPS = [14, 15]` (`view-tham-so.js`).
   - `paramsRev` đọc từ nhóm 1.
 
 **Lỗi ở các mục khác.**
 - Danh mục: lỗi `*_STALE` thì nạp lại.
 - Giờ ca: `SHIFT_EDIT_NOT_ALLOWED`.
 
-**Khoá / mở khoá tài khoản.** `PUT /staff/:u` chỉ chứa `{ locked }` (có thể kèm `expectedRev`) được máy chủ xử lý như yêu cầu khoá riêng (`server.js:2078-2090`): không kiểm các trường hồ sơ khác, khoá thì đóng mọi phiên của người đó.
+**Khoá / mở khoá tài khoản.** `PUT /staff/:u` chỉ chứa `{ locked }` (có thể kèm `expectedRev`) được máy chủ xử lý như yêu cầu khoá riêng (`src/modules/staff/staff.controller.ts`): không kiểm các trường hồ sơ khác, khoá thì đóng mọi phiên của người đó.
 
 ### 3.13 Ma trận khi kỳ đã khoá
 
 | Thao tác | Kỳ `approved`/`paid` |
 | --- | --- |
 | Sửa ô phiếu (`slip-override`) | Ô vẫn mở. Máy chủ ghi kèm cảnh báo `PERIOD_FROZEN` |
-| Mở lại kỳ `paid` | Nút hiện. Máy chủ cho qua kèm cảnh báo `PERIOD_STATE` (`lib/db.js:1289` dùng `warnIf`) |
+| Mở lại kỳ `paid` | Nút hiện. Máy chủ cho qua kèm cảnh báo `PERIOD_STATE` (`lib/db.js` dùng `warnIf`) |
 | Khoản cộng/trừ thêm | `409 PERIOD_LOCKED` + `suggestMonth` (khoá do `lib/pay-entries.js` kiểm) |
 | Tạm ứng | Nút ẩn. 409 `PERIOD_LOCKED` |
 | Bỏ qua cảnh báo AI | Nút hiện (`canDismiss`) |
@@ -599,14 +599,14 @@ Màn có hai tab: "Yêu cầu" và "Giải trình" (`D.section`).
 
 Nguyên tắc: giao diện không tự tính tiền, máy chủ trả số. Dưới đây là **mọi chỗ giao diện Admin hiện vẫn tự tính**, kể cả đếm.
 
-### 4.1 Phiếu lương: `view-phieu.js` `figures()` (`:250-412`)
+### 4.1 Phiếu lương: `view-phieu.js` `figures()`
 
-Mỗi ô trên phiếu có một giá trị tự tính từ bản chụp. Nếu máy chủ gửi `p.cells` (số tự tính từng ô, gồm phần do ô số lượng ghim đổi) thì `p.cells` thắng giá trị tự tính (`:382`).
+Mỗi ô trên phiếu có một giá trị tự tính từ bản chụp. Nếu máy chủ gửi `p.cells` (số tự tính từng ô, gồm phần do ô số lượng ghim đổi) thì `p.cells` thắng giá trị tự tính.
 
 | Ô | Phép tính ở trình duyệt |
 | --- | --- |
 | `workDays` | `m.count` (ngày đi làm thực tế; ngày nghỉ sẽ làm bù không cộng) |
-| `workBase` | `m.basePay - m.off + m.cut` (`:311`) |
+| `workBase` | `m.basePay - m.off + m.cut` |
 | `lateCut` | `max(0, m.cut)` |
 | `leavePay`, `isatPay` | Cộng `total` các dòng `kind` `leave` / `isat` |
 | `holidayPay` | Cộng `holBase` các dòng `holiday`. `holidayDays` là số dòng `holiday` có `holBase > 0` |
@@ -615,9 +615,9 @@ Mỗi ô trên phiếu có một giá trị tự tính từ bản chụp. Nếu 
 | `ot15H` | `m.otHours - m.otWeekendHours - m.otHolHours` |
 | `ot20H` | `m.otWeekendHours` |
 | `ot30H` | `m.holWorkHours + m.otHolHours` |
-| `otPay` | `m.otPay + m.holWorkPay + m.makeupPay` (`:375`) |
+| `otPay` | `m.otPay + m.holWorkPay + m.makeupPay` |
 
-**Mức tham khảo `refs`** (`:397`). Đây là con số giao diện tự tính để in cạnh ô, không phải số trả:
+**Mức tham khảo `refs`**. Đây là con số giao diện tự tính để in cạnh ô, không phải số trả:
 
 | Mức | Phép tính | Điều kiện hiện |
 | --- | --- | --- |
@@ -627,7 +627,7 @@ Mỗi ô trên phiếu có một giá trị tự tính từ bản chụp. Nếu 
 | `off` | `hourly * (1 + night.breakPremium) * workdaysStd` | Ẩn khi `type.<loại>.benefit.breakPay === false` |
 | `night` | `base * nightPct` | `nightPct` = `nightOptions[0] / 100` |
 
-### 4.2 Phiếu lương: `effective()` (`:419-466`)
+### 4.2 Phiếu lương: `effective()`
 
 Tổng tiền lấy từ máy chủ trước:
 
@@ -636,24 +636,24 @@ Tổng tiền lấy từ máy chủ trước:
 3. **Đã sửa mà máy chủ thiếu số.** Hiển thị `—`, không đoán.
 
 Hai phép tính vẫn còn ở trình duyệt:
-- **Thu nhập sau bảo hiểm.** Khi máy chủ không gửi `afterInsurance`, giao diện tính `afterIns = n.gross - n.insurance` (`:457`). Phép tính này còn lặp ở bảng so sánh của chế độ sửa (`:876`).
-- **Tổng phụ cấp.** `allowance = allowanceTotal + Σ(số sửa − số tự tính)` trên các ô `ALLOW` đang được Admin ghi đè (`:432-436`).
+- **Thu nhập sau bảo hiểm.** Khi máy chủ không gửi `afterInsurance`, giao diện tính `afterIns = n.gross - n.insurance`. Phép tính này còn lặp ở bảng so sánh của chế độ sửa.
+- **Tổng phụ cấp.** `allowance = allowanceTotal + Σ(số sửa − số tự tính)` trên các ô `ALLOW` đang được Admin ghi đè.
 
-Ngoài ra, `sumRates` (`:590`) cộng các tỷ lệ bảo hiểm để làm nhãn.
+Ngoài ra, `sumRates` cộng các tỷ lệ bảo hiểm để làm nhãn.
 
 ### 4.3 In A4
 
-- **Tỷ lệ phụ cấp đêm.** `phieu-a4-days.js:57` `nightRateOf` chọn tỷ lệ theo thứ tự:
+- **Tỷ lệ phụ cấp đêm.** `phieu-a4-days.js` `nightRateOf` chọn tỷ lệ theo thứ tự:
   1. `shift.allowance.basis === 'assigned'`: `level.<loại>.<bậc>.nightPct`, rồi `type.<loại>.nightPct`, rồi phần tử đầu của `nightOptions`; không có thì `shift.night.bonus`.
   2. Cách khác: `terms.nightPct` (mức người đã chọn) hoặc phần tử đầu của `nightOptions`; không có bảng mức thì `shift.night.bonus`.
 
-  Thứ tự này chép lại logic `bonusOf` của bộ máy lương. `phieu-co-dien.js` có bản chọn riêng (`rates`, `:40`).
+  Thứ tự này chép lại logic `bonusOf` của bộ máy lương. `phieu-co-dien.js` có bản chọn riêng (`rates`,).
 - **Giờ OT.** `tilesOf` cộng giờ OT từ ba ô `ot15H + ot20H + ot30H`.
 - **Chip ca Flex.** Mức % lấy từ `f.rates.flex` (tham số, theo bậc).
 
 ### 4.4 Chấm công
 
-- **Làm ngày lễ.** `view-cham-cong.js:183` `holidayWorkOf` xác định ngày lễ có được trả giờ làm hay không:
+- **Làm ngày lễ.** `view-cham-cong.js` `holidayWorkOf` xác định ngày lễ có được trả giờ làm hay không:
   - Ngày nằm trong lịch làm, khai `work` có giờ vào và ra.
   - Có dòng duyệt OT ngày lễ (`approvals[date].holiday`): lấy trạng thái của dòng đó. Không có dòng duyệt: coi là `approved`.
 
@@ -672,10 +672,10 @@ Ngoài ra, `sumRates` (`:590`) cộng các tỷ lệ bảo hiểm để làm nh�
 
 | Chỗ | Phép tính |
 | --- | --- |
-| `view-kpi.js:338` | Cộng tiền KPI của mọi người (`reduce`) từ số máy chủ trả theo phiếu |
+| `view-kpi.js` | Cộng tiền KPI của mọi người (`reduce`) từ số máy chủ trả theo phiếu |
 | `view-ky-luong.js` (dòng trạng thái) | `T.people - T.error`, `totalOf(c) - c.error` (đếm phiếu có số) |
-| `ui.js:173` | Đếm tổng phiếu cho dải bước |
-| `view-khac.js:250` | Đếm tổng phiếu cho thẻ Kỳ lương; đếm nhân sự theo loại |
+| `ui.js` | Đếm tổng phiếu cho dải bước |
+| `view-khac.js` | Đếm tổng phiếu cho thẻ Kỳ lương; đếm nhân sự theo loại |
 | `view-cham-cong.js` `tally` | Đếm ngày có nhãn Chờ xử lý / Bị từ chối trên cả tháng |
 
 ### 4.6 Quy tắc nhập ở giao diện
@@ -683,28 +683,28 @@ Ngoài ra, `sumRates` (`:590`) cộng các tỷ lệ bảo hiểm để làm nh�
 Lấy theo hằng số đặt trong từng file.
 
 **Độ dài lý do: tối đa 300 ký tự, không bắt buộc.**
-- Khớp `lib/config.js:23-24`.
+- Khớp `lib/config.js`.
 - Định nghĩa lại ở:
-  - `ai.js:403-404`
-  - `view-phieu.js:155-156`
-  - `view-ho-so.js:21-22`
-  - `view-khoan-them.js:15-16`
-  - `view-khoi-phu-cap.js:11-12`
-  - `view-khung-chuc-vu.js:7-8`
-  - `view-phan-quyen.js:13-14`
-  - `view-tham-so.js:41-42`
+  - `ai.js`
+  - `view-phieu.js`
+  - `view-ho-so.js`
+  - `view-khoan-them.js`
+  - `view-khoi-phu-cap.js`
+  - `view-khung-chuc-vu.js`
+  - `view-phan-quyen.js`
+  - `view-tham-so.js`
 - Viết thẳng số ở:
-  - `cai-dat-ky-luong.js:599`
-  - `cai-dat-so-do.js:429`
-  - `view-ky-luong.js:989` (chỉ cận dưới 10)
+  - `cai-dat-ky-luong.js`
+  - `cai-dat-so-do.js`
+  - `view-ky-luong.js` (chỉ cận dưới 10)
 
 **Mật khẩu tối thiểu 6 ký tự.**
-- Khớp `lib/config.js:99`.
-- Có ở `view-ho-so.js:20` và `view-cai-dat.js:186`.
+- Khớp `lib/config.js`.
+- Có ở `view-ho-so.js` và `view-cai-dat.js`.
 
 **Trang / lô 200.**
-- Khớp `lib/config.js:12` (`PAYSLIP_PAGE_MAX`) và `:83` (`APPROVAL_MAX_DECIDE_ITEMS`).
-- Có ở `view-ky-luong.js:83`, `view-kpi.js:39`, `phieu-a4.js:35`, `view-ky-luong-phieu.js:172`, `view-duyet.js:12`.
+- Khớp `lib/config.js` (`PAYSLIP_PAGE_MAX`) và (`APPROVAL_MAX_DECIDE_ITEMS`).
+- Có ở `view-ky-luong.js`, `view-kpi.js`, `phieu-a4.js`, `view-ky-luong-phieu.js`, `view-duyet.js`.
 
 **Các ràng buộc khác.**
 - Tên khoản ≤ 80 ký tự; tên khối / chức vụ ≤ 40 ký tự; nội dung giải trình ≤ 500 ký tự.
@@ -713,7 +713,7 @@ Lấy theo hằng số đặt trong từng file.
 
 ## 5. Realtime và nhật ký
 
-### 5.1 Kênh SSE (`A.live`, `core.js:400-535`)
+### 5.1 Kênh SSE (`A.live`, `core.js`)
 
 **Kết nối.**
 - Bọc `EventSource` trên `GET /events`.
@@ -744,22 +744,22 @@ Lấy theo hằng số đặt trong từng file.
 
 | Nơi | Sự kiện | Hành động |
 | --- | --- | --- |
-| `boot.js:60` | `approvals.changed` | Nạp lại `duyet`, `tong-quan` (nếu đang xem) |
-| `boot.js:61` | `period.changed` | Nạp lại `luong`, `tong-quan`, `cham-cong` |
-| `boot.js:121` | `attendance.changed` | Xem ghi chú 3 dưới bảng |
-| `boot.js:134` | `params.changed` | Xem ghi chú 4 dưới bảng |
-| `boot.js:142` | `resync` | `refreshShell`, `refreshMe`, `levelNames.refresh`, `shiftsLoad`, nạp lại màn đang xem, `A.Params.remoteChanged(null)` |
-| `core.js:537` | `params.changed` | `levelNames.refresh`, `positions.refresh` |
-| `catalog-positions.js:77` | `params.changed` | Nạp lại danh mục chức vụ |
-| `view-cai-dat.js:675` | `params.changed` | `A.Params.remoteChanged(payload)`. Bỏ qua tin đến trong `SELF_EVENT_MS = 3000` sau lần lưu của chính mình (`view-tham-so.js:45`) |
+| `boot.js` | `approvals.changed` | Nạp lại `duyet`, `tong-quan` (nếu đang xem) |
+| `boot.js` | `period.changed` | Nạp lại `luong`, `tong-quan`, `cham-cong` |
+| `boot.js` | `attendance.changed` | Xem ghi chú 3 dưới bảng |
+| `boot.js` | `params.changed` | Xem ghi chú 4 dưới bảng |
+| `boot.js` | `resync` | `refreshShell`, `refreshMe`, `levelNames.refresh`, `shiftsLoad`, nạp lại màn đang xem, `A.Params.remoteChanged(null)` |
+| `core.js` | `params.changed` | `levelNames.refresh`, `positions.refresh` |
+| `catalog-positions.js` | `params.changed` | Nạp lại danh mục chức vụ |
+| `view-cai-dat.js` | `params.changed` | `A.Params.remoteChanged(payload)`. Bỏ qua tin đến trong `SELF_EVENT_MS = 3000` sau lần lưu của chính mình (`view-tham-so.js`) |
 
 Ghi chú cho bảng:
 
-1. **Tin của tháng khác.** `approvals.changed` và `period.changed` luôn gọi `A.refreshShell()` (số đếm, chuông) trước. Sau đó, nếu `payload.month` khác tháng đang xem thì không nạp lại màn (`boot.js:53-59`).
+1. **Tin của tháng khác.** `approvals.changed` và `period.changed` luôn gọi `A.refreshShell()` (số đếm, chuông) trước. Sau đó, nếu `payload.month` khác tháng đang xem thì không nạp lại màn (`boot.js`).
 2. **Hộp thoại đang mở.** Việc nạp lại hoãn tới khi hộp thoại đóng.
 3. **`attendance.changed`.**
    - Bỏ tin của tháng khác. Riêng tab `hom-nay` nhận tin của mọi tháng.
-   - Mỗi `ATTENDANCE_RELOAD_MS = 10000` (`boot.js:74`) nạp tối đa một lần, không bao giờ hai lần chồng nhau.
+   - Mỗi `ATTENDANCE_RELOAD_MS = 10000` (`boot.js`) nạp tối đa một lần, không bao giờ hai lần chồng nhau.
    - Chỉ nạp khi đang xem `tong-quan` hoặc tab `bang` / `hom-nay` / `ot` của Chấm công. Nạp bằng `view.live()`.
    - Tab trình duyệt đang ẩn: chờ tới khi hiện lại.
 4. **`params.changed`.**
@@ -790,7 +790,7 @@ Ghi chú cho bảng:
   - `reopenTargets`
   - `canDismiss`
 - **`lib/events.js`**: danh sách sự kiện và trường.
-- **`server.js` `SLIP_MONEY` / `SLIP_QTY`**: danh sách ô sửa được trên phiếu.
+- **`src/modules/periods/periods.helpers.ts` `SLIP_MONEY` / `SLIP_QTY`**: danh sách ô sửa được trên phiếu.
 - **`lib/slip-formulas.js`, `lib/slip-paid.js`**: `formulas`, `cells`, `cot`, `punchIn` / `punchOut`, `held` trên phiếu.
 - **`lib/domain/attendance/session-status.js`**: `status`, `statusNote` của lượt.
 - **`lib/config.js`**: các trần và độ dài, đang được chép thành hằng số trong giao diện.
@@ -801,22 +801,22 @@ Ghi chú cho bảng:
 
 | Đổi X | Phải kiểm tra Y |
 | --- | --- |
-| Tên / thứ tự trạng thái kỳ lương | `ui.js` `PERIOD_STEPS`/`PERIOD_STATE`; `view-ky-luong.js` `STATUS_TXT`, `STATUS_PILL`, `NEXT_ACTION`, `reopenTargets`, `modeOf`, `approving()`; `view-ung-luong.js` `locked`; `canDismiss` ở `view-khac.js:433` và `view-tro-ly.js:69` |
-| Thêm / bỏ ô sửa được trên phiếu | `server.js:135,155`; `view-phieu.js` `MONEY`/`PCT`/`INCOME`/`ALLOW`/`GROUPS`; `lib/slip-paid.js`; `lib/slip-formulas.js` (khoá công thức); `phieu-a4.js` |
+| Tên / thứ tự trạng thái kỳ lương | `ui.js` `PERIOD_STEPS`/`PERIOD_STATE`; `view-ky-luong.js` `STATUS_TXT`, `STATUS_PILL`, `NEXT_ACTION`, `reopenTargets`, `modeOf`, `approving()`; `view-ung-luong.js` `locked`; `canDismiss` ở `view-khac.js` và `view-tro-ly.js` |
+| Thêm / bỏ ô sửa được trên phiếu | `src/modules/**/*.controller.ts` `155`; `view-phieu.js` `MONEY`/`PCT`/`INCOME`/`ALLOW`/`GROUPS`; `lib/slip-paid.js`; `lib/slip-formulas.js` (khoá công thức); `phieu-a4.js` |
 | Cấu trúc bản chụp phiếu (`snapshot.rows`, `m.*`) | `view-phieu.js` `figures()`; `phieu-a4-days.js` (cột ngày, `nightRateOf`, `tilesOf`); `phieu-co-dien.js`; `lib/slip-formulas.js` |
-| Cách bộ máy chọn tỷ lệ phụ cấp đêm (`bonusOf`) | `phieu-a4-days.js:57`; `phieu-co-dien.js:40` |
-| Quy tắc trả giờ làm ngày lễ | `view-cham-cong.js:183` `holidayWorkOf` |
+| Cách bộ máy chọn tỷ lệ phụ cấp đêm (`bonusOf`) | `phieu-a4-days.js`; `phieu-co-dien.js` |
+| Quy tắc trả giờ làm ngày lễ | `view-cham-cong.js` `holidayWorkOf` |
 | Nhãn hoặc ngưỡng trạng thái lượt chấm công | `public/attendance-status.js`; `view-cham-cong.js` (`cellOf`, chú giải); `view-giai-trinh.js`; `phieu-a4-days.js` (`held`) |
 | `public/nhan-vien/logic.js` (`dayPlan`) | `cham-cong-khai.js` (bản sao) |
 | `lib/config.js` `REASON_MIN/MAX`, `PASSWORD_MIN_LENGTH`, `PAYSLIP_PAGE_MAX`, `APPROVAL_MAX_DECIDE_ITEMS` | Các file liệt kê ở mục 4.6 |
-| Mã nhóm tham số (1, 2, 8, 14, 15) | `core.js` `A.levelNames` (nhóm 2); `view-kpi.js:38` (nhóm 8); `view-tham-so.js:37` (14, 15) và đọc `paramsRev` nhóm 1 |
-| Trường / sự kiện trong `lib/events.js` | `boot.js:53-150`; `core.js:400-537`; `view-cai-dat.js:675`; `catalog-positions.js:77` |
+| Mã nhóm tham số (1, 2, 8, 14, 15) | `core.js` `A.levelNames` (nhóm 2); `view-kpi.js` (nhóm 8); `view-tham-so.js` (14, 15) và đọc `paramsRev` nhóm 1 |
+| Trường / sự kiện trong `lib/events.js` | `boot.js`; `core.js`; `view-cai-dat.js`; `catalog-positions.js` |
 | Thêm route mới cho Admin | Mục trong `ROUTE_CAPS` (thiếu → 403 `NO_ROUTE_POLICY`; giao diện coi đó là `missingRoute` ở Bảng lương) |
-| Hình dạng `PUT /staff/:u` | `view-ho-so.js` (gửi cả hồ sơ, `role: 'staff'`); `view-phan-quyen.js` (chỉ `{ locked }`); `server.js:2078-2090` |
-| Cách khoá kỳ / cảnh báo của một route | Ma trận mục 3.13; ẩn / hiện nút ở `view-ky-luong.js:363`, `view-ung-luong.js` (`locked`), `canDismiss`, ngăn kéo phiếu (`locked`) |
+| Hình dạng `PUT /staff/:u` | `view-ho-so.js` (gửi cả hồ sơ, `role: 'staff'`); `view-phan-quyen.js` (chỉ `{ locked }`); `src/modules/staff/staff.controller.ts` |
+| Cách khoá kỳ / cảnh báo của một route | Ma trận mục 3.13; ẩn / hiện nút ở `view-ky-luong.js`, `view-ung-luong.js` (`locked`), `canDismiss`, ngăn kéo phiếu (`locked`) |
 | Mã lỗi `*_STALE`, `PERIOD_LOCKED`, `PERIOD_NOT_READY`, `PAYSLIP_*` | `explain` của `view-ky-luong.js`; `view-phieu.js`; `view-khoan-them.js`; `view-duyet.js`; `view-ho-so.js` |
 | Tên file trong `public/admin/` | `public/admin.html` (thứ tự nạp); các test đọc file Admin (mục 7) |
-| Chỗ lưu vùng GPS | `view-cai-dat.js:163` và `cai-dat-ky-luong.js:776` (hai chỗ) |
+| Chỗ lưu vùng GPS | `view-cai-dat.js` và `cai-dat-ky-luong.js` (hai chỗ) |
 
 ## 7. Test hiện có
 
@@ -875,27 +875,27 @@ Không có test trình duyệt (E2E) cho các màn Admin. Không có test cho: `
 | # | Chỗ | Mô tả |
 | --- | --- | --- |
 | 1 | `public/admin.html` | Nạp `payroll-engine`, `formula`, `formula-vocab`, `payroll-graph`, `payroll-calendar`, `pay-*-calc`, `payroll-day-parts`, `kpi-score`, `punch`, `work-schedule`, nhưng mã Admin không gọi các mô-đun này. Nạp thừa, và dễ khiến người sửa tưởng giao diện đang dùng bộ máy lương |
-| 2 | `view-phieu.js:311,375,397-409` | `figures()` tự tính tiền (`workBase`, `otPay`, `leavePay`, `holidayPay`, `flexPay`, `nightPay`, mức tham khảo `refs.*`), trái nguyên tắc "giao diện không tính tiền". `p.cells` của máy chủ thắng các ô sửa được, nhưng `refs` và các ô chỉ để hiển thị vẫn tính ở trình duyệt |
-| 3 | `view-phieu.js:416` vs `:432-436,457,876` | Chú thích ghi "Không cộng trừ, không tính thuế ở trình trình duyệt", nhưng `effective()` cộng chênh lệch phụ cấp (`allowance`) và tính `afterIns = gross - insurance` khi máy chủ thiếu số |
-| 4 | `phieu-a4-days.js:57`, `phieu-co-dien.js:40` | `nightRateOf` chép lại cách bộ máy chọn tỷ lệ phụ cấp đêm, và `rates()` của mẫu cổ điển chọn theo cách khác (`terms.nightPct || nightOptions[0]`, không xét `shift.allowance.basis`). Bộ máy đổi mà các file này không đổi theo thì nhãn trên bản in sai |
-| 5 | `view-cham-cong.js:183` | `holidayWorkOf` chép quy tắc máy chủ về trả giờ làm ngày lễ. Giao diện đọc cờ `a.holiday` trên `approvals[date]`; ngày không có cờ này thì coi là `approved` |
-| 6 | `cham-cong-khai.js:15,174-182` | Quyền lợi dự phòng lấy từ `PayrollParams.DEFAULTS`, không theo tham số đã lưu. `approved` suy từ `attendance > 0`. File còn chép `dayPlan` của `public/nhan-vien/logic.js` |
-| 7 | `view-kpi.js:338` | Cộng tổng tiền KPI ở trình duyệt từ số từng phiếu, không dùng tổng của máy chủ |
-| 8 | `view-khac.js:433`, `view-tro-ly.js:69` | Hai bản `canDismiss` cùng điều kiện, viết riêng ở hai file. Nguồn trạng thái kỳ khác nhau: `view-khac.js` dự phòng bằng `A.Ky.data()`, `view-tro-ly.js:61-65` dùng `periodData()` của chính nó |
-| 9 | `view-cai-dat.js:163,201,645`, `cai-dat-ky-luong.js:776` | Hai chỗ lưu vùng GPS (`PUT /settings/geofence`). `secChamCong` chỉ dùng khi `A.CaiDat.renderKyLuong` không có |
-| 10 | `ai.js:403-404`, `view-phieu.js:155-156`, `view-ho-so.js:21-22`, `view-khoan-them.js:15-16`, `view-khoi-phu-cap.js:11-12`, `view-khung-chuc-vu.js:7-8`, `view-phan-quyen.js:13-14`, `view-tham-so.js:41-42`, `cai-dat-ky-luong.js:599`, `cai-dat-so-do.js:429`, `view-ky-luong.js:989` | Độ dài lý do 10/300 lặp ở 11 chỗ, ba chỗ viết thẳng số. Máy chủ để ở `lib/config.js:23-24` |
-| 11 | `view-ho-so.js:20`, `view-cai-dat.js:186` | Mật khẩu tối thiểu 6 viết cứng hai nơi. Máy chủ dùng `lib/config.js:99` `PASSWORD_MIN_LENGTH` |
-| 12 | `view-ky-luong.js:83`, `view-kpi.js:39`, `phieu-a4.js:35`, `view-ky-luong-phieu.js:172`, `view-duyet.js:12` | Trần trang / lô 200 viết cứng 5 nơi. Máy chủ lấy từ `PAYSLIP_PAGE_MAX` và `APPROVAL_MAX_DECIDE_ITEMS` / tham số `system.approval.maxDecideItems` (đổi được), nên giao diện có thể lệch |
-| 13 | `view-kpi.js:38`, `view-tham-so.js:37`, `core.js` (`group=2`) | Mã nhóm tham số 2, 8, 14, 15 (và nhóm 1 cho `paramsRev`) viết cứng trong giao diện |
-| 14 | `core.js:395-399` vs `lib/events.js` (`attendance.changed`) | Chú thích ghi `attendance.changed { kind, month, pending }`, nhưng máy chủ chỉ gửi `kind, month` (trường khác bị lọc) |
-| 15 | `view-ky-luong.js:505-507` | `overTag` luôn trả chuỗi rỗng mà vẫn được gọi ở `:535` (mã chết) |
-| 16 | `view-phieu.js:605`, `phieu-co-dien.js:170` | `pageOf` và `classicSheet` không dùng trong giao diện, chỉ còn để test đơn vị khoá chữ của mẫu cổ điển |
-| 17 | `view-khac.js:452,500` | Màn `phuc-loi` và `bao-cao` được đăng ký nhưng không có trong menu, chỉ mở được bằng hash |
-| 18 | `ai.js:425-428` | `A.Dismiss.probe` không hỏi máy chủ, luôn đặt trạng thái `yes`, nhưng `view-ky-luong.js:213` và `view-tro-ly.js:50` vẫn gọi và chờ kết quả |
-| 19 | `ai.js:465` | Mỗi lần `mount` thêm `paint` vào `DS.listeners` mà không bao giờ gỡ. Mở nhiều ngăn kéo thì danh sách nghe phình ra và còn vẽ vào phần tử đã bỏ |
-| 20 | `lib/periods.js:527` vs `lib/db.js:1289`, `view-ky-luong.js:363` | Chú thích máy chủ ghi "`paid` không mở lại được", nhưng `warnIf('PERIOD_STATE', ...)` cho qua, và giao diện hiện nút mở lại kỳ `paid` |
-| 21 | `view-ho-so.js` (lưu hồ sơ) vs `view-phan-quyen.js`, `server.js:2078-2090` | Cùng `PUT /staff/:u` có hai cách gọi: Nhân sự gửi cả hồ sơ và luôn ép `role: 'staff'`; Phân quyền gửi riêng `{ locked }` |
+| 2 | `view-phieu.js,375,397-409` | `figures()` tự tính tiền (`workBase`, `otPay`, `leavePay`, `holidayPay`, `flexPay`, `nightPay`, mức tham khảo `refs.*`), trái nguyên tắc "giao diện không tính tiền". `p.cells` của máy chủ thắng các ô sửa được, nhưng `refs` và các ô chỉ để hiển thị vẫn tính ở trình duyệt |
+| 3 | `view-phieu.js` vs `:432-436,457,876` | Chú thích ghi "Không cộng trừ, không tính thuế ở trình trình duyệt", nhưng `effective()` cộng chênh lệch phụ cấp (`allowance`) và tính `afterIns = gross - insurance` khi máy chủ thiếu số |
+| 4 | `phieu-a4-days.js`, `phieu-co-dien.js` | `nightRateOf` chép lại cách bộ máy chọn tỷ lệ phụ cấp đêm, và `rates()` của mẫu cổ điển chọn theo cách khác (`terms.nightPct || nightOptions[0]`, không xét `shift.allowance.basis`). Bộ máy đổi mà các file này không đổi theo thì nhãn trên bản in sai |
+| 5 | `view-cham-cong.js` | `holidayWorkOf` chép quy tắc máy chủ về trả giờ làm ngày lễ. Giao diện đọc cờ `a.holiday` trên `approvals[date]`; ngày không có cờ này thì coi là `approved` |
+| 6 | `cham-cong-khai.js,174-182` | Quyền lợi dự phòng lấy từ `PayrollParams.DEFAULTS`, không theo tham số đã lưu. `approved` suy từ `attendance > 0`. File còn chép `dayPlan` của `public/nhan-vien/logic.js` |
+| 7 | `view-kpi.js` | Cộng tổng tiền KPI ở trình duyệt từ số từng phiếu, không dùng tổng của máy chủ |
+| 8 | `view-khac.js`, `view-tro-ly.js` | Hai bản `canDismiss` cùng điều kiện, viết riêng ở hai file. Nguồn trạng thái kỳ khác nhau: `view-khac.js` dự phòng bằng `A.Ky.data()`, `view-tro-ly.js` dùng `periodData()` của chính nó |
+| 9 | `view-cai-dat.js,201,645`, `cai-dat-ky-luong.js` | Hai chỗ lưu vùng GPS (`PUT /settings/geofence`). `secChamCong` chỉ dùng khi `A.CaiDat.renderKyLuong` không có |
+| 10 | `ai.js`, `view-phieu.js`, `view-ho-so.js`, `view-khoan-them.js`, `view-khoi-phu-cap.js`, `view-khung-chuc-vu.js`, `view-phan-quyen.js`, `view-tham-so.js`, `cai-dat-ky-luong.js`, `cai-dat-so-do.js`, `view-ky-luong.js` | Độ dài lý do 10/300 lặp ở 11 chỗ, ba chỗ viết thẳng số. Máy chủ để ở `lib/config.js` |
+| 11 | `view-ho-so.js`, `view-cai-dat.js` | Mật khẩu tối thiểu 6 viết cứng hai nơi. Máy chủ dùng `lib/config.js` `PASSWORD_MIN_LENGTH` |
+| 12 | `view-ky-luong.js`, `view-kpi.js`, `phieu-a4.js`, `view-ky-luong-phieu.js`, `view-duyet.js` | Trần trang / lô 200 viết cứng 5 nơi. Máy chủ lấy từ `PAYSLIP_PAGE_MAX` và `APPROVAL_MAX_DECIDE_ITEMS` / tham số `system.approval.maxDecideItems` (đổi được), nên giao diện có thể lệch |
+| 13 | `view-kpi.js`, `view-tham-so.js`, `core.js` (`group=2`) | Mã nhóm tham số 2, 8, 14, 15 (và nhóm 1 cho `paramsRev`) viết cứng trong giao diện |
+| 14 | `core.js` vs `lib/events.js` (`attendance.changed`) | Chú thích ghi `attendance.changed { kind, month, pending }`, nhưng máy chủ chỉ gửi `kind, month` (trường khác bị lọc) |
+| 15 | `view-ky-luong.js` | `overTag` luôn trả chuỗi rỗng mà vẫn được gọi ở (mã chết) |
+| 16 | `view-phieu.js`, `phieu-co-dien.js` | `pageOf` và `classicSheet` không dùng trong giao diện, chỉ còn để test đơn vị khoá chữ của mẫu cổ điển |
+| 17 | `view-khac.js,500` | Màn `phuc-loi` và `bao-cao` được đăng ký nhưng không có trong menu, chỉ mở được bằng hash |
+| 18 | `ai.js` | `A.Dismiss.probe` không hỏi máy chủ, luôn đặt trạng thái `yes`, nhưng `view-ky-luong.js` và `view-tro-ly.js` vẫn gọi và chờ kết quả |
+| 19 | `ai.js` | Mỗi lần `mount` thêm `paint` vào `DS.listeners` mà không bao giờ gỡ. Mở nhiều ngăn kéo thì danh sách nghe phình ra và còn vẽ vào phần tử đã bỏ |
+| 20 | `lib/periods.js` vs `lib/db.js`, `view-ky-luong.js` | Chú thích máy chủ ghi "`paid` không mở lại được", nhưng `warnIf('PERIOD_STATE', ...)` cho qua, và giao diện hiện nút mở lại kỳ `paid` |
+| 21 | `view-ho-so.js` (lưu hồ sơ) vs `view-phan-quyen.js`, `src/modules/staff/staff.controller.ts` | Cùng `PUT /staff/:u` có hai cách gọi: Nhân sự gửi cả hồ sơ và luôn ép `role: 'staff'`; Phân quyền gửi riêng `{ locked }` |
 | 22 | `ui.js` `PERIOD_STEPS`/`PERIOD_STATE` vs `view-ky-luong.js` `STATUS_TXT`/`STATUS_PILL`/`NEXT_ACTION` | Hai bộ nhãn trạng thái kỳ lương độc lập, phải sửa đồng thời |
 | 23 | `view-tham-so.js` (1481 dòng) | File dài nhất của `public/admin/`; `view-phieu.js` (1199), `view-ky-luong.js` (1101), `view-ho-so.js` (1083) cũng trên 1000 dòng |
-| 24 | `core.js:102`, `A.SHIFTS` (`core.js:259`) | Số bậc tối đa và 6 ca dự phòng viết cứng. Nếu `GET /positions` hoặc `/settings/shifts` lỗi, giao diện hiện dữ liệu không khớp cấu hình thật mà không báo |
+| 24 | `core.js`, `A.SHIFTS` (`core.js`) | Số bậc tối đa và 6 ca dự phòng viết cứng. Nếu `GET /positions` hoặc `/settings/shifts` lỗi, giao diện hiện dữ liệu không khớp cấu hình thật mà không báo |
 | 25 | `view-giai-trinh.js` | Giải trình ngày dùng `source: 'ai'` / `'admin'` để chọn loại; hộp "Yêu cầu giải trình" nhập tài khoản bằng tay (không chọn từ danh sách nhân sự) |

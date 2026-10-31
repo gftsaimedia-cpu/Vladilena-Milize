@@ -54,7 +54,7 @@ Chạm một ngày trên lịch: điện thoại mở khay chi tiết ngày (`da
 
 Tài khoản không thuộc bảng lương (`payrollSubject` false): không có Check-in/out, bảng công, yêu cầu, thu nhập; mỗi màn hiện một câu nói rõ lý do (`NO_PAY` trong `views.js`, `noPayCard` trong `thu-nhap.js`).
 
-Ở chế độ khai thay chỉ có ba tab `NV.THAY_VIEWS` = `cham-cong`, `yeu-cau`, `luong` (`thay.js:17`).
+Ở chế độ khai thay chỉ có ba tab `NV.THAY_VIEWS` = `cham-cong`, `yeu-cau`, `luong` (`thay.js`).
 
 ### 1.4 Ngoài phạm vi và chưa có trên giao diện nhân viên
 
@@ -69,7 +69,7 @@ Tài khoản không thuộc bảng lương (`payrollSubject` false): không có 
 
 Trình duyệt không có cơ sở dữ liệu riêng. Có ba nơi giữ dữ liệu.
 
-### 2.1 State trong bộ nhớ: `S` (`core.js:22`, thêm khoá ở các file sau)
+### 2.1 State trong bộ nhớ: `S` (`core.js`, thêm khoá ở các file sau)
 
 | Khoá | Nguồn | Ghi chú |
 | --- | --- | --- |
@@ -90,7 +90,7 @@ Trình duyệt không có cơ sở dữ liệu riêng. Có ba nơi giữ dữ li
 
 `rev` của lịch theo tháng được giữ riêng trong `baseRev` (`data.js`) để gửi làm `expectedRev` khi lưu.
 
-### 2.2 `localStorage` (bọc `try/catch`, tiền tố `aicb-nv-`, `NV.store`, `core.js:46`)
+### 2.2 `localStorage` (bọc `try/catch`, tiền tố `aicb-nv-`, `NV.store`, `core.js`)
 
 | Khoá | File | Nội dung |
 | --- | --- | --- |
@@ -104,7 +104,7 @@ Storage bị chặn thì trang vẫn chạy. Trang đăng nhập không dùng st
 
 ### 2.4 Hình dạng một "ngày" trong `sheet.days[date]`
 
-`kind` thuộc `DAY_KINDS` = `work`, `makeup`, `leave`, `unpaid`, `willmakeup`, `approved`, `isat` (`server.js:392`). `makeup` (Làm bù cả ngày) là loại không còn chọn được: máy chủ từ chối ngày mới hoặc ngày đã đổi mang loại này (400 `SHEET_MAKEUP_DAY_REMOVED`), bộ máy tính 0 tiền, 0 công; ngày đã lưu gửi lại không đổi vẫn lưu được.
+`kind` thuộc `DAY_KINDS` = `work`, `makeup`, `leave`, `unpaid`, `willmakeup`, `approved`, `isat` (`src/modules/sheet/sheet.helpers.ts`). `makeup` (Làm bù cả ngày) là loại không còn chọn được: máy chủ từ chối ngày mới hoặc ngày đã đổi mang loại này (400 `SHEET_MAKEUP_DAY_REMOVED`), bộ máy tính 0 tiền, 0 công; ngày đã lưu gửi lại không đổi vẫn lưu được.
 
 Các trường khác: `in`, `out`, `shift`/`preset` (mã ca), `breakMin`, `extraKind` (`ot`/`makeup`), `extraIn` (giờ vào làm thêm, trước ca), `extraOut` (giờ ra làm thêm, sau ca), `makeupPlans[] { date, from, to }` (hoặc `makeupDate` kiểu cũ), `punchNote`. Ngày do hệ thống ghi mang `src` hoặc `attendanceConfirmed`; `ApprovalView.itemOf` trả `null` cho những ngày này (`approval-view.js`, hàm `itemOf`).
 
@@ -114,20 +114,20 @@ Các trường khác: `in`, `out`, `shift`/`preset` (mã ca), `breakMin`, `extra
 
 ## 3. API
 
-Ký hiệu: **A** = `{ authenticated: true }`. `write(p, scope)` nghĩa là ghi, có kiểm tra khoá kỳ theo `scope` qua `guardPeriod`. Route không có trong `ROUTE_CAPS` (`lib/authz.js:160`) trả 403 `NO_ROUTE_POLICY` (`server.js:502`); thiếu quyền trả 403 `FORBIDDEN_CAP`.
+Ký hiệu: **A** = `{ authenticated: true }`. `write(p, scope)` nghĩa là ghi, có kiểm tra khoá kỳ theo `scope` qua `guardPeriod`. Route không có trong `ROUTE_CAPS` (`lib/authz.js`) trả 403 `NO_ROUTE_POLICY` (`src/http/api-gate.ts`); thiếu quyền trả 403 `FORBIDDEN_CAP`.
 
-**Khoá kỳ** (`lib/db.js:1009` `SCOPE_LOCKED_FROM`): `attendance` và `params` khoá từ `attendance_locked`; `kpi` và `slip` khoá từ `approved`. Ghi vào kỳ đã khoá vẫn lưu và thêm `warnings[]` (`PERIOD_LOCKED`). Mọi tháng đều chịu khoá kỳ như nhau.
+**Khoá kỳ** (`lib/db.js` `SCOPE_LOCKED_FROM`): `attendance` và `params` khoá từ `attendance_locked`; `kpi` và `slip` khoá từ `approved`. Ghi vào kỳ đã khoá vẫn lưu và thêm `warnings[]` (`PERIOD_LOCKED`). Mọi tháng đều chịu khoá kỳ như nhau.
 
 **Cảnh báo** (`lib/warnings.js`): kiểm tra nghiệp vụ dùng `warnIf` thêm `{ code, message, severity, count?, link?, details? }` vào `warnings[]` của phản hồi 2xx và chạy tiếp. Kiểm tra bảo mật, định dạng, chống ghi đè (`*_STALE`, `requestId`), cổng Check-in (`CHECKIN_NOT_ALLOWED`) và tạm ứng ở kỳ đã duyệt luôn chặn.
 
-**Lỗi chung của `NV.api`** (`core.js:118`): quá `TIMEOUT_MS` 20000 thì huỷ request. Lỗi mạng → `ApiError(0)`. 401 → `location.replace('/dang-nhap.html')`. Mã khác 2xx → `ApiError(status, data.error, data)`. `warnings[]` của phản hồi thành công được đưa qua `NV.showWarnings` (trừ khi nơi gọi đặt `warnings: 'manual'`).
+**Lỗi chung của `NV.api`** (`core.js`): quá `TIMEOUT_MS` 20000 thì huỷ request. Lỗi mạng → `ApiError(0)`. 401 → `location.replace('/dang-nhap.html')`. Mã khác 2xx → `ApiError(status, data.error, data)`. `warnings[]` của phản hồi thành công được đưa qua `NV.showWarnings` (trừ khi nơi gọi đặt `warnings: 'manual'`).
 
 ### 3.1 Đăng nhập (`dang-nhap.js`, `home-route.js`)
 
 | Method + path | Cap | Input | Output | Lỗi |
 | --- | --- | --- | --- | --- |
 | `GET /api/me` | public | | xem 3.2 | chưa đăng nhập: `user: null` |
-| `POST /api/login` | public | `{ username, password }`; client `trim()` và `toLowerCase()` username | `{ user, holidays, geofenceRequired, geofence? }` (`geofenceRequired` cho mọi role, `geofence` chỉ role admin) và đặt cookie phiên (`server.js:558`) | 429 khi sai quá nhiều lần (khoá theo tên và địa chỉ, có `Retry-After`); 401 `Sai tên đăng nhập hoặc mật khẩu` (tên không tồn tại cũng chạy băm mật khẩu và nhận cùng thông báo); 403 khi tài khoản bị khoá (`LOCKED_MESSAGE`, kiểm sau khi mật khẩu đúng) |
+| `POST /api/login` | public | `{ username, password }`; client `trim()` và `toLowerCase()` username | `{ user, holidays, geofenceRequired, geofence? }` (`geofenceRequired` cho mọi role, `geofence` chỉ role admin) và đặt cookie phiên (`src/modules/auth/auth.controller.ts`) | 429 khi sai quá nhiều lần (khoá theo tên và địa chỉ, có `Retry-After`); 401 `Sai tên đăng nhập hoặc mật khẩu` (tên không tồn tại cũng chạy băm mật khẩu và nhận cùng thông báo); 403 khi tài khoản bị khoá (`LOCKED_MESSAGE`, kiểm sau khi mật khẩu đúng) |
 
 Luồng: khi trang mở, `enterIfLoggedIn` gọi `GET /api/me`; có user thì `location.replace(HomeRoute.homeFor(me))`. Bấm Đăng nhập → kiểm hai ô không rỗng (ô trống viền đỏ, câu "Nhập tên đăng nhập và mật khẩu") → `POST /api/login` → `GET /api/me` → `homeFor`; thiếu user thì về `/nhan-vien.html`. Gặp 401 thì ô mật khẩu viền đỏ, hiện câu của máy chủ kèm gợi ý "Kiểm tra lại chữ hoa, chữ thường, hoặc nhờ Admin đặt lại mật khẩu."; lỗi khác hiện câu của máy chủ; lỗi mạng hiện "Không kết nối được máy chủ". Mọi thông báo gán bằng `textContent`. Nút Hiện/Ẩn đổi kiểu ô mật khẩu.
 
@@ -137,18 +137,18 @@ Luồng: khi trang mở, `enterIfLoggedIn` gọi `GET /api/me`; có user thì `l
 
 | Method + path | Cap (`authz.js`) | Gọi từ | Input | Output (các trường UI dùng) | Lỗi / khoá kỳ / cảnh báo |
 | --- | --- | --- | --- | --- | --- |
-| `GET /api/me` | public | `boot.js`, `data.js loadMe`, `live.js` (`roles.changed`, `bye`) | | `user` (kèm `levelName`, `shiftCode`, `startDate`, `jobTitle`, `contract`, `locked`…), `serverNow`, `roles`, `caps`, `payrollSubject`, `agentsEnabled`, `holidays`, `benefits` và `positionLabel` (của chức vụ mình, `myPosition`), `geofenceRequired`, `geofence` (chỉ role admin) (`server.js:611`) | không có user → client chuyển `LOGIN_PAGE` |
-| `POST /api/logout` | public | `views.js` (`logout`) | | `{ ok }`; tăng `session_version`, `events.closeUser(user,'logout')` (`server.js:603`) | client luôn chuyển `/dang-nhap.html` |
-| `PUT /api/password` | `write(A)` | `views.js bindPassword` | `{ current, next }` (client kiểm hai ô mật khẩu mới khớp nhau) | `{ ok }`, cookie phiên mới; audit `password.change`; `closeUser('password')` đóng các SSE khác (`server.js:628`) | 400 sai mật khẩu hiện tại / mật khẩu mới ngắn hơn `PASSWORD_MIN_LENGTH` |
-| `GET /api/sheet?month=[&user=]` | `self-or:attendance.read` | `data.js loadMonth`, `putSheet` | `month`; `user` ở chế độ khai thay | `days`, `rev`, `owner` (khi xem người khác), `attendanceSessions` (mỗi lượt kèm `status`, `statusNote`, `superseded`), `otherLeave`, `neighbors`, `workSchedule`, `scheduledDates`, `kpiPct`, `kpiAmt`, `kpiWeights`, `kpiParts`, `corrections`, `approvals`, `leaveBalance`, `actualReport`, `cutRule`, `payrollSubject` (`server.js:760`) | tài khoản ngoài bảng lương xem bảng của chính mình: 200 bảng rỗng với `payrollSubject:false`; xem bảng người khác khi không có quyền: 403 `Không được xem bảng của người khác` |
-| `PUT /api/sheet` | `write(A,'attendance','body.month')` | `data.js putSheet` (do `khai.js` gọi) | nhân viên: `{ month, days, kpiPct, kpiAmt, expectedRev }`; khai thay: `{ month, days, user, expectedRev }` | `{ ok, rev, approvals, reset, resubmitted, removed, onBehalf?, autoApproved? }` + `warnings[]` (`server.js:816`) | 409 `SHEET_STALE` khi `expectedRev` khác `rev`; khoá `attendance`; `checkSheet`/`checkSheetLimits` (`lib/domain/sheet-checks.js`) dùng `warnIf`; iSAT sai chức vụ hoặc sai thứ bị từ chối (`lib/domain/isat-rule.js`); sự kiện `approvals.changed`, khi khai thay thêm `estimate.changed`/`request.decided` |
-| `PUT /api/kpi/scores` | `write(self-or:kpi.score.write,'kpi','body.month')` | `khai.js` (form tự đánh giá) | `{ month, username, user, scores: { self } }` | `{ ok, changed, kpiParts }`; audit `kpi.score` (`server.js:882`) | nhân viên chỉ gửi được phần `self` của chính mình (`selfScoreOnly`, 403 `KPI_SELF_ONLY`); tháng chưa bắt đầu: `KPI_MONTH_FUTURE`; điểm sai định dạng (`KpiScore.checkScore`) → 400; khoá `kpi` từ `approved` |
-| `GET /api/punch` | A | `data.js loadPunch` | | `punchState` + `punchExtras` (xem dưới) (`server.js:1234`) | người không thuộc bảng lương: `{ enabled:false, canCheckIn:false, openSession:null, lastSession:null, serverNow }` |
-| `POST /api/punch` | `write(A,'attendance', …)` | `nhan-vien/punch.js doPunch` | `{ type:'in'|'out', requestId, sessionId?, location?{lat,lng,accuracy}, explanation? }` | trạng thái chấm công mới + `punchExtras` + `warnings[]` (`server.js:1247`) | xem bên dưới |
+| `GET /api/me` | public | `boot.js`, `data.js loadMe`, `live.js` (`roles.changed`, `bye`) | | `user` (kèm `levelName`, `shiftCode`, `startDate`, `jobTitle`, `contract`, `locked`…), `serverNow`, `roles`, `caps`, `payrollSubject`, `agentsEnabled`, `holidays`, `benefits` và `positionLabel` (của chức vụ mình, `myPosition`), `geofenceRequired`, `geofence` (chỉ role admin) (`src/modules/auth/auth.controller.ts`) | không có user → client chuyển `LOGIN_PAGE` |
+| `POST /api/logout` | public | `views.js` (`logout`) | | `{ ok }`; tăng `session_version`, `events.closeUser(user,'logout')` (`src/modules/auth/auth.controller.ts`) | client luôn chuyển `/dang-nhap.html` |
+| `PUT /api/password` | `write(A)` | `views.js bindPassword` | `{ current, next }` (client kiểm hai ô mật khẩu mới khớp nhau) | `{ ok }`, cookie phiên mới; audit `password.change`; `closeUser('password')` đóng các SSE khác (`src/modules/auth/auth.controller.ts`) | 400 sai mật khẩu hiện tại / mật khẩu mới ngắn hơn `PASSWORD_MIN_LENGTH` |
+| `GET /api/sheet?month=[&user=]` | `self-or:attendance.read` | `data.js loadMonth`, `putSheet` | `month`; `user` ở chế độ khai thay | `days`, `rev`, `owner` (khi xem người khác), `attendanceSessions` (mỗi lượt kèm `status`, `statusNote`, `superseded`), `otherLeave`, `neighbors`, `workSchedule`, `scheduledDates`, `kpiPct`, `kpiAmt`, `kpiWeights`, `kpiParts`, `corrections`, `approvals`, `leaveBalance`, `actualReport`, `cutRule`, `payrollSubject` (`src/modules/sheet/sheet.controller.ts`) | tài khoản ngoài bảng lương xem bảng của chính mình: 200 bảng rỗng với `payrollSubject:false`; xem bảng người khác khi không có quyền: 403 `Không được xem bảng của người khác` |
+| `PUT /api/sheet` | `write(A,'attendance','body.month')` | `data.js putSheet` (do `khai.js` gọi) | nhân viên: `{ month, days, kpiPct, kpiAmt, expectedRev }`; khai thay: `{ month, days, user, expectedRev }` | `{ ok, rev, approvals, reset, resubmitted, removed, onBehalf?, autoApproved? }` + `warnings[]` (`src/modules/sheet/sheet.controller.ts`) | 409 `SHEET_STALE` khi `expectedRev` khác `rev`; khoá `attendance`; `checkSheet`/`checkSheetLimits` (`lib/domain/sheet-checks.js`) dùng `warnIf`; iSAT sai chức vụ hoặc sai thứ bị từ chối (`lib/domain/isat-rule.js`); sự kiện `approvals.changed`, khi khai thay thêm `estimate.changed`/`request.decided` |
+| `PUT /api/kpi/scores` | `write(self-or:kpi.score.write,'kpi','body.month')` | `khai.js` (form tự đánh giá) | `{ month, username, user, scores: { self } }` | `{ ok, changed, kpiParts }`; audit `kpi.score` (`src/modules/kpi/kpi.controller.ts`) | nhân viên chỉ gửi được phần `self` của chính mình (`selfScoreOnly`, 403 `KPI_SELF_ONLY`); tháng chưa bắt đầu: `KPI_MONTH_FUTURE`; điểm sai định dạng (`KpiScore.checkScore`) → 400; khoá `kpi` từ `approved` |
+| `GET /api/punch` | A | `data.js loadPunch` | | `punchState` + `punchExtras` (xem dưới) (`src/modules/attendance/attendance.controller.ts`) | người không thuộc bảng lương: `{ enabled:false, canCheckIn:false, openSession:null, lastSession:null, serverNow }` |
+| `POST /api/punch` | `write(A,'attendance', …)` | `nhan-vien/punch.js doPunch` | `{ type:'in'|'out', requestId, sessionId?, location?{lat,lng,accuracy}, explanation? }` | trạng thái chấm công mới + `punchExtras` + `warnings[]` (`src/modules/attendance/attendance.controller.ts`) | xem bên dưới |
 | `GET /api/me/estimate?month=` | A | `data.js loadEstimate` | `month` | xem bên dưới (`lib/periods.js estimate`, dòng 1080) | 400 `BAD_MONTH`; `estimate: null` → client đặt `na`, kèm `payrollSubject:false`, `reason` (`NOT_STARTED`, `PAYROLL_BAD_TYPE`…) hoặc `message` |
 | `GET /api/leave/ledger` | `self-or:profile.read` | `data.js loadLedger` | | `{ username, uuid, hasAccount, balance, on, summary, events }` | có tác dụng phụ: gọi `leave.refresh` nên ghi vào sổ phép |
 | `GET /api/advance-approvals?month=` | A | `ung-luong.js loadAdvance` | `month` | `{ item: { status, eligible, amount, rev, note }, provisional }` | 404/403 → client coi tạm ứng là `'off'` |
-| `POST /api/advance-approvals/request` | `write(A)` | `ung-luong.js send` | `{ month, expectedRev }` | `{ ok, item }`; audit `advance.request` | 409 `ADVANCE_REQUEST_STALE`, `ADVANCE_ALREADY_REQUESTED`, `PERIOD_LOCKED` (kỳ `approved`/`paid`); 403 `ADVANCE_NOT_ELIGIBLE` kèm lý do (`lib/domain/advance/routes.js`) |
+| `POST /api/advance-approvals/request` | `write(A)` | `ung-luong.js send` | `{ month, expectedRev }` | `{ ok, item }`; audit `advance.request` | 409 `ADVANCE_REQUEST_STALE`, `ADVANCE_ALREADY_REQUESTED`, `PERIOD_LOCKED` (kỳ `approved`/`paid`); 403 `ADVANCE_NOT_ELIGIBLE` kèm lý do (`src/modules/advance/advance-approvals.handlers.ts`) |
 | `POST /api/advance-approvals/withdraw` | `write(A)` | `ung-luong.js` | `{ month, expectedRev }` | `{ ok, item }`; audit `advance.withdraw` | 409 `ADVANCE_NOT_PENDING`, `ADVANCE_REQUEST_STALE`, `PERIOD_LOCKED` |
 | `GET /api/explanations` | A | `giai-trinh.js load` | | `{ items[{id, kind, date, status, prompt, answer, requestedOut, decisionNote}], waitingForYou }` (nhân viên chỉ thấy của mình) | lỗi → giữ danh sách cũ |
 | `POST /api/explanations/:id/answer` | `write(A)` | `giai-trinh.js ex-open` | `{ text }` (textarea `maxlength=500`) | `{ ok, item }`; audit `explanation.answer` | `EXPLANATION_TEXT_REQUIRED`, `EXPLANATION_TEXT_TOO_LONG` (`TEXT_MAX` 500), `NOT_FOUND`, `FORBIDDEN`, `NOT_REQUESTED`, `EXPLANATION_ALREADY_APPROVED` |
@@ -156,13 +156,13 @@ Luồng: khi trang mở, `enterIfLoggedIn` gọi `GET /api/me`; có user thì `l
 | `GET /api/positions?month=` | `readCap('config.read')` | `thay.js prepareThay` | | danh sách chức vụ kèm `benefits` | thiếu `config.read` → 403, client rơi về quyền lợi mặc định |
 | `GET /api/periods/:month/estimates/:username` | `readCap('payroll.view')` | `thay.js thayEstimate` | | phiếu ước tính của người được khai thay | 404 `PAYSLIP_NOT_FOUND` → `na` |
 
-**`punchState` + `punchExtras`** (`server.js:283`, `server.js:416`): `enabled`, `from` (ngày bắt đầu tính giờ theo Check-in/out), `canCheckIn`, `checkInBlock` (câu lý do) cùng `checkInCode` (`CHECKIN_NOT_ALLOWED` | `CHECKIN_OUTSIDE_SHIFT`), chỉ có khi không có lượt mở và bị chặn, `checkInEntitlement` (`shift` | `ot` | `makeup_hours`) khi `canCheckIn`, `openSession`, `lastSession` (mỗi lượt kèm `status`, `statusNote`), `open`, `date`, `workDate`, `scheduled` (ngày công này có nằm trong lịch không), `record`, `before`, `done`, `pending`, `serverNow`, `cutRule`, `shiftConfig` (client không đọc), `checkoutPreview` ("nếu Check-out bây giờ": `{ early, cutEnd, cutStart, paidMin }` hoặc null khi lượt ngoài lịch hoặc ngoài ca).
+**`punchState` + `punchExtras`** (`src/modules/periods/periods.controller.ts`, `src/modules/periods/periods.controller.ts`): `enabled`, `from` (ngày bắt đầu tính giờ theo Check-in/out), `canCheckIn`, `checkInBlock` (câu lý do) cùng `checkInCode` (`CHECKIN_NOT_ALLOWED` | `CHECKIN_OUTSIDE_SHIFT`), chỉ có khi không có lượt mở và bị chặn, `checkInEntitlement` (`shift` | `ot` | `makeup_hours`) khi `canCheckIn`, `openSession`, `lastSession` (mỗi lượt kèm `status`, `statusNote`), `open`, `date`, `workDate`, `scheduled` (ngày công này có nằm trong lịch không), `record`, `before`, `done`, `pending`, `serverNow`, `cutRule`, `shiftConfig` (client không đọc), `checkoutPreview` ("nếu Check-out bây giờ": `{ early, cutEnd, cutStart, paidMin }` hoặc null khi lượt ngoài lịch hoặc ngoài ca).
 
 **Lỗi và nhánh của `POST /api/punch`**:
 - 403 nếu không thuộc bảng lương (câu riêng cho Admin); 400 sai `type`/`requestId`/thiếu `sessionId` khi Check-out.
 - `requestId` đã dùng: cùng thao tác thì trả lại phản hồi đã lưu, khác thao tác thì 409 `requestId đã dùng cho thao tác khác`.
 - Check-in: kiểm vị trí khi có vùng chấm công (`GEO_NO_LOCATION`, `GEO_LOW_ACCURACY`, `GEO_OUTSIDE`: ghi cờ `outsideZone` và cảnh báo); 409 `Bạn đang có lượt mở`; cổng Check-in (4.3a) trả 409 `CHECKIN_NOT_ALLOWED`; khoá kỳ theo ngày công; chồng giờ với lượt khác → 400. Check-in ngoài khung giờ ca không bị chặn: lượt mang `outsideShift` và chờ Admin xử lý.
-- Check-out: 404 không có lượt; 409 `Lượt này đã Check-out`; 400 giờ ra trước giờ vào; muộn hơn giờ kết thúc ca (cộng phần làm thêm đã khai) quá `CHECKOUT_GRACE_MIN` (= 30, `lib/config.js:119`) mà không có `explanation` → 409 `CHECKOUT_NEEDS_EXPLANATION` `{ sessionId, lateMin, graceMin }`; có `explanation` thì ghi nhận giờ bấm và lượt thành "Quên Check-out" chờ Admin duyệt giải trình.
+- Check-out: 404 không có lượt; 409 `Lượt này đã Check-out`; 400 giờ ra trước giờ vào; muộn hơn giờ kết thúc ca (cộng phần làm thêm đã khai) quá `CHECKOUT_GRACE_MIN` (= 30, `lib/config.js`) mà không có `explanation` → 409 `CHECKOUT_NEEDS_EXPLANATION` `{ sessionId, lateMin, graceMin }`; có `explanation` thì ghi nhận giờ bấm và lượt thành "Quên Check-out" chờ Admin duyệt giải trình.
 
 **`GET /api/me/estimate`** trả `{ month, period:{status,…}, estimate, label, official, source, m, net, trace, allowanceTotal, toDate, pendingItems, allowanceStatus, holidayShifts, paidDays, overridden?, actualReport, paramsHash, engineVersion }`.
 - Theo tham số `slip.staffVisibleFrom` (mặc định `afterPaid`): kỳ đã `paid` (hoặc `approved`/`paid` với `afterApproval`) thì trả bản chụp của lần tính lương gần nhất (`official: true`, `source: 'snapshot'`, `pendingItems: null`, `toDate: null`), ngược lại tính trực tiếp trên đầu vào hiện tại (`official: false`).
@@ -213,7 +213,7 @@ Máy chủ dùng `rulesFor(month)` (tham số theo tháng), trình duyệt luôn
    - Thành công: nạp lại lịch tháng hiện tại, cảnh báo `danger` đưa lên băng đầu trang, hiện khay kết quả (`resultSheet`). Check-in: giờ vào, ca, giờ bị trừ do vào muộn (`checkoutPreview.cutStart`), nhãn lượt và lý do, độ chính xác vị trí. Check-out thường: thời gian trong lượt, phút muộn/về sớm và giờ bị trừ, công hôm nay, nhãn lượt. Check-out muộn: "Đã ghi nhận giờ bấm Check-out HH:MM", lượt Chờ xử lý cho tới khi Admin duyệt giải trình; duyệt thì giờ này là giờ Check-out, từ chối thì cả ngày không tính công.
 6. Khoảng cách tới văn phòng chỉ tính khi `S.geofence` có giá trị; máy chủ chỉ gửi `geofence` cho role admin (mục 8).
 
-### 4.3a Cổng Check-in (máy chủ, `server.js:250 checkInDay` và `checkInVerdict`)
+### 4.3a Cổng Check-in (máy chủ, `src/modules/attendance/attendance.controller.ts checkInDay` và `checkInVerdict`)
 
 Nhân viên chỉ Check-in được cho ngày công (ca đêm thuộc ngày bắt đầu ca; lượt ngoài khung ca thuộc ngày bấm) khi:
 - ngày đó là ngày làm việc trong lịch được gán (lịch theo loại nhân sự) và không phải ngày lễ; hoặc
@@ -324,7 +324,7 @@ Ngày giữ vì giải trình: ngày có giải trình chưa duyệt chưa tính
 - Hai việc: trả lời yêu cầu giải trình do Admin hoặc AI gửi (loại `admin`, `ai`), và giải trình Check-out muộn (`late-checkout`, gửi kèm lần bấm Check-out). Nội dung tối đa 500 ký tự, bắt buộc không rỗng.
 - Trạng thái dùng đúng chữ của chấm công: `requested` và `answered` là "Chờ xử lý", `approved` là "Được phê duyệt", `rejected` là "Bị từ chối". Hiển thị tối đa 20 dòng; dòng ở trạng thái `requested` có nút "Giải trình".
 - Ghi chú trên dòng: giải trình chưa duyệt (`requested`, `answered`) thì "Ngày này chưa tính công cho tới khi Admin duyệt giải trình"; bị từ chối thì "Ngày này không tính công". Với Check-out muộn: giờ bấm chưa được tính, lượt ở nhãn Chờ xử lý (hoặc Bị từ chối); được duyệt thì giờ bấm là giờ Check-out và được tính.
-- Hiệu lực khi Admin duyệt (phía máy chủ, `lib/domain/explanation/routes.js`): giải trình ngày quên Check-in/out được duyệt thì ngày tính một công theo giờ ca như Admin ghi; giải trình ngày bị từ chối thì ngày không tính công; giải trình trễ/sớm được duyệt thì làm tròn theo luật hiện hành; chưa duyệt hoặc bị từ chối thì ngày không tính lương.
+- Hiệu lực khi Admin duyệt (phía máy chủ, `src/modules/explanations/explanations.controller.ts`): giải trình ngày quên Check-in/out được duyệt thì ngày tính một công theo giờ ca như Admin ghi; giải trình ngày bị từ chối thì ngày không tính công; giải trình trễ/sớm được duyệt thì làm tròn theo luật hiện hành; chưa duyệt hoặc bị từ chối thì ngày không tính lương.
 
 ### 4.13 Chế độ khai thay (`thay.js`)
 
@@ -375,7 +375,7 @@ Cách gộp: các tin trong 400 ms được gộp thành một kế hoạch nạ
 ### 6.1 Trang nhân viên gọi vào
 
 - Module dùng chung: `PunchRules` (`public/punch.js`, nhận `PayrollParams.DEFAULTS`), `AttendanceStatus`, `ApprovalView` (`itemOf`, `SCHEDULE`), `PayrollParams.DEFAULTS`, `KpiScore` (`checkScore`, `COMPONENTS`), `WorkSchedule`, `HomeRoute`. `LeaveRules` (`leave.js`) và `ActualHours` (`actual-hours.js`) được nạp nhưng mã trang nhân viên không dùng.
-- Máy chủ: các handler trong `server.js` (`/me`, `/sheet`, `/punch`, `/kpi/scores`, `/password`, `/login`, `/logout`, `/me/estimate`, `/events`); `lib/domain/advance/*`, `lib/domain/explanation/*`, `lib/domain/leave/routes.js`, `lib/periods.js estimate`, `lib/domain/sheet-checks.js`, `lib/domain/isat-rule.js`, `lib/domain/attendance/session-status.js`, `lib/approvals.js`, `lib/domain/kpi.js` (`kpiPartsView`), `lib/domain/geofence.js`, `lib/attendance-sessions.js`.
+- Máy chủ: các handler trong `src/modules/**/*.controller.ts` (`/me`, `/sheet`, `/punch`, `/kpi/scores`, `/password`, `/login`, `/logout`, `/me/estimate`, `/events`); `lib/domain/advance/*`, `lib/domain/explanation/*`, `src/modules/leave/leave.controller.ts`, `lib/periods.js estimate`, `lib/domain/sheet-checks.js`, `lib/domain/isat-rule.js`, `lib/domain/attendance/session-status.js`, `lib/approvals.js`, `lib/domain/kpi.js` (`kpiPartsView`), `lib/domain/geofence.js`, `lib/attendance-sessions.js`.
 
 ### 6.2 Những nơi khác dùng mã của trang nhân viên
 
@@ -387,7 +387,7 @@ Cách gộp: các tin trong 400 ms được gộp thành một kế hoạch nạ
 
 | Đổi | Kiểm tra |
 | --- | --- |
-| Tên trường phản hồi `GET /api/sheet` (`server.js:760`) | `data.js loadMonth`/`putSheet`, `logic.js buildMonth`/`describeDay`/`setScheduleInfo`, `parts.js`, `khai.js`, `yeu-cau.js` (`leaveBalance`), `thay.js thayOwner` (`OWNER_KEYS`) |
+| Tên trường phản hồi `GET /api/sheet` (`src/modules/sheet/sheet.controller.ts`) | `data.js loadMonth`/`putSheet`, `logic.js buildMonth`/`describeDay`/`setScheduleInfo`, `parts.js`, `khai.js`, `yeu-cau.js` (`leaveBalance`), `thay.js thayOwner` (`OWNER_KEYS`) |
 | Hình dạng `days[date]` hoặc `DAY_KINDS`/`cleanDays` | `logic.js dayPlan`/`formFromDay`/`dayFromForm`, `ApprovalView.itemOf` (fingerprint: đổi thì khoản duyệt cũ về chờ duyệt), `khai.js` |
 | Câu trong `sheet-checks.js` (làm bù ngày lễ) | `logic.js checkDayForm` lặp lại câu đó |
 | `PERIOD_ORDER`/trạng thái kỳ, `SCOPE_LOCKED_FROM` | `thu-nhap.js STATE_TEXT` |
@@ -402,8 +402,8 @@ Cách gộp: các tin trong 400 ms được gộp thành một kế hoạch nạ
 | `myPosition.benefits` / cờ quyền lợi chức vụ | `logic.js benefitsOf`, `hasLeaveAccount`, `dayPlan`, `yeu-cau.js actionList` |
 | Đường dẫn trang đăng nhập | `home-route.js LOGIN_PAGE`, `core.js` (401), `views.js` (logout) |
 | `kpiPartsView`, `kpi.weight.*` | `khai.js kpiCard`/`kpiFive`, `logic.js kpiParts` |
-| `GET /api/leave/ledger` hoặc `leaveBalanceView` (`server.js:313`) | `yeu-cau.js` (`BREAKDOWN`, `LEDGER_LABEL`) |
-| `checkInVerdict` (`server.js:282`) | `logic.js punchView` (`blocked`), `parts.js shiftCardBody` |
+| `GET /api/leave/ledger` hoặc `leaveBalanceView` (`src/modules/leave/leave.controller.ts`) | `yeu-cau.js` (`BREAKDOWN`, `LEDGER_LABEL`) |
+| `checkInVerdict` (`src/modules/leave/leave.controller.ts`) | `logic.js punchView` (`blocked`), `parts.js shiftCardBody` |
 
 ---
 
@@ -434,15 +434,15 @@ Chỉ ghi nhận hành vi hiện có của code.
 
 | # | Ở đâu | Lệch gì |
 | --- | --- | --- |
-| 1 | `public/punch.js` (`create(DEFAULTS)`); `logic.js punchView`; `server.js punchExtras` | Trình duyệt tính giờ ca, khung Check-in (4 giờ trước giờ vào) và quá hạn quên Check-out (16 giờ) theo `PayrollParams.DEFAULTS`, còn máy chủ dùng `rulesFor(month)`. Máy chủ gửi `shiftConfig` nhưng client không đọc. `lateMin` của lượt đang mở lấy theo bảng ca mặc định theo mã ca, `earlyMin` lấy theo `planned.startIso` |
-| 2 | `parts.js shiftCardBody`, `logic.js punchView` vs `server.js` `POST /punch` | Nút Check-in ngoài khung ca bấm được (`warnIn`) khi máy chủ không báo `checkInBlock`, nhưng máy chủ từ chối ngoài khung ca không có khoản đã duyệt phủ giờ bấm (409 `CHECKIN_OUTSIDE_SHIFT`, attendance.md 3.2b) và báo `checkInBlock` nên nút tắt kèm câu của máy chủ |
+| 1 | `public/punch.js` (`create(DEFAULTS)`); `logic.js punchView`; `src/modules/attendance/attendance.controller.ts` `punchExtras` | Trình duyệt tính giờ ca, khung Check-in (4 giờ trước giờ vào) và quá hạn quên Check-out (16 giờ) theo `PayrollParams.DEFAULTS`, còn máy chủ dùng `rulesFor(month)`. Máy chủ gửi `shiftConfig` nhưng client không đọc. `lateMin` của lượt đang mở lấy theo bảng ca mặc định theo mã ca, `earlyMin` lấy theo `planned.startIso` |
+| 2 | `parts.js shiftCardBody`, `logic.js punchView` vs `src/modules/attendance/attendance.controller.ts` `POST /punch` | Nút Check-in ngoài khung ca bấm được (`warnIn`) khi máy chủ không báo `checkInBlock`, nhưng máy chủ từ chối ngoài khung ca không có khoản đã duyệt phủ giờ bấm (409 `CHECKIN_OUTSIDE_SHIFT`, attendance.md 3.2b) và báo `checkInBlock` nên nút tắt kèm câu của máy chủ |
 | 3 | `logic.js benefitsOf` vs `lib/domain/positions.js sheetFlagsOf` | Giao diện dùng cờ `makeup` cho giờ làm bù; máy chủ kiểm riêng `makeupHours`, `absenceDeclarable`, và OT ngày lễ theo cờ `ot` |
 | 4 | `logic.js dayPlan` vs `lib/domain/isat-rule.js` | iSAT viết cứng `dow === 6`; máy chủ dùng tham số `isat.weekday` |
 | 5 | `logic.js checkDayForm` vs `sheet-checks.js` | Client chặn làm bù vào ngày lễ cả với ngày đã lưu không đổi hoặc ngày kế hoạch cũ; máy chủ chỉ chặn ngày mới hoặc ngày được sửa trong lần lưu này |
-| 6 | `core.js:142`, `views.js:333` vs `home-route.js` | Đường dẫn `/dang-nhap.html` viết cứng ở hai chỗ thay vì dùng `HomeRoute.LOGIN_PAGE` |
-| 7 | `logic.js buildMonth` vs `server.js actualReportView` | Client tự cộng `missing`/`absent`/`lateMin` của tháng từ `actualReport.report`, không dùng các tổng `missing`, `absent` máy chủ cũng gửi |
+| 6 | `core.js`, `views.js` vs `home-route.js` | Đường dẫn `/dang-nhap.html` viết cứng ở hai chỗ thay vì dùng `HomeRoute.LOGIN_PAGE` |
+| 7 | `logic.js buildMonth` vs `src/modules/attendance/attendance.controller.ts actualReportView` | Client tự cộng `missing`/`absent`/`lateMin` của tháng từ `actualReport.report`, không dùng các tổng `missing`, `absent` máy chủ cũng gửi |
 | 8 | `thu-nhap.js homePayCard` | So **tổng** phút muộn trong tháng với mức `graceMin` áp cho **từng lần** để chọn câu "Đến N phút nên không bị trừ lương" |
-| 9 | `yeu-cau.js` (`NV.leave`, `loadLedger`); `lib/domain/leave/routes.js` | Số dư phép lấy từ `sheet.leaveBalance` (tính lúc gọi), lịch sử lấy từ `GET /leave/ledger` (số đã lưu), hai nguồn có thể không khớp tức thời; `GET /leave/ledger` còn ghi dữ liệu (`leave.refresh`) |
+| 9 | `yeu-cau.js` (`NV.leave`, `loadLedger`); `src/modules/leave/leave.controller.ts` | Số dư phép lấy từ `sheet.leaveBalance` (tính lúc gọi), lịch sử lấy từ `GET /leave/ledger` (số đã lưu), hai nguồn có thể không khớp tức thời; `GET /leave/ledger` còn ghi dữ liệu (`leave.refresh`) |
 | 10 | `yeu-cau.js BREAKDOWN` | Không hiện phần `start`; có các khoá dự phòng (`monthDays`, `seniorityDays`, `nvDays`, `levelYears`, `nv`, `birthdayDays`) mà máy chủ không gửi |
 | 11 | `yeu-cau.js leaveExpiring`, `thu-nhap.js noBenefitCard`, `logic.js greeting` | Số và câu viết cứng: tháng trả tiền phép dự phòng là tháng 2 và ngày hết hạn dự phòng cuối tháng 1; "hợp đồng dưới 3 tháng"; giờ chào hỏi 5, 11, 13, 18 |
 | 12 | `live.js isAdvance` | Các nhánh dự phòng `type`/`item`/`amount` không bao giờ xảy ra vì máy chủ chỉ gửi `kind:'advance'`; tạm ứng bị `rejected` nhận câu toast chung "Admin đã cập nhật tạm ứng của bạn" |
@@ -450,7 +450,7 @@ Chỉ ghi nhận hành vi hiện có của code.
 | 14 | `nhan-vien/punch.js doPunch`, `parts.js shiftCardBody` vs `lib/domain/geofence.js geofenceView` | `S.geofence` và phần tính khoảng cách là nhánh không bao giờ chạy với nhân viên: máy chủ chỉ gửi `geofence` cho role admin, mà tài khoản admin bị chuyển khỏi trang nhân viên |
 | 15 | `public/nhan-vien.html` | `leave.js` và `actual-hours.js` được nạp nhưng mã trang nhân viên không gọi |
 | 16 | `thay.js prepareThay`, `thayEstimate` vs `lib/authz.js` | `GET /positions` cần `config.read` và `GET /periods/:m/estimates/:u` cần `payroll.view` phạm vi tất cả; người duyệt vai hr/manager vào chế độ khai thay có thể bị 403: UI rơi về quyền lợi `DEFAULTS` hoặc báo lỗi phiếu. Quyền lợi trong danh sách chức vụ cũng bỏ qua phần ghi đè theo bậc |
-| 17 | `logic.js` (`KIND_LABEL`, `primaryOf`) vs `server.js DAY_KINDS` | UI xử lý loại `noshow`, nhưng máy chủ không bao giờ lưu loại này |
+| 17 | `logic.js` (`KIND_LABEL`, `primaryOf`) vs `src/modules/positions/positions.controller.ts DAY_KINDS` | UI xử lý loại `noshow`, nhưng máy chủ không bao giờ lưu loại này |
 | 18 | `data.js putSheet` | Mỗi lần lưu đều `GET /sheet` lại trước khi `PUT`, kể cả khi đã có `baseRev`; `baseRev` trống thì dùng `fresh.rev` nên không phát hiện được ghi đè xảy ra giữa lúc mở biểu mẫu và lúc bấm lưu |
 | 19 | `khai.js` (regex điểm KPI) vs `public/kpi-score.js checkScore` | Điều kiện điểm KPI (0–100, 2 chữ số thập phân) được viết lại bằng regex thay vì gọi `KpiScore.checkScore` |
 | 20 | `logic.js punchView` (`windowFrom`/`windowTo`) | Giờ khung Check-in được bóc từ câu tiếng Việt của `checkInMsg` bằng regex; đổi câu thì mất hiển thị khung giờ |

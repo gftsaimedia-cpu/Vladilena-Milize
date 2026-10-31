@@ -1,6 +1,6 @@
 node_modules/
 # Real payroll data and secrets: never commit
-data/
+/data/
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm

@@ -23,7 +23,9 @@
     "params:lock": "node --no-warnings=ExperimentalWarning scripts/params/lock.js",
     "params:check": "node --no-warnings=ExperimentalWarning scripts/params/check.js",
     "params:doc": "node --no-warnings=ExperimentalWarning scripts/params/doc.js",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "spec:gen": "node --no-warnings=ExperimentalWarning scripts/docs/gen-spec.js",
+    "spec:check": "node --no-warnings=ExperimentalWarning scripts/docs/gen-spec.js --check"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.22",
