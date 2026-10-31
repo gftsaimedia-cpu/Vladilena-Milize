@@ -15,7 +15,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `server.js` | Điểm vào (15 dòng): đặt `UV_THREADPOOL_SIZE`, nạp TypeScript (`lib/register-ts.js`), nạp `.env` (`src/env.ts`), dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. |
 | `seed.js` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.js` (lệnh `npm run seed` chạy bản trong `scripts/`). |
 | `lib/` | Mã máy chủ: `db.js` (SQLite + store), `http.js`, `auth.js`, `authz.js`, `audit.js`, `events.js`, `warnings.js`, `config.js`, `periods.js`, `payroll-service.js`, `roles.js`, `pay-entries.js`, `advance-*.js`, `explanations.js`, `slip-*.js`, `findings.js`, `data-quality.js`, `period-*.js`, `request-rules.js`, `announce.js`, `approvals.js`, `attendance-sessions.js`. |
-| `lib/domain/` | Route và lớp nghiệp vụ theo nhóm: `routes.js` (bảng gửi), `container.js`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `attendance-calendar`, `payroll`, `shared`, và các file route/quy tắc lẻ (`blocks`, `pay-entries`, `positions`, `shifts`, `roles`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
+| `lib/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.js`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `attendance-calendar`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
 | `lib/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `lib/params/` | Registry tham số, đọc theo tháng (`store.js`), lưu / xem trước / hoàn tác (`save.js`), kiểm (`validate.js`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.js`, `keys.lock.json`, `registry.data.json`. |
 | `lib/ai/` | AI rà soát theo luật (thuần, không mạng). |
@@ -705,8 +705,8 @@ Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test kh
 | --- | --- | --- | --- |
 | `params.changed` | all | `config.read` → `configRev, fromMonth, kind, groups, by`; còn lại → `configRev, fromMonth` | `emit.paramsChanged`: lưu/hoàn tác tham số (`src/modules/settings/settings.controller.ts`), khối, chức vụ, ca (`src/modules/blocks/blocks.controller.ts`, `positions.js`, `shifts.js`), danh mục (`catalog-change.js`, `kind:'catalog'`), công tắc (`announceSetting`: `agents`, `geofence`, `holidays`). |
 | `period.changed` | all | `payroll.view` → `month, status, rev`; còn lại → `month, stage` (`open`/`locked`/`paid`) | `src/modules/periods/periods.controller.ts` sau mỗi bước kỳ. |
-| `approvals.changed` | cap `request.decide.*` phạm vi all | `month, pending` (pending = số `sheet_approvals` đang chờ, mọi tháng) | `src/modules/approvals/approvals.controller.ts`, tạm ứng (`advance/routes.js`, `advance-requests.js`), giải trình (`explanation/routes.js`). |
-| `attendance.changed` | cap `attendance.correct` phạm vi all | `kind (forgot|ot|punch|explanation), month` | `announceAttendance` (forgot), OT (`src/modules/attendance/attendance.controller.ts`), `announcePunches` (punch), giải trình có phiên (`explanation/routes.js`). |
+| `approvals.changed` | cap `request.decide.*` phạm vi all | `month, pending` (pending = số `sheet_approvals` đang chờ, mọi tháng) | `src/modules/approvals/approvals.controller.ts`, tạm ứng (`src/modules/advance/advance-approvals.handlers.ts`, `advance-requests.js`), giải trình (`src/modules/explanations/explanations.controller.ts`). |
+| `attendance.changed` | cap `attendance.correct` phạm vi all | `kind (forgot|ot|punch|explanation), month` | `announceAttendance` (forgot), OT (`src/modules/attendance/attendance.controller.ts`), `announcePunches` (punch), giải trình có phiên (`src/modules/explanations/explanations.controller.ts`). |
 | `request.decided` | users | `month, date, decision, kind` | `emit.requestsDecided` (một tin mỗi người: ngày sớm nhất, `decision:'mixed'` nếu khác nhau), `emit.advanceDecided` (`kind:'advance'`, không date). |
 | `punch.corrected` | users | `month, date` | `src/modules/attendance/attendance.controller.ts`. |
 | `punch.changed` | users | `month, date` | `announcePunches`, giải trình. |
@@ -736,7 +736,7 @@ Quy ước: mọi lần phát nằm sau khi giao dịch của route đã COMMIT 
 | `staff.lock`, `staff.unlock` | staff | `lib/audit.js` | normal |
 | `staff.payrollSubject` | staff | `lib/roles.js` và nhánh `PUT /staff/:u` trong `src/modules/staff/staff.controller.ts` | pay |
 | `param.set`, `param.mode` | — | `lib/params/save.js,801`; `param.mode` cả ở `scripts/ops/params-mode.js` | xem file |
-| `catalog.position.save`, `catalog.level.save`, `catalog.shift.save` | position / position-level / shift | `src/modules/catalog/catalog.controller.ts,77`, `shift/routes.js` qua `catalog-change.js` | pay |
+| `catalog.position.save`, `catalog.level.save`, `catalog.shift.save` | position / position-level / shift | `src/modules/catalog/catalog.controller.ts,77`, `src/modules/catalog/catalog.controller.ts` qua `catalog-change.js` | pay |
 | `sheet.onBehalf` | — | `lib/domain/sheet-on-behalf.js` | xem file |
 | `period.lock-attendance`, `period.calculate`, `period.ai-review`, `period.approve`, `period.mark-paid`, `period.reopen` | period | `lib/periods.js,369,404,508,523,536` | pay |
 | `payslip.approve`, `payslip.return` | — | `lib/periods.js` | xem file |

@@ -343,7 +343,7 @@ Số liệu dưới đây là kết quả của một lần chạy `node --test`
 | 8 | `test/unit/ca-kiem-bang-tien.test.js` |
 | 6 | `test/unit/schedule-defaults-zero-drift.test.js`, `test/unit/schedule-actual-hours.test.js`, `test/ops/backup-daily.test.js`, `test/api/payslip-staff-paid-view.test.js` |
 | 5 | `test/unit/pay-tail-tax-options.test.js`, `test/api/settings-engine-zero-drift.test.js` |
-| 4 | `test/unit/schedule-workdays-computed.test.js`, `test/unit/schedule-person-override.test.js`, `test/unit/tax-block-exempt-flags.test.js`, `test/api/payslip-negative-net.test.js`, `test/api/pay-entry.test.js` |
+| 4 | `test/unit/schedule-workdays-computed.test.js`, `test/unit/tax-block-exempt-flags.test.js`, `test/api/payslip-negative-net.test.js`, `test/api/pay-entry.test.js` |
 | 3 trở xuống | Các file còn lại (kỳ lương, phiếu, khoản điền thêm, bảng vàng, AI rà soát...) |
 
 Nhóm nguyên nhân thấy trong thông báo lỗi (số là số lỗi của lần chạy trên):

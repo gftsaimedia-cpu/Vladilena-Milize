@@ -47,7 +47,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `lib/slip-pins.js` | `repinned` :10: tính lại bản chụp theo ô số lượng ghim. |
 | `lib/slip-formulas.js` | `formulasOf` :519: công thức dưới từng dòng "Chi tiết" của phiếu Admin. |
 | `lib/advance-cap.js` | Mức tạm ứng tối đa: `figureFor` :22, `figuresOf` :41, `capOf` :51. |
-| `lib/domain/advance/` | `advance-approvals.js` (trạng thái yêu cầu theo người theo tháng), `routes.js` (route duyệt), `index.js`. |
+| `lib/domain/advance/` | `advance-approvals.js` (trạng thái yêu cầu theo người theo tháng), `src/modules/advance/advance-approvals.handlers.ts` (route duyệt), `index.js`. |
 | `lib/domain/explanation/` | Giải trình ngày công; `heldByUser` cho engine biết ngày bị giữ lương. |
 | `lib/domain/attendance/admin-presence.js` | Lượt chấm công nguồn Admin (Admin khai thay giờ vào/ra, duyệt giải trình quên chấm). |
 | `lib/domain/isat-rule.js` | Điều kiện hợp lệ của ngày iSAT (`isatRefusal`). |
@@ -479,14 +479,14 @@ Chạy một file: `node --no-warnings=ExperimentalWarning --test <file>`. Tên 
 | Phương án / đuôi | `pay-method-attendance-options`, `pay-tail-default-differential`, `pay-tail-half-dong-boundary`, `pay-tail-insurance-options`, `tax-block-exempt-flags`, `tax-methods-brackets`, `tax-family-deduction`, `pay-entries-tax-insurance`, `pay-tail-tax-options`, `tax-exempt-premium-only`, `insurance-paid-days`, `ai-review-insured-paid-days`, `pay-entries-calc`, `db-pay-entries` |
 | KPI | `kpi-score`, `kpi-five-engine`, `kpi-max-drift`, `kpi-pass-drift` |
 | Công thức | `formula-evaluate`, `formula-golden`, `formula-parse`, `formula-roundtrip`, `formula-safety`, `formula-suggest-flag-units`, `formula-tier-daysum`, `formula-validate`, `v1a-s6-formula-gaps` |
-| Lịch | `schedule-module`, `schedule-person-override`, `schedule-workdays-computed`, `schedule-defaults-zero-drift`, `work-schedule-days` |
+| Lịch | `schedule-module`, `schedule-workdays-computed`, `schedule-defaults-zero-drift`, `work-schedule-days` |
 | Phiếu | `slip-detail-formulas`, `slip-formulas-merge-terms`, `slip-formulas-named-terms`, `slip-formulas-tax-exempt`, `*-slip-formulas-insurance-paid-days`, `slip-real-punch-times`, `*-slip-held-day-punch-times`, `slip-row-columns`, `slip-figures-v4`, `slip-entries-override` |
 | Phép / tạm ứng / AI | `leave-rules`, `leave-year-settlement`, `leave-events-per-year`, `leave-negative-check`, `advance-approved-month`, `advance-options`, `advance-base-holiday`, `advance-holiday-base`, `ai-review-params` |
 | Bản chụp tạo bởi phiên bản engine khác | `old-snapshot-counts-absent`, `phase2-old-snapshot` |
 | API kỳ | `test/api/period-lifecycle`, `period-reopen`, `period-stale`, `period-lock-guards`, `period-permissions`, `period-aggregates`, `period-days-worked`, `period-estimate-one`, `period-payday-settings`, `period-sessions-month`, `v1a-s6-period-input-guards` |
-| API phiếu | `payslip-snapshot`, `payslip-paid-numbers`, `payslip-negative-net`, `payslip-staff-paid-view`, `payroll-bad-profile`, `slip-override-reason`, `slip-detail-formulas`, `slip-row-columns-api`, `me-estimate`, `schedule-estimate-calendar`, `schedule-period-lock`, `admin-entered-shift-pay` |
+| API phiếu | `payslip-snapshot`, `payslip-paid-numbers`, `payslip-negative-net`, `payslip-staff-paid-view`, `payroll-bad-profile`, `slip-override-reason`, `slip-detail-formulas`, `slip-row-columns-api`, `me-estimate`, `schedule-estimate-calendar`, `admin-entered-shift-pay` |
 | API tham số / công thức | `params-resolve-robust`, `server-reads-params`, `server-reads-params-ot`, `formula-locked`, `settings-formula-tier`, `v1a-s6-formula-cycle-save`, `v1a-s6-formula-nested-sum-save`, `pay-tail-coverage`, `pay-tail-settings` |
-| API KPI / tạm ứng / khoản / giải trình | `kpi-scores-api`, `kpi-scores-store`, `kpi-scores-migration`, `kpi-five-preview`, `*-phan-6-kpi-tu-danh-gia`, `*-advance-approval`, `pay-entries-period`, `pay-entry`, `*-explanation-rejected-no-workday`, `*-explanation-forgot-punch-approved`, `*-explanation-late-early-approved`, `explanation-no-punch-pay` |
+| API KPI / tạm ứng / khoản / giải trình | `kpi-scores-api`, `kpi-scores-store`, `kpi-scores-migration`, `*-phan-6-kpi-tu-danh-gia`, `*-advance-approval`, `pay-entries-period`, `pay-entry`, `*-explanation-rejected-no-workday`, `*-explanation-forgot-punch-approved`, `*-explanation-late-early-approved`, `explanation-no-punch-pay` |
 
 Chưa thấy test nào xác nhận trực tiếp các trường hợp biên: phụ cấp ca đêm khi ngày `work` không có giờ làm (mục 8, số 8), ghim `leaveLeft` / `kpiBonus` (bị bỏ qua), và sự khác nhau giữa `calcMonth` mặc định `upTo` của trình duyệt với máy chủ.
 

@@ -78,7 +78,8 @@ npm run format:check   # kiểm tra định dạng prettier
 npm run params:check   # kiểm tra khoá tham số lương
 ```
 
-- Cần Node >= 22.13. Không có dependency runtime; devDependencies là Playwright và Prettier.
+- Cần Node >= 22.13 và `npm install` (NestJS, express, pg, tsx là phụ thuộc chạy; devDependencies gồm TypeScript, PGlite, Playwright, Prettier). Máy chủ là NestJS + TypeScript trong `src/` (không có bước build, chạy bằng `tsx`).
+- Thêm kiểm tra: `npm run typecheck` (kiểu), `npm run spec:check` (spec/reference khớp mã; `npm run spec:gen` để dựng lại). Chạy trên PostgreSQL: `DB_DIALECT=postgres npm test` (PGlite trong tiến trình).
 - Thay đổi luật tính lương/chấm công: đối chiếu thư mục `spec/` (payroll-engine, attendance, payroll-period, …) — đó là nguồn sự thật. Nếu code và spec mâu thuẫn, hỏi người dùng trước khi sửa spec.
 
 ## 7. Kết thúc nhánh

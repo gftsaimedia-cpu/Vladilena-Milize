@@ -209,7 +209,7 @@ Không route nào dưới đây có `periodScope` trong `ROUTE_CAPS`; khoá kỳ
 | `PUT /roles/:code` | `roles.manage` | `{ rev (bắt buộc), label?, caps? \| levels/perms + extras?, approvals?, scope?, active?, reason }` | `{ role, rev, changed }` | 403 `ROLE_BUILTIN_READONLY`; 404 `ROLE_NOT_FOUND`; 400 `ROLE_REV_REQUIRED`; 409 `ROLE_STALE` `{ rev }`; 409 `ROLE_DEPRECATED`; 403 `ROLE_SELF_ESCALATION`; 400 `REASON_REQUIRED` (block: 10–300 ký tự) |
 | `POST /roles/:code/deprecate` | `roles.manage` | `{ rev, reason }` | `{ role, rev, holders }` | như trên |
 
-`active: false` trong `PUT` chuyển sang `deprecate` (`roles.js`). Mã vai trò trong URL được `decodeURIComponent`, lỗi giải mã → 400 (`domain/roles.js`). Không có khoá kỳ.
+`active: false` trong `PUT` chuyển sang `deprecate` (`roles.js`). Mã vai trò trong URL được `decodeURIComponent`, lỗi giải mã → 400 (`src/modules/roles/roles.controller.ts`). Không có khoá kỳ.
 
 ### 3.4 Chức vụ, bậc, ca
 
@@ -223,7 +223,7 @@ Không route nào dưới đây có `periodScope` trong `ROUTE_CAPS`; khoá kỳ
 | `PUT /catalog/positions/:code` | `config.payroll` | — | `{ changes, effectiveMonth, reason?, expectedRev (bắt buộc) }` | `{ position, configRev }` | 400 `POSITION_BAD_CODE`, `CATALOG_CHANGES_REQUIRED`, `BAD_MONTH`, `CATALOG_REV_REQUIRED`, `CATALOG_FIELD_UNKNOWN`, `CATALOG_BAD_NAME`, `CATALOG_BAD_WORKDAYS`, `CATALOG_BAD_PCT`, `CATALOG_BAD_DOWS`, `CATALOG_BAD_BENEFITS`; 404 `POSITION_NOT_FOUND`; 409 `POSITION_STALE` `{ current }` | `assertPeriodOpen(effectiveMonth,'params')`: tháng đã chốt công trở đi → cảnh báo `PERIOD_LOCKED`. Lý do không bao giờ bắt buộc. |
 | `PUT /catalog/levels` | `config.payroll` | — | `{ type, level, changes, effectiveMonth, reason?, expectedRev? }` (bắt buộc khi bậc đã có ở tháng đó) | `{ level, configRev }` | như trên + `CATALOG_BAD_LEVEL`, `CATALOG_BAD_MONEY`; 409 `LEVEL_STALE`; 404 `LEVEL_NOT_FOUND` | như trên |
 | `GET /catalog/shifts` | `config.read` | — | | `{ shifts: [Shift] }` (gồm ca ngưng dùng) | | — |
-| `PUT /catalog/shifts` | `config.payroll` | — | `{ code (mới hoặc cũ), changes: {name?,kind?,sort?,deprecated?}, expectedRev (bắt buộc), reason? }` | `{ shift: {before,after}.after, configRev }` | 400 `SHIFT_CODE_REQUIRED`, `CATALOG_CHANGES_REQUIRED`, `CATALOG_REV_REQUIRED`, `CATALOG_FIELD_UNKNOWN`, `SHIFT_BAD_NAME`, `SHIFT_BAD_KIND`, `SHIFT_BAD_SORT`, `SHIFT_BAD_FLAG`; 404 `SHIFT_UNKNOWN`; 409 `SHIFT_STALE` | Kiểm khoá kỳ của **tháng hiện tại** (`shift/routes.js`). |
+| `PUT /catalog/shifts` | `config.payroll` | — | `{ code (mới hoặc cũ), changes: {name?,kind?,sort?,deprecated?}, expectedRev (bắt buộc), reason? }` | `{ shift: {before,after}.after, configRev }` | 400 `SHIFT_CODE_REQUIRED`, `CATALOG_CHANGES_REQUIRED`, `CATALOG_REV_REQUIRED`, `CATALOG_FIELD_UNKNOWN`, `SHIFT_BAD_NAME`, `SHIFT_BAD_KIND`, `SHIFT_BAD_SORT`, `SHIFT_BAD_FLAG`; 404 `SHIFT_UNKNOWN`; 409 `SHIFT_STALE` | Kiểm khoá kỳ của **tháng hiện tại** (`src/modules/catalog/catalog.controller.ts`). |
 | `GET /settings/shifts?month=` | `config.read` | — | | `{ month, paramsRev, editable, hours, shifts: [{code,preset,name,kind,in,out}] }` | 400 `BAD_MONTH` | — |
 | `PUT /settings/shifts` | `config.read` | `config.payroll` theo khoá; `SHIFT_ALLOW_EDIT` ở production | `{ shifts: [{code,in,out}], effectiveMonth?, reason, expectedRev, acknowledge? }` | kết quả `paramsSave.save` | 400 `SHIFTS_REQUIRED`, `SHIFT_UNKNOWN`; lỗi `save()`: `PARAM_REV_REQUIRED`, 409 `PARAMS_STALE`, `SHIFT_EDIT_NOT_ALLOWED`, `FORBIDDEN_CAP`, `PERIOD_LOCKED`, `PARAMS_DEFAULTS_ONLY` | như `POST /positions`. |
 
@@ -418,7 +418,7 @@ Tóm tắt "thiếu trường thì sao" cho người viết giao diện:
 **Che trường khi gửi ra** (`staff.js`):
 - `publicStaff`: bỏ `sessionVersion`. Với `role !== 'admin'` thêm `insured` hiệu lực (cột có giá trị → theo cột; NULL → `insurance.coverage.<contract>` của tháng hiện tại), `insuredExplicit`, `levelName` (= `level.<type>.<level>.name` tháng hiện tại hoặc null). `role='admin'` trả nguyên, không có ba trường này.
 - `staffForViewer`: thêm `rev`; không có `salary.read` với người đó → bỏ `dependants, contract, insured, insuredExplicit, taxOn, deductOn, advanceOn`; không có `profile.read.pii` → bỏ `birthday`. `type`, `level`, `nightPct`, `idorm`, `leaveAdjust` **không** bị che.
-- `GET /employees/:uuid` (`employee/routes.js`): không có `salary.read` → bỏ `position.baseSalary`, `position.kpiMax`; không có `profile.read.pii` → bỏ `birthday`.
+- `GET /employees/:uuid` (`src/modules/employees/employees.controller.ts`): không có `salary.read` → bỏ `position.baseSalary`, `position.kpiMax`; không có `profile.read.pii` → bỏ `birthday`.
 
 ### 4.7 Gán vai trò `PUT /staff/:u/roles` (`src/modules/staff/staff.controller.ts`)
 
@@ -730,7 +730,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 34. `lib/domain/employee/profile.js` nói "sửa và ghi xuống DB đi qua EmployeeRepository (có nhật ký, khoá lạc quan)"; `employee-repository.js` và mã cho thấy repository chỉ đọc, ghi đi qua `src/modules/staff/staff.controller.ts` → `store.upsertStaff`.
 35. `lib/db.js` chú thích cột `staff`: `type` "'tts' | 'ctv' | 'nv'", `night_pct` "chỉ nhóm 'nv': 40 | 60", `shift_code` "n1 n2 f1 f2 g1 g2"; mã hiện cho chức vụ là dữ liệu, `nightOptions` theo chức vụ/bậc, và `shift_code` lưu mã mới `Normal1…Night2` (`db.js,1921-1946`).
 36. `lib/config.js` nói các hằng `LOGIN_*` dùng cho `lib/auth.js`; `lib/auth.js` đọc `system.login.*` từ `DEFAULTS`.
-37. `lib/domain/shared/repository.js` "thiếu expectedRev = ghi đè như các màn cũ" đúng với lớp, nhưng cả ba route danh mục bắt buộc `expectedRev` cho chức vụ và ca (`position/routes.js`, `shift/routes.js`); chỉ bậc cho phép thiếu khi thêm mới.
+37. `lib/domain/shared/repository.js` "thiếu expectedRev = ghi đè như các màn cũ" đúng với lớp, nhưng cả ba route danh mục bắt buộc `expectedRev` cho chức vụ và ca (`src/modules/catalog/catalog.controller.ts`, `src/modules/catalog/catalog.controller.ts`); chỉ bậc cho phép thiếu khi thêm mới.
 38. `public/home-route.js` nói người có năng lực quản trị "(Admin, C&B, Kế toán...)" vào `admin.html`; vai trò `hr` (có `profile.write`, `request.decide.leave`) và `manager` (có `request.decide.*`) không có năng lực nào trong `ADMIN_CAPS` nên vào `nhan-vien.html`.
 
 ### 8.6 Hành vi dễ gây lỗi dây chuyền (mô tả theo mã)
@@ -738,10 +738,10 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 39. `PUT /staff/:u` là "lưu cả biểu mẫu" với một số trường và "sửa một phần" với số khác (bảng ở 4.6). Gửi thiếu `type`, `role`, `shiftCode`, `startDate`, `leaveAdjust`, `idorm` sẽ đặt lại các trường đó.
 40. `PUT /staff/:u` có cả trường hồ sơ và `locked`: hồ sơ ghi ở giao dịch 1 (`src/modules/staff/staff.controller.ts`), khoá ở giao dịch 2; lỗi ở giao dịch 2 để lại hồ sơ đã lưu.
 41. `PUT /staff/:u` và `PUT /staff/shift-bulk` đổi trường tiền/ca mà không kiểm khoá kỳ (`periodScope` null, không gọi `assertPeriodOpen`/`warnFrozen`).
-43. Đổi loại ca (`PUT /catalog/shifts`) áp cho mọi tháng (`shift-catalog.js`, tháng nền) nhưng chỉ kiểm khoá kỳ của tháng hiện tại (`shift/routes.js`).
+43. Đổi loại ca (`PUT /catalog/shifts`) áp cho mọi tháng (`shift-catalog.js`, tháng nền) nhưng chỉ kiểm khoá kỳ của tháng hiện tại (`src/modules/catalog/catalog.controller.ts`).
 44. `holdersOf(code)` (`roles.js`) và `describeAll` đếm người giữ khác nhau: `holdersOf` lấy mọi dòng `staff_roles` còn hiệu lực (kể cả tài khoản đang khoá), `users` trong `describeAll` chỉ đếm tài khoản chưa khoá; số `holders` trả về khi ngưng dùng vì vậy có thể lớn hơn số `users` trên màn Phân quyền.
 45. `SESSION_DAYS` từ biến môi trường không được kiểm (`auth.js`): giá trị không phải số → `exp` NaN, mọi phiên mới không hợp lệ và `Max-Age=NaN`.
-46. `GET /employees/:uuid/trace`: `limit` âm không bị chặn (`employee/routes.js`: `Math.min(-5, 200) = -5`), khác `GET /audit` kiểm `limit ≥ 1` (`src/modules/employees/employees.controller.ts` / `src/modules/audit/audit.controller.ts`).
+46. `GET /employees/:uuid/trace`: `limit` âm không bị chặn (`src/modules/employees/employees.controller.ts`: `Math.min(-5, 200) = -5`), khác `GET /audit` kiểm `limit ≥ 1` (`src/modules/employees/employees.controller.ts` / `src/modules/audit/audit.controller.ts`).
 47. `PUT /password`, `POST /staff/:u/password`, `PUT /staff/:u` băm mật khẩu ngoài `hashGate` (`src/modules/auth/auth.controller.ts,1852,2304`) trong khi `POST /login` qua `hashGate`; kiểm mật khẩu hiện tại ở `PUT /password` không có giới hạn đoán ngoài giới hạn ghi 240/phút.
 48. Gán tên: khi lưu hồ sơ không gửi `familyName`/`givenName`, `upsertStaff` tách lại họ/tên từ `name` (`db.js`): tên hai chữ đã nhập riêng trước đó (ví dụ họ "Nguyễn Văn", tên "An Bình") bị tách lại thành tên "Bình".
 49. `ROUTE_CAPS` cho thêm chức vụ và thêm bậc khác nhau ở cổng: `POST /positions` cần `config.read` (`authz.js`), `POST /positions/:code/levels` cần `config.payroll` (`authz.js`); cả hai kiểm lại `config.payroll` trong `save.js`.
