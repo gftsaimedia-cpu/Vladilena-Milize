@@ -4,8 +4,7 @@ import { ApiGate } from './http/api-gate';
 import { ApiGuard } from './http/api.guard';
 import { ApiExceptionFilter } from './http/api-exception.filter';
 import { RequestScopeInterceptor } from './http/request-scope.interceptor';
-import { LegacyApi } from './http/legacy.controller';
-import { LegacyModule } from './http/legacy.module';
+import { NotFoundModule } from './http/not-found.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { SystemModule } from './modules/system/system.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -29,17 +28,16 @@ import { PayEntriesModule } from './modules/pay-entries/pay-entries.module';
 
 /**
  * Thứ tự import là thứ tự đăng ký route: route cụ thể (ví dụ PUT /staff/shift-bulk) phải đứng trước route có tham số (PUT /staff/:u),
- * và LegacyModule (bắt-hết) luôn đứng cuối.
+ * và NotFoundModule (bắt-hết, trả 404) luôn đứng cuối.
  */
 const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule, AttendanceModule, PeriodsModule, AuditModule, StaffModule, RolesModule, BlocksModule, PositionsModule, CatalogModule, EmployeesModule, LeaveModule, AdvanceModule, ExplanationsModule, PayEntriesModule];
 
 @Module({})
 export class AppModule {
-  /** legacy: bộ xử lý cũ cho các route chưa chuyển module. */
-  static register(legacy: LegacyApi): DynamicModule {
+  static register(): DynamicModule {
     return {
       module: AppModule,
-      imports: [...FEATURE_MODULES, LegacyModule.register(legacy)],
+      imports: [...FEATURE_MODULES, NotFoundModule],
       providers: [
         ApiGate,
         { provide: APP_GUARD, useClass: ApiGuard },

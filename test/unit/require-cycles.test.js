@@ -85,7 +85,7 @@ test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể c�
 });
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
-  assert.ok(GRAPH.get('server.js').has('lib/db.js'), 'server.js → lib/db.js');
+  assert.ok(GRAPH.get('src/main.ts').has('lib/db.js'), 'src/main.ts → lib/db.js');
   assert.ok(GRAPH.get('src/http/api-gate.ts').has('lib/authz.js'), 'cổng ApiGuard → lib/authz.js');
   assert.ok(GRAPH.get('lib/auth.js').has('lib/db.js'));
   const edges = [...GRAPH.values()].reduce((n, set) => n + set.size, 0);

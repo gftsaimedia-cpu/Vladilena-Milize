@@ -4,23 +4,26 @@ import express from 'express';
 import { NestFactory } from '@nestjs/core';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
-import type { LegacyApi } from './http/legacy.controller';
 import { inflight } from './http/load-control';
 import { RAW_URL } from './http/api-context';
 import { send, securityHeaders, serveStatic } from '../lib/http';
+import config = require('../lib/config');
+import { initApp } from './app.init';
+import { hashGate, writeLimiter, shedder, monitor } from './http/load-control';
 
 /**
  * Máy chủ HTTP: tiêu đề bảo mật cho mọi phản hồi, file tĩnh ngoài /api, còn /api/* do ứng dụng Nest xử lý.
  * Trả về http.Server dùng được ngay (test gọi listen(0)); ứng dụng Nest khởi tạo bất đồng bộ, yêu cầu đến sớm thì chờ.
  */
-export function createServer(legacy: LegacyApi): http.Server {
+export function createServer(): http.Server {
+  initApp();
   const instance = express();
   instance.disable('x-powered-by');
   instance.disable('etag');
-  const ready = NestFactory.create(AppModule.register(legacy), new ExpressAdapter(instance), { bodyParser: false, logger: ['error', 'warn'] }).then(app => app.init());
+  const ready = NestFactory.create(AppModule.register(), new ExpressAdapter(instance), { bodyParser: false, logger: ['error', 'warn'] }).then(app => app.init());
   ready.catch(error => console.error('Không khởi tạo được Nest:', error));
 
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     securityHeaders(res);
     let url: URL;
     try {
@@ -44,4 +47,10 @@ export function createServer(legacy: LegacyApi): http.Server {
     req.url = (req.url as string).replace(/%/g, '%25');
     instance(req, res);
   });
+  // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem lib/config.js → HTTP_KEEP_ALIVE_MS)
+  server.keepAliveTimeout = config.HTTP_KEEP_ALIVE_MS;
+  server.headersTimeout = config.HTTP_HEADERS_TIMEOUT_MS;
+  server.requestTimeout = config.HTTP_REQUEST_TIMEOUT_MS; // kẻ gửi chậm không giữ socket mãi (luồng SSE là phản hồi nên không bị tính)
+  (server as any).limits = { hashGate, writeLimiter, shedder, monitor }; // để test và vận hành chỉnh/đọc số liệu giới hạn tải
+  return server;
 }
