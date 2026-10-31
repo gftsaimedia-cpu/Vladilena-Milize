@@ -97,7 +97,6 @@ const paramsSave = require('./lib/params/save'); // lưu tham số: kiểm, xem 
 const periods = require('./lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
 const events = require('./lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const findings = require('./lib/findings'); // bỏ qua phát hiện AI của phiếu, có lý do
-const { RuntimeMonitor } = require('./lib/ops/runtime-monitor'); // độ trễ vòng lặp, bộ nhớ (nghẽn máy chủ)
 const { attachAccessLog } = require('./lib/ops/access-log'); // nhật ký truy cập JSON + X-Request-Id
 const explanations = require('./lib/explanations'); // giải trình Check-out muộn
 const { container } = require('./lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
@@ -116,7 +115,6 @@ const vnDayIso = (day, edge) =>
 const PORT = Number(process.env.PORT || 3000);
 // Hợp đồng mặc định của chức vụ mới đọc type.<mã>.defaultContract của tháng hiện tại (lỗi hoặc giá trị lạ thì db dùng mặc định của nó)
 store.setDefaultContractResolver(async type => typeParam(await monthParams(), type, 'defaultContract'));
-const LOCKED_MESSAGE = 'Tài khoản đã bị khoá. Liên hệ Admin để được mở lại.';
 // Các ô Admin được sửa trên phiếu lương: tiền (đồng, ≥ 0) và số lượng (ngày / giờ / %)
 const SLIP_MONEY = [
   'workBase',
@@ -482,8 +480,6 @@ async function cleanDays(days) {
   }
   return out;
 }
-// Địa chỉ dùng cho giới hạn đăng nhập: cùng hàm với nhật ký chấm công (clientIp), để header giả không lách được.
-const loginAddress = clientIp;
 
 /* ---------- API ---------- */
 
@@ -497,93 +493,8 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
     await store.db.prepare('SELECT 1').get();
     return send(res, 200, { ok: true, ...monitor.snapshot() });
   }
-  if (route === 'POST /login') {
-    const { username, password } = await readJson(req);
-    const u = String(username || '')
-      .trim()
-      .toLowerCase();
-    const key = auth.loginKey(loginAddress(req), u);
-    const wait = auth.loginWait(key);
-    if (wait > 0)
-      return send(
-        res,
-        429,
-        { error: `Đăng nhập sai quá nhiều lần. Thử lại sau ${Math.ceil(wait / 60)} phút.` },
-        { 'Retry-After': String(wait) }
-      );
-    const row = await store.getStaffRow(u);
-    // Tên không có thật cũng chạy băm mật khẩu và nhận cùng thông báo, để không đoán được tên nào có thật
-    if (!(await hashGate.run(() => auth.verifyLoginAsync(String(password || ''), row)))) {
-      const { addressWait } = auth.loginFailed(key);
-      // Lần sai vừa làm cả địa chỉ bị khoá (thử mật khẩu trên nhiều tài khoản)
-      if (addressWait > 0)
-        return send(
-          res,
-          429,
-          { error: `Đăng nhập sai quá nhiều lần. Thử lại sau ${Math.ceil(addressWait / 60)} phút.` },
-          { 'Retry-After': String(addressWait) }
-        );
-      throw new HttpError(401, 'Sai tên đăng nhập hoặc mật khẩu');
-    }
-    // Kiểm khoá TRƯỚC khi ghi nhận thành công: mật khẩu đúng của một tài khoản đã bị khoá không được xoá bộ đếm dò
-    if (row.locked_at) throw new HttpError(403, LOCKED_MESSAGE);
-    auth.loginSucceeded(key);
-    return send(
-      res,
-      200,
-      {
-        user: await publicStaff(await store.getStaff(u)),
-        holidays: await store.getSetting('holidays', []),
-        ...await geofenceView(await store.getStaff(u))
-      },
-      { 'Set-Cookie': auth.cookieHeader(await auth.createSession(u), auth.SESSION_MAX_AGE_SEC) }
-    );
-  }
-  if (route === 'POST /logout') {
-    // Đăng xuất thu hồi phiên: mọi cookie cũ của tài khoản này hết hiệu lực, kể cả bản bị sao chép
-    if (me) {
-      await store.bumpSessionVersion(me.username);
-      events.closeUser(me.username, 'logout');
-    }
-    return send(res, 200, { ok: true }, { 'Set-Cookie': auth.cookieHeader('', 0) });
-  }
-  if (route === 'GET /me')
-    return send(res, 200, {
-      user: me ? await publicStaff(me) : null,
-      serverNow: nowIso(), // giờ máy chủ (ISO), để app nhân viên tính lệch đồng hồ điện thoại (NV.skewMs)
-      // Vai trò và năng lực hiệu lực. Chế độ HR / Nhân viên là trạng thái giao diện, máy chủ luôn kiểm theo năng lực.
-      roles: await authz.rolesOf(me),
-      caps: await authz.capsOf(me),
-      payrollSubject: !!(me && me.payrollSubject),
-      agentsEnabled: await agents.enabled(), // công tắc Agents (route /settings/agents)
-      holidays: await store.getSetting('holidays', []),
-      ...await myPosition(me),
-      ...await geofenceView(me)
-    });
-
-  if (route === 'PUT /password') {
-    const u = need();
-    const { current, next } = await readJson(req);
-    if (!(await auth.verifyPasswordAsync(String(current || ''), (await store.getStaffRow(u.username)).pass_hash)))
-      throw new HttpError(400, 'Mật khẩu hiện tại không đúng');
-    if (String(next || '').length < config.PASSWORD_MIN_LENGTH)
-      throw new HttpError(400, `Mật khẩu mới cần ít nhất ${config.PASSWORD_MIN_LENGTH} ký tự`);
-    const passHash = await auth.hashPasswordAsync(String(next));
-    await store.transaction(async () => {
-      await store.setPassword(u.username, passHash);
-      // Chỉ ghi hành động, không bao giờ ghi mật khẩu hay hàm băm
-      await audit.write(actx, { action: 'password.change', entityKind: 'staff', entityId: u.username, subject: u.username });
-    });
-    await store.bumpSessionVersion(u.username); // phiên cũ hết hiệu lực; cấp phiên mới cho trình duyệt đang đổi
-    events.closeUser(u.username, 'password'); // luồng cũ gắn với cookie cũ; trình duyệt này nối lại bằng cookie mới
-    return send(
-      res,
-      200,
-      { ok: true },
-      { 'Set-Cookie': auth.cookieHeader(await auth.createSession(u.username), auth.SESSION_MAX_AGE_SEC) }
-    );
-  }
-
+      
+  
   if (route === 'GET /holidays') {
     need();
     return send(res, 200, { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() });
