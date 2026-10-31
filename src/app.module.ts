@@ -13,12 +13,13 @@ import { SheetModule } from './modules/sheet/sheet.module';
 import { KpiModule } from './modules/kpi/kpi.module';
 import { ApprovalsModule } from './modules/approvals/approvals.module';
 import { AiModule } from './modules/ai/ai.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
 
 /**
  * Thứ tự import là thứ tự đăng ký route: route cụ thể (ví dụ PUT /staff/shift-bulk) phải đứng trước route có tham số (PUT /staff/:u),
  * và LegacyModule (bắt-hết) luôn đứng cuối.
  */
-const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule];
+const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule, AttendanceModule];
 
 @Module({})
 export class AppModule {

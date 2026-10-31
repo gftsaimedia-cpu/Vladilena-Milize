@@ -15,6 +15,7 @@ try {
   }
 } catch {}
 const { cutRuleView } = require('./src/modules/sheet/sheet.helpers'); // sheet: hàm phụ đã chuyển sang module Nest
+const { checkInDay, declaredDay, checkoutPreview } = require('./src/modules/attendance/attendance.helpers'); // attendance: hàm phụ đã chuyển sang module Nest
 const store = require('./lib/db');
 const auth = require('./lib/auth');
 const { HttpError, send, readJson, securityHeaders, serveStatic, clientIp } = require('./lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
@@ -31,7 +32,6 @@ const {
 const { validMonth, validDate, USERNAME_RE, TIME_RE, NOTE_MAX, positiveId } = require('./lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { estimateSheet, leaveDates, neighborDays, schedule } = require('./lib/domain/sheet'); // lịch ước tính và ngày phép
 const { publicStaff, staffForViewer, ownerView, sheetForViewer, staffRevision } = require('./lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
-const { cleanGeofence, geofenceView, checkGeofence } = require('./lib/domain/geofence'); // vùng GPS Check-in
 const {
   punchStaff,
   closeStale,
@@ -44,7 +44,6 @@ const {
 } = require('./lib/domain/attendance'); // phiên Check-in/out dùng chung
 // lượt gửi cho màn hình: kèm lượt bấm, yêu cầu điều chỉnh và status / statusNote
 const { sessionHistory, sessionsFor, sessionsWithHistory } = require('./lib/domain/attendance/session-view');
-const { CheckinEntitlement } = require('./lib/domain/attendance/checkin-entitlement'); // Check-in lúc này có được không, theo quyền nào
 const {
   hasKpi,
   cleanKpi,
@@ -64,9 +63,6 @@ const {
 } = require('./lib/domain/approvals'); // khoản tự khai chờ duyệt
 const { aiReviewResult, aiReviewResultCached } = require('./lib/domain/ai-review'); // kết quả soát dữ liệu của AI
 const agents = require('./lib/agents'); // công tắc Agents
-const shiftsDomain = require('./lib/domain/shifts'); // giờ ca (nhân viên đọc qua phần bổ sung của /api/punch)
-const { listOt, validateOtDeclaration } = require('./lib/domain/ot'); // khai OT thực tế ở Check-in/out
-const otSheet = require('./lib/domain/ot-sheet'); // OT Check-in/out được duyệt thành OT đã duyệt của ngày trong Lịch ước tính
 const domainRoutes = require('./lib/domain/routes'); // khối phụ cấp, khoản điền thêm, lịch theo loại nhân sự
 const authz = require('./lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const Roles = require('./lib/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
@@ -77,7 +73,6 @@ const { myPosition, sheetFlagsOf, activeCodesOf, withLeave } = require('./lib/do
 const periods = require('./lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
 const events = require('./lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const { attachAccessLog } = require('./lib/ops/access-log'); // nhật ký truy cập JSON + X-Request-Id
-const explanations = require('./lib/explanations'); // giải trình Check-out muộn
 const { container } = require('./lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
 const { PersonName } = require('./lib/domain/employee/person-name'); // họ trước, tên sau
 const { monitor, hashGate, writeLimiter, shedder } = require('./src/http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
@@ -137,130 +132,6 @@ const SLIP_QTY = [
 ]; // % đạt từng phần KPI; Tổng KPI = Σ % × trọng số (40/24/12/18/6) + Bonus
 
 
-/* ---------- check-in / check-out ---------- */
-// Nhân viên chỉ Check-in được cho ngày công (ngày punch.js gán cho lượt: ca đêm thuộc ngày bắt đầu ca, lượt ngoài khung ca thuộc ngày bấm) là:
-//   ngày làm việc trong lịch của loại nhân sự và không phải ngày lễ; hoặc
-//   ngày có khoản OT (kể cả OT khai trên ngày lễ) hay làm bù theo giờ ở trạng thái đã duyệt (sheetApprovals: khoản Admin khai thay được duyệt ngay khi lưu).
-// Ngày tự khai đi làm không có khoản duyệt, khoản chờ duyệt hay bị từ chối đều không mở Check-in.
-// Ngày nghỉ cả ngày cũng đóng Check-in: iSAT, nghỉ phép năm, nghỉ không lương đã khai (chờ duyệt hay đã duyệt, trừ khoản bị từ chối);
-// nghỉ được duyệt, nghỉ sẽ làm bù chỉ khi đã duyệt. Ngoại lệ: ngày đó có khoản OT hay làm bù đã duyệt. checkInDay trả câu báo '' khi ngày qua, ngược lại câu báo cho nhân viên.
-// Thời điểm bấm còn phải nằm trong khung ca hoặc trong khoảng giờ của khoản đã duyệt: lib/domain/attendance/checkin-entitlement.js (checkInVerdict) ghép hai điều kiện.
-const CHECKIN_ITEMS = ['ot', 'makeup_hours'];
-const OFF_DECLARED = ['isat', 'leave', 'unpaid'];
-const OFF_DAY_TEXT = {
-  isat: 'nghỉ iSAT',
-  leave: 'nghỉ phép năm',
-  unpaid: 'nghỉ không lương',
-  approved: 'nghỉ được duyệt',
-  willmakeup: 'nghỉ, sẽ làm bù'
-};
-// block: câu báo ('' = ngày qua cổng); off: ngày đã khai nghỉ cả ngày; via: 'shift' khi ngày nằm trong lịch và không đóng, ngược lại loại khoản đã duyệt mở ngày đó.
-async function checkInDay(staff, date) {
-  const { day, approval } = await declaredDay(staff, date) || {};
-  const holiday = (await store.getSetting('holidays', [])).includes(date);
-  const scheduled = !holiday && await schedule.isWorkDay(staff, date);
-  const off = day && Object.hasOwn(OFF_DAY_TEXT, day.kind) ? day.kind : '';
-  const closed = OFF_DECLARED.includes(off)
-    ? !approval || approval.status !== 'rejected'
-    : approval && approval.status === 'approved';
-  if (approval && approval.status === 'approved' && CHECKIN_ITEMS.includes(approval.item))
-    return { block: '', via: scheduled && !off ? 'shift' : approval.item };
-  if (off && closed) return { block: `Hôm nay bạn ${OFF_DAY_TEXT[off]}, không Check-in được.`, via: '', off: true };
-  if (scheduled) return { block: '', via: 'shift' };
-  return { block: 'Hôm nay bạn không có lịch làm việc hay giờ OT/làm bù được duyệt nên không Check-in được.', via: '' };
-}
-// Ngày khai trong lịch ước tính của nhân sự và dòng duyệt hiệu lực của nó; null khi ngày không có khai
-async function declaredDay(staff, date) {
-  const month = date.slice(0, 7);
-  const day = (await estimateSheet(staff.username, month)).days[date];
-  return day
-    ? {
-        day,
-        approval: (await sheetApprovals(staff.username, month, { [date]: day }))[date] || null,
-        holiday: (await store.getSetting('holidays', [])).includes(date)
-      }
-    : null;
-}
-const checkinEntitlement = new CheckinEntitlement({
-  punch: async () => (await rulesFor()).punch,
-  declared: declaredDay,
-  dayBlock: checkInDay,
-  punchStaff
-});
-const checkInVerdict = async (staff, iso) => await checkinEntitlement.decide(staff, iso);
-async function punchState(staff) {
-  const punch = (await rulesFor()).punch;
-  const openSession = await store.openSession(staff.username),
-    lastSession = await store.lastSession(staff.username);
-  // Không có lượt mở: xét ngày công mà một lượt Check-in lúc này sẽ nhận. canCheckIn false kèm checkInBlock (câu lý do) khi bị chặn;
-  // checkInBlock chỉ có mặt khi bị chặn
-  const verdict = openSession ? null : await checkInVerdict(staff, nowIso());
-  const block = verdict && !verdict.allowed ? verdict.message : '';
-  const canCheckIn = !openSession && !block;
-  const shownOpen = await sessionHistory(openSession),
-    shownLast = await sessionHistory(lastSession);
-  const s = openSession || lastSession,
-    shown = shownOpen || shownLast,
-    day = s?.entry;
-  // Nhãn của lượt do máy chủ phân loại (status, statusNote: cùng nơi với phiếu): record mang đúng nhãn đó để màn nhân viên không đọc kind 'pending' của lượt
-  // đã bị từ chối thành "Chờ xử lý"; `pending` (lý do lượt đang chờ) chỉ có khi lượt thật sự chờ xử lý
-  const record = day ? { ...day, status: shown.status, statusNote: shown.statusNote } : null;
-  // Các trường tương thích mang đúng phiên đã chọn, không gộp danh sách phiên thành ngày lương.
-  return {
-    enabled: true,
-    canCheckIn,
-    ...(block ? { checkInBlock: block, checkInCode: verdict.code } : {}),
-    ...(canCheckIn ? { checkInEntitlement: verdict.entitlement } : {}),
-    openSession: shownOpen,
-    lastSession: shownLast,
-    open: openSession
-      ? {
-          id: openSession.id,
-          at: day.presIn,
-          since: punch.vnTime(day.presIn),
-          date: openSession.date,
-          plannedShift: day.plannedShift || null
-        }
-      : null,
-    date: s?.date || punch.vnDate(nowIso()),
-    ...await schedule.punchSchedule(staff, s?.date || punch.vnDate(nowIso())),
-    record,
-    sunday: false,
-    outside: '',
-    done: !openSession && day?.presOut ? { in: punch.vnTime(day.presIn), out: punch.vnTime(day.presOut) } : null,
-    pending: !openSession && day?.kind === 'pending' && shown.status === 'pending' ? day.reason : null
-  };
-}
-// "Nếu Check-out bây giờ": chạy ActualHours.apply của tháng trên ca đang mở được đóng vào lúc này
-async function checkoutPreview(staff) {
-  const open = await store.openSession(staff.username);
-  const planned = open && open.entry && open.entry.plannedShift;
-  if (!planned || !planned.date || !planned.in || !planned.out) return null;
-  const month = planned.date.slice(0, 7),
-    now = nowIso();
-  const others = (await store.listSessions({ username: staff.username, month })).filter(s => s.id !== open.id);
-  const closed = { id: open.id, date: open.date, state: 'closed', entry: { ...open.entry, presOut: now } };
-  const { report } = (await rulesFor(month)).actualHours.apply(
-    { [planned.date]: { kind: 'work', in: planned.in, out: planned.out } },
-    [...others, closed].filter(s => s.date === planned.date),
-    {
-      asOf: now,
-      staff,
-      holidays: await store.getSetting('holidays', []),
-      month
-    }
-  );
-  const r = report[planned.date];
-  if (!r || r.state !== 'ok') return null; // ngoài lịch / ngoài ca: không áp được
-  return { early: r.early || 0, cutEnd: r.cutEndMin || 0, cutStart: r.cutStartMin || 0, paidMin: r.paidMin };
-}
-// Phần bổ sung (không lưu vào bản phát lại theo requestId) của GET / POST /api/punch
-const punchExtras = async staff => ({
-  serverNow: nowIso(),
-  cutRule: await cutRuleView(vnToday().slice(0, 7)),
-  shiftConfig: await shiftsDomain.employeeView(vnToday().slice(0, 7)), // giờ ca và hai ngưỡng Check-in cho nhân viên (không có config.read)
-  checkoutPreview: await checkoutPreview(staff)
-});
 
 /* ---------- API ---------- */
 
@@ -317,312 +188,7 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
     }
     return send(res, 200, await store.getSlipOverride(who, month));
   }
-  /* ---------- check-in / check-out: mỗi lần ghi nhắm đúng một phiên ---------- */
-  if (route === 'GET /punch') {
-    const u = need();
-    if (!u.payrollSubject)
-      return send(res, 200, {
-        enabled: false,
-        canCheckIn: false,
-        openSession: null,
-        lastSession: null,
-        serverNow: nowIso()
-      });
-    await closeStale(u);
-    return send(res, 200, { ...await punchState(u), ...await punchExtras(u) });
-  }
-  if (route === 'POST /punch') {
-    const u = need();
-    if (!u.payrollSubject)
-      throw new HttpError(
-        403,
-        u.role === 'admin' ? 'Admin không chấm công' : 'Tài khoản không thuộc bảng lương không chấm công'
-      );
-    const punch = (await rulesFor()).punch;
-    const b = await readJson(req),
-      { type, requestId, sessionId } = b;
-    if (!['in', 'out'].includes(type) || typeof requestId !== 'string' || !/^[A-Za-z0-9._:-]{8,120}$/.test(requestId))
-      throw new HttpError(400, 'Cần loại thao tác và requestId hợp lệ');
-    if (type === 'out' && !positiveId(sessionId)) throw new HttpError(400, 'Cần ID lượt Check-out');
-    const operation = JSON.stringify({ type, sessionId: type === 'out' ? sessionId : null });
-    const response = await store.transaction(async () => {
-      const prior = await store.getPunchRequest(u.username, requestId);
-      if (prior) {
-        if (prior.operation !== operation) throw new HttpError(409, 'requestId đã dùng cho thao tác khác');
-        return JSON.parse(prior.response_json);
-      }
-      await closeStale(u);
-      const t = nowIso();
-      let session;
-      if (type === 'in') {
-        const outsideZone = await checkGeofence(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
-        if (await store.openSession(u.username)) throw new HttpError(409, 'Bạn đang có lượt mở — Check-out trước');
-        const opened = await punch.openSessionDay(await punchStaff(u, t), t);
-        const verdict = await checkInVerdict(u, t); // không có lịch / khoản được duyệt, hay ngoài khung ca mà không khoản nào phủ giờ này: không ghi gì
-        if (!verdict.allowed) throw new HttpError(409, verdict.message, { code: verdict.code });
-        await guardPeriod(opened.date); // ca đêm thuộc ngày bắt đầu ca
-        if (outsideZone) opened.entry.outsideZone = true;
-        const overlap = await sessionOverlap(u.username, t, new Date(Date.parse(t) + 1).toISOString());
-        if (overlap) throw new HttpError(400, overlap);
-        // Check-in không hợp lệ (trễ, ngoài ca, ngoài vùng GPS, lượt thứ hai trong ca) phải có giải trình gửi kèm (b.explanation)
-        const inCases = await container.punchExplanation.casesIn(u.username, opened);
-        container.punchExplanation.demand('in', inCases, b.explanation);
-        session = await store.createSession(u.username, opened.date, 'open', opened.entry);
-        await store.addPunch(
-          u.username,
-          t,
-          'in',
-          clientIp(req),
-          false,
-          { plannedShift: opened.entry.plannedShift || null },
-          session.id
-        );
-        if (inCases.length)
-          await container.punchExplanation.record({
-            side: 'in',
-            username: u.username,
-            session,
-            cases: inCases,
-            text: b.explanation,
-            actx
-          });
-      } else {
-        session = await store.getSession(sessionId);
-        if (!session || session.username !== u.username) throw new HttpError(404, 'Không có lượt chấm công này');
-        if (session.state !== 'open') throw new HttpError(409, 'Lượt này đã Check-out');
-        await guardPeriod(session.date);
-        if (Date.parse(t) < Date.parse(session.entry.presIn))
-          throw new HttpError(400, 'Giờ Check-out không thể trước giờ vào');
-        // Check-out muộn hơn giờ kết thúc ca (cộng phần làm thêm đã khai) quá CHECKOUT_GRACE_MIN phút (check-out muộn chỉ có
-        // hiệu lực khi Admin duyệt giải trình): giải trình gửi kèm (b.explanation), lượt thành "Quên Check-out" và giữ giờ bấm chờ Admin duyệt
-        const sheetDay = (await estimateSheet(u.username, session.date.slice(0, 7))).days[session.date];
-        const late = { staff: u, session, at: t, ip: clientIp(req), text: b.explanation, actx };
-        if (explanations.needsExplanation(session, t, sheetDay))
-          session = await container.lateCheckout.record({
-            ...late,
-            lateMin: explanations.lateCheckoutMin(session, t, sheetDay)
-          });
-        else {
-          // Check-out sớm (không phải muộn): cũng phải có giải trình gửi kèm; giờ bấm vẫn là giờ ra của lượt
-          const outCases = await container.punchExplanation.casesOut({ staff: u, session, at: t, sheetDay });
-          container.punchExplanation.demand(
-            'out',
-            outCases,
-            b.explanation,
-            outCases.length ? { preview: await checkoutPreview(u) } : {}
-          );
-          session = await container.lateCheckout.checkOut(late);
-          if (outCases.length)
-            await container.punchExplanation.record({
-              side: 'out',
-              username: u.username,
-              session,
-              cases: outCases,
-              text: b.explanation,
-              actx
-            });
-        }
-      }
-      hintPunch(u.username, session.date); // báo Admin và máy khác của chính người này sau khi yêu cầu xong (ca đêm thuộc ngày bắt đầu)
-      const response = await punchState(u);
-      await store.savePunchRequest(u.username, requestId, operation, session.id, response);
-      return response;
-    });
-    // serverNow lấy lúc gửi (không lưu trong bản phát lại theo requestId, nếu không máy khách sẽ nhận giờ cũ)
-    return send(res, 200, { ...response, ...await punchExtras(u) });
-  }
-  if (route === 'GET /ot') {
-    needAdmin();
-    const status = url.searchParams.get('status');
-    return send(res, 200, { ot: await listOt(['approved', 'rejected'].includes(status) ? status : 'pending') });
-  }
-  if (route === 'POST /ot') {
-    const admin = needAdmin(),
-      b = await readJson(req);
-    const result = await store.transaction(async () => {
-      if (!positiveId(b.sessionId)) throw new HttpError(400, 'Cần chọn lượt chấm công');
-      const session = await store.getSession(b.sessionId);
-      if (!session) throw new HttpError(404, 'Không có lượt chấm công này');
-      correctionVersion(session, b.version);
-      const staff = await store.getStaff(session.username);
-      if (!staff || !staff.payrollSubject) throw new HttpError(400, 'Không có nhân sự tương ứng');
-      await guardPeriod(session.date);
-      const reason = String(b.reason || '')
-        .trim()
-        .slice(0, 300);
-      const entry = await validateOtDeclaration(staff, session, b),
-        old = session.entry;
-      if (old.extraKind === 'ot') {
-        entry.otDeclarationHistory = [
-          ...(old.otDeclarationHistory || []),
-          {
-            extraIn: old.extraIn || '',
-            extraOut: old.extraOut || '',
-            declaration: old.otDeclaration || null,
-            review: old.otReview || null,
-            changedBy: admin.username,
-            changedAt: nowIso()
-          }
-        ];
-        if (old.otReview) entry.otHistory = [...(old.otHistory || []), old.otReview];
-      }
-      delete entry.otReview;
-      entry.otDeclaration = { by: admin.username, at: nowIso(), reason };
-      entry.otNeedsReview = true;
-      const updated = await store.updateSession(session.id, session.version, {
-        date: session.date,
-        state: session.state,
-        entry
-      });
-      if (!updated) throw new HttpError(409, 'Lượt chấm công đã thay đổi — tải lại trước khi khai OT');
-      await audit.write(actx, {
-        action: 'ot.declare',
-        entityKind: 'attendance_session',
-        entityId: String(updated.id),
-        subject: session.username,
-        month: session.date.slice(0, 7),
-        reason
-      });
-      return { ok: true, sessionId: updated.id, sessionVersion: updated.version };
-    });
-    {
-      const declared = await store.getSession(result.sessionId);
-      if (declared) events.emit.attendanceChanged('ot', declared.date.slice(0, 7));
-    }
-    return send(res, 200, result);
-  }
-  if (route === 'PUT /ot') {
-    const admin = needAdmin(),
-      b = await readJson(req);
-    let otSession = null,
-      onSheet = false;
-    await store.transaction(async () => {
-      if (!positiveId(b.sessionId)) throw new HttpError(400, 'Cần chọn lượt OT');
-      const session = await store.getSession(b.sessionId);
-      if (!session || session.entry.extraKind !== 'ot') throw new HttpError(404, 'Lượt này không có OT');
-      otSession = { username: session.username, date: session.date };
-      correctionVersion(session, b.version);
-      if (session.state === 'open') throw new HttpError(409, 'Lượt này đang mở');
-      await guardPeriod(session.date);
-      selfDecision(authz.isSelfDecision(me, session.username), {
-        doing: 'duyệt OT'
-      });
-      if (session.entry.otReview) throw new HttpError(409, 'OT lượt này đã được xử lý');
-      if (!['approve', 'reject'].includes(b.action)) throw new HttpError(400, 'action phải là approve hoặc reject');
-      const note = String(b.note || '')
-        .trim()
-        .slice(0, 300);
-      if (b.action === 'approve') {
-        if (session.entry.otDeclaration)
-          await validateOtDeclaration(await store.getStaff(session.username), session, session.entry);
-        else {
-          const err = (await rulesFor(session.date.slice(0, 7))).punch.extraFits(session.entry);
-          warnIf('OT_OUTSIDE_PRESENCE', !!err, {
-            message: () => `${err}: bộ máy chỉ trả phần giờ có mặt liền với ca (không trả quá giờ đã chấm công).`
-          });
-        }
-      }
-      const entry = {
-        ...session.entry,
-        otNeedsReview: false,
-        otReview: { ok: b.action === 'approve', by: admin.username, at: nowIso(), ...(note ? { note } : {}) }
-      };
-      await store.updateSession(session.id, session.version, { date: session.date, state: session.state, entry });
-      // OT được duyệt thành OT đã duyệt của ngày trên Lịch ước tính (nguồn tiền OT của bộ máy)
-      if (b.action === 'approve')
-        onSheet = await otSheet.payOnSheet({ session, staff: await store.getStaff(session.username), by: admin.username });
-      await audit.write(actx, {
-        action: 'ot.decide',
-        entityKind: 'attendance_session',
-        entityId: String(session.id),
-        subject: session.username,
-        month: session.date.slice(0, 7),
-        after: { status: b.action === 'approve' ? 'approved' : 'rejected' },
-        reason: note || null
-      });
-    });
-    events.emit.punchCorrected(otSession.username, otSession.date);
-    events.emit.attendanceChanged('ot', otSession.date.slice(0, 7));
-    if (onSheet) {
-      await events.emit.approvalsChanged(otSession.date.slice(0, 7));
-      events.emit.estimateChanged(otSession.username, otSession.date.slice(0, 7));
-    }
-    return send(res, 200, { ok: true });
-  }
-        if (route === 'GET /today') {
-    needAdmin();
-    const { punch, actualHours: ActualHours } = await rulesFor();
-    const today = punch.vnDate(nowIso());
-    const people = (await store.listStaff()).filter(s => s.payrollSubject);
-    await closeStaleFor(people);
-    const rows = await AsyncList.map(people, async staff => {
-      const sessions = await store.listSessions({ username: staff.username }),
-        open = await store.openSession(staff.username);
-      const todaySessions = sessions.filter(
-        s =>
-          s.state === 'open' ||
-          s.date === today ||
-          (s.entry.presOut && punch.vnDate(s.entry.presOut) === today) ||
-          (s.entry.kind === 'pending' &&
-            s.entry.reason === 'forgot-out' &&
-            s.entry.presIn &&
-            punch.forgotOutDate(s.entry.presIn) === today)
-      );
-      const latest = todaySessions
-          .slice()
-          .sort(
-            (a, b) =>
-              (Date.parse(a.entry.presOut || a.entry.presIn) || 0) -
-                (Date.parse(b.entry.presOut || b.entry.presIn) || 0) || a.id - b.id
-          )
-          .at(-1),
-        session = open || latest,
-        day = session?.entry;
-      return {
-        username: staff.username,
-        name: staff.name,
-        type: staff.type,
-        shiftCode: staff.shiftCode,
-        date: session?.date || today,
-        sessionId: session?.id || null,
-        sessionCount: todaySessions.length,
-        plannedShift: day?.plannedShift || null,
-        presIn: day?.presIn || null,
-        presOut: day?.presOut || null,
-        open: !!open,
-        in: day?.presIn ? punch.vnTime(day.presIn) : null,
-        out: !open && day?.presOut ? punch.vnTime(day.presOut) : null,
-        // cùng luật làm tròn với tính lương (phút làm việc, bỏ giờ nghỉ); chỉ để hiển thị
-        late: day?.plannedShift && day?.presIn ? ActualHours.lateMinutes(day.plannedShift, day.presIn) : 0,
-        kind: day?.kind || null,
-        reason: day?.reason || null,
-        session: session || null
-      };
-    });
-    // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.js), nạp lô một lần cho mọi người; không có lượt thì null
-    const shown = new Map((await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map(s => [s.id, s]));
-    for (const row of rows) {
-      const s = row.session && shown.get(row.session.id);
-      delete row.session;
-      row.status = s ? s.status : null;
-      row.statusNote = s ? s.statusNote : '';
-    }
-    return send(res, 200, { today, rows });
-  }
-  if (route === 'GET /attendance') {
-    needAdmin();
-    const month = url.searchParams.get('month');
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const staff = await store.listStaff(),
-      names = Object.fromEntries(staff.map(s => [s.username, s.name])),
-      types = Object.fromEntries(staff.map(s => [s.username, s.type]));
-    await closeStaleFor(staff.filter(s => s.payrollSubject));
-    return send(res, 200, {
-      month,
-      rows: (await sessionsFor({ month })).map(s => ({ ...s, name: names[s.username] || s.username, type: types[s.username] }))
-    });
-  }
-        if (route === 'GET /staff') {
+                          if (route === 'GET /staff') {
     needAdmin();
     const listParams = await monthParams();
     return send(res, 200, {
