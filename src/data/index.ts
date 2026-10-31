@@ -21,3 +21,14 @@ export {
   SlipOverridesRepository
 } from './payroll.repository';
 export type { PeriodRow, RunRow, PayslipRow, PayslipFilter, SlipOverrideRow } from './payroll.repository';
+export {
+  AiFindingActionsRepository,
+  AiReviewRunsRepository,
+  StaffRolesRepository,
+  StaffRepository,
+  PunchesRepository,
+  CorrectionsRepository,
+  TimesheetsRepository,
+  KpiScoresRepository
+} from './records.repository';
+export type { FindingActionRow, AiRunRow, StaffRow, StaffRoleRow, CorrectionRow, TimesheetRow, KpiScoresRow, KpiLogRow } from './records.repository';
