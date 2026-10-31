@@ -265,10 +265,10 @@ async function main() {
 
   // Phép năm 01–02/2027: số của chính mô-đun phép của hệ thống (rulesFor(tháng).leave.ledger trên các ngày phép đang lưu) tại các mốc,
   // quyết toán trên phiếu tháng 2, số dư hôm nay theo màn lịch và theo sổ phép
-  const ledgerAt = (staff, date) => {
-    const got = rulesFor(date.slice(0, 7)).leave.ledger(
+  const ledgerAt = async (staff, date) => {
+    const got = (await rulesFor(date.slice(0, 7))).leave.ledger(
       staff,
-      leaveDates(staff).filter(d => d <= date),
+      (await leaveDates(staff)).filter(d => d <= date),
       date
     );
     return {
@@ -282,13 +282,13 @@ async function main() {
   const leaveRows = [];
   const accountHolders = [...PAYROLL.filter(p => !meta.only || meta.only.includes(p.u))];
   for (const p of accountHolders) {
-    const staff = app.store.getStaff(p.u);
+    const staff = await app.store.getStaff(p.u);
     if (!staff || staff.type === 'tts') continue;
-    const dates = leaveDates(staff);
-    const dec = ledgerAt(staff, '2026-12-31');
-    const jan31 = ledgerAt(staff, '2027-01-31');
-    const feb1 = ledgerAt(staff, '2027-02-01');
-    const feb28 = ledgerAt(staff, '2027-02-28');
+    const dates = await leaveDates(staff);
+    const dec = await ledgerAt(staff, '2026-12-31');
+    const jan31 = await ledgerAt(staff, '2027-01-31');
+    const feb1 = await ledgerAt(staff, '2027-02-01');
+    const feb28 = await ledgerAt(staff, '2027-02-28');
     const febSlip = await slipOf(p.u, '2027-02');
     const janSlip = await slipOf(p.u, '2027-01');
     const now = await leaveNow(p.u);

@@ -33,11 +33,11 @@ test('mốc tròn đúng 1 năm (05/10/2026) không cộng gì thêm so với ng
   assert.equal(Leave.accrued(NV, '2026-10-05').nvYears, undefined);
 });
 
-test('người vào làm 05/10/2020 nhận đúng một lần +1 thâm niên (mốc 5 năm 05/10/2025), các năm tròn khác không cộng', () => {
+test('người vào làm 05/10/2020 nhận đúng một lần +1 thâm niên (mốc 5 năm 05/10/2025), các năm tròn khác không cộng', async () => {
   const staff = { startDate: '2020-10-05', birthday: null, type: 'nv', leaveAdjust: 0 };
   const got = Leave.accrued(staff, TODAY);
   assert.deepEqual([got.months, got.seniority, got.total], [72, 1, 73]);
-  const events = accrualEvents(staff, TODAY, { ...DEFAULTS, 'leave.expiry.fromYear': 2020 });
+  const events = await accrualEvents(staff, TODAY, { ...DEFAULTS, 'leave.expiry.fromYear': 2020 });
   assert.deepEqual(
     events.filter(e => e.kind === 'seniority').map(e => e.onDate),
     ['2025-10-05']
@@ -59,18 +59,18 @@ test('thâm niên tròn 10 năm cộng thêm lần thứ hai; mọi loại có p
   assert.equal(a.total - b.total, a.birthdays, 'chênh lệch duy nhất là ngày sinh nhật của Nhân viên');
 });
 
-test('CTV và TTS không có ngày sinh nhật, cũng không có ngày tròn năm', () => {
+test('CTV và TTS không có ngày sinh nhật, cũng không có ngày tròn năm', async () => {
   for (const type of ['ctv', 'tts']) {
     const staff = { ...NV, type };
     const got = Leave.counted(staff, TODAY);
     assert.deepEqual([got.birthdays, got.total], [0, 10], type);
-    const events = accrualEvents(staff, TODAY, DEFAULTS);
+    const events = await accrualEvents(staff, TODAY, DEFAULTS);
     assert.equal(events.filter(e => e.kind === 'birthday' || e.kind === 'year').length, 0, type);
     assert.equal(sum(events), got.total, type);
   }
 });
 
-test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total − điều chỉnh, nhiều người nhiều mốc, không có dòng loại year', () => {
+test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total − điều chỉnh, nhiều người nhiều mốc, không có dòng loại year', async () => {
   const people = [
     NV,
     { type: 'nv', startDate: '2020-10-05', birthday: '1990-02-28' },
@@ -80,7 +80,7 @@ test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total �
   ];
   for (const staff of people)
     for (const upTo of ['2026-06-30', TODAY, '2026-12-31', '2027-10-31', '2031-10-31']) {
-      const events = accrualEvents(staff, upTo, DEFAULTS);
+      const events = await accrualEvents(staff, upTo, DEFAULTS);
       const label = `${staff.type} ${staff.startDate} tới ${upTo}`;
       assert.equal(sum(events), Leave.counted({ ...staff, leaveAdjust: 4 }, upTo).total - 4, label);
       assert.ok(
@@ -90,17 +90,17 @@ test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total �
     }
 });
 
-test('bảng leave_ledger không còn nhận loại dòng year', () => {
+test('bảng leave_ledger không còn nhận loại dòng year', async () => {
   const db = new DatabaseSync(':memory:');
-  ensureLeaveSchema(db);
-  const insert = kind =>
-    db
+  await ensureLeaveSchema(db);
+  const insert = async kind =>
+    await db
       .prepare(
         "INSERT INTO leave_ledger (staff_uuid, username, kind, on_date, days, created_at, updated_at) VALUES ('u', 'a', ?, '2026-10-05', 1, 'x', 'x')"
       )
       .run(kind);
-  assert.throws(() => insert('year'), /CHECK/);
-  assert.doesNotThrow(() => insert('seniority'));
+  await assert.rejects(async () => await insert('year'), /CHECK/);
+  await assert.doesNotReject(async () => await insert('seniority'));
 });
 
 test('phép dư đổi tiền cuối năm theo số mới: Nhân viên vào làm 05/10/2025 không nghỉ ngày nào được quy 13 ngày ở phiếu 02/2027', () => {

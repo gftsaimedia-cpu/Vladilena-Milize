@@ -15,29 +15,29 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const put = (month, body, who = 'admin', user = 'qa_nv1') =>
-  F.call('PUT', '/slip-override', { who, body: { user, month, ...body } });
-const get = (month, user = 'qa_nv1', who = 'admin') =>
-  F.call('GET', `/slip-override?user=${user}&month=${month}`, { who });
-const overrideRows = month =>
-  store.db
+const put = async (month, body, who = 'admin', user = 'qa_nv1') =>
+  await F.call('PUT', '/slip-override', { who, body: { user, month, ...body } });
+const get = async (month, user = 'qa_nv1', who = 'admin') =>
+  await F.call('GET', `/slip-override?user=${user}&month=${month}`, { who });
+const overrideRows = async month =>
+  await store.db
     .prepare('SELECT username, values_json, reason, rev FROM slip_overrides WHERE month = ? ORDER BY username')
     .all(month);
-const overrideAudit = month =>
-  store.db
+const overrideAudit = async month =>
+  (await store.db
     .prepare("SELECT * FROM audit_log WHERE action = 'slip.override' AND month = ? ORDER BY id")
-    .all(month)
+    .all(month))
     .map(r => ({ ...r, before: JSON.parse(r.before_json), after: JSON.parse(r.after_json) }));
 
 /* ================= độ dài lý do ================= */
 test('Lý do quá 300 ký tự là 400 REASON_REQUIRED và không lưu gì, không ghi nhật ký; lý do rỗng, toàn dấu cách, ngắn, không phải chuỗi vẫn lưu (lý do trống thành null)', async () => {
   const M = monthOf();
   await P.seed(M);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const tooLong = await put(M, { values: { otPay: 1000 }, reason: P.text(301) });
   assert.equal(tooLong.status, 400, JSON.stringify(tooLong.data));
   assert.equal(tooLong.data.code, 'REASON_REQUIRED');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   assert.equal((await get(M)).data.rev, 0);
   for (const [i, reason] of ['', '   ', 'ngắn', 123456789012, {}, [], true].entries()) {
     const res = await put(M, { values: { otPay: 1000 + i }, reason });
@@ -73,8 +73,8 @@ test('Lý do tuỳ chọn: thiếu lý do (không gửi, null) vẫn lưu kể c
   const clear = await put(M, { values: {}, reason: 'Bỏ hết số đã sửa' });
   assert.equal(clear.status, 200, 'values rỗng = bỏ hết số đã sửa');
   assert.deepEqual(clear.data.values, {});
-  assert.ok(overrideAudit(M).some(r => r.reason === 'Điều chỉnh theo biên bản'));
-  assert.equal(overrideRows(M)[0].rev, 5, 'dòng được giữ với values {} nên rev không quay về 1');
+  assert.ok((await overrideAudit(M)).some(r => r.reason === 'Điều chỉnh theo biên bản'));
+  assert.equal((await overrideRows(M))[0].rev, 5, 'dòng được giữ với values {} nên rev không quay về 1');
 });
 
 /* ================= expectedRev ================= */
@@ -84,12 +84,12 @@ test('expectedRev lệch là 409 SLIP_STALE (kèm rev hiện tại) và KHÔNG l
   const first = await put(M, { values: { otPay: 1000 }, reason: P.text(10), expectedRev: 0 });
   assert.equal(first.status, 200, JSON.stringify(first.data));
   assert.equal(first.data.rev, 1);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const stale = await put(M, { values: { otPay: 9999 }, reason: P.text(10), expectedRev: 0 });
   assert.equal(stale.status, 409);
   assert.equal(stale.data.code, 'SLIP_STALE');
   assert.equal(stale.data.rev, 1);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   assert.deepEqual((await get(M)).data.values, { otPay: 1000 });
   const ahead = await put(M, { values: { otPay: 9999 }, reason: P.text(10), expectedRev: 5 });
   assert.equal(ahead.data.code, 'SLIP_STALE');
@@ -120,7 +120,7 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
   await P.seed(M);
   // qa_tts1 và ô số lượng workDays: không lệch tiền nên AI không gắn cờ phiếu
   const body = n => ({ values: { workDays: n }, reason: P.text(10) });
-  const putTts = b => put(M, b, 'admin', 'qa_tts1');
+  const putTts = async b => await put(M, b, 'admin', 'qa_tts1');
   const lockedOf = res => (res.data.warnings || []).find(w => w.code === 'PERIOD_LOCKED');
   const open = await putTts(body(1));
   assert.equal(open.status, 200, 'open');
@@ -136,7 +136,7 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
   assert.equal(lockedOf(rev), undefined);
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
-  const frozen = P.flow.payslipsOf(M).slips.qa_tts1.override_json;
+  const frozen = (await P.flow.payslipsOf(M)).slips.qa_tts1.override_json;
   for (const [i, state] of ['approved', 'paid'].entries()) {
     if (state === 'paid') P.must(await P.step(M, 'mark-paid', { paidAt: '2026-11-05' }), 'chi trả');
     const res = await putTts(body(90 + i));
@@ -147,7 +147,7 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
       [warning.details.month, warning.details.status, warning.details.scope],
       [M, state, 'slip']
     );
-    assert.equal(P.flow.payslipsOf(M).slips.qa_tts1.override_json, frozen, `${state}: số đã đóng băng giữ nguyên`);
+    assert.equal((await P.flow.payslipsOf(M)).slips.qa_tts1.override_json, frozen, `${state}: số đã đóng băng giữ nguyên`);
   }
   assert.deepEqual((await get(M, 'qa_tts1')).data.values, { workDays: 91 });
 });
@@ -156,11 +156,11 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
 test('Nhật ký: một dòng slip.override cho MỖI ô đổi (cũ, mới), mức nhạy cảm pay, kèm lý do; ô không đổi không có dòng; bỏ ô hay bỏ hết cũng ghi', async () => {
   const M = monthOf();
   await P.seed(M);
-  const before0 = overrideAudit(M).length;
+  const before0 = (await overrideAudit(M)).length;
   assert.equal(before0, 0);
   const one = await put(M, { values: { otPay: 1000, workDays: 20 }, reason: 'Điều chỉnh lần một' });
   assert.equal(one.status, 200, JSON.stringify(one.data));
-  let rows = overrideAudit(M);
+  let rows = await overrideAudit(M);
   assert.equal(rows.length, 2);
   assert.deepEqual(rows.map(r => r.entity_id).sort(), [`qa_nv1:${M}:otPay`, `qa_nv1:${M}:workDays`]);
   for (const r of rows) {
@@ -176,7 +176,7 @@ test('Nhật ký: một dòng slip.override cho MỖI ô đổi (cũ, mới), m�
   // lần hai: đổi otPay, giữ workDays, thêm attendance: đúng 2 dòng mới
   const two = await put(M, { values: { otPay: 1500, workDays: 20, attendance: 300 }, reason: 'Điều chỉnh lần hai' });
   assert.equal(two.status, 200);
-  rows = overrideAudit(M).slice(2);
+  rows = (await overrideAudit(M)).slice(2);
   assert.deepEqual(rows.map(r => r.entity_id).sort(), [`qa_nv1:${M}:attendance`, `qa_nv1:${M}:otPay`]);
   assert.deepEqual(rows.find(r => r.entity_id.endsWith(':otPay')).before, { otPay: 1000 });
   assert.deepEqual(rows.find(r => r.entity_id.endsWith(':otPay')).after, { otPay: 1500 });
@@ -184,16 +184,16 @@ test('Nhật ký: một dòng slip.override cho MỖI ô đổi (cũ, mới), m�
   // lưu lại y nguyên: không dòng nào
   const same = await put(M, { values: { otPay: 1500, workDays: 20, attendance: 300 }, reason: 'Không đổi gì cả' });
   assert.equal(same.status, 200);
-  assert.equal(overrideAudit(M).length, 4);
+  assert.equal((await overrideAudit(M)).length, 4);
 
   // bỏ hết: mỗi ô bị bỏ một dòng, giá trị mới null
   const clear = await put(M, { values: {}, reason: 'Bỏ hết số đã sửa' });
   assert.equal(clear.status, 200);
-  rows = overrideAudit(M).slice(4);
+  rows = (await overrideAudit(M)).slice(4);
   assert.equal(rows.length, 3);
   for (const r of rows) assert.deepEqual(Object.values(r.after), [null]);
   // dòng nhật ký không chứa số tiền thừa ngoài ô đổi
-  assert.ok(overrideAudit(M).every(r => Object.keys(r.after).length === 1));
+  assert.ok((await overrideAudit(M)).every(r => Object.keys(r.after).length === 1));
   assert.equal((await F.call('GET', '/audit/verify')).data.ok, true);
 });
 
@@ -202,7 +202,7 @@ test('Số tiền sửa được làm tròn đồng, số lượng làm tròn ha
   await P.seed(M);
   const ok = await put(M, { values: { otPay: 1000.6, workDays: 20.126 }, reason: P.text(10) });
   assert.deepEqual(ok.data.values, { otPay: 1001, workDays: 20.13 });
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const values of [
     { khongCo: 1 },
     { otPay: -1 },
@@ -216,7 +216,7 @@ test('Số tiền sửa được làm tròn đồng, số lượng làm tròn ha
   }
   for (const values of [null, [], 'x'])
     assert.equal((await put(M, { values, reason: P.text(10) })).status, 400, JSON.stringify(values));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 /* ================= nhân sự vẫn thấy số tự tính ================= */
@@ -254,7 +254,7 @@ test('Phiếu chính thức sau khi chi trả: nhân sự thấy SỐ CHI TRẢ 
     assert.equal(Object.hasOwn(self.data.payslip, hidden), false, `nhân sự không thấy ${hidden}`);
   assert.deepEqual(admin.override.values, { otPay: 777000 });
   assert.equal(admin.override.reason, 'Điều chỉnh có biên bản');
-  const stored = P.flow.payslipsOf(M).slips.qa_nv1;
+  const stored = (await P.flow.payslipsOf(M)).slips.qa_nv1;
   assert.equal(admin.overridden, true);
   assert.equal(self.data.payslip.net, admin.net, 'nhân sự thấy đúng số chi trả mà Admin thấy');
   assert.equal(self.data.payslip.gross, admin.gross);
@@ -267,9 +267,9 @@ test('Phiếu chính thức sau khi chi trả: nhân sự thấy SỐ CHI TRẢ 
 test('Quyền sửa số phiếu: Admin và C&B được; kế toán, nhân sự, quản lý không (403 FORBIDDEN_CAP); tự sửa phiếu của chính mình vẫn lưu, kèm cảnh báo SELF_DECISION_FORBIDDEN', async () => {
   const M = monthOf();
   await P.seed(M);
-  P.grant('qa_ctv1', 'cb');
-  P.grant('qa_tts1', 'accounting');
-  P.grant('qa_nv2', 'hr');
+  await P.grant('qa_ctv1', 'cb');
+  await P.grant('qa_tts1', 'accounting');
+  await P.grant('qa_nv2', 'hr');
   const body = { values: { otPay: 1000 }, reason: P.text(10) };
   assert.equal((await put(M, body, 'qa_ctv1')).status, 200, 'C&B sửa phiếu người khác');
   for (const who of ['qa_tts1', 'qa_nv2']) {

@@ -119,7 +119,7 @@ test('D: nhật ký điểm KPI ghi người nhập là nhân sự, ô self, gi�
   await P.seed(M);
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 100 } });
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 75.5 } });
-  const log = logOf('qa_ctv1');
+  const log = await logOf('qa_ctv1');
   assert.equal(log.length, 2);
   assert.deepEqual(
     log.map(row => [row.field, row.old_value, row.new_value, row.by]),
@@ -128,14 +128,14 @@ test('D: nhật ký điểm KPI ghi người nhập là nhân sự, ô self, gi�
       ['self', 10000, 7550, 'qa_ctv1']
     ]
   );
-  assert.equal(scoreRows().length, 1);
+  assert.equal((await scoreRows()).length, 1);
 });
 
 test('D: nhân sự chỉ được đổi self: gửi wework, user, peer hay manager, kèm cả self, hoặc kèm mức KPI (amt) bị từ chối (400 hoặc 403) và không lưu gì, kể cả self đi cùng', async () => {
   await P.seed(M);
   await mustPut('admin', { user: 'qa_ctv1', scores: { ...FOUR, self: 60 } });
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 61 } }); // đối chứng: self của mình lưu được, nên các 4xx dưới đây là do nội dung bị cấm
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   for (const scores of [
     { wework: 100 },
     { user: 100 },
@@ -152,7 +152,7 @@ test('D: nhân sự chỉ được đổi self: gửi wework, user, peer hay man
   assert.ok([400, 403].includes(amt.status), `amt: ${amt.status} ${JSON.stringify(amt.data)}`);
   const onlyAmt = await putScores('qa_ctv1', { user: 'qa_ctv1', amt: 3000000 });
   assert.ok([400, 403].includes(onlyAmt.status), `chỉ amt: ${onlyAmt.status}`);
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), [], 'từ chối thì không ghi gì');
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), [], 'từ chối thì không ghi gì');
   assert.equal((await adminItem('qa_ctv1')).scores.self, 61);
   assert.equal((await adminItem('qa_ctv1')).scores.wework, 100);
 });
@@ -161,25 +161,25 @@ test('D: nhân sự không đổi được điểm của người khác (403) v�
   await P.seed(M);
   await mustPut('admin', { user: 'qa_nv2', scores: { ...FOUR, self: 60 } }); // đối chứng: qa_nv2 có KPI
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 40 } }); // đối chứng: self của chính mình lưu được
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   const other = await putScores('qa_ctv1', { user: 'qa_nv2', scores: { self: 100 } });
   assert.equal(other.status, 403, JSON.stringify(other.data));
   const admin = await putScores('qa_ctv1', { user: 'admin', scores: { self: 100 } });
   assert.ok([400, 403].includes(admin.status), `${admin.status}`);
   const ghost = await putScores('qa_ctv1', { user: 'qa_khong_co', scores: { self: 100 } });
   assert.ok([403, 404].includes(ghost.status), `${ghost.status}`);
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), []);
   assert.equal((await adminItem('qa_nv2')).scores.self, 60);
 });
 
 test('D: điểm self sai bị 400 và không lưu gì: ngoài 0 đến 100, quá 2 chữ số thập phân, chữ, vô hạn; self = 0 là điểm hợp lệ', async () => {
   await P.seed(M);
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   for (const self of [101, -1, 80.123, '80', 1e9, [80], { a: 1 }]) {
     const res = await putScores('qa_ctv1', { user: 'qa_ctv1', scores: { self } });
     assert.equal(res.status, 400, `self ${JSON.stringify(self)}: ${res.status} ${JSON.stringify(res.data)}`);
   }
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), []);
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 0 } });
   assert.equal((await adminItem('qa_ctv1')).scores.self, 0, '0 là đã nhập, khác chưa nhập');
 });
@@ -187,12 +187,12 @@ test('D: điểm self sai bị 400 và không lưu gì: ngoài 0 đến 100, qu�
 test('D: người không có KPI (TTS) không lưu được self: bị từ chối và không lưu gì', async () => {
   await P.seed(M);
   await mustPut('qa_ctv1', { user: 'qa_ctv1', scores: { self: 50 } }); // đối chứng: người có KPI lưu được
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   for (const who of ['qa_tts1']) {
     const res = await putScores(who, { user: who, scores: { self: 100 } });
     assert.ok([400, 403].includes(res.status), `${who}: ${res.status} ${JSON.stringify(res.data)}`);
   }
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), []);
 });
 
 test('D: chưa đăng nhập 401; nhân sự vẫn không đọc được bảng điểm của mọi người (GET /api/kpi/scores 403) và không đọc được kpiParts của người khác', async () => {

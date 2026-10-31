@@ -20,9 +20,9 @@ const classifier = new SessionStatus({
   lateCheckoutMin,
   adminOrigin: ADMIN_ORIGIN
 });
-const session = (inHm, outHm, extra = {}) => {
+const session = async (inHm, outHm, extra = {}) => {
   const plannedShift = P.planShift(staff, DATE);
-  const { entry } = P.buildDay(staff, at(inHm), at(outHm), 'in-out', { plannedShift, approveIncomplete: true });
+  const { entry } = P.buildDay(staff, await at(inHm), await at(outHm), 'in-out', { plannedShift, approveIncomplete: true });
   return { id: 1, username: 'a', date: DATE, state: 'closed', entry: { ...entry, ...extra }, version: 1 };
 };
 const adminSession = () => session('08:00', '17:00', { origin: ADMIN_ORIGIN, declaredBy: 'admin' });
@@ -33,46 +33,46 @@ const day = (status, decidedAt, sessionId = null) => ({
   answeredAt: '2026-10-20T02:00:00.000Z',
   decidedAt
 });
-const classify = (s, explanations) => {
-  const { status, statusNote } = classifier.classify(s, { explanations });
+const classify = async (s, explanations) => {
+  const { status, statusNote } = await classifier.classify(s, { explanations });
   return [status, statusNote];
 };
 
-test('Lượt Admin không có giải trình ngày, hoặc giải trình ngày mới nhất được duyệt: "Đã chấm công"', () => {
-  assert.deepEqual(classify(adminSession(), []), ['admin', '']);
-  assert.deepEqual(classify(adminSession(), [day('approved', '2026-10-21T01:00:00.000Z')]), ['admin', '']);
+test('Lượt Admin không có giải trình ngày, hoặc giải trình ngày mới nhất được duyệt: "Đã chấm công"', async () => {
+  assert.deepEqual(await classify(await adminSession(), []), ['admin', '']);
+  assert.deepEqual(await classify(await adminSession(), [await day('approved', '2026-10-21T01:00:00.000Z')]), ['admin', '']);
 });
 
-test('Giải trình ngày mới nhất bị từ chối: lượt Admin là "Bị từ chối", chữ nhỏ "Giải trình"', () => {
-  assert.deepEqual(classify(adminSession(), [day('rejected', '2026-10-21T01:00:00.000Z')]), ['rejected', 'Giải trình']);
+test('Giải trình ngày mới nhất bị từ chối: lượt Admin là "Bị từ chối", chữ nhỏ "Giải trình"', async () => {
+  assert.deepEqual(await classify(await adminSession(), [await day('rejected', '2026-10-21T01:00:00.000Z')]), ['rejected', 'Giải trình']);
 });
 
-test('Quyết định mới nhất thắng: từ chối rồi duyệt lại là "Đã chấm công"; duyệt rồi từ chối là "Bị từ chối"', () => {
+test('Quyết định mới nhất thắng: từ chối rồi duyệt lại là "Đã chấm công"; duyệt rồi từ chối là "Bị từ chối"', async () => {
   const rejectedThenApproved = [
-    day('rejected', '2026-10-21T01:00:00.000Z'),
-    day('approved', '2026-10-22T01:00:00.000Z')
+    await day('rejected', '2026-10-21T01:00:00.000Z'),
+    await day('approved', '2026-10-22T01:00:00.000Z')
   ];
-  assert.deepEqual(classify(adminSession(), rejectedThenApproved), ['admin', '']);
+  assert.deepEqual(await classify(await adminSession(), rejectedThenApproved), ['admin', '']);
   const approvedThenRejected = [
-    day('approved', '2026-10-21T01:00:00.000Z'),
-    day('rejected', '2026-10-22T01:00:00.000Z')
+    await day('approved', '2026-10-21T01:00:00.000Z'),
+    await day('rejected', '2026-10-22T01:00:00.000Z')
   ];
-  assert.deepEqual(classify(adminSession(), approvedThenRejected), ['rejected', 'Giải trình']);
+  assert.deepEqual(await classify(await adminSession(), approvedThenRejected), ['rejected', 'Giải trình']);
 });
 
-test('Lượt bấm thật đi trễ 20 phút: giải trình ngày được duyệt là "Được phê duyệt" kèm lý do trễ, bị từ chối là "Bị từ chối"', () => {
-  const late = () => {
-    const real = session('08:20', '17:00');
+test('Lượt bấm thật đi trễ 20 phút: giải trình ngày được duyệt là "Được phê duyệt" kèm lý do trễ, bị từ chối là "Bị từ chối"', async () => {
+  const late = async () => {
+    const real = await session('08:20', '17:00');
     delete real.entry.attendanceApproved; // lượt bấm thật chưa được Admin xác nhận thiếu giờ
     return real;
   };
-  assert.deepEqual(classify(late(), []), ['pending', 'Vào trễ 20 phút']);
-  assert.deepEqual(classify(late(), [day('approved', '2026-10-21T01:00:00.000Z')]), ['approved', 'Vào trễ 20 phút']);
-  assert.deepEqual(classify(late(), [day('rejected', '2026-10-21T01:00:00.000Z')]), ['rejected', 'Vào trễ 20 phút']);
+  assert.deepEqual(await classify(await late(), []), ['pending', 'Vào trễ 20 phút']);
+  assert.deepEqual(await classify(await late(), [await day('approved', '2026-10-21T01:00:00.000Z')]), ['approved', 'Vào trễ 20 phút']);
+  assert.deepEqual(await classify(await late(), [await day('rejected', '2026-10-21T01:00:00.000Z')]), ['rejected', 'Vào trễ 20 phút']);
 });
 
-test('Giải trình gắn lượt (Check-out muộn) giữ chữ nhỏ cũ; không có giải trình nào thì giữ nhãn theo giờ', () => {
-  const lateOut = day('rejected', '2026-10-21T01:00:00.000Z', 1);
-  assert.deepEqual(classify(session('08:00', '17:00'), [lateOut]), ['rejected', 'Giải trình Check-out muộn']);
-  assert.deepEqual(classify(session('08:00', '17:00'), []), ['checked-out', '']);
+test('Giải trình gắn lượt (Check-out muộn) giữ chữ nhỏ cũ; không có giải trình nào thì giữ nhãn theo giờ', async () => {
+  const lateOut = await day('rejected', '2026-10-21T01:00:00.000Z', 1);
+  assert.deepEqual(await classify(await session('08:00', '17:00'), [lateOut]), ['rejected', 'Giải trình Check-out muộn']);
+  assert.deepEqual(await classify(await session('08:00', '17:00'), []), ['checked-out', '']);
 });

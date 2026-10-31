@@ -27,19 +27,19 @@ const ACCOUNT = {
 // Seed một tháng có người bịa và vai trò; chế độ về defaults-only để thấy lỗi không làm bật active
 async function setup(month) {
   await S.seed(month);
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-  for (const role of ['hr', 'manager', 'accounting', 'cb']) S.grant(ACCOUNT[role], role);
-  S.setMode('defaults-only');
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
+  await S.setMode('defaults-only');
 }
 // Chụp mọi thứ có thể đổi: tất cả bảng, số phiên bản chung, chế độ
-const state = () => ({
-  tables: F.snapshot(),
-  configRev: S.configRev(),
-  mode: store.params.getMode(),
-  rows: S.rowCount()
+const state = async () => ({
+  tables: await F.snapshot(),
+  configRev: await S.configRev(),
+  mode: await store.params.getMode(),
+  rows: await S.rowCount()
 });
-const assertUnchanged = (before, what) => {
-  const after = state();
+const assertUnchanged = async (before, what) => {
+  const after = await state();
   assert.deepEqual(F.changedTables(before.tables, after.tables), [], `${what}: không bảng nào được đổi`);
   assert.equal(after.mode, before.mode, `${what}: không bật params_mode`);
   assert.equal(after.configRev, before.configRev, `${what}: không tăng config_rev`);
@@ -58,9 +58,9 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     assert.ok(base, 'registry phải có khoá level.nv.1.base do Admin sửa');
-    const before = state();
+    const before = await state();
     const unknown = await S.saveChanges([{ key: 'khong.co.khoa.nay', value: 1 }], { month: M });
     refuse(unknown, 400, 'PARAM_UNKNOWN_KEY', 'khoá lạ');
     assert.ok(JSON.stringify(unknown.data).includes('khong.co.khoa.nay'), 'nêu khoá lỗi');
@@ -69,7 +69,7 @@ test(
       refuse(res, 400, 'PARAM_INVALID_VALUE', `value=${JSON.stringify(value)}`);
       assert.ok(JSON.stringify(res.data).includes(base.key));
     }
-    assertUnchanged(before, 'giá trị sai');
+    await assertUnchanged(before, 'giá trị sai');
   }
 );
 
@@ -80,14 +80,14 @@ test(
     const M = monthOf();
     await setup(M);
     const found = S.unavailableOptionKey();
-    const before = state();
+    const before = await state();
     refuse(
       await S.saveChanges([{ key: found.key, value: found.value }], { month: M }),
       400,
       'PARAM_OPTION_UNAVAILABLE',
       found.key
     );
-    assertUnchanged(before, 'phương án chưa dùng được');
+    await assertUnchanged(before, 'phương án chưa dùng được');
   }
 );
 
@@ -97,12 +97,12 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const found = S.notWiredKey();
-    const before = state();
+    const found = await S.notWiredKey();
+    const before = await state();
     const res = await S.saveChanges([{ key: found.key, value: found.value }], { month: M });
     refuse(res, 400, 'PARAM_NOT_WIRED', found.key);
     assert.ok(JSON.stringify(res.data).includes(found.key));
-    assertUnchanged(before, 'khoá chưa nối');
+    await assertUnchanged(before, 'khoá chưa nối');
     // GET cho thấy khoá đó không dùng được (available:false) thay vì để Admin thử rồi mới biết
     const view = (await S.paramsView(M)).data;
     const text = JSON.stringify(view);
@@ -117,9 +117,9 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const rev = await S.paramsRevOf(M);
-    const before = state();
+    const before = await state();
     const one = { key: base.key, value: base.value };
     const ok = extra => ({ effectiveMonth: M, reason: S.REASON, expectedRev: rev, ...extra });
     for (const [name, body] of Object.entries({
@@ -140,13 +140,13 @@ test(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: require('../../lib/auth').cookieHeader(require('../../lib/auth').createSession('admin'), 86400)
+        Cookie: require('../../lib/auth').cookieHeader(await require('../../lib/auth').createSession('admin'), 86400)
       },
       body: '{khong phai json'
     });
     assert.equal(raw.status, 400);
     // chỉ kiểm mã 400: phản hồi không kèm code BAD_JSON
-    assertUnchanged(before, 'hình dạng sai');
+    await assertUnchanged(before, 'hình dạng sai');
   }
 );
 
@@ -157,9 +157,9 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const rev = await S.paramsRevOf(M);
-    const before = state();
+    const before = await state();
     for (const expectedRev of [null, '0', 1.5, -1, {}]) {
       const res = await S.saveChanges([{ key: base.key, value: base.value }], {
         month: M,
@@ -170,7 +170,7 @@ test(
     const stale = await S.saveChanges([{ key: base.key, value: base.value }], { month: M, expectedRev: rev + 5 });
     refuse(stale, 409, 'PARAMS_STALE', 'expectedRev lệch');
     assert.equal(stale.data.paramsRev, rev, 'trả paramsRev hiện tại để màn tải lại');
-    assertUnchanged(before, 'expectedRev sai');
+    await assertUnchanged(before, 'expectedRev sai');
   }
 );
 
@@ -181,11 +181,11 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const admin = S.adminKey();
-    const acc = S.accountingKey();
-    const ops = S.opsKey();
-    const locked = S.lockedKey();
-    const before = state();
+    const admin = await S.adminKey();
+    const acc = await S.accountingKey();
+    const ops = await S.opsKey();
+    const locked = await S.lockedKey();
+    const before = await state();
     const cases = [
       ['kế toán sửa khoá Admin', 'qa_ctv1', admin, ['FORBIDDEN_CAP']],
       ['C&B sửa khoá pháp lý', 'qa_nv1', acc, ['FORBIDDEN_CAP']],
@@ -202,7 +202,7 @@ test(
       });
       refuse(res, statuses || 403, codes, what);
     }
-    assertUnchanged(before, 'sai quyền');
+    await assertUnchanged(before, 'sai quyền');
   }
 );
 
@@ -212,9 +212,9 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const rev = await S.paramsRevOf(M);
-    const before = state();
+    const before = await state();
     for (const role of ['hr', 'manager', 'staff']) {
       const res = await S.save(
         { changes: [{ key: base.key, value: base.value }], effectiveMonth: M, reason: S.REASON, expectedRev: rev },
@@ -227,7 +227,7 @@ test(
       null
     );
     assert.equal(anon.status, 401);
-    assertUnchanged(before, 'không có quyền');
+    await assertUnchanged(before, 'không có quyền');
   }
 );
 
@@ -237,9 +237,9 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const admin = S.adminKey();
-    const acc = S.accountingKey();
-    const before = state();
+    const admin = await S.adminKey();
+    const acc = await S.accountingKey();
+    const before = await state();
     for (const who of ['qa_nv1', 'qa_ctv1']) {
       const res = await S.saveChanges(
         [
@@ -250,7 +250,7 @@ test(
       );
       refuse(res, 403, 'FORBIDDEN_CAP', who);
     }
-    assertUnchanged(before, 'lô trộn quyền');
+    await assertUnchanged(before, 'lô trộn quyền');
   }
 );
 
@@ -261,18 +261,18 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const good = S.wiredMoneyKey() || S.adminKey();
+    const good = await S.wiredMoneyKey() || await S.adminKey();
     assert.ok(good, 'cần một khoá hợp lệ');
     const goodChange = { key: good.key, value: good.value };
     const bads = [
       ['khoá lạ', { key: 'khong.co.khoa', value: 1 }],
       ['giá trị sai', { key: good.key === 'level.nv.1.base' ? 'level.nv.2.base' : 'level.nv.1.base', value: 'abc' }]
     ];
-    const locked = S.lockedKey();
+    const locked = await S.lockedKey();
     if (locked) bads.push(['khoá locked', { key: locked.key, value: locked.value }]);
-    const notWired = S.notWiredKey();
+    const notWired = await S.notWiredKey();
     if (notWired) bads.push(['chưa nối', { key: notWired.key, value: notWired.value }]);
-    const before = state();
+    const before = await state();
     for (const [what, bad] of bads)
       for (const order of [
         [goodChange, bad],
@@ -280,9 +280,9 @@ test(
       ]) {
         const res = await S.saveChanges(order, { month: M, extra: { basis: 'Căn cứ thử' } });
         assert.ok(res.status >= 400 && res.status < 500, `${what}: ${res.status}`);
-        assertUnchanged(before, `${what}, thứ tự ${order[0] === goodChange ? 'tốt trước' : 'hỏng trước'}`);
+        await assertUnchanged(before, `${what}, thứ tự ${order[0] === goodChange ? 'tốt trước' : 'hỏng trước'}`);
       }
-    assert.equal(S.rowCount(), before.rows, 'không dòng param_versions nào, kể cả của khoá hợp lệ');
+    assert.equal(await S.rowCount(), before.rows, 'không dòng param_versions nào, kể cả của khoá hợp lệ');
   }
 );
 
@@ -292,14 +292,14 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
-    const audit0 = S.auditRows().length;
+    const base = await S.adminKey();
+    const audit0 = (await S.auditRows()).length;
     const res = await S.saveChanges([{ key: base.key, value: 'abc' }], { month: M });
     assert.equal(res.status, 400);
     await S.saveChanges([{ key: base.key, value: base.value }], { month: M, reason: S.text(301) });
     await S.saveChanges([{ key: base.key, value: base.value }], { month: M, expectedRev: 999 });
-    assert.equal(S.auditRows().length, audit0);
-    assert.equal(store.params.getMode(), 'defaults-only');
+    assert.equal((await S.auditRows()).length, audit0);
+    assert.equal(await store.params.getMode(), 'defaults-only');
   }
 );
 
@@ -322,6 +322,6 @@ test(
     }
     assert.equal((await S.version(null)).status, 401);
     assert.equal((await S.version()).data.configRev, admin.data.configRev, 'đọc không làm đổi');
-    assert.equal(admin.data.configRev, S.configRev(), 'bằng khoá config_rev trong settings');
+    assert.equal(admin.data.configRev, await S.configRev(), 'bằng khoá config_rev trong settings');
   }
 );

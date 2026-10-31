@@ -377,9 +377,9 @@ const SCENARIOS = [
 
 /* ---------- thế giới nhỏ gieo lại cho mỗi ô ---------- */
 let PASS_HASH = null;
-function seedWorld() {
+async function seedWorld() {
   PASS_HASH = PASS_HASH || auth.hashPassword('test-pass'); // băm scrypt chậm: làm một lần
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'admin',
     name: 'Quản trị thử',
     role: 'admin',
@@ -389,7 +389,7 @@ function seedWorld() {
   });
   // không dùng fx.person: nó băm lại mật khẩu mỗi lần gọi (scrypt ~45 ms)
   for (const username of ['qa_nv', 'qa_nv2', 'qa_locked'])
-    store.upsertStaff({
+    await store.upsertStaff({
       username,
       name: 'Người thử ' + username,
       role: 'staff',
@@ -400,10 +400,10 @@ function seedWorld() {
       startDate: '2026-01-05',
       passHash: PASS_HASH
     });
-  store.lockStaff('qa_locked', 'admin');
-  require('../../lib/agents').set(true); // route Trợ lý / AI chạy thật; một kịch bản tắt Agents không được rò sang ô sau
+  await store.lockStaff('qa_locked', 'admin');
+  await require('../../lib/agents').set(true); // route Trợ lý / AI chạy thật; một kịch bản tắt Agents không được rò sang ô sau
   // staff_roles chỉ-thêm-dòng nên reset() không xoá được: thu hồi vai trò còn lại của ô trước
-  store.db
+  await store.db
     .prepare('UPDATE staff_roles SET revoked_at = ? WHERE revoked_at IS NULL')
     .run(new Date(Date.now()).toISOString());
 }
@@ -443,7 +443,7 @@ function headersOf(response) {
 
 async function fire(scenario, identity) {
   const headers = { 'Content-Type': 'application/json' };
-  if (identity !== 'anon') headers.Cookie = auth.cookieHeader(auth.createSession(USERS[identity]), 86400);
+  if (identity !== 'anon') headers.Cookie = auth.cookieHeader(await auth.createSession(USERS[identity]), 86400);
   const init = { method: scenario.method, headers };
   if (scenario.raw !== undefined) init.body = scenario.raw;
   const base = `http://127.0.0.1:${fx.server.address().port}`;
@@ -451,7 +451,7 @@ async function fire(scenario, identity) {
     let body = scenario.body;
     // withRev: ca "đúng" của route cần expectedRev: đọc paramsRev hiện tại của thế giới này (rev phụ thuộc số dòng param_versions đã có, nên không viết cứng)
     if (scenario.withRev) {
-      const adminCookie = auth.cookieHeader(auth.createSession(USERS.admin), 86400);
+      const adminCookie = auth.cookieHeader(await auth.createSession(USERS.admin), 86400);
       const view = await (
         await fetch(`${base}/api/settings/shifts?month=${MONTH}`, { headers: { Cookie: adminCookie } })
       ).json();
@@ -527,13 +527,13 @@ async function record() {
         results: {}
       };
       for (const identity of scenario.identities || IDENTITIES) {
-        fx.reset();
-        seedWorld();
+        await fx.reset();
+        await seedWorld();
         if (scenario.login) {
           loginIndex += 1; // cách nhau 16 phút: hết cửa sổ khoá 15 phút của lần thử sai trước
           const minutes = 9 * 60 + loginIndex * 16;
-          fx.at(`2026-11-02T${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`);
-        } else fx.at(`${MONTH}-02T09:00:00`);
+          await fx.at(`2026-11-02T${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}:00`);
+        } else await fx.at(`${MONTH}-02T09:00:00`);
         entry.results[identity] = await fire(scenario, identity);
       }
       out.push(entry);
@@ -615,7 +615,7 @@ if (require.main === module) {
         `Đã ghi ${path.relative(ROOT, GOLDEN)}: ${recorded.meta.scenarios} kịch bản, ${recorded.meta.cells} ô, ${recorded.meta.routeKeys} khoá quyền.`
       );
     } else if (mode === '--check') {
-      const problems = diff(load(), JSON.parse(JSON.stringify(recorded)));
+      const problems = diff(await load(), JSON.parse(JSON.stringify(recorded)));
       for (const p of problems) console.error(p);
       console.log(problems.length ? `${problems.length} chỗ lệch` : 'Khớp bảng vàng');
       process.exit(problems.length ? 1 : 0);

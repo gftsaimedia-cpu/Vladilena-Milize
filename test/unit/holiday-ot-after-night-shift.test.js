@@ -134,20 +134,20 @@ test('calcDay ngẫu nhiên (2.000 ca): sau ca đêm với lễ ở ngày sau, m
 const MONTH_DAYS = { '2026-10-07': g2Ot() };
 const MONTH_HOLIDAYS = ['2026-10-08'];
 
-test('calcMonth: OT ngày lễ nằm trong holWorkHours / holWorkPay (11 giờ), không nằm trong otHours / otPay', () => {
-  const m = month(MONTH_DAYS, MONTH_HOLIDAYS);
+test('calcMonth: OT ngày lễ nằm trong holWorkHours / holWorkPay (11 giờ), không nằm trong otHours / otPay', async () => {
+  const m = await month(MONTH_DAYS, MONTH_HOLIDAYS);
   assert.deepEqual([m.otHours, m.otPay, m.otDays], [0, 0, 0]);
   close(m.holWorkHours, 11, 'holWorkHours');
   close(m.holWorkPay, H(36.6), 'holWorkPay');
 });
 
-test('OT bị giữ vì còn nợ giờ bù thì chưa tính; OT ngày lễ không bị giữ vì là giờ làm ngày lễ', () => {
+test('OT bị giữ vì còn nợ giờ bù thì chưa tính; OT ngày lễ không bị giữ vì là giờ làm ngày lễ', async () => {
   // 05/10 ra ngoài 60 phút → thiếu 1 giờ, chưa bù
   const days = { '2026-10-05': work('08:00', '17:00', { breakMin: 60 }), ...MONTH_DAYS };
-  const holiday = month(days, MONTH_HOLIDAYS);
+  const holiday = await month(days, MONTH_HOLIDAYS);
   assert.deepEqual([holiday.otPay, holiday.otHours, holiday.otHoldHours], [0, 0, 0]);
   close(holiday.holWorkHours, 11);
-  const ordinary = month(days, []);
+  const ordinary = await month(days, []);
   assert.equal(ordinary.otPay, 0);
   close(ordinary.otHoldHours, 4, 'otHoldHours');
 });

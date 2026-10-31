@@ -25,7 +25,7 @@ const nextMonthOf = month => {
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
 };
 const estimate = (month, who = 'qa_nv1') => F.call('GET', `/me/estimate?month=${month}`, { who });
-const netOf = (username, month, params) => Engine.computeMonth(flow.legacyInput(username, month), params).m.net;
+const netOf = async (username, month, params) => Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
 const viaJson = value => JSON.parse(JSON.stringify(value));
 const holidaySlip = async month => {
   const res = await F.call('GET', `/ai/review?month=${month}&impacts=1`);
@@ -55,12 +55,12 @@ async function addMonthData(month, holiday) {
         plannedShift: plan,
         approveIncomplete: true
       }).entry;
-      store.createSession(p.username, plan.date, 'closed', entry);
+      await store.createSession(p.username, plan.date, 'closed', entry);
     }
   }
 }
-const fingerprint = month => {
-  const { run, slips } = flow.payslipsOf(month);
+const fingerprint = async month => {
+  const { run, slips } = await flow.payslipsOf(month);
   return JSON.stringify({
     run: run && [run.run_no, run.status, run.params_hash, run.params_rev, run.params_json, run.inputs_digest],
     slips: Object.fromEntries(
@@ -79,33 +79,33 @@ test(
     const A = monthOf(); // M-1: đã chốt công và tính lương trước khi Lưu
     const M = monthOf();
     const N = nextMonthOf(M); // sau M: thừa hưởng giá trị
-    const key = S.wiredMoneyKey();
+    const key = await S.wiredMoneyKey();
     assert.equal(nextMonthOf(A), M);
 
     // ---- dựng hai tháng: A khoá (calculated), M mở với dữ liệu và một khoản chờ duyệt ----
     await S.setupMonth(A, 'calculated');
     const holiday = S.dowDates(M, 3)[1]; // thứ Tư thứ hai của M
-    store.setSetting('holidays', [...store.getSetting('holidays', []), holiday]);
-    F.at(`${N}-02T09:00:00`); // M đã qua: ước tính cả tháng
+    await store.setSetting('holidays', [...await store.getSetting('holidays', []), holiday]);
+    await F.at(`${N}-02T09:00:00`); // M đã qua: ước tính cả tháng
     await addMonthData(M, holiday);
-    S.setMode('defaults-only');
+    await S.setMode('defaults-only');
 
     // ---- đường cơ sở trước khi Lưu ----
     const estBefore = (await estimate(M)).data;
     const estOtherBefore = (await estimate(M, 'qa_ctv1')).data;
     // "chưa lưu gì" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.js), như bộ tham số hiệu lực của tháng
-    const baseParams = paramsStore.resolve(M).params;
-    const expectedBefore = netOf('qa_nv1', M, baseParams);
+    const baseParams = (await paramsStore.resolve(M)).params;
+    const expectedBefore = await netOf('qa_nv1', M, baseParams);
     assert.deepEqual(
       estBefore.net,
       viaJson(expectedBefore),
       'trước khi Lưu: bằng bộ máy với mặc định cộng danh mục, từng đồng'
     );
-    const aiBefore = impactOf(await holidaySlip(M));
+    const aiBefore = await impactOf(await holidaySlip(M));
     assert.ok(aiBefore > 0, 'điều kiện của bài: khoản làm lễ chờ duyệt có tác động tiền để soát');
     const estABefore = (await estimate(A)).data;
     const viewABefore = (await S.paramsView(A)).data;
-    const fingerprintABefore = fingerprint(A);
+    const fingerprintABefore = await fingerprint(A);
     const verifyABefore = (await F.call('GET', `/periods/${A}/verify`)).data;
     assert.deepEqual(verifyABefore.mismatched, []);
     const viewMBefore = (await S.paramsView(M)).data;
@@ -118,9 +118,9 @@ test(
     });
     assert.equal(saved.status, 200, JSON.stringify(saved.data).slice(0, 400));
     assert.equal(saved.data.saved[0].effectiveMonth, M);
-    assert.equal(store.params.getMode(), 'active');
+    assert.equal(await store.params.getMode(), 'active');
     const newParams = { ...baseParams, [key.key]: key.value };
-    const expectedAfter = netOf('qa_nv1', M, newParams);
+    const expectedAfter = await netOf('qa_nv1', M, newParams);
     assert.notEqual(expectedAfter.net, expectedBefore.net, 'điều kiện của bài: đổi khoá làm đổi thực lĩnh của qa_nv1');
 
     // (1) ước tính của nhân viên: số mới đúng từng đồng; người không bị ảnh hưởng giữ nguyên
@@ -137,7 +137,7 @@ test(
     assert.deepEqual(estOtherAfter.net, estOtherBefore.net, 'CTV không bị khoá NV ảnh hưởng');
 
     // (2) soát AI của tháng M dùng bộ tham số mới: tác động tiền của khoản chờ duyệt đổi
-    const aiAfter = impactOf(await holidaySlip(M));
+    const aiAfter = await impactOf(await holidaySlip(M));
     if (key.key.startsWith('level.')) {
       // lương cơ bản đổi thì tiền ngày công làm lễ đổi theo tỷ lệ
       assert.notEqual(aiAfter, aiBefore, `tác động tiền của khoản làm lễ ${aiBefore} → ${aiAfter}`);
@@ -166,23 +166,23 @@ test(
     assert.equal(S.valueOfKey((await S.paramsView(N)).data, key.key), key.value, 'tháng sau M dùng giá trị đã lưu');
 
     // (4) tính lương M: lần chạy mang đúng băm, số phiên bản, giá trị mới; phiếu bằng bộ máy với tham số mới
-    store.approvals.decide(
-      store.approvals
-        .list({ status: 'pending' })
+    await store.approvals.decide(
+      (await store.approvals
+        .list({ status: 'pending' }))
         .filter(r => r.date.startsWith(M))
         .map(r => ({ username: r.username, date: r.date, rev: r.rev, fingerprint: r.fingerprint })),
       'approved',
       'admin',
       'Duyệt để tính lương'
     );
-    F.at(`${N}-03T09:00:00`);
+    await F.at(`${N}-03T09:00:00`);
     S.must(await S.step(M, 'lock-attendance'), 'chốt công M');
     S.must(await S.step(M, 'calculate'), 'tính lương M');
-    const { run, slips } = flow.payslipsOf(M);
+    const { run, slips } = await flow.payslipsOf(M);
     assert.equal(run.params_hash, saved.data.paramsHash, 'bản chụp mang băm tham số vừa lưu');
     assert.equal(run.params_rev, saved.data.paramsRev);
     assert.equal(JSON.parse(run.params_json)[key.key], key.value);
-    const expectedSlip = netOf('qa_nv1', M, newParams);
+    const expectedSlip = await netOf('qa_nv1', M, newParams);
     assert.equal(slips.qa_nv1.net, expectedSlip.net, 'thực lĩnh trên phiếu theo tham số mới');
     assert.equal(slips.qa_nv1.gross, expectedSlip.gross);
     assert.equal((await F.call('GET', `/periods/${M}/verify`)).data.mismatched.length, 0);
@@ -198,9 +198,9 @@ test(
       'màn Cài đặt tháng M-1 giữ giá trị cũ'
     );
     assert.equal(viewA.paramsHash, viewABefore.paramsHash);
-    assert.equal(fingerprint(A), fingerprintABefore, 'bản chụp phiếu tháng M-1 nguyên vẹn');
+    assert.equal(await fingerprint(A), fingerprintABefore, 'bản chụp phiếu tháng M-1 nguyên vẹn');
     assert.equal(
-      flow.payslipsOf(A).run.params_hash,
+      (await flow.payslipsOf(A)).run.params_hash,
       viewA.paramsHash,
       'băm của bản chụp M-1 vẫn bằng băm tham số của tháng đó'
     );
@@ -209,7 +209,7 @@ test(
     assert.equal(verifyA.checked, verifyABefore.checked);
     // đặt hiệu lực ở tháng đã khoá vẫn lưu được, kèm cảnh báo PERIOD_LOCKED; bản chụp phiếu và băm tham số của lần chạy cũ không đổi
     const other =
-      ((S.adminKeys().find(k => k.key === key.key) || {}).values || []).find(v => v !== key.value) ?? key.value + 1;
+      (((await S.adminKeys()).find(k => k.key === key.key) || {}).values || []).find(v => v !== key.value) ?? key.value + 1;
     const locked = await S.saveChanges([{ key: key.key, value: other }], {
       month: A,
       expectedRev: await S.paramsRevOf(A)
@@ -219,8 +219,8 @@ test(
     const warned = (locked.data.warnings || []).filter(w => w.code === 'PERIOD_LOCKED');
     assert.ok(warned.length >= 1, JSON.stringify(locked.data.warnings)); // một cảnh báo cho tháng đã chốt công, một cho phạm vi tham số của kỳ đã tính
     assert.equal(S.valueOfKey((await S.paramsView(A)).data, key.key), other, 'giá trị mới đã được lưu cho tháng M-1');
-    assert.equal(fingerprint(A), fingerprintABefore, 'bản chụp phiếu tháng M-1 vẫn nguyên vẹn');
-    assert.equal(flow.payslipsOf(A).run.params_hash, viewABefore.paramsHash, 'băm của bản chụp M-1 không đổi');
+    assert.equal(await fingerprint(A), fingerprintABefore, 'bản chụp phiếu tháng M-1 vẫn nguyên vẹn');
+    assert.equal((await flow.payslipsOf(A)).run.params_hash, viewABefore.paramsHash, 'băm của bản chụp M-1 không đổi');
   }
 );
 
@@ -230,8 +230,8 @@ test(
   async () => {
     const A = monthOf();
     await S.seed(A);
-    F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-    const key = S.adminKeys().find(k => k.key === S.wiredMoneyKey().key) || S.adminKeys()[0];
+    await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+    const key = (await S.adminKeys()).find(k => k.key === S.wiredMoneyKey().key) || (await S.adminKeys())[0];
     const [v1, v2] = await S.differing(key, A, 2);
     let last;
     for (const value of [v1, v2]) {
@@ -245,10 +245,10 @@ test(
       assert.equal(est.paramsHash, res.data.paramsHash, `ước tính phải theo bộ tham số của lần Lưu ${value}`);
       assert.deepEqual(
         est.net,
-        viaJson(netOf('qa_nv1', A, paramsStore.resolve(A).params)),
+        viaJson(await netOf('qa_nv1', A, (await paramsStore.resolve(A)).params)),
         'bằng bộ máy chạy bộ tham số hiệu lực của tháng'
       );
-      assert.equal(paramsStore.resolve(A).params[key.key], value);
+      assert.equal((await paramsStore.resolve(A)).params[key.key], value);
     }
     assert.equal(last.saved[0].previous.value, v1, 'phiên bản trước của lần Lưu thứ hai là giá trị lần Lưu thứ nhất');
   }

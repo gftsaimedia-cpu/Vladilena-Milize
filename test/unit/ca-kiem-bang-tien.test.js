@@ -11,8 +11,8 @@ const { attendDeclaredDays } = require('../helpers/payroll-cases');
 const NV1 = 'known-kpi-five-100-90-80-85-100';
 const NV3 = 's20261015-00018';
 
-test('ca tiền: NV bậc 1 có tạm ứng đã duyệt: tổng thu nhập 5.855.076, bảo hiểm 630.000, thuế 0, tạm ứng 184.615, thực lĩnh 5.040.461', () => {
-  const { m } = runGolden(NV1, {}, input => {
+test('ca tiền: NV bậc 1 có tạm ứng đã duyệt: tổng thu nhập 5.855.076, bảo hiểm 630.000, thuế 0, tạm ứng 184.615, thực lĩnh 5.040.461', async () => {
+  const { m } = await runGolden(NV1, {}, input => {
     input.advanceApproved = true;
   });
   assert.equal(m.net.gross, 5855076);
@@ -26,20 +26,20 @@ test('ca tiền: NV bậc 1 có tạm ứng đã duyệt: tổng thu nhập 5.85
   assert.ok(closeTo(m.total, day + day * 0.15 + day * 0.25 + 6000000 * 0.922, 1));
 });
 
-test('ca tiền ①: NV bậc 1 làm 1 ngày được 6.000.000 ÷ 26 = 230.769,23', () => {
-  const { m } = runGolden(NV1);
+test('ca tiền ①: NV bậc 1 làm 1 ngày được 6.000.000 ÷ 26 = 230.769,23', async () => {
+  const { m } = await runGolden(NV1);
   assert.ok(closeTo(m.basePay, 230769.23));
   assert.ok(closeTo(m.basePay, 6000000 / 26, 1e-6));
 });
 
-test('ca tiền ③: NV bậc 1, đi lại 15 % và chuyên cần 25 % của một ngày là 34.615,38 và 57.692,31', () => {
-  const { m } = runGolden(NV1);
+test('ca tiền ③: NV bậc 1, đi lại 15 % và chuyên cần 25 % của một ngày là 34.615,38 và 57.692,31', async () => {
+  const { m } = await runGolden(NV1);
   assert.ok(closeTo(m.travel, 34615.38, 0.5));
   assert.ok(closeTo(m.attendance, 57692.31, 0.5));
 });
 
-test('ca tiền ④: NV bậc 1, KPI 5 thành phần 92,2 % cho 5.532.000', () => {
-  const { m } = runGolden(NV1);
+test('ca tiền ④: NV bậc 1, KPI 5 thành phần 92,2 % cho 5.532.000', async () => {
+  const { m } = await runGolden(NV1);
   assert.equal(m.kpiPay, 5532000);
   // kiểm tay theo trọng số của Quy chế lương 3P: Base Wework 40 %, người dùng 24 %, đồng nghiệp 18 %, quản lý 12 %, tự đánh giá 6 %
   const pct = (100 * 40 + 90 * 24 + 80 * 18 + 85 * 12 + 100 * 6) / 100;
@@ -47,54 +47,54 @@ test('ca tiền ④: NV bậc 1, KPI 5 thành phần 92,2 % cho 5.532.000', () =
   assert.equal(Math.round((6000000 * pct) / 100), 5532000);
 });
 
-test('ca tiền ③ mất chuyên cần (T6-5): 23,75 giờ vượt ngưỡng còn chuyên cần 115.384,62, KPI 6.000.000, thực lĩnh 5.602.211; 24,25 giờ mất chuyên cần, KPI 461.538,46, thực lĩnh −54.520', () => {
+test('ca tiền ③ mất chuyên cần (T6-5): 23,75 giờ vượt ngưỡng còn chuyên cần 115.384,62, KPI 6.000.000, thực lĩnh 5.602.211; 24,25 giờ mất chuyên cần, KPI 461.538,46, thực lĩnh −54.520', async () => {
   const approve = input => {
     input.advanceApproved = true;
   };
-  const a = runGolden('known-t65-over-limit-23.75h', {}, approve).m;
+  const a = (await runGolden('known-t65-over-limit-23.75h', {}, approve)).m;
   assert.ok(closeTo(a.attendance, 115384.62, 0.5));
   assert.equal(a.kpiPay, 6000000);
   assert.equal(a.net.net, 5602211);
-  const b = runGolden('known-t65-over-limit-24.25h', {}, approve).m;
+  const b = (await runGolden('known-t65-over-limit-24.25h', {}, approve)).m;
   assert.equal(b.attendance, 0);
   assert.ok(closeTo(b.kpiPay, 461538.46, 0.5));
   assert.ok(closeTo(b.kpiPay, (6000000 * 2) / 26, 0.5));
   assert.equal(b.net.net, -54520);
 });
 
-test('ca tiền ⑤: ca known-nv4-short-4h (NV bậc 4, thiếu 4 giờ) bị trừ 144.230,77 = 7.500.000 ÷ 26 ÷ 8 × 4', () => {
-  const { m } = runGolden('known-nv4-short-4h');
+test('ca tiền ⑤: ca known-nv4-short-4h (NV bậc 4, thiếu 4 giờ) bị trừ 144.230,77 = 7.500.000 ÷ 26 ÷ 8 × 4', async () => {
+  const { m } = await runGolden('known-nv4-short-4h');
   assert.ok(closeTo(m.cut, 144230.77));
   assert.ok(closeTo(m.cut, (7500000 / 26 / 8) * 4, 1e-6));
 });
 
-test('ca tiền ②: ca s20261015-00018 (NV bậc 3, 2,5 giờ OT ngày có lịch) cho OT 126.201,92 ở hệ số 1,5; hệ số 2 cho 168.269,23 và hệ số 2,5 cho 210.336,54; thực lĩnh (tạm ứng đã duyệt) 966.201 → 1.008.268 → 1.050.336', () => {
+test('ca tiền ②: ca s20261015-00018 (NV bậc 3, 2,5 giờ OT ngày có lịch) cho OT 126.201,92 ở hệ số 1,5; hệ số 2 cho 168.269,23 và hệ số 2,5 cho 210.336,54; thực lĩnh (tạm ứng đã duyệt) 966.201 → 1.008.268 → 1.050.336', async () => {
   const approve = input => {
     input.advanceApproved = true;
     attendDeclaredDays(input); // đi làm đủ mọi ngày đã khai, không ngày vắng nào làm mất chuyên cần
   };
   const hourly = 7000000 / 26 / 8;
-  const base = runGolden(NV3, {}, approve).m;
+  const base = (await runGolden(NV3, {}, approve)).m;
   assert.ok(closeTo(base.otPay, 126201.92, 0.5));
   assert.ok(closeTo(base.otPay, 2.5 * hourly * 1.5, 0.5));
   assert.equal(base.net.net, 966201);
-  const two = runGolden(NV3, { 'ot.rate': 2 }, approve).m;
+  const two = (await runGolden(NV3, { 'ot.rate': 2 }, approve)).m;
   assert.ok(closeTo(two.otPay, 168269.23, 0.5));
   assert.equal(two.net.net, 1008268);
   assert.equal(two.net.net - base.net.net, 42067);
-  const up = runGolden(NV3, { 'ot.rate': 2.5 }, approve).m;
+  const up = (await runGolden(NV3, { 'ot.rate': 2.5 }, approve)).m;
   assert.ok(closeTo(up.otPay, 210336.54, 0.5));
   assert.ok(closeTo(up.otPay, 2.5 * hourly * 2.5, 0.5));
   assert.equal(up.net.net, 1050336);
 });
 
-test('ca tiền lan truyền: level.nv.3.base 7.000.000 → 8.000.000 ở ca s20261015-00018 đổi cả chuỗi đúng số của bảng', () => {
+test('ca tiền lan truyền: level.nv.3.base 7.000.000 → 8.000.000 ở ca s20261015-00018 đổi cả chuỗi đúng số của bảng', async () => {
   const approve = input => {
     input.advanceApproved = true;
     attendDeclaredDays(input); // đi làm đủ mọi ngày đã khai, không ngày vắng nào làm mất chuyên cần
   };
-  const before = runGolden(NV3, {}, approve).m;
-  const after = runGolden(NV3, { 'level.nv.3.base': 8000000 }, approve).m;
+  const before = (await runGolden(NV3, {}, approve)).m;
+  const after = (await runGolden(NV3, { 'level.nv.3.base': 8000000 }, approve)).m;
   const expected = [
     ['ngày công', before.basePay, after.basePay, 2423076.92, 2769230.77],
     ['phụ cấp ca', before.bonus, after.bonus, 484615.38, 553846.15],
@@ -119,8 +119,8 @@ test('ca tiền lan truyền: level.nv.3.base 7.000.000 → 8.000.000 ở ca s20
   assert.equal(after.net.gross + after.net.employer - (before.net.gross + before.net.employer), 734953);
 });
 
-test('ca tiền dưới lương tối thiểu: level.nv.1.base 5.000.000 thấp hơn 5.310.000 (vùng I) ở ca known-kpi, hợp đồng dài đóng bảo hiểm', () => {
-  const { m } = runGolden(NV1, { 'level.nv.1.base': 5000000 });
+test('ca tiền dưới lương tối thiểu: level.nv.1.base 5.000.000 thấp hơn 5.310.000 (vùng I) ở ca known-kpi, hợp đồng dài đóng bảo hiểm', async () => {
+  const { m } = await runGolden(NV1, { 'level.nv.1.base': 5000000 });
   assert.equal(m.net.contract, 'long');
   assert.equal(m.net.insured, true);
   assert.ok(5000000 < 5310000);
@@ -139,9 +139,9 @@ test('ca tiền ①: ngày công chuẩn 27, 22, 13 của tháng 10/2026 (cho S1
 });
 
 /* ---------- phần đuôi luật tái tính độc lập (khối thêm, khoản điền thêm) ---------- */
-test('ca tiền oracle: không thêm gì thì oracle trùng bộ máy ở ba ca (thực lĩnh, thuế, bảo hiểm)', () => {
+test('ca tiền oracle: không thêm gì thì oracle trùng bộ máy ở ba ca (thực lĩnh, thuế, bảo hiểm)', async () => {
   for (const id of ['known-short-nv2-full-month', 's20261015-00129', NV1]) {
-    const { m } = runGolden(id);
+    const { m } = await runGolden(id);
     const o = oracle.netAfter(m);
     assert.equal(o.net, m.net.net, id);
     assert.equal(o.tax, m.net.tax, id);
@@ -149,8 +149,8 @@ test('ca tiền oracle: không thêm gì thì oracle trùng bộ máy ở ba ca 
   }
 });
 
-test('ca tiền ③ khối "ăn trưa" 500.000 cố định, chịu thuế, không vào nền bảo hiểm (ca known-short-nv2-full-month): tổng thu nhập 9.950.000, bảo hiểm 682.500, thuế 995.000, thực lĩnh 8.272.500', () => {
-  const { m } = runGolden('known-short-nv2-full-month');
+test('ca tiền ③ khối "ăn trưa" 500.000 cố định, chịu thuế, không vào nền bảo hiểm (ca known-short-nv2-full-month): tổng thu nhập 9.950.000, bảo hiểm 682.500, thuế 995.000, thực lĩnh 8.272.500', async () => {
+  const { m } = await runGolden('known-short-nv2-full-month');
   assert.equal(m.net.contract, 'short');
   const o = oracle.netAfter(m, { addTaxable: 500000 });
   assert.equal(o.total, 9950000);
@@ -159,8 +159,8 @@ test('ca tiền ③ khối "ăn trưa" 500.000 cố định, chịu thuế, khô
   assert.equal(o.net, 8272500); // 9.950.000 − 682.500 − 995.000
 });
 
-test('ca tiền khoản điền thêm (1c): cộng 500.000 chịu thuế cho thực lĩnh 8.272.500; trừ 300.000 sau thuế cho 7.522.500 mà tổng thu nhập và thuế không đổi', () => {
-  const { m } = runGolden('known-short-nv2-full-month');
+test('ca tiền khoản điền thêm (1c): cộng 500.000 chịu thuế cho thực lĩnh 8.272.500; trừ 300.000 sau thuế cho 7.522.500 mà tổng thu nhập và thuế không đổi', async () => {
+  const { m } = await runGolden('known-short-nv2-full-month');
   const add = oracle.netAfter(m, { addTaxable: 500000 });
   assert.equal(add.net, 8272500);
   const minus = oracle.netAfter(m, { deductAfterTax: 300000 });
@@ -169,8 +169,8 @@ test('ca tiền khoản điền thêm (1c): cộng 500.000 chịu thuế cho th�
   assert.equal(minus.tax, 945000);
 });
 
-test('ca tiền ③/⑧ khối +20.000.000 (số giả) ở ca s20261015-00129 (hợp đồng dài): thuế tính tay trên (chịu thuế − bảo hiểm − giảm trừ 21.700.000) khi chịu thuế / miễn toàn bộ / miễn đến 5.000.000', () => {
-  const { m } = runGolden('s20261015-00129');
+test('ca tiền ③/⑧ khối +20.000.000 (số giả) ở ca s20261015-00129 (hợp đồng dài): thuế tính tay trên (chịu thuế − bảo hiểm − giảm trừ 21.700.000) khi chịu thuế / miễn toàn bộ / miễn đến 5.000.000', async () => {
+  const { m } = await runGolden('s20261015-00129');
   assert.equal(m.net.contract, 'long');
   assert.equal(m.net.deduction, 21700000);
   // thuế tính tay: 5 % đến 10 triệu, 10 % đến 30 triệu, 20 % đến 60 triệu
@@ -186,8 +186,8 @@ test('ca tiền ③/⑧ khối +20.000.000 (số giả) ở ca s20261015-00129 (
   for (const o of [taxed, exempt, capped]) assert.equal(o.net, o.total - o.insurance - o.tax - m.net.advance);
 });
 
-test('ca tiền ⑦: ca known-kpi + khoản 500.000 đã xác nhận cờ bảo hiểm, insurance.base = withFlaggedAllowances: bảo hiểm 630.000 → 682.500, công ty đóng 1.290.000 → 1.397.500, thực lĩnh 5.040.461 → 5.487.961 (tạm ứng đã duyệt)', () => {
-  const { m } = runGolden(NV1, {}, input => {
+test('ca tiền ⑦: ca known-kpi + khoản 500.000 đã xác nhận cờ bảo hiểm, insurance.base = withFlaggedAllowances: bảo hiểm 630.000 → 682.500, công ty đóng 1.290.000 → 1.397.500, thực lĩnh 5.040.461 → 5.487.961 (tạm ứng đã duyệt)', async () => {
+  const { m } = await runGolden(NV1, {}, input => {
     input.advanceApproved = true;
   });
   const o = oracle.netAfter(m, { addTaxable: 500000, addInsBase: 500000 });

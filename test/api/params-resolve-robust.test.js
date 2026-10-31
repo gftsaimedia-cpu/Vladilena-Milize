@@ -12,8 +12,8 @@ const { F, store } = S;
 before(F.start);
 after(F.stop);
 
-const insertRaw = (key, month, valueJson) =>
-  store.db
+const insertRaw = async (key, month, valueJson) =>
+  await store.db
     .prepare(
       'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
@@ -22,15 +22,15 @@ const insertRaw = (key, month, valueJson) =>
 // type.tts.dows sửa được có kiểm soát (lịch của chức vụ), nên dùng một khoá `locked` tìm được lúc chạy
 test('Dòng param_versions của khoá không sửa được trên màn (khoá locked) KHÔNG làm resolve ném lỗi: bị bỏ qua và báo trong skipped; tính lương và PUT /api/sheet vẫn chạy', async () => {
   await S.seed('2026-10');
-  store.setSetting('params_mode', 'active');
+  await store.setSetting('params_mode', 'active');
   try {
-    const locked = S.lockedKey();
+    const locked = await S.lockedKey();
     assert.ok(locked, 'registry có khoá locked kiểu số');
-    insertRaw(locked.key, '2026-10', JSON.stringify(locked.value));
+    await insertRaw(locked.key, '2026-10', JSON.stringify(locked.value));
     const paramsStore = require('../../lib/params/store');
     let resolved;
-    assert.doesNotThrow(() => {
-      resolved = paramsStore.resolve('2026-10');
+    await assert.doesNotReject(async () => {
+      resolved = await paramsStore.resolve('2026-10');
     }, 'resolve không được ném TypeError vì một dòng hỏng');
     assert.ok(
       resolved.skipped.some(x => x.key === locked.key),
@@ -40,21 +40,21 @@ test('Dòng param_versions của khoá không sửa được trên màn (khoá l
     const res = await F.call('PUT', '/sheet', { who: 'qa_tts1', body: { month: '2026-10', days: {} } });
     assert.notEqual(res.status, 500, JSON.stringify(res.data));
   } finally {
-    store.setSetting('params_mode', 'defaults-only');
+    await store.setSetting('params_mode', 'defaults-only');
   }
 });
 
 test('Dòng param_versions của khoá lạ hoặc giá trị sai kiểu bị bỏ qua và báo trong skipped, không ném lỗi', async () => {
   await S.seed('2026-11');
-  store.setSetting('params_mode', 'active');
+  await store.setSetting('params_mode', 'active');
   try {
-    insertRaw('khong.co.khoa.nay', '2026-11', '1');
-    insertRaw('type.nv.travel', '2026-11', '"abc"');
-    insertRaw('level.nv.1.base', '2026-11', '{"loi":true}');
+    await insertRaw('khong.co.khoa.nay', '2026-11', '1');
+    await insertRaw('type.nv.travel', '2026-11', '"abc"');
+    await insertRaw('level.nv.1.base', '2026-11', '{"loi":true}');
     const paramsStore = require('../../lib/params/store');
     let resolved;
-    assert.doesNotThrow(() => {
-      resolved = paramsStore.resolve('2026-11');
+    await assert.doesNotReject(async () => {
+      resolved = await paramsStore.resolve('2026-11');
     });
     // dòng của khoá không sửa được (type.tts.dows) từ test trước vẫn hiện từ 2026-11, nên lọc theo khoá thay vì so cả danh sách
     for (const key of ['khong.co.khoa.nay', 'level.nv.1.base', 'type.nv.travel'])
@@ -65,6 +65,6 @@ test('Dòng param_versions của khoá lạ hoặc giá trị sai kiểu bị b�
     assert.equal(resolved.params['type.nv.travel'], S.DEFAULTS['type.nv.travel']);
     assert.equal(resolved.params['level.nv.1.base'], S.DEFAULTS['level.nv.1.base']);
   } finally {
-    store.setSetting('params_mode', 'defaults-only');
+    await store.setSetting('params_mode', 'defaults-only');
   }
 });

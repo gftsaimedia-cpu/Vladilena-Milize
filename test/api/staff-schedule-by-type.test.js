@@ -32,7 +32,7 @@ test('PUT và POST preview của lịch riêng không còn trong bảng quyền'
 });
 
 test('PUT và POST preview bị từ chối mặc định (Admin 403 NO_ROUTE_POLICY, chưa đăng nhập 401) và không ghi gì', async () => {
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const body = { from: S.MONTH, pattern: { type: 'week', dows: F0.MWF }, workdays: { mode: 'fixed', value: 26 }, rev: 0 };
   for (const [method, path] of [
     ['PUT', S.url('qa_s_nv')],
@@ -44,11 +44,11 @@ test('PUT và POST preview bị từ chối mặc định (Admin 403 NO_ROUTE_PO
     const anon = await F.call(method, path, { who: null, body });
     assert.equal(anon.status, 401, `${method} ${path} chưa đăng nhập`);
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('GET lịch theo loại nhân sự: NV T2–T7 (25 ngày tháng 11), TTS T2–T6 (21 ngày), CTV T2–T7; nguồn "type", không còn rev, history, personEnabled', async () => {
-  F.person('qa_s_ctv', 'staff', { type: 'ctv', level: 1 });
+  await F.person('qa_s_ctv', 'staff', { type: 'ctv', level: 1 });
   const expect = [
     ['qa_s_nv', 'nv', F0.MON_SAT, 25],
     ['qa_s_tts', 'tts', F0.MON_FRI, 21],
@@ -83,11 +83,11 @@ test('GET lịch: tháng mặc định là tháng hiện tại, tháng sai dạn
   assert.equal((await S.get('qa_s_nv', S.MONTH, 'qa_s_nv')).status, 200, 'xem lịch của chính mình');
 });
 
-test('tham số schedule.person.* không còn: không có trong bộ tham số mặc định, registry, và bộ tham số của tháng', () => {
+test('tham số schedule.person.* không còn: không có trong bộ tham số mặc định, registry, và bộ tham số của tháng', async () => {
   for (const key of ['schedule.person.enabled', 'schedule.person.maxEntries']) {
     assert.equal(Object.hasOwn(DEFAULTS, key), false, `DEFAULTS ${key}`);
     assert.equal(registry.entryFor(key), null, `registry ${key}`);
-    assert.equal(Object.hasOwn(paramsStore.resolve('2026-11').params, key), false, `params của tháng ${key}`);
+    assert.equal(Object.hasOwn((await paramsStore.resolve('2026-11')).params, key), false, `params của tháng ${key}`);
   }
   assert.deepEqual(
     registry.entries.filter(e => String(e.id).startsWith('schedule.person')).map(e => e.id),
@@ -96,9 +96,9 @@ test('tham số schedule.person.* không còn: không có trong bộ tham số m
 });
 
 // DB đã chạy trước đây còn cột staff.schedule_json (và trigger chỉ-thêm): dựng lại cột đó rồi ghi một lịch riêng cũ Hai-Tư-Sáu
-function legacyColumn(username) {
-  const columns = store.db.prepare('PRAGMA table_info(staff)').all();
-  if (!columns.some(c => c.name === 'schedule_json')) store.db.exec('ALTER TABLE staff ADD COLUMN schedule_json TEXT');
+async function legacyColumn(username) {
+  const columns = await store.db.prepare('PRAGMA table_info(staff)').all();
+  if (!columns.some(c => c.name === 'schedule_json')) await store.db.exec('ALTER TABLE staff ADD COLUMN schedule_json TEXT');
   const entry = {
     from: '2026-10',
     pattern: { type: 'week', dows: F0.MWF },
@@ -107,11 +107,11 @@ function legacyColumn(username) {
     by: 'admin',
     at: '2026-10-16T01:00:00.000Z'
   };
-  store.db.prepare('UPDATE staff SET schedule_json = ? WHERE username = ?').run(JSON.stringify([entry]), username);
+  await store.db.prepare('UPDATE staff SET schedule_json = ? WHERE username = ?').run(JSON.stringify([entry]), username);
 }
 
 test('dữ liệu cũ trong cột schedule_json không được đọc: GET lịch, GET /sheet và /team vẫn theo loại nhân sự', async () => {
-  legacyColumn('qa_s_nv');
+  await legacyColumn('qa_s_nv');
   const view = S.must(await S.get('qa_s_nv'), 'GET lịch');
   assert.equal(view.data.source, 'type');
   assert.deepEqual(view.data.schedule.pattern.dows, F0.MON_SAT);
@@ -126,22 +126,22 @@ test('dữ liệu cũ trong cột schedule_json không được đọc: GET lị
   assert.deepEqual(team.data.schedules.nv.pattern.dows, F0.MON_SAT);
 });
 
-test('dữ liệu cũ trong cột schedule_json không đổi tiền: đầu vào bộ máy không có khoá schedule, gộp và thực lĩnh bằng người không có dữ liệu cũ', () => {
+test('dữ liệu cũ trong cột schedule_json không đổi tiền: đầu vào bộ máy không có khoá schedule, gộp và thực lĩnh bằng người không có dữ liệu cũ', async () => {
   const month = '2026-10';
   const days = F0.fullDays(month, F0.MON_SAT);
-  store.setSheet('qa_s_nv', month, days);
-  store.setSheet('qa_s_nv2', month, days);
-  const compute = username => {
-    const inputs = payrollService.loadInputs(month, { usernames: [username], asOf: '2026-11-04T09:00:00+07:00' });
+  await store.setSheet('qa_s_nv', month, days);
+  await store.setSheet('qa_s_nv2', month, days);
+  const compute = async username => {
+    const inputs = await payrollService.loadInputs(month, { usernames: [username], asOf: '2026-11-04T09:00:00+07:00' });
     const person = inputs.people.get(username);
     assert.equal(Object.hasOwn(person.staff, 'schedule'), false, `${username}: không có khoá staff.schedule`);
-    const m = payrollService.computeFor(month, person.staff, inputs, paramsStore.resolve(month).params, { upTo: null }).m;
+    const m = (await payrollService.computeFor(month, person.staff, inputs, (await paramsStore.resolve(month)).params, { upTo: null })).m;
     return { gross: m.net.gross, net: m.net.net, count: m.count, workdaysStd: m.workdaysStd };
   };
-  const before = compute('qa_s_nv');
-  legacyColumn('qa_s_nv');
-  const after = compute('qa_s_nv');
+  const before = await compute('qa_s_nv');
+  await legacyColumn('qa_s_nv');
+  const after = await compute('qa_s_nv');
   assert.deepEqual(after, before, 'tiền không đổi khi cột cũ có dữ liệu');
-  assert.deepEqual(after, compute('qa_s_nv2'), 'bằng người cùng loại không có dữ liệu cũ');
+  assert.deepEqual(after, await compute('qa_s_nv2'), 'bằng người cùng loại không có dữ liệu cũ');
   assert.equal(after.workdaysStd, undefined);
 });

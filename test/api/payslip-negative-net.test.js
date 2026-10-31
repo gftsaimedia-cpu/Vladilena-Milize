@@ -19,14 +19,14 @@ after(F.stop);
 const USER = 'qa_nv1';
 const INSURANCE = 630000;
 const REASON = 'Điều chỉnh theo biên bản chi trả';
-const override = (month, values, user = USER) =>
-  F.call('PUT', '/slip-override', { body: { user, month, values, reason: REASON } });
+const override = async (month, values, user = USER) =>
+  await F.call('PUT', '/slip-override', { body: { user, month, values, reason: REASON } });
 const mustOverride = async (month, values) => {
   const res = await override(month, values);
   assert.equal(res.status, 200, JSON.stringify(res.data));
 };
 const rowOf = async (month, user = USER) => (await P.slipRows(month)).find(row => row.username === user);
-const statusOf = month => store.periods.get(month).status;
+const statusOf = async month => (await store.periods.get(month)).status;
 const negativeWarning = res => (res.data.warnings || []).find(w => w.code === 'PAYSLIP_NEGATIVE_NET');
 
 test('Thực lĩnh âm: duyệt phiếu có phiếu âm vẫn được, kèm cảnh báo đỏ nêu qa_nv1 và số âm −1.630.000; phiếu âm thành đã duyệt', async () => {
@@ -54,7 +54,7 @@ test('Thực lĩnh âm: duyệt phiếu có phiếu âm vẫn được, kèm c�
     rows.map(row => [row.username, 'approved'])
   );
   assert.equal((await rowOf(M)).net, -1630000, 'số chi trả vẫn là số âm đã sửa');
-  assert.equal(statusOf(M), 'reviewed');
+  assert.equal(await statusOf(M), 'reviewed');
 });
 
 test('Thực lĩnh âm: chỉ duyệt riêng các phiếu không âm thì không có cảnh báo; duyệt riêng phiếu âm có cảnh báo; số tính ra bình thường không cảnh báo', async () => {
@@ -120,7 +120,7 @@ test('Thực lĩnh âm: duyệt kỳ vẫn được kèm cảnh báo khi số s�
 
   await mustOverride(M, { advance: old.gross + 5000000 }); // lưu sau khi phiếu đã duyệt (kỳ còn reviewed)
   assert.equal((await rowOf(M)).net, -INSURANCE - 5000000);
-  assert.equal(statusOf(M), 'reviewed');
+  assert.equal(await statusOf(M), 'reviewed');
 
   const approved = await P.step(M, 'approve');
   assert.equal(approved.status, 200, JSON.stringify(approved.data));
@@ -128,10 +128,10 @@ test('Thực lĩnh âm: duyệt kỳ vẫn được kèm cảnh báo khi số s�
   const warning = negativeWarning(approved);
   assert.ok(warning, JSON.stringify(approved.data.warnings));
   assert.deepEqual(warning.details.items, [{ username: USER, net: -5630000 }]);
-  assert.equal(statusOf(M), 'approved');
+  assert.equal(await statusOf(M), 'approved');
   assert.equal((await rowOf(M)).net, -5630000, 'số âm giữ nguyên sau khi duyệt kỳ');
   assert.equal(
-    flow.payslipsOf(M).slips[USER].net,
+    (await flow.payslipsOf(M)).slips[USER].net,
     old.net,
     'bản chụp lưu vẫn là số tự tính; số chi trả là số Admin sửa'
   );

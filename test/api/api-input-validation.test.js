@@ -7,8 +7,8 @@ const auth = require('../../lib/auth');
 const server = require('../../server');
 let base;
 
-function person(username, role = 'staff') {
-  store.upsertStaff({
+async function person(username, role = 'staff') {
+  await store.upsertStaff({
     username,
     name: username,
     role,
@@ -19,9 +19,9 @@ function person(username, role = 'staff') {
     passHash: auth.hashPassword('test-pass')
   });
 }
-function snapshot() {
+async function snapshot() {
   return Object.fromEntries(
-    [
+    await Promise.all([
       'staff',
       'timesheets',
       'settings',
@@ -30,13 +30,13 @@ function snapshot() {
       'punches',
       'corrections',
       'punch_requests'
-    ].map(table => [table, store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+    ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()]))
   );
 }
 async function call(method, route, { who = 'admin', cookie, body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (cookie !== undefined) headers.Cookie = cookie;
-  else if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  else if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -57,7 +57,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'punch_requests',
     'corrections',
@@ -68,10 +68,10 @@ beforeEach(() => {
     'staff',
     'settings'
   ])
-    store.db.exec('DELETE FROM ' + table);
-  person('admin', 'admin');
-  person('worker');
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
+    await store.db.exec('DELETE FROM ' + table);
+  await person('admin', 'admin');
+  await person('worker');
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
 });
 after(async () => {
   server.closeAllConnections();
@@ -87,11 +87,11 @@ for (const [label, signature] of [
   ['long signature', 'a'.repeat(44)]
 ]) {
   test(`malformed session cookie: ${label} is unauthenticated without changing data`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await call('GET', '/sheet?month=2026-10', { cookie: 'luong_sid=abc.' + signature });
     assert.equal(r.status, 401, JSON.stringify(r.data));
     assert.ok(r.data.error);
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
     assert.equal((await call('GET', '/sheet?month=2026-10', { who: 'worker' })).status, 200);
   });
 }
@@ -106,11 +106,11 @@ test('valid signed cookies still identify the intended account', async () => {
 for (const method of ['PUT']) {
   for (const encoded of ['%E0%A4%A', '%FF']) {
     test(`${method} staff refuses malformed username encoding ${encoded} with 400 and no writes`, async () => {
-      const previous = snapshot();
+      const previous = await snapshot();
       const r = await call(method, '/staff/' + encoded, { body: method === 'PUT' ? profile : undefined });
       assert.equal(r.status, 400, JSON.stringify(r.data));
       assert.ok(r.data.error);
-      assert.deepEqual(snapshot(), previous);
+      assert.deepEqual(await snapshot(), previous);
     });
   }
   for (const [who, status] of [
@@ -118,26 +118,26 @@ for (const method of ['PUT']) {
     ['worker', 403]
   ]) {
     test(`${method} staff keeps authorization ahead of username decoding for ${who || 'anonymous'}`, async () => {
-      const previous = snapshot();
+      const previous = await snapshot();
       const r = await call(method, '/staff/%E0%A4%A', { who, body: method === 'PUT' ? profile : undefined });
       assert.equal(r.status, status, JSON.stringify(r.data));
-      assert.deepEqual(snapshot(), previous);
+      assert.deepEqual(await snapshot(), previous);
     });
   }
   test(`${method} staff still refuses a decoded invalid username without writes`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await call(method, '/staff/%C3%A9', { body: method === 'PUT' ? profile : undefined });
     assert.equal(r.status, 400, JSON.stringify(r.data));
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 
 test('valid encoded username still updates the intended staff account', async () => {
   const r = await call('PUT', '/staff/%77orker', { body: profile });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getStaff('worker').name, 'Updated worker');
-  assert.equal(store.getStaff('admin').name, 'admin');
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, {
+  assert.equal((await store.getStaff('worker')).name, 'Updated worker');
+  assert.equal((await store.getStaff('admin')).name, 'admin');
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' }
   });
 });
@@ -145,21 +145,21 @@ test('valid encoded username still updates the intended staff account', async ()
 test('Q5: valid encoded username locks the intended staff account and keeps its estimate', async () => {
   const r = await call('PUT', '/staff/%77orker', { body: { locked: true } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(store.getStaff('worker'), 'tài khoản bị khoá vẫn còn');
+  assert.ok(await store.getStaff('worker'), 'tài khoản bị khoá vẫn còn');
   const list = (await call('GET', '/staff')).data.staff;
   assert.equal(list.find(s => s.username === 'worker').locked, true);
   assert.ok(!list.find(s => s.username === 'admin').locked, 'tài khoản khác không bị khoá');
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, {
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' }
   });
 });
 
 test('staff tax profile: defaults by group, saves contract / insurance / dependants and keeps them when an old form omits them', async () => {
   assert.deepEqual(
-    [store.getStaff('worker').contract, store.getStaff('worker').insured, store.getStaff('worker').dependants],
+    [(await store.getStaff('worker')).contract, (await store.getStaff('worker')).insured, (await store.getStaff('worker')).dependants],
     ['long', true, 0]
   );
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'intern',
     name: 'intern',
     role: 'staff',
@@ -167,7 +167,7 @@ test('staff tax profile: defaults by group, saves contract / insurance / dependa
     level: 1,
     passHash: auth.hashPassword('test-pass')
   });
-  assert.deepEqual([store.getStaff('intern').contract, store.getStaff('intern').insured], ['short', false]);
+  assert.deepEqual([(await store.getStaff('intern')).contract, (await store.getStaff('intern')).insured], ['short', false]);
   const saved = await call('PUT', '/staff/worker', {
     body: { ...profile, contract: 'short', insured: true, dependants: 2 }
   });
@@ -205,15 +205,15 @@ test('staff tax profile rejects invalid contract, insurance flag and dependant c
     { dependants: '0x2' },
     { dependants: '1e1' }
   ]) {
-    const before = snapshot();
+    const before = await snapshot();
     const r = await call('PUT', '/staff/worker', { body: { ...profile, ...extra } });
     assert.equal(r.status, 400, JSON.stringify(extra));
-    assert.deepEqual(snapshot(), before, JSON.stringify(extra));
+    assert.deepEqual(await snapshot(), before, JSON.stringify(extra));
   }
 });
 
 test('staff tax switches: default on, saved when sent, kept when an old form omits them, invalid values refused', async () => {
-  const fresh = store.getStaff('worker');
+  const fresh = await store.getStaff('worker');
   assert.deepEqual([fresh.taxOn, fresh.deductOn, fresh.advanceOn], [true, true, true]);
   const saved = await call('PUT', '/staff/worker', {
     body: { ...profile, taxOn: false, deductOn: false, advanceOn: true }
@@ -226,13 +226,13 @@ test('staff tax switches: default on, saved when sent, kept when an old form omi
   const oldForm = await call('PUT', '/staff/worker', { body: { ...profile } });
   assert.deepEqual([oldForm.data.staff.taxOn, oldForm.data.staff.deductOn], [false, false]);
   for (const extra of [{ taxOn: 'no' }, { deductOn: 2 }, { advanceOn: [] }]) {
-    const before = snapshot();
+    const before = await snapshot();
     assert.equal(
       (await call('PUT', '/staff/worker', { body: { ...profile, ...extra } })).status,
       400,
       JSON.stringify(extra)
     );
-    assert.deepEqual(snapshot(), before);
+    assert.deepEqual(await snapshot(), before);
   }
 });
 
@@ -274,13 +274,13 @@ test('slip overrides: Admin only, validated, saved per person and month, cleared
     { user: 'worker', month: '10-2026', values: {} },
     { user: 'nobody', month: '2026-10', values: {} }
   ]) {
-    const before = store.getSlipOverride('worker', '2026-10');
+    const before = await store.getSlipOverride('worker', '2026-10');
     const withReason = { ...body, reason: 'Điều chỉnh theo biên bản kiểm tra' }; // có lý do để từ chối đúng vì nội dung sai, không phải vì thiếu lý do
     assert.ok(
       [400, 404].includes((await call('PUT', '/slip-override', { body: withReason })).status),
       JSON.stringify(body)
     );
-    assert.deepEqual(store.getSlipOverride('worker', '2026-10'), before);
+    assert.deepEqual(await store.getSlipOverride('worker', '2026-10'), before);
   }
   assert.deepEqual(
     (
@@ -298,14 +298,14 @@ test('slip overrides: Admin only, validated, saved per person and month, cleared
   assert.equal(longReason.data.code, 'REASON_REQUIRED');
   const noReason = await call('PUT', '/slip-override', { body: { user: 'worker', month: '2026-10', values: {} } });
   assert.equal(noReason.status, 200, 'thiếu lý do vẫn lưu (lý do tuỳ chọn)');
-  store.setSlipOverride('worker', '2026-10', { tax: 1 }, 'admin');
+  await store.setSlipOverride('worker', '2026-10', { tax: 1 }, 'admin');
   assert.equal((await call('PUT', '/staff/worker', { body: { locked: true } })).status, 200);
   assert.equal(
-    store.db.prepare('SELECT COUNT(*) AS n FROM slip_overrides').get().n,
+    (await store.db.prepare('SELECT COUNT(*) AS n FROM slip_overrides').get()).n,
     1,
     'Q5: khoá tài khoản giữ nguyên số sửa trên phiếu lương'
   );
-  assert.deepEqual(store.getSlipOverride('worker', '2026-10').values, { tax: 1 });
+  assert.deepEqual((await store.getSlipOverride('worker', '2026-10')).values, { tax: 1 });
 });
 
 test('iDorm is saved only for NV', async () => {
@@ -316,12 +316,12 @@ test('iDorm is saved only for NV', async () => {
   ]) {
     const r = await call('PUT', '/staff/worker', { body: { ...profile, type, idorm: true } });
     assert.equal(r.status, 200, JSON.stringify(r.data));
-    assert.equal(store.getStaff('worker').idorm, expected, type);
+    assert.equal((await store.getStaff('worker')).idorm, expected, type);
   }
 });
 
 test('job title: saved from the staff form, kept when omitted, trimmed and limited to 80 characters', async () => {
-  assert.equal(store.getStaff('worker').jobTitle, '');
+  assert.equal((await store.getStaff('worker')).jobTitle, '');
   const saved = await call('PUT', '/staff/worker', { body: { ...profile, jobTitle: '  15. NV C&B  ' } });
   assert.equal(saved.status, 200, JSON.stringify(saved.data));
   assert.equal(saved.data.staff.jobTitle, '15. NV C&B');
@@ -331,9 +331,9 @@ test('job title: saved from the staff form, kept when omitted, trimmed and limit
     'old form keeps the title'
   );
   for (const bad of ['x'.repeat(81), 42, ['a']]) {
-    const before = snapshot();
+    const before = await snapshot();
     assert.equal((await call('PUT', '/staff/worker', { body: { ...profile, jobTitle: bad } })).status, 400);
-    assert.deepEqual(snapshot(), before);
+    assert.deepEqual(await snapshot(), before);
   }
   assert.equal(
     (await call('PUT', '/staff/worker', { body: { ...profile, jobTitle: '' } })).data.staff.jobTitle,

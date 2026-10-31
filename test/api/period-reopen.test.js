@@ -32,8 +32,8 @@ const fingerprint = month =>
 test('C&B chỉ mở lại về calculated; về open hoặc attendance_locked cần period.reopen.inputs nên 403 FORBIDDEN_CAP và không đổi gì', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  P.grant('qa_nv1', 'cb');
-  const before = F.snapshot();
+  await P.grant('qa_nv1', 'cb');
+  const before = await F.snapshot();
   for (const to of ['open', 'attendance_locked']) {
     const res = await reopen(M, to, {}, 'qa_nv1');
     assert.equal(res.status, 403, to);
@@ -43,26 +43,26 @@ test('C&B chỉ mở lại về calculated; về open hoặc attendance_locked c
   // thiếu hoặc lạ `to` cũng thuộc nhóm cần quyền đầu vào
   for (const to of [undefined, 'paid', 'xyz'])
     assert.equal((await reopen(M, to, {}, 'qa_nv1')).data.code, 'FORBIDDEN_CAP', String(to));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   const ok = P.must(await reopen(M, 'calculated', {}, 'qa_nv1'), 'C&B mở về calculated');
   assert.equal(ok.data.status, 'calculated');
-  const row = P.auditOf(M).find(r => r.action === 'period.reopen');
+  const row = (await P.auditOf(M)).find(r => r.action === 'period.reopen');
   assert.equal(row.actor, 'qa_nv1');
 });
 
 test('Người không có period.reopen (kế toán, nhân sự) bị 403 FORBIDDEN_CAP ở cổng route, kể cả khi về calculated', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  P.grant('qa_nv1', 'accounting');
-  P.grant('qa_ctv1', 'hr');
-  const before = F.snapshot();
+  await P.grant('qa_nv1', 'accounting');
+  await P.grant('qa_ctv1', 'hr');
+  const before = await F.snapshot();
   for (const who of ['qa_nv1', 'qa_ctv1', 'qa_tts1']) {
     const res = await reopen(M, 'calculated', {}, who);
     assert.equal(res.status, 403, who);
     assert.equal(res.data.code, 'FORBIDDEN_CAP', who);
   }
   assert.equal((await reopen(M, 'calculated', {}, null)).status, 401);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('Admin (có period.reopen.inputs) mở về open và về attendance_locked được', async () => {
@@ -79,13 +79,13 @@ const warningsOf = res => res.data.warnings || [];
 test('Lý do không bắt buộc: thiếu, null, rỗng, toàn dấu cách, 9 ký tự, không phải chuỗi đều mở lại được; quá 300 ký tự là 400 REASON_REQUIRED và không đổi gì', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const bad of [P.text(301), `${P.text(150)}${' '.repeat(5)}${P.text(150)}`]) {
     const res = await P.step(M, 'reopen', { to: 'calculated', reason: bad });
     assert.equal(res.status, 400, `reason dài ${bad.length}: ${JSON.stringify(res.data)}`);
     assert.equal(res.data.code, 'REASON_REQUIRED');
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'lý do quá dài không đổi gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'lý do quá dài không đổi gì');
   assert.equal((await getPeriod(M)).status, 'approved');
   // ba lần mở liên tiếp approved → calculated → attendance_locked → open, mỗi lần một kiểu lý do; lý do rỗng được ghi nhật ký là không có lý do
   const chain = [
@@ -101,7 +101,7 @@ test('Lý do không bắt buộc: thiếu, null, rỗng, toàn dấu cách, 9 k�
       [],
       'kỳ chưa chi trả thì không có cảnh báo trạng thái'
     );
-    const row = P.auditOf(M)
+    const row = await (await P.auditOf(M))
       .filter(r => r.action === 'period.reopen')
       .at(-1);
     assert.equal(row.reason, saved, `to=${to}`);
@@ -111,7 +111,7 @@ test('Lý do không bắt buộc: thiếu, null, rỗng, toàn dấu cách, 9 k�
     await P.setupMonth(N, 'approved');
     const res = P.must(await P.step(N, 'reopen', { to: 'calculated', reason: bad }), `reason=${JSON.stringify(bad)}`);
     assert.equal(res.data.status, 'calculated');
-    const row = P.auditOf(N).find(r => r.action === 'period.reopen');
+    const row = (await P.auditOf(N)).find(r => r.action === 'period.reopen');
     assert.equal(row.reason, bad === P.text(10) ? P.text(10) : null, JSON.stringify(bad));
   }
   const L = monthOf();
@@ -151,11 +151,11 @@ test('Kỳ đã chi trả (paid) vẫn mở lại được về open, attendance
     assert.equal(view.reopenCount, 1);
     assert.equal(view.stages.paid.by, null, 'bước chi trả bị xoá khỏi dòng kỳ');
     assert.deepEqual(
-      P.runsOf(M).map(r => r.status),
+      (await P.runsOf(M)).map(r => r.status),
       ['superseded']
     );
     assert.deepEqual(fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
-    const row = P.auditOf(M).find(r => r.action === 'period.reopen');
+    const row = (await P.auditOf(M)).find(r => r.action === 'period.reopen');
     assert.equal(row.before.status, 'paid');
     assert.equal(row.after.status, to);
   }
@@ -189,7 +189,7 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
   assert.equal(res.data.status, 'calculated');
   assert.deepEqual(fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
   assert.deepEqual(
-    P.runsOf(M).map(r => [r.run_no, r.status]),
+    (await P.runsOf(M)).map(r => [r.run_no, r.status]),
     [[1, 'superseded']]
   );
   const view = await getPeriod(M);
@@ -197,9 +197,9 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
   assert.equal(view.run, null, 'chưa có lần chạy hiện hành cho tới khi tính lại');
   assert.equal(view.stages.approved.by, null, 'các bước sau điểm quay về bị xoá khỏi dòng kỳ');
   assert.equal(view.stages.calculated.by, 'admin', 'bước tại điểm quay về giữ lại');
-  assert.equal(P.periodRow(M).current_run_id, null);
+  assert.equal((await P.periodRow(M)).current_run_id, null);
 
-  const row = P.auditOf(M).find(r => r.action === 'period.reopen');
+  const row = (await P.auditOf(M)).find(r => r.action === 'period.reopen');
   assert.equal(row.reason, 'Phát hiện sai giờ OT của một người');
   assert.equal(row.before.status, 'approved');
   assert.deepEqual([row.after.status, row.after.to, row.after.reopenCount], ['calculated', 'calculated', 1]);
@@ -209,7 +209,7 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
   const calc = P.must(await P.step(M, 'calculate'), 'tính lại sau khi mở');
   assert.equal(calc.data.run.runNo, 2);
   assert.deepEqual(
-    P.runsOf(M).map(r => [r.run_no, r.status]),
+    (await P.runsOf(M)).map(r => [r.run_no, r.status]),
     [
       [1, 'superseded'],
       [2, 'draft']
@@ -232,7 +232,7 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
   P.must(await reopen(M, 'calculated'), 'mở lần hai');
   assert.equal((await getPeriod(M)).reopenCount, 2);
   assert.deepEqual(
-    P.runsOf(M).map(r => r.status),
+    (await P.runsOf(M)).map(r => r.status),
     ['superseded', 'superseded']
   );
 });
@@ -243,7 +243,7 @@ test('Mở lại từ reviewed về calculated: lần chạy nháp bị thay th�
   const before = fingerprint(M);
   P.must(await reopen(M, 'calculated'), 'mở lại từ reviewed');
   assert.deepEqual(
-    P.runsOf(M).map(r => r.status),
+    (await P.runsOf(M)).map(r => r.status),
     ['superseded']
   );
   assert.deepEqual(fingerprint(M), before);
@@ -270,7 +270,7 @@ test('Mở về attendance_locked rồi calculate: tạo lần chạy mới, l�
 test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng cảnh báo PERIOD_LOCKED; mở về open thì hết cảnh báo; tính lại thấy thay đổi và lần chạy cũ còn nguyên', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
-  const sheet = store.getSheet('qa_nv1', M);
+  const sheet = await store.getSheet('qa_nv1', M);
   const days = JSON.parse(JSON.stringify(sheet.days));
   const date = Object.keys(days).find(d => days[d].kind === 'work' && days[d].extraKind === 'ot');
   assert.ok(date, 'điều kiện của bài: qa_nv1 có một ngày xin OT');
@@ -284,7 +284,7 @@ test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng c�
   assert.equal(warned.length, 1, JSON.stringify(warningsOf(locked)));
   assert.equal(warned[0].details.month, M);
   assert.equal(warned[0].details.status, 'calculated');
-  assert.ok(!store.getSheet('qa_nv1', M).days[date].extraKind, 'cảnh báo thì vẫn lưu');
+  assert.ok(!(await store.getSheet('qa_nv1', M)).days[date].extraKind, 'cảnh báo thì vẫn lưu');
   assert.equal((await getPeriod(M)).status, 'calculated');
 
   P.must(await reopen(M, 'open'), 'mở về open');
@@ -297,9 +297,9 @@ test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng c�
     'kỳ mở thì không còn cảnh báo khoá'
   );
   // khoản chờ duyệt mới (nếu có) và các bước kế tiếp
-  const pending = store.approvals.list({ status: 'pending' }).filter(r => r.date.startsWith(M));
+  const pending = (await store.approvals.list({ status: 'pending' })).filter(r => r.date.startsWith(M));
   if (pending.length)
-    store.approvals.decide(
+    await store.approvals.decide(
       pending.map(r => ({ username: r.username, date: r.date, rev: r.rev, fingerprint: r.fingerprint })),
       'approved',
       'admin',
@@ -314,7 +314,7 @@ test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng c�
     before,
     'lần chạy 1 giữ nguyên bản chụp cũ'
   );
-  assert.equal(P.runsOf(M).length, 2);
+  assert.equal((await P.runsOf(M)).length, 2);
 });
 
 test('Số sửa phiếu lưu được cả khi kỳ đã duyệt (cảnh báo PERIOD_LOCKED) và sau khi mở lại về calculated thì hết cảnh báo khoá', async () => {

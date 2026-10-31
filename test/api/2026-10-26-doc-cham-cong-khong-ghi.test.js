@@ -25,7 +25,7 @@ async function call(user, method, route) {
     method,
     headers: {
       'Content-Type': 'application/json',
-      Cookie: auth.cookieHeader(auth.createSession(user), 86400)
+      Cookie: auth.cookieHeader(await auth.createSession(user), 86400)
     }
   });
   return { status: r.status, data: await r.json() };
@@ -41,7 +41,7 @@ const openSession = (username, presIn) =>
 
 before(async () => {
   Date.now = () => clock;
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'admin',
     name: 'Admin',
     role: 'admin',
@@ -50,7 +50,7 @@ before(async () => {
     passHash: auth.hashPassword('test-pass')
   });
   for (const username of ['moi', 'cu', 'khong'])
-    store.upsertStaff({
+    await store.upsertStaff({
       username,
       name: username,
       role: 'staff',
@@ -60,8 +60,8 @@ before(async () => {
       passHash: auth.hashPassword('test-pass')
     });
   // 'moi' vừa Check-in 1 giờ trước (chưa quá hạn), 'cu' mở 20 giờ trước (quá hạn 16 giờ), 'khong' không có lượt nào
-  openSession('moi', new Date(clock - 60 * 60 * 1000).toISOString());
-  openSession('cu', new Date(clock - 20 * 60 * 60 * 1000).toISOString());
+  await openSession('moi', new Date(clock - 60 * 60 * 1000).toISOString());
+  await openSession('cu', new Date(clock - 20 * 60 * 60 * 1000).toISOString());
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   base = 'http://127.0.0.1:' + server.address().port;
 });
@@ -85,8 +85,8 @@ test('GET /attendance chỉ mở giao dịch cho người thật sự quá hạn
   assert.equal(cu.entry.reason, 'forgot-out');
   assert.equal(moi.state, 'open', 'lượt chưa quá hạn giữ nguyên');
   assert.equal(moi.version, 1, 'lượt chưa quá hạn không bị ghi (version không đổi)');
-  assert.equal(store.listSessions({ username: 'cu' }).length, 1);
-  assert.equal(store.openSession('moi').id, moi.id);
+  assert.equal((await store.listSessions({ username: 'cu' })).length, 1);
+  assert.equal((await store.openSession('moi')).id, moi.id);
 });
 
 test('GET /today khi không còn ai quá hạn: 0 giao dịch (đường đọc không ghi DB)', async () => {

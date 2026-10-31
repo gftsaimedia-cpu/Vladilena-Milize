@@ -59,18 +59,18 @@ test('loại lạ (constructor, __proto__, rỗng, thiếu) không ném lỗi, k
   );
 });
 
-test('workdaysOf: cố định trả value; tự đếm theo lịch của loại: T2–T7 tháng 10 = 27, tháng 9 = 26, tháng 11 = 25, tháng 12 = 27; Hai-Tư-Sáu tháng 10 = 13; T2–T6 tháng 10 = 22', () => {
+test('workdaysOf: cố định trả value; tự đếm theo lịch của loại: T2–T7 tháng 10 = 27, tháng 9 = 26, tháng 11 = 25, tháng 12 = 27; Hai-Tư-Sáu tháng 10 = 13; T2–T6 tháng 10 = 22', async () => {
   const computed = { 'type.nv.workdaysMode': 'computed' };
   const count = (dows, month) => {
     const ws = withNv({ 'type.nv.dows': dows, ...computed });
     return ws.workdaysOf(ws.scheduleOf({ type: 'nv' }), month);
   };
-  assert.equal(count(F.MWF, '2026-10'), 13);
-  assert.equal(count(F.MON_SAT, '2026-10'), 27);
-  assert.equal(count(F.MON_SAT, '2026-09'), 26);
-  assert.equal(count(F.MON_SAT, '2026-11'), 25);
-  assert.equal(count(F.MON_SAT, '2026-12'), 27);
-  assert.equal(count(F.MON_FRI, '2026-10'), 22);
+  assert.equal(await count(F.MWF, '2026-10'), 13);
+  assert.equal(await count(F.MON_SAT, '2026-10'), 27);
+  assert.equal(await count(F.MON_SAT, '2026-09'), 26);
+  assert.equal(await count(F.MON_SAT, '2026-11'), 25);
+  assert.equal(await count(F.MON_SAT, '2026-12'), 27);
+  assert.equal(await count(F.MON_FRI, '2026-10'), 22);
   const fixed = withNv({ 'type.nv.dows': F.MWF, 'type.nv.workdays': 13 });
   assert.equal(fixed.workdaysOf(fixed.scheduleOf({ type: 'nv' }), '2026-10'), 13);
   // ngày công chuẩn mặc định của loại (cố định): 22, 26, 26

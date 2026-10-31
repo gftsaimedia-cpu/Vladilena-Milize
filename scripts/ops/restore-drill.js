@@ -340,6 +340,10 @@ async function main() {
   process.exitCode = failed ? 1 : 0;
 }
 
-if (require.main === module) main();
+if (require.main === module)
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 module.exports = { parseArgs, get, freePort, DrillError };

@@ -17,11 +17,11 @@ before(F.start);
 after(F.stop);
 
 const NAMES = ['qa_ctv1', 'qa_nv1', 'qa_nv2', 'qa_tts1'];
-const one = (month, username, who = 'admin') => F.call('GET', `/periods/${month}/estimates/${username}`, { who });
-const list = (month, who = 'admin') => F.call('GET', `/periods/${month}/estimates?pageSize=200`, { who });
+const one = async (month, username, who = 'admin') => await F.call('GET', `/periods/${month}/estimates/${username}`, { who });
+const list = async (month, who = 'admin') => await F.call('GET', `/periods/${month}/estimates?pageSize=200`, { who });
 const MONEY = ['gross', 'insurance', 'tax', 'advance', 'net'];
 const LINES = ['workDays', 'tienNgayCong', 'phuCap', 'ot', 'kpi', 'truTreSom', 'khac'];
-const rowCount = table => store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+const rowCount = async table => (await store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n;
 
 test('S2: phiếu ước tính của một người trả 200, source estimate, run null, kỳ chưa tính, đủ staffTerms và snapshot', async () => {
   const M = monthOf();
@@ -84,14 +84,14 @@ test('S2: số ước tính của một người bằng số phiếu sau khi ch�
 test('S2: gọi phiếu ước tính không ghi gì: số dòng payroll_runs, payslips, audit_log và mọi bảng khác không đổi', async () => {
   const M = monthOf();
   await P.seed(M);
-  const counts = () => ['payroll_runs', 'payslips', 'audit_log'].map(rowCount);
-  const countsBefore = counts();
-  const snapBefore = F.snapshot();
+  const counts = async () => await Promise.all(['payroll_runs', 'payslips', 'audit_log'].map(rowCount));
+  const countsBefore = await counts();
+  const snapBefore = await F.snapshot();
   P.must(await one(M, 'qa_ctv1'), 'phiếu ước tính');
   P.must(await one(M, 'qa_ctv1'), 'phiếu ước tính lần hai');
-  assert.deepEqual(counts(), countsBefore, 'payroll_runs, payslips, audit_log');
-  assert.deepEqual(F.changedTables(snapBefore, F.snapshot()), [], 'không bảng nào đổi');
-  assert.equal(store.payroll.currentRun(M), null, 'vẫn chưa có lần tính');
+  assert.deepEqual(await counts(), countsBefore, 'payroll_runs, payslips, audit_log');
+  assert.deepEqual(F.changedTables(snapBefore, await F.snapshot()), [], 'không bảng nào đổi');
+  assert.equal(await store.payroll.currentRun(M), null, 'vẫn chưa có lần tính');
 });
 
 test('S2: chưa đăng nhập bị 401 và không lộ số tiền', async () => {
@@ -121,13 +121,13 @@ test('S2: tài khoản nhân sự bị 403 FORBIDDEN_CAP, kể cả xem phiếu 
 test('S2: tên không có trong bảng lương của tháng là 404 PAYSLIP_NOT_FOUND và không ghi gì', async () => {
   const M = monthOf();
   await P.seed(M);
-  const snapBefore = F.snapshot();
+  const snapBefore = await F.snapshot();
   for (const name of ['qa_khong_co', 'admin']) {
     const res = await one(M, name);
     assert.equal(res.status, 404, `${name}: ${res.status} ${JSON.stringify(res.data)}`);
     assert.equal(res.data.code, 'PAYSLIP_NOT_FOUND', name);
   }
-  assert.deepEqual(F.changedTables(snapBefore, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(snapBefore, await F.snapshot()), []);
 });
 
 test('S2: tháng sai dạng là 400 BAD_MONTH', async () => {
@@ -143,8 +143,8 @@ test('S2: tháng sai dạng là 400 BAD_MONTH', async () => {
 test('S2: hồ sơ sai bậc hoặc loại là 200 với payslip.status error và errorCode, tiền không phải 0 ₫; người khác không bị ảnh hưởng', async () => {
   const M = monthOf();
   await P.seed(M);
-  store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
-  store.db.prepare("UPDATE staff SET type = 'xyz' WHERE username = 'qa_tts1'").run();
+  await store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
+  await store.db.prepare("UPDATE staff SET type = 'xyz' WHERE username = 'qa_tts1'").run();
   const badLevel = await one(M, 'qa_ctv1');
   assert.equal(badLevel.status, 200, JSON.stringify(badLevel.data).slice(0, 300));
   assert.equal(badLevel.data.source, 'estimate');
@@ -167,19 +167,19 @@ test('S2: hồ sơ sai bậc hoặc loại là 200 với payslip.status error v�
 test('S2: ghi vào đường dẫn phiếu ước tính (POST, PUT, DELETE) bị từ chối và không ghi gì', async () => {
   const M = monthOf();
   await P.seed(M);
-  const snapBefore = F.snapshot();
+  const snapBefore = await F.snapshot();
   for (const method of ['POST', 'PUT', 'DELETE']) {
     const res = await F.call(method, `/periods/${M}/estimates/qa_nv1`, { who: 'admin', body: { rev: 1 } });
     assert.ok([403, 404, 405].includes(res.status), `${method}: ${res.status} ${JSON.stringify(res.data)}`);
     assert.equal(JSON.stringify(res.data).includes('"net"'), false, `${method}: không lộ số tiền`);
   }
-  assert.deepEqual(F.changedTables(snapBefore, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(snapBefore, await F.snapshot()), []);
 });
 
 test('S2: tên viết hoa vẫn ra phiếu của đúng người; dấu gạch chéo cuối chỉ là danh sách; tên thừa đoạn hoặc mã hoá sai không lộ số tiền và không ghi gì', async () => {
   const M = monthOf();
   await P.seed(M);
-  const snapBefore = F.snapshot();
+  const snapBefore = await F.snapshot();
   const lower = await one(M, 'qa_nv1');
   const upper = await one(M, 'QA_NV1');
   assert.equal(upper.status, 200, JSON.stringify(upper.data).slice(0, 200));
@@ -198,5 +198,5 @@ test('S2: tên viết hoa vẫn ra phiếu của đúng người; dấu gạch c
     assert.ok(res.status >= 400 && res.status < 500, `${path}: ${res.status}`);
     assert.equal(JSON.stringify(res.data).includes('"net"'), false, `${path}: không lộ số tiền`);
   }
-  assert.deepEqual(F.changedTables(snapBefore, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(snapBefore, await F.snapshot()), []);
 });

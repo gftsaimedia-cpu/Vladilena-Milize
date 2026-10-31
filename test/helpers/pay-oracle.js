@@ -20,10 +20,10 @@ const caseOf = id => {
 const clone = value => JSON.parse(JSON.stringify(value));
 // Mặc định ở đây đặt tax.insurance.skipDays rất lớn như khối cũ không đếm ngày có lương (xem test/helpers/legacy-params.js); `over` đè được.
 // `over`: khoá tham số ghi đè (chỉ trong bộ nhớ). `edit(input)` sửa bản sao đầu vào (ví dụ đổi type, thêm ngày) trước khi tính.
-function runGolden(id, over = {}, edit = null) {
+async function runGolden(id, over = {}, edit = null) {
   const hit = caseOf(id);
   const input = clone(hit.input);
-  if (edit) edit(input);
+  if (edit) await edit(input);
   // ca có tên đi làm đúng như các ngày đã khai, kể cả khi `edit` đổi ngày
   if (edit && hit.tags.includes('known')) attendDeclaredDays(input);
   else if (!input.sessions || !input.sessions.length) input.sessions = declaredPunches(input.staff, input.days);

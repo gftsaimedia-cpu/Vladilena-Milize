@@ -30,7 +30,7 @@ test('1a-6: chức vụ mới sao chép từ NV hiện ở GET /api/settings/par
   const res = await F.call('GET', `/settings/params?month=${M}`, { who: 'admin' });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   const keys = keysInView(res.data);
-  const set = P.paramsOf(M);
+  const set = await P.paramsOf(M);
   const own = Object.keys(set).filter(key => key.startsWith(`type.${code}.`) || key.startsWith(`level.${code}.`));
   assert.ok(own.length > 10, 'chức vụ mới có khoá');
   // mọi khoá của NV nằm trong view thì khoá tương ứng của chức vụ mới cũng nằm
@@ -83,7 +83,7 @@ test('1a-6: mã chức vụ mặc định không đổi: view vẫn liệt kê �
 
 test('1a-6: tên chức vụ hoặc tên viết tắt có "<" hoặc ">" bị 400 và không thêm chức vụ nào', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const label = await F.call('POST', '/positions', {
     who: 'admin',
     body: { label: 'Chức <b>vụ', copyFrom: 'nv', effectiveMonth: M, reason: 'Thử nhãn có thẻ' }
@@ -94,12 +94,12 @@ test('1a-6: tên chức vụ hoặc tên viết tắt có "<" hoặc ">" bị 40
     body: { label: 'Chức vụ ngắn', short: 'a>b', copyFrom: 'nv', effectiveMonth: M, reason: 'Thử viết tắt có thẻ' }
   });
   assert.equal(short.status, 400, JSON.stringify(short.data));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('1a-6: tên khối phụ cấp có "<" hoặc ">" bị 400 và không thêm khối nào', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const res = await F.call('POST', '/blocks', {
     who: 'admin',
     body: {
@@ -111,5 +111,5 @@ test('1a-6: tên khối phụ cấp có "<" hoặc ">" bị 400 và không thêm
     }
   });
   assert.equal(res.status, 400, JSON.stringify(res.data));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });

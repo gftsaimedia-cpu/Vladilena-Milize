@@ -234,7 +234,7 @@ function synthFindings(monthsBack) {
 
 /* ---------- đo ---------- */
 // Bọc db.prepare để bắt câu SQL và tham số thật mà hàm của store dùng (không chép lại SQL)
-function capture(fn) {
+async function capture(fn) {
   const calls = [];
   const original = db.prepare.bind(db);
   db.prepare = sql => {
@@ -251,7 +251,7 @@ function capture(fn) {
     });
   };
   try {
-    fn();
+    await fn();
   } finally {
     delete db.prepare;
   }
@@ -269,13 +269,13 @@ const planOf = calls =>
     .flat();
 const median = list => [...list].sort((a, b) => a - b)[Math.floor(list.length / 2)];
 const p95 = list => [...list].sort((a, b) => a - b)[Math.min(list.length - 1, Math.ceil(list.length * 0.95) - 1)];
-function time(fn) {
-  for (let i = 0; i < 2; i++) fn(); // khởi động
+async function time(fn) {
+  for (let i = 0; i < 2; i++) await fn(); // khởi động
   const samples = [];
   let result;
   for (let i = 0; i < RUNS; i++) {
     const t = performance.now();
-    result = fn();
+    result = await fn();
     samples.push(performance.now() - t);
   }
   return { median: median(samples), p95: p95(samples), result };
@@ -295,7 +295,7 @@ function buildCases() {
   const aud = (label, filter) => ({
     group: 'audit_log',
     label,
-    fn: () => store.audit.list({ sensitivities, ...filter }).length
+    fn: async () => (await store.audit.list({ sensitivities, ...filter })).length
   });
   const audCount = (label, filter) => ({
     group: 'audit_log',
@@ -331,25 +331,25 @@ function buildCases() {
     {
       group: 'payslips',
       label: 'danh sách 1 lần chạy, trang 1',
-      fn: () => store.payroll.listPayslips(run.id, {}).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, {})).rows.length
     },
     {
       group: 'payslips',
       label: 'status = error',
-      fn: () => store.payroll.listPayslips(run.id, { status: 'error' }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { status: 'error' })).rows.length
     },
     {
       group: 'payslips',
       label: 'status = pending',
-      fn: () => store.payroll.listPayslips(run.id, { status: 'pending' }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { status: 'pending' })).rows.length
     },
     {
       group: 'payslips',
       label: 'lọc loại nv: nạp cả lần chạy rồi lọc (cách cũ)',
-      fn: () => {
+      fn: async () => {
         const rows = [];
         for (let page = 1; ; page++) {
-          const got = store.payroll.listPayslips(run.id, { page, pageSize: 200 });
+          const got = await store.payroll.listPayslips(run.id, { page, pageSize: 200 });
           rows.push(...got.rows);
           if (!got.rows.length || rows.length >= got.total) break;
         }
@@ -359,53 +359,53 @@ function buildCases() {
     {
       group: 'payslips',
       label: 'lọc loại nv trong SQL (json_extract), trang 1',
-      fn: () => store.payroll.listPayslips(run.id, { type: 'nv' }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { type: 'nv' })).rows.length
     },
     {
       group: 'payslips',
       label: 'có cờ AI',
-      fn: () => store.payroll.listPayslips(run.id, { flagged: true }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { flagged: true })).rows.length
     },
     {
       group: 'payslips',
       label: 'tìm q (LIKE %q%)',
-      fn: () => store.payroll.listPayslips(run.id, { q: 'bulk_05' }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { q: 'bulk_05' })).rows.length
     },
     {
       group: 'payslips',
       label: 'trang 5 (OFFSET)',
-      fn: () => store.payroll.listPayslips(run.id, { page: 5, pageSize: 200 }).rows.length
+      fn: async () => (await store.payroll.listPayslips(run.id, { page: 5, pageSize: 200 })).rows.length
     },
-    { group: 'payslips', label: 'đếm theo trạng thái', fn: () => store.payroll.countPayslips(run.id).total },
+    { group: 'payslips', label: 'đếm theo trạng thái', fn: async () => (await store.payroll.countPayslips(run.id)).total },
     {
       group: 'payslips',
       label: 'phiếu chính thức của 1 người',
-      fn: () => (store.payroll.finalPayslip(user, '2026-10') ? 1 : 0)
+      fn: async () => (await store.payroll.finalPayslip(user, '2026-10') ? 1 : 0)
     },
-    { group: 'param_versions', label: 'resolvedRows(2026-10)', fn: () => store.params.resolvedRows('2026-10').length },
-    { group: 'param_versions', label: 'resolvedRows(2028-06)', fn: () => store.params.resolvedRows('2028-06').length },
+    { group: 'param_versions', label: 'resolvedRows(2026-10)', fn: async () => (await store.params.resolvedRows('2026-10')).length },
+    { group: 'param_versions', label: 'resolvedRows(2028-06)', fn: async () => (await store.params.resolvedRows('2028-06')).length },
     {
       group: 'param_versions',
       label: 'history(khoá)',
-      fn: () => store.params.history({ key: 'level.nv.2.base', limit: 200 }).length
+      fn: async () => (await store.params.history({ key: 'level.nv.2.base', limit: 200 })).length
     },
-    { group: 'param_versions', label: 'history(toàn bộ, 200)', fn: () => store.params.history({ limit: 200 }).length },
-    { group: 'param_versions', label: 'byBatch(1 lô)', fn: () => store.params.byBatch('batch-777').length },
+    { group: 'param_versions', label: 'history(toàn bộ, 200)', fn: async () => (await store.params.history({ limit: 200 })).length },
+    { group: 'param_versions', label: 'byBatch(1 lô)', fn: async () => (await store.params.byBatch('batch-777')).length },
     {
       group: 'ai_finding_actions',
       label: 'dismissedIds(tháng)',
-      fn: () => store.aiFindings.dismissedIds('2027-03').size
+      fn: async () => (await store.aiFindings.dismissedIds('2027-03')).size
     },
     {
       group: 'ai_finding_actions',
       label: 'isDismissed(1 cờ)',
-      fn: () => (store.aiFindings.isDismissed(`slip:isat-frequency:${user}:2027-03`) ? 1 : 0)
+      fn: async () => (await store.aiFindings.isDismissed(`slip:isat-frequency:${user}:2027-03`) ? 1 : 0)
     },
-    { group: 'ai_finding_actions', label: 'list(tháng)', fn: () => store.aiFindings.list({ month: '2027-03' }).length },
+    { group: 'ai_finding_actions', label: 'list(tháng)', fn: async () => (await store.aiFindings.list({ month: '2027-03' })).length },
     {
       group: 'ai_finding_actions',
       label: 'list(luật)',
-      fn: () => store.aiFindings.list({ ruleId: 'ot-above-team' }).length
+      fn: async () => (await store.aiFindings.list({ ruleId: 'ot-above-team' })).length
     }
   ];
 }

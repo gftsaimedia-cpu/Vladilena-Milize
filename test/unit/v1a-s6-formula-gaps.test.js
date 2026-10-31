@@ -19,7 +19,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 
 /* ---------- cạnh âm ---------- */
 
-test('V1A-S6-6: bảng bậc có cạnh âm ("dưới -5; từ -5 trở lên") qua kiểm, không báo FORMULA_TIER_GAP', () => {
+test('V1A-S6-6: bảng bậc có cạnh âm ("dưới -5; từ -5 trở lên") qua kiểm, không báo FORMULA_TIER_GAP', async () => {
   const res = Formula.parse('khoản A = bảng bậc theo giờ vượt ngưỡng: dưới -5 → 1; từ -5 trở lên → 0', {
     vocabulary: Vocab
   });
@@ -33,9 +33,9 @@ test('V1A-S6-6: bảng bậc có cạnh âm ("dưới -5; từ -5 trở lên") q
   // và tính đúng ở hai bên cạnh: "từ -5" gồm -5, "dưới -5" không gồm
   const values = Object.fromEntries(res.newParameters.map(p => [p.key, p.value]));
   const at = x => Formula.evaluate(res.tree, { variables: { gioVuotNguong: x }, parameters: values });
-  assert.equal(at(-6), 1);
-  assert.equal(at(-5), 0);
-  assert.equal(at(0), 0);
+  assert.equal(await at(-6), 1);
+  assert.equal(await at(-5), 0);
+  assert.equal(await at(0), 0);
 });
 
 test('V1A-S6-6 (đối chứng): bảng bậc cạnh dương cùng hình dạng vẫn qua kiểm', () => {

@@ -25,8 +25,8 @@ const override = async (month, user, values) => {
   const res = await F.call('PUT', '/slip-override', { body: { user, month, values, reason: REASON } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
 };
-const payslipOf = (month, user, who = user) => F.call('GET', `/periods/${month}/payslips/${user}`, { who });
-const estimateOf = (month, who) => F.call('GET', `/me/estimate?month=${month}`, { who });
+const payslipOf = async (month, user, who = user) => await F.call('GET', `/periods/${month}/payslips/${user}`, { who });
+const estimateOf = async (month, who) => await F.call('GET', `/me/estimate?month=${month}`, { who });
 // Dựng một kỳ đã chi trả, có số Admin sửa cho từng người trong `edits` ({ user: values })
 async function paidMonth(edits) {
   const month = monthOf();
@@ -39,18 +39,18 @@ async function paidMonth(edits) {
 }
 const dump = value => JSON.stringify(value);
 // Sửa cột của lần chạy trong DB TEST (trong bộ nhớ): trigger payroll_runs_guard_update chặn sửa engine_version và params_json, nên gỡ tạm rồi dựng lại đúng câu cũ
-function editRun(month, column, value) {
-  const trigger = store.db
+async function editRun(month, column, value) {
+  const trigger = await store.db
     .prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?")
     .get('payroll_runs_guard_update');
   assert.ok(trigger, 'trigger bảo vệ lần chạy có mặt');
-  store.db.exec('DROP TRIGGER payroll_runs_guard_update');
+  await store.db.exec('DROP TRIGGER payroll_runs_guard_update');
   try {
-    store.db
+    await store.db
       .prepare(`UPDATE payroll_runs SET ${column} = ? WHERE month = ? AND status != 'superseded'`)
       .run(value, month);
   } finally {
-    store.db.exec(trigger.sql);
+    await store.db.exec(trigger.sql);
   }
 }
 
@@ -58,7 +58,7 @@ function editRun(month, column, value) {
 test('Nhân sự thấy số chi trả khi Admin sửa chuyên cần +500.000: phiếu và /me/estimate không chứa số tự tính 8988461, 8358461, 7328364; tổng thu nhập 9.488.461, thực lĩnh 8.858.461', async () => {
   const M = await paidMonth({ qa_nv1: { attendance: 500000 } });
   // tự tính lại: tổng tự tính 8.988.461 + 500.000; không chịu thuế nên thực lĩnh 8.358.461 + 500.000
-  const orig = flow.payslipsOf(M).slips.qa_nv1;
+  const orig = (await flow.payslipsOf(M)).slips.qa_nv1;
   assert.equal(orig.gross, 8988461, 'điều kiện: số tự tính');
   assert.equal(orig.net, 8358461);
   assert.equal(orig.snapshot.net.taxable, 7328364);
@@ -105,7 +105,7 @@ test('Nhân sự thấy số chi trả khi Admin sửa chuyên cần +500.000: p
 /* ================= (2) OT của qa_nv2: tiền rải nhiều dòng thì bỏ dòng chi tiết ================= */
 test('Sửa otPay 4.242.424 của qa_nv2: nhân sự không còn thấy tienOt, tienLamLe, dòng OT và dòng ngày; tổng thu nhập trong trace là số chi trả', async () => {
   const M = await paidMonth({ qa_nv2: { otPay: 4242424 } });
-  const orig = flow.payslipsOf(M).slips.qa_nv2;
+  const orig = (await flow.payslipsOf(M)).slips.qa_nv2;
   assert.ok(
     orig.snapshot.trace.tienOt !== undefined && Array.isArray(orig.snapshot.rows),
     'điều kiện: bản chụp gốc có cả hai'
@@ -139,7 +139,7 @@ test('Sửa otPay 4.242.424 của qa_nv2: nhân sự không còn thấy tienOt, 
 
 test('Sửa bảo hiểm của qa_nv2: nhân sự không thấy bhxh, bhyt, bhtn (số tự tính); net.insurance bằng số sửa', async () => {
   const M = await paidMonth({ qa_nv2: { insurance: 600000 } });
-  const orig = flow.payslipsOf(M).slips.qa_nv2;
+  const orig = (await flow.payslipsOf(M)).slips.qa_nv2;
   assert.notEqual(orig.snapshot.net.insurance, 600000, 'điều kiện: số tự tính khác');
   const slip = (await payslipOf(M, 'qa_nv2')).data.payslip;
   const est = (await estimateOf(M, 'qa_nv2')).data;
@@ -164,7 +164,7 @@ test('Sửa bảo hiểm của qa_nv2: nhân sự không thấy bhxh, bhyt, bhtn
 /* ================= (3) Admin nhận bản gốc; phiếu không sửa giữ nguyên ================= */
 test('Admin (không selfView) vẫn nhận bản chụp gốc và computed; phiếu không có số sửa thì phản hồi cho nhân sự giữ nguyên bản chụp đã lưu', async () => {
   const M = await paidMonth({ qa_nv1: { attendance: 500000 } });
-  const stored = flow.payslipsOf(M).slips;
+  const stored = (await flow.payslipsOf(M)).slips;
   const admin = (await payslipOf(M, 'qa_nv1', 'admin')).data.payslip;
   const own = stored.qa_nv1;
   assert.equal(admin.gross, own.gross + 500000, 'Admin: hàng phiếu là số chi trả');
@@ -204,7 +204,7 @@ test('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản ch�
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
   assert.equal(Engine.ENGINE_VERSION, 'payroll-engine-14');
-  assert.equal(store.payroll.currentRun(M).engineVersion, Engine.ENGINE_VERSION);
+  assert.equal((await store.payroll.currentRun(M)).engineVersion, Engine.ENGINE_VERSION);
   const fresh = await F.call('GET', `/periods/${M}/verify`);
   assert.equal(fresh.status, 200, dump(fresh.data));
   assert.equal(fresh.data.engineVersion, Engine.ENGINE_VERSION);
@@ -212,7 +212,7 @@ test('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản ch�
   assert.deepEqual(fresh.data.mismatched, []);
   assert.equal(fresh.data.checked, 4);
   // dựng bản chụp cũ: sửa cột engine_version của lần chạy trong DB test
-  editRun(M, 'engine_version', 'payroll-engine-1');
+  await editRun(M, 'engine_version', 'payroll-engine-1');
   const old = await F.call('GET', `/periods/${M}/verify`);
   assert.equal(old.status, 200, dump(old.data));
   assert.equal(old.data.engineVersion, 'payroll-engine-1');
@@ -226,7 +226,7 @@ test('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản ch�
 // Dựng kỳ có số sửa (cần bộ tính thuế của lần chạy), gán params_json hỏng rồi gọi danh sách, chi tiết (Admin và nhân sự) và tổng kỳ
 async function brokenParamsStatuses(broken) {
   const M = await paidMonth({ qa_nv1: { attendance: 500000 } });
-  editRun(M, 'params_json', broken);
+  await editRun(M, 'params_json', broken);
   return {
     list: (await F.call('GET', `/periods/${M}/payslips?pageSize=200`)).status,
     admin: (await payslipOf(M, 'qa_nv1', 'admin')).status,

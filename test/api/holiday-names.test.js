@@ -11,8 +11,8 @@ const { F } = P;
 before(F.start);
 after(F.stop);
 
-const put = body => F.call('PUT', '/holidays', { who: 'admin', body });
-const get = who => F.call('GET', '/holidays', { who });
+const put = async body => await F.call('PUT', '/holidays', { who: 'admin', body });
+const get = async who => await F.call('GET', '/holidays', { who });
 // ngày lễ thử ở năm xa để không dính kỳ đã khoá của các test khác
 const D1 = '2031-01-01';
 const D2 = '2031-02-16';
@@ -26,7 +26,7 @@ test('tên ngày lễ: lưu cùng danh sách, GET trả names cho mọi người
   assert.equal(staff.status, 200);
   assert.deepEqual(staff.data.dates, [D1, D2]);
   assert.equal(staff.data.names[D1], 'Tết Dương lịch');
-  assert.deepEqual(F.store.getSetting('holidays', []), [D1, D2], 'danh sách ngày không đổi cách lưu');
+  assert.deepEqual(await F.store.getSetting('holidays', []), [D1, D2], 'danh sách ngày không đổi cách lưu');
 });
 
 test('tên ngày lễ: PUT không gửi names giữ tên của các ngày còn lại và bỏ tên của ngày bị bỏ khỏi danh sách', async () => {
@@ -43,9 +43,9 @@ test('tên ngày lễ: PUT không gửi names giữ tên của các ngày còn l
 test('tên ngày lễ: nhật ký holiday.set ghi tên trước và sau khi tên đổi', async () => {
   await P.setupMonth();
   assert.equal((await put({ dates: [D1], names: { [D1]: 'Tên một' } })).status, 200);
-  const n = P.auditRows('holiday.set').length;
+  const n = (await P.auditRows('holiday.set')).length;
   assert.equal((await put({ dates: [D1], names: { [D1]: 'Tên hai' } })).status, 200);
-  const rows = P.auditRows('holiday.set');
+  const rows = await P.auditRows('holiday.set');
   assert.equal(rows.length, n + 1);
   const last = rows[rows.length - 1];
   assert.match(JSON.stringify(last), /Tên một/);
@@ -55,7 +55,7 @@ test('tên ngày lễ: nhật ký holiday.set ghi tên trước và sau khi tên
 test('tên ngày lễ: tên cho ngày ngoài danh sách, quá dài, có < >, sai kiểu bị 400 và không ghi gì', async () => {
   await P.setupMonth();
   assert.equal((await put({ dates: [D1], names: { [D1]: 'Giữ' } })).status, 200);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const names of [
     { [D2]: 'Ngoài danh sách' },
     { [D1]: 'x'.repeat(config.HOLIDAY_NAME_MAX + 1) },
@@ -67,7 +67,7 @@ test('tên ngày lễ: tên cho ngày ngoài danh sách, quá dài, có < >, sai
     const res = await put({ dates: [D1], names });
     assert.equal(res.status, 400, JSON.stringify([names, res.data]));
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   assert.deepEqual((await get('admin')).data.names, { [D1]: 'Giữ' });
 });
 

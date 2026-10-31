@@ -70,14 +70,14 @@ function loadAdmin() {
 }
 const Phieu = loadAdmin();
 
-function render(snapshot, holidays = [HOLIDAY]) {
+async function render(snapshot, holidays = [HOLIDAY]) {
   const payslip = {
     username: STAFF.username,
     snapshot,
     staffTerms: { ...STAFF, name: 'QA Night 40', contract: 'official' }
   };
   const model = Phieu.modelOf({ payslip, run: null }, MONTH, { ...DEFAULTS }, {}, holidays);
-  return { page1: Phieu.daysSheet(model, {}), page2: Phieu.sheetOf(model, {}) };
+  return { page1: Phieu.daysSheet(model, {}), page2: await Phieu.sheetOf(model, {}) };
 }
 // Ô của dòng ngày `dm` (dd/mm) trên trang 1: mảng chuỗi HTML của 9 ô
 function cellsOf(page1, dm) {
@@ -90,14 +90,14 @@ const text = html =>
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-test('withDayFigures trả bản sao, không sửa bản chụp gốc; staffDayNotesOf liệt kê ca có giờ lễ', () => {
+test('withDayFigures trả bản sao, không sửa bản chụp gốc; staffDayNotesOf liệt kê ca có giờ lễ', async () => {
   const m = ownerMonth();
   const before = JSON.stringify(m);
-  const out = withDayFigures(m);
+  const out = await withDayFigures(m);
   assert.notEqual(out, m);
   assert.equal(JSON.stringify(m), before, 'bản chụp gốc không đổi');
   assert.equal(out.total, m.total);
-  assert.equal(withDayFigures(null), null);
+  assert.equal(await withDayFigures(null), null);
   assert.deepEqual(staffDayNotesOf(m.rows).holidayShifts, [
     { date: '2026-10-19', onHoliday: false },
     { date: HOLIDAY, onHoliday: true }
@@ -105,8 +105,8 @@ test('withDayFigures trả bản sao, không sửa bản chụp gốc; staffDayN
   assert.deepEqual(staffDayNotesOf(undefined), {});
 });
 
-test('trang 1: chip "Lễ" và chip ca xếp hai tầng (chip ca nằm trong .stk), không chung một dòng', () => {
-  const { page1 } = render(withDayFigures(ownerMonth()));
+test('trang 1: chip "Lễ" và chip ca xếp hai tầng (chip ca nằm trong .stk), không chung một dòng', async () => {
+  const { page1 } = await render(await withDayFigures(ownerMonth()));
   const ca = cellsOf(page1, '20/10')[1];
   assert.match(
     ca,
@@ -115,8 +115,8 @@ test('trang 1: chip "Lễ" và chip ca xếp hai tầng (chip ca nằm trong .st
   assert.doesNotMatch(cellsOf(page1, '19/10')[1], /stk/);
 });
 
-test('"Nghỉ lễ hưởng lương · ngày": không có danh sách lễ của lần tính thì chỉ liệt kê dòng ngày lễ, không có 19/10', () => {
+test('"Nghỉ lễ hưởng lương · ngày": không có danh sách lễ của lần tính thì chỉ liệt kê dòng ngày lễ, không có 19/10', async () => {
   const line = page2 => text(page2.match(/<tr[\s\S]*?<\/tr>/g).find(t => t.includes('Nghỉ lễ hưởng lương')));
-  assert.match(line(render(withDayFigures(ownerMonth()), null).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày 230\.769/);
-  assert.match(line(render(withDayFigures(ownerMonth())).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày/);
+  assert.match(line((await render(await withDayFigures(ownerMonth()), null)).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày 230\.769/);
+  assert.match(line((await render(await withDayFigures(ownerMonth()))).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày/);
 });

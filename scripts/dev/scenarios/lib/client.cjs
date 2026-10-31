@@ -12,11 +12,11 @@ function createClient({ app, auth, clock }) {
   const server = app.listen(0, '127.0.0.1');
   const ready = new Promise(resolve => server.once('listening', () => resolve((port = server.address().port))));
 
-  function cookieOf(username) {
+  async function cookieOf(username) {
     const now = clock.now();
     const known = cookies.get(username);
     if (known && now - known.at < REMINT_MS) return known.value;
-    const header = auth.cookieHeader(auth.createSession(username), 14 * 86400);
+    const header = auth.cookieHeader(await auth.createSession(username), 14 * 86400);
     const value = header.split(';')[0];
     cookies.set(username, { value, at: now });
     return value;
@@ -25,10 +25,10 @@ function createClient({ app, auth, clock }) {
   const forget = username => cookies.delete(username);
 
   function request(as, method, path, body) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       const data = body === undefined ? null : Buffer.from(JSON.stringify(body));
       const headers = { Accept: 'application/json' };
-      if (as) headers.Cookie = cookieOf(as);
+      if (as) headers.Cookie = await cookieOf(as);
       if (data) {
         headers['Content-Type'] = 'application/json';
         headers['Content-Length'] = data.length;

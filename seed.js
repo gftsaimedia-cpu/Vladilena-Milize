@@ -35,6 +35,7 @@ function sampleDays(type) {
   return days;
 }
 
+(async () => {
 let added = 0;
 for (const s of SAMPLE) {
   if (store.getStaff(s.username)) continue;
@@ -47,3 +48,7 @@ if (!store.getSetting('holidays', null)) {
   store.setSetting('holidays', [`${y}-01-01`, `${y}-04-30`, `${y}-05-01`, `${y}-09-02`, ...(y >= 2026 ? [`${y}-11-24`] : [])]);
 }
 console.log(`Đã thêm ${added} tài khoản mẫu cho tháng ${mk}. Mật khẩu nhân sự mẫu: ${PASSWORD}; admin: ${process.env.ADMIN_PASSWORD || 'admin123'}`);
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});

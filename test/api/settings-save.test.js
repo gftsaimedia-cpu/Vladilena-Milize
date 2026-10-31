@@ -40,10 +40,10 @@ const HISTORY = ONE.todo
 const startOf = month => (month < '2027' ? '2026-01-05' : `${month.slice(0, 4)}-01-01`);
 async function setup(month) {
   await S.seed(month, { startDate: startOf(month) });
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: startOf(month) });
-  for (const role of ['hr', 'manager', 'accounting', 'cb']) S.grant(ACCOUNT[role], role);
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: startOf(month) });
+  for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
 }
-const modeRows = () => S.auditRows().filter(r => /mode/i.test(r.action) || /params_mode/.test(r.entity_id || ''));
+const modeRows = async () => (await S.auditRows()).filter(r => /mode/i.test(r.action) || /params_mode/.test(r.entity_id || ''));
 
 test(
   'R1 save: lần ghi đầu bật params_mode = active (có nhật ký, có lý do); phản hồi đủ { paramsRev, paramsHash, saved }; lần ghi sau không bật lại',
@@ -51,10 +51,10 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    S.setMode('defaults-only');
+    await S.setMode('defaults-only');
     const [base, other] = KEYS;
     assert.equal((await S.version()).data.mode, 'defaults-only');
-    const revBefore = S.configRev();
+    const revBefore = await S.configRev();
     const [value] = await S.differing(base, M);
     const res = await S.saveChanges([{ key: base.key, value }], { month: M });
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
@@ -69,7 +69,7 @@ test(
       [base.was, 0],
       'trước đó là mặc định của mã (phiên bản 0)'
     );
-    assert.equal(store.params.getMode(), 'active');
+    assert.equal(await store.params.getMode(), 'active');
     const version = (await S.version()).data;
     assert.equal(version.mode, 'active');
     assert.ok(version.configRev > revBefore, `config_rev ${revBefore} → ${version.configRev}`);
@@ -78,17 +78,17 @@ test(
     assert.equal(view.paramsRev, res.data.paramsRev);
     assert.equal(view.paramsHash, res.data.paramsHash);
     assert.equal(view.mode, 'active');
-    const modes = modeRows();
+    const modes = await modeRows();
     assert.ok(modes.length >= 1, 'lần ghi đầu phải ghi nhật ký việc bật active');
-    assert.equal(modes.at(-1).actor, 'admin');
-    assert.ok(modes.at(-1).reason, 'nhật ký đổi chế độ có lý do');
-    assert.equal(S.auditRows('param.set').filter(r => r.entity_id === base.key).length, 1);
+    assert.equal((await modes.at(-1)).actor, 'admin');
+    assert.ok((await modes.at(-1)).reason, 'nhật ký đổi chế độ có lý do');
+    assert.equal((await S.auditRows('param.set')).filter(r => r.entity_id === base.key).length, 1);
     // lần ghi sau không bật lại chế độ
-    const modeCount = modeRows().length;
+    const modeCount = (await modeRows()).length;
     const [otherValue] = await S.differing(other, M);
     const again = await S.saveChanges([{ key: other.key, value: otherValue }], { month: M });
     assert.equal(again.status, 200, JSON.stringify(again.data).slice(0, 300));
-    assert.equal(modeRows().length, modeCount, 'không bật lại active');
+    assert.equal((await modeRows()).length, modeCount, 'không bật lại active');
     assert.ok(again.data.paramsRev > res.data.paramsRev);
   }
 );
@@ -102,8 +102,8 @@ test(
     const [base, other] = KEYS;
     const [v1] = await S.differing(base, M);
     const [v2] = await S.differing(other, M);
-    const rows0 = S.rowCount();
-    const audit0 = S.auditRows('param.set').length;
+    const rows0 = await S.rowCount();
+    const audit0 = (await S.auditRows('param.set')).length;
     const res = await S.saveChanges(
       [
         { key: base.key, value: v1 },
@@ -113,8 +113,8 @@ test(
     );
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
     assert.equal(res.data.saved.length, 2);
-    assert.equal(S.rowCount(), rows0 + 2);
-    const newRows = S.paramRows().slice(rows0);
+    assert.equal(await S.rowCount(), rows0 + 2);
+    const newRows = (await S.paramRows()).slice(rows0);
     assert.deepEqual(newRows.map(r => r.key).sort(), [base.key, other.key].sort());
     for (const row of newRows) {
       assert.equal(row.effective_month, M);
@@ -122,7 +122,7 @@ test(
       assert.equal(row.reason, 'Điều chỉnh hai khoản cùng lúc');
     }
     if ('batch_id' in newRows[0]) assert.equal(new Set(newRows.map(r => r.batch_id)).size, 1, 'cùng một batch_id');
-    const rows = S.auditRows('param.set').slice(audit0);
+    const rows = (await S.auditRows('param.set')).slice(audit0);
     assert.equal(rows.length, 2, 'đúng một dòng nhật ký cho mỗi khoá');
     assert.deepEqual(rows.map(r => r.entity_id).sort(), [base.key, other.key].sort());
     for (const r of rows) {
@@ -146,17 +146,17 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    S.setMode('defaults-only');
+    await S.setMode('defaults-only');
     const [base, other] = KEYS;
     const [v1] = await S.differing(base, M);
     const [v2] = await S.differing(other, M);
-    const before = { tables: F.snapshot(), configRev: S.configRev(), mode: store.params.getMode() };
+    const before = { tables: await F.snapshot(), configRev: await S.configRev(), mode: await store.params.getMode() };
     const original = audit.write;
     let calls = 0;
-    audit.write = (...args) => {
+    audit.write = async (...args) => {
       calls++;
       if (calls >= 2) throw new Error('lỗi ghi nhật ký giả để thử hoàn tác');
-      return original(...args);
+      return await original(...args);
     };
     let res;
     try {
@@ -172,9 +172,9 @@ test(
     }
     assert.ok(calls >= 2, `nhật ký phải được gọi trong giao dịch (gọi ${calls} lần)`);
     assert.ok(res.status >= 500, `lỗi nhật ký phải là lỗi máy chủ, không phải 200: ${res.status}`);
-    assert.deepEqual(F.changedTables(before.tables, F.snapshot()), [], 'không bảng nào đổi');
-    assert.equal(S.configRev(), before.configRev);
-    assert.equal(store.params.getMode(), before.mode);
+    assert.deepEqual(F.changedTables(before.tables, await F.snapshot()), [], 'không bảng nào đổi');
+    assert.equal(await S.configRev(), before.configRev);
+    assert.equal(await store.params.getMode(), before.mode);
   }
 );
 
@@ -188,17 +188,17 @@ test(
     const [v1] = await S.differing(base, M);
     const [v2] = await S.differing(other, M);
     const rev = await S.paramsRevOf(M);
-    const rows0 = S.rowCount();
-    const send = changes => S.save({ changes, effectiveMonth: M, reason: S.REASON, expectedRev: rev });
-    const [a, b] = await Promise.all([send([{ key: base.key, value: v1 }]), send([{ key: other.key, value: v2 }])]);
+    const rows0 = await S.rowCount();
+    const send = async changes => await S.save({ changes, effectiveMonth: M, reason: S.REASON, expectedRev: rev });
+    const [a, b] = await Promise.all([await send([{ key: base.key, value: v1 }]), await send([{ key: other.key, value: v2 }])]);
     assert.deepEqual([a.status, b.status].sort(), [200, 409], `${JSON.stringify([a.data, b.data]).slice(0, 400)}`);
     const winner = a.status === 200 ? a : b;
     const loser = a.status === 200 ? b : a;
     assert.equal(loser.data.code, 'PARAMS_STALE');
     assert.equal(loser.data.paramsRev, winner.data.paramsRev, 'bên thua thấy paramsRev của bên thắng');
-    assert.equal(S.rowCount(), rows0 + winner.data.saved.length, 'chỉ dòng của bên thắng');
+    assert.equal(await S.rowCount(), rows0 + winner.data.saved.length, 'chỉ dòng của bên thắng');
     assert.ok(
-      S.paramRows()
+      (await S.paramRows())
         .slice(rows0)
         .every(r => winner.data.saved.some(s => s.key === r.key))
     );
@@ -219,12 +219,12 @@ test(
     const base = KEYS[0];
     const [v1, v2] = await S.differing(base, M, 2);
     const rev = await S.paramsRevOf(M);
-    const rows0 = S.rowCount();
-    const send = value =>
-      S.save({ changes: [{ key: base.key, value }], effectiveMonth: M, reason: S.REASON, expectedRev: rev });
-    const [a, b] = await Promise.all([send(v1), send(v2)]);
+    const rows0 = await S.rowCount();
+    const send = async value =>
+      await S.save({ changes: [{ key: base.key, value }], effectiveMonth: M, reason: S.REASON, expectedRev: rev });
+    const [a, b] = await Promise.all([await send(v1), await send(v2)]);
     assert.deepEqual([a.status, b.status].sort(), [200, 409]);
-    const stored = S.paramRows().slice(rows0);
+    const stored = (await S.paramRows()).slice(rows0);
     assert.equal(stored.length, 1);
     assert.equal(JSON.parse(stored[0].value_json), a.status === 200 ? v1 : v2);
   }
@@ -237,7 +237,7 @@ test(
     const A = monthOf();
     await S.setupMonth(A, 'calculated'); // trước A còn tháng mở nên tháng mặc định có thể nhỏ hơn A: so với earliestOpenMonth()
     const base = KEYS[0];
-    const earliest = require('../../lib/params/save').earliestOpenMonth();
+    const earliest = await require('../../lib/params/save').earliestOpenMonth();
     const [value] = await S.differing(base, earliest);
     const rev = await S.paramsRevOf(earliest);
     const res = await S.save({ changes: [{ key: base.key, value }], reason: S.REASON, expectedRev: rev });
@@ -254,12 +254,12 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const found = S.backedKey();
-    const before = F.snapshot();
+    const found = await S.backedKey();
+    const before = await F.snapshot();
     const res = await S.saveChanges([{ key: found.key, value: found.value }], { month: M });
     assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 300));
     assert.ok(JSON.stringify(res.data).includes('PARAM_BACKED_BY_SETTINGS'));
-    assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+    assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   }
 );
 
@@ -272,13 +272,13 @@ test(
     const base = KEYS[0];
     const [value] = await S.differing(base, M);
     assert.equal((await S.saveChanges([{ key: base.key, value }], { month: M })).status, 200);
-    const before = { tables: F.snapshot(), configRev: S.configRev() };
+    const before = { tables: await F.snapshot(), configRev: await S.configRev() };
     const same = await S.saveChanges([{ key: base.key, value }], { month: M });
     assert.equal(same.status, 400);
     assert.equal(same.data.code, 'PARAM_NO_CHANGES');
     assert.deepEqual(same.data.skipped, [{ key: base.key, reason: 'UNCHANGED' }]);
-    assert.deepEqual(F.changedTables(before.tables, F.snapshot()), []);
-    assert.equal(S.configRev(), before.configRev);
+    assert.deepEqual(F.changedTables(before.tables, await F.snapshot()), []);
+    assert.equal(await S.configRev(), before.configRev);
   }
 );
 
@@ -288,7 +288,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const soft = S.softFloorKey();
+    const soft = await S.softFloorKey();
     const res = await S.saveChanges([{ key: soft.key, value: soft.value }], {
       month: M,
       extra: { basis: 'Căn cứ thử cho khoá pháp lý', acknowledge: ['PARAM_FLOOR_ACK_REQUIRED'] }
@@ -308,7 +308,7 @@ test(
     const first = await S.saveChanges([{ key: base.key, value: v1 }], { month: M });
     assert.equal(first.status, 200);
     assert.equal((await S.saveChanges([{ key: base.key, value: v2 }], { month: M })).status, 200);
-    const rows0 = S.rowCount();
+    const rows0 = await S.rowCount();
     const res = await F.call('POST', '/settings/params/revert', {
       body: {
         key: base.key,
@@ -319,9 +319,9 @@ test(
       }
     });
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-    assert.equal(S.rowCount(), rows0 + 1, 'chỉ thêm một dòng');
+    assert.equal(await S.rowCount(), rows0 + 1, 'chỉ thêm một dòng');
     assert.equal(S.valueOfKey((await S.paramsView(M)).data, base.key), v1);
-    const kept = S.paramRows().find(r => r.id === first.data.saved[0].version);
+    const kept = (await S.paramRows()).find(r => r.id === first.data.saved[0].version);
     assert.equal(JSON.parse(kept.value_json), v1, 'dòng cũ nguyên vẹn');
   }
 );
@@ -332,7 +332,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const soft = S.softFloorKey(1);
+    const soft = await S.softFloorKey(1);
     const res = await S.saveChanges([{ key: soft.key, value: soft.value }], {
       month: M,
       extra: {
@@ -342,7 +342,7 @@ test(
     });
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
     assert.equal(res.data.saved[0].value, soft.value);
-    const row = S.auditRows('param.set').find(r => r.entity_id === soft.key);
+    const row = (await S.auditRows('param.set')).find(r => r.entity_id === soft.key);
     assert.ok(row, 'có dòng nhật ký');
     assert.ok(
       JSON.stringify(row).includes('PARAM_FLOOR_ACK_REQUIRED') || row.reason,
@@ -357,7 +357,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const acc = S.accountingKey();
+    const acc = await S.accountingKey();
     const admin = KEYS[0];
     const byAccounting = await S.saveChanges([{ key: acc.key, value: acc.value }], {
       month: M,
@@ -378,7 +378,7 @@ test(
     );
     assert.equal(mixed.status, 200, JSON.stringify(mixed.data).slice(0, 300));
     assert.deepEqual(
-      S.auditRows('param.set')
+      (await S.auditRows('param.set'))
         .slice(-4)
         .map(r => r.actor),
       ['qa_ctv1', 'qa_nv1', 'admin', 'admin']

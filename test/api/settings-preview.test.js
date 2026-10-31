@@ -27,14 +27,14 @@ const ACCOUNT = {
 };
 async function setup(month) {
   await S.seed(month);
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-  for (const role of ['hr', 'manager', 'accounting', 'cb']) S.grant(ACCOUNT[role], role);
-  S.setMode('defaults-only');
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
+  await S.setMode('defaults-only');
 }
-const state = () => ({ tables: F.snapshot(), configRev: S.configRev(), mode: store.params.getMode() });
+const state = async () => ({ tables: await F.snapshot(), configRev: await S.configRev(), mode: await store.params.getMode() });
 const MAX_PEOPLE = () => S.DEFAULTS['system.params.previewMaxPeople'] ?? 50;
 // Thực lĩnh và tổng thu nhập của một người theo bộ máy với một bộ tham số: chuẩn để so với before/after của xem trước
-const engineNet = (username, month, params) => Engine.computeMonth(flow.legacyInput(username, month), params).m.net;
+const engineNet = async (username, month, params) => Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
 const body = (changes, month) => ({ changes, effectiveMonth: month });
 const codesOf = data => (data.errors || []).map(e => e.code);
 
@@ -44,7 +44,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const money = S.wiredMoneyKey();
+    const money = await S.wiredMoneyKey();
     const res = await S.preview(body([{ key: money.key, value: money.value }], M));
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
     assert.equal(res.data.ok, true, JSON.stringify(res.data.errors));
@@ -59,8 +59,8 @@ test(
     const row = impact.people.find(p => p.username === money.user);
     assert.ok(row, 'người dùng khoá đó có trong danh sách');
     assert.equal(typeof row.name, 'string');
-    const before = engineNet(money.user, M, flow.paramsOf(M));
-    const after = engineNet(money.user, M, { ...flow.paramsOf(M), [money.key]: money.value });
+    const before = await engineNet(money.user, M, await flow.paramsOf(M));
+    const after = await engineNet(money.user, M, { ...await flow.paramsOf(M), [money.key]: money.value });
     assert.notEqual(after.net, before.net, 'điều kiện của bài: đổi khoá làm đổi thực lĩnh');
     // before/after/diff là đối tượng { gross, net }
     assert.deepEqual(row.before, { gross: before.gross, net: before.net });
@@ -85,23 +85,23 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const money = S.wiredMoneyKey();
-    const before = state();
+    const money = await S.wiredMoneyKey();
+    const before = await state();
     for (const mode of ['defaults-only', 'active']) {
-      S.setMode(mode);
-      const snapshot = state();
+      await S.setMode(mode);
+      const snapshot = await state();
       const ok = await S.preview(body([{ key: money.key, value: money.value }], M));
       assert.equal(ok.status, 200);
       assert.equal(ok.data.ok, true, mode);
       const bad = await S.preview(body([{ key: 'khong.co.khoa', value: 1 }], M));
       assert.equal(bad.status, 200);
-      const after = state();
+      const after = await state();
       assert.deepEqual(F.changedTables(snapshot.tables, after.tables), [], `${mode}: không bảng nào đổi`);
       assert.equal(after.mode, mode);
       assert.equal(after.configRev, snapshot.configRev);
     }
-    assert.equal(S.rowCount(), 0, 'không có dòng param_versions');
-    assert.equal(S.auditRows().length, before.tables.audit_log.rows, 'nhật ký không thêm dòng');
+    assert.equal(await S.rowCount(), 0, 'không có dòng param_versions');
+    assert.equal((await S.auditRows()).length, before.tables.audit_log.rows, 'nhật ký không thêm dòng');
   }
 );
 
@@ -111,7 +111,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const unknown = await S.preview(body([{ key: 'khong.co.khoa', value: 1 }], M));
     assert.equal(unknown.status, 200);
     assert.equal(unknown.data.ok, false);
@@ -138,7 +138,7 @@ test(
       codesOf(many.data).includes('PARAM_UNKNOWN_KEY') && codesOf(many.data).includes('PARAM_INVALID_VALUE'),
       JSON.stringify(many.data.errors)
     );
-    const locked = S.lockedKey();
+    const locked = await S.lockedKey();
     if (locked) {
       const res = await S.preview(body([{ key: locked.key, value: locked.value }], M));
       assert.equal(res.status, 200);
@@ -148,7 +148,7 @@ test(
         JSON.stringify(res.data.errors)
       );
     }
-    const notWired = S.notWiredKey();
+    const notWired = await S.notWiredKey();
     if (notWired) {
       const res = await S.preview(body([{ key: notWired.key, value: notWired.value }], M));
       assert.equal(res.status, 200);
@@ -165,8 +165,8 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const hard = S.hardFloorKey();
-    const soft = S.softFloorKey();
+    const hard = await S.hardFloorKey();
+    const soft = await S.softFloorKey();
     const h = await S.preview(body([{ key: hard.key, value: hard.value }], M));
     assert.equal(h.status, 200);
     assert.equal(h.data.ok, true, JSON.stringify(h.data.errors));
@@ -195,8 +195,8 @@ test(
   S.READY,
   async () => {
     await S.setupMonth('2026-10', 'calculated');
-    S.setMode('defaults-only');
-    const base = S.adminKey();
+    await S.setMode('defaults-only');
+    const base = await S.adminKey();
     const res = await S.preview(body([{ key: base.key, value: base.value }], '2026-10'));
     assert.equal(res.status, 200);
     assert.equal(res.data.ok, true, JSON.stringify(res.data.errors));
@@ -228,7 +228,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const request = body([{ key: base.key, value: base.value }], M);
     for (const role of ['admin', 'cb', 'accounting']) {
       const res = await S.preview(request, ACCOUNT[role]);
@@ -241,7 +241,7 @@ test(
       assert.equal(JSON.stringify(res.data).includes('qa_'), false, `${role}: không lộ tên người`);
     }
     assert.equal((await S.preview(request, null)).status, 401);
-    const acc = S.accountingKey();
+    const acc = await S.accountingKey();
     if (acc) {
       const cb = await S.preview(body([{ key: acc.key, value: acc.value }], M), ACCOUNT.cb);
       assert.equal(cb.status, 200);
@@ -261,7 +261,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const money = S.wiredMoneyKey();
+    const money = await S.wiredMoneyKey();
     const cap = MAX_PEOPLE();
     const extra = cap + 8;
     const PunchRules = require('../../public/punch.js');
@@ -269,7 +269,7 @@ test(
     const monday = S.firstDow(M, 1);
     for (let i = 0; i < extra; i++) {
       const name = `qa_ext${String(i).padStart(3, '0')}`;
-      F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+      await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
       const days = { [monday]: { kind: 'work', in: tin, out: tout, preset: 'n1' } };
       const put = await F.call('PUT', '/sheet', { who: name, body: { month: M, days } });
       assert.equal(put.status, 200, JSON.stringify(put.data));
@@ -294,7 +294,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     const res = await S.preview(body([{ key: base.key, value: base.value }], M));
     assert.equal(typeof res.data.previewToken, 'string');
     assert.ok(res.data.previewToken.length > 20);

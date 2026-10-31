@@ -96,10 +96,10 @@ function loadPhieu() {
   return Admin.Phieu;
 }
 const Phieu = loadPhieu();
-function render(snapshot, holidays = [HOLIDAY]) {
+async function render(snapshot, holidays = [HOLIDAY]) {
   const payslip = { username: STAFF.username, snapshot, staffTerms: { ...STAFF, name: 'QA', contract: 'official' } };
   const model = Phieu.modelOf({ payslip, run: null }, MONTH, { ...DEFAULTS }, {}, holidays);
-  return { page1: Phieu.daysSheet(model, {}), page2: Phieu.sheetOf(model, {}) };
+  return { page1: Phieu.daysSheet(model, {}), page2: await Phieu.sheetOf(model, {}) };
 }
 const text = html =>
   html
@@ -111,9 +111,9 @@ function rowCells(page1, dm) {
   assert.ok(tr, `có dòng ${dm}`);
   return tr.match(/<td[\s\S]*?<\/td>/g);
 }
-test('ngày lễ khai đi làm mà vắng (dòng noshow): trang 1 là "Vắng", "Nghỉ lễ hưởng lương" không ghi ngày đó, paidDays.holiday 0', () => {
+test('ngày lễ khai đi làm mà vắng (dòng noshow): trang 1 là "Vắng", "Nghỉ lễ hưởng lương" không ghi ngày đó, paidDays.holiday 0', async () => {
   const rows = [{ date: HOLIDAY, kind: 'noshow', hours: 0, daily: DAILY, hourly: HOURLY, total: 0, paidOff: false }];
-  const { page1, page2 } = render(withDayFigures(monthWith(rows)));
+  const { page1, page2 } = await render(await withDayFigures(monthWith(rows)));
   assert.match(text(rowCells(page1, '20/10')[1]), /Vắng/);
   const line = text(page2.match(/<tr[\s\S]*?<\/tr>/g).find(t => t.includes('Nghỉ lễ hưởng lương')));
   assert.doesNotMatch(line, /20\/10/);

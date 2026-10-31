@@ -43,8 +43,8 @@ test('phiếu đã tính: dòng ngày kèm cột tiền, bản chụp lưu trong
   const res = await F.call('GET', `/periods/${M}/payslips/qa_nv1`, { who: 'admin' });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   checkRows(res.data.payslip.snapshot.rows, 'payslip');
-  const run = store.payroll.currentRun(M);
-  const stored = store.payroll.getPayslip(run.id, 'qa_nv1', { snapshot: true }).snapshot;
+  const run = await store.payroll.currentRun(M);
+  const stored = (await store.payroll.getPayslip(run.id, 'qa_nv1', { snapshot: true })).snapshot;
   assert.ok(
     stored.rows.every(r => !Object.hasOwn(r, 'cot')),
     'bản chụp lưu không có trường hiển thị'

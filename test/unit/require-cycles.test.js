@@ -54,11 +54,11 @@ function buildGraph(files, readSource = rel => fs.readFileSync(path.join(ROOT, r
   return graph;
 }
 // Mọi vòng đơn giản tìm được bằng DFS, mỗi vòng ghi dạng a → b → a (xoay để file nhỏ nhất đứng đầu, không trùng lặp)
-function findCycles(graph) {
+async function findCycles(graph) {
   const cycles = new Map();
   const state = new Map(); // 1 đang duyệt, 2 xong
   const stack = [];
-  const visit = node => {
+  const visit = async node => {
     state.set(node, 1);
     stack.push(node);
     for (const next of graph.get(node) || []) {
@@ -67,21 +67,21 @@ function findCycles(graph) {
         const start = cycle.indexOf([...cycle].sort()[0]);
         const rotated = [...cycle.slice(start), ...cycle.slice(0, start)];
         cycles.set(rotated.join(' → '), [...rotated, rotated[0]].join(' → '));
-      } else if (!state.get(next)) visit(next);
+      } else if (!state.get(next)) await visit(next);
     }
     stack.pop();
     state.set(node, 2);
   };
-  for (const node of graph.keys()) if (!state.get(node)) visit(node);
+  for (const node of graph.keys()) if (!state.get(node)) await visit(node);
   return [...cycles.values()];
 }
 
 const FILES = ['server.js', ...walk('lib')];
 const GRAPH = buildGraph(FILES);
 
-test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể cả require trong hàm)', () => {
+test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể cả require trong hàm)', async () => {
   assert.ok(FILES.length > 20, 'quét thiếu file?');
-  assert.deepEqual(findCycles(GRAPH), []);
+  assert.deepEqual(await findCycles(GRAPH), []);
 });
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
@@ -92,18 +92,18 @@ test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét
   assert.ok(edges >= 30, `chỉ thấy ${edges} cạnh`);
 });
 
-test('công cụ tìm vòng bắt được vòng a → b → c → a và vòng tự trỏ, không báo nhầm đồ thị không vòng', () => {
+test('công cụ tìm vòng bắt được vòng a → b → c → a và vòng tự trỏ, không báo nhầm đồ thị không vòng', async () => {
   const g = (...pairs) => new Map(pairs.map(([k, v]) => [k, new Set(v)]));
-  assert.deepEqual(findCycles(g(['a', ['b']], ['b', ['c']], ['c', ['a']])), ['a → b → c → a']);
-  assert.deepEqual(findCycles(g(['a', ['a']])), ['a → a']);
-  assert.deepEqual(findCycles(g(['a', ['b', 'c']], ['b', ['c']], ['c', []])), []);
+  assert.deepEqual(await findCycles(g(['a', ['b']], ['b', ['c']], ['c', ['a']])), ['a → b → c → a']);
+  assert.deepEqual(await findCycles(g(['a', ['a']])), ['a → a']);
+  assert.deepEqual(await findCycles(g(['a', ['b', 'c']], ['b', ['c']], ['c', []])), []);
   const fake = { 'x.js': "const y = require('./y');", 'y.js': "function f() { return require('./x'); }" };
   const graph = buildGraph(
     ['x.js', 'y.js'],
     rel => fake[rel],
     (from, spec) => spec.slice(2) + '.js'
   );
-  assert.equal(findCycles(graph).length, 1, 'require trong hàm cũng là cạnh');
+  assert.equal((await findCycles(graph)).length, 1, 'require trong hàm cũng là cạnh');
 });
 
 const dirOf = rel => path.posix.dirname(rel);
@@ -114,15 +114,15 @@ function violations(rule) {
   return out;
 }
 
-test('lib/domain/* không require lib/routes/* (luật 1 của mục 4.5)', () => {
+test('lib/domain/* không require lib/routes/* (luật 1 của mục 4.5)', async () => {
   assert.deepEqual(
-    violations((from, to) => inDir(from, 'lib/domain') && inDir(to, 'lib/routes')),
+    await violations((from, to) => inDir(from, 'lib/domain') && inDir(to, 'lib/routes')),
     []
   );
 });
 
-test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được require các file miền (luật 2)', () => {
-  const bad = violations(
+test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được require các file miền (luật 2)', async () => {
+  const bad = await violations(
     (from, to) =>
       inDir(from, 'lib/routes') &&
       inDir(to, 'lib/routes') &&
@@ -132,17 +132,17 @@ test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được req
   assert.deepEqual(bad, []);
 });
 
-test('lib/http.js, lib/request-rules.js không require lib/domain/* hay lib/routes/* (luật 3)', () => {
+test('lib/http.js, lib/request-rules.js không require lib/domain/* hay lib/routes/* (luật 3)', async () => {
   const leaves = ['lib/http.js', 'lib/request-rules.js'];
   assert.deepEqual(
-    violations((from, to) => leaves.includes(from) && (inDir(to, 'lib/domain') || inDir(to, 'lib/routes'))),
+    await violations((from, to) => leaves.includes(from) && (inDir(to, 'lib/domain') || inDir(to, 'lib/routes'))),
     []
   );
 });
 
-test('lib/** không require server.js (máy chủ là gốc của đồ thị)', () => {
+test('lib/** không require server.js (máy chủ là gốc của đồ thị)', async () => {
   assert.deepEqual(
-    violations((from, to) => from !== 'server.js' && to === 'server.js'),
+    await violations((from, to) => from !== 'server.js' && to === 'server.js'),
     []
   );
 });

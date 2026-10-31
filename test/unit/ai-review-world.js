@@ -37,17 +37,17 @@ const vn = (date, hm, plus = 0) => {
 const punchStaff = code => ({ shiftCode: code, sched: [1, 2, 3, 4, 5, 6] });
 
 // Lượt đã đóng dựng bằng PunchRules.buildDay như máy chủ. outPlus = 1 khi ra sau 0 giờ (ca đêm).
-function closedSession(username, code, date, inHm, outHm, outPlus = 0) {
-  const planned = P.planShift(punchStaff(code), date);
-  const built = P.buildDay(punchStaff(code), vn(date, inHm), vn(date, outHm, outPlus), 'admin', {
+async function closedSession(username, code, date, inHm, outHm, outPlus = 0) {
+  const planned = P.planShift(await punchStaff(code), date);
+  const built = P.buildDay(await punchStaff(code), vn(date, inHm), vn(date, outHm, outPlus), 'admin', {
     plannedShift: planned,
     approveIncomplete: true
   });
   return { username, date: built.date, state: 'closed', entry: built.entry };
 }
-function openSessionFor(username, code, date, inHm) {
-  const planned = P.planShift(punchStaff(code), date);
-  const built = P.openDay(punchStaff(code), vn(date, inHm), planned);
+async function openSessionFor(username, code, date, inHm) {
+  const planned = P.planShift(await punchStaff(code), date);
+  const built = P.openDay(await punchStaff(code), vn(date, inHm), planned);
   return { username, date: built.date, state: 'open', entry: built.entry };
 }
 

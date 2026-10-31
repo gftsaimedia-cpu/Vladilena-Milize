@@ -55,7 +55,7 @@ test('pay-entry-lifecycle: lập khoản (pending, rev 1) → sửa khi pending 
   assert.equal(await E.statusOf(e.id, M), 'void');
   const del = await F.call('DELETE', `/pay-entries/${e.id}`);
   assert.ok([403, 404, 405].includes(del.status), `không có đường xoá khoản (nhận ${del.status})`);
-  const rows = E.auditRows('entry.%');
+  const rows = await E.auditRows('entry.%');
   for (const action of ['entry.create', 'entry.update', 'entry.decide', 'entry.void'])
     assert.ok(
       rows.some(r => r.action === action),
@@ -97,7 +97,7 @@ test('pay-entry-lifecycle: GET trả { month, periodStatus, requireApproval, ent
 
 test('pay-entry-lifecycle: đầu vào sai là 400 (người lạ là 404) và không ghi gì: số tiền 0, âm, lẻ, chuỗi số, hướng lạ, nhãn dài, lý do quá dài, tháng sai, cờ thuế trên khoản trừ, người không được trả lương', async () => {
   const M = await E.setup();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const bad = [
     [{ amount: 0 }, 'số tiền 0'],
     [{ amount: -5 }, 'số tiền âm'],
@@ -120,7 +120,7 @@ test('pay-entry-lifecycle: đầu vào sai là 400 (người lạ là 404) và k
     assert.ok(res.data.code, `${what}: có mã lỗi`);
   }
   assert.equal((await E.create(M, { username: 'khongcoai' })).status, 404, 'người lạ');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], '400 và 404 không ghi gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], '400 và 404 không ghi gì');
 });
 
 test('pay-entry-lifecycle: POST /api/pay-entries/bulk nhận { month, entries } và { usernames, month, … }, trả { count, entries }; một khoản sai làm cả lô bị từ chối (400) và không lưu khoản nào', async () => {
@@ -144,13 +144,13 @@ test('pay-entry-lifecycle: POST /api/pay-entries/bulk nhận { month, entries } 
   assert.equal(shared.status, 200, JSON.stringify(shared.data));
   assert.equal(shared.data.count, 2);
   assert.equal((await E.list(M)).data.entries.length, 4);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const mixed = await F.call('POST', '/pay-entries/bulk', {
     body: { month: M, entries: [E.entry(M, { username: 'qa_ctv1' }), E.entry(M, { amount: -1 })] }
   });
   assert.equal(mixed.status, 400, JSON.stringify(mixed.data));
   assert.match(mixed.data.error, /Dòng 2/, 'nêu dòng sai');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'cả lô không lưu');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'cả lô không lưu');
   const both = await F.call('POST', '/pay-entries/bulk', {
     body: { month: M, entries: [E.entry(M)], usernames: ['qa_nv1'] }
   });
@@ -159,7 +159,7 @@ test('pay-entry-lifecycle: POST /api/pay-entries/bulk nhận { month, entries } 
 
 test('pay-entry-engine: khoản cộng 500.000 chịu thuế (qa_nv2) và khoản trừ 300.000 sau thuế (qa_nv1) đã duyệt vào phiếu đúng đuôi luật: cộng đổi tổng thu nhập, thuế, thực lĩnh; trừ chỉ đổi thực lĩnh; người khác không đổi một đồng; bản chụp có m.entries', async () => {
   const M = await E.setup();
-  const legacy = flow.expectedFor(M);
+  const legacy = await flow.expectedFor(M);
   const add = await E.mustCreate(M, { username: 'qa_nv2', direction: 'add', amount: 500000 });
   const minus = await E.mustCreate(M, {
     username: 'qa_nv1',
@@ -188,16 +188,16 @@ test('pay-entry-engine: khoản cộng 500.000 chịu thuế (qa_nv2) và khoả
 
 test('pay-entry-engine: cờ miễn thuế CHƯA Kế toán xác nhận không có hiệu lực (khoản 20.000.000 đề nghị "miễn toàn bộ" vẫn chịu thuế); Kế toán xác nhận (confirm-flags) từ tháng đó thì được miễn; C&B không xác nhận được (403)', async () => {
   const M1 = await E.setup();
-  const legacy1 = flow.expectedFor(M1);
+  const legacy1 = await flow.expectedFor(M1);
   const e1 = await E.mustCreate(M1, { amount: 20000000, taxMode: 'full' });
   await E.mustApprove(e1);
   const s1 = await E.slipsOf(M1);
   E.expectSlip(s1.qa_nv2, legacy1.qa_nv2.m, { addTaxable: 20000000 }, 'chưa xác nhận');
   // tháng khác: cùng khoản, có xác nhận của Kế toán
   const M2 = await E.setup();
-  const legacy2 = flow.expectedFor(M2);
-  E.grant('qa_ctv1', 'accounting');
-  E.grant('qa_nv1', 'cb');
+  const legacy2 = await flow.expectedFor(M2);
+  await E.grant('qa_ctv1', 'accounting');
+  await E.grant('qa_nv1', 'cb');
   const e2 = await E.mustCreate(M2, { amount: 20000000, taxMode: 'full' });
   const denied = await F.call('POST', `/pay-entries/${e2.id}/confirm-flags`, { who: 'qa_nv1', body: { rev: e2.rev } });
   assert.equal(denied.status, 403, 'C&B không có config.legal');
@@ -216,7 +216,7 @@ test('pay-entry-engine: cờ miễn thuế CHƯA Kế toán xác nhận không c
 
 test('pay-entry-engine: khoản chờ duyệt, bị từ chối, đã huỷ và khoản của THÁNG KHÁC không đổi một đồng nào của tháng này', async () => {
   const M = await E.setup();
-  const legacy = flow.expectedFor(M);
+  const legacy = await flow.expectedFor(M);
   await E.mustCreate(M, { username: 'qa_nv2', amount: 111000 }); // pending
   const rejected = await E.mustCreate(M, { username: 'qa_nv1', amount: 222000 });
   await E.decide(rejected.id, 'rejected', { rev: 1, note: 'Chưa đủ căn cứ' });
@@ -225,7 +225,7 @@ test('pay-entry-engine: khoản chờ duyệt, bị từ chối, đã huỷ và 
   await F.call('POST', `/pay-entries/${voided.id}/void`, {
     body: { rev: approved.rev, reason: 'Nhập nhầm người nhận' }
   });
-  const other = E.setupMonth.pool(); // một tháng khác (nhỏ hơn M): khoản duyệt ở đó không được chạm tháng M
+  const other = await E.setupMonth.pool(); // một tháng khác (nhỏ hơn M): khoản duyệt ở đó không được chạm tháng M
   const elsewhere = await E.mustCreate(other, { username: 'qa_nv2', amount: 999000 });
   await E.mustApprove(elsewhere);
   const slips = await E.slipsOf(M);
@@ -285,7 +285,7 @@ test('pay-entry-locked-month: khoản đã lập duyệt, sửa, huỷ khi kỳ 
 
 test('pay-entry-self-decision: người lập tự duyệt khoản do mình lập vẫn được, kèm cảnh báo SELF_DECISION_FORBIDDEN; Kế toán (không có payroll.approve) và nhân sự không duyệt được (403); người khác có payroll.approve duyệt được', async () => {
   const M = await E.setup();
-  E.grant('qa_ctv1', 'accounting');
+  await E.grant('qa_ctv1', 'accounting');
   const e = await E.mustCreate(M);
   assert.equal(
     (await E.decide(e.id, 'approved', { who: 'qa_ctv1', rev: e.rev })).status,
@@ -305,7 +305,7 @@ test('pay-entry-self-decision: người lập tự duyệt khoản do mình lậ
 
 test('pay-entry-self-decision: lập, sửa, huỷ khoản về CHÍNH MÌNH vẫn lưu, kèm cảnh báo SELF_DECISION_FORBIDDEN, kể cả C&B có salary.write', async () => {
   const M = await E.setup();
-  E.grant('qa_nv2', 'cb'); // C&B cũng là một nhân sự được trả lương
+  await E.grant('qa_nv2', 'cb'); // C&B cũng là một nhân sự được trả lương
   const selfWarned = res => (res.data.warnings || []).some(w => w.code === 'SELF_DECISION_FORBIDDEN');
   const own = await E.create(M, { username: 'qa_nv2' }, 'qa_nv2');
   assert.equal(own.status, 200, JSON.stringify(own.data));
@@ -331,12 +331,12 @@ test('pay-entry-self-decision: lập, sửa, huỷ khoản về CHÍNH MÌNH v�
 
 test('pay-entry-self-decision: chỉ người có salary.write lập khoản (nhân sự, HR 403, chưa đăng nhập 401); nhân sự không đọc khoản của người khác (403) và không lộ khoản qua danh sách', async () => {
   const M = await E.setup();
-  E.grant('qa_nv2', 'hr');
-  const before = F.snapshot();
+  await E.grant('qa_nv2', 'hr');
+  const before = await F.snapshot();
   assert.equal((await E.create(M, {}, 'qa_nv1')).status, 403, 'nhân sự');
   assert.equal((await E.create(M, {}, 'qa_nv2')).status, 403, 'HR không có salary.write');
   assert.equal((await E.create(M, {}, null)).status, 401);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   await E.mustCreate(M);
   assert.equal((await E.list(M, '&username=qa_nv2', 'qa_nv1')).status, 403, 'nhân sự không đọc khoản của người khác');
   assert.equal((await E.list(M, '', null)).status, 401);
@@ -344,7 +344,7 @@ test('pay-entry-self-decision: chỉ người có salary.write lập khoản (nh
 
 test('payslip-snapshot: bản chụp phiếu có m.entries bất biến: huỷ khoản sau khi tính không đổi phiếu đã chụp (kỳ báo cần tính lại), tính lại mới bỏ khoản; verify không báo lệch khi đầu vào chưa đổi', async () => {
   const M = await E.setup();
-  const legacy = flow.expectedFor(M);
+  const legacy = await flow.expectedFor(M);
   const e = await E.mustApprove(await E.mustCreate(M, { amount: 500000 }));
   const slips = await E.slipsOf(M);
   E.expectSlip(slips.qa_nv2, legacy.qa_nv2.m, { addTaxable: 500000 }, 'qa_nv2');
@@ -355,7 +355,7 @@ test('payslip-snapshot: bản chụp phiếu có m.entries bất biến: huỷ k
     body: { rev: e.rev, reason: 'Nhập nhầm người nhận' }
   });
   assert.equal(voided.status, 200, JSON.stringify(voided.data));
-  const again = flow.payslipsOf(M).slips;
+  const again = (await flow.payslipsOf(M)).slips;
   assert.equal(JSON.stringify(again.qa_nv2.snapshot), snapshotBefore, 'bản chụp không đổi');
   assert.equal(again.qa_nv2.net, slips.qa_nv2.net);
   // huỷ khoản đã duyệt khi kỳ còn mở (đã tính, chưa duyệt kỳ) đổi đầu vào: kỳ báo cần tính lại; tính lại thì phiếu mới không còn khoản
@@ -363,7 +363,7 @@ test('payslip-snapshot: bản chụp phiếu có m.entries bất biến: huỷ k
   assert.equal(period.stale, true);
   assert.deepEqual(period.staleReasons, ['inputs']);
   E.must(await E.step(M, 'calculate'), 'tính lại');
-  const recalculated = flow.payslipsOf(M).slips;
+  const recalculated = (await flow.payslipsOf(M)).slips;
   assert.equal(recalculated.qa_nv2.net, legacy.qa_nv2.net.net, 'tính lại không còn khoản');
   assert.equal(E.findKey(recalculated.qa_nv2.snapshot, 'entries'), undefined);
 });
@@ -372,7 +372,7 @@ test('payslip-snapshot: bản chụp phiếu có m.entries bất biến: huỷ k
 
 test('pay-entry-self-decision: người nhận khoản tự xác nhận cờ thuế của khoản về mình vẫn được, kèm cảnh báo SELF_DECISION_FORBIDDEN', async () => {
   const M = await E.setup();
-  E.grant('qa_ctv1', 'accounting'); // Kế toán cũng là nhân sự được trả lương
+  await E.grant('qa_ctv1', 'accounting'); // Kế toán cũng là nhân sự được trả lương
   const e = await E.mustCreate(M, { username: 'qa_ctv1', amount: 2000000, taxMode: 'full' });
   const res = await F.call('POST', `/pay-entries/${e.id}/confirm-flags`, {
     who: 'qa_ctv1',

@@ -45,7 +45,7 @@ test('GĐ-bậc 1: ghi đi lại của NV bậc 2 = 0,2 rồi null: ô hiện so
   assert.equal(c.value, 0.2);
   assert.equal(c.source, 'level');
   assert.equal((await cell(M, 'nv', 3)).cells.travel.value, 0.15, 'bậc khác giữ nguyên');
-  assert.equal(P.paramsOf(M)['level.nv.2.travel'], 0.2);
+  assert.equal((await P.paramsOf(M))['level.nv.2.travel'], 0.2);
   const back = await P.saveChanges([{ key: 'level.nv.2.travel', value: null }], { month: M });
   assert.equal(back.status, 200, JSON.stringify(back.data));
   const c2 = (await cell(M, 'nv', 2)).cells.travel;
@@ -55,7 +55,7 @@ test('GĐ-bậc 1: ghi đi lại của NV bậc 2 = 0,2 rồi null: ô hiện so
 
 test('GĐ-bậc 1: giá trị sai kiểu hoặc bậc không có bị 400 và không ghi gì', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const bad = await P.saveChanges([{ key: 'level.nv.2.benefit.ot', value: 'có' }], { month: M });
   assert.equal(bad.status, 400, JSON.stringify(bad.data));
   const noLevel = await P.saveChanges([{ key: 'level.nv.9.travel', value: 0.1 }], { month: M });
@@ -63,7 +63,7 @@ test('GĐ-bậc 1: giá trị sai kiểu hoặc bậc không có bị 400 và kh
   assert.match(JSON.stringify(noLevel.data), /chưa có bậc 9/);
   const range = await P.saveChanges([{ key: 'level.nv.2.travel', value: 7 }], { month: M });
   assert.equal(range.status, 400, JSON.stringify(range.data));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('GĐ-bậc 1: tắt OT của NV bậc 3 thì NV bậc 3 khai OT vẫn lưu, kèm cảnh báo BENEFIT_NOT_ALLOWED, và /api/me báo ot=false; NV bậc 1 vẫn khai được (cờ theo bậc, không theo chức vụ)', async () => {

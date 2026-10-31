@@ -14,12 +14,12 @@ const { F } = P;
 before(F.start);
 after(F.stop);
 
-const paramRowsOf = key => P.paramRows().filter(row => row.key === key);
+const paramRowsOf = async key => (await P.paramRows()).filter(row => row.key === key);
 
 test('Chức vụ: type.ctv.maxAbsent và type.tts.maxAbsent lưu được qua PUT /api/settings/params và có hiệu lực ở tháng áp dụng', async () => {
   const M = await P.setupMonth();
-  assert.equal(P.paramsOf(M)['type.ctv.maxAbsent'], undefined, 'trước khi lưu: CTV chưa có số ngày nghỉ tối đa');
-  assert.equal(P.paramsOf(M)['type.tts.maxAbsent'], undefined, 'trước khi lưu: TTS chưa có số ngày nghỉ tối đa');
+  assert.equal((await P.paramsOf(M))['type.ctv.maxAbsent'], undefined, 'trước khi lưu: CTV chưa có số ngày nghỉ tối đa');
+  assert.equal((await P.paramsOf(M))['type.tts.maxAbsent'], undefined, 'trước khi lưu: TTS chưa có số ngày nghỉ tối đa');
   const res = await P.saveChanges(
     [
       { key: 'type.ctv.maxAbsent', value: 4 },
@@ -28,33 +28,33 @@ test('Chức vụ: type.ctv.maxAbsent và type.tts.maxAbsent lưu được qua P
     { month: M }
   );
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(P.paramsOf(M)['type.ctv.maxAbsent'], 4);
-  assert.equal(P.paramsOf(M)['type.tts.maxAbsent'], 2);
-  assert.equal(P.paramsOf(M)['type.nv.maxAbsent'], 3, 'NV không đổi');
-  assert.equal(paramRowsOf('type.ctv.maxAbsent').length, 1);
+  assert.equal((await P.paramsOf(M))['type.ctv.maxAbsent'], 4);
+  assert.equal((await P.paramsOf(M))['type.tts.maxAbsent'], 2);
+  assert.equal((await P.paramsOf(M))['type.nv.maxAbsent'], 3, 'NV không đổi');
+  assert.equal((await paramRowsOf('type.ctv.maxAbsent')).length, 1);
 });
 
 test('Chức vụ: maxAbsent không hợp lệ (-1, null, chữ, số lẻ âm) bị từ chối 400 và không lưu gì', async () => {
   const M = await P.setupMonth();
   for (const type of ['ctv', 'tts']) {
     for (const value of [-1, null, 'ba', -0.5]) {
-      const before = F.snapshot();
-      const rowsBefore = P.rowCount();
+      const before = await F.snapshot();
+      const rowsBefore = await P.rowCount();
       const res = await P.saveChanges([{ key: `type.${type}.maxAbsent`, value }], { month: M });
       assert.equal(res.status, 400, `type.${type}.maxAbsent=${JSON.stringify(value)}: ${JSON.stringify(res.data)}`);
       assert.match(String(res.data.code), /^PARAM_/, JSON.stringify(res.data));
-      assert.equal(P.rowCount(), rowsBefore, 'không thêm dòng param_versions');
-      assert.deepEqual(F.changedTables(before, F.snapshot()), [], `type.${type}.maxAbsent=${JSON.stringify(value)}`);
+      assert.equal(await P.rowCount(), rowsBefore, 'không thêm dòng param_versions');
+      assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `type.${type}.maxAbsent=${JSON.stringify(value)}`);
     }
   }
-  assert.equal(P.paramsOf(M)['type.ctv.maxAbsent'], undefined);
+  assert.equal((await P.paramsOf(M))['type.ctv.maxAbsent'], undefined);
 });
 
 test('L8: lô cho chức vụ sao chép chuyên cần > 0 mà thiếu maxAbsent vẫn lưu kèm cảnh báo PARAM_CROSS_CHECK_FAILED, có maxAbsent thì không cảnh báo', async () => {
   const M = await P.setupMonth();
   const code = await P.mustCopy(M, { label: 'Chuyên viên ngày nghỉ', copyFrom: 'ctv' });
-  assert.equal(P.paramsOf(M)[`type.${code}.maxAbsent`], undefined, 'bản sao từ CTV chưa có maxAbsent');
-  assert.equal(P.paramsOf(M)[`type.${code}.attendance`], 0);
+  assert.equal((await P.paramsOf(M))[`type.${code}.maxAbsent`], undefined, 'bản sao từ CTV chưa có maxAbsent');
+  assert.equal((await P.paramsOf(M))[`type.${code}.attendance`], 0);
 
   // chuyên cần > 0 mà thiếu maxAbsent: lưu và cảnh báo
   const bad = await P.saveChanges([{ key: `type.${code}.attendance`, value: 0.2 }], { month: M });
@@ -62,7 +62,7 @@ test('L8: lô cho chức vụ sao chép chuyên cần > 0 mà thiếu maxAbsent 
   const crossCheck = bad.data.warnings.find(w => w.code === 'PARAM_CROSS_CHECK_FAILED');
   assert.ok(crossCheck, JSON.stringify(bad.data.warnings));
   assert.ok(JSON.stringify(crossCheck).includes(`type.${code}.maxAbsent`), 'báo rõ khoá còn thiếu');
-  assert.equal(P.paramsOf(M)[`type.${code}.attendance`], 0.2);
+  assert.equal((await P.paramsOf(M))[`type.${code}.attendance`], 0.2);
 
   // cùng lô có maxAbsent: không cảnh báo
   const ok = await P.saveChanges(
@@ -74,8 +74,8 @@ test('L8: lô cho chức vụ sao chép chuyên cần > 0 mà thiếu maxAbsent 
   );
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   assert.ok(!(ok.data.warnings || []).some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(ok.data.warnings));
-  assert.equal(P.paramsOf(M)[`type.${code}.attendance`], 0.3);
-  assert.equal(P.paramsOf(M)[`type.${code}.maxAbsent`], 3);
+  assert.equal((await P.paramsOf(M))[`type.${code}.attendance`], 0.3);
+  assert.equal((await P.paramsOf(M))[`type.${code}.maxAbsent`], 3);
 });
 
 test('L8: phụ cấp đi lại > 0 mà thiếu maxAbsent cũng có cảnh báo, còn lưu maxAbsent trước rồi mới đặt đi lại và chuyên cần thì không cảnh báo', async () => {
@@ -101,28 +101,28 @@ test('L8: phụ cấp đi lại > 0 mà thiếu maxAbsent cũng có cảnh báo,
 test('Không có thử việc: lưu type.nv, ctv, tts .probationPayPct là 400 PARAM_NOT_WIRED và không lưu gì', async () => {
   const M = await P.setupMonth();
   for (const key of ['type.nv.probationPayPct', 'type.ctv.probationPayPct', 'type.tts.probationPayPct']) {
-    const before = F.snapshot();
-    const rowsBefore = P.rowCount();
+    const before = await F.snapshot();
+    const rowsBefore = await P.rowCount();
     const res = await P.saveChanges([{ key, value: 0.9 }], { month: M });
     assert.equal(res.status, 400, `${key}: ${JSON.stringify(res.data)}`);
     assert.equal(res.data.code, 'PARAM_NOT_WIRED', key);
     assert.ok(JSON.stringify(res.data).includes(key), 'nêu tên khoá');
-    assert.equal(P.rowCount(), rowsBefore, `${key}: không thêm dòng param_versions`);
-    assert.deepEqual(F.changedTables(before, F.snapshot()), [], key);
+    assert.equal(await P.rowCount(), rowsBefore, `${key}: không thêm dòng param_versions`);
+    assert.deepEqual(F.changedTables(before, await F.snapshot()), [], key);
   }
-  assert.equal(P.paramsOf(M)['type.nv.probationPayPct'], 1, 'vẫn 100 %');
+  assert.equal((await P.paramsOf(M))['type.nv.probationPayPct'], 1, 'vẫn 100 %');
 });
 
 test('Không có thử việc: chức vụ thêm sau (sao chép) cũng không lưu được type.<mã>.probationPayPct (400 PARAM_NOT_WIRED)', async () => {
   const M = await P.setupMonth();
   const code = await P.mustCopy(M, { label: 'Chuyên viên thử việc', copyFrom: 'nv' });
   const key = `type.${code}.probationPayPct`;
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const res = await P.saveChanges([{ key, value: 0.9 }], { month: M });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 200));
   assert.equal(res.data.code, 'PARAM_NOT_WIRED');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
-  assert.equal(P.paramsOf(M)[key], 1);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
+  assert.equal((await P.paramsOf(M))[key], 1);
 });
 
 test('Sao chép chức vụ từ nv, ctv, tts vẫn 200 và chức vụ mới có type.<mã>.probationPayPct bằng giá trị nguồn', async () => {
@@ -132,11 +132,11 @@ test('Sao chép chức vụ từ nv, ctv, tts vẫn 200 và chức vụ mới c�
     assert.equal(res.status, 200, `${source}: ${JSON.stringify(res.data)}`);
     const code = P.codeOf(res);
     assert.match(String(code), /^[a-z0-9]{2,16}$/);
-    const params = P.paramsOf(M);
+    const params = await P.paramsOf(M);
     assert.equal(params[`type.${source}.probationPayPct`], 1, `${source}: nguồn là 100 %`);
     assert.equal(params[`type.${code}.probationPayPct`], params[`type.${source}.probationPayPct`], source);
     assert.ok(
-      P.paramRows().some(row => row.key === `type.${code}.probationPayPct`),
+      (await P.paramRows()).some(row => row.key === `type.${code}.probationPayPct`),
       'khoá có dòng param_versions'
     );
   }
@@ -144,12 +144,12 @@ test('Sao chép chức vụ từ nv, ctv, tts vẫn 200 và chức vụ mới c�
 
 test('Lô sao chép chỉ do máy chủ dựng: yêu cầu HTTP gửi thêm copyBatch hay serverBatch vẫn không lưu được khoá chưa nối', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const res = await P.saveChanges([{ key: 'type.nv.probationPayPct', value: 0.9 }], {
     month: M,
     extra: { copyBatch: true, serverBatch: true }
   });
   assert.equal(res.status, 400, JSON.stringify(res.data));
   assert.equal(res.data.code, 'PARAM_NOT_WIRED');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });

@@ -41,8 +41,8 @@ const hasNumber = (node, expected, tolerance = 0.5) => numbersIn(node).some(n =>
 const codeOf = res => pick(res.data, ['code']) ?? pick(res.data.position || {}, ['code']);
 
 // Sao chép chức vụ qua API; trả phản hồi
-const copyPosition = (month, { label, copyFrom, reason = 'Thêm chức vụ để thử sao chép', who = 'admin' }) =>
-  F.call('POST', '/positions', { who, body: { label, copyFrom, effectiveMonth: month, reason } });
+const copyPosition = async (month, { label, copyFrom, reason = 'Thêm chức vụ để thử sao chép', who = 'admin' }) =>
+  await F.call('POST', '/positions', { who, body: { label, copyFrom, effectiveMonth: month, reason } });
 const mustCopy = async (month, spec) => {
   const res = await copyPosition(month, spec);
   assert.ok([200, 201].includes(res.status), `POST /api/positions: ${res.status} ${JSON.stringify(res.data)}`);
@@ -51,7 +51,7 @@ const mustCopy = async (month, spec) => {
   return code;
 };
 // Bộ tham số hiệu lực của tháng (phẳng) đúng như máy chủ dùng để tính lương
-const paramsOf = month => paramStore.resolve(month).params;
+const paramsOf = async month => (await paramStore.resolve(month)).params;
 // Tháng riêng đã dựng người bịa (period-flow) và đồng hồ giả ở sau tháng đó.
 // Dãy tháng GIẢM DẦN (2028-12 về 2026-10): param_versions chỉ-thêm-dòng và một dòng có hiệu lực từ tháng T mang sang MỌI tháng sau T, nên khối, chức vụ hay cờ
 // do một test thêm không được rò sang test chạy sau nó: test sau lấy tháng NHỎ HƠN tháng hiệu lực của test trước.
@@ -66,7 +66,7 @@ function descendingPool() {
   };
 }
 async function setupMonth() {
-  const month = setupMonth.pool();
+  const month = await setupMonth.pool();
   await S.seed(month);
   return month;
 }

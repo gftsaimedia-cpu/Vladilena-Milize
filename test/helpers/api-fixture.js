@@ -24,7 +24,7 @@ async function start() {
   Date.now = () => clock;
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  agents.set(true); // công tắc Agents bật cho test của Trợ lý / AI; test/api/agents-toggle.test.js kiểm mặc định tắt
+  await agents.set(true); // công tắc Agents bật cho test của Trợ lý / AI; test/api/agents-toggle.test.js kiểm mặc định tắt
 }
 async function stop() {
   Date.now = realNow;
@@ -39,7 +39,7 @@ async function call(method, route, { who = 'admin', body } = {}) {
   if (route === '/punch' && method === 'POST' && fixture.explainPunches && body && body.explanation === undefined)
     body = { ...body, explanation: 'Giải trình lúc bấm' };
   const headers = { 'Content-Type': 'application/json' };
-  if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -48,8 +48,8 @@ async function call(method, route, { who = 'admin', body } = {}) {
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
 
-function person(username, role = 'staff', extra = {}) {
-  store.upsertStaff({
+async function person(username, role = 'staff', extra = {}) {
+  await store.upsertStaff({
     username,
     name: 'Người thử ' + username,
     role,
@@ -63,23 +63,23 @@ function person(username, role = 'staff', extra = {}) {
   });
 }
 
-const tables = () =>
-  store.db
+const tables = async () =>
+  (await store.db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-    .all()
+    .all())
     .map(row => row.name);
 
 // Xoá hết dòng của mọi bảng (bảng chỉ-thêm-dòng như audit_log, param_versions, payslips từ chối DELETE nên bị bỏ qua), rồi trả DB về trạng thái dùng được.
 // Danh mục chức vụ, bậc, ca (lib/domain/position/schema.js) là dữ liệu nền do migration nạp, như hai khoá settings giữ lại: không xoá
 const CATALOG_TABLES = ['benefit_types', 'position_types', 'position_type_benefits', 'position_levels', 'work_shifts'];
-function reset({ keep = [] } = {}) {
-  for (const name of tables()) {
+async function reset({ keep = [] } = {}) {
+  for (const name of await tables()) {
     if (keep.includes(name) || CATALOG_TABLES.includes(name)) continue;
     try {
       // settings giữ lại khoá do migration đặt (chế độ tham số) và công tắc Agents
       if (name === 'settings')
-        store.db.exec("DELETE FROM settings WHERE key NOT IN ('params_mode', 'agents_enabled')");
-      else store.db.exec(`DELETE FROM ${name}`);
+        await store.db.exec("DELETE FROM settings WHERE key NOT IN ('params_mode', 'agents_enabled')");
+      else await store.db.exec(`DELETE FROM ${name}`);
     } catch {
       /* bảng chỉ thêm dòng */
     }
@@ -87,11 +87,11 @@ function reset({ keep = [] } = {}) {
 }
 
 // Dấu vân tay của toàn bộ dữ liệu (mọi bảng, trừ các bảng nêu trong exclude), để khẳng định "không lưu gì".
-function snapshot(exclude = []) {
+async function snapshot(exclude = []) {
   const out = {};
-  for (const name of tables()) {
+  for (const name of await tables()) {
     if (exclude.includes(name)) continue;
-    const rows = store.db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all();
+    const rows = await store.db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all();
     out[name] = {
       rows: rows.length,
       digest: crypto

@@ -95,7 +95,7 @@ function verifyFile(filePath, dbPath) {
   return { result: 'failed', exit: r.status === null ? null : r.status, output };
 }
 
-function main() {
+async function main() {
   const started = Date.now();
   const entry = {
     ts: vnIso(started),
@@ -153,7 +153,7 @@ function main() {
   let made;
   try {
     // backup-db.js tự kiểm: file có thật, không phải :memory:, --keep hợp lệ, thư mục không nằm trong public/.
-    made = backup({ dbPath, outDir, keep: args.keep === null ? undefined : args.keep });
+    made = await backup({ dbPath, outDir, keep: args.keep === null ? undefined : args.keep });
   } catch (err) {
     entry.error = String(err && err.message ? err.message : err).slice(0, ERROR_MAX);
     console.error('Lỗi: ' + entry.error);
@@ -207,6 +207,10 @@ function main() {
   finish();
 }
 
-if (require.main === module) main();
+if (require.main === module)
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 module.exports = { parseArgs, vnIso, verifyFile, appendLog, LABELS, FAILED_SUFFIX, DailyError };

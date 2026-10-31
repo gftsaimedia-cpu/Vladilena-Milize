@@ -29,26 +29,26 @@ const codesOf = res => [res.data.code, ...(res.data.errors || []).map(e => e.cod
 test('V1A-S6-4: lưu bảng bậc có cạnh là tham số vào formula.phuCapDiLai bị từ chối 400 PARAM_LOCKED và không ghi gì (khoá công thức đã khoá)', async () => {
   const M = monthOf();
   await S.seed(M);
-  const rows = S.rowCount();
-  const config = S.configRev();
+  const rows = await S.rowCount();
+  const config = await S.configRev();
   const res = await S.saveChanges([{ key: 'formula.phuCapDiLai', value: tierValue() }], { month: M });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 400));
   assert.ok(codesOf(res).includes('PARAM_LOCKED'), JSON.stringify(res.data).slice(0, 400));
-  assert.equal(S.rowCount(), rows, 'không dòng nào được ghi');
-  assert.equal(S.configRev(), config);
+  assert.equal(await S.rowCount(), rows, 'không dòng nào được ghi');
+  assert.equal(await S.configRev(), config);
 });
 
 test('V1A-S6-4: công thức cùng lô với ngưỡng đổi sang 30 vẫn là 400 PARAM_LOCKED và KHÔNG lưu cả ngưỡng (lô bị từ chối trọn vẹn)', async () => {
   const M = monthOf();
   await S.seed(M);
-  const rows = S.rowCount();
+  const rows = await S.rowCount();
   const res = await S.saveChanges([THRESHOLD, { key: 'formula.phuCapDiLai', value: tierValue() }], {
     month: M,
     extra: ACK
   });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 400));
   assert.ok(codesOf(res).includes('PARAM_LOCKED'), JSON.stringify(res.data).slice(0, 400));
-  assert.equal(S.rowCount(), rows, 'không dòng nào được ghi, kể cả ngưỡng');
+  assert.equal(await S.rowCount(), rows, 'không dòng nào được ghi, kể cả ngưỡng');
 });
 
 test('V1A-S6-4: ngưỡng chuyên cần (tham số) vẫn lưu được 200; công thức lưu sau vẫn 400 PARAM_LOCKED', async () => {

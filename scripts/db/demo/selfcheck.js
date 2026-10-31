@@ -10,25 +10,24 @@ const { review, RULES } = require('../../../lib/ai/review.js');
 const KpiScore = require('../../../public/kpi-score.js');
 const S = require('./scenarios.js');
 
-function buildInput(store, payroll, month, asOf) {
-  const staff = store.listStaff();
+async function buildInput(store, payroll, month, asOf) {
+  const staff = await store.listStaff();
   const people = staff.filter(s => s.role !== 'admin');
-  const sheets = people.flatMap(s =>
-    store.listSheets(s.username).map(({ month: sheetMonth }) => ({
-      username: s.username,
-      month: sheetMonth,
-      ...store.getSheet(s.username, sheetMonth)
-    }))
-  );
-  const slipOverrides = people
-    .map(s => ({ username: s.username, month, values: store.getSlipOverride(s.username, month).values }))
-    .filter(o => Object.keys(o.values).length);
+  const sheets = [];
+  for (const s of people)
+    for (const { month: sheetMonth } of await store.listSheets(s.username))
+      sheets.push({ username: s.username, month: sheetMonth, ...(await store.getSheet(s.username, sheetMonth)) });
+  const slipOverrides = [];
+  for (const s of people) {
+    const values = (await store.getSlipOverride(s.username, month)).values;
+    if (Object.keys(values).length) slipOverrides.push({ username: s.username, month, values });
+  }
   const scoreOut = row =>
     Object.fromEntries(
       KpiScore.COMPONENTS.map(c => [c.key, row && row.scores[c.key] != null ? row.scores[c.key] / 100 : null])
     );
-  const kpiScores = store
-    .listKpiScores(month)
+  const kpiScores = (await store
+    .listKpiScores(month))
     .filter(row => people.some(s => s.username === row.username))
     .map(row => ({
       username: row.username,
@@ -40,9 +39,9 @@ function buildInput(store, payroll, month, asOf) {
     month,
     staff,
     sheets,
-    approvals: store.approvals.list({ status: 'all' }),
-    sessions: store.listSessions(),
-    holidays: store.getSetting('holidays', []),
+    approvals: await store.approvals.list({ status: 'all' }),
+    sessions: await store.listSessions(),
+    holidays: await store.getSetting('holidays', []),
     kpiScores,
     slipOverrides,
     payroll
@@ -54,10 +53,10 @@ const norm = item => (typeof item === 'string' ? { rule: item, date: null } : it
 
 // Phiếu của kỳ `month` như bước "Tính lương" rồi "AI kiểm tra" sẽ ra, không ghi DB. findings: phát hiện của review() cho đúng tháng đó.
 // Trả { slips: [{ username, type, status, errorCode, flags, attendOk, iDorm, advanceOff }], summary, problems }.
-function slipCheck({ store, personas, month, asOf, findings }) {
+async function slipCheck({ store, personas, month, asOf, findings }) {
   const service = require('../../../lib/payroll-service.js');
-  const params = service.paramsFor(month).params;
-  const inputs = service.loadInputs(month, { asOf, params });
+  const params = (await service.paramsFor(month)).params;
+  const inputs = await service.loadInputs(month, { asOf, params });
   const flagsOf = new Map();
   for (const f of findings) {
     if (!flagsOf.has(f.username)) flagsOf.set(f.username, new Set());
@@ -139,10 +138,10 @@ function slipCheck({ store, personas, month, asOf, findings }) {
 // từ đúng mốc đó. Không một phiên, lượt bấm hay yêu cầu điều chỉnh nào được nằm sau mốc; phiên còn mở chỉ được thuộc ngày today trở về trước và đã
 // bắt đầu trước mốc. Nếu không, nhân sự demo bấm Check-out sẽ đóng nhầm phiên "tương lai" và Admin không thấy gì trong ngày today.
 // Trả danh sách lỗi (chuỗi, chỉ có mã và số đếm, không có tên); rỗng = đạt.
-function clockProblems({ store, today }) {
+async function clockProblems({ store, today }) {
   const problems = [];
   const asOfMs = Date.parse(`${today}T${S.NOW_TIME}:00+07:00`);
-  const marker = store.getSetting('demo_dataset', null);
+  const marker = await store.getSetting('demo_dataset', null);
   if (!marker || marker.today !== today)
     problems.push(`khoá demo_dataset ghi today=${marker && marker.today}, khác ngày dựng ${today}`);
   const after = value => value != null && Date.parse(value) > asOfMs;
@@ -152,7 +151,7 @@ function clockProblems({ store, today }) {
   let sessionsAfter = 0;
   let openAfterDay = 0;
   let openStartedAfter = 0;
-  for (const s of store.db
+  for (const s of await store.db
     .prepare('SELECT state, date, entry_json, created_at, updated_at FROM attendance_sessions')
     .all()) {
     const entry = JSON.parse(s.entry_json);
@@ -166,22 +165,22 @@ function clockProblems({ store, today }) {
   count('phiên còn mở bắt đầu', openStartedAfter);
   count(
     'lượt bấm (punches)',
-    store.db
+    (await store.db
       .prepare('SELECT at FROM punches')
-      .all()
+      .all())
       .filter(row => after(row.at)).length
   );
   count(
     'yêu cầu điều chỉnh có mốc thời gian',
-    store.db
+    (await store.db
       .prepare('SELECT created_at, decided_at, req_in, req_out FROM corrections')
-      .all()
+      .all())
       .filter(row => [row.created_at, row.decided_at, row.req_in, row.req_out].some(after)).length
   );
   return problems;
 }
 
-function run({ store, payroll, personas, today, months = ['2026-10', '2026-11'] }) {
+async function run({ store, payroll, personas, today, months = ['2026-10', '2026-11'] }) {
   const asOf = `${today}T${S.NOW_TIME}:00+07:00`;
   const findings = [];
   const findingsByMonth = {};
@@ -189,7 +188,7 @@ function run({ store, payroll, personas, today, months = ['2026-10', '2026-11'] 
   let payrollErrors = 0;
   const skipped = new Set();
   for (const month of months) {
-    const result = review(buildInput(store, payroll, month, asOf));
+    const result = review(await buildInput(store, payroll, month, asOf));
     perMonth[month] = result.summary.total;
     payrollErrors += result.checked.payrollErrors;
     for (const s of result.checked.skipped) skipped.add(`${month}:${s.rule}`);
@@ -198,7 +197,7 @@ function run({ store, payroll, personas, today, months = ['2026-10', '2026-11'] 
   }
   // chỉ kiểm phiếu khi kỳ nằm trong các tháng đã soát
   const period = months.includes(S.PAYSLIP_MONTH)
-    ? slipCheck({ store, personas, month: S.PAYSLIP_MONTH, asOf, findings: findingsByMonth[S.PAYSLIP_MONTH] })
+    ? await slipCheck({ store, personas, month: S.PAYSLIP_MONTH, asOf, findings: findingsByMonth[S.PAYSLIP_MONTH] })
     : null;
   const ruleIds = RULES.map(r => r.id);
   const missingRules = S.AI_RULES.filter(id => !ruleIds.includes(id)).concat(
@@ -249,7 +248,7 @@ function run({ store, payroll, personas, today, months = ['2026-10', '2026-11'] 
     noFire,
     findings,
     period,
-    clock: clockProblems({ store, today })
+    clock: await clockProblems({ store, today })
   };
 }
 

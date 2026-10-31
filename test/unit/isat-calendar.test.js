@@ -19,8 +19,8 @@ test('legacy iSAT on any non-Saturday pays nothing', () => {
   }
 });
 
-test('legacy weekday iSAT does not count as paid leave or earn monthly allowances', () => {
-  const result = month(staff, { '2026-10-05': { kind: 'isat', in: '08:00', out: '17:00' } });
+test('legacy weekday iSAT does not count as paid leave or earn monthly allowances', async () => {
+  const result = await month(staff, { '2026-10-05': { kind: 'isat', in: '08:00', out: '17:00' } });
   for (const key of [
     'total',
     'work',
@@ -40,14 +40,14 @@ test('legacy weekday iSAT does not count as paid leave or earn monthly allowance
   assert.equal(result.rows[0].paidOff, false);
 });
 
-test('eligible NV Saturday iSAT pays only the base daily salary for each level', () => {
+test('eligible NV Saturday iSAT pays only the base daily salary for each level', async () => {
   for (const [level, expected] of [
     [1, 230769.23076923078],
     [2, 250000],
     [3, 269230.76923076925],
     [4, 288461.53846153844]
   ]) {
-    const result = month({ type: 'nv', level }, { '2026-10-03': { kind: 'isat' } });
+    const result = await month({ type: 'nv', level }, { '2026-10-03': { kind: 'isat' } });
     close(result.total, expected);
     close(result.basePay, expected);
     assert.equal(result.isat, 1);
@@ -58,9 +58,9 @@ test('eligible NV Saturday iSAT pays only the base daily salary for each level',
   }
 });
 
-test('legacy Saturday iSAT for TTS or CTV is not paid or counted as paid leave', () => {
+test('legacy Saturday iSAT for TTS or CTV is not paid or counted as paid leave', async () => {
   for (const type of ['tts', 'ctv']) {
-    const result = month({ type, level: 1 }, { '2026-10-03': { kind: 'isat' } });
+    const result = await month({ type, level: 1 }, { '2026-10-03': { kind: 'isat' } });
     assert.equal(result.total, 0, type);
     assert.equal(result.isat, 0, type);
     assert.equal(result.rows[0].paidOff, false, type);
@@ -75,8 +75,8 @@ test('iSAT without a valid calendar date cannot earn a payment', () => {
   }
 });
 
-test('invalid legacy iSAT does not change earnings from valid work and Saturday iSAT', () => {
-  const result = month(staff, {
+test('invalid legacy iSAT does not change earnings from valid work and Saturday iSAT', async () => {
+  const result = await month(staff, {
     '2026-10-03': { kind: 'isat' },
     '2026-10-05': { kind: 'isat' },
     '2026-10-06': { kind: 'work', in: '08:00', out: '17:00' }
@@ -89,8 +89,8 @@ test('invalid legacy iSAT does not change earnings from valid work and Saturday 
   assert.equal(result.isat, 1);
 });
 
-test('holiday entitlement remains payable once even if the saved kind is iSAT', () => {
-  const result = month(staff, { '2026-10-05': { kind: 'isat' } }, ['2026-10-05']);
+test('holiday entitlement remains payable once even if the saved kind is iSAT', async () => {
+  const result = await month(staff, { '2026-10-05': { kind: 'isat' } }, ['2026-10-05']);
   close(result.total, 230769.23076923078);
   assert.equal(result.holiday, 1);
   assert.equal(result.isat, 0);

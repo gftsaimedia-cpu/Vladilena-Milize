@@ -38,8 +38,8 @@ test('PayrollPolicy: đủ 3 tháng tròn tới hết tháng lương thì long, 
   assert.equal(PayrollPolicy.contractFor(P, null, '2026-11', 'short'), 'short'); // thiếu ngày vào làm: giữ mặc định
 });
 
-test('danh mục trong DB: dòng tham số giữ đúng tiền của DEFAULTS, chỉ thêm khoá mới và tên bậc', () => {
-  const rows = container.catalogParamRows();
+test('danh mục trong DB: dòng tham số giữ đúng tiền của DEFAULTS, chỉ thêm khoá mới và tên bậc', async () => {
+  const rows = await container.catalogParamRows();
   const base = rows.filter(r => r.effectiveMonth === '2000-01');
   const changed = base.filter(
     r => Object.hasOwn(Params.DEFAULTS, r.key) && JSON.stringify(Params.DEFAULTS[r.key]) !== JSON.stringify(r.value)
@@ -65,36 +65,36 @@ test('danh mục trong DB: dòng tham số giữ đúng tiền của DEFAULTS, c
   assert.equal(before['tax.contract.basis'], 'tenure');
 });
 
-test('mã ca mới tra được giờ ca ở luật chấm công và giờ thực tế, danh sách khoá vẫn là khoá cũ', () => {
+test('mã ca mới tra được giờ ca ở luật chấm công và giờ thực tế, danh sách khoá vẫn là khoá cũ', async () => {
   assert.deepEqual(PunchRules.SHIFT.Night1, PunchRules.SHIFT.g1);
   assert.deepEqual(ActualHours.SHIFT_TIMES.Flex1, ActualHours.SHIFT_TIMES.f1);
   assert.deepEqual(Object.keys(PunchRules.SHIFT).sort(), ['f1', 'f2', 'g1', 'g2', 'n1', 'n2']);
   assert.equal(PunchRules.canonicalOf('n2'), 'Normal2');
   assert.equal(PunchRules.presetOf('Night2'), 'g2');
-  assert.equal(container.shifts.canonicalOf('g1'), 'Night1');
-  assert.equal(container.shifts.find('Flex1').kind, 'flex');
+  assert.equal(await container.shifts.canonicalOf('g1'), 'Night1');
+  assert.equal((await container.shifts.find('Flex1')).kind, 'flex');
 });
 
-test('hồ sơ: uuid sinh một lần, họ/tên tách sẵn, tài khoản không đổi được', () => {
-  store.upsertStaff({ username: 'qa_khoa', name: 'bùi đăng khoa', role: 'staff', type: 'nv', level: 1, passHash: 'x' });
-  const first = store.getStaff('qa_khoa');
+test('hồ sơ: uuid sinh một lần, họ/tên tách sẵn, tài khoản không đổi được', async () => {
+  await store.upsertStaff({ username: 'qa_khoa', name: 'bùi đăng khoa', role: 'staff', type: 'nv', level: 1, passHash: 'x' });
+  const first = await store.getStaff('qa_khoa');
   assert.match(first.uuid, /^[0-9a-f-]{36}$/);
   assert.equal(first.familyName, 'Bùi Đăng');
   assert.equal(first.givenName, 'Khoa');
-  store.upsertStaff({ ...first, passHash: 'x', name: 'Hồ thị khánh huyền', contractStatus: 'probation' });
-  const second = store.getStaff('qa_khoa');
+  await store.upsertStaff({ ...first, passHash: 'x', name: 'Hồ thị khánh huyền', contractStatus: 'probation' });
+  const second = await store.getStaff('qa_khoa');
   assert.equal(second.uuid, first.uuid);
   assert.equal(second.givenName, 'Huyền');
   assert.equal(second.contractStatus, 'probation');
-  store.upsertStaff({ ...second, passHash: 'x', contractStatus: undefined, resignedOn: '2026-12-31' });
-  assert.equal(store.getStaff('qa_khoa').contractStatus, 'probation'); // undefined = giữ
-  assert.equal(store.getStaff('qa_khoa').resignedOn, '2026-12-31');
-  assert.throws(() => store.db.prepare("UPDATE staff SET username = 'qa_khac' WHERE username = 'qa_khoa'").run());
-  assert.equal(container.employees.byUuid(first.uuid, '2026-11').username, 'qa_khoa');
+  await store.upsertStaff({ ...second, passHash: 'x', contractStatus: undefined, resignedOn: '2026-12-31' });
+  assert.equal((await store.getStaff('qa_khoa')).contractStatus, 'probation'); // undefined = giữ
+  assert.equal((await store.getStaff('qa_khoa')).resignedOn, '2026-12-31');
+  await assert.rejects(async () => await store.db.prepare("UPDATE staff SET username = 'qa_khac' WHERE username = 'qa_khoa'").run());
+  assert.equal((await container.employees.byUuid(first.uuid, '2026-11')).username, 'qa_khoa');
 });
 
-test('giải trình: duyệt cần đúng rev, giải trình đã duyệt không bị trả lời lại, tự duyệt theo chính sách', () => {
-  store.upsertStaff({
+test('giải trình: duyệt cần đúng rev, giải trình đã duyệt không bị trả lời lại, tự duyệt theo chính sách', async () => {
+  await store.upsertStaff({
     username: 'qa_gt',
     name: 'Người giải trình',
     role: 'staff',
@@ -105,48 +105,48 @@ test('giải trình: duyệt cần đúng rev, giải trình đã duyệt không
   const denied = [];
   const service = new ExplanationService({
     repository: new ExplanationRepository({ db: store.db, transaction: store.transaction }),
-    staffExists: u => !!store.getStaff(u),
+    staffExists: async u => !!await store.getStaff(u),
     clock: () => '2026-11-02T02:00:00.000Z',
     onSelf: error => denied.push(error.code)
   });
-  const asked = service.request({
+  const asked = await service.request({
     username: 'qa_gt',
     date: '2026-11-02',
     prompt: 'Vì sao về sớm?',
     kind: 'admin',
     requestedBy: 'admin'
   });
-  const answered = service.answer({ id: asked.id, username: 'qa_gt', text: 'Đi khám bệnh' });
-  assert.throws(
-    () => service.decide({ id: asked.id, by: 'admin', approve: true, expectedRev: answered.rev + 1 }),
+  const answered = await service.answer({ id: asked.id, username: 'qa_gt', text: 'Đi khám bệnh' });
+  await assert.rejects(
+    async () => await service.decide({ id: asked.id, by: 'admin', approve: true, expectedRev: answered.rev + 1 }),
     e => e.code === 'EXPLANATION_STALE' && e.httpStatus === 409
   );
-  const approved = service.decide({ id: asked.id, by: 'admin', approve: true, expectedRev: answered.rev });
+  const approved = await service.decide({ id: asked.id, by: 'admin', approve: true, expectedRev: answered.rev });
   assert.equal(approved.status, 'approved');
-  assert.throws(
-    () => service.answer({ id: asked.id, username: 'qa_gt', text: 'sửa lại' }),
+  await assert.rejects(
+    async () => await service.answer({ id: asked.id, username: 'qa_gt', text: 'sửa lại' }),
     e => e.httpStatus === 409
   );
-  assert.equal(service.byId(asked.id).status, 'approved');
-  const again = service.request({
+  assert.equal((await service.byId(asked.id)).status, 'approved');
+  const again = await service.request({
     username: 'qa_gt',
     date: '2026-11-03',
     prompt: 'Vì sao?',
     kind: 'admin',
     requestedBy: 'admin'
   });
-  service.answer({ id: again.id, username: 'qa_gt', text: 'x' });
-  service.decide({ id: again.id, by: 'qa_gt', approve: true, isSelf: true });
+  await service.answer({ id: again.id, username: 'qa_gt', text: 'x' });
+  await service.decide({ id: again.id, by: 'qa_gt', approve: true, isSelf: true });
   assert.deepEqual(denied, ['SELF_DECISION_FORBIDDEN']);
 });
 
-test('phụ cấp ca theo ca được xếp: ca Night có phụ cấp đêm theo bậc, ca Normal làm giờ đêm thì không', () => {
+test('phụ cấp ca theo ca được xếp: ca Night có phụ cấp đêm theo bậc, ca Normal làm giờ đêm thì không', async () => {
   const { Engine, LEGACY_DEFAULTS, caseOf, clone, closeTo } = require('../helpers/pay-oracle');
   // chỉ chồng các khoá danh mục và quy tắc không có trong LEGACY_DEFAULTS (tiền của LEGACY_DEFAULTS giữ nguyên)
   const added = {
     ...Object.fromEntries(
-      container
-        .catalogParamRows()
+      (await container
+        .catalogParamRows())
         .filter(r => !Object.hasOwn(LEGACY_DEFAULTS, r.key))
         .map(r => [r.key, r.value])
     ),

@@ -25,7 +25,7 @@ const NAMES = {
 
 async function call(method, route, body, who = 'qa_admin') {
   const headers = { 'Content-Type': 'application/json' };
-  if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -33,10 +33,10 @@ async function call(method, route, body, who = 'qa_admin') {
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
-const review = (query = 'month=' + MONTH, who) => call('GET', '/ai/review?' + query, undefined, who);
+const review = async (query = 'month=' + MONTH, who) => await call('GET', '/ai/review?' + query, undefined, who);
 
-function person(username, overrides = {}) {
-  store.upsertStaff({
+async function person(username, overrides = {}) {
+  await store.upsertStaff({
     username,
     name: NAMES[username] || username,
     role: 'staff',
@@ -49,12 +49,12 @@ function person(username, overrides = {}) {
   });
 }
 // Chụp MỌI bảng của DB (theo sqlite_master), để mọi thứ bị ghi nhầm đều lộ ra
-function snapshot() {
-  const tables = store.db
+async function snapshot() {
+  const tables = await store.db
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
     .all();
   return Object.fromEntries(
-    tables.map(t => [t.name, store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()])
+    await Promise.all(tables.map(async t => [t.name, await store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()]))
   );
 }
 const KEY_TABLES = [
@@ -82,8 +82,8 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
-  at('2026-10-20T12:00:00');
+beforeEach(async () => {
+  await at('2026-10-20T12:00:00');
   for (const table of [
     'kpi_score_log',
     'kpi_scores',
@@ -98,15 +98,15 @@ beforeEach(() => {
     'settings'
   ]) {
     try {
-      store.db.exec('DELETE FROM ' + table);
+      await store.db.exec('DELETE FROM ' + table);
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
     }
   }
-  require('../../lib/agents').set(true); // route AI chỉ trả lời khi công tắc Agents bật
-  person('qa_admin', { role: 'admin', type: 'tts', level: 0 });
-  person('qa_bon');
-  person('qa_ba');
+  await require('../../lib/agents').set(true); // route AI chỉ trả lời khi công tắc Agents bật
+  await person('qa_admin', { role: 'admin', type: 'tts', level: 0 });
+  await person('qa_bon');
+  await person('qa_ba');
 });
 after(async () => {
   Date.now = realNow;
@@ -155,15 +155,15 @@ test('tháng thiếu hoặc sai dạng: 400 "month phải dạng YYYY-MM"', asyn
 
 test('không ghi gì: mọi bảng giống hệt trước và sau, kể cả khi có điểm KPI, phiếu sửa, khoản chờ duyệt và lượt mở', async () => {
   await declareIsat('qa_bon', 4);
-  store.setKpiScores(
+  await store.setKpiScores(
     'qa_bon',
     MONTH,
     { wework: 9000, user: 8000, peer: 8000, manager: 8000, self: 8000 },
     'qa_admin',
     null
   );
-  store.setSlipOverride('qa_bon', MONTH, { kpiPay: 1234567 }, 'qa_admin');
-  const before = snapshot();
+  await store.setSlipOverride('qa_bon', MONTH, { kpiPay: 1234567 }, 'qa_admin');
+  const before = await snapshot();
   for (const table of KEY_TABLES) assert.ok(table in before, 'bảng ' + table + ' có trong ảnh chụp');
   assert.ok(before.sheet_approvals.length > 0, 'có khoản chờ duyệt để soát');
   assert.ok(before.kpi_scores.length > 0 && before.slip_overrides.length > 0 && before.kpi_score_log.length > 0);
@@ -171,32 +171,32 @@ test('không ghi gì: mọi bảng giống hệt trước và sau, kể cả khi
     const r = await review(query);
     assert.equal(r.status, 200, query + ' ' + JSON.stringify(r.data));
   }
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('lượt Check-in mở quá 16 giờ KHÔNG bị route này đóng (khác /today và /alerts): lượt vẫn mở, DB nguyên vẹn', async () => {
-  person('qa_mo');
-  at('2026-10-19T08:00:00');
+  await person('qa_mo');
+  await at('2026-10-19T08:00:00');
   const punched = await call('POST', '/punch', { type: 'in', requestId: crypto.randomUUID() }, 'qa_mo');
   assert.equal(punched.status, 200, JSON.stringify(punched.data));
-  at('2026-10-20T12:00:00'); // 28 giờ sau: quá 16 giờ
-  assert.ok(store.openSession('qa_mo'), 'có lượt đang mở');
-  const before = snapshot();
+  await at('2026-10-20T12:00:00'); // 28 giờ sau: quá 16 giờ
+  assert.ok(await store.openSession('qa_mo'), 'có lượt đang mở');
+  const before = await snapshot();
   const r = await review('month=' + MONTH + '&impacts=1');
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(store.openSession('qa_mo'), 'route review không được đóng lượt mở');
-  assert.equal(store.openSession('qa_mo').state, 'open');
-  assert.deepEqual(snapshot(), before);
+  assert.ok(await store.openSession('qa_mo'), 'route review không được đóng lượt mở');
+  assert.equal((await store.openSession('qa_mo')).state, 'open');
+  assert.deepEqual(await snapshot(), before);
   assert.equal(before.punches.filter(p => p.type === 'out').length, 0);
 });
 
 test('đối chứng: cùng lượt mở quá 16 giờ bị GET /alerts đóng (nên phép kiểm trên không rỗng)', async () => {
-  person('qa_mo');
-  at('2026-10-19T08:00:00');
+  await person('qa_mo');
+  await at('2026-10-19T08:00:00');
   assert.equal((await call('POST', '/punch', { type: 'in', requestId: crypto.randomUUID() }, 'qa_mo')).status, 200);
-  at('2026-10-20T12:00:00');
+  await at('2026-10-20T12:00:00');
   assert.equal((await call('GET', '/alerts?month=' + MONTH)).status, 200);
-  assert.equal(store.openSession('qa_mo'), null, '/alerts đóng lượt quá hạn');
+  assert.equal(await store.openSession('qa_mo'), null, '/alerts đóng lượt quá hạn');
 });
 
 // ================= hình dạng phản hồi 200 =================
@@ -266,9 +266,9 @@ test('thresholds: bảng { value, proposal, source } cho từng ngưỡng; isatP
 });
 
 test('asOf theo đồng hồ giả (không phải giờ máy), múi giờ ISO; đổi đồng hồ thì asOf đổi', async () => {
-  at('2026-10-20T12:00:00');
+  await at('2026-10-20T12:00:00');
   assert.equal((await review()).data.asOf, new Date(clock).toISOString());
-  at('2026-11-04T09:30:15');
+  await at('2026-11-04T09:30:15');
   assert.equal((await review()).data.asOf, '2026-11-04T02:30:15.000Z');
 });
 
@@ -348,7 +348,7 @@ test('evidence của mọi phát hiện không chứa tên hiển thị (tên ch
 
 test('log một dòng "[ai-review]" chỉ có số đếm: không username, không tên, không số tiền', async () => {
   await declareIsat('qa_bon', 4);
-  store.setKpiScores(
+  await store.setKpiScores(
     'qa_bon',
     MONTH,
     { wework: 9000, user: 8000, peer: 8000, manager: 8000, self: 8000 },

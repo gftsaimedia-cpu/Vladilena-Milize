@@ -12,15 +12,15 @@ const service = require('../../lib/payroll-service');
 const { store } = F;
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('worker');
-  F.person('worker2');
-  F.person('cbuser');
-  F.person('ketoan');
-  F.person('plain');
-  store.roles.grant('cbuser', 'cb', 'admin');
-  store.roles.grant('ketoan', 'accounting', 'admin');
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('worker');
+  await F.person('worker2');
+  await F.person('cbuser');
+  await F.person('ketoan');
+  await F.person('plain');
+  await store.roles.grant('cbuser', 'cb', 'admin');
+  await store.roles.grant('ketoan', 'accounting', 'admin');
 });
 after(F.stop);
 
@@ -50,8 +50,8 @@ const make = async (month, extra = {}, who = 'admin') => {
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data.entry;
 };
-const decideOf = (entry, decision = 'approved', who = 'cbuser', note) =>
-  F.call('PUT', `/pay-entries/${entry.id}/decide`, {
+const decideOf = async (entry, decision = 'approved', who = 'cbuser', note) =>
+  await F.call('PUT', `/pay-entries/${entry.id}/decide`, {
     who,
     body: { decision, rev: entry.rev, ...(note ? { note } : {}) }
   });
@@ -61,11 +61,11 @@ const approve = async (month, extra = {}) => {
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data.entry;
 };
-const rowsIn = month => store.db.prepare('SELECT * FROM pay_entries WHERE month = ? ORDER BY id').all(month);
-const lockPeriod = (month, status = 'approved') =>
-  store.db.prepare('INSERT INTO payroll_periods (month, status, rev) VALUES (?, ?, 1)').run(month, status);
-const auditRows = (action, month) =>
-  store.db.prepare('SELECT * FROM audit_log WHERE action = ? AND month = ? ORDER BY id').all(action, month);
+const rowsIn = async month => await store.db.prepare('SELECT * FROM pay_entries WHERE month = ? ORDER BY id').all(month);
+const lockPeriod = async (month, status = 'approved') =>
+  await store.db.prepare('INSERT INTO payroll_periods (month, status, rev) VALUES (?, ?, 1)').run(month, status);
+const auditRows = async (action, month) =>
+  await store.db.prepare('SELECT * FROM audit_log WHERE action = ? AND month = ? ORDER BY id').all(action, month);
 const estimateNet = async (who, month) => (await F.call('GET', `/me/estimate?month=${month}`, { who })).data.net;
 
 test('1c: lập khoản cộng chờ duyệt; liệt kê theo tháng và người; nhật ký entry.create mức pay có người lập, số tiền, nhãn', async () => {
@@ -87,7 +87,7 @@ test('1c: lập khoản cộng chờ duyệt; liệt kê theo tháng và ngườ
     mine.data.entries.map(e => [e.username, e.amount]),
     [['worker2', 200000]]
   );
-  const logged = auditRows('entry.create', month);
+  const logged = await auditRows('entry.create', month);
   assert.equal(logged.length, 2);
   assert.equal(logged[0].sensitivity, 'pay');
   assert.equal(logged[0].actor, 'admin');
@@ -103,8 +103,8 @@ test('1c: người duyệt = người lập vẫn duyệt được, kèm cảnh 
   const res = await decideOf(entry, 'approved', 'admin');
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.ok(res.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'), JSON.stringify(res.data.warnings));
-  assert.equal(rowsIn(month)[0].status, 'approved');
-  const logged = auditRows('entry.decide', month);
+  assert.equal((await rowsIn(month))[0].status, 'approved');
+  const logged = await auditRows('entry.decide', month);
   assert.equal(logged.length, 1);
   assert.ok(JSON.parse(logged[0].after_json).warnings.includes('SELF_DECISION_FORBIDDEN'));
 });
@@ -127,7 +127,7 @@ test('1c: người khác duyệt: khoản vào ước tính của nhân viên (c
   assert.equal(now.entriesDeduct, 0);
   // nhân viên khác không bị ảnh hưởng
   assert.equal(Object.hasOwn(await estimateNet('worker2', month), 'entriesAdd'), false);
-  const logged = auditRows('entry.decide', month);
+  const logged = await auditRows('entry.decide', month);
   assert.equal(logged.length, 1);
   assert.equal(logged[0].actor, 'cbuser');
   assert.equal(logged[0].reason, 'Đã đối chiếu quyết định thưởng');
@@ -183,7 +183,7 @@ test('1c: khoá lạc quan: rev lệch thì 409 REV_STALE khi sửa, duyệt, x�
   const month = freshMonth();
   const entry = await make(month, { taxMode: 'full' });
   const stale = entry.rev + 5;
-  const before = rowsIn(month);
+  const before = await rowsIn(month);
   const edit = await F.call('PUT', `/pay-entries/${entry.id}`, { body: { rev: stale, amount: 1 } });
   assert.equal(edit.status, 409);
   assert.equal(edit.data.code, 'REV_STALE');
@@ -191,7 +191,7 @@ test('1c: khoá lạc quan: rev lệch thì 409 REV_STALE khi sửa, duyệt, x�
   assert.equal((await decideOf({ ...entry, rev: stale })).data.code, 'REV_STALE');
   const flag = await F.call('POST', `/pay-entries/${entry.id}/confirm-flags`, { who: 'ketoan', body: { rev: stale } });
   assert.equal(flag.data.code, 'REV_STALE');
-  assert.deepEqual(rowsIn(month), before);
+  assert.deepEqual(await rowsIn(month), before);
   assert.equal((await F.call('PUT', `/pay-entries/${entry.id}`, { body: { amount: 1 } })).status, 400); // thiếu rev
 });
 
@@ -218,13 +218,13 @@ test('1c: sửa khi chờ duyệt đổi rev và ghi nhật ký; khoản đã du
   assert.equal(edited.data.entry.amount, 600000);
   assert.equal(edited.data.entry.flagsConfirmedBy, null);
   assert.equal(edited.data.entry.rev, reworded.data.entry.rev + 1);
-  assert.equal(auditRows('entry.update', month).length, 2);
+  assert.equal((await auditRows('entry.update', month)).length, 2);
   const approved = await decideOf(edited.data.entry);
   assert.equal(approved.status, 200);
   const late = await F.call('PUT', `/pay-entries/${entry.id}`, { body: { rev: approved.data.entry.rev, amount: 1 } });
   assert.equal(late.status, 409);
   assert.equal(late.data.code, 'ENTRY_NOT_PENDING');
-  assert.equal(rowsIn(month)[0].amount, 600000);
+  assert.equal((await rowsIn(month))[0].amount, 600000);
 });
 
 test('1c: kiểu dữ liệu do máy chủ kiểm: chuỗi số, số thập phân, 0, âm, null, quá trần, nhãn hay lý do sai độ dài, hướng lạ đều bị 400 và không lưu gì', async () => {
@@ -261,7 +261,7 @@ test('1c: kiểu dữ liệu do máy chủ kiểm: chuỗi số, số thập ph�
     const res = await F.call('POST', '/pay-entries', { body: body(month, extra) });
     assert.ok([400, 404].includes(res.status), `${JSON.stringify(extra)} → ${res.status}`);
   }
-  assert.equal(rowsIn(month).length, 0);
+  assert.equal((await rowsIn(month)).length, 0);
   // chuỗi không phải JSON object
   assert.equal((await F.call('POST', '/pay-entries', { body: [] })).status, 400);
   // trần số tiền theo tham số: 100.000.000.000 ₫ vẫn được, vượt thì không
@@ -282,7 +282,7 @@ test('1c: trường status, createdBy, decidedBy, flagsConfirmedBy, rev gửi l�
     })
   });
   assert.equal(res.status, 200);
-  const row = rowsIn(month)[0];
+  const row = (await rowsIn(month))[0];
   assert.equal(row.status, 'pending');
   assert.equal(row.created_by, 'admin');
   assert.equal(row.decided_by, null);
@@ -303,7 +303,7 @@ test('1c: nhãn khoản trừ là "phạt", "fine", "penalty" (BLLĐ 45/2019/QH1
   });
   assert.equal(viaSlipLine.status, 200);
   assert.ok(labelWarned(viaSlipLine));
-  assert.equal(rowsIn(month).length, 6);
+  assert.equal((await rowsIn(month)).length, 6);
   // chữ "phát" (không phải "phạt") và "refine" (chứa "fine" nhưng không phải từ "fine") không cảnh báo
   for (const label of ['Hoàn tạm ứng', 'Phát triển kỹ năng', 'Refine the process']) {
     const res = await F.call('POST', '/pay-entries', { body: body(month, { direction: 'deduct', label }) });
@@ -323,15 +323,15 @@ test('1c: khoản trừ không mang cờ thuế hay nền bảo hiểm (luôn sa
     const res = await F.call('POST', '/pay-entries', { body: body(month, { direction: 'deduct', ...extra }) });
     assert.equal(res.data.code, 'FLAGS_ON_DEDUCT', JSON.stringify(extra));
   }
-  assert.equal(rowsIn(month).length, 0);
+  assert.equal((await rowsIn(month)).length, 0);
 });
 
 test('1c: kỳ đã duyệt hoặc chi trả: lập, sửa, duyệt, huỷ vẫn lưu, kèm cảnh báo PERIOD_LOCKED có suggestMonth là kỳ mở kế tiếp', async () => {
   const locked = freshMonth();
   const afterLocked = monthAfter(locked);
   const entry = await make(locked); // lập khi kỳ còn mở
-  lockPeriod(locked, 'approved');
-  lockPeriod(afterLocked, 'paid'); // kỳ kế tiếp cũng đã chi trả: gợi ý phải nhảy qua
+  await lockPeriod(locked, 'approved');
+  await lockPeriod(afterLocked, 'paid'); // kỳ kế tiếp cũng đã chi trả: gợi ý phải nhảy qua
   const open = monthAfter(afterLocked);
   const lockedWarning = res => (res.data.warnings || []).find(w => w.code === 'PERIOD_LOCKED');
   const created = await F.call('POST', '/pay-entries', { body: body(locked) });
@@ -352,11 +352,11 @@ test('1c: kỳ đã duyệt hoặc chi trả: lập, sửa, duyệt, huỷ vẫn
   });
   assert.equal(bulk.status, 200, JSON.stringify(bulk.data));
   assert.ok(lockedWarning(bulk));
-  assert.equal(rowsIn(open).length, 1);
+  assert.equal((await rowsIn(open)).length, 1);
   // kỳ mở kế tiếp lập được; kỳ đã tính (calculated) vẫn nhận khoản
   assert.equal((await F.call('POST', '/pay-entries', { body: body(open) })).status, 200);
   const calculated = freshMonth();
-  lockPeriod(calculated, 'calculated');
+  await lockPeriod(calculated, 'calculated');
   assert.equal((await F.call('POST', '/pay-entries', { body: body(calculated) })).status, 200);
 });
 
@@ -367,14 +367,14 @@ test('1c: nhập hàng loạt tất cả hoặc không: một dòng sai thì kh�
   });
   assert.equal(bad.status, 400);
   assert.match(bad.data.error, /^Dòng 2:/);
-  assert.equal(rowsIn(month).length, 0);
+  assert.equal((await rowsIn(month)).length, 0);
   const ok = await F.call('POST', '/pay-entries/bulk', {
     body: { entries: [body(month), body(month, { username: 'worker2', amount: 250000 })] }
   });
   assert.equal(ok.status, 200);
   assert.equal(ok.data.count, 2);
   assert.deepEqual(
-    rowsIn(month).map(r => [r.username, r.amount, r.status]),
+    (await rowsIn(month)).map(r => [r.username, r.amount, r.status]),
     [
       ['worker', 500000, 'pending'],
       ['worker2', 250000, 'pending']
@@ -401,7 +401,7 @@ test('1c: nhập hàng loạt tất cả hoặc không: một dòng sai thì kh�
 
 test('1c: trần mỗi lần nhập hàng loạt theo system.entries.maxPerBatch: quá trần thì 400 TOO_MANY và không lưu gì', async () => {
   const month = freshMonth();
-  const limit = paramsStore.resolve(month).params['system.entries.maxPerBatch'];
+  const limit = (await paramsStore.resolve(month)).params['system.entries.maxPerBatch'];
   assert.equal(limit, 200);
   const over = await F.call('POST', '/pay-entries/bulk', {
     body: {
@@ -415,7 +415,7 @@ test('1c: trần mỗi lần nhập hàng loạt theo system.entries.maxPerBatch
   });
   assert.equal(over.status, 400);
   assert.equal(over.data.code, 'TOO_MANY');
-  assert.equal(rowsIn(month).length, 0);
+  assert.equal((await rowsIn(month)).length, 0);
 });
 
 test('1c: quyền: nhân viên và chưa đăng nhập bị chặn; C&B lập và duyệt; Kế toán chỉ xem và xác nhận cờ; admin làm mọi việc', async () => {
@@ -488,11 +488,11 @@ test('1c: huỷ khoản đã duyệt thành trạng thái cuối, ra khỏi tín
   assert.equal(voided.data.entry.status, 'void');
   assert.deepEqual(await estimateNet('worker', month), before);
   assert.equal((await F.call('POST', `/pay-entries/${entry.id}/void`, { body: {} })).data.code, 'ENTRY_NOT_VOIDABLE');
-  assert.equal(rowsIn(month).length, 1);
-  const logged = auditRows('entry.void', month);
+  assert.equal((await rowsIn(month)).length, 1);
+  const logged = await auditRows('entry.void', month);
   assert.equal(logged.length, 1);
   assert.equal(logged[0].reason, 'Nhập nhầm người nhận, lập lại cho đúng người');
-  assert.throws(() => store.db.prepare('DELETE FROM pay_entries WHERE id = ?').run(entry.id), /không được xoá/);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM pay_entries WHERE id = ?').run(entry.id), /không được xoá/);
 });
 
 test('1c: cờ thuế và bảo hiểm: Kế toán xác nhận một lần (409 lần hai); khoản không có cờ thì 400 NO_FLAGS; bộ máy chỉ nhận cờ đã xác nhận', async () => {
@@ -504,9 +504,9 @@ test('1c: cờ thuế và bảo hiểm: Kế toán xác nhận một lần (409 
       .data.code,
     'NO_FLAGS'
   );
-  const inputsOf = () => service.loadInputs(month, { usernames: ['worker'] }).people.get('worker').entries;
+  const inputsOf = async () => (await service.loadInputs(month, { usernames: ['worker'] })).people.get('worker').entries;
   const approved = (await decideOf(flagged)).data.entry;
-  assert.equal(inputsOf()[0].flagsConfirmedBy, null); // đã duyệt nhưng cờ chưa xác nhận: bộ máy thấy flagsConfirmedBy null (chịu thuế)
+  assert.equal((await inputsOf())[0].flagsConfirmedBy, null); // đã duyệt nhưng cờ chưa xác nhận: bộ máy thấy flagsConfirmedBy null (chịu thuế)
   const confirmed = await F.call('POST', `/pay-entries/${flagged.id}/confirm-flags`, {
     who: 'ketoan',
     body: { rev: approved.rev, basis: 'Thông tư 111/2013/TT-BTC, Điều 2' }
@@ -514,24 +514,24 @@ test('1c: cờ thuế và bảo hiểm: Kế toán xác nhận một lần (409 
   assert.equal(confirmed.status, 200);
   assert.equal(confirmed.data.entry.flagsConfirmedBy, 'ketoan');
   assert.equal(confirmed.data.entry.status, 'approved');
-  assert.equal(inputsOf()[0].flagsConfirmedBy, 'ketoan');
+  assert.equal((await inputsOf())[0].flagsConfirmedBy, 'ketoan');
   const again = await F.call('POST', `/pay-entries/${flagged.id}/confirm-flags`, {
     who: 'ketoan',
     body: { rev: confirmed.data.entry.rev }
   });
   assert.equal(again.data.code, 'FLAGS_ALREADY_CONFIRMED');
-  assert.equal(auditRows('entry.confirmFlags', month).length, 1);
+  assert.equal((await auditRows('entry.confirmFlags', month)).length, 1);
 });
 
 test('1c: loadInputs chỉ nạp khoản ĐÃ DUYỆT, đúng hình bộ máy (không lý do, không người lập); người không có khoản không có trường entries và inputs_digest chỉ đổi khi có khoản duyệt', async () => {
   const month = freshMonth();
-  const digestBefore = service.digestOf(service.loadInputs(month));
+  const digestBefore = await service.digestOf(await service.loadInputs(month));
   await make(month); // chờ duyệt
   await make(month, { username: 'worker2', direction: 'deduct', amount: 100000, label: 'Hoàn ứng' });
-  assert.equal(service.digestOf(service.loadInputs(month)), digestBefore);
+  assert.equal(await service.digestOf(await service.loadInputs(month)), digestBefore);
   const entry = (await F.call('GET', `/pay-entries?month=${month}&username=worker`)).data.entries[0];
   await decideOf(entry);
-  const inputs = service.loadInputs(month);
+  const inputs = await service.loadInputs(month);
   assert.equal(Object.hasOwn(inputs.people.get('worker2'), 'entries'), false);
   assert.deepEqual(Object.keys(inputs.people.get('worker').entries[0]).sort(), [
     'amount',
@@ -544,17 +544,17 @@ test('1c: loadInputs chỉ nạp khoản ĐÃ DUYỆT, đúng hình bộ máy (k
     'taxCap',
     'taxMode'
   ]);
-  assert.notEqual(service.digestOf(inputs), digestBefore);
+  assert.notEqual(await service.digestOf(inputs), digestBefore);
   // tháng khác không bị ảnh hưởng
-  assert.equal(Object.hasOwn(service.loadInputs(freshMonth()).people.get('worker'), 'entries'), false);
+  assert.equal(Object.hasOwn((await service.loadInputs(freshMonth())).people.get('worker'), 'entries'), false);
 });
 
 test('1c: tắt system.entries.requireApproval: khoản có hiệu lực ngay khi lập (người lập tự duyệt, ghi chú nói rõ), khoản đang chờ có thể tự duyệt', async () => {
   const month = freshMonth();
   const pendingFirst = await make(month, { username: 'worker2' }); // lập khi còn bắt buộc duyệt
   const original = paramsStore.resolve;
-  paramsStore.resolve = m => {
-    const resolved = original(m);
+  paramsStore.resolve = async m => {
+    const resolved = await original(m);
     return { ...resolved, params: { ...resolved.params, 'system.entries.requireApproval': false } };
   };
   try {
@@ -585,8 +585,8 @@ test('1c: trigger của bảng giữ nguyên: khoản đã duyệt không đổi
     "UPDATE pay_entries SET month = '2030-01' WHERE id = ?",
     "UPDATE pay_entries SET status = 'pending' WHERE id = ?"
   ])
-    assert.throws(() => store.db.prepare(sql).run(entry.id), /pay_entries|khoản điền thêm/, sql);
-  assert.equal(rowsIn(month)[0].amount, 500000);
+    await assert.rejects(async () => await store.db.prepare(sql).run(entry.id), /pay_entries|khoản điền thêm/, sql);
+  assert.equal((await rowsIn(month))[0].amount, 500000);
 });
 
 test('1c: nhập hàng loạt đúng hình giao diện { month, entries: [không có month] }: khoản nhận tháng chung, khoản ghi month riêng giữ tháng riêng; void nhận thêm note thừa mà không lỗi', async () => {

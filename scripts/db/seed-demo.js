@@ -80,16 +80,17 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || today < '2026-10-01' || today > '2026-
 const scale = args.scale === undefined ? 0 : Number(args.scale);
 if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải là số nguyên từ 0 đến 5000');
 
+(async () => {
 // Đánh dấu ngay khi file mới được tạo: nếu lần dựng bị lỗi giữa chừng, lần sau vẫn nhận ra đây là file demo và dựng lại được
-store.setSetting(MARKER_KEY, { version: 1, building: true });
+await store.setSetting(MARKER_KEY, { version: 1, building: true });
 const t0 = Date.now();
 const payroll = loadPayroll();
 const passHash = H.fixedHash(DEMO_PASSWORD);
 const personas = S.PERSONAS;
 const generator = gen.create({ store, payroll, passHash, today });
 const bulk = scale ? gen.bulkPersonas(scale, personas.length + S.ADMINS.length) : [];
-generator.seedAll(personas, S.ADMINS, bulk);
-store.setSetting(MARKER_KEY, { version: 1, today, personas: personas.length, bulk: bulk.length });
+await generator.seedAll(personas, S.ADMINS, bulk);
+await store.setSetting(MARKER_KEY, { version: 1, today, personas: personas.length, bulk: bulk.length });
 
 /* ---------- tóm tắt (không có tên hay số tiền) ---------- */
 const line = (label, value) => console.log(`${label.padEnd(34)}${value}`);
@@ -149,7 +150,7 @@ if (generator.stats.skippedFuturePunches)
 let check = null;
 let exitCode = 0;
 if (!args['no-check']) {
-  check = selfcheck.run({ store, payroll, personas, today });
+  check = await selfcheck.run({ store, payroll, personas, today });
   console.log(`\nTự kiểm "Soát dữ liệu" (${check.months.join(', ')}, tính đến ${today})`);
   for (const [month, total] of Object.entries(check.perMonth)) line(`  Phát hiện tháng ${month}`, total);
   for (const m of check.mapping)
@@ -197,7 +198,7 @@ if (warnings.length) {
 /* ---------- xuất CSV ---------- */
 if (args.export) {
   const dir = typeof args.out === 'string' ? args.out : path.join(ROOT, 'data', 'demo');
-  const written = exportAll({ store, personas, selfcheck: check, dir, people: [...personas, ...S.ADMINS, ...bulk] });
+  const written = await exportAll({ store, personas, selfcheck: check, dir, people: [...personas, ...S.ADMINS, ...bulk] });
   console.log(`\nĐã xuất ${Object.keys(written).length} file CSV vào ${path.relative(ROOT, path.resolve(dir))}/`);
   for (const [file, rows] of Object.entries(written)) line(`  ${file}`, `${rows} dòng`);
 }
@@ -206,3 +207,8 @@ console.log(
   `\nXong trong ${((Date.now() - t0) / 1000).toFixed(1)} giây.${exitCode ? ' Có kỳ vọng AI chưa đạt (xem cảnh báo).' : ''}`
 );
 process.exit(exitCode);
+
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});

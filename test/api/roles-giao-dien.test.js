@@ -7,16 +7,16 @@ const assert = require('node:assert/strict');
 const REASON = 'Phân quyền theo quyết định tháng này';
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
 });
 after(F.stop);
 
-const make = body => F.call('POST', '/roles', { body });
-const edit = (code, body) => F.call('PUT', `/roles/${code}`, { body });
+const make = async body => await F.call('POST', '/roles', { body });
+const edit = async (code, body) => await F.call('PUT', `/roles/${code}`, { body });
 // rev là bắt buộc: lấy rev hiện tại của vai trò rồi sửa
 const editR = async (code, body) =>
-  edit(code, { rev: (await F.call('GET', '/roles')).data.roles.find(r => r.code === code).rev, ...body });
+  await edit(code, { rev: (await F.call('GET', '/roles')).data.roles.find(r => r.code === code).rev, ...body });
 
 test('hợp đồng giao diện: perms, approve, extras, active, editable, system khớp tên gọi của màn Phân quyền', async () => {
   const created = await make({

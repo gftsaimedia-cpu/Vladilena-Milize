@@ -43,13 +43,13 @@ const ruleFigure = month => {
 const PEOPLE = ['qa_nv1', 'qa_nv2', 'qa_nv3', 'qa_off'];
 // Bốn NV bậc 1 ca n1 (qa_off tắt tạm ứng trong hồ sơ); Admin khai thay mọi ngày làm của tháng; đồng hồ: ngày 2 tháng sau
 async function setup(month) {
-  F.reset();
-  P.revokeAllRoles();
-  F.at(nextMonth02(month));
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at(nextMonth02(month));
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   for (const username of PEOPLE)
-    F.person(username, 'staff', {
+    await F.person(username, 'staff', {
       type: 'nv',
       level: 1,
       shiftCode: 'n1',
@@ -63,22 +63,22 @@ async function setup(month) {
     assert.equal(res.status, 200, `khai thay ${user}: ${JSON.stringify(res.data)}`);
   }
 }
-const list = (month, who = 'admin') => F.call('GET', `/advance-approvals?month=${month}`, { who });
-const ask = (month, who, extra = {}) => requestInWindow(F, month, who, extra);
-const withdraw = (month, who, extra = {}) =>
-  F.call('POST', '/advance-approvals/withdraw', { who, body: { month, ...extra } });
-const decide = (step, month, username, extra = {}, who = 'admin') =>
-  F.call('POST', `/advance-approvals/${step}`, { who, body: { month, username, ...extra } });
-const approve = (month, username, extra, who) => decide('approve', month, username, extra, who);
-const reject = (month, username, extra, who) => decide('reject', month, username, extra, who);
-const cancel = (month, username, extra, who) => decide('cancel', month, username, extra, who);
-const approveAll = (month, extra = {}, who = 'admin') =>
-  F.call('POST', '/advance-approvals/approve-all', { who, body: { month, ...extra } });
+const list = async (month, who = 'admin') => await F.call('GET', `/advance-approvals?month=${month}`, { who });
+const ask = async (month, who, extra = {}) => await requestInWindow(F, month, who, extra);
+const withdraw = async (month, who, extra = {}) =>
+  await F.call('POST', '/advance-approvals/withdraw', { who, body: { month, ...extra } });
+const decide = async (step, month, username, extra = {}, who = 'admin') =>
+  await F.call('POST', `/advance-approvals/${step}`, { who, body: { month, username, ...extra } });
+const approve = async (month, username, extra, who) => await decide('approve', month, username, extra, who);
+const reject = async (month, username, extra, who) => await decide('reject', month, username, extra, who);
+const cancel = async (month, username, extra, who) => await decide('cancel', month, username, extra, who);
+const approveAll = async (month, extra = {}, who = 'admin') =>
+  await F.call('POST', '/advance-approvals/approve-all', { who, body: { month, ...extra } });
 const estimate = async (month, username) =>
   (await F.call('GET', `/periods/${month}/estimates/${username}`)).data.payslip;
 const itemOf = (data, username) => data.items.find(r => r.username === username);
-const auditRows = month =>
-  store.db
+const auditRows = async month =>
+  await store.db
     .prepare(
       "SELECT action, subject, before_json, after_json, reason FROM audit_log WHERE action LIKE 'advance.%' AND month = ? ORDER BY id"
     )
@@ -133,7 +133,7 @@ test('xin → chờ duyệt (0 ₫, Admin chỉ thấy người đã xin) → du
   assert.equal(before.net - after.net, ruleFigure(M));
   assert.equal(after.gross, before.gross);
   assert.equal((await estimate(M, 'qa_nv2')).advance, 0);
-  const rows = auditRows(M);
+  const rows = await auditRows(M);
   assert.deepEqual(
     rows.map(r => [r.action, r.subject]),
     [
@@ -165,10 +165,10 @@ test('từ chối: tạm ứng 0 ₫, lý do lưu và nhân sự đọc được
   assert.equal(none.status, 409);
   assert.equal(none.data.code, 'ADVANCE_NOT_PENDING');
   assert.deepEqual(
-    auditRows(M).map(r => r.action),
+    (await auditRows(M)).map(r => r.action),
     ['advance.request', 'advance.reject']
   );
-  assert.equal(auditRows(M)[1].reason, 'Đã ứng ngoài hệ thống');
+  assert.equal((await auditRows(M))[1].reason, 'Đã ứng ngoài hệ thống');
 });
 
 test('rút yêu cầu đang chờ: biến khỏi danh sách Admin, xin lại được; rút khi đã duyệt là 409; expectedRev lệch là 409 ADVANCE_REQUEST_STALE', async () => {
@@ -188,7 +188,7 @@ test('rút yêu cầu đang chờ: biến khỏi danh sách Admin, xin lại đ�
   assert.equal(late.status, 409);
   assert.equal(late.data.code, 'ADVANCE_NOT_PENDING');
   assert.deepEqual(
-    auditRows(M).map(r => r.action),
+    (await auditRows(M)).map(r => r.action),
     ['advance.request', 'advance.withdraw', 'advance.request', 'advance.approve']
   );
 });
@@ -211,7 +211,7 @@ test('duyệt tất cả: chỉ duyệt yêu cầu đang chờ (bỏ người đ
   const M = monthOf();
   await setup(M);
   // qa_zero: được ứng nhưng không có ngày đi làm; số đã chốt 0 ₫ nên chính nhân sự cũng không xin được (ADVANCE_ZERO)
-  F.person('qa_zero', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_zero', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
   const zero = await ask(M, 'qa_zero');
   assert.equal(zero.status, 409);
   assert.equal(zero.data.code, 'ADVANCE_ZERO');
@@ -243,7 +243,7 @@ test('không đủ điều kiện: hồ sơ tắt tạm ứng thì xin là 403 A
   assert.equal(res.status, 403);
   assert.equal(res.data.code, 'ADVANCE_NOT_ELIGIBLE');
   assert.equal((await ask(M, 'admin')).status, 403);
-  assert.equal(auditRows(M).length, 0);
+  assert.equal((await auditRows(M)).length, 0);
   assert.deepEqual((await list(M)).data.items, []);
   const mine = await list(M, 'qa_off');
   assert.equal(mine.data.item.eligible, false);
@@ -260,7 +260,7 @@ test('kỳ đã duyệt: xin, rút, duyệt, từ chối, huỷ duyệt và duy�
   const slips = (await F.call('GET', `/periods/${M}/payslips?pageSize=200`)).data.rows;
   assert.equal(slips.find(r => r.username === 'qa_nv1').advance, ruleFigure(M), 'phiếu lấy tạm ứng đã duyệt');
   assert.equal(slips.find(r => r.username === 'qa_nv2').advance, 0, 'đang chờ: 0');
-  const n = auditRows(M).length;
+  const n = (await auditRows(M)).length;
   for (const res of [
     await ask(M, 'qa_nv3'),
     await withdraw(M, 'qa_nv2'),
@@ -272,13 +272,13 @@ test('kỳ đã duyệt: xin, rút, duyệt, từ chối, huỷ duyệt và duy�
     assert.equal(res.status, 409, JSON.stringify(res.data));
     assert.equal(res.data.code, 'PERIOD_LOCKED');
   }
-  assert.equal(auditRows(M).length, n);
+  assert.equal((await auditRows(M)).length, n);
 });
 
 test('chưa chốt: trước ngày advance.untilDay số còn chưa chốt (provisional true) và chỉ gồm ngày đã qua', async () => {
   const M = monthOf();
   await setup(M);
-  F.at(`${M}-10T12:00:00`);
+  await F.at(`${M}-10T12:00:00`);
   const res = await list(M, 'qa_nv1');
   ok(res, 'của mình');
   assert.equal(res.data.provisional, true);
@@ -302,6 +302,6 @@ test('quyền: chưa đăng nhập 401; nhân sự không duyệt, không từ c
   assert.equal((await cancel(M, 'qa_nv2', {}, 'qa_nv2')).status, 403);
   const other = await F.call('GET', `/advance-approvals?month=${M}&username=qa_nv2`, { who: 'qa_nv1' });
   assert.equal(other.status, 403);
-  assert.equal(auditRows(M).length, 2);
+  assert.equal((await auditRows(M)).length, 2);
   assert.equal((await ask('2026-13', 'qa_nv1')).status, 400);
 });

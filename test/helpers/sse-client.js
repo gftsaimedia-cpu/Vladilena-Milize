@@ -7,8 +7,8 @@ const assert = require('node:assert/strict');
 const events = require('../../lib/events');
 const F = require('./api-fixture');
 
-function openStream(who, headers = {}) {
-  return new Promise((resolve, reject) => {
+async function openStream(who, headers = {}) {
+  return new Promise(async (resolve, reject) => {
     const req = http.request(
       {
         host: '127.0.0.1',
@@ -16,7 +16,7 @@ function openStream(who, headers = {}) {
         path: '/api/events',
         method: 'GET',
         headers: {
-          Cookie: F.auth.cookieHeader(F.auth.createSession(who), 86400),
+          Cookie: F.auth.cookieHeader(await F.auth.createSession(who), 86400),
           Accept: 'text/event-stream',
           ...headers
         }
@@ -71,14 +71,14 @@ const open = async who => {
   return stream;
 };
 // Mở hai luồng của cùng một người (hai máy) được: nhãn `who` giống nhau, nên trả về mảng theo thứ tự mở
-const openMany = async (...whos) => Promise.all(whos.map(open));
+const openMany = async (...whos) => Promise.all(await Promise.all(whos.map(open)));
 
 // Tin chốt tới mọi luồng, rồi trả các khung ứng dụng nhận được kể từ lần chốt trước (đã bỏ hello, resync và tin chốt).
 // Kết quả theo CHỈ SỐ của mảng `streams` (không theo tên, vì một người có thể mở hai luồng).
 let sentinel = 0;
 async function settle(streams) {
   const id = ++sentinel;
-  events.publish('announcement.posted', { id }, { all: true });
+  await events.publish('announcement.posted', { id }, { all: true });
   for (const s of streams)
     await until(
       () => s.frames.some(f => f.event === 'announcement.posted' && f.data.id === id),

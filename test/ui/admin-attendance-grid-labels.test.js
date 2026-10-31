@@ -106,16 +106,16 @@ function load() {
 }
 
 test('Bảng công: ô theo nhãn của ngày, chú giải đúng sáu nhãn, cột Chờ xử lý đếm ngày Chờ xử lý', async () => {
-  const { view } = load();
+  const { view } = await load();
   await view.load();
-  const html = view.render();
+  const html = await view.render();
   const cell = d => new RegExp(`id="ccc-an-${MONTH}-${d}"[^>]*aria-label="An, [^:"]*: ([^"]*)"`).exec(html)[1];
-  assert.equal(cell('03'), 'Chờ xử lý: Vào trễ 22 phút');
-  assert.equal(cell('04'), 'Đã Check-out');
-  assert.equal(cell('05'), 'Được phê duyệt: Giải trình Check-out muộn');
-  assert.equal(cell('06'), 'Đã chấm công');
-  assert.equal(cell('09'), 'Bị từ chối: Giải trình Check-out muộn');
-  assert.equal(cell('10'), 'Đã Check-in');
+  assert.equal(await cell('03'), 'Chờ xử lý: Vào trễ 22 phút');
+  assert.equal(await cell('04'), 'Đã Check-out');
+  assert.equal(await cell('05'), 'Được phê duyệt: Giải trình Check-out muộn');
+  assert.equal(await cell('06'), 'Đã chấm công');
+  assert.equal(await cell('09'), 'Bị từ chối: Giải trình Check-out muộn');
+  assert.equal(await cell('10'), 'Đã Check-in');
   for (const label of Object.values(AS.LABEL))
     assert.ok(html.includes(`</span>${label}</span>`), `chú giải thiếu ${label}`);
   for (const old of ['Đủ công', 'Đang trong ca', 'Quên Check-in/out', 'nên đối soát', 'Có mặt', 'Cần xử lý'])
@@ -126,9 +126,9 @@ test('Bảng công: ô theo nhãn của ngày, chú giải đúng sáu nhãn, c�
 });
 
 test('Hộp một ngày: nhãn của lượt và lý do ở ô Ghi chú', async () => {
-  const { A, view, dialogs } = load();
+  const { A, view, dialogs } = await load();
   await view.load();
-  view.render();
+  await view.render();
   A.actions.cccell({ dataset: { u: 'an', d: `${MONTH}-03` } });
   const body = dialogs[0].body;
   assert.match(body, /<span class="pill p-pending">Chờ xử lý<\/span>/);
@@ -137,9 +137,9 @@ test('Hộp một ngày: nhãn của lượt và lý do ở ô Ghi chú', async 
 });
 
 test('Hộp một ngày: ngày Admin khai thay vẫn liệt kê lượt quên Check-out với nhãn riêng của lượt', async () => {
-  const { A, view, dialogs } = load();
+  const { A, view, dialogs } = await load();
   await view.load();
-  view.render();
+  await view.render();
   A.actions.cccell({ dataset: { u: 'an', d: `${MONTH}-06` } });
   const body = dialogs[0].body;
   assert.match(body, /<span class="pill p-done">Đã chấm công<\/span>/);
@@ -148,10 +148,10 @@ test('Hộp một ngày: ngày Admin khai thay vẫn liệt kê lượt quên Ch
 });
 
 test('Hôm nay: nhãn của dòng do máy chủ gửi, lý do là chữ nhỏ, dòng chưa có lượt giữ "Chưa có lượt"', async () => {
-  const { S, view } = load();
+  const { S, view } = await load();
   S.sub.cc = 'hom-nay';
   await view.load();
-  const html = view.render();
+  const html = await view.render();
   assert.match(html, /<span class="pill p-line">Đã Check-in<\/span>/);
   assert.match(html, /<span class="pill p-pending">Chờ xử lý<\/span><span class="cap">Về sớm 10 phút<\/span>/);
   assert.match(html, /<span class="pill p-draft">Chưa có lượt<\/span>/);

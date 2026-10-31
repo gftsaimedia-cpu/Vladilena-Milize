@@ -18,10 +18,10 @@ const itemOf = (v, code) => (v.checklist || []).find(i => i.code === code);
 const countOf = (v, code) => (itemOf(v, code) || { count: 0 }).count;
 
 // Phiên quên Check-out (chỉ có giờ vào) của ngày đi làm đầu tiên của tháng, đúng dạng ActualHours coi là 'forgot-out'
-function addForgotOut(username, month) {
+async function addForgotOut(username, month) {
   const person = flow.PEOPLE.find(p => p.username === username);
   const staff = { shiftCode: person.shiftCode, sched: SCHED[person.type] };
-  const days = store.getSheet(username, month).days;
+  const days = (await store.getSheet(username, month)).days;
   const date = P.datesOf(month).find(d => days[d] && days[d].kind === 'work' && PunchRules.planShift(staff, d));
   assert.ok(date, `${month}: phải có ngày làm việc theo ca`);
   const plan = PunchRules.planShift(staff, date);
@@ -32,7 +32,7 @@ function addForgotOut(username, month) {
   delete entry.presOut;
   entry.kind = 'pending';
   entry.reason = 'forgot-out';
-  store.createSession(username, plan.date, 'closed', entry);
+  await store.createSession(username, plan.date, 'closed', entry);
   return plan.date;
 }
 const ask = async (username, date) => {
@@ -57,7 +57,8 @@ test('Giải trình chưa quyết định (chờ trả lời hoặc đã trả l
   const M = monthOf();
   await P.seed(M);
   assert.equal(countOf(await view(M), 'EXPLANATION_PENDING'), 0);
-  const [d1, d2] = P.datesOf(M).filter(d => store.getSheet('qa_nv1', M).days[d]);
+  const stored = (await store.getSheet('qa_nv1', M)).days;
+  const [d1, d2] = P.datesOf(M).filter(d => stored[d]);
   const first = await ask('qa_nv1', d1);
   await ask('qa_nv1', d2);
   await answer(first);
@@ -72,7 +73,7 @@ test('Giải trình chưa quyết định (chờ trả lời hoặc đã trả l
 test('Ngày quên Check-out có giải trình bị từ chối không còn trong FORGOT_PUNCH và không đếm vào EXPLANATION_PENDING; chờ quyết định thì vẫn là quên Check-out', async () => {
   const M = monthOf();
   await P.seed(M);
-  const date = addForgotOut('qa_nv1', M);
+  const date = await addForgotOut('qa_nv1', M);
   assert.equal(countOf(await view(M), 'FORGOT_PUNCH'), 1);
   const item = await ask('qa_nv1', date);
   await answer(item);

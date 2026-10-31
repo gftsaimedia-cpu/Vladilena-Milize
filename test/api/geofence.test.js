@@ -46,7 +46,7 @@ const punchOut = (cookie, r) =>
     sessionId: r.data.openSession.id
   });
 const setFence = (cookie, body, raw) => call(cookie, 'PUT', '/api/settings/geofence', body, raw);
-const sessionsOf = u => store.listSessions({ username: u });
+const sessionsOf = async u => await store.listSessions({ username: u });
 const FENCE = { ...HQ, radiusM: 150, maxAccuracyM: 80 };
 
 before(async () => {
@@ -57,7 +57,7 @@ before(async () => {
     { username: 'binh', name: 'Bình', role: 'staff', type: 'nv', level: 1, nightPct: 40, shiftCode: 'n1' },
     { username: 'chi', name: 'Chi', role: 'staff', type: 'nv', level: 1, nightPct: 40, shiftCode: 'n1' }
   ])
-    store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
+    await store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -86,7 +86,7 @@ test('GPS: PUT /settings/geofence chỉ Admin; chưa đăng nhập 401, nhân s�
   assert.equal((await setFence(null, FENCE)).status, 401);
   assert.equal((await setFence(an, FENCE)).status, 403);
   assert.equal((await setFence(an, null, 'null')).status, 403);
-  assert.equal(store.getSetting('geofence', null), null, 'nhân sự không đặt được vùng');
+  assert.equal(await store.getSetting('geofence', null), null, 'nhân sự không đặt được vùng');
 });
 
 test('GPS: kiểm tra giá trị vùng, sai thì 400 và không lưu gì', async () => {
@@ -116,7 +116,7 @@ test('GPS: kiểm tra giá trị vùng, sai thì 400 và không lưu gì', async
     (await setFence(adm, null, `{"lat":${HQ.lat},"lng":${HQ.lng},"radiusM":1e400,"maxAccuracyM":50}`)).status,
     400
   );
-  assert.equal(store.getSetting('geofence', null), null, 'giá trị sai không được lưu');
+  assert.equal(await store.getSetting('geofence', null), null, 'giá trị sai không được lưu');
 });
 
 test('GPS: lưu vùng hợp lệ, mặc định độ chính xác 100 m; Admin thấy đủ, nhân sự chỉ thấy cờ', async () => {
@@ -165,18 +165,18 @@ test('GPS: Check-in thiếu vị trí hoặc vị trí không hợp lệ vẫn �
     assert.equal(r.status, 200, JSON.stringify(loc));
     assert.ok(warned(r, 'GEO_NO_LOCATION'), JSON.stringify(r.data.warnings));
     count += 1;
-    assert.equal(sessionsOf('binh').length, count);
+    assert.equal((await sessionsOf('binh')).length, count);
     assert.equal((await punchOut(bn, r)).status, 200);
   }
 });
 
 test('GPS: độ chính xác kém (accuracy > maxAccuracyM) vẫn Check-in được kèm cảnh báo GEO_LOW_ACCURACY; đúng bằng ngưỡng thì không cảnh báo', async () => {
   const bn = await login('binh');
-  const before = sessionsOf('binh').length;
+  const before = (await sessionsOf('binh')).length;
   const r = await punchIn(bn, { ...HQ, accuracy: 80.5 });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(warned(r, 'GEO_LOW_ACCURACY'), JSON.stringify(r.data.warnings));
-  assert.equal(sessionsOf('binh').length, before + 1);
+  assert.equal((await sessionsOf('binh')).length, before + 1);
   assert.equal((await punchOut(bn, r)).status, 200);
   const edge = await punchIn(bn, { ...HQ, accuracy: 80 });
   assert.equal(edge.status, 200);
@@ -189,7 +189,7 @@ test('GPS: ở ngoài bán kính vẫn Check-in được kèm cảnh báo GEO_OU
   const far = await punchIn(chi, { lat: north(151), lng: HQ.lng, accuracy: 10 });
   assert.equal(far.status, 200, JSON.stringify(far.data));
   assert.ok(warned(far, 'GEO_OUTSIDE'), JSON.stringify(far.data.warnings));
-  assert.equal(sessionsOf('chi').length, 1);
+  assert.equal((await sessionsOf('chi')).length, 1);
   assert.equal((await punchOut(chi, far)).status, 200);
   const farAway = await punchIn(chi, { lat: 21.0285, lng: 105.8542, accuracy: 5 });
   assert.equal(farAway.status, 200);
@@ -223,7 +223,7 @@ test('GPS: Check-out không cần vị trí, kể cả khi đang ở ngoài khu 
   const chi = await login('chi');
   const far = await punchIn(chi, { lat: north(151), lng: HQ.lng, accuracy: 10 });
   assert.equal(far.status, 200, JSON.stringify(far.data));
-  const open = store.openSession('chi');
+  const open = await store.openSession('chi');
   assert.ok(open);
   clock = Date.parse('2026-10-07T17:05:00+07:00');
   const r = await call(chi, 'POST', '/api/punch', { type: 'out', requestId: 'geo-test-out-chi-1', sessionId: open.id });
@@ -236,7 +236,7 @@ test('GPS: không lưu toạ độ, độ chính xác hay khoảng cách ở b�
     dm = store.db;
   assert.equal((await setFence(adm, FENCE)).status, 200);
   const staffName = 'giahuy-geo';
-  store.upsertStaff({
+  await store.upsertStaff({
     username: staffName,
     name: 'Gia Huy',
     role: 'staff',
@@ -290,7 +290,7 @@ test('GPS: không lưu toạ độ, độ chính xác hay khoảng cách ở b�
       assert.ok(!/\d/.test(w.message), 'cảnh báo không chứa số đo (khoảng cách, độ chính xác)');
   // toàn bộ dữ liệu của lượt chấm công: punches, attendance_sessions, punch_requests, corrections, attendance_days
   for (const table of ['punches', 'attendance_sessions', 'punch_requests', 'corrections', 'attendance_days']) {
-    const rows = dm.prepare(`SELECT * FROM ${table}`).all();
+    const rows = await dm.prepare(`SELECT * FROM ${table}`).all();
     const text = JSON.stringify(rows);
     for (const n of needles) assert.ok(!text.includes(n), `bảng ${table} lộ ${n}`);
     assert.ok(!forbiddenKeys.test(text), `bảng ${table} có khoá vị trí / khoảng cách`);
@@ -298,13 +298,13 @@ test('GPS: không lưu toạ độ, độ chính xác hay khoảng cách ở b�
       for (const col of Object.keys(row)) assert.ok(!/lat|lng|geo|accur|dist|loc/i.test(col), `cột ${table}.${col}`);
   }
   // và không bảng nào ngoài cấu hình công ty chứa toạ độ nhân sự
-  const tables = dm.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+  const tables = await dm.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
   for (const { name } of tables) {
     if (name === 'settings') continue;
-    const text = JSON.stringify(dm.prepare(`SELECT * FROM "${name}"`).all());
+    const text = JSON.stringify(await dm.prepare(`SELECT * FROM "${name}"`).all());
     for (const n of needles) assert.ok(!text.includes(n), `bảng ${name} lộ ${n}`);
   }
-  const session = sessionsOf(staffName).at(-1);
+  const session = await (await sessionsOf(staffName)).at(-1);
   assert.ok(session);
   assert.ok(!JSON.stringify(session).match(forbiddenKeys));
 });
@@ -314,7 +314,7 @@ test('GPS: tắt bằng null (hoặc { geofence: null }), Check-in không cần 
   const offRaw = await setFence(adm, null, 'null');
   assert.equal(offRaw.status, 200);
   assert.equal(offRaw.data.geofence, null);
-  assert.equal(store.getSetting('geofence', 'x'), null);
+  assert.equal(await store.getSetting('geofence', 'x'), null);
   assert.equal((await call(adm, 'GET', '/api/me')).data.geofenceRequired, false);
   assert.equal((await call(adm, 'GET', '/api/me')).data.geofence, null);
   clock = Date.parse('2026-10-09T07:55:00+07:00');
@@ -342,7 +342,7 @@ test('GPS: tắt bằng null (hoặc { geofence: null }), Check-in không cần 
   assert.equal((await setFence(adm, {})).status, 400);
   assert.equal((await setFence(adm, null, '"off"')).status, 400);
   assert.equal((await setFence(adm, null, '[]')).status, 400);
-  assert.deepEqual(store.getSetting('geofence', null), FENCE, 'yêu cầu sai không làm tắt vùng');
+  assert.deepEqual(await store.getSetting('geofence', null), FENCE, 'yêu cầu sai không làm tắt vùng');
 });
 
 test('GPS: gửi lại cùng requestId trả đúng kết quả cũ, không kiểm vị trí lần nữa', async () => {
@@ -356,5 +356,5 @@ test('GPS: gửi lại cùng requestId trả đúng kết quả cũ, không ki�
   const again = await call(an, 'POST', '/api/punch', { ...body, location: { lat: 21, lng: 105, accuracy: 10 } });
   assert.equal(again.status, 200);
   assert.deepEqual(again.data, first.data);
-  assert.equal(sessionsOf('an').filter(s => s.date === '2026-10-10').length, 1);
+  assert.equal((await sessionsOf('an')).filter(s => s.date === '2026-10-10').length, 1);
 });

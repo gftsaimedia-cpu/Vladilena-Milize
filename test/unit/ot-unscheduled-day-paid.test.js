@@ -21,7 +21,7 @@ const near = (actual, expected, label = '') =>
 const ot = (extraOut = '21:00') => ({ ...F.WORK, extraKind: 'ot', extraOut });
 
 // Tháng đầy đủ của lịch mặc định (Thứ Hai–Thứ Bảy) cộng ngày ngoài lịch `extra`; chấm công đủ ca, riêng ngày OT chấm thêm `stay` phút
-function monSat(extra, { approve = [], punchDates = [], stay = 240 } = {}) {
+async function monSat(extra, { approve = [], punchDates = [], stay = 240 } = {}) {
   const staff = F.nvStaff();
   const days = { ...F.fullDays('2026-10', F.MON_SAT), ...extra };
   const regular = F.datesOn('2026-10', F.MON_SAT);
@@ -32,25 +32,25 @@ function monSat(extra, { approve = [], punchDates = [], stay = 240 } = {}) {
   return F.run(staff, days, {
     ...OPT,
     sessions,
-    approvals: F.approved(days, [], 'nv', approve)
+    approvals: await F.approved(days, [], 'nv', approve)
   });
 }
 const rowOf = (r, date) => r.m.rows.find(x => x.date === date);
 
-test('Chủ nhật ngoài lịch có OT 17:00–21:00 đã duyệt và có chấm công: trả 4 giờ ×ot.weekendRate = 230.769 ₫ (trước đây 0)', () => {
-  const r = monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN] });
-  assert.equal(F.state(r, SUN), 'ok');
+test('Chủ nhật ngoài lịch có OT 17:00–21:00 đã duyệt và có chấm công: trả 4 giờ ×ot.weekendRate = 230.769 ₫ (trước đây 0)', async () => {
+  const r = await monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN] });
+  assert.equal(await F.state(r, SUN), 'ok');
   assert.equal(r.m.otHours, 4);
   assert.equal(r.m.otWeekendHours, 4);
   near(r.m.otWeekendPay, 4 * HOURLY * RW);
-  const row = rowOf(r, SUN);
+  const row = await rowOf(r, SUN);
   assert.ok(row, 'ngày Chủ nhật có dòng trong tháng');
   assert.equal(Math.round(row.total), 230769);
 });
 
-test('ngày OT ngoài lịch chỉ trả đoạn OT: không thêm ngày công, không lương ngày, không phụ cấp ca', () => {
-  const withSun = monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN] });
-  const without = monSat({}, {});
+test('ngày OT ngoài lịch chỉ trả đoạn OT: không thêm ngày công, không lương ngày, không phụ cấp ca', async () => {
+  const withSun = await monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN] });
+  const without = await monSat({}, {});
   assert.equal(withSun.m.count, without.m.count, 'số ngày công không đổi');
   assert.equal(withSun.m.absent, 0);
   near(withSun.m.total - without.m.total, 4 * HOURLY * RW, 'tháng chỉ tăng đúng tiền OT');
@@ -58,21 +58,21 @@ test('ngày OT ngoài lịch chỉ trả đoạn OT: không thêm ngày công, k
   near(withSun.m.bonus, without.m.bonus);
 });
 
-test('Chủ nhật có chấm công nhưng không có khoản OT được duyệt: 0 đồng, tháng không đổi', () => {
-  const none = monSat({}, {});
-  const present = monSat({ [SUN]: ot() }, { approve: [], punchDates: [SUN] });
+test('Chủ nhật có chấm công nhưng không có khoản OT được duyệt: 0 đồng, tháng không đổi', async () => {
+  const none = await monSat({}, {});
+  const present = await monSat({ [SUN]: ot() }, { approve: [], punchDates: [SUN] });
   assert.equal(present.m.otHours, 0);
   near(present.m.total, none.m.total);
-  assert.equal(rowOf(present, SUN), undefined);
+  assert.equal(await rowOf(present, SUN), undefined);
 });
 
-test('Chủ nhật có khoản OT được duyệt nhưng chỉ chấm công tới 19:00: chỉ trả 2 giờ có mặt', () => {
-  const r = monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN], stay: 120 });
+test('Chủ nhật có khoản OT được duyệt nhưng chỉ chấm công tới 19:00: chỉ trả 2 giờ có mặt', async () => {
+  const r = await monSat({ [SUN]: ot() }, { approve: [SUN], punchDates: [SUN], stay: 120 });
   assert.equal(r.m.otHours, 2);
   near(r.m.otWeekendPay, 2 * HOURLY * RW);
 });
 
-test('Thứ Bảy ngoài lịch của người làm Thứ Hai–Thứ Sáu: OT được duyệt 4 giờ ×ot.weekendRate', () => {
+test('Thứ Bảy ngoài lịch của người làm Thứ Hai–Thứ Sáu: OT được duyệt 4 giờ ×ot.weekendRate', async () => {
   const staff = F.nvStaff();
   const days = { ...F.fullDays('2026-10', F.MON_FRI), [SAT]: ot() };
   const sessions = [
@@ -82,14 +82,14 @@ test('Thứ Bảy ngoài lịch của người làm Thứ Hai–Thứ Sáu: OT �
   const r = F.run(staff, days, {
     ...OPT,
     sessions,
-    approvals: F.approved(days, [], 'nv', [SAT]),
+    approvals: await F.approved(days, [], 'nv', [SAT]),
     over: F.nvDows(F.MON_FRI)
   });
   assert.equal(r.m.otWeekendHours, 4);
   near(r.m.otWeekendPay, 4 * HOURLY * RW);
 });
 
-test('ngày thường ngoài lịch (Thứ Ba của người làm Thứ Hai–Thứ Tư–Thứ Sáu) có OT được duyệt: 4 giờ ×ot.rate = 173.077 ₫', () => {
+test('ngày thường ngoài lịch (Thứ Ba của người làm Thứ Hai–Thứ Tư–Thứ Sáu) có OT được duyệt: 4 giờ ×ot.rate = 173.077 ₫', async () => {
   const staff = F.nvStaff();
   const days = { ...F.fullDays('2026-10', F.MWF), [TUE]: ot() };
   const sessions = [
@@ -99,11 +99,11 @@ test('ngày thường ngoài lịch (Thứ Ba của người làm Thứ Hai–Th
   const r = F.run(staff, days, {
     ...OPT,
     sessions,
-    approvals: F.approved(days, [], 'nv', [TUE]),
+    approvals: await F.approved(days, [], 'nv', [TUE]),
     over: F.nvDows(F.MWF)
   });
   assert.equal(r.m.otHours, 4);
   assert.equal(r.m.otWeekendHours, 0);
   near(r.m.otWeekdayPay, 4 * HOURLY * R);
-  assert.equal(Math.round(rowOf(r, TUE).total), 173077);
+  assert.equal(Math.round((await rowOf(r, TUE)).total), 173077);
 });

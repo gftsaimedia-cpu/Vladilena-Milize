@@ -30,20 +30,20 @@ test('payroll-engine-invariants: bộ máy dùng chung thỏa mọi đẳng th�
   payrollEngineInvariants(compute, { inputs, label: 'ca vàng' });
 });
 
-test('payroll-engine-invariants: kết quả lệch một đồng ở thực lĩnh, ở một dòng ngày hay ở tổng thu nhập thì bị bắt', () => {
+test('payroll-engine-invariants: kết quả lệch một đồng ở thực lĩnh, ở một dòng ngày hay ở tổng thu nhập thì bị bắt', async () => {
   const { input } = readGolden().cases.find(c => c.id === 'known-kpi-five-100-90-80-85-100');
-  const fresh = () => JSON.parse(JSON.stringify(compute(JSON.parse(JSON.stringify(input))).m));
-  assert.deepEqual(monthProblems(fresh()), []);
-  const net = fresh();
+  const fresh = async () => JSON.parse(JSON.stringify((await compute(JSON.parse(JSON.stringify(input)))).m));
+  assert.deepEqual(monthProblems(await fresh()), []);
+  const net = await fresh();
   net.net.net += 1;
   assert.match(monthProblems(net).join(';'), /thực lĩnh/);
-  const row = fresh();
+  const row = await fresh();
   row.rows[0].pay += 1;
   assert.match(monthProblems(row).join(';'), /tổng pay các dòng ngày/);
-  const total = fresh();
+  const total = await fresh();
   total.total += 1;
   assert.match(monthProblems(total).join(';'), /m\.total|m\.net\.gross/);
-  const line = fresh();
+  const line = await fresh();
   line.lines.workBase += 0.5;
   assert.match(monthProblems(line).join(';'), /m\.lines\.workBase/);
 });

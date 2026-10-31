@@ -22,12 +22,12 @@ test('formula-khoá: bảy khoá formula.* trong registry là locked kèm lý do
 
 test('formula-khoá: lưu công thức qua PUT /api/settings/params bị 400 PARAM_LOCKED với lý do, kể cả giá trị null, và không ghi gì', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const value of ['tổng theo ngày', null]) {
     const res = await P.saveChanges([{ key: 'formula.tamUng', value }], { month: M });
     assert.equal(res.status, 400, JSON.stringify(res.data));
     assert.equal(res.data.code, 'PARAM_LOCKED');
     assert.match(res.data.error, /Công thức do hệ thống giữ, cấu hình bằng biểu mẫu/);
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });

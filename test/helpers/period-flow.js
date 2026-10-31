@@ -79,20 +79,20 @@ function sheetOf(person, month, holiday) {
 // startDate: ngày vào làm của bốn người; số cộng tay 30 ngày phép nằm trong quỹ phép của năm vào làm (hoặc năm leave.expiry.fromYear nếu muộn hơn)
 // và hết hạn cuối tháng 1 năm sau, nên tháng sau năm đó phải cho ngày vào làm nằm trong năm của tháng.
 async function seedMonth(month, { startDate = '2026-01-05', punches = true } = {}) {
-  F.reset();
-  F.at(nextMonthStart(month) + 'T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  for (const p of PEOPLE) F.person(p.username, 'staff', { ...p, startDate, leaveAdjust: 30 }); // cộng tay 30 ngày phép: số dư trong năm vào làm không phụ thuộc tham số leave.accrual.* mà test khác đã lưu (param_versions chỉ thêm dòng)
+  await F.reset();
+  await F.at(nextMonthStart(month) + 'T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  for (const p of PEOPLE) await F.person(p.username, 'staff', { ...p, startDate, leaveAdjust: 30 }); // cộng tay 30 ngày phép: số dư trong năm vào làm không phụ thuộc tham số leave.accrual.* mà test khác đã lưu (param_versions chỉ thêm dòng)
   const holiday = datesOf(month).find(d => dowOf(d) === 3 && d > `${month}-04`); // một ngày Thứ Tư
-  store.setSetting('holidays', [holiday]);
+  await store.setSetting('holidays', [holiday]);
   for (const p of PEOPLE) {
-    const res = await F.call('PUT', '/sheet', { who: p.username, body: { month, days: sheetOf(p, month, holiday) } });
+    const res = await F.call('PUT', '/sheet', { who: p.username, body: { month, days: await sheetOf(p, month, holiday) } });
     if (res.status !== 200)
       throw new Error(`dựng lịch ${p.username} ${month}: ${res.status} ${JSON.stringify(res.data)}`);
   }
-  const pendingRows = store.approvals.list({ status: 'pending' });
+  const pendingRows = await store.approvals.list({ status: 'pending' });
   if (pendingRows.length)
-    store.approvals.decide(
+    await store.approvals.decide(
       pendingRows.map(r => ({ username: r.username, date: r.date, rev: r.rev, fingerprint: r.fingerprint })),
       'approved',
       'admin',
@@ -100,7 +100,7 @@ async function seedMonth(month, { startDate = '2026-01-05', punches = true } = {
     );
   if (punches) {
     for (const p of PEOPLE) {
-      const days = store.getSheet(p.username, month).days;
+      const days = (await store.getSheet(p.username, month)).days;
       let n = 0;
       for (const [date, day] of Object.entries(days)) {
         if (day.kind !== 'work') continue;
@@ -123,7 +123,7 @@ async function seedMonth(month, { startDate = '2026-01-05', punches = true } = {
           'punch',
           { plannedShift: plan, approveIncomplete: true }
         ).entry;
-        store.createSession(p.username, plan.date, 'closed', entry);
+        await store.createSession(p.username, plan.date, 'closed', entry);
       }
     }
   }
@@ -131,8 +131,8 @@ async function seedMonth(month, { startDate = '2026-01-05', punches = true } = {
 }
 
 // Đầu vào của khối cũ cho một người, đọc từ DB đúng như máy chủ phải nạp (lịch qua estimateSheet, hàng duyệt, phiên, công tắc)
-function legacyInput(username, month) {
-  const sheet = store.getSheet(username, month);
+async function legacyInput(username, month) {
+  const sheet = await store.getSheet(username, month);
   const fields = ['kind', 'shift', 'in', 'out', 'extraKind', 'extraIn', 'extraOut', 'preset', 'breakMin'];
   const days = {};
   for (const [date, entry] of Object.entries(sheet.days)) {
@@ -149,12 +149,12 @@ function legacyInput(username, month) {
   }
   return JSON.parse(
     JSON.stringify({
-      staff: service.payrollPeople(month).find(s => s.username === username) || store.getStaff(username),
+      staff: (await service.payrollPeople(month)).find(s => s.username === username) || await store.getStaff(username),
       days,
-      approvals: store.approvals.forSheet(username, month),
-      sessions: store.listSessions({ username }).map(s => ({ id: s.id, state: s.state, date: s.date, entry: s.entry })),
+      approvals: await store.approvals.forSheet(username, month),
+      sessions: (await store.listSessions({ username })).map(s => ({ id: s.id, state: s.state, date: s.date, entry: s.entry })),
       kpi: { pct: sheet.kpiPct ?? null, amt: sheet.kpiAmt ?? null, admPct: null, admAmt: null },
-      holidays: store.getSetting('holidays', []),
+      holidays: await store.getSetting('holidays', []),
       month,
       upTo: null,
       asOf: new Date(Date.now()).toISOString()
@@ -164,27 +164,27 @@ function legacyInput(username, month) {
 // Kết quả mong đợi cho từng người: { net: {gross, insurance, tax, advance, net}, total, m }. Bộ máy chung chạy trên đầu vào đọc thẳng từ DB
 // (legacyInput), không qua loadInputs; hợp đồng theo thâm niên như bảng lương.
 // withoutBlocks: bỏ các khối phụ cấp (block.def.*) khỏi bộ tham số, để lấy kết quả "khối cũ" cho tháng mà khối đã mang sang từ tháng trước.
-function expectedFor(month, { withoutBlocks = false } = {}) {
-  const resolved = service.paramsFor(month).params;
+async function expectedFor(month, { withoutBlocks = false } = {}) {
+  const resolved = (await service.paramsFor(month)).params;
   const params = withoutBlocks
     ? Object.fromEntries(Object.entries(resolved).filter(([key]) => !key.startsWith('block.def.')))
     : resolved;
   return Object.fromEntries(
-    PEOPLE.map(p => {
-      const { m } = service.engineFor(params).computeMonth(legacyInput(p.username, month));
+    await Promise.all(PEOPLE.map(async p => {
+      const { m } = service.engineFor(params).computeMonth(await legacyInput(p.username, month));
       return [p.username, { m, total: m.total, net: m.net }];
-    })
+    }))
   );
 }
 
 // Kết quả bộ máy cho MỘT người, đọc đầu vào từ DB, trên bộ tham số hiệu lực của tháng (thêm `over` nếu có)
-function computeFor(username, month, over = {}) {
-  const params = { ...service.paramsFor(month).params, ...over };
-  return service.engineFor(params).computeMonth(legacyInput(username, month)).m;
+async function computeFor(username, month, over = {}) {
+  const params = { ...(await service.paramsFor(month)).params, ...over };
+  return service.engineFor(params).computeMonth(await legacyInput(username, month)).m;
 }
 
 async function api(method, route, body) {
-  return F.call(method, route, { body });
+  return await F.call(method, route, { body });
 }
 // Chốt công rồi tính lương. Trả { lock, calc } (phản hồi của hai bước) để test tự khẳng định từng bước.
 async function lockAndCalculate(month) {
@@ -196,13 +196,13 @@ async function lockAndCalculate(month) {
 }
 
 // Phiếu của lần chạy hiện tại của tháng, đọc thẳng từ bảng payslips: { username: { gross, insurance, tax, advance, net, snapshot, terms, run } }
-function payslipsOf(month) {
-  const run = store.db
+async function payslipsOf(month) {
+  const run = await store.db
     .prepare("SELECT * FROM payroll_runs WHERE month = ? AND status != 'superseded' ORDER BY run_no DESC LIMIT 1")
     .get(month);
   if (!run) return { run: null, slips: {} };
   const slips = {};
-  for (const row of store.db.prepare('SELECT * FROM payslips WHERE run_id = ?').all(run.id))
+  for (const row of await store.db.prepare('SELECT * FROM payslips WHERE run_id = ?').all(run.id))
     slips[row.username] = {
       ...row,
       snapshot: row.snapshot_gz ? JSON.parse(zlib.gunzipSync(Buffer.from(row.snapshot_gz)).toString('utf8')) : null,
@@ -212,7 +212,7 @@ function payslipsOf(month) {
 }
 
 // Bộ tham số hiệu lực của tháng như máy chủ dùng (gồm dòng danh mục ca, chức vụ)
-const paramsOf = month => service.paramsFor(month).params;
+const paramsOf = async month => (await service.paramsFor(month)).params;
 
 module.exports = {
   PEOPLE,

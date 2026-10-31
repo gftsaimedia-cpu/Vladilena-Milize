@@ -16,7 +16,7 @@ async function call(method, url) {
 }
 
 before(async () => {
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'boss',
     name: 'Sếp',
     role: 'admin',
@@ -44,7 +44,7 @@ after(() => {
 test('limits: số khoản tối đa mỗi lần duyệt lấy từ tham số hệ thống, độ dài lý do từ control.reasonMaxLength', async () => {
   const res = await call('GET', '/api/approvals?status=pending');
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  const { params } = paramsStore.resolve('2026-10');
+  const { params } = await paramsStore.resolve('2026-10');
   assert.equal(res.data.limits.decideMax, params['system.approval.maxDecideItems']);
   assert.equal(res.data.limits.noteMax, DEFAULTS['control.reasonMaxLength']);
   assert.ok(Number.isInteger(res.data.limits.decideMax) && res.data.limits.decideMax > 0);

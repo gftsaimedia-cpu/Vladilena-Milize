@@ -31,17 +31,17 @@ const workDates = month => datesOf(month).filter(d => dowOf(d) !== 0);
 const untilDay = DEFAULTS['advance.untilDay'];
 const daysUntil = month => workDates(month).filter(d => Number(d.slice(8)) <= untilDay).length;
 const figure = days => Math.round((DEFAULTS['advance.rate'] * days * DEFAULTS['level.nv.1.base']) / DEFAULTS['type.nv.workdays']);
-const list = (month, who) => F.call('GET', `/advance-approvals?month=${month}`, { who });
+const list = async (month, who) => await F.call('GET', `/advance-approvals?month=${month}`, { who });
 const estimate = async (month, username) => (await F.call('GET', `/periods/${month}/estimates/${username}`)).data.payslip;
 
 // holiday: ngày lễ của tháng (đã khai đi làm như mọi ngày làm khác)
 async function setup(month, holiday) {
-  F.reset();
-  P.revokeAllRoles();
-  F.at(nextMonth02(month));
-  store.setSetting('holidays', holiday ? [holiday] : []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at(nextMonth02(month));
+  await store.setSetting('holidays', holiday ? [holiday] : []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
   const days = Object.fromEntries(workDates(month).map(d => [d, { kind: 'work', in: '08:00', out: '17:00' }]));
   const res = await F.call('PUT', '/sheet', { who: 'admin', body: { month, user: 'qa_nv1', days } });
   assert.equal(res.status, 200, `khai thay: ${JSON.stringify(res.data)}`);

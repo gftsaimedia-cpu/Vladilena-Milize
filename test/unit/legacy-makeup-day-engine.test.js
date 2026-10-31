@@ -27,10 +27,10 @@ test('calcDay: a legacy make-up day pays nothing and carries no make-up hours', 
   assert.equal(c.makeupPay || 0, 0);
 });
 
-test('calcMonth: a legacy make-up day adds no workday, no pay and does not repay owed hours', () => {
+test('calcMonth: a legacy make-up day adds no workday, no pay and does not repay owed hours', async () => {
   const base = { [SHORT]: work({ out: '13:00' }) };
-  const without = month(base);
-  const withLegacy = month({ ...base, [SAT]: { kind: 'makeup', in: '08:00', out: '17:00' } });
+  const without = await month(base);
+  const withLegacy = await month({ ...base, [SAT]: { kind: 'makeup', in: '08:00', out: '17:00' } });
   assert.equal(withLegacy.count, without.count);
   assert.equal(withLegacy.work, without.work);
   assert.equal(withLegacy.makeup, 0);
@@ -42,9 +42,9 @@ test('calcMonth: a legacy make-up day adds no workday, no pay and does not repay
   assert.equal(row.total, 0);
 });
 
-test('calcMonth: make-up hours declared on a work day still repay owed hours', () => {
+test('calcMonth: make-up hours declared on a work day still repay owed hours', async () => {
   const days = { [SHORT]: work({ out: '13:00' }), [SAT]: work({ extraKind: 'makeup', extraOut: '21:00' }) };
-  const m = month(days);
+  const m = await month(days);
   assert.equal(m.makeupHours, 4);
   assert.equal(m.debt, 0);
   assert.ok(m.makeupPay > 0);

@@ -22,17 +22,17 @@ const entryBody = (month, extra = {}) => ({
 });
 // Lập bằng admin, duyệt bằng người C&B khác (qa_cb): vai trò phải gán lại sau mỗi lần seed vì seed thu hồi mọi vai trò
 async function makeApproved(month, extra = {}) {
-  F.person('qa_cb', 'staff');
+  await F.person('qa_cb', 'staff');
   // qa_cb cũng có phiếu trong kỳ: cần ngày công để thực lĩnh không âm (phiếu thực lĩnh âm bị chặn duyệt: PAYSLIP_NEGATIVE_NET).
   // Kỳ đã tính nên khoá lịch qua API: ghi thẳng vào DB của test (dữ liệu dựng sẵn, như seed), rồi lần tính lại kế tiếp nạp lịch này
-  const holidays = store.getSetting('holidays', []);
+  const holidays = await store.getSetting('holidays', []);
   const days = {};
   for (const date of P.datesOf(month).filter(d => [1, 2, 3, 4, 5].includes(new Date(d + 'T00:00:00Z').getUTCDay()))) {
     if (!holidays.includes(date) && Object.keys(days).length < 15)
       days[date] = { kind: 'work', in: '08:00', out: '17:00' };
   }
-  store.setSheet('qa_cb', month, days, null, null);
-  P.grant('qa_cb', 'cb');
+  await store.setSheet('qa_cb', month, days, null, null);
+  await P.grant('qa_cb', 'cb');
   const made = await F.call('POST', '/pay-entries', { body: entryBody(month, extra) });
   assert.equal(made.status, 200, JSON.stringify(made.data));
   const done = await F.call('PUT', `/pay-entries/${made.data.entry.id}/decide`, {
@@ -52,10 +52,10 @@ test('1c: tính lại kỳ sau khi có khoản duyệt: tổng thu nhập của 
   const before = await P.slipRows(M);
   const nv1 = before.find(r => r.username === 'qa_nv1');
   assert.equal(Object.hasOwn(nv1, 'khoanThem'), false);
-  const digestOf = () =>
-    store.db.prepare('SELECT inputs_digest FROM payroll_runs WHERE month = ? ORDER BY run_no DESC LIMIT 1').get(M)
+  const digestOf = async () =>
+    (await store.db.prepare('SELECT inputs_digest FROM payroll_runs WHERE month = ? ORDER BY run_no DESC LIMIT 1').get(M))
       .inputs_digest;
-  const digest1 = digestOf();
+  const digest1 = await digestOf();
 
   await makeApproved(M); // kỳ đang ở "đã tính": vẫn nhận khoản
   P.must(await P.step(M, 'calculate'), 'tính lương lần 2');
@@ -72,7 +72,7 @@ test('1c: tính lại kỳ sau khi có khoản duyệt: tổng thu nhập của 
     assert.deepEqual([row.gross, row.tax, row.net], [was.gross, was.tax, was.net], row.username);
     assert.equal(Object.hasOwn(row, 'khoanThem'), false, row.username);
   }
-  assert.notEqual(digestOf(), digest1);
+  assert.notEqual(await digestOf(), digest1);
   // bản chụp của phiếu mang m.entries và m.net.entriesAdd (nguồn của dòng phiếu)
   const { snapshot } = (await F.call('GET', `/periods/${M}/payslips/qa_nv1`)).data.payslip;
   assert.deepEqual(

@@ -20,8 +20,8 @@ const realNow = Date.now;
 const CLOCK = Date.parse('2026-10-14T12:00:00+07:00');
 const CLOCK_ISO = new Date(CLOCK).toISOString();
 
-function person(username, overrides = {}) {
-  store.upsertStaff({
+async function person(username, overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -36,7 +36,7 @@ function person(username, overrides = {}) {
 // who = null: không đăng nhập
 async function call(method, route, body, who = 'admin') {
   const headers = { 'Content-Type': 'application/json' };
-  if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -102,7 +102,7 @@ const byDate = (items, date) => items.find(x => x.date === date);
 
 // ---------- Check-in/out (copy từ holiday-ot-guard.test.js) ----------
 const T = (date, time) => new Date(`${date}T${time}:00+07:00`).toISOString();
-function attendance(date, options = {}) {
+async function attendance(date, options = {}) {
   const code = options.code || 'n1',
     plan = punch.planShift({ shiftCode: code, sched: [1, 2, 3, 4, 5, 6] }, date);
   const entry = punch.buildDay(
@@ -123,7 +123,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'sheet_approvals',
     'punch_requests',
@@ -141,10 +141,10 @@ beforeEach(() => {
       if (!/no such table/.test(error.message)) throw error;
     }
   }
-  person('admin', { role: 'admin', type: 'tts', level: 0 });
-  person('worker');
-  person('other');
-  person('intern', { type: 'tts', level: 1 });
+  await person('admin', { role: 'admin', type: 'tts', level: 0 });
+  await person('worker');
+  await person('other');
+  await person('intern', { type: 'tts', level: 1 });
 });
 after(async () => {
   Date.now = realNow;
@@ -170,22 +170,22 @@ test('nhân sự gọi GET /api/approvals và /count: 403', async () => {
 
 test('nhân sự tự duyệt khoản của mình: 403, kể cả khi gửi thêm trường status, và khoản vẫn chờ duyệt', async () => {
   const items = await declareFive();
-  const before = snapshot();
+  const before = await snapshot();
   const body = { action: 'approve', status: 'approved', note: 'tự duyệt', items: refsOf(items) };
   const r = await call('PUT', '/approvals/decide', body, 'worker');
   assert.equal(r.status, 403, JSON.stringify(r.data));
   body.items.forEach(x => Object.assign(x, { status: 'approved', decidedBy: 'worker' }));
   assert.equal((await call('PUT', '/approvals/decide', body, 'worker')).status, 403);
-  assert.deepEqual(snapshot(), before, 'không có gì được lưu');
+  assert.deepEqual(await snapshot(), before, 'không có gì được lưu');
   const sheet = await approvalsOf('worker');
   for (const date of Object.keys(fourItems())) assert.equal(sheet[date].status, 'pending', date);
 });
 
 test('nhân sự này duyệt khoản của nhân sự khác: 403', async () => {
   const items = await declareFive();
-  const before = snapshot();
+  const before = await snapshot();
   assert.equal((await decide('approve', refsOf(items), undefined, 'other')).status, 403);
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('nhân sự không đọc được bảng ước tính của người khác (403), Admin đọc được', async () => {
@@ -217,9 +217,9 @@ test('PUT /sheet với approval/status/rev trong ngày và approvals ở cấp n
     assert.equal(approvals[date].status, 'pending', date);
     assert.equal(approvals[date].decidedBy, null, date);
   }
-  assert.equal(rowsOf('worker').length, 4);
-  assert.ok(rowsOf('worker').every(row => row.status === 'pending' && row.rev === 1 && !row.decided_by));
-  const stored = store.getSheet('worker', '2026-10').days;
+  assert.equal((await rowsOf('worker')).length, 4);
+  assert.ok((await rowsOf('worker')).every(row => row.status === 'pending' && row.rev === 1 && !row.decided_by));
+  const stored = (await store.getSheet('worker', '2026-10')).days;
   assert.equal(stored[OT].status, undefined);
   assert.equal(stored[OT].approval, undefined);
 });
@@ -227,7 +227,7 @@ test('PUT /sheet với approval/status/rev trong ngày và approvals ở cấp n
 test('lưu lịch hai lần liên tiếp cùng nội dung: mỗi mục chỉ một dòng pending, rev giữ 1', async () => {
   await saveSheet('worker', fourItems());
   await saveSheet('worker', fourItems());
-  const rows = rowsOf('worker');
+  const rows = await rowsOf('worker');
   assert.equal(rows.length, 4);
   assert.ok(rows.every(row => row.status === 'pending' && row.rev === 1));
 });
@@ -254,8 +254,8 @@ test('khai 5 loại khoản: mỗi loại thành một dòng chờ duyệt đún
     assert.equal(approvals[date].decidedAt, null, date);
     assert.equal(approvals[date].note, null, date);
   }
-  assert.equal(rowsOf('worker').length, 4);
-  assert.equal(rowsOf('intern').length, 1);
+  assert.equal((await rowsOf('worker')).length, 4);
+  assert.equal((await rowsOf('intern')).length, 1);
 });
 
 test('ngày đi làm thường, nghỉ phép năm, nghỉ không lương không tạo dòng duyệt; nghỉ sẽ làm bù thì có', async () => {
@@ -270,12 +270,12 @@ test('ngày đi làm thường, nghỉ phép năm, nghỉ không lương không 
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal((await approvalsOf('worker'))['2026-10-12'].item, 'willmakeup');
   assert.equal((await approvalsOf('worker'))['2026-10-12'].status, 'pending');
-  assert.equal(rowsOf('worker').length, 1);
+  assert.equal((await rowsOf('worker')).length, 1);
 });
 
 test('khoản không có dòng duyệt (ghi thẳng vào DB, không qua PUT /sheet) hiện là chờ duyệt', async () => {
-  store.setSheet('worker', '2026-10', { [OT]: otDay(), [ISAT]: { kind: 'isat' } }, null, null);
-  assert.equal(rowsOf('worker').length, 0);
+  await store.setSheet('worker', '2026-10', { [OT]: otDay(), [ISAT]: { kind: 'isat' } }, null, null);
+  assert.equal((await rowsOf('worker')).length, 0);
   const approvals = await approvalsOf('worker');
   assert.equal(approvals[OT].status, 'pending');
   assert.equal(approvals[ISAT].status, 'pending');
@@ -286,7 +286,7 @@ test('dòng đã duyệt nhưng lịch bị ghi thẳng vào DB với giờ OT k
   const [item] = (await queue('?user=worker')).items;
   assert.equal((await decide('approve', refsOf([item]))).status, 200);
   assert.equal((await approvalsOf('worker'))[OT].status, 'approved');
-  store.setSheet('worker', '2026-10', { [OT]: otDay('21:00') }, null, null);
+  await store.setSheet('worker', '2026-10', { [OT]: otDay('21:00') }, null, null);
   assert.equal((await approvalsOf('worker'))[OT].status, 'pending');
 });
 
@@ -307,9 +307,9 @@ test('Admin xem GET /api/team: mỗi dòng có approvals của người đó', a
 test('sau khi duyệt, lưu lại lịch không đổi gì: vẫn đã duyệt, rev không đổi', async () => {
   const items = await declareFive();
   assert.equal((await decide('approve', refsOf(items, { only: [OT, ISAT] }))).status, 200);
-  const before = rowsOf('worker');
+  const before = await rowsOf('worker');
   await saveSheet('worker', fourItems());
-  assert.deepEqual(rowsOf('worker'), before);
+  assert.deepEqual(await rowsOf('worker'), before);
   const approvals = await approvalsOf('worker');
   assert.equal(approvals[OT].status, 'approved');
   assert.equal(approvals[ISAT].status, 'approved');
@@ -321,9 +321,9 @@ test('duyệt OT 3 giờ rồi sửa còn 2 giờ: về chờ duyệt, rev tăng
   await saveSheet('worker', { [OT]: otDay('20:00') });
   const [item] = (await queue('?user=worker')).items;
   assert.equal((await decide('approve', refsOf([item]), 'đúng giờ')).status, 200);
-  const approvedRev = rowsOf('worker')[0].rev;
+  const approvedRev = (await rowsOf('worker'))[0].rev;
   assert.equal((await saveSheet('worker', { [OT]: otDay('19:00') })).status, 200);
-  const [row] = rowsOf('worker');
+  const [row] = await rowsOf('worker');
   assert.equal(row.status, 'pending');
   assert.ok(row.rev > approvedRev, `rev ${row.rev} phải lớn hơn ${approvedRev}`);
   assert.equal(row.decided_by, null);
@@ -337,26 +337,26 @@ test('duyệt OT rồi tăng giờ OT: cũng về chờ duyệt', async () => {
   const [item] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([item]));
   await saveSheet('worker', { [OT]: otDay('20:00') });
-  assert.equal(rowsOf('worker')[0].status, 'pending');
+  assert.equal((await rowsOf('worker'))[0].status, 'pending');
 });
 
 test('duyệt OT rồi chỉ đổi preset hoặc breakMin: vẫn đã duyệt', async () => {
   await saveSheet('worker', { [OT]: otDay('19:00') });
   const [item] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([item]));
-  const before = rowsOf('worker');
+  const before = await rowsOf('worker');
   assert.equal((await saveSheet('worker', { [OT]: otDay('19:00', { preset: 'n2', breakMin: 30 }) })).status, 200);
-  assert.deepEqual(rowsOf('worker'), before);
+  assert.deepEqual(await rowsOf('worker'), before);
   assert.equal((await approvalsOf('worker'))[OT].status, 'approved');
 });
 
 test('duyệt OT sau ca rồi chỉ đổi giờ vào: vẫn đã duyệt (phần được trả tiền là 17:00-19:00)', async () => {
-  person('worker', { shiftCode: null }); // chưa gán ca cố định thì mới tự đổi giờ vào được
+  await person('worker', { shiftCode: null }); // chưa gán ca cố định thì mới tự đổi giờ vào được
   await saveSheet('worker', { [OT]: otDay('19:00') });
   const [item] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([item]));
   assert.equal((await saveSheet('worker', { [OT]: otDay('19:00', { in: '08:30' }) })).status, 200);
-  assert.equal(rowsOf('worker')[0].status, 'approved');
+  assert.equal((await rowsOf('worker'))[0].status, 'approved');
 });
 
 test('duyệt rồi xoá ngày (đổi sang ngày đi làm thường): dòng bị xoá; khai lại thì chờ duyệt, không tự đã duyệt', async () => {
@@ -364,10 +364,10 @@ test('duyệt rồi xoá ngày (đổi sang ngày đi làm thường): dòng b�
   const [item] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([item]));
   await saveSheet('worker', { [OT]: workDay() });
-  assert.equal(rowsOf('worker').length, 0);
+  assert.equal((await rowsOf('worker')).length, 0);
   assert.deepEqual(await approvalsOf('worker'), {});
   await saveSheet('worker', { [OT]: otDay('19:00') });
-  const [again] = rowsOf('worker');
+  const [again] = await rowsOf('worker');
   assert.equal(again.status, 'pending');
   assert.equal(again.decided_by, null);
 });
@@ -375,10 +375,10 @@ test('duyệt rồi xoá ngày (đổi sang ngày đi làm thường): dòng b�
 test('lưu lịch rỗng xoá hết dòng duyệt của tháng đó, tháng khác không đổi', async () => {
   await saveSheet('worker', { [OT]: otDay() });
   await saveSheet('worker', { '2026-11-07': { kind: 'isat' } }, '2026-11');
-  assert.equal(rowsOf('worker').length, 2);
+  assert.equal((await rowsOf('worker')).length, 2);
   await saveSheet('worker', {});
   assert.deepEqual(
-    rowsOf('worker').map(row => row.date),
+    (await rowsOf('worker')).map(row => row.date),
     ['2026-11-07']
   );
 });
@@ -402,7 +402,7 @@ test('đổi OT thành làm bù theo giờ trong cùng ngày: dòng mới chờ 
   const [item] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([item]));
   await saveSheet('worker', { [OT]: makeupHoursDay('19:00') });
-  const [row] = rowsOf('worker');
+  const [row] = await rowsOf('worker');
   assert.equal(row.item, 'makeup_hours');
   assert.equal(row.status, 'pending');
 });
@@ -423,9 +423,9 @@ test('PUT /sheet với OT vào khung 22h–6h vẫn lưu, kèm cảnh báo SHEET
   const r = await saveSheet('worker', { [OT]: otDay('17:00', { extraIn: '05:30' }) });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'), JSON.stringify(r.data.warnings));
-  const row = rowsOf('worker').find(x => x.date === OT);
+  const row = (await rowsOf('worker')).find(x => x.date === OT);
   assert.equal(row.status, 'pending');
-  assert.equal(store.getSheet('worker', '2026-10').days[OT].extraIn, '05:30');
+  assert.equal((await store.getSheet('worker', '2026-10')).days[OT].extraIn, '05:30');
 });
 
 // ================= Hàng chờ =================
@@ -484,14 +484,14 @@ test('GET /api/approvals với status, month hoặc user sai dạng: 400', async
 });
 
 test('hàng chờ không có khoản của tài khoản Admin; duyệt khoản của Admin: 400', async () => {
-  person('admin2', { role: 'admin', type: 'nv', level: 0 });
+  await person('admin2', { role: 'admin', type: 'nv', level: 0 });
   assert.equal((await saveSheet('admin2', { [OT]: otDay() })).status, 200);
   const data = await queue('?status=all');
   assert.equal(data.items.length, 0);
-  const before = snapshot();
+  const before = await snapshot();
   const r = await decide('approve', [{ username: 'admin2', date: OT, rev: 1, fingerprint: FP_UNKNOWN }]);
   assert.equal(r.status, 400, JSON.stringify(r.data));
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('GET /api/approvals/count đếm khoản chờ duyệt và giảm khi duyệt', async () => {
@@ -512,7 +512,7 @@ test('duyệt một khoản: đã duyệt, ghi Admin và thời điểm, rev tă
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.ok, true);
   assert.equal(r.data.decided, 1);
-  const [row] = rowsOf('worker').filter(x => x.date === OT);
+  const [row] = (await rowsOf('worker')).filter(x => x.date === OT);
   assert.equal(row.status, 'approved');
   assert.equal(row.decided_by, 'admin');
   assert.equal(row.decided_at, CLOCK_ISO);
@@ -530,14 +530,14 @@ test('duyệt nhiều khoản của nhiều người trong một lô: tất cả
   const r = await decide('approve', refsOf(items, { only: [OT] }));
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.decided, 2);
-  assert.equal(rowsOf('worker').find(x => x.date === OT).status, 'approved');
-  assert.equal(rowsOf('other')[0].status, 'approved');
-  assert.equal(rowsOf('worker').filter(x => x.status === 'pending').length, 3);
+  assert.equal((await rowsOf('worker')).find(x => x.date === OT).status, 'approved');
+  assert.equal((await rowsOf('other'))[0].status, 'approved');
+  assert.equal((await rowsOf('worker')).filter(x => x.status === 'pending').length, 3);
 });
 
 test('duyệt theo lô: một khoản sai rev thì cả lô không lưu (409 APPROVAL_STALE), dù khoản sai ở đầu hay cuối', async () => {
   const items = await declareFive();
-  const before = snapshot();
+  const before = await snapshot();
   for (const position of ['last', 'first']) {
     const refs = refsOf(items, { only: [ISAT, OT, INTERN_MAKEUP] });
     const bad = position === 'last' ? refs.length - 1 : 0;
@@ -545,7 +545,7 @@ test('duyệt theo lô: một khoản sai rev thì cả lô không lưu (409 APP
     const r = await decide('approve', refs);
     assert.equal(r.status, 409, `${position}: ${JSON.stringify(r.data)}`);
     assert.equal(r.data.code, 'APPROVAL_STALE', position);
-    assert.deepEqual(snapshot(), before, `${position}: không khoản nào được đổi`);
+    assert.deepEqual(await snapshot(), before, `${position}: không khoản nào được đổi`);
   }
 });
 
@@ -554,11 +554,11 @@ test('duyệt đúng lúc nhân sự vừa sửa khoản (rev cũ): 409 APPROVAL
   const [seen] = (await queue('?user=worker')).items;
   await decide('approve', refsOf([seen]));
   await saveSheet('worker', { [OT]: otDay('20:00') });
-  const before = snapshot();
+  const before = await snapshot();
   const r = await decide('approve', refsOf([seen]));
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.equal(r.data.code, 'APPROVAL_STALE');
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('từ chối không kèm lý do (thiếu, rỗng, chỉ khoảng trắng): vẫn từ chối được, lý do để trống', async () => {
@@ -567,7 +567,7 @@ test('từ chối không kèm lý do (thiếu, rỗng, chỉ khoảng trắng): 
     const date = [OT, ISAT, APPROVED_LEAVE][i];
     const r = await decide('reject', refsOf(items, { only: [date] }), note);
     assert.equal(r.status, 200, `${JSON.stringify(note)}: ${JSON.stringify(r.data)}`);
-    const row = rowsOf('worker').find(x => x.date === date);
+    const row = (await rowsOf('worker')).find(x => x.date === date);
     assert.equal(row.status, 'rejected');
     assert.ok(!row.note, 'không có lý do thì không lưu ghi chú');
   }
@@ -575,9 +575,9 @@ test('từ chối không kèm lý do (thiếu, rỗng, chỉ khoảng trắng): 
 
 test('lý do dài hơn 300 ký tự: 400, đúng 300 ký tự thì được', async () => {
   const items = await declareFive();
-  const before = snapshot();
+  const before = await snapshot();
   assert.equal((await decide('reject', refsOf(items, { only: [OT] }), 'x'.repeat(301))).status, 400);
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
   assert.equal((await decide('reject', refsOf(items, { only: [OT] }), 'x'.repeat(300))).status, 200);
 });
 
@@ -595,7 +595,7 @@ test('duyệt khoản đang chờ không cần lý do; duyệt có lý do thì l
   const items = await declareFive();
   assert.equal((await decide('approve', refsOf(items, { only: [OT] }))).status, 200);
   assert.equal((await decide('approve', refsOf(items, { only: [ISAT] }), 'đã đối chiếu')).status, 200);
-  assert.equal(rowsOf('worker').find(x => x.date === ISAT).note, 'đã đối chiếu');
+  assert.equal((await rowsOf('worker')).find(x => x.date === ISAT).note, 'đã đối chiếu');
 });
 
 test('đặt lại đúng trạng thái đang có: 409 APPROVAL_NOOP', async () => {
@@ -603,14 +603,14 @@ test('đặt lại đúng trạng thái đang có: 409 APPROVAL_NOOP', async () 
   await decide('approve', refsOf(items, { only: [OT] }));
   await decide('reject', refsOf(items, { only: [ISAT] }), 'sai');
   const now = (await queue('?status=all')).items;
-  const before = snapshot();
+  const before = await snapshot();
   let r = await decide('approve', refsOf(now, { only: [OT] }));
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.equal(r.data.code, 'APPROVAL_NOOP');
   r = await decide('reject', refsOf(now, { only: [ISAT] }), 'sai lần nữa');
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.equal(r.data.code, 'APPROVAL_NOOP');
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('đổi quyết định đã đưa ra: đã duyệt sang từ chối và từ chối sang duyệt đều được, lý do tuỳ chọn và được lưu khi có', async () => {
@@ -620,17 +620,17 @@ test('đổi quyết định đã đưa ra: đã duyệt sang từ chối và t�
   const now = (await queue('?status=all')).items;
   // duyệt lại khoản đã bị từ chối, không nói lý do
   assert.equal((await decide('approve', refsOf(now, { only: [ISAT] }))).status, 200);
-  assert.equal(rowsOf('worker').find(x => x.date === ISAT).status, 'approved');
+  assert.equal((await rowsOf('worker')).find(x => x.date === ISAT).status, 'approved');
   // từ chối khoản đã duyệt, có lý do
   assert.equal((await decide('reject', refsOf(now, { only: [OT] }), 'phát hiện giờ sai')).status, 200);
-  const rejected = rowsOf('worker').find(x => x.date === OT);
+  const rejected = (await rowsOf('worker')).find(x => x.date === OT);
   assert.equal(rejected.status, 'rejected');
   assert.equal(rejected.note, 'phát hiện giờ sai');
 });
 
 test('duyệt khoản không tồn tại: 404; không tìm thấy người hay ngày thì không đổi gì', async () => {
   const items = await declareFive();
-  const before = snapshot();
+  const before = await snapshot();
   const missing = await decide('approve', [
     { username: 'worker', date: '2026-10-20', rev: 1, fingerprint: FP_UNKNOWN }
   ]);
@@ -642,13 +642,13 @@ test('duyệt khoản không tồn tại: 404; không tìm thấy người hay n
     { username: 'worker', date: '2026-10-20', rev: 1, fingerprint: FP_UNKNOWN }
   ]);
   assert.equal(mixed.status, 404, JSON.stringify(mixed.data));
-  assert.deepEqual(snapshot(), before, 'khoản hợp lệ trong cùng lô cũng không được lưu');
+  assert.deepEqual(await snapshot(), before, 'khoản hợp lệ trong cùng lô cũng không được lưu');
 });
 
 test('duyệt với dữ liệu sai dạng: 400 và không lưu gì', async () => {
   const items = await declareFive();
   const good = refsOf(items, { only: [OT] })[0];
-  const before = snapshot();
+  const before = await snapshot();
   const bodies = [
     { action: 'approve' },
     { action: 'approve', items: [] },
@@ -675,18 +675,19 @@ test('duyệt với dữ liệu sai dạng: 400 và không lưu gì', async () =
     const r = await call('PUT', '/approvals/decide', body);
     assert.equal(r.status, 400, JSON.stringify(body).slice(0, 120) + ' -> ' + JSON.stringify(r.data));
   }
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 // ================= Di chuyển dữ liệu cũ (mốc 10/2026) =================
 
 const LIB_DB = JSON.stringify(path.join(__dirname, '../../lib/db'));
-function runChild(dbPath, script) {
-  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', script], {
+const { wrapScript } = require('../helpers/child-script');
+async function runChild(dbPath, script) {
+  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {
     env: { ...process.env, DB_PATH: dbPath, SESSION_SECRET: 'approvals-migration' },
     encoding: 'utf8'
   });
-  return JSON.parse(out.trim().split('\n').at(-1));
+  return JSON.parse(await out.trim().split('\n').at(-1));
 }
 const DUMP = `
   const rows = store.db.prepare('SELECT username, date, item, fingerprint, status, rev, decided_by, note FROM sheet_approvals ORDER BY username, date').all();
@@ -711,14 +712,14 @@ const LEGACY_DAYS = {
   '2026-11': { '2026-11-07': { kind: 'isat' } }
 };
 // Dựng DB cũ: có lịch nhưng chưa có bảng sheet_approvals và chưa có dấu sheet_approvals_v1
-function buildLegacyDb() {
+async function buildLegacyDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-approvals-'));
   const dbPath = path.join(dir, 'legacy.sqlite');
-  runChild(
+  await runChild(
     dbPath,
     `
     const store = require(${LIB_DB});
-    store.upsertStaff({ username: 'worker', name: 'worker', role: 'staff', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' });
+    await store.upsertStaff({ username: 'worker', name: 'worker', role: 'staff', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' });
     const months = ${JSON.stringify(LEGACY_DAYS)};
     for (const [month, days] of Object.entries(months)) store.setSheet('worker', month, days, null, null);
     store.db.exec('DROP TABLE IF EXISTS sheet_approvals');
@@ -729,9 +730,9 @@ function buildLegacyDb() {
   return dbPath;
 }
 
-test('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã duyệt, từ 10/2026 thành chờ duyệt', () => {
-  const dbPath = buildLegacyDb();
-  const { rows, marker } = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+test('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã duyệt, từ 10/2026 thành chờ duyệt', async () => {
+  const dbPath = await buildLegacyDb();
+  const { rows, marker } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.equal(marker, 1);
   const summary = Object.fromEntries(rows.map(row => [row.date, `${row.item}:${row.status}`]));
   assert.deepEqual(summary, {
@@ -751,9 +752,9 @@ test('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã d
   }
 });
 
-test('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền', () => {
-  const dbPath = buildLegacyDb();
-  const { rows } = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+test('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền', async () => {
+  const dbPath = await buildLegacyDb();
+  const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   for (const [month, days] of Object.entries(LEGACY_DAYS))
     for (const [date, day] of Object.entries(days)) {
       const found = ApprovalView.itemOf(day);
@@ -769,10 +770,10 @@ test('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên kho�
     }
 });
 
-test('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', () => {
-  const dbPath = buildLegacyDb();
-  const first = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  const afterDecision = runChild(
+test('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
+  const dbPath = await buildLegacyDb();
+  const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+  const afterDecision = await runChild(
     dbPath,
     `
     const store = require(${LIB_DB});
@@ -784,15 +785,15 @@ test('di chuyển: chạy lại không đổi gì và không đặt lại quyế
   );
   assert.equal(first.rows.length, 9);
   assert.equal(afterDecision.rows.length, 8);
-  const rerun = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+  const rerun = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rerun, afterDecision, 'lần chạy thứ ba không thêm, không xoá, không đổi dòng nào');
-  const again = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+  const again = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(again, afterDecision);
 });
 
-test('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_approvals_v1', () => {
+test('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_approvals_v1', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-approvals-'));
-  const { rows, marker } = runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
+  const { rows, marker } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rows, []);
   assert.equal(marker, 1);
 });
@@ -804,25 +805,25 @@ test('khoá tài khoản giữ nguyên các dòng duyệt và lịch của ngư�
   await saveSheet('other', { [OT]: otDay() });
   const before = allRows();
   assert.equal(before.length, 5, 'có năm dòng duyệt trước khi khoá');
-  assert.equal(store.lockStaff('worker', 'admin'), true);
+  assert.equal(await store.lockStaff('worker', 'admin'), true);
   assert.deepEqual(allRows(), before);
-  assert.equal(store.getSheet('worker', '2026-10').days[OT].extraOut, '19:00');
+  assert.equal((await store.getSheet('worker', '2026-10')).days[OT].extraOut, '19:00');
 });
 
 test('xoá tài khoản (nay là khoá) trên API giữ nguyên các dòng duyệt của người đó', async () => {
   await saveSheet('worker', fourItems());
-  const before = rowsOf('worker');
+  const before = await rowsOf('worker');
   assert.equal(before.length, 4, 'có bốn dòng duyệt trước khi xoá');
   const r = await call('PUT', '/staff/worker', { locked: true });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.deepEqual(rowsOf('worker'), before);
-  assert.ok(store.getSheet('worker', '2026-10').days[OT], 'lịch của người đó vẫn còn');
+  assert.deepEqual(await rowsOf('worker'), before);
+  assert.ok((await store.getSheet('worker', '2026-10')).days[OT], 'lịch của người đó vẫn còn');
 });
 
 // ================= Hai luồng tách nhau =================
 
 async function declareCheckinOt(date, out = '21:00') {
-  const session = attendance(date);
+  const session = await attendance(date);
   let r = await call('POST', '/ot', {
     sessionId: session.id,
     version: 1,
@@ -850,7 +851,7 @@ test('Check-in/out: khai OT không tạo dòng duyệt; Duyệt OT thực tế g
   assert.equal(added.length, 1);
   assert.equal(added[0].item, 'ot');
   assert.equal(added[0].status, 'approved');
-  const stored = store.getSession(session.id).entry;
+  const stored = (await store.getSession(session.id)).entry;
   assert.equal(stored.otReview.ok, true);
   assert.equal(stored.otReview.by, 'admin');
 });
@@ -860,7 +861,7 @@ test('Check-in/out: từ chối OT thực tế không cần lý do và không đ
   const r = await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'reject' });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(allRows().length, 0);
-  assert.equal(store.getSession(session.id).entry.otReview.ok, false);
+  assert.equal((await store.getSession(session.id)).entry.otReview.ok, false);
 });
 
 test('OT của Check-in/out không hiện trong hàng chờ khai báo và không có trong approvals của lịch ước tính', async () => {
@@ -877,12 +878,12 @@ test('duyệt khoản tự khai không đổi lượt Check-in/out nào và khô
   const session = await declareCheckinOt('2026-10-08');
   await saveSheet('worker', { [OT]: otDay() });
   const [item] = (await queue('?user=worker')).items;
-  const before = snapshot();
+  const before = await snapshot();
   assert.equal((await decide('approve', refsOf([item]))).status, 200);
-  const after = snapshot();
+  const after = await snapshot();
   assert.deepEqual(after.sessions, before.sessions);
   assert.deepEqual(after.timesheets, before.timesheets);
-  assert.equal(store.getSession(session.id).entry.otReview, undefined, 'OT thực tế vẫn chờ Duyệt OT riêng');
+  assert.equal((await store.getSession(session.id)).entry.otReview, undefined, 'OT thực tế vẫn chờ Duyệt OT riêng');
 });
 
 test('lưu lịch ước tính không mang trường chấm công vào approvals', async () => {
@@ -899,13 +900,13 @@ test('OT rơi vào khung 22h–6h vẫn lưu, kèm cảnh báo SHEET_EXTRA_NIGHT
   const r = await saveSheet('worker', { [OT]: otDay('17:00', { extraIn: '05:30' }) });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'), JSON.stringify(r.data.warnings));
-  assert.equal(rowsOf('worker').length, 1);
-  assert.equal(rowsOf('worker')[0].status, 'pending');
+  assert.equal((await rowsOf('worker')).length, 1);
+  assert.equal((await rowsOf('worker'))[0].status, 'pending');
 });
 
 test('Admin duyệt KPI không đổi trạng thái duyệt của khoản tự khai', async () => {
   await declareFive();
   const before = allRows();
-  store.setKpiApproval('worker', '2026-10', 80, null); // không có route PUT /api/kpi: dựng bằng store
+  await store.setKpiApproval('worker', '2026-10', 80, null); // không có route PUT /api/kpi: dựng bằng store
   assert.deepEqual(allRows(), before);
 });

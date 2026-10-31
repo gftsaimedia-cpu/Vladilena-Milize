@@ -11,9 +11,9 @@ const { rulesFor } = require('../../lib/request-rules');
 const REASON = 'Đổi giờ ca theo thông báo của công ty tháng này';
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_plain', 'staff');
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_plain', 'staff');
 });
 after(F.stop);
 
@@ -37,21 +37,21 @@ const change = (code, tin, tout) => [
   { key: `shift.preset.${code}.out`, value: tout }
 ];
 
-test('ca làm: mặc định giữ đúng giờ hôm nay ở cả bộ tham số lẫn quy tắc chấm công của tháng', () => {
+test('ca làm: mặc định giữ đúng giờ hôm nay ở cả bộ tham số lẫn quy tắc chấm công của tháng', async () => {
   for (const [code, [tin, tout]] of Object.entries(DEFAULT_SHIFT)) {
     assert.equal(Params.DEFAULTS[`shift.preset.${code}.in`], tin);
     assert.equal(Params.DEFAULTS[`shift.preset.${code}.out`], tout);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(rulesFor('2026-11').punch.SHIFT)), DEFAULT_SHIFT);
+  assert.deepEqual(JSON.parse(JSON.stringify((await rulesFor('2026-11')).punch.SHIFT)), DEFAULT_SHIFT);
 });
 
 test('ca làm: Admin đổi giờ Normal 1 sang 09:00 đến 18:00 từ tháng áp dụng; tháng trước giữ giờ cũ; mã ca và gán ca không đổi', async () => {
   const res = await save(change('n1', '09:00', '18:00'));
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
-  assert.deepEqual(rulesFor('2027-02').punch.SHIFT.n1, ['09:00', '18:00']);
-  assert.deepEqual(rulesFor('2027-03').punch.SHIFT.n1, ['09:00', '18:00'], 'các tháng sau theo giờ mới');
-  assert.deepEqual(rulesFor('2027-01').punch.SHIFT.n1, ['08:00', '17:00'], 'tháng trước tháng áp dụng giữ giờ cũ');
-  assert.deepEqual(rulesFor('2027-02').punch.SHIFT.n2, ['10:00', '19:00'], 'ca khác không đổi');
+  assert.deepEqual((await rulesFor('2027-02')).punch.SHIFT.n1, ['09:00', '18:00']);
+  assert.deepEqual((await rulesFor('2027-03')).punch.SHIFT.n1, ['09:00', '18:00'], 'các tháng sau theo giờ mới');
+  assert.deepEqual((await rulesFor('2027-01')).punch.SHIFT.n1, ['08:00', '17:00'], 'tháng trước tháng áp dụng giữ giờ cũ');
+  assert.deepEqual((await rulesFor('2027-02')).punch.SHIFT.n2, ['10:00', '19:00'], 'ca khác không đổi');
   const bulk = await F.call('PUT', '/staff/shift-bulk', {
     body: { usernames: ['qa_plain'], preset: 'n1', effective: '2027-02-01', reason: REASON }
   });
@@ -69,7 +69,7 @@ test('ca làm: giờ sai dạng bị từ chối (400) và không lưu gì', asy
     assert.ok([400, 422].includes(res.status), `${JSON.stringify(changes)} → ${res.status}`);
     assert.match(JSON.stringify(res.data), pattern);
   }
-  assert.deepEqual(JSON.parse(JSON.stringify(rulesFor(month).punch.SHIFT)).n2, ['10:00', '19:00']);
+  assert.deepEqual(JSON.parse(JSON.stringify((await rulesFor(month)).punch.SHIFT)).n2, ['10:00', '19:00']);
 });
 
 test('ca làm: ca không dài đúng 9 giờ, giờ vào trùng giờ ra, đổi loại ca hoặc trùng ca khác vẫn lưu, kèm cảnh báo PARAM_CROSS_CHECK_FAILED nêu lý do', async () => {
@@ -89,14 +89,14 @@ test('ca làm: ca không dài đúng 9 giờ, giờ vào trùng giờ ra, đổi
     );
     assert.match(JSON.stringify(res.data.warnings), pattern);
     const code = changes[0].key.split('.')[2];
-    assert.deepEqual(rulesFor(month).punch.SHIFT[code], [changes[0].value, changes[1].value], 'giá trị vẫn được lưu');
+    assert.deepEqual((await rulesFor(month)).punch.SHIFT[code], [changes[0].value, changes[1].value], 'giá trị vẫn được lưu');
   }
 });
 
 test('ca làm: ca đêm qua ngày đổi giờ trong khung đêm được; đổi sang ca không còn qua đêm vẫn lưu, kèm cảnh báo PARAM_CROSS_CHECK_FAILED', async () => {
   const ok = await save(change('g1', '20:30', '05:30'), { month: '2027-05' });
   assert.equal(ok.status, 200, JSON.stringify(ok.data).slice(0, 400));
-  assert.deepEqual(rulesFor('2027-05').punch.SHIFT.g1, ['20:30', '05:30']);
+  assert.deepEqual((await rulesFor('2027-05')).punch.SHIFT.g1, ['20:30', '05:30']);
   const day = await save(change('g2', '08:00', '17:00'), { month: '2027-06' });
   assert.equal(day.status, 200, JSON.stringify(day.data).slice(0, 300));
   assert.ok(day.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(day.data.warnings));
@@ -112,7 +112,7 @@ test('ca làm: nhân sự 403, chưa đăng nhập 401; môi trường thật c�
     const blocked = await save(change('f1', '06:30', '15:30'), { month: '2027-07' });
     assert.equal(blocked.status, 409);
     assert.match(JSON.stringify(blocked.data), /SHIFT_EDIT_NOT_ALLOWED/);
-    assert.deepEqual(rulesFor('2027-07').punch.SHIFT.f1, ['06:00', '15:00']);
+    assert.deepEqual((await rulesFor('2027-07')).punch.SHIFT.f1, ['06:00', '15:00']);
     process.env.SHIFT_ALLOW_EDIT = '1';
     const opened = await save(change('f1', '06:30', '15:30'), { month: '2027-07' });
     assert.equal(opened.status, 200, JSON.stringify(opened.data).slice(0, 300));

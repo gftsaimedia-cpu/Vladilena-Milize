@@ -35,8 +35,8 @@ test('mặc định: ot.rate 1,5, ot.weekendRate 2, ot.holidayRate 3', () => {
   assert.deepEqual([R, RW, RH], [1.5, 2, 3]);
 });
 
-test('OT ngày thường 4 giờ: ×ot.rate = 6 giờ lương, cả ngày 14 giờ lương = 403.846 ₫', () => {
-  const d = day(otAfter('21:00'), MON);
+test('OT ngày thường 4 giờ: ×ot.rate = 6 giờ lương, cả ngày 14 giờ lương = 403.846 ₫', async () => {
+  const d = await day(otAfter('21:00'), MON);
   assert.equal(d.otH, 4);
   assert.equal(d.otWeekendH, 0);
   near(d.otPay, 4 * HOURLY * R);
@@ -46,56 +46,56 @@ test('OT ngày thường 4 giờ: ×ot.rate = 6 giờ lương, cả ngày 14 gi�
   near(d.total, DAILY + 4 * HOURLY * 1.5, 'tính tay');
 });
 
-test('Thứ Bảy nằm trong lịch của người: OT ×ot.rate như ngày thường', () => {
-  const d = day(otAfter('21:00'), SAT, { rest: [] });
+test('Thứ Bảy nằm trong lịch của người: OT ×ot.rate như ngày thường', async () => {
+  const d = await day(otAfter('21:00'), SAT, { rest: [] });
   assert.equal(d.otWeekendH, 0);
   near(d.otPay, 4 * HOURLY * R);
 });
 
-test('Thứ Bảy không nằm trong lịch: OT 4 giờ ×ot.weekendRate = 8 giờ lương = 230.769 ₫', () => {
-  const d = day(otAfter('21:00'), SAT, { rest: [SAT] });
+test('Thứ Bảy không nằm trong lịch: OT 4 giờ ×ot.weekendRate = 8 giờ lương = 230.769 ₫', async () => {
+  const d = await day(otAfter('21:00'), SAT, { rest: [SAT] });
   assert.deepEqual([d.otH, d.otWeekendH], [4, 4]);
   near(d.otWeekendPay, 4 * HOURLY * RW);
   near(d.otWeekdayPay, 0);
   assert.equal(Math.round(d.otPay), 230769);
 });
 
-test('Chủ nhật: OT 4 giờ ×ot.weekendRate', () => {
-  const d = day(otAfter('21:00'), SUN, { rest: [SUN] });
+test('Chủ nhật: OT 4 giờ ×ot.weekendRate', async () => {
+  const d = await day(otAfter('21:00'), SUN, { rest: [SUN] });
   assert.deepEqual([d.otH, d.otWeekendH], [4, 4]);
   near(d.otPay, 4 * HOURLY * RW);
 });
 
-test('ngày thường không nằm trong lịch (Thứ Hai của người làm Thứ Ba đến Thứ Sáu) vẫn ×ot.rate', () => {
-  const d = day(otAfter('21:00'), MON, { rest: [SAT, SUN] });
+test('ngày thường không nằm trong lịch (Thứ Hai của người làm Thứ Ba đến Thứ Sáu) vẫn ×ot.rate', async () => {
+  const d = await day(otAfter('21:00'), MON, { rest: [SAT, SUN] });
   assert.equal(d.otWeekendH, 0);
   near(d.otPay, 4 * HOURLY * R);
 });
 
-test('OT Thứ Sáu kéo qua nửa đêm sang Thứ Bảy nghỉ: 17:00–24:00 7 giờ ×1,5 và 00:00–01:00 1 giờ ×2, tách theo từng phút', () => {
-  const d = day(otAfter('01:00'), FRI, { rest: [SAT] });
+test('OT Thứ Sáu kéo qua nửa đêm sang Thứ Bảy nghỉ: 17:00–24:00 7 giờ ×1,5 và 00:00–01:00 1 giờ ×2, tách theo từng phút', async () => {
+  const d = await day(otAfter('01:00'), FRI, { rest: [SAT] });
   assert.deepEqual([d.otH, d.otWeekendH], [8, 1]);
   near(d.otWeekendPay, 1 * HOURLY * RW);
   near(d.otWeekdayPay, 7 * HOURLY * R);
   near(d.otPay, 7 * HOURLY * R + 1 * HOURLY * RW);
 });
 
-test('Thứ Bảy trong lịch: OT qua nửa đêm sang Chủ nhật tách giờ Chủ nhật ×ot.weekendRate', () => {
-  const d = day(otAfter('01:00'), SAT, { rest: [SUN] });
+test('Thứ Bảy trong lịch: OT qua nửa đêm sang Chủ nhật tách giờ Chủ nhật ×ot.weekendRate', async () => {
+  const d = await day(otAfter('01:00'), SAT, { rest: [SUN] });
   assert.deepEqual([d.otH, d.otWeekendH], [8, 1]);
   near(d.otPay, 7 * HOURLY * R + 1 * HOURLY * RW);
 });
 
-test('cuối tuần trùng ngày lễ: giờ OT là giờ làm ngày lễ ×ot.holidayRate, không ×ot.weekendRate', () => {
-  const d = day(otAfter('21:00'), SUN, { holidays: [SUN], rest: [SUN] });
+test('cuối tuần trùng ngày lễ: giờ OT là giờ làm ngày lễ ×ot.holidayRate, không ×ot.weekendRate', async () => {
+  const d = await day(otAfter('21:00'), SUN, { holidays: [SUN], rest: [SUN] });
   assert.equal(d.otWeekendH, 0);
   assert.equal(d.holWorkH, 13);
   near(d.holWorkPay, 13 * HOURLY * RH);
 });
 
-test('ca đêm 01/10 có OT 20:00–22:00 và 07:00–09:00: lương ngày 230.769 + đêm 92.308 + nghỉ đêm 37.500 + OT 4 giờ ×1,5 = 533.654', () => {
+test('ca đêm 01/10 có OT 20:00–22:00 và 07:00–09:00: lương ngày 230.769 + đêm 92.308 + nghỉ đêm 37.500 + OT 4 giờ ×1,5 = 533.654', async () => {
   const night = work('22:00', '07:00', { extraKind: 'ot', extraIn: '20:00', extraOut: '09:00' });
-  const d = day(night, '2026-10-01');
+  const d = await day(night, '2026-10-01');
   assert.equal(d.otH, 4);
   near(d.bonus, (DAILY * 40) / 100);
   near(d.breakPay, HOURLY * (1 + DEFAULTS['night.breakPremium']));
@@ -103,9 +103,9 @@ test('ca đêm 01/10 có OT 20:00–22:00 và 07:00–09:00: lương ngày 230.7
   assert.equal(Math.round(d.total), 533654);
 });
 
-test('ca đêm 40 % có 2 giờ OT: giữ phụ cấp ca và giờ nghỉ đêm, OT 2 giờ ×1,5, tổng ngày 06/10 = 447.115 ₫', () => {
-  const plain = day(work('22:00', '07:00'), '2026-10-06');
-  const d = day(work('22:00', '07:00', { extraKind: 'ot', extraOut: '09:00' }), '2026-10-06');
+test('ca đêm 40 % có 2 giờ OT: giữ phụ cấp ca và giờ nghỉ đêm, OT 2 giờ ×1,5, tổng ngày 06/10 = 447.115 ₫', async () => {
+  const plain = await day(work('22:00', '07:00'), '2026-10-06');
+  const d = await day(work('22:00', '07:00', { extraKind: 'ot', extraOut: '09:00' }), '2026-10-06');
   assert.equal(d.otH, 2);
   near(d.bonus, plain.bonus);
   near(d.breakPay, plain.breakPay);
@@ -149,8 +149,8 @@ test('calcMonth: Thứ Hai 4 giờ + Chủ nhật 4 giờ (ngày ngoài lịch, 
   assert.equal(Math.round(m.rows.find(r => r.date === SUN).total), 230769, 'ngày ngoài lịch chỉ trả đoạn OT');
 });
 
-test('OT 5 giờ ×1,5 ở ngày thường và 1 giờ ×3 ở ngày lễ trên cùng dòng ngày (ca 10:00–19:00 ngày 07/10, OT đến 01:00 ngày lễ 08/10)', () => {
-  const d = day(work('10:00', '19:00', { extraKind: 'ot', extraOut: '01:00' }), '2026-10-07', {
+test('OT 5 giờ ×1,5 ở ngày thường và 1 giờ ×3 ở ngày lễ trên cùng dòng ngày (ca 10:00–19:00 ngày 07/10, OT đến 01:00 ngày lễ 08/10)', async () => {
+  const d = await day(work('10:00', '19:00', { extraKind: 'ot', extraOut: '01:00' }), '2026-10-07', {
     holidays: ['2026-10-08']
   });
   assert.equal(d.otH, 5);
@@ -178,19 +178,19 @@ test('tiền OT trả vượt hệ số miễn thuế thì phần vượt chịu
   assert.equal(m.net.exemptOt, Math.round(4 * HOURLY * 0.5));
 });
 
-test('khoá chức vụ type.nv.ot.weekendRate thay giá trị toàn cục; type.nv.ot.rate đổi hệ số ngày thường', () => {
+test('khoá chức vụ type.nv.ot.weekendRate thay giá trị toàn cục; type.nv.ot.rate đổi hệ số ngày thường', async () => {
   const k25 = Engine.create({ ...DEFAULTS, 'type.nv.ot.weekendRate': 2.5 });
-  const d = day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, k25);
+  const d = await day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, k25);
   near(d.otPay, 4 * HOURLY * 2.5);
-  const weekday = day(otAfter('21:00'), MON, {}, nv, k25);
+  const weekday = await day(otAfter('21:00'), MON, {}, nv, k25);
   near(weekday.otPay, 4 * HOURLY * R, 'ngày thường không đổi');
   const kOther = Engine.create({ ...DEFAULTS, 'type.nv.ot.rate': 1.8 });
-  near(day(otAfter('21:00'), MON, {}, nv, kOther).otPay, 4 * HOURLY * 1.8);
+  near((await day(otAfter('21:00'), MON, {}, nv, kOther)).otPay, 4 * HOURLY * 1.8);
 });
 
-test('chức vụ không khai khoá riêng (kế thừa) dùng ot.weekendRate toàn cục', () => {
+test('chức vụ không khai khoá riêng (kế thừa) dùng ot.weekendRate toàn cục', async () => {
   const kg = Engine.create({ ...DEFAULTS, 'ot.weekendRate': 2.2 });
-  near(day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, kg).otPay, 4 * HOURLY * 2.2);
+  near((await day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, kg)).otPay, 4 * HOURLY * 2.2);
 });
 
 test('sàn luật: ot.weekendRate dưới law.floor.weekendOtRate (2) có cảnh báo dưới sàn, bằng sàn thì không', () => {
@@ -203,9 +203,9 @@ test('sàn luật: ot.weekendRate dưới law.floor.weekendOtRate (2) có cảnh
   assert.deepEqual(validateValue('ot.weekendRate', 2, { params: DEFAULTS }).warnings, []);
 });
 
-test('bản chụp cũ thiếu ot.weekendRate đọc bằng mặc định (không ném PARAM_MISSING)', () => {
+test('bản chụp cũ thiếu ot.weekendRate đọc bằng mặc định (không ném PARAM_MISSING)', async () => {
   const old = { ...DEFAULTS };
   delete old['ot.weekendRate'];
-  const d = day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, Engine.create(old));
+  const d = await day(otAfter('21:00'), SUN, { rest: [SUN] }, nv, Engine.create(old));
   near(d.otPay, 4 * HOURLY * RW);
 });

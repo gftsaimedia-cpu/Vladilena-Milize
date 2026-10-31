@@ -95,8 +95,8 @@ function rowCells(page1, dm) {
   return tr.match(/<td[\s\S]*?<\/td>/g);
 }
 
-test('phiếu A4 dòng ngày lễ ca đêm 01/10: đúng bốn ô tiền + Thành tiền, không dòng phụ, không chữ giải thích', () => {
-  const tds = rowCells(page1Of(withDayFigures(snapshot())), '01/10');
+test('phiếu A4 dòng ngày lễ ca đêm 01/10: đúng bốn ô tiền + Thành tiền, không dòng phụ, không chữ giải thích', async () => {
+  const tds = rowCells(page1Of(await withDayFigures(await snapshot())), '01/10');
   assert.equal(tds.length, 9);
   assert.deepEqual(tds.slice(4).map(text), ['403.846', '129.808', '207.692', '—', '741.346']);
   for (const td of tds.slice(4)) assert.doesNotMatch(td, /<small|<i>/, 'ô tiền không có dòng phụ');
@@ -108,8 +108,8 @@ test('phiếu A4 dòng ngày lễ ca đêm 01/10: đúng bốn ô tiền + Thàn
     assert.ok(!row.includes(label), `dòng không còn "${label}": ${row}`);
 });
 
-test('phiếu A4 ngày có OT đã duyệt: Làm thêm là một số, không ghi số giờ và giờ kết thúc', () => {
-  const tds = rowCells(page1Of(withDayFigures(snapshot())), '05/10');
+test('phiếu A4 ngày có OT đã duyệt: Làm thêm là một số, không ghi số giờ và giờ kết thúc', async () => {
+  const tds = rowCells(page1Of(await withDayFigures(await snapshot())), '05/10');
   const cells = tds.slice(4).map(text);
   assert.match(cells[2], /^\d{1,3}(\.\d{3})*$/, `Làm thêm chỉ là số: ${cells[2]}`);
   assert.ok(
@@ -118,8 +118,8 @@ test('phiếu A4 ngày có OT đã duyệt: Làm thêm là một số, không gh
   );
 });
 
-test('phiếu A4 bản chụp cũ chưa có cột tiền: không phát minh số, ô thiếu là gạch ngang, Thành tiền giữ nguyên', () => {
-  const tds = rowCells(page1Of(snapshot()), '01/10');
+test('phiếu A4 bản chụp cũ chưa có cột tiền: không phát minh số, ô thiếu là gạch ngang, Thành tiền giữ nguyên', async () => {
+  const tds = rowCells(page1Of(await snapshot()), '01/10');
   assert.deepEqual(tds.slice(4).map(text), ['—', '—', '—', '—', '741.346']);
 });
 

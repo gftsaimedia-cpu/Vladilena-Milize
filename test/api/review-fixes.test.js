@@ -15,8 +15,8 @@ const realNow = Date.now;
 const MINUTE = 60 * 1000;
 let clock = Date.parse('2026-10-14T12:00:00+07:00');
 
-function person(username, overrides = {}) {
-  store.upsertStaff({
+async function person(username, overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -31,7 +31,7 @@ function person(username, overrides = {}) {
 // who = null: không đăng nhập; headers: thêm header (ví dụ X-Forwarded-For)
 async function call(method, route, body, who = 'admin', headers = {}) {
   const h = { 'Content-Type': 'application/json', ...headers };
-  if (who) h.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) h.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers: h,
@@ -43,9 +43,9 @@ async function call(method, route, body, who = 'admin', headers = {}) {
     cookie: (response.headers.get('set-cookie') || '').split(';')[0]
   };
 }
-const saveSheet = (who, days, month = '2026-10') => call('PUT', '/sheet', { month, days }, who);
-const rowsOf = username =>
-  store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
+const saveSheet = async (who, days, month = '2026-10') => await call('PUT', '/sheet', { month, days }, who);
+const rowsOf = async username =>
+  await store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
 const queue = async (params = '') => {
   const r = await call('GET', '/approvals' + params);
   assert.equal(r.status, 200, JSON.stringify(r.data));
@@ -61,7 +61,7 @@ before(async () => {
   port = server.address().port;
   base = 'http://127.0.0.1:' + port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.TRUST_PROXY;
   clock += 20 * MINUTE; // cửa sổ giới hạn đăng nhập của test trước đã hết hạn
   for (const table of [
@@ -73,10 +73,10 @@ beforeEach(() => {
     'staff',
     'settings'
   ])
-    store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', level: 0, startDate: null, shiftCode: null });
-  person('worker');
-  person('other');
+    await store.db.exec('DELETE FROM ' + table);
+  await person('admin', { role: 'admin', type: 'tts', level: 0, startDate: null, shiftCode: null });
+  await person('worker');
+  await person('other');
 });
 after(async () => {
   Date.now = realNow;
@@ -92,36 +92,36 @@ test('1: xoá khoản rồi khai lại khoản khác (rev lại là 1): quyết 
   const seen = (await queue()).items.find(x => x.date === OT);
   assert.equal(seen.rev, 1);
   assert.equal((await saveSheet('worker', {})).status, 200, 'nhân sự xoá khoản');
-  assert.equal(rowsOf('worker').length, 0);
+  assert.equal((await rowsOf('worker')).length, 0);
   assert.equal((await saveSheet('worker', { [OT]: otDay('21:00') })).status, 200, 'khai lại OT 4 giờ');
-  const fresh = rowsOf('worker')[0];
+  const fresh = (await rowsOf('worker'))[0];
   assert.equal(fresh.rev, 1, 'dòng mới: rev bắt đầu lại, nên chỉ có dấu vân tay phân biệt được');
   assert.notEqual(fresh.fingerprint, seen.fingerprint);
-  const before = rowsOf('worker');
+  const before = await rowsOf('worker');
   const r = await call('PUT', '/approvals/decide', { action: 'approve', items: [refOf(seen)] });
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.equal(r.data.code, 'APPROVAL_STALE');
-  assert.deepEqual(rowsOf('worker'), before, 'không lưu gì');
-  assert.equal(rowsOf('worker')[0].status, 'pending');
+  assert.deepEqual(await rowsOf('worker'), before, 'không lưu gì');
+  assert.equal((await rowsOf('worker'))[0].status, 'pending');
 });
 test('1: duyệt đúng rev và dấu vân tay Admin đã thấy vẫn được (200)', async () => {
   await saveSheet('worker', { [OT]: otDay('18:00') });
   const seen = (await queue()).items.find(x => x.date === OT);
   const r = await call('PUT', '/approvals/decide', { action: 'approve', items: [refOf(seen)] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(rowsOf('worker')[0].status, 'approved');
+  assert.equal((await rowsOf('worker'))[0].status, 'approved');
 });
 test('1: thiếu fingerprint hoặc fingerprint không phải chữ thì 400, không lưu gì', async () => {
   await saveSheet('worker', { [OT]: otDay('18:00') });
   const seen = (await queue()).items.find(x => x.date === OT);
-  const before = rowsOf('worker');
+  const before = await rowsOf('worker');
   for (const fingerprint of [undefined, '', 5, null, {}]) {
     const item = { username: seen.username, date: seen.date, rev: seen.rev };
     if (fingerprint !== undefined) item.fingerprint = fingerprint;
     const r = await call('PUT', '/approvals/decide', { action: 'approve', items: [item] });
     assert.equal(r.status, 400, `fingerprint=${JSON.stringify(fingerprint)}: ${JSON.stringify(r.data)}`);
   }
-  assert.deepEqual(rowsOf('worker'), before);
+  assert.deepEqual(await rowsOf('worker'), before);
 });
 test('1: lô có một khoản cũ thì cả lô bị từ chối (tất cả hoặc không gì cả)', async () => {
   await saveSheet('worker', { [OT]: otDay('18:00'), '2026-10-08': otDay('18:00') });
@@ -129,7 +129,7 @@ test('1: lô có một khoản cũ thì cả lô bị từ chối (tất cả ho
   await saveSheet('worker', { [OT]: otDay('18:00'), '2026-10-08': otDay('21:00') });
   const r = await call('PUT', '/approvals/decide', { action: 'approve', items: [refOf(a), refOf(b)] });
   assert.equal(r.status, 409, JSON.stringify(r.data));
-  assert.ok(rowsOf('worker').every(row => row.status === 'pending'));
+  assert.ok((await rowsOf('worker')).every(row => row.status === 'pending'));
 });
 
 /* ---------- 2. Địa chỉ máy khách sau proxy ---------- */
@@ -187,7 +187,7 @@ async function punchIp(forwarded) {
     }
   );
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  return store.db.prepare('SELECT ip FROM punches WHERE username = ? ORDER BY id DESC').get('worker').ip;
+  return (await store.db.prepare('SELECT ip FROM punches WHERE username = ? ORDER BY id DESC').get('worker')).ip;
 }
 test('2: punches.ip dùng cùng hàm địa chỉ: không tin X-Forwarded-For khi chưa bật TRUST_PROXY', async () => {
   const ip = await punchIp('6.6.6.6, 9.9.9.9');
@@ -249,7 +249,7 @@ test('4: 5001 tên đăng nhập giả không đẩy khoá còn hiệu lực ra 
 test('5: khoản của nhân sự bị khoá vẫn hiện trong hàng chờ kèm locked: true; người khác không có cờ này', async () => {
   await saveSheet('worker', { [OT]: otDay('18:00') });
   await saveSheet('other', { [OT]: otDay('18:00') });
-  store.lockStaff('worker', 'admin');
+  await store.lockStaff('worker', 'admin');
   const items = (await queue()).items;
   assert.equal(items.length, 2);
   assert.equal(items.find(x => x.username === 'worker').locked, true);
@@ -262,7 +262,7 @@ test('6: login, /me, /staff, /team và PUT /staff không trả sessionVersion c�
     const text = JSON.stringify(value);
     assert.ok(!/sessionVersion|session_version/i.test(text), `${label} lộ số phiên bản phiên`);
   };
-  store.bumpSessionVersion('worker');
+  await store.bumpSessionVersion('worker');
   const login = await call('POST', '/login', { username: 'worker', password: 'test-pass' }, null);
   assert.equal(login.status, 200);
   leaks('login', login.data);
@@ -297,22 +297,22 @@ test('6: login, /me, /staff, /team và PUT /staff không trả sessionVersion c�
 test('7: ngày chỉ có extraIn mà thiếu extraKind giữ nguyên giờ và để extraKind rỗng như calcDay đọc', async () => {
   const r = await saveSheet('worker', { [OT]: { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const saved = store.getSheet('worker', '2026-10').days[OT];
+  const saved = (await store.getSheet('worker', '2026-10')).days[OT];
   assert.equal(saved.extraKind, '', 'không đoán thành làm bù: calcDay chỉ hiểu extraOut');
   assert.equal(saved.extraIn, '06:30', 'không mất dữ liệu');
-  assert.equal(rowsOf('worker').length, 0, 'không có khoản cần duyệt');
+  assert.equal((await rowsOf('worker')).length, 0, 'không có khoản cần duyệt');
 });
 test('7: ngày có extraOut mà thiếu extraKind vẫn là làm bù (giữ nguyên)', async () => {
   const r = await saveSheet('worker', { [OT]: { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const saved = store.getSheet('worker', '2026-10').days[OT];
+  const saved = (await store.getSheet('worker', '2026-10')).days[OT];
   assert.equal(saved.extraKind, 'makeup');
   assert.equal(saved.extraOut, '19:00');
 });
 
 /* ---------- 8. Admin tự đặt lại mật khẩu qua PUT /staff vẫn đăng nhập ---------- */
 test('8: Admin gửi mật khẩu cho tài khoản đã có qua PUT /staff bị 400 USE_PASSWORD_RESET, phiên và cookie giữ nguyên (đặt lại dùng POST /staff/:u/password)', async () => {
-  const oldCookie = auth.cookieHeader(auth.createSession('admin'), 86400);
+  const oldCookie = auth.cookieHeader(await auth.createSession('admin'), 86400);
   const r = await fetch(base + '/api/staff/admin', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Cookie: oldCookie },
@@ -327,7 +327,7 @@ test('8: Admin gửi mật khẩu cho tài khoản đã có qua PUT /staff bị 
 test('8: Admin đặt lại mật khẩu của người khác (POST /staff/:u/password) thì không đổi cookie của Admin (giữ nguyên)', async () => {
   const r = await fetch(base + '/api/staff/worker/password', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession('admin'), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400) },
     body: JSON.stringify({ password: 'mat-khau-moi-2', reason: 'Đặt lại mật khẩu theo yêu cầu của người dùng' })
   });
   assert.equal(r.status, 200);

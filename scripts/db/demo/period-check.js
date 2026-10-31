@@ -91,7 +91,7 @@ let base = '';
 async function call(method, route, body, who = ADMIN) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };

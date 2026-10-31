@@ -12,19 +12,19 @@ const CLOCK = '2026-11-02T09:00:00';
 const NOT_PAYEE = { type: 'tts', level: 0, shiftCode: null, startDate: null }; // như `admin` của các test khác: không thuộc diện trả lương
 
 // Dựng lại thế giới: nhân sự bịa của mọi vai trò
-function world() {
-  F.reset();
-  F.at(CLOCK);
-  F.person('admin', 'admin', NOT_PAYEE);
-  F.person('qa_cb', 'cb', NOT_PAYEE);
-  F.person('qa_hr', 'hr', NOT_PAYEE);
-  F.person('qa_acc', 'accounting', NOT_PAYEE);
-  F.person('qa_cb_self', 'cb'); // C&B cũng là nhân sự được trả lương
-  F.person('qa_s_nv', 'staff');
-  F.person('qa_s_nv2', 'staff');
-  F.person('qa_s_tts', 'staff', { type: 'tts', level: 3 });
+async function world() {
+  await F.reset();
+  await F.at(CLOCK);
+  await F.person('admin', 'admin', NOT_PAYEE);
+  await F.person('qa_cb', 'cb', NOT_PAYEE);
+  await F.person('qa_hr', 'hr', NOT_PAYEE);
+  await F.person('qa_acc', 'accounting', NOT_PAYEE);
+  await F.person('qa_cb_self', 'cb'); // C&B cũng là nhân sự được trả lương
+  await F.person('qa_s_nv', 'staff');
+  await F.person('qa_s_nv2', 'staff');
+  await F.person('qa_s_tts', 'staff', { type: 'tts', level: 3 });
   // vai trò thật nằm ở staff_roles (chỉ thêm dòng, reset() không xoá): thu hồi hết rồi gán lại cho đúng người của mỗi test
-  store.db
+  await store.db
     .prepare('UPDATE staff_roles SET revoked_at = ? WHERE revoked_at IS NULL')
     .run(new Date(Date.now()).toISOString());
   for (const [username, role] of [
@@ -33,10 +33,10 @@ function world() {
     ['qa_acc', 'accounting'],
     ['qa_cb_self', 'cb']
   ])
-    S.grant(username, role);
+    await S.grant(username, role);
 }
 const url = (username, tail = '') => `/staff/${username}/schedule${tail}`;
-const get = (username, month = MONTH, who = 'admin') => F.call('GET', url(username, `?month=${month}`), { who });
+const get = async (username, month = MONTH, who = 'admin') => await F.call('GET', url(username, `?month=${month}`), { who });
 const must = (res, what) => S.must(res, what);
 
 module.exports = {

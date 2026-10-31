@@ -9,11 +9,11 @@ const { store } = F;
 
 before(async () => {
   await F.start();
-  F.at('2026-10-12T09:00:00');
-  F.person('qa_admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_cb', 'staff', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  store.roles.grant('qa_cb', 'cb', 'qa_admin'); // C&B: vai trò thêm cho tài khoản nhân sự
-  F.person('qa_nv', 'staff');
+  await F.at('2026-10-12T09:00:00');
+  await F.person('qa_admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_cb', 'staff', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await store.roles.grant('qa_cb', 'cb', 'qa_admin'); // C&B: vai trò thêm cho tài khoản nhân sự
+  await F.person('qa_nv', 'staff');
 });
 after(() => F.stop());
 

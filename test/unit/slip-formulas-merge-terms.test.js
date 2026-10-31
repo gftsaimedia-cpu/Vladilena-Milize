@@ -58,15 +58,15 @@ const OT_HOLIDAY = ['2026-10-10'];
 const nightRows = (...dates) => Object.fromEntries(dates.map(d => [d, nightShift()]));
 
 /* ---------- các mảnh triệt tiêu ---------- */
-test('ca đêm trước lễ và ca đêm bắt đầu ở lễ: +6 giờ và −6 giờ triệt tiêu, lương cơ bản chỉ còn lương ngày × số ngày', () => {
-  const s = slipOf(NIGHT, nightRows('2026-10-09', '2026-10-10'), { holidays: OT_HOLIDAY });
+test('ca đêm trước lễ và ca đêm bắt đầu ở lễ: +6 giờ và −6 giờ triệt tiêu, lương cơ bản chỉ còn lương ngày × số ngày', async () => {
+  const s = await slipOf(NIGHT, nightRows('2026-10-09', '2026-10-10'), { holidays: OT_HOLIDAY });
   assert.ok(s.cells.workBase > 0);
   assert.match(s.f.workBase, /^6\.000\.000 đ ÷ 26 ngày chuẩn × \d+ ngày công$/, `workBase: ${s.f.workBase}`);
   assert.ok(!/28\.846/.test(s.f.workBase), 'không còn mảnh giờ triệt tiêu');
   near(s.f.workBase, s.cells.workBase, 'lương cơ bản');
 });
 
-test('cả tháng đi làm, ca đêm 09/10 và 10/10 (lễ): lương cơ bản in đúng 6.000.000 đ ÷ 26 ngày chuẩn × 22 ngày công, không còn mảnh giờ', () => {
+test('cả tháng đi làm, ca đêm 09/10 và 10/10 (lễ): lương cơ bản in đúng 6.000.000 đ ÷ 26 ngày chuẩn × 22 ngày công, không còn mảnh giờ', async () => {
   const days = {};
   for (const d of [
     '05',
@@ -93,14 +93,14 @@ test('cả tháng đi làm, ca đêm 09/10 và 10/10 (lễ): lương cơ bản i
     '30'
   ])
     days[`2026-10-${d}`] = work();
-  const s = slipOf(NIGHT, { ...days, ...nightRows('2026-10-09', '2026-10-10') }, { holidays: OT_HOLIDAY });
+  const s = await slipOf(NIGHT, { ...days, ...nightRows('2026-10-09', '2026-10-10') }, { holidays: OT_HOLIDAY });
   assert.equal(s.f.workBase, '6.000.000 đ ÷ 26 ngày chuẩn × 22 ngày công');
   near(s.f.workBase, s.cells.workBase, 'lương cơ bản');
 });
 
 /* ---------- các mảnh triệt tiêu một phần ---------- */
-test('ca đêm 09/10 vào lễ, ca ngày 10/10 không có giờ thường: còn mảnh trừ ròng 6 giờ, giá trị vẫn khớp dòng', () => {
-  const s = slipOf(NIGHT, { '2026-10-09': nightShift(), '2026-10-10': work() }, { holidays: OT_HOLIDAY });
+test('ca đêm 09/10 vào lễ, ca ngày 10/10 không có giờ thường: còn mảnh trừ ròng 6 giờ, giá trị vẫn khớp dòng', async () => {
+  const s = await slipOf(NIGHT, { '2026-10-09': nightShift(), '2026-10-10': work() }, { holidays: OT_HOLIDAY });
   assert.equal(s.f.workBase, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày công − 6 giờ trùng ngày lễ × 28.846,15 đ/giờ');
   near(s.f.workBase, s.cells.workBase, 'lương cơ bản');
   assert.ok(!/(\d+(?:,\d+)?) × 28\.846,15 [+−]  × 28\.846,15/.test(s.f.workBase), s.f.workBase);

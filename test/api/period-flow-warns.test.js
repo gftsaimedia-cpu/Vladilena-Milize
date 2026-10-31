@@ -16,11 +16,11 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const getPeriod = async (month, who = 'admin') => F.call('GET', `/periods/${month}`, { who });
+const getPeriod = async (month, who = 'admin') => await F.call('GET', `/periods/${month}`, { who });
 const codesOf = res => (res.data.warnings || []).map(w => w.code);
 const reasonOk = 'Lý do đủ mười ký tự';
 async function addIsat(month) {
-  const days = { ...store.getSheet('qa_nv1', month).days, [P.lastDow(month, 6)]: { kind: 'isat' } };
+  const days = { ...(await store.getSheet('qa_nv1', month)).days, [await P.lastDow(month, 6)]: { kind: 'isat' } };
   const res = await F.call('PUT', '/sheet', { who: 'qa_nv1', body: { month, days } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
 }
@@ -29,7 +29,7 @@ async function addIsat(month) {
 test('Chốt công: tháng chưa hết (MONTH_NOT_ENDED) vẫn chốt được, kèm cảnh báo MONTH_NOT_ENDED', async () => {
   const M = monthOf();
   await P.seed(M);
-  F.at(`${M}-20T09:00:00`);
+  await F.at(`${M}-20T09:00:00`);
   const view = (await getPeriod(M)).data;
   const item = view.checklist.find(i => i.code === 'MONTH_NOT_ENDED');
   assert.ok(item, JSON.stringify(view.checklist));
@@ -39,7 +39,7 @@ test('Chốt công: tháng chưa hết (MONTH_NOT_ENDED) vẫn chốt được, 
   assert.equal(res.data.status, 'attendance_locked');
   assert.ok(codesOf(res).includes('MONTH_NOT_ENDED'), JSON.stringify(res.data.warnings));
   assert.ok(res.data.checklist.some(i => i.code === 'MONTH_NOT_ENDED'));
-  assert.equal(P.periodRow(M).status, 'attendance_locked');
+  assert.equal((await P.periodRow(M)).status, 'attendance_locked');
 });
 
 test('Chốt công: còn phiên Check-in mở (OPEN_SESSIONS) vẫn chốt được, kèm cảnh báo OPEN_SESSIONS; lượt mở quá 16 giờ được đóng thành quên Check-out và không đếm', async () => {
@@ -49,13 +49,13 @@ test('Chốt công: còn phiên Check-in mở (OPEN_SESSIONS) vẫn chốt đư�
   const staff = { shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] };
   const plan = PunchRules.planShift(staff, P.firstDow(M, 1));
   const stale = PunchRules.openDay(staff, `${plan.date}T08:00:00+07:00`, plan);
-  const staleSession = store.createSession('qa_nv1', stale.date, 'open', stale.entry);
+  const staleSession = await store.createSession('qa_nv1', stale.date, 'open', stale.entry);
   const live = PunchRules.openDay(staff, `${plan.date}T08:00:00+07:00`, plan);
   const liveIn = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
-  store.createSession('qa_tts1', live.date, 'open', { ...live.entry, presIn: liveIn });
+  await store.createSession('qa_tts1', live.date, 'open', { ...live.entry, presIn: liveIn });
   const view = (await getPeriod(M)).data;
-  assert.equal(store.getSession(staleSession.id).state, 'closed', 'lượt quá 16 giờ đã được đóng, không đếm là đang mở');
-  assert.equal(store.getSession(staleSession.id).entry.reason, 'forgot-out');
+  assert.equal((await store.getSession(staleSession.id)).state, 'closed', 'lượt quá 16 giờ đã được đóng, không đếm là đang mở');
+  assert.equal((await store.getSession(staleSession.id)).entry.reason, 'forgot-out');
   const item = view.checklist.find(i => i.code === 'OPEN_SESSIONS');
   assert.ok(item, JSON.stringify(view.checklist));
   assert.deepEqual([item.severity, item.acknowledgeable, item.count], ['warn', false, 1]);
@@ -93,7 +93,7 @@ test('Chốt công: khoản chờ duyệt vẫn chốt được kèm cảnh báo
   );
   assert.equal(ok.data.status, 'attendance_locked');
   assert.ok(!codesOf(ok).includes('PENDING_APPROVALS'), 'đã bỏ qua nên không cảnh báo');
-  const row = P.auditOf(N).find(r => r.action === 'period.lock-attendance');
+  const row = (await P.auditOf(N)).find(r => r.action === 'period.lock-attendance');
   assert.equal(row.reason, P.text(10));
   assert.deepEqual(row.after.acknowledged, ['PENDING_APPROVALS']);
   assert.equal(row.after.checklist.PENDING_APPROVALS, pendingItem.count);
@@ -102,7 +102,7 @@ test('Chốt công: khoản chờ duyệt vẫn chốt được kèm cảnh báo
 test('Chốt công: nhân sự CTV/NV thiếu ngày bắt đầu (MISSING_START_DATE) vẫn chốt được kèm cảnh báo; bỏ qua có lý do thì không cảnh báo', async () => {
   const M = monthOf();
   await P.seed(M);
-  F.person('qa_nostart', 'staff', { type: 'ctv', level: 1, startDate: null });
+  await F.person('qa_nostart', 'staff', { type: 'ctv', level: 1, startDate: null });
   const view = (await getPeriod(M)).data;
   const item = view.checklist.find(i => i.code === 'MISSING_START_DATE');
   assert.ok(item, JSON.stringify(view.checklist));
@@ -132,7 +132,7 @@ test('Duyệt kỳ khi còn phiếu chưa duyệt vẫn duyệt, kèm cảnh bá
     (await P.slipRows(M)).map(r => r.status),
     ['approved', 'approved', 'approved', 'approved']
   );
-  assert.equal(P.runsOf(M)[0].status, 'final');
+  assert.equal((await P.runsOf(M))[0].status, 'final');
   const last = (await P.slipRows(M)).find(r => r.username === rows[3].username);
   const late = await P.decide(M, [{ username: last.username, rev: last.rev }], 'return', 'Trả lại sau khi chốt kỳ');
   assert.equal(late.status, 409);
@@ -160,7 +160,7 @@ test('Duyệt kỳ khi còn phiếu lỗi chưa loại vẫn duyệt, kèm cản
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.status, 'approved');
   assert.ok(codesOf(res).includes('PERIOD_NOT_READY'), JSON.stringify(res.data.warnings));
-  assert.equal(flow.payslipsOf(M).slips.qa_ctv1.net, null, 'phiếu lỗi không có thực lĩnh');
+  assert.equal((await flow.payslipsOf(M)).slips.qa_ctv1.net, null, 'phiếu lỗi không có thực lĩnh');
 });
 
 /* ================= duyệt và trả lại phiếu ================= */
@@ -185,7 +185,7 @@ test('Duyệt phiếu còn phát hiện AI chưa xử lý vẫn được kèm c�
   const flagFirst = async month => {
     await P.setupMonth(month, 'reviewed');
     // AI của kỳ này không có phát hiện nào; gắn cờ trực tiếp ở tầng kho dữ liệu để mô phỏng một phát hiện còn mở
-    store.payroll.applyAiReview(store.payroll.currentRun(month).id, { qa_nv1: ['isat-frequency'] });
+    await store.payroll.applyAiReview((await store.payroll.currentRun(month)).id, { qa_nv1: ['isat-frequency'] });
     const rows = await P.slipRows(month);
     assert.deepEqual(rows.find(r => r.username === 'qa_nv1').flags, ['isat-frequency']);
     return rows;
@@ -212,7 +212,7 @@ test('Duyệt phiếu còn phát hiện AI chưa xử lý vẫn được kèm c�
   const C = monthOf();
   const rowsC = await flagFirst(C);
   const flaggedC = rowsC.find(r => r.username === 'qa_nv1');
-  require('../../lib/findings').dismiss({
+  await require('../../lib/findings').dismiss({
     month: C,
     username: 'qa_nv1',
     rule: 'isat-frequency',
@@ -232,7 +232,7 @@ test('Duyệt phiếu còn phát hiện AI chưa xử lý vẫn được kèm c�
 test('Duyệt hay trả lại phiếu của chính mình vẫn được, kèm cảnh báo SELF_DECISION_FORBIDDEN; phiếu người khác không cảnh báo', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  P.grant('qa_nv1', 'cb');
+  await P.grant('qa_nv1', 'cb');
   const rows = await P.slipRows(M);
   const self = rows.find(r => r.username === 'qa_nv1');
   const approve = await P.decide(M, [{ username: 'qa_nv1', rev: self.rev }], 'approve', 'Ghi chú đủ dài', 'qa_nv1');
@@ -247,7 +247,7 @@ test('Duyệt hay trả lại phiếu của chính mình vẫn được, kèm c�
   const ok = P.must(await P.decide(M, P.itemsOf(others), 'approve', undefined, 'qa_nv1'), 'cb duyệt phiếu người khác');
   assert.equal(ok.data.items.length, 3);
   assert.ok(!codesOf(ok).includes('SELF_DECISION_FORBIDDEN'), 'phiếu người khác thì không cảnh báo');
-  const audit = P.auditOf(M).filter(r => r.action === 'payslip.approve' || r.action === 'payslip.return');
+  const audit = (await P.auditOf(M)).filter(r => r.action === 'payslip.approve' || r.action === 'payslip.return');
   assert.ok(audit.every(r => r.actor === 'qa_nv1'));
 });
 
@@ -271,7 +271,7 @@ test('Trả lại phiếu: ghi chú tuỳ chọn (thiếu, rỗng, ngắn đều
   assert.equal(ok.data.items[0].status, 'draft');
   const after = (await P.slipRows(M)).find(r => r.username === rows[3].username);
   assert.deepEqual([after.status, after.note, after.decidedBy], ['draft', 'Sai giờ OT, tính lại', 'admin']);
-  assert.equal(P.auditOf(M).filter(r => r.action === 'payslip.return').length, 4);
+  assert.equal((await P.auditOf(M)).filter(r => r.action === 'payslip.return').length, 4);
   const approve = await P.step(M, 'approve');
   assert.equal(approve.status, 200, JSON.stringify(approve.data));
   assert.ok(codesOf(approve).includes('PERIOD_NOT_READY'), JSON.stringify(approve.data.warnings));

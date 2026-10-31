@@ -109,7 +109,7 @@ function lastAuditHash(dbPath) {
   }
 }
 
-function toDefaultsOnly({ dbPath, reason, backupDir }) {
+async function toDefaultsOnly({ dbPath, reason, backupDir }) {
   const before = status(dbPath);
   if (before.mode === 'defaults-only') return { changed: false, before };
   // Nhật ký đã ký HMAC mà thiếu AUDIT_KEY thì dòng mới sẽ chỉ là SHA-256 thường: chuỗi vẫn nối nhưng dòng đó mất bảo vệ HMAC
@@ -117,7 +117,7 @@ function toDefaultsOnly({ dbPath, reason, backupDir }) {
     throw new OpsError(
       'Nhật ký của DB này ký bằng HMAC: đặt AUDIT_KEY (đúng khoá của máy chủ) trong môi trường rồi chạy lại.'
     );
-  const backup = require('./backup-db').backup({
+  const backup = await require('./backup-db').backup({
     dbPath,
     outDir: backupDir,
     keep: process.env.BACKUP_KEEP
@@ -130,9 +130,9 @@ function toDefaultsOnly({ dbPath, reason, backupDir }) {
   const os_user = String(os.userInfo().username || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_');
   const ctx = { actor: ('ops:' + os_user).slice(0, ACTOR_MAX), actorRoles: [], requestId: 'ops-' + Date.now() };
   let rev;
-  store.transaction(() => {
-    store.setSetting('params_mode', 'defaults-only');
-    rev = configRev.bump();
+  await store.transaction(async () => {
+    await store.setSetting('params_mode', 'defaults-only');
+    rev = await configRev.bump();
     audit.write(ctx, {
       action: 'param.mode',
       entityKind: 'setting',
@@ -147,7 +147,7 @@ function toDefaultsOnly({ dbPath, reason, backupDir }) {
   return { changed: true, before, after, backup, configRev: rev };
 }
 
-function main() {
+async function main() {
   try {
     const args = parseArgs(process.argv.slice(2));
     const dbPath = requireDbPath();
@@ -166,7 +166,7 @@ function main() {
     const backupDir = args.backupDir || process.env.BACKUP_DIR;
     if (!backupDir)
       throw new OpsError('Thiếu thư mục sao lưu (--backup-dir=... hoặc BACKUP_DIR): luôn sao lưu trước khi đổi.');
-    const r = toDefaultsOnly({ dbPath, reason, backupDir });
+    const r = await toDefaultsOnly({ dbPath, reason, backupDir });
     if (!r.changed) return console.log('Đã ở chế độ defaults-only, không đổi gì.');
     console.log(`Đã sao lưu trước khi đổi: ${r.backup.name} (${r.backup.size} byte)`);
     console.log(`params_mode: ${r.before.mode} -> ${r.after.mode}; config_rev ${r.before.configRev} -> ${r.configRev}`);
@@ -185,6 +185,10 @@ function main() {
   }
 }
 
-if (require.main === module) main();
+if (require.main === module)
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 module.exports = { parseArgs, status, toDefaultsOnly, OpsError };

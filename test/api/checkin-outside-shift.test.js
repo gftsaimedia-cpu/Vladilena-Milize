@@ -31,16 +31,16 @@ const withExtra = (extraKind, extraOut, extraIn) => ({
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.person('admin', 'admin');
-  F.person('nv_a'); // ca n1 08:00–17:00
-  F.at(`${MON}T07:00:00`);
+beforeEach(async () => {
+  await F.reset();
+  await F.person('admin', 'admin');
+  await F.person('nv_a'); // ca n1 08:00–17:00
+  await F.at(`${MON}T07:00:00`);
 });
 
-const clearPunches = () => {
+const clearPunches = async () => {
   for (const table of ['explanations', 'punches', 'attendance_sessions', 'punch_requests'])
-    store.db.exec(`DELETE FROM ${table}`);
+    await store.db.exec(`DELETE FROM ${table}`);
 };
 // Ghi khoản cho người đó: Admin khai thay thì được duyệt ngay (approved); nhân viên tự khai thì chờ duyệt (pending)
 const declare = async (who, days, { asAdmin = true } = {}) => {
@@ -64,8 +64,8 @@ const decide = async (who, date, action) => {
 };
 // Một ô của ma trận: đặt đồng hồ, hỏi GET rồi bấm POST; hai đường phải cùng kết luận, cùng mã, cùng câu báo
 async function cell(who, date, hm) {
-  clearPunches();
-  F.at(`${date}T${hm}:00`);
+  await clearPunches();
+  await F.at(`${date}T${hm}:00`);
   const got = (await F.call('GET', '/punch', { who })).data;
   const posted = await F.call('POST', '/punch', { who, body: { type: 'in', requestId: crypto.randomUUID() } });
   const ok = posted.status === 200;
@@ -79,7 +79,7 @@ async function cell(who, date, hm) {
   assert.equal(posted.data.code, got.checkInCode);
   assert.equal(posted.data.error, got.checkInBlock);
   assert.equal(got.checkInEntitlement, undefined);
-  assert.equal(store.listSessions({ username: who }).length, 0, 'bị từ chối thì không ghi lượt');
+  assert.equal((await store.listSessions({ username: who })).length, 0, 'bị từ chối thì không ghi lượt');
   return { ok, code: posted.data.code, message: posted.data.error };
 }
 const allowed = async (who, date, hm, entitlement) => {
@@ -107,8 +107,8 @@ test('inside the shift window Check-in passes; the window is [start - earlyCheck
 test('late Check-in inside the window still passes the gate and follows the explanation flow', async () => {
   F.explainPunches = false;
   try {
-    clearPunches();
-    F.at(`${MON}T14:00:00`);
+    await clearPunches();
+    await F.at(`${MON}T14:00:00`);
     const r = await F.call('POST', '/punch', { who: 'nv_a', body: { type: 'in', requestId: crypto.randomUUID() } });
     assert.equal(r.status, 409, JSON.stringify(r.data));
     assert.equal(r.data.code, 'CHECKIN_NEEDS_EXPLANATION');
@@ -118,7 +118,7 @@ test('late Check-in inside the window still passes the gate and follows the expl
 });
 
 test('after the end of a morning shift Check-in is refused with a message naming the window and the request needed', async () => {
-  F.person('nv_f1', 'staff', { shiftCode: 'f1' }); // 06:00–15:00
+  await F.person('nv_f1', 'staff', { shiftCode: 'f1' }); // 06:00–15:00
   await allowed('nv_f1', MON, '14:00', 'shift');
   const r = await refused('nv_f1', MON, '15:30');
   assert.match(r.message, /ca 06:00–15:00/);
@@ -152,15 +152,15 @@ test('pending, rejected and removed requests grant nothing; the pending message 
   await declare('nv_a', { [MON]: withExtra('makeup', '19:00') }, { asAdmin: false });
   const pending = await refused('nv_a', MON, '17:30');
   assert.match(pending.message, /chờ duyệt/);
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await decide('nv_a', MON, 'reject');
   const rejected = await refused('nv_a', MON, '17:30');
   assert.doesNotMatch(rejected.message, /chờ duyệt/);
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await declare('nv_a', { [MON]: withExtra('makeup', '19:00') }, { asAdmin: false });
   await decide('nv_a', MON, 'approve');
   await allowed('nv_a', MON, '17:30', 'makeup_hours');
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await declare('nv_a', {}, { asAdmin: false });
   await refused('nv_a', MON, '17:30');
 });
@@ -179,8 +179,8 @@ test('a day with no schedule: refused without a request, open only for the appro
 });
 
 test('a holiday with approved OT: only the declared range 08:00–19:00 opens Check-in, nothing before it', async () => {
-  const holidays = store.getSetting('holidays', []);
-  store.setSetting('holidays', [...holidays, HOL]);
+  const holidays = await store.getSetting('holidays', []);
+  await store.setSetting('holidays', [...holidays, HOL]);
   try {
     await refused('nv_a', HOL, '08:00', NOT_ALLOWED);
     await declare('nv_a', { [HOL]: withExtra('ot', '19:00') });
@@ -195,12 +195,12 @@ test('a holiday with approved OT: only the declared range 08:00–19:00 opens Ch
     await allowed('nv_a', HOL, '16:59', 'ot');
     await refused('nv_a', HOL, '17:00');
   } finally {
-    store.setSetting('holidays', holidays);
+    await store.setSetting('holidays', holidays);
   }
 });
 
 test('night shift crossing midnight: window and request lookup use the shift start date', async () => {
-  F.person('nv_night', 'staff', { shiftCode: 'g2' }); // 22:00 → 07:00
+  await F.person('nv_night', 'staff', { shiftCode: 'g2' }); // 22:00 → 07:00
   await refused('nv_night', SAT, '17:59');
   await allowed('nv_night', SAT, '18:00', 'shift');
   const after0 = await allowed('nv_night', SUN, '00:30', 'shift');
@@ -214,7 +214,7 @@ test('night shift crossing midnight: window and request lookup use the shift sta
 });
 
 test('no assigned shift means no window: refused, and an approved request covering the time opens it', async () => {
-  F.person('nv_free', 'staff', { shiftCode: null });
+  await F.person('nv_free', 'staff', { shiftCode: null });
   const none = await refused('nv_free', MON, '09:00');
   assert.match(none.message, /Chưa được gán ca cố định/);
   await declare('nv_free', { [MON]: { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' } });
@@ -226,19 +226,19 @@ test('a request-covered Check-in outside the window opens an outside-shift sessi
   await declare('nv_a', { [MON]: withExtra('makeup', '19:00') });
   F.explainPunches = false;
   try {
-    F.at(`${MON}T17:30:00`);
+    await F.at(`${MON}T17:30:00`);
     const none = await F.call('POST', '/punch', { who: 'nv_a', body: { type: 'in', requestId: crypto.randomUUID() } });
     assert.equal(none.status, 409, JSON.stringify(none.data));
     assert.equal(none.data.code, 'CHECKIN_NEEDS_EXPLANATION');
     assert.equal(none.data.case, 'offShift');
-    assert.equal(store.listSessions({ username: 'nv_a' }).length, 0);
+    assert.equal((await store.listSessions({ username: 'nv_a' })).length, 0);
     const opened = await F.call('POST', '/punch', {
       who: 'nv_a',
       body: { type: 'in', requestId: crypto.randomUUID(), explanation: 'Làm bù sau ca' }
     });
     assert.equal(opened.status, 200, JSON.stringify(opened.data));
     assert.equal(opened.data.openSession.entry.outsideShift, true);
-    F.at(`${MON}T18:30:00`);
+    await F.at(`${MON}T18:30:00`);
     const closed = await F.call('POST', '/punch', {
       who: 'nv_a',
       body: { type: 'out', sessionId: opened.data.openSession.id, requestId: crypto.randomUUID() }
@@ -251,10 +251,10 @@ test('a request-covered Check-in outside the window opens an outside-shift sessi
 });
 
 test('Check-out of an open session is not touched by the Check-in gate', async () => {
-  F.at(`${MON}T08:00:00`);
+  await F.at(`${MON}T08:00:00`);
   const r = await F.call('POST', '/punch', { who: 'nv_a', body: { type: 'in', requestId: crypto.randomUUID() } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  F.at(`${MON}T20:00:00`);
+  await F.at(`${MON}T20:00:00`);
   const state = (await F.call('GET', '/punch', { who: 'nv_a' })).data;
   assert.equal(state.canCheckIn, false);
   assert.equal(state.checkInBlock, undefined, 'đang có lượt mở: không có câu chặn Check-in');
@@ -266,7 +266,7 @@ test('Check-out of an open session is not touched by the Check-in gate', async (
 });
 
 // Phán quyết thuần: khoảng trước ca của khoản làm bù / OT (không có ca nào đủ xa trong cấu hình mặc định, nên kiểm trực tiếp)
-test('entitlement of a before-shift range: only the covered times of the shift date', () => {
+test('entitlement of a before-shift range: only the covered times of the shift date', async () => {
   const day = { ...WORK, extraKind: 'makeup', extraIn: '01:00' };
   const gate = new CheckinEntitlement({
     punch: PunchRules,
@@ -275,11 +275,11 @@ test('entitlement of a before-shift range: only the covered times of the shift d
   });
   const staff = { shiftCode: 'n1', isWorkDay: () => true };
   const at = hm => gate.decide(staff, new Date(Date.parse(`${MON}T${hm}:00+07:00`)).toISOString());
-  assert.equal(at('00:59').allowed, false);
-  assert.equal(at('00:59').code, OUTSIDE);
-  const early = at('01:00');
+  assert.equal((await at('00:59')).allowed, false);
+  assert.equal((await at('00:59')).code, OUTSIDE);
+  const early = await at('01:00');
   assert.equal(early.allowed, true);
   assert.equal(early.entitlement, 'makeup_hours');
-  assert.equal(at('03:59').entitlement, 'makeup_hours');
-  assert.equal(at('04:00').entitlement, 'shift');
+  assert.equal((await at('03:59')).entitlement, 'makeup_hours');
+  assert.equal((await at('04:00')).entitlement, 'shift');
 });

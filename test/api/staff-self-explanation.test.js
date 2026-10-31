@@ -21,40 +21,40 @@ const REASON = 'Em quên bấm Check-in và Check-out cả ngày';
 
 before(async () => {
   await F.start();
-  F.at(NOW);
+  await F.at(NOW);
   for (const name of ['ref', 'tu', 'tc', 'vang', 'khac', 'dup', 'le', 'fix'])
-    F.person(name, 'staff', { startDate: '2026-10-26' });
-  F.person('cu', 'staff'); // vào làm từ 05/01: ngày Chủ nhật 25/10 ngoài lịch
-  F.person('moi', 'staff', { startDate: '2026-10-28' }); // 27/10 là trước ngày vào làm
-  F.person('admin', 'admin');
-  F.store.setSetting('holidays', []);
+    await F.person(name, 'staff', { startDate: '2026-10-26' });
+  await F.person('cu', 'staff'); // vào làm từ 05/01: ngày Chủ nhật 25/10 ngoài lịch
+  await F.person('moi', 'staff', { startDate: '2026-10-28' }); // 27/10 là trước ngày vào làm
+  await F.person('admin', 'admin');
+  await F.store.setSetting('holidays', []);
 });
 after(() => F.stop());
 
-const send = (who, body) => {
-  F.at(NOW);
-  return F.call('POST', '/explanations', { who, body });
+const send = async (who, body) => {
+  await F.at(NOW);
+  return await F.call('POST', '/explanations', { who, body });
 };
-const submit = (who, date = DAY, text = REASON) => send(who, { date, text });
+const submit = async (who, date = DAY, text = REASON) => await send(who, { date, text });
 const alertsOf = async username => {
-  F.at(NOW);
+  await F.at(NOW);
   const res = await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data.absentNoExplanation.filter(r => r.username === username).map(r => r.date);
 };
 const checklist = async () => {
-  F.at(NOW);
+  await F.at(NOW);
   const res = await F.call('GET', `/periods/${MONTH}`, { who: 'admin' });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const count = code => (res.data.checklist.find(i => i.code === code) || { count: 0 }).count;
   return { item: res.data.checklist.find(i => i.code === 'ABSENT_NO_EXPLANATION'), count };
 };
 const toRead = async () => {
-  F.at(NOW);
+  await F.at(NOW);
   return (await F.call('GET', '/explanations', { who: 'admin' })).data.toRead;
 };
 const estimate = async who => {
-  F.at(NOW);
+  await F.at(NOW);
   const res = await F.call('GET', `/me/estimate?month=${MONTH}&rows=1`, { who });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const e = res.data;
@@ -73,7 +73,7 @@ test('Chuẩn so sánh: người Check-in/out đủ ca ngày 27/10; Admin chưa 
 });
 
 test('Cảnh báo ngày vắng: có trong GET /alerts và danh sách kiểm kỳ (cảnh báo, không chặn), số khớp nhau', async () => {
-  F.at(NOW);
+  await F.at(NOW);
   const alerts = (await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' })).data;
   assert.deepEqual(alerts.missingPunches, []);
   const mine = alerts.absentNoExplanation.filter(r => r.username === 'vang');
@@ -91,7 +91,7 @@ test('Cảnh báo ngày vắng: có trong GET /alerts và danh sách kiểm kỳ
 });
 
 test('Nhân viên gửi → Admin duyệt: 1 công theo giờ ca, tiền khớp người Check-in/out đủ ca; ngày hết cảnh báo, vào số chờ duyệt', async () => {
-  const pendingBefore = (await checklist()).count('EXPLANATION_PENDING');
+  const pendingBefore = await (await checklist()).count('EXPLANATION_PENDING');
   const absentBefore = (await checklist()).item.count;
   const readBefore = await toRead();
   const before = await estimate('tu');
@@ -118,7 +118,7 @@ test('Nhân viên gửi → Admin duyệt: 1 công theo giờ ca, tiền khớp 
   assert.deepEqual(await alertsOf('tu'), OTHER_DAYS);
   const list = await checklist();
   assert.equal(list.item.count, absentBefore - 1);
-  assert.equal(list.count('EXPLANATION_PENDING'), pendingBefore + 1);
+  assert.equal(await list.count('EXPLANATION_PENDING'), pendingBefore + 1);
   assert.equal(await toRead(), readBefore + 1);
   const mine = (await F.call('GET', '/explanations', { who: 'tu' })).data;
   assert.deepEqual(
@@ -141,7 +141,7 @@ test('Nhân viên gửi → Admin duyệt: 1 công theo giờ ca, tiền khớp 
   assert.equal(mineOk.e.trace.tongThuNhap, ref.e.trace.tongThuNhap);
   assert.equal(mineOk.e.net.net, ref.e.net.net);
   assert.deepEqual(await alertsOf('tu'), OTHER_DAYS);
-  assert.equal((await checklist()).count('EXPLANATION_PENDING'), pendingBefore);
+  assert.equal(await (await checklist()).count('EXPLANATION_PENDING'), pendingBefore);
 });
 
 test('Nhân viên gửi → Admin từ chối: ngày vắng, 0 công, 0 đồng như người không giải trình; không quay lại cảnh báo', async () => {
@@ -195,11 +195,11 @@ test('Ngày tương lai, ngày trong ca chưa kết thúc, ngày ngoài lịch, 
   refuses(await submit('vang', '2026-10-29'), 409, 'EXPLANATION_DAY_NOT_ABSENT'); // hôm nay, ca 08:00–17:00 chưa kết thúc
   refuses(await submit('cu', '2026-10-25'), 400, 'EXPLANATION_DAY_OFF_SCHEDULE'); // Chủ nhật
   refuses(await submit('moi', DAY), 400, 'EXPLANATION_DAY_OFF_SCHEDULE'); // trước ngày vào làm 28/10
-  F.store.setSetting('holidays', [DAY]);
+  await F.store.setSetting('holidays', [DAY]);
   try {
     refuses(await submit('vang', DAY), 400, 'EXPLANATION_DAY_OFF_SCHEDULE');
   } finally {
-    F.store.setSetting('holidays', []);
+    await F.store.setSetting('holidays', []);
   }
   assert.deepEqual(await alertsOf('vang'), ALL_DAYS);
   assert.equal(await alertsOf('cu').then(d => d.includes('2026-10-25')), false);
@@ -220,7 +220,7 @@ test('Một ngày một giải trình: gửi trùng, hoặc ngày Admin đã yê
   const list = (await F.call('GET', '/explanations', { who: 'dup' })).data.items;
   assert.equal(list.length, 2);
 
-  F.at(NOW);
+  await F.at(NOW);
   const asked = await F.call('POST', '/explanations', {
     who: 'admin',
     body: { username: 'le', date: DAY, prompt: 'Ngày này không có chấm công?' }
@@ -233,17 +233,17 @@ test('Một ngày một giải trình: gửi trùng, hoặc ngày Admin đã yê
 test('Giải trình ngày vắng ghi nhật ký explanation.self theo người và tháng', async () => {
   const sent = await submit('fix');
   assert.equal(sent.status, 200, JSON.stringify(sent.data));
-  const row = F.store.db.prepare("SELECT * FROM audit_log WHERE action = 'explanation.self' AND subject = 'fix'").get();
+  const row = await F.store.db.prepare("SELECT * FROM audit_log WHERE action = 'explanation.self' AND subject = 'fix'").get();
   assert.ok(row, 'có dòng nhật ký explanation.self');
   assert.equal(row.entity_id, String(sent.data.item.id));
   assert.equal(row.month, MONTH);
 });
 
 test('Kỳ đã chốt công: không nhận giải trình ngày vắng nữa', async () => {
-  F.at('2026-11-02T09:00:00'); // tháng 10 đã hết
+  await F.at('2026-11-02T09:00:00'); // tháng 10 đã hết
   P.must(await P.step(MONTH, 'lock-attendance'), 'chốt công');
   const res = await F.call('POST', '/explanations', { who: 'vang', body: { date: DAY, text: REASON } });
   refuses(res, 409, 'EXPLANATION_PERIOD_LOCKED');
-  F.at('2026-11-02T09:00:00');
+  await F.at('2026-11-02T09:00:00');
   assert.equal((await F.call('GET', '/explanations', { who: 'vang' })).data.items.length, 0);
 });

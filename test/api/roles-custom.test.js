@@ -13,20 +13,20 @@ const REASON = 'Phân quyền theo quyết định tháng này';
 
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_plain', 'staff');
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_plain', 'staff');
 });
 after(F.stop);
 
-const make = (body, who = 'admin') => F.call('POST', '/roles', { who, body });
-const edit = (code, body, who = 'admin') => F.call('PUT', `/roles/${code}`, { who, body });
-const stop = (code, body, who = 'admin') => F.call('POST', `/roles/${code}/deprecate`, { who, body });
-const assign = (username, roles, who = 'admin') =>
-  F.call('PUT', `/staff/${username}/roles`, { who, body: { roles, reason: REASON } });
+const make = async (body, who = 'admin') => await F.call('POST', '/roles', { who, body });
+const edit = async (code, body, who = 'admin') => await F.call('PUT', `/roles/${code}`, { who, body });
+const stop = async (code, body, who = 'admin') => await F.call('POST', `/roles/${code}/deprecate`, { who, body });
+const assign = async (username, roles, who = 'admin') =>
+  await F.call('PUT', `/staff/${username}/roles`, { who, body: { roles, reason: REASON } });
 const roleOf = async code => (await F.call('GET', '/roles')).data.roles.find(r => r.code === code);
-const auditOf = action => store.db.prepare('SELECT * FROM audit_log WHERE action = ? ORDER BY id').all(action);
-const staff = name => F.person(name, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+const auditOf = async action => await store.db.prepare('SELECT * FROM audit_log WHERE action = ? ORDER BY id').all(action);
+const staff = async name => await F.person(name, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
 
 test('GET /api/roles: vai trò mặc định chỉ đọc có nhãn, khu vực của ma trận và loại yêu cầu; nhân sự 403, chưa đăng nhập 401', async () => {
   const res = await F.call('GET', '/roles');
@@ -104,14 +104,14 @@ test('POST /api/roles: tạo vai trò theo mức khu vực, mã từ tên, nhậ
   assert.equal(role.levels.report, 'view');
   assert.deepEqual(role.caps, ['attendance.correct', 'attendance.import', 'attendance.read', 'report.read']);
   assert.equal(role.scope, 'all');
-  const rows = auditOf('role.create').filter(r => r.entity_id === 'tro_ly_cham_cong');
+  const rows = (await auditOf('role.create')).filter(r => r.entity_id === 'tro_ly_cham_cong');
   assert.equal(rows.length, 1);
   assert.equal(rows[0].reason, REASON);
   assert.equal((await make({ label: 'Thử nhân sự' }, 'qa_plain')).status, 403);
 });
 
 test('vai trò tuỳ chỉnh có hiệu lực: người được gán vào được route theo năng lực, ra khỏi vai trò thì 403', async () => {
-  staff('qa_tro_ly');
+  await staff('qa_tro_ly');
   assert.equal((await F.call('GET', '/ot', { who: 'qa_tro_ly' })).status, 403, 'trước khi gán');
   const granted = await assign('qa_tro_ly', ['staff', 'tro_ly_cham_cong']);
   assert.equal(granted.status, 200, JSON.stringify(granted.data));
@@ -126,7 +126,7 @@ test('vai trò tuỳ chỉnh có hiệu lực: người được gán vào đư�
 });
 
 test('an toàn: roles.manage và năng lực lạ bị từ chối khi tạo hoặc sửa vai trò tuỳ chỉnh', async () => {
-  const before = store.getSetting(authz.CUSTOM_ROLES_KEY, null);
+  const before = await store.getSetting(authz.CUSTOM_ROLES_KEY, null);
   const reserved = await make({ label: 'Tự cấp quyền', caps: ['roles.manage'] });
   assert.equal(reserved.status, 400);
   assert.equal(reserved.data.code, 'ROLE_CAP_RESERVED');
@@ -138,14 +138,14 @@ test('an toàn: roles.manage và năng lực lạ bị từ chối khi tạo ho�
   assert.equal((await make({ label: 'Lạ bốn', levels: { khu_vuc_la: 'edit' } })).data.code, 'ROLE_LEVELS_INVALID');
   assert.equal((await make({ label: 'Lạ năm', levels: { kpi: 'view' } })).data.code, 'ROLE_LEVELS_INVALID');
   assert.equal((await make({ label: 'Lạ sáu', scope: 'moi_nguoi' })).data.code, 'ROLE_SCOPE_INVALID');
-  assert.deepEqual(store.getSetting(authz.CUSTOM_ROLES_KEY, null), before, 'không lưu gì');
+  assert.deepEqual(await store.getSetting(authz.CUSTOM_ROLES_KEY, null), before, 'không lưu gì');
   const upd = await edit('tro_ly_cham_cong', { rev: 1, caps: ['roles.manage'], reason: REASON });
   assert.equal(upd.data.code, 'ROLE_CAP_RESERVED');
 });
 
 test('an toàn: dữ liệu vai trò bị sửa tay chứa roles.manage vẫn không cho quyền quản trị phân quyền', async () => {
-  const saved = store.getSetting(authz.CUSTOM_ROLES_KEY, null);
-  store.setSetting(authz.CUSTOM_ROLES_KEY, {
+  const saved = await store.getSetting(authz.CUSTOM_ROLES_KEY, null);
+  await store.setSetting(authz.CUSTOM_ROLES_KEY, {
     rev: saved.rev + 1,
     roles: [
       ...saved.roles,
@@ -159,11 +159,11 @@ test('an toàn: dữ liệu vai trò bị sửa tay chứa roles.manage vẫn kh
       }
     ]
   });
-  staff('qa_sua_tay_nguoi');
-  store.roles.grant('qa_sua_tay_nguoi', 'qa_sua_tay', 'admin');
-  const me = store.getStaff('qa_sua_tay_nguoi');
-  assert.equal(authz.can(me, 'roles.manage'), false);
-  assert.equal(authz.can(me, 'report.read'), true);
+  await staff('qa_sua_tay_nguoi');
+  await store.roles.grant('qa_sua_tay_nguoi', 'qa_sua_tay', 'admin');
+  const me = await store.getStaff('qa_sua_tay_nguoi');
+  assert.equal(await authz.can(me, 'roles.manage'), false);
+  assert.equal(await authz.can(me, 'report.read'), true);
   assert.equal((await F.call('GET', '/roles', { who: 'qa_sua_tay_nguoi' })).status, 403);
 });
 
@@ -216,11 +216,11 @@ test('loại yêu cầu được duyệt: vai trò tuỳ chỉnh duyệt đúng 
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.deepEqual(res.data.role.approvals, ['ot']);
   assert.ok(res.data.role.caps.includes('request.decide.ot'));
-  staff('qa_duyet_ot');
+  await staff('qa_duyet_ot');
   assert.equal((await assign('qa_duyet_ot', ['staff', 'duyet_tang_ca'])).status, 200);
-  const me = store.getStaff('qa_duyet_ot');
-  assert.equal(authz.can(me, 'request.decide.ot'), true);
-  assert.equal(authz.can(me, 'request.decide.leave'), false);
+  const me = await store.getStaff('qa_duyet_ot');
+  assert.equal(await authz.can(me, 'request.decide.ot'), true);
+  assert.equal(await authz.can(me, 'request.decide.leave'), false);
   assert.equal(
     (await F.call('GET', '/approvals/count', { who: 'qa_duyet_ot' })).status,
     200,
@@ -253,16 +253,16 @@ test('PUT /api/roles/:code: sửa nhãn, năng lực, loại duyệt; rev tăng;
   assert.deepEqual(res.data.role.approvals, ['leave', 'ot']);
   assert.equal(res.data.role.levels.pay, 'view');
   assert.equal(res.data.role.code, 'tro_ly_cham_cong', 'mã không đổi khi đổi nhãn');
-  const row = auditOf('role.update').find(r => r.entity_id === 'tro_ly_cham_cong');
+  const row = (await auditOf('role.update')).find(r => r.entity_id === 'tro_ly_cham_cong');
   assert.ok(row);
   assert.equal(JSON.parse(row.before_json).label, 'Trợ lý chấm công');
   assert.equal(JSON.parse(row.after_json).label, 'Trợ lý chấm công 2');
   // không đổi gì: không tăng rev, không thêm nhật ký
-  const rows = auditOf('role.update').length;
+  const rows = (await auditOf('role.update')).length;
   const same = await edit('tro_ly_cham_cong', { rev: res.data.role.rev, label: 'Trợ lý chấm công 2', reason: REASON });
   assert.equal(same.data.changed, false);
   assert.equal(same.data.role.rev, res.data.role.rev);
-  assert.equal(auditOf('role.update').length, rows);
+  assert.equal((await auditOf('role.update')).length, rows);
   // không ghi lý do vẫn lưu
   const noReason = await edit('tro_ly_cham_cong', { rev: res.data.role.rev, label: 'Trợ lý chấm công 3' });
   assert.equal(noReason.status, 200, JSON.stringify(noReason.data));
@@ -310,7 +310,7 @@ test('an toàn: người đang giữ vai trò tuỳ chỉnh không tự thêm qu
 test('POST /api/roles/:code/deprecate: ngưng dùng không xoá, người giữ mất năng lực ngay, không gán mới, không sửa, nhật ký role.deprecate', async () => {
   const created = await make({ label: 'Vai trò sắp ngưng', levels: { attendance: 'edit' } });
   const code = created.data.role.code;
-  staff('qa_ngung');
+  await staff('qa_ngung');
   assert.equal((await assign('qa_ngung', ['staff', code])).status, 200);
   assert.notEqual((await F.call('GET', '/ot', { who: 'qa_ngung' })).status, 403);
   assert.equal((await stop(code, { rev: 1, reason: 'x'.repeat(301) })).data.code, 'REASON_REQUIRED');
@@ -326,24 +326,24 @@ test('POST /api/roles/:code/deprecate: ngưng dùng không xoá, người giữ 
   assert.equal((await stop(code, { rev: 2, reason: REASON })).data.code, 'ROLE_DEPRECATED', 'ngưng hai lần');
   assert.equal((await edit(code, { rev: 2, label: 'Sửa sau ngưng', reason: REASON })).data.code, 'ROLE_DEPRECATED');
   assert.ok(await roleOf(code), 'vẫn còn trong danh sách');
-  staff('qa_ngung_moi');
+  await staff('qa_ngung_moi');
   const regrant = await assign('qa_ngung_moi', ['staff', code]);
   assert.equal(regrant.status, 400);
   assert.equal(regrant.data.code, 'ROLE_DEPRECATED');
   assert.equal((await assign('qa_ngung', ['staff'])).status, 200, 'gỡ vai trò đã ngưng được');
-  assert.equal(auditOf('role.deprecate').filter(r => r.entity_id === code).length, 1);
+  assert.equal((await auditOf('role.deprecate')).filter(r => r.entity_id === code).length, 1);
   for (const builtin of ['admin', 'cb'])
     assert.equal((await stop(builtin, { rev: 0, reason: REASON })).data.code, 'ROLE_BUILTIN_READONLY');
 });
 
 test('PUT /api/staff/:u/roles: mã vai trò lạ vẫn bị 400, mã vai trò tuỳ chỉnh còn dùng được nhận', async () => {
-  staff('qa_ma_la');
+  await staff('qa_ma_la');
   assert.equal((await assign('qa_ma_la', ['khong_co_vai_tro'])).status, 400);
   assert.equal((await assign('qa_ma_la', ['staff', 'tro_ly_cham_cong'])).status, 200);
 });
 
 test('POST /api/roles: tối đa số vai trò tuỳ chỉnh trong config, vượt thì 409 ROLE_LIMIT và không lưu', async () => {
-  const have = authz.customTable().roles.length;
+  const have = (await authz.customTable()).roles.length;
   for (let i = have; i < config.ROLES_CUSTOM_MAX; i++) {
     const code = `qa_lap_${String.fromCharCode(97 + (i % 26))}${String.fromCharCode(97 + Math.floor(i / 26))}`;
     assert.equal((await make({ label: `Vai trò lặp ${code}`, code })).status, 200, code);
@@ -351,5 +351,5 @@ test('POST /api/roles: tối đa số vai trò tuỳ chỉnh trong config, vư�
   const over = await make({ label: 'Vai trò thứ ba mươi mốt', code: 'qa_vuot_tran' });
   assert.equal(over.status, 409);
   assert.equal(over.data.code, 'ROLE_LIMIT');
-  assert.equal(authz.customTable().roles.length, config.ROLES_CUSTOM_MAX);
+  assert.equal((await authz.customTable()).roles.length, config.ROLES_CUSTOM_MAX);
 });

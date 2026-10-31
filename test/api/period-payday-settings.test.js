@@ -7,14 +7,14 @@ const assert = require('node:assert/strict');
 const REASON = 'Đổi ngày trả lương theo thông báo của công ty';
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
 });
 after(F.stop);
 
 const save = async value => {
   const rev = (await F.call('GET', '/settings/params?month=2027-03')).data.paramsRev;
-  return F.call('PUT', '/settings/params', {
+  return await F.call('PUT', '/settings/params', {
     body: {
       changes: [{ key: 'period.payDay', value }],
       effectiveMonth: '2027-03',

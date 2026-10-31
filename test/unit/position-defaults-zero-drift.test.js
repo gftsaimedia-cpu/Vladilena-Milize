@@ -130,7 +130,7 @@ test('position-defaults-zero-drift: nhân của bộ máy có entitlementOf(staf
   assert.equal(ofOver({ type: 'ctv', level: 1 }, 'ot.rate'), DEFAULTS['ot.rate']);
 });
 
-test('position-copy: sao chép nv thành chức vụ thử (position.def + type.* + level.*) cho ĐÚNG số của nv (tạm ứng đã duyệt): tổng thu nhập 5.855.076, bảo hiểm 630.000, thuế 0, tạm ứng 184.615, thực lĩnh 5.040.461', () => {
+test('position-copy: sao chép nv thành chức vụ thử (position.def + type.* + level.*) cho ĐÚNG số của nv (tạm ứng đã duyệt): tổng thu nhập 5.855.076, bảo hiểm 630.000, thuế 0, tạm ứng 184.615, thực lĩnh 5.040.461', async () => {
   const over = { 'position.def.qa_copy_nv': { label: 'Chức vụ thử', copiedFrom: 'nv' } };
   for (const [key, value] of Object.entries(DEFAULTS)) {
     if (key.startsWith('type.nv.')) over[`type.qa_copy_nv.${key.slice('type.nv.'.length)}`] = value;
@@ -139,28 +139,28 @@ test('position-copy: sao chép nv thành chức vụ thử (position.def + type.
   const approve = input => {
     input.advanceApproved = true;
   };
-  const nv = runGolden(NV1, {}, approve).m;
-  const copy = runGolden(NV1, over, input => {
-    approve(input);
+  const nv = (await runGolden(NV1, {}, approve)).m;
+  const copy = (await runGolden(NV1, over, async input => {
+    await approve(input);
     input.staff.type = 'qa_copy_nv';
-  }).m;
+  })).m;
   for (const field of ['gross', 'insurance', 'tax', 'advance', 'net', 'employer'])
     assert.equal(copy.net[field], nv.net[field], field);
   assert.equal(copy.net.net, 5040461);
   assert.equal(Object.is(copy.total, nv.total), true);
   // mọi người của golden NV bậc 3 cũng khớp: sao chép là sao chép THẬT, không chỉ bậc 1
-  const nv3 = runGolden(NV3, {}, approve).m;
-  const copy3 = runGolden(NV3, over, input => {
-    approve(input);
+  const nv3 = (await runGolden(NV3, {}, approve)).m;
+  const copy3 = (await runGolden(NV3, over, async input => {
+    await approve(input);
     input.staff.type = 'qa_copy_nv';
-  }).m;
+  })).m;
   assert.equal(copy3.net.net, nv3.net.net);
 });
 
-test('position-copy: mã loại nhân sự lạ không bao giờ rơi về tts: bộ máy ném PAYROLL_BAD_TYPE (không tính ra tiền của TTS)', () => {
+test('position-copy: mã loại nhân sự lạ không bao giờ rơi về tts: bộ máy ném PAYROLL_BAD_TYPE (không tính ra tiền của TTS)', async () => {
   for (const type of ['xyz', 'NV', '', 'tts ']) {
-    assert.throws(
-      () =>
+    await assert.rejects(
+      async () =>
         runGolden(NV1, {}, input => {
           input.staff.type = type;
         }),

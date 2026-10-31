@@ -64,8 +64,8 @@ const shifts = [
 ];
 
 for (const s of shifts) {
-  test(`${s.code}: đủ ca xác nhận đúng toàn bộ giờ cố định`, () => {
-    const r = P.buildDay(staff(s.code), iso(s.start), iso(s.end), 'punch');
+  test(`${s.code}: đủ ca xác nhận đúng toàn bộ giờ cố định`, async () => {
+    const r = P.buildDay(await staff(s.code), iso(s.start), iso(s.end), 'punch');
     assert.equal(r.date, date);
     assert.equal(r.entry.kind, 'work');
     assert.equal(r.entry.in, s.in);
@@ -91,8 +91,8 @@ for (const s of shifts) {
     ['vào trễ', s.late, s.end],
     ['về sớm', s.start, s.early]
   ]) {
-    test(`${s.code}: ${label} chờ duyệt và Admin xác nhận đủ ca`, () => {
-      const r = P.buildDay(staff(s.code), iso(tin), iso(tout), 'punch');
+    test(`${s.code}: ${label} chờ duyệt và Admin xác nhận đủ ca`, async () => {
+      const r = P.buildDay(await staff(s.code), iso(tin), iso(tout), 'punch');
       assert.equal(r.date, date);
       assert.equal(r.entry.kind, 'pending');
       assert.equal(r.entry.reason, 'incomplete-shift');
@@ -101,7 +101,7 @@ for (const s of shifts) {
       assert.equal(r.entry.attendanceConfirmed, undefined);
       assert.equal(r.entry.presIn, iso(tin));
       assert.equal(r.entry.presOut, iso(tout));
-      const approved = P.buildDay(staff(s.code), r.entry.presIn, r.entry.presOut, 'admin', {
+      const approved = P.buildDay(await staff(s.code), r.entry.presIn, r.entry.presOut, 'admin', {
         plannedShift: r.entry.plannedShift,
         approveIncomplete: true
       });
@@ -117,25 +117,25 @@ for (const s of shifts) {
   }
 }
 
-test('xác nhận dùng giây thực tế, không làm tròn một giây thiếu thành đủ ca', () => {
+test('xác nhận dùng giây thực tế, không làm tròn một giây thiếu thành đủ ca', async () => {
   const cases = [
     ['2026-10-07T08:00:01', '2026-10-07T17:00:00'],
     ['2026-10-07T08:00:00', '2026-10-07T16:59:59']
   ];
   for (const [tin, tout] of cases) {
-    const { entry } = P.buildDay(staff('n1'), iso(tin), iso(tout), 'punch');
+    const { entry } = P.buildDay(await staff('n1'), iso(tin), iso(tout), 'punch');
     assert.equal(entry.reason, 'incomplete-shift');
     assert.equal(entry.presIn, iso(tin));
     assert.equal(entry.presOut, iso(tout));
   }
-  const full = P.buildDay(staff('n1'), iso('2026-10-07T07:59:59'), iso('2026-10-07T17:00:01'), 'punch').entry;
+  const full = P.buildDay(await staff('n1'), iso('2026-10-07T07:59:59'), iso('2026-10-07T17:00:01'), 'punch').entry;
   assert.equal(full.attendanceConfirmed, true);
   assert.equal(P.lateMin('n1', iso('2026-10-07T08:00:01')), 1);
   assert.equal(P.lateMin('n1', iso('2026-10-07T07:59:59')), 0);
 });
 
-test('giờ có mặt dư trước/sau ca chỉ là bằng chứng, không tự tạo làm thêm', () => {
-  const { entry } = P.buildDay(staff('n1'), iso('2026-10-07T07:00:00'), iso('2026-10-07T19:00:00'), 'punch');
+test('giờ có mặt dư trước/sau ca chỉ là bằng chứng, không tự tạo làm thêm', async () => {
+  const { entry } = P.buildDay(await staff('n1'), iso('2026-10-07T07:00:00'), iso('2026-10-07T19:00:00'), 'punch');
   assert.equal(entry.in, '08:00');
   assert.equal(entry.out, '17:00');
   assert.equal(entry.presIn, iso('2026-10-07T07:00:00'));
@@ -146,8 +146,8 @@ test('giờ có mặt dư trước/sau ca chỉ là bằng chứng, không tự 
   assert.equal(entry.otReview, undefined);
 });
 
-test('snapshot giữ ca, ngày và loại công khi hồ sơ chuyển ca giữa phiên', () => {
-  const plannedShift = P.planShift(staff('n1'), date);
+test('snapshot giữ ca, ngày và loại công khi hồ sơ chuyển ca giữa phiên', async () => {
+  const plannedShift = P.planShift(await staff('n1'), date);
   const before = structuredClone(plannedShift);
   const changed = { shiftCode: 'g2', sched: [] };
   const { entry, date: workDate } = P.buildDay(
@@ -173,14 +173,14 @@ test('TTS ngoài lịch T2–T6 giữ loại làm bù thay vì tự xác nhận 
   assert.equal(r.entry.attendanceConfirmed, true);
 });
 
-test('ca đêm cuối tháng giữ ngày bắt đầu; vào trễ sau 0h duyệt về đúng ca đó', () => {
+test('ca đêm cuối tháng giữ ngày bắt đầu; vào trễ sau 0h duyệt về đúng ca đó', async () => {
   const presence = P.presenceFor('g2', '2026-09-30', '00:30', '07:00');
   assert.deepEqual(presence, { inIso: iso('2026-10-01T00:30:00'), outIso: iso('2026-10-01T07:00:00') });
   assert.equal(P.workDate('g2', presence.inIso), '2026-09-30');
-  const pending = P.buildDay(staff('g2'), presence.inIso, presence.outIso, 'punch');
+  const pending = P.buildDay(await staff('g2'), presence.inIso, presence.outIso, 'punch');
   assert.equal(pending.date, '2026-09-30');
   assert.equal(pending.entry.reason, 'incomplete-shift');
-  const full = P.buildDay(staff('n1'), presence.inIso, presence.outIso, 'admin', {
+  const full = P.buildDay(await staff('n1'), presence.inIso, presence.outIso, 'admin', {
     plannedShift: pending.entry.plannedShift,
     approveIncomplete: true
   });
@@ -191,14 +191,14 @@ test('ca đêm cuối tháng giữ ngày bắt đầu; vào trễ sau 0h duyệt
   assert.equal(full.entry.plannedShift.endIso, iso('2026-10-01T07:00:00'));
 });
 
-test('không giao với ca, kể cả chỉ chạm đầu/cuối ca, vẫn chờ xử lý khi Admin duyệt', () => {
-  const plannedShift = P.planShift(staff('n1'), date);
+test('không giao với ca, kể cả chỉ chạm đầu/cuối ca, vẫn chờ xử lý khi Admin duyệt', async () => {
+  const plannedShift = P.planShift(await staff('n1'), date);
   for (const [tin, tout] of [
     ['06:00:00', '08:00:00'],
     ['17:00:00', '18:00:00'],
     ['18:00:00', '21:00:00']
   ]) {
-    const { entry } = P.buildDay(staff('n1'), iso(`${date}T${tin}`), iso(`${date}T${tout}`), 'admin', {
+    const { entry } = P.buildDay(await staff('n1'), iso(`${date}T${tin}`), iso(`${date}T${tout}`), 'admin', {
       plannedShift,
       approveIncomplete: true
     });
@@ -218,13 +218,13 @@ test('không giao với ca, kể cả chỉ chạm đầu/cuối ca, vẫn chờ
   );
 });
 
-test('open/forgot giữ snapshot và thời điểm gốc sau đổi ca, không sinh giờ được trả', () => {
+test('open/forgot giữ snapshot và thời điểm gốc sau đổi ca, không sinh giờ được trả', async () => {
   const tin = iso('2026-09-30T22:00:12');
-  const open = P.openDay(staff('g2'), tin);
+  const open = P.openDay(await staff('g2'), tin);
   assert.equal(open.date, '2026-09-30');
   assert.equal(open.entry.reason, 'open');
   assert.equal(open.entry.presIn, tin);
-  const forgotten = P.forgotDay(staff('n1'), tin, open.entry.plannedShift);
+  const forgotten = P.forgotDay(await staff('n1'), tin, open.entry.plannedShift);
   assert.equal(forgotten.date, '2026-09-30');
   assert.equal(forgotten.entry.reason, 'forgot-out');
   assert.equal(forgotten.entry.presIn, tin);
@@ -235,8 +235,8 @@ test('open/forgot giữ snapshot và thời điểm gốc sau đổi ca, không 
   assert.equal(P.forgotOut(iso('2026-10-07T08:00:00'), iso('2026-10-08T00:01:00')), true);
 });
 
-test('checkoutWarning cảnh báo về sớm theo snapshot và không sửa ca đang mở', () => {
-  const open = { at: iso(`${date}T07:55:00`), plannedShift: P.planShift(staff('n1'), date), shiftCode: 'g2' };
+test('checkoutWarning cảnh báo về sớm theo snapshot và không sửa ca đang mở', async () => {
+  const open = { at: iso(`${date}T07:55:00`), plannedShift: P.planShift(await staff('n1'), date), shiftCode: 'g2' };
   const before = structuredClone(open);
   assert.deepEqual(P.checkoutWarning(open, iso(`${date}T16:00:00`)), {
     endIso: iso(`${date}T17:00:00`),
@@ -245,8 +245,8 @@ test('checkoutWarning cảnh báo về sớm theo snapshot và không sửa ca �
   assert.deepEqual(open, before);
 });
 
-test('checkoutWarning còn một giây vẫn cảnh báo; đúng giờ kết thúc hoặc sau đó thì không', () => {
-  const open = { plannedShift: P.planShift(staff('n1'), date) };
+test('checkoutWarning còn một giây vẫn cảnh báo; đúng giờ kết thúc hoặc sau đó thì không', async () => {
+  const open = { plannedShift: P.planShift(await staff('n1'), date) };
   assert.deepEqual(P.checkoutWarning(open, iso(`${date}T16:58:59`)), {
     endIso: iso(`${date}T17:00:00`),
     remainingMinutes: 2
@@ -259,15 +259,15 @@ test('checkoutWarning còn một giây vẫn cảnh báo; đúng giờ kết th�
   assert.equal(P.checkoutWarning(open, iso(`${date}T17:00:01`)), null);
 });
 
-test('checkoutWarning tính đúng ca đêm qua nửa đêm và ranh giới tháng', () => {
-  const open = { at: iso('2026-09-30T21:55:00'), plannedShift: P.planShift(staff('g2'), '2026-09-30') };
+test('checkoutWarning tính đúng ca đêm qua nửa đêm và ranh giới tháng', async () => {
+  const open = { at: iso('2026-09-30T21:55:00'), plannedShift: P.planShift(await staff('g2'), '2026-09-30') };
   const endIso = iso('2026-10-01T07:00:00');
   assert.deepEqual(P.checkoutWarning(open, iso('2026-09-30T23:30:00')), { endIso, remainingMinutes: 450 });
   assert.deepEqual(P.checkoutWarning(open, iso('2026-10-01T06:30:00')), { endIso, remainingMinutes: 30 });
   assert.equal(P.checkoutWarning(open, endIso), null);
 });
 
-test('checkoutWarning bỏ qua ca chưa có snapshot hoặc thời điểm không hợp lệ', () => {
+test('checkoutWarning bỏ qua ca chưa có snapshot hoặc thời điểm không hợp lệ', async () => {
   const now = iso(`${date}T16:00:00`);
   for (const open of [
     null,
@@ -279,7 +279,7 @@ test('checkoutWarning bỏ qua ca chưa có snapshot hoặc thời điểm khôn
   ]) {
     assert.equal(P.checkoutWarning(open, now), null);
   }
-  assert.equal(P.checkoutWarning({ plannedShift: P.planShift(staff('n1'), date) }, 'bad-time'), null);
+  assert.equal(P.checkoutWarning({ plannedShift: P.planShift(await staff('n1'), date) }, 'bad-time'), null);
 });
 
 test('khung check-in chấp nhận đầu khung và chặn tại cuối ca', () => {
@@ -291,8 +291,8 @@ test('khung check-in chấp nhận đầu khung và chặn tại cuối ca', () 
   assert.notEqual(P.checkInMsg(null, iso('2026-10-07T08:00:00')), '');
 });
 
-test('extraFits cho đúng biên có mặt và từ chối vượt trước/sau, không sửa bản ghi', () => {
-  const { entry } = P.buildDay(staff('n1'), iso(`${date}T07:00:00`), iso(`${date}T19:00:00`), 'punch');
+test('extraFits cho đúng biên có mặt và từ chối vượt trước/sau, không sửa bản ghi', async () => {
+  const { entry } = P.buildDay(await staff('n1'), iso(`${date}T07:00:00`), iso(`${date}T19:00:00`), 'punch');
   const extra = { ...entry, extraKind: 'makeup', extraIn: '07:00', extraOut: '19:00' };
   const before = structuredClone(extra);
   assert.equal(P.extraFits(extra), '');
@@ -302,23 +302,23 @@ test('extraFits cho đúng biên có mặt và từ chối vượt trước/sau,
   assert.equal(P.extraFits({ ...entry, extraKind: 'ot', extraIn: '08:00', extraOut: '17:00' }), '');
 });
 
-test('extraFits không làm tròn giây để mở rộng thời gian có mặt', () => {
-  const { entry } = P.buildDay(staff('n1'), iso(`${date}T07:00:01`), iso(`${date}T18:59:59`), 'punch');
+test('extraFits không làm tròn giây để mở rộng thời gian có mặt', async () => {
+  const { entry } = P.buildDay(await staff('n1'), iso(`${date}T07:00:01`), iso(`${date}T18:59:59`), 'punch');
   assert.match(P.extraFits({ ...entry, extraKind: 'makeup', extraIn: '07:00' }), /check-in/);
   assert.match(P.extraFits({ ...entry, extraKind: 'makeup', extraOut: '19:00' }), /check-out/);
   assert.equal(P.extraFits({ ...entry, extraKind: 'makeup', extraIn: '07:01', extraOut: '18:59' }), '');
 });
 
-test('extraFits định vị phần làm thêm ca đêm ở đúng ngày sau nửa đêm', () => {
-  const { entry } = P.buildDay(staff('g2'), iso('2026-09-30T21:30:00'), iso('2026-10-01T08:00:00'), 'punch');
+test('extraFits định vị phần làm thêm ca đêm ở đúng ngày sau nửa đêm', async () => {
+  const { entry } = P.buildDay(await staff('g2'), iso('2026-09-30T21:30:00'), iso('2026-10-01T08:00:00'), 'punch');
   // Hàm này chỉ kiểm có mặt; quyền/khung giờ được làm bù hoặc OT do validator riêng xử lý.
   assert.equal(P.extraFits({ ...entry, extraKind: 'makeup', extraIn: '21:30', extraOut: '08:00' }), '');
   assert.match(P.extraFits({ ...entry, extraKind: 'makeup', extraIn: '21:29' }), /check-in/);
   assert.match(P.extraFits({ ...entry, extraKind: 'makeup', extraOut: '08:01' }), /check-out/);
 });
 
-test('extraFits sau Admin duyệt ca thiếu vẫn neo vào ca dự kiến, không dịch sang hôm sau', () => {
-  const { entry } = P.buildDay(staff('n1'), iso(`${date}T08:15:00`), iso(`${date}T18:00:00`), 'admin', {
+test('extraFits sau Admin duyệt ca thiếu vẫn neo vào ca dự kiến, không dịch sang hôm sau', async () => {
+  const { entry } = P.buildDay(await staff('n1'), iso(`${date}T08:15:00`), iso(`${date}T18:00:00`), 'admin', {
     approveIncomplete: true
   });
   assert.equal(P.extraFits({ ...entry, extraKind: 'ot', extraOut: '18:00' }), '');
@@ -357,8 +357,8 @@ test('workBounds không coi bản ghi đêm cũ vào sau 0h là chồng giờ v�
   assert.equal(P.workBounds(actuallyOverlapping, '2026-09-30').start - a.end, -30);
 });
 
-test('workBounds tính phần khai thêm hai đầu, không cộng toàn bộ thời gian có mặt', () => {
-  const { entry } = P.buildDay(staff('n1'), iso(`${date}T07:00:00`), iso(`${date}T19:00:00`), 'punch');
+test('workBounds tính phần khai thêm hai đầu, không cộng toàn bộ thời gian có mặt', async () => {
+  const { entry } = P.buildDay(await staff('n1'), iso(`${date}T07:00:00`), iso(`${date}T19:00:00`), 'punch');
   const ordinary = P.workBounds(entry, date);
   assert.equal(ordinary.end - ordinary.start, 540);
   const extra = P.workBounds({ ...entry, extraKind: 'makeup', extraIn: '07:30', extraOut: '18:00' }, date);

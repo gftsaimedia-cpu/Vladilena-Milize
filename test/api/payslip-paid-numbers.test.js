@@ -23,25 +23,25 @@ const FIGS = ['gross', 'insurance', 'tax', 'advance', 'net'];
 const figsOf = row => Object.fromEntries(FIGS.map(key => [key, row[key]]));
 const sumOf = rows => Object.fromEntries(FIGS.map(key => [key, rows.reduce((sum, row) => sum + row[key], 0)]));
 
-const override = (month, values, user = USER, who = 'admin') =>
-  F.call('PUT', '/slip-override', { who, body: { user, month, values, reason: REASON } });
+const override = async (month, values, user = USER, who = 'admin') =>
+  await F.call('PUT', '/slip-override', { who, body: { user, month, values, reason: REASON } });
 const mustOverride = async (month, values) => {
   const res = await override(month, values);
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res;
 };
-const rowsOf = month => P.slipRows(month);
+const rowsOf = async month => await P.slipRows(month);
 const rowOf = async (month, user = USER) => (await rowsOf(month)).find(row => row.username === user);
 const totalsOf = async month => (await F.call('GET', `/periods/${month}`)).data.totals;
-const detailOf = (month, user = USER, who = 'admin') => F.call('GET', `/periods/${month}/payslips/${user}`, { who });
+const detailOf = async (month, user = USER, who = 'admin') => await F.call('GET', `/periods/${month}/payslips/${user}`, { who });
 // Số tự tính đã lưu của phiếu (đọc thẳng bảng payslips, bản chụp không đổi được)
-const storedOf = (month, user = USER) => figsOf(flow.payslipsOf(month).slips[user]);
-const storedRows = month => Object.values(flow.payslipsOf(month).slips);
+const storedOf = async (month, user = USER) => figsOf((await flow.payslipsOf(month)).slips[user]);
+const storedRows = async month => Object.values((await flow.payslipsOf(month)).slips);
 
 // Thuế tính độc lập cho một phiếu sau khi cộng delta đồng chịu thuế vào tổng lương: đuôi luật viết lại ở helpers/pay-oracle.js (netAfter),
 // theo hợp đồng ghi trong bản chụp (dài hạn: trừ giảm trừ gia cảnh rồi biểu lũy tiến; ngắn hạn: khấu trừ một lần)
-function expectedAfterIncome(month, delta, user = USER) {
-  const out = oracle.netAfter(flow.payslipsOf(month).slips[user].snapshot, { addTaxable: delta });
+async function expectedAfterIncome(month, delta, user = USER) {
+  const out = oracle.netAfter((await flow.payslipsOf(month)).slips[user].snapshot, { addTaxable: delta });
   return { gross: out.total, insurance: out.insurance, tax: out.tax, advance: out.advance, net: out.net };
 }
 
@@ -51,9 +51,9 @@ test('Số chi trả: không có số đã sửa thì mọi số của danh sác
   await P.setupMonth(M, 'reviewed');
   const rows = await rowsOf(M);
   assert.equal(rows.length, 4);
-  const stored = flow.payslipsOf(M).slips;
+  const stored = (await flow.payslipsOf(M)).slips;
   for (const row of rows) {
-    assert.deepEqual(figsOf(row), storedOf(M, row.username), row.username);
+    assert.deepEqual(figsOf(row), await storedOf(M, row.username), row.username);
     assert.equal(row.computed, undefined, `${row.username}: không sửa thì không có computed`);
     assert.equal(row.overridden, undefined);
     assert.deepEqual(
@@ -64,18 +64,18 @@ test('Số chi trả: không có số đã sửa thì mọi số của danh sác
     assert.equal((await detailOf(M, row.username)).data.payslip.computed, undefined);
   }
   const totals = await totalsOf(M);
-  for (const key of FIGS) assert.equal(totals[key], sumOf(storedRows(M))[key], `tổng ${key}`);
+  for (const key of FIGS) assert.equal(totals[key], sumOf(await storedRows(M))[key], `tổng ${key}`);
 });
 
 test('Số chi trả: có lưu số đã sửa nhưng bằng đúng số tự tính (chuyên cần 0 ₫ của người không có chuyên cần) thì số vẫn bằng số tự tính từng đồng', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  assert.equal(flow.payslipsOf(M).slips[USER].snapshot.attendance ?? 0, 0, 'điều kiện: chuyên cần tự tính là 0');
+  assert.equal((await flow.payslipsOf(M)).slips[USER].snapshot.attendance ?? 0, 0, 'điều kiện: chuyên cần tự tính là 0');
   const before = figsOf(await rowOf(M));
   await mustOverride(M, { attendance: 0 });
   assert.deepEqual(figsOf(await rowOf(M)), before);
   assert.deepEqual(figsOf((await detailOf(M)).data.payslip), before);
-  assert.deepEqual(storedOf(M), before, 'bảng phiếu không đổi');
+  assert.deepEqual(await storedOf(M), before, 'bảng phiếu không đổi');
   // values rỗng (bỏ hết số đã sửa) cũng cho đúng số tự tính và bỏ hẳn computed
   await mustOverride(M, {});
   const row = await rowOf(M);
@@ -105,7 +105,7 @@ test('Số chi trả: sửa chuyên cần +500.000 ₫ (có lý do) thì tổng 
   assert.deepEqual(row.computed, old, 'computed giữ số tự tính cũ');
   assert.equal(row.overridden, true);
   assert.equal(row.net, row.gross - row.insurance - row.tax - row.advance, 'thực lĩnh khớp công thức');
-  assert.deepEqual(figsOf(row), expectedAfterIncome(M, 500000));
+  assert.deepEqual(figsOf(row), await expectedAfterIncome(M, 500000));
 
   // người khác không đổi
   const afterRows = await rowsOf(M);
@@ -129,7 +129,7 @@ test('Số chi trả: sửa chuyên cần +500.000 ₫ (có lý do) thì tổng 
     'số đóng băng chỉ có sau khi duyệt kỳ; trước đó số đang sửa đọc ở GET /api/slip-override'
   );
   assert.equal((await F.call('GET', `/slip-override?user=${USER}&month=${M}`)).data.values.attendance, 500000);
-  assert.deepEqual(storedOf(M), old, 'bảng phiếu không đổi');
+  assert.deepEqual(await storedOf(M), old, 'bảng phiếu không đổi');
   assert.equal(Math.round(detail.snapshot.total), old.gross, 'bản chụp không đổi');
 });
 
@@ -138,12 +138,12 @@ test('Số chi trả: sửa KPI +30.000.000 ₫ làm thu nhập chịu thuế t�
   await P.setupMonth(M, 'reviewed');
   const old = figsOf(await rowOf(M));
   const beforeTotals = await totalsOf(M);
-  assert.equal(flow.payslipsOf(M).slips[USER].snapshot.kpiPay ?? 0, 0, 'điều kiện: KPI tự tính là 0');
+  assert.equal((await flow.payslipsOf(M)).slips[USER].snapshot.kpiPay ?? 0, 0, 'điều kiện: KPI tự tính là 0');
 
   await mustOverride(M, { kpiPay: 30000000 });
 
   const row = await rowOf(M);
-  const expected = expectedAfterIncome(M, 30000000);
+  const expected = await expectedAfterIncome(M, 30000000);
   assert.deepEqual(figsOf(row), expected);
   // tính tay trên số của bản chụp: chịu thuế = tổng - miễn thuế; thu nhập tính thuế = chịu thuế - bảo hiểm - giảm trừ gia cảnh.
   // Biểu 5 % đến 10 triệu, 10 % đến 30 triệu, 20 % đến 60 triệu (cộng dồn từng bậc):
@@ -153,7 +153,7 @@ test('Số chi trả: sửa KPI +30.000.000 ₫ làm thu nhập chịu thuế t�
         0.1 * Math.max(0, Math.min(a, 30e6) - 10e6) +
         0.2 * Math.max(0, Math.min(a, 60e6) - 30e6)
     );
-  const net = flow.payslipsOf(M).slips[USER].snapshot.net;
+  const net = (await flow.payslipsOf(M)).slips[USER].snapshot.net;
   assert.equal(row.gross, old.gross + 30000000);
   const assessable = row.gross - Math.min(row.gross, net.exempt) - net.insurance - net.deduction;
   assert.ok(assessable > 0 && assessable <= 60000000, 'điều kiện: trong ba bậc đầu, assessable=' + assessable);
@@ -177,15 +177,15 @@ test('Số chi trả: số Admin đang sửa đọc mỗi lần (không nằm tr
   const old = figsOf(await rowOf(M));
   await mustOverride(M, { attendance: 500000 });
   assert.equal((await rowOf(M)).gross, old.gross + 500000);
-  assert.equal((await totalsOf(M)).gross, sumOf(storedRows(M)).gross + 500000);
+  assert.equal((await totalsOf(M)).gross, sumOf(await storedRows(M)).gross + 500000);
   await mustOverride(M, { attendance: 1200000 });
   assert.equal((await rowOf(M)).gross, old.gross + 1200000);
-  assert.equal((await totalsOf(M)).gross, sumOf(storedRows(M)).gross + 1200000);
+  assert.equal((await totalsOf(M)).gross, sumOf(await storedRows(M)).gross + 1200000);
   await mustOverride(M, {});
   const row = await rowOf(M);
   assert.deepEqual(figsOf(row), old);
   assert.equal(row.computed, undefined);
-  assert.equal((await totalsOf(M)).gross, sumOf(storedRows(M)).gross);
+  assert.equal((await totalsOf(M)).gross, sumOf(await storedRows(M)).gross);
 });
 
 /* ================= (c) sửa tay thuế ================= */
@@ -206,7 +206,7 @@ test('Số chi trả: Admin sửa tay thuế thì dùng đúng số thuế đó 
   // thuế sửa tay cùng ô thu nhập: thuế tay thắng thuế bộ máy tính lại
   await mustOverride(M, { kpiPay: 30000000, tax: 2000000 });
   row = await rowOf(M);
-  const auto = expectedAfterIncome(M, 30000000);
+  const auto = await expectedAfterIncome(M, 30000000);
   assert.ok(auto.tax > 0 && auto.tax !== 2000000, 'điều kiện: thuế tự tính khác 2.000.000');
   assert.equal(row.gross, old.gross + 30000000);
   assert.equal(row.tax, 2000000, 'không phải số bộ máy tính lại');
@@ -231,9 +231,9 @@ test('Số chi trả: sau khi duyệt kỳ, số sửa đã đóng băng vào ph
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
 
-  const run = store.db.prepare("SELECT status FROM payroll_runs WHERE month = ? AND status != 'superseded'").get(M);
+  const run = await store.db.prepare("SELECT status FROM payroll_runs WHERE month = ? AND status != 'superseded'").get(M);
   assert.equal(run.status, 'final', 'duyệt kỳ chốt lần chạy');
-  const frozen = store.db
+  const frozen = await store.db
     .prepare(
       'SELECT override_json FROM payslips WHERE username = ? AND run_id = (SELECT id FROM payroll_runs WHERE month = ? AND status = ?)'
     )
@@ -247,7 +247,7 @@ test('Số chi trả: sau khi duyệt kỳ, số sửa đã đóng băng vào ph
   assert.equal(totals.net, beforeTotals.net + (paid.net - old.net));
 
   // dòng đang sửa bị đổi sau khi đã đóng băng (qua DB, vì API từ chối từ kỳ approved): số chi trả vẫn theo số đã đóng băng
-  store.db
+  await store.db
     .prepare('UPDATE slip_overrides SET values_json = ? WHERE username = ? AND month = ?')
     .run(JSON.stringify({ kpiPay: 1000000 }), USER, M);
   assert.deepEqual(figsOf(await rowOf(M)), paid);
@@ -297,5 +297,5 @@ test('Số chi trả: nhân sự xem phiếu của mình sau khi chi trả thấ
   // phiếu của người không sửa số vẫn đúng số tự tính khi chính họ xem
   const other = await detailOf(M, 'qa_nv2', 'qa_nv2');
   assert.equal(other.status, 200);
-  assert.deepEqual(figsOf(other.data.payslip), storedOf(M, 'qa_nv2'));
+  assert.deepEqual(figsOf(other.data.payslip), await storedOf(M, 'qa_nv2'));
 });

@@ -40,10 +40,10 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
   /* ---------- Check-in/out: các bước của POST /punch ---------- */
   const punchStaff = s => ({ shiftCode: s.shiftCode, sched: SCHED[s.type] || SCHED.tts });
   const ipOf = u => `203.0.113.${(H.hashSeed(u) % 200) + 1}`; // dải địa chỉ dành cho tài liệu, không phải IP thật
-  const sessionOverlap = (u, inIso, outIso, excludeId) => {
+  const sessionOverlap = async (u, inIso, outIso, excludeId) => {
     const a = Date.parse(inIso),
       b = Date.parse(outIso);
-    for (const s of store.listSessions({ username: u })) {
+    for (const s of await store.listSessions({ username: u })) {
       if (s.id === excludeId || !s.entry.presIn) continue;
       const start = Date.parse(s.entry.presIn),
         end = s.state === 'open' ? Infinity : Date.parse(s.entry.presOut);
@@ -51,27 +51,27 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     }
     return false;
   };
-  function closeStale(staff, t) {
-    const session = store.openSession(staff.username);
+  async function closeStale(staff, t) {
+    const session = await store.openSession(staff.username);
     if (!session || !session.entry.presIn || !P.forgotOut(session.entry.presIn, t)) return;
     const entry = { ...session.entry, kind: 'pending', reason: 'forgot-out' };
     delete entry.presOut;
-    store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
-    store.addPunch(staff.username, t, 'out', null, true, { plannedShift: entry.plannedShift || null }, session.id);
+    await store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
+    await store.addPunch(staff.username, t, 'out', null, true, { plannedShift: entry.plannedShift || null }, session.id);
   }
-  function punchIn(u, t, fast) {
-    const staff = store.getStaff(u);
-    if (!fast) closeStale(staff, t);
-    if (store.openSession(u)) throw new Error(`Spec lỗi: ${u} đang có lượt mở lúc Check-in ${t}`);
+  async function punchIn(u, t, fast) {
+    const staff = await store.getStaff(u);
+    if (!fast) await closeStale(staff, t);
+    if (await store.openSession(u)) throw new Error(`Spec lỗi: ${u} đang có lượt mở lúc Check-in ${t}`);
     const opened = P.openSessionDay(punchStaff(staff), t);
-    if (!fast && sessionOverlap(u, t, new Date(Date.parse(t) + 1).toISOString()))
+    if (!fast && await sessionOverlap(u, t, new Date(Date.parse(t) + 1).toISOString()))
       throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
-    const session = store.createSession(u, opened.date, 'open', opened.entry);
-    store.addPunch(u, t, 'in', ipOf(u), false, { plannedShift: opened.entry.plannedShift || null }, session.id);
+    const session = await store.createSession(u, opened.date, 'open', opened.entry);
+    await store.addPunch(u, t, 'in', ipOf(u), false, { plannedShift: opened.entry.plannedShift || null }, session.id);
   }
-  function punchOut(u, t, fast) {
-    const staff = store.getStaff(u);
-    let session = store.openSession(u);
+  async function punchOut(u, t, fast) {
+    const staff = await store.getStaff(u);
+    let session = await store.openSession(u);
     if (!session) throw new Error(`Spec lỗi: ${u} không có lượt mở để Check-out lúc ${t}`);
     let entry;
     if (session.entry.outsideShift || !session.entry.plannedShift)
@@ -80,8 +80,8 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       entry = P.buildDay(punchStaff(staff), session.entry.presIn, t, 'punch', {
         plannedShift: session.entry.plannedShift
       }).entry;
-      const duplicate = store
-        .listSessions({ username: u })
+      const duplicate = (await store
+        .listSessions({ username: u }))
         .some(
           s =>
             s.id !== session.id &&
@@ -91,21 +91,21 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       if (duplicate && entry.kind !== 'pending')
         entry = { ...entry, kind: 'pending', reason: 'multiple-sessions', attendanceConfirmed: false };
     }
-    if (!fast && sessionOverlap(u, entry.presIn, t, session.id)) throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
-    session = store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
-    store.addPunch(u, t, 'out', ipOf(u), false, { plannedShift: entry.plannedShift || null }, session.id);
+    if (!fast && await sessionOverlap(u, entry.presIn, t, session.id)) throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
+    session = await store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
+    await store.addPunch(u, t, 'out', ipOf(u), false, { plannedShift: entry.plannedShift || null }, session.id);
   }
   // Admin điều chỉnh: các bước của POST /corrections + applyCorrection (approve = true)
-  function correct(u, date, inHM, outHM, reason) {
-    const staff = store.getStaff(u);
-    const session = store.listSessions({ username: u, date })[0];
+  async function correct(u, date, inHM, outHM, reason) {
+    const staff = await store.getStaff(u);
+    const session = (await store.listSessions({ username: u, date }))[0];
     if (!session) throw new Error(`Spec lỗi: không có lượt ${date} của ${u} để điều chỉnh`);
     const snapshot = session.entry.plannedShift || session.entry.assignedShift;
     const code = snapshot?.code || staff.shiftCode;
     const plannedShift = P.planShift({ ...punchStaff(staff), shiftCode: code }, date);
     if (plannedShift && snapshot?.code === code && snapshot.date === date) plannedShift.kind = snapshot.kind;
     const presence = P.presenceFor(code, date, inHM, outHM);
-    const id = store.addCorrection({
+    const id = await store.addCorrection({
       username: u,
       date,
       reqIn: presence.inIso,
@@ -128,7 +128,7 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       before: session.entry,
       after: entry
     };
-    const updated = store.updateSession(session.id, session.version, {
+    const updated = await store.updateSession(session.id, session.version, {
       date: plannedShift.date,
       state: 'closed',
       entry
@@ -136,7 +136,7 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     store.db
       .prepare('UPDATE corrections SET session_id=?,session_version=?,context_json=? WHERE id=?')
       .run(updated.id, session.version, JSON.stringify(context), id);
-    store.decideCorrection(
+    await store.decideCorrection(
       id,
       'approved',
       ADMIN,
@@ -149,21 +149,21 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
 
   /* ---------- lịch, KPI, tiền ---------- */
   const isCleanDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d) && new Date(d + 'T00:00:00Z').toISOString().slice(0, 10) === d;
-  function saveSheet(u, month, days, pct, amt) {
+  async function saveSheet(u, month, days, pct, amt) {
     const history = month < store.approvals.CUTOFF_MONTH;
-    store.transaction(() => {
-      store.setSheet(u, month, days, pct, amt);
-      const staffType = store.getStaff(u).type;
+    await store.transaction(async () => {
+      await store.setSheet(u, month, days, pct, amt);
+      const staffType = (await store.getStaff(u)).type;
       const declared = store.approvals.declaredItems(days, { holidays, staffType });
       for (const date of Object.keys(declared))
         if (!date.startsWith(month + '-') || !isCleanDate(date)) delete declared[date];
-      store.approvals.reconcile(u, month, declared, history ? { approveBefore: store.approvals.CUTOFF_MONTH } : {});
+      await store.approvals.reconcile(u, month, declared, history ? { approveBefore: store.approvals.CUTOFF_MONTH } : {});
     });
   }
   // Lương tháng đúng chuỗi của app: lịch → payView → ActualHours.apply → calcMonth. Dùng cho phiếu sửa số theo tỉ lệ số tự tính.
-  function computeMonth(u, month, asOfIso = new Date(clock).toISOString()) {
-    const staff = store.getStaff(u);
-    const sheet = store.getSheet(u, month);
+  async function computeMonth(u, month, asOfIso = new Date(clock).toISOString()) {
+    const staff = await store.getStaff(u);
+    const sheet = await store.getSheet(u, month);
     const days = {};
     for (const [date, entry] of Object.entries(sheet.days)) {
       if (!entry || entry.kind === 'pending') continue;
@@ -176,17 +176,17 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
             )
           : { kind: entry.kind };
     }
-    let payDays = ApprovalView.payView(days, store.approvals.forSheet(u, month), undefined, {
+    let payDays = ApprovalView.payView(days, await store.approvals.forSheet(u, month), undefined, {
       holidays,
       staffType: staff.type
     }).payDays;
-    payDays = ActualHours.apply(payDays, store.listSessions({ username: u }), {
+    payDays = ActualHours.apply(payDays, await store.listSessions({ username: u }), {
       asOf: asOfIso,
       staff,
       holidays,
       month
     }).days;
-    const row = staff.type === 'tts' ? null : store.getKpiScores(u, month);
+    const row = staff.type === 'tts' ? null : await store.getKpiScores(u, month);
     const kpi = {
       method: 'five',
       parts: row
@@ -203,11 +203,11 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
   /* ---------- dữ liệu thô bất thường (SQL trực tiếp) ---------- */
   const RAW = {
     // 12/11: chỉ có lượt ra
-    onlyOut(u) {
+    async onlyOut(u) {
       const date = '2026-11-12',
         t = H.vn(date, '17:02:11');
-      const planned = P.planShift(punchStaff(store.getStaff(u)), date);
-      const session = store.createSession(
+      const planned = P.planShift(punchStaff(await store.getStaff(u)), date);
+      const session = await store.createSession(
         u,
         date,
         'closed',
@@ -215,12 +215,12 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
         null,
         t
       );
-      store.addPunch(u, t, 'out', ipOf(u), false, { plannedShift: planned }, session.id);
+      await store.addPunch(u, t, 'out', ipOf(u), false, { plannedShift: planned }, session.id);
     },
     // 13/11: hai lượt chồng giờ
-    overlap(u) {
+    async overlap(u) {
       const date = '2026-11-13',
-        staff = store.getStaff(u);
+        staff = await store.getStaff(u);
       const planned = P.planShift(punchStaff(staff), date);
       for (const [a, b] of [
         ['08:00:09', '12:00:41'],
@@ -232,15 +232,15 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
           plannedShift: planned,
           approveIncomplete: true
         }).entry;
-        const session = store.createSession(u, date, 'closed', entry, null, inIso, outIso);
-        store.addPunch(u, inIso, 'in', ipOf(u), false, { plannedShift: planned }, session.id);
-        store.addPunch(u, outIso, 'out', ipOf(u), false, { plannedShift: planned }, session.id);
+        const session = await store.createSession(u, date, 'closed', entry, null, inIso, outIso);
+        await store.addPunch(u, inIso, 'in', ipOf(u), false, { plannedShift: planned }, session.id);
+        await store.addPunch(u, outIso, 'out', ipOf(u), false, { plannedShift: planned }, session.id);
       }
     },
     // lượt chấm công thô không có phiên (trước khi có attendance_sessions) và attendance_days cũ chưa chuyển
-    rawPunches(u) {
-      store.addPunch(u, H.vn('2026-10-20', '08:01:12'), 'in', ipOf(u), false, null, null);
-      store.addPunch(u, H.vn('2026-10-20', '17:03:40'), 'out', ipOf(u), false, null, null);
+    async rawPunches(u) {
+      await store.addPunch(u, H.vn('2026-10-20', '08:01:12'), 'in', ipOf(u), false, null, null);
+      await store.addPunch(u, H.vn('2026-10-20', '17:03:40'), 'out', ipOf(u), false, null, null);
       store.db.prepare('INSERT INTO attendance_days (username, date, entry_json, updated_at) VALUES (?, ?, ?, ?)').run(
         u,
         '2026-10-21',
@@ -264,14 +264,14 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
         .run(u, new Date(clock).toISOString(), u, '2026-10-07');
     },
     // 09/10 đã duyệt, rồi lịch bị sửa thẳng trong DB: dấu vân tay của dòng duyệt không còn khớp
-    staleFingerprint(u) {
-      const row = store.approvals.get(u, '2026-10-09');
-      store.approvals.decide(
+    async staleFingerprint(u) {
+      const row = await store.approvals.get(u, '2026-10-09');
+      await store.approvals.decide(
         [{ username: u, date: row.date, rev: row.rev, fingerprint: row.fingerprint }],
         'approved',
         ADMIN
       );
-      const sheet = store.getSheet(u, '2026-10');
+      const sheet = await store.getSheet(u, '2026-10');
       sheet.days['2026-10-09'] = { ...sheet.days['2026-10-09'], extraOut: '19:00' };
       store.db
         .prepare('UPDATE timesheets SET days_json = ? WHERE username = ? AND month = ?')
@@ -416,10 +416,10 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     for (const d of p.decisions || []) {
       push(
         H.at(d.at),
-        () => {
-          const row = store.approvals.get(p.username, d.date);
+        async () => {
+          const row = await store.approvals.get(p.username, d.date);
           if (!row) throw new Error(`Spec lỗi: ${p.username} không có dòng duyệt ${d.date}`);
-          store.approvals.decide(
+          await store.approvals.decide(
             [{ username: p.username, date: d.date, rev: row.rev, fingerprint: row.fingerprint }],
             d.status,
             ADMIN,
@@ -432,10 +432,10 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     for (const s of p.scores || []) {
       push(
         H.at(s.at),
-        () => {
+        async () => {
           const patch = Object.fromEntries(Object.entries(s.scores).map(([k, v]) => [k, Math.round(v * 100)]));
           if (s.amt != null) patch.amt = s.amt;
-          store.setKpiScores(p.username, s.month, patch, ADMIN, s.reason || null);
+          await store.setKpiScores(p.username, s.month, patch, ADMIN, s.reason || null);
         },
         `scores ${s.month}`
       );
@@ -443,26 +443,26 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     for (const s of p.slip || []) {
       push(
         H.at(s.at),
-        () => store.setSlipOverride(p.username, s.month, s.values(computeMonth(p.username, s.month)), ADMIN),
+        async () => store.setSlipOverride(p.username, s.month, s.values(await computeMonth(p.username, s.month)), ADMIN),
         `slip ${s.month}`
       );
     }
     for (const c of p.changes || []) {
       push(
         H.at(c.at),
-        () => {
+        async () => {
           const columns = { type: 'type', level: 'level', shiftCode: 'shift_code' };
           for (const [key, value] of Object.entries(c.patch)) {
             store.db.prepare(`UPDATE staff SET ${columns[key]} = ? WHERE username = ?`).run(value, p.username);
           }
           if (c.patch.type) {
-            const staffType = store.getStaff(p.username).type;
-            for (const { month } of store.listSheets(p.username)) {
-              const sheet = store.getSheet(p.username, month);
+            const staffType = (await store.getStaff(p.username)).type;
+            for (const { month } of await store.listSheets(p.username)) {
+              const sheet = await store.getSheet(p.username, month);
               const declared = store.approvals.declaredItems(sheet.days, { holidays, staffType });
               for (const date of Object.keys(declared))
                 if (!date.startsWith(month + '-') || !isCleanDate(date)) delete declared[date];
-              store.approvals.reconcile(p.username, month, declared, { approveBefore: store.approvals.CUTOFF_MONTH });
+              await store.approvals.reconcile(p.username, month, declared, { approveBefore: store.approvals.CUTOFF_MONTH });
             }
           }
         },
@@ -489,10 +489,10 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     return { events, allSheets };
   }
 
-  function writePersona(p, opts = {}) {
+  async function writePersona(p, opts = {}) {
     const createdAt = H.vn(p.startDate && p.startDate < '2026-07-01' ? p.startDate : '2026-07-01', '08:00');
     setClock(Date.parse(createdAt));
-    store.upsertStaff({
+    await store.upsertStaff({
       username: p.username,
       name: p.name,
       role: p.role,
@@ -530,7 +530,7 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       }
       setClock(Math.min(e.at, nowMs));
       try {
-        e.run();
+        await e.run();
       } catch (error) {
         throw new Error(`${p.username} · ${e.label}: ${error.message}`);
       }
@@ -538,13 +538,13 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
   }
 
   /* ---------- toàn bộ ---------- */
-  function seedAll(personas, admins, bulk) {
+  async function seedAll(personas, admins, bulk) {
     Date.now = () => clock;
     try {
       // cài đặt hệ thống, đúng như Admin đặt
       setClock(H.at('2026-09-28T09:00'));
       for (const a of admins)
-        store.upsertStaff({
+        await store.upsertStaff({
           username: a.username,
           name: a.name,
           role: 'admin',
@@ -555,14 +555,14 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
           passHash,
           createdAt: H.vn('2026-07-01', '08:00')
         });
-      store.setSetting('holidays', holidays);
+      await store.setSetting('holidays', holidays);
       setClock(H.at('2026-09-29T10:00'));
-      store.setSetting('geofence', S.SETTINGS.geofence);
+      await store.setSetting('geofence', S.SETTINGS.geofence);
       setClock(H.at('2026-10-14T16:00'));
       // một giao dịch cho cả đợt ghi: nhanh hơn nhiều so với mỗi lệnh một lần ghi đĩa, và lỗi giữa chừng không để lại dữ liệu dở dang
-      store.transaction(() => {
-        for (const p of personas) writePersona(p);
-        for (const p of bulk) writePersona(p, { fast: true });
+      await store.transaction(async () => {
+        for (const p of personas) await writePersona(p);
+        for (const p of bulk) await writePersona(p, { fast: true });
       });
     } finally {
       Date.now = realNow;

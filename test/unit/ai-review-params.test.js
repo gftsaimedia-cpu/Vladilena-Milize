@@ -9,7 +9,7 @@ const { DEFAULTS } = require('../../public/payroll-params.js');
 const W = require('./ai-review-world.js');
 
 const { person, world, find } = W;
-const withParams = (options, overrides) => ({ ...world(options), params: { ...DEFAULTS, ...overrides } });
+const withParams = async (options, overrides) => ({ ...await world(options), params: { ...DEFAULTS, ...overrides } });
 const ids = (result, rule) => find(result, rule).map(f => `${f.username}|${f.date || f.month}`);
 
 // ba lần iSAT trong tháng: mặc định (ngưỡng 4) không bị gắn; ngưỡng 3 thì lần thứ 3 bị gắn
@@ -42,11 +42,11 @@ test('Ngưỡng bằng giá trị mặc định giữ nguyên ô (nhãn và ngu�
   assert.equal(resolved.isatPerMonth, THRESHOLDS.isatPerMonth);
 });
 
-test('Đổi ngưỡng qua params làm đổi kết quả soát: iSAT 3 lần không bị gắn ở ngưỡng 4, bị gắn lần thứ 3 ở ngưỡng 3, kèm bằng chứng', () => {
-  const a = person('qa_a');
+test('Đổi ngưỡng qua params làm đổi kết quả soát: iSAT 3 lần không bị gắn ở ngưỡng 4, bị gắn lần thứ 3 ở ngưỡng 3, kèm bằng chứng', async () => {
+  const a = await person('qa_a');
   const options = { people: [a], days: { qa_a: THREE_ISAT } };
-  assert.deepEqual(ids(review(world(options)), 'isat-frequency'), [], 'mặc định: chưa bị gắn');
-  const result = review(withParams(options, { 'ai.threshold.isatPerMonth': 3 }));
+  assert.deepEqual(ids(await review(await world(options)), 'isat-frequency'), [], 'mặc định: chưa bị gắn');
+  const result = await review(await withParams(options, { 'ai.threshold.isatPerMonth': 3 }));
   assert.deepEqual(ids(result, 'isat-frequency'), ['qa_a|2026-10-17']);
   const [hit] = find(result, 'isat-frequency');
   assert.equal(hit.message, 'iSAT lần thứ 3 trong tháng');
@@ -58,10 +58,10 @@ test('Đổi ngưỡng qua params làm đổi kết quả soát: iSAT 3 lần kh
   );
   // nâng ngưỡng lên thì ca bị gắn mặc định biến mất
   const four = { ...THREE_ISAT, '2026-10-24': { kind: 'isat' } };
-  assert.deepEqual(ids(review(world({ people: [a], days: { qa_a: four } })), 'isat-frequency'), ['qa_a|2026-10-24']);
+  assert.deepEqual(ids(await review(await world({ people: [a], days: { qa_a: four } })), 'isat-frequency'), ['qa_a|2026-10-24']);
   assert.deepEqual(
     ids(
-      review(withParams({ people: [a], days: { qa_a: four } }, { 'ai.threshold.isatPerMonth': 5 })),
+      await review(await withParams({ people: [a], days: { qa_a: four } }, { 'ai.threshold.isatPerMonth': 5 })),
       'isat-frequency'
     ),
     []
@@ -83,16 +83,16 @@ test('Khoá nhắc lại luật đã chốt đổi qua params (period.reportDead
   assert.equal(resolved.reportDeadlineDay.source, 'Lấy từ tham số period.reportDeadlineDay (mặc định 3)');
 });
 
-test('Luật tắt bằng ai.rule.<camelCase>.enabled = false: vào checked.skipped với lý do "Admin tắt", không có phát hiện, không nằm trong ruleIds', () => {
-  const a = person('qa_a');
+test('Luật tắt bằng ai.rule.<camelCase>.enabled = false: vào checked.skipped với lý do "Admin tắt", không có phát hiện, không nằm trong ruleIds', async () => {
+  const a = await person('qa_a');
   const options = { people: [a], days: { qa_a: THREE_ISAT } };
-  const on = review(withParams(options, { 'ai.threshold.isatPerMonth': 3 }));
+  const on = await review(await withParams(options, { 'ai.threshold.isatPerMonth': 3 }));
   assert.equal(find(on, 'isat-frequency').length, 1, 'điều kiện của bài: luật này bắn ở dữ liệu này');
   assert.ok(on.checked.ruleIds.includes('isat-frequency'));
   assert.ok(!on.checked.skipped.some(s => s.rule === 'isat-frequency'));
 
   assert.equal(ruleKeyOf('isat-frequency'), 'ai.rule.isatFrequency.enabled');
-  const off = review(withParams(options, { 'ai.threshold.isatPerMonth': 3, 'ai.rule.isatFrequency.enabled': false }));
+  const off = await review(await withParams(options, { 'ai.threshold.isatPerMonth': 3, 'ai.rule.isatFrequency.enabled': false }));
   assert.deepEqual(find(off, 'isat-frequency'), []);
   assert.deepEqual(
     off.checked.skipped.filter(s => s.rule === 'isat-frequency'),
@@ -102,19 +102,19 @@ test('Luật tắt bằng ai.rule.<camelCase>.enabled = false: vào checked.skip
   assert.equal(off.checked.ruleIds.length, on.checked.ruleIds.length - 1, 'chỉ tắt đúng một luật');
 });
 
-test('Tắt một luật không làm mất phát hiện của luật khác', () => {
-  const a = person('qa_a');
+test('Tắt một luật không làm mất phát hiện của luật khác', async () => {
+  const a = await person('qa_a');
   const options = { people: [a], days: { qa_a: THREE_ISAT } };
-  const result = review(
-    withParams(options, { 'ai.threshold.isatPerMonth': 3, 'ai.rule.kpiSelf100Streak.enabled': false })
+  const result = await review(
+    await withParams(options, { 'ai.threshold.isatPerMonth': 3, 'ai.rule.kpiSelf100Streak.enabled': false })
   );
   assert.deepEqual(ids(result, 'isat-frequency'), ['qa_a|2026-10-17']);
 });
 
-test('Tắt chính luật đang bắn: isat-frequency tắt thì không còn phát hiện iSAT dù ngưỡng đã hạ', () => {
-  const a = person('qa_a');
-  const result = review(
-    withParams(
+test('Tắt chính luật đang bắn: isat-frequency tắt thì không còn phát hiện iSAT dù ngưỡng đã hạ', async () => {
+  const a = await person('qa_a');
+  const result = await review(
+    await withParams(
       { people: [a], days: { qa_a: THREE_ISAT } },
       { 'ai.threshold.isatPerMonth': 3, 'ai.rule.isatFrequency.enabled': false }
     )
@@ -123,8 +123,8 @@ test('Tắt chính luật đang bắn: isat-frequency tắt thì không còn ph�
   assert.ok(result.checked.skipped.some(s => s.rule === 'isat-frequency' && s.reason === 'Admin tắt'));
 });
 
-test('Tham số sai kiểu hoặc không hữu hạn ném TypeError (không đoán): ngưỡng số, ngưỡng nhắc lại luật, công tắc luật', () => {
-  const a = person('qa_a');
+test('Tham số sai kiểu hoặc không hữu hạn ném TypeError (không đoán): ngưỡng số, ngưỡng nhắc lại luật, công tắc luật', async () => {
+  const a = await person('qa_a');
   const options = { people: [a], days: { qa_a: THREE_ISAT } };
   const bad = [
     ['ai.threshold.isatPerMonth', '4'],
@@ -141,7 +141,7 @@ test('Tham số sai kiểu hoặc không hữu hạn ném TypeError (không đo�
     ['ai.rule.isatFrequency.enabled', 'true']
   ];
   for (const [key, value] of bad) {
-    assert.throws(() => review(withParams(options, { [key]: value })), TypeError, `${key} = ${String(value)}`);
+    await assert.rejects(async () => review(await withParams(options, { [key]: value })), TypeError, `${key} = ${String(value)}`);
   }
   assert.throws(() => resolveThresholds(undefined, { ...DEFAULTS, 'ai.threshold.isatPerMonth': NaN }), TypeError);
   assert.throws(() => resolveThresholds(undefined, { ...DEFAULTS, 'period.reportDeadlineDay': '3' }), TypeError);
@@ -156,11 +156,11 @@ test('Khoá vắng hoặc null trong params giữ ô mặc định (không lỗi
   assert.equal(resolved.reportDeadlineDay, THRESHOLDS.reportDeadlineDay);
 });
 
-test('review() không có params chạy như trước: bằng kết quả với params = DEFAULTS, không luật nào bị bỏ vì "Admin tắt"', () => {
-  const a = person('qa_a');
+test('review() không có params chạy như trước: bằng kết quả với params = DEFAULTS, không luật nào bị bỏ vì "Admin tắt"', async () => {
+  const a = await person('qa_a');
   const options = { people: [a], days: { qa_a: { ...THREE_ISAT, '2026-10-24': { kind: 'isat' } } } };
-  const without = review(world(options));
-  const withDefaults = review({ ...world(options), params: DEFAULTS });
+  const without = await review(await world(options));
+  const withDefaults = await review({ ...await world(options), params: DEFAULTS });
   assert.equal(JSON.stringify(without), JSON.stringify(withDefaults));
   assert.deepEqual(ids(without, 'isat-frequency'), ['qa_a|2026-10-24']);
   // chỉ late-declaration tắt mặc định (ai.rule.lateDeclaration.enabled = false); các luật khác không bị bỏ vì "Admin tắt"

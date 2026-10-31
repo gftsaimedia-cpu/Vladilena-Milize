@@ -53,9 +53,9 @@ function month(params, kind, dates) {
 }
 const vnd = value => Math.round(value || 0);
 
-test('Đ43: 3 ngày "Nghỉ được duyệt" đã duyệt mất chuyên cần, ra đúng số của 3 ngày nghỉ không lương: 6.369.231', () => {
-  const duyet = month(D, 'approved', [5, 6, 7]);
-  const khongLuong = month(D, 'unpaid', [5, 6, 7]);
+test('Đ43: 3 ngày "Nghỉ được duyệt" đã duyệt mất chuyên cần, ra đúng số của 3 ngày nghỉ không lương: 6.369.231', async () => {
+  const duyet = await month(D, 'approved', [5, 6, 7]);
+  const khongLuong = await month(D, 'unpaid', [5, 6, 7]);
   assert.equal(duyet.approved, 3, 'vẫn ghi nhận đúng 3 ngày nghỉ được duyệt');
   assert.equal(duyet.unpaid, 0, 'không bị đổi thành nghỉ không lương');
   assert.equal(vnd(duyet.absent), 3, 'nghỉ được duyệt tính là ngày nghỉ xét chuyên cần');
@@ -67,8 +67,8 @@ test('Đ43: 3 ngày "Nghỉ được duyệt" đã duyệt mất chuyên cần, 
   assert.equal(vnd(duyet.total), vnd(khongLuong.total), 'giống hệt nghỉ không lương');
 });
 
-test('Đ43: 2 ngày "Nghỉ được duyệt" đã duyệt chưa mất chuyên cần (2 < 3 ngày, 16 < 24 giờ): 8.076.924', () => {
-  const m = month(D, 'approved', [5, 6]);
+test('Đ43: 2 ngày "Nghỉ được duyệt" đã duyệt chưa mất chuyên cần (2 < 3 ngày, 16 < 24 giờ): 8.076.924', async () => {
+  const m = await month(D, 'approved', [5, 6]);
   assert.equal(vnd(m.absent), 2);
   assert.equal(vnd(m.overHours), 16);
   assert.equal(m.attendOk, true);
@@ -76,8 +76,8 @@ test('Đ43: 2 ngày "Nghỉ được duyệt" đã duyệt chưa mất chuyên c
   assert.equal(vnd(m.total), 8076924);
 });
 
-test('Đ43: tắt request.type.approved.countsAbsent thì trở lại cách cũ (miễn chuyên cần): 7.753.846', () => {
-  const off = month({ ...D, 'request.type.approved.countsAbsent': false }, 'approved', [5, 6, 7]);
+test('Đ43: tắt request.type.approved.countsAbsent thì trở lại cách cũ (miễn chuyên cần): 7.753.846', async () => {
+  const off = await month({ ...D, 'request.type.approved.countsAbsent': false }, 'approved', [5, 6, 7]);
   assert.equal(off.approved, 3);
   assert.equal(vnd(off.absent), 0, 'miễn: không tính là ngày nghỉ');
   assert.equal(vnd(off.overHours), 0);
@@ -86,8 +86,8 @@ test('Đ43: tắt request.type.approved.countsAbsent thì trở lại cách cũ 
   assert.equal(vnd(off.total), 7753846);
 });
 
-test('Đ43: tháng đủ công 8.723.076 — mốc so sánh', () => {
-  const m = month(D, 'work', []);
+test('Đ43: tháng đủ công 8.723.076 — mốc so sánh', async () => {
+  const m = await month(D, 'work', []);
   assert.equal(vnd(m.absent), 0);
   assert.equal(vnd(m.attendance), 1557692);
   assert.equal(vnd(m.total), 8723076);

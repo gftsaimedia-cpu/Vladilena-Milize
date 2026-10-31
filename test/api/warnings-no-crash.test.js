@@ -24,21 +24,21 @@ after(F.stop);
       body: { month: M, days: { [date]: { kind: 'work', in: '08:00', out: '17:00' } }, kpiAmt: 5000000 }
     });
     assert.equal(res.status, 200, `${JSON.stringify(res.data)}`);
-    assert.equal(store.getSheet('qa_tts1', M).days[date].kind, 'work');
+    assert.equal((await store.getSheet('qa_tts1', M)).days[date].kind, 'work');
   });
 
   test(`validateOtDeclaration: khai OT cho lượt đã đóng nhưng không có ca đối chiếu — 400 có lời báo, không phải 500; không lưu gì`, async () => {
     const M = monthOf();
     await S.seed(M);
     const date = S.firstDow(M, 2);
-    const session = store.createSession('qa_tts1', date, 'closed', {
+    const session = await store.createSession('qa_tts1', date, 'closed', {
       kind: 'pending',
       reason: 'off-shift',
       outsideShift: true,
       presIn: new Date(`${date}T20:00:00+07:00`).toISOString(),
       presOut: new Date(`${date}T22:00:00+07:00`).toISOString()
     });
-    const before = F.snapshot();
+    const before = await F.snapshot();
     const res = await F.call('POST', '/ot', {
       body: { sessionId: session.id, version: session.version, extraOut: '18:00', reason: 'Khai OT cho lượt ngoài ca' }
     });
@@ -47,6 +47,6 @@ after(F.stop);
       `phải là lỗi 4xx có lời báo, nhận ${res.status} ${JSON.stringify(res.data)}`
     );
     assert.ok(res.data.error, `có lời báo lỗi`);
-    assert.deepEqual(F.changedTables(before, F.snapshot()), [], `không lưu gì`);
+    assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `không lưu gì`);
   });
 }

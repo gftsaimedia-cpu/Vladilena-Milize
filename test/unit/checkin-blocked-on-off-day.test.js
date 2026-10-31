@@ -18,27 +18,27 @@ const WORK = { kind: 'work', in: '08:00', out: '17:00' };
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.person('admin', 'admin');
-  F.person('nv_off');
-  F.at(`${MON}T07:00:00`);
+beforeEach(async () => {
+  await F.reset();
+  await F.person('admin', 'admin');
+  await F.person('nv_off');
+  await F.at(`${MON}T07:00:00`);
 });
 
-const punch = (who, type) =>
+const punch = async (who, type) =>
   F.call('POST', '/punch', {
     who,
     body: {
       type,
       requestId: crypto.randomUUID(),
-      ...(type === 'out' ? { sessionId: store.openSession(who)?.id } : {})
+      ...(type === 'out' ? { sessionId: (await store.openSession(who))?.id } : {})
     }
   });
 const count = table => store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
-const stored = () => ({
-  sessions: count('attendance_sessions'),
-  punches: count('punches'),
-  requests: count('punch_requests')
+const stored = async () => ({
+  sessions: await count('attendance_sessions'),
+  punches: await count('punches'),
+  requests: await count('punch_requests')
 });
 const saveOwn = async days => {
   const r = await F.call('PUT', '/sheet', { who: 'nv_off', body: { month: MONTH, days } });
@@ -61,19 +61,19 @@ async function decide(date, action) {
   assert.equal(r.status, 200, JSON.stringify(r.data));
 }
 const stateAt = async iso => {
-  F.at(iso);
+  await F.at(iso);
   return (await F.call('GET', '/punch', { who: 'nv_off' })).data;
 };
 async function assertBlocked(iso, phrase) {
   const state = await stateAt(iso);
   assert.equal(state.canCheckIn, false);
   assert.equal(state.checkInBlock, `Hôm nay bạn ${phrase}, không Check-in được.`);
-  const before = stored();
+  const before = await stored();
   const r = await punch('nv_off', 'in');
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.equal(r.data.code, 'CHECKIN_NOT_ALLOWED');
   assert.equal(r.data.error, `Hôm nay bạn ${phrase}, không Check-in được.`);
-  assert.deepEqual(stored(), before, 'lượt bị từ chối không ghi phiên, lượt bấm hay requestId');
+  assert.deepEqual(await stored(), before, 'lượt bị từ chối không ghi phiên, lượt bấm hay requestId');
 }
 
 test('ngày Admin khai iSAT (duyệt ngay): GET /api/punch tắt Check-in kèm câu nêu iSAT, POST /api/punch 409 và không ghi gì', async () => {
@@ -86,7 +86,7 @@ test('nghỉ phép năm: chờ duyệt đã chặn "nghỉ phép năm"; đã duy
   await assertBlocked(`${MON}T08:00:00`, 'nghỉ phép năm');
   await decide(MON, 'approve');
   await assertBlocked(`${MON}T08:00:00`, 'nghỉ phép năm');
-  F.at(`${MON}T09:00:00`);
+  await F.at(`${MON}T09:00:00`);
   await decide(MON, 'reject');
   assert.equal((await stateAt(`${MON}T08:00:00`)).canCheckIn, true, 'bị từ chối thì không là ngày nghỉ');
   assert.equal((await punch('nv_off', 'in')).status, 200);
@@ -95,7 +95,7 @@ test('nghỉ phép năm: chờ duyệt đã chặn "nghỉ phép năm"; đã duy
 test('iSAT nhân viên tự khai đang chờ duyệt chặn Check-in; bị từ chối thì Check-in lại được', async () => {
   await saveOwn({ [SAT]: { kind: 'isat' } });
   await assertBlocked(`${SAT}T08:00:00`, 'nghỉ iSAT');
-  F.at(`${SAT}T09:00:00`);
+  await F.at(`${SAT}T09:00:00`);
   await decide(SAT, 'reject');
   assert.equal((await stateAt(`${SAT}T08:00:00`)).canCheckIn, true);
 });
@@ -127,11 +127,11 @@ test('ngày làm việc thường và ngày có OT đã duyệt vẫn Check-in �
 });
 
 test('Check-out của lượt đang mở không bị chặn khi Admin khai ngày đó nghỉ; ngày khác không bị ảnh hưởng', async () => {
-  F.at(`${MON}T08:00:00`);
+  await F.at(`${MON}T08:00:00`);
   const opened = await punch('nv_off', 'in');
   assert.equal(opened.status, 200, JSON.stringify(opened.data));
   await saveForStaff({ [MON]: { kind: 'leave' } });
-  F.at(`${MON}T17:00:00`);
+  await F.at(`${MON}T17:00:00`);
   const out = await punch('nv_off', 'out');
   assert.equal(out.status, 200, JSON.stringify(out.data));
   assert.equal((await stateAt(`${WED}T08:00:00`)).canCheckIn, true);

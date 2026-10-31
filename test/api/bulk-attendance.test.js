@@ -17,31 +17,31 @@ const TODAY = '2026-11-04'; // thứ Tư
 const SUNDAY = '2026-11-01';
 const N2 = { kind: 'work', preset: 'Normal2' };
 
-const bulk = (body, who = 'admin') => F.call('PUT', '/sheet/bulk', { who, body });
+const bulk = async (body, who = 'admin') => await F.call('PUT', '/sheet/bulk', { who, body });
 const body = (extra = {}) => ({ month: M, usernames: ['qa_nv1', 'qa_nv2', 'qa_nv3'], days: { [D1]: N2, [D2]: N2 }, ...extra });
 const sheet = async (username, month = M) => (await F.call('GET', `/sheet?month=${month}&user=${username}`)).data;
-const count = (table, where = '1 = 1', ...args) =>
-  store.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`).get(...args).n;
-const auditCount = action => count('audit_log', 'action = ?', action);
-const adminSessions = username =>
-  store.listSessions({ username, includeScheduled: true }).filter(s => s.entry.origin === 'sheet.onBehalf');
-const person = (username, extra = {}) =>
-  F.person(username, 'staff', { type: 'nv', level: 1, shiftCode: 'Normal1', startDate: '2026-01-05', ...extra });
+const count = async (table, where = '1 = 1', ...args) =>
+  (await store.db.prepare(`SELECT COUNT(*) AS n FROM ${table} WHERE ${where}`).get(...args)).n;
+const auditCount = async action => await count('audit_log', 'action = ?', action);
+const adminSessions = async username =>
+  (await store.listSessions({ username, includeScheduled: true })).filter(s => s.entry.origin === 'sheet.onBehalf');
+const person = async (username, extra = {}) =>
+  await F.person(username, 'staff', { type: 'nv', level: 1, shiftCode: 'Normal1', startDate: '2026-01-05', ...extra });
 // Trạng thái ghi được của một nhóm người: lịch (rev), số lượt chấm công, số dòng nhật ký; so trước và sau để biết "không lưu gì"
-const stateOf = usernames => ({
-  revs: usernames.map(u => store.getSheet(u, M).rev),
-  sessions: count('attendance_sessions'),
-  audits: count('audit_log')
+const stateOf = async usernames => ({
+  revs: await Promise.all(usernames.map(async u => (await store.getSheet(u, M)).rev)),
+  sessions: await count('attendance_sessions'),
+  audits: await count('audit_log')
 });
 
 before(async () => {
   await F.start();
-  F.at(`${TODAY}T20:00:00`);
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  for (const u of ['qa_nv1', 'qa_nv2', 'qa_nv3']) person(u);
-  person('qa_acc');
-  store.roles.grant('qa_acc', 'accounting', 'admin');
+  await F.at(`${TODAY}T20:00:00`);
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  for (const u of ['qa_nv1', 'qa_nv2', 'qa_nv3']) await person(u);
+  await person('qa_acc');
+  await store.roles.grant('qa_acc', 'accounting', 'admin');
 });
 after(F.stop);
 
@@ -66,13 +66,13 @@ test('ba người hai ngày: 200, kết quả theo người, lịch có ca Norma
     assert.equal(days[D1].in, '10:00');
     assert.equal(days[D1].out, '19:00');
     assert.equal(days[D2].kind, 'work');
-    assert.equal(adminSessions(r.username).length, 2, r.username);
+    assert.equal((await adminSessions(r.username)).length, 2, r.username);
   }
 });
 
 test('gộp: ngày đã khai từ trước vẫn còn; ngày đang khai nghỉ không bị ghi đè và được báo ở skipped', async () => {
-  person('qa_merge');
-  store.setSheet('qa_merge', M, { [TODAY]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: '', extraIn: '', extraOut: '', preset: 'Normal1', breakMin: 0 }, [D2]: { kind: 'leave' } }, 0, 0);
+  await person('qa_merge');
+  await store.setSheet('qa_merge', M, { [TODAY]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: '', extraIn: '', extraOut: '', preset: 'Normal1', breakMin: 0 }, [D2]: { kind: 'leave' } }, 0, 0);
   const res = await bulk({ month: M, usernames: ['qa_merge'], days: { [D1]: N2, [D2]: N2 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.deepEqual(res.data.results[0].skipped, [{ date: D2, kind: 'leave' }]);
@@ -84,8 +84,8 @@ test('gộp: ngày đã khai từ trước vẫn còn; ngày đang khai nghỉ k
 });
 
 test('ngày đã khai đi làm chỉ đổi giờ vào, giờ ra, mã ca; giờ OT đã khai giữ nguyên', async () => {
-  person('qa_keep');
-  store.setSheet('qa_keep', M, { [D1]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '', extraOut: '20:00', preset: 'Normal1', breakMin: 0 } }, 0, 0);
+  await person('qa_keep');
+  await store.setSheet('qa_keep', M, { [D1]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '', extraOut: '20:00', preset: 'Normal1', breakMin: 0 } }, 0, 0);
   const res = await bulk({ month: M, usernames: ['qa_keep'], days: { [D1]: N2 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const day = (await sheet('qa_keep')).days[D1];
@@ -93,19 +93,19 @@ test('ngày đã khai đi làm chỉ đổi giờ vào, giờ ra, mã ca; giờ 
 });
 
 test('tất cả hoặc không: lỗi cứng DAY_HOURS_CAP của người thứ hai thì người thứ nhất cũng không được lưu', async () => {
-  person('qa_ok');
-  person('qa_cap');
+  await person('qa_ok');
+  await person('qa_cap');
   // OT 05:00–08:00 trước ca 08:00–17:00 hợp lệ; đổi sang ca 13:00–22:00 thì OT dài 8 giờ cộng ca 9 giờ vượt trần 12 giờ
-  store.setSheet('qa_cap', M, { [D1]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '05:00', extraOut: '', preset: 'Normal1', breakMin: 0 } }, 0, 0);
+  await store.setSheet('qa_cap', M, { [D1]: { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '05:00', extraOut: '', preset: 'Normal1', breakMin: 0 } }, 0, 0);
   const names = ['qa_ok', 'qa_cap'];
-  const before = stateOf(names);
+  const before = await stateOf(names);
   const res = await bulk({ month: M, usernames: names, days: { [D1]: { kind: 'work', preset: 'Flex2' }, [D2]: { kind: 'work', preset: 'Flex2' } } });
   assert.equal(res.status, 400, JSON.stringify(res.data));
   assert.equal(res.data.code, 'DAY_HOURS_CAP');
   assert.equal(res.data.username, 'qa_cap');
   assert.equal(res.data.date, D1);
   assert.ok(res.data.error.startsWith('Người thử qa_cap:'), res.data.error);
-  assert.deepEqual(stateOf(names), before, 'không lịch, lượt chấm công hay dòng nhật ký nào được ghi');
+  assert.deepEqual(await stateOf(names), before, 'không lịch, lượt chấm công hay dòng nhật ký nào được ghi');
   assert.deepEqual((await sheet('qa_ok')).days, {});
 });
 
@@ -114,24 +114,24 @@ test('trần giờ OT một tháng là lỗi cứng nêu người: đổi ca là
   const weekdays = Array.from({ length: 31 }, (_, i) => `2026-10-${String(i + 1).padStart(2, '0')}`)
     .filter(d => ![0, 6].includes(new Date(`${d}T12:00:00Z`).getUTCDay()))
     .slice(0, 15);
-  person('qa_otok');
-  person('qa_otmax');
+  await person('qa_otok');
+  await person('qa_otmax');
   // OT 07:00–08:00 trước ca 08:00–17:00 là 1 giờ mỗi ngày; sang ca 10:00–19:00 thì OT 07:00–10:00 là 3 giờ mỗi ngày (ngày 11 giờ ròng, chưa vượt trần ngày)
   const old = { kind: 'work', shift: '', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '07:00', extraOut: '', preset: 'Normal1', breakMin: 0 };
-  store.setSheet('qa_otmax', month, Object.fromEntries(weekdays.map(d => [d, old])), 0, 0);
+  await store.setSheet('qa_otmax', month, Object.fromEntries(weekdays.map(d => [d, old])), 0, 0);
   const names = ['qa_otok', 'qa_otmax'];
-  const snap = () => ({ otok: store.getSheet('qa_otok', month).rev, otmax: store.getSheet('qa_otmax', month).rev, audits: count('audit_log'), sessions: count('attendance_sessions') });
-  const before = snap();
+  const snap = async () => ({ otok: (await store.getSheet('qa_otok', month)).rev, otmax: (await store.getSheet('qa_otmax', month)).rev, audits: await count('audit_log'), sessions: await count('attendance_sessions') });
+  const before = await snap();
   const res = await bulk({ month, usernames: names, days: Object.fromEntries(weekdays.map(d => [d, N2])) });
   assert.equal(res.status, 400, JSON.stringify(res.data));
   assert.equal(res.data.code, 'OT_MONTH_CAP');
   assert.equal(res.data.username, 'qa_otmax');
-  assert.deepEqual(snap(), before);
+  assert.deepEqual(await snap(), before);
 });
 
 test('đầu vào: thiếu tên, quá trần, tên sai, trùng, ca lạ, ngày null, ngoài tháng, rỗng, có giờ tự nhập, ngày tương lai', async () => {
-  const max = rulesFor().params['system.staff.bulkMax'];
-  const before = stateOf(['qa_nv1']);
+  const max = (await rulesFor()).params['system.staff.bulkMax'];
+  const before = await stateOf(['qa_nv1']);
   const err = async (b, status, code) => {
     const r = await bulk(b);
     assert.equal(r.status, status, JSON.stringify(r.data));
@@ -156,19 +156,19 @@ test('đầu vào: thiếu tên, quá trần, tên sai, trùng, ca lạ, ngày n
   await err({ ...body(), expectedRevs: { qa_other: 0 } }, 400);
   await err({ ...body(), confirmDays: ['2026-12-01'] }, 400);
   assert.equal((await bulk(null)).status, 400);
-  assert.deepEqual(stateOf(['qa_nv1']), before);
+  assert.deepEqual(await stateOf(['qa_nv1']), before);
 });
 
 test('hôm nay được chấm; ngày mai bị từ chối', async () => {
-  person('qa_today');
+  await person('qa_today');
   const ok = await bulk({ month: M, usernames: ['qa_today'], days: { [TODAY]: N2 } });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   assert.equal((await sheet('qa_today')).days[TODAY].preset, 'Normal2');
 });
 
 test('tên không có tài khoản: 404 STAFF_NOT_FOUND nêu danh sách, tài khoản ngoài bảng lương: 400 NOT_PAYROLL_SUBJECT; không ai được lưu', async () => {
-  F.person('qa_plain_admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  const before = stateOf(['qa_nv1']);
+  await F.person('qa_plain_admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  const before = await stateOf(['qa_nv1']);
   const missing = await bulk({ month: M, usernames: ['qa_nv1', 'qa_ghost'], days: { [D1]: N2 } });
   assert.equal(missing.status, 404);
   assert.equal(missing.data.code, 'STAFF_NOT_FOUND');
@@ -177,11 +177,11 @@ test('tên không có tài khoản: 404 STAFF_NOT_FOUND nêu danh sách, tài kh
   assert.equal(outside.status, 400, JSON.stringify(outside.data));
   assert.equal(outside.data.code, 'NOT_PAYROLL_SUBJECT');
   assert.deepEqual(outside.data.usernames, ['qa_plain_admin']);
-  assert.deepEqual(stateOf(['qa_nv1']), before);
+  assert.deepEqual(await stateOf(['qa_nv1']), before);
 });
 
 test('quyền: nhân sự, Kế toán 403 FORBIDDEN_CAP, chưa đăng nhập 401; cổng quyền chạy trước kiểm thân (thân hỏng vẫn 403) và không lưu gì', async () => {
-  const before = stateOf(['qa_nv1']);
+  const before = await stateOf(['qa_nv1']);
   for (const who of ['qa_nv1', 'qa_acc']) {
     const ok = await bulk({ month: M, usernames: ['qa_nv1'], days: { [D1]: N2 } }, who);
     assert.equal(ok.status, 403, who);
@@ -192,29 +192,29 @@ test('quyền: nhân sự, Kế toán 403 FORBIDDEN_CAP, chưa đăng nhập 401
   }
   assert.equal((await bulk(body(), null)).status, 401);
   assert.equal((await bulk({ month: 'sai', usernames: [], days: {} })).status, 400, 'Admin gửi cùng thân hỏng nhận 400');
-  assert.deepEqual(stateOf(['qa_nv1']), before);
+  assert.deepEqual(await stateOf(['qa_nv1']), before);
 });
 
 test('expectedRevs lệch: 409 SHEET_STALE kèm tên và rev của người lệch, không ai được lưu; đúng rev thì lưu', async () => {
-  person('qa_rev1');
-  person('qa_rev2');
+  await person('qa_rev1');
+  await person('qa_rev2');
   const r1 = (await sheet('qa_rev1')).rev;
   const r2 = (await sheet('qa_rev2')).rev;
-  const before = stateOf(['qa_rev1', 'qa_rev2']);
+  const before = await stateOf(['qa_rev1', 'qa_rev2']);
   const stale = await bulk({ month: M, usernames: ['qa_rev1', 'qa_rev2'], days: { [D1]: N2 }, expectedRevs: { qa_rev1: r1, qa_rev2: r2 + 5 } });
   assert.equal(stale.status, 409, JSON.stringify(stale.data));
   assert.equal(stale.data.code, 'SHEET_STALE');
   assert.equal(stale.data.username, 'qa_rev2');
   assert.equal(stale.data.rev, r2);
-  assert.deepEqual(stateOf(['qa_rev1', 'qa_rev2']), before);
+  assert.deepEqual(await stateOf(['qa_rev1', 'qa_rev2']), before);
   const fine = await bulk({ month: M, usernames: ['qa_rev1', 'qa_rev2'], days: { [D1]: N2 }, expectedRevs: { qa_rev1: r1, qa_rev2: r2 } });
   assert.equal(fine.status, 200, JSON.stringify(fine.data));
   assert.equal(fine.data.results[0].rev, r1 + 1);
 });
 
 test('dòng của chính Admin thuộc bảng lương: vẫn lưu, một cảnh báo SELF_DECISION_FORBIDDEN của đúng người đó, nhật ký của dòng đó có after.self', async () => {
-  person('qa_boss');
-  store.roles.grant('qa_boss', 'admin', 'admin');
+  await person('qa_boss');
+  await store.roles.grant('qa_boss', 'admin', 'admin');
   const res = await bulk({ month: M, usernames: ['qa_boss', 'qa_nv1'], days: { [D2]: N2 } }, 'qa_boss');
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const self = res.data.warnings.filter(w => w.code === 'SELF_DECISION_FORBIDDEN');
@@ -222,14 +222,14 @@ test('dòng của chính Admin thuộc bảng lương: vẫn lưu, một cảnh 
   assert.equal(self[0].details.username, 'qa_boss');
   assert.ok(self[0].message.startsWith('Người thử qa_boss:'), self[0].message);
   assert.equal((await sheet('qa_boss')).days[D2].preset, 'Normal2');
-  const rows = store.db.prepare("SELECT subject, after_json FROM audit_log WHERE action = 'sheet.onBehalf' AND actor = 'qa_boss' ORDER BY id DESC LIMIT 2").all();
+  const rows = await store.db.prepare("SELECT subject, after_json FROM audit_log WHERE action = 'sheet.onBehalf' AND actor = 'qa_boss' ORDER BY id DESC LIMIT 2").all();
   const flags = Object.fromEntries(rows.map(r => [r.subject, JSON.parse(r.after_json).self === true]));
   assert.deepEqual(flags, { qa_boss: true, qa_nv1: false });
 });
 
 test('cảnh báo theo người: cùng một cảnh báo của hai người là hai mục, mỗi mục mở đầu bằng họ tên và có details.username', async () => {
-  person('qa_sun1');
-  person('qa_sun2');
+  await person('qa_sun1');
+  await person('qa_sun2');
   const res = await bulk({ month: M, usernames: ['qa_sun1', 'qa_sun2'], days: { [SUNDAY]: N2 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const sunday = res.data.warnings.filter(w => w.code === 'SHEET_SUNDAY');
@@ -238,15 +238,15 @@ test('cảnh báo theo người: cùng một cảnh báo của hai người là 
 });
 
 test('ngày đã có Check-in/out thật: giữ giờ chấm thật, cảnh báo ADMIN_PRESENCE_REAL_PUNCH nêu đúng người', async () => {
-  person('qa_real');
-  person('qa_free');
-  F.at(`${D1}T07:58:00`);
+  await person('qa_real');
+  await person('qa_free');
+  await F.at(`${D1}T07:58:00`);
   const inn = await F.call('POST', '/punch', { who: 'qa_real', body: { type: 'in', requestId: 'bulk-real-in-0001' } });
   assert.equal(inn.status, 200, JSON.stringify(inn.data));
-  F.at(`${D1}T17:05:00`);
+  await F.at(`${D1}T17:05:00`);
   const out = await F.call('POST', '/punch', { who: 'qa_real', body: { type: 'out', sessionId: inn.data.openSession.id, requestId: 'bulk-real-out-0001' } });
   assert.equal(out.status, 200, JSON.stringify(out.data));
-  F.at(`${TODAY}T20:00:00`);
+  await F.at(`${TODAY}T20:00:00`);
   const res = await bulk({ month: M, usernames: ['qa_real', 'qa_free'], days: { [D1]: { kind: 'work', preset: 'Flex1' } } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const real = res.data.warnings.find(w => w.code === 'ADMIN_PRESENCE_REAL_PUNCH');
@@ -255,9 +255,9 @@ test('ngày đã có Check-in/out thật: giữ giờ chấm thật, cảnh báo
 });
 
 test('kỳ đã chốt công: vẫn lưu (200), kèm cảnh báo PERIOD_LOCKED', async () => {
-  person('qa_lock');
+  await person('qa_lock');
   const month = '2026-10';
-  store.db.prepare("INSERT INTO payroll_periods (month, status, rev) VALUES (?, 'attendance_locked', 1) ON CONFLICT(month) DO UPDATE SET status = excluded.status").run(month);
+  await store.db.prepare("INSERT INTO payroll_periods (month, status, rev) VALUES (?, 'attendance_locked', 1) ON CONFLICT(month) DO UPDATE SET status = excluded.status").run(month);
   const res = await bulk({ month, usernames: ['qa_lock'], days: { '2026-10-08': N2 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const locked = res.data.warnings.find(w => w.code === 'PERIOD_LOCKED');
@@ -265,30 +265,30 @@ test('kỳ đã chốt công: vẫn lưu (200), kèm cảnh báo PERIOD_LOCKED',
 });
 
 test('nhật ký: mỗi người một dòng sheet.onBehalf, cả lô một dòng sheet.onBehalfBulk', async () => {
-  person('qa_log1');
-  person('qa_log2');
-  const per = auditCount('sheet.onBehalf');
-  const all = auditCount('sheet.onBehalfBulk');
+  await person('qa_log1');
+  await person('qa_log2');
+  const per = await auditCount('sheet.onBehalf');
+  const all = await auditCount('sheet.onBehalfBulk');
   const res = await bulk({ month: M, usernames: ['qa_log1', 'qa_log2'], days: { [D1]: N2 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(auditCount('sheet.onBehalf') - per, 2);
-  assert.equal(auditCount('sheet.onBehalfBulk') - all, 1);
-  const row = store.db.prepare("SELECT month, after_json FROM audit_log WHERE action = 'sheet.onBehalfBulk' ORDER BY id DESC LIMIT 1").get();
+  assert.equal(await auditCount('sheet.onBehalf') - per, 2);
+  assert.equal(await auditCount('sheet.onBehalfBulk') - all, 1);
+  const row = await store.db.prepare("SELECT month, after_json FROM audit_log WHERE action = 'sheet.onBehalfBulk' ORDER BY id DESC LIMIT 1").get();
   assert.equal(row.month, M);
   assert.deepEqual(JSON.parse(row.after_json), { people: 2, days: 1, shifts: ['Normal2'] });
 });
 
 test('trần số người một lần: 200 người ba ngày xong dưới 10 giây, đủ kết quả và đủ dòng nhật ký', async () => {
-  const max = rulesFor().params['system.staff.bulkMax'];
+  const max = (await rulesFor()).params['system.staff.bulkMax'];
   const names = Array.from({ length: max }, (_, i) => `qa_bulk${i}`);
-  for (const u of names) person(u);
-  const per = auditCount('sheet.onBehalf');
+  for (const u of names) await person(u);
+  const per = await auditCount('sheet.onBehalf');
   const started = process.hrtime.bigint(); // đồng hồ giả của fixture không đo được thời gian thật
   const res = await bulk({ month: M, usernames: names, days: { [D1]: N2, [D2]: N2, [TODAY]: N2 } });
   const ms = Number(process.hrtime.bigint() - started) / 1e6;
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   assert.equal(res.data.results.length, max);
-  assert.equal(auditCount('sheet.onBehalf') - per, max);
+  assert.equal(await auditCount('sheet.onBehalf') - per, max);
   assert.ok(res.data.results.every(r => r.presence.set.length === 3));
   assert.ok(ms < 10000, `mất ${Math.round(ms)} ms`);
 });

@@ -20,10 +20,10 @@ const near = (actual, expected, msg) =>
 
 before(async () => {
   await F.start();
-  F.at('2026-10-06T08:00:00');
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_night1', 'staff', {
+  await F.at('2026-10-06T08:00:00');
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_night1', 'staff', {
     type: 'nv',
     level: 1,
     shiftCode: 'Night1',
@@ -50,11 +50,11 @@ test('Admin khai thay ca Flex1 06:00–15:00 cho người ca Night1: không cả
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.ok(!(res.data.warnings || []).some(w => w.code === 'SHEET_SHIFT_MISMATCH'), JSON.stringify(res.data.warnings));
-  assert.equal(store.getSheet('qa_night1', M).days[ADMIN_DAY].preset, 'Flex1');
-  const sessions = store.listSessions({ username: 'qa_night1', includeScheduled: true });
+  assert.equal((await store.getSheet('qa_night1', M)).days[ADMIN_DAY].preset, 'Flex1');
+  const sessions = await store.listSessions({ username: 'qa_night1', includeScheduled: true });
   const mine = sessions.find(s => s.entry.origin === 'sheet.onBehalf');
   assert.equal(mine.entry.plannedShift.code, 'Flex1');
-  F.at('2026-10-06T16:00:00'); // đã qua giờ ra của lượt Admin
+  await F.at('2026-10-06T16:00:00'); // đã qua giờ ra của lượt Admin
   const row = await rowOf(ADMIN_DAY);
   assert.equal(row.shift, 'flex');
   near(row.bonus, FLEX_RATE * HOURLY * 8, 'phụ cấp Flex theo giờ');
@@ -68,24 +68,24 @@ test('Admin khai thay giờ đúng ca Flex1 mà không gửi mã ca: máy chủ 
     body: { month: M, user: 'qa_night1', days: { [ADMIN_DAY]: { kind: 'work', in: '06:00', out: '15:00' } } }
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(store.getSheet('qa_night1', M).days[ADMIN_DAY].preset, 'Flex1');
+  assert.equal((await store.getSheet('qa_night1', M)).days[ADMIN_DAY].preset, 'Flex1');
 });
 
 test('nhân sự Check-in/out vẫn theo ca được gán Night1: lượt mang ca Night1, ngày trả phụ cấp đêm', async () => {
-  F.at(`${PUNCH_DAY}T21:00:00`);
+  await F.at(`${PUNCH_DAY}T21:00:00`);
   const checkIn = await F.call('POST', '/punch', {
     who: 'qa_night1',
     body: { type: 'in', requestId: 'night-in-0001' }
   });
   assert.equal(checkIn.status, 200, JSON.stringify(checkIn.data));
   assert.equal(checkIn.data.openSession.entry.plannedShift.code, 'Night1');
-  F.at('2026-10-08T06:00:00');
+  await F.at('2026-10-08T06:00:00');
   const checkOut = await F.call('POST', '/punch', {
     who: 'qa_night1',
     body: { type: 'out', sessionId: checkIn.data.openSession.id, requestId: 'night-out-0001' }
   });
   assert.equal(checkOut.status, 200, JSON.stringify(checkOut.data));
-  F.at('2026-10-08T07:00:00');
+  await F.at('2026-10-08T07:00:00');
   const row = await rowOf(PUNCH_DAY);
   assert.equal(row.shift, 'night');
   assert.equal(row.preset, 'Night1');
@@ -93,17 +93,17 @@ test('nhân sự Check-in/out vẫn theo ca được gán Night1: lượt mang c
 });
 
 test('nhân sự tự khai mã ca khác ca được gán: lưu kèm cảnh báo, bỏ mã ca, ngày tính theo ca được gán', async () => {
-  F.at('2026-10-08T09:00:00');
+  await F.at('2026-10-08T09:00:00');
   const day = { '2026-10-09': { kind: 'work', in: '06:00', out: '15:00', preset: 'Flex1' } };
   const warned = await F.call('PUT', '/sheet', { who: 'qa_night1', body: { month: M, days: day } });
   assert.equal(warned.status, 200, JSON.stringify(warned.data));
   assert.ok(warned.data.warnings.some(w => w.code === 'SHEET_SHIFT_MISMATCH'));
   assert.match(warned.data.warnings.find(w => w.code === 'SHEET_SHIFT_MISMATCH').message, /ca cố định 21:00–06:00/);
-  assert.equal(store.getSheet('qa_night1', M).days['2026-10-09'].preset, '');
+  assert.equal((await store.getSheet('qa_night1', M)).days['2026-10-09'].preset, '');
 });
 
 test('nhân sự lưu lịch (sửa ngày khác) giữ nguyên mã ca của ngày Admin khai thay không đổi giờ', async () => {
-  F.at('2026-10-08T09:00:00');
+  await F.at('2026-10-08T09:00:00');
   const admin = await F.call('PUT', '/sheet', {
     who: 'admin',
     body: {
@@ -113,10 +113,10 @@ test('nhân sự lưu lịch (sửa ngày khác) giữ nguyên mã ca của ngà
     }
   });
   assert.equal(admin.status, 200, JSON.stringify(admin.data));
-  const saved = store.getSheet('qa_night1', M).days;
+  const saved = (await store.getSheet('qa_night1', M)).days;
   const days = { ...saved, '2026-10-10': { kind: 'work', in: '21:00', out: '06:00' } };
   const res = await F.call('PUT', '/sheet', { who: 'qa_night1', body: { month: M, days } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(store.getSheet('qa_night1', M).days[ADMIN_DAY].preset, 'Flex1');
-  assert.equal(store.getSheet('qa_night1', M).days['2026-10-10'].preset, 'Night1');
+  assert.equal((await store.getSheet('qa_night1', M)).days[ADMIN_DAY].preset, 'Flex1');
+  assert.equal((await store.getSheet('qa_night1', M)).days['2026-10-10'].preset, 'Night1');
 });

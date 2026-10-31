@@ -46,7 +46,7 @@ test('khoá tham số của luật không còn trong DEFAULTS và registry', () 
   assert.ok(!registry.entries.some(entry => /holidayOtCapHours|otDayCapHours|holidayOtWarnHours/.test(entry.id)));
 });
 
-test('không tệp nào trong lib, public, scripts, server.js và spec còn nhắc tên luật hoặc tên ngưỡng đã bỏ', () => {
+test('không tệp nào trong lib, public, scripts, server.js và spec còn nhắc tên luật hoặc tên ngưỡng đã bỏ', async () => {
   const walk = folder =>
     fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap(entry => {
       const rel = path.posix.join(folder, entry.name);
@@ -55,7 +55,7 @@ test('không tệp nào trong lib, public, scripts, server.js và spec còn nh�
   const files = ['server.js', ...walk('lib'), ...walk('public'), ...walk('scripts'), ...walk('spec')];
   assert.ok(files.length > 100, 'quét đủ tệp');
   for (const file of files) {
-    const text = read(file);
+    const text = await read(file);
     for (const name of REMOVED_NAMES) assert.ok(!text.includes(name), `${file}: ${name}`);
   }
 });

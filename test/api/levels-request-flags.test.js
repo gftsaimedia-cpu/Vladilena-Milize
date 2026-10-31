@@ -16,12 +16,12 @@ const makeupHoursDay = person => {
   const extraOut = `${String((Number(shiftOut.slice(0, 2)) + 1) % 24).padStart(2, '0')}:${shiftOut.slice(3)}`;
   return { kind: 'work', in: shiftIn, out: shiftOut, preset: person, extraKind: 'makeup', extraOut };
 };
-const put = (who, month, date, day) => F.call('PUT', '/sheet', { who, body: { month, days: { [date]: day } } });
+const put = async (who, month, date, day) => await F.call('PUT', '/sheet', { who, body: { month, days: { [date]: day } } });
 
 test('GĐ-bậc 2: mặc định cờ làm bù theo giờ bật cho mọi chức vụ (sheetFlagsOf); không còn cờ đi làm ngày lễ riêng', async () => {
   const M = await P.setupMonth();
   for (const type of ['tts', 'ctv', 'nv']) {
-    const flags = sheetFlagsOf(P.paramsOf(M), type, 1);
+    const flags = sheetFlagsOf(await P.paramsOf(M), type, 1);
     assert.equal(flags.canMakeupHours, true, type);
     assert.equal(flags.canHolidayWork, undefined, type);
   }

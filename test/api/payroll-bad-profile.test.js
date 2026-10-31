@@ -15,24 +15,24 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const setLevel = (username, level) =>
-  store.db.prepare('UPDATE staff SET level = ? WHERE username = ?').run(level, username);
-const setType = (username, type) =>
-  store.db.prepare('UPDATE staff SET type = ? WHERE username = ?').run(type, username);
-const estimate = (month, who) => F.call('GET', `/me/estimate?month=${month}`, { who });
+const setLevel = async (username, level) =>
+  await store.db.prepare('UPDATE staff SET level = ? WHERE username = ?').run(level, username);
+const setType = async (username, type) =>
+  await store.db.prepare('UPDATE staff SET type = ? WHERE username = ?').run(type, username);
+const estimate = async (month, who) => await F.call('GET', `/me/estimate?month=${month}`, { who });
 
 /* ================= calculate ================= */
 test('calculate: người có bậc lương 99 nhận phiếu error PAYROLL_BAD_LEVEL (net null, không 0 ₫); các phiếu khác vẫn draft và đúng số', async () => {
   const M = monthOf();
   await P.seed(M);
   // số của ba người còn lại khi tính một mình (để chứng minh người sai không kéo theo ai)
-  setLevel('qa_ctv1', 99);
+  await setLevel('qa_ctv1', 99);
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   const calc = P.must(await P.step(M, 'calculate'), 'tính lương');
   assert.deepEqual(calc.data.counts, { draft: 3, pending: 0, approved: 0, error: 1, total: 4 });
   assert.equal(calc.data.run.slipsError, 1);
 
-  const { run, slips } = P.flow.payslipsOf(M);
+  const { run, slips } = await P.flow.payslipsOf(M);
   assert.equal(run.slips_error, 1);
   const bad = slips.qa_ctv1;
   assert.equal(bad.status, 'error');
@@ -54,13 +54,13 @@ test('calculate: người có bậc lương 99 nhận phiếu error PAYROLL_BAD_
 test('calculate: mọi kiểu hồ sơ sai (bậc 0, 7 của tts, loại xyz) đều thành phiếu error có mã đúng; duyệt phiếu lỗi bị chặn, duyệt kỳ loại phiếu lỗi ra kèm lý do', async () => {
   const M = monthOf();
   await P.seed(M);
-  setLevel('qa_tts1', 7); // tts chỉ có bậc 1 đến 6
-  setLevel('qa_nv1', 0);
-  setType('qa_nv2', 'xyz');
+  await setLevel('qa_tts1', 7); // tts chỉ có bậc 1 đến 6
+  await setLevel('qa_nv1', 0);
+  await setType('qa_nv2', 'xyz');
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   const calc = P.must(await P.step(M, 'calculate'), 'tính lương');
   assert.deepEqual(calc.data.counts, { draft: 1, pending: 0, approved: 0, error: 3, total: 4 });
-  const { slips } = P.flow.payslipsOf(M);
+  const { slips } = await P.flow.payslipsOf(M);
   assert.equal(slips.qa_tts1.error_code, 'PAYROLL_BAD_LEVEL');
   assert.equal(slips.qa_nv1.error_code, 'PAYROLL_BAD_LEVEL');
   assert.equal(slips.qa_nv2.error_code, 'PAYROLL_BAD_TYPE');
@@ -93,15 +93,15 @@ test('calculate: mọi kiểu hồ sơ sai (bậc 0, 7 của tts, loại xyz) đ
 test('calculate: sửa hồ sơ rồi tính lại thì phiếu hết lỗi (run_no 2), phiếu lỗi cũ vẫn còn trong lần chạy bị thay', async () => {
   const M = monthOf();
   await P.seed(M);
-  setLevel('qa_ctv1', 99);
+  await setLevel('qa_ctv1', 99);
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   P.must(await P.step(M, 'calculate'), 'tính lương lần 1');
-  setLevel('qa_ctv1', 2); // hồ sơ gốc của qa_ctv1 trong period-flow
+  await setLevel('qa_ctv1', 2); // hồ sơ gốc của qa_ctv1 trong period-flow
   const again = P.must(await P.step(M, 'calculate'), 'tính lại');
   assert.deepEqual(again.data.counts, { draft: 4, pending: 0, approved: 0, error: 0, total: 4 });
   assert.equal(again.data.run.runNo, 2);
-  const first = store.db.prepare('SELECT id FROM payroll_runs WHERE month = ? AND run_no = 1').get(M);
-  const old = store.db
+  const first = await store.db.prepare('SELECT id FROM payroll_runs WHERE month = ? AND run_no = 1').get(M);
+  const old = await store.db
     .prepare("SELECT status, error_code FROM payslips WHERE run_id = ? AND username = 'qa_ctv1'")
     .get(first.id);
   assert.deepEqual(
@@ -109,14 +109,14 @@ test('calculate: sửa hồ sơ rồi tính lại thì phiếu hết lỗi (run_
     { status: 'error', error_code: 'PAYROLL_BAD_LEVEL' },
     'lần chạy cũ giữ nguyên phiếu lỗi'
   );
-  assert.equal(P.flow.payslipsOf(M).slips.qa_ctv1.status, 'draft');
+  assert.equal((await P.flow.payslipsOf(M)).slips.qa_ctv1.status, 'draft');
 });
 
 /* ================= estimate ================= */
 test('estimate: bậc lương sai là 200 với estimate:null, reason PAYROLL_BAD_LEVEL và message tiếng Việt; không có m, net hay số 0 ₫; người khác không bị ảnh hưởng', async () => {
   const M = monthOf();
   await P.seed(M);
-  setLevel('qa_nv1', 99);
+  await setLevel('qa_nv1', 99);
   const res = await estimate(M, 'qa_nv1');
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.estimate, null);
@@ -135,12 +135,12 @@ test('estimate: bậc lương sai là 200 với estimate:null, reason PAYROLL_BA
 test('estimate: loại nhân sự sai (xyz) là 200 với reason PAYROLL_BAD_TYPE; sửa hồ sơ thì có số ước tính trở lại', async () => {
   const M = monthOf();
   await P.seed(M);
-  setType('qa_nv1', 'xyz');
+  await setType('qa_nv1', 'xyz');
   const res = await estimate(M, 'qa_nv1');
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.deepEqual([res.data.estimate, res.data.reason], [null, 'PAYROLL_BAD_TYPE']);
   assert.match(res.data.message, /Loại nhân sự/);
-  setType('qa_nv1', 'nv');
+  await setType('qa_nv1', 'nv');
   const fixed = await estimate(M, 'qa_nv1');
   assert.equal(fixed.data.estimate, true);
   assert.ok(fixed.data.net.gross > 0);
@@ -173,7 +173,7 @@ test('estimate: chỉ hai mã PAYROLL_BAD_TYPE / PAYROLL_BAD_LEVEL được tr�
 test('estimate: người có hồ sơ sai nhưng kỳ đã có bản chụp chính thức (afterPaid) vẫn xem bản chụp, không bị chặn bởi hồ sơ hiện tại', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  store.db
+  await store.db
     .prepare(
       'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
@@ -185,16 +185,16 @@ test('estimate: người có hồ sơ sai nhưng kỳ đã có bản chụp chí
       'admin',
       new Date(Date.now()).toISOString()
     );
-  store.setSetting('params_mode', 'active');
+  await store.setSetting('params_mode', 'active');
   try {
-    setLevel('qa_nv1', 99); // hồ sơ hỏng SAU khi đã chụp phiếu
+    await setLevel('qa_nv1', 99); // hồ sơ hỏng SAU khi đã chụp phiếu
     const res = await estimate(M, 'qa_nv1');
     assert.equal(res.status, 200);
     assert.equal(res.data.source, 'snapshot');
     assert.equal(res.data.official, true);
-    assert.equal(res.data.net.net, P.flow.payslipsOf(M).slips.qa_nv1.net);
+    assert.equal(res.data.net.net, (await P.flow.payslipsOf(M)).slips.qa_nv1.net);
   } finally {
-    store.setSetting('params_mode', 'defaults-only');
+    await store.setSetting('params_mode', 'defaults-only');
   }
 });
 
@@ -204,7 +204,7 @@ test('GET /api/ai/review: người có bậc lương sai được đếm vào ch
   await P.seed(M);
   const clean = (await F.call('GET', `/ai/review?month=${M}`)).data;
   assert.equal(clean.checked.payrollErrors, 0);
-  setLevel('qa_ctv1', 99);
+  await setLevel('qa_ctv1', 99);
   const res = await F.call('GET', `/ai/review?month=${M}`);
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.ok(res.data.checked.payrollErrors >= 1, `payrollErrors ${res.data.checked.payrollErrors}`);
@@ -219,7 +219,7 @@ test('GET /api/ai/review: người có bậc lương sai được đếm vào ch
 test('ai-review của kỳ (POST /periods/:month/ai-review) vẫn chạy được khi có phiếu lỗi hồ sơ, và không biến phiếu lỗi thành chờ duyệt', async () => {
   const M = monthOf();
   await P.seed(M);
-  setLevel('qa_ctv1', 99);
+  await setLevel('qa_ctv1', 99);
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   P.must(await P.step(M, 'calculate'), 'tính lương');
   const ai = P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');

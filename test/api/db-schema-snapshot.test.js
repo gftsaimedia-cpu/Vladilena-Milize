@@ -5,7 +5,7 @@
 // Đổi lược đồ có chủ đích: chạy node test/tools/record-schema.js --write để ghi lại bản chụp.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'qa-schema-snapshot';
-const { test } = require('node:test');
+const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -16,7 +16,11 @@ const store = require('../../lib/db');
 const { capture, columnSets, indexSets, describeStore, SNAPSHOT, ROOT } = require('../tools/record-schema');
 
 const golden = JSON.parse(fs.readFileSync(SNAPSHOT, 'utf8'));
-const fresh = JSON.parse(JSON.stringify(capture(store.db, store)));
+let fresh;
+before(async () => {
+  await store.ready; // nâng cấp dữ liệu lúc mở DB chạy bất đồng bộ: chụp lược đồ sau khi xong
+  fresh = JSON.parse(JSON.stringify(capture(store.db, store)));
+});
 
 // Khoá store được kiểm riêng (thêm khoá không phải lỗi), nên bỏ khỏi so sánh lược đồ
 const withoutStore = snap => {
@@ -93,7 +97,7 @@ function bootOn(file, outFile) {
   return JSON.parse(fs.readFileSync(outFile, 'utf8'));
 }
 
-test('lược đồ DB: nạp lại trên cùng file không đổi lược đồ, và DB bị bớt các cột addColumn được nâng lên đúng tập cột / chỉ mục', t => {
+test('lược đồ DB: nạp lại trên cùng file không đổi lược đồ, và DB bị bớt các cột addColumn được nâng lên đúng tập cột / chỉ mục', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aicb-schema-'));
   try {
     const file = path.join(dir, 'upgrade.sqlite'),
@@ -108,7 +112,7 @@ test('lược đồ DB: nạp lại trên cùng file không đổi lược đồ
     let dropped = 0;
     for (const [table, column] of addedColumns()) {
       try {
-        raw.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+        await raw.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
         dropped += 1;
       } catch {
         /* cột có chỉ mục hay ràng buộc */

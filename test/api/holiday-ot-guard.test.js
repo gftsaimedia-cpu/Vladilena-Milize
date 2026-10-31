@@ -8,8 +8,8 @@ const punch = require('../../public/punch');
 const server = require('../../server');
 let base;
 const T = (date, time) => new Date(`${date}T${time}:00+07:00`).toISOString();
-function person(username = 'worker', overrides = {}) {
-  store.upsertStaff({
+async function person(username = 'worker', overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -24,7 +24,7 @@ function person(username = 'worker', overrides = {}) {
 async function call(method, route, body, who = 'admin') {
   const r = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: r.status, data: await r.json() };
@@ -42,7 +42,7 @@ function attendance(date, options = {}) {
   return store.createSession(options.username || 'worker', date, 'closed', { ...entry, ...options.entry });
 }
 async function declare(date, { approve = true, out = '21:00' } = {}) {
-  const s = attendance(date);
+  const s = await attendance(date);
   let r = await call('POST', '/ot', { sessionId: s.id, version: 1, extraOut: out, reason: 'Confirmed extra work' });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   if (approve) {
@@ -65,7 +65,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'punch_requests',
     'corrections',
@@ -77,8 +77,8 @@ beforeEach(() => {
     'settings'
   ])
     store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', level: 0 });
-  person();
+  await person('admin', { role: 'admin', type: 'tts', level: 0 });
+  await person();
 });
 after(async () => {
   server.closeAllConnections();
@@ -88,12 +88,12 @@ after(async () => {
 
 for (const date of ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']) {
   test(`API refuses iSAT on weekday ${date} without changing the estimate`, async () => {
-    store.setSheet('worker', '2026-10', { '2026-10-03': { kind: 'isat' } });
-    const before = snapshot();
+    await store.setSheet('worker', '2026-10', { '2026-10-03': { kind: 'isat' } });
+    const before = await snapshot();
     const r = await call('PUT', '/sheet', { month: '2026-10', days: { [date]: { kind: 'isat' } } }, 'worker');
     assert.equal(r.status, 400, JSON.stringify(r.data));
     assert.match(r.data.error, /iSAT.*[Bb]ảy/);
-    assert.deepEqual(snapshot(), before);
+    assert.deepEqual(await snapshot(), before);
   });
 }
 test('NV Saturday iSAT remains accepted; new non-NV iSAT and Sunday remain refused', async () => {
@@ -101,7 +101,7 @@ test('NV Saturday iSAT remains accepted; new non-NV iSAT and Sunday remain refus
   assert.equal((await save('2026-10-03')).status, 200);
   assert.equal((await save('2026-10-04')).status, 400);
   for (const type of ['ctv', 'tts']) {
-    person('worker', { type });
+    await person('worker', { type });
     assert.equal((await save('2026-10-10')).status, 400);
   }
 });
@@ -111,31 +111,31 @@ for (const approve of [true, false]) {
     const r = await call('PUT', '/holidays', { dates: ['2026-10-07', '2026-10-08'] });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-    assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+    assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
   });
 }
 // 7 ngày × 4 giờ OT = 28 giờ
 const OT_DAYS = ['2026-10-02', '2026-10-03', '2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09'];
 test('holiday change over an actual monthly total above 40 hours saves and warns HOLIDAY_OT_CONFLICT', async () => {
-  for (const date of ['2026-10-01', '2026-10-02', '2026-10-05']) attendance(date, { out: '17:00' });
+  for (const date of ['2026-10-01', '2026-10-02', '2026-10-05']) await attendance(date, { out: '17:00' });
   for (const date of ['2026-10-06', '2026-10-07', '2026-10-08', '2026-10-09']) await declare(date);
   const r = await call('PUT', '/holidays', { dates: ['2026-10-01', '2026-10-02', '2026-10-05'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-  assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+  assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
 });
 test('exactly 40 actual hours remains valid and estimate hours are not added to it', async () => {
   // 9 giờ ngày lễ (08:00–17:00, không trừ nghỉ) + 7 ngày OT 4 giờ + OT 3 giờ
-  attendance('2026-10-01', { out: '17:00' });
+  await attendance('2026-10-01', { out: '17:00' });
   for (const date of OT_DAYS) await declare(date);
   await declare('2026-10-12', { out: '20:00' });
-  store.setSheet('worker', '2026-10', {
+  await store.setSheet('worker', '2026-10', {
     '2026-10-01': work(),
     ...Object.fromEntries(OT_DAYS.map(date => [date, work('ot', '21:00')])),
     '2026-10-12': work('ot', '20:00')
   });
   assert.equal((await call('PUT', '/holidays', { dates: ['2026-10-01'] })).status, 200);
-  assert.deepEqual(store.getSetting('holidays', []), ['2026-10-01']);
+  assert.deepEqual(await store.getSetting('holidays', []), ['2026-10-01']);
 });
 test('rejecting pending OT permits a holiday change without erasing rejection history', async () => {
   const s = await declare('2026-10-07', { approve: false, out: '19:00' });
@@ -144,60 +144,60 @@ test('rejecting pending OT permits a holiday change without erasing rejection hi
       .status,
     200
   );
-  const history = store.getSession(s.id);
+  const history = await store.getSession(s.id);
   assert.equal((await call('PUT', '/holidays', { dates: ['2026-10-07'] })).status, 200);
-  assert.deepEqual(store.getSession(s.id), history);
+  assert.deepEqual(await store.getSession(s.id), history);
 });
 for (const extraKind of ['ot', 'makeup']) {
   test(`holiday change over ${extraKind} in an estimate saves and warns HOLIDAY_OT_CONFLICT`, async () => {
-    store.setSheet('worker', '2026-10', { '2026-10-07': work(extraKind, '19:00') });
+    await store.setSheet('worker', '2026-10', { '2026-10-07': work(extraKind, '19:00') });
     const r = await call('PUT', '/holidays', { dates: ['2026-10-07'] });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-    assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+    assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
   });
 }
 test('holiday change raising an estimate from 36 to 45 combined hours saves and warns', async () => {
   const days = ['02', '03', '05', '06', '07', '08', '09', '12', '13'].map(d => ['2026-10-' + d, work('ot', '21:00')]);
-  store.setSheet('worker', '2026-10', Object.fromEntries(days.concat([['2026-10-01', work()]])));
+  await store.setSheet('worker', '2026-10', Object.fromEntries(days.concat([['2026-10-01', work()]])));
   const r = await call('PUT', '/holidays', { dates: ['2026-10-01'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-  assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+  assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
 });
 test('next-month holiday warns for the actual night shift in the preceding month', async () => {
   const septemberOt = ['01', '02', '03', '04', '05', '07', '08', '09', '10'].map(d => '2026-09-' + d);
   for (const date of septemberOt) await declare(date);
-  attendance('2026-09-30', { code: 'g1', in: '21:00', outDate: '2026-10-01', out: '06:00' });
+  await attendance('2026-09-30', { code: 'g1', in: '21:00', outDate: '2026-10-01', out: '06:00' });
   const r = await call('PUT', '/holidays', { dates: ['2026-10-01'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-  assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+  assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
 });
 test('next-month holiday warns for the estimate whose night shift starts in the previous month', async () => {
   const septemberOt = ['01', '02', '03', '04', '05'].map(d => ['2026-09-' + d, work('ot', '21:00')]);
-  store.setSheet('worker', '2026-09', {
+  await store.setSheet('worker', '2026-09', {
     ...Object.fromEntries(septemberOt),
     '2026-09-28': work('ot', '21:00'),
     '2026-09-29': work('ot', '21:00'),
     '2026-09-30': { kind: 'work', in: '21:00', out: '06:00' }
   });
-  store.setSetting('holidays', ['2026-09-28']);
+  await store.setSetting('holidays', ['2026-09-28']);
   const r = await call('PUT', '/holidays', { dates: ['2026-09-28', '2026-10-01'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-  assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+  assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
 });
 test('multiple attendance sessions for one holiday shift consume its budget once', async () => {
-  attendance('2026-10-01', { in: '08:00', out: '12:00' });
-  attendance('2026-10-01', { in: '13:00', out: '17:00' });
+  await attendance('2026-10-01', { in: '08:00', out: '12:00' });
+  await attendance('2026-10-01', { in: '13:00', out: '17:00' });
   for (const date of OT_DAYS) await declare(date);
   await declare('2026-10-12', { out: '20:00' }); // 9 giờ ngày lễ tính một lần + 28 + 3 = 40
   assert.equal((await call('PUT', '/holidays', { dates: ['2026-10-01'] })).status, 200);
 });
 test('unrelated legacy conflicts do not block holidays, and removing holidays can improve them', async () => {
-  store.setSetting('holidays', ['2026-10-01', '2026-10-02']);
-  store.setSheet('worker', '2026-10', {
+  await store.setSetting('holidays', ['2026-10-01', '2026-10-02']);
+  await store.setSheet('worker', '2026-10', {
     '2026-10-01': work(),
     '2026-10-02': work(),
     '2026-10-03': work('ot', '21:00')
@@ -206,10 +206,10 @@ test('unrelated legacy conflicts do not block holidays, and removing holidays ca
   assert.equal((await call('PUT', '/holidays', { dates: ['2026-10-01'] })).status, 200);
 });
 test('guard checks other staff and later months, saving the new setting with a warning', async () => {
-  person('other');
-  store.setSheet('other', '2027-01', { '2027-01-05': work('ot', '19:00') });
+  await person('other');
+  await store.setSheet('other', '2027-01', { '2027-01-05': work('ot', '19:00') });
   const r = await call('PUT', '/holidays', { dates: ['2026-12-25', '2027-01-05'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(conflictOf(r), JSON.stringify(r.data.warnings));
-  assert.equal(store.getSetting('holidays', []).length, r.data.dates.length, 'ngày lễ đã lưu');
+  assert.equal((await store.getSetting('holidays', [])).length, r.data.dates.length, 'ngày lễ đã lưu');
 });

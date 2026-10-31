@@ -19,8 +19,8 @@ const CHECKOUT = args.checkout === undefined ? true : args.checkout !== '0';
 const BASE = args.base || 'base1000';
 const OPEN = args.open === '1'; // mô phỏng mở ứng dụng: 4 yêu cầu GET như NV.reloadAll rồi mới bấm Check-in
 const SPREAD = Number(args.spread || 0); // giây: thời điểm bắt đầu của mỗi người rải đều ngẫu nhiên trong khoảng này (mở, không giới hạn đồng thời)
-const runTasks = (tasks, conc) =>
-  SPREAD ? Promise.all(tasks.map(t => L.sleep(Math.random() * SPREAD * 1000).then(t))) : L.pool(tasks, conc);
+const runTasks = async (tasks, conc) =>
+  SPREAD ? Promise.all(tasks.map(t => L.sleep(Math.random() * SPREAD * 1000).then(t))) : await L.pool(tasks, conc);
 const label = `ci${BASE === 'base1000' ? '' : 'IDX'}-n${N}-c${CONC}${args.ka === '0' ? '-nka' : ''}${args.retry === '1' ? '-retry' : ''}${SPREAD ? '-spread' + SPREAD : ''}${OPEN ? '-open' : ''}${SSE ? '-sse' + SSE : ''}${ADMINS ? '-adm' + ADMINS : ''}-r${ROUND}`;
 const SP = L.WORK;
 const DATE = '2026-11-26';

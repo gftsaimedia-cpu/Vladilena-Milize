@@ -26,7 +26,7 @@ const ses = (id, date, status, statusNote = '', open = false) => ({
   }
 });
 const me = { shiftCode: 'Normal1', type: 'nv' };
-function month() {
+async function month() {
   return L.buildMonth({
     month: '2026-11',
     me,
@@ -48,8 +48,8 @@ function month() {
   });
 }
 
-test('màn nhân viên: ô lịch và khung ngày dùng nhãn của ngày do máy chủ tính', () => {
-  const m = month();
+test('màn nhân viên: ô lịch và khung ngày dùng nhãn của ngày do máy chủ tính', async () => {
+  const m = await month();
   const expect = {
     '2026-11-03': ['pending', 'pend', 'Chờ xử lý'],
     '2026-11-04': ['checked-out', 'ok', 'Đã Check-out'],
@@ -73,8 +73,8 @@ test('màn nhân viên: ô lịch và khung ngày dùng nhãn của ngày do má
   assert.equal(m.cells.get('2026-11-09').label, 'Bị từ chối');
 });
 
-test('màn nhân viên: lý do ngắn đi theo lượt, OT đã khai là dữ liệu chứ không phải nhãn', () => {
-  const m = month();
+test('màn nhân viên: lý do ngắn đi theo lượt, OT đã khai là dữ liệu chứ không phải nhãn', async () => {
+  const m = await month();
   const late = m.cells.get('2026-11-03');
   assert.equal(late.sessions[0].status, 'pending');
   assert.equal(late.sessions[0].statusNote, 'Vào trễ 22 phút');
@@ -86,8 +86,8 @@ test('màn nhân viên: lý do ngắn đi theo lượt, OT đã khai là dữ li
   assert.equal(ot.tag, '', 'ô có lượt không gắn thẻ OT');
 });
 
-test('màn nhân viên: ngày cần để ý là ngày Chờ xử lý hoặc Bị từ chối, kèm lý do', () => {
-  const m = month();
+test('màn nhân viên: ngày cần để ý là ngày Chờ xử lý hoặc Bị từ chối, kèm lý do', async () => {
+  const m = await month();
   assert.equal(m.summary.pending, 1);
   assert.equal(m.summary.rejected, 1);
   assert.deepEqual(
@@ -109,19 +109,19 @@ test('màn nhân viên: lượt chưa có status (dữ liệu cũ) vẫn có nh�
   assert.equal(L.sessionRow(ok, '2026-11-20T03:00:00.000Z').status, 'checked-out');
 });
 
-test('trang Admin và trang nhân viên nạp attendance-status.js trước các màn dùng nó', () => {
+test('trang Admin và trang nhân viên nạp attendance-status.js trước các màn dùng nó', async () => {
   for (const [page, user] of [
     ['public/admin.html', 'admin/view-cham-cong.js'],
     ['public/nhan-vien.html', 'nhan-vien/logic.js']
   ]) {
-    const html = read(page);
+    const html = await read(page);
     const at = html.indexOf('src="attendance-status.js"');
     assert.ok(at > 0, page);
     assert.ok(at < html.indexOf(`src="${user}"`), page);
   }
 });
 
-test('không còn nhãn trạng thái cũ trong các màn chấm công', () => {
+test('không còn nhãn trạng thái cũ trong các màn chấm công', async () => {
   const OLD = [
     'Đủ công',
     'Đang trong ca',
@@ -147,15 +147,15 @@ test('không còn nhãn trạng thái cũ trong các màn chấm công', () => {
     'public/nhan-vien/thu-nhap.js'
   ];
   for (const file of files) {
-    const src = read(file);
+    const src = await read(file);
     for (const word of OLD) assert.ok(!src.includes(word), `${file} còn "${word}"`);
   }
 });
 
-test('Admin: giải trình dùng đúng ba chữ quyết định của chấm công', () => {
+test('Admin: giải trình dùng đúng ba chữ quyết định của chấm công', async () => {
   const window = { AttendanceStatus: AS, Admin: { esc: s => String(s), nf: String, ic: () => '', actions: {} } };
-  vm.runInNewContext(read('public/admin/view-giai-trinh.js'), { window, console });
-  const src = read('public/admin/view-giai-trinh.js');
+  vm.runInNewContext(await read('public/admin/view-giai-trinh.js'), { window, console });
+  const src = await read('public/admin/view-giai-trinh.js');
   assert.match(src, /requested: LABEL\.pending/);
   assert.match(src, /approved: LABEL\.approved/);
   assert.match(src, /rejected: LABEL\.rejected/);
@@ -184,8 +184,8 @@ test('màn nhân viên: nhãn lượt đang mở lấy từ openSession của /a
   assert.equal(old.statusNote, '');
 });
 
-test('màn nhân viên: ngày chưa có lượt, khoản đã khai chờ xử lý / bị từ chối là dòng dữ liệu, không phải nhãn ô', () => {
-  const m = L.buildMonth({
+test('màn nhân viên: ngày chưa có lượt, khoản đã khai chờ xử lý / bị từ chối là dòng dữ liệu, không phải nhãn ô', async () => {
+  const m = await L.buildMonth({
     month: '2026-11',
     me,
     days: {
@@ -217,8 +217,8 @@ test('màn nhân viên: ngày chưa có lượt, khoản đã khai chờ xử l�
   assert.equal(m.summary.pending, 0);
 });
 
-test('màn nhân viên: xin nghỉ chờ / bị từ chối hiện trên ô lịch (không phải nhãn chấm công), không trông như nghỉ được duyệt', () => {
-  const m = L.buildMonth({
+test('màn nhân viên: xin nghỉ chờ / bị từ chối hiện trên ô lịch (không phải nhãn chấm công), không trông như nghỉ được duyệt', async () => {
+  const m = await L.buildMonth({
     month: '2026-11',
     me,
     days: {
@@ -256,10 +256,10 @@ test('màn nhân viên: xin nghỉ chờ / bị từ chối hiện trên ô lị
   assert.deepEqual(m.missing, []);
 });
 
-test('màn nhân viên: ngày quên Check-out đã được Admin khai thay là Đã chấm công, không còn Chờ xử lý', () => {
+test('màn nhân viên: ngày quên Check-out đã được Admin khai thay là Đã chấm công, không còn Chờ xử lý', async () => {
   const forgot = { ...ses(1, '2026-11-11', 'pending', 'Quên Check-out'), superseded: true };
   forgot.entry = { ...forgot.entry, kind: 'pending', reason: 'forgot-out', presOut: undefined };
-  const m = L.buildMonth({
+  const m = await L.buildMonth({
     month: '2026-11',
     me,
     days: { '2026-11-11': { kind: 'work', in: '08:00', out: '17:00' } },
@@ -283,8 +283,8 @@ test('màn nhân viên: ngày quên Check-out đã được Admin khai thay là 
   assert.deepEqual(m.missing, []);
 });
 
-test('màn nhân viên: ngày chưa có lượt mà báo cáo giờ công cần Admin xử lý là ô Chờ xử lý, cùng màu với khung ngày', () => {
-  const m = L.buildMonth({
+test('màn nhân viên: ngày chưa có lượt mà báo cáo giờ công cần Admin xử lý là ô Chờ xử lý, cùng màu với khung ngày', async () => {
+  const m = await L.buildMonth({
     month: '2026-11',
     me,
     days: { '2026-11-12': { kind: 'work', in: '08:00', out: '17:00' } },

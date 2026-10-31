@@ -25,9 +25,9 @@ const ROWS = [
   [40, 30]
 ];
 
-function sessionOf(inHm, outHm) {
+async function sessionOf(inHm, outHm) {
   const plannedShift = P.planShift(punchStaff, DATE);
-  const { entry } = P.buildDay(punchStaff, at(inHm), at(outHm), 'in-out', { plannedShift, approveIncomplete: true });
+  const { entry } = P.buildDay(punchStaff, await at(inHm), await at(outHm), 'in-out', { plannedShift, approveIncomplete: true });
   return { id: 1, username: STAFF.username, date: DATE, state: 'closed', entry, version: 1 };
 }
 const cutOf = session => {
@@ -50,17 +50,17 @@ test('cutMin: ngưỡng miễn 15 phút, trừ khi quá ngưỡng', () => {
   for (const [missed, cut] of ROWS) assert.equal(ActualHours.cutMin(missed), cut, `${missed} phút`);
 });
 
-test('Vào trễ 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút', () => {
-  for (const [late, cut] of ROWS) assert.equal(cutOf(sessionOf(hm(480 + late), '17:00')), cut, `trễ ${late} phút`);
+test('Vào trễ 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút', async () => {
+  for (const [late, cut] of ROWS) assert.equal(await cutOf(await sessionOf(hm(480 + late), '17:00')), cut, `trễ ${late} phút`);
 });
 
-test('Về sớm 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút, cùng ngưỡng với đi trễ', () => {
-  for (const [early, cut] of ROWS) assert.equal(cutOf(sessionOf('08:00', hm(1020 - early))), cut, `sớm ${early} phút`);
+test('Về sớm 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút, cùng ngưỡng với đi trễ', async () => {
+  for (const [early, cut] of ROWS) assert.equal(await cutOf(await sessionOf('08:00', hm(1020 - early))), cut, `sớm ${early} phút`);
 });
 
-test('Cờ "Vào trễ" của lượt xuất hiện khi và chỉ khi lượt bị trừ vì trễ', () => {
+test('Cờ "Vào trễ" của lượt xuất hiện khi và chỉ khi lượt bị trừ vì trễ', async () => {
   for (const [late, cut] of ROWS) {
-    const { statusNote } = classifier.classify(sessionOf(hm(480 + late), '17:00'));
+    const { statusNote } = await classifier.classify(await sessionOf(hm(480 + late), '17:00'));
     assert.equal(statusNote === `Vào trễ ${late} phút`, cut > 0, `trễ ${late} phút: "${statusNote}"`);
   }
 });

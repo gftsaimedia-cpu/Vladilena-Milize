@@ -6,15 +6,15 @@ const F = require('../helpers/api-fixture');
 const aiReview = require('../../lib/domain/ai-review');
 
 const MONTH = '2026-10';
-const putDays = days => F.call('PUT', '/sheet', { who: 'an', body: { month: MONTH, days } });
+const putDays = async days => await F.call('PUT', '/sheet', { who: 'an', body: { month: MONTH, days } });
 const getDays = async () => (await F.call('GET', `/sheet?month=${MONTH}`, { who: 'an' })).data.days;
 const realAi = aiReview.aiReviewResultCached;
 
 before(async () => {
   await F.start();
-  F.at('2026-10-14T12:00:00');
-  F.person('an');
-  F.person('admin', 'admin');
+  await F.at('2026-10-14T12:00:00');
+  await F.person('an');
+  await F.person('admin', 'admin');
 });
 after(async () => {
   aiReview.aiReviewResultCached = realAi;
@@ -113,11 +113,11 @@ test('AI chặn duyệt khoản dính luật chặn khi công tắc Agents bật
       }
     ]
   });
-  F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
+  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
   const blocked = await F.call('PUT', '/approvals/decide', { body: body('approve') });
   assert.equal(blocked.status, 409);
   assert.equal(blocked.data.code, 'AI_BLOCKED');
-  F.store.setSetting('ai_block_rules', []);
+  await F.store.setSetting('ai_block_rules', []);
   assert.equal((await F.call('PUT', '/approvals/decide', { body: body('approve') })).status, 200);
 });
 
@@ -130,8 +130,8 @@ test('công tắc Agents tắt thì AI không chặn duyệt dù luật chặn c
       { rule: 'leave-with-checkin', username: 'an', date: pending.date, approval: { rev: pending.rev }, message: 'x' }
     ]
   });
-  F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
-  F.store.setSetting('agents_enabled', '0');
+  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
+  await F.store.setSetting('agents_enabled', '0');
   try {
     const res = await F.call('PUT', '/approvals/decide', {
       body: {
@@ -140,9 +140,9 @@ test('công tắc Agents tắt thì AI không chặn duyệt dù luật chặn c
       }
     });
     assert.equal(res.status, 200, JSON.stringify(res.data));
-    assert.deepEqual(F.store.getSetting('ai_block_rules', null), ['leave-with-checkin'], 'cài đặt luật chặn giữ nguyên');
+    assert.deepEqual(await F.store.getSetting('ai_block_rules', null), ['leave-with-checkin'], 'cài đặt luật chặn giữ nguyên');
   } finally {
-    F.store.setSetting('agents_enabled', '1');
+    await F.store.setSetting('agents_enabled', '1');
   }
 });
 
@@ -155,7 +155,7 @@ test('AI chặn không ảnh hưởng Từ chối', async () => {
       { rule: 'leave-with-checkin', username: 'an', date: pending.date, approval: { rev: pending.rev }, message: 'x' }
     ]
   });
-  F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
+  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
   const res = await F.call('PUT', '/approvals/decide', {
     body: {
       action: 'reject',

@@ -15,25 +15,25 @@ const T = (date, time) => new Date(`${date}T${time}:00+07:00`).toISOString();
 
 before(async () => {
   await F.start();
-  F.at('2026-10-12T09:00:00');
+  await F.at('2026-10-12T09:00:00');
 });
 after(() => F.stop());
-beforeEach(() => {
-  F.reset();
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_a');
-  F.person('qa_b');
+beforeEach(async () => {
+  await F.reset();
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_a');
+  await F.person('qa_b');
 });
 
 // Lượt Check-in/out đã đóng, có mặt 08:00–19:00 cho ca n1 (08:00–17:00)
-function session(username, date, out = '19:00') {
+async function session(username, date, out = '19:00') {
   const plan = punch.planShift({ shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] }, date);
   const entry = punch.buildDay({ shiftCode: 'n1' }, T(date, '08:00'), T(date, out), 'punch', {
     plannedShift: plan,
     approveIncomplete: true
   }).entry;
-  return store.createSession(username, date, 'closed', entry);
+  return await store.createSession(username, date, 'closed', entry);
 }
 const rows = async who => {
   const res = await F.call('GET', `/me/estimate?month=${M}&rows=1`, { who });
@@ -44,18 +44,18 @@ const rowOf = async (who, date) => (await rows(who)).find(r => r.date === date);
 const otPaid = row => Number(row.otPay || 0);
 
 async function declareOnCheckin(username, date) {
-  const s = session(username, date);
+  const s = await session(username, date);
   const r = await F.call('POST', '/ot', {
     body: { sessionId: s.id, version: s.version, extraOut: '19:00', reason: 'Làm thêm 2 giờ' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  return store.getSession(s.id);
+  return await store.getSession(s.id);
 }
-const decideOt = (s, action = 'approve', note) =>
-  F.call('PUT', '/ot', { body: { sessionId: s.id, version: s.version, action, ...(note ? { note } : {}) } });
+const decideOt = async (s, action = 'approve', note) =>
+  await F.call('PUT', '/ot', { body: { sessionId: s.id, version: s.version, action, ...(note ? { note } : {}) } });
 
 async function declareOnSheet(username, date) {
-  session(username, date);
+  await session(username, date);
   const days = { [date]: { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' } };
   const put = await F.call('PUT', '/sheet', { who: username, body: { month: M, days } });
   assert.equal(put.status, 200, JSON.stringify(put.data));
@@ -97,7 +97,7 @@ test('đường Check-in/out: duyệt xong ngày có một khoản đã duyệt 
   assert.equal(approvals.length, 1);
   assert.equal(approvals[0].item, 'ot');
   assert.equal(approvals[0].status, 'approved');
-  const day = store.getSheet('qa_b', M).days[D2];
+  const day = (await store.getSheet('qa_b', M)).days[D2];
   assert.equal(day.extraKind, 'ot');
   assert.equal(day.extraOut, '19:00');
   const once = otPaid(await rowOf('qa_b', D2));
@@ -127,21 +127,21 @@ test('ngày đã có OT khác khung giờ trên Lịch ước tính: duyệt OT 
   const s = await declareOnCheckin('qa_b', D1);
   const days = { [D1]: { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '18:00' } };
   assert.equal((await F.call('PUT', '/sheet', { who: 'qa_b', body: { month: M, days } })).status, 200);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const r = await decideOt(s);
   assert.equal(r.status, 409, JSON.stringify(r.data));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('khai lại OT ở Check-in/out sau khi đã duyệt: duyệt lần sau thay khung giờ cũ, không cộng hai khung', async () => {
   const s = await declareOnCheckin('qa_b', D2);
   assert.equal((await decideOt(s)).status, 200);
-  const again = store.getSession(s.id);
+  const again = await store.getSession(s.id);
   const r = await F.call('POST', '/ot', {
     body: { sessionId: again.id, version: again.version, extraOut: '18:00', reason: 'Sửa lại còn 1 giờ' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const edited = store.getSession(s.id);
+  const edited = await store.getSession(s.id);
   assert.equal((await decideOt(edited)).status, 200);
   const row = await rowOf('qa_b', D2);
   assert.equal(row.extraOut, '18:00');

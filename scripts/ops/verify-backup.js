@@ -117,7 +117,7 @@ function inspectRaw(copy) {
 const line = (ok, text) =>
   console.log((ok === true ? '[ĐẠT] ' : ok === false ? '[LỖI] ' : ok === 'warn' ? '[CHÚ Ý] ' : '       ') + text);
 
-function main() {
+async function main() {
   let work = null;
   let store = null;
   const cleanup = () => {
@@ -168,7 +168,7 @@ function main() {
     process.env.DB_PATH = made.copy;
     store = require('../../lib/db');
 
-    const chain = store.audit.verify();
+    const chain = await store.audit.verify();
     const head = store.db.prepare('SELECT id, hash FROM audit_log ORDER BY id DESC LIMIT 1').get();
     if (chain.ok) line(true, `Chuỗi băm nhật ký: ${chain.checked} dòng, nối liền và đúng nội dung`);
     else if (chain.reason === 'AUDIT_KEY_MISSING') {
@@ -206,12 +206,12 @@ function main() {
 
     if (!args.skipPeriods) {
       const periods = require('../../lib/periods');
-      const withRun = store.periods.list().filter(p => p.currentRunId != null);
+      const withRun = (await store.periods.list()).filter(p => p.currentRunId != null);
       if (!withRun.length) console.log('       Kỳ lương: chưa kỳ nào có lần tính, bỏ qua.');
       for (const p of withRun) {
         let r;
         try {
-          r = periods.verify(p.month);
+          r = await periods.verify(p.month);
         } catch (e) {
           line(false, `Kỳ ${p.month} (${p.status}): không kiểm được (${e && e.code ? e.code : 'lỗi'})`);
           failed = true;
@@ -241,6 +241,10 @@ function main() {
   process.exitCode = failed ? 1 : partial ? 2 : 0;
 }
 
-if (require.main === module) main();
+if (require.main === module)
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 module.exports = { inspectRaw, parseArgs, VerifyError, V4_TABLES };

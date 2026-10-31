@@ -71,7 +71,7 @@ function clearPeriodState() {
   for (const { sql } of triggers) store.db.exec(sql);
 }
 
-function resetSyntheticData() {
+async function resetSyntheticData() {
   // DB này chỉ được tạo sau DB_PATH=:memory:. Không dùng đường dẫn hay lệnh xoá file.
   store.db.exec('BEGIN');
   try {
@@ -96,30 +96,30 @@ function resetSyntheticData() {
     const passHash = auth.hashPassword(crypto.randomBytes(24).toString('hex'));
     // ngày bắt đầu làm việc = ngày của đồng hồ ban đầu (không có ngày "trước ngày vào làm" trong tháng thử)
     const startDate = INITIAL_LOCAL.slice(0, 10);
-    for (const profile of profileDefaults) store.upsertStaff({ ...profile, passHash, startDate });
-    store.setSetting('holidays', []);
+    for (const profile of profileDefaults) await store.upsertStaff({ ...profile, passHash, startDate });
+    await store.setSetting('holidays', []);
     store.db.exec('COMMIT');
-    store.setPayrollSubject('qa_cb', false); // C&B không có lương trong sandbox: không vào danh sách tính lương
-    store.roles.grant('qa_cb', 'cb', 'qa_admin');
+    await store.setPayrollSubject('qa_cb', false); // C&B không có lương trong sandbox: không vào danh sách tính lương
+    await store.roles.grant('qa_cb', 'cb', 'qa_admin');
     selectedUser = 'qa_nv';
   } catch (error) {
     store.db.exec('ROLLBACK');
     throw error;
   }
 }
-resetSyntheticData();
+const seeded = resetSyntheticData();
 
 const localTime = () => new NativeDate(clock + 7 * 3600000).toISOString().slice(0, 19);
-const state = () => ({
+const state = async () => ({
   now: new NativeDate(clock).toISOString(),
   local: localTime(),
   user: selectedUser,
   initialLocal: INITIAL_LOCAL,
-  users: store
-    .listStaff()
+  users: (await store
+    .listStaff())
     .map(({ username, name, role, type, shiftCode }) => ({ username, name, role, type, shiftCode }))
 });
-const sessionCookie = () => auth.cookieHeader(auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
+const sessionCookie = async () => auth.cookieHeader(await auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
 const hasAttendanceData = () =>
   ['attendance_sessions', 'attendance_days', 'punches', 'corrections', 'timesheets', 'explanations'].some(
     table => !!store.db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()
@@ -169,8 +169,8 @@ function parseLocal(value) {
     : null;
 }
 // Giao diện mới của từng loại tài khoản: Admin vào admin.html, còn lại vào nhan-vien.html (giống public/home-route.js, rút gọn theo vai trò).
-const homePage = () => {
-  const staff = store.getStaff(selectedUser);
+const homePage = async () => {
+  const staff = await store.getStaff(selectedUser);
   return staff && staff.role === 'admin' ? '/admin.html' : '/nhan-vien.html';
 };
 const CLOCKED_PAGES = new Set(['/admin.html', '/nhan-vien.html']);
@@ -190,7 +190,7 @@ const sandbox = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   try {
     if (url.pathname === '/__sandbox/state' && req.method === 'GET')
-      return send(res, 200, state(), { 'Set-Cookie': sessionCookie() });
+      return send(res, 200, await state(), { 'Set-Cookie': await sessionCookie() });
     if (url.pathname === '/__sandbox/ops' && req.method === 'GET') return send(res, 200, await ops.snapshot());
     if (url.pathname.startsWith('/__sandbox/') && req.method === 'POST') {
       if (!controlAllowed(req))
@@ -209,24 +209,24 @@ const sandbox = http.createServer(async (req, res) => {
           });
         clock = next;
       } else if (url.pathname === '/__sandbox/user') {
-        if (typeof data.username !== 'string' || !store.getStaff(data.username))
+        if (typeof data.username !== 'string' || !await store.getStaff(data.username))
           return send(res, 400, { error: 'Không có tài khoản thử nghiệm này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
         if (data.confirm !== true) return send(res, 400, { error: 'Cần xác nhận đặt lại dữ liệu thử' });
-        resetSyntheticData();
+        await resetSyntheticData();
       } else return send(res, 404, { error: 'Không có chức năng này' });
-      return send(res, 200, state(), { 'Set-Cookie': sessionCookie() });
+      return send(res, 200, await state(), { 'Set-Cookie': await sessionCookie() });
     }
     if (req.method === 'GET' && url.pathname === '/')
-      return textFile(res, 'sandbox.html', 'text/html', { 'Set-Cookie': sessionCookie() });
+      return textFile(res, 'sandbox.html', 'text/html', { 'Set-Cookie': await sessionCookie() });
     if (req.method === 'GET' && url.pathname === '/__sandbox/panel.js')
       return textFile(res, 'sandbox.js', 'text/javascript');
     if (req.method === 'GET' && url.pathname === '/__sandbox/ops.js')
       return textFile(res, 'sandbox-ops.js', 'text/javascript');
     // /app: khung thử của panel; mở giao diện mới của tài khoản đang chọn (có đồng hồ giả, xem pageHtml)
     if (req.method === 'GET' && url.pathname === '/app') {
-      res.writeHead(302, { Location: homePage() + '?' + CLOCK_QUERY + '=1', 'Cache-Control': 'no-store' });
+      res.writeHead(302, { Location: await homePage() + '?' + CLOCK_QUERY + '=1', 'Cache-Control': 'no-store' });
       return res.end();
     }
     if (req.method === 'GET' && CLOCKED_PAGES.has(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
@@ -242,14 +242,14 @@ const sandbox = http.createServer(async (req, res) => {
 
 const port = process.env.SANDBOX_PORT === undefined ? 3104 : Number(process.env.SANDBOX_PORT);
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('SANDBOX_PORT không hợp lệ');
-sandbox.listen(port, '127.0.0.1', () => {
+seeded.then(() => sandbox.listen(port, '127.0.0.1', () => {
   listenPort = sandbox.address().port;
   appServer.limits.monitor.start(); // server.js chỉ tự bật khi chạy làm chương trình chính; sandbox cần số đo trễ cho bảng tải
   console.log(
     'SANDBOX_READY ' +
       JSON.stringify({ url: `http://127.0.0.1:${sandbox.address().port}`, initialLocal: INITIAL_LOCAL })
   );
-});
+}));
 function shutdown() {
   appServer.limits.monitor.stop();
   ops.close();

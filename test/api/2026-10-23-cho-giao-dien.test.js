@@ -1,4 +1,5 @@
 'use strict';
+const { AsyncList } = require('../../lib/shared/async-list');
 // Sáu việc máy chủ làm cho giao diện:
 //   1. Tắt luật AI: lựa chọn "Tắt" của ai.rule.<id>.enabled lưu được qua PUT /settings/params (tháng hiệu lực, nhật ký); GET /ai/review liệt kê vào
 //      checked.skipped { rule, reason: 'Admin tắt' } và bỏ khỏi checked.ruleIds; tháng trước tháng hiệu lực vẫn chạy luật đó.
@@ -33,14 +34,14 @@ after(F.stop);
 
 /* ================= 1. tắt luật AI ================= */
 const RULE = { id: 'isat-frequency', key: 'ai.rule.isatFrequency.enabled' };
-const review = month => F.call('GET', `/ai/review?month=${month}`);
+const review = async month => await F.call('GET', `/ai/review?month=${month}`);
 
 test('Tắt luật AI: lưu "Tắt" từ tháng hiệu lực; tháng đó ghi checked.skipped { rule, reason: "Admin tắt" } và bỏ khỏi ruleIds; tháng trước vẫn chạy; bật lại thì chạy lại', async () => {
   const before = monthOf();
   const M = monthOf();
   await P.seed(M);
-  S.setMode('defaults-only');
-  const entry = S.entryOf(RULE.key);
+  await S.setMode('defaults-only');
+  const entry = await S.entryOf(RULE.key);
   assert.ok(entry && entry.editableBy === 'admin', 'registry có khoá của luật');
   const off = (entry.options || []).find(o => o.value === false);
   assert.ok(off && off.available !== false, 'lựa chọn "Tắt" dùng được');
@@ -58,7 +59,7 @@ test('Tắt luật AI: lưu "Tắt" từ tháng hiệu lực; tháng đó ghi ch
     reason: 'Tạm tắt luật iSAT trong tuần thử'
   });
   assert.equal(saved.status, 200, JSON.stringify(saved.data).slice(0, 300));
-  const audit = S.auditRows().filter(r => r.entity_id === RULE.key);
+  const audit = (await S.auditRows()).filter(r => r.entity_id === RULE.key);
   assert.equal(audit.length, 1, 'nhật ký một dòng cho khoá');
   assert.equal(audit[0].after.value, false);
   assert.equal(audit[0].after.effectiveMonth, M);
@@ -120,7 +121,7 @@ test('allowanceTotal: bằng tổng các dòng phụ cấp của bản chụp (�
   // nên 19 ngày = 1.727.272,73. Chấm công: trễ 20 phút ở ngày công thứ 5, 10, 15 và về sớm 40 phút ở ngày thứ 7, 14, mỗi lần quá 15 phút trừ làm tròn lên bậc 30 phút
   // nên trừ 5 × 30 = 150 phút = 2,5 giờ × (90.909,09 / 8 = 11.363,64) = 28.409,09. Tổng thu nhập 1.727.272,73 − 28.409,09 = 1.698.863,64 → 1.698.864, không phụ cấp.
   // Bảo hiểm 10,5 % × 2.000.000 = 210.000 (đủ 3 tháng từ 05/01/2026 là hợp đồng dài), thuế 0, tạm ứng 0 (chưa xin): thực lĩnh 1.698.864 − 210.000 = 1.488.864.
-  const direct = flow.expectedFor(FIXED);
+  const direct = await flow.expectedFor(FIXED);
   const EXPECT = Object.fromEntries(
     flow.PEOPLE.map(({ username }) => {
       const { m } = direct[username];
@@ -136,7 +137,7 @@ test('allowanceTotal: bằng tổng các dòng phụ cấp của bản chụp (�
   );
   assert.deepEqual(EXPECT.qa_tts1, { allowance: 0, net: 1488864, gross: 1698864 }, 'qa_tts1 theo số tính tay');
   assert.ok(EXPECT.qa_nv1.allowance > 0 && EXPECT.qa_nv2.allowance > 0, 'điều kiện: hai NV có phụ cấp để so');
-  const stored = flow.payslipsOf(FIXED).slips;
+  const stored = (await flow.payslipsOf(FIXED)).slips;
   const list = (await F.call('GET', `/periods/${FIXED}/payslips?pageSize=50`)).data.rows;
   for (const [user, want] of Object.entries(EXPECT)) {
     const detail = (await F.call('GET', `/periods/${FIXED}/payslips/${user}`)).data.payslip;
@@ -179,8 +180,8 @@ test('allowanceTotal: bằng tổng các dòng phụ cấp của bản chụp (�
 test('GET /sheet của tài khoản ngoài bảng lương không có quyền chấm công: 200, lịch rỗng, payrollSubject false; xin lịch người khác vẫn 403', async () => {
   const M = monthOf();
   await P.seed(M, { withActual: true });
-  F.person('qa_np', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', payrollSubject: false });
-  assert.equal(store.getStaff('qa_np').payrollSubject, false);
+  await F.person('qa_np', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', payrollSubject: false });
+  assert.equal((await store.getStaff('qa_np')).payrollSubject, false);
   const own = await F.call('GET', `/sheet?month=${M}`, { who: 'qa_np' });
   assert.equal(own.status, 200, JSON.stringify(own.data));
   assert.equal(own.data.payrollSubject, false);
@@ -251,12 +252,12 @@ test('GET /sheet?user=<người khác> kèm owner { username, name, type, typeLa
 // Phiên có đủ loại: nhiều lượt bấm, có yêu cầu điều chỉnh, của nhiều người, một người có yêu cầu khác phiên
 async function attendanceWorld(month) {
   await P.seed(month, { withActual: true });
-  const sessions = store.listSessions({ month });
+  const sessions = await store.listSessions({ month });
   assert.ok(sessions.length >= 20, `điều kiện: có nhiều phiên (${sessions.length})`);
   // lượt bấm cho một nửa số phiên (mỗi phiên 1 đến 2 lượt)
-  sessions.forEach((s, i) => {
+  await AsyncList.forEach(sessions, async (s, i) => {
     if (i % 2) return;
-    store.addPunch(
+    await store.addPunch(
       s.username,
       s.entry.presIn || `${s.date}T01:00:00.000Z`,
       'in',
@@ -266,7 +267,7 @@ async function attendanceWorld(month) {
       s.id
     );
     if (i % 4 === 0)
-      store.addPunch(s.username, s.entry.presOut || `${s.date}T10:00:00.000Z`, 'out', '127.0.0.1', false, null, s.id);
+      await store.addPunch(s.username, s.entry.presOut || `${s.date}T10:00:00.000Z`, 'out', '127.0.0.1', false, null, s.id);
   });
   // yêu cầu điều chỉnh (lịch sử chỉ đọc) gắn vào lượt mới của vài người; không có route tạo
   // nên dựng thẳng lượt và dòng điều chỉnh trong store
@@ -276,14 +277,14 @@ async function attendanceWorld(month) {
       P.firstDow(month, 0).slice(0, 8) + String(Number(P.firstDow(month, 0).slice(8)) + 7 * i).padStart(2, '0'); // các Chủ nhật: không có phiên nào để chồng giờ
     const reqIn = new Date(`${date}T08:00:00+07:00`).toISOString(),
       reqOut = new Date(`${date}T17:00:00+07:00`).toISOString();
-    const session = store.createSession(user, date, 'closed', {
+    const session = await store.createSession(user, date, 'closed', {
       kind: 'pending',
       reason: 'needs-review',
       src: 'admin',
       presIn: reqIn,
       presOut: reqOut
     });
-    const id = store.addCorrection({
+    const id = await store.addCorrection({
       username: user,
       date,
       reqIn,
@@ -316,28 +317,28 @@ const asJson = value => JSON.parse(JSON.stringify(value));
 test('sessionsWithHistory (gộp theo nhóm id) giống hệt đường cũ sessionHistory (hai truy vấn mỗi phiên): punches theo id tăng, corrections theo id giảm, chỉ yêu cầu của đúng người', async () => {
   const M = monthOf();
   await attendanceWorld(M);
-  const sessions = store.listSessions({});
+  const sessions = await store.listSessions({});
   assert.ok(
-    sessions.some(s => store.sessionPunches(s.id).length > 1),
+    await AsyncList.some(sessions, async s => (await store.sessionPunches(s.id)).length > 1),
     'điều kiện: có phiên nhiều lượt bấm'
   );
   assert.ok(
-    sessions.some(s => store.listCorrections({ username: s.username, sessionId: s.id }).length > 0),
+    await AsyncList.some(sessions, async s => (await store.listCorrections({ username: s.username, sessionId: s.id })).length > 0),
     'điều kiện: có phiên có yêu cầu điều chỉnh'
   );
-  assert.deepEqual(asJson(sessionsWithHistory(sessions)), asJson(sessions.map(sessionHistory)));
-  assert.deepEqual(sessionsWithHistory([]), []);
+  assert.deepEqual(asJson(await sessionsWithHistory(sessions)), asJson(await Promise.all(sessions.map(sessionHistory))));
+  assert.deepEqual(await sessionsWithHistory([]), []);
   // chia nhóm id: hơn hai nhóm (SQL_IN_CHUNK) phiên khác nhau vẫn giống sessionHistory
   const config = require('../../lib/config');
   const total = config.SQL_IN_CHUNK * 2 + 37;
-  store.transaction(() => {
+  await store.transaction(async () => {
     for (let i = 0; i < total; i++) {
-      const made = store.createSession('qa_tts1', `2027-06-${String((i % 28) + 1).padStart(2, '0')}`, 'closed', {
+      const made = await store.createSession('qa_tts1', `2027-06-${String((i % 28) + 1).padStart(2, '0')}`, 'closed', {
         kind: 'work',
         src: 'punch'
       });
       if (i % 3 === 0)
-        store.addPunch(
+        await store.addPunch(
           'qa_tts1',
           `2027-06-${String((i % 28) + 1).padStart(2, '0')}T01:00:00.000Z`,
           'in',
@@ -348,9 +349,9 @@ test('sessionsWithHistory (gộp theo nhóm id) giống hệt đường cũ sess
         );
     }
   });
-  const big = store.listSessions({ username: 'qa_tts1' });
+  const big = await store.listSessions({ username: 'qa_tts1' });
   assert.ok(big.length > config.SQL_IN_CHUNK * 2, `điều kiện: vượt hai nhóm (${big.length})`);
-  assert.deepEqual(asJson(sessionsWithHistory(big)), asJson(big.map(sessionHistory)));
+  assert.deepEqual(asJson(await sessionsWithHistory(big)), asJson(await Promise.all(big.map(sessionHistory))));
 });
 
 test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đúng kết quả đường cũ sessionHistory của chính phiên đó; thứ tự và số phiên không đổi', async () => {
@@ -361,7 +362,7 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
     assert.equal(res.status, 200, `${route}: ${JSON.stringify(res.data).slice(0, 200)}`);
     const found = sessionObjects(res.data);
     for (const session of found) {
-      const reference = sessionHistory(store.getSession(session.id));
+      const reference = await sessionHistory(await store.getSession(session.id));
       // phản hồi thêm name và type của người (trang trí của route); mọi khoá của sessionHistory phải giống hệt, kể cả punches và corrections
       const got = asJson(session);
       for (const [key, value] of Object.entries(asJson(reference)))
@@ -374,8 +375,8 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   const ids = sessionObjects(attendance).map(s => s.id);
   assert.deepEqual(
     [...new Set(ids)].sort((a, b) => a - b),
-    store
-      .listSessions({ month: M })
+    (await store
+      .listSessions({ month: M }))
       .map(s => s.id)
       .sort((a, b) => a - b)
   );
@@ -385,12 +386,12 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   assert.equal((await F.call('GET', `/team?month=${M}`, { who: 'qa_tts1' })).status, 403);
 });
 
-test('chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)', () => {
-  const names = store.db
+test('chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)', async () => {
+  const names = (await store.db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('punches_session', 'corrections_session')"
     )
-    .all()
+    .all())
     .map(r => r.name)
     .sort();
   assert.deepEqual(names, ['corrections_session', 'punches_session']);
@@ -398,7 +399,7 @@ test('chỉ mục punches_session và corrections_session có trong DB và đư�
     ['punches', 'punches_session'],
     ['corrections', 'corrections_session']
   ]) {
-    const plan = store.db
+    const plan = await store.db
       .prepare(`EXPLAIN QUERY PLAN SELECT * FROM ${table} WHERE session_id IN (?, ?, ?)`)
       .all(1, 2, 3);
     assert.ok(

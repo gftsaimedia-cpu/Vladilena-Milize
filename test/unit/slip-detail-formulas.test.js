@@ -105,8 +105,8 @@ function countedIn(text) {
 }
 
 /* ---------- ca có tên ---------- */
-test('ngày NV thường: lương cơ bản, chuyên cần, đi lại, tổng phụ cấp, ngày công', () => {
-  const s = slipOf(DAY, { '2026-10-05': work() });
+test('ngày NV thường: lương cơ bản, chuyên cần, đi lại, tổng phụ cấp, ngày công', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work() });
   assert.equal(s.f.workDays, '05/10');
   assert.equal(s.f.workBase, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày công');
   assert.equal(s.f.attendance, '6.000.000 đ × 25% × 1 ngày đi làm ÷ 26 ngày chuẩn');
@@ -127,8 +127,8 @@ test('ngày NV thường: lương cơ bản, chuyên cần, đi lại, tổng ph
   ]);
 });
 
-test('ca đêm 40 % qua ngày lễ 01/10: ngày 741.346 ₫ (403.846 + 129.808 + 207.692), phụ cấp 92.308', () => {
-  const s = slipOf(NIGHT, { '2026-10-01': nightShift() }, { holidays: ['2026-10-01'] });
+test('ca đêm 40 % qua ngày lễ 01/10: ngày 741.346 ₫ (403.846 + 129.808 + 207.692), phụ cấp 92.308', async () => {
+  const s = await slipOf(NIGHT, { '2026-10-01': nightShift() }, { holidays: ['2026-10-01'] });
   assert.equal(Math.round(s.snapshot.rows[0].total), 741346);
   assert.equal(s.f.holidayPay, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày lễ');
   assert.equal(s.f.workBase, '6 giờ thường của ca ngày lễ × 28.846,15 đ/giờ');
@@ -144,8 +144,8 @@ test('ca đêm 40 % qua ngày lễ 01/10: ngày 741.346 ₫ (403.846 + 129.808 +
   checkAll(s, 'ca đêm lễ');
 });
 
-test('giờ làm bù 4 giờ: 4 × 28.846,15 × 1 = 115.385', () => {
-  const s = slipOf(DAY, {
+test('giờ làm bù 4 giờ: 4 × 28.846,15 × 1 = 115.385', async () => {
+  const s = await slipOf(DAY, {
     '2026-10-05': work(),
     '2026-10-06': work('08:00', '17:00', { extraKind: 'makeup', extraOut: '21:00' })
   });
@@ -156,14 +156,14 @@ test('giờ làm bù 4 giờ: 4 × 28.846,15 × 1 = 115.385', () => {
   checkAll(s, 'làm bù');
 });
 
-test('OT ngày thường 4 giờ ×1,5', () => {
-  const s = slipOf(DAY, { '2026-10-05': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00' }) });
+test('OT ngày thường 4 giờ ×1,5', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00' }) });
   assert.equal(s.f.otPay, '4 giờ OT × 28.846,15 đ/giờ × 1,5');
   assert.equal(s.f.ot15H, '05/10 (4 giờ)');
   checkAll(s, 'OT thường');
 });
 
-test('OT Chủ nhật ngoài lịch ×2 (ot.weekendRate)', () => {
+test('OT Chủ nhật ngoài lịch ×2 (ot.weekendRate)', async () => {
   const SUN = '2026-10-04';
   const staff = F.nvStaff();
   const days = { ...F.fullDays('2026-10', F.MON_SAT), [SUN]: { ...F.WORK, extraKind: 'ot', extraOut: '21:00' } };
@@ -174,7 +174,7 @@ test('OT Chủ nhật ngoài lịch ×2 (ot.weekendRate)', () => {
   const r = F.run(staff, days, {
     actualFrom: '2026-10-01',
     sessions,
-    approvals: F.approved(days, [], 'nv', [SUN])
+    approvals: await F.approved(days, [], 'nv', [SUN])
   });
   const s = fromMonth(r.m, staff, r.params, '2026-10');
   assert.equal(s.f.otPay, '4 giờ OT cuối tuần × 28.846,15 đ/giờ × 2');
@@ -183,8 +183,8 @@ test('OT Chủ nhật ngoài lịch ×2 (ot.weekendRate)', () => {
   checkAll(s, 'OT Chủ nhật');
 });
 
-test('nghỉ phép có lương, nghỉ không lương, đi muộn nửa giờ', () => {
-  const s = slipOf(DAY, {
+test('nghỉ phép có lương, nghỉ không lương, đi muộn nửa giờ', async () => {
+  const s = await slipOf(DAY, {
     '2026-10-05': { kind: 'leave' },
     '2026-10-06': { kind: 'unpaid' },
     '2026-10-07': work('08:30', '17:00')
@@ -198,8 +198,8 @@ test('nghỉ phép có lương, nghỉ không lương, đi muộn nửa giờ', 
   checkAll(s, 'phép, trễ');
 });
 
-test('giờ thiếu lẻ phút ghi phân số để cộng lại đúng từng đồng (10 phút = 1/6 giờ)', () => {
-  const s = slipOf(DAY, { '2026-10-05': work('08:10', '17:00') });
+test('giờ thiếu lẻ phút ghi phân số để cộng lại đúng từng đồng (10 phút = 1/6 giờ)', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work('08:10', '17:00') });
   assert.equal(s.f.lateCut, '1/6 giờ thiếu × 28.846,15 đ/giờ');
   checkAll(s, 'trễ 10 phút');
 });
@@ -302,7 +302,7 @@ test('phép dư hết hạn quy tiền: ngày × lương ngày', () => {
   checkAll(s, 'quyết toán');
 });
 
-test('khoản điền thêm (cộng, trừ sau thuế): tổng thu nhập cộng khoản cộng, thực nhận trừ khoản trừ', () => {
+test('khoản điền thêm (cộng, trừ sau thuế): tổng thu nhập cộng khoản cộng, thực nhận trừ khoản trừ', async () => {
   const staff = F.nvStaff();
   const entries = [
     {
@@ -326,14 +326,14 @@ test('khoản điền thêm (cộng, trừ sau thuế): tổng thu nhập cộng
       flagsConfirmedBy: null
     }
   ];
-  const s = slipOf(staff, F.fullDays('2026-10', F.MON_SAT), { params: DEFAULTS, entries });
+  const s = await slipOf(staff, F.fullDays('2026-10', F.MON_SAT), { params: DEFAULTS, entries });
   assert.equal(s.n.entriesAdd, 500000);
   assert.match(s.f.gross, / \+ 500\.000 khoản cộng thêm$/);
   assert.match(s.f.net, / − 300\.000 khoản trừ khác$/);
   checkAll(s, 'khoản điền thêm');
 });
 
-test('khối phụ cấp do C&B thêm: số cố định, hoặc % lương cơ bản nhân tỷ lệ ngày đi làm', () => {
+test('khối phụ cấp do C&B thêm: số cố định, hoặc % lương cơ bản nhân tỷ lệ ngày đi làm', async () => {
   const params = {
     ...DEFAULTS,
     'block.def.thu': {
@@ -357,7 +357,7 @@ test('khối phụ cấp do C&B thêm: số cố định, hoặc % lương cơ b
     'type.nv.block.tyle.on': true,
     'type.nv.block.tyle.pct': 0.05
   };
-  const s = slipOf(F.nvStaff(), F.fullDays('2026-10', F.MON_SAT), { params });
+  const s = await slipOf(F.nvStaff(), F.fullDays('2026-10', F.MON_SAT), { params });
   assert.equal(s.f['block:thu'], '100.000 đ cố định');
   assert.equal(s.f['block:tyle'], '6.000.000 đ × 5% × 27 ngày đi làm ÷ 26 ngày chuẩn');
   assert.equal(
@@ -367,8 +367,8 @@ test('khối phụ cấp do C&B thêm: số cố định, hoặc % lương cơ b
   checkAll(s, 'khối');
 });
 
-test('công thức không phụ thuộc số Admin sửa: cùng bản chụp, cùng tham số thì cùng công thức', () => {
-  const s = slipOf(DAY, { '2026-10-05': work() });
+test('công thức không phụ thuộc số Admin sửa: cùng bản chụp, cùng tham số thì cùng công thức', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work() });
   const again = plainAll(
     formulasOf({
       snapshot: s.snapshot,

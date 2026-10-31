@@ -25,7 +25,7 @@ const view = async month => (await F.call('GET', `/periods/${month}`)).data;
 
 // Thêm một phiên Check-in/out đã đóng (ca đầy đủ) cho người bịa vào ngày làm việc đầu tiên của `month`.
 // forgotOut = true: chỉ có giờ vào, thiếu giờ ra (quên Check-out), đúng dạng ActualHours coi là 'forgot-out'.
-function addSession(username, month, { forgotOut = false } = {}) {
+async function addSession(username, month, { forgotOut = false } = {}) {
   const person = flow.PEOPLE.find(p => p.username === username);
   const staff = { shiftCode: person.shiftCode, sched: SCHED[person.type] };
   const date = P.datesOf(month).find(d => PunchRules.planShift(staff, d));
@@ -40,7 +40,7 @@ function addSession(username, month, { forgotOut = false } = {}) {
     entry.kind = 'pending';
     entry.reason = 'forgot-out';
   }
-  store.createSession(username, plan.date, 'closed', entry);
+  await store.createSession(username, plan.date, 'closed', entry);
   return plan.date;
 }
 const forgotPunch = view => {
@@ -54,7 +54,7 @@ test('Chấm công tháng sau không làm kỳ tháng trước bị báo lỗi t
   const fresh = await view(M);
   assert.equal(fresh.status, 'calculated');
   assert.equal(fresh.stale, false, 'vừa tính xong thì chưa lỗi thời');
-  const date = addSession('qa_nv1', nextMonth(M));
+  const date = await addSession('qa_nv1', nextMonth(M));
   assert.ok(date.startsWith(nextMonth(M)), 'phiên nằm ở tháng sau');
   const after = await view(M);
   assert.deepEqual(after.staleReasons, [], 'lý do lỗi thời');
@@ -66,7 +66,7 @@ test('Chấm công thêm trong chính tháng M sau khi đã tính lương: kỳ 
   await P.seed(M);
   await P.advance(M, 'calculated');
   assert.equal((await view(M)).stale, false, 'vừa tính xong thì chưa lỗi thời');
-  const date = addSession('qa_nv1', M);
+  const date = await addSession('qa_nv1', M);
   assert.ok(date.startsWith(M), 'phiên nằm ngay trong tháng M');
   const after = await view(M);
   assert.deepEqual(after.staleReasons, ['inputs'], 'lý do lỗi thời');
@@ -79,8 +79,8 @@ test('Quên chấm công tháng sau không tính vào danh sách kiểm của th
   const before = await view(M);
   assert.equal(before.status, 'open');
   assert.equal(forgotPunch(before), 0, 'điều kiện của bài: tháng M chưa có ai quên chấm công');
-  F.at('2027-01-20T09:00:00'); // đồng hồ giả: phiên quên Check-out ở tháng sau không còn là ca đang chạy
-  const date = addSession('qa_nv1', nextMonth(M), { forgotOut: true });
+  await F.at('2027-01-20T09:00:00'); // đồng hồ giả: phiên quên Check-out ở tháng sau không còn là ca đang chạy
+  const date = await addSession('qa_nv1', nextMonth(M), { forgotOut: true });
   assert.ok(date.startsWith(nextMonth(M)), 'phiên quên Check-out nằm ở tháng sau');
   const after = await view(M);
   assert.equal(forgotPunch(after), 0, `quên Check-out ngày ${date} (tháng sau) không được chặn chốt công tháng ${M}`);
@@ -89,17 +89,17 @@ test('Quên chấm công tháng sau không tính vào danh sách kiểm của th
 test('Tiền không đổi khi có chấm công tháng khác', async () => {
   const M = '2027-01';
   await P.seed(M, { withActual: true });
-  const params = service.paramsFor(M).params;
-  const money = username => {
-    const inputs = service.loadInputs(M);
+  const params = (await service.paramsFor(M)).params;
+  const money = async username => {
+    const inputs = await service.loadInputs(M);
     const staff = inputs.people.get(username).staff;
-    const { m } = service.computeFor(M, staff, inputs, params);
+    const { m } = await service.computeFor(M, staff, inputs, params);
     return { total: m.total, net: m.net.net };
   };
   const names = ['qa_nv1', 'qa_tts1'];
-  const without = Object.fromEntries(names.map(name => [name, money(name)]));
+  const without = Object.fromEntries(await Promise.all(names.map(async name => [name, await money(name)])));
   // Đối chiếu độc lập: bộ máy chạy trên đầu vào đọc thẳng từ bảng DB (không qua loadInputs)
-  const direct = flow.expectedFor(M);
+  const direct = await flow.expectedFor(M);
   for (const name of names)
     assert.deepEqual(
       without[name],
@@ -114,10 +114,10 @@ test('Tiền không đổi khi có chấm công tháng khác', async () => {
   assert.deepEqual(without.qa_tts1, { total: 1607955, net: 1397955 });
   // qa_nv1 (lương cơ bản 6.000.000): bảo hiểm 10,5 % = 630.000, thuế 0 (thu nhập chịu thuế dưới giảm trừ bản thân), tạm ứng 0: thực lĩnh = tổng thu nhập − 630.000
   assert.equal(without.qa_nv1.net, without.qa_nv1.total - 630000);
-  addSession('qa_nv1', nextMonth(M));
-  addSession('qa_nv1', '2026-12'); // và một phiên ở tháng trước
-  addSession('qa_tts1', nextMonth(M), { forgotOut: true });
-  const withExtra = Object.fromEntries(names.map(name => [name, money(name)]));
+  await addSession('qa_nv1', nextMonth(M));
+  await addSession('qa_nv1', '2026-12'); // và một phiên ở tháng trước
+  await addSession('qa_tts1', nextMonth(M), { forgotOut: true });
+  const withExtra = Object.fromEntries(await Promise.all(names.map(async name => [name, await money(name)])));
   assert.deepEqual(withExtra, without, 'có phiên ở tháng khác thì tiền của tháng này không đổi một đồng');
 });
 
@@ -135,7 +135,7 @@ test('Kiểm lại bản chụp: ngày bật giờ thực tế dời sang sau th
     plannedShift: plan,
     approveIncomplete: true
   }).entry;
-  store.createSession('qa_nv1', plan.date, 'closed', entry);
+  await store.createSession('qa_nv1', plan.date, 'closed', entry);
   await P.advance(M, 'calculated');
   const before = (await F.call('GET', `/periods/${M}/verify`)).data;
   assert.deepEqual(before.mismatched, [], 'ngay sau khi tính thì khớp');

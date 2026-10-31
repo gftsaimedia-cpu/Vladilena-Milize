@@ -18,8 +18,8 @@ const work = (tin, tout, extra = {}) => ({ kind: 'work', in: tin, out: tout, ...
 const month = (days, holidays = [], staff = nv, kernel = k) =>
   kernel.calcMonth(staff, days, null, holidays, '2026-10', null);
 
-test('7 giờ làm đêm của ca 22:00–07:00: miễn phụ trội 30% = 60.577 ₫ (trước đây cả 130% = 262.500 ₫)', () => {
-  const m = month({ '2026-10-06': work('22:00', '07:00') });
+test('7 giờ làm đêm của ca 22:00–07:00: miễn phụ trội 30% = 60.577 ₫ (trước đây cả 130% = 262.500 ₫)', async () => {
+  const m = await month({ '2026-10-06': work('22:00', '07:00') });
   assert.equal(m.nightHours, 7);
   assert.equal(m.net.exemptNight, 60577);
   assert.equal(m.net.exemptNight, Math.round(7 * HOURLY * DEFAULTS['tax.exempt.nightPremium']));
@@ -28,30 +28,30 @@ test('7 giờ làm đêm của ca 22:00–07:00: miễn phụ trội 30% = 60.57
   assert.equal(m.net.taxable, m.net.gross - 60577);
 });
 
-test('OT ngày thường 4 giờ ×1,5 (trả 173.077 ₫): miễn 0,5 lương giờ × 4 = 57.692 ₫, phần 1 lương giờ chịu thuế', () => {
-  const m = month({ '2026-10-05': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00' }) });
+test('OT ngày thường 4 giờ ×1,5 (trả 173.077 ₫): miễn 0,5 lương giờ × 4 = 57.692 ₫, phần 1 lương giờ chịu thuế', async () => {
+  const m = await month({ '2026-10-05': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00' }) });
   assert.equal(Math.round(m.otPay), 173077);
   assert.equal(m.net.exemptOt, 57692);
   assert.equal(m.net.exemptNight, 0);
   assert.equal(m.net.taxable, m.net.gross - 57692);
 });
 
-test('OT Chủ nhật 4 giờ ngoài lịch ×2 (trả 230.769 ₫): miễn 1 lương giờ × 4 = 115.385 ₫', () => {
-  const m = month({ '2026-10-04': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00', extraOnly: true }) });
+test('OT Chủ nhật 4 giờ ngoài lịch ×2 (trả 230.769 ₫): miễn 1 lương giờ × 4 = 115.385 ₫', async () => {
+  const m = await month({ '2026-10-04': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00', extraOnly: true }) });
   assert.equal(Math.round(m.otWeekendPay), 230769);
   assert.equal(m.net.exemptOt, 115385);
   assert.equal(m.net.taxable, m.net.gross - 115385);
 });
 
-test('làm lễ 2 giờ ×3 có 2 giờ đêm lễ (trả 207.692 ₫): miễn 207.692 − 2 lương giờ = 150.000 ₫', () => {
-  const m = month({ '2026-10-01': work('22:00', '07:00') }, ['2026-10-01']);
+test('làm lễ 2 giờ ×3 có 2 giờ đêm lễ (trả 207.692 ₫): miễn 207.692 − 2 lương giờ = 150.000 ₫', async () => {
+  const m = await month({ '2026-10-01': work('22:00', '07:00') }, ['2026-10-01']);
   assert.deepEqual([m.holWorkHours, m.holNightHours], [2, 2]);
   assert.equal(Math.round(m.holWorkPay), 207692);
   assert.equal(m.net.exemptOt, 150000);
 });
 
-test('ca đêm 22:00 ngày 01/10 đến 07:00 ngày 02/10 (lễ 01/10): miễn 5 giờ đêm ngoài lễ 43.269 ₫ + làm lễ 150.000 ₫ = 193.269 ₫ (trước đây 395.192 ₫)', () => {
-  const m = month({ '2026-10-01': work('22:00', '07:00') }, ['2026-10-01']);
+test('ca đêm 22:00 ngày 01/10 đến 07:00 ngày 02/10 (lễ 01/10): miễn 5 giờ đêm ngoài lễ 43.269 ₫ + làm lễ 150.000 ₫ = 193.269 ₫ (trước đây 395.192 ₫)', async () => {
+  const m = await month({ '2026-10-01': work('22:00', '07:00') }, ['2026-10-01']);
   assert.equal(m.nightHours, 5);
   assert.equal(m.net.exemptNight, 43269);
   assert.equal(m.net.exemptOt, 150000);
@@ -62,21 +62,21 @@ test('ca đêm 22:00 ngày 01/10 đến 07:00 ngày 02/10 (lễ 01/10): miễn 5
   assert.equal(m.net.tax, 0, 'thu nhập nhỏ: thuế vẫn 0');
 });
 
-test('giờ đêm của ngày có giờ làm bù không có phụ cấp ca nên không được miễn', () => {
-  const m = month({ '2026-10-06': work('22:00', '07:00', { extraKind: 'makeup', extraOut: '09:00' }) });
+test('giờ đêm của ngày có giờ làm bù không có phụ cấp ca nên không được miễn', async () => {
+  const m = await month({ '2026-10-06': work('22:00', '07:00', { extraKind: 'makeup', extraOut: '09:00' }) });
   assert.equal(m.nightHours, 7);
   assert.equal(m.rows[0].bonus, 0);
   assert.equal(m.net.exemptNight, 0);
 });
 
-test('bản chụp không có dòng ngày: miễn giờ đêm theo tổng giờ đêm × phụ trội', () => {
-  const m = month({ '2026-10-06': work('22:00', '07:00') });
+test('bản chụp không có dòng ngày: miễn giờ đêm theo tổng giờ đêm × phụ trội', async () => {
+  const m = await month({ '2026-10-06': work('22:00', '07:00') });
   const snapshot = { ...m, rows: undefined };
   assert.equal(Engine.kernelFor(DEFAULTS).mienThueOf(nv, snapshot, m.net.gross).exemptNight, 60577);
 });
 
-test('tổng thu nhập, bảo hiểm và các ô lương không đổi: gross = tổng ngày, thực lĩnh = gross − BH − thuế', () => {
-  const m = month({ '2026-10-06': work('22:00', '07:00', { extraKind: 'ot', extraOut: '11:00' }) });
+test('tổng thu nhập, bảo hiểm và các ô lương không đổi: gross = tổng ngày, thực lĩnh = gross − BH − thuế', async () => {
+  const m = await month({ '2026-10-06': work('22:00', '07:00', { extraKind: 'ot', extraOut: '11:00' }) });
   const n = m.net;
   assert.equal(n.gross, Math.round(m.total));
   assert.equal(n.taxable, n.gross - n.exempt);
@@ -102,7 +102,7 @@ const progressive = income => {
   return Math.round(tax);
 };
 
-test('lương cao, nhiều giờ đêm và OT: phần chịu thuế tăng làm thuế phát sinh (trước đây miễn cả lương giờ nên thuế 0)', () => {
+test('lương cao, nhiều giờ đêm và OT: phần chịu thuế tăng làm thuế phát sinh (trước đây miễn cả lương giờ nên thuế 0)', async () => {
   const base = 20e6;
   const kHigh = Engine.create({ ...DEFAULTS, 'level.nv.4.base': base });
   const staff = { type: 'nv', level: 4, nightPct: 40, contract: 'long', insured: true, dependants: 0 };
@@ -112,7 +112,7 @@ test('lương cao, nhiều giờ đêm và OT: phần chịu thuế tăng làm t
     const weekday = date.getUTCDay() >= 1 && date.getUTCDay() <= 5;
     if (weekday) days[date.toISOString().slice(0, 10)] = work('22:00', '07:00', { extraKind: 'ot', extraOut: '09:00' });
   }
-  const m = month(days, [], staff, kHigh);
+  const m = await month(days, [], staff, kHigh);
   const n = m.net;
   const hourly = base / 26 / 8;
   assert.equal(m.nightHours, 154);

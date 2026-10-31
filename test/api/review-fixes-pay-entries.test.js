@@ -12,21 +12,21 @@ before(F.start);
 after(F.stop);
 
 const ACCOUNTANT = 'qa_ctv1'; // Kế toán (config.legal), cũng là nhân sự được trả lương nên không tự xác nhận khoản của mình
-const confirm = (id, body, who = ACCOUNTANT) => F.call('POST', `/pay-entries/${id}/confirm-flags`, { who, body });
-const auditReasons = action =>
-  F.store.db
+const confirm = async (id, body, who = ACCOUNTANT) => await F.call('POST', `/pay-entries/${id}/confirm-flags`, { who, body });
+const auditReasons = async action =>
+  (await F.store.db
     .prepare('SELECT reason FROM audit_log WHERE action = ?')
-    .all(action)
+    .all(action))
     .map(r => r.reason);
 
 test('1c-4: xác nhận cờ thuế của khoản: căn cứ không bắt buộc (thiếu vẫn 200), có căn cứ thì vào nhật ký', async () => {
   const M = await E.setup();
-  E.grant(ACCOUNTANT, 'accounting');
+  await E.grant(ACCOUNTANT, 'accounting');
   const e = await E.mustCreate(M, { taxMode: 'full' });
   const ok = await confirm(e.id, { rev: e.rev, basis: BASIS });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   assert.equal(ok.data.entry.flagsConfirmedBy, ACCOUNTANT);
-  assert.ok(auditReasons('entry.confirmFlags').includes(BASIS), 'căn cứ nằm trong nhật ký');
+  assert.ok((await auditReasons('entry.confirmFlags')).includes(BASIS), 'căn cứ nằm trong nhật ký');
   const other = await E.mustCreate(M, { username: 'qa_nv1', label: 'Khoản không căn cứ', taxMode: 'full' });
   const res = await confirm(other.id, { rev: other.rev });
   assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -35,7 +35,7 @@ test('1c-4: xác nhận cờ thuế của khoản: căn cứ không bắt buộc
 
 test('1c-4: căn cứ dài quá 300 ký tự là 400, không ghi gì', async () => {
   const M = await E.setup();
-  E.grant(ACCOUNTANT, 'accounting');
+  await E.grant(ACCOUNTANT, 'accounting');
   const e = await E.mustCreate(M, { taxMode: 'full' });
   const res = await confirm(e.id, { rev: e.rev, basis: 'a'.repeat(301) });
   assert.equal(res.status, 400, JSON.stringify(res.data));

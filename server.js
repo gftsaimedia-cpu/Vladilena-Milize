@@ -2,6 +2,7 @@
 // Số luồng libuv phải đặt TRƯỚC khi có việc nền đầu tiên (băm mật khẩu, nén gzip); biến môi trường do người vận hành đặt thì giữ.
 process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || String(require('./lib/config').UV_THREADPOOL_SIZE);
 const http = require('node:http');
+const { AsyncList } = require('./lib/shared/async-list');
 const fs = require('node:fs');
 const path = require('node:path');
 // Nạp file .env (nếu có) vào biến môi trường, không ghi đè biến đã đặt sẵn.
@@ -131,7 +132,7 @@ const vnDayIso = (day, edge) =>
 
 const PORT = Number(process.env.PORT || 3000);
 // Hợp đồng mặc định của chức vụ mới đọc type.<mã>.defaultContract của tháng hiện tại (lỗi hoặc giá trị lạ thì db dùng mặc định của nó)
-store.setDefaultContractResolver(type => typeParam(monthParams(), type, 'defaultContract'));
+store.setDefaultContractResolver(async type => typeParam(await monthParams(), type, 'defaultContract'));
 const LOCKED_MESSAGE = 'Tài khoản đã bị khoá. Liên hệ Admin để được mở lại.';
 // Các ô Admin được sửa trên phiếu lương: tiền (đồng, ≥ 0) và số lượng (ngày / giờ / %)
 const SLIP_MONEY = [
@@ -177,15 +178,15 @@ const SLIP_QTY = [
 
 // So cả hai lịch trước khi ghi. Xung đột cũ không liên quan giữ nguyên;
 // xung đột mới phải xử lý trước ở luồng lịch ước tính / chấm công của nó.
-function holidayOtConflicts(beforeDates, afterDates) {
+async function holidayOtConflicts(beforeDates, afterDates) {
   const before = new Set(beforeDates),
     after = new Set(afterDates),
     conflicts = [];
   const added = date => after.has(date) && !before.has(date);
-  for (const staff of store.listStaff().filter(s => s.payrollSubject)) {
+  for (const staff of (await store.listStaff()).filter(s => s.payrollSubject)) {
     const identity = { username: staff.username, name: staff.name };
-    const checkLimit = (source, month, beforeHours, afterHours) => {
-      const monthCap = OtLimits.of(monthParams(month)).monthCap;
+    const checkLimit = async (source, month, beforeHours, afterHours) => {
+      const monthCap = OtLimits.of(await monthParams(month)).monthCap;
       if (afterHours > monthCap + 1e-6 && afterHours > beforeHours + 1e-6)
         conflicts.push({
           ...identity,
@@ -197,20 +198,20 @@ function holidayOtConflicts(beforeDates, afterDates) {
           afterHours
         });
     };
-    for (const sheet of store.listSheets(staff.username)) {
-      const { days } = estimateSheet(staff.username, sheet.month);
+    for (const sheet of await store.listSheets(staff.username)) {
+      const { days } = await estimateSheet(staff.username, sheet.month);
       for (const [date, entry] of Object.entries(days))
         if (added(date) && entry.extraKind)
           conflicts.push({ ...identity, source: 'estimate', month: sheet.month, date, reason: 'holiday-extra' });
-      checkLimit(
+      await checkLimit(
         'estimate',
         sheet.month,
-        estimateHolidayOtHours(days, before, sheet.month),
-        estimateHolidayOtHours(days, after, sheet.month)
+        await estimateHolidayOtHours(days, before, sheet.month),
+        await estimateHolidayOtHours(days, after, sheet.month)
       );
     }
     const months = new Map();
-    for (const s of store.listSessions({ username: staff.username })) {
+    for (const s of await store.listSessions({ username: staff.username })) {
       const month = s.date.slice(0, 7);
       if (!months.has(month)) months.set(month, []);
       months.get(month).push(s);
@@ -225,11 +226,11 @@ function holidayOtConflicts(beforeDates, afterDates) {
         });
     }
     for (const [month, rows] of months)
-      checkLimit(
+      await checkLimit(
         'attendance',
         month,
-        actualHolidayOtHours(rows, before, month),
-        actualHolidayOtHours(rows, after, month)
+        await actualHolidayOtHours(rows, before, month),
+        await actualHolidayOtHours(rows, after, month)
       );
   }
   return conflicts;
@@ -253,10 +254,10 @@ const OFF_DAY_TEXT = {
   willmakeup: 'nghỉ, sẽ làm bù'
 };
 // block: câu báo ('' = ngày qua cổng); off: ngày đã khai nghỉ cả ngày; via: 'shift' khi ngày nằm trong lịch và không đóng, ngược lại loại khoản đã duyệt mở ngày đó.
-function checkInDay(staff, date) {
-  const { day, approval } = declaredDay(staff, date) || {};
-  const holiday = store.getSetting('holidays', []).includes(date);
-  const scheduled = !holiday && schedule.isWorkDay(staff, date);
+async function checkInDay(staff, date) {
+  const { day, approval } = await declaredDay(staff, date) || {};
+  const holiday = (await store.getSetting('holidays', [])).includes(date);
+  const scheduled = !holiday && await schedule.isWorkDay(staff, date);
   const off = day && Object.hasOwn(OFF_DAY_TEXT, day.kind) ? day.kind : '';
   const closed = OFF_DECLARED.includes(off)
     ? !approval || approval.status !== 'rejected'
@@ -268,35 +269,35 @@ function checkInDay(staff, date) {
   return { block: 'Hôm nay bạn không có lịch làm việc hay giờ OT/làm bù được duyệt nên không Check-in được.', via: '' };
 }
 // Ngày khai trong lịch ước tính của nhân sự và dòng duyệt hiệu lực của nó; null khi ngày không có khai
-function declaredDay(staff, date) {
+async function declaredDay(staff, date) {
   const month = date.slice(0, 7);
-  const day = estimateSheet(staff.username, month).days[date];
+  const day = (await estimateSheet(staff.username, month)).days[date];
   return day
     ? {
         day,
-        approval: sheetApprovals(staff.username, month, { [date]: day })[date] || null,
-        holiday: store.getSetting('holidays', []).includes(date)
+        approval: (await sheetApprovals(staff.username, month, { [date]: day }))[date] || null,
+        holiday: (await store.getSetting('holidays', [])).includes(date)
       }
     : null;
 }
 const checkinEntitlement = new CheckinEntitlement({
-  punch: () => rulesFor().punch,
+  punch: async () => (await rulesFor()).punch,
   declared: declaredDay,
   dayBlock: checkInDay,
   punchStaff
 });
-const checkInVerdict = (staff, iso) => checkinEntitlement.decide(staff, iso);
-function punchState(staff) {
-  const punch = rulesFor().punch;
-  const openSession = store.openSession(staff.username),
-    lastSession = store.lastSession(staff.username);
+const checkInVerdict = async (staff, iso) => await checkinEntitlement.decide(staff, iso);
+async function punchState(staff) {
+  const punch = (await rulesFor()).punch;
+  const openSession = await store.openSession(staff.username),
+    lastSession = await store.lastSession(staff.username);
   // Không có lượt mở: xét ngày công mà một lượt Check-in lúc này sẽ nhận. canCheckIn false kèm checkInBlock (câu lý do) khi bị chặn;
   // checkInBlock chỉ có mặt khi bị chặn
-  const verdict = openSession ? null : checkInVerdict(staff, nowIso());
+  const verdict = openSession ? null : await checkInVerdict(staff, nowIso());
   const block = verdict && !verdict.allowed ? verdict.message : '';
   const canCheckIn = !openSession && !block;
-  const shownOpen = sessionHistory(openSession),
-    shownLast = sessionHistory(lastSession);
+  const shownOpen = await sessionHistory(openSession),
+    shownLast = await sessionHistory(lastSession);
   const s = openSession || lastSession,
     shown = shownOpen || shownLast,
     day = s?.entry;
@@ -321,7 +322,7 @@ function punchState(staff) {
         }
       : null,
     date: s?.date || punch.vnDate(nowIso()),
-    ...schedule.punchSchedule(staff, s?.date || punch.vnDate(nowIso())),
+    ...await schedule.punchSchedule(staff, s?.date || punch.vnDate(nowIso())),
     record,
     sunday: false,
     outside: '',
@@ -332,8 +333,8 @@ function punchState(staff) {
 /* ---------- số liệu theo tham số của tháng, cho app nhân viên: chỉ đọc, không ghi ---------- */
 // Bảng số phút bị trừ theo số phút trễ / về sớm (chỉ số = số phút, 0..SHIFT_WORK_MIN; trễ hơn nữa thì dùng phần tử cuối), dựng từ cutMin
 // của đúng tháng: app nhân viên tra bảng thay vì tự làm tròn bằng quy tắc mặc định.
-function cutRuleView(month) {
-  const ah = rulesFor(month).actualHours;
+async function cutRuleView(month) {
+  const ah = (await rulesFor(month)).actualHours;
   const { GRACE_MIN, STEP_MIN, SHIFT_WORK_MIN } = ah.RULE;
   return {
     graceMin: GRACE_MIN,
@@ -345,14 +346,14 @@ function cutRuleView(month) {
 }
 // Số phép năm tính đến hôm nay của một nhân sự theo quy tắc của tháng chứa hôm nay (cùng mã với kiểm số dư của PUT /sheet:
 // rulesFor(tháng của ngày).leave.accrued và leaveDates); null khi chức vụ / bậc không có tài khoản phép
-function leaveBalanceView(staff) {
+async function leaveBalanceView(staff) {
   if (!staff || !staff.payrollSubject) return null;
   const today = vnToday();
-  if (!sheetFlagsOf(rulesFor(today.slice(0, 7)).params, staff.type, staff.level).hasLeaveAccount) return null;
+  if (!sheetFlagsOf((await rulesFor(today.slice(0, 7))).params, staff.type, staff.level).hasLeaveAccount) return null;
   // Sổ phép (public/leave.js → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
-  const got = rulesFor(today.slice(0, 7)).leave.ledger(
+  const got = (await rulesFor(today.slice(0, 7))).leave.ledger(
     staff,
-    leaveDates(staff).filter(d => d <= today),
+    (await leaveDates(staff)).filter(d => d <= today),
     today
   );
   return {
@@ -371,36 +372,36 @@ function leaveBalanceView(staff) {
   };
 }
 // Báo cáo từng ngày của ActualHours.apply (trạng thái, phút trễ / về sớm, phút bị trừ) cho cả tháng như app nhân viên. null khi không phải nhân sự được trả lương
-function actualReportView(staff, month) {
+async function actualReportView(staff, month) {
   if (!staff || !staff.payrollSubject) return null;
-  const { report, missing, absent } = rulesFor(month).actualHours.apply(
-    estimateSheet(staff.username, month).days,
-    store.listSessions({ username: staff.username, month }),
+  const { report, missing, absent } = (await rulesFor(month)).actualHours.apply(
+    (await estimateSheet(staff.username, month)).days,
+    await store.listSessions({ username: staff.username, month }),
     {
       asOf: nowIso(),
       staff,
-      holidays: store.getSetting('holidays', []),
+      holidays: await store.getSetting('holidays', []),
       month
     }
   );
   return { report, missing, absent };
 }
 // "Nếu Check-out bây giờ": chạy ActualHours.apply của tháng trên ca đang mở được đóng vào lúc này
-function checkoutPreview(staff) {
-  const open = store.openSession(staff.username);
+async function checkoutPreview(staff) {
+  const open = await store.openSession(staff.username);
   const planned = open && open.entry && open.entry.plannedShift;
   if (!planned || !planned.date || !planned.in || !planned.out) return null;
   const month = planned.date.slice(0, 7),
     now = nowIso();
-  const others = store.listSessions({ username: staff.username, month }).filter(s => s.id !== open.id);
+  const others = (await store.listSessions({ username: staff.username, month })).filter(s => s.id !== open.id);
   const closed = { id: open.id, date: open.date, state: 'closed', entry: { ...open.entry, presOut: now } };
-  const { report } = rulesFor(month).actualHours.apply(
+  const { report } = (await rulesFor(month)).actualHours.apply(
     { [planned.date]: { kind: 'work', in: planned.in, out: planned.out } },
     [...others, closed].filter(s => s.date === planned.date),
     {
       asOf: now,
       staff,
-      holidays: store.getSetting('holidays', []),
+      holidays: await store.getSetting('holidays', []),
       month
     }
   );
@@ -409,20 +410,20 @@ function checkoutPreview(staff) {
   return { early: r.early || 0, cutEnd: r.cutEndMin || 0, cutStart: r.cutStartMin || 0, paidMin: r.paidMin };
 }
 // Phần bổ sung (không lưu vào bản phát lại theo requestId) của GET / POST /api/punch
-const punchExtras = staff => ({
+const punchExtras = async staff => ({
   serverNow: nowIso(),
-  cutRule: cutRuleView(vnToday().slice(0, 7)),
-  shiftConfig: shiftsDomain.employeeView(vnToday().slice(0, 7)), // giờ ca và hai ngưỡng Check-in cho nhân viên (không có config.read)
-  checkoutPreview: checkoutPreview(staff)
+  cutRule: await cutRuleView(vnToday().slice(0, 7)),
+  shiftConfig: await shiftsDomain.employeeView(vnToday().slice(0, 7)), // giờ ca và hai ngưỡng Check-in cho nhân viên (không có config.read)
+  checkoutPreview: await checkoutPreview(staff)
 });
 /* ---------- kiểm tra dữ liệu vào ---------- */
 // 'makeup': loại ngày cũ, chỉ để ngày đã lưu gửi lại không đổi đi qua; khai mới hoặc sửa bị chặn ở checkSheet (SHEET_MAKEUP_DAY_REMOVED)
 const DAY_KINDS = ['work', 'makeup', 'leave', 'unpaid', 'willmakeup', 'approved', 'isat'];
 // Mã ca của một ngày: mã ca trong danh mục (Normal1…) hoặc mã cũ n1…g2 của ngày đã lưu trước đó
 const PRESET_RE = /^(n1|n2|f1|f2|g1|g2|[A-Z][A-Za-z]*[0-9]+)$/;
-const isShiftCode = code =>
-  typeof code === 'string' && PRESET_RE.test(code) && Object.hasOwn(rulesFor().punch.SHIFT, code);
-function cleanDays(days) {
+const isShiftCode = async code =>
+  typeof code === 'string' && PRESET_RE.test(code) && Object.hasOwn((await rulesFor()).punch.SHIFT, code);
+async function cleanDays(days) {
   if (!days || typeof days !== 'object' || Array.isArray(days)) throw new HttpError(400, 'days phải là object');
   const out = {};
   for (const [date, d] of Object.entries(days)) {
@@ -451,7 +452,7 @@ function cleanDays(days) {
       const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
       // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/sheet-checks.js → checkExtraTimes
       checkExtraTimes(date, d, { extraKind, extraIn, extraOut });
-      if (d.preset != null && d.preset !== '' && !isShiftCode(d.preset))
+      if (d.preset != null && d.preset !== '' && !await isShiftCode(d.preset))
         throw new HttpError(400, `Ngày ${dm(date)}: ca chọn sẵn không hợp lệ`);
       const breakMin = d.breakMin == null ? 0 : d.breakMin;
       if (!Number.isInteger(breakMin) || breakMin < 0 || breakMin > 1440)
@@ -504,8 +505,8 @@ const loginAddress = clientIp;
 /* ---------- API ---------- */
 // Ghi vào kỳ đã duyệt hoặc chi trả: phiếu của lần chạy đã chốt là bản chụp đóng băng (lib/db.js → freezeOverrides, trigger payslips_frozen_update),
 // số đã trả KHÔNG đổi theo dữ liệu vừa lưu cho tới khi kỳ được mở lại và tính lại. Cảnh báo nói thẳng điều đó.
-function warnFrozen(month) {
-  const period = store.periods.get(month);
+async function warnFrozen(month) {
+  const period = await store.periods.get(month);
   if (period.status === 'approved' || period.status === 'paid')
     warnings.warn(
       'PERIOD_FROZEN',
@@ -528,7 +529,7 @@ async function api(req, res, url, me) {
   }
   if (!policy.public) {
     need();
-    if (authz.gate(me, policy))
+    if (await authz.gate(me, policy))
       throw new HttpError(403, 'Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này', {
         code: 'FORBIDDEN_CAP',
         cap: policy.cap
@@ -551,7 +552,7 @@ async function api(req, res, url, me) {
         { 'Retry-After': String(waitSec) }
       );
   }
-  const actx = me ? audit.context(me) : null; // ngữ cảnh nhật ký của yêu cầu này
+  const actx = me ? await audit.context(me) : null; // ngữ cảnh nhật ký của yêu cầu này
   // Test tĩnh permissions-matrix nhận dạng route chỉ-Admin bằng tên hàm này. Cổng thật đã chạy ở trên;
   // hàm này chỉ khẳng định route đã khai báo một năng lực và người gọi đã qua cổng đó.
   const needAdmin = () => {
@@ -560,7 +561,7 @@ async function api(req, res, url, me) {
     return me;
   };
   // Cổng khoá kỳ: gọi ở route ghi sau khi kiểm đầu vào; kỳ đã khoá thì ghi cảnh báo PERIOD_LOCKED và route vẫn lưu. dates: ngày hoặc tháng (YYYY-MM-DD | YYYY-MM)
-  const guardPeriod = (...dates) => {
+  const guardPeriod = async (...dates) => {
     if (!policy.periodScope) throw new Error('guardPeriod() dùng ở route không khai báo periodScope');
     for (const month of new Set(
       dates
@@ -568,16 +569,16 @@ async function api(req, res, url, me) {
         .filter(Boolean)
         .map(d => String(d).slice(0, 7))
     )) {
-      store.assertPeriodOpen(month, policy.periodScope);
-      warnFrozen(month);
+      await store.assertPeriodOpen(month, policy.periodScope);
+      await warnFrozen(month);
     }
   };
   const routed = domainRoutes.handlerFor(seg); // quyền đã kiểm ở cổng ROUTE_CAPS ở trên
-  if (routed) return routed({ req, res, seg, url, me, actx });
+  if (routed) return await routed({ req, res, seg, url, me, actx });
 
   // Cho proxy/giám sát: tiến trình còn sống, DB trả lời được, vòng lặp có đang nghẽn không. Không lộ dữ liệu nghiệp vụ.
   if (route === 'GET /health') {
-    store.db.prepare('SELECT 1').get();
+    await store.db.prepare('SELECT 1').get();
     return send(res, 200, { ok: true, ...monitor.snapshot() });
   }
   if (route === 'POST /login') {
@@ -594,7 +595,7 @@ async function api(req, res, url, me) {
         { error: `Đăng nhập sai quá nhiều lần. Thử lại sau ${Math.ceil(wait / 60)} phút.` },
         { 'Retry-After': String(wait) }
       );
-    const row = store.getStaffRow(u);
+    const row = await store.getStaffRow(u);
     // Tên không có thật cũng chạy băm mật khẩu và nhận cùng thông báo, để không đoán được tên nào có thật
     if (!(await hashGate.run(() => auth.verifyLoginAsync(String(password || ''), row)))) {
       const { addressWait } = auth.loginFailed(key);
@@ -615,61 +616,61 @@ async function api(req, res, url, me) {
       res,
       200,
       {
-        user: publicStaff(store.getStaff(u)),
-        holidays: store.getSetting('holidays', []),
-        ...geofenceView(store.getStaff(u))
+        user: await publicStaff(await store.getStaff(u)),
+        holidays: await store.getSetting('holidays', []),
+        ...await geofenceView(await store.getStaff(u))
       },
-      { 'Set-Cookie': auth.cookieHeader(auth.createSession(u), auth.SESSION_MAX_AGE_SEC) }
+      { 'Set-Cookie': auth.cookieHeader(await auth.createSession(u), auth.SESSION_MAX_AGE_SEC) }
     );
   }
   if (route === 'POST /logout') {
     // Đăng xuất thu hồi phiên: mọi cookie cũ của tài khoản này hết hiệu lực, kể cả bản bị sao chép
     if (me) {
-      store.bumpSessionVersion(me.username);
+      await store.bumpSessionVersion(me.username);
       events.closeUser(me.username, 'logout');
     }
     return send(res, 200, { ok: true }, { 'Set-Cookie': auth.cookieHeader('', 0) });
   }
   if (route === 'GET /me')
     return send(res, 200, {
-      user: me ? publicStaff(me) : null,
+      user: me ? await publicStaff(me) : null,
       serverNow: nowIso(), // giờ máy chủ (ISO), để app nhân viên tính lệch đồng hồ điện thoại (NV.skewMs)
       // Vai trò và năng lực hiệu lực. Chế độ HR / Nhân viên là trạng thái giao diện, máy chủ luôn kiểm theo năng lực.
-      roles: authz.rolesOf(me),
-      caps: authz.capsOf(me),
+      roles: await authz.rolesOf(me),
+      caps: await authz.capsOf(me),
       payrollSubject: !!(me && me.payrollSubject),
-      agentsEnabled: agents.enabled(), // công tắc Agents (route /settings/agents)
-      holidays: store.getSetting('holidays', []),
-      ...myPosition(me),
-      ...geofenceView(me)
+      agentsEnabled: await agents.enabled(), // công tắc Agents (route /settings/agents)
+      holidays: await store.getSetting('holidays', []),
+      ...await myPosition(me),
+      ...await geofenceView(me)
     });
 
   if (route === 'PUT /password') {
     const u = need();
     const { current, next } = await readJson(req);
-    if (!(await auth.verifyPasswordAsync(String(current || ''), store.getStaffRow(u.username).pass_hash)))
+    if (!(await auth.verifyPasswordAsync(String(current || ''), (await store.getStaffRow(u.username)).pass_hash)))
       throw new HttpError(400, 'Mật khẩu hiện tại không đúng');
     if (String(next || '').length < config.PASSWORD_MIN_LENGTH)
       throw new HttpError(400, `Mật khẩu mới cần ít nhất ${config.PASSWORD_MIN_LENGTH} ký tự`);
     const passHash = await auth.hashPasswordAsync(String(next));
-    store.transaction(() => {
-      store.setPassword(u.username, passHash);
+    await store.transaction(async () => {
+      await store.setPassword(u.username, passHash);
       // Chỉ ghi hành động, không bao giờ ghi mật khẩu hay hàm băm
-      audit.write(actx, { action: 'password.change', entityKind: 'staff', entityId: u.username, subject: u.username });
+      await audit.write(actx, { action: 'password.change', entityKind: 'staff', entityId: u.username, subject: u.username });
     });
-    store.bumpSessionVersion(u.username); // phiên cũ hết hiệu lực; cấp phiên mới cho trình duyệt đang đổi
+    await store.bumpSessionVersion(u.username); // phiên cũ hết hiệu lực; cấp phiên mới cho trình duyệt đang đổi
     events.closeUser(u.username, 'password'); // luồng cũ gắn với cookie cũ; trình duyệt này nối lại bằng cookie mới
     return send(
       res,
       200,
       { ok: true },
-      { 'Set-Cookie': auth.cookieHeader(auth.createSession(u.username), auth.SESSION_MAX_AGE_SEC) }
+      { 'Set-Cookie': auth.cookieHeader(await auth.createSession(u.username), auth.SESSION_MAX_AGE_SEC) }
     );
   }
 
   if (route === 'GET /holidays') {
     need();
-    return send(res, 200, { dates: store.getSetting('holidays', []), names: HolidayNames.read() });
+    return send(res, 200, { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() });
   }
   if (route === 'PUT /holidays') {
     needAdmin();
@@ -677,23 +678,23 @@ async function api(req, res, url, me) {
     if (!Array.isArray(dates) || dates.some(d => !validDate(d)))
       throw new HttpError(400, 'Danh sách ngày không hợp lệ');
     const clean = [...new Set(dates)].sort();
-    const namesClean = HolidayNames.clean(names, clean); // tên hiển thị của ngày lễ; sai đầu vào là 400 trước mọi thay đổi
+    const namesClean = await HolidayNames.clean(names, clean); // tên hiển thị của ngày lễ; sai đầu vào là 400 trước mọi thay đổi
     // Khoá kỳ: chỉ các ngày thật sự đổi (thêm hoặc bỏ) mới bị xét, lưu lại danh sách y nguyên không bị chặn
-    const holidaysBefore = store.getSetting('holidays', []);
-    guardPeriod(
+    const holidaysBefore = await store.getSetting('holidays', []);
+    await guardPeriod(
       holidaysBefore.filter(d => !clean.includes(d)),
       clean.filter(d => !holidaysBefore.includes(d))
     );
-    store.transaction(() => {
+    await store.transaction(async () => {
       const conflicts = [];
-      const holidayParams = monthParams();
-      for (const staff of store
-        .listStaff()
+      const holidayParams = await monthParams();
+      for (const staff of (await store
+        .listStaff())
         .filter(s => s.payrollSubject && benefitOf(holidayParams, s.type, 'leaveAccount', s.level))) {
-        const before = leaveDates(staff),
-          after = leaveDates(staff, undefined, clean);
+        const before = await leaveDates(staff),
+          after = await leaveDates(staff, undefined, clean);
         for (const date of after) {
-          const led = rulesFor(date.slice(0, 7)).leave.ledger(staff, after, date),
+          const led = (await rulesFor(date.slice(0, 7))).leave.ledger(staff, after, date),
             got = led.total - led.expired, // phép còn được dùng tại ngày đó: đã cộng trừ phần đã hết hạn
             used = led.used;
           const beforeDeficit = Math.max(0, before.filter(d => d <= date).length - got),
@@ -723,7 +724,7 @@ async function api(req, res, url, me) {
           count: people.length
         });
       }
-      const otConflicts = holidayOtConflicts(store.getSetting('holidays', []), clean);
+      const otConflicts = await holidayOtConflicts(await store.getSetting('holidays', []), clean);
       if (otConflicts.length) {
         const first = otConflicts[0],
           source = first.source === 'estimate' ? 'Lịch ước tính' : 'Check-in/out';
@@ -740,13 +741,13 @@ async function api(req, res, url, me) {
           count: people.length
         });
       }
-      const before = store.getSetting('holidays', []);
-      const namesBefore = HolidayNames.read();
-      store.setSetting('holidays', clean);
-      const namesChanged = HolidayNames.write(namesClean);
-      configRev.bump(); // số phiên bản chung, cùng giao dịch
-      reconcileHolidayWork(before, clean);
-      audit.write(actx, {
+      const before = await store.getSetting('holidays', []);
+      const namesBefore = await HolidayNames.read();
+      await store.setSetting('holidays', clean);
+      const namesChanged = await HolidayNames.write(namesClean);
+      await configRev.bump(); // số phiên bản chung, cùng giao dịch
+      await reconcileHolidayWork(before, clean);
+      await audit.write(actx, {
         action: 'holiday.set',
         entityKind: 'setting',
         entityId: 'holidays',
@@ -758,7 +759,7 @@ async function api(req, res, url, me) {
       ...holidaysBefore.filter(d => !clean.includes(d)),
       ...clean.filter(d => !holidaysBefore.includes(d))
     ].sort();
-    if (changedHolidays.length) announceSetting('holidays', me.username, changedHolidays[0].slice(0, 7));
+    if (changedHolidays.length) await announceSetting('holidays', me.username, changedHolidays[0].slice(0, 7));
     return send(res, 200, { dates: clean, names: namesClean });
   }
 
@@ -768,7 +769,7 @@ async function api(req, res, url, me) {
     const month = url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
     // Không đọc tham số user: người khác không bao giờ xem được qua route này
-    return send(res, 200, periods.estimate(u, month, { rows: url.searchParams.get('rows') === '1' }));
+    return send(res, 200, await periods.estimate(u, month, { rows: url.searchParams.get('rows') === '1' }));
   }
   if (route === 'GET /sheet') {
     const u = need();
@@ -777,7 +778,7 @@ async function api(req, res, url, me) {
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Tài khoản ngoài bảng lương và không có quyền xem lịch (tài khoản chỉ có vai trò) xem lịch của CHÍNH MÌNH: 200 với lịch trống, không phải 403 "xem bảng của người khác"; Admin nhận bảng đầy đủ
     // (an toàn: không có dữ liệu của ai; payrollSubject false để giao diện ẩn các phần chỉ dành cho người được trả lương)
-    if (who === u.username && !u.payrollSubject && !authz.can(u, 'attendance.read', { username: who }))
+    if (who === u.username && !u.payrollSubject && !await authz.can(u, 'attendance.read', { username: who }))
       return send(res, 200, {
         month,
         payrollSubject: false,
@@ -787,37 +788,37 @@ async function api(req, res, url, me) {
         neighbors: {},
         approvals: {},
         corrections: [],
-        kpiWeights: Object.fromEntries(rulesFor(month).kpi.COMPONENTS.map(c => [c.key, c.weight])),
+        kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
         kpiParts: { complete: false }
       });
-    if (!authz.can(u, 'attendance.read', { username: who }))
+    if (!await authz.can(u, 'attendance.read', { username: who }))
       throw new HttpError(403, 'Không được xem bảng của người khác');
-    const staff = who === u.username ? u : store.getStaff(who);
-    if (staff && staff.payrollSubject) closeStale(staff);
+    const staff = who === u.username ? u : await store.getStaff(who);
+    if (staff && staff.payrollSubject) await closeStale(staff);
     // otherLeave: ngày nghỉ phép năm ở các tháng khác, để giao diện tính số phép còn lại; corrections: yêu cầu điều chỉnh trong tháng
     return send(res, 200, {
-      ...sheetForViewer(u, who, estimateSheet(who, month)),
-      rev: store.getSheet(who, month).rev, // số lần lưu lịch khai; gửi lại làm expectedRev khi PUT /api/sheet
-      ...(staff && who !== u.username ? { owner: ownerView(u, staff, month) } : {}), // hồ sơ tóm tắt người được xem (khai thay)
-      attendanceSessions: sessionsFor({ username: who, month }),
-      otherLeave: staff ? leaveDates(staff).filter(d => !d.startsWith(month)) : [],
-      neighbors: neighborDays(who, month),
-      ...schedule.scheduleView(staff, month),
+      ...await sheetForViewer(u, who, await estimateSheet(who, month)),
+      rev: (await store.getSheet(who, month)).rev, // số lần lưu lịch khai; gửi lại làm expectedRev khi PUT /api/sheet
+      ...(staff && who !== u.username ? { owner: await ownerView(u, staff, month) } : {}), // hồ sơ tóm tắt người được xem (khai thay)
+      attendanceSessions: await sessionsFor({ username: who, month }),
+      otherLeave: staff ? (await leaveDates(staff)).filter(d => !d.startsWith(month)) : [],
+      neighbors: await neighborDays(who, month),
+      ...await schedule.scheduleView(staff, month),
       // Trọng số 5 thành phần KPI của tháng (tham số kpi.weight.*), để màn nhân viên không viết cứng
-      kpiWeights: Object.fromEntries(rulesFor(month).kpi.COMPONENTS.map(c => [c.key, c.weight])),
-      kpiParts: kpiPartsView(
-        hasKpi(staff, monthParams(month)) && authz.can(u, 'salary.read', { username: who })
-          ? store.getKpiScores(who, month)
+      kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
+      kpiParts: await kpiPartsView(
+        (await hasKpi(staff, await monthParams(month))) && await authz.can(u, 'salary.read', { username: who })
+          ? await store.getKpiScores(who, month)
           : null,
         month,
         u
       ),
-      corrections: store.listCorrections({ username: who, month }),
-      approvals: sheetApprovals(who, month, estimateSheet(who, month).days),
+      corrections: await store.listCorrections({ username: who, month }),
+      approvals: await sheetApprovals(who, month, (await estimateSheet(who, month)).days),
       // Số liệu theo tham số của tháng cho app nhân viên: số phép đến hôm nay, báo cáo trễ / về sớm / phút trừ từng ngày, bảng làm tròn phút trừ
-      leaveBalance: leaveBalanceView(staff),
-      actualReport: actualReportView(staff, month),
-      cutRule: cutRuleView(month)
+      leaveBalance: await leaveBalanceView(staff),
+      actualReport: await actualReportView(staff, month),
+      cutRule: await cutRuleView(month)
     });
   }
   if (route === 'PUT /sheet') {
@@ -825,41 +826,41 @@ async function api(req, res, url, me) {
     const { month, days, kpiPct, kpiAmt, user: onBehalfOf, expectedRev, confirmDays } = await readJson(req);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Admin khai lịch thay nhân sự (user khác người gọi, cần request.decide.* ở phạm vi người đó, nếu không 403): MỌI kiểm tra bên dưới chạy trên hồ sơ của người được khai
-    const u = sheetOwner(caller, onBehalfOf),
+    const u = await sheetOwner(caller, onBehalfOf),
       onBehalf = u !== caller;
-    guardPeriod(month);
-    const prevDays = estimateSheet(u.username, month).days;
-    const clean = cleanDays(days);
-    const { sheetParams, sched, holidays } = checkSheet({ u, month, clean, prevDays, onBehalf }); // kiểm nghiệp vụ lịch ước tính (lib/domain/sheet-checks.js)
-    checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
+    await guardPeriod(month);
+    const prevDays = (await estimateSheet(u.username, month)).days;
+    const clean = await cleanDays(days);
+    const { sheetParams, sched, holidays } = await checkSheet({ u, month, clean, prevDays, onBehalf }); // kiểm nghiệp vụ lịch ước tính (lib/domain/sheet-checks.js)
+    await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
     // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
-    const kept = onBehalf ? store.getSheet(u.username, month) : null;
-    const amt = onBehalf ? kept.kpiAmt : cleanKpiAmt(kpiAmt, u, month),
+    const kept = onBehalf ? await store.getSheet(u.username, month) : null;
+    const amt = onBehalf ? kept.kpiAmt : await cleanKpiAmt(kpiAmt, u, month),
       pct = onBehalf ? kept.kpiPct : cleanKpi(kpiPct);
     // Lịch và trạng thái duyệt đổi cùng nhau hoặc không đổi gì; trạng thái duyệt chỉ do máy chủ quyết, không đọc từ yêu cầu
     let decided = [];
-    const changes = store.transaction(() => {
-      assertSheetRev(u.username, month, expectedRev); // lệch rev → 409 SHEET_STALE, chưa ghi gì
-      store.setSheet(u.username, month, clean, pct, amt);
-      const found = store.approvals.reconcile(
+    const changes = await store.transaction(async () => {
+      await assertSheetRev(u.username, month, expectedRev); // lệch rev → 409 SHEET_STALE, chưa ghi gì
+      await store.setSheet(u.username, month, clean, pct, amt);
+      const found = await store.approvals.reconcile(
         u.username,
         month,
         store.approvals.declaredItems(clean, { holidays: [...holidays], staffType: u.type, schedule: sched })
       );
       if (onBehalf)
-        decided = approveOnBehalf({ caller, owner: u, month, found, prevDays, clean, actx, confirmDays }).decided;
+        decided = (await approveOnBehalf({ caller, owner: u, month, found, prevDays, clean, actx, confirmDays })).decided;
       return found;
     });
     if (changes.added.length || changes.reset.length || changes.resubmitted.length || changes.removed.length)
-      events.emit.approvalsChanged(month);
+      await events.emit.approvalsChanged(month);
     if (onBehalf) {
-      events.emit.estimateChanged(u.username, month); // máy của người được khai nạp lại lịch
-      if (decided.length) events.emit.requestsDecided(decided);
+      await events.emit.estimateChanged(u.username, month); // máy của người được khai nạp lại lịch
+      if (decided.length) await events.emit.requestsDecided(decided);
     }
     return send(res, 200, {
       ok: true,
-      rev: store.getSheet(u.username, month).rev, // gửi lại làm expectedRev ở lần lưu sau
-      approvals: sheetApprovals(u.username, month, estimateSheet(u.username, month).days),
+      rev: (await store.getSheet(u.username, month)).rev, // gửi lại làm expectedRev ở lần lưu sau
+      approvals: await sheetApprovals(u.username, month, (await estimateSheet(u.username, month)).days),
       reset: changes.reset,
       resubmitted: changes.resubmitted,
       removed: changes.removed,
@@ -869,9 +870,9 @@ async function api(req, res, url, me) {
   // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.js)
   if (route === 'PUT /sheet/bulk') {
     const caller = needAdmin();
-    const plan = sheetBulk.plan(caller, await readJson(req));
-    guardPeriod(plan.month);
-    return send(res, 200, sheetBulk.save({ caller, actx, plan, cleanDays }));
+    const plan = await sheetBulk.plan(caller, await readJson(req));
+    await guardPeriod(plan.month);
+    return send(res, 200, await sheetBulk.save({ caller, actx, plan, cleanDays }));
   }
 
   /* ---------- KPI 5 thành phần: Admin nhập điểm ---------- */
@@ -879,17 +880,15 @@ async function api(req, res, url, me) {
     needAdmin();
     const month = url.searchParams.get('month');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const KpiScore = rulesFor(month).kpi;
-    const kpiParams = monthParams(month),
-      rows = new Map(store.listKpiScores(month).map(row => [row.username, row]));
+    const KpiScore = (await rulesFor(month)).kpi;
+    const kpiParams = await monthParams(month),
+      rows = new Map((await store.listKpiScores(month)).map(row => [row.username, row]));
     return send(res, 200, {
       month,
       method: 'five',
       weights: Object.fromEntries(KpiScore.COMPONENTS.map(c => [c.key, c.weight])),
-      items: store
-        .listStaff()
-        .filter(staff => hasKpi(staff, kpiParams))
-        .map(staff => kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams))
+      items: await AsyncList.map((await AsyncList.filter(await store.listStaff(), staff => hasKpi(staff, kpiParams))), staff =>
+          kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams))
     });
   }
   if (route === 'PUT /kpi/scores') {
@@ -899,13 +898,13 @@ async function api(req, res, url, me) {
     const user = body.user !== undefined ? body.user : body.username; // nhận cả user lẫn username
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Nhân sự không có kpi.score.write ở phạm vi all chỉ lưu được điểm `self` của chính mình (bỏ trống user = chính mình)
-    const full = authz.scopeOf(me, 'kpi.score.write') === 'all';
+    const full = await authz.scopeOf(me, 'kpi.score.write') === 'all';
     const wanted = user === undefined && !full ? me.username : typeof user === 'string' ? user.toLowerCase() : '';
     if (!full) selfScoreOnly(me, wanted, scores, amt);
     if (!USERNAME_RE.test(wanted)) throw new HttpError(400, 'user không hợp lệ');
-    const target = store.getStaff(wanted);
+    const target = await store.getStaff(wanted);
     if (!target) throw new HttpError(404, 'Không có nhân sự này');
-    if (!hasKpi(target, monthParams(month))) throw new HttpError(400, 'Nhân sự này không có KPI');
+    if (!(await hasKpi(target, await monthParams(month)))) throw new HttpError(400, 'Nhân sự này không có KPI');
     // Người có quyền đầy đủ tự nhập điểm self của mình cũng là việc của chính chủ, không phải tự quyết định điểm của người khác
     const ownSelfEntry =
       target.username === me.username && amt === undefined && Object.keys(scores || {}).join() === 'self';
@@ -913,8 +912,8 @@ async function api(req, res, url, me) {
       selfDecision(authz.isSelfDecision(me, target.username), {
         doing: 'nhập điểm KPI'
       });
-    guardPeriod(month);
-    const KpiScore = rulesFor(month).kpi;
+    await guardPeriod(month);
+    const KpiScore = (await rulesFor(month)).kpi;
     warnIf('KPI_MONTH_FUTURE', month > vnToday().slice(0, 7), {
       message: `Tháng ${month} chưa bắt đầu: điểm KPI nhập trước được lưu và dùng khi tháng đó tính lương; nếu đánh giá đổi, cần nhập lại trước khi chốt.`
     });
@@ -936,7 +935,7 @@ async function api(req, res, url, me) {
     if (amt !== undefined) {
       if (amt !== null && (typeof amt !== 'number' || !Number.isFinite(amt)))
         throw new HttpError(400, 'Lương KPI phải là số không âm');
-      patch.amt = cleanKpiAmt(amt, target, month); // không âm, không vượt trần level
+      patch.amt = await cleanKpiAmt(amt, target, month); // không âm, không vượt trần level
     }
     if (reason != null && typeof reason !== 'string') throw new HttpError(400, 'Lý do phải là chữ');
     const note = (reason || '').trim();
@@ -944,11 +943,11 @@ async function api(req, res, url, me) {
     if (!Object.keys(patch).length) throw new HttpError(400, 'Không có điểm hoặc mức KPI nào để lưu');
     let result;
     try {
-      result = store.transaction(() => {
-        const saved = store.setKpiScores(target.username, month, patch, actor.username, note || null);
+      result = await store.transaction(async () => {
+        const saved = await store.setKpiScores(target.username, month, patch, actor.username, note || null);
         // Giá trị điểm nằm ở kpi_score_log (từng ô, cũ, mới); nhật ký hệ thống chỉ ghi ô nào đổi
         if (saved.changed.length)
-          audit.write(actx, {
+          await audit.write(actx, {
             action: 'kpi.score',
             entityKind: 'kpi',
             entityId: `${target.username}:${month}`,
@@ -963,24 +962,24 @@ async function api(req, res, url, me) {
     } catch (error) {
       throw kpiHttpError(error);
     }
-    if (result.changed.length) events.emit.estimateChanged(target.username, month);
+    if (result.changed.length) await events.emit.estimateChanged(target.username, month);
     // Nhân sự tự nhập điểm self chỉ nhận lại phần của mình, không nhận dòng điểm đầy đủ (điểm các thành phần khác chưa lộ)
     if (!full)
       return send(res, 200, {
         ok: true,
         changed: result.changed,
-        kpiParts: kpiPartsView(result.item, month, me)
+        kpiParts: await kpiPartsView(result.item, month, me)
       });
     return send(res, 200, {
       ok: true,
-      item: kpiScoreItem(target, month, result.item),
+      item: await kpiScoreItem(target, month, result.item),
       changed: result.changed
     });
   }
   /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
   // Quyền duyệt TỪNG khoản: nhóm duyệt = loại khoản (request.decide.<khoản>), kèm phạm vi dữ liệu của vai trò (nhóm mình: chỉ chính mình cho tới khi có
   // bảng phân công). Cổng ROUTE_CAPS chỉ hỏi "có ít nhất một nhóm".
-  const canDecideRow = row => authz.can(me, `request.decide.${row.item}`, { username: row.username });
+  const canDecideRow = async row => await authz.can(me, `request.decide.${row.item}`, { username: row.username });
   if (route === 'GET /approvals') {
     needAdmin();
     const status = url.searchParams.get('status') || 'pending',
@@ -1000,26 +999,26 @@ async function api(req, res, url, me) {
     };
     const limit = paging('limit', 200, 1, 500),
       offset = paging('offset', 0, 0, Number.MAX_SAFE_INTEGER);
-    const rows = listApprovals({ month, username: user }).filter(canDecideRow);
+    const rows = await AsyncList.filter(await listApprovals({ month, username: user }), canDecideRow);
     const picked = rows
       .filter(row => status === 'all' || row.status === status)
       .sort((a, b) => a.username.localeCompare(b.username) || a.date.localeCompare(b.date))
       .slice(offset, offset + limit);
     const sheets = {};
     const lockedNames = new Set(
-      store
-        .listStaff()
+      (await store
+        .listStaff())
         .filter(s => s.locked)
         .map(s => s.username)
     );
-    const items = picked.map(row => {
+    const items = await AsyncList.map(picked, async row => {
       const sheetMonth = row.date.slice(0, 7),
         key = `${row.username}|${sheetMonth}`;
       if (!sheets[key]) {
-        const sheet = estimateSheet(row.username, sheetMonth);
+        const sheet = await estimateSheet(row.username, sheetMonth);
         sheets[key] = {
-          ...sheetForViewer(me, row.username, sheet),
-          approvals: sheetApprovals(row.username, sheetMonth, sheet.days)
+          ...await sheetForViewer(me, row.username, sheet),
+          approvals: await sheetApprovals(row.username, sheetMonth, sheet.days)
         };
       }
       const day = sheets[key].days[row.date] || {};
@@ -1041,13 +1040,13 @@ async function api(req, res, url, me) {
       };
     });
     // limits: để màn duyệt cắt lô và đặt độ dài ô lý do theo đúng số của máy chủ, không chép tay
-    const limits = { decideMax: rulesFor().params['system.approval.maxDecideItems'], noteMax: NOTE_MAX };
+    const limits = { decideMax: (await rulesFor()).params['system.approval.maxDecideItems'], noteMax: NOTE_MAX };
     return send(res, 200, { items, counts: tallyApprovals(rows), sheets, limits });
   }
   if (route === 'GET /approvals/count') {
     needAdmin();
     return send(res, 200, {
-      pending: tallyApprovals(listApprovals({ status: 'pending' }).filter(canDecideRow)).pending
+      pending: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow)).pending
     });
   }
   // Việc Admin cần xử lý trong tháng, để giao diện hiện huy hiệu: quên Check-in/out, ngày vắng chưa có giải trình và số khoản chờ duyệt (mọi tháng, như /approvals/count).
@@ -1058,27 +1057,28 @@ async function api(req, res, url, me) {
       throw new HttpError(400, 'Thiếu month: gọi /api/alerts?month=YYYY-MM', { code: 'MONTH_REQUIRED' });
     if (!validMonth(month))
       throw new HttpError(400, `month "${month.slice(0, 12)}" không hợp lệ: phải dạng YYYY-MM`, { code: 'BAD_MONTH' });
-    const holidays = store.getSetting('holidays', []),
+    const holidays = await store.getSetting('holidays', []),
       found = new Map(),
       absentFound = [];
-    const explained = explanations.explainedByUser(month); // ngày đã có giải trình (mọi trạng thái): không còn là ngày vắng chưa ai xử lý
-    const ActualHours = rulesFor(month).actualHours;
+    const explained = await explanations.explainedByUser(month); // ngày đã có giải trình (mọi trạng thái): không còn là ngày vắng chưa ai xử lý
+    const ActualHours = (await rulesFor(month)).actualHours;
     // Quên Check-in/out là việc sửa chấm công: chỉ người có attendance.correct, và chỉ người trong phạm vi của mình
-    const watched = store
-      .listStaff()
-      .filter(s => s.payrollSubject && authz.can(me, 'attendance.correct', { username: s.username }));
-    closeStaleFor(watched); // lượt mở quá 16 giờ được đóng thành "quên check-out" trước khi đếm (chỉ người đang có lượt mở)
+    const watched = await AsyncList.filter(
+      await store.listStaff(),
+      async s => s.payrollSubject && (await authz.can(me, 'attendance.correct', { username: s.username }))
+    );
+    await closeStaleFor(watched); // lượt mở quá 16 giờ được đóng thành "quên check-out" trước khi đếm (chỉ người đang có lượt mở)
     for (const staff of watched) {
       const add = (date, kind) =>
         found.set(`${staff.username}|${date}|${kind}`, { username: staff.username, name: staff.name, date, kind });
-      const sessions = store.listSessions({ username: staff.username, month });
+      const sessions = await store.listSessions({ username: staff.username, month });
       for (const x of sessions)
         if (x.entry.kind === 'pending' && x.entry.reason === 'forgot-out') add(x.date, 'forgot-out');
       // Thêm các ngày thiếu giờ vào / giờ ra mà ActualHours.apply chờ Admin xử lý (cùng cách dựng với GET /team)
       {
         // quy tắc của đúng tháng, lịch của người như checklist kỳ và bộ máy
-        const { report, absent } = rulesFor(month).actualHours.apply(
-          estimateSheet(staff.username, month).days,
+        const { report, absent } = (await rulesFor(month)).actualHours.apply(
+          (await estimateSheet(staff.username, month)).days,
           sessions,
           {
             asOf: nowIso(),
@@ -1104,7 +1104,7 @@ async function api(req, res, url, me) {
     return send(res, 200, {
       missingPunches,
       absentNoExplanation,
-      pendingApprovals: tallyApprovals(listApprovals({ status: 'pending' }).filter(canDecideRow)).pending
+      pendingApprovals: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow)).pending
     });
   }
   if (route === 'PUT /approvals/decide') {
@@ -1114,11 +1114,11 @@ async function api(req, res, url, me) {
     if (b.note != null && typeof b.note !== 'string') throw new HttpError(400, 'Lý do phải là chữ');
     const note = (b.note || '').trim();
     if (note.length > NOTE_MAX) throw new HttpError(400, `Lý do tối đa ${NOTE_MAX} ký tự`);
-    const decideMax = rulesFor().params['system.approval.maxDecideItems'];
+    const decideMax = (await rulesFor()).params['system.approval.maxDecideItems'];
     if (!Array.isArray(b.items) || !b.items.length || b.items.length > decideMax)
       throw new HttpError(400, `Chọn từ 1 đến ${decideMax} khoản để duyệt`);
     const seen = new Set();
-    const items = b.items.map(item => {
+    const items = await AsyncList.map(b.items, async item => {
       if (
         !item ||
         typeof item !== 'object' ||
@@ -1136,16 +1136,16 @@ async function api(req, res, url, me) {
       const key = `${item.username}|${item.date}`;
       if (seen.has(key)) throw new HttpError(400, `Khoản ngày ${item.date} bị chọn hai lần`);
       seen.add(key);
-      const decidee = store.getStaff(item.username);
+      const decidee = await store.getStaff(item.username);
       if (decidee && !decidee.payrollSubject)
         throw new HttpError(400, 'Tài khoản này không thuộc bảng lương nên không có khoản cần duyệt');
       return { username: item.username, date: item.date, rev: item.rev, fingerprint: item.fingerprint };
     });
-    guardPeriod(items.map(item => item.date));
+    await guardPeriod(items.map(item => item.date));
     // Từng khoản phải thuộc nhóm duyệt và phạm vi của người duyệt; một khoản không đủ quyền thì cả lô bị từ chối và không lưu gì
     for (const item of items) {
-      const stored = store.approvals.get(item.username, item.date);
-      if (stored && !canDecideRow(stored))
+      const stored = await store.approvals.get(item.username, item.date);
+      if (stored && !await canDecideRow(stored))
         throw new HttpError(
           403,
           `Bạn không có quyền duyệt khoản "${stored.item}" của ${item.username} ngày ${item.date}`,
@@ -1155,18 +1155,18 @@ async function api(req, res, url, me) {
     // Duyệt khoản iSAT kiểm lại thứ trong tuần và quyền lợi của chức vụ (chặn cứng); từ chối luôn được
     if (b.action === 'approve')
       for (const item of items) {
-        const stored = store.approvals.get(item.username, item.date),
-          owner = store.getStaff(item.username);
+        const stored = await store.approvals.get(item.username, item.date),
+          owner = await store.getStaff(item.username);
         if (!stored || stored.item !== 'isat' || !owner) continue;
-        const refusal = isatRefusal({ params: rulesFor(item.date.slice(0, 7)).params, staff: owner, date: item.date });
+        const refusal = isatRefusal({ params: (await rulesFor(item.date.slice(0, 7))).params, staff: owner, date: item.date });
         if (refusal)
           throw new HttpError(400, `${item.username}: ${refusal.message}`, { code: refusal.code, date: item.date });
       }
     // AI chặn (khác các cảnh báo): chỉ khi duyệt và công tắc Agents bật; Từ chối luôn được
-    if (b.action === 'approve') assertNotAiBlocked(items);
+    if (b.action === 'approve') await assertNotAiBlocked(items);
     try {
-      const decided = store.transaction(() => {
-        const rows = store.approvals.decide(
+      const decided = await store.transaction(async () => {
+        const rows = await store.approvals.decide(
           items,
           b.action === 'approve' ? 'approved' : 'rejected',
           admin.username,
@@ -1174,7 +1174,7 @@ async function api(req, res, url, me) {
         );
         // Một dòng cho mỗi khoản (lọc được theo người và tháng); request_id nối các dòng của cùng một lần bấm
         for (const row of rows)
-          audit.write(actx, {
+          await audit.write(actx, {
             action: 'approval.decide',
             entityKind: 'sheet_approval',
             entityId: `${row.username}:${row.date}`,
@@ -1186,8 +1186,8 @@ async function api(req, res, url, me) {
         return rows;
       });
       for (const decidedMonth of new Set(decided.map(row => row.date.slice(0, 7))))
-        events.emit.approvalsChanged(decidedMonth);
-      events.emit.requestsDecided(decided);
+        await events.emit.approvalsChanged(decidedMonth);
+      await events.emit.requestsDecided(decided);
       return send(res, 200, { ok: true, decided: decided.length, items: decided });
     } catch (error) {
       throw approvalHttpError(error);
@@ -1199,10 +1199,10 @@ async function api(req, res, url, me) {
       b = req.method === 'PUT' ? await readJson(req) : null;
     const who = String((b ? b.user : url.searchParams.get('user')) || '').toLowerCase(),
       month = b ? b.month : url.searchParams.get('month');
-    if (!store.getStaff(who)) throw new HttpError(404, 'Không có nhân sự này');
+    if (!await store.getStaff(who)) throw new HttpError(404, 'Không có nhân sự này');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     if (b) {
-      guardPeriod(month);
+      await guardPeriod(month);
       selfDecision(authz.isSelfDecision(me, who), {
         doing: 'sửa số trên phiếu lương'
       });
@@ -1226,13 +1226,13 @@ async function api(req, res, url, me) {
           throw new HttpError(400, 'expectedRev phải là số nguyên không âm');
         opts.expectedRev = b.expectedRev;
       }
-      store.transaction(() => {
-        const prior = store.getSlipOverride(who, month).values;
-        store.setSlipOverride(who, month, clean, admin.username, reason, opts);
-        audit.slipOverride(actx, who, month, prior, clean, reason);
+      await store.transaction(async () => {
+        const prior = (await store.getSlipOverride(who, month)).values;
+        await store.setSlipOverride(who, month, clean, admin.username, reason, opts);
+        await audit.slipOverride(actx, who, month, prior, clean, reason);
       });
     }
-    return send(res, 200, store.getSlipOverride(who, month));
+    return send(res, 200, await store.getSlipOverride(who, month));
   }
   /* ---------- check-in / check-out: mỗi lần ghi nhắm đúng một phiên ---------- */
   if (route === 'GET /punch') {
@@ -1245,8 +1245,8 @@ async function api(req, res, url, me) {
         lastSession: null,
         serverNow: nowIso()
       });
-    closeStale(u);
-    return send(res, 200, { ...punchState(u), ...punchExtras(u) });
+    await closeStale(u);
+    return send(res, 200, { ...await punchState(u), ...await punchExtras(u) });
   }
   if (route === 'POST /punch') {
     const u = need();
@@ -1255,37 +1255,37 @@ async function api(req, res, url, me) {
         403,
         u.role === 'admin' ? 'Admin không chấm công' : 'Tài khoản không thuộc bảng lương không chấm công'
       );
-    const punch = rulesFor().punch;
+    const punch = (await rulesFor()).punch;
     const b = await readJson(req),
       { type, requestId, sessionId } = b;
     if (!['in', 'out'].includes(type) || typeof requestId !== 'string' || !/^[A-Za-z0-9._:-]{8,120}$/.test(requestId))
       throw new HttpError(400, 'Cần loại thao tác và requestId hợp lệ');
     if (type === 'out' && !positiveId(sessionId)) throw new HttpError(400, 'Cần ID lượt Check-out');
     const operation = JSON.stringify({ type, sessionId: type === 'out' ? sessionId : null });
-    const response = store.transaction(() => {
-      const prior = store.getPunchRequest(u.username, requestId);
+    const response = await store.transaction(async () => {
+      const prior = await store.getPunchRequest(u.username, requestId);
       if (prior) {
         if (prior.operation !== operation) throw new HttpError(409, 'requestId đã dùng cho thao tác khác');
         return JSON.parse(prior.response_json);
       }
-      closeStale(u);
+      await closeStale(u);
       const t = nowIso();
       let session;
       if (type === 'in') {
-        const outsideZone = checkGeofence(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
-        if (store.openSession(u.username)) throw new HttpError(409, 'Bạn đang có lượt mở — Check-out trước');
-        const opened = punch.openSessionDay(punchStaff(u), t);
-        const verdict = checkInVerdict(u, t); // không có lịch / khoản được duyệt, hay ngoài khung ca mà không khoản nào phủ giờ này: không ghi gì
+        const outsideZone = await checkGeofence(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
+        if (await store.openSession(u.username)) throw new HttpError(409, 'Bạn đang có lượt mở — Check-out trước');
+        const opened = await punch.openSessionDay(await punchStaff(u, t), t);
+        const verdict = await checkInVerdict(u, t); // không có lịch / khoản được duyệt, hay ngoài khung ca mà không khoản nào phủ giờ này: không ghi gì
         if (!verdict.allowed) throw new HttpError(409, verdict.message, { code: verdict.code });
-        guardPeriod(opened.date); // ca đêm thuộc ngày bắt đầu ca
+        await guardPeriod(opened.date); // ca đêm thuộc ngày bắt đầu ca
         if (outsideZone) opened.entry.outsideZone = true;
-        const overlap = sessionOverlap(u.username, t, new Date(Date.parse(t) + 1).toISOString());
+        const overlap = await sessionOverlap(u.username, t, new Date(Date.parse(t) + 1).toISOString());
         if (overlap) throw new HttpError(400, overlap);
         // Check-in không hợp lệ (trễ, ngoài ca, ngoài vùng GPS, lượt thứ hai trong ca) phải có giải trình gửi kèm (b.explanation)
-        const inCases = container.punchExplanation.casesIn(u.username, opened);
+        const inCases = await container.punchExplanation.casesIn(u.username, opened);
         container.punchExplanation.demand('in', inCases, b.explanation);
-        session = store.createSession(u.username, opened.date, 'open', opened.entry);
-        store.addPunch(
+        session = await store.createSession(u.username, opened.date, 'open', opened.entry);
+        await store.addPunch(
           u.username,
           t,
           'in',
@@ -1295,7 +1295,7 @@ async function api(req, res, url, me) {
           session.id
         );
         if (inCases.length)
-          container.punchExplanation.record({
+          await container.punchExplanation.record({
             side: 'in',
             username: u.username,
             session,
@@ -1304,33 +1304,33 @@ async function api(req, res, url, me) {
             actx
           });
       } else {
-        session = store.getSession(sessionId);
+        session = await store.getSession(sessionId);
         if (!session || session.username !== u.username) throw new HttpError(404, 'Không có lượt chấm công này');
         if (session.state !== 'open') throw new HttpError(409, 'Lượt này đã Check-out');
-        guardPeriod(session.date);
+        await guardPeriod(session.date);
         if (Date.parse(t) < Date.parse(session.entry.presIn))
           throw new HttpError(400, 'Giờ Check-out không thể trước giờ vào');
         // Check-out muộn hơn giờ kết thúc ca (cộng phần làm thêm đã khai) quá CHECKOUT_GRACE_MIN phút (check-out muộn chỉ có
         // hiệu lực khi Admin duyệt giải trình): giải trình gửi kèm (b.explanation), lượt thành "Quên Check-out" và giữ giờ bấm chờ Admin duyệt
-        const sheetDay = estimateSheet(u.username, session.date.slice(0, 7)).days[session.date];
+        const sheetDay = (await estimateSheet(u.username, session.date.slice(0, 7))).days[session.date];
         const late = { staff: u, session, at: t, ip: clientIp(req), text: b.explanation, actx };
         if (explanations.needsExplanation(session, t, sheetDay))
-          session = container.lateCheckout.record({
+          session = await container.lateCheckout.record({
             ...late,
             lateMin: explanations.lateCheckoutMin(session, t, sheetDay)
           });
         else {
           // Check-out sớm (không phải muộn): cũng phải có giải trình gửi kèm; giờ bấm vẫn là giờ ra của lượt
-          const outCases = container.punchExplanation.casesOut({ staff: u, session, at: t, sheetDay });
+          const outCases = await container.punchExplanation.casesOut({ staff: u, session, at: t, sheetDay });
           container.punchExplanation.demand(
             'out',
             outCases,
             b.explanation,
-            outCases.length ? { preview: checkoutPreview(u) } : {}
+            outCases.length ? { preview: await checkoutPreview(u) } : {}
           );
-          session = container.lateCheckout.checkOut(late);
+          session = await container.lateCheckout.checkOut(late);
           if (outCases.length)
-            container.punchExplanation.record({
+            await container.punchExplanation.record({
               side: 'out',
               username: u.username,
               session,
@@ -1341,33 +1341,33 @@ async function api(req, res, url, me) {
         }
       }
       hintPunch(u.username, session.date); // báo Admin và máy khác của chính người này sau khi yêu cầu xong (ca đêm thuộc ngày bắt đầu)
-      const response = punchState(u);
-      store.savePunchRequest(u.username, requestId, operation, session.id, response);
+      const response = await punchState(u);
+      await store.savePunchRequest(u.username, requestId, operation, session.id, response);
       return response;
     });
     // serverNow lấy lúc gửi (không lưu trong bản phát lại theo requestId, nếu không máy khách sẽ nhận giờ cũ)
-    return send(res, 200, { ...response, ...punchExtras(u) });
+    return send(res, 200, { ...response, ...await punchExtras(u) });
   }
   if (route === 'GET /ot') {
     needAdmin();
     const status = url.searchParams.get('status');
-    return send(res, 200, { ot: listOt(['approved', 'rejected'].includes(status) ? status : 'pending') });
+    return send(res, 200, { ot: await listOt(['approved', 'rejected'].includes(status) ? status : 'pending') });
   }
   if (route === 'POST /ot') {
     const admin = needAdmin(),
       b = await readJson(req);
-    const result = store.transaction(() => {
+    const result = await store.transaction(async () => {
       if (!positiveId(b.sessionId)) throw new HttpError(400, 'Cần chọn lượt chấm công');
-      const session = store.getSession(b.sessionId);
+      const session = await store.getSession(b.sessionId);
       if (!session) throw new HttpError(404, 'Không có lượt chấm công này');
       correctionVersion(session, b.version);
-      const staff = store.getStaff(session.username);
+      const staff = await store.getStaff(session.username);
       if (!staff || !staff.payrollSubject) throw new HttpError(400, 'Không có nhân sự tương ứng');
-      guardPeriod(session.date);
+      await guardPeriod(session.date);
       const reason = String(b.reason || '')
         .trim()
         .slice(0, 300);
-      const entry = validateOtDeclaration(staff, session, b),
+      const entry = await validateOtDeclaration(staff, session, b),
         old = session.entry;
       if (old.extraKind === 'ot') {
         entry.otDeclarationHistory = [
@@ -1386,13 +1386,13 @@ async function api(req, res, url, me) {
       delete entry.otReview;
       entry.otDeclaration = { by: admin.username, at: nowIso(), reason };
       entry.otNeedsReview = true;
-      const updated = store.updateSession(session.id, session.version, {
+      const updated = await store.updateSession(session.id, session.version, {
         date: session.date,
         state: session.state,
         entry
       });
       if (!updated) throw new HttpError(409, 'Lượt chấm công đã thay đổi — tải lại trước khi khai OT');
-      audit.write(actx, {
+      await audit.write(actx, {
         action: 'ot.declare',
         entityKind: 'attendance_session',
         entityId: String(updated.id),
@@ -1403,7 +1403,7 @@ async function api(req, res, url, me) {
       return { ok: true, sessionId: updated.id, sessionVersion: updated.version };
     });
     {
-      const declared = store.getSession(result.sessionId);
+      const declared = await store.getSession(result.sessionId);
       if (declared) events.emit.attendanceChanged('ot', declared.date.slice(0, 7));
     }
     return send(res, 200, result);
@@ -1413,14 +1413,14 @@ async function api(req, res, url, me) {
       b = await readJson(req);
     let otSession = null,
       onSheet = false;
-    store.transaction(() => {
+    await store.transaction(async () => {
       if (!positiveId(b.sessionId)) throw new HttpError(400, 'Cần chọn lượt OT');
-      const session = store.getSession(b.sessionId);
+      const session = await store.getSession(b.sessionId);
       if (!session || session.entry.extraKind !== 'ot') throw new HttpError(404, 'Lượt này không có OT');
       otSession = { username: session.username, date: session.date };
       correctionVersion(session, b.version);
       if (session.state === 'open') throw new HttpError(409, 'Lượt này đang mở');
-      guardPeriod(session.date);
+      await guardPeriod(session.date);
       selfDecision(authz.isSelfDecision(me, session.username), {
         doing: 'duyệt OT'
       });
@@ -1431,9 +1431,9 @@ async function api(req, res, url, me) {
         .slice(0, 300);
       if (b.action === 'approve') {
         if (session.entry.otDeclaration)
-          validateOtDeclaration(store.getStaff(session.username), session, session.entry);
+          await validateOtDeclaration(await store.getStaff(session.username), session, session.entry);
         else {
-          const err = rulesFor(session.date.slice(0, 7)).punch.extraFits(session.entry);
+          const err = (await rulesFor(session.date.slice(0, 7))).punch.extraFits(session.entry);
           warnIf('OT_OUTSIDE_PRESENCE', !!err, {
             message: () => `${err}: bộ máy chỉ trả phần giờ có mặt liền với ca (không trả quá giờ đã chấm công).`
           });
@@ -1444,11 +1444,11 @@ async function api(req, res, url, me) {
         otNeedsReview: false,
         otReview: { ok: b.action === 'approve', by: admin.username, at: nowIso(), ...(note ? { note } : {}) }
       };
-      store.updateSession(session.id, session.version, { date: session.date, state: session.state, entry });
+      await store.updateSession(session.id, session.version, { date: session.date, state: session.state, entry });
       // OT được duyệt thành OT đã duyệt của ngày trên Lịch ước tính (nguồn tiền OT của bộ máy)
       if (b.action === 'approve')
-        onSheet = otSheet.payOnSheet({ session, staff: store.getStaff(session.username), by: admin.username });
-      audit.write(actx, {
+        onSheet = await otSheet.payOnSheet({ session, staff: await store.getStaff(session.username), by: admin.username });
+      await audit.write(actx, {
         action: 'ot.decide',
         entityKind: 'attendance_session',
         entityId: String(session.id),
@@ -1461,30 +1461,30 @@ async function api(req, res, url, me) {
     events.emit.punchCorrected(otSession.username, otSession.date);
     events.emit.attendanceChanged('ot', otSession.date.slice(0, 7));
     if (onSheet) {
-      events.emit.approvalsChanged(otSession.date.slice(0, 7));
+      await events.emit.approvalsChanged(otSession.date.slice(0, 7));
       events.emit.estimateChanged(otSession.username, otSession.date.slice(0, 7));
     }
     return send(res, 200, { ok: true });
   }
   if (route === 'GET /ai/review') {
     needAdmin();
-    agents.assertEnabled();
+    await agents.assertEnabled();
     const month = url.searchParams.get('month');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Thêm vào kết quả kiểm tra trực tiếp: trạng thái kỳ và từng phát hiện đã được bỏ qua chưa (by, at, note chỉ cho người có ai.review.read, cũng là cổng của route này)
-    const review = aiReviewResultCached(month, url.searchParams.get('impacts') === '1');
+    const review = await aiReviewResultCached(month, url.searchParams.get('impacts') === '1');
     return send(res, 200, {
       ...review,
-      findings: findings.annotate(month, review.findings),
-      period: { status: store.periods.get(month).status }
+      findings: await findings.annotate(month, review.findings),
+      period: { status: (await store.periods.get(month)).status }
     });
   }
   if (route === 'POST /ai/findings' && seg[3] === 'dismiss') {
     const admin = needAdmin();
-    agents.assertEnabled();
+    await agents.assertEnabled();
     const b = await readJson(req);
     if (!validMonth(b.month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const dismissed = findings.dismiss(
+    const dismissed = await findings.dismiss(
       { month: b.month, username: b.username, rule: b.rule, reason: b.reason, by: admin.username },
       actx
     );
@@ -1492,17 +1492,17 @@ async function api(req, res, url, me) {
   }
   if (route === 'GET /events') {
     const listener = need(); // mọi người đã đăng nhập; luồng này chỉ gợi ý nạp lại, không mang dữ liệu
-    return events.handleSse(req, res, listener);
+    return await events.handleSse(req, res, listener);
   }
   if (route === 'GET /today') {
     needAdmin();
-    const { punch, actualHours: ActualHours } = rulesFor();
+    const { punch, actualHours: ActualHours } = await rulesFor();
     const today = punch.vnDate(nowIso());
-    const people = store.listStaff().filter(s => s.payrollSubject);
-    closeStaleFor(people);
-    const rows = people.map(staff => {
-      const sessions = store.listSessions({ username: staff.username }),
-        open = store.openSession(staff.username);
+    const people = (await store.listStaff()).filter(s => s.payrollSubject);
+    await closeStaleFor(people);
+    const rows = await AsyncList.map(people, async staff => {
+      const sessions = await store.listSessions({ username: staff.username }),
+        open = await store.openSession(staff.username);
       const todaySessions = sessions.filter(
         s =>
           s.state === 'open' ||
@@ -1545,7 +1545,7 @@ async function api(req, res, url, me) {
       };
     });
     // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.js), nạp lô một lần cho mọi người; không có lượt thì null
-    const shown = new Map(sessionsWithHistory(rows.filter(r => r.session).map(r => r.session)).map(s => [s.id, s]));
+    const shown = new Map((await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map(s => [s.id, s]));
     for (const row of rows) {
       const s = row.session && shown.get(row.session.id);
       delete row.session;
@@ -1558,29 +1558,29 @@ async function api(req, res, url, me) {
     needAdmin();
     const month = url.searchParams.get('month');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const staff = store.listStaff(),
+    const staff = await store.listStaff(),
       names = Object.fromEntries(staff.map(s => [s.username, s.name])),
       types = Object.fromEntries(staff.map(s => [s.username, s.type]));
-    closeStaleFor(staff.filter(s => s.payrollSubject));
+    await closeStaleFor(staff.filter(s => s.payrollSubject));
     return send(res, 200, {
       month,
-      rows: sessionsFor({ month }).map(s => ({ ...s, name: names[s.username] || s.username, type: types[s.username] }))
+      rows: (await sessionsFor({ month })).map(s => ({ ...s, name: names[s.username] || s.username, type: types[s.username] }))
     });
   }
   if (route === 'GET /settings/agents') {
     needAdmin();
-    return send(res, 200, { enabled: agents.enabled() });
+    return send(res, 200, { enabled: await agents.enabled() });
   }
   if (route === 'PUT /settings/agents') {
     const admin = needAdmin(),
       b = await readJson(req);
     if (typeof b.enabled !== 'boolean') throw new HttpError(400, 'enabled phải là true hoặc false');
-    const was = agents.enabled();
+    const was = await agents.enabled();
     if (b.enabled !== was)
-      store.transaction(() => {
-        agents.set(b.enabled);
-        configRev.bump(); // số phiên bản chung, cùng giao dịch
-        audit.write(actx, {
+      await store.transaction(async () => {
+        await agents.set(b.enabled);
+        await configRev.bump(); // số phiên bản chung, cùng giao dịch
+        await audit.write(actx, {
           action: 'setting.agents',
           entityKind: 'setting',
           entityId: agents.SETTING_KEY,
@@ -1589,8 +1589,8 @@ async function api(req, res, url, me) {
           sensitivity: 'pay'
         });
       });
-    if (b.enabled !== was) announceSetting('agents', admin.username);
-    return send(res, 200, { enabled: agents.enabled() });
+    if (b.enabled !== was) await announceSetting('agents', admin.username);
+    return send(res, 200, { enabled: await agents.enabled() });
   }
   if (route === 'PUT /settings/geofence') {
     needAdmin();
@@ -1598,13 +1598,13 @@ async function api(req, res, url, me) {
     // Tắt phải nói rõ: null (hoặc { geofence: null }). Thân rỗng hay thiếu trường không được ngầm hiểu là tắt.
     const off = b === null || (Object.keys(b).length === 1 && b.geofence === null);
     const next = off ? null : cleanGeofence(b);
-    store.transaction(() => {
-      const was = store.getSetting('geofence', null);
-      store.setSetting('geofence', next);
-      configRev.bump(); // số phiên bản chung, cùng giao dịch
+    await store.transaction(async () => {
+      const was = await store.getSetting('geofence', null);
+      await store.setSetting('geofence', next);
+      await configRev.bump(); // số phiên bản chung, cùng giao dịch
       // Chỉ ghi bật/tắt và bán kính; KHÔNG ghi toạ độ
       const view = fence => ({ enabled: !!fence, ...(fence ? { radiusM: fence.radiusM } : {}) });
-      audit.write(actx, {
+      await audit.write(actx, {
         action: 'setting.geofence',
         entityKind: 'setting',
         entityId: 'geofence',
@@ -1612,41 +1612,41 @@ async function api(req, res, url, me) {
         after: { ...view(next), centreChanged: !!next && (!was || was.lat !== next.lat || was.lng !== next.lng) }
       });
     });
-    announceSetting('geofence', me.username);
+    await announceSetting('geofence', me.username);
     return send(res, 200, { geofence: next });
   }
   if (route === 'GET /staff') {
     needAdmin();
-    const listParams = monthParams();
+    const listParams = await monthParams();
     return send(res, 200, {
-      staff: store.listStaff().map(s => staffForViewer(me, s.payrollSubject ? withLeave(listParams, s) : s))
+      staff: await AsyncList.map((await store.listStaff()), async s => await staffForViewer(me, s.payrollSubject ? await withLeave(listParams, s) : s))
     });
   }
   if (route === 'GET /team') {
     needAdmin();
     const month = url.searchParams.get('month');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const kpiRows = new Map(store.listKpiScores(month).map(row => [row.username, row]));
-    const teamParams = monthParams(month);
-    const teamSchedule = schedule.team(month); // lịch của từng loại nhân sự
-    const people = store.listStaff().filter(s => s.payrollSubject);
-    closeStaleFor(people);
+    const kpiRows = new Map((await store.listKpiScores(month)).map(row => [row.username, row]));
+    const teamParams = await monthParams(month);
+    const teamSchedule = await schedule.team(month); // lịch của từng loại nhân sự
+    const people = (await store.listStaff()).filter(s => s.payrollSubject);
+    await closeStaleFor(people);
     // Lượt chấm công của cả tháng nạp MỘT lần (kèm lượt bấm và điều chỉnh), rồi chia theo người
     const sessionsOf = new Map();
-    for (const session of sessionsFor({ month })) {
+    for (const session of await sessionsFor({ month })) {
       if (!sessionsOf.has(session.username)) sessionsOf.set(session.username, []);
       sessionsOf.get(session.username).push(session);
     }
-    const rows = people.map(s => {
-      const sh = estimateSheet(s.username, month),
+    const rows = await AsyncList.map(people, async s => {
+      const sh = await estimateSheet(s.username, month),
         attendanceSessions = sessionsOf.get(s.username) || [],
-        approvals = sheetApprovals(s.username, month, sh.days);
+        approvals = await sheetApprovals(s.username, month, sh.days);
       return {
-        staff: staffForViewer(me, withLeave(teamParams, s)),
-        ...sheetForViewer(me, s.username, sh),
+        staff: await staffForViewer(me, await withLeave(teamParams, s)),
+        ...await sheetForViewer(me, s.username, sh),
         approvals,
-        kpiParts: kpiPartsView(
-          hasKpi(s, teamParams) && authz.can(me, 'salary.read', { username: s.username })
+        kpiParts: await kpiPartsView(
+          (await hasKpi(s, teamParams)) && await authz.can(me, 'salary.read', { username: s.username })
             ? kpiRows.get(s.username)
             : null,
           month,
@@ -1662,7 +1662,7 @@ async function api(req, res, url, me) {
       month,
       rows,
       schedules: teamSchedule.schedules,
-      holidays: store.getSetting('holidays', [])
+      holidays: await store.getSetting('holidays', [])
     });
   }
   /* ---------- tham số tính lương: màn Cài đặt dựng từ registry ---------- */
@@ -1670,27 +1670,27 @@ async function api(req, res, url, me) {
     need(); // năng lực config.read đã kiểm ở cổng ROUTE_CAPS
     const month = url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
-    if (route === 'GET /settings/first-run') return send(res, 200, paramsStore.firstRun(month));
+    if (route === 'GET /settings/first-run') return send(res, 200, await paramsStore.firstRun(month));
     const groupText = url.searchParams.get('group');
     const group = groupText === null ? undefined : Number(groupText);
     if (group !== undefined && !Number.isInteger(group)) throw new HttpError(400, 'group phải là số nguyên');
-    return send(res, 200, paramsStore.view(month, { group }));
+    return send(res, 200, await paramsStore.view(month, { group }));
   }
   if (route === 'GET /settings/version') {
     need();
-    return send(res, 200, configRev.info());
+    return send(res, 200, await configRev.info());
   }
   if (seg[1] === 'settings' && seg[2] === 'params' && req.method !== 'GET') {
     need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.js
     const b = await readJson(req);
     if (req.method === 'PUT' && seg.length === 3) {
-      const saved = paramsSave.save(me, actx, b);
-      if (saved.notice) events.emit.paramsChanged(saved.notice);
+      const saved = await paramsSave.save(me, actx, b);
+      if (saved.notice) await events.emit.paramsChanged(saved.notice);
       return send(res, 200, saved);
     }
-    if (req.method === 'POST' && seg[3] === 'preview') return send(res, 200, paramsSave.preview(me, b));
+    if (req.method === 'POST' && seg[3] === 'preview') return send(res, 200, await paramsSave.preview(me, b));
     if (req.method === 'POST' && seg[3] === 'revert') {
-      const reverted = paramsSave.revert(me, actx, b);
+      const reverted = await paramsSave.revert(me, actx, b);
       if (reverted.notice) events.emit.paramsChanged(reverted.notice);
       return send(res, 200, reverted);
     }
@@ -1700,7 +1700,7 @@ async function api(req, res, url, me) {
     need();
     return send(res, 200, {
       year: Number(url.searchParams.get('year') || vnToday().slice(0, 4)),
-      periods: periods.list(url.searchParams.get('year') || vnToday().slice(0, 4))
+      periods: await periods.list(url.searchParams.get('year') || vnToday().slice(0, 4))
     });
   }
   const periodKey = authz.routeKey(req.method, seg);
@@ -1709,14 +1709,14 @@ async function api(req, res, url, me) {
     const month = seg[2];
     const step = periodKey.slice(periodKey.indexOf(':month') + ':month'.length);
     if (req.method === 'GET') {
-      if (step === '') return send(res, 200, periods.view(month));
-      if (step === '/verify') return send(res, 200, periods.verify(month));
+      if (step === '') return send(res, 200, await periods.view(month));
+      if (step === '/verify') return send(res, 200, await periods.verify(month));
       if (step === '/estimates') {
         const q = url.searchParams;
         return send(
           res,
           200,
-          periods.estimates(month, {
+          await periods.estimates(month, {
             q: q.get('q') || undefined,
             type: q.get('type') || undefined,
             page: q.get('page') || undefined,
@@ -1729,7 +1729,7 @@ async function api(req, res, url, me) {
         return send(
           res,
           200,
-          periods.payslips(month, {
+          await periods.payslips(month, {
             status: q.get('status') || undefined,
             q: q.get('q') || undefined,
             flag: q.get('flag') || undefined,
@@ -1746,7 +1746,7 @@ async function api(req, res, url, me) {
         } catch {
           throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
         }
-        const viewAll = authz.scopeOf(me, 'payroll.view') === 'all'; // nhân sự chỉ có phạm vi tự mình
+        const viewAll = await authz.scopeOf(me, 'payroll.view') === 'all'; // nhân sự chỉ có phạm vi tự mình
         // phiếu ước tính của người khác (kể cả của chính mình) chỉ dành cho phạm vi tất cả: lớp chặn thứ hai sau cổng route
         if (!viewAll && (step === '/estimates/:username' || username !== me.username))
           throw new HttpError(403, 'Chỉ xem được phiếu của chính mình', { code: 'FORBIDDEN_CAP' });
@@ -1755,45 +1755,45 @@ async function api(req, res, url, me) {
           res,
           200,
           step === '/estimates/:username'
-            ? periods.estimateOne(month, username)
-            : periods.payslip(month, username, { self: !viewAll })
+            ? await periods.estimateOne(month, username)
+            : await periods.payslip(month, username, { self: !viewAll })
         );
       }
     } else {
       const b = await readJson(req);
       const by = me.username;
       // Mỗi bước kỳ trả { month, status, rev }: báo cho các màn sau khi bước đã COMMIT
-      const stepDone = out => {
-        events.emit.periodChanged(out);
+      const stepDone = async out => {
+        await events.emit.periodChanged(out);
         return send(res, 200, out);
       };
-      if (step === '/lock-attendance') return stepDone(periods.lockAttendance(month, b, actx, by));
-      if (step === '/calculate') return stepDone(periods.calculate(month, b, actx, by));
+      if (step === '/lock-attendance') return await stepDone(await periods.lockAttendance(month, b, actx, by));
+      if (step === '/calculate') return await stepDone(await periods.calculate(month, b, actx, by));
       if (step === '/ai-review') {
-        if (!authz.can(me, 'payroll.calculate'))
+        if (!await authz.can(me, 'payroll.calculate'))
           throw new HttpError(403, 'Cần quyền tính lương để chạy AI kiểm tra', {
             code: 'FORBIDDEN_CAP',
             cap: 'payroll.calculate'
           });
-        agents.assertEnabled();
-        return stepDone(periods.aiReview(month, b, actx, by, m => aiReviewResult(m, false)));
+        await agents.assertEnabled();
+        return await stepDone(await periods.aiReview(month, b, actx, by, async m => await aiReviewResult(m, false)));
       }
-      if (step === '/approve') return stepDone(periods.approve(month, b, actx, by));
+      if (step === '/approve') return await stepDone(await periods.approve(month, b, actx, by));
       if (step === '/mark-paid') {
-        const paid = periods.markPaid(month, b, actx, by);
-        events.emit.payslipAvailable(month, periods.payslipUsers(month));
-        return stepDone(paid);
+        const paid = await periods.markPaid(month, b, actx, by);
+        await events.emit.payslipAvailable(month, await periods.payslipUsers(month));
+        return await stepDone(paid);
       }
       if (step === '/reopen') {
         const inputsCap = periods.REOPEN_INPUTS_CAP(b.to);
-        if (inputsCap && !authz.can(me, inputsCap))
+        if (inputsCap && !await authz.can(me, inputsCap))
           throw new HttpError(403, 'Mở lại về bước này cần quyền mở lại dữ liệu đầu vào (chỉ Admin)', {
             code: 'FORBIDDEN_CAP',
             cap: inputsCap
           });
-        return stepDone(periods.reopen(month, b, actx, by));
+        return stepDone(await periods.reopen(month, b, actx, by));
       }
-      if (step === '/payslips/decide') return send(res, 200, { items: periods.decidePayslips(month, b, me, actx) });
+      if (step === '/payslips/decide') return send(res, 200, { items: await periods.decidePayslips(month, b, me, actx) });
     }
   }
   /* ---------- nhật ký kiểm toán (chỉ đọc; không có API sửa hay xoá) ---------- */
@@ -1820,13 +1820,13 @@ async function api(req, res, url, me) {
       afterId: q.has('afterId') ? Number(q.get('afterId')) : undefined,
       beforeId: q.has('beforeId') ? Number(q.get('beforeId')) : undefined,
       // Mức nhạy cảm theo năng lực người xem
-      sensitivities: authz.auditSensitivities(me)
+      sensitivities: await authz.auditSensitivities(me)
     };
     const size = Math.min(limit, config.AUDIT_PAGE_MAX);
-    const rows = store.audit.list({ ...filter, limit: size }).map(audit.publicRow);
+    const rows = (await store.audit.list({ ...filter, limit: size })).map(audit.publicRow);
     return send(res, 200, {
       rows,
-      total: store.audit.count(filter),
+      total: await store.audit.count(filter),
       limit: size,
       // Trang kế (mới → cũ): truyền nextBeforeId vào beforeId
       nextBeforeId: rows.length === size && !q.has('afterId') ? rows[rows.length - 1].id : null
@@ -1834,11 +1834,11 @@ async function api(req, res, url, me) {
   }
   if (route === 'GET /audit/verify') {
     need(); // năng lực audit.read đã kiểm ở cổng ROUTE_CAPS
-    return send(res, 200, store.audit.verify());
+    return send(res, 200, await store.audit.verify());
   }
   /* ---------- vai trò (Cài đặt › Phân quyền) ---------- */
   // GET /roles và các route vai trò tuỳ chỉnh nằm ở lib/domain/roles.js (lib/roles.js); ở đây chỉ còn gán vai trò cho tài khoản
-  const rolesOfStaff = s => Roles.rolesOfStaff(s);
+  const rolesOfStaff = async s => await Roles.rolesOfStaff(s);
   const rolesRevOf = Roles.rolesRevOf;
   // Đặt lại mật khẩu của tài khoản KHÁC (màn Tài khoản): cần roles.manage ở cổng; không dùng cho chính mình (PUT /password). Mọi phiên cũ của người đó hết hiệu lực.
   if (req.method === 'POST' && seg.length === 4 && seg[1] === 'staff' && seg[3] === 'password') {
@@ -1854,15 +1854,15 @@ async function api(req, res, url, me) {
       throw new HttpError(400, 'Không đặt lại mật khẩu của chính mình ở đây; dùng chức năng đổi mật khẩu của tôi', {
         code: 'USE_OWN_PASSWORD'
       });
-    if (!store.getStaffRow(username)) throw new HttpError(404, 'Không có tài khoản này');
+    if (!await store.getStaffRow(username)) throw new HttpError(404, 'Không có tài khoản này');
     if (typeof b.password !== 'string' || b.password.length < config.PASSWORD_MIN_LENGTH)
       throw new HttpError(400, `Mật khẩu cần ít nhất ${config.PASSWORD_MIN_LENGTH} ký tự`);
     const reason = reasonOf(b.reason);
     const passHash = await auth.hashPasswordAsync(b.password);
-    store.transaction(() => {
-      store.setPassword(username, passHash);
+    await store.transaction(async () => {
+      await store.setPassword(username, passHash);
       // Chỉ ghi hành động và lý do, không bao giờ ghi mật khẩu hay hàm băm
-      audit.write(actx, {
+      await audit.write(actx, {
         action: 'password.reset',
         entityKind: 'staff',
         entityId: username,
@@ -1870,7 +1870,7 @@ async function api(req, res, url, me) {
         reason: reason || null
       });
     });
-    store.bumpSessionVersion(username); // mọi phiên cũ của người đó hết hiệu lực
+    await store.bumpSessionVersion(username); // mọi phiên cũ của người đó hết hiệu lực
     events.closeUser(username, 'password');
     return send(res, 200, { ok: true });
   }
@@ -1883,25 +1883,25 @@ async function api(req, res, url, me) {
     } catch {
       throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
     }
-    const target = store.getStaff(username);
+    const target = await store.getStaff(username);
     if (!target) throw new HttpError(404, 'Không có tài khoản này');
-    const known = [...Roles.knownRoleSet()];
+    const known = [...await Roles.knownRoleSet()];
     if (!Array.isArray(b.roles) || b.roles.some(r => typeof r !== 'string' || !known.includes(r)))
       throw new HttpError(400, `roles phải là mảng vai trò có trong hệ thống: ${known.join(', ')}`);
     const reason = reasonOf(b.reason);
     if (b.expectedRev !== undefined && b.expectedRev !== null && !Number.isInteger(b.expectedRev))
       throw new HttpError(400, 'expectedRev phải là số nguyên');
     const want = [...new Set(b.roles)].sort();
-    const outcome = store.transaction(() => {
-      const history = store.roles.list({ username, includeRevoked: true });
+    const outcome = await store.transaction(async () => {
+      const history = await store.roles.list({ username, includeRevoked: true });
       const rev = rolesRevOf(history);
       if (b.expectedRev !== undefined && b.expectedRev !== null && b.expectedRev !== rev)
         throw new HttpError(409, 'Vai trò của tài khoản này vừa được người khác đổi, tải lại rồi làm lại', {
           code: 'ROLES_STALE',
           rev
         });
-      const current = rolesOfStaff(target);
-      const stored = store.roles.activeRoles(username);
+      const current = await rolesOfStaff(target);
+      const stored = await store.roles.activeRoles(username);
       const toGrant = want.filter(r => !current.includes(r));
       const toRevoke = current.filter(r => !want.includes(r));
       if (username === admin.username && current.includes('admin') && !want.includes('admin'))
@@ -1917,18 +1917,19 @@ async function api(req, res, url, me) {
             { code: 'ROLE_DERIVED', role }
           );
       // Vai trò tuỳ chỉnh đã ngưng dùng chỉ để gỡ, không gán mới được
-      const deprecatedGrant = toGrant.find(r => authz.customTable().roles.some(d => d.code === r && d.deprecated));
+      const customRoles = (await authz.customTable()).roles;
+      const deprecatedGrant = toGrant.find(r => customRoles.some(d => d.code === r && d.deprecated));
       if (deprecatedGrant)
         throw new HttpError(400, 'Vai trò đã ngưng dùng, không gán mới được', {
           code: 'ROLE_DEPRECATED',
           role: deprecatedGrant
         });
-      for (const role of toGrant) store.roles.grant(username, role, admin.username);
-      for (const role of toRevoke) if (stored.includes(role)) store.roles.revoke(username, role);
+      for (const role of toGrant) await store.roles.grant(username, role, admin.username);
+      for (const role of toRevoke) if (stored.includes(role)) await store.roles.revoke(username, role);
       // Vai trò staff = nhân sự được trả lương: gán thì bật payrollSubject, gỡ thì tắt (cùng giao dịch, có nhật ký staff.payrollSubject).
       // Tài khoản Admin gốc chưa có bậc lương hợp lệ (bậc 0) mà được gán staff thì phiếu báo lỗi bậc cho tới khi đặt bậc ở Hồ sơ; không tự đặt bậc thay Admin.
       if (
-        Roles.syncPayroll(actx, username, want.includes('staff'), target.payrollSubject) &&
+        await Roles.syncPayroll(actx, username, want.includes('staff'), target.payrollSubject) &&
         want.includes('staff') &&
         !(target.level >= 1)
       )
@@ -1936,11 +1937,11 @@ async function api(req, res, url, me) {
           'ROLE_STAFF_NO_LEVEL',
           'Tài khoản này chưa có bậc lương hợp lệ: phiếu lương sẽ báo lỗi cho tới khi đặt chức vụ và bậc ở Hồ sơ nhân sự.'
         );
-      if (store.roles.countAdmins() < 1)
+      if (await store.roles.countAdmins() < 1)
         throw new HttpError(409, 'Không được gỡ quản trị viên cuối cùng', { code: 'LAST_ADMIN' });
       // Một dòng nhật ký cho mỗi vai trò đổi (mức pii: đây là phân quyền truy cập dữ liệu cá nhân)
       for (const [role, active] of [...toGrant.map(r => [r, true]), ...toRevoke.map(r => [r, false])])
-        audit.write(actx, {
+        await audit.write(actx, {
           action: active ? 'role.grant' : 'role.revoke',
           entityKind: 'staff_role',
           entityId: `${username}:${role}`,
@@ -1953,20 +1954,20 @@ async function api(req, res, url, me) {
       return {
         granted: toGrant,
         revoked: toRevoke,
-        rev: rolesRevOf(store.roles.list({ username, includeRevoked: true }))
+        rev: rolesRevOf(await store.roles.list({ username, includeRevoked: true }))
       };
     });
-    if (outcome.granted.length || outcome.revoked.length) events.emit.rolesChanged(username);
-    return send(res, 200, { username, roles: rolesOfStaff(store.getStaff(username)), ...outcome });
+    if (outcome.granted.length || outcome.revoked.length) await events.emit.rolesChanged(username);
+    return send(res, 200, { username, roles: await rolesOfStaff(await store.getStaff(username)), ...outcome });
   }
   /* ---------- gán ca cho nhiều người (Hồ sơ › Gán ca): tất cả hoặc không ---------- */
   if (req.method === 'PUT' && seg.length === 3 && seg[1] === 'staff' && seg[2] === 'shift-bulk') {
     needAdmin();
     const b = await readJson(req);
-    const punchRules = rulesFor().punch;
+    const punchRules = (await rulesFor()).punch;
     if (!Array.isArray(b.usernames) || !b.usernames.length)
       throw new HttpError(400, 'Chọn ít nhất một người để gán ca', { code: 'USERNAMES_REQUIRED' });
-    const bulkMax = rulesFor().params['system.staff.bulkMax'];
+    const bulkMax = (await rulesFor()).params['system.staff.bulkMax'];
     if (b.usernames.length > bulkMax)
       throw new HttpError(400, `Mỗi lần gán tối đa ${bulkMax} người`, { code: 'TOO_MANY' });
     const usernames = b.usernames.map(u => (typeof u === 'string' ? u.toLowerCase() : u));
@@ -1981,14 +1982,14 @@ async function api(req, res, url, me) {
       );
     if (typeof shiftCode !== 'string' || !Object.hasOwn(punchRules.SHIFT, shiftCode))
       throw new HttpError(400, 'Ca cố định không hợp lệ', { code: 'SHIFT_UNKNOWN' });
-    shiftCode = container.shifts.canonicalOf(shiftCode) || shiftCode; // hồ sơ lưu mã của danh mục ca
+    shiftCode = await container.shifts.canonicalOf(shiftCode) || shiftCode; // hồ sơ lưu mã của danh mục ca
     // Ngày hiệu lực: ca đổi ngay (không có lịch hiệu lực); chỉ nhận hôm nay hoặc để trống
     if (b.effective !== undefined && b.effective !== null && b.effective !== vnToday())
       throw new HttpError(400, 'Ca có hiệu lực ngay khi lưu: ngày hiệu lực chỉ nhận hôm nay hoặc để trống', {
         code: 'EFFECTIVE_UNSUPPORTED'
       });
     const reason = reasonOf(b.reason);
-    const people = usernames.map(u => store.getStaff(u));
+    const people = await AsyncList.map(usernames, async u => await store.getStaff(u));
     const missing = usernames.filter((u, i) => !people[i]);
     if (missing.length)
       throw new HttpError(404, `Không có tài khoản: ${missing.join(', ')}`, { code: 'STAFF_NOT_FOUND', missing });
@@ -1997,7 +1998,7 @@ async function api(req, res, url, me) {
       people.some(p => authz.isSelfDecision(me, p.username) && p.shiftCode !== shiftCode),
       { doing: 'đổi ca' }
     );
-    const result = store.transaction(() => {
+    const result = await store.transaction(async () => {
       const updated = [],
         unchanged = [];
       for (const person of people) {
@@ -2005,8 +2006,8 @@ async function api(req, res, url, me) {
           unchanged.push(person.username);
           continue;
         }
-        store.db.prepare('UPDATE staff SET shift_code = ? WHERE username = ?').run(shiftCode, person.username);
-        audit.write(actx, {
+        await store.db.prepare('UPDATE staff SET shift_code = ? WHERE username = ?').run(shiftCode, person.username);
+        await audit.write(actx, {
           action: 'staff.update',
           entityKind: 'staff',
           entityId: person.username,
@@ -2030,17 +2031,17 @@ async function api(req, res, url, me) {
       throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
     }
     if (!USERNAME_RE.test(username)) throw new HttpError(400, 'Tên đăng nhập: chữ thường, số, dấu . _ - (2–40 ký tự)');
-    const prev = store.getStaffRow(username);
+    const prev = await store.getStaffRow(username);
     // Khoá hoặc mở khoá tài khoản đang giữ vai trò Admin cần năng lực quản lý vai trò (staff.lock gán được cho vai trò tuỳ chỉnh: không đủ để
     // khoá Admin), và không được khoá Admin chưa khoá cuối cùng (nếu không, không ai còn roles.manage để mở lại)
-    const guardAdminLock = locking => {
-      if (!prev || !(prev.role === 'admin' || store.roles.activeRoles(username).includes('admin'))) return;
-      if (!authz.can(me, 'roles.manage'))
+    const guardAdminLock = async locking => {
+      if (!prev || !(prev.role === 'admin' || (await store.roles.activeRoles(username)).includes('admin'))) return;
+      if (!await authz.can(me, 'roles.manage'))
         throw new HttpError(403, 'Bạn không có quyền khoá hoặc mở khoá tài khoản Admin', {
           code: 'FORBIDDEN_CAP',
           cap: 'roles.manage'
         });
-      if (locking && !prev.locked_at && store.roles.countAdmins() < 2)
+      if (locking && !prev.locked_at && await store.roles.countAdmins() < 2)
         throw new HttpError(409, 'Không được khoá quản trị viên cuối cùng', { code: 'LAST_ADMIN' });
     };
     const b = await readJson(req);
@@ -2049,7 +2050,7 @@ async function api(req, res, url, me) {
     if (b.expectedRev !== undefined && b.expectedRev !== null) {
       if (typeof b.expectedRev !== 'string' || !b.expectedRev)
         throw new HttpError(400, 'expectedRev phải là chuỗi số phiên bản hồ sơ');
-      const currentRev = staffRevision(username);
+      const currentRev = await staffRevision(username);
       if (b.expectedRev !== currentRev)
         throw new HttpError(
           409,
@@ -2059,25 +2060,25 @@ async function api(req, res, url, me) {
     }
     if (Object.hasOwn(b, 'locked') && typeof b.locked !== 'boolean')
       throw new HttpError(400, 'locked phải là true hoặc false');
-    if (Object.hasOwn(b, 'locked') && !authz.can(me, 'staff.lock'))
+    if (Object.hasOwn(b, 'locked') && !await authz.can(me, 'staff.lock'))
       throw new HttpError(403, 'Bạn không có quyền khoá hoặc mở khoá tài khoản', {
         code: 'FORBIDDEN_CAP',
         cap: 'staff.lock'
       });
     if (b.locked === true && username === admin.username)
       throw new HttpError(400, 'Không thể tự khoá tài khoản đang đăng nhập');
-    if (typeof b.locked === 'boolean') guardAdminLock(b.locked);
+    if (typeof b.locked === 'boolean') await guardAdminLock(b.locked);
     // Chỉ khoá / mở khoá: không kiểm các trường hồ sơ khác (tài khoản cũ có thể thiếu ngày bắt đầu làm)
     // expectedRev đã được kiểm ở trên nên không tính vào số trường: { locked, expectedRev } vẫn là yêu cầu chỉ khoá / mở khoá
     if (Object.keys(b).filter(key => key !== 'expectedRev').length === 1 && Object.hasOwn(b, 'locked')) {
       if (!prev) throw new HttpError(404, 'Không có tài khoản này');
-      store.transaction(() => {
+      await store.transaction(async () => {
         // Chỉ ghi nhật ký khi trạng thái khoá thật sự đổi: gửi lại locked như cũ (lưu hồ sơ) không thêm dòng khoá / mở khoá
-        const changed = b.locked ? store.lockStaff(username, admin.username) : store.unlockStaff(username);
-        if (changed) audit.staffLock(actx, username, b.locked);
+        const changed = b.locked ? await store.lockStaff(username, admin.username) : await store.unlockStaff(username);
+        if (changed) await audit.staffLock(actx, username, b.locked);
       });
       if (b.locked) events.closeUser(username, 'locked');
-      return send(res, 200, { staff: staffForViewer(me, store.getStaff(username)), created: false });
+      return send(res, 200, { staff: await staffForViewer(me, await store.getStaff(username)), created: false });
     }
     // Họ tên: name; hoặc familyName + givenName nhập riêng (họ trước, tên sau, viết hoa chữ đầu) thì name = họ + tên
     const nameParts =
@@ -2109,7 +2110,7 @@ async function api(req, res, url, me) {
     )
       throw new HttpError(403, 'Bạn không có quyền đổi vai trò Admin', { code: 'FORBIDDEN_CAP', cap: 'roles.manage' });
     // Chức vụ là dữ liệu: mã phải có trong bảng chức vụ của tháng hiện tại (chức vụ ngưng dùng chỉ giữ cho người đang có); mã lạ là 400, không đổi ngầm thành mã khác
-    const staffParams = monthParams();
+    const staffParams = await monthParams();
     const activeCodes = activeCodesOf(staffParams);
     if (b.type !== undefined && b.type !== null && !activeCodes.includes(b.type) && !(prev && prev.type === b.type))
       throw new HttpError(400, `Loại nhân sự phải là một trong: ${activeCodes.join(', ')}`);
@@ -2124,7 +2125,7 @@ async function api(req, res, url, me) {
       : roleChanged
         ? role !== 'admin'
         : undefined;
-    const inPayroll = payrollSubject ?? (prev ? !!store.isPayrollSubject(username) : role !== 'admin');
+    const inPayroll = payrollSubject ?? (prev ? !!await store.isPayrollSubject(username) : role !== 'admin');
     // Người trong bảng lương (hoặc không phải Admin) cần bậc hợp lệ. Admin ngoài bảng lương giữ bậc đang lưu: đổi vai trò không làm mất bậc.
     const keptLevel = prev && Number.isInteger(prev.level) && prev.level >= 1 ? prev.level : null;
     const needsLevel = role !== 'admin' || inPayroll;
@@ -2155,13 +2156,13 @@ async function api(req, res, url, me) {
       : null;
     const idorm = benefitOf(staffParams, type, 'idorm', level) && !!b.idorm; // iDorm chỉ nhận khi cờ iDorm của chức vụ hoặc bậc bật
     const givenShift = b.shiftCode == null || b.shiftCode === '' ? null : b.shiftCode;
-    if (givenShift !== null && (typeof givenShift !== 'string' || !Object.hasOwn(rulesFor().punch.SHIFT, givenShift)))
+    if (givenShift !== null && (typeof givenShift !== 'string' || !Object.hasOwn((await rulesFor()).punch.SHIFT, givenShift)))
       throw new HttpError(400, 'Ca cố định không hợp lệ');
-    const shiftCode = givenShift === null ? null : container.shifts.canonicalOf(givenShift) || givenShift; // lưu mã của danh mục ca
+    const shiftCode = givenShift === null ? null : await container.shifts.canonicalOf(givenShift) || givenShift; // lưu mã của danh mục ca
     // phép năm: ngày đầu đi làm, ngày sinh, điều chỉnh tay (+/− ngày, bước 0,5)
     const startDate = b.startDate ? String(b.startDate) : null,
       birthday =
-        b.birthday === undefined && prev && !authz.can(me, 'profile.read.pii')
+        b.birthday === undefined && prev && !await authz.can(me, 'profile.read.pii')
           ? prev.birthday || null
           : b.birthday
             ? String(b.birthday)
@@ -2185,7 +2186,7 @@ async function api(req, res, url, me) {
     if (contract !== null && contract !== 'long' && contract !== 'short')
       throw new HttpError(400, 'Loại hợp đồng không hợp lệ');
     // thiếu trường: giữ đúng giá trị đang lưu trong cột (NULL = theo insurance.coverage của hợp đồng, không ghim thành giá trị suy ra)
-    const insured = b.insured === undefined ? (store.getStaffRow(username)?.insured ?? null) : b.insured;
+    const insured = b.insured === undefined ? ((await store.getStaffRow(username))?.insured ?? null) : b.insured;
     if (insured !== null && typeof insured !== 'boolean' && insured !== 0 && insured !== 1)
       throw new HttpError(400, 'Đóng bảo hiểm phải là có / không');
     const dep = b.dependants; // chỉ nhận số nguyên hoặc chuỗi chữ số; null / '' = 0
@@ -2247,8 +2248,8 @@ async function api(req, res, url, me) {
         };
       };
       const payFields = prev
-        ? (() => {
-            const was = effectivePay({ ...store.getStaff(username), insured: store.getStaffRow(username).insured }); // insured thô: NULL giữ NULL
+        ? await (async () => {
+            const was = effectivePay({ ...await store.getStaff(username), insured: (await store.getStaffRow(username)).insured }); // insured thô: NULL giữ NULL
             const now = effectivePay({ type, level, nightPct, idorm, contract, insured, dependants, ...flags });
             return Object.keys(now).filter(key => now[key] !== was[key]);
           })()
@@ -2256,7 +2257,7 @@ async function api(req, res, url, me) {
       // Không ai tự sửa lương, thuế, bảo hiểm, ca, điều chỉnh phép hay mật khẩu của CHÍNH MÌNH (Admin ngoài diện lương không bị ảnh hưởng).
       // Các trường khác của chính mình không bị kiểm ở đây.
       if (prev && authz.isSelfDecision(me, username)) {
-        const was = store.getStaff(username);
+        const was = await store.getStaff(username);
         const own = [
           ...payFields,
           ...(leaveAdjust !== was.leaveAdjust ? ['leaveAdjust'] : []),
@@ -2271,13 +2272,13 @@ async function api(req, res, url, me) {
           });
         selfDecision(own.length > 0, { doing: `sửa ${own.join(', ')}` });
       }
-      if (payFields.length && !authz.can(me, 'salary.write'))
+      if (payFields.length && !await authz.can(me, 'salary.write'))
         throw new HttpError(403, `Bạn không có quyền đổi trường lương (${payFields.join(', ')})`, {
           code: 'FORBIDDEN_CAP',
           cap: 'salary.write',
           fields: payFields
         });
-      if (b.password && prev && username !== admin.username && !authz.can(me, 'roles.manage'))
+      if (b.password && prev && username !== admin.username && !await authz.can(me, 'roles.manage'))
         throw new HttpError(403, 'Bạn không có quyền đặt lại mật khẩu của tài khoản khác', {
           code: 'FORBIDDEN_CAP',
           cap: 'roles.manage'
@@ -2298,9 +2299,9 @@ async function api(req, res, url, me) {
     if (username === admin.username && prev?.role === 'admin' && role !== 'admin')
       throw new HttpError(400, 'Không thể tự bỏ quyền Admin của mình');
     // Hồ sơ và dòng duyệt đổi cùng nhau hoặc không đổi gì
-    const staffBefore = prev ? store.getStaff(username) : null;
-    store.transaction(() => {
-      store.upsertStaff({
+    const staffBefore = prev ? await store.getStaff(username) : null;
+    await store.transaction(async () => {
+      await store.upsertStaff({
         username,
         name,
         role,
@@ -2324,16 +2325,16 @@ async function api(req, res, url, me) {
         contractStatus,
         resignedOn
       });
-      if (needsLevel && (!prev || prev.type !== type || payrollSubject === true)) reconcileStaffType(username, type);
+      if (needsLevel && (!prev || prev.type !== type || payrollSubject === true)) await reconcileStaffType(username, type);
       // Hồ sơ không nhạy cảm có cũ, mới; trường tiền có mức pay; ngày sinh chỉ ghi "đã đổi"; mật khẩu chỉ ghi cờ
-      const staffAfter = store.getStaff(username);
+      const staffAfter = await store.getStaff(username);
       // Tắt payrollSubject thì vai trò staff đã gán cũng được thu hồi (staff = nhân sự được trả lương); bật thì staff tự dẫn xuất
-      if (!staffAfter.payrollSubject && store.roles.activeRoles(username).includes('staff'))
-        store.roles.revoke(username, 'staff');
-      audit.staffSaved(actx, staffBefore, staffAfter, { passwordSet: !!b.password });
+      if (!staffAfter.payrollSubject && (await store.roles.activeRoles(username)).includes('staff'))
+        await store.roles.revoke(username, 'staff');
+      await audit.staffSaved(actx, staffBefore, staffAfter, { passwordSet: !!b.password });
       // Vào hay ra khỏi bảng lương đổi người nhận lương: một dòng riêng (mức pay), chỉ khi tài khoản đã có và cờ đổi
       if (staffBefore && staffBefore.payrollSubject !== staffAfter.payrollSubject)
-        audit.write(actx, {
+        await audit.write(actx, {
           action: 'staff.payrollSubject',
           entityKind: 'staff',
           entityId: username,
@@ -2345,21 +2346,21 @@ async function api(req, res, url, me) {
     });
     // Đặt lại mật khẩu: mọi phiên cũ của người đó hết hiệu lực. Khoá / mở khoá chỉ khi yêu cầu có nói rõ.
     if (b.password && prev) {
-      store.bumpSessionVersion(username);
+      await store.bumpSessionVersion(username);
       if (username !== admin.username) events.closeUser(username, 'password');
     }
     if (typeof b.locked === 'boolean')
-      store.transaction(() => {
+      await store.transaction(async () => {
         // Chỉ ghi nhật ký khi trạng thái khoá thật sự đổi: gửi lại locked như cũ (lưu hồ sơ) không thêm dòng khoá / mở khoá
-        const changed = b.locked ? store.lockStaff(username, admin.username) : store.unlockStaff(username);
-        if (changed) audit.staffLock(actx, username, b.locked);
+        const changed = b.locked ? await store.lockStaff(username, admin.username) : await store.unlockStaff(username);
+        if (changed) await audit.staffLock(actx, username, b.locked);
       });
     if (b.locked === true) events.closeUser(username, 'locked');
-    const result = { staff: staffForViewer(me, store.getStaff(username)), created: !prev };
+    const result = { staff: await staffForViewer(me, await store.getStaff(username)), created: !prev };
     // Admin tự đặt lại mật khẩu của mình: phiên hiện tại vừa bị thu hồi, cấp phiên mới cho trình duyệt đang dùng
     if (b.password && prev && username === admin.username)
       return send(res, 200, result, {
-        'Set-Cookie': auth.cookieHeader(auth.createSession(username), auth.SESSION_MAX_AGE_SEC)
+        'Set-Cookie': auth.cookieHeader(await auth.createSession(username), auth.SESSION_MAX_AGE_SEC)
       });
     return send(res, 200, result);
   }
@@ -2367,7 +2368,7 @@ async function api(req, res, url, me) {
 }
 
 /* ---------- server ---------- */
-Roles.reconcileStaffRole(); // tài khoản đã gán vai trò staff mà payrollSubject còn false thì bật (staff = nhân sự được trả lương)
+Roles.reconcileStaffRole().catch(error => console.error('reconcileStaffRole:', error)); // tài khoản đã gán vai trò staff mà payrollSubject còn false thì bật (staff = nhân sự được trả lương)
 const server = http.createServer(async (req, res) => {
   securityHeaders(res);
   let url;
@@ -2382,11 +2383,11 @@ const server = http.createServer(async (req, res) => {
     res.once('close', () => apiInflight--);
   }
   try {
-    const sessionUser = auth.readSession(req.headers.cookie);
-    const me = sessionUser ? store.getStaff(sessionUser) : null;
-    await warnings.run(() => requestRules.run(new Map(), () => api(req, res, url, me)));
+    const sessionUser = await auth.readSession(req.headers.cookie);
+    const me = sessionUser ? await store.getStaff(sessionUser) : null;
+    await warnings.run(async () => await requestRules.run(new Map(), async () => await api(req, res, url, me)));
     announceAttendance();
-    announcePunches();
+    await announcePunches();
   } catch (e) {
     attendanceHints.clear(); // lỗi thì giao dịch đã hoàn tác: không báo
     punchHints.clear();
@@ -2408,8 +2409,10 @@ server.keepAliveTimeout = config.HTTP_KEEP_ALIVE_MS;
 server.headersTimeout = config.HTTP_HEADERS_TIMEOUT_MS;
 server.requestTimeout = config.HTTP_REQUEST_TIMEOUT_MS; // kẻ gửi chậm không giữ socket mãi (luồng SSE là phản hồi nên không bị tính)
 
-if (require.main === module) {
-  if (store.listStaff().length === 0) {
+if (require.main === module)
+  (async () => {
+  await auth.ready; // khoá ký phiên (đọc từ DB khi không đặt SESSION_SECRET)
+  if ((await store.listStaff()).length === 0) {
     let boot;
     try {
       boot = auth.bootstrapAdminPassword();
@@ -2417,7 +2420,7 @@ if (require.main === module) {
       console.error(e.message);
       process.exit(1);
     }
-    store.upsertStaff({
+    await store.upsertStaff({
       username: 'admin',
       name: 'Admin',
       role: 'admin',
@@ -2437,15 +2440,15 @@ if (require.main === module) {
   // Dọn bảng nhớ requestId của Check-in/out: một lần lúc khởi động rồi mỗi PUNCH_REQUEST_PURGE_MS.
   // Chỉ xoá bản ghi cũ hơn PUNCH_REQUEST_KEEP_DAYS ngày; .unref() để timer không giữ tiến trình sống. Chỉ chạy khi chạy thật
   // (require.main === module) nên test nạp server không sinh timer. Không in dữ liệu cá nhân, chỉ số dòng.
-  const purgePunchRequests = () => {
+  const purgePunchRequests = async () => {
     try {
-      const removed = store.purgePunchRequests(config.PUNCH_REQUEST_KEEP_DAYS);
+      const removed = await store.purgePunchRequests(config.PUNCH_REQUEST_KEEP_DAYS);
       console.log(`Dọn bảng nhớ lượt chấm công: đã xoá ${removed} dòng cũ hơn ${config.PUNCH_REQUEST_KEEP_DAYS} ngày`);
     } catch (e) {
       console.error('Không dọn được bảng nhớ lượt chấm công:', e.message);
     }
   };
-  purgePunchRequests();
+  await purgePunchRequests();
   setInterval(purgePunchRequests, config.PUNCH_REQUEST_PURGE_MS).unref();
   // Số phép lưu sẵn: tính lại lúc khởi động rồi mỗi LEAVE_REFRESH_MS, để qua tháng làm việc tròn hay sinh nhật là DB tự cập nhật
   container.leave.start(config.LEAVE_REFRESH_MS);
@@ -2480,6 +2483,9 @@ if (require.main === module) {
     shutdown(1);
   });
   process.on('unhandledRejection', reason => console.error('unhandledRejection:', reason));
-}
+  })().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 server.limits = { hashGate, writeLimiter, shedder, monitor }; // để test và vận hành chỉnh/đọc số liệu giới hạn tải
 module.exports = server;

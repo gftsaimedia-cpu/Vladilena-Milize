@@ -24,26 +24,26 @@ afterEach(() => {
 });
 
 // Admin, C&B (qa_nv1, vai trò cb), HR (qa_ctv1: có attendance.read nhưng không có attendance.correct), một nhân sự thường (qa_nv2) và người bấm (qa_tts1, ca n1 Thứ Hai đến Thứ Sáu)
-function setup(clock = '2026-11-03T07:50:00') {
-  F.reset();
-  P.revokeAllRoles();
-  F.at(clock);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_tts1', 'staff', { type: 'tts', level: 3, shiftCode: 'n1', startDate: '2026-01-05' });
-  F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'g2', startDate: '2026-01-05', nightPct: 60 });
-  F.person('qa_nv2', 'staff', { type: 'nv', level: 3, shiftCode: 'n2', startDate: '2026-01-05' });
-  F.person('qa_ctv1', 'staff', { type: 'ctv', level: 2, shiftCode: 'n2', startDate: '2026-01-05' });
-  P.grant('qa_nv1', 'cb');
-  P.grant('qa_ctv1', 'hr');
+async function setup(clock = '2026-11-03T07:50:00') {
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at(clock);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_tts1', 'staff', { type: 'tts', level: 3, shiftCode: 'n1', startDate: '2026-01-05' });
+  await F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'g2', startDate: '2026-01-05', nightPct: 60 });
+  await F.person('qa_nv2', 'staff', { type: 'nv', level: 3, shiftCode: 'n2', startDate: '2026-01-05' });
+  await F.person('qa_ctv1', 'staff', { type: 'ctv', level: 2, shiftCode: 'n2', startDate: '2026-01-05' });
+  await P.grant('qa_nv1', 'cb');
+  await P.grant('qa_ctv1', 'hr');
 }
 const punch = (who, body) => F.call('POST', '/punch', { who, body: { requestId: randomUUID(), ...body } });
 const punchIn = who => punch(who, { type: 'in' });
-const punchOut = who => punch(who, { type: 'out', sessionId: store.openSession(who).id });
+const punchOut = async who => punch(who, { type: 'out', sessionId: (await store.openSession(who)).id });
 // Mọi khung mang dữ liệu nhạy cảm: giờ, tên, tên đăng nhập, toạ độ
 const LEAK = /qa_|Người thử|\d{1,2}:\d{2}|T\d\d|lat|lng|location|toạ độ/i;
 
 test('R: Check-in phát attendance.changed kind punch tới Admin và C&B, không tới nhân sự khác; punch.changed chỉ tới chính người bấm (cả hai máy)', async () => {
-  setup();
+  await setup();
   const [admin, cb, hr, staff, deviceA, deviceB] = await SSE.openMany(
     'admin',
     'qa_nv1',
@@ -93,9 +93,9 @@ test('R: Check-in phát attendance.changed kind punch tới Admin và C&B, khôn
 });
 
 test('R: Check-out cũng phát attendance.changed kind punch (Admin, C&B) và punch.changed (chính người bấm); nhân sự khác không nhận', async () => {
-  setup();
+  await setup();
   assert.equal((await punchIn('qa_tts1')).status, 200);
-  F.at('2026-11-03T17:10:00');
+  await F.at('2026-11-03T17:10:00');
   const [admin, cb, staff, self] = await SSE.openMany('admin', 'qa_nv1', 'qa_nv2', 'qa_tts1');
   const all = [admin, cb, staff, self];
   await SSE.settle(all);
@@ -119,7 +119,7 @@ test('R: Check-out cũng phát attendance.changed kind punch (Admin, C&B) và pu
 });
 
 test('R: ca đêm — Check-in 30/11 và Check-out 01/12 đều thuộc tháng của ngày bắt đầu ca (2026-11) ở cả attendance.changed lẫn punch.changed', async () => {
-  setup('2026-11-30T21:55:00');
+  await setup('2026-11-30T21:55:00');
   const [admin, self] = await SSE.openMany('admin', 'qa_nv1');
   // qa_nv1 là C&B của setup chung: dùng chính người này để chấm công đêm thì bản thân cũng có attendance.correct; nên chỉ kiểm Admin và punch.changed
   await SSE.settle([admin, self]);
@@ -129,7 +129,7 @@ test('R: ca đêm — Check-in 30/11 và Check-out 01/12 đều thuộc tháng c
   assert.equal(SSE.only(fAdmin, 'attendance.changed')[0].data.month, '2026-11');
   assert.deepEqual(SSE.only(fSelf, 'punch.changed')[0].data, { month: '2026-11', date: '2026-11-30' });
 
-  F.at('2026-12-01T07:05:00');
+  await F.at('2026-12-01T07:05:00');
   assert.equal((await punchOut('qa_nv1')).status, 200);
   [fAdmin, fSelf] = await SSE.settle([admin, self]);
   const out = SSE.only(fAdmin, 'attendance.changed');
@@ -140,16 +140,16 @@ test('R: ca đêm — Check-in 30/11 và Check-out 01/12 đều thuộc tháng c
 });
 
 test('R: lượt mở quá 16 giờ tự đóng khi người đó Check-in lần sau — phát attendance.changed cho cả tháng của lượt cũ (2026-11) và của lượt mới (2026-12)', async () => {
-  setup('2026-11-30T07:55:00');
+  await setup('2026-11-30T07:55:00');
   assert.equal((await punchIn('qa_tts1')).status, 200); // lượt ngày 30/11, rồi quên Check-out
-  const stale = store.openSession('qa_tts1');
+  const stale = await store.openSession('qa_tts1');
   const [admin, staff, self] = await SSE.openMany('admin', 'qa_nv2', 'qa_tts1');
   await SSE.settle([admin, staff, self]);
 
-  F.at('2026-12-01T10:00:00'); // 26 giờ sau
+  await F.at('2026-12-01T10:00:00'); // 26 giờ sau
   const res = await punchIn('qa_tts1');
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  const closed = store.getSession(stale.id);
+  const closed = await store.getSession(stale.id);
   assert.equal(closed.state, 'closed', 'lượt cũ đã bị đóng vì quá 16 giờ');
   assert.equal(closed.entry.reason, 'forgot-out');
 
@@ -170,7 +170,7 @@ test('R: lượt mở quá 16 giờ tự đóng khi người đó Check-in lần
 });
 
 test('R: yêu cầu bị từ chối không phát sự kiện nào (bấm trùng 409, Admin chấm công 403, Check-out sai lượt 404; Check-in luôn bật từ 23/10/2026 nên không còn lỗi chưa tới ngày bật)', async () => {
-  setup();
+  await setup();
   assert.equal((await punchIn('qa_tts1')).status, 200);
   const [admin, cb, self, staff] = await SSE.openMany('admin', 'qa_nv1', 'qa_tts1', 'qa_nv2');
   const all = [admin, cb, self, staff];
@@ -184,7 +184,7 @@ test('R: yêu cầu bị từ chối không phát sự kiện nào (bấm trùng
 });
 
 test('R: danh mục sự kiện — punch.changed chỉ gửi theo người nhận chỉ định, chỉ giữ month và date; attendance.changed nhận kind punch', async () => {
-  setup();
+  await setup();
   const catalog = events.EVENTS['punch.changed'];
   assert.ok(catalog, 'lib/events.js → EVENTS phải có punch.changed');
   assert.deepEqual(catalog.audiences, ['users']);
@@ -192,7 +192,7 @@ test('R: danh mục sự kiện — punch.changed chỉ gửi theo người nh�
     catalog.tiers.flatMap(tier => tier.fields),
     ['month', 'date']
   );
-  assert.throws(() => events.publish('punch.changed', {}, { all: true }), /không được phát tới kiểu người nhận này/);
+  await assert.rejects(async () => events.publish('punch.changed', {}, { all: true }), /không được phát tới kiểu người nhận này/);
 
   const [self, other, admin] = await SSE.openMany('qa_tts1', 'qa_nv2', 'admin');
   await SSE.settle([self, other, admin]);

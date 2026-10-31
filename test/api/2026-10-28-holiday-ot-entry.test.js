@@ -14,33 +14,33 @@ const dm = d => `${d.slice(8)}/${d.slice(5, 7)}`;
 before(F.start);
 after(F.stop);
 
-function setup() {
-  F.reset();
-  P.revokeAllRoles();
-  F.at('2026-10-02T09:00:00');
-  store.setSetting('holidays', [HOL]);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_day', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
-  F.person('qa_night', 'staff', { type: 'nv', level: 1, shiftCode: 'g2', startDate: '2026-01-05', leaveAdjust: 30 });
+async function setup() {
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at('2026-10-02T09:00:00');
+  await store.setSetting('holidays', [HOL]);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_day', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_night', 'staff', { type: 'nv', level: 1, shiftCode: 'g2', startDate: '2026-01-05', leaveAdjust: 30 });
 }
 const put = (who, days) => F.call('PUT', '/sheet', { who, body: { month: M, days } });
 const warnings = res => res.data.warnings || [];
 const holidayOt = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '20:00' };
 
 test(`OT 17:00–20:00 trên ngày đi làm ngày lễ ${dm(HOL)}: lưu 200, không có câu "0 ₫" hay cảnh báo OT ngày lễ`, async () => {
-  setup();
+  await setup();
   const res = await put('qa_day', { [HOL]: holidayOt });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const ws = warnings(res);
   assert.ok(!ws.some(w => /0 ₫/.test(w.message)), JSON.stringify(ws));
   assert.ok(!ws.some(w => w.code === 'SHEET_EXTRA_ON_HOLIDAY'), JSON.stringify(ws));
-  const saved = store.getSheet('qa_day', M).days[HOL];
+  const saved = (await store.getSheet('qa_day', M)).days[HOL];
   assert.equal(saved.extraKind, 'ot');
   assert.equal(saved.extraOut, '20:00');
 });
 
 test(`ca đêm ngày lễ có OT sau 0 giờ: lưu 200, chỉ báo phần sang ngày thường tính như OT thường`, async () => {
-  setup();
+  await setup();
   const res = await put('qa_night', {
     [HOL]: { kind: 'work', in: '22:00', out: '07:00', extraKind: 'ot', extraOut: '09:00' }
   });
@@ -55,7 +55,7 @@ test(`ca đêm ngày lễ có OT sau 0 giờ: lưu 200, chỉ báo phần sang n
 });
 
 test(`làm bù vào ngày lễ vẫn bị chặn 400 SHEET_MAKEUP_ON_HOLIDAY, không lưu gì`, async () => {
-  setup();
+  await setup();
   const want = `Ngày ${dm(HOL)} là ngày lễ: không khai làm bù vào ngày lễ.`;
   for (const days of [
     { [HOL]: { kind: 'work', in: '08:00', out: '17:00', extraKind: 'makeup', extraOut: '19:00' } },
@@ -66,7 +66,7 @@ test(`làm bù vào ngày lễ vẫn bị chặn 400 SHEET_MAKEUP_ON_HOLIDAY, kh
     assert.equal(res.data.code, 'SHEET_MAKEUP_ON_HOLIDAY');
     assert.equal(res.data.error, want);
   }
-  assert.deepEqual(store.getSheet('qa_day', M).days, {});
+  assert.deepEqual((await store.getSheet('qa_day', M)).days, {});
 });
 
 // Màn nhân viên (public/nhan-vien/logic.js → dayPlan): ngày lễ trong lịch có mục OT (khung giờ từ – đến), không có làm bù và các loại nghỉ (gợi ý của chúng nói trừ phép,

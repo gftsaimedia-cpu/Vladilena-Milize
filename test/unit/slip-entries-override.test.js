@@ -54,8 +54,8 @@ const deduct = {
   insuranceBase: null,
   flagsConfirmedBy: null
 };
-function figuresWithDeduct() {
-  const { m } = runGolden(ID, {}, input => {
+async function figuresWithDeduct() {
+  const { m } = await runGolden(ID, {}, input => {
     input.entries = [deduct];
   });
   const input = caseOf(ID).input;
@@ -71,15 +71,15 @@ function figuresWithDeduct() {
   return { m, fig: Phieu.figures({ snapshot, staffTerms }, input.month, DEFAULTS, null, input.holidays) };
 }
 
-test('slip-entries-override: chưa sửa ô nào thì thực lĩnh trên phiếu bằng bộ máy (7.522.500, đã trừ khoản 300.000)', () => {
-  const { m, fig } = figuresWithDeduct();
+test('slip-entries-override: chưa sửa ô nào thì thực lĩnh trên phiếu bằng bộ máy (7.522.500, đã trừ khoản 300.000)', async () => {
+  const { m, fig } = await figuresWithDeduct();
   assert.equal(m.net.entriesDeduct, 300000);
   assert.equal(m.net.net, 7522500);
   assert.equal(Phieu.effective(fig, {}, null).net, 7522500);
 });
 
-test('slip-entries-override: Admin sửa một ô về ĐÚNG giá trị tự tính thì thực lĩnh vẫn là 7.522.500 (không được bỏ khoản trừ 300.000)', () => {
-  const { m, fig } = figuresWithDeduct();
+test('slip-entries-override: Admin sửa một ô về ĐÚNG giá trị tự tính thì thực lĩnh vẫn là 7.522.500 (không được bỏ khoản trừ 300.000)', async () => {
+  const { m, fig } = await figuresWithDeduct();
   // số chi trả máy chủ gửi trên phiếu sau khi áp số sửa (ở đây bằng số tự tính của bộ máy, đã trừ khoản 300.000)
   const paid = {
     gross: m.net.gross,

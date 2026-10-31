@@ -32,8 +32,8 @@ test('splitMainWork: giờ nghỉ đêm 02:00–03:00 rơi vào ngày lễ sau t
   assert.deepEqual([start.holidayH, start.holidayBreakNightH], [2, 0], 'lễ chỉ phủ 22:00–24:00, giờ nghỉ nằm ngày sau');
 });
 
-test('ca đêm 07/10 sang lễ 08/10: giờ nghỉ trả một lần trong 7 giờ ngày lễ, không có Off Paid, ngày = 29,8h = 859.615 ₫', () => {
-  const d = day(nv, work(), '2026-10-07', ['2026-10-08']);
+test('ca đêm 07/10 sang lễ 08/10: giờ nghỉ trả một lần trong 7 giờ ngày lễ, không có Off Paid, ngày = 29,8h = 859.615 ₫', async () => {
+  const d = await day(nv, work(), '2026-10-07', ['2026-10-08']);
   assert.equal(d.breakH, 0);
   assert.equal(d.breakPay, 0);
   near(d.holWorkPay, (7 * 3 + 6 * 0.6) * HOURLY, '7 giờ ×3 và 6 giờ đêm lễ ×0,6');
@@ -42,33 +42,33 @@ test('ca đêm 07/10 sang lễ 08/10: giờ nghỉ trả một lần trong 7 gi�
   near(31.1 * HOURLY - d.total, BREAK_PAY, 'chênh với cách trả hai lần đúng một Off Paid');
 });
 
-test('cùng ca đêm không có ngày lễ: Off Paid 1 giờ × 1,3 = 37.500 ₫ vẫn trả', () => {
-  const d = day(nv, work(), '2026-10-07');
+test('cùng ca đêm không có ngày lễ: Off Paid 1 giờ × 1,3 = 37.500 ₫ vẫn trả', async () => {
+  const d = await day(nv, work(), '2026-10-07');
   assert.equal(d.breakH, 1);
   near(d.breakPay, BREAK_PAY);
   assert.equal(Math.round(d.breakPay), 37500);
 });
 
-test('ca đêm bắt đầu đúng ngày lễ 01/10: giờ nghỉ 02:00 nằm ngày thường nên giữ Off Paid 37.500, dòng ngày 741.346 ₫', () => {
-  const d = day(nv, work(), '2026-10-01', ['2026-10-01']);
+test('ca đêm bắt đầu đúng ngày lễ 01/10: giờ nghỉ 02:00 nằm ngày thường nên giữ Off Paid 37.500, dòng ngày 741.346 ₫', async () => {
+  const d = await day(nv, work(), '2026-10-01', ['2026-10-01']);
   assert.equal(d.breakH, 1);
   near(d.breakPay, BREAK_PAY);
   assert.equal(Math.round(d.total), 741346);
 });
 
-test('chủ dự án: ca đêm 19/10 sang lễ 20/10 và đi làm lễ 20/10: dòng 19/10 859.615, dòng 20/10 741.346, ngày công đếm cả hai', () => {
+test('chủ dự án: ca đêm 19/10 sang lễ 20/10 và đi làm lễ 20/10: dòng 19/10 859.615, dòng 20/10 741.346, ngày công đếm cả hai', async () => {
   const days = { '2026-10-19': work(), '2026-10-20': work() };
   const m = k.calcMonth(nv, days, null, ['2026-10-20'], '2026-10', null);
   const row = date => m.rows.find(r => r.date === date);
-  assert.equal(Math.round(row('2026-10-19').total), 859615);
-  assert.equal(Math.round(row('2026-10-20').total), 741346);
-  assert.equal(row('2026-10-20').kind, 'holiday');
+  assert.equal(Math.round((await row('2026-10-19')).total), 859615);
+  assert.equal(Math.round((await row('2026-10-20')).total), 741346);
+  assert.equal((await row('2026-10-20')).kind, 'holiday');
   assert.equal(m.count, 2);
   assert.equal(m.holiday, 1);
 });
 
-test('ca nằm trọn trong ngày lễ (00:00–09:00, giờ nghỉ 04:00–05:00): không Off Paid, cả 9 giờ ×3, CTV ngày = 1.182.692 ₫', () => {
-  const d = day(ctv, work('00:00', '09:00'), '2026-10-07', ['2026-10-07']);
+test('ca nằm trọn trong ngày lễ (00:00–09:00, giờ nghỉ 04:00–05:00): không Off Paid, cả 9 giờ ×3, CTV ngày = 1.182.692 ₫', async () => {
+  const d = await day(ctv, work('00:00', '09:00'), '2026-10-07', ['2026-10-07']);
   assert.equal(d.holWorkH, 9);
   assert.equal(d.holNightH, 6);
   near(d.holNightPay, 3.6 * HOURLY);
@@ -84,8 +84,8 @@ test('hai ngày lễ liền nhau: phụ cấp ca và quyền lợi chỉ tính m
   near(m.total, 1448076.9230769232);
 });
 
-test('ca đã xác nhận dùng giờ ca gán (22:00–07:00), bỏ qua quãng nghỉ khi chia ngày lễ: 7 giờ lễ, 6 giờ đêm, 836.538 ₫', () => {
-  const d = day(
+test('ca đã xác nhận dùng giờ ca gán (22:00–07:00), bỏ qua quãng nghỉ khi chia ngày lễ: 7 giờ lễ, 6 giờ đêm, 836.538 ₫', async () => {
+  const d = await day(
     ctv,
     work('10:00', '11:00', { attendanceConfirmed: true, plannedShift: { in: '22:00', out: '07:00' }, breakMin: 120 }),
     '2026-10-06',
@@ -140,8 +140,8 @@ const g2Ot = work('22:00', '07:00', { extraKind: 'ot', extraOut: '11:00' });
 const g1Ot = work('21:00', '06:00', { extraKind: 'ot', extraOut: '10:00' });
 const H = hours => hours * HOURLY;
 
-test('ca g2 + OT 07:00–11:00, lễ 08/10: 7 giờ ca chính + 4 giờ OT đều là giờ lễ, không Off Paid, tổng ngày 41,8h = 1.205.769 ₫', () => {
-  const d = day(nv, g2Ot, '2026-10-07', ['2026-10-08']);
+test('ca g2 + OT 07:00–11:00, lễ 08/10: 7 giờ ca chính + 4 giờ OT đều là giờ lễ, không Off Paid, tổng ngày 41,8h = 1.205.769 ₫', async () => {
+  const d = await day(nv, g2Ot, '2026-10-07', ['2026-10-08']);
   assert.deepEqual([d.otH, d.otPay, d.breakPay], [0, 0, 0]);
   near(d.holWorkH, 11);
   near(d.holWorkPay, H(11 * DEFAULTS['ot.holidayRate'] + 6 * DEFAULTS['night.otAddRate'] * DEFAULTS['ot.holidayRate']));
@@ -149,8 +149,8 @@ test('ca g2 + OT 07:00–11:00, lễ 08/10: 7 giờ ca chính + 4 giờ OT đề
   assert.equal(Math.round(d.total), 1205769);
 });
 
-test('ca g1 + OT 06:00–10:00, lễ 08/10: giờ nghỉ 01:00 nằm trong ngày lễ, 6 giờ ca chính + 4 giờ OT lễ, tổng ngày 39,8h = 1.148.077 ₫', () => {
-  const d = day(nv, g1Ot, '2026-10-07', ['2026-10-08']);
+test('ca g1 + OT 06:00–10:00, lễ 08/10: giờ nghỉ 01:00 nằm trong ngày lễ, 6 giờ ca chính + 4 giờ OT lễ, tổng ngày 39,8h = 1.148.077 ₫', async () => {
+  const d = await day(nv, g1Ot, '2026-10-07', ['2026-10-08']);
   assert.equal(d.otH, 0);
   assert.equal(d.breakPay, 0);
   near(d.holWorkH, 10);
@@ -167,12 +167,12 @@ test('tháng có ca g2 + OT sang lễ: tổng 53h = ngày 07/10 (41,8h) + lươn
   assert.deepEqual([m.otHours, m.otPay], [0, 0]);
 });
 
-test('calcNet: tiền OT miễn thuế là phần làm lễ trả cao hơn lương giờ thường (738.462 ₫); OT ngày thường chỉ phần 0,5 (57.692 ₫)', () => {
+test('calcNet: tiền OT miễn thuế là phần làm lễ trả cao hơn lương giờ thường (738.462 ₫); OT ngày thường chỉ phần 0,5 (57.692 ₫)', async () => {
   const m = k.calcMonth(nv, { '2026-10-07': g2Ot }, null, ['2026-10-08'], '2026-10', null);
   assert.equal(m.net.exemptOt, 738462);
   assert.equal(k.calcNet(nv, m).exemptOt, 738462);
   const plain = k.calcMonth(nv, { '2026-10-07': g2Ot }, null, [], '2026-10', null);
   assert.equal(plain.net.exemptOt, 57692);
   near(plain.otPay, H(4 * DEFAULTS['ot.rate']));
-  near(day(nv, g2Ot, '2026-10-07').total, H(18.5), 'ca g2 không lễ: 8h + đêm 3,2h + nghỉ đêm 1,3h + OT 4 × 1,5');
+  near((await day(nv, g2Ot, '2026-10-07')).total, H(18.5), 'ca g2 không lễ: 8h + đêm 3,2h + nghỉ đêm 1,3h + OT 4 × 1,5');
 });

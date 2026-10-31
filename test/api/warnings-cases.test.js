@@ -24,17 +24,17 @@ for (const c of K.CASES) {
 /* ---------- K5: Check-in khi đang có lượt mở bị từ chối vì trạng thái ---------- */
 test('K5: Check-in khi đang có lượt mở là 409; Check-out xong thì Check-in lại được', async () => {
   await S.seed(K.FREE_MONTH, { punches: false });
-  F.at('2029-04-03T07:50:00');
-  const punch = (who, body) =>
-    F.call('POST', '/punch', { who, body: { requestId: `k5-${Math.random()}-open`, ...body } });
+  await F.at('2029-04-03T07:50:00');
+  const punch = async (who, body) =>
+    await F.call('POST', '/punch', { who, body: { requestId: `k5-${Math.random()}-open`, ...body } });
   const first = await punch('qa_tts1', { type: 'in' });
   assert.equal(first.status, 200, JSON.stringify(first.data));
   const again = await punch('qa_tts1', { type: 'in' });
   assert.equal(again.status, 409, JSON.stringify(again.data));
   assert.match(again.data.error, /đang có lượt mở/);
   assert.equal(again.data.warnings, undefined, 'bị từ chối nên không mang cảnh báo');
-  assert.equal(store.listSessions({ username: 'qa_tts1' }).length, 1, 'không tạo lượt thứ hai');
-  const out = await punch('qa_tts1', { type: 'out', sessionId: store.openSession('qa_tts1').id });
+  assert.equal((await store.listSessions({ username: 'qa_tts1' })).length, 1, 'không tạo lượt thứ hai');
+  const out = await punch('qa_tts1', { type: 'out', sessionId: (await store.openSession('qa_tts1')).id });
   assert.equal(out.status, 200, JSON.stringify(out.data));
 });
 
@@ -42,7 +42,7 @@ test('K5: Check-in khi đang có lượt mở là 409; Check-out xong thì Check
 test('K1/K2/K3: quyền, định dạng và chống ghi đè bị từ chối (không có cảnh báo thay thế)', async () => {
   const M = monthOf();
   await S.seed(M);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   // K1: nhân sự không sửa được kỳ, không duyệt được khoản, không xem được lịch người khác
   assert.equal(
     (await F.call('POST', `/periods/${M}/lock-attendance`, { who: 'qa_nv1', body: { rev: 0 } })).status,
@@ -73,5 +73,5 @@ test('K1/K2/K3: quyền, định dạng và chống ghi đè bị từ chối (k
   const stale = await F.call('POST', `/periods/${M}/lock-attendance`, { who: 'admin', body: { rev: 99 } });
   assert.equal(stale.status, 409);
   assert.equal(stale.data.code, 'PERIOD_STALE');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'không bảng nào đổi');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'không bảng nào đổi');
 });

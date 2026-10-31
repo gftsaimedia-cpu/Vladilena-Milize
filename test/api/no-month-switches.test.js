@@ -10,9 +10,9 @@ const GONE = ['actualFrom', 'checkinFrom', 'kpiFrom'];
 
 before(async () => {
   await F.start();
-  F.at('2026-10-07T07:30:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person(WORKER, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+  await F.at('2026-10-07T07:30:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person(WORKER, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
 });
 after(F.stop);
 
@@ -37,7 +37,7 @@ test('GET /api/sheet và /api/punch không trả ngày bật Check-in/out', asyn
 test('không còn route PUT /api/settings/actual-hours', async () => {
   const res = await F.call('PUT', '/settings/actual-hours', { who: 'admin', body: { from: '2026-11-01' } });
   assert.ok([403, 404].includes(res.status), 'route không còn: ' + res.status);
-  assert.equal(F.store.getSetting('actual_hours_from', null), null, 'không ghi cài đặt nào');
+  assert.equal(await F.store.getSetting('actual_hours_from', null), null, 'không ghi cài đặt nào');
 });
 
 test('kỳ lương: tháng nào cũng chốt được như nhau, không có mã PERIOD_UNMANAGED', async () => {

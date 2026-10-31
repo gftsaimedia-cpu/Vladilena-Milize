@@ -43,14 +43,14 @@ const ruleFigure = month => {
 };
 
 async function setup(month) {
-  F.reset();
-  P.revokeAllRoles();
-  F.at(nextMonth02(month));
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at(nextMonth02(month));
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   const days = Object.fromEntries(workDates(month).map(d => [d, { kind: 'work', in: '08:00', out: '17:00' }]));
   for (const user of ['qa_nv1', 'qa_nv2']) {
-    F.person(user, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+    await F.person(user, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
     const res = await F.call('PUT', '/sheet', { who: 'admin', body: { month, user, days } });
     assert.equal(res.status, 200, `khai thay ${user}: ${JSON.stringify(res.data)}`);
   }

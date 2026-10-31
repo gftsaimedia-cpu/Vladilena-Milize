@@ -8,9 +8,9 @@ const { rulesFor } = require('../../lib/request-rules');
 const REASON = 'Đổi giờ ca theo thông báo của công ty tháng này';
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_plain', 'staff');
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_plain', 'staff');
 });
 after(F.stop);
 
@@ -45,8 +45,8 @@ test('ca làm: PUT /api/settings/shifts đổi giờ từ tháng áp dụng, ki�
     }
   });
   assert.equal(put.status, 200, JSON.stringify(put.data).slice(0, 300));
-  assert.deepEqual(rulesFor('2027-08').punch.SHIFT.n2, ['10:30', '19:30']);
-  assert.deepEqual(rulesFor('2027-07').punch.SHIFT.n2, ['10:00', '19:00']);
+  assert.deepEqual((await rulesFor('2027-08')).punch.SHIFT.n2, ['10:30', '19:30']);
+  assert.deepEqual((await rulesFor('2027-07')).punch.SHIFT.n2, ['10:00', '19:00']);
   const again = await F.call('GET', '/settings/shifts?month=2027-08');
   assert.deepEqual(again.data.shifts.find(s => s.code === 'Normal2').in, '10:30');
   const bad = await F.call('PUT', '/settings/shifts', {
@@ -60,7 +60,7 @@ test('ca làm: PUT /api/settings/shifts đổi giờ từ tháng áp dụng, ki�
   assert.equal(bad.status, 200, JSON.stringify(bad.data).slice(0, 300));
   assert.ok(bad.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(bad.data.warnings));
   assert.match(JSON.stringify(bad.data.warnings), /dài đúng 9 giờ/);
-  assert.deepEqual(rulesFor('2027-09').punch.SHIFT.n2, ['10:30', '20:30']);
+  assert.deepEqual((await rulesFor('2027-09')).punch.SHIFT.n2, ['10:30', '20:30']);
 });
 
 test('ca làm: mã ca lạ 400, nhân sự 403, chưa đăng nhập 401', async () => {

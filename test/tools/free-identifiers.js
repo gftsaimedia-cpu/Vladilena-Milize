@@ -81,34 +81,34 @@ function patternNames(pattern, out = []) {
 const FUNCTIONS = new Set(['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression']);
 
 // var và hàm khai báo trong khối: hoist lên phạm vi hàm (không chui vào hàm con)
-function hoistVars(node, fnScope) {
+async function hoistVars(node, fnScope) {
   if (node.type === 'VariableDeclaration' && node.kind === 'var')
     for (const d of node.declarations)
-      for (const id of patternNames(d.id)) fnScope.declare(id.name, { node: id, kind: 'var' });
+      for (const id of patternNames(d.id)) await fnScope.declare(id.name, { node: id, kind: 'var' });
   if (FUNCTIONS.has(node.type) || node.type === 'ClassDeclaration' || node.type === 'ClassExpression') {
     if (node.type === 'FunctionDeclaration' && node.id)
-      fnScope.declare(node.id.name, { node: node.id, kind: 'function' });
+      await fnScope.declare(node.id.name, { node: node.id, kind: 'function' });
     return;
   }
-  for (const child of children(node)) hoistVars(child, fnScope);
+  for (const child of children(node)) await hoistVars(child, fnScope);
 }
 // let/const/class/function/import ở ngay danh sách câu lệnh của một khối
-function hoistBlock(statements, scope) {
+async function hoistBlock(statements, scope) {
   for (const stmt of statements) {
     let s = stmt;
     if ((s.type === 'ExportNamedDeclaration' || s.type === 'ExportDefaultDeclaration') && s.declaration)
       s = s.declaration;
     if (s.type === 'VariableDeclaration' && s.kind !== 'var')
       for (const d of s.declarations)
-        for (const id of patternNames(d.id)) scope.declare(id.name, { node: id, kind: s.kind });
+        for (const id of patternNames(d.id)) await scope.declare(id.name, { node: id, kind: s.kind });
     else if ((s.type === 'FunctionDeclaration' || s.type === 'ClassDeclaration') && s.id)
-      scope.declare(s.id.name, { node: s.id, kind: s.type === 'ClassDeclaration' ? 'class' : 'function' });
+      await scope.declare(s.id.name, { node: s.id, kind: s.type === 'ClassDeclaration' ? 'class' : 'function' });
     else if (s.type === 'ImportDeclaration')
-      for (const sp of s.specifiers) scope.declare(sp.local.name, { node: sp.local, kind: 'import' });
+      for (const sp of s.specifiers) await scope.declare(sp.local.name, { node: sp.local, kind: 'import' });
   }
 }
 
-function analyze(ast) {
+async function analyze(ast) {
   const free = [];
   const program = new Scope(null, true);
 
@@ -119,74 +119,74 @@ function analyze(ast) {
   }
 
   // Phần biểu thức nằm trong một mẫu (giá trị mặc định, khoá tính toán), không phải tên được khai báo
-  function patternExpressions(pattern, scope) {
+  async function patternExpressions(pattern, scope) {
     if (!pattern) return;
     switch (pattern.type) {
       case 'ObjectPattern':
         for (const p of pattern.properties) {
-          if (p.type === 'RestElement') patternExpressions(p.argument, scope);
+          if (p.type === 'RestElement') await patternExpressions(p.argument, scope);
           else {
-            if (p.computed) visit(p.key, scope);
-            patternExpressions(p.value, scope);
+            if (p.computed) await visit(p.key, scope);
+            await patternExpressions(p.value, scope);
           }
         }
         break;
       case 'ArrayPattern':
-        for (const e of pattern.elements) patternExpressions(e, scope);
+        for (const e of pattern.elements) await patternExpressions(e, scope);
         break;
       case 'AssignmentPattern':
-        patternExpressions(pattern.left, scope);
-        visit(pattern.right, scope);
+        await patternExpressions(pattern.left, scope);
+        await visit(pattern.right, scope);
         break;
       case 'RestElement':
-        patternExpressions(pattern.argument, scope);
+        await patternExpressions(pattern.argument, scope);
         break;
     }
   }
 
-  function visitFunction(node, scope) {
+  async function visitFunction(node, scope) {
     const fn = new Scope(scope, true);
-    if (node.type !== 'ArrowFunctionExpression') fn.declare('arguments', { kind: 'implicit' });
-    if (node.type === 'FunctionExpression' && node.id) fn.declare(node.id.name, { node: node.id, kind: 'function' });
+    if (node.type !== 'ArrowFunctionExpression') await fn.declare('arguments', { kind: 'implicit' });
+    if (node.type === 'FunctionExpression' && node.id) await fn.declare(node.id.name, { node: node.id, kind: 'function' });
     for (const param of node.params)
-      for (const id of patternNames(param)) fn.declare(id.name, { node: id, kind: 'param' });
-    for (const param of node.params) patternExpressions(param, fn);
+      for (const id of patternNames(param)) await fn.declare(id.name, { node: id, kind: 'param' });
+    for (const param of node.params) await patternExpressions(param, fn);
     if (node.body.type === 'BlockStatement') {
-      hoistVars(node.body, fn);
-      hoistBlock(node.body.body, fn);
-      for (const stmt of node.body.body) visit(stmt, fn);
-    } else visit(node.body, fn);
+      await hoistVars(node.body, fn);
+      await hoistBlock(node.body.body, fn);
+      for (const stmt of node.body.body) await visit(stmt, fn);
+    } else await visit(node.body, fn);
   }
 
-  function visitClass(node, scope) {
-    if (node.superClass) visit(node.superClass, scope);
+  async function visitClass(node, scope) {
+    if (node.superClass) await visit(node.superClass, scope);
     const cls = new Scope(scope, false);
-    if (node.id) cls.declare(node.id.name, { node: node.id, kind: 'class' });
+    if (node.id) await cls.declare(node.id.name, { node: node.id, kind: 'class' });
     for (const member of node.body.body) {
       if (member.type === 'StaticBlock') {
         const block = new Scope(cls, true);
-        hoistVars({ type: 'BlockStatement', body: member.body }, block);
-        hoistBlock(member.body, block);
-        for (const stmt of member.body) visit(stmt, block);
+        await hoistVars({ type: 'BlockStatement', body: member.body }, block);
+        await hoistBlock(member.body, block);
+        for (const stmt of member.body) await visit(stmt, block);
         continue;
       }
-      if (member.computed) visit(member.key, cls);
-      if (member.type === 'MethodDefinition') visitFunction(member.value, cls);
-      else if (member.value) visitFunction({ type: 'ArrowFunctionExpression', params: [], body: member.value }, cls);
+      if (member.computed) await visit(member.key, cls);
+      if (member.type === 'MethodDefinition') await visitFunction(member.value, cls);
+      else if (member.value) await visitFunction({ type: 'ArrowFunctionExpression', params: [], body: member.value }, cls);
     }
   }
 
-  function visitBlock(statements, scope) {
+  async function visitBlock(statements, scope) {
     const block = new Scope(scope, false);
-    hoistBlock(statements, block);
+    await hoistBlock(statements, block);
     // hàm khai báo trong khối cũng thấy được ở hàm bao ngoài (sloppy)
     for (const stmt of statements)
       if (stmt.type === 'FunctionDeclaration' && stmt.id)
-        scope.functionScope().declare(stmt.id.name, { node: stmt.id, kind: 'function' });
-    for (const stmt of statements) visit(stmt, block);
+        await scope.functionScope().declare(stmt.id.name, { node: stmt.id, kind: 'function' });
+    for (const stmt of statements) await visit(stmt, block);
   }
 
-  function visit(node, scope) {
+  async function visit(node, scope) {
     if (!node) return;
     switch (node.type) {
       case 'Identifier':
@@ -196,21 +196,21 @@ function analyze(ast) {
         return; // xử lý ở ngoài
       case 'VariableDeclaration':
         for (const d of node.declarations) {
-          patternExpressions(d.id, scope);
-          visit(d.init, scope);
+          await patternExpressions(d.id, scope);
+          await visit(d.init, scope);
         }
         return;
       case 'FunctionDeclaration':
       case 'FunctionExpression':
       case 'ArrowFunctionExpression':
-        visitFunction(node, scope);
+        await visitFunction(node, scope);
         return;
       case 'ClassDeclaration':
       case 'ClassExpression':
-        visitClass(node, scope);
+        await visitClass(node, scope);
         return;
       case 'BlockStatement':
-        visitBlock(node.body, scope);
+        await visitBlock(node.body, scope);
         return;
       case 'ForStatement':
       case 'ForInStatement':
@@ -219,41 +219,41 @@ function analyze(ast) {
         const head = node.type === 'ForStatement' ? node.init : node.left;
         if (head && head.type === 'VariableDeclaration' && head.kind !== 'var')
           for (const d of head.declarations)
-            for (const id of patternNames(d.id)) loop.declare(id.name, { node: id, kind: head.kind });
+            for (const id of patternNames(d.id)) await loop.declare(id.name, { node: id, kind: head.kind });
         if (node.type === 'ForStatement') {
-          visit(node.init, loop);
-          visit(node.test, loop);
-          visit(node.update, loop);
+          await visit(node.init, loop);
+          await visit(node.test, loop);
+          await visit(node.update, loop);
         } else {
-          visit(node.left, loop);
-          visit(node.right, loop);
+          await visit(node.left, loop);
+          await visit(node.right, loop);
         }
-        visit(node.body, loop);
+        await visit(node.body, loop);
         return;
       }
       case 'SwitchStatement': {
-        visit(node.discriminant, scope);
+        await visit(node.discriminant, scope);
         const sw = new Scope(scope, false);
-        hoistBlock(
+        await hoistBlock(
           node.cases.flatMap(c => c.consequent),
           sw
         );
         for (const c of node.cases) {
-          visit(c.test, sw);
-          for (const stmt of c.consequent) visit(stmt, sw);
+          await visit(c.test, sw);
+          for (const stmt of c.consequent) await visit(stmt, sw);
         }
         return;
       }
       case 'CatchClause': {
         const handler = new Scope(scope, false);
         if (node.param)
-          for (const id of patternNames(node.param)) handler.declare(id.name, { node: id, kind: 'catch' });
-        patternExpressions(node.param, handler);
-        visit(node.body, handler);
+          for (const id of patternNames(node.param)) await handler.declare(id.name, { node: id, kind: 'catch' });
+        await patternExpressions(node.param, handler);
+        await visit(node.body, handler);
         return;
       }
       case 'LabeledStatement':
-        visit(node.body, scope);
+        await visit(node.body, scope);
         return;
       case 'BreakStatement':
       case 'ContinueStatement':
@@ -261,29 +261,29 @@ function analyze(ast) {
       case 'ImportDeclaration':
         return;
       case 'MemberExpression':
-        visit(node.object, scope);
-        if (node.computed) visit(node.property, scope);
+        await visit(node.object, scope);
+        if (node.computed) await visit(node.property, scope);
         return;
       case 'Property':
-        if (node.computed) visit(node.key, scope);
-        visit(node.value, scope);
+        if (node.computed) await visit(node.key, scope);
+        await visit(node.value, scope);
         return;
       case 'UnaryExpression':
         if (node.operator === 'typeof' && node.argument.type === 'Identifier' && !scope.lookup(node.argument.name))
           return;
-        visit(node.argument, scope);
+        await visit(node.argument, scope);
         return;
       case 'ExportNamedDeclaration':
-        if (node.declaration) visit(node.declaration, scope);
+        if (node.declaration) await visit(node.declaration, scope);
         return;
       default:
-        for (const child of children(node)) visit(child, scope);
+        for (const child of children(node)) await visit(child, scope);
     }
   }
 
-  hoistVars(ast, program);
-  hoistBlock(ast.body, program);
-  for (const stmt of ast.body) visit(stmt, program);
+  await hoistVars(ast, program);
+  await hoistBlock(ast.body, program);
+  for (const stmt of ast.body) await visit(stmt, program);
   const unused = [];
   for (const [name, info] of program.names)
     if (info.node && info.uses === 0 && info.kind !== 'param' && info.kind !== 'implicit')
@@ -300,7 +300,7 @@ async function run(source, { allow = [] } = {}) {
   const prettier = require('prettier');
   const text = source.replace(/\r\n/g, '\n').replace(/^#!.*/, '');
   const { ast } = await prettier.__debug.parse(text, { parser: 'acorn' });
-  const { free, unused } = analyze(ast);
+  const { free, unused } = await analyze(ast);
   const named = list =>
     list.filter(item => !allow.includes(item.name)).map(item => ({ name: item.name, ...position(text, item.offset) }));
   return { free: named(free), unused: named(unused) };

@@ -19,20 +19,20 @@ const payFor = days => Math.round((days * BASE) / STD);
 
 before(async () => {
   await F.start();
-  F.reset();
-  P.revokeAllRoles();
-  F.at('2027-02-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at('2027-02-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   const staff = { type: 'ctv', level: 2, shiftCode: 'n2', leaveAdjust: 0 };
-  F.person('qa_phep1', 'staff', { ...staff, startDate: '2025-01-05' }); // dùng 4 ngày phép
-  F.person('qa_phep2', 'staff', { ...staff, startDate: '2026-10-05' }); // dùng 2 ngày phép, đều trong tháng 01/2027
-  F.person('qa_phep3', 'staff', { ...staff, startDate: '2025-01-05' }); // không dùng ngày nào
-  F.person('qa_phep4', 'staff', { ...staff, type: 'nv', level: 1, startDate: '2025-11-05' }); // Nhân viên
-  F.person('qa_phep5', 'staff', { ...staff, startDate: '2025-11-05' }); // CTV, cùng ngày vào làm với qa_phep4
-  F.person('qa_phep6', 'staff', { ...staff, startDate: '2026-11-02' }); // vào làm đúng ngày 02/11/2026
+  await F.person('qa_phep1', 'staff', { ...staff, startDate: '2025-01-05' }); // dùng 4 ngày phép
+  await F.person('qa_phep2', 'staff', { ...staff, startDate: '2026-10-05' }); // dùng 2 ngày phép, đều trong tháng 01/2027
+  await F.person('qa_phep3', 'staff', { ...staff, startDate: '2025-01-05' }); // không dùng ngày nào
+  await F.person('qa_phep4', 'staff', { ...staff, type: 'nv', level: 1, startDate: '2025-11-05' }); // Nhân viên
+  await F.person('qa_phep5', 'staff', { ...staff, startDate: '2025-11-05' }); // CTV, cùng ngày vào làm với qa_phep4
+  await F.person('qa_phep6', 'staff', { ...staff, startDate: '2026-11-02' }); // vào làm đúng ngày 02/11/2026
   // 2026-12-02 và 03 là Thứ 3, Thứ 4; 2027-01-06 và 07 là Thứ 4, Thứ 5
-  const leave = (user, month, dates) =>
-    F.call('PUT', '/sheet', {
+  const leave = async (user, month, dates) =>
+    await F.call('PUT', '/sheet', {
       who: user,
       body: { month, days: Object.fromEntries(dates.map(date => [date, { kind: 'leave' }])) }
     });
@@ -44,8 +44,8 @@ before(async () => {
     const res = await leave(user, month, dates);
     assert.equal(res.status, 200, `dựng phép ${user} ${month}: ${JSON.stringify(res.data)}`);
   }
-  const pending = store.approvals.list({ status: 'pending' });
-  store.approvals.decide(
+  const pending = await store.approvals.list({ status: 'pending' });
+  await store.approvals.decide(
     pending.map(r => ({ username: r.username, date: r.date, rev: r.rev, fingerprint: r.fingerprint })),
     'approved',
     'admin',
@@ -56,13 +56,13 @@ after(F.stop);
 
 // Số dư phép của người đó vào ngày `vnTime` (giờ Việt Nam), đọc đúng như app nhân viên: GET /api/sheet của tháng chứa ngày đó
 async function balanceAt(user, vnTime) {
-  F.at(vnTime);
+  await F.at(vnTime);
   const res = await F.call('GET', `/sheet?month=${vnTime.slice(0, 7)}`, { who: user });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 200));
   return res.data.leaveBalance;
 }
 const estimateOf = async (user, month) => {
-  F.at('2027-03-02T09:00:00'); // sau cuối tháng 02: đọc số ước tính của 02/2027 cùng một đồng hồ cho mọi test
+  await F.at('2027-03-02T09:00:00'); // sau cuối tháng 02: đọc số ước tính của 02/2027 cùng một đồng hồ cho mọi test
   const res = await F.call('GET', `/periods/${month}/estimates/${user}`);
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   return res.data.payslip;
@@ -149,7 +149,7 @@ test('B: chỉ phiếu tháng 02 có khoản quyết toán: phiếu 01/2027 và 
 });
 
 test('B: nhân sự không đọc được số dư phép của người khác (403)', async () => {
-  F.at('2027-02-02T09:00:00');
+  await F.at('2027-02-02T09:00:00');
   const other = await F.call('GET', '/sheet?month=2027-02&user=qa_phep1', { who: 'qa_phep3' });
   assert.equal(other.status, 403, JSON.stringify(other.data).slice(0, 200));
   assert.equal(JSON.stringify(other.data).includes('leaveBalance'), false);

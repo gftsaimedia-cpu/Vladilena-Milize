@@ -14,7 +14,7 @@ after(F.stop);
 
 const save = async (changes, month = '2026-12') => {
   const rev = (await F.call('GET', `/settings/params?month=${month}`)).data.paramsRev;
-  return F.call('PUT', '/settings/params', {
+  return await F.call('PUT', '/settings/params', {
     body: { changes, effectiveMonth: month, reason: REASON, expectedRev: rev }
   });
 };
@@ -41,8 +41,8 @@ test('quy tắc duyệt: mặc định của registry bằng đúng ApprovalView
 });
 
 test('quy tắc duyệt: Admin đổi "nghỉ phép năm chưa duyệt" từ nghỉ không lương sang bỏ cả ngày, có tháng áp dụng; payView đọc theo tham số', async () => {
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.at('2026-11-02T09:00:00');
   const res = await save([{ key: 'request.type.leave.pendingRule', value: 'drop' }]);
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   assert.equal(res.data.saved[0].effectiveMonth, '2026-12');

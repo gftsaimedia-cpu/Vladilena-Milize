@@ -127,7 +127,7 @@ function checkMonth(m, label, { pinned = false } = {}) {
   }
 }
 
-test('quét nhiều tháng: mọi tổng bằng tổng các dòng nguyên đồng, không trường tiền nào có phần lẻ', () => {
+test('quét nhiều tháng: mọi tổng bằng tổng các dòng nguyên đồng, không trường tiền nào có phần lẻ', async () => {
   let months = 0;
   for (const c of generateCases(SEED, COUNT)) {
     let out;
@@ -137,7 +137,7 @@ test('quét nhiều tháng: mọi tổng bằng tổng các dòng nguyên đồn
       continue; // đầu vào sai hồ sơ: bộ máy ném lỗi trước khi tính
     }
     months += 1;
-    checkMonth(out.m, c.id);
+    await checkMonth(out.m, c.id);
   }
   assert.ok(months >= COUNT / 2, `đủ tháng để quét (${months})`);
 });
@@ -180,7 +180,7 @@ for (const [code, kind] of Object.entries({ Normal1: 'normal', Flex1: 'flex', Ni
 const calc = (staff, days, { holidays = [], params = ASSIGNED, month = '2026-10' } = {}) =>
   Engine.create(params).calcMonth(staff, days, null, holidays, month, null, undefined, '2026-11-05T00:00:00Z');
 
-test('ca đêm lễ 01/10: ngày 741.346 = 403.846 + 129.808 + 207.692, tổng thu nhập 833.653 = 173.077 + 230.769 + 207.692 + 222.115', () => {
+test('ca đêm lễ 01/10: ngày 741.346 = 403.846 + 129.808 + 207.692, tổng thu nhập 833.653 = 173.077 + 230.769 + 207.692 + 222.115', async () => {
   const night = { kind: 'work', in: '22:00', out: '07:00', preset: 'Night2' };
   const m = calc(NIGHT, { '2026-10-01': night }, { holidays: ['2026-10-01'] });
   assert.equal(m.rows[0].pay, 741346);
@@ -198,26 +198,26 @@ test('ca đêm lễ 01/10: ngày 741.346 = 403.846 + 129.808 + 207.692, tổng t
   assert.equal(plain(formulas.gross), '173.077 lương ngày công + 230.769 nghỉ lễ + 207.692 làm thêm + 222.115 phụ cấp');
   assert.equal(evalSum(formulas.gross), 833653);
   assert.equal(m.net.exempt, 193269);
-  checkMonth(m, 'ca đêm lễ');
+  await checkMonth(m, 'ca đêm lễ');
 });
 
-test('một ngày NV 07:55–17:10 ngày 01/10: tổng thu nhập 323.076 = 230.769 + 57.692 + 34.615, không đóng bảo hiểm', () => {
+test('một ngày NV 07:55–17:10 ngày 01/10: tổng thu nhập 323.076 = 230.769 + 57.692 + 34.615, không đóng bảo hiểm', async () => {
   const day = { kind: 'work', in: '07:55', out: '17:10', preset: 'Normal1' };
   const m = calc(DAY, { '2026-10-01': day }, { params: DEFAULTS });
   assert.equal(m.net.gross, 323076);
   assert.equal(m.net.insurance, 0);
   assert.equal(m.net.net, 323076);
   assert.equal(m.total, m.lines.workBase + m.attendance + m.travel);
-  checkMonth(m, 'một ngày');
+  await checkMonth(m, 'một ngày');
 });
 
-test('OT ngày thường 4 giờ: otPay 173.077, miễn thuế 57.692; OT Chủ nhật được duyệt 4 giờ: 230.769', () => {
+test('OT ngày thường 4 giờ: otPay 173.077, miễn thuế 57.692; OT Chủ nhật được duyệt 4 giờ: 230.769', async () => {
   const ot = { kind: 'work', in: '08:00', out: '17:00', preset: 'Normal1', extraKind: 'ot', extraOut: '21:00' };
   const m = calc(DAY, { '2026-10-05': ot });
   const { cells } = describe(m, DAY, ASSIGNED, '2026-10');
   assert.equal(cells.otPay, 173077);
   assert.equal(m.net.exemptOt, 57692);
-  checkMonth(m, 'OT ngày thường');
+  await checkMonth(m, 'OT ngày thường');
 
   const SUN = '2026-10-04';
   const staff = F.nvStaff();
@@ -226,9 +226,9 @@ test('OT ngày thường 4 giờ: otPay 173.077, miễn thuế 57.692; OT Chủ 
     ...F.punches(staff, F.datesOn('2026-10', F.MON_SAT), { sched: F.MON_SAT }),
     ...F.punches(staff, [SUN], { sched: F.MON_SAT, to: 240 })
   ];
-  const r = F.run(staff, days, { actualFrom: '2026-10-01', sessions, approvals: F.approved(days, [], 'nv', [SUN]) });
+  const r = F.run(staff, days, { actualFrom: '2026-10-01', sessions, approvals: await F.approved(days, [], 'nv', [SUN]) });
   assert.equal(cellsOf(clone({ ...r.m, trace: r.m.trace })).otPay, 230769);
-  checkMonth(r.m, 'OT Chủ nhật');
+  await checkMonth(r.m, 'OT Chủ nhật');
 });
 
 /* ---------- khối phụ cấp, khoản điền thêm, quyết toán phép, tạm ứng, ô số lượng ghim ---------- */
@@ -243,7 +243,7 @@ const BLOCK_PARAMS = {
   'type.nv.block.thu.pct': 0.0333
 };
 
-test('khối phụ cấp lẻ, khoản điền thêm, quyết toán phép, tạm ứng đã duyệt: mỗi dòng nguyên đồng, tổng đúng bằng tổng các dòng', () => {
+test('khối phụ cấp lẻ, khoản điền thêm, quyết toán phép, tạm ứng đã duyệt: mỗi dòng nguyên đồng, tổng đúng bằng tổng các dòng', async () => {
   let checked = 0;
   let advanced = 0;
   for (const c of generateCases(SEED + 2, 200)) {
@@ -267,13 +267,13 @@ test('khối phụ cấp lẻ, khoản điền thêm, quyết toán phép, tạm
     assert.ok(m.blocks && m.blocks.length === 1, `${c.id}: có khối`);
     assert.ok(m.settlePay > 0, `${c.id}: có quyết toán phép`);
     advanced += m.net.advance > 0 ? 1 : 0;
-    checkMonth(m, c.id);
+    await checkMonth(m, c.id);
     checked += 1;
   }
   assert.ok(checked > 10 && advanced > 0, `đủ tháng để quét (${checked}, có tạm ứng ${advanced})`);
 });
 
-test('ô số lượng ghim (ngày công, giờ OT): các dòng sau ghim vẫn nguyên đồng và tổng bằng tổng các dòng', () => {
+test('ô số lượng ghim (ngày công, giờ OT): các dòng sau ghim vẫn nguyên đồng và tổng bằng tổng các dòng', async () => {
   let checked = 0;
   for (const c of generateCases(SEED + 3, 200)) {
     if (c.input.staff.type !== 'nv') continue;
@@ -290,17 +290,17 @@ test('ô số lượng ghim (ngày công, giờ OT): các dòng sau ghim vẫn n
       c.input.month
     );
     if (!pinned) continue;
-    checkMonth(pinned, c.id, { pinned: true });
+    await checkMonth(pinned, c.id, { pinned: true });
     checked += 1;
   }
   assert.ok(checked > 10, `đủ tháng để quét (${checked})`);
 });
 
-test('ca đêm 07/10 sang lễ 08/10: Thành tiền ngày 859.615; 13 ngày công đóng bảo hiểm 630.000, 1 ngày công không đóng', () => {
+test('ca đêm 07/10 sang lễ 08/10: Thành tiền ngày 859.615; 13 ngày công đóng bảo hiểm 630.000, 1 ngày công không đóng', async () => {
   const night = { kind: 'work', in: '22:00', out: '07:00', preset: 'Night2' };
   const m = calc(NIGHT, { '2026-10-07': night }, { holidays: ['2026-10-08'] });
   assert.equal(m.rows.find(r => r.date === '2026-10-07').pay, 859615);
-  checkMonth(m, 'ca đêm sang lễ');
+  await checkMonth(m, 'ca đêm sang lễ');
 
   const days = Object.fromEntries(
     F.datesOn('2026-10', F.MON_SAT)
@@ -309,10 +309,10 @@ test('ca đêm 07/10 sang lễ 08/10: Thành tiền ngày 859.615; 13 ngày côn
   );
   const thirteen = F.run(F.nvStaff(), days);
   assert.equal(thirteen.m.net.insurance, 630000);
-  checkMonth(thirteen.m, '13 ngày công');
+  await checkMonth(thirteen.m, '13 ngày công');
   const one = F.run(F.nvStaff(), { '2026-10-01': { ...F.WORK } });
   assert.equal(one.m.net.insurance, 0);
-  checkMonth(one.m, '1 ngày công');
+  await checkMonth(one.m, '1 ngày công');
 });
 
 /* ---------- phiếu phát nhân viên (trang 1 phiếu A4): các ô tiền của ngày cộng đúng Thành tiền, Thành tiền cộng đúng tiền ngày ---------- */
@@ -355,7 +355,7 @@ function cellMoney(td) {
   return (t.startsWith('−') || t.startsWith('-') ? -1 : 1) * Number(t.replace(/[^\d]/g, ''));
 }
 
-test('phiếu phát nhân viên: bốn ô tiền của ngày đi làm cộng đúng Thành tiền, Thành tiền các ngày cộng đúng tiền ngày của tháng', () => {
+test('phiếu phát nhân viên: bốn ô tiền của ngày đi làm cộng đúng Thành tiền, Thành tiền các ngày cộng đúng tiền ngày của tháng', async () => {
   const Phieu = loadPhieu();
   let sheets = 0;
   let workRows = 0;
@@ -368,7 +368,7 @@ test('phiếu phát nhân viên: bốn ô tiền của ngày đi làm cộng đ�
     }
     const m = out.m;
     const snapshot = clone({ ...m, trace: m.trace });
-    const withCot = withDayFigures(snapshot);
+    const withCot = await withDayFigures(snapshot);
     const payslip = {
       username: c.input.staff.username || 'qa',
       snapshot: withCot,

@@ -18,17 +18,17 @@ before(async () => {
   await F.start();
 });
 after(() => F.stop());
-beforeEach(() => {
-  F.reset();
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_a');
-  F.person('qa_b');
-  F.at('2026-10-12T09:00:00');
+beforeEach(async () => {
+  await F.reset();
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_a');
+  await F.person('qa_b');
+  await F.at('2026-10-12T09:00:00');
 });
 
-const punchCall = (who, type) =>
-  F.call('POST', '/punch', { who, body: sessionBody(store, who, 'POST', '/punch', { type }) });
+const punchCall = async (who, type) =>
+  await F.call('POST', '/punch', { who, body: await sessionBody(store, who, 'POST', '/punch', { type }) });
 const rowOf = async (who, date) =>
   (await F.call('GET', `/me/estimate?month=${M}&rows=1`, { who })).data.m.rows.find(r => r.date === date);
 
@@ -45,25 +45,25 @@ async function declareAndApproveOnSheet(username) {
 }
 
 test('Chủ nhật có OT 17:00–19:00 đã duyệt: Check-in 07:55 bị từ chối; Check-in 17:00 và Check-out 19:00 thành lượt ngoài ca chờ giải trình', async () => {
-  F.at('2026-10-10T09:00:00');
+  await F.at('2026-10-10T09:00:00');
   await declareAndApproveOnSheet('qa_a');
-  F.at(`${SUN}T07:55:00`);
+  await F.at(`${SUN}T07:55:00`);
   const early = await punchCall('qa_a', 'in');
   assert.equal(early.status, 409, JSON.stringify(early.data));
   assert.equal(early.data.code, 'CHECKIN_OUTSIDE_SHIFT');
-  F.at(`${SUN}T17:00:00`);
+  await F.at(`${SUN}T17:00:00`);
   F.explainPunches = true; // Check-in ngoài ca cần giải trình lúc bấm
   try {
     const opened = await punchCall('qa_a', 'in');
     assert.equal(opened.status, 200, JSON.stringify(opened.data));
-    assert.equal(store.openSession('qa_a').entry.outsideShift, true);
-    F.at(`${SUN}T19:00:00`);
+    assert.equal((await store.openSession('qa_a')).entry.outsideShift, true);
+    await F.at(`${SUN}T19:00:00`);
     const out = await punchCall('qa_a', 'out');
     assert.equal(out.status, 200, JSON.stringify(out.data));
   } finally {
     F.explainPunches = false;
   }
-  const s = store.listSessions({ username: 'qa_a', date: SUN })[0];
+  const s = (await store.listSessions({ username: 'qa_a', date: SUN }))[0];
   assert.equal(s.entry.kind, 'pending');
   assert.equal(s.entry.reason, 'off-shift');
   assert.equal(s.entry.presIn, T(SUN, '17:00'));
@@ -71,23 +71,23 @@ test('Chủ nhật có OT 17:00–19:00 đã duyệt: Check-in 07:55 bị từ c
 });
 
 test('Chủ nhật: lượt Check-in/out đã đóng có OT khai ở Check-in/out (POST /ot) và duyệt (PUT /ot) ra cùng tiền với đường Lịch ước tính', async () => {
-  F.at('2026-10-10T09:00:00');
+  await F.at('2026-10-10T09:00:00');
   await declareAndApproveOnSheet('qa_a');
-  F.at('2026-10-12T09:00:00');
+  await F.at('2026-10-12T09:00:00');
   const plan = punch.planShift({ shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] }, SUN);
   for (const who of ['qa_a', 'qa_b']) {
     const entry = punch.buildDay({ shiftCode: 'n1' }, T(SUN, '07:55'), T(SUN, '19:00'), 'punch', {
       plannedShift: plan,
       approveIncomplete: true
     }).entry;
-    store.createSession(who, SUN, 'closed', entry);
+    await store.createSession(who, SUN, 'closed', entry);
   }
-  const s = store.listSessions({ username: 'qa_b', date: SUN })[0];
+  const s = (await store.listSessions({ username: 'qa_b', date: SUN }))[0];
   const decl = await F.call('POST', '/ot', {
     body: { sessionId: s.id, version: s.version, extraOut: '19:00', reason: 'Làm thêm 2 giờ' }
   });
   assert.equal(decl.status, 200, JSON.stringify(decl.data));
-  const cur = store.getSession(s.id);
+  const cur = await store.getSession(s.id);
   const dec = await F.call('PUT', '/ot', { body: { sessionId: cur.id, version: cur.version, action: 'approve' } });
   assert.equal(dec.status, 200, JSON.stringify(dec.data));
   const a = await rowOf('qa_a', SUN),

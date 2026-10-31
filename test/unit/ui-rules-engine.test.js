@@ -29,8 +29,8 @@ test('Ca chính 20:00–05:00 (chín tiếng): một giờ nghỉ trong khung 22
   near(day.total, DAILY * 1.4 + HOURLY * 1.3, 'tính tay');
 });
 
-test('Ca đêm 22:00–07:00 qua ngày lễ 07/10: 7 giờ làm ngày lễ không trừ nghỉ (6 giờ đêm), tiền ×3 cộng phần đêm 709.615 ₫; 2 giờ thường trước 0 giờ 57.692 ₫', () => {
-  const m = month(nv, { '2026-10-06': work('22:00', '07:00') }, ['2026-10-07']);
+test('Ca đêm 22:00–07:00 qua ngày lễ 07/10: 7 giờ làm ngày lễ không trừ nghỉ (6 giờ đêm), tiền ×3 cộng phần đêm 709.615 ₫; 2 giờ thường trước 0 giờ 57.692 ₫', async () => {
+  const m = await month(nv, { '2026-10-06': work('22:00', '07:00') }, ['2026-10-07']);
   const row = m.rows.find(r => r.date === '2026-10-06');
   assert.equal(row.holWorkH, 7);
   assert.equal(row.holNightH, 6);
@@ -43,22 +43,22 @@ test('Ca đêm 22:00–07:00 qua ngày lễ 07/10: 7 giờ làm ngày lễ khôn
 });
 
 /* ================= OT bị giữ khi còn giờ thiếu chưa bù ================= */
-test('Hợp đồng và bảo hiểm mặc định theo nhóm khi hồ sơ chưa ghi: TTS hợp đồng ngắn không đóng bảo hiểm; CTV và NV hợp đồng dài đóng bảo hiểm; thuế, giảm trừ, tạm ứng mặc định bật', () => {
+test('Hợp đồng và bảo hiểm mặc định theo nhóm khi hồ sơ chưa ghi: TTS hợp đồng ngắn không đóng bảo hiểm; CTV và NV hợp đồng dài đóng bảo hiểm; thuế, giảm trừ, tạm ứng mặc định bật', async () => {
   const day = { '2026-09-07': work('08:00', '17:00') };
   const expected = { tts: ['short', false], ctv: ['long', true], nv: ['long', true] };
   for (const [type, [contract, insured]] of Object.entries(expected)) {
-    const net = month({ type, level: 1, nightPct: 40 }, day, [], '2026-09').net;
+    const net = (await month({ type, level: 1, nightPct: 40 }, day, [], '2026-09')).net;
     assert.equal(net.contract, contract, type);
     assert.equal(net.insured, insured, type);
     assert.deepEqual([net.taxOn, net.deductOn, net.advanceOn], [true, true, true], type);
   }
   // hồ sơ ghi riêng thì thắng mặc định của nhóm (Admin tuỳ chỉnh được giữ)
-  const custom = month(
+  const custom = (await month(
     { type: 'nv', level: 1, nightPct: 40, contract: 'short', insured: false },
     day,
     [],
     '2026-09'
-  ).net;
+  )).net;
   assert.equal(custom.contract, 'short');
   assert.equal(custom.insured, false);
 });
@@ -67,16 +67,16 @@ test('Hợp đồng và bảo hiểm mặc định theo nhóm khi hồ sơ chưa
 const T13_DAYS = { '2026-10-07': work('22:00', '07:00', { extraKind: 'ot', extraOut: '11:00', preset: 'g2' }) };
 const T13_HOL = ['2026-10-08'];
 
-test('T1-3: ca g2 + OT 07:00–11:00 vào ngày lễ 08/10: OT 2.0 = 0 giờ, OT 3.0 = 11 giờ (7 giờ ca chính + 4 giờ OT lễ), tiền OT gộp 1.055.769 ₫', () => {
-  const m = month(nv, T13_DAYS, T13_HOL);
+test('T1-3: ca g2 + OT 07:00–11:00 vào ngày lễ 08/10: OT 2.0 = 0 giờ, OT 3.0 = 11 giờ (7 giờ ca chính + 4 giờ OT lễ), tiền OT gộp 1.055.769 ₫', async () => {
+  const m = await month(nv, T13_DAYS, T13_HOL);
   assert.equal(m.otHours, 0, 'OT 2.0: OT rơi vào ngày lễ không phải OT ngày thường');
   assert.equal(m.holWorkHours, 11, 'OT 3.0 = 7 giờ ca chính + 4 giờ OT trong ngày lễ');
   assert.equal(m.otPay, 0);
   assert.equal(Math.round(m.holWorkPay), 1055769); // (11 giờ × 3 + 6 giờ đêm × 0,6) × lương giờ
 });
 
-test('T1-3: cùng lịch nhưng 08/10 không phải ngày lễ: OT 2.0 = 4 giờ, OT 3.0 = 0', () => {
-  const m = month(nv, T13_DAYS, []);
+test('T1-3: cùng lịch nhưng 08/10 không phải ngày lễ: OT 2.0 = 4 giờ, OT 3.0 = 0', async () => {
+  const m = await month(nv, T13_DAYS, []);
   assert.equal(m.otHours - (m.otHolHours || 0), 4);
   assert.equal((m.holWorkHours || 0) + (m.otHolHours || 0), 0);
 });
@@ -129,9 +129,9 @@ test('Thực lĩnh: TTS hợp đồng ngắn không đóng bảo hiểm (0); t�
   assert.equal(offIntern.tax, 0);
 });
 
-test('Thu nhập cả tháng khác thu nhập đến hôm nay: calcMonth có upTo cho tổng nhỏ hơn bản cả tháng, và thực lĩnh cả tháng tính trên thu nhập cả tháng', () => {
+test('Thu nhập cả tháng khác thu nhập đến hôm nay: calcMonth có upTo cho tổng nhỏ hơn bản cả tháng, và thực lĩnh cả tháng tính trên thu nhập cả tháng', async () => {
   const days = { '2026-10-05': work('08:00', '17:00'), '2026-10-20': work('08:00', '17:00') };
-  const full = month(insuredNv, days);
+  const full = await month(insuredNv, days);
   const toDate = calcMonth(insuredNv, days, null, [], '2026-10', '2026-10-07');
   assert.ok(full.total > toDate.total, `${full.total} > ${toDate.total}`);
   assert.equal(full.net.gross, Math.round(full.total));

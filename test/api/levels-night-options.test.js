@@ -10,9 +10,9 @@ const { F } = P;
 before(F.start);
 after(F.stop);
 
-const send = (username, patch) => {
-  const staff = F.store.getStaff(username);
-  return F.call('PUT', `/staff/${username}`, {
+const send = async (username, patch) => {
+  const staff = await F.store.getStaff(username);
+  return await F.call('PUT', `/staff/${username}`, {
     who: 'admin',
     body: {
       name: staff.name,
@@ -36,7 +36,7 @@ test('nightOptions theo bậc: bậc có bảng riêng [30, 50] thì chỉ nhậ
   assert.equal(bad.status, 400, JSON.stringify(bad.data));
   assert.match(bad.data.error, /30, 50/);
   assert.equal((await send('qa_nv2', { nightPct: 30 })).status, 200);
-  assert.equal(F.store.getStaff('qa_nv2').nightPct, 30);
+  assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 30);
   // qa_nv1 là NV bậc 1: bảng chức vụ [40, 60]
   assert.equal((await send('qa_nv1', { nightPct: 30 })).status, 400);
   assert.equal((await send('qa_nv1', { nightPct: 40 })).status, 200);
@@ -44,22 +44,22 @@ test('nightOptions theo bậc: bậc có bảng riêng [30, 50] thì chỉ nhậ
 
 test('nightOptions theo bậc: giá trị đã lưu không còn trong bảng mới được giữ khi gửi lại y nguyên (không bị đổi ngầm); bỏ trống thì lấy phần tử đầu của bảng mới, còn trong bảng thì giữ nguyên tỉ lệ cũ', async () => {
   const M = await P.setupMonth();
-  F.store.db.prepare("UPDATE staff SET night_pct = 40 WHERE username = 'qa_nv2'").run();
+  await F.store.db.prepare("UPDATE staff SET night_pct = 40 WHERE username = 'qa_nv2'").run();
   assert.equal((await P.saveChanges([{ key: 'level.nv.3.nightOptions', value: [30, 50] }], { month: M })).status, 200);
   const same = await send('qa_nv2', { nightPct: 40 }); // gửi lại giá trị đã lưu: không kiểm lại
   assert.equal(same.status, 200, JSON.stringify(same.data));
-  assert.equal(F.store.getStaff('qa_nv2').nightPct, 40);
+  assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 40);
   // bỏ trống: giá trị đang lưu 40 không còn trong bảng mới [30, 50] nên lấy phần tử đầu
   const blank = await send('qa_nv2', { nightPct: null });
   assert.equal(blank.status, 200, JSON.stringify(blank.data));
-  assert.equal(F.store.getStaff('qa_nv2').nightPct, 30, 'ngoài bảng mới: lấy phần tử đầu');
+  assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 30, 'ngoài bảng mới: lấy phần tử đầu');
   // tỉ lệ cũ còn trong bảng thì bỏ trống giữ nguyên, không nhảy về phần tử đầu
-  F.store.db.prepare("UPDATE staff SET night_pct = 50 WHERE username = 'qa_nv2'").run();
+  await F.store.db.prepare("UPDATE staff SET night_pct = 50 WHERE username = 'qa_nv2'").run();
   const kept = await send('qa_nv2', { nightPct: null });
   assert.equal(kept.status, 200, JSON.stringify(kept.data));
-  assert.equal(F.store.getStaff('qa_nv2').nightPct, 50, 'còn trong bảng: giữ tỉ lệ cũ');
+  assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 50, 'còn trong bảng: giữ tỉ lệ cũ');
   // body không có trường nightPct (form Hồ sơ không có ô này) cũng giữ tỉ lệ cũ
-  const body = { ...F.store.getStaff('qa_nv2') };
+  const body = { ...await F.store.getStaff('qa_nv2') };
   const absent = await F.call('PUT', '/staff/qa_nv2', {
     who: 'admin',
     body: {
@@ -72,38 +72,38 @@ test('nightOptions theo bậc: giá trị đã lưu không còn trong bảng m�
     }
   });
   assert.equal(absent.status, 200, JSON.stringify(absent.data));
-  assert.equal(F.store.getStaff('qa_nv2').nightPct, 50);
+  assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 50);
 });
 
 test('nightOptions theo bậc: không ghi đè thì y như trước: bảng chức vụ [40, 60], bỏ trống lấy lựa chọn đầu', async () => {
   await P.setupMonth();
   assert.equal((await send('qa_nv1', { nightPct: 50 })).status, 400);
   assert.equal((await send('qa_nv1', { nightPct: 60 })).status, 200);
-  F.store.db.prepare("UPDATE staff SET night_pct = NULL WHERE username = 'qa_nv1'").run();
+  await F.store.db.prepare("UPDATE staff SET night_pct = NULL WHERE username = 'qa_nv1'").run();
   assert.equal((await send('qa_nv1', { nightPct: null })).status, 200);
-  assert.equal(F.store.getStaff('qa_nv1').nightPct, 40);
+  assert.equal((await F.store.getStaff('qa_nv1')).nightPct, 40);
 });
 
 /* ---------- bảng phụ cấp đêm cho TTS và CTV, chức vụ thêm ---------- */
-const preview = (changes, month) =>
-  F.call('POST', '/settings/params/preview', { who: 'admin', body: { changes, effectiveMonth: month } });
+const preview = async (changes, month) =>
+  await F.call('POST', '/settings/params/preview', { who: 'admin', body: { changes, effectiveMonth: month } });
 
 // Test hồ sơ TTS đứng TRƯỚC các test ghi bảng của TTS: tháng riêng của test giảm dần và dòng tham số tháng muộn hơn thắng ở "hôm nay"
 test('đêm TTS/CTV: PUT /staff/:u của TTS khi chức vụ vừa có bảng: hồ sơ cũ không gửi nightPct vẫn lưu được (lấy phần tử đầu), giá trị ngoài bảng bị 400', async () => {
   const M = await P.setupMonth();
   assert.equal((await P.saveChanges([{ key: 'type.tts.nightOptions', value: [35, 50] }], { month: M })).status, 200);
-  F.store.db.prepare("UPDATE staff SET night_pct = NULL WHERE username = 'qa_tts1'").run(); // TTS thật chưa có bảng nên không có nightPct
-  assert.equal(F.store.getStaff('qa_tts1').nightPct, null);
+  await F.store.db.prepare("UPDATE staff SET night_pct = NULL WHERE username = 'qa_tts1'").run(); // TTS thật chưa có bảng nên không có nightPct
+  assert.equal((await F.store.getStaff('qa_tts1')).nightPct, null);
   const none = await send('qa_tts1', { nightPct: undefined });
   assert.equal(none.status, 200, JSON.stringify(none.data));
-  assert.equal(F.store.getStaff('qa_tts1').nightPct, 35, 'bỏ trống: lấy phần tử đầu, không bắt chọn');
+  assert.equal((await F.store.getStaff('qa_tts1')).nightPct, 35, 'bỏ trống: lấy phần tử đầu, không bắt chọn');
   assert.equal((await send('qa_tts1', { nightPct: 50 })).status, 200);
-  assert.equal(F.store.getStaff('qa_tts1').nightPct, 50);
+  assert.equal((await F.store.getStaff('qa_tts1')).nightPct, 50);
   assert.equal((await send('qa_tts1', { nightPct: 40 })).status, 400);
   assert.equal((await send('qa_tts1', { nightPct: 50 })).status, 200, 'gửi lại giá trị đã lưu vẫn được');
   // người khác (CTV chưa có bảng) không đổi: vẫn lưu được và nightPct vẫn null
   assert.equal((await send('qa_ctv1', { nightPct: undefined })).status, 200);
-  assert.equal(F.store.getStaff('qa_ctv1').nightPct, null);
+  assert.equal((await F.store.getStaff('qa_ctv1')).nightPct, null);
 });
 
 test('đêm TTS/CTV: PUT và preview nhận type.<tts|ctv>.nightOptions và level.<mã>.<bậc>.nightOptions, đọc lại ở bộ tham số hiệu lực', async () => {
@@ -117,13 +117,13 @@ test('đêm TTS/CTV: PUT và preview nhận type.<tts|ctv>.nightOptions và leve
   assert.equal(pv.status, 200, JSON.stringify(pv.data).slice(0, 300));
   const save = await P.saveChanges(changes, { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  const set = P.paramsOf(M);
+  const set = await P.paramsOf(M);
   assert.deepEqual(set['type.tts.nightOptions'], [35]);
   assert.deepEqual(set['type.ctv.nightOptions'], [40, 50]);
   assert.deepEqual(set['level.tts.2.nightOptions'], [45]);
   const back = await P.saveChanges([{ key: 'type.tts.nightOptions', value: null }], { month: M });
   assert.equal(back.status, 200, JSON.stringify(back.data));
-  assert.equal(P.paramsOf(M)['type.tts.nightOptions'], null, 'null = bỏ bảng, tính theo mức chung như trước');
+  assert.equal((await P.paramsOf(M))['type.tts.nightOptions'], null, 'null = bỏ bảng, tính theo mức chung như trước');
 });
 
 test('đêm TTS/CTV: chức vụ thêm bằng sao chép cũng đặt được bảng riêng (kiểm như bảng của NV)', async () => {
@@ -131,12 +131,12 @@ test('đêm TTS/CTV: chức vụ thêm bằng sao chép cũng đặt được b�
   const code = await P.mustCopy(M, { label: 'Đêm riêng', copyFrom: 'ctv' });
   const save = await P.saveChanges([{ key: `type.${code}.nightOptions`, value: [33] }], { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  assert.deepEqual(P.paramsOf(M)[`type.${code}.nightOptions`], [33]);
+  assert.deepEqual((await P.paramsOf(M))[`type.${code}.nightOptions`], [33]);
 });
 
 test('đêm TTS/CTV: mảng rỗng, trùng, không nguyên hoặc sai kiểu bị 400 (cả lưu lẫn xem trước) và không ghi gì', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const value of [[], [35, 35], [35.5], ['35'], 35, [101]]) {
     const changes = [{ key: 'type.tts.nightOptions', value }];
     const save = await P.saveChanges(changes, { month: M });
@@ -145,7 +145,7 @@ test('đêm TTS/CTV: mảng rỗng, trùng, không nguyên hoặc sai kiểu b�
     assert.equal(pv.data.ok, false, JSON.stringify([value, pv.data]));
     assert.ok(pv.data.errors.length > 0);
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('đêm TTS/CTV: dưới sàn luật 30 % vẫn lưu (cả lưu lẫn xem trước), kèm cảnh báo PARAM_BELOW_LEGAL_FLOOR', async () => {
@@ -157,7 +157,7 @@ test('đêm TTS/CTV: dưới sàn luật 30 % vẫn lưu (cả lưu lẫn xem tr
   const save = await P.saveChanges(changes, { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
   assert.ok(save.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(save.data.warnings));
-  assert.deepEqual(P.paramsOf(M)['type.tts.nightOptions'], [29]);
+  assert.deepEqual((await P.paramsOf(M))['type.tts.nightOptions'], [29]);
   const level = await P.saveChanges([{ key: 'level.ctv.1.nightOptions', value: [20] }], { month: M });
   assert.equal(level.status, 200, JSON.stringify(level.data));
   assert.ok(level.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(level.data.warnings));

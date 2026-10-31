@@ -8,16 +8,16 @@ const assert = require('node:assert/strict');
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.person('admin', 'admin', { payrollSubject: false });
-  F.person('qa_nv', 'staff');
-  F.person('qa_nv2', 'staff');
-  F.person('qa_moi', 'staff', { startDate: null }); // chưa có ngày vào làm: không có tài khoản phép
+beforeEach(async () => {
+  await F.reset();
+  await F.person('admin', 'admin', { payrollSubject: false });
+  await F.person('qa_nv', 'staff');
+  await F.person('qa_nv2', 'staff');
+  await F.person('qa_moi', 'staff', { startDate: null }); // chưa có ngày vào làm: không có tài khoản phép
 });
 
 test('POST /leave/refresh: accounts chỉ đếm người có tài khoản phép, checked vẫn đếm mọi hồ sơ', async () => {
-  const people = F.store.listStaff();
+  const people = await F.store.listStaff();
   const withAccount = [];
   for (const s of people) {
     const ledger = await F.call('GET', `/leave/ledger?user=${s.username}`);

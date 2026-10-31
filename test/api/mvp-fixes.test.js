@@ -12,8 +12,8 @@ const auth = require('../../lib/auth');
 const server = require('../../server');
 let base;
 
-function person(username, role = 'staff', type = 'nv', shiftCode = 'n1') {
-  store.upsertStaff({
+async function person(username, role = 'staff', type = 'nv', shiftCode = 'n1') {
+  await store.upsertStaff({
     username,
     name: username,
     role,
@@ -41,7 +41,7 @@ function snapshot() {
 async function call(method, route, { who = 'admin', body } = {}) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: response.status, data: await response.json() };
@@ -65,7 +65,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'punch_requests',
     'corrections',
@@ -78,10 +78,10 @@ beforeEach(() => {
     'settings'
   ])
     store.db.exec('DELETE FROM ' + table);
-  person('admin', 'admin', 'tts');
-  person('worker'); // NV L1, lịch T2–T7, KPI tối đa 6.000.000
-  person('collab', 'staff', 'ctv'); // CTV L1, lịch T2–T7, KPI tối đa 1.500.000
-  person('intern', 'staff', 'tts'); // TTS, lịch T2–T6
+  await person('admin', 'admin', 'tts');
+  await person('worker'); // NV L1, lịch T2–T7, KPI tối đa 6.000.000
+  await person('collab', 'staff', 'ctv'); // CTV L1, lịch T2–T7, KPI tối đa 1.500.000
+  await person('intern', 'staff', 'tts'); // TTS, lịch T2–T6
 });
 after(async () => {
   server.closeAllConnections();
@@ -93,7 +93,7 @@ after(async () => {
 test('B2: ngày có giờ làm thêm mà thiếu extraKind được lưu là làm bù và giữ nguyên giờ ra làm thêm', async () => {
   const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const saved = sheet('worker').days['2026-10-07'];
+  const saved = (await sheet('worker')).days['2026-10-07'];
   assert.equal(saved.extraKind, 'makeup', 'bản ghi cũ phải hiểu là làm bù');
   assert.equal(saved.extraOut, '19:00', 'không được xoá giờ làm thêm (mất 4 giờ làm bù = 115.385 đ)');
   assert.equal(saved.in, '08:00');
@@ -102,33 +102,33 @@ test('B2: ngày có giờ làm thêm mà thiếu extraKind được lưu là là
 test('B2: bản ghi cũ chỉ có giờ vào làm thêm (trước ca): giữ extraIn, extraKind để rỗng như calcDay, không tạo khoản chờ duyệt', async () => {
   const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const saved = sheet('worker').days['2026-10-07'];
+  const saved = (await sheet('worker')).days['2026-10-07'];
   assert.equal(saved.extraKind, '', 'không đoán thành làm bù: calcDay chỉ hiểu extraOut');
   assert.equal(saved.extraIn, '06:30');
 });
 test('B2: đọc bản ghi cũ từ máy chủ rồi lưu lại nguyên vẹn thì không mất giờ làm bù', async () => {
   // bản ghi cũ nằm sẵn trong DB, không có khoá extraKind
-  store.setSheet('worker', '2026-10', {
+  await store.setSheet('worker', '2026-10', {
     '2026-10-07': { kind: 'work', shift: 'day', in: '08:00', out: '17:00', extraOut: '19:00' }
   });
   const got = await call('GET', '/sheet?month=2026-10', { who: 'worker' });
   assert.equal(got.status, 200);
   const r = await putSheet('worker', got.data.days);
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(sheet('worker').days['2026-10-07'].extraOut, '19:00');
-  assert.equal(sheet('worker').days['2026-10-07'].extraKind, 'makeup');
+  assert.equal((await sheet('worker')).days['2026-10-07'].extraOut, '19:00');
+  assert.equal((await sheet('worker')).days['2026-10-07'].extraKind, 'makeup');
 });
 test('B2 (giữ nguyên): extraKind ghi rõ là ot vẫn lưu là ot, không bị đổi thành làm bù', async () => {
   const r = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(sheet('worker').days['2026-10-07'].extraKind, 'ot');
+  assert.equal((await sheet('worker')).days['2026-10-07'].extraKind, 'ot');
 });
 test('B2 (giữ nguyên): ngày đi làm không có giờ làm thêm thì không có extraKind', async () => {
   const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(sheet('worker').days['2026-10-07'].extraKind, '');
+  assert.equal((await sheet('worker')).days['2026-10-07'].extraKind, '');
 });
 
 /* ---------- làm bù cả ngày trên ngày nằm trong lịch ---------- */
@@ -139,21 +139,21 @@ for (const [who, label, date] of [
   ['intern', 'TTS, thứ Hai', '2026-10-05']
 ]) {
   test(`B3/U3: làm bù cả ngày trên ngày trong lịch bị từ chối 400 và không lưu gì (${label})`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet(who, { [date]: { kind: 'makeup', in: '08:00', out: '17:00' } });
     assert.equal(r.status, 400, JSON.stringify(r.data));
     assert.ok(r.data.error);
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 test('B3/U3: bị từ chối làm bù cả ngày thì ngày khác trong cùng yêu cầu cũng không được lưu', async () => {
-  const previous = snapshot();
+  const previous = await snapshot();
   const r = await putSheet('worker', {
     '2026-10-06': { kind: 'work', in: '08:00', out: '17:00' },
     '2026-10-05': { kind: 'makeup', in: '08:00', out: '17:00' }
   });
   assert.equal(r.status, 400, JSON.stringify(r.data));
-  assert.deepEqual(snapshot(), previous);
+  assert.deepEqual(await snapshot(), previous);
 });
 
 /* ---------- KPI vượt mức tối đa của level ---------- */
@@ -165,13 +165,13 @@ for (const [who, label, max] of [
     const r = await putSheet(who, {}, { kpiPct: 80, kpiAmt: max + 1 });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.ok(r.data.warnings.some(w => w.code === 'KPI_OVER_CAP'), JSON.stringify(r.data.warnings));
-    assert.equal(sheet(who).kpiAmt, max + 1);
+    assert.equal((await sheet(who)).kpiAmt, max + 1);
   });
   test(`U4: PUT /sheet nhận kpiAmt đúng bằng KPI tối đa, không cảnh báo của ${label}`, async () => {
     const r = await putSheet(who, {}, { kpiPct: 80, kpiAmt: max });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.ok(!(r.data.warnings || []).some(w => w.code === 'KPI_OVER_CAP'), JSON.stringify(r.data.warnings));
-    assert.equal(sheet(who).kpiAmt, max);
+    assert.equal((await sheet(who)).kpiAmt, max);
   });
 }
 // Phía Admin: trần KPI và quyền của PUT /api/kpi/scores nằm ở kpi-scores-api.test.js
@@ -179,19 +179,19 @@ for (const [who, label, max] of [
 /* ---------- extraKind mà không có đoạn làm thêm ---------- */
 for (const extraKind of ['makeup', 'ot']) {
   test(`U5: extraKind "${extraKind}" không kèm giờ làm thêm nào bị từ chối 400 và không lưu`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind } });
     assert.equal(r.status, 400, JSON.stringify(r.data));
     assert.ok(r.data.error);
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
   test(`U5: extraKind "${extraKind}" với extraIn / extraOut rỗng cũng bị từ chối 400`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet('worker', {
       '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind, extraIn: '', extraOut: '' }
     });
     assert.equal(r.status, 400, JSON.stringify(r.data));
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 test('U5 (giữ nguyên): extraKind có đủ đoạn làm thêm thì được lưu', async () => {
@@ -199,7 +199,7 @@ test('U5 (giữ nguyên): extraKind có đủ đoạn làm thêm thì được l
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'makeup', extraOut: '19:00' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(sheet('worker').days['2026-10-07'].extraOut, '19:00');
+  assert.equal((await sheet('worker')).days['2026-10-07'].extraOut, '19:00');
 });
 
 /* ---------- giới hạn 1 MB tính theo byte ---------- */
@@ -210,7 +210,7 @@ async function bigBody(text) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: auth.cookieHeader(auth.createSession('admin'), 86400)
+        Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400)
       },
       body: JSON.stringify({
         name: 'Big body',
@@ -228,25 +228,25 @@ async function bigBody(text) {
   }
 }
 test('B6: body ASCII vượt 1 MB trả 413 chứ không cắt kết nối', async () => {
-  const previous = snapshot();
+  const previous = await snapshot();
   const r = await bigBody('x'.repeat(1_100_000));
   assert.equal(r.status, 413, 'kết nối bị cắt: ' + r.dropped);
   assert.ok(r.data.error);
-  assert.deepEqual(snapshot(), previous);
+  assert.deepEqual(await snapshot(), previous);
 });
 test('B6: body có chữ nhiều byte vượt 1 MB (đếm theo byte, dưới 1 triệu ký tự) trả 413', async () => {
   // 600.000 ký tự "é" = 1,2 MB nhưng chỉ 600.000 đơn vị chuỗi
-  const previous = snapshot();
+  const previous = await snapshot();
   const r = await bigBody('é'.repeat(600_000));
   assert.equal(r.status, 413, 'kết nối bị cắt: ' + r.dropped);
   assert.ok(r.data.error);
-  assert.deepEqual(snapshot(), previous);
+  assert.deepEqual(await snapshot(), previous);
 });
 test('B6: body ba byte mỗi ký tự vượt 1 MB (400.000 ký tự) trả 413', async () => {
-  const previous = snapshot();
+  const previous = await snapshot();
   const r = await bigBody('ễ'.repeat(400_000));
   assert.equal(r.status, 413, 'kết nối bị cắt: ' + r.dropped);
-  assert.deepEqual(snapshot(), previous);
+  assert.deepEqual(await snapshot(), previous);
 });
 test('B6 (giữ nguyên): body nhiều byte nhưng dưới 1 MB (800.000 byte) vẫn được nhận', async () => {
   const r = await bigBody('é'.repeat(400_000));
@@ -259,7 +259,7 @@ test('B6 (giữ nguyên): body lớn hơn một đoạn mạng (90 KB tiếng Vi
     body: { name, role: 'staff', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-01' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getStaff('worker').name, name);
+  assert.equal((await store.getStaff('worker')).name, name);
 });
 
 /* ---------- kiểm tra đầu vào của từng ngày ---------- */
@@ -270,11 +270,11 @@ for (const [label, kind] of [
   ['mảng', ['work']]
 ]) {
   test(`B7: kind không hợp lệ (${label}) bị từ chối 400 chứ không âm thầm thành "work"`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet('worker', { '2026-10-07': { kind, in: '08:00', out: '17:00' } });
     assert.equal(r.status, 400, JSON.stringify(r.data));
     assert.ok(r.data.error);
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 test('B7 (giữ nguyên): kind hợp lệ "willmakeup" vẫn được lưu', async () => {
@@ -285,7 +285,7 @@ test('B7 (giữ nguyên): kind hợp lệ "willmakeup" vẫn được lưu', asy
     }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(sheet('worker').days['2026-10-07'].kind, 'willmakeup');
+  assert.equal((await sheet('worker')).days['2026-10-07'].kind, 'willmakeup');
 });
 for (const [label, preset] of [
   ['mã lạ', 'zz'],
@@ -295,27 +295,27 @@ for (const [label, preset] of [
   ['object', {}]
 ]) {
   test(`B7: preset không hợp lệ (${label}) bị từ chối 400 chứ không âm thầm xoá`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', preset } });
     assert.equal(r.status, 400, JSON.stringify(r.data));
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 for (const preset of ['n1', 'n2', 'f1', 'f2', 'g1', 'g2']) {
   test(`B7 (giữ nguyên): preset "${preset}" hợp lệ được lưu nguyên`, async () => {
     // giờ trong ca đêm không chặn ở đây: chỉ kiểm preset nên dùng giờ ban ngày; người đã được gán ca thì preset luôn là ca đó
-    person('free-preset', 'staff', 'nv', null);
+    await person('free-preset', 'staff', 'nv', null);
     const r = await putSheet('free-preset', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', preset } });
     assert.equal(r.status, 200, JSON.stringify(r.data));
-    assert.equal(sheet('free-preset').days['2026-10-07'].preset, preset);
+    assert.equal((await sheet('free-preset')).days['2026-10-07'].preset, preset);
   });
 }
 test('B7 (giữ nguyên): preset rỗng hoặc bỏ trống (chọn "Tự nhập giờ") vẫn được lưu', async () => {
-  person('free-preset', 'staff', 'nv', null); // chưa gán ca cố định
+  await person('free-preset', 'staff', 'nv', null); // chưa gán ca cố định
   for (const preset of ['', undefined]) {
     const r = await putSheet('free-preset', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', preset } });
     assert.equal(r.status, 200, JSON.stringify(r.data));
-    assert.equal(sheet('free-preset').days['2026-10-07'].preset, '');
+    assert.equal((await sheet('free-preset')).days['2026-10-07'].preset, '');
   }
 });
 for (const [label, breakMin] of [
@@ -326,17 +326,17 @@ for (const [label, breakMin] of [
   ['mảng', [30]]
 ]) {
   test(`B7: breakMin không hợp lệ (${label}) bị từ chối 400 chứ không bị kẹp hay đổi thành 0`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', breakMin } });
     assert.equal(r.status, 400, JSON.stringify(r.data));
-    assert.deepEqual(snapshot(), previous);
+    assert.deepEqual(await snapshot(), previous);
   });
 }
 for (const breakMin of [0, 30, 1440]) {
   test(`B7 (giữ nguyên): breakMin ${breakMin} nằm trong 0–1440 được lưu nguyên`, async () => {
     const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', breakMin } });
     assert.equal(r.status, 200, JSON.stringify(r.data));
-    assert.equal(sheet('worker').days['2026-10-07'].breakMin, breakMin);
+    assert.equal((await sheet('worker')).days['2026-10-07'].breakMin, breakMin);
   });
 }
 

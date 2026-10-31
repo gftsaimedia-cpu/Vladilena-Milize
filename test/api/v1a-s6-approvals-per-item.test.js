@@ -20,16 +20,16 @@ const WORKER = 'qa_worker';
 
 before(async () => {
   await F.start();
-  F.at('2026-10-14T12:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person(WORKER, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.at('2026-10-14T12:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person(WORKER, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05', leaveAdjust: 30 });
   for (const [user, role] of [
     ['qa_hr', 'hr'],
     ['qa_manager', 'manager'],
     ['qa_cb', 'cb']
   ]) {
-    F.person(user, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-    store.roles.grant(user, role, 'admin');
+    await F.person(user, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+    await store.roles.grant(user, role, 'admin');
   }
   const work = (more = {}) => ({ kind: 'work', in: '08:00', out: '17:00', ...more });
   const res = await F.call('PUT', '/sheet', {
@@ -47,16 +47,16 @@ before(async () => {
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   // Admin duyệt KPI của người này để kpiAdmAmt, kpiAdmPct có giá trị thật (nếu không, "không lộ" chỉ vì rỗng)
   // không có route ghi số Admin duyệt KPI: dựng thẳng bằng store
-  store.setKpiApproval(WORKER, MONTH, 88, 4321000);
+  await store.setKpiApproval(WORKER, MONTH, 88, 4321000);
 });
 after(F.stop);
 
-const queue = who => F.call('GET', '/approvals?status=all', { who });
+const queue = async who => await F.call('GET', '/approvals?status=all', { who });
 const refs = items => items.map(x => ({ username: x.username, date: x.date, rev: x.rev, fingerprint: x.fingerprint }));
-const decide = (who, items, action = 'approve', note) =>
-  F.call('PUT', '/approvals/decide', { who, body: { action, items, ...(note ? { note } : {}) } });
-const statusOf = date =>
-  store.db.prepare('SELECT status FROM sheet_approvals WHERE username = ? AND date = ?').get(WORKER, date).status;
+const decide = async (who, items, action = 'approve', note) =>
+  await F.call('PUT', '/approvals/decide', { who, body: { action, items, ...(note ? { note } : {}) } });
+const statusOf = async date =>
+  (await store.db.prepare('SELECT status FROM sheet_approvals WHERE username = ? AND date = ?').get(WORKER, date)).status;
 const adminItems = async () => (await queue('admin')).data.items;
 const visible = res => (res.status === 200 ? res.data.items : []);
 
@@ -78,16 +78,16 @@ test('V1A-S6-4: HR (chỉ request.decide.leave) không thấy khoản iSAT, OT, 
 test('V1A-S6-4: HR không duyệt được khoản iSAT, OT, làm bù (403, khoản vẫn chờ); lô có lẫn khoản nghỉ phép bị từ chối cả lô, không lưu gì', async () => {
   const items = await adminItems();
   const of = date => items.filter(x => x.date === date);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   for (const date of [ISAT, OT, MAKEUP_HOURS]) {
     const res = await decide('qa_hr', refs(of(date)));
     assert.equal(res.status, 403, `${date}: ${res.status} ${JSON.stringify(res.data).slice(0, 200)}`);
-    assert.equal(statusOf(date), 'pending');
+    assert.equal(await statusOf(date), 'pending');
   }
   const mixed = await decide('qa_hr', refs([...of(LEAVE), ...of(ISAT)]));
   assert.equal(mixed.status, 403, JSON.stringify(mixed.data).slice(0, 200));
-  assert.equal(statusOf(LEAVE), 'pending', 'cả lô bị từ chối: khoản nghỉ phép cũng chưa duyệt');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'không bảng nào đổi');
+  assert.equal(await statusOf(LEAVE), 'pending', 'cả lô bị từ chối: khoản nghỉ phép cũng chưa duyệt');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'không bảng nào đổi');
 });
 
 test('V1A-S6-4: số khoản chờ (GET /api/approvals/count) của HR chỉ đếm nhóm HR duyệt được: 1 (nghỉ phép), không phải 4', async () => {
@@ -110,7 +110,7 @@ test('V1A-S6-4 (đối chứng): HR duyệt được khoản nghỉ phép năm (
   assert.equal(items.length, 1);
   const res = await decide('qa_hr', refs(items));
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-  assert.equal(statusOf(LEAVE), 'approved');
+  assert.equal(await statusOf(LEAVE), 'approved');
   // trả về chờ duyệt để các test sau không phụ thuộc thứ tự: Admin đổi quyết định cần lý do
   const back = await decide(
     'admin',
@@ -127,12 +127,12 @@ test('V1A-S6-4: Quản lý (phạm vi nhóm mình, chưa có ai trong nhóm) kh�
   assert.deepEqual(visible(await queue('qa_manager')), [], 'Quản lý không thấy khoản của người ngoài nhóm');
   const count = await F.call('GET', '/approvals/count', { who: 'qa_manager' });
   assert.ok(count.status === 403 || count.data.pending === 0, JSON.stringify(count.data));
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const items = (await adminItems()).filter(x => x.date === OT);
   const res = await decide('qa_manager', refs(items));
   assert.equal(res.status, 403, JSON.stringify(res.data).slice(0, 200));
-  assert.equal(statusOf(OT), 'pending');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.equal(await statusOf(OT), 'pending');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('V1A-S6-4: phản hồi GET /api/approvals cho Quản lý không có kpiAdmAmt, kpiAdmPct (Quản lý không thấy số tiền, TK 8.3 và 10.2)', async () => {
@@ -151,7 +151,7 @@ test('V1A-S6-4 (đối chứng): nhân sự thường 403 ở GET /approvals, /a
 });
 
 test('V1A-S6-4: GET /api/alerts đếm khoản chờ theo nhóm được duyệt: Admin mọi khoản, HR chỉ nghỉ phép, Quản lý 0', async () => {
-  const pending = store.db.prepare("SELECT item FROM sheet_approvals WHERE status = 'pending'").all();
+  const pending = await store.db.prepare("SELECT item FROM sheet_approvals WHERE status = 'pending'").all();
   assert.ok(pending.length >= 3 && pending.some(r => r.item !== 'leave'), 'cần còn khoản chờ ngoài nhóm leave');
   const count = async who => (await F.call('GET', `/alerts?month=${MONTH}`, { who })).data.pendingApprovals;
   assert.equal(await count('admin'), pending.length);

@@ -24,15 +24,15 @@ afterEach(() => {
 });
 
 /* ---------- máy khách SSE ---------- */
-function openStream(who, headers = {}) {
-  return new Promise((resolve, reject) => {
+async function openStream(who, headers = {}) {
+  return new Promise(async (resolve, reject) => {
     const req = http.request(
       {
         host: '127.0.0.1',
         port: F.server.address().port,
         path: '/api/events',
         method: 'GET',
-        headers: { Cookie: auth.cookieHeader(auth.createSession(who), 86400), Accept: 'text/event-stream', ...headers }
+        headers: { Cookie: auth.cookieHeader(await auth.createSession(who), 86400), Accept: 'text/event-stream', ...headers }
       },
       res => {
         const stream = {
@@ -101,7 +101,7 @@ const open = async who => {
 let sentinel = 0;
 async function settle(streams) {
   const id = ++sentinel;
-  events.publish('announcement.posted', { id }, { all: true });
+  await events.publish('announcement.posted', { id }, { all: true });
   for (const s of streams)
     await until(
       () => s.frames.some(f => f.event === 'announcement.posted' && f.data.id === id),
@@ -120,8 +120,8 @@ const seenNames = frames => frames.map(f => f.event);
 const ACCOUNT = { cb: 'qa_nv1', staffA: 'qa_nv2', staffB: 'qa_ctv1', staffC: 'qa_tts1', admin: 'admin' };
 async function setup(month) {
   await S.seed(month);
-  S.grant(ACCOUNT.cb, 'cb');
-  S.setMode('defaults-only');
+  await S.grant(ACCOUNT.cb, 'cb');
+  await S.setMode('defaults-only');
 }
 
 /* ================= events-auth ================= */
@@ -157,7 +157,7 @@ test('events-auth: nối lại có Last-Event-ID thì sau hello có resync (khô
 
 test('events-auth: đăng xuất thì luồng nhận bye { reason: "logout" } rồi đóng; kết nối mới bằng cookie cũ là 401', async () => {
   await setup(monthOf());
-  const cookie = auth.cookieHeader(auth.createSession('qa_nv2'), 86400);
+  const cookie = auth.cookieHeader(await auth.createSession('qa_nv2'), 86400);
   const stream = await new Promise(resolve => {
     const req = http.request(
       { host: '127.0.0.1', port: F.server.address().port, path: '/api/events', headers: { Cookie: cookie } },
@@ -202,7 +202,7 @@ test('events-auth: khoá tài khoản (PUT /api/staff/:u với locked:true) thì
   await until(() => stream.ended, 'luồng đóng');
   // khoá ngoài đường API (sửa thẳng DB): chỉ nhịp tim kiểm phiên mới phát hiện
   const other = await open('qa_ctv1');
-  store.db.prepare("UPDATE staff SET locked_at = ? WHERE username = 'qa_ctv1'").run(new Date().toISOString());
+  await store.db.prepare("UPDATE staff SET locked_at = ? WHERE username = 'qa_ctv1'").run(new Date().toISOString());
   await until(() => named(other, 'bye').length === 1, 'bye ở nhịp tim');
   assert.equal(named(other, 'bye')[0].data.reason, 'session');
   await until(() => other.ended, 'luồng đóng');
@@ -244,7 +244,7 @@ test('events-auth: quá trần kết nối của cả máy chủ là 503 EVENTS_
 test('events-audience: params.changed — Admin và C&B (config.read) nhận tầng đầy đủ { configRev, fromMonth, kind, groups, by }, nhân viên chỉ nhận { configRev, fromMonth }; không có giá trị, khoá hay lý do', async () => {
   const M = monthOf();
   await setup(M);
-  const key = S.adminKey();
+  const key = await S.adminKey();
   assert.ok(key, 'cần một khoá Admin sửa được');
   const streams = {
     admin: await open('admin'),
@@ -295,7 +295,7 @@ test('events-audience: approvals.changed chỉ tới người có quyền duyệ
   };
   await settle(Object.values(streams));
   // qa_nv2 khai iSAT vào thứ Bảy cuối tháng: khoản chờ duyệt mới
-  const days = { ...store.getSheet('qa_nv2', M).days, [S.lastDow(M, 6)]: { kind: 'isat' } };
+  const days = { ...(await store.getSheet('qa_nv2', M)).days, [await S.lastDow(M, 6)]: { kind: 'isat' } };
   const put = await F.call('PUT', '/sheet', { who: 'qa_nv2', body: { month: M, days } });
   assert.equal(put.status, 200, JSON.stringify(put.data));
   let got = await settle(Object.values(streams));
@@ -308,7 +308,7 @@ test('events-audience: approvals.changed chỉ tới người có quyền duyệ
   for (const who of ['qa_nv2', 'qa_ctv1', 'qa_tts1'])
     assert.ok(!seenNames(got[who]).includes('approvals.changed'), `${who} không bao giờ nhận approvals.changed`);
   // Admin duyệt khoản: đúng người gửi nhận request.decided, không ai khác
-  const row = store.approvals.list({ status: 'pending' }).find(r => r.username === 'qa_nv2' && r.date.startsWith(M));
+  const row = (await store.approvals.list({ status: 'pending' })).find(r => r.username === 'qa_nv2' && r.date.startsWith(M));
   const decide = await F.call('PUT', '/approvals/decide', {
     body: {
       action: 'approve',
@@ -405,7 +405,7 @@ test('events-audience: tin chốt announcement.posted tới mọi người; tầ
   await setup(M);
   const staff = await open('qa_ctv1');
   const cbLater = await open('qa_tts1');
-  events.publish(
+  await events.publish(
     'params.changed',
     { configRev: 1, fromMonth: M, kind: 'params', groups: [2], by: 'admin' },
     { all: true }
@@ -415,8 +415,8 @@ test('events-audience: tin chốt announcement.posted tới mọi người; tầ
     'configRev',
     'fromMonth'
   ]);
-  S.grant('qa_tts1', 'cb');
-  events.publish(
+  await S.grant('qa_tts1', 'cb');
+  await events.publish(
     'params.changed',
     { configRev: 2, fromMonth: M, kind: 'params', groups: [2], by: 'admin' },
     { all: true }
@@ -436,16 +436,16 @@ test('events-audience: tin chốt announcement.posted tới mọi người; tầ
 });
 
 /* ================= publish: danh mục, chiếu trường, batch ================= */
-test('publish: tên không có trong danh mục và kiểu người nhận không được phép là lỗi lập trình (ném lỗi); danh mục khai đủ mười một sự kiện', () => {
-  assert.throws(() => events.publish('khong.co', {}, { all: true }), /không có trong danh mục/);
-  assert.throws(
-    () => events.publish('request.decided', {}, { all: true }),
+test('publish: tên không có trong danh mục và kiểu người nhận không được phép là lỗi lập trình (ném lỗi); danh mục khai đủ mười một sự kiện', async () => {
+  await assert.rejects(async () => events.publish('khong.co', {}, { all: true }), /không có trong danh mục/);
+  await assert.rejects(
+    async () => events.publish('request.decided', {}, { all: true }),
     /không được phát tới kiểu người nhận này/,
     'request.decided không bao giờ phát cho tất cả'
   );
-  assert.throws(() => events.publish('approvals.changed', {}, { users: ['qa_nv2'] }));
-  assert.throws(() => events.publish('params.changed', {}, undefined));
-  assert.throws(() => events.publish('params.changed', {}, {}));
+  await assert.rejects(async () => events.publish('approvals.changed', {}, { users: ['qa_nv2'] }));
+  await assert.rejects(async () => events.publish('params.changed', {}, undefined));
+  await assert.rejects(async () => events.publish('params.changed', {}, {}));
   assert.deepEqual(Object.keys(events.EVENTS).sort(), [
     'announcement.posted',
     'approvals.changed',
@@ -461,7 +461,7 @@ test('publish: tên không có trong danh mục và kiểu người nhận khôn
   ]);
   assert.deepEqual([...events.SYSTEM_FRAMES].sort(), ['bye', 'hello', 'resync']);
   assert.equal(
-    events.publish('params.changed', {}, { all: true }),
+    await events.publish('params.changed', {}, { all: true }),
     0,
     'không có kết nối thì phát cho 0 luồng, không lỗi'
   );
@@ -471,7 +471,7 @@ test('publish: chỉ các trường của tầng được gửi; trường lạ,
   await setup(monthOf());
   const staff = await open('qa_ctv1');
   const admin = await open('admin');
-  events.publish(
+  await events.publish(
     'params.changed',
     {
       configRev: 7,
@@ -486,7 +486,7 @@ test('publish: chỉ các trường của tầng được gửi; trường lạ,
     },
     { all: true }
   );
-  events.publish(
+  await events.publish(
     'params.changed',
     { configRev: 8, fromMonth: '2026-11', groups: [{ a: 1 }, 2], by: { x: 1 }, kind: NaN },
     { all: true }
@@ -509,14 +509,14 @@ test('batch: sự kiện gom lại không tới ai cho tới khi flush (sau COMM
   assert.equal(b.size, 2);
   let got = await settle([staff]);
   assert.deepEqual(got.qa_ctv1, [], 'chưa flush thì chưa phát');
-  assert.equal(b.flush(), 2, 'flush trả số luồng đã nhận');
+  assert.equal(await b.flush(), 2, 'flush trả số luồng đã nhận');
   assert.equal(b.size, 0);
   got = await settle([staff]);
   assert.deepEqual(seenNames(got.qa_ctv1), ['params.changed', 'estimate.changed']);
   const dropped = events.batch();
   dropped.publish('params.changed', { configRev: 9, fromMonth: '2026-11' }, { all: true });
   dropped.discard();
-  assert.equal(dropped.flush(), 0);
+  assert.equal(await dropped.flush(), 0);
   assert.throws(() => events.batch().publish('khong.co', {}, { all: true }), /không có trong danh mục/);
   got = await settle([staff]);
   assert.deepEqual(got.qa_ctv1, []);
@@ -525,7 +525,7 @@ test('batch: sự kiện gom lại không tới ai cho tới khi flush (sau COMM
 test('Lỗi 4xx không phát sự kiện nào: Lưu tham số bị từ chối, duyệt khoản sai rev, bước kỳ sai trạng thái đều không có tin trên luồng', async () => {
   const M = monthOf();
   await setup(M);
-  const key = S.adminKey();
+  const key = await S.adminKey();
   const streams = [await open('admin'), await open('qa_ctv1')];
   await settle(streams);
   const bad = await S.saveChanges([{ key: key.key, value: 'abc' }], { month: M });

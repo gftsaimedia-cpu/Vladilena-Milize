@@ -72,8 +72,8 @@ function snapshotOf(staff, days, holidays, mk, kpi = null) {
     }
   };
 }
-const figuresOf = (staff, days, holidays, mk, kpi) => {
-  const p = snapshotOf(staff, days, holidays, mk, kpi);
+const figuresOf = async (staff, days, holidays, mk, kpi) => {
+  const p = await snapshotOf(staff, days, holidays, mk, kpi);
   return { p, m: p.snapshot, fig: Phieu.figures(p, mk, DEFAULTS, null, holidays) };
 };
 const N = v => Math.round(v).toLocaleString('en-US');
@@ -84,8 +84,8 @@ const slipRow = (markup, label) =>
   )?.[1] || '';
 const cellsOf = cells => [...cells.matchAll(/<td[^>]*>([^<]*)<\/td>/g)].map(x => x[1]);
 // `paid`: các số chi trả máy chủ gửi trên phiếu (gross, insurance, tax, advance, net, overridden...); thiếu thì phiếu như bản ước tính
-const pageFor = (staff, days, holidays, mk, values = {}, kpi = null, paid = {}) => {
-  const p = snapshotOf(staff, days, holidays, mk, kpi);
+const pageFor = async (staff, days, holidays, mk, values = {}, kpi = null, paid = {}) => {
+  const p = await snapshotOf(staff, days, holidays, mk, kpi);
   const model = Phieu.modelOf(
     { payslip: { ...p, ...paid, username: staff.username, name: staff.name } },
     mk,
@@ -114,7 +114,7 @@ const lineSum = fig =>
   INCOME.reduce((s, k) => s + fig.auto[k], 0) - fig.auto.lateCut + (fig.auto.makeupHolPremium || 0);
 
 /* ================= các dòng phiếu cộng đúng tổng lương ================= */
-test('Phiếu: các dòng thu nhập cộng đúng m.total ở các tháng điển hình (ca đêm lễ + OT, nghỉ sẽ làm bù + làm bù, phép + iSAT + nghỉ không lương)', () => {
+test('Phiếu: các dòng thu nhập cộng đúng m.total ở các tháng điển hình (ca đêm lễ + OT, nghỉ sẽ làm bù + làm bù, phép + iSAT + nghỉ không lương)', async () => {
   const night = work('22:00', '07:00');
   const cases = [
     {
@@ -143,7 +143,7 @@ test('Phiếu: các dòng thu nhập cộng đúng m.total ở các tháng đi�
     }
   ];
   for (const [i, c] of cases.entries()) {
-    const { m, fig } = figuresOf(nvStaff, c.days, c.holidays, c.mk, { pct: 80, amt: 6000000 });
+    const { m, fig } = await figuresOf(nvStaff, c.days, c.holidays, c.mk, { pct: 80, amt: 6000000 });
     assert.ok(fig, `ca ${i}: có phiếu`);
     assert.ok(Math.abs(lineSum(fig) - m.total) < 1, `ca ${i}: các dòng ${lineSum(fig)} khác m.total ${m.total}`);
     const eff = Phieu.effective(fig, {}, null);
@@ -161,8 +161,8 @@ const makeupDays = lateOut => ({
   '2026-10-06': work('15:00', '22:00', { extraKind: 'makeup', extraOut: '01:00', makeupHolRate: 3 })
 });
 
-test('Phiếu: làm bù đêm sang ngày lễ ×3, thiếu 1 giờ ngày 05/10: có dòng trả thêm riêng 57.692 ₫, các dòng cộng đúng m.total = 934.616 ₫', () => {
-  const { m, fig } = figuresOf(nvStaff, makeupDays('16:00'), HOL, '2026-10');
+test('Phiếu: làm bù đêm sang ngày lễ ×3, thiếu 1 giờ ngày 05/10: có dòng trả thêm riêng 57.692 ₫, các dòng cộng đúng m.total = 934.616 ₫', async () => {
+  const { m, fig } = await figuresOf(nvStaff, makeupDays('16:00'), HOL, '2026-10');
   assert.ok(m.makeupHolPremium > 0);
   assert.equal(Math.round(m.total), 934616);
   assert.equal(Math.round(lineSum(fig)), 934616, `các dòng phiếu cộng ra ${lineSum(fig)}`);
@@ -171,28 +171,28 @@ test('Phiếu: làm bù đêm sang ngày lễ ×3, thiếu 1 giờ ngày 05/10: 
   assert.ok(fig.f.lateCut >= 0, 'đi trễ/về sớm không âm');
 });
 
-test('Phiếu: biến thể thiếu 30 phút (vào 08:30) vẫn cộng đúng m.total', () => {
+test('Phiếu: biến thể thiếu 30 phút (vào 08:30) vẫn cộng đúng m.total', async () => {
   const days = { ...makeupDays('17:00'), '2026-10-05': work('08:30', '17:00') };
-  const { m, fig } = figuresOf(nvStaff, days, HOL, '2026-10');
+  const { m, fig } = await figuresOf(nvStaff, days, HOL, '2026-10');
   assert.ok(Math.abs(lineSum(fig) - m.total) < 1, `${lineSum(fig)} vs ${m.total}`);
 });
 
-test('Phiếu: không làm bù ngày lễ thì phần trả thêm bằng 0, không có dòng "Làm bù ngày lễ (trả thêm)", các dòng cũ không đổi', () => {
+test('Phiếu: không làm bù ngày lễ thì phần trả thêm bằng 0, không có dòng "Làm bù ngày lễ (trả thêm)", các dòng cũ không đổi', async () => {
   const days = {
     '2026-10-05': work('08:00', '14:00'),
     '2026-10-06': work('08:00', '17:00', { extraKind: 'makeup', extraOut: '20:00' })
   };
-  const { m, fig } = figuresOf(nvStaff, days, [], '2026-10');
+  const { m, fig } = await figuresOf(nvStaff, days, [], '2026-10');
   assert.equal(m.makeupHolPremium, 0);
   assert.equal(fig.f.makeupHolPremium, 0);
   assert.ok(Math.abs(lineSum(fig) - m.total) < 1);
-  const { markup } = pageFor(nvStaff, days, [], '2026-10');
+  const { markup } = await pageFor(nvStaff, days, [], '2026-10');
   assert.doesNotMatch(markup, /Làm bù ngày lễ \(trả thêm\)/);
 });
 
-test('Phiếu: làm bù ngày lễ không có dòng riêng: phần trả thêm 57.692 ₫ nằm trong ô Làm thêm giờ, và TỔNG LƯƠNG bằng m.total', () => {
-  const { markup, m } = pageFor(nvStaff, makeupDays('16:00'), HOL, '2026-10');
-  const { fig } = figuresOf(nvStaff, makeupDays('16:00'), HOL, '2026-10');
+test('Phiếu: làm bù ngày lễ không có dòng riêng: phần trả thêm 57.692 ₫ nằm trong ô Làm thêm giờ, và TỔNG LƯƠNG bằng m.total', async () => {
+  const { markup, m } = await pageFor(nvStaff, makeupDays('16:00'), HOL, '2026-10');
+  const { fig } = await figuresOf(nvStaff, makeupDays('16:00'), HOL, '2026-10');
   assert.doesNotMatch(markup, /Làm bù ngày lễ (trả thêm)/);
   assert.ok(fig.auto.otPay >= m.makeupHolPremium - 1e-6, 'ô Làm thêm giờ đã gồm phần trả thêm');
   assert.match(slipRow(markup, 'TỔNG LƯƠNG'), new RegExp(`>${N(m.total)}<`));
@@ -202,8 +202,8 @@ test('Phiếu: làm bù ngày lễ không có dòng riêng: phần trả thêm 5
 const T13_DAYS = { '2026-10-07': work('22:00', '07:00', { extraKind: 'ot', extraOut: '11:00', preset: 'g2' }) };
 const T13_HOL = ['2026-10-08'];
 
-test('T1-3: phiếu ghi OT 2.0 = 0 giờ, OT 3.0 = 11 giờ (7 giờ ca chính + 4 giờ OT lễ), tiền OT gộp 1.055.769 ₫, các dòng cộng đúng m.total', () => {
-  const { markup, m, model } = pageFor(nvStaff, T13_DAYS, T13_HOL, '2026-10');
+test('T1-3: phiếu ghi OT 2.0 = 0 giờ, OT 3.0 = 11 giờ (7 giờ ca chính + 4 giờ OT lễ), tiền OT gộp 1.055.769 ₫, các dòng cộng đúng m.total', async () => {
+  const { markup, m, model } = await pageFor(nvStaff, T13_DAYS, T13_HOL, '2026-10');
   assert.equal(m.otHours, 0, 'OT rơi vào ngày lễ không vào OT ngày thường');
   assert.equal(m.holWorkHours, 11, 'OT ngày lễ = 7 giờ ca chính + 4 giờ OT');
   assert.deepEqual(cellsOf(slipRow(markup, 'OT 2.0')), ['0'], 'OT 2.0 = 0 giờ');
@@ -217,15 +217,15 @@ test('T1-3: phiếu ghi OT 2.0 = 0 giờ, OT 3.0 = 11 giờ (7 giờ ca chính +
   assert.doesNotMatch(markup, /NaN|undefined/);
 });
 
-test('T1-3: OT không chạm ngày lễ ghi vào OT 1.5 (4 giờ), OT 2.0 và OT 3.0 trống (0)', () => {
-  const { markup } = pageFor(nvStaff, T13_DAYS, [], '2026-10');
+test('T1-3: OT không chạm ngày lễ ghi vào OT 1.5 (4 giờ), OT 2.0 và OT 3.0 trống (0)', async () => {
+  const { markup } = await pageFor(nvStaff, T13_DAYS, [], '2026-10');
   assert.deepEqual(cellsOf(slipRow(markup, 'OT 1.5')).slice(0, 1), ['4']);
   assert.deepEqual(cellsOf(slipRow(markup, 'OT 2.0')), ['0']);
   assert.deepEqual(cellsOf(slipRow(markup, 'OT 3.0')), ['0']);
 });
 
-test('Phiếu cổ điển: tiền nghỉ ca đêm dùng phụ trội riêng, không dùng phụ cấp Night 40%', () => {
-  const { model, m } = pageFor(nvStaff, { '2026-10-06': work('22:00', '07:00') }, [], '2026-10');
+test('Phiếu cổ điển: tiền nghỉ ca đêm dùng phụ trội riêng, không dùng phụ cấp Night 40%', async () => {
+  const { model, m } = await pageFor(nvStaff, { '2026-10-06': work('22:00', '07:00') }, [], '2026-10');
   const markup = Phieu.classicSheet(model);
   assert.equal(model.fig.f.rates.nightOne, 0.4);
   assert.equal(model.fig.f.rates.breakPremium, DEFAULTS['night.breakPremium']);
@@ -234,8 +234,8 @@ test('Phiếu cổ điển: tiền nghỉ ca đêm dùng phụ trội riêng, kh
 });
 
 /* ================= mẫu phiếu, tiêu đề, vị trí ================= */
-test('Phiếu in theo mẫu công ty: tiêu đề, logo, các dòng phụ cấp, TỔNG LƯƠNG đến THỰC LĨNH, chỗ ký; giờ làm lễ nằm ở OT 3.0 (7 giờ), tiền gộp 709.615, nghỉ lễ ghi ngày 7/10', () => {
-  const { markup } = pageFor(nvStaff, { '2026-10-06': work('22:00', '07:00') }, HOL, '2026-10');
+test('Phiếu in theo mẫu công ty: tiêu đề, logo, các dòng phụ cấp, TỔNG LƯƠNG đến THỰC LĨNH, chỗ ký; giờ làm lễ nằm ở OT 3.0 (7 giờ), tiền gộp 709.615, nghỉ lễ ghi ngày 7/10', async () => {
+  const { markup } = await pageFor(nvStaff, { '2026-10-06': work('22:00', '07:00') }, HOL, '2026-10');
   for (const text of [
     /BẢNG CHI TIẾT LƯƠNG NHÂN VIÊN/,
     /Tháng 10\.2026 \(từ ngày 1\/10 đến ngày 31\/10\)/,
@@ -262,38 +262,38 @@ test('Phiếu in theo mẫu công ty: tiêu đề, logo, các dòng phụ cấp,
   assert.doesNotMatch(markup, /NaN|undefined/);
 });
 
-test('Phiếu: ngày bắt đầu của kỳ là ngày 1, hoặc ngày vào làm nếu vào làm trong tháng đó', () => {
+test('Phiếu: ngày bắt đầu của kỳ là ngày 1, hoặc ngày vào làm nếu vào làm trong tháng đó', async () => {
   const day = { '2026-09-08': work('08:00', '17:00') };
-  assert.match(pageFor(nvStaff, day, [], '2026-09').markup, /\(từ ngày 1\/9 đến ngày 30\/9\)/);
+  assert.match((await pageFor(nvStaff, day, [], '2026-09')).markup, /\(từ ngày 1\/9 đến ngày 30\/9\)/);
   const later = { ...nvStaff, startDate: '2026-09-15' };
   assert.match(
-    pageFor(later, day, [], '2026-09').markup,
+    (await pageFor(later, day, [], '2026-09')).markup,
     /\(từ ngày 15\/9 đến ngày 30\/9\)/,
     'ngày vào làm muộn hơn thì thắng'
   );
   assert.match(
-    pageFor({ ...nvStaff, startDate: '2026-01-05' }, day, [], '2026-09').markup,
+    (await pageFor({ ...nvStaff, startDate: '2026-01-05' }, day, [], '2026-09')).markup,
     /\(từ ngày 1\/9 đến ngày 30\/9\)/,
     'vào làm tháng khác không đổi kỳ'
   );
 });
 
-test('Phiếu: vị trí công việc là chức danh Admin nhập (đã escape), để trống thì là tên nhóm · tên level', () => {
+test('Phiếu: vị trí công việc là chức danh Admin nhập (đã escape), để trống thì là tên nhóm · tên level', async () => {
   const day = { '2026-09-07': work('08:00', '17:00') };
   const c1 = { type: 'ctv', level: 1, username: 'c1', name: 'CTV', shiftCode: 'n1', jobTitle: '15. NV C&B <x>' };
   assert.match(
-    pageFor(c1, day, [], '2026-09').markup,
+    (await pageFor(c1, day, [], '2026-09')).markup,
     /<tr class="hd">.*<td class="">15\. NV C&amp;B &lt;x&gt;<\/td><\/tr>/
   );
   assert.match(
-    pageFor({ ...c1, jobTitle: '' }, day, [], '2026-09').markup,
+    (await pageFor({ ...c1, jobTitle: '' }, day, [], '2026-09')).markup,
     /<tr class="hd">.*<td class="">CTV · Fresher<\/td><\/tr>/
   );
-  const bad = pageFor({ ...c1, name: '<img src=x onerror=alert(1)>' }, day, [], '2026-09').markup;
+  const bad = (await pageFor({ ...c1, name: '<img src=x onerror=alert(1)>' }, day, [], '2026-09')).markup;
   assert.doesNotMatch(bad, /<img src=x/, 'tên nhân sự đi qua esc() (N1)');
 });
 
-test('Phiếu: chỉ giờ thiếu chưa bù mới bị trừ ở dòng "Đi trễ/Về sớm/Ra ngoài": bù đủ thì 0 giờ, tiền trừ giữ nguyên −86.538 ₫ vì giờ bù trả riêng ở ô Làm thêm giờ; bù thiếu 1 giờ thì 1 giờ', () => {
+test('Phiếu: chỉ giờ thiếu chưa bù mới bị trừ ở dòng "Đi trễ/Về sớm/Ra ngoài": bù đủ thì 0 giờ, tiền trừ giữ nguyên −86.538 ₫ vì giờ bù trả riêng ở ô Làm thêm giờ; bù thiếu 1 giờ thì 1 giờ', async () => {
   const slip = makeupOut =>
     pageFor(
       nvStaff,
@@ -304,7 +304,7 @@ test('Phiếu: chỉ giờ thiếu chưa bù mới bị trừ ở dòng "Đi tr�
       [],
       '2026-09'
     );
-  const full = slip('20:00');
+  const full = await slip('20:00');
   assert.equal(full.m.short, 3);
   assert.equal(full.m.debt, 0);
   assert.doesNotMatch(full.markup, /thiếu/);
@@ -312,7 +312,7 @@ test('Phiếu: chỉ giờ thiếu chưa bù mới bị trừ ở dòng "Đi tr�
     slipRow(full.markup, 'Đi trễ/Về sớm/Ra ngoài'),
     /^<td class="r blue">0<\/td><td class="r blue">-86,538<\/td>$/
   );
-  const partial = slip('19:00');
+  const partial = await slip('19:00');
   assert.equal(partial.m.short, 3);
   assert.equal(partial.m.debt, 1);
   assert.match(
@@ -337,10 +337,10 @@ function progressive(assessable) {
 const SEP_DAYS = { '2026-09-07': work('08:00', '17:00'), '2026-09-08': work('08:00', '17:00') };
 const longStaff = { ...nvStaff, username: 'w', name: 'Worker', contract: 'long', insured: true };
 
-test('Admin sửa số trên phiếu: dòng tổng, thuế, thực lĩnh là SỐ CHI TRẢ do máy chủ gửi (trình duyệt không tính lại); ô đã sửa được đánh dấu', () => {
+test('Admin sửa số trên phiếu: dòng tổng, thuế, thực lĩnh là SỐ CHI TRẢ do máy chủ gửi (trình duyệt không tính lại); ô đã sửa được đánh dấu', async () => {
   const values = { workBase: 30000000, advance: 0 };
   // máy chủ đã áp số sửa: tổng, thuế lũy tiến, thực lĩnh (tính độc lập ở đây từ bảng bậc, như máy chủ)
-  const { m: base, model: auto } = pageFor(longStaff, SEP_DAYS, [], '2026-09', values);
+  const { m: base, model: auto } = await pageFor(longStaff, SEP_DAYS, [], '2026-09', values);
   const total = Math.round(base.total + 30000000 - auto.fig.auto.workBase);
   const insurance = base.net.insurance;
   const tax = progressive(total - base.net.exempt - insurance - base.net.deduction);
@@ -356,7 +356,7 @@ test('Admin sửa số trên phiếu: dòng tổng, thuế, thực lĩnh là S�
     afterInsurance: total - insurance,
     overridden: true
   };
-  const { markup, model } = pageFor(longStaff, SEP_DAYS, [], '2026-09', values, null, paid);
+  const { markup, model } = await pageFor(longStaff, SEP_DAYS, [], '2026-09', values, null, paid);
   assert.equal(model.eff.total, total);
   assert.equal(model.eff.tax, tax, 'thuế là số của máy chủ');
   assert.equal(model.eff.advance, 0);
@@ -371,8 +371,8 @@ test('Admin sửa số trên phiếu: dòng tổng, thuế, thực lĩnh là S�
   assert.doesNotMatch(markup, /NaN|undefined/);
 });
 
-test('Admin sửa số: số của máy chủ thắng ô sửa tay; máy chủ chưa gửi số chi trả thì phiếu đã sửa không đoán (null), chưa sửa thì giữ số bản chụp', () => {
-  const p = snapshotOf(longStaff, SEP_DAYS, [], '2026-09');
+test('Admin sửa số: số của máy chủ thắng ô sửa tay; máy chủ chưa gửi số chi trả thì phiếu đã sửa không đoán (null), chưa sửa thì giữ số bản chụp', async () => {
+  const p = await snapshotOf(longStaff, SEP_DAYS, [], '2026-09');
   const fig = Phieu.figures(p, '2026-09', DEFAULTS, null, []);
   const paid = {
     gross: fig.n.gross,
@@ -398,18 +398,18 @@ test('Admin sửa số: số của máy chủ thắng ô sửa tay; máy chủ c
   assert.equal(none.net, fig.n.net);
 });
 
-test('Phiếu: lương KPI tính theo % và đề xuất KPI trong bản chụp; người không có KPI (TTS) có kpiAmt 0 và không có % KPI', () => {
+test('Phiếu: lương KPI tính theo % và đề xuất KPI trong bản chụp; người không có KPI (TTS) có kpiAmt 0 và không có % KPI', async () => {
   const kpiStaff = { ...nvStaff };
-  const withKpi = figuresOf(kpiStaff, SEP_DAYS, [], '2026-09', { pct: 80, amt: 6000000 });
+  const withKpi = await figuresOf(kpiStaff, SEP_DAYS, [], '2026-09', { pct: 80, amt: 6000000 });
   assert.equal(Math.round(withKpi.fig.auto.kpiPay), Math.round(0.8 * 6000000));
   assert.equal(withKpi.fig.auto.kpiAmt, 6000000);
   assert.equal(withKpi.fig.auto.kpiPct, 80);
-  const intern = figuresOf({ type: 'tts', level: 1, username: 'i', name: 'I' }, SEP_DAYS, [], '2026-09', null);
+  const intern = await figuresOf({ type: 'tts', level: 1, username: 'i', name: 'I' }, SEP_DAYS, [], '2026-09', null);
   assert.equal(intern.fig.auto.kpiAmt, 0);
   assert.equal(intern.fig.auto.kpiPct, 0);
   assert.equal(intern.fig.auto.leaveLeft, 0, 'TTS không có phép năm');
   // dưới mốc đạt thì lương KPI bằng 0
-  const low = figuresOf(kpiStaff, SEP_DAYS, [], '2026-09', { pct: 60, amt: 7000000 });
+  const low = await figuresOf(kpiStaff, SEP_DAYS, [], '2026-09', { pct: 60, amt: 7000000 });
   assert.equal(low.fig.auto.kpiPay, 0);
 });
 

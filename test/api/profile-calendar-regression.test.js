@@ -12,13 +12,13 @@ const work = { kind: 'work', in: '08:00', out: '17:00' };
 async function call(method, route, who, body) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: response.status, data: await response.json() };
 }
 async function save(days) {
-  return call('PUT', '/sheet', 'worker', { month: '2026-10', days });
+  return await call('PUT', '/sheet', 'worker', { month: '2026-10', days });
 }
 async function changeToCtv(kind = 'isat') {
   const saved = await save(Object.fromEntries(dates.map(date => [date, { kind }])));
@@ -32,13 +32,13 @@ async function changeToCtv(kind = 'isat') {
     startDate: '2026-01-01'
   });
   assert.equal(changed.status, 200, JSON.stringify(changed.data));
-  assert.equal(store.getStaff('worker').type, 'ctv');
+  assert.equal((await store.getStaff('worker')).type, 'ctv');
 }
 before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'punch_requests',
     'corrections',
@@ -49,12 +49,12 @@ beforeEach(() => {
     'staff',
     'settings'
   ])
-    store.db.exec('DELETE FROM ' + table);
+    await store.db.exec('DELETE FROM ' + table);
   for (const [username, role] of [
     ['admin', 'admin'],
     ['worker', 'staff']
   ]) {
-    store.upsertStaff({
+    await store.upsertStaff({
       username,
       name: username,
       role,
@@ -77,25 +77,25 @@ test('CTV can remove two saved iSAT dates one at a time after changing from NV',
   await changeToCtv();
   const first = await save({ [dates[1]]: { kind: 'isat' } });
   assert.equal(first.status, 200, JSON.stringify(first.data));
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, { [dates[1]]: { kind: 'isat' } });
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, { [dates[1]]: { kind: 'isat' } });
   assert.equal((await save({})).status, 200);
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, {});
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, {});
 });
 
 test('CTV can turn an old iSAT into work while another saved iSAT remains', async () => {
   await changeToCtv();
   const result = await save({ [dates[0]]: work, [dates[1]]: { kind: 'isat' } });
   assert.equal(result.status, 200, JSON.stringify(result.data));
-  const days = store.getSheet('worker', '2026-10').days;
+  const days = (await store.getSheet('worker', '2026-10')).days;
   assert.equal(days[dates[0]].kind, 'work');
   assert.equal(days[dates[1]].kind, 'isat');
 });
 
 test('CTV can edit a valid workday without deleting untouched historical iSAT', async () => {
   await changeToCtv();
-  const result = await save({ ...store.getSheet('worker', '2026-10').days, '2026-10-19': work });
+  const result = await save({ ...(await store.getSheet('worker', '2026-10')).days, '2026-10-19': work });
   assert.equal(result.status, 200, JSON.stringify(result.data));
-  const days = store.getSheet('worker', '2026-10').days;
+  const days = (await store.getSheet('worker', '2026-10')).days;
   assert.equal(days['2026-10-19'].kind, 'work');
   assert.equal(days[dates[0]].kind, 'isat');
   assert.equal(days[dates[1]].kind, 'isat');
@@ -103,10 +103,10 @@ test('CTV can edit a valid workday without deleting untouched historical iSAT', 
 
 test('CTV cannot copy historical iSAT to a new date', async () => {
   await changeToCtv();
-  const original = store.getSheet('worker', '2026-10');
+  const original = await store.getSheet('worker', '2026-10');
   const result = await save({ ...original.days, '2026-10-24': { kind: 'isat' } });
   assert.equal(result.status, 400);
-  assert.deepEqual(store.getSheet('worker', '2026-10'), original);
+  assert.deepEqual(await store.getSheet('worker', '2026-10'), original);
 });
 
 test('CTV cannot restore an iSAT date after deleting it', async () => {
@@ -114,21 +114,21 @@ test('CTV cannot restore an iSAT date after deleting it', async () => {
   assert.equal((await save({})).status, 200);
   const result = await save({ [dates[0]]: { kind: 'isat' } });
   assert.equal(result.status, 400);
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, {});
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, {});
 });
 
 test('CTV changing a historical iSAT into a new approved leave kind saves with a BENEFIT_NOT_ALLOWED warning', async () => {
   await changeToCtv();
-  const original = store.getSheet('worker', '2026-10');
+  const original = await store.getSheet('worker', '2026-10');
   const result = await save({ ...original.days, [dates[0]]: { kind: 'approved' } });
   assert.equal(result.status, 200, JSON.stringify(result.data));
   assert.ok(result.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(result.data.warnings));
-  assert.equal(store.getSheet('worker', '2026-10').days[dates[0]].kind, 'approved');
+  assert.equal((await store.getSheet('worker', '2026-10')).days[dates[0]].kind, 'approved');
 });
 
 test('CTV can remove saved approved leave one date at a time after changing from NV', async () => {
   await changeToCtv('approved');
   const result = await save({ [dates[1]]: { kind: 'approved' } });
   assert.equal(result.status, 200, JSON.stringify(result.data));
-  assert.deepEqual(store.getSheet('worker', '2026-10').days, { [dates[1]]: { kind: 'approved' } });
+  assert.deepEqual((await store.getSheet('worker', '2026-10')).days, { [dates[1]]: { kind: 'approved' } });
 });

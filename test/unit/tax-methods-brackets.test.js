@@ -94,13 +94,13 @@ test('biểu thuế tax.brackets đổi được: một bậc 10 % cho thuế 10
   assert.equal(n.tax, 1767000);
 });
 
-test('thuế luỹ tiến làm tròn đồng một lần ở cuối: 500.000,5 lên 500.001; 500.000,4 xuống 500.000', () => {
+test('thuế luỹ tiến làm tròn đồng một lần ở cuối: 500.000,5 lên 500.001; 500.000,4 xuống 500.000', async () => {
   const engine = Engine.create(DEFAULTS);
   const LONG_TAX = { contract: 'long', taxOn: true };
   const at = assessable => engine.taxFrom(LONG_TAX, 15500000 + assessable, 15500000 + assessable, 0, 15500000);
-  assert.equal(at(10000005).tax, 500001); // 10.000.000 × 5 % + 5 × 10 % = 500.000,5
-  assert.equal(at(10000004).tax, 500000); // 500.000,4
-  assert.equal(at(10000010).tax, 500001); // 500.001 đúng
+  assert.equal((await at(10000005)).tax, 500001); // 10.000.000 × 5 % + 5 × 10 % = 500.000,5
+  assert.equal((await at(10000004)).tax, 500000); // 500.000,4
+  assert.equal((await at(10000010)).tax, 500001); // 500.001 đúng
 });
 
 test('khấu trừ cố định làm tròn đồng một lần: 20.000.005 × 10 % = 2.000.000,5 → 2.000.001; 20.000.004 → 2.000.000', () => {

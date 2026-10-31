@@ -14,8 +14,8 @@ before(async () => {
   await F.start();
   base = `http://127.0.0.1:${F.server.address().port}`;
   attachAccessLog(F.server, new RuntimeMonitor(), line => lines.push(JSON.parse(line)));
-  F.person('admin', 'admin');
-  for (let i = 0; i < 40; i++) F.person(`nv${i}`);
+  await F.person('admin', 'admin');
+  for (let i = 0; i < 40; i++) await F.person(`nv${i}`);
 });
 after(() => F.stop());
 
@@ -28,7 +28,7 @@ test('GET /api/health công khai, trả ok và số đo, không lộ dữ liệu
 });
 
 test('phản hồi JSON lớn được nén gzip khi khách chấp nhận, và giải nén ra đúng nội dung', async () => {
-  const cookie = F.auth.cookieHeader(F.auth.createSession('admin'), 86400);
+  const cookie = F.auth.cookieHeader(await F.auth.createSession('admin'), 86400);
   const plain = await fetch(`${base}/api/staff`, { headers: { Cookie: cookie, 'Accept-Encoding': 'identity' } });
   const packed = await fetch(`${base}/api/staff`, { headers: { Cookie: cookie, 'Accept-Encoding': 'gzip' } });
   assert.equal(plain.status, 200);
@@ -61,24 +61,24 @@ test('nhật ký truy cập: mã yêu cầu ở tiêu đề khớp dòng log, kh
   assert.ok(!JSON.stringify(line).includes('secret'));
 });
 
-test('số lần ghi của DB (khoá bộ nhớ đệm): đọc không làm đổi, mọi lệnh ghi đều làm tăng', () => {
+test('số lần ghi của DB (khoá bộ nhớ đệm): đọc không làm đổi, mọi lệnh ghi đều làm tăng', async () => {
   const { dataRevision } = require('../../lib/ops/shared-cache');
-  const before = dataRevision();
-  F.store.getSetting('holidays', []);
-  F.store.listStaff();
-  assert.equal(dataRevision(), before);
-  F.store.setSetting('cache_probe', 1); // ghi lẻ ngoài transaction cũng phải được tính
-  assert.ok(dataRevision() > before);
+  const before = await dataRevision();
+  await F.store.getSetting('holidays', []);
+  await F.store.listStaff();
+  assert.equal(await dataRevision(), before);
+  await F.store.setSetting('cache_probe', 1); // ghi lẻ ngoài transaction cũng phải được tính
+  assert.ok(await dataRevision() > before);
 });
 
 // ---------- giới hạn tải ----------
 const limits = () => F.server.limits;
-const as = (who, route, init = {}) =>
+const as = async (who, route, init = {}) =>
   fetch(base + route, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      Cookie: F.auth.cookieHeader(F.auth.createSession(who), 86400),
+      Cookie: F.auth.cookieHeader(await F.auth.createSession(who), 86400),
       ...init.headers
     }
   });
@@ -106,7 +106,7 @@ test('giới hạn tốc độ ghi theo người: quá số lệnh/phút thì 42
   writeLimiter.capacity = 2;
   writeLimiter.buckets.clear();
   try {
-    const put = who => as(who, '/api/sheet', { method: 'PUT', body: JSON.stringify({ month: '2026-10', days: {} }) });
+    const put = async who => await as(who, '/api/sheet', { method: 'PUT', body: JSON.stringify({ month: '2026-10', days: {} }) });
     assert.notEqual((await put('nv0')).status, 429);
     assert.notEqual((await put('nv0')).status, 429);
     const blocked = await put('nv0');

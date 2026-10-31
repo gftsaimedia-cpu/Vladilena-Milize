@@ -17,13 +17,15 @@ const DRILL = path.join(REPO_ROOT, 'scripts', 'ops', 'restore-drill.js');
 const BUILD_SOURCE = `
 const store = require(${JSON.stringify(path.join(REPO_ROOT, 'lib', 'db'))});
 const auth = require(${JSON.stringify(path.join(REPO_ROOT, 'lib', 'auth'))});
-for (const [username, role] of [['qa_admin', 'admin'], ['qa_staff', 'staff']])
-  store.upsertStaff({
-    username, name: 'Người thử ' + username, role, type: 'nv', level: 1, nightPct: 40, shiftCode: 'n1',
-    startDate: '2026-01-05', passHash: auth.hashPassword('test-pass')
-  });
-store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
-store.db.close();
+(async () => {
+  for (const [username, role] of [['qa_admin', 'admin'], ['qa_staff', 'staff']])
+    await store.upsertStaff({
+      username, name: 'Người thử ' + username, role, type: 'nv', level: 1, nightPct: 40, shiftCode: 'n1',
+      startDate: '2026-01-05', passHash: auth.hashPassword('test-pass')
+    });
+  store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  store.db.close();
+})();
 `;
 const NAME_PATTERN = /^luong-\d{8}-\d{6}\.sqlite$/;
 const LOG_KEYS = ['bytes', 'db', 'exit', 'file', 'label', 'ms', 'ts', 'verify', 'verify_exit'];

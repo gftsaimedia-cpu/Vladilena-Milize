@@ -15,24 +15,24 @@ const { MONTH } = X;
 const web = file => import(`../../web/src/${file}`);
 let seq = 0;
 const rid = () => `pf-${String(++seq).padStart(4, '0')}-req`;
-const pressIn = (who, at, extra = {}) => {
-  F.at(at);
-  return X.punch(who, { type: 'in', requestId: rid(), ...extra });
+const pressIn = async (who, at, extra = {}) => {
+  await F.at(at);
+  return await X.punch(who, { type: 'in', requestId: rid(), ...extra });
 };
-const pressOut = (who, sessionId, at, extra = {}) => {
-  F.at(at);
-  return X.punch(who, { type: 'out', sessionId, requestId: rid(), ...extra });
+const pressOut = async (who, sessionId, at, extra = {}) => {
+  await F.at(at);
+  return await X.punch(who, { type: 'out', sessionId, requestId: rid(), ...extra });
 };
 const adminList = async () => {
-  F.at('2026-10-29T12:00:00');
+  await F.at('2026-10-29T12:00:00');
   return (await F.call('GET', '/explanations?status=answered', { who: 'admin' })).data;
 };
 
 before(async () => {
   await F.start();
-  F.at('2026-10-29T12:00:00');
-  for (const name of ['tre', 'huy', 'som', 'dung']) F.person(name);
-  F.person('admin', 'admin');
+  await F.at('2026-10-29T12:00:00');
+  for (const name of ['tre', 'huy', 'som', 'dung']) await F.person(name);
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
@@ -44,7 +44,7 @@ test('Check-in trễ không kèm lý do: 409 có mã, trường hợp, số phú
   assert.equal(none.data.minutes, 40);
   assert.equal(none.data.error, 'Cần giải trình: Vào trễ 40 phút');
   assert.equal(none.data.cases.length, 1);
-  assert.equal(F.store.listSessions({ username: 'tre' }).length, 0);
+  assert.equal((await F.store.listSessions({ username: 'tre' })).length, 0);
 
   // Giao diện nhận ra lỗi này là lỗi cần giải trình và hiện nguyên câu của máy chủ
   const { ApiError } = await web('services/http.js');
@@ -60,7 +60,7 @@ test('Check-in trễ không kèm lý do: 409 có mã, trường hợp, số phú
 test('Bấm lại kèm lý do: một lượt Chờ xử lý, một giải trình answered; Admin thấy dòng "Chờ xử lý" có nút Duyệt và Từ chối trong danh sách Giải trình', async () => {
   const ok = await pressIn('tre', '2026-10-19T08:40:00', { explanation: 'Kẹt xe' });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
-  assert.equal(F.store.listSessions({ username: 'tre' }).length, 1);
+  assert.equal((await F.store.listSessions({ username: 'tre' })).length, 1);
   assert.equal(AS.labelOf(ok.data.openSession), 'Chờ xử lý');
   const out = await pressOut('tre', ok.data.open.id, '2026-10-19T17:00:00');
   assert.equal(out.status, 200, JSON.stringify(out.data));
@@ -90,11 +90,11 @@ test('Bấm lại kèm lý do: một lượt Chờ xử lý, một giải trình
 });
 
 test('Chờ xử lý thì ngày bị giữ; Admin duyệt thì ngày được tính và Check-in trễ 40 phút cắt 30 phút theo bậc hiện tại', async () => {
-  assert.equal(X.payOf('tre').payDays['2026-10-19'].kind, 'unpaid');
+  assert.equal((await X.payOf('tre')).payDays['2026-10-19'].kind, 'unpaid');
   const [item] = (await adminList()).items.filter(x => x.username === 'tre');
   const done = await X.decide(item.id, true);
   assert.equal(done.status, 200, JSON.stringify(done.data));
-  const paid = X.payOf('tre');
+  const paid = await X.payOf('tre');
   const day = paid.payDays['2026-10-19'];
   assert.equal(day.kind, 'work');
   assert.equal((day.cutStartMin || 0) + (day.cutEndMin || 0), 30);
@@ -110,7 +110,7 @@ test('Admin từ chối giải trình lúc bấm: ngày đó không tính công 
   const no = await X.decide(item.id, false);
   assert.equal(no.status, 200, JSON.stringify(no.data));
   assert.equal(no.data.item.status, 'rejected');
-  const rejected = X.payOf('huy');
+  const rejected = await X.payOf('huy');
   assert.equal(rejected.payDays['2026-10-19'].kind, 'unpaid');
   assert.equal(rejected.m.count, 0);
   assert.equal(rejected.m.unpaid, 1);
@@ -124,7 +124,7 @@ test('Check-out sớm không kèm lý do: 409 CHECKOUT_NEEDS_EXPLANATION, lượ
   assert.equal(none.status, 409);
   assert.equal(none.data.code, 'CHECKOUT_NEEDS_EXPLANATION');
   assert.equal(none.data.error, 'Cần giải trình: Về sớm 35 phút');
-  assert.equal(F.store.getSession(opened.data.open.id).state, 'open');
+  assert.equal((await F.store.getSession(opened.data.open.id)).state, 'open');
   const { ApiError } = await web('services/http.js');
   const { explanationDemand, punchExplanationItem } = await web('builders/staff-requests/punch-explanation.js');
   const err = new ApiError(none.status, none.data.error, none.data);
@@ -138,7 +138,7 @@ test('Check-out sớm không kèm lý do: 409 CHECKOUT_NEEDS_EXPLANATION, lượ
 
   const ok = await pressOut('som', opened.data.open.id, '2026-10-20T16:25:00', { explanation: 'Đi khám bệnh' });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
-  assert.equal(F.store.getSession(opened.data.open.id).state, 'closed');
+  assert.equal((await F.store.getSession(opened.data.open.id)).state, 'closed');
   const mine = (await adminList()).items.filter(x => x.username === 'som');
   assert.deepEqual(
     mine.map(x => x.kind),
@@ -160,7 +160,7 @@ test('Lý do chỉ có khoảng trắng hoặc quá dài bị chặn ở giao di
   assert.equal(blank.status, 409);
   const long = await pressIn('dung', '2026-10-21T08:40:00', { explanation: 'a'.repeat(TEXT_MAX + 1) });
   assert.ok(long.status >= 400);
-  assert.equal(F.store.listSessions({ username: 'dung' }).length, 0);
+  assert.equal((await F.store.listSessions({ username: 'dung' })).length, 0);
 });
 
 test('Số giải trình chờ Admin có mặt ở chuông và Tổng quan (dòng riêng, không chặn chốt công)', async () => {

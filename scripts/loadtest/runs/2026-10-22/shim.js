@@ -14,7 +14,7 @@ if (process.env.MON_FILE) {
   let last = process.cpuUsage(),
     lastT = process.hrtime.bigint();
   const fd = fs.openSync(process.env.MON_FILE, 'w');
-  setInterval(() => {
+  setInterval(async () => {
     const now = process.hrtime.bigint();
     const cpu = process.cpuUsage();
     const wall = Number(now - lastT) / 1e3; // µs
@@ -32,7 +32,7 @@ if (process.env.MON_FILE) {
         eldMax: h.max / 1e6
       }) + '\n'
     );
-    h.reset();
+    await h.reset();
     last = cpu;
     lastT = now;
   }, 500).unref();

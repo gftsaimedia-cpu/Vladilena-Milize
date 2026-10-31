@@ -21,7 +21,7 @@ const LEVELS = ['ctv', 'nv'].flatMap(type =>
     .filter(key => new RegExp(`^level\\.${type}\\.\\d+\\.kpi$`).test(key))
     .map(key => ({ type, level: Number(key.split('.')[2]), max: DEFAULTS[key] }))
 );
-const sheetPut = (who, month, days) => F.call('PUT', '/sheet', { who, body: { month, days } });
+const sheetPut = async (who, month, days) => await F.call('PUT', '/sheet', { who, body: { month, days } });
 const insertParam = (key, month, valueJson) =>
   store.db
     .prepare(
@@ -35,7 +35,7 @@ test('KPI tối đa: GET /api/kpi/scores báo kpiMax bằng DEFAULTS level.<lo�
   const M = monthOf();
   await S.seed(M);
   for (const { type, level } of LEVELS)
-    F.person(`qa_k_${type}${level}`, 'staff', { type, level, startDate: '2026-01-05' });
+    await F.person(`qa_k_${type}${level}`, 'staff', { type, level, startDate: '2026-01-05' });
   const res = await F.call('GET', `/kpi/scores?month=${M}`);
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 200));
   const items = res.data.items || res.data.rows || res.data.people || res.data;
@@ -53,7 +53,7 @@ test('KPI tối đa: PUT /api/kpi/scores với lương KPI vượt mức của b
   await S.seed(M);
   for (const { type, level, max } of LEVELS) {
     const username = `qa_k_${type}${level}`;
-    F.person(username, 'staff', { type, level, startDate: '2026-01-05' });
+    await F.person(username, 'staff', { type, level, startDate: '2026-01-05' });
     const over = await F.call('PUT', '/kpi/scores', { body: { user: username, month: M, amt: max + 1 } });
     assert.equal(over.status, 200, `${type} bậc ${level}: ${JSON.stringify(over.data)}`);
     const capWarning = over.data.warnings.find(w => w.code === 'KPI_OVER_CAP');
@@ -62,7 +62,7 @@ test('KPI tối đa: PUT /api/kpi/scores với lương KPI vượt mức của b
     const ok = await F.call('PUT', '/kpi/scores', { body: { user: username, month: M, amt: max } });
     assert.equal(ok.status, 200, `${type} bậc ${level}: ${JSON.stringify(ok.data)}`);
     assert.ok(!(ok.data.warnings || []).some(w => w.code === 'KPI_OVER_CAP'));
-    assert.equal(store.getSheet(username, M).kpiAdmAmt, max);
+    assert.equal((await store.getSheet(username, M)).kpiAdmAmt, max);
   }
 });
 
@@ -70,10 +70,10 @@ test('Mốc đạt KPI bằng type.<loại>.kpiPass (75): điểm tổng đúng 
   const M = monthOf();
   await S.seed(M);
   for (const type of ['ctv', 'nv']) assert.equal(DEFAULTS[`type.${type}.kpiPass`], 75);
-  const put = (username, scores) => F.call('PUT', '/kpi/scores', { body: { user: username, month: M, scores } });
+  const put = async (username, scores) => await F.call('PUT', '/kpi/scores', { body: { user: username, month: M, scores } });
   for (const type of ['ctv', 'nv']) {
     const username = `qa_p_${type}`;
-    F.person(username, 'staff', { type, level: 1, startDate: '2026-01-05' });
+    await F.person(username, 'staff', { type, level: 1, startDate: '2026-01-05' });
     const at = await put(username, { wework: 75, user: 75, peer: 75, manager: 75, self: 75 });
     assert.equal(at.status, 200, JSON.stringify(at.data));
     const item = at.data.item || at.data;
@@ -94,9 +94,9 @@ test('PUT /api/sheet theo lịch type.<loại>.dows: Thứ 7 của TTS kèm cả
   const sun = S.dowDates(M, 0)[0];
   const [tin, tout] = PunchRules.SHIFT.n1;
   const work = { kind: 'work', in: tin, out: tout, preset: 'n1' };
-  F.person('qa_s_tts', 'staff', { type: 'tts', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
-  F.person('qa_s_ctv', 'staff', { type: 'ctv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
-  F.person('qa_s_nv', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+  await F.person('qa_s_tts', 'staff', { type: 'tts', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+  await F.person('qa_s_ctv', 'staff', { type: 'ctv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+  await F.person('qa_s_nv', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
   const tts = await sheetPut('qa_s_tts', M, { [sat]: work });
   assert.equal(tts.status, 200, JSON.stringify(tts.data));
   const off = tts.data.warnings.find(w => w.code === 'SHEET_OFF_SCHEDULE');

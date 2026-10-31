@@ -128,8 +128,8 @@ test('Khối cũ: tổng = tiền ngày công + (đi lại + chuyên cần) + l�
 test(
   'Công thức của chủ dự án, ghép theo cấu trúc khối cũ: "tổng thu nhập = tiền ngày công + (đi lại + chuyên cần) + lương KPI" bằng m.total từng bit trên 300 ca vàng',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const tree = treeOf(Formula, 'Tổng thu nhập = tiền ngày công + (đi lại + chuyên cần) + lương KPI');
     const wrong = compare(
       cases(),
@@ -141,8 +141,8 @@ test(
   }
 );
 
-test('Tổng thu nhập ghép theo cấu trúc khối cũ, sau Math.round bằng đúng gross (đồng) của 300 ca vàng', opts, () => {
-  const Formula = load();
+test('Tổng thu nhập ghép theo cấu trúc khối cũ, sau Math.round bằng đúng gross (đồng) của 300 ca vàng', opts, async () => {
+  const Formula = await load();
   const tree = treeOf(Formula, 'Tổng thu nhập = tiền ngày công + (đi lại + chuyên cần) + lương KPI');
   const wrong = compare(
     cases(),
@@ -156,8 +156,8 @@ test('Tổng thu nhập ghép theo cấu trúc khối cũ, sau Math.round bằng
 test(
   'Câu chính xác của chủ dự án (phẳng, kết hợp trái): lệch m.total dưới 1e-6 và gross sau Math.round bằng nhau trên 300 ca',
   opts,
-  t => {
-    const Formula = load();
+  async t => {
+    const Formula = await load();
     const tree = treeOf(Formula, 'Tổng thu nhập = tiền ngày công + đi lại + chuyên cần + lương KPI');
     const run = c => Formula.evaluate(tree, ctxOf(c));
     assert.deepEqual(
@@ -188,8 +188,8 @@ const TRAVEL_FLAT =
 test(
   'Đi lại: "lương cơ bản × tỷ lệ đi lại × (ngày đi làm ÷ ngày công chuẩn)" khớp m.travel từng bit trên 300 ca, iDorm = 0',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const tree = treeOf(Formula, TRAVEL_NESTED);
     const idormCases = cases().filter(c => c.staff.idorm);
     assert.ok(idormCases.length >= 20, 'ca vàng có đủ người ở iDorm');
@@ -206,8 +206,8 @@ test(
 test(
   'Đi lại viết phẳng (a × b × c ÷ d, đúng câu của chủ dự án): lệch dưới 1e-6 đồng so với m.travel trên 300 ca',
   opts,
-  t => {
-    const Formula = load();
+  async t => {
+    const Formula = await load();
     const tree = treeOf(Formula, TRAVEL_FLAT);
     const wrong = compare(
       cases(),
@@ -225,8 +225,8 @@ test(
 test(
   'Chuyên cần: "nếu giữ được chuyên cần thì lương cơ bản × tỷ lệ chuyên cần × (ngày đi làm ÷ ngày công chuẩn) ngược lại 0" khớp m.attendance từng bit trên 300 ca',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const tree = treeOf(
       Formula,
       'phụ cấp chuyên cần = nếu giữ được chuyên cần thì lương cơ bản × tỷ lệ chuyên cần × (ngày đi làm ÷ ngày công chuẩn) ngược lại 0'
@@ -243,8 +243,8 @@ test(
   }
 );
 
-test('Chuyên cần viết phẳng: lệch dưới 1e-6 đồng so với m.attendance trên 300 ca', opts, () => {
-  const Formula = load();
+test('Chuyên cần viết phẳng: lệch dưới 1e-6 đồng so với m.attendance trên 300 ca', opts, async () => {
+  const Formula = await load();
   const tree = treeOf(
     Formula,
     'phụ cấp chuyên cần = nếu giữ được chuyên cần thì lương cơ bản × tỷ lệ chuyên cần × ngày đi làm ÷ ngày công chuẩn ngược lại 0'
@@ -262,8 +262,8 @@ test('Chuyên cần viết phẳng: lệch dưới 1e-6 đồng so với m.atten
 test(
   'Hệ số ngày KPI: "nếu giờ vượt ngưỡng > ngưỡng giờ KPI thì ngày đi làm ÷ ngày công chuẩn ngược lại 1" khớp m.kpiRatio từng bit trên các ca có KPI',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const tree = treeOf(
       Formula,
       'hệ số ngày KPI = nếu giờ vượt ngưỡng > ngưỡng giờ KPI thì ngày đi làm ÷ ngày công chuẩn ngược lại 1'
@@ -288,8 +288,8 @@ test(
 test(
   'Ghép bằng FormulaRef: tổng thu nhập = tiền ngày công + (phụ cấp đi lại + phụ cấp chuyên cần) + lương KPI, hai phụ cấp tính bằng cây, bằng m.total từng bit trên 300 ca',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const travel = treeOf(Formula, TRAVEL_NESTED);
     const attendance = treeOf(
       Formula,
@@ -318,8 +318,8 @@ test(
   }
 );
 
-test('Các cây ca vàng qua deserialize(serialize()) cho đúng cùng số trên 300 ca', opts, () => {
-  const Formula = load();
+test('Các cây ca vàng qua deserialize(serialize()) cho đúng cùng số trên 300 ca', opts, async () => {
+  const Formula = await load();
   const tree = treeOf(Formula, TRAVEL_NESTED);
   const loaded = Formula.deserialize(Formula.serialize(tree));
   const wrong = compare(
@@ -331,8 +331,8 @@ test('Các cây ca vàng qua deserialize(serialize()) cho đúng cùng số trê
   assert.deepEqual(wrong, []);
 });
 
-test('Các công thức ca vàng validate sạch (đơn vị, miền, không vòng)', opts, () => {
-  const Formula = load();
+test('Các công thức ca vàng validate sạch (đơn vị, miền, không vòng)', opts, async () => {
+  const Formula = await load();
   for (const text of [TRAVEL_NESTED, TRAVEL_FLAT]) {
     const v = Formula.validate(treeOf(Formula, text), { vocabulary: VOCAB });
     assert.deepEqual(v.errors, [], text);

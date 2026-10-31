@@ -26,10 +26,10 @@ before(F.start);
 after(F.stop);
 
 /* ================= nhóm 1: migration ================= */
-test('settings-engine-zero-drift: migration để param_versions rỗng và params_mode = defaults-only (công tắc lùi nhanh)', () => {
-  assert.equal(store.params.count(), 0, 'chưa ai đặt tham số nào');
-  assert.equal(store.getSetting('params_mode', null), 'defaults-only');
-  assert.equal(store.params.getMode(), 'defaults-only');
+test('settings-engine-zero-drift: migration để param_versions rỗng và params_mode = defaults-only (công tắc lùi nhanh)', async () => {
+  assert.equal(await store.params.count(), 0, 'chưa ai đặt tham số nào');
+  assert.equal(await store.getSetting('params_mode', null), 'defaults-only');
+  assert.equal(await store.params.getMode(), 'defaults-only');
 });
 
 /* ================= nhóm 2: public/payroll-params.js ================= */
@@ -55,7 +55,7 @@ test(
 test(
   'settings-engine-zero-drift: params_mode quyết định có dùng dòng phiên bản hay không (defaults-only bỏ qua, active áp dụng), không dòng nào thì như nhau',
   pending('S2: lib/params/store.js (đọc tham số) chưa có', PARAMS, PARAMS_STORE),
-  () => {
+  async () => {
     const { resolveParamSet } = need(PARAMS);
     const params = need(PARAMS_STORE);
     const unwrap = value => (value && (value.params || value.paramSet)) || value; // resolve có thể trả thẳng ParamSet hoặc bọc trong params/paramSet
@@ -63,16 +63,16 @@ test(
     // Danh mục nạp sẵn giữ nguyên mọi số tiền của DEFAULTS, chỉ thêm tên bậc và khoá mới (phụ cấp đêm theo bậc, loại ca, mã ca),
     // nên "không có dòng nào" nghĩa là DEFAULTS + dòng danh mục (test/unit/domain-classes.test.js kiểm danh mục khớp DEFAULTS).
     const { catalogParams } = require('../../lib/domain/catalog-params');
-    const baseline = month => digest(resolveParamSet(catalogParams.rows(), month));
+    const baseline = async month => digest(resolveParamSet(await catalogParams.rows(), month));
     // param_versions chỉ được thêm dòng (trigger chặn DELETE), nên dòng thử nằm trong SAVEPOINT và được ROLLBACK: các test khác thấy bảng rỗng.
-    store.db.exec('SAVEPOINT zero_drift_probe');
+    await store.db.exec('SAVEPOINT zero_drift_probe');
     try {
       for (const mode of MODES) {
-        store.setSetting('params_mode', mode);
+        await store.setSetting('params_mode', mode);
         for (const month of MONTHS)
-          assert.equal(digest(unwrap(params.resolve(month))), baseline(month), `${mode} ${month} khi chưa có dòng nào`);
+          assert.equal(digest(unwrap(await params.resolve(month))), await baseline(month), `${mode} ${month} khi chưa có dòng nào`);
       }
-      store.db
+      await store.db
         .prepare(
           'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
         )
@@ -84,27 +84,27 @@ test(
           'admin',
           new Date(Date.now()).toISOString()
         );
-      store.setSetting('params_mode', 'defaults-only');
+      await store.setSetting('params_mode', 'defaults-only');
       assert.equal(
-        digest(unwrap(params.resolve('2026-10'))),
-        baseline('2026-10'),
+        digest(unwrap(await params.resolve('2026-10'))),
+        await baseline('2026-10'),
         'defaults-only phải bỏ qua mọi dòng phiên bản'
       );
-      store.setSetting('params_mode', 'active');
+      await store.setSetting('params_mode', 'active');
       assert.notEqual(
-        digest(unwrap(params.resolve('2026-10'))),
-        baseline('2026-10'),
+        digest(unwrap(await params.resolve('2026-10'))),
+        await baseline('2026-10'),
         'active phải áp dụng dòng phiên bản'
       );
       assert.equal(
-        digest(unwrap(params.resolve('2026-09'))),
-        baseline('2026-09'),
+        digest(unwrap(await params.resolve('2026-09'))),
+        await baseline('2026-09'),
         'dòng có hiệu lực từ 2026-10 không ảnh hưởng tháng 2026-09'
       );
     } finally {
-      store.db.exec('ROLLBACK TO zero_drift_probe');
-      store.db.exec('RELEASE zero_drift_probe');
-      store.setSetting('params_mode', 'defaults-only');
+      await store.db.exec('ROLLBACK TO zero_drift_probe');
+      await store.db.exec('RELEASE zero_drift_probe');
+      await store.setSetting('params_mode', 'defaults-only');
     }
   }
 );
@@ -113,33 +113,33 @@ test(
 test(
   'settings-engine-zero-drift: bộ máy chạy ParamSet của tháng (không dòng nào) trả đúng từng đồng của bộ máy chạy DEFAULTS cộng danh mục trên 300 ca vàng ở cả hai params_mode',
   pending('S3: public/payroll-engine.js hoặc public/payroll-params.js chưa có', PARAMS, ENGINE),
-  () => {
+  async () => {
     const { DEFAULTS, resolveParamSet } = need(PARAMS);
     const Engine = need(ENGINE);
     const unwrap = value => (value && (value.params || value.paramSet)) || value;
-    const resolve = month =>
-      exists(PARAMS_STORE) ? unwrap(need(PARAMS_STORE).resolve(month)) : resolveParamSet([], month);
+    const resolve = async month =>
+      exists(PARAMS_STORE) ? unwrap(await need(PARAMS_STORE).resolve(month)) : resolveParamSet([], month);
     assert.ok(DEFAULTS);
-    assert.equal(store.params.count(), 0, 'test vàng chạy với param_versions rỗng (không dòng nào rò từ test khác)');
+    assert.equal(await store.params.count(), 0, 'test vàng chạy với param_versions rỗng (không dòng nào rò từ test khác)');
     const golden = readGolden().cases;
     // "Không dòng nào" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.js), như nhóm 2
     const { catalogParams } = require('../../lib/domain/catalog-params');
     const reference = new Map();
-    const referenceEngine = month => {
-      if (!reference.has(month)) reference.set(month, Engine.create(resolveParamSet(catalogParams.rows(), month)));
+    const referenceEngine = async month => {
+      if (!reference.has(month)) reference.set(month, Engine.create(resolveParamSet(await catalogParams.rows(), month)));
       return reference.get(month);
     };
     try {
       for (const mode of MODES) {
-        store.setSetting('params_mode', mode);
+        await store.setSetting('params_mode', mode);
         const engines = new Map();
         const wrong = [];
         for (const c of golden) {
-          if (!engines.has(c.input.month)) engines.set(c.input.month, Engine.create(resolve(c.input.month)));
+          if (!engines.has(c.input.month)) engines.set(c.input.month, Engine.create(await resolve(c.input.month)));
           try {
             assert.deepStrictEqual(
               summarize(engines.get(c.input.month).computeMonth(JSON.parse(JSON.stringify(c.input)))),
-              summarize(referenceEngine(c.input.month).computeMonth(JSON.parse(JSON.stringify(c.input))))
+              summarize((await referenceEngine(c.input.month)).computeMonth(JSON.parse(JSON.stringify(c.input))))
             );
           } catch {
             wrong.push(c.id);
@@ -148,7 +148,7 @@ test(
         assert.deepEqual(wrong, [], `params_mode ${mode}: ca lệch so với bộ máy chạy DEFAULTS cộng danh mục`);
       }
     } finally {
-      store.setSetting('params_mode', 'defaults-only');
+      await store.setSetting('params_mode', 'defaults-only');
     }
   }
 );
@@ -164,13 +164,13 @@ for (const mode of MODES)
       routesReady,
       async () => {
         await flow.seedMonth(month);
-        store.setSetting('params_mode', mode);
-        assert.equal(store.params.count(), 0, 'không được có dòng tham số nào');
-        const expected = flow.expectedFor(month);
+        await store.setSetting('params_mode', mode);
+        assert.equal(await store.params.count(), 0, 'không được có dòng tham số nào');
+        const expected = await flow.expectedFor(month);
         const { lock, calc } = await flow.lockAndCalculate(month);
         assert.equal(lock.status, 200, `chốt công: ${lock.status} ${JSON.stringify(lock.data)}`);
         assert.equal(calc.status, 200, `tính lương: ${calc.status} ${JSON.stringify(calc.data)}`);
-        const { run, slips } = flow.payslipsOf(month);
+        const { run, slips } = await flow.payslipsOf(month);
         assert.ok(run, 'phải có lần chạy');
         const wrong = [];
         for (const p of flow.PEOPLE) {

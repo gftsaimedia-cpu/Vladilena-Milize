@@ -17,7 +17,7 @@ const thirteenDays = () =>
     [1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15].map(d => [`2026-10-${String(d).padStart(2, '0')}`, workDay()])
   );
 
-function run(params, days, extra = {}) {
+async function run(params, days, extra = {}) {
   const real = loadPayroll(params);
   const seen = [];
   const payroll = {
@@ -28,43 +28,43 @@ function run(params, days, extra = {}) {
       return out;
     }
   };
-  const staff = person('qa_a', { contract: 'long', insured: true });
-  const base = world({ people: [staff], days: { qa_a: days }, sessions: declaredPunches(staff, days) }); // chỉ đi làm đúng những ngày đã khai
-  const result = review({ ...base, params, payroll, ...extra });
+  const staff = await person('qa_a', { contract: 'long', insured: true });
+  const base = await world({ people: [staff], days: { qa_a: days }, sessions: declaredPunches(staff, days) }); // chỉ đi làm đúng những ngày đã khai
+  const result = await review({ ...base, params, payroll, ...extra });
   return { result, seen };
 }
 
-test('1 ngày công: không đóng bảo hiểm nên thực nhận không âm và không bị gắn net-nonpositive', () => {
-  const { result, seen } = run(DEFAULTS, onePaidDayMonth());
+test('1 ngày công: không đóng bảo hiểm nên thực nhận không âm và không bị gắn net-nonpositive', async () => {
+  const { result, seen } = await run(DEFAULTS, onePaidDayMonth());
   assert.deepEqual(find(result, 'net-nonpositive'), []);
   assert.ok(seen.length > 0);
   assert.ok(seen.some(x => x.paidDays === 1));
   assert.ok(seen.every(x => x.insurance === 0));
 });
 
-test('13 ngày công: bộ soát tính ra bảo hiểm 630.000 ₫', () => {
-  const { seen } = run(DEFAULTS, thirteenDays());
+test('13 ngày công: bộ soát tính ra bảo hiểm 630.000 ₫', async () => {
+  const { seen } = await run(DEFAULTS, thirteenDays());
   assert.ok(seen.length > 0);
   assert.ok(seen.every(x => x.paidDays === 13 && x.insurance === 630000));
 });
 
-test('hồ sơ ghi insured = true: đóng bảo hiểm như hồ sơ, dù Kế toán đổi coverage.long thành không đóng', () => {
-  const { seen } = run({ ...DEFAULTS, 'insurance.coverage.long': false }, thirteenDays());
+test('hồ sơ ghi insured = true: đóng bảo hiểm như hồ sơ, dù Kế toán đổi coverage.long thành không đóng', async () => {
+  const { seen } = await run({ ...DEFAULTS, 'insurance.coverage.long': false }, thirteenDays());
   assert.ok(seen.every(x => x.insured === true && x.insurance === 630000));
 });
 
-test('cột insured NULL (insuredUnset): coverage.long = không đóng thì không có bảo hiểm; mặc định vẫn đóng như cũ', () => {
-  const off = run({ ...DEFAULTS, 'insurance.coverage.long': false }, thirteenDays(), { insuredUnset: ['qa_a'] });
+test('cột insured NULL (insuredUnset): coverage.long = không đóng thì không có bảo hiểm; mặc định vẫn đóng như cũ', async () => {
+  const off = await run({ ...DEFAULTS, 'insurance.coverage.long': false }, thirteenDays(), { insuredUnset: ['qa_a'] });
   assert.ok(off.seen.length > 0);
   assert.ok(off.seen.every(x => x.insured === null && x.insurance === 0));
-  const byDefault = run(DEFAULTS, thirteenDays(), { insuredUnset: ['qa_a'] });
+  const byDefault = await run(DEFAULTS, thirteenDays(), { insuredUnset: ['qa_a'] });
   assert.ok(byDefault.seen.every(x => x.insured === null && x.insurance === 630000));
 });
 
-test('insuredUnset không sửa đầu vào', () => {
-  const base = world({ people: [person('qa_a', { contract: 'long', insured: true })], days: { qa_a: thirteenDays() } });
+test('insuredUnset không sửa đầu vào', async () => {
+  const base = await world({ people: [await person('qa_a', { contract: 'long', insured: true })], days: { qa_a: thirteenDays() } });
   const input = { ...base, params: DEFAULTS, payroll: loadPayroll(DEFAULTS), insuredUnset: ['qa_a'] };
   const before = JSON.stringify(input.staff);
-  review(input);
+  await review(input);
   assert.equal(JSON.stringify(input.staff), before);
 });

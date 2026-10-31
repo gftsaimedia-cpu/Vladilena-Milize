@@ -46,61 +46,61 @@ function month(staff, days, holidays, advanceApproved = false) {
 const near = (actual, expected, msg) =>
   assert.ok(Math.abs(actual - expected) < 0.01, `${msg || ''} ${actual} != ${expected}`);
 
-test('ngày lễ đi làm trước ngày 15: lương ngày của ngày lễ vào cơ sở tạm ứng cùng các ngày thường; OT ngày lễ không vào', () => {
+test('ngày lễ đi làm trước ngày 15: lương ngày của ngày lễ vào cơ sở tạm ứng cùng các ngày thường; OT ngày lễ không vào', async () => {
   const days = { '2026-10-12': work, [HOL]: holidayOt, '2026-10-14': work, '2026-10-15': work };
-  const { m } = month(NV, days, [HOL]);
+  const { m } = await month(NV, days, [HOL]);
   assert.equal(m.holWorkDays, 1);
   assert.ok(m.holWorkPay > 0);
   near(m.advanceBase, 4 * DAILY, 'cơ sở = 3 ngày thường + lương ngày lễ');
   assert.equal(m.trace.tamUngToiDa, Math.round(RATE * 4 * DAILY), 'tạm ứng = 80% cơ sở');
 });
 
-test('OT ngày lễ không đổi cơ sở tạm ứng: cùng cơ sở khi không có giờ làm thêm', () => {
-  const plain = month(NV, { '2026-10-12': work, [HOL]: work, '2026-10-14': work }, [HOL]).m;
-  const ot = month(NV, { '2026-10-12': work, [HOL]: holidayOt, '2026-10-14': work }, [HOL]).m;
+test('OT ngày lễ không đổi cơ sở tạm ứng: cùng cơ sở khi không có giờ làm thêm', async () => {
+  const plain = (await month(NV, { '2026-10-12': work, [HOL]: work, '2026-10-14': work }, [HOL])).m;
+  const ot = (await month(NV, { '2026-10-12': work, [HOL]: holidayOt, '2026-10-14': work }, [HOL])).m;
   assert.ok(ot.holWorkPay > plain.holWorkPay);
   near(ot.advanceBase, plain.advanceBase);
   near(ot.advanceBase, 3 * DAILY);
 });
 
-test('ngày lễ đi làm là ngày công và cũng là ngày đi làm của cơ sở tạm ứng: số công khớp số ngày trong cơ sở', () => {
-  const { m } = month(NV, { '2026-10-12': work, [HOL]: work }, [HOL]);
+test('ngày lễ đi làm là ngày công và cũng là ngày đi làm của cơ sở tạm ứng: số công khớp số ngày trong cơ sở', async () => {
+  const { m } = await month(NV, { '2026-10-12': work, [HOL]: work }, [HOL]);
   assert.equal(m.count, 2);
   near(m.advanceBase / DAILY, 2);
 });
 
-test('ngày lễ không đi làm: hưởng lương lễ nhưng không vào cơ sở tạm ứng', () => {
-  const { m } = month(NV, { '2026-10-12': work, '2026-10-14': work }, [HOL]);
+test('ngày lễ không đi làm: hưởng lương lễ nhưng không vào cơ sở tạm ứng', async () => {
+  const { m } = await month(NV, { '2026-10-12': work, '2026-10-14': work }, [HOL]);
   assert.equal(m.holiday, 1);
   near(m.advanceBase, 2 * DAILY);
 });
 
-test('ngày lễ đi làm sau ngày 15 không vào cơ sở tạm ứng', () => {
-  const { m } = month(NV, { '2026-10-12': work, [LATE_HOL]: work }, [LATE_HOL]);
+test('ngày lễ đi làm sau ngày 15 không vào cơ sở tạm ứng', async () => {
+  const { m } = await month(NV, { '2026-10-12': work, [LATE_HOL]: work }, [LATE_HOL]);
   assert.equal(m.holWorkDays, 1);
   near(m.advanceBase, DAILY);
 });
 
-test('chức vụ không có quyền lợi OT: ngày lễ chỉ là lương lễ, không phải ngày đi làm, không vào cơ sở tạm ứng', () => {
-  const { m } = month(TTS, { '2026-10-12': work, [HOL]: work }, [HOL]);
+test('chức vụ không có quyền lợi OT: ngày lễ chỉ là lương lễ, không phải ngày đi làm, không vào cơ sở tạm ứng', async () => {
+  const { m } = await month(TTS, { '2026-10-12': work, [HOL]: work }, [HOL]);
   assert.equal(m.holWorkDays, 0);
   const row = m.rows.find(r => r.date === '2026-10-12');
   near(m.advanceBase, row.daily - row.cut);
 });
 
-test('tạm ứng đã duyệt = 80% cơ sở có ngày lễ đi làm, trừ vào thực lĩnh; chưa duyệt thì 0 và số tối đa không đổi', () => {
+test('tạm ứng đã duyệt = 80% cơ sở có ngày lễ đi làm, trừ vào thực lĩnh; chưa duyệt thì 0 và số tối đa không đổi', async () => {
   const days = { '2026-10-12': work, [HOL]: holidayOt };
-  const open = month(NV, days, [HOL]).m;
-  const approved = month(NV, days, [HOL], true).m;
+  const open = (await month(NV, days, [HOL])).m;
+  const approved = (await month(NV, days, [HOL], true)).m;
   assert.equal(open.net.advance, 0);
   assert.equal(approved.net.advance, Math.round(RATE * 2 * DAILY));
   assert.equal(open.trace.tamUngToiDa, approved.trace.tamUngToiDa);
   assert.equal(open.net.net - approved.net.net, approved.net.advance);
 });
 
-test('công thức Chi tiết của tạm ứng đếm ngày lễ đi làm như ngày công và tính ra đúng số tạm ứng', () => {
+test('công thức Chi tiết của tạm ứng đếm ngày lễ đi làm như ngày công và tính ra đúng số tạm ứng', async () => {
   const days = { '2026-10-12': work, [HOL]: holidayOt, '2026-10-14': work };
-  const { m } = month(NV, days, [HOL], true);
+  const { m } = await month(NV, days, [HOL], true);
   const snapshot = JSON.parse(JSON.stringify(m));
   const f = plainAll(
     formulasOf({ snapshot, staffTerms: NV, params: DEFAULTS, month: '2026-10', cells: cellsOf(snapshot) })

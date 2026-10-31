@@ -42,9 +42,9 @@ const TOP_KEYS = [
   'names'
 ];
 
-const review = (M, who = 'admin', query = '') => F.call('GET', `/ai/review?month=${M}${query}`, { who });
-const dismiss = (M, username, rule, reason = REASON, who = 'admin') =>
-  F.call('POST', '/ai/findings/dismiss', { who, body: { month: M, username, rule, reason } });
+const review = async (M, who = 'admin', query = '') => await F.call('GET', `/ai/review?month=${M}${query}`, { who });
+const dismiss = async (M, username, rule, reason = REASON, who = 'admin') =>
+  await F.call('POST', '/ai/findings/dismiss', { who, body: { month: M, username, rule, reason } });
 const mark = (data, username, rule) => data.findings.filter(f => f.username === username && f.rule === rule);
 
 // Tháng đã seed (kỳ còn "open"); qa_nv1 và qa_nv2 khai 4 Thứ Bảy iSAT, các khoản chờ duyệt
@@ -160,20 +160,20 @@ test('AI soát: tính lại với đầu vào y nguyên GIỮ dấu đã bỏ qu
   const M = await reviewedMonth();
   await baseline(M);
   assert.equal((await dismiss(M, 'qa_nv1', 'isat-frequency')).status, 200);
-  const digest1 = store.payroll.currentRun(M).inputsDigest;
+  const digest1 = (await store.payroll.currentRun(M)).inputsDigest;
 
   // y nguyên: giữ
   P.must(await P.step(M, 'calculate'), 'tính lại, đầu vào y nguyên');
-  assert.equal(store.payroll.currentRun(M).inputsDigest, digest1, 'đầu vào không đổi thì băm đầu vào không đổi');
+  assert.equal((await store.payroll.currentRun(M)).inputsDigest, digest1, 'đầu vào không đổi thì băm đầu vào không đổi');
   const kept = (await review(M)).data;
   assert.deepEqual(kept.period, { status: 'calculated' });
   assert.equal(mark(kept, 'qa_nv1', 'isat-frequency')[0].dismissed.by, 'admin');
 
   // đổi đầu vào: thêm một ngày lễ (cài đặt đi vào băm đầu vào của lần chạy) rồi tính lại
   const holiday = P.dowDates(M, 3)[2];
-  store.setSetting('holidays', [...store.getSetting('holidays', []), holiday]);
+  await store.setSetting('holidays', [...await store.getSetting('holidays', []), holiday]);
   P.must(await P.step(M, 'calculate'), 'tính lại, đầu vào đã đổi');
-  assert.notEqual(store.payroll.currentRun(M).inputsDigest, digest1, 'băm đầu vào phải đổi');
+  assert.notEqual((await store.payroll.currentRun(M)).inputsDigest, digest1, 'băm đầu vào phải đổi');
   const changed = (await review(M)).data;
   const target = mark(changed, 'qa_nv1', 'isat-frequency');
   assert.equal(target.length, 1, 'phát hiện vẫn còn sau khi đổi ngày lễ');
@@ -185,13 +185,13 @@ test('AI soát: mở lại về open rồi chốt và tính lại với tham s�
   const M = await reviewedMonth();
   await baseline(M);
   assert.equal((await dismiss(M, 'qa_nv1', 'isat-frequency')).status, 200);
-  const run1 = store.payroll.currentRun(M);
+  const run1 = await store.payroll.currentRun(M);
 
   const cycle = async () => {
     P.must(await P.step(M, 'reopen', { to: 'open', reason: 'Mở lại để thử bỏ qua phát hiện AI' }), 'mở lại');
     await lock(M);
     P.must(await P.step(M, 'calculate'), 'tính lại');
-    return store.payroll.currentRun(M);
+    return await store.payroll.currentRun(M);
   };
 
   // tham số y nguyên: cùng băm đầu vào và cùng băm tham số -> giữ
@@ -201,14 +201,14 @@ test('AI soát: mở lại về open rồi chốt và tính lại với tham s�
   assert.equal(mark((await review(M)).data, 'qa_nv1', 'isat-frequency')[0].dismissed.by, 'admin');
 
   // đổi tham số có hiệu lực từ tháng này khi kỳ đang open, rồi chốt và tính lại
-  const key = S.adminKeys()[0];
+  const key = (await S.adminKeys())[0];
   assert.ok(key, 'registry phải có khoá số Admin sửa được');
   P.must(await P.step(M, 'reopen', { to: 'open', reason: 'Mở lại để đổi tham số thử' }), 'mở lại lần hai');
   const [value] = await S.differing(key, M);
   P.must(await S.saveChanges([{ key: key.key, value }], { month: M }), 'lưu tham số');
   await lock(M);
   P.must(await P.step(M, 'calculate'), 'tính lại với tham số mới');
-  const run3 = store.payroll.currentRun(M);
+  const run3 = await store.payroll.currentRun(M);
   assert.equal(run3.inputsDigest, run1.inputsDigest, 'đầu vào y nguyên');
   assert.notEqual(run3.paramsHash, run1.paramsHash, 'băm tham số của lần chạy phải đổi');
   const after = (await review(M)).data;
@@ -283,7 +283,7 @@ test('AI soát: khoá cấp trên giữ thứ tự cũ và `period` đứng sau;
   for (const query of ['', '&impacts=1']) {
     const data = (await review(M, 'admin', query)).data;
     const keys = Object.keys(data);
-    assert.equal(keys.at(-1), 'period', `period phải là khoá cuối${query ? ' (có impacts)' : ''}`);
+    assert.equal(await keys.at(-1), 'period', `period phải là khoá cuối${query ? ' (có impacts)' : ''}`);
     assert.deepEqual(
       keys.filter(k => k !== 'period' && k !== 'impacts'),
       TOP_KEYS,
@@ -292,7 +292,7 @@ test('AI soát: khoá cấp trên giữ thứ tự cũ và `period` đứng sau;
     assert.ok(data.findings.length >= 3);
     for (const f of data.findings) {
       const fk = Object.keys(f);
-      assert.equal(fk.at(-1), 'dismissed', `${f.username} ${f.rule}: dismissed phải là khoá cuối`);
+      assert.equal(await fk.at(-1), 'dismissed', `${f.username} ${f.rule}: dismissed phải là khoá cuối`);
       assert.deepEqual(fk.slice(0, -1), FINDING_KEYS, 'các khoá cũ của phát hiện giữ nguyên thứ tự');
       assert.ok(f.dismissed === null || Object.keys(f.dismissed).join() === 'by,at,note');
     }

@@ -17,34 +17,34 @@ const { loadPayroll } = require('../../lib/ai/payroll-loader.js');
 
 const today = S.TODAY;
 
-before(() => {
+before(async () => {
   const payroll = loadPayroll();
   const generator = gen.create({ store, payroll, passHash: H.fixedHash('demo-test'), today });
-  generator.seedAll(S.PERSONAS, S.ADMINS, []);
-  store.setSetting('demo_dataset', { version: 1, today, personas: S.PERSONAS.length, bulk: 0 });
+  await generator.seedAll(S.PERSONAS, S.ADMINS, []);
+  await store.setSetting('demo_dataset', { version: 1, today, personas: S.PERSONAS.length, bulk: 0 });
 });
 
-test('L4: bộ dữ liệu demo dựng trong bộ nhớ không có phiên, lượt bấm hay yêu cầu nào sau "bây giờ" của ngày today (clockProblems rỗng)', () => {
+test('L4: bộ dữ liệu demo dựng trong bộ nhớ không có phiên, lượt bấm hay yêu cầu nào sau "bây giờ" của ngày today (clockProblems rỗng)', async () => {
   assert.equal(S.NOW_LOCAL, `${S.TODAY}T${S.NOW_TIME}`, 'một mốc giờ duy nhất cho dữ liệu và đồng hồ');
-  assert.deepEqual(selfcheck.clockProblems({ store, today }), []);
+  assert.deepEqual(await selfcheck.clockProblems({ store, today }), []);
 });
 
-test('L4: clockProblems báo phiên còn mở thuộc ngày sau today và khoá demo_dataset ghi sai ngày', () => {
+test('L4: clockProblems báo phiên còn mở thuộc ngày sau today và khoá demo_dataset ghi sai ngày', async () => {
   assert.ok(
-    selfcheck.clockProblems({ store, today: '2026-11-20' }).some(p => p.includes('demo_dataset')),
+    (await selfcheck.clockProblems({ store, today: '2026-11-20' })).some(p => p.includes('demo_dataset')),
     'ngày dựng khác ngày ghi ở khoá thì phải báo'
   );
   // mỗi người chỉ có tối đa một phiên đang mở: chọn người chưa có
-  const username = store.db
+  const username = (await store.db
     .prepare(
       "SELECT username FROM staff WHERE username NOT IN (SELECT username FROM attendance_sessions WHERE state = 'open') LIMIT 1"
     )
-    .get().username;
+    .get()).username;
   const entry = { kind: 'pending', presIn: `${today}T08:00:00+07:00` };
   const futureDate = '2026-11-27';
-  const id = store.createSession(username, futureDate, 'open', entry);
+  const id = await store.createSession(username, futureDate, 'open', entry);
   try {
-    const problems = selfcheck.clockProblems({ store, today });
+    const problems = await selfcheck.clockProblems({ store, today });
     assert.ok(
       problems.some(p => p.includes('phiên còn mở thuộc ngày')),
       JSON.stringify(problems)
@@ -54,9 +54,9 @@ test('L4: clockProblems báo phiên còn mở thuộc ngày sau today và khoá 
       'thông báo chỉ có số đếm, không có tên'
     );
   } finally {
-    store.db.prepare('DELETE FROM attendance_sessions WHERE id = ?').run(id.id ?? id);
+    await store.db.prepare('DELETE FROM attendance_sessions WHERE id = ?').run(id.id ?? id);
   }
-  assert.deepEqual(selfcheck.clockProblems({ store, today }), []);
+  assert.deepEqual(await selfcheck.clockProblems({ store, today }), []);
 });
 
 test('L4: serve-demo mặc định lấy --today từ khoá demo_dataset của chính DB demo, không còn ngày gõ cứng', () => {

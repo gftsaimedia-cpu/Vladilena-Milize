@@ -17,14 +17,14 @@ const LEGACY = { kind: 'makeup', in: '08:00', out: '12:00' };
 before(F.start);
 after(F.stop);
 
-function setup() {
-  F.reset();
-  P.revokeAllRoles();
-  F.at('2026-11-02T09:00:00');
-  store.setSetting('holidays', []);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_day', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
-  F.person('qa_tts', 'staff', { type: 'tts', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+async function setup() {
+  await F.reset();
+  await P.revokeAllRoles();
+  await F.at('2026-11-02T09:00:00');
+  await store.setSetting('holidays', []);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_day', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_tts', 'staff', { type: 'tts', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
 }
 const put = (who, days, extra = {}) => F.call('PUT', '/sheet', { who, body: { month: M, days, ...extra } });
 const expectRemoved = (res, date) => {
@@ -35,33 +35,33 @@ const expectRemoved = (res, date) => {
 };
 
 test(`new whole-day make-up day is refused with SHEET_MAKEUP_DAY_REMOVED and nothing is saved`, async () => {
-  setup();
+  await setup();
   // ngày trong lịch (NV thứ Hai) và ngày ngoài lịch (TTS thứ Bảy)
   expectRemoved(await put('qa_day', { [MON1]: LEGACY }), MON1);
   expectRemoved(await put('qa_tts', { [SAT1]: LEGACY, [MON2]: WORK }), SAT1);
-  assert.deepEqual(store.getSheet('qa_day', M).days, {});
-  assert.deepEqual(store.getSheet('qa_tts', M).days, {});
+  assert.deepEqual((await store.getSheet('qa_day', M)).days, {});
+  assert.deepEqual((await store.getSheet('qa_tts', M)).days, {});
 });
 
 test(`Admin on-behalf save of a new whole-day make-up day is refused the same way`, async () => {
-  setup();
+  await setup();
   expectRemoved(await put('admin', { [MON1]: LEGACY }, { user: 'qa_day' }), MON1);
-  assert.deepEqual(store.getSheet('qa_day', M).days, {});
+  assert.deepEqual((await store.getSheet('qa_day', M)).days, {});
 });
 
 test(`changing a stored work day into a whole-day make-up day is refused`, async () => {
-  setup();
-  store.setSheet('qa_day', M, { [MON1]: WORK }, null, null);
+  await setup();
+  await store.setSheet('qa_day', M, { [MON1]: WORK }, null, null);
   expectRemoved(await put('qa_day', { [MON1]: { ...WORK, kind: 'makeup' } }), MON1);
-  assert.deepEqual(store.getSheet('qa_day', M).days[MON1].kind, 'work');
+  assert.deepEqual((await store.getSheet('qa_day', M)).days[MON1].kind, 'work');
 });
 
 test(`a stored legacy make-up day sent back unchanged does not block saving other days`, async () => {
-  setup();
-  store.setSheet('qa_tts', M, { [SAT1]: LEGACY }, null, null);
+  await setup();
+  await store.setSheet('qa_tts', M, { [SAT1]: LEGACY }, null, null);
   const res = await put('qa_tts', { [SAT1]: LEGACY, [MON2]: WORK });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  const days = store.getSheet('qa_tts', M).days;
+  const days = (await store.getSheet('qa_tts', M)).days;
   assert.equal(days[SAT1].kind, 'makeup');
   assert.equal(days[MON2].kind, 'work');
   const warning = (res.data.warnings || []).find(w => w.code === 'SHEET_MAKEUP_DAY_LEGACY');

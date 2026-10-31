@@ -9,8 +9,8 @@ const server = require('../../server');
 let base;
 const originalNow = Date.now;
 const T = (date, time) => new Date(`${date}T${time}+07:00`).toISOString();
-function person(username = 'worker', overrides = {}) {
-  store.upsertStaff({
+async function person(username = 'worker', overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -25,7 +25,7 @@ function person(username = 'worker', overrides = {}) {
 async function call(method, route, body, who = 'admin') {
   const r = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: r.status, data: await r.json() };
@@ -55,7 +55,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'punch_requests',
     'corrections',
@@ -67,8 +67,8 @@ beforeEach(() => {
     'settings'
   ])
     store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', level: 0 });
-  person();
+  await person('admin', { role: 'admin', type: 'tts', level: 0 });
+  await person();
 });
 after(async () => {
   Date.now = originalNow;
@@ -79,28 +79,28 @@ after(async () => {
 
 const leaveWarning = r => (r.data.warnings || []).find(w => w.code === 'HOLIDAY_LEAVE_CONFLICT');
 test('removing a holiday that leaves a leave deficit saves the setting and warns HOLIDAY_LEAVE_CONFLICT', async () => {
-  store.setSetting('holidays', ['2026-10-08']);
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
+  await store.setSetting('holidays', ['2026-10-08']);
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
   const r = await call('PUT', '/holidays', { dates: ['2026-10-09'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   const warning = leaveWarning(r);
   assert.ok(warning, JSON.stringify(r.data.warnings));
   assert.equal(warning.count, 1);
   assert.deepEqual(warning.details, { count: 1, months: ['2026-10'] });
-  assert.deepEqual(store.getSetting('holidays', []), ['2026-10-09']);
+  assert.deepEqual(await store.getSetting('holidays', []), ['2026-10-09']);
 });
 test('holiday leave check uses entitlement on the affected date, including a later month', async () => {
-  store.setSetting('holidays', ['2026-10-08']);
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
-  store.setSheet('worker', '2026-11', { '2026-11-02': { kind: 'leave' } });
+  await store.setSetting('holidays', ['2026-10-08']);
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
+  await store.setSheet('worker', '2026-11', { '2026-11-02': { kind: 'leave' } });
   const r = await call('PUT', '/holidays', { dates: [] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.deepEqual(leaveWarning(r).details.months, ['2026-10', '2026-11']);
 });
 test('holiday changes keep unrelated legacy deficits quiet but warn when they get worse', async () => {
-  person('worker', { startDate: null });
-  store.setSetting('holidays', ['2026-10-08']);
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
+  await person('worker', { startDate: null });
+  await store.setSetting('holidays', ['2026-10-08']);
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
   const same = await call('PUT', '/holidays', { dates: ['2026-10-08', '2026-10-09'] });
   assert.equal(same.status, 200);
   assert.equal(leaveWarning(same), undefined, 'thiếu phép cũ không đổi thì không cảnh báo');
@@ -109,22 +109,22 @@ test('holiday changes keep unrelated legacy deficits quiet but warn when they ge
   assert.ok(leaveWarning(r));
 });
 test('holiday check examines all people and stays quiet when entitlement is sufficient', async () => {
-  person('other', { leaveAdjust: 4 });
-  store.setSetting('holidays', ['2026-10-08']);
-  store.setSheet('other', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
+  await person('other', { leaveAdjust: 4 });
+  await store.setSetting('holidays', ['2026-10-08']);
+  await store.setSheet('other', '2026-10', { '2026-10-07': { kind: 'leave' }, '2026-10-08': { kind: 'leave' } });
   const enough = await call('PUT', '/holidays', { dates: [] });
   assert.equal(enough.status, 200);
   assert.equal(leaveWarning(enough), undefined);
-  person('other', { leaveAdjust: 0 });
-  store.setSetting('holidays', ['2026-10-08']);
+  await person('other', { leaveAdjust: 0 });
+  await store.setSetting('holidays', ['2026-10-08']);
   const r = await call('PUT', '/holidays', { dates: [] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.match(leaveWarning(r).message, /other/);
 });
 test('Admin declares actual OT for a closed session while salary estimates stay untouched', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 0, 0);
-  const estimate = store.getSheet('worker', '2026-10');
-  const session = attendance();
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 0, 0);
+  const estimate = await store.getSheet('worker', '2026-10');
+  const session = await attendance();
   const r = await call('POST', '/ot', {
     sessionId: session.id,
     version: session.version,
@@ -133,7 +133,7 @@ test('Admin declares actual OT for a closed session while salary estimates stay 
     reason: 'Confirmed extra work'
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const current = store.getSession(session.id);
+  const current = await store.getSession(session.id);
   assert.equal(current.version, session.version + 1);
   assert.equal(current.entry.extraKind, 'ot');
   assert.equal(current.entry.extraIn, '07:00');
@@ -142,10 +142,10 @@ test('Admin declares actual OT for a closed session while salary estimates stay 
   assert.equal(current.entry.otDeclaration.reason, 'Confirmed extra work');
   assert.equal(current.entry.otReview, undefined);
   assert.equal((await call('GET', '/ot')).data.ot[0].sessionId, session.id);
-  assert.deepEqual(store.getSheet('worker', '2026-10'), estimate);
+  assert.deepEqual(await store.getSheet('worker', '2026-10'), estimate);
 });
 test('editing declared OT keeps prior declaration and decision and returns to pending', async () => {
-  const session = attendance();
+  const session = await attendance();
   let r = await call('POST', '/ot', {
     sessionId: session.id,
     version: 1,
@@ -155,10 +155,10 @@ test('editing declared OT keeps prior declaration and decision and returns to pe
   assert.equal(r.status, 200);
   r = await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'approve' });
   assert.equal(r.status, 200);
-  const old = store.getSession(session.id).entry;
+  const old = (await store.getSession(session.id)).entry;
   r = await call('POST', '/ot', { sessionId: session.id, version: 3, extraOut: '18:00', reason: 'Correct end time' });
   assert.equal(r.status, 200);
-  const current = store.getSession(session.id).entry;
+  const current = (await store.getSession(session.id)).entry;
   assert.equal(current.otReview, undefined);
   assert.equal(current.otDeclarationHistory.length, 1);
   assert.equal(current.otDeclarationHistory[0].extraOut, '19:00');
@@ -168,7 +168,7 @@ test('editing declared OT keeps prior declaration and decision and returns to pe
 });
 const otWarningCodes = r => (r.data.warnings || []).map(w => w.code);
 test('OT declaration validates authorization, version, input format and open session without mutation', async () => {
-  const session = attendance();
+  const session = await attendance();
   const body = { sessionId: session.id, version: session.version, extraOut: '19:00', reason: 'Extra work' };
   for (const [label, overrides, who, expected] of [
     ['staff cannot declare', {}, 'worker', 403],
@@ -176,19 +176,19 @@ test('OT declaration validates authorization, version, input format and open ses
     ['no extra segment', { extraOut: '' }, 'admin', 400],
     ['malformed time', { extraOut: '25:00' }, 'admin', 400]
   ]) {
-    const before = snapshot();
+    const before = await snapshot();
     const r = await call('POST', '/ot', { ...body, ...overrides }, who);
     assert.equal(r.status, expected, label + ': ' + JSON.stringify(r.data));
-    assert.deepEqual(snapshot(), before);
+    assert.deepEqual(await snapshot(), before);
   }
-  person('open');
-  const open = attendance('open', '2026-10-07', { state: 'open' });
+  await person('open');
+  const open = await attendance('open', '2026-10-07', { state: 'open' });
   const r = await call('POST', '/ot', { ...body, sessionId: open.id, version: open.version });
   assert.equal(r.status, 409);
-  assert.equal(store.getSession(open.id).entry.extraKind, '');
+  assert.equal((await store.getSession(open.id)).entry.extraKind, '');
 });
 test('OT declaration without a reason is saved as pending', async () => {
-  const session = attendance();
+  const session = await attendance();
   const r = await call('POST', '/ot', {
     sessionId: session.id,
     version: session.version,
@@ -196,30 +196,30 @@ test('OT declaration without a reason is saved as pending', async () => {
     reason: ''
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getSession(session.id).entry.extraKind, 'ot');
+  assert.equal((await store.getSession(session.id)).entry.extraKind, 'ot');
 });
 test('OT beyond the presence window, without OT benefit or on unconfirmed attendance is saved with a warning', async () => {
   const body = { extraOut: '19:00', reason: 'Extra work' };
-  const beyond = attendance('worker', '2026-10-07', { out: '20:00:00' });
+  const beyond = await attendance('worker', '2026-10-07', { out: '20:00:00' });
   const first = await call('POST', '/ot', { ...body, sessionId: beyond.id, version: beyond.version, extraOut: '20:30' });
   assert.equal(first.status, 200, JSON.stringify(first.data));
   assert.ok(otWarningCodes(first).includes('OT_OUTSIDE_PRESENCE'), JSON.stringify(first.data.warnings));
-  assert.equal(store.getSession(beyond.id).entry.extraKind, 'ot');
+  assert.equal((await store.getSession(beyond.id)).entry.extraKind, 'ot');
   for (const [username, options, entry, code] of [
     ['tts', { type: 'tts' }, undefined, 'BENEFIT_NOT_ALLOWED'],
     ['pending', {}, { attendanceConfirmed: false, kind: 'pending' }, 'OT_NEEDS_CONFIRMED_SHIFT']
   ]) {
-    person(username, options);
-    const s = attendance(username, '2026-10-07', entry ? { entry } : {});
+    await person(username, options);
+    const s = await attendance(username, '2026-10-07', entry ? { entry } : {});
     const r = await call('POST', '/ot', { ...body, sessionId: s.id, version: s.version });
     assert.equal(r.status, 200, `${username}: ${JSON.stringify(r.data)}`);
     assert.ok(otWarningCodes(r).includes(code), `${username}: ${JSON.stringify(r.data.warnings)}`);
-    assert.equal(store.getSession(s.id).entry.extraKind, 'ot');
+    assert.equal((await store.getSession(s.id)).entry.extraKind, 'ot');
   }
 });
 test('OT uses planned shift snapshot rather than a newly changed staff shift', async () => {
-  const session = attendance();
-  person('worker', { shiftCode: 'g2' });
+  const session = await attendance();
+  await person('worker', { shiftCode: 'g2' });
   const r = await call('POST', '/ot', {
     sessionId: session.id,
     version: 1,
@@ -227,18 +227,18 @@ test('OT uses planned shift snapshot rather than a newly changed staff shift', a
     reason: 'Use assigned occurrence'
   });
   assert.equal(r.status, 200);
-  assert.equal(store.getSession(session.id).entry.plannedShift.code, 'n1');
+  assert.equal((await store.getSession(session.id)).entry.plannedShift.code, 'n1');
 });
 test('OT respects seconds at check-in and the night boundary', async () => {
-  const early = attendance('worker', '2026-10-07', { in: '06:00:30', out: '22:30:00' });
+  const early = await attendance('worker', '2026-10-07', { in: '06:00:30', out: '22:30:00' });
   const r1 = await call('POST', '/ot', { sessionId: early.id, version: 1, extraIn: '06:00', reason: 'Early work' });
   assert.equal(r1.status, 200, JSON.stringify(r1.data));
   assert.ok(otWarningCodes(r1).includes('OT_OUTSIDE_PRESENCE'), 'trước giờ Check-in 30 giây vẫn là ngoài giờ có mặt');
-  const night = attendance('worker', '2026-10-08', { in: '05:00:00', out: '17:30:00' });
+  const night = await attendance('worker', '2026-10-08', { in: '05:00:00', out: '17:30:00' });
   const r2 = await call('POST', '/ot', { sessionId: night.id, version: 1, extraIn: '05:00', reason: 'Night work' });
   assert.equal(r2.status, 200, JSON.stringify(r2.data));
   assert.ok(otWarningCodes(r2).includes('OT_NIGHT'), JSON.stringify(r2.data.warnings));
-  const okDay = attendance('worker', '2026-10-09', { in: '06:00:30', out: '22:30:00' });
+  const okDay = await attendance('worker', '2026-10-09', { in: '06:00:30', out: '22:30:00' });
   const r = await call('POST', '/ot', {
     sessionId: okDay.id,
     version: 1,
@@ -249,8 +249,8 @@ test('OT respects seconds at check-in and the night boundary', async () => {
   assert.deepEqual(r.data.warnings, undefined, 'đủ bốn giờ liền ca, không cảnh báo');
 });
 test('OT over an existing makeup declaration is refused; on an assigned holiday it is accepted', async () => {
-  store.setSetting('holidays', ['2026-10-07']);
-  const holiday = attendance();
+  await store.setSetting('holidays', ['2026-10-07']);
+  const holiday = await attendance();
   const accepted = await call('POST', '/ot', {
     sessionId: holiday.id,
     version: 1,
@@ -258,16 +258,16 @@ test('OT over an existing makeup declaration is refused; on an assigned holiday 
     reason: 'Holiday extra'
   });
   assert.equal(accepted.status, 200, JSON.stringify(accepted.data));
-  store.setSetting('holidays', []);
-  const makeup = attendance('worker', '2026-10-08', { entry: { extraKind: 'makeup', extraOut: '18:00' } });
+  await store.setSetting('holidays', []);
+  const makeup = await attendance('worker', '2026-10-08', { entry: { extraKind: 'makeup', extraOut: '18:00' } });
   assert.equal(
     (await call('POST', '/ot', { sessionId: makeup.id, version: 1, extraOut: '19:00', reason: 'No overwrite' })).status,
     409
   );
-  assert.equal(store.getSession(makeup.id).entry.extraKind, 'makeup');
+  assert.equal((await store.getSession(makeup.id)).entry.extraKind, 'makeup');
 });
 test('night main shift may declare OT for an extension after 07:00', async () => {
-  const session = attendance('worker', '2026-10-07', {
+  const session = await attendance('worker', '2026-10-07', {
     code: 'g2',
     in: '22:00:00',
     outDate: '2026-10-08',
@@ -280,23 +280,23 @@ test('night main shift may declare OT for an extension after 07:00', async () =>
     reason: 'Night extension'
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getSession(session.id).entry.extraKind, 'ot');
-  assert.equal(store.getSession(session.id).entry.extraOut, '08:00');
+  assert.equal((await store.getSession(session.id)).entry.extraKind, 'ot');
+  assert.equal((await store.getSession(session.id)).entry.extraOut, '08:00');
 });
 test('OT approval after a holiday is added is accepted with a warning; rejection stays available', async () => {
-  const session = attendance();
+  const session = await attendance();
   assert.equal(
     (await call('POST', '/ot', { sessionId: session.id, version: 1, extraOut: '19:00', reason: 'Extra work' })).status,
     200
   );
   // Dữ liệu lưu hoặc nhập sẵn có thể đã xung đột mà không qua cảnh báo ghi ngày lễ.
-  store.setSetting('holidays', ['2026-10-07']);
+  await store.setSetting('holidays', ['2026-10-07']);
   const approved = await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'approve' });
   assert.equal(approved.status, 200, JSON.stringify(approved.data));
-  assert.equal(store.getSession(session.id).entry.otReview.ok, true);
+  assert.equal((await store.getSession(session.id)).entry.otReview.ok, true);
 });
 test('OT beyond the actual check-out of confirmed legacy attendance without a source marker is saved with a warning', async () => {
-  const session = attendance('worker', '2026-10-07', { out: '18:00:00', entry: { src: undefined } });
+  const session = await attendance('worker', '2026-10-07', { out: '18:00:00', entry: { src: undefined } });
   const r = await call('POST', '/ot', {
     sessionId: session.id,
     version: 1,
@@ -307,7 +307,7 @@ test('OT beyond the actual check-out of confirmed legacy attendance without a so
   assert.ok(otWarningCodes(r).includes('OT_OUTSIDE_PRESENCE'), JSON.stringify(r.data.warnings));
 });
 test('rejected OT frees the budget and editing replaces the target contribution', async () => {
-  const a = attendance();
+  const a = await attendance();
   assert.equal(
     (await call('POST', '/ot', { sessionId: a.id, version: 1, extraOut: '21:00', reason: 'Four hours' })).status,
     200
@@ -316,7 +316,7 @@ test('rejected OT frees the budget and editing replaces the target contribution'
     (await call('PUT', '/ot', { sessionId: a.id, version: 2, action: 'reject', note: 'Not worked' })).status,
     200
   );
-  const b = attendance();
+  const b = await attendance();
   const first = await call('POST', '/ot', { sessionId: b.id, version: 1, extraOut: '21:00', reason: 'Actual four hours' });
   assert.equal(first.status, 200);
   const second = await call('POST', '/ot', {
@@ -326,7 +326,7 @@ test('rejected OT frees the budget and editing replaces the target contribution'
     reason: 'Correct to three hours'
   });
   assert.equal(second.status, 200);
-  const pending = store.getSession(b.id).entry;
+  const pending = (await store.getSession(b.id)).entry;
   assert.equal(pending.otDeclarationHistory.length, 1);
   assert.equal(pending.otDeclarationHistory[0].review, null);
   assert.equal(pending.otHistory, undefined);
@@ -340,15 +340,15 @@ test('rejected OT frees the budget and editing replaces the target contribution'
   assert.equal(again.data.code, 'DAY_HOURS_CAP');
 });
 test('multiple confirmed sessions for one holiday shift consume the holiday budget once', async () => {
-  store.setSetting('holidays', ['2026-10-01']);
-  attendance('worker', '2026-10-01', { in: '08:00:00', out: '12:00:00' });
-  attendance('worker', '2026-10-01', { in: '13:00:00', out: '17:00:00' });
+  await store.setSetting('holidays', ['2026-10-01']);
+  await attendance('worker', '2026-10-01', { in: '08:00:00', out: '12:00:00' });
+  await attendance('worker', '2026-10-01', { in: '13:00:00', out: '17:00:00' });
   // 9 giờ ngày lễ tính một lần + 4 + 3 = 16 giờ
   for (const [date, extraOut] of [
     ['2026-10-02', '21:00'],
     ['2026-10-03', '20:00']
   ]) {
-    const session = attendance('worker', date);
+    const session = await attendance('worker', date);
     const r = await call('POST', '/ot', {
       sessionId: session.id,
       version: 1,
@@ -360,19 +360,19 @@ test('multiple confirmed sessions for one holiday shift consume the holiday budg
 });
 // Khai lại OT sau khi đã duyệt: bỏ kết quả duyệt cũ, thêm vào lịch sử khai và duyệt lại được
 test('redeclared OT keeps the declaration audit and can be approved again', async () => {
-  const session = attendance();
+  const session = await attendance();
   assert.equal(
     (await call('POST', '/ot', { sessionId: session.id, version: 1, extraOut: '19:00', reason: 'Extra work' })).status,
     200
   );
   assert.equal((await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'approve' })).status, 200);
-  const approved = store.getSession(session.id).entry;
+  const approved = (await store.getSession(session.id)).entry;
   assert.equal(
     (await call('POST', '/ot', { sessionId: session.id, version: 3, extraOut: '18:00', reason: 'Correct declaration' }))
       .status,
     200
   );
-  const current = store.getSession(session.id);
+  const current = await store.getSession(session.id);
   assert.equal(current.entry.otReview, undefined);
   assert.ok(current.entry.otDeclarationHistory.length > (approved.otDeclarationHistory || []).length);
   assert.equal(

@@ -18,8 +18,8 @@ const freshWindow = () => {
   clock += 20 * MINUTE;
 };
 
-function person(username, { role = 'staff', type = 'nv', startDate = '2026-01-01' } = {}) {
-  store.upsertStaff({
+async function person(username, { role = 'staff', type = 'nv', startDate = '2026-01-01' } = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role,
@@ -47,25 +47,25 @@ function history(username) {
     ])
   );
 }
-function seedHistory(username) {
-  store.setSheet(username, '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 80, 1000000);
-  store.setSlipOverride(username, '2026-10', { tax: 12345 }, 'admin');
-  insertLegacyAttendanceDay(store, username, '2026-10-07', { kind: 'work', in: '08:00', out: '17:00' });
-  store.createSession(username, '2026-10-06', 'closed', { kind: 'work', in: '08:00', out: '17:00' });
-  store.addPunch(username, '2026-10-07T01:00:00.000Z', 'in', null, false, null);
-  store.addCorrection({
+async function seedHistory(username) {
+  await store.setSheet(username, '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 80, 1000000);
+  await store.setSlipOverride(username, '2026-10', { tax: 12345 }, 'admin');
+  await insertLegacyAttendanceDay(store, username, '2026-10-07', { kind: 'work', in: '08:00', out: '17:00' });
+  await store.createSession(username, '2026-10-06', 'closed', { kind: 'work', in: '08:00', out: '17:00' });
+  await store.addPunch(username, '2026-10-07T01:00:00.000Z', 'in', null, false, null);
+  await store.addCorrection({
     username,
     date: '2026-10-07',
     reqIn: '2026-10-07T01:00:00.000Z',
     reqOut: '2026-10-07T10:00:00.000Z',
     reason: 'Quên bấm'
   });
-  store.savePunchRequest(username, 'req-1', 'in', null, { ok: true });
+  await store.savePunchRequest(username, 'req-1', 'in', null, { ok: true });
 }
 async function call(method, route, { who = 'admin', cookie, body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (cookie !== undefined) headers.Cookie = cookie;
-  else if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  else if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -95,10 +95,10 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [...HISTORY_TABLES, 'staff', 'settings']) store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', startDate: null });
-  person('worker');
+  await person('admin', { role: 'admin', type: 'tts', startDate: null });
+  await person('worker');
   freshWindow();
 });
 after(async () => {
@@ -149,7 +149,7 @@ test('N6: đổi chữ hoa / thêm khoảng trắng vào tên đăng nhập khô
   assert.equal((await right(' WORKER ')).status, 429);
 });
 test('N6: khoá một tên đăng nhập không chặn tên đăng nhập khác từ cùng địa chỉ', async () => {
-  person('other');
+  await person('other');
   for (let i = 0; i < 5; i++) await wrong('worker');
   assert.equal((await wrong('worker')).status, 429);
   const r = await right('other');
@@ -220,13 +220,13 @@ test('N6 (giữ nguyên): POST /api/logout không có cookie vẫn trả 200', a
 
 /* ---------- khoá tài khoản thay cho xoá ---------- */
 test('Q5: PUT /staff/:username với locked:true khoá tài khoản và giữ nguyên toàn bộ lịch sử lương', async () => {
-  seedHistory('worker');
-  const before = history('worker');
+  await seedHistory('worker');
+  const before = await history('worker');
   for (const table of HISTORY_TABLES) assert.ok(before[table].length > 0, 'dữ liệu mẫu thiếu bảng ' + table);
   const r = await call('PUT', '/staff/worker', { body: { locked: true } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(store.getStaff('worker'), 'tài khoản vẫn còn trong DB');
-  assert.deepEqual(history('worker'), before);
+  assert.ok(await store.getStaff('worker'), 'tài khoản vẫn còn trong DB');
+  assert.deepEqual(await history('worker'), before);
 });
 test('Q5: GET /api/staff cho thấy tài khoản đã khoá (locked: true), tài khoản khác thì không', async () => {
   await call('PUT', '/staff/worker', { body: { locked: true } });
@@ -236,7 +236,7 @@ test('Q5: GET /api/staff cho thấy tài khoản đã khoá (locked: true), tài
   assert.ok(!(await staffEntry('admin')).locked);
 });
 test('Q5: Admin vẫn đọc được bảng chấm công của tài khoản đã khoá', async () => {
-  seedHistory('worker');
+  await seedHistory('worker');
   await call('PUT', '/staff/worker', { body: { locked: true } });
   const r = await call('GET', '/sheet?month=2026-10&user=worker');
   assert.equal(r.status, 200, JSON.stringify(r.data));
@@ -260,32 +260,32 @@ test('Q5 (giữ nguyên): cookie cấp trước khi khoá bị từ chối (401)
   assert.equal(r.status, 401, JSON.stringify(r.data));
 });
 test('Q5: PUT /staff/:username với locked:false mở khoá, giữ lịch sử, và đăng nhập lại được', async () => {
-  seedHistory('worker');
-  const before = history('worker');
+  await seedHistory('worker');
+  const before = await history('worker');
   await call('PUT', '/staff/worker', { body: { locked: true } });
   const r = await call('PUT', '/staff/worker', { body: { ...profile, locked: false } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(!(await staffEntry('worker')).locked);
-  assert.deepEqual(history('worker'), before);
+  assert.deepEqual(await history('worker'), before);
   const again = await right('worker');
   assert.equal(again.status, 200, JSON.stringify(again.data));
 });
 test('Q5: PUT chỉ có {locked:false} mở khoá được kể cả khi tài khoản chưa có ngày vào làm', async () => {
-  person('no.start', { startDate: null });
+  await person('no.start', { startDate: null });
   await call('PUT', '/staff/no.start', { body: { locked: true } });
   const r = await call('PUT', '/staff/no.start', { body: { locked: false } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(!(await staffEntry('no.start')).locked);
-  assert.equal(store.getStaff('no.start').startDate, null, 'không đổi gì khác trong hồ sơ');
-  assert.equal(store.getStaff('no.start').name, 'no.start');
+  assert.equal((await store.getStaff('no.start')).startDate, null, 'không đổi gì khác trong hồ sơ');
+  assert.equal((await store.getStaff('no.start')).name, 'no.start');
   assert.equal((await right('no.start')).status, 200);
 });
 test('Q5: PUT chỉ có {locked:true} khoá được tài khoản, không đổi gì khác và không cần ngày vào làm', async () => {
-  person('no.start2', { startDate: null });
+  await person('no.start2', { startDate: null });
   const r = await call('PUT', '/staff/no.start2', { body: { locked: true } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal((await staffEntry('no.start2')).locked, true);
-  assert.equal(store.getStaff('no.start2').name, 'no.start2');
+  assert.equal((await store.getStaff('no.start2')).name, 'no.start2');
   assert.equal((await right('no.start2')).status, 403);
 });
 test('Q5: Admin gửi chỉ {locked:true} cho chính mình cũng bị từ chối (400)', async () => {
@@ -315,13 +315,13 @@ test('Q5: Admin gửi locked:true cho chính mình qua PUT cũng bị từ chố
   assert.ok(!(await staffEntry('admin')).locked);
 });
 test('Q5 (giữ nguyên): nhân sự thường không khoá được ai (403)', async () => {
-  person('peer');
+  await person('peer');
   const lock = await call('PUT', '/staff/peer', { who: 'worker', body: { locked: true } });
   assert.equal(lock.status, 403, JSON.stringify(lock.data));
   assert.ok(!(await staffEntry('peer')).locked);
 });
 test('Q5: nhân sự thường không tự mở khoá được tài khoản đã khoá (403, vẫn khoá)', async () => {
-  person('peer');
+  await person('peer');
   await call('PUT', '/staff/peer', { body: { locked: true } });
   const unlock = await call('PUT', '/staff/peer', { who: 'worker', body: { ...profile, locked: false } });
   assert.equal(unlock.status, 403, JSON.stringify(unlock.data));
@@ -332,11 +332,11 @@ test('Q5 (giữ nguyên): khoá tài khoản không tồn tại trả 404', asyn
   assert.equal(r.status, 404, JSON.stringify(r.data));
 });
 test('Q5 (giữ nguyên): khoá một tài khoản không ảnh hưởng lịch sử và đăng nhập của người khác', async () => {
-  person('peer');
-  seedHistory('peer');
-  const peerBefore = history('peer');
+  await person('peer');
+  await seedHistory('peer');
+  const peerBefore = await history('peer');
   await call('PUT', '/staff/worker', { body: { locked: true } });
-  assert.deepEqual(history('peer'), peerBefore);
+  assert.deepEqual(await history('peer'), peerBefore);
   assert.equal((await right('peer')).status, 200);
 });
 
@@ -361,19 +361,19 @@ for (const type of ['ctv', 'nv']) {
       const r = await call('PUT', '/staff/new.' + type, { body: newcomer(type, extra) });
       assert.equal(r.status, 200, JSON.stringify(r.data));
       assert.ok(startDateWarned(r), JSON.stringify(r.data.warnings));
-      assert.equal(store.getStaff('new.' + type).startDate, null);
+      assert.equal((await store.getStaff('new.' + type)).startDate, null);
     });
   }
   test(`Q6 (giữ nguyên): tạo tài khoản ${type.toUpperCase()} có startDate không hợp lệ bị từ chối 400`, async () => {
     const r = await call('PUT', '/staff/new.' + type, { body: newcomer(type, { startDate: '2026-13-45' }) });
     assert.equal(r.status, 400, JSON.stringify(r.data));
-    assert.equal(store.getStaff('new.' + type), undefined);
+    assert.equal(await store.getStaff('new.' + type), undefined);
   });
   test(`Q6: tạo tài khoản ${type.toUpperCase()} có startDate hợp lệ thành công, không cảnh báo`, async () => {
     const r = await call('PUT', '/staff/new.' + type, { body: newcomer(type, { startDate: '2026-10-01' }) });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.equal(startDateWarned(r), false);
-    assert.equal(store.getStaff('new.' + type).startDate, '2026-10-01');
+    assert.equal((await store.getStaff('new.' + type)).startDate, '2026-10-01');
   });
 }
 for (const type of ['ctv', 'nv']) {
@@ -383,25 +383,25 @@ for (const type of ['ctv', 'nv']) {
     ['startDate là null', null]
   ]) {
     test(`Q6: sửa tài khoản ${type.toUpperCase()} hiện có mà ${label} vẫn lưu, kèm cảnh báo START_DATE_REQUIRED`, async () => {
-      person('veteran', { type, startDate: '2026-02-02' });
+      await person('veteran', { type, startDate: '2026-02-02' });
       const body = { ...profile, type, ...(extra === 'omit' ? {} : { startDate: extra }) };
       if (extra === 'omit') delete body.startDate;
       const r = await call('PUT', '/staff/veteran', { body });
       assert.equal(r.status, 200, JSON.stringify(r.data));
       assert.ok(startDateWarned(r), JSON.stringify(r.data.warnings));
-      assert.equal(store.getStaff('veteran').startDate, null);
+      assert.equal((await store.getStaff('veteran')).startDate, null);
     });
   }
 }
 test('Q6 (giữ nguyên): sửa tài khoản NV với startDate mới hợp lệ vẫn thành công', async () => {
   const r = await call('PUT', '/staff/worker', { body: { ...profile, startDate: '2026-03-03' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getStaff('worker').startDate, '2026-03-03');
+  assert.equal((await store.getStaff('worker')).startDate, '2026-03-03');
 });
 test('Q6: TTS được bỏ trống ngày vào làm (tạo mới và sửa)', async () => {
   const created = await call('PUT', '/staff/new.intern', { body: newcomer('tts') });
   assert.equal(created.status, 200, JSON.stringify(created.data));
-  assert.equal(store.getStaff('new.intern').startDate, null);
+  assert.equal((await store.getStaff('new.intern')).startDate, null);
   const updated = await call('PUT', '/staff/new.intern', {
     body: { name: 'Đổi tên', role: 'staff', type: 'tts', level: 1 }
   });

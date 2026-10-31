@@ -8,21 +8,21 @@ const MONTH = '2026-10';
 
 before(async () => {
   await F.start();
-  F.at('2026-10-14T12:00:00');
-  F.person('an');
-  F.person('binh');
-  F.person('admin', 'admin');
+  await F.at('2026-10-14T12:00:00');
+  await F.person('an');
+  await F.person('binh');
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
 // Check-out muộn chỉ có hiệu lực khi Admin duyệt giải trình: lượt thành "Quên Check-out", giờ bấm chỉ được ghi nhận
 // (entry.requestedOut + dòng punches), Admin duyệt thì giờ đó mới là giờ ra.
 test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên Check-out chờ Admin duyệt; muộn trong 30 phút thì Check-out bình thường', async () => {
-  F.at('2026-10-14T08:00:00');
+  await F.at('2026-10-14T08:00:00');
   const inRes = await F.call('POST', '/punch', { who: 'binh', body: { type: 'in', requestId: 'late-in-1' } });
   assert.equal(inRes.status, 200, JSON.stringify(inRes.data));
   const sessionId = inRes.data.open.id;
-  F.at('2026-10-14T17:50:00'); // ca n1 kết thúc 17:00: muộn 50 phút
+  await F.at('2026-10-14T17:50:00'); // ca n1 kết thúc 17:00: muộn 50 phút
   const blocked = await F.call('POST', '/punch', {
     who: 'binh',
     body: { type: 'out', sessionId, requestId: 'late-out-1' }
@@ -45,14 +45,14 @@ test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên 
   assert.equal(done.data.pending, 'forgot-out');
   // Admin thấy giải trình; chưa duyệt thì ngày đó bị giữ lương, duyệt xong thì hết giữ; không duyệt thì vẫn giữ; nhân sự không tự duyệt được
   const explanations = require('../../lib/explanations');
-  const heldDates = month =>
-    new Map([...explanations.heldByUser(month)].map(([username, days]) => [username, days.map(d => d.date)]));
+  const heldDates = async month =>
+    new Map([...await explanations.heldByUser(month)].map(([username, days]) => [username, days.map(d => d.date)]));
   const seen = await F.call('GET', '/explanations?status=answered', { who: 'admin' });
   assert.equal(seen.data.items.length, 1);
   assert.equal(seen.data.toRead, 1);
-  assert.equal(seen.data.items[0].requestedOut, F.store.getSession(sessionId).entry.requestedOut);
+  assert.equal(seen.data.items[0].requestedOut, (await F.store.getSession(sessionId)).entry.requestedOut);
   const id = seen.data.items[0].id;
-  assert.deepEqual(heldDates(MONTH).get('binh'), ['2026-10-14']);
+  assert.deepEqual((await heldDates(MONTH)).get('binh'), ['2026-10-14']);
   assert.equal(
     (await F.call('POST', `/explanations/${id}/decide`, { who: 'binh', body: { approve: true } })).status,
     403
@@ -62,20 +62,20 @@ test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên 
     body: { approve: false, note: 'Không có lệnh làm thêm' }
   });
   assert.equal(rejected.data.item.status, 'rejected');
-  assert.equal(F.store.getSession(sessionId).entry.reason, 'forgot-out'); // không duyệt: lượt giữ Quên Check-out
+  assert.equal((await F.store.getSession(sessionId)).entry.reason, 'forgot-out'); // không duyệt: lượt giữ Quên Check-out
   // bộ tính lương nhận ngày bị giữ: người này có explanationHold, người khác thì không
-  const held = require('../../lib/payroll-service').loadInputs(MONTH, { usernames: ['binh', 'an'] });
+  const held = await require('../../lib/payroll-service').loadInputs(MONTH, { usernames: ['binh', 'an'] });
   assert.deepEqual(held.people.get('binh').explanationHold, ['2026-10-14']);
   assert.equal(held.people.get('an').explanationHold, undefined);
-  assert.deepEqual(heldDates(MONTH).get('binh'), ['2026-10-14']); // không duyệt: ngày đó vẫn không tính lương
+  assert.deepEqual((await heldDates(MONTH)).get('binh'), ['2026-10-14']); // không duyệt: ngày đó vẫn không tính lương
   const approved = await F.call('POST', `/explanations/${id}/decide`, { who: 'admin', body: { approve: true } });
   assert.equal(approved.data.item.status, 'approved');
-  assert.equal(F.store.getSession(sessionId).entry.presOut, new Date('2026-10-14T10:50:00Z').toISOString()); // duyệt: giờ bấm thành giờ ra
-  assert.equal(heldDates(MONTH).has('binh'), false);
+  assert.equal((await F.store.getSession(sessionId)).entry.presOut, new Date('2026-10-14T10:50:00Z').toISOString()); // duyệt: giờ bấm thành giờ ra
+  assert.equal((await heldDates(MONTH)).has('binh'), false);
   // muộn 20 phút: không bị chặn
-  F.at('2026-10-15T08:00:00');
+  await F.at('2026-10-15T08:00:00');
   const in2 = await F.call('POST', '/punch', { who: 'binh', body: { type: 'in', requestId: 'late-in-2' } });
-  F.at('2026-10-15T17:20:00');
+  await F.at('2026-10-15T17:20:00');
   const out2 = await F.call('POST', '/punch', {
     who: 'binh',
     body: { type: 'out', sessionId: in2.data.open.id, requestId: 'late-out-2' }

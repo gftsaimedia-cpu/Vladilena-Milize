@@ -17,9 +17,9 @@ after(F.stop);
 
 const view = async month => (await F.call('GET', `/periods/${month}`)).data;
 const list = async (month, query = '', who = 'admin') =>
-  F.call('GET', `/periods/${month}/payslips?pageSize=200${query}`, { who });
-const estimates = (month, query = '', who = 'admin') =>
-  F.call('GET', `/periods/${month}/estimates${query ? '?' + query : ''}`, { who });
+  await F.call('GET', `/periods/${month}/payslips?pageSize=200${query}`, { who });
+const estimates = async (month, query = '', who = 'admin') =>
+  await F.call('GET', `/periods/${month}/estimates${query ? '?' + query : ''}`, { who });
 // options rỗng: test lọc ?type= luôn chạy
 const typeFilterWired = {};
 const estimatesWired = P.pendingUnless(
@@ -27,7 +27,7 @@ const estimatesWired = P.pendingUnless(
   P.mentions('lib/authz.js', /periods\/:month\/estimates/)
 );
 const SUM_KEYS = ['gross', 'insurance', 'tax', 'advance', 'net'];
-const dbSlips = month => Object.values(flow.payslipsOf(month).slips);
+const dbSlips = async month => Object.values((await flow.payslipsOf(month)).slips);
 const sumOf = (rows, key) => rows.reduce((t, r) => t + (typeof r[key] === 'number' ? r[key] : 0), 0);
 
 /* ================= view: totals, attendanceKept, needsRecalculate ================= */
@@ -39,7 +39,7 @@ test('view.totals là tổng các số đồng nguyên đã lưu trên từng ph
   assert.equal((await view(M)).totals, null);
   P.must(await P.step(M, 'calculate'), 'tính lương');
   let totals = (await view(M)).totals;
-  const slips = dbSlips(M);
+  const slips = await dbSlips(M);
   assert.equal(totals.people, 4);
   for (const key of SUM_KEYS) assert.equal(totals[key], sumOf(slips, key), key);
   assert.deepEqual([totals.draft, totals.pending, totals.approved, totals.error], [4, 0, 0, 0]);
@@ -56,12 +56,12 @@ test('view.totals là tổng các số đồng nguyên đã lưu trên từng ph
 test('view.totals: phiếu lỗi được đếm là error và cộng 0 vào tiền (không bao giờ thành số tiền giả); các phiếu khác vẫn cộng', async () => {
   const M = monthOf();
   await P.seed(M);
-  store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
+  await store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   P.must(await P.step(M, 'calculate'), 'tính lương');
   const totals = (await view(M)).totals;
   assert.deepEqual([totals.people, totals.error, totals.draft], [4, 1, 3]);
-  const good = dbSlips(M).filter(s => s.status !== 'error');
+  const good = (await dbSlips(M)).filter(s => s.status !== 'error');
   assert.equal(good.length, 3);
   for (const key of SUM_KEYS) assert.equal(totals[key], sumOf(good, key), key);
 });
@@ -70,7 +70,7 @@ test('view.attendanceKept { kept, of }: of là số người có phụ cấp chu
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
   const kept = (await view(M)).attendanceKept;
-  const nv = dbSlips(M).filter(s => s.terms.type === 'nv');
+  const nv = (await dbSlips(M)).filter(s => s.terms.type === 'nv');
   assert.equal(kept.of, nv.length, 'chỉ NV có phụ cấp chuyên cần');
   assert.equal(kept.kept, nv.filter(s => s.snapshot.attendOk === true).length);
   assert.ok(kept.kept <= kept.of);
@@ -111,7 +111,7 @@ test('Hàng phiếu có tên, loại, bậc, số ngày công và các dòng ti�
   const res = await list(M);
   assert.equal(res.status, 200);
   assert.equal(res.data.rows.length, 4);
-  const db = flow.payslipsOf(M).slips;
+  const db = (await flow.payslipsOf(M)).slips;
   for (const row of res.data.rows) {
     const snap = db[row.username].snapshot;
     assert.equal(row.name, `Người thử ${row.username}`);
@@ -134,7 +134,7 @@ test('Hàng phiếu có tên, loại, bậc, số ngày công và các dòng ti�
 test('Phiếu lỗi: hàng có mã và chi tiết lỗi, các dòng tiền là null (không 0), không có workDays', async () => {
   const M = monthOf();
   await P.seed(M);
-  store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
+  await store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   P.must(await P.step(M, 'calculate'), 'tính lương');
   const row = (await list(M)).data.rows.find(r => r.username === 'qa_ctv1');
@@ -197,10 +197,10 @@ test(
   async () => {
     const M = monthOf();
     await P.seed(M);
-    const before = F.snapshot();
+    const before = await F.snapshot();
     const res = await estimates(M);
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-    assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'không ghi gì');
+    assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'không ghi gì');
     assert.equal(res.data.source, 'estimate');
     assert.equal(res.data.run, null);
     assert.equal(res.data.period.status, 'open');
@@ -259,8 +259,8 @@ test(
   async () => {
     const M = monthOf();
     await P.seed(M);
-    store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
-    store.db.prepare("UPDATE staff SET type = 'xyz' WHERE username = 'qa_tts1'").run();
+    await store.db.prepare("UPDATE staff SET level = 99 WHERE username = 'qa_ctv1'").run();
+    await store.db.prepare("UPDATE staff SET type = 'xyz' WHERE username = 'qa_tts1'").run();
     const res = (await estimates(M)).data;
     const bad = res.rows.find(r => r.username === 'qa_ctv1');
     assert.deepEqual([bad.status, bad.errorCode], ['error', 'PAYROLL_BAD_LEVEL']);
@@ -321,9 +321,9 @@ test(
   async () => {
     const M = monthOf();
     await P.seed(M);
-    P.grant('qa_nv1', 'cb');
-    P.grant('qa_ctv1', 'accounting');
-    P.grant('qa_nv2', 'hr');
+    await P.grant('qa_nv1', 'cb');
+    await P.grant('qa_ctv1', 'accounting');
+    await P.grant('qa_nv2', 'hr');
     for (const who of ['admin', 'qa_nv1', 'qa_ctv1']) assert.equal((await estimates(M, '', who)).status, 200, who);
     for (const who of ['qa_nv2', 'qa_tts1']) {
       const res = await estimates(M, '', who);

@@ -60,7 +60,7 @@ function sqlQuote(s) {
   return "'" + s.replaceAll("'", "''") + "'";
 }
 
-function backup({ dbPath, outDir, keep, now = Date.now(), publicDir = PUBLIC_DIR }) {
+async function backup({ dbPath, outDir, keep, now = Date.now(), publicDir = PUBLIC_DIR }) {
   if (!dbPath) throw new BackupError('Thiếu DB_PATH: đặt đường dẫn file DB cần sao lưu.');
   if (dbPath === ':memory:' || dbPath.startsWith('file:')) throw new BackupError('DB_PATH phải là file trên đĩa.');
   if (!outDir) throw new BackupError('Thiếu thư mục sao lưu (tham số dòng lệnh hoặc BACKUP_DIR).');
@@ -86,13 +86,13 @@ function backup({ dbPath, outDir, keep, now = Date.now(), publicDir = PUBLIC_DIR
   let copy;
   try {
     db = new DatabaseSync(src, { readOnly: true });
-    db.exec('PRAGMA busy_timeout = 10000');
-    db.exec('VACUUM INTO ' + sqlQuote(tmpPath));
+    await db.exec('PRAGMA busy_timeout = 10000');
+    await db.exec('VACUUM INTO ' + sqlQuote(tmpPath));
     db.close();
     db = null;
 
     copy = new DatabaseSync(tmpPath, { readOnly: true });
-    const check = copy.prepare('PRAGMA integrity_check').all();
+    const check = await copy.prepare('PRAGMA integrity_check').all();
     copy.close();
     copy = null;
     if (check.length !== 1 || check[0].integrity_check !== 'ok')
@@ -123,10 +123,10 @@ function backup({ dbPath, outDir, keep, now = Date.now(), publicDir = PUBLIC_DIR
   return { name, size: fs.statSync(finalPath).size, removed: stale.length, kept: copies.length - stale.length };
 }
 
-function main() {
+async function main() {
   try {
     const outDir = process.argv[2] || process.env.BACKUP_DIR || path.join(REPO_ROOT, 'backups');
-    const r = backup({ dbPath: process.env.DB_PATH, outDir, keep: process.env.BACKUP_KEEP });
+    const r = await backup({ dbPath: process.env.DB_PATH, outDir, keep: process.env.BACKUP_KEEP });
     console.log('Đã sao lưu: ' + r.name + ' (' + r.size + ' byte)');
     console.log('Đang giữ ' + r.kept + ' bản' + (r.removed ? ', đã xoá ' + r.removed + ' bản cũ.' : '.'));
   } catch (err) {
@@ -135,6 +135,10 @@ function main() {
   }
 }
 
-if (require.main === module) main();
+if (require.main === module)
+  main().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });
 
 module.exports = { backup, vnStamp, BackupError, NAME_PATTERN };

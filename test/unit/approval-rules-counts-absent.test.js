@@ -34,17 +34,17 @@ function month(params, approvals = {}) {
   return out.m;
 }
 
-test('chuyên cần: mặc định mọi loại tính là ngày nghỉ (đúng như trước khi có tuỳ chọn)', () => {
+test('chuyên cần: mặc định mọi loại tính là ngày nghỉ (đúng như trước khi có tuỳ chọn)', async () => {
   for (const item of ApprovalView.ITEMS) assert.equal(D[`request.type.${item}.countsAbsent`], true, item);
   assert.equal(ApprovalView.COUNTS_ABSENT.approved, true);
-  const m = month(D);
+  const m = await month(D);
   assert.equal(m.unpaid, 1, 'khoản chưa duyệt thành nghỉ không lương');
   assert.equal(m.absent, 1);
 });
 
-test('chuyên cần: tắt "tính là ngày nghỉ" của Nghỉ được duyệt thì ngày đó không vào ngày nghỉ và giờ vượt ngưỡng, lương ngày vẫn mất', () => {
-  const on = month(D);
-  const off = month({ ...D, 'request.type.approved.countsAbsent': false });
+test('chuyên cần: tắt "tính là ngày nghỉ" của Nghỉ được duyệt thì ngày đó không vào ngày nghỉ và giờ vượt ngưỡng, lương ngày vẫn mất', async () => {
+  const on = await month(D);
+  const off = await month({ ...D, 'request.type.approved.countsAbsent': false });
   assert.equal(off.absent, on.absent - 1);
   assert.equal(off.unpaid, on.unpaid, 'vẫn là ngày nghỉ không lương (không lương ngày)');
   assert.equal(off.base, on.base, 'lương cơ bản của ngày đi làm không đổi');

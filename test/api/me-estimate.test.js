@@ -20,27 +20,27 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const estimate = (month, who = 'qa_nv1', query = '') => F.call('GET', `/me/estimate?month=${month}${query}`, { who });
-const setParam = (key, month, valueJson) =>
-  store.db
+const estimate = async (month, who = 'qa_nv1', query = '') => await F.call('GET', `/me/estimate?month=${month}${query}`, { who });
+const setParam = async (key, month, valueJson) =>
+  await store.db
     .prepare(
       'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )
     .run(key, month, valueJson, 'Thử tham số cho test ước tính', 'admin', new Date(Date.now()).toISOString());
 // Chạy fn với params_mode = active, trả về chế độ cũ
 async function withActiveParams(fn) {
-  store.setSetting('params_mode', 'active');
+  await store.setSetting('params_mode', 'active');
   try {
     return await fn();
   } finally {
-    store.setSetting('params_mode', 'defaults-only');
+    await store.setSetting('params_mode', 'defaults-only');
   }
 }
 // Kết quả của bộ máy lương chung (cũng là bộ máy tính phiếu) trên đầu vào đọc thẳng từ DB, không qua đường nạp của route; upTo null là cả tháng
-const engineFull = (username, month, upTo = null) => {
-  const input = flow.legacyInput(username, month);
+const engineFull = async (username, month, upTo = null) => {
+  const input = await flow.legacyInput(username, month);
   input.upTo = upTo;
-  return service.engineFor(service.paramsFor(month).params).computeMonth(input).m;
+  return service.engineFor((await service.paramsFor(month)).params).computeMonth(input).m;
 };
 // Phản hồi qua JSON (-0 thành 0, bỏ undefined) để so với kết quả bộ máy
 const viaJson = value => JSON.parse(JSON.stringify(value));
@@ -93,7 +93,7 @@ test('Người không được trả lương (Admin) nhận payrollSubject:false
 test('Nhân sự chưa bắt đầu làm trong tháng nhận estimate:null, reason NOT_STARTED', async () => {
   const M = monthOf();
   await P.seed(M);
-  F.person('qa_late', 'staff', { type: 'nv', level: 1, startDate: '2999-01-01' });
+  await F.person('qa_late', 'staff', { type: 'nv', level: 1, startDate: '2999-01-01' });
   const res = await estimate(M, 'qa_late');
   assert.equal(res.status, 200);
   assert.equal(res.data.estimate, null);
@@ -120,7 +120,7 @@ test('Số ước tính của cả bốn người (TTS, CTV, hai NV) bằng đú
   await P.seed(M);
   for (const { username } of flow.PEOPLE) {
     const body = (await estimate(M, username)).data;
-    const want = engineFull(username, M);
+    const want = await engineFull(username, M);
     assert.equal(body.estimate, true, username);
     assert.equal(body.source, 'estimate');
     assert.equal(body.official, false);
@@ -143,10 +143,10 @@ test('Số ước tính của cả bốn người (TTS, CTV, hai NV) bằng đú
 test('Một ca cụ thể: NV level 1, 20 ngày chấm đủ ca, không KPI: tổng thu nhập 5.307.693 ₫ (chuyên cần mất vì 6 ngày công chuẩn vắng), bảo hiểm 630.000 ₫, thuế 0', async () => {
   const M = monthOf();
   await P.seed(M);
-  store.setSetting('holidays', []); // ngày lễ có lương làm số ngày trả lệch khỏi số ngày làm
-  F.person('qa_exact', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
+  await store.setSetting('holidays', []); // ngày lễ có lương làm số ngày trả lệch khỏi số ngày làm
+  await F.person('qa_exact', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
   const PunchRules = require('../../public/punch.js');
-  const holidays = store.getSetting('holidays', []);
+  const holidays = await store.getSetting('holidays', []);
   const [tin, tout] = PunchRules.SHIFT.n1;
   const workDates = Array.from({ length: 31 }, (_, i) => `${M}-${String(i + 1).padStart(2, '0')}`).filter(d => {
     const day = new Date(d + 'T00:00:00Z'); // ngày không có trong tháng (31 của tháng 30 ngày) bị loại
@@ -163,7 +163,7 @@ test('Một ca cụ thể: NV level 1, 20 ngày chấm đủ ca, không KPI: t�
       plannedShift: plan,
       approveIncomplete: true
     }).entry;
-    store.createSession('qa_exact', plan.date, 'closed', entry);
+    await store.createSession('qa_exact', plan.date, 'closed', entry);
   }
   const body = (await estimate(M, 'qa_exact', '&rows=0')).data;
   // lương cơ bản 6.000.000 ₫; ngày công chuẩn NV 26; đi lại 15 %, chuyên cần 25 % (TYPES.nv); mỗi dòng tiền làm tròn đồng một lần
@@ -177,7 +177,7 @@ test('Một ca cụ thể: NV level 1, 20 ngày chấm đủ ca, không KPI: t�
   assert.equal(body.net.net, body.net.gross - body.net.insurance - body.net.tax - body.net.advance);
   assert.equal(body.m.paidDays, 20, 'chỉ 20 ngày chấm công là ngày có lương');
   assert.equal(body.net.noPayDays, 6, 'ngày công chuẩn 26 trừ 20 ngày có lương');
-  assert.deepEqual(body.net, viaJson(engineFull('qa_exact', M).net), 'bằng bộ máy chung trên cùng đầu vào');
+  assert.deepEqual(body.net, viaJson((await engineFull('qa_exact', M)).net), 'bằng bộ máy chung trên cùng đầu vào');
 });
 
 /* ================= tháng hiện tại tính tới hôm nay ================= */
@@ -186,18 +186,18 @@ test('Tháng hiện tại (đồng hồ giả): m, net và trace tính cả thá
   await P.seed(M);
   const full = (await estimate(M, 'qa_nv1')).data; // đồng hồ ở ngày 02 tháng sau: tháng đã qua
   assert.equal(full.toDate, null);
-  assert.equal(full.m.total, engineFull('qa_nv1', M).total);
+  assert.equal(full.m.total, (await engineFull('qa_nv1', M)).total);
 
   const middle = `${M}-15`;
-  F.at(`${middle}T10:00:00`);
+  await F.at(`${middle}T10:00:00`);
   const body = (await estimate(M, 'qa_nv1', '&rows=1')).data;
   // Ngày công là ngày có Check-in/out: các lượt sau hôm nay chưa tồn tại nên ngày chưa tới chờ (không tính vắng, không trả tiền); phép đã khai vẫn có lương
   assert.ok(body.m.count < full.m.count, `giữa tháng: ${body.m.count} ngày công < cả tháng ${full.m.count}`);
   assert.ok(body.m.total < full.m.total);
   assert.equal(body.m.noshow, 0, 'ngày chưa tới không phải ngày vắng');
   assert.ok(body.m.pending > 0, 'ngày chưa tới chờ');
-  assert.equal(body.m.total, engineFull('qa_nv1', M).total, 'm bằng bộ máy chung trên cùng đồng hồ');
-  assert.deepEqual(body.net, viaJson(engineFull('qa_nv1', M).net), 'bảo hiểm, thuế, thực lĩnh tính trên cả tháng');
+  assert.equal(body.m.total, (await engineFull('qa_nv1', M)).total, 'm bằng bộ máy chung trên cùng đồng hồ');
+  assert.deepEqual(body.net, viaJson((await engineFull('qa_nv1', M)).net), 'bảo hiểm, thuế, thực lĩnh tính trên cả tháng');
   // tiền ngày của m bằng tổng tiền từng dòng ngày (cả ngày phép đã khai ở nửa sau tháng)
   assert.equal(
     body.m.rows.reduce((sum, row) => sum + row.pay, 0),
@@ -208,7 +208,7 @@ test('Tháng hiện tại (đồng hồ giả): m, net và trace tính cả thá
   assert.ok(body.toDate, 'tháng hiện tại có khối tới-hôm-nay');
   assert.equal(body.toDate.upTo, middle);
   assert.equal(body.toDate.count, body.m.count, 'cùng các ngày đã chấm công');
-  const want = engineFull('qa_nv1', M, middle);
+  const want = await engineFull('qa_nv1', M, middle);
   assert.equal(body.toDate.total, want.total);
   assert.equal(body.toDate.count, want.count);
   assert.equal(body.toDate.gross, want.net.gross);
@@ -217,7 +217,7 @@ test('Tháng hiện tại (đồng hồ giả): m, net và trace tính cả thá
   assert.equal(Object.hasOwn((await estimate(M, 'qa_nv1')).data.toDate, 'rows'), false);
 
   // đầu tháng: ít ngày đã chấm công hơn
-  F.at(`${M}-02T09:00:00`);
+  await F.at(`${M}-02T09:00:00`);
   const early = (await estimate(M, 'qa_nv1')).data;
   assert.ok(early.toDate.count <= body.toDate.count);
   assert.ok(early.m.count <= body.m.count);
@@ -228,7 +228,7 @@ test('allowanceStatus: NV có chuyên cần với ngưỡng bằng đúng tham s
   const M = monthOf();
   await P.seed(M);
   const nv = (await estimate(M, 'qa_nv1')).data;
-  const want = engineFull('qa_nv1', M);
+  const want = await engineFull('qa_nv1', M);
   assert.deepEqual(nv.allowanceStatus, {
     hasAttendance: true,
     absentDays: want.absent,
@@ -267,13 +267,13 @@ test('Mặc định afterPaid: kỳ đã chi trả nhân sự thấy bản chụ
   assert.equal(body.official, true);
   assert.equal(body.estimate, false);
   assert.equal(body.period.status, 'paid');
-  assert.equal(body.net.net, flow.payslipsOf(M).slips.qa_nv1.net, 'số bằng phiếu đã chốt');
+  assert.equal(body.net.net, (await flow.payslipsOf(M)).slips.qa_nv1.net, 'số bằng phiếu đã chốt');
 });
 
 test('Đặt estimateOnly rõ ràng (từ tháng T): kỳ đã chi trả vẫn trả số ước tính (source estimate, official false)', async () => {
   const T = monthOf();
   await P.setupMonth(T, 'paid');
-  setParam('slip.staffVisibleFrom', T, '"estimateOnly"');
+  await setParam('slip.staffVisibleFrom', T, '"estimateOnly"');
   await withActiveParams(async () => {
     const body = (await estimate(T, 'qa_nv1')).data;
     assert.equal(body.source, 'estimate');
@@ -286,7 +286,7 @@ test('Đặt estimateOnly rõ ràng (từ tháng T): kỳ đã chi trả vẫn t
 test('slip.staffVisibleFrom = afterPaid (từ tháng X): chưa chi trả là số ước tính; chi trả rồi là BẢN CHỤP chính thức (official true, estimate false, số bằng phiếu)', async () => {
   const X = monthOf();
   await P.setupMonth(X, 'approved');
-  setParam('slip.staffVisibleFrom', X, '"afterPaid"');
+  await setParam('slip.staffVisibleFrom', X, '"afterPaid"');
   await withActiveParams(async () => {
     const before = (await estimate(X, 'qa_nv1')).data;
     assert.equal(before.source, 'estimate', 'đã duyệt nhưng chưa chi trả');
@@ -297,7 +297,7 @@ test('slip.staffVisibleFrom = afterPaid (từ tháng X): chưa chi trả là s�
     assert.equal(paid.official, true);
     assert.equal(paid.estimate, false);
     assert.equal(paid.label, 'Phiếu lương chính thức');
-    const stored = flow.payslipsOf(X);
+    const stored = await flow.payslipsOf(X);
     assert.equal(paid.paramsHash, stored.run.params_hash, 'băm tham số của lần chạy đã chốt');
     assert.equal(paid.engineVersion, stored.run.engine_version);
     assert.equal(paid.net.net, stored.slips.qa_nv1.net);
@@ -316,7 +316,7 @@ test('slip.staffVisibleFrom = afterPaid (từ tháng X): chưa chi trả là s�
 test('slip.staffVisibleFrom = afterApproval (từ tháng Y): reviewed vẫn ước tính, approved là bản chụp chính thức', async () => {
   const Y = monthOf();
   await P.setupMonth(Y, 'reviewed');
-  setParam('slip.staffVisibleFrom', Y, '"afterApproval"');
+  await setParam('slip.staffVisibleFrom', Y, '"afterApproval"');
   await withActiveParams(async () => {
     assert.equal((await estimate(Y, 'qa_nv1')).data.source, 'estimate');
     P.must(await P.approveAllPending(Y), 'duyệt phiếu');
@@ -325,14 +325,14 @@ test('slip.staffVisibleFrom = afterApproval (từ tháng Y): reviewed vẫn ư�
     const body = (await estimate(Y, 'qa_nv1')).data;
     assert.equal(body.source, 'snapshot');
     assert.equal(body.official, true);
-    assert.equal(body.net.net, flow.payslipsOf(Y).slips.qa_nv1.net);
+    assert.equal(body.net.net, (await flow.payslipsOf(Y)).slips.qa_nv1.net);
   });
 });
 
 test('Bản chụp chính thức theo SỐ CHI TRẢ (16/10/2026): số Admin đã sửa và duyệt là số nhân sự thấy, kèm overridden:true; số tự tính và giá trị ô sửa không lọt ra; phiếu không sửa không có overridden', async () => {
   const Z = monthOf();
   await P.setupMonth(Z, 'reviewed');
-  setParam('slip.staffVisibleFrom', Z, '"afterApproval"');
+  await setParam('slip.staffVisibleFrom', Z, '"afterApproval"');
   await withActiveParams(async () => {
     P.must(
       await F.call('PUT', '/slip-override', {
@@ -343,7 +343,7 @@ test('Bản chụp chính thức theo SỐ CHI TRẢ (16/10/2026): số Admin đ
     P.must(await P.approveAllPending(Z), 'duyệt phiếu');
     P.must(await P.step(Z, 'approve'), 'duyệt kỳ');
     const body = (await estimate(Z, 'qa_nv1')).data;
-    const stored = flow.payslipsOf(Z).slips;
+    const stored = (await flow.payslipsOf(Z)).slips;
     const slip = (await P.slipRows(Z)).find(r => r.username === 'qa_nv1');
     assert.equal(body.source, 'snapshot');
     assert.equal(body.overridden, true);
@@ -365,7 +365,7 @@ test('allowanceStatus lấy ngưỡng từ THAM SỐ của tháng: type.nv.maxAb
   const V = monthOf();
   const W = monthOf();
   await P.seed(W);
-  setParam('type.nv.maxAbsent', W, '2');
+  await setParam('type.nv.maxAbsent', W, '2');
   await withActiveParams(async () => {
     assert.equal((await estimate(V, 'qa_nv1')).data.allowanceStatus.maxAbsent, 3, 'trước hiệu lực');
     const body = (await estimate(W, 'qa_nv1')).data;
@@ -379,7 +379,7 @@ test('allowanceStatus lấy ngưỡng từ THAM SỐ của tháng: type.nv.maxAb
 test('Tháng chưa tới (tương lai) tính cả tháng, không cắt theo hôm nay', async () => {
   const M = monthOf();
   await P.seed(M);
-  F.at('2026-10-05T09:00:00'); // trước tháng M
+  await F.at('2026-10-05T09:00:00'); // trước tháng M
   const body = (await estimate(M, 'qa_nv1')).data;
   // Chưa có Check-in nào nên chưa có ngày công; 3 ngày phép và 1 ngày lễ đã khai vẫn có lương ở cả tháng: 4 × 6.000.000 ÷ 26 = 923.076,92
   // (tháng có quyết toán phép dư thì cộng thêm m.settlePay)

@@ -19,16 +19,16 @@ const TRAVEL = 34615; // phụ cấp đi lại một ngày làm
 
 before(async () => {
   await F.start();
-  F.at(NOW);
+  await F.at(NOW);
   for (const name of ['vang', 'hoi', 'cho', 'duyet', 'tuchoi', 'doi', 'di'])
-    F.person(name, 'staff', { startDate: '2026-10-26' });
-  F.person('admin', 'admin');
-  F.store.setSetting('holidays', []);
+    await F.person(name, 'staff', { startDate: '2026-10-26' });
+  await F.person('admin', 'admin');
+  await F.store.setSetting('holidays', []);
 });
 after(() => F.stop());
 
 const estimate = async who => {
-  F.at(NOW);
+  await F.at(NOW);
   const res = await F.call('GET', `/me/estimate?month=${MONTH}&rows=1`, { who });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const e = res.data;
@@ -36,7 +36,7 @@ const estimate = async who => {
   return { e, row, count: e.m.count, noshow: e.m.noshow, unpaid: e.m.unpaid, dayPay: e.trace.tienNgayCong };
 };
 const ask = async (username, text = 'Em quên bấm') => {
-  F.at(NOW);
+  await F.at(NOW);
   const asked = await F.call('POST', '/explanations', {
     who: 'admin',
     body: { username, date: DAY, prompt: 'Ngày này không có chấm công?' }
@@ -150,7 +150,7 @@ test('Đổi quyết định: duyệt → từ chối → duyệt, số công v�
 });
 
 test('Phiếu trong kỳ: giải trình được duyệt bằng người đi làm đủ ca, còn lại 0 công 0 đồng', async () => {
-  F.at('2026-11-02T09:00:00'); // tháng 10 đã hết
+  await F.at('2026-11-02T09:00:00'); // tháng 10 đã hết
   P.must(await P.step(MONTH, 'lock-attendance'), 'chốt công');
   P.must(await P.step(MONTH, 'calculate'), 'tính lương');
   const slips = Object.fromEntries((await P.slipRows(MONTH)).map(r => [r.username, r]));

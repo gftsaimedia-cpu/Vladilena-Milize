@@ -66,7 +66,7 @@ test('RateLimiter: số khoá có trần', () => {
   assert.equal(limiter.buckets.has('a'), false);
 });
 
-test('LoadShedder: từ chối khi quá tải hoặc vòng lặp nghẽn, nhận khi bình thường', () => {
+test('LoadShedder: từ chối khi quá tải hoặc vòng lặp nghẽn, nhận khi bình thường', async () => {
   const state = { lag: 0, inflight: 0 };
   const shedder = new LoadShedder({
     lagMs: () => state.lag,
@@ -75,12 +75,12 @@ test('LoadShedder: từ chối khi quá tải hoặc vòng lặp nghẽn, nhận
     maxInflight: 10,
     retryAfterSec: 2
   });
-  assert.equal(shedder.check(), null);
+  assert.equal(await shedder.check(), null);
   state.lag = 500;
-  assert.equal(shedder.check(), 'máy chủ đang nghẽn');
+  assert.equal(await shedder.check(), 'máy chủ đang nghẽn');
   state.lag = 0;
   state.inflight = 10;
-  assert.equal(shedder.check(), 'quá nhiều yêu cầu đang xử lý');
+  assert.equal(await shedder.check(), 'quá nhiều yêu cầu đang xử lý');
   assert.equal(shedder.shed, 2);
 });
 

@@ -69,8 +69,8 @@ const sentenceOf = (Formula, tree, original) => {
 };
 
 for (const [i, text] of FORMULAS.entries()) {
-  test(`Roundtrip ${String(i + 1).padStart(2, '0')}: ${text}`, opts, () => {
-    const Formula = load();
+  test(`Roundtrip ${String(i + 1).padStart(2, '0')}: ${text}`, opts, async () => {
+    const Formula = await load();
     const first = F.parseOk(Formula, text);
     const stored = F.ser(Formula, first.tree);
 
@@ -97,8 +97,8 @@ for (const [i, text] of FORMULAS.entries()) {
 test(
   'Định dạng lưu theo TK mục 4: v là 1, root trỏ vào nodes, mọi nút có t trong danh sách đóng, mọi tham chiếu con tồn tại',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const CLOSED = new Set([
       'lit',
       'var',
@@ -132,8 +132,8 @@ test(
   }
 );
 
-test('serialize xác định: cùng một cây cho cùng một chuỗi, qua nhiều lần', opts, () => {
-  const Formula = load();
+test('serialize xác định: cùng một cây cho cùng một chuỗi, qua nhiều lần', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(Formula, FORMULAS[28]);
   const first = F.ser(Formula, tree);
   for (let i = 0; i < 10; i++) assert.equal(F.ser(Formula, tree), first);
@@ -142,8 +142,8 @@ test('serialize xác định: cùng một cây cho cùng một chuỗi, qua nhi�
 test(
   'describe nói bằng nhãn tiếng Việt, không lộ khoá (luongCoBan, tienOt...) và ổn định giữa các lần gọi',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     for (const text of FORMULAS) {
       const { tree } = F.parseOk(Formula, text);
       const sentence = Formula.describe(tree, STD_VOCAB);
@@ -169,8 +169,8 @@ test(
 test(
   'Công thức có số: describe in lại số kiểu Việt Nam và đọc lại ra cùng cây (15%, 6.000.000, 1,5, 0,25)',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     for (const text of [
       'khoản A = lương cơ bản × 15%',
       'khoản A = lương cơ bản + 6.000.000',
@@ -186,8 +186,8 @@ test(
   }
 );
 
-test('Cách gõ khác nhau cho cùng một ý ra cùng cây rồi cùng câu (chữ gốc của Admin không được giữ)', opts, () => {
-  const Formula = load();
+test('Cách gõ khác nhau cho cùng một ý ra cùng cây rồi cùng câu (chữ gốc của Admin không được giữ)', opts, async () => {
+  const Formula = await load();
   const variants = [
     'khoản A = lương cơ bản nhân tỷ lệ đi lại cộng đi lại',
     'KHOẢN A = LCB * tỷ lệ đi lại + đi lại',
@@ -201,8 +201,8 @@ test('Cách gõ khác nhau cho cùng một ý ra cùng cây rồi cùng câu (ch
   for (const s of sentences) assert.equal(s, sentences[0]);
 });
 
-test('Nạp lại không đổi cây: deserialize rồi serialize rồi deserialize ba vòng vẫn bằng nhau', opts, () => {
-  const Formula = load();
+test('Nạp lại không đổi cây: deserialize rồi serialize rồi deserialize ba vòng vẫn bằng nhau', opts, async () => {
+  const Formula = await load();
   for (const text of FORMULAS) {
     const { tree } = F.parseOk(Formula, text);
     let current = tree;

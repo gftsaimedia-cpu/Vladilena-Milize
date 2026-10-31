@@ -12,7 +12,7 @@ const authz = require('../../lib/authz');
 let recorded, golden;
 before(async () => {
   recorded = JSON.parse(JSON.stringify(await dispatch.record())); // qua JSON như bản lưu: bỏ khoá undefined
-  golden = dispatch.load();
+  golden = await dispatch.load();
 });
 
 test('bảng vàng điều phối: kịch bản phủ MỌI khoá của ROUTE_CAPS (route mới phải có kịch bản)', () => {

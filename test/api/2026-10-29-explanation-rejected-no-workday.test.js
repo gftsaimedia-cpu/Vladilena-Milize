@@ -15,29 +15,29 @@ const dayRows = async (username, date) =>
 
 before(async () => {
   await F.start();
-  F.at('2026-10-29T12:00:00');
-  for (const name of ['an', 'binh', 'cuong', 'dung']) F.person(name);
-  F.person('admin', 'admin');
+  await F.at('2026-10-29T12:00:00');
+  for (const name of ['an', 'binh', 'cuong', 'dung']) await F.person(name);
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
 test('Ngày chấm đủ giờ mà giải trình bị từ chối: 0 đồng, không vào ngày công, vào nghỉ không lương; đổi ý duyệt thì tính lại', async () => {
   await X.fullDay('an', '2026-10-19', '08:00', '17:00', 'rj-an');
-  assert.equal(X.payOf('an').m.count, 1);
+  assert.equal((await X.payOf('an')).m.count, 1);
   const item = await X.askAndAnswer('an', '2026-10-19');
-  assert.equal(X.payOf('an').payDays['2026-10-19'].kind, 'unpaid'); // chờ duyệt: giữ
+  assert.equal((await X.payOf('an')).payDays['2026-10-19'].kind, 'unpaid'); // chờ duyệt: giữ
 
   const no = await X.decide(item.id, false);
   assert.equal(no.status, 200, JSON.stringify(no.data));
   assert.equal(no.data.item.status, 'rejected');
-  const rejected = X.payOf('an');
+  const rejected = await X.payOf('an');
   assert.equal(rejected.payDays['2026-10-19'].kind, 'unpaid');
   assert.equal(rejected.m.count, 0);
   assert.equal(rejected.m.unpaid, 1);
   assert.equal(rejected.m.trace.tienNgayCong, 0);
 
   assert.equal((await X.decide(item.id, true)).status, 200); // đổi ý
-  const approved = X.payOf('an');
+  const approved = await X.payOf('an');
   assert.equal(approved.payDays['2026-10-19'].kind, 'work');
   assert.equal(approved.m.count, 1);
 });
@@ -45,11 +45,11 @@ test('Ngày chấm đủ giờ mà giải trình bị từ chối: 0 đồng, kh
 test('Từ chối thắng lượt Admin khai thay tay; chưa quyết định thì lượt Admin khai thay vẫn được trả', async () => {
   await X.declareOnBehalf('binh', ['2026-10-20', '2026-10-21']);
   const waiting = await X.askAndAnswer('binh', '2026-10-20');
-  assert.equal(X.payOf('binh').payDays['2026-10-20'].kind, 'work'); // chờ: giờ Admin khai thắng
-  assert.equal(X.payOf('binh').m.count, 2);
+  assert.equal((await X.payOf('binh')).payDays['2026-10-20'].kind, 'work'); // chờ: giờ Admin khai thắng
+  assert.equal((await X.payOf('binh')).m.count, 2);
 
   assert.equal((await X.decide(waiting.id, false)).status, 200);
-  const rejected = X.payOf('binh');
+  const rejected = await X.payOf('binh');
   assert.equal(rejected.payDays['2026-10-20'].kind, 'unpaid'); // từ chối: ngày không tính công dù có lượt Admin
   assert.equal(rejected.payDays['2026-10-21'].kind, 'work'); // ngày khác không đổi
   assert.equal(rejected.m.count, 1);
@@ -64,9 +64,9 @@ test('Từ chối thắng lượt Admin khai thay tay; chưa quyết định th�
 });
 
 test('Từ chối giải trình Check-out muộn: cả ngày không tính công, lượt là Bị từ chối', async () => {
-  F.at('2026-10-22T08:00:00');
+  await F.at('2026-10-22T08:00:00');
   const opened = await X.punch('cuong', { type: 'in', requestId: 'rj-cuong-in' });
-  F.at('2026-10-22T18:10:00'); // ca n1 hết 17:00: muộn 70 phút
+  await F.at('2026-10-22T18:10:00'); // ca n1 hết 17:00: muộn 70 phút
   const out = await X.punch('cuong', {
     type: 'out',
     sessionId: opened.data.open.id,
@@ -75,10 +75,10 @@ test('Từ chối giải trình Check-out muộn: cả ngày không tính công,
   });
   assert.equal(out.status, 200, JSON.stringify(out.data));
   const item = (await F.call('GET', '/explanations?status=answered&user=cuong', { who: 'admin' })).data.items[0];
-  assert.equal(X.payOf('cuong').payDays['2026-10-22'].kind, 'unpaid'); // chờ duyệt: giữ
+  assert.equal((await X.payOf('cuong')).payDays['2026-10-22'].kind, 'unpaid'); // chờ duyệt: giữ
 
   assert.equal((await X.decide(item.id, false)).status, 200);
-  const paid = X.payOf('cuong');
+  const paid = await X.payOf('cuong');
   assert.equal(paid.payDays['2026-10-22'].kind, 'unpaid');
   assert.equal(paid.m.count, 0);
   const rows = await dayRows('cuong', '2026-10-22');
@@ -91,7 +91,7 @@ test('Từ chối giải trình Check-out muộn: cả ngày không tính công,
 test('Ngày không chấm gì mà giải trình bị từ chối: vẫn không tính công; giải trình ngày cũ hơn không ảnh hưởng ngày khác', async () => {
   const item = await X.askAndAnswer('dung', '2026-10-21');
   assert.equal((await X.decide(item.id, false)).status, 200);
-  const paid = X.payOf('dung');
+  const paid = await X.payOf('dung');
   assert.equal(paid.payDays['2026-10-21'].kind, 'unpaid');
   assert.equal(paid.payDays['2026-10-20'].kind, 'noshow'); // ngày không có giải trình: nghỉ không phép như trước
   assert.equal(paid.m.count, 0);

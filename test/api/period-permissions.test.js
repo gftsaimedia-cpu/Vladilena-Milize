@@ -28,9 +28,9 @@ const ACCOUNT = {
 };
 async function seedWithRoles(month, target = 'open') {
   await P.seed(month);
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
   // qa_plain phải có ngày công đủ để thực lĩnh không âm (phiếu thực lĩnh âm bị chặn duyệt: PAYSLIP_NEGATIVE_NET)
-  const holidays = store.getSetting('holidays', []);
+  const holidays = await store.getSetting('holidays', []);
   const days = {};
   for (const date of P.datesOf(month).filter(d => [1, 2, 3, 4, 5].includes(new Date(d + 'T00:00:00Z').getUTCDay()))) {
     if (!holidays.includes(date) && Object.keys(days).length < 15)
@@ -38,7 +38,7 @@ async function seedWithRoles(month, target = 'open') {
   }
   const sheet = await F.call('PUT', '/sheet', { who: 'qa_plain', body: { month, days } });
   assert.equal(sheet.status, 200, `dựng lịch qa_plain: ${JSON.stringify(sheet.data)}`);
-  for (const role of ['hr', 'manager', 'accounting', 'cb']) P.grant(ACCOUNT[role], role);
+  for (const role of ['hr', 'manager', 'accounting', 'cb']) await P.grant(ACCOUNT[role], role);
   await P.advance(month, target);
 }
 
@@ -118,14 +118,14 @@ test('Cổng quyền theo ROLE_CAPS: mọi vai trò × mọi route kỳ lương:
     for (const [role, who] of Object.entries(ACCOUNT)) {
       // cổng đòi phạm vi toàn bộ (all): vai trò 'staff' có payroll.view nhưng chỉ phạm vi tự mình nên vẫn bị chặn
       const allowed = authz.ROLE_CAPS[role].includes(cap) && authz.ROLE_SCOPE[role] === 'all';
-      const before = F.snapshot();
+      const before = await F.snapshot();
       const res = await route.call({ month, who });
       const gateOpen = res.status !== 401 && !(res.status === 403 && res.data.code === 'FORBIDDEN_CAP');
       if (allowed && !gateOpen) wrong.push(`${route.key} ${role}: lẽ ra qua cổng, nhận ${res.status} ${res.data.code}`);
       if (!allowed) {
         if (res.status !== 403 || res.data.code !== 'FORBIDDEN_CAP')
           wrong.push(`${route.key} ${role}: lẽ ra 403 FORBIDDEN_CAP, nhận ${res.status} ${res.data.code}`);
-        const changed = F.changedTables(before, F.snapshot());
+        const changed = F.changedTables(before, await F.snapshot());
         if (changed.length) wrong.push(`${route.key} ${role}: bị từ chối mà vẫn đổi ${changed}`);
       }
     }
@@ -175,7 +175,7 @@ test('Nhân sự chỉ xem phiếu của chính mình và chỉ từ khi kỳ đ
   assert.equal(paid.data.source, 'snapshot');
   assert.equal(paid.data.payslip.username, own);
   assert.equal(Object.hasOwn(paid.data.payslip, 'override'), false);
-  assert.equal(paid.data.payslip.net, P.flow.payslipsOf(M).slips[own].net);
+  assert.equal(paid.data.payslip.net, (await P.flow.payslipsOf(M)).slips[own].net);
   // vẫn không xem được phiếu người khác sau khi chi trả, kể cả tên viết hoa lẫn thường
   assert.equal((await F.call('GET', `/periods/${M}/payslips/qa_ctv1`, { who: own })).status, 403);
   assert.equal((await F.call('GET', `/periods/${M}/payslips/QA_CTV1`, { who: own })).status, 403);
@@ -210,9 +210,9 @@ test('Chuỗi thật theo vai trò: C&B chốt công, tính lương, AI, duyệt
   const acc = ACCOUNT.accounting;
   const snapshotOf = () => F.snapshot();
   // kế toán chưa được chốt công; C&B được
-  let before = snapshotOf();
+  let before = await snapshotOf();
   assert.equal((await P.step(M, 'lock-attendance', {}, acc)).status, 403);
-  assert.deepEqual(F.changedTables(before, snapshotOf()), []);
+  assert.deepEqual(F.changedTables(before, await snapshotOf()), []);
   P.must(await P.step(M, 'lock-attendance', {}, cb), 'C&B chốt công');
   assert.equal((await P.step(M, 'calculate', {}, acc)).status, 403);
   P.must(await P.step(M, 'calculate', {}, cb), 'C&B tính lương');
@@ -234,7 +234,7 @@ test('Chuỗi thật theo vai trò: C&B chốt công, tính lương, AI, duyệt
     (self.data.warnings || []).map(w => w.code).filter(code => code === 'SELF_DECISION_FORBIDDEN'),
     ['SELF_DECISION_FORBIDDEN']
   );
-  const selfAudit = P.auditOf(M).filter(r => r.subject === cb && r.after && r.after.self === true);
+  const selfAudit = (await P.auditOf(M)).filter(r => r.subject === cb && r.after && r.after.self === true);
   assert.ok(selfAudit.length >= 1, 'nhật ký đánh dấu after.self = true cho dòng tự duyệt');
   const others = P.must(
     await P.decide(M, P.itemsOf(rows.filter(r => r.username !== cb)), 'approve', undefined, cb),
@@ -248,11 +248,11 @@ test('Chuỗi thật theo vai trò: C&B chốt công, tính lương, AI, duyệt
   assert.equal((await P.step(M, 'approve', {}, acc)).status, 403, 'kế toán không duyệt kỳ');
   P.must(await P.step(M, 'approve', {}, cb), 'C&B duyệt kỳ');
   // C&B không chi trả; kế toán chi trả
-  before = snapshotOf();
+  before = await snapshotOf();
   assert.equal((await P.step(M, 'mark-paid', { paidAt: '2026-11-05' }, cb)).status, 403);
-  assert.deepEqual(F.changedTables(before, snapshotOf()), []);
+  assert.deepEqual(F.changedTables(before, await snapshotOf()), []);
   P.must(await P.step(M, 'mark-paid', { paidAt: '2026-11-05' }, acc), 'kế toán chi trả');
-  const audit = P.auditOf(M);
+  const audit = await P.auditOf(M);
   const actorOf = action => audit.filter(r => r.action === action).map(r => r.actor);
   assert.deepEqual(actorOf('period.lock-attendance'), [cb]);
   assert.deepEqual(actorOf('period.approve'), [cb]);
@@ -270,5 +270,5 @@ test('Chuỗi thật theo vai trò: C&B chốt công, tính lương, AI, duyệt
     (reopened.data.warnings || []).map(w => w.code).filter(code => code === 'PERIOD_STATE'),
     ['PERIOD_STATE']
   );
-  assert.equal(store.roles.effectiveRoles(acc).includes('accounting'), true);
+  assert.equal((await store.roles.effectiveRoles(acc)).includes('accounting'), true);
 });

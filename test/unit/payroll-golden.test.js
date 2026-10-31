@@ -23,7 +23,7 @@ test('ca vàng: đủ 300 ca, hạt cố định 20261015, mã ca không trùng'
   assert.equal(golden.meta.known, KNOWN_CASES.length);
 });
 
-test('ca vàng: phủ đủ ba loại nhân sự, mọi loại ngày, OT, làm bù, ngày lễ, ca đêm, KPI cũ và 5 thành phần, giờ thực tế', () => {
+test('ca vàng: phủ đủ ba loại nhân sự, mọi loại ngày, OT, làm bù, ngày lễ, ca đêm, KPI cũ và 5 thành phần, giờ thực tế', async () => {
   const count = tag => golden.cases.filter(c => c.tags.includes(tag)).length;
   const need = {
     tts: 20,
@@ -50,9 +50,9 @@ test('ca vàng: phủ đủ ba loại nhân sự, mọi loại ngày, OT, làm b
     known: 6
   };
   for (const [tag, minimum] of Object.entries(need))
-    assert.ok(count(tag) >= minimum, `tag ${tag}: ${count(tag)} < ${minimum}`);
+    assert.ok(await count(tag) >= minimum, `tag ${tag}: ${await count(tag)} < ${minimum}`);
   // mỗi tình huống bắt buộc của bộ sinh xuất hiện ít nhất 5 lần
-  for (const focus of FOCUS_NAMES) assert.ok(count(focus) >= 5, `tình huống ${focus}: ${count(focus)} < 5`);
+  for (const focus of FOCUS_NAMES) assert.ok(await count(focus) >= 5, `tình huống ${focus}: ${await count(focus)} < 5`);
 });
 
 test('ca vàng: bộ sinh với hạt 20261015 tạo lại đúng đầu vào đã lưu (bộ sinh lặp lại được)', () => {

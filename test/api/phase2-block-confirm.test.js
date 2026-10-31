@@ -33,11 +33,11 @@ async function confirmedBlock(over = {}) {
     }
   });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
-  assert.ok(P.paramsOf(M)[`block.def.${code}`].flagsConfirmedBy, 'đã xác nhận');
+  assert.ok((await P.paramsOf(M))[`block.def.${code}`].flagsConfirmedBy, 'đã xác nhận');
   return { M, code };
 }
-const save = async (M, changes) => P.saveChanges(changes, { month: M });
-const def = (M, code) => P.paramsOf(M)[`block.def.${code}`];
+const save = async (M, changes) => await P.saveChanges(changes, { month: M });
+const def = async (M, code) => (await P.paramsOf(M))[`block.def.${code}`];
 
 test('GĐ2: xác nhận cờ với expectedFlags lệch cờ hiện tại là 409 BLOCK_FLAGS_CHANGED và không ghi gì; rev lệch là 409 PARAMS_STALE', async () => {
   const M = await P.setupMonth();
@@ -52,7 +52,7 @@ test('GĐ2: xác nhận cờ với expectedFlags lệch cờ hiện tại là 40
     }
   });
   const code = made.data.code;
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const stale = await F.call('PUT', `/blocks/${code}/confirm`, {
     body: { basis: 'Căn cứ', effectiveMonth: M, expectedFlags: { tax: 'none', taxCap: null, insuranceBase: false } }
   });
@@ -61,35 +61,35 @@ test('GĐ2: xác nhận cờ với expectedFlags lệch cờ hiện tại là 40
   const rev = await F.call('PUT', `/blocks/${code}/confirm`, { body: { basis: 'Căn cứ', effectiveMonth: M, rev: 0 } });
   assert.equal(rev.status, 409, JSON.stringify(rev.data));
   assert.equal(rev.data.code, 'PARAMS_STALE');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('GĐ2: đổi nhãn, cách tính, theo ngày đi làm hoặc điều kiện mất làm mất dấu xác nhận; lưu lại đúng định nghĩa cũ thì giữ', async () => {
   const { M, code } = await confirmedBlock();
-  const same = { ...def(M, code) };
+  const same = { ...await def(M, code) };
   delete same.flagsConfirmedBy;
   delete same.flagsConfirmedAt;
   // lưu lại y nguyên (nhãn có khoảng trắng thừa): không đổi gì
   const keep = await save(M, [{ key: `block.def.${code}`, value: { ...same, label: ` ${same.label} ` } }]);
   assert.ok([200, 400].includes(keep.status));
-  assert.ok(def(M, code).flagsConfirmedBy, 'định nghĩa không đổi: giữ dấu xác nhận');
+  assert.ok((await def(M, code)).flagsConfirmedBy, 'định nghĩa không đổi: giữ dấu xác nhận');
   const changed = await save(M, [{ key: `block.def.${code}`, value: { ...same, scalesWithDays: true } }]);
   assert.equal(changed.status, 200, JSON.stringify(changed.data));
-  assert.equal(def(M, code).flagsConfirmedBy, undefined, 'đổi theo ngày đi làm: mất xác nhận');
+  assert.equal((await def(M, code)).flagsConfirmedBy, undefined, 'đổi theo ngày đi làm: mất xác nhận');
 });
 
 test('GĐ2: khối miễn thuế toàn bộ đã xác nhận: đổi số tiền theo chức vụ làm mất dấu xác nhận (tự thêm dòng định nghĩa vào cùng lô)', async () => {
   const { M, code } = await confirmedBlock();
   const res = await save(M, [{ key: `type.nv.block.${code}.amount`, value: 800000 }]);
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(P.paramsOf(M)[`type.nv.block.${code}.amount`], 800000);
-  assert.equal(def(M, code).flagsConfirmedBy, undefined, 'đổi số tiền: mất xác nhận');
-  assert.equal(def(M, code).tax, 'full', 'cờ đề nghị vẫn còn, chờ Kế toán xác nhận lại');
+  assert.equal((await P.paramsOf(M))[`type.nv.block.${code}.amount`], 800000);
+  assert.equal((await def(M, code)).flagsConfirmedBy, undefined, 'đổi số tiền: mất xác nhận');
+  assert.equal((await def(M, code)).tax, 'full', 'cờ đề nghị vẫn còn, chờ Kế toán xác nhận lại');
 });
 
 test('GĐ2: khối chịu thuế (không cờ miễn) đổi số tiền không liên quan đến xác nhận; khối miễn thuế đổi chỉ cột bật/tắt giữ xác nhận', async () => {
   const { M, code } = await confirmedBlock();
   const res = await save(M, [{ key: `type.nv.block.${code}.on`, value: false }]);
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(def(M, code).flagsConfirmedBy, 'tắt khối cho chức vụ không đổi cờ: giữ xác nhận');
+  assert.ok((await def(M, code)).flagsConfirmedBy, 'tắt khối cho chức vụ không đổi cờ: giữ xác nhận');
 });

@@ -31,14 +31,14 @@ const near = (actual, expected, msg = '') =>
 
 after(() => store.db.close());
 
-test('tiền: ca 08:00–17:00 + OT 17:00–22:00 là 5 giờ OT × lương giờ × ot.rate', () => {
-  const d = k.calcDay(nv, day('22:00'), false, 0, { date: '2026-10-05', holidays: [] });
+test('tiền: ca 08:00–17:00 + OT 17:00–22:00 là 5 giờ OT × lương giờ × ot.rate', async () => {
+  const d = k.calcDay(nv, await day('22:00'), false, 0, { date: '2026-10-05', holidays: [] });
   assert.equal(d.otH, 5);
   near(d.otPay, 5 * HOURLY * OT_RATE);
 });
 
-test('tiền: OT dài hơn mốc nghỉ vẫn không trừ giờ: OT 17:00–23:00 là 6 giờ; OT trước ca 06:00–08:00 là 2 giờ', () => {
-  const long = k.calcDay(nv, day('23:00'), false, 0, { date: '2026-10-05', holidays: [] });
+test('tiền: OT dài hơn mốc nghỉ vẫn không trừ giờ: OT 17:00–23:00 là 6 giờ; OT trước ca 06:00–08:00 là 2 giờ', async () => {
+  const long = k.calcDay(nv, await day('23:00'), false, 0, { date: '2026-10-05', holidays: [] });
   assert.equal(long.otH, 6);
   const early = k.calcDay(
     nv,
@@ -54,17 +54,17 @@ test('tiền: OT dài hơn mốc nghỉ vẫn không trừ giờ: OT 17:00–23:
   near(early.otPay, 2 * HOURLY * OT_RATE);
 });
 
-test('giờ OT của lịch ước tính và của Check-in/out là giờ thô: 17:00–22:00 = 5 giờ, cả trước lẫn sau ca', () => {
-  assert.equal(estimateOtHours(day('22:00')), 5);
-  assert.equal(extraOtHours(day('22:00')), 5);
-  assert.equal(actualOtHours({ ...day('22:00'), otReview: { ok: true } }), 5);
-  assert.equal(estimateOtHours(day('22:00', { extraIn: '06:00' })), 7);
-  assert.equal(actualOtHours({ ...day('22:00'), otReview: { ok: false } }), 0, 'OT bị từ chối không tính');
+test('giờ OT của lịch ước tính và của Check-in/out là giờ thô: 17:00–22:00 = 5 giờ, cả trước lẫn sau ca', async () => {
+  assert.equal(estimateOtHours(await day('22:00')), 5);
+  assert.equal(extraOtHours(await day('22:00')), 5);
+  assert.equal(actualOtHours({ ...await day('22:00'), otReview: { ok: true } }), 5);
+  assert.equal(estimateOtHours(await day('22:00', { extraIn: '06:00' })), 7);
+  assert.equal(actualOtHours({ ...await day('22:00'), otReview: { ok: false } }), 0, 'OT bị từ chối không tính');
 });
 
-test('đoạn làm bù theo giờ vẫn trừ giờ nghỉ của đoạn, đoạn OT cùng độ dài thì không', () => {
-  const ot = PC.splitExtraWork(day('22:00'), '2026-10-05', []);
-  const makeup = PC.splitExtraWork(day('22:00', { extraKind: 'makeup' }), '2026-10-05', []);
+test('đoạn làm bù theo giờ vẫn trừ giờ nghỉ của đoạn, đoạn OT cùng độ dài thì không', async () => {
+  const ot = PC.splitExtraWork(await day('22:00'), '2026-10-05', []);
+  const makeup = PC.splitExtraWork(await day('22:00', { extraKind: 'makeup' }), '2026-10-05', []);
   assert.equal(ot.normalH, 5);
   assert.equal(makeup.normalH, 4);
 });

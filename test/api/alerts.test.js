@@ -56,7 +56,7 @@ before(async () => {
       startDate: '2026-01-05'
     }
   ])
-    store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
+    await store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -96,7 +96,7 @@ test('cảnh báo: lượt mở quá 16 giờ bị đóng "quên check-out" và 
   const r = await alerts(adm);
   assert.equal(r.status, 200);
   assert.deepEqual(r.data.missingPunches, [{ username: 'an', name: 'An', date: '2026-10-07', kind: 'forgot-out' }]);
-  assert.equal(store.openSession('an'), null, 'lượt đã được đóng');
+  assert.equal(await store.openSession('an'), null, 'lượt đã được đóng');
   // gọi lần nữa vẫn đúng một mục, không nhân đôi
   assert.equal((await alerts(adm)).data.missingPunches.length, 1);
   // tháng khác không có
@@ -108,7 +108,7 @@ test('cảnh báo: ngày quên check-in (chỉ có giờ ra) và ngày quên che
   const adm = await cookieOf('admin');
   clock = Date.parse('2026-10-08T09:00:00+07:00');
   // Chỉ có giờ ra, thiếu giờ vào: Admin xử lý. Dựng thẳng để không phụ thuộc đường bấm của nhân sự.
-  store.createSession('binh', '2026-10-05', 'closed', {
+  await store.createSession('binh', '2026-10-05', 'closed', {
     kind: 'pending',
     reason: 'forgot-in',
     src: 'punch',

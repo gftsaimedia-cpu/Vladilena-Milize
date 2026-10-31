@@ -11,7 +11,7 @@ const { DEFAULTS } = require('../../public/payroll-params.js');
 const ROOT = path.join(__dirname, '../..');
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 
-test('makeup.surplus không còn trong DEFAULTS, registry.data.json, keys.lock.json và các tệp mô tả tham số', () => {
+test('makeup.surplus không còn trong DEFAULTS, registry.data.json, keys.lock.json và các tệp mô tả tham số', async () => {
   assert.ok(!Object.hasOwn(DEFAULTS, 'makeup.surplus'));
   for (const file of [
     'lib/params/registry.data.json',
@@ -19,17 +19,17 @@ test('makeup.surplus không còn trong DEFAULTS, registry.data.json, keys.lock.j
     'scripts/params/hand-defaults.json',
     'scripts/params/plain-text.json'
   ])
-    assert.ok(!read(file).includes('makeup.surplus'), file);
+    assert.ok(!(await read(file)).includes('makeup.surplus'), file);
 });
 
-test('không còn mã đọc hay hiển thị cài đặt makeup.surplus trong máy chủ và giao diện', () => {
+test('không còn mã đọc hay hiển thị cài đặt makeup.surplus trong máy chủ và giao diện', async () => {
   for (const dir of ['lib', 'public']) {
     const walk = folder =>
       fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap(entry => {
         const rel = path.posix.join(folder, entry.name);
         return entry.isDirectory() ? walk(rel) : /\.(js|html|json)$/.test(entry.name) ? [rel] : [];
       });
-    for (const file of walk(dir)) assert.ok(!read(file).includes('makeup.surplus'), file);
+    for (const file of walk(dir)) assert.ok(!(await read(file)).includes('makeup.surplus'), file);
   }
 });
 

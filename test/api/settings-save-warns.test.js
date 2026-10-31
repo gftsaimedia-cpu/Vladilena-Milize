@@ -25,14 +25,14 @@ const ACCOUNT = {
 };
 async function setup(month) {
   await S.seed(month);
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-  for (const role of ['hr', 'manager', 'accounting', 'cb']) S.grant(ACCOUNT[role], role);
-  S.setMode('defaults-only');
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
+  await S.setMode('defaults-only');
 }
 const codesOf = res => (res.data.warnings || []).map(w => w.code);
-const savedValue = (key, month) => {
-  const rows = S.paramRows().filter(r => r.key === key && r.effective_month === month);
-  return rows.length ? JSON.parse(rows.at(-1).value_json) : undefined;
+const savedValue = async (key, month) => {
+  const rows = (await S.paramRows()).filter(r => r.key === key && r.effective_month === month);
+  return rows.length ? JSON.parse((await rows.at(-1)).value_json) : undefined;
 };
 
 test(
@@ -41,13 +41,13 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const found = S.hardFloorKey();
+    const found = await S.hardFloorKey();
     const res = await S.saveChanges([{ key: found.key, value: found.value }], { month: M });
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
     assert.ok(codesOf(res).includes('PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(res.data.warnings));
-    assert.equal(savedValue(found.key, M), found.value, 'giá trị dưới sàn được lưu đúng như nhập');
-    const audit = S.auditRows('param.set').filter(r => r.entity_id === found.key);
-    assert.ok(audit.at(-1).after.warnings.includes('PARAM_BELOW_LEGAL_FLOOR'), 'nhật ký ghi mã cảnh báo');
+    assert.equal(await savedValue(found.key, M), found.value, 'giá trị dưới sàn được lưu đúng như nhập');
+    const audit = (await S.auditRows('param.set')).filter(r => r.entity_id === found.key);
+    assert.ok((await audit.at(-1)).after.warnings.includes('PARAM_BELOW_LEGAL_FLOOR'), 'nhật ký ghi mã cảnh báo');
   }
 );
 
@@ -57,16 +57,16 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const found = S.softFloorKey();
+    const found = await S.softFloorKey();
     let other = null;
     for (let skip = 1; skip < 12 && !other; skip += 1) {
-      const next = S.softFloorKey(skip);
+      const next = await S.softFloorKey(skip);
       if (next && next.key !== found.key) other = next;
     }
     const missing = await S.saveChanges([{ key: found.key, value: found.value }], { month: M });
     assert.equal(missing.status, 200, JSON.stringify(missing.data).slice(0, 400));
     assert.ok(codesOf(missing).includes('PARAM_FLOOR_ACK_REQUIRED'), JSON.stringify(missing.data.warnings));
-    assert.equal(savedValue(found.key, M), found.value);
+    assert.equal(await savedValue(found.key, M), found.value);
     if (!other) return;
     const acked = await S.saveChanges([{ key: other.key, value: other.value }], {
       month: M,
@@ -74,7 +74,7 @@ test(
     });
     assert.equal(acked.status, 200, JSON.stringify(acked.data).slice(0, 400));
     assert.ok(codesOf(acked).includes('PARAM_FLOOR_ACK_REQUIRED'));
-    assert.equal(savedValue(other.key, M), other.value);
+    assert.equal(await savedValue(other.key, M), other.value);
   }
 );
 
@@ -84,19 +84,19 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const base = S.adminKey();
+    const base = await S.adminKey();
     for (const reason of [undefined, null, '', '   ', 'ngắn', 12345678901, {}]) {
       const [value] = await S.differing(base, M);
       const res = await S.saveChanges([{ key: base.key, value }], { month: M, reason });
       assert.equal(res.status, 200, `reason=${JSON.stringify(reason)}: ${JSON.stringify(res.data).slice(0, 300)}`);
-      assert.equal(savedValue(base.key, M), value);
+      assert.equal(await savedValue(base.key, M), value);
     }
-    const rows = S.rowCount();
+    const rows = await S.rowCount();
     const [value] = await S.differing(base, M);
     const long = await S.saveChanges([{ key: base.key, value }], { month: M, reason: S.text(301) });
     assert.equal(long.status, 400, JSON.stringify(long.data).slice(0, 300));
     assert.equal(long.data.code, 'REASON_REQUIRED');
-    assert.equal(S.rowCount(), rows, 'không lưu dòng nào');
+    assert.equal(await S.rowCount(), rows, 'không lưu dòng nào');
   }
 );
 
@@ -106,7 +106,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const found = S.accountingKey();
+    const found = await S.accountingKey();
     const values = [found.value, found.value + 1, found.value + 2];
     for (const [i, basis] of [undefined, '', '   '].entries()) {
       const res = await S.saveChanges([{ key: found.key, value: values[i] }], {
@@ -116,7 +116,7 @@ test(
       });
       assert.equal(res.status, 200, `basis=${JSON.stringify(basis)}: ${JSON.stringify(res.data).slice(0, 300)}`);
     }
-    assert.equal(savedValue(found.key, M), values[2]);
+    assert.equal(await savedValue(found.key, M), values[2]);
   }
 );
 
@@ -125,19 +125,19 @@ test(
   S.READY,
   async () => {
     await S.setupMonth('2026-10', 'calculated'); // tháng quản lý đầu tiên, đã chốt công
-    S.setMode('defaults-only');
-    const base = S.adminKey();
+    await S.setMode('defaults-only');
+    const base = await S.adminKey();
     const locked = await S.saveChanges([{ key: base.key, value: base.value }], { month: '2026-10' });
     assert.equal(locked.status, 200, JSON.stringify(locked.data).slice(0, 400));
     assert.ok(codesOf(locked).includes('PERIOD_LOCKED'), JSON.stringify(locked.data.warnings));
-    assert.equal(savedValue(base.key, '2026-10'), base.value);
-    const rows = S.rowCount();
+    assert.equal(await savedValue(base.key, '2026-10'), base.value);
+    const rows = await S.rowCount();
     for (const month of ['2026-13', '2026-1', 'abc', 202611, '']) {
       const res = await S.saveChanges([{ key: base.key, value: base.value }], { month, expectedRev: 0 });
       assert.equal(res.status, 400, `month=${JSON.stringify(month)}: ${res.status}`);
       assert.equal(res.data.code, 'BAD_MONTH');
     }
-    assert.equal(S.rowCount(), rows, 'tháng sai dạng không lưu dòng nào');
+    assert.equal(await S.rowCount(), rows, 'tháng sai dạng không lưu dòng nào');
   }
 );
 
@@ -148,12 +148,12 @@ test(
     const A = monthOf();
     const B = monthOf();
     await setup(A);
-    store.db.prepare("INSERT INTO payroll_periods (month, status, rev) VALUES (?, 'approved', 1)").run(B);
-    const base = S.adminKey();
+    await store.db.prepare("INSERT INTO payroll_periods (month, status, rev) VALUES (?, 'approved', 1)").run(B);
+    const base = await S.adminKey();
     const res = await S.saveChanges([{ key: base.key, value: base.value }], { month: B, expectedRev: 0 });
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
     assert.ok(codesOf(res).includes('PERIOD_LOCKED'), JSON.stringify(res.data.warnings));
-    assert.equal(savedValue(base.key, B), base.value);
+    assert.equal(await savedValue(base.key, B), base.value);
   }
 );
 
@@ -163,8 +163,8 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const soft = S.softFloorKey();
-    const other = S.adminKeys().find(k => k.key !== soft.key);
+    const soft = await S.softFloorKey();
+    const other = (await S.adminKeys()).find(k => k.key !== soft.key);
     if (!other) return;
     const [value] = await S.differing(other, M);
     const res = await S.saveChanges(
@@ -177,7 +177,7 @@ test(
     assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 400));
     assert.equal(res.data.saved.length, 2);
     assert.ok(codesOf(res).includes('PARAM_FLOOR_ACK_REQUIRED'));
-    assert.equal(savedValue(other.key, M), value);
-    assert.equal(savedValue(soft.key, M), soft.value);
+    assert.equal(await savedValue(other.key, M), value);
+    assert.equal(await savedValue(soft.key, M), soft.value);
   }
 );

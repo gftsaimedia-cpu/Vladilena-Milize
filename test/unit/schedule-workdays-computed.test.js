@@ -13,36 +13,36 @@ const MWF_FULL = () => F.fullDays('2026-10', F.MWF);
 const MON_SAT_FULL = month => F.fullDays(month, F.MON_SAT);
 const COMPUTED = { 'type.nv.workdaysMode': 'computed' };
 
-test('tự đếm đối chiếu: NV T2–T7 đủ 27 ngày với ngày công chuẩn 27 (tham số trong bộ nhớ): gộp 8.400.000, thực lĩnh 7.770.000; cố định 26 cho 8.723.076', () => {
+test('tự đếm đối chiếu: NV T2–T7 đủ 27 ngày với ngày công chuẩn 27 (tham số trong bộ nhớ): gộp 8.400.000, thực lĩnh 7.770.000; cố định 26 cho 8.723.076', async () => {
   const r = F.run(F.nvStaff(), MON_SAT_FULL('2026-10'), { over: { 'type.nv.workdays': 27 } });
-  assert.deepEqual(F.money(r), { gross: 8400000, net: 7770000 });
+  assert.deepEqual(await F.money(r), { gross: 8400000, net: 7770000 });
   assert.equal(F.run(F.nvStaff(), MON_SAT_FULL('2026-10')).m.net.gross, 8723076);
 });
-test('tự đếm đối chiếu: Hai-Tư-Sáu đủ 13 ngày với ngày công chuẩn 13 (tham số trong bộ nhớ): gộp 8.400.000, thực lĩnh 7.770.000 (đóng bảo hiểm 630.000 vì đủ 13 ngày có lương, không còn ngày không lương)', () => {
+test('tự đếm đối chiếu: Hai-Tư-Sáu đủ 13 ngày với ngày công chuẩn 13 (tham số trong bộ nhớ): gộp 8.400.000, thực lĩnh 7.770.000 (đóng bảo hiểm 630.000 vì đủ 13 ngày có lương, không còn ngày không lương)', async () => {
   const r = F.run(F.nvStaff(), MWF_FULL(), { over: F.nvDows(F.MWF, { 'type.nv.workdays': 13 }) });
   // ngày công chuẩn 13 và 13 ngày có lương: không có ngày không lương nên bảo hiểm 630.000 ₫ bị trừ
   assert.equal(r.m.paidDays, 13);
   assert.equal(r.m.net.noPayDays, 0);
   assert.equal(r.m.net.insurance, 630000);
-  assert.deepEqual(F.money(r), { gross: 8400000, net: 7770000 });
+  assert.deepEqual(await F.money(r), { gross: 8400000, net: 7770000 });
 });
 
-test('workdays 1: NV T2–T7 tự đếm theo lịch của loại (27 ngày tháng 10), đủ 27 ngày: gộp 8.400.000, thực lĩnh 7.770.000; cố định 26 vẫn 8.723.076', () => {
-  assert.deepEqual(F.money(F.run(F.nvStaff(), MON_SAT_FULL('2026-10'), { over: COMPUTED })), {
+test('workdays 1: NV T2–T7 tự đếm theo lịch của loại (27 ngày tháng 10), đủ 27 ngày: gộp 8.400.000, thực lĩnh 7.770.000; cố định 26 vẫn 8.723.076', async () => {
+  assert.deepEqual(await F.money(F.run(F.nvStaff(), MON_SAT_FULL('2026-10'), { over: COMPUTED })), {
     gross: 8400000,
     net: 7770000
   });
   assert.equal(F.run(F.nvStaff(), MON_SAT_FULL('2026-10'), { over: { 'type.nv.workdays': 26 } }).m.net.gross, 8723076);
 });
 
-test('workdays 2: Hai-Tư-Sáu tự đếm, đủ 13 ngày: gộp 8.400.000, thực lĩnh 7.770.000 (đủ lương cơ bản cho đủ lịch của loại)', () => {
+test('workdays 2: Hai-Tư-Sáu tự đếm, đủ 13 ngày: gộp 8.400.000, thực lĩnh 7.770.000 (đủ lương cơ bản cho đủ lịch của loại)', async () => {
   const r = F.run(F.nvStaff(), MWF_FULL(), { over: F.nvDows(F.MWF, COMPUTED) });
-  assert.deepEqual(F.money(r), { gross: 8400000, net: 7770000 });
+  assert.deepEqual(await F.money(r), { gross: 8400000, net: 7770000 });
 });
 
-test('workdays 3: Hai-Tư-Sáu cố định 26, đủ 13 ngày: gộp 4.200.000, thực lĩnh 3.570.000; cùng ngày đi, khác cách tính với ca 2', () => {
+test('workdays 3: Hai-Tư-Sáu cố định 26, đủ 13 ngày: gộp 4.200.000, thực lĩnh 3.570.000; cùng ngày đi, khác cách tính với ca 2', async () => {
   const r = F.run(F.nvStaff(), MWF_FULL(), { over: F.nvDows(F.MWF) });
-  assert.deepEqual(F.money(r), { gross: 4200000, net: 3570000 });
+  assert.deepEqual(await F.money(r), { gross: 4200000, net: 3570000 });
   assert.equal(r.m.count, 13);
 });
 

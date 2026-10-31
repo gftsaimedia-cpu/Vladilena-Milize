@@ -14,9 +14,9 @@ const WORKER = 'qa_fields';
 
 before(async () => {
   await F.start();
-  F.at('2026-10-07T07:30:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person(WORKER, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 5 });
+  await F.at('2026-10-07T07:30:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person(WORKER, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 5 });
 });
 after(F.stop);
 
@@ -38,7 +38,7 @@ function assertCutRule(rule) {
 }
 
 test('GET /api/me có serverNow là giờ ISO của máy chủ (đồng hồ giả), cho cả nhân sự và Admin', async () => {
-  F.at('2026-10-07T07:30:00');
+  await F.at('2026-10-07T07:30:00');
   for (const who of [WORKER, 'admin']) {
     const res = await F.call('GET', '/me', { who });
     assert.equal(res.status, 200);
@@ -48,7 +48,7 @@ test('GET /api/me có serverNow là giờ ISO của máy chủ (đồng hồ gi�
 });
 
 test('GET /api/punch: có serverNow, cutRule đúng kiểu và checkoutPreview là null khi chưa có ca mở', async () => {
-  F.at('2026-10-07T07:30:00');
+  await F.at('2026-10-07T07:30:00');
   const res = await F.call('GET', '/punch', { who: WORKER });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 200));
   assert.equal(res.data.serverNow, nowIso());
@@ -65,7 +65,7 @@ test('GET /api/punch của Admin: không dùng Check-in/out nhưng vẫn có ser
 });
 
 test('POST /api/punch: Check-in có serverNow, cutRule, checkoutPreview; ca đang mở thì checkoutPreview là bản xem trước đồng nhất kiểu, serverNow theo lúc gửi', async () => {
-  F.at('2026-10-07T08:00:00');
+  await F.at('2026-10-07T08:00:00');
   const inRes = await F.call('POST', '/punch', {
     who: WORKER,
     body: { type: 'in', requestId: 'qa-fields-in-1' }
@@ -76,7 +76,7 @@ test('POST /api/punch: Check-in có serverNow, cutRule, checkoutPreview; ca đan
   assertCutRule(inRes.data.cutRule);
   assert.ok('checkoutPreview' in inRes.data);
   // giữa ca: GET /punch xem trước "nếu Check-out bây giờ"
-  F.at('2026-10-07T12:00:00');
+  await F.at('2026-10-07T12:00:00');
   const mid = await F.call('GET', '/punch', { who: WORKER });
   assert.equal(mid.data.serverNow, nowIso());
   assert.notEqual(mid.data.serverNow, inRes.data.serverNow, 'serverNow không bị giữ lại từ lần trước');
@@ -88,13 +88,13 @@ test('POST /api/punch: Check-in có serverNow, cutRule, checkoutPreview; ca đan
   assert.ok(preview.early > 0, 'về trước giờ ra ca');
   assert.ok(preview.paidMin > 0);
   // gửi lại cùng requestId: kết quả cũ nhưng serverNow vẫn là giờ lúc gửi lại
-  F.at('2026-10-07T12:05:00');
+  await F.at('2026-10-07T12:05:00');
   const replay = await F.call('POST', '/punch', { who: WORKER, body: { type: 'in', requestId: 'qa-fields-in-1' } });
   assert.equal(replay.status, 200, JSON.stringify(replay.data).slice(0, 200));
   assert.equal(replay.data.serverNow, nowIso());
   assert.equal(replay.data.openSession.id, inRes.data.openSession.id);
   // đóng ca cho các test sau
-  F.at('2026-10-07T17:00:00');
+  await F.at('2026-10-07T17:00:00');
   const out = await F.call('POST', '/punch', {
     who: WORKER,
     body: { type: 'out', sessionId: inRes.data.openSession.id, requestId: 'qa-fields-out-1' }
@@ -104,7 +104,7 @@ test('POST /api/punch: Check-in có serverNow, cutRule, checkoutPreview; ca đan
 });
 
 test('GET /api/sheet: leaveBalance đúng kiểu cho nhân sự có tài khoản phép; null cho Admin; cutRule đúng kiểu', async () => {
-  F.at('2026-10-14T12:00:00');
+  await F.at('2026-10-14T12:00:00');
   const res = await F.call('GET', '/sheet?month=2026-10', { who: WORKER });
   assert.equal(res.status, 200);
   const leave = res.data.leaveBalance;
@@ -122,7 +122,7 @@ test('GET /api/sheet: leaveBalance đúng kiểu cho nhân sự có tài khoản
 });
 
 test('GET /api/sheet: actualReport có report, missing, absent của tháng, không còn from và actualFrom', async () => {
-  F.at('2026-10-14T12:00:00');
+  await F.at('2026-10-14T12:00:00');
   const on = await F.call('GET', '/sheet?month=2026-10', { who: WORKER });
   const report = on.data.actualReport;
   assert.equal(typeof report, 'object');

@@ -12,7 +12,7 @@ before(F.start);
 after(F.stop);
 
 const STD = { tts: 22, ctv: 26, nv: 26 }; // ngày công chuẩn mặc định của chức vụ (type.<mã>.workdays)
-const dbSlips = month => Object.values(flow.payslipsOf(month).slips);
+const dbSlips = async month => Object.values((await flow.payslipsOf(month)).slips);
 
 test('Công: danh sách phiếu có daysWorked bằng m.count của bản chụp và workdaysStd bằng ngày công chuẩn của chức vụ, cho mọi người', async () => {
   const M = monthOf();
@@ -20,7 +20,7 @@ test('Công: danh sách phiếu có daysWorked bằng m.count của bản chụp
   const res = await F.call('GET', `/periods/${M}/payslips?pageSize=200`, { who: 'admin' });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 200));
   assert.equal(res.data.rows.length, 4);
-  const byUser = new Map(dbSlips(M).map(s => [s.username, s]));
+  const byUser = new Map((await dbSlips(M)).map(s => [s.username, s]));
   for (const row of res.data.rows) {
     const slip = byUser.get(row.username);
     assert.equal(row.daysWorked, slip.snapshot.count, `${row.username}: daysWorked`);

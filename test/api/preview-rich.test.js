@@ -20,12 +20,12 @@ before(F.start);
 after(F.stop);
 
 // Kết quả của bộ máy cho cả bốn người với một bộ tham số (đầu vào đọc từ DB của tháng, như máy chủ)
-const run = (month, over = {}) =>
+const run = async (month, over = {}) =>
   Object.fromEntries(
-    PEOPLE.map(u => [u, P.Engine.computeMonth(flow.legacyInput(u, month), { ...flow.paramsOf(month), ...over }).m])
+    await Promise.all(PEOPLE.map(async u => [u, P.Engine.computeMonth(await flow.legacyInput(u, month), { ...await flow.paramsOf(month), ...over }).m]))
   );
 const company = m => m.net.gross + m.net.employer;
-const preview = (month, changes, extra = {}) => P.preview({ changes, effectiveMonth: month, ...extra });
+const preview = async (month, changes, extra = {}) => await P.preview({ changes, effectiveMonth: month, ...extra });
 const sumTrace = (m, keys) => keys.reduce((s, k) => s + m.trace[k], 0);
 
 test('preview-ripple: tăng level.nv.3.base 7.000.000 → 8.000.000 cho đủ tám thành phần ①–⑧ và chuỗi lan truyền của người bị ảnh hưởng đúng số bộ máy (ngày công, phụ cấp, OT, tạm ứng, bảo hiểm, thực lĩnh)', async () => {
@@ -42,8 +42,8 @@ test('preview-ripple: tăng level.nv.3.base 7.000.000 → 8.000.000 cho đủ t�
   );
   for (const c of ripple.components)
     assert.ok(closeTo(c.after - c.before, c.delta, 1e-6), `${c.key}: delta = sau − trước`);
-  const before = run(M)['qa_nv2'];
-  const after = run(M, { 'level.nv.3.base': 8000000 })['qa_nv2'];
+  const before = (await run(M))['qa_nv2'];
+  const after = (await run(M, { 'level.nv.3.base': 8000000 }))['qa_nv2'];
   const row = ripple.people.find(p => p.username === 'qa_nv2');
   assert.ok(row, 'người bị ảnh hưởng nằm trong ripple.people');
   const d = row.delta;
@@ -80,8 +80,8 @@ test('preview-company-cost: companyCost = tổng thu nhập + bảo hiểm công
   const res = await preview(M, [{ key: 'level.nv.3.base', value: 8000000 }]);
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   const cost = res.data.impact.companyCost;
-  const before = run(M);
-  const after = run(M, { 'level.nv.3.base': 8000000 });
+  const before = await run(M);
+  const after = await run(M, { 'level.nv.3.base': 8000000 });
   const sum = set => PEOPLE.reduce((s, u) => s + company(set[u]), 0);
   assert.equal(cost.before, sum(before), 'trước');
   assert.equal(cost.after, sum(after), 'sau');
@@ -93,8 +93,8 @@ test('preview-company-cost: companyCost = tổng thu nhập + bảo hiểm công
 
 test('preview-decreased: hạ hệ số OT ngày có lịch (ot.rate 1,5 → 1,2) liệt kê đúng những người BỊ GIẢM thực lĩnh với đúng mức giảm; tăng hệ số thì không ai', async () => {
   const M = await P.setupMonth();
-  const before = run(M);
-  const after = run(M, { 'ot.rate': 1.2 });
+  const before = await run(M);
+  const after = await run(M, { 'ot.rate': 1.2 });
   const down = PEOPLE.filter(u => after[u].net.net < before[u].net.net).sort();
   assert.ok(down.length >= 1, 'điều kiện của bài: có người làm OT bị giảm');
   const res = await preview(M, [{ key: 'ot.rate', value: 1.2 }]);
@@ -169,7 +169,7 @@ test('preview-ripple: trường cũ của preview giữ nguyên (ok, errors, war
   for (const name of ['ok', 'errors', 'warnings', 'impact']) assert.ok(Object.hasOwn(res.data, name), name);
   for (const name of ['month', 'people', 'totals']) assert.ok(Object.hasOwn(res.data.impact, name), `impact.${name}`);
   const row = res.data.impact.people.find(p => p.username === 'qa_nv2');
-  const before = run(M)['qa_nv2'].net;
-  const afterNet = run(M, { 'level.nv.3.base': 8000000 })['qa_nv2'].net;
+  const before = (await run(M))['qa_nv2'].net;
+  const afterNet = (await run(M, { 'level.nv.3.base': 8000000 }))['qa_nv2'].net;
   assert.deepEqual(row.diff, { gross: afterNet.gross - before.gross, net: afterNet.net - before.net });
 });

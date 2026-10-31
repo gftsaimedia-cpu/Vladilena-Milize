@@ -14,9 +14,9 @@ const { store } = F;
 
 before(async () => {
   await F.start();
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('qa_exist', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
-  F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('qa_exist', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
+  await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
 });
 after(F.stop);
 
@@ -32,25 +32,25 @@ const profile = (extra = {}) => ({
   ...extra
 });
 // Tài khoản đã có không nhận mật khẩu qua hồ sơ (400 USE_PASSWORD_RESET): bỏ trường password khi tài khoản đã tồn tại
-const put = (username, body, who = 'admin') => {
+const put = async (username, body, who = 'admin') => {
   const { password, ...withoutPassword } = body;
-  return F.call('PUT', `/staff/${username}`, { who, body: store.getStaffRow(username) ? withoutPassword : body });
+  return F.call('PUT', `/staff/${username}`, { who, body: await store.getStaffRow(username) ? withoutPassword : body });
 };
 const staffCount = () => store.db.prepare('SELECT COUNT(*) AS n FROM staff').get().n;
 
 // Gửi hồ sơ sai cho tài khoản mới và cho tài khoản đã có; 400 đúng câu lỗi và không bảng nào đổi
 async function rejects(extra, message) {
   for (const username of ['qa_new_t8', 'qa_exist']) {
-    const before = F.snapshot();
+    const before = await F.snapshot();
     const count = staffCount();
-    const prev = JSON.stringify(store.getStaff(username) || null);
-    const res = await put(username, profile(extra));
+    const prev = JSON.stringify(await store.getStaff(username) || null);
+    const res = await put(username, await profile(extra));
     assert.equal(res.status, 400, `${username} ${JSON.stringify(extra)}: ${res.status} ${JSON.stringify(res.data)}`);
     if (message instanceof RegExp) assert.match(res.data.error, message, JSON.stringify(extra));
     else assert.equal(res.data.error, message, JSON.stringify(extra));
-    assert.deepEqual(F.changedTables(before, F.snapshot()), [], `${JSON.stringify(extra)} không được ghi gì`);
+    assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `${JSON.stringify(extra)} không được ghi gì`);
     assert.equal(staffCount(), count, 'số nhân sự không đổi');
-    assert.equal(JSON.stringify(store.getStaff(username) || null), prev, `${username} nguyên vẹn`);
+    assert.equal(JSON.stringify(await store.getStaff(username) || null), prev, `${username} nguyên vẹn`);
   }
 }
 
@@ -63,8 +63,8 @@ test('T8: loại nhân sự lạ (xyz, NV viết hoa, chuỗi rỗng, số 5, tr
 test('T8: vai trò lạ (boss, ADMIN viết hoa, true, chuỗi rỗng) là 400 "Vai trò phải là admin hoặc staff", không tạo tài khoản và không đổi vai trò tài khoản có sẵn', async () => {
   for (const role of ['boss', 'ADMIN', 'Staff', true, '', 1])
     await rejects({ role }, 'Vai trò phải là admin hoặc staff');
-  assert.equal(store.getStaff('qa_exist').role, 'staff');
-  assert.equal(store.getStaff('qa_new_t8'), undefined);
+  assert.equal((await store.getStaff('qa_exist')).role, 'staff');
+  assert.equal(await store.getStaff('qa_new_t8'), undefined);
 });
 
 test('T8: NV với phụ cấp đêm ngoài lựa chọn (55, "abc", 0, "0", -40, 100) là 400 "Phụ cấp đêm phải là một trong: 40, 60 (%)" và không lưu gì', async () => {
@@ -73,12 +73,12 @@ test('T8: NV với phụ cấp đêm ngoài lựa chọn (55, "abc", 0, "0", -40
 });
 
 test('T8: đầu vào hợp lệ giữ nguyên: NV không có nightPct lưu 40; 60 và "60" lưu 60; 40 lưu 40', async () => {
-  const noPct = profile();
+  const noPct = await profile();
   delete noPct.nightPct;
   const created = await put('qa_new_t8', noPct);
   assert.equal(created.status, 200, JSON.stringify(created.data));
-  assert.equal(store.getStaff('qa_new_t8').nightPct, 40, 'thiếu nightPct: lấy lựa chọn đầu tiên');
-  assert.equal(store.getStaff('qa_new_t8').type, 'nv');
+  assert.equal((await store.getStaff('qa_new_t8')).nightPct, 40, 'thiếu nightPct: lấy lựa chọn đầu tiên');
+  assert.equal((await store.getStaff('qa_new_t8')).type, 'nv');
   for (const [given, stored] of [
     [60, 60],
     ['60', 60],
@@ -87,43 +87,43 @@ test('T8: đầu vào hợp lệ giữ nguyên: NV không có nightPct lưu 40; 
     [null, 40],
     ['', 40]
   ]) {
-    const res = await put('qa_plain', profile({ nightPct: given }));
+    const res = await put('qa_plain', await profile({ nightPct: given }));
     assert.equal(res.status, 200, `nightPct ${JSON.stringify(given)}: ${JSON.stringify(res.data)}`);
-    assert.equal(store.getStaff('qa_plain').nightPct, stored, `nightPct ${JSON.stringify(given)}`);
+    assert.equal((await store.getStaff('qa_plain')).nightPct, stored, `nightPct ${JSON.stringify(given)}`);
   }
 });
 
 test('T8: CTV gửi nightPct 60 vẫn 200 và nightPct lưu null (loại không có bảng phụ cấp đêm bỏ qua trường này); ngay cả giá trị lạ cũng không bị từ chối', async () => {
-  const res = await put('qa_ctv_t8', profile({ type: 'ctv', nightPct: 60 }));
+  const res = await put('qa_ctv_t8', await profile({ type: 'ctv', nightPct: 60 }));
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.equal(store.getStaff('qa_ctv_t8').type, 'ctv');
-  assert.equal(store.getStaff('qa_ctv_t8').nightPct, null);
-  const odd = await put('qa_ctv_t8', profile({ type: 'ctv', nightPct: 55 }));
+  assert.equal((await store.getStaff('qa_ctv_t8')).type, 'ctv');
+  assert.equal((await store.getStaff('qa_ctv_t8')).nightPct, null);
+  const odd = await put('qa_ctv_t8', await profile({ type: 'ctv', nightPct: 55 }));
   assert.equal(odd.status, 200, JSON.stringify(odd.data));
-  assert.equal(store.getStaff('qa_ctv_t8').nightPct, null);
+  assert.equal((await store.getStaff('qa_ctv_t8')).nightPct, null);
 });
 
 test('T8: thiếu type thì là tts, thiếu role thì là staff, type/role null cũng vậy (thiếu trường khác với giá trị lạ)', async () => {
-  const body = profile({ startDate: '2026-01-05' });
+  const body = await profile({ startDate: '2026-01-05' });
   delete body.type;
   delete body.role;
   delete body.nightPct;
   const res = await put('qa_default_t8', body);
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  const saved = store.getStaff('qa_default_t8');
+  const saved = await store.getStaff('qa_default_t8');
   assert.equal(saved.type, 'tts');
   assert.equal(saved.role, 'staff');
   assert.equal(saved.nightPct, null, 'TTS không có phụ cấp đêm');
-  const nulls = await put('qa_null_t8', profile({ type: null, role: null }));
+  const nulls = await put('qa_null_t8', await profile({ type: null, role: null }));
   assert.equal(nulls.status, 200, JSON.stringify(nulls.data));
-  assert.equal(store.getStaff('qa_null_t8').type, 'tts');
-  assert.equal(store.getStaff('qa_null_t8').role, 'staff');
+  assert.equal((await store.getStaff('qa_null_t8')).type, 'tts');
+  assert.equal((await store.getStaff('qa_null_t8')).role, 'staff');
 });
 
 test('T8: nhân sự thường (staff) vẫn không sửa được hồ sơ người khác dù gửi giá trị đúng hay sai (403), và chưa đăng nhập là 401', async () => {
-  const before = F.snapshot();
-  assert.equal((await put('qa_exist', profile(), 'qa_plain')).status, 403);
-  assert.equal((await put('qa_exist', profile({ type: 'xyz' }), 'qa_plain')).status, 403);
-  assert.equal((await put('qa_exist', profile(), null)).status, 401);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  const before = await F.snapshot();
+  assert.equal((await put('qa_exist', await profile(), 'qa_plain')).status, 403);
+  assert.equal((await put('qa_exist', await profile({ type: 'xyz' }), 'qa_plain')).status, 403);
+  assert.equal((await put('qa_exist', await profile(), null)).status, 401);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });

@@ -30,13 +30,13 @@ function formulaChanges(name, text) {
 const CYCLE = 'lương KPI = tổng thu nhập × 10%';
 
 test('V1A-S6-1: lưu "lương KPI = tổng thu nhập × 10%" bị từ chối 400 PARAM_LOCKED (khoá công thức đã khoá) và không ghi gì', async () => {
-  const rowsBefore = S.rowCount();
-  const configBefore = S.configRev();
+  const rowsBefore = await S.rowCount();
+  const configBefore = await S.configRev();
   const res = await S.saveChanges(formulaChanges('luongKpi', CYCLE), { month: M });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 300));
   assert.ok(JSON.stringify(res.data).includes('PARAM_LOCKED'), JSON.stringify(res.data).slice(0, 300));
-  assert.equal(S.rowCount(), rowsBefore, 'không dòng param_versions nào được thêm');
-  assert.equal(S.configRev(), configBefore, 'config_rev không đổi');
+  assert.equal(await S.rowCount(), rowsBefore, 'không dòng param_versions nào được thêm');
+  assert.equal(await S.configRev(), configBefore, 'config_rev không đổi');
 });
 
 test('V1A-S6-1: dù lần lưu trên có bị từ chối hay không, ước tính của Admin (GET estimates) không có hàng lỗi và không 5xx', async () => {

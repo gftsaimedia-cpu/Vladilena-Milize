@@ -20,7 +20,7 @@ async function login(username, password) {
 const wrong = username => login(username, 'sai-mat-khau');
 
 before(async () => {
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'admin',
     name: 'Admin',
     role: 'admin',
@@ -28,7 +28,7 @@ before(async () => {
     level: 0,
     passHash: auth.hashPassword('test-pass')
   });
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'khoa',
     name: 'Bị khoá',
     role: 'staff',
@@ -36,8 +36,8 @@ before(async () => {
     level: 1,
     passHash: auth.hashPassword('test-pass')
   });
-  store.lockStaff('khoa', 'admin');
-  assert.ok(store.getStaffRow('khoa').locked_at, 'tài khoản đã bị khoá');
+  await store.lockStaff('khoa', 'admin');
+  assert.ok((await store.getStaffRow('khoa')).locked_at, 'tài khoản đã bị khoá');
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   base = 'http://127.0.0.1:' + server.address().port;
 });
@@ -59,7 +59,7 @@ test('mật khẩu đúng của tài khoản bị khoá trả 403 và KHÔNG xo�
 });
 
 test('đăng nhập bình thường của tài khoản không bị khoá vẫn 200 (đổi thứ tự kiểm không làm hỏng đường đăng nhập)', async () => {
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'mo',
     name: 'Mở',
     role: 'staff',

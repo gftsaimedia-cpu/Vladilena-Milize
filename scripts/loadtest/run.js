@@ -65,7 +65,7 @@ async function main() {
     process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
     const store = require('../../lib/db');
     const auth = require('../../lib/auth');
-    seedLoadUsers(store, { count: userCount, passHash: auth.hashPassword(password), prefix });
+    await seedLoadUsers(store, { count: userCount, passHash: auth.hashPassword(password), prefix });
     store.db.close();
     const port = num('port', 3590);
     base = `http://127.0.0.1:${port}`;

@@ -14,19 +14,19 @@ const days = {
 };
 const month = holidays => engine.calcMonth(nv, days, null, holidays, '2026-10', null);
 
-test('Làm bù đêm sang ngày lễ: phần trả thêm riêng của giờ lễ = 1 giờ × lương giờ × (3 − 1)', () => {
-  const m = month(['2026-10-07']);
+test('Làm bù đêm sang ngày lễ: phần trả thêm riêng của giờ lễ = 1 giờ × lương giờ × (3 − 1)', async () => {
+  const m = await month(['2026-10-07']);
   assert.ok(Math.abs(m.makeupHolPremium - 2 * HOURLY) < 1e-6, `makeupHolPremium ${m.makeupHolPremium}`);
   const row = m.rows.find(r => r.date === '2026-10-06');
   // 3 giờ bù × lương giờ + phần trả thêm của giờ lễ, không có phụ cấp đêm trong ngày có giờ bù
   assert.ok(Math.abs(row.makeupPay - (3 + 2) * HOURLY) < 1e-6, `makeupPay ${row.makeupPay}`);
 });
 
-test('Làm bù đêm sang ngày lễ: tổng tháng 934.616 ₫ (ngày 05/10 thiếu 1 giờ, ngày 06/10 làm bù, ngày lễ 07/10 nghỉ hưởng lương)', () => {
-  const m = month(['2026-10-07']);
+test('Làm bù đêm sang ngày lễ: tổng tháng 934.616 ₫ (ngày 05/10 thiếu 1 giờ, ngày 06/10 làm bù, ngày lễ 07/10 nghỉ hưởng lương)', async () => {
+  const m = await month(['2026-10-07']);
   assert.equal(Math.round(m.total), 934616);
 });
 
-test('Không có ngày lễ thì không có phần trả thêm', () => {
-  assert.equal(month([]).makeupHolPremium, 0);
+test('Không có ngày lễ thì không có phần trả thêm', async () => {
+  assert.equal((await month([])).makeupHolPremium, 0);
 });

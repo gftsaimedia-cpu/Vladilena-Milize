@@ -11,8 +11,8 @@ const { F } = P;
 before(F.start);
 after(F.stop);
 
-const profileOf = (username, patch = {}) => {
-  const staff = F.store.getStaff(username);
+const profileOf = async (username, patch = {}) => {
+  const staff = await F.store.getStaff(username);
   return {
     name: staff.name,
     role: staff.role,
@@ -26,15 +26,15 @@ const profileOf = (username, patch = {}) => {
 const saveIdorm = async (username, patch) => {
   const res = await F.call('PUT', `/staff/${username}`, {
     who: 'admin',
-    body: profileOf(username, { idorm: true, ...patch })
+    body: await profileOf(username, { idorm: true, ...patch })
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  return F.store.getStaff(username).idorm;
+  return (await F.store.getStaff(username)).idorm;
 };
 
 test('iDorm: mặc định đúng như điều kiện cũ: NV nhận idorm true, CTV không (cờ ba chức vụ mặc định)', async () => {
   const M = await P.setupMonth();
-  const set = P.paramsOf(M);
+  const set = await P.paramsOf(M);
   assert.deepEqual(
     [set['type.tts.benefit.idorm'], set['type.ctv.benefit.idorm'], set['type.nv.benefit.idorm']],
     [false, false, true]
@@ -46,7 +46,7 @@ test('iDorm: mặc định đúng như điều kiện cũ: NV nhận idorm true,
 test('iDorm: tắt cờ của cả chức vụ NV thì NV không nhận idorm true (dù vẫn có phụ cấp đi lại); bật lại cờ thì nhận', async () => {
   const M = await P.setupMonth();
   assert.equal((await P.saveChanges([{ key: 'type.nv.benefit.idorm', value: false }], { month: M })).status, 200);
-  assert.equal(P.paramsOf(M)['type.nv.travel'] > 0, true);
+  assert.equal((await P.paramsOf(M))['type.nv.travel'] > 0, true);
   assert.equal(await saveIdorm('qa_nv1'), false);
   assert.equal((await P.saveChanges([{ key: 'type.nv.benefit.idorm', value: true }], { month: M })).status, 200);
   assert.equal(await saveIdorm('qa_nv1'), true);

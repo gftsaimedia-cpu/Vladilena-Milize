@@ -14,11 +14,11 @@ const SAT = '2026-11-07'; // ngoài lịch của TTS, trong lịch của NV
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  S.world();
-  F.person('qa_s_nv', 'staff', { leaveAdjust: 30 }); // phép năm còn đủ, không phụ thuộc số tháng làm việc
+beforeEach(async () => {
+  await S.world();
+  await F.person('qa_s_nv', 'staff', { leaveAdjust: 30 }); // phép năm còn đủ, không phụ thuộc số tháng làm việc
 });
-const put = (days, who = 'qa_s_nv', month = S.MONTH) => F.call('PUT', '/sheet', { who, body: { month, days } });
+const put = async (days, who = 'qa_s_nv', month = S.MONTH) => await F.call('PUT', '/sheet', { who, body: { month, days } });
 // Lưu được (200), kèm cảnh báo mang mã `code` nêu ngày; trả phản hồi để test kiểm thêm
 async function warnSave(days, code, pattern, who = 'qa_s_nv') {
   const res = await put(days, who);
@@ -30,8 +30,8 @@ async function warnSave(days, code, pattern, who = 'qa_s_nv') {
 }
 
 test('lịch ước tính 1: TTS khai Thứ Bảy 07/11 đi làm (ngoài lịch T2–T6): vẫn lưu, kèm cảnh báo SHEET_OFF_SCHEDULE "nằm ngoài lịch làm việc"', async () => {
-  await warnSave(day(SAT), 'SHEET_OFF_SCHEDULE', /nằm ngoài lịch làm việc/, 'qa_s_tts');
-  assert.ok(store.getSheet('qa_s_tts', S.MONTH).days[SAT]);
+  await warnSave(await day(SAT), 'SHEET_OFF_SCHEDULE', /nằm ngoài lịch làm việc/, 'qa_s_tts');
+  assert.ok((await store.getSheet('qa_s_tts', S.MONTH)).days[SAT]);
 });
 test('lịch ước tính 2: TTS chấm nghỉ không lương Thứ Bảy 07/11: 200 (ngày ngoài lịch được chấm nghỉ không lương)', async () => {
   const res = await put({ [SAT]: { kind: 'unpaid' } }, 'qa_s_tts');
@@ -39,8 +39,8 @@ test('lịch ước tính 2: TTS chấm nghỉ không lương Thứ Bảy 07/11:
 });
 test('lịch ước tính 3: Chủ nhật 08/11 mọi loại ngày: vẫn lưu, kèm cảnh báo SHEET_SUNDAY "Chủ nhật"', async () => {
   for (const kind of ['work', 'unpaid', 'leave', 'willmakeup'])
-    await warnSave(day('2026-11-08', { kind }), 'SHEET_SUNDAY', /Chủ nhật/);
-  const isat = await put(day('2026-11-08', { kind: 'isat' }));
+    await warnSave(await day('2026-11-08', { kind }), 'SHEET_SUNDAY', /Chủ nhật/);
+  const isat = await put(await day('2026-11-08', { kind: 'isat' }));
   assert.equal(isat.status, 400, 'iSAT chỉ được khai vào Thứ Bảy');
   assert.equal(isat.data.code, 'SHEET_ISAT_WEEKDAY');
 });
@@ -50,32 +50,32 @@ test('lịch ước tính 6: NV còn phép khai nghỉ không lương Thứ Hai 
 test('lịch ước tính 7: TTS nghỉ không lương Thứ Bảy 07/11 (ngoài lịch): 200, quy tắc T2–T6 chỉ áp cho ngày trong lịch (nếu chỉ đổi vị ngữ ngày làm thì ca này 400 nhầm)', async () => {
   const res = await put({ [SAT]: { kind: 'unpaid' } }, 'qa_s_tts');
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.deepEqual(Object.keys(store.getSheet('qa_s_tts', S.MONTH).days), [SAT]);
+  assert.deepEqual(Object.keys((await store.getSheet('qa_s_tts', S.MONTH)).days), [SAT]);
 });
 
 // Gọi thẳng lib/data-quality.js → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
-function negativeLeaveOf(username) {
+async function negativeLeaveOf(username) {
   const { evaluate } = require('../../lib/data-quality');
   const result = evaluate({
-    staff: [store.getStaff(username)],
-    sheets: store.listSheets(username).map(sheet => ({ ...sheet, username })),
-    holidays: store.getSetting('holidays', []),
-    approvals: store.approvals.list({ username }),
+    staff: [await store.getStaff(username)],
+    sheets: (await store.listSheets(username)).map(sheet => ({ ...sheet, username })),
+    holidays: await store.getSetting('holidays', []),
+    approvals: await store.approvals.list({ username }),
     today: '2026-11-30'
   });
   return result.issues.find(i => i.username === username && i.code === 'negative-leave');
 }
-test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm đúng ngày lễ trong lịch: không trừ phép; leaveDates, leaveSummary và data-quality cho cùng số', () => {
-  F.person('qa_s_new', 'staff', { startDate: '2026-10-30', leaveAdjust: -30 }); // chưa được cộng phép nào: ngày nghỉ thật sự trừ ra số âm
-  store.setSetting('holidays', ['2026-10-27']); // Thứ Ba, nằm trong lịch T2–T7
-  store.setSheet('qa_s_new', '2026-10', { '2026-10-27': { kind: 'leave' }, '2026-10-28': { kind: 'leave' } });
+test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm đúng ngày lễ trong lịch: không trừ phép; leaveDates, leaveSummary và data-quality cho cùng số', async () => {
+  await F.person('qa_s_new', 'staff', { startDate: '2026-10-30', leaveAdjust: -30 }); // chưa được cộng phép nào: ngày nghỉ thật sự trừ ra số âm
+  await store.setSetting('holidays', ['2026-10-27']); // Thứ Ba, nằm trong lịch T2–T7
+  await store.setSheet('qa_s_new', '2026-10', { '2026-10-27': { kind: 'leave' }, '2026-10-28': { kind: 'leave' } });
   const { leaveDates, leaveSummary } = require('../../lib/domain/sheet');
-  const staff = store.getStaff('qa_s_new');
-  assert.deepEqual(leaveDates(staff), ['2026-10-28'], 'ngày lễ trong lịch không trừ phép');
-  assert.equal(leaveSummary(staff).used, 1);
-  const issue = negativeLeaveOf('qa_s_new');
+  const staff = await store.getStaff('qa_s_new');
+  assert.deepEqual(await leaveDates(staff), ['2026-10-28'], 'ngày lễ trong lịch không trừ phép');
+  assert.equal((await leaveSummary(staff)).used, 1);
+  const issue = await negativeLeaveOf('qa_s_new');
   assert.ok(issue, 'phép âm được báo');
-  assert.equal(issue.used, leaveDates(staff).length, 'data-quality và leaveDates cùng một số');
+  assert.equal(issue.used, (await leaveDates(staff)).length, 'data-quality và leaveDates cùng một số');
 });
 
 test('lịch ước tính 10: GET /api/sheet người mặc định: source "type", scheduledDates đúng T2–T7 (25 ngày tháng 11), TTS T2–T6', async () => {
@@ -87,20 +87,20 @@ test('lịch ước tính 10: GET /api/sheet người mặc định: source "typ
   assert.equal(tts.data.scheduledDates.length, 21, 'T2–T6 tháng 11/2026');
 });
 test('lịch ước tính 11: người mặc định (NV, TTS): Chủ nhật và ngoài lịch (đi làm) vẫn lưu kèm cảnh báo, loại ngày Làm bù cả ngày 400 ở mọi ngày', async () => {
-  const nv = (days, who = 'qa_s_nv2') => put(days, who);
-  await warnSave(day('2026-11-08'), 'SHEET_SUNDAY', undefined, 'qa_s_nv2');
+  const nv = async (days, who = 'qa_s_nv2') => await put(days, who);
+  await warnSave(await day('2026-11-08'), 'SHEET_SUNDAY', undefined, 'qa_s_nv2');
   assert.equal(
-    (await nv(day('2026-11-02', { kind: 'makeup' }))).data.code,
+    (await nv(await day('2026-11-02', { kind: 'makeup' }))).data.code,
     'SHEET_MAKEUP_DAY_REMOVED',
     'ngày trong lịch'
   );
   assert.equal(
-    (await nv({ ...day('2026-11-03'), ...day('2026-11-07') })).status,
+    (await nv({ ...await day('2026-11-03'), ...await day('2026-11-07') })).status,
     200,
     'T2–T7 đều là ngày trong lịch của NV'
   );
-  await warnSave(day(SAT), 'SHEET_OFF_SCHEDULE', /nằm ngoài lịch làm việc/, 'qa_s_tts'); // TTS khai đi làm Thứ Bảy (ngoài lịch)
-  const ttsMakeup = await put(day(SAT, { kind: 'makeup' }), 'qa_s_tts');
+  await warnSave(await day(SAT), 'SHEET_OFF_SCHEDULE', /nằm ngoài lịch làm việc/, 'qa_s_tts'); // TTS khai đi làm Thứ Bảy (ngoài lịch)
+  const ttsMakeup = await put(await day(SAT, { kind: 'makeup' }), 'qa_s_tts');
   assert.equal(ttsMakeup.status, 400, 'TTS Thứ Bảy');
   assert.equal(ttsMakeup.data.code, 'SHEET_MAKEUP_DAY_REMOVED');
 });

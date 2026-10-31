@@ -24,8 +24,8 @@ const apply = (text, span, replacement) => text.slice(0, span.start) + replaceme
 test(
   'suggestionReplace: "thưởng chuyên cần" lạ ở 33..39, thay cả 33..50; nhận gợi ý 0 ra công thức hợp lệ có "chuyên cần" đúng một lần',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const vocabulary = starter();
     const text = 'tổng thu nhập = tiền ngày công + thưởng chuyên cần';
     const res = Formula.parse(text, { vocabulary });
@@ -49,8 +49,8 @@ test(
 test(
   'suggestionReplace: mọi gợi ý, áp tại khoảng của chính nó, cho công thức không còn lỗi PARSE_UNKNOWN_WORD và không lặp chữ',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const vocabulary = starter();
     const text = 'tổng thu nhập = tiền ngày công + thưởng chuyên cần';
     const e = Formula.parse(text, { vocabulary }).errors[0];
@@ -63,8 +63,8 @@ test(
   }
 );
 
-test('suggestionReplace: chữ lạ đứng riêng ("KPO") thì replace trùng at', opts, () => {
-  const Formula = load();
+test('suggestionReplace: chữ lạ đứng riêng ("KPO") thì replace trùng at', opts, async () => {
+  const Formula = await load();
   const vocabulary = starter();
   const text = 'tổng thu nhập = tiền ngày công + KPO';
   const e = Formula.parse(text, { vocabulary }).errors.find(x => x.code === 'PARSE_UNKNOWN_WORD');
@@ -75,8 +75,8 @@ test('suggestionReplace: chữ lạ đứng riêng ("KPO") thì replace trùng a
   assert.equal(Formula.parse(fixed, { vocabulary }).ok, true, fixed);
 });
 
-test('suggestionReplace: nhãn đã biết nằm TRƯỚC chữ lạ ("chuyên cần thưởng"): at 44..50, replace 33..50', opts, () => {
-  const Formula = load();
+test('suggestionReplace: nhãn đã biết nằm TRƯỚC chữ lạ ("chuyên cần thưởng"): at 44..50, replace 33..50', opts, async () => {
+  const Formula = await load();
   const vocabulary = starter();
   const text = 'tổng thu nhập = tiền ngày công + chuyên cần thưởng';
   const e = Formula.parse(text, { vocabulary }).errors.find(x => x.code === 'PARSE_UNKNOWN_WORD');
@@ -88,8 +88,8 @@ test('suggestionReplace: nhãn đã biết nằm TRƯỚC chữ lạ ("chuyên c
   assert.equal(Formula.parse(fixed, { vocabulary }).ok, true, fixed);
 });
 
-test('suggestionReplace: mọi khoảng nằm trong chữ, start ≤ end, và phủ chữ lạ', opts, () => {
-  const Formula = load();
+test('suggestionReplace: mọi khoảng nằm trong chữ, start ≤ end, và phủ chữ lạ', opts, async () => {
+  const Formula = await load();
   const vocabulary = starter();
   for (const text of [
     'tổng thu nhập = tiền ngày công + thưởng chuyên cần',
@@ -112,8 +112,8 @@ test('suggestionReplace: mọi khoảng nằm trong chữ, start ≤ end, và ph
 
 // ---------- 2. Đơn vị flag ----------
 
-test('flag: dùng làm điều kiện của nếu, và, hoặc, không đều hợp lệ', opts, () => {
-  const Formula = load();
+test('flag: dùng làm điều kiện của nếu, và, hoặc, không đều hợp lệ', opts, async () => {
+  const Formula = await load();
   for (const text of [
     'khoản A = nếu ở iDorm thì LCB ngược lại 0',
     'khoản A = nếu không ở iDorm thì LCB ngược lại 0',
@@ -127,8 +127,8 @@ test('flag: dùng làm điều kiện của nếu, và, hoặc, không đều h�
   }
 });
 
-test('FORMULA_NOT_NUMERIC: flag trong phép cộng, nhân, hoặc so sánh số bị từ chối', opts, () => {
-  const Formula = load();
+test('FORMULA_NOT_NUMERIC: flag trong phép cộng, nhân, hoặc so sánh số bị từ chối', opts, async () => {
+  const Formula = await load();
   for (const text of [
     'khoản A = LCB + ở iDorm',
     'khoản A = LCB × ở iDorm',
@@ -146,15 +146,15 @@ test('FORMULA_NOT_NUMERIC: flag trong phép cộng, nhân, hoặc so sánh số 
 test(
   'flag: nhãn flag là một điều kiện, nhưng "nếu LCB thì ..." (điều kiện là số tiền) không được tính là cờ',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const out = F.checkAll(Formula, 'khoản A = nếu LCB thì đi lại ngược lại 0', FLAG_VOCAB);
     assert.equal(out.ok, false, 'điều kiện phải là cờ hoặc so sánh');
   }
 );
 
-test('flag: evaluate nhận true/false hoặc 1/0 từ hàm có sẵn kiểu flag', opts, () => {
-  const Formula = load();
+test('flag: evaluate nhận true/false hoặc 1/0 từ hàm có sẵn kiểu flag', opts, async () => {
+  const Formula = await load();
   const text = 'khoản A = nếu ở iDorm thì LCB ngược lại 0';
   const run = value =>
     F.evalText(Formula, text, { variables: { luongCoBan: 7 }, builtins: { idorm: () => value } }, FLAG_VOCAB);
@@ -175,8 +175,8 @@ test('flag: evaluate nhận true/false hoặc 1/0 từ hàm có sẵn kiểu fla
   assert.equal(runBoth(0, 0), 0);
 });
 
-test('flag: giá trị không phải true/false/0/1 (NaN, chuỗi, 2) từ hàm có sẵn kiểu flag là lỗi, không đoán', opts, () => {
-  const Formula = load();
+test('flag: giá trị không phải true/false/0/1 (NaN, chuỗi, 2) từ hàm có sẵn kiểu flag là lỗi, không đoán', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(Formula, 'khoản A = nếu ở iDorm thì LCB ngược lại 0', FLAG_VOCAB);
   for (const bad of [NaN, 'có', null, undefined, {}]) {
     const code = F.evalErrorCode(
@@ -188,8 +188,8 @@ test('flag: giá trị không phải true/false/0/1 (NaN, chuỗi, 2) từ hàm 
   }
 });
 
-test('count vẫn dùng làm điều kiện được (tương thích ngược với từ vựng cũ)', opts, () => {
-  const Formula = load();
+test('count vẫn dùng làm điều kiện được (tương thích ngược với từ vựng cũ)', opts, async () => {
+  const Formula = await load();
   assert.ok(
     STD_VOCAB.some(w => w.unit === 'count'),
     'STD_VOCAB vẫn khai count'
@@ -206,8 +206,8 @@ test('count vẫn dùng làm điều kiện được (tương thích ngược v�
   );
 });
 
-test('checkVocabulary chấp nhận đơn vị flag và vẫn từ chối đơn vị không có thật', opts, () => {
-  const Formula = load();
+test('checkVocabulary chấp nhận đơn vị flag và vẫn từ chối đơn vị không có thật', opts, async () => {
+  const Formula = await load();
   const entry = unit => [{ key: 'coCo', label: 'có cờ', synonyms: [], kind: 'builtin', unit, domain: 'month' }];
   const ok = Formula.checkVocabulary(entry('flag'));
   assert.equal(ok.ok, true, JSON.stringify(ok));
@@ -216,8 +216,8 @@ test('checkVocabulary chấp nhận đơn vị flag và vẫn từ chối đơn 
   assert.equal(bad.ok, false);
 });
 
-test('Từ vựng khởi đầu: ở iDorm và giữ được chuyên cần là flag, và toàn bộ từ vựng qua checkVocabulary', opts, () => {
-  const Formula = load();
+test('Từ vựng khởi đầu: ở iDorm và giữ được chuyên cần là flag, và toàn bộ từ vựng qua checkVocabulary', opts, async () => {
+  const Formula = await load();
   const vocabulary = starter();
   for (const key of ['idorm', 'giuChuyenCan']) assert.equal(vocabulary.find(w => w.key === key).unit, 'flag', key);
   const check = Formula.checkVocabulary(vocabulary);
@@ -226,8 +226,8 @@ test('Từ vựng khởi đầu: ở iDorm và giữ được chuyên cần là 
 
 // ---------- 3. units theo đường dẫn ----------
 
-test('units: ví dụ phụ cấp đi lại cho đúng năm đơn vị theo đường dẫn', opts, () => {
-  const Formula = load();
+test('units: ví dụ phụ cấp đi lại cho đúng năm đơn vị theo đường dẫn', opts, async () => {
+  const Formula = await load();
   const vocabulary = starter();
   const text =
     'phụ cấp đi lại = nếu ở iDorm thì 0 ngược lại lương cơ bản của level × tỷ lệ đi lại NV × (ngày đi làm ÷ ngày công chuẩn)';
@@ -242,15 +242,15 @@ test('units: ví dụ phụ cấp đi lại cho đúng năm đơn vị theo đư
   assert.equal(v.units['cây.else.b'], 'ratio', 'ngày ÷ ngày là tỷ lệ');
 });
 
-test('units: khoá là đường dẫn như path của lỗi; chỉ số hàm dạng args[0]', opts, () => {
-  const Formula = load();
+test('units: khoá là đường dẫn như path của lỗi; chỉ số hàm dạng args[0]', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'khoản A = nhỏ nhất của (LCB ; đi lại)');
   const v = Formula.validate(res.tree, { vocabulary: STD_VOCAB });
   assert.deepEqual(v.units, { 'cây.args[0]': 'VND', 'cây.args[1]': 'VND', cây: 'VND' });
 });
 
-test('units: mọi giá trị là chuỗi đơn vị hợp lệ và gốc "cây" luôn có khi cây hợp lệ', opts, () => {
-  const Formula = load();
+test('units: mọi giá trị là chuỗi đơn vị hợp lệ và gốc "cây" luôn có khi cây hợp lệ', opts, async () => {
+  const Formula = await load();
   const KNOWN = /^(VND|hour|day|ratio|count|any|flag|percent|VND\/day|VND\/hour|[A-Za-z]+(\/[A-Za-z]+)?)$/;
   for (const text of [
     'khoản A = LCB + đi lại',
@@ -269,8 +269,8 @@ test('units: mọi giá trị là chuỗi đơn vị hợp lệ và gốc "cây"
   }
 });
 
-test('units: tiền ÷ ngày là VND/day trên nút chia', opts, () => {
-  const Formula = load();
+test('units: tiền ÷ ngày là VND/day trên nút chia', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'khoản A = LCB ÷ ngày công chuẩn × ngày đi làm');
   const v = Formula.validate(res.tree, { vocabulary: STD_VOCAB });
   assert.equal(v.units['cây'], 'VND');
@@ -281,8 +281,8 @@ test('units: tiền ÷ ngày là VND/day trên nút chia', opts, () => {
 test(
   'units: lỗi đơn vị vẫn trả units của các nút đã biết (đường dẫn của lỗi nằm trong units hoặc là cha của nút có đơn vị)',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const res = F.parseOk(Formula, 'khoản A = LCB + giờ vượt ngưỡng');
     const v = Formula.validate(res.tree, { vocabulary: STD_VOCAB });
     assert.equal(v.ok, false);
@@ -292,8 +292,8 @@ test(
   }
 );
 
-test('units: validate sớm thất bại (cây rỗng, nút lạ) trả units rỗng', opts, () => {
-  const Formula = load();
+test('units: validate sớm thất bại (cây rỗng, nút lạ) trả units rỗng', opts, async () => {
+  const Formula = await load();
   for (const bad of [null, undefined, {}, 'abc', 5]) {
     const v = Formula.validate(bad, { vocabulary: STD_VOCAB });
     assert.equal(v.ok, false);
@@ -301,8 +301,8 @@ test('units: validate sớm thất bại (cây rỗng, nút lạ) trả units r�
   }
 });
 
-test('units: tính xác định và không đổi sau serialize/deserialize', opts, () => {
-  const Formula = load();
+test('units: tính xác định và không đổi sau serialize/deserialize', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(
     Formula,
     'khoản A = nếu giữ được chuyên cần thì LCB × tỷ lệ chuyên cần ngược lại 0',

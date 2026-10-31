@@ -34,7 +34,7 @@ test('ba chính sách nằm trong DEFAULTS và registry: phụ cấp ca theo ca 
   }
 });
 
-test('mỗi tháng cùng một cách tính: một ngày đi làm đúng ca trả đúng một ngày lương ở tháng 09, 10, 11 và 12', () => {
+test('mỗi tháng cùng một cách tính: một ngày đi làm đúng ca trả đúng một ngày lương ở tháng 09, 10, 11 và 12', async () => {
   const dates = [
     ['2026-09', '2026-09-01'],
     ['2026-10', '2026-10-06'],
@@ -42,33 +42,33 @@ test('mỗi tháng cùng một cách tính: một ngày đi làm đúng ca trả
     ['2026-12', '2026-12-01']
   ];
   for (const [month, date] of dates) {
-    const { m, actualReport } = compute(DEFAULTS, oneDay(month, date));
+    const { m, actualReport } = await compute(DEFAULTS, oneDay(month, date));
     assert.equal(m.count, 1, month);
     assert.ok(Math.abs(m.work - 6000000 / 26) < 1, `${month}: ${m.work}`);
     assert.ok(actualReport && actualReport.report[date], `${month}: bộ máy luôn xét Check-in/out`);
   }
 });
 
-test('mọi tháng đều xét Check-in/out: ngày đã khai mà không có lượt bấm là vắng, kể cả tháng 09', () => {
+test('mọi tháng đều xét Check-in/out: ngày đã khai mà không có lượt bấm là vắng, kể cả tháng 09', async () => {
   for (const [month, date] of [
     ['2026-09', '2026-09-01'],
     ['2026-11', '2026-11-03']
   ]) {
     const input = oneDay(month, date);
     input.sessions = [];
-    const { m } = compute(DEFAULTS, input);
+    const { m } = await compute(DEFAULTS, input);
     assert.equal(m.count, 0, `${month}: không bấm thì không có ngày công`);
     assert.equal(m.work, 0, month);
   }
 });
 
-test('bản chụp tham số cũ thiếu ba khoá vẫn tính được và ra đúng như cách đoán cũ (ca theo giờ có mặt, hợp đồng theo hồ sơ)', () => {
+test('bản chụp tham số cũ thiếu ba khoá vẫn tính được và ra đúng như cách đoán cũ (ca theo giờ có mặt, hợp đồng theo hồ sơ)', async () => {
   const old = { ...DEFAULTS };
   for (const key of Object.keys(OLD_BASIS)) delete old[key];
   delete old['tax.longTermMonths'];
   const input = oneDay('2026-10', '2026-10-06');
-  const fromSnapshot = compute(old, input);
-  const asOldBasis = compute({ ...DEFAULTS, ...OLD_BASIS }, input);
+  const fromSnapshot = await compute(old, input);
+  const asOldBasis = await compute({ ...DEFAULTS, ...OLD_BASIS }, input);
   assert.deepEqual(fromSnapshot.m, asOldBasis.m);
 });
 

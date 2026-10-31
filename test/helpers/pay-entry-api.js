@@ -20,7 +20,7 @@ const CHECKER = 'qa_admin2';
 // Dựng một tháng riêng (người bịa của period-flow) và tài khoản Admin thứ hai để duyệt
 async function setup() {
   const month = await P.setupMonth();
-  F.person(CHECKER, 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person(CHECKER, 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   return month;
 }
 const entry = (month, over = {}) => ({
@@ -32,7 +32,7 @@ const entry = (month, over = {}) => ({
   reason: 'Thưởng hoàn thành dự án thử nghiệm',
   ...over
 });
-const create = (month, over = {}, who = MAKER) => F.call('POST', '/pay-entries', { who, body: entry(month, over) });
+const create = async (month, over = {}, who = MAKER) => await F.call('POST', '/pay-entries', { who, body: entry(month, over) });
 const mustCreate = async (month, over = {}, who = MAKER) => {
   const res = await create(month, over, who);
   assert.equal(res.status, 200, `POST /api/pay-entries: ${res.status} ${JSON.stringify(res.data)}`);
@@ -42,18 +42,18 @@ const mustCreate = async (month, over = {}, who = MAKER) => {
 async function decide(id, decision, { who = CHECKER, rev = 1, note } = {}) {
   const body = { decision, rev };
   if (note !== undefined) body.note = note;
-  return F.call('PUT', `/pay-entries/${id}/decide`, { who, body });
+  return await F.call('PUT', `/pay-entries/${id}/decide`, { who, body });
 }
 const mustApprove = async (e, who = CHECKER) => {
   const res = await decide(e.id, 'approved', { who, rev: e.rev });
   assert.equal(res.status, 200, `duyệt: ${res.status} ${JSON.stringify(res.data)}`);
   return res.data.entry;
 };
-const list = (month, query = '', who = MAKER) => F.call('GET', `/pay-entries?month=${month}${query}`, { who });
+const list = async (month, query = '', who = MAKER) => await F.call('GET', `/pay-entries?month=${month}${query}`, { who });
 const statusOf = async (id, month) => (await list(month)).data.entries.find(r => r.id === id)?.status;
 async function slipsOf(month) {
   await P.advance(month, 'calculated');
-  return flow.payslipsOf(month).slips;
+  return (await flow.payslipsOf(month)).slips;
 }
 // Phiếu = khối cũ (chưa có khoản) cộng khoản qua phần đuôi luật tái tính độc lập (helpers/pay-oracle.js)
 function expectSlip(slip, legacyM, adds, label) {

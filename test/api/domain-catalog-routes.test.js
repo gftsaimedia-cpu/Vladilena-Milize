@@ -9,10 +9,10 @@ const paramsStore = require('../../lib/params/store');
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.person('admin', 'admin', { payrollSubject: false });
-  F.person('qa_nv', 'staff', { birthday: '1990-03-10' });
+beforeEach(async () => {
+  await F.reset();
+  await F.person('admin', 'admin', { payrollSubject: false });
+  await F.person('qa_nv', 'staff', { birthday: '1990-03-10' });
 });
 
 test('GET /catalog/positions: ba chức vụ mặc định, bậc theo tên của chủ dự án; nhân sự thường 403', async () => {
@@ -43,8 +43,8 @@ test('PUT /catalog/levels: bậc NV 2 đặt phụ cấp đêm 60 % từ 12/2026
   });
   assert.equal(saved.status, 200, JSON.stringify(saved.data));
   assert.equal(saved.data.level.nightPct, 60);
-  assert.equal(paramsStore.resolve('2026-12').params['level.nv.2.nightPct'], 60);
-  assert.equal(paramsStore.resolve('2026-11').params['level.nv.2.nightPct'], undefined);
+  assert.equal((await paramsStore.resolve('2026-12')).params['level.nv.2.nightPct'], 60);
+  assert.equal((await paramsStore.resolve('2026-11')).params['level.nv.2.nightPct'], undefined);
   const stale = await F.call('PUT', '/catalog/levels', {
     body: { type: 'nv', level: 2, changes: { nightPct: 50 }, effectiveMonth: '2026-12', expectedRev: level.rev }
   });
@@ -68,7 +68,7 @@ test('PUT /catalog/positions/:code: sửa tên chức vụ có nhật ký mức 
   });
   assert.equal(saved.status, 200, JSON.stringify(saved.data));
   assert.equal(saved.data.position.name, 'Nhân viên chính thức');
-  const row = F.store.audit.list({ action: 'catalog.position.save' })[0];
+  const row = (await F.store.audit.list({ action: 'catalog.position.save' }))[0];
   assert.equal(row.sensitivity, 'pay');
   const bad = await F.call('PUT', '/catalog/positions/nv', {
     body: { changes: { salary: 1 }, effectiveMonth: '2026-11', expectedRev: saved.data.position.rev }
@@ -95,7 +95,7 @@ test('GET /catalog/shifts và PUT: đổi loại ca có khoá lạc quan; mã c�
 });
 
 test('hồ sơ: họ/tên nhập riêng, thử việc/chính thức, ngày nghỉ việc, ca nhận mã cũ và lưu mã mới; tra theo uuid và lịch sử', async () => {
-  const before = F.store.getStaff('qa_nv');
+  const before = await F.store.getStaff('qa_nv');
   assert.equal(before.shiftCode, 'Normal1'); // fixture gán 'n1' → lưu thành mã Normal1
   const saved = await F.call('PUT', '/staff/qa_nv', {
     body: {
@@ -113,7 +113,7 @@ test('hồ sơ: họ/tên nhập riêng, thử việc/chính thức, ngày ngh�
     }
   });
   assert.equal(saved.status, 200, JSON.stringify(saved.data));
-  const after = F.store.getStaff('qa_nv');
+  const after = await F.store.getStaff('qa_nv');
   assert.equal(after.name, 'Hồ Thị Khánh Huyền');
   assert.equal(after.givenName, 'Huyền');
   assert.equal(after.shiftCode, 'Night1');
@@ -136,22 +136,22 @@ test('sổ phép: nhân viên xem sổ của mình, số dư lưu vào hồ sơ;
   assert.equal(mine.status, 200, JSON.stringify(mine.data));
   assert.equal(mine.data.hasAccount, true);
   assert.ok(mine.data.events.some(e => e.kind === 'month'));
-  assert.equal(F.store.getStaff('qa_nv').leaveBalance, mine.data.balance);
-  F.person('qa_khac');
+  assert.equal((await F.store.getStaff('qa_nv')).leaveBalance, mine.data.balance);
+  await F.person('qa_khac');
   assert.equal((await F.call('GET', '/leave/ledger?user=qa_khac', { who: 'qa_nv' })).status, 403);
   const all = await F.call('POST', '/leave/refresh', { body: {} });
   assert.equal(all.status, 200);
   assert.ok(all.data.checked >= 2);
 });
 
-test('lương tháng: hợp đồng theo thâm niên tới cuối tháng tính, người nghỉ việc trước tháng không vào bảng lương, tháng nào cũng một cách', () => {
+test('lương tháng: hợp đồng theo thâm niên tới cuối tháng tính, người nghỉ việc trước tháng không vào bảng lương, tháng nào cũng một cách', async () => {
   const service = require('../../lib/payroll-service');
-  F.person('qa_moi', 'staff', { startDate: '2026-10-20', contract: 'long' });
-  F.person('qa_nghi', 'staff', { resignedOn: '2026-10-31' });
-  const people = service.payrollPeople('2026-11');
+  await F.person('qa_moi', 'staff', { startDate: '2026-10-20', contract: 'long' });
+  await F.person('qa_nghi', 'staff', { resignedOn: '2026-10-31' });
+  const people = await service.payrollPeople('2026-11');
   const moi = people.find(s => s.username === 'qa_moi');
   assert.equal(moi.contract, 'short'); // chưa đủ 3 tháng tới 30/11: khấu trừ 10 %
   assert.equal(people.find(s => s.username === 'qa_nv').contract, 'long');
   assert.ok(!people.some(s => s.username === 'qa_nghi'));
-  assert.equal(service.payrollPeople('2026-10').find(s => s.username === 'qa_moi').contract, 'short'); // cùng cách tính ở mọi tháng
+  assert.equal((await service.payrollPeople('2026-10')).find(s => s.username === 'qa_moi').contract, 'short'); // cùng cách tính ở mọi tháng
 });

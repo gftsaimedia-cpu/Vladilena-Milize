@@ -12,11 +12,11 @@ const nextMonthOf = month => {
 
 async function requestInWindow(F, month, who, extra = {}) {
   const saved = F.now();
-  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) F.at(`${month}-${WINDOW_DAY}T12:00:00`);
+  if (/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) await F.at(`${month}-${WINDOW_DAY}T12:00:00`);
   try {
     return await F.call('POST', '/advance-approvals/request', { who, body: { month, ...extra } });
   } finally {
-    F.at(saved);
+    await F.at(saved);
   }
 }
 

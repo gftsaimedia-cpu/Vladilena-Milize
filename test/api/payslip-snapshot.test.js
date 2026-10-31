@@ -22,29 +22,29 @@ after(F.stop);
 
 /* ================= trigger của cơ sở dữ liệu ================= */
 // Dựng tay một lần chạy và một phiếu để thử trigger mà không cần API
-function insertRun(status = 'draft') {
-  const run = store.db
+async function insertRun(status = 'draft') {
+  const run = await store.db
     .prepare(
       `INSERT INTO payroll_runs (month, run_no, status, engine_version, params_hash, params_rev, params_json, switches_json, created_by, created_at)
        VALUES ('2026-12', (SELECT COALESCE(MAX(run_no), 0) + 1 FROM payroll_runs WHERE month = '2026-12'), 'draft', 'test-1', ?, 0, '{}', '{}', 'admin', '2026-12-31T00:00:00.000Z')`
     )
     .run('a'.repeat(64));
   const runId = Number(run.lastInsertRowid);
-  store.db
+  await store.db
     .prepare(
       `INSERT INTO payslips (run_id, username, status, gross, insurance, tax, advance, net, staff_terms_json, snapshot_gz)
        VALUES (?, 'qa_trigger', 'draft', 7000000, 630000, 0, 0, 6370000, '{}', ?)`
     )
     .run(runId, zlib.gzipSync(JSON.stringify({ total: 7000000 })));
-  if (status !== 'draft') store.db.prepare('UPDATE payroll_runs SET status = ? WHERE id = ?').run(status, runId);
+  if (status !== 'draft') await store.db.prepare('UPDATE payroll_runs SET status = ? WHERE id = ?').run(status, runId);
   return runId;
 }
-const slip = runId => store.db.prepare('SELECT * FROM payslips WHERE run_id = ?').get(runId);
-const run = runId => store.db.prepare('SELECT * FROM payroll_runs WHERE id = ?').get(runId);
+const slip = async runId => await store.db.prepare('SELECT * FROM payslips WHERE run_id = ?').get(runId);
+const run = async runId => await store.db.prepare('SELECT * FROM payroll_runs WHERE id = ?').get(runId);
 
-test('payslip-snapshot: số tiền, nội dung chụp và điều khoản của phiếu không sửa được trực tiếp trong DB, kể cả khi lần chạy còn nháp', () => {
-  const runId = insertRun('draft');
-  const before = slip(runId);
+test('payslip-snapshot: số tiền, nội dung chụp và điều khoản của phiếu không sửa được trực tiếp trong DB, kể cả khi lần chạy còn nháp', async () => {
+  const runId = await insertRun('draft');
+  const before = await slip(runId);
   for (const [column, value] of [
     ['net', 1],
     ['gross', 1],
@@ -54,18 +54,18 @@ test('payslip-snapshot: số tiền, nội dung chụp và điều khoản của
     ['staff_terms_json', '{"level":9}'],
     ['snapshot_gz', zlib.gzipSync('{}')]
   ])
-    assert.throws(
-      () => store.db.prepare(`UPDATE payslips SET ${column} = ? WHERE run_id = ?`).run(value, runId),
+    await assert.rejects(
+      async () => await store.db.prepare(`UPDATE payslips SET ${column} = ? WHERE run_id = ?`).run(value, runId),
       /không được sửa|không được đổi/,
       column
     );
-  assert.throws(() => store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
-  assert.deepEqual(slip(runId), before);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
+  assert.deepEqual(await slip(runId), before);
 });
 
-test('payslip-snapshot: lần chạy đã chốt (final) không đổi tham số, phiên bản bộ máy hay phiếu; chỉ được thành superseded', () => {
-  const runId = insertRun('final');
-  const before = { run: run(runId), slip: slip(runId) };
+test('payslip-snapshot: lần chạy đã chốt (final) không đổi tham số, phiên bản bộ máy hay phiếu; chỉ được thành superseded', async () => {
+  const runId = await insertRun('final');
+  const before = { run: await run(runId), slip: await slip(runId) };
   for (const [column, value] of [
     ['params_json', '{"x":1}'],
     ['params_hash', 'b'.repeat(64)],
@@ -73,25 +73,25 @@ test('payslip-snapshot: lần chạy đã chốt (final) không đổi tham số
     ['switches_json', '{"x":1}'],
     ['inputs_digest', 'c']
   ])
-    assert.throws(
-      () => store.db.prepare(`UPDATE payroll_runs SET ${column} = ? WHERE id = ?`).run(value, runId),
+    await assert.rejects(
+      async () => await store.db.prepare(`UPDATE payroll_runs SET ${column} = ? WHERE id = ?`).run(value, runId),
       /không được sửa|lùi trạng thái/,
       column
     );
-  assert.throws(
-    () => store.db.prepare('UPDATE payslips SET status = ? WHERE run_id = ?').run('approved', runId),
+  await assert.rejects(
+    async () => await store.db.prepare('UPDATE payslips SET status = ? WHERE run_id = ?').run('approved', runId),
     /không được đổi/
   );
-  assert.throws(() => store.db.prepare('UPDATE payslips SET net = 1 WHERE run_id = ?').run(runId), /không được/);
-  assert.throws(() => store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
-  assert.throws(() => store.db.prepare('DELETE FROM payroll_runs WHERE id = ?').run(runId), /không được xoá/);
-  assert.throws(
-    () => store.db.prepare("UPDATE payroll_runs SET status = 'draft' WHERE id = ?").run(runId),
+  await assert.rejects(async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE run_id = ?').run(runId), /không được/);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM payroll_runs WHERE id = ?').run(runId), /không được xoá/);
+  await assert.rejects(
+    async () => await store.db.prepare("UPDATE payroll_runs SET status = 'draft' WHERE id = ?").run(runId),
     /lùi trạng thái|không được sửa/
   );
-  assert.deepEqual({ run: run(runId), slip: slip(runId) }, before);
-  store.db.prepare("UPDATE payroll_runs SET status = 'superseded' WHERE id = ?").run(runId); // mở lại kỳ: lần chạy cũ thành superseded, không xoá
-  assert.equal(run(runId).status, 'superseded');
+  assert.deepEqual({ run: await run(runId), slip: await slip(runId) }, before);
+  await store.db.prepare("UPDATE payroll_runs SET status = 'superseded' WHERE id = ?").run(runId); // mở lại kỳ: lần chạy cũ thành superseded, không xoá
+  assert.equal((await run(runId)).status, 'superseded');
 });
 
 /* ================= luồng HTTP: tính lương, bản chụp, kiểm lại ================= */
@@ -99,7 +99,7 @@ let calculated = null;
 async function ensureCalculated() {
   if (!calculated) {
     const seeded = await flow.seedMonth(MONTH);
-    const expected = flow.expectedFor(MONTH);
+    const expected = await flow.expectedFor(MONTH);
     const steps = await flow.lockAndCalculate(MONTH);
     calculated = { ...seeded, expected, steps };
   }
@@ -108,8 +108,8 @@ async function ensureCalculated() {
   assert.equal(steps.calc.status, 200, `tính lương: ${steps.calc.status} ${JSON.stringify(steps.calc.data)}`);
   return calculated;
 }
-const slipsFingerprint = () => {
-  const { run: current, slips } = flow.payslipsOf(MONTH);
+const slipsFingerprint = async () => {
+  const { run: current, slips } = await flow.payslipsOf(MONTH);
   return digest({
     run: current && [
       current.engine_version,
@@ -133,7 +133,7 @@ test(
   ready,
   async () => {
     const { holiday } = await ensureCalculated();
-    const { run: current, slips } = flow.payslipsOf(MONTH);
+    const { run: current, slips } = await flow.payslipsOf(MONTH);
     assert.ok(current, 'phải có lần chạy trong payroll_runs');
     assert.match(current.engine_version, /\S/, 'engine_version không được rỗng');
     assert.match(current.params_hash, /^(sha256:)?[0-9a-f]{64}$/, 'params_hash là SHA-256');
@@ -165,7 +165,7 @@ test(
   ready,
   async () => {
     const { expected } = await ensureCalculated();
-    const { slips } = flow.payslipsOf(MONTH);
+    const { slips } = await flow.payslipsOf(MONTH);
     for (const p of flow.PEOPLE) {
       const want = expected[p.username],
         got = slips[p.username];
@@ -191,8 +191,8 @@ test(
   ready,
   async () => {
     await ensureCalculated();
-    const before = slipsFingerprint();
-    store.db
+    const before = await slipsFingerprint();
+    await store.db
       .prepare(
         'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
       )
@@ -204,7 +204,7 @@ test(
         'admin',
         new Date(Date.now()).toISOString()
       );
-    assert.equal(slipsFingerprint(), before, 'bản chụp phải giữ nguyên');
+    assert.equal(await slipsFingerprint(), before, 'bản chụp phải giữ nguyên');
     const verify = await flow.api('GET', `/periods/${MONTH}/verify`);
     assert.equal(verify.status, 200, JSON.stringify(verify.data));
     assert.deepEqual(verify.data.mismatched, []);
@@ -217,8 +217,8 @@ test(
   ready,
   async () => {
     await ensureCalculated();
-    const before = slipsFingerprint();
-    const original = store.getSheet('qa_nv2', MONTH);
+    const before = await slipsFingerprint();
+    const original = await store.getSheet('qa_nv2', MONTH);
     try {
       const res = await F.call('PUT', '/sheet', {
         who: 'qa_nv2',
@@ -226,9 +226,9 @@ test(
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
       assert.ok(res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(res.data.warnings));
-      assert.equal(slipsFingerprint(), before);
+      assert.equal(await slipsFingerprint(), before);
     } finally {
-      store.setSheet('qa_nv2', MONTH, original.days); // trả lịch như cũ để các bài sau kiểm verify trên dữ liệu gốc
+      await store.setSheet('qa_nv2', MONTH, original.days); // trả lịch như cũ để các bài sau kiểm verify trên dữ liệu gốc
     }
   }
 );
@@ -238,7 +238,7 @@ test(
   ready,
   async () => {
     await ensureCalculated();
-    const before = slipsFingerprint();
+    const before = await slipsFingerprint();
     const res = await F.call('PUT', '/staff/qa_nv1', {
       body: {
         name: 'Người thử qa_nv1',
@@ -251,7 +251,7 @@ test(
       }
     });
     assert.ok([200, 409].includes(res.status), `đổi hồ sơ: ${res.status} ${JSON.stringify(res.data)}`);
-    assert.equal(slipsFingerprint(), before);
+    assert.equal(await slipsFingerprint(), before);
     const verify = await flow.api('GET', `/periods/${MONTH}/verify`);
     assert.deepEqual(verify.data.mismatched, [], JSON.stringify(verify.data));
   }
@@ -262,17 +262,17 @@ test(
   ready,
   async () => {
     await ensureCalculated();
-    const original = store.getSheet('qa_nv2', MONTH);
+    const original = await store.getSheet('qa_nv2', MONTH);
     const days = JSON.parse(JSON.stringify(original.days));
     const date = Object.keys(days).find(d => days[d].kind === 'work');
     days[date] = { kind: 'unpaid' }; // sửa thẳng DB, không qua API (API đã khoá)
-    store.setSheet('qa_nv2', MONTH, days);
+    await store.setSheet('qa_nv2', MONTH, days);
     try {
       const verify = await flow.api('GET', `/periods/${MONTH}/verify`);
       assert.equal(verify.status, 200);
       assert.deepEqual(verify.data.mismatched, ['qa_nv2']);
     } finally {
-      store.setSheet('qa_nv2', MONTH, original.days);
+      await store.setSheet('qa_nv2', MONTH, original.days);
     }
     assert.deepEqual((await flow.api('GET', `/periods/${MONTH}/verify`)).data.mismatched, []);
   }

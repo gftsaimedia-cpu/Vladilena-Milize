@@ -16,8 +16,8 @@ const CLOCK = Date.parse('2026-10-14T12:00:00+07:00');
 const LEAVE = '2026-10-05', // Thứ 2
   LEAVE2 = '2026-10-06'; // Thứ 3
 
-const person = (username, overrides = {}) =>
-  store.upsertStaff({
+const person = async (username, overrides = {}) =>
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -31,7 +31,7 @@ const person = (username, overrides = {}) =>
 async function call(method, route, body, who) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession(who), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession(who), 86400) },
     ...(body === undefined ? {} : { body: JSON.stringify(body) })
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
@@ -44,9 +44,9 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
-  for (const table of ['sheet_approvals', 'timesheets', 'staff', 'settings']) store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', level: 0 });
+beforeEach(async () => {
+  for (const table of ['sheet_approvals', 'timesheets', 'staff', 'settings']) await store.db.exec('DELETE FROM ' + table);
+  await person('admin', { role: 'admin', type: 'tts', level: 0 });
 });
 after(async () => {
   Date.now = realNow;
@@ -56,7 +56,7 @@ after(async () => {
 });
 
 test('NV vào làm 01/09/2026 chỉ có 1 ngày phép: khai 2 ngày phép vẫn lưu được, không cảnh báo số phép, số dư −1', async () => {
-  person('newbie', { startDate: '2026-09-01' });
+  await person('newbie', { startDate: '2026-09-01' });
   const days = { [LEAVE]: { kind: 'leave' }, [LEAVE2]: { kind: 'leave' } };
   const res = await call('PUT', '/sheet', { month: '2026-10', days }, 'newbie');
   assert.equal(res.status, 200, JSON.stringify(res.data));

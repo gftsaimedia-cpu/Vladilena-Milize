@@ -85,16 +85,16 @@ test('S1: lịch mặc định, bản chụp canonical: kết quả tháng của
 const DAYS27 = () => F.fullDays('2026-10', F.MON_SAT);
 const unpaid = (days, ...dates) => F.withDays(days, Object.fromEntries(dates.map(d => [d, { kind: 'unpaid' }])));
 
-test('S1: Z1 NV đi đủ Thứ Hai đến Thứ Bảy (27 ngày): gộp 8.723.076, thực lĩnh 8.093.076 (chưa có tạm ứng đã duyệt)', () => {
+test('S1: Z1 NV đi đủ Thứ Hai đến Thứ Bảy (27 ngày): gộp 8.723.076, thực lĩnh 8.093.076 (chưa có tạm ứng đã duyệt)', async () => {
   const r = F.run(F.nvStaff(), DAYS27());
   assert.equal(r.m.count, 27);
-  assert.deepEqual(F.money(r), { gross: 8723076, net: 8093076 });
+  assert.deepEqual(await F.money(r), { gross: 8723076, net: 8093076 });
   assert.equal('workdaysStd' in r.m, false);
 });
-test('S1: Z2 TTS đi đủ Thứ Hai đến Thứ Sáu (22 ngày): gộp 2.000.000, thực lĩnh 2.000.000 (chưa có tạm ứng đã duyệt)', () => {
+test('S1: Z2 TTS đi đủ Thứ Hai đến Thứ Sáu (22 ngày): gộp 2.000.000, thực lĩnh 2.000.000 (chưa có tạm ứng đã duyệt)', async () => {
   const r = F.run(F.ttsStaff(), F.fullDays('2026-10', F.MON_FRI));
   assert.equal(r.m.count, 22);
-  assert.deepEqual(F.money(r), { gross: 2000000, net: 2000000 });
+  assert.deepEqual(await F.money(r), { gross: 2000000, net: 2000000 });
 });
 test('S1: Z3 NV nghỉ không lương 3 ngày (05, 06, 07/10): 24 ngày, vắng 3, mất chuyên cần, gộp 6.369.231', () => {
   const r = F.run(F.nvStaff(), unpaid(DAYS27(), '2026-10-05', '2026-10-06', '2026-10-07'));
@@ -109,10 +109,10 @@ test('S1: Z4 NV nghỉ không lương 2 ngày: vắng 2, còn chuyên cần, g�
   assert.ok(r.m.attendance > 0);
   assert.equal(r.m.net.gross, 8076924);
 });
-test('S1: Z5 NV, lễ Thứ Bảy 10/10 (ngày đó không khai): 1 ngày lễ, gộp 8.630.769, thực lĩnh 8.000.769 (chưa có tạm ứng đã duyệt)', () => {
+test('S1: Z5 NV, lễ Thứ Bảy 10/10 (ngày đó không khai): 1 ngày lễ, gộp 8.630.769, thực lĩnh 8.000.769 (chưa có tạm ứng đã duyệt)', async () => {
   const r = F.run(F.nvStaff(), F.without(DAYS27(), '2026-10-10'), { holidays: ['2026-10-10'] });
   assert.equal(r.m.holiday, 1);
-  assert.deepEqual(F.money(r), { gross: 8630769, net: 8000769 });
+  assert.deepEqual(await F.money(r), { gross: 8630769, net: 8000769 });
 });
 test('S1: Z6 TTS, lễ Thứ Bảy 10/10: không hưởng lễ, gộp vẫn 2.000.000', () => {
   const r = F.run(F.ttsStaff(), F.fullDays('2026-10', F.MON_FRI), { holidays: ['2026-10-10'] });

@@ -9,21 +9,21 @@ const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
 const { reconcileMonthApprovals } = require('../../lib/domain/approvals');
 
-const adminRows = (username, date) => X.sessionsOn(username, date).filter(s => s.entry.origin === ADMIN_ORIGIN);
+const adminRows = async (username, date) => (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
 const warningCodes = res => (res.data.warnings || []).map(w => w.code);
 
 before(async () => {
   await F.start();
-  F.at('2026-10-29T12:00:00');
-  for (const name of ['tuchoi', 'cho', 'duyet']) F.person(name);
-  F.person('admin', 'admin');
+  await F.at('2026-10-29T12:00:00');
+  for (const name of ['tuchoi', 'cho', 'duyet']) await F.person(name);
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
 // Nhân sự đã khai ngày nghỉ date (kind) và khoản đang chờ duyệt; action: 'reject' | 'approve' | null
 async function declareOff(who, date, kind, action) {
-  F.store.setSheet(who, '2026-10', { [date]: { kind } });
-  reconcileMonthApprovals(who, '2026-10', F.store.getSetting('holidays', []), 'nv');
+  await F.store.setSheet(who, '2026-10', { [date]: { kind } });
+  await reconcileMonthApprovals(who, '2026-10', await F.store.getSetting('holidays', []), 'nv');
   if (!action) return;
   const queue = await F.call('GET', '/approvals', { who: 'admin' });
   const items = queue.data.items
@@ -50,7 +50,7 @@ for (const [kind, date] of [
     assert.equal(res.data.item.status, 'approved');
     assert.equal(res.data.recorded, true);
     assert.deepEqual(warningCodes(res), []);
-    const [mine] = adminRows('tuchoi', date);
+    const [mine] = await adminRows('tuchoi', date);
     assert.ok(mine, 'có lượt Admin của ngày');
     assert.equal(mine.entry.explanationId, item.id);
     assert.equal(mine.entry.presIn, X.iso(`${date}T08:00:00`));
@@ -69,7 +69,7 @@ test('Khai nghỉ đang chờ duyệt hoặc đã duyệt vẫn là ngày nghỉ
     assert.equal(res.data.recorded, false, who);
     assert.deepEqual(warningCodes(res), ['EXPLANATION_NOT_RECORDED'], who);
     assert.match(res.data.warnings[0].message, /ngày đã khai là ngày nghỉ/);
-    assert.equal(adminRows(who, date).length, 0, who);
+    assert.equal((await adminRows(who, date)).length, 0, who);
   }
 });
 
@@ -81,7 +81,7 @@ test('Ngày khai nghỉ bị từ chối: giải trình quên Check-out được
   assert.equal((await X.decide(item.id, true)).data.recorded, true);
   await declareOff('duyet', date, 'leave', 'reject');
   await X.fullDay('duyet', date, '08:00', '17:00', 'rj-pay-full');
-  const a = X.payOf('tuchoi').payDays[date];
-  const b = X.payOf('duyet').payDays[date];
+  const a = (await X.payOf('tuchoi')).payDays[date];
+  const b = (await X.payOf('duyet')).payDays[date];
   assert.deepEqual(a, b, 'cùng một cách tính lương với ngày chấm đủ giờ');
 });

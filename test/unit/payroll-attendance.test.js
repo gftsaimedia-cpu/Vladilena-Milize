@@ -393,7 +393,7 @@ test('makeup before the leave day counts for the month; the estimate cutoff only
   assert.equal(JSON.stringify(days), before, 'monthly calculation must not rewrite attendance entries');
 });
 
-test('makeup made in advance covers a later leave day; surplus makeup stays unpaid', () => {
+test('makeup made in advance covers a later leave day; surplus makeup stays unpaid', async () => {
   const fourHours = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'makeup', extraIn: '', extraOut: '21:00' };
   const advance = { '2026-10-05': fourHours, '2026-10-06': fourHours };
   const covered = calcMonth(
@@ -410,7 +410,7 @@ test('makeup made in advance covers a later leave day; surplus makeup stays unpa
   assert.equal(covered.debt, 0);
   assert.equal(covered.makeupCredit, 0);
   assert.equal(covered.overHours, 0, 'fully made-up leave does not count towards the attendance threshold');
-  assert.equal(covered.rows.at(-1).debtAfter, 0);
+  assert.equal((await covered.rows.at(-1)).debtAfter, 0);
   assert.equal(covered.rows[1].debtAfter, -8, 'running balance shows eight hours made in advance');
   const surplus = calcMonth(normalStaff, advance, null, [], '2026-10', null);
   assert.equal(surplus.makeupHours, 0);
@@ -481,7 +481,7 @@ test('OT counts when the days before it are settled; later shortfalls are handle
   assert.equal(rejected.otHoldHours, 0, 'OT rejected by Admin is not shown as held');
 });
 
-test('makeup ledger works in whole minutes so a settled month never keeps a tiny shortfall', () => {
+test('makeup ledger works in whole minutes so a settled month never keeps a tiny shortfall', async () => {
   const short1m = { kind: 'work', in: '08:01', out: '17:00' };
   const days = {
     '2026-10-01': { kind: 'unpaid' },
@@ -499,7 +499,7 @@ test('makeup ledger works in whole minutes so a settled month never keeps a tiny
   assert.equal(month.attendOk, false, 'three unpaid days lose the attendance allowance even with every minute made up');
   assert.equal(month.makeup, 1, 'no micro makeup row on the surplus day');
   assert.equal(month.makeupCredit, 1);
-  assert.equal(month.rows.at(-1).makeupH, 0);
+  assert.equal((await month.rows.at(-1)).makeupH, 0);
 });
 
 test('the 7/9 payroll start only labels the slip: days before it are still paid', () => {
@@ -567,9 +567,9 @@ test('progressive tax is zero at zero, continuous at every bracket edge and matc
   closeTo(progressiveTax(250e6), bracketTax(250e6), 'top bracket');
 });
 
-test('long contract: insurance on base pay, family deductions, then progressive tax; every amount is whole đồng and net adds up', () => {
+test('long contract: insurance on base pay, family deductions, then progressive tax; every amount is whole đồng and net adds up', async () => {
   const staff = { type: 'nv', level: 1, contract: 'long', insured: true, dependants: 2 };
-  const n = calcNet(staff, month({ total: 40e6 + 0.4, advanceBase: daily * 10 }));
+  const n = calcNet(staff, await month({ total: 40e6 + 0.4, advanceBase: daily * 10 }));
   assert.equal(n.gross, 40e6);
   assert.equal(n.insurance, insOf(6e6), 'employee insurance');
   assert.equal(n.bhxh, Math.round(6e6 * TAX_RULES.insurance.bhxh), 'BHXH part');
@@ -582,50 +582,50 @@ test('long contract: insurance on base pay, family deductions, then progressive 
   assert.equal(n.net, n.gross - n.insurance - n.tax - n.advance, 'net equals the displayed lines');
   for (const k of ['gross', 'exempt', 'taxable', 'bhxh', 'bhyt', 'bhtn', 'insurance', 'tax', 'advance', 'net'])
     assert.ok(Number.isInteger(n[k]), k);
-  const low = calcNet(staff, month({ total: 8e6 }));
+  const low = calcNet(staff, await month({ total: 8e6 }));
   assert.equal(low.assessable, 0, 'income under the deductions is not taxed');
   assert.equal(low.tax, 0);
-  assert.equal(calcNet({ ...staff, insured: false }, month({ total: 8e6 })).employer, 0);
+  assert.equal(calcNet({ ...staff, insured: false }, await month({ total: 8e6 })).employer, 0);
 });
 
-test('short contract: no insurance by default and a flat withholding from the threshold on rounded gross income', () => {
+test('short contract: no insurance by default and a flat withholding from the threshold on rounded gross income', async () => {
   const staff = { type: 'tts', level: 6 };
-  const below = calcNet(staff, month({ total: TAX_RULES.casualThreshold - 1 }));
+  const below = calcNet(staff, await month({ total: TAX_RULES.casualThreshold - 1 }));
   assert.equal(below.contract, 'short');
   assert.equal(below.insured, false);
   assert.equal(below.insurance, 0);
   assert.equal(below.tax, 0);
-  const at = calcNet(staff, month({ total: TAX_RULES.casualThreshold - 1e-9 }));
+  const at = calcNet(staff, await month({ total: TAX_RULES.casualThreshold - 1e-9 }));
   assert.equal(
     at.tax,
     Math.round(TAX_RULES.casualThreshold * TAX_RULES.casualRate),
     'float noise under the threshold still counts as the displayed threshold'
   );
   assert.equal(at.deduction, 0);
-  const night = calcNet(staff, month({ total: 6e6, nightHours: 20, otPay: 100000 }));
+  const night = calcNet(staff, await month({ total: 6e6, nightHours: 20, otPay: 100000 }));
   assert.equal(
     night.tax,
     Math.round(6e6 * TAX_RULES.casualRate),
     'exempt night / OT pay does not reduce the flat withholding'
   );
-  const insuredShort = calcNet({ ...staff, insured: true }, month({ total: 3e6 }));
+  const insuredShort = calcNet({ ...staff, insured: true }, await month({ total: 3e6 }));
   assert.equal(insuredShort.insurance, insOf(5e6), 'Admin may still mark a short contract as insured');
   assert.equal(insuredShort.net, 3e6 - insuredShort.insurance - insuredShort.tax - insuredShort.advance);
 });
 
-test('contract and insurance defaults follow the staff group when the profile is not set', () => {
-  assert.equal(calcNet({ type: 'tts', level: 1 }, month()).contract, 'short');
+test('contract and insurance defaults follow the staff group when the profile is not set', async () => {
+  assert.equal(calcNet({ type: 'tts', level: 1 }, await month()).contract, 'short');
   for (const type of ['ctv', 'nv']) {
-    const n = calcNet({ type, level: 1 }, month());
+    const n = calcNet({ type, level: 1 }, await month());
     assert.equal(n.contract, 'long', type);
     assert.equal(n.insured, true, type);
   }
-  assert.equal(calcNet({ type: 'nv', level: 1, insured: false }, month()).insurance, 0);
+  assert.equal(calcNet({ type: 'nv', level: 1, insured: false }, await month()).insurance, 0);
 });
 
-test('night and overtime pay is exempt up to the legal minimum rates, lowers the tax and never exceeds gross income', () => {
+test('night and overtime pay is exempt up to the legal minimum rates, lowers the tax and never exceeds gross income', async () => {
   const staff = { type: 'nv', level: 1, contract: 'long', insured: true, dependants: 0 };
-  const m = month({
+  const m = await month({
     total: 30e6,
     nightHours: 10,
     otPay: hourly * 2 * 3,
@@ -655,9 +655,9 @@ test('night and overtime pay is exempt up to the legal minimum rates, lowers the
     'assessable starts from taxable, not gross'
   );
   assert.equal(n.tax, Math.round(bracketTax(n.assessable)));
-  assert.ok(n.tax < calcNet(staff, month({ total: 30e6 })).tax, 'exemptions lower the tax');
+  assert.ok(n.tax < calcNet(staff, await month({ total: 30e6 })).tax, 'exemptions lower the tax');
   assert.equal(
-    calcNet(staff, month({ total: 1000, otPay: 5000, otHours: 1 })).taxable,
+    calcNet(staff, await month({ total: 1000, otPay: 5000, otHours: 1 })).taxable,
     0,
     'exempt part is capped at gross'
   );
@@ -686,9 +686,9 @@ test('calcMonth feeds night hours outside holidays and the earned base of workin
   const holiday = calcMonth(normalStaff, { '2026-10-06': night }, null, ['2026-10-07'], '2026-10', null);
   assert.equal(holiday.nightHours, 2, 'night hours falling on the holiday are already paid as holiday work');
 });
-test('Admin can switch off income tax, family deduction and advance per person', () => {
+test('Admin can switch off income tax, family deduction and advance per person', async () => {
   const staff = { type: 'nv', level: 1, contract: 'long', insured: true, dependants: 2 };
-  const m = month({ total: 40e6, advanceBase: daily * 10 });
+  const m = await month({ total: 40e6, advanceBase: daily * 10 });
   const on = calcNet(staff, m);
   assert.ok(on.tax > 0 && on.deduction > 0 && on.advance > 0);
   const noDeduct = calcNet({ ...staff, deductOn: false }, m);
@@ -708,7 +708,7 @@ test('Admin can switch off income tax, family deduction and advance per person',
   assert.equal(noTax.tax, 0, 'HĐ dưới 3 tháng: Admin can switch the flat 10% off');
   assert.equal(noTax.net, noTax.gross - noTax.insurance - noTax.advance);
   assert.equal(
-    calcNet({ type: 'tts', level: 6, taxOn: false }, month({ total: 6e6 })).tax,
+    calcNet({ type: 'tts', level: 6, taxOn: false }, await month({ total: 6e6 })).tax,
     0,
     'flat 10% can be switched off too'
   );
@@ -717,7 +717,7 @@ test('Admin can switch off income tax, family deduction and advance per person',
   assert.equal(noAdvance.net, noAdvance.gross - noAdvance.insurance - noAdvance.tax);
 });
 
-test('progressive tax matches the shortcut formula of the 5-bracket schedule and the worked example', () => {
+test('progressive tax matches the shortcut formula of the 5-bracket schedule and the worked example', async () => {
   const shortcut = x =>
     x <= 10e6
       ? x * 0.05
@@ -730,17 +730,17 @@ test('progressive tax matches the shortcut formula of the 5-bracket schedule and
             : x * 0.35 - 14.5e6;
   for (const x of [0, 5e6, 10e6, 13.87e6, 30e6, 45e6, 60e6, 80e6, 100e6, 150e6])
     closeTo(progressiveTax(x), shortcut(x), String(x));
-  const n = calcNet({ type: 'nv', level: 1, contract: 'long', insured: true }, month({ total: 30e6 }));
+  const n = calcNet({ type: 'nv', level: 1, contract: 'long', insured: true }, await month({ total: 30e6 }));
   assert.equal(n.insurance, 630000, '6.000.000 × 10,5%');
   assert.equal(n.assessable, 13870000, '30tr − 630k − 15,5tr');
   assert.equal(n.tax, 887000, '13,87tr × 10% − 500k');
 });
 
-test('insurance is capped at 20 × the statutory base for each fund', () => {
+test('insurance is capped at 20 × the statutory base for each fund', async () => {
   const saved = { ...TAX_RULES.insuranceCap };
   try {
     Object.assign(TAX_RULES.insuranceCap, { bhxh: 1e6, bhyt: 2e6 });
-    const n = calcNet({ type: 'nv', level: 1, contract: 'long', insured: true }, month({ total: 30e6 }));
+    const n = calcNet({ type: 'nv', level: 1, contract: 'long', insured: true }, await month({ total: 30e6 }));
     assert.deepEqual([n.bhxh, n.bhyt, n.bhtn], [80000, 30000, 60000]);
     assert.equal(n.employer, Math.round(1e6 * 0.175 + 2e6 * 0.03 + 6e6 * 0.01));
   } finally {
@@ -748,14 +748,14 @@ test('insurance is capped at 20 × the statutory base for each fund', () => {
   }
 });
 
-test('HĐLĐ từ 3 tháng: income tax arises only when taxable income minus insurance exceeds the personal deduction', () => {
+test('HĐLĐ từ 3 tháng: income tax arises only when taxable income minus insurance exceeds the personal deduction', async () => {
   const staff = { type: 'nv', level: 1, contract: 'long', insured: true, deductOn: false };
-  const ins = calcNet(staff, month({ total: 0 })).insurance;
-  const at = calcNet(staff, month({ total: TAX_RULES.personal + ins }));
+  const ins = calcNet(staff, await month({ total: 0 })).insurance;
+  const at = calcNet(staff, await month({ total: TAX_RULES.personal + ins }));
   assert.equal(at.taxable - at.insurance, TAX_RULES.personal);
   assert.equal(at.taxDue, false);
   assert.equal(at.tax, 0, 'exactly at the threshold: no tax even with the family deduction switched off');
-  const above = calcNet(staff, month({ total: TAX_RULES.personal + ins + 1e6 }));
+  const above = calcNet(staff, await month({ total: TAX_RULES.personal + ins + 1e6 }));
   assert.equal(above.taxDue, true);
   assert.equal(
     above.tax,
@@ -764,7 +764,7 @@ test('HĐLĐ từ 3 tháng: income tax arises only when taxable income minus ins
   );
   const exempt = calcNet(
     { ...staff, deductOn: true },
-    month({ total: TAX_RULES.personal + ins + 1e6, nightHours: 40 })
+    await month({ total: TAX_RULES.personal + ins + 1e6, nightHours: 40 })
   );
   assert.ok(
     exempt.exempt > 1e6 && exempt.taxDue === false && exempt.tax === 0,
@@ -772,7 +772,7 @@ test('HĐLĐ từ 3 tháng: income tax arises only when taxable income minus ins
   );
   const dependants = calcNet(
     { ...staff, deductOn: true, dependants: 1 },
-    month({ total: TAX_RULES.personal + ins + 1e6 })
+    await month({ total: TAX_RULES.personal + ins + 1e6 })
   );
   assert.equal(dependants.taxDue, true);
   assert.equal(dependants.tax, 0, 'over the threshold but the dependant deduction leaves nothing assessable');

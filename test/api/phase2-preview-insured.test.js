@@ -12,8 +12,8 @@ after(F.stop);
 test('GĐ2: xem trước insurance.coverage.short Không → Có liệt kê người hợp đồng ngắn có cột NULL (qa_tts1) với bảo hiểm và thực lĩnh mới; không đổi gì thì 0 người', async () => {
   const M = await P.setupMonth();
   // hợp đồng suy từ thâm niên: TTS vào làm đầu tháng M chưa đủ 3 tháng nên là hợp đồng ngắn; ba người còn lại vào làm từ 05/01/2026 là hợp đồng dài
-  store.db.prepare('UPDATE staff SET start_date = ? WHERE username = ?').run(`${M}-01`, 'qa_tts1');
-  const row = store.db.prepare('SELECT insured, contract FROM staff WHERE username = ?').get('qa_tts1');
+  await store.db.prepare('UPDATE staff SET start_date = ? WHERE username = ?').run(`${M}-01`, 'qa_tts1');
+  const row = await store.db.prepare('SELECT insured, contract FROM staff WHERE username = ?').get('qa_tts1');
   assert.equal(row.insured, null, 'điều kiện của bài: cột đóng bảo hiểm của TTS còn NULL');
   const res = await P.preview({ changes: [{ key: 'insurance.coverage.short', value: true }], effectiveMonth: M });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));

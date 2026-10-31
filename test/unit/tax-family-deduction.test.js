@@ -138,10 +138,10 @@ const slipOf = dependants => {
   return { staff, m, n: m.net };
 };
 
-test('phiếu cả tháng: thuế = biểu luỹ tiến trên (chịu thuế − bảo hiểm − 15.500.000 − 6.200.000 × số người phụ thuộc)', () => {
+test('phiếu cả tháng: thuế = biểu luỹ tiến trên (chịu thuế − bảo hiểm − 15.500.000 − 6.200.000 × số người phụ thuộc)', async () => {
   const taxes = [];
   for (const dependants of [0, 2]) {
-    const { n } = slipOf(dependants);
+    const { n } = await slipOf(dependants);
     assert.equal(n.dependants, dependants);
     assert.equal(n.deduction, deductionOf(dependants));
     const assessable = Math.max(0, n.taxable - n.insurance - deductionOf(dependants));
@@ -171,9 +171,9 @@ test('phiếu cả tháng của người lương thấp: sau bảo hiểm dướ
   }
 });
 
-test('công thức Chi tiết của thuế tính ra đúng số thuế trên phiếu (0 và 2 người phụ thuộc) và nêu giảm trừ gia cảnh', () => {
+test('công thức Chi tiết của thuế tính ra đúng số thuế trên phiếu (0 và 2 người phụ thuộc) và nêu giảm trừ gia cảnh', async () => {
   for (const dependants of [0, 2]) {
-    const { staff, m } = slipOf(dependants);
+    const { staff, m } = await slipOf(dependants);
     const snapshot = JSON.parse(JSON.stringify(m));
     const f = plainAll(
       formulasOf({ snapshot, staffTerms: staff, params: BIG, month: '2026-10', cells: cellsOf(snapshot) })

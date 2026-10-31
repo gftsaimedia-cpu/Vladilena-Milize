@@ -11,8 +11,8 @@ const MONTH = '2028-03';
 
 before(async () => {
   await F.start();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
 });
 after(F.stop);
 
@@ -25,13 +25,13 @@ const change = (over = {}) => ({
 });
 
 test('ca làm: thiếu expectedRev là 400 PARAM_REV_REQUIRED, không tự điền; giờ ca không đổi', async () => {
-  const before = JSON.stringify(rulesFor(MONTH).punch.SHIFT.n2);
-  const snapshot = F.snapshot();
+  const before = JSON.stringify((await rulesFor(MONTH)).punch.SHIFT.n2);
+  const snapshot = await F.snapshot();
   const res = await shifts(change());
   assert.equal(res.status, 400, JSON.stringify(res.data));
   assert.equal(res.data.code, 'PARAM_REV_REQUIRED');
-  assert.equal(JSON.stringify(rulesFor(MONTH).punch.SHIFT.n2), before);
-  assert.deepEqual(F.changedTables(snapshot, F.snapshot()), []);
+  assert.equal(JSON.stringify((await rulesFor(MONTH)).punch.SHIFT.n2), before);
+  assert.deepEqual(F.changedTables(snapshot, await F.snapshot()), []);
 });
 
 test('ca làm: expectedRev lệch là 409 PARAMS_STALE, đúng thì 200', async () => {
@@ -39,10 +39,10 @@ test('ca làm: expectedRev lệch là 409 PARAMS_STALE, đúng thì 200', async 
   const stale = await shifts(change({ expectedRev: rev + 5 }));
   assert.equal(stale.status, 409, JSON.stringify(stale.data));
   assert.equal(stale.data.code, 'PARAMS_STALE');
-  assert.deepEqual(rulesFor(MONTH).punch.SHIFT.n2, ['10:00', '19:00']);
+  assert.deepEqual((await rulesFor(MONTH)).punch.SHIFT.n2, ['10:00', '19:00']);
   const ok = await shifts(change({ expectedRev: rev }));
   assert.equal(ok.status, 200, JSON.stringify(ok.data).slice(0, 300));
-  assert.deepEqual(rulesFor(MONTH).punch.SHIFT.n2, ['10:30', '19:30']);
+  assert.deepEqual((await rulesFor(MONTH)).punch.SHIFT.n2, ['10:30', '19:30']);
 });
 
 test('vai trò tuỳ chỉnh: PUT thiếu rev là 400 ROLE_REV_REQUIRED, rev lệch là 409 ROLE_STALE; ngưng dùng cũng vậy; không lưu gì khi bị từ chối', async () => {
@@ -50,7 +50,7 @@ test('vai trò tuỳ chỉnh: PUT thiếu rev là 400 ROLE_REV_REQUIRED, rev l�
   assert.equal(made.status, 200, JSON.stringify(made.data));
   const code = made.data.role.code;
   const rev = made.data.role.rev;
-  const snapshot = F.snapshot();
+  const snapshot = await F.snapshot();
   const noRev = await F.call('PUT', `/roles/${code}`, { body: { label: 'Đổi tên không rev', reason: REASON } });
   assert.equal(noRev.status, 400, JSON.stringify(noRev.data));
   assert.equal(noRev.data.code, 'ROLE_REV_REQUIRED');
@@ -65,7 +65,7 @@ test('vai trò tuỳ chỉnh: PUT thiếu rev là 400 ROLE_REV_REQUIRED, rev l�
   const stopStale = await F.call('POST', `/roles/${code}/deprecate`, { body: { rev: rev + 3, reason: REASON } });
   assert.equal(stopStale.status, 409, JSON.stringify(stopStale.data));
   assert.equal(stopStale.data.code, 'ROLE_STALE');
-  assert.deepEqual(F.changedTables(snapshot, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(snapshot, await F.snapshot()), []);
   const ok = await F.call('PUT', `/roles/${code}`, { body: { rev, label: 'Đổi tên đúng rev', reason: REASON } });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
   const stopped = await F.call('POST', `/roles/${code}/deprecate`, {

@@ -37,7 +37,7 @@ const REMOVED_NAMES = [
 const shift = (extra = {}) => ({ kind: 'work', in: '08:00', out: '17:00', ...extra });
 const ot = extraOut => shift({ extraKind: 'ot', extraOut });
 
-test('các khoá giới hạn giờ đã bỏ không còn trong DEFAULTS, registry và tệp mô tả tham số', () => {
+test('các khoá giới hạn giờ đã bỏ không còn trong DEFAULTS, registry và tệp mô tả tham số', async () => {
   for (const key of REMOVED_KEYS) {
     assert.ok(!Object.hasOwn(DEFAULTS, key), `DEFAULTS ${key}`);
     assert.equal(registry.entryFor(key), null, `registry ${key}`);
@@ -48,7 +48,7 @@ test('các khoá giới hạn giờ đã bỏ không còn trong DEFAULTS, regist
     'scripts/params/hand-defaults.json',
     'scripts/params/plain-text.json'
   ])
-    for (const key of REMOVED_KEYS) assert.ok(!read(file).includes(`"${key}"`), `${file}: ${key}`);
+    for (const key of REMOVED_KEYS) assert.ok(!(await read(file)).includes(`"${key}"`), `${file}: ${key}`);
 });
 
 test('hai trần còn lại vẫn có khoá nguồn: law.ceiling.otDayTotalHours (12) và law.ceiling.otMonthHours (40)', () => {
@@ -58,7 +58,7 @@ test('hai trần còn lại vẫn có khoá nguồn: law.ceiling.otDayTotalHours
   assert.equal(limits.MONTH_OT_CAP, 40);
 });
 
-test('không còn mã đọc khoá hay hằng số của các giới hạn giờ đã bỏ trong máy chủ, bộ máy và giao diện', () => {
+test('không còn mã đọc khoá hay hằng số của các giới hạn giờ đã bỏ trong máy chủ, bộ máy và giao diện', async () => {
   const walk = folder =>
     fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap(entry => {
       const rel = path.posix.join(folder, entry.name);
@@ -66,7 +66,7 @@ test('không còn mã đọc khoá hay hằng số của các giới hạn giờ
     });
   const files = ['server.js', ...walk('lib'), ...walk('public'), ...walk('scripts')];
   for (const file of files) {
-    const text = read(file);
+    const text = await read(file);
     for (const key of REMOVED_KEYS) assert.ok(!text.includes(key), `${file}: ${key}`);
     for (const name of REMOVED_NAMES) assert.ok(!new RegExp(`\\b${name}\\b`).test(text), `${file}: ${name}`);
   }
@@ -77,7 +77,7 @@ test('mô-đun giới hạn và giờ làm không xuất hằng số của giớ
   assert.equal(workHours.MAX_EXTRA, undefined);
 });
 
-test('OT 5 giờ trong ngày (ca 4 giờ) và OT 20 giờ trong tháng đều qua kiểm giới hạn, dù truyền các khoá tham số cũ', () => {
+test('OT 5 giờ trong ngày (ca 4 giờ) và OT 20 giờ trong tháng đều qua kiểm giới hạn, dù truyền các khoá tham số cũ', async () => {
   const legacy = { 'ot.dayCapHours': 1, 'ot.holidayMonthCapHours': 1, 'ot.yearCapHours': 1, 'time.maxExtraHours': 1 };
   const shortShift = { kind: 'work', in: '08:00', out: '12:00', extraKind: 'ot', extraOut: '17:00' };
   assert.equal(limits.dayNetHours(shortShift, { breakHours: 1, breakAfterHours: 4 }), 9);
@@ -85,7 +85,7 @@ test('OT 5 giờ trong ngày (ca 4 giờ) và OT 20 giờ trong tháng đều qu
     ['01', '02', '05', '06', '07'].map(d => [`2026-10-${d}`, ot('21:00')]) // 5 ngày × 4 giờ = 20 giờ
   );
   days['2026-10-08'] = shortShift;
-  assert.doesNotThrow(() =>
+  await assert.doesNotReject(async () =>
     limits.checkSheetLimits({ params: legacy, month: '2026-10', clean: days, prevDays: {}, holidays: ['2026-10-12'] })
   );
 });

@@ -27,20 +27,20 @@ after(F.stop);
 
 /* ---------- dữ liệu mẫu: người bịa, tháng 10/2026 đã kết thúc (đồng hồ giả 02/11/2026) ---------- */
 const T = (date, time) => new Date(`${date}T${time}:00+07:00`).toISOString();
-function seed(workerExtra = {}) {
-  F.reset();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('worker', 'staff', workerExtra);
+async function seed(workerExtra = {}) {
+  await F.reset();
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('worker', 'staff', workerExtra);
 }
 // Lượt chấm công đã đóng 08:00 đến 21:00 (cùng mẫu test/api/holiday-ot-guard.test.js)
-function closedSession(date, { out = '21:00' } = {}) {
+async function closedSession(date, { out = '21:00' } = {}) {
   const plan = PunchRules.planShift({ shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] }, date);
   const entry = PunchRules.buildDay({ shiftCode: 'n1' }, T(date, '08:00'), T(date, out), 'punch', {
     plannedShift: plan,
     approveIncomplete: true
   }).entry;
-  return store.createSession('worker', date, 'closed', entry);
+  return await store.createSession('worker', date, 'closed', entry);
 }
 const ok = (res, what) => assert.equal(res.status, 200, `${what}: ${res.status} ${JSON.stringify(res.data)}`);
 
@@ -52,7 +52,7 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
+      await seed();
       return {
         who: 'worker',
         body: { month: MONTH, days: { '2026-10-08': { kind: 'work', in: '08:00', out: '17:00' } } }
@@ -64,7 +64,7 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
+      await seed();
       return {
         who: 'admin',
         body: { month: MONTH, usernames: ['worker'], days: { '2026-10-08': { kind: 'work', preset: 'n2' } } }
@@ -76,7 +76,7 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
+      await seed();
       ok(
         await F.call('PUT', '/sheet', {
           who: 'worker',
@@ -84,8 +84,8 @@ const ROUTES = [
         }),
         'dựng khoản iSAT chờ duyệt'
       );
-      const row = store.approvals
-        .list({ status: 'pending' })
+      const row = (await store.approvals
+        .list({ status: 'pending' }))
         .find(r => r.username === 'worker' && r.date === '2026-10-10');
       assert.ok(row, 'phải có khoản iSAT chờ duyệt');
       return {
@@ -102,8 +102,8 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
-      const session = closedSession('2026-10-07');
+      await seed();
+      const session = await closedSession('2026-10-07');
       return {
         who: 'admin',
         body: {
@@ -120,8 +120,8 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
-      const session = closedSession('2026-10-07');
+      await seed();
+      const session = await closedSession('2026-10-07');
       ok(
         await F.call('POST', '/ot', {
           body: {
@@ -135,7 +135,7 @@ const ROUTES = [
       );
       return {
         who: 'admin',
-        body: { sessionId: session.id, version: store.getSession(session.id).version, action: 'approve' }
+        body: { sessionId: session.id, version: (await store.getSession(session.id)).version, action: 'approve' }
       };
     }
   },
@@ -145,19 +145,19 @@ const ROUTES = [
     scopes: ['attendance'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed({ shiftCode: 'g2' });
-      F.at('2026-11-01T02:00:00');
+      await seed({ shiftCode: 'g2' });
+      await F.at('2026-11-01T02:00:00');
       return { who: 'worker', body: { type: 'in', requestId: 'qa-lock-punch-0001' } };
     },
     // ngày công của lượt vừa mở phải thuộc tháng 10, nếu không thì khoá tháng 10 chẳng liên quan
-    afterOk: () => assert.equal(store.listSessions({ username: 'worker' })[0].date, '2026-10-31')
+    afterOk: async () => assert.equal((await store.listSessions({ username: 'worker' }))[0].date, '2026-10-31')
   },
   {
     id: 'PUT /holidays',
     scopes: ['attendance', 'params'],
     lockedFrom: 'attendance_locked',
     prepare: async () => {
-      seed();
+      await seed();
       return { who: 'admin', body: { dates: ['2026-10-07'] } };
     }
   },
@@ -166,7 +166,7 @@ const ROUTES = [
     scopes: ['kpi'],
     lockedFrom: 'approved',
     prepare: async () => {
-      seed();
+      await seed();
       return {
         who: 'admin',
         body: { user: 'worker', month: MONTH, scores: { wework: 80 }, reason: 'Nhập điểm Base Wework tháng 10' }
@@ -178,7 +178,7 @@ const ROUTES = [
     scopes: ['slip'],
     lockedFrom: 'approved',
     prepare: async () => {
-      seed();
+      await seed();
       return {
         who: 'admin',
         body: {
@@ -207,8 +207,8 @@ const EXEMPT = {
 // Route có periodScope mà server.js không khai trực tiếp (nằm ở mô-đun lib/domain/*) và được test khác phủ khoá kỳ
 const COVERED_ELSEWHERE = {};
 
-function lock(status) {
-  store.db
+async function lock(status) {
+  await store.db
     .prepare(
       'INSERT INTO payroll_periods (month, status, rev) VALUES (?, ?, 1) ON CONFLICT(month) DO UPDATE SET status = excluded.status'
     )
@@ -218,10 +218,10 @@ async function attempt(route, status) {
   const request = await route.prepare();
   const method = request.method || route.id.split(' ')[0];
   const url = request.path || route.id.split(' ')[1];
-  if (status) lock(status);
-  const before = F.snapshot(['payroll_periods']);
+  if (status) await lock(status);
+  const before = await F.snapshot(['payroll_periods']);
   const res = await F.call(method, url, request);
-  const after = F.snapshot(['payroll_periods']);
+  const after = await F.snapshot(['payroll_periods']);
   return { res, changed: F.changedTables(before, after) };
 }
 
@@ -230,7 +230,7 @@ for (const route of ROUTES)
   test(`period-lock-guards: payload mẫu của ${route.id} được chấp nhận (200) khi kỳ còn mở`, async () => {
     const { res } = await attempt(route, null);
     assert.equal(res.status, 200, `${route.id}: ${res.status} ${JSON.stringify(res.data)}`);
-    if (route.afterOk) route.afterOk();
+    if (route.afterOk) await route.afterOk();
   });
 
 /* ---------- 2. từng route × từng trạng thái ---------- */

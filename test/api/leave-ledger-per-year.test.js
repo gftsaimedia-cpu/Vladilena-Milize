@@ -15,14 +15,14 @@ const END = '2027-09-30';
 before(F.start);
 after(F.stop);
 
-const remaining = username => {
-  const led = Leave.ledger(store.getStaff(username), [], END);
+const remaining = async username => {
+  const led = Leave.ledger(await store.getStaff(username), [], END);
   return { ...led, left: led.total - led.expired };
 };
 
 test('Vào làm 05/01/2026: số cộng tay thuộc quỹ 2026 và hết hạn 31/01/2027, quỹ 2027 chỉ có phép cộng theo tháng', async () => {
   await P.seed(MONTH);
-  const led = remaining('qa_ctv1');
+  const led = await remaining('qa_ctv1');
   assert.deepEqual(
     led.settled.map(x => [x.year, x.on]),
     [[2026, '2027-01-31']]
@@ -32,7 +32,7 @@ test('Vào làm 05/01/2026: số cộng tay thuộc quỹ 2026 và hết hạn 3
 
 test('Vào làm 01/01/2027: số cộng tay thuộc quỹ 2027, không có phép hết hạn', async () => {
   await P.seed(MONTH, { startDate: '2027-01-01' });
-  const led = remaining('qa_ctv1');
+  const led = await remaining('qa_ctv1');
   assert.equal(led.expired, 0);
   assert.equal(led.settled.length, 0);
   assert.equal(led.left, 30 + 8);

@@ -57,13 +57,13 @@ test('máy chủ giữ kết nối 65 giây và headersTimeout lớn hơn keepAl
   assert.ok(server.keepAliveTimeout > 5000, 'phải dài hơn mặc định 5 giây của Node');
 });
 
-test('cơ sở dữ liệu chờ khoá ghi theo cấu hình thay vì báo SQLITE_BUSY ngay', () => {
-  const busy = store.db.prepare('PRAGMA busy_timeout').get();
+test('cơ sở dữ liệu chờ khoá ghi theo cấu hình thay vì báo SQLITE_BUSY ngay', async () => {
+  const busy = await store.db.prepare('PRAGMA busy_timeout').get();
   assert.equal(Object.values(busy)[0], config.DB_BUSY_TIMEOUT_MS);
 });
 
-test('khoá ngoại đang BẬT (ghi chú cũ trong lib/db.js nói tắt là sai)', () => {
-  const fk = store.db.prepare('PRAGMA foreign_keys').get();
+test('khoá ngoại đang BẬT (ghi chú cũ trong lib/db.js nói tắt là sai)', async () => {
+  const fk = await store.db.prepare('PRAGMA foreign_keys').get();
   assert.equal(Object.values(fk)[0], 1);
 });
 

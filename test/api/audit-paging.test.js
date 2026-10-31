@@ -13,28 +13,26 @@ const { F, store } = P;
 before(F.start);
 after(F.stop);
 
-const write = (action, at) => {
-  F.at(at);
-  return audit.write(
+const write = async (action, at) => {
+  await F.at(at);
+  return await audit.write(
     { actor: 'admin', actorRoles: ['admin'], requestId: 'req-' + action },
     { action, entityKind: 'test', entityId: 'x', reason: 'Dòng thử phân trang nhật ký' }
   );
 };
-const get = (query, who = 'admin') => F.call('GET', '/audit?' + query, { who });
+const get = async (query, who = 'admin') => await F.call('GET', '/audit?' + query, { who });
 const ids = res => res.data.rows.map(r => r.id);
 
 test('Phân trang beforeId: các trang nối nhau (nextBeforeId → beforeId), mới → cũ, không trùng không sót, trang cuối nextBeforeId null, total không đổi', async () => {
   await P.seed('2026-10');
-  const all = Array.from(
-    { length: 12 },
-    (_, i) => write('test.paging', `2026-11-02T09:${String(i).padStart(2, '0')}:00`).id
-  );
+  const all = [];
+  for (let i = 0; i < 12; i++) all.push((await write('test.paging', `2026-11-02T09:${String(i).padStart(2, '0')}:00`)).id);
   const page1 = await get('action=test.paging&limit=5');
   assert.equal(page1.status, 200, JSON.stringify(page1.data).slice(0, 200));
   assert.deepEqual(ids(page1), [...all].reverse().slice(0, 5), 'mới → cũ');
   assert.equal(page1.data.total, 12);
   assert.equal(page1.data.limit, 5);
-  assert.equal(page1.data.nextBeforeId, ids(page1).at(-1));
+  assert.equal(page1.data.nextBeforeId, await ids(page1).at(-1));
   const page2 = await get(`action=test.paging&limit=5&beforeId=${page1.data.nextBeforeId}`);
   assert.deepEqual(ids(page2), [...all].reverse().slice(5, 10));
   assert.equal(page2.data.total, 12, 'total không theo con trỏ');
@@ -52,7 +50,7 @@ test('Phân trang beforeId: các trang nối nhau (nextBeforeId → beforeId), m
 
 test('beforeId = 0 hợp lệ (không có dòng nào có id nhỏ hơn); beforeId và afterId sai dạng (abc, -1, 1.5, rỗng giữa dấu, mũ) là 400', async () => {
   await P.seed('2026-10');
-  write('test.cursor', '2026-11-02T10:00:00');
+  await write('test.cursor', '2026-11-02T10:00:00');
   const zero = await get('action=test.cursor&beforeId=0');
   assert.equal(zero.status, 200);
   assert.deepEqual(ids(zero), []);
@@ -66,7 +64,8 @@ test('beforeId = 0 hợp lệ (không có dòng nào có id nhỏ hơn); beforeI
 
 test('afterId cho thứ tự cũ → mới (id > N), không có nextBeforeId; limit lớn hơn mức tối đa (200) bị cắt về 200', async () => {
   await P.seed('2026-10');
-  const all = Array.from({ length: 6 }, (_, i) => write('test.after', `2026-11-02T11:0${i}:00`).id);
+  const all = [];
+  for (let i = 0; i < 6; i++) all.push((await write('test.after', `2026-11-02T11:0${i}:00`)).id);
   const res = await get(`action=test.after&afterId=${all[2]}`);
   assert.deepEqual(ids(res), all.slice(3), 'cũ → mới, chỉ id lớn hơn');
   assert.equal(res.data.nextBeforeId, null);
@@ -80,10 +79,10 @@ test('from và to dạng YYYY-MM-DD là biên ngày giờ Việt Nam: từ 00:00
   await P.seed('2026-10');
   // giờ Việt Nam: 01/11 23:59:59 (ngoài), 02/11 00:00:00 (trong), 02/11 23:59:59 (trong), 03/11 00:00:00 (ngoài)
   const edges = {
-    outBefore: write('test.vnday', '2026-11-01T23:59:59').id,
-    inStart: write('test.vnday', '2026-11-02T00:00:00').id,
-    inEnd: write('test.vnday', '2026-11-02T23:59:59').id,
-    outAfter: write('test.vnday', '2026-11-03T00:00:00').id
+    outBefore: (await write('test.vnday', '2026-11-01T23:59:59')).id,
+    inStart: (await write('test.vnday', '2026-11-02T00:00:00')).id,
+    inEnd: (await write('test.vnday', '2026-11-02T23:59:59')).id,
+    outAfter: (await write('test.vnday', '2026-11-03T00:00:00')).id
   };
   const day = await get('action=test.vnday&from=2026-11-02&to=2026-11-02');
   assert.equal(day.status, 200, JSON.stringify(day.data).slice(0, 200));
@@ -115,9 +114,9 @@ test('from và to dạng YYYY-MM-DD là biên ngày giờ Việt Nam: từ 00:00
 
 test('Nhật ký chỉ trả mức nhạy cảm người xem được đọc; chuỗi băm vẫn nguyên sau các dòng thử; nhân sự không có audit.read bị 403', async () => {
   await P.seed('2026-10');
-  write('test.sens', '2026-11-02T12:00:00');
+  await write('test.sens', '2026-11-02T12:00:00');
   assert.equal((await get('action=test.sens', 'qa_nv1')).status, 403);
   assert.equal((await get('action=test.sens', null)).status, 401);
   assert.equal((await F.call('GET', '/audit/verify')).data.ok, true);
-  assert.equal(store.audit.count({ action: 'test.sens' }), 1);
+  assert.equal(await store.audit.count({ action: 'test.sens' }), 1);
 });

@@ -84,8 +84,8 @@ test('no-dynamic-code: không file .js nào của public/ và lib/ dùng eval, n
   assert.deepEqual(offenders, []);
 });
 
-test('public/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào', opts, () => {
-  load(); // thiếu file thì ném "module missing"
+test('public/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào', opts, async () => {
+  await load(); // thiếu file thì ném "module missing"
   const files = fs.readdirSync(path.join(ROOT, 'public')).filter(name => /^formula.*\.js$/.test(name));
   assert.ok(files.includes('formula.js'));
   for (const name of files) {
@@ -97,8 +97,8 @@ test('public/formula*.js: không dùng mã động, kể cả RegExp dựng từ
 test(
   'public/formula.js: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
   opts,
-  () => {
-    load();
+  async () => {
+    await load();
     const source = fs.readFileSync(path.join(ROOT, 'public/formula.js'), 'utf8');
     const sandbox = vm.createContext({});
     vm.runInContext(source, sandbox, { timeout: 2000 });
@@ -114,8 +114,8 @@ test(
 test(
   'public/formula.js: không chạm DOM, mạng, đồng hồ hay đĩa (mô-đun thuần dùng chung trình duyệt và máy chủ)',
   opts,
-  () => {
-    load();
+  async () => {
+    await load();
     const code = stripComments(fs.readFileSync(path.join(ROOT, 'public/formula.js'), 'utf8'));
     for (const [pattern, label] of [
       [/\bdocument\b/, 'document'],
@@ -161,8 +161,8 @@ const rejected = (Formula, doc) => {
 };
 const doc = nodes => ({ v: 1, root: 'n1', nodes });
 
-test('Danh sách đóng: mọi cây phân tích ra chỉ có nút thuộc 14 lớp cho phép', opts, () => {
-  const Formula = load();
+test('Danh sách đóng: mọi cây phân tích ra chỉ có nút thuộc 14 lớp cho phép', opts, async () => {
+  const Formula = await load();
   const seen = new Set();
   for (const text of [
     'khoản A = lương cơ bản + đi lại × tỷ lệ đi lại - 1 + 0',
@@ -178,8 +178,8 @@ test('Danh sách đóng: mọi cây phân tích ra chỉ có nút thuộc 14 l�
   assert.ok(seen.size >= 6, 'bộ mẫu phải chạm nhiều lớp nút');
 });
 
-test('deserialize từ chối nút có loại lạ: call, eval, code, import, exec, Function, constructor', opts, () => {
-  const Formula = load();
+test('deserialize từ chối nút có loại lạ: call, eval, code, import, exec, Function, constructor', opts, async () => {
+  const Formula = await load();
   for (const t of [
     'call',
     'eval',
@@ -197,8 +197,8 @@ test('deserialize từ chối nút có loại lạ: call, eval, code, import, ex
     assert.ok(rejected(Formula, doc({ n1: { t } })), `nút t=${JSON.stringify(t)} phải bị từ chối`);
 });
 
-test('deserialize từ chối lit khác 0 và 1 (mọi số khác là tham số), và lit không phải số hữu hạn', opts, () => {
-  const Formula = load();
+test('deserialize từ chối lit khác 0 và 1 (mọi số khác là tham số), và lit không phải số hữu hạn', opts, async () => {
+  const Formula = await load();
   for (const v of [2, -1, 0.5, 6000000, NaN, Infinity, '0', '1', null, undefined, {}, [0]])
     assert.ok(rejected(Formula, doc({ n1: { t: 'lit', v } })), `lit v=${JSON.stringify(v)} phải bị từ chối`);
   assert.ok(!rejected(Formula, doc({ n1: { t: 'lit', v: 0 } })));
@@ -208,8 +208,8 @@ test('deserialize từ chối lit khác 0 và 1 (mọi số khác là tham số)
 test(
   'deserialize từ chối cây hỏng: thiếu root, root không có trong nodes, nút con không tồn tại, thiếu trường bắt buộc',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const lit = { t: 'lit', v: 1 };
     assert.ok(rejected(Formula, { v: 1, nodes: { n1: lit } }), 'thiếu root');
     assert.ok(rejected(Formula, { v: 1, root: 'n9', nodes: { n1: lit } }), 'root trỏ vào nút không có');
@@ -221,8 +221,8 @@ test(
   }
 );
 
-test('deserialize từ chối toán tử lạ trong nút op', opts, () => {
-  const Formula = load();
+test('deserialize từ chối toán tử lạ trong nút op', opts, async () => {
+  const Formula = await load();
   const lit = { t: 'lit', v: 1 };
   for (const op of ['pow', 'exec', 'mod', 'constructor', '', 5, undefined])
     assert.ok(
@@ -235,8 +235,8 @@ test('deserialize từ chối toán tử lạ trong nút op', opts, () => {
   );
 });
 
-test('deserialize từ chối vòng trong nodes (n1 trỏ n1, n1 → n2 → n1) để bộ tính không lặp vô hạn', opts, () => {
-  const Formula = load();
+test('deserialize từ chối vòng trong nodes (n1 trỏ n1, n1 → n2 → n1) để bộ tính không lặp vô hạn', opts, async () => {
+  const Formula = await load();
   assert.ok(rejected(Formula, doc({ n1: { t: 'op', op: 'mul', a: 'n1', b: 'n1' } })), 'tự trỏ');
   assert.ok(
     rejected(
@@ -247,8 +247,8 @@ test('deserialize từ chối vòng trong nodes (n1 trỏ n1, n1 → n2 → n1) 
   );
 });
 
-test('deserialize từ chối cây vượt giới hạn: lồng thật sâu hơn 12 tầng, hơn 200 nút', opts, () => {
-  const Formula = load();
+test('deserialize từ chối cây vượt giới hạn: lồng thật sâu hơn 12 tầng, hơn 200 nút', opts, async () => {
+  const Formula = await load();
   // lồng thật: phép đổi luân phiên cộng/nhân (mỗi tầng đổi phép nên không gộp thành một tầng)
   const deep = { z: { t: 'lit', v: 1 } };
   for (let i = 1; i <= 40; i++) deep['n' + i] = { t: 'op', op: i % 2 ? 'add' : 'mul', a: 'n' + (i + 1), b: 'z' };
@@ -272,21 +272,21 @@ const addChain = (n, id) => {
   return nodes;
 };
 
-test('deserialize nhận chuỗi cùng phép + dài 13 và 30 số hạng (một chuỗi là một tầng)', opts, () => {
-  const Formula = load();
+test('deserialize nhận chuỗi cùng phép + dài 13 và 30 số hạng (một chuỗi là một tầng)', opts, async () => {
+  const Formula = await load();
   for (const n of [13, 30]) assert.ok(!rejected(Formula, doc(addChain(n))), n + ' số hạng cùng phép + phải nạp được');
 });
 
-test('deserialize: chuỗi cùng phép + vượt 200 nút vẫn bị từ chối', opts, () => {
-  const Formula = load();
+test('deserialize: chuỗi cùng phép + vượt 200 nút vẫn bị từ chối', opts, async () => {
+  const Formula = await load();
   assert.ok(rejected(Formula, doc(addChain(150, 'luongCoBan'))), '299 nút');
 });
 
 test(
   'deserialize không bị đầu độc prototype: khoá __proto__ / constructor trong nodes, kết quả không làm bẩn Object.prototype',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const evil = JSON.parse(
       '{"v":1,"root":"n1","nodes":{"n1":{"t":"lit","v":1},"__proto__":{"polluted":"yes"},"constructor":{"t":"lit","v":1}}}'
     );
@@ -300,8 +300,8 @@ test(
   }
 );
 
-test('deserialize không tin đầu vào kiểu lạ: null, số, chuỗi, mảng, hàm đều bị từ chối, không ném lỗi lạ', opts, () => {
-  const Formula = load();
+test('deserialize không tin đầu vào kiểu lạ: null, số, chuỗi, mảng, hàm đều bị từ chối, không ném lỗi lạ', opts, async () => {
+  const Formula = await load();
   for (const bad of [null, undefined, 0, 'abc', [], () => 1, { v: 99, root: 'n1', nodes: {} }])
     assert.ok(rejected(Formula, bad), `đầu vào ${typeof bad} phải bị từ chối`);
 });
@@ -309,8 +309,8 @@ test('deserialize không tin đầu vào kiểu lạ: null, số, chuỗi, mản
 test(
   'deserialize bản lưu đúng phiên bản định dạng: v khác 1 bị từ chối rõ ràng (đường nâng cấp là việc của người sau)',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     assert.ok(rejected(Formula, { v: 2, root: 'n1', nodes: { n1: { t: 'lit', v: 1 } } }));
     assert.ok(!rejected(Formula, { v: 1, root: 'n1', nodes: { n1: { t: 'lit', v: 1 } } }));
   }
@@ -319,8 +319,8 @@ test(
 test(
   'Cây đã nạp không chạy được chữ: nhãn và tên trong cây là dữ liệu (var.id lạ không gọi gì, báo lỗi có mã)',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const tree = Formula.deserialize(doc({ n1: { t: 'var', id: 'constructor' } }));
     const code = F.evalErrorCode(Formula, tree, F.makeCtx({ variables: {} }));
     assert.ok(code, 'biến "constructor" không có giá trị trong ctx phải là lỗi, không phải số lấy từ Object.prototype');
@@ -330,8 +330,8 @@ test(
 test(
   'Biến không có trong ctx.variables (kể cả tên trùng Object.prototype) là lỗi có mã, không âm thầm bằng 0',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     for (const id of ['toString', 'hasOwnProperty', '__proto__', 'valueOf']) {
       const tree = Formula.deserialize(doc({ n1: { t: 'var', id } }));
       const code = F.evalErrorCode(Formula, tree, F.makeCtx({ variables: {} }));

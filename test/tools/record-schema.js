@@ -107,11 +107,13 @@ const indexSets = snap =>
 
 module.exports = { capture, columnSets, indexSets, describeStore, SNAPSHOT, ROOT };
 
-if (require.main === module) {
+if (require.main === module)
+  (async () => {
   const index = process.argv.indexOf('--capture');
   process.env.DB_PATH = index > 0 ? process.argv[index + 1] : ':memory:';
   process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-schema-snapshot';
   const store = require('../../lib/db');
+  await store.ready; // nâng cấp dữ liệu lúc mở DB chạy bất đồng bộ: chụp lược đồ sau khi xong
   const snap = capture(store.db, store);
   if (index > 0) {
     fs.writeFileSync(process.argv[process.argv.indexOf('--out') + 1], JSON.stringify(snap));
@@ -126,4 +128,7 @@ if (require.main === module) {
       );
     })();
   } else console.log(JSON.stringify(snap, null, 2));
-}
+  })().catch(error => {
+    console.error(error);
+    process.exit(1);
+  });

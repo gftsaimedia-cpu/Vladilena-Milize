@@ -21,8 +21,8 @@ const copyPosition = (from, code, flags = {}) => {
     if (new RegExp(`^(type|level)\\.${from}\\.`).test(key)) out[key.replace(`.${from}.`, `.${code}.`)] = DEFAULTS[key];
   return { ...out, ...flags };
 };
-const withParams = (options, params) => {
-  const input = { ...world(options), params };
+const withParams = async (options, params) => {
+  const input = { ...await world(options), params };
   return { ...input, payroll: loadPayroll(params) };
 };
 const ids = (result, rule) => find(result, rule).map(f => `${f.username}|${f.date || f.month}`);
@@ -62,18 +62,18 @@ test('KPI_TYPES: ba chức vụ mặc định đọc từ cờ cho đúng kết 
   }
 });
 
-test('ot-above-team theo cờ benefit.ot: OT của chức vụ mới tính vào nhóm, chức vụ tắt cờ OT thì bị bỏ qua', () => {
+test('ot-above-team theo cờ benefit.ot: OT của chức vụ mới tính vào nhóm, chức vụ tắt cờ OT thì bị bỏ qua', async () => {
   const team = ['qa_1', 'qa_2', 'qa_3', 'qa_4', 'qa_5'];
   const light = Object.fromEntries(team.map(u => [u, { '2026-10-05': otDay('20:00') }]));
   const heavyDays = Object.fromEntries(
     ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'].map(d => [d, otDay('20:00')])
   );
-  const people = type => [...team.map(u => person(u)), person('qa_heavy', { type })];
+  const people = async type => [...team.map(u => person(u)), await person('qa_heavy', { type })];
   const days = { ...light, qa_heavy: heavyDays };
-  const on = review(withParams({ people: people('hdo2'), days }, copyPosition('nv', 'hdo2')));
+  const on = await review(await withParams({ people: await people('hdo2'), days }, await copyPosition('nv', 'hdo2')));
   assert.deepEqual(ids(on, 'ot-above-team'), ['qa_heavy|2026-10'], 'chức vụ mới có cờ OT');
-  const off = review(
-    withParams({ people: people('hdo2'), days }, copyPosition('nv', 'hdo2', { 'type.hdo2.benefit.ot': false }))
+  const off = await review(
+    await withParams({ people: await people('hdo2'), days }, await copyPosition('nv', 'hdo2', { 'type.hdo2.benefit.ot': false }))
   );
   assert.deepEqual(ids(off, 'ot-above-team'), [], 'tắt cờ OT thì không xét');
 });
@@ -98,9 +98,9 @@ test('blockDefsOf: chỉ lấy khoá block.def.<mã> có giá trị là đối t
   );
 });
 
-test('block-flags-unconfirmed: khối có cờ thuế hoặc bảo hiểm chưa xác nhận bị gắn, nêu cờ nào đang chờ; khối còn lại không', () => {
+test('block-flags-unconfirmed: khối có cờ thuế hoặc bảo hiểm chưa xác nhận bị gắn, nêu cờ nào đang chờ; khối còn lại không', async () => {
   const cases = [];
-  const run = defs => review({ ...world({}), params: blockParams(defs) });
+  const run = async defs => review({ ...await world({}), params: blockParams(defs) });
   const scenario = [
     ['miễn thuế toàn bộ, chưa xác nhận', { antrua: { label: 'Ăn trưa', tax: 'full' } }, true],
     ['miễn thuế đến hạn mức, chưa xác nhận', { antrua: { label: 'Ăn trưa', tax: 'cap' } }, true],
@@ -125,13 +125,13 @@ test('block-flags-unconfirmed: khối có cờ thuế hoặc bảo hiểm chưa 
     ['chưa có khối nào', {}, false]
   ];
   for (const [label, defs, expect] of scenario) {
-    const result = run(defs);
+    const result = await run(defs);
     const hits = systemOf(result, 'block-flags-unconfirmed');
     cases.push({ label, flagged: hits.length === 1, expect });
     assert.equal(hits.length === 1, expect, label);
   }
   const both = systemOf(
-    run({ antrua: { label: 'Ăn trưa', tax: 'full', insuranceBase: true } }),
+    await run({ antrua: { label: 'Ăn trưa', tax: 'full', insuranceBase: true } }),
     'block-flags-unconfirmed'
   )[0];
   assert.equal(both.id, 'block-flags-unconfirmed:system:antrua');
@@ -146,12 +146,12 @@ test('block-flags-unconfirmed: khối có cờ thuế hoặc bảo hiểm chưa 
   assert.deepEqual([t.tp, t.fp, t.fn, t.tn], [4, 0, 0, 5]);
 });
 
-test('block-flags-unconfirmed: Admin tắt luật (ai.rule.blockFlagsUnconfirmed.enabled = false) thì bỏ qua với lý do "Admin tắt"', () => {
+test('block-flags-unconfirmed: Admin tắt luật (ai.rule.blockFlagsUnconfirmed.enabled = false) thì bỏ qua với lý do "Admin tắt"', async () => {
   const params = {
     ...blockParams({ antrua: { label: 'Ăn trưa', tax: 'full' } }),
     'ai.rule.blockFlagsUnconfirmed.enabled': false
   };
-  const result = review({ ...world({}), params });
+  const result = await review({ ...await world({}), params });
   assert.deepEqual(systemOf(result, 'block-flags-unconfirmed'), []);
   assert.equal(result.checked.skipped.find(s => s.rule === 'block-flags-unconfirmed').reason, 'Admin tắt');
 });
@@ -161,10 +161,10 @@ const WORK_DAYS = Object.fromEntries(
   ['05', '06', '07', '08', '09', '12', '13', '14', '15', '16'].map(d => [`2026-10-${d}`, workDay()])
 );
 // Số tự tính của ô chuyên cần và đi lại lấy từ chính phát hiện slip-override-gap của bộ soát (ô lệch rất lớn nên chắc chắn bị gắn)
-const computed = () => {
-  const probe = review(
-    world({
-      people: [person('qa_a')],
+const computed = async () => {
+  const probe = await review(
+    await world({
+      people: [await person('qa_a')],
       days: { qa_a: WORK_DAYS },
       slipOverrides: [{ username: 'qa_a', month: '2026-10', values: { attendance: 1e9, travel: 1e9 } }]
     })
@@ -173,18 +173,18 @@ const computed = () => {
   const of = key => fields.find(f => f.key === key).computed;
   return { attendance: of('attendance'), travel: of('travel') };
 };
-const overrideCase = (values, extra = {}) =>
+const overrideCase = async (values, extra = {}) =>
   review(
-    world({
-      people: [person('qa_a')],
+    await world({
+      people: [await person('qa_a')],
       days: { qa_a: WORK_DAYS },
       slipOverrides: [{ username: 'qa_a', month: '2026-10', values }],
       ...extra
     })
   );
 
-test('override-looks-like-entry: số sửa tăng đúng bội 100.000 ₫ so với số tự tính bị gắn; các ca khác không', () => {
-  const { attendance, travel } = computed();
+test('override-looks-like-entry: số sửa tăng đúng bội 100.000 ₫ so với số tự tính bị gắn; các ca khác không', async () => {
+  const { attendance, travel } = await computed();
   assert.ok(attendance > 0 && travel > 0);
   const scenario = [
     ['tăng 500.000 ở chuyên cần', { attendance: attendance + 500000 }, true],
@@ -199,11 +199,11 @@ test('override-looks-like-entry: số sửa tăng đúng bội 100.000 ₫ so v�
   ];
   const cases = [];
   for (const [label, values, expect] of scenario) {
-    const flagged = ids(overrideCase(values), 'override-looks-like-entry').length === 1;
+    const flagged = ids(await overrideCase(values), 'override-looks-like-entry').length === 1;
     cases.push({ label, flagged, expect });
     assert.equal(flagged, expect, label);
   }
-  const hit = find(overrideCase({ attendance: attendance + 500000 }), 'override-looks-like-entry')[0];
+  const hit = find(await overrideCase({ attendance: attendance + 500000 }), 'override-looks-like-entry')[0];
   assert.deepEqual(hit.evidence.inputs.fields, [
     { key: 'attendance', computed: attendance, override: attendance + 500000, diff: 500000 }
   ]);
@@ -215,37 +215,37 @@ test('override-looks-like-entry: số sửa tăng đúng bội 100.000 ₫ so v�
   assert.deepEqual([t.precision, t.recall, t.tp, t.fp, t.fn, t.tn], [1, 1, 3, 0, 0, 6]);
 });
 
-test('override-looks-like-entry: tháng khác không xét; ngưỡng đổi qua params; thiếu bộ máy lương thì bỏ qua có lý do', () => {
-  const { attendance } = computed();
-  const other = review(
-    world({
-      people: [person('qa_a')],
+test('override-looks-like-entry: tháng khác không xét; ngưỡng đổi qua params; thiếu bộ máy lương thì bỏ qua có lý do', async () => {
+  const { attendance } = await computed();
+  const other = await review(
+    await world({
+      people: [await person('qa_a')],
       days: { qa_a: WORK_DAYS },
       slipOverrides: [{ username: 'qa_a', month: '2026-09', values: { attendance: attendance + 500000 } }]
     })
   );
   assert.deepEqual(ids(other, 'override-looks-like-entry'), []);
   const tuned = {
-    ...world({
-      people: [person('qa_a')],
+    ...await world({
+      people: [await person('qa_a')],
       days: { qa_a: WORK_DAYS },
       slipOverrides: [{ username: 'qa_a', month: '2026-10', values: { attendance: attendance + 150000 } }]
     }),
     params: { ...DEFAULTS, 'ai.threshold.overrideEntryRoundVnd': 50000 }
   };
-  assert.deepEqual(ids(review(tuned), 'override-looks-like-entry'), ['qa_a|2026-10'], 'bội của 50.000');
+  assert.deepEqual(ids(await review(tuned), 'override-looks-like-entry'), ['qa_a|2026-10'], 'bội của 50.000');
   assert.equal(
-    review(tuned).findings.find(f => f.rule === 'override-looks-like-entry').evidence.threshold.sources
+    (await review(tuned)).findings.find(f => f.rule === 'override-looks-like-entry').evidence.threshold.sources
       .overrideEntryRoundVnd,
     'Admin đặt trong Cài đặt ai.threshold.overrideEntryRoundVnd (mặc định 100000)'
   );
-  const noPayroll = overrideCase({ attendance: attendance + 500000 }, { withPayroll: false });
+  const noPayroll = await overrideCase({ attendance: attendance + 500000 }, { withPayroll: false });
   assert.deepEqual(ids(noPayroll, 'override-looks-like-entry'), []);
   // lý do bỏ qua viết bằng tiếng Việt thường, không có tên mô-đun
   const skippedReason = noPayroll.checked.skipped.find(s => s.rule === 'override-looks-like-entry').reason;
   assert.match(skippedReason, /bộ máy tính lương/);
   assertPlain(skippedReason, 'lý do bỏ qua override-looks-like-entry');
-  const noOverride = review(world({ people: [person('qa_a')], days: { qa_a: WORK_DAYS }, withPayroll: false }));
+  const noOverride = await review(await world({ people: [await person('qa_a')], days: { qa_a: WORK_DAYS }, withPayroll: false }));
   assert.ok(
     noOverride.checked.ruleIds.includes('override-looks-like-entry'),
     'không có số sửa: không cần bộ máy, vẫn tính là đã chạy'
@@ -276,15 +276,15 @@ const impactOf = (people, totals = {}) => ({
 });
 const rulesOf = result => result.suggestions.map(s => s.rule);
 
-test('formula-large-change: nhiều người đổi hoặc tổng chênh lớn bị gắn; thay đổi nhỏ thì không', () => {
+test('formula-large-change: nhiều người đổi hoặc tổng chênh lớn bị gắn; thay đổi nhỏ thì không', async () => {
   const nv = (count, diff) => Array.from({ length: count }, () => person2('nv', diff));
   const scenario = [
-    ['4/20 người (20%), mỗi người 100.000: đủ tỷ lệ', impactOf(nv(4, 100000)), true],
-    ['3/20 người (15%), tổng 300.000: không đủ', impactOf(nv(3, 100000)), false],
-    ['1 người tăng 6.000.000: đủ tổng tiền', impactOf(nv(1, 6000000)), true],
-    ['1 người giảm 6.000.000: đủ tổng (tuyệt đối)', impactOf(nv(1, -6000000)), true],
-    ['1 người tăng 4.000.000: dưới ngưỡng tổng', impactOf(nv(1, 4000000)), false],
-    ['không ai đổi', impactOf([]), false]
+    ['4/20 người (20%), mỗi người 100.000: đủ tỷ lệ', await impactOf(await nv(4, 100000)), true],
+    ['3/20 người (15%), tổng 300.000: không đủ', await impactOf(await nv(3, 100000)), false],
+    ['1 người tăng 6.000.000: đủ tổng tiền', await impactOf(await nv(1, 6000000)), true],
+    ['1 người giảm 6.000.000: đủ tổng (tuyệt đối)', await impactOf(await nv(1, -6000000)), true],
+    ['1 người tăng 4.000.000: dưới ngưỡng tổng', await impactOf(await nv(1, 4000000)), false],
+    ['không ai đổi', await impactOf([]), false]
   ];
   const cases = [];
   for (const [label, impact, expect] of scenario) {
@@ -295,7 +295,7 @@ test('formula-large-change: nhiều người đổi hoặc tổng chênh lớn b
   }
   const t = tally(cases);
   assert.deepEqual([t.precision, t.recall, t.tp, t.fp, t.fn, t.tn], [1, 1, 3, 0, 0, 3]);
-  const both = suggestFromPreview({ impact: impactOf(nv(10, 1000000)) }).suggestions[0];
+  const both = suggestFromPreview({ impact: await impactOf(await nv(10, 1000000)) }).suggestions[0];
   assert.equal(both.rule, 'formula-large-change');
   assert.deepEqual(both.evidence.inputs, {
     peopleAffected: 10,
@@ -313,20 +313,20 @@ test('formula-large-change: nhiều người đổi hoặc tổng chênh lớn b
   assert.match(both.message, /10\/20 người/);
 });
 
-test('position-scope-leak: thay đổi dành cho một chức vụ mà đổi tiền người ngoài chức vụ bị gắn; chỉ trong chức vụ thì không', () => {
+test('position-scope-leak: thay đổi dành cho một chức vụ mà đổi tiền người ngoài chức vụ bị gắn; chỉ trong chức vụ thì không', async () => {
   const scope = { position: 'nv' };
   const scenario = [
-    ['chỉ người nv đổi', impactOf([person2('nv', 100000), person2('nv', 100000)]), scope, false],
-    ['một người ctv bị đổi', impactOf([person2('nv', 100000), person2('ctv', 50000)]), scope, true],
-    ['nhiều chức vụ ngoài', impactOf([person2('ctv', 1), person2('tts', 1), person2('ctv', 1)]), scope, true],
-    ['thay đổi không dành riêng cho chức vụ nào', impactOf([person2('ctv', 100000)]), undefined, false],
+    ['chỉ người nv đổi', await impactOf([person2('nv', 100000), person2('nv', 100000)]), scope, false],
+    ['một người ctv bị đổi', await impactOf([person2('nv', 100000), person2('ctv', 50000)]), scope, true],
+    ['nhiều chức vụ ngoài', await impactOf([person2('ctv', 1), person2('tts', 1), person2('ctv', 1)]), scope, true],
+    ['thay đổi không dành riêng cho chức vụ nào', await impactOf([person2('ctv', 100000)]), undefined, false],
     [
       'nhiều chức vụ trong phạm vi',
-      impactOf([person2('nv', 1), person2('ctv', 1)]),
+      await impactOf([person2('nv', 1), person2('ctv', 1)]),
       { positions: ['nv', 'ctv'] },
       false
     ],
-    ['người chưa biết chức vụ không kết luận', impactOf([{ before: { net: 1 }, after: { net: 2 } }]), scope, false]
+    ['người chưa biết chức vụ không kết luận', await impactOf([{ before: { net: 1 }, after: { net: 2 } }]), scope, false]
   ];
   const cases = [];
   for (const [label, impact, sc, expect] of scenario) {
@@ -338,7 +338,7 @@ test('position-scope-leak: thay đổi dành cho một chức vụ mà đổi ti
   const t = tally(cases);
   assert.deepEqual([t.precision, t.recall, t.tp, t.fp, t.fn, t.tn], [1, 1, 2, 0, 0, 4]);
   const leak = suggestFromPreview({
-    impact: impactOf([person2('nv', 100000), person2('ctv', 50000), person2('tts', -20000)]),
+    impact: await impactOf([person2('nv', 100000), person2('ctv', 50000), person2('tts', -20000)]),
     scope
   }).suggestions.find(s => s.rule === 'position-scope-leak');
   assert.deepEqual(leak.evidence.inputs, {
@@ -354,15 +354,15 @@ test('position-scope-leak: thay đổi dành cho một chức vụ mà đổi ti
   assert.equal(leak.id, 'position-scope-leak:preview:2026-10:nv');
   // danh sách bị cắt: chỉ biết số người tối thiểu
   const cut = suggestFromPreview({
-    impact: impactOf([person2('ctv', 1)], { truncated: true, affected: 30 }),
+    impact: await impactOf([person2('ctv', 1)], { truncated: true, affected: 30 }),
     scope
   }).suggestions.find(s => s.rule === 'position-scope-leak');
   assert.equal(cut.evidence.inputs.lowerBound, true);
   assert.match(cut.message, /ít nhất 1 người/);
 });
 
-test('luật xem trước: ngưỡng và công tắc đọc từ params; thiếu khoá thì dùng mặc định của thresholds.js; kết quả ghi luật đã chạy và đã bỏ', () => {
-  const impact = impactOf([person2('nv', 100000), person2('ctv', 100000)]);
+test('luật xem trước: ngưỡng và công tắc đọc từ params; thiếu khoá thì dùng mặc định của thresholds.js; kết quả ghi luật đã chạy và đã bỏ', async () => {
+  const impact = await impactOf([person2('nv', 100000), person2('ctv', 100000)]);
   const base = suggestFromPreview({ impact, scope: { position: 'nv' } });
   assert.deepEqual(base.checked.ruleIds, ['formula-large-change', 'position-scope-leak']);
   assert.deepEqual(base.checked.skipped, []);
@@ -410,8 +410,8 @@ test('luật xem trước: ngưỡng và công tắc đọc từ params; thiếu
     for (const name of rule.thresholds) assert.ok(Object.hasOwn(THRESHOLDS, name), name);
 });
 
-test('luật xem trước thuần: không sửa đầu vào, không có tên hay tên đăng nhập trong kết quả, đầu vào sai bị từ chối', () => {
-  const impact = impactOf([
+test('luật xem trước thuần: không sửa đầu vào, không có tên hay tên đăng nhập trong kết quả, đầu vào sai bị từ chối', async () => {
+  const impact = await impactOf([
     { username: 'qa_x', name: 'TÊN GIẢ', ...person2('ctv', 6000000) },
     { username: 'qa_y', name: 'TÊN GIẢ 2', ...person2('nv', 100000) }
   ]);
@@ -445,23 +445,23 @@ test('benefitOf theo bậc: khoá của bậc thắng cờ chức vụ, null th�
   assert.throws(() => benefitOf({ 'level.nv.1.benefit.ot': 'có' }, 'nv', 'ot', 1), /true hoặc false/);
 });
 
-test('OT theo bậc: chức vụ tắt cờ OT ở bậc 2 nhưng bật ở bậc 1 thì chỉ người bậc 1 vào nhóm ot-above-team', () => {
+test('OT theo bậc: chức vụ tắt cờ OT ở bậc 2 nhưng bật ở bậc 1 thì chỉ người bậc 1 vào nhóm ot-above-team', async () => {
   const team = ['qa_1', 'qa_2', 'qa_3', 'qa_4', 'qa_5'];
   const light = Object.fromEntries(team.map(u => [u, { '2026-10-05': otDay('20:00') }]));
   const heavyDays = Object.fromEntries(
     ['2026-10-05', '2026-10-06', '2026-10-07', '2026-10-08'].map(d => [d, otDay('20:00')])
   );
-  const params = copyPosition('nv', 'hdo2', { 'level.hdo2.2.benefit.ot': false });
-  const run = level =>
+  const params = await copyPosition('nv', 'hdo2', { 'level.hdo2.2.benefit.ot': false });
+  const run = async level =>
     review(
-      withParams(
+      await withParams(
         {
-          people: [...team.map(u => person(u)), person('qa_heavy', { type: 'hdo2', level })],
+          people: [...team.map(u => person(u)), await person('qa_heavy', { type: 'hdo2', level })],
           days: { ...light, qa_heavy: heavyDays }
         },
         params
       )
     );
-  assert.deepEqual(ids(run(1), 'ot-above-team'), ['qa_heavy|2026-10'], 'bậc 1: có OT');
-  assert.deepEqual(ids(run(2), 'ot-above-team'), [], 'bậc 2: tắt OT');
+  assert.deepEqual(ids(await run(1), 'ot-above-team'), ['qa_heavy|2026-10'], 'bậc 1: có OT');
+  assert.deepEqual(ids(await run(2), 'ot-above-team'), [], 'bậc 2: tắt OT');
 });

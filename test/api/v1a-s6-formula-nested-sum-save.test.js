@@ -31,22 +31,22 @@ const NESTED =
   'tạm ứng = nếu bật tạm ứng thì làm tròn đồng (tổng theo ngày (tiền công cả ngày + lương KPI)) ngược lại 0';
 
 test('V1A-S6-5 (đối chứng): ngay cả công thức hợp lệ `lương KPI = tổng theo ngày (tiền OT trong ngày)` cũng bị 400 PARAM_LOCKED và không ghi gì', async () => {
-  const rowsBefore = S.rowCount();
+  const rowsBefore = await S.rowCount();
   const res = await S.saveChanges(formulaChange('luongKpi', KPI_SUM), { month: M });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 300));
   assert.ok(JSON.stringify(res.data).includes('PARAM_LOCKED'), JSON.stringify(res.data).slice(0, 300));
-  assert.equal(S.rowCount(), rowsBefore);
+  assert.equal(await S.rowCount(), rowsBefore);
 });
 
 test('V1A-S6-5: lưu công thức đặt "tổng theo ngày" vào trong "tổng theo ngày" bị từ chối 400 PARAM_LOCKED, không ghi gì', async () => {
-  const rowsBefore = S.rowCount();
-  const configBefore = S.configRev();
+  const rowsBefore = await S.rowCount();
+  const configBefore = await S.configRev();
   const res = await S.saveChanges(formulaChange('tamUng', NESTED), { month: M });
   assert.equal(res.status, 400, JSON.stringify(res.data).slice(0, 300));
   const text = JSON.stringify(res.data);
   assert.ok(text.includes('PARAM_LOCKED'), text.slice(0, 300));
-  assert.equal(S.rowCount(), rowsBefore, 'không dòng param_versions nào được thêm');
-  assert.equal(S.configRev(), configBefore);
+  assert.equal(await S.rowCount(), rowsBefore, 'không dòng param_versions nào được thêm');
+  assert.equal(await S.configRev(), configBefore);
 });
 
 test('V1A-S6-5: dù lần lưu trên có bị từ chối hay không, ước tính không có hàng lỗi (không "ném cho từng nhân sự")', async () => {

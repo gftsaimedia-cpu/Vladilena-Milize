@@ -18,26 +18,26 @@ const DAYS = {
   '2026-10-10': { kind: 'isat' },
   '2026-10-12': workDay()
 };
-const run = (people, extra = {}) =>
+const run = async (people, extra = {}) =>
   review(
-    world({ people, days: Object.fromEntries(people.map(p => [p.username, DAYS])), holidays: ['2026-10-12'], ...extra })
+    await world({ people, days: Object.fromEntries(people.map(p => [p.username, DAYS])), holidays: ['2026-10-12'], ...extra })
   );
 const rulesOf = (result, username) => [
   ...new Set(result.findings.filter(f => f.username === username).map(f => f.rule))
 ];
 
-test('Điều kiện của bài: người hợp lệ bị gắn cả luật chuyên cần lẫn luật tác động tiền (bằng chứng rằng luật dựa vào bộ máy lương chạy)', () => {
-  const ok = run([person('qa_a')]);
+test('Điều kiện của bài: người hợp lệ bị gắn cả luật chuyên cần lẫn luật tác động tiền (bằng chứng rằng luật dựa vào bộ máy lương chạy)', async () => {
+  const ok = await run([await person('qa_a')]);
   assert.equal(ok.checked.payrollErrors, 0);
   const rules = rulesOf(ok, 'qa_a');
   assert.ok(rules.includes('attendance-allowance-risk'), rules.join());
   assert.ok(rules.includes('large-pay-impact'), rules.join());
 });
 
-test('T16: bậc lương 99 (hoặc 0, null, "abc", tts bậc 7): payrollErrors > 0, không phát hiện nào dựa trên tiền, không có "tác động 0 ₫"', () => {
+test('T16: bậc lương 99 (hoặc 0, null, "abc", tts bậc 7): payrollErrors > 0, không phát hiện nào dựa trên tiền, không có "tác động 0 ₫"', async () => {
   for (const patch of [{ level: 99 }, { level: 0 }, { level: null }, { level: 'abc' }, { type: 'tts', level: 7 }]) {
-    const bad = person('qa_a', patch);
-    const result = run([bad]);
+    const bad = await person('qa_a', patch);
+    const result = await run([bad]);
     assert.ok(
       result.checked.payrollErrors >= 1,
       `${JSON.stringify(patch)}: payrollErrors ${result.checked.payrollErrors}`
@@ -52,18 +52,18 @@ test('T16: bậc lương 99 (hoặc 0, null, "abc", tts bậc 7): payrollErrors 
   }
 });
 
-test('T16: loại nhân sự sai (xyz, NV) cũng được đếm là lỗi tính lương và không có phát hiện dựa trên tiền', () => {
+test('T16: loại nhân sự sai (xyz, NV) cũng được đếm là lỗi tính lương và không có phát hiện dựa trên tiền', async () => {
   for (const type of ['xyz', 'NV']) {
-    const result = run([person('qa_a', { type })]);
+    const result = await run([await person('qa_a', { type })]);
     assert.ok(result.checked.payrollErrors >= 1, `type=${type}`);
     const rules = rulesOf(result, 'qa_a');
     for (const id of PAYROLL_RULES) assert.ok(!rules.includes(id), `type=${type}: không được có ${id}`);
   }
 });
 
-test('T16: hồ sơ sai của một người không đổi phát hiện của người khác: kết quả của qa_ok khi đứng cạnh qa_bad bằng kết quả khi đứng một mình', () => {
-  const alone = run([person('qa_ok')]);
-  const together = run([person('qa_ok'), person('qa_bad', { level: 99 })]);
+test('T16: hồ sơ sai của một người không đổi phát hiện của người khác: kết quả của qa_ok khi đứng cạnh qa_bad bằng kết quả khi đứng một mình', async () => {
+  const alone = await run([await person('qa_ok')]);
+  const together = await run([await person('qa_ok'), await person('qa_bad', { level: 99 })]);
   assert.ok(together.checked.payrollErrors >= 1);
   const strip = (result, user) =>
     result.findings
@@ -73,17 +73,17 @@ test('T16: hồ sơ sai của một người không đổi phát hiện của ng
   assert.ok(strip(together, 'qa_ok').length >= 2);
 });
 
-test('T16: không có người sai thì payrollErrors là 0 (đếm chỉ tăng vì hồ sơ sai, không vì lý do khác)', () => {
-  const result = run([
-    person('qa_a'),
-    person('qa_b', { type: 'ctv', level: 2 }),
-    person('qa_c', { type: 'tts', level: 6 })
+test('T16: không có người sai thì payrollErrors là 0 (đếm chỉ tăng vì hồ sơ sai, không vì lý do khác)', async () => {
+  const result = await run([
+    await person('qa_a'),
+    await person('qa_b', { type: 'ctv', level: 2 }),
+    await person('qa_c', { type: 'tts', level: 6 })
   ]);
   assert.equal(result.checked.payrollErrors, 0);
 });
 
-test('T16: thiếu bộ máy lương (payroll: undefined) bỏ qua luật cần tiền và ghi checked.skipped, không tính là payrollErrors', () => {
-  const result = review(world({ people: [person('qa_a', { level: 99 })], days: { qa_a: DAYS }, withPayroll: false }));
+test('T16: thiếu bộ máy lương (payroll: undefined) bỏ qua luật cần tiền và ghi checked.skipped, không tính là payrollErrors', async () => {
+  const result = await review(await world({ people: [await person('qa_a', { level: 99 })], days: { qa_a: DAYS }, withPayroll: false }));
   assert.equal(result.checked.payrollErrors, 0);
   assert.ok(result.checked.skipped.some(s => s.rule === 'large-pay-impact'));
 });

@@ -140,7 +140,7 @@ function createOps(ctx) {
   const ops = {
     async 'data.bootstrap'(ev) {
       const p = byUser[ev.args.u];
-      store.upsertStaff({
+      await store.upsertStaff({
         username: p.u,
         name: p.name,
         role: 'admin',
@@ -148,7 +148,7 @@ function createOps(ctx) {
         level: 0,
         passHash: auth.hashPassword(crypto.randomBytes(24).toString('hex'))
       });
-      store.setPayrollSubject(p.u, false);
+      await store.setPayrollSubject(p.u, false);
       log(ev, { as: 'store', method: 'DATA', path: 'upsertStaff(admin1)', status: 200 });
     },
     async 'staff.create'(ev) {
@@ -217,7 +217,7 @@ function createOps(ctx) {
     },
     async sheet(ev) {
       const { u, by, month, days, confirmDays } = ev.args;
-      const cur = store.getSheet(u, month);
+      const cur = await store.getSheet(u, month);
       const merged = { ...cur.days };
       for (const [d, day] of Object.entries(days)) {
         if (day === null) delete merged[d];
@@ -388,7 +388,7 @@ function createOps(ctx) {
     },
     async 'data.session'(ev) {
       const { u, date, entry } = ev.args;
-      const s = store.createSession(u, date, 'closed', entry);
+      const s = await store.createSession(u, date, 'closed', entry);
       log(ev, {
         as: 'store',
         method: 'DATA',
@@ -399,7 +399,7 @@ function createOps(ctx) {
     async 'data.legacyMakeup'(ev) {
       const { u, date } = ev.args;
       const month = date.slice(0, 7);
-      const cur = store.getSheet(u, month);
+      const cur = await store.getSheet(u, month);
       const days = {
         ...cur.days,
         [date]: {
@@ -414,7 +414,7 @@ function createOps(ctx) {
           breakMin: 0
         }
       };
-      store.setSheet(u, month, days, cur.kpiPct, cur.kpiAmt);
+      await store.setSheet(u, month, days, cur.kpiPct, cur.kpiAmt);
       log(ev, { as: 'store', method: 'DATA', path: `setSheet(${u},${month}) legacy makeup ${date}`, status: 200 });
     },
     async 'slip.pin'(ev) {
@@ -425,7 +425,7 @@ function createOps(ctx) {
     async 'data.legacyHolidayApproval'(ev) {
       const { u, date } = ev.args;
       const month = date.slice(0, 7);
-      const cur = store.getSheet(u, month);
+      const cur = await store.getSheet(u, month);
       const day = {
         kind: 'work',
         shift: 'normal',
@@ -437,7 +437,7 @@ function createOps(ctx) {
         preset: '',
         breakMin: 0
       };
-      store.setSheet(u, month, { ...cur.days, [date]: day }, cur.kpiPct, cur.kpiAmt);
+      await store.setSheet(u, month, { ...cur.days, [date]: day }, cur.kpiPct, cur.kpiAmt);
       const at = new Date(clock.now()).toISOString();
       store.db
         .prepare(
@@ -453,7 +453,7 @@ function createOps(ctx) {
       });
     },
     async 'data.badLevel'(ev) {
-      store.upsertStaff({
+      await store.upsertStaff({
         username: ev.args.u,
         name: 'Hồ Sơ Lỗi Bậc',
         role: 'staff',

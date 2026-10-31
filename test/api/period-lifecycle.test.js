@@ -19,11 +19,11 @@ const NAMES = flow.PEOPLE.map(p => p.username).sort();
 before(F.start);
 after(F.stop);
 
-const getPeriod = async (month, who = 'admin') => F.call('GET', `/periods/${month}`, { who });
+const getPeriod = async (month, who = 'admin') => await F.call('GET', `/periods/${month}`, { who });
 const reasonOk = 'Lý do đủ mười ký tự';
 // Thêm một ngày iSAT (thứ Bảy cuối tháng) vào lịch của qa_nv1: thành khoản chờ duyệt
 async function addIsat(month) {
-  const days = { ...store.getSheet('qa_nv1', month).days, [P.lastDow(month, 6)]: { kind: 'isat' } };
+  const days = { ...(await store.getSheet('qa_nv1', month)).days, [await P.lastDow(month, 6)]: { kind: 'isat' } };
   const res = await F.call('PUT', '/sheet', { who: 'qa_nv1', body: { month, days } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
 }
@@ -94,7 +94,7 @@ test('Vòng đời: open → attendance_locked → calculated → reviewed → a
   assert.match(row.paydayExpected, /^\d{4}-\d{2}-\d{2}$/);
 
   // nhật ký: một dòng cho mỗi bước, mức nhạy cảm 'pay', đúng người làm
-  const rows = P.auditOf(M);
+  const rows = await P.auditOf(M);
   const actions = rows.map(r => r.action);
   assert.deepEqual(
     actions.filter(a => a.startsWith('period.')),
@@ -145,7 +145,7 @@ test('Mỗi bước sai trạng thái là 409 PERIOD_STATE (kèm status và expe
     assert.equal((await getPeriod(M)).data.status, state);
     for (const [name, states] of Object.entries(ALLOWED)) {
       if (states.includes(state)) continue;
-      const before = F.snapshot();
+      const before = await F.snapshot();
       const res = await P.step(M, name, body);
       assert.equal(res.status, 409, `${state} → ${name}: ${res.status} ${JSON.stringify(res.data)}`);
       assert.equal(res.data.code, 'PERIOD_STATE', `${state} → ${name}`);
@@ -154,7 +154,7 @@ test('Mỗi bước sai trạng thái là 409 PERIOD_STATE (kèm status và expe
         Array.isArray(res.data.expected) && res.data.expected.length >= 1,
         `${state} → ${name}: thiếu expected`
       );
-      assert.deepEqual(F.changedTables(before, F.snapshot()), [], `${state} → ${name} không được lưu gì`);
+      assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `${state} → ${name} không được lưu gì`);
     }
   }
 });
@@ -190,11 +190,11 @@ test('rev lệch là 409 PERIOD_STALE (kèm rev hiện tại) và không đổi 
   }
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   // người thứ hai còn cầm rev cũ (0) khi kỳ đã sang rev 1
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const late = await F.call('POST', `/periods/${M}/calculate`, { body: { rev: 0 } });
   assert.equal(late.data.code, 'PERIOD_STALE');
   assert.equal(late.data.rev, 1);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   // rev đúng thì qua
   P.must(await P.step(M, 'calculate'), 'tính lương');
   // rev cũ cũng bị chặn ở các bước sau
@@ -212,7 +212,7 @@ test('Mọi tháng đều chịu khoá kỳ như nhau: tháng 2026-09 chốt cô
   assert.equal('firstManagedMonth' in view.data, false);
   const lock = await F.call('POST', '/periods/2026-09/lock-attendance', { body: { rev: 0 } });
   assert.equal(lock.status, 200, JSON.stringify(lock.data));
-  assert.equal(P.periodRow('2026-09').status, 'attendance_locked');
+  assert.equal((await P.periodRow('2026-09')).status, 'attendance_locked');
 });
 
 test('Tháng sai dạng là 400 BAD_MONTH ở mọi route kỳ lương (xem, phiếu, verify và các bước ghi)', async () => {
@@ -250,9 +250,9 @@ test('Danh sách kiểm: lý do đúng 300 ký tự được nhận, không cầ
 test('Danh sách kiểm: AI_NOT_RUN chỉ hiện ở bước duyệt (sau tính lương, trước AI kiểm tra) và hết sau khi AI chạy', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
-  agents.set(false);
+  await agents.set(false);
   assert.equal(codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'), false, 'Agents tắt: không đòi chạy AI');
-  agents.set(true);
+  await agents.set(true);
   assert.ok(codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'));
   P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const view = (await getPeriod(M)).data;
@@ -265,7 +265,7 @@ test('Danh sách kiểm: AI_NOT_RUN chỉ hiện ở bước duyệt (sau tính 
 test('calculate: tạo lần chạy có engine_version, params_hash, params_rev, công tắc, băm đầu vào; một bản chụp cho mỗi người', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
-  const { run, slips } = flow.payslipsOf(M);
+  const { run, slips } = await flow.payslipsOf(M);
   assert.equal(run.run_no, 1);
   assert.equal(run.status, 'draft');
   assert.equal(run.engine_version, Engine.ENGINE_VERSION);
@@ -308,7 +308,7 @@ test('calculate: lỗi của một người thành phiếu error (mã và chi ti
   } finally {
     service.computeFor = original;
   }
-  const { slips } = flow.payslipsOf(M);
+  const { slips } = await flow.payslipsOf(M);
   assert.equal(slips.qa_ctv1.status, 'error');
   assert.equal(slips.qa_ctv1.error_code, 'TEST_MISSING');
   assert.match(slips.qa_ctv1.error_detail, /thiếu dữ liệu thử/);
@@ -330,18 +330,18 @@ test('calculate: lỗi của một người thành phiếu error (mã và chi ti
     'duyệt kỳ có loại phiếu lỗi'
   );
   assert.equal(ok.data.status, 'approved');
-  assert.equal(flow.payslipsOf(M).slips.qa_ctv1.note, 'Loại ra để xử lý riêng');
+  assert.equal((await flow.payslipsOf(M)).slips.qa_ctv1.note, 'Loại ra để xử lý riêng');
 });
 
 test('calculate lại: lần chạy trước thành superseded (run_no + 1), phiếu cũ còn nguyên; từ reviewed quay về calculated và phải chạy AI lại', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  const first = P.runsOf(M);
+  const first = await P.runsOf(M);
   assert.deepEqual(
     first.map(r => [r.run_no, r.status]),
     [[1, 'draft']]
   );
-  const firstRows = store.db
+  const firstRows = await store.db
     .prepare('SELECT username, net, hex(snapshot_gz) AS snap FROM payslips WHERE run_id = ? ORDER BY username')
     .all(first[0].id);
   assert.equal(firstRows.length, 4);
@@ -350,18 +350,18 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
   assert.equal(again.data.status, 'calculated', 'tính lại bỏ bước AI đã qua');
   assert.equal(again.data.run.runNo, 2);
   assert.deepEqual(
-    P.runsOf(M).map(r => [r.run_no, r.status]),
+    (await P.runsOf(M)).map(r => [r.run_no, r.status]),
     [
       [1, 'superseded'],
       [2, 'draft']
     ]
   );
-  const keep = store.db
+  const keep = await store.db
     .prepare('SELECT username, net, hex(snapshot_gz) AS snap FROM payslips WHERE run_id = ? ORDER BY username')
     .all(first[0].id);
   assert.deepEqual(keep, firstRows, 'phiếu của lần chạy bị thay vẫn còn nguyên');
   const view = (await getPeriod(M)).data;
-  assert.equal(view.run.id, P.runsOf(M)[1].id);
+  assert.equal(view.run.id, (await P.runsOf(M))[1].id);
   assert.equal(view.stages.reviewed.by, null);
   assert.deepEqual(
     (await P.slipRows(M)).map(r => r.status),
@@ -373,7 +373,7 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
   P.must(await P.step(M, 'ai-review'), 'AI kiểm tra lại');
   P.must(await P.step(M, 'calculate'), 'tính lại lần ba');
   assert.deepEqual(
-    P.runsOf(M).map(r => r.status),
+    (await P.runsOf(M)).map(r => r.status),
     ['superseded', 'superseded', 'draft']
   );
 });
@@ -381,9 +381,9 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
 test('calculate cho cùng đầu vào cho cùng băm đầu vào và cùng số tiền (xác định)', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
-  const a = flow.payslipsOf(M);
+  const a = await flow.payslipsOf(M);
   P.must(await P.step(M, 'calculate'), 'tính lại');
-  const b = flow.payslipsOf(M);
+  const b = await flow.payslipsOf(M);
   assert.equal(b.run.run_no, 2);
   assert.equal(b.run.inputs_digest.length, 64);
   for (const name of NAMES)
@@ -401,7 +401,7 @@ test('decide: cả lô hoặc không — một phiếu sai rev hoặc không có
   await P.setupMonth(M, 'calculated');
   P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rows = await P.slipRows(M);
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const items = P.itemsOf(rows);
   const stale = await P.decide(M, [...items.slice(0, 3), { ...items[3], rev: items[3].rev + 5 }]);
   assert.equal(stale.status, 409);
@@ -412,7 +412,7 @@ test('decide: cả lô hoặc không — một phiếu sai rev hoặc không có
   assert.equal(ghost.data.code, 'PAYSLIP_NOT_FOUND');
   const dup = await P.decide(M, [items[0], items[0]]);
   assert.equal(dup.status, 400);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'lô bị từ chối không được lưu gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'lô bị từ chối không được lưu gì');
   assert.deepEqual(
     (await P.slipRows(M)).map(r => r.status),
     ['pending', 'pending', 'pending', 'pending']
@@ -446,10 +446,10 @@ test('approve kỳ đóng băng số Admin sửa vào override_json của phiế
   assert.equal(set.status, 200, JSON.stringify(set.data));
   assert.equal(set.data.rev, 1);
   // trước khi duyệt kỳ chưa có gì được đóng băng
-  assert.equal(flow.payslipsOf(M).slips.qa_nv2.override_json, null);
+  assert.equal((await flow.payslipsOf(M)).slips.qa_nv2.override_json, null);
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
-  const { slips } = flow.payslipsOf(M);
+  const { slips } = await flow.payslipsOf(M);
   const frozen = JSON.parse(slips.qa_nv2.override_json);
   assert.deepEqual(frozen.values, { otPay: 123456, workDays: 20 });
   assert.equal(frozen.reason, 'Điều chỉnh theo biên bản họp');
@@ -461,7 +461,7 @@ test('approve kỳ đóng băng số Admin sửa vào override_json của phiế
   });
   assert.equal(locked.status, 200, JSON.stringify(locked.data));
   assert.ok(locked.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(locked.data.warnings));
-  assert.equal(JSON.parse(flow.payslipsOf(M).slips.qa_nv2.override_json).values.otPay, 123456);
+  assert.equal(JSON.parse((await flow.payslipsOf(M)).slips.qa_nv2.override_json).values.otPay, 123456);
 });
 
 /* ================= kiểm lại bản chụp ================= */
@@ -476,25 +476,25 @@ test('verify: trả {checked, mismatched: []} sau khi tính; sửa thẳng lịc
   assert.equal(clean.data.engineChanged, false);
 
   // sửa trực tiếp lịch của qa_nv2 (ngoài đường API, vì API đã khoá)
-  const original = store.getSheet('qa_nv2', M);
+  const original = await store.getSheet('qa_nv2', M);
   const days = JSON.parse(JSON.stringify(original.days));
   const date = Object.keys(days).find(d => days[d].kind === 'work');
   days[date] = { kind: 'unpaid' };
-  store.setSheet('qa_nv2', M, days);
+  await store.setSheet('qa_nv2', M, days);
   try {
     const dirty = await F.call('GET', `/periods/${M}/verify`);
     assert.deepEqual(dirty.data.mismatched, ['qa_nv2']);
     assert.equal(dirty.data.checked, 4);
   } finally {
-    store.setSheet('qa_nv2', M, original.days);
+    await store.setSheet('qa_nv2', M, original.days);
   }
   assert.deepEqual((await F.call('GET', `/periods/${M}/verify`)).data.mismatched, []);
 
   // đổi hồ sơ (level) và thêm dòng tham số có hiệu lực từ tháng này: bản chụp dùng điều khoản và tham số đã chụp nên không ai lệch
-  store.db.prepare("UPDATE staff SET level = 4 WHERE username = 'qa_nv1'").run();
-  store.setSetting('params_mode', 'active');
+  await store.db.prepare("UPDATE staff SET level = 4 WHERE username = 'qa_nv1'").run();
+  await store.setSetting('params_mode', 'active');
   try {
-    store.db
+    await store.db
       .prepare(
         'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
       )
@@ -508,22 +508,22 @@ test('verify: trả {checked, mismatched: []} sau khi tính; sửa thẳng lịc
       );
     assert.deepEqual((await F.call('GET', `/periods/${M}/verify`)).data.mismatched, []);
   } finally {
-    store.setSetting('params_mode', 'defaults-only');
+    await store.setSetting('params_mode', 'defaults-only');
   }
 });
 
 test('Phiếu trong cơ sở dữ liệu: tiền là số nguyên đồng, bản chụp giải nén được và khớp cột; lần chạy final không sửa trực tiếp được', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  const run = P.runsOf(M)[0];
+  const run = (await P.runsOf(M))[0];
   assert.equal(run.status, 'final');
-  const row = store.db.prepare('SELECT * FROM payslips WHERE run_id = ? ORDER BY username LIMIT 1').get(run.id);
+  const row = await store.db.prepare('SELECT * FROM payslips WHERE run_id = ? ORDER BY username LIMIT 1').get(run.id);
   const snapshot = JSON.parse(zlib.gunzipSync(Buffer.from(row.snapshot_gz)).toString('utf8'));
   assert.equal(snapshot.net.net, row.net);
-  assert.throws(() => store.db.prepare('UPDATE payslips SET net = 1 WHERE id = ?').run(row.id), /không được/);
-  assert.throws(
-    () => store.db.prepare("UPDATE payroll_runs SET params_hash = 'x' WHERE id = ?").run(run.id),
+  await assert.rejects(async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE id = ?').run(row.id), /không được/);
+  await assert.rejects(
+    async () => await store.db.prepare("UPDATE payroll_runs SET params_hash = 'x' WHERE id = ?").run(run.id),
     /không được/
   );
-  assert.throws(() => store.db.prepare('DELETE FROM payslips WHERE id = ?').run(row.id), /không được xoá/);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE id = ?').run(row.id), /không được xoá/);
 });

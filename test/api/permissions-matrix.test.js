@@ -14,12 +14,12 @@ const { serverSource, routeKeysInSource, adminRouteKeysInSource } = require('../
 const { store } = F;
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.at('2026-11-02T09:00:00');
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  F.person('worker');
-  F.person('other');
+beforeEach(async () => {
+  await F.reset();
+  await F.at('2026-11-02T09:00:00');
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  await F.person('worker');
+  await F.person('other');
 });
 
 /* ================= nhóm 1: hợp đồng quyền ở tầng HTTP ================= */
@@ -85,7 +85,7 @@ for (const [method, url, body] of ADMIN_ONLY)
   });
 
 test('permissions-matrix: nhân sự không đọc được lịch, đối soát hay điều chỉnh của người khác; Admin đọc được của mọi người', async () => {
-  store.setSheet('other', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
+  await store.setSheet('other', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
   const own = await F.call('GET', '/sheet?month=2026-10', { who: 'worker' });
   assert.equal(own.status, 200);
   const foreign = await F.call('GET', '/sheet?month=2026-10&user=other', { who: 'worker' });
@@ -94,17 +94,17 @@ test('permissions-matrix: nhân sự không đọc được lịch, đối soát
   assert.equal((await F.call('GET', '/sheet?month=2026-10&user=other', { who: 'admin' })).status, 200);
   // nhân sự không ghi được lịch của người khác: PUT /api/sheet nhận user; người không có quyền
   // duyệt gửi user của người khác thì bị 403 và không lưu gì.
-  const before = JSON.stringify(store.getSheet('other', '2026-10'));
-  const mine = JSON.stringify(store.getSheet('worker', '2026-10'));
+  const before = JSON.stringify(await store.getSheet('other', '2026-10'));
+  const mine = JSON.stringify(await store.getSheet('worker', '2026-10'));
   const day = { kind: 'work', in: '08:00', out: '17:00' };
   const write = await F.call('PUT', '/sheet', {
     who: 'worker',
     body: { month: '2026-10', user: 'other', days: { '2026-10-08': day } }
   });
   assert.equal(write.status, 403, JSON.stringify(write.data));
-  assert.equal(JSON.stringify(store.getSheet('other', '2026-10')), before, 'lịch của người khác không được đổi');
+  assert.equal(JSON.stringify(await store.getSheet('other', '2026-10')), before, 'lịch của người khác không được đổi');
   assert.equal(
-    JSON.stringify(store.getSheet('worker', '2026-10')),
+    JSON.stringify(await store.getSheet('worker', '2026-10')),
     mine,
     'bị từ chối thì lịch của chính họ cũng không đổi'
   );
@@ -114,8 +114,8 @@ test('permissions-matrix: nhân sự không đọc được lịch, đối soát
     body: { month: '2026-10', days: { '2026-10-08': day } }
   });
   assert.equal(saved.status, 200);
-  assert.equal(JSON.stringify(store.getSheet('other', '2026-10')), before);
-  assert.ok(store.getSheet('worker', '2026-10').days['2026-10-08'], 'lịch của chính mình được lưu');
+  assert.equal(JSON.stringify(await store.getSheet('other', '2026-10')), before);
+  assert.ok((await store.getSheet('worker', '2026-10')).days['2026-10-08'], 'lịch của chính mình được lưu');
 });
 
 test('permissions-matrix: GET /api/me của Admin và nhân sự giữ các trường hôm nay; chưa đăng nhập thì user là null', async () => {
@@ -186,9 +186,9 @@ test('permissions-matrix: lib/authz.js xuất ROLE_CAPS, ROUTE_CAPS và can(me, 
 test(
   'permissions-matrix: vai trò admin có mọi năng lực của TK 10.2 (tài khoản admin hiện có giữ nguyên quyền)',
   authzReady,
-  () => {
+  async () => {
     const { can, ROLE_CAPS } = need('lib/authz.js');
-    const admin = store.getStaff('admin');
+    const admin = await store.getStaff('admin');
     const missing = CAPABILITIES.filter(cap => !hasCap(ROLE_CAPS.admin, cap) || !can(admin, cap));
     assert.deepEqual(missing, []);
     assert.ok(can(admin, 'request.decide.leave') && can(admin, 'request.decide.isat'), 'request.decide.<nhóm>');
@@ -198,27 +198,28 @@ test(
 test(
   'permissions-matrix: nhân sự (role staff) chỉ có năng lực "tự mình", mọi năng lực quản trị bị từ chối',
   authzReady,
-  () => {
+  async () => {
     const { can, ROLE_CAPS } = need('lib/authz.js');
-    const staff = store.getStaff('worker');
-    const leaked = CAPABILITIES.filter(cap => !SELF_ONLY.has(cap) && (hasCap(ROLE_CAPS.staff, cap) || can(staff, cap)));
+    const staff = await store.getStaff('worker');
+    const leaked = [];
+    for (const cap of CAPABILITIES) if (!SELF_ONLY.has(cap) && (hasCap(ROLE_CAPS.staff, cap) || (await can(staff, cap)))) leaked.push(cap);
     assert.deepEqual(leaked, [], 'nhân sự có năng lực quản trị');
-    assert.ok(!can(staff, 'request.decide.leave'), 'nhân sự không duyệt yêu cầu');
+    assert.ok(!(await can(staff, 'request.decide.leave')), 'nhân sự không duyệt yêu cầu');
   }
 );
 
 test(
   'permissions-matrix: năng lực phạm vi "tự mình": nhân sự đọc được hồ sơ và chấm công của chính mình, không của người khác',
   authzReady,
-  () => {
+  async () => {
     const { can } = need('lib/authz.js');
-    const me = store.getStaff('worker');
+    const me = await store.getStaff('worker');
     for (const cap of ['profile.read', 'attendance.read']) {
-      assert.equal(can(me, cap, { username: 'worker' }), true, `${cap} của chính mình`);
-      assert.equal(can(me, cap, { username: 'other' }), false, `${cap} của người khác`);
+      assert.equal(await can(me, cap, { username: 'worker' }), true, `${cap} của chính mình`);
+      assert.equal(await can(me, cap, { username: 'other' }), false, `${cap} của người khác`);
     }
-    const admin = store.getStaff('admin');
-    assert.equal(can(admin, 'attendance.read', { username: 'other' }), true);
+    const admin = await store.getStaff('admin');
+    assert.equal(await can(admin, 'attendance.read', { username: 'other' }), true);
   }
 );
 

@@ -14,9 +14,9 @@ const file = path.join(dir, 'old.sqlite');
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 // Schema cũ: các bảng và cột của bản trước, kèm dữ liệu KPI cũ (kpi_pct, kpi_adm_pct) phải sống sót.
-function createOldDb() {
+async function createOldDb() {
   const old = new DatabaseSync(file);
-  old.exec(`
+  await old.exec(`
     CREATE TABLE staff (username TEXT PRIMARY KEY, name TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'staff',
       type TEXT NOT NULL DEFAULT 'tts', level INTEGER NOT NULL DEFAULT 1, night_pct INTEGER, idorm INTEGER NOT NULL DEFAULT 0,
       shift_code TEXT, pass_hash TEXT NOT NULL, created_at TEXT NOT NULL);
@@ -34,22 +34,22 @@ function createOldDb() {
 }
 // Một lần khởi động: require('lib/db') migrate file này rồi thoát.
 const boot = () =>
-  execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', "require('./lib/db').db.close()"], {
+  execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', "const s = require('./lib/db'); s.ready.then(() => s.db.close())"], {
     cwd: project,
     env: { ...process.env, DB_PATH: file },
     stdio: 'pipe'
   });
-function snapshot() {
+async function snapshot() {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const schema = db
+    const schema = (await db
       .prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
-      .all()
+      .all())
       .map(r => ({ ...r }));
     const counts = Object.fromEntries(
-      schema
+      await Promise.all(schema
         .filter(r => r.type === 'table')
-        .map(r => [r.name, db.prepare(`SELECT COUNT(*) AS n FROM ${r.name}`).get().n])
+        .map(async r => [r.name, (await db.prepare(`SELECT COUNT(*) AS n FROM ${r.name}`).get()).n]))
     );
     return { schema, counts };
   } finally {
@@ -57,12 +57,12 @@ function snapshot() {
   }
 }
 
-test('DB cũ mở được với mã mới: hai bảng KPI mới và hai index xuất hiện, mọi dòng cũ giữ nguyên', () => {
-  createOldDb();
-  const before = snapshot();
+test('DB cũ mở được với mã mới: hai bảng KPI mới và hai index xuất hiện, mọi dòng cũ giữ nguyên', async () => {
+  await createOldDb();
+  const before = await snapshot();
   assert.ok(!before.schema.some(r => r.name === 'kpi_scores'));
   boot();
-  const after = snapshot();
+  const after = await snapshot();
   const names = after.schema.map(r => r.name);
   for (const name of ['kpi_scores', 'kpi_score_log', 'kpi_scores_month', 'kpi_score_log_user_month'])
     assert.ok(names.includes(name), name);
@@ -72,15 +72,15 @@ test('DB cũ mở được với mã mới: hai bảng KPI mới và hai index x
   assert.equal(after.counts.timesheets, before.counts.timesheets);
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const row = db.prepare("SELECT * FROM timesheets WHERE username = 'nv1' AND month = '2026-09'").get();
+    const row = await db.prepare("SELECT * FROM timesheets WHERE username = 'nv1' AND month = '2026-09'").get();
     assert.equal(row.kpi_pct, 90);
     assert.equal(row.kpi_amt, 5000000);
     assert.equal(row.kpi_adm_pct, 85);
     assert.equal(row.kpi_adm_amt, 4500000);
     assert.equal(row.days_json, '{"2026-09-01":{"kind":"work"}}');
-    assert.equal(db.prepare("SELECT value_json FROM settings WHERE key = 'holidays'").get().value_json, '[]');
+    assert.equal((await db.prepare("SELECT value_json FROM settings WHERE key = 'holidays'").get()).value_json, '[]');
     assert.equal(
-      db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'kpi_five_from'").get().n,
+      (await db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'kpi_five_from'").get()).n,
       0,
       'migration không tạo dòng kpi_five_from (không còn công tắc)'
     );
@@ -89,47 +89,47 @@ test('DB cũ mở được với mã mới: hai bảng KPI mới và hai index x
   }
 });
 
-test('chạy migration lần hai và lần ba: schema và số dòng không đổi, dòng điểm đã ghi không mất', () => {
-  const afterFirst = snapshot();
+test('chạy migration lần hai và lần ba: schema và số dòng không đổi, dòng điểm đã ghi không mất', async () => {
+  const afterFirst = await snapshot();
   // ghi một dòng điểm thật bằng kho (một lần khởi động riêng) rồi chạy lại migration
   execFileSync(
     process.execPath,
     [
       '--no-warnings=ExperimentalWarning',
       '-e',
-      "const s = require('./lib/db'); s.setKpiScores('nv1', '2026-10', { wework: 9000, peer: 8000 }, 'admin', 'thử'); s.db.close()"
+      "const s = require('./lib/db'); s.ready.then(() => s.setKpiScores('nv1', '2026-10', { wework: 9000, peer: 8000 }, 'admin', 'thử')).then(() => s.db.close())"
     ],
     { cwd: project, env: { ...process.env, DB_PATH: file }, stdio: 'pipe' }
   );
-  const written = snapshot();
+  const written = await snapshot();
   assert.deepEqual(written.schema, afterFirst.schema);
   assert.equal(written.counts.kpi_scores, 1);
   assert.equal(written.counts.kpi_score_log, 2);
   boot();
   boot();
-  const again = snapshot();
+  const again = await snapshot();
   assert.deepEqual(again.schema, written.schema);
   assert.deepEqual(again.counts, written.counts);
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const row = db.prepare("SELECT wework, peer, user_score FROM kpi_scores WHERE username = 'nv1'").get();
+    const row = await db.prepare("SELECT wework, peer, user_score FROM kpi_scores WHERE username = 'nv1'").get();
     assert.deepEqual({ ...row }, { wework: 9000, peer: 8000, user_score: null });
   } finally {
     db.close();
   }
 });
 
-test('migration thêm bảng và index, không có cột nào bị xoá hay đổi tên ở các bảng cũ', () => {
+test('migration thêm bảng và index, không có cột nào bị xoá hay đổi tên ở các bảng cũ', async () => {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const columns = table =>
-      db
+    const columns = async table =>
+      (await db
         .prepare(`PRAGMA table_info(${table})`)
-        .all()
+        .all())
         .map(c => c.name);
     for (const col of ['kpi_pct', 'kpi_amt', 'kpi_adm_pct', 'kpi_adm_amt', 'days_json', 'updated_at'])
-      assert.ok(columns('timesheets').includes(col), col);
-    assert.deepEqual(columns('kpi_scores'), [
+      assert.ok((await columns('timesheets')).includes(col), col);
+    assert.deepEqual(await columns('kpi_scores'), [
       'username',
       'month',
       'wework',
@@ -142,7 +142,7 @@ test('migration thêm bảng và index, không có cột nào bị xoá hay đ�
       'updated_by',
       'updated_at'
     ]);
-    assert.deepEqual(columns('kpi_score_log'), [
+    assert.deepEqual(await columns('kpi_score_log'), [
       'id',
       'username',
       'month',

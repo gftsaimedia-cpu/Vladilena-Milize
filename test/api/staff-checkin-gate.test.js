@@ -21,27 +21,27 @@ const OT = { ...WORK, extraKind: 'ot', extraOut: '19:00' };
 
 before(F.start);
 after(F.stop);
-beforeEach(() => {
-  F.reset();
-  F.person('admin', 'admin');
-  F.person('nv_gate');
-  F.at(`${MON}T07:00:00`);
+beforeEach(async () => {
+  await F.reset();
+  await F.person('admin', 'admin');
+  await F.person('nv_gate');
+  await F.at(`${MON}T07:00:00`);
 });
 
-const punch = (who, type) =>
-  F.call('POST', '/punch', {
+const punch = async (who, type) =>
+  await F.call('POST', '/punch', {
     who,
     body: {
       type,
       requestId: crypto.randomUUID(),
-      ...(type === 'out' ? { sessionId: store.openSession(who)?.id } : {})
+      ...(type === 'out' ? { sessionId: (await store.openSession(who))?.id } : {})
     }
   });
-const count = table => store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
-const stored = () => ({
-  sessions: count('attendance_sessions'),
-  punches: count('punches'),
-  requests: count('punch_requests')
+const count = async table => (await store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n;
+const stored = async () => ({
+  sessions: await count('attendance_sessions'),
+  punches: await count('punches'),
+  requests: await count('punch_requests')
 });
 const saveOwn = async (who, days) => {
   const r = await F.call('PUT', '/sheet', { who, body: { month: MONTH, days } });
@@ -60,15 +60,15 @@ async function decide(who, date, action) {
   assert.equal(r.status, 200, JSON.stringify(r.data));
 }
 async function refused(who) {
-  const before = stored();
+  const before = await stored();
   const r = await punch(who, 'in');
   assert.equal(r.status, 409, JSON.stringify(r.data));
   assert.match(r.data.error, REFUSED);
-  assert.deepEqual(stored(), before, 'lượt bị từ chối không ghi phiên, lượt bấm hay requestId');
+  assert.deepEqual(await stored(), before, 'lượt bị từ chối không ghi phiên, lượt bấm hay requestId');
 }
 
 test('unscheduled day without approved extra hours: Check-in refused and nothing stored; GET /api/punch reports it', async () => {
-  F.at(`${SUN}T08:00:00`);
+  await F.at(`${SUN}T08:00:00`);
   const state = (await F.call('GET', '/punch', { who: 'nv_gate' })).data;
   assert.equal(state.canCheckIn, false);
   assert.match(state.checkInBlock, REFUSED);
@@ -76,7 +76,7 @@ test('unscheduled day without approved extra hours: Check-in refused and nothing
 });
 
 test('scheduled day: GET /api/punch allows Check-in without a reason and Check-in succeeds', async () => {
-  F.at(`${MON}T08:00:00`);
+  await F.at(`${MON}T08:00:00`);
   const state = (await F.call('GET', '/punch', { who: 'nv_gate' })).data;
   assert.equal(state.canCheckIn, true);
   assert.equal(state.checkInBlock, undefined);
@@ -88,7 +88,7 @@ test('scheduled day: GET /api/punch allows Check-in without a reason and Check-i
 test('off-schedule day with approved OT: Check-in succeeds on that day', async () => {
   await saveOwn('nv_gate', { [SUN]: OT });
   await decide('nv_gate', SUN, 'approve');
-  F.at(`${SUN}T18:00:00`); // OT 17:00–19:00
+  await F.at(`${SUN}T18:00:00`); // OT 17:00–19:00
   assert.equal((await F.call('GET', '/punch', { who: 'nv_gate' })).data.canCheckIn, true);
   const r = await punch('nv_gate', 'in');
   assert.equal(r.status, 200, JSON.stringify(r.data));
@@ -97,64 +97,64 @@ test('off-schedule day with approved OT: Check-in succeeds on that day', async (
 
 test('off-schedule day with only pending or rejected OT: Check-in refused', async () => {
   await saveOwn('nv_gate', { [SUN]: OT });
-  F.at(`${SUN}T08:00:00`);
+  await F.at(`${SUN}T08:00:00`);
   await refused('nv_gate');
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await decide('nv_gate', SUN, 'reject');
-  F.at(`${SUN}T08:00:00`);
+  await F.at(`${SUN}T08:00:00`);
   await refused('nv_gate');
 });
 
 test('off-schedule work day declared by the staff without extra hours does not open Check-in', async () => {
   await saveOwn('nv_gate', { [SUN]: WORK });
-  F.at(`${SUN}T08:00:00`);
+  await F.at(`${SUN}T08:00:00`);
   await refused('nv_gate');
 });
 
 test('Admin on-behalf OT counts as approved and opens Check-in', async () => {
   const r = await F.call('PUT', '/sheet', { body: { user: 'nv_gate', month: MONTH, days: { [SUN]: OT } } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  F.at(`${SUN}T18:00:00`); // OT 17:00–19:00
+  await F.at(`${SUN}T18:00:00`); // OT 17:00–19:00
   assert.equal((await punch('nv_gate', 'in')).status, 200);
 });
 
 test('holiday: refused without approval, refused while holiday work is pending, allowed once approved', async () => {
-  store.setSetting('holidays', [WED]);
-  F.at(`${WED}T08:00:00`);
+  await store.setSetting('holidays', [WED]);
+  await F.at(`${WED}T08:00:00`);
   await refused('nv_gate');
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await saveOwn('nv_gate', { [WED]: WORK });
-  F.at(`${WED}T08:00:00`);
+  await F.at(`${WED}T08:00:00`);
   await refused('nv_gate');
-  F.at(`${MON}T07:00:00`);
+  await F.at(`${MON}T07:00:00`);
   await decide('nv_gate', WED, 'approve');
-  F.at(`${WED}T08:00:00`);
+  await F.at(`${WED}T08:00:00`);
   const r = await punch('nv_gate', 'in');
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.openSession.date, WED);
 });
 
 test('night shift after midnight belongs to its start date', async () => {
-  F.person('nv_night', 'staff', { shiftCode: 'g2' }); // 22:00 → 07:00
-  F.at(`${SUN}T00:30:00`); // ca bắt đầu Thứ Bảy 07/11 (trong lịch) dù đồng hồ đã sang Chủ nhật
+  await F.person('nv_night', 'staff', { shiftCode: 'g2' }); // 22:00 → 07:00
+  await F.at(`${SUN}T00:30:00`); // ca bắt đầu Thứ Bảy 07/11 (trong lịch) dù đồng hồ đã sang Chủ nhật
   const r = await punch('nv_night', 'in');
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.openSession.date, SAT);
-  F.at(`${SUN}T07:00:00`);
+  await F.at(`${SUN}T07:00:00`);
   assert.equal((await punch('nv_night', 'out')).status, 200);
-  F.at(`${SUN}T21:55:00`); // ca bắt đầu Chủ nhật: ngoài lịch
+  await F.at(`${SUN}T21:55:00`); // ca bắt đầu Chủ nhật: ngoài lịch
   await refused('nv_night');
 });
 
 test('Check-out of an open session is always allowed, even after the day stops qualifying', async () => {
-  F.at(`${MON}T08:00:00`);
+  await F.at(`${MON}T08:00:00`);
   assert.equal((await punch('nv_gate', 'in')).status, 200);
-  store.setSetting('holidays', [MON]); // ngày công vừa thành ngày lễ, không có khoản duyệt
+  await store.setSetting('holidays', [MON]); // ngày công vừa thành ngày lễ, không có khoản duyệt
   const state = (await F.call('GET', '/punch', { who: 'nv_gate' })).data;
   assert.equal(state.canCheckIn, false);
   assert.equal(state.checkInBlock, undefined, 'đang có lượt mở: không có câu chặn, chỉ cần Check-out');
-  F.at(`${MON}T17:00:00`);
+  await F.at(`${MON}T17:00:00`);
   const out = await punch('nv_gate', 'out');
   assert.equal(out.status, 200, JSON.stringify(out.data));
-  assert.equal(store.openSession('nv_gate'), null);
+  assert.equal(await store.openSession('nv_gate'), null);
 });

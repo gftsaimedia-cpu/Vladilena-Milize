@@ -48,32 +48,32 @@ test('GĐ2 ⑤: attendance.cutRounding: mặc định nửa lên theo bậc (15�
 
 /* ---------- ② làm thêm ---------- */
 // NV bậc 1, thiếu 4 giờ ngày 05/10 (08:00–13:00) và OT 1 giờ ngày 06/10 (17:00–18:00)
-const shortThenOt = input => {
-  input.days = { ...day(5, { out: '13:00' }), ...day(6, { extraKind: 'ot', extraOut: '18:00' }) };
-  input.approvals = approved(input.days, [], 'nv', ['2026-10-06']);
+const shortThenOt = async input => {
+  input.days = { ...await day(5, { out: '13:00' }), ...await day(6, { extraKind: 'ot', extraOut: '18:00' }) };
+  input.approvals = await approved(input.days, [], 'nv', ['2026-10-06']);
 };
-test('GĐ2 ②: ot.afterMakeup: mặc định block chặn OT khi còn nợ giờ bù; independent tính OT ngay, giờ thiếu vẫn bị trừ riêng', () => {
-  const blocked = runGolden(NV1, {}, shortThenOt).m;
+test('GĐ2 ②: ot.afterMakeup: mặc định block chặn OT khi còn nợ giờ bù; independent tính OT ngay, giờ thiếu vẫn bị trừ riêng', async () => {
+  const blocked = (await runGolden(NV1, {}, shortThenOt)).m;
   assert.equal(blocked.otHours, 0);
   assert.ok(blocked.otHoldHours > 0, 'giờ OT đang chờ cân giờ bù');
-  const free = runGolden(NV1, { 'ot.afterMakeup': 'independent' }, shortThenOt).m;
+  const free = (await runGolden(NV1, { 'ot.afterMakeup': 'independent' }, shortThenOt)).m;
   assert.equal(free.otHours, 1);
   assert.ok(free.otPay > 0);
   assert.equal(free.debt, blocked.debt, 'giờ thiếu vẫn còn nợ');
 });
-test('GĐ2 ②: giờ làm bù khi không còn giờ thiếu vẫn trả đủ (2 giờ × 6.000.000 ÷ 26 ÷ 8 = 57.692,31)', () => {
-  const surplus = input => {
-    input.days = day(5, { extraKind: 'makeup', extraOut: '19:00' });
-    input.approvals = approved(input.days, [], 'nv', ['2026-10-05']);
+test('GĐ2 ②: giờ làm bù khi không còn giờ thiếu vẫn trả đủ (2 giờ × 6.000.000 ÷ 26 ÷ 8 = 57.692,31)', async () => {
+  const surplus = async input => {
+    input.days = await day(5, { extraKind: 'makeup', extraOut: '19:00' });
+    input.approvals = await approved(input.days, [], 'nv', ['2026-10-05']);
   };
-  const base = runGolden(NV1, {}, surplus).m;
+  const base = (await runGolden(NV1, {}, surplus)).m;
   assert.equal(base.makeupCredit, 2);
   assert.equal(base.makeupHours, 2);
   assert.ok(closeTo(base.makeupPay, (2 * 6000000) / 26 / 8), `makeupPay ${base.makeupPay}`);
 });
 
 /* ---------- ③ chuyên cần giảm theo bậc: tổng thu nhập khớp các dòng ---------- */
-test('GĐ2 ③: lossMode = tiers: tổng thu nhập bằng tổng các dòng (ngày công + đi lại + chuyên cần + KPI), không chỉ dòng chuyên cần đổi', () => {
+test('GĐ2 ③: lossMode = tiers: tổng thu nhập bằng tổng các dòng (ngày công + đi lại + chuyên cần + KPI), không chỉ dòng chuyên cần đổi', async () => {
   const days = {};
   let n = 0;
   for (let d = 1; d <= 31 && n < 21; d++) {
@@ -89,8 +89,8 @@ test('GĐ2 ③: lossMode = tiers: tổng thu nhập bằng tổng các dòng (ng
     { fromDays: 1, keepRatio: 0.75 },
     { fromDays: 2, keepRatio: 0.5 }
   ];
-  const plain = runGolden(NV1, {}, edit).m;
-  const cut = runGolden(NV1, { 'attendance.lossMode': 'tiers', 'attendance.tiers': tiers }, edit).m;
+  const plain = (await runGolden(NV1, {}, edit)).m;
+  const cut = (await runGolden(NV1, { 'attendance.lossMode': 'tiers', 'attendance.tiers': tiers }, edit)).m;
   assert.ok(closeTo(cut.attendance, plain.attendance * 0.75, 0.5));
   assert.ok(closeTo(cut.total, cut.work + cut.travel + cut.attendance + cut.kpiPay, 1e-6), 'tổng khớp các dòng');
   assert.ok(closeTo(plain.total - cut.total, plain.attendance * 0.25, 1), 'tổng giảm đúng phần chuyên cần mất');
@@ -102,10 +102,10 @@ const isatDays = n =>
   Object.fromEntries(
     Array.from({ length: n }, (_, i) => [`2026-10-${String(3 + 7 * i).padStart(2, '0')}`, { kind: 'isat' }])
   );
-test('GĐ2 ①: isat.monthlyLimit: mặc định không giới hạn; đặt 1 thì khai thêm ngày iSAT thứ hai có cảnh báo SHEET_ISAT_LIMIT, ngày đã lưu vượt giới hạn không cảnh báo khi không tăng', () => {
+test('GĐ2 ①: isat.monthlyLimit: mặc định không giới hạn; đặt 1 thì khai thêm ngày iSAT thứ hai có cảnh báo SHEET_ISAT_LIMIT, ngày đã lưu vượt giới hạn không cảnh báo khi không tăng', async () => {
   const run = (limit, clean, prevDays) =>
-    warnings.run(() => {
-      checkSheetLimits({
+    warnings.run(async () => {
+      await checkSheetLimits({
         params: params({ 'isat.monthlyLimit': limit }),
         month: '2026-10',
         clean,
@@ -114,10 +114,10 @@ test('GĐ2 ①: isat.monthlyLimit: mặc định không giới hạn; đặt 1 t
       return warnings.codes();
     });
   assert.equal(DEFAULTS['isat.monthlyLimit'], null);
-  assert.deepEqual(run(null, isatDays(3), {}), []);
-  assert.deepEqual(run(1, isatDays(1), {}), []);
-  assert.deepEqual(run(1, isatDays(2), isatDays(1)), ['SHEET_ISAT_LIMIT']);
-  assert.deepEqual(run(1, isatDays(2), isatDays(2)), []); // dữ liệu cũ đã vượt: không tăng thì không cảnh báo
+  assert.deepEqual(await run(null, isatDays(3), {}), []);
+  assert.deepEqual(await run(1, isatDays(1), {}), []);
+  assert.deepEqual(await run(1, isatDays(2), isatDays(1)), ['SHEET_ISAT_LIMIT']);
+  assert.deepEqual(await run(1, isatDays(2), isatDays(2)), []); // dữ liệu cũ đã vượt: không tăng thì không cảnh báo
 });
 
 /* ---------- registry: cờ wired và phương án còn available: false ---------- */

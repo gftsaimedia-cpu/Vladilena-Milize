@@ -20,7 +20,7 @@ const NV3 = 's20261015-00018';
 before(F.start);
 after(F.stop);
 
-const listPositions = async (month, who = 'admin') => F.call('GET', `/positions?month=${month}`, { who });
+const listPositions = async (month, who = 'admin') => await F.call('GET', `/positions?month=${month}`, { who });
 const codesIn = data => {
   const rows = Array.isArray(data) ? data : P.pick(data, ['positions', 'rows', 'items']) || [];
   return rows.map(row => (typeof row === 'string' ? row : row.code));
@@ -45,7 +45,7 @@ test('position-copy: POST /api/positions sao chép nv thành chức vụ mới c
     JSON.stringify(listed.data).slice(0, 300)
   );
   // tham số hiệu lực của tháng mang bản sao của nv, cùng bậc và lương
-  const params = P.paramsOf(M);
+  const params = await P.paramsOf(M);
   for (const key of ['travel', 'attendance', 'kpiPass', 'maxAbsent'])
     assert.deepEqual(params[`type.${code}.${key}`], params[`type.nv.${key}`], key);
   for (const level of [1, 2, 3, 4])
@@ -61,10 +61,10 @@ test('position-copy: POST /api/positions sao chép nv thành chức vụ mới c
 
 test('position-copy: nhật ký và lô tham số: một lần sao chép là MỘT lô cùng tháng áp dụng và lý do, ghi nhật ký; ba chức vụ mặc định không có dòng position.def', async () => {
   const M = await P.setupMonth();
-  const rows0 = P.rowCount();
-  const audit0 = P.auditRows('param.set').length;
+  const rows0 = await P.rowCount();
+  const audit0 = (await P.auditRows('param.set')).length;
   await P.mustCopy(M, { label: 'Chuyên viên thử hai', copyFrom: 'ctv', reason: 'Thêm chức vụ thử nhật ký' });
-  const rows = P.paramRows().slice(rows0);
+  const rows = (await P.paramRows()).slice(rows0);
   assert.ok(rows.length > 10, 'bản sao mang cả họ type.* và level.*');
   assert.ok(
     rows.some(r => /^position\.def\./.test(r.key)),
@@ -73,13 +73,13 @@ test('position-copy: nhật ký và lô tham số: một lần sao chép là M�
   assert.equal(new Set(rows.map(r => r.effective_month ?? r.effectiveMonth)).size, 1);
   assert.equal(new Set(rows.map(r => r.reason)).size, 1);
   assert.equal(rows[0].reason, 'Thêm chức vụ thử nhật ký');
-  assert.ok(P.auditRows('param.set').length > audit0, 'có dòng nhật ký');
-  assert.ok(!P.paramRows().some(r => ['position.def.tts', 'position.def.ctv', 'position.def.nv'].includes(r.key)));
+  assert.ok((await P.auditRows('param.set')).length > audit0, 'có dòng nhật ký');
+  assert.ok(!(await P.paramRows()).some(r => ['position.def.tts', 'position.def.ctv', 'position.def.nv'].includes(r.key)));
 });
 
 test('position-copy: đầu vào sai là 400 và không lưu gì: thiếu nhãn, nhãn rỗng, nguồn lạ (POSITION_UNKNOWN), tháng sai; nhân sự và người chưa đăng nhập không sao chép được (403, 401); thiếu lý do vẫn sao chép được', async () => {
   const M = await P.setupMonth();
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const cases = [
     [{ copyFrom: 'nv', effectiveMonth: M, reason: 'Lý do đủ mười ký tự' }, 'thiếu nhãn'],
     [{ label: '   ', copyFrom: 'nv', effectiveMonth: M, reason: 'Lý do đủ mười ký tự' }, 'nhãn rỗng'],
@@ -94,11 +94,11 @@ test('position-copy: đầu vào sai là 400 và không lưu gì: thiếu nhãn,
     assert.equal(res.status, 400, `${what}: ${res.status} ${JSON.stringify(res.data)}`);
     if (what === 'nguồn lạ') assert.equal(res.data.code, 'POSITION_UNKNOWN');
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], '400 không được ghi gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], '400 không được ghi gì');
   const body = { label: 'Chức vụ không quyền', copyFrom: 'nv', effectiveMonth: M, reason: 'Lý do đủ mười ký tự' };
   assert.equal((await F.call('POST', '/positions', { who: 'qa_nv1', body })).status, 403);
   assert.equal((await F.call('POST', '/positions', { who: null, body })).status, 401);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   const noReason = await P.copyPosition(M, { label: 'Chức vụ thiếu lý do', copyFrom: 'nv', reason: '' });
   assert.equal(noReason.status, 200, JSON.stringify(noReason.data).slice(0, 300));
 });
@@ -106,11 +106,11 @@ test('position-copy: đầu vào sai là 400 và không lưu gì: thiếu nhãn,
 test('position-copy: hai chức vụ cùng nhãn là 409 POSITION_CODE_CLASH và lần hai không ghi dòng nào', async () => {
   const M = await P.setupMonth();
   await P.mustCopy(M, { label: 'Chức vụ trùng mã', copyFrom: 'nv' });
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const second = await P.copyPosition(M, { label: 'Chức vụ trùng mã', copyFrom: 'ctv' });
   assert.equal(second.status, 409, JSON.stringify(second.data));
   assert.equal(second.data.code, 'POSITION_CODE_CLASH');
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
 });
 
 test('position-copy: người có chức vụ mới tạo được qua PUT /api/staff (bậc theo chức vụ); mã loại lạ vẫn là 400, không rơi về tts', async () => {
@@ -128,19 +128,19 @@ test('position-copy: người có chức vụ mới tạo được qua PUT /api/
   };
   const ok = await F.call('PUT', '/staff/qa_pos_new', { body: profile });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
-  assert.equal(store.getStaff('qa_pos_new').type, code);
-  const before = F.snapshot();
+  assert.equal((await store.getStaff('qa_pos_new')).type, code);
+  const before = await F.snapshot();
   for (const type of ['khongco', 'NV', '', 'tts ']) {
     const bad = await F.call('PUT', '/staff/qa_pos_bad', { body: { ...profile, type } });
     assert.equal(bad.status, 400, JSON.stringify(type));
   }
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
-  assert.equal(store.getStaff('qa_pos_bad'), undefined);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
+  assert.equal(await store.getStaff('qa_pos_bad'), undefined);
 });
 
 /* ================= position-hardcoded-flags ================= */
 const dayIn = (month, dow) => P.firstDow(month, dow);
-const saveSheet = (user, month, days) => F.call('PUT', '/sheet', { who: user, body: { month, days } });
+const saveSheet = async (user, month, days) => await F.call('PUT', '/sheet', { who: user, body: { month, days } });
 const flag = (code, name) => `type.${code}.benefit.${name}`;
 
 test('position-hardcoded-flags: TTS khai OT hay nghỉ phép vẫn lưu, kèm cảnh báo BENEFIT_NOT_ALLOWED (không đúng quyền lợi chức vụ); CTV khai OT không cảnh báo', async () => {
@@ -167,8 +167,8 @@ test('position-hardcoded-flags: chức vụ sao từ tts với benefit.ot = true
   const plain = await P.mustCopy(M, { label: 'Thực tập thường', copyFrom: 'tts' });
   const save = await P.saveChanges([{ key: flag(withOt, 'ot'), value: true }], { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  F.person('qa_pos_ot', 'staff', { type: withOt, level: 1, shiftCode: 'n1' });
-  F.person('qa_pos_plain', 'staff', { type: plain, level: 1, shiftCode: 'n1' });
+  await F.person('qa_pos_ot', 'staff', { type: withOt, level: 1, shiftCode: 'n1' });
+  await F.person('qa_pos_plain', 'staff', { type: plain, level: 1, shiftCode: 'n1' });
   const date = dayIn(M, 2);
   const day = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' };
   const allowed = await saveSheet('qa_pos_ot', M, { [date]: day });
@@ -191,8 +191,8 @@ test('position-hardcoded-flags: cờ absenceDeclarable theo chức vụ: bản s
     { month: M }
   );
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  F.person('qa_pos_closed', 'staff', { type: closed, level: 1, shiftCode: 'n1' });
-  F.person('qa_pos_open', 'staff', { type: open, level: 1, shiftCode: 'n1' });
+  await F.person('qa_pos_closed', 'staff', { type: closed, level: 1, shiftCode: 'n1' });
+  await F.person('qa_pos_open', 'staff', { type: open, level: 1, shiftCode: 'n1' });
   const date = dayIn(M, 3);
   const warned = await saveSheet('qa_pos_closed', M, { [date]: { kind: 'unpaid' } });
   assert.equal(warned.status, 200, JSON.stringify(warned.data));
@@ -234,13 +234,13 @@ test('entitlement-matrix-api: GET /api/entitlements?month= trả { positions, bl
 test('entitlement-matrix-api: chức vụ vừa sao chép hiện thành cột mới của bảng; chỉ người có config.read đọc được (nhân sự 403, chưa đăng nhập 401); đọc không ghi gì', async () => {
   const M = await P.setupMonth();
   const code = await P.mustCopy(M, { label: 'Cột mới của bảng', copyFrom: 'nv' });
-  const before = F.snapshot();
+  const before = await F.snapshot();
   const res = await F.call('GET', `/entitlements?month=${M}`);
   assert.equal(res.status, 200);
   assert.ok(codesIn({ positions: res.data.positions }).includes(code), 'cột của chức vụ mới');
   assert.equal((await F.call('GET', `/entitlements?month=${M}`, { who: 'qa_nv1' })).status, 403);
   assert.equal((await F.call('GET', `/entitlements?month=${M}`, { who: null })).status, 401);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'GET không ghi gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'GET không ghi gì');
 });
 
 test('position-copy: tháng áp dụng đã chốt công vẫn thêm được chức vụ, kèm cảnh báo PERIOD_LOCKED', async () => {
@@ -249,5 +249,5 @@ test('position-copy: tháng áp dụng đã chốt công vẫn thêm được ch
   const res = await P.copyPosition(M, { label: 'Chức vụ vào tháng đã khoá', copyFrom: 'nv' });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
   assert.ok(res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(res.data.warnings));
-  assert.ok(P.paramRows().some(r => /^position\.def\./.test(r.key) && r.effective_month === M));
+  assert.ok((await P.paramRows()).some(r => /^position\.def\./.test(r.key) && r.effective_month === M));
 });

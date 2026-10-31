@@ -64,10 +64,10 @@ test('1c: sums từ chối dữ liệu sai dạng (chuỗi số, số thập ph�
     assert.throws(() => PayEntriesCalc.sums([entry]), { code: 'PAYROLL_BAD_ENTRY' }, JSON.stringify(entry));
 });
 
-test('1c: ca known-short-nv2-full-month cộng 500.000 ₫ chịu thuế: tổng thu nhập 9.450.000 → 9.950.000, bảo hiểm 682.500 giữ nguyên, thuế 945.000 → 995.000, thực lĩnh 7.822.500 → 8.272.500', () => {
-  const before = figures(compute(SHORT));
+test('1c: ca known-short-nv2-full-month cộng 500.000 ₫ chịu thuế: tổng thu nhập 9.450.000 → 9.950.000, bảo hiểm 682.500 giữ nguyên, thuế 945.000 → 995.000, thực lĩnh 7.822.500 → 8.272.500', async () => {
+  const before = figures(await compute(SHORT));
   assert.deepEqual(before, { total: 9450000, insurance: 682500, tax: 945000, net: 7822500, exempt: 0 });
-  const m = compute(SHORT, [add(500000)]);
+  const m = await compute(SHORT, [add(500000)]);
   assert.deepEqual(figures(m), { total: 9950000, insurance: 682500, tax: 995000, net: 8272500, exempt: 0 });
   assert.equal(m.net.entriesAdd, 500000);
   assert.equal(m.net.entriesDeduct, 0);
@@ -77,17 +77,17 @@ test('1c: ca known-short-nv2-full-month cộng 500.000 ₫ chịu thuế: tổng
   );
 });
 
-test('1c: ca known-short-nv2-full-month trừ 300.000 ₫: thực lĩnh 7.822.500 → 7.522.500, tổng thu nhập và thuế không đổi (trừ sau thuế)', () => {
-  const m = compute(SHORT, [deduct(300000)]);
+test('1c: ca known-short-nv2-full-month trừ 300.000 ₫: thực lĩnh 7.822.500 → 7.522.500, tổng thu nhập và thuế không đổi (trừ sau thuế)', async () => {
+  const m = await compute(SHORT, [deduct(300000)]);
   assert.deepEqual(figures(m), { total: 9450000, insurance: 682500, tax: 945000, net: 7522500, exempt: 0 });
   assert.equal(m.net.entriesAdd, 0);
   assert.equal(m.net.entriesDeduct, 300000);
 });
 
-test('1c: khoản trừ mang cờ thuế hay nền bảo hiểm vẫn trừ sau thuế, không giảm thu nhập chịu thuế', () => {
-  const plain = figures(compute(LONG, [deduct(300000)]));
+test('1c: khoản trừ mang cờ thuế hay nền bảo hiểm vẫn trừ sau thuế, không giảm thu nhập chịu thuế', async () => {
+  const plain = figures(await compute(LONG, [deduct(300000)]));
   const flagged = figures(
-    compute(
+    await compute(
       LONG,
       [deduct(300000, { taxMode: 'full', insuranceBase: 300000, flagsConfirmedBy: 'ketoan' })],
       flaggedEngine
@@ -96,17 +96,17 @@ test('1c: khoản trừ mang cờ thuế hay nền bảo hiểm vẫn trừ sau 
   assert.deepEqual(flagged, plain);
 });
 
-test('1c: không có khoản nào (không có trường, mảng rỗng): m y hệt hôm nay, không có m.entries, m.net.entriesAdd, m.net.entriesDeduct', () => {
-  const base = compute(SHORT);
+test('1c: không có khoản nào (không có trường, mảng rỗng): m y hệt hôm nay, không có m.entries, m.net.entriesAdd, m.net.entriesDeduct', async () => {
+  const base = await compute(SHORT);
   for (const entries of [undefined, []]) {
-    const m = compute(SHORT, entries);
+    const m = await compute(SHORT, entries);
     assert.deepEqual(m, base);
     assert.equal(JSON.stringify(m), JSON.stringify(base));
     assert.equal(Object.hasOwn(m, 'entries'), false);
     assert.equal(Object.hasOwn(m.net, 'entriesAdd'), false);
     assert.equal(Object.hasOwn(m.net, 'entriesDeduct'), false);
   }
-  assert.equal(compute(SHORT, [add(1000)]).net.entriesAdd, 1000);
+  assert.equal((await compute(SHORT, [add(1000)])).net.entriesAdd, 1000);
 });
 
 test('1c: calcNet(staff, m) từ m có khoản dựng lại đúng thực lĩnh (đường số sửa phiếu đọc lại m)', () => {

@@ -29,25 +29,25 @@ const night = extra => ({
 const day = (staff, d, date) => E.calcDay(staff, d, false, null, { date, holidays: [] });
 const month = (staff, days) => E.calcMonth(staff, days, null, [], '2026-10', null);
 
-test('ca đêm 02/10 có làm bù 20:00–22:00 và 07:00–09:00, không còn giờ thiếu: 230.769 + 4 × 28.846 = 346.154, không phụ cấp ca, không Off Paid', () => {
-  const c = day(NIGHT, night({ extraKind: 'makeup' }), '2026-10-02');
+test('ca đêm 02/10 có làm bù 20:00–22:00 và 07:00–09:00, không còn giờ thiếu: 230.769 + 4 × 28.846 = 346.154, không phụ cấp ca, không Off Paid', async () => {
+  const c = await day(NIGHT, night({ extraKind: 'makeup' }), '2026-10-02');
   assert.equal(c.makeupH, 4);
   near(c.makeupPay, 4 * HOURLY);
   assert.deepEqual([c.bonus, c.breakPay], [0, 0]);
   near(c.total, 346154);
   // cả tháng chỉ có ngày đó: không giờ thiếu nào, 4 giờ làm bù vẫn trả đủ
-  const m = month(NIGHT, { '2026-10-02': night({ extraKind: 'makeup' }) });
+  const m = await month(NIGHT, { '2026-10-02': night({ extraKind: 'makeup' }) });
   assert.deepEqual([m.makeupHours, m.makeupCredit, m.debt], [4, 4, 0]);
   near(m.makeupPay, 4 * HOURLY);
   near(m.rows[0].total, 346154);
 });
 
-test('làm bù 4 giờ ngày thường khi không nợ giờ: trả 4 × lương giờ, ngày đó mất phụ cấp ca', () => {
+test('làm bù 4 giờ ngày thường khi không nợ giờ: trả 4 × lương giờ, ngày đó mất phụ cấp ca', async () => {
   const ca = { kind: 'work', in: '08:00', out: '17:00', preset: 'Normal1' };
   const flex = { ...DAY, shiftCode: 'Flex1' };
-  const plain = day(flex, { ...ca, preset: 'Flex1' }, '2026-10-05');
+  const plain = await day(flex, { ...ca, preset: 'Flex1' }, '2026-10-05');
   assert.ok(plain.bonus > 0, 'ca Flex có phụ cấp');
-  const c = day(flex, { ...ca, preset: 'Flex1', extraKind: 'makeup', extraOut: '21:00' }, '2026-10-05');
+  const c = await day(flex, { ...ca, preset: 'Flex1', extraKind: 'makeup', extraOut: '21:00' }, '2026-10-05');
   assert.equal(c.makeupH, 4);
   near(c.makeupPay, 4 * HOURLY);
   assert.equal(c.bonus, 0);

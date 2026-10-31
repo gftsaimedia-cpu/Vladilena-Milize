@@ -23,12 +23,12 @@ const compute = (entries, e = engine) => {
 const add = (amount, extra = {}) => ({ id: 1, direction: 'add', amount, label: 'Khoản cộng thử', ...extra });
 const firstBracket = assessable => Math.round(assessable * 0.05); // đến 10 triệu: 5 %
 
-test('cộng 20.000.000 ₫ chịu thuế: thuế 5 % trên (chịu thuế − bảo hiểm − 15.500.000); cờ miễn thuế CHƯA xác nhận vẫn chịu thuế', () => {
-  const none = compute();
+test('cộng 20.000.000 ₫ chịu thuế: thuế 5 % trên (chịu thuế − bảo hiểm − 15.500.000); cờ miễn thuế CHƯA xác nhận vẫn chịu thuế', async () => {
+  const none = await compute();
   assert.equal(none.net.tax, 0);
   assert.equal(none.net.advance, 0);
   assert.equal(none.net.net, none.net.gross - none.net.insurance);
-  const taxed = compute([add(20000000)]);
+  const taxed = await compute([add(20000000)]);
   assert.equal(taxed.net.gross, none.net.gross + 20000000);
   assert.equal(taxed.net.exempt, 0);
   assert.equal(taxed.net.insurance, none.net.insurance, 'khoản không có cờ bảo hiểm không vào nền');
@@ -36,39 +36,39 @@ test('cộng 20.000.000 ₫ chịu thuế: thuế 5 % trên (chịu thuế − b
   assert.equal(taxed.net.tax, firstBracket(taxed.net.taxable - taxed.net.insurance - PERSONAL));
   assert.equal(taxed.net.tax, 486254);
   assert.equal(taxed.net.net, taxed.net.gross - taxed.net.insurance - taxed.net.tax);
-  const unconfirmed = compute([add(20000000, { taxMode: 'full' })]);
+  const unconfirmed = await compute([add(20000000, { taxMode: 'full' })]);
   assert.deepEqual(unconfirmed.net, taxed.net);
 });
 
-test('cờ miễn thuế ĐÃ xác nhận: full miễn cả khoản (thuế 0), cap miễn tới hạn mức; hạn mức lớn hơn khoản thì chỉ miễn đúng khoản', () => {
-  const none = compute();
-  const full = compute([add(20000000, { taxMode: 'full', flagsConfirmedBy: 'ketoan' })]);
+test('cờ miễn thuế ĐÃ xác nhận: full miễn cả khoản (thuế 0), cap miễn tới hạn mức; hạn mức lớn hơn khoản thì chỉ miễn đúng khoản', async () => {
+  const none = await compute();
+  const full = await compute([add(20000000, { taxMode: 'full', flagsConfirmedBy: 'ketoan' })]);
   assert.equal(full.net.exempt, 20000000);
   assert.equal(full.net.taxable, none.net.taxable);
   assert.equal(full.net.tax, 0);
   assert.equal(full.net.net, none.net.gross + 20000000 - full.net.insurance);
-  const cap = compute([add(20000000, { taxMode: 'cap', taxCap: 8000000, flagsConfirmedBy: 'ketoan' })]);
+  const cap = await compute([add(20000000, { taxMode: 'cap', taxCap: 8000000, flagsConfirmedBy: 'ketoan' })]);
   assert.equal(cap.net.exempt, 8000000);
   assert.equal(cap.net.tax, firstBracket(cap.net.taxable - cap.net.insurance - PERSONAL));
   assert.equal(cap.net.tax, 86254);
   assert.equal(cap.net.net, cap.net.gross - cap.net.insurance - cap.net.tax);
-  const wide = compute([add(1000000, { taxMode: 'cap', taxCap: 9000000, flagsConfirmedBy: 'ketoan' })]);
+  const wide = await compute([add(1000000, { taxMode: 'cap', taxCap: 9000000, flagsConfirmedBy: 'ketoan' })]);
   assert.equal(wide.net.exempt, 1000000);
 });
 
-test('cờ bảo hiểm chỉ vào nền khi insurance.base = withFlaggedAllowances VÀ đã xác nhận: bảo hiểm 630.000 → 682.500, công ty đóng 1.290.000 → 1.397.500', () => {
+test('cờ bảo hiểm chỉ vào nền khi insurance.base = withFlaggedAllowances VÀ đã xác nhận: bảo hiểm 630.000 → 682.500, công ty đóng 1.290.000 → 1.397.500', async () => {
   const entries = confirmed => [
     add(500000, { insuranceBase: 500000, ...(confirmed ? { flagsConfirmedBy: 'ketoan' } : {}) })
   ];
-  const base = compute();
+  const base = await compute();
   // mặc định (insurance.base = baseSalary): cờ không có tác dụng
-  const byDefault = compute(entries(true));
+  const byDefault = await compute(entries(true));
   assert.equal(byDefault.net.insurance, 630000);
   assert.equal(byDefault.net.net, byDefault.net.gross - 630000 - byDefault.net.tax);
   // bật nền có cờ nhưng chưa xác nhận: không vào nền
-  assert.equal(compute(entries(false), flaggedEngine).net.insurance, 630000);
+  assert.equal((await compute(entries(false), flaggedEngine)).net.insurance, 630000);
   // bật nền có cờ và đã xác nhận: nền tăng tới trần đóng
-  const m = compute(entries(true), flaggedEngine);
+  const m = await compute(entries(true), flaggedEngine);
   assert.equal(m.net.insurance, 682500);
   assert.equal(m.net.employer, 1397500);
   assert.equal(m.net.gross, base.net.gross + 500000);

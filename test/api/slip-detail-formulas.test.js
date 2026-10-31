@@ -15,8 +15,8 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const estimateOf = (month, user, who = 'admin') => F.call('GET', `/periods/${month}/estimates/${user}`, { who });
-const payslipOf = (month, user, who = 'admin') => F.call('GET', `/periods/${month}/payslips/${user}`, { who });
+const estimateOf = async (month, user, who = 'admin') => await F.call('GET', `/periods/${month}/estimates/${user}`, { who });
+const payslipOf = async (month, user, who = 'admin') => await F.call('GET', `/periods/${month}/payslips/${user}`, { who });
 
 test('Phiếu đã tính lương: Admin có formulas, nhân sự xem số của mình (GET /me/estimate) không có', async () => {
   const M = monthOf();

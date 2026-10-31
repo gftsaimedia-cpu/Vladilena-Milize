@@ -69,7 +69,7 @@ test('A1: tháng chưa tính lương, sửa chuyên cần +500.000 ₫ thì dòn
   const prior = await rowsOf(M);
   const old = figsOf(prior.rows.find(row => row.username === 'qa_nv1'));
   assert.equal(old.tax, 0, 'điều kiện: chưa chịu thuế');
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
 
   await mustPut(M, 'qa_nv1', { attendance: 500000 });
 
@@ -97,8 +97,8 @@ test('A1: tháng chưa tính lương, sửa chuyên cần +500.000 ₫ thì dòn
   assert.equal(later.totals.gross, sumOf(later.rows).gross, 'tổng bằng tổng các dòng');
 
   // vẫn là ước tính: không có lần tính hay phiếu nào được tạo, chỉ có số sửa và nhật ký
-  assert.equal(store.payroll.currentRun(M), null);
-  assert.deepEqual(F.changedTables(tables, F.snapshot()).sort(), ['audit_log', 'slip_overrides']);
+  assert.equal(await store.payroll.currentRun(M), null);
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()).sort(), ['audit_log', 'slip_overrides']);
 });
 
 test('A1: tháng chưa tính lương, ghim bảo hiểm = 0 ₫ thì thực lĩnh của phiếu và tổng kỳ tăng đúng bằng số bảo hiểm tự tính (630.000 ₫), tổng lương không đổi', async () => {
@@ -343,7 +343,7 @@ test('A2: chưa đủ 5 điểm KPI thì ghim kpiAmt không làm có tiền KPI 
 test('A: nhân sự không đọc được phiếu ước tính đã ghim của mình hay của người khác (403) và không gọi được PUT /slip-override; số sửa không lộ computed cho nhân sự', async () => {
   await P.seed(M);
   await mustPut(M, 'qa_ctv1', { workDays: 22 });
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   for (const who of ['qa_ctv1', 'qa_nv1']) {
     const list = await F.call('GET', `/periods/${M}/estimates`, { who });
     assert.equal(list.status, 403, `${who}: danh sách`);
@@ -360,13 +360,13 @@ test('A: nhân sự không đọc được phiếu ước tính đã ghim của 
       `${who}: không lộ computed`
     );
   }
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), [], 'từ chối thì không ghi gì');
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), [], 'từ chối thì không ghi gì');
   assert.equal((await F.call('GET', `/slip-override?user=qa_ctv1&month=${M}`, { who: 'qa_ctv1' })).status, 403);
 });
 
 test('A2: giá trị ghim sai kiểu hoặc ngoài giới hạn bị từ chối 400 và không lưu gì: ngày công chữ, vô hạn, quá lớn; ô lạ', async () => {
   await P.seed(M);
-  const tables = F.snapshot();
+  const tables = await F.snapshot();
   for (const values of [
     { workDays: '22' },
     { workDays: null },
@@ -377,6 +377,6 @@ test('A2: giá trị ghim sai kiểu hoặc ngoài giới hạn bị từ chối
     const res = await put(M, 'qa_ctv1', values);
     assert.equal(res.status, 400, JSON.stringify(values));
   }
-  assert.deepEqual(F.changedTables(tables, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(tables, await F.snapshot()), []);
   assert.equal((await rowOf(M, 'qa_ctv1')).computed, undefined);
 });

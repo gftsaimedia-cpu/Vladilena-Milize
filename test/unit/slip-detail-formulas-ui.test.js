@@ -77,9 +77,9 @@ const FORMULAS = {
   nightPay: '1 ca đêm × 230.769 đ/ngày × 40%',
   net: '1 + <b>2</b>'
 };
-const payslip = () => ({
+const payslip = async () => ({
   username: STAFF.username,
-  snapshot: snapshot(),
+  snapshot: await snapshot(),
   staffTerms: { ...STAFF, name: 'QA', contract: 'official' },
   formulas: FORMULAS
 });
@@ -93,7 +93,7 @@ async function chiTiet(withFormulas) {
     addEventListener() {}
   };
   const dlg = { root: { querySelector: () => null }, error() {} };
-  const p = payslip();
+  const p = await payslip();
   if (!withFormulas) delete p.formulas;
   await Phieu.mount(box, dlg, { res: { payslip: p, run: null }, month: MONTH, holidays: [HOLIDAY], canRead: false });
   return box.innerHTML;
@@ -125,8 +125,8 @@ test('Chi tiết: dòng không có công thức thì không có dòng phụ; má
   );
 });
 
-test('bản in A4 và trang ngày của phiếu không in công thức', () => {
-  const p = payslip();
+test('bản in A4 và trang ngày của phiếu không in công thức', async () => {
+  const p = await payslip();
   const model = Phieu.modelOf({ payslip: p, run: null }, MONTH, { ...DEFAULTS }, {}, [HOLIDAY]);
   for (const html of [Phieu.pageOf(model), Phieu.daysSheet(model, {})]) {
     assert.doesNotMatch(html, /pl-fm/);

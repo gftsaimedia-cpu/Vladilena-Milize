@@ -16,11 +16,11 @@ function writeCsv(dir, file, header, rows) {
   return rows.length;
 }
 
-function exportAll({ store, personas, selfcheck, dir, people = personas }) {
+async function exportAll({ store, personas, selfcheck, dir, people = personas }) {
   const byUser = new Map(people.map(p => [p.username, p]));
   fs.mkdirSync(dir, { recursive: true });
   const out = {};
-  const staff = store.listStaff();
+  const staff = await store.listStaff();
   out['staff.csv'] = writeCsv(
     dir,
     'staff.csv',
@@ -79,8 +79,8 @@ function exportAll({ store, personas, selfcheck, dir, people = personas }) {
     kpiRows = [];
   const KNOWN = ['kind', 'shift', 'in', 'out', 'extraKind', 'extraIn', 'extraOut', 'preset', 'breakMin'];
   for (const s of staff.filter(x => x.role !== 'admin'))
-    for (const { month } of store.listSheets(s.username).sort((a, b) => a.month.localeCompare(b.month))) {
-      const sheet = store.getSheet(s.username, month);
+    for (const { month } of (await store.listSheets(s.username)).sort((a, b) => a.month.localeCompare(b.month))) {
+      const sheet = await store.getSheet(s.username, month);
       for (const [date, d] of Object.entries(sheet.days).sort(([a], [b]) => a.localeCompare(b))) {
         const rest = Object.fromEntries(Object.entries(d).filter(([k]) => !KNOWN.includes(k)));
         sheetRows.push([
@@ -131,8 +131,8 @@ function exportAll({ store, personas, selfcheck, dir, people = personas }) {
     dir,
     'approvals.csv',
     ['username', 'date', 'item', 'fingerprint', 'status', 'rev', 'submittedAt', 'decidedBy', 'decidedAt', 'note'],
-    store.approvals
-      .list({ status: 'all' })
+    (await store.approvals
+      .list({ status: 'all' }))
       .map(a => [
         a.username,
         a.date,
@@ -163,8 +163,8 @@ function exportAll({ store, personas, selfcheck, dir, people = personas }) {
       'outsideShift',
       'version'
     ],
-    store
-      .listSessions()
+    (await store
+      .listSessions())
       .map(s => [
         s.id,
         s.username,
@@ -201,8 +201,8 @@ function exportAll({ store, personas, selfcheck, dir, people = personas }) {
     dir,
     'corrections.csv',
     ['id', 'username', 'date', 'reqIn', 'reqOut', 'reason', 'status', 'decidedBy', 'decidedAt', 'sessionId'],
-    store
-      .listCorrections()
+    (await store
+      .listCorrections())
       .map(c => [
         c.id,
         c.username,
@@ -219,7 +219,7 @@ function exportAll({ store, personas, selfcheck, dir, people = personas }) {
   const slips = [];
   for (const s of staff.filter(x => x.role !== 'admin'))
     for (const month of ['2026-09', '2026-10', '2026-11']) {
-      const o = store.getSlipOverride(s.username, month);
+      const o = await store.getSlipOverride(s.username, month);
       if (Object.keys(o.values).length) slips.push([s.username, month, o.values, o.updatedBy, o.updatedAt]);
     }
   out['slip_overrides.csv'] = writeCsv(

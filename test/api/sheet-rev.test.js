@@ -29,7 +29,7 @@ const putSheet = (days, expectedRev) =>
 
 before(async () => {
   Date.now = () => clock;
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'an',
     name: 'An',
     role: 'staff',
@@ -97,6 +97,6 @@ test('rev: expectedRev sai kiểu hoặc âm là 400 và không ghi gì', async 
 
 test('rev: Admin duyệt KPI (setKpiApproval) không làm rev của lịch khai tăng', async () => {
   const before = (await getSheet()).rev;
-  store.setKpiApproval('an', MONTH, 5000, null);
+  await store.setKpiApproval('an', MONTH, 5000, null);
   assert.equal((await getSheet()).rev, before);
 });

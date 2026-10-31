@@ -8,13 +8,13 @@ const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
 
-const adminRows = (username, date) => X.sessionsOn(username, date).filter(s => s.entry.origin === ADMIN_ORIGIN);
+const adminRows = async (username, date) => (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
 
 before(async () => {
   await F.start();
-  F.at('2026-10-29T12:00:00');
-  for (const name of ['isat', 'phep', 'khongluong']) F.person(name);
-  F.person('admin', 'admin');
+  await F.at('2026-10-29T12:00:00');
+  for (const name of ['isat', 'phep', 'khongluong']) await F.person(name);
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
@@ -25,7 +25,7 @@ const CASES = [
 ];
 for (const [who, date, day] of CASES)
   test(`Ngày đã khai ${day.kind}: duyệt giải trình không ghi lượt Admin, có cảnh báo, ngày không thành ngày công`, async () => {
-    F.store.setSheet(who, '2026-10', { [date]: day });
+    await F.store.setSheet(who, '2026-10', { [date]: day });
     const item = await X.askAndAnswer(who, date);
     const res = await X.decide(item.id, true);
     assert.equal(res.status, 200, JSON.stringify(res.data));
@@ -36,6 +36,6 @@ for (const [who, date, day] of CASES)
       ['EXPLANATION_NOT_RECORDED']
     );
     assert.match(res.data.warnings[0].message, /ngày đã khai là ngày nghỉ/);
-    assert.equal(adminRows(who, date).length, 0);
-    assert.notEqual(X.payOf(who).payDays[date].kind, 'work');
+    assert.equal((await adminRows(who, date)).length, 0);
+    assert.notEqual((await X.payOf(who)).payDays[date].kind, 'work');
   });

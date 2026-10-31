@@ -36,13 +36,13 @@ function snapshot() {
 async function call(method, route, body) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(auth.createSession('admin'), 86400) },
+    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400) },
     body: JSON.stringify(body)
   });
   return { status: response.status, data: await response.json() };
 }
-function assertRejected(result, previous) {
-  assert.deepEqual(snapshot(), previous, 'Rejected shift input must not change stored data');
+async function assertRejected(result, previous) {
+  assert.deepEqual(await snapshot(), previous, 'Rejected shift input must not change stored data');
   assert.equal(result.status, 400, JSON.stringify(result.data));
   assert.ok(result.data.error);
 }
@@ -52,15 +52,15 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of tables) store.db.exec('DELETE FROM ' + table);
   for (const [username, role] of [
     ['admin', 'admin'],
     ['worker', 'staff']
   ]) {
-    store.upsertStaff({ ...profile, username, name: username, role, passHash: auth.hashPassword('test-pass') });
+    await store.upsertStaff({ ...profile, username, name: username, role, passHash: auth.hashPassword('test-pass') });
   }
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } });
 });
 after(async () => {
   Date.now = originalNow;
@@ -71,26 +71,26 @@ after(async () => {
 
 for (const shiftCode of [['n1'], ['g2']]) {
   test(`staff rejects array shift ${JSON.stringify(shiftCode)} with 400 and no writes`, async () => {
-    const previous = snapshot();
+    const previous = await snapshot();
     const result = await call('PUT', '/staff/worker', { ...profile, shiftCode });
-    assertRejected(result, previous);
+    await assertRejected(result, previous);
   });
 }
 
 test('staff rejects an unknown nonempty shift without clearing the assigned shift', async () => {
-  const previous = snapshot();
+  const previous = await snapshot();
   const result = await call('PUT', '/staff/worker', { ...profile, shiftCode: 'invalid' });
-  assertRejected(result, previous);
+  await assertRejected(result, previous);
 });
 
 // Lưu hồ sơ chỉ kiểm mã ca hợp lệ (không có sửa giờ Check-in/out)
 for (const shiftCode of ['n1', 'n2', 'f1', 'f2', 'g1', 'g2']) {
   test(`valid shift ${shiftCode} still updates staff`, async () => {
-    const estimate = store.getSheet('worker', '2026-10');
+    const estimate = await store.getSheet('worker', '2026-10');
     const updated = await call('PUT', '/staff/worker', { ...profile, shiftCode });
     assert.equal(updated.status, 200, JSON.stringify(updated.data));
-    assert.equal(store.getStaff('worker').shiftCode, PunchRules.canonicalOf(shiftCode)); // hồ sơ lưu mã ca của danh mục
-    assert.deepEqual(store.getSheet('worker', '2026-10'), estimate);
+    assert.equal((await store.getStaff('worker')).shiftCode, PunchRules.canonicalOf(shiftCode)); // hồ sơ lưu mã ca của danh mục
+    assert.deepEqual(await store.getSheet('worker', '2026-10'), estimate);
   });
 }
 
@@ -102,6 +102,6 @@ for (const [label, shiftCode] of [
   test(`staff ${label} shift preserves the unassigned-shift path`, async () => {
     const result = await call('PUT', '/staff/worker', { ...profile, shiftCode });
     assert.equal(result.status, 200, JSON.stringify(result.data));
-    assert.equal(store.getStaff('worker').shiftCode, null);
+    assert.equal((await store.getStaff('worker')).shiftCode, null);
   });
 }

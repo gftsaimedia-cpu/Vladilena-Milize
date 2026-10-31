@@ -52,16 +52,16 @@ let selectedUser = 'admin1';
 const saveClock = () => fs.writeFileSync(CLOCK_FILE, JSON.stringify({ local: clock.local() }));
 saveClock();
 
-const state = () => ({
+const state = async () => ({
   now: new Date(clock.now()).toISOString(),
   local: clock.local(),
   user: selectedUser,
   initialLocal: clock.local(),
-  users: store
-    .listStaff()
+  users: (await store
+    .listStaff())
     .map(({ username, name, role, type, shiftCode }) => ({ username, name, role, type, shiftCode }))
 });
-const sessionCookie = () => auth.cookieHeader(auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
+const sessionCookie = async () => auth.cookieHeader(await auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
   res.end(JSON.stringify(body));
@@ -93,8 +93,8 @@ async function jsonBody(req) {
     throw Object.assign(new Error('JSON không hợp lệ'), { status: 400 });
   }
 }
-const homePage = () => {
-  const staff = store.getStaff(selectedUser);
+const homePage = async () => {
+  const staff = await store.getStaff(selectedUser);
   return staff && staff.role === 'admin' ? '/admin.html' : '/nhan-vien.html';
 };
 const CLOCKED_PAGES = new Set(['/admin.html', '/nhan-vien.html']);
@@ -123,10 +123,10 @@ const esc = s =>
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
   );
 // Danh sách nhân vật: vai trò hiện tại trong DB, cốt truyện một dòng từ dàn nhân vật, liên kết đổi tài khoản
-function castHtml() {
+async function castHtml() {
   const roleOf = s => (s.role === 'admin' ? 'Admin' : `${s.type || ''}${s.level ? ` bậc ${s.level}` : ''}`);
-  const rows = store
-    .listStaff()
+  const rows = (await store
+    .listStaff())
     .map(s => {
       const c = byUser[s.username] || {};
       const extraRole = c.role === 'cb' ? 'C&B' : roleOf(s);
@@ -147,7 +147,7 @@ const server = http.createServer(async (req, res) => {
   if (SCENARIO_ALIASES.has(url.pathname)) url.pathname = url.pathname.replace('/__scenario/', '/__sandbox/');
   try {
     if (url.pathname === '/__sandbox/state' && req.method === 'GET')
-      return send(res, 200, state(), { 'Set-Cookie': sessionCookie() });
+      return send(res, 200, await state(), { 'Set-Cookie': await sessionCookie() });
     if (url.pathname.startsWith('/__sandbox/') && req.method === 'POST') {
       if (!controlAllowed(req)) return send(res, 403, { error: 'Chỉ điều khiển từ trang cùng địa chỉ' });
       const data = await jsonBody(req);
@@ -163,7 +163,7 @@ const server = http.createServer(async (req, res) => {
         clock.set(next);
         saveClock();
       } else if (url.pathname === '/__sandbox/user') {
-        if (typeof data.username !== 'string' || !store.getStaff(data.username))
+        if (typeof data.username !== 'string' || !await store.getStaff(data.username))
           return send(res, 400, { error: 'Không có tài khoản này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
@@ -171,25 +171,25 @@ const server = http.createServer(async (req, res) => {
           error: 'DB kịch bản không đặt lại tại chỗ. Chạy lại máy chủ với --fresh để chép lại từ bản dựng'
         });
       } else return send(res, 404, { error: 'Không có chức năng này' });
-      return send(res, 200, state(), { 'Set-Cookie': sessionCookie() });
+      return send(res, 200, await state(), { 'Set-Cookie': await sessionCookie() });
     }
-    if (req.method === 'GET' && url.pathname === '/') return html(res, panelHtml(), { 'Set-Cookie': sessionCookie() });
+    if (req.method === 'GET' && url.pathname === '/') return html(res, panelHtml(), { 'Set-Cookie': await sessionCookie() });
     if (req.method === 'GET' && url.pathname === '/__sandbox/panel.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(path.join(SANDBOX_DIR, 'sandbox.js'), 'utf8'));
     }
-    if (req.method === 'GET' && url.pathname === '/__scenario') return html(res, castHtml());
+    if (req.method === 'GET' && url.pathname === '/__scenario') return html(res, await castHtml());
     if (req.method === 'GET' && url.pathname.startsWith('/__scenario/as/')) {
       const u = decodeURIComponent(url.pathname.slice('/__scenario/as/'.length));
-      if (!store.getStaff(u)) return send(res, 404, { error: 'Không có tài khoản này' });
+      if (!await store.getStaff(u)) return send(res, 404, { error: 'Không có tài khoản này' });
       selectedUser = u;
-      res.writeHead(302, { Location: '/app', 'Set-Cookie': sessionCookie(), 'Cache-Control': 'no-store' });
+      res.writeHead(302, { Location: '/app', 'Set-Cookie': await sessionCookie(), 'Cache-Control': 'no-store' });
       return res.end();
     }
     if (req.method === 'GET' && url.pathname === '/app') {
       res.writeHead(302, {
-        Location: `${homePage()}?${CLOCK_QUERY}=1`,
-        'Set-Cookie': sessionCookie(),
+        Location: `${await homePage()}?${CLOCK_QUERY}=1`,
+        'Set-Cookie': await sessionCookie(),
         'Cache-Control': 'no-store'
       });
       return res.end();

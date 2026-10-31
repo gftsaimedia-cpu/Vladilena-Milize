@@ -16,8 +16,8 @@ const realNow = Date.now;
 const MINUTE = 60 * 1000;
 let clock = Date.parse('2026-10-14T12:00:00+07:00');
 
-function person(username, overrides = {}) {
-  store.upsertStaff({
+async function person(username, overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -31,7 +31,7 @@ function person(username, overrides = {}) {
 }
 async function call(method, route, body, who = 'admin', headers = {}) {
   const h = { 'Content-Type': 'application/json', ...headers };
-  if (who) h.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) h.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers: h,
@@ -39,8 +39,8 @@ async function call(method, route, body, who = 'admin', headers = {}) {
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
-const putSheet = (who, days, month = '2026-10') => call('PUT', '/sheet', { month, days }, who);
-const savedDays = (who, month = '2026-10') => store.getSheet(who, month).days;
+const putSheet = async (who, days, month = '2026-10') => await call('PUT', '/sheet', { month, days }, who);
+const savedDays = async (who, month = '2026-10') => (await store.getSheet(who, month)).days;
 const logOf = (xff, username, password = 'sai-mat-khau') =>
   call('POST', '/login', { username, password }, null, { 'X-Forwarded-For': xff });
 
@@ -50,14 +50,14 @@ before(async () => {
   port = server.address().port;
   base = 'http://127.0.0.1:' + port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   delete process.env.TRUST_PROXY;
   clock += 20 * MINUTE;
   for (const table of ['sheet_approvals', 'punches', 'attendance_sessions', 'timesheets', 'staff', 'settings'])
-    store.db.exec('DELETE FROM ' + table);
-  person('admin', { role: 'admin', type: 'tts', level: 0, startDate: null, shiftCode: null });
-  person('worker');
-  person('intern', { type: 'tts', shiftCode: null, startDate: null });
+    await store.db.exec('DELETE FROM ' + table);
+  await person('admin', { role: 'admin', type: 'tts', level: 0, startDate: null, shiftCode: null });
+  await person('worker');
+  await person('intern', { type: 'tts', shiftCode: null, startDate: null });
 });
 after(async () => {
   Date.now = realNow;
@@ -70,28 +70,28 @@ after(async () => {
 /* ---------- lưu lại ngày làm bù kiểu cũ (thiếu extraKind) không đổi gì thì không bị chặn ---------- */
 const OTHER = { '2026-10-08': { kind: 'work', in: '08:00', out: '17:00' } };
 test('B2: ngày làm bù kiểu cũ có giờ ra làm thêm rơi vào 22h–6h, lưu lại nguyên vẹn kèm ngày khác: 200, không mất giờ', async () => {
-  store.setSheet('worker', '2026-10', {
+  await store.setSheet('worker', '2026-10', {
     '2026-10-07': { kind: 'work', shift: 'normal', in: '08:00', out: '17:00', extraOut: '23:00' }
   });
   const got = await call('GET', '/sheet?month=2026-10', undefined, 'worker');
   const r = await putSheet('worker', { ...got.data.days, ...OTHER });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const day = savedDays('worker')['2026-10-07'];
+  const day = (await savedDays('worker'))['2026-10-07'];
   assert.equal(day.extraOut, '23:00');
   assert.equal(day.extraKind, 'makeup');
-  assert.ok(savedDays('worker')['2026-10-08']);
+  assert.ok((await savedDays('worker'))['2026-10-08']);
 });
 test('B2: gửi lại đúng bản ghi cũ (không có extraKind) cũng không bị chặn', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' } });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' } });
   const r = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' },
     ...OTHER
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(savedDays('worker')['2026-10-07'].extraOut, '23:00');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraOut, '23:00');
 });
 test('B2: ngày kind "makeup" kiểu cũ nằm trong lịch làm việc và có giờ ra làm thêm, lưu lại không đổi: 200', async () => {
-  store.setSheet('worker', '2026-10', {
+  await store.setSheet('worker', '2026-10', {
     '2026-10-07': { kind: 'makeup', in: '08:00', out: '17:00', extraOut: '18:00' }
   });
   const r = await putSheet('worker', {
@@ -99,72 +99,72 @@ test('B2: ngày kind "makeup" kiểu cũ nằm trong lịch làm việc và có 
     ...OTHER
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(savedDays('worker')['2026-10-07'].kind, 'makeup');
-  assert.equal(savedDays('worker')['2026-10-07'].extraOut, '18:00');
+  assert.equal((await savedDays('worker'))['2026-10-07'].kind, 'makeup');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraOut, '18:00');
 });
 test('B2: ngày lễ đã có giờ làm bù kiểu cũ, lưu lại không đổi kèm ngày khác: 200', async () => {
-  store.setSetting('holidays', ['2026-10-07']);
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSetting('holidays', ['2026-10-07']);
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
   const r = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' },
     ...OTHER
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(savedDays('worker')['2026-10-07'].extraOut, '19:00');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraOut, '19:00');
 });
 test('B2: ngày lễ đã có làm bù ghi đủ extraKind, lưu lại không đổi kèm ngày khác: 200', async () => {
-  store.setSetting('holidays', ['2026-10-07']);
+  await store.setSetting('holidays', ['2026-10-07']);
   const day = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'makeup', extraOut: '19:00' };
-  store.setSheet('worker', '2026-10', { '2026-10-07': day });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': day });
   const r = await putSheet('worker', { '2026-10-07': day, ...OTHER });
   assert.equal(r.status, 200, JSON.stringify(r.data));
 });
 test('B2: ngày làm bù cả ngày rơi vào ngày lễ đã lưu, lưu lại không đổi: 200 (TTS làm bù Thứ 7)', async () => {
-  store.setSetting('holidays', ['2026-10-10']);
-  store.setSheet('intern', '2026-10', { '2026-10-10': { kind: 'makeup', in: '08:00', out: '17:00' } });
+  await store.setSetting('holidays', ['2026-10-10']);
+  await store.setSheet('intern', '2026-10', { '2026-10-10': { kind: 'makeup', in: '08:00', out: '17:00' } });
   const r = await putSheet('intern', {
     '2026-10-10': { kind: 'makeup', in: '08:00', out: '17:00' },
     '2026-10-08': { kind: 'work', in: '08:00', out: '17:00' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(savedDays('intern')['2026-10-10'].kind, 'makeup');
+  assert.equal((await savedDays('intern'))['2026-10-10'].kind, 'makeup');
 });
 test('B2 (giữ nguyên): khai MỚI làm bù / giờ làm thêm vào ngày lễ vẫn bị 400', async () => {
-  store.setSetting('holidays', ['2026-10-07', '2026-10-10']);
+  await store.setSetting('holidays', ['2026-10-07', '2026-10-10']);
   const extra = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'makeup', extraOut: '19:00' }
   });
   assert.equal(extra.status, 400, JSON.stringify(extra.data));
   const day = await putSheet('intern', { '2026-10-10': { kind: 'makeup', in: '08:00', out: '17:00' } });
   assert.equal(day.status, 400, JSON.stringify(day.data));
-  assert.deepEqual(savedDays('worker'), {});
+  assert.deepEqual(await savedDays('worker'), {});
 });
 test('B2: sửa giờ làm thêm của ngày làm bù kiểu cũ sang khung 22h–6h vẫn lưu, kèm cảnh báo SHEET_EXTRA_NIGHT', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
   const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '05:30' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(
     r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'),
     JSON.stringify(r.data.warnings)
   );
-  assert.equal(savedDays('worker')['2026-10-07'].extraIn, '05:30');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraIn, '05:30');
 });
 
 /* ---------- GET /sheet trả extraKind hiệu lực của bản ghi cũ ---------- */
 test('5: GET /sheet trả extraKind "makeup" cho ngày cũ có giờ ra làm thêm; lưu lại nguyên bản giữ giờ; dấu vân tay không đổi', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
   const got = await call('GET', '/sheet?month=2026-10', undefined, 'worker');
   assert.equal(got.status, 200);
   assert.equal(got.data.days['2026-10-07'].extraKind, 'makeup');
   assert.equal(got.data.approvals['2026-10-07'].fingerprint, 'makeup_hours||17:00-19:00');
   const r = await putSheet('worker', got.data.days);
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(savedDays('worker')['2026-10-07'].extraOut, '19:00');
-  assert.equal(savedDays('worker')['2026-10-07'].extraKind, 'makeup');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraOut, '19:00');
+  assert.equal((await savedDays('worker'))['2026-10-07'].extraKind, 'makeup');
   assert.equal(r.data.approvals['2026-10-07'].fingerprint, 'makeup_hours||17:00-19:00');
 });
 test('5 (giữ nguyên): ngày cũ chỉ có giờ vào làm thêm vẫn để extraKind rỗng', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
   const got = await call('GET', '/sheet?month=2026-10', undefined, 'worker');
   assert.ok(!got.data.days['2026-10-07'].extraKind);
   assert.equal(got.data.days['2026-10-07'].extraIn, '06:30');
@@ -172,8 +172,8 @@ test('5 (giữ nguyên): ngày cũ chỉ có giờ vào làm thêm vẫn để e
 
 /* ---------- GET /approvals: declared.extraKind giống cleanDays và approval-view ---------- */
 test('4: declared.extraKind chỉ suy ra "makeup" từ extraOut, không từ extraIn', async () => {
-  store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
-  store.db
+  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
+  await store.db
     .prepare(
       "INSERT INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at) VALUES ('worker', '2026-10-07', 'makeup_hours', 'makeup_hours|06:30-08:00|', 'pending', 1, ?)"
     )

@@ -26,13 +26,13 @@ const advanceOf = days => Math.round(DEFAULTS['advance.rate'] * days * NV_DAILY)
 
 before(async () => {
   await F.start();
-  F.at('2026-11-02T12:00:00');
-  F.store.setSetting('holidays', [HOL, HOL_SUN]);
-  F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  for (const name of ['nghi', 'lam']) F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1' });
-  for (const name of ['ttsnghi', 'ttslam']) F.person(name, 'staff', { type: 'tts', level: 1, shiftCode: 'n1' });
+  await F.at('2026-11-02T12:00:00');
+  await F.store.setSetting('holidays', [HOL, HOL_SUN]);
+  await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
+  for (const name of ['nghi', 'lam']) await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1' });
+  for (const name of ['ttsnghi', 'ttslam']) await F.person(name, 'staff', { type: 'tts', level: 1, shiftCode: 'n1' });
   // vào làm đúng ngày lễ: tháng chỉ còn ngày lễ và các ngày vắng sau đó
-  for (const name of ['khong', 'that']) F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: HOL });
+  for (const name of ['khong', 'that']) await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: HOL });
   // Admin khai thay giờ ca mọi ngày làm việc của tháng; `skip` là ngày không khai
   const declare = async (user, dows, skip) => {
     const days = Object.fromEntries(
@@ -49,7 +49,7 @@ before(async () => {
 after(() => F.stop());
 
 const estimate = async who => {
-  F.at('2026-11-02T12:00:00');
+  await F.at('2026-11-02T12:00:00');
   const res = await F.call('GET', `/me/estimate?month=${MONTH}&rows=1`, { who });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const e = res.data;
@@ -65,13 +65,13 @@ const estimate = async who => {
 const requested = async who => {
   const sent = await requestInWindow(F, MONTH, who);
   assert.equal(sent.status, 200, JSON.stringify(sent.data));
-  F.at('2026-11-02T12:00:00');
+  await F.at('2026-11-02T12:00:00');
   return (await F.call('GET', `/advance-approvals?month=${MONTH}`, { who })).data.item.amount;
 };
 
 test('a. Lễ theo luật không đi làm (nghỉ cả tháng trừ ngày lễ): 1 ngày lương lễ, có trong ngày có lương, không vào số ngày đi làm và cơ sở tạm ứng', async () => {
   const mine = await estimate('khong');
-  const row = mine.row(HOL);
+  const row = await mine.row(HOL);
   assert.equal(row.kind, 'holiday');
   assert.equal(row.hours, 0);
   assert.equal(Math.round(row.holBase), Math.round(NV_DAILY));
@@ -97,11 +97,11 @@ test('a. Lễ theo luật không đi làm trong tháng đủ công: 27 ngày có
   assert.equal(mine.advanceBase, Math.round(12 * NV_DAILY));
   assert.equal(mine.advanceMax, advanceOf(12));
   assert.equal(await requested('nghi'), advanceOf(12), 'số nhân sự thấy khi xin');
-  assert.equal(mine.row(HOL_SUN), undefined, 'lễ rơi Chủ nhật, ngoài lịch của NV: không thêm ngày nào');
+  assert.equal(await mine.row(HOL_SUN), undefined, 'lễ rơi Chủ nhật, ngoài lịch của NV: không thêm ngày nào');
 });
 
 test('b. Lễ theo luật đi làm có Check-in/out thật: vào số ngày đi làm, lương lễ cộng giờ làm lễ, vào cơ sở tạm ứng', async () => {
-  F.at('2026-10-06T09:00:00');
+  await F.at('2026-10-06T09:00:00');
   const saved = await F.call('PUT', '/sheet', {
     who: 'that',
     body: { month: MONTH, days: { [HOL]: { kind: 'work', in: '08:00', out: '17:00' } } }
@@ -121,7 +121,7 @@ test('b. Lễ theo luật đi làm có Check-in/out thật: vào số ngày đi 
   await X.fullDay('that', HOL, '08:00', '17:00', 'hol-that');
 
   const mine = await estimate('that');
-  const row = mine.row(HOL);
+  const row = await mine.row(HOL);
   assert.equal(row.kind, 'holiday');
   assert.equal(row.hours, 8);
   assert.equal(Math.round(row.holBase), Math.round(NV_DAILY));
@@ -155,7 +155,7 @@ test('c. Chức vụ không hưởng lương lễ (TTS, benefit.paidHoliday tắ
   const rested = await estimate('ttsnghi');
   const worked = await estimate('ttslam');
   for (const mine of [rested, worked]) {
-    const row = mine.row(HOL);
+    const row = await mine.row(HOL);
     assert.equal(row.kind, 'holiday');
     assert.equal(row.holBase, 0);
     assert.equal(row.total, 0);

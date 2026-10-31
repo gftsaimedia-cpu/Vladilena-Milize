@@ -16,13 +16,13 @@ after(F.stop);
 const ACCOUNT = { accounting: 'qa_ctv1', cb: 'qa_nv1' };
 async function setup(month) {
   await S.seed(month);
-  for (const role of ['accounting', 'cb']) S.grant(ACCOUNT[role], role);
-  S.setMode('defaults-only');
+  for (const role of ['accounting', 'cb']) await S.grant(ACCOUNT[role], role);
+  await S.setMode('defaults-only');
 }
-const rowCount = () => S.rowCount();
+const rowCount = async () => await S.rowCount();
 const BASIS = 'Luật Bảo hiểm xã hội số 41/2024/QH15 (căn cứ thử)';
-const accountant = (month, changes, extra = { basis: BASIS }) =>
-  S.saveChanges(changes, { month, who: ACCOUNT.accounting, extra });
+const accountant = async (month, changes, extra = { basis: BASIS }) =>
+  await S.saveChanges(changes, { month, who: ACCOUNT.accounting, extra });
 
 test(
   'GĐ3: Kế toán lưu được lựa chọn bảo hiểm và thuế có sẵn (kèm căn cứ), hiệu lực từ tháng áp dụng',
@@ -53,17 +53,17 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const rows = rowCount();
+    const rows = await rowCount();
     const change = [{ key: 'tax.insurance.skipDays', value: 15 }];
     const tooLong = await accountant(M, change, { basis: 'x'.repeat(301) });
     assert.equal(tooLong.status, 400, JSON.stringify(tooLong.data).slice(0, 300));
     assert.equal(tooLong.data.code, 'BASIS_TOO_LONG');
     const byCb = await S.saveChanges(change, { month: M, who: ACCOUNT.cb, extra: { basis: BASIS } });
     assert.equal(byCb.status, 403, JSON.stringify(byCb.data).slice(0, 300));
-    assert.equal(rowCount(), rows, 'không dòng nào được thêm');
+    assert.equal(await rowCount(), rows, 'không dòng nào được thêm');
     const noBasis = await accountant(M, change, { basis: undefined });
     assert.equal(noBasis.status, 200, JSON.stringify(noBasis.data).slice(0, 300));
-    assert.equal(rowCount(), rows + 1, 'lưu một dòng, căn cứ trống');
+    assert.equal(await rowCount(), rows + 1, 'lưu một dòng, căn cứ trống');
   }
 );
 
@@ -73,7 +73,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const rows = rowCount();
+    const rows = await rowCount();
     for (const [key, value] of [
       ['tax.method.long', 'flat'],
       ['tax.method.long', 'none'],
@@ -88,7 +88,7 @@ test(
       assert.equal(res.status, 400, `${key}=${value}: ${JSON.stringify(res.data).slice(0, 200)}`);
       assert.equal(res.data.code, 'PARAM_OPTION_UNAVAILABLE', `${key}=${value}`);
     }
-    assert.equal(rowCount(), rows, 'không dòng nào được thêm');
+    assert.equal(await rowCount(), rows, 'không dòng nào được thêm');
   }
 );
 
@@ -98,7 +98,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const rows = rowCount();
+    const rows = await rowCount();
     const bad = [
       [
         [10000000, 0.05],
@@ -120,7 +120,7 @@ test(
       assert.equal(res.status, 400, JSON.stringify(value));
       assert.equal(res.data.code, 'PARAM_INVALID_VALUE', JSON.stringify(value));
     }
-    assert.equal(rowCount(), rows, 'biểu sai không ghi gì');
+    assert.equal(await rowCount(), rows, 'biểu sai không ghi gì');
     // Admin (config.payroll) không sửa được biểu thuế: chỉ Kế toán sửa, không cho C&B
     const byCb = await S.saveChanges([{ key: 'tax.brackets', value: [[null, 0.1]] }], {
       month: M,
@@ -147,6 +147,6 @@ test(
       { basis: 'Luật thử' }
     );
     assert.equal(ok.status, 200, JSON.stringify(ok.data).slice(0, 300));
-    assert.equal(S.auditRows('param.set').filter(r => r.entity_id === 'tax.brackets').length, 1, 'ghi nhật ký');
+    assert.equal((await S.auditRows('param.set')).filter(r => r.entity_id === 'tax.brackets').length, 1, 'ghi nhật ký');
   }
 );

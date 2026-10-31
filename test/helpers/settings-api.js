@@ -168,10 +168,10 @@ function unavailableOptionKey() {
 }
 
 /* ---------- gọi API ---------- */
-const preview = (body, who = 'admin') => F.call('POST', '/settings/params/preview', { who, body });
-const save = (body, who = 'admin') => F.call('PUT', '/settings/params', { who, body });
-const version = (who = 'admin') => F.call('GET', '/settings/version', { who });
-const paramsView = (month, who = 'admin') => F.call('GET', `/settings/params?month=${month}`, { who });
+const preview = async (body, who = 'admin') => await F.call('POST', '/settings/params/preview', { who, body });
+const save = async (body, who = 'admin') => await F.call('PUT', '/settings/params', { who, body });
+const version = async (who = 'admin') => await F.call('GET', '/settings/version', { who });
+const paramsView = async (month, who = 'admin') => await F.call('GET', `/settings/params?month=${month}`, { who });
 const paramsRevOf = async month => (await paramsView(month)).data.paramsRev;
 const REASON = 'Điều chỉnh theo quyết định tháng này';
 // Gửi một lần Lưu với expectedRev lấy đúng từ GET của tháng hiệu lực
@@ -181,22 +181,22 @@ async function saveChanges(changes, options = {}) {
   const rev = expectedRev === undefined ? await paramsRevOf(month) : expectedRev;
   const body = { changes, effectiveMonth: month, reason, expectedRev: rev, ...extra };
   if (rev === null) delete body.expectedRev;
-  return save(body, who);
+  return await save(body, who);
 }
 
 /* ---------- đọc trạng thái ---------- */
 // Chế độ bắt đầu ở defaults-only (công tắc lùi nhanh); lần ghi đầu tiên bật active. Mỗi test tự đặt lại để không phụ thuộc test trước.
-const setMode = mode => store.setSetting('params_mode', mode);
-const rowCount = () => store.db.prepare('SELECT COUNT(*) AS n FROM param_versions').get().n;
-const paramRows = () => store.db.prepare('SELECT * FROM param_versions ORDER BY id').all();
-const configRev = () => {
-  const row = store.db.prepare("SELECT value_json FROM settings WHERE key = 'config_rev'").get();
+const setMode = async mode => await store.setSetting('params_mode', mode);
+const rowCount = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM param_versions').get()).n;
+const paramRows = async () => await store.db.prepare('SELECT * FROM param_versions ORDER BY id').all();
+const configRev = async () => {
+  const row = await store.db.prepare("SELECT value_json FROM settings WHERE key = 'config_rev'").get();
   return row ? JSON.parse(row.value_json) : 0;
 };
-const auditRows = (actionLike = '%') =>
-  store.db
+const auditRows = async (actionLike = '%') =>
+  (await store.db
     .prepare('SELECT * FROM audit_log WHERE action LIKE ? ORDER BY id')
-    .all(actionLike)
+    .all(actionLike))
     .map(r => ({
       ...r,
       before: r.before_json && JSON.parse(r.before_json),

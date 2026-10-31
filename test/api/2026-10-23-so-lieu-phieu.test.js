@@ -103,7 +103,7 @@ test('S: phiếu 2026-10 tính KPI theo 5 thành phần — kpiBase…kpiSelf b�
     { gross: 8083154, insurance: 630000, tax: 0, advance: 0, net: 7453154, kpi: 1996615 }
   );
   // và bằng số đã lưu trong bảng phiếu (điền ô điểm không ghi lại số tiền)
-  const stored = flow.payslipsOf(FIXED).slips.qa_ctv1;
+  const stored = (await flow.payslipsOf(FIXED)).slips.qa_ctv1;
   assert.deepEqual([stored.gross, stored.net], [8083154, 7453154]);
   assert.deepEqual(stored.snapshot.kpiParts, SCORES, 'điểm trong bản chụp là nguồn của năm ô');
   // người không có điểm KPI nhập (NV bậc 1 không hưởng KPI) không bị điền điểm của người khác
@@ -183,8 +183,8 @@ test('S: tài khoản lưu với payrollSubject false không vào bảng lương
   assert.equal(off.status, 200, JSON.stringify(off.data));
   const on = await createAccount('qa_binhthuong');
   assert.equal(on.status, 200, JSON.stringify(on.data));
-  assert.equal(store.getStaff('qa_phanquyen').payrollSubject, false, 'cờ được lưu');
-  assert.equal(store.getStaff('qa_binhthuong').payrollSubject, true, 'mặc định vẫn là có vào bảng lương');
+  assert.equal((await store.getStaff('qa_phanquyen')).payrollSubject, false, 'cờ được lưu');
+  assert.equal((await store.getStaff('qa_binhthuong')).payrollSubject, true, 'mặc định vẫn là có vào bảng lương');
 
   // ước tính của kỳ
   const estimates = await F.call('GET', `/periods/${M}/estimates?pageSize=200`);
@@ -220,10 +220,10 @@ test('S: tài khoản lưu với payrollSubject false không vào bảng lương
 test('S: đổi role staff → admin → staff không làm mất bậc (CTV bậc 2 vẫn bậc 2) và payrollSubject theo cờ gửi lên', async () => {
   const M = monthOf();
   await P.seed(M);
-  const was = store.getStaff('qa_ctv1');
+  const was = await store.getStaff('qa_ctv1');
   assert.deepEqual([was.type, was.level], ['ctv', 2]);
-  const form = over => {
-    const s = store.getStaff('qa_ctv1');
+  const form = async over => {
+    const s = await store.getStaff('qa_ctv1');
     return {
       name: s.name,
       type: s.type,
@@ -237,14 +237,14 @@ test('S: đổi role staff → admin → staff không làm mất bậc (CTV bậ
     };
   };
 
-  const up = await F.call('PUT', '/staff/qa_ctv1', { body: form({ role: 'admin', payrollSubject: false }) });
+  const up = await F.call('PUT', '/staff/qa_ctv1', { body: await form({ role: 'admin', payrollSubject: false }) });
   assert.equal(up.status, 200, JSON.stringify(up.data));
-  assert.equal(store.getStaff('qa_ctv1').role, 'admin');
-  assert.equal(store.getStaff('qa_ctv1').payrollSubject, false);
+  assert.equal((await store.getStaff('qa_ctv1')).role, 'admin');
+  assert.equal((await store.getStaff('qa_ctv1')).payrollSubject, false);
 
-  const down = await F.call('PUT', '/staff/qa_ctv1', { body: form({ role: 'staff', payrollSubject: true }) });
+  const down = await F.call('PUT', '/staff/qa_ctv1', { body: await form({ role: 'staff', payrollSubject: true }) });
   assert.equal(down.status, 200, JSON.stringify(down.data));
-  const now = store.getStaff('qa_ctv1');
+  const now = await store.getStaff('qa_ctv1');
   assert.equal(now.role, 'staff');
   assert.equal(now.type, 'ctv');
   assert.equal(now.level, 2, 'bậc không bị đặt về 0 hay 1 khi qua vai trò Admin rồi trở lại');
@@ -264,7 +264,7 @@ test('S: danh sách kiểm không đếm lượt mở quá 16 giờ là "đang m
   const M = monthOf();
   await P.seed(M);
   const staleDate = P.firstDow(M, 2); // Thứ Ba đầu tháng
-  const freshDate = P.lastDow(M, 4); // Thứ Năm cuối tháng (ngày lễ của period-flow là Thứ Tư)
+  const freshDate = await P.lastDow(M, 4); // Thứ Năm cuối tháng (ngày lễ của period-flow là Thứ Tư)
   const sched = [1, 2, 3, 4, 5, 6];
   const open = (username, shiftCode, date, time) => {
     const staff = { shiftCode, sched };
@@ -273,18 +273,18 @@ test('S: danh sách kiểm không đếm lượt mở quá 16 giờ là "đang m
     const opened = PunchRules.openDay(staff, `${date}T${time}:00+07:00`, plan);
     return store.createSession(username, opened.date, 'open', opened.entry);
   };
-  const stale = open('qa_tts1', 'n1', staleDate, '08:00'); // mở từ nhiều ngày trước
-  open('qa_ctv1', 'n2', freshDate, '15:00'); // mở 3 giờ trước đồng hồ giả
-  F.at(`${freshDate}T18:00:00`);
+  const stale = await open('qa_tts1', 'n1', staleDate, '08:00'); // mở từ nhiều ngày trước
+  await open('qa_ctv1', 'n2', freshDate, '15:00'); // mở 3 giờ trước đồng hồ giả
+  await F.at(`${freshDate}T18:00:00`);
 
   const view = (await F.call('GET', `/periods/${M}`)).data;
   assert.equal(openCount(view), 1, `chỉ lượt mới mở 3 giờ còn đang mở: ${JSON.stringify(view.checklist)}`);
-  const closed = store.getSession(stale.id);
+  const closed = await store.getSession(stale.id);
   assert.equal(closed.state, 'closed', 'lượt quá 16 giờ đã được đóng');
   assert.equal(closed.entry.reason, 'forgot-out');
 
   // sang ngày 2 tháng sau: cả hai lượt đều quá 16 giờ, không còn lượt nào đang mở để chặn chốt công
-  F.at(`${nextMonthOf(M)}-02T09:00:00`);
+  await F.at(`${nextMonthOf(M)}-02T09:00:00`);
   const later = (await F.call('GET', `/periods/${M}`)).data;
   assert.equal(openCount(later), 0, JSON.stringify(later.checklist));
 });

@@ -19,8 +19,8 @@ function load() {
   return A.CcKhai;
 }
 
-test('Bảng công: ngày nghỉ sẽ làm bù ghi nghỉ ngày nào, bù ngày nào, giờ nào; ngày bù có ký hiệu "bù"', () => {
-  const khai = load();
+test('Bảng công: ngày nghỉ sẽ làm bù ghi nghỉ ngày nào, bù ngày nào, giờ nào; ngày bù có ký hiệu "bù"', async () => {
+  const khai = await load();
   khai.index({
     month: '2026-10',
     rows: [

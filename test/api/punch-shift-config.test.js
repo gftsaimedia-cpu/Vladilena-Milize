@@ -20,7 +20,7 @@ async function call(method, url) {
 
 before(async () => {
   Date.now = () => clock;
-  store.upsertStaff({
+  await store.upsertStaff({
     username: 'an',
     name: 'An',
     role: 'staff',
@@ -55,12 +55,12 @@ test('shiftConfig: nhân viên (không có config.read) nhận giờ sáu ca và
   const cfg = punch.data.shiftConfig;
   assert.ok(cfg && typeof cfg === 'object', 'có shiftConfig');
 
-  const hours = rulesFor('2026-10').punch.SHIFT;
+  const hours = (await rulesFor('2026-10')).punch.SHIFT;
   // shiftConfig đặt khoá theo mã ca Normal1 …; bảng giờ của tham số khoá theo mã ngắn (n1 …)
-  const canon = code => rulesFor('2026-10').punch.canonicalOf(code);
-  assert.deepEqual(Object.keys(cfg.shifts).sort(), Object.keys(hours).map(canon).sort());
+  const canon = async code => (await rulesFor('2026-10')).punch.canonicalOf(code);
+  assert.deepEqual(Object.keys(cfg.shifts).sort(), (await Promise.all(Object.keys(hours).map(canon))).sort());
   for (const [preset, [start, end]] of Object.entries(hours)) {
-    const code = canon(preset);
+    const code = await canon(preset);
     assert.deepEqual(
       { start: cfg.shifts[code].start, end: cfg.shifts[code].end },
       { start, end },
@@ -69,7 +69,7 @@ test('shiftConfig: nhân viên (không có config.read) nhận giờ sáu ca và
   }
   assert.equal(cfg.shifts.Normal1.name, 'Normal 1');
 
-  const { params } = paramsStore.resolve('2026-10');
+  const { params } = await paramsStore.resolve('2026-10');
   assert.equal(cfg.earlyCheckinHours, params['attendance.earlyCheckinMaxHours']);
   assert.equal(cfg.openSessionMaxHours, params['attendance.openSessionMaxHours']);
   assert.ok(Number.isFinite(cfg.earlyCheckinHours) && Number.isFinite(cfg.openSessionMaxHours));

@@ -57,12 +57,12 @@ function row(day, status, more = {}) {
   return { item: itemOf(day).item, status, fingerprint: fingerprint(day), rev: 1, ...more };
 }
 // statusByDate: ngày nào không liệt kê thì không có dòng duyệt (tức là chờ duyệt)
-function pay(staff, days, statusByDate = {}, kpi = null) {
+async function pay(staff, days, statusByDate = {}, kpi = null) {
   const rows = {};
   const statuses = { ...statusByDate };
   for (const [date, day] of Object.entries(days))
     if (day.kind === 'willmakeup' && !Object.hasOwn(statuses, date)) statuses[date] = 'approved';
-  for (const [date, status] of Object.entries(statuses)) rows[date] = row(days[date], status);
+  for (const [date, status] of Object.entries(statuses)) rows[date] = await row(days[date], status);
   const view = payView(days, rows);
   const real = calcMonth(staff, view.payDays, kpi, [], '2026-10', null);
   const all = calcMonth(staff, days, kpi, [], '2026-10', null);
@@ -114,7 +114,7 @@ test('itemOf: bản ghi cũ có extraOut mà không có extraKind là làm bù t
 test('itemOf: chỉ có extraIn mà không có extraKind thì calcDay không coi là làm thêm, nên không phải mục', () => {
   assert.equal(itemOf({ ...WORK, extraIn: '07:00' }), null);
 });
-test('itemOf: nghỉ không lương không cần duyệt; nghỉ sẽ làm bù cần duyệt theo lịch nhiều ngày', () => {
+test('itemOf: nghỉ không lương không cần duyệt; nghỉ sẽ làm bù cần duyệt theo lịch nhiều ngày', async () => {
   assert.equal(itemOf({ kind: 'unpaid' }), null);
   const day = {
     kind: 'willmakeup',
@@ -128,7 +128,7 @@ test('itemOf: nghỉ không lương không cần duyệt; nghỉ sẽ làm bù c
     fingerprint: 'willmakeup|[["2026-10-12","17:00","19:00"],["2026-10-13","08:00","10:00"]]'
   });
   assert.equal(effectiveStatus(day, null), 'pending');
-  assert.equal(effectiveStatus(day, row(day, 'approved')), 'approved');
+  assert.equal(effectiveStatus(day, await row(day, 'approved')), 'approved');
   assert.equal(fingerprint(day), fingerprint({ ...day, makeupPlans: [...day.makeupPlans].reverse() }));
 });
 test('payView: nghỉ sẽ làm bù chưa duyệt vẫn là nghỉ không lương, không tạo nợ giờ làm bù', () => {
@@ -179,23 +179,23 @@ test('effectiveStatus: không có dòng duyệt thì chờ duyệt', () => {
   assert.equal(effectiveStatus(ot(), undefined), 'pending');
   assert.equal(effectiveStatus(ot(), null), 'pending');
 });
-test('effectiveStatus: dòng pending thì chờ duyệt', () => {
-  assert.equal(effectiveStatus(ot(), row(ot(), 'pending')), 'pending');
+test('effectiveStatus: dòng pending thì chờ duyệt', async () => {
+  assert.equal(effectiveStatus(ot(), await row(ot(), 'pending')), 'pending');
 });
-test('effectiveStatus: dòng approved khớp dấu vân tay thì đã duyệt', () => {
-  assert.equal(effectiveStatus(ot(), row(ot(), 'approved')), 'approved');
+test('effectiveStatus: dòng approved khớp dấu vân tay thì đã duyệt', async () => {
+  assert.equal(effectiveStatus(ot(), await row(ot(), 'approved')), 'approved');
 });
-test('effectiveStatus: dòng approved nhưng dấu vân tay lệch (OT bị sửa sau khi duyệt) thì chờ duyệt', () => {
-  assert.equal(effectiveStatus(ot('20:00'), row(ot('19:00'), 'approved')), 'pending');
+test('effectiveStatus: dòng approved nhưng dấu vân tay lệch (OT bị sửa sau khi duyệt) thì chờ duyệt', async () => {
+  assert.equal(effectiveStatus(ot('20:00'), await row(ot('19:00'), 'approved')), 'pending');
 });
-test('effectiveStatus: dòng rejected khớp thì bị từ chối', () => {
-  assert.equal(effectiveStatus(ot(), row(ot(), 'rejected')), 'rejected');
+test('effectiveStatus: dòng rejected khớp thì bị từ chối', async () => {
+  assert.equal(effectiveStatus(ot(), await row(ot(), 'rejected')), 'rejected');
 });
-test('effectiveStatus: dòng rejected nhưng đã sửa phần trả tiền thì về chờ duyệt', () => {
-  assert.equal(effectiveStatus(ot('20:00'), row(ot('19:00'), 'rejected')), 'pending');
+test('effectiveStatus: dòng rejected nhưng đã sửa phần trả tiền thì về chờ duyệt', async () => {
+  assert.equal(effectiveStatus(ot('20:00'), await row(ot('19:00'), 'rejected')), 'pending');
 });
-test('effectiveStatus: dòng approved của OT mà ngày nay là làm bù theo giờ thì chờ duyệt', () => {
-  assert.equal(effectiveStatus(makeupHours('19:00'), row(ot('19:00'), 'approved')), 'pending');
+test('effectiveStatus: dòng approved của OT mà ngày nay là làm bù theo giờ thì chờ duyệt', async () => {
+  assert.equal(effectiveStatus(makeupHours('19:00'), await row(ot('19:00'), 'approved')), 'pending');
 });
 test('effectiveStatus: dòng approved không có fingerprint không bao giờ tạo ra tiền', () => {
   assert.equal(effectiveStatus(ot(), { item: 'ot', status: 'approved', rev: 1 }), 'pending');
@@ -260,30 +260,30 @@ test('payView: payDays là bản sao, đổi payDays không đổi days', () => 
   view.payDays[D(7)].extraOut = '23:00';
   assert.equal(days[D(7)].extraOut, '19:00');
 });
-test('payView: không sửa đối tượng đầu vào (days và approvals đóng băng vẫn chạy được)', () => {
+test('payView: không sửa đối tượng đầu vào (days và approvals đóng băng vẫn chạy được)', async () => {
   const days = deepFreeze(mixedDays());
-  const rows = deepFreeze({ [D(7)]: row(days[D(7)], 'pending') });
+  const rows = deepFreeze({ [D(7)]: await row(days[D(7)], 'pending') });
   const before = JSON.stringify([days, rows]);
   payView(days, rows);
   assert.equal(JSON.stringify([days, rows]), before);
 });
 for (const status of ['pending', 'rejected']) {
-  const rowsFor = (days, date) => ({ [date]: row(days[date], status) });
-  test(`payView (${status}): iSAT thành đúng { kind: 'unpaid' }`, () => {
+  const rowsFor = async (days, date) => ({ [date]: await row(days[date], status) });
+  test(`payView (${status}): iSAT thành đúng { kind: 'unpaid' }`, async () => {
     const days = octoberOf({ [D(3)]: { kind: 'isat' } });
-    assert.deepEqual(payView(days, rowsFor(days, D(3))).payDays[D(3)], { kind: 'unpaid' });
+    assert.deepEqual(payView(days, await rowsFor(days, D(3))).payDays[D(3)], { kind: 'unpaid' });
   });
-  test(`payView (${status}): "Nghỉ được duyệt" thành đúng { kind: 'unpaid' }`, () => {
+  test(`payView (${status}): "Nghỉ được duyệt" thành đúng { kind: 'unpaid' }`, async () => {
     const days = octoberOf({ [D(5)]: { kind: 'approved' } });
-    assert.deepEqual(payView(days, rowsFor(days, D(5))).payDays[D(5)], { kind: 'unpaid' });
+    assert.deepEqual(payView(days, await rowsFor(days, D(5))).payDays[D(5)], { kind: 'unpaid' });
   });
   for (const [name, day] of [
     ['OT', ot('19:00', { preset: 'n1', breakMin: 15 })],
     ['làm bù theo giờ', makeupHours('21:00', { preset: 'n1', breakMin: 15 })]
   ]) {
-    test(`payView (${status}): ${name} giữ ngày đi làm, bỏ đoạn làm thêm`, () => {
+    test(`payView (${status}): ${name} giữ ngày đi làm, bỏ đoạn làm thêm`, async () => {
       const days = octoberOf({ [D(7)]: day });
-      const kept = payView(days, rowsFor(days, D(7))).payDays[D(7)];
+      const kept = payView(days, await rowsFor(days, D(7))).payDays[D(7)];
       assert.equal(kept.kind, 'work');
       assert.equal(kept.in, '08:00');
       assert.equal(kept.out, '17:00');
@@ -293,12 +293,12 @@ for (const status of ['pending', 'rejected']) {
       assert.equal(itemOf(kept), null, 'sau khi bỏ đoạn làm thêm không còn mục nào');
     });
   }
-  test(`payView (${status}): pendingItems ghi ngày, loại khoản và trạng thái; ngày thường và khoản đã duyệt không có`, () => {
+  test(`payView (${status}): pendingItems ghi ngày, loại khoản và trạng thái; ngày thường và khoản đã duyệt không có`, async () => {
     const days = mixedDays();
     const rows = {
-      [D(3)]: row(days[D(3)], status),
-      [D(5)]: row(days[D(5)], 'approved'),
-      [D(7)]: row(days[D(7)], status)
+      [D(3)]: await row(days[D(3)], status),
+      [D(5)]: await row(days[D(5)], 'approved'),
+      [D(7)]: await row(days[D(7)], status)
     };
     const items = payView(days, rows).pendingItems.sort((a, b) => a.date.localeCompare(b.date));
     assert.deepEqual(items, [
@@ -316,15 +316,15 @@ test('payView: khoản không có dòng duyệt xử lý như chờ duyệt (thi
   assert.deepEqual(view.pendingItems, [{ date: D(3), item: 'isat', status: 'pending' }]);
   assert.deepEqual(payView(days, undefined).payDays[D(3)], { kind: 'unpaid' });
 });
-test('payView: dòng đã duyệt nhưng dấu vân tay lệch (OT bị sửa sau khi duyệt) bị bỏ đoạn làm thêm', () => {
-  const approvedFor19 = row(ot('19:00'), 'approved');
+test('payView: dòng đã duyệt nhưng dấu vân tay lệch (OT bị sửa sau khi duyệt) bị bỏ đoạn làm thêm', async () => {
+  const approvedFor19 = await row(ot('19:00'), 'approved');
   const days = octoberOf({ [D(7)]: ot('20:00') });
   const view = payView(days, { [D(7)]: approvedFor19 });
   assert.ok(!view.payDays[D(7)].extraOut);
   assert.deepEqual(view.pendingItems, [{ date: D(7), item: 'ot', status: 'pending' }]);
 });
-test('payView: sửa shift hoặc giờ nghỉ của OT đã duyệt không làm mất duyệt', () => {
-  const approved = row(ot('19:00'), 'approved');
+test('payView: sửa shift hoặc giờ nghỉ của OT đã duyệt không làm mất duyệt', async () => {
+  const approved = await row(ot('19:00'), 'approved');
   const days = octoberOf({ [D(7)]: ot('19:00', { shift: 'flex', preset: 'n2', breakMin: 45 }) });
   const view = payView(days, { [D(7)]: approved });
   assert.equal(view.payDays[D(7)].extraOut, '19:00');
@@ -340,8 +340,8 @@ test('payView: ngày không có mục (đi làm thường) đi qua nguyên vẹn
 // ---------- tiền thật qua calcMonth (NV L1 tháng 10/2026, cả tháng, KPI trống) ----------
 // Mốc chuẩn: 27 ngày đi làm = 6.000.000 x 27/26 + đi lại 6.000.000 x 15% x 27/26 + chuyên cần 6.000.000 x 25% x 27/26
 //   = 6.230.769,23 + 934.615,38 + 1.557.692,31 = 8.723.076,92 -> 8.723.077.
-test('Mốc chuẩn: không có mục nào thì chờ duyệt không đổi gì (8.723.077)', () => {
-  const r = pay(NV_L1, octoberOf());
+test('Mốc chuẩn: không có mục nào thì chờ duyệt không đổi gì (8.723.077)', async () => {
+  const r = await pay(NV_L1, octoberOf());
   assert.equal(vnd(r.real.total), 8723077);
   assert.equal(vnd(r.all.total), 8723077);
   assert.equal(r.view.pendingItems.length, 0);
@@ -356,9 +356,9 @@ const saturdays = [3, 10, 17, 24, 31].map(D);
 const isatMonth = () => octoberOf(Object.fromEntries(saturdays.map(date => [date, { kind: 'isat' }])));
 for (const status of ['pending', 'rejected', 'khong-co-dong']) {
   const label = status === 'khong-co-dong' ? 'không có dòng duyệt' : status;
-  test(`C1: 5 iSAT ${label} là nghỉ không lương, mất lương ngày và chuyên cần (5.838.462)`, () => {
-    const days = isatMonth();
-    const r = pay(
+  test(`C1: 5 iSAT ${label} là nghỉ không lương, mất lương ngày và chuyên cần (5.838.462)`, async () => {
+    const days = await isatMonth();
+    const r = await pay(
       NV_L1,
       days,
       status === 'khong-co-dong' ? {} : allDates({ ...Object.fromEntries(saturdays.map(d => [d, 1])) }, status)
@@ -372,9 +372,9 @@ for (const status of ['pending', 'rejected', 'khong-co-dong']) {
     assert.equal(r.real.overHours, 40);
   });
 }
-test('C1: duyệt 5 iSAT thì cộng lại đúng 8.261.538, dòng chờ duyệt về 0', () => {
-  const days = isatMonth();
-  const r = pay(NV_L1, days, allDates(Object.fromEntries(saturdays.map(d => [d, 1])), 'approved'));
+test('C1: duyệt 5 iSAT thì cộng lại đúng 8.261.538, dòng chờ duyệt về 0', async () => {
+  const days = await isatMonth();
+  const r = await pay(NV_L1, days, allDates(Object.fromEntries(saturdays.map(d => [d, 1])), 'approved'));
   assert.equal(vnd(r.real.total), 8261538);
   assert.equal(vnd(r.line), 0);
   assert.equal(r.view.pendingItems.length, 0);
@@ -384,22 +384,22 @@ test('C1: duyệt 5 iSAT thì cộng lại đúng 8.261.538, dòng chờ duyệt
 //  - duyệt 2 (3 chờ): 5.538.461,54 + 761.538,46 = 6.300.000; absent 3 >= 3 nên vẫn mất chuyên cần.
 //  - duyệt 3 (2 chờ): absent 2 < 3 và giờ vượt ngưỡng 16 < 24 nên có lại chuyên cần 1.269.230,77:
 //    5.769.230,77 + 761.538,46 + 1.269.230,77 = 7.800.000.
-test('C1: ngưỡng chuyên cần, 3 iSAT chờ vẫn mất (absent = 3) còn 2 iSAT chờ thì giữ chuyên cần', () => {
-  const days = isatMonth();
+test('C1: ngưỡng chuyên cần, 3 iSAT chờ vẫn mất (absent = 3) còn 2 iSAT chờ thì giữ chuyên cần', async () => {
+  const days = await isatMonth();
   const approve = n => Object.fromEntries(saturdays.slice(0, n).map(date => [date, 'approved']));
-  assert.equal(vnd(pay(NV_L1, days, approve(1)).real.total), 6069231);
-  const three = pay(NV_L1, days, approve(2));
+  assert.equal(vnd((await pay(NV_L1, days, await approve(1))).real.total), 6069231);
+  const three = await pay(NV_L1, days, await approve(2));
   assert.equal(vnd(three.real.total), 6300000);
   assert.equal(three.real.attendOk, false);
-  const two = pay(NV_L1, days, approve(3));
+  const two = await pay(NV_L1, days, await approve(3));
   assert.equal(vnd(two.real.total), 7800000);
   assert.equal(two.real.attendOk, true);
-  assert.equal(vnd(pay(NV_L1, days, approve(4)).real.total), 8030769);
+  assert.equal(vnd((await pay(NV_L1, days, await approve(4))).real.total), 8030769);
 });
 // KPI 100% (mức tối đa của NV L1 là 6.000.000): 14.261.538 khi đã duyệt hết. Chờ duyệt: 40 giờ vượt ngưỡng > 24 nên
 // KPI nhân 22/26 = 5.076.923 -> 5.838.462 + 5.076.923 = 10.915.385.
-test('C1: iSAT chờ duyệt kéo cả KPI xuống (giờ vượt ngưỡng 40 > 24): 10.915.385 so với 14.261.538', () => {
-  const r = pay(NV_L1, isatMonth(), {}, 100);
+test('C1: iSAT chờ duyệt kéo cả KPI xuống (giờ vượt ngưỡng 40 > 24): 10.915.385 so với 14.261.538', async () => {
+  const r = await pay(NV_L1, await isatMonth(), {}, 100);
   assert.equal(vnd(r.all.total), 14261538);
   assert.equal(vnd(r.real.total), 10915385);
   assert.equal(vnd(r.line), 3346154);
@@ -413,9 +413,9 @@ const approvedLeave = () => octoberOf(Object.fromEntries([5, 6, 7, 8].map(day =>
 // đi lại 900.000 x 23/26 = 796.153,85; chuyên cần 1.500.000 x 23/26 = 1.326.923,08; tổng 7.430.769,23.
 // Chờ duyệt = 4 ngày nghỉ không lương (absent 4 >= 3): mất chuyên cần, còn 6.103.846,15.
 for (const status of ['pending', 'rejected']) {
-  test(`C2: 4 ngày "Nghỉ được duyệt" ${status} là nghỉ không lương, mất chuyên cần (6.103.846)`, () => {
+  test(`C2: 4 ngày "Nghỉ được duyệt" ${status} là nghỉ không lương, mất chuyên cần (6.103.846)`, async () => {
     const days = approvedLeave();
-    const r = pay(NV_L1, days, allDates(Object.fromEntries([5, 6, 7, 8].map(d => [D(d), 1])), status));
+    const r = await pay(NV_L1, days, allDates(Object.fromEntries([5, 6, 7, 8].map(d => [D(d), 1])), status));
     assert.equal(vnd(r.all.total), 7430769);
     assert.equal(vnd(r.real.total), 6103846);
     assert.equal(vnd(r.line), 1326923);
@@ -423,20 +423,20 @@ for (const status of ['pending', 'rejected']) {
     assert.equal(r.real.attendOk, false);
   });
 }
-test('C2: duyệt 4 ngày "Nghỉ được duyệt" thì cộng lại đúng 7.430.769', () => {
+test('C2: duyệt 4 ngày "Nghỉ được duyệt" thì cộng lại đúng 7.430.769', async () => {
   const days = approvedLeave();
-  const r = pay(NV_L1, days, allDates(Object.fromEntries([5, 6, 7, 8].map(d => [D(d), 1])), 'approved'));
+  const r = await pay(NV_L1, days, allDates(Object.fromEntries([5, 6, 7, 8].map(d => [D(d), 1])), 'approved'));
   assert.equal(vnd(r.real.total), 7430769);
 });
-test('C2: 4 ngày "Nghỉ được duyệt" chờ cộng KPI 100%: 11.411.538 so với 13.430.769 (KPI nhân 23/26)', () => {
-  const r = pay(NV_L1, approvedLeave(), {}, 100);
+test('C2: 4 ngày "Nghỉ được duyệt" chờ cộng KPI 100%: 11.411.538 so với 13.430.769 (KPI nhân 23/26)', async () => {
+  const r = await pay(NV_L1, approvedLeave(), {}, 100);
   assert.equal(vnd(r.all.total), 13430769);
   assert.equal(vnd(r.real.total), 11411538);
   assert.equal(vnd(r.line), 2019231);
 });
-test('C2: chỉ 2 ngày "Nghỉ được duyệt" chờ thì chưa mất chuyên cần (2 < 3 ngày, 16 < 24 giờ)', () => {
+test('C2: chỉ 2 ngày "Nghỉ được duyệt" chờ thì chưa mất chuyên cần (2 < 3 ngày, 16 < 24 giờ)', async () => {
   const days = octoberOf({ [D(5)]: { kind: 'approved' }, [D(6)]: { kind: 'approved' } });
-  const r = pay(NV_L1, days);
+  const r = await pay(NV_L1, days);
   assert.equal(r.real.attendOk, true);
   assert.equal(r.real.unpaid, 2);
   // 25 ngày x 230.769,23 + đi lại 900.000 x 25/26 + chuyên cần 1.500.000 x 25/26 = 5.769.230,77 + 865.384,62 + 1.442.307,69
@@ -447,9 +447,9 @@ test('C2: chỉ 2 ngày "Nghỉ được duyệt" chờ thì chưa mất chuyên
 // Đã duyệt: 8.723.076,92 + 346.153,85 = 9.069.230,77 -> 9.069.231. Chờ duyệt: bỏ OT, về mốc chuẩn 8.723.077.
 const otMonth = () => octoberOf(Object.fromEntries([7, 14, 21].map(day => [D(day), ot('19:00')])));
 for (const status of ['pending', 'rejected']) {
-  test(`C3: 3 ngày OT ${status} không được trả (8.723.077), dòng chờ duyệt 346.154`, () => {
+  test(`C3: 3 ngày OT ${status} không được trả (8.723.077), dòng chờ duyệt 346.154`, async () => {
     const days = otMonth();
-    const r = pay(NV_L1, days, allDates(Object.fromEntries([7, 14, 21].map(d => [D(d), 1])), status));
+    const r = await pay(NV_L1, days, allDates(Object.fromEntries([7, 14, 21].map(d => [D(d), 1])), status));
     assert.equal(vnd(r.all.total), 9069231);
     assert.equal(vnd(r.real.total), 8723077);
     assert.equal(vnd(r.line), 346154);
@@ -457,14 +457,14 @@ for (const status of ['pending', 'rejected']) {
     assert.equal(r.real.otHours, 0);
   });
 }
-test('C3: duyệt 3 ngày OT thì cộng lại đúng 9.069.231; duyệt riêng 1 ngày cộng 115.385', () => {
+test('C3: duyệt 3 ngày OT thì cộng lại đúng 9.069.231; duyệt riêng 1 ngày cộng 115.385', async () => {
   const days = otMonth();
   const approved = [7, 14, 21].map(D);
   assert.equal(
-    vnd(pay(NV_L1, days, allDates(Object.fromEntries(approved.map(d => [d, 1])), 'approved')).real.total),
+    vnd((await pay(NV_L1, days, allDates(Object.fromEntries(approved.map(d => [d, 1])), 'approved'))).real.total),
     9069231
   );
-  const one = pay(NV_L1, days, { [D(7)]: 'approved' });
+  const one = await pay(NV_L1, days, { [D(7)]: 'approved' });
   assert.equal(vnd(one.real.total), 8838462);
   assert.equal(vnd(one.real.otPay), 115385);
   assert.equal(one.view.pendingItems.length, 2);
@@ -472,17 +472,17 @@ test('C3: duyệt 3 ngày OT thì cộng lại đúng 9.069.231; duyệt riêng 
 
 // Làm bù theo giờ: 6/10 đi làm 08:00-16:00 (thiếu 1 giờ), 7/10 làm bù 17:00-18:00 (1 giờ). Đã duyệt thì giờ bù trả đúng giờ thiếu
 // nên bằng mốc chuẩn 8.723.077. Chờ duyệt: giờ làm bù không vào sổ, ngày 6/10 bị trừ 1 giờ = 28.846,15: 8.694.230,77 -> 8.694.231.
-test('C4: làm bù theo giờ chờ duyệt không bù giờ thiếu, mất 28.846 (8.694.231)', () => {
+test('C4: làm bù theo giờ chờ duyệt không bù giờ thiếu, mất 28.846 (8.694.231)', async () => {
   const days = octoberOf({ [D(6)]: { ...WORK, out: '16:00' }, [D(7)]: makeupHours('18:00') });
   for (const status of ['pending', 'rejected']) {
-    const r = pay(NV_L1, days, { [D(7)]: status });
+    const r = await pay(NV_L1, days, { [D(7)]: status });
     assert.equal(vnd(r.all.total), 8723077, status);
     assert.equal(vnd(r.real.total), 8694231, status);
     assert.equal(vnd(r.line), 28846, status);
     assert.equal(r.real.debt, 1, status);
     assert.equal(r.real.makeupHours, 0, status);
   }
-  assert.equal(vnd(pay(NV_L1, days, { [D(7)]: 'approved' }).real.total), 8723077);
+  assert.equal(vnd((await pay(NV_L1, days, { [D(7)]: 'approved' })).real.total), 8723077);
 });
 
 // Chuỗi làm bù rồi OT: 9/10 "Nghỉ, sẽ làm bù" (cần 8 giờ), làm bù 4 giờ (17:00-21:00) ngày 12 và 13/10, OT 2 giờ ngày 20/10.
@@ -499,43 +499,43 @@ const chainDays = () =>
     [D(13)]: makeupHours('21:00'),
     [D(20)]: ot('19:00')
   });
-test('C5: làm bù và OT cùng chờ duyệt thì không có tiền nào của hai khoản (8.400.000)', () => {
-  const r = pay(NV_L1, chainDays());
+test('C5: làm bù và OT cùng chờ duyệt thì không có tiền nào của hai khoản (8.400.000)', async () => {
+  const r = await pay(NV_L1, chainDays());
   assert.equal(vnd(r.all.total), 8746154);
   assert.equal(vnd(r.real.total), 8400000);
   assert.equal(vnd(r.line), 346154);
   assert.equal(r.real.debt, 8);
 });
-test('C5: làm bù chờ duyệt không bù giờ thiếu, OT đã duyệt ngày sau vẫn "chưa tính"', () => {
-  const r = pay(NV_L1, chainDays(), { [D(20)]: 'approved' });
+test('C5: làm bù chờ duyệt không bù giờ thiếu, OT đã duyệt ngày sau vẫn "chưa tính"', async () => {
+  const r = await pay(NV_L1, chainDays(), { [D(20)]: 'approved' });
   assert.equal(vnd(r.real.total), 8400000);
   assert.equal(r.real.otPay, 0);
   assert.equal(r.real.otHoldHours, 2);
   assert.equal(vnd(r.line), 346154);
 });
-test('C5: duyệt làm bù trước thì cộng 230.769, rồi duyệt OT thì OT được tính, tổng 8.746.154', () => {
-  const makeupOnly = pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved' });
+test('C5: duyệt làm bù trước thì cộng 230.769, rồi duyệt OT thì OT được tính, tổng 8.746.154', async () => {
+  const makeupOnly = await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved' });
   assert.equal(vnd(makeupOnly.real.total), 8630769);
   assert.equal(vnd(makeupOnly.line), 115385);
   assert.equal(makeupOnly.real.debt, 0);
-  const both = pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' });
+  const both = await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' });
   assert.equal(vnd(both.real.total), 8746154);
   assert.equal(both.real.otHoldHours, 0);
   assert.equal(vnd(both.line), 0);
 });
-test('C5: không cộng được từng khoản riêng, duyệt riêng OT (0) rồi làm bù (230.769) không bằng duyệt cả hai (346.154)', () => {
-  const none = pay(NV_L1, chainDays()).real.total;
-  const otOnly = pay(NV_L1, chainDays(), { [D(20)]: 'approved' }).real.total - none;
-  const makeupOnly = pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved' }).real.total - none;
+test('C5: không cộng được từng khoản riêng, duyệt riêng OT (0) rồi làm bù (230.769) không bằng duyệt cả hai (346.154)', async () => {
+  const none = (await pay(NV_L1, chainDays())).real.total;
+  const otOnly = (await pay(NV_L1, chainDays(), { [D(20)]: 'approved' })).real.total - none;
+  const makeupOnly = (await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved' })).real.total - none;
   const both =
-    pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' }).real.total - none;
+    (await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' })).real.total - none;
   assert.equal(vnd(otOnly), 0);
   assert.equal(vnd(makeupOnly), 230769);
   assert.equal(vnd(both), 346154);
   assert.notEqual(vnd(otOnly + makeupOnly), vnd(both));
 });
-test('C5: bị từ chối về tiền giống chờ duyệt, kể cả với OT đã duyệt đi cùng làm bù bị từ chối', () => {
-  const rejected = pay(NV_L1, chainDays(), { [D(12)]: 'rejected', [D(13)]: 'rejected', [D(20)]: 'approved' });
+test('C5: bị từ chối về tiền giống chờ duyệt, kể cả với OT đã duyệt đi cùng làm bù bị từ chối', async () => {
+  const rejected = await pay(NV_L1, chainDays(), { [D(12)]: 'rejected', [D(13)]: 'rejected', [D(20)]: 'approved' });
   assert.equal(vnd(rejected.real.total), 8400000);
   assert.equal(rejected.real.otHoldHours, 2);
 });
@@ -590,14 +590,14 @@ test('C6: làm bù 24 giờ chờ duyệt làm mất chuyên cần (6.369.231)',
   assert.equal(all.attendOk, true);
 });
 
-test('Tiền chờ duyệt không bao giờ vượt tiền khi đã duyệt hết (mọi ca của bảng)', () => {
-  for (const days of [isatMonth(), approvedLeave(), otMonth(), chainDays()]) {
-    const r = pay(NV_L1, days);
+test('Tiền chờ duyệt không bao giờ vượt tiền khi đã duyệt hết (mọi ca của bảng)', async () => {
+  for (const days of [await isatMonth(), approvedLeave(), otMonth(), chainDays()]) {
+    const r = await pay(NV_L1, days);
     assert.ok(r.real.total <= r.all.total + 1e-6);
     assert.ok(r.line >= -1e-6);
   }
 });
-test('Thực lĩnh và thuế tính trên phần đã duyệt: thu nhập gộp của ca C1 chờ duyệt là 5.838.462', () => {
-  const r = pay(NV_L1, isatMonth());
+test('Thực lĩnh và thuế tính trên phần đã duyệt: thu nhập gộp của ca C1 chờ duyệt là 5.838.462', async () => {
+  const r = await pay(NV_L1, await isatMonth());
   assert.equal(r.real.net.gross, 5838462);
 });

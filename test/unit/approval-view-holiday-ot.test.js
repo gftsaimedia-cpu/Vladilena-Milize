@@ -109,12 +109,12 @@ test('itemOf: ngày lễ thì đổi ca hay giờ nghỉ không đổi dấu vâ
 });
 
 // ---------- trạng thái hiệu lực ----------
-test('effectiveStatus có ctx: không có dòng hoặc lệch dấu vân tay là pending, đã duyệt đúng dấu vân tay mới approved', () => {
+test('effectiveStatus có ctx: không có dòng hoặc lệch dấu vân tay là pending, đã duyệt đúng dấu vân tay mới approved', async () => {
   const ctx = ctxOf(TUE);
   assert.equal(effectiveStatus(WORK, null, ctx), 'pending');
-  assert.equal(effectiveStatus(WORK, rowOf(WORK, ctx, 'approved'), ctx), 'approved');
-  assert.equal(effectiveStatus(WORK, rowOf(WORK, ctx, 'rejected'), ctx), 'rejected');
-  assert.equal(effectiveStatus({ ...WORK, out: '18:00' }, rowOf(WORK, ctx, 'approved'), ctx), 'pending');
+  assert.equal(effectiveStatus(WORK, await rowOf(WORK, ctx, 'approved'), ctx), 'approved');
+  assert.equal(effectiveStatus(WORK, await rowOf(WORK, ctx, 'rejected'), ctx), 'rejected');
+  assert.equal(effectiveStatus({ ...WORK, out: '18:00' }, await rowOf(WORK, ctx, 'approved'), ctx), 'pending');
 });
 test('effectiveStatus không có ctx: ngày đi làm vào ngày lễ vẫn là null (hành vi cũ)', () => {
   assert.equal(effectiveStatus(WORK, { fingerprint: 'holiday_work|08:00-17:00', status: 'approved' }), null);
@@ -133,52 +133,52 @@ const payOf = (staff, days, approvals, ctx) => {
   const view = payView(days, approvals, undefined, ctx);
   return { view, month: calcMonth(staff, view.payDays, null, hol, '2026-10', null) };
 };
-test('NV L1 khai 08:00–17:00 ngày lễ: chờ duyệt trả 230.769 (lương nghỉ lễ), đã duyệt trả 1.101.923 (9 giờ OT ngày lễ không trừ nghỉ)', () => {
+test('NV L1 khai 08:00–17:00 ngày lễ: chờ duyệt trả 230.769 (lương nghỉ lễ), đã duyệt trả 1.101.923 (9 giờ OT ngày lễ không trừ nghỉ)', async () => {
   const days = { [TUE]: { ...WORK } };
   const ctx = { holidays: hol, staffType: 'nv' };
-  const pending = payOf(NV_L1, days, {}, ctx);
+  const pending = await payOf(NV_L1, days, {}, ctx);
   assert.deepEqual(pending.view.pendingItems, [{ date: TUE, item: 'ot', status: 'pending' }]);
   assert.equal(pending.view.payDays[TUE], undefined, 'ngày khai bị bỏ');
   close(pending.month.total, 230769.23);
-  const approved = payOf(NV_L1, days, { [TUE]: rowOf(days[TUE], ctxOf(TUE), 'approved') }, ctx);
+  const approved = await payOf(NV_L1, days, { [TUE]: await rowOf(days[TUE], ctxOf(TUE), 'approved') }, ctx);
   assert.deepEqual(approved.view.pendingItems, []);
   close(approved.month.total, 1101923.08);
   close(approved.month.holWorkPay, 778846.15);
   close(approved.month.holWorkHours, 9);
   assert.deepEqual(days[TUE], WORK, 'payView không sửa lịch đầu vào');
 });
-test('NV L1: bị từ chối tính tiền y hệt chờ duyệt (230.769), chỉ khác trạng thái trong pendingItems', () => {
+test('NV L1: bị từ chối tính tiền y hệt chờ duyệt (230.769), chỉ khác trạng thái trong pendingItems', async () => {
   const days = { [TUE]: { ...WORK } };
-  const rejected = payOf(
+  const rejected = await payOf(
     NV_L1,
     days,
-    { [TUE]: rowOf(days[TUE], ctxOf(TUE), 'rejected', { note: 'Không có lệnh làm lễ' }) },
+    { [TUE]: await rowOf(days[TUE], ctxOf(TUE), 'rejected', { note: 'Không có lệnh làm lễ' }) },
     { holidays: hol, staffType: 'nv' }
   );
   assert.deepEqual(rejected.view.pendingItems, [{ date: TUE, item: 'ot', status: 'rejected' }]);
   close(rejected.month.total, 230769.23);
 });
-test('CTV L1 giống NV: 230.769 khi chưa duyệt, 1.009.615 khi đã duyệt', () => {
+test('CTV L1 giống NV: 230.769 khi chưa duyệt, 1.009.615 khi đã duyệt', async () => {
   const staff = { type: 'ctv', level: 1 };
   const days = { [TUE]: { ...WORK } };
   const ctx = { holidays: hol, staffType: 'ctv' };
-  close(payOf(staff, days, {}, ctx).month.total, 230769.23);
-  close(payOf(staff, days, { [TUE]: rowOf(days[TUE], ctxOf(TUE, 'ctv'), 'approved') }, ctx).month.total, 1009615.38);
+  close((await payOf(staff, days, {}, ctx)).month.total, 230769.23);
+  close((await payOf(staff, days, { [TUE]: await rowOf(days[TUE], ctxOf(TUE, 'ctv'), 'approved') }, ctx)).month.total, 1009615.38);
 });
-test('TTS L1: không có quyền lợi OT nên không có khoản chờ duyệt, ngày lễ không trả đồng nào dù khai hay đã duyệt', () => {
+test('TTS L1: không có quyền lợi OT nên không có khoản chờ duyệt, ngày lễ không trả đồng nào dù khai hay đã duyệt', async () => {
   const days = { [TUE]: { ...WORK } };
   const ctx = { holidays: hol, staffType: 'tts' };
-  const none = payOf(TTS_L1, days, {}, ctx);
+  const none = await payOf(TTS_L1, days, {}, ctx);
   assert.deepEqual(none.view.pendingItems, []);
   close(none.month.total, 0);
   close(none.month.holWorkPay, 0);
-  close(payOf(TTS_L1, days, { [TUE]: { item: 'ot', status: 'approved' } }, ctx).month.total, 0);
+  close((await payOf(TTS_L1, days, { [TUE]: { item: 'ot', status: 'approved' } }, ctx)).month.total, 0);
 });
-test('duyệt xong rồi sửa giờ thì dòng cũ lệch dấu vân tay: về chờ duyệt, tiền về 230.769', () => {
+test('duyệt xong rồi sửa giờ thì dòng cũ lệch dấu vân tay: về chờ duyệt, tiền về 230.769', async () => {
   const approvedDay = { ...WORK };
-  const row = rowOf(approvedDay, ctxOf(TUE), 'approved');
+  const row = await rowOf(approvedDay, ctxOf(TUE), 'approved');
   const edited = { [TUE]: { ...WORK, out: '18:00' } };
-  const result = payOf(NV_L1, edited, { [TUE]: row }, { holidays: hol, staffType: 'nv' });
+  const result = await payOf(NV_L1, edited, { [TUE]: row }, { holidays: hol, staffType: 'nv' });
   assert.deepEqual(result.view.pendingItems, [{ date: TUE, item: 'ot', status: 'pending' }]);
   close(result.month.total, 230769.23);
 });

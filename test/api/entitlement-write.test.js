@@ -26,26 +26,26 @@ test('matrix-cell-write: ghi ô (đi lại của NV) 15 % → 20 % bằng PUT /a
   assert.ok(P.hasNumber(after.cells, 0.2), 'ô đi lại 20 % sau khi ghi');
   assert.ok(after.paramsRev > before.paramsRev, 'paramsRev tăng sau mỗi lần ghi');
   assert.equal(after.paramsRev, await P.paramsRevOf(M));
-  assert.equal(P.paramsOf(M)['type.nv.travel'], 0.2);
+  assert.equal((await P.paramsOf(M))['type.nv.travel'], 0.2);
   const input = clone(caseOf(KNOWN).input);
-  const { m } = Engine.create(P.paramsOf(M)).computeMonth(input);
+  const { m } = Engine.create(await P.paramsOf(M)).computeMonth(input);
   assert.equal(m.travel, Math.round((6000000 * 0.2) / 26));
   assert.equal(m.travel, 46154);
 });
 
 test('matrix-cell-write: tắt ô OT của NV (type.nv.benefit.ot = false) thì khai OT của NV vẫn lưu kèm cảnh báo BENEFIT_NOT_ALLOWED, còn CTV khai không cảnh báo; nhật ký ghi lý do', async () => {
   const M = await P.setupMonth();
-  const audit0 = P.auditRows('param.set').length;
+  const audit0 = (await P.auditRows('param.set')).length;
   const save = await P.saveChanges([{ key: 'type.nv.benefit.ot', value: false }], { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  assert.ok(P.auditRows('param.set').length > audit0);
+  assert.ok((await P.auditRows('param.set')).length > audit0);
   const date = P.firstDow(M, 2);
   const otDay = person => {
     const [shiftIn, shiftOut] = SHIFT[person];
     const extraOut = `${String((Number(shiftOut.slice(0, 2)) + 1) % 24).padStart(2, '0')}:${shiftOut.slice(3)}`;
     return { kind: 'work', in: shiftIn, out: shiftOut, preset: person, extraKind: 'ot', extraOut };
   };
-  const put = (who, shift) => F.call('PUT', '/sheet', { who, body: { month: M, days: { [date]: otDay(shift) } } });
+  const put = async (who, shift) => await F.call('PUT', '/sheet', { who, body: { month: M, days: { [date]: otDay(shift) } } });
   const nv = await put('qa_nv2', 'f2'); // NV bậc 3, ca f2
   assert.equal(nv.status, 200, JSON.stringify(nv.data));
   assert.ok(nv.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(nv.data.warnings));
@@ -56,9 +56,9 @@ test('matrix-cell-write: tắt ô OT của NV (type.nv.benefit.ot = false) thì 
 
 test('matrix-cell-write: chỉ người có config.payroll ghi được ô (C&B, Admin); nhân sự 403, chưa đăng nhập 401, Kế toán chỉ có config.legal nên 403 ở khoá không phải luật; 403 không ghi gì', async () => {
   const M = await P.setupMonth();
-  P.grant('qa_nv2', 'cb');
-  P.grant('qa_ctv1', 'accounting');
-  const before = F.snapshot();
+  await P.grant('qa_nv2', 'cb');
+  await P.grant('qa_ctv1', 'accounting');
+  const before = await F.snapshot();
   const body = {
     changes: [{ key: 'type.nv.travel', value: 0.2 }],
     effectiveMonth: M,
@@ -71,7 +71,7 @@ test('matrix-cell-write: chỉ người có config.payroll ghi được ô (C&B,
     ['qa_ctv1', 403]
   ])
     assert.equal((await F.call('PUT', '/settings/params', { who, body })).status, status, String(who));
-  assert.deepEqual(F.changedTables(before, F.snapshot()), []);
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), []);
   assert.equal((await F.call('PUT', '/settings/params', { who: 'qa_nv2', body })).status, 200, 'C&B ghi được');
 });
 
@@ -96,16 +96,16 @@ test(
   'entitlement-override: type.nv.advanceRate = 0,5 lưu qua API làm tạm ứng của hai NV trên phiếu giảm theo 50 % (đúng bộ máy chạy bộ tham số đó), TTS và CTV giữ tạm ứng cũ',
   async () => {
     const M = await P.setupMonth();
-    const legacy = flow.expectedFor(M);
+    const legacy = await flow.expectedFor(M);
     const save = await P.saveChanges([{ key: 'type.nv.advanceRate', value: 0.5 }], { month: M });
     assert.equal(save.status, 200, JSON.stringify(save.data));
-    assert.equal(P.paramsOf(M)['type.nv.advanceRate'], 0.5, 'bộ tham số hiệu lực của tháng mang ghi đè');
+    assert.equal((await P.paramsOf(M))['type.nv.advanceRate'], 0.5, 'bộ tham số hiệu lực của tháng mang ghi đè');
     await P.advance(M, 'calculated');
-    const slips = flow.payslipsOf(M).slips;
+    const slips = (await flow.payslipsOf(M)).slips;
     // Tạm ứng chỉ trừ vào phiếu khi Admin đã duyệt yêu cầu của tháng (không duyệt thì 0), nên phiếu so với bộ máy chạy đúng bộ tham số đó,
     // còn tác động của ghi đè đo ở mức tạm ứng tối đa theo quy tắc (trace.tamUngToiDa).
     for (const u of ['qa_nv1', 'qa_nv2']) {
-      const expected = flow.computeFor(u, M);
+      const expected = await flow.computeFor(u, M);
       assert.equal(slips[u].advance, expected.net.advance, `${u}: tạm ứng`);
       assert.equal(slips[u].net, expected.net.net, `${u}: thực lĩnh`);
       const before = legacy[u].m;
@@ -116,6 +116,6 @@ test(
       );
     }
     for (const u of ['qa_tts1', 'qa_ctv1'])
-      assert.equal(flow.computeFor(u, M).trace.tamUngToiDa, legacy[u].m.trace.tamUngToiDa, `${u}: không đổi`);
+      assert.equal((await flow.computeFor(u, M)).trace.tamUngToiDa, legacy[u].m.trace.tamUngToiDa, `${u}: không đổi`);
   }
 );

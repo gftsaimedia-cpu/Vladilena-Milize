@@ -14,8 +14,8 @@ const load = F.loadFormula;
 test(
   'Câu của chủ dự án: "lương cơ bản" mơ hồ giữa hai biến thì hỏi lại với hai lựa chọn, không dựng cây, không đoán',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     const res = Formula.parse('Tổng thu nhập = lương cơ bản + đi lại + chuyên cần + lương KPI', {
       vocabulary: AMBIGUOUS_VOCAB
     });
@@ -35,8 +35,8 @@ test(
   }
 );
 
-test('Câu của chủ dự án: gọi đúng tên đầy đủ thì hết mơ hồ và dựng cây theo khoá, không theo nhãn', opts, () => {
-  const Formula = load();
+test('Câu của chủ dự án: gọi đúng tên đầy đủ thì hết mơ hồ và dựng cây theo khoá, không theo nhãn', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(
     Formula,
     'Tổng thu nhập = lương cơ bản của level + đi lại + chuyên cần + lương KPI',
@@ -48,34 +48,34 @@ test('Câu của chủ dự án: gọi đúng tên đầy đủ thì hết mơ h
   assert.doesNotMatch(stored, /lương cơ bản/i, 'cây lưu khoá, không lưu chữ Admin gõ');
 });
 
-test('Câu của chủ dự án: LCB chỉ trỏ về một biến nên không bị hỏi lại dù "lương cơ bản" mơ hồ', opts, () => {
-  const Formula = load();
+test('Câu của chủ dự án: LCB chỉ trỏ về một biến nên không bị hỏi lại dù "lương cơ bản" mơ hồ', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'Tổng thu nhập = LCB + đi lại', AMBIGUOUS_VOCAB);
   assert.match(F.ser(Formula, res.tree), /luongCoBan/);
 });
 
 // ---------- Hợp lệ: tổng, thứ tự phép tính, ngoặc ----------
 
-test('Tổng thông thường dựng được cây và liệt kê đúng các biến phụ thuộc, không kể vế trái', opts, () => {
-  const Formula = load();
+test('Tổng thông thường dựng được cây và liệt kê đúng các biến phụ thuộc, không kể vế trái', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(Formula, 'tổng thu nhập = tiền ngày công + đi lại + chuyên cần + lương KPI');
   assert.deepEqual([...Formula.dependencies(tree)].sort(), ['chuyenCan', 'diLai', 'luongKpi', 'tienNgayCong']);
 });
 
-test('Độ ưu tiên: nhân trước cộng, a + b × c = 70 với a=10, b=20, c=3', opts, () => {
-  const Formula = load();
+test('Độ ưu tiên: nhân trước cộng, a + b × c = 70 với a=10, b=20, c=3', opts, async () => {
+  const Formula = await load();
   const vars = { luongCoBan: 10, tienNgayCong: 20, diLai: 3 };
   assert.equal(F.evalText(Formula, 'khoản A = lương cơ bản + tiền ngày công × đi lại', { variables: vars }), 70);
 });
 
-test('Ngoặc đổi thứ tự: (a + b) × c = 90', opts, () => {
-  const Formula = load();
+test('Ngoặc đổi thứ tự: (a + b) × c = 90', opts, async () => {
+  const Formula = await load();
   const vars = { luongCoBan: 10, tienNgayCong: 20, diLai: 3 };
   assert.equal(F.evalText(Formula, 'khoản A = (lương cơ bản + tiền ngày công) × đi lại', { variables: vars }), 90);
 });
 
-test('Kết hợp trái: a - b - c = (a - b) - c và a ÷ b ÷ c = (a ÷ b) ÷ c', opts, () => {
-  const Formula = load();
+test('Kết hợp trái: a - b - c = (a - b) - c và a ÷ b ÷ c = (a ÷ b) ÷ c', opts, async () => {
+  const Formula = await load();
   const vars = { luongCoBan: 100, tienNgayCong: 20, diLai: 4 };
   assert.equal(F.evalText(Formula, 'khoản A = lương cơ bản - tiền ngày công - đi lại', { variables: vars }), 76);
   assert.equal(
@@ -84,21 +84,21 @@ test('Kết hợp trái: a - b - c = (a - b) - c và a ÷ b ÷ c = (a ÷ b) ÷ c
   );
 });
 
-test('Dấu trừ một ngôi: -a + b', opts, () => {
-  const Formula = load();
+test('Dấu trừ một ngôi: -a + b', opts, async () => {
+  const Formula = await load();
   const vars = { luongCoBan: 10, tienNgayCong: 25 };
   assert.equal(F.evalText(Formula, 'khoản A = -lương cơ bản + tiền ngày công', { variables: vars }), 15);
 });
 
-test('Ngoặc lồng nhau và khoảng trắng thừa cho cùng một cây', opts, () => {
-  const Formula = load();
+test('Ngoặc lồng nhau và khoảng trắng thừa cho cùng một cây', opts, async () => {
+  const Formula = await load();
   const a = F.parseOk(Formula, 'khoản A = ((lương cơ bản + đi lại)) × tỷ lệ đi lại');
   const b = F.parseOk(Formula, '  khoản A   =  ( lương cơ bản+đi lại ) ×   tỷ lệ đi lại  ');
   assert.equal(F.ser(Formula, a.tree), F.ser(Formula, b.tree));
 });
 
-test('Các ký hiệu phép toán thay thế nhau: × * x nhân; ÷ / chia; − - trừ; cộng', opts, () => {
-  const Formula = load();
+test('Các ký hiệu phép toán thay thế nhau: × * x nhân; ÷ / chia; − - trừ; cộng', opts, async () => {
+  const Formula = await load();
   const base = F.ser(Formula, F.parseOk(Formula, 'khoản A = lương cơ bản × tỷ lệ đi lại').tree);
   for (const op of ['*', 'x', 'nhân']) {
     const t = F.parseOk(Formula, `khoản A = lương cơ bản ${op} tỷ lệ đi lại`);
@@ -117,34 +117,34 @@ test('Các ký hiệu phép toán thay thế nhau: × * x nhân; ÷ / chia; − 
 // ---------- Số kiểu Việt Nam ----------
 // Giả định: giá trị số nằm ở đâu đó trong kết quả phân tích (nút lit, hoặc tham số tự sinh kèm giá trị).
 
-test('Số vi-VN: 6.000.000 là sáu triệu (dấu chấm ngăn nghìn)', opts, () => {
-  const Formula = load();
+test('Số vi-VN: 6.000.000 là sáu triệu (dấu chấm ngăn nghìn)', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'khoản A = lương cơ bản + 6.000.000');
   assert.ok(F.containsNumber(res, 6000000), JSON.stringify(res));
 });
 
-test('Số vi-VN: 15% là 0,15 (tỷ lệ)', opts, () => {
-  const Formula = load();
+test('Số vi-VN: 15% là 0,15 (tỷ lệ)', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'khoản A = lương cơ bản × 15%');
   assert.ok(F.containsNumber(res, 0.15), JSON.stringify(res));
 });
 
-test('Số vi-VN: 1,5 và 0,25 (dấu phẩy thập phân)', opts, () => {
-  const Formula = load();
+test('Số vi-VN: 1,5 và 0,25 (dấu phẩy thập phân)', opts, async () => {
+  const Formula = await load();
   const a = F.parseOk(Formula, 'khoản A = lương cơ bản × 1,5');
   assert.ok(F.containsNumber(a, 1.5), JSON.stringify(a));
   const b = F.parseOk(Formula, 'khoản A = lương cơ bản × 0,25');
   assert.ok(F.containsNumber(b, 0.25), JSON.stringify(b));
 });
 
-test('Số vi-VN: 1.234,5 là một nghìn hai trăm ba mươi tư phẩy năm', opts, () => {
-  const Formula = load();
+test('Số vi-VN: 1.234,5 là một nghìn hai trăm ba mươi tư phẩy năm', opts, async () => {
+  const Formula = await load();
   const res = F.parseOk(Formula, 'khoản A = lương cơ bản + 1.234,5');
   assert.ok(F.containsNumber(res, 1234.5), JSON.stringify(res));
 });
 
-test('PARSE_NUMBER_AMBIGUOUS: "1.5" có thể là 1.500 hoặc 1,5 nên hỏi lại, không đoán', opts, () => {
-  const Formula = load();
+test('PARSE_NUMBER_AMBIGUOUS: "1.5" có thể là 1.500 hoặc 1,5 nên hỏi lại, không đoán', opts, async () => {
+  const Formula = await load();
   const text = 'khoản A = lương cơ bản × 1.5';
   const res = Formula.parse(text, { vocabulary: STD_VOCAB });
   assert.equal(res.ok, false);
@@ -154,8 +154,8 @@ test('PARSE_NUMBER_AMBIGUOUS: "1.5" có thể là 1.500 hoặc 1,5 nên hỏi l�
   assert.equal(text.slice(where.at.start, where.at.end), '1.5', 'chỉ đúng chỗ số mơ hồ');
 });
 
-test('Số khác 0 và 1 không nằm thẳng trong cây: nút lit chỉ mang 0 hoặc 1 (mục 3.3)', opts, () => {
-  const Formula = load();
+test('Số khác 0 và 1 không nằm thẳng trong cây: nút lit chỉ mang 0 hoặc 1 (mục 3.3)', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(Formula, 'khoản A = lương cơ bản × 15% + 6.000.000 + 0 + 1');
   const nodes = F.serObject(Formula, tree).nodes;
   const lits = Object.values(nodes).filter(n => n.t === 'lit');
@@ -165,16 +165,16 @@ test('Số khác 0 và 1 không nằm thẳng trong cây: nút lit chỉ mang 0 
 
 // ---------- Từ đồng nghĩa, hoa thường, bỏ dấu ----------
 
-test('Từ đồng nghĩa: LCB và lương CB đều trỏ về lương cơ bản (cây giống hệt)', opts, () => {
-  const Formula = load();
+test('Từ đồng nghĩa: LCB và lương CB đều trỏ về lương cơ bản (cây giống hệt)', opts, async () => {
+  const Formula = await load();
   const canonical = F.ser(Formula, F.parseOk(Formula, 'tổng thu nhập = lương cơ bản + đi lại').tree);
   assert.equal(F.ser(Formula, F.parseOk(Formula, 'tổng thu nhập = LCB + đi lại').tree), canonical);
   assert.equal(F.ser(Formula, F.parseOk(Formula, 'tổng thu nhập = lương CB + đi lại').tree), canonical);
   assert.equal(F.ser(Formula, F.parseOk(Formula, 'tổng thu nhập = lcb + đi lại').tree), canonical);
 });
 
-test('Không phân biệt hoa thường; cây lưu khoá chứ không lưu nhãn', opts, () => {
-  const Formula = load();
+test('Không phân biệt hoa thường; cây lưu khoá chứ không lưu nhãn', opts, async () => {
+  const Formula = await load();
   const canonical = F.parseOk(Formula, 'tổng thu nhập = lương cơ bản + đi lại + lương KPI');
   const shouting = F.parseOk(Formula, 'TỔNG THU NHẬP = LƯƠNG CƠ BẢN + ĐI LẠI + LƯƠNG kpi');
   assert.equal(F.ser(Formula, shouting.tree), F.ser(Formula, canonical.tree));
@@ -185,21 +185,21 @@ test('Không phân biệt hoa thường; cây lưu khoá chứ không lưu nhãn
   assert.doesNotMatch(stored, /LƯƠNG|lương|đi lại/i);
 });
 
-test('Bỏ dấu khi chỉ có một nghĩa khớp: "luong co ban + di lai" ra cùng cây', opts, () => {
-  const Formula = load();
+test('Bỏ dấu khi chỉ có một nghĩa khớp: "luong co ban + di lai" ra cùng cây', opts, async () => {
+  const Formula = await load();
   const canonical = F.parseOk(Formula, 'tổng thu nhập = lương cơ bản + đi lại');
   const plain = F.parseOk(Formula, 'tong thu nhap = luong co ban + di lai');
   assert.equal(F.ser(Formula, plain.tree), F.ser(Formula, canonical.tree));
 });
 
-test('Khớp nhãn dài nhất trước: "tỷ lệ đi lại" không bị cắt thành "đi lại" cộng chữ lạ', opts, () => {
-  const Formula = load();
+test('Khớp nhãn dài nhất trước: "tỷ lệ đi lại" không bị cắt thành "đi lại" cộng chữ lạ', opts, async () => {
+  const Formula = await load();
   const { tree } = F.parseOk(Formula, 'khoản A = lương cơ bản × tỷ lệ đi lại');
   assert.deepEqual([...Formula.dependencies(tree)].sort(), ['luongCoBan', 'tyLeDiLai']);
 });
 
-test('Nhãn nhiều từ chứa nhãn ngắn khác: "tiền OT" và "OT" đều ra tienOt', opts, () => {
-  const Formula = load();
+test('Nhãn nhiều từ chứa nhãn ngắn khác: "tiền OT" và "OT" đều ra tienOt', opts, async () => {
+  const Formula = await load();
   const a = F.parseOk(Formula, 'khoản A = tiền OT + lương cơ bản');
   const b = F.parseOk(Formula, 'khoản A = OT + lương cơ bản');
   assert.equal(F.ser(Formula, a.tree), F.ser(Formula, b.tree));
@@ -207,8 +207,8 @@ test('Nhãn nhiều từ chứa nhãn ngắn khác: "tiền OT" và "OT" đều 
 
 // ---------- Điều kiện ----------
 
-test('nếu … thì … ngược lại …: chọn nhánh đúng theo hàm có sẵn "giữ được chuyên cần"', opts, () => {
-  const Formula = load();
+test('nếu … thì … ngược lại …: chọn nhánh đúng theo hàm có sẵn "giữ được chuyên cần"', opts, async () => {
+  const Formula = await load();
   const text = 'phụ cấp chuyên cần = nếu giữ được chuyên cần thì lương cơ bản × tỷ lệ chuyên cần ngược lại 0';
   const vars = { luongCoBan: 6000000 };
   const params = { tyLeChuyenCan: 0.25 };
@@ -222,8 +222,8 @@ test('nếu … thì … ngược lại …: chọn nhánh đúng theo hàm có 
   );
 });
 
-test('Điều kiện so sánh: nếu giờ vượt ngưỡng > ngưỡng giờ KPI thì … (lớn hơn đúng, bằng thì không)', opts, () => {
-  const Formula = load();
+test('Điều kiện so sánh: nếu giờ vượt ngưỡng > ngưỡng giờ KPI thì … (lớn hơn đúng, bằng thì không)', opts, async () => {
+  const Formula = await load();
   const text = 'hệ số ngày KPI = nếu giờ vượt ngưỡng > ngưỡng giờ KPI thì ngày đi làm ÷ ngày công chuẩn ngược lại 1';
   const base = { ngayDiLam: 13, ngayCongChuan: 26 };
   const params = { nguongGioKpi: 24 };
@@ -232,8 +232,8 @@ test('Điều kiện so sánh: nếu giờ vượt ngưỡng > ngưỡng giờ K
   assert.equal(F.evalText(Formula, text, { variables: { ...base, gioVuotNguong: 0 }, parameters: params }), 1);
 });
 
-test('Điều kiện nối bằng và, hoặc, không', opts, () => {
-  const Formula = load();
+test('Điều kiện nối bằng và, hoặc, không', opts, async () => {
+  const Formula = await load();
   const text = 'khoản A = nếu giữ được chuyên cần và không ở iDorm thì lương cơ bản ngược lại 0';
   const run = (giu, idorm) =>
     F.evalText(Formula, text, {
@@ -254,8 +254,8 @@ test('Điều kiện nối bằng và, hoặc, không', opts, () => {
   assert.equal(runOr(true, false), 7);
 });
 
-test('PARSE_MISSING_ELSE: "nếu … thì …" không có "ngược lại" bị từ chối với vị trí', opts, () => {
-  const Formula = load();
+test('PARSE_MISSING_ELSE: "nếu … thì …" không có "ngược lại" bị từ chối với vị trí', opts, async () => {
+  const Formula = await load();
   const text = 'khoản A = nếu giữ được chuyên cần thì lương cơ bản';
   const res = Formula.parse(text, { vocabulary: STD_VOCAB });
   assert.equal(res.ok, false);
@@ -265,8 +265,8 @@ test('PARSE_MISSING_ELSE: "nếu … thì …" không có "ngược lại" bị 
 
 // ---------- min / max ----------
 
-test('nhỏ nhất của (a ; b) và lớn nhất của (a ; b), kể cả nhiều đối số', opts, () => {
-  const Formula = load();
+test('nhỏ nhất của (a ; b) và lớn nhất của (a ; b), kể cả nhiều đối số', opts, async () => {
+  const Formula = await load();
   const vars = { luongCoBan: 5, tienNgayCong: 9, diLai: 7 };
   assert.equal(F.evalText(Formula, 'khoản A = nhỏ nhất của (lương cơ bản ; tiền ngày công)', { variables: vars }), 5);
   assert.equal(F.evalText(Formula, 'khoản A = lớn nhất của (lương cơ bản ; tiền ngày công)', { variables: vars }), 9);
@@ -283,8 +283,8 @@ test('nhỏ nhất của (a ; b) và lớn nhất của (a ; b), kể cả nhi�
 
 // ---------- Không hợp lệ: mỗi lỗi có mã và vị trí ----------
 
-test('PARSE_UNKNOWN_WORD: chữ lạ bị chỉ đúng vị trí và gợi ý tối đa ba nhãn gần nhất', opts, () => {
-  const Formula = load();
+test('PARSE_UNKNOWN_WORD: chữ lạ bị chỉ đúng vị trí và gợi ý tối đa ba nhãn gần nhất', opts, async () => {
+  const Formula = await load();
   const text = 'tổng thu nhập = lương cơ bản + KPO';
   const res = Formula.parse(text, { vocabulary: STD_VOCAB });
   assert.equal(res.ok, false);
@@ -300,8 +300,8 @@ test('PARSE_UNKNOWN_WORD: chữ lạ bị chỉ đúng vị trí và gợi ý t�
   );
 });
 
-test('PARSE_UNKNOWN_WORD: "thưởng chuyên cần" (ví dụ của TK) bị từ chối và vị trí nằm trong chữ', opts, () => {
-  const Formula = load();
+test('PARSE_UNKNOWN_WORD: "thưởng chuyên cần" (ví dụ của TK) bị từ chối và vị trí nằm trong chữ', opts, async () => {
+  const Formula = await load();
   const text = 'tổng thu nhập = lương cơ bản + thưởng chuyên cần';
   const res = Formula.parse(text, { vocabulary: STD_VOCAB });
   assert.equal(res.ok, false);
@@ -311,8 +311,8 @@ test('PARSE_UNKNOWN_WORD: "thưởng chuyên cần" (ví dụ của TK) bị t�
   assert.match(text.slice(e.at.start, e.at.end), /thưởng/);
 });
 
-test('Toán tử treo: phép toán cuối câu hoặc đứng cạnh phép toán khác bị từ chối với mã PARSE_ và vị trí', opts, () => {
-  const Formula = load();
+test('Toán tử treo: phép toán cuối câu hoặc đứng cạnh phép toán khác bị từ chối với mã PARSE_ và vị trí', opts, async () => {
+  const Formula = await load();
   for (const text of [
     'tổng thu nhập = lương cơ bản +',
     'tổng thu nhập = lương cơ bản + đi lại ×',
@@ -331,8 +331,8 @@ test('Toán tử treo: phép toán cuối câu hoặc đứng cạnh phép toán
   }
 });
 
-test('PARSE_UNBALANCED: thiếu ngoặc đóng hoặc thừa ngoặc đóng', opts, () => {
-  const Formula = load();
+test('PARSE_UNBALANCED: thiếu ngoặc đóng hoặc thừa ngoặc đóng', opts, async () => {
+  const Formula = await load();
   for (const text of [
     'tổng thu nhập = (lương cơ bản + đi lại',
     'tổng thu nhập = ((lương cơ bản + đi lại) × tỷ lệ đi lại',
@@ -346,8 +346,8 @@ test('PARSE_UNBALANCED: thiếu ngoặc đóng hoặc thừa ngoặc đóng', op
   }
 });
 
-test('Vế phải rỗng: "tổng thu nhập =" bị từ chối với mã PARSE_ và vị trí', opts, () => {
-  const Formula = load();
+test('Vế phải rỗng: "tổng thu nhập =" bị từ chối với mã PARSE_ và vị trí', opts, async () => {
+  const Formula = await load();
   for (const text of ['tổng thu nhập =', 'tổng thu nhập =   ', 'tổng thu nhập = ()']) {
     const res = Formula.parse(text, { vocabulary: STD_VOCAB });
     assert.equal(res.ok, false, JSON.stringify(text));
@@ -359,8 +359,8 @@ test('Vế phải rỗng: "tổng thu nhập =" bị từ chối với mã PARSE
   }
 });
 
-test('Hai dấu "=" trong một công thức (ngoài điều kiện) bị từ chối', opts, () => {
-  const Formula = load();
+test('Hai dấu "=" trong một công thức (ngoài điều kiện) bị từ chối', opts, async () => {
+  const Formula = await load();
   for (const text of ['tổng thu nhập = lương cơ bản = đi lại', 'tổng thu nhập = khoản A = lương cơ bản + đi lại']) {
     const res = Formula.parse(text, { vocabulary: STD_VOCAB });
     assert.equal(res.ok, false, text);
@@ -372,8 +372,8 @@ test('Hai dấu "=" trong một công thức (ngoài điều kiện) bị từ c
   }
 });
 
-test('Thiếu vế trái hoặc thiếu dấu "=": bị từ chối', opts, () => {
-  const Formula = load();
+test('Thiếu vế trái hoặc thiếu dấu "=": bị từ chối', opts, async () => {
+  const Formula = await load();
   for (const text of ['= lương cơ bản + đi lại', 'lương cơ bản + đi lại', '']) {
     const res = Formula.parse(text, { vocabulary: STD_VOCAB });
     assert.equal(res.ok, false, JSON.stringify(text));
@@ -384,8 +384,8 @@ test('Thiếu vế trái hoặc thiếu dấu "=": bị từ chối', opts, () =
 
 // ---------- Chữ giống mã: không bao giờ chạy ----------
 
-test('Chữ giống mã (require, process, dấu huyền, ${...}) bị từ chối như chữ lạ và KHÔNG được chạy', opts, () => {
-  const Formula = load();
+test('Chữ giống mã (require, process, dấu huyền, ${...}) bị từ chối như chữ lạ và KHÔNG được chạy', opts, async () => {
+  const Formula = await load();
   delete globalThis.__formulaPwned;
   const attacks = [
     "tổng thu nhập = require('fs')",
@@ -416,8 +416,8 @@ test('Chữ giống mã (require, process, dấu huyền, ${...}) bị từ ch�
 test(
   'Tên trùng thuộc tính của Object ("constructor", "toString", "__proto__", "hasOwnProperty") là chữ lạ, không phải nhãn',
   opts,
-  () => {
-    const Formula = load();
+  async () => {
+    const Formula = await load();
     for (const w of ['constructor', 'toString', '__proto__', 'hasOwnProperty', 'valueOf', 'prototype']) {
       const text = `tổng thu nhập = lương cơ bản + ${w}`;
       const res = Formula.parse(text, { vocabulary: STD_VOCAB });
@@ -428,15 +428,15 @@ test(
   }
 );
 
-test('Bộ phân tích xác định: cùng câu, cùng từ vựng thì cùng cây qua 20 lần chạy', opts, () => {
-  const Formula = load();
+test('Bộ phân tích xác định: cùng câu, cùng từ vựng thì cùng cây qua 20 lần chạy', opts, async () => {
+  const Formula = await load();
   const text = 'tổng thu nhập = lương cơ bản × tỷ lệ đi lại + (đi lại - chuyên cần) ÷ 2';
   const first = JSON.stringify(Formula.parse(text, { vocabulary: STD_VOCAB }));
   for (let i = 0; i < 20; i++) assert.equal(JSON.stringify(Formula.parse(text, { vocabulary: STD_VOCAB })), first);
 });
 
-test('Đầu vào xấu không làm bộ phân tích ném lỗi lạ: null, số, đối tượng, chuỗi cực dài đều trả ok:false', opts, () => {
-  const Formula = load();
+test('Đầu vào xấu không làm bộ phân tích ném lỗi lạ: null, số, đối tượng, chuỗi cực dài đều trả ok:false', opts, async () => {
+  const Formula = await load();
   for (const bad of [null, undefined, 42, {}, [], 'a'.repeat(5000), '('.repeat(3000), '\u0000\u0001\u0002']) {
     let res;
     assert.doesNotThrow(
@@ -450,8 +450,8 @@ test('Đầu vào xấu không làm bộ phân tích ném lỗi lạ: null, số
   }
 });
 
-test('Chuỗi tấn công kiểu ReDoS (nhiều khoảng trắng, nhiều dấu) xử lý dưới hai giây', opts, () => {
-  const Formula = load();
+test('Chuỗi tấn công kiểu ReDoS (nhiều khoảng trắng, nhiều dấu) xử lý dưới hai giây', opts, async () => {
+  const Formula = await load();
   const nasty = [
     'tổng thu nhập = ' + 'lương cơ bản '.repeat(120),
     'tổng thu nhập = ' + '1.'.repeat(900),

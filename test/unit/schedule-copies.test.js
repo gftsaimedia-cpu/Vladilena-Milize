@@ -105,13 +105,13 @@ test('S1: một nguồn (giao diện): public/admin/ và public/nhan-vien/ khôn
   assert.deepEqual(copies, [], 'giao diện còn bản lịch chép tay { tts, ctv, nv }');
 });
 
-test('S1: một nguồn: public/work-schedule.js được nạp trước payroll-engine.js ở trang nào nạp bộ máy (admin.html, nhan-vien.html)', () => {
+test('S1: một nguồn: public/work-schedule.js được nạp trước payroll-engine.js ở trang nào nạp bộ máy (admin.html, nhan-vien.html)', async () => {
   for (const page of ['public/admin.html', 'public/nhan-vien.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     const at = name => html.indexOf(`${name}.js`);
-    if (at('payroll-engine') < 0) continue; // trang không nạp bộ máy thì không bắt buộc
-    assert.ok(at('work-schedule') >= 0, `${page}: thiếu thẻ script work-schedule.js`);
-    assert.ok(at('work-schedule') < at('payroll-engine'), `${page}: work-schedule.js phải nạp TRƯỚC payroll-engine.js`);
+    if (await at('payroll-engine') < 0) continue; // trang không nạp bộ máy thì không bắt buộc
+    assert.ok(await at('work-schedule') >= 0, `${page}: thiếu thẻ script work-schedule.js`);
+    assert.ok(await at('work-schedule') < await at('payroll-engine'), `${page}: work-schedule.js phải nạp TRƯỚC payroll-engine.js`);
   }
 });
 

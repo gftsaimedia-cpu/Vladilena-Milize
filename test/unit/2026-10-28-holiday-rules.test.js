@@ -86,23 +86,23 @@ const near = (actual, expected, msg) =>
 const nightShift = { kind: 'work', in: '22:00', out: '07:00' };
 const dayShift = { kind: 'work', in: '08:00', out: '17:00' };
 
-test('ngày lễ: lượt Admin khai thay đã tới giờ ra là đi làm; chưa tới giờ ra thì chưa kết luận, vẫn lương lễ', () => {
+test('ngày lễ: lượt Admin khai thay đã tới giờ ra là đi làm; chưa tới giờ ra thì chưa kết luận, vẫn lương lễ', async () => {
   const days = { [HOL]: nightShift };
-  const done = month(NIGHT, days, { sessions: [adminSession(NIGHT, HOL, nightShift)], actual: true });
+  const done = await month(NIGHT, days, { sessions: [await adminSession(NIGHT, HOL, nightShift)], actual: true });
   assert.equal(done.actualReport.report[HOL].state, 'ok');
-  assert.equal(Math.round(done.row(HOL).total), 741346);
-  const early = month(NIGHT, days, { actual: true, asOf: '2026-10-20T23:00:00+07:00' });
+  assert.equal(Math.round((await done.row(HOL)).total), 741346);
+  const early = await month(NIGHT, days, { actual: true, asOf: '2026-10-20T23:00:00+07:00' });
   assert.equal(early.actualReport.report[HOL].state, 'not-yet');
-  assert.equal(early.row(HOL).kind, 'holiday');
-  near(early.row(HOL).total, HOURLY * 8);
+  assert.equal((await early.row(HOL)).kind, 'holiday');
+  near((await early.row(HOL)).total, HOURLY * 8);
 });
 
-test('OT 08:00–20:00 ngày lễ đã duyệt: 12 giờ OT ngày lễ không trừ giờ nghỉ (theo lịch đã khai và theo Check-in/out)', () => {
+test('OT 08:00–20:00 ngày lễ đã duyệt: 12 giờ OT ngày lễ không trừ giờ nghỉ (theo lịch đã khai và theo Check-in/out)', async () => {
   const days = { [HOL]: { ...dayShift, extraKind: 'ot', extraIn: '', extraOut: '20:00' } };
-  const declared = month(DAY, days);
-  const actual = month(DAY, days, { sessions: [punch(DAY, HOL, '08:00', '20:00')], actual: true });
+  const declared = await month(DAY, days);
+  const actual = await month(DAY, days, { sessions: [await punch(DAY, HOL, '08:00', '20:00')], actual: true });
   for (const r of [declared, actual]) {
-    const row = r.row(HOL);
+    const row = await r.row(HOL);
     assert.equal(row.kind, 'holiday');
     assert.deepEqual([row.otH, row.otPay, row.holMainH, row.holWorkH], [0, 0, 9, 12]);
     near(row.holWorkPay, 12 * HOURLY * HOL_RATE);
@@ -112,13 +112,13 @@ test('OT 08:00–20:00 ngày lễ đã duyệt: 12 giờ OT ngày lễ không tr
   }
   assert.equal(actual.actualReport.report[HOL].extra.keptOut, '20:00');
   // có mặt tới 19:00: chỉ trả tới 19:00 (cắt theo giờ có mặt như OT ngày thường)
-  const short = month(DAY, days, { sessions: [punch(DAY, HOL, '08:00', '19:00')], actual: true });
-  assert.equal(short.row(HOL).holWorkH, 11);
+  const short = await month(DAY, days, { sessions: [await punch(DAY, HOL, '08:00', '19:00')], actual: true });
+  assert.equal((await short.row(HOL)).holWorkH, 11);
 });
 
-test('OT ngày lễ qua nửa đêm: chỉ phút của ngày lễ theo hệ số lễ (kể cả phần đêm lễ), phút của 21/10 là OT thường', () => {
+test('OT ngày lễ qua nửa đêm: chỉ phút của ngày lễ theo hệ số lễ (kể cả phần đêm lễ), phút của 21/10 là OT thường', async () => {
   const days = { [HOL]: { kind: 'work', in: '13:00', out: '22:00', extraKind: 'ot', extraIn: '', extraOut: '02:00' } };
-  const row = month(DAY, days).row(HOL);
+  const row = await (await month(DAY, days)).row(HOL);
   // 13:00–24:00 của ngày lễ (11 giờ, không trừ nghỉ, gồm phần đêm lễ): OT ngày lễ; 00:00–02:00 của 21/10: OT thường
   assert.deepEqual([row.otH, row.holWorkH, row.holNightH], [2, 11, 2]);
   const holNight = DEFAULTS['night.otAddRate'] * HOL_RATE;
@@ -126,10 +126,10 @@ test('OT ngày lễ qua nửa đêm: chỉ phút của ngày lễ theo hệ số
   near(row.holWorkPay, 11 * HOURLY * HOL_RATE + 2 * HOURLY * holNight);
 });
 
-test('ngày lễ có OT được trả: giữ phụ cấp ca và tiền giờ nghỉ đêm như ngày lễ không OT, tiền OT cộng thêm', () => {
-  const plain = month(NIGHT, { [HOL]: nightShift }).row(HOL);
+test('ngày lễ có OT được trả: giữ phụ cấp ca và tiền giờ nghỉ đêm như ngày lễ không OT, tiền OT cộng thêm', async () => {
+  const plain = await (await month(NIGHT, { [HOL]: nightShift })).row(HOL);
   assert.ok(plain.bonus > 0 && plain.breakPay > 0);
-  const ot = month(NIGHT, { [HOL]: { ...nightShift, extraKind: 'ot', extraIn: '20:00', extraOut: '' } }).row(HOL);
+  const ot = await (await month(NIGHT, { [HOL]: { ...nightShift, extraKind: 'ot', extraIn: '20:00', extraOut: '' } })).row(HOL);
   assert.deepEqual([ot.otH, ot.holWorkH - plain.holWorkH], [0, 2]);
   // phụ cấp ca = lương ngày × 40 % = 6.000.000 / 26 × 0,4 ≈ 92.308 (lớn hơn sàn phụ trội đêm 7 giờ × lương giờ × 0,3 ≈ 60.577)
   near(ot.bonus, plain.bonus);
@@ -142,15 +142,15 @@ test('ngày lễ có OT được trả: giữ phụ cấp ca và tiền giờ ng
   near(ot.total, plain.total + 2 * HOURLY * HOL_RATE);
 });
 
-test('OT ngày lễ chưa duyệt: chờ duyệt, không trả; ngày lễ chưa duyệt thì hưởng lương lễ như không đi làm', () => {
+test('OT ngày lễ chưa duyệt: chờ duyệt, không trả; ngày lễ chưa duyệt thì hưởng lương lễ như không đi làm', async () => {
   const days = { [HOL]: { ...dayShift, extraKind: 'ot', extraIn: '', extraOut: '20:00' } };
-  const pending = month(DAY, days, { approvals: {} });
+  const pending = await month(DAY, days, { approvals: {} });
   assert.deepEqual(pending.pendingItems, [{ date: HOL, item: 'ot', status: 'pending' }]);
   assert.equal(pending.m.otHours, 0);
-  near(pending.row(HOL).total, HOURLY * 8);
+  near((await pending.row(HOL)).total, HOURLY * 8);
   // duyệt ngày lễ trước khi khai OT (dấu vân tay cũ): đổi đoạn OT thì phải duyệt lại
   const old = { [HOL]: { item: 'holiday_work', fingerprint: 'holiday_work|08:00-17:00', status: 'approved' } };
-  assert.equal(month(DAY, days, { approvals: old }).pendingItems.length, 1);
+  assert.equal((await month(DAY, days, { approvals: old })).pendingItems.length, 1);
   // ngày khoá (src) chưa có otReview: giờ sau ca trong ngày lễ vẫn là OT ngày lễ, không chờ duyệt OT riêng
   const k = Engine.create(DEFAULTS);
   const locked = { ...days[HOL], src: 'admin' };
@@ -158,48 +158,48 @@ test('OT ngày lễ chưa duyệt: chờ duyệt, không trả; ngày lễ chưa
   assert.deepEqual([wait.otH, wait.otWait, wait.otPay, wait.holWorkH], [0, 0, 0, 12]);
 });
 
-test('OT ngày lễ khi giờ bù trước đó chưa cân: không bị giữ, vẫn là OT ngày lễ', () => {
+test('OT ngày lễ khi giờ bù trước đó chưa cân: không bị giữ, vẫn là OT ngày lễ', async () => {
   const days = {
     '2026-10-05': { kind: 'willmakeup' },
     [HOL]: { ...dayShift, extraKind: 'ot', extraIn: '', extraOut: '20:00' }
   };
-  const r = month(DAY, days);
-  assert.deepEqual([r.row(HOL).otH, r.row(HOL).otHold, r.row(HOL).holWorkH], [0, 0, 12]);
+  const r = await month(DAY, days);
+  assert.deepEqual([(await r.row(HOL)).otH, (await r.row(HOL)).otHold, (await r.row(HOL)).holWorkH], [0, 0, 12]);
   assert.equal(r.m.otHoldHours, 0);
 });
 
-test('khai đi làm ngày lễ mà không có Check-in/out: vắng, 0 đồng, không lương lễ, m.noshow +1', () => {
-  const sessions = [punch(NIGHT, MON, '22:00', '07:00', 1)];
-  const declared = month(NIGHT, { [MON]: nightShift, [HOL]: nightShift }, { sessions, actual: true });
-  const undeclared = month(NIGHT, { [MON]: nightShift }, { sessions, actual: true });
+test('khai đi làm ngày lễ mà không có Check-in/out: vắng, 0 đồng, không lương lễ, m.noshow +1', async () => {
+  const sessions = [await punch(NIGHT, MON, '22:00', '07:00', 1)];
+  const declared = await month(NIGHT, { [MON]: nightShift, [HOL]: nightShift }, { sessions, actual: true });
+  const undeclared = await month(NIGHT, { [MON]: nightShift }, { sessions, actual: true });
   assert.equal(declared.actualReport.report[HOL].state, 'absent');
   assert.ok(declared.actualReport.absent.includes(HOL));
-  const row = declared.row(HOL);
+  const row = await declared.row(HOL);
   assert.deepEqual([row.kind, row.total, row.holBase || 0], ['noshow', 0, 0]);
   assert.equal(declared.m.noshow, undeclared.m.noshow + 1);
   assert.equal(declared.m.holiday, undeclared.m.holiday - 1);
   assert.equal(declared.m.overHours, undeclared.m.overHours + DEFAULTS['time.workHoursPerDay']);
   near(declared.m.work, undeclared.m.work - HOURLY * 8);
   // ngày lễ không khai đi làm: lương lễ, không bao giờ vắng
-  assert.equal(undeclared.row(HOL).kind, 'holiday');
-  near(undeclared.row(HOL).total, HOURLY * 8);
+  assert.equal((await undeclared.row(HOL)).kind, 'holiday');
+  near((await undeclared.row(HOL)).total, HOURLY * 8);
   assert.ok(!undeclared.actualReport.absent.includes(HOL));
   // "Đi làm" không có giờ trên ngày lễ cũng là nghỉ lễ
-  const noTimes = month(NIGHT, { [MON]: nightShift, [HOL]: { kind: 'work' } }, { sessions, actual: true });
-  assert.equal(noTimes.row(HOL).kind, 'holiday');
-  near(noTimes.row(HOL).total, HOURLY * 8);
+  const noTimes = await month(NIGHT, { [MON]: nightShift, [HOL]: { kind: 'work' } }, { sessions, actual: true });
+  assert.equal((await noTimes.row(HOL)).kind, 'holiday');
+  near((await noTimes.row(HOL)).total, HOURLY * 8);
 });
 
-test('nghỉ việc 15/10: không lương lễ 20/10, không ngày vắng nào sau 15/10; chính ngày 15/10 vẫn là ngày làm việc', () => {
+test('nghỉ việc 15/10: không lương lễ 20/10, không ngày vắng nào sau 15/10; chính ngày 15/10 vẫn là ngày làm việc', async () => {
   const resigned = { ...DAY, resignedOn: '2026-10-15' };
-  const actual = month(resigned, {}, { actual: true });
-  assert.equal(actual.row(HOL), undefined);
+  const actual = await month(resigned, {}, { actual: true });
+  assert.equal(await actual.row(HOL), undefined);
   assert.deepEqual(
     actual.m.rows.filter(r => r.date > '2026-10-15'),
     []
   );
   assert.equal(actual.m.holiday, 0);
-  assert.equal(actual.row('2026-10-15').kind, 'noshow');
+  assert.equal((await actual.row('2026-10-15')).kind, 'noshow');
   assert.deepEqual(
     Object.keys(actual.actualReport.report).filter(d => d > '2026-10-15'),
     []
@@ -208,18 +208,18 @@ test('nghỉ việc 15/10: không lương lễ 20/10, không ngày vắng nào s
     actual.actualReport.absent.filter(d => d > '2026-10-15'),
     []
   );
-  const declared = month(resigned, {});
+  const declared = await month(resigned, {});
   assert.equal(declared.m.holiday, 0);
   assert.equal(declared.m.off, 0);
   // nghỉ việc sau ngày lễ: vẫn hưởng lương lễ
-  const later = month({ ...DAY, resignedOn: '2026-10-25' }, {});
-  near(later.row(HOL).total, HOURLY * 8);
+  const later = await month({ ...DAY, resignedOn: '2026-10-25' }, {});
+  near((await later.row(HOL)).total, HOURLY * 8);
 });
 
-test('ca đêm ngày lễ vào 00:30 hôm sau (giờ lễ bị cắt hết): vẫn là ngày công và ca đêm (m.night)', () => {
+test('ca đêm ngày lễ vào 00:30 hôm sau (giờ lễ bị cắt hết): vẫn là ngày công và ca đêm (m.night)', async () => {
   const days = { [HOL]: nightShift };
-  const late = month(NIGHT, days, { sessions: [punch(NIGHT, HOL, '00:30', '07:00', 1, 1)], actual: true });
-  const row = late.row(HOL);
+  const late = await month(NIGHT, days, { sessions: [await punch(NIGHT, HOL, '00:30', '07:00', 1, 1)], actual: true });
+  const row = await late.row(HOL);
   assert.equal(late.actualReport.report[HOL].cutStartMin, 150);
   assert.deepEqual([row.kind, row.holWorkH], ['holiday', 0]);
   assert.ok(row.hours > 0 && row.bonus > 0);

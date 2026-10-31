@@ -10,14 +10,14 @@ const AS = require('../../public/attendance-status.js');
 
 before(async () => {
   await F.start();
-  F.at('2026-10-29T12:00:00');
-  for (const name of ['quen', 'muon', 'ngay']) F.person(name);
-  F.person('admin', 'admin');
+  await F.at('2026-10-29T12:00:00');
+  for (const name of ['quen', 'muon', 'ngay']) await F.person(name);
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
 const punchOf = async who => {
-  F.at('2026-10-29T12:00:00');
+  await F.at('2026-10-29T12:00:00');
   const res = await F.call('GET', '/punch', { who });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data;
@@ -48,10 +48,10 @@ test('Quên Check-out: giải trình chờ xử lý giữ nhãn "Chờ xử lý"
 });
 
 test('Check-out thiếu giờ (incomplete-shift): giải trình ngày bị từ chối thì nhãn "Bị từ chối", chưa quyết định thì "Chờ xử lý"', async () => {
-  F.at('2026-10-21T08:00:00');
+  await F.at('2026-10-21T08:00:00');
   const opened = await X.punch('ngay', { type: 'in', requestId: 'pl-ngay-in' });
   assert.equal(opened.status, 200, JSON.stringify(opened.data));
-  F.at('2026-10-21T15:00:00'); // ra sớm: ca chưa đủ giờ
+  await F.at('2026-10-21T15:00:00'); // ra sớm: ca chưa đủ giờ
   const closed = await X.punch('ngay', {
     type: 'out',
     sessionId: opened.data.open.id,
@@ -75,9 +75,9 @@ test('Check-out thiếu giờ (incomplete-shift): giải trình ngày bị từ 
 });
 
 test('Check-out muộn: giải trình chờ xử lý, Admin từ chối thì nhãn "Bị từ chối"', async () => {
-  F.at('2026-10-22T08:00:00');
+  await F.at('2026-10-22T08:00:00');
   const opened = await X.punch('muon', { type: 'in', requestId: 'pl-muon-in' });
-  F.at('2026-10-22T18:10:00'); // ca hết 17:00: muộn 70 phút
+  await F.at('2026-10-22T18:10:00'); // ca hết 17:00: muộn 70 phút
   const out = await X.punch('muon', {
     type: 'out',
     sessionId: opened.data.open.id,

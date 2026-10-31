@@ -176,8 +176,8 @@ test('cả tháng đi làm: lương cơ bản, chuyên cần, đi lại, tổng 
   checkNamed(s, 'cả tháng');
 });
 
-test('ca đêm 40 % qua ngày lễ 01/10: giờ lễ, giờ đêm lễ, ca đêm, giờ nghỉ đêm, miễn thuế có tên và ngoặc', () => {
-  const s = slipOf(NIGHT, { '2026-10-01': nightShift() }, { holidays: ['2026-10-01'] });
+test('ca đêm 40 % qua ngày lễ 01/10: giờ lễ, giờ đêm lễ, ca đêm, giờ nghỉ đêm, miễn thuế có tên và ngoặc', async () => {
+  const s = await slipOf(NIGHT, { '2026-10-01': nightShift() }, { holidays: ['2026-10-01'] });
   assert.equal(s.f.holidayPay, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày lễ');
   assert.equal(s.f.workBase, '6 giờ thường của ca ngày lễ × 28.846,15 đ/giờ');
   assert.equal(s.f.otPay, '2 giờ lễ × 28.846,15 đ/giờ × 3 + 2 giờ đêm lễ × 28.846,15 đ/giờ × 0,6');
@@ -188,17 +188,17 @@ test('ca đêm 40 % qua ngày lễ 01/10: giờ lễ, giờ đêm lễ, ca đêm
   checkNamed(s, 'ca đêm lễ');
 });
 
-test('nhiều ca đêm: số ca × lương ngày × tỷ lệ, lương ngày ghi hai chữ số thập phân khi làm tròn lệch quá 0,25 đồng', () => {
+test('nhiều ca đêm: số ca × lương ngày × tỷ lệ, lương ngày ghi hai chữ số thập phân khi làm tròn lệch quá 0,25 đồng', async () => {
   const days = {};
   for (const d of ['05', '06', '07', '08', '09', '12', '13', '14', '15', '16']) days[`2026-10-${d}`] = nightShift();
-  const s = slipOf(NIGHT, days);
+  const s = await slipOf(NIGHT, days);
   assert.equal(s.f.nightPay, '10 ca đêm × 230.769,23 đ/ngày × 40%');
   assert.equal(s.f.exempt, '70 giờ đêm × 28.846,15 đ/giờ × 30%');
   checkNamed(s, 'nhiều ca đêm');
 });
 
-test('OT ngày thường 4 giờ: làm thêm và miễn thuế đều có tên giờ, miễn thuế là nhóm trong ngoặc', () => {
-  const s = slipOf(DAY, { '2026-10-05': work({ extraKind: 'ot', extraOut: '21:00' }) });
+test('OT ngày thường 4 giờ: làm thêm và miễn thuế đều có tên giờ, miễn thuế là nhóm trong ngoặc', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work({ extraKind: 'ot', extraOut: '21:00' }) });
   assert.equal(s.f.otPay, '4 giờ OT × 28.846,15 đ/giờ × 1,5');
   assert.equal(s.f.exempt, '(173.077 đ OT − 4 giờ OT × 28.846,15 đ/giờ)');
   assert.equal(s.f.gross, '230.769 lương ngày công + 173.077 làm thêm + 92.307 phụ cấp');
@@ -206,22 +206,22 @@ test('OT ngày thường 4 giờ: làm thêm và miễn thuế đều có tên g
   checkNamed(s, 'OT');
 });
 
-test('ca đêm 09/10 vào lễ, ca ngày 10/10: mảnh giờ trừ ròng có tên, không còn mảnh triệt tiêu', () => {
-  const s = slipOf(NIGHT, { '2026-10-09': nightShift(), '2026-10-10': work() }, { holidays: ['2026-10-10'] });
+test('ca đêm 09/10 vào lễ, ca ngày 10/10: mảnh giờ trừ ròng có tên, không còn mảnh triệt tiêu', async () => {
+  const s = await slipOf(NIGHT, { '2026-10-09': nightShift(), '2026-10-10': work() }, { holidays: ['2026-10-10'] });
   assert.equal(s.f.workBase, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày công − 6 giờ trùng ngày lễ × 28.846,15 đ/giờ');
   checkNamed(s, 'trừ ròng');
 });
 
-test('đi muộn 10 phút: giờ lẻ ghi phân số kèm tên; nghỉ phép có tên ngày; tổng thu nhập trừ khoản đi muộn có tên', () => {
-  const s = slipOf(DAY, { '2026-10-05': { kind: 'leave' }, '2026-10-06': work({ in: '08:10' }) });
+test('đi muộn 10 phút: giờ lẻ ghi phân số kèm tên; nghỉ phép có tên ngày; tổng thu nhập trừ khoản đi muộn có tên', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': { kind: 'leave' }, '2026-10-06': work({ in: '08:10' }) });
   assert.equal(s.f.lateCut, '1/6 giờ thiếu × 28.846,15 đ/giờ');
   assert.equal(s.f.leavePay, '6.000.000 đ ÷ 26 ngày chuẩn × 1 ngày phép');
   assert.match(s.f.gross, / − [\d.]+ đi muộn về sớm$/);
   checkNamed(s, 'đi muộn');
 });
 
-test('bảo hiểm không đóng: ngày chuẩn trừ ngày có lương so với ngưỡng, mỗi số có tên', () => {
-  const s = slipOf(DAY, { '2026-10-05': work() });
+test('bảo hiểm không đóng: ngày chuẩn trừ ngày có lương so với ngưỡng, mỗi số có tên', async () => {
+  const s = await slipOf(DAY, { '2026-10-05': work() });
   assert.equal(s.f.insurance, '26 ngày chuẩn − 1 ngày có lương = 25 ngày không lương ≥ 14 ngày');
   assert.equal(s.f.attendance, '6.000.000 đ × 25% × 1 ngày đi làm ÷ 26 ngày chuẩn');
   checkNamed(s, 'bảo hiểm');

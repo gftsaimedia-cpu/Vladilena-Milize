@@ -7,14 +7,14 @@ const ADMIN_NAME = 'lt_admin';
 const DEFAULT_PREFIX = 'lt_';
 
 // store: lib/db, passHash: chuỗi băm đã tính sẵn. Trả { users: [tên...], admin }.
-function seedLoadUsers(store, { count, passHash, prefix = DEFAULT_PREFIX }) {
+async function seedLoadUsers(store, { count, passHash, prefix = DEFAULT_PREFIX }) {
   const users = [];
-  store.transaction(() => {
-    store.upsertStaff({ username: ADMIN_NAME, name: 'Admin đo tải', role: 'admin', type: 'tts', level: 0, passHash });
+  await store.transaction(async () => {
+    await store.upsertStaff({ username: ADMIN_NAME, name: 'Admin đo tải', role: 'admin', type: 'tts', level: 0, passHash });
     for (let i = 1; i <= count; i++) {
       const username = userName(prefix, i);
       users.push(username);
-      store.upsertStaff({
+      await store.upsertStaff({
         username,
         name: `Người đo tải ${pad(i)}`,
         role: 'staff',

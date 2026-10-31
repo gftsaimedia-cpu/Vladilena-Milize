@@ -15,12 +15,12 @@ const HQ = { lat: 10.7769, lng: 106.7009 };
 const M_PER_DEG = (Math.PI / 180) * 6371000;
 const REASON = 'Lý do đủ mười ký tự';
 
-const put = (who, route, body) => F.call('PUT', route, { who, body });
-const post = (who, route, body) => F.call('POST', route, { who, body });
+const put = async (who, route, body) => await F.call('PUT', route, { who, body });
+const post = async (who, route, body) => await F.call('POST', route, { who, body });
 const day = { kind: 'work', in: '10:00', out: '19:00' }; // ca n2 của qa_ctv1
 const n1 = { kind: 'work', in: '08:00', out: '17:00' };
-const sheet = (who, month, days, extra = {}) => put(who, '/sheet', { month, days, ...extra });
-const savedDay = (who, month, date) => store.getSheet(who, month).days[date];
+const sheet = async (who, month, days, extra = {}) => await put(who, '/sheet', { month, days, ...extra });
+const savedDay = async (who, month, date) => (await store.getSheet(who, month)).days[date];
 
 // Lịch ước tính vi phạm một luật: ngày do hàm days(ctx) cho, người khai who
 const sheetCase = (id, title, { who = 'qa_ctv1', days, message, saved, setup, extra }) => ({
@@ -28,16 +28,16 @@ const sheetCase = (id, title, { who = 'qa_ctv1', days, message, saved, setup, ex
   title,
   free: true,
   setup,
-  fire: ctx => sheet(who, ctx.M, days(ctx), extra && extra(ctx)),
+  fire: async ctx => await sheet(who, ctx.M, await days(ctx), extra && extra(ctx)),
   warn: { message },
-  saved: saved || ((ctx, res) => assert.ok(Object.keys(store.getSheet(who, ctx.M).days).length > 0, 'lịch đã lưu'))
+  saved: saved || (async (ctx, res) => assert.ok(Object.keys((await store.getSheet(who, ctx.M)).days).length > 0, 'lịch đã lưu'))
 });
 const sunday = ctx => S.firstDow(ctx.M, 0);
 const monday = ctx => S.firstDow(ctx.M, 1);
 const saturday = ctx => S.firstDow(ctx.M, 6);
 
 // Đưa kỳ tới `target` rồi trả ngữ cảnh
-const toState = target => async ctx => S.advance(ctx.M, target);
+const toState = target => async ctx => await S.advance(ctx.M, target);
 const items = async ctx => S.itemsOf(await S.slipRows(ctx.M));
 
 const CASES = [
@@ -46,22 +46,22 @@ const CASES = [
     id: 'A1',
     title: 'chốt công khi còn khoản chờ duyệt',
     setup: async ctx => {
-      const days = { ...store.getSheet('qa_nv1', ctx.M).days, [S.lastDow(ctx.M, 6)]: { kind: 'isat' } };
+      const days = { ...(await store.getSheet('qa_nv1', ctx.M)).days, [await S.lastDow(ctx.M, 6)]: { kind: 'isat' } };
       const res = await sheet('qa_nv1', ctx.M, days);
       assert.equal(res.status, 200, JSON.stringify(res.data));
     },
-    fire: ctx => S.step(ctx.M, 'lock-attendance'),
+    fire: async ctx => await S.step(ctx.M, 'lock-attendance'),
     warn: { codes: ['PENDING_APPROVALS'] },
-    saved: ctx => assert.equal(S.periodRow(ctx.M).status, 'attendance_locked')
+    saved: async ctx => assert.equal((await S.periodRow(ctx.M)).status, 'attendance_locked')
   },
   {
     id: 'A2',
     title: 'duyệt kỳ ngay sau tính lương (chưa AI kiểm tra, phiếu còn nháp): phiếu nháp được duyệt cùng',
     setup: toState('calculated'),
-    fire: ctx => S.step(ctx.M, 'approve'),
+    fire: async ctx => await S.step(ctx.M, 'approve'),
     warn: {},
     saved: async ctx => {
-      assert.equal(S.periodRow(ctx.M).status, 'approved');
+      assert.equal((await S.periodRow(ctx.M)).status, 'approved');
       assert.ok(
         (await S.slipRows(ctx.M)).every(r => r.status === 'approved'),
         'mọi phiếu đã duyệt'
@@ -72,7 +72,7 @@ const CASES = [
     id: 'A3',
     title: 'duyệt phiếu còn nháp (chưa qua AI kiểm tra)',
     setup: toState('calculated'),
-    fire: async ctx => S.decide(ctx.M, await items(ctx)),
+    fire: async ctx => await S.decide(ctx.M, await items(ctx)),
     warn: { codes: ['PAYSLIP_STATE'] },
     saved: async ctx => assert.ok((await S.slipRows(ctx.M)).every(r => r.status === 'approved'))
   },
@@ -80,7 +80,7 @@ const CASES = [
     id: 'A5',
     title: 'trả lại phiếu không ghi chú',
     setup: toState('reviewed'),
-    fire: async ctx => S.decide(ctx.M, [(await items(ctx))[0]], 'return'),
+    fire: async ctx => await S.decide(ctx.M, [(await items(ctx))[0]], 'return'),
     warn: { optional: true },
     saved: async ctx =>
       assert.equal((await S.slipRows(ctx.M))[0].status, 'draft', 'phiếu trả lại về bản nháp (trước đó chờ duyệt)')
@@ -99,7 +99,7 @@ const CASES = [
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
     },
-    fire: async ctx => S.decide(ctx.M, await items(ctx)),
+    fire: async ctx => await S.decide(ctx.M, await items(ctx)),
     warn: { codes: ['PAYSLIP_NEGATIVE_NET'] },
     saved: async ctx => assert.ok((await S.slipRows(ctx.M)).every(r => r.status === 'approved'))
   },
@@ -107,17 +107,17 @@ const CASES = [
     id: 'A8',
     title: 'mở lại kỳ không ghi lý do',
     setup: toState('calculated'),
-    fire: ctx => S.step(ctx.M, 'reopen', { to: 'attendance_locked' }),
+    fire: async ctx => await S.step(ctx.M, 'reopen', { to: 'attendance_locked' }),
     warn: { optional: true },
-    saved: ctx => assert.equal(S.periodRow(ctx.M).status, 'attendance_locked')
+    saved: async ctx => assert.equal((await S.periodRow(ctx.M)).status, 'attendance_locked')
   },
   {
     id: 'D3',
     title: 'sửa số trên phiếu không ghi lý do',
     free: true,
-    fire: ctx => put('admin', '/slip-override', { user: 'qa_nv1', month: ctx.M, values: { otPay: 1000 } }),
+    fire: async ctx => await put('admin', '/slip-override', { user: 'qa_nv1', month: ctx.M, values: { otPay: 1000 } }),
     warn: { optional: true },
-    saved: ctx => assert.equal(store.getSlipOverride('qa_nv1', ctx.M).values.otPay, 1000)
+    saved: async ctx => assert.equal((await store.getSlipOverride('qa_nv1', ctx.M)).values.otPay, 1000)
   },
 
   /* ---------- khoá theo kỳ, mở lại kỳ đã chi trả, tự duyệt, sàn luật ---------- */
@@ -125,50 +125,50 @@ const CASES = [
     id: 'K5-1',
     title: 'lưu lịch ước tính vào kỳ đã chốt công (không còn khoá kỳ)',
     setup: toState('attendance_locked'),
-    fire: ctx => sheet('qa_ctv1', ctx.M, { [monday(ctx)]: day }),
+    fire: async ctx => await sheet('qa_ctv1', ctx.M, { [monday(ctx)]: day }),
     warn: { codes: ['PERIOD_LOCKED'] },
-    saved: ctx => assert.equal(savedDay('qa_ctv1', ctx.M, monday(ctx)).kind, 'work')
+    saved: async ctx => assert.equal((await savedDay('qa_ctv1', ctx.M, monday(ctx))).kind, 'work')
   },
   {
     id: 'K5-2',
     title: 'ghi vào kỳ đã chi trả (sửa số phiếu)',
     setup: toState('paid'),
-    fire: ctx =>
-      put('admin', '/slip-override', { user: 'qa_nv1', month: ctx.M, values: { otPay: 1000 }, reason: REASON }),
+    fire: async ctx =>
+      await put('admin', '/slip-override', { user: 'qa_nv1', month: ctx.M, values: { otPay: 1000 }, reason: REASON }),
     warn: { codes: ['PERIOD_LOCKED'] },
-    saved: ctx => assert.equal(store.getSlipOverride('qa_nv1', ctx.M).values.otPay, 1000)
+    saved: async ctx => assert.equal((await store.getSlipOverride('qa_nv1', ctx.M)).values.otPay, 1000)
   },
   {
     id: 'K5-3',
     title: 'lưu lịch ước tính vào kỳ đã chi trả',
     setup: toState('paid'),
-    fire: ctx => sheet('qa_ctv1', ctx.M, { [monday(ctx)]: day }),
+    fire: async ctx => await sheet('qa_ctv1', ctx.M, { [monday(ctx)]: day }),
     warn: { codes: ['PERIOD_LOCKED'] },
-    saved: ctx => assert.equal(savedDay('qa_ctv1', ctx.M, monday(ctx)).kind, 'work')
+    saved: async ctx => assert.equal((await savedDay('qa_ctv1', ctx.M, monday(ctx))).kind, 'work')
   },
   {
     id: 'K5-4',
     title: 'mở lại kỳ đã chi trả',
     setup: toState('paid'),
-    fire: ctx => S.step(ctx.M, 'reopen', { to: 'calculated', reason: REASON }),
+    fire: async ctx => await S.step(ctx.M, 'reopen', { to: 'calculated', reason: REASON }),
     warn: { codes: ['PERIOD_STATE'] },
-    saved: ctx => assert.equal(S.periodRow(ctx.M).status, 'calculated')
+    saved: async ctx => assert.equal((await S.periodRow(ctx.M)).status, 'calculated')
   },
   {
     id: 'K5-5',
     title: 'tự duyệt phiếu của chính mình (người làm lương cũng nhận lương)',
     setup: async ctx => {
       await S.advance(ctx.M, 'reviewed');
-      S.grant('qa_nv1', 'cb');
+      await S.grant('qa_nv1', 'cb');
     },
     fire: async ctx => {
       const own = (await S.slipRows(ctx.M)).find(r => r.username === 'qa_nv1');
-      return S.decide(ctx.M, [{ username: 'qa_nv1', rev: own.rev }], 'approve', undefined, 'qa_nv1');
+      return await S.decide(ctx.M, [{ username: 'qa_nv1', rev: own.rev }], 'approve', undefined, 'qa_nv1');
     },
     warn: { codes: ['SELF_DECISION_FORBIDDEN'] },
     saved: async ctx => {
       assert.equal((await S.slipRows(ctx.M)).find(r => r.username === 'qa_nv1').status, 'approved');
-      const rows = S.auditOf(ctx.M).filter(r => r.actor === 'qa_nv1');
+      const rows = (await S.auditOf(ctx.M)).filter(r => r.actor === 'qa_nv1');
       assert.ok(
         rows.some(r => r.after && r.after.self === true),
         `nhật ký phải ghi after.self = true: ${JSON.stringify(rows.map(r => [r.action, r.after]))}`
@@ -182,57 +182,57 @@ const CASES = [
     // khoá cố định thay vì dò bằng validateValue: bộ kiểm giá trị không còn báo lỗi cứng nên bộ dò S.hardFloorKey() trả null và bài bị bỏ qua âm thầm
     // phụ trội giờ nghỉ đêm có sàn luật mức cứng 30 % (Bộ luật Lao động 45/2019/QH14, Điều 98 khoản 2)
     ready: () => S.entryOf('night.breakPremium'),
-    setup: () => S.setMode('defaults-only'),
-    fire: () =>
-      S.saveChanges([{ key: 'night.breakPremium', value: 0.1 }], {
+    setup: async () => await S.setMode('defaults-only'),
+    fire: async () =>
+      await S.saveChanges([{ key: 'night.breakPremium', value: 0.1 }], {
         month: FAR_MONTH,
         extra: { basis: 'Căn cứ thử', acknowledge: [{ key: 'night.breakPremium', code: 'PARAM_FLOOR_ACK_REQUIRED' }] }
       }),
     warn: { codes: ['PARAM_BELOW_LEGAL_FLOOR'] },
-    saved: () => assert.ok(S.rowCount() > 0, 'đã lưu một phiên bản tham số')
+    saved: async () => assert.ok(await S.rowCount() > 0, 'đã lưu một phiên bản tham số')
   },
 
   /* ---------- lịch ước tính ---------- */
   sheetCase('B1', 'khai ngày làm vào Chủ nhật', {
     days: ctx => ({ [sunday(ctx)]: day }),
     message: /Chủ nhật/,
-    saved: ctx => assert.equal(savedDay('qa_ctv1', ctx.M, sunday(ctx)).kind, 'work')
+    saved: async ctx => assert.equal((await savedDay('qa_ctv1', ctx.M, sunday(ctx))).kind, 'work')
   }),
   sheetCase('B2', 'TTS đi làm vào ngày ngoài lịch (Thứ Bảy)', {
     who: 'qa_tts1',
     days: ctx => ({ [saturday(ctx)]: n1 }),
     message: /ngoài lịch làm việc/,
-    saved: ctx => assert.equal(savedDay('qa_tts1', ctx.M, saturday(ctx)).kind, 'work')
+    saved: async ctx => assert.equal((await savedDay('qa_tts1', ctx.M, saturday(ctx))).kind, 'work')
   }),
   sheetCase('B3', 'giờ vào – ra khác ca cố định do Admin gán', {
     days: ctx => ({ [monday(ctx)]: { kind: 'work', in: '11:00', out: '20:00' } }),
     message: /ca cố định/,
-    saved: ctx => assert.equal(savedDay('qa_ctv1', ctx.M, monday(ctx)).in, '11:00')
+    saved: async ctx => assert.equal((await savedDay('qa_ctv1', ctx.M, monday(ctx))).in, '11:00')
   }),
   // OT vào ngày lễ không có trong bảng: khai và trả OT ngày lễ, không phải chỗ chặn (test holiday-ot-entry).
   // Làm bù ngày lễ bị chặn nên cũng không thuộc bảng này.
   sheetCase('B7', 'OT rơi vào khung 22h–6h', {
     days: ctx => ({ [monday(ctx)]: { ...day, extraKind: 'ot', extraOut: '23:00' } }),
     message: /22h/,
-    saved: ctx => assert.equal(savedDay('qa_ctv1', ctx.M, monday(ctx)).extraOut, '23:00')
+    saved: async ctx => assert.equal((await savedDay('qa_ctv1', ctx.M, monday(ctx))).extraOut, '23:00')
   }),
   sheetCase('B10', 'TTS khai OT (chức vụ không có overtime)', {
     who: 'qa_tts1',
     days: ctx => ({ [monday(ctx)]: { ...n1, extraKind: 'ot', extraOut: '19:00' } }),
     message: /không có overtime/,
-    saved: ctx => assert.equal(savedDay('qa_tts1', ctx.M, monday(ctx)).extraKind, 'ot')
+    saved: async ctx => assert.equal((await savedDay('qa_tts1', ctx.M, monday(ctx))).extraKind, 'ot')
   }),
   sheetCase('B13', 'nghỉ không lương ngày thường khi còn phép năm', {
     who: 'qa_nv1',
     days: ctx => ({ [monday(ctx)]: { kind: 'unpaid' } }),
     message: /ngày thường phải dùng phép năm/,
-    saved: ctx => assert.equal(savedDay('qa_nv1', ctx.M, monday(ctx)).kind, 'unpaid')
+    saved: async ctx => assert.equal((await savedDay('qa_nv1', ctx.M, monday(ctx))).kind, 'unpaid')
   }),
   sheetCase('B15', 'mức KPI khai vượt mức tối đa của bậc', {
     days: ctx => ({ [monday(ctx)]: day }),
     extra: () => ({ kpiAmt: 99000000 }),
     message: /vượt mức tối đa/,
-    saved: ctx => assert.ok(store.getSheet('qa_ctv1', ctx.M).kpiAmt > 0, 'mức KPI đã lưu')
+    saved: async ctx => assert.ok((await store.getSheet('qa_ctv1', ctx.M)).kpiAmt > 0, 'mức KPI đã lưu')
   }),
 
   /* ---------- Check-in ---------- */
@@ -243,18 +243,18 @@ const CASES = [
     setup: async ctx => {
       const fence = await put('admin', '/settings/geofence', { ...HQ, radiusM: 150, maxAccuracyM: 80 });
       assert.equal(fence.status, 200, JSON.stringify(fence.data));
-      F.at('2029-04-03T07:50:00'); // Thứ Ba
+      await F.at('2029-04-03T07:50:00'); // Thứ Ba
     },
-    fire: () =>
-      post('qa_tts1', '/punch', {
+    fire: async () =>
+      await post('qa_tts1', '/punch', {
         type: 'in',
         requestId: 'k4-geo-0001',
         explanation: 'Giải trình lúc bấm', // Check-in ngoài vùng phải kèm giải trình
         location: { lat: HQ.lat + 500 / M_PER_DEG, lng: HQ.lng, accuracy: 10 }
       }),
     warn: { message: /ngoài phạm vi công ty/ },
-    saved: () => {
-      const open = store.openSession('qa_tts1');
+    saved: async () => {
+      const open = await store.openSession('qa_tts1');
       assert.ok(open, 'lượt Check-in đã tạo');
       // chỉ MỘT cờ boolean outsideZone: true (không toạ độ, độ chính xác, khoảng cách hay mã lý do)
       assert.strictEqual(open.entry.outsideZone, true, 'lượt mang cờ outsideZone: true');
@@ -268,8 +268,8 @@ const CASES = [
       );
       assert.doesNotMatch(JSON.stringify(open), /10\.7\d|106\.70\d/, 'không có số toạ độ trong lượt');
       // và không bảng nào (trừ cài đặt vùng GPS và nhật ký đổi vùng, vốn chứa toạ độ công ty) mang toạ độ của lượt Check-in
-      for (const table of F.tables().filter(name => !['settings', 'audit_log'].includes(name)))
-        for (const row of store.db.prepare(`SELECT * FROM ${table}`).all())
+      for (const table of (await F.tables()).filter(name => !['settings', 'audit_log'].includes(name)))
+        for (const row of await store.db.prepare(`SELECT * FROM ${table}`).all())
           assert.doesNotMatch(
             JSON.stringify(row, (k, v) => (v instanceof Uint8Array ? '' : v)),
             /10\.7\d{2}|106\.70\d/,
@@ -283,9 +283,9 @@ const CASES = [
     id: 'D1',
     title: 'nhập điểm KPI cho tháng chưa bắt đầu',
     free: true,
-    fire: () => put('admin', '/kpi/scores', { user: 'qa_ctv1', month: '2029-06', scores: { wework: 80 } }),
+    fire: async () => await put('admin', '/kpi/scores', { user: 'qa_ctv1', month: '2029-06', scores: { wework: 80 } }),
     warn: { message: /chưa bắt đầu/ },
-    saved: () => assert.equal(store.getKpiScores('qa_ctv1', '2029-06').scores.wework != null, true)
+    saved: async () => assert.equal((await store.getKpiScores('qa_ctv1', '2029-06')).scores.wework != null, true)
   },
 
   /* ---------- cài đặt tham số ---------- */
@@ -294,47 +294,47 @@ const CASES = [
     title: 'lưu tham số không ghi lý do',
     free: true,
     ready: () => S.adminKey(),
-    setup: () => S.setMode('defaults-only'),
+    setup: async () => await S.setMode('defaults-only'),
     fire: async () => {
-      const key = S.adminKey();
+      const key = await S.adminKey();
       const [value] = await S.differing(key, FAR_MONTH);
-      return S.saveChanges([{ key: key.key, value }], { month: FAR_MONTH, reason: undefined });
+      return await S.saveChanges([{ key: key.key, value }], { month: FAR_MONTH, reason: undefined });
     },
     warn: { optional: true },
-    saved: () => assert.ok(S.rowCount() > 0)
+    saved: async () => assert.ok(await S.rowCount() > 0)
   },
   {
     id: 'E3',
     title: 'lưu tham số dưới/trên mức khuyến nghị mà không tích xác nhận',
     free: true,
     ready: () => S.softFloorKey(),
-    setup: () => S.setMode('defaults-only'),
-    fire: () => {
-      const found = S.softFloorKey();
-      return S.saveChanges([{ key: found.key, value: found.value }], {
+    setup: async () => await S.setMode('defaults-only'),
+    fire: async () => {
+      const found = await S.softFloorKey();
+      return await S.saveChanges([{ key: found.key, value: found.value }], {
         month: FAR_MONTH,
         extra: { basis: 'Căn cứ thử' }
       });
     },
     warn: { codes: ['PARAM_FLOOR_ACK_REQUIRED'] },
-    saved: () => assert.ok(S.rowCount() > 0)
+    saved: async () => assert.ok(await S.rowCount() > 0)
   },
   {
     id: 'E2',
     title: 'Kế toán sửa tham số luật mà không ghi căn cứ',
     free: true,
     ready: () => S.accountingKey(),
-    setup: () => S.setMode('defaults-only'),
-    fire: () => {
-      const found = S.accountingKey();
-      return S.saveChanges([{ key: found.key, value: found.value }], {
+    setup: async () => await S.setMode('defaults-only'),
+    fire: async () => {
+      const found = await S.accountingKey();
+      return await S.saveChanges([{ key: found.key, value: found.value }], {
         month: FAR_MONTH,
         extra: { basis: '' },
         who: 'admin'
       });
     },
     warn: { optional: true },
-    saved: () => assert.ok(S.rowCount() > 0)
+    saved: async () => assert.ok(await S.rowCount() > 0)
   },
 
   /* ---------- hồ sơ, tài khoản ---------- */
@@ -342,11 +342,11 @@ const CASES = [
     id: 'G5',
     title: 'Admin đặt lại mật khẩu không ghi lý do',
     free: true,
-    fire: () => post('admin', '/staff/qa_tts1/password', { password: 'mat-khau-moi-12345' }),
+    fire: async () => await post('admin', '/staff/qa_tts1/password', { password: 'mat-khau-moi-12345' }),
     warn: { optional: true },
-    saved: () => {
+    saved: async () => {
       const auth = require('../../lib/auth');
-      assert.equal(auth.verifyPassword('mat-khau-moi-12345', store.getStaffRow('qa_tts1').pass_hash), true);
+      assert.equal(auth.verifyPassword('mat-khau-moi-12345', (await store.getStaffRow('qa_tts1')).pass_hash), true);
     }
   },
 
@@ -356,20 +356,20 @@ const CASES = [
     title: 'từ chối khoản tự khai không ghi lý do',
     free: true,
     setup: async ctx => {
-      const days = { [S.lastDow(ctx.M, 6)]: { kind: 'isat' } };
+      const days = { [await S.lastDow(ctx.M, 6)]: { kind: 'isat' } };
       const res = await sheet('qa_nv1', ctx.M, days);
       assert.equal(res.status, 200, JSON.stringify(res.data));
     },
-    fire: ctx => {
-      const row = store.approvals.list({ status: 'pending', username: 'qa_nv1' })[0];
+    fire: async ctx => {
+      const row = (await store.approvals.list({ status: 'pending', username: 'qa_nv1' }))[0];
       assert.ok(row, 'có khoản chờ duyệt');
-      return put('admin', '/approvals/decide', {
+      return await put('admin', '/approvals/decide', {
         action: 'reject',
         items: [{ username: row.username, date: row.date, rev: row.rev, fingerprint: row.fingerprint }]
       });
     },
     warn: { optional: true },
-    saved: () => assert.equal(store.approvals.list({ status: 'rejected', username: 'qa_nv1' }).length, 1)
+    saved: async () => assert.equal((await store.approvals.list({ status: 'rejected', username: 'qa_nv1' })).length, 1)
   }
 ];
 

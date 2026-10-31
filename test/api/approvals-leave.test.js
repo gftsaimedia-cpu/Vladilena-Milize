@@ -18,8 +18,8 @@ const realNow = Date.now;
 // 14/10/2026 12:00 giờ Việt Nam (Thứ 4)
 const CLOCK = Date.parse('2026-10-14T12:00:00+07:00');
 
-function person(username, overrides = {}) {
-  store.upsertStaff({
+async function person(username, overrides = {}) {
+  await store.upsertStaff({
     username,
     name: username,
     role: 'staff',
@@ -33,7 +33,7 @@ function person(username, overrides = {}) {
 }
 async function call(method, route, body, who = 'admin') {
   const headers = { 'Content-Type': 'application/json' };
-  if (who) headers.Cookie = auth.cookieHeader(auth.createSession(who), 86400);
+  if (who) headers.Cookie = auth.cookieHeader(await auth.createSession(who), 86400);
   const response = await fetch(base + '/api' + route, {
     method,
     headers,
@@ -41,12 +41,12 @@ async function call(method, route, body, who = 'admin') {
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
-const rowsOf = username =>
-  store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
-const rowAt = (username, date) => rowsOf(username).find(row => row.date === date);
-const snapshot = () => ({
-  approvals: store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all(),
-  timesheets: store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all()
+const rowsOf = async username =>
+  await store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
+const rowAt = async (username, date) => (await rowsOf(username)).find(row => row.date === date);
+const snapshot = async () => ({
+  approvals: await store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all(),
+  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all()
 });
 
 // 1/10/2026 là Thứ 5: 5/10 Thứ 2, 6/10 Thứ 3, 7/10 Thứ 4; 8/9/2026 Thứ 3; 3/11/2026 Thứ 3
@@ -54,8 +54,8 @@ const LEAVE = '2026-10-05',
   LEAVE2 = '2026-10-06',
   SEP_LEAVE = '2026-09-08',
   NOV_LEAVE = '2026-11-03';
-const saveSheet = (who, days, month) =>
-  call('PUT', '/sheet', { month: month || Object.keys(days)[0].slice(0, 7), days }, who);
+const saveSheet = async (who, days, month) =>
+  await call('PUT', '/sheet', { month: month || Object.keys(days)[0].slice(0, 7), days }, who);
 const sheetOf = async (who, month = '2026-10') => (await call('GET', `/sheet?month=${month}`, undefined, who)).data;
 const queue = async (params = '') => (await call('GET', '/approvals' + params)).data;
 const refsOf = items =>
@@ -67,7 +67,7 @@ before(async () => {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   base = 'http://127.0.0.1:' + server.address().port;
 });
-beforeEach(() => {
+beforeEach(async () => {
   for (const table of [
     'sheet_approvals',
     'punch_requests',
@@ -80,14 +80,14 @@ beforeEach(() => {
     'settings'
   ]) {
     try {
-      store.db.exec('DELETE FROM ' + table);
+      await store.db.exec('DELETE FROM ' + table);
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
     }
   }
-  person('admin', { role: 'admin', type: 'tts', level: 0 });
-  person('worker');
-  person('other');
+  await person('admin', { role: 'admin', type: 'tts', level: 0 });
+  await person('worker');
+  await person('other');
 });
 after(async () => {
   Date.now = realNow;
@@ -101,7 +101,7 @@ after(async () => {
 test('Phép năm: lưu một ngày "Nghỉ phép năm" tạo dòng chờ duyệt item leave, dấu vân tay "leave"', async () => {
   const r = await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const row = rowAt('worker', LEAVE);
+  const row = await rowAt('worker', LEAVE);
   assert.equal(row.item, 'leave');
   assert.equal(row.fingerprint, 'leave');
   assert.equal(row.status, 'pending');
@@ -112,8 +112,8 @@ test('Phép năm: lưu một ngày "Nghỉ phép năm" tạo dòng chờ duyệt
 });
 
 test('Phép năm: GET /sheet mang khoản leave với trạng thái hiệu lực (kể cả khi lịch có sẵn mà chưa có dòng duyệt)', async () => {
-  store.setSheet('worker', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
-  assert.equal(rowsOf('worker').length, 0, 'không có dòng duyệt: chưa qua PUT /sheet');
+  await store.setSheet('worker', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
+  assert.equal((await rowsOf('worker')).length, 0, 'không có dòng duyệt: chưa qua PUT /sheet');
   const got = await sheetOf('worker');
   assert.deepEqual(
     { item: got.approvals[LEAVE].item, status: got.approvals[LEAVE].status, rev: got.approvals[LEAVE].rev },
@@ -147,10 +147,10 @@ test('Phép năm: GET /approvals liệt kê khoản leave kèm ngày đã khai, 
 test('Phép năm: lưu lại lịch không đổi ngày phép thì dòng giữ nguyên rev; đổi sang ngày đi làm thì dòng biến mất', async () => {
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
-  assert.equal(rowAt('worker', LEAVE).rev, 1);
+  assert.equal((await rowAt('worker', LEAVE)).rev, 1);
   const r = await saveSheet('worker', { [LEAVE]: { kind: 'work', in: '08:00', out: '17:00' } }, '2026-10');
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(rowAt('worker', LEAVE), undefined);
+  assert.equal(await rowAt('worker', LEAVE), undefined);
   assert.deepEqual(r.data.removed, [LEAVE]);
 });
 
@@ -162,7 +162,7 @@ test('Phép năm: Admin duyệt khoản leave: đã duyệt, rev tăng, GET /she
   const r = await call('PUT', '/approvals/decide', { action: 'approve', items: refsOf(items) });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.decided, 1);
-  const row = rowAt('worker', LEAVE);
+  const row = await rowAt('worker', LEAVE);
   assert.equal(row.status, 'approved');
   assert.equal(row.rev, 2);
   assert.equal(row.decided_by, 'admin');
@@ -174,19 +174,19 @@ test('Phép năm: Admin từ chối khoản leave có lý do hoặc không có l
   const items = refsOf((await queue()).items);
   const r = await call('PUT', '/approvals/decide', { action: 'reject', items, note: 'Trùng đợt cao điểm' });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(rowAt('worker', LEAVE).status, 'rejected');
+  assert.equal((await rowAt('worker', LEAVE)).status, 'rejected');
   assert.equal((await sheetOf('worker')).approvals[LEAVE].status, 'rejected');
   await saveSheet('worker', { [LEAVE2]: { kind: 'leave' } });
   const second = refsOf((await queue()).items.filter(x => x.date === LEAVE2));
   const noNote = await call('PUT', '/approvals/decide', { action: 'reject', items: second });
   assert.equal(noNote.status, 200, JSON.stringify(noNote.data));
-  assert.equal(rowAt('worker', LEAVE2).status, 'rejected');
+  assert.equal((await rowAt('worker', LEAVE2)).status, 'rejected');
 });
 
 test('Phép năm: nhân sự gọi route duyệt khoản leave của chính mình: 403, kể cả gửi thêm status; không lưu gì', async () => {
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
   const items = refsOf((await queue()).items);
-  const before = snapshot();
+  const before = await snapshot();
   for (const body of [
     { action: 'approve', items },
     { action: 'approve', items, status: 'approved', user: 'admin' },
@@ -195,7 +195,7 @@ test('Phép năm: nhân sự gọi route duyệt khoản leave của chính mìn
     assert.equal((await call('PUT', '/approvals/decide', body, 'worker')).status, 403);
   assert.equal((await call('GET', '/approvals', undefined, 'worker')).status, 403);
   assert.equal((await call('GET', '/approvals/count', undefined, 'worker')).status, 403);
-  assert.deepEqual(snapshot(), before);
+  assert.deepEqual(await snapshot(), before);
 });
 
 test('Phép năm: nhân sự gửi trường approve / status trong PUT /sheet thì không tự duyệt được ngày phép', async () => {
@@ -208,22 +208,22 @@ test('Phép năm: nhân sự gửi trường approve / status trong PUT /sheet t
   // khác thì bị 403 và không lưu gì.
   const foreign = await call('PUT', '/sheet', { ...body, user: 'other' }, 'worker');
   assert.equal(foreign.status, 403, JSON.stringify(foreign.data));
-  assert.equal(rowsOf('other').length, 0);
-  assert.equal(rowsOf('worker').length, 0, 'bị từ chối thì lịch của chính họ cũng không được lưu');
+  assert.equal((await rowsOf('other')).length, 0);
+  assert.equal((await rowsOf('worker')).length, 0, 'bị từ chối thì lịch của chính họ cũng không được lưu');
   // trường approve / status trong lịch của chính mình không tự duyệt được ngày phép
   const r = await call('PUT', '/sheet', body, 'worker');
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(rowAt('worker', LEAVE).status, 'pending');
-  assert.equal(rowsOf('other').length, 0);
+  assert.equal((await rowAt('worker', LEAVE)).status, 'pending');
+  assert.equal((await rowsOf('other')).length, 0);
 });
 
 test('Phép năm: duyệt xong rồi nhân sự lưu lại đúng ngày phép đó thì vẫn đã duyệt', async () => {
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
   await call('PUT', '/approvals/decide', { action: 'approve', items: refsOf((await queue()).items) });
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' }, [LEAVE2]: { kind: 'leave' } });
-  assert.equal(rowAt('worker', LEAVE).status, 'approved');
-  assert.equal(rowAt('worker', LEAVE).rev, 2);
-  assert.equal(rowAt('worker', LEAVE2).status, 'pending');
+  assert.equal((await rowAt('worker', LEAVE)).status, 'approved');
+  assert.equal((await rowAt('worker', LEAVE)).rev, 2);
+  assert.equal((await rowAt('worker', LEAVE2)).status, 'pending');
 });
 
 // ================= Số dư phép theo trạng thái duyệt =================
@@ -236,13 +236,13 @@ test('Phép năm: ngày phép chờ duyệt và đã duyệt tính là đã dùn
   assert.equal(pendingLeave.balance, pendingLeave.total - 1);
   const items = refsOf((await queue()).items);
   await call('PUT', '/approvals/decide', { action: 'reject', items, note: 'Không đủ người' });
-  assert.equal(rowAt('worker', LEAVE).status, 'rejected');
+  assert.equal((await rowAt('worker', LEAVE)).status, 'rejected');
   const rejectedLeave = await leaveOf('worker');
   assert.equal(rejectedLeave.used, 0, 'ngày bị từ chối trả lại phép');
   assert.equal(rejectedLeave.balance, rejectedLeave.total);
   const rejected = refsOf((await queue('?status=rejected')).items);
   await call('PUT', '/approvals/decide', { action: 'approve', items: rejected, note: 'Đổi ý' });
-  assert.equal(rowAt('worker', LEAVE).status, 'approved');
+  assert.equal((await rowAt('worker', LEAVE)).status, 'approved');
   assert.deepEqual(await leaveOf('worker'), pendingLeave, 'duyệt lại: phép bị trừ như lúc chờ duyệt');
 });
 
@@ -266,7 +266,7 @@ test('Phép năm: GET /api/sheet trả leaveBalance theo trạng thái duyệt: 
 });
 
 test('Phép năm: PUT /api/sheet nhận ngày phép khi phép đã trả lại: ngày bị từ chối không giữ chỗ nên khai được ngày khác', async () => {
-  person('newbie2', { startDate: '2026-09-01' });
+  await person('newbie2', { startDate: '2026-09-01' });
   assert.equal((await saveSheet('newbie2', { [LEAVE]: { kind: 'leave' } })).status, 200);
   assert.equal((await leaveOf('newbie2')).balance, 0);
   const items = refsOf((await queue()).items.filter(x => x.username === 'newbie2'));
@@ -274,21 +274,21 @@ test('Phép năm: PUT /api/sheet nhận ngày phép khi phép đã trả lại: 
   assert.equal((await leaveOf('newbie2')).balance, 1, 'phép trả lại');
   const again = await saveSheet('newbie2', { [LEAVE]: { kind: 'leave' }, [LEAVE2]: { kind: 'leave' } });
   assert.equal(again.status, 200, JSON.stringify(again.data));
-  assert.equal(rowAt('newbie2', LEAVE).status, 'rejected', 'ngày bị từ chối khai y nguyên vẫn bị từ chối');
-  assert.equal(rowAt('newbie2', LEAVE2).status, 'pending');
+  assert.equal((await rowAt('newbie2', LEAVE)).status, 'rejected', 'ngày bị từ chối khai y nguyên vẫn bị từ chối');
+  assert.equal((await rowAt('newbie2', LEAVE2)).status, 'pending');
   assert.equal((await leaveOf('newbie2')).balance, 0);
 });
 
 // ================= Đồng bộ khi đổi lịch lễ hoặc loại nhân sự =================
 
 test('Phép năm: PUT /holidays đồng bộ dòng leave còn thiếu: tháng 09/2026 đã duyệt bởi system, tháng 10/2026 chờ duyệt', async () => {
-  store.setSheet('worker', '2026-09', { [SEP_LEAVE]: { kind: 'leave' } }, null, null);
-  store.setSheet('worker', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
-  assert.equal(rowsOf('worker').length, 0);
+  await store.setSheet('worker', '2026-09', { [SEP_LEAVE]: { kind: 'leave' } }, null, null);
+  await store.setSheet('worker', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
+  assert.equal((await rowsOf('worker')).length, 0);
   const r = await call('PUT', '/holidays', { dates: ['2026-09-02', '2026-10-20'] });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  const sep = rowAt('worker', SEP_LEAVE),
-    oct = rowAt('worker', LEAVE);
+  const sep = await rowAt('worker', SEP_LEAVE),
+    oct = await rowAt('worker', LEAVE);
   assert.deepEqual([sep.item, sep.status, sep.decided_by], ['leave', 'approved', 'system']);
   assert.deepEqual([oct.item, oct.status, oct.decided_by], ['leave', 'pending', null]);
 });
@@ -296,17 +296,17 @@ test('Phép năm: PUT /holidays đồng bộ dòng leave còn thiếu: tháng 09
 test('Phép năm: PUT /holidays không đặt lại ngày phép đã được Admin duyệt', async () => {
   await saveSheet('worker', { [LEAVE]: { kind: 'leave' } });
   await call('PUT', '/approvals/decide', { action: 'approve', items: refsOf((await queue()).items) });
-  const before = rowAt('worker', LEAVE);
+  const before = await rowAt('worker', LEAVE);
   assert.equal((await call('PUT', '/holidays', { dates: ['2026-10-20'] })).status, 200);
-  assert.deepEqual(rowAt('worker', LEAVE), before);
+  assert.deepEqual(await rowAt('worker', LEAVE), before);
 });
 
 test('Phép năm: đổi loại nhân sự (NV sang CTV) đồng bộ dòng leave còn thiếu của mọi tháng theo cùng mốc 10/2026', async () => {
-  person('mover');
-  store.setSheet('mover', '2026-09', { [SEP_LEAVE]: { kind: 'leave' } }, null, null);
-  store.setSheet('mover', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
-  store.setSheet('mover', '2026-11', { [NOV_LEAVE]: { kind: 'leave' } }, null, null);
-  assert.equal(rowsOf('mover').length, 0);
+  await person('mover');
+  await store.setSheet('mover', '2026-09', { [SEP_LEAVE]: { kind: 'leave' } }, null, null);
+  await store.setSheet('mover', '2026-10', { [LEAVE]: { kind: 'leave' } }, null, null);
+  await store.setSheet('mover', '2026-11', { [NOV_LEAVE]: { kind: 'leave' } }, null, null);
+  assert.equal((await rowsOf('mover')).length, 0);
   const r = await call('PUT', '/staff/mover', {
     name: 'mover',
     role: 'staff',
@@ -315,8 +315,8 @@ test('Phép năm: đổi loại nhân sự (NV sang CTV) đồng bộ dòng leav
     startDate: '2026-01-01'
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(store.getStaff('mover').type, 'ctv');
-  const summary = Object.fromEntries(rowsOf('mover').map(x => [x.date, `${x.item}:${x.status}:${x.decided_by}`]));
+  assert.equal((await store.getStaff('mover')).type, 'ctv');
+  const summary = Object.fromEntries((await rowsOf('mover')).map(x => [x.date, `${x.item}:${x.status}:${x.decided_by}`]));
   assert.deepEqual(summary, {
     [SEP_LEAVE]: 'leave:approved:system',
     [LEAVE]: 'leave:pending:null',
@@ -327,12 +327,13 @@ test('Phép năm: đổi loại nhân sự (NV sang CTV) đồng bộ dòng leav
 // ================= Di chuyển (sheet_approvals_v3) =================
 
 const LIB_DB = JSON.stringify(path.join(__dirname, '../../lib/db'));
-function runChild(dbPath, script) {
-  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', script], {
+const { wrapScript } = require('../helpers/child-script');
+async function runChild(dbPath, script) {
+  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {
     env: { ...process.env, DB_PATH: dbPath, SESSION_SECRET: 'approvals-leave-migration' },
     encoding: 'utf8'
   });
-  return JSON.parse(out.trim().split('\n').at(-1));
+  return JSON.parse(await out.trim().split('\n').at(-1));
 }
 const DUMP = `
   const rows = store.db.prepare('SELECT username, date, item, fingerprint, status, rev, decided_by, note FROM sheet_approvals ORDER BY username, date').all();
@@ -350,10 +351,10 @@ const PERSON_SQL = `store.upsertStaff({ username: 'worker', name: 'worker', role
 const SHEETS_SQL = `for (const [month, days] of Object.entries(${JSON.stringify(LEGACY)})) store.setSheet('worker', month, days, null, null);`;
 
 // DB đang chạy thật: v1 và v2 đã chạy, các khoản cũ đã có dòng, nhưng chưa có dòng nào cho ngày phép (chưa có khoản thứ bảy)
-function buildProductionDb() {
+async function buildProductionDb() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
   const dbPath = path.join(dir, 'prod.sqlite');
-  runChild(
+  await runChild(
     dbPath,
     `
     const store = require(${LIB_DB});
@@ -370,9 +371,9 @@ function buildProductionDb() {
   return dbPath;
 }
 
-test('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên', () => {
-  const dbPath = buildProductionDb();
-  const { rows, markers } = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+test('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên', async () => {
+  const dbPath = await buildProductionDb();
+  const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
   assert.deepEqual(summaryOf(rows), {
     '2026-08-11': 'leave:approved:system',
@@ -391,10 +392,10 @@ test('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đ�
   );
 });
 
-test('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', () => {
-  const dbPath = buildProductionDb();
-  const first = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  const changed = runChild(
+test('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', async () => {
+  const dbPath = await buildProductionDb();
+  const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+  const changed = await runChild(
     dbPath,
     `
     const store = require(${LIB_DB});
@@ -405,14 +406,14 @@ test('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng 
   );
   assert.equal(first.rows.length, 6);
   assert.equal(changed.rows.length, 5);
-  assert.deepEqual(runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
-  assert.deepEqual(runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
+  assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
+  assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
 });
 
-test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi ngày phép đúng một dòng', () => {
+test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi ngày phép đúng một dòng', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
   const dbPath = path.join(dir, 'legacy.sqlite');
-  runChild(
+  await runChild(
     dbPath,
     `
     const store = require(${LIB_DB});
@@ -423,7 +424,7 @@ test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi
     console.log('{}');
   `
   );
-  const { rows, markers } = runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+  const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
   assert.deepEqual(summaryOf(rows), {
     '2026-08-11': 'leave:approved:system',
@@ -436,9 +437,9 @@ test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi
   assert.equal(rows.length, 6);
 });
 
-test('di chuyển v3 trên DB trống: không tạo dòng nào, đặt đủ ba dấu v1, v2, v3', () => {
+test('di chuyển v3 trên DB trống: không tạo dòng nào, đặt đủ ba dấu v1, v2, v3', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
-  const { rows, markers } = runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
+  const { rows, markers } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rows, []);
   assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
 });

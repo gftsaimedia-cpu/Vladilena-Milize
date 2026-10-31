@@ -85,47 +85,47 @@ const dayShift = { kind: 'work', in: '08:00', out: '17:00' };
 const nightShift = { kind: 'work', in: '22:00', out: '07:00' };
 const TUE = '2026-10-06';
 
-test('qa_nv ca 08:00–17:00 bấm 07:55 / 17:10: dòng ngày mang đúng giờ bấm, giờ làm 8 và lương ngày 230.769 không đổi', () => {
-  const { row } = month(DAY, { [TUE]: dayShift }, [punch(DAY, TUE, '07:55', '17:10')]);
-  assert.equal(row(TUE).punchIn, '07:55');
-  assert.equal(row(TUE).punchOut, '17:10');
-  assert.equal(row(TUE).hours, 8);
-  assert.equal(Math.round(row(TUE).total), 230769);
+test('qa_nv ca 08:00–17:00 bấm 07:55 / 17:10: dòng ngày mang đúng giờ bấm, giờ làm 8 và lương ngày 230.769 không đổi', async () => {
+  const { row } = await month(DAY, { [TUE]: dayShift }, [await punch(DAY, TUE, '07:55', '17:10')]);
+  assert.equal((await row(TUE)).punchIn, '07:55');
+  assert.equal((await row(TUE)).punchOut, '17:10');
+  assert.equal((await row(TUE)).hours, 8);
+  assert.equal(Math.round((await row(TUE)).total), 230769);
 });
 
-test('vào trễ 08:40, ra 17:00: giờ bấm thật 08:40 – 17:00, phút cắt vẫn là phút cắt của bộ máy', () => {
-  const { row } = month(DAY, { [TUE]: dayShift }, [punch(DAY, TUE, '08:40', '17:00')]);
-  assert.equal(row(TUE).punchIn, '08:40');
-  assert.equal(row(TUE).punchOut, '17:00');
-  assert.ok(row(TUE).cutStartMin > 0, `có phút cắt: ${row(TUE).cutStartMin}`);
-  assert.equal(row(TUE).in, '08:00', 'giờ ca vẫn là giờ ca');
+test('vào trễ 08:40, ra 17:00: giờ bấm thật 08:40 – 17:00, phút cắt vẫn là phút cắt của bộ máy', async () => {
+  const { row } = await month(DAY, { [TUE]: dayShift }, [await punch(DAY, TUE, '08:40', '17:00')]);
+  assert.equal((await row(TUE)).punchIn, '08:40');
+  assert.equal((await row(TUE)).punchOut, '17:00');
+  assert.ok((await row(TUE)).cutStartMin > 0, `có phút cắt: ${(await row(TUE)).cutStartMin}`);
+  assert.equal((await row(TUE)).in, '08:00', 'giờ ca vẫn là giờ ca');
 });
 
-test('giờ bấm không đổi tiền: bấm đúng giờ và bấm sớm vào, muộn ra (không có phút cắt) cùng tổng tiền và giờ làm', () => {
-  const on = month(DAY, { [TUE]: dayShift }, [punch(DAY, TUE, '08:00', '17:00')]).row(TUE);
-  const off = month(DAY, { [TUE]: dayShift }, [punch(DAY, TUE, '07:50', '17:20')]).row(TUE);
+test('giờ bấm không đổi tiền: bấm đúng giờ và bấm sớm vào, muộn ra (không có phút cắt) cùng tổng tiền và giờ làm', async () => {
+  const on = await (await month(DAY, { [TUE]: dayShift }, [await punch(DAY, TUE, '08:00', '17:00')])).row(TUE);
+  const off = await (await month(DAY, { [TUE]: dayShift }, [await punch(DAY, TUE, '07:50', '17:20')])).row(TUE);
   assert.equal(on.total, off.total);
   assert.equal(on.hours, off.hours);
 });
 
-test('ca đêm 22:00 – 07:00: giờ ra là giờ đồng hồ của sáng hôm sau', () => {
-  const { row } = month(NIGHT, { [TUE]: nightShift }, [punch(NIGHT, TUE, '21:58', '07:05', 1)]);
-  assert.equal(row(TUE).punchIn, '21:58');
-  assert.equal(row(TUE).punchOut, '07:05');
+test('ca đêm 22:00 – 07:00: giờ ra là giờ đồng hồ của sáng hôm sau', async () => {
+  const { row } = await month(NIGHT, { [TUE]: nightShift }, [await punch(NIGHT, TUE, '21:58', '07:05', 1)]);
+  assert.equal((await row(TUE)).punchIn, '21:58');
+  assert.equal((await row(TUE)).punchOut, '07:05');
 });
 
-test('quên Check-out: chờ xử lý, chỉ có giờ vào thật; giờ ra null', () => {
-  const { row } = month(DAY, { [TUE]: dayShift }, [forgotOut(DAY, TUE, '07:58')]);
-  assert.equal(row(TUE).kind, 'pending');
-  assert.equal(row(TUE).punchIn, '07:58');
-  assert.equal(row(TUE).punchOut, null);
+test('quên Check-out: chờ xử lý, chỉ có giờ vào thật; giờ ra null', async () => {
+  const { row } = await month(DAY, { [TUE]: dayShift }, [forgotOut(DAY, TUE, '07:58')]);
+  assert.equal((await row(TUE)).kind, 'pending');
+  assert.equal((await row(TUE)).punchIn, '07:58');
+  assert.equal((await row(TUE)).punchOut, null);
 });
 
-test('khai đi làm mà không chấm: ngày vắng, cả hai giờ bấm null', () => {
-  const { row } = month(DAY, { [TUE]: dayShift }, []);
-  assert.equal(row(TUE).kind, 'noshow');
-  assert.equal(row(TUE).punchIn, null);
-  assert.equal(row(TUE).punchOut, null);
+test('khai đi làm mà không chấm: ngày vắng, cả hai giờ bấm null', async () => {
+  const { row } = await month(DAY, { [TUE]: dayShift }, []);
+  assert.equal((await row(TUE)).kind, 'noshow');
+  assert.equal((await row(TUE)).punchIn, null);
+  assert.equal((await row(TUE)).punchOut, null);
 });
 
 test('ngày chưa tới: dòng chờ "chưa tới" không mang giờ bấm', () => {
@@ -145,48 +145,48 @@ test('ngày chưa tới: dòng chờ "chưa tới" không mang giờ bấm', () 
   assert.ok(!row || !('punchIn' in row), 'ngày chưa tới không có punchIn');
 });
 
-test('ngày Admin ghi thay (Đã chấm công): giờ đã ghi; có lượt thật dùng được thì lấy lượt thật', () => {
-  const onlyAdmin = month(DAY, { [TUE]: dayShift }, [adminSession(DAY, TUE, dayShift)]).row(TUE);
+test('ngày Admin ghi thay (Đã chấm công): giờ đã ghi; có lượt thật dùng được thì lấy lượt thật', async () => {
+  const onlyAdmin = await (await month(DAY, { [TUE]: dayShift }, [await adminSession(DAY, TUE, dayShift)])).row(TUE);
   assert.equal(onlyAdmin.punchIn, '08:00');
   assert.equal(onlyAdmin.punchOut, '17:00');
-  const both = month(DAY, { [TUE]: dayShift }, [
-    adminSession(DAY, TUE, dayShift),
-    punch(DAY, TUE, '07:55', '17:10')
-  ]).row(TUE);
+  const both = await (await month(DAY, { [TUE]: dayShift }, [
+    await adminSession(DAY, TUE, dayShift),
+    await punch(DAY, TUE, '07:55', '17:10')
+  ])).row(TUE);
   assert.equal(both.punchIn, '07:55');
   assert.equal(both.punchOut, '17:10');
 });
 
-test('lượt Admin thắng lượt thật bị chặn (quên Check-out): lấy giờ của lượt Admin đã dùng', () => {
-  const sessions = [forgotOut(DAY, TUE, '07:58'), adminSession(DAY, TUE, dayShift)];
-  const row = month(DAY, { [TUE]: dayShift }, sessions).row(TUE);
+test('lượt Admin thắng lượt thật bị chặn (quên Check-out): lấy giờ của lượt Admin đã dùng', async () => {
+  const sessions = [forgotOut(DAY, TUE, '07:58'), await adminSession(DAY, TUE, dayShift)];
+  const row = await (await month(DAY, { [TUE]: dayShift }, sessions)).row(TUE);
   assert.equal(row.kind, 'work');
   assert.equal(row.punchIn, '08:00');
   assert.equal(row.punchOut, '17:00');
 });
 
-test('nhiều lượt trong một ca: giờ vào sớm nhất, giờ ra muộn nhất', () => {
-  const a = punch(DAY, TUE, '08:00', '12:00');
-  const b = punch(DAY, TUE, '13:00', '17:05');
+test('nhiều lượt trong một ca: giờ vào sớm nhất, giờ ra muộn nhất', async () => {
+  const a = await punch(DAY, TUE, '08:00', '12:00');
+  const b = await punch(DAY, TUE, '13:00', '17:05');
   const times = ActualHours.punchTimesOf([a, b]);
   assert.deepEqual(times[TUE], { punchIn: '08:00', punchOut: '17:05' });
 });
 
-test('bản chụp cũ chưa có giờ bấm: withDayFigures lấy lúc đọc từ attendance_sessions, ngày không có lượt thì null', () => {
+test('bản chụp cũ chưa có giờ bấm: withDayFigures lấy lúc đọc từ attendance_sessions, ngày không có lượt thì null', async () => {
   const user = 'qa_punch_read';
   const staff = { ...DAY, username: user };
   const built = P.buildDay(who(staff), vn(TUE, '07:55'), vn(TUE, '17:10'), 'punch', {
     plannedShift: P.planShift(who(staff), TUE),
     approveIncomplete: true
   });
-  store.createSession(user, built.date, 'closed', built.entry);
-  const { m } = month(staff, { [TUE]: dayShift, '2026-10-07': dayShift }, [punch(staff, TUE, '07:55', '17:10')]);
+  await store.createSession(user, built.date, 'closed', built.entry);
+  const { m } = await month(staff, { [TUE]: dayShift, '2026-10-07': dayShift }, [await punch(staff, TUE, '07:55', '17:10')]);
   const old = {
     ...m,
     rows: m.rows.map(({ punchIn, punchOut, ...rest }) => rest)
   };
   assert.ok(old.rows.every(r => !('punchIn' in r)));
-  const shown = withDayFigures(old, { username: user, month: MONTH });
+  const shown = await withDayFigures(old, { username: user, month: MONTH });
   const byDate = Object.fromEntries(shown.rows.map(r => [r.date, r]));
   assert.equal(byDate[TUE].punchIn, '07:55');
   assert.equal(byDate[TUE].punchOut, '17:10');
@@ -198,9 +198,9 @@ test('bản chụp cũ chưa có giờ bấm: withDayFigures lấy lúc đọc t
   );
 });
 
-test('dòng đã có giờ bấm thì máy chủ giữ nguyên, không lấy lại từ lượt chấm công', () => {
+test('dòng đã có giờ bấm thì máy chủ giữ nguyên, không lấy lại từ lượt chấm công', async () => {
   const rows = [{ date: TUE, kind: 'work', hours: 8, daily: 230769.23, punchIn: '09:00', punchOut: null, total: 1 }];
-  const shown = withDayFigures({ rows }, { username: 'qa_punch_read', month: MONTH });
+  const shown = await withDayFigures({ rows }, { username: 'qa_punch_read', month: MONTH });
   assert.equal(shown.rows[0].punchIn, '09:00');
   assert.equal(shown.rows[0].punchOut, null);
 });

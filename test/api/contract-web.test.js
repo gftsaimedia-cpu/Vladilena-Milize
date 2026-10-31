@@ -30,14 +30,14 @@ const cookieOf = async username =>
     .split(';')[0];
 
 // spec: { trường: 'string' | 'number' | 'boolean' | 'array' | 'object' | 'any' | { ...lồng nhau } }; kiểu thêm '?' ở cuối = cho phép null
-function check(data, spec, path = '') {
+async function check(data, spec, path = '') {
   for (const [key, want] of Object.entries(spec)) {
     const here = `${path}${key}`;
     assert.ok(Object.hasOwn(data, key), `thiếu trường ${here}`);
     const value = data[key];
     if (typeof want === 'object') {
       assert.ok(value && typeof value === 'object' && !Array.isArray(value), `${here} phải là object`);
-      check(value, want, here + '.');
+      await check(value, want, here + '.');
       continue;
     }
     const nullable = want.endsWith('?'),
@@ -62,7 +62,7 @@ function assertNoInternals(value, path = '$') {
 async function contract(cookie, url, spec) {
   const r = await get(cookie, url);
   assert.equal(r.status, 200, `${url}: ${JSON.stringify(r.data)}`);
-  check(r.data, spec);
+  await check(r.data, spec);
   assertNoInternals(r.data);
   return r.data;
 }
@@ -82,7 +82,7 @@ before(async () => {
       startDate: '2026-01-05'
     }
   ])
-    store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
+    await store.upsertStaff({ ...s, passHash: auth.hashPassword('test-pass') });
   await new Promise(r => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${server.address().port}`;
   staffCookie = await cookieOf('an');

@@ -21,27 +21,27 @@ const sysOf = (result, rule) => result.systemFindings.filter(f => f.rule === rul
 const skippedOf = (result, rule) => result.checked.skipped.find(s => s.rule === rule);
 
 /* ================= net-nonpositive ================= */
-test('net-nonpositive: đủ 22 ngày công thì thực nhận dương và không bị gắn; lịch tháng trống bị bỏ qua (chưa có số để soát)', () => {
-  const a = person('qa_a');
-  const b = person('qa_b');
-  const result = review(world({ people: [a, b], days: { qa_a: fullMonth() } }));
+test('net-nonpositive: đủ 22 ngày công thì thực nhận dương và không bị gắn; lịch tháng trống bị bỏ qua (chưa có số để soát)', async () => {
+  const a = await person('qa_a');
+  const b = await person('qa_b');
+  const result = await review(await world({ people: [a, b], days: { qa_a: fullMonth() } }));
   assert.deepEqual(find(result, 'net-nonpositive'), []);
   assert.ok(result.checked.ruleIds.includes('net-nonpositive'), 'luật đã chạy');
 });
 
-test('net-nonpositive: thiếu bộ máy tính lương thì luật bị bỏ qua kèm lý do; không bị gắn gì', () => {
-  const a = person('qa_a');
-  const result = review(world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } }, withPayroll: false }));
+test('net-nonpositive: thiếu bộ máy tính lương thì luật bị bỏ qua kèm lý do; không bị gắn gì', async () => {
+  const a = await person('qa_a');
+  const result = await review(await world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } }, withPayroll: false }));
   assert.deepEqual(find(result, 'net-nonpositive'), []);
   // lý do bỏ qua viết bằng tiếng Việt thường, không có tên mô-đun
   assert.match(skippedOf(result, 'net-nonpositive').reason, /bộ máy tính lương/);
   assertPlain(skippedOf(result, 'net-nonpositive').reason, 'lý do bỏ qua net-nonpositive');
 });
 
-test('net-nonpositive: Admin tắt luật bằng ai.rule.netNonpositive.enabled = false thì bỏ qua với lý do "Admin tắt"', () => {
-  const a = person('qa_a');
-  const input = world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } } });
-  const result = review({ ...input, params: { ...DEFAULTS, 'ai.rule.netNonpositive.enabled': false } });
+test('net-nonpositive: Admin tắt luật bằng ai.rule.netNonpositive.enabled = false thì bỏ qua với lý do "Admin tắt"', async () => {
+  const a = await person('qa_a');
+  const input = await world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } } });
+  const result = await review({ ...input, params: { ...DEFAULTS, 'ai.rule.netNonpositive.enabled': false } });
   assert.deepEqual(find(result, 'net-nonpositive'), []);
   assert.equal(skippedOf(result, 'net-nonpositive').reason, 'Admin tắt');
 });
@@ -50,14 +50,14 @@ test('net-nonpositive: Admin tắt luật bằng ai.rule.netNonpositive.enabled 
 const TEN = Array.from({ length: 10 }, (_, i) => person(`qa_p${i}`));
 const CHANGED = { ...DEFAULTS, 'advance.rate': 0.5 };
 const change = (key, effectiveMonth = '2026-10') => ({ key, effectiveMonth, createdAt: '2026-10-02T03:00:00.000Z' });
-const run = (params, extra, people = TEN) => {
+const run = async (params, extra, people = TEN) => {
   const days = Object.fromEntries(people.map(p => [p.username, fullMonth()]));
   const advances = Object.fromEntries(people.map(p => [p.username, true])); // tạm ứng chỉ vào thực nhận của người đã được duyệt
-  return review({ ...world({ people, days }), advances, params, payroll: loadPayroll(params), ...extra });
+  return review({ ...await world({ people, days }), advances, params, payroll: loadPayroll(params), ...extra });
 };
 
-test('formula-changed-recently: advance.rate 0.8 → 0.5 đổi thực nhận của 10/10 người thì gắn mức vừa, kèm số người và tổng chênh lệch', () => {
-  const result = run(CHANGED, { paramChanges: [change('advance.rate')], payrollBefore: loadPayroll(DEFAULTS) });
+test('formula-changed-recently: advance.rate 0.8 → 0.5 đổi thực nhận của 10/10 người thì gắn mức vừa, kèm số người và tổng chênh lệch', async () => {
+  const result = await run(CHANGED, { paramChanges: [change('advance.rate')], payrollBefore: loadPayroll(DEFAULTS) });
   const hits = sysOf(result, 'formula-changed-recently');
   assert.equal(hits.length, 1);
   const [hit] = hits;
@@ -77,10 +77,10 @@ test('formula-changed-recently: advance.rate 0.8 → 0.5 đổi thực nhận c�
   assert.equal(result.findings.filter(f => f.rule === 'formula-changed-recently').length, 0);
 });
 
-test('formula-changed-recently: chỉ đổi advance.eligibleTypes.tts (1 TTS trong 10 người, 0,1 < ngưỡng 0,2) thì không gắn', () => {
-  const people = [...TEN.slice(0, 9), person('qa_tts', { type: 'tts' })];
+test('formula-changed-recently: chỉ đổi advance.eligibleTypes.tts (1 TTS trong 10 người, 0,1 < ngưỡng 0,2) thì không gắn', async () => {
+  const people = [...TEN.slice(0, 9), await person('qa_tts', { type: 'tts' })];
   const params = { ...DEFAULTS, 'advance.eligibleTypes.tts': false };
-  const result = run(
+  const result = await run(
     params,
     { payrollBefore: loadPayroll(DEFAULTS), paramChanges: [change('advance.eligibleTypes.tts')] },
     people
@@ -88,8 +88,8 @@ test('formula-changed-recently: chỉ đổi advance.eligibleTypes.tts (1 TTS tr
   assert.deepEqual(sysOf(result, 'formula-changed-recently'), []);
 });
 
-test('formula-changed-recently: không có bộ máy của tháng trước thì chỉ nhắc xem lại (mức thấp, chưa đo người)', () => {
-  const result = run(CHANGED, { paramChanges: [change('advance.rate')] });
+test('formula-changed-recently: không có bộ máy của tháng trước thì chỉ nhắc xem lại (mức thấp, chưa đo người)', async () => {
+  const result = await run(CHANGED, { paramChanges: [change('advance.rate')] });
   const [hit] = sysOf(result, 'formula-changed-recently');
   assert.ok(hit);
   assert.equal(hit.severity, 'low');
@@ -97,16 +97,16 @@ test('formula-changed-recently: không có bộ máy của tháng trước thì 
   assert.equal(hit.evidence.inputs.totalDiffVnd, null);
 });
 
-test('formula-changed-recently: thay đổi có hiệu lực từ tháng trước không gắn; không có thay đổi nào cũng không gắn', () => {
+test('formula-changed-recently: thay đổi có hiệu lực từ tháng trước không gắn; không có thay đổi nào cũng không gắn', async () => {
   const before = loadPayroll(DEFAULTS);
-  const previous = run(CHANGED, { paramChanges: [change('advance.rate', '2026-09')], payrollBefore: before });
+  const previous = await run(CHANGED, { paramChanges: [change('advance.rate', '2026-09')], payrollBefore: before });
   assert.deepEqual(sysOf(previous, 'formula-changed-recently'), []);
-  const none = run(CHANGED, { payrollBefore: before });
+  const none = await run(CHANGED, { payrollBefore: before });
   assert.deepEqual(sysOf(none, 'formula-changed-recently'), []);
 });
 
-test('formula-changed-recently: khoá formula.* được tách riêng khỏi khoá tham số', () => {
-  const result = run(CHANGED, { paramChanges: [change('advance.rate'), change('formula.luongThang')] });
+test('formula-changed-recently: khoá formula.* được tách riêng khỏi khoá tham số', async () => {
+  const result = await run(CHANGED, { paramChanges: [change('advance.rate'), change('formula.luongThang')] });
   const [hit] = sysOf(result, 'formula-changed-recently');
   assert.equal(hit.evidence.inputs.changeCount, 2);
   assert.deepEqual(hit.evidence.inputs.formulaKeys, ['luongThang']);
@@ -114,9 +114,9 @@ test('formula-changed-recently: khoá formula.* được tách riêng khỏi kho
 });
 
 /* ================= systemFindings ================= */
-test('systemFindings là mảng riêng ở cấp trên: phát hiện hệ thống không có username, không đếm vào summary, xếp theo mức rồi theo id', () => {
+test('systemFindings là mảng riêng ở cấp trên: phát hiện hệ thống không có username, không đếm vào summary, xếp theo mức rồi theo id', async () => {
   const params = { ...DEFAULTS, 'advance.rate': 0.5 };
-  const result = run(params, { paramChanges: [change('advance.rate')], payrollBefore: loadPayroll(DEFAULTS) });
+  const result = await run(params, { paramChanges: [change('advance.rate')], payrollBefore: loadPayroll(DEFAULTS) });
   assert.deepEqual(
     result.systemFindings.map(f => f.id),
     ['formula-changed-recently:system:2026-10']
@@ -131,6 +131,6 @@ test('systemFindings là mảng riêng ở cấp trên: phát hiện hệ thốn
     'findings theo người luôn có username'
   );
   assert.equal(result.summary.total, result.findings.length);
-  const empty = run(DEFAULTS, {});
+  const empty = await run(DEFAULTS, {});
   assert.deepEqual(empty.systemFindings, []);
 });

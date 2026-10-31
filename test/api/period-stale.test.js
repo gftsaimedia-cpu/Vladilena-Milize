@@ -13,8 +13,8 @@ before(F.start);
 after(F.stop);
 
 const period = async month => (await F.call('GET', `/periods/${month}`)).data;
-const override = (month, body) =>
-  F.call('PUT', '/slip-override', {
+const override = async (month, body) =>
+  await F.call('PUT', '/slip-override', {
     body: { user: 'qa_nv1', month, reason: 'Sửa số sau khi tính để thử cờ cần tính lại', ...body }
   });
 
@@ -40,10 +40,10 @@ test('period-stale: đọc kỳ không ghi gì (không bảng nào đổi); kỳ
   assert.equal(open.status, 'open');
   assert.ok(open.stale === false || open.stale === undefined || open.stale === null, 'kỳ chưa tính: không lỗi thời');
   assert.ok(Object.hasOwn(open, 'stale'), 'luôn có trường stale để giao diện không phải đoán');
-  const before = F.snapshot();
+  const before = await F.snapshot();
   await period(M);
   await period(M);
-  assert.deepEqual(F.changedTables(before, F.snapshot()), [], 'GET không ghi gì');
+  assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'GET không ghi gì');
 });
 
 test('period-stale: chỉ quản trị đọc được stale; nhân sự đọc kỳ vẫn bị từ chối như hôm nay (403) và không lộ staleReasons', async () => {

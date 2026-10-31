@@ -14,30 +14,32 @@ before(F.start);
 after(F.stop);
 
 const BASIS = 'Luật Bảo hiểm xã hội số 41/2024/QH15 (căn cứ thử)';
-const unsetInsured = () =>
-  store.db
+const unsetInsured = async () =>
+  (await store.db
     .prepare('SELECT username FROM staff WHERE insured IS NULL')
-    .all()
+    .all())
     .map(r => r.username);
 // Hợp đồng suy từ thâm niên (đủ 3 tháng từ ngày vào làm tới hết tháng lương là dài): TTS vào làm đầu tháng là hợp đồng ngắn, ba người còn lại vào làm từ 05/01/2026 là hợp đồng dài
-const makeTtsShort = month =>
-  store.db.prepare('UPDATE staff SET start_date = ? WHERE username = ?').run(`${month}-01`, 'qa_tts1');
+const makeTtsShort = async month =>
+  await store.db.prepare('UPDATE staff SET start_date = ? WHERE username = ?').run(`${month}-01`, 'qa_tts1');
 async function slipsOf(month) {
   await P.advance(month, 'calculated');
-  return flow.payslipsOf(month).slips;
+  return (await flow.payslipsOf(month)).slips;
 }
 
 test('GĐ3: coverage: hợp đồng ngắn chưa ghi riêng không đóng bảo hiểm theo mặc định; Kế toán chọn "có đóng" thì phiếu có bảo hiểm đúng 10,5 % lương cơ bản, người đã ghi riêng giữ nguyên', async () => {
   const M = await P.setupMonth();
-  makeTtsShort(M);
+  await makeTtsShort(M);
   const before = await slipsOf(M);
   // người bịa hợp đồng ngắn, chưa ghi riêng bảo hiểm (có phiếu trong kỳ)
-  const unset = unsetInsured();
-  const who = Object.keys(before).filter(
-    u =>
+  const unset = await unsetInsured();
+  const who = [];
+  for (const u of Object.keys(before))
+    if (
       unset.includes(u) &&
-      PayrollPolicy.tenureContract(store.getStaff(u).startDate, M, P.paramsOf(M)['tax.longTermMonths']) === 'short'
-  );
+      PayrollPolicy.tenureContract((await store.getStaff(u)).startDate, M, (await P.paramsOf(M))['tax.longTermMonths']) === 'short'
+    )
+      who.push(u);
   assert.ok(who.length > 0, 'cần ít nhất một người hợp đồng ngắn chưa ghi riêng bảo hiểm');
   for (const u of who) assert.equal(before[u].insurance, 0, `${u}: mặc định không đóng`);
   const other = Object.keys(before).filter(u => !who.includes(u));
@@ -45,8 +47,8 @@ test('GĐ3: coverage: hợp đồng ngắn chưa ghi riêng không đóng bảo 
 
   // Kế toán đổi lựa chọn rồi tính lại ở tháng riêng khác (tham số có hiệu lực từ tháng áp dụng, kỳ này đã tính)
   const M2 = await P.setupMonth();
-  makeTtsShort(M2);
-  P.grant('qa_ctv1', 'accounting'); // dựng lại tháng thì vai trò dựng lại
+  await makeTtsShort(M2);
+  await P.grant('qa_ctv1', 'accounting'); // dựng lại tháng thì vai trò dựng lại
   const save = await P.saveChanges([{ key: 'insurance.coverage.short', value: true }], {
     month: M2,
     who: 'qa_ctv1',
@@ -54,9 +56,9 @@ test('GĐ3: coverage: hợp đồng ngắn chưa ghi riêng không đóng bảo 
   });
   assert.equal(save.status, 200, JSON.stringify(save.data).slice(0, 300));
   const after = await slipsOf(M2);
-  const params = P.paramsOf(M2);
+  const params = await P.paramsOf(M2);
   for (const u of who) {
-    const staff = store.getStaff(u);
+    const staff = await store.getStaff(u);
     const base = params[`level.${staff.type}.${staff.level}.base`];
     const expected = ['bhxh', 'bhyt', 'bhtn'].reduce(
       (sum, k) => sum + Math.round(base * params[`tax.insurance.employee.${k}`]),

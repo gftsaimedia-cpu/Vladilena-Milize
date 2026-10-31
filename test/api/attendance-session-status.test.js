@@ -9,7 +9,7 @@ const F = require('../helpers/api-fixture');
 const MONTH = '2026-10';
 const punch = (who, body) => F.call('POST', '/punch', { who, body });
 const checkIn = async (who, at, requestId, extra = {}) => {
-  F.at(at);
+  await F.at(at);
   const res = await punch(who, { type: 'in', requestId, ...extra });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data;
@@ -18,10 +18,10 @@ const STATUSES = ['checked-in', 'checked-out', 'pending', 'approved', 'rejected'
 
 before(async () => {
   await F.start();
-  F.at('2026-10-19T12:00:00');
-  F.person('chi');
-  F.person('dung');
-  F.person('admin', 'admin');
+  await F.at('2026-10-19T12:00:00');
+  await F.person('chi');
+  await F.person('dung');
+  await F.person('admin', 'admin');
 });
 after(() => F.stop());
 
@@ -32,15 +32,15 @@ test('Check-in trễ quá mức cho phép kèm giải trình: lượt mở là c
   const onTime = await checkIn('dung', '2026-10-20T08:05:00', 'status-in-dung');
   assert.equal(onTime.openSession.status, 'checked-in');
   assert.equal(onTime.openSession.statusNote, '');
-  F.at('2026-10-20T12:00:00');
+  await F.at('2026-10-20T12:00:00');
   const read = await F.call('GET', '/punch', { who: 'chi' });
   assert.equal(read.status, 200);
   assert.equal(read.data.openSession.status, 'pending');
 });
 
 test('Check-out đúng giờ: lượt là checked-out ở /api/attendance, /api/team, /api/today và /api/sheet của chính nhân viên', async () => {
-  F.at('2026-10-20T17:05:00');
-  const sessionId = F.store.openSession('dung').id;
+  await F.at('2026-10-20T17:05:00');
+  const sessionId = (await F.store.openSession('dung')).id;
   const out = await punch('dung', { type: 'out', sessionId, requestId: 'status-out-dung' });
   assert.equal(out.status, 200, JSON.stringify(out.data));
   assert.equal(out.data.lastSession.status, 'checked-out');
@@ -78,8 +78,8 @@ test('Check-out đúng giờ: lượt là checked-out ở /api/attendance, /api/
 });
 
 test('Về sớm kèm giải trình: lượt là chờ xử lý; Admin duyệt cả hai giải trình thì lượt được phê duyệt kèm lý do giờ đầu tiên', async () => {
-  F.at('2026-10-20T16:50:00');
-  const sessionId = F.store.openSession('chi').id;
+  await F.at('2026-10-20T16:50:00');
+  const sessionId = (await F.store.openSession('chi')).id;
   const body = { type: 'out', sessionId, requestId: 'status-out-chi' };
   assert.equal((await punch('chi', body)).status, 409); // về sớm 10 phút phải giải trình
   const out = await punch('chi', { ...body, explanation: 'Việc nhà' });
@@ -99,8 +99,8 @@ test('Về sớm kèm giải trình: lượt là chờ xử lý; Admin duyệt c
 
 test('Check-out muộn gửi giải trình: chờ Admin; Admin không duyệt là Bị từ chối, duyệt lại là Được phê duyệt', async () => {
   await checkIn('dung', '2026-10-21T08:00:00', 'status-in-dung-2');
-  F.at('2026-10-21T18:10:00');
-  const sessionId = F.store.openSession('dung').id;
+  await F.at('2026-10-21T18:10:00');
+  const sessionId = (await F.store.openSession('dung')).id;
   const body = { type: 'out', sessionId, requestId: 'status-out-dung-2', explanation: 'Chờ khách ký biên bản' };
   const out = await punch('dung', body);
   assert.equal(out.status, 200, JSON.stringify(out.data));
@@ -117,7 +117,7 @@ test('Check-out muộn gửi giải trình: chờ Admin; Admin không duyệt l�
     status: 'rejected',
     statusNote: 'Check-out muộn 70 phút'
   });
-  F.at('2026-10-21T19:00:00');
+  await F.at('2026-10-21T19:00:00');
   const yes = await F.call('POST', `/explanations/${id}/decide`, { who: 'admin', body: { approve: true } });
   assert.equal(yes.status, 200, JSON.stringify(yes.data));
   assert.equal((await statusOf()).status, 'approved');
@@ -126,11 +126,11 @@ test('Check-out muộn gửi giải trình: chờ Admin; Admin không duyệt l�
 test('Quên Check-out rồi Admin khai thay ngày đó: lượt bấm giữ nhãn riêng nhưng bị thay, nhãn của ngày là Đã chấm công', async () => {
   const AS = require('../../public/attendance-status.js');
   await checkIn('chi', '2026-10-22T08:00:00', 'status-in-chi-forgot');
-  F.at('2026-10-23T12:00:00');
+  await F.at('2026-10-23T12:00:00');
   const dayRows = async (path, pick) => {
     const res = await F.call('GET', path, { who: pick.who });
     assert.equal(res.status, 200, JSON.stringify(res.data));
-    return pick.rows(res.data).filter(s => s.username === 'chi' && s.date === '2026-10-22');
+    return (await pick.rows(res.data)).filter(s => s.username === 'chi' && s.date === '2026-10-22');
   };
   const attendance = { who: 'admin', rows: d => d.rows };
   const before = await dayRows(`/attendance?month=${MONTH}`, attendance);

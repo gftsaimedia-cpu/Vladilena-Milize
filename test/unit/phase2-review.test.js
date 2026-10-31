@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { runGolden, closeTo } = require('../helpers/pay-oracle');
 const service = require('../../lib/payroll-service');
 
-test('GĐ2 ④: thanhPhanOf cộng khối phụ cấp thêm vào phụ cấp (③): tổng tám thành phần ngày + phụ cấp + KPI − trừ khớp tổng thu nhập', () => {
+test('GĐ2 ④: thanhPhanOf cộng khối phụ cấp thêm vào phụ cấp (③): tổng tám thành phần ngày + phụ cấp + KPI − trừ khớp tổng thu nhập', async () => {
   const block = {
     'block.def.antrua': {
       label: 'Ăn trưa',
@@ -21,8 +21,8 @@ test('GĐ2 ④: thanhPhanOf cộng khối phụ cấp thêm vào phụ cấp (�
     'type.nv.block.antrua.on': true,
     'type.nv.block.antrua.amount': 500000
   };
-  const plain = runGolden('known-kpi-five-100-90-80-85-100').m;
-  const withBlock = runGolden('known-kpi-five-100-90-80-85-100', block).m;
+  const plain = (await runGolden('known-kpi-five-100-90-80-85-100')).m;
+  const withBlock = (await runGolden('known-kpi-five-100-90-80-85-100', block)).m;
   const a = service.thanhPhanOf(plain),
     b = service.thanhPhanOf(withBlock);
   assert.equal(withBlock.blocks.length, 1);

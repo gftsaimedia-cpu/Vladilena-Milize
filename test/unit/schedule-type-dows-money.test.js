@@ -10,19 +10,19 @@ const MWF_FULL = () => F.fullDays('2026-10', F.MWF);
 const unpaid = (days, ...dates) => F.withDays(days, Object.fromEntries(dates.map(d => [d, { kind: 'unpaid' }])));
 const run = (staff, days, o = {}) => F.run(staff, days, { over: F.nvDows(), ...o });
 
-test('loại Hai-Tư-Sáu: nghỉ không lương 05, 07, 09/10: vắng 3, mất chuyên cần (ngưỡng tuyệt đối), gộp 2.653.846, thực lĩnh 2.653.846', () => {
+test('loại Hai-Tư-Sáu: nghỉ không lương 05, 07, 09/10: vắng 3, mất chuyên cần (ngưỡng tuyệt đối), gộp 2.653.846, thực lĩnh 2.653.846', async () => {
   const r = run(F.nvStaff(), unpaid(MWF_FULL(), '2026-10-05', '2026-10-07', '2026-10-09'));
   assert.equal(r.m.absent, 3);
   assert.equal(r.m.count, 10);
   assert.equal(r.m.attendance, 0);
-  assert.deepEqual(F.money(r), { gross: 2653846, net: 2653846 });
+  assert.deepEqual(await F.money(r), { gross: 2653846, net: 2653846 });
 });
 
-test('loại Hai-Tư-Sáu: nghỉ không lương 2 ngày (05, 07/10): vắng 2, còn chuyên cần, gộp 3.553.846, thực lĩnh 3.553.846', () => {
+test('loại Hai-Tư-Sáu: nghỉ không lương 2 ngày (05, 07/10): vắng 2, còn chuyên cần, gộp 3.553.846, thực lĩnh 3.553.846', async () => {
   const r = run(F.nvStaff(), unpaid(MWF_FULL(), '2026-10-05', '2026-10-07'));
   assert.equal(r.m.absent, 2);
   assert.ok(r.m.attendance > 0);
-  assert.deepEqual(F.money(r), { gross: 3553846, net: 3553846 });
+  assert.deepEqual(await F.money(r), { gross: 3553846, net: 3553846 });
 });
 
 test('loại Hai-Tư-Sáu: người vào làm giữa tháng 10 (Thứ Tư 14/10): ngày có lương tính từ ngày vào làm theo lịch của loại (8: 14, 16, 19, 21, 23, 26, 28, 30/10); loại T2–T7 tính 16', () => {
@@ -33,19 +33,19 @@ test('loại Hai-Tư-Sáu: người vào làm giữa tháng 10 (Thứ Tư 14/10)
   assert.equal(plain.paidDays, 16);
 });
 
-test('loại Hai-Tư-Sáu: ngày đã khai ngoài lịch (Thứ Ba 06/10 khai đi làm) tính 0 và không làm đổi tổng: 13 ngày, gộp 4.200.000, thực lĩnh 3.570.000', () => {
+test('loại Hai-Tư-Sáu: ngày đã khai ngoài lịch (Thứ Ba 06/10 khai đi làm) tính 0 và không làm đổi tổng: 13 ngày, gộp 4.200.000, thực lĩnh 3.570.000', async () => {
   const days = F.withDays(MWF_FULL(), { '2026-10-06': { ...F.WORK } });
   const r = run(F.nvStaff(), days);
   assert.equal(r.m.count, 13);
-  assert.deepEqual(F.money(r), { gross: 4200000, net: 3570000 });
+  assert.deepEqual(await F.money(r), { gross: 4200000, net: 3570000 });
 });
 
-test('hồ sơ mang staff.schedule (dữ liệu cũ) không đổi tiền: NV đi đủ T2–T7 vẫn gộp 8.723.076, không có workdaysStd', () => {
+test('hồ sơ mang staff.schedule (dữ liệu cũ) không đổi tiền: NV đi đủ T2–T7 vẫn gộp 8.723.076, không có workdaysStd', async () => {
   const old = [{ from: '2026-10', pattern: { type: 'week', dows: F.MWF }, workdays: { mode: 'fixed', value: 13 } }];
   const withOld = F.run(F.nvStaff({ schedule: old }), F.fullDays('2026-10', F.MON_SAT));
   const plain = F.run(F.nvStaff(), F.fullDays('2026-10', F.MON_SAT));
-  assert.deepEqual(F.money(withOld), { gross: 8723076, net: 8093076 });
-  assert.deepEqual(F.money(withOld), F.money(plain));
+  assert.deepEqual(await F.money(withOld), { gross: 8723076, net: 8093076 });
+  assert.deepEqual(await F.money(withOld), await F.money(plain));
   assert.equal('workdaysStd' in withOld.m, false);
 });
 
