@@ -48,22 +48,10 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 
 ### Trình duyệt
 
-Giao diện web phục vụ từ `public/` (`admin.html`, `nhan-vien.html`, `dang-nhap.html`); khi có bản dựng, `lib/http.js` phục vụ `web/dist`. Danh sách dưới đây là phần của `public/`.
+Giao diện web phục vụ từ `public/`; khi có bản dựng, `lib/http.js` phục vụ `web/dist`. Danh sách dưới đây là phần của `public/`.
 
 | File | Việc |
 | --- | --- |
-| `public/admin/view-duyet.js` | Màn Yêu cầu của Admin: tải `GET /approvals` theo trang 500, duyệt / từ chối theo lô `PUT /approvals/decide` (lô `MAX_BATCH` = 200,). |
-| `public/admin/view-ung-luong.js` | Bảng tạm ứng trên màn Yêu cầu: `/advance-approvals` (duyệt, từ chối, huỷ, duyệt tất cả). |
-| `public/admin/view-giai-trinh.js` | Bảng giải trình trên màn Yêu cầu. |
-| `public/admin/view-kpi.js` | Nhập điểm KPI (`GET/PUT /kpi/scores`). |
-| `public/admin/leave-ledger.js` | Xem sổ phép (`/leave/ledger`). |
-| `public/admin/core.js` | `A.ITEM_LABEL`: nhãn tiếng Việt của các loại khoản. |
-| `public/admin/cham-cong-khai.js` | Admin khai thay: gọi `AV.itemOf` để báo bản nháp có cần duyệt không. |
-| `public/nhan-vien/logic.js, :979` | Nhãn khoản (bản riêng `ITEM_LABEL`) và `approvalOfForm` gọi `AV.itemOf`. |
-| `public/nhan-vien/khai.js` | Biểu mẫu khai ngày (nghỉ, OT, làm bù, iSAT, nghỉ sẽ làm bù): gửi `PUT /sheet` cả tháng một lần. |
-| `public/nhan-vien/yeu-cau.js` | Màn Yêu cầu của nhân viên: nút tạo yêu cầu theo quyền lợi của chức vụ, danh sách khoản của tháng (Chờ xử lý, Đã đồng ý, Đã từ chối), phép năm. Không có số tiền. |
-| `public/nhan-vien/ung-luong.js` | Thẻ / nút "Xin tạm ứng" (`/advance-approvals`). Không tính số. |
-| `public/nhan-vien/giai-trinh.js` | Màn giải trình của nhân viên. |
 
 ---
 
@@ -603,12 +591,12 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
-- Đổi `itemOf` / `holidayFingerprint` / `segmentsOf` (approval-view.js) → mọi dòng `sheet_approvals` đã lưu có vân tay cũ thành `pending` ở lần lưu sau và trạng thái hiệu lực thành `pending` ngay (tiền mất cho tới khi duyệt lại); kiểm `effectiveStatus`, `reconcile`, `declaredItems`, các đợt tạo dòng, `itemFromRow`, `rejectedLeaveDates`, giao diện `logic.js`, `cham-cong-khai.js`, test approval-view*.
+- Đổi `itemOf` / `holidayFingerprint` / `segmentsOf` (approval-view.js) → mọi dòng `sheet_approvals` đã lưu có vân tay cũ thành `pending` ở lần lưu sau và trạng thái hiệu lực thành `pending` ngay (tiền mất cho tới khi duyệt lại); kiểm `effectiveStatus`, `reconcile`, `declaredItems`, các đợt tạo dòng, `itemFromRow`, `rejectedLeaveDates`, giao diện test approval-view*.
 - Đổi `ITEMS` → `authz.DECIDE_ITEMS` (vai trò tuỳ chỉnh), `ALLOWED_ACTIONS`, `FALLBACK`, khoá registry `request.type.<khoản>.*`, `reconcile` (từ chối item lạ), `A.ITEM_LABEL` và `ITEM_LABEL` của logic.js, `approvalPolicy` của bộ máy, `APPROVAL_ITEMS` của `lib/roles.js`.
 - Đổi `POLICY` / `pendingRule` / `countsAbsent` → `payView`, `approvalPolicy` (`payroll-engine.js`), `calcMonth` (`absentExempt`, `unpaidExempt`), golden fixtures.
 - Đổi chiếu ngày (`projectDay`, `estimateDays`, `ESTIMATE_FIELDS`, `DAY_FIELDS`) → vân tay tính ở reconcile và ở `sheetApprovals` phải cùng đầu vào; nếu lệch, khoản hiện "chờ duyệt" mãi.
 - Đổi `reconcile` → PUT /sheet, `approveOnBehalf` (dùng `added/reset/resubmitted`), `reconcileMonthApprovals` (đổi lễ, đổi loại), `approvals.changed`.
-- Đổi `decide` / mã lỗi → `APPROVAL_HTTP_STATUS` (`lib/domain/approvals.js`), `view-duyet.js` (đọc `APPROVAL_STALE`, `items`), `approveOnBehalf`.
+- Đổi `decide` / mã lỗi → `APPROVAL_HTTP_STATUS` (`lib/domain/approvals.js`) (đọc `APPROVAL_STALE`, `items`), `approveOnBehalf`.
 - Đổi danh sách lễ hoặc cách đọc lễ → `reconcileHolidayWork`, `isScheduledHoliday`, `leaveDates` (bỏ ngày lễ), `HOLIDAY_*_CONFLICT`, `holidayOtConflicts`, `checkInDay`, bộ máy (`holBase`, `holWork`, `splitMainWork`, `splitExtraWork`).
 - Đổi `WorkSchedule` / `type.*.dows` → nhận diện OT ngày lễ, `leaveDates`, `SHEET_UNPAID_WITH_LEAVE`, `isRestDay` (hệ số OT cuối tuần), `checkInDay`; nhớ gọi `reconcileMonthApprovals` cho các tháng bị ảnh hưởng.
 - Đổi `leaveDates` → số dư ở các nơi (mục 8), `HOLIDAY_LEAVE_CONFLICT`, sổ lưu sẵn, quy tiền phép hết hạn (`leaveSettlements`).
@@ -620,7 +608,7 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 - Đổi `NOTE_MAX` / độ dài lý do → `lib/domain/input.js`, `lib/approvals.js` NOTE_MAX, `config.REASON_MAX`, `slice(0,300)` ở /ot, `maxlength` giao diện, `limits.noteMax`.
 - Đổi `warnIf` → mọi hàng cảnh báo ở mục 3–4; `PERIOD_LOCKED` của tạm ứng luôn là lỗi 409.
 - Đổi `ROUTE_CAPS` / vai trò → `canDecideRow`, `sheetOwner` (khai thay dùng `request.decide.*`), `viewsAll` (tạm ứng), `isAdmin` (giải trình dùng `attendance.correct`), test permissions-matrix.
-- Đổi `KpiScore` / `kpi.*` → `kpiScoreItem`, `kpiPartsView`, bộ máy (tiền KPI), `kpiOf` ở payroll-service, `view-kpi.js`.
+- Đổi `KpiScore` / `kpi.*` → `kpiScoreItem`, `kpiPartsView`, bộ máy (tiền KPI), `kpiOf` ở payroll-service.
 
 ---
 
@@ -630,10 +618,10 @@ Tên file có tiền tố ngày được viết bằng `*-` thay cho tiền tố
 
 Khoản tự khai, bảng duyệt, quy tắc duyệt:
 `test/api/approvals.test.js`, `test/api/approvals-holiday-work.test.js`, `test/api/approvals-leave.test.js`, `test/api/approvals-limits.test.js`, `test/api/v1a-s6-approvals-per-item.test.js`, `test/api/approval-rules-settings.test.js`, `test/api/alerts.test.js`, `test/api/*-admin-khai-thay.test.js`, `test/api/*-admin-willmakeup-on-behalf.test.js`, `test/api/*-makeup-date-note-ai-block.test.js`, `test/api/*-makeup-entry-fixes.test.js`, `test/api/makeup-day-removed.test.js`, `test/api/*-staff-sheet-rev.test.js`, `test/api/sheet-rev.test.js`, `test/api/sheet-shift-lock.test.js`, `test/api/*-holiday-ot-entry.test.js`, `test/api/holiday-ot-guard.test.js`, `test/api/holiday-names.test.js`, `test/api/schedule-isat-holiday-makeup.test.js`, `test/api/staff-checkin-gate.test.js`, `test/api/warnings-cases.test.js`, `test/api/period-lock-guards.test.js`, `test/api/events.test.js`, `test/api/audit-log.test.js`, `test/api/roles-custom.test.js`, `test/api/permissions-matrix.test.js`, `test/api/review-fixes.test.js`, `test/api/verify-fixes.test.js`, `test/api/backend-followup.test.js`, `test/api/save-applies-everywhere.test.js`, `test/api/contract-web.test.js`.
-`test/unit/approval-view.test.js`, `test/unit/approval-view-holiday-ot.test.js`, `test/unit/approval-view-leave.test.js`, `test/unit/approval-rules-counts-absent.test.js`, `test/unit/*-nghi-duoc-duyet-tinh-chuyen-can.test.js`, `test/unit/*-holiday-rules.test.js`, `test/unit/*-makeup-review-fixes.test.js`, `test/unit/shared-rules-params.test.js`, `test/unit/schedule-isat-holiday-makeup.test.js`, `test/unit/isat-calendar.test.js`, `test/unit/isat-saturday-entitled.test.js`, `test/unit/checkin-blocked-on-off-day.test.js`, `test/unit/warnings.test.js`, `test/ui/admin-makeup-calendar.test.js`, `test/ui/isat-only-saturday-entitled.test.js`, `test/ui/staff-holiday-ot-request.test.js`.
+`test/unit/approval-view.test.js`, `test/unit/approval-view-holiday-ot.test.js`, `test/unit/approval-view-leave.test.js`, `test/unit/approval-rules-counts-absent.test.js`, `test/unit/*-nghi-duoc-duyet-tinh-chuyen-can.test.js`, `test/unit/*-holiday-rules.test.js`, `test/unit/*-makeup-review-fixes.test.js`, `test/unit/shared-rules-params.test.js`, `test/unit/schedule-isat-holiday-makeup.test.js`, `test/unit/isat-calendar.test.js`, `test/unit/isat-saturday-entitled.test.js`, `test/unit/checkin-blocked-on-off-day.test.js`, `test/unit/warnings.test.js`.
 
 Tiền OT, làm bù, ngày lễ, bảo hiểm theo ngày có lương:
-`test/unit/ot-weekend-rate.test.js`, `test/unit/ot-day-allowance.test.js`, `test/unit/ot-no-break.test.js`, `test/unit/ot-unscheduled-day-paid.test.js`, `test/unit/makeup-paid-in-full.test.js`, `test/unit/makeup-surplus-removed.test.js`, `test/unit/makeup-into-holiday.test.js`, `test/unit/attendance-makeup-days.test.js`, `test/unit/legacy-makeup-day-engine.test.js`, `test/unit/holiday-ot-after-night-shift.test.js`, `test/unit/holiday-ot-approved-window.test.js`, `test/unit/holiday-break-paid-once.test.js`, `test/unit/payroll-holiday.test.js`, `test/unit/no-ot-benefit-holiday.test.js`, `test/unit/insurance-paid-days.test.js`, `test/unit/tax-exempt-premium-only.test.js`.
+`test/unit/ot-weekend-rate.test.js`, `test/unit/ot-day-allowance.test.js`, `test/unit/ot-no-break.test.js`, `test/unit/ot-unscheduled-day-paid.test.js`, `test/unit/makeup-paid-in-full.test.js`, `test/unit/makeup-surplus-removed.test.js`, `test/unit/makeup-into-holiday.test.js`, `test/unit/attendance-makeup-days.test.js`, `test/unit/legacy-makeup-day-engine.test.js`, `test/unit/holiday-ot-after-night-shift.test.js`, `test/unit/holiday-ot-approved-window.test.js`, `test/unit/holiday-break-paid-once.test.js`, `test/unit/payroll-holiday.test.js`, `test/unit/insurance-paid-days.test.js`, `test/unit/tax-exempt-premium-only.test.js`.
 
 Phép năm: `test/api/*-phan-6-phep-nam.test.js`, `test/api/*-leave-refresh-count.test.js`, `test/api/leave-ledger-per-year.test.js`, `test/api/sheet-leave-over-balance.test.js`, `test/api/domain-catalog-routes.test.js`, `test/api/schedule-estimate-calendar.test.js`, `test/unit/leave-rules.test.js`, `test/unit/*-phan-6-phep-nam.test.js`, `test/unit/leave-year-settlement.test.js`, `test/unit/leave-events-per-year.test.js`, `test/unit/leave-negative-check.test.js`, `test/unit/domain-classes.test.js`.
 
@@ -641,7 +629,7 @@ Tạm ứng: `test/api/*-advance-approval.test.js`, `test/api/*-phan-6-ung-luong
 
 Giải trình: `test/api/*-late-checkout-approval.test.js`, `test/api/*-block-ot-late-checkout.test.js`, `test/api/*-explanation-rejected-no-workday.test.js`, `test/api/*-explanation-late-early-approved.test.js`, `test/api/*-explanation-forgot-punch-approved.test.js`, `test/api/explanation-no-punch-pay.test.js`, `test/api/*-explanation-declared-off-day.test.js`, `test/api/*-held-day-row-punch-times.test.js`, `test/api/*-checklist-explanation-pending.test.js`, `test/api/explanation-attendance-event.test.js`, `test/api/attendance-session-status.test.js`, `test/api/checkin.test.js`, `test/api/fixed-attendance.test.js`, `test/unit/*-session-status-day-explanation.test.js`, `test/unit/*-held-by-user-status.test.js`.
 
-KPI: `test/api/kpi-scores-api.test.js`, `test/api/kpi-scores-store.test.js`, `test/api/kpi-scores-migration.test.js`, `test/api/*-phan-6-kpi-tu-danh-gia.test.js`, `test/unit/kpi-score.test.js`, `test/unit/kpi-max-drift.test.js`, `test/ui/kpi-five-calc.test.js`.
+KPI: `test/api/kpi-scores-api.test.js`, `test/api/kpi-scores-store.test.js`, `test/api/kpi-scores-migration.test.js`, `test/api/*-phan-6-kpi-tu-danh-gia.test.js`, `test/unit/kpi-score.test.js`, `test/unit/kpi-max-drift.test.js`.
 
 OT Check-in/out: `test/api/holiday-ot-guard.test.js`, `test/api/attendance-sessions.test.js`, `test/api/warnings-cases.test.js`, `test/api/audit-followup-backend.test.js`, `test/api/*-cho-giao-dien.test.js`.
 
@@ -661,7 +649,6 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 6. **POLICY dựng hai lần.** `approval-view.js` (kiểm thiếu khoá, ném `PARAM_MISSING`) và `payroll-engine.js` `approvalPolicy` (quét regex, không kiểm thiếu khoá hay `ALLOWED_ACTIONS`). Bộ máy luôn truyền bản thứ hai vào `payView`.
 7. **Nền tạm ứng viết hai lần.** `payroll-engine.js` `tienUngCong` và builtin `tienUng` cùng một quy tắc.
 8. **Đếm "chờ duyệt" khác nhau.** `approvals.changed` gửi `pending = store.approvals.list({status:'pending'}).length` (`lib/events.js`): gồm tài khoản ngoài bảng lương và không lọc theo quyền người xem; `GET /approvals/count` và `GET /alerts` lọc cả hai (`src/modules/approvals/approvals.controller.ts, :1083`). Danh sách kiểm kỳ `PENDING_APPROVALS` (`lib/periods.js`) lại đếm theo danh sách người của kỳ.
-9. **Trình duyệt nhận diện khoản thiếu lịch.** `public/nhan-vien/logic.js` và `public/admin/cham-cong-khai.js` gọi `AV.itemOf` bản trần với `ctx` không có `schedule`; máy chủ truyền lịch của người (`lib/domain/approvals.js`). Nhãn "OT ngày lễ" trên trình duyệt có thể khác máy chủ ở ngày ngoài lịch.
 10. **Thứ tự danh sách duyệt.** `store.approvals.list` xếp theo `date, username` (`ORDER BY` ở `lib/approvals.js`, hàm `list` bắt đầu), `GET /approvals` xếp lại theo `username, date` rồi mới phân trang.
 
 ### 8.2 Mã lỗi, khoá kỳ, tự duyệt không đồng bộ
@@ -677,8 +664,7 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 
 ### 8.3 Số viết cứng, tham số không được đọc
 
-19. **Độ dài lý do có nhiều nguồn**: `lib/domain/input.js` `NOTE_MAX = 300`; `lib/approvals.js` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi; `public/admin/view-duyet.js` `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.js`).
-20. **Giao diện chép số của máy chủ**: `view-duyet.js` `MAX_BATCH = 200` dù `GET /approvals` trả `limits.decideMax`.
+19. **Độ dài lý do có nhiều nguồn**: `lib/domain/input.js` `NOTE_MAX = 300`; `lib/approvals.js` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.js`).
 21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `public/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `public/kpi-score.js` (`checkScore`, `toUnits`) và `lib/domain/kpi.js` (`cleanKpi`).
 22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`public/leave.js`, `leave-events.js`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`limits.js`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`sheet-checks.js`); `config.CHECKOUT_GRACE_MIN` 30.
 23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.js` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
@@ -688,7 +674,6 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 24. **Mã chết**: `lib/advance-requests.js` `create` và `decide` không còn nơi gọi trong `lib/` hay `src/modules/**/*.controller.ts` (route trả 410); `store.setKpiApproval` (`lib/db.js`) không có nơi gọi trong `lib/`/`src/modules/**/*.controller.ts`.
 25. **Một tên nhật ký cho hai hệ**: `advance.cancel` dùng cho ứng lương dạng cũ (`entityId = id`) và tạm ứng (`entityId = <month>/<user>`).
 26. **Vai trò tuỳ chỉnh không duyệt được tạm ứng**: `DECIDE_ITEMS = ApprovalView.ITEMS` (`authz.js`) không có `advance`; `request.decide.advance` chỉ có qua `request.decide.*`. Vai trò `manager` có `request.decide.*` nhưng phạm vi `team` = chỉ chính mình (`authz.js`), nên chỉ duyệt được khoản của mình (tự duyệt).
-27. **Nhãn khoản chép hai nơi**: `public/admin/core.js` và `public/nhan-vien/logic.js`.
 28. **Hai luồng OT**: OT Check-in/out có duyệt riêng (`PUT /ot`, `otReview`) nhưng không vào tiền (`ot.js`); tiền OT chỉ từ khoản `ot` trên lịch. Hai hàng duyệt cùng tên "OT".
 29. **Ghi khi đọc**: `GET /alerts` đóng lượt quá hạn (`src/modules/approvals/approvals.controller.ts` / `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts`); `GET /sheet` đóng lượt mở quá hạn của người được xem; `GET /leave/ledger` ghi sổ và số dư (`src/modules/leave/leave.controller.ts`).
 30. **Tạm ứng bị từ chối không xin lại được** trong cùng tháng (`advance-approvals.js`: `request` chỉ từ `null`; không có bước ra khỏi `rejected`).

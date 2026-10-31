@@ -136,14 +136,3 @@ test('Check-out của lượt đang mở không bị chặn khi Admin khai ngày
   assert.equal(out.status, 200, JSON.stringify(out.data));
   assert.equal((await stateAt(`${WED}T08:00:00`)).canCheckIn, true);
 });
-
-test('màn chấm công của nhân viên không có nút Check-in khi máy chủ báo ngày nghỉ (punchView.blocked)', () => {
-  const L = require('../../public/nhan-vien/logic.js');
-  const reason = 'Hôm nay bạn nghỉ iSAT, không Check-in được.';
-  const view = L.punchView({
-    me: { type: 'nv' },
-    punch: { canCheckIn: false, checkInBlock: reason },
-    nowIso: `${SAT}T08:00:00Z`
-  });
-  assert.equal(view.blocked, reason);
-});

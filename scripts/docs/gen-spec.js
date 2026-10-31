@@ -244,6 +244,8 @@ function paramsDoc() {
   return HEADER('Danh mục tham số lương', '`lib/params/registry.data.json` qua `scripts/params/doc.js` (không kể các khoá lớp "bỏ")') + live;
 }
 
+const { webRoutesDoc } = require('./web-routes');
+
 const FILES = {
   'api-routes.md': routesDoc,
   'modules.md': modulesDoc,
@@ -252,7 +254,8 @@ const FILES = {
   'rules.md': rulesDoc,
   'events.md': eventsDoc,
   'config.md': configDoc,
-  'params.md': paramsDoc
+  'params.md': paramsDoc,
+  'web-routes.md': () => webRoutesDoc({ read, walk, header: HEADER, esc })
 };
 
 function build() {

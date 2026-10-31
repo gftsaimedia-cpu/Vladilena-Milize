@@ -86,37 +86,8 @@ const productionFiles = () => [
 ];
 const uiFiles = () => [...walk(path.join(ROOT, 'public/admin')), ...walk(path.join(ROOT, 'public/nhan-vien'))];
 
-test('S1: danh sách cho phép chỉ gồm tệp có thật và mỗi mục có lý do', () => {
-  for (const [rel, why] of Object.entries(ALLOWED)) {
-    assert.ok(fs.existsSync(path.join(ROOT, rel)), `${rel} không còn: bỏ khỏi danh sách cho phép`);
-    assert.ok(why.length > 15, `${rel}: thiếu lý do`);
-  }
-});
-
 test('S1: một nguồn (máy chủ và mô-đun dùng chung): ngoài danh sách cho phép, server.js, lib/ và public/*.js không đọc dows, type.<mã>.dows hay staff.sched trực tiếp', () => {
   assert.deepEqual(offenders(productionFiles()), []);
-});
-
-test('S1: một nguồn (giao diện): public/admin/ và public/nhan-vien/ không đọc dows hay sched; lịch đến từ workSchedule và scheduledDates do máy chủ trả', () => {
-  assert.deepEqual(offenders(uiFiles()), []);
-  const LITERAL = /\{\s*tts:\s*\[[\d,\s]+\],\s*ctv:\s*\[[\d,\s]+\],\s*nv:\s*\[[\d,\s]+\]\s*\}/;
-  const copies = uiFiles()
-    .map(f => path.relative(ROOT, f).split(path.sep).join('/'))
-    .filter(rel => LITERAL.test(stripComments(fs.readFileSync(path.join(ROOT, rel), 'utf8'))));
-  assert.deepEqual(copies, [], 'giao diện còn bản lịch chép tay { tts, ctv, nv }');
-});
-
-test('S1: một nguồn: public/work-schedule.js được nạp trước payroll-engine.js ở trang nào nạp bộ máy (admin.html, nhan-vien.html)', async () => {
-  for (const page of ['public/admin.html', 'public/nhan-vien.html']) {
-    const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
-    const at = name => html.indexOf(`${name}.js`);
-    if ((await at('payroll-engine')) < 0) continue; // trang không nạp bộ máy thì không bắt buộc
-    assert.ok((await at('work-schedule')) >= 0, `${page}: thiếu thẻ script work-schedule.js`);
-    assert.ok(
-      (await at('work-schedule')) < (await at('payroll-engine')),
-      `${page}: work-schedule.js phải nạp TRƯỚC payroll-engine.js`
-    );
-  }
 });
 
 test('S1: một nguồn: không còn bản lịch chép tay dạng { tts: [...], ctv: [...], nv: [...] } trong mã sản phẩm ngoài approval-view.js (SCHEDULE giữ xuất ra để tương thích) và payroll-params.js', () => {

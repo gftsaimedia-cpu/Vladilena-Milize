@@ -60,7 +60,6 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 ### 1.3 Nơi khác gọi bộ máy (ngoài phạm vi file này)
 
 - `lib/ai/review.js` dùng `calcMonth` và `computeMonth` của bộ máy do `lib/ai/payroll-loader.js` dựng (rà soát quy tắc, không dùng mô hình ngôn ngữ).
-- `public/admin.html` nạp `payroll-engine.js` (`public/admin.html`); giao diện Admin dùng `columnsOfDay` và các số máy chủ trả về.
 - `web/` là giao diện Vue; khi đã build thì `lib/http.js` phục vụ `web/dist`. Thư mục này không thuộc tài liệu này.
 
 ---
@@ -515,7 +514,7 @@ Chưa thấy test nào xác nhận trực tiếp các trường hợp biên: ph�
 | 17 | `src/modules/periods/periods.helpers.ts` `SLIP_QTY` | `leaveLeft` và `kpiBonus` được nhận và lưu nhưng không có trong `Pins.KEYS` nên không đổi tiền; không có cảnh báo cho các ô này. Giới hạn giá trị viết cứng ở `src/modules/periods/periods.helpers.ts`. |
 | 18 | `lib/slip-paid.js` `slipBasisOf` | `flexPay` và `nightPay` lấy từ `bonus` theo `shift` của dòng; phần sàn phụ trội đêm ngày lễ của ca `normal` (nhánh `nightH × hourly × night.breakPremium` trong `bonus`) không vào ô flex hay ô đêm nào trên phiếu. |
 | 19 | `lib/domain/limits.js` | `DAY_HOURS_CAP` (12), `MONTH_OT_CAP` (40) đọc từ `DEFAULTS` của registry (`law.ceiling.otDayTotalHours`, `law.ceiling.otMonthHours`), một nơi khai số. |
-| 20 | `public/payroll-params.js` DEFAULTS | Có trong DEFAULTS nhưng không tìm thấy code đọc theo chuỗi khoá: `kpi.ratioRule`, `kpi.payCurveRule`, `kpi.scoreDecimals`, `kpi.scoreMax`, `kpi.weworkMinCompare`, `ot.nightAddScope`, `net.deductionPriority`, `net.stepOrder`, `leave.birthdayMode`, `leave.accrualMode`, `leave.settleMethod`, `leave.useLeaveFirst`, `holiday.compensatory`, `time.maxSpanHours`, `attendance.graceCompare`, `attendance.makeupDayStepRule`. Ngoại lệ: `pay.otHourlyDivisor` có một chỗ đọc theo chuỗi ở `public/admin/view-khung-luong.js` (chọn bước hiển thị '2' hoặc '1' cho trang cấu hình), không ảnh hưởng tiền. |
+| 20 | `public/payroll-params.js` DEFAULTS | Có trong DEFAULTS nhưng không tìm thấy code đọc theo chuỗi khoá: `kpi.ratioRule`, `kpi.payCurveRule`, `kpi.scoreDecimals`, `kpi.scoreMax`, `kpi.weworkMinCompare`, `ot.nightAddScope`, `net.deductionPriority`, `net.stepOrder`, `leave.birthdayMode`, `leave.accrualMode`, `leave.settleMethod`, `leave.useLeaveFirst`, `holiday.compensatory`, `time.maxSpanHours`, `attendance.graceCompare`, `attendance.makeupDayStepRule`. Ngoại lệ: `pay.otHourlyDivisor` có một chỗ đọc theo chuỗi ở (chọn bước hiển thị '2' hoặc '1' cho trang cấu hình), không ảnh hưởng tiền. |
 | 21 | `payroll-calendar.js` | Làm tròn số thực 1e10 viết cứng. |
 | 22 | `payroll-engine.js` và `payroll-service.js` | `calcMonth` gọi trần có `upTo === undefined` thì tính tới ngày đang chạy (đọc đồng hồ máy chủ); `computeFor` mặc định `upTo = null` (cả tháng). Cùng đầu vào gọi từ hai nơi cho kết quả khác. |
 | 23 | `payroll-engine.js` | `mienThueOf` còn đọc `otHolHours`, `otHolPay`, `otHolNightHours` từ bản chụp, nhưng bộ máy hiện tại không ghi các trường này (luôn 0 ở bản chụp mới). |

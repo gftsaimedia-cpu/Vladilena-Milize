@@ -80,31 +80,3 @@ test(`làm bù vào ngày lễ vẫn bị chặn 400 SHEET_MAKEUP_ON_HOLIDAY, kh
   }
   assert.deepEqual((await store.getSheet('qa_day', M)).days, {});
 });
-
-// Màn nhân viên (public/nhan-vien/logic.js → dayPlan): ngày lễ trong lịch có mục OT (khung giờ từ – đến), không có làm bù và các loại nghỉ (gợi ý của chúng nói trừ phép,
-// không lương, nợ giờ trong khi bộ máy trả lương ngày lễ); câu gợi ý "Đi làm ngày lễ" nói đúng luật vắng
-test('dayPlan ngày lễ trong lịch: chỉ Nghỉ lễ / OT (giờ từ – đến của ngày), không có ô làm thêm riêng ; ngày thường không đổi', () => {
-  const L = require('../../public/nhan-vien/logic.js');
-  const me = { username: 'qa_day', type: 'nv', level: 1 };
-  for (const warn of [true, false]) {
-    const plan = L.dayPlan({ me, date: HOL, holidays: [HOL], warn });
-    const values = plan.kinds.map(k => k.value);
-    for (const kind of ['makeup', 'leave', 'unpaid', 'willmakeup'])
-      assert.ok(!values.includes(kind), `${warn} ${kind}`);
-    assert.deepEqual(plan.extraKinds, [], 'giờ OT ngày lễ là khung từ – đến của chính ngày');
-    const work = plan.kinds.find(k => k.value === 'work');
-    assert.equal(work.label, 'OT');
-    assert.match(work.hint, /Không Check-in\/out hôm đó sẽ tính vắng, mất lương ngày lễ\./);
-  }
-  // Ngày đã khai từ trước vẫn hiện để xem và sửa
-  const kept = L.dayPlan({ me, date: HOL, holidays: [HOL], warn: true, existingKind: 'leave' });
-  assert.ok(kept.kinds.some(k => k.value === 'leave'));
-  const normal = L.dayPlan({ me, date: '2026-10-21', holidays: [HOL], warn: true });
-  for (const kind of ['work', 'leave', 'unpaid', 'willmakeup'])
-    assert.ok(
-      normal.kinds.some(k => k.value === kind),
-      kind
-    );
-  assert.ok(!normal.kinds.some(k => k.value === 'makeup'), 'không còn loại ngày Làm bù cả ngày');
-  assert.deepEqual(normal.extraKinds, ['ot', 'makeup']);
-});

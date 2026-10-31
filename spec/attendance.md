@@ -61,8 +61,6 @@ Quy ước trong tài liệu:
 
 ### Giao diện dùng module (chỉ đọc, không tính tiền)
 
-- Nhân viên: `public/nhan-vien/punch.js` (nút Check-in/out, `requestId`, hộp xác nhận Check-out sớm, hộp giải trình khi 409), `logic.js` (`punchView`: chế độ nút, `blocked`, `earlyWarning`), `giai-trinh.js`, `yeu-cau.js` (tạo yêu cầu nghỉ / OT / làm bù), `khai.js` (biểu mẫu khai ngày; nút khai chỉ có ở chế độ Admin khai thay `NV.thay`).
-- Admin: `public/admin/view-cham-cong.js` (màn Chấm công: Bảng công, Hôm nay, Giờ OT), `cham-cong-khai.js` (khai lịch thay trong hộp một ngày), `view-giai-trinh.js`, `phieu-a4-days.js` và `phieu-co-dien.js` (dòng ngày của phiếu: giờ bấm thật, nhãn ngày giữ).
 
 ---
 
@@ -595,17 +593,17 @@ Chuỗi: `loadInputs` → `computeMonth` → `calcMonth`; công thức tiền �
 
 - Nguồn: `ActualHours.apply` ghi `punchIn` / `punchOut` (mục 4.10) vào ngày `work`, `noshow`, `pending` (trừ `not-yet`); ngày giữ vì giải trình mang cùng hai trường (`payroll-engine.js`) cộng `held`. Bản chụp phiếu có hai trường này trong `m.rows[]`.
 - Bản chụp không có hai trường (dòng `work`, `noshow`, ngày lễ có giờ làm, `pending` trừ `not-yet`, hoặc ngày `held`): `withPunchTimes` (`lib/slip-paid.js`) lấy từ các lượt của tháng bằng `ActualHours.punchTimesOf` khi đọc, thiếu thì `null` cả hai. Bản chụp trong DB không đổi; khi so bản chụp đã lưu với bản tính lại, `withoutPunchTimes` bỏ `punchIn`, `punchOut`, `held`.
-- Hiển thị: ô "Vào – ra" của dòng ngày là `HH:MM – HH:MM`; bên nào không có giờ bấm thì in `--:--` (`phieu-a4-days.js`, `phieu-co-dien.js`). Ngày vắng, ngày chờ xử lý (trừ chưa tới ngày) và ngày giữ vì giải trình đều in giờ bấm thật ở ô này; ca qua nửa đêm thì giờ ra là giờ đồng hồ của sáng hôm sau.
-- Nhãn ngày giữ: `held === 'rejected'` ⇒ "Bị từ chối", còn lại ⇒ "Chờ xử lý" (`phieu-a4-days.js`, `phieu-co-dien.js`). Ngày giữ không có tiền.
+- Hiển thị: ô "Vào – ra" của dòng ngày là `HH:MM – HH:MM`; bên nào không có giờ bấm thì in `--:--`. Ngày vắng, ngày chờ xử lý (trừ chưa tới ngày) và ngày giữ vì giải trình đều in giờ bấm thật ở ô này; ca qua nửa đêm thì giờ ra là giờ đồng hồ của sáng hôm sau.
+- Nhãn ngày giữ: `held === 'rejected'` ⇒ "Bị từ chối", còn lại ⇒ "Chờ xử lý". Ngày giữ không có tiền.
 - Phiếu của nhân viên và bản A4 không có công thức; công thức dưới từng dòng Chi tiết chỉ có ở phiếu Admin (`lib/slip-formulas.js`, ngoài phạm vi module này).
 
 ### 4.14 Luồng Check-out sớm và muộn (giao diện nhân viên)
 
-- `PunchRules.checkoutWarning` trả cảnh báo khi giờ hiện tại trước `plannedShift.endIso`; `punchView` đặt `earlyWarning` cho lượt đang mở có ca (không áp lượt `outsideShift`) (`public/nhan-vien/logic.js`).
-- Bấm Check-out khi `earlyWarning` còn hiệu lực: giao diện nạp lại `GET /api/punch`, lấy `checkoutPreview` mới (máy chủ chạy `ActualHours.apply` như thể Check-out ngay bây giờ) rồi hiện hộp "Ca làm chưa kết thúc" (`public/nhan-vien/punch.js`): giờ kết thúc ca, thời gian còn lại, và nếu `checkoutPreview.early > 0` thì "về sớm N phút", số phút sẽ bị trừ (`cutEnd`) hoặc "chưa bị trừ (đến N phút không trừ)". Hai nút: **Vẫn Check-out** (gửi `POST /api/punch`) và **Tiếp tục làm** (đóng hộp, không gửi).
+- `PunchRules.checkoutWarning` trả cảnh báo khi giờ hiện tại trước `plannedShift.endIso`; `punchView` đặt `earlyWarning` cho lượt đang mở có ca (không áp lượt `outsideShift`).
+- Bấm Check-out khi `earlyWarning` còn hiệu lực: giao diện nạp lại `GET /api/punch`, lấy `checkoutPreview` mới (máy chủ chạy `ActualHours.apply` như thể Check-out ngay bây giờ) rồi hiện hộp "Ca làm chưa kết thúc": giờ kết thúc ca, thời gian còn lại, và nếu `checkoutPreview.early > 0` thì "về sớm N phút", số phút sẽ bị trừ (`cutEnd`) hoặc "chưa bị trừ (đến N phút không trừ)". Hai nút: **Vẫn Check-out** (gửi `POST /api/punch`) và **Tiếp tục làm** (đóng hộp, không gửi).
 - Check-out sớm đã gửi: lượt đóng `pending/incomplete-shift`; nhãn lượt là **Chờ xử lý** với lý do "Về sớm N phút" (mục 2.7); ngày vẫn được tính tiền với phút trừ theo bậc làm tròn (mục 4.10.2).
 - Check-out muộn quá `CHECKOUT_GRACE_MIN`: máy chủ trả 409 `CHECKOUT_NEEDS_EXPLANATION`; giao diện mở hộp giải trình (`NV.askLateExplanation`) rồi gửi lại cùng lần bấm kèm `explanation`. Hộp huỷ ⇒ lượt giữ nguyên. Kết quả: lượt "Quên Check-out" kèm `requestedOut`, nhãn Chờ xử lý "Check-out muộn N phút", cho tới khi Admin quyết định giải trình (mục 4.7).
-- Check-in: khay kết quả hiện ca, giờ vào ca, "Giờ bị trừ do vào muộn" lấy từ `checkoutPreview.cutStart`; `punchView` tắt nút Check-in khi `punch.checkInBlock` là chuỗi (`logic.js`): máy chủ đã báo ngoài khung ca không có khoản đã duyệt phủ giờ đó (mục 3.2b).
+- Check-in: khay kết quả hiện ca, giờ vào ca, "Giờ bị trừ do vào muộn" lấy từ `checkoutPreview.cutStart`; `punchView` tắt nút Check-in khi `punch.checkInBlock` là chuỗi: máy chủ đã báo ngoài khung ca không có khoản đã duyệt phủ giờ đó (mục 3.2b).
 - Mỗi lần bấm dùng một `requestId` (UUID) giữ qua tải lại trang cho tới khi máy chủ trả lời dứt khoát; gửi lại sau lỗi mạng nhận bản phát lại, không chấm hai lần.
 
 ### 4.15 Trường hợp biên đáng nhớ
@@ -716,16 +714,16 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 | `PunchRules.openSessionDay` / `checkInMsg` / `occurrence` | ngày công của lượt (`date`), `checkInDay`, `CheckinEntitlement.decide`, `guardPeriod` dùng ngày đó, ca đêm cuối tháng, `/today`, `punchView` |
 | `attendance.openSessionMaxHours` | `forgotOut`, `staleBefore` (SQL `closeStaleFor`), `forgotOutDate` (`/today`), `shiftConfig` gửi nhân viên |
 | `CHECKOUT_GRACE_MIN` / `lateCheckoutMin` | `POST /api/punch` (409), lượt `forgot-out` + `requestedOut`, ngày giữ vì giải trình, nhãn "Check-out muộn", màn giải trình hai phía |
-| Trạng thái / reason của lượt | `ActualHours.inspectDay`, `AdminPresence.isUsableReal`/`#overlap`, `SessionStatus.#issues`, `/team` `pendingDays`, `view-cham-cong.js`, `periods.checklist`, `lib/ai/review.js` |
+| Trạng thái / reason của lượt | `ActualHours.inspectDay`, `AdminPresence.isUsableReal`/`#overlap`, `SessionStatus.#issues`, `/team` `pendingDays`, `periods.checklist`, `lib/ai/review.js` |
 | `ADMIN_ORIGIN` | nguồn `lib/attendance-sessions.js` (cũng dùng trong SQL), `public/actual-hours.js` (chép tay), mọi `origin !==` trong `sessionOverlap`, `closedEntry` |
 | Ẩn lượt Admin chưa tới giờ ra (`NOT_SCHEDULED`) | `listSessions`, `lastSession`, `AdminPresence.sync` (`includeScheduled`), `ActualHours.apply` (lọc lại theo `asOf`), băm đầu vào kỳ lương |
 | `ActualHours.apply` (bất kỳ nhánh nào) | bộ máy lương, `actualReportView`, `/alerts`, `checkoutPreview`, `periods.checklist`, test `actual-hours`, `payroll-attendance`, `payroll-golden` |
-| `cutMin` / `attendance.graceMin|stepMin|cutRounding` | `cutRuleView` (bảng gửi nhân viên), `nhan-vien/logic.js` (tra bảng), `checkoutPreview`, ngưỡng "Vào trễ" của `SessionStatus` |
+| `cutMin` / `attendance.graceMin|stepMin|cutRounding` | `cutRuleView` (bảng gửi nhân viên), `checkoutPreview`, ngưỡng "Vào trễ" của `SessionStatus` |
 | Giờ nghỉ (`time.breakAfterWorkHours/breakHours`) | `analyseShift.isWorkOffset`, `PayrollCalendar.splitMainWork/splitExtraWork` (đoạn OT không có giờ nghỉ), `payroll-engine.breakSlots` — phải cùng một luật |
-| `cleanDays` / `checkSheet` | `AdminPresence.sync` (trường so sánh), `approvals.declaredItems`, `estimateDays` (`ESTIMATE_FIELDS`), giao diện khai `khai.js`, `cham-cong-khai.js` |
+| `cleanDays` / `checkSheet` | `AdminPresence.sync` (trường so sánh), `approvals.declaredItems`, `estimateDays` (`ESTIMATE_FIELDS`) |
 | `estimateDays` / `ESTIMATE_FIELDS` | `estimateSheet` (mọi nơi đọc lịch), băm đầu vào kỳ lương |
 | `heldByUser` / trạng thái giải trình | `heldFor`, `AdminPresence.declaredDates`, `computeMonth`, lỗi thời của lần tính (băm), `periods.checklist`, giao diện giải trình |
-| `punchTimes` / `punchTimesOf` | `slip-paid.withPunchTimes`, `withoutPunchTimes`, `phieu-a4-days.js`, `phieu-co-dien.js` |
+| `punchTimes` / `punchTimesOf` | `slip-paid.withPunchTimes`, `withoutPunchTimes` |
 | Lịch làm việc (`type.*.dows`) | `planShift.kind`, `openSessionDay`, `checkInDay`, ngày mặc định của `apply`, `checkSheet` `SHEET_OFF_SCHEDULE`, `isWorkDay` của bộ máy |
 | Bảng ca (`shift.preset.*`, danh mục ca) | `SHIFT` (punch), `SHIFT_TIMES` (actual-hours), `PRESET_RE` (server), ca Admin chọn (`adminShiftOf`) |
 | Ngày lễ | `checkSheet` (OT lễ), `apply` (isWork, ngày mặc định, `holidayWindow`), `calcDay` (noshow mất lương lễ), `holidayOtConflicts`, `reconcileHolidayWork`, `checkInDay` |
@@ -750,7 +748,7 @@ Chỉ ghi nhận hiện trạng của mã.
 
 ### 8.1 Logic trùng lặp / hai nơi tính một việc khác nhau
 
-1. **Phút vào muộn tính nhiều cách.** `ActualHours.lateMinutes` theo bộ tham số tháng ở `/today` (`src/modules/attendance/attendance.controller.ts`) và ở nhãn lượt (`SessionStatus` qua `rules(month)`); cùng hàm nhưng bản trần (mặc định) ở màn Admin (`public/admin/view-cham-cong.js` `lateOf`); `PunchRules.lateMin` phút thô có tính cả giờ nghỉ, theo lần ca gần nhất của **mã ca** chứ không theo `plannedShift` ở app nhân viên (`public/nhan-vien/logic.js`); báo cáo `apply` (`missedStart`, chỉ phút làm). Phút **ra sớm** ở màn Admin tính thô `endIso − presOut` (`earlyMinutes`), khác `missedEnd` của `ActualHours` (bỏ giờ nghỉ).
+1. **Phút vào muộn tính nhiều cách.** `ActualHours.lateMinutes` theo bộ tham số tháng ở `/today` (`src/modules/attendance/attendance.controller.ts`) và ở nhãn lượt (`SessionStatus` qua `rules(month)`); cùng hàm nhưng bản trần (mặc định) ở màn Admin; `PunchRules.lateMin` phút thô có tính cả giờ nghỉ, theo lần ca gần nhất của **mã ca** chứ không theo `plannedShift` ở app nhân viên; báo cáo `apply` (`missedStart`, chỉ phút làm). Phút **ra sớm** ở màn Admin tính thô `endIso − presOut` (`earlyMinutes`), khác `missedEnd` của `ActualHours` (bỏ giờ nghỉ).
 2. **`ActualHours.apply` chạy trên đầu vào khác bộ máy.** Bộ máy chạy trên lịch đã qua `payView`; `actualReportView`, `/alerts` chạy trên lịch khai; `checkoutPreview` dựng ngày giả `kind:'work'` bỏ qua ngày khai thật (làm bù, OT). Trạng thái ngày nhân viên / Admin thấy có thể khác ngày được trả (vd. khoản đi làm lễ chưa duyệt bị bỏ trong bộ máy nhưng hiện `absent` cho nhân viên). `actualReport` cũng không áp ngày giữ vì giải trình.
 3. **Hai hàm kiểm chồng giờ lượt** với luật loại trừ khác nhau: `sessionOverlap` (`lib/domain/attendance.js`) và `AdminPresence.#overlap` (`admin-presence.js`).
 4. **Bảng đổi mã ca hai nơi**: `SHIFT_CODES` + `shiftAliases` (`public/punch.js`) và `ShiftCatalog.canonicalOf/presetOf` (`lib/domain/shift/shift-catalog.js`); thêm `PRESET_RE` riêng ở `src/modules/sheet/sheet.helpers.ts`.

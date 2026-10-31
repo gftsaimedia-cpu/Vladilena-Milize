@@ -18,10 +18,10 @@ Ca làm: ca cố định `f1`, `f2`, `n1`, `n2` (ca ngày), `g1`, `g2` (ca đêm
 
 | Vai trò | Vào đâu | Làm gì |
 | --- | --- | --- |
-| Nhân viên (`staff`) | `nhan-vien.html` | Check-in/out, xem lịch tháng, gửi yêu cầu, giải trình, xin tạm ứng, xem thu nhập và phiếu lương của mình. |
-| Admin, C&B (`cb`), kế toán (`accounting`), nhân sự (`hr`), quản lý (`manager`) và vai trò tuỳ chỉnh | `admin.html` | Theo năng lực của vai trò (`lib/authz.js`): duyệt yêu cầu, sửa chấm công, khai thay, chốt công, tính và duyệt lương, cấu hình tham số, xem nhật ký. |
+| Nhân viên (`staff`) | `/nhan-vien` (giao diện Vue, `web/`) | Check-in/out, xem lịch tháng, gửi yêu cầu, giải trình, xin tạm ứng, xem thu nhập và phiếu lương của mình. |
+| Admin, C&B (`cb`), kế toán (`accounting`), nhân sự (`hr`), quản lý (`manager`) và vai trò tuỳ chỉnh | `/admin` (giao diện Vue) | Theo năng lực của vai trò (`lib/authz.js`): duyệt yêu cầu, sửa chấm công, tính và duyệt lương, cấu hình, xem nhật ký. |
 
-`public/home-route.js` quyết định trang vào sau đăng nhập: người có năng lực quản trị vào `admin.html`, còn lại vào `nhan-vien.html`. Máy chủ vẫn kiểm quyền từng yêu cầu. Admin có thể mở giao diện nhân viên ở chế độ khai thay (`public/nhan-vien/thay.js`) để thao tác thay một nhân sự.
+Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết định trang vào sau đăng nhập theo `GET /api/me`: người có năng lực quản trị vào `/admin`, còn lại vào `/nhan-vien`. Máy chủ vẫn kiểm quyền từng yêu cầu. Admin có thể thao tác thay một nhân sự (khai thay).
 
 ### 1.3 Các luồng chính từ đầu đến cuối
 
@@ -42,7 +42,7 @@ Ca làm: ca cố định `f1`, `f2`, `n1`, `n2` (ca ngày), `g1`, `g2` (ca đêm
 - **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `server.js` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, nạp trình biên dịch TypeScript lúc chạy (`lib/register-ts.js` → `tsx`, không có bước build), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.js`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
 - **Cơ sở dữ liệu**: hai chế độ chọn bằng `DB_DIALECT` (`lib/db.js`). Mặc định **SQLite** (`node:sqlite`, `DatabaseSync`, WAL, khoá ngoại bật, `DB_PATH` bắt buộc; lược đồ tạo bằng DDL "chỉ thêm" và mốc migration một lần). `DB_DIALECT=postgres` chạy trên **PostgreSQL**: `DATABASE_URL` → `pg.Pool`; `DB_PATH=:memory:` → PGlite trong tiến trình (dùng khi thử). Lược đồ PostgreSQL do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.js` (bảng `schema_migrations`); câu SQL của mã vẫn viết dạng SQLite và được dịch lúc chạy bởi `lib/data/postgres-sql.js`. Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Lớp truy vấn có kiểu **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`; câu lệnh biên dịch cú pháp SQLite rồi chạy qua đúng kết nối của ứng dụng, nên nằm trong `store.transaction` và chạy được trên cả hai CSDL); hiện `settings` (`getSetting`/`setSetting`) đã chuyển sang `SettingsRepository`, các kho còn lại vẫn dùng SQL thô. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.js`.
 - **Mô-đun dùng chung trình duyệt và máy chủ (UMD) trong `public/`**: cùng một file nạp bằng `<script>` ở trình duyệt và `require` ở máy chủ. Gồm bộ máy tính lương (`payroll-engine.js`, `payroll-calendar.js`, `payroll-day-parts.js`, `payroll-graph.js`, `payroll-pins.js`, `pay-*-calc.js`), tham số mặc định (`payroll-params.js`), quy tắc chấm công (`punch.js`, `actual-hours.js`, `work-schedule.js`), quy tắc phép và KPI (`leave.js`, `kpi-score.js`), duyệt khoản (`approval-view.js`), công thức (`formula.js`, `formula-vocab.js`), nhãn chấm công (`attendance-status.js`). **Số tiền chính thức chỉ do máy chủ tính**; trình duyệt dùng cùng mã để hiển thị, xem trước và kiểm.
-- **Giao diện**: hai bộ. (1) Giao diện Vue 3 ở `web/` (build ra `web/dist`; `lib/http.js` → `serveStatic` phục vụ nó trước `public/` khi `web/dist/index.html` tồn tại). (2) Giao diện tĩnh cũ: `public/admin.html`, `public/nhan-vien.html`, `public/dang-nhap.html` với mã trang ở `public/admin/`, `public/nhan-vien/`, `public/dang-nhap/`, không có bước build; chạy khi chưa build `web/dist` (khi đó `/` chuyển về `dang-nhap.html`) và là nền của sandbox.
+- **Giao diện**: ứng dụng Vue 3 ở `web/` (build ra `web/dist`; `lib/http.js` → `serveStatic` phục vụ `web/dist` ở "/" và mọi đường dẫn của router Vue; chưa build thì "/" trả 503 kèm cách build, `/api` vẫn chạy). Giao diện tĩnh cũ trong `public/` đã bỏ; `public/` chỉ còn các mô-đun tính lương mà máy chủ nạp bằng `require`. Tham chiếu route của giao diện: `spec/reference/web-routes.md`.
 - **Sự kiện thời gian thực**: `GET /api/events` (SSE, `lib/events.js`). Sự kiện: `params.changed`, `period.changed`, `approvals.changed`, `attendance.changed`, `request.decided`, `punch.corrected`, `punch.changed`, `estimate.changed`, `payslip.available`, `roles.changed`, `announcement.posted`. Phát sau khi giao dịch COMMIT; mỗi sự kiện chọn người nhận và lọc trường theo quyền; màn hình tự nối lại và đồng bộ lại bằng `configRev`.
 - **Registry tham số**: `lib/params/registry.data.json` là bảng siêu dữ liệu cho mọi con số (nhãn, nhóm, kiểu, đơn vị, khoảng, sàn/trần của luật, thành phần giao diện); giá trị mặc định ở `public/payroll-params.js` (`DEFAULTS`). Giá trị theo tháng áp dụng nằm ở `param_versions` (mỗi lần lưu thêm dòng mới, không sửa dòng cũ). `lib/params/save.js` kiểm, xem trước tác động, ghi cả lô trong một giao dịch kèm nhật ký, và hoàn tác bằng dòng mới. `lib/params/store.js` giải bộ tham số hiệu lực của một tháng. `lib/params/keys.lock.json` khoá danh sách khoá.
 - **Công thức**: bảy công thức tháng có tên (`tyLeNgayDiLam`, `phuCapDiLai`, `phuCapChuyenCan`, `heSoNgayKpi`, `luongKpi`, `tongThuNhap`, `tamUng`) là cây định nghĩa trong `public/payroll-graph.js`; khoá `formula.*` bị khoá nên Admin không lưu công thức, chỉ chỉnh tham số bằng biểu mẫu. Bộ máy kiểm cây theo từ vựng, đơn vị và vòng lặp mỗi khi dựng nhân tính (`public/payroll-engine.js`); cây hỏng thì báo lỗi, không quay về công thức khác.
@@ -54,7 +54,7 @@ Ca làm: ca cố định `f1`, `f2`, `n1`, `n2` (ca ngày), `g1`, `g2` (ca đêm
 - **Giới hạn tải**: giới hạn đồng thời băm mật khẩu, giới hạn tốc độ ghi theo người, từ chối route nặng khi vòng lặp sự kiện trễ kéo dài (`lib/ops/`, dựng ở `src/http/load-control.ts`, áp ở `ApiGate`).
 - **AI rà soát theo luật** (`lib/ai/`): không gọi mô hình hay mạng; 22 luật thuần chạy trên dữ liệu tháng (ví dụ `isat-frequency`, `leave-with-checkin`, `ot-checkin-mismatch`, `negative-leave`, `net-nonpositive`, `locked-with-pending`, `override-looks-like-entry`). Kết quả vào bước "AI kiểm tra" của kỳ và, khi công tắc Agents bật, chặn duyệt khoản dính luật nặng (`lib/domain/ai-block.js`, 409 `AI_BLOCKED`).
 - **Sandbox**: máy chủ thử `scripts/dev/sandbox-server.cjs` (mục 4.2).
-- **Giao diện Vue** ở `web/`: front-end tách rời, gọi `/api` qua `web/src/services/*`; các spec giao diện (`ui-admin.md`, `ui-staff.md`) mô tả bộ tĩnh cũ ở `public/`.
+- **Giao diện Vue** ở `web/`: front-end tách rời, gọi `/api` qua `web/src/services/*`; các spec giao diện mô tả bộ tĩnh cũ ở `public/`.
 
 ### 2.2 Một yêu cầu `/api/*` đi qua
 
@@ -147,13 +147,10 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   │   ├── approvals.js, ai-review.js, ai-block.js, kpi.js, holidays.js, geofence.js, blocks.js, pay-entries.js, staff.js, positions.js, shifts.js, catalog-params.js
 │   ├── ops/                   Giới hạn tải, theo dõi vòng lặp, nhật ký truy cập, bộ nhớ đệm tính toán
 │   └── params/                Registry (registry.data.json, registry.js), store.js, save.js, validate.js, config-rev.js, positions.js, blocks.js, block-defs.js, attributes.js, keys.lock.json, wired-flag.js
-├── public/                    Giao diện tĩnh và mô-đun UMD
-│   ├── admin.html, nhan-vien.html, dang-nhap.html   Ba trang
+├── public/                    Mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng require; không phục vụ ra ngoài
 │   ├── payroll-engine.js, payroll-params.js, payroll-calendar.js, payroll-day-parts.js, payroll-graph.js, payroll-pins.js, pay-blocks-calc.js, pay-entries-calc.js, pay-options-calc.js, pay-tail-calc.js   Bộ máy lương
 │   ├── punch.js, actual-hours.js, work-schedule.js, attendance-status.js   Chấm công và lịch
-│   ├── leave.js, kpi-score.js, approval-view.js, formula.js, formula-vocab.js, home-route.js
-│   ├── admin/                 Giao diện Admin: core.js, boot.js, data.js, ui.js, icons.js, view-*.js (một file một màn hoặc một khối), cai-dat-*.js, tham-so-*.js, catalog-*.js, phieu-*.js (in phiếu), *.css
-│   ├── nhan-vien/             Giao diện nhân viên: core.js, boot.js, data.js, logic.js, parts.js, views.js, punch.js, khai.js, yeu-cau.js, giai-trinh.js, ung-luong.js, thu-nhap.js, thay.js, live.js, *.css
+│   ├── leave.js, kpi-score.js, approval-view.js, formula.js, formula-vocab.js
 │   ├── dang-nhap/             dang-nhap.js, dang-nhap.css
 │   └── slip/                  Ảnh dùng cho phiếu A4 (logo, khẩu hiệu, hình mờ)
 ├── scripts/
@@ -202,7 +199,7 @@ Biến môi trường chính: `PORT`, `DB_PATH`, `ADMIN_PASSWORD`, `SESSION_SECR
 
 - DB luôn là `:memory:` (ghi đè cả biến shell), chỉ nghe `127.0.0.1`, từ chối kết nối không phải loopback.
 - Cổng lấy từ `SANDBOX_PORT` (mặc định 3104; `0` để hệ điều hành chọn). Ví dụ: `SANDBOX_PORT=0 npm run sandbox`; dòng `SANDBOX_READY ...` in cổng thật.
-- Đồng hồ giả: `Date` bị thay bằng đồng hồ đóng băng bắt đầu ở một mốc cố định đầu tháng (hằng `INITIAL_LOCAL`), chỉ chạy khi được đặt. Chỉ trang mở qua `/app` (có tham số `dong-ho-sandbox=1`) mới dùng đồng hồ giả; mở thẳng `/admin.html` hay `/nhan-vien.html` dùng giờ thật của trình duyệt.
+- Đồng hồ giả: `Date` bị thay bằng đồng hồ đóng băng bắt đầu ở một mốc cố định đầu tháng (hằng `INITIAL_LOCAL`), chỉ chạy khi được đặt. Chỉ trang mở qua `/app` (tới `/admin` hoặc `/nhan-vien` kèm `?dong-ho-sandbox=1`) mới dùng đồng hồ giả: sandbox chèn script đóng băng `Date` vào `<head>` của `index.html` trong `web/dist` (cần đã build giao diện); mở thẳng một đường dẫn dùng giờ thật của trình duyệt.
 - Tài khoản mẫu (mật khẩu ngẫu nhiên mỗi lần dựng, không cần đăng nhập vì cookie phiên cấp theo tài khoản đang chọn): `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (C&B không nhận lương).
 - Đường điều khiển:
 
@@ -279,13 +276,9 @@ Mỗi mục dưới đây đã đối chiếu với mã. Chi tiết quy tắc n�
 - Nhân viên xem số ước tính của tháng đang chạy (`GET /api/me/estimate`) và chỉ xem phiếu chính thức sau khi kỳ đã chi trả (`PAYSLIP_NOT_VISIBLE` trước đó).
 - Khoản điền thêm (`/api/pay-entries`): khi `system.entries.requireApproval` bật, người duyệt phải khác người lập (`SELF_DECISION_FORBIDDEN`), tắt thì khoản có hiệu lực ngay khi lập; khoản đã duyệt cộng vào tổng thu nhập, có cờ miễn thuế và bảo hiểm.
 
-### 5.5 Giao diện Admin (`public/admin.html`, `public/admin/`)
+### 5.5 Giao diện (ứng dụng Vue, `web/`)
 
-Tổng quan, Yêu cầu (duyệt khoản, giải trình, ứng lương), Chấm công & phép (bảng, ca, phép, hôm nay, OT, khai thay), Đánh giá KPI, Bảng lương (kỳ, phiếu trong ngăn kéo, in A4, khoản điền thêm), Nhân sự (hồ sơ, lịch sử, sổ phép), Trợ lý AI (kết quả rà soát), Cài đặt (sơ đồ, quyền lợi, chức vụ, ca, chấm công, KPI, ngưỡng AI, phân quyền, nhật ký). Màn Cài đặt dựng từ registry tham số: xem trước tác động, tháng áp dụng, lý do, hoàn tác.
-
-### 5.6 Giao diện nhân viên (`public/nhan-vien.html`, `public/nhan-vien/`)
-
-Năm tab: Hôm nay (thẻ ca, nút Check-in/out, việc cần làm, cảnh báo), Chấm công (lịch tháng, chi tiết ngày, thống kê, KPI tự chấm), Yêu cầu (khoản chờ duyệt, giải trình, tạm ứng, ngày phép), Thu nhập (ước tính và phiếu), Tôi (hồ sơ, đổi mật khẩu, đăng xuất). Cập nhật trực tiếp qua SSE. Trang đăng nhập `dang-nhap.html`.
+Giao diện duy nhất là ứng dụng Vue 3 ở `web/` (Admin: tổng quan, yêu cầu, chấm công & phép, KPI, bảng lương, cài đặt; nhân viên: bản điện thoại `/nv/*` và bản máy tính `/nv-may-tinh`; bản in phiếu `/in/phieu-luong/*`). Danh sách màn và route: `spec/reference/web-routes.md` (sinh từ `web/src/router`). Dữ liệu lấy qua `web/src/services/*` gọi `/api`; cập nhật trực tiếp qua SSE (`GET /api/events`).
 
 ### 5.7 Tham số, vận hành, sandbox
 
@@ -301,7 +294,7 @@ Mỗi mục đã đối chiếu với mã; chỗ chưa xác nhận bằng chạy
 
 ### 6.1 Chấm công và giải trình
 
-- **Check-out sớm chỉ hỏi xác nhận.** Hộp "Vẫn Check-out" / "Tiếp tục làm" (`public/nhan-vien/punch.js`) không bắt nhập giải trình ngay lúc bấm. Chỉ Check-out muộn mới đòi giải trình cùng lần bấm (`CHECKOUT_NEEDS_EXPLANATION`, `lib/domain/explanation/late-checkout-session.js`).
+- **Check-out sớm chỉ hỏi xác nhận.** Hộp "Vẫn Check-out" / "Tiếp tục làm" không bắt nhập giải trình ngay lúc bấm. Chỉ Check-out muộn mới đòi giải trình cùng lần bấm (`CHECKOUT_NEEDS_EXPLANATION`, `lib/domain/explanation/late-checkout-session.js`).
 - **Nhãn "Bị từ chối" trên màn chấm công của nhân viên.** Với giải trình quên chấm bị từ chối, màn nhân viên có thể hiện Chờ xử lý thay vì Bị từ chối; chưa xác nhận bằng chạy thật. Phần sửa nằm ở nhánh `wip/totals-rounding`, chưa vào mã này.
 - **Giải trình trên ngày có đơn nghỉ bị từ chối.** Giải trình trên một ngày mà đơn nghỉ đã bị từ chối có thể không ghi lượt Admin; phần sửa cũng ở `wip/totals-rounding`.
 - **OT khai ở Check-in/out không ra tiền.** `POST` và `PUT /api/ot` (`src/modules/attendance/attendance.controller.ts`, `src/modules/attendance/attendance.controller.ts`) chỉ lưu khai báo để theo dõi. Nguồn giờ làm thêm của bộ máy là Lịch ước tính (`attendance.extraSourceRule = calendar`, `public/actual-hours.js`); `otReview` của lượt bị bỏ khi dựng ngày tính tiền (`LOCKED_FIELDS`, `public/actual-hours.js`). Tiền OT chỉ ra từ OT khai trên Lịch ước tính đã được duyệt và chỉ phần có mặt liền ca (`lib/domain/ot.js`). OT chỉ được duyệt qua `POST/PUT /api/ot` không vào số ước tính.
@@ -312,7 +305,7 @@ Mỗi mục đã đối chiếu với mã; chỗ chưa xác nhận bằng chạy
 - Một số tổng có thể lệch 1 đồng so với tổng các dòng đã in: tổng được làm tròn một lần trên số gốc, còn mỗi dòng làm tròn riêng; công thức chỉ được giữ khi lệch không quá 1 đồng mỗi bước làm tròn (`lib/slip-formulas.js`, phần đầu file).
 - Dòng đếm giờ thiếu chưa bù ("1 giờ thiếu + 1 giờ thiếu + …") chưa gộp số hạng giống nhau: nhánh `debtH` dùng `plus(...)` thay vì `netSum` (`lib/slip-formulas.js`).
 - Dòng có số lượng bằng 0 (ví dụ "× 0 ngày phép") vẫn có thể được in.
-- Dòng công thức xuống hàng có thể tách số khỏi tên của nó, vì kiểu hiển thị cho phép ngắt ở bất kỳ ký tự nào (`overflow-wrap: anywhere`, `public/admin/man-phieu-luong.css`).
+- Dòng công thức xuống hàng có thể tách số khỏi tên của nó, vì kiểu hiển thị cho phép ngắt ở bất kỳ ký tự nào (`overflow-wrap: anywhere`).
 
 ### 6.3 Điểm tính lương cần xác nhận
 
@@ -376,5 +369,3 @@ Nhóm nguyên nhân thấy trong thông báo lỗi (số là số lỗi của l�
 | `spec/requests.md` | Yêu cầu và duyệt: khoản tự khai chờ duyệt, ngày lễ, phép năm, tạm ứng, OT, làm bù, giải trình, KPI, chặn của AI, quyền duyệt, khoá kỳ theo việc. |
 | `spec/payroll-engine.md` | Bộ máy tính lương: tham số, một ngày, một tháng, bảy công thức tháng, thực lĩnh, thuế, bảo hiểm, miễn thuế, ghim, tạm ứng, phép năm. |
 | `spec/payroll-period.md` | Kỳ lương và phiếu: vòng đời kỳ, lần chạy, bản chụp, số sửa và số chi trả, danh sách kiểm, ước tính, khoản điền thêm, công thức Chi tiết. |
-| `spec/ui-admin.md` | Giao diện Admin: màn hình, cơ chế dựng màn, phiếu và in A4, chấm công, Cài đặt, kênh SSE, quy tắc nhập. |
-| `spec/ui-staff.md` | Giao diện nhân viên và đăng nhập: các tab, nút chấm công, mô hình tháng, khai ngày, yêu cầu, tạm ứng, giải trình, khai thay, SSE. |

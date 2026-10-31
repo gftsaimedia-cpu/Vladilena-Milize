@@ -9,9 +9,9 @@
  *      (hai file đó thuộc DB cũ, để lại thì SQLite có thể áp chúng vào bản khôi phục và làm sai dữ liệu);
  *   2. chạy server.js ở TIẾN TRÌNH RIÊNG với DB_PATH trỏ vào bản chép, PORT, SESSION_SECRET ngẫu nhiên,
  *      COOKIE_SECURE=0 (máy chủ chạy trên localhost, không có TLS ở đây);
- *   3. chờ dòng khởi động, rồi gửi ba yêu cầu: GET / (302 sang trang đăng nhập khi chưa build giao diện Vue; 200 và trang HTML
- *      khi web/dist có index.html), GET /dang-nhap.html (200 và
- *      nội dung không rỗng), GET /api/periods không kèm cookie (401 — chứng minh phần xác thực đang bật, không mở toang);
+ *   3. chờ dòng khởi động, rồi gửi ba yêu cầu: GET / (503 kèm cách build khi chưa có giao diện Vue; 200 và trang HTML
+ *      khi web/dist có index.html), GET /api/me (200 và
+ *      JSON không rỗng, không cần cookie), GET /api/periods không kèm cookie (401 — chứng minh phần xác thực đang bật, không mở toang);
  *   4. tắt tiến trình con, xoá thư mục làm việc (bản chép là dữ liệu lương thật), in thời gian khôi phục đo được.
  *
  * Không dùng mật khẩu nào, không đọc .env của máy chủ (mọi biến do script đặt hoặc kế thừa từ môi trường).
@@ -34,8 +34,8 @@ const RESTORE_NAME = 'restore.sqlite';
 const BOOT_TIMEOUT_MS = 60000; // DB lớn: migration trên bản chép có thể lâu
 const STOP_TIMEOUT_MS = 5000;
 const HTTP_TIMEOUT_MS = 20000;
-const LOGIN_PATH = '/dang-nhap.html';
-const MIN_LOGIN_BYTES = 500; // trang đăng nhập thật dài hơn nhiều; ít hơn nghĩa là trả về trang lỗi/rỗng
+const LOGIN_PATH = '/api/me';
+const MIN_LOGIN_BYTES = 40; // phản hồi /api/me thật dài hơn; ít hơn nghĩa là trả về trang lỗi/rỗng
 
 class DrillError extends Error {}
 
@@ -281,11 +281,11 @@ async function main() {
     const bootPort = await waitBoot(child, BOOT_TIMEOUT_MS);
     console.log('Máy chủ đã chạy trên bản khôi phục, cổng ' + bootPort + '.');
 
-    // Bước 3: ba yêu cầu chứng minh app sống, trang đăng nhập có nội dung, và API vẫn đòi đăng nhập
+    // Bước 3: ba yêu cầu chứng minh app sống, API công khai /api/me trả JSON, và API khác vẫn đòi đăng nhập
     const root = await get(bootPort, '/');
-    const rootToLogin = root.status === 302 && String(root.location || '').includes(LOGIN_PATH);
+    const rootNotBuilt = root.status === 503 && root.bytes > 0; // chưa build web/dist: máy chủ vẫn sống và nói rõ cách build
     const rootIsApp = root.status === 200 && root.type.includes('text/html') && root.bytes > 0;
-    const rootOk = rootToLogin || rootIsApp;
+    const rootOk = rootNotBuilt || rootIsApp;
     console.log(
       'GET /' +
         ' '.repeat(26) +

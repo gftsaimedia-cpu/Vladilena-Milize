@@ -6,9 +6,6 @@
     "public/formula.js": 2900,
     "lib/db.js": 2400,
     "public/payroll-engine.js": 1700,
-    "scripts/db/demo/scenarios.js": 1600,
-    "public/admin/view-tham-so.js": 1500,
-    "public/admin/admin.css": 1400,
-    "public/nhan-vien/nhan-vien.css": 1300
+    "scripts/db/demo/scenarios.js": 1600
   }
 }

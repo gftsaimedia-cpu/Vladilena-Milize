@@ -4,9 +4,6 @@ WORKDIR /web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
-# Trang cũ trong public/ vẫn nằm cùng máy chủ nên liên kết "trang cũ" của giao diện Vue trỏ cùng nguồn gốc ("/" = không thêm tiền tố).
-ARG VITE_LEGACY_ORIGIN=/
-ENV VITE_LEGACY_ORIGIN=$VITE_LEGACY_ORIGIN
 RUN npm run build
 
 FROM node:22-alpine

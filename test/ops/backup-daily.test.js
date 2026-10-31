@@ -153,12 +153,12 @@ test('check-backup: bản quá hạn thì hỏng kèm số giờ; bản .failed 
   assert.match(failed.stderr, /đánh dấu hỏng/);
 });
 
-test('restore-drill trên một bản sao: máy chủ chạy được, 302 / 200 / 401', () => {
+test('restore-drill trên một bản sao: máy chủ chạy được, 503 (chưa build giao diện) / 200 / 401', () => {
   const file = path.join(tmp, 'daily', copies(path.join(tmp, 'daily'))[0]);
   const r = run(DRILL, [`--backup=${file}`]);
   assert.equal(r.status, 0, r.stderr + r.stdout);
-  assert.match(r.stdout, /-> 302/);
-  assert.match(r.stdout, /-> 200, \d+ byte/);
+  assert.match(r.stdout, /GET \/ +-> 503/);
+  assert.match(r.stdout, /GET \/api\/me +-> 200, \d+ byte/);
   assert.match(r.stdout, /-> 401/);
   assert.match(r.stdout, /KẾT QUẢ: ĐẠT/);
 });
@@ -170,7 +170,7 @@ test('restore-drill khi web/dist có index.html: GET / trả 200 là trang HTML 
   const r = run(DRILL, [`--backup=${file}`], { WEB_DIST: dist });
   assert.equal(r.status, 0, r.stderr + r.stdout);
   assert.match(r.stdout, /GET \/ +-> 200, \d+ byte +\[ĐẠT\]/);
-  assert.doesNotMatch(r.stdout, /-> 302/);
+  assert.doesNotMatch(r.stdout, /-> 503/);
   assert.match(r.stdout, /-> 401/);
   assert.match(r.stdout, /KẾT QUẢ: ĐẠT/);
 });

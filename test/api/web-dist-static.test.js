@@ -1,5 +1,5 @@
 // Máy chủ phục vụ giao diện Vue đã build (web/dist) khi có: "/" và đường dẫn của router Vue trả index.html, /assets/ giữ được lâu,
-// trang cũ trong public/ vẫn đọc được bằng địa chỉ riêng, /api không bị index.html che. Không có web/dist thì chỉ phục vụ public/.
+// /api không bị index.html che. Giao diện duy nhất là bản Vue (web/dist): chưa build thì "/" trả 503 kèm cách build, file khác 404.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -64,9 +64,14 @@ test('/assets/ có băm trong tên được giữ lâu và đúng kiểu nội d
   assert.match(r.headers['content-type'], /text\/javascript/);
 });
 
-test('trang cũ trong public/ vẫn đọc được bằng địa chỉ riêng; file không có thì 404', async () => {
-  assert.equal((await raw('/dang-nhap.html')).status, 200);
-  assert.equal((await raw('/admin.html')).status, 200);
+test('giao diện cũ trong public/ đã bỏ (404); file không có thì 404', async () => {
+  assert.equal((await raw('/dang-nhap.html')).status, 404);
+  assert.equal((await raw('/admin.html')).status, 404);
+  assert.equal(
+    (await raw('/payroll-engine.js')).status,
+    404,
+    'mô-đun tính lương của máy chủ không được phục vụ ra ngoài'
+  );
   assert.equal((await raw('/khong-co-file-nay.js')).status, 404);
   assert.equal((await raw('/assets/khong-co.js')).status, 404);
 });
@@ -89,4 +94,28 @@ test('mọi phản hồi tĩnh vẫn mang tiêu đề bảo mật', async () => 
   const r = await raw('/');
   assert.match(r.headers['content-security-policy'], /default-src 'self'/);
   assert.equal(r.headers['x-content-type-options'], 'nosniff');
+});
+
+test('chưa build web/dist: "/" trả 503 nói rõ cách build, file khác 404, không chuyển hướng', () => {
+  const { spawnSync } = require('node:child_process');
+  const code = `
+    const { serveStatic } = require('./lib/http');
+    const out = [];
+    for (const p of ['/', '/admin/tong-quan', '/payroll-engine.js']) {
+      const res = { writeHead(s, h) { this.s = s; this.h = h || {}; }, end(b) { out.push({ p, s: this.s, loc: this.h.Location || null, b: String(b || '') }); } };
+      serveStatic({ headers: {}, method: 'GET' }, res, new URL('http://x' + p));
+    }
+    console.log(JSON.stringify(out));`;
+  const r = spawnSync(process.execPath, ['-e', code], {
+    cwd: path.join(__dirname, '..', '..'),
+    env: { ...process.env, WEB_DIST: path.join(dist, 'khong-co-thu-muc-nay') },
+    encoding: 'utf8'
+  });
+  assert.equal(r.status, 0, r.stderr);
+  const [root, spa, engine] = JSON.parse(r.stdout);
+  assert.equal(root.s, 503);
+  assert.equal(root.loc, null);
+  assert.match(root.b, /npm run build/);
+  assert.equal(spa.s, 404);
+  assert.equal(engine.s, 404);
 });

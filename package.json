@@ -16,7 +16,6 @@
     "test": "node --no-warnings=ExperimentalWarning --test \"test/**/*.test.js\"",
     "test:unit": "node --no-warnings=ExperimentalWarning --test \"test/unit/**/*.test.js\"",
     "test:api": "node --no-warnings=ExperimentalWarning --test \"test/api/**/*.test.js\"",
-    "test:ui": "node --no-warnings=ExperimentalWarning --test \"test/ui/**/*.test.js\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "params:extract": "node --no-warnings=ExperimentalWarning scripts/params/extract-defaults.js",
@@ -42,7 +41,6 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.13",
     "@electric-sql/pglite-socket": "^0.2.16",
-    "@playwright/test": "^1.64.1",
     "@types/express": "^4.17.25",
     "@types/node": "^26.6.6",
     "prettier": "3.9.10",

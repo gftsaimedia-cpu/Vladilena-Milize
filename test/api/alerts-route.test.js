@@ -47,11 +47,3 @@ test('nhân sự thường 403, chưa đăng nhập 401', async () => {
   assert.equal((await F.call('GET', '/alerts?month=2026-10', { who: 'qa_nv' })).status, 403);
   assert.equal((await F.call('GET', '/alerts?month=2026-10', { who: null })).status, 401);
 });
-
-test('màn Admin luôn gửi month: core.js gọi /alerts kèm month của màn', () => {
-  const src = require('node:fs').readFileSync(
-    require('node:path').join(__dirname, '../../public/admin/core.js'),
-    'utf8'
-  );
-  assert.match(src, /A\.api\('GET', '\/alerts' \+ q\(\{ month: m \}\)\)/);
-});

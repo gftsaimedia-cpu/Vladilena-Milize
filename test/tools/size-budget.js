@@ -18,7 +18,7 @@ const SKIP_DIRS = new Set([
   '.git',
   'data',
   'docs',
-  'playwright-report',
+
   'test-results',
   'GFT OFFICE',
   '.claude',

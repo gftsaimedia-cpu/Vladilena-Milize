@@ -72,7 +72,10 @@ test('máy chủ thật vẫn trả lời bình thường sau khi áp cấu hìn
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
   const home = await get(port);
-  assert.equal(home.status, 302, 'trang chủ chuyển tới trang đăng nhập');
+  assert.ok(
+    [200, 503].includes(home.status),
+    'trang chủ trả lời (200 khi đã build giao diện, 503 khi chưa), không chuyển hướng'
+  );
   const login = await new Promise((resolve, reject) => {
     const body = JSON.stringify({ username: 'khong-co', password: 'sai-mat-khau' });
     const req = http.request(

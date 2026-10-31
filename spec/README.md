@@ -15,6 +15,7 @@ Do `scripts/docs/gen-spec.js` dựng từ mã (`npm run spec:gen`); `test/unit/s
 | [rules.md](reference/rules.md) | Luật nghiệp vụ dạng lớp `Rule` và mã cảnh báo | `lib/domain/**/rules/*.js` |
 | [events.md](reference/events.md) | Sự kiện SSE và hàm phát | `lib/events.js` |
 | [config.md](reference/config.md) | Hằng số kỹ thuật và biến môi trường | `lib/config.js`, `process.env.*` |
+| [web-routes.md](reference/web-routes.md) | Route và màn của giao diện Vue | `web/src/router/**` |
 | [params.md](reference/params.md) | Danh mục tham số lương | `lib/params/registry.data.json` |
 
 ## 2. Mô tả nghiệp vụ và vận hành — viết tay
@@ -30,7 +31,6 @@ Do `scripts/docs/gen-spec.js` dựng từ mã (`npm run spec:gen`); `test/unit/s
 | [requests.md](requests.md) | Yêu cầu chờ duyệt, giải trình, tạm ứng, khoản điền thêm |
 | [payroll-engine.md](payroll-engine.md) | Bộ máy tính lương, công thức, tham số |
 | [payroll-period.md](payroll-period.md) | Vòng đời kỳ lương, phiếu, ước tính |
-| [ui-admin.md](ui-admin.md), [ui-staff.md](ui-staff.md) | Giao diện tĩnh `public/` (Admin, nhân viên) |
 
 Quy ước của phần viết tay (`test/unit/spec-refs.test.js` giữ):
 

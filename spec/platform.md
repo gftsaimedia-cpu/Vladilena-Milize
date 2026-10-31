@@ -2,7 +2,7 @@
 
 Tài liệu mô tả hành vi của mã đang chạy ở nhánh hiện tại, đọc từ mã (không đọc từ chú thích). Đường dẫn tính từ gốc repo. `file:dòng` trỏ tới dòng hiện có; khi mã dịch chuyển thì tìm lại theo tên hàm. Chỗ mã không nhất quán hoặc chưa làm được nằm ở mục 8.
 
-Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS (`src/bootstrap.ts`, `src/http/*`), `lib/http.js` (JSON, lỗi, file tĩnh), cổng quyền `ROUTE_CAPS`, đăng ký module NestJS (`src/app.module.ts`), giới hạn tải, SSE, nhật ký kiểm toán, lược đồ DB và migration, cảnh báo thay cho chặn, công tắc Agents, registry tham số và dữ liệu sinh, AI rà soát theo luật (không LLM), sao lưu / kiểm / khôi phục, sandbox và máy chủ kịch bản, biến môi trường, lệnh npm, bố cục test và cách chạy. Nghiệp vụ lương, chấm công, lịch, KPI, tạm ứng, phép chỉ được nhắc khi chạm vào nền tảng; chi tiết ở các file spec khác (`payroll-engine.md`, `payroll-period.md`, `attendance.md`, `requests.md`, `people-access.md`, `ui-admin.md`, `ui-staff.md`).
+Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS (`src/bootstrap.ts`, `src/http/*`), `lib/http.js` (JSON, lỗi, file tĩnh), cổng quyền `ROUTE_CAPS`, đăng ký module NestJS (`src/app.module.ts`), giới hạn tải, SSE, nhật ký kiểm toán, lược đồ DB và migration, cảnh báo thay cho chặn, công tắc Agents, registry tham số và dữ liệu sinh, AI rà soát theo luật (không LLM), sao lưu / kiểm / khôi phục, sandbox và máy chủ kịch bản, biến môi trường, lệnh npm, bố cục test và cách chạy. Nghiệp vụ lương, chấm công, lịch, KPI, tạm ứng, phép chỉ được nhắc khi chạm vào nền tảng; chi tiết ở các file spec khác (`payroll-engine.md`, `payroll-period.md`, `attendance.md`, `requests.md`, `people-access.md`).
 
 ---
 
@@ -19,7 +19,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `lib/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `lib/params/` | Registry tham số, đọc theo tháng (`store.js`), lưu / xem trước / hoàn tác (`save.js`), kiểm (`validate.js`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.js`, `keys.lock.json`, `registry.data.json`. |
 | `lib/ai/` | AI rà soát theo luật (thuần, không mạng). |
-| `public/` | Giao diện tĩnh phục vụ trực tiếp: `admin.html` + `admin/`, `nhan-vien.html` + `nhan-vien/`, `dang-nhap.html` + `dang-nhap/`, `slip/` (logo phiếu), cùng các mô-đun dùng chung trình duyệt + máy chủ (`payroll-engine.js`, `payroll-params.js`, `payroll-calendar.js`, `punch.js`, `leave.js`, `kpi-score.js`, `actual-hours.js`, `approval-view.js`, `work-schedule.js`, `formula*.js`, `payroll-graph.js`, `pay-*-calc.js`, `attendance-status.js`, `home-route.js`…). Không có trang chủ riêng: chỉ ba trang HTML trên. |
+| `public/` | Chỉ còn các mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng `require` (`payroll-engine.js`, `payroll-params.js`, `payroll-calendar.js`, `punch.js`, `leave.js`, `kpi-score.js`, `actual-hours.js`, `approval-view.js`, `work-schedule.js`, `formula*.js`, `payroll-graph.js`, `pay-*-calc.js`, `attendance-status.js`…). Không được phục vụ ra ngoài; giao diện là ứng dụng Vue ở `web/`. |
 | `web/` | Mã nguồn giao diện Vue (dựng ra `web/dist`). `lib/http.js` phục vụ `web/dist` khi đã build. |
 | `scripts/ops/` | Sao lưu, kiểm bản sao, diễn tập khôi phục, lùi chế độ tham số. |
 | `scripts/dev/` | Sandbox (`sandbox-server.cjs`, `sandbox-ops.cjs`, trang điều khiển) và máy chủ kịch bản (`scenarios/`). |
@@ -473,7 +473,7 @@ Các route nghiệp vụ còn lại (sheet, punch, kpi, approvals, periods, staf
 ### 4.6 File tĩnh (`lib/http.js`)
 
 - `PUBLIC` = `public/`; `WEB_DIST` = `WEB_DIST` (env) hoặc `web/dist`.
-- `/` → `web/dist/index.html` nếu có (`no-cache`), không thì 302 `/dang-nhap.html`.
+- `/` → `web/dist/index.html` nếu có (`no-cache`), không thì 503 kèm câu hướng dẫn build (không chuyển hướng).
 - Giải mã đường dẫn (sai → 404), có `\0` → 404; ghép với `WEB_DIST` (nếu có index) rồi `public/`; ra ngoài thư mục gốc → 404.
 - Cache: `/assets/*` trong `web/dist` → `public, max-age=31536000, immutable`; còn lại `no-cache`. ETag yếu `W/"<size hex>-<mtime hex>"`, `If-None-Match` khớp → 304.
 - Đuôi `.html .js .css .svg .json .txt` ≤ 2 MB: đọc + gzip mức 9 một lần, giữ RAM; gửi gzip nếu client nhận và nhỏ hơn; `HEAD` không gửi thân. File khác: stream bằng `pipeline`.
@@ -628,7 +628,7 @@ Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ 
 4. Mỗi kỳ có `currentRunId`: `periods.verify(tháng)`; có phiếu lệch → hỏng.
 5. Mã thoát: 0 đạt, 1 hỏng, 2 một phần (thiếu `AUDIT_KEY` cho dòng HMAC). Xoá bản chép (cả khi `process.exit`).
 
-**restore-drill.js** — `--backup=<file> [--work-dir] [--port=0] [--keep]`: chép thành `restore.sqlite` (xoá `-wal`/`-shm` sót), chạy `src/modules/periods/periods.controller.ts` tiến trình con với `DB_PATH` bản chép, `PORT`, `SESSION_SECRET` ngẫu nhiên, `COOKIE_SECURE=0`, xoá `ADMIN_PASSWORD`; chờ khởi động ≤ 60 s; kiểm `GET /` = 302 tới `/dang-nhap.html`, `GET /dang-nhap.html` = 200 và ≥ 500 byte, `GET /api/periods` không cookie = 401. Từ chối tên `luong.sqlite`, `.partial`, `.failed`.
+**restore-drill.js** — `--backup=<file> [--work-dir] [--port=0] [--keep]`: chép thành `restore.sqlite` (xoá `-wal`/`-shm` sót), chạy `server.js` ở tiến trình con với `DB_PATH` bản chép, `PORT`, `SESSION_SECRET` ngẫu nhiên, `COOKIE_SECURE=0`, xoá `ADMIN_PASSWORD`; chờ khởi động ≤ 60 s; kiểm `GET /` = 200 (đã build giao diện) hoặc 503 (chưa build), `GET /api/me` = 200 và ≥ 40 byte, `GET /api/periods` không cookie = 401. Từ chối tên `luong.sqlite`, `.partial`, `.failed`.
 
 **params-mode.js** — `status` (chỉ đọc: mode, config_rev, số dòng param_versions, id audit cuối) hoặc `defaults-only --reason "<10..300>" --yes [--backup-dir=]`: đang `defaults-only` → không làm gì; nhật ký là HMAC mà thiếu `AUDIT_KEY` → từ chối; sao lưu bằng `backup-db.js` (bắt buộc); một giao dịch: `params_mode = 'defaults-only'`, `configRev.bump()`, audit `param.mode` với actor `ops:<user hệ điều hành>`. Không đụng `param_versions`.
 
@@ -650,7 +650,7 @@ Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ 
 | `POST /__sandbox/reset { confirm: true }` | Đặt lại dữ liệu thử. |
 | `POST /__sandbox/<tên của sandbox-ops>` | Nạp người dùng đo tải (tối đa 1.000), chạy / huỷ đo tải (kịch bản `login, checkin, mix, admin-burst, probe`, chạy `scripts/loadtest/run.js` ở tiến trình con nhắm chính sandbox), sao lưu (`VACUUM INTO` tạm, tối đa 6 bản), kiểm (`verify-backup.js`), diễn tập (`restore-drill.js`), làm hỏng bản sao giả. File tạm nằm trong thư mục tạm riêng, xoá khi tắt. |
 | `GET /`, `/__sandbox/panel.js`, `/__sandbox/ops.js` | Bảng điều khiển. |
-| `GET /app` | 302 tới `admin.html` (tài khoản chọn là admin) hoặc `nhan-vien.html` kèm `?dong-ho-sandbox=1`; hai trang này khi có tham số đó được chèn script đóng băng `Date` vào đầu `<head>`. |
+| `GET /app` | 302 tới `/admin` (tài khoản chọn là admin) hoặc `/nhan-vien` kèm `?dong-ho-sandbox=1`; mọi đường dẫn của router Vue (không có đuôi file) khi có tham số đó được trả `index.html` của `web/dist` kèm script đóng băng `Date` chèn vào đầu `<head>` (503 nếu chưa build). |
 
 - Reset (`resetSyntheticData`): trong một giao dịch xoá dữ liệu 13 bảng — `punch_requests, explanations, attendance_sessions, attendance_days, timesheets, slip_overrides, punches, corrections, sheet_approvals, kpi_scores, kpi_score_log, staff, settings` — rồi xoá bảng trạng thái kỳ lương theo thứ tự con trước cha — `payslips, payroll_runs, payroll_periods, ai_finding_actions, ai_review_runs, pay_entries, advance_requests`. Các bảng này có trigger chặn xoá nên sandbox gỡ trigger (đọc từ `sqlite_master`), xoá dòng, tạo lại đúng câu lệnh đã lưu. `audit_log` không bị đụng. Sau đó đồng hồ về `INITIAL_LOCAL`, gieo 7 tài khoản `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (ngày vào làm = ngày của đồng hồ đầu), `holidays = []`, `qa_cb` không nhận lương + vai trò `cb`, người chọn về `qa_nv`.
 - Bộ nhớ trong tiến trình sandbox gồm cả DB: tắt tiến trình là mất hết.
@@ -796,14 +796,14 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `verify-backup.js` (danh sách bảng), `sandbox-server.cjs` (danh sách bảng reset), `test/helpers/api-fixture.js` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
 - **Đổi `auditCanonical` / `auditHash`** → mọi chuỗi có sẵn không kiểm được nữa (`verify` báo `HASH` từ dòng đầu); `verify-backup.js`, `params-mode.js` (kiểm kiểu băm dòng cuối). Đổi/bỏ `AUDIT_KEY` → dòng HMAC có sẵn thành `unverifiable`.
 - **Thêm trường vào `before/after` của audit** → hàng rào `SECRET_RE` (`lat`/`lng` làm hỏng cả thao tác), trần 65.536 ký tự.
-- **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; giao diện `public/admin/core.js` và `public/nhan-vien/live.js`; `test/api/events.test.js`.
+- **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; thêm chỗ nghe ở giao diện Vue (`web/src`); `test/api/events.test.js`.
 - **Đổi `config.EVENTS_*`** → không đổi khoá registry `system.events.*` tương ứng (hai nơi), và ngược lại.
 - **Đổi `lib/config.js`** → chạy `npm run params:extract` (một số hằng là nguồn của `DEFAULTS`), `params:check`; `config` đóng băng lúc nạp và nạp trước `.env`.
 - **Thêm / đổi khoá tham số** → thêm vào mã nguồn mặc định, `key-map.js`, mục registry; chạy `params:extract`, `params:lock`, `params:check`; cờ `wired` qua `scripts/params/wired.js --write`.
 - **Đổi bộ máy lương (`public/payroll-engine.js`) hay tham số** → kết quả AI (luật cần payroll, `impacts`), cache AI theo `paramsHash`, `verify-backup` (tính lại phiếu từ bản chụp).
 - **Đổi luật AI hoặc `rule.fields`** → `EVIDENCE_FIELDS`; id finding (`<luật>:<user>:<ngày>`) và digest xác định hiệu lực lần bỏ qua; `ai_block_rules`/`DEFAULT_BLOCK_RULES` dùng id luật; khoá `ai.rule.<camelCase>.enabled`; `test/unit/ai-review*.test.js`.
 - **Đổi ngưỡng AI** → `THRESHOLDS` là nguồn của `ai.threshold.*` trong `DEFAULTS`; `lib/periods.js` băm `THRESHOLDS` khi không có `result.thresholds`.
-- **Đổi tên/đường của trang đăng nhập hay chuyển hướng `/`** → `restore-drill.js` (đòi `GET /` = 302 → `/dang-nhap.html`).
+- **Đổi hành vi của `GET /`** → `restore-drill.js` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.js`.
 - **Đổi giới hạn thân yêu cầu** → `MAX_BODY_BYTES` (`lib/http.js`).
 - **Đổi cookie / phiên** → SSE heartbeat (đọc lại cookie), `restore-drill`, sandbox (`luong_sandbox_sid`), `test/helpers/api-fixture.js` (`auth.createSession`).
 
@@ -899,7 +899,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 ### 8.7 Quy ước chưa đều
 
 - Thiếu `'use strict'` ở đầu: `server.js`, `lib/announce.js`, `lib/attendance-sessions.js`, `lib/auth.js`, `lib/db.js`, `lib/domain/ai-review.js`, `lib/domain/approvals.js`, `lib/domain/attendance.js`, `lib/domain/positions.js`, `lib/domain/sheet.js`, `lib/domain/staff.js`, `lib/http.js`, `lib/request-rules.js` (danh sách tính bằng cách quét `server.js` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (2.300; thực tế 2.259), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600), `public/admin/view-tham-so.js` (1.500), `public/admin/admin.css` (1.400), `public/nhan-vien/nhan-vien.css` (1.300). `server.js` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu, DDL SQLite).
+- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (2.300; thực tế 2.259), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600) (1.500) (1.400) (1.300). `server.js` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu, DDL SQLite).
 
 ### 8.8 Chưa có
 

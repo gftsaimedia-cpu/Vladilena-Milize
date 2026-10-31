@@ -59,22 +59,6 @@ test('purgePunchRequests từ chối số ngày không hợp lệ (không xoá g
   assert.equal(await rowCount(), before);
 });
 
-test('hạn giữ punch_requests LỚN HƠN cửa sổ thử lại của phía khách, nếu không sẽ chấm công hai lần', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/nhan-vien/punch.js'), 'utf8');
-  const ttlMs = Number(
-    /const ATTEMPT_TTL_MS = ([^;]+);/
-      .exec(source)?.[1]
-      ?.trim()
-      .split('*')
-      .map(Number)
-      .reduce((a, b) => a * b)
-  );
-  assert.ok(ttlMs > 0, 'punch.js phải có hằng ATTEMPT_TTL_MS');
-  const keepMs = config.PUNCH_REQUEST_KEEP_DAYS * DEFAULTS['unit.msPerDay'];
-  assert.ok(keepMs > ttlMs, `hạn giữ (${keepMs} ms) phải lớn hơn cửa sổ thử lại (${ttlMs} ms)`);
-  assert.ok(config.PUNCH_REQUEST_PURGE_MS > 0, 'nhịp dọn phải là số dương');
-});
-
 test('punch_requests có cột created_at và savePunchRequest ghi thời điểm (để dọn theo tuổi)', async () => {
   const columns = (await store.db.prepare('PRAGMA table_info(punch_requests)').all()).map(c => c.name);
   assert.ok(columns.includes('created_at'), 'thiếu cột created_at');

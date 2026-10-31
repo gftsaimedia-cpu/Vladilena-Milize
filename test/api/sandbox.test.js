@@ -14,6 +14,14 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-sandbox-test-'));
 const sentinel = path.join(tmp, 'production-sentinel.sqlite');
 const sentinelBytes = Buffer.from('File thử chứng minh sandbox không mở/ghi DB_PATH bên ngoài.');
 fs.writeFileSync(sentinel, sentinelBytes);
+// Giao diện Vue đã build giả: sandbox chèn đồng hồ giả vào index.html của web/dist rồi phục vụ ở mọi đường dẫn của router
+const webDist = path.join(tmp, 'web-dist');
+fs.mkdirSync(path.join(webDist, 'assets'), { recursive: true });
+fs.writeFileSync(
+  path.join(webDist, 'index.html'),
+  '<!doctype html><html><head><title>Vue</title><script type="module" src="/assets/app.js"></script></head><body><div id="app"></div></body></html>'
+);
+fs.writeFileSync(path.join(webDist, 'assets', 'app.js'), 'export default 1;');
 let child,
   base,
   cookie = '',
@@ -65,7 +73,7 @@ before(async () => {
       env: {
         ...process.env,
         SANDBOX_PORT: '0',
-        WEB_DIST: path.join(os.tmpdir(), 'luong-no-web-dist'),
+        WEB_DIST: webDist,
         DB_PATH: sentinel,
         SESSION_COOKIE_NAME: 'luong_sid',
         COOKIE_SECURE: '1'
@@ -335,11 +343,11 @@ test('clock/user/reset chỉ nhận điều khiển cùng origin với header ch
   assert.equal(hostStatus, 403);
 });
 
-test('khung /app mở giao diện mới của tài khoản đang chọn (Admin: admin.html, nhân viên: nhan-vien.html) và new Date()/Date.now() cùng clock sandbox', async () => {
+test('khung /app mở giao diện Vue của tài khoản đang chọn (Admin: /admin, nhân viên: /nhan-vien) và new Date()/Date.now() cùng clock sandbox', async () => {
   await clock('2026-10-07T12:34:56');
   for (const [username, page] of [
-    ['qa_admin', '/admin.html'],
-    ['qa_nv', '/nhan-vien.html']
+    ['qa_admin', '/admin'],
+    ['qa_nv', '/nhan-vien']
   ]) {
     await select(username);
     const jump = await fetch(base + '/app', { redirect: 'manual', headers: cookie ? { Cookie: cookie } : {} });
@@ -349,15 +357,23 @@ test('khung /app mở giao diện mới của tài khoản đang chọn (Admin: 
     assert.equal(plain.status, 200);
     assert.ok(!plain.text.includes('data-sandbox-clock'), page + ' mở thẳng chạy giờ thật của trình duyệt');
   }
-  const r = await call('GET', '/nhan-vien.html?dong-ho-sandbox=1');
+  const r = await call('GET', '/nhan-vien?dong-ho-sandbox=1');
   assert.equal(r.status, 200);
   assert.ok(r.text.indexOf('data-sandbox-clock') >= 0);
   assert.ok(
-    r.text.indexOf('data-sandbox-clock') < r.text.indexOf('<script src='),
+    r.text.indexOf('data-sandbox-clock') < r.text.indexOf('<script type="module"'),
     'đồng hồ giả nạp trước mọi script của trang'
   );
-  assert.ok((await call('GET', '/admin.html?dong-ho-sandbox=1')).text.includes('data-sandbox-clock'));
-  assert.equal((await call('GET', '/index.html')).status, 404, 'giao diện cũ đã xoá');
+  assert.ok(
+    (await call('GET', '/admin/tong-quan?dong-ho-sandbox=1')).text.includes('data-sandbox-clock'),
+    'mọi đường dẫn của router Vue'
+  );
+  assert.equal((await call('GET', '/admin.html')).status, 404, 'giao diện cũ đã xoá');
+  assert.equal(
+    (await call('GET', '/assets/app.js?dong-ho-sandbox=1')).text.includes('data-sandbox-clock'),
+    false,
+    'file tĩnh không bị chèn đồng hồ'
+  );
   const script = /<script data-sandbox-clock>([\s\S]*?)<\/script>/.exec(r.text)[1];
   const context = vm.createContext({ Date });
   context.window = context;

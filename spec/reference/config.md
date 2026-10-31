@@ -84,7 +84,7 @@
 | --- | --- |
 | `ACCESS_LOG` | `lib/ops/access-log.js:12` |
 | `AUDIT_KEY` | `lib/db.js:745` |
-| `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:40` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
+| `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:39` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
 | `DATABASE_URL` | `lib/db.js:22` `lib/db.js:38` `lib/db.js:38` |
 | `DB_DEBUG_SQL` | `lib/data/postgres-database.js:116` |
 | `DB_DIALECT` | `lib/db.js:20` |
@@ -98,4 +98,4 @@
 | `SESSION_SECRET` | `lib/auth.js:216` |
 | `SHIFT_ALLOW_EDIT` | `lib/params/save.js:73` |
 | `UV_THREADPOOL_SIZE` | `server.js:4` `server.js:4` |
-| `WEB_DIST` | `lib/http.js:11` |
+| `WEB_DIST` | `lib/http.js:10` |

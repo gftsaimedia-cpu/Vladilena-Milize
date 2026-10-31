@@ -172,21 +172,31 @@ function parseLocal(value) {
     ? result
     : null;
 }
-// Giao diện mới của từng loại tài khoản: Admin vào admin.html, còn lại vào nhan-vien.html (giống public/home-route.js, rút gọn theo vai trò).
+// Giao diện Vue (web/dist) của từng loại tài khoản: Admin vào /admin, còn lại vào /nhan-vien (router Vue tự chọn bản điện thoại hoặc máy tính).
 const homePage = async () => {
   const staff = await store.getStaff(selectedUser);
-  return staff && staff.role === 'admin' ? '/admin.html' : '/nhan-vien.html';
+  return staff && staff.role === 'admin' ? '/admin' : '/nhan-vien';
 };
-const CLOCKED_PAGES = new Set(['/admin.html', '/nhan-vien.html']);
-// Chỉ trang mở qua khung /app mới có đồng hồ giả (đóng băng lúc nạp trang). Mở thẳng /admin.html hay /nhan-vien.html (ví dụ test Playwright tự điều khiển đồng hồ)
+// Trang của router Vue: không phải '/', '/app', '/__sandbox/*', '/api/*', và không có đuôi file.
+const isSpaPage = pathname =>
+  pathname !== '/' &&
+  pathname !== '/app' &&
+  !pathname.startsWith('/__sandbox/') &&
+  !pathname.startsWith('/api/') &&
+  !path.extname(pathname);
+// Chỉ trang mở qua khung /app mới có đồng hồ giả (đóng băng lúc nạp trang). Mở thẳng một đường dẫn của giao diện (ví dụ test Playwright tự điều khiển đồng hồ)
 // vẫn chạy bằng giờ thật của trình duyệt.
 const CLOCK_QUERY = 'dong-ho-sandbox';
-function pageHtml(pathname) {
+// Cần giao diện đã build (web/dist, hoặc WEB_DIST): chưa build thì ném lỗi 503 nói rõ cách build.
+function webIndexPath() {
+  return path.join(process.env.WEB_DIST || path.join(project, 'web', 'dist'), 'index.html');
+}
+function pageHtml() {
   // Đóng băng cùng đồng hồ trong trang: cả new Date() và Date.now(). Thêm vào đầu <head>, trước mọi script của trang.
   const bootstrap = `<script data-sandbox-clock>\n(function(){const RealDate=Date,now=${clock};function SandboxDate(...args){if(!new.target)return new RealDate(now).toString();return Reflect.construct(RealDate,args.length?args:[now],new.target);}Object.setPrototypeOf(SandboxDate,RealDate);SandboxDate.prototype=RealDate.prototype;SandboxDate.now=()=>now;window.Date=SandboxDate;})();\n</script>`;
-  return fs
-    .readFileSync(path.join(project, 'public', pathname.slice(1)), 'utf8')
-    .replace(/<head(\s[^>]*)?>/i, match => match + bootstrap);
+  if (!fs.existsSync(webIndexPath()))
+    throw Object.assign(new Error('Chưa build giao diện web: chạy cd web && npm ci && npm run build'), { status: 503 });
+  return fs.readFileSync(webIndexPath(), 'utf8').replace(/<head(s[^>]*)?>/i, match => match + bootstrap);
 }
 
 const sandbox = http.createServer(async (req, res) => {
@@ -233,9 +243,10 @@ const sandbox = http.createServer(async (req, res) => {
       res.writeHead(302, { Location: (await homePage()) + '?' + CLOCK_QUERY + '=1', 'Cache-Control': 'no-store' });
       return res.end();
     }
-    if (req.method === 'GET' && CLOCKED_PAGES.has(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
+    if (req.method === 'GET' && isSpaPage(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
+      const html = pageHtml();
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(pageHtml(url.pathname));
+      return res.end(html);
     }
     if (url.pathname.startsWith('/__sandbox/')) return send(res, 404, { error: 'Không có chức năng này' });
     appServer.emit('request', req, res);

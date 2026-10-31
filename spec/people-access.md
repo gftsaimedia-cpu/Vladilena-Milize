@@ -52,9 +52,6 @@ Ký hiệu `file:dòng` trỏ tới vị trí trong cây mã hiện tại; khi d
 | `lib/http.js` (phần liên quan) | `readJson` (bắt buộc `application/json`, 1 MB), `clientIp` (theo `TRUST_PROXY`), `HttpError`. |
 | `lib/ops/route-classes.js` | Route nặng và route ghi không giới hạn tốc độ (`POST /login`, `POST /logout`, `POST /punch`). |
 | `src/modules/auth/auth.controller.ts` / `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts` (phần liên quan) | Cổng quyền (`src/http/api-gate.ts`), `checkInDay` (ngày nghỉ đã khai đóng Check-in), `POST /login`, `POST /logout`, `GET /me`, `PUT /password`, `GET /staff`, `POST /staff/:u/password`, `PUT /staff/:u/roles`, `PUT /staff/shift-bulk`, `PUT|DELETE /staff/:u`, tạo Admin đầu tiên, `Roles.reconcileStaffRole()` lúc nạp. |
-| `public/dang-nhap.html`, `public/dang-nhap/dang-nhap.js`, `public/dang-nhap/dang-nhap.css` | Trang đăng nhập: gọi `POST /api/login`, `GET /api/me`, chuyển trang bằng `HomeRoute.homeFor`. |
-| `public/home-route.js` | Chọn `admin.html` hay `nhan-vien.html` theo `me.user.role` và `me.caps`. |
-| `public/admin/view-phan-quyen.js`, `public/admin/view-ho-so.js`, `public/admin/catalog-positions.js`, `public/admin/catalog-shifts.js`, `public/admin/view-cai-dat.js`, `public/nhan-vien/views.js`, `public/nhan-vien/live.js` | Giao diện gọi các API của module (người dùng của API, không có luật riêng ngoài các bản sao ghi ở mục 8). |
 
 ---
 
@@ -496,7 +493,7 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 | `ot` | Khai OT trên lịch (`lib/domain/sheet-checks.js`), khai đi làm ngày lễ trong lịch có khung giờ vào – ra và khai OT từ lượt chấm công (`lib/domain/ot.js`): thiếu cờ thì lưu kèm cảnh báo `BENEFIT_NOT_ALLOWED` (khoản không được trả tiền). Bộ máy: thiếu cờ thì không có giờ OT và không có giờ làm ngày lễ, ngày lễ chỉ còn lương lễ nếu chức vụ có `paidHoliday` (`public/payroll-engine.js,472`). Khối cấu hình "Làm thêm (OT)" bật theo cờ này. |
 | `makeup` | Khối cấu hình "Làm bù" (hệ số `holiday.makeupRate`) bật theo cờ này (`lib/params/blocks.js`); `public/payroll-engine.js` không đọc cờ này. |
 | `makeupHours` | Khai làm bù theo giờ trên lịch (`extraKind='makeup'`): thiếu cờ thì cảnh báo `BENEFIT_NOT_ALLOWED` (khoản chờ duyệt và nếu được duyệt vẫn có tiền) (`checkRequestFlags`, `lib/domain/positions.js`). |
-| `makeupDay` | Bộ máy (`public/payroll-engine.js`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị (`public/admin/catalog-positions.js`) và chỉ giữ nhãn cho nhật ký; `public/payroll-params.js,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
+| `makeupDay` | Bộ máy (`public/payroll-engine.js`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị và chỉ giữ nhãn cho nhật ký; `public/payroll-params.js,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
 | `kpi` | Chức vụ có lương KPI: bộ máy tính KPI (`public/payroll-engine.js`); kiểm tra AI chỉ xét người có cờ (`lib/ai/review.js,1097`); khối cấu hình "KPI". |
 | `paidHoliday` | Ngày lễ trong thời gian làm việc được lương ngày (`public/payroll-engine.js`); thiếu cờ thì lương lễ là 0. |
 | `paidLeave` | Ngày nghỉ phép năm có lương ngày. |
@@ -525,8 +522,6 @@ Chặn cứng (400) cả với Admin ở: `PUT /sheet` khi ngày được khai h
 
 ### 4.12 Đường vào giao diện sau đăng nhập
 
-`public/dang-nhap/dang-nhap.js`: ép tên đăng nhập `trim().toLowerCase()`; thiếu trường → báo ngay không gọi máy chủ; lỗi lấy nguyên văn `data.error` (qua `textContent`); 401 → viền đỏ ô mật khẩu + câu gợi ý. Thành công → `GET /api/me` → `HomeRoute.homeFor(me)`. Mở trang khi cookie còn hạn → vào thẳng.
-`public/home-route.js`: `me.user.role === 'admin'` hoặc `me.caps` có một trong `config.read, payroll.calculate, payroll.approve, attendance.correct, attendance.lock, audit.read` → `/admin.html`; còn lại `/nhan-vien.html`.
 
 ### 4.13 Tài khoản Admin đầu tiên (`src/modules/auth/auth.controller.ts`, `auth.js`)
 
@@ -588,7 +583,7 @@ Danh sách người được tính lương trong tháng `YYYY-MM` lấy từ `st
 | khung `bye` | `closeUser(username, reason)` với `reason` = `logout`, `password`, `locked` | mọi kết nối của tài khoản đó | `{ reason }` |
 | khung `hello` | mở luồng | | `{ epoch, serverTime, configRev, build }` |
 
-Không phát sự kiện: lưu hồ sơ `PUT /staff/:u`, khoá/mở khoá (ngoài `bye`), gán ca hàng loạt, đặt lại mật khẩu (ngoài `bye`). Giao diện nhân viên nghe `roles.changed` để đọc lại `/api/me` (`public/nhan-vien/live.js`).
+Không phát sự kiện: lưu hồ sơ `PUT /staff/:u`, khoá/mở khoá (ngoài `bye`), gán ca hàng loạt, đặt lại mật khẩu (ngoài `bye`). Giao diện nhân viên nghe `roles.changed` để đọc lại `/api/me`.
 
 ### 5.2 Nhật ký (`audit_log`, ghi trong cùng giao dịch)
 
@@ -634,11 +629,10 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 - `lib/http.js clientIp` gọi `auth.trustedHops` (dùng cho giới hạn đăng nhập và nhật ký chấm công).
 - `lib/params/store.js` đọc `catalogParams.rows()` → **bộ máy lương, chấm công, phép, lịch, KPI đều đọc danh mục chức vụ/bậc/ca qua bộ tham số của tháng**.
 - `store.getStaff`/`listStaff`/`rowToStaff` dùng ở mọi module tính lương, chấm công, duyệt.
-- Giao diện: `public/admin/view-phan-quyen.js`, `view-ho-so.js`, `catalog-positions.js`, `catalog-shifts.js`, `view-cai-dat.js`, `public/nhan-vien/views.js`, `public/dang-nhap/dang-nhap.js`, `public/home-route.js`.
 
 ### 6.3 File dùng chung trình duyệt và máy chủ (UMD)
 
-`public/payroll-params.js`, `public/approval-view.js`, `public/punch.js`, `public/payroll-calendar.js` (qua `lib/domain/input.js`), `public/work-schedule.js`, `public/leave.js`. `public/home-route.js` chỉ ở trình duyệt.
+`public/payroll-params.js`, `public/approval-view.js`, `public/punch.js`, `public/payroll-calendar.js` (qua `lib/domain/input.js`), `public/work-schedule.js`, `public/leave.js` (máy chủ nạp bằng `require`).
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
@@ -646,11 +640,11 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | --- | --- |
 | Thêm route mới | Thêm khoá vào `ROUTE_CAPS` (`authz.js`), nếu có tham số trong đường dẫn thì thêm nhánh `routeKey` **đúng thứ tự** (`authz.js`); `lib/ops/route-classes.js` nếu là route nặng/ghi tự do; test `permissions-matrix`, `route-dispatch-golden`, `route-classes`. |
 | Thứ tự nhánh `routeKey` | Các khoá `/staff/*`: `shift-bulk`, `:u/roles`, `:u/password`, `:u/schedule` phải đứng trước `PUT|DELETE /staff/:u`. |
-| `CAPS` / `ROLE_CAPS` / `ROLE_SCOPE` | `lib/roles.js AREAS`, `EXTRAS` (ma trận màn Phân quyền), `public/home-route.js ADMIN_CAPS`, nhãn `CAP_TXT`/`ROLE_TXT` trong `public/admin/view-phan-quyen.js`, tầng người nhận trong `lib/events.js EVENTS`, `auditSensitivities`. |
+| `CAPS` / `ROLE_CAPS` / `ROLE_SCOPE` | `lib/roles.js AREAS`, `EXTRAS` (ma trận màn Phân quyền), `public/home-route.js ADMIN_CAPS`, nhãn `CAP_TXT`/`ROLE_TXT` trong tầng người nhận trong `lib/events.js EVENTS`, `auditSensitivities`. |
 | `public/approval-view.js ITEMS` | `lib/roles.js APPROVAL_ITEMS` (danh sách riêng: nếu thiếu, tạo/sửa vai trò với loại mới bị 400 `ROLE_APPROVAL_UNKNOWN` dù `authz` chấp nhận). `makeup_day` (Làm bù cả ngày) còn trong `ITEMS` vì khoá tham số còn, nhưng không còn trong `APPROVAL_ITEMS`: vai trò gửi loại này thì bị bỏ qua (`RETIRED_ITEMS`). |
 | `RESERVED_CAPS` | `PUT /staff/:u` và `POST /staff/:u/password` dựa vào việc chỉ `admin` có `roles.manage`; `guardAdminLock`. |
 | Cột mới trong `staff` | `staffRevision` tự tính cột đó; nếu cột tự đổi (kỹ thuật) phải thêm vào `REV_SKIP_COLUMNS` (`staff.js`) nếu không Admin bị 409 `STAFF_STALE` giả. Thêm vào `rowToStaff`, `upsertStaff` (câu `ON CONFLICT` liệt kê từng cột), `audit.js STAFF_PLAIN/STAFF_PAY/STAFF_PII`, `staffForViewer PAY_STAFF_FIELDS` nếu là trường tiền, `effectivePay` ở `src/modules/staff/staff.controller.ts` nếu đổi tiền, `Profile.fromRow`. |
-| Quy tắc "thiếu trường" trong `PUT /staff/:u` | `public/admin/view-ho-so.js` và `view-phan-quyen.js` (tạo tài khoản) phải gửi đủ các trường "đặt lại khi thiếu" (mục 4.6), nếu không sẽ xoá ngày vào làm, ca, điều chỉnh phép, iDorm, đổi chức vụ về mặc định. |
+| Quy tắc "thiếu trường" trong `PUT /staff/:u` | Khách gọi (tạo hoặc sửa tài khoản) phải gửi đủ các trường "đặt lại khi thiếu" (mục 4.6), nếu không sẽ xoá ngày vào làm, ca, điều chỉnh phép, iDorm, đổi chức vụ về mặc định. |
 | `passMark` / `system.auth.passMarkChars` / `SESSION_SECRET` / `SESSION_COOKIE_NAME` | Mọi phiên đang mở hết hiệu lực. |
 | `system.auth.scryptKeyBytes` | Mọi mật khẩu đã băm không đăng nhập được. |
 | `lockStaff` / `unlockStaff` / `bumpSessionVersion` | `readSession` (so `sv`), `events.closeUser`, `countAdmins` (bỏ tài khoản khoá). |
@@ -661,8 +655,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | Danh mục ca / `shift.kind.*` / `shift.alias.*` | `public/punch.js`, `public/actual-hours.js`, phụ cấp ca trong bộ máy lương, `seed-data.js SHIFTS`, `PRESET_RE` trong `src/modules/staff/staff.controller.ts`. |
 | `PersonName` | `db.rowToStaff`, `db.upsertStaff`, `Profile.fromRow`, mốc `staff_identity_v1`. |
 | `agents_enabled` | `lib/agents.js`; `/me.agentsEnabled`; mọi route Trợ lý AI; `assertNotAiBlocked`. |
-| `config.REASON_MIN/MAX`, `PASSWORD_MIN_LENGTH` | Bản sao trong `lib/db.js`, `public/admin/view-phan-quyen.js`, `public/admin/view-ho-so.js`, `public/admin/view-cai-dat.js`. |
-| `USERNAME_RE` | Bản sao (khác) trong `public/admin/view-ho-so.js`, `view-phan-quyen.js`. |
+| `config.REASON_MIN/MAX`, `PASSWORD_MIN_LENGTH` | Bản sao trong `lib/db.js`. |
 
 ---
 
@@ -694,7 +687,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 9. **Bộ tham số của module đăng nhập**: `lib/auth.js` đọc `PayrollParams.DEFAULTS` lúc nạp; `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts` đọc `system.staff.bulkMax` từ bộ tham số đã lưu. Các khoá `system.login.*`, `system.session.days`, `system.auth.*` nếu được lưu vào `param_versions` không có tác dụng.
 10. **Ba bộ kiểm lý do**: `roles.parseReason` (`roles.js`), `warnings.optionalReason` (`warnings.js` theo dòng của file), `db.softReason` (`db.js`); `src/modules/staff/staff.controller.ts reasonOf` bọc `optionalReason`. Mọi lý do đều không bắt buộc. Route danh mục (`catalog-change.js`) không kiểm lý do.
 11. **`uuidOf`**: `lib/db.js` và `employee-repository.js` cùng tra uuid theo username.
-12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.js` (bỏ `insured`, `levelName`), `lib/domain/geofence.js` (chỉ gửi toạ độ vùng cho `staff.role='admin'`), `public/home-route.js`. Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
+12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.js` (bỏ `insured`, `levelName`), `lib/domain/geofence.js` (chỉ gửi toạ độ vùng cho `staff.role='admin'`). Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
 
 ### 8.2 Danh sách / hằng số chép nhiều nơi
 
@@ -703,10 +696,10 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 15. Mã chức vụ: `position-catalog.js` viết cứng `/^[a-z][a-z0-9]{1,15}$/`; `lib/params/positions.js` dựng từ `config.POSITION_CODE_MIN/MAX`.
 16. Mã vai trò: `lib/db.js` viết cứng `/^[a-z][a-z_]{1,31}$/`; `lib/roles.js` dựng từ `config.ROLE_CODE_MAX`.
 17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.js` (`CONTRACT_STATUSES`), CHECK ở `employee/schema.js`, `db.js`.
-18. Tên vai trò mặc định: `lib/roles.js` và `public/admin/view-phan-quyen.js`.
-19. Độ dài lý do: `config.js`, `db.js`, `public/admin/view-phan-quyen.js`, khoá registry `control.reasonMinLength`/`control.reasonMaxLength` (không được máy chủ đọc).
-20. Độ dài mật khẩu: `config.js`, `public/admin/view-ho-so.js`, `public/admin/view-cai-dat.js` (số `6` viết thẳng).
-21. Tên đăng nhập: máy chủ `/^[a-z0-9._-]{2,40}$/` (`input.js`); giao diện `/^[a-z0-9][a-z0-9._-]{1,39}$/` (`view-ho-so.js`, `view-phan-quyen.js`) bắt ký tự đầu là chữ/số. Chú thích ở `view-ho-so.js` nói "khớp USERNAME_RE của máy chủ".
+18. Tên vai trò mặc định: `lib/roles.js` (giao diện Vue có bản sao nhãn riêng ở `web/src`).
+19. Độ dài lý do: `config.js`, `db.js`, khoá registry `control.reasonMinLength`/`control.reasonMaxLength` (không được máy chủ đọc).
+20. Độ dài mật khẩu: `config.js` (số `6` viết thẳng).
+21. Tên đăng nhập: máy chủ `/^[a-z0-9._-]{2,40}$/` (`input.js`).
 22. `config.js` (`LOGIN_*`, `SESSION_DAYS`, `STAFF_BULK_MAX`) là nguồn trích xuất của registry (`scripts/params/key-map.js`) nhưng lúc chạy không được đọc; máy chủ đọc bản trong `DEFAULTS`/bộ tham số.
 
 ### 8.3 Số nghiệp vụ / kỹ thuật viết cứng
@@ -731,7 +724,6 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 35. `lib/db.js` chú thích cột `staff`: `type` "'tts' | 'ctv' | 'nv'", `night_pct` "chỉ nhóm 'nv': 40 | 60", `shift_code` "n1 n2 f1 f2 g1 g2"; mã hiện cho chức vụ là dữ liệu, `nightOptions` theo chức vụ/bậc, và `shift_code` lưu mã mới `Normal1…Night2` (`db.js,1921-1946`).
 36. `lib/config.js` nói các hằng `LOGIN_*` dùng cho `lib/auth.js`; `lib/auth.js` đọc `system.login.*` từ `DEFAULTS`.
 37. `lib/domain/shared/repository.js` "thiếu expectedRev = ghi đè như các màn cũ" đúng với lớp, nhưng cả ba route danh mục bắt buộc `expectedRev` cho chức vụ và ca (`src/modules/catalog/catalog.controller.ts`, `src/modules/catalog/catalog.controller.ts`); chỉ bậc cho phép thiếu khi thêm mới.
-38. `public/home-route.js` nói người có năng lực quản trị "(Admin, C&B, Kế toán...)" vào `admin.html`; vai trò `hr` (có `profile.write`, `request.decide.leave`) và `manager` (có `request.decide.*`) không có năng lực nào trong `ADMIN_CAPS` nên vào `nhan-vien.html`.
 
 ### 8.6 Hành vi dễ gây lỗi dây chuyền (mô tả theo mã)
 
@@ -745,6 +737,5 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 47. `PUT /password`, `POST /staff/:u/password`, `PUT /staff/:u` băm mật khẩu ngoài `hashGate` (`src/modules/auth/auth.controller.ts,1852,2304`) trong khi `POST /login` qua `hashGate`; kiểm mật khẩu hiện tại ở `PUT /password` không có giới hạn đoán ngoài giới hạn ghi 240/phút.
 48. Gán tên: khi lưu hồ sơ không gửi `familyName`/`givenName`, `upsertStaff` tách lại họ/tên từ `name` (`db.js`): tên hai chữ đã nhập riêng trước đó (ví dụ họ "Nguyễn Văn", tên "An Bình") bị tách lại thành tên "Bình".
 49. `ROUTE_CAPS` cho thêm chức vụ và thêm bậc khác nhau ở cổng: `POST /positions` cần `config.read` (`authz.js`), `POST /positions/:code/levels` cần `config.payroll` (`authz.js`); cả hai kiểm lại `config.payroll` trong `save.js`.
-50. Giao diện Admin không nghe `roles.changed` (chỉ `public/nhan-vien/live.js` nghe); Admin bị đổi vai trò vẫn thấy menu cũ cho tới khi tải lại `/api/me`.
-51. Hai danh sách cờ quyền lợi lệch nhau: `BENEFITS` có 14 tên (gồm `holidayWork`), `BENEFIT_FLAGS` có 13; `makeupDay` nằm ở cả hai nhưng bộ máy và máy chủ không đọc giá trị; riêng màn danh mục chức vụ lọc cờ này khỏi danh sách hiển thị (`public/admin/catalog-positions.js`) và `public/payroll-params.js,771,796` giữ mặc định `true`.
+51. Hai danh sách cờ quyền lợi lệch nhau: `BENEFITS` có 14 tên (gồm `holidayWork`), `BENEFIT_FLAGS` có 13; `makeupDay` nằm ở cả hai nhưng bộ máy và máy chủ không đọc giá trị; riêng màn danh mục chức vụ lọc cờ này khỏi danh sách hiển thị và `public/payroll-params.js,771,796` giữ mặc định `true`.
 52. Hợp đồng dùng để tính thuế và bảo hiểm có hai nguồn: bảng lương dùng hợp đồng suy từ thâm niên (mục 4.15), còn `rowToStaff`, `publicStaff` và `effectivePay` ở `PUT /staff/:u` dùng cột `contract` (NULL → `defaultContract`). Hợp đồng và `insured` hiện trên màn Hồ sơ có thể khác với phiếu lương.

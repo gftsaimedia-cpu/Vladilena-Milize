@@ -141,15 +141,3 @@ test('HDO: NV level 4 hiển thị là HDO (Human Development Officer), lương 
   assert.equal(DEFAULTS['level.nv.4.base'], 7500000);
   assert.equal(DEFAULTS['level.nv.4.kpi'], 7500000);
 });
-
-test('HDO: giao diện Admin và nhân viên không còn chữ Advisor', () => {
-  const root = path.join(__dirname, '../../public');
-  const files = [
-    'admin.html',
-    'nhan-vien.html',
-    ...fs.readdirSync(path.join(root, 'admin')).map(f => 'admin/' + f),
-    ...fs.readdirSync(path.join(root, 'nhan-vien')).map(f => 'nhan-vien/' + f)
-  ].filter(f => /\.(js|html|css)$/.test(f));
-  const hits = files.filter(f => fs.readFileSync(path.join(root, f), 'utf8').includes('Advisor'));
-  assert.deepEqual(hits, [], 'file còn chữ "Advisor"');
-});

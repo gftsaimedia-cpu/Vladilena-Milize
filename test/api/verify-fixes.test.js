@@ -2,6 +2,17 @@
 // theo địa chỉ, cảnh báo TRUST_PROXY, đóng file khi khách ngắt kết nối, extraKind của bản ghi cũ, mật khẩu Admin production.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'verify-fixes-tests';
+// Giao diện Vue đã build giả (web/dist): máy chủ chỉ phục vụ thư mục này
+const distFs = require('node:fs');
+const distDir = distFs.mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'luong-dist-'));
+distFs.mkdirSync(require('node:path').join(distDir, 'assets'));
+distFs.writeFileSync(
+  require('node:path').join(distDir, 'index.html'),
+  '<!doctype html><title>Vue</title><div id="app"></div>'
+);
+distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'app.js'), 'export default 1;');
+distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'logo.png'), Buffer.alloc(4096, 1));
+process.env.WEB_DIST = distDir;
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -254,7 +265,7 @@ test('3: khách ngắt kết nối giữa chừng khi tải file tĩnh thì lu�
   try {
     await new Promise((resolve, reject) => {
       const socket = net.connect(port, '127.0.0.1', () =>
-        socket.write('GET /admin/gft-logo-light.png HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n')
+        socket.write('GET /assets/logo.png HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n')
       );
       socket.once('data', () => socket.destroy());
       socket.on('close', resolve);

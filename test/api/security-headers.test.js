@@ -3,6 +3,17 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 process.env.DB_PATH = ':memory:';
+// Giao diện Vue đã build giả (web/dist): máy chủ chỉ phục vụ thư mục này
+const distFs = require('node:fs');
+const distDir = distFs.mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'luong-dist-'));
+distFs.mkdirSync(require('node:path').join(distDir, 'assets'));
+distFs.writeFileSync(
+  require('node:path').join(distDir, 'index.html'),
+  '<!doctype html><title>Vue</title><div id="app"></div>'
+);
+distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'app.js'), 'export default 1;');
+distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'logo.png'), Buffer.alloc(4096, 1));
+process.env.WEB_DIST = distDir;
 const server = require('../../server');
 
 let base;
@@ -11,6 +22,7 @@ before(async () => {
   base = `http://127.0.0.1:${server.address().port}`;
 });
 after(() => {
+  distFs.rmSync(distDir, { recursive: true, force: true });
   delete process.env.COOKIE_SECURE;
   server.closeAllConnections();
   server.close();
@@ -38,9 +50,9 @@ test('NEW-5: trang chính / có đủ tiêu đề bảo mật', async () => {
 });
 
 test('NEW-5: file tĩnh có đủ tiêu đề bảo mật', async () => {
-  const res = await fetch(base + '/punch.js');
+  const res = await fetch(base + '/assets/app.js');
   assert.equal(res.status, 200);
-  assertBase(res, '/punch.js');
+  assertBase(res, '/assets/app.js');
 });
 
 test('NEW-5: API (kể cả 401 và 404) có đủ tiêu đề bảo mật', async () => {

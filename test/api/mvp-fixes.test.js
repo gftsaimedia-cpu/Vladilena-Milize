@@ -374,14 +374,21 @@ test('N3: đường dẫn bắt đầu bằng // (URL tương đối giao thức
     assert.doesNotMatch(r.text, /require\(|DatabaseSync|SESSION_SECRET/, path);
   }
 });
-test('N3 (giữ nguyên): trang chủ và file trong public/ vẫn đọc được', async () => {
-  const home = await raw('/');
-  assert.equal(home.status, 302, 'trang chủ chuyển về trang đăng nhập');
-  assert.equal(home.headers.location, '/dang-nhap.html');
-  for (const page of ['/dang-nhap.html', '/admin.html', '/nhan-vien.html', '/home-route.js'])
-    assert.equal((await raw(page)).status, 200, page);
-  assert.equal((await raw('/index.html')).status, 404, 'giao diện cũ đã xoá');
-});
-test('N3 (giữ nguyên): file không có trong public/ trả 404', async () => {
+
+test('N3 (giữ nguyên): file không có trả 404', async () => {
   assert.equal((await raw('/khong-co-file-nay.js')).status, 404);
+});
+
+test('N3: giao diện cũ trong public/ đã bỏ; chưa build web/dist thì trang chủ trả 503 (không chuyển hướng) và mô-đun tính lương không bị phục vụ ra ngoài', async () => {
+  const home = await raw('/');
+  assert.ok([200, 503].includes(home.status), 'trang chủ: 200 (đã build) hoặc 503 (chưa build)');
+  for (const gone of [
+    '/dang-nhap.html',
+    '/admin.html',
+    '/nhan-vien.html',
+    '/home-route.js',
+    '/index.html',
+    '/payroll-engine.js'
+  ])
+    assert.equal((await raw(gone)).status, 404, gone);
 });

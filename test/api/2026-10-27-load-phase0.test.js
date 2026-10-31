@@ -2,6 +2,16 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
+// File tĩnh là giao diện Vue đã build (web/dist): dựng một bản giả đủ lớn để nén gzip có lợi
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-load-dist-'));
+fs.writeFileSync(
+  path.join(dist, 'index.html'),
+  '<!doctype html><title>Vue</title>' + '<div class="dong-lap-lai">noi dung</div>'.repeat(200)
+);
+process.env.WEB_DIST = dist;
 const F = require('../helpers/api-fixture');
 const { RuntimeMonitor } = require('../../lib/ops/runtime-monitor');
 const { attachAccessLog } = require('../../lib/ops/access-log');
@@ -17,7 +27,10 @@ before(async () => {
   await F.person('admin', 'admin');
   for (let i = 0; i < 40; i++) await F.person(`nv${i}`);
 });
-after(() => F.stop());
+after(async () => {
+  await F.stop();
+  fs.rmSync(dist, { recursive: true, force: true });
+});
 
 test('GET /api/health công khai, trả ok và số đo, không lộ dữ liệu nghiệp vụ', async () => {
   const res = await get('/api/health');
@@ -39,12 +52,12 @@ test('phản hồi JSON lớn được nén gzip khi khách chấp nhận, và g
 });
 
 test('file tĩnh có ETag; hỏi lại với If-None-Match nhận 304; file chữ được nén gzip', async () => {
-  const first = await get('/dang-nhap.html', { 'Accept-Encoding': 'gzip' });
+  const first = await get('/', { 'Accept-Encoding': 'gzip' });
   assert.equal(first.status, 200);
   const etag = first.headers.get('etag');
   assert.ok(etag);
   assert.equal(first.headers.get('content-encoding'), 'gzip');
-  const second = await get('/dang-nhap.html', { 'If-None-Match': etag });
+  const second = await get('/', { 'If-None-Match': etag });
   assert.equal(second.status, 304);
 });
 

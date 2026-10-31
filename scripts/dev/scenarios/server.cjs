@@ -99,16 +99,23 @@ async function jsonBody(req) {
 }
 const homePage = async () => {
   const staff = await store.getStaff(selectedUser);
-  return staff && staff.role === 'admin' ? '/admin.html' : '/nhan-vien.html';
+  return staff && staff.role === 'admin' ? '/admin' : '/nhan-vien';
 };
-const CLOCKED_PAGES = new Set(['/admin.html', '/nhan-vien.html']);
+// Trang của router Vue: không phải '/', '/app', các đường dẫn điều khiển và '/api/*', và không có đuôi file.
+const isSpaPage = pathname =>
+  pathname !== '/' &&
+  pathname !== '/app' &&
+  !pathname.startsWith('/__sandbox/') &&
+  !pathname.startsWith('/__scenario') &&
+  !pathname.startsWith('/api/') &&
+  !path.extname(pathname);
 const CLOCK_QUERY = 'dong-ho-sandbox';
 // Trang mở qua /app có cùng đồng hồ đóng băng với máy chủ (new Date() và Date.now()), chèn đầu <head> trước mọi script của trang
-function pageHtml(pathname) {
+function pageHtml() {
+  const index = path.join(process.env.WEB_DIST || path.join(app.REPO, 'web', 'dist'), 'index.html');
+  if (!fs.existsSync(index)) throw new Error('Chưa build giao diện web: chạy cd web && npm ci && npm run build');
   const bootstrap = `<script data-sandbox-clock>\n(function(){const RealDate=Date,now=${clock.now()};function SandboxDate(...args){if(!new.target)return new RealDate(now).toString();return Reflect.construct(RealDate,args.length?args:[now],new.target);}Object.setPrototypeOf(SandboxDate,RealDate);SandboxDate.prototype=RealDate.prototype;SandboxDate.now=()=>now;window.Date=SandboxDate;})();\n</script>`;
-  return fs
-    .readFileSync(path.join(app.REPO, 'public', pathname.slice(1)), 'utf8')
-    .replace(/<head(\s[^>]*)?>/i, m => m + bootstrap);
+  return fs.readFileSync(index, 'utf8').replace(/<head(s[^>]*)?>/i, m => m + bootstrap);
 }
 // Bảng điều khiển của sandbox, bỏ phần thử tải/sao lưu, thêm liên kết tới danh sách nhân vật
 function panelHtml() {
@@ -198,9 +205,15 @@ const server = http.createServer(async (req, res) => {
       });
       return res.end();
     }
-    if (req.method === 'GET' && CLOCKED_PAGES.has(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
+    if (req.method === 'GET' && isSpaPage(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
+      let html;
+      try {
+        html = pageHtml();
+      } catch (error) {
+        return send(res, 503, { error: error.message });
+      }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
-      return res.end(pageHtml(url.pathname));
+      return res.end(html);
     }
     if (url.pathname.startsWith('/__sandbox/') || url.pathname.startsWith('/__scenario'))
       return send(res, 404, { error: 'Không có chức năng này' });
