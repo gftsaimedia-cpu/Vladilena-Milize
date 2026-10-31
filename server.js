@@ -14,6 +14,7 @@ try {
       process.env[m[1]] = m[2].replace(/^["']|["']$/g, '');
   }
 } catch {}
+const { cutRuleView } = require('./src/modules/sheet/sheet.helpers'); // sheet: hàm phụ đã chuyển sang module Nest
 const store = require('./lib/db');
 const auth = require('./lib/auth');
 const { HttpError, send, readJson, securityHeaders, serveStatic, clientIp } = require('./lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
@@ -28,15 +29,6 @@ const {
   nowIso
 } = require('./lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth, validDate, USERNAME_RE, TIME_RE, NOTE_MAX, positiveId } = require('./lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const {
-  toMin,
-  overlapsNight,
-  shiftFor,
-  estimateOtHours,
-  actualOtHours,
-  estimateHolidayOtHours,
-  actualHolidayOtHours
-} = require('./lib/domain/work-hours'); // giờ ca, OT, giờ làm ngày lễ
 const { estimateSheet, leaveDates, neighborDays, schedule } = require('./lib/domain/sheet'); // lịch ước tính và ngày phép
 const { publicStaff, staffForViewer, ownerView, sheetForViewer, staffRevision } = require('./lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
 const { cleanGeofence, geofenceView, checkGeofence } = require('./lib/domain/geofence'); // vùng GPS Check-in
@@ -73,10 +65,6 @@ const {
 const { aiReviewResult, aiReviewResultCached } = require('./lib/domain/ai-review'); // kết quả soát dữ liệu của AI
 const { assertNotAiBlocked } = require('./lib/domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
 const agents = require('./lib/agents'); // công tắc Agents
-const { checkSheetLimits } = require('./lib/domain/limits'); // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
-const { sheetOwner, approveOnBehalf } = require('./lib/domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
-const sheetBulk = require('./lib/domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
-const { checkSheet, assertSheetRev, checkExtraTimes, dm } = require('./lib/domain/sheet-checks'); // kiểm nghiệp vụ khi lưu lịch ước tính
 const { isatRefusal } = require('./lib/domain/isat-rule'); // ngày iSAT đúng thứ và đúng quyền lợi
 const shiftsDomain = require('./lib/domain/shifts'); // giờ ca (nhân viên đọc qua phần bổ sung của /api/punch)
 const { listOt, validateOtDeclaration } = require('./lib/domain/ot'); // khai OT thực tế ở Check-in/out
@@ -246,62 +234,6 @@ async function punchState(staff) {
     pending: !openSession && day?.kind === 'pending' && shown.status === 'pending' ? day.reason : null
   };
 }
-/* ---------- số liệu theo tham số của tháng, cho app nhân viên: chỉ đọc, không ghi ---------- */
-// Bảng số phút bị trừ theo số phút trễ / về sớm (chỉ số = số phút, 0..SHIFT_WORK_MIN; trễ hơn nữa thì dùng phần tử cuối), dựng từ cutMin
-// của đúng tháng: app nhân viên tra bảng thay vì tự làm tròn bằng quy tắc mặc định.
-async function cutRuleView(month) {
-  const ah = (await rulesFor(month)).actualHours;
-  const { GRACE_MIN, STEP_MIN, SHIFT_WORK_MIN } = ah.RULE;
-  return {
-    graceMin: GRACE_MIN,
-    stepMin: STEP_MIN,
-    shiftWorkMin: SHIFT_WORK_MIN,
-    rounding: ah.POLICY.cutRounding,
-    table: Array.from({ length: SHIFT_WORK_MIN + 1 }, (_, minutes) => ah.cutMin(minutes))
-  };
-}
-// Số phép năm tính đến hôm nay của một nhân sự theo quy tắc của tháng chứa hôm nay (cùng mã với kiểm số dư của PUT /sheet:
-// rulesFor(tháng của ngày).leave.accrued và leaveDates); null khi chức vụ / bậc không có tài khoản phép
-async function leaveBalanceView(staff) {
-  if (!staff || !staff.payrollSubject) return null;
-  const today = vnToday();
-  if (!sheetFlagsOf((await rulesFor(today.slice(0, 7))).params, staff.type, staff.level).hasLeaveAccount) return null;
-  // Sổ phép (public/leave.js → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
-  const got = (await rulesFor(today.slice(0, 7))).leave.ledger(
-    staff,
-    (await leaveDates(staff)).filter(d => d <= today),
-    today
-  );
-  return {
-    asOf: today,
-    accrued: got.total,
-    start: got.start,
-    months: got.months,
-    seniority: got.seniority, // thâm niên (ngày)
-    birthdays: got.birthdays,
-    adjust: got.adjust,
-    used: got.used,
-    expired: got.expired, // phép đã hết hạn (đã quy tiền vào phiếu tháng liền sau)
-    remaining: got.balance,
-    balance: got.balance,
-    expiring: got.expiring // { days, on } trong khoảng từ 01/01 tới ngày hết hạn, null khi không có
-  };
-}
-// Báo cáo từng ngày của ActualHours.apply (trạng thái, phút trễ / về sớm, phút bị trừ) cho cả tháng như app nhân viên. null khi không phải nhân sự được trả lương
-async function actualReportView(staff, month) {
-  if (!staff || !staff.payrollSubject) return null;
-  const { report, missing, absent } = (await rulesFor(month)).actualHours.apply(
-    (await estimateSheet(staff.username, month)).days,
-    await store.listSessions({ username: staff.username, month }),
-    {
-      asOf: nowIso(),
-      staff,
-      holidays: await store.getSetting('holidays', []),
-      month
-    }
-  );
-  return { report, missing, absent };
-}
 // "Nếu Check-out bây giờ": chạy ActualHours.apply của tháng trên ca đang mở được đóng vào lúc này
 async function checkoutPreview(staff) {
   const open = await store.openSession(staff.username);
@@ -332,89 +264,6 @@ const punchExtras = async staff => ({
   shiftConfig: await shiftsDomain.employeeView(vnToday().slice(0, 7)), // giờ ca và hai ngưỡng Check-in cho nhân viên (không có config.read)
   checkoutPreview: await checkoutPreview(staff)
 });
-/* ---------- kiểm tra dữ liệu vào ---------- */
-// 'makeup': loại ngày cũ, chỉ để ngày đã lưu gửi lại không đổi đi qua; khai mới hoặc sửa bị chặn ở checkSheet (SHEET_MAKEUP_DAY_REMOVED)
-const DAY_KINDS = ['work', 'makeup', 'leave', 'unpaid', 'willmakeup', 'approved', 'isat'];
-// Mã ca của một ngày: mã ca trong danh mục (Normal1…) hoặc mã cũ n1…g2 của ngày đã lưu trước đó
-const PRESET_RE = /^(n1|n2|f1|f2|g1|g2|[A-Z][A-Za-z]*[0-9]+)$/;
-const isShiftCode = async code =>
-  typeof code === 'string' && PRESET_RE.test(code) && Object.hasOwn((await rulesFor()).punch.SHIFT, code);
-async function cleanDays(days) {
-  if (!days || typeof days !== 'object' || Array.isArray(days)) throw new HttpError(400, 'days phải là object');
-  const out = {};
-  for (const [date, d] of Object.entries(days)) {
-    if (!validDate(date) || !d || typeof d !== 'object') throw new HttpError(400, `Ngày không hợp lệ: ${date}`);
-    // Thiếu kind (bản ghi rất cũ) là đi làm; giá trị lạ bị từ chối, không âm thầm đổi thành đi làm
-    const kind = d.kind === undefined ? 'work' : d.kind;
-    if (!DAY_KINDS.includes(kind)) throw new HttpError(400, `Ngày ${dm(date)}: loại ngày không hợp lệ`);
-    if (kind === 'work' || kind === 'makeup') {
-      if (typeof d.in !== 'string' || typeof d.out !== 'string' || !TIME_RE.test(d.in) || !TIME_RE.test(d.out))
-        throw new HttpError(400, `Giờ không hợp lệ ở ngày ${dm(date)}`);
-      // Không giới hạn khoảng cách giữa giờ vào và giờ ra (vd. 20:00→09:00 được lưu); giờ trả lương do engine giới hạn
-      if (
-        (d.extraOut && (typeof d.extraOut !== 'string' || !TIME_RE.test(d.extraOut))) ||
-        (d.extraIn && (typeof d.extraIn !== 'string' || !TIME_RE.test(d.extraIn)))
-      )
-        throw new HttpError(400, `Giờ làm thêm không hợp lệ ở ngày ${dm(date)}`);
-      if (d.extraKind != null && typeof d.extraKind !== 'string')
-        throw new HttpError(400, `Ngày ${dm(date)}: loại làm thêm không hợp lệ`);
-      if (d.extraKind && !['makeup', 'ot'].includes(d.extraKind))
-        throw new HttpError(400, `Ngày ${dm(date)}: loại làm thêm phải là làm bù hoặc OT`);
-      // làm thêm trước ca (giờ vào làm thêm → giờ vào) và/hoặc sau ca (giờ ra → giờ ra làm thêm); trùng giờ ca coi như không có
-      const extraIn = d.extraIn && d.extraIn !== d.in ? d.extraIn : '',
-        extraOut = d.extraOut && d.extraOut !== d.out ? d.extraOut : '';
-      // Bản ghi cũ có giờ ra làm thêm mà thiếu extraKind là làm bù (đúng như calcDay và approval-view đọc): giữ nguyên giờ,
-      // không xoá. Chỉ có giờ vào làm thêm thì calcDay không tính gì: giữ nguyên giờ, để extraKind rỗng, không đoán loại.
-      const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
-      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/sheet-checks.js → checkExtraTimes
-      checkExtraTimes(date, d, { extraKind, extraIn, extraOut });
-      if (d.preset != null && d.preset !== '' && !await isShiftCode(d.preset))
-        throw new HttpError(400, `Ngày ${dm(date)}: ca chọn sẵn không hợp lệ`);
-      const breakMin = d.breakMin == null ? 0 : d.breakMin;
-      if (!Number.isInteger(breakMin) || breakMin < 0 || breakMin > 1440)
-        throw new HttpError(400, `Ngày ${dm(date)}: số phút ra khỏi văn phòng phải là số nguyên từ 0 đến 1440`);
-      out[date] = {
-        kind,
-        shift: shiftFor(d.in, d.out),
-        in: d.in,
-        out: d.out,
-        extraKind,
-        extraIn,
-        extraOut,
-        preset: d.preset || '',
-        breakMin
-      };
-    } else out[date] = { kind };
-    // Giải trình Check-in/out (tuỳ chọn, mọi loại ngày): chữ do người khai nhập, Admin xem khi duyệt
-    if (d.punchNote != null) {
-      if (typeof d.punchNote !== 'string') throw new HttpError(400, `Ngày ${dm(date)}: giải trình phải là chữ`);
-      const punchNote = d.punchNote.trim();
-      if (punchNote.length > NOTE_MAX)
-        throw new HttpError(400, `Ngày ${dm(date)}: giải trình tối đa ${NOTE_MAX} ký tự`);
-      if (punchNote) out[date].punchNote = punchNote;
-    }
-    // "Nghỉ, sẽ làm bù": ngày/giờ làm bù dự kiến CHỈ để Admin xem khi duyệt, không chặn gì (ngày nào, giờ nào, dài bao lâu, qua đêm, để trống).
-    // Chỉ làm sạch kiểu dữ liệu: ô sai dạng thành rỗng, tối đa 31 dòng, bỏ dòng trống hoàn toàn.
-    if (kind === 'willmakeup') {
-      const text = (value, ok) => (typeof value === 'string' && ok(value) ? value : '');
-      if (Array.isArray(d.makeupPlans)) {
-        const plans = d.makeupPlans
-          .filter(plan => plan && typeof plan === 'object' && !Array.isArray(plan))
-          .slice(0, 31)
-          .map(plan => ({
-            date: text(plan.date, validDate),
-            from: text(plan.from, v => TIME_RE.test(v)),
-            to: text(plan.to, v => TIME_RE.test(v))
-          }))
-          .filter(plan => plan.date || plan.from || plan.to);
-        if (plans.length) out[date].makeupPlans = plans;
-      } else if (typeof d.makeupDate === 'string' && validDate(d.makeupDate)) {
-        out[date].makeupDate = d.makeupDate; // dữ liệu cũ chỉ có ngày
-      }
-    }
-  }
-  return out;
-}
 
 /* ---------- API ---------- */
 
@@ -426,220 +275,8 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
       
   
     
-  /* ---------- số ước tính của chính người đăng nhập (chỉ dữ liệu của mình; ghi rõ là ước tính) ---------- */
-  if (route === 'GET /me/estimate') {
-    const u = need();
-    const month = url.searchParams.get('month') || vnToday().slice(0, 7);
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
-    // Không đọc tham số user: người khác không bao giờ xem được qua route này
-    return send(res, 200, await periods.estimate(u, month, { rows: url.searchParams.get('rows') === '1' }));
-  }
-  if (route === 'GET /sheet') {
-    const u = need();
-    const month = url.searchParams.get('month'),
-      who = (url.searchParams.get('user') || u.username).toLowerCase();
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    // Tài khoản ngoài bảng lương và không có quyền xem lịch (tài khoản chỉ có vai trò) xem lịch của CHÍNH MÌNH: 200 với lịch trống, không phải 403 "xem bảng của người khác"; Admin nhận bảng đầy đủ
-    // (an toàn: không có dữ liệu của ai; payrollSubject false để giao diện ẩn các phần chỉ dành cho người được trả lương)
-    if (who === u.username && !u.payrollSubject && !await authz.can(u, 'attendance.read', { username: who }))
-      return send(res, 200, {
-        month,
-        payrollSubject: false,
-        days: {},
-        attendanceSessions: [],
-        otherLeave: [],
-        neighbors: {},
-        approvals: {},
-        corrections: [],
-        kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
-        kpiParts: { complete: false }
-      });
-    if (!await authz.can(u, 'attendance.read', { username: who }))
-      throw new HttpError(403, 'Không được xem bảng của người khác');
-    const staff = who === u.username ? u : await store.getStaff(who);
-    if (staff && staff.payrollSubject) await closeStale(staff);
-    // otherLeave: ngày nghỉ phép năm ở các tháng khác, để giao diện tính số phép còn lại; corrections: yêu cầu điều chỉnh trong tháng
-    return send(res, 200, {
-      ...await sheetForViewer(u, who, await estimateSheet(who, month)),
-      rev: (await store.getSheet(who, month)).rev, // số lần lưu lịch khai; gửi lại làm expectedRev khi PUT /api/sheet
-      ...(staff && who !== u.username ? { owner: await ownerView(u, staff, month) } : {}), // hồ sơ tóm tắt người được xem (khai thay)
-      attendanceSessions: await sessionsFor({ username: who, month }),
-      otherLeave: staff ? (await leaveDates(staff)).filter(d => !d.startsWith(month)) : [],
-      neighbors: await neighborDays(who, month),
-      ...await schedule.scheduleView(staff, month),
-      // Trọng số 5 thành phần KPI của tháng (tham số kpi.weight.*), để màn nhân viên không viết cứng
-      kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
-      kpiParts: await kpiPartsView(
-        (await hasKpi(staff, await monthParams(month))) && await authz.can(u, 'salary.read', { username: who })
-          ? await store.getKpiScores(who, month)
-          : null,
-        month,
-        u
-      ),
-      corrections: await store.listCorrections({ username: who, month }),
-      approvals: await sheetApprovals(who, month, (await estimateSheet(who, month)).days),
-      // Số liệu theo tham số của tháng cho app nhân viên: số phép đến hôm nay, báo cáo trễ / về sớm / phút trừ từng ngày, bảng làm tròn phút trừ
-      leaveBalance: await leaveBalanceView(staff),
-      actualReport: await actualReportView(staff, month),
-      cutRule: await cutRuleView(month)
-    });
-  }
-  if (route === 'PUT /sheet') {
-    const caller = need();
-    const { month, days, kpiPct, kpiAmt, user: onBehalfOf, expectedRev, confirmDays } = await readJson(req);
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    // Admin khai lịch thay nhân sự (user khác người gọi, cần request.decide.* ở phạm vi người đó, nếu không 403): MỌI kiểm tra bên dưới chạy trên hồ sơ của người được khai
-    const u = await sheetOwner(caller, onBehalfOf),
-      onBehalf = u !== caller;
-    await guardPeriod(month);
-    const prevDays = (await estimateSheet(u.username, month)).days;
-    const clean = await cleanDays(days);
-    const { sheetParams, sched, holidays } = await checkSheet({ u, month, clean, prevDays, onBehalf }); // kiểm nghiệp vụ lịch ước tính (lib/domain/sheet-checks.js)
-    await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
-    // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
-    const kept = onBehalf ? await store.getSheet(u.username, month) : null;
-    const amt = onBehalf ? kept.kpiAmt : await cleanKpiAmt(kpiAmt, u, month),
-      pct = onBehalf ? kept.kpiPct : cleanKpi(kpiPct);
-    // Lịch và trạng thái duyệt đổi cùng nhau hoặc không đổi gì; trạng thái duyệt chỉ do máy chủ quyết, không đọc từ yêu cầu
-    let decided = [];
-    const changes = await store.transaction(async () => {
-      await assertSheetRev(u.username, month, expectedRev); // lệch rev → 409 SHEET_STALE, chưa ghi gì
-      await store.setSheet(u.username, month, clean, pct, amt);
-      const found = await store.approvals.reconcile(
-        u.username,
-        month,
-        store.approvals.declaredItems(clean, { holidays: [...holidays], staffType: u.type, schedule: sched })
-      );
-      if (onBehalf)
-        decided = (await approveOnBehalf({ caller, owner: u, month, found, prevDays, clean, actx, confirmDays })).decided;
-      return found;
-    });
-    if (changes.added.length || changes.reset.length || changes.resubmitted.length || changes.removed.length)
-      await events.emit.approvalsChanged(month);
-    if (onBehalf) {
-      await events.emit.estimateChanged(u.username, month); // máy của người được khai nạp lại lịch
-      if (decided.length) await events.emit.requestsDecided(decided);
-    }
-    return send(res, 200, {
-      ok: true,
-      rev: (await store.getSheet(u.username, month)).rev, // gửi lại làm expectedRev ở lần lưu sau
-      approvals: await sheetApprovals(u.username, month, (await estimateSheet(u.username, month)).days),
-      reset: changes.reset,
-      resubmitted: changes.resubmitted,
-      removed: changes.removed,
-      ...(onBehalf ? { onBehalf: true, autoApproved: decided.length } : {})
-    });
-  }
-  // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.js)
-  if (route === 'PUT /sheet/bulk') {
-    const caller = needAdmin();
-    const plan = await sheetBulk.plan(caller, await readJson(req));
-    await guardPeriod(plan.month);
-    return send(res, 200, await sheetBulk.save({ caller, actx, plan, cleanDays }));
-  }
-
-  /* ---------- KPI 5 thành phần: Admin nhập điểm ---------- */
-  if (route === 'GET /kpi/scores') {
-    needAdmin();
-    const month = url.searchParams.get('month');
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    const KpiScore = (await rulesFor(month)).kpi;
-    const kpiParams = await monthParams(month),
-      rows = new Map((await store.listKpiScores(month)).map(row => [row.username, row]));
-    return send(res, 200, {
-      month,
-      method: 'five',
-      weights: Object.fromEntries(KpiScore.COMPONENTS.map(c => [c.key, c.weight])),
-      items: await AsyncList.map((await AsyncList.filter(await store.listStaff(), staff => hasKpi(staff, kpiParams))), staff =>
-          kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams))
-    });
-  }
-  if (route === 'PUT /kpi/scores') {
-    const actor = need();
-    const body = await readJson(req);
-    const { month, scores, amt, reason } = body;
-    const user = body.user !== undefined ? body.user : body.username; // nhận cả user lẫn username
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
-    // Nhân sự không có kpi.score.write ở phạm vi all chỉ lưu được điểm `self` của chính mình (bỏ trống user = chính mình)
-    const full = await authz.scopeOf(me, 'kpi.score.write') === 'all';
-    const wanted = user === undefined && !full ? me.username : typeof user === 'string' ? user.toLowerCase() : '';
-    if (!full) selfScoreOnly(me, wanted, scores, amt);
-    if (!USERNAME_RE.test(wanted)) throw new HttpError(400, 'user không hợp lệ');
-    const target = await store.getStaff(wanted);
-    if (!target) throw new HttpError(404, 'Không có nhân sự này');
-    if (!(await hasKpi(target, await monthParams(month)))) throw new HttpError(400, 'Nhân sự này không có KPI');
-    // Người có quyền đầy đủ tự nhập điểm self của mình cũng là việc của chính chủ, không phải tự quyết định điểm của người khác
-    const ownSelfEntry =
-      target.username === me.username && amt === undefined && Object.keys(scores || {}).join() === 'self';
-    if (!ownSelfEntry)
-      selfDecision(authz.isSelfDecision(me, target.username), {
-        doing: 'nhập điểm KPI'
-      });
-    await guardPeriod(month);
-    const KpiScore = (await rulesFor(month)).kpi;
-    warnIf('KPI_MONTH_FUTURE', month > vnToday().slice(0, 7), {
-      message: `Tháng ${month} chưa bắt đầu: điểm KPI nhập trước được lưu và dùng khi tháng đó tính lương; nếu đánh giá đổi, cần nhập lại trước khi chốt.`
-    });
-    // Mọi giá trị được kiểm xong rồi mới ghi: một giá trị sai thì không lưu gì. Điểm sai bị từ chối, không kẹp.
-    const patch = {};
-    if (scores !== undefined) {
-      if (!scores || typeof scores !== 'object' || Array.isArray(scores))
-        throw new HttpError(400, 'scores phải là đối tượng { wework, user, peer, manager, self }');
-      const keys = KpiScore.COMPONENTS.map(c => c.key);
-      for (const [key, value] of Object.entries(scores)) {
-        if (!keys.includes(key))
-          throw new HttpError(400, `Không có thành phần KPI "${key.slice(0, 40)}" (chỉ nhận ${keys.join(', ')})`);
-        if (value === undefined) continue;
-        const checked = KpiScore.checkScore(value);
-        if (!checked.ok) throw new HttpError(400, `Điểm ${key}: ${checked.error}`);
-        patch[key] = checked.value === null ? null : KpiScore.toUnits(checked.value);
-      }
-    }
-    if (amt !== undefined) {
-      if (amt !== null && (typeof amt !== 'number' || !Number.isFinite(amt)))
-        throw new HttpError(400, 'Lương KPI phải là số không âm');
-      patch.amt = await cleanKpiAmt(amt, target, month); // không âm, không vượt trần level
-    }
-    if (reason != null && typeof reason !== 'string') throw new HttpError(400, 'Lý do phải là chữ');
-    const note = (reason || '').trim();
-    if (note.length > NOTE_MAX) throw new HttpError(400, `Lý do tối đa ${NOTE_MAX} ký tự`);
-    if (!Object.keys(patch).length) throw new HttpError(400, 'Không có điểm hoặc mức KPI nào để lưu');
-    let result;
-    try {
-      result = await store.transaction(async () => {
-        const saved = await store.setKpiScores(target.username, month, patch, actor.username, note || null);
-        // Giá trị điểm nằm ở kpi_score_log (từng ô, cũ, mới); nhật ký hệ thống chỉ ghi ô nào đổi
-        if (saved.changed.length)
-          await audit.write(actx, {
-            action: 'kpi.score',
-            entityKind: 'kpi',
-            entityId: `${target.username}:${month}`,
-            subject: target.username,
-            month,
-            after: { changed: saved.changed },
-            reason: note || null,
-            sensitivity: 'pay'
-          });
-        return saved;
-      });
-    } catch (error) {
-      throw kpiHttpError(error);
-    }
-    if (result.changed.length) await events.emit.estimateChanged(target.username, month);
-    // Nhân sự tự nhập điểm self chỉ nhận lại phần của mình, không nhận dòng điểm đầy đủ (điểm các thành phần khác chưa lộ)
-    if (!full)
-      return send(res, 200, {
-        ok: true,
-        changed: result.changed,
-        kpiParts: await kpiPartsView(result.item, month, me)
-      });
-    return send(res, 200, {
-      ok: true,
-      item: await kpiScoreItem(target, month, result.item),
-      changed: result.changed
-    });
-  }
-  /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
+    
+    /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
   // Quyền duyệt TỪNG khoản: nhóm duyệt = loại khoản (request.decide.<khoản>), kèm phạm vi dữ liệu của vai trò (nhóm mình: chỉ chính mình cho tới khi có
   // bảng phân công). Cổng ROUTE_CAPS chỉ hỏi "có ít nhất một nhóm".
   const canDecideRow = async row => await authz.can(me, `request.decide.${row.item}`, { username: row.username });
@@ -1540,68 +1177,6 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
     });
     if (outcome.granted.length || outcome.revoked.length) await events.emit.rolesChanged(username);
     return send(res, 200, { username, roles: await rolesOfStaff(await store.getStaff(username)), ...outcome });
-  }
-  /* ---------- gán ca cho nhiều người (Hồ sơ › Gán ca): tất cả hoặc không ---------- */
-  if (req.method === 'PUT' && seg.length === 3 && seg[1] === 'staff' && seg[2] === 'shift-bulk') {
-    needAdmin();
-    const b = await readJson(req);
-    const punchRules = (await rulesFor()).punch;
-    if (!Array.isArray(b.usernames) || !b.usernames.length)
-      throw new HttpError(400, 'Chọn ít nhất một người để gán ca', { code: 'USERNAMES_REQUIRED' });
-    const bulkMax = (await rulesFor()).params['system.staff.bulkMax'];
-    if (b.usernames.length > bulkMax)
-      throw new HttpError(400, `Mỗi lần gán tối đa ${bulkMax} người`, { code: 'TOO_MANY' });
-    const usernames = b.usernames.map(u => (typeof u === 'string' ? u.toLowerCase() : u));
-    if (usernames.some(u => typeof u !== 'string' || !USERNAME_RE.test(u)))
-      throw new HttpError(400, 'Danh sách tên đăng nhập không hợp lệ');
-    if (new Set(usernames).size !== usernames.length) throw new HttpError(400, 'Danh sách có tên đăng nhập bị lặp');
-    // Ca: preset (mã ca cố định) hoặc cặp giờ vào – ra trùng đúng một ca cố định; cùng luật với sửa ca từng người (mã phải có trong bảng ca)
-    let shiftCode = b.preset;
-    if (shiftCode === undefined && typeof b.in === 'string' && typeof b.out === 'string')
-      shiftCode = Object.keys(punchRules.SHIFT).find(
-        code => punchRules.SHIFT[code][0] === b.in && punchRules.SHIFT[code][1] === b.out
-      );
-    if (typeof shiftCode !== 'string' || !Object.hasOwn(punchRules.SHIFT, shiftCode))
-      throw new HttpError(400, 'Ca cố định không hợp lệ', { code: 'SHIFT_UNKNOWN' });
-    shiftCode = await container.shifts.canonicalOf(shiftCode) || shiftCode; // hồ sơ lưu mã của danh mục ca
-    // Ngày hiệu lực: ca đổi ngay (không có lịch hiệu lực); chỉ nhận hôm nay hoặc để trống
-    if (b.effective !== undefined && b.effective !== null && b.effective !== vnToday())
-      throw new HttpError(400, 'Ca có hiệu lực ngay khi lưu: ngày hiệu lực chỉ nhận hôm nay hoặc để trống', {
-        code: 'EFFECTIVE_UNSUPPORTED'
-      });
-    const reason = reasonOf(b.reason);
-    const people = await AsyncList.map(usernames, async u => await store.getStaff(u));
-    const missing = usernames.filter((u, i) => !people[i]);
-    if (missing.length)
-      throw new HttpError(404, `Không có tài khoản: ${missing.join(', ')}`, { code: 'STAFF_NOT_FOUND', missing });
-    // Không ai tự đổi ca của chính mình: gán hàng loạt không được lách quy tắc đó
-    selfDecision(
-      people.some(p => authz.isSelfDecision(me, p.username) && p.shiftCode !== shiftCode),
-      { doing: 'đổi ca' }
-    );
-    const result = await store.transaction(async () => {
-      const updated = [],
-        unchanged = [];
-      for (const person of people) {
-        if (person.shiftCode === shiftCode) {
-          unchanged.push(person.username);
-          continue;
-        }
-        await store.db.prepare('UPDATE staff SET shift_code = ? WHERE username = ?').run(shiftCode, person.username);
-        await audit.write(actx, {
-          action: 'staff.update',
-          entityKind: 'staff',
-          entityId: person.username,
-          subject: person.username,
-          before: { shiftCode: person.shiftCode },
-          after: { shiftCode },
-          reason: reason || null
-        });
-        updated.push({ username: person.username, shiftCode });
-      }
-      return { updated, unchanged };
-    });
-    return send(res, 200, { ok: true, shiftCode, ...result });
   }
   if (seg[1] === 'staff' && seg[2] && req.method === 'PUT') {
     const admin = needAdmin();
