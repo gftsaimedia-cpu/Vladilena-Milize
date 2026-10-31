@@ -258,7 +258,7 @@ async function main() {
     expect(first.status === 200, `bỏ qua phát hiện: HTTP ${first.status} ${short(first.data)}`);
     const again = await call('POST', '/ai/findings/dismiss', body);
     expect(again.status === 200 && again.data.already === true, 'bỏ qua lần hai phải trả already = true');
-    const n = store.db.prepare('SELECT COUNT(*) AS n FROM ai_finding_actions').get().n;
+    const n = (await store.db.prepare('SELECT COUNT(*) AS n FROM ai_finding_actions').get()).n;
     expect(n === 1, `ai_finding_actions có ${n} dòng, kỳ vọng 1 (lần hai không ghi thêm)`);
   } else problems.push('không có phiếu pending nào có từ hai cờ để thử bỏ qua phát hiện');
 
@@ -330,7 +330,9 @@ async function main() {
   }
 
   /* ---------- nhật ký ---------- */
-  const audited = store.db.prepare('SELECT action, COUNT(*) AS n FROM audit_log GROUP BY action ORDER BY action').all();
+  const audited = await store.db
+    .prepare('SELECT action, COUNT(*) AS n FROM audit_log GROUP BY action ORDER BY action')
+    .all();
   log('Nhật ký kiểm toán theo hành động ' + JSON.stringify(Object.fromEntries(audited.map(r => [r.action, r.n]))));
   const chain = (await call('GET', '/audit/verify')).data;
   expect(chain.ok === true, `chuỗi băm nhật ký: ${short(chain)}`);

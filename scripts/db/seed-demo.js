@@ -38,6 +38,38 @@ const canonical = file => {
   return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
 };
 const REAL_DB = canonical(path.join(ROOT, 'data', 'luong.sqlite'));
+// PostgreSQL thật qua DATABASE_URL: chỉ nạp vào DB MỚI (chưa có nhân sự) hoặc DB demo đã nạp trước đó, và phải có --confirm-demo-db.
+// Kiểm trước khi nạp lib/db (nạp lib/db là chạy migration lên DB đó) bằng một kết nối riêng chỉ đọc.
+if (process.env.DB_DIALECT === 'postgres' && process.env.DATABASE_URL) {
+  if (args['confirm-demo-db'] !== true)
+    fail(
+      'Từ chối chạy: DATABASE_URL trỏ vào một máy chủ PostgreSQL. Thêm --confirm-demo-db để xác nhận đó là DB MỚI hoặc DB demo (dữ liệu demo ghi thẳng vào đó).'
+    );
+  const probe = require('node:child_process').spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `const { Client } = require('pg');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();let staff=0,marked=false;try{staff=Number((await c.query('SELECT COUNT(*) AS n FROM staff')).rows[0].n);marked=(await c.query("SELECT 1 FROM settings WHERE key='demo_dataset'")).rowCount>0;}catch{}await c.end();console.log(JSON.stringify({staff,marked}));})().catch(e=>{console.error(e.message);process.exit(1);});`
+    ],
+    { encoding: 'utf8', env: process.env, cwd: ROOT }
+  );
+  if (probe.status !== 0)
+    fail(
+      'Không kiểm được DB PostgreSQL đích: ' +
+        String(probe.stderr)
+          .replace(/\/\/[^@/\s]*@/g, '//***@')
+          .trim()
+    );
+  const { staff, marked } = JSON.parse(probe.stdout);
+  if (staff > 0 && !marked)
+    fail(
+      'Từ chối chạy: DB PostgreSQL đích đã có ' + staff + ' nhân sự và không phải DB demo (thiếu khoá demo_dataset).'
+    );
+  if (marked)
+    fail(
+      'DB PostgreSQL đích đã là DB demo: dựng lại bằng cách tạo DB mới (script không xoá dữ liệu trên máy chủ PostgreSQL).'
+    );
+}
 const dbArg = typeof args.db === 'string' ? args.db : process.env.DB_PATH || DEFAULT_DB;
 const MEMORY = dbArg === ':memory:';
 if (!MEMORY) {
@@ -116,7 +148,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     'kpi_scores',
     'kpi_score_log'
   ]) {
-    const n = store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+    const n = (await store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n;
     line(`  ${table}`, n);
   }
   const byGroup = {};
@@ -145,6 +177,24 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     warnings.push(
       `${generator.stats.skippedFuturePunches} lượt Check-in/out sau "hôm nay" không được tạo (hoặc lượt ra còn để mở)`
     );
+
+  /* ---------- lớp vận hành, phần chuẩn bị: cấu hình mà kỳ vọng của persona dựa vào (route thật, đồng hồ giả) ---------- */
+  let lifecycle = null;
+  if (!args['no-lifecycle']) {
+    process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'demo-lifecycle';
+    const { Lifecycle } = require('./demo/lifecycle.js');
+    lifecycle = new Lifecycle({
+      store,
+      auth: require('../../lib/auth'),
+      server: require('../../server'),
+      admin: S.ADMINS[0].username,
+      personas,
+      today
+    });
+    await lifecycle.open();
+    const prepared = await lifecycle.prepare();
+    for (const step of prepared.filter(s => !s.ok)) warnings.push(`Lớp vận hành: ${step.name}: ${step.detail}`);
+  }
 
   /* ---------- tự kiểm bằng "Soát dữ liệu" ---------- */
   let check = null;
@@ -195,6 +245,37 @@ Phiếu kỳ lương ${p.month} (tính trong tiến trình, không ghi DB; luồ
     for (const w of warnings) console.log(`  - ${w}`);
   }
 
+  /* ---------- lớp vận hành, phần chính: vai trò, khoản điền thêm, giải trình, tạm ứng, sổ phép, kỳ lương mọi trạng thái ---------- */
+  // Chạy sau tự kiểm vì tự kiểm cần kỳ chưa chốt. --no-lifecycle bỏ qua (khi chỉ cần nhân sự, lịch, chấm công, khoản chờ duyệt).
+  if (lifecycle) {
+    const report = await lifecycle.run();
+    await lifecycle.close();
+    console.log('\nLớp vận hành (route thật)');
+    for (const step of report)
+      console.log(`  ${step.ok ? '[ĐẠT]' : '[LỖI]'} ${step.name}${step.detail ? ': ' + step.detail : ''}`);
+    const failed = report.filter(step => !step.ok);
+    for (const step of failed)
+      if (!warnings.some(w => w.includes(step.detail))) warnings.push(`Lớp vận hành: ${step.name}: ${step.detail}`);
+    if (failed.length) exitCode = exitCode || 3;
+  }
+
+  /* ---------- độ phủ so với "vũ trụ ca" rút từ mã (scripts/db/demo/coverage.js) ---------- */
+  if (!args['no-coverage']) {
+    const coverage = await require('./demo/coverage.js').measure({ store, personas });
+    console.log(`
+Độ phủ: ${coverage.summary.tables} bảng, ${coverage.summary.enumChecks} giá trị ràng buộc CHECK, ${coverage.summary.personas} persona (${coverage.summary.unreasonable} bất thường)`);
+    if (coverage.gaps.length) {
+      console.log(`  THIẾU ${coverage.gaps.length}:`);
+      for (const g of coverage.gaps) console.log('   - ' + g);
+      exitCode = exitCode || 4;
+    } else
+      console.log(
+        '  Đủ: mọi bảng, mọi giá trị CHECK, mọi trạng thái kỳ lương, mọi chức vụ × bậc, mọi vai trò mặc định đều có dữ liệu.'
+      );
+    if (typeof args['coverage-json'] === 'string')
+      fs.writeFileSync(args['coverage-json'], JSON.stringify(coverage, null, 2));
+  }
+
   /* ---------- xuất CSV ---------- */
   if (args.export) {
     const dir = typeof args.out === 'string' ? args.out : path.join(ROOT, 'data', 'demo');
@@ -210,7 +291,7 @@ Phiếu kỳ lương ${p.month} (tính trong tiến trình, không ghi DB; luồ
   }
   store.db.close();
   console.log(
-    `\nXong trong ${((Date.now() - t0) / 1000).toFixed(1)} giây.${exitCode ? ' Có kỳ vọng AI chưa đạt (xem cảnh báo).' : ''}`
+    `\nXong trong ${((Date.now() - t0) / 1000).toFixed(1)} giây.${exitCode ? { 2: ' Có kỳ vọng AI chưa đạt (xem cảnh báo).', 3: ' Lớp vận hành có bước lỗi (xem mục Lớp vận hành).', 4: ' Độ phủ còn thiếu (xem mục Độ phủ).' }[exitCode] || ' Có chỗ chưa đạt.' : ''}`
   );
   process.exit(exitCode);
 })().catch(error => {

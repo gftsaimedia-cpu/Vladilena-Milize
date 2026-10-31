@@ -31,6 +31,7 @@ Do `scripts/docs/gen-spec.js` dựng từ mã (`npm run spec:gen`); `test/unit/s
 | [requests.md](requests.md) | Yêu cầu chờ duyệt, giải trình, tạm ứng, khoản điền thêm |
 | [payroll-engine.md](payroll-engine.md) | Bộ máy tính lương, công thức, tham số |
 | [payroll-period.md](payroll-period.md) | Vòng đời kỳ lương, phiếu, ước tính |
+| [data-fixtures.md](data-fixtures.md) | Bộ dữ liệu thử đủ mọi trường hợp (demo), cách dựng và đo độ phủ |
 
 Quy ước của phần viết tay (`test/unit/spec-refs.test.js` giữ):
 

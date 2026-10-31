@@ -71,6 +71,7 @@ const CASES = [
   ['S25', 'Đổi loại TTS sang NV, có mã nhân viên cũ và mã mới'],
   ['S26', 'Loại nhân sự ngoài bảng tham số (bất thường): phiếu lỗi PAYROLL_BAD_TYPE'],
   ['S26', 'Mã nhân viên dạng [loại][đơn vị][2 số]; hai người cùng đơn vị số liền nhau'],
+  ['S27', 'Thâm niên đủ bước 5 năm: sổ phép có dòng "thâm niên" (leave.seniority.stepYears)'],
   // Lịch ước tính, duyệt, tiền
   ['C01', 'Ngày trống là ngày đi làm (tháng 11)'],
   ['C02', 'Nghỉ phép năm đủ phép'],
@@ -192,7 +193,9 @@ const AI_RULES = [
 ];
 // Luật hệ thống: kết quả không phụ thuộc persona nào mà phụ thuộc trạng thái param_versions (dòng hiệu lực đúng tháng soát) hoặc khối phụ cấp do C&B thêm.
 // selfcheck.js KHÔNG đòi persona "phải bắn" hay "sát ngưỡng" cho các luật này; muốn kiểm phải dựng dòng param_versions / khối phụ cấp qua đường ghi tham số của app.
-const SYSTEM_RULES = ['formula-changed-recently', 'block-flags-unconfirmed'];
+const SYSTEM_RULES = ['formula-changed-recently', 'block-flags-unconfirmed', 'net-nonpositive'];
+// Luật luôn bị bỏ qua theo thiết kế (skipWhen trong lib/ai/review.js): không đòi bắn, không đòi persona
+const DISABLED_BY_DESIGN = ['kpi-self-100-streak'];
 
 /* ---------- tên giả ---------- */
 const HO = [
@@ -498,6 +501,15 @@ add('Hồ sơ', 'hd_short', {
   covers: ['S09', 'S11', 'S12', 'T03'],
   expect:
     'Hợp đồng dưới 3 tháng, không đóng BH, không phụ thuộc; thu nhập từ 5.000.000 nên bị khấu trừ 10% trên toàn bộ.'
+});
+add('Hồ sơ', 'veteran', {
+  type: 'nv',
+  level: 2,
+  shiftCode: 'n1',
+  startDate: '2021-03-04',
+  covers: ['S27'],
+  expect:
+    'Nhân viên vào làm từ 04/03/2021: tròn 5 năm vào 04/03/2026 nên sổ phép có dòng thâm niên (+1 ngày mỗi 5 năm tròn), hợp đồng không xác định thời hạn.'
 });
 add('Hồ sơ', 'probation', {
   type: 'nv',
@@ -1083,7 +1095,7 @@ add('KPI', 'kpi100', {
   covers: ['K01', 'K12'],
   expect:
     'Tự đánh giá KPI 100% tháng 08, 09, 10 liền nhau, chưa có % Admin duyệt (tháng 07 đã duyệt 90%). Tháng 11 tính KPI 5 thành phần: chờ điểm.',
-  ai: { fire: ['kpi-self-100-streak'], miss: [] }
+  ai: { fire: [], miss: [] } // kpi-self-100-streak luôn bị bỏ qua theo thiết kế (DISABLED_BY_DESIGN)
 });
 add('KPI', 'kpi100_near', {
   type: 'ctv',
@@ -1109,7 +1121,7 @@ add('KPI', 'kpi_months', {
     '2026-09': { pct: 90, amt: 7000000, admPct: 85, admAmt: 6000000 },
     '2026-10': { pct: 100, amt: 7000000, admPct: 95, admAmt: 7000000 }
   },
-  slip: [{ month: '2026-10', at: '2026-11-08T10:00', values: mo => ({ kpiPay: Math.round(mo.kpiPay * 0.6) }) }],
+  slip: [{ month: '2026-10', at: '2026-11-08T10:00', values: mo => ({ kpiPay: Math.round(mo.kpiPay) + 4123000 }) }],
   covers: ['K02', 'K03', 'K04', 'C39'],
   expect:
     'KPI cũ mỗi tháng một kiểu: 07 tự đánh giá 60% (dưới 75, không có tiền KPI), 08 đúng 75% (Admin duyệt 75%), 09 Admin duyệt 85% và mức 6.000.000, 10 Admin duyệt 95%. Phiếu tháng 10 bị Admin sửa tiền KPI còn 60% (lệch lớn).',
@@ -1243,7 +1255,7 @@ add('Thuế và BH', 'high_earner', {
   },
   cal: { '2026-10': { edits: entries(oct, [6, 7, 8, 9], E.ot('22:00')) } },
   decisions: approveAll([6, 7, 8, 9].map(oct), FIRST_PASS),
-  slip: [{ month: '2026-10', at: '2026-11-08T10:00', values: mo => ({ kpiPay: Math.round(mo.kpiPay) + 600000 }) }],
+  slip: [{ month: '2026-10', at: '2026-11-08T10:00', values: mo => ({ kpiPay: Math.round(mo.kpiPay) + 300000 }) }],
   covers: ['T02', 'S24', 'S06'],
   expect:
     'HDO (L4) KPI 100% + 16 giờ OT, Admin tắt giảm trừ gia cảnh và tạm ứng: thu nhập khoảng 19 triệu, thuế TNCN lên bậc 10% (tham số luật 2026 không cho lên bậc cao hơn). Phiếu sửa tiền KPI +600.000 ₫ nhưng chỉ lệch khoảng 8% (dưới 20%): sát ngưỡng của slip-override-gap. Số tăng đúng một số tròn nên override-looks-like-entry cũng bắn.',
@@ -1265,7 +1277,7 @@ add('Thuế và BH', 'net_neg', {
   unreasonable: true,
   expect:
     'Làm 9 ngày đầu tháng 10 rồi "Nghỉ, sẽ làm bù" 18 ngày không bù: thu nhập chỉ khoảng 2,1 triệu, tạm ứng 80% lương 15 ngày đầu + BH lớn hơn: thực lĩnh âm.',
-  ai: { fire: ['net-nonpositive'], miss: [] }
+  ai: { fire: [], miss: [] } // net-nonpositive: bắn sau khi lớp vận hành lập khoản trừ lớn (scripts/db/demo/lifecycle.js → payEntries)
 });
 
 /* =============== Nhóm CHECK-IN/OUT =============== */
@@ -1487,11 +1499,11 @@ const PAYSLIP = {
   ot_months: { status: 'pending', flags: ['ot-above-team'] },
   ot_over20: { status: 'pending', flags: ['ot-above-team'] },
   high_earner: { status: 'pending', flags: ['ot-above-team'] },
-  net_neg: { status: 'pending', flags: ['net-nonpositive'] },
+  net_neg: { status: 'pending' },
   no_dates: { status: 'pending', flags: ['missing-start-date'] },
   over_hours: { status: 'pending', flags: ['missing-fixed-shift'] },
   kpi_months: { status: 'pending', flags: ['slip-override-gap'] },
-  kpi100: { status: 'pending', flags: ['kpi-self-100-streak'] },
+  kpi100: { status: 'pending' },
   locked_pending: { status: 'pending', flags: ['locked-with-pending'] },
   // phiếu sạch: mỗi loại nhân sự ít nhất hai người, phiếu vào duyệt cả lô được
   tts1: { status: 'pending', noFlags: true },
@@ -1535,6 +1547,7 @@ module.exports = {
   CASE_TITLE,
   AI_RULES,
   SYSTEM_RULES,
+  DISABLED_BY_DESIGN,
   ADMINS,
   PERSONAS,
   PAYSLIP,

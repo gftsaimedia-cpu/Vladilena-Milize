@@ -253,19 +253,21 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     async rawPunches(u) {
       await store.addPunch(u, H.vn('2026-10-20', '08:01:12'), 'in', ipOf(u), false, null, null);
       await store.addPunch(u, H.vn('2026-10-20', '17:03:40'), 'out', ipOf(u), false, null, null);
-      store.db.prepare('INSERT INTO attendance_days (username, date, entry_json, updated_at) VALUES (?, ?, ?, ?)').run(
-        u,
-        '2026-10-21',
-        JSON.stringify({
-          kind: 'work',
-          in: '08:00',
-          out: '17:00',
-          src: 'punch',
-          presIn: H.vn('2026-10-21', '08:04:00'),
-          presOut: H.vn('2026-10-21', '17:01:00')
-        }),
-        H.vn('2026-10-21', '17:01:00')
-      );
+      await store.db
+        .prepare('INSERT INTO attendance_days (username, date, entry_json, updated_at) VALUES (?, ?, ?, ?)')
+        .run(
+          u,
+          '2026-10-21',
+          JSON.stringify({
+            kind: 'work',
+            in: '08:00',
+            out: '17:00',
+            src: 'punch',
+            presIn: H.vn('2026-10-21', '08:04:00'),
+            presOut: H.vn('2026-10-21', '17:01:00')
+          }),
+          H.vn('2026-10-21', '17:01:00')
+        );
     },
     // dòng duyệt 07/10 tự duyệt: người duyệt là chính người khai
     selfApprove(u) {
@@ -466,7 +468,7 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
         async () => {
           const columns = { type: 'type', level: 'level', shiftCode: 'shift_code' };
           for (const [key, value] of Object.entries(c.patch)) {
-            store.db.prepare(`UPDATE staff SET ${columns[key]} = ? WHERE username = ?`).run(value, p.username);
+            await store.db.prepare(`UPDATE staff SET ${columns[key]} = ? WHERE username = ?`).run(value, p.username);
           }
           if (c.patch.type) {
             const staffType = (await store.getStaff(p.username)).type;

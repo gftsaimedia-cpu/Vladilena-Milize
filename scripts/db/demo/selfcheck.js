@@ -43,7 +43,9 @@ async function buildInput(store, payroll, month, asOf) {
     holidays: await store.getSetting('holidays', []),
     kpiScores,
     slipOverrides,
-    payroll
+    payroll,
+    // bộ tham số hiệu lực của tháng (luật AI bật/tắt, ngưỡng): như bước "AI kiểm tra" của kỳ
+    params: (await require('../../../lib/payroll-service.js').paramsFor(month)).params
   };
 }
 
@@ -217,7 +219,7 @@ async function run({ store, payroll, personas, today, months = ['2026-10', '2026
       if (bad) mismatches.push({ kind: 'bắn thừa', username: p.username, rule, date });
     }
   }
-  const system = new Set(S.SYSTEM_RULES || []);
+  const system = new Set([...(S.SYSTEM_RULES || []), ...(S.DISABLED_BY_DESIGN || [])]);
   const zero = ruleIds.filter(id => !hits[id] && !system.has(id));
   // bảng luật → persona (spec) kèm số lần bắn thật
   const mapping = ruleIds.map(rule => ({
