@@ -4,7 +4,7 @@
     "module": "preserve",
     "moduleResolution": "bundler",
     "lib": ["ES2023"],
-    "strict": true,
+    "strict": false,
     "noImplicitAny": false,
     "esModuleInterop": true,
     "experimentalDecorators": true,

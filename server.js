@@ -27,7 +27,6 @@ const {
   vnToday,
   nowIso
 } = require('./lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { attendanceHints, announceSetting, announceAttendance } = require('./lib/announce'); // báo sau COMMIT: cấu hình đổi (chấm công mới đi qua punchHints, kind 'punch')
 const { validMonth, validDate, USERNAME_RE, TIME_RE, NOTE_MAX, positiveId } = require('./lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const {
   toMin,
@@ -75,7 +74,6 @@ const { aiReviewResult, aiReviewResultCached } = require('./lib/domain/ai-review
 const { assertNotAiBlocked } = require('./lib/domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
 const agents = require('./lib/agents'); // công tắc Agents
 const { checkSheetLimits } = require('./lib/domain/limits'); // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
-const { OtLimits } = require('./lib/domain/overtime/ot-limits'); // trần giờ làm: MỘT nguồn đọc từ bộ tham số của tháng
 const { sheetOwner, approveOnBehalf } = require('./lib/domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
 const sheetBulk = require('./lib/domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
 const { checkSheet, assertSheetRev, checkExtraTimes, dm } = require('./lib/domain/sheet-checks'); // kiểm nghiệp vụ khi lưu lịch ước tính
@@ -88,12 +86,8 @@ const authz = require('./lib/authz'); // quyền theo năng lực: ROLE_CAPS, RO
 const Roles = require('./lib/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
 const audit = require('./lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const config = require('./lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
-const paramsStore = require('./lib/params/store');
-const configRev = require('./lib/params/config-rev'); // số phiên bản chung của cấu hình (settings.config_rev)
-const HolidayNames = require('./lib/domain/holidays'); // tên ngày lễ (nhãn hiển thị)
 const Positions = require('./lib/params/positions'); // chức vụ là dữ liệu: danh sách, quyền lợi, bảng quyền lợi
 const { myPosition, sheetFlagsOf, activeCodesOf, withLeave } = require('./lib/domain/positions'); // cờ quyền lợi và chức vụ
-const paramsSave = require('./lib/params/save'); // lưu tham số: kiểm, xem trước tác động, ghi cả lô, hoàn tác
 const periods = require('./lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
 const events = require('./lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const findings = require('./lib/findings'); // bỏ qua phát hiện AI của phiếu, có lý do
@@ -157,65 +151,6 @@ const SLIP_QTY = [
   'kpiBonus'
 ]; // % đạt từng phần KPI; Tổng KPI = Σ % × trọng số (40/24/12/18/6) + Bonus
 
-// So cả hai lịch trước khi ghi. Xung đột cũ không liên quan giữ nguyên;
-// xung đột mới phải xử lý trước ở luồng lịch ước tính / chấm công của nó.
-async function holidayOtConflicts(beforeDates, afterDates) {
-  const before = new Set(beforeDates),
-    after = new Set(afterDates),
-    conflicts = [];
-  const added = date => after.has(date) && !before.has(date);
-  for (const staff of (await store.listStaff()).filter(s => s.payrollSubject)) {
-    const identity = { username: staff.username, name: staff.name };
-    const checkLimit = async (source, month, beforeHours, afterHours) => {
-      const monthCap = OtLimits.of(await monthParams(month)).monthCap;
-      if (afterHours > monthCap + 1e-6 && afterHours > beforeHours + 1e-6)
-        conflicts.push({
-          ...identity,
-          source,
-          month,
-          reason: 'month-limit',
-          limit: monthCap,
-          beforeHours,
-          afterHours
-        });
-    };
-    for (const sheet of await store.listSheets(staff.username)) {
-      const { days } = await estimateSheet(staff.username, sheet.month);
-      for (const [date, entry] of Object.entries(days))
-        if (added(date) && entry.extraKind)
-          conflicts.push({ ...identity, source: 'estimate', month: sheet.month, date, reason: 'holiday-extra' });
-      await checkLimit(
-        'estimate',
-        sheet.month,
-        await estimateHolidayOtHours(days, before, sheet.month),
-        await estimateHolidayOtHours(days, after, sheet.month)
-      );
-    }
-    const months = new Map();
-    for (const s of await store.listSessions({ username: staff.username })) {
-      const month = s.date.slice(0, 7);
-      if (!months.has(month)) months.set(month, []);
-      months.get(month).push(s);
-      if (added(s.date) && actualOtHours(s.entry) > 0)
-        conflicts.push({
-          ...identity,
-          source: 'attendance',
-          month,
-          date: s.date,
-          sessionId: s.id,
-          reason: 'holiday-ot'
-        });
-    }
-    for (const [month, rows] of months)
-      await checkLimit(
-        'attendance',
-        month,
-        await actualHolidayOtHours(rows, before, month),
-        await actualHolidayOtHours(rows, after, month)
-      );
-  }
-  return conflicts;
-}
 
 /* ---------- check-in / check-out ---------- */
 // Nhân viên chỉ Check-in được cho ngày công (ngày punch.js gán cho lượt: ca đêm thuộc ngày bắt đầu ca, lượt ngoài khung ca thuộc ngày bấm) là:
@@ -488,108 +423,9 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
   const routed = domainRoutes.handlerFor(seg); // quyền đã kiểm ở cổng ROUTE_CAPS ở trên
   if (routed) return await routed({ req, res, seg, url, me, actx });
 
-  // Cho proxy/giám sát: tiến trình còn sống, DB trả lời được, vòng lặp có đang nghẽn không. Không lộ dữ liệu nghiệp vụ.
-  if (route === 'GET /health') {
-    await store.db.prepare('SELECT 1').get();
-    return send(res, 200, { ok: true, ...monitor.snapshot() });
-  }
       
   
-  if (route === 'GET /holidays') {
-    need();
-    return send(res, 200, { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() });
-  }
-  if (route === 'PUT /holidays') {
-    needAdmin();
-    const { dates, names } = await readJson(req);
-    if (!Array.isArray(dates) || dates.some(d => !validDate(d)))
-      throw new HttpError(400, 'Danh sách ngày không hợp lệ');
-    const clean = [...new Set(dates)].sort();
-    const namesClean = await HolidayNames.clean(names, clean); // tên hiển thị của ngày lễ; sai đầu vào là 400 trước mọi thay đổi
-    // Khoá kỳ: chỉ các ngày thật sự đổi (thêm hoặc bỏ) mới bị xét, lưu lại danh sách y nguyên không bị chặn
-    const holidaysBefore = await store.getSetting('holidays', []);
-    await guardPeriod(
-      holidaysBefore.filter(d => !clean.includes(d)),
-      clean.filter(d => !holidaysBefore.includes(d))
-    );
-    await store.transaction(async () => {
-      const conflicts = [];
-      const holidayParams = await monthParams();
-      for (const staff of (await store
-        .listStaff())
-        .filter(s => s.payrollSubject && benefitOf(holidayParams, s.type, 'leaveAccount', s.level))) {
-        const before = await leaveDates(staff),
-          after = await leaveDates(staff, undefined, clean);
-        for (const date of after) {
-          const led = (await rulesFor(date.slice(0, 7))).leave.ledger(staff, after, date),
-            got = led.total - led.expired, // phép còn được dùng tại ngày đó: đã cộng trừ phần đã hết hạn
-            used = led.used;
-          const beforeDeficit = Math.max(0, before.filter(d => d <= date).length - got),
-            afterDeficit = Math.max(0, used - got);
-          if (afterDeficit > beforeDeficit + 1e-6)
-            conflicts.push({
-              username: staff.username,
-              name: staff.name,
-              date,
-              accrued: got,
-              used,
-              beforeDeficit,
-              afterDeficit
-            });
-        }
-      }
-      if (conflicts.length) {
-        const first = conflicts[0];
-        // Lưu và cảnh báo, nêu tối đa config.WARN_NAMES_MAX người. Bộ máy trả lương ngày phép theo chức vụ chứ không xét số dư,
-        // nên ngày phép vượt số dư vẫn được tính lương nếu Admin duyệt (public/payroll-engine.js → kind 'leave').
-        const people = [...new Set(conflicts.map(c => c.username))];
-        const months = [...new Set(conflicts.map(c => c.date.slice(0, 7)))].sort();
-        warnIf('HOLIDAY_LEAVE_CONFLICT', true, {
-          message: () =>
-            `Đổi ngày lễ làm ${people.length} người thiếu phép trong tháng ${months.join(', ')} (${people.slice(0, config.WARN_NAMES_MAX).join(', ')}${people.length > config.WARN_NAMES_MAX ? ` và ${people.length - config.WARN_NAMES_MAX} người khác` : ''}): ngày phép vượt số dư vẫn được tính lương nếu được duyệt. Hãy kiểm tra lịch nghỉ của họ.`,
-          details: { count: people.length, months },
-          count: people.length
-        });
-      }
-      const otConflicts = await holidayOtConflicts(await store.getSetting('holidays', []), clean);
-      if (otConflicts.length) {
-        const first = otConflicts[0],
-          source = first.source === 'estimate' ? 'Lịch ước tính' : 'Check-in/out';
-        const detail =
-          first.reason === 'month-limit'
-            ? `tháng ${first.month} có ${Math.round(first.afterHours * 100) / 100}/${first.limit} giờ làm ngày lễ + OT`
-            : `ngày ${first.date} đang có ${first.source === 'estimate' ? 'giờ làm bù/OT' : 'OT chờ hoặc đã duyệt'}`;
-        const people = [...new Set(otConflicts.map(c => c.username))];
-        const months = [...new Set(otConflicts.map(c => (c.month || c.date).slice(0, 7)))].sort();
-        warnIf('HOLIDAY_OT_CONFLICT', true, {
-          message: () =>
-            `Đổi ngày lễ làm giờ làm ngày lễ + OT của ${people.length} người đổi trong tháng ${months.join(', ')} (${people.slice(0, config.WARN_NAMES_MAX).join(', ')}${people.length > config.WARN_NAMES_MAX ? ` và ${people.length - config.WARN_NAMES_MAX} người khác` : ''}). Giờ làm ngày lễ trả theo hệ số ngày lễ và bộ máy không cắt theo trần: tiền của họ có thể tăng.`,
-          details: { count: people.length, months },
-          count: people.length
-        });
-      }
-      const before = await store.getSetting('holidays', []);
-      const namesBefore = await HolidayNames.read();
-      await store.setSetting('holidays', clean);
-      const namesChanged = await HolidayNames.write(namesClean);
-      await configRev.bump(); // số phiên bản chung, cùng giao dịch
-      await reconcileHolidayWork(before, clean);
-      await audit.write(actx, {
-        action: 'holiday.set',
-        entityKind: 'setting',
-        entityId: 'holidays',
-        before: { dates: before, ...(namesChanged ? { names: namesBefore } : {}) },
-        after: { dates: clean, ...(namesChanged ? { names: namesClean } : {}) }
-      });
-    });
-    const changedHolidays = [
-      ...holidaysBefore.filter(d => !clean.includes(d)),
-      ...clean.filter(d => !holidaysBefore.includes(d))
-    ].sort();
-    if (changedHolidays.length) await announceSetting('holidays', me.username, changedHolidays[0].slice(0, 7));
-    return send(res, 200, { dates: clean, names: namesClean });
-  }
-
+    
   /* ---------- số ước tính của chính người đăng nhập (chỉ dữ liệu của mình; ghi rõ là ước tính) ---------- */
   if (route === 'GET /me/estimate') {
     const u = need();
@@ -1317,11 +1153,7 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
     );
     return send(res, 200, dismissed);
   }
-  if (route === 'GET /events') {
-    const listener = need(); // mọi người đã đăng nhập; luồng này chỉ gợi ý nạp lại, không mang dữ liệu
-    return await events.handleSse(req, res, listener);
-  }
-  if (route === 'GET /today') {
+    if (route === 'GET /today') {
     needAdmin();
     const { punch, actualHours: ActualHours } = await rulesFor();
     const today = punch.vnDate(nowIso());
@@ -1394,55 +1226,7 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
       rows: (await sessionsFor({ month })).map(s => ({ ...s, name: names[s.username] || s.username, type: types[s.username] }))
     });
   }
-  if (route === 'GET /settings/agents') {
-    needAdmin();
-    return send(res, 200, { enabled: await agents.enabled() });
-  }
-  if (route === 'PUT /settings/agents') {
-    const admin = needAdmin(),
-      b = await readJson(req);
-    if (typeof b.enabled !== 'boolean') throw new HttpError(400, 'enabled phải là true hoặc false');
-    const was = await agents.enabled();
-    if (b.enabled !== was)
-      await store.transaction(async () => {
-        await agents.set(b.enabled);
-        await configRev.bump(); // số phiên bản chung, cùng giao dịch
-        await audit.write(actx, {
-          action: 'setting.agents',
-          entityKind: 'setting',
-          entityId: agents.SETTING_KEY,
-          before: { enabled: was },
-          after: { enabled: b.enabled },
-          sensitivity: 'pay'
-        });
-      });
-    if (b.enabled !== was) await announceSetting('agents', admin.username);
-    return send(res, 200, { enabled: await agents.enabled() });
-  }
-  if (route === 'PUT /settings/geofence') {
-    needAdmin();
-    const b = await readJson(req, true);
-    // Tắt phải nói rõ: null (hoặc { geofence: null }). Thân rỗng hay thiếu trường không được ngầm hiểu là tắt.
-    const off = b === null || (Object.keys(b).length === 1 && b.geofence === null);
-    const next = off ? null : cleanGeofence(b);
-    await store.transaction(async () => {
-      const was = await store.getSetting('geofence', null);
-      await store.setSetting('geofence', next);
-      await configRev.bump(); // số phiên bản chung, cùng giao dịch
-      // Chỉ ghi bật/tắt và bán kính; KHÔNG ghi toạ độ
-      const view = fence => ({ enabled: !!fence, ...(fence ? { radiusM: fence.radiusM } : {}) });
-      await audit.write(actx, {
-        action: 'setting.geofence',
-        entityKind: 'setting',
-        entityId: 'geofence',
-        before: view(was),
-        after: { ...view(next), centreChanged: !!next && (!was || was.lat !== next.lat || was.lng !== next.lng) }
-      });
-    });
-    await announceSetting('geofence', me.username);
-    return send(res, 200, { geofence: next });
-  }
-  if (route === 'GET /staff') {
+        if (route === 'GET /staff') {
     needAdmin();
     const listParams = await monthParams();
     return send(res, 200, {
@@ -1492,37 +1276,7 @@ async function api({ req, res, url, me, seg, route, policy, actx, need, needAdmi
       holidays: await store.getSetting('holidays', [])
     });
   }
-  /* ---------- tham số tính lương: màn Cài đặt dựng từ registry ---------- */
-  if (route === 'GET /settings/params' || route === 'GET /settings/first-run') {
-    need(); // năng lực config.read đã kiểm ở cổng ROUTE_CAPS
-    const month = url.searchParams.get('month') || vnToday().slice(0, 7);
-    if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
-    if (route === 'GET /settings/first-run') return send(res, 200, await paramsStore.firstRun(month));
-    const groupText = url.searchParams.get('group');
-    const group = groupText === null ? undefined : Number(groupText);
-    if (group !== undefined && !Number.isInteger(group)) throw new HttpError(400, 'group phải là số nguyên');
-    return send(res, 200, await paramsStore.view(month, { group }));
-  }
-  if (route === 'GET /settings/version') {
-    need();
-    return send(res, 200, await configRev.info());
-  }
-  if (seg[1] === 'settings' && seg[2] === 'params' && req.method !== 'GET') {
-    need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.js
-    const b = await readJson(req);
-    if (req.method === 'PUT' && seg.length === 3) {
-      const saved = await paramsSave.save(me, actx, b);
-      if (saved.notice) await events.emit.paramsChanged(saved.notice);
-      return send(res, 200, saved);
-    }
-    if (req.method === 'POST' && seg[3] === 'preview') return send(res, 200, await paramsSave.preview(me, b));
-    if (req.method === 'POST' && seg[3] === 'revert') {
-      const reverted = await paramsSave.revert(me, actx, b);
-      if (reverted.notice) events.emit.paramsChanged(reverted.notice);
-      return send(res, 200, reverted);
-    }
-  }
-  /* ---------- kỳ lương: danh sách kiểm, chốt công, tính lương và bản chụp, AI kiểm tra, duyệt, chi trả, mở lại ---------- */
+      /* ---------- kỳ lương: danh sách kiểm, chốt công, tính lương và bản chụp, AI kiểm tra, duyệt, chi trả, mở lại ---------- */
   if (route === 'GET /periods') {
     need();
     return send(res, 200, {

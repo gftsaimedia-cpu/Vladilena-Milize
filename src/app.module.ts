@@ -7,12 +7,14 @@ import { RequestScopeInterceptor } from './http/request-scope.interceptor';
 import { LegacyApi } from './http/legacy.controller';
 import { LegacyModule } from './http/legacy.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { SystemModule } from './modules/system/system.module';
+import { SettingsModule } from './modules/settings/settings.module';
 
 /**
  * Thứ tự import là thứ tự đăng ký route: route cụ thể (ví dụ PUT /staff/shift-bulk) phải đứng trước route có tham số (PUT /staff/:u),
  * và LegacyModule (bắt-hết) luôn đứng cuối.
  */
-const FEATURE_MODULES = [AuthModule];
+const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule];
 
 @Module({})
 export class AppModule {
