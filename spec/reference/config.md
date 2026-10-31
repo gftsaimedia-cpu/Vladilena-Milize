@@ -83,12 +83,12 @@
 | Biến | Đọc ở |
 | --- | --- |
 | `ACCESS_LOG` | `lib/ops/access-log.js:12` |
-| `AUDIT_KEY` | `lib/db.js:738` |
+| `AUDIT_KEY` | `lib/db.js:743` |
 | `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:40` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
-| `DATABASE_URL` | `lib/db.js:19` `lib/db.js:35` `lib/db.js:35` |
+| `DATABASE_URL` | `lib/db.js:21` `lib/db.js:37` `lib/db.js:37` |
 | `DB_DEBUG_SQL` | `lib/data/postgres-database.js:116` |
-| `DB_DIALECT` | `lib/db.js:17` |
-| `DB_PATH` | `lib/db.js:18` `lib/domain/ai-block.js:18` |
+| `DB_DIALECT` | `lib/db.js:19` |
+| `DB_PATH` | `lib/db.js:20` `lib/domain/ai-block.js:18` |
 | `NODE_ENV` | `lib/params/save.js:69` `lib/params/save.js:73` `lib/params/save.js:89` |
 | `PARAMS_ALLOW_ACTIVATE` | `lib/params/save.js:88` |
 | `PORT` | `src/main.ts:89` |

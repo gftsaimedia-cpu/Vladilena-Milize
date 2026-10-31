@@ -97,6 +97,7 @@ function modulesDoc() {
     ['src/http/api-context.ts', '`ApiContext` và decorator `@Ctx()`'],
     ['src/http/load-control.ts', 'monitor, cổng băm mật khẩu, giới hạn tốc độ ghi, bộ từ chối tải'],
     ['src/http/not-found.controller.ts', '404 cho đường dẫn không module nào nhận'],
+    ['src/data/*', 'lớp truy vấn có kiểu (Kysely) trên kết nối của ứng dụng: `db-dialect.ts` (chạy qua `prepare().all/run` của SQLite/PostgreSQL), `schema.generated.ts` (kiểu bảng sinh từ migration, `npm run db:types`), repository (`SettingsRepository`)'],
     ['src/shared/reason.ts', '`reasonOf`: lý do ghi nhận tối đa `config.REASON_MAX` ký tự']
   ];
   for (const [f, what] of infra) out += `| \`${f}\` | ${what} |\n`;
@@ -129,7 +130,8 @@ function capsDoc() {
 }
 
 /* ---------- 4. lược đồ DB ---------- */
-function splitTop(body) {
+function splitTop(raw) {
+  const body = raw.replace(/--.*$/gm, ''); // bỏ chú thích TRƯỚC khi tách (chú thích có thể chứa dấu phẩy)
   const parts = [];
   let depth = 0;
   let cur = '';

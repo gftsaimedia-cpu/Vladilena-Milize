@@ -16,7 +16,7 @@ Số bảng: **29**.
 | `username` | TEXT NOT NULL CHECK (length(username) > 0) |
 | `month` | TEXT NOT NULL CHECK (month ~ '^[0-9]{4}-[0-1][0-9]$') |
 | `amount` | BIGINT NOT NULL CHECK (amount > 0) |
-| `VND` | đồng nguyên cap BIGINT NOT NULL CHECK (cap >= 0) |
+| `cap` | BIGINT NOT NULL CHECK (cap >= 0) |
 | `note` | TEXT |
 | `status` | TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected','cancelled')) |
 | `granted` | BIGINT CHECK (granted IS NULL OR (granted > 0)) |
@@ -58,7 +58,7 @@ Số bảng: **29**.
 | `params_hash` | TEXT NOT NULL |
 | `findings_total` | BIGINT |
 | `summary_json` | TEXT |
-| | KHÔNG tiền by TEXT NOT NULL |
+| `by` | TEXT NOT NULL |
 | `at` | TEXT NOT NULL |
 
 ## `attendance_days`
@@ -67,7 +67,7 @@ Số bảng: **29**.
 
 | Cột / ràng buộc | Định nghĩa |
 | --- | --- |
-| | tách khỏi lịch ước tính username TEXT NOT NULL |
+| `username` | TEXT NOT NULL |
 | `date` | TEXT NOT NULL |
 | `entry_json` | TEXT NOT NULL |
 | `updated_at` | TEXT NOT NULL |
@@ -100,18 +100,16 @@ Số bảng: **29**.
 | `actor` | TEXT NOT NULL |
 | `actor_roles` | TEXT |
 | `action` | TEXT NOT NULL |
-| | 'request.decide' |
-| | 'slip.override' |
-| | 'period.lock'... entity_kind TEXT NOT NULL |
+| `entity_kind` | TEXT NOT NULL |
 | `entity_id` | TEXT NOT NULL |
 | `subject` | TEXT |
 | `month` | TEXT |
 | `before_json` | TEXT |
 | `after_json` | TEXT |
-| | không bao giờ chứa bí mật reason TEXT |
+| `reason` | TEXT |
 | `sensitivity` | TEXT NOT NULL DEFAULT 'normal' CHECK (sensitivity IN ('normal','pay','pii')) |
 | `request_id` | TEXT |
-| | để nối nhiều dòng của một thao tác prev_hash TEXT NOT NULL |
+| `prev_hash` | TEXT NOT NULL |
 | `hash` | TEXT NOT NULL |
 | `subject_uuid` | TEXT |
 | `actor_uuid` | TEXT |
@@ -135,7 +133,7 @@ Số bảng: **29**.
 | `username` | TEXT NOT NULL |
 | `date` | TEXT NOT NULL |
 | `req_in` | TEXT NOT NULL |
-| `ISO` | UTC req_out TEXT NOT NULL |
+| `req_out` | TEXT NOT NULL |
 | `reason` | TEXT NOT NULL |
 | `status` | TEXT NOT NULL DEFAULT 'pending' |
 | `decided_by` | TEXT |
@@ -191,7 +189,7 @@ Số bảng: **29**.
 
 | Cột / ràng buộc | Định nghĩa |
 | --- | --- |
-| | mỗi người mỗi tháng một dòng; null = chưa nhập username TEXT NOT NULL |
+| `username` | TEXT NOT NULL |
 | `month` | TEXT NOT NULL |
 | `wework` | BIGINT CHECK (wework IS NULL OR (wework >= 0 AND wework <= 10000)) |
 | `user_score` | BIGINT CHECK (user_score IS NULL OR (user_score >= 0 AND user_score <= 10000)) |
@@ -230,7 +228,7 @@ Số bảng: **29**.
 | `key` | TEXT NOT NULL |
 | `effective_month` | TEXT NOT NULL CHECK (effective_month ~ '^[0-9]{4}-[0-1][0-9]$') |
 | `value_json` | TEXT NOT NULL |
-| | JSON; Infinity lưu là null (TK 4.9) reason TEXT NOT NULL CHECK (length(reason) BETWEEN 10 AND 300) |
+| `reason` | TEXT NOT NULL CHECK (length(reason) BETWEEN 10 AND 300) |
 | `basis` | TEXT |
 | `ack_json` | TEXT |
 | `created_by` | TEXT NOT NULL |
@@ -328,14 +326,9 @@ Số bảng: **29**.
 | `tax` | BIGINT |
 | `advance` | BIGINT |
 | `net` | BIGINT |
-| `sau` | làm tròn của calcNet và số sửa staff_terms_json TEXT NOT NULL |
-| | level |
-| | base |
-| | hợp đồng |
-| | BH |
-| | người phụ thuộc |
-| | iDorm... đúng lúc tính snapshot_gz BYTEA NOT NULL |
-| | gồm rows (zlib có sẵn của Node) override_json TEXT |
+| `staff_terms_json` | TEXT NOT NULL |
+| `snapshot_gz` | BYTEA NOT NULL |
+| `override_json` | TEXT |
 | `flags_json` | TEXT |
 
 ## `position_levels`
@@ -380,12 +373,12 @@ Số bảng: **29**.
 | `effective_month` | TEXT NOT NULL CHECK (effective_month ~ '^[0-9]{4}-[0-1][0-9]$') |
 | `name` | TEXT NOT NULL CHECK (length(name) > 0) |
 | `workdays` | BIGINT NOT NULL CHECK (workdays BETWEEN 1 AND 31) |
-| | mẫu số lương ngày flex_pct DOUBLE PRECISION NOT NULL CHECK (flex_pct BETWEEN 0 AND 100) |
-| | % lương ngày night_pct DOUBLE PRECISION NOT NULL CHECK (night_pct BETWEEN 0 AND 100) |
-| | % travel_pct DOUBLE PRECISION NOT NULL CHECK (travel_pct BETWEEN 0 AND 100) |
-| | % attendance_pct DOUBLE PRECISION NOT NULL CHECK (attendance_pct BETWEEN 0 AND 100) |
-| | % regular_dows TEXT NOT NULL CHECK ((regular_dows::jsonb IS NOT NULL)) |
-| `0` | = Chủ nhật … 6 = thứ Bảy makeup_dows TEXT NOT NULL CHECK ((makeup_dows::jsonb IS NOT NULL)) |
+| `flex_pct` | DOUBLE PRECISION NOT NULL CHECK (flex_pct BETWEEN 0 AND 100) |
+| `night_pct` | DOUBLE PRECISION NOT NULL CHECK (night_pct BETWEEN 0 AND 100) |
+| `travel_pct` | DOUBLE PRECISION NOT NULL CHECK (travel_pct BETWEEN 0 AND 100) |
+| `attendance_pct` | DOUBLE PRECISION NOT NULL CHECK (attendance_pct BETWEEN 0 AND 100) |
+| `regular_dows` | TEXT NOT NULL CHECK ((regular_dows::jsonb IS NOT NULL)) |
+| `makeup_dows` | TEXT NOT NULL CHECK ((makeup_dows::jsonb IS NOT NULL)) |
 | `reason` | TEXT |
 | `updated_by` | TEXT NOT NULL |
 | `updated_at` | TEXT NOT NULL |
@@ -417,7 +410,7 @@ Số bảng: **29**.
 | `at` | TEXT NOT NULL |
 | `type` | TEXT NOT NULL |
 | `ip` | TEXT |
-| | không dùng để chặn auto BIGINT NOT NULL DEFAULT 0 |
+| `auto` | BIGINT NOT NULL DEFAULT 0 |
 | `context_json` | TEXT |
 | `session_id` | BIGINT |
 
@@ -438,15 +431,15 @@ Số bảng: **29**.
 | --- | --- |
 | `username` | TEXT NOT NULL |
 | `date` | TEXT NOT NULL |
-| | ngày chứa khoản tự khai item TEXT NOT NULL |
+| `item` | TEXT NOT NULL |
 | `fingerprint` | TEXT NOT NULL |
 | `status` | TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')) |
 | `rev` | BIGINT NOT NULL DEFAULT 1 |
 | `submitted_at` | TEXT NOT NULL |
-| | lúc khai hoặc khai lại decided_by TEXT |
-| | hoặc 'system' khi migration/seed duyệt sẵn decided_at TEXT |
+| `decided_by` | TEXT |
+| `decided_at` | TEXT |
 | `note` | TEXT |
-| | tối đa 300 ký tự; bắt buộc khi từ chối hoặc đổi quyết định PRIMARY KEY (username, date) |
+| `PRIMARY` | PRIMARY KEY (username, date) |
 
 ## `slip_overrides`
 

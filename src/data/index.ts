@@ -1,0 +1,12 @@
+import { Kysely } from 'kysely';
+import { AppDatabase, AppDialect } from './db-dialect';
+import type { Schema } from './schema.generated';
+
+export type { Schema } from './schema.generated';
+export type { AppDatabase } from './db-dialect';
+export { SettingsRepository } from './settings.repository';
+
+/** Trình dựng truy vấn có kiểu (Kysely) trên kết nối của ứng dụng; kiểu bảng sinh từ migration (`npm run db:types`). */
+export function createQueryBuilder(db: AppDatabase): Kysely<Schema> {
+  return new Kysely<Schema>({ dialect: new AppDialect(db) });
+}
