@@ -72,7 +72,8 @@ const {
 const { aiReviewResult, aiReviewResultCached } = require('./lib/domain/ai-review'); // kết quả soát dữ liệu của AI
 const { assertNotAiBlocked } = require('./lib/domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
 const agents = require('./lib/agents'); // công tắc Agents
-const { checkSheetLimits, MONTH_OT_CAP } = require('./lib/domain/limits'); // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
+const { checkSheetLimits } = require('./lib/domain/limits'); // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
+const { OtLimits } = require('./lib/domain/overtime/ot-limits'); // trần giờ làm: MỘT nguồn đọc từ bộ tham số của tháng
 const { sheetOwner, approveOnBehalf } = require('./lib/domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
 const sheetBulk = require('./lib/domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
 const { checkSheet, assertSheetRev, checkExtraTimes, dm } = require('./lib/domain/sheet-checks'); // kiểm nghiệp vụ khi lưu lịch ước tính
@@ -184,13 +185,14 @@ function holidayOtConflicts(beforeDates, afterDates) {
   for (const staff of store.listStaff().filter(s => s.payrollSubject)) {
     const identity = { username: staff.username, name: staff.name };
     const checkLimit = (source, month, beforeHours, afterHours) => {
-      if (afterHours > MONTH_OT_CAP + 1e-6 && afterHours > beforeHours + 1e-6)
+      const monthCap = OtLimits.of(monthParams(month)).monthCap;
+      if (afterHours > monthCap + 1e-6 && afterHours > beforeHours + 1e-6)
         conflicts.push({
           ...identity,
           source,
           month,
           reason: 'month-limit',
-          limit: MONTH_OT_CAP,
+          limit: monthCap,
           beforeHours,
           afterHours
         });
