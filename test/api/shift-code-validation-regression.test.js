@@ -28,10 +28,8 @@ const profile = {
   startDate: '2026-01-01'
 };
 
-function snapshot() {
-  return Object.fromEntries(
-    tables.map(table => [table, store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
-  );
+async function snapshot() {
+  return Object.fromEntries(await Promise.all(tables.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
 }
 async function call(method, route, body) {
   const response = await fetch(base + '/api' + route, {
@@ -53,7 +51,7 @@ before(async () => {
   base = 'http://127.0.0.1:' + server.address().port;
 });
 beforeEach(async () => {
-  for (const table of tables) store.db.exec('DELETE FROM ' + table);
+  for (const table of tables) await store.db.exec('DELETE FROM ' + table);
   for (const [username, role] of [
     ['admin', 'admin'],
     ['worker', 'staff']

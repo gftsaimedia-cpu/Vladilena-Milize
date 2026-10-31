@@ -34,8 +34,8 @@ async function call(method, route, body, who = 'admin') {
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
-const rowsOf = username =>
-  store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
+const rowsOf = async username =>
+  await store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
 const rowAt = async (username, date) => (await rowsOf(username)).find(row => row.date === date);
 // Lịch ghi thẳng vào DB (bỏ qua kiểm tra của PUT /sheet): dựng dữ liệu cũ hoặc dữ liệu hỏng
 const putSheet = (username, month, days) => store.setSheet(username, month, days, null, null);
@@ -78,7 +78,7 @@ beforeEach(async () => {
     'settings'
   ]) {
     try {
-      store.db.exec('DELETE FROM ' + table);
+      await store.db.exec('DELETE FROM ' + table);
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
     }

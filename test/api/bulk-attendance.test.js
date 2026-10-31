@@ -6,6 +6,7 @@
 // Chỉ người bịa (qa_*), DB trong bộ nhớ, đồng hồ giả: thứ Tư 04/11/2026 20:00.
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect'); // ngưỡng 10 giây là của SQLite trong tiến trình; PostgreSQL (PGlite) chậm hơn, xem PROGRAM.md
 const assert = require('node:assert/strict');
 const { rulesFor } = require('../../lib/request-rules');
 
@@ -278,7 +279,7 @@ test('nhật ký: mỗi người một dòng sheet.onBehalf, cả lô một dòn
   assert.deepEqual(JSON.parse(row.after_json), { people: 2, days: 1, shifts: ['Normal2'] });
 });
 
-test('trần số người một lần: 200 người ba ngày xong dưới 10 giây, đủ kết quả và đủ dòng nhật ký', async () => {
+sqliteOnly('trần số người một lần: 200 người ba ngày xong dưới 10 giây, đủ kết quả và đủ dòng nhật ký', async () => {
   const max = (await rulesFor()).params['system.staff.bulkMax'];
   const names = Array.from({ length: max }, (_, i) => `qa_bulk${i}`);
   for (const u of names) await person(u);

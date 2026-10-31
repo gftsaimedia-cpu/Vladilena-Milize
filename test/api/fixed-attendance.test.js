@@ -1,5 +1,6 @@
 // Từng test dùng nhân sự riêng; DB tạm được đặt trước khi nạp máy chủ.
 const { test, before, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const fs = require('node:fs'),
   os = require('node:os'),
@@ -261,7 +262,7 @@ test('đêm qua tháng, trễ sau 0h vẫn thuộc ngày ca cũ và không tạo
   );
 });
 
-test('migration giữ lịch sử cũ và trả lịch ước tính có thể sửa, kể cả ca đêm vào sau 0h', async () => {
+sqliteOnly('migration giữ lịch sử cũ và trả lịch ước tính có thể sửa, kể cả ca đêm vào sau 0h', async () => {
   await at('2026-10-15T10:00:00');
   const u = await person('legacy', 'g2');
   assert.deepEqual((await store.getSheet('legacy', '2026-10')).days, legacyDays, 'migration không thay bản gốc');
@@ -310,7 +311,7 @@ test('migration giữ lịch sử cũ và trả lịch ước tính có thể s�
   assert.deepEqual(await day('legacy', '2026-10-06'), legacyFirst, 'xoá lịch ước tính vẫn giữ bản ghi Admin');
 });
 
-test('lịch cũ qua ranh giới tháng lưu lại được; sửa chồng giờ vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP', async () => {
+sqliteOnly('lịch cũ qua ranh giới tháng lưu lại được; sửa chồng giờ vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP', async () => {
   const u = await person('legacy-edge', 'g2');
   for (const month of ['2026-08', '2026-09']) {
     const r = await call(u, 'GET', '/sheet?month=' + month);

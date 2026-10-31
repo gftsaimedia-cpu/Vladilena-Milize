@@ -42,13 +42,8 @@ function attendance(username = 'worker', date = '2026-10-07', options = {}) {
   ).entry;
   return store.createSession(username, date, options.state || 'closed', { ...entry, ...options.entry });
 }
-function snapshot() {
-  return Object.fromEntries(
-    ['attendance_sessions', 'corrections', 'punches', 'timesheets', 'settings'].map(table => [
-      table,
-      store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()
-    ])
-  );
+async function snapshot() {
+  return Object.fromEntries(await Promise.all(['attendance_sessions', 'corrections', 'punches', 'timesheets', 'settings'].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
 }
 before(async () => {
   Date.now = () => Date.parse('2026-12-31T23:00:00+07:00');
@@ -66,7 +61,7 @@ beforeEach(async () => {
     'staff',
     'settings'
   ])
-    store.db.exec('DELETE FROM ' + table);
+    await store.db.exec('DELETE FROM ' + table);
   await person('admin', { role: 'admin', type: 'tts', level: 0 });
   await person();
 });

@@ -1,6 +1,7 @@
 'use strict';
 // Đặt lại dữ liệu thử của sandbox (scripts/dev/sandbox-server.cjs → resetSyntheticData) xoá luôn trạng thái kỳ lương: kỳ đã chốt công và tính lương
 // quay về chưa có lần chạy, chưa có phiếu chụp, nên sau khi đặt lại có thể tính lại từ đầu. Sandbox chạy ở tiến trình con, cổng 3451.
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');

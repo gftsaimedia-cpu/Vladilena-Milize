@@ -16,6 +16,7 @@ const P = require('../helpers/period-api');
 const S = require('../helpers/settings-api');
 const { assertPlain } = require('../helpers/plain-text');
 const { test, before, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { allowanceTotalOf } = require('../../lib/period-allowance');
 const { sessionHistory, sessionsWithHistory } = require('../../lib/domain/attendance');
@@ -386,7 +387,7 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   assert.equal((await F.call('GET', `/team?month=${M}`, { who: 'qa_tts1' })).status, 403);
 });
 
-test('chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)', async () => {
+sqliteOnly('chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)', async () => {
   const names = (await store.db
     .prepare(
       "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('punches_session', 'corrections_session')"

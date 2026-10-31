@@ -3,6 +3,7 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-holiday-tests';
 const { test, before, beforeEach, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -403,7 +404,7 @@ async function buildV1Db({ dropV1 = false } = {}) {
 const summary = rows =>
   Object.fromEntries(rows.map(r => [`${r.username}:${r.date}`, `${r.item}:${r.status}:${r.decided_by ?? '-'}`]));
 
-test('di chuyển v2 (DB đã chạy v1): thêm holiday_work, tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt', async () => {
+sqliteOnly('di chuyển v2 (DB đã chạy v1): thêm holiday_work, tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt', async () => {
   const dbPath = await buildV1Db();
   // Dòng v1 đã có trước v2: tạo bằng cách chạy bản v1 trên lịch cũ rồi xoá dấu v2
   const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
@@ -433,7 +434,7 @@ test('di chuyển v2 (DB đã chạy v1): thêm holiday_work, tháng ≤ 09/2026
   assert.equal(got['worker:2026-10-07'], 'ot:pending:-');
 });
 
-test('di chuyển v2: ngày lễ vốn có OT kèm theo (dòng OT của v1) được thay bằng holiday_work, vẫn đã duyệt vì tháng 09/2026', async () => {
+sqliteOnly('di chuyển v2: ngày lễ vốn có OT kèm theo (dòng OT của v1) được thay bằng holiday_work, vẫn đã duyệt vì tháng 09/2026', async () => {
   const dbPath = await buildV1Db();
   const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   const row = rows.find(r => r.username === 'worker' && r.date === '2026-09-04');
@@ -443,7 +444,7 @@ test('di chuyển v2: ngày lễ vốn có OT kèm theo (dòng OT của v1) đư
   assert.equal(row.status, 'approved');
 });
 
-test('di chuyển v2: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
+sqliteOnly('di chuyển v2: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
   const dbPath = await buildV1Db();
   await runChild(dbPath, `const store = require(${LIB_DB});console.log('{}')`);
   const decided = await runChild(
@@ -460,7 +461,7 @@ test('di chuyển v2: chạy lại không đổi gì và không đặt lại quy
   assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), decided);
 });
 
-test('di chuyển v2: DB cũ chưa từng chạy v1 chạy cả hai, không có dòng nào bị tạo hai lần', async () => {
+sqliteOnly('di chuyển v2: DB cũ chưa từng chạy v1 chạy cả hai, không có dòng nào bị tạo hai lần', async () => {
   const dbPath = await buildV1Db({ dropV1: true });
   const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(markers.sort(), [
@@ -477,7 +478,7 @@ test('di chuyển v2: DB cũ chưa từng chạy v1 chạy cả hai, không có 
   assert.equal(got['worker:2026-09-16'], 'isat:approved:system');
 });
 
-test('di chuyển v2 trên DB trống: không tạo dòng nào, đặt dấu v1 và v2', async () => {
+sqliteOnly('di chuyển v2 trên DB trống: không tạo dòng nào, đặt dấu v1 và v2', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-holiday-approvals-'));
   const { rows, markers } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rows, []);

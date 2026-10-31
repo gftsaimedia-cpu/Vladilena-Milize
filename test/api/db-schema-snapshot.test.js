@@ -3,6 +3,7 @@
 // Ba kiểm: (1) bản chụp bảng/cột/chỉ mục/trigger của DB mới khớp file đã ghi; (2) mọi khoá của đối tượng store đã ghi vẫn còn đúng kiểu;
 // (3) nâng cấp: DB đã dựng bị bớt các cột addColumn rồi nạp lại phải ra cùng tập cột và chỉ mục, và nạp lần hai không đổi gì.
 // Đổi lược đồ có chủ đích: chạy node test/tools/record-schema.js --write để ghi lại bản chụp.
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'qa-schema-snapshot';
 const { test, before } = require('node:test');

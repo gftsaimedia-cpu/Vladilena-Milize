@@ -4,6 +4,7 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-leave-tests';
 const { test, before, beforeEach, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -371,7 +372,7 @@ async function buildProductionDb() {
   return dbPath;
 }
 
-test('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên', async () => {
+sqliteOnly('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên', async () => {
   const dbPath = await buildProductionDb();
   const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
@@ -392,7 +393,7 @@ test('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đ�
   );
 });
 
-test('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', async () => {
+sqliteOnly('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', async () => {
   const dbPath = await buildProductionDb();
   const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   const changed = await runChild(
@@ -410,7 +411,7 @@ test('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng 
   assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
 });
 
-test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi ngày phép đúng một dòng', async () => {
+sqliteOnly('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi ngày phép đúng một dòng', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
   const dbPath = path.join(dir, 'legacy.sqlite');
   await runChild(
@@ -437,7 +438,7 @@ test('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi
   assert.equal(rows.length, 6);
 });
 
-test('di chuyển v3 trên DB trống: không tạo dòng nào, đặt đủ ba dấu v1, v2, v3', async () => {
+sqliteOnly('di chuyển v3 trên DB trống: không tạo dòng nào, đặt đủ ba dấu v1, v2, v3', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
   const { rows, markers } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rows, []);

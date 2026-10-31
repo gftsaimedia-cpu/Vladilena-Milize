@@ -11,6 +11,7 @@
 // Thu nhập chịu thuế 7.328.364 = 8.988.461 − miễn thuế 1.660.097 (phần đêm 1.094.712 + phần OT 565.385). Chuyên cần sửa +500.000 cộng đủ vào tổng, chịu thuế và thực lĩnh.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 
@@ -200,7 +201,7 @@ test('Admin (không selfView) vẫn nhận bản chụp gốc và computed; phi�
 });
 
 /* ================= (5) engineVersion ================= */
-test('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản chụp có engineVersion cũ thì verify báo engineChanged: true', async () => {
+sqliteOnly('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản chụp có engineVersion cũ thì verify báo engineChanged: true', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
   assert.equal(Engine.ENGINE_VERSION, 'payroll-engine-14');
@@ -235,7 +236,7 @@ async function brokenParamsStatuses(broken) {
     view: (await F.call('GET', `/periods/${M}`)).status
   };
 }
-test('Lần tính có params_json là JSON null, chuỗi không phải JSON hoặc mảng rỗng (cột NOT NULL nên null thật không có): danh sách phiếu, chi tiết phiếu (Admin và nhân sự) và tổng kỳ không trả 500', async () => {
+sqliteOnly('Lần tính có params_json là JSON null, chuỗi không phải JSON hoặc mảng rỗng (cột NOT NULL nên null thật không có): danh sách phiếu, chi tiết phiếu (Admin và nhân sự) và tổng kỳ không trả 500', async () => {
   for (const broken of ['null', 'không phải JSON', '[]']) {
     const { estimate, ...status } = await brokenParamsStatuses(broken);
     for (const [where, code] of Object.entries(status)) assert.notEqual(code, 500, `${where}, params_json=${broken}`);
@@ -245,7 +246,7 @@ test('Lần tính có params_json là JSON null, chuỗi không phải JSON ho�
 //   1. params_json là số hoặc chuỗi JSON: public/payroll-params.js → fillLate gọi WeakMap.set với khoá không phải đối tượng
 //      (TypeError qua lib/periods.js → workdaysStdOf) nên chi tiết phiếu trả 500;
 //   2. params_json = 'null': lib/periods.js → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
-test(
+sqliteOnly(
   'params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500',
   async () => {
     for (const broken of ['123', '"chuỗi"', 'null', '[]']) {

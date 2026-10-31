@@ -1,3 +1,4 @@
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { AsyncList } = require('../../lib/shared/async-list');
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'migration-tests';

@@ -42,9 +42,9 @@ const handTax = async (user, row) => {
   return income > DEFAULTS['tax.deduction.personal'] ? Math.round(oracle.progressive(assessable)) : 0;
 };
 const sheetOf = async who => (await F.call('GET', `/sheet?month=${M}`, { who })).data;
-const logOf = user =>
-  store.db.prepare('SELECT * FROM kpi_score_log WHERE username = ? AND month = ? ORDER BY id').all(user, M);
-const scoreRows = () => store.db.prepare('SELECT * FROM kpi_scores').all();
+const logOf = async user =>
+  await store.db.prepare('SELECT * FROM kpi_score_log WHERE username = ? AND month = ? ORDER BY id').all(user, M);
+const scoreRows = async () => await store.db.prepare('SELECT * FROM kpi_scores').all();
 const adminItem = async user =>
   (await F.call('GET', `/kpi/scores?month=${M}`)).data.items.find(item => item.username === user);
 

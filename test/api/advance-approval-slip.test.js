@@ -56,15 +56,15 @@ async function setup(month) {
   }
 }
 // Yêu cầu xin số dựng thẳng trong bảng (không còn route gửi số)
-function oldRequest(username, month, { amount, status = 'pending', granted = null }) {
+async function oldRequest(username, month, { amount, status = 'pending', granted = null }) {
   const at = new Date(Date.now()).toISOString();
   return Number(
-    store.db
+    (await store.db
       .prepare(
         `INSERT INTO advance_requests (username, month, amount, cap, status, granted, rev, created_at, decided_by, decided_at)
          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
       )
-      .run(username, month, amount, amount, status, granted, at, granted ? 'admin' : null, granted ? at : null)
+      .run(username, month, amount, amount, status, granted, at, granted ? 'admin' : null, granted ? at : null))
       .lastInsertRowid
   );
 }

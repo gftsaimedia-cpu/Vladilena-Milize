@@ -1,6 +1,7 @@
 // Kiểm scripts/ops/backup-daily.js, check-backup.js và restore-drill.js trên DB nguồn tự dựng trong thư mục tạm:
 // tiến trình con đặt DB_PATH vào thư mục tạm rồi nạp lib/db.js (lược đồ và migration của app), thêm hai tài khoản qua store.upsertStaff.
 // Không đọc gì dưới data/: đường dẫn data/luong.sqlite chỉ xuất hiện như chuỗi ở ca từ chối của restore-drill.js, và ca đó không đọc file.
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

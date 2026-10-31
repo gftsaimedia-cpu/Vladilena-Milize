@@ -22,8 +22,8 @@ const LEVELS = ['ctv', 'nv'].flatMap(type =>
     .map(key => ({ type, level: Number(key.split('.')[2]), max: DEFAULTS[key] }))
 );
 const sheetPut = async (who, month, days) => await F.call('PUT', '/sheet', { who, body: { month, days } });
-const insertParam = (key, month, valueJson) =>
-  store.db
+const insertParam = async (key, month, valueJson) =>
+  await store.db
     .prepare(
       'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     )

@@ -2,6 +2,7 @@
 // Điểm lưu số nguyên điểm × 100 (0..10000).
 process.env.DB_PATH = ':memory:';
 const { test, beforeEach, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 
@@ -141,7 +142,7 @@ test('một giá trị sai trong gói thì cả gói bị từ chối, kể cả
   assert.equal(await logRows(), 0);
 });
 
-test('giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ', async () => {
+sqliteOnly('giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ', async () => {
   await store.setKpiScores('an', '2026-10', { wework: 8000 }, 'admin');
   const before = await store.getKpiScores('an', '2026-10');
   const logBefore = await logRows();
@@ -163,7 +164,7 @@ test('giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì 
   assert.deepEqual((await store.setKpiScores('an', '2026-10', { peer: 7000 }, 'admin')).changed, ['peer']);
 });
 
-test('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài kho (số thập phân, ngoài khoảng)', async () => {
+sqliteOnly('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài kho (số thập phân, ngoài khoảng)', async () => {
   const insert = async value =>
     await store.db
       .prepare(

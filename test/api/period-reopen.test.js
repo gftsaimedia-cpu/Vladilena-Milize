@@ -19,13 +19,13 @@ after(F.stop);
 const reopen = (month, to, body = {}, who = 'admin') => P.step(month, 'reopen', { to, reason, ...body }, who);
 const getPeriod = async month => (await F.call('GET', `/periods/${month}`)).data;
 // Dấu vân tay của mọi phiếu và lần chạy của tháng (để khẳng định "không xoá, không sửa")
-const fingerprint = month =>
-  store.db
+const fingerprint = async month =>
+  (await store.db
     .prepare(
       `SELECT r.run_no AS run_no, p.username AS username, p.gross AS gross, p.net AS net, p.status AS status, hex(p.snapshot_gz) AS snap, p.staff_terms_json AS terms
        FROM payroll_runs r JOIN payslips p ON p.run_id = r.id WHERE r.month = ? ORDER BY r.run_no, p.username`
     )
-    .all(month)
+    .all(month))
     .map(row => ({ ...row }));
 
 /* ================= quyền ================= */
@@ -137,7 +137,7 @@ test('Kỳ đã chi trả (paid) vẫn mở lại được về open, attendance
   for (const to of ['open', 'attendance_locked', 'calculated']) {
     const M = monthOf();
     await P.setupMonth(M, 'paid');
-    const before = fingerprint(M);
+    const before = await fingerprint(M);
     assert.equal((await getPeriod(M)).stages.paid.by, 'admin', to);
     const res = P.must(await reopen(M, to, { reason: 'Chi trả nhầm kỳ, cần tính lại' }), `paid → ${to}`);
     assert.equal(res.data.status, to);
@@ -154,7 +154,7 @@ test('Kỳ đã chi trả (paid) vẫn mở lại được về open, attendance
       (await P.runsOf(M)).map(r => r.status),
       ['superseded']
     );
-    assert.deepEqual(fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
+    assert.deepEqual(await fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
     const row = (await P.auditOf(M)).find(r => r.action === 'period.reopen');
     assert.equal(row.before.status, 'paid');
     assert.equal(row.after.status, to);
@@ -180,14 +180,14 @@ test('Chỉ mở về một bước TRƯỚC trạng thái hiện tại: open �
 test('Mở lại từ approved về calculated: lần chạy final thành superseded, mọi phiếu giữ nguyên, kỳ mất lần chạy hiện hành, reopen_count + 1, nhật ký ghi lý do', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  const before = fingerprint(M);
+  const before = await fingerprint(M);
   assert.equal(before.length, 4);
   const approvedAt = (await getPeriod(M)).stages.approved;
   assert.equal(approvedAt.by, 'admin');
 
   const res = P.must(await reopen(M, 'calculated', { reason: 'Phát hiện sai giờ OT của một người' }), 'mở lại');
   assert.equal(res.data.status, 'calculated');
-  assert.deepEqual(fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
+  assert.deepEqual(await fingerprint(M), before, 'phiếu và bản chụp giữ nguyên từng byte');
   assert.deepEqual(
     (await P.runsOf(M)).map(r => [r.run_no, r.status]),
     [[1, 'superseded']]
@@ -216,7 +216,7 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
     ]
   );
   assert.deepEqual(
-    fingerprint(M).filter(r => r.run_no === 1),
+    (await fingerprint(M)).filter(r => r.run_no === 1),
     before,
     'lần chạy 1 vẫn y nguyên'
   );
@@ -240,25 +240,25 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
 test('Mở lại từ reviewed về calculated: lần chạy nháp bị thay thế (superseded), phiếu giữ nguyên', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  const before = fingerprint(M);
+  const before = await fingerprint(M);
   P.must(await reopen(M, 'calculated'), 'mở lại từ reviewed');
   assert.deepEqual(
     (await P.runsOf(M)).map(r => r.status),
     ['superseded']
   );
-  assert.deepEqual(fingerprint(M), before);
+  assert.deepEqual(await fingerprint(M), before);
   assert.equal((await getPeriod(M)).stages.reviewed.by, null);
 });
 
 test('Mở về attendance_locked rồi calculate: tạo lần chạy mới, lần cũ giữ nguyên; verify của lần mới không lệch', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  const before = fingerprint(M);
+  const before = await fingerprint(M);
   P.must(await reopen(M, 'attendance_locked'), 'mở về attendance_locked');
   assert.equal((await getPeriod(M)).status, 'attendance_locked');
   P.must(await P.step(M, 'calculate'), 'tính lại');
   assert.deepEqual(
-    fingerprint(M).filter(r => r.run_no === 1),
+    (await fingerprint(M)).filter(r => r.run_no === 1),
     before
   );
   const verify = await F.call('GET', `/periods/${M}/verify`);
@@ -276,7 +276,7 @@ test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng c�
   assert.ok(date, 'điều kiện của bài: qa_nv1 có một ngày xin OT');
   // bỏ yêu cầu OT của ngày đó: ngày công vẫn tính theo lượt Check-in/out, chỉ mất tiền OT đã duyệt
   days[date] = { kind: 'work', in: days[date].in, out: days[date].out, preset: days[date].preset };
-  const before = fingerprint(M);
+  const before = await fingerprint(M);
   const slipBefore = (await P.slipRows(M)).find(r => r.username === 'qa_nv1');
   const locked = await F.call('PUT', '/sheet', { who: 'qa_nv1', body: { month: M, days } });
   assert.equal(locked.status, 200, JSON.stringify(locked.data));
@@ -310,7 +310,7 @@ test('Kỳ đã tính lương vẫn lưu được lịch ước tính nhưng c�
   const slipAfter = (await P.slipRows(M)).find(r => r.username === 'qa_nv1');
   assert.ok(slipAfter.gross < slipBefore.gross, 'bỏ một yêu cầu OT đã duyệt làm giảm tiền');
   assert.deepEqual(
-    fingerprint(M).filter(r => r.run_no === 1),
+    (await fingerprint(M)).filter(r => r.run_no === 1),
     before,
     'lần chạy 1 giữ nguyên bản chụp cũ'
   );

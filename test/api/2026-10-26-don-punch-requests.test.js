@@ -4,6 +4,7 @@
 // CHỈ xoá bản ghi cũ hơn hạn.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -18,7 +19,7 @@ const addRow = async (requestId, createdAt) => {
   await store.db.prepare('UPDATE punch_requests SET created_at=? WHERE request_id=?').run(createdAt, requestId);
 };
 
-test('purgePunchRequests chỉ xoá bản ghi cũ hơn hạn, giữ bản ghi mới và bản ghi chưa có created_at; chạy trong MỘT giao dịch', async () => {
+sqliteOnly('purgePunchRequests chỉ xoá bản ghi cũ hơn hạn, giữ bản ghi mới và bản ghi chưa có created_at; chạy trong MỘT giao dịch', async () => {
   const day = DEFAULTS['unit.msPerDay'];
   const iso = msAgo => new Date(Date.now() - msAgo).toISOString();
   await addRow('cu-40-ngay', iso(40 * day));

@@ -34,7 +34,7 @@ const punch = async (who, type) =>
       ...(type === 'out' ? { sessionId: (await store.openSession(who))?.id } : {})
     }
   });
-const count = table => store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
+const count = async table => (await store.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n;
 const stored = async () => ({
   sessions: await count('attendance_sessions'),
   punches: await count('punches'),

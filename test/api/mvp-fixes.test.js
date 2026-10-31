@@ -24,9 +24,8 @@ async function person(username, role = 'staff', type = 'nv', shiftCode = 'n1') {
     passHash: auth.hashPassword('test-pass')
   });
 }
-function snapshot() {
-  return Object.fromEntries(
-    [
+async function snapshot() {
+  return Object.fromEntries(await Promise.all([
       'staff',
       'timesheets',
       'settings',
@@ -35,8 +34,7 @@ function snapshot() {
       'punches',
       'corrections',
       'punch_requests'
-    ].map(table => [table, store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
-  );
+    ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
 }
 async function call(method, route, { who = 'admin', body } = {}) {
   const response = await fetch(base + '/api' + route, {
@@ -77,7 +75,7 @@ beforeEach(async () => {
     'staff',
     'settings'
   ])
-    store.db.exec('DELETE FROM ' + table);
+    await store.db.exec('DELETE FROM ' + table);
   await person('admin', 'admin', 'tts');
   await person('worker'); // NV L1, lịch T2–T7, KPI tối đa 6.000.000
   await person('collab', 'staff', 'ctv'); // CTV L1, lịch T2–T7, KPI tối đa 1.500.000

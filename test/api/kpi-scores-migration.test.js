@@ -1,5 +1,6 @@
 // Nâng cấp DB cũ lên schema có kpi_scores và kpi_score_log: mọi dòng cũ còn nguyên, chạy lại lần hai không đổi gì.
 // DB thử là file tạm theo schema CŨ (trước KPI 5 thành phần); lib/db chạy trong tiến trình con để mỗi lần `require` là một lần khởi động thật.
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');

@@ -33,9 +33,9 @@ const dismiss = (M, rule, extra = {}) =>
     by: 'admin',
     ...extra
   });
-const dismissRows = M =>
-  store.db.prepare("SELECT * FROM audit_log WHERE action = 'ai.finding.dismiss' AND month = ? ORDER BY id").all(M);
-const actionRows = M => store.db.prepare('SELECT * FROM ai_finding_actions WHERE month = ? ORDER BY id').all(M);
+const dismissRows = async M =>
+  await store.db.prepare("SELECT * FROM audit_log WHERE action = 'ai.finding.dismiss' AND month = ? ORDER BY id").all(M);
+const actionRows = async M => await store.db.prepare('SELECT * FROM ai_finding_actions WHERE month = ? ORDER BY id').all(M);
 const throwsCode = async (fn, code, httpStatus) =>
   await assert.rejects(
     fn,
@@ -51,7 +51,7 @@ test('dismiss: lý do không bắt buộc (rỗng, ngắn, sai kiểu đều nh�
   assert.equal((await dismiss(M, 'isat-frequency', { reason: `  ${P.text(10)}  ` })).dismissed, true);
   assert.equal((await dismiss(M, 'late-declaration', { reason: P.text(300) })).dismissed, true);
   assert.deepEqual(
-    actionRows(M).map(r => r.note),
+    (await actionRows(M)).map(r => r.note),
     [P.text(10), P.text(300)],
     'lý do được cắt dấu cách hai đầu và lưu nguyên'
   );
@@ -63,20 +63,20 @@ test('dismiss: lý do không bắt buộc (rỗng, ngắn, sai kiểu đều nh�
 
 test('dismiss: ghi nhật ký (ai.finding.dismiss, mức pay, đúng người, đúng lý do) cùng một dòng ai_finding_actions; trả remaining', async () => {
   const M = await flaggedMonth();
-  const audit0 = dismissRows(M).length;
+  const audit0 = (await dismissRows(M)).length;
   const result = await dismiss(M, 'isat-frequency');
   assert.deepEqual(
     [result.dismissed, result.already, result.by, result.remaining],
     [true, false, 'admin', ['late-declaration']]
   );
-  const rows = dismissRows(M).slice(audit0);
+  const rows = (await dismissRows(M)).slice(audit0);
   assert.equal(rows.length, 1);
   assert.deepEqual(
     [rows[0].actor, rows[0].entity_kind, rows[0].entity_id, rows[0].subject, rows[0].sensitivity, rows[0].reason],
     ['admin', 'ai-finding', `slip:isat-frequency:qa_nv1:${M}`, 'qa_nv1', 'pay', 'Đã xem, hợp lệ theo biên bản']
   );
-  assert.equal(actionRows(M).length, 1);
-  assert.equal(actionRows(M)[0].action, 'dismiss');
+  assert.equal((await actionRows(M)).length, 1);
+  assert.equal((await actionRows(M))[0].action, 'dismiss');
   assert.equal(findings.findingIdOf(M, 'qa_nv1', 'isat-frequency'), `slip:isat-frequency:qa_nv1:${M}`);
   assert.equal((await F.call('GET', '/audit/verify')).data.ok, true);
 });
@@ -84,12 +84,12 @@ test('dismiss: ghi nhật ký (ai.finding.dismiss, mức pay, đúng người, �
 test('dismiss: lặp lại cùng một cờ không ghi thêm (một dòng nhật ký, một dòng hành động), trả already:true', async () => {
   const M = await flaggedMonth();
   const first = await dismiss(M, 'isat-frequency');
-  const rowsAfterFirst = [dismissRows(M).length, actionRows(M).length];
+  const rowsAfterFirst = [(await dismissRows(M)).length, (await actionRows(M)).length];
   const again = await dismiss(M, 'isat-frequency', { reason: 'Lý do khác nhưng cùng cờ đó' });
   assert.equal(again.already, true);
-  assert.deepEqual([dismissRows(M).length, actionRows(M).length], rowsAfterFirst);
+  assert.deepEqual([(await dismissRows(M)).length, (await actionRows(M)).length], rowsAfterFirst);
   assert.deepEqual([again.by, again.at], [first.by, first.at], 'giữ người và lúc của lần đầu');
-  assert.equal(actionRows(M)[0].note, 'Đã xem, hợp lệ theo biên bản', 'lý do lần đầu không bị ghi đè');
+  assert.equal((await actionRows(M))[0].note, 'Đã xem, hợp lệ theo biên bản', 'lý do lần đầu không bị ghi đè');
 });
 
 test('dismiss: lỗi có mã — PAYSLIP_NOT_FOUND (404) khi người đó không có phiếu, FINDING_NOT_FOUND (404) khi phiếu không mang cờ đó, PERIOD_NOT_READY khi chưa tính lương, PERIOD_STATE khi lần chạy đã chốt, BAD_MONTH, thiếu tham số', async () => {
@@ -223,7 +223,7 @@ test('Tính lại với đầu vào ĐÃ ĐỔI làm mọi lần bỏ qua cũ h�
   );
   const again = await dismiss(M, 'isat-frequency', { reason: 'Bỏ qua lại sau khi dữ liệu đổi' });
   assert.equal(again.already, false);
-  assert.equal(actionRows(M).length, 3, 'lịch sử giữ cả lần cũ và lần mới (chỉ thêm dòng)');
+  assert.equal((await actionRows(M)).length, 3, 'lịch sử giữ cả lần cũ và lần mới (chỉ thêm dòng)');
 });
 
 test('Duyệt phiếu có cờ: phiếu còn cờ chưa bỏ qua vẫn duyệt được, cả trong lô lẫn riêng lẻ, kèm cảnh báo PAYSLIP_FLAGGED nêu phiếu và cờ', async () => {

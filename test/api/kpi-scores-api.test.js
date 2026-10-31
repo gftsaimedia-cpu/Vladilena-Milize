@@ -52,11 +52,11 @@ async function person(username, overrides = {}) {
   });
 }
 // Chụp trạng thái các bảng liên quan; bảng chưa có thì coi là rỗng (test vẫn thất bại ở phép kiểm mã trạng thái trước)
-function snapshot() {
+async function snapshot() {
   const out = {};
   for (const table of ['kpi_scores', 'kpi_score_log', 'timesheets', 'settings']) {
     try {
-      out[table] = store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all();
+      out[table] = await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all();
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
       out[table] = [];
@@ -96,7 +96,7 @@ beforeEach(async () => {
     'settings'
   ]) {
     try {
-      store.db.exec('DELETE FROM ' + table);
+      await store.db.exec('DELETE FROM ' + table);
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
     }
@@ -149,7 +149,7 @@ test('PUT /api/settings/kpi-five đã xoá (23/10/2026): trả lời y như mọ
   assert.equal(admin.status, 403, JSON.stringify(admin.data));
   assert.equal(admin.data.code, 'NO_ROUTE_POLICY');
   assert.deepEqual(await snapshot(), before, 'không ghi gì');
-  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'kpi_five_from'").get().n, 0);
+  assert.equal((await store.db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'kpi_five_from'").get()).n, 0);
 });
 
 test('GET /api/team của nhân sự là 403: điểm KPI của người khác không lộ qua /team', async () => {
@@ -272,7 +272,7 @@ test('amt hợp lệ ghi mức KPI đã duyệt (kpi_adm_amt) và nhật ký fie
   const r = await putScores({ user: 'an', month: MONTH, scores: all(), amt: 4000000 });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal(r.data.item.amtApproved, 4000000);
-  const row = store.db
+  const row = await store.db
     .prepare('SELECT kpi_adm_pct, kpi_adm_amt FROM timesheets WHERE username = ? AND month = ?')
     .get('an', MONTH);
   assert.equal(row.kpi_adm_amt, 4000000);
@@ -536,19 +536,19 @@ test('GET /sheet của người không còn có KPI (đã đổi sang TTS) khôn
 
 // ================= amt chỉ nhận ở tháng tính theo 5 thành phần =================
 
-const adm = (u, m) =>
-  store.db.prepare('SELECT kpi_adm_pct, kpi_adm_amt FROM timesheets WHERE username = ? AND month = ?').get(u, m);
+const adm = async (u, m) =>
+  await store.db.prepare('SELECT kpi_adm_pct, kpi_adm_amt FROM timesheets WHERE username = ? AND month = ?').get(u, m);
 
 test('amt (mức KPI) nhận ở MỌI tháng, kể cả tháng trước 2026-10: không còn 409 KPI_FIVE_NOT_ON hay KPI_FIVE_FROM_PAST (chủ dự án bỏ công tắc 23/10/2026)', async () => {
   await store.setKpiApproval('an', OLD_MONTH, 80, 4000000); // tháng cũ đã duyệt theo cách cũ
   const old = await putScores({ user: 'an', month: OLD_MONTH, amt: 3000000 });
   assert.equal(old.status, 200, JSON.stringify(old.data));
-  assert.equal(adm('an', OLD_MONTH).kpi_adm_amt, 3000000);
+  assert.equal((await adm('an', OLD_MONTH)).kpi_adm_amt, 3000000);
   assert.equal((await logOf('an', OLD_MONTH)).length, 1, 'nhật ký ghi lần đặt mức');
   // điểm đi kèm amt cũng được lưu
   const withScores = await putScores({ user: 'binh', month: MONTH, scores: all(), amt: 3000000 });
   assert.equal(withScores.status, 200, JSON.stringify(withScores.data));
-  assert.equal(adm('binh', MONTH).kpi_adm_amt, 3000000);
+  assert.equal((await adm('binh', MONTH)).kpi_adm_amt, 3000000);
   assert.equal((await scoreRows()).length, 1);
   assert.equal((await logOf('binh')).length, 6, 'năm điểm và mức KPI');
   // không có mã lỗi của công tắc ở bất kỳ câu trả lời nào
@@ -559,8 +559,8 @@ test('tìm thấy 7: amt được nhận (200) ở tháng 2026-09 và tháng qu�
   for (const month of ['2026-09', MONTH]) {
     const r = await putScores({ user: 'an', month, amt: 3500000 });
     assert.equal(r.status, 200, month + ' ' + JSON.stringify(r.data));
-    assert.equal(adm('an', month).kpi_adm_amt, 3500000, month);
-    assert.equal(adm('an', month).kpi_adm_pct, null);
+    assert.equal((await adm('an', month)).kpi_adm_amt, 3500000, month);
+    assert.equal((await adm('an', month)).kpi_adm_pct, null);
   }
 });
 

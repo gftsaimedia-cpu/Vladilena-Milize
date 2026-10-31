@@ -3,6 +3,7 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-tests';
 const { test, before, beforeEach, after } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -44,13 +45,13 @@ async function call(method, route, body, who = 'admin') {
   });
   return { status: response.status, data: await response.json().catch(() => ({})) };
 }
-const rowsOf = username =>
-  store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
-const allRows = () => store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all();
-const snapshot = () => ({
-  approvals: allRows(),
-  timesheets: store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all(),
-  sessions: store.db.prepare('SELECT * FROM attendance_sessions ORDER BY rowid').all()
+const rowsOf = async username =>
+  await store.db.prepare('SELECT * FROM sheet_approvals WHERE username = ? ORDER BY date').all(username);
+const allRows = async () => await store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all();
+const snapshot = async () => ({
+  approvals: await allRows(),
+  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all(),
+  sessions: await store.db.prepare('SELECT * FROM attendance_sessions ORDER BY rowid').all()
 });
 
 // ---------- lịch mẫu tháng 10/2026 (1/10 là Thứ 5; Thứ 7: 3, 10, 17, 24, 31) ----------
@@ -136,7 +137,7 @@ beforeEach(async () => {
     'settings'
   ]) {
     try {
-      store.db.exec('DELETE FROM ' + table);
+      await store.db.exec('DELETE FROM ' + table);
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
     }
@@ -730,7 +731,7 @@ async function buildLegacyDb() {
   return dbPath;
 }
 
-test('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã duyệt, từ 10/2026 thành chờ duyệt', async () => {
+sqliteOnly('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã duyệt, từ 10/2026 thành chờ duyệt', async () => {
   const dbPath = await buildLegacyDb();
   const { rows, marker } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   assert.equal(marker, 1);
@@ -752,7 +753,7 @@ test('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã d
   }
 });
 
-test('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền', async () => {
+sqliteOnly('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền', async () => {
   const dbPath = await buildLegacyDb();
   const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   for (const [month, days] of Object.entries(LEGACY_DAYS))
@@ -770,7 +771,7 @@ test('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên kho�
     }
 });
 
-test('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
+sqliteOnly('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
   const dbPath = await buildLegacyDb();
   const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
   const afterDecision = await runChild(
@@ -791,7 +792,7 @@ test('di chuyển: chạy lại không đổi gì và không đặt lại quyế
   assert.deepEqual(again, afterDecision);
 });
 
-test('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_approvals_v1', async () => {
+sqliteOnly('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_approvals_v1', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-approvals-'));
   const { rows, marker } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
   assert.deepEqual(rows, []);
@@ -803,10 +804,10 @@ test('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_
 test('khoá tài khoản giữ nguyên các dòng duyệt và lịch của người đó', async () => {
   await saveSheet('worker', fourItems());
   await saveSheet('other', { [OT]: otDay() });
-  const before = allRows();
+  const before = await allRows();
   assert.equal(before.length, 5, 'có năm dòng duyệt trước khi khoá');
   assert.equal(await store.lockStaff('worker', 'admin'), true);
-  assert.deepEqual(allRows(), before);
+  assert.deepEqual(await allRows(), before);
   assert.equal((await store.getSheet('worker', '2026-10')).days[OT].extraOut, '19:00');
 });
 
@@ -836,18 +837,18 @@ async function declareCheckinOt(date, out = '21:00') {
 
 test('Check-in/out: khai OT không tạo dòng duyệt; Duyệt OT thực tế ghi OT vào ngày và duyệt khoản của ngày đó', async () => {
   await saveSheet('worker', { [OT]: otDay() });
-  const before = allRows();
+  const before = await allRows();
   assert.equal(before.length, 1, 'OT của Lịch ước tính có một dòng chờ duyệt');
   const session = await declareCheckinOt('2026-10-08');
-  assert.deepEqual(allRows(), before, 'khai OT Check-in/out');
+  assert.deepEqual(await allRows(), before, 'khai OT Check-in/out');
   const r = await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'approve' });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.deepEqual(
-    allRows().filter(row => row.date === OT),
+    (await allRows()).filter(row => row.date === OT),
     before,
     'khoản OT khác ngày giữ nguyên'
   );
-  const added = allRows().filter(row => row.date === '2026-10-08');
+  const added = (await allRows()).filter(row => row.date === '2026-10-08');
   assert.equal(added.length, 1);
   assert.equal(added[0].item, 'ot');
   assert.equal(added[0].status, 'approved');
@@ -860,7 +861,7 @@ test('Check-in/out: từ chối OT thực tế không cần lý do và không đ
   const session = await declareCheckinOt('2026-10-08');
   const r = await call('PUT', '/ot', { sessionId: session.id, version: 2, action: 'reject' });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.equal(allRows().length, 0);
+  assert.equal((await allRows()).length, 0);
   assert.equal((await store.getSession(session.id)).entry.otReview.ok, false);
 });
 
@@ -906,7 +907,7 @@ test('OT rơi vào khung 22h–6h vẫn lưu, kèm cảnh báo SHEET_EXTRA_NIGHT
 
 test('Admin duyệt KPI không đổi trạng thái duyệt của khoản tự khai', async () => {
   await declareFive();
-  const before = allRows();
+  const before = await allRows();
   await store.setKpiApproval('worker', '2026-10', 80, null); // không có route PUT /api/kpi: dựng bằng store
-  assert.deepEqual(allRows(), before);
+  assert.deepEqual(await allRows(), before);
 });

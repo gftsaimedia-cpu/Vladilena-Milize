@@ -6,6 +6,7 @@
 // Tên test: audit-append-only, audit-hash-chain, audit-atomic, audit-no-secrets, audit-permissions.
 const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
 const { test, before, after, beforeEach } = require('node:test');
+const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { pending } = require('../helpers/red');
 
@@ -21,9 +22,9 @@ beforeEach(async () => {
   await F.person('worker');
 });
 
-const count = () => store.db.prepare('SELECT COUNT(*) AS n FROM audit_log').get().n;
-const rowsAfter = id => store.db.prepare('SELECT * FROM audit_log WHERE id > ? ORDER BY id').all(id);
-const lastId = () => store.db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM audit_log').get().id;
+const count = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM audit_log').get()).n;
+const rowsAfter = async id => await store.db.prepare('SELECT * FROM audit_log WHERE id > ? ORDER BY id').all(id);
+const lastId = async () => (await store.db.prepare('SELECT COALESCE(MAX(id), 0) AS id FROM audit_log').get()).id;
 const entry = (extra = {}) => ({
   actor: 'admin',
   actorRoles: ['admin'],
@@ -41,43 +42,43 @@ const TRIGGERS = {
 };
 
 /* ================= tầng kho dữ liệu ================= */
-test('audit-append-only: UPDATE và DELETE trên audit_log bị chặn ở tầng cơ sở dữ liệu', async () => {
+sqliteOnly('audit-append-only: UPDATE và DELETE trên audit_log bị chặn ở tầng cơ sở dữ liệu', async () => {
   const { id } = await store.audit.write(entry());
-  const before = store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id);
-  assert.throws(
-    () => store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('sửa lén', id),
+  const before = await store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id);
+  await assert.rejects(
+    async () => await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('sửa lén', id),
     /chỉ được thêm dòng/
   );
-  assert.throws(
-    () => store.db.prepare('UPDATE audit_log SET actor = ? WHERE id = ?').run('ke-gian', id),
+  await assert.rejects(
+    async () => await store.db.prepare('UPDATE audit_log SET actor = ? WHERE id = ?').run('ke-gian', id),
     /chỉ được thêm dòng/
   );
-  assert.throws(() => store.db.prepare('DELETE FROM audit_log WHERE id = ?').run(id), /chỉ được thêm dòng/);
-  assert.throws(() => store.db.prepare('DELETE FROM audit_log').run(), /chỉ được thêm dòng/);
-  assert.deepEqual(store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id), before);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM audit_log WHERE id = ?').run(id), /chỉ được thêm dòng/);
+  await assert.rejects(async () => await store.db.prepare('DELETE FROM audit_log').run(), /chỉ được thêm dòng/);
+  assert.deepEqual(await store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id), before);
 });
 
-test('audit-hash-chain: dòng sau nối băm với dòng trước, verify đi lại chuỗi và báo id đầu tiên bị đứt khi sửa giữa chuỗi', async () => {
+sqliteOnly('audit-hash-chain: dòng sau nối băm với dòng trước, verify đi lại chuỗi và báo id đầu tiên bị đứt khi sửa giữa chuỗi', async () => {
   const ids = [];
   for (const n of [1, 2, 3]) ids.push((await store.audit.write(entry({ entityId: 'chain-' + n, reason: 'Dòng nối chuỗi số ' + n }))).id);
   const rows = ids.map(id => store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id));
   assert.equal(rows[1].prev_hash, rows[0].hash);
   assert.equal(rows[2].prev_hash, rows[1].hash);
-  const first = store.db.prepare('SELECT * FROM audit_log ORDER BY id LIMIT 1').get();
+  const first = await store.db.prepare('SELECT * FROM audit_log ORDER BY id LIMIT 1').get();
   assert.equal(first.prev_hash, '', 'dòng đầu tiên của chuỗi có prev_hash rỗng');
   const intact = await store.audit.verify();
   assert.equal(intact.ok, true, JSON.stringify(intact));
   assert.ok(intact.checked >= 3);
   // Người có quyền ghi DB sửa một dòng giữa chuỗi (phải gỡ trigger mới sửa được); verify phải chỉ ra dòng đó
-  store.db.exec('DROP TRIGGER audit_log_no_update');
+  await store.db.exec('DROP TRIGGER audit_log_no_update');
   try {
-    store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('Nội dung bị sửa lén', ids[1]);
+    await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('Nội dung bị sửa lén', ids[1]);
     const broken = await store.audit.verify();
     assert.equal(broken.ok, false);
     assert.equal(broken.firstBadId, ids[1]);
-    store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run(rows[1].reason, ids[1]);
+    await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run(rows[1].reason, ids[1]);
   } finally {
-    store.db.exec(TRIGGERS.audit_log_no_update);
+    await store.db.exec(TRIGGERS.audit_log_no_update);
   }
   assert.equal((await store.audit.verify()).ok, true);
 });
@@ -175,7 +176,7 @@ for (const write of WRITES)
       const startId = await lastId();
       const res = await write.run(body);
       assert.equal(res.status, 200, `${write.name}: ${res.status} ${JSON.stringify(res.data)}`);
-      const rows = rowsAfter(startId);
+      const rows = await rowsAfter(startId);
       if (write.exact)
         assert.equal(rows.length, write.exact, `số dòng nhật ký: ${JSON.stringify(rows.map(r => r.action))}`);
       else assert.ok(rows.length >= write.min, 'thiếu dòng nhật ký');
@@ -197,7 +198,7 @@ test(
     // đối chứng: một thao tác hợp lệ PHẢI để lại dòng, nếu không thì "không có dòng" bên dưới chẳng chứng minh gì
     const control = await lastId();
     assert.equal((await F.call('PUT', '/holidays', { body: { dates: ['2026-10-07'] } })).status, 200);
-    assert.ok(rowsAfter(control).length >= 1, 'thao tác hợp lệ không để lại dòng nhật ký nào');
+    assert.ok((await rowsAfter(control)).length >= 1, 'thao tác hợp lệ không để lại dòng nhật ký nào');
     const before = await F.snapshot();
     const startId = await lastId();
     for (const [method, route, body] of [
@@ -208,7 +209,7 @@ test(
       const res = await F.call(method, route, { body });
       assert.ok(res.status >= 400 && res.status < 500, `${method} ${route}: ${res.status}`);
     }
-    assert.equal(rowsAfter(startId).length, 0);
+    assert.equal((await rowsAfter(startId)).length, 0);
     assert.deepEqual(await F.snapshot(), before);
   }
 );
@@ -248,7 +249,7 @@ test(
       await F.call('PUT', '/holidays', { body: { dates: ['2026-10-07'] } })
     ];
     for (const res of responses) assert.equal(res.status, 200, JSON.stringify(res.data));
-    const rows = rowsAfter(startId);
+    const rows = await rowsAfter(startId);
     assert.ok(
       rows.length >= 3,
       `phải có nhật ký của các thao tác ghi (chỉ có ${rows.length}), nếu không việc quét này chẳng chứng minh gì`

@@ -97,8 +97,15 @@ async function snapshot(exclude = []) {
       digest: crypto
         .createHash('sha256')
         .update(
-          JSON.stringify(rows, (key, value) =>
-            value instanceof Uint8Array ? 'blob:' + Buffer.from(value).toString('hex') : value
+          // Sắp theo nội dung: PostgreSQL không có rowid, UPDATE giữ nguyên giá trị vẫn đổi chỗ vật lý của dòng
+          JSON.stringify(
+            rows
+              .map(row =>
+                JSON.stringify(row, (key, value) =>
+                  value instanceof Uint8Array ? 'blob:' + Buffer.from(value).toString('hex') : value
+                )
+              )
+              .sort()
           )
         )
         .digest('hex')

@@ -39,13 +39,8 @@ const HISTORY_TABLES = [
   'corrections',
   'punch_requests'
 ];
-function history(username) {
-  return Object.fromEntries(
-    HISTORY_TABLES.map(table => [
-      table,
-      store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY rowid').all(username)
-    ])
-  );
+async function history(username) {
+  return Object.fromEntries(await Promise.all(HISTORY_TABLES.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY rowid').all(username)])));
 }
 async function seedHistory(username) {
   await store.setSheet(username, '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 80, 1000000);
@@ -96,7 +91,7 @@ before(async () => {
   base = 'http://127.0.0.1:' + server.address().port;
 });
 beforeEach(async () => {
-  for (const table of [...HISTORY_TABLES, 'staff', 'settings']) store.db.exec('DELETE FROM ' + table);
+  for (const table of [...HISTORY_TABLES, 'staff', 'settings']) await store.db.exec('DELETE FROM ' + table);
   await person('admin', { role: 'admin', type: 'tts', startDate: null });
   await person('worker');
   freshWindow();

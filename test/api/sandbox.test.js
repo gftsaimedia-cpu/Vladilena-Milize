@@ -1,4 +1,5 @@
 // Chạy sandbox trong tiến trình con để đồng hồ giả không ảnh hưởng test runner.
+if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');

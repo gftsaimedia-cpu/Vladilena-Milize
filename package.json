@@ -24,8 +24,12 @@
     "params:check": "node --no-warnings=ExperimentalWarning scripts/params/check.js",
     "params:doc": "node --no-warnings=ExperimentalWarning scripts/params/doc.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "pg": "^8.23.1"
+  },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
+    "@electric-sql/pglite-socket": "^0.2.16",
     "@playwright/test": "^1.64.1",
     "prettier": "3.9.10"
   }

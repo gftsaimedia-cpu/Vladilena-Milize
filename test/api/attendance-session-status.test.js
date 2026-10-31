@@ -86,7 +86,7 @@ test('Về sớm kèm giải trình: lượt là chờ xử lý; Admin duyệt c
   assert.equal(out.status, 200, JSON.stringify(out.data));
   assert.equal(out.data.lastSession.status, 'pending');
   assert.equal(out.data.lastSession.statusNote, 'Đã gửi giải trình, chờ Admin');
-  const ids = F.store.db.prepare('SELECT id FROM explanations WHERE session_id = ? ORDER BY id').all(sessionId);
+  const ids = await F.store.db.prepare('SELECT id FROM explanations WHERE session_id = ? ORDER BY id').all(sessionId);
   for (const { id } of ids)
     assert.equal(
       (await F.call('POST', `/explanations/${id}/decide`, { who: 'admin', body: { approve: true } })).status,
@@ -110,7 +110,7 @@ test('Check-out muộn gửi giải trình: chờ Admin; Admin không duyệt l�
     const res = await F.call('GET', `/attendance?month=${MONTH}`, { who: 'admin' });
     return res.data.rows.find(r => r.id === sessionId);
   };
-  const id = F.store.db.prepare('SELECT id FROM explanations WHERE session_id = ?').get(sessionId).id;
+  const id = (await F.store.db.prepare('SELECT id FROM explanations WHERE session_id = ?').get(sessionId)).id;
   const no = await F.call('POST', `/explanations/${id}/decide`, { who: 'admin', body: { approve: false } });
   assert.equal(no.status, 200, JSON.stringify(no.data));
   assert.deepEqual((({ status, statusNote }) => ({ status, statusNote }))(await statusOf()), {
