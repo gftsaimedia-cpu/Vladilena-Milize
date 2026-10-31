@@ -74,7 +74,9 @@ function nestKeysOf(lines) {
     const controller = CONTROLLER.exec(line);
     if (controller) prefix = controller[1].replace(/^api\/?/, '');
     const route = NEST_ROUTE.exec(line);
-    if (route) keys.set(index, `${route[1].toUpperCase()} ${joinPath(prefix, route[2] || '')}`);
+    // `// route-key: POST /ai/findings` ngay trên decorator: khoá trong ROUTE_CAPS khi đường dẫn Express dài hơn khoá (authz.routeKey cắt ở 2 đoạn)
+    const override = /route-key:\s*((?:GET|POST|PUT|PATCH|DELETE) \/\S*)/.exec(lines[index - 1] || '');
+    if (route) keys.set(index, override ? override[1] : `${route[1].toUpperCase()} ${joinPath(prefix, route[2] || '')}`);
   });
   return keys;
 }
@@ -84,7 +86,7 @@ function routeKeysInSource(source = serverSource()) {
   const lines = source.split('\n');
   return new Set([...lines.flatMap(keysOnLine), ...nestKeysOf(lines).values()]);
 }
-// Khoá route mà handler gọi needAdmin() trong 4 dòng đầu
+// Khoá route mà handler gọi needAdmin() trong 4 dòng đầu (dạng Nest: 7 dòng kể từ decorator, vì phương thức có thêm dòng chữ ký và khai báo ngữ cảnh)
 function adminRouteKeysInSource(source = serverSource()) {
   const lines = source.split('\n');
   const found = new Set();
@@ -93,7 +95,7 @@ function adminRouteKeysInSource(source = serverSource()) {
     if (/needAdmin\(\)/.test(near)) for (const key of keysOnLine(line)) found.add(key);
   });
   for (const [index, key] of nestKeysOf(lines))
-    if (/needAdmin\(\)/.test(lines.slice(index, index + 4).join('\n'))) found.add(key);
+    if (/needAdmin\(\)/.test(lines.slice(index, index + 7).join('\n'))) found.add(key);
   return found;
 }
 
