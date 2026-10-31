@@ -1,0 +1,1390 @@
+{
+  "version": 1,
+  "note": "Khoá đã phát hành: không đổi tên, không xoá (npm run params:check). Họ khoá khoá theo mẫu.",
+  "keys": {
+    "advance.basis": {
+      "domain": "advance",
+      "released": "2026-10-15"
+    },
+    "advance.eligibleTypes.<type>": {
+      "domain": "advance",
+      "released": "2026-10-15"
+    },
+    "advance.rate": {
+      "domain": "advance",
+      "released": "2026-10-15"
+    },
+    "advance.untilDay": {
+      "domain": "advance",
+      "released": "2026-10-15"
+    },
+    "ai.limit.evidenceListMax": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.rule.<id>.enabled": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.approvedLeavePerMonth": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.formulaChangeTotalVnd": {
+      "domain": "ai",
+      "released": "2026-10-16"
+    },
+    "ai.threshold.impactVnd": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.isatPerMonth": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.kpiFullMonths": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.netChangePct": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.otMedianFactor": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.otMedianMinHours": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.otMedianMinPeers": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.overrideEntryRoundVnd": {
+      "domain": "ai",
+      "released": "2026-10-16"
+    },
+    "ai.threshold.paramChangePeoplePct": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.presenceGapMin": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.rejectedLookbackDays": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.repeatedEditsRev": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.scopeLeakMinPeople": {
+      "domain": "ai",
+      "released": "2026-10-16"
+    },
+    "ai.threshold.slipDiffRatio": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "ai.threshold.slipDiffVnd": {
+      "domain": "ai",
+      "released": "2026-10-15"
+    },
+    "allowance.assign": {
+      "domain": "allowance",
+      "released": "2026-10-15"
+    },
+    "allowance.item.<code>": {
+      "domain": "allowance",
+      "released": "2026-10-15"
+    },
+    "approval.batch": {
+      "domain": "approval",
+      "released": "2026-10-15"
+    },
+    "approval.pendingAtLock": {
+      "domain": "approval",
+      "released": "2026-10-15"
+    },
+    "attendance.absentCompare": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.beyondShiftRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.cutRounding": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.declaredLeaveRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.earlyCheckinMaxHours": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.extraSourceRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.extraWindowRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.futureDaysRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.gapRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.graceCompare": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.graceMin": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.graceMonthlyCount": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.graceMonthlyMin": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.graceScope": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.lateEarlyRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.lossMode": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.makeupDayStepRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.missingAllRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.missingOneSideRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.offScheduleRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.openSessionMaxHours": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.overLimitCompare": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.overLimitHours": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.overLimitTolerance": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.shortHoursRounding": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.sources.file": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.stepMin": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.tiers": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "attendance.undeclaredPunchRule": {
+      "domain": "attendance",
+      "released": "2026-10-15"
+    },
+    "block.def.<code>": {
+      "domain": "block",
+      "released": "2026-10-16"
+    },
+    "catalog.orgUnits": {
+      "domain": "catalog",
+      "released": "2026-10-15"
+    },
+    "catalog.positions": {
+      "domain": "catalog",
+      "released": "2026-10-15"
+    },
+    "catalog.workLocations": {
+      "domain": "catalog",
+      "released": "2026-10-15"
+    },
+    "contract.deriveFrom": {
+      "domain": "contract",
+      "released": "2026-10-15"
+    },
+    "contract.expiryWarnDays": {
+      "domain": "contract",
+      "released": "2026-10-15"
+    },
+    "contract.type.<code>": {
+      "domain": "contract",
+      "released": "2026-10-15"
+    },
+    "control.reasonMaxLength": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonMinLength": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.aiDismiss": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.changeDecision": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.paramChange": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.periodReopen": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.reject": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "control.reasonRequired.slipOverride": {
+      "domain": "control",
+      "released": "2026-10-15"
+    },
+    "employeeCode.onTypeOrUnitChange": {
+      "domain": "employeeCode",
+      "released": "2026-10-15"
+    },
+    "employeeCode.pattern": {
+      "domain": "employeeCode",
+      "released": "2026-10-15"
+    },
+    "employeeCode.reuseAfterLeave": {
+      "domain": "employeeCode",
+      "released": "2026-10-15"
+    },
+    "fixed.ai.dismissReason": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ai.local": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ai.lock": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.allowance.idorm": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.approval.aiFlagged": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.approval.lock": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.approval.noAutoApprove": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.approval.noSelf": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.approval.rejectReason": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.conflictRule": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.device": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.leaveCounts": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.overLimitFormula": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.primarySource": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.attendance.proration": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.accountPrivacy": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.attendanceCorrection": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.audit": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.defaultsMode": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.effectiveMonth": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.estimate": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.lock": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.money": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.noBackdate": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.noSelf": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.reasons": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.snapshot": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.control.twoFlows": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.insurance.floor": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.kpi.backpay": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.kpi.cycle": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.kpi.formula": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.leave.expiry": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.leave.noNegative": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.leave.seniority": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.leave.unit": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ot.approval": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ot.makeupPool": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ot.taxExempt": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.ot.weeklyRest": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.pay.midMonthChange": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.period.cutoff": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.slip.estimateLabel": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.slip.lines": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.slip.overrideReason": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.slip.template": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.tax.capMultiple": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.tax.effectiveBy": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.tax.method": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "fixed.type.catalog": {
+      "domain": "fixed",
+      "released": "2026-10-15"
+    },
+    "formula.heSoNgayKpi": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.luongKpi": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.phuCapChuyenCan": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.phuCapDiLai": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.tamUng": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.tongThuNhap": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "formula.tyLeNgayDiLam": {
+      "domain": "formula",
+      "released": "2026-10-15"
+    },
+    "geofence.earthRadiusM": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.enabled": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.lat": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.lng": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.maxAccuracyM": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.maxAccuracyM.default": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.maxAccuracyM.max": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.maxAccuracyM.min": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.outside": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.radiusM": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.radiusM.max": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "geofence.radiusM.min": {
+      "domain": "geofence",
+      "released": "2026-10-15"
+    },
+    "holiday.compensatory": {
+      "domain": "holiday",
+      "released": "2026-10-15"
+    },
+    "holiday.makeupRate": {
+      "domain": "holiday",
+      "released": "2026-10-15"
+    },
+    "holidays": {
+      "domain": "holidays",
+      "released": "2026-10-15"
+    },
+    "insurance.base": {
+      "domain": "insurance",
+      "released": "2026-10-15"
+    },
+    "insurance.baseAttr": {
+      "domain": "insurance",
+      "released": "2026-10-16"
+    },
+    "insurance.coverage.long": {
+      "domain": "insurance",
+      "released": "2026-10-16"
+    },
+    "insurance.coverage.short": {
+      "domain": "insurance",
+      "released": "2026-10-16"
+    },
+    "insurance.floorMode": {
+      "domain": "insurance",
+      "released": "2026-10-16"
+    },
+    "isat.monthlyLimit": {
+      "domain": "isat",
+      "released": "2026-10-15"
+    },
+    "isat.weekday": {
+      "domain": "isat",
+      "released": "2026-10-15"
+    },
+    "kpi.belowPassRule": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.incompleteRule": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.overLimitCompare": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.overLimitHours": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.passCompare": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.payCurveRule": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.ratioRule": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.scoreDecimals": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.scoreMax": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weight.manager": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weight.peer": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weight.self": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weight.user": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weight.wework": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weworkGateRule": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weworkMin": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "kpi.weworkMinCompare": {
+      "domain": "kpi",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.compensationShare": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.fixedTermMonths": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.otDayTotalHours": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.otMonthHours": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.probationDays.college": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.probationDays.manager": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.probationDays.other": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.ceiling.probationDays.vocational": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.holidayRate": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.nightOtAddRate": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.nightPremium": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.otRate": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.privateLeave.childMarriage": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.privateLeave.death": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.privateLeave.marriage": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.probationPayRate": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.floor.weekendOtRate": {
+      "domain": "law",
+      "released": "2026-10-29"
+    },
+    "law.luongCoSo": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.region": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "law.regionMinWage.<region>": {
+      "domain": "law",
+      "released": "2026-10-15"
+    },
+    "leave.accrual.birthday": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.accrual.perMonth": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.accrual.start": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.accrualMode": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.birthdayMode": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.expiry.fromYear": {
+      "domain": "leave",
+      "released": "2026-10-23"
+    },
+    "leave.expiry.month": {
+      "domain": "leave",
+      "released": "2026-10-23"
+    },
+    "leave.ifourteen.days": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.seniority.stepYears": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.settleMethod": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "leave.useLeaveFirst": {
+      "domain": "leave",
+      "released": "2026-10-15"
+    },
+    "level.<type>.<level>.base": {
+      "domain": "level",
+      "released": "2026-10-15"
+    },
+    "level.<type>.<level>.kpi": {
+      "domain": "level",
+      "released": "2026-10-15"
+    },
+    "level.<type>.<level>.name": {
+      "domain": "level",
+      "released": "2026-10-15"
+    },
+    "money.roundMode": {
+      "domain": "money",
+      "released": "2026-10-15"
+    },
+    "money.roundTo": {
+      "domain": "money",
+      "released": "2026-10-15"
+    },
+    "net.deductionPriority": {
+      "domain": "net",
+      "released": "2026-10-15"
+    },
+    "net.stepOrder": {
+      "domain": "net",
+      "released": "2026-10-15"
+    },
+    "night.breakPremium": {
+      "domain": "night",
+      "released": "2026-10-15"
+    },
+    "night.otAddRate": {
+      "domain": "night",
+      "released": "2026-10-15"
+    },
+    "ot.afterMakeup": {
+      "domain": "ot",
+      "released": "2026-10-15"
+    },
+    "ot.holidayRate": {
+      "domain": "ot",
+      "released": "2026-10-15"
+    },
+    "ot.nightAddScope": {
+      "domain": "ot",
+      "released": "2026-10-15"
+    },
+    "ot.rate": {
+      "domain": "ot",
+      "released": "2026-10-15"
+    },
+    "ot.weekendRate": {
+      "domain": "ot",
+      "released": "2026-10-29"
+    },
+    "pay.method": {
+      "domain": "pay",
+      "released": "2026-10-15"
+    },
+    "pay.otHourlyDivisor": {
+      "domain": "pay",
+      "released": "2026-10-15"
+    },
+    "period.editPastMonths": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.editPastMonthsN": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.firstManagedMonth": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.lateDeclaration": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.payDay": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.payDayMinGapDays": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.payDayOnHoliday": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "period.reportDeadlineDay": {
+      "domain": "period",
+      "released": "2026-10-15"
+    },
+    "position.def.<code>": {
+      "domain": "position",
+      "released": "2026-10-16"
+    },
+    "removed.ai.threshold.attendMaxAbsentDays": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.ai.threshold.kpiFullPct": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.ai.threshold.overLimitHours": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.ai.threshold.reportDeadlineDay": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.ai.threshold.shiftSwitchDate": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.attendance.graceRounding": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.period.firstPayrollDate": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.tax.exempt.holidayNightAdd": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "removed.union.fee": {
+      "domain": "removed",
+      "released": "2026-10-15"
+    },
+    "request.type.<code>.countsAbsent": {
+      "domain": "request",
+      "released": "2026-10-16"
+    },
+    "request.type.<code>.pendingRule": {
+      "domain": "request",
+      "released": "2026-10-15"
+    },
+    "request.type.<code>.rejectedRule": {
+      "domain": "request",
+      "released": "2026-10-15"
+    },
+    "shift.allowance.basis": {
+      "domain": "shift",
+      "released": "2026-10-30"
+    },
+    "shift.flex.bonus": {
+      "domain": "shift",
+      "released": "2026-10-15"
+    },
+    "shift.night.bonus": {
+      "domain": "shift",
+      "released": "2026-10-15"
+    },
+    "shift.preset.<code>.in": {
+      "domain": "shift",
+      "released": "2026-10-15"
+    },
+    "shift.preset.<code>.out": {
+      "domain": "shift",
+      "released": "2026-10-15"
+    },
+    "slip.staffVisibleFrom": {
+      "domain": "slip",
+      "released": "2026-10-15"
+    },
+    "switch.actualHoursFrom": {
+      "domain": "switch",
+      "released": "2026-10-15"
+    },
+    "switch.checkinFrom": {
+      "domain": "switch",
+      "released": "2026-10-15"
+    },
+    "switch.kpiFiveFrom": {
+      "domain": "switch",
+      "released": "2026-10-15"
+    },
+    "system.approval.maxDecideItems": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.attr.maxPerClass": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.audit.pageDefault": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.audit.pageMax": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.adminPasswordMinProduction": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.generatedPasswordBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.passMarkChars": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.scryptKeyBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.scryptSaltBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.sessionSecretBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.trustProxyMaxHops": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.auth.usernameKeyChars": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.backup.keep": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.entries.labelMaxLength": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.entries.maxAmount": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.entries.maxPerBatch": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.entries.requireApproval": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.events.heartbeatSec": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.events.maxBacklogBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.events.maxPerUser": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.events.maxTotal": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.events.retryMs": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.http.maxBodyBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.import.maxBytes": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.login.maxFailures": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.login.maxKeys": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.login.sprayUsers": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.login.windowMin": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.approvals.default": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.approvals.max": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.corrections.default": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.corrections.max": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.payslips.default": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.page.payslips.max": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.params.maxChanges": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.params.previewMaxPeople": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.positions.max": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.positions.maxCopyKeys": {
+      "domain": "system",
+      "released": "2026-10-16"
+    },
+    "system.reveal.maxPerHour": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.session.days": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.slipOverride.reasonRequired": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "system.staff.bulkMax": {
+      "domain": "system",
+      "released": "2026-10-15"
+    },
+    "table.requestTypes": {
+      "domain": "table",
+      "released": "2026-10-15"
+    },
+    "tax.arise.mode": {
+      "domain": "tax",
+      "released": "2026-10-16"
+    },
+    "tax.brackets": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.casual.rate": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.casual.threshold": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.casual.thresholdCompare": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.contract.basis": {
+      "domain": "tax",
+      "released": "2026-10-30"
+    },
+    "tax.deduction.dependant": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.deduction.personal": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.exempt.holidayRate": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.exempt.nightPremium": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.exempt.otMethod": {
+      "domain": "tax",
+      "released": "2026-10-16"
+    },
+    "tax.exempt.otRate": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.exempt.weekendRate": {
+      "domain": "tax",
+      "released": "2026-10-29"
+    },
+    "tax.insurance.capMultiple": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employee.bhtn": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employee.bhxh": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employee.bhyt": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employer.bhtn": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employer.bhxh": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.employer.bhyt": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.skipCompare": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.insurance.skipDays": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "tax.longTermMonths": {
+      "domain": "tax",
+      "released": "2026-10-30"
+    },
+    "tax.method.long": {
+      "domain": "tax",
+      "released": "2026-10-16"
+    },
+    "tax.method.short": {
+      "domain": "tax",
+      "released": "2026-10-16"
+    },
+    "tax.personalCompare": {
+      "domain": "tax",
+      "released": "2026-10-15"
+    },
+    "time.breakAfterWorkHours": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.breakHours": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.flexStartBeforeHour": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.maxSpanHours": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.nightEndHour": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.nightStartHour": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.shiftStructure": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "time.workHoursPerDay": {
+      "domain": "time",
+      "released": "2026-10-15"
+    },
+    "type.<type>.attendance": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.benefit.<flag>": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.block.<block>.<field>": {
+      "domain": "type",
+      "released": "2026-10-16"
+    },
+    "type.<type>.defaultContract": {
+      "domain": "type",
+      "released": "2026-10-16"
+    },
+    "type.<type>.dows": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.flexBonus": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.kpiPass": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.probationPayPct": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.startDateRequired": {
+      "domain": "type",
+      "released": "2026-10-16"
+    },
+    "type.<type>.travel": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.workdays": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.<type>.workdaysMode": {
+      "domain": "type",
+      "released": "2026-10-16"
+    },
+    "type.nv.maxAbsent": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "type.nv.nightOptions": {
+      "domain": "type",
+      "released": "2026-10-15"
+    },
+    "unit.daysPerWeek": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.minutesPerDay": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.minutesPerHour": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.msPerDay": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.msPerSecond": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.owedHoursEpsilon": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.percent": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    },
+    "unit.vnUtcOffsetMin": {
+      "domain": "unit",
+      "released": "2026-10-15"
+    }
+  }
+}

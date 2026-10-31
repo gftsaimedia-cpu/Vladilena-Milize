@@ -1,0 +1,103 @@
+/* Ô nhập thật nằm trong khung .fi / .sel / .inp / .search của thiết kế:
+   ô nhập không viền, nền trong suốt, kế thừa chữ để khung giữ nguyên dáng như bản HTML. */
+.fi > input,
+.sel > select,
+.inp > input,
+.inp > textarea,
+.inp > select,
+.search > input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  outline: 0;
+  min-width: 0;
+}
+.fi > input {
+  flex: 1 1 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.fi.l > input {
+  text-align: left;
+}
+.fi.z > input {
+  color: #a3a3a3;
+}
+.fi,
+.sel:not(tr),
+.inp {
+  transition:
+    border-color 0.12s,
+    box-shadow 0.12s;
+}
+.fi:focus-within,
+.sel:not(tr):focus-within,
+.inp:focus-within {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px #e9e9e9;
+}
+.sel:not(tr) > select {
+  appearance: none;
+  flex: 1 1 auto;
+  cursor: pointer;
+  padding-right: 4px;
+}
+.sel:not(tr) > svg {
+  pointer-events: none;
+  flex: none;
+}
+.sel:not(tr) > select:disabled,
+.fi > input:disabled {
+  cursor: default;
+}
+.inp > input,
+.inp > textarea,
+.inp > select {
+  flex: 1;
+  width: 100%;
+}
+.inp > select {
+  appearance: none;
+  cursor: pointer;
+}
+.inp > textarea {
+  resize: none;
+  min-height: 54px;
+  line-height: 20px;
+}
+.inp .end {
+  pointer-events: none;
+  flex: none;
+}
+.fi > input::placeholder,
+.inp > input::placeholder,
+.inp > textarea::placeholder,
+.search > input::placeholder {
+  color: #9e9e9e;
+  opacity: 1;
+}
+.search > input {
+  flex: 1;
+}
+.seg.lk button.on {
+  color: var(--text);
+}
+.seg.lk button:not(.on) {
+  color: #a8a8a8;
+}
+.seg button:disabled {
+  cursor: default;
+}
+button.cb:disabled {
+  cursor: default;
+}
+.cb.lk.on {
+  background: #9e9e9e;
+  border-color: #9e9e9e;
+}
+.search > input {
+  color: var(--text);
+}

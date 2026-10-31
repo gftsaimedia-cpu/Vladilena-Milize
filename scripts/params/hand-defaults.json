@@ -1,0 +1,1268 @@
+{
+  "advance.basis": {
+    "value": "byWorkedDays",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "advance.eligibleTypes.ctv": {
+    "value": true,
+    "why": "cài đặt mới: cả ba loại được tạm ứng như hôm nay (cờ từng người ở hồ sơ)"
+  },
+  "advance.eligibleTypes.nv": {
+    "value": true,
+    "why": "cài đặt mới: cả ba loại được tạm ứng như hôm nay (cờ từng người ở hồ sơ)"
+  },
+  "advance.eligibleTypes.tts": {
+    "value": true,
+    "why": "cài đặt mới: cả ba loại được tạm ứng như hôm nay (cờ từng người ở hồ sơ)"
+  },
+  "advance.rate": {
+    "value": 0.8,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.advanceRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "advance.untilDay": {
+    "value": 15,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.advanceUntil); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "ai.rule.approvedLeaveFrequency.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.attendanceAllowanceRisk.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.attributeUnused.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.blockFlagsUnconfirmed.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.formulaChangedRecently.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.formulaLargeChange.enabled": {
+    "value": true,
+    "why": "luật AI của xem trước (lib/ai/preview-suggestions.js), bật mặc định"
+  },
+  "ai.rule.holidayWorkReview.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.isatFrequency.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.kpiSelf100Streak.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.largePayImpact.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.lateDeclaration.enabled": {
+    "value": false,
+    "why": "chủ dự án 23/10/2026: không chặn và không nhắc gì về hạn báo công; luật 'Khai sau hạn' tắt mặc định (Admin bật lại được)"
+  },
+  "ai.rule.leaveWithCheckin.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.lockedWithPending.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.missingFixedShift.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.missingStartDate.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.negativeLeave.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.netNonpositive.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.otAboveTeam.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.otAfterPendingMakeup.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.otCheckinMismatch.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.overrideLooksLikeEntry.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.positionScopeLeak.enabled": {
+    "value": true,
+    "why": "luật AI của xem trước (lib/ai/preview-suggestions.js), bật mặc định"
+  },
+  "ai.rule.previouslyRejected.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.repeatedEdits.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.rule.slipOverrideGap.enabled": {
+    "value": true,
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+  },
+  "ai.threshold.netChangePct": {
+    "value": 0.2,
+    "why": "luật AI mới (D18): 20 %, đề xuất"
+  },
+  "approval.batch": {
+    "value": true,
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "approval.pendingAtLock": {
+    "value": "confirm",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "attendance.absentCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): lead 15/10"
+  },
+  "attendance.earlyCheckinMaxHours": {
+    "value": 4,
+    "why": "S5: public/punch.js đọc khoá này (trước là hằng số EARLY = 4 * 60); check-in sớm nhất 4 giờ trước giờ vào ca"
+  },
+  "attendance.graceCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): chủ dự án 14/10: đủ mức miễn là bị trừ"
+  },
+  "attendance.graceMonthlyCount": {
+    "value": 0,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 0 · mới"
+  },
+  "attendance.graceMonthlyMin": {
+    "value": 0,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 0 · mới"
+  },
+  "attendance.graceScope": {
+    "value": "perPunch",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "attendance.lossMode": {
+    "value": "all",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "attendance.openSessionMaxHours": {
+    "value": 16,
+    "why": "S5: public/punch.js đọc khoá này (trước là hằng số MAX_OPEN = 16 * 60); ca mở quá 16 giờ là quên check-out"
+  },
+  "attendance.overLimitCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): quy tắc đã chốt (LUAT-DU-AN 8.1): đủ ngưỡng là mất"
+  },
+  "attendance.overLimitHours": {
+    "value": 24,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "attendance.overLimitTolerance": {
+    "value": 0,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 0 · mới"
+  },
+  "attendance.shortHoursRounding": {
+    "value": "none",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "attendance.sources.file": {
+    "value": false,
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "attendance.tiers": {
+    "value": [],
+    "why": "bảng giảm chuyên cần theo bậc: rỗng (chỉ dùng khi lossMode = Giảm theo bậc)"
+  },
+  "catalog.orgUnits": {
+    "value": [],
+    "why": "danh mục của màn Hồ sơ (V2): rỗng"
+  },
+  "catalog.positions": {
+    "value": [],
+    "why": "danh mục của màn Hồ sơ (V2): rỗng"
+  },
+  "catalog.workLocations": {
+    "value": [],
+    "why": "danh mục của màn Hồ sơ (V2): rỗng"
+  },
+  "contract.deriveFrom": {
+    "value": null,
+    "why": "công tắc ngày tắt mặc định; giá trị thật ở settings (backing)"
+  },
+  "contract.expiryWarnDays": {
+    "value": 30,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 30 (đề xuất, D18)"
+  },
+  "control.reasonRequired.aiDismiss": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được"
+  },
+  "control.reasonRequired.changeDecision": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được"
+  },
+  "control.reasonRequired.paramChange": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được"
+  },
+  "control.reasonRequired.periodReopen": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được"
+  },
+  "control.reasonRequired.reject": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được"
+  },
+  "control.reasonRequired.slipOverride": {
+    "value": true,
+    "why": "luật cố định (mục 25.2): điều khiển bắt buộc: không ai tắt được (server đọc khoá này từ 16/10/2026, thay công tắc chuyển tiếp system.slipOverride.reasonRequired đã ngưng dùng)"
+  },
+  "employeeCode.onTypeOrUnitChange": {
+    "value": "newCode",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "employeeCode.pattern": {
+    "value": "{type}{unit}{seq:2}",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "employeeCode.reuseAfterLeave": {
+    "value": "never",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "geofence.earthRadiusM": {
+    "value": 6371000,
+    "why": "hằng số vật lý cho công thức haversine; không phải chính sách (giá trị bằng hôm nay)"
+  },
+  "geofence.enabled": {
+    "value": false,
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "geofence.lat": {
+    "value": null,
+    "why": "chưa đặt: Admin nhập toạ độ công ty (settings.geofence, backing)"
+  },
+  "geofence.lng": {
+    "value": null,
+    "why": "chưa đặt: Admin nhập toạ độ công ty (settings.geofence, backing)"
+  },
+  "geofence.maxAccuracyM": {
+    "value": 100,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 100 · cleanGeofence"
+  },
+  "geofence.outside": {
+    "value": "block",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "geofence.radiusM": {
+    "value": null,
+    "why": "chưa đặt: Admin nhập toạ độ công ty (settings.geofence, backing)"
+  },
+  "holiday.compensatory": {
+    "value": "manual",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "holidays": {
+    "value": [],
+    "why": "danh sách ngày lễ nằm trong settings.holidays (backing); mặc định rỗng"
+  },
+  "insurance.base": {
+    "value": "baseSalary",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "insurance.baseAttr": {
+    "value": "",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "insurance.coverage.long": {
+    "value": true,
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "insurance.coverage.short": {
+    "value": false,
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "insurance.floorMode": {
+    "value": "none",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "isat.monthlyLimit": {
+    "value": null,
+    "why": "trống: không giới hạn (TYPES.nv.isat chỉ là cờ Có/Không)"
+  },
+  "isat.weekday": {
+    "value": 6,
+    "why": "luật cố định (mục 25.2): quy tắc iSAT (LUAT-DU-AN, calcDay)"
+  },
+  "kpi.overLimitCompare": {
+    "value": "gt",
+    "why": "luật cố định (mục 25.2): quy tắc đã chốt (LUAT-DU-AN 8.1): vượt hẳn mới nhân tỷ lệ"
+  },
+  "kpi.overLimitHours": {
+    "value": 24,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "kpi.passCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): Quy chế lương 3P"
+  },
+  "kpi.payCurveRule": {
+    "value": "linear",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "kpi.ratioRule": {
+    "value": "whenOverLimit",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "kpi.scoreDecimals": {
+    "value": 2,
+    "why": "điểm KPI làm tròn tới hai chữ số thập phân, lưu bằng số nguyên điểm × 100 (giá trị bằng hôm nay)"
+  },
+  "kpi.scoreMax": {
+    "value": 100,
+    "why": "thang điểm 0 đến 100 của Quy chế lương 3P (giá trị bằng hôm nay)"
+  },
+  "kpi.weworkMinCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): Quy chế lương 3P"
+  },
+  "law.ceiling.compensationShare": {
+    "value": 0.3,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 102 (app chưa có khoản này; cần pháp chế xác nhận)"
+  },
+  "law.ceiling.fixedTermMonths": {
+    "value": 36,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 20 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.otDayTotalHours": {
+    "value": 12,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 107 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.otMonthHours": {
+    "value": 40,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 107 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.college": {
+    "value": 60,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.manager": {
+    "value": 180,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.other": {
+    "value": 6,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.vocational": {
+    "value": 30,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.floor.holidayRate": {
+    "value": 3,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.nightOtAddRate": {
+    "value": 0.2,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.nightPremium": {
+    "value": 0.3,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.otRate": {
+    "value": 1.5,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.childMarriage": {
+    "value": 1,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.death": {
+    "value": 3,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.marriage": {
+    "value": 3,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.floor.probationPayRate": {
+    "value": 0.85,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 26 (cần pháp chế xác nhận)"
+  },
+  "law.floor.weekendOtRate": {
+    "value": 2,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.luongCoSo": {
+    "value": 2530000,
+    "why": "số nằm trong chú thích TAX_RULES.insuranceCap (NĐ 161/2026, từ 01/7/2026); trần BHXH, BHYT = 20 × số này"
+  },
+  "law.region": {
+    "value": 1,
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "law.regionMinWage.1": {
+    "value": 5310000,
+    "why": "số nằm trong chú thích TAX_RULES.insuranceCap (NĐ 293/2025); vùng II, III, IV chưa có trong mã, kế toán xác nhận"
+  },
+  "law.regionMinWage.2": {
+    "value": null,
+    "why": "chưa có trong mã: giá trị theo NĐ 293/2025/NĐ-CP, cần kế toán xác nhận (không tự điền số luật)"
+  },
+  "law.regionMinWage.3": {
+    "value": null,
+    "why": "chưa có trong mã: giá trị theo NĐ 293/2025/NĐ-CP, cần kế toán xác nhận (không tự điền số luật)"
+  },
+  "law.regionMinWage.4": {
+    "value": null,
+    "why": "chưa có trong mã: giá trị theo NĐ 293/2025/NĐ-CP, cần kế toán xác nhận (không tự điền số luật)"
+  },
+  "leave.accrual.birthday": {
+    "value": 1,
+    "why": "số 1 viết cứng trong leave.js → accrued (birthdays)"
+  },
+  "leave.accrual.perMonth": {
+    "value": 1,
+    "why": "số 1 viết cứng trong leave.js → accrued (months)"
+  },
+  "leave.accrual.start": {
+    "value": 0,
+    "why": "chủ dự án 23/10/2026: bỏ +1 ngày vào làm (THAO-LUAN Đ35)"
+  },
+  "leave.accrualMode": {
+    "value": "app",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "leave.birthdayMode": {
+    "value": "addToAnnual",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "leave.ifourteen.days": {
+    "value": 0,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 0 (chưa có) · docs/architecture/2026-10-15-ifourteen-phep-nam.md"
+  },
+  "leave.seniority.stepYears": {
+    "value": 5,
+    "why": "luật cố định (mục 25.2): BLLĐ Điều 114 (cần pháp chế xác nhận)"
+  },
+  "leave.settleMethod": {
+    "value": "manual",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "leave.useLeaveFirst": {
+    "value": "optional",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "level.ctv.1.base": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.1.kpi": {
+    "value": 1500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.1.name": {
+    "value": "Fresher",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.2.base": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.2.kpi": {
+    "value": 3000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.2.name": {
+    "value": "Practitioner",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.3.base": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.3.kpi": {
+    "value": 4500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.3.name": {
+    "value": "Advanced Practitioner",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.4.base": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.4.kpi": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.ctv.4.name": {
+    "value": "Senior Practitioner",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.1.base": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.1.kpi": {
+    "value": 6000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.1.name": {
+    "value": "Nhân viên",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.2.base": {
+    "value": 6500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.2.kpi": {
+    "value": 6500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.2.name": {
+    "value": "Chuyên viên",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.3.base": {
+    "value": 7000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.3.kpi": {
+    "value": 7000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.3.name": {
+    "value": "Lead",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.4.base": {
+    "value": 7500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.4.kpi": {
+    "value": 7500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.nv.4.name": {
+    "value": "HDO (Human Development Officer)",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.1.base": {
+    "value": 1000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.1.name": {
+    "value": "Bậc 1",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Explorer\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "level.tts.2.base": {
+    "value": 1500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.2.name": {
+    "value": "Bậc 2",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Learner\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "level.tts.3.base": {
+    "value": 2000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.3.name": {
+    "value": "Bậc 3",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Trainee\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "level.tts.4.base": {
+    "value": 3000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.4.name": {
+    "value": "Bậc 4",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Advanced Trainee\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "level.tts.5.base": {
+    "value": 4000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.5.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.5.name": {
+    "value": "Bậc 5",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Senior Trainee\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "level.tts.6.base": {
+    "value": 5000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.6.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "level.tts.6.name": {
+    "value": "Bậc 6",
+    "why": "Quyết định của chủ dự án ngày 16/10/2026 (\"theo bậc\"): tên bậc Thực tập sinh hiển thị là Bậc 1 đến Bậc 6; trước đó là \"Practitioner in Training\" (khối công thức cũ đóng băng vẫn giữ tên cũ, tên chỉ là nhãn, không ảnh hưởng tiền)"
+  },
+  "money.roundMode": {
+    "value": "halfUp",
+    "why": "luật cố định (mục 25.2): như trên (Math.round: nửa lên)"
+  },
+  "money.roundTo": {
+    "value": 1,
+    "why": "luật cố định (mục 25.2): tiền là đồng nguyên; chỉ làm tròn ở chỗ calcNet đã làm (AGENTS.md)"
+  },
+  "net.deductionPriority": {
+    "value": ["courtOrder", "compensation", "taxSettlement", "recovery", "unionFee", "loanRepayment"],
+    "why": "luật cố định (mục 25.2): mục 27.2 danh mục: chờ pháp chế và kế toán"
+  },
+  "net.stepOrder": {
+    "value": ["gross", "exemptAndTaxable", "insurance", "pit", "advance", "otherDeductions", "extraIncome"],
+    "why": "luật cố định (mục 25.2): khung thực lĩnh khoá (mục 27.1 danh mục); calcNet (năm bước đầu)"
+  },
+  "night.breakPremium": {
+    "value": 0.3,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (NIGHT_BREAK); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "night.otAddRate": {
+    "value": 0.2,
+    "why": "mã chưa có hằng số: số 0,6 viết cứng trong calcDay (holNightPay) = 0,2 × 3; S3 thay bằng khoá"
+  },
+  "ot.afterMakeup": {
+    "value": "block",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "ot.holidayRate": {
+    "value": 3,
+    "why": "mã chưa có hằng số: số 3 viết cứng trong calcDay (holWorkPay, otHolPay); S3 thay bằng khoá"
+  },
+  "ot.nightAddScope": {
+    "value": "holidayOnly",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "ot.rate": {
+    "value": 1.5,
+    "why": "chủ dự án 29/10/2026: OT ngày thường và Thứ Bảy nằm trong lịch trả ×1,5; cuối tuần ngoài lịch ×2 (ot.weekendRate), ngày lễ ×3"
+  },
+  "ot.weekendRate": {
+    "value": 2,
+    "why": "chủ dự án 29/10/2026: OT Thứ Bảy, Chủ nhật không nằm trong lịch làm việc trả ×2; sàn luật BLLĐ Điều 98 khoản 1"
+  },
+  "pay.method": {
+    "value": "A",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "pay.otHourlyDivisor": {
+    "value": "byMethod",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "period.editPastMonths": {
+    "value": "untilLock",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "period.editPastMonthsN": {
+    "value": 2,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 2 · mới"
+  },
+  "period.lateDeclaration": {
+    "value": "warn",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "period.payDay": {
+    "value": 10,
+    "why": "LUAT-DU-AN \"Nhịp tháng\" (mockup ghi 5: D6)"
+  },
+  "period.payDayMinGapDays": {
+    "value": 0,
+    "why": "cài đặt mới hoặc số viết cứng chưa thành hằng số: 0 · mới"
+  },
+  "period.payDayOnHoliday": {
+    "value": "before",
+    "why": "cài đặt mới: mặc định theo catalogue"
+  },
+  "shift.flex.bonus": {
+    "value": 0.1,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (SHIFTS.flex.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.night.bonus": {
+    "value": 0.3,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (SHIFTS.night.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.f1.in": {
+    "value": "06:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.f1.out": {
+    "value": "15:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.f2.in": {
+    "value": "13:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.f2.out": {
+    "value": "22:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.g1.in": {
+    "value": "21:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.g1.out": {
+    "value": "06:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.g2.in": {
+    "value": "22:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.g2.out": {
+    "value": "07:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.n1.in": {
+    "value": "08:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.n1.out": {
+    "value": "17:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.n2.in": {
+    "value": "10:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "shift.preset.n2.out": {
+    "value": "19:00",
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "slip.staffVisibleFrom": {
+    "value": "afterPaid",
+    "why": "chủ dự án quyết 16/10/2026: nhân sự được thấy phiếu lương chính thức từ khi kỳ đã chi trả (trước đó mặc định estimateOnly)"
+  },
+  "system.auth.adminPasswordMinProduction": {
+    "value": 12,
+    "why": "ADMIN_PASSWORD khi NODE_ENV=production (giá trị bằng hôm nay)"
+  },
+  "system.auth.generatedPasswordBytes": {
+    "value": 12,
+    "why": "số byte ngẫu nhiên của mật khẩu Admin tự sinh (giá trị bằng hôm nay)"
+  },
+  "system.auth.passMarkChars": {
+    "value": 16,
+    "why": "đổi là mọi phiên cũ hết hiệu lực (giá trị bằng hôm nay)"
+  },
+  "system.auth.scryptKeyBytes": {
+    "value": 64,
+    "why": "độ dài khoá scrypt; đổi là mọi mật khẩu đã băm không đăng nhập được (giá trị bằng hôm nay)"
+  },
+  "system.auth.scryptSaltBytes": {
+    "value": 16,
+    "why": "độ dài muối scrypt của mật khẩu mới (giá trị bằng hôm nay)"
+  },
+  "system.auth.sessionSecretBytes": {
+    "value": 32,
+    "why": "số byte khoá ký phiên tự sinh (giá trị bằng hôm nay)"
+  },
+  "system.auth.trustProxyMaxHops": {
+    "value": 10,
+    "why": "TRUST_PROXY chỉ nhận số nguyên từ 1 tới mức này (giá trị bằng hôm nay)"
+  },
+  "system.auth.usernameKeyChars": {
+    "value": 80,
+    "why": "chặn tên đăng nhập dài làm đầy bộ nhớ của bảng giới hạn (giá trị bằng hôm nay)"
+  },
+  "system.import.maxBytes": {
+    "value": 5242880,
+    "why": "đề xuất mục 9.3 thiết kế: cỡ tệp nhập chấm công tối đa"
+  },
+  "system.positions.max": {
+    "value": 30,
+    "why": "giới hạn kỹ thuật: số chức vụ tối đa (đề xuất, thiết kế 9.3)"
+  },
+  "system.positions.maxCopyKeys": {
+    "value": 200,
+    "why": "giới hạn kỹ thuật: số khoá tối đa của một lô sao chép chức vụ do máy chủ dựng (đề xuất, thiết kế 4.5)"
+  },
+  "system.reveal.maxPerHour": {
+    "value": 30,
+    "why": "đề xuất mục 8.3 thiết kế: số lần xem đầy đủ thông tin nhạy cảm mỗi giờ"
+  },
+  "system.slipOverride.reasonRequired": {
+    "value": false,
+    "why": "đã ngưng dùng từ 16/10/2026 (thay bằng control.reasonRequired.slipOverride; server không đọc nữa); giữ khoá vì keys.lock"
+  },
+  "tax.arise.mode": {
+    "value": "personalDeduction",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "tax.brackets": {
+    "value": [
+      [10000000, 0.05],
+      [30000000, 0.1],
+      [60000000, 0.2],
+      [100000000, 0.3],
+      [null, 0.35]
+    ],
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.brackets); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.casual.rate": {
+    "value": 0.1,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.casualRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.casual.threshold": {
+    "value": 5000000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.casualThreshold); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.casual.thresholdCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): như chú thích mã"
+  },
+  "tax.deduction.dependant": {
+    "value": 6200000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.dependant); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.deduction.personal": {
+    "value": 15500000,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.personal); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.exempt.holidayRate": {
+    "value": 3,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.holidayRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.exempt.nightPremium": {
+    "value": 0.3,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.nightPremium); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.exempt.otMethod": {
+    "value": "byRate",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "tax.exempt.otRate": {
+    "value": 1.5,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.otNormalRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.exempt.weekendRate": {
+    "value": 2,
+    "why": "mức miễn thuế của OT cuối tuần theo cùng khuôn với tax.exempt.otRate và tax.exempt.holidayRate"
+  },
+  "tax.insurance.capMultiple": {
+    "value": 20,
+    "why": "luật cố định (mục 25.2): cố định (Q-CC1): thay ba số trần rời; chú thích TAX_RULES.insuranceCap"
+  },
+  "tax.insurance.employee.bhtn": {
+    "value": 0.01,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.employee.bhxh": {
+    "value": 0.08,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.employee.bhyt": {
+    "value": 0.015,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.employer.bhtn": {
+    "value": 0.01,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.employer.bhxh": {
+    "value": 0.175,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.employer.bhyt": {
+    "value": 0.03,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.insurance.skipCompare": {
+    "value": "gte",
+    "why": "luật cố định (mục 25.2): như chú thích mã"
+  },
+  "tax.insurance.skipDays": {
+    "value": 14,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insuranceSkipDays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "tax.method.long": {
+    "value": "progressive",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "tax.method.short": {
+    "value": "flat",
+    "why": "giai đoạn 3 (16/10/2026): lựa chọn của Kế toán, mặc định bằng đúng hành vi hôm nay"
+  },
+  "tax.personalCompare": {
+    "value": "gt",
+    "why": "luật cố định (mục 25.2): như chú thích mã"
+  },
+  "time.breakAfterWorkHours": {
+    "value": 4,
+    "why": "số 4 viết cứng trong breakHours, breakSlots và actual-hours.js → isWorkOffset (luật cố định)"
+  },
+  "time.breakHours": {
+    "value": 1,
+    "why": "số 1 viết cứng trong breakHours (luật cố định)"
+  },
+  "time.flexStartBeforeHour": {
+    "value": 7,
+    "why": "luật cố định (mục 25.2): cấu trúc: shiftFor (index.html), cố định cùng khung đêm"
+  },
+  "time.maxSpanHours": {
+    "value": 9,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (MAX_SPAN); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "time.nightEndHour": {
+    "value": 6,
+    "why": "số 360 (= 6 × 60) viết cứng trong overlapsNight (luật cố định)"
+  },
+  "time.nightStartHour": {
+    "value": 22,
+    "why": "số 1320 (= 22 × 60) viết cứng trong overlapsNight (luật cố định)"
+  },
+  "time.workHoursPerDay": {
+    "value": 8,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (HOURS); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.attendance": {
+    "value": 0,
+    "why": "loại này không có phụ cấp chuyên cần (vắng trong TYPES nghĩa là 0)"
+  },
+  "type.ctv.benefit.absenceDeclarable": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.ctv.benefit.approvedLeave": {
+    "value": false,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.ctv.benefit.breakPay": {
+    "value": true,
+    "why": "Off Paid (giờ nghỉ giữa ca trong khung đêm có lương, khoản breakPay): chủ dự án 27/10/2026 chỉ bỏ cho TTS; CTV giữ như trước"
+  },
+  "type.ctv.benefit.idorm": {
+    "value": false,
+    "why": "cờ iDorm theo chức vụ và bậc (QUYEN-LOI theo bậc): mặc định đúng điều kiện cũ travel > 0 của PUT /staff/:u (NV có phụ cấp đi lại nên Có; TTS và CTV không có nên Không)"
+  },
+  "type.ctv.benefit.isat": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.benefit.kpi": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.benefit.leaveAccount": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.ctv.benefit.makeup": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.benefit.makeupDay": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.ctv.benefit.makeupHours": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.ctv.benefit.ot": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.benefit.paidHoliday": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.benefit.paidLeave": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.defaultContract": {
+    "value": "long",
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.ctv.dows": {
+    "value": [1, 2, 3, 4, 5, 6],
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.flexBonus": {
+    "value": 0.1,
+    "why": "catalogue mục 6: CTV 10 % (hôm nay bằng SHIFTS.flex.bonus khi TYPES không ghi flexBonus)"
+  },
+  "type.ctv.kpiPass": {
+    "value": 75,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.probationPayPct": {
+    "value": 1,
+    "why": "catalogue mục 5: 100 % = như hôm nay"
+  },
+  "type.ctv.startDateRequired": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.ctv.travel": {
+    "value": 0,
+    "why": "loại này không có phụ cấp đi lại (vắng trong TYPES nghĩa là 0)"
+  },
+  "type.ctv.workdays": {
+    "value": 26,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.ctv.workdaysMode": {
+    "value": "fixed",
+    "why": "lịch làm việc (LICH-LAM-VIEC 6.4): mặc định là hành vi hôm nay (ngày công chuẩn cố định)"
+  },
+  "type.nv.attendance": {
+    "value": 0.25,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.attendance); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.absenceDeclarable": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.nv.benefit.approvedLeave": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.nv.benefit.breakPay": {
+    "value": true,
+    "why": "Off Paid (giờ nghỉ giữa ca trong khung đêm có lương, khoản breakPay): chủ dự án 27/10/2026 chỉ bỏ cho TTS; NV giữ như trước"
+  },
+  "type.nv.benefit.idorm": {
+    "value": true,
+    "why": "cờ iDorm theo chức vụ và bậc (QUYEN-LOI theo bậc): mặc định đúng điều kiện cũ travel > 0 của PUT /staff/:u (NV có phụ cấp đi lại nên Có; TTS và CTV không có nên Không)"
+  },
+  "type.nv.benefit.isat": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.isat); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.kpi": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.leaveAccount": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.nv.benefit.makeup": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.makeupDay": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.nv.benefit.makeupHours": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.nv.benefit.ot": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.paidHoliday": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.benefit.paidLeave": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.defaultContract": {
+    "value": "long",
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.nv.dows": {
+    "value": [1, 2, 3, 4, 5, 6],
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.flexBonus": {
+    "value": 0.2,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.flexBonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.kpiPass": {
+    "value": 75,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.maxAbsent": {
+    "value": 3,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.maxAbsent); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.nightOptions": {
+    "value": [40, 60],
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.nightOptions); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.probationPayPct": {
+    "value": 1,
+    "why": "catalogue mục 5: 100 % = như hôm nay"
+  },
+  "type.nv.startDateRequired": {
+    "value": true,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.nv.travel": {
+    "value": 0.15,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.travel); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.workdays": {
+    "value": 26,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.nv.workdaysMode": {
+    "value": "fixed",
+    "why": "lịch làm việc (LICH-LAM-VIEC 6.4): mặc định là hành vi hôm nay (ngày công chuẩn cố định)"
+  },
+  "type.tts.attendance": {
+    "value": 0,
+    "why": "loại này không có phụ cấp chuyên cần (vắng trong TYPES nghĩa là 0)"
+  },
+  "type.tts.benefit.absenceDeclarable": {
+    "value": false,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.tts.benefit.approvedLeave": {
+    "value": false,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.tts.benefit.breakPay": {
+    "value": false,
+    "why": "Off Paid (giờ nghỉ giữa ca trong khung đêm có lương, khoản breakPay): chủ dự án 27/10/2026 quyết thực tập sinh không được hưởng, kể cả khi làm ca đêm"
+  },
+  "type.tts.benefit.idorm": {
+    "value": false,
+    "why": "cờ iDorm theo chức vụ và bậc (QUYEN-LOI theo bậc): mặc định đúng điều kiện cũ travel > 0 của PUT /staff/:u (NV có phụ cấp đi lại nên Có; TTS và CTV không có nên Không)"
+  },
+  "type.tts.benefit.isat": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.benefit.kpi": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.benefit.leaveAccount": {
+    "value": false,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.tts.benefit.makeup": {
+    "value": true,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.benefit.makeupDay": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.tts.benefit.makeupHours": {
+    "value": true,
+    "why": "tách cờ gửi yêu cầu (QUYEN-LOI theo bậc): mặc định như hôm nay, mọi chức vụ khai được làm bù theo giờ, làm bù cả ngày và đi làm ngày lễ (cùng cách duyệt)"
+  },
+  "type.tts.benefit.ot": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.ot (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.benefit.paidHoliday": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.benefit.paidLeave": {
+    "value": false,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.defaultContract": {
+    "value": "short",
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.tts.dows": {
+    "value": [1, 2, 3, 4, 5],
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.flexBonus": {
+    "value": 0.1,
+    "why": "catalogue mục 6: TTS 10 % (hôm nay bằng SHIFTS.flex.bonus khi TYPES không ghi flexBonus)"
+  },
+  "type.tts.probationPayPct": {
+    "value": 1,
+    "why": "catalogue mục 5: 100 % = như hôm nay (app chưa phân biệt thử việc)"
+  },
+  "type.tts.startDateRequired": {
+    "value": false,
+    "why": "chức vụ là dữ liệu (CONG-THUC-TU-DO 4.6): cờ mới mặc định đúng hành vi cứng hôm nay, ba chức vụ mặc định không đổi tiền"
+  },
+  "type.tts.travel": {
+    "value": 0,
+    "why": "loại này không có phụ cấp đi lại (vắng trong TYPES nghĩa là 0)"
+  },
+  "type.tts.workdays": {
+    "value": 22,
+    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+  },
+  "type.tts.workdaysMode": {
+    "value": "fixed",
+    "why": "lịch làm việc (LICH-LAM-VIEC 6.4): mặc định là hành vi hôm nay (ngày công chuẩn cố định)"
+  },
+  "unit.daysPerWeek": {
+    "value": 7,
+    "why": "luật cố định (mục 25.2): đơn vị"
+  },
+  "unit.minutesPerDay": {
+    "value": 1440,
+    "why": "luật cố định (mục 25.2): đơn vị"
+  },
+  "unit.minutesPerHour": {
+    "value": 60,
+    "why": "luật cố định (mục 25.2): đơn vị"
+  },
+  "unit.msPerDay": {
+    "value": 86400000,
+    "why": "luật cố định (mục 25.2): đơn vị"
+  },
+  "unit.msPerSecond": {
+    "value": 1000,
+    "why": "đơn vị (giá trị bằng hôm nay)"
+  },
+  "unit.owedHoursEpsilon": {
+    "value": 0.001,
+    "why": "luật cố định (mục 25.2): ngưỡng số thực của calcDay (avail > 0,001); cấu trúc"
+  },
+  "unit.percent": {
+    "value": 100,
+    "why": "luật cố định (mục 25.2): đơn vị"
+  },
+  "unit.vnUtcOffsetMin": {
+    "value": 420,
+    "why": "luật cố định (mục 25.2): Asia/Ho_Chi_Minh không đổi giờ mùa hè (AGENTS.md)"
+  },
+  "leave.expiry.month": {
+    "value": 1,
+    "why": "chủ dự án 23/10/2026: phép hết hạn cuối tháng 1 năm sau (Đ35)"
+  },
+  "leave.expiry.fromYear": {
+    "value": 2026,
+    "why": "chủ dự án 23/10/2026: không hồi tố hết hạn các năm trước"
+  },
+  "shift.allowance.basis": {
+    "value": "assigned",
+    "why": "luật cố định: quy tắc lương duy nhất"
+  },
+  "tax.contract.basis": {
+    "value": "tenure",
+    "why": "luật cố định: quy tắc lương duy nhất"
+  },
+  "tax.longTermMonths": {
+    "value": 3,
+    "why": "luật cố định: quy tắc lương duy nhất"
+  }
+}

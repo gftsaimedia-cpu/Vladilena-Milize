@@ -1,0 +1,702 @@
+/* Cài đặt › Lịch, ca & chấm công.
+   File này nạp TRƯỚC thiet-ke-moi.css và man-cai-dat.css: mọi lớp đặt sau .cdx để thắng luật chung của bảng và thẻ.
+   Chỉ dùng token của admin.css (--ink, --muted, --line, --rule, --raised, --gold-*). Hộp thoại (cdv-dlg) ở man-cai-dat-van-hanh.css. */
+.cdx .kl-root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+/* ---------- Lịch năm ---------- */
+.cdx .kl-yc {
+  position: relative;
+}
+.cdx .card.flush > .card-h.kl-top {
+  gap: 8px 12px;
+}
+.cdx .kl-ysw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cdx .kl-ysw b {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cdx .kl-ysw button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid #d0d0d0;
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--muted);
+}
+.cdx .kl-ysw button:hover {
+  color: var(--ink);
+  border-color: var(--ctrl);
+}
+.cdx .kl-lgd {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.cdx .kl-lgd > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.cdx .kl-lgd b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.cdx .kl-mk {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cdx .kl-mk.bd {
+  padding: 0 3px;
+  border-bottom: 1.5px solid var(--ink);
+  font-size: 12px;
+  line-height: 15px;
+}
+.cdx .kl-mk.tra {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--white);
+  font-size: 10px;
+}
+.cdx .kl-mk.le {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--gold-light);
+}
+.cdx .kl-hint {
+  margin: 0;
+  padding: 0 24px 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
+}
+/* Số tháng mỗi hàng theo bề rộng thật của vùng chứa: 4 tháng ở máy tính, ít hơn khi hẹp */
+.cdx .kl-yg {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr));
+  gap: 20px 24px;
+  padding: 8px 24px 16px;
+}
+.cdx .kl-mm {
+  min-width: 0;
+}
+.cdx .kl-mm h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.cdx .kl-g {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  row-gap: 2px;
+  text-align: center;
+}
+.cdx .kl-wd {
+  min-width: 0;
+  font-size: 10px;
+  line-height: 18px;
+  color: var(--odm);
+}
+.cdx .kl-d {
+  min-width: 0;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+.cdx .kl-d i {
+  font-style: normal;
+}
+.cdx .kl-d.cn {
+  color: #a8a8a8;
+}
+.cdx .kl-d:hover {
+  background: #f0f0f0;
+}
+.cdx .kl-d.le {
+  background: var(--gold-light);
+  color: var(--ink);
+  font-weight: 600;
+}
+.cdx .kl-d.le:hover {
+  background: var(--gold);
+}
+.cdx .kl-d.le.l1 {
+  border-radius: 6px 0 0 6px;
+}
+.cdx .kl-d.le.lm {
+  border-radius: 0;
+}
+.cdx .kl-d.le.l2 {
+  border-radius: 0 6px 6px 0;
+}
+.cdx .kl-d.tra i {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--white);
+  font-size: 11px;
+  line-height: 22px;
+  font-weight: 600;
+}
+.cdx .kl-d.bd i {
+  line-height: 16px;
+  border-bottom: 1.5px solid var(--ink);
+  font-weight: 600;
+}
+.cdx .kl-d.pick {
+  box-shadow: inset 0 0 0 2px var(--gold-deep);
+}
+.cdx .kl-d:focus-visible,
+.cdx .kl-add:focus-visible,
+.cdx .kl-hi button:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Menu khi bấm một ngày */
+.cdx .kl-pop {
+  position: fixed;
+  z-index: 40;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+}
+.cdx .kl-pt {
+  padding: 8px 10px 6px;
+  font-weight: 600;
+}
+.cdx .kl-pop .o {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  color: var(--ink);
+}
+.cdx .kl-pop .o:hover:not(:disabled) {
+  background: var(--gold-pale);
+}
+.cdx .kl-pop .o:disabled {
+  opacity: 0.55;
+}
+.cdx .kl-pop .kl-mk.tra {
+  width: 22px;
+  height: 22px;
+  font-size: 11px;
+}
+.cdx .kl-pop .kl-mk.le {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+.cdx .kl-pop .kl-mk.bd {
+  min-width: 22px;
+}
+
+/* Thẻ ngày lễ dưới lịch */
+.cdx .kl-hl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px 18px;
+  border-top: 1px solid var(--rule);
+}
+.cdx .kl-hi {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 8px 0 12px;
+  border-radius: 999px;
+  background: var(--gold-pale);
+  box-shadow: inset 0 0 0 1px #f0dcae;
+  font-size: 13px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.cdx .kl-hi b {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.cdx .kl-hi .nm {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  color: var(--muted);
+}
+.cdx .kl-hi .kl-hn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.cdx .kl-hi .kl-hn:hover b {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cdx .kl-hi .kl-hx {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--odm);
+}
+.cdx .kl-hi .kl-hx:hover {
+  background: var(--gold-light);
+  color: var(--ink);
+}
+.cdx .kl-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px dashed #b5b5b5;
+  border-radius: 999px;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.cdx .kl-add:hover {
+  background: var(--raised);
+  border-color: var(--ctrl);
+}
+
+/* ---------- hàng dưới: Ca làm | Chấm công ---------- */
+.cdx .kl-b2 {
+  display: grid;
+  grid-template-columns: minmax(0, 504fr) minmax(0, 364fr);
+  gap: 24px;
+  align-items: stretch;
+}
+/* bảng ca cần ~480px (5 cột, có nút sửa): dưới 1400 thẻ ca chỉ còn ~360px nên xếp hai thẻ thành một cột */
+@media (max-width: 1400px) {
+  .cdx .kl-b2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cdx .kl-tw {
+  overflow-x: auto;
+}
+.cdx .kl-st {
+  width: 100%;
+}
+.cdx .kl-st .c-in {
+  width: 80px;
+}
+.cdx .kl-st .c-out {
+  width: 132px;
+}
+.cdx .kl-st .c-kd {
+  width: 92px;
+}
+.cdx .kl-st th {
+  padding: 10px 12px;
+  border-bottom: 0;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.cdx .kl-st td {
+  height: 52px;
+  padding: 0 12px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 0;
+  vertical-align: middle;
+}
+.cdx .kl-st th:first-child,
+.cdx .kl-st td:first-child {
+  padding-left: 24px;
+}
+.cdx .kl-st th:last-child,
+.cdx .kl-st td:last-child {
+  padding-right: 24px;
+}
+.cdx .kl-st .input {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  background: var(--card);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.cdx .kl-st .input:focus {
+  border-color: var(--ink);
+}
+.cdx .kl-st .kl-nm {
+  width: 150px;
+  max-width: 100%;
+  cursor: default;
+}
+.cdx .kl-st .kl-t {
+  width: 64px;
+}
+.cdx .kl-st .input:disabled {
+  opacity: 1;
+  color: var(--ink);
+  -webkit-text-fill-color: var(--ink);
+  background: var(--card);
+  cursor: default;
+}
+.cdx .kl-out {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.cdx .kl-nx {
+  font-size: 12px;
+  color: var(--muted);
+}
+.cdx .kl-nx[hidden] {
+  display: none;
+}
+.cdx .kl-kd {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.cdx .kl-kd i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.cdx .kl-kd .k-normal {
+  background: var(--done-ink);
+}
+.cdx .kl-kd .k-flex {
+  background: var(--gold-deep);
+}
+.cdx .kl-kd .k-night {
+  background: var(--ink);
+}
+.cdx .kl-sbar[hidden] {
+  display: none;
+}
+.cdx .kl-sbar .sp,
+.cdx .kl-gsave .sp {
+  flex: 1 1 auto;
+}
+
+/* Thẻ Chấm công */
+.cdx .kl-ccb {
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px 20px;
+  min-width: 0;
+}
+.cdx .kl-ck {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  font-size: 13px;
+  line-height: 20px;
+}
+.cdx .kl-ck b {
+  font-weight: 600;
+}
+/* Cảnh báo của lần lưu gần nhất (ngày lễ, giờ ca): câu của máy chủ nguyên văn, ở lại tới khi bấm đóng */
+.cdx .kl-wn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 24px 16px;
+  padding: 10px 8px 10px 14px;
+  border-radius: 12px;
+  background: var(--pend-bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 18px;
+}
+.cdx .kl-wn > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--pend-ink);
+}
+.cdx .kl-wn ul {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cdx .kl-wn .btn {
+  flex: none;
+  margin-top: -4px;
+}
+.cdx .kl-h3 {
+  margin: 18px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+}
+.cdx .kl-map {
+  margin-top: 14px;
+  height: 150px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f1efe9;
+}
+.cdx .kl-svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+  touch-action: none;
+}
+.cdx .kl-gr {
+  fill: #f1efe9;
+}
+.cdx .kl-rd1,
+.cdx .kl-rd2 {
+  fill: none;
+  stroke: #fff;
+}
+.cdx .kl-rd1 {
+  stroke-width: 9;
+}
+.cdx .kl-rd2 {
+  stroke-width: 4;
+}
+.cdx .kl-circ {
+  fill: rgba(181, 128, 63, 0.14);
+  stroke: var(--gold-deep);
+  stroke-width: 1.5;
+}
+.cdx .kl-ctr {
+  fill: var(--ink);
+}
+.cdx .kl-ctr2 {
+  fill: #fff;
+}
+.cdx .kl-hnd {
+  fill: #fff;
+  stroke: var(--gold-deep);
+  stroke-width: 2;
+  cursor: ew-resize;
+}
+.cdx .kl-hnd:focus-visible {
+  outline: none;
+  stroke: var(--ink);
+}
+.cdx .kl-rad {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cdx .kl-rad .btn {
+  margin-left: auto;
+}
+.cdx .kl-fi {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 32px;
+  min-width: 84px;
+  padding: 0 10px;
+  border: 1px solid #cfcfcf;
+  border-radius: 8px;
+  background: var(--card);
+}
+.cdx .kl-fi:focus-within {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px #e9e9e9;
+}
+.cdx .kl-fi input {
+  width: 46px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  text-align: right;
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.cdx .kl-fi input:disabled {
+  -webkit-text-fill-color: var(--ink);
+  opacity: 1;
+}
+.cdx .kl-fi i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cdx .kl-note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.cdx .kl-note .link {
+  font-size: 12px;
+}
+.cdx .kl-gsave {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+/* hàng "Tắt kiểm GPS" ngay dưới hàng "Chưa lưu · Lưu vùng": không kẻ thêm đường */
+.cdx .kl-gsave + .kl-gsave {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: 0;
+}
+/* câu cho biết đang kiểm hay đang tắt kiểm vị trí */
+.cdx .kl-gst {
+  margin-top: 6px;
+  color: var(--ink);
+}
+.cdx .kl-gst b {
+  font-weight: 600;
+}
+/* toạ độ tâm vùng chấm công: hai ô cạnh nhau */
+.cdx .kl-ll {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.cdx .kl-ll .kl-rad {
+  flex-wrap: nowrap;
+}
+.cdx .kl-fi.w {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cdx .kl-fi.w input {
+  width: 100%;
+}
+
+/* Điện thoại: bảng ca xếp thành thẻ (rtable), ô không giữ chiều cao 56 của bảng chung */
+@media (max-width: 640px) {
+  .cdx .kl-st td,
+  .cdx .kl-st td:first-child,
+  .cdx .kl-st td:last-child {
+    height: auto;
+    padding: 4px 0;
+    border-top: 0;
+  }
+  .cdx .kl-st tr {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .cdx .card.flush > .card-h.kl-top .kl-lgd {
+    margin-left: 0;
+  }
+}
+
+/* nút "Đổi tên, loại" của từng ca (catalog-shifts.js): thêm cột thì các cột giữa phải hẹp lại
+   để bảng vừa thẻ ~500px ở 1440 (thẻ ca chiếm 504fr), không bắt người dùng cuộn ngang mới thấy nút */
+.cdx .kl-st .c-act {
+  width: 56px;
+}
+.cdx .kl-st td:not(:first-child):not(:last-child),
+.cdx .kl-st th:not(:first-child):not(:last-child) {
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.cdx .kl-st td.kl-act {
+  padding-left: 0;
+  text-align: right;
+}
+/* tên ca co theo cột còn lại; tên dài bị cắt trong ô chứ không đẩy bảng tràn */
+.cdx .kl-st:has(.c-act) .kl-nm {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 640px) {
+  .cdx .kl-st td:not(:first-child):not(:last-child) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .cdx .kl-st td.kl-act {
+    justify-content: flex-end;
+  }
+  .cdx .kl-st:has(.c-act) .kl-nm {
+    width: 150px;
+  }
+}

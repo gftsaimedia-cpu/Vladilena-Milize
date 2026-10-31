@@ -1,0 +1,33 @@
+# Mẫu cho VPS chạy thẳng bằng systemd (không Docker). Cài: sudo cp luong-app.service.example /etc/systemd/system/luong-app.service
+# Chưa chạy thử trong dự án này. Sau khi sửa đường dẫn: systemctl daemon-reload && systemctl enable --now luong-app
+#
+# /etc/luong/luong.env (chmod 600, chủ sở hữu root) chứa DB_PATH, ADMIN_PASSWORD, SESSION_SECRET, AUDIT_KEY, COOKIE_SECURE=1,
+# TRUST_PROXY=1, NODE_ENV=production (xem .env.example). Không để file này trong thư mục mã nguồn hay git.
+[Unit]
+Description=Luong Nhan Su (AiCB)
+After=network.target
+
+[Service]
+Type=simple
+User=luong
+Group=luong
+WorkingDirectory=/opt/luong-app
+EnvironmentFile=/etc/luong/luong.env
+ExecStart=/usr/bin/node --no-warnings=ExperimentalWarning server.js
+Restart=on-failure
+RestartSec=3
+# server.js bắt SIGTERM và đóng êm các luồng SSE; chờ tối đa 20 giây rồi mới SIGKILL
+KillSignal=SIGTERM
+TimeoutStopSec=20
+# Mỗi luồng SSE là một socket (trần mặc định của app 3.000): nâng giới hạn tệp mở
+LimitNOFILE=65536
+# Cô lập: app chỉ ghi vào thư mục dữ liệu
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/luong
+# Địa chỉ nghe: server.js nghe mọi giao diện; chặn cổng 3000 từ ngoài bằng tường lửa (chỉ proxy trên 127.0.0.1 vào được)
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Thử chấm công — AiCB</title>
+    <style>
+      :root {
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          sans-serif;
+        color: #19252b;
+        background: #f4f6f7;
+        font-synthesis: none;
+        color-scheme: light;
+        --teal: #24635e;
+        --line: #dce3e5;
+        --muted: #57676d;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+        height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      select {
+        cursor: pointer;
+      }
+      button:disabled,
+      input:disabled,
+      select:disabled {
+        cursor: wait;
+        opacity: 0.6;
+      }
+      button,
+      input,
+      select {
+        min-height: 42px;
+        border: 1px solid #b9c7cc;
+        border-radius: 7px;
+        background: #fff;
+        color: inherit;
+        padding: 8px 11px;
+      }
+      button:hover:not(:disabled) {
+        background: #edf3f2;
+        border-color: #7c9696;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid #68a59f;
+        outline-offset: 3px;
+      }
+      button.primary {
+        background: var(--teal);
+        color: #fff;
+        border-color: var(--teal);
+        font-weight: 650;
+      }
+      button.primary:hover:not(:disabled) {
+        background: #194d49;
+      }
+      button.danger {
+        color: #9c302d;
+      }
+      h1,
+      p {
+        margin: 0;
+      }
+      .toolbar {
+        background: white;
+        border-bottom: 1px solid var(--line);
+        padding: 16px 24px 12px;
+        box-shadow: 0 2px 8px #19252b08;
+        z-index: 1;
+      }
+      .heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .identity {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .badge {
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.09em;
+        background: #fff1ce;
+        color: #79520a;
+        border: 1px solid #efd38c;
+        border-radius: 5px;
+        padding: 6px 8px;
+        white-space: nowrap;
+      }
+      h1 {
+        font-size: 19px;
+        line-height: 1.3;
+        letter-spacing: -0.3px;
+      }
+      .subtitle {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+      .clock {
+        font-size: 13px;
+        color: var(--muted);
+        text-align: right;
+      }
+      .clock strong {
+        display: block;
+        font-size: 18px;
+        color: var(--teal);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.2px;
+      }
+      .controls {
+        display: flex;
+        align-items: flex-end;
+        gap: 18px;
+        flex-wrap: wrap;
+      }
+      .time-form {
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+      .field label {
+        font-size: 12px;
+        font-weight: 650;
+        color: var(--muted);
+      }
+      input[type='date'] {
+        width: 153px;
+      }
+      input[type='time'] {
+        width: 170px;
+        font-variant-numeric: tabular-nums;
+      }
+      .quick {
+        display: flex;
+        gap: 6px;
+      }
+      .quick button {
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .profile {
+        min-width: 235px;
+        flex: 1;
+        max-width: 310px;
+      }
+      .reset {
+        margin-left: auto;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .support {
+        display: flex;
+        gap: 14px;
+        align-items: baseline;
+        justify-content: space-between;
+        margin-top: 11px;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+      .status {
+        min-height: 19px;
+        margin-top: 7px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: var(--teal);
+      }
+      .status.error {
+        color: #a42c27;
+      }
+      .support summary {
+        cursor: pointer;
+        font-weight: 650;
+        white-space: nowrap;
+        color: var(--teal);
+      }
+      details {
+        position: relative;
+      }
+      details[open] .help {
+        position: absolute;
+        right: 0;
+        top: 27px;
+        width: min(410px, 85vw);
+        padding: 16px 20px;
+        background: white;
+        border: 1px solid var(--line);
+        box-shadow: 0 8px 30px #19252b20;
+        border-radius: 10px;
+        z-index: 3;
+      }
+      .help p + p {
+        margin-top: 10px;
+      }
+      .help strong {
+        color: #19252b;
+      }
+      .frame-shell {
+        position: relative;
+        flex: 1;
+        min-height: 300px;
+      }
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #f4f6f7;
+      }
+      .loading {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #f4f6f7;
+        color: var(--muted);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      dialog {
+        max-width: 440px;
+        width: calc(100% - 32px);
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        color: #19252b;
+        box-shadow: 0 16px 70px #0003;
+      }
+      dialog::backdrop {
+        background: #182c3c66;
+      }
+      dialog h2 {
+        font-size: 20px;
+        margin: 0 0 12px;
+      }
+      dialog p {
+        font-size: 14px;
+        line-height: 1.65;
+        color: var(--muted);
+      }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 22px;
+      }
+      .dialog-actions button {
+        font-size: 14px;
+      }
+      @media (max-width: 1100px) {
+        .controls {
+          gap: 10px;
+        }
+        .quick {
+          order: 4;
+        }
+        .reset {
+          margin-left: 0;
+        }
+        .toolbar {
+          padding: 12px 16px;
+        }
+        .support {
+          gap: 8px;
+        }
+        .profile {
+          min-width: 225px;
+        }
+        .frame-shell {
+          min-height: 360px;
+        }
+      }
+      @media (max-width: 650px) {
+        body {
+          height: auto;
+          min-height: 100dvh;
+        }
+        .heading {
+          align-items: flex-start;
+          gap: 8px;
+        }
+        .identity {
+          gap: 8px;
+        }
+        h1 {
+          font-size: 16px;
+        }
+        .subtitle {
+          max-width: 185px;
+          line-height: 1.5;
+        }
+        .clock {
+          font-size: 10px;
+        }
+        .clock strong {
+          font-size: 13px;
+          max-width: 135px;
+        }
+        .badge {
+          font-size: 10px;
+          padding: 5px;
+        }
+        .time-form {
+          flex-wrap: wrap;
+          width: 100%;
+        }
+        .time-form .field {
+          flex: 1;
+        }
+        input[type='date'],
+        input[type='time'] {
+          width: 100%;
+        }
+        .time-form .primary {
+          flex-basis: 100%;
+        }
+        .profile {
+          min-width: 180px;
+          max-width: none;
+        }
+        .quick {
+          order: 0;
+        }
+        .reset {
+          font-size: 12px;
+        }
+        .support {
+          align-items: flex-start;
+        }
+        .support > p {
+          max-width: 245px;
+        }
+        .frame-shell {
+          height: calc(100dvh - 70px);
+          flex: none;
+          min-height: 540px;
+        }
+      }
+      #ops-dialog {
+        width: min(960px, 96vw);
+        max-height: 92dvh;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 16px 20px;
+      }
+      #ops-dialog h2 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+      #ops-dialog h3 {
+        margin: 18px 0 6px;
+        font-size: 15px;
+        color: var(--teal);
+      }
+      #ops-dialog .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        align-items: end;
+        margin: 6px 0;
+      }
+      #ops-dialog .row label {
+        display: grid;
+        gap: 2px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #ops-dialog .row input[type='number'] {
+        width: 90px;
+      }
+      #ops-dialog .row label.check {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+        font-size: 13px;
+        color: inherit;
+      }
+      #ops-dialog table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 13px;
+        margin: 6px 0;
+      }
+      #ops-dialog th,
+      #ops-dialog td {
+        border-bottom: 1px solid var(--line);
+        padding: 3px 8px;
+        text-align: right;
+      }
+      #ops-dialog th:first-child,
+      #ops-dialog td:first-child {
+        text-align: left;
+      }
+      #ops-dialog pre {
+        background: #eef2f3;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        max-height: 170px;
+        overflow: auto;
+        margin: 6px 0;
+        white-space: pre-wrap;
+      }
+      #ops-dialog .ok {
+        color: #1b6b3a;
+        font-weight: 600;
+      }
+      #ops-dialog .bad {
+        color: #b3261e;
+        font-weight: 600;
+      }
+      #ops-dialog .note {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 4px 0;
+      }
+    </style>
+    <script src="/__sandbox/panel.js" defer></script>
+    <script src="/__sandbox/ops.js" defer></script>
+  </head>
+  <body>
+    <header class="toolbar">
+      <div class="heading">
+        <div class="identity">
+          <span class="badge">BẢN TEST</span>
+          <div>
+            <h1>Thử chấm công</h1>
+            <p class="subtitle">Dữ liệu riêng · Đặt lại khi khởi động lại bản test</p>
+          </div>
+        </div>
+        <div class="clock">Giờ đang áp dụng · Việt Nam (UTC+7)<strong id="applied-time">Đang tải…</strong></div>
+      </div>
+      <div class="controls">
+        <form id="clock-form" class="time-form">
+          <div class="field">
+            <label for="test-date">Ngày giả lập</label><input id="test-date" type="date" required disabled />
+          </div>
+          <div class="field">
+            <label for="test-time">Giờ giả lập</label><input id="test-time" type="time" step="1" required disabled />
+          </div>
+          <button class="primary" type="submit" disabled>Áp dụng giờ</button>
+        </form>
+        <div class="quick" aria-label="Tua thời gian">
+          <button type="button" data-minutes="15" disabled>+15 phút</button
+          ><button type="button" data-minutes="60" disabled>+1 giờ</button
+          ><button type="button" data-minutes="1440" disabled>+1 ngày</button>
+        </div>
+        <div class="field profile">
+          <label for="test-user">Tài khoản thử</label
+          ><select id="test-user" disabled>
+            <option>Đang tải tài khoản…</option>
+          </select>
+        </div>
+        <button id="ops-open" type="button" disabled>Tải &amp; sao lưu</button>
+        <button id="reset-open" type="button" class="reset danger" disabled>Xóa dữ liệu thử</button>
+      </div>
+      <div class="support">
+        <p>Chọn giờ → bấm Check-in / Check-out → đổi sang Admin xem dữ liệu. Lịch ước tính được nhập riêng.</p>
+        <details>
+          <summary>Cách thử nhanh</summary>
+          <div class="help">
+            <p>
+              <strong>Gửi giờ:</strong> NV · 07:55 Check-in → áp dụng 17:05 → Check-out → đổi sang Admin, mở
+              Check-in/out.
+            </p>
+            <p>
+              <strong>Ước tính:</strong> mở Lịch ước tính, chọn ngày và ca, rồi lưu. Check-in/out hoặc Admin xác nhận
+              giờ không thay đổi lịch tự nhập này.
+            </p>
+            <p><strong>Ca đêm:</strong> chọn tài khoản ca đêm → 21:55 Check-in → 07:05 ngày hôm sau Check-out.</p>
+            <p>
+              Đồng hồ đứng yên ở giờ bạn chọn. Áp dụng giờ hoặc đổi tài khoản sẽ tải lại bảng bên dưới. Khi đã có dữ
+              liệu, hãy xóa dữ liệu thử trước khi lùi giờ.
+            </p>
+          </div>
+        </details>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">Đang mở bản thử nghiệm…</p>
+    </header>
+    <main class="frame-shell" aria-label="Ứng dụng chấm công để kiểm thử">
+      <div id="loading" class="loading">Đang tải bảng chấm công…</div>
+      <iframe id="app-frame" title="Ứng dụng chấm công — dữ liệu thử"></iframe>
+    </main>
+    <dialog id="ops-dialog" aria-labelledby="ops-title">
+      <h2 id="ops-title">Thử chịu tải &amp; sao lưu/khôi phục</h2>
+      <p class="note">
+        Mọi thứ chạy trên DB trong RAM của bản test này; bộ đo tải là tiến trình con gọi HTTP vào chính bản test (đúng
+        đường người dùng thật đi). Không đụng dữ liệu thật.
+      </p>
+      <div id="ops-server" class="note">Máy chủ: đang đọc…</div>
+
+      <h3>1. Đo tải (người dùng giả lt_0001…)</h3>
+      <div class="row">
+        <label>Số người<input id="ld-users" type="number" min="1" max="1000" value="300" /></label>
+        <button id="ld-seed" type="button">Nạp người dùng đo tải</button>
+        <span id="ld-seeded" class="note"></span>
+      </div>
+      <div class="row">
+        <label class="check"><input type="checkbox" name="ld-scn" value="login" checked />Đăng nhập</label>
+        <label class="check"><input type="checkbox" name="ld-scn" value="checkin" checked />Check-in</label>
+        <label class="check"><input type="checkbox" name="ld-scn" value="mix" checked />Dùng hỗn hợp</label>
+        <label class="check"><input type="checkbox" name="ld-scn" value="admin-burst" checked />Admin dồn</label>
+        <label class="check"><input type="checkbox" name="ld-scn" value="probe" />Dò từng màn nặng</label>
+      </div>
+      <div class="row">
+        <label>Rải đăng nhập/Check-in (giây)<input id="ld-spread" type="number" min="0" max="60" value="5" /></label>
+        <label
+          >Thời lượng dùng hỗn hợp (giây)<input id="ld-seconds" type="number" min="5" max="180" value="20"
+        /></label>
+        <label>Số Admin<input id="ld-admins" type="number" min="0" max="10" value="3" /></label>
+        <button id="ld-run" class="primary" type="button">Chạy đo tải</button>
+        <button id="ld-cancel" type="button">Hủy</button>
+      </div>
+      <p class="note">
+        Check-in chỉ chạy được một lần mỗi lượt dữ liệu (đồng hồ bản test đứng yên). Muốn chạy lại: "Xóa dữ liệu thử"
+        rồi nạp lại người dùng. Spread = 0 là cả đoàn cùng bấm một lúc (bão).
+      </p>
+      <div id="ld-result"></div>
+      <pre id="ld-log" hidden></pre>
+
+      <h3>2. Sao lưu &amp; khôi phục</h3>
+      <div class="row">
+        <button id="bk-make" type="button">Sao lưu ngay</button>
+        <label>Bản sao lưu<select id="bk-select"></select></label>
+        <button id="bk-verify" type="button">Kiểm bản này</button>
+        <button id="bk-drill" type="button">Diễn tập khôi phục</button>
+        <button id="bk-corrupt" type="button">Làm hỏng một bản sao (thử)</button>
+      </div>
+      <p class="note">
+        Sao lưu = VACUUM INTO (nhất quán cả khi đang ghi). Kiểm = integrity_check, khóa ngoại, chuỗi băm nhật ký, tính
+        lại phiếu lương trên bản chép. Diễn tập = chạy máy chủ thật trên bản chép và gọi thử 3 địa chỉ. "Làm hỏng" ghi
+        đè 16 byte tiêu đề của một trang dữ liệu rồi bấm "Kiểm bản này" phải ra HỎNG.
+      </p>
+      <div id="bk-list"></div>
+      <div id="bk-tool"></div>
+      <div class="dialog-actions"><button id="ops-close" type="button">Đóng</button></div>
+    </dialog>
+    <dialog id="reset-dialog" aria-labelledby="reset-title">
+      <h2 id="reset-title">Bắt đầu lượt test mới?</h2>
+      <p>
+        Xóa chấm công, yêu cầu và thay đổi tài khoản trong bản test. Thời gian trở về
+        <strong>07:55 ngày 01/10/2026</strong>, tài khoản trở về NV thử nghiệm.
+      </p>
+      <div class="dialog-actions">
+        <button id="reset-cancel" type="button" autofocus>Giữ lại</button
+        ><button id="reset-confirm" class="primary" type="button">Xóa và bắt đầu lại</button>
+      </div>
+    </dialog>
+  </body>
+</html>

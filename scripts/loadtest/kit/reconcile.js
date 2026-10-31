@@ -1,0 +1,40 @@
+'use strict';
+// Đối soát ghi: mọi lượt Check-in mà khách đã nhận 200 PHẢI có đúng một dòng trong DB,
+// gửi lại cùng requestId không được sinh thêm lượt, và không có lượt thừa không ai gửi. "0 mất, 0 trùng" là điều kiện đạt.
+// db: DatabaseSync (node:sqlite) đang mở, ghi hoặc chỉ-đọc đều được. confirmed: [{ username, requestId, sessionId }] (sessionId = open.id máy chủ trả).
+function reconcile(db, confirmed, { prefix = 'lt_' } = {}) {
+  const byRequest = db.prepare('SELECT session_id FROM punch_requests WHERE username = ? AND request_id = ?');
+  const sessionOf = db.prepare('SELECT 1 AS present FROM attendance_sessions WHERE id = ? AND username = ?');
+  const result = {
+    confirmed: confirmed.length,
+    missing: 0,
+    orphan: 0,
+    mismatch: 0,
+    duplicateSessions: 0,
+    extraSessions: 0
+  };
+  const expectedUsers = new Set();
+  for (const item of confirmed) {
+    expectedUsers.add(item.username);
+    const row = byRequest.get(item.username, item.requestId);
+    if (!row) {
+      result.missing++; // khách được xác nhận mà DB không có: MẤT
+      continue;
+    }
+    if (!sessionOf.get(row.session_id, item.username)) result.orphan++;
+    if (item.sessionId !== undefined && item.sessionId !== row.session_id) result.mismatch++;
+  }
+  // Mỗi người chỉ được một lượt mở trong kịch bản Check-in một lần: nhiều hơn là TRÙNG (gửi lại requestId sinh thêm lượt)
+  const perUser = db
+    .prepare('SELECT username, COUNT(*) AS n FROM attendance_sessions WHERE username LIKE ? GROUP BY username')
+    .all(`${prefix}%`);
+  for (const { username, n } of perUser) {
+    if (n > 1) result.duplicateSessions += n - 1;
+    if (!expectedUsers.has(username)) result.extraSessions += n;
+  }
+  result.pass =
+    !result.missing && !result.orphan && !result.mismatch && !result.duplicateSessions && !result.extraSessions;
+  return result;
+}
+
+module.exports = { reconcile };

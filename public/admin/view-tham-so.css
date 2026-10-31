@@ -1,0 +1,355 @@
+/* Màn Cài đặt › Kỳ lương & công thức (dựng từ registry). Chỉ dùng token có sẵn của admin.css. */
+.px-groups {
+  gap: 6px;
+}
+.px-groups .chip {
+  height: auto;
+  min-height: 32px;
+  padding-block: 4px;
+  white-space: normal;
+  text-align: left;
+}
+.px-entry {
+  scroll-margin-top: 16px;
+  border-radius: 12px;
+  transition: background 0.4s;
+}
+.px-entry.px-hit {
+  background: var(--gold-pale);
+  box-shadow: 0 0 0 8px var(--gold-pale);
+}
+.px-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.px-insts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.px-inst {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.px-ilabel {
+  flex: 1 1 220px;
+  min-width: 0;
+  font-weight: 500;
+}
+.px-ctl {
+  flex: 0 1 280px;
+  min-width: 0;
+}
+.px-unit {
+  position: relative;
+}
+.px-unit .input {
+  width: 100%;
+  padding-right: 52px;
+  text-align: right;
+}
+.px-suffix {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.px-ctl .input {
+  width: 100%;
+}
+.px-bad {
+  border-color: var(--rejected) !important;
+  box-shadow: 0 0 0 1px var(--rejected);
+}
+.px-wc {
+  border-color: var(--gold-deep) !important;
+  background: var(--gold-pale) !important;
+}
+.px-opts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.px-opts.seg {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+.px-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--ctrl);
+  border-radius: 10px;
+  background: var(--white);
+  cursor: pointer;
+}
+.px-opt.on {
+  border-color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ink);
+}
+.px-opt.off {
+  background: var(--page);
+  color: var(--muted);
+  border-style: dashed;
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+.px-opt input {
+  margin-top: 3px;
+}
+.px-optt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.px-msgs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.px-warn {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--gold-pale);
+  border: 1px solid var(--gold);
+  font-size: 13px;
+  line-height: 18px;
+}
+.px-m:empty {
+  display: none;
+}
+.px-legal {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+.px-legal li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px 8px;
+}
+.px-tbl {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.px-tbl th,
+.px-tbl td {
+  padding: 8px 12px;
+  vertical-align: middle;
+}
+.px-tbl .input {
+  min-width: 120px;
+}
+.px-rh {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+  font-size: 13px;
+  text-transform: none;
+  position: sticky;
+  left: 0;
+  background: var(--white);
+  z-index: 1;
+}
+.px-lgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.px-lcell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.px-hist,
+.px-rem {
+  margin-top: 4px;
+}
+.px-rem {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  opacity: 0.8;
+}
+.px-frsum {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+}
+.px-gsel {
+  display: none;
+  width: 100%;
+}
+.px-bar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 5;
+  padding: 12px 20px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+}
+@media (max-width: 640px) {
+  .px-gsel {
+    display: block;
+  }
+  .px-groups {
+    display: none;
+  }
+  .px-bar {
+    position: static;
+    box-shadow: none;
+  }
+  .px-ctl {
+    flex-basis: 100%;
+  }
+  .px-rh {
+    white-space: normal;
+  }
+}
+
+.px-adv {
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+.px-adv summary {
+  cursor: pointer;
+}
+.px-advchips {
+  margin-top: 8px;
+}
+.px-found {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow: auto;
+}
+@media (max-width: 640px) {
+  .px-adv {
+    display: none;
+  }
+}
+
+/* Hộp Xem trước và lưu */
+.sv-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+}
+/* Các khối của bản xem trước (thay đổi lan sang các thành phần, tác động ước tính) cách nhau đều; bảng cuộn không co lại và không dính vào tiêu đề kế tiếp */
+#sv-pv {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sv-impact {
+  max-height: 280px;
+  overflow: auto;
+  flex: none;
+  border-bottom: 1px solid var(--line);
+}
+
+/* Bảng "Cài đặt lần đầu": mọi ô canh trái (nút tên mục là <button>, mặc định canh giữa khi xuống dòng); căn cứ là một câu nên chữ thường, màu nhạt */
+.px-frtab td,
+.px-frtab th,
+.px-frtab .link {
+  text-align: left;
+}
+.px-frtab td {
+  vertical-align: top;
+}
+.px-frtab .px-why {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--muted);
+}
+
+/* Mục chỉ đọc gọn: bỏ chú thích dài, thu khoảng cách */
+.px-entry.px-compact {
+  padding-block: 10px;
+  gap: 6px;
+  opacity: 0.92;
+}
+.px-entry.px-compact .px-help,
+.px-entry.px-compact .px-hist {
+  display: none;
+}
+.px-rohead {
+  font-size: 15px;
+  line-height: 22px;
+  margin: 0;
+}
+.px-rolist {
+  margin-top: 8px;
+}
+/* "Sắp có (chưa dùng được)": gập sẵn, mở ra chỉ có tên mục và giá trị hiện tại */
+.px-soon {
+  margin-top: 8px;
+  border: 1px dashed var(--ctrl);
+  border-radius: 12px;
+  padding: 12px 16px;
+  background: var(--page);
+}
+.px-soonsum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+}
+.px-soonlist {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.px-soonrow {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 4px 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  line-height: 20px;
+}
+.px-soonval {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .px-soonrow {
+    grid-template-columns: 1fr;
+  }
+}
+.px-frname {
+  font-weight: 500;
+}

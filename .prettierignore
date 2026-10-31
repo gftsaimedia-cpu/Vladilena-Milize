@@ -1,0 +1,28 @@
+# Real payroll data and secrets
+data/
+*.sqlite*
+backups/
+.env*
+
+# Dependencies, tool state, test output
+node_modules/
+public/.claude-flow/
+.claude/
+test-results/
+playwright-report/
+package-lock.json
+
+# Binary and data files
+*.png
+*.csv
+
+# Docs are archived, not formatted
+docs/
+*.md
+
+# Bàn giao, tài liệu công ty, bản mock và bản build giao diện mới: không định dạng lại
+ban-giao/
+GFT OFFICE/
+.mock/
+web/dist/
+CLAUDE.local.md

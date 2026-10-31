@@ -1,0 +1,1248 @@
+{
+  "fixed.period.cutoff": {
+    "help": "Không đổi tiền; kỳ công hiện là tháng dương lịch, chưa chọn được kỳ khác như 26 đến 25.",
+    "basis": "Quy chế công ty"
+  },
+  "period.reportDeadlineDay": {
+    "help": "Không đổi tiền; dùng để nhắc hạn nộp chấm công và để AI gắn cờ khai sau hạn.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026"
+  },
+  "period.lateDeclaration": {
+    "help": "Chọn chỉ cảnh báo hay chặn nhân sự sửa lịch tháng trước sau hạn; tiền chỉ đổi khi việc chặn làm một khoản không được khai.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "period.payDay": {
+    "help": "Không đổi tiền; dùng cho lời nhắc và cột dự kiến chi trả.",
+    "basis": "Bộ luật Lao động 2019, Điều 97 về kỳ hạn trả lương (cần pháp chế xác nhận); ngày 5 hay ngày 10 chờ C&B chốt"
+  },
+  "period.payDayOnHoliday": {
+    "help": "Chỉ đổi ngày nhắc và cột dự kiến chi trả khi ngày trả lương trùng ngày nghỉ, không đổi tiền.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "period.payDayMinGapDays": {
+    "help": "Chỉ cảnh báo lịch khi ngày trả lương quá sát hạn nộp chấm công, không đổi tiền.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "advance.rate": {
+    "help": "Đổi trực tiếp khoản tạm ứng bị trừ khi tính thực lĩnh.",
+    "basis": "Quy chế công ty"
+  },
+  "advance.untilDay": {
+    "help": "Đổi số ngày đầu tháng có ngày đi làm được tính vào lương cơ bản làm căn cứ tạm ứng.",
+    "basis": "Quy chế công ty"
+  },
+  "advance.basis": {
+    "help": "Đổi cách tính tiền tạm ứng: theo ngày đi làm, theo tỷ lệ cố định của bậc hoặc số tiền cố định theo bậc.",
+    "basis": "Quy chế công ty"
+  },
+  "advance.eligibleTypes": {
+    "help": "Loại nhân sự không được tạm ứng thì tạm ứng bằng 0, dù từng người có bật trong hồ sơ.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "removed.period.firstPayrollDate": {
+    "help": "Không phải cài đặt: chỉ là ngày hiển thị cố định trên tiêu đề phiếu tháng 09/2026.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "level.<type>.<level>": {
+    "help": "Lương ngày lấy từ lương cơ bản của bậc và mức KPI tối đa chặn tiền KPI; mỗi thay đổi có tháng áp dụng.",
+    "basis": "Quy chế lương; sàn theo mức lương tối thiểu vùng, hiện chỉ cảnh báo, chờ pháp chế xác nhận",
+    "legalBasis": "Nghị định 293/2025/NĐ-CP về mức lương tối thiểu vùng"
+  },
+  "type.<type>.workdays": {
+    "help": "Là mẫu số của lương ngày: đổi số này là đổi lương mọi ngày làm của loại nhân sự đó.",
+    "basis": "Quy chế lương"
+  },
+  "type.<type>.benefit.<flag>": {
+    "help": "Có thì loại nhân sự đó được trả khoản này, Không thì không trả; thực tập sinh không có lương nghỉ lễ, nghỉ phép năm và Off Paid (giờ nghỉ giữa ca đêm có lương).",
+    "basis": "Chính sách công ty; luật yêu cầu người có hợp đồng lao động được nghỉ lễ và nghỉ phép năm (Bộ luật Lao động 2019, Điều 112 và 113, cần pháp chế xác nhận)"
+  },
+  "pay.method": {
+    "help": "Đổi cách tính lương ngày và các khoản theo ngày: A không giới hạn ở 100%, B giới hạn 100%, C chia theo số ngày làm việc thực của tháng, D lấy lương tháng trừ ngày không lương.",
+    "basis": "Lead chốt ngày 15/10/2026 giữ cách A; Bộ luật Lao động 2019, Điều 96 về hình thức trả lương (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 96 về hình thức trả lương"
+  },
+  "pay.otHourlyDivisor": {
+    "help": "Chỉ khác khi cách tính lương là C: đổi mẫu số của lương giờ dùng để trả OT, làm bù và làm ngày lễ.",
+    "basis": "Nghị định 145/2020/NĐ-CP, Điều 55 về cách tính lương giờ (cần pháp chế xác nhận)"
+  },
+  "type.<type>.probationPayPct": {
+    "help": "Người thử việc nhận phần trăm này của lương cơ bản và các khoản theo lương ngày; 100% là như hiện nay.",
+    "basis": "Bộ luật Lao động 2019, Điều 26: tối thiểu 85% (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 26"
+  },
+  "fixed.pay.midMonthChange": {
+    "help": "Đổi loại, bậc hoặc lương giữa tháng thì áp cho cả tháng từ ngày 01; chưa chia theo ngày.",
+    "basis": "Đề xuất, chờ chủ dự án chốt",
+    "lockReason": "Chưa hỗ trợ chia theo ngày, chờ chủ dự án chốt"
+  },
+  "type.<type>.dows": {
+    "help": "Quy định ngày nào được tính công; ngày ngoài lịch không tính công và không trừ phép.",
+    "basis": "Quy chế lương"
+  },
+  "fixed.type.catalog": {
+    "help": "Hiện chỉ có ba loại nhân sự; thêm loại mới chưa làm được.",
+    "basis": "Mặc định của hệ thống",
+    "lockReason": "Mặc định của hệ thống"
+  },
+  "type.<type>.travel": {
+    "help": "Đổi phụ cấp đi lại theo phần trăm lương cơ bản nhân với tỷ lệ ngày đi làm; 0 là loại đó không nhận.",
+    "basis": "Quy chế công ty"
+  },
+  "type.<type>.attendance": {
+    "help": "Đổi phụ cấp chuyên cần theo phần trăm lương cơ bản và tỷ lệ ngày đi làm; mất cả khoản khi vượt ngưỡng chuyên cần.",
+    "basis": "Quy chế công ty"
+  },
+  "fixed.allowance.idorm": {
+    "help": "Người ở iDorm không nhận phụ cấp đi lại; iDorm chỉ là cờ trong hồ sơ, không có khoản tiền riêng.",
+    "basis": "Quy chế công ty"
+  },
+  "shift.flex.bonus": {
+    "help": "Đổi phụ cấp ca Flex: phần trăm của lương giờ nhân với số giờ được trả.",
+    "basis": "Quy chế công ty"
+  },
+  "shift.night.bonus": {
+    "help": "Đổi phụ cấp ca đêm của thực tập sinh và chuyên trách viên, chỉ cộng một lần mỗi ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 2: tối thiểu 30%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 2"
+  },
+  "type.nv.nightOptions": {
+    "help": "Các mức phụ cấp đêm để chọn cho từng nhân viên trong hồ sơ; đổi mức là đổi phụ cấp đêm của người đó.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 2: mỗi mức tối thiểu 30%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 2"
+  },
+  "allowance.item.<code>": {
+    "help": "Thêm khoản phụ cấp tuỳ chỉnh bằng cách ghép khối và điều kiện; khoản này cộng vào tổng thu nhập, phần miễn thuế đi vào khoản miễn.",
+    "basis": "Đề xuất; mức miễn thuế và việc tính vào lương đóng bảo hiểm chờ kế toán xác nhận (Luật Bảo hiểm xã hội, Điều 31; Nghị định 158/2025/NĐ-CP, Điều 7)"
+  },
+  "allowance.assign": {
+    "help": "Đặt mức phụ cấp tuỳ chỉnh riêng cho từng người.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "type.nv.maxAbsent": {
+    "help": "Nghỉ từ số ngày này trong tháng thì mất toàn bộ phụ cấp chuyên cần.",
+    "basis": "Quy chế công ty; lead chốt ngày 15/10/2026 giữ mức 3 ngày"
+  },
+  "attendance.overLimitHours": {
+    "help": "Giờ vượt ngưỡng trong tháng từ mức này trở lên thì mất phụ cấp chuyên cần.",
+    "basis": "Chính sách công ty"
+  },
+  "fixed.attendance.overLimitFormula": {
+    "help": "Cách tính giờ vượt ngưỡng dùng chung cho chuyên cần và KPI nên không cho đổi riêng.",
+    "basis": "Quy chế công ty",
+    "lockReason": "Dùng chung cho chuyên cần và KPI"
+  },
+  "attendance.lossMode": {
+    "help": "Chọn mất toàn bộ hay giảm theo bậc phụ cấp chuyên cần khi nghỉ nhiều; vượt ngưỡng giờ vẫn mất toàn bộ.",
+    "basis": "Lead chốt ngày 15/10/2026: mất toàn bộ"
+  },
+  "attendance.tiers": {
+    "help": "Chỉ dùng khi chọn giảm theo bậc: số ngày nghỉ tương ứng với phần trăm phụ cấp được giữ lại.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "attendance.overLimitTolerance": {
+    "help": "Cộng thêm biên độ vào ngưỡng giờ vượt; 0 là đúng ngưỡng như hiện nay.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "attendance.shortHoursRounding": {
+    "help": "Làm tròn giờ thiếu chưa bù trước khi cộng vào giờ vượt ngưỡng, nên có thể đổi kết quả đúng sát ngưỡng.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "fixed.attendance.leaveCounts": {
+    "help": "Phép năm được tính là ngày nghỉ khi xét chuyên cần; cách tính đặt theo từng loại yêu cầu.",
+    "basis": "Bộ luật Lao động 2019, Điều 113 (cần pháp chế xác nhận)"
+  },
+  "fixed.attendance.proration": {
+    "help": "Phụ cấp chuyên cần tính theo tỷ lệ ngày đi làm trên ngày công chuẩn.",
+    "basis": "Quy chế công ty"
+  },
+  "removed.attendance.graceRounding": {
+    "help": "Không còn là công tắc: đã thay bằng biên độ giờ vượt ngưỡng và các cách làm tròn riêng.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "ot.rate": {
+    "help": "Đổi hệ số tiền OT ngày thường và Thứ Bảy nằm trong lịch làm việc: tiền OT bằng giờ OT nhân lương giờ nhân hệ số.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 1: tối thiểu 150%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 1"
+  },
+  "ot.holidayRate": {
+    "help": "Đổi hệ số trả giờ làm và giờ OT rơi vào ngày lễ.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 1: tối thiểu 300%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 1"
+  },
+  "night.breakPremium": {
+    "help": "Đổi phụ trội trả cho giờ nghỉ bắt buộc rơi vào khung đêm; cũng là mức sàn của phụ cấp ca đêm.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 2: tối thiểu 30%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 2"
+  },
+  "night.otAddRate": {
+    "help": "Đổi phụ trội trả thêm cho giờ OT ban đêm, tính theo hệ số OT áp dụng.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 3 và Nghị định 145/2020/NĐ-CP, Điều 55: tối thiểu 20% (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 3"
+  },
+  "ot.nightAddScope": {
+    "help": "Chọn phụ trội OT ban đêm chỉ áp cho ngày lễ hay cho mọi OT đêm; chọn mọi OT đêm thì tiền OT đêm tăng.",
+    "basis": "Chờ pháp chế xác nhận: mặc định có thể thấp hơn Bộ luật Lao động 2019, Điều 98 khoản 3 nếu có OT đêm ngày thường"
+  },
+  "ot.afterMakeup": {
+    "help": "Chọn chặn OT đến khi cân giờ bù hay tính OT ngay, độc lập với giờ thiếu.",
+    "basis": "Chính sách công ty"
+  },
+  "holiday.makeupRate": {
+    "help": "Đổi hệ số trả phần giờ làm bù rơi vào ngày lễ.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 1 (cần pháp chế xác nhận): tạm thời chặn mức thấp hơn 300%; chờ C&B và pháp chế chốt",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 1"
+  },
+  "fixed.ot.taxExempt": {
+    "help": "Phần OT và làm đêm miễn thuế bằng mức nhỏ hơn giữa tiền được trả và tiền tính theo hệ số miễn thuế; phần trả cao hơn chịu thuế.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26"
+  },
+  "fixed.ot.makeupPool": {
+    "help": "Giờ làm bù được trả bằng mức nhỏ hơn giữa giờ đã khai và giờ cần bù trong tháng; bù trước hay sau đều được.",
+    "basis": "Quy chế công ty"
+  },
+  "fixed.ot.weeklyRest": {
+    "help": "Làm việc Thứ Bảy, Chủ nhật ngoài lịch làm việc được trả theo hệ số OT cuối tuần khi OT đã được duyệt và có chấm công.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 1"
+  },
+  "fixed.ot.approval": {
+    "help": "OT, làm bù và làm ngày lễ phải được duyệt mới được trả; cách xử lý từng loại đặt ở nhóm Duyệt.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026 và lead chốt ngày 15/10/2026"
+  },
+  "fixed.attendance.primarySource": {
+    "help": "Giờ công từ ngày bật tính theo giờ thực tế lấy từ Check-in/out trên app, có kiểm vị trí khi bật.",
+    "basis": "Chủ dự án quyết định: AiCB là hệ thống chấm công"
+  },
+  "attendance.sources.file": {
+    "help": "Bật để nhận file chấm công đối chiếu với app; AI báo lệch, không đổi tiền.",
+    "basis": "Đề xuất, chờ chủ dự án chốt; máy chấm công chỉ nhập giờ, không nhập dữ liệu sinh trắc (Nghị định 356/2025/NĐ-CP, Điều 4)"
+  },
+  "fixed.attendance.conflictRule": {
+    "help": "Khi app và máy hoặc file lệch nhau, giờ trả lương luôn lấy từ app.",
+    "basis": "Đề xuất, chờ chủ dự án chốt"
+  },
+  "fixed.attendance.device": {
+    "help": "Tích hợp máy chấm công chưa có.",
+    "basis": "Đề xuất, chờ chủ dự án chốt"
+  },
+  "geofence.enabled": {
+    "help": "Bật thì từ chối Check-in ngoài vùng công ty; hệ thống không lưu toạ độ.",
+    "basis": "Chủ dự án chốt về kiểm vị trí Check-in"
+  },
+  "geofence.lat": {
+    "help": "Đặt tâm vùng công ty để kiểm vị trí khi Check-in.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "geofence.radiusM": {
+    "help": "Check-in ngoài bán kính quanh văn phòng bị từ chối.",
+    "basis": "Giới hạn cố định của hệ thống",
+    "legalBasis": "Giới hạn cố định của hệ thống"
+  },
+  "geofence.maxAccuracyM": {
+    "help": "Vị trí có sai số lớn hơn mức này bị từ chối khi Check-in.",
+    "basis": "Giới hạn cố định của hệ thống",
+    "legalBasis": "Giới hạn cố định của hệ thống"
+  },
+  "attendance.graceMin": {
+    "help": "Đi trễ hoặc về sớm dưới mức này thì không bị trừ giờ.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "attendance.stepMin": {
+    "help": "Đổi số phút của mỗi bậc bị trừ khi đi trễ hoặc về sớm vượt mức miễn.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "attendance.cutRounding": {
+    "help": "Chọn cách làm tròn số phút bị trừ từ mức miễn trở lên: bậc làm tròn nửa lên, làm tròn lên theo bậc hoặc đúng số phút.",
+    "basis": "Chính sách công ty; cắt lương vì đi trễ có rủi ro theo Bộ luật Lao động 2019, Điều 127 khoản 2 (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 127 khoản 2"
+  },
+  "attendance.graceScope": {
+    "help": "Chọn áp mức miễn cho từng lượt, cho tổng số phút mỗi tháng hoặc cho số lần mỗi tháng.",
+    "basis": "Chính sách công ty; cắt lương vì đi trễ có rủi ro theo Bộ luật Lao động 2019, Điều 127 khoản 2 (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 127 khoản 2"
+  },
+  "attendance.graceMonthlyMin": {
+    "help": "Tổng số phút trễ và sớm trong tháng được miễn, chỉ dùng khi chọn miễn theo tổng mỗi tháng.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "attendance.graceMonthlyCount": {
+    "help": "Số lần trễ hoặc sớm trong tháng được miễn, chỉ dùng khi chọn miễn theo số lần.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "attendance.lateEarlyRule": {
+    "help": "Chọn xét riêng đi trễ và về sớm, hay cộng phút của cả hai rồi mới làm tròn.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "attendance.gapRule": {
+    "help": "Chọn cách trừ giờ khi nhân sự ra ngoài giữa ca: theo bậc như đi trễ, đúng số phút hoặc không trừ.",
+    "basis": "Lead chốt ngày 15/10/2026 là có trừ công; cách trừ chờ lead trả lời"
+  },
+  "attendance.missingOneSideRule": {
+    "help": "Chọn xử lý ngày quên một đầu Check-in hoặc Check-out: chờ Admin xử lý hay tính là vắng.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "attendance.missingAllRule": {
+    "help": "Chọn xử lý ngày có lịch mà không chấm công: tính là vắng với tiền ngày bằng 0, hoặc chờ Admin xử lý.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026; đổi mặc định thành \"tính theo lịch đã khai\" tối 23/10/2026; chốt lại ngày 28/10/2026: ngày khai đi làm mà không có Check-in/Check-out là nghỉ không phép, áp dụng từ tháng 10"
+  },
+  "attendance.offScheduleRule": {
+    "help": "Chọn không trả tiền hay trả như đã khai cho giờ đi làm ngoài lịch chưa được duyệt.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026; chờ pháp chế xem lại rủi ro"
+  },
+  "attendance.makeupDayStepRule": {
+    "help": "Chọn trả đúng số phút hay cắt theo bậc như đi trễ cho làm bù cả ngày.",
+    "basis": "Chính sách công ty; chờ lead trả lời"
+  },
+  "attendance.openSessionMaxHours": {
+    "help": "Lượt Check-in mở quá số giờ này tự đóng thành quên Check-out và chờ Admin xử lý.",
+    "basis": "Chính sách công ty"
+  },
+  "attendance.earlyCheckinMaxHours": {
+    "help": "Check-in sớm hơn giờ ca quá mức này bị từ chối vì ngoài ca cố định.",
+    "basis": "Chính sách công ty"
+  },
+  "geofence.outside": {
+    "help": "Chọn chặn Check-in ngoài vùng hoặc cho chấm nhưng chờ Admin duyệt; hệ thống không bao giờ lưu toạ độ.",
+    "basis": "Chính sách công ty; hệ thống không bao giờ lưu toạ độ"
+  },
+  "fixed.attendance.rules": {
+    "help": "Bảy luật chấm công đã chốt: có mặt quá ca mà không có đề xuất được duyệt vẫn trả 8 giờ; OT và làm bù chỉ trả phần có mặt; ngày chưa tới không dự đoán tiền; khai nghỉ mà vẫn chấm công thì giữ ngày đã khai và báo Admin.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026 và 15/10/2026"
+  },
+  "shift.preset": {
+    "help": "Sáu ca cố định: Normal 1 08:00 đến 17:00, Normal 2 10:00 đến 19:00, Flex 1 06:00 đến 15:00, Flex 2 13:00 đến 22:00, Night 1 21:00 đến 06:00, Night 2 22:00 đến 07:00; chưa sửa được giờ ca.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "time.workHoursPerDay": {
+    "help": "Một công là 8 giờ; lương giờ, trần OT, giờ thiếu và kiểm ca đều dựa vào số này.",
+    "basis": "Bộ luật Lao động 2019, Điều 105 (cần pháp chế xác nhận)"
+  },
+  "time.maxSpanHours": {
+    "help": "Ca dài nhất từ giờ vào đến giờ ra là 9 giờ, gồm 1 giờ nghỉ; ca đêm xử lý riêng.",
+    "basis": "Quy chế công ty"
+  },
+  "time.breakAfterWorkHours": {
+    "help": "Cứ 4 giờ làm nghỉ 1 giờ; giờ nghỉ rơi vào khung đêm được trả phụ trội.",
+    "basis": "Bộ luật Lao động 2019, Điều 109 (cần pháp chế xác nhận)"
+  },
+  "time.nightStartHour": {
+    "help": "Khung giờ đêm từ 22 giờ đến 6 giờ; giờ làm trong khung được tính là giờ đêm.",
+    "basis": "Bộ luật Lao động 2019, Điều 106 (cần pháp chế xác nhận)"
+  },
+  "time.shiftStructure": {
+    "help": "Ca qua đêm thuộc ngày bắt đầu ca.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "leave.accrualMode": {
+    "help": "Chọn cách cộng phép năm: như app hiện nay, 12 ngày chia theo tháng, hoặc cấp đủ 12 ngày đầu năm; đổi số dư phép là đổi cả ngày phép có lương và quyết toán.",
+    "basis": "Bộ luật Lao động 2019, Điều 113 và 114 (cần pháp chế xác nhận); lead chốt ngày 15/10/2026 giữ phép năm như app"
+  },
+  "fixed.leave.seniority": {
+    "help": "Cộng thêm 1 ngày phép mỗi 5 năm làm việc, chỉ áp cho hai cách cộng phép theo 12 ngày mỗi năm.",
+    "basis": "Bộ luật Lao động 2019, Điều 114 (cần pháp chế xác nhận)"
+  },
+  "leave.accrual.start": {
+    "help": "Số ngày phép cộng khi bắt đầu đi làm (từ 23/10/2026 bằng 0: phép chỉ tăng theo tháng làm việc tròn).",
+    "basis": "Chủ dự án 23/10/2026 (Bộ luật Lao động 45/2019/QH14 Điều 113: theo tỷ lệ tháng làm việc; cần pháp chế xác nhận)"
+  },
+  "leave.accrual.perMonth": {
+    "help": "Số ngày phép cộng cho mỗi tháng làm việc tròn.",
+    "basis": "Quy chế công ty; cảnh báo nếu dưới 1 ngày (Bộ luật Lao động 2019, Điều 113: 12 ngày mỗi năm)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 113"
+  },
+  "leave.accrual.birthday": {
+    "help": "Số ngày phép cộng vào mỗi lần sinh nhật.",
+    "basis": "Quy chế công ty"
+  },
+  "leave.birthdayMode": {
+    "help": "Chọn cộng ngày sinh nhật vào phép năm hay dùng kho phép riêng iFourteen không trừ vào phép năm.",
+    "basis": "Lead chốt ngày 15/10/2026 giữ phép năm như app và thêm iFourteen; chi tiết chờ lead trả lời"
+  },
+  "fixed.leave.expiry": {
+    "help": "Phép cộng dồn và không hết hạn; hết hạn và chuyển sang năm sau chưa làm được.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "leave.settleMethod": {
+    "help": "Chọn Admin nhập tay hay tự tính quyết toán phép còn lại khi nghỉ việc, vào dòng quyết toán của phiếu.",
+    "basis": "Bộ luật Lao động 2019, Điều 113 khoản 3 (cần pháp chế xác nhận): luật bắt buộc trả, còn cách làm là chính sách",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 113 khoản 3"
+  },
+  "fixed.leave.noNegative": {
+    "help": "AI báo các số dư phép năm âm.",
+    "basis": "Chuyên viên C&B chốt"
+  },
+  "leave.useLeaveFirst": {
+    "help": "Bắt buộc dùng hết phép năm trước khi được khai nghỉ không lương, hoặc để tuỳ nhân sự.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "holiday.compensatory": {
+    "help": "Chọn Admin tự thêm ngày nghỉ bù hay để app gợi ý ngày làm việc kế tiếp khi ngày lễ trùng ngày nghỉ hằng tuần.",
+    "basis": "Bộ luật Lao động 2019, Điều 112 khoản 3 (cần pháp chế xác nhận)"
+  },
+  "fixed.leave.unit": {
+    "help": "Nghỉ tính theo cả ngày; nửa ngày và theo giờ chưa làm được.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "leave.ifourteen.days": {
+    "help": "Số ngày của kho phép riêng iFourteen, không trừ vào phép năm; 0 là chưa dùng.",
+    "basis": "Lead chốt ngày 15/10/2026 thêm iFourteen; chi tiết chờ lead trả lời"
+  },
+  "isat.monthlyLimit": {
+    "help": "Số ngày iSAT tối đa mỗi tháng; để trống là không giới hạn. Khai thêm vượt giới hạn: vẫn lưu và báo; ngày iSAT đã duyệt vẫn được trả đủ.",
+    "basis": "Chính sách công ty"
+  },
+  "holidays": {
+    "help": "Danh sách ngày lễ: chuyên trách viên và nhân viên nhận lương ngày, làm ngày lễ trả theo hệ số ngày lễ và ngày lễ được trừ khỏi phép năm đã khai.",
+    "basis": "Bộ luật Lao động 2019, Điều 112 về số ngày nghỉ lễ (cần pháp chế xác nhận)"
+  },
+  "table.requestTypes": {
+    "help": "Danh mục loại nghỉ và loại yêu cầu, sửa ở nhóm Duyệt.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "fixed.kpi.cycle": {
+    "help": "KPI tính theo tháng; chu kỳ quý chưa làm được.",
+    "basis": "Lead chốt ngày 15/10/2026"
+  },
+  "kpi.weight": {
+    "help": "Trọng số năm thành phần KPI; đổi trọng số là đổi KPI của mọi người, và tổng phải bằng 100.",
+    "basis": "Quy chế lương 3P"
+  },
+  "kpi.weworkMin": {
+    "help": "Điểm Base Wework dưới mức này thì KPI tháng bằng 0 theo cách xử lý đã chọn.",
+    "basis": "Quy chế lương 3P"
+  },
+  "type.<type>.kpiPass": {
+    "help": "Tổng điểm KPI dưới mức này là không đạt, xử lý theo cách đã chọn cho tổng dưới mức đạt.",
+    "basis": "Quy chế lương 3P"
+  },
+  "kpi.belowPassRule": {
+    "help": "Chọn KPI bằng 0 hay vẫn trả theo phần trăm khi tổng điểm dưới mức đạt.",
+    "basis": "Quy chế lương 3P; chờ lead trả lời về cách trả theo bậc"
+  },
+  "kpi.weworkGateRule": {
+    "help": "Chọn KPI bằng 0 hay chỉ cảnh báo khi Base Wework dưới mức đạt.",
+    "basis": "Quy chế lương 3P; chờ lead trả lời"
+  },
+  "kpi.incompleteRule": {
+    "help": "Chọn xử lý khi chưa đủ 5 điểm thành phần: chờ điểm, tính điểm thiếu là 0, hoặc dùng tổng phần trăm của tháng trước.",
+    "basis": "Quy chế lương 3P; chờ lead trả lời"
+  },
+  "fixed.kpi.backpay": {
+    "help": "Kỳ đã duyệt mà thiếu điểm KPI thì không trả bù ở kỳ sau; điểm đủ trước khi duyệt thì tính vào kỳ đó.",
+    "basis": "Chính sách công ty"
+  },
+  "kpi.overLimitHours": {
+    "help": "Giờ vượt ngưỡng lớn hơn mức này thì tiền KPI nhân với tỷ lệ ngày đi làm.",
+    "basis": "Chính sách công ty"
+  },
+  "kpi.ratioRule": {
+    "help": "Chọn khi nào tiền KPI nhân với tỷ lệ ngày đi làm: chỉ khi vượt ngưỡng giờ, luôn nhân hoặc không nhân.",
+    "basis": "Quy chế lương 3P"
+  },
+  "kpi.payCurveRule": {
+    "help": "Chọn tiền KPI tỷ lệ thuận với tổng điểm hay theo bảng bậc; đổi cách này là đổi quy chế KPI.",
+    "basis": "Quy chế lương 3P; chờ lead trả lời"
+  },
+  "fixed.kpi.formula": {
+    "help": "Tiền KPI bằng mức KPI đã duyệt (không quá KPI tối đa của bậc) nhân tổng điểm và hệ số ngày đi làm.",
+    "basis": "Quy chế lương 3P"
+  },
+  "request.type.<code>": {
+    "help": "Mỗi loại yêu cầu và loại nghỉ có luật riêng: cần duyệt, số bước, có lương, trừ phép, tính vào chuyên cần và giờ vượt ngưỡng KPI, chứng từ, giới hạn ngày, nhân sự áp dụng và cách xử lý khi chưa duyệt.",
+    "basis": "Bộ luật Lao động 2019, Điều 115 về số ngày việc riêng có lương: 3, 1 và 3 ngày (cần pháp chế xác nhận)",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 115"
+  },
+  "approval.batch": {
+    "help": "Cho phép duyệt một lần nhiều khoản không có cảnh báo AI, hoặc buộc duyệt từng khoản.",
+    "basis": "Chính sách công ty"
+  },
+  "approval.pendingAtLock": {
+    "help": "Chọn cho chốt công kèm lý do hay chặn chốt khi còn khoản chờ duyệt; khoản chưa duyệt không được trả bù.",
+    "basis": "Chính sách công ty"
+  },
+  "period.editPastMonths": {
+    "help": "Chọn cho khai và sửa lịch tháng đã qua tới khi chốt công, hoặc chỉ trong một số tháng gần nhất.",
+    "basis": "Chính sách công ty"
+  },
+  "period.editPastMonthsN": {
+    "help": "Số tháng gần nhất được sửa lịch, chỉ dùng khi chọn chỉ vài tháng gần nhất.",
+    "basis": "Chính sách công ty"
+  },
+  "fixed.approval.noAutoApprove": {
+    "help": "Khoản quá hạn vẫn chờ duyệt và AI nhắc; hệ thống không tự duyệt.",
+    "basis": "Tách nhiệm vụ giữa người khai và người duyệt"
+  },
+  "fixed.approval.rejectReason": {
+    "help": "Từ chối và đổi quyết định đều bắt buộc ghi lý do.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.approval.noSelf": {
+    "help": "Không ai được duyệt khoản của chính mình.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.approval.aiFlagged": {
+    "help": "Khoản có cảnh báo AI không vào duyệt cả lô và không duyệt một chạm: cần ghi chú và xử lý cảnh báo trước; AI chưa chạy thì khoá duyệt cả lô.",
+    "basis": "Chủ dự án chốt"
+  },
+  "fixed.approval.lock": {
+    "help": "Duyệt cả lô: một khoản đã bị người khác đổi thì cả lô không lưu.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "tax.insurance.employee.bhxh": {
+    "help": "Phần BHXH người lao động đóng, trừ trên lương đóng bảo hiểm.",
+    "basis": "Luật Bảo hiểm xã hội 2024; Nghị định 188/2025/NĐ-CP",
+    "legalBasis": "Luật Bảo hiểm xã hội 2024"
+  },
+  "tax.insurance.employee.bhyt": {
+    "help": "Phần BHYT người lao động đóng, trừ trên lương đóng bảo hiểm.",
+    "basis": "Luật Bảo hiểm xã hội 2024; Nghị định 188/2025/NĐ-CP",
+    "legalBasis": "Luật Bảo hiểm xã hội 2024"
+  },
+  "tax.insurance.employee.bhtn": {
+    "help": "Phần BHTN người lao động đóng, trừ trên lương đóng bảo hiểm.",
+    "basis": "Luật Việc làm 2025",
+    "legalBasis": "Luật Việc làm 2025"
+  },
+  "tax.insurance.employer.bhxh": {
+    "help": "Phần công ty đóng, chỉ để tham khảo và không đổi thực lĩnh.",
+    "basis": "Luật Bảo hiểm xã hội 2024; Nghị định 188/2025/NĐ-CP",
+    "legalBasis": "Luật Bảo hiểm xã hội 2024"
+  },
+  "law.luongCoSo": {
+    "help": "Dùng để tính trần lương đóng BHXH và BHYT.",
+    "basis": "Nghị định 161/2026, có hiệu lực từ 01/7/2026",
+    "legalBasis": "Nghị định 161/2026"
+  },
+  "law.region": {
+    "help": "Chọn vùng lương tối thiểu của công ty, dùng làm sàn cảnh báo của bảng bậc lương và trần đóng BHTN.",
+    "basis": "Nghị định 293/2025/NĐ-CP",
+    "legalBasis": "Nghị định 293/2025/NĐ-CP"
+  },
+  "law.regionMinWage.<region>": {
+    "help": "Mức lương tối thiểu từng vùng, dùng để tính trần đóng BHTN và sàn cảnh báo của bảng bậc lương.",
+    "basis": "Nghị định 293/2025/NĐ-CP; mức vùng II, III, IV cần kế toán xác nhận",
+    "legalBasis": "Nghị định 293/2025/NĐ-CP"
+  },
+  "fixed.tax.capMultiple": {
+    "help": "Trần đóng BHXH và BHYT bằng 20 lần lương cơ sở; trần đóng BHTN bằng 20 lần lương tối thiểu vùng đã chọn.",
+    "basis": "Luật Bảo hiểm xã hội 2024; Luật Việc làm 2025"
+  },
+  "tax.insurance.skipDays": {
+    "help": "Ngày không lương là ngày công chuẩn của người trừ số ngày có lương (ngày công, phép năm, nghỉ lễ hưởng lương, iSAT hưởng lương); từ số ngày này trở lên trong tháng thì tháng đó không đóng bảo hiểm.",
+    "basis": "Luật Bảo hiểm xã hội 2024 (điều khoản cần kế toán xác nhận)",
+    "legalBasis": "Luật Bảo hiểm xã hội 2024"
+  },
+  "tax.deduction.personal": {
+    "help": "Mức giảm trừ bản thân, làm giảm thu nhập tính thuế.",
+    "basis": "Nghị quyết 110/2025/UBTVQH15, áp dụng từ kỳ tính thuế 2026",
+    "legalBasis": "Nghị quyết 110/2025/UBTVQH15"
+  },
+  "tax.deduction.dependant": {
+    "help": "Mức giảm trừ cho mỗi người phụ thuộc.",
+    "basis": "Nghị quyết 110/2025/UBTVQH15, áp dụng từ kỳ tính thuế 2026",
+    "legalBasis": "Nghị quyết 110/2025/UBTVQH15"
+  },
+  "tax.brackets": {
+    "help": "Biểu thuế lũy tiến năm bậc: đến 10 triệu 5%, đến 30 triệu 10%, đến 60 triệu 20%, đến 100 triệu 30%, trên đó 35%; chỉ đổi khi có bản phát hành mới.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 9",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 9",
+    "lockReason": "Chỉ cập nhật bằng bản phát hành sau khi kế toán xác nhận"
+  },
+  "tax.casual.rate": {
+    "help": "Mức khấu trừ trên toàn bộ thu nhập của người không có hợp đồng lao động từ 3 tháng khi thu nhập đạt ngưỡng.",
+    "basis": "Nghị định 253/2026, Điều 50 khoản 2; Thông tư 111/2013/TT-BTC, Điều 25",
+    "legalBasis": "Nghị định 253/2026, Điều 50 khoản 2"
+  },
+  "tax.casual.threshold": {
+    "help": "Ngưỡng thu nhập từ đó áp dụng khấu trừ nói trên.",
+    "basis": "Nghị định 253/2026, Điều 50 khoản 2; Thông tư 111/2013/TT-BTC, Điều 25",
+    "legalBasis": "Nghị định 253/2026, Điều 50 khoản 2"
+  },
+  "tax.exempt.nightPremium": {
+    "help": "Mức phụ trội giờ làm đêm được miễn thuế tối đa; tăng mức này là tăng phần miễn thuế.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8"
+  },
+  "tax.exempt.otRate": {
+    "help": "Hệ số OT ngày thường được miễn thuế tối đa.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8"
+  },
+  "tax.exempt.holidayRate": {
+    "help": "Hệ số làm ngày lễ được miễn thuế tối đa.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8"
+  },
+  "removed.tax.exempt.holidayNightAdd": {
+    "help": "Không còn là cài đặt: mức miễn thuế giờ đêm ngày lễ được suy ra từ các mức miễn thuế khác.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8"
+  },
+  "fixed.tax.method": {
+    "help": "Hợp đồng dài thì thuế lũy tiến sau giảm trừ; hợp đồng ngắn thì khấu trừ theo tỷ lệ cố định khi đủ ngưỡng.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15; Nghị định 253/2026"
+  },
+  "insurance.base": {
+    "help": "Chọn nền đóng bảo hiểm là lương cơ bản, hay lương cơ bản cộng các phụ cấp được đánh dấu tính vào lương đóng.",
+    "basis": "Luật Bảo hiểm xã hội số 41/2024/QH15, Điều 31; Nghị định 158/2025/NĐ-CP, Điều 7 (cần pháp chế xác nhận)",
+    "legalBasis": "Luật Bảo hiểm xã hội số 41/2024/QH15, Điều 31"
+  },
+  "fixed.insurance.floor": {
+    "help": "Lương đóng bảo hiểm không được thấp hơn lương tối thiểu vùng; hệ thống chưa áp sàn này vì nhân viên hiện đều trên mức vùng I.",
+    "basis": "Luật Bảo hiểm xã hội số 41/2024/QH15 (cần pháp chế xác nhận)"
+  },
+  "fixed.tax.effectiveBy": {
+    "help": "Tiền lương tháng M trả ở tháng sau dùng tham số thuế và bảo hiểm có hiệu lực ở tháng trả.",
+    "basis": "Thông tư 111/2013/TT-BTC về thời điểm tính thuế theo chi trả (cần pháp chế xác nhận)"
+  },
+  "removed.union.fee": {
+    "help": "Không còn là công tắc riêng: đoàn phí công đoàn được tính như một khoản trừ theo quy tắc.",
+    "basis": "Luật Công đoàn 2024 (cần pháp chế xác nhận)",
+    "legalBasis": "Luật Công đoàn 2024"
+  },
+  "ai.threshold.isatPerMonth": {
+    "help": "AI gắn cờ nhân sự khai iSAT từ số lần này trong tháng; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.approvedLeavePerMonth": {
+    "help": "AI gắn cờ nhân sự khai Nghỉ được duyệt từ số lần này trong tháng; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.rejectedLookbackDays": {
+    "help": "AI gắn cờ khoản vừa khai nếu khoản cùng loại bị từ chối trong số ngày gần nhất này; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.repeatedEditsRev": {
+    "help": "AI gắn cờ khoản chờ duyệt đã bị sửa từ số lần này; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.presenceGapMin": {
+    "help": "AI gắn cờ khi giờ khai làm thêm lệch giờ Check-in từ số phút này; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.otMedianFactor": {
+    "help": "AI gắn cờ nhân sự có OT từ số lần này so với trung vị của nhóm; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.otMedianMinHours": {
+    "help": "Chỉ gắn cờ OT cao so với nhóm khi người đó có ít nhất số giờ OT này trong tháng.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.otMedianMinPeers": {
+    "help": "Chỉ so với trung vị khi nhóm có ít nhất số người có OT này.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.impactVnd": {
+    "help": "AI gắn cờ khoản làm đổi tiền của một người từ mức này; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.slipDiffVnd": {
+    "help": "AI gắn cờ số Admin sửa trên phiếu khi lệch so với số tự tính từ mức tiền này, đồng thời từ mức phần trăm ở dòng dưới.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.slipDiffRatio": {
+    "help": "Phần trăm lệch so với số tự tính; AI chỉ gắn cờ khi vượt cả mức tiền và mức phần trăm.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.kpiFullMonths": {
+    "help": "AI gắn cờ nhân sự tự chấm KPI 100% liên tiếp từ số tháng này khi chưa được duyệt.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.threshold.netChangePct": {
+    "help": "AI gắn cờ khi thực nhận của một người đổi quá mức này so với tháng trước; không đổi tiền.",
+    "basis": "Chủ dự án chốt mức 20%"
+  },
+  "ai.rule.<id>.enabled": {
+    "help": "Bật hay tắt từng luật cảnh báo của AI; luật bị tắt không chạy và được ghi là Admin tắt.",
+    "basis": "Chính sách công ty, do C&B chọn"
+  },
+  "fixed.ai.dismissReason": {
+    "help": "Bỏ qua cảnh báo AI bắt buộc ghi lý do từ 10 đến 300 ký tự.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.ai.lock": {
+    "help": "Phải chạy AI sau lần tính gần nhất thì mới duyệt cả lô được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.ai.local": {
+    "help": "AI chỉ chạy trong công ty và chỉ gợi ý: không gửi dữ liệu ra ngoài, không sửa lương, công hay hồ sơ.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026"
+  },
+  "fixed.slip.template": {
+    "help": "Phiếu in theo mẫu Bảng chi tiết lương nhân viên của công ty; nhiều mẫu chưa làm được.",
+    "basis": "Quy chế công ty"
+  },
+  "fixed.slip.overrideReason": {
+    "help": "Sửa số trên phiếu bắt buộc ghi lý do từ 10 đến 300 ký tự; mỗi ô sửa được ghi nhật ký và nhân sự vẫn thấy số tự tính.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "slip.staffVisibleFrom": {
+    "help": "Chọn lúc nhân sự thấy phiếu chính thức thay cho số ước tính: chưa bao giờ, từ khi duyệt kỳ hoặc từ khi chi trả.",
+    "basis": "Chủ dự án quyết; Bộ luật Lao động 2019, Điều 95 khoản 3 về bảng kê trả lương (cần pháp chế xác nhận)"
+  },
+  "fixed.slip.estimateLabel": {
+    "help": "Trước khi chốt kỳ mọi số đều là ước tính; nhân sự luôn thấy số tự tính, không thấy số Admin sửa.",
+    "basis": "Chủ dự án chốt"
+  },
+  "fixed.slip.lines": {
+    "help": "Các dòng của phiếu theo mẫu công ty; nhãn trọng số KPI và hệ số OT lấy từ tham số, không viết cứng.",
+    "basis": "Quy chế công ty"
+  },
+  "employeeCode.pattern": {
+    "help": "Chọn mẫu gợi ý mã nhân viên mới; Admin vẫn xác nhận từng mã.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026"
+  },
+  "employeeCode.onTypeOrUnitChange": {
+    "help": "Chọn cấp mã mới hay giữ mã khi đổi loại nhân sự hoặc chuyển đơn vị; mã cũ vẫn tìm ra người.",
+    "basis": "Chính sách công ty"
+  },
+  "employeeCode.reuseAfterLeave": {
+    "help": "Chọn cho hay không cho cấp lại mã của người đã nghỉ việc.",
+    "basis": "Chính sách công ty"
+  },
+  "contract.type.<code>": {
+    "help": "Mỗi loại hợp đồng quy định: có phải hợp đồng lao động không, thời hạn tối đa, có thử việc, cách tính thuế thu nhập cá nhân mặc định và bảo hiểm bắt buộc.",
+    "basis": "Bộ luật Lao động 2019, Điều 20 (cần pháp chế xác nhận); cờ thuế và bảo hiểm chỉ có tác dụng từ tháng đã chọn"
+  },
+  "contract.deriveFrom": {
+    "help": "Từ tháng này người chưa đặt tay loại hợp đồng và bảo hiểm sẽ nhận cờ từ loại hợp đồng đang hiệu lực.",
+    "basis": "Chủ dự án chốt"
+  },
+  "contract.expiryWarnDays": {
+    "help": "Nhắc hợp đồng sắp hết hạn trước số ngày này; chỉ nhắc, không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "catalog.orgUnits": {
+    "help": "Danh mục đơn vị, chức danh và địa điểm làm việc của màn Hồ sơ; không đổi tiền.",
+    "basis": "Chủ dự án chốt"
+  },
+  "system.session.days": {
+    "help": "Phiên đăng nhập hết hạn sau số ngày này.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.login.maxFailures": {
+    "help": "Đăng nhập sai quá số lần này trong cửa sổ đếm thì bị tạm khoá theo địa chỉ và tên đăng nhập.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.login.sprayUsers": {
+    "help": "Một địa chỉ thử quá số tên đăng nhập khác nhau thì bị tạm khoá.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.login.windowMin": {
+    "help": "Khoảng thời gian đếm các lần đăng nhập sai.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.login.maxKeys": {
+    "help": "Số lượt đăng nhập sai được giữ trong bộ nhớ của máy chủ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.http.maxBodyBytes": {
+    "help": "Dung lượng tối đa của một yêu cầu gửi lên máy chủ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.approval.maxDecideItems": {
+    "help": "Số khoản tối đa có thể duyệt trong một lần bấm.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.approvals.default": {
+    "help": "Số dòng mỗi trang mặc định của danh sách duyệt.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.approvals.max": {
+    "help": "Số dòng tối đa mỗi trang của danh sách duyệt.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.corrections.default": {
+    "help": "Số dòng mỗi trang mặc định của danh sách điều chỉnh giờ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.corrections.max": {
+    "help": "Số dòng tối đa mỗi trang của danh sách điều chỉnh giờ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.backup.keep": {
+    "help": "Số bản sao lưu được giữ lại; bản cũ hơn bị xoá.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.import.maxBytes": {
+    "help": "Dung lượng tối đa của tệp chấm công được nhập.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.reveal.maxPerHour": {
+    "help": "Số lần một người được xem đầy đủ thông tin nhạy cảm trong một giờ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.audit.pageMax": {
+    "help": "Số dòng tối đa mỗi trang của nhật ký hệ thống.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.payslips.default": {
+    "help": "Số phiếu mỗi trang mặc định của danh sách phiếu lương.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.page.payslips.max": {
+    "help": "Số phiếu tối đa mỗi trang của danh sách phiếu lương.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.audit.pageDefault": {
+    "help": "Số dòng mỗi trang mặc định của nhật ký hệ thống.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.slipOverride.reasonRequired": {
+    "help": "Bật thì bắt buộc ghi lý do mỗi lần sửa số trên phiếu; đây là công tắc chuyển tiếp trước khi lý do trở thành bắt buộc hẳn.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "unit.minutesPerHour": {
+    "help": "Một giờ có 60 phút; mọi phép tính giờ dựa vào đây.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "unit.minutesPerDay": {
+    "help": "Một ngày có 1440 phút; mọi phép tính giờ qua nửa đêm dựa vào đây.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "unit.daysPerWeek": {
+    "help": "Một tuần có 7 ngày.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "unit.percent": {
+    "help": "Mẫu số khi đổi tỷ lệ sang phần trăm.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "unit.owedHoursEpsilon": {
+    "help": "Giờ bù còn nợ không quá mức này thì coi như đã cân; chỉ để tránh sai số của số thực.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "time.flexStartBeforeHour": {
+    "help": "Vào làm trước giờ này, hoặc ra từ giờ bắt đầu khung đêm, thì tính là ca Flex.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "isat.weekday": {
+    "help": "iSAT chỉ áp dụng vào thứ Bảy.",
+    "basis": "Quy tắc iSAT của công ty"
+  },
+  "unit.msPerDay": {
+    "help": "Số mili giây trong một ngày, dùng để đổi thời gian.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "unit.vnUtcOffsetMin": {
+    "help": "Giờ Việt Nam sớm hơn giờ UTC 420 phút và không đổi giờ mùa hè.",
+    "basis": "Múi giờ Việt Nam không đổi giờ mùa hè"
+  },
+  "money.roundTo": {
+    "help": "Tiền làm tròn đến một đồng.",
+    "basis": "Tiền tính bằng đồng nguyên; chỉ làm tròn ở bước tính thực lĩnh"
+  },
+  "money.roundMode": {
+    "help": "Làm tròn nửa lên.",
+    "basis": "Tiền tính bằng đồng nguyên; chỉ làm tròn ở bước tính thực lĩnh"
+  },
+  "attendance.overLimitCompare": {
+    "help": "Giờ vượt ngưỡng chạm đúng ngưỡng là mất phụ cấp chuyên cần.",
+    "basis": "Quy tắc đã chốt: đủ ngưỡng là mất"
+  },
+  "kpi.overLimitCompare": {
+    "help": "Giờ vượt ngưỡng phải lớn hơn ngưỡng thì KPI mới nhân với tỷ lệ ngày đi làm.",
+    "basis": "Quy tắc đã chốt: vượt hẳn mới nhân tỷ lệ"
+  },
+  "attendance.absentCompare": {
+    "help": "Số ngày nghỉ chạm đúng ngưỡng là mất phụ cấp chuyên cần.",
+    "basis": "Lead chốt ngày 15/10/2026"
+  },
+  "attendance.graceCompare": {
+    "help": "Số phút trễ chạm đúng mức miễn là bị trừ giờ.",
+    "basis": "Chủ dự án chốt ngày 14/10/2026: đủ mức miễn là bị trừ"
+  },
+  "kpi.passCompare": {
+    "help": "Tổng điểm KPI chạm đúng mức đạt là đạt.",
+    "basis": "Quy chế lương 3P"
+  },
+  "kpi.weworkMinCompare": {
+    "help": "Điểm Base Wework chạm đúng mức đạt là đạt.",
+    "basis": "Quy chế lương 3P"
+  },
+  "tax.casual.thresholdCompare": {
+    "help": "Thu nhập chạm đúng ngưỡng là bị khấu trừ 10%.",
+    "basis": "Nghị định 253/2026, Điều 50 khoản 2"
+  },
+  "tax.personalCompare": {
+    "help": "Thuế chỉ phát sinh khi thu nhập chịu thuế trừ bảo hiểm lớn hơn giảm trừ bản thân.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15"
+  },
+  "tax.insurance.skipCompare": {
+    "help": "Số ngày không lương chạm đúng ngưỡng là tháng đó không đóng bảo hiểm.",
+    "basis": "Luật Bảo hiểm xã hội 2024 (điều khoản cần kế toán xác nhận)"
+  },
+  "tax.insurance.capMultiple": {
+    "help": "Trần đóng bảo hiểm bằng 20 lần lương cơ sở hoặc lương tối thiểu vùng.",
+    "basis": "Luật Bảo hiểm xã hội 2024; Luật Việc làm 2025"
+  },
+  "law.floor.otRate": {
+    "help": "Mức sàn của luật cho hệ số OT ngày thường.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.holidayRate": {
+    "help": "Mức sàn của luật cho hệ số làm ngày lễ.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.nightPremium": {
+    "help": "Mức sàn của luật cho phụ trội làm đêm.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.nightOtAddRate": {
+    "help": "Mức sàn của luật cho phụ trội OT ban đêm.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 (cần pháp chế xác nhận)"
+  },
+  "law.floor.probationPayRate": {
+    "help": "Mức sàn của luật cho lương thử việc.",
+    "basis": "Bộ luật Lao động 2019, Điều 26 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.marriage": {
+    "help": "Số ngày việc riêng có lương tối thiểu khi kết hôn.",
+    "basis": "Bộ luật Lao động 2019, Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.childMarriage": {
+    "help": "Số ngày việc riêng có lương tối thiểu khi con kết hôn.",
+    "basis": "Bộ luật Lao động 2019, Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.floor.privateLeave.death": {
+    "help": "Số ngày việc riêng có lương tối thiểu khi cha mẹ, vợ chồng hoặc con mất.",
+    "basis": "Bộ luật Lao động 2019, Điều 115 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.otDayTotalHours": {
+    "help": "Trần của luật cho tổng giờ bình thường cộng OT trong một ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 107 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.otMonthHours": {
+    "help": "Trần của luật cho giờ OT mỗi tháng.",
+    "basis": "Bộ luật Lao động 2019, Điều 107 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.fixedTermMonths": {
+    "help": "Trần thời hạn của hợp đồng xác định thời hạn, tính bằng tháng.",
+    "basis": "Bộ luật Lao động 2019, Điều 20 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.manager": {
+    "help": "Trần thời gian thử việc của người quản lý doanh nghiệp, tính bằng ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.college": {
+    "help": "Trần thời gian thử việc của người có trình độ cao đẳng trở lên, tính bằng ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.vocational": {
+    "help": "Trần thời gian thử việc của người có trình độ trung cấp, tính bằng ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.probationDays.other": {
+    "help": "Trần thời gian thử việc của công việc khác, tính bằng ngày.",
+    "basis": "Bộ luật Lao động 2019, Điều 25 (cần pháp chế xác nhận)"
+  },
+  "law.ceiling.compensationShare": {
+    "help": "Trần khấu trừ tiền bồi thường mỗi tháng; hệ thống chưa có khoản trừ này.",
+    "basis": "Bộ luật Lao động 2019, Điều 102 (cần pháp chế xác nhận)"
+  },
+  "control.reasonMinLength": {
+    "help": "Lý do bắt buộc phải dài ít nhất số ký tự này.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonMaxLength": {
+    "help": "Lý do bắt buộc không được dài quá số ký tự này.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "leave.seniority.stepYears": {
+    "help": "Cứ mỗi số năm làm việc này được cộng thêm 1 ngày phép thâm niên.",
+    "basis": "Bộ luật Lao động 2019, Điều 114 (cần pháp chế xác nhận)"
+  },
+  "control.reasonRequired.reject": {
+    "help": "Từ chối luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonRequired.changeDecision": {
+    "help": "Đổi quyết định luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonRequired.aiDismiss": {
+    "help": "Bỏ qua cảnh báo AI luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonRequired.slipOverride": {
+    "help": "Sửa số trên phiếu luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonRequired.paramChange": {
+    "help": "Đổi cài đặt luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "control.reasonRequired.periodReopen": {
+    "help": "Mở lại kỳ luôn phải ghi lý do, không ai tắt được.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "net.stepOrder": {
+    "help": "Thứ tự các bước tính thực lĩnh: tổng thu nhập, miễn thuế, bảo hiểm, thuế, tạm ứng rồi các khoản khác.",
+    "basis": "Khung tính thực lĩnh của công ty"
+  },
+  "net.deductionPriority": {
+    "help": "Thứ tự ưu tiên khi trừ các khoản khác ngoài lương.",
+    "basis": "Đề xuất, chờ pháp chế và kế toán chốt"
+  },
+  "geofence.radiusM.min": {
+    "help": "Bán kính vùng chấm công không được nhỏ hơn mức này.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "geofence.radiusM.max": {
+    "help": "Bán kính vùng chấm công không được lớn hơn mức này.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "geofence.maxAccuracyM.min": {
+    "help": "Độ chính xác GPS tối đa cho phép không được đặt nhỏ hơn mức này.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "geofence.maxAccuracyM.max": {
+    "help": "Độ chính xác GPS tối đa cho phép không được đặt lớn hơn mức này.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "geofence.maxAccuracyM.default": {
+    "help": "Độ chính xác GPS tối đa mặc định khi Admin chưa nhập.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "fixed.control.reasons": {
+    "help": "Đổi cài đặt, từ chối, đổi quyết định, sửa số phiếu, bỏ qua cảnh báo AI, mở lại kỳ và sửa mã nhân viên đều bắt buộc ghi lý do từ 10 đến 300 ký tự.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.audit": {
+    "help": "Mọi thay đổi cài đặt, duyệt, sửa số, khoá, mở lại và hồ sơ nhạy cảm đều vào nhật ký hệ thống, chỉ thêm dòng, không sửa hay xoá.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.snapshot": {
+    "help": "Phiếu của kỳ đã duyệt là bản chụp bất biến kèm phiên bản cài đặt và bộ máy tính.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.lock": {
+    "help": "Tháng đã khoá không sửa được lịch, duyệt, chấm công hay cài đặt có hiệu lực trong tháng đó; mở lại cần quyền và lý do.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.noSelf": {
+    "help": "Không ai quyết định về chính mình: duyệt, lương riêng, số sửa phiếu, vai trò, xem thông tin nhạy cảm.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.defaultsMode": {
+    "help": "Ở chế độ mặc định hệ thống bỏ qua mọi giá trị đã lưu và dùng giá trị mặc định; đây là công tắc lùi an toàn.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.effectiveMonth": {
+    "help": "Mỗi cài đặt có tháng áp dụng; không thêm giá trị có hiệu lực trong tháng đã khoá.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.estimate": {
+    "help": "Mọi số là ước tính cho tới khi kỳ được chốt.",
+    "basis": "Chủ dự án chốt"
+  },
+  "fixed.control.twoFlows": {
+    "help": "Lịch ước tính và Check-in/out là hai luồng tách riêng, chỉ nối một chiều khi tính lương.",
+    "basis": "Chủ dự án chốt"
+  },
+  "fixed.control.money": {
+    "help": "Tiền là đồng nguyên, chỉ làm tròn ở các bước đang làm tròn; thời gian tính bằng phút nguyên.",
+    "basis": "Chủ dự án chốt"
+  },
+  "fixed.control.attendanceCorrection": {
+    "help": "Sửa giờ chấm công bắt buộc ghi lý do và luôn giữ giờ bấm gốc.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "fixed.control.accountPrivacy": {
+    "help": "Tài khoản chỉ được khoá, không xoá; số tài khoản, mã số thuế và CCCD được che; hệ thống không lưu toạ độ GPS.",
+    "basis": "Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15; chủ dự án quyết định"
+  },
+  "fixed.control.noBackdate": {
+    "help": "Không đặt hiệu lực lùi vào tháng đã chốt; mở lại tháng cần quyền và lý do.",
+    "basis": "Điều khiển bắt buộc của hệ thống"
+  },
+  "removed.ai.threshold.reportDeadlineDay": {
+    "help": "Không còn là ngưỡng riêng của AI: dùng chung hạn nộp chấm công của kỳ lương.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "removed.ai.threshold.attendMaxAbsentDays": {
+    "help": "Không còn là ngưỡng riêng của AI: dùng chung số ngày nghỉ làm mất phụ cấp chuyên cần.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "removed.ai.threshold.overLimitHours": {
+    "help": "Không còn là ngưỡng riêng của AI: dùng chung ngưỡng giờ vượt của chuyên cần.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "removed.ai.threshold.kpiFullPct": {
+    "help": "Không còn là ngưỡng riêng của AI: 100% là mức tối đa của tự đánh giá, cố định.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "removed.ai.threshold.shiftSwitchDate": {
+    "help": "Không còn là ngưỡng của AI.",
+    "basis": "Mặc định của hệ thống"
+  },
+  "system.params.maxChanges": {
+    "help": "Số thay đổi tối đa trong một lần Lưu cài đặt; giao diện chỉ gửi các ô đã sửa.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.params.previewMaxPeople": {
+    "help": "Số người tối đa hiện trong bảng xem trước tác động, xếp theo mức chênh thực lĩnh; tổng vẫn tính cả những người không hiện.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.events.heartbeatSec": {
+    "help": "Khoảng thời gian giữa hai lần máy chủ gửi tín hiệu giữ kết nối cho màn đang mở.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.events.retryMs": {
+    "help": "Thời gian chờ trước khi màn tự nối lại khi mất kết nối.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.events.maxPerUser": {
+    "help": "Số màn tối đa một người mở cùng lúc; màn mở thêm sẽ đóng màn cũ nhất.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.events.maxTotal": {
+    "help": "Số màn tối đa mở cùng lúc trên cả máy chủ; vượt thì máy chủ báo bận.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.events.maxBacklogBytes": {
+    "help": "Dung lượng thông báo chờ gửi tối đa cho một màn; vượt thì đóng kết nối và màn tự nạp lại.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "formula.tongThuNhap": {
+    "help": "Công thức tổng thu nhập, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.phuCapDiLai": {
+    "help": "Công thức phụ cấp đi lại, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.phuCapChuyenCan": {
+    "help": "Công thức phụ cấp chuyên cần, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.luongKpi": {
+    "help": "Công thức lương KPI, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.heSoNgayKpi": {
+    "help": "Công thức hệ số ngày đi làm của KPI, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.tyLeNgayDiLam": {
+    "help": "Công thức tỷ lệ ngày đi làm, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "formula.tamUng": {
+    "help": "Công thức tạm ứng, gõ bằng chữ; bộ máy tính lương chạy công thức đã lưu từ tháng hiệu lực.",
+    "basis": "Chủ dự án chốt ngày 15/10/2026: công thức là chữ gõ, hệ thống tự phân tích"
+  },
+  "system.attr.maxPerClass": {
+    "help": "Số thuộc tính tuỳ chỉnh tối đa của một lớp như bậc lương; chặn việc thêm cột vô hạn.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "ai.limit.evidenceListMax": {
+    "help": "Số mục tối đa trong một danh sách bằng chứng của cảnh báo AI; danh sách dài hơn được cắt và ghi tổng.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "ai.threshold.paramChangePeoplePct": {
+    "help": "AI gắn cờ Cần xem khi một thay đổi công thức hoặc cài đặt làm đổi thực nhận của từ tỷ lệ này số người; không đổi tiền.",
+    "basis": "Đề xuất, chờ C&B chốt"
+  },
+  "system.auth.scryptSaltBytes": {
+    "help": "Độ dài muối khi băm mật khẩu mới.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "system.auth.scryptKeyBytes": {
+    "help": "Độ dài khoá băm mật khẩu; đổi thì mọi mật khẩu đã lưu không đăng nhập được.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "system.auth.usernameKeyChars": {
+    "help": "Số ký tự đầu của tên đăng nhập được dùng khi đếm đăng nhập sai, để tên quá dài không làm đầy bộ nhớ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.auth.trustProxyMaxHops": {
+    "help": "Số tầng máy chủ trung gian tối đa được tin khi lấy địa chỉ người dùng.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "system.auth.adminPasswordMinProduction": {
+    "help": "Độ dài tối thiểu của mật khẩu Admin khi chạy thật.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.auth.generatedPasswordBytes": {
+    "help": "Độ dài mật khẩu Admin do hệ thống tự sinh.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "system.auth.sessionSecretBytes": {
+    "help": "Độ dài khoá ký phiên đăng nhập do hệ thống tự sinh.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "system.auth.passMarkChars": {
+    "help": "Độ dài dấu mật khẩu trong phiên đăng nhập; đổi thì mọi phiên cũ hết hiệu lực.",
+    "basis": "Giới hạn cố định của hệ thống"
+  },
+  "unit.msPerSecond": {
+    "help": "Số mili giây trong một giây, dùng để đổi thời gian.",
+    "basis": "Đơn vị đo cố định"
+  },
+  "kpi.scoreMax": {
+    "help": "Điểm tối đa của mỗi thành phần KPI.",
+    "basis": "Quy chế lương 3P"
+  },
+  "kpi.scoreDecimals": {
+    "help": "Điểm KPI làm tròn đến hai chữ số thập phân.",
+    "basis": "Quy chế lương 3P"
+  },
+  "geofence.earthRadiusM": {
+    "help": "Bán kính Trái Đất dùng để tính khoảng cách giữa hai vị trí GPS.",
+    "basis": "Hằng số vật lý"
+  },
+  "system.staff.bulkMax": {
+    "help": "Số người tối đa trong một lần gán ca hàng loạt.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.entries.requireApproval": {
+    "help": "Bật thì mỗi khoản điền thêm (cộng hoặc trừ một lần cho một người) phải được người khác người lập duyệt rồi mới vào lương; tắt (nơi chỉ có một Admin) thì khoản có hiệu lực ngay khi lập và nhật ký ghi rõ.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.entries.maxPerBatch": {
+    "help": "Số khoản tối đa trong một lần nhập nhiều người cùng lúc.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.entries.maxAmount": {
+    "help": "Số tiền lớn nhất của một khoản điền thêm; lớn hơn thì bị từ chối để chặn nhập nhầm thêm số không.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "system.entries.labelMaxLength": {
+    "help": "Số ký tự tối đa của nhãn hiện trên phiếu lương cho khoản điền thêm.",
+    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
+  },
+  "leave.expiry.month": {
+    "help": "Phép tích luỹ tới 31/12 mà chưa dùng hết hạn vào cuối tháng này của năm sau và được quy tiền vào phiếu tháng liền sau. Đặt 0 nếu phép không hết hạn.",
+    "basis": "Chủ dự án 23/10/2026; Bộ luật Lao động 45/2019/QH14 Điều 113 khoản 3 (cần pháp chế xác nhận)"
+  },
+  "leave.expiry.fromYear": {
+    "help": "Chỉ phép tích luỹ tới 31/12 của năm này trở đi mới hết hạn; các năm trước không tính hồi tố.",
+    "basis": "Chủ dự án 23/10/2026; Bộ luật Lao động 45/2019/QH14 Điều 113 khoản 3 (cần pháp chế xác nhận)"
+  },
+  "ot.weekendRate": {
+    "help": "Đổi hệ số tiền OT vào Thứ Bảy, Chủ nhật không nằm trong lịch làm việc của người đó: tiền OT bằng giờ OT nhân lương giờ nhân hệ số.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 khoản 1: tối thiểu 200%",
+    "legalBasis": "Bộ luật Lao động 2019, Điều 98 khoản 1"
+  },
+  "law.floor.weekendOtRate": {
+    "help": "Mức sàn của luật cho hệ số OT cuối tuần.",
+    "basis": "Bộ luật Lao động 2019, Điều 98 (cần pháp chế xác nhận)"
+  },
+  "tax.exempt.weekendRate": {
+    "help": "Hệ số OT cuối tuần được miễn thuế tối đa.",
+    "basis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8; Nghị định 253/2026, Điều 26",
+    "legalBasis": "Luật Thuế thu nhập cá nhân số 109/2025/QH15, Điều 4 khoản 8"
+  },
+  "shift.allowance.basis": {
+    "help": "Phụ cấp ca theo ca được xếp; phụ cấp đêm theo cấp bậc.",
+    "basis": "Quy chế lương"
+  },
+  "tax.contract.basis": {
+    "help": "Hợp đồng dài hay ngắn suy từ thâm niên tính từ ngày vào làm.",
+    "basis": "Quy chế lương"
+  },
+  "tax.longTermMonths": {
+    "help": "Đủ số tháng này từ ngày vào làm tới hết tháng lương là hợp đồng dài.",
+    "basis": "Quy chế lương"
+  }
+}

@@ -1,0 +1,42 @@
+# Real payroll data and secrets: never in the image
+# Mẫu có "**/" áp dụng ở mọi thư mục con; mẫu không có "**/" chỉ khớp ở thư mục gốc (quy tắc của Docker, khác .gitignore)
+.git
+data/
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
+**/*.sqlite.partial
+**/.env
+**/.env.*
+!.env.example
+**/node_modules
+backups/
+GFT OFFICE/
+docs/private/
+ban-giao/
+
+# Not needed at runtime
+.claude/
+# Bản build giao diện Vue trên máy dev: image tự build lại ở stage "web" của Dockerfile
+web/dist
+public/.claude-flow/
+test/
+docs/
+*.md
+test-results/
+playwright-report/
+deploy/
+
+# Chỉ giữ scripts/ops (sao lưu, khôi phục, kiểm tra); seed, kiểm tham số, công cụ DB là công cụ của máy phát triển
+scripts/*
+!scripts/ops
+
+# Tooling config
+.prettierrc.json
+.prettierignore
+.editorconfig
+.gitattributes
+.git-blame-ignore-revs
+.gitignore
+.dockerignore
+Dockerfile

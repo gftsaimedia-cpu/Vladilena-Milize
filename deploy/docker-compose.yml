@@ -1,0 +1,76 @@
+# Mẫu chạy một máy chủ bằng Docker Compose (một container app; reverse proxy chạy trên máy chủ, xem proxy/).
+# Chưa chạy thử trong dự án này (Docker daemon không chạy trên máy dev ngày 15/10/2026): kiểm bằng `docker compose config`
+# rồi chạy thử trên máy chủ thử, KHÔNG phải trên DB lương thật, trước khi dùng.
+#
+# Dùng (từ thư mục deploy/):
+#   1. Tạo secrets/luong.env từ ../.env.example (thư mục secrets/ đã được .gitignore bỏ qua; KHÔNG commit, không dán vào chat).
+#      Cần ít nhất: ADMIN_PASSWORD (>= 12 ký tự), SESSION_SECRET, AUDIT_KEY. Các biến dưới đây (COOKIE_SECURE, TRUST_PROXY) đã đặt sẵn.
+#   2. docker compose build && docker compose up -d
+#   3. Cấu hình reverse proxy theo proxy/nginx.conf.example hoặc proxy/Caddyfile.example (HTTPS, SSE).
+name: luong-nhan-su
+services:
+  app:
+    build:
+      context: ..
+    image: luong-nhan-su:local
+    container_name: luong-app
+    restart: unless-stopped
+    init: true # PID 1 chuyển tiếp SIGTERM đúng và dọn tiến trình con
+    stop_grace_period: 15s # server.js đóng êm luồng SSE ngay khi nhận SIGTERM; 15 giây dư để ghi dở xong
+    env_file:
+      - ./secrets/luong.env
+    environment:
+      # Sau đúng một reverse proxy (nginx hoặc Caddy trên máy chủ). Cloudflare Tunnel + proxy thứ hai thì đặt 2.
+      # Mặc định cho môi trường thật (sau proxy HTTPS). Chạy thử qua HTTP thường (demo): đặt trong deploy/.env, xem demo.env.example.
+      TRUST_PROXY: '${TRUST_PROXY:-1}'
+      COOKIE_SECURE: '${COOKIE_SECURE:-1}'
+      DB_PATH: '${DB_PATH:-/app/data/luong.sqlite}'
+      # PARAMS_ALLOW_ACTIVATE: "1"   # CHỈ khi chủ dự án đã duyệt bật chế độ áp dụng tham số; xem RUNBOOK-THAM-SO.md. Xong thì xoá dòng này.
+      # SCHEDULE_ALLOW_EDIT: "1"     # Mặc định TẮT. Cho Lưu lịch làm việc theo chức vụ; chỉ sau khi chủ dự án đồng ý và kiểm thử không lệch (CHECKLIST mục 17).
+      # SHIFT_ALLOW_EDIT: "1"        # Mặc định TẮT. Cho sửa giờ ca làm; cùng điều kiện. Tắt lại: xoá dòng và khởi động lại container.
+    ports:
+      # Mặc định chỉ proxy trên cùng máy chủ vào được (KHÔNG dùng "3000:3000", xem CHECKLIST mục 2). Demo qua IP/HTTP: BIND_ADDR=0.0.0.0.
+      - '${BIND_ADDR:-127.0.0.1}:${APP_PORT:-3000}:3000'
+    volumes:
+      - luong-data:/app/data # DB SQLite (+ -wal, -shm) và thư mục sao lưu tại chỗ /app/data/backups
+    ulimits:
+      nofile: # mỗi luồng SSE là một socket; trần mặc định 1.024 ở một số máy chủ không đủ cho ~1.000 luồng
+        soft: 65536
+        hard: 65536
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    # read_only: true            # thử sau: app chỉ ghi /app/data; SQLite cần /tmp và /var/tmp cho tệp tạm
+    # tmpfs: [/tmp, /var/tmp]
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+    # HEALTHCHECK đã nằm trong Dockerfile (GET /api/me)
+
+  # HTTPS tự động bằng Caddy trước app: docker compose --profile https up -d (cần SITE_ADDRESS là tên miền đã trỏ về máy chủ, cổng 80 và 443 mở).
+  # Dùng cách này thì để BIND_ADDR mặc định (127.0.0.1) để cổng 3000 của app không lộ ra ngoài.
+  caddy:
+    profiles: ['https']
+    image: caddy:2-alpine
+    container_name: luong-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    environment:
+      SITE_ADDRESS: '${SITE_ADDRESS:?Đặt SITE_ADDRESS (tên miền) trong deploy/.env}'
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    volumes:
+      - ./proxy/Caddyfile.compose:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  luong-data:
+  caddy-data:
+  caddy-config:

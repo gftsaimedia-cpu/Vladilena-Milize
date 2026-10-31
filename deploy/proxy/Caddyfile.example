@@ -1,0 +1,39 @@
+# Mẫu Caddy (v2.6 trở lên) đứng trước app: HTTPS tự động, HTTP/2 và HTTP/3, kênh báo SSE. Chưa chạy thử trong dự án này
+# (máy dev không có Caddy): chạy `caddy validate --config Caddyfile` trước khi nạp.
+# Đi kèm TRUST_PROXY=1 của app: Caddy ghi đè X-Forwarded-For bằng địa chỉ thật của khách (không tin tiêu đề khách gửi),
+# nên mục ngoài cùng bên phải chính là địa chỉ thật. Cổng 3000 của app chỉ mở cho 127.0.0.1 (CHECKLIST mục 2).
+#
+# Giới hạn tệp mở: dưới systemd đặt LimitNOFILE=65535 cho dịch vụ caddy (sudo systemctl edit caddy). ~1.000 luồng SSE cần
+# vài nghìn mô tả tệp (khách + app cho mỗi luồng).
+#
+# Giới hạn tốc độ đăng nhập: Caddy gốc không có; dùng giới hạn trong app (5 lần sai/15 phút mỗi cặp địa chỉ + tên, 30 tên mỗi địa chỉ)
+# hoặc thêm module rate_limit (cần biên dịch lại Caddy, chủ dự án quyết định).
+
+# Nhật ký truy cập: Caddy mặc định KHÔNG ghi. Nếu bật khối log {}, chuỗi truy vấn của URL có thể mang tên nhân sự (?q=, ?actor=) và
+# tháng lương: phải lọc bỏ query và tiêu đề Cookie trước khi bật (chưa thử cấu hình lọc nào ở dự án này).
+
+<ten-mien> {
+    # Không thêm header bảo mật ở đây: server.js đã gắn sẵn cho mọi phản hồi (CHECKLIST mục 8).
+    request_body {
+        max_size 1MB # khớp MAX_BODY_BYTES (1e6) của server.js
+    }
+
+    # Kênh báo SSE đi nhánh riêng: KHÔNG nén, không đệm. flush_interval -1 đẩy từng khung ra ngay.
+    @events path /api/events
+    handle @events {
+        reverse_proxy 127.0.0.1:3000 {
+            flush_interval -1
+            # Không có hạn đọc phản hồi mặc định ở Caddy nên luồng sống lâu được; nhịp tim 25 giây của app giữ nó thông.
+            transport http {
+                keepalive off
+            }
+        }
+    }
+
+    handle {
+        # Nén mọi phản hồi trừ SSE (nhánh trên). Khác nginx.conf.example (chỉ nén tệp tĩnh): Caddy này cũng nén JSON. App không phản chiếu
+        # đầu vào kèm bí mật nên rủi ro BREACH thấp; muốn chặt hơn thì giới hạn kiểu nội dung bằng khối match của encode, hoặc bỏ dòng này.
+        encode zstd gzip
+        reverse_proxy 127.0.0.1:3000
+    }
+}

@@ -1,0 +1,94 @@
+# Mẫu nginx đứng trước app (HTTPS, kênh báo SSE, giới hạn kết nối). Chưa chạy thử trong dự án này (máy dev không có nginx):
+# thay <ten-mien> và đường dẫn chứng chỉ, chạy `nginx -t` trước khi nạp.
+# Đi kèm TRUST_PROXY=1 của app (đúng MỘT proxy là nginx này). Cổng 3000 của app chỉ mở cho 127.0.0.1 (CHECKLIST mục 2).
+#
+# ---------- Nâng giới hạn kết nối (nginx.conf, ngoài file này) ----------
+# Mỗi luồng SSE tốn 2 kết nối ở nginx (khách + app) và 1 mô tả tệp ở mỗi bên. ~1.000 luồng + lưu lượng thường:
+#   worker_processes     auto;
+#   worker_rlimit_nofile 65535;
+#   events { worker_connections 8192; }          # mặc định 1.024 là KHÔNG đủ
+# Dưới systemd, nginx cần thêm LimitNOFILE: sudo systemctl edit nginx  →  [Service]  LimitNOFILE=65535
+# Kiểm: cat /proc/$(pgrep -o nginx)/limits | grep 'open files'
+
+# Nhật ký truy cập KHÔNG chứa chuỗi truy vấn ($uri, không phải $request_uri): URL của app có thể mang tên nhân sự (?q=, ?actor=, ?subject=)
+# và tháng lương. Vài route mang tên đăng nhập (không phải họ tên) trong đường dẫn: chấp nhận được. Không ghi cookie, tiêu đề, thân yêu cầu. Giữ nhật ký tối đa 30 ngày (logrotate), vì địa chỉ IP cũng là dữ liệu cá nhân.
+log_format luong '$remote_addr [$time_local] "$request_method $uri" $status $request_time $body_bytes_sent';
+
+# Giới hạn đăng nhập theo địa chỉ ở lớp proxy (cộng với giới hạn trong app): mỗi lần thử mật khẩu là một lần băm scrypt tốn CPU.
+limit_req_zone $binary_remote_addr zone=luong_login:10m rate=10r/m;
+limit_req_status 429;
+
+# KHÔNG đặt `keepalive` trong khối upstream: Node đóng kết nối rảnh sau 5 giây (keepAliveTimeout mặc định); nginx dùng lại kết nối
+# vừa bị đóng sẽ thỉnh thoảng báo 502. Kết nối tới 127.0.0.1 mở mới mỗi yêu cầu là rẻ.
+upstream luong_app {
+    server 127.0.0.1:3000;
+}
+
+server {
+    listen 80;
+    server_name <ten-mien>;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    # so_keepalive: phát hiện điện thoại mất sóng (nửa kết nối chết) sau khoảng 60 + 15 x 4 giây thay vì hàng giờ; luồng SSE chết được thu hồi
+    listen 443 ssl so_keepalive=60s:15s:4;
+    http2 on;                      # nginx >= 1.25.1. Bản cũ hơn: dùng `listen 443 ssl http2 so_keepalive=...;` và bỏ dòng này
+    server_name <ten-mien>;
+
+    ssl_certificate     /etc/letsencrypt/live/<ten-mien>/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/<ten-mien>/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    server_tokens off;
+    access_log /var/log/nginx/luong-access.log luong;
+    error_log  /var/log/nginx/luong-error.log warn;
+    client_max_body_size 1m;       # khớp MAX_BODY_BYTES (1e6) của server.js; lớn hơn thì app vẫn trả 413 sau khi đọc hết
+    client_body_timeout   15s;
+    client_header_timeout 15s;
+
+    # KHÔNG thêm add_header bảo mật (CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy) ở đây: server.js gắn sẵn cho mọi
+    # phản hồi, thêm ở proxy sẽ trùng hoặc ghi đè (CHECKLIST mục 8). Riêng Permissions-Policy phải giữ geolocation=(self) cho chấm công GPS.
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;   # nối địa chỉ thật vào BÊN PHẢI; app lấy mục thứ TRUST_PROXY từ phải
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+
+    # ---------- Kênh báo SSE: GET /api/events ----------
+    location = /api/events {
+        proxy_pass http://luong_app;
+        proxy_buffering off;            # bắt buộc: có đệm thì khung báo tới trễ hoặc không tới
+        proxy_cache off;
+        gzip off;
+        # KHÔNG thêm `proxy_ignore_headers X-Accel-Buffering`: app gửi X-Accel-Buffering: no và nginx phải tôn trọng nó.
+        # Nhịp tim của app là 25 giây (system.events.heartbeatSec). Hạn đọc phải LỚN HƠN nhịp tim, tối thiểu 3 lần: 75 giây.
+        # Đổi nhịp tim thì đổi theo (hạn đọc >= 3 x nhịp tim). Quá ngắn: nginx ngắt luồng mỗi lần; quá dài: luồng chết nằm lại lâu.
+        proxy_read_timeout 75s;
+        proxy_send_timeout 75s;
+        # Tuỳ chọn: trần số kết nối mỗi địa chỉ. Văn phòng dùng chung một địa chỉ (NAT) có thể hàng trăm người, mỗi người tới
+        # 5 luồng (system.events.maxPerUser): nếu bật, đặt >= 1.000 cho địa chỉ văn phòng, không đặt thấp.
+        # limit_conn_zone $binary_remote_addr zone=luong_sse:10m;   (đặt ngoài server {})
+        # limit_conn luong_sse 2000;
+    }
+
+    # ---------- Đăng nhập: giới hạn tốc độ theo địa chỉ ----------
+    location = /api/login {
+        limit_req zone=luong_login burst=5 nodelay;
+        proxy_pass http://luong_app;
+        proxy_read_timeout 30s;
+    }
+
+    # ---------- Phần còn lại ----------
+    location / {
+        proxy_pass http://luong_app;
+        proxy_read_timeout 60s;
+
+        # Nén chỉ cho tệp tĩnh (không nén application/json: tránh BREACH trên phản hồi có dữ liệu cá nhân)
+        gzip on;
+        gzip_types text/css text/javascript application/javascript image/svg+xml;
+        gzip_proxied any;
+    }
+}

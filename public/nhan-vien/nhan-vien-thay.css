@@ -1,0 +1,77 @@
+/* Giao diện Nhân viên, phần khai thay: băng "Đang khai lịch thay" (thay.js), thanh dưới ba mục khi khai thay, dòng "Đến dd/mm"
+   dưới số ước tính (thu-nhap.js). Chỉ dùng token của public/admin/admin.css, không thêm màu mới. */
+
+/* ---------- băng khai thay: luôn ở trên cùng, không cuộn mất ---------- */
+.nv-thay {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--gold-light);
+  border-bottom: 1px solid var(--gold-deep);
+  color: var(--ink);
+}
+.nv-thay-i {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--card);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.nv-thay p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+.nv-thay b {
+  display: block;
+  font-weight: 600;
+}
+.nv-thay small {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.nv-thay .nv-btn {
+  gap: 4px;
+  padding-left: 8px;
+}
+.nv-tabbar.is-thay {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+/* ---------- dòng "Đến dd/mm" (khối toDate của máy chủ) ngay dưới câu "Cả tháng" ---------- */
+.nv-pay-n.nv-todate,
+.nv-fig-n.nv-todate {
+  margin-top: 2px;
+}
+
+@media (min-width: 1024px) {
+  .nv-thay {
+    padding: 10px 32px;
+  }
+  .nv-dcard .nv-fig-n.nv-todate {
+    margin-top: 2px;
+  }
+}
+/* ---------- thẻ người được khai (cột trái máy tính): canh lề theo các dòng 24 px của thẻ máy tính ---------- */
+@media (min-width: 1024px) {
+  .nv-thaycard .nv-me {
+    padding: 20px 24px 16px;
+  }
+  .nv-thaycard .nv-cardnote {
+    padding: 12px 24px 18px;
+  }
+}
+/* điện thoại: băng gọn (câu "được duyệt luôn" đã có trong biểu mẫu khai) */
+@media (max-width: 599px) {
+  .nv-thay small {
+    display: none;
+  }
+}

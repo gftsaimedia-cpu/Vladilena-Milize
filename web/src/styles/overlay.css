@@ -1,0 +1,286 @@
+/* Hộp thoại (dlg), ngăn kéo bên phải (drw), ghi chú, ô nhập: chuyển từ ui.css của bản HTML.
+   Bản HTML đặt hộp trên ảnh chụp màn bên dưới; bản Vue đặt hộp trên màn thật (Teleport vào body). */
+.ov-root > .scrim,
+.drw-root > .scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(24, 24, 24, 0.42);
+}
+.dlg {
+  position: relative;
+  z-index: 1;
+  margin: 96px auto 48px;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
+}
+.dlg-h {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 4px;
+}
+.dlg-h h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+}
+.dlg-h .s {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.dlg-h .x {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.dlg-b {
+  padding: 12px 24px 4px;
+}
+.dlg-f {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 24px 20px;
+}
+.dlg-f .sp {
+  margin-left: auto;
+}
+.dlg p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 21px;
+}
+.note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 19px;
+}
+.note svg {
+  color: var(--muted);
+  margin-top: 1px;
+  flex: none;
+}
+.note.warn {
+  background: var(--pend-bg);
+  border-color: #f3d3b0;
+  color: #5e3407;
+}
+.note.warn svg {
+  color: var(--pend-ink);
+}
+.note.err {
+  background: var(--err-bg);
+  border-color: #efc9c9;
+  color: var(--err-ink);
+}
+.note.err svg {
+  color: var(--err-ink);
+}
+.note.ok {
+  background: var(--done-bg);
+  border-color: #d3dcef;
+  color: var(--done-ink);
+}
+.note.ok svg {
+  color: var(--done-ink);
+}
+.note.gold {
+  background: var(--gold-pale);
+  border-color: #f1e4c4;
+  color: #4a3610;
+}
+.note.gold svg {
+  color: var(--accent);
+}
+.chk {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 50px;
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
+}
+.chk .n {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+}
+.chk .r {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.chk .r .cb {
+  margin-right: -6px;
+}
+.fld {
+  margin-top: 14px;
+}
+.fld label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.fld label small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.inp {
+  min-height: 40px;
+  border: 1px solid var(--control);
+  border-radius: 10px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--text);
+}
+.inp.ph {
+  color: #9e9e9e;
+}
+.inp.area {
+  min-height: 76px;
+  align-items: flex-start;
+  padding-top: 10px;
+}
+.inp.focus {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px #e9e9e9;
+}
+.inp .end {
+  margin-left: auto;
+  color: var(--muted);
+  display: inline-flex;
+}
+.g2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 16px;
+}
+.drw {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 720px;
+  overflow-y: auto;
+  background: var(--surface);
+  box-shadow: -16px 0 48px rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+}
+.drw > .drw-f {
+  margin-top: auto;
+}
+.drw-h {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 24px 28px 8px;
+}
+.drw-h h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
+}
+.drw-h .s {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.drw-h .x {
+  margin-left: auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.drw-f {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 16px 28px 20px;
+  border-top: 1px solid var(--rule);
+  background: #fff;
+}
+.drw-f .sp {
+  margin-left: auto;
+}
+.aif {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  font-size: 14px;
+}
+.aif .tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--text);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  flex: none;
+}
+.aif .tag svg {
+  width: 11px;
+  height: 11px;
+  color: var(--gold);
+}
+.aif .btn {
+  margin-left: auto;
+}
+.aif.done {
+  color: var(--muted);
+}
+
+.ov-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+.drw-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.dlg-h .x,
+.drw-h .x {
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
+}
+.dlg-h .x {
+  border: 0;
+}

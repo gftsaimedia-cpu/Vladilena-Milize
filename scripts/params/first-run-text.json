@@ -1,0 +1,86 @@
+{
+  "period.payDay": {
+    "recommended": "Giữ như hiện tại: trả lương vào ngày 10 của tháng sau. Ngày này chỉ dùng để nhắc, không đổi số tiền",
+    "why": "Chờ chủ dự án và kế toán chọn ngày 5 hay ngày 10"
+  },
+  "pay.method": {
+    "recommended": "Giữ như hiện tại: cách A, lương ngày = lương cơ bản chia cho số ngày công chuẩn, không giới hạn ở 100%",
+    "why": "Lead đã chốt ngày 15/10/2026: lương tính theo công ngày, không áp trần 100%"
+  },
+  "ot.nightAddScope": {
+    "recommended": "Giữ như hiện tại: chỉ cộng thêm tiền làm đêm cho OT vào ngày lễ",
+    "why": "Chờ pháp chế xác nhận có phải cộng cho cả OT đêm ngày thường không"
+  },
+  "holiday.makeupRate": {
+    "recommended": "Giữ như hiện tại: làm bù rơi vào ngày lễ trả gấp 3. Gấp 1 tạm thời bị chặn vì thấp hơn mức tối thiểu của luật",
+    "why": "Chờ C&B trả lời; mức gấp 1 còn chờ pháp chế xác nhận"
+  },
+  "geofence.lat": {
+    "recommended": "Nhập toạ độ văn phòng công ty để kiểm tra vị trí khi Check-in. Chưa nhập thì nhân sự Check-in ở đâu cũng được",
+    "why": "Chờ Admin nhập toạ độ công ty; thông báo về kiểm tra vị trí còn chờ pháp chế soạn"
+  },
+  "geofence.radiusM": {
+    "recommended": "Bán kính 100 m quanh văn phòng; nhập cùng lúc với toạ độ công ty",
+    "why": "Chờ Admin nhập toạ độ công ty; thông báo về kiểm tra vị trí còn chờ pháp chế soạn"
+  },
+  "attendance.gapRule": {
+    "recommended": "Giữ như hiện tại: ra ngoài giữa ca bị trừ giờ theo nấc như đi muộn",
+    "why": "Lead đã chốt là có trừ công (15/10/2026); cách trừ chờ lead trả lời"
+  },
+  "attendance.offScheduleRule": {
+    "recommended": "Giữ như hiện tại: giờ đi làm ngoài lịch mà chưa được duyệt thì không trả tiền",
+    "why": "Chủ dự án đã chốt ngày 14/10/2026; chờ pháp chế xem lại rủi ro"
+  },
+  "attendance.makeupDayStepRule": {
+    "recommended": "Giữ như hiện tại: làm bù cả ngày (TTS thứ Bảy) trả đúng số phút đã làm",
+    "why": "Chờ lead trả lời"
+  },
+  "leave.birthdayMode": {
+    "recommended": "Giữ như hiện tại: mỗi lần sinh nhật được cộng 1 ngày vào phép năm, chưa dùng kho phép riêng",
+    "why": "Lead đã chốt giữ phép năm như app và thêm iFourteen (15/10/2026); chi tiết iFourteen chờ lead trả lời"
+  },
+  "leave.ifourteen.days": {
+    "recommended": "Giữ 0 ngày (chưa có kho phép riêng) cho tới khi lead chốt chi tiết iFourteen",
+    "why": "Lead đã chốt thêm iFourteen (15/10/2026); chi tiết chờ lead trả lời"
+  },
+  "kpi.belowPassRule": {
+    "recommended": "Giữ như hiện tại: tổng điểm KPI dưới mức đạt thì KPI tính bằng 0",
+    "why": "Chờ lead trả lời"
+  },
+  "kpi.weworkGateRule": {
+    "recommended": "Giữ như hiện tại: điểm Base Wework dưới mức đạt thì KPI tính bằng 0, dù bốn thành phần kia cao",
+    "why": "Chờ lead trả lời"
+  },
+  "kpi.incompleteRule": {
+    "recommended": "Giữ như hiện tại: chưa đủ 5 điểm thành phần thì chưa tính KPI và hiện \"chờ điểm\"",
+    "why": "Chờ lead trả lời"
+  },
+  "request.type.<code>": {
+    "recommended": "Mỗi loại yêu cầu và loại nghỉ duyệt 1 bước; duyệt 2 bước chỉ dùng được khi có vai trò Quản lý",
+    "why": "Chờ chủ dự án quyết có làm duyệt 2 bước hay không"
+  },
+  "law.region": {
+    "recommended": "Giữ như hiện tại: Vùng I, lương tối thiểu vùng 5.310.000 ₫ một tháng",
+    "why": "Chờ kế toán xác nhận vùng của công ty"
+  },
+  "tax.casual.threshold": {
+    "recommended": "Giữ như hiện tại: 5.000.000 ₫, cho tới khi kế toán xác nhận (Thông tư 111/2013 ghi 2.000.000 ₫)",
+    "why": "Chờ kế toán xác nhận"
+  },
+  "slip.staffVisibleFrom": {
+    "recommended": "Nhân sự thấy phiếu lương chính thức từ khi công ty chi trả",
+    "why": "Chủ dự án quyết ngày 16/10/2026"
+  },
+  "employeeCode.pattern": {
+    "recommended": "Giữ như hiện tại: mã gồm ký hiệu loại, mã đơn vị và số thứ tự 2 chữ số",
+    "why": "Chờ HR xác nhận (nghiên cứu hồ sơ nhân sự, mục 4.3)"
+  },
+  "employeeCode.onTypeOrUnitChange": {
+    "recommended": "Giữ như hiện tại: đổi loại nhân sự hoặc chuyển đơn vị thì cấp mã mới, mã cũ giữ trong lịch sử",
+    "why": "Chờ HR trả lời có đổi mã hay giữ mã (mục 4.3)"
+  },
+  "employeeCode.reuseAfterLeave": {
+    "recommended": "Giữ như hiện tại: mã của người đã nghỉ không cấp lại cho người khác",
+    "why": "Chờ HR xác nhận (mục 4.3)"
+  }
+}

@@ -1,0 +1,439 @@
+/* man-nhan-su: phần trình bày riêng của màn này (nạp sau thiet-ke-moi.css).
+   Màn Nhân sự (route #ho-so): hàng lọc (loại · chỗ cần sửa · tìm), bảng nhân sự, chân thẻ phân trang,
+   ngăn kéo Sửa hồ sơ và hộp Thêm nhân sự. Mọi lớp có tiền tố ns- để không đụng màn khác. */
+
+/* ---------- hàng lọc ---------- */
+.ns-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 16px;
+}
+.ns-tools .chip {
+  min-height: 32px;
+  height: 32px;
+  border-color: #d0d0d0;
+}
+.ns-tools .chip.on {
+  border-color: var(--ink);
+}
+/* số đếm dùng chữ số thường (không tabular): hàng lọc vừa một dòng ở 1440 */
+.ns-tools .chip .n,
+.ns-tools .chip.on .n {
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: normal;
+  color: inherit;
+  opacity: 0.75;
+}
+.ns-vr {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--line);
+}
+/* cơ sở 150 để hàng lọc vừa một dòng ở 1440 (xuống dòng tính theo cơ sở, không theo min-width); còn chỗ thì giãn tới 240 */
+.ns-search {
+  flex: 1 1 150px;
+  min-width: 150px;
+  max-width: 240px;
+  margin-left: auto;
+}
+.ns-search .field {
+  width: 100%;
+}
+.ns-search .input {
+  width: 100% !important;
+  min-height: 32px;
+  height: 32px;
+  font-size: 13px;
+  padding-left: 32px;
+}
+.ns-search .field > svg {
+  left: 11px;
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+/* ---------- bảng ---------- */
+.ns-card .tblwrap {
+  margin: 0;
+}
+.ns-card > .errbox {
+  margin: 0 24px 16px;
+}
+.ns-card > .note {
+  margin: 16px 24px 20px;
+}
+.ns-card .empty {
+  padding: 40px 24px;
+}
+.ns-t col.c-cb {
+  width: 56px;
+}
+.ns-t col.c-who {
+  width: 236px;
+}
+.ns-t col.c-type {
+  width: 196px;
+}
+.ns-t col.c-shift {
+  width: 186px;
+}
+.ns-t col.c-start {
+  width: 112px;
+}
+.ns-t col.c-con {
+  width: 230px;
+}
+.ns-t td {
+  height: 58px;
+}
+.ns-t th.ns-cb,
+.ns-t td.ns-cb {
+  padding-right: 0;
+}
+.ns-check {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  vertical-align: middle;
+  accent-color: var(--black);
+  cursor: pointer;
+}
+.ns-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.ns-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ns-who-t {
+  min-width: 0;
+}
+.ns-who .t {
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ns-who .s,
+.ns-two .b {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.ns-two .a {
+  white-space: nowrap;
+}
+.ns-bad,
+.ns-two .b .ns-bad {
+  color: var(--err-ink);
+}
+.ns-soft {
+  color: var(--muted);
+}
+.ns-t td.ns-act {
+  text-align: right;
+}
+.ns-act-in {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.ns-act-in .link {
+  margin-left: 8px;
+  font-size: 14px;
+}
+
+/* ---------- chân thẻ ---------- */
+.ns-card > .card-f {
+  justify-content: space-between;
+}
+.ns-pager {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.ns-pager .btn.icon.sm {
+  width: 32px;
+  min-height: 32px;
+  border-color: #d0d0d0;
+  color: var(--muted);
+}
+
+/* ---------- ngăn kéo Sửa hồ sơ và hộp Thêm nhân sự ---------- */
+.ns-drw #dlg-body,
+.ns-dlg #dlg-body {
+  gap: 12px;
+}
+.ns-drw .mh .cap,
+.ns-dlg .mh .cap {
+  font-size: 13px;
+}
+.ns-ai {
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 14px;
+  line-height: 19px;
+}
+.ns-ai svg {
+  flex: none;
+  margin-top: 1px;
+}
+.ns-ai.err b {
+  color: var(--err-ink);
+}
+.ns-ai .link {
+  margin-left: 4px;
+  color: inherit;
+  font-size: 13px;
+}
+.ns-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--raised);
+}
+.ns-facts > div {
+  min-width: 0;
+  padding: 10px 14px;
+}
+.ns-facts > div + div {
+  border-left: 1px solid var(--line);
+}
+.ns-facts span {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.ns-facts b {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.ns-facts b span {
+  display: inline;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.ns-facts code {
+  font-size: 12px;
+}
+.ns-form {
+  display: flex;
+  flex-direction: column;
+}
+.ns-g2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+  margin-top: 2px;
+}
+.ns-form .formrow {
+  gap: 6px;
+  min-width: 0;
+}
+.ns-form .lbl {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--ink);
+}
+.ns-form .lbl small {
+  font-weight: 400;
+  color: var(--muted);
+}
+.ns-form .input {
+  width: 100%;
+  min-height: 40px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.ns-form select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+  background: var(--white)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23616161' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  cursor: pointer;
+}
+.ns-form .ns-warnf .input {
+  border-color: var(--err-ink);
+  box-shadow: 0 0 0 3px var(--err-bg);
+}
+.ns-form #hs-warn:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+.ns-ck {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  margin-top: 14px;
+  font-size: 14px;
+}
+.ns-nv:empty {
+  display: none;
+}
+.ns-cbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.ns-sched {
+  color: var(--muted);
+}
+.ns-grp-t {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--muted);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.ns-grp-t + .ns-g2 {
+  margin-top: 14px;
+}
+.ns-full {
+  margin-top: 14px;
+}
+.ns-drw .mf [data-dlg-btn='0'] {
+  margin-right: auto;
+}
+.ns-drw .mf .btn.ns-dz {
+  border-color: #e0b4b4;
+  color: var(--err-ink);
+}
+.ns-drw .mf .btn.ns-dz:disabled {
+  border-color: var(--line);
+  color: var(--muted);
+}
+.ns-dlg .ns-form + .note {
+  margin-top: 2px;
+}
+.ns-dlg .mf {
+  padding-top: 0;
+}
+
+/* ---------- máy tính bảng, điện thoại ---------- */
+@media (max-width: 900px) {
+  .ns-search {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+}
+@media (max-width: 640px) {
+  .ns-tools {
+    padding: 16px;
+    gap: 8px;
+  }
+  .ns-vr {
+    display: none;
+  }
+  .ns-t td {
+    height: auto;
+  }
+  .ns-t td.ns-cb {
+    justify-content: flex-start;
+  }
+  .ns-t .ns-two {
+    text-align: right;
+  }
+  .ns-act-in {
+    flex-wrap: wrap;
+  }
+  .ns-card > .card-f {
+    padding: 14px 16px 16px;
+  }
+  .ns-g2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ns-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ns-facts > div:nth-child(3) {
+    border-left: 0;
+  }
+  .ns-facts > div:nth-child(n + 3) {
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* ---------- ngày nghỉ việc trong danh sách, lịch sử thay đổi trong ngăn kéo (staff-history.js) ---------- */
+.ns-rsg {
+  color: var(--err-ink);
+}
+.ns-hist[hidden] {
+  display: none;
+}
+.ns-hb {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  min-width: 0;
+}
+.ns-hl {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ns-hi {
+  min-width: 0;
+  padding: 10px 0;
+  font-size: 13px;
+  line-height: 19px;
+}
+.ns-hi + .ns-hi {
+  border-top: 1px solid var(--rule);
+}
+.ns-hi-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.ns-hi-m {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ns-hi-c,
+.ns-hi-r {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.ns-hi-r {
+  color: var(--muted);
+}
+@media (max-width: 640px) {
+  .ns-hi-m {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}

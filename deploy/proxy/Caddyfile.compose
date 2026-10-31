@@ -1,0 +1,24 @@
+# Caddy chạy cùng app trong docker-compose (profile "https"). Khác Caddyfile.example: app là dịch vụ "app" trong mạng của compose,
+# địa chỉ site lấy từ biến SITE_ADDRESS (tên miền đã trỏ về máy chủ -> HTTPS tự động; ":80" -> HTTP thường, khi đó đặt COOKIE_SECURE=0).
+# Không thêm tiêu đề bảo mật ở đây: server.js đã gắn sẵn cho mọi phản hồi, kể cả giao diện Vue.
+{$SITE_ADDRESS} {
+    request_body {
+        max_size 1MB # khớp MAX_BODY_BYTES (1e6) của server.js
+    }
+
+    # Kênh báo SSE đi nhánh riêng: không nén, không đệm
+    @events path /api/events
+    handle @events {
+        reverse_proxy app:3000 {
+            flush_interval -1
+            transport http {
+                keepalive off
+            }
+        }
+    }
+
+    handle {
+        encode zstd gzip
+        reverse_proxy app:3000
+    }
+}

@@ -1,0 +1,31 @@
+node_modules/
+# Real payroll data and secrets: never commit
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite.partial
+backups/
+.env
+.env.*
+!.env.example
+# Cấu hình triển khai chứa bí mật hoặc đặc thù máy chủ (mẫu thì commit dưới tên *.example)
+deploy/**/*.local
+deploy/secrets/
+# Personal agent notes
+CLAUDE.local.md
+.claude/settings.local.json
+# Tool state, not part of the app
+public/.claude-flow/
+.claude/worktrees/
+# Test output
+test-results/
+playwright-report/
+# Kết quả đo tải (DB tạm, nhật ký, cookie): chỉ giữ cục bộ
+scripts/loadtest/**/work/
+# Company documents (rules, policies, NDA): kept out of git and the image until the owner decides
+GFT OFFICE/
+# Notes derived from GFT OFFICE/ (confidential company rules): local only
+docs/private/
+scripts/dev/scenarios/out/

@@ -1,0 +1,1232 @@
+{
+  "tables": {
+    "advance_requests": {
+      "sql": "CREATE TABLE advance_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL CHECK(length(username)> 0),month TEXT NOT NULL CHECK(month GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'),amount INTEGER NOT NULL CHECK(typeof(amount)= 'integer' AND amount > 0),-- số xin,VND đồng nguyên cap INTEGER NOT NULL CHECK(typeof(cap)= 'integer' AND cap >= 0),-- mức tối đa của tháng lúc gửi note TEXT,-- lời nhắn của nhân sự(không bắt buộc)status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','approved','rejected','cancelled')),granted INTEGER CHECK(granted IS NULL OR(typeof(granted)= 'integer' AND granted > 0)),-- số được duyệt(có thể thấp hơn số xin)rev INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,decided_by TEXT,decided_at TEXT,decision_note TEXT,cancelled_by TEXT,cancelled_at TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "amount", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "cap", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": "'pending'", "pk": 0 },
+        { "name": "granted", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decision_note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "cancelled_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "cancelled_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "advance_requests_month_status",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["month", "status"]
+        },
+        {
+          "name": "advance_requests_one_pending",
+          "unique": 1,
+          "origin": "c",
+          "partial": 1,
+          "columns": ["username", "month"]
+        },
+        {
+          "name": "advance_requests_user_month",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["username", "month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "ai_finding_actions": {
+      "sql": "CREATE TABLE ai_finding_actions(id INTEGER PRIMARY KEY AUTOINCREMENT,finding_id TEXT NOT NULL,digest TEXT NOT NULL,-- id ổn định và băm bằng chứng của phát hiện month TEXT NOT NULL,rule_id TEXT NOT NULL,action TEXT NOT NULL CHECK(action IN('dismiss','restore')),by TEXT NOT NULL,at TEXT NOT NULL,note TEXT NOT NULL CHECK(length(note)BETWEEN 10 AND 300))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "finding_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "digest", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rule_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "action", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "note", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "ai_finding_actions_finding",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["finding_id", "id"]
+        },
+        {
+          "name": "ai_finding_actions_month",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["month", "finding_id", "id"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "ai_review_runs": {
+      "sql": "CREATE TABLE ai_review_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,month TEXT NOT NULL,run_id INTEGER,-- payroll_runs.id nếu chạy sau 'calculate' rules_json TEXT NOT NULL,thresholds_hash TEXT NOT NULL,params_hash TEXT NOT NULL,findings_total INTEGER,summary_json TEXT,-- chỉ số đếm theo mức và luật; KHÔNG tên,KHÔNG tiền by TEXT NOT NULL,at TEXT NOT NULL)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "run_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "rules_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "thresholds_hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "params_hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "findings_total", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "summary_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "ai_review_runs_month", "unique": 0, "origin": "c", "partial": 0, "columns": ["month", "id"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "attendance_days": {
+      "sql": "CREATE TABLE attendance_days(-- giờ chấm công gửi Admin,tách khỏi lịch ước tính username TEXT NOT NULL,date TEXT NOT NULL,entry_json TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(username,date))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "entry_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_attendance_days_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "date"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "attendance_sessions": {
+      "sql": "CREATE TABLE attendance_sessions(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,date TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('open','closed')),entry_json TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,legacy_key TEXT UNIQUE,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "state", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "entry_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "version", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "legacy_key", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "session_one_open", "unique": 1, "origin": "c", "partial": 1, "columns": ["username"] },
+        {
+          "name": "session_user_date",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["username", "date", "id"]
+        },
+        {
+          "name": "sqlite_autoindex_attendance_sessions_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["legacy_key"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "audit_log": {
+      "sql": "CREATE TABLE audit_log(id INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,-- ISO UTC actor TEXT NOT NULL,-- username hoặc 'system' actor_roles TEXT,-- vai trò lúc làm(mảng JSON)action TEXT NOT NULL,-- 'param.set','request.decide','slip.override','period.lock'... entity_kind TEXT NOT NULL,entity_id TEXT NOT NULL,subject TEXT,-- người bị tác động month TEXT,before_json TEXT,after_json TEXT,-- chỉ qua danh sách trường cho phép của lib/audit.js,không bao giờ chứa bí mật reason TEXT,sensitivity TEXT NOT NULL DEFAULT 'normal' CHECK(sensitivity IN('normal','pay','pii')),request_id TEXT,-- mã yêu cầu HTTP,để nối nhiều dòng của một thao tác prev_hash TEXT NOT NULL,hash TEXT NOT NULL,subject_uuid TEXT,actor_uuid TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "actor", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "actor_roles", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "action", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "entity_kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "entity_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "subject", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "month", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "before_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "after_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "sensitivity", "type": "TEXT", "notnull": 1, "default": "'normal'", "pk": 0 },
+        { "name": "request_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "prev_hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "subject_uuid", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "actor_uuid", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "audit_action_at", "unique": 0, "origin": "c", "partial": 0, "columns": ["action", "at"] },
+        { "name": "audit_action_id", "unique": 0, "origin": "c", "partial": 0, "columns": ["action", "id"] },
+        { "name": "audit_actor_at", "unique": 0, "origin": "c", "partial": 0, "columns": ["actor", "at"] },
+        { "name": "audit_actor_id", "unique": 0, "origin": "c", "partial": 0, "columns": ["actor", "id"] },
+        { "name": "audit_at", "unique": 0, "origin": "c", "partial": 0, "columns": ["at"] },
+        {
+          "name": "audit_entity",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["entity_kind", "entity_id", "id"]
+        },
+        { "name": "audit_kind_id", "unique": 0, "origin": "c", "partial": 0, "columns": ["entity_kind", "id"] },
+        { "name": "audit_month_id", "unique": 0, "origin": "c", "partial": 0, "columns": ["month", "id"] },
+        {
+          "name": "audit_subject_month",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["subject", "month", "id"]
+        },
+        { "name": "audit_subject_uuid", "unique": 0, "origin": "c", "partial": 0, "columns": ["subject_uuid", "id"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "benefit_types": {
+      "sql": "CREATE TABLE benefit_types(code TEXT PRIMARY KEY CHECK(length(code)> 0),label TEXT)",
+      "columns": [
+        { "name": "code", "type": "TEXT", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "label", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "sqlite_autoindex_benefit_types_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["code"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 14
+    },
+    "corrections": {
+      "sql": "CREATE TABLE corrections(-- yêu cầu điều chỉnh giờ chấm công id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,date TEXT NOT NULL,-- ngày công 'YYYY-MM-DD' req_in TEXT NOT NULL,-- khoảng có mặt xin sửa,ISO UTC req_out TEXT NOT NULL,reason TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',-- 'pending' | 'approved' | 'rejected' | 'replaced' decided_by TEXT,decided_at TEXT,note TEXT,created_at TEXT NOT NULL,context_json TEXT,session_id INTEGER,session_version INTEGER)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "req_in", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "req_out", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": "'pending'", "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "context_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "session_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "session_version", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "corrections_session", "unique": 0, "origin": "c", "partial": 0, "columns": ["session_id"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "explanations": {
+      "sql": "CREATE TABLE explanations(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,date TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('late-checkout','admin','ai')),session_id INTEGER,prompt TEXT NOT NULL DEFAULT '',rule_id TEXT,requested_by TEXT NOT NULL,requested_at TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'requested' CHECK(status IN('requested','answered','approved','rejected')),answer TEXT,answered_at TEXT,decided_by TEXT,decided_at TEXT,decision_note TEXT,rev INTEGER NOT NULL DEFAULT 0)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "session_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "prompt", "type": "TEXT", "notnull": 1, "default": "''", "pk": 0 },
+        { "name": "rule_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "requested_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "requested_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": "'requested'", "pk": 0 },
+        { "name": "answer", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "answered_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decision_note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "explanations_session", "unique": 0, "origin": "c", "partial": 0, "columns": ["session_id"] },
+        { "name": "explanations_status", "unique": 0, "origin": "c", "partial": 0, "columns": ["status", "id"] },
+        {
+          "name": "explanations_user_status",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["username", "status"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "kpi_score_log": {
+      "sql": "CREATE TABLE kpi_score_log(-- nhật ký chỉ thêm dòng: mã không UPDATE hay DELETE(trừ khi xoá hẳn tài khoản)id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,month TEXT NOT NULL,field TEXT NOT NULL,-- wework | user | peer | manager | self(điểm × 100)| amt(đồng)old_value REAL,new_value REAL,by TEXT NOT NULL,at TEXT NOT NULL,reason TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "field", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "old_value", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "new_value", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "kpi_score_log_user_month",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["username", "month", "id"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "kpi_scores": {
+      "sql": "CREATE TABLE kpi_scores(-- điểm 5 thành phần KPI,mỗi người mỗi tháng một dòng; null = chưa nhập username TEXT NOT NULL,month TEXT NOT NULL,-- 'YYYY-MM' wework INTEGER CHECK(wework IS NULL OR(typeof(wework)= 'integer' AND wework >= 0 AND wework <= 10000)),-- Base Wework(điểm × 100)user_score INTEGER CHECK(user_score IS NULL OR(typeof(user_score)= 'integer' AND user_score >= 0 AND user_score <= 10000)),-- người dùng peer INTEGER CHECK(peer IS NULL OR(typeof(peer)= 'integer' AND peer >= 0 AND peer <= 10000)),-- đồng nghiệp manager INTEGER CHECK(manager IS NULL OR(typeof(manager)= 'integer' AND manager >= 0 AND manager <= 10000)),-- quản lý trực tiếp self_score INTEGER CHECK(self_score IS NULL OR(typeof(self_score)= 'integer' AND self_score >= 0 AND self_score <= 10000)),-- tự đánh giá created_by TEXT NOT NULL,created_at TEXT NOT NULL,updated_by TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(username,month))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "wework", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "user_score", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "peer", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "manager", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "self_score", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "created_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "kpi_scores_month", "unique": 0, "origin": "c", "partial": 0, "columns": ["month"] },
+        {
+          "name": "sqlite_autoindex_kpi_scores_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "leave_ledger": {
+      "sql": "CREATE TABLE leave_ledger(id INTEGER PRIMARY KEY AUTOINCREMENT,staff_uuid TEXT NOT NULL,username TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN('start','month','seniority','birthday','expire')),on_date TEXT NOT NULL CHECK(date(on_date)IS on_date),days REAL NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(staff_uuid,kind,on_date))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "staff_uuid", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "on_date", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "days", "type": "REAL", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "leave_ledger_staff",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["staff_uuid", "on_date"]
+        },
+        {
+          "name": "sqlite_autoindex_leave_ledger_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["staff_uuid", "kind", "on_date"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "param_versions": {
+      "sql": "CREATE TABLE param_versions(id INTEGER PRIMARY KEY AUTOINCREMENT,key TEXT NOT NULL,effective_month TEXT NOT NULL CHECK(effective_month GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'),value_json TEXT NOT NULL,-- giá trị đã kiểm,JSON; Infinity lưu là null(TK 4.9)reason TEXT NOT NULL CHECK(length(reason)BETWEEN 10 AND 300),basis TEXT,-- căn cứ(số văn bản,điều khoản)Admin ghi ack_json TEXT,-- các cảnh báo sàn luật đã xác nhận(mã + người xác nhận)created_by TEXT NOT NULL,created_at TEXT NOT NULL,batch_id TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "key", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "effective_month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "value_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "basis", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "ack_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "created_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "batch_id", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "param_versions_batch", "unique": 0, "origin": "c", "partial": 1, "columns": ["batch_id"] },
+        {
+          "name": "param_versions_key_month",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["key", "effective_month", "id"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "pay_entries": {
+      "sql": "CREATE TABLE pay_entries(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL CHECK(length(username)> 0),month TEXT NOT NULL CHECK(month GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'),direction TEXT NOT NULL CHECK(direction IN('add','deduct')),amount INTEGER NOT NULL CHECK(typeof(amount)= 'integer' AND amount > 0),-- VND đồng nguyên label TEXT NOT NULL CHECK(length(label)BETWEEN 1 AND 80),slip_line TEXT,-- dòng trên phiếu lương; null = dùng nhãn reason TEXT NOT NULL CHECK(length(reason)BETWEEN 10 AND 300),tax_mode TEXT CHECK(tax_mode IS NULL OR tax_mode IN('none','full','cap')),tax_cap INTEGER CHECK(tax_cap IS NULL OR(typeof(tax_cap)= 'integer' AND tax_cap >= 0)),insurance_base INTEGER CHECK(insurance_base IS NULL OR(typeof(insurance_base)= 'integer' AND insurance_base >= 0)),flags_confirmed_by TEXT,flags_confirmed_at TEXT,status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','approved','rejected','void')),rev INTEGER NOT NULL DEFAULT 1,created_by TEXT NOT NULL,created_at TEXT NOT NULL,decided_by TEXT,decided_at TEXT,decision_note TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "direction", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "amount", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "label", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "slip_line", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "tax_mode", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "tax_cap", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "insurance_base", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "flags_confirmed_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "flags_confirmed_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": "'pending'", "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "created_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decision_note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "pay_entries_month_status",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["month", "status"]
+        },
+        { "name": "pay_entries_user_month", "unique": 0, "origin": "c", "partial": 0, "columns": ["username", "month"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "payroll_periods": {
+      "sql": "CREATE TABLE payroll_periods(month TEXT PRIMARY KEY,status TEXT NOT NULL CHECK(status IN('open','attendance_locked','calculated','reviewed','approved','paid')),rev INTEGER NOT NULL DEFAULT 1,current_run_id INTEGER,attendance_locked_by TEXT,attendance_locked_at TEXT,calculated_by TEXT,calculated_at TEXT,reviewed_by TEXT,reviewed_at TEXT,approved_by TEXT,approved_at TEXT,paid_by TEXT,paid_at TEXT,paid_ref TEXT,reopen_count INTEGER NOT NULL DEFAULT 0)",
+      "columns": [
+        { "name": "month", "type": "TEXT", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "current_run_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "attendance_locked_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "attendance_locked_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "calculated_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "calculated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reviewed_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reviewed_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "approved_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "approved_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "paid_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "paid_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "paid_ref", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reopen_count", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_payroll_periods_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "payroll_runs": {
+      "sql": "CREATE TABLE payroll_runs(id INTEGER PRIMARY KEY AUTOINCREMENT,month TEXT NOT NULL,run_no INTEGER NOT NULL,status TEXT NOT NULL CHECK(status IN('draft','final','superseded')),engine_version TEXT NOT NULL,params_hash TEXT NOT NULL,params_rev INTEGER NOT NULL,params_json TEXT NOT NULL,switches_json TEXT NOT NULL,-- ngày lễ của tháng inputs_digest TEXT,-- băm chuẩn hoá đầu vào đã dùng slips_total INTEGER,slips_error INTEGER,created_by TEXT NOT NULL,created_at TEXT NOT NULL,finished_at TEXT,UNIQUE(month,run_no))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "run_no", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "engine_version", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "params_hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "params_rev", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "params_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "switches_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "inputs_digest", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "slips_total", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "slips_error", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "created_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "finished_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_payroll_runs_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["month", "run_no"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "payslips": {
+      "sql": "CREATE TABLE payslips(id INTEGER PRIMARY KEY AUTOINCREMENT,run_id INTEGER NOT NULL REFERENCES payroll_runs(id),username TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN('draft','pending','approved','error')),rev INTEGER NOT NULL DEFAULT 1,error_code TEXT,error_detail TEXT,gross INTEGER,insurance INTEGER,tax INTEGER,advance INTEGER,net INTEGER,-- đồng nguyên,sau làm tròn của calcNet và số sửa staff_terms_json TEXT NOT NULL,-- loại,level,base,hợp đồng,BH,người phụ thuộc,iDorm... đúng lúc tính snapshot_gz BLOB NOT NULL,-- gzip(JSON(m)),gồm rows(zlib có sẵn của Node)override_json TEXT,-- số sửa đóng băng lúc duyệt kỳ(kèm lý do)flags_json TEXT,-- mã phát hiện AI còn mở hoặc đã bỏ qua khi tính(mảng); không rỗng thì không vào duyệt cả lô decided_by TEXT,decided_at TEXT,note TEXT,UNIQUE(run_id,username))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "run_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "error_code", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "error_detail", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "gross", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "insurance", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "tax", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "advance", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "net", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "staff_terms_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "snapshot_gz", "type": "BLOB", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "override_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "flags_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "payslips_run_status", "unique": 0, "origin": "c", "partial": 0, "columns": ["run_id", "status"] },
+        { "name": "payslips_user", "unique": 0, "origin": "c", "partial": 0, "columns": ["username", "run_id"] },
+        {
+          "name": "sqlite_autoindex_payslips_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["run_id", "username"]
+        }
+      ],
+      "foreignKeys": [
+        { "table": "payroll_runs", "from": "run_id", "to": "id", "onDelete": "NO ACTION", "onUpdate": "NO ACTION" }
+      ],
+      "seededRows": 0
+    },
+    "position_levels": {
+      "sql": "CREATE TABLE position_levels(id INTEGER PRIMARY KEY AUTOINCREMENT,type_code TEXT NOT NULL CHECK(length(type_code)> 0),level_no INTEGER NOT NULL CHECK(level_no >= 1),effective_month TEXT NOT NULL CHECK(effective_month GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'),name TEXT NOT NULL CHECK(length(name)> 0),base_salary INTEGER NOT NULL CHECK(typeof(base_salary)= 'integer' AND base_salary >= 0),-- VND đồng nguyên kpi_max INTEGER CHECK(kpi_max IS NULL OR(typeof(kpi_max)= 'integer' AND kpi_max >= 0)),-- NULL = không có lương KPI night_pct REAL CHECK(night_pct IS NULL OR night_pct BETWEEN 0 AND 100),-- NULL = theo chức vụ reason TEXT,updated_by TEXT NOT NULL,updated_at TEXT NOT NULL,rev INTEGER NOT NULL DEFAULT 0,UNIQUE(type_code,level_no,effective_month))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "type_code", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "level_no", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "effective_month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "base_salary", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "kpi_max", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "night_pct", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "updated_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_position_levels_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["type_code", "level_no", "effective_month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 14
+    },
+    "position_type_benefits": {
+      "sql": "CREATE TABLE position_type_benefits(type_id INTEGER NOT NULL REFERENCES position_types(id),benefit TEXT NOT NULL REFERENCES benefit_types(code),enabled INTEGER NOT NULL CHECK(enabled IN(0,1)),PRIMARY KEY(type_id,benefit))",
+      "columns": [
+        { "name": "type_id", "type": "INTEGER", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "benefit", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "enabled", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_position_type_benefits_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["type_id", "benefit"]
+        }
+      ],
+      "foreignKeys": [
+        { "table": "benefit_types", "from": "benefit", "to": "code", "onDelete": "NO ACTION", "onUpdate": "NO ACTION" },
+        { "table": "position_types", "from": "type_id", "to": "id", "onDelete": "NO ACTION", "onUpdate": "NO ACTION" }
+      ],
+      "seededRows": 42
+    },
+    "position_types": {
+      "sql": "CREATE TABLE position_types(id INTEGER PRIMARY KEY AUTOINCREMENT,code TEXT NOT NULL CHECK(length(code)> 0),effective_month TEXT NOT NULL CHECK(effective_month GLOB '[0-9][0-9][0-9][0-9]-[0-1][0-9]'),name TEXT NOT NULL CHECK(length(name)> 0),workdays INTEGER NOT NULL CHECK(workdays BETWEEN 1 AND 31),-- ngày công chuẩn,mẫu số lương ngày flex_pct REAL NOT NULL CHECK(flex_pct BETWEEN 0 AND 100),-- phụ cấp ca Flex,% lương ngày night_pct REAL NOT NULL CHECK(night_pct BETWEEN 0 AND 100),-- phụ cấp ca Night mặc định của chức vụ,% travel_pct REAL NOT NULL CHECK(travel_pct BETWEEN 0 AND 100),-- phụ cấp đi lại,% attendance_pct REAL NOT NULL CHECK(attendance_pct BETWEEN 0 AND 100),-- phụ cấp chuyên cần,% regular_dows TEXT NOT NULL CHECK(json_valid(regular_dows)),-- thứ đi làm: mảng JSON,0 = Chủ nhật … 6 = thứ Bảy makeup_dows TEXT NOT NULL CHECK(json_valid(makeup_dows)),-- thứ chỉ làm bù / nghỉ không lương reason TEXT,updated_by TEXT NOT NULL,updated_at TEXT NOT NULL,rev INTEGER NOT NULL DEFAULT 0,UNIQUE(code,effective_month))",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "code", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "effective_month", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "workdays", "type": "INTEGER", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "flex_pct", "type": "REAL", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "night_pct", "type": "REAL", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "travel_pct", "type": "REAL", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "attendance_pct", "type": "REAL", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "regular_dows", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "makeup_dows", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "updated_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_position_types_1",
+          "unique": 1,
+          "origin": "u",
+          "partial": 0,
+          "columns": ["code", "effective_month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 3
+    },
+    "punch_requests": {
+      "sql": "CREATE TABLE punch_requests(username TEXT NOT NULL,request_id TEXT NOT NULL,operation TEXT NOT NULL,session_id INTEGER,response_json TEXT NOT NULL,created_at TEXT,PRIMARY KEY(username,request_id))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "request_id", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "operation", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "session_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "response_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_punch_requests_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "request_id"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "punches": {
+      "sql": "CREATE TABLE punches(-- check-in / check-out: mỗi lần bấm một dòng id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,at TEXT NOT NULL,-- ISO UTC theo đồng hồ máy chủ type TEXT NOT NULL,-- 'in' | 'out' ip TEXT,-- chỉ để tham khảo,không dùng để chặn auto INTEGER NOT NULL DEFAULT 0 -- 1 = máy chủ tự đóng ca sau 16 tiếng,context_json TEXT,session_id INTEGER)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "type", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "ip", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "auto", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "context_json", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "session_id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "punches_session", "unique": 0, "origin": "c", "partial": 0, "columns": ["session_id"] },
+        { "name": "punches_user", "unique": 0, "origin": "c", "partial": 0, "columns": ["username", "id"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "settings": {
+      "sql": "CREATE TABLE settings(key TEXT PRIMARY KEY,value_json TEXT NOT NULL)",
+      "columns": [
+        { "name": "key", "type": "TEXT", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "value_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "sqlite_autoindex_settings_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["key"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 12
+    },
+    "sheet_approvals": {
+      "sql": "CREATE TABLE sheet_approvals(username TEXT NOT NULL,date TEXT NOT NULL,-- 'YYYY-MM-DD',ngày chứa khoản tự khai item TEXT NOT NULL,-- ApprovalView.ITEMS fingerprint TEXT NOT NULL,-- phần được trả tiền lúc khai; đổi thì phải duyệt lại status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN('pending','approved','rejected')),rev INTEGER NOT NULL DEFAULT 1,-- tăng khi đổi phần trả tiền hoặc đổi quyết định submitted_at TEXT NOT NULL,-- ISO UTC,lúc khai hoặc khai lại decided_by TEXT,-- Admin,hoặc 'system' khi migration/seed duyệt sẵn decided_at TEXT,note TEXT,-- lý do,tối đa 300 ký tự; bắt buộc khi từ chối hoặc đổi quyết định PRIMARY KEY(username,date))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "date", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "item", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "fingerprint", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "status", "type": "TEXT", "notnull": 1, "default": "'pending'", "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "submitted_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "decided_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "decided_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "note", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "idx_sheet_approvals_status_date",
+          "unique": 0,
+          "origin": "c",
+          "partial": 0,
+          "columns": ["status", "date"]
+        },
+        {
+          "name": "sqlite_autoindex_sheet_approvals_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "date"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "slip_overrides": {
+      "sql": "CREATE TABLE slip_overrides(username TEXT NOT NULL,month TEXT NOT NULL,values_json TEXT NOT NULL,updated_by TEXT,updated_at TEXT NOT NULL,reason TEXT,rev INTEGER NOT NULL DEFAULT 1,PRIMARY KEY(username,month))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "values_json", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "updated_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "reason", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_slip_overrides_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "staff": {
+      "sql": "CREATE TABLE staff(username TEXT PRIMARY KEY,name TEXT NOT NULL,role TEXT NOT NULL DEFAULT 'staff',-- 'staff' | 'admin' type TEXT NOT NULL DEFAULT 'tts',-- 'tts' | 'ctv' | 'nv' level INTEGER NOT NULL DEFAULT 1,night_pct INTEGER,-- chỉ nhóm 'nv': 40 | 60 idorm INTEGER NOT NULL DEFAULT 0,shift_code TEXT,-- ca cố định: n1 n2 f1 f2 g1 g2 pass_hash TEXT NOT NULL,created_at TEXT NOT NULL,start_date TEXT,birthday TEXT,leave_adjust REAL NOT NULL DEFAULT 0,contract TEXT,insured INTEGER,dependants INTEGER NOT NULL DEFAULT 0,job_title TEXT,tax_on INTEGER,deduct_on INTEGER,advance_on INTEGER,locked_at TEXT,locked_by TEXT,session_version INTEGER NOT NULL DEFAULT 0,payroll_subject INTEGER,uuid TEXT,family_name TEXT,given_name TEXT,contract_status TEXT CHECK(contract_status IS NULL OR contract_status IN('probation','official')),resigned_on TEXT,leave_balance REAL,leave_balance_on TEXT)",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "role", "type": "TEXT", "notnull": 1, "default": "'staff'", "pk": 0 },
+        { "name": "type", "type": "TEXT", "notnull": 1, "default": "'tts'", "pk": 0 },
+        { "name": "level", "type": "INTEGER", "notnull": 1, "default": "1", "pk": 0 },
+        { "name": "night_pct", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "idorm", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "shift_code", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "pass_hash", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "created_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "start_date", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "birthday", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "leave_adjust", "type": "REAL", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "contract", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "insured", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "dependants", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "job_title", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "tax_on", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "deduct_on", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "advance_on", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "locked_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "locked_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "session_version", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "payroll_subject", "type": "INTEGER", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "uuid", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "family_name", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "given_name", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "contract_status", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "resigned_on", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "leave_balance", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "leave_balance_on", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "sqlite_autoindex_staff_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["username"] },
+        { "name": "staff_uuid", "unique": 1, "origin": "c", "partial": 0, "columns": ["uuid"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "staff_roles": {
+      "sql": "CREATE TABLE staff_roles(id INTEGER PRIMARY KEY AUTOINCREMENT,username TEXT NOT NULL,role TEXT NOT NULL,granted_by TEXT NOT NULL,granted_at TEXT NOT NULL,revoked_at TEXT)",
+      "columns": [
+        { "name": "id", "type": "INTEGER", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "role", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "granted_by", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "granted_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "revoked_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "staff_roles_active", "unique": 1, "origin": "c", "partial": 1, "columns": ["username", "role"] },
+        { "name": "staff_roles_role", "unique": 0, "origin": "c", "partial": 1, "columns": ["role"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "timesheets": {
+      "sql": "CREATE TABLE timesheets(username TEXT NOT NULL,month TEXT NOT NULL,-- 'YYYY-MM' days_json TEXT NOT NULL DEFAULT '{}',kpi_pct REAL,kpi_amt REAL,-- mức đề xuất lương KPI kpi_adm_pct REAL,-- % KPI Admin duyệt(null = chưa duyệt)kpi_adm_amt REAL,-- mức KPI Admin duyệt updated_at TEXT NOT NULL,rev INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(username,month))",
+      "columns": [
+        { "name": "username", "type": "TEXT", "notnull": 1, "default": null, "pk": 1 },
+        { "name": "month", "type": "TEXT", "notnull": 1, "default": null, "pk": 2 },
+        { "name": "days_json", "type": "TEXT", "notnull": 1, "default": "'{}'", "pk": 0 },
+        { "name": "kpi_pct", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "kpi_amt", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "kpi_adm_pct", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "kpi_adm_amt", "type": "REAL", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        {
+          "name": "sqlite_autoindex_timesheets_1",
+          "unique": 1,
+          "origin": "pk",
+          "partial": 0,
+          "columns": ["username", "month"]
+        }
+      ],
+      "foreignKeys": [],
+      "seededRows": 0
+    },
+    "work_shifts": {
+      "sql": "CREATE TABLE work_shifts(code TEXT PRIMARY KEY CHECK(length(code)> 0),preset TEXT NOT NULL UNIQUE CHECK(length(preset)> 0),name TEXT NOT NULL CHECK(length(name)> 0),kind TEXT NOT NULL CHECK(kind IN('normal','flex','night')),sort INTEGER NOT NULL DEFAULT 0,deprecated INTEGER NOT NULL DEFAULT 0 CHECK(deprecated IN(0,1)),updated_by TEXT,updated_at TEXT,rev INTEGER NOT NULL DEFAULT 0)",
+      "columns": [
+        { "name": "code", "type": "TEXT", "notnull": 0, "default": null, "pk": 1 },
+        { "name": "preset", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "name", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "kind", "type": "TEXT", "notnull": 1, "default": null, "pk": 0 },
+        { "name": "sort", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "deprecated", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 },
+        { "name": "updated_by", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "updated_at", "type": "TEXT", "notnull": 0, "default": null, "pk": 0 },
+        { "name": "rev", "type": "INTEGER", "notnull": 1, "default": "0", "pk": 0 }
+      ],
+      "indexes": [
+        { "name": "sqlite_autoindex_work_shifts_1", "unique": 1, "origin": "pk", "partial": 0, "columns": ["code"] },
+        { "name": "sqlite_autoindex_work_shifts_2", "unique": 1, "origin": "u", "partial": 0, "columns": ["preset"] }
+      ],
+      "foreignKeys": [],
+      "seededRows": 6
+    }
+  },
+  "objects": [
+    {
+      "type": "index",
+      "name": "advance_requests_month_status",
+      "table": "advance_requests",
+      "sql": "CREATE INDEX advance_requests_month_status ON advance_requests(month,status)"
+    },
+    {
+      "type": "index",
+      "name": "advance_requests_one_pending",
+      "table": "advance_requests",
+      "sql": "CREATE UNIQUE INDEX advance_requests_one_pending ON advance_requests(username,month)WHERE status = 'pending'"
+    },
+    {
+      "type": "index",
+      "name": "advance_requests_user_month",
+      "table": "advance_requests",
+      "sql": "CREATE INDEX advance_requests_user_month ON advance_requests(username,month)"
+    },
+    {
+      "type": "index",
+      "name": "ai_finding_actions_finding",
+      "table": "ai_finding_actions",
+      "sql": "CREATE INDEX ai_finding_actions_finding ON ai_finding_actions(finding_id,id)"
+    },
+    {
+      "type": "index",
+      "name": "ai_finding_actions_month",
+      "table": "ai_finding_actions",
+      "sql": "CREATE INDEX ai_finding_actions_month ON ai_finding_actions(month,finding_id,id)"
+    },
+    {
+      "type": "index",
+      "name": "ai_review_runs_month",
+      "table": "ai_review_runs",
+      "sql": "CREATE INDEX ai_review_runs_month ON ai_review_runs(month,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_action_at",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_action_at ON audit_log(action,at)"
+    },
+    {
+      "type": "index",
+      "name": "audit_action_id",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_action_id ON audit_log(action,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_actor_at",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_actor_at ON audit_log(actor,at)"
+    },
+    {
+      "type": "index",
+      "name": "audit_actor_id",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_actor_id ON audit_log(actor,id)"
+    },
+    { "type": "index", "name": "audit_at", "table": "audit_log", "sql": "CREATE INDEX audit_at ON audit_log(at)" },
+    {
+      "type": "index",
+      "name": "audit_entity",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_entity ON audit_log(entity_kind,entity_id,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_kind_id",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_kind_id ON audit_log(entity_kind,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_month_id",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_month_id ON audit_log(month,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_subject_month",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_subject_month ON audit_log(subject,month,id)"
+    },
+    {
+      "type": "index",
+      "name": "audit_subject_uuid",
+      "table": "audit_log",
+      "sql": "CREATE INDEX audit_subject_uuid ON audit_log(subject_uuid,id)"
+    },
+    {
+      "type": "index",
+      "name": "corrections_session",
+      "table": "corrections",
+      "sql": "CREATE INDEX corrections_session ON corrections(session_id)"
+    },
+    {
+      "type": "index",
+      "name": "explanations_session",
+      "table": "explanations",
+      "sql": "CREATE INDEX explanations_session ON explanations(session_id)"
+    },
+    {
+      "type": "index",
+      "name": "explanations_status",
+      "table": "explanations",
+      "sql": "CREATE INDEX explanations_status ON explanations(status,id)"
+    },
+    {
+      "type": "index",
+      "name": "explanations_user_status",
+      "table": "explanations",
+      "sql": "CREATE INDEX explanations_user_status ON explanations(username,status)"
+    },
+    {
+      "type": "index",
+      "name": "idx_sheet_approvals_status_date",
+      "table": "sheet_approvals",
+      "sql": "CREATE INDEX idx_sheet_approvals_status_date ON sheet_approvals(status,date)"
+    },
+    {
+      "type": "index",
+      "name": "kpi_score_log_user_month",
+      "table": "kpi_score_log",
+      "sql": "CREATE INDEX kpi_score_log_user_month ON kpi_score_log(username,month,id)"
+    },
+    {
+      "type": "index",
+      "name": "kpi_scores_month",
+      "table": "kpi_scores",
+      "sql": "CREATE INDEX kpi_scores_month ON kpi_scores(month)"
+    },
+    {
+      "type": "index",
+      "name": "leave_ledger_staff",
+      "table": "leave_ledger",
+      "sql": "CREATE INDEX leave_ledger_staff ON leave_ledger(staff_uuid,on_date)"
+    },
+    {
+      "type": "index",
+      "name": "param_versions_batch",
+      "table": "param_versions",
+      "sql": "CREATE INDEX param_versions_batch ON param_versions(batch_id)WHERE batch_id IS NOT NULL"
+    },
+    {
+      "type": "index",
+      "name": "param_versions_key_month",
+      "table": "param_versions",
+      "sql": "CREATE INDEX param_versions_key_month ON param_versions(key,effective_month,id)"
+    },
+    {
+      "type": "index",
+      "name": "pay_entries_month_status",
+      "table": "pay_entries",
+      "sql": "CREATE INDEX pay_entries_month_status ON pay_entries(month,status)"
+    },
+    {
+      "type": "index",
+      "name": "pay_entries_user_month",
+      "table": "pay_entries",
+      "sql": "CREATE INDEX pay_entries_user_month ON pay_entries(username,month)"
+    },
+    {
+      "type": "index",
+      "name": "payslips_run_status",
+      "table": "payslips",
+      "sql": "CREATE INDEX payslips_run_status ON payslips(run_id,status)"
+    },
+    {
+      "type": "index",
+      "name": "payslips_user",
+      "table": "payslips",
+      "sql": "CREATE INDEX payslips_user ON payslips(username,run_id)"
+    },
+    {
+      "type": "index",
+      "name": "punches_session",
+      "table": "punches",
+      "sql": "CREATE INDEX punches_session ON punches(session_id)"
+    },
+    {
+      "type": "index",
+      "name": "punches_user",
+      "table": "punches",
+      "sql": "CREATE INDEX punches_user ON punches(username,id)"
+    },
+    {
+      "type": "index",
+      "name": "session_one_open",
+      "table": "attendance_sessions",
+      "sql": "CREATE UNIQUE INDEX session_one_open ON attendance_sessions(username)WHERE state='open'"
+    },
+    {
+      "type": "index",
+      "name": "session_user_date",
+      "table": "attendance_sessions",
+      "sql": "CREATE INDEX session_user_date ON attendance_sessions(username,date,id)"
+    },
+    {
+      "type": "index",
+      "name": "staff_roles_active",
+      "table": "staff_roles",
+      "sql": "CREATE UNIQUE INDEX staff_roles_active ON staff_roles(username,role)WHERE revoked_at IS NULL"
+    },
+    {
+      "type": "index",
+      "name": "staff_roles_role",
+      "table": "staff_roles",
+      "sql": "CREATE INDEX staff_roles_role ON staff_roles(role)WHERE revoked_at IS NULL"
+    },
+    { "type": "index", "name": "staff_uuid", "table": "staff", "sql": "CREATE UNIQUE INDEX staff_uuid ON staff(uuid)" },
+    {
+      "type": "trigger",
+      "name": "advance_requests_guard_update",
+      "table": "advance_requests",
+      "sql": "CREATE TRIGGER advance_requests_guard_update BEFORE UPDATE ON advance_requests WHEN NEW.username IS NOT OLD.username OR NEW.month IS NOT OLD.month OR NEW.amount IS NOT OLD.amount OR NEW.created_at IS NOT OLD.created_at OR OLD.status IN('rejected','cancelled')OR(OLD.status = 'approved' AND NEW.status NOT IN('approved','cancelled'))BEGIN SELECT RAISE(ABORT,'advance_requests: không đổi người,tháng,số xin; yêu cầu đã từ chối hoặc huỷ là trạng thái cuối'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "ai_finding_actions_no_delete",
+      "table": "ai_finding_actions",
+      "sql": "CREATE TRIGGER ai_finding_actions_no_delete BEFORE DELETE ON ai_finding_actions BEGIN SELECT RAISE(ABORT,'ai_finding_actions chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "ai_finding_actions_no_update",
+      "table": "ai_finding_actions",
+      "sql": "CREATE TRIGGER ai_finding_actions_no_update BEFORE UPDATE ON ai_finding_actions BEGIN SELECT RAISE(ABORT,'ai_finding_actions chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "ai_review_runs_no_delete",
+      "table": "ai_review_runs",
+      "sql": "CREATE TRIGGER ai_review_runs_no_delete BEFORE DELETE ON ai_review_runs BEGIN SELECT RAISE(ABORT,'ai_review_runs chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "ai_review_runs_no_update",
+      "table": "ai_review_runs",
+      "sql": "CREATE TRIGGER ai_review_runs_no_update BEFORE UPDATE ON ai_review_runs BEGIN SELECT RAISE(ABORT,'ai_review_runs chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "audit_log_no_delete",
+      "table": "audit_log",
+      "sql": "CREATE TRIGGER audit_log_no_delete BEFORE DELETE ON audit_log BEGIN SELECT RAISE(ABORT,'audit_log chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "audit_log_no_update",
+      "table": "audit_log",
+      "sql": "CREATE TRIGGER audit_log_no_update BEFORE UPDATE ON audit_log BEGIN SELECT RAISE(ABORT,'audit_log chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "param_versions_no_delete",
+      "table": "param_versions",
+      "sql": "CREATE TRIGGER param_versions_no_delete BEFORE DELETE ON param_versions BEGIN SELECT RAISE(ABORT,'param_versions chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "param_versions_no_update",
+      "table": "param_versions",
+      "sql": "CREATE TRIGGER param_versions_no_update BEFORE UPDATE ON param_versions BEGIN SELECT RAISE(ABORT,'param_versions chỉ được thêm dòng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "pay_entries_frozen_update",
+      "table": "pay_entries",
+      "sql": "CREATE TRIGGER pay_entries_frozen_update BEFORE UPDATE ON pay_entries WHEN OLD.status = 'approved' AND(NEW.amount IS NOT OLD.amount OR NEW.direction IS NOT OLD.direction OR NEW.tax_mode IS NOT OLD.tax_mode OR NEW.tax_cap IS NOT OLD.tax_cap OR NEW.insurance_base IS NOT OLD.insurance_base OR NEW.username IS NOT OLD.username OR NEW.month IS NOT OLD.month)BEGIN SELECT RAISE(ABORT,'khoản điền thêm đã duyệt không được sửa số tiền,hướng,thuế,bảo hiểm,người hay tháng'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "pay_entries_guard_update",
+      "table": "pay_entries",
+      "sql": "CREATE TRIGGER pay_entries_guard_update BEFORE UPDATE ON pay_entries WHEN NEW.created_by IS NOT OLD.created_by OR NEW.created_at IS NOT OLD.created_at OR(OLD.status = 'void' AND NEW.status IS NOT 'void')OR(OLD.status = 'approved' AND NEW.status NOT IN('approved','void'))BEGIN SELECT RAISE(ABORT,'pay_entries: không đổi người lập,không mở lại khoản đã huỷ,không lùi khoản đã duyệt'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "pay_entries_no_delete",
+      "table": "pay_entries",
+      "sql": "CREATE TRIGGER pay_entries_no_delete BEFORE DELETE ON pay_entries BEGIN SELECT RAISE(ABORT,'pay_entries không được xoá(huỷ bằng trạng thái void)'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "payroll_runs_guard_update",
+      "table": "payroll_runs",
+      "sql": "CREATE TRIGGER payroll_runs_guard_update BEFORE UPDATE ON payroll_runs WHEN NEW.month IS NOT OLD.month OR NEW.run_no IS NOT OLD.run_no OR NEW.engine_version IS NOT OLD.engine_version OR NEW.params_hash IS NOT OLD.params_hash OR NEW.params_rev IS NOT OLD.params_rev OR NEW.params_json IS NOT OLD.params_json OR NEW.switches_json IS NOT OLD.switches_json OR NEW.inputs_digest IS NOT OLD.inputs_digest OR NEW.created_by IS NOT OLD.created_by OR NEW.created_at IS NOT OLD.created_at OR NOT(NEW.status = OLD.status OR(OLD.status = 'draft' AND NEW.status IN('final','superseded'))OR(OLD.status = 'final' AND NEW.status = 'superseded'))OR(OLD.status IN('final','superseded')AND(NEW.slips_total IS NOT OLD.slips_total OR NEW.slips_error IS NOT OLD.slips_error OR NEW.finished_at IS NOT OLD.finished_at))BEGIN SELECT RAISE(ABORT,'lần chạy lương đã tính không được sửa tham số,đầu vào hay lùi trạng thái'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "payroll_runs_no_delete",
+      "table": "payroll_runs",
+      "sql": "CREATE TRIGGER payroll_runs_no_delete BEFORE DELETE ON payroll_runs BEGIN SELECT RAISE(ABORT,'payroll_runs không được xoá'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "payslips_frozen_update",
+      "table": "payslips",
+      "sql": "CREATE TRIGGER payslips_frozen_update BEFORE UPDATE ON payslips WHEN(SELECT status FROM payroll_runs WHERE id = OLD.run_id)IN('final','superseded')BEGIN SELECT RAISE(ABORT,'phiếu của lần chạy đã chốt không được đổi'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "payslips_guard_update",
+      "table": "payslips",
+      "sql": "CREATE TRIGGER payslips_guard_update BEFORE UPDATE ON payslips WHEN NEW.run_id IS NOT OLD.run_id OR NEW.username IS NOT OLD.username OR NEW.error_code IS NOT OLD.error_code OR NEW.error_detail IS NOT OLD.error_detail OR NEW.gross IS NOT OLD.gross OR NEW.insurance IS NOT OLD.insurance OR NEW.tax IS NOT OLD.tax OR NEW.advance IS NOT OLD.advance OR NEW.net IS NOT OLD.net OR NEW.staff_terms_json IS NOT OLD.staff_terms_json OR NEW.snapshot_gz IS NOT OLD.snapshot_gz OR(OLD.status = 'error' AND NEW.status IS NOT 'error')BEGIN SELECT RAISE(ABORT,'bản chụp phiếu lương không được sửa'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "payslips_no_delete",
+      "table": "payslips",
+      "sql": "CREATE TRIGGER payslips_no_delete BEFORE DELETE ON payslips BEGIN SELECT RAISE(ABORT,'payslips không được xoá'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "staff_roles_guard_update",
+      "table": "staff_roles",
+      "sql": "CREATE TRIGGER staff_roles_guard_update BEFORE UPDATE ON staff_roles WHEN NEW.username IS NOT OLD.username OR NEW.role IS NOT OLD.role OR NEW.granted_by IS NOT OLD.granted_by OR NEW.granted_at IS NOT OLD.granted_at OR OLD.revoked_at IS NOT NULL OR NEW.revoked_at IS NULL BEGIN SELECT RAISE(ABORT,'staff_roles chỉ được đặt revoked_at một lần'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "staff_roles_no_delete",
+      "table": "staff_roles",
+      "sql": "CREATE TRIGGER staff_roles_no_delete BEFORE DELETE ON staff_roles BEGIN SELECT RAISE(ABORT,'staff_roles chỉ được thu hồi(revoked_at),không xoá'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "staff_username_fixed",
+      "table": "staff",
+      "sql": "CREATE TRIGGER staff_username_fixed BEFORE UPDATE OF username ON staff WHEN NEW.username IS NOT OLD.username BEGIN SELECT RAISE(ABORT,'staff.username không đổi được: truy vết bằng uuid'); END"
+    },
+    {
+      "type": "trigger",
+      "name": "staff_uuid_default",
+      "table": "staff",
+      "sql": "CREATE TRIGGER staff_uuid_default AFTER INSERT ON staff WHEN NEW.uuid IS NULL BEGIN UPDATE staff SET uuid = lower(hex(randomblob(4)))|| '-' || lower(hex(randomblob(2)))|| '-4' || substr(lower(hex(randomblob(2))),2)|| '-' || substr('89ab',1 +(abs(random())% 4),1)|| substr(lower(hex(randomblob(2))),2)|| '-' || lower(hex(randomblob(6)))WHERE username = NEW.username; END"
+    },
+    {
+      "type": "trigger",
+      "name": "staff_uuid_fixed",
+      "table": "staff",
+      "sql": "CREATE TRIGGER staff_uuid_fixed BEFORE UPDATE OF uuid ON staff WHEN OLD.uuid IS NOT NULL AND NEW.uuid IS NOT OLD.uuid BEGIN SELECT RAISE(ABORT,'staff.uuid không đổi được'); END"
+    }
+  ],
+  "settingsKeys": [
+    "attendance_sessions_v1",
+    "attendance_split_v1",
+    "backend_v4_v1a_v1",
+    "params_mode",
+    "position_catalog_v1",
+    "sheet_approvals_v1",
+    "sheet_approvals_v2",
+    "sheet_approvals_v3",
+    "sheet_approvals_v4",
+    "staff_identity_v1",
+    "staff_payroll_subject_v1",
+    "staff_shift_codes_v1"
+  ],
+  "store": {
+    "NO_REASON_TEXT": "string",
+    "addCorrection": "function",
+    "addPunch": "function",
+    "aiFindings": "object{dismiss,dismissedIds,isDismissed,latest,list}",
+    "aiReviews": "object{add,latest}",
+    "approvals": "object{CUTOFF_MONTH,decide,declaredItems,forSheet,get,list,migrate,migrateHolidayWork,migrateLeave,migrateWillMakeup,reconcile}",
+    "assertPeriodOpen": "function",
+    "audit": "object{count,list,mode,verify,write}",
+    "bumpSessionVersion": "function",
+    "createSession": "function",
+    "db": "object{isOpen,isTransaction}",
+    "decideCorrection": "function",
+    "getCorrection": "function",
+    "getKpiScores": "function",
+    "getPunchRequest": "function",
+    "getSession": "function",
+    "getSessionVersion": "function",
+    "getSetting": "function",
+    "getSheet": "function",
+    "getSlipOverride": "function",
+    "getStaff": "function",
+    "getStaffRow": "function",
+    "isPayrollSubject": "function",
+    "lastSession": "function",
+    "listCorrections": "function",
+    "listKpiScoreLog": "function",
+    "listKpiScores": "function",
+    "listSessions": "function",
+    "listSheets": "function",
+    "listStaff": "function",
+    "lockStaff": "function",
+    "migrateAttendanceSessions": "function",
+    "openSession": "function",
+    "padReason": "function",
+    "params": "object{byBatch,count,getMode,history,lastId,resolvedRows}",
+    "payroll": "object{addPayslip,applyAiReview,countPayslips,createRun,currentRun,decidePayslips,finalPayslip,finishRun,getPayslip,getRun,listPayslips}",
+    "periods": "object{approve,get,list,lockAttendance,markCalculated,markPaid,markReviewed,reopen,status}",
+    "purgePunchRequests": "function",
+    "roles": "object{activeRoles,countAdmins,countRole,effectiveRoles,grant,list,revoke}",
+    "savePunchRequest": "function",
+    "sessionPunches": "function",
+    "setDefaultContractResolver": "function",
+    "setKpiApproval": "function",
+    "setKpiScores": "function",
+    "setPassword": "function",
+    "setPayrollSubject": "function",
+    "setSetting": "function",
+    "setSheet": "function",
+    "setSlipOverride": "function",
+    "transaction": "function",
+    "unlockStaff": "function",
+    "updateSession": "function",
+    "upsertStaff": "function"
+  }
+}
