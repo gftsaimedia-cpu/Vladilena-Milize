@@ -117,6 +117,9 @@ test('trang 1: chip "Lễ" và chip ca xếp hai tầng (chip ca nằm trong .st
 
 test('"Nghỉ lễ hưởng lương · ngày": không có danh sách lễ của lần tính thì chỉ liệt kê dòng ngày lễ, không có 19/10', async () => {
   const line = page2 => text(page2.match(/<tr[\s\S]*?<\/tr>/g).find(t => t.includes('Nghỉ lễ hưởng lương')));
-  assert.match(line((await render(await withDayFigures(ownerMonth()), null)).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày 230\.769/);
+  assert.match(
+    line((await render(await withDayFigures(ownerMonth()), null)).page2),
+    /Nghỉ lễ hưởng lương · 20\/10 1 ngày 230\.769/
+  );
   assert.match(line((await render(await withDayFigures(ownerMonth()))).page2), /Nghỉ lễ hưởng lương · 20\/10 1 ngày/);
 });

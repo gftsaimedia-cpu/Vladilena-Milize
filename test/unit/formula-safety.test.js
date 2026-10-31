@@ -84,15 +84,19 @@ test('no-dynamic-code: không file .js nào của public/ và lib/ dùng eval, n
   assert.deepEqual(offenders, []);
 });
 
-test('public/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào', opts, async () => {
-  await load(); // thiếu file thì ném "module missing"
-  const files = fs.readdirSync(path.join(ROOT, 'public')).filter(name => /^formula.*\.js$/.test(name));
-  assert.ok(files.includes('formula.js'));
-  for (const name of files) {
-    const source = fs.readFileSync(path.join(ROOT, 'public', name), 'utf8');
-    assert.deepEqual(scan(source, true), [], `public/${name}`);
+test(
+  'public/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào',
+  opts,
+  async () => {
+    await load(); // thiếu file thì ném "module missing"
+    const files = fs.readdirSync(path.join(ROOT, 'public')).filter(name => /^formula.*\.js$/.test(name));
+    assert.ok(files.includes('formula.js'));
+    for (const name of files) {
+      const source = fs.readFileSync(path.join(ROOT, 'public', name), 'utf8');
+      assert.deepEqual(scan(source, true), [], `public/${name}`);
+    }
   }
-});
+);
 
 test(
   'public/formula.js: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
@@ -300,11 +304,15 @@ test(
   }
 );
 
-test('deserialize không tin đầu vào kiểu lạ: null, số, chuỗi, mảng, hàm đều bị từ chối, không ném lỗi lạ', opts, async () => {
-  const Formula = await load();
-  for (const bad of [null, undefined, 0, 'abc', [], () => 1, { v: 99, root: 'n1', nodes: {} }])
-    assert.ok(rejected(Formula, bad), `đầu vào ${typeof bad} phải bị từ chối`);
-});
+test(
+  'deserialize không tin đầu vào kiểu lạ: null, số, chuỗi, mảng, hàm đều bị từ chối, không ném lỗi lạ',
+  opts,
+  async () => {
+    const Formula = await load();
+    for (const bad of [null, undefined, 0, 'abc', [], () => 1, { v: 99, root: 'n1', nodes: {} }])
+      assert.ok(rejected(Formula, bad), `đầu vào ${typeof bad} phải bị từ chối`);
+  }
+);
 
 test(
   'deserialize bản lưu đúng phiên bản định dạng: v khác 1 bị từ chối rõ ràng (đường nâng cấp là việc của người sau)',

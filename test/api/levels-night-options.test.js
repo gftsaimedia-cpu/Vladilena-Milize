@@ -59,7 +59,7 @@ test('nightOptions theo bậc: giá trị đã lưu không còn trong bảng m�
   assert.equal(kept.status, 200, JSON.stringify(kept.data));
   assert.equal((await F.store.getStaff('qa_nv2')).nightPct, 50, 'còn trong bảng: giữ tỉ lệ cũ');
   // body không có trường nightPct (form Hồ sơ không có ô này) cũng giữ tỉ lệ cũ
-  const body = { ...await F.store.getStaff('qa_nv2') };
+  const body = { ...(await F.store.getStaff('qa_nv2')) };
   const absent = await F.call('PUT', '/staff/qa_nv2', {
     who: 'admin',
     body: {
@@ -153,12 +153,21 @@ test('đêm TTS/CTV: dưới sàn luật 30 % vẫn lưu (cả lưu lẫn xem tr
   const changes = [{ key: 'type.tts.nightOptions', value: [29] }];
   const pv = await preview(changes, M);
   assert.equal(pv.data.ok, true, JSON.stringify(pv.data));
-  assert.ok(pv.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(pv.data.warnings));
+  assert.ok(
+    pv.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'),
+    JSON.stringify(pv.data.warnings)
+  );
   const save = await P.saveChanges(changes, { month: M });
   assert.equal(save.status, 200, JSON.stringify(save.data));
-  assert.ok(save.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(save.data.warnings));
+  assert.ok(
+    save.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'),
+    JSON.stringify(save.data.warnings)
+  );
   assert.deepEqual((await P.paramsOf(M))['type.tts.nightOptions'], [29]);
   const level = await P.saveChanges([{ key: 'level.ctv.1.nightOptions', value: [20] }], { month: M });
   assert.equal(level.status, 200, JSON.stringify(level.data));
-  assert.ok(level.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'), JSON.stringify(level.data.warnings));
+  assert.ok(
+    level.data.warnings.some(w => w.code === 'PARAM_BELOW_LEGAL_FLOOR'),
+    JSON.stringify(level.data.warnings)
+  );
 });

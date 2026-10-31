@@ -26,7 +26,8 @@ const ids = res => res.data.rows.map(r => r.id);
 test('Phân trang beforeId: các trang nối nhau (nextBeforeId → beforeId), mới → cũ, không trùng không sót, trang cuối nextBeforeId null, total không đổi', async () => {
   await P.seed('2026-10');
   const all = [];
-  for (let i = 0; i < 12; i++) all.push((await write('test.paging', `2026-11-02T09:${String(i).padStart(2, '0')}:00`)).id);
+  for (let i = 0; i < 12; i++)
+    all.push((await write('test.paging', `2026-11-02T09:${String(i).padStart(2, '0')}:00`)).id);
   const page1 = await get('action=test.paging&limit=5');
   assert.equal(page1.status, 200, JSON.stringify(page1.data).slice(0, 200));
   assert.deepEqual(ids(page1), [...all].reverse().slice(0, 5), 'mới → cũ');

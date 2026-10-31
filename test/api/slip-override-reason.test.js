@@ -24,10 +24,11 @@ const overrideRows = async month =>
     .prepare('SELECT username, values_json, reason, rev FROM slip_overrides WHERE month = ? ORDER BY username')
     .all(month);
 const overrideAudit = async month =>
-  (await store.db
-    .prepare("SELECT * FROM audit_log WHERE action = 'slip.override' AND month = ? ORDER BY id")
-    .all(month))
-    .map(r => ({ ...r, before: JSON.parse(r.before_json), after: JSON.parse(r.after_json) }));
+  (
+    await store.db
+      .prepare("SELECT * FROM audit_log WHERE action = 'slip.override' AND month = ? ORDER BY id")
+      .all(month)
+  ).map(r => ({ ...r, before: JSON.parse(r.before_json), after: JSON.parse(r.after_json) }));
 
 /* ================= độ dài lý do ================= */
 test('Lý do quá 300 ký tự là 400 REASON_REQUIRED và không lưu gì, không ghi nhật ký; lý do rỗng, toàn dấu cách, ngắn, không phải chuỗi vẫn lưu (lý do trống thành null)', async () => {
@@ -143,11 +144,12 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
     assert.equal(res.status, 200, `${state}: ${JSON.stringify(res.data)}`);
     const warning = lockedOf(res);
     assert.ok(warning, JSON.stringify(res.data.warnings));
-    assert.deepEqual(
-      [warning.details.month, warning.details.status, warning.details.scope],
-      [M, state, 'slip']
+    assert.deepEqual([warning.details.month, warning.details.status, warning.details.scope], [M, state, 'slip']);
+    assert.equal(
+      (await P.flow.payslipsOf(M)).slips.qa_tts1.override_json,
+      frozen,
+      `${state}: số đã đóng băng giữ nguyên`
     );
-    assert.equal((await P.flow.payslipsOf(M)).slips.qa_tts1.override_json, frozen, `${state}: số đã đóng băng giữ nguyên`);
   }
   assert.deepEqual((await get(M, 'qa_tts1')).data.values, { workDays: 91 });
 });
@@ -280,7 +282,10 @@ test('Quyền sửa số phiếu: Admin và C&B được; kế toán, nhân sự
   }
   const self = await put(M, body, 'qa_ctv1', 'qa_ctv1');
   assert.equal(self.status, 200, JSON.stringify(self.data));
-  assert.ok(self.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'), JSON.stringify(self.data.warnings));
+  assert.ok(
+    self.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'),
+    JSON.stringify(self.data.warnings)
+  );
   assert.equal((await put(M, body, 'qa_ctv1', 'qa_khong_co')).status, 404);
   assert.equal((await put('2026-13', body)).status, 400);
   assert.equal((await put(M, body, null)).status, 401);

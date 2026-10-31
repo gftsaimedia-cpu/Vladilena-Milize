@@ -52,7 +52,16 @@ export const SECTIONS = [
   }
 ];
 
-const UNIT = { day: 'ngày', hour: 'giờ', minute: 'phút', times: 'lần', month: 'tháng', year: 'năm', vnd: '₫', ratio: '%' };
+const UNIT = {
+  day: 'ngày',
+  hour: 'giờ',
+  minute: 'phút',
+  times: 'lần',
+  month: 'tháng',
+  year: 'năm',
+  vnd: '₫',
+  ratio: '%'
+};
 export const unitOf = entry => {
   const c = entry.ui && entry.ui.component;
   if (c === 'money') return '₫';
@@ -63,7 +72,8 @@ export const isRatio = entry => !!(entry.ui && entry.ui.component === 'percent' 
 
 const live = e => e.class !== 'removed';
 const isFixed = e => e.class === 'fixed' || e.readOnly || e.lockReason;
-const text = v => (v === true ? 'Có' : v === false ? 'Không' : v == null ? '' : Array.isArray(v) ? v.join(', ') : String(v));
+const text = v =>
+  v === true ? 'Có' : v === false ? 'Không' : v == null ? '' : Array.isArray(v) ? v.join(', ') : String(v);
 
 function statusBadge(entry) {
   const states = (entry.instances || []).map(i => i.status);
@@ -93,7 +103,7 @@ function editableItem(entry) {
         value: insts[0].value,
         options: options.map(o => ({
           key: o.value,
-          label: o.label,
+          label: o.label
         }))
       };
     }

@@ -122,7 +122,8 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
       }
       try {
         // Đối soát bằng DB RAM của sandbox: mọi lượt Check-in đã nhận 200 phải có đúng một dòng
-        if (fs.existsSync(idsFile)) job.reconciled = await reconcile(store.db, JSON.parse(fs.readFileSync(idsFile, 'utf8')));
+        if (fs.existsSync(idsFile))
+          job.reconciled = await reconcile(store.db, JSON.parse(fs.readFileSync(idsFile, 'utf8')));
       } catch (error) {
         job.lines.push(`Không đối soát được: ${error.message}`);
       }

@@ -22,9 +22,11 @@ const insert = async (over = {}) => {
     ...over
   };
   const keys = Object.keys(r);
-  return (await db
-    .prepare(`INSERT INTO pay_entries (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`)
-    .run(...keys.map(k => r[k]))).lastInsertRowid;
+  return (
+    await db
+      .prepare(`INSERT INTO pay_entries (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')})`)
+      .run(...keys.map(k => r[k]))
+  ).lastInsertRowid;
 };
 const row = async id => await db.prepare('SELECT * FROM pay_entries WHERE id = ?').get(id);
 const approve = async id =>
@@ -83,9 +85,12 @@ test('pay_entries: khoản chờ duyệt vẫn sửa được số tiền; ngư�
   const id = await insert();
   await db.prepare('UPDATE pay_entries SET amount = 700000, rev = rev + 1 WHERE id = ?').run(id);
   assert.equal((await row(id)).amount, 700000);
-  await assert.rejects(async () => await db.prepare("UPDATE pay_entries SET created_by = 'khac' WHERE id = ?").run(id), /người lập/);
-  await assert.rejects(async () =>
-    await db.prepare("UPDATE pay_entries SET created_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(id)
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET created_by = 'khac' WHERE id = ?").run(id),
+    /người lập/
+  );
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET created_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(id)
   );
 });
 
@@ -117,7 +122,9 @@ test('pay_entries: sau approved không đổi được tiền, hướng, thuế,
 test('pay_entries: sau approved vẫn đổi được nhãn, ghi chú và cho phép approved sang void', async () => {
   const id = await insert();
   await approve(id);
-  await db.prepare("UPDATE pay_entries SET label = 'Nhãn mới', decision_note = 'ok', rev = rev + 1 WHERE id = ?").run(id);
+  await db
+    .prepare("UPDATE pay_entries SET label = 'Nhãn mới', decision_note = 'ok', rev = rev + 1 WHERE id = ?")
+    .run(id);
   assert.equal((await row(id)).label, 'Nhãn mới');
   await db.prepare("UPDATE pay_entries SET status = 'void', rev = rev + 1 WHERE id = ?").run(id);
   assert.equal((await row(id)).status, 'void');
@@ -126,36 +133,48 @@ test('pay_entries: sau approved vẫn đổi được nhãn, ghi chú và cho ph
 test('pay_entries: approved không lùi về pending/rejected; void là trạng thái cuối', async () => {
   const id = await insert();
   await approve(id);
-  await assert.rejects(async () => await db.prepare("UPDATE pay_entries SET status = 'pending' WHERE id = ?").run(id), /không lùi/);
-  await assert.rejects(async () => await db.prepare("UPDATE pay_entries SET status = 'rejected' WHERE id = ?").run(id), /không lùi/);
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET status = 'pending' WHERE id = ?").run(id),
+    /không lùi/
+  );
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET status = 'rejected' WHERE id = ?").run(id),
+    /không lùi/
+  );
   await db.prepare("UPDATE pay_entries SET status = 'void' WHERE id = ?").run(id);
-  await assert.rejects(async () => await db.prepare("UPDATE pay_entries SET status = 'approved' WHERE id = ?").run(id), /đã huỷ/);
-  await assert.rejects(async () => await db.prepare("UPDATE pay_entries SET status = 'pending' WHERE id = ?").run(id), /đã huỷ/);
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET status = 'approved' WHERE id = ?").run(id),
+    /đã huỷ/
+  );
+  await assert.rejects(
+    async () => await db.prepare("UPDATE pay_entries SET status = 'pending' WHERE id = ?").run(id),
+    /đã huỷ/
+  );
 });
 
 test('pay_entries: chờ duyệt đi được sang rejected và void', async () => {
   const a = await insert(),
     b = await insert();
-  await db.prepare(
-    "UPDATE pay_entries SET status = 'rejected', decided_by = 'pe_boss', decision_note = 'sai số' WHERE id = ?"
-  ).run(a);
+  await db
+    .prepare(
+      "UPDATE pay_entries SET status = 'rejected', decided_by = 'pe_boss', decision_note = 'sai số' WHERE id = ?"
+    )
+    .run(a);
   await db.prepare("UPDATE pay_entries SET status = 'void' WHERE id = ?").run(b);
   assert.equal((await row(a)).status, 'rejected');
   assert.equal((await row(b)).status, 'void');
 });
 
 sqliteOnly('pay_entries: truy vấn theo (tháng, trạng thái) và (người, tháng) dùng chỉ mục', async () => {
-  const plan = async sql =>
-    (await db
-      .prepare('EXPLAIN QUERY PLAN ' + sql)
-      .all())
-      .map(r => r.detail)
-      .join(' | ');
+  const plan = async sql => (await db.prepare('EXPLAIN QUERY PLAN ' + sql).all()).map(r => r.detail).join(' | ');
   assert.match(
     await plan("SELECT * FROM pay_entries WHERE month = '2026-10' AND status = 'pending'"),
     /pay_entries_month_status/
   );
-  assert.match(await plan("SELECT * FROM pay_entries WHERE username = 'u' AND month = '2026-10'"), /pay_entries_user_month/);
+  assert.match(
+    await plan("SELECT * FROM pay_entries WHERE username = 'u' AND month = '2026-10'"),
+    /pay_entries_user_month/
+  );
 });
 
 sqliteOnly('pay_entries: migration chạy lại trên DB đã có bảng không mất dòng (CREATE IF NOT EXISTS)', async () => {

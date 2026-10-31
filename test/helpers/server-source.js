@@ -59,13 +59,7 @@ const keysOnLine = line => [
 // Dạng Nest (src/**/*.ts): @Controller('api/tiền-tố') rồi @Get|Post|Put|Patch|Delete('đường-dẫn') → khoá 'METHOD /tiền-tố/đường-dẫn'.
 const CONTROLLER = /@Controller\(\s*'([^']*)'\s*\)/;
 const NEST_ROUTE = /@(Get|Post|Put|Patch|Delete)\(\s*(?:'([^']*)')?\s*\)/;
-const joinPath = (...parts) =>
-  '/' +
-  parts
-    .join('/')
-    .split('/')
-    .filter(Boolean)
-    .join('/');
+const joinPath = (...parts) => '/' + parts.join('/').split('/').filter(Boolean).join('/');
 // chỉ số dòng → khoá, theo @Controller gần nhất phía trên
 function nestKeysOf(lines) {
   const keys = new Map();
@@ -76,7 +70,8 @@ function nestKeysOf(lines) {
     const route = NEST_ROUTE.exec(line);
     // `// route-key: POST /ai/findings` ngay trên decorator: khoá trong ROUTE_CAPS khi đường dẫn Express dài hơn khoá (authz.routeKey cắt ở 2 đoạn)
     const override = /route-key:\s*((?:GET|POST|PUT|PATCH|DELETE) \/\S*)/.exec(lines[index - 1] || '');
-    if (route) keys.set(index, override ? override[1] : `${route[1].toUpperCase()} ${joinPath(prefix, route[2] || '')}`);
+    if (route)
+      keys.set(index, override ? override[1] : `${route[1].toUpperCase()} ${joinPath(prefix, route[2] || '')}`);
   });
   return keys;
 }

@@ -31,7 +31,8 @@ const dismiss = async who =>
     who,
     body: { month: MONTH, username: 'qa_nv', rule: 'r1', reason: 'Đã xem lại, không có vấn đề' }
   });
-const logged = async () => await store.db.prepare("SELECT * FROM audit_log WHERE action = 'setting.agents' ORDER BY id").all();
+const logged = async () =>
+  await store.db.prepare("SELECT * FROM audit_log WHERE action = 'setting.agents' ORDER BY id").all();
 
 test('mặc định tắt: GET /settings/agents trả { enabled: false } và /me trả agentsEnabled false', async () => {
   const res = await read('admin');

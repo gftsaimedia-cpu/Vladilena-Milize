@@ -14,7 +14,13 @@ const hasRev = (body: any) => body.expectedRev !== undefined && body.expectedRev
 
 async function readChange(req: any) {
   const body = await readJson(req);
-  if (!body || typeof body !== 'object' || !body.changes || typeof body.changes !== 'object' || Array.isArray(body.changes))
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    !body.changes ||
+    typeof body.changes !== 'object' ||
+    Array.isArray(body.changes)
+  )
     throw bad('Cần changes là đối tượng các trường muốn sửa', 'CATALOG_CHANGES_REQUIRED');
   if (!validMonth(body.effectiveMonth)) throw bad('effectiveMonth phải dạng YYYY-MM', 'BAD_MONTH');
   return body;
@@ -117,7 +123,8 @@ export class CatalogController {
       effectiveMonth: vnToday().slice(0, 7),
       reason: body.reason,
       entity: { action: 'catalog.shift.save', entityKind: 'shift', entityId: code },
-      run: async (at: string) => await shifts.save(code, body.changes, { by: me.username, at, expectedRev: Number(body.expectedRev) })
+      run: async (at: string) =>
+        await shifts.save(code, body.changes, { by: me.username, at, expectedRev: Number(body.expectedRev) })
     });
     return send(res, 200, { shift: saved.after, configRev: saved.configRev });
   }

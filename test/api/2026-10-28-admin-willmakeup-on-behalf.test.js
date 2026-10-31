@@ -19,7 +19,13 @@ async function setup() {
   await store.setSetting('holidays', []);
   await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   for (const username of ['qa_nv1', 'qa_nv3'])
-    await F.person(username, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+    await F.person(username, 'staff', {
+      type: 'nv',
+      level: 1,
+      shiftCode: 'n1',
+      startDate: '2026-01-05',
+      leaveAdjust: 30
+    });
 }
 const put = async (who, body) => await F.call('PUT', '/sheet', { who, body });
 const rowOf = async (username, date) => await store.approvals.get(username, date);
@@ -42,7 +48,9 @@ test('Admin khai thay "Nghỉ, sẽ làm bù" kèm lịch làm bù dự kiến: 
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.onBehalf, true);
-  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [{ date: d1, from: '08:00', to: '12:00' }]);
+  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [
+    { date: d1, from: '08:00', to: '12:00' }
+  ]);
   const row = await rowOf('qa_nv1', d0);
   assert.equal(row.item, 'willmakeup');
   assert.equal(row.status, 'approved');
@@ -59,7 +67,9 @@ test('Admin khai thay "Nghỉ, sẽ làm bù" kèm lịch làm bù dự kiến: 
     days: { [d0]: { kind: 'willmakeup', makeupPlans: [{ date: d2, from: '13:00', to: '17:00' }] } }
   });
   assert.equal(again.status, 200, JSON.stringify(again.data));
-  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [{ date: d2, from: '13:00', to: '17:00' }]);
+  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [
+    { date: d2, from: '13:00', to: '17:00' }
+  ]);
   const after = await rowOf('qa_nv1', d0);
   assert.equal(after.status, 'approved');
   assert.equal(after.decidedBy, 'admin');
@@ -74,7 +84,9 @@ test('Admin khai thay "Nghỉ, sẽ làm bù" kèm lịch làm bù dự kiến: 
     days: { [d0]: { kind: 'willmakeup', makeupPlans } }
   });
   assert.equal(stale.status, 409, JSON.stringify(stale.data));
-  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [{ date: d2, from: '13:00', to: '17:00' }]);
+  assert.deepEqual((await store.getSheet('qa_nv1', M)).days[d0].makeupPlans, [
+    { date: d2, from: '13:00', to: '17:00' }
+  ]);
 });
 
 test('Đối chứng: nhân sự tự khai "Nghỉ, sẽ làm bù" kèm lịch làm bù thì vẫn chờ Admin duyệt', async () => {
@@ -87,7 +99,9 @@ test('Đối chứng: nhân sự tự khai "Nghỉ, sẽ làm bù" kèm lịch l
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.ok(!res.data.onBehalf);
-  assert.deepEqual((await store.getSheet('qa_nv3', M)).days[d0].makeupPlans, [{ date: d1, from: '08:00', to: '12:00' }]);
+  assert.deepEqual((await store.getSheet('qa_nv3', M)).days[d0].makeupPlans, [
+    { date: d1, from: '08:00', to: '12:00' }
+  ]);
   const row = await rowOf('qa_nv3', d0);
   assert.equal(row.item, 'willmakeup');
   assert.equal(row.status, 'pending');

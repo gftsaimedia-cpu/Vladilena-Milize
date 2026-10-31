@@ -13,7 +13,8 @@ const WORK = { kind: 'work', in: '08:00', out: '17:00' };
 before(F.start);
 after(F.stop);
 beforeEach(S.world);
-const put = async (days, who = 'qa_s_nv', month = S.MONTH) => await F.call('PUT', '/sheet', { who, body: { month, days } });
+const put = async (days, who = 'qa_s_nv', month = S.MONTH) =>
+  await F.call('PUT', '/sheet', { who, body: { month, days } });
 
 test('S1: lễ 3: ngày lễ trong lịch khai đi làm có giờ: thành khoản holiday_work chờ duyệt; chưa duyệt chỉ nhận lương ngày lễ (bằng như ngày đó không khai), duyệt rồi thì trả thêm', async () => {
   await store.setSetting('holidays', ['2026-11-03']); // Thứ Ba, trong lịch T2–T7

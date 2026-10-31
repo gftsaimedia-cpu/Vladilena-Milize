@@ -10,7 +10,7 @@ const F = require('../helpers/api-fixture');
 const P = require('../helpers/period-api');
 const explanations = require('../../lib/explanations');
 const heldDates = async month =>
-  new Map([...await explanations.heldByUser(month)].map(([username, days]) => [username, days.map(d => d.date)]));
+  new Map([...(await explanations.heldByUser(month))].map(([username, days]) => [username, days.map(d => d.date)]));
 
 const MONTH = '2026-10';
 const iso = vn => new Date(`${vn}+07:00`).toISOString();

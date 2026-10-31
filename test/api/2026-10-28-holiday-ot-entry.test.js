@@ -20,8 +20,20 @@ async function setup() {
   await F.at('2026-10-02T09:00:00');
   await store.setSetting('holidays', [HOL]);
   await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  await F.person('qa_day', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
-  await F.person('qa_night', 'staff', { type: 'nv', level: 1, shiftCode: 'g2', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_day', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
+  await F.person('qa_night', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'g2',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
 }
 const put = (who, days) => F.call('PUT', '/sheet', { who, body: { month: M, days } });
 const warnings = res => res.data.warnings || [];

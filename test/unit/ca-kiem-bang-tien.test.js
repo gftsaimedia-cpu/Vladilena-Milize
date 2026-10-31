@@ -174,7 +174,12 @@ test('ca tiền ③/⑧ khối +20.000.000 (số giả) ở ca s20261015-00129 (
   assert.equal(m.net.contract, 'long');
   assert.equal(m.net.deduction, 21700000);
   // thuế tính tay: 5 % đến 10 triệu, 10 % đến 30 triệu, 20 % đến 60 triệu
-  const hand = a => Math.round(0.05 * Math.min(a, 10e6) + 0.1 * Math.max(0, Math.min(a, 30e6) - 10e6) + 0.2 * Math.max(0, Math.min(a, 60e6) - 30e6));
+  const hand = a =>
+    Math.round(
+      0.05 * Math.min(a, 10e6) +
+        0.1 * Math.max(0, Math.min(a, 30e6) - 10e6) +
+        0.2 * Math.max(0, Math.min(a, 60e6) - 30e6)
+    );
   const assessable = extra => Math.max(0, m.net.taxable + extra - m.net.insurance - m.net.deduction);
   const taxed = oracle.netAfter(m, { addTaxable: 20000000 });
   assert.equal(taxed.tax, hand(assessable(20000000)));

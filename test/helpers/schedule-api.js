@@ -36,7 +36,8 @@ async function world() {
     await S.grant(username, role);
 }
 const url = (username, tail = '') => `/staff/${username}/schedule${tail}`;
-const get = async (username, month = MONTH, who = 'admin') => await F.call('GET', url(username, `?month=${month}`), { who });
+const get = async (username, month = MONTH, who = 'admin') =>
+  await F.call('GET', url(username, `?month=${month}`), { who });
 const must = (res, what) => S.must(res, what);
 
 module.exports = {

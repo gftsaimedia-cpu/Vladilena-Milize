@@ -1,5 +1,3 @@
-
-
 // Các ô Admin được sửa trên phiếu lương: tiền (đồng, ≥ 0) và số lượng (ngày / giờ / %)
 export const SLIP_MONEY = [
   'workBase',

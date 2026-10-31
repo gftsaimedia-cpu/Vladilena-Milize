@@ -29,7 +29,10 @@ async function save() {
   if (busy.value || !info.value || info.value.locked) return;
   busy.value = true;
   try {
-    const res = await saveStaffSelfKpi({ month: props.month, self: String(text.value).trim() === '' ? NaN : Number(text.value) });
+    const res = await saveStaffSelfKpi({
+      month: props.month,
+      self: String(text.value).trim() === '' ? NaN : Number(text.value)
+    });
     info.value = { ...info.value, self: res.self };
     text.value = String(res.self);
     toast.ok('Đã lưu');
@@ -60,7 +63,13 @@ async function save() {
           @keydown.enter="save"
         />
       </div>
-      <button v-if="!info.locked" type="button" class="btn pri" :disabled="busy || String(text).trim() === ''" @click="save">
+      <button
+        v-if="!info.locked"
+        type="button"
+        class="btn pri"
+        :disabled="busy || String(text).trim() === ''"
+        @click="save"
+      >
         Lưu
       </button>
     </div>

@@ -53,35 +53,42 @@ sqliteOnly('audit-append-only: UPDATE và DELETE trên audit_log bị chặn ở
     async () => await store.db.prepare('UPDATE audit_log SET actor = ? WHERE id = ?').run('ke-gian', id),
     /chỉ được thêm dòng/
   );
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM audit_log WHERE id = ?').run(id), /chỉ được thêm dòng/);
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM audit_log WHERE id = ?').run(id),
+    /chỉ được thêm dòng/
+  );
   await assert.rejects(async () => await store.db.prepare('DELETE FROM audit_log').run(), /chỉ được thêm dòng/);
   assert.deepEqual(await store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id), before);
 });
 
-sqliteOnly('audit-hash-chain: dòng sau nối băm với dòng trước, verify đi lại chuỗi và báo id đầu tiên bị đứt khi sửa giữa chuỗi', async () => {
-  const ids = [];
-  for (const n of [1, 2, 3]) ids.push((await store.audit.write(entry({ entityId: 'chain-' + n, reason: 'Dòng nối chuỗi số ' + n }))).id);
-  const rows = ids.map(id => store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id));
-  assert.equal(rows[1].prev_hash, rows[0].hash);
-  assert.equal(rows[2].prev_hash, rows[1].hash);
-  const first = await store.db.prepare('SELECT * FROM audit_log ORDER BY id LIMIT 1').get();
-  assert.equal(first.prev_hash, '', 'dòng đầu tiên của chuỗi có prev_hash rỗng');
-  const intact = await store.audit.verify();
-  assert.equal(intact.ok, true, JSON.stringify(intact));
-  assert.ok(intact.checked >= 3);
-  // Người có quyền ghi DB sửa một dòng giữa chuỗi (phải gỡ trigger mới sửa được); verify phải chỉ ra dòng đó
-  await store.db.exec('DROP TRIGGER audit_log_no_update');
-  try {
-    await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('Nội dung bị sửa lén', ids[1]);
-    const broken = await store.audit.verify();
-    assert.equal(broken.ok, false);
-    assert.equal(broken.firstBadId, ids[1]);
-    await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run(rows[1].reason, ids[1]);
-  } finally {
-    await store.db.exec(TRIGGERS.audit_log_no_update);
+sqliteOnly(
+  'audit-hash-chain: dòng sau nối băm với dòng trước, verify đi lại chuỗi và báo id đầu tiên bị đứt khi sửa giữa chuỗi',
+  async () => {
+    const ids = [];
+    for (const n of [1, 2, 3])
+      ids.push((await store.audit.write(entry({ entityId: 'chain-' + n, reason: 'Dòng nối chuỗi số ' + n }))).id);
+    const rows = ids.map(id => store.db.prepare('SELECT * FROM audit_log WHERE id = ?').get(id));
+    assert.equal(rows[1].prev_hash, rows[0].hash);
+    assert.equal(rows[2].prev_hash, rows[1].hash);
+    const first = await store.db.prepare('SELECT * FROM audit_log ORDER BY id LIMIT 1').get();
+    assert.equal(first.prev_hash, '', 'dòng đầu tiên của chuỗi có prev_hash rỗng');
+    const intact = await store.audit.verify();
+    assert.equal(intact.ok, true, JSON.stringify(intact));
+    assert.ok(intact.checked >= 3);
+    // Người có quyền ghi DB sửa một dòng giữa chuỗi (phải gỡ trigger mới sửa được); verify phải chỉ ra dòng đó
+    await store.db.exec('DROP TRIGGER audit_log_no_update');
+    try {
+      await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run('Nội dung bị sửa lén', ids[1]);
+      const broken = await store.audit.verify();
+      assert.equal(broken.ok, false);
+      assert.equal(broken.firstBadId, ids[1]);
+      await store.db.prepare('UPDATE audit_log SET reason = ? WHERE id = ?').run(rows[1].reason, ids[1]);
+    } finally {
+      await store.db.exec(TRIGGERS.audit_log_no_update);
+    }
+    assert.equal((await store.audit.verify()).ok, true);
   }
-  assert.equal((await store.audit.verify()).ok, true);
-});
+);
 
 test('audit-atomic: lỗi giữa giao dịch thì cả thay đổi lẫn dòng nhật ký đều không xảy ra', async () => {
   const before = await count();

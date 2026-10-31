@@ -192,7 +192,10 @@ test('R: danh mục sự kiện — punch.changed chỉ gửi theo người nh�
     catalog.tiers.flatMap(tier => tier.fields),
     ['month', 'date']
   );
-  await assert.rejects(async () => events.publish('punch.changed', {}, { all: true }), /không được phát tới kiểu người nhận này/);
+  await assert.rejects(
+    async () => events.publish('punch.changed', {}, { all: true }),
+    /không được phát tới kiểu người nhận này/
+  );
 
   const [self, other, admin] = await SSE.openMany('qa_tts1', 'qa_nv2', 'admin');
   await SSE.settle([self, other, admin]);

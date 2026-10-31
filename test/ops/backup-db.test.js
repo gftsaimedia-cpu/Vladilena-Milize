@@ -108,7 +108,10 @@ test('BACKUP_KEEP không hợp lệ bị từ chối và không xoá gì', async
   const out = path.join(tmp, 'out-badkeep');
   const r = await backup({ dbPath, outDir: out, now: Date.UTC(2026, 9, 1, 0, 0, 0) });
   for (const bad of ['0', '-1', 'abc', '2.5', '1e3']) {
-    await assert.rejects(async () => backup({ dbPath, outDir: out, keep: bad, now: Date.UTC(2026, 9, 2, 0, 0, 0) }), BackupError);
+    await assert.rejects(
+      async () => backup({ dbPath, outDir: out, keep: bad, now: Date.UTC(2026, 9, 2, 0, 0, 0) }),
+      BackupError
+    );
   }
   assert.deepEqual(fs.readdirSync(out), [r.name]);
 });
@@ -118,7 +121,10 @@ test('từ chối khi thiếu DB_PATH, DB trong bộ nhớ, file không tồn t�
   await assert.rejects(async () => backup({ dbPath: '', outDir: out }), /DB_PATH/);
   await assert.rejects(async () => backup({ dbPath: undefined, outDir: out }), /DB_PATH/);
   await assert.rejects(async () => backup({ dbPath: ':memory:', outDir: out }), /file trên đĩa/);
-  await assert.rejects(async () => backup({ dbPath: path.join(tmp, 'khong-co.sqlite'), outDir: out }), /Không thấy file DB/);
+  await assert.rejects(
+    async () => backup({ dbPath: path.join(tmp, 'khong-co.sqlite'), outDir: out }),
+    /Không thấy file DB/
+  );
   await assert.rejects(async () => backup({ dbPath: tmp, outDir: out }), /Không thấy file DB/);
   await assert.rejects(async () => backup({ dbPath, outDir: '' }), /thư mục sao lưu/);
   assert.equal(fs.existsSync(out), false, 'không tạo thư mục khi bị từ chối');
@@ -129,7 +135,10 @@ test('từ chối thư mục sao lưu nằm trong public/ (kể cả thư mục 
   fs.mkdirSync(pub);
   await assert.rejects(async () => backup({ dbPath, outDir: pub, publicDir: pub }), /public/);
   await assert.rejects(async () => backup({ dbPath, outDir: path.join(pub, 'a', 'b'), publicDir: pub }), /public/);
-  await assert.rejects(async () => backup({ dbPath, outDir: path.join(pub, '..', 'public', 'x'), publicDir: pub }), /public/);
+  await assert.rejects(
+    async () => backup({ dbPath, outDir: path.join(pub, '..', 'public', 'x'), publicDir: pub }),
+    /public/
+  );
   assert.equal(fs.existsSync(path.join(pub, 'a')), false);
   assert.deepEqual(fs.readdirSync(pub), []);
   // thư mục cùng tiền tố tên nhưng nằm ngoài thì được

@@ -26,8 +26,7 @@ async function buildInput(store, payroll, month, asOf) {
     Object.fromEntries(
       KpiScore.COMPONENTS.map(c => [c.key, row && row.scores[c.key] != null ? row.scores[c.key] / 100 : null])
     );
-  const kpiScores = (await store
-    .listKpiScores(month))
+  const kpiScores = (await store.listKpiScores(month))
     .filter(row => people.some(s => s.username === row.username))
     .map(row => ({
       username: row.username,
@@ -165,17 +164,13 @@ async function clockProblems({ store, today }) {
   count('phiên còn mở bắt đầu', openStartedAfter);
   count(
     'lượt bấm (punches)',
-    (await store.db
-      .prepare('SELECT at FROM punches')
-      .all())
-      .filter(row => after(row.at)).length
+    (await store.db.prepare('SELECT at FROM punches').all()).filter(row => after(row.at)).length
   );
   count(
     'yêu cầu điều chỉnh có mốc thời gian',
-    (await store.db
-      .prepare('SELECT created_at, decided_at, req_in, req_out FROM corrections')
-      .all())
-      .filter(row => [row.created_at, row.decided_at, row.req_in, row.req_out].some(after)).length
+    (await store.db.prepare('SELECT created_at, decided_at, req_in, req_out FROM corrections').all()).filter(row =>
+      [row.created_at, row.decided_at, row.req_in, row.req_out].some(after)
+    ).length
   );
   return problems;
 }

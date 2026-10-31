@@ -111,12 +111,16 @@ test('Biến theo ngày đặt trong "tổng theo ngày (...)" thì hợp lệ',
   assert.equal(v.ok, true);
 });
 
-test('Biến theo ngày nhân với tham số theo tháng bên trong "tổng theo ngày (...)" không bị báo lẫn miền', opts, async () => {
-  const Formula = await load();
-  const res = F.parseOk(Formula, 'khoản A = tổng theo ngày (tiền ca trong ngày × tỷ lệ đi lại) + lương cơ bản');
-  const v = Formula.validate(res.tree, { vocabulary: STD_VOCAB });
-  assert.ok(!F.codesIn(v.errors).includes('FORMULA_DOMAIN_MIXED'), JSON.stringify(v.errors));
-});
+test(
+  'Biến theo ngày nhân với tham số theo tháng bên trong "tổng theo ngày (...)" không bị báo lẫn miền',
+  opts,
+  async () => {
+    const Formula = await load();
+    const res = F.parseOk(Formula, 'khoản A = tổng theo ngày (tiền ca trong ngày × tỷ lệ đi lại) + lương cơ bản');
+    const v = Formula.validate(res.tree, { vocabulary: STD_VOCAB });
+    assert.ok(!F.codesIn(v.errors).includes('FORMULA_DOMAIN_MIXED'), JSON.stringify(v.errors));
+  }
+);
 
 // ---------- Chia cho 0 ----------
 
@@ -291,11 +295,15 @@ const errorsOf = (Formula, text, extra = {}) => {
 const byCode = (errors, code) => errors.filter(e => e.code === code);
 const sliceOf = (text, e) => text.slice(e.at.start, e.at.end);
 
-test('Q8: dạng nguyên vẹn (cộng cả sáu thành phần một lần) hợp lệ, không có lỗi NOT_WHOLE hay DUPLICATE', opts, async () => {
-  const Formula = await load();
-  assert.deepEqual(errorsOf(Formula, totalOf()), []);
-  assert.deepEqual(errorsOf(Formula, totalOf([...PARTS, 'đi lại', 'chuyên cần', 'lương KPI'])), []);
-});
+test(
+  'Q8: dạng nguyên vẹn (cộng cả sáu thành phần một lần) hợp lệ, không có lỗi NOT_WHOLE hay DUPLICATE',
+  opts,
+  async () => {
+    const Formula = await load();
+    assert.deepEqual(errorsOf(Formula, totalOf()), []);
+    assert.deepEqual(errorsOf(Formula, totalOf([...PARTS, 'đi lại', 'chuyên cần', 'lương KPI'])), []);
+  }
+);
 
 test(
   'Q8: tiền OT × 0 không tính là còn thành phần OT: FORMULA_REQUIRED_NOT_WHOLE, component tienOt, at trên chỗ "tiền OT"',
@@ -327,21 +335,25 @@ test('Q8: tiền OT × 2 (nhân hệ số khác 1) là NOT_WHOLE', opts, async (
   assert.match(sliceOf(text, hit[0]), /tiền OT/);
 });
 
-test('Q8: chia, nhân hai phía, nhân chính nó, bọc trong hàm hoặc dấu trừ một ngôi cũng là NOT_WHOLE', opts, async () => {
-  const Formula = await load();
-  for (const form of [
-    'tiền OT ÷ 2',
-    '2 × tiền OT',
-    'tiền OT × tiền OT',
-    'lớn nhất của (tiền OT ; tiền OT)',
-    '-tiền OT'
-  ]) {
-    const text = totalOf([...without('tiền OT'), form]);
-    const errors = errorsOf(Formula, text);
-    const hit = byCode(errors, 'FORMULA_REQUIRED_NOT_WHOLE').filter(e => e.component === 'tienOt');
-    assert.ok(hit.length >= 1, `${form}: ${JSON.stringify(errors)}`);
+test(
+  'Q8: chia, nhân hai phía, nhân chính nó, bọc trong hàm hoặc dấu trừ một ngôi cũng là NOT_WHOLE',
+  opts,
+  async () => {
+    const Formula = await load();
+    for (const form of [
+      'tiền OT ÷ 2',
+      '2 × tiền OT',
+      'tiền OT × tiền OT',
+      'lớn nhất của (tiền OT ; tiền OT)',
+      '-tiền OT'
+    ]) {
+      const text = totalOf([...without('tiền OT'), form]);
+      const errors = errorsOf(Formula, text);
+      const hit = byCode(errors, 'FORMULA_REQUIRED_NOT_WHOLE').filter(e => e.component === 'tienOt');
+      assert.ok(hit.length >= 1, `${form}: ${JSON.stringify(errors)}`);
+    }
   }
-});
+);
 
 test('Q8: trừ thành phần (… - tiền OT) là NOT_WHOLE, không phải vắng hẳn', opts, async () => {
   const Formula = await load();
@@ -484,12 +496,16 @@ test(
   }
 );
 
-test('Q8 chỉ áp cho đích có thành phần bắt buộc: khoản A chứa tiền OT × 2 hay nhiều lần không bị báo', opts, async () => {
-  const Formula = await load();
-  const errors = errorsOf(Formula, 'khoản A = tiền OT × 2 + tiền OT + tiền OT');
-  assert.deepEqual(byCode(errors, 'FORMULA_REQUIRED_NOT_WHOLE'), []);
-  assert.deepEqual(byCode(errors, 'FORMULA_REQUIRED_DUPLICATE'), []);
-});
+test(
+  'Q8 chỉ áp cho đích có thành phần bắt buộc: khoản A chứa tiền OT × 2 hay nhiều lần không bị báo',
+  opts,
+  async () => {
+    const Formula = await load();
+    const errors = errorsOf(Formula, 'khoản A = tiền OT × 2 + tiền OT + tiền OT');
+    assert.deepEqual(byCode(errors, 'FORMULA_REQUIRED_NOT_WHOLE'), []);
+    assert.deepEqual(byCode(errors, 'FORMULA_REQUIRED_DUPLICATE'), []);
+  }
+);
 
 // ---------- Giới hạn kích thước (mặc định: 200 nút, sâu 12, chữ 2000, bảng bậc 10 hàng) ----------
 
@@ -578,27 +594,35 @@ test('Tổng thu nhập thật đủ sáu thành phần cộng 20 khoản tuỳ 
   assert.deepEqual(v.errors, []);
 });
 
-test('Ngoặc lồng cùng phép + 30 lớp theo hướng phải (đi lại + (LCB + (đi lại + ...))) cũng là một tầng', opts, async () => {
-  const Formula = await load();
-  let right = 'LCB';
-  for (let i = 0; i < 29; i++) right = (i % 2 ? 'LCB' : 'đi lại') + ' + (' + right + ')';
-  const out = F.checkAll(Formula, 'khoản A = ' + right);
-  assert.equal(out.ok, true, JSON.stringify(out.errors).slice(0, 300));
-});
+test(
+  'Ngoặc lồng cùng phép + 30 lớp theo hướng phải (đi lại + (LCB + (đi lại + ...))) cũng là một tầng',
+  opts,
+  async () => {
+    const Formula = await load();
+    let right = 'LCB';
+    for (let i = 0; i < 29; i++) right = (i % 2 ? 'LCB' : 'đi lại') + ' + (' + right + ')';
+    const out = F.checkAll(Formula, 'khoản A = ' + right);
+    assert.equal(out.ok, true, JSON.stringify(out.errors).slice(0, 300));
+  }
+);
 
-test('Ngoặc dư không tính là tầng: 30 lớp ngoặc quanh một biến, hoặc quanh nhóm cùng phép +, vẫn hợp lệ', opts, async () => {
-  const Formula = await load();
-  const text = 'khoản A = ' + '('.repeat(30) + 'lương cơ bản' + ')'.repeat(30);
-  const out = F.checkAll(Formula, text);
-  assert.equal(out.ok, true, JSON.stringify(out.errors));
-  // nhóm cùng phép: ((((LCB + đi lại) + LCB) + đi lại) + ...) và đi lại + (LCB + (đi lại + (...)))
-  let left = 'LCB';
-  for (let i = 0; i < 29; i++) left = '(' + left + ' + ' + (i % 2 ? 'LCB' : 'đi lại') + ')';
-  assert.equal(F.checkAll(Formula, 'khoản A = ' + left).ok, true, 'nhóm trái cùng phép +');
-  // một nhóm ngoặc cùng phép giữa chuỗi dài: LCB + (đi lại + chuyên cần + LCB) + đi lại + ...
-  const grouped = 'LCB + (đi lại + chuyên cần + LCB) + ' + Array.from({ length: 20 }, () => 'đi lại').join(' + ');
-  assert.equal(F.checkAll(Formula, 'khoản A = ' + grouped).ok, true, 'một nhóm ngoặc cùng phép giữa chuỗi dài');
-});
+test(
+  'Ngoặc dư không tính là tầng: 30 lớp ngoặc quanh một biến, hoặc quanh nhóm cùng phép +, vẫn hợp lệ',
+  opts,
+  async () => {
+    const Formula = await load();
+    const text = 'khoản A = ' + '('.repeat(30) + 'lương cơ bản' + ')'.repeat(30);
+    const out = F.checkAll(Formula, text);
+    assert.equal(out.ok, true, JSON.stringify(out.errors));
+    // nhóm cùng phép: ((((LCB + đi lại) + LCB) + đi lại) + ...) và đi lại + (LCB + (đi lại + (...)))
+    let left = 'LCB';
+    for (let i = 0; i < 29; i++) left = '(' + left + ' + ' + (i % 2 ? 'LCB' : 'đi lại') + ')';
+    assert.equal(F.checkAll(Formula, 'khoản A = ' + left).ok, true, 'nhóm trái cùng phép +');
+    // một nhóm ngoặc cùng phép giữa chuỗi dài: LCB + (đi lại + chuyên cần + LCB) + đi lại + ...
+    const grouped = 'LCB + (đi lại + chuyên cần + LCB) + ' + Array.from({ length: 20 }, () => 'đi lại').join(' + ');
+    assert.equal(F.checkAll(Formula, 'khoản A = ' + grouped).ok, true, 'một nhóm ngoặc cùng phép giữa chuỗi dài');
+  }
+);
 
 test(
   'Một tổng 12 số hạng (sáu thành phần ngày, đi lại, chuyên cần, KPI và ba khoản tuỳ chỉnh) không vượt giới hạn mặc định',

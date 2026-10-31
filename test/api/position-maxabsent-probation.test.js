@@ -18,8 +18,16 @@ const paramRowsOf = async key => (await P.paramRows()).filter(row => row.key ===
 
 test('Chức vụ: type.ctv.maxAbsent và type.tts.maxAbsent lưu được qua PUT /api/settings/params và có hiệu lực ở tháng áp dụng', async () => {
   const M = await P.setupMonth();
-  assert.equal((await P.paramsOf(M))['type.ctv.maxAbsent'], undefined, 'trước khi lưu: CTV chưa có số ngày nghỉ tối đa');
-  assert.equal((await P.paramsOf(M))['type.tts.maxAbsent'], undefined, 'trước khi lưu: TTS chưa có số ngày nghỉ tối đa');
+  assert.equal(
+    (await P.paramsOf(M))['type.ctv.maxAbsent'],
+    undefined,
+    'trước khi lưu: CTV chưa có số ngày nghỉ tối đa'
+  );
+  assert.equal(
+    (await P.paramsOf(M))['type.tts.maxAbsent'],
+    undefined,
+    'trước khi lưu: TTS chưa có số ngày nghỉ tối đa'
+  );
   const res = await P.saveChanges(
     [
       { key: 'type.ctv.maxAbsent', value: 4 },
@@ -44,7 +52,11 @@ test('Chức vụ: maxAbsent không hợp lệ (-1, null, chữ, số lẻ âm) 
       assert.equal(res.status, 400, `type.${type}.maxAbsent=${JSON.stringify(value)}: ${JSON.stringify(res.data)}`);
       assert.match(String(res.data.code), /^PARAM_/, JSON.stringify(res.data));
       assert.equal(await P.rowCount(), rowsBefore, 'không thêm dòng param_versions');
-      assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `type.${type}.maxAbsent=${JSON.stringify(value)}`);
+      assert.deepEqual(
+        F.changedTables(before, await F.snapshot()),
+        [],
+        `type.${type}.maxAbsent=${JSON.stringify(value)}`
+      );
     }
   }
   assert.equal((await P.paramsOf(M))['type.ctv.maxAbsent'], undefined);
@@ -73,7 +85,10 @@ test('L8: lô cho chức vụ sao chép chuyên cần > 0 mà thiếu maxAbsent 
     { month: M }
   );
   assert.equal(ok.status, 200, JSON.stringify(ok.data));
-  assert.ok(!(ok.data.warnings || []).some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(ok.data.warnings));
+  assert.ok(
+    !(ok.data.warnings || []).some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'),
+    JSON.stringify(ok.data.warnings)
+  );
   assert.equal((await P.paramsOf(M))[`type.${code}.attendance`], 0.3);
   assert.equal((await P.paramsOf(M))[`type.${code}.maxAbsent`], 3);
 });
@@ -83,7 +98,10 @@ test('L8: phụ cấp đi lại > 0 mà thiếu maxAbsent cũng có cảnh báo,
   const code = await P.mustCopy(M, { label: 'Chuyên viên đi lại', copyFrom: 'tts' });
   const bad = await P.saveChanges([{ key: `type.${code}.travel`, value: 0.1 }], { month: M });
   assert.equal(bad.status, 200, JSON.stringify(bad.data));
-  assert.ok(bad.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(bad.data.warnings));
+  assert.ok(
+    bad.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'),
+    JSON.stringify(bad.data.warnings)
+  );
   // đặt maxAbsent rồi đi lại và chuyên cần cùng lô: không cảnh báo
   const first = await P.saveChanges([{ key: `type.${code}.maxAbsent`, value: 3 }], { month: M });
   assert.equal(first.status, 200, JSON.stringify(first.data));
@@ -95,7 +113,10 @@ test('L8: phụ cấp đi lại > 0 mà thiếu maxAbsent cũng có cảnh báo,
     { month: M }
   );
   assert.equal(second.status, 200, JSON.stringify(second.data));
-  assert.ok(!(second.data.warnings || []).some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(second.data.warnings));
+  assert.ok(
+    !(second.data.warnings || []).some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'),
+    JSON.stringify(second.data.warnings)
+  );
 });
 
 test('Không có thử việc: lưu type.nv, ctv, tts .probationPayPct là 400 PARAM_NOT_WIRED và không lưu gì', async () => {

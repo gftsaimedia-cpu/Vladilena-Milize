@@ -31,7 +31,9 @@ test('net-nonpositive: đủ 22 ngày công thì thực nhận dương và khôn
 
 test('net-nonpositive: thiếu bộ máy tính lương thì luật bị bỏ qua kèm lý do; không bị gắn gì', async () => {
   const a = await person('qa_a');
-  const result = await review(await world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } }, withPayroll: false }));
+  const result = await review(
+    await world({ people: [a], days: { qa_a: { '2026-10-05': workDay() } }, withPayroll: false })
+  );
   assert.deepEqual(find(result, 'net-nonpositive'), []);
   // lý do bỏ qua viết bằng tiếng Việt thường, không có tên mô-đun
   assert.match(skippedOf(result, 'net-nonpositive').reason, /bộ máy tính lương/);
@@ -53,7 +55,7 @@ const change = (key, effectiveMonth = '2026-10') => ({ key, effectiveMonth, crea
 const run = async (params, extra, people = TEN) => {
   const days = Object.fromEntries(people.map(p => [p.username, fullMonth()]));
   const advances = Object.fromEntries(people.map(p => [p.username, true])); // tạm ứng chỉ vào thực nhận của người đã được duyệt
-  return review({ ...await world({ people, days }), advances, params, payroll: loadPayroll(params), ...extra });
+  return review({ ...(await world({ people, days })), advances, params, payroll: loadPayroll(params), ...extra });
 };
 
 test('formula-changed-recently: advance.rate 0.8 → 0.5 đổi thực nhận của 10/10 người thì gắn mức vừa, kèm số người và tổng chênh lệch', async () => {

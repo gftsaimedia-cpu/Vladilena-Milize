@@ -60,7 +60,8 @@ test('giờ ròng: ca ngắn hơn một vòng làm + nghỉ thì không có gi�
 });
 
 test('giờ ròng: đoạn làm bù trừ giờ nghỉ của chính đoạn (một lần mỗi đoạn, giống bộ máy lương); đoạn OT không có giờ nghỉ', () => {
-  const makeup = (extraOut, extraIn = '') => shift({ in: '06:00', out: '15:00', extraKind: 'makeup', extraOut, extraIn });
+  const makeup = (extraOut, extraIn = '') =>
+    shift({ in: '06:00', out: '15:00', extraKind: 'makeup', extraOut, extraIn });
   assert.equal(dayNetHours(makeup('19:00'), BREAK), 12); // đoạn 4 giờ chưa tới giờ nghỉ
   assert.equal(dayNetHours(makeup('20:00'), BREAK), 12); // đoạn 5 giờ trừ 1 giờ nghỉ: 8 + 4
   assert.equal(dayNetHours(makeup('20:30'), BREAK), 12.5);
@@ -92,11 +93,16 @@ test('trần ngày: ca 8 giờ + OT 4 giờ vừa đủ; OT 4,25 giờ bị ch�
 test('trần ngày: làm bù và OT cùng ngày đều tính; ngày lễ tính thô không trừ giờ nghỉ', async () => {
   const run = (days, holidays = []) => checkDayHours({ params: PARAMS, clean: days, prevDays: {}, holidays });
   await assert.doesNotReject(async () => run({ '2026-10-05': shift({ extraKind: 'makeup', extraOut: '21:00' }) }));
-  await assert.rejects(async () => run({ '2026-10-05': shift({ extraKind: 'makeup', extraOut: '21:15' }) }), code('DAY_HOURS_CAP'));
+  await assert.rejects(
+    async () => run({ '2026-10-05': shift({ extraKind: 'makeup', extraOut: '21:15' }) }),
+    code('DAY_HOURS_CAP')
+  );
   const early = extraOut => ({ '2026-10-05': shift({ in: '06:00', out: '15:00', extraKind: 'makeup', extraOut }) });
   await assert.doesNotReject(async () => run(early('20:00'))); // đoạn làm bù 5 giờ, bộ máy trả 4: tổng 12 giờ ròng
   await assert.rejects(async () => run(early('20:15')), code('DAY_HOURS_CAP'));
-  await assert.doesNotReject(async () => run({ '2026-10-05': { kind: 'work', in: '08:00', out: '20:00' } }, ['2026-10-05']));
+  await assert.doesNotReject(async () =>
+    run({ '2026-10-05': { kind: 'work', in: '08:00', out: '20:00' } }, ['2026-10-05'])
+  );
   await assert.rejects(
     async () => run({ '2026-10-05': { kind: 'work', in: '08:00', out: '20:15' } }, ['2026-10-05']),
     code('DAY_HOURS_CAP')
@@ -187,8 +193,7 @@ test('trần OT tháng trên lịch: giờ OT và giờ ca chính của ngày l�
 test('trần OT tháng đếm giờ thô: 8 ngày OT 17:00–22:00 = 40 giờ vừa đủ, thêm ngày thứ 9 (45 giờ) bị chặn', async () => {
   const dates = n =>
     Object.fromEntries(Array.from({ length: n }, (_, i) => [`2026-10-${String(i + 1).padStart(2, '0')}`, ot('22:00')]));
-  const check = n =>
-    checkSheetLimits({ params: {}, month: '2026-10', clean: dates(n), prevDays: {} });
+  const check = n => checkSheetLimits({ params: {}, month: '2026-10', clean: dates(n), prevDays: {} });
   await assert.doesNotReject(async () => check(8));
   await assert.rejects(
     async () => check(9),

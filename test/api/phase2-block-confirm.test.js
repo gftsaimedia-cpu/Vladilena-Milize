@@ -66,7 +66,7 @@ test('GĐ2: xác nhận cờ với expectedFlags lệch cờ hiện tại là 40
 
 test('GĐ2: đổi nhãn, cách tính, theo ngày đi làm hoặc điều kiện mất làm mất dấu xác nhận; lưu lại đúng định nghĩa cũ thì giữ', async () => {
   const { M, code } = await confirmedBlock();
-  const same = { ...await def(M, code) };
+  const same = { ...(await def(M, code)) };
   delete same.flagsConfirmedBy;
   delete same.flagsConfirmedAt;
   // lưu lại y nguyên (nhãn có khoảng trắng thừa): không đổi gì

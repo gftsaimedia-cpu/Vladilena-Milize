@@ -174,5 +174,9 @@ test('calcNet: tiền OT miễn thuế là phần làm lễ trả cao hơn lươ
   const plain = k.calcMonth(nv, { '2026-10-07': g2Ot }, null, [], '2026-10', null);
   assert.equal(plain.net.exemptOt, 57692);
   near(plain.otPay, H(4 * DEFAULTS['ot.rate']));
-  near((await day(nv, g2Ot, '2026-10-07')).total, H(18.5), 'ca g2 không lễ: 8h + đêm 3,2h + nghỉ đêm 1,3h + OT 4 × 1,5');
+  near(
+    (await day(nv, g2Ot, '2026-10-07')).total,
+    H(18.5),
+    'ca g2 không lễ: 8h + đêm 3,2h + nghỉ đêm 1,3h + OT 4 × 1,5'
+  );
 });

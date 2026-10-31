@@ -225,7 +225,13 @@ export async function getRequestReasons(id) {
   const { list } = await warningsOf(String(date).slice(0, 7));
   const mine = list.filter(w => w.username === username && w.date === date && w.status !== 'skipped');
   return {
-    request: { name: mine[0]?.person || username, kind: mine[0]?.item || '', date, detail: mine[0]?.text || '', sentAt: '' },
+    request: {
+      name: mine[0]?.person || username,
+      kind: mine[0]?.item || '',
+      date,
+      detail: mine[0]?.text || '',
+      sentAt: ''
+    },
     warnings: mine
   };
 }
@@ -276,7 +282,11 @@ export async function skipWarning(id) {
 // "Còn thiếu gì trước khi chốt công?" lấy từ checklist của GET /ai/review; máy chủ chưa có câu hỏi dựng sẵn nào khác.
 export async function getAssistantAnswer() {
   const review = await reviewOf(monthOfView());
-  const rows = (review.checklist || []).map(it => ({ count: it.count, text: it.label, attention: it.status === 'attention' }));
+  const rows = (review.checklist || []).map(it => ({
+    count: it.count,
+    text: it.label,
+    attention: it.status === 'attention'
+  }));
   const todo = rows.filter(r => r.attention).length;
   return {
     questions: [{ key: 'thieu-gi', label: 'Còn thiếu gì trước khi chốt công?', soon: false }],

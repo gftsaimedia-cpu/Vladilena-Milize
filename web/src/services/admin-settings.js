@@ -16,6 +16,23 @@ export {
 } from './admin-perm.js';
 
 // ---------- Bản nối máy chủ thật (services/admin-config.js) ----------
-export { getSettingsBadges, getBenefits, saveBenefits, getAllSettings, saveAllSettings, getAlerts, saveAlerts, getCalendar, getCalendarSetup, saveCalendarSetup, getAgents, saveAgents, addHoliday, removeHoliday, getAuditLog, verifyAuditLog } from './admin-config.js';
+export {
+  getSettingsBadges,
+  getBenefits,
+  saveBenefits,
+  getAllSettings,
+  saveAllSettings,
+  getAlerts,
+  saveAlerts,
+  getCalendar,
+  getCalendarSetup,
+  saveCalendarSetup,
+  getAgents,
+  saveAgents,
+  addHoliday,
+  removeHoliday,
+  getAuditLog,
+  verifyAuditLog
+} from './admin-config.js';
 export { getPayFormula, getPayDrawer, savePayDrawer } from './admin-config.js';
 export { addAllowance, getKpiRules, getPositionTypes, addPosition } from './admin-config.js';

@@ -211,7 +211,13 @@ test('duyệt tất cả: chỉ duyệt yêu cầu đang chờ (bỏ người đ
   const M = monthOf();
   await setup(M);
   // qa_zero: được ứng nhưng không có ngày đi làm; số đã chốt 0 ₫ nên chính nhân sự cũng không xin được (ADVANCE_ZERO)
-  await F.person('qa_zero', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_zero', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
   const zero = await ask(M, 'qa_zero');
   assert.equal(zero.status, 409);
   assert.equal(zero.data.code, 'ADVANCE_ZERO');

@@ -33,13 +33,14 @@ async function setup(month) {
 async function insertRequest(username, month, { amount, status = 'pending', granted = null }) {
   const at = new Date(Date.now()).toISOString();
   return Number(
-    (await store.db
-      .prepare(
-        `INSERT INTO advance_requests (username, month, amount, cap, status, granted, rev, created_at, decided_by, decided_at)
+    (
+      await store.db
+        .prepare(
+          `INSERT INTO advance_requests (username, month, amount, cap, status, granted, rev, created_at, decided_by, decided_at)
          VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`
-      )
-      .run(username, month, amount, amount, status, granted, at, granted ? 'admin' : null, granted ? at : null))
-      .lastInsertRowid
+        )
+        .run(username, month, amount, amount, status, granted, at, granted ? 'admin' : null, granted ? at : null)
+    ).lastInsertRowid
   );
 }
 const requestCount = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM advance_requests').get()).n;

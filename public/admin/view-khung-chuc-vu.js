@@ -40,7 +40,8 @@
             if (!copyFrom) throw new Error('Chọn chức vụ để sao chép chế độ.');
             if (!MONTH_RE.test(eff)) throw new Error('Chọn tháng áp dụng.');
             // lý do không bắt buộc, chỉ giữ trần độ dài
-            if (reason.length > REASON_MAX) throw new Error(`Lý do tối đa ${REASON_MAX} ký tự (hiện có ${reason.length}).`);
+            if (reason.length > REASON_MAX)
+              throw new Error(`Lý do tối đa ${REASON_MAX} ký tự (hiện có ${reason.length}).`);
             try {
               await A.api('POST', '/positions', { label, copyFrom, effectiveMonth: eff, reason });
             } catch (e) {

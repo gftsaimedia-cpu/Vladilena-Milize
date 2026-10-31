@@ -149,10 +149,12 @@ test('ngày Admin ghi thay (Đã chấm công): giờ đã ghi; có lượt th�
   const onlyAdmin = await (await month(DAY, { [TUE]: dayShift }, [await adminSession(DAY, TUE, dayShift)])).row(TUE);
   assert.equal(onlyAdmin.punchIn, '08:00');
   assert.equal(onlyAdmin.punchOut, '17:00');
-  const both = await (await month(DAY, { [TUE]: dayShift }, [
-    await adminSession(DAY, TUE, dayShift),
-    await punch(DAY, TUE, '07:55', '17:10')
-  ])).row(TUE);
+  const both = await (
+    await month(DAY, { [TUE]: dayShift }, [
+      await adminSession(DAY, TUE, dayShift),
+      await punch(DAY, TUE, '07:55', '17:10')
+    ])
+  ).row(TUE);
   assert.equal(both.punchIn, '07:55');
   assert.equal(both.punchOut, '17:10');
 });
@@ -180,7 +182,9 @@ test('bản chụp cũ chưa có giờ bấm: withDayFigures lấy lúc đọc t
     approveIncomplete: true
   });
   await store.createSession(user, built.date, 'closed', built.entry);
-  const { m } = await month(staff, { [TUE]: dayShift, '2026-10-07': dayShift }, [await punch(staff, TUE, '07:55', '17:10')]);
+  const { m } = await month(staff, { [TUE]: dayShift, '2026-10-07': dayShift }, [
+    await punch(staff, TUE, '07:55', '17:10')
+  ]);
   const old = {
     ...m,
     rows: m.rows.map(({ punchIn, punchOut, ...rest }) => rest)

@@ -115,9 +115,13 @@ const state = async () => ({
   local: localTime(),
   user: selectedUser,
   initialLocal: INITIAL_LOCAL,
-  users: (await store
-    .listStaff())
-    .map(({ username, name, role, type, shiftCode }) => ({ username, name, role, type, shiftCode }))
+  users: (await store.listStaff()).map(({ username, name, role, type, shiftCode }) => ({
+    username,
+    name,
+    role,
+    type,
+    shiftCode
+  }))
 });
 const sessionCookie = async () => auth.cookieHeader(await auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
 const hasAttendanceData = () =>
@@ -209,7 +213,7 @@ const sandbox = http.createServer(async (req, res) => {
           });
         clock = next;
       } else if (url.pathname === '/__sandbox/user') {
-        if (typeof data.username !== 'string' || !await store.getStaff(data.username))
+        if (typeof data.username !== 'string' || !(await store.getStaff(data.username)))
           return send(res, 400, { error: 'Không có tài khoản thử nghiệm này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
@@ -226,7 +230,7 @@ const sandbox = http.createServer(async (req, res) => {
       return textFile(res, 'sandbox-ops.js', 'text/javascript');
     // /app: khung thử của panel; mở giao diện mới của tài khoản đang chọn (có đồng hồ giả, xem pageHtml)
     if (req.method === 'GET' && url.pathname === '/app') {
-      res.writeHead(302, { Location: await homePage() + '?' + CLOCK_QUERY + '=1', 'Cache-Control': 'no-store' });
+      res.writeHead(302, { Location: (await homePage()) + '?' + CLOCK_QUERY + '=1', 'Cache-Control': 'no-store' });
       return res.end();
     }
     if (req.method === 'GET' && CLOCKED_PAGES.has(url.pathname) && url.searchParams.has(CLOCK_QUERY)) {
@@ -242,14 +246,16 @@ const sandbox = http.createServer(async (req, res) => {
 
 const port = process.env.SANDBOX_PORT === undefined ? 3104 : Number(process.env.SANDBOX_PORT);
 if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error('SANDBOX_PORT không hợp lệ');
-seeded.then(() => sandbox.listen(port, '127.0.0.1', () => {
-  listenPort = sandbox.address().port;
-  appServer.limits.monitor.start(); // server.js chỉ tự bật khi chạy làm chương trình chính; sandbox cần số đo trễ cho bảng tải
-  console.log(
-    'SANDBOX_READY ' +
-      JSON.stringify({ url: `http://127.0.0.1:${sandbox.address().port}`, initialLocal: INITIAL_LOCAL })
-  );
-}));
+seeded.then(() =>
+  sandbox.listen(port, '127.0.0.1', () => {
+    listenPort = sandbox.address().port;
+    appServer.limits.monitor.start(); // server.js chỉ tự bật khi chạy làm chương trình chính; sandbox cần số đo trễ cho bảng tải
+    console.log(
+      'SANDBOX_READY ' +
+        JSON.stringify({ url: `http://127.0.0.1:${sandbox.address().port}`, initialLocal: INITIAL_LOCAL })
+    );
+  })
+);
 function shutdown() {
   appServer.limits.monitor.stop();
   ops.close();

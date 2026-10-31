@@ -39,7 +39,7 @@ test('pool: migration đã chạy qua giao thức mạng, dữ liệu gieo sẵn
 });
 
 test('pool: BIGINT trả về dạng số, tham số ? được dịch sang $n', async () => {
-  const run = await db.prepare("INSERT INTO benefit_types (code) VALUES (?)").run('pool_kind');
+  const run = await db.prepare('INSERT INTO benefit_types (code) VALUES (?)').run('pool_kind');
   assert.equal(run.changes, 1);
   const row = await db.prepare('SELECT COUNT(*) AS n FROM benefit_types WHERE code = ?').get('pool_kind');
   assert.equal(typeof row.n, 'number');
@@ -70,7 +70,9 @@ test('pool: giao dịch hoàn tác khi ném lỗi, SAVEPOINT lồng hoàn tác r
 
 test('pool: trigger PL/pgSQL báo lỗi qua giao thức mạng với đúng câu báo lỗi', async () => {
   await db
-    .prepare("INSERT INTO audit_log (actor, action, entity_kind, entity_id, at, prev_hash, hash) VALUES ('p', 'x', 'k', '1', '2026-10-31T00:00:00Z', '', 'h')")
+    .prepare(
+      "INSERT INTO audit_log (actor, action, entity_kind, entity_id, at, prev_hash, hash) VALUES ('p', 'x', 'k', '1', '2026-10-31T00:00:00Z', '', 'h')"
+    )
     .run();
   await assert.rejects(() => db.prepare('DELETE FROM audit_log').run(), /audit_log chỉ được thêm dòng/);
 });

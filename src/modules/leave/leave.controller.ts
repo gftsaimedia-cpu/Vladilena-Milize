@@ -49,7 +49,12 @@ export class LeaveController {
     if (body.user) {
       const staff = await staffOf(String(body.user).toLowerCase());
       const result = await leave.refresh(staff);
-      return send(c.res, 200, { checked: 1, accounts: result ? 1 : 0, failed: 0, balance: result ? result.balance : null });
+      return send(c.res, 200, {
+        checked: 1,
+        accounts: result ? 1 : 0,
+        failed: 0,
+        balance: result ? result.balance : null
+      });
     }
     return send(c.res, 200, await leave.refreshAll());
   }

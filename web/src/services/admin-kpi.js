@@ -24,6 +24,9 @@ export async function saveKpiScore({ month, id, index, value }) {
 /** Lịch sử sửa điểm: mỗi dòng là lần sửa gần nhất của một người. */
 // GET /api/audit?action=kpi.score&month=&limit=200 (quyền audit.read)
 export async function getKpiHistory(month) {
-  const [audit, scores] = await Promise.all([api('GET', '/audit' + qs({ action: 'kpi.score', month, limit: 200 })), raw(month)]);
+  const [audit, scores] = await Promise.all([
+    api('GET', '/audit' + qs({ action: 'kpi.score', month, limit: 200 })),
+    raw(month)
+  ]);
   return buildKpiHistory(audit, scores);
 }

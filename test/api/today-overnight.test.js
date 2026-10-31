@@ -82,7 +82,13 @@ test('Today counts the overnight session that it displays as open', async () => 
 test('Today keeps a forgotten overnight checkout after the 16-hour boundary without inventing an exit', async () => {
   await person('forgot-night');
   await at('2026-10-07T21:55:00');
-  await store.setSheet('forgot-night', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, null, null);
+  await store.setSheet(
+    'forgot-night',
+    '2026-10',
+    { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } },
+    null,
+    null
+  );
   const estimate = await store.getSheet('forgot-night', '2026-10');
   const session = (await punch('forgot-night', 'in')).openSession;
   await at('2026-10-08T13:55:00');

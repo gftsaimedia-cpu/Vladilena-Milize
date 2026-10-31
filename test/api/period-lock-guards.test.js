@@ -84,9 +84,9 @@ const ROUTES = [
         }),
         'dựng khoản iSAT chờ duyệt'
       );
-      const row = (await store.approvals
-        .list({ status: 'pending' }))
-        .find(r => r.username === 'worker' && r.date === '2026-10-10');
+      const row = (await store.approvals.list({ status: 'pending' })).find(
+        r => r.username === 'worker' && r.date === '2026-10-10'
+      );
       assert.ok(row, 'phải có khoản iSAT chờ duyệt');
       return {
         who: 'admin',
@@ -199,13 +199,20 @@ const EXEMPT = {
   'PUT /password': 'mật khẩu của chính mình',
   'PUT /settings/geofence': 'vùng GPS, không theo tháng',
   'PUT /settings/agents': 'công tắc Agents, không theo tháng',
-  'POST /periods/:month/lock-attendance': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/calculate': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/ai-review': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/approve': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/mark-paid': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/reopen': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'PUT /periods/:month/payslips/decide': 'duyệt phiếu của lần chạy: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE)',
+  'POST /periods/:month/lock-attendance':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/calculate':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/ai-review':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/approve':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/mark-paid':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/reopen':
+    'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'PUT /periods/:month/payslips/decide':
+    'duyệt phiếu của lần chạy: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE)',
   'PUT /settings/params': 'bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu nên không bị đổi',
   'POST /settings/params/preview': 'chỉ xem trước tác động, không ghi',
   'POST /settings/params/revert': 'hoàn tác bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu',
@@ -220,14 +227,36 @@ const EXEMPT = {
 // Route ghi của các module Nest (src/modules/*) khai periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module tự kiểm
 // (vd. tạm ứng luôn 409 PERIOD_LOCKED khi kỳ đã duyệt/chi trả, danh mục kiểm khoá kỳ trong applyCatalogChange); mỗi nhóm có test riêng.
 for (const key of [
-  'POST /advance-approvals/request', 'POST /advance-approvals/withdraw', 'POST /advance-approvals/approve', 'POST /advance-approvals/reject',
-  'POST /advance-approvals/cancel', 'POST /advance-approvals/approve-all', 'POST /blocks', 'PUT /blocks/:code/confirm',
-  'PUT /catalog/positions/:code', 'PUT /catalog/levels', 'PUT /catalog/shifts', 'POST /explanations', 'POST /explanations/:id/answer',
-  'POST /explanations/:id/decide', 'POST /leave/refresh', 'POST /pay-entries', 'POST /pay-entries/bulk', 'PUT /pay-entries/:id',
-  'PUT /pay-entries/:id/decide', 'POST /pay-entries/:id/void', 'POST /pay-entries/:id/confirm-flags', 'POST /positions',
-  'POST /positions/:code/levels', 'POST /roles', 'PUT /roles/:code', 'POST /roles/:code/deprecate', 'PUT /settings/shifts'
+  'POST /advance-approvals/request',
+  'POST /advance-approvals/withdraw',
+  'POST /advance-approvals/approve',
+  'POST /advance-approvals/reject',
+  'POST /advance-approvals/cancel',
+  'POST /advance-approvals/approve-all',
+  'POST /blocks',
+  'PUT /blocks/:code/confirm',
+  'PUT /catalog/positions/:code',
+  'PUT /catalog/levels',
+  'PUT /catalog/shifts',
+  'POST /explanations',
+  'POST /explanations/:id/answer',
+  'POST /explanations/:id/decide',
+  'POST /leave/refresh',
+  'POST /pay-entries',
+  'POST /pay-entries/bulk',
+  'PUT /pay-entries/:id',
+  'PUT /pay-entries/:id/decide',
+  'POST /pay-entries/:id/void',
+  'POST /pay-entries/:id/confirm-flags',
+  'POST /positions',
+  'POST /positions/:code/levels',
+  'POST /roles',
+  'PUT /roles/:code',
+  'POST /roles/:code/deprecate',
+  'PUT /settings/shifts'
 ])
-  EXEMPT[key] = 'route của module Nest, periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module kiểm';
+  EXEMPT[key] =
+    'route của module Nest, periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module kiểm';
 
 // Route có periodScope mà server.js không khai trực tiếp (nằm ở mô-đun lib/domain/*) và được test khác phủ khoá kỳ
 const COVERED_ELSEWHERE = {};
@@ -276,7 +305,8 @@ for (const route of ROUTES)
           if (locked.length) problems.push(`${status}: kỳ chưa khoá mà có cảnh báo ${JSON.stringify(locked)}`);
           continue;
         }
-        if (!locked.length) problems.push(`${status}: thiếu cảnh báo PERIOD_LOCKED ${JSON.stringify(res.data).slice(0, 160)}`);
+        if (!locked.length)
+          problems.push(`${status}: thiếu cảnh báo PERIOD_LOCKED ${JSON.stringify(res.data).slice(0, 160)}`);
         else if (locked[0].details.status !== status || !route.scopes.includes(locked[0].details.scope))
           problems.push(
             `${status}: chi tiết cảnh báo sai ${JSON.stringify(locked[0].details)} (cần status ${status}, scope ${route.scopes})`

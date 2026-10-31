@@ -407,6 +407,9 @@ test('pay-entry-lifecycle: nhập hàng loạt với cùng một tên hai lần 
     }
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.equal(res.data.count, 2);
 });

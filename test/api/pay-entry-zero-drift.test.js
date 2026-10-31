@@ -23,7 +23,10 @@ function expectUnchanged(slips, legacy) {
 }
 
 test('pay-entry-zero-drift: bảng pay_entries có mặt và rỗng; không có khoản nào thì phiếu bằng khối cũ từng đồng và bản chụp KHÔNG có m.entries, m.net.entriesAdd, m.net.entriesDeduct', async () => {
-  assert.ok(await store.db.prepare("SELECT name FROM sqlite_master WHERE name = 'pay_entries'").get(), 'bảng pay_entries');
+  assert.ok(
+    await store.db.prepare("SELECT name FROM sqlite_master WHERE name = 'pay_entries'").get(),
+    'bảng pay_entries'
+  );
   assert.equal(await count(), 0, 'bảng rỗng lúc bắt đầu');
   const M = await E.setup();
   const legacy = await flow.expectedFor(M);

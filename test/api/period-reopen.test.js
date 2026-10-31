@@ -20,13 +20,14 @@ const reopen = (month, to, body = {}, who = 'admin') => P.step(month, 'reopen', 
 const getPeriod = async month => (await F.call('GET', `/periods/${month}`)).data;
 // Dấu vân tay của mọi phiếu và lần chạy của tháng (để khẳng định "không xoá, không sửa")
 const fingerprint = async month =>
-  (await store.db
-    .prepare(
-      `SELECT r.run_no AS run_no, p.username AS username, p.gross AS gross, p.net AS net, p.status AS status, hex(p.snapshot_gz) AS snap, p.staff_terms_json AS terms
+  (
+    await store.db
+      .prepare(
+        `SELECT r.run_no AS run_no, p.username AS username, p.gross AS gross, p.net AS net, p.status AS status, hex(p.snapshot_gz) AS snap, p.staff_terms_json AS terms
        FROM payroll_runs r JOIN payslips p ON p.run_id = r.id WHERE r.month = ? ORDER BY r.run_no, p.username`
-    )
-    .all(month))
-    .map(row => ({ ...row }));
+      )
+      .all(month)
+  ).map(row => ({ ...row }));
 
 /* ================= quyền ================= */
 test('C&B chỉ mở lại về calculated; về open hoặc attendance_locked cần period.reopen.inputs nên 403 FORBIDDEN_CAP và không đổi gì', async () => {
@@ -101,9 +102,7 @@ test('Lý do không bắt buộc: thiếu, null, rỗng, toàn dấu cách, 9 k�
       [],
       'kỳ chưa chi trả thì không có cảnh báo trạng thái'
     );
-    const row = await (await P.auditOf(M))
-      .filter(r => r.action === 'period.reopen')
-      .at(-1);
+    const row = await (await P.auditOf(M)).filter(r => r.action === 'period.reopen').at(-1);
     assert.equal(row.reason, saved, `to=${to}`);
   }
   for (const bad of [null, '', 123456789012, {}, P.text(10)]) {

@@ -327,7 +327,10 @@ test('8: Admin gửi mật khẩu cho tài khoản đã có qua PUT /staff bị 
 test('8: Admin đặt lại mật khẩu của người khác (POST /staff/:u/password) thì không đổi cookie của Admin (giữ nguyên)', async () => {
   const r = await fetch(base + '/api/staff/worker/password', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400) },
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400)
+    },
     body: JSON.stringify({ password: 'mat-khau-moi-2', reason: 'Đặt lại mật khẩu theo yêu cầu của người dùng' })
   });
   assert.equal(r.status, 200);

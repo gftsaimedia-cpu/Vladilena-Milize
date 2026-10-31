@@ -10,7 +10,14 @@ const DEFAULT_PREFIX = 'lt_';
 async function seedLoadUsers(store, { count, passHash, prefix = DEFAULT_PREFIX }) {
   const users = [];
   await store.transaction(async () => {
-    await store.upsertStaff({ username: ADMIN_NAME, name: 'Admin đo tải', role: 'admin', type: 'tts', level: 0, passHash });
+    await store.upsertStaff({
+      username: ADMIN_NAME,
+      name: 'Admin đo tải',
+      role: 'admin',
+      type: 'tts',
+      level: 0,
+      passHash
+    });
     for (let i = 1; i <= count; i++) {
       const username = userName(prefix, i);
       users.push(username);

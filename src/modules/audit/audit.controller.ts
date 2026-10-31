@@ -10,7 +10,7 @@ const config = require('../../../lib/config'); // giới hạn kỹ thuật có 
 
 @Controller('api')
 export class AuditController {
-    /* ---------- nhật ký kiểm toán (chỉ đọc; không có API sửa hay xoá) ---------- */
+  /* ---------- nhật ký kiểm toán (chỉ đọc; không có API sửa hay xoá) ---------- */
   @Get('audit')
   async getAudit(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
     const { res, url, me, need } = c;

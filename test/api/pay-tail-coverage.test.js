@@ -15,10 +15,7 @@ after(F.stop);
 
 const BASIS = 'Luật Bảo hiểm xã hội số 41/2024/QH15 (căn cứ thử)';
 const unsetInsured = async () =>
-  (await store.db
-    .prepare('SELECT username FROM staff WHERE insured IS NULL')
-    .all())
-    .map(r => r.username);
+  (await store.db.prepare('SELECT username FROM staff WHERE insured IS NULL').all()).map(r => r.username);
 // Hợp đồng suy từ thâm niên (đủ 3 tháng từ ngày vào làm tới hết tháng lương là dài): TTS vào làm đầu tháng là hợp đồng ngắn, ba người còn lại vào làm từ 05/01/2026 là hợp đồng dài
 const makeTtsShort = async month =>
   await store.db.prepare('UPDATE staff SET start_date = ? WHERE username = ?').run(`${month}-01`, 'qa_tts1');
@@ -37,7 +34,11 @@ test('GĐ3: coverage: hợp đồng ngắn chưa ghi riêng không đóng bảo 
   for (const u of Object.keys(before))
     if (
       unset.includes(u) &&
-      PayrollPolicy.tenureContract((await store.getStaff(u)).startDate, M, (await P.paramsOf(M))['tax.longTermMonths']) === 'short'
+      PayrollPolicy.tenureContract(
+        (await store.getStaff(u)).startDate,
+        M,
+        (await P.paramsOf(M))['tax.longTermMonths']
+      ) === 'short'
     )
       who.push(u);
   assert.ok(who.length > 0, 'cần ít nhất một người hợp đồng ngắn chưa ghi riêng bảo hiểm');

@@ -29,7 +29,8 @@ afterEach(() => {
 
 const staff = async (username, extra = {}) =>
   await F.person(username, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', ...extra });
-const putRoles = async (username, body, who = 'admin') => await F.call('PUT', `/staff/${username}/roles`, { who, body });
+const putRoles = async (username, body, who = 'admin') =>
+  await F.call('PUT', `/staff/${username}/roles`, { who, body });
 const shiftBulk = async (body, who = 'admin') => await F.call('PUT', '/staff/shift-bulk', { who, body });
 const REASON = 'Phân quyền theo quyết định tháng này';
 const auditOf = async (like, entity) =>
@@ -339,7 +340,10 @@ test('roles.changed: có trong danh mục, chỉ cho người nhận kiểu user
   assert.ok(Object.hasOwn(events.EVENTS, 'roles.changed'));
   assert.deepEqual(events.EVENTS['roles.changed'].audiences, ['users']);
   assert.deepEqual(events.EVENTS['roles.changed'].tiers[0].fields, []);
-  await assert.rejects(async () => events.publish('roles.changed', {}, { all: true }), /không được phát tới kiểu người nhận này/);
+  await assert.rejects(
+    async () => events.publish('roles.changed', {}, { all: true }),
+    /không được phát tới kiểu người nhận này/
+  );
   assert.equal(await events.emit.rolesChanged('qa_khong_ket_noi'), 0, 'không có kết nối thì 0 luồng, không lỗi');
 });
 
@@ -364,7 +368,8 @@ test('shift-bulk: gán ca bằng preset cho nhiều người trả { ok, shiftCo
     { username: 'qa_sb_c', shiftCode: await canon(target) }
   ]);
   assert.deepEqual(res.data.unchanged, ['qa_sb_b']);
-  for (const u of ['qa_sb_a', 'qa_sb_b', 'qa_sb_c']) assert.equal((await store.getStaff(u)).shiftCode, await canon(target), u);
+  for (const u of ['qa_sb_a', 'qa_sb_b', 'qa_sb_c'])
+    assert.equal((await store.getStaff(u)).shiftCode, await canon(target), u);
   const rows = await auditOf('staff.update', 'qa_sb_%');
   assert.deepEqual(rows.map(r => r.entity_id).sort(), ['qa_sb_a', 'qa_sb_c']);
   const a = rows.find(r => r.entity_id === 'qa_sb_a');

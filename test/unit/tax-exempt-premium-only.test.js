@@ -37,7 +37,9 @@ test('OT ngày thường 4 giờ ×1,5 (trả 173.077 ₫): miễn 0,5 lương g
 });
 
 test('OT Chủ nhật 4 giờ ngoài lịch ×2 (trả 230.769 ₫): miễn 1 lương giờ × 4 = 115.385 ₫', async () => {
-  const m = await month({ '2026-10-04': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00', extraOnly: true }) });
+  const m = await month({
+    '2026-10-04': work('08:00', '17:00', { extraKind: 'ot', extraOut: '21:00', extraOnly: true })
+  });
   assert.equal(Math.round(m.otWeekendPay), 230769);
   assert.equal(m.net.exemptOt, 115385);
   assert.equal(m.net.taxable, m.net.gross - 115385);

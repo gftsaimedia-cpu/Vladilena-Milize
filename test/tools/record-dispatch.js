@@ -283,7 +283,10 @@ const SCENARIOS = [
   // lịch làm việc riêng từng người
   S('GET', `/staff/qa_nv/schedule?month=${MONTH}`, 'đọc'),
   S('PUT', '/staff/qa_nv/schedule', 'đã gỡ: không còn đường dẫn ghi lịch riêng', { body: {}, odd: true }),
-  S('POST', '/staff/qa_nv/schedule/preview', 'đã gỡ: không còn đường dẫn xem trước lịch riêng', { body: {}, odd: true }),
+  S('POST', '/staff/qa_nv/schedule/preview', 'đã gỡ: không còn đường dẫn xem trước lịch riêng', {
+    body: {},
+    odd: true
+  }),
 
   // vai trò tuỳ chỉnh và ca làm sửa được (Cài đặt › Phân quyền, Ca làm)
   S('POST', '/roles', 'thân rỗng', { body: {} }),

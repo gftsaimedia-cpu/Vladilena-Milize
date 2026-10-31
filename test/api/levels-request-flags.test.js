@@ -16,7 +16,8 @@ const makeupHoursDay = person => {
   const extraOut = `${String((Number(shiftOut.slice(0, 2)) + 1) % 24).padStart(2, '0')}:${shiftOut.slice(3)}`;
   return { kind: 'work', in: shiftIn, out: shiftOut, preset: person, extraKind: 'makeup', extraOut };
 };
-const put = async (who, month, date, day) => await F.call('PUT', '/sheet', { who, body: { month, days: { [date]: day } } });
+const put = async (who, month, date, day) =>
+  await F.call('PUT', '/sheet', { who, body: { month, days: { [date]: day } } });
 
 test('GĐ-bậc 2: mặc định cờ làm bù theo giờ bật cho mọi chức vụ (sheetFlagsOf); không còn cờ đi làm ngày lễ riêng', async () => {
   const M = await P.setupMonth();
@@ -40,5 +41,8 @@ test('GĐ-bậc 2: tắt benefit.makeupHours của CTV thì khai làm bù theo g
   assert.match(warning.message, new RegExp(`Ngày .*làm bù theo giờ`));
   const allowed = await put('qa_ctv1', open, P.firstDow(open, 2), makeupHoursDay('n2'));
   assert.equal(allowed.status, 200, JSON.stringify(allowed.data));
-  assert.ok(!(allowed.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(allowed.data.warnings));
+  assert.ok(
+    !(allowed.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(allowed.data.warnings)
+  );
 });

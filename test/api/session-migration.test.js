@@ -8,7 +8,8 @@ const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
   P = require('../../public/punch');
 // đọc thẳng dòng bấm giờ mới nhất của người
-const LAST = async u => await store.db.prepare('SELECT * FROM punches WHERE username = ? ORDER BY id DESC LIMIT 1').get(u);
+const LAST = async u =>
+  await store.db.prepare('SELECT * FROM punches WHERE username = ? ORDER BY id DESC LIMIT 1').get(u);
 // đọc thẳng các ngày chấm công của tháng
 const ATT = async (u, month) =>
   await store.db.prepare('SELECT date FROM attendance_days WHERE username = ? AND date LIKE ?').all(u, month + '-%');
@@ -133,9 +134,11 @@ test('edited night with non-overlapping original hours retains uncertain raw evi
     assert.equal(sessions.length, 1);
     assert.deepEqual(sessions[0].entry, corrected);
     assert.equal(
-      (await store.db
-        .prepare('SELECT COUNT(*) n FROM punches WHERE username=? AND session_id IS NULL')
-        .get('edited-night-disjoint')).n,
+      (
+        await store.db
+          .prepare('SELECT COUNT(*) n FROM punches WHERE username=? AND session_id IS NULL')
+          .get('edited-night-disjoint')
+      ).n,
       2
     );
     await remigrate();
@@ -162,7 +165,11 @@ test('consecutive legacy check-ins followed by checkout stay unpaired for reconc
   await remigrate();
   assert.equal((await store.listSessions({ username: 'ambiguous-pair' })).length, 0);
   assert.equal(
-    (await store.db.prepare('SELECT COUNT(*) n FROM punches WHERE username=? AND session_id IS NULL').get('ambiguous-pair')).n,
+    (
+      await store.db
+        .prepare('SELECT COUNT(*) n FROM punches WHERE username=? AND session_id IS NULL')
+        .get('ambiguous-pair')
+    ).n,
     3
   );
 });

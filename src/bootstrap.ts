@@ -20,7 +20,10 @@ export function createServer(): http.Server {
   const instance = express();
   instance.disable('x-powered-by');
   instance.disable('etag');
-  const ready = NestFactory.create(AppModule.register(), new ExpressAdapter(instance), { bodyParser: false, logger: ['error', 'warn'] }).then(app => app.init());
+  const ready = NestFactory.create(AppModule.register(), new ExpressAdapter(instance), {
+    bodyParser: false,
+    logger: ['error', 'warn']
+  }).then(app => app.init());
   ready.catch(error => console.error('Không khởi tạo được Nest:', error));
 
   const server = http.createServer(async (req, res) => {

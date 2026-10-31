@@ -140,20 +140,24 @@ test('position-copy: sao chép nv thành chức vụ thử (position.def + type.
     input.advanceApproved = true;
   };
   const nv = (await runGolden(NV1, {}, approve)).m;
-  const copy = (await runGolden(NV1, over, async input => {
-    await approve(input);
-    input.staff.type = 'qa_copy_nv';
-  })).m;
+  const copy = (
+    await runGolden(NV1, over, async input => {
+      await approve(input);
+      input.staff.type = 'qa_copy_nv';
+    })
+  ).m;
   for (const field of ['gross', 'insurance', 'tax', 'advance', 'net', 'employer'])
     assert.equal(copy.net[field], nv.net[field], field);
   assert.equal(copy.net.net, 5040461);
   assert.equal(Object.is(copy.total, nv.total), true);
   // mọi người của golden NV bậc 3 cũng khớp: sao chép là sao chép THẬT, không chỉ bậc 1
   const nv3 = (await runGolden(NV3, {}, approve)).m;
-  const copy3 = (await runGolden(NV3, over, async input => {
-    await approve(input);
-    input.staff.type = 'qa_copy_nv';
-  })).m;
+  const copy3 = (
+    await runGolden(NV3, over, async input => {
+      await approve(input);
+      input.staff.type = 'qa_copy_nv';
+    })
+  ).m;
   assert.equal(copy3.net.net, nv3.net.net);
 });
 

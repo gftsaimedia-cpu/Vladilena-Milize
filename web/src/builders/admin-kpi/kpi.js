@@ -53,7 +53,9 @@ export function buildKpiSummary(raw) {
   const items = raw.items || [];
   const wework = items.filter(FILTERS['base-thap']).length;
   const below = items.filter(FILTERS['tong-thap']).length;
-  const note = [wework && `${wework} có Base Wework dưới ngưỡng`, below && `${below} có tổng điểm chưa đạt`].filter(Boolean).join(' · ');
+  const note = [wework && `${wework} có Base Wework dưới ngưỡng`, below && `${below} có tổng điểm chưa đạt`]
+    .filter(Boolean)
+    .join(' · ');
   return {
     month: raw.month,
     empty: !items.length,

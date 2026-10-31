@@ -11,17 +11,28 @@ const store = require('../../lib/db');
 
 after(() => store.db.close());
 
-const rejects = (sql, args, message) => assert.rejects(() => store.db.prepare(sql).run(...args), err => message.test(err.message), sql);
+const rejects = (sql, args, message) =>
+  assert.rejects(
+    () => store.db.prepare(sql).run(...args),
+    err => message.test(err.message),
+    sql
+  );
 const skip = isPostgres ? false : 'chỉ chạy trên PostgreSQL (DB_DIALECT=postgres)';
 
 test('staff: uuid tự sinh khi thêm, username và uuid không đổi được', { skip }, async () => {
   await store.ready;
   await store.db
-    .prepare("INSERT INTO staff (username, name, pass_hash, created_at) VALUES ('pg_trigger_a', 'A', 'x', '2026-10-31T00:00:00.000Z')")
+    .prepare(
+      "INSERT INTO staff (username, name, pass_hash, created_at) VALUES ('pg_trigger_a', 'A', 'x', '2026-10-31T00:00:00.000Z')"
+    )
     .run();
   const row = await store.db.prepare("SELECT uuid FROM staff WHERE username = 'pg_trigger_a'").get();
   assert.match(row.uuid, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
-  await rejects("UPDATE staff SET username = 'doi_ten' WHERE username = 'pg_trigger_a'", [], /staff\.username không đổi được/);
+  await rejects(
+    "UPDATE staff SET username = 'doi_ten' WHERE username = 'pg_trigger_a'",
+    [],
+    /staff\.username không đổi được/
+  );
   await rejects("UPDATE staff SET uuid = 'khac' WHERE username = 'pg_trigger_a'", [], /staff\.uuid không đổi được/);
 });
 
@@ -38,13 +49,35 @@ test('bảng chỉ-thêm-dòng từ chối UPDATE và DELETE với câu báo l�
 
 test('mọi trigger của lược đồ SQLite đều có bản PostgreSQL cùng tên', { skip }, async () => {
   await store.ready;
-  const have = new Set((await store.db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all()).map(r => r.name));
+  const have = new Set(
+    (await store.db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all()).map(r => r.name)
+  );
   const expected = [
-    'advance_requests_guard_update', 'ai_finding_actions_no_delete', 'ai_finding_actions_no_update', 'ai_review_runs_no_delete',
-    'ai_review_runs_no_update', 'audit_log_no_delete', 'audit_log_no_update', 'param_versions_no_delete', 'param_versions_no_update',
-    'pay_entries_frozen_update', 'pay_entries_guard_update', 'pay_entries_no_delete', 'payroll_runs_guard_update',
-    'payroll_runs_no_delete', 'payslips_frozen_update', 'payslips_guard_update', 'payslips_no_delete', 'staff_roles_guard_update',
-    'staff_roles_no_delete', 'staff_username_fixed', 'staff_uuid_default', 'staff_uuid_fixed'
+    'advance_requests_guard_update',
+    'ai_finding_actions_no_delete',
+    'ai_finding_actions_no_update',
+    'ai_review_runs_no_delete',
+    'ai_review_runs_no_update',
+    'audit_log_no_delete',
+    'audit_log_no_update',
+    'param_versions_no_delete',
+    'param_versions_no_update',
+    'pay_entries_frozen_update',
+    'pay_entries_guard_update',
+    'pay_entries_no_delete',
+    'payroll_runs_guard_update',
+    'payroll_runs_no_delete',
+    'payslips_frozen_update',
+    'payslips_guard_update',
+    'payslips_no_delete',
+    'staff_roles_guard_update',
+    'staff_roles_no_delete',
+    'staff_username_fixed',
+    'staff_uuid_default',
+    'staff_uuid_fixed'
   ];
-  assert.deepEqual(expected.filter(name => !have.has(name)), []);
+  assert.deepEqual(
+    expected.filter(name => !have.has(name)),
+    []
+  );
 });

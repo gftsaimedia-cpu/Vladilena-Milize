@@ -34,7 +34,8 @@ function stripOf(month, period, agents, facts) {
   if (!agents && cur >= 4) cur -= 1;
   const notes = {};
   const approvalIdx = labels.indexOf('Phê duyệt');
-  if (period.status === 'calculated' || period.status === 'reviewed') notes[approvalIdx] = `${facts.approved}/${facts.total}`;
+  if (period.status === 'calculated' || period.status === 'reviewed')
+    notes[approvalIdx] = `${facts.approved}/${facts.total}`;
   const state =
     {
       open: 'Chưa tính lương',
@@ -44,12 +45,18 @@ function stripOf(month, period, agents, facts) {
       approved: 'Đã phê duyệt',
       paid: 'Đã trả lương'
     }[period.status] || '';
-  const stateCls = FINAL.includes(period.status) ? 'ok' : period.status === 'calculated' || period.status === 'reviewed' ? 'draft' : '';
+  const stateCls = FINAL.includes(period.status)
+    ? 'ok'
+    : period.status === 'calculated' || period.status === 'reviewed'
+      ? 'draft'
+      : '';
   return {
     month: `Tháng ${Number(month.slice(5, 7))}/${month.slice(0, 4)}`,
     state: period.needsRecalculate ? `${state} · cần tính lại` : state,
     stateCls,
-    steps: labels.map((label, i) => [i < cur ? 'done' : i === cur ? 'cur' : '', label, notes[i]].filter(x => x !== undefined))
+    steps: labels.map((label, i) =>
+      [i < cur ? 'done' : i === cur ? 'cur' : '', label, notes[i]].filter(x => x !== undefined)
+    )
   };
 }
 
@@ -73,7 +80,9 @@ function chipsOf(stage, facts, agents) {
 }
 
 const otherOf = r =>
-  [r.gross, r.tienNgayCong, r.phuCap, r.ot, r.kpi].every(Number.isFinite) ? r.gross - r.tienNgayCong - r.phuCap - r.ot - r.kpi : r.khac;
+  [r.gross, r.tienNgayCong, r.phuCap, r.ot, r.kpi].every(Number.isFinite)
+    ? r.gross - r.tienNgayCong - r.phuCap - r.ot - r.kpi
+    : r.khac;
 
 export function buildRow(r) {
   const failed = r.status === 'error';
@@ -91,13 +100,29 @@ export function buildRow(r) {
     // Khác = Tổng thu nhập trừ bốn cột còn lại, nên các cột cộng đúng Tổng thu nhập kể cả khi có khoản thêm hay số Admin đã sửa
     detail: { base: r.tienNgayCong, allowance: r.phuCap, allowanceNote: '', ot: r.ot, kpi: r.kpi, other: otherOf(r) },
     ai: Array.isArray(r.flags) ? r.flags.length : 0,
-    status: failed ? 'failed' : r.status === 'draft' || r.status === 'pending' || r.status === 'approved' ? r.status : 'calculated'
+    status: failed
+      ? 'failed'
+      : r.status === 'draft' || r.status === 'pending' || r.status === 'approved'
+        ? r.status
+        : 'calculated'
   };
 }
 
 /** Bảng lương một kỳ. period: GET /periods/:month; list: GET /periods/:month/(payslips|estimates). */
 export function buildPeriodView(month, period, list, { agents, flagged, filter, pageSize }) {
-  const t = period.totals || list.totals || { people: list.total, gross: 0, insurance: 0, tax: 0, advance: 0, net: 0, approved: 0, pending: 0, draft: 0, error: 0 };
+  const t = period.totals ||
+    list.totals || {
+      people: list.total,
+      gross: 0,
+      insurance: 0,
+      tax: 0,
+      advance: 0,
+      net: 0,
+      approved: 0,
+      pending: 0,
+      draft: 0,
+      error: 0
+    };
   const stage = stageOf(period, agents);
   const rows = (list.rows || []).map(buildRow);
   const final = FINAL.includes(period.status);

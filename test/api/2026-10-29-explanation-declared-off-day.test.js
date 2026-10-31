@@ -8,7 +8,8 @@ const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
 
-const adminRows = async (username, date) => (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
+const adminRows = async (username, date) =>
+  (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
 
 before(async () => {
   await F.start();

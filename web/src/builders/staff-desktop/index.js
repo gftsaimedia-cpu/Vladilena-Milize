@@ -94,9 +94,12 @@ export function buildHome({ meRes, punch, sheet }) {
 
   const shift = { name };
   if (open) {
-    const sinceMin = entry.presIn ? Math.max(0, Math.round((Date.parse(nowIso) - Date.parse(entry.presIn)) / 60000)) : 0;
+    const sinceMin = entry.presIn
+      ? Math.max(0, Math.round((Date.parse(nowIso) - Date.parse(entry.presIn)) / 60000))
+      : 0;
     const startMs = planned ? Date.parse(planned.startIso) : NaN;
-    const diff = Number.isFinite(startMs) && entry.presIn ? Math.round(startMs / 60000 - Date.parse(entry.presIn) / 60000) : 0;
+    const diff =
+      Number.isFinite(startMs) && entry.presIn ? Math.round(startMs / 60000 - Date.parse(entry.presIn) / 60000) : 0;
     const first = [{ t: `Vào ${entry.presIn ? vnHm(entry.presIn) : ''} ` }];
     if (diff > 0) first.push({ t: `· sớm ${diff} phút`, tone: 'dim' });
     else if (diff < 0) first.push({ t: `· muộn ${-diff} phút`, tone: 'dim' });
@@ -340,7 +343,10 @@ function buildIncome({ month, est }) {
     if (isNum(value) && value !== 0) ded.push({ label, value: -Math.abs(value), ...(small ? { small } : {}) });
   };
   const split = [net.bhxh, net.bhyt, net.bhtn];
-  if (split.some(isNum) && split.reduce((s, v) => s + (isNum(v) ? v : 0), 0) === (isNum(net.insurance) ? net.insurance : 0)) {
+  if (
+    split.some(isNum) &&
+    split.reduce((s, v) => s + (isNum(v) ? v : 0), 0) === (isNum(net.insurance) ? net.insurance : 0)
+  ) {
     sub('Bảo hiểm xã hội', net.bhxh);
     sub('Bảo hiểm y tế', net.bhyt);
     sub('Bảo hiểm thất nghiệp', net.bhtn);
@@ -352,13 +358,21 @@ function buildIncome({ month, est }) {
   const grossTotal = isNum(net.gross) ? net.gross : income.reduce((s, l) => s + l.value, 0);
   const dedTotal = ded.reduce((s, l) => s + l.value, 0);
   const st = est.allowanceStatus;
-  const rows = [{ label: 'Thu nhập', value: grossTotal }, { label: 'Các khoản trừ', value: dedTotal, signed: true }];
+  const rows = [
+    { label: 'Thu nhập', value: grossTotal },
+    { label: 'Các khoản trừ', value: dedTotal, signed: true }
+  ];
   if (st && st.hasAttendance) {
     const small = [];
     if (isNum(st.absentDays) && isNum(st.maxAbsent)) small.push(`Đã nghỉ ${st.absentDays}/${st.maxAbsent} ngày`);
     if (isNum(st.overLimitHours) && isNum(st.overLimitThreshold))
       small.push(`vượt ${st.overLimitHours}/${st.overLimitThreshold} giờ`);
-    rows.push({ label: 'Phụ cấp chuyên cần', small, text: st.kept === false ? 'Đã mất' : official ? 'Đã giữ' : 'Đang giữ', tone: 'mid' });
+    rows.push({
+      label: 'Phụ cấp chuyên cần',
+      small,
+      text: st.kept === false ? 'Đã mất' : official ? 'Đã giữ' : 'Đang giữ',
+      tone: 'mid'
+    });
   }
   if (hasKpi) rows.push({ label: 'Lương KPI', value: kpiValue });
 

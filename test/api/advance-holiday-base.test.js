@@ -30,9 +30,11 @@ const nextMonth02 = month => {
 const workDates = month => datesOf(month).filter(d => dowOf(d) !== 0);
 const untilDay = DEFAULTS['advance.untilDay'];
 const daysUntil = month => workDates(month).filter(d => Number(d.slice(8)) <= untilDay).length;
-const figure = days => Math.round((DEFAULTS['advance.rate'] * days * DEFAULTS['level.nv.1.base']) / DEFAULTS['type.nv.workdays']);
+const figure = days =>
+  Math.round((DEFAULTS['advance.rate'] * days * DEFAULTS['level.nv.1.base']) / DEFAULTS['type.nv.workdays']);
 const list = async (month, who) => await F.call('GET', `/advance-approvals?month=${month}`, { who });
-const estimate = async (month, username) => (await F.call('GET', `/periods/${month}/estimates/${username}`)).data.payslip;
+const estimate = async (month, username) =>
+  (await F.call('GET', `/periods/${month}/estimates/${username}`)).data.payslip;
 
 // holiday: ngày lễ của tháng (đã khai đi làm như mọi ngày làm khác)
 async function setup(month, holiday) {
@@ -41,7 +43,13 @@ async function setup(month, holiday) {
   await F.at(nextMonth02(month));
   await store.setSetting('holidays', holiday ? [holiday] : []);
   await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  await F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_nv1', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
   const days = Object.fromEntries(workDates(month).map(d => [d, { kind: 'work', in: '08:00', out: '17:00' }]));
   const res = await F.call('PUT', '/sheet', { who: 'admin', body: { month, user: 'qa_nv1', days } });
   assert.equal(res.status, 200, `khai thay: ${JSON.stringify(res.data)}`);
@@ -60,8 +68,14 @@ test('ngày lễ đi làm trước ngày 15 vào cơ sở tạm ứng: số nhâ
   assert.equal(admin.data.items.find(r => r.username === 'qa_nv1').amount, expected, 'Admin');
   const before = await estimate(M, 'qa_nv1');
   assert.equal(before.snapshot.trace.tamUngToiDa, expected, 'vết phiếu');
-  assert.ok(before.snapshot.rows.some(r => r.date === holiday && r.kind === 'holiday' && r.hours > 0), 'ngày lễ có giờ làm');
-  const res = await F.call('POST', '/advance-approvals/approve', { who: 'admin', body: { month: M, username: 'qa_nv1' } });
+  assert.ok(
+    before.snapshot.rows.some(r => r.date === holiday && r.kind === 'holiday' && r.hours > 0),
+    'ngày lễ có giờ làm'
+  );
+  const res = await F.call('POST', '/advance-approvals/approve', {
+    who: 'admin',
+    body: { month: M, username: 'qa_nv1' }
+  });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const after = await estimate(M, 'qa_nv1');
   assert.equal(after.advance, expected);

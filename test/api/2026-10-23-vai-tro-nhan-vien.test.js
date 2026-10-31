@@ -22,10 +22,11 @@ const REASON = 'Phân quyền theo quyết định tháng này';
 const putRoles = async (user, roles, who = 'admin') =>
   await F.call('PUT', `/staff/${user}/roles`, { who, body: { roles, reason: REASON } });
 const auditOf = async user =>
-  (await store.db
-    .prepare("SELECT * FROM audit_log WHERE action = 'staff.payrollSubject' AND subject = ? ORDER BY id")
-    .all(user))
-    .map(r => ({ ...r, before: JSON.parse(r.before_json), after: JSON.parse(r.after_json) }));
+  (
+    await store.db
+      .prepare("SELECT * FROM audit_log WHERE action = 'staff.payrollSubject' AND subject = ? ORDER BY id")
+      .all(user)
+  ).map(r => ({ ...r, before: JSON.parse(r.before_json), after: JSON.parse(r.after_json) }));
 const estimated = async month =>
   (await F.call('GET', `/periods/${month}/estimates?pageSize=200`)).data.rows.map(r => r.username);
 const staffForm = async (user, over = {}) => {
@@ -43,7 +44,13 @@ const staffForm = async (user, over = {}) => {
 };
 // Nhân sự HR (có hồ sơ lương đầy đủ nhưng chưa được trả lương: không có vai trò Nhân viên)
 const hrPerson = async user =>
-  await F.person(user, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', payrollSubject: false });
+  await F.person(user, 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    payrollSubject: false
+  });
 
 test('HR → Nhân viên → HR: cấp Nhân viên bật payrollSubject và người đó vào ước tính lương; gỡ thì tắt và ra khỏi ước tính; mỗi lần đổi một dòng nhật ký staff.payrollSubject', async () => {
   const M = monthOf();
@@ -145,7 +152,7 @@ test('reconcileStaffRole (chạy khi nạp máy chủ): dòng có Nhân viên t�
   await hrPerson('qa_khong_staff');
   await store.roles.grant('qa_lech', 'staff', 'admin'); // ghi thẳng dòng vai trò, không đồng bộ payrollSubject
   assert.equal((await store.getStaff('qa_lech')).payrollSubject, false, 'điều kiện: lệch');
-  assert.equal(await Roles.reconcileStaffRole() >= 1, true);
+  assert.equal((await Roles.reconcileStaffRole()) >= 1, true);
   assert.equal((await store.getStaff('qa_lech')).payrollSubject, true, 'đã sửa');
   assert.equal((await store.getStaff('qa_khong_staff')).payrollSubject, false, 'không có dòng staff: giữ nguyên');
   const rows = await auditOf('qa_lech');

@@ -57,9 +57,9 @@ test('tiền: OT dài hơn mốc nghỉ vẫn không trừ giờ: OT 17:00–23:
 test('giờ OT của lịch ước tính và của Check-in/out là giờ thô: 17:00–22:00 = 5 giờ, cả trước lẫn sau ca', async () => {
   assert.equal(estimateOtHours(await day('22:00')), 5);
   assert.equal(extraOtHours(await day('22:00')), 5);
-  assert.equal(actualOtHours({ ...await day('22:00'), otReview: { ok: true } }), 5);
+  assert.equal(actualOtHours({ ...(await day('22:00')), otReview: { ok: true } }), 5);
   assert.equal(estimateOtHours(await day('22:00', { extraIn: '06:00' })), 7);
-  assert.equal(actualOtHours({ ...await day('22:00'), otReview: { ok: false } }), 0, 'OT bị từ chối không tính');
+  assert.equal(actualOtHours({ ...(await day('22:00')), otReview: { ok: false } }), 0, 'OT bị từ chối không tính');
 });
 
 test('đoạn làm bù theo giờ vẫn trừ giờ nghỉ của đoạn, đoạn OT cùng độ dài thì không', async () => {

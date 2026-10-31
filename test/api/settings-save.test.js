@@ -43,7 +43,8 @@ async function setup(month) {
   await F.person('qa_plain', 'staff', { type: 'nv', level: 1, startDate: startOf(month) });
   for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
 }
-const modeRows = async () => (await S.auditRows()).filter(r => /mode/i.test(r.action) || /params_mode/.test(r.entity_id || ''));
+const modeRows = async () =>
+  (await S.auditRows()).filter(r => /mode/i.test(r.action) || /params_mode/.test(r.entity_id || ''));
 
 test(
   'R1 save: lần ghi đầu bật params_mode = active (có nhật ký, có lý do); phản hồi đủ { paramsRev, paramsHash, saved }; lần ghi sau không bật lại',
@@ -190,18 +191,17 @@ test(
     const rev = await S.paramsRevOf(M);
     const rows0 = await S.rowCount();
     const send = async changes => await S.save({ changes, effectiveMonth: M, reason: S.REASON, expectedRev: rev });
-    const [a, b] = await Promise.all([await send([{ key: base.key, value: v1 }]), await send([{ key: other.key, value: v2 }])]);
+    const [a, b] = await Promise.all([
+      await send([{ key: base.key, value: v1 }]),
+      await send([{ key: other.key, value: v2 }])
+    ]);
     assert.deepEqual([a.status, b.status].sort(), [200, 409], `${JSON.stringify([a.data, b.data]).slice(0, 400)}`);
     const winner = a.status === 200 ? a : b;
     const loser = a.status === 200 ? b : a;
     assert.equal(loser.data.code, 'PARAMS_STALE');
     assert.equal(loser.data.paramsRev, winner.data.paramsRev, 'bên thua thấy paramsRev của bên thắng');
     assert.equal(await S.rowCount(), rows0 + winner.data.saved.length, 'chỉ dòng của bên thắng');
-    assert.ok(
-      (await S.paramRows())
-        .slice(rows0)
-        .every(r => winner.data.saved.some(s => s.key === r.key))
-    );
+    assert.ok((await S.paramRows()).slice(rows0).every(r => winner.data.saved.some(s => s.key === r.key)));
     // bên thua tải lại rồi lưu được
     const mine = loser === a ? { key: base.key, value: v1 } : { key: other.key, value: v2 };
     const retry = await S.saveChanges([mine], { month: M });
@@ -378,9 +378,7 @@ test(
     );
     assert.equal(mixed.status, 200, JSON.stringify(mixed.data).slice(0, 300));
     assert.deepEqual(
-      (await S.auditRows('param.set'))
-        .slice(-4)
-        .map(r => r.actor),
+      (await S.auditRows('param.set')).slice(-4).map(r => r.actor),
       ['qa_ctv1', 'qa_nv1', 'admin', 'admin']
     );
   }

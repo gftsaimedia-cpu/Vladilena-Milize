@@ -4,7 +4,8 @@ import { RuntimeMonitor } from '../../lib/ops/runtime-monitor';
 import { AsyncGate, RateLimiter, LoadShedder } from '../../lib/ops/limiters';
 
 // Biến môi trường (số dương) ghi đè giá trị mặc định trong lib/config.js: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
-const limitOf = (name: string, fallback: number): number => (Number(process.env[name]) > 0 ? Number(process.env[name]) : fallback);
+const limitOf = (name: string, fallback: number): number =>
+  Number(process.env[name]) > 0 ? Number(process.env[name]) : fallback;
 
 export const monitor = new RuntimeMonitor();
 /** Số yêu cầu API đang xử lý (không tính luồng SSE sống lâu). */
@@ -14,7 +15,9 @@ export const hashGate = new AsyncGate({
   maxQueue: config.PASSWORD_HASH_QUEUE_MAX,
   retryAfterSec: config.OVERLOAD_RETRY_AFTER_SEC
 });
-export const writeLimiter = new RateLimiter({ perMinute: limitOf('WRITE_RATE_PER_MINUTE', config.WRITE_RATE_PER_MINUTE) });
+export const writeLimiter = new RateLimiter({
+  perMinute: limitOf('WRITE_RATE_PER_MINUTE', config.WRITE_RATE_PER_MINUTE)
+});
 export const shedder = new LoadShedder({
   lagMs: () => monitor.recent().p50, // trễ KÉO DÀI (trung vị): một phép tính nặng đơn lẻ làm p99/max vọt lên nhưng không phải quá tải
   inflight: () => inflight.count,

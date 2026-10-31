@@ -181,7 +181,13 @@ test('allowanceTotal: bằng tổng các dòng phụ cấp của bản chụp (�
 test('GET /sheet của tài khoản ngoài bảng lương không có quyền chấm công: 200, lịch rỗng, payrollSubject false; xin lịch người khác vẫn 403', async () => {
   const M = monthOf();
   await P.seed(M, { withActual: true });
-  await F.person('qa_np', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', payrollSubject: false });
+  await F.person('qa_np', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    payrollSubject: false
+  });
   assert.equal((await store.getStaff('qa_np')).payrollSubject, false);
   const own = await F.call('GET', `/sheet?month=${M}`, { who: 'qa_np' });
   assert.equal(own.status, 200, JSON.stringify(own.data));
@@ -268,7 +274,15 @@ async function attendanceWorld(month) {
       s.id
     );
     if (i % 4 === 0)
-      await store.addPunch(s.username, s.entry.presOut || `${s.date}T10:00:00.000Z`, 'out', '127.0.0.1', false, null, s.id);
+      await store.addPunch(
+        s.username,
+        s.entry.presOut || `${s.date}T10:00:00.000Z`,
+        'out',
+        '127.0.0.1',
+        false,
+        null,
+        s.id
+      );
   });
   // yêu cầu điều chỉnh (lịch sử chỉ đọc) gắn vào lượt mới của vài người; không có route tạo
   // nên dựng thẳng lượt và dòng điều chỉnh trong store
@@ -324,10 +338,16 @@ test('sessionsWithHistory (gộp theo nhóm id) giống hệt đường cũ sess
     'điều kiện: có phiên nhiều lượt bấm'
   );
   assert.ok(
-    await AsyncList.some(sessions, async s => (await store.listCorrections({ username: s.username, sessionId: s.id })).length > 0),
+    await AsyncList.some(
+      sessions,
+      async s => (await store.listCorrections({ username: s.username, sessionId: s.id })).length > 0
+    ),
     'điều kiện: có phiên có yêu cầu điều chỉnh'
   );
-  assert.deepEqual(asJson(await sessionsWithHistory(sessions)), asJson(await Promise.all(sessions.map(sessionHistory))));
+  assert.deepEqual(
+    asJson(await sessionsWithHistory(sessions)),
+    asJson(await Promise.all(sessions.map(sessionHistory)))
+  );
   assert.deepEqual(await sessionsWithHistory([]), []);
   // chia nhóm id: hơn hai nhóm (SQL_IN_CHUNK) phiên khác nhau vẫn giống sessionHistory
   const config = require('../../lib/config');
@@ -376,10 +396,7 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   const ids = sessionObjects(attendance).map(s => s.id);
   assert.deepEqual(
     [...new Set(ids)].sort((a, b) => a - b),
-    (await store
-      .listSessions({ month: M }))
-      .map(s => s.id)
-      .sort((a, b) => a - b)
+    (await store.listSessions({ month: M })).map(s => s.id).sort((a, b) => a - b)
   );
   assert.equal(ids.length, new Set(ids).size, 'mỗi phiên một lần');
   // nhân sự thường vẫn 403
@@ -387,28 +404,33 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   assert.equal((await F.call('GET', `/team?month=${M}`, { who: 'qa_tts1' })).status, 403);
 });
 
-sqliteOnly('chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)', async () => {
-  const names = (await store.db
-    .prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('punches_session', 'corrections_session')"
+sqliteOnly(
+  'chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)',
+  async () => {
+    const names = (
+      await store.db
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('punches_session', 'corrections_session')"
+        )
+        .all()
     )
-    .all())
-    .map(r => r.name)
-    .sort();
-  assert.deepEqual(names, ['corrections_session', 'punches_session']);
-  for (const [table, index] of [
-    ['punches', 'punches_session'],
-    ['corrections', 'corrections_session']
-  ]) {
-    const plan = await store.db
-      .prepare(`EXPLAIN QUERY PLAN SELECT * FROM ${table} WHERE session_id IN (?, ?, ?)`)
-      .all(1, 2, 3);
-    assert.ok(
-      plan.some(row => String(row.detail).includes(index)),
-      `${table}: ${JSON.stringify(plan)}`
-    );
+      .map(r => r.name)
+      .sort();
+    assert.deepEqual(names, ['corrections_session', 'punches_session']);
+    for (const [table, index] of [
+      ['punches', 'punches_session'],
+      ['corrections', 'corrections_session']
+    ]) {
+      const plan = await store.db
+        .prepare(`EXPLAIN QUERY PLAN SELECT * FROM ${table} WHERE session_id IN (?, ?, ?)`)
+        .all(1, 2, 3);
+      assert.ok(
+        plan.some(row => String(row.detail).includes(index)),
+        `${table}: ${JSON.stringify(plan)}`
+      );
+    }
   }
-});
+);
 
 test('chữ máy chủ tự sinh cho người dùng là tiếng Việt thường: lỗi thường gặp và ghi chú tự động không lộ tên file, khoá cài đặt, mã lỗi đợt rà soát', async () => {
   const M = monthOf();

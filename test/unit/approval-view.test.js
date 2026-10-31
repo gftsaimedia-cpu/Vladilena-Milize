@@ -528,7 +528,8 @@ test('C5: không cộng được từng khoản riêng, duyệt riêng OT (0) r�
   const otOnly = (await pay(NV_L1, chainDays(), { [D(20)]: 'approved' })).real.total - none;
   const makeupOnly = (await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved' })).real.total - none;
   const both =
-    (await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' })).real.total - none;
+    (await pay(NV_L1, chainDays(), { [D(12)]: 'approved', [D(13)]: 'approved', [D(20)]: 'approved' })).real.total -
+    none;
   assert.equal(vnd(otOnly), 0);
   assert.equal(vnd(makeupOnly), 230769);
   assert.equal(vnd(both), 346154);

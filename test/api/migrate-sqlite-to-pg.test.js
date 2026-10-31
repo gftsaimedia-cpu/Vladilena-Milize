@@ -53,11 +53,15 @@ before(() => {
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 const migrate = (extra = []) =>
-  spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', SCRIPT, `--from=${source}`, '--to=memory', ...extra], {
-    env,
-    encoding: 'utf8',
-    timeout: 120000
-  });
+  spawnSync(
+    process.execPath,
+    ['--no-warnings=ExperimentalWarning', SCRIPT, `--from=${source}`, '--to=memory', ...extra],
+    {
+      env,
+      encoding: 'utf8',
+      timeout: 120000
+    }
+  );
 
 test('chuyển SQLite sang PostgreSQL: mọi bảng khớp số dòng và dấu vân tay, tổng tiền kỳ lương khớp', () => {
   const report = path.join(tmp, 'report.json');
@@ -85,17 +89,36 @@ test('thiếu --from hoặc --to, hoặc file nguồn không có: dừng với m
   const none = spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', SCRIPT], { env, encoding: 'utf8' });
   assert.equal(none.status, 1);
   assert.match(none.stderr, /--from=.*--to=/);
-  const missing = spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', SCRIPT, `--from=${path.join(tmp, 'khong-co.sqlite')}`, '--to=memory'], {
-    env,
-    encoding: 'utf8'
-  });
+  const missing = spawnSync(
+    process.execPath,
+    ['--no-warnings=ExperimentalWarning', SCRIPT, `--from=${path.join(tmp, 'khong-co.sqlite')}`, '--to=memory'],
+    {
+      env,
+      encoding: 'utf8'
+    }
+  );
   assert.equal(missing.status, 1);
   assert.match(missing.stderr, /Không thấy file nguồn/);
 });
 
 test('dấu vân tay bảng nhạy với từng ô, không nhạy với thứ tự dòng', () => {
-  const a = [{ id: 1, v: 'x' }, { id: 2, v: 'y', b: new Uint8Array([1, 2]) }];
+  const a = [
+    { id: 1, v: 'x' },
+    { id: 2, v: 'y', b: new Uint8Array([1, 2]) }
+  ];
   assert.equal(fingerprintOf(a), fingerprintOf([...a].reverse()));
-  assert.notEqual(fingerprintOf(a), fingerprintOf([{ id: 1, v: 'x' }, { id: 2, v: 'z', b: new Uint8Array([1, 2]) }]));
-  assert.notEqual(fingerprintOf(a), fingerprintOf([{ id: 1, v: 'x' }, { id: 2, v: 'y', b: new Uint8Array([1, 3]) }]));
+  assert.notEqual(
+    fingerprintOf(a),
+    fingerprintOf([
+      { id: 1, v: 'x' },
+      { id: 2, v: 'z', b: new Uint8Array([1, 2]) }
+    ])
+  );
+  assert.notEqual(
+    fingerprintOf(a),
+    fingerprintOf([
+      { id: 1, v: 'x' },
+      { id: 2, v: 'y', b: new Uint8Array([1, 3]) }
+    ])
+  );
 });

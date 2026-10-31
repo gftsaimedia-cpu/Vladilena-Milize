@@ -11,7 +11,8 @@ const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
 
 const { MONTH, iso } = X;
-const adminRows = async (username, date) => (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
+const adminRows = async (username, date) =>
+  (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
 const warningCodes = res => (res.data.warnings || []).map(w => w.code);
 
 before(async () => {

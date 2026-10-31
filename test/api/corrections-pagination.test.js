@@ -21,26 +21,28 @@ async function person(username, role = 'staff') {
 async function correction(username, session, status = 'pending') {
   const decided = status === 'approved' || status === 'rejected';
   return Number(
-    (await store.db
-      .prepare(
-        `INSERT INTO corrections
+    (
+      await store.db
+        .prepare(
+          `INSERT INTO corrections
     (username,date,req_in,req_out,reason,status,decided_by,decided_at,created_at,context_json,session_id,session_version)
     VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`
-      )
-      .run(
-        username,
-        session.date,
-        session.entry.presIn,
-        session.entry.presOut,
-        'Pagination fixture',
-        status,
-        decided ? 'admin' : null,
-        decided ? '2026-10-20T00:00:00.000Z' : null,
-        '2026-10-20T00:00:00.000Z',
-        '{}',
-        session.id,
-        session.version
-      )).lastInsertRowid
+        )
+        .run(
+          username,
+          session.date,
+          session.entry.presIn,
+          session.entry.presOut,
+          'Pagination fixture',
+          status,
+          decided ? 'admin' : null,
+          decided ? '2026-10-20T00:00:00.000Z' : null,
+          '2026-10-20T00:00:00.000Z',
+          '{}',
+          session.id,
+          session.version
+        )
+    ).lastInsertRowid
   );
 }
 async function session(username, index) {
@@ -106,7 +108,10 @@ test('removed correction routes are denied by default and team rows carry no pen
   ]) {
     const response = await fetch(base + '/api' + route, {
       method,
-      headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400) },
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400)
+      },
       body: method === 'GET' ? undefined : '{}'
     });
     assert.equal(response.status, 403, method + ' ' + route);

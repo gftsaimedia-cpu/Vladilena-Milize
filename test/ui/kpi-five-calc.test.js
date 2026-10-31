@@ -190,7 +190,11 @@ test('nhánh five: trần level vẫn áp dụng (NV L1 đề xuất 9.000.000 c
 
 test('nhánh five: mức KPI = đã duyệt (admAmt), nếu chưa có thì đề xuất (amt), nếu chưa có thì KPI tối đa của level', async () => {
   const p = parts(90, 90, 90, 90, 90); // 90%
-  assert.equal((await kpiOf(nv1, five(p, { amt: 5000000, admAmt: 4000000 }))).kpiPay, 3600000, 'đã duyệt thắng đề xuất');
+  assert.equal(
+    (await kpiOf(nv1, five(p, { amt: 5000000, admAmt: 4000000 }))).kpiPay,
+    3600000,
+    'đã duyệt thắng đề xuất'
+  );
   assert.equal((await kpiOf(nv1, five(p, { amt: 5000000 }))).kpiPay, 4500000, 'chưa duyệt: dùng đề xuất');
   const bare = await kpiOf(nv1, five(p, {}));
   assert.equal(bare.kpiAmt, 6000000, 'không có gì: KPI tối đa');

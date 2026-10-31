@@ -12,7 +12,9 @@ function entryRows(m, direction, total, label) {
   if (!nz(total)) return [];
   const items = (Array.isArray(m.entries) ? m.entries : []).filter(e => e && e.direction === direction);
   if (items.length && sum(items.map(e => e.amount)) === total)
-    return items.map(e => row(String(e.slipLine || e.label || label), direction === 'deduct' ? -nz(e.amount) : nz(e.amount)));
+    return items.map(e =>
+      row(String(e.slipLine || e.label || label), direction === 'deduct' ? -nz(e.amount) : nz(e.amount))
+    );
   return [row(label, direction === 'deduct' ? -total : total)];
 }
 
@@ -56,7 +58,8 @@ function incomeRows(m, trace) {
     );
   }
   optional.push(['Phụ cấp đi lại', m.travel], ['Phụ cấp chuyên cần', m.attendance], ['Lương KPI', m.kpiPay]);
-  for (const b of Array.isArray(m.blocks) ? m.blocks : []) optional.push([String(b.label || b.code || 'Khoản thêm'), b.amount]);
+  for (const b of Array.isArray(m.blocks) ? m.blocks : [])
+    optional.push([String(b.label || b.code || 'Khoản thêm'), b.amount]);
   for (const [label, amount] of optional) if (nz(amount)) rows.push(row(label, nz(amount)));
   rows.push(...entryRows(m, 'add', nz(net.entriesAdd), 'Khoản cộng thêm'));
   if (m.lines && nz(m.lines.lateCut)) rows.push(row('Trừ đi trễ, về sớm', -Math.abs(nz(m.lines.lateCut))));
@@ -134,5 +137,14 @@ export function buildPayslipIncome({ month, res, nav }) {
   // gross, insurance, tax, advance, net của phiếu là số chi trả; bản chụp giữ phần chia nhỏ (bhxh, bhyt, bhtn, khoản thêm)
   const paid = {};
   for (const k of ['gross', 'insurance', 'tax', 'advance', 'net']) if (typeof p[k] === 'number') paid[k] = p[k];
-  return slip({ month, official: true, m: snap, net: { ...snap.net, ...paid }, trace: snap.trace || {}, nav, stateLabel: 'Chính thức', intro: '' });
+  return slip({
+    month,
+    official: true,
+    m: snap,
+    net: { ...snap.net, ...paid },
+    trace: snap.trace || {},
+    nav,
+    stateLabel: 'Chính thức',
+    intro: ''
+  });
 }

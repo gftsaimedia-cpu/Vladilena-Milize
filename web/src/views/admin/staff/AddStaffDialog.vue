@@ -95,9 +95,7 @@ async function save() {
     <template #footer>
       <span class="sp" />
       <button type="button" class="btn" @click="emit('close')">Huỷ</button>
-      <button type="button" class="btn pri" :disabled="saving" @click="save">
-        <Icon name="plus" />Tạo nhân sự
-      </button>
+      <button type="button" class="btn pri" :disabled="saving" @click="save"><Icon name="plus" />Tạo nhân sự</button>
     </template>
   </AppModal>
 </template>

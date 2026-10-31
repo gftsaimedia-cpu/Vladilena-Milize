@@ -233,7 +233,9 @@ test('Một ngày một giải trình: gửi trùng, hoặc ngày Admin đã yê
 test('Giải trình ngày vắng ghi nhật ký explanation.self theo người và tháng', async () => {
   const sent = await submit('fix');
   assert.equal(sent.status, 200, JSON.stringify(sent.data));
-  const row = await F.store.db.prepare("SELECT * FROM audit_log WHERE action = 'explanation.self' AND subject = 'fix'").get();
+  const row = await F.store.db
+    .prepare("SELECT * FROM audit_log WHERE action = 'explanation.self' AND subject = 'fix'")
+    .get();
   assert.ok(row, 'có dòng nhật ký explanation.self');
   assert.equal(row.entity_id, String(sent.data.item.id));
   assert.equal(row.month, MONTH);

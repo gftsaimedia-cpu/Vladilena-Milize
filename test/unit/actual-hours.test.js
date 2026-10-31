@@ -605,13 +605,22 @@ test('thuộc tính (3.000 ca ngẫu nhiên): giờ tính ≤ 480, tổng trừ 
     const o = Math.floor(rnd() * 560) - 20; // vào từ trước ca 20 phút đến sát hết ca
     const p = o + 1 + Math.floor(rnd() * Math.max(1, 580 - o)); // ra sau vào ít nhất 1 phút
     if (Math.min(p, 540) <= Math.max(o, 0)) continue; // không chạm ca: là "ngoài ca", chưa có quy tắc
-    const run = async (a, b) => (await runDay({ code, date, presIn: atMin(date, start + a), presOut: atMin(date, start + b) })).day;
+    const run = async (a, b) =>
+      (await runDay({ code, date, presIn: atMin(date, start + a), presOut: atMin(date, start + b) })).day;
     const base = await run(o, p);
     checked++;
-    assert.ok(await paid(base) <= 480 && cutSum(base) <= 480, `${code} +${o}…+${p}: ${JSON.stringify(base)}`);
+    assert.ok((await paid(base)) <= 480 && cutSum(base) <= 480, `${code} +${o}…+${p}: ${JSON.stringify(base)}`);
     const delay = 1 + Math.floor(rnd() * 40);
-    if (o + delay < p) assert.ok(await paid(await run(o + delay, p)) <= await paid(base), `${code} vào +${o + delay} làm tăng giờ tính`);
-    if (p - delay > o) assert.ok(await paid(await run(o, p - delay)) <= await paid(base), `${code} ra +${p - delay} làm tăng giờ tính`);
+    if (o + delay < p)
+      assert.ok(
+        (await paid(await run(o + delay, p))) <= (await paid(base)),
+        `${code} vào +${o + delay} làm tăng giờ tính`
+      );
+    if (p - delay > o)
+      assert.ok(
+        (await paid(await run(o, p - delay))) <= (await paid(base)),
+        `${code} ra +${p - delay} làm tăng giờ tính`
+      );
     // Trễ + sớm cùng ngày: kết quả phải là một trong hai cách ghép (tách hoặc cộng dồn).
     const ms = workBefore(Math.min(Math.max(o, 0), 540)),
       me = 480 - workBefore(Math.min(Math.max(p, 0), 540));
@@ -707,7 +716,11 @@ const holPunch = async (inHm, outHm) => [await closedSession('n1', HOL, vn(HOL, 
 
 test('ngày lễ: khai OT ngày lễ 08:00–17:00 (còn trong lịch), có mặt đủ khung → lương lễ 230.769 + 9 giờ × 3 = 1.009.615 ₫', async () => {
   // Tay: lương ngày lễ 230.769,23 + 9 × 28.846,15 × 3 = 778.846,15 → 1.009.615,38 (OT không trừ giờ nghỉ)
-  const res = loadModule().apply({ [HOL]: declaredWork('n1') }, await holPunch('08:00', '17:00'), ctxOf({ holidays: [HOL] }));
+  const res = loadModule().apply(
+    { [HOL]: declaredWork('n1') },
+    await holPunch('08:00', '17:00'),
+    ctxOf({ holidays: [HOL] })
+  );
   assert.notEqual(res.report[HOL].state, 'off-schedule');
   const c = dayTotal(res.days[HOL], true, HOL, [HOL]);
   assert.equal(Math.round(c.total), 1009615);
@@ -715,7 +728,11 @@ test('ngày lễ: khai OT ngày lễ 08:00–17:00 (còn trong lịch), có mặ
 
 test('ngày lễ: khai OT ngày lễ và vào trễ 33 phút (trừ 30) → phần ×3 giảm 30 phút: 966.346 ₫', async () => {
   // Tay: 8,5 giờ × 28.846,15 × 3 = 735.576,92 + lương lễ 230.769,23 = 966.346,15
-  const res = loadModule().apply({ [HOL]: declaredWork('n1') }, await holPunch('08:33', '17:00'), ctxOf({ holidays: [HOL] }));
+  const res = loadModule().apply(
+    { [HOL]: declaredWork('n1') },
+    await holPunch('08:33', '17:00'),
+    ctxOf({ holidays: [HOL] })
+  );
   assert.equal(res.days[HOL].cutStartMin, 30);
   const c = dayTotal(res.days[HOL], true, HOL, [HOL]);
   assert.equal(Math.round(c.total), 966346);

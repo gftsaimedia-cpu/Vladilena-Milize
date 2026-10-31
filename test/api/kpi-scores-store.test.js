@@ -24,7 +24,8 @@ async function code(fn) {
 
 beforeEach(async () => {
   clock = Date.parse('2026-10-15T03:00:00Z');
-  for (const table of ['kpi_score_log', 'kpi_scores', 'timesheets', 'settings']) await store.db.exec('DELETE FROM ' + table);
+  for (const table of ['kpi_score_log', 'kpi_scores', 'timesheets', 'settings'])
+    await store.db.exec('DELETE FROM ' + table);
 });
 after(() => {
   Date.now = realNow;
@@ -142,27 +143,30 @@ test('một giá trị sai trong gói thì cả gói bị từ chối, kể cả
   assert.equal(await logRows(), 0);
 });
 
-sqliteOnly('giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ', async () => {
-  await store.setKpiScores('an', '2026-10', { wework: 8000 }, 'admin');
-  const before = await store.getKpiScores('an', '2026-10');
-  const logBefore = await logRows();
-  // Mô phỏng lỗi giữa chừng: dòng nhật ký của điểm "peer" bị chặn ở tầng DB, sau khi điểm và mức KPI đã ghi.
-  await store.db.exec(`CREATE TRIGGER fail_peer_log BEFORE INSERT ON kpi_score_log WHEN NEW.field = 'peer'
+sqliteOnly(
+  'giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ',
+  async () => {
+    await store.setKpiScores('an', '2026-10', { wework: 8000 }, 'admin');
+    const before = await store.getKpiScores('an', '2026-10');
+    const logBefore = await logRows();
+    // Mô phỏng lỗi giữa chừng: dòng nhật ký của điểm "peer" bị chặn ở tầng DB, sau khi điểm và mức KPI đã ghi.
+    await store.db.exec(`CREATE TRIGGER fail_peer_log BEFORE INSERT ON kpi_score_log WHEN NEW.field = 'peer'
     BEGIN SELECT RAISE(ABORT, 'giả lập lỗi ghi nhật ký'); END`);
-  try {
-    await assert.rejects(
-      async () => await store.setKpiScores('an', '2026-10', { wework: 9000, amt: 4000000, peer: 7000 }, 'admin'),
-      /giả lập lỗi/
-    );
-  } finally {
-    await store.db.exec('DROP TRIGGER fail_peer_log');
+    try {
+      await assert.rejects(
+        async () => await store.setKpiScores('an', '2026-10', { wework: 9000, amt: 4000000, peer: 7000 }, 'admin'),
+        /giả lập lỗi/
+      );
+    } finally {
+      await store.db.exec('DROP TRIGGER fail_peer_log');
+    }
+    assert.deepEqual(await store.getKpiScores('an', '2026-10'), before);
+    assert.equal(await logRows(), logBefore);
+    assert.equal((await store.getSheet('an', '2026-10')).kpiAdmAmt, null);
+    // sau lỗi, kho vẫn dùng được
+    assert.deepEqual((await store.setKpiScores('an', '2026-10', { peer: 7000 }, 'admin')).changed, ['peer']);
   }
-  assert.deepEqual(await store.getKpiScores('an', '2026-10'), before);
-  assert.equal(await logRows(), logBefore);
-  assert.equal((await store.getSheet('an', '2026-10')).kpiAdmAmt, null);
-  // sau lỗi, kho vẫn dùng được
-  assert.deepEqual((await store.setKpiScores('an', '2026-10', { peer: 7000 }, 'admin')).changed, ['peer']);
-});
+);
 
 sqliteOnly('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài kho (số thập phân, ngoài khoảng)', async () => {
   const insert = async value =>
@@ -181,39 +185,18 @@ sqliteOnly('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài
 });
 
 test('khoá lạ, gói rỗng, tháng sai, thiếu người: lỗi có mã, không ghi gì', async () => {
-  assert.equal(
-    await code(() => store.setKpiScores('an', '2026-10', { bonus: 100 }, 'admin')),
-    'KPI_KEY_UNKNOWN'
-  );
-  assert.equal(
-    await code(() => store.setKpiScores('an', '2026-10', { user_score: 100 }, 'admin')),
-    'KPI_KEY_UNKNOWN'
-  );
-  assert.equal(
-    await code(() => store.setKpiScores('an', '2026-10', {}, 'admin')),
-    'KPI_EMPTY_PATCH'
-  );
+  assert.equal(await code(() => store.setKpiScores('an', '2026-10', { bonus: 100 }, 'admin')), 'KPI_KEY_UNKNOWN');
+  assert.equal(await code(() => store.setKpiScores('an', '2026-10', { user_score: 100 }, 'admin')), 'KPI_KEY_UNKNOWN');
+  assert.equal(await code(() => store.setKpiScores('an', '2026-10', {}, 'admin')), 'KPI_EMPTY_PATCH');
   assert.equal(
     await code(() => store.setKpiScores('an', '2026-10', { wework: undefined }, 'admin')),
     'KPI_EMPTY_PATCH'
   );
-  assert.equal(
-    await code(() => store.setKpiScores('an', '2026-10', null, 'admin')),
-    'KPI_EMPTY_PATCH'
-  );
+  assert.equal(await code(() => store.setKpiScores('an', '2026-10', null, 'admin')), 'KPI_EMPTY_PATCH');
   for (const month of ['2026-13', '2026-1', '', '2026-10-01', null, 202610])
-    assert.equal(
-      await code(() => store.setKpiScores('an', month, { wework: 1 }, 'admin')),
-      'KPI_MONTH_INVALID'
-    );
-  assert.equal(
-    await code(() => store.setKpiScores('', '2026-10', { wework: 1 }, 'admin')),
-    'KPI_ARGS_INVALID'
-  );
-  assert.equal(
-    await code(() => store.setKpiScores('an', '2026-10', { wework: 1 }, '')),
-    'KPI_ARGS_INVALID'
-  );
+    assert.equal(await code(() => store.setKpiScores('an', month, { wework: 1 }, 'admin')), 'KPI_MONTH_INVALID');
+  assert.equal(await code(() => store.setKpiScores('', '2026-10', { wework: 1 }, 'admin')), 'KPI_ARGS_INVALID');
+  assert.equal(await code(() => store.setKpiScores('an', '2026-10', { wework: 1 }, '')), 'KPI_ARGS_INVALID');
   assert.equal(await store.getKpiScores('an', '2026-10'), null);
   assert.equal(await logRows(), 0);
 });
@@ -269,14 +252,8 @@ test('liệt kê theo tháng: chỉ đúng tháng đó, sắp theo username; th�
     ['an']
   );
   assert.deepEqual(await store.listKpiScores('2026-12'), []);
-  assert.equal(
-    await code(() => store.listKpiScores('2026-1')),
-    'KPI_MONTH_INVALID'
-  );
-  assert.equal(
-    await code(() => store.getKpiScores('an', 'abc')),
-    'KPI_MONTH_INVALID'
-  );
+  assert.equal(await code(() => store.listKpiScores('2026-1')), 'KPI_MONTH_INVALID');
+  assert.equal(await code(() => store.getKpiScores('an', 'abc')), 'KPI_MONTH_INVALID');
 });
 
 test('nhật ký lọc theo người, theo tháng và giới hạn, cũ nhất trước', async () => {

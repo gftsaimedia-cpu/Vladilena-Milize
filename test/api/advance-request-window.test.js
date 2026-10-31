@@ -41,7 +41,8 @@ async function setup(month) {
 const ask = async (month, who) => await F.call('POST', '/advance-approvals/request', { who, body: { month } });
 const withdraw = async (month, who) => await F.call('POST', '/advance-approvals/withdraw', { who, body: { month } });
 const list = async (month, who) => await F.call('GET', `/advance-approvals?month=${month}`, { who });
-const advanceAudit = async () => (await store.db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action LIKE 'advance.%'").get()).n;
+const advanceAudit = async () =>
+  (await store.db.prepare("SELECT COUNT(*) AS n FROM audit_log WHERE action LIKE 'advance.%'").get()).n;
 // Đặt đồng hồ về `date` (YYYY-MM-DD, 12:00) rồi xin; nếu được thì rút ngay để lần xin sau cùng tháng không vướng ADVANCE_ALREADY_REQUESTED
 async function tryOn(month, date, who = 'qa_nv1', time = '12:00:00') {
   await F.at(`${date}T${time}`);

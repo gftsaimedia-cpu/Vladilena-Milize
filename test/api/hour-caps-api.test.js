@@ -30,7 +30,8 @@ beforeEach(async () => {
   await F.person('qa_b');
 });
 
-const putSheet = async (who, days, extra = {}) => await F.call('PUT', '/sheet', { who, body: { month: M, days, ...extra } });
+const putSheet = async (who, days, extra = {}) =>
+  await F.call('PUT', '/sheet', { who, body: { month: M, days, ...extra } });
 const expectCap = (res, code) => {
   assert.equal(res.status, 400, JSON.stringify(res.data));
   assert.equal(res.data.code, code, JSON.stringify(res.data));
@@ -100,7 +101,13 @@ test('PUT /sheet làm bù: đoạn làm bù từ 5 giờ trừ giờ nghỉ củ
 test('PUT /sheet: trần ngày chỉ kiểm ngày vừa đổi; dữ liệu cũ vượt trần không chặn việc lưu ngày khác', async () => {
   const old = WEEKDAYS[2],
     other = WEEKDAYS[3];
-  await store.setSheet('qa_a', M, { [old]: { ...SHIFT, shift: 'normal', extraKind: 'ot', extraOut: '23:00' } }, null, null);
+  await store.setSheet(
+    'qa_a',
+    M,
+    { [old]: { ...SHIFT, shift: 'normal', extraKind: 'ot', extraOut: '23:00' } },
+    null,
+    null
+  );
   const res = await putSheet('qa_a', { [old]: otTo('23:00'), [other]: SHIFT });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   expectCap(await putSheet('qa_a', { [old]: otTo('23:30'), [other]: SHIFT }), 'DAY_HOURS_CAP');
@@ -247,8 +254,14 @@ test('PUT /sheet Admin khai thay: ca đêm + OT 20:00–22:00 và 07:00–09:00 
 
 test('PUT /sheet: ca ngày 08:00–17:00 + OT 4 giờ nhận, 4,25 giờ bị chặn; cả trước và sau ca cộng chung', async () => {
   const day = WEEKDAYS[2];
-  assert.equal((await putSheet('qa_a', { [day]: { ...SHIFT, extraKind: 'ot', extraIn: '07:00', extraOut: '20:00' } })).status, 200); // 8 + 1 + 3
-  expectCap(await putSheet('qa_a', { [day]: { ...SHIFT, extraKind: 'ot', extraIn: '06:45', extraOut: '20:00' } }), 'DAY_HOURS_CAP');
+  assert.equal(
+    (await putSheet('qa_a', { [day]: { ...SHIFT, extraKind: 'ot', extraIn: '07:00', extraOut: '20:00' } })).status,
+    200
+  ); // 8 + 1 + 3
+  expectCap(
+    await putSheet('qa_a', { [day]: { ...SHIFT, extraKind: 'ot', extraIn: '06:45', extraOut: '20:00' } }),
+    'DAY_HOURS_CAP'
+  );
 });
 
 test('POST /ot ca đêm: OT 20:00–22:00 và 07:00–09:00 (12 giờ ròng) nhận; tới 09:15 bị chặn DAY_HOURS_CAP', async () => {
@@ -273,7 +286,9 @@ test('PUT /ot duyệt OT ca đêm: OT 20:00–22:00 và 07:00–09:00 (12 giờ 
       entry: { ...s.entry, extraKind: 'ot', extraIn: '20:00', extraOut }
     });
   const approve = async () =>
-    await F.call('PUT', '/ot', { body: { sessionId: s.id, version: (await store.getSession(s.id)).version, action: 'approve' } });
+    await F.call('PUT', '/ot', {
+      body: { sessionId: s.id, version: (await store.getSession(s.id)).version, action: 'approve' }
+    });
   await set('09:15', s.version);
   expectCap(await approve(), 'DAY_HOURS_CAP');
   assert.deepEqual((await store.getSheet('qa_night', M)).days, {});
@@ -299,7 +314,9 @@ test('POST /ot: giờ làm ngày lễ trên lịch tính vào 40 giờ OT', asyn
 test('PUT /sheet OT 5 giờ trong một ngày (ca 4 giờ + OT 5 giờ = 9 giờ ròng) nhận, không cảnh báo trần giờ', async () => {
   await F.person('qa_free', 'staff', { shiftCode: null });
   const day = WEEKDAYS[2];
-  const res = await putSheet('qa_free', { [day]: { kind: 'work', in: '08:00', out: '12:00', extraKind: 'ot', extraOut: '17:00' } });
+  const res = await putSheet('qa_free', {
+    [day]: { kind: 'work', in: '08:00', out: '12:00', extraKind: 'ot', extraOut: '17:00' }
+  });
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal((await store.getSheet('qa_free', M)).days[day].extraOut, '17:00');
   assert.ok(!JSON.stringify(res.data.warnings || []).match(/tối đa/), JSON.stringify(res.data.warnings));

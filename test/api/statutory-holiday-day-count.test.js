@@ -32,7 +32,8 @@ before(async () => {
   for (const name of ['nghi', 'lam']) await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1' });
   for (const name of ['ttsnghi', 'ttslam']) await F.person(name, 'staff', { type: 'tts', level: 1, shiftCode: 'n1' });
   // vào làm đúng ngày lễ: tháng chỉ còn ngày lễ và các ngày vắng sau đó
-  for (const name of ['khong', 'that']) await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: HOL });
+  for (const name of ['khong', 'that'])
+    await F.person(name, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: HOL });
   // Admin khai thay giờ ca mọi ngày làm việc của tháng; `skip` là ngày không khai
   const declare = async (user, dows, skip) => {
     const days = Object.fromEntries(

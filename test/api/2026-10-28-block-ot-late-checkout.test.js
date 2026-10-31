@@ -46,7 +46,7 @@ test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên 
   // Admin thấy giải trình; chưa duyệt thì ngày đó bị giữ lương, duyệt xong thì hết giữ; không duyệt thì vẫn giữ; nhân sự không tự duyệt được
   const explanations = require('../../lib/explanations');
   const heldDates = async month =>
-    new Map([...await explanations.heldByUser(month)].map(([username, days]) => [username, days.map(d => d.date)]));
+    new Map([...(await explanations.heldByUser(month))].map(([username, days]) => [username, days.map(d => d.date)]));
   const seen = await F.call('GET', '/explanations?status=answered', { who: 'admin' });
   assert.equal(seen.data.items.length, 1);
   assert.equal(seen.data.toRead, 1);

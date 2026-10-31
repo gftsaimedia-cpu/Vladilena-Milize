@@ -95,36 +95,36 @@ function sampleDays(type) {
 }
 
 (async () => {
-let added = 0;
-for (const s of SAMPLE) {
-  if (store.getStaff(s.username)) continue;
-  store.upsertStaff({
-    ...s,
-    passHash: auth.hashPassword(s.username === 'admin' ? process.env.ADMIN_PASSWORD || 'admin123' : PASSWORD)
-  });
-  if (s.role !== 'admin') {
-    const days = sampleDays(s.type);
-    store.setSheet(s.username, mk, days, s.type === 'tts' ? null : 85);
-    // Seed ghi thẳng vào DB nên các khoản tự khai (iSAT...) mặc định chờ duyệt; duyệt sẵn để bản mẫu có số ngay.
-    store.approvals.reconcile(s.username, mk, store.approvals.declaredItems(days));
-    const pending = store.approvals.list({ username: s.username, month: mk, status: 'pending' });
-    if (pending.length) store.approvals.decide(pending, 'approved', 'system');
+  let added = 0;
+  for (const s of SAMPLE) {
+    if (store.getStaff(s.username)) continue;
+    store.upsertStaff({
+      ...s,
+      passHash: auth.hashPassword(s.username === 'admin' ? process.env.ADMIN_PASSWORD || 'admin123' : PASSWORD)
+    });
+    if (s.role !== 'admin') {
+      const days = sampleDays(s.type);
+      store.setSheet(s.username, mk, days, s.type === 'tts' ? null : 85);
+      // Seed ghi thẳng vào DB nên các khoản tự khai (iSAT...) mặc định chờ duyệt; duyệt sẵn để bản mẫu có số ngay.
+      store.approvals.reconcile(s.username, mk, store.approvals.declaredItems(days));
+      const pending = store.approvals.list({ username: s.username, month: mk, status: 'pending' });
+      if (pending.length) store.approvals.decide(pending, 'approved', 'system');
+    }
+    added++;
   }
-  added++;
-}
-if (!store.getSetting('holidays', null)) {
-  // 24/11 (Ngày Văn hóa Việt Nam) là ngày nghỉ hưởng lương từ 01/7/2026 — NQ 28/2026/QH16; Tết Âm lịch, Giỗ Tổ đổi ngày theo năm, Admin tự thêm
-  store.setSetting('holidays', [
-    `${y}-01-01`,
-    `${y}-04-30`,
-    `${y}-05-01`,
-    `${y}-09-02`,
-    ...(y >= 2026 ? [`${y}-11-24`] : [])
-  ]);
-}
-console.log(
-  `Đã thêm ${added} tài khoản mẫu cho tháng ${mk}. Mật khẩu nhân sự mẫu: ${PASSWORD}; admin: ${process.env.ADMIN_PASSWORD || 'admin123'}`
-);
+  if (!store.getSetting('holidays', null)) {
+    // 24/11 (Ngày Văn hóa Việt Nam) là ngày nghỉ hưởng lương từ 01/7/2026 — NQ 28/2026/QH16; Tết Âm lịch, Giỗ Tổ đổi ngày theo năm, Admin tự thêm
+    store.setSetting('holidays', [
+      `${y}-01-01`,
+      `${y}-04-30`,
+      `${y}-05-01`,
+      `${y}-09-02`,
+      ...(y >= 2026 ? [`${y}-11-24`] : [])
+    ]);
+  }
+  console.log(
+    `Đã thêm ${added} tài khoản mẫu cho tháng ${mk}. Mật khẩu nhân sự mẫu: ${PASSWORD}; admin: ${process.env.ADMIN_PASSWORD || 'admin123'}`
+  );
 })().catch(error => {
   console.error(error);
   process.exit(1);

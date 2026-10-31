@@ -60,7 +60,13 @@ async function save() {
             @keydown.enter="save"
           />
         </div>
-        <button v-if="!info.locked" type="button" class="btn pri" :disabled="busy || String(text).trim() === ''" @click="save">
+        <button
+          v-if="!info.locked"
+          type="button"
+          class="btn pri"
+          :disabled="busy || String(text).trim() === ''"
+          @click="save"
+        >
           Lưu
         </button>
       </div>

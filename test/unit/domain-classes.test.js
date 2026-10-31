@@ -76,7 +76,14 @@ test('mã ca mới tra được giờ ca ở luật chấm công và giờ thự
 });
 
 test('hồ sơ: uuid sinh một lần, họ/tên tách sẵn, tài khoản không đổi được', async () => {
-  await store.upsertStaff({ username: 'qa_khoa', name: 'bùi đăng khoa', role: 'staff', type: 'nv', level: 1, passHash: 'x' });
+  await store.upsertStaff({
+    username: 'qa_khoa',
+    name: 'bùi đăng khoa',
+    role: 'staff',
+    type: 'nv',
+    level: 1,
+    passHash: 'x'
+  });
   const first = await store.getStaff('qa_khoa');
   assert.match(first.uuid, /^[0-9a-f-]{36}$/);
   assert.equal(first.familyName, 'Bùi Đăng');
@@ -89,7 +96,9 @@ test('hồ sơ: uuid sinh một lần, họ/tên tách sẵn, tài khoản khôn
   await store.upsertStaff({ ...second, passHash: 'x', contractStatus: undefined, resignedOn: '2026-12-31' });
   assert.equal((await store.getStaff('qa_khoa')).contractStatus, 'probation'); // undefined = giữ
   assert.equal((await store.getStaff('qa_khoa')).resignedOn, '2026-12-31');
-  await assert.rejects(async () => await store.db.prepare("UPDATE staff SET username = 'qa_khac' WHERE username = 'qa_khoa'").run());
+  await assert.rejects(
+    async () => await store.db.prepare("UPDATE staff SET username = 'qa_khac' WHERE username = 'qa_khoa'").run()
+  );
   assert.equal((await container.employees.byUuid(first.uuid, '2026-11')).username, 'qa_khoa');
 });
 
@@ -105,7 +114,7 @@ test('giải trình: duyệt cần đúng rev, giải trình đã duyệt không
   const denied = [];
   const service = new ExplanationService({
     repository: new ExplanationRepository({ db: store.db, transaction: store.transaction }),
-    staffExists: async u => !!await store.getStaff(u),
+    staffExists: async u => !!(await store.getStaff(u)),
     clock: () => '2026-11-02T02:00:00.000Z',
     onSelf: error => denied.push(error.code)
   });
@@ -145,8 +154,7 @@ test('phụ cấp ca theo ca được xếp: ca Night có phụ cấp đêm theo
   // chỉ chồng các khoá danh mục và quy tắc không có trong LEGACY_DEFAULTS (tiền của LEGACY_DEFAULTS giữ nguyên)
   const added = {
     ...Object.fromEntries(
-      (await container
-        .catalogParamRows())
+      (await container.catalogParamRows())
         .filter(r => !Object.hasOwn(LEGACY_DEFAULTS, r.key))
         .map(r => [r.key, r.value])
     ),

@@ -97,7 +97,14 @@ const footText = computed(() => {
   <section class="card">
     <div class="card-h">
       <h2>Phép năm còn lại</h2>
-      <button v-if="canRefresh" type="button" class="btn" style="margin-left: auto" :disabled="refreshing" @click="refresh">
+      <button
+        v-if="canRefresh"
+        type="button"
+        class="btn"
+        style="margin-left: auto"
+        :disabled="refreshing"
+        @click="refresh"
+      >
         <Icon name="clock" />Cập nhật phép
       </button>
       <span v-if="data && !data.empty" class="cap"

@@ -17,8 +17,15 @@ export class ApiExceptionFilter implements ExceptionFilter {
       console.error(error);
       return;
     }
-    if (error instanceof Overloaded) return send(res, 503, { error: error.message, code: 'OVERLOADED' }, { 'Retry-After': String(error.retryAfterSec) });
-    if (error instanceof HttpError) return send(res, error.status, { error: error.message, ...error.details }, (error as any).headers);
+    if (error instanceof Overloaded)
+      return send(
+        res,
+        503,
+        { error: error.message, code: 'OVERLOADED' },
+        { 'Retry-After': String(error.retryAfterSec) }
+      );
+    if (error instanceof HttpError)
+      return send(res, error.status, { error: error.message, ...error.details }, (error as any).headers);
     // Lỗi có mã của store (PERIOD_LOCKED, SLIP_STALE, REASON_REQUIRED...): code và mã HTTP do store quyết, chi tiết trải ra như HttpError
     if (error && typeof error.code === 'string' && Number.isInteger(error.httpStatus) && error.httpStatus < 500)
       return send(res, error.httpStatus, { error: error.message, code: error.code, ...error.details });

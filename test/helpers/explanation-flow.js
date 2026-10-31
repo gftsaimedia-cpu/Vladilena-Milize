@@ -79,9 +79,9 @@ async function payOf(username, month = MONTH) {
 
 // Các lượt của một người trong ngày công date (kể cả lượt Admin)
 const sessionsOn = async (username, date) =>
-  (await F.store
-    .listSessions({ username, includeScheduled: true }))
-    .filter(s => ((s.entry.plannedShift || {}).date || s.date) === date);
+  (await F.store.listSessions({ username, includeScheduled: true })).filter(
+    s => ((s.entry.plannedShift || {}).date || s.date) === date
+  );
 
 // Admin khai thay các ngày dates (một ngày hoặc danh sách) là đi làm đủ ca (đường PUT /sheet kèm confirmDays). Mỗi lần lưu thay cả lịch
 // của tháng, nên ngày nào cần giữ phải có trong cùng một lần gọi.

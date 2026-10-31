@@ -17,10 +17,7 @@ test('người vào làm 2021: dòng sổ bắt đầu từ 10/01/2026, tổng b
   const events = await accrualEvents(P08, '2026-12-31', DEFAULTS);
   assert.ok(events.every(e => e.onDate >= '2026-01-01'));
   assert.equal(events.filter(e => e.kind === 'month').length, 12);
-  assert.deepEqual(kinds(events.filter(e => e.kind !== 'month')), [
-    'birthday@2026-01-01',
-    'seniority@2026-06-10'
-  ]);
+  assert.deepEqual(kinds(events.filter(e => e.kind !== 'month')), ['birthday@2026-01-01', 'seniority@2026-06-10']);
   assert.equal(sum(events), 14);
   assert.equal(sum(events), Leave.counted(P08, '2026-12-31').total);
 });
@@ -65,7 +62,10 @@ test('đổi leave.expiry.fromYear thì năm bắt đầu của dòng sổ đổ
   );
   const never = { ...DEFAULTS, 'leave.expiry.month': 0 };
   assert.equal((await accrualEvents(P08, '2026-12-31', never))[0].onDate, '2021-07-10');
-  assert.equal(sum(await accrualEvents(P08, '2026-12-31', never)), Leave.create(never).accrued(P08, '2026-12-31').total);
+  assert.equal(
+    sum(await accrualEvents(P08, '2026-12-31', never)),
+    Leave.create(never).accrued(P08, '2026-12-31').total
+  );
 });
 
 test('số dư = tổng dòng cộng + dòng hết hạn + điều chỉnh − ngày đã dùng: P08 dùng 10 ngày tháng 01/2027 còn 2 ngày sau khi quỹ 2026 hết hạn 4 ngày', async () => {
@@ -74,7 +74,7 @@ test('số dư = tổng dòng cộng + dòng hết hạn + điều chỉnh − n
     const upTo = '2027-02-02';
     const sold = Leave.ledger(staff, JAN_LEAVE, upTo);
     const stored = [
-      ...await accrualEvents(staff, upTo, DEFAULTS),
+      ...(await accrualEvents(staff, upTo, DEFAULTS)),
       ...sold.settled.filter(s => s.days > 0).map(s => ({ kind: 'expire', onDate: s.on, days: -s.days }))
     ];
     assert.equal(sum(stored) + adjust - sold.used, sold.balance, `điều chỉnh ${adjust}`);

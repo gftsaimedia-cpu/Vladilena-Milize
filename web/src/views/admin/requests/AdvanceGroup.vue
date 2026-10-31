@@ -43,7 +43,8 @@ const decide = (r, action) =>
 const approveAll = () =>
   run('all', async () => {
     const res = await approveAllAdvances({ month: data.value.month, rev: data.value.rev });
-    if (res.skipped && res.skipped.length) toast.error(`Bỏ qua ${res.skipped.length} yêu cầu: ${res.skipped.map(s => s.username).join(', ')}`);
+    if (res.skipped && res.skipped.length)
+      toast.error(`Bỏ qua ${res.skipped.length} yêu cầu: ${res.skipped.map(s => s.username).join(', ')}`);
   });
 </script>
 

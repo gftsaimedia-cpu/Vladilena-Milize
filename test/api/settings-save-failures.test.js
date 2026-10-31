@@ -261,7 +261,7 @@ test(
   async () => {
     const M = monthOf();
     await setup(M);
-    const good = await S.wiredMoneyKey() || await S.adminKey();
+    const good = (await S.wiredMoneyKey()) || (await S.adminKey());
     assert.ok(good, 'cần một khoá hợp lệ');
     const goodChange = { key: good.key, value: good.value };
     const bads = [

@@ -52,7 +52,11 @@ test('S1: chấm công 2: TTS vào Thứ Bảy 07/11 (ngoài lịch T2–T6, kh�
   assert.equal(r.data.workDate, '2026-11-06');
   assert.equal(r.data.open.plannedShift.kind, 'work');
   assert.ok(!r.data.openSession.entry.outsideShift);
-  assert.equal(JSON.stringify(await store.getSheet('qa_s_tts', S.MONTH)), before, 'chấm công không ghi vào Lịch ước tính');
+  assert.equal(
+    JSON.stringify(await store.getSheet('qa_s_tts', S.MONTH)),
+    before,
+    'chấm công không ghi vào Lịch ước tính'
+  );
 });
 
 test('S1: chấm công 3: ca đêm cuối tháng: người ca g2 vào lúc 00:30 ngày 01/11 (ngày công 31/10, tháng 10): lịch của 31/10 quyết định', async () => {

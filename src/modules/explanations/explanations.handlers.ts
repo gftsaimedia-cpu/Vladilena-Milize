@@ -24,15 +24,17 @@ const { AbsentDay } = require('../../../lib/domain/explanation/absent-day');
 
 const CAP = 'attendance.correct';
 export const absentDay = new AbsentDay({ store });
-export const isAdmin = async me => await authz.scopeOf(me, CAP) === 'all';
+export const isAdmin = async me => (await authz.scopeOf(me, CAP)) === 'all';
 export const auditRow = async (...args) => await container.lateCheckout.auditExplanation(...args);
 // requestedOut: giờ nhân sự bấm Check-out muộn (lượt đang "Quên Check-out" chờ duyệt); Admin duyệt thì giờ này thành giờ Check-out
 const requestedOut = async row =>
-  (row.kind === 'late-checkout' && row.sessionId && (await store.getSession(row.sessionId) || {}).entry?.requestedOut) ||
+  (row.kind === 'late-checkout' &&
+    row.sessionId &&
+    ((await store.getSession(row.sessionId)) || {}).entry?.requestedOut) ||
   null;
 export const withName = async row => ({
   ...row,
-  name: (await store.getStaff(row.username) || {}).name || row.username,
+  name: ((await store.getStaff(row.username)) || {}).name || row.username,
   requestedOut: await requestedOut(row)
 });
 export const changed = async row => {

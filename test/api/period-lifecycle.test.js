@@ -251,7 +251,11 @@ test('Danh sách kiểm: AI_NOT_RUN chỉ hiện ở bước duyệt (sau tính 
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
   await agents.set(false);
-  assert.equal(codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'), false, 'Agents tắt: không đòi chạy AI');
+  assert.equal(
+    codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'),
+    false,
+    'Agents tắt: không đòi chạy AI'
+  );
   await agents.set(true);
   assert.ok(codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'));
   P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
@@ -460,7 +464,10 @@ test('approve kỳ đóng băng số Admin sửa vào override_json của phiế
     body: { user: 'qa_nv2', month: M, values: { otPay: 1 }, reason: 'Thử sửa sau khi đóng băng' }
   });
   assert.equal(locked.status, 200, JSON.stringify(locked.data));
-  assert.ok(locked.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(locked.data.warnings));
+  assert.ok(
+    locked.data.warnings.some(w => w.code === 'PERIOD_LOCKED'),
+    JSON.stringify(locked.data.warnings)
+  );
   assert.equal(JSON.parse((await flow.payslipsOf(M)).slips.qa_nv2.override_json).values.otPay, 123456);
 });
 
@@ -520,10 +527,16 @@ test('Phiếu trong cơ sở dữ liệu: tiền là số nguyên đồng, bản
   const row = await store.db.prepare('SELECT * FROM payslips WHERE run_id = ? ORDER BY username LIMIT 1').get(run.id);
   const snapshot = JSON.parse(zlib.gunzipSync(Buffer.from(row.snapshot_gz)).toString('utf8'));
   assert.equal(snapshot.net.net, row.net);
-  await assert.rejects(async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE id = ?').run(row.id), /không được/);
+  await assert.rejects(
+    async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE id = ?').run(row.id),
+    /không được/
+  );
   await assert.rejects(
     async () => await store.db.prepare("UPDATE payroll_runs SET params_hash = 'x' WHERE id = ?").run(run.id),
     /không được/
   );
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE id = ?').run(row.id), /không được xoá/);
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM payslips WHERE id = ?').run(row.id),
+    /không được xoá/
+  );
 });

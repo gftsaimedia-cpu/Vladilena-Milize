@@ -57,14 +57,22 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     const entry = { ...session.entry, kind: 'pending', reason: 'forgot-out' };
     delete entry.presOut;
     await store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
-    await store.addPunch(staff.username, t, 'out', null, true, { plannedShift: entry.plannedShift || null }, session.id);
+    await store.addPunch(
+      staff.username,
+      t,
+      'out',
+      null,
+      true,
+      { plannedShift: entry.plannedShift || null },
+      session.id
+    );
   }
   async function punchIn(u, t, fast) {
     const staff = await store.getStaff(u);
     if (!fast) await closeStale(staff, t);
     if (await store.openSession(u)) throw new Error(`Spec lỗi: ${u} đang có lượt mở lúc Check-in ${t}`);
     const opened = P.openSessionDay(punchStaff(staff), t);
-    if (!fast && await sessionOverlap(u, t, new Date(Date.parse(t) + 1).toISOString()))
+    if (!fast && (await sessionOverlap(u, t, new Date(Date.parse(t) + 1).toISOString())))
       throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
     const session = await store.createSession(u, opened.date, 'open', opened.entry);
     await store.addPunch(u, t, 'in', ipOf(u), false, { plannedShift: opened.entry.plannedShift || null }, session.id);
@@ -80,18 +88,17 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       entry = P.buildDay(punchStaff(staff), session.entry.presIn, t, 'punch', {
         plannedShift: session.entry.plannedShift
       }).entry;
-      const duplicate = (await store
-        .listSessions({ username: u }))
-        .some(
-          s =>
-            s.id !== session.id &&
-            s.entry.plannedShift?.startIso === session.entry.plannedShift.startIso &&
-            s.entry.plannedShift?.code === session.entry.plannedShift.code
-        );
+      const duplicate = (await store.listSessions({ username: u })).some(
+        s =>
+          s.id !== session.id &&
+          s.entry.plannedShift?.startIso === session.entry.plannedShift.startIso &&
+          s.entry.plannedShift?.code === session.entry.plannedShift.code
+      );
       if (duplicate && entry.kind !== 'pending')
         entry = { ...entry, kind: 'pending', reason: 'multiple-sessions', attendanceConfirmed: false };
     }
-    if (!fast && await sessionOverlap(u, entry.presIn, t, session.id)) throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
+    if (!fast && (await sessionOverlap(u, entry.presIn, t, session.id)))
+      throw new Error(`Spec lỗi: chồng giờ ${u} ${t}`);
     session = await store.updateSession(session.id, session.version, { date: session.date, state: 'closed', entry });
     await store.addPunch(u, t, 'out', ipOf(u), false, { plannedShift: entry.plannedShift || null }, session.id);
   }
@@ -157,7 +164,12 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
       const declared = store.approvals.declaredItems(days, { holidays, staffType });
       for (const date of Object.keys(declared))
         if (!date.startsWith(month + '-') || !isCleanDate(date)) delete declared[date];
-      await store.approvals.reconcile(u, month, declared, history ? { approveBefore: store.approvals.CUTOFF_MONTH } : {});
+      await store.approvals.reconcile(
+        u,
+        month,
+        declared,
+        history ? { approveBefore: store.approvals.CUTOFF_MONTH } : {}
+      );
     });
   }
   // Lương tháng đúng chuỗi của app: lịch → payView → ActualHours.apply → calcMonth. Dùng cho phiếu sửa số theo tỉ lệ số tự tính.
@@ -443,7 +455,8 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
     for (const s of p.slip || []) {
       push(
         H.at(s.at),
-        async () => store.setSlipOverride(p.username, s.month, s.values(await computeMonth(p.username, s.month)), ADMIN),
+        async () =>
+          store.setSlipOverride(p.username, s.month, s.values(await computeMonth(p.username, s.month)), ADMIN),
         `slip ${s.month}`
       );
     }
@@ -462,7 +475,9 @@ function create({ store, payroll, passHash, today = S.TODAY, log = () => {} }) {
               const declared = store.approvals.declaredItems(sheet.days, { holidays, staffType });
               for (const date of Object.keys(declared))
                 if (!date.startsWith(month + '-') || !isCleanDate(date)) delete declared[date];
-              await store.approvals.reconcile(p.username, month, declared, { approveBefore: store.approvals.CUTOFF_MONTH });
+              await store.approvals.reconcile(p.username, month, declared, {
+                approveBefore: store.approvals.CUTOFF_MONTH
+              });
             }
           }
         },

@@ -34,7 +34,10 @@ test('dùng đúng số phép được cộng thì không báo; dùng hơn 1 ng�
 });
 
 test('ngày lễ nằm trong lịch của người không trừ phép', async () => {
-  assert.deepEqual((await check([await person('a')], [await leaveDays('a', ['05', '06', '07'])], ['2026-10-06'])).issues, []);
+  assert.deepEqual(
+    (await check([await person('a')], [await leaveDays('a', ['05', '06', '07'])], ['2026-10-06'])).issues,
+    []
+  );
 });
 
 test('điều chỉnh phép của Admin được cộng vào số dư; mỗi người tính riêng, không bù trừ cho nhau', async () => {
@@ -61,7 +64,11 @@ test('cảnh báo chỉ đọc dữ liệu và biến mất khi nhập đúng ng
 test('phép năm bị từ chối trả lại phép; chờ duyệt, đã duyệt, dòng của khoản khác hoặc người khác vẫn tính', async () => {
   const three = [await leaveDays('a', ['05', '06', '07'])];
   assert.deepEqual((await check([await person('a')], three, [], [leaveRow('2026-10-07', 'rejected')])).issues, []);
-  assert.equal(negatives(await check([await person('a')], three)).length, 1, 'không truyền approvals: mọi ngày phép đều tính');
+  assert.equal(
+    negatives(await check([await person('a')], three)).length,
+    1,
+    'không truyền approvals: mọi ngày phép đều tính'
+  );
   for (const rows of [
     [leaveRow('2026-10-07', 'pending')],
     [leaveRow('2026-10-07', 'approved')],

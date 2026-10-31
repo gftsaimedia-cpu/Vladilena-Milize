@@ -35,7 +35,10 @@ const moduleOf = abs => {
   return r[0] && r[0] !== '..' && !path.isAbsolute(r[0]) ? r[0] : null;
 };
 
-const MODULES = fs.readdirSync(path.join(SRC, 'modules'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
+const MODULES = fs
+  .readdirSync(path.join(SRC, 'modules'), { withFileTypes: true })
+  .filter(e => e.isDirectory())
+  .map(e => e.name);
 
 test('kiến trúc: module nghiệp vụ chỉ import module khác qua index.ts', () => {
   const bad = [];
@@ -45,8 +48,12 @@ test('kiến trúc: module nghiệp vụ chỉ import module khác qua index.ts'
     for (const target of importsOf(file)) {
       const other = moduleOf(target);
       if (!other || other === mine) continue;
-      const viaIndex = target === path.join(SRC, 'modules', other) || target === path.join(SRC, 'modules', other, 'index');
-      if (!viaIndex) bad.push(`${rel(file)} import ruột của module ${other}: ${rel(target)} (chỉ được import từ src/modules/${other})`);
+      const viaIndex =
+        target === path.join(SRC, 'modules', other) || target === path.join(SRC, 'modules', other, 'index');
+      if (!viaIndex)
+        bad.push(
+          `${rel(file)} import ruột của module ${other}: ${rel(target)} (chỉ được import từ src/modules/${other})`
+        );
     }
   }
   assert.deepEqual(bad, []);
@@ -62,7 +69,9 @@ test('kiến trúc: chỉ app.module.ts import src/modules; hạ tầng không p
 });
 
 test('kiến trúc: không file nào trong src/ import server.js', () => {
-  const bad = FILES.filter(file => importsOf(file).some(target => target === path.join(ROOT, 'server') || target === path.join(ROOT, 'server.js')));
+  const bad = FILES.filter(file =>
+    importsOf(file).some(target => target === path.join(ROOT, 'server') || target === path.join(ROOT, 'server.js'))
+  );
   assert.deepEqual(bad.map(rel), []);
 });
 
@@ -83,19 +92,32 @@ test('kiến trúc: AppModule đăng ký mọi module nghiệp vụ, NotFoundMod
   const text = fs.readFileSync(path.join(SRC, 'app.module.ts'), 'utf8');
   const list = /FEATURE_MODULES\s*=\s*\[([^\]]*)\]/.exec(text);
   assert.ok(list, 'không thấy FEATURE_MODULES trong app.module.ts');
-  const registered = list[1].split(',').map(s => s.trim()).filter(Boolean);
+  const registered = list[1]
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
   const declared = MODULES.map(name => {
     const src = fs.readFileSync(path.join(SRC, 'modules', name, `${name}.module.ts`), 'utf8');
     return /export class (\w+)/.exec(src)[1];
   });
-  assert.deepEqual([...declared].sort(), [...registered].sort(), 'module có trên đĩa nhưng chưa đăng ký (hoặc ngược lại)');
-  assert.match(text, /imports:\s*\[\s*\.\.\.FEATURE_MODULES,\s*NotFoundModule\s*\]/, 'NotFoundModule phải đứng cuối imports');
+  assert.deepEqual(
+    [...declared].sort(),
+    [...registered].sort(),
+    'module có trên đĩa nhưng chưa đăng ký (hoặc ngược lại)'
+  );
+  assert.match(
+    text,
+    /imports:\s*\[\s*\.\.\.FEATURE_MODULES,\s*NotFoundModule\s*\]/,
+    'NotFoundModule phải đứng cuối imports'
+  );
 });
 
 test('kiến trúc: công cụ quét thấy file và cạnh import thật (không xanh giả vì quét trượt)', () => {
   assert.ok(FILES.length > 40, `chỉ thấy ${FILES.length} file .ts`);
   assert.ok(MODULES.length >= 18, `chỉ thấy ${MODULES.length} module`);
-  const crossModuleEdges = FILES.flatMap(file => importsOf(file).filter(t => moduleOf(file) && moduleOf(t) && moduleOf(t) !== moduleOf(file)));
+  const crossModuleEdges = FILES.flatMap(file =>
+    importsOf(file).filter(t => moduleOf(file) && moduleOf(t) && moduleOf(t) !== moduleOf(file))
+  );
   assert.ok(crossModuleEdges.length >= 1, 'phải thấy ít nhất cạnh attendance → sheet');
 });
 
@@ -120,6 +142,8 @@ test('kiến trúc: lib/** chỉ được phụ thuộc src/data (lớp truy v�
 test('kiến trúc: src/data là lớp lá (không import module, hạ tầng HTTP hay lib)', () => {
   const bad = [];
   for (const file of FILES.filter(f => rel(f).startsWith('src/data/')))
-    for (const target of importsOf(file)) if (!rel(target).startsWith('src/data/') && !rel(target).startsWith('node_modules')) bad.push(`${rel(file)} → ${rel(target)}`);
+    for (const target of importsOf(file))
+      if (!rel(target).startsWith('src/data/') && !rel(target).startsWith('node_modules'))
+        bad.push(`${rel(file)} → ${rel(target)}`);
   assert.deepEqual(bad, []);
 });

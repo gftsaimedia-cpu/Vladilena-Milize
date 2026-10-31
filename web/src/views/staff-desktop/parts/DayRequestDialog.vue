@@ -52,7 +52,13 @@ async function submit() {
 </script>
 
 <template>
-  <AppModal v-if="ctx" title="Khai ngày" sub="Yêu cầu cần Admin đồng ý mới tính vào thu nhập." :width="560" @close="emit('close')">
+  <AppModal
+    v-if="ctx"
+    title="Khai ngày"
+    sub="Yêu cầu cần Admin đồng ý mới tính vào thu nhập."
+    :width="560"
+    @close="emit('close')"
+  >
     <div class="fld">
       <label for="dr-date">Ngày</label>
       <div class="inp"><input id="dr-date" v-model="form.date" type="date" /></div>

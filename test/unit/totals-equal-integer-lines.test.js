@@ -226,7 +226,11 @@ test('OT ngày thường 4 giờ: otPay 173.077, miễn thuế 57.692; OT Chủ 
     ...F.punches(staff, F.datesOn('2026-10', F.MON_SAT), { sched: F.MON_SAT }),
     ...F.punches(staff, [SUN], { sched: F.MON_SAT, to: 240 })
   ];
-  const r = F.run(staff, days, { actualFrom: '2026-10-01', sessions, approvals: await F.approved(days, [], 'nv', [SUN]) });
+  const r = F.run(staff, days, {
+    actualFrom: '2026-10-01',
+    sessions,
+    approvals: await F.approved(days, [], 'nv', [SUN])
+  });
   assert.equal(cellsOf(clone({ ...r.m, trace: r.m.trace })).otPay, 230769);
   await checkMonth(r.m, 'OT Chủ nhật');
 });

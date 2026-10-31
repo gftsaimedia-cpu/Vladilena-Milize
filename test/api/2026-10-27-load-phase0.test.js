@@ -68,7 +68,7 @@ test('số lần ghi của DB (khoá bộ nhớ đệm): đọc không làm đ�
   await F.store.listStaff();
   assert.equal(await dataRevision(), before);
   await F.store.setSetting('cache_probe', 1); // ghi lẻ ngoài transaction cũng phải được tính
-  assert.ok(await dataRevision() > before);
+  assert.ok((await dataRevision()) > before);
 });
 
 // ---------- giới hạn tải ----------
@@ -106,7 +106,8 @@ test('giới hạn tốc độ ghi theo người: quá số lệnh/phút thì 42
   writeLimiter.capacity = 2;
   writeLimiter.buckets.clear();
   try {
-    const put = async who => await as(who, '/api/sheet', { method: 'PUT', body: JSON.stringify({ month: '2026-10', days: {} }) });
+    const put = async who =>
+      await as(who, '/api/sheet', { method: 'PUT', body: JSON.stringify({ month: '2026-10', days: {} }) });
     assert.notEqual((await put('nv0')).status, 429);
     assert.notEqual((await put('nv0')).status, 429);
     const blocked = await put('nv0');

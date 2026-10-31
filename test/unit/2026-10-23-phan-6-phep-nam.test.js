@@ -107,7 +107,10 @@ test('B: các phần chi tiết của kết quả cộng lại đúng tổng (m�
 test('B: đổi leave.seniority.stepYears thì mốc thâm niên đổi theo: 3 năm thay vì 5 (người vào làm 10/06/2023 đến 10/06/2026)', async () => {
   const staff = { startDate: '2023-06-10', type: 'ctv' };
   assert.equal(total(staff, '2026-06-10'), 36, 'mặc định 5 năm: chưa có thâm niên');
-  assert.equal(Leave.create(await withParams({ 'leave.seniority.stepYears': 3 })).accrued(staff, '2026-06-10').total, 37);
+  assert.equal(
+    Leave.create(await withParams({ 'leave.seniority.stepYears': 3 })).accrued(staff, '2026-06-10').total,
+    37
+  );
 });
 
 test('B: bản trần của mô-đun bằng create(DEFAULTS) và không sửa đối tượng nhân sự', () => {

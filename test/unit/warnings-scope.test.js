@@ -14,7 +14,10 @@ const person = (username, fn) => warnings.scope({ label: `Người ${username}`,
 
 test('scope: cảnh báo mang nhãn và details của từng người; cùng mã cùng câu của hai người là hai mục', () => {
   warnings.run(async () => {
-    for (const username of ['a', 'b']) await person(username, () => warnings.warn('SAME', 'Ngày 02/11 là Chủ nhật', { details: { date: '2026-11-01' } }));
+    for (const username of ['a', 'b'])
+      await person(username, () =>
+        warnings.warn('SAME', 'Ngày 02/11 là Chủ nhật', { details: { date: '2026-11-01' } })
+      );
     const list = warnings.take();
     assert.deepEqual(
       list.map(w => [w.code, w.message, w.details]),
@@ -43,7 +46,13 @@ test('scope: warnIf và selfDecision đi qua cùng đường nên cũng mang nh�
 
 test('scope: fn ném lỗi thì nhãn được gỡ; scope lồng nhau trả về nhãn ngoài; cảnh báo ngoài scope không nhãn', () => {
   warnings.run(async () => {
-    assert.throws(() => person('d', () => { throw new Error('hỏng'); }), /hỏng/);
+    assert.throws(
+      () =>
+        person('d', () => {
+          throw new Error('hỏng');
+        }),
+      /hỏng/
+    );
     warnings.warn('OUT', 'ngoài scope');
     await person('e', () => {
       warnings.scope({ label: 'Trong', details: {} }, () => warnings.warn('IN', 'bên trong'));

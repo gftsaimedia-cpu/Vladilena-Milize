@@ -776,13 +776,7 @@ function calcMonth(staff, days, kpiPct, holidays, mk, upTo) {
       const e = {
         ...evaluated,
         pass,
-        reason: !evaluated.complete
-          ? 'incomplete'
-          : !evaluated.weworkOk
-            ? 'wework'
-            : pass
-              ? 'ok'
-              : 'below-pass'
+        reason: !evaluated.complete ? 'incomplete' : !evaluated.weworkOk ? 'wework' : pass ? 'ok' : 'below-pass'
       };
       const amt = ca(kin.admAmt) == null ? selfAmt : ca(kin.admAmt);
       r.kpiMethod = 'five';

@@ -41,7 +41,9 @@ async function submit() {
       <Icon name="alert" />
       <div>
         Mỗi lần tính tạo một bản mới; bản trước được giữ lại với trạng thái <b>Đã thay thế</b>, không bị xoá. Số trên
-        bảng là <b>bản nháp</b> cho tới khi phê duyệt kỳ.<template v-if="agents"> Tính lại sẽ xoá kết quả AI kiểm tra, phải chạy AI lại.</template>
+        bảng là <b>bản nháp</b> cho tới khi phê duyệt kỳ.<template v-if="agents">
+          Tính lại sẽ xoá kết quả AI kiểm tra, phải chạy AI lại.</template
+        >
       </div>
     </div>
     <div v-if="error" class="note err" style="margin-top: 12px">

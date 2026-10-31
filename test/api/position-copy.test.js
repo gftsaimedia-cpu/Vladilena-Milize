@@ -74,7 +74,9 @@ test('position-copy: nhật ký và lô tham số: một lần sao chép là M�
   assert.equal(new Set(rows.map(r => r.reason)).size, 1);
   assert.equal(rows[0].reason, 'Thêm chức vụ thử nhật ký');
   assert.ok((await P.auditRows('param.set')).length > audit0, 'có dòng nhật ký');
-  assert.ok(!(await P.paramRows()).some(r => ['position.def.tts', 'position.def.ctv', 'position.def.nv'].includes(r.key)));
+  assert.ok(
+    !(await P.paramRows()).some(r => ['position.def.tts', 'position.def.ctv', 'position.def.nv'].includes(r.key))
+  );
 });
 
 test('position-copy: đầu vào sai là 400 và không lưu gì: thiếu nhãn, nhãn rỗng, nguồn lạ (POSITION_UNKNOWN), tháng sai; nhân sự và người chưa đăng nhập không sao chép được (403, 401); thiếu lý do vẫn sao chép được', async () => {
@@ -150,10 +152,16 @@ test('position-hardcoded-flags: TTS khai OT hay nghỉ phép vẫn lưu, kèm c�
     [date]: { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' }
   });
   assert.equal(ot.status, 200, JSON.stringify(ot.data));
-  assert.ok(ot.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(ot.data.warnings));
+  assert.ok(
+    ot.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(ot.data.warnings)
+  );
   const leave = await saveSheet('qa_tts1', M, { [date]: { kind: 'leave' } });
   assert.equal(leave.status, 200, JSON.stringify(leave.data));
-  assert.ok(leave.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(leave.data.warnings));
+  assert.ok(
+    leave.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(leave.data.warnings)
+  );
   // CTV (ca n2 10:00–19:00): cùng yêu cầu OT được nhận
   const day = { kind: 'work', in: '10:00', out: '19:00', extraKind: 'ot', extraOut: '21:00' };
   const ctv = await saveSheet('qa_ctv1', M, { [date]: day });
@@ -173,10 +181,16 @@ test('position-hardcoded-flags: chức vụ sao từ tts với benefit.ot = true
   const day = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' };
   const allowed = await saveSheet('qa_pos_ot', M, { [date]: day });
   assert.equal(allowed.status, 200, JSON.stringify(allowed.data));
-  assert.ok(!(allowed.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(allowed.data.warnings));
+  assert.ok(
+    !(allowed.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(allowed.data.warnings)
+  );
   const warned = await saveSheet('qa_pos_plain', M, { [date]: day });
   assert.equal(warned.status, 200, JSON.stringify(warned.data));
-  assert.ok(warned.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(warned.data.warnings));
+  assert.ok(
+    warned.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(warned.data.warnings)
+  );
 });
 
 test('position-hardcoded-flags: cờ absenceDeclarable theo chức vụ: bản sao của nv bỏ cờ thì khai nghỉ không lương trong lịch kèm cảnh báo BENEFIT_NOT_ALLOWED, bản sao của tts bật cờ thì khai không cảnh báo', async () => {
@@ -196,10 +210,16 @@ test('position-hardcoded-flags: cờ absenceDeclarable theo chức vụ: bản s
   const date = dayIn(M, 3);
   const warned = await saveSheet('qa_pos_closed', M, { [date]: { kind: 'unpaid' } });
   assert.equal(warned.status, 200, JSON.stringify(warned.data));
-  assert.ok(warned.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(warned.data.warnings));
+  assert.ok(
+    warned.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(warned.data.warnings)
+  );
   const accepted = await saveSheet('qa_pos_open', M, { [date]: { kind: 'unpaid' } });
   assert.equal(accepted.status, 200, JSON.stringify(accepted.data));
-  assert.ok(!(accepted.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(accepted.data.warnings));
+  assert.ok(
+    !(accepted.data.warnings || []).some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(accepted.data.warnings)
+  );
 });
 
 test('position-hardcoded-flags: GET /api/me của nhân sự trả cờ quyền lợi của chính chức vụ mình (leaveAccount, isat): TTS không có tài khoản phép và iSAT, NV có', async () => {
@@ -248,6 +268,9 @@ test('position-copy: tháng áp dụng đã chốt công vẫn thêm được ch
   await P.advance(M, 'attendance_locked');
   const res = await P.copyPosition(M, { label: 'Chức vụ vào tháng đã khoá', copyFrom: 'nv' });
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-  assert.ok(res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.ok((await P.paramRows()).some(r => /^position\.def\./.test(r.key) && r.effective_month === M));
 });

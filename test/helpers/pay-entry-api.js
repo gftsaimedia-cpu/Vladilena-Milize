@@ -32,7 +32,8 @@ const entry = (month, over = {}) => ({
   reason: 'Thưởng hoàn thành dự án thử nghiệm',
   ...over
 });
-const create = async (month, over = {}, who = MAKER) => await F.call('POST', '/pay-entries', { who, body: entry(month, over) });
+const create = async (month, over = {}, who = MAKER) =>
+  await F.call('POST', '/pay-entries', { who, body: entry(month, over) });
 const mustCreate = async (month, over = {}, who = MAKER) => {
   const res = await create(month, over, who);
   assert.equal(res.status, 200, `POST /api/pay-entries: ${res.status} ${JSON.stringify(res.data)}`);
@@ -49,7 +50,8 @@ const mustApprove = async (e, who = CHECKER) => {
   assert.equal(res.status, 200, `duyệt: ${res.status} ${JSON.stringify(res.data)}`);
   return res.data.entry;
 };
-const list = async (month, query = '', who = MAKER) => await F.call('GET', `/pay-entries?month=${month}${query}`, { who });
+const list = async (month, query = '', who = MAKER) =>
+  await F.call('GET', `/pay-entries?month=${month}${query}`, { who });
 const statusOf = async (id, month) => (await list(month)).data.entries.find(r => r.id === id)?.status;
 async function slipsOf(month) {
   await P.advance(month, 'calculated');

@@ -10,7 +10,10 @@ const items = ref([]);
 const loading = ref(false);
 const error = ref('');
 
-const when = at => String(at || '').replace('T', ' ').slice(0, 16);
+const when = at =>
+  String(at || '')
+    .replace('T', ' ')
+    .slice(0, 16);
 
 async function toggle() {
   open.value = !open.value;

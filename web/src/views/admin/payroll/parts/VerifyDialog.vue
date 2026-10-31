@@ -15,7 +15,13 @@ const bad = computed(() => data.value?.mismatched || []);
 </script>
 
 <template>
-  <AppModal title="Kiểm tra lại" :sub="`Kỳ lương tháng ${monthShort(month)}`" :width="560" :top="200" @close="emit('close')">
+  <AppModal
+    title="Kiểm tra lại"
+    :sub="`Kỳ lương tháng ${monthShort(month)}`"
+    :width="560"
+    :top="200"
+    @close="emit('close')"
+  >
     <div v-if="error" class="note err">
       <Icon name="alert" />
       <div>{{ error.message || error }}</div>
@@ -26,7 +32,8 @@ const bad = computed(() => data.value?.mismatched || []);
       <div class="note" :class="bad.length ? 'err' : 'ok'">
         <Icon :name="bad.length ? 'alert' : 'check'" />
         <div v-if="bad.length">
-          Lần tính {{ data.runNo }}: {{ data.checked - bad.length }}/{{ data.checked }} phiếu khớp, {{ bad.length }} phiếu lệch.
+          Lần tính {{ data.runNo }}: {{ data.checked - bad.length }}/{{ data.checked }} phiếu khớp,
+          {{ bad.length }} phiếu lệch.
         </div>
         <div v-else>Lần tính {{ data.runNo }}: {{ data.checked }}/{{ data.checked }} phiếu khớp.</div>
       </div>

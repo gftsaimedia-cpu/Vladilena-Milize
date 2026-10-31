@@ -163,69 +163,69 @@ function setScope(next) {
     <ExplanationsGroup v-if="group === 'giai-trinh'" @changed="reloadWaiting" />
     <AdvanceGroup v-else-if="group === 'tam-ung'" />
     <template v-else>
-    <div class="tabs">
-      <button
-        v-for="[key, label, field] in TABS"
-        :key="key"
-        type="button"
-        class="tab"
-        :class="{ on: tab === key }"
-        @click="tab = key"
-      >
-        {{ label }} <small>{{ counts[field] }}</small>
-      </button>
-    </div>
-    <div class="ctl">
-      <span class="seg">
-        <button type="button" :class="{ on: scope === 'thang' }" @click="setScope('thang')">
-          Tháng {{ month }} · {{ counts.pendingMonth }}
+      <div class="tabs">
+        <button
+          v-for="[key, label, field] in TABS"
+          :key="key"
+          type="button"
+          class="tab"
+          :class="{ on: tab === key }"
+          @click="tab = key"
+        >
+          {{ label }} <small>{{ counts[field] }}</small>
         </button>
-        <button type="button" :class="{ on: scope === 'moi-thang' }" @click="setScope('moi-thang')">
-          Mọi tháng · {{ counts.pending }}
-        </button>
-      </span>
-      <SelectBox v-model="kind" :options="kindOptions" label="Loại yêu cầu" />
-      <label class="search" style="margin-left: auto">
-        <Icon name="search" :size="14" />
-        <input v-model="query" type="search" placeholder="Tìm tên nhân sự" aria-label="Tìm tên nhân sự" />
-      </label>
-    </div>
+      </div>
+      <div class="ctl">
+        <span class="seg">
+          <button type="button" :class="{ on: scope === 'thang' }" @click="setScope('thang')">
+            Tháng {{ month }} · {{ counts.pendingMonth }}
+          </button>
+          <button type="button" :class="{ on: scope === 'moi-thang' }" @click="setScope('moi-thang')">
+            Mọi tháng · {{ counts.pending }}
+          </button>
+        </span>
+        <SelectBox v-model="kind" :options="kindOptions" label="Loại yêu cầu" />
+        <label class="search" style="margin-left: auto">
+          <Icon name="search" :size="14" />
+          <input v-model="query" type="search" placeholder="Tìm tên nhân sự" aria-label="Tìm tên nhân sự" />
+        </label>
+      </div>
 
-    <template v-if="tab === 'cho'">
-      <template v-if="scope === 'thang'">
-        <GroupWarned v-if="warned.length" :items="warned" @reason="r => (reasonId = r.id)" />
-        <GroupClean
-          v-if="clean.length"
-          v-model:selected="selected"
-          :items="clean"
-          :older-count="counts.pendingOlder"
-          @all-months="setScope('moi-thang')"
-          @approve-selected="bulkOpen = true"
-          @reject="reject"
-        />
-        <section v-if="!items.length" class="card"><div class="later">Không có yêu cầu nào đang chờ.</div></section>
+      <template v-if="tab === 'cho'">
+        <template v-if="scope === 'thang'">
+          <GroupWarned v-if="warned.length" :items="warned" @reason="r => (reasonId = r.id)" />
+          <GroupClean
+            v-if="clean.length"
+            v-model:selected="selected"
+            :items="clean"
+            :older-count="counts.pendingOlder"
+            @all-months="setScope('moi-thang')"
+            @approve-selected="bulkOpen = true"
+            @reject="reject"
+          />
+          <section v-if="!items.length" class="card"><div class="later">Không có yêu cầu nào đang chờ.</div></section>
+        </template>
+        <template v-else>
+          <section class="card" style="margin-bottom: 24px">
+            <div class="sumc">
+              <h2>Tháng {{ month }}</h2>
+              <span class="cap">{{ items.length }} yêu cầu<template v-if="agents"> · AI đã kiểm tra</template></span>
+              <span v-if="agents" class="aic"><Icon name="spark" :size="14" />{{ warned.length }} có cảnh báo</span>
+              <span class="cap">· {{ clean.length }} có thể đồng ý cả loạt</span>
+              <button type="button" class="btn sm" @click="setScope('thang')">Xem tháng {{ month }}</button>
+            </div>
+          </section>
+          <GroupOlder
+            :items="older"
+            :total="olderTotal"
+            :can-more="!olderExhausted && older.length < olderTotal"
+            @approve="approve"
+            @reject="reject"
+            @more="loadMore"
+          />
+        </template>
       </template>
-      <template v-else>
-        <section class="card" style="margin-bottom: 24px">
-          <div class="sumc">
-            <h2>Tháng {{ month }}</h2>
-            <span class="cap">{{ items.length }} yêu cầu<template v-if="agents"> · AI đã kiểm tra</template></span>
-            <span v-if="agents" class="aic"><Icon name="spark" :size="14" />{{ warned.length }} có cảnh báo</span>
-            <span class="cap">· {{ clean.length }} có thể đồng ý cả loạt</span>
-            <button type="button" class="btn sm" @click="setScope('thang')">Xem tháng {{ month }}</button>
-          </div>
-        </section>
-        <GroupOlder
-          :items="older"
-          :total="olderTotal"
-          :can-more="!olderExhausted && older.length < olderTotal"
-          @approve="approve"
-          @reject="reject"
-          @more="loadMore"
-        />
-      </template>
-    </template>
-    <GroupHistory v-else :items="items" :total="counts[TABS.find(t => t[0] === tab)[2]]" />
+      <GroupHistory v-else :items="items" :total="counts[TABS.find(t => t[0] === tab)[2]]" />
     </template>
 
     <BulkApproveDialog

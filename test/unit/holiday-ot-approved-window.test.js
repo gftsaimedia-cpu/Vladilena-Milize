@@ -78,20 +78,26 @@ test('NV khung OT 08:00–17:00, Check-in 07:50 – Check-out 17:20: 9 giờ OT 
 });
 
 test('Check-out 16:00: chỉ 8 giờ (giờ có mặt giới hạn khung đã duyệt, như OT thường)', async () => {
-  const row = await (await month(DAY, { [HOL]: work('08:00', '17:00') }, [await punch(DAY, HOL, '08:00', '16:00')])).row(HOL);
+  const row = await (
+    await month(DAY, { [HOL]: work('08:00', '17:00') }, [await punch(DAY, HOL, '08:00', '16:00')])
+  ).row(HOL);
   assert.equal(row.holWorkH, 8);
   near(row.holWorkPay, 8 * HOURLY * HOL_RATE);
 });
 
 test('có mặt 06:00–20:00 nhưng chỉ duyệt 08:00–17:00: giờ ngoài khung đã duyệt không được trả', async () => {
-  const row = await (await month(DAY, { [HOL]: work('08:00', '17:00') }, [await punch(DAY, HOL, '06:00', '20:00')])).row(HOL);
+  const row = await (
+    await month(DAY, { [HOL]: work('08:00', '17:00') }, [await punch(DAY, HOL, '06:00', '20:00')])
+  ).row(HOL);
   assert.equal(row.holWorkH, 9);
   assert.equal(row.extraKind, '');
   near(row.total, HOURLY * 8 + 9 * HOURLY * HOL_RATE);
 });
 
 test('khung đã duyệt khác ca được gán (09:00–12:00 trong ca 08:00–17:00): trả đúng 3 giờ trong khung, không theo ca', async () => {
-  const row = await (await month(DAY, { [HOL]: work('09:00', '12:00') }, [await punch(DAY, HOL, '08:00', '17:00')])).row(HOL);
+  const row = await (
+    await month(DAY, { [HOL]: work('09:00', '12:00') }, [await punch(DAY, HOL, '08:00', '17:00')])
+  ).row(HOL);
   assert.equal(row.holWorkH, 3);
   near(row.holWorkPay, 3 * HOURLY * HOL_RATE);
 });

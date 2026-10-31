@@ -28,7 +28,11 @@ export class PayEntriesController {
     const q = c.url.searchParams;
     const month = q.get('month');
     if (!validMonth(month)) throw new HttpError(400, 'month phải có dạng YYYY-MM', { code: 'BAD_MONTH' });
-    const rows = await entries.list({ month, username: q.get('username') || undefined, status: q.get('status') || undefined });
+    const rows = await entries.list({
+      month,
+      username: q.get('username') || undefined,
+      status: q.get('status') || undefined
+    });
     return send(c.res, 200, {
       month,
       periodStatus: await store.periods.status(month),

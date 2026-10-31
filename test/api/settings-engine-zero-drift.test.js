@@ -70,7 +70,11 @@ test(
       for (const mode of MODES) {
         await store.setSetting('params_mode', mode);
         for (const month of MONTHS)
-          assert.equal(digest(unwrap(await params.resolve(month))), await baseline(month), `${mode} ${month} khi chưa có dòng nào`);
+          assert.equal(
+            digest(unwrap(await params.resolve(month))),
+            await baseline(month),
+            `${mode} ${month} khi chưa có dòng nào`
+          );
       }
       await store.db
         .prepare(
@@ -120,13 +124,18 @@ test(
     const resolve = async month =>
       exists(PARAMS_STORE) ? unwrap(await need(PARAMS_STORE).resolve(month)) : resolveParamSet([], month);
     assert.ok(DEFAULTS);
-    assert.equal(await store.params.count(), 0, 'test vàng chạy với param_versions rỗng (không dòng nào rò từ test khác)');
+    assert.equal(
+      await store.params.count(),
+      0,
+      'test vàng chạy với param_versions rỗng (không dòng nào rò từ test khác)'
+    );
     const golden = readGolden().cases;
     // "Không dòng nào" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.js), như nhóm 2
     const { catalogParams } = require('../../lib/domain/catalog-params');
     const reference = new Map();
     const referenceEngine = async month => {
-      if (!reference.has(month)) reference.set(month, Engine.create(resolveParamSet(await catalogParams.rows(), month)));
+      if (!reference.has(month))
+        reference.set(month, Engine.create(resolveParamSet(await catalogParams.rows(), month)));
       return reference.get(month);
     };
     try {

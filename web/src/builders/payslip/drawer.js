@@ -35,14 +35,19 @@ export function buildDrawer(month, username, period, data, extra = {}) {
     if (!total) return [];
     const items = approved.filter(e => e.direction === direction);
     const sign = direction === 'deduct' ? -1 : 1;
-    if (items.length && sumOf(items) === total) return items.map(e => L(e.slipLine || e.label, 'money', sign * e.amount));
+    if (items.length && sumOf(items) === total)
+      return items.map(e => L(e.slipLine || e.label, 'money', sign * e.amount));
     return [L(label, 'money', sign * total)];
   };
   const run = data.run;
   const pills = [];
   if (kind === 'official') pills.push(PILL.approved, { cls: 'p-lock', label: 'Chính thức', icon: 'lock' });
   else if (kind === 'estimate') pills.push({ cls: 'p-draft', label: 'Chưa tính lương' });
-  else pills.push(PILL[slip.status] || PILL.draft, { cls: 'p-draft', label: `Bản nháp · lần tính ${run ? run.runNo : ''}`.trim() });
+  else
+    pills.push(PILL[slip.status] || PILL.draft, {
+      cls: 'p-draft',
+      label: `Bản nháp · lần tính ${run ? run.runNo : ''}`.trim()
+    });
   const reviewing = kind === 'pending' || kind === 'approved';
   const money = (label, v) => L(label, 'money', v);
   const groups = [
@@ -102,13 +107,28 @@ export function buildDrawer(month, username, period, data, extra = {}) {
     kind,
     estimated: kind !== 'official',
     pills,
-    meta: run ? `Phiên bản ${slip.rev ?? ''} · ${data.engineVersion} · tham số ${String(data.paramsHash || '').slice(0, 8)}`.replace('Phiên bản  · ', '') : '',
+    meta: run
+      ? `Phiên bản ${slip.rev ?? ''} · ${data.engineVersion} · tham số ${String(data.paramsHash || '').slice(0, 8)}`.replace(
+          'Phiên bản  · ',
+          ''
+        )
+      : '',
     canReturn: reviewing && period.status !== 'approved' && period.status !== 'paid',
     canApprove: kind === 'pending',
     canEditNumbers: kind !== 'official',
     auto: slip.cells || {},
-    warnings: (slip.flags || []).map((f, i) => ({ id: String(f.id ?? f.code ?? i), text: f.text || f.message || String(f.code || '') })),
-    sum: { gross: slip.gross, insurance: slip.insurance, tax: slip.tax, advance: slip.advance, deduct: entriesDeduct, net: slip.net },
+    warnings: (slip.flags || []).map((f, i) => ({
+      id: String(f.id ?? f.code ?? i),
+      text: f.text || f.message || String(f.code || '')
+    })),
+    sum: {
+      gross: slip.gross,
+      insurance: slip.insurance,
+      tax: slip.tax,
+      advance: slip.advance,
+      deduct: entriesDeduct,
+      net: slip.net
+    },
     groups: shown,
     totals: [
       { label: 'Tổng thu nhập', v: slip.gross },

@@ -1,7 +1,13 @@
 // Dịch vụ cho Chấm công & phép: bảng công, Hôm nay, OT, ca làm, sổ phép, chấm công thay hàng loạt.
 import { fromMock } from './mock.js';
 import { api } from './http.js';
-import { buildDayDetail, buildOvertime, buildSheetBody, buildToday, buildTimesheet } from '@/builders/admin-attendance/timesheet.js';
+import {
+  buildDayDetail,
+  buildOvertime,
+  buildSheetBody,
+  buildToday,
+  buildTimesheet
+} from '@/builders/admin-attendance/timesheet.js';
 import { dayKeyOf, hhmm, lateMinOf } from '@/builders/admin-attendance/common.js';
 
 // ---------- Chấm công & phép ----------
@@ -89,7 +95,14 @@ export const getShiftOverview = () => loadShiftOverview();
 export async function getLeaveLedger({ username, year }) {
   const res = await api('GET', '/leave/ledger?' + qs({ user: username }));
   const events = (res.events || []).filter(e => !year || String(e.onDate).startsWith(`${year}-`));
-  return { username: res.username, hasAccount: res.hasAccount, balance: res.balance, on: res.on, summary: res.summary, events };
+  return {
+    username: res.username,
+    hasAccount: res.hasAccount,
+    balance: res.balance,
+    on: res.on,
+    summary: res.summary,
+    events
+  };
 }
 
 /** Tính lại sổ phép của mọi người (POST /leave/refresh); trả { checked, accounts, failed }. */

@@ -21,7 +21,8 @@ beforeEach(S.world);
 
 test('PUT và POST preview của lịch riêng không còn trong bảng quyền', () => {
   for (const method of ['PUT', 'POST']) {
-    const tail = method === 'PUT' ? ['api', 'staff', 'qa_s_nv', 'schedule'] : ['api', 'staff', 'qa_s_nv', 'schedule', 'preview'];
+    const tail =
+      method === 'PUT' ? ['api', 'staff', 'qa_s_nv', 'schedule'] : ['api', 'staff', 'qa_s_nv', 'schedule', 'preview'];
     assert.equal(authz.policyOf(authz.routeKey(method, tail)), null, `${method} ${tail.join('/')}`);
   }
   assert.ok(authz.policyOf(authz.routeKey('GET', ['api', 'staff', 'qa_s_nv', 'schedule'])), 'GET vẫn có chính sách');
@@ -33,7 +34,12 @@ test('PUT và POST preview của lịch riêng không còn trong bảng quyền'
 
 test('PUT và POST preview bị từ chối mặc định (Admin 403 NO_ROUTE_POLICY, chưa đăng nhập 401) và không ghi gì', async () => {
   const before = await F.snapshot();
-  const body = { from: S.MONTH, pattern: { type: 'week', dows: F0.MWF }, workdays: { mode: 'fixed', value: 26 }, rev: 0 };
+  const body = {
+    from: S.MONTH,
+    pattern: { type: 'week', dows: F0.MWF },
+    workdays: { mode: 'fixed', value: 26 },
+    rev: 0
+  };
   for (const [method, path] of [
     ['PUT', S.url('qa_s_nv')],
     ['POST', S.url('qa_s_nv', '/preview')]
@@ -64,7 +70,8 @@ test('GET lịch theo loại nhân sự: NV T2–T7 (25 ngày tháng 11), TTS T2
     assert.equal(res.data.scheduledDates.length, count, username);
     assert.deepEqual(res.data.scheduledDates, F0.datesOn(S.MONTH, dows), username);
     assert.equal(typeof res.data.workdaysStd, 'number', username);
-    for (const gone of ['rev', 'history', 'personEnabled']) assert.equal(gone in res.data, false, `${username}: ${gone}`);
+    for (const gone of ['rev', 'history', 'personEnabled'])
+      assert.equal(gone in res.data, false, `${username}: ${gone}`);
   }
 });
 
@@ -98,7 +105,8 @@ test('tham số schedule.person.* không còn: không có trong bộ tham số m
 // DB đã chạy trước đây còn cột staff.schedule_json (và trigger chỉ-thêm): dựng lại cột đó rồi ghi một lịch riêng cũ Hai-Tư-Sáu
 async function legacyColumn(username) {
   const columns = await store.db.prepare('PRAGMA table_info(staff)').all();
-  if (!columns.some(c => c.name === 'schedule_json')) await store.db.exec('ALTER TABLE staff ADD COLUMN schedule_json TEXT');
+  if (!columns.some(c => c.name === 'schedule_json'))
+    await store.db.exec('ALTER TABLE staff ADD COLUMN schedule_json TEXT');
   const entry = {
     from: '2026-10',
     pattern: { type: 'week', dows: F0.MWF },
@@ -107,7 +115,9 @@ async function legacyColumn(username) {
     by: 'admin',
     at: '2026-10-16T01:00:00.000Z'
   };
-  await store.db.prepare('UPDATE staff SET schedule_json = ? WHERE username = ?').run(JSON.stringify([entry]), username);
+  await store.db
+    .prepare('UPDATE staff SET schedule_json = ? WHERE username = ?')
+    .run(JSON.stringify([entry]), username);
 }
 
 test('dữ liệu cũ trong cột schedule_json không được đọc: GET lịch, GET /sheet và /team vẫn theo loại nhân sự', async () => {
@@ -135,7 +145,11 @@ test('dữ liệu cũ trong cột schedule_json không đổi tiền: đầu và
     const inputs = await payrollService.loadInputs(month, { usernames: [username], asOf: '2026-11-04T09:00:00+07:00' });
     const person = inputs.people.get(username);
     assert.equal(Object.hasOwn(person.staff, 'schedule'), false, `${username}: không có khoá staff.schedule`);
-    const m = (await payrollService.computeFor(month, person.staff, inputs, (await paramsStore.resolve(month)).params, { upTo: null })).m;
+    const m = (
+      await payrollService.computeFor(month, person.staff, inputs, (await paramsStore.resolve(month)).params, {
+        upTo: null
+      })
+    ).m;
     return { gross: m.net.gross, net: m.net.net, count: m.count, workdaysStd: m.workdaysStd };
   };
   const before = await compute('qa_s_nv');

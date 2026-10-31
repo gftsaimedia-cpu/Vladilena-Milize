@@ -35,15 +35,17 @@ export class SettingsShiftsController {
     const known = Object.keys((await rulesFor()).punch.SHIFT);
     const changes: Array<{ key: string; value: unknown }> = [];
     for (const item of b.shifts) {
-      const preset = item && typeof item === 'object' ? (await container.shifts.presetOf(item.code)) || item.code : null;
+      const preset =
+        item && typeof item === 'object' ? (await container.shifts.presetOf(item.code)) || item.code : null;
       if (!preset || !known.includes(preset))
         throw bad(
-          `Mã ca phải là một trong: ${(await shiftsOf(vnToday().slice(0, 7)))
-            .map((sh: any) => sh.code)
-            .join(', ')}`,
+          `Mã ca phải là một trong: ${(await shiftsOf(vnToday().slice(0, 7))).map((sh: any) => sh.code).join(', ')}`,
           'SHIFT_UNKNOWN'
         );
-      changes.push({ key: `shift.preset.${preset}.in`, value: item.in }, { key: `shift.preset.${preset}.out`, value: item.out });
+      changes.push(
+        { key: `shift.preset.${preset}.in`, value: item.in },
+        { key: `shift.preset.${preset}.out`, value: item.out }
+      );
     }
     // expectedRev bắt buộc (không tự điền): thiếu là 400 PARAM_REV_REQUIRED, lệch là 409 PARAMS_STALE (lib/params/save.js)
     const saved = await paramsSave.save(me, actx, {

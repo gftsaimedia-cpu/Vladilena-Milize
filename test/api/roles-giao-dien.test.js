@@ -42,7 +42,10 @@ test('hợp đồng giao diện: perms, approve, extras, active, editable, syste
     (await editR(role.code, { perms: { pay: 'rat_nhieu' }, reason: REASON })).data.code,
     'ROLE_LEVELS_INVALID'
   );
-  assert.equal((await editR(role.code, { perms: { pay: 'sua' }, reason: 'x'.repeat(301) })).data.code, 'REASON_REQUIRED');
+  assert.equal(
+    (await editR(role.code, { perms: { pay: 'sua' }, reason: 'x'.repeat(301) })).data.code,
+    'REASON_REQUIRED'
+  );
   const builtin = (await F.call('GET', '/roles')).data.roles.find(r => r.code === 'accounting');
   assert.deepEqual([builtin.system, builtin.editable, builtin.active], [true, false, true]);
   assert.equal(builtin.perms.settings_tax, 'sua');

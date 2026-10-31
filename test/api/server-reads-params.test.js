@@ -70,7 +70,8 @@ test('Mốc đạt KPI bằng type.<loại>.kpiPass (75): điểm tổng đúng 
   const M = monthOf();
   await S.seed(M);
   for (const type of ['ctv', 'nv']) assert.equal(DEFAULTS[`type.${type}.kpiPass`], 75);
-  const put = async (username, scores) => await F.call('PUT', '/kpi/scores', { body: { user: username, month: M, scores } });
+  const put = async (username, scores) =>
+    await F.call('PUT', '/kpi/scores', { body: { user: username, month: M, scores } });
   for (const type of ['ctv', 'nv']) {
     const username = `qa_p_${type}`;
     await F.person(username, 'staff', { type, level: 1, startDate: '2026-01-05' });

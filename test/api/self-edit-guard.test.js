@@ -61,7 +61,8 @@ test('tự sửa trường tiền, ca, điều chỉnh phép của chính mình:
     const warning = res.data.warnings.find(w => w.code === 'SELF_DECISION_FORBIDDEN');
     assert.ok(warning, `${field}: ${JSON.stringify(res.data.warnings)}`);
     assert.ok(warning.message.includes(field), `${field} có trong câu cảnh báo`);
-    if (field !== 'shiftCode') assert.equal((await store.getStaff('qa_cb_self'))[field], over[field], `${field} đã lưu`);
+    if (field !== 'shiftCode')
+      assert.equal((await store.getStaff('qa_cb_self'))[field], over[field], `${field} đã lưu`);
     else assert.notEqual((await store.getStaff('qa_cb_self')).shiftCode, 'n1', 'ca đã đổi');
   }
 });
@@ -93,7 +94,10 @@ test('shift-bulk: gán ca cho danh sách có chính mình vẫn đổi ca cả h
   const target = ['n2', 'Normal2'].includes(mine) ? 'f1' : 'n2';
   const res = await call(body(['qa_cb_self', 'qa_other'], target));
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.notEqual((await store.getStaff('qa_other')).shiftCode, other);
   const same = await call(body(['qa_cb_self'], (await store.getStaff('qa_cb_self')).shiftCode));
   assert.equal(same.status, 200, JSON.stringify(same.data));

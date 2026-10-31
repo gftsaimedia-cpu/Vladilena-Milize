@@ -25,7 +25,8 @@ const stop = async (code, body, who = 'admin') => await F.call('POST', `/roles/$
 const assign = async (username, roles, who = 'admin') =>
   await F.call('PUT', `/staff/${username}/roles`, { who, body: { roles, reason: REASON } });
 const roleOf = async code => (await F.call('GET', '/roles')).data.roles.find(r => r.code === code);
-const auditOf = async action => await store.db.prepare('SELECT * FROM audit_log WHERE action = ? ORDER BY id').all(action);
+const auditOf = async action =>
+  await store.db.prepare('SELECT * FROM audit_log WHERE action = ? ORDER BY id').all(action);
 const staff = async name => await F.person(name, 'staff', { type: 'nv', level: 1, startDate: '2026-01-05' });
 
 test('GET /api/roles: vai trò mặc định chỉ đọc có nhãn, khu vực của ma trận và loại yêu cầu; nhân sự 403, chưa đăng nhập 401', async () => {

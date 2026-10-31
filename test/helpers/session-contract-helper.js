@@ -7,7 +7,8 @@ module.exports = async function contract(store, user, method, url, body) {
   let b = { ...body };
   if (method === 'POST' && route === '/punch') {
     b.requestId ??= randomUUID();
-    if (b.type === 'out') b.sessionId ??= (await store.openSession(user))?.id || (await store.lastSession(user))?.id || 1;
+    if (b.type === 'out')
+      b.sessionId ??= (await store.openSession(user))?.id || (await store.lastSession(user))?.id || 1;
   }
   if (method === 'PUT' && route === '/ot' && !b.sessionId) {
     const sessions = await store.listSessions({ username: b.user, date: b.date });

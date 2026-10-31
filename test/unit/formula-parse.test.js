@@ -311,25 +311,29 @@ test('PARSE_UNKNOWN_WORD: "thưởng chuyên cần" (ví dụ của TK) bị t�
   assert.match(text.slice(e.at.start, e.at.end), /thưởng/);
 });
 
-test('Toán tử treo: phép toán cuối câu hoặc đứng cạnh phép toán khác bị từ chối với mã PARSE_ và vị trí', opts, async () => {
-  const Formula = await load();
-  for (const text of [
-    'tổng thu nhập = lương cơ bản +',
-    'tổng thu nhập = lương cơ bản + đi lại ×',
-    'tổng thu nhập = lương cơ bản + × đi lại',
-    'tổng thu nhập = × lương cơ bản',
-    'tổng thu nhập = lương cơ bản ÷'
-  ]) {
-    const res = Formula.parse(text, { vocabulary: STD_VOCAB });
-    assert.equal(res.ok, false, text);
-    assert.ok(!res.tree, text);
-    F.assertPositioned(res.errors, text);
-    assert.ok(
-      res.errors.every(e => e.code.startsWith('PARSE_')),
-      `${text}: ${JSON.stringify(res.errors)}`
-    );
+test(
+  'Toán tử treo: phép toán cuối câu hoặc đứng cạnh phép toán khác bị từ chối với mã PARSE_ và vị trí',
+  opts,
+  async () => {
+    const Formula = await load();
+    for (const text of [
+      'tổng thu nhập = lương cơ bản +',
+      'tổng thu nhập = lương cơ bản + đi lại ×',
+      'tổng thu nhập = lương cơ bản + × đi lại',
+      'tổng thu nhập = × lương cơ bản',
+      'tổng thu nhập = lương cơ bản ÷'
+    ]) {
+      const res = Formula.parse(text, { vocabulary: STD_VOCAB });
+      assert.equal(res.ok, false, text);
+      assert.ok(!res.tree, text);
+      F.assertPositioned(res.errors, text);
+      assert.ok(
+        res.errors.every(e => e.code.startsWith('PARSE_')),
+        `${text}: ${JSON.stringify(res.errors)}`
+      );
+    }
   }
-});
+);
 
 test('PARSE_UNBALANCED: thiếu ngoặc đóng hoặc thừa ngoặc đóng', opts, async () => {
   const Formula = await load();
@@ -435,20 +439,24 @@ test('Bộ phân tích xác định: cùng câu, cùng từ vựng thì cùng c�
   for (let i = 0; i < 20; i++) assert.equal(JSON.stringify(Formula.parse(text, { vocabulary: STD_VOCAB })), first);
 });
 
-test('Đầu vào xấu không làm bộ phân tích ném lỗi lạ: null, số, đối tượng, chuỗi cực dài đều trả ok:false', opts, async () => {
-  const Formula = await load();
-  for (const bad of [null, undefined, 42, {}, [], 'a'.repeat(5000), '('.repeat(3000), '\u0000\u0001\u0002']) {
-    let res;
-    assert.doesNotThrow(
-      () => {
-        res = Formula.parse(bad, { vocabulary: STD_VOCAB });
-      },
-      `parse(${JSON.stringify(bad)?.slice(0, 20)}) không được ném`
-    );
-    assert.equal(res.ok, false);
-    assert.ok(Array.isArray(res.errors) && res.errors.length >= 1);
+test(
+  'Đầu vào xấu không làm bộ phân tích ném lỗi lạ: null, số, đối tượng, chuỗi cực dài đều trả ok:false',
+  opts,
+  async () => {
+    const Formula = await load();
+    for (const bad of [null, undefined, 42, {}, [], 'a'.repeat(5000), '('.repeat(3000), '\u0000\u0001\u0002']) {
+      let res;
+      assert.doesNotThrow(
+        () => {
+          res = Formula.parse(bad, { vocabulary: STD_VOCAB });
+        },
+        `parse(${JSON.stringify(bad)?.slice(0, 20)}) không được ném`
+      );
+      assert.equal(res.ok, false);
+      assert.ok(Array.isArray(res.errors) && res.errors.length >= 1);
+    }
   }
-});
+);
 
 test('Chuỗi tấn công kiểu ReDoS (nhiều khoảng trắng, nhiều dấu) xử lý dưới hai giây', opts, async () => {
   const Formula = await load();

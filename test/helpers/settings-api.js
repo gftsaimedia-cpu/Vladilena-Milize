@@ -194,14 +194,11 @@ const configRev = async () => {
   return row ? JSON.parse(row.value_json) : 0;
 };
 const auditRows = async (actionLike = '%') =>
-  (await store.db
-    .prepare('SELECT * FROM audit_log WHERE action LIKE ? ORDER BY id')
-    .all(actionLike))
-    .map(r => ({
-      ...r,
-      before: r.before_json && JSON.parse(r.before_json),
-      after: r.after_json && JSON.parse(r.after_json)
-    }));
+  (await store.db.prepare('SELECT * FROM audit_log WHERE action LIKE ? ORDER BY id').all(actionLike)).map(r => ({
+    ...r,
+    before: r.before_json && JSON.parse(r.before_json),
+    after: r.after_json && JSON.parse(r.after_json)
+  }));
 // Tìm trong phản hồi GET /settings/params: ô bảng của khoá (hàng có keys[cột] === key) và dòng lịch sử của khoá
 function findCell(node, key, seen = new Set()) {
   if (!node || typeof node !== 'object' || seen.has(node)) return undefined;

@@ -50,12 +50,7 @@ const DRAWER_KEYS = {
     'kpi.weworkGateRule',
     'kpi.incompleteRule'
   ],
-  'khau-tru': () => [
-    'attendance.graceMin',
-    'attendance.stepMin',
-    'attendance.cutRounding',
-    'attendance.lateEarlyRule'
-  ],
+  'khau-tru': () => ['attendance.graceMin', 'attendance.stepMin', 'attendance.cutRounding', 'attendance.lateEarlyRule'],
   'tam-ung': () => ['advance.rate', 'advance.untilDay', 'advance.basis']
 };
 
@@ -106,7 +101,9 @@ const numField = (idx, key, o = {}) => {
 const selectField = (idx, key) => {
   const hit = idx.byKey.get(key);
   if (!hit || hit.entry.wired === false) return null;
-  const options = ((hit.entry.rules && hit.entry.rules.options) || []).filter(o => o.available !== false || o.value === hit.value);
+  const options = ((hit.entry.rules && hit.entry.rules.options) || []).filter(
+    o => o.available !== false || o.value === hit.value
+  );
   if (!options.length) return null;
   return {
     type: 'select',
@@ -141,7 +138,11 @@ export function buildPayDrawer(name, idx) {
   if (name === 'luong-ngay-cong') {
     for (const t of TYPE_ORDER)
       sections.push(
-        section(TYPE_NAME[t], [rightNum(idx, `type.${t}.workdays`, { unit: 'ngày công' })], levelRows(idx, t, 'base', { money: true }))
+        section(
+          TYPE_NAME[t],
+          [rightNum(idx, `type.${t}.workdays`, { unit: 'ngày công' })],
+          levelRows(idx, t, 'base', { money: true })
+        )
       );
     sections.push(section('Khác', [], [row('Cách tính lương', selectField(idx, 'pay.method'))]));
   } else if (name === 'lam-them') {
@@ -212,11 +213,7 @@ export function buildPayDrawer(name, idx) {
         'Chính sách chưa chốt',
         [],
         ['kpi.belowPassRule', 'kpi.weworkGateRule', 'kpi.incompleteRule'].map(k =>
-          row(
-            (idx.byKey.get(k) && idx.byKey.get(k).entry.label) || k,
-            selectField(idx, k),
-            pendingOf(idx, k)
-          )
+          row((idx.byKey.get(k) && idx.byKey.get(k).entry.label) || k, selectField(idx, k), pendingOf(idx, k))
         )
       )
     );

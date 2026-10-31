@@ -61,7 +61,9 @@ test('permissions-matrix: mọi route chỉ-Admin trong server.js có mặt tron
   const source = serverSource(); // mã máy chủ: server.js, lib/routes và lib/domain
   const lines = source.split('\n');
   // khoá có tham số của nhóm /staff/:u (hồ sơ, vai trò, mật khẩu) gom về 'METHOD /staff/:id' như keyOf ở trên
-  const found = new Set([...adminRouteKeysInSource(source)].map(k => k.replace(/^(\w+) \/staff\/:u(\/.*)?$/, '$1 /staff/:id')));
+  const found = new Set(
+    [...adminRouteKeysInSource(source)].map(k => k.replace(/^(\w+) \/staff\/:u(\/.*)?$/, '$1 /staff/:id'))
+  );
   assert.ok(found.size >= 19, `chỉ nhận ra ${found.size} route chỉ-Admin: mẫu nhận dạng đã lỗi thời`);
   assert.deepEqual(
     [...found].filter(k => !adminOnlyKeys.has(k)),
@@ -199,7 +201,8 @@ test(
     const { can, ROLE_CAPS } = need('lib/authz.js');
     const staff = await store.getStaff('worker');
     const leaked = [];
-    for (const cap of CAPABILITIES) if (!SELF_ONLY.has(cap) && (hasCap(ROLE_CAPS.staff, cap) || (await can(staff, cap)))) leaked.push(cap);
+    for (const cap of CAPABILITIES)
+      if (!SELF_ONLY.has(cap) && (hasCap(ROLE_CAPS.staff, cap) || (await can(staff, cap)))) leaked.push(cap);
     assert.deepEqual(leaked, [], 'nhân sự có năng lực quản trị');
     assert.ok(!(await can(staff, 'request.decide.leave')), 'nhân sự không duyệt yêu cầu');
   }

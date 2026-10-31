@@ -20,7 +20,12 @@ const DAYS = {
 };
 const run = async (people, extra = {}) =>
   review(
-    await world({ people, days: Object.fromEntries(people.map(p => [p.username, DAYS])), holidays: ['2026-10-12'], ...extra })
+    await world({
+      people,
+      days: Object.fromEntries(people.map(p => [p.username, DAYS])),
+      holidays: ['2026-10-12'],
+      ...extra
+    })
   );
 const rulesOf = (result, username) => [
   ...new Set(result.findings.filter(f => f.username === username).map(f => f.rule))
@@ -83,7 +88,9 @@ test('T16: không có người sai thì payrollErrors là 0 (đếm chỉ tăng 
 });
 
 test('T16: thiếu bộ máy lương (payroll: undefined) bỏ qua luật cần tiền và ghi checked.skipped, không tính là payrollErrors', async () => {
-  const result = await review(await world({ people: [await person('qa_a', { level: 99 })], days: { qa_a: DAYS }, withPayroll: false }));
+  const result = await review(
+    await world({ people: [await person('qa_a', { level: 99 })], days: { qa_a: DAYS }, withPayroll: false })
+  );
   assert.equal(result.checked.payrollErrors, 0);
   assert.ok(result.checked.skipped.some(s => s.rule === 'large-pay-impact'));
 });

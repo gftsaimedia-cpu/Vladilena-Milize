@@ -36,11 +36,11 @@ Mỗi luật là một lớp kế thừa `Rule` (`lib/domain/shared/rule.js`), t
 
 | Lớp | Mã (code) | Mô tả (chú thích trên lớp) |
 | --- | --- | --- |
-| [`MakeupDayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L13) | `SHEET_MAKEUP_DAY_REMOVED` `SHEET_MAKEUP_DAY_LEGACY` | Loại ngày 'makeup' (làm bù cả ngày) không còn: khai mới hoặc sửa thì chặn; ngày đã lưu gửi lại không đổi thì giữ nguyên (bộ máy tính 0) để lưu được các ngày khác |
-| [`SundayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L31) | `SHEET_SUNDAY` |  |
-| [`IsatDayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L39) | — | iSAT chặn cứng: chỉ vào thứ isat.weekday và chỉ chức vụ có quyền lợi iSAT; ngày iSAT đã lưu và không đổi loại giữ nguyên |
-| [`OffScheduleRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L53) | `SHEET_OFF_SCHEDULE` | Ngày ngoài lịch làm việc: chỉ được khai nghỉ không lương. Ca chính không có tiền; chỉ đoạn OT đã duyệt và có chấm công liền mạch được trả |
-| [`HolidayMakeupRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L67) | `SHEET_MAKEUP_ON_HOLIDAY` | Không khai làm bù vào ngày lễ, chặn: giờ làm bù kèm ngày đi làm, ngày làm bù dự kiến của "Nghỉ, sẽ làm bù". Bộ máy không trả giờ làm bù ngày lễ. Ngày đã lưu và không đổi (lễ thêm sau khi khai) giữ nguyên. |
+| [`MakeupDayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L12) | `SHEET_MAKEUP_DAY_REMOVED` `SHEET_MAKEUP_DAY_LEGACY` | Loại ngày 'makeup' (làm bù cả ngày) không còn: khai mới hoặc sửa thì chặn; ngày đã lưu gửi lại không đổi thì giữ nguyên (bộ máy tính 0) để lưu được các ngày khác |
+| [`SundayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L30) | `SHEET_SUNDAY` |  |
+| [`IsatDayRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L40) | — | iSAT chặn cứng: chỉ vào thứ isat.weekday và chỉ chức vụ có quyền lợi iSAT; ngày iSAT đã lưu và không đổi loại giữ nguyên |
+| [`OffScheduleRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L54) | `SHEET_OFF_SCHEDULE` | Ngày ngoài lịch làm việc: chỉ được khai nghỉ không lương. Ca chính không có tiền; chỉ đoạn OT đã duyệt và có chấm công liền mạch được trả |
+| [`HolidayMakeupRule`](../../lib/domain/timesheet/rules/day-calendar-rules.js#L68) | `SHEET_MAKEUP_ON_HOLIDAY` | Không khai làm bù vào ngày lễ, chặn: giờ làm bù kèm ngày đi làm, ngày làm bù dự kiến của "Nghỉ, sẽ làm bù". Bộ máy không trả giờ làm bù ngày lễ. Ngày đã lưu và không đổi (lễ thêm sau khi khai) giữ nguyên. |
 
 ## `lib/domain/timesheet/rules/extra-hours-rules.js`
 

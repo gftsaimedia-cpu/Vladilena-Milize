@@ -8,7 +8,14 @@ const { rulesFor, nowIso } = require('../../../lib/request-rules'); // quy tắc
 const { validMonth, positiveId } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
 const { checkGeofence } = require('../../../lib/domain/geofence'); // vùng GPS Check-in
-const { punchStaff, closeStale, closeStaleFor, hintPunch, sessionOverlap, correctionVersion } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
+const {
+  punchStaff,
+  closeStale,
+  closeStaleFor,
+  hintPunch,
+  sessionOverlap,
+  correctionVersion
+} = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
 const { sessionsFor, sessionsWithHistory } = require('../../../lib/domain/attendance/session-view');
 const otSheet = require('../../../lib/domain/ot-sheet'); // OT Check-in/out được duyệt thành OT đã duyệt của ngày trong Lịch ước tính
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
@@ -36,7 +43,7 @@ export class AttendanceController {
         serverNow: nowIso()
       });
     await closeStale(u);
-    return send(res, 200, { ...await punchState(u), ...await punchExtras(u) });
+    return send(res, 200, { ...(await punchState(u)), ...(await punchExtras(u)) });
   }
 
   @Post('punch')
@@ -139,7 +146,7 @@ export class AttendanceController {
       return response;
     });
     // serverNow lấy lúc gửi (không lưu trong bản phát lại theo requestId, nếu không máy khách sẽ nhận giờ cũ)
-    return send(res, 200, { ...response, ...await punchExtras(u) });
+    return send(res, 200, { ...response, ...(await punchExtras(u)) });
   }
 
   @Get('ot')
@@ -249,7 +256,11 @@ export class AttendanceController {
       await store.updateSession(session.id, session.version, { date: session.date, state: session.state, entry });
       // OT được duyệt thành OT đã duyệt của ngày trên Lịch ước tính (nguồn tiền OT của bộ máy)
       if (b.action === 'approve')
-        onSheet = await otSheet.payOnSheet({ session, staff: await store.getStaff(session.username), by: admin.username });
+        onSheet = await otSheet.payOnSheet({
+          session,
+          staff: await store.getStaff(session.username),
+          by: admin.username
+        });
       await audit.write(actx, {
         action: 'ot.decide',
         entityKind: 'attendance_session',
@@ -322,7 +333,11 @@ export class AttendanceController {
       };
     });
     // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.js), nạp lô một lần cho mọi người; không có lượt thì null
-    const shown = new Map<any, any>((await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map((s: any) => [s.id, s] as [any, any]));
+    const shown = new Map<any, any>(
+      (await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map(
+        (s: any) => [s.id, s] as [any, any]
+      )
+    );
     for (const row of rows) {
       const s = row.session && shown.get(row.session.id);
       delete row.session;
@@ -344,9 +359,11 @@ export class AttendanceController {
     await closeStaleFor(staff.filter(s => s.payrollSubject));
     return send(res, 200, {
       month,
-      rows: (await sessionsFor({ month })).map(s => ({ ...s, name: names[s.username] || s.username, type: types[s.username] }))
+      rows: (await sessionsFor({ month })).map(s => ({
+        ...s,
+        name: names[s.username] || s.username,
+        type: types[s.username]
+      }))
     });
   }
-
-
 }

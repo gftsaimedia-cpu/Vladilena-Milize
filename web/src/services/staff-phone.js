@@ -45,7 +45,8 @@ export async function getMonthContext() {
   return { me, today, month, months: monthsBetween(start, month) };
 }
 
-const scheduleLabel = sheet => (sheet.workSchedule && sheet.workSchedule.describe && sheet.workSchedule.describe.label) || '';
+const scheduleLabel = sheet =>
+  (sheet.workSchedule && sheet.workSchedule.describe && sheet.workSchedule.describe.label) || '';
 function shiftLineOf(punchState, me, sheet) {
   const name = shiftName(punchState.shiftConfig && punchState.shiftConfig.shifts, me.user.shiftCode);
   const label = scheduleLabel(sheet);
@@ -174,7 +175,10 @@ export async function getIncome(month) {
   const ctx = await getMonthContext();
   const nav = neighbors(ctx.months, month);
   try {
-    const res = await api('GET', `/periods/${encodeURIComponent(month)}/payslips/${encodeURIComponent(ctx.me.user.username)}`);
+    const res = await api(
+      'GET',
+      `/periods/${encodeURIComponent(month)}/payslips/${encodeURIComponent(ctx.me.user.username)}`
+    );
     const official = buildPayslipIncome({ month, res, nav });
     if (official) return official;
   } catch (e) {

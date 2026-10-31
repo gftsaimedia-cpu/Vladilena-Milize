@@ -299,8 +299,7 @@
         ['ceiling', false]
       ]) {
         const l = r[side];
-        if (l && (below ? v < l.value : v > l.value))
-          out.push({ lv: 'warn', t: m[side], note: l.note || '' });
+        if (l && (below ? v < l.value : v > l.value)) out.push({ lv: 'warn', t: m[side], note: l.note || '' });
       }
       const ackTxt = 'vẫn lưu được, có cảnh báo';
       if (r.warnBelow && v < r.warnBelow.value)
@@ -433,8 +432,7 @@
       const vals = cc.keys.map(val);
       if (vals.some(v => v === null)) continue;
       const total = vals.reduce((a, b) => a + b, 0);
-      if (total !== cc.equals)
-        out.push({ lv: 'warn', t: `${cc.message} (hiện đang là ${fmtNum(total)})` });
+      if (total !== cc.equals) out.push({ lv: 'warn', t: `${cc.message} (hiện đang là ${fmtNum(total)})` });
     }
     const rw = rules.rows;
     if (rw && rw.orderBy) {

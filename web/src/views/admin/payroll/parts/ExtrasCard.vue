@@ -92,7 +92,9 @@ const n = computed(() => Number(props.month.slice(5, 7)));
           </td>
           <td class="acts">
             <template v-if="it.status === 'pending'">
-              <button v-if="canWrite" type="button" class="btn sm" @click="action = { kind: 'edit', item: it }">Sửa</button>
+              <button v-if="canWrite" type="button" class="btn sm" @click="action = { kind: 'edit', item: it }">
+                Sửa
+              </button>
               <button v-if="canApprove" type="button" class="btn sm" @click="action = { kind: 'approve', item: it }">
                 Duyệt
               </button>

@@ -425,7 +425,11 @@ ${NV.noteBox('ok', done)}<div class="nv-warns" id="kh-warns" role="alert">${warn
     const cur = selfOf(d);
     const draft = selfDraft[month] !== undefined ? selfDraft[month] : cur === null ? '' : String(cur).replace('.', ',');
     if (NV.thay)
-      return kv('Tự đánh giá', cur === null ? 'Chưa nhập' : fmtNum(cur), weight === null ? '' : `Trọng số ${fmtNum(weight)}%`);
+      return kv(
+        'Tự đánh giá',
+        cur === null ? 'Chưa nhập' : fmtNum(cur),
+        weight === null ? '' : `Trọng số ${fmtNum(weight)}%`
+      );
     return `<div class="nv-selfkpi"><form class="nv-form" id="nv-self-form" data-month="${esc(month)}" novalidate><div class="nv-field"><label class="nv-lbl" for="kpi-self">Tự đánh giá của bạn <small>(0 đến 100${weight === null ? '' : `, trọng số ${fmtNum(weight)}%`})</small></label><div class="nv-selfrow"><input id="kpi-self" class="nv-input nv-num" type="text" inputmode="decimal" autocomplete="off" value="${esc(draft)}" placeholder="Ví dụ 85"><button type="submit" class="nv-btn is-pri" id="kpi-self-go">${cur === null ? 'Lưu điểm' : 'Cập nhật'}</button></div><span class="nv-hint">Bạn chỉ tự chấm thành phần này; bốn điểm còn lại do Admin chấm.</span></div><div id="kpi-self-err" role="alert" aria-live="assertive"></div></form></div>`;
   }
   function kpiFive(d, m, month) {

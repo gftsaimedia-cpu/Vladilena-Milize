@@ -8,7 +8,10 @@ export function buildProfile({ me, punch, sheet }) {
   const facts = [
     { label: 'Tên đăng nhập', value: u.username },
     { label: 'Ca cố định', value: shiftName(punch && punch.shiftConfig && punch.shiftConfig.shifts, u.shiftCode) },
-    { label: 'Lịch làm việc', value: (sheet && sheet.workSchedule && sheet.workSchedule.describe && sheet.workSchedule.describe.label) || '' },
+    {
+      label: 'Lịch làm việc',
+      value: (sheet && sheet.workSchedule && sheet.workSchedule.describe && sheet.workSchedule.describe.label) || ''
+    },
     { label: 'Ngày bắt đầu làm', value: dmy(u.startDate) }
   ];
   if (me.benefits && me.benefits.paidLeave && sheet && sheet.leaveBalance)

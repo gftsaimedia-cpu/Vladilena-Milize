@@ -31,7 +31,10 @@ const hoursOf = settingsShiftsRes => {
 };
 
 /** Tên đăng nhập chuẩn: cắt khoảng trắng, chữ thường. */
-export const normalizeUsername = u => String(u || '').trim().toLowerCase();
+export const normalizeUsername = u =>
+  String(u || '')
+    .trim()
+    .toLowerCase();
 
 /** Lựa chọn của biểu mẫu: loại, bậc theo loại, ca (value là mã ngắn n1..g2), hợp đồng, bảo hiểm. */
 export function buildStaffOptions(positionsRes, catalogRes, settingsShiftsRes) {
@@ -93,7 +96,7 @@ function contextOf(positionsRes, catalogRes, settingsShiftsRes) {
   return {
     positions,
     posByCode: new Map(positions.map(p => [p.code, p])),
-    shiftByCode: new Map((((catalogRes && catalogRes.shifts) || []).map(s => [s.code, s]))),
+    shiftByCode: new Map(((catalogRes && catalogRes.shifts) || []).map(s => [s.code, s])),
     hours: hoursOf(settingsShiftsRes)
   };
 }
@@ -158,7 +161,10 @@ export function scheduleText(scheduleRes) {
   if (!Array.isArray(dows) || !dows.length) return '—';
   const days = [...new Set(dows)].sort((a, b) => (a || 7) - (b || 7));
   const run = days.every((d, i) => i === 0 || (d || 7) === (days[i - 1] || 7) + 1);
-  const range = run && days.length >= 3 ? `${DOW_LABEL[days[0]]} – ${DOW_LABEL[days[days.length - 1]]}` : days.map(d => DOW_LABEL[d]).join(', ');
+  const range =
+    run && days.length >= 3
+      ? `${DOW_LABEL[days[0]]} – ${DOW_LABEL[days[days.length - 1]]}`
+      : days.map(d => DOW_LABEL[d]).join(', ');
   return `theo loại nhân sự, ${range}`;
 }
 
@@ -180,9 +186,7 @@ export function buildProfile(raw, positionsRes, catalogRes, scheduleRes) {
   const levelName = raw.levelName || (lvl && lvl.name) || String(raw.level);
   const typeLabel = pos ? pos.label : raw.type;
   const catalogShift = raw.shiftCode ? ctx.shiftByCode.get(raw.shiftCode) || null : null;
-  const leave = raw.leave
-    ? `cộng ${raw.leave.total} · dùng ${raw.leave.used} · còn ${raw.leave.balance}`
-    : '—';
+  const leave = raw.leave ? `cộng ${raw.leave.total} · dùng ${raw.leave.used} · còn ${raw.leave.balance}` : '—';
   return {
     username: raw.username,
     name: raw.name,
@@ -280,7 +284,13 @@ const LEAVE_FILTERS = {
 };
 
 /** Bảng phép năm tới hôm nay: người có sổ phép (GET /staff → leave). Được cộng = tổng trừ điều chỉnh; còn lại = số dư. */
-export function buildLeaveBalances(staffRes, positionsRes, asOf, { filter = 'all', q = '', page = 1 } = {}, pageSize = PAGE_SIZE) {
+export function buildLeaveBalances(
+  staffRes,
+  positionsRes,
+  asOf,
+  { filter = 'all', q = '', page = 1 } = {},
+  pageSize = PAGE_SIZE
+) {
   const shortOf = new Map((listOf(positionsRes) || []).map(p => [p.code, p.short || p.code.toUpperCase()]));
   const all = ((staffRes && staffRes.staff) || [])
     .filter(s => s.payrollSubject === true && s.leave)
@@ -303,7 +313,12 @@ export function buildLeaveBalances(staffRes, positionsRes, asOf, { filter = 'all
   const at = Math.min(Math.max(1, Number(page) || 1), pages);
   return {
     asOf,
-    counts: { all: all.length, neg: all.filter(LEAVE_FILTERS.neg).length, zero: all.filter(LEAVE_FILTERS.zero).length, adj: all.filter(LEAVE_FILTERS.adj).length },
+    counts: {
+      all: all.length,
+      neg: all.filter(LEAVE_FILTERS.neg).length,
+      zero: all.filter(LEAVE_FILTERS.zero).length,
+      adj: all.filter(LEAVE_FILTERS.adj).length
+    },
     rows: found.slice((at - 1) * pageSize, at * pageSize),
     total,
     page: at,

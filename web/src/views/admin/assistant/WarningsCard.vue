@@ -53,7 +53,9 @@ const from = computed(() => (props.data.page - 1) * props.data.pageSize + 1);
     <div v-if="data.meta.notice" class="notice">
       <Icon name="alert" />
       <span>{{ data.meta.notice.text }}</span>
-      <RouterLink v-if="data.meta.notice.link" class="link" :to="data.meta.notice.link.to">{{ data.meta.notice.link.label }}</RouterLink>
+      <RouterLink v-if="data.meta.notice.link" class="link" :to="data.meta.notice.link.to">{{
+        data.meta.notice.link.label
+      }}</RouterLink>
     </div>
     <div>
       <div v-for="w in data.items" :key="w.id" class="row">

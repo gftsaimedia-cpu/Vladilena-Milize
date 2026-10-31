@@ -40,7 +40,14 @@ const HISTORY_TABLES = [
   'punch_requests'
 ];
 async function history(username) {
-  return Object.fromEntries(await Promise.all(HISTORY_TABLES.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY rowid').all(username)])));
+  return Object.fromEntries(
+    await Promise.all(
+      HISTORY_TABLES.map(async table => [
+        table,
+        await store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY rowid').all(username)
+      ])
+    )
+  );
 }
 async function seedHistory(username) {
   await store.setSheet(username, '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00' } }, 80, 1000000);

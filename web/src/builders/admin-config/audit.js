@@ -2,7 +2,8 @@
 const VN_OFFSET_MS = 7 * 3600000;
 const vnLocal = iso => new Date(Date.parse(iso) + VN_OFFSET_MS).toISOString().slice(0, 16);
 
-const show = v => (v === null || v === undefined || v === '' ? 'trống' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+const show = v =>
+  v === null || v === undefined || v === '' ? 'trống' : typeof v === 'object' ? JSON.stringify(v) : String(v);
 
 // Trải object lồng nhau thành các cặp đường dẫn → giá trị lá (mảng giữ nguyên như một giá trị)
 function leaves(value, path, out) {
@@ -32,7 +33,8 @@ export function changesOf(row) {
 }
 
 // Dòng đầu mang mã đối tượng bị đổi (khoá tham số, ngày…) để biết giá trị thuộc về đâu
-const withEntity = (lines, row) => (row.entityId && lines.length ? [{ ...lines[0], code: String(row.entityId) }, ...lines.slice(1)] : lines);
+const withEntity = (lines, row) =>
+  row.entityId && lines.length ? [{ ...lines[0], code: String(row.entityId) }, ...lines.slice(1)] : lines;
 
 export function buildAuditPage(res, { page, size, pages, seen }) {
   for (const row of res.rows) {

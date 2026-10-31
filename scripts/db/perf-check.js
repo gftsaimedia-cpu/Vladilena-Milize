@@ -376,21 +376,41 @@ function buildCases() {
       label: 'trang 5 (OFFSET)',
       fn: async () => (await store.payroll.listPayslips(run.id, { page: 5, pageSize: 200 })).rows.length
     },
-    { group: 'payslips', label: 'đếm theo trạng thái', fn: async () => (await store.payroll.countPayslips(run.id)).total },
+    {
+      group: 'payslips',
+      label: 'đếm theo trạng thái',
+      fn: async () => (await store.payroll.countPayslips(run.id)).total
+    },
     {
       group: 'payslips',
       label: 'phiếu chính thức của 1 người',
-      fn: async () => (await store.payroll.finalPayslip(user, '2026-10') ? 1 : 0)
+      fn: async () => ((await store.payroll.finalPayslip(user, '2026-10')) ? 1 : 0)
     },
-    { group: 'param_versions', label: 'resolvedRows(2026-10)', fn: async () => (await store.params.resolvedRows('2026-10')).length },
-    { group: 'param_versions', label: 'resolvedRows(2028-06)', fn: async () => (await store.params.resolvedRows('2028-06')).length },
+    {
+      group: 'param_versions',
+      label: 'resolvedRows(2026-10)',
+      fn: async () => (await store.params.resolvedRows('2026-10')).length
+    },
+    {
+      group: 'param_versions',
+      label: 'resolvedRows(2028-06)',
+      fn: async () => (await store.params.resolvedRows('2028-06')).length
+    },
     {
       group: 'param_versions',
       label: 'history(khoá)',
       fn: async () => (await store.params.history({ key: 'level.nv.2.base', limit: 200 })).length
     },
-    { group: 'param_versions', label: 'history(toàn bộ, 200)', fn: async () => (await store.params.history({ limit: 200 })).length },
-    { group: 'param_versions', label: 'byBatch(1 lô)', fn: async () => (await store.params.byBatch('batch-777')).length },
+    {
+      group: 'param_versions',
+      label: 'history(toàn bộ, 200)',
+      fn: async () => (await store.params.history({ limit: 200 })).length
+    },
+    {
+      group: 'param_versions',
+      label: 'byBatch(1 lô)',
+      fn: async () => (await store.params.byBatch('batch-777')).length
+    },
     {
       group: 'ai_finding_actions',
       label: 'dismissedIds(tháng)',
@@ -399,9 +419,13 @@ function buildCases() {
     {
       group: 'ai_finding_actions',
       label: 'isDismissed(1 cờ)',
-      fn: async () => (await store.aiFindings.isDismissed(`slip:isat-frequency:${user}:2027-03`) ? 1 : 0)
+      fn: async () => ((await store.aiFindings.isDismissed(`slip:isat-frequency:${user}:2027-03`)) ? 1 : 0)
     },
-    { group: 'ai_finding_actions', label: 'list(tháng)', fn: async () => (await store.aiFindings.list({ month: '2027-03' })).length },
+    {
+      group: 'ai_finding_actions',
+      label: 'list(tháng)',
+      fn: async () => (await store.aiFindings.list({ month: '2027-03' })).length
+    },
     {
       group: 'ai_finding_actions',
       label: 'list(luật)',

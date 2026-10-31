@@ -20,10 +20,29 @@ before(async () => {
     ['qa_ts', 'nv'],
     ['qa_pt', 'pt']
   ])
-    await store.upsertStaff({ username, name: username, role: 'staff', type, level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' });
+    await store.upsertStaff({
+      username,
+      name: username,
+      role: 'staff',
+      type,
+      level: 1,
+      shiftCode: 'n1',
+      startDate: '2026-01-01',
+      passHash: 'x'
+    });
 });
 const staff = async (username = 'qa_ts') => (await store.listStaff()).find(s => s.username === username);
-const work = (over = {}) => ({ kind: 'work', in: '08:00', out: '17:00', extraKind: '', extraIn: '', extraOut: '', preset: '', breakMin: 0, ...over });
+const work = (over = {}) => ({
+  kind: 'work',
+  in: '08:00',
+  out: '17:00',
+  extraKind: '',
+  extraIn: '',
+  extraOut: '',
+  preset: '',
+  breakMin: 0,
+  ...over
+});
 
 // Chạy checkSheet trong một yêu cầu giả để lấy cảnh báo theo đúng thứ tự trả cho giao diện
 async function run(clean, prevDays = {}, { who = 'qa_ts', ...extra } = {}) {
@@ -38,7 +57,11 @@ async function run(clean, prevDays = {}, { who = 'qa_ts', ...extra } = {}) {
 test('thứ tự cảnh báo: theo từng ngày (tăng dần), trong ngày theo thứ tự luật; Chủ nhật bỏ qua luật ngoài lịch', async () => {
   // Chức vụ pt: 11/10 Chủ nhật khai nghỉ được duyệt, 14/10 OT, 24/10 nghỉ phép; chức vụ không có các quyền lợi đó
   const { codes } = await run(
-    { '2026-10-11': { kind: 'approved' }, '2026-10-14': work({ extraKind: 'ot', extraOut: '19:00' }), '2026-10-24': { kind: 'leave' } },
+    {
+      '2026-10-11': { kind: 'approved' },
+      '2026-10-14': work({ extraKind: 'ot', extraOut: '19:00' }),
+      '2026-10-24': { kind: 'leave' }
+    },
     {},
     { who: 'qa_pt' }
   );
@@ -55,7 +78,11 @@ test('thứ tự cảnh báo: theo từng ngày (tăng dần), trong ngày theo 
 test('ca của ngày: ShiftAssignment gán preset, ngày lệch ca được gán thì bỏ preset và cảnh báo', async () => {
   const clean = { '2026-10-14': work(), '2026-10-15': work({ in: '09:00', out: '18:00', preset: 'n1' }) };
   const { codes } = await run(clean);
-  assert.equal(clean['2026-10-14'].preset, (await staff()).shiftCode,'đúng giờ ca được gán thì mã ca của ngày là ca được gán');
+  assert.equal(
+    clean['2026-10-14'].preset,
+    (await staff()).shiftCode,
+    'đúng giờ ca được gán thì mã ca của ngày là ca được gán'
+  );
   assert.equal(clean['2026-10-15'].preset, '', 'lệch ca thì bỏ mã ca nhân sự gửi');
   assert.ok(codes.includes('SHEET_SHIFT_MISMATCH'));
 });
@@ -87,9 +114,19 @@ test('thêm một luật vào bộ luật ngày không phải sửa TimesheetVal
   assert.equal(dayAfter.size, 8, '7 luật có sẵn cộng 1 luật mới');
   // 16/10/2026 là Thứ sáu: luật mới chạy qua bộ luật ngày thật
   const hits = [];
-  for await (const violation of await dayAfter.violations({ date: '2026-10-16', dow: 5, c: work(), unchanged: true, flags: {}, sheet: {} }))
+  for await (const violation of await dayAfter.violations({
+    date: '2026-10-16',
+    dow: 5,
+    c: work(),
+    unchanged: true,
+    flags: {},
+    sheet: {}
+  }))
     hits.push(violation);
-  assert.deepEqual(hits.map(v => v.code), ['SHEET_NO_FRIDAY']);
+  assert.deepEqual(
+    hits.map(v => v.code),
+    ['SHEET_NO_FRIDAY']
+  );
   assert.deepEqual(hits[0].details, { date: '2026-10-16' });
 });
 
@@ -125,7 +162,10 @@ test('ExtraTimes: trần ngày lấy từ limits được tiêm, không ghi cứ
     () => tight.check('2026-10-14', work(), { extraKind: 'ot', extraIn: '18:00', extraOut: '' }),
     err => err.status === 400 && err.details?.code === 'EXTRA_WRONG_SIDE'
   );
-  assert.throws(() => tight.check('2026-10-14', work(), { extraKind: 'ot', extraIn: '', extraOut: '' }), /chưa nhập giờ làm thêm/);
+  assert.throws(
+    () => tight.check('2026-10-14', work(), { extraKind: 'ot', extraIn: '', extraOut: '' }),
+    /chưa nhập giờ làm thêm/
+  );
 });
 
 test('SheetRevision: lệch rev là 409 SHEET_STALE, thiếu expectedRev thì ghi đè, expectedRev sai kiểu là 400', async () => {
@@ -136,6 +176,12 @@ test('SheetRevision: lệch rev là 409 SHEET_STALE, thiếu expectedRev thì gh
     () => revision.assert('u', '2026-10', 2),
     err => err.status === 409 && err.details?.code === 'SHEET_STALE' && err.details.rev === 3
   );
-  await assert.rejects(() => revision.assert('u', '2026-10', -1), err => err.status === 400);
-  await assert.rejects(() => revision.assert('u', '2026-10', 1.5), err => err.status === 400);
+  await assert.rejects(
+    () => revision.assert('u', '2026-10', -1),
+    err => err.status === 400
+  );
+  await assert.rejects(
+    () => revision.assert('u', '2026-10', 1.5),
+    err => err.status === 400
+  );
 });

@@ -43,7 +43,14 @@ function attendance(username = 'worker', date = '2026-10-07', options = {}) {
   return store.createSession(username, date, options.state || 'closed', { ...entry, ...options.entry });
 }
 async function snapshot() {
-  return Object.fromEntries(await Promise.all(['attendance_sessions', 'corrections', 'punches', 'timesheets', 'settings'].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
+  return Object.fromEntries(
+    await Promise.all(
+      ['attendance_sessions', 'corrections', 'punches', 'timesheets', 'settings'].map(async table => [
+        table,
+        await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()
+      ])
+    )
+  );
 }
 before(async () => {
   Date.now = () => Date.parse('2026-12-31T23:00:00+07:00');
@@ -196,7 +203,12 @@ test('OT declaration without a reason is saved as pending', async () => {
 test('OT beyond the presence window, without OT benefit or on unconfirmed attendance is saved with a warning', async () => {
   const body = { extraOut: '19:00', reason: 'Extra work' };
   const beyond = await attendance('worker', '2026-10-07', { out: '20:00:00' });
-  const first = await call('POST', '/ot', { ...body, sessionId: beyond.id, version: beyond.version, extraOut: '20:30' });
+  const first = await call('POST', '/ot', {
+    ...body,
+    sessionId: beyond.id,
+    version: beyond.version,
+    extraOut: '20:30'
+  });
   assert.equal(first.status, 200, JSON.stringify(first.data));
   assert.ok(otWarningCodes(first).includes('OT_OUTSIDE_PRESENCE'), JSON.stringify(first.data.warnings));
   assert.equal((await store.getSession(beyond.id)).entry.extraKind, 'ot');
@@ -312,7 +324,12 @@ test('rejected OT frees the budget and editing replaces the target contribution'
     200
   );
   const b = await attendance();
-  const first = await call('POST', '/ot', { sessionId: b.id, version: 1, extraOut: '21:00', reason: 'Actual four hours' });
+  const first = await call('POST', '/ot', {
+    sessionId: b.id,
+    version: 1,
+    extraOut: '21:00',
+    reason: 'Actual four hours'
+  });
   assert.equal(first.status, 200);
   const second = await call('POST', '/ot', {
     sessionId: b.id,

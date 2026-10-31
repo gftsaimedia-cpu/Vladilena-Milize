@@ -79,8 +79,7 @@ async function cancel(item) {
       <div v-if="pending" class="note pend-note">
         <Icon name="info" :size="16" />
         <span
-          ><b>{{ pending }} yêu cầu chờ xử lý</b> chưa tính vào thu nhập. Khi Admin đồng ý, thu nhập sẽ thay
-          đổi.</span
+          ><b>{{ pending }} yêu cầu chờ xử lý</b> chưa tính vào thu nhập. Khi Admin đồng ý, thu nhập sẽ thay đổi.</span
         >
       </div>
       <div class="h2">

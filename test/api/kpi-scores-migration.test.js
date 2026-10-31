@@ -35,22 +35,31 @@ async function createOldDb() {
 }
 // Một lần khởi động: require('lib/db') migrate file này rồi thoát.
 const boot = () =>
-  execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', "const s = require('./lib/db'); s.ready.then(() => s.db.close())"], {
-    cwd: project,
-    env: { ...process.env, DB_PATH: file },
-    stdio: 'pipe'
-  });
+  execFileSync(
+    process.execPath,
+    ['--no-warnings=ExperimentalWarning', '-e', "const s = require('./lib/db'); s.ready.then(() => s.db.close())"],
+    {
+      cwd: project,
+      env: { ...process.env, DB_PATH: file },
+      stdio: 'pipe'
+    }
+  );
 async function snapshot() {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const schema = (await db
-      .prepare("SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
-      .all())
-      .map(r => ({ ...r }));
+    const schema = (
+      await db
+        .prepare(
+          "SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+        )
+        .all()
+    ).map(r => ({ ...r }));
     const counts = Object.fromEntries(
-      await Promise.all(schema
-        .filter(r => r.type === 'table')
-        .map(async r => [r.name, (await db.prepare(`SELECT COUNT(*) AS n FROM ${r.name}`).get()).n]))
+      await Promise.all(
+        schema
+          .filter(r => r.type === 'table')
+          .map(async r => [r.name, (await db.prepare(`SELECT COUNT(*) AS n FROM ${r.name}`).get()).n])
+      )
     );
     return { schema, counts };
   } finally {
@@ -123,11 +132,7 @@ test('chạy migration lần hai và lần ba: schema và số dòng không đ�
 test('migration thêm bảng và index, không có cột nào bị xoá hay đổi tên ở các bảng cũ', async () => {
   const db = new DatabaseSync(file, { readOnly: true });
   try {
-    const columns = async table =>
-      (await db
-        .prepare(`PRAGMA table_info(${table})`)
-        .all())
-        .map(c => c.name);
+    const columns = async table => (await db.prepare(`PRAGMA table_info(${table})`).all()).map(c => c.name);
     for (const col of ['kpi_pct', 'kpi_amt', 'kpi_adm_pct', 'kpi_adm_amt', 'days_json', 'updated_at'])
       assert.ok((await columns('timesheets')).includes(col), col);
     assert.deepEqual(await columns('kpi_scores'), [

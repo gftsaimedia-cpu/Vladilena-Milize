@@ -27,9 +27,9 @@ export const OFF_DAY_TEXT = {
 };
 // block: câu báo ('' = ngày qua cổng); off: ngày đã khai nghỉ cả ngày; via: 'shift' khi ngày nằm trong lịch và không đóng, ngược lại loại khoản đã duyệt mở ngày đó.
 export async function checkInDay(staff, date) {
-  const { day, approval } = await declaredDay(staff, date) || {};
+  const { day, approval } = (await declaredDay(staff, date)) || {};
   const holiday = (await store.getSetting('holidays', [])).includes(date);
-  const scheduled = !holiday && await schedule.isWorkDay(staff, date);
+  const scheduled = !holiday && (await schedule.isWorkDay(staff, date));
   const off = day && Object.hasOwn(OFF_DAY_TEXT, day.kind) ? day.kind : '';
   const closed = OFF_DECLARED.includes(off)
     ? !approval || approval.status !== 'rejected'
@@ -88,7 +88,7 @@ export async function punchState(staff) {
         }
       : null,
     date: s?.date || punch.vnDate(nowIso()),
-    ...await schedule.punchSchedule(staff, s?.date || punch.vnDate(nowIso())),
+    ...(await schedule.punchSchedule(staff, s?.date || punch.vnDate(nowIso()))),
     record,
     sunday: false,
     outside: '',

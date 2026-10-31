@@ -50,9 +50,10 @@ test('ca vàng: phủ đủ ba loại nhân sự, mọi loại ngày, OT, làm b
     known: 6
   };
   for (const [tag, minimum] of Object.entries(need))
-    assert.ok(await count(tag) >= minimum, `tag ${tag}: ${await count(tag)} < ${minimum}`);
+    assert.ok((await count(tag)) >= minimum, `tag ${tag}: ${await count(tag)} < ${minimum}`);
   // mỗi tình huống bắt buộc của bộ sinh xuất hiện ít nhất 5 lần
-  for (const focus of FOCUS_NAMES) assert.ok(await count(focus) >= 5, `tình huống ${focus}: ${await count(focus)} < 5`);
+  for (const focus of FOCUS_NAMES)
+    assert.ok((await count(focus)) >= 5, `tình huống ${focus}: ${await count(focus)} < 5`);
 });
 
 test('ca vàng: bộ sinh với hạt 20261015 tạo lại đúng đầu vào đã lưu (bộ sinh lặp lại được)', () => {

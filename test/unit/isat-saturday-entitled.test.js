@@ -78,7 +78,8 @@ test(`duyệt khoản iSAT kiểm lại thứ và quyền lợi, 400 cả lô; t
     assert.ok(a, `có khoản ngày ${date} của ${who}`);
     return { username: who, date, rev: a.rev, fingerprint: a.fingerprint };
   };
-  const decide = async (action, items) => await F.call('PUT', '/approvals/decide', { body: { action, note: 'thử', items } });
+  const decide = async (action, items) =>
+    await F.call('PUT', '/approvals/decide', { body: { action, note: 'thử', items } });
   const tue = await itemOf('nv_isat', TUE),
     sat = await itemOf('nv_isat', SAT),
     ctv = await itemOf('ctv_isat', SAT);

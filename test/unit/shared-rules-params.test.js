@@ -30,7 +30,10 @@ test('Leave: leave.accrual.perMonth = 2 làm ngày phép cộng dồn nhiều h�
   assert.equal(changed.accrued(staff, '2026-05-15').months, 2, 'số lần cộng không đổi, chỉ hệ số');
   // hệ số ngày đầu và sinh nhật cũng theo tham số (sinh nhật chỉ cho cấp Nhân viên)
   const withBirthday = { startDate: '2026-03-15', birthday: '1999-04-20', leaveAdjust: 0, type: 'nv' };
-  assert.equal(Leave.create(await withParams({ 'leave.accrual.start': 3 })).accrued(withBirthday, '2026-03-15').total, 3);
+  assert.equal(
+    Leave.create(await withParams({ 'leave.accrual.start': 3 })).accrued(withBirthday, '2026-03-15').total,
+    3
+  );
   assert.equal(
     Leave.create(await withParams({ 'leave.accrual.birthday': 4 })).accrued(withBirthday, '2026-05-15').total,
     2 + 4

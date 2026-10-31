@@ -170,7 +170,14 @@ test('staff levels reject fractions and values outside the type level set', asyn
 test('monthly holiday cap counts the holiday portion after midnight and refuses the save above 40 hours', async () => {
   await person('holiday-cap-next', 'g2');
   // Mỗi ca đêm bắt đầu ngày thường và kéo sang ngày lễ liền sau: 00:00–07:00 = 7 giờ ngày lễ
-  await store.setSetting('holidays', ['2026-10-06', '2026-10-08', '2026-10-10', '2026-10-13', '2026-10-15', '2026-10-17']);
+  await store.setSetting('holidays', [
+    '2026-10-06',
+    '2026-10-08',
+    '2026-10-10',
+    '2026-10-13',
+    '2026-10-15',
+    '2026-10-17'
+  ]);
   const days = Object.fromEntries(
     ['2026-10-05', '2026-10-07', '2026-10-09', '2026-10-12', '2026-10-14'].map(date => [
       date,
@@ -205,7 +212,14 @@ test('holiday date validation uses the same supported calendar years as payroll'
 
 test('monthly holiday cap includes worked hours on a Sunday holiday reached overnight', async () => {
   await person('holiday-cap-sunday', 'g2');
-  await store.setSetting('holidays', ['2026-10-04', '2026-10-06', '2026-10-08', '2026-10-11', '2026-10-18', '2026-10-25']);
+  await store.setSetting('holidays', [
+    '2026-10-04',
+    '2026-10-06',
+    '2026-10-08',
+    '2026-10-11',
+    '2026-10-18',
+    '2026-10-25'
+  ]);
   // 4 ca thứ Bảy kéo sang Chủ nhật lễ = 4 × 7 = 28 giờ; thêm 2 ca ngày thường kéo sang ngày lễ = 42 giờ
   const night = { kind: 'work', in: '22:00', out: '07:00' };
   const days = Object.fromEntries(['2026-10-03', '2026-10-10', '2026-10-17', '2026-10-24'].map(date => [date, night]));

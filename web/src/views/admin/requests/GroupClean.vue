@@ -81,7 +81,8 @@ const toggle = id =>
     <div v-if="olderCount" class="later">
       <Icon name="info" />
       <span>
-        {{ olderCount }} yêu cầu của các tháng trước<template v-if="agents"> AI chưa kiểm tra</template>, cần xử lý từng cái ở
+        {{ olderCount }} yêu cầu của các tháng trước<template v-if="agents"> AI chưa kiểm tra</template>, cần xử lý từng
+        cái ở
         <button type="button" class="link" @click="emit('all-months')">Mọi tháng</button>
       </span>
     </div>

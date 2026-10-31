@@ -9,10 +9,14 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '../..');
 
 test('spec/reference khớp mã (npm run spec:gen nếu đỏ)', { timeout: 120000 }, () => {
-  const result = spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/docs/gen-spec.js'), '--check'], {
-    encoding: 'utf8',
-    cwd: ROOT
-  });
+  const result = spawnSync(
+    process.execPath,
+    ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/docs/gen-spec.js'), '--check'],
+    {
+      encoding: 'utf8',
+      cwd: ROOT
+    }
+  );
   assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 

@@ -22,7 +22,9 @@ async function loadSlip(month, username) {
   const net = (data.payslip.snapshot && data.payslip.snapshot.net) || {};
   const [override, entries] = await Promise.all([
     data.payslip.overridden ? api('GET', `/slip-override?user=${enc(username)}&month=${enc(month)}`) : null,
-    net.entriesAdd || net.entriesDeduct ? api('GET', `/pay-entries?month=${enc(month)}&username=${enc(username)}&status=approved`) : null
+    net.entriesAdd || net.entriesDeduct
+      ? api('GET', `/pay-entries?month=${enc(month)}&username=${enc(username)}&status=approved`)
+      : null
   ]);
   const extra = { override: override && override.values, entries: entries && entries.entries };
   return { period, data, drawer: buildDrawer(month, username, period, data, extra) };
@@ -33,7 +35,8 @@ export async function getPayslip(month, username) {
 }
 
 // GET /api/slip-override?user=&month= → { values, rev, reason, updatedBy, updatedAt }
-export const getSlipOverride = (month, username) => api('GET', `/slip-override?user=${enc(username)}&month=${enc(month)}`);
+export const getSlipOverride = (month, username) =>
+  api('GET', `/slip-override?user=${enc(username)}&month=${enc(month)}`);
 
 // PUT /api/slip-override  { month, user, values: { <ô>: số }, reason, expectedRev }  (ô tiền: số nguyên không âm; ô số lượng: tối đa 2 số lẻ)
 export function saveSlipOverride(month, username, { values, reason = '', expectedRev }) {

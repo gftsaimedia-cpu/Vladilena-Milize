@@ -63,8 +63,7 @@
     function accrued(staff, upTo) {
       const adjust = Number(staff.leaveAdjust) || 0;
       const start = staff.startDate;
-      if (!start || upTo < start)
-        return { start: 0, months: 0, seniority: 0, birthdays: 0, adjust, total: adjust };
+      if (!start || upTo < start) return { start: 0, months: 0, seniority: 0, birthdays: 0, adjust, total: adjust };
       const [sy] = parts(start);
       const months = fullMonths(start, upTo);
       const years = Math.floor(months / MONTHS_PER_YEAR); // năm tròn = 12 tháng tròn (cùng mốc, kể cả 29/02)

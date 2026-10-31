@@ -25,7 +25,8 @@ const nextMonthOf = month => {
   return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
 };
 const estimate = (month, who = 'qa_nv1') => F.call('GET', `/me/estimate?month=${month}`, { who });
-const netOf = async (username, month, params) => Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
+const netOf = async (username, month, params) =>
+  Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
 const viaJson = value => JSON.parse(JSON.stringify(value));
 const holidaySlip = async month => {
   const res = await F.call('GET', `/ai/review?month=${month}&impacts=1`);
@@ -85,7 +86,7 @@ test(
     // ---- dựng hai tháng: A khoá (calculated), M mở với dữ liệu và một khoản chờ duyệt ----
     await S.setupMonth(A, 'calculated');
     const holiday = S.dowDates(M, 3)[1]; // thứ Tư thứ hai của M
-    await store.setSetting('holidays', [...await store.getSetting('holidays', []), holiday]);
+    await store.setSetting('holidays', [...(await store.getSetting('holidays', [])), holiday]);
     await F.at(`${N}-02T09:00:00`); // M đã qua: ước tính cả tháng
     await addMonthData(M, holiday);
     await S.setMode('defaults-only');
@@ -167,8 +168,7 @@ test(
 
     // (4) tính lương M: lần chạy mang đúng băm, số phiên bản, giá trị mới; phiếu bằng bộ máy với tham số mới
     await store.approvals.decide(
-      (await store.approvals
-        .list({ status: 'pending' }))
+      (await store.approvals.list({ status: 'pending' }))
         .filter(r => r.date.startsWith(M))
         .map(r => ({ username: r.username, date: r.date, rev: r.rev, fingerprint: r.fingerprint })),
       'approved',
@@ -209,7 +209,8 @@ test(
     assert.equal(verifyA.checked, verifyABefore.checked);
     // đặt hiệu lực ở tháng đã khoá vẫn lưu được, kèm cảnh báo PERIOD_LOCKED; bản chụp phiếu và băm tham số của lần chạy cũ không đổi
     const other =
-      (((await S.adminKeys()).find(k => k.key === key.key) || {}).values || []).find(v => v !== key.value) ?? key.value + 1;
+      (((await S.adminKeys()).find(k => k.key === key.key) || {}).values || []).find(v => v !== key.value) ??
+      key.value + 1;
     const locked = await S.saveChanges([{ key: key.key, value: other }], {
       month: A,
       expectedRev: await S.paramsRevOf(A)

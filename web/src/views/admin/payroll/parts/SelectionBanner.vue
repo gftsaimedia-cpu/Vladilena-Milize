@@ -37,7 +37,9 @@ defineEmits(['select-all', 'clear', 'return', 'approve']);
         </template>
       </span>
       <span class="bs">
-        <button type="button" class="btn sm" @click="$emit('select-all')">{{ agents ? 'Chọn mọi phiếu không có cảnh báo' : 'Chọn mọi phiếu' }}</button>
+        <button type="button" class="btn sm" @click="$emit('select-all')">
+          {{ agents ? 'Chọn mọi phiếu không có cảnh báo' : 'Chọn mọi phiếu' }}
+        </button>
         <button type="button" class="btn sm off" disabled>Trả lại</button>
         <button type="button" class="btn sm off" disabled>Phê duyệt phiếu</button>
       </span>

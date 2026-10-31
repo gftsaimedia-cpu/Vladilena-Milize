@@ -92,7 +92,10 @@ test('ca n1 khai đúng 08:00–17:00: 200, preset được đặt thành mã ca
   assert.ok(!warned(r).includes('SHEET_SHIFT_MISMATCH'), 'đúng ca thì không cảnh báo');
 });
 test('chỉ lệch một đầu (08:00–16:00, 09:00–17:00) cũng cảnh báo SHEET_SHIFT_MISMATCH và vẫn lưu', async () => {
-  for (const day of [{ ...N1, out: '16:00' }, { ...N1, in: '09:00' }]) {
+  for (const day of [
+    { ...N1, out: '16:00' },
+    { ...N1, in: '09:00' }
+  ]) {
     const r = await save('an', { '2026-10-20': day });
     assert.equal(r.status, 200, JSON.stringify(r.data));
     assert.ok(warned(r).includes('SHEET_SHIFT_MISMATCH'), JSON.stringify(r.data.warnings));
@@ -148,7 +151,10 @@ test('ngày cũ 09:00–18:00 thêm OT vào khung 22h–6h vẫn lưu, kèm cả
     '2026-10-21': { kind: 'work', in: '09:00', out: '18:00', extraKind: 'ot', extraIn: '05:30' }
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(r.data.warnings.some(w => /^SHEET_/.test(w.code)), JSON.stringify(r.data.warnings));
+  assert.ok(
+    r.data.warnings.some(w => /^SHEET_/.test(w.code)),
+    JSON.stringify(r.data.warnings)
+  );
   assert.equal((await stored('an'))['2026-10-21'].extraIn, '05:30');
 });
 test('OT sau ca vẫn khai được: 08:00–17:00 kèm OT đến 19:00 là 200', async () => {

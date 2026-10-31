@@ -151,7 +151,9 @@ function useHere() {
           </thead>
           <tbody>
             <tr v-for="(s, i) in draft.shifts" :key="i">
-              <td><FieldText v-model="s.name" placeholder="Tên ca" label="Tên ca" disabled style="min-width: 150px" /></td>
+              <td>
+                <FieldText v-model="s.name" placeholder="Tên ca" label="Tên ca" disabled style="min-width: 150px" />
+              </td>
               <td><FieldText v-model="s.start" label="Giờ vào" /></td>
               <td>
                 <FieldText v-model="s.end" label="Giờ ra" />

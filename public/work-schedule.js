@@ -30,7 +30,7 @@
   const DAY_NAME = Object.freeze(['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']);
   const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
   const ISO_DATE = 'YYYY-MM-DD'; // độ dài chuỗi ngày
-    const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+  const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
   const freeze = value => {
     if (value && typeof value === 'object' && !Object.isFrozen(value)) {
       Object.freeze(value);

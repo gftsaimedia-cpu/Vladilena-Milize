@@ -37,7 +37,8 @@ const ALLOWED = {
     'danh mục chức vụ trong DB (28/10/2026): lưu thứ đi làm của từng phiên bản chức vụ và đưa ra đúng khoá type.<mã>.dows cho bộ tham số của tháng; không hỏi ngày làm',
   'lib/domain/position/schema.js':
     'nạp danh mục chức vụ lần đầu từ DEFAULTS type.<mã>.dows (dữ liệu chức vụ, không hỏi ngày làm)',
-  'lib/domain/schedule.js': 'cầu nối của máy chủ: liệt kê khoá type.<mã>.dows của bộ tham số cho GET /api/team rồi giao việc giải lịch cho work-schedule.js',
+  'lib/domain/schedule.js':
+    'cầu nối của máy chủ: liệt kê khoá type.<mã>.dows của bộ tham số cho GET /api/team rồi giao việc giải lịch cho work-schedule.js',
   'public/punch.js':
     'quy tắc Check-in/out nhận staff.sched (tương thích) khi không có staff.isWorkDay: giữ nguyên theo thiết kế mục 2 dòng 19',
   'public/admin/view-khung-luong.js': 'màn Cài đặt: nhãn và ô nhập của các khoá lịch chức vụ',
@@ -109,9 +110,12 @@ test('S1: một nguồn: public/work-schedule.js được nạp trước payroll
   for (const page of ['public/admin.html', 'public/nhan-vien.html']) {
     const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
     const at = name => html.indexOf(`${name}.js`);
-    if (await at('payroll-engine') < 0) continue; // trang không nạp bộ máy thì không bắt buộc
-    assert.ok(await at('work-schedule') >= 0, `${page}: thiếu thẻ script work-schedule.js`);
-    assert.ok(await at('work-schedule') < await at('payroll-engine'), `${page}: work-schedule.js phải nạp TRƯỚC payroll-engine.js`);
+    if ((await at('payroll-engine')) < 0) continue; // trang không nạp bộ máy thì không bắt buộc
+    assert.ok((await at('work-schedule')) >= 0, `${page}: thiếu thẻ script work-schedule.js`);
+    assert.ok(
+      (await at('work-schedule')) < (await at('payroll-engine')),
+      `${page}: work-schedule.js phải nạp TRƯỚC payroll-engine.js`
+    );
   }
 });
 

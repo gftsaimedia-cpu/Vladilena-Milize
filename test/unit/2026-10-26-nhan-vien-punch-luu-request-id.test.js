@@ -152,7 +152,12 @@ test('sau khi tải lại trang, bấm lại Check-out dùng ĐÚNG requestId đ
 });
 
 test('mục đã lưu quá hạn (quá ATTEMPT_TTL_MS) bị bỏ: lần bấm sau dùng mã mới', async () => {
-  const cu = JSON.stringify({ type: 'out', sessionId: 7, requestId: 'ma-cu-0123456', at: Date.now() - 3 * 60 * 60 * 1000 });
+  const cu = JSON.stringify({
+    type: 'out',
+    sessionId: 7,
+    requestId: 'ma-cu-0123456',
+    at: Date.now() - 3 * 60 * 60 * 1000
+  });
   const hug = loadPunch({ stored: cu, api: () => ({}) });
   assert.equal(hug.state.attempt, null);
   await hug.NV.actions.punch({ dataset: { type: 'out' } });

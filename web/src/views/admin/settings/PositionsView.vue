@@ -74,7 +74,9 @@ const dlgRow = computed(() => (dlg.value ? rowOf(dlg.value.code) : null));
           <h2>Bậc</h2>
           <span class="cap">{{ p.levels.length }} bậc</span>
           <div v-if="canEdit" class="r">
-            <button type="button" class="btn sm" @click="openLevel(p.code, 0)"><Icon name="plus" :size="14" />Thêm bậc</button>
+            <button type="button" class="btn sm" @click="openLevel(p.code, 0)">
+              <Icon name="plus" :size="14" />Thêm bậc
+            </button>
           </div>
         </div>
         <table>
@@ -96,8 +98,14 @@ const dlgRow = computed(() => (dlg.value ? rowOf(dlg.value.code) : null));
               <td>{{ l.level }}</td>
               <td>{{ l.name }}</td>
               <td class="n">{{ l.base }}</td>
-              <td class="n"><span v-if="l.kpi">{{ l.kpi }}</span><span v-else class="cap">Không có</span></td>
-              <td class="n"><span v-if="l.night">{{ l.night }}</span><span v-else class="cap">Theo chức vụ</span></td>
+              <td class="n">
+                <span v-if="l.kpi">{{ l.kpi }}</span
+                ><span v-else class="cap">Không có</span>
+              </td>
+              <td class="n">
+                <span v-if="l.night">{{ l.night }}</span
+                ><span v-else class="cap">Theo chức vụ</span>
+              </td>
               <td v-if="canEdit" class="n">
                 <button
                   type="button"

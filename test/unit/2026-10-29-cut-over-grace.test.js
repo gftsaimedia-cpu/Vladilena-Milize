@@ -27,7 +27,10 @@ const ROWS = [
 
 async function sessionOf(inHm, outHm) {
   const plannedShift = P.planShift(punchStaff, DATE);
-  const { entry } = P.buildDay(punchStaff, await at(inHm), await at(outHm), 'in-out', { plannedShift, approveIncomplete: true });
+  const { entry } = P.buildDay(punchStaff, await at(inHm), await at(outHm), 'in-out', {
+    plannedShift,
+    approveIncomplete: true
+  });
   return { id: 1, username: STAFF.username, date: DATE, state: 'closed', entry, version: 1 };
 }
 const cutOf = session => {
@@ -51,11 +54,13 @@ test('cutMin: ngưỡng miễn 15 phút, trừ khi quá ngưỡng', () => {
 });
 
 test('Vào trễ 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút', async () => {
-  for (const [late, cut] of ROWS) assert.equal(await cutOf(await sessionOf(hm(480 + late), '17:00')), cut, `trễ ${late} phút`);
+  for (const [late, cut] of ROWS)
+    assert.equal(await cutOf(await sessionOf(hm(480 + late), '17:00')), cut, `trễ ${late} phút`);
 });
 
 test('Về sớm 14, 15, 16, 40 phút: trừ 0, 0, 30, 30 phút, cùng ngưỡng với đi trễ', async () => {
-  for (const [early, cut] of ROWS) assert.equal(await cutOf(await sessionOf('08:00', hm(1020 - early))), cut, `sớm ${early} phút`);
+  for (const [early, cut] of ROWS)
+    assert.equal(await cutOf(await sessionOf('08:00', hm(1020 - early))), cut, `sớm ${early} phút`);
 });
 
 test('Cờ "Vào trễ" của lượt xuất hiện khi và chỉ khi lượt bị trừ vì trễ', async () => {

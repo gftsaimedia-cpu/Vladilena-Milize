@@ -59,7 +59,10 @@ test('payslip-snapshot: số tiền, nội dung chụp và điều khoản của
       /không được sửa|không được đổi/,
       column
     );
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId),
+    /không được xoá/
+  );
   assert.deepEqual(await slip(runId), before);
 });
 
@@ -82,9 +85,18 @@ test('payslip-snapshot: lần chạy đã chốt (final) không đổi tham số
     async () => await store.db.prepare('UPDATE payslips SET status = ? WHERE run_id = ?').run('approved', runId),
     /không được đổi/
   );
-  await assert.rejects(async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE run_id = ?').run(runId), /không được/);
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId), /không được xoá/);
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM payroll_runs WHERE id = ?').run(runId), /không được xoá/);
+  await assert.rejects(
+    async () => await store.db.prepare('UPDATE payslips SET net = 1 WHERE run_id = ?').run(runId),
+    /không được/
+  );
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM payslips WHERE run_id = ?').run(runId),
+    /không được xoá/
+  );
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM payroll_runs WHERE id = ?').run(runId),
+    /không được xoá/
+  );
   await assert.rejects(
     async () => await store.db.prepare("UPDATE payroll_runs SET status = 'draft' WHERE id = ?").run(runId),
     /lùi trạng thái|không được sửa/
@@ -225,7 +237,10 @@ test(
         body: { month: MONTH, days: { ...original.days, '2026-10-30': { kind: 'unpaid' } } }
       });
       assert.equal(res.status, 200, JSON.stringify(res.data));
-      assert.ok(res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(res.data.warnings));
+      assert.ok(
+        res.data.warnings.some(w => w.code === 'PERIOD_LOCKED'),
+        JSON.stringify(res.data.warnings)
+      );
       assert.equal(await slipsFingerprint(), before);
     } finally {
       await store.setSheet('qa_nv2', MONTH, original.days); // trả lịch như cũ để các bài sau kiểm verify trên dữ liệu gốc

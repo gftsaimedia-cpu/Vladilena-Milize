@@ -22,7 +22,7 @@ const copyPosition = (from, code, flags = {}) => {
   return { ...out, ...flags };
 };
 const withParams = async (options, params) => {
-  const input = { ...await world(options), params };
+  const input = { ...(await world(options)), params };
   return { ...input, payroll: loadPayroll(params) };
 };
 const ids = (result, rule) => find(result, rule).map(f => `${f.username}|${f.date || f.month}`);
@@ -73,7 +73,10 @@ test('ot-above-team theo cờ benefit.ot: OT của chức vụ mới tính vào 
   const on = await review(await withParams({ people: await people('hdo2'), days }, await copyPosition('nv', 'hdo2')));
   assert.deepEqual(ids(on, 'ot-above-team'), ['qa_heavy|2026-10'], 'chức vụ mới có cờ OT');
   const off = await review(
-    await withParams({ people: await people('hdo2'), days }, await copyPosition('nv', 'hdo2', { 'type.hdo2.benefit.ot': false }))
+    await withParams(
+      { people: await people('hdo2'), days },
+      await copyPosition('nv', 'hdo2', { 'type.hdo2.benefit.ot': false })
+    )
   );
   assert.deepEqual(ids(off, 'ot-above-team'), [], 'tắt cờ OT thì không xét');
 });
@@ -100,7 +103,7 @@ test('blockDefsOf: chỉ lấy khoá block.def.<mã> có giá trị là đối t
 
 test('block-flags-unconfirmed: khối có cờ thuế hoặc bảo hiểm chưa xác nhận bị gắn, nêu cờ nào đang chờ; khối còn lại không', async () => {
   const cases = [];
-  const run = async defs => review({ ...await world({}), params: blockParams(defs) });
+  const run = async defs => review({ ...(await world({})), params: blockParams(defs) });
   const scenario = [
     ['miễn thuế toàn bộ, chưa xác nhận', { antrua: { label: 'Ăn trưa', tax: 'full' } }, true],
     ['miễn thuế đến hạn mức, chưa xác nhận', { antrua: { label: 'Ăn trưa', tax: 'cap' } }, true],
@@ -151,7 +154,7 @@ test('block-flags-unconfirmed: Admin tắt luật (ai.rule.blockFlagsUnconfirmed
     ...blockParams({ antrua: { label: 'Ăn trưa', tax: 'full' } }),
     'ai.rule.blockFlagsUnconfirmed.enabled': false
   };
-  const result = await review({ ...await world({}), params });
+  const result = await review({ ...(await world({})), params });
   assert.deepEqual(systemOf(result, 'block-flags-unconfirmed'), []);
   assert.equal(result.checked.skipped.find(s => s.rule === 'block-flags-unconfirmed').reason, 'Admin tắt');
 });
@@ -226,11 +229,11 @@ test('override-looks-like-entry: tháng khác không xét; ngưỡng đổi qua 
   );
   assert.deepEqual(ids(other, 'override-looks-like-entry'), []);
   const tuned = {
-    ...await world({
+    ...(await world({
       people: [await person('qa_a')],
       days: { qa_a: WORK_DAYS },
       slipOverrides: [{ username: 'qa_a', month: '2026-10', values: { attendance: attendance + 150000 } }]
-    }),
+    })),
     params: { ...DEFAULTS, 'ai.threshold.overrideEntryRoundVnd': 50000 }
   };
   assert.deepEqual(ids(await review(tuned), 'override-looks-like-entry'), ['qa_a|2026-10'], 'bội của 50.000');
@@ -245,7 +248,9 @@ test('override-looks-like-entry: tháng khác không xét; ngưỡng đổi qua 
   const skippedReason = noPayroll.checked.skipped.find(s => s.rule === 'override-looks-like-entry').reason;
   assert.match(skippedReason, /bộ máy tính lương/);
   assertPlain(skippedReason, 'lý do bỏ qua override-looks-like-entry');
-  const noOverride = await review(await world({ people: [await person('qa_a')], days: { qa_a: WORK_DAYS }, withPayroll: false }));
+  const noOverride = await review(
+    await world({ people: [await person('qa_a')], days: { qa_a: WORK_DAYS }, withPayroll: false })
+  );
   assert.ok(
     noOverride.checked.ruleIds.includes('override-looks-like-entry'),
     'không có số sửa: không cần bộ máy, vẫn tính là đã chạy'
@@ -326,7 +331,12 @@ test('position-scope-leak: thay đổi dành cho một chức vụ mà đổi ti
       { positions: ['nv', 'ctv'] },
       false
     ],
-    ['người chưa biết chức vụ không kết luận', await impactOf([{ before: { net: 1 }, after: { net: 2 } }]), scope, false]
+    [
+      'người chưa biết chức vụ không kết luận',
+      await impactOf([{ before: { net: 1 }, after: { net: 2 } }]),
+      scope,
+      false
+    ]
   ];
   const cases = [];
   for (const [label, impact, sc, expect] of scenario) {

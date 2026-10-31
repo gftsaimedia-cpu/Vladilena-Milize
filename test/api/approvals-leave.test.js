@@ -317,7 +317,9 @@ test('Phép năm: đổi loại nhân sự (NV sang CTV) đồng bộ dòng leav
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.equal((await store.getStaff('mover')).type, 'ctv');
-  const summary = Object.fromEntries((await rowsOf('mover')).map(x => [x.date, `${x.item}:${x.status}:${x.decided_by}`]));
+  const summary = Object.fromEntries(
+    (await rowsOf('mover')).map(x => [x.date, `${x.item}:${x.status}:${x.decided_by}`])
+  );
   assert.deepEqual(summary, {
     [SEP_LEAVE]: 'leave:approved:system',
     [LEAVE]: 'leave:pending:null',
@@ -372,26 +374,29 @@ async function buildProductionDb() {
   return dbPath;
 }
 
-sqliteOnly('di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên', async () => {
-  const dbPath = await buildProductionDb();
-  const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
-  assert.deepEqual(summaryOf(rows), {
-    '2026-08-11': 'leave:approved:system',
-    [SEP_LEAVE]: 'leave:approved:system',
-    '2026-09-16': 'isat:approved:system',
-    [LEAVE]: 'leave:pending:null',
-    [LEAVE2]: 'leave:approved:admin', // đã có dòng cùng mục và dấu vân tay: không bị đặt lại
-    [NOV_LEAVE]: 'leave:pending:null'
-  });
-  assert.equal(rows.find(r => r.date === LEAVE2).rev, 3);
-  for (const row of rows.filter(r => r.item === 'leave')) assert.equal(row.fingerprint, 'leave', row.date);
-  assert.equal(
-    rows.find(r => r.date === '2026-10-17'),
-    undefined,
-    'nghỉ không lương không cần duyệt'
-  );
-});
+sqliteOnly(
+  'di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên',
+  async () => {
+    const dbPath = await buildProductionDb();
+    const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+    assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
+    assert.deepEqual(summaryOf(rows), {
+      '2026-08-11': 'leave:approved:system',
+      [SEP_LEAVE]: 'leave:approved:system',
+      '2026-09-16': 'isat:approved:system',
+      [LEAVE]: 'leave:pending:null',
+      [LEAVE2]: 'leave:approved:admin', // đã có dòng cùng mục và dấu vân tay: không bị đặt lại
+      [NOV_LEAVE]: 'leave:pending:null'
+    });
+    assert.equal(rows.find(r => r.date === LEAVE2).rev, 3);
+    for (const row of rows.filter(r => r.item === 'leave')) assert.equal(row.fingerprint, 'leave', row.date);
+    assert.equal(
+      rows.find(r => r.date === '2026-10-17'),
+      undefined,
+      'nghỉ không lương không cần duyệt'
+    );
+  }
+);
 
 sqliteOnly('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', async () => {
   const dbPath = await buildProductionDb();

@@ -32,7 +32,11 @@ async function openStream(who, headers = {}) {
         port: F.server.address().port,
         path: '/api/events',
         method: 'GET',
-        headers: { Cookie: auth.cookieHeader(await auth.createSession(who), 86400), Accept: 'text/event-stream', ...headers }
+        headers: {
+          Cookie: auth.cookieHeader(await auth.createSession(who), 86400),
+          Accept: 'text/event-stream',
+          ...headers
+        }
       },
       res => {
         const stream = {
@@ -308,7 +312,9 @@ test('events-audience: approvals.changed chỉ tới người có quyền duyệ
   for (const who of ['qa_nv2', 'qa_ctv1', 'qa_tts1'])
     assert.ok(!seenNames(got[who]).includes('approvals.changed'), `${who} không bao giờ nhận approvals.changed`);
   // Admin duyệt khoản: đúng người gửi nhận request.decided, không ai khác
-  const row = (await store.approvals.list({ status: 'pending' })).find(r => r.username === 'qa_nv2' && r.date.startsWith(M));
+  const row = (await store.approvals.list({ status: 'pending' })).find(
+    r => r.username === 'qa_nv2' && r.date.startsWith(M)
+  );
   const decide = await F.call('PUT', '/approvals/decide', {
     body: {
       action: 'approve',

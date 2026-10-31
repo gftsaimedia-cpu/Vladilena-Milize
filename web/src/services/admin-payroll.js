@@ -116,8 +116,11 @@ export async function getFindings(month, username = '') {
   const groups = new Map();
   for (const f of out.findings || []) {
     if (username && f.username !== username) continue;
-    if (!groups.has(f.username)) groups.set(f.username, { username: f.username, name: names[f.username] || f.username, items: [] });
-    groups.get(f.username).items.push({ id: `${f.username}:${f.rule}`, text: f.message || f.rule, skipped: !!f.dismissed });
+    if (!groups.has(f.username))
+      groups.set(f.username, { username: f.username, name: names[f.username] || f.username, items: [] });
+    groups
+      .get(f.username)
+      .items.push({ id: `${f.username}:${f.rule}`, text: f.message || f.rule, skipped: !!f.dismissed });
   }
   return [...groups.values()];
 }
@@ -127,7 +130,12 @@ export async function skipFinding(month, id, reason) {
   const len = (reason || '').trim().length;
   if (len < 10 || len > 300) return err('Lý do bỏ qua cần từ 10 đến 300 ký tự');
   const at = id.indexOf(':');
-  await api('POST', '/ai/findings/dismiss', { month, username: id.slice(0, at), rule: id.slice(at + 1), reason: reason.trim() });
+  await api('POST', '/ai/findings/dismiss', {
+    month,
+    username: id.slice(0, at),
+    rule: id.slice(at + 1),
+    reason: reason.trim()
+  });
   return { ok: true, id };
 }
 
@@ -152,7 +160,10 @@ export async function approveBatch(month, usernames, others = 0) {
   if (!usernames.length && !others) return err('Chưa chọn phiếu nào');
   const names = new Set(usernames);
   if (others) {
-    const more = await api('GET', `/periods/${enc(month)}/payslips` + qs({ status: 'pending', flag: '0', pageSize: 200 }));
+    const more = await api(
+      'GET',
+      `/periods/${enc(month)}/payslips` + qs({ status: 'pending', flag: '0', pageSize: 200 })
+    );
     for (const row of more.rows) {
       slipRev.set(`${month}|${row.username}`, row.rev);
       names.add(row.username);
@@ -261,7 +272,12 @@ export async function addExtra(month, payload) {
 export function editPayEntry(id, { rev, label, amount, reason }) {
   if (!(Number(amount) > 0)) return err('Chưa nhập số tiền');
   if (!(label || '').trim()) return err('Chưa nhập tên khoản');
-  return api('PUT', `/pay-entries/${enc(id)}`, { rev, label: label.trim(), amount: Number(amount), reason: (reason || '').trim() });
+  return api('PUT', `/pay-entries/${enc(id)}`, {
+    rev,
+    label: label.trim(),
+    amount: Number(amount),
+    reason: (reason || '').trim()
+  });
 }
 
 // PUT /api/pay-entries/:id/decide  { rev, decision: 'approved' | 'rejected', note }

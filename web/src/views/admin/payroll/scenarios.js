@@ -62,7 +62,10 @@ export function describeScenario(month, kb, f, agents = false) {
       actions: [A.formula, { ...A.close, pri: false, off: true, small: `· mở từ ${f.openFrom}` }],
       note: null,
       cap: wide
-        ? [EST, ' thành số chính thức sau bước Tính lương · Tiền ngày công đã gồm nghỉ lễ hưởng lương và đã trừ đi muộn, về sớm']
+        ? [
+            EST,
+            ' thành số chính thức sau bước Tính lương · Tiền ngày công đã gồm nghỉ lễ hưởng lương và đã trừ đi muộn, về sớm'
+          ]
         : [EST, ' thành số chính thức sau bước Tính lương'],
       ai: null,
       selection: false,

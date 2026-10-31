@@ -129,7 +129,9 @@ test('OT ngày lễ qua nửa đêm: chỉ phút của ngày lễ theo hệ số
 test('ngày lễ có OT được trả: giữ phụ cấp ca và tiền giờ nghỉ đêm như ngày lễ không OT, tiền OT cộng thêm', async () => {
   const plain = await (await month(NIGHT, { [HOL]: nightShift })).row(HOL);
   assert.ok(plain.bonus > 0 && plain.breakPay > 0);
-  const ot = await (await month(NIGHT, { [HOL]: { ...nightShift, extraKind: 'ot', extraIn: '20:00', extraOut: '' } })).row(HOL);
+  const ot = await (
+    await month(NIGHT, { [HOL]: { ...nightShift, extraKind: 'ot', extraIn: '20:00', extraOut: '' } })
+  ).row(HOL);
   assert.deepEqual([ot.otH, ot.holWorkH - plain.holWorkH], [0, 2]);
   // phụ cấp ca = lương ngày × 40 % = 6.000.000 / 26 × 0,4 ≈ 92.308 (lớn hơn sàn phụ trội đêm 7 giờ × lương giờ × 0,3 ≈ 60.577)
   near(ot.bonus, plain.bonus);

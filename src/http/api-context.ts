@@ -28,4 +28,6 @@ export const API_CONTEXT_KEY = 'apiContext';
 export const RAW_URL = 'rawUrl';
 
 /** @Ctx() lấy ApiContext do ApiGuard dựng. */
-export const Ctx = createParamDecorator((_: unknown, host: ExecutionContext): ApiContext => host.switchToHttp().getRequest()[API_CONTEXT_KEY]);
+export const Ctx = createParamDecorator(
+  (_: unknown, host: ExecutionContext): ApiContext => host.switchToHttp().getRequest()[API_CONTEXT_KEY]
+);

@@ -5,7 +5,14 @@ const store = require('../../../lib/db');
 const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, monthParams, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { hasKpi, cleanKpiAmt, kpiScoreItem, kpiPartsView, kpiHttpError, selfScoreOnly } = require('../../../lib/domain/kpi'); // KPI: trần, điểm, hiển thị
+const {
+  hasKpi,
+  cleanKpiAmt,
+  kpiScoreItem,
+  kpiPartsView,
+  kpiHttpError,
+  selfScoreOnly
+} = require('../../../lib/domain/kpi'); // KPI: trần, điểm, hiển thị
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
@@ -28,8 +35,10 @@ export class KpiController {
       month,
       method: 'five',
       weights: Object.fromEntries(KpiScore.COMPONENTS.map(c => [c.key, c.weight])),
-      items: await AsyncList.map((await AsyncList.filter(await store.listStaff(), staff => hasKpi(staff, kpiParams))), staff =>
-          kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams))
+      items: await AsyncList.map(
+        await AsyncList.filter(await store.listStaff(), staff => hasKpi(staff, kpiParams)),
+        staff => kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams)
+      )
     });
   }
 
@@ -42,7 +51,7 @@ export class KpiController {
     const user = body.user !== undefined ? body.user : body.username; // nhận cả user lẫn username
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Nhân sự không có kpi.score.write ở phạm vi all chỉ lưu được điểm `self` của chính mình (bỏ trống user = chính mình)
-    const full = await authz.scopeOf(me, 'kpi.score.write') === 'all';
+    const full = (await authz.scopeOf(me, 'kpi.score.write')) === 'all';
     const wanted = user === undefined && !full ? me.username : typeof user === 'string' ? user.toLowerCase() : '';
     if (!full) selfScoreOnly(me, wanted, scores, amt);
     if (!USERNAME_RE.test(wanted)) throw new HttpError(400, 'user không hợp lệ');

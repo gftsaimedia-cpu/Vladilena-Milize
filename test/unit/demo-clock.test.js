@@ -35,11 +35,13 @@ test('L4: clockProblems báo phiên còn mở thuộc ngày sau today và khoá 
     'ngày dựng khác ngày ghi ở khoá thì phải báo'
   );
   // mỗi người chỉ có tối đa một phiên đang mở: chọn người chưa có
-  const username = (await store.db
-    .prepare(
-      "SELECT username FROM staff WHERE username NOT IN (SELECT username FROM attendance_sessions WHERE state = 'open') LIMIT 1"
-    )
-    .get()).username;
+  const username = (
+    await store.db
+      .prepare(
+        "SELECT username FROM staff WHERE username NOT IN (SELECT username FROM attendance_sessions WHERE state = 'open') LIMIT 1"
+      )
+      .get()
+  ).username;
   const entry = { kind: 'pending', presIn: `${today}T08:00:00+07:00` };
   const futureDate = '2026-11-27';
   const id = await store.createSession(username, futureDate, 'open', entry);

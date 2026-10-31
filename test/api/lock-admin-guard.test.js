@@ -18,7 +18,7 @@ before(async () => {
   await store.roles.grant('qa_admin3', 'admin', 'admin'); // Admin gán qua bảng vai trò (không qua staff.role)
   await F.person('qa_locker', 'staff');
   await F.person('qa_plain1', 'staff');
-  const saved = await store.getSetting(authz.CUSTOM_ROLES_KEY, null) || { rev: 0, roles: [] };
+  const saved = (await store.getSetting(authz.CUSTOM_ROLES_KEY, null)) || { rev: 0, roles: [] };
   await store.setSetting(authz.CUSTOM_ROLES_KEY, {
     rev: saved.rev + 1,
     roles: [
@@ -78,5 +78,5 @@ test('Admin vẫn khoá được Admin khác khi còn Admin chưa khoá, và kh�
   assert.equal((await lock('admin', 'qa_admin3', false)).status, 200);
   assert.equal((await lock('admin', 'admin', true)).status, 400, 'tự khoá');
   assert.equal(await lockedAt('admin'), null);
-  assert.equal(await store.roles.countAdmins() >= 2, true);
+  assert.equal((await store.roles.countAdmins()) >= 2, true);
 });

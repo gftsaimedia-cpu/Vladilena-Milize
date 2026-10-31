@@ -163,7 +163,10 @@ test('CTV L1 giống NV: 230.769 khi chưa duyệt, 1.009.615 khi đã duyệt',
   const days = { [TUE]: { ...WORK } };
   const ctx = { holidays: hol, staffType: 'ctv' };
   close((await payOf(staff, days, {}, ctx)).month.total, 230769.23);
-  close((await payOf(staff, days, { [TUE]: await rowOf(days[TUE], ctxOf(TUE, 'ctv'), 'approved') }, ctx)).month.total, 1009615.38);
+  close(
+    (await payOf(staff, days, { [TUE]: await rowOf(days[TUE], ctxOf(TUE, 'ctv'), 'approved') }, ctx)).month.total,
+    1009615.38
+  );
 });
 test('TTS L1: không có quyền lợi OT nên không có khoản chờ duyệt, ngày lễ không trả đồng nào dù khai hay đã duyệt', async () => {
   const days = { [TUE]: { ...WORK } };

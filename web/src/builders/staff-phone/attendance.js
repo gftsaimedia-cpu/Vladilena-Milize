@@ -27,7 +27,12 @@ export function buildDayDetail({ date, sheet, me, shiftLine, nowIso }) {
   return {
     date,
     shift: shiftLine,
-    status: holiday && !list.length ? { label: 'Ngày lễ', cls: 'p-draft' } : list.length ? statusOf(list[list.length - 1]) : { label: 'Không có công', cls: 'p-draft' },
+    status:
+      holiday && !list.length
+        ? { label: 'Ngày lễ', cls: 'p-draft' }
+        : list.length
+          ? statusOf(list[list.length - 1])
+          : { label: 'Không có công', cls: 'p-draft' },
     punches: list.map((s, i) => punchRow(s, i, nowIso)),
     rows
   };

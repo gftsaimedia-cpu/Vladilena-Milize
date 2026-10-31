@@ -140,7 +140,11 @@ test('công tắc Agents tắt thì AI không chặn duyệt dù luật chặn c
       }
     });
     assert.equal(res.status, 200, JSON.stringify(res.data));
-    assert.deepEqual(await F.store.getSetting('ai_block_rules', null), ['leave-with-checkin'], 'cài đặt luật chặn giữ nguyên');
+    assert.deepEqual(
+      await F.store.getSetting('ai_block_rules', null),
+      ['leave-with-checkin'],
+      'cài đặt luật chặn giữ nguyên'
+    );
   } finally {
     await F.store.setSetting('agents_enabled', '1');
   }

@@ -246,7 +246,7 @@ test('đánh giá trên tháng giả: precision và recall từng luật từ 0,
 });
 
 test('đánh giá: người bình thường không dính phát hiện nào của các luật đã đánh giá', async () => {
-  const result = await review(await world({ ...await buildMonth(), lateOn: true }));
+  const result = await review(await world({ ...(await buildMonth()), lateOn: true }));
   const normal = result.findings.filter(f => f.username.startsWith('qa_normal_') && EVALUATED.includes(f.rule));
   assert.deepEqual(normal, []);
 });

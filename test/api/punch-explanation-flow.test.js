@@ -134,7 +134,10 @@ test('Check-out sớm không kèm lý do: 409 CHECKOUT_NEEDS_EXPLANATION, lượ
   assert.equal(item.prompt, 'Cần giải trình: Về sớm 35 phút');
   assert.equal(item.date, '2026-10-20');
   assert.equal(sent.length, 0); // chưa gửi gì tới khi nhân viên bấm Gửi
-  assert.equal(punchExplanationItem(new ApiError(409, 'x', { code: 'OTHER' }), () => {}), null);
+  assert.equal(
+    punchExplanationItem(new ApiError(409, 'x', { code: 'OTHER' }), () => {}),
+    null
+  );
 
   const ok = await pressOut('som', opened.data.open.id, '2026-10-20T16:25:00', { explanation: 'Đi khám bệnh' });
   assert.equal(ok.status, 200, JSON.stringify(ok.data));

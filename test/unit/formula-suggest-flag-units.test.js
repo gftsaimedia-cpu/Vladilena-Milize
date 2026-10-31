@@ -75,18 +75,22 @@ test('suggestionReplace: chữ lạ đứng riêng ("KPO") thì replace trùng a
   assert.equal(Formula.parse(fixed, { vocabulary }).ok, true, fixed);
 });
 
-test('suggestionReplace: nhãn đã biết nằm TRƯỚC chữ lạ ("chuyên cần thưởng"): at 44..50, replace 33..50', opts, async () => {
-  const Formula = await load();
-  const vocabulary = starter();
-  const text = 'tổng thu nhập = tiền ngày công + chuyên cần thưởng';
-  const e = Formula.parse(text, { vocabulary }).errors.find(x => x.code === 'PARSE_UNKNOWN_WORD');
-  assert.deepEqual(e.at, { start: 44, end: 50 });
-  assert.equal(text.slice(e.at.start, e.at.end), 'thưởng');
-  assert.deepEqual(e.replace, { start: 33, end: 50 });
-  const fixed = apply(text, e.suggestionReplace[0], e.suggestions[0]);
-  assert.equal(fixed.split('chuyên cần').length - 1, 1, fixed);
-  assert.equal(Formula.parse(fixed, { vocabulary }).ok, true, fixed);
-});
+test(
+  'suggestionReplace: nhãn đã biết nằm TRƯỚC chữ lạ ("chuyên cần thưởng"): at 44..50, replace 33..50',
+  opts,
+  async () => {
+    const Formula = await load();
+    const vocabulary = starter();
+    const text = 'tổng thu nhập = tiền ngày công + chuyên cần thưởng';
+    const e = Formula.parse(text, { vocabulary }).errors.find(x => x.code === 'PARSE_UNKNOWN_WORD');
+    assert.deepEqual(e.at, { start: 44, end: 50 });
+    assert.equal(text.slice(e.at.start, e.at.end), 'thưởng');
+    assert.deepEqual(e.replace, { start: 33, end: 50 });
+    const fixed = apply(text, e.suggestionReplace[0], e.suggestions[0]);
+    assert.equal(fixed.split('chuyên cần').length - 1, 1, fixed);
+    assert.equal(Formula.parse(fixed, { vocabulary }).ok, true, fixed);
+  }
+);
 
 test('suggestionReplace: mọi khoảng nằm trong chữ, start ≤ end, và phủ chữ lạ', opts, async () => {
   const Formula = await load();
@@ -175,18 +179,22 @@ test('flag: evaluate nhận true/false hoặc 1/0 từ hàm có sẵn kiểu fla
   assert.equal(runBoth(0, 0), 0);
 });
 
-test('flag: giá trị không phải true/false/0/1 (NaN, chuỗi, 2) từ hàm có sẵn kiểu flag là lỗi, không đoán', opts, async () => {
-  const Formula = await load();
-  const { tree } = F.parseOk(Formula, 'khoản A = nếu ở iDorm thì LCB ngược lại 0', FLAG_VOCAB);
-  for (const bad of [NaN, 'có', null, undefined, {}]) {
-    const code = F.evalErrorCode(
-      Formula,
-      tree,
-      F.makeCtx({ variables: { luongCoBan: 7 }, builtins: { idorm: () => bad } })
-    );
-    assert.ok(code, `idorm trả ${String(bad)} phải là lỗi`);
+test(
+  'flag: giá trị không phải true/false/0/1 (NaN, chuỗi, 2) từ hàm có sẵn kiểu flag là lỗi, không đoán',
+  opts,
+  async () => {
+    const Formula = await load();
+    const { tree } = F.parseOk(Formula, 'khoản A = nếu ở iDorm thì LCB ngược lại 0', FLAG_VOCAB);
+    for (const bad of [NaN, 'có', null, undefined, {}]) {
+      const code = F.evalErrorCode(
+        Formula,
+        tree,
+        F.makeCtx({ variables: { luongCoBan: 7 }, builtins: { idorm: () => bad } })
+      );
+      assert.ok(code, `idorm trả ${String(bad)} phải là lỗi`);
+    }
   }
-});
+);
 
 test('count vẫn dùng làm điều kiện được (tương thích ngược với từ vựng cũ)', opts, async () => {
   const Formula = await load();
@@ -216,13 +224,17 @@ test('checkVocabulary chấp nhận đơn vị flag và vẫn từ chối đơn 
   assert.equal(bad.ok, false);
 });
 
-test('Từ vựng khởi đầu: ở iDorm và giữ được chuyên cần là flag, và toàn bộ từ vựng qua checkVocabulary', opts, async () => {
-  const Formula = await load();
-  const vocabulary = starter();
-  for (const key of ['idorm', 'giuChuyenCan']) assert.equal(vocabulary.find(w => w.key === key).unit, 'flag', key);
-  const check = Formula.checkVocabulary(vocabulary);
-  assert.equal(check.ok, true, JSON.stringify(check.errors));
-});
+test(
+  'Từ vựng khởi đầu: ở iDorm và giữ được chuyên cần là flag, và toàn bộ từ vựng qua checkVocabulary',
+  opts,
+  async () => {
+    const Formula = await load();
+    const vocabulary = starter();
+    for (const key of ['idorm', 'giuChuyenCan']) assert.equal(vocabulary.find(w => w.key === key).unit, 'flag', key);
+    const check = Formula.checkVocabulary(vocabulary);
+    assert.equal(check.ok, true, JSON.stringify(check.errors));
+  }
+);
 
 // ---------- 3. units theo đường dẫn ----------
 

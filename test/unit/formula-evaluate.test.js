@@ -58,14 +58,18 @@ test('Thiếu giá trị biến trong ctx là lỗi có mã, không âm thầm b
   assert.ok(code, 'thiếu diLai phải là lỗi');
 });
 
-test('Giá trị biến không phải số hữu hạn (NaN, vô cực, chuỗi, null) là lỗi, không lan thành kết quả', opts, async () => {
-  const Formula = await load();
-  const { tree } = F.parseOk(Formula, 'khoản A = lương cơ bản + đi lại');
-  for (const bad of [NaN, Infinity, -Infinity, '100', null, undefined, {}, []]) {
-    const code = F.evalErrorCode(Formula, tree, F.makeCtx({ variables: { luongCoBan: 100, diLai: bad } }));
-    assert.ok(code, `diLai=${String(bad)} phải là lỗi`);
+test(
+  'Giá trị biến không phải số hữu hạn (NaN, vô cực, chuỗi, null) là lỗi, không lan thành kết quả',
+  opts,
+  async () => {
+    const Formula = await load();
+    const { tree } = F.parseOk(Formula, 'khoản A = lương cơ bản + đi lại');
+    for (const bad of [NaN, Infinity, -Infinity, '100', null, undefined, {}, []]) {
+      const code = F.evalErrorCode(Formula, tree, F.makeCtx({ variables: { luongCoBan: 100, diLai: bad } }));
+      assert.ok(code, `diLai=${String(bad)} phải là lỗi`);
+    }
   }
-});
+);
 
 test('Thiếu tham số hoặc thiếu cài đặt của hàm có sẵn trong ctx là lỗi có mã', opts, async () => {
   const Formula = await load();

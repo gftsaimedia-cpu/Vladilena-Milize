@@ -19,13 +19,21 @@ async function setup() {
   await F.at('2026-11-02T09:00:00');
   await store.setSetting('holidays', []);
   await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
-  await F.person('qa_nv1', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_nv1', 'staff', {
+    type: 'nv',
+    level: 1,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
 }
 const W = { kind: 'work', in: '08:00', out: '17:00' };
 const put = async (who, body) => await F.call('PUT', '/sheet', { who, body });
 const readOwn = async (who, month) => await F.call('GET', `/sheet?month=${month}`, { who });
 const onBehalfRows = async month =>
-  await store.db.prepare("SELECT * FROM audit_log WHERE action = 'sheet.onBehalf' AND month = ? ORDER BY id").all(month);
+  await store.db
+    .prepare("SELECT * FROM audit_log WHERE action = 'sheet.onBehalf' AND month = ? ORDER BY id")
+    .all(month);
 
 test('Nhân sự tự lưu với expectedRev cũ (Admin vừa khai thay) → 409 SHEET_STALE, không ghi gì; rev mới → 200', async () => {
   await setup();

@@ -30,7 +30,28 @@ import { PayEntriesModule } from './modules/pay-entries';
  * Thứ tự import là thứ tự đăng ký route: route cụ thể (ví dụ PUT /staff/shift-bulk) phải đứng trước route có tham số (PUT /staff/:u),
  * và NotFoundModule (bắt-hết, trả 404) luôn đứng cuối.
  */
-const FEATURE_MODULES = [SystemModule, AuthModule, SettingsModule, SheetModule, KpiModule, ApprovalsModule, AiModule, AttendanceModule, PeriodsModule, AuditModule, StaffModule, RolesModule, BlocksModule, PositionsModule, CatalogModule, EmployeesModule, LeaveModule, AdvanceModule, ExplanationsModule, PayEntriesModule];
+const FEATURE_MODULES = [
+  SystemModule,
+  AuthModule,
+  SettingsModule,
+  SheetModule,
+  KpiModule,
+  ApprovalsModule,
+  AiModule,
+  AttendanceModule,
+  PeriodsModule,
+  AuditModule,
+  StaffModule,
+  RolesModule,
+  BlocksModule,
+  PositionsModule,
+  CatalogModule,
+  EmployeesModule,
+  LeaveModule,
+  AdvanceModule,
+  ExplanationsModule,
+  PayEntriesModule
+];
 
 @Module({})
 export class AppModule {

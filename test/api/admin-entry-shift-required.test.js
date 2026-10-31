@@ -32,7 +32,9 @@ const save = async day =>
   await F.call('PUT', '/sheet', { who: 'admin', body: { month: M, user: 'qa_shift1', days: { [DAY]: day } } });
 const savedDay = async () => ((await store.getSheet('qa_shift1', M)).days || {})[DAY];
 const adminSession = async () =>
-  (await store.listSessions({ username: 'qa_shift1', includeScheduled: true })).find(s => s.entry.origin === 'sheet.onBehalf');
+  (await store.listSessions({ username: 'qa_shift1', includeScheduled: true })).find(
+    s => s.entry.origin === 'sheet.onBehalf'
+  );
 
 test('lưu ngày, cảnh báo nêu ngày và hệ quả; ngày không mang ca nào, lượt Admin theo ca được gán', async () => {
   const res = await save({ kind: 'work', in: '09:00', out: '18:00' });

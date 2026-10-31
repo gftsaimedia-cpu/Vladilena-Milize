@@ -131,20 +131,18 @@ async function exportAll({ store, personas, selfcheck, dir, people = personas })
     dir,
     'approvals.csv',
     ['username', 'date', 'item', 'fingerprint', 'status', 'rev', 'submittedAt', 'decidedBy', 'decidedAt', 'note'],
-    (await store.approvals
-      .list({ status: 'all' }))
-      .map(a => [
-        a.username,
-        a.date,
-        a.item,
-        a.fingerprint,
-        a.status,
-        a.rev,
-        a.submittedAt,
-        a.decidedBy,
-        a.decidedAt,
-        a.note
-      ])
+    (await store.approvals.list({ status: 'all' })).map(a => [
+      a.username,
+      a.date,
+      a.item,
+      a.fingerprint,
+      a.status,
+      a.rev,
+      a.submittedAt,
+      a.decidedBy,
+      a.decidedAt,
+      a.note
+    ])
   );
   out['sessions.csv'] = writeCsv(
     dir,
@@ -163,22 +161,20 @@ async function exportAll({ store, personas, selfcheck, dir, people = personas })
       'outsideShift',
       'version'
     ],
-    (await store
-      .listSessions())
-      .map(s => [
-        s.id,
-        s.username,
-        s.date,
-        s.state,
-        s.entry.kind,
-        s.entry.reason,
-        s.entry.plannedShift && s.entry.plannedShift.code,
-        s.entry.presIn,
-        s.entry.presOut,
-        s.entry.src,
-        s.entry.outsideShift ? 1 : 0,
-        s.version
-      ])
+    (await store.listSessions()).map(s => [
+      s.id,
+      s.username,
+      s.date,
+      s.state,
+      s.entry.kind,
+      s.entry.reason,
+      s.entry.plannedShift && s.entry.plannedShift.code,
+      s.entry.presIn,
+      s.entry.presOut,
+      s.entry.src,
+      s.entry.outsideShift ? 1 : 0,
+      s.version
+    ])
   );
   out['kpi_scores.csv'] = writeCsv(
     dir,
@@ -201,20 +197,18 @@ async function exportAll({ store, personas, selfcheck, dir, people = personas })
     dir,
     'corrections.csv',
     ['id', 'username', 'date', 'reqIn', 'reqOut', 'reason', 'status', 'decidedBy', 'decidedAt', 'sessionId'],
-    (await store
-      .listCorrections())
-      .map(c => [
-        c.id,
-        c.username,
-        c.date,
-        c.req_in,
-        c.req_out,
-        c.reason,
-        c.status,
-        c.decided_by,
-        c.decided_at,
-        c.session_id
-      ])
+    (await store.listCorrections()).map(c => [
+      c.id,
+      c.username,
+      c.date,
+      c.req_in,
+      c.req_out,
+      c.reason,
+      c.status,
+      c.decided_by,
+      c.decided_at,
+      c.session_id
+    ])
   );
   const slips = [];
   for (const s of staff.filter(x => x.role !== 'admin'))

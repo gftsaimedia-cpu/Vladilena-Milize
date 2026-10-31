@@ -91,7 +91,11 @@ test('GĐ3: insurance-options: coverage.long = Không thì người hợp đồn
   assert.equal(m.net.tax, 0);
   assert.equal(m.net.advance, 0);
   assert.equal(m.net.net, m.net.gross);
-  assert.equal(m.net.gross, (await run(BIG)).net.gross, 'tổng thu nhập không phụ thuộc việc có đóng bảo hiểm hay không');
+  assert.equal(
+    m.net.gross,
+    (await run(BIG)).net.gross,
+    'tổng thu nhập không phụ thuộc việc có đóng bảo hiểm hay không'
+  );
   // hồ sơ ghi riêng insured = true: vẫn đóng 10,5 % × 7.000.000 (lương cơ bản NV bậc 3) = 735.000
   const own = await run(BIG, off, input => (input.staff.insured = true));
   assert.equal(own.net.insurance, 735000);
@@ -114,7 +118,7 @@ test('GĐ3: insurance-options: coverage.short = Có thì người hợp đồng 
 
 test('GĐ3: insurance-options: tax.insurance.skipDays là ngưỡng ngày không lương (ngày công chuẩn trừ ngày có lương) của quy tắc 14 ngày', async () => {
   const staff = inputOf(LONG).staff;
-  const m = { ...await run(LONG), paidDays: 12 };
+  const m = { ...(await run(LONG)), paidDays: 12 };
   const byDefault = PayrollEngine.create(REAL).calcNet(staff, m);
   assert.equal(byDefault.noPayDays, 14);
   assert.equal(byDefault.insuredMonth, false); // đủ 14 ngày không lương: tháng đó không đóng

@@ -27,7 +27,11 @@ test('đêm TTS: đặt type.tts.nightOptions = [35] thì phụ cấp đêm đ�
 
 test('đêm TTS: người không có nightPct lấy phần tử đầu, người có nightPct trong bảng lấy mức của mình', async () => {
   const table = { 'type.tts.nightOptions': [35, 50] };
-  assert.equal((await run(table)).total, (await run({ 'type.tts.nightOptions': [35] })).total, 'bỏ trống = phần tử đầu (35)');
+  assert.equal(
+    (await run(table)).total,
+    (await run({ 'type.tts.nightOptions': [35] })).total,
+    'bỏ trống = phần tử đầu (35)'
+  );
   const fifty = await run(table, input => (input.staff.nightPct = 50));
   assert.ok(closeTo(fifty.bonus / (await run({})).bonus, 50 / 30, 1e-9));
 });
@@ -36,11 +40,7 @@ test('đêm TTS và CTV theo bậc: level.<mã>.<bậc>.nightOptions chỉ đổ
   const over = { 'level.tts.4.nightOptions': [45] };
   assert.ok(closeTo((await run(over)).bonus / (await run({})).bonus, 45 / 30, 1e-9));
   const other = await run(over, input => (input.staff.level = 3));
-  assert.deepEqual(
-    other,
-    await run({}, input => (input.staff.level = 3)),
-    'bậc 3 không đổi một đồng'
-  );
+  assert.deepEqual(other, await run({}, input => (input.staff.level = 3)), 'bậc 3 không đổi một đồng');
   const ctvOnly = { 'type.ctv.nightOptions': [40] };
   const asCtv = input => {
     input.staff.type = 'ctv';

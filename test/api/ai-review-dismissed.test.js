@@ -164,14 +164,18 @@ test('AI soát: tính lại với đầu vào y nguyên GIỮ dấu đã bỏ qu
 
   // y nguyên: giữ
   P.must(await P.step(M, 'calculate'), 'tính lại, đầu vào y nguyên');
-  assert.equal((await store.payroll.currentRun(M)).inputsDigest, digest1, 'đầu vào không đổi thì băm đầu vào không đổi');
+  assert.equal(
+    (await store.payroll.currentRun(M)).inputsDigest,
+    digest1,
+    'đầu vào không đổi thì băm đầu vào không đổi'
+  );
   const kept = (await review(M)).data;
   assert.deepEqual(kept.period, { status: 'calculated' });
   assert.equal(mark(kept, 'qa_nv1', 'isat-frequency')[0].dismissed.by, 'admin');
 
   // đổi đầu vào: thêm một ngày lễ (cài đặt đi vào băm đầu vào của lần chạy) rồi tính lại
   const holiday = P.dowDates(M, 3)[2];
-  await store.setSetting('holidays', [...await store.getSetting('holidays', []), holiday]);
+  await store.setSetting('holidays', [...(await store.getSetting('holidays', [])), holiday]);
   P.must(await P.step(M, 'calculate'), 'tính lại, đầu vào đã đổi');
   assert.notEqual((await store.payroll.currentRun(M)).inputsDigest, digest1, 'băm đầu vào phải đổi');
   const changed = (await review(M)).data;

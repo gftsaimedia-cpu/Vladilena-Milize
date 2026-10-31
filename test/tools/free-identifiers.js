@@ -147,7 +147,8 @@ async function analyze(ast) {
   async function visitFunction(node, scope) {
     const fn = new Scope(scope, true);
     if (node.type !== 'ArrowFunctionExpression') await fn.declare('arguments', { kind: 'implicit' });
-    if (node.type === 'FunctionExpression' && node.id) await fn.declare(node.id.name, { node: node.id, kind: 'function' });
+    if (node.type === 'FunctionExpression' && node.id)
+      await fn.declare(node.id.name, { node: node.id, kind: 'function' });
     for (const param of node.params)
       for (const id of patternNames(param)) await fn.declare(id.name, { node: id, kind: 'param' });
     for (const param of node.params) await patternExpressions(param, fn);
@@ -172,7 +173,8 @@ async function analyze(ast) {
       }
       if (member.computed) await visit(member.key, cls);
       if (member.type === 'MethodDefinition') await visitFunction(member.value, cls);
-      else if (member.value) await visitFunction({ type: 'ArrowFunctionExpression', params: [], body: member.value }, cls);
+      else if (member.value)
+        await visitFunction({ type: 'ArrowFunctionExpression', params: [], body: member.value }, cls);
     }
   }
 

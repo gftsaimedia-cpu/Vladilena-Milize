@@ -35,9 +35,21 @@ async function setup() {
   await store.setSetting('holidays', []);
   await F.person('admin', 'admin', { type: 'tts', level: 0, shiftCode: null, startDate: null });
   for (const username of ['qa_nv1', 'qa_nv3'])
-    await F.person(username, 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+    await F.person(username, 'staff', {
+      type: 'nv',
+      level: 1,
+      shiftCode: 'n1',
+      startDate: '2026-01-05',
+      leaveAdjust: 30
+    });
   await F.person('qa_tts1', 'staff', { type: 'tts', level: 3, shiftCode: 'n1', startDate: '2026-01-05' });
-  await F.person('qa_nv2', 'staff', { type: 'nv', level: 3, shiftCode: 'n1', startDate: '2026-01-05', leaveAdjust: 30 });
+  await F.person('qa_nv2', 'staff', {
+    type: 'nv',
+    level: 3,
+    shiftCode: 'n1',
+    startDate: '2026-01-05',
+    leaveAdjust: 30
+  });
   await F.person('qa_acc', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
   await P.grant('qa_acc', 'accounting');
 }
@@ -46,7 +58,9 @@ const mondays = month => P.dowDates(month, 1);
 const daysOf = async (user, month) => (await store.getSheet(user, month)).days;
 const kindsOf = days => Object.fromEntries(Object.entries(days).map(([d, x]) => [d, x.kind]));
 const auditRows = async month =>
-  await store.db.prepare("SELECT * FROM audit_log WHERE action = 'sheet.onBehalf' AND month = ? ORDER BY id").all(month);
+  await store.db
+    .prepare("SELECT * FROM audit_log WHERE action = 'sheet.onBehalf' AND month = ? ORDER BY id")
+    .all(month);
 const estimateOf = async (month, user) => await F.call('GET', `/periods/${month}/estimates/${user}`);
 
 test('K: Admin lưu lịch tháng cho qa_nv1 → 200, onBehalf true; lịch của qa_nv1 đổi, lịch của Admin không đổi', async () => {
@@ -100,13 +114,10 @@ test('K: khoản OT và phép năm do Admin khai thay được duyệt ngay bở
   // đối chứng: nhân sự tự khai cùng lịch thì chờ duyệt
   const mine = await put('qa_nv3', { month: M, days: { [d0]: OT, [d1]: LEAVE } });
   assert.equal(mine.status, 200, JSON.stringify(mine.data));
-  assert.deepEqual(
-    (await store.approvals
-      .list({ status: 'pending', username: 'qa_nv3' }))
-      .map(r => r.item)
-      .sort(),
-    ['leave', 'ot']
-  );
+  assert.deepEqual((await store.approvals.list({ status: 'pending', username: 'qa_nv3' })).map(r => r.item).sort(), [
+    'leave',
+    'ot'
+  ]);
 });
 
 test('K: mỗi lần lưu khai thay ghi đúng một dòng nhật ký sheet.onBehalf (người khai, người được khai, tháng, số ngày đổi), không ghi nội dung từng ngày', async () => {
@@ -219,14 +230,18 @@ test('K: người đích là TTS khai thay OT hay phép năm vẫn lưu, kèm c�
     ot.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
     JSON.stringify(ot.data.warnings)
   );
-  const leave = await put('qa_nv2', { month: M, user: 'qa_tts1', days: { ...await daysOf('qa_tts1', M), [d1]: LEAVE } });
+  const leave = await put('qa_nv2', {
+    month: M,
+    user: 'qa_tts1',
+    days: { ...(await daysOf('qa_tts1', M)), [d1]: LEAVE }
+  });
   assert.equal(leave.status, 200, JSON.stringify(leave.data));
   assert.ok(
     leave.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
     JSON.stringify(leave.data.warnings)
   );
   assert.deepEqual(await daysOf('qa_nv2', M), {}, 'lịch của người gọi không bị ghi thay');
-  const plain = await put('qa_nv2', { month: M, user: 'qa_tts1', days: { ...await daysOf('qa_tts1', M), [d2]: W } });
+  const plain = await put('qa_nv2', { month: M, user: 'qa_tts1', days: { ...(await daysOf('qa_tts1', M)), [d2]: W } });
   assert.equal(plain.status, 200, JSON.stringify(plain.data));
   assert.equal(plain.data.onBehalf, true);
   assert.deepEqual(kindsOf(await daysOf('qa_tts1', M)), { [d0]: 'work', [d1]: 'leave', [d2]: 'work' });

@@ -47,9 +47,7 @@ watch(month, async m => {
   }
 });
 
-const valid = computed(
-  () => String(form.name || '').trim() !== '' && FIELDS.slice(1).every(key => form[key] != null)
-);
+const valid = computed(() => String(form.name || '').trim() !== '' && FIELDS.slice(1).every(key => form[key] != null));
 
 async function submit() {
   if (!valid.value || saving.value) return;
@@ -67,7 +65,13 @@ async function submit() {
       toast.error('Chưa có thay đổi');
       return;
     }
-    await savePosition({ code: props.row.code, changes, effectiveMonth: m, reason: reason.value.trim(), expectedRev: cur.rev });
+    await savePosition({
+      code: props.row.code,
+      changes,
+      effectiveMonth: m,
+      reason: reason.value.trim(),
+      expectedRev: cur.rev
+    });
     toast.ok(`Đã lưu chức vụ ${String(form.name).trim()}, áp dụng từ ${monthLabel(m).toLowerCase()}`);
     emit('saved');
     emit('close');

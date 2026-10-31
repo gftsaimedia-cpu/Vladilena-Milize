@@ -29,12 +29,19 @@ const profile = {
 };
 
 async function snapshot() {
-  return Object.fromEntries(await Promise.all(tables.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
+  return Object.fromEntries(
+    await Promise.all(
+      tables.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+    )
+  );
 }
 async function call(method, route, body) {
   const response = await fetch(base + '/api' + route, {
     method,
-    headers: { 'Content-Type': 'application/json', Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400) },
+    headers: {
+      'Content-Type': 'application/json',
+      Cookie: auth.cookieHeader(await auth.createSession('admin'), 86400)
+    },
     body: JSON.stringify(body)
   });
   return { status: response.status, data: await response.json() };

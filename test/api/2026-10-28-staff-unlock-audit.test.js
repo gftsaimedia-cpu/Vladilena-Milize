@@ -17,10 +17,13 @@ before(async () => {
 after(F.stop);
 
 const lockRows = async () =>
-  (await store.db
-    .prepare("SELECT action FROM audit_log WHERE action IN ('staff.lock', 'staff.unlock') AND subject = ? ORDER BY id")
-    .all(USER))
-    .map(r => r.action);
+  (
+    await store.db
+      .prepare(
+        "SELECT action FROM audit_log WHERE action IN ('staff.lock', 'staff.unlock') AND subject = ? ORDER BY id"
+      )
+      .all(USER)
+  ).map(r => r.action);
 const revOf = async () => {
   const res = await F.call('GET', '/staff');
   assert.equal(res.status, 200);

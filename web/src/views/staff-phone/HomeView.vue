@@ -37,7 +37,14 @@ const cta = computed(() => {
   if (s.state === 'working') return { cls: '', icon: 'logout', label: 'Check-out', small: `· ${s.now}`, action: 'out' };
   if (s.state === 'done')
     return { cls: 'dis', icon: 'logout', label: 'Đã Check-out', small: `· ${s.checkOut}`, action: null };
-  if (s.locked) return { cls: 'dis', icon: 'login', label: 'Check-in', small: s.lockedAt ? `· mở lúc ${s.lockedAt}` : '', action: null };
+  if (s.locked)
+    return {
+      cls: 'dis',
+      icon: 'login',
+      label: 'Check-in',
+      small: s.lockedAt ? `· mở lúc ${s.lockedAt}` : '',
+      action: null
+    };
   return { cls: 'gold', icon: 'login', label: 'Check-in', small: `· ${s.now}`, action: 'in' };
 });
 

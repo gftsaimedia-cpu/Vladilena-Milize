@@ -54,7 +54,9 @@ async function snapshot() {
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
     .all();
   return Object.fromEntries(
-    await Promise.all(tables.map(async t => [t.name, await store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()]))
+    await Promise.all(
+      tables.map(async t => [t.name, await store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()])
+    )
   );
 }
 const KEY_TABLES = [

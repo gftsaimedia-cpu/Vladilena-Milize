@@ -122,7 +122,10 @@ test('CTV changing a historical iSAT into a new approved leave kind saves with a
   const original = await store.getSheet('worker', '2026-10');
   const result = await save({ ...original.days, [dates[0]]: { kind: 'approved' } });
   assert.equal(result.status, 200, JSON.stringify(result.data));
-  assert.ok(result.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'), JSON.stringify(result.data.warnings));
+  assert.ok(
+    result.data.warnings.some(w => w.code === 'BENEFIT_NOT_ALLOWED'),
+    JSON.stringify(result.data.warnings)
+  );
   assert.equal((await store.getSheet('worker', '2026-10')).days[dates[0]].kind, 'approved');
 });
 

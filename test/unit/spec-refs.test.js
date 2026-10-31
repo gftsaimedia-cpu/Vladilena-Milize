@@ -21,7 +21,17 @@ const FILE_SET = new Set(FILES);
 const BASENAMES = new Set(FILES.map(f => path.basename(f)));
 
 // Đường dẫn chỉ có ở lúc chạy hoặc là đường dẫn URL, không phải file của cây mã
-const RUNTIME = [/^playwright.config.js$/, /* spec nói rõ file này KHÔNG có */ /^\/[\w.-]+\.(html|js)$/, /^\/__sandbox\//, /^out\//, /^cases\.json$/, /^web\/dist\//, /^data\//, /^backups\//, /^\.env/];
+const RUNTIME = [
+  /^playwright.config.js$/,
+  /* spec nói rõ file này KHÔNG có */ /^\/[\w.-]+\.(html|js)$/,
+  /^\/__sandbox\//,
+  /^out\//,
+  /^cases\.json$/,
+  /^web\/dist\//,
+  /^data\//,
+  /^backups\//,
+  /^\.env/
+];
 
 const specs = fs.readdirSync(path.join(ROOT, 'spec')).filter(f => f.endsWith('.md'));
 const REF = /`([A-Za-z0-9_./@-]+\.(?:js|ts|json|md|html|css|sql|cjs|mjs|png|yml|example))`/g;
@@ -55,6 +65,9 @@ test('spec: không dùng neo số dòng file.js:123 (dùng tên hàm/khoá; vị
 
 test('spec: các tên module trong spec/reference/modules.md khớp thư mục src/modules', () => {
   const text = fs.readFileSync(path.join(ROOT, 'spec/reference/modules.md'), 'utf8');
-  const dirs = fs.readdirSync(path.join(ROOT, 'src/modules'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name);
+  const dirs = fs
+    .readdirSync(path.join(ROOT, 'src/modules'), { withFileTypes: true })
+    .filter(e => e.isDirectory())
+    .map(e => e.name);
   for (const d of dirs) assert.ok(text.includes(`| \`${d}\` |`), `modules.md thiếu module ${d}`);
 });

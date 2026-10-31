@@ -53,8 +53,11 @@ test('1c: tính lại kỳ sau khi có khoản duyệt: tổng thu nhập của 
   const nv1 = before.find(r => r.username === 'qa_nv1');
   assert.equal(Object.hasOwn(nv1, 'khoanThem'), false);
   const digestOf = async () =>
-    (await store.db.prepare('SELECT inputs_digest FROM payroll_runs WHERE month = ? ORDER BY run_no DESC LIMIT 1').get(M))
-      .inputs_digest;
+    (
+      await store.db
+        .prepare('SELECT inputs_digest FROM payroll_runs WHERE month = ? ORDER BY run_no DESC LIMIT 1')
+        .get(M)
+    ).inputs_digest;
   const digest1 = await digestOf();
 
   await makeApproved(M); // kỳ đang ở "đã tính": vẫn nhận khoản

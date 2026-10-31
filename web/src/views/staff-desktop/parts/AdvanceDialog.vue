@@ -45,10 +45,22 @@ async function act(fn) {
     <template #footer>
       <span class="sp" />
       <button type="button" class="btn" @click="emit('close')">Đóng</button>
-      <button v-if="data && data.canWithdraw" type="button" class="btn pri" :disabled="busy" @click="act(withdrawStaffAdvance)">
+      <button
+        v-if="data && data.canWithdraw"
+        type="button"
+        class="btn pri"
+        :disabled="busy"
+        @click="act(withdrawStaffAdvance)"
+      >
         Rút yêu cầu
       </button>
-      <button v-else-if="data && data.canRequest" type="button" class="btn pri" :disabled="busy" @click="act(requestStaffAdvance)">
+      <button
+        v-else-if="data && data.canRequest"
+        type="button"
+        class="btn pri"
+        :disabled="busy"
+        @click="act(requestStaffAdvance)"
+      >
         Xin tạm ứng
       </button>
     </template>

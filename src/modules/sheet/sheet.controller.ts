@@ -47,7 +47,7 @@ export class SheetController {
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Tài khoản ngoài bảng lương và không có quyền xem lịch (tài khoản chỉ có vai trò) xem lịch của CHÍNH MÌNH: 200 với lịch trống, không phải 403 "xem bảng của người khác"; Admin nhận bảng đầy đủ
     // (an toàn: không có dữ liệu của ai; payrollSubject false để giao diện ẩn các phần chỉ dành cho người được trả lương)
-    if (who === u.username && !u.payrollSubject && !await authz.can(u, 'attendance.read', { username: who }))
+    if (who === u.username && !u.payrollSubject && !(await authz.can(u, 'attendance.read', { username: who })))
       return send(res, 200, {
         month,
         payrollSubject: false,
@@ -60,23 +60,23 @@ export class SheetController {
         kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
         kpiParts: { complete: false }
       });
-    if (!await authz.can(u, 'attendance.read', { username: who }))
+    if (!(await authz.can(u, 'attendance.read', { username: who })))
       throw new HttpError(403, 'Không được xem bảng của người khác');
     const staff = who === u.username ? u : await store.getStaff(who);
     if (staff && staff.payrollSubject) await closeStale(staff);
     // otherLeave: ngày nghỉ phép năm ở các tháng khác, để giao diện tính số phép còn lại; corrections: yêu cầu điều chỉnh trong tháng
     return send(res, 200, {
-      ...await sheetForViewer(u, who, await estimateSheet(who, month)),
+      ...(await sheetForViewer(u, who, await estimateSheet(who, month))),
       rev: (await store.getSheet(who, month)).rev, // số lần lưu lịch khai; gửi lại làm expectedRev khi PUT /api/sheet
       ...(staff && who !== u.username ? { owner: await ownerView(u, staff, month) } : {}), // hồ sơ tóm tắt người được xem (khai thay)
       attendanceSessions: await sessionsFor({ username: who, month }),
       otherLeave: staff ? (await leaveDates(staff)).filter(d => !d.startsWith(month)) : [],
       neighbors: await neighborDays(who, month),
-      ...await schedule.scheduleView(staff, month),
+      ...(await schedule.scheduleView(staff, month)),
       // Trọng số 5 thành phần KPI của tháng (tham số kpi.weight.*), để màn nhân viên không viết cứng
       kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
       kpiParts: await kpiPartsView(
-        (await hasKpi(staff, await monthParams(month))) && await authz.can(u, 'salary.read', { username: who })
+        (await hasKpi(staff, await monthParams(month))) && (await authz.can(u, 'salary.read', { username: who }))
           ? await store.getKpiScores(who, month)
           : null,
         month,
@@ -120,7 +120,8 @@ export class SheetController {
         store.approvals.declaredItems(clean, { holidays: [...holidays], staffType: u.type, schedule: sched })
       );
       if (onBehalf)
-        decided = (await approveOnBehalf({ caller, owner: u, month, found, prevDays, clean, actx, confirmDays })).decided;
+        decided = (await approveOnBehalf({ caller, owner: u, month, found, prevDays, clean, actx, confirmDays }))
+          .decided;
       return found;
     });
     if (changes.added.length || changes.reset.length || changes.resubmitted.length || changes.removed.length)
@@ -174,7 +175,7 @@ export class SheetController {
       );
     if (typeof shiftCode !== 'string' || !Object.hasOwn(punchRules.SHIFT, shiftCode))
       throw new HttpError(400, 'Ca cố định không hợp lệ', { code: 'SHIFT_UNKNOWN' });
-    shiftCode = await container.shifts.canonicalOf(shiftCode) || shiftCode; // hồ sơ lưu mã của danh mục ca
+    shiftCode = (await container.shifts.canonicalOf(shiftCode)) || shiftCode; // hồ sơ lưu mã của danh mục ca
     // Ngày hiệu lực: ca đổi ngay (không có lịch hiệu lực); chỉ nhận hôm nay hoặc để trống
     if (b.effective !== undefined && b.effective !== null && b.effective !== vnToday())
       throw new HttpError(400, 'Ca có hiệu lực ngay khi lưu: ngày hiệu lực chỉ nhận hôm nay hoặc để trống', {
@@ -214,8 +215,4 @@ export class SheetController {
     });
     return send(res, 200, { ok: true, shiftCode, ...result });
   }
-
-
-
-
 }

@@ -15,8 +15,18 @@ const { AdvanceRequestWindow } = require('../../lib/domain/advance/advance-reque
 
 after(() => store.db.close());
 
-const PARAMS = { 'time.breakHours': DEFAULTS['time.breakHours'], 'time.breakAfterWorkHours': DEFAULTS['time.breakAfterWorkHours'] };
-const ot = (extraOut, extraIn = '') => ({ kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraIn, extraOut });
+const PARAMS = {
+  'time.breakHours': DEFAULTS['time.breakHours'],
+  'time.breakAfterWorkHours': DEFAULTS['time.breakAfterWorkHours']
+};
+const ot = (extraOut, extraIn = '') => ({
+  kind: 'work',
+  in: '08:00',
+  out: '17:00',
+  extraKind: 'ot',
+  extraIn,
+  extraOut
+});
 const days = n =>
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`2026-10-${String(i + 1).padStart(2, '0')}`, ot('21:00')]));
 const codeOf = c => err => err.status === 400 && err.details?.code === c;
@@ -39,7 +49,11 @@ test('RuleSet: duyệt theo thứ tự đăng ký, vi phạm chặn đầu tiên
   ]);
   await assert.rejects(
     () => set.check({}),
-    err => err.status === 400 && err.message === 'chặn A' && err.details.code === 'RULE_A' && err.details.date === '2026-10-01'
+    err =>
+      err.status === 400 &&
+      err.message === 'chặn A' &&
+      err.details.code === 'RULE_A' &&
+      err.details.date === '2026-10-01'
   );
   const listed = [];
   for await (const violation of await set.violations({})) listed.push(violation);
@@ -51,7 +65,10 @@ test('RuleSet: duyệt theo thứ tự đăng ký, vi phạm chặn đầu tiên
 });
 
 test('RuleSet: vi phạm cảnh báo đi qua warnIf (không ném) và rồi chạy tiếp tới luật sau', async () => {
-  const set = new RuleSet([new Always(Violation.warn('W_ONE', 'cảnh báo một', 'hệ quả.')), new Always(Violation.warn('W_TWO', 'cảnh báo hai'))]);
+  const set = new RuleSet([
+    new Always(Violation.warn('W_ONE', 'cảnh báo một', 'hệ quả.')),
+    new Always(Violation.warn('W_TWO', 'cảnh báo hai'))
+  ]);
   const got = await warnings.run(async () => {
     await set.check({});
     return warnings.take();
@@ -77,7 +94,8 @@ test('OtLimits: mặc định 12 giờ/ngày và 40 giờ/tháng từ registry; 
   assert.equal(defaults.monthCap, DEFAULTS[OtLimits.MONTH_KEY]);
   assert.equal(OtLimits.of({ [OtLimits.MONTH_KEY]: 100 }).monthCap, 100);
   assert.equal(OtLimits.of({ [OtLimits.MONTH_KEY]: 100 }).dayCap, defaults.dayCap, 'khoá vắng thì rơi về mặc định');
-  for (const bad of [0, -1, NaN, '40', null]) assert.throws(() => OtLimits.of({ [OtLimits.MONTH_KEY]: bad }), /số dương/);
+  for (const bad of [0, -1, NaN, '40', null])
+    assert.throws(() => OtLimits.of({ [OtLimits.MONTH_KEY]: bad }), /số dương/);
 });
 
 test('MỘT nguồn trần OT: đổi law.ceiling.otMonthHours trong bộ tham số thì kiểm lưu lịch theo số mới, không sửa chỗ nào khác', async () => {
@@ -87,7 +105,11 @@ test('MỘT nguồn trần OT: đổi law.ceiling.otMonthHours trong bộ tham s
   const eleven = await days(11); // 44 giờ OT
   await assert.rejects(() => check({}, eleven), codeOf('OT_MONTH_CAP'), 'trần mặc định 40 chặn 44 giờ');
   await assert.doesNotReject(() => check({ [OtLimits.MONTH_KEY]: 100 }, eleven), 'nâng trần lên 100 thì 44 giờ được');
-  await assert.rejects(async () => check({ [OtLimits.MONTH_KEY]: 100 }, await days(26)), codeOf('OT_MONTH_CAP'), '104 giờ vẫn vượt 100');
+  await assert.rejects(
+    async () => check({ [OtLimits.MONTH_KEY]: 100 }, await days(26)),
+    codeOf('OT_MONTH_CAP'),
+    '104 giờ vẫn vượt 100'
+  );
 });
 
 test('MỘT nguồn trần giờ ngày: hạ law.ceiling.otDayTotalHours xuống 10 thì ngày 11 giờ ròng bị chặn', async () => {
@@ -124,7 +146,10 @@ test('AdvanceRequestWindow: chỉ mở ngày 16 và 17, tháng xin phải là th
   assert.equal(window.isOpen('2026-10-16'), true);
   assert.equal(window.isOpen('2026-10-18'), false);
   assert.deepEqual(await window.view('2026-10-17'), { days: [16, 17], open: true });
-  assert.throws(() => window.assertOpen('2026-10-01'), err => err.status === 409 && err.details.code === 'ADVANCE_WINDOW_CLOSED');
+  assert.throws(
+    () => window.assertOpen('2026-10-01'),
+    err => err.status === 409 && err.details.code === 'ADVANCE_WINDOW_CLOSED'
+  );
   assert.throws(
     () => window.assertMonthCurrent('2026-09', '2026-10-16'),
     err => err.status === 409 && err.details.code === 'ADVANCE_MONTH_NOT_CURRENT'

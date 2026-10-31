@@ -31,7 +31,8 @@ const wrap = async fn => {
   }
 };
 // Người xem được yêu cầu của người khác: có quyền duyệt (ở phạm vi tất cả) hoặc xem lương
-const viewsAll = async me => await authz.scopeOf(me, advances.DECIDE_CAP) === 'all' || await authz.scopeOf(me, 'payroll.view') === 'all';
+const viewsAll = async me =>
+  (await authz.scopeOf(me, advances.DECIDE_CAP)) === 'all' || (await authz.scopeOf(me, 'payroll.view')) === 'all';
 
 export async function list({ res, url, me }) {
   const q = url.searchParams;
@@ -44,10 +45,13 @@ export async function list({ res, url, me }) {
   if (asked !== undefined && asked !== me.username && !all)
     throw new HttpError(403, 'Chỉ xem được yêu cầu ứng lương của chính mình', { code: 'FORBIDDEN_CAP' });
   const target = asked !== undefined ? asked : all ? undefined : me.username;
-  const items = await AsyncList.map((await wrap(async () => await advances.list({ month, username: target, status }))), async r => {
-    const person = await store.getStaff(r.username);
-    return { ...r, name: person ? person.name : r.username };
-  });
+  const items = await AsyncList.map(
+    await wrap(async () => await advances.list({ month, username: target, status })),
+    async r => {
+      const person = await store.getStaff(r.username);
+      return { ...r, name: person ? person.name : r.username };
+    }
+  );
   return send(res, 200, {
     month,
     scope: target === undefined ? 'all' : target === me.username ? 'self' : 'person',

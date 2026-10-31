@@ -26,13 +26,18 @@ const final = computed(() => props.variant === 'final');
 const aiCol = computed(() => agents.value && (review.value || final.value));
 const widths = computed(() => {
   const w = WIDTHS[props.variant];
-  return w && !aiCol.value && AI_COL[props.variant] != null ? w.filter((_, i) => i !== AI_COL[props.variant]) : w || null;
+  return w && !aiCol.value && AI_COL[props.variant] != null
+    ? w.filter((_, i) => i !== AI_COL[props.variant])
+    : w || null;
 });
 const draft11 = computed(() => props.variant === 'draft11');
 const estimated = computed(() => !final.value);
 
 const moneyCls = v => (v === 0 ? 'z' : estimated.value ? 'est' : '');
-const rowCls = r => ({ err: r.status === 'failed', warn: agents.value && review.value && r.status === 'pending' && r.ai > 0 });
+const rowCls = r => ({
+  err: r.status === 'failed',
+  warn: agents.value && review.value && r.status === 'pending' && r.ai > 0
+});
 const pillOf = s =>
   s === 'approved'
     ? ['p-done', 'Đã phê duyệt']

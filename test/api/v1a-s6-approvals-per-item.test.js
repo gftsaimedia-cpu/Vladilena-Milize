@@ -56,7 +56,8 @@ const refs = items => items.map(x => ({ username: x.username, date: x.date, rev:
 const decide = async (who, items, action = 'approve', note) =>
   await F.call('PUT', '/approvals/decide', { who, body: { action, items, ...(note ? { note } : {}) } });
 const statusOf = async date =>
-  (await store.db.prepare('SELECT status FROM sheet_approvals WHERE username = ? AND date = ?').get(WORKER, date)).status;
+  (await store.db.prepare('SELECT status FROM sheet_approvals WHERE username = ? AND date = ?').get(WORKER, date))
+    .status;
 const adminItems = async () => (await queue('admin')).data.items;
 const visible = res => (res.status === 200 ? res.data.items : []);
 

@@ -33,7 +33,8 @@ const mustOverride = async (month, values) => {
 const rowsOf = async month => await P.slipRows(month);
 const rowOf = async (month, user = USER) => (await rowsOf(month)).find(row => row.username === user);
 const totalsOf = async month => (await F.call('GET', `/periods/${month}`)).data.totals;
-const detailOf = async (month, user = USER, who = 'admin') => await F.call('GET', `/periods/${month}/payslips/${user}`, { who });
+const detailOf = async (month, user = USER, who = 'admin') =>
+  await F.call('GET', `/periods/${month}/payslips/${user}`, { who });
 // Số tự tính đã lưu của phiếu (đọc thẳng bảng payslips, bản chụp không đổi được)
 const storedOf = async (month, user = USER) => figsOf((await flow.payslipsOf(month)).slips[user]);
 const storedRows = async month => Object.values((await flow.payslipsOf(month)).slips);
@@ -70,7 +71,11 @@ test('Số chi trả: không có số đã sửa thì mọi số của danh sác
 test('Số chi trả: có lưu số đã sửa nhưng bằng đúng số tự tính (chuyên cần 0 ₫ của người không có chuyên cần) thì số vẫn bằng số tự tính từng đồng', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
-  assert.equal((await flow.payslipsOf(M)).slips[USER].snapshot.attendance ?? 0, 0, 'điều kiện: chuyên cần tự tính là 0');
+  assert.equal(
+    (await flow.payslipsOf(M)).slips[USER].snapshot.attendance ?? 0,
+    0,
+    'điều kiện: chuyên cần tự tính là 0'
+  );
   const before = figsOf(await rowOf(M));
   await mustOverride(M, { attendance: 0 });
   assert.deepEqual(figsOf(await rowOf(M)), before);
@@ -231,7 +236,9 @@ test('Số chi trả: sau khi duyệt kỳ, số sửa đã đóng băng vào ph
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
 
-  const run = await store.db.prepare("SELECT status FROM payroll_runs WHERE month = ? AND status != 'superseded'").get(M);
+  const run = await store.db
+    .prepare("SELECT status FROM payroll_runs WHERE month = ? AND status != 'superseded'")
+    .get(M);
   assert.equal(run.status, 'final', 'duyệt kỳ chốt lần chạy');
   const frozen = await store.db
     .prepare(
@@ -257,7 +264,10 @@ test('Số chi trả: sau khi duyệt kỳ, số sửa đã đóng băng vào ph
   // và sửa tiếp từ kỳ đã duyệt chỉ cảnh báo PERIOD_LOCKED, số chi trả vẫn theo số đã đóng băng
   const warned = await override(M, { kpiPay: 5 });
   assert.equal(warned.status, 200, JSON.stringify(warned.data));
-  assert.ok(warned.data.warnings.some(w => w.code === 'PERIOD_LOCKED'), JSON.stringify(warned.data.warnings));
+  assert.ok(
+    warned.data.warnings.some(w => w.code === 'PERIOD_LOCKED'),
+    JSON.stringify(warned.data.warnings)
+  );
   assert.deepEqual(figsOf(await rowOf(M)), paid);
 });
 

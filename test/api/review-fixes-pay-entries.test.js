@@ -12,12 +12,10 @@ before(F.start);
 after(F.stop);
 
 const ACCOUNTANT = 'qa_ctv1'; // Kế toán (config.legal), cũng là nhân sự được trả lương nên không tự xác nhận khoản của mình
-const confirm = async (id, body, who = ACCOUNTANT) => await F.call('POST', `/pay-entries/${id}/confirm-flags`, { who, body });
+const confirm = async (id, body, who = ACCOUNTANT) =>
+  await F.call('POST', `/pay-entries/${id}/confirm-flags`, { who, body });
 const auditReasons = async action =>
-  (await F.store.db
-    .prepare('SELECT reason FROM audit_log WHERE action = ?')
-    .all(action))
-    .map(r => r.reason);
+  (await F.store.db.prepare('SELECT reason FROM audit_log WHERE action = ?').all(action)).map(r => r.reason);
 
 test('1c-4: xác nhận cờ thuế của khoản: căn cứ không bắt buộc (thiếu vẫn 200), có căn cứ thì vào nhật ký', async () => {
   const M = await E.setup();
@@ -105,7 +103,10 @@ test('1c-4: nhập hàng loạt dạng entries: dòng trùng hẳn (cùng ngư�
   };
   const dup = await F.call('POST', '/pay-entries/bulk', { body: { month: M, entries: [line, { ...line }] } });
   assert.equal(dup.status, 200, JSON.stringify(dup.data));
-  assert.ok(dup.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'), JSON.stringify(dup.data.warnings));
+  assert.ok(
+    dup.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'),
+    JSON.stringify(dup.data.warnings)
+  );
   assert.equal(dup.data.count, 2);
   const N = await E.setup();
   const mixed = await F.call('POST', '/pay-entries/bulk', {
@@ -129,7 +130,10 @@ test('1c-4: nhập hàng loạt dạng usernames: tên trùng (kể cả khác h
     }
   });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'DUPLICATE_ENTRY'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.equal(res.data.count, 2);
 });
 
@@ -138,7 +142,10 @@ test('1c-4: người khác sửa khoản đang chờ duyệt vẫn lưu, kèm c�
   const e = await E.mustCreate(M);
   const res = await F.call('PUT', `/pay-entries/${e.id}`, { who: CHECKER, body: { rev: e.rev, amount: 999000 } });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'EDIT_CREATOR_ONLY'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'EDIT_CREATOR_ONLY'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.equal(res.data.entry.amount, 999000);
   const own = await F.call('PUT', `/pay-entries/${e.id}`, {
     who: MAKER,

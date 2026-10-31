@@ -33,18 +33,8 @@ const GROUPS = [
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]
   ],
-  [
-    'Đội ngũ',
-    [
-      ['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']
-    ]
-  ],
-  [
-    'Phân tích',
-    [
-      ['tro-ly', 'spark', 'Trợ lý AI', '/admin/tro-ly-ai']
-    ]
-  ]
+  ['Đội ngũ', [['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']]],
+  ['Phân tích', [['tro-ly', 'spark', 'Trợ lý AI', '/admin/tro-ly-ai']]]
 ];
 // Mục Trợ lý AI chỉ có khi công tắc Agents bật
 const groups = computed(() =>

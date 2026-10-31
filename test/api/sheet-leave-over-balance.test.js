@@ -45,7 +45,8 @@ before(async () => {
   base = 'http://127.0.0.1:' + server.address().port;
 });
 beforeEach(async () => {
-  for (const table of ['sheet_approvals', 'timesheets', 'staff', 'settings']) await store.db.exec('DELETE FROM ' + table);
+  for (const table of ['sheet_approvals', 'timesheets', 'staff', 'settings'])
+    await store.db.exec('DELETE FROM ' + table);
   await person('admin', { role: 'admin', type: 'tts', level: 0 });
 });
 after(async () => {

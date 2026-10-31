@@ -215,7 +215,7 @@ test('đổi ca đang mở không đổi ca/ngày công của lần check-in', a
   await punch(u, '2026-10-09T17:00:00', 'out');
   assert.equal((await day('changed', '2026-10-09')).in, '08:00');
   assert.equal((await day('changed', '2026-10-09')).plannedShift.code, 'Normal1'); // hồ sơ lưu mã ca dạng Normal1 …
-  assert.ok(!await day('changed', '2026-10-08'));
+  assert.ok(!(await day('changed', '2026-10-08')));
 });
 
 test('quên checkout sau khi đổi ca vẫn đánh dấu đúng ngày công cũ', async () => {
@@ -238,7 +238,7 @@ test('quên checkout sau khi đổi ca vẫn đánh dấu đúng ngày công cũ
   assert.equal((await call(u, 'GET', '/punch')).status, 200);
   assert.equal((await day('changed-forgot', '2026-10-09')).reason, 'forgot-out');
   assert.equal((await day('changed-forgot', '2026-10-09')).plannedShift.code, 'Normal1'); // hồ sơ lưu mã ca dạng Normal1 …
-  assert.ok(!await day('changed-forgot', '2026-10-08'));
+  assert.ok(!(await day('changed-forgot', '2026-10-08')));
 });
 
 test('đêm qua tháng, trễ sau 0h vẫn thuộc ngày ca cũ và không tạo ngày giả', async () => {
@@ -249,7 +249,7 @@ test('đêm qua tháng, trễ sau 0h vẫn thuộc ngày ca cũ và không tạo
   await punch(u, '2026-10-01T00:30:00', 'in');
   await punch(u, '2026-10-01T07:00:00', 'out');
   assert.equal((await day('overnight', '2026-09-30')).reason, 'incomplete-shift');
-  assert.ok(!await day('overnight', '2026-10-01'));
+  assert.ok(!(await day('overnight', '2026-10-01')));
   assert.equal(
     (
       await call(u, 'PUT', '/sheet', {
@@ -311,21 +311,27 @@ sqliteOnly('migration giữ lịch sử cũ và trả lịch ước tính có th
   assert.deepEqual(await day('legacy', '2026-10-06'), legacyFirst, 'xoá lịch ước tính vẫn giữ bản ghi Admin');
 });
 
-sqliteOnly('lịch cũ qua ranh giới tháng lưu lại được; sửa chồng giờ vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP', async () => {
-  const u = await person('legacy-edge', 'g2');
-  for (const month of ['2026-08', '2026-09']) {
-    const r = await call(u, 'GET', '/sheet?month=' + month);
-    assert.equal(r.status, 200);
-    const saved = await call(u, 'PUT', '/sheet', { month, days: r.data.days });
-    assert.equal(saved.status, 200, JSON.stringify(saved.data));
+sqliteOnly(
+  'lịch cũ qua ranh giới tháng lưu lại được; sửa chồng giờ vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP',
+  async () => {
+    const u = await person('legacy-edge', 'g2');
+    for (const month of ['2026-08', '2026-09']) {
+      const r = await call(u, 'GET', '/sheet?month=' + month);
+      assert.equal(r.status, 200);
+      const saved = await call(u, 'PUT', '/sheet', { month, days: r.data.days });
+      assert.equal(saved.status, 200, JSON.stringify(saved.data));
+    }
+    const changed = { '2026-09-01': { kind: 'work', in: '06:30', out: '15:30' } };
+    const overlap = await call(u, 'PUT', '/sheet', { month: '2026-09', days: changed });
+    assert.equal(overlap.status, 200, JSON.stringify(overlap.data));
+    assert.ok(
+      overlap.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'),
+      JSON.stringify(overlap.data.warnings)
+    );
+    assert.deepEqual(await day('legacy-edge', '2026-08-31'), legacyEdgePrev);
+    assert.deepEqual(await day('legacy-edge', '2026-09-01'), legacyEdgeNext);
   }
-  const changed = { '2026-09-01': { kind: 'work', in: '06:30', out: '15:30' } };
-  const overlap = await call(u, 'PUT', '/sheet', { month: '2026-09', days: changed });
-  assert.equal(overlap.status, 200, JSON.stringify(overlap.data));
-  assert.ok(overlap.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'), JSON.stringify(overlap.data.warnings));
-  assert.deepEqual(await day('legacy-edge', '2026-08-31'), legacyEdgePrev);
-  assert.deepEqual(await day('legacy-edge', '2026-09-01'), legacyEdgeNext);
-});
+);
 
 test('lịch ước tính chồng giờ thật giữa hai ngày vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP', async () => {
   const u = await person('manual-overlap', 'g2');
@@ -335,7 +341,10 @@ test('lịch ước tính chồng giờ thật giữa hai ngày vẫn lưu, kèm
   };
   const res = await call(u, 'PUT', '/sheet', { month: '2026-10', days });
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.deepEqual(Object.keys((await store.getSheet('manual-overlap', '2026-10')).days), ['2026-10-06', '2026-10-07']);
   assert.deepEqual(await ATT('manual-overlap', '2026-10'), []);
 });

@@ -86,7 +86,10 @@ async function seedMonth(month, { startDate = '2026-01-05', punches = true } = {
   const holiday = datesOf(month).find(d => dowOf(d) === 3 && d > `${month}-04`); // một ngày Thứ Tư
   await store.setSetting('holidays', [holiday]);
   for (const p of PEOPLE) {
-    const res = await F.call('PUT', '/sheet', { who: p.username, body: { month, days: await sheetOf(p, month, holiday) } });
+    const res = await F.call('PUT', '/sheet', {
+      who: p.username,
+      body: { month, days: await sheetOf(p, month, holiday) }
+    });
     if (res.status !== 200)
       throw new Error(`dựng lịch ${p.username} ${month}: ${res.status} ${JSON.stringify(res.data)}`);
   }
@@ -149,10 +152,16 @@ async function legacyInput(username, month) {
   }
   return JSON.parse(
     JSON.stringify({
-      staff: (await service.payrollPeople(month)).find(s => s.username === username) || await store.getStaff(username),
+      staff:
+        (await service.payrollPeople(month)).find(s => s.username === username) || (await store.getStaff(username)),
       days,
       approvals: await store.approvals.forSheet(username, month),
-      sessions: (await store.listSessions({ username })).map(s => ({ id: s.id, state: s.state, date: s.date, entry: s.entry })),
+      sessions: (await store.listSessions({ username })).map(s => ({
+        id: s.id,
+        state: s.state,
+        date: s.date,
+        entry: s.entry
+      })),
       kpi: { pct: sheet.kpiPct ?? null, amt: sheet.kpiAmt ?? null, admPct: null, admAmt: null },
       holidays: await store.getSetting('holidays', []),
       month,
@@ -170,10 +179,12 @@ async function expectedFor(month, { withoutBlocks = false } = {}) {
     ? Object.fromEntries(Object.entries(resolved).filter(([key]) => !key.startsWith('block.def.')))
     : resolved;
   return Object.fromEntries(
-    await Promise.all(PEOPLE.map(async p => {
-      const { m } = service.engineFor(params).computeMonth(await legacyInput(p.username, month));
-      return [p.username, { m, total: m.total, net: m.net }];
-    }))
+    await Promise.all(
+      PEOPLE.map(async p => {
+        const { m } = service.engineFor(params).computeMonth(await legacyInput(p.username, month));
+        return [p.username, { m, total: m.total, net: m.net }];
+      })
+    )
   );
 }
 

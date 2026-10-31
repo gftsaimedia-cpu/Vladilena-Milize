@@ -25,16 +25,20 @@ async function person(username, role = 'staff', type = 'nv', shiftCode = 'n1') {
   });
 }
 async function snapshot() {
-  return Object.fromEntries(await Promise.all([
-      'staff',
-      'timesheets',
-      'settings',
-      'attendance_days',
-      'attendance_sessions',
-      'punches',
-      'corrections',
-      'punch_requests'
-    ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])));
+  return Object.fromEntries(
+    await Promise.all(
+      [
+        'staff',
+        'timesheets',
+        'settings',
+        'attendance_days',
+        'attendance_sessions',
+        'punches',
+        'corrections',
+        'punch_requests'
+      ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+    )
+  );
 }
 async function call(method, route, { who = 'admin', body } = {}) {
   const response = await fetch(base + '/api' + route, {
@@ -162,7 +166,10 @@ for (const [who, label, max] of [
   test(`U4: PUT /sheet với kpiAmt vượt KPI tối đa của ${label} vẫn lưu, kèm cảnh báo KPI_OVER_CAP`, async () => {
     const r = await putSheet(who, {}, { kpiPct: 80, kpiAmt: max + 1 });
     assert.equal(r.status, 200, JSON.stringify(r.data));
-    assert.ok(r.data.warnings.some(w => w.code === 'KPI_OVER_CAP'), JSON.stringify(r.data.warnings));
+    assert.ok(
+      r.data.warnings.some(w => w.code === 'KPI_OVER_CAP'),
+      JSON.stringify(r.data.warnings)
+    );
     assert.equal((await sheet(who)).kpiAmt, max + 1);
   });
   test(`U4: PUT /sheet nhận kpiAmt đúng bằng KPI tối đa, không cảnh báo của ${label}`, async () => {

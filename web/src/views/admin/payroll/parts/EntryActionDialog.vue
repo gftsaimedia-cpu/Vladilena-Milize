@@ -3,12 +3,7 @@
 import { computed, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import {
-  confirmPayEntryFlags,
-  decidePayEntry,
-  editPayEntry,
-  voidPayEntry
-} from '@/services/admin-payroll.js';
+import { confirmPayEntryFlags, decidePayEntry, editPayEntry, voidPayEntry } from '@/services/admin-payroll.js';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({
@@ -48,8 +43,10 @@ async function submit() {
         amount: Number(String(form.amount).replace(/\D/g, '')),
         reason: form.text
       });
-    else if (props.kind === 'approve') await decidePayEntry(props.item.id, { rev, decision: 'approved', note: form.text });
-    else if (props.kind === 'reject') await decidePayEntry(props.item.id, { rev, decision: 'rejected', note: form.text });
+    else if (props.kind === 'approve')
+      await decidePayEntry(props.item.id, { rev, decision: 'approved', note: form.text });
+    else if (props.kind === 'reject')
+      await decidePayEntry(props.item.id, { rev, decision: 'rejected', note: form.text });
     else if (props.kind === 'void') await voidPayEntry(props.item.id, { rev, reason: form.text });
     else await confirmPayEntryFlags(props.item.id, { rev, basis: form.text });
     emit('done');

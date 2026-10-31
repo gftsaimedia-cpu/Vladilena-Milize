@@ -141,17 +141,21 @@ test(
   }
 );
 
-test('Tổng thu nhập ghép theo cấu trúc khối cũ, sau Math.round bằng đúng gross (đồng) của 300 ca vàng', opts, async () => {
-  const Formula = await load();
-  const tree = treeOf(Formula, 'Tổng thu nhập = tiền ngày công + (đi lại + chuyên cần) + lương KPI');
-  const wrong = compare(
-    cases(),
-    c => c.gross,
-    c => Math.round(Formula.evaluate(tree, ctxOf(c))),
-    bitExact
-  );
-  assert.deepEqual(wrong, []);
-});
+test(
+  'Tổng thu nhập ghép theo cấu trúc khối cũ, sau Math.round bằng đúng gross (đồng) của 300 ca vàng',
+  opts,
+  async () => {
+    const Formula = await load();
+    const tree = treeOf(Formula, 'Tổng thu nhập = tiền ngày công + (đi lại + chuyên cần) + lương KPI');
+    const wrong = compare(
+      cases(),
+      c => c.gross,
+      c => Math.round(Formula.evaluate(tree, ctxOf(c))),
+      bitExact
+    );
+    assert.deepEqual(wrong, []);
+  }
+);
 
 test(
   'Câu chính xác của chủ dự án (phẳng, kết hợp trái): lệch m.total dưới 1e-6 và gross sau Math.round bằng nhau trên 300 ca',

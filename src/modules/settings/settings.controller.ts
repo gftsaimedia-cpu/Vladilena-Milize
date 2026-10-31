@@ -47,9 +47,9 @@ export class SettingsController {
     await store.transaction(async () => {
       const conflicts = [];
       const holidayParams = await monthParams();
-      for (const staff of (await store
-        .listStaff())
-        .filter(s => s.payrollSubject && benefitOf(holidayParams, s.type, 'leaveAccount', s.level))) {
+      for (const staff of (await store.listStaff()).filter(
+        s => s.payrollSubject && benefitOf(holidayParams, s.type, 'leaveAccount', s.level)
+      )) {
         const before = await leaveDates(staff),
           after = await leaveDates(staff, undefined, clean);
         for (const date of after) {

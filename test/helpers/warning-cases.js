@@ -30,7 +30,9 @@ const sheetCase = (id, title, { who = 'qa_ctv1', days, message, saved, setup, ex
   setup,
   fire: async ctx => await sheet(who, ctx.M, await days(ctx), extra && extra(ctx)),
   warn: { message },
-  saved: saved || (async (ctx, res) => assert.ok(Object.keys((await store.getSheet(who, ctx.M)).days).length > 0, 'lịch đã lưu'))
+  saved:
+    saved ||
+    (async (ctx, res) => assert.ok(Object.keys((await store.getSheet(who, ctx.M)).days).length > 0, 'lịch đã lưu'))
 });
 const sunday = ctx => S.firstDow(ctx.M, 0);
 const monday = ctx => S.firstDow(ctx.M, 1);
@@ -189,7 +191,7 @@ const CASES = [
         extra: { basis: 'Căn cứ thử', acknowledge: [{ key: 'night.breakPremium', code: 'PARAM_FLOOR_ACK_REQUIRED' }] }
       }),
     warn: { codes: ['PARAM_BELOW_LEGAL_FLOOR'] },
-    saved: async () => assert.ok(await S.rowCount() > 0, 'đã lưu một phiên bản tham số')
+    saved: async () => assert.ok((await S.rowCount()) > 0, 'đã lưu một phiên bản tham số')
   },
 
   /* ---------- lịch ước tính ---------- */
@@ -301,7 +303,7 @@ const CASES = [
       return await S.saveChanges([{ key: key.key, value }], { month: FAR_MONTH, reason: undefined });
     },
     warn: { optional: true },
-    saved: async () => assert.ok(await S.rowCount() > 0)
+    saved: async () => assert.ok((await S.rowCount()) > 0)
   },
   {
     id: 'E3',
@@ -317,7 +319,7 @@ const CASES = [
       });
     },
     warn: { codes: ['PARAM_FLOOR_ACK_REQUIRED'] },
-    saved: async () => assert.ok(await S.rowCount() > 0)
+    saved: async () => assert.ok((await S.rowCount()) > 0)
   },
   {
     id: 'E2',
@@ -334,7 +336,7 @@ const CASES = [
       });
     },
     warn: { optional: true },
-    saved: async () => assert.ok(await S.rowCount() > 0)
+    saved: async () => assert.ok((await S.rowCount()) > 0)
   },
 
   /* ---------- hồ sơ, tài khoản ---------- */

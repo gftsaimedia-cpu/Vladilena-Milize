@@ -61,7 +61,10 @@ export function buildAlerts(idx) {
     key: g.key,
     name: g.name,
     col: g.col,
-    items: g.keys.map(k => byId.get(k)).filter(e => e && e.instances && e.instances.length).map(item)
+    items: g.keys
+      .map(k => byId.get(k))
+      .filter(e => e && e.instances && e.instances.length)
+      .map(item)
   })).filter(g => g.items.length);
   const all = groups.flatMap(g => g.items);
   const locked = all.filter(i => i.status === 'locked').length;
@@ -70,5 +73,8 @@ export function buildAlerts(idx) {
 
 export const alertsWanted = draft =>
   draft.groups.flatMap(g =>
-    g.items.map(i => [i.key, i.value === '' || i.value == null ? i.value : i.ratio ? fromPct(i.value) : Number(i.value)])
+    g.items.map(i => [
+      i.key,
+      i.value === '' || i.value == null ? i.value : i.ratio ? fromPct(i.value) : Number(i.value)
+    ])
   );

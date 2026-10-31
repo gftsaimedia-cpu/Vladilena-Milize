@@ -92,7 +92,7 @@ export async function cleanDays(days: any) {
       const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
       // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/sheet-checks.js → checkExtraTimes
       checkExtraTimes(date, d, { extraKind, extraIn, extraOut });
-      if (d.preset != null && d.preset !== '' && !await isShiftCode(d.preset))
+      if (d.preset != null && d.preset !== '' && !(await isShiftCode(d.preset)))
         throw new HttpError(400, `Ngày ${dm(date)}: ca chọn sẵn không hợp lệ`);
       const breakMin = d.breakMin == null ? 0 : d.breakMin;
       if (!Number.isInteger(breakMin) || breakMin < 0 || breakMin > 1440)

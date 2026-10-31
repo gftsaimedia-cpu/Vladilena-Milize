@@ -31,10 +31,15 @@ async function setup(month) {
   for (const role of ['hr', 'manager', 'accounting', 'cb']) await S.grant(ACCOUNT[role], role);
   await S.setMode('defaults-only');
 }
-const state = async () => ({ tables: await F.snapshot(), configRev: await S.configRev(), mode: await store.params.getMode() });
+const state = async () => ({
+  tables: await F.snapshot(),
+  configRev: await S.configRev(),
+  mode: await store.params.getMode()
+});
 const MAX_PEOPLE = () => S.DEFAULTS['system.params.previewMaxPeople'] ?? 50;
 // Thực lĩnh và tổng thu nhập của một người theo bộ máy với một bộ tham số: chuẩn để so với before/after của xem trước
-const engineNet = async (username, month, params) => Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
+const engineNet = async (username, month, params) =>
+  Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
 const body = (changes, month) => ({ changes, effectiveMonth: month });
 const codesOf = data => (data.errors || []).map(e => e.code);
 
@@ -60,7 +65,7 @@ test(
     assert.ok(row, 'người dùng khoá đó có trong danh sách');
     assert.equal(typeof row.name, 'string');
     const before = await engineNet(money.user, M, await flow.paramsOf(M));
-    const after = await engineNet(money.user, M, { ...await flow.paramsOf(M), [money.key]: money.value });
+    const after = await engineNet(money.user, M, { ...(await flow.paramsOf(M)), [money.key]: money.value });
     assert.notEqual(after.net, before.net, 'điều kiện của bài: đổi khoá làm đổi thực lĩnh');
     // before/after/diff là đối tượng { gross, net }
     assert.deepEqual(row.before, { gross: before.gross, net: before.net });
@@ -190,20 +195,16 @@ test(
   }
 );
 
-test(
-  'R1 preview: tháng hiệu lực đã khoá là 200 ok:true kèm cảnh báo PERIOD_LOCKED',
-  S.READY,
-  async () => {
-    await S.setupMonth('2026-10', 'calculated');
-    await S.setMode('defaults-only');
-    const base = await S.adminKey();
-    const res = await S.preview(body([{ key: base.key, value: base.value }], '2026-10'));
-    assert.equal(res.status, 200);
-    assert.equal(res.data.ok, true, JSON.stringify(res.data.errors));
-    const locked = res.data.warnings.find(e => e.code === 'PERIOD_LOCKED');
-    assert.ok(locked, JSON.stringify(res.data.warnings));
-  }
-);
+test('R1 preview: tháng hiệu lực đã khoá là 200 ok:true kèm cảnh báo PERIOD_LOCKED', S.READY, async () => {
+  await S.setupMonth('2026-10', 'calculated');
+  await S.setMode('defaults-only');
+  const base = await S.adminKey();
+  const res = await S.preview(body([{ key: base.key, value: base.value }], '2026-10'));
+  assert.equal(res.status, 200);
+  assert.equal(res.data.ok, true, JSON.stringify(res.data.errors));
+  const locked = res.data.warnings.find(e => e.code === 'PERIOD_LOCKED');
+  assert.ok(locked, JSON.stringify(res.data.warnings));
+});
 
 test(
   'R1 preview: khoá không đổi tiền (ngưỡng AI) cho tác động rỗng: 0 người bị ảnh hưởng',

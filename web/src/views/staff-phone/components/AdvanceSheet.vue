@@ -45,7 +45,13 @@ async function act(fn) {
       <button v-if="data && data.canWithdraw" type="button" class="pri" :disabled="busy" @click="act(withdrawAdvance)">
         Rút yêu cầu
       </button>
-      <button v-else-if="data && data.canRequest" type="button" class="pri" :disabled="busy" @click="act(requestAdvance)">
+      <button
+        v-else-if="data && data.canRequest"
+        type="button"
+        class="pri"
+        :disabled="busy"
+        @click="act(requestAdvance)"
+      >
         Xin tạm ứng
       </button>
     </div>

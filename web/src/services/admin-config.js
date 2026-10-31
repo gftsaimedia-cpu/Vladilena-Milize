@@ -94,7 +94,12 @@ export async function previewBenefits(draft) {
   const edits = diffEdits(idx, benefitsWanted(idx, base, draft));
   if (!edits.length) return { ok: true, errors: [], warnings: [], totals: null };
   const res = await previewParams({ changes: edits, effectiveMonth: idx.month });
-  return { ok: res.ok, errors: res.errors || [], warnings: res.warnings || [], totals: res.impact ? res.impact.totals : null };
+  return {
+    ok: res.ok,
+    errors: res.errors || [],
+    warnings: res.warnings || [],
+    totals: res.impact ? res.impact.totals : null
+  };
 }
 
 // ---------- Tất cả cài đặt ----------
@@ -118,9 +123,7 @@ function historyOf(idx, item) {
           pk: r.field.pk,
           label: r.label,
           show:
-            r.field.type === 'seg'
-              ? v => r.field.options[r.field.vals.indexOf(v)]
-              : v => (r.field.ratio ? toPct(v) : v)
+            r.field.type === 'seg' ? v => r.field.options[r.field.vals.indexOf(v)] : v => (r.field.ratio ? toPct(v) : v)
         }))
   ).filter(c => c.pk);
   const rows = [];
@@ -189,7 +192,13 @@ export async function saveAlerts(draft) {
 }
 
 // ---------- Đánh giá KPI ----------
-const KPI_LABEL = { wework: 'Base Wework', user: 'Người dùng', peer: 'Đồng nghiệp', manager: 'Quản lý trực tiếp', self: 'Tự đánh giá' };
+const KPI_LABEL = {
+  wework: 'Base Wework',
+  user: 'Người dùng',
+  peer: 'Đồng nghiệp',
+  manager: 'Quản lý trực tiếp',
+  self: 'Tự đánh giá'
+};
 
 // Trọng số từng thành phần (kpi.weight, chỉ đọc)
 export async function getKpiRules() {
@@ -323,7 +332,12 @@ export async function getCalendarSetup() {
     })),
     zone
   };
-  state.setup = { month: shifts.month, rev: shifts.paramsRev, maxAccuracyM: valueOf(params, 'geofence.maxAccuracyM'), base: plain(view) };
+  state.setup = {
+    month: shifts.month,
+    rev: shifts.paramsRev,
+    maxAccuracyM: valueOf(params, 'geofence.maxAccuracyM'),
+    base: plain(view)
+  };
   return plain(view);
 }
 
@@ -372,7 +386,10 @@ export async function getAuditLog({ page = 1, who = '', action = '', from = '', 
   // Trang n cần con trỏ beforeId của trang n-1: đi lần lượt từ trang đã biết
   while (auditState.cursors.length < at) {
     const prev = auditState.cursors.length;
-    const res = await api('GET', `/audit${qs({ limit: AUDIT_PAGE, beforeId: auditState.cursors[prev - 1], actor: who, action, from, to })}`);
+    const res = await api(
+      'GET',
+      `/audit${qs({ limit: AUDIT_PAGE, beforeId: auditState.cursors[prev - 1], actor: who, action, from, to })}`
+    );
     if (res.nextBeforeId == null) break;
     auditState.cursors[prev] = res.nextBeforeId;
   }

@@ -84,16 +84,17 @@ const runsOf = async month =>
     .all(month);
 // Dòng nhật ký của một kỳ hoặc của phiếu trong kỳ (action theo thứ tự ghi)
 const auditOf = async month =>
-  (await store.db
-    .prepare(
-      'SELECT id, action, actor, entity_kind, entity_id, subject, month, before_json, after_json, reason, sensitivity FROM audit_log WHERE month = ? ORDER BY id'
-    )
-    .all(month))
-    .map(row => ({
-      ...row,
-      before: row.before_json && JSON.parse(row.before_json),
-      after: row.after_json && JSON.parse(row.after_json)
-    }));
+  (
+    await store.db
+      .prepare(
+        'SELECT id, action, actor, entity_kind, entity_id, subject, month, before_json, after_json, reason, sensitivity FROM audit_log WHERE month = ? ORDER BY id'
+      )
+      .all(month)
+  ).map(row => ({
+    ...row,
+    before: row.before_json && JSON.parse(row.before_json),
+    after: row.after_json && JSON.parse(row.after_json)
+  }));
 
 // Ngày đầu tiên / cuối cùng của tháng rơi vào thứ `dow` (0 = Chủ nhật ... 6 = Thứ Bảy)
 const datesOf = month =>

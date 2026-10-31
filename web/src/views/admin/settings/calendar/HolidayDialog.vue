@@ -38,13 +38,7 @@ async function submit() {
 </script>
 
 <template>
-  <AppModal
-    title="Thêm ngày lễ"
-    :sub="`Năm ${year}`"
-    :width="560"
-    :top="200"
-    @close="emit('close')"
-  >
+  <AppModal title="Thêm ngày lễ" :sub="`Năm ${year}`" :width="560" :top="200" @close="emit('close')">
     <div class="g2">
       <div class="fld"><label>Từ ngày</label><FieldDate v-model="dateFrom" boxed label="Từ ngày" /></div>
       <div class="fld">

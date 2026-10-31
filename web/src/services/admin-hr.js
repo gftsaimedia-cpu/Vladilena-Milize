@@ -24,7 +24,12 @@ const optional = path =>
 const seg = u => encodeURIComponent(u);
 
 const readLists = () =>
-  Promise.all([api('GET', '/staff'), optional('/positions'), optional('/catalog/shifts'), optional('/settings/shifts')]);
+  Promise.all([
+    api('GET', '/staff'),
+    optional('/positions'),
+    optional('/catalog/shifts'),
+    optional('/settings/shifts')
+  ]);
 
 /** Danh sách nhân sự. loc: all | tts | ctv | nv | chua-co-ca | thieu-ngay | da-khoa. Lọc, tìm và chia trang làm ở máy khách. */
 export async function getStaffList({ loc = 'all', q = '', page = 1 } = {}) {

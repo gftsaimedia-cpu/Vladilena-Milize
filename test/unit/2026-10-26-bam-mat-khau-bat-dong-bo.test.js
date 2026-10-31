@@ -30,10 +30,12 @@ test('hai lần băm cùng một mật khẩu ra hai muối khác nhau; chuỗi 
 test('băm bất đồng bộ không chặn event loop: hẹn giờ 0 ms chạy trước khi băm xong', async () => {
   const order = [];
   const hashing = auth.hashPasswordAsync('khong-chan').then(() => order.push('bam-xong'));
-  await new Promise(r => setTimeout(() => {
-    order.push('hen-gio');
-    r();
-  }, 0));
+  await new Promise(r =>
+    setTimeout(() => {
+      order.push('hen-gio');
+      r();
+    }, 0)
+  );
   await hashing;
   assert.deepEqual(order, ['hen-gio', 'bam-xong'], 'scrypt chạy trên thread pool nên hẹn giờ chen được vào');
 });

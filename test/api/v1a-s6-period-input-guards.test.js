@@ -26,7 +26,9 @@ async function flaggedMonth() {
   return { M, slip };
 }
 const decideRows = async M =>
-  await store.db.prepare("SELECT * FROM audit_log WHERE month = ? AND action LIKE 'period.payslip%' ORDER BY id").all(M);
+  await store.db
+    .prepare("SELECT * FROM audit_log WHERE month = ? AND action LIKE 'period.payslip%' ORDER BY id")
+    .all(M);
 const slipStatus = async (M, username) => (await P.slipRows(M)).find(r => r.username === username).status;
 
 /* ================= decide: note không phải chuỗi ================= */
@@ -35,7 +37,10 @@ test('V1A-S6-2 (đối chứng): phiếu có cờ AI chưa bỏ qua, ghi chú ch
   const { M, slip } = await flaggedMonth();
   const res = await P.decide(M, [{ username: 'qa_nv1', rev: slip.rev }], 'approve', P.text(10));
   assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-  assert.ok(res.data.warnings.some(w => w.code === 'PAYSLIP_FLAGGED'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'PAYSLIP_FLAGGED'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.equal(await slipStatus(M, 'qa_nv1'), 'approved');
 });
 

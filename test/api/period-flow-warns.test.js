@@ -54,7 +54,11 @@ test('Chốt công: còn phiên Check-in mở (OPEN_SESSIONS) vẫn chốt đư�
   const liveIn = new Date(Date.now() - 3 * 3600 * 1000).toISOString();
   await store.createSession('qa_tts1', live.date, 'open', { ...live.entry, presIn: liveIn });
   const view = (await getPeriod(M)).data;
-  assert.equal((await store.getSession(staleSession.id)).state, 'closed', 'lượt quá 16 giờ đã được đóng, không đếm là đang mở');
+  assert.equal(
+    (await store.getSession(staleSession.id)).state,
+    'closed',
+    'lượt quá 16 giờ đã được đóng, không đếm là đang mở'
+  );
   assert.equal((await store.getSession(staleSession.id)).entry.reason, 'forgot-out');
   const item = view.checklist.find(i => i.code === 'OPEN_SESSIONS');
   assert.ok(item, JSON.stringify(view.checklist));

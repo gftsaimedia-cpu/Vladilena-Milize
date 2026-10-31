@@ -62,7 +62,10 @@ test('cột insured NULL (insuredUnset): coverage.long = không đóng thì khô
 });
 
 test('insuredUnset không sửa đầu vào', async () => {
-  const base = await world({ people: [await person('qa_a', { contract: 'long', insured: true })], days: { qa_a: thirteenDays() } });
+  const base = await world({
+    people: [await person('qa_a', { contract: 'long', insured: true })],
+    days: { qa_a: thirteenDays() }
+  });
   const input = { ...base, params: DEFAULTS, payroll: loadPayroll(DEFAULTS), insuredUnset: ['qa_a'] };
   const before = JSON.stringify(input.staff);
   await review(input);

@@ -17,10 +17,7 @@ const P08 = { startDate: '2021-06-10', birthday: '1990-01-01', type: 'nv', leave
 
 test('quỹ 2026 của người vào làm 2021 chỉ gồm phép cộng trong 2026: 12 tháng + sinh nhật + thâm niên 5 năm = 14', () => {
   const got = ledger(P08, [], '2026-12-31');
-  assert.deepEqual(
-    [got.months, got.birthdays, got.seniority, got.total, got.balance],
-    [12, 1, 1, 14, 14]
-  );
+  assert.deepEqual([got.months, got.birthdays, got.seniority, got.total, got.balance], [12, 1, 1, 14, 14]);
   assert.equal(
     accrued(P08, '2026-12-31').total,
     14 + 54 + 4,

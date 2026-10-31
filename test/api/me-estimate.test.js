@@ -20,7 +20,8 @@ const monthOf = P.monthPool();
 before(F.start);
 after(F.stop);
 
-const estimate = async (month, who = 'qa_nv1', query = '') => await F.call('GET', `/me/estimate?month=${month}${query}`, { who });
+const estimate = async (month, who = 'qa_nv1', query = '') =>
+  await F.call('GET', `/me/estimate?month=${month}${query}`, { who });
 const setParam = async (key, month, valueJson) =>
   await store.db
     .prepare(
@@ -197,7 +198,11 @@ test('Tháng hiện tại (đồng hồ giả): m, net và trace tính cả thá
   assert.equal(body.m.noshow, 0, 'ngày chưa tới không phải ngày vắng');
   assert.ok(body.m.pending > 0, 'ngày chưa tới chờ');
   assert.equal(body.m.total, (await engineFull('qa_nv1', M)).total, 'm bằng bộ máy chung trên cùng đồng hồ');
-  assert.deepEqual(body.net, viaJson((await engineFull('qa_nv1', M)).net), 'bảo hiểm, thuế, thực lĩnh tính trên cả tháng');
+  assert.deepEqual(
+    body.net,
+    viaJson((await engineFull('qa_nv1', M)).net),
+    'bảo hiểm, thuế, thực lĩnh tính trên cả tháng'
+  );
   // tiền ngày của m bằng tổng tiền từng dòng ngày (cả ngày phép đã khai ở nửa sau tháng)
   assert.equal(
     body.m.rows.reduce((sum, row) => sum + row.pay, 0),

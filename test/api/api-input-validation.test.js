@@ -21,16 +21,18 @@ async function person(username, role = 'staff') {
 }
 async function snapshot() {
   return Object.fromEntries(
-    await Promise.all([
-      'staff',
-      'timesheets',
-      'settings',
-      'attendance_days',
-      'attendance_sessions',
-      'punches',
-      'corrections',
-      'punch_requests'
-    ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()]))
+    await Promise.all(
+      [
+        'staff',
+        'timesheets',
+        'settings',
+        'attendance_days',
+        'attendance_sessions',
+        'punches',
+        'corrections',
+        'punch_requests'
+      ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+    )
   );
 }
 async function call(method, route, { who = 'admin', cookie, body } = {}) {
@@ -156,7 +158,11 @@ test('Q5: valid encoded username locks the intended staff account and keeps its 
 
 test('staff tax profile: defaults by group, saves contract / insurance / dependants and keeps them when an old form omits them', async () => {
   assert.deepEqual(
-    [(await store.getStaff('worker')).contract, (await store.getStaff('worker')).insured, (await store.getStaff('worker')).dependants],
+    [
+      (await store.getStaff('worker')).contract,
+      (await store.getStaff('worker')).insured,
+      (await store.getStaff('worker')).dependants
+    ],
     ['long', true, 0]
   );
   await store.upsertStaff({
@@ -167,7 +173,10 @@ test('staff tax profile: defaults by group, saves contract / insurance / dependa
     level: 1,
     passHash: auth.hashPassword('test-pass')
   });
-  assert.deepEqual([(await store.getStaff('intern')).contract, (await store.getStaff('intern')).insured], ['short', false]);
+  assert.deepEqual(
+    [(await store.getStaff('intern')).contract, (await store.getStaff('intern')).insured],
+    ['short', false]
+  );
   const saved = await call('PUT', '/staff/worker', {
     body: { ...profile, contract: 'short', insured: true, dependants: 2 }
   });

@@ -13,7 +13,10 @@ import { announcePunches } from '../../lib/domain/attendance';
 export class RequestScopeInterceptor implements NestInterceptor {
   intercept(_host: ExecutionContext, next: CallHandler): Observable<unknown> {
     const run = async () => {
-      const result = await warnings.run(async () => await requestRules.run(new Map(), async () => await lastValueFrom(next.handle(), { defaultValue: undefined })));
+      const result = await warnings.run(
+        async () =>
+          await requestRules.run(new Map(), async () => await lastValueFrom(next.handle(), { defaultValue: undefined }))
+      );
       announceAttendance();
       await announcePunches();
       return result;

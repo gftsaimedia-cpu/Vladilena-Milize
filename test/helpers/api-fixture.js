@@ -64,10 +64,11 @@ async function person(username, role = 'staff', extra = {}) {
 }
 
 const tables = async () =>
-  (await store.db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
-    .all())
-    .map(row => row.name);
+  (
+    await store.db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+      .all()
+  ).map(row => row.name);
 
 // Xoá hết dòng của mọi bảng (bảng chỉ-thêm-dòng như audit_log, param_versions, payslips từ chối DELETE nên bị bỏ qua), rồi trả DB về trạng thái dùng được.
 // Danh mục chức vụ, bậc, ca (lib/domain/position/schema.js) là dữ liệu nền do migration nạp, như hai khoá settings giữ lại: không xoá

@@ -58,7 +58,10 @@ test('ca làm: PUT /api/settings/shifts đổi giờ từ tháng áp dụng, ki�
     }
   });
   assert.equal(bad.status, 200, JSON.stringify(bad.data).slice(0, 300));
-  assert.ok(bad.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'), JSON.stringify(bad.data.warnings));
+  assert.ok(
+    bad.data.warnings.some(w => w.code === 'PARAM_CROSS_CHECK_FAILED'),
+    JSON.stringify(bad.data.warnings)
+  );
   assert.match(JSON.stringify(bad.data.warnings), /dài đúng 9 giờ/);
   assert.deepEqual((await rulesFor('2027-09')).punch.SHIFT.n2, ['10:30', '20:30']);
 });

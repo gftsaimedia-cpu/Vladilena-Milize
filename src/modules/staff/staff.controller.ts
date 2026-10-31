@@ -35,7 +35,10 @@ export class StaffController {
     needAdmin();
     const listParams = await monthParams();
     return send(res, 200, {
-      staff: await AsyncList.map((await store.listStaff()), async s => await staffForViewer(me, s.payrollSubject ? await withLeave(listParams, s) : s))
+      staff: await AsyncList.map(
+        await store.listStaff(),
+        async s => await staffForViewer(me, s.payrollSubject ? await withLeave(listParams, s) : s)
+      )
     });
   }
 
@@ -62,10 +65,10 @@ export class StaffController {
         approvals = await sheetApprovals(s.username, month, sh.days);
       return {
         staff: await staffForViewer(me, await withLeave(teamParams, s)),
-        ...await sheetForViewer(me, s.username, sh),
+        ...(await sheetForViewer(me, s.username, sh)),
         approvals,
         kpiParts: await kpiPartsView(
-          (await hasKpi(s, teamParams)) && await authz.can(me, 'salary.read', { username: s.username })
+          (await hasKpi(s, teamParams)) && (await authz.can(me, 'salary.read', { username: s.username }))
             ? kpiRows.get(s.username)
             : null,
           month,
@@ -101,7 +104,7 @@ export class StaffController {
       throw new HttpError(400, 'Không đặt lại mật khẩu của chính mình ở đây; dùng chức năng đổi mật khẩu của tôi', {
         code: 'USE_OWN_PASSWORD'
       });
-    if (!await store.getStaffRow(username)) throw new HttpError(404, 'Không có tài khoản này');
+    if (!(await store.getStaffRow(username))) throw new HttpError(404, 'Không có tài khoản này');
     if (typeof b.password !== 'string' || b.password.length < config.PASSWORD_MIN_LENGTH)
       throw new HttpError(400, `Mật khẩu cần ít nhất ${config.PASSWORD_MIN_LENGTH} ký tự`);
     const reason = reasonOf(b.reason);
@@ -135,7 +138,7 @@ export class StaffController {
     }
     const target = await store.getStaff(username);
     if (!target) throw new HttpError(404, 'Không có tài khoản này');
-    const known = [...await Roles.knownRoleSet()];
+    const known = [...(await Roles.knownRoleSet())];
     if (!Array.isArray(b.roles) || b.roles.some(r => typeof r !== 'string' || !known.includes(r)))
       throw new HttpError(400, `roles phải là mảng vai trò có trong hệ thống: ${known.join(', ')}`);
     const reason = reasonOf(b.reason);
@@ -179,7 +182,7 @@ export class StaffController {
       // Vai trò staff = nhân sự được trả lương: gán thì bật payrollSubject, gỡ thì tắt (cùng giao dịch, có nhật ký staff.payrollSubject).
       // Tài khoản Admin gốc chưa có bậc lương hợp lệ (bậc 0) mà được gán staff thì phiếu báo lỗi bậc cho tới khi đặt bậc ở Hồ sơ; không tự đặt bậc thay Admin.
       if (
-        await Roles.syncPayroll(actx, username, want.includes('staff'), target.payrollSubject) &&
+        (await Roles.syncPayroll(actx, username, want.includes('staff'), target.payrollSubject)) &&
         want.includes('staff') &&
         !(target.level >= 1)
       )
@@ -187,7 +190,7 @@ export class StaffController {
           'ROLE_STAFF_NO_LEVEL',
           'Tài khoản này chưa có bậc lương hợp lệ: phiếu lương sẽ báo lỗi cho tới khi đặt chức vụ và bậc ở Hồ sơ nhân sự.'
         );
-      if (await store.roles.countAdmins() < 1)
+      if ((await store.roles.countAdmins()) < 1)
         throw new HttpError(409, 'Không được gỡ quản trị viên cuối cùng', { code: 'LAST_ADMIN' });
       // Một dòng nhật ký cho mỗi vai trò đổi (mức pii: đây là phân quyền truy cập dữ liệu cá nhân)
       for (const [role, active] of [...toGrant.map(r => [r, true]), ...toRevoke.map(r => [r, false])])
@@ -227,12 +230,12 @@ export class StaffController {
     // khoá Admin), và không được khoá Admin chưa khoá cuối cùng (nếu không, không ai còn roles.manage để mở lại)
     const guardAdminLock = async locking => {
       if (!prev || !(prev.role === 'admin' || (await store.roles.activeRoles(username)).includes('admin'))) return;
-      if (!await authz.can(me, 'roles.manage'))
+      if (!(await authz.can(me, 'roles.manage')))
         throw new HttpError(403, 'Bạn không có quyền khoá hoặc mở khoá tài khoản Admin', {
           code: 'FORBIDDEN_CAP',
           cap: 'roles.manage'
         });
-      if (locking && !prev.locked_at && await store.roles.countAdmins() < 2)
+      if (locking && !prev.locked_at && (await store.roles.countAdmins()) < 2)
         throw new HttpError(409, 'Không được khoá quản trị viên cuối cùng', { code: 'LAST_ADMIN' });
     };
     const b = await readJson(req);
@@ -251,7 +254,7 @@ export class StaffController {
     }
     if (Object.hasOwn(b, 'locked') && typeof b.locked !== 'boolean')
       throw new HttpError(400, 'locked phải là true hoặc false');
-    if (Object.hasOwn(b, 'locked') && !await authz.can(me, 'staff.lock'))
+    if (Object.hasOwn(b, 'locked') && !(await authz.can(me, 'staff.lock')))
       throw new HttpError(403, 'Bạn không có quyền khoá hoặc mở khoá tài khoản', {
         code: 'FORBIDDEN_CAP',
         cap: 'staff.lock'
@@ -316,7 +319,7 @@ export class StaffController {
       : roleChanged
         ? role !== 'admin'
         : undefined;
-    const inPayroll = payrollSubject ?? (prev ? !!await store.isPayrollSubject(username) : role !== 'admin');
+    const inPayroll = payrollSubject ?? (prev ? !!(await store.isPayrollSubject(username)) : role !== 'admin');
     // Người trong bảng lương (hoặc không phải Admin) cần bậc hợp lệ. Admin ngoài bảng lương giữ bậc đang lưu: đổi vai trò không làm mất bậc.
     const keptLevel = prev && Number.isInteger(prev.level) && prev.level >= 1 ? prev.level : null;
     const needsLevel = role !== 'admin' || inPayroll;
@@ -347,13 +350,16 @@ export class StaffController {
       : null;
     const idorm = benefitOf(staffParams, type, 'idorm', level) && !!b.idorm; // iDorm chỉ nhận khi cờ iDorm của chức vụ hoặc bậc bật
     const givenShift = b.shiftCode == null || b.shiftCode === '' ? null : b.shiftCode;
-    if (givenShift !== null && (typeof givenShift !== 'string' || !Object.hasOwn((await rulesFor()).punch.SHIFT, givenShift)))
+    if (
+      givenShift !== null &&
+      (typeof givenShift !== 'string' || !Object.hasOwn((await rulesFor()).punch.SHIFT, givenShift))
+    )
       throw new HttpError(400, 'Ca cố định không hợp lệ');
-    const shiftCode = givenShift === null ? null : await container.shifts.canonicalOf(givenShift) || givenShift; // lưu mã của danh mục ca
+    const shiftCode = givenShift === null ? null : (await container.shifts.canonicalOf(givenShift)) || givenShift; // lưu mã của danh mục ca
     // phép năm: ngày đầu đi làm, ngày sinh, điều chỉnh tay (+/− ngày, bước 0,5)
     const startDate = b.startDate ? String(b.startDate) : null,
       birthday =
-        b.birthday === undefined && prev && !await authz.can(me, 'profile.read.pii')
+        b.birthday === undefined && prev && !(await authz.can(me, 'profile.read.pii'))
           ? prev.birthday || null
           : b.birthday
             ? String(b.birthday)
@@ -440,7 +446,10 @@ export class StaffController {
       };
       const payFields = prev
         ? await (async () => {
-            const was = effectivePay({ ...await store.getStaff(username), insured: (await store.getStaffRow(username)).insured }); // insured thô: NULL giữ NULL
+            const was = effectivePay({
+              ...(await store.getStaff(username)),
+              insured: (await store.getStaffRow(username)).insured
+            }); // insured thô: NULL giữ NULL
             const now = effectivePay({ type, level, nightPct, idorm, contract, insured, dependants, ...flags });
             return Object.keys(now).filter(key => now[key] !== was[key]);
           })()
@@ -463,13 +472,13 @@ export class StaffController {
           });
         selfDecision(own.length > 0, { doing: `sửa ${own.join(', ')}` });
       }
-      if (payFields.length && !await authz.can(me, 'salary.write'))
+      if (payFields.length && !(await authz.can(me, 'salary.write')))
         throw new HttpError(403, `Bạn không có quyền đổi trường lương (${payFields.join(', ')})`, {
           code: 'FORBIDDEN_CAP',
           cap: 'salary.write',
           fields: payFields
         });
-      if (b.password && prev && username !== admin.username && !await authz.can(me, 'roles.manage'))
+      if (b.password && prev && username !== admin.username && !(await authz.can(me, 'roles.manage')))
         throw new HttpError(403, 'Bạn không có quyền đặt lại mật khẩu của tài khoản khác', {
           code: 'FORBIDDEN_CAP',
           cap: 'roles.manage'
@@ -516,7 +525,8 @@ export class StaffController {
         contractStatus,
         resignedOn
       });
-      if (needsLevel && (!prev || prev.type !== type || payrollSubject === true)) await reconcileStaffType(username, type);
+      if (needsLevel && (!prev || prev.type !== type || payrollSubject === true))
+        await reconcileStaffType(username, type);
       // Hồ sơ không nhạy cảm có cũ, mới; trường tiền có mức pay; ngày sinh chỉ ghi "đã đổi"; mật khẩu chỉ ghi cờ
       const staffAfter = await store.getStaff(username);
       // Tắt payrollSubject thì vai trò staff đã gán cũng được thu hồi (staff = nhân sự được trả lương); bật thì staff tự dẫn xuất

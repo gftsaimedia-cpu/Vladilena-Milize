@@ -17,7 +17,8 @@ before(F.start);
 after(F.stop);
 
 const NAMES = ['qa_ctv1', 'qa_nv1', 'qa_nv2', 'qa_tts1'];
-const one = async (month, username, who = 'admin') => await F.call('GET', `/periods/${month}/estimates/${username}`, { who });
+const one = async (month, username, who = 'admin') =>
+  await F.call('GET', `/periods/${month}/estimates/${username}`, { who });
 const list = async (month, who = 'admin') => await F.call('GET', `/periods/${month}/estimates?pageSize=200`, { who });
 const MONEY = ['gross', 'insurance', 'tax', 'advance', 'net'];
 const LINES = ['workDays', 'tienNgayCong', 'phuCap', 'ot', 'kpi', 'truTreSom', 'khac'];

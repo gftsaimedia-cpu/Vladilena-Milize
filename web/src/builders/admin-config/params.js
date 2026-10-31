@@ -38,7 +38,8 @@ export function typeOfKey(key) {
 }
 
 /** Bỏ phần "(Loại nhân sự)" ở cuối nhãn của từng thể hiện. */
-export const baseLabel = label => String(label || '').replace(/\s*\((?:Thực tập sinh|Chuyên trách viên|Nhân viên)\)\s*$/, '');
+export const baseLabel = label =>
+  String(label || '').replace(/\s*\((?:Thực tập sinh|Chuyên trách viên|Nhân viên)\)\s*$/, '');
 
 /** Danh sách { key, value } cho các khoá có giá trị khác bản đã đọc. */
 export function diffEdits(idx, wanted) {

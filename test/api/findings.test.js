@@ -34,8 +34,11 @@ const dismiss = (M, rule, extra = {}) =>
     ...extra
   });
 const dismissRows = async M =>
-  await store.db.prepare("SELECT * FROM audit_log WHERE action = 'ai.finding.dismiss' AND month = ? ORDER BY id").all(M);
-const actionRows = async M => await store.db.prepare('SELECT * FROM ai_finding_actions WHERE month = ? ORDER BY id').all(M);
+  await store.db
+    .prepare("SELECT * FROM audit_log WHERE action = 'ai.finding.dismiss' AND month = ? ORDER BY id")
+    .all(M);
+const actionRows = async M =>
+  await store.db.prepare('SELECT * FROM ai_finding_actions WHERE month = ? ORDER BY id').all(M);
 const throwsCode = async (fn, code, httpStatus) =>
   await assert.rejects(
     fn,
@@ -212,12 +215,12 @@ test('Tính lại với đầu vào ĐÃ ĐỔI làm mọi lần bỏ qua cũ h�
   await store.payroll.applyAiReview(run2.id, { qa_nv1: FLAGS });
   assert.deepEqual(await findings.activeFindings(M, 'qa_nv1'), FLAGS, 'bỏ qua cũ không còn hiệu lực');
   assert.deepEqual(
-    (await findings
-      .annotate(
+    (
+      await findings.annotate(
         M,
         FLAGS.map(rule => ({ username: 'qa_nv1', rule }))
-      ))
-      .map(f => f.dismissed),
+      )
+    ).map(f => f.dismissed),
     [null, null],
     'đầu vào đổi: cờ hiện lại, chưa bỏ qua'
   );

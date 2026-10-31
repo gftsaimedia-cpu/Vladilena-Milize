@@ -4,7 +4,15 @@ const two = n => String(n).padStart(2, '0');
 const lastDay = month => new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0)).getUTCDate();
 
 // Loại ngày của máy chủ → loại ngày của bản in; ngày không có lương và không phải ngày nghỉ khai thì bỏ khỏi bảng
-const DAY_KIND = { work: 'work', makeup: 'work', leave: 'leave', isat: 'isat', holiday: 'holiday', unpaid: 'unpaid', noshow: 'unpaid' };
+const DAY_KIND = {
+  work: 'work',
+  makeup: 'work',
+  leave: 'leave',
+  isat: 'isat',
+  holiday: 'holiday',
+  unpaid: 'unpaid',
+  noshow: 'unpaid'
+};
 
 function dayOf(r) {
   const kind = DAY_KIND[r.kind];
@@ -79,9 +87,9 @@ export function buildSheet(drawer, data) {
     sections: drawer.groups
       .filter(g => g.title !== 'Khấu trừ')
       .map(g => ({
-      title: g.title,
-      rows: g.lines.map(l => ({ label: l.label, std: null, act: l.v, b: false }))
-    })),
+        title: g.title,
+        rows: g.lines.map(l => ({ label: l.label, std: null, act: l.v, b: false }))
+      })),
     totals,
     net: slip.net,
     leaveLeft: '—'

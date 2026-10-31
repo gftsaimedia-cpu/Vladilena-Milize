@@ -57,9 +57,13 @@ const state = async () => ({
   local: clock.local(),
   user: selectedUser,
   initialLocal: clock.local(),
-  users: (await store
-    .listStaff())
-    .map(({ username, name, role, type, shiftCode }) => ({ username, name, role, type, shiftCode }))
+  users: (await store.listStaff()).map(({ username, name, role, type, shiftCode }) => ({
+    username,
+    name,
+    role,
+    type,
+    shiftCode
+  }))
 });
 const sessionCookie = async () => auth.cookieHeader(await auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
 function send(res, status, body, headers = {}) {
@@ -125,8 +129,7 @@ const esc = s =>
 // Danh sách nhân vật: vai trò hiện tại trong DB, cốt truyện một dòng từ dàn nhân vật, liên kết đổi tài khoản
 async function castHtml() {
   const roleOf = s => (s.role === 'admin' ? 'Admin' : `${s.type || ''}${s.level ? ` bậc ${s.level}` : ''}`);
-  const rows = (await store
-    .listStaff())
+  const rows = (await store.listStaff())
     .map(s => {
       const c = byUser[s.username] || {};
       const extraRole = c.role === 'cb' ? 'C&B' : roleOf(s);
@@ -163,7 +166,7 @@ const server = http.createServer(async (req, res) => {
         clock.set(next);
         saveClock();
       } else if (url.pathname === '/__sandbox/user') {
-        if (typeof data.username !== 'string' || !await store.getStaff(data.username))
+        if (typeof data.username !== 'string' || !(await store.getStaff(data.username)))
           return send(res, 400, { error: 'Không có tài khoản này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
@@ -173,7 +176,8 @@ const server = http.createServer(async (req, res) => {
       } else return send(res, 404, { error: 'Không có chức năng này' });
       return send(res, 200, await state(), { 'Set-Cookie': await sessionCookie() });
     }
-    if (req.method === 'GET' && url.pathname === '/') return html(res, panelHtml(), { 'Set-Cookie': await sessionCookie() });
+    if (req.method === 'GET' && url.pathname === '/')
+      return html(res, panelHtml(), { 'Set-Cookie': await sessionCookie() });
     if (req.method === 'GET' && url.pathname === '/__sandbox/panel.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(fs.readFileSync(path.join(SANDBOX_DIR, 'sandbox.js'), 'utf8'));
@@ -181,7 +185,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/__scenario') return html(res, await castHtml());
     if (req.method === 'GET' && url.pathname.startsWith('/__scenario/as/')) {
       const u = decodeURIComponent(url.pathname.slice('/__scenario/as/'.length));
-      if (!await store.getStaff(u)) return send(res, 404, { error: 'Không có tài khoản này' });
+      if (!(await store.getStaff(u))) return send(res, 404, { error: 'Không có tài khoản này' });
       selectedUser = u;
       res.writeHead(302, { Location: '/app', 'Set-Cookie': await sessionCookie(), 'Cache-Control': 'no-store' });
       return res.end();

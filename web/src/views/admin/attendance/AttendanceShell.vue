@@ -34,8 +34,8 @@ const tabTo = key => ({
     <div>
       <h1>Chấm công &amp; phép</h1>
       <p v-if="summary && !summary.empty">
-        <b>{{ summary.forgot }} ngày</b> quên Check-in/out phải xử lý ·
-        {{ summary.reconcile }} ngày nên đối soát · {{ summary.late }} lượt đi trễ
+        <b>{{ summary.forgot }} ngày</b> quên Check-in/out phải xử lý · {{ summary.reconcile }} ngày nên đối soát ·
+        {{ summary.late }} lượt đi trễ
       </p>
       <p v-else-if="summary">Chưa có dữ liệu chấm công của tháng này</p>
     </div>

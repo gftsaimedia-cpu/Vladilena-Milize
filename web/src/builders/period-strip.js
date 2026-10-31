@@ -31,7 +31,11 @@ export function buildStrip(month, period, agents) {
   return {
     month: monthTitle(month),
     state: period.needsRecalculate ? `${base} · cần tính lại` : base,
-    stateCls: FINAL.includes(period.status) ? 'ok' : period.status === 'calculated' || period.status === 'reviewed' ? 'draft' : '',
+    stateCls: FINAL.includes(period.status)
+      ? 'ok'
+      : period.status === 'calculated' || period.status === 'reviewed'
+        ? 'draft'
+        : '',
     steps: labels.map((label, i) => [i < cur ? 'done' : i === cur ? 'cur' : '', label])
   };
 }

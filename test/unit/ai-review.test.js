@@ -97,7 +97,11 @@ test('ngưỡng đổi được ở một chỗ: thresholds ghi đè và đượ
 test('leave-with-checkin: ngày khai nghỉ có Check-in bị gắn, kèm giờ vào – ra', async () => {
   const a = await person('qa_a');
   const days = { qa_a: { '2026-10-07': { kind: 'leave' } } };
-  const hit = await run({ people: [a], days, sessions: [await closedSession('qa_a', 'n1', '2026-10-07', '08:12', '17:05')] });
+  const hit = await run({
+    people: [a],
+    days,
+    sessions: [await closedSession('qa_a', 'n1', '2026-10-07', '08:12', '17:05')]
+  });
   const f = find(hit, 'leave-with-checkin', 'qa_a', '2026-10-07')[0];
   assert.ok(f);
   assert.equal(f.message, 'Có Check-in ngày này (08:12 đến 17:05)');
@@ -217,7 +221,11 @@ test('previously-rejected: khoản cùng loại bị từ chối gần đây th�
     extraRows: [rejected({ date: '2026-06-08', decidedAt: '2026-06-10T03:00:00.000Z' })]
   });
   assert.deepEqual(ids(old, 'previously-rejected'), []);
-  const otherPerson = await run({ people: [a, await person('qa_b')], days, extraRows: [rejected({ username: 'qa_b' })] });
+  const otherPerson = await run({
+    people: [a, await person('qa_b')],
+    days,
+    extraRows: [rejected({ username: 'qa_b' })]
+  });
   assert.deepEqual(ids(otherPerson, 'previously-rejected'), []);
 });
 
@@ -236,7 +244,11 @@ test('repeated-edits: khai báo đổi từ 2 lần (rev 3) bị gắn, rev 2 th
 test('ot-checkin-mismatch: OT khai 17:00-19:00 mà Check-out 17:40 bị gắn, lệch dưới 30 phút thì không', async () => {
   const a = await person('qa_a');
   const days = { qa_a: { '2026-10-06': otDay('19:00') } };
-  const hit = await run({ people: [a], days, sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '17:40')] });
+  const hit = await run({
+    people: [a],
+    days,
+    sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '17:40')]
+  });
   const f = find(hit, 'ot-checkin-mismatch')[0];
   assert.ok(f);
   assert.equal(f.message, 'Khai 17:00-19:00, Check-in/out chỉ phủ 40 phút (thiếu 80 phút)');
@@ -248,9 +260,17 @@ test('ot-checkin-mismatch: OT khai 17:00-19:00 mà Check-out 17:40 bị gắn, l
     coveredMin: 40,
     shortfallMin: 80
   });
-  const near = await run({ people: [a], days, sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '18:50')] });
+  const near = await run({
+    people: [a],
+    days,
+    sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '18:50')]
+  });
   assert.deepEqual(ids(near, 'ot-checkin-mismatch'), []);
-  const edge = await run({ people: [a], days, sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '18:30')] });
+  const edge = await run({
+    people: [a],
+    days,
+    sessions: [await closedSession('qa_a', 'n1', '2026-10-06', '08:00', '18:30')]
+  });
   assert.deepEqual(ids(edge, 'ot-checkin-mismatch'), ['qa_a|2026-10-06']); // thiếu đúng 30 phút: bằng ngưỡng thì gắn
 });
 
@@ -508,7 +528,11 @@ test('missing-start-date và negative-leave: dùng lại lib/data-quality, chỉ
 const leaveMonth = async (dates, rows = {}, extraPeople = []) => {
   const days = { qa_n: Object.fromEntries(dates.map(d => [`2026-10-${d}`, { kind: 'leave' }])) };
   // người vào làm 01/09/2026, không cộng tay: tới 04/11 đã tròn 2 tháng = 2 ngày phép
-  return run({ people: [await person('qa_n', { startDate: '2026-09-01', leaveAdjust: 0 }), ...extraPeople], days, rows });
+  return run({
+    people: [await person('qa_n', { startDate: '2026-09-01', leaveAdjust: 0 }), ...extraPeople],
+    days,
+    rows
+  });
 };
 const rejectedRow = (user, date, item = 'leave') => ({ [`${user}|2026-10-${date}`]: { status: 'rejected', item } });
 
@@ -565,7 +589,7 @@ test('missing-fixed-shift: nhân sự chưa có ca hoặc mã ca không có tron
     await person('qa_b', { shiftCode: 'khong-co' }),
     await person('qa_ok', { shiftCode: 'g1' }),
     await person('qa_lock', { shiftCode: null, locked: true }),
-    { ...await person('qa_admin', { shiftCode: null }), role: 'admin' }
+    { ...(await person('qa_admin', { shiftCode: null })), role: 'admin' }
   ];
   for (const asOf of ['2026-10-20T09:00:00+07:00', '2026-11-04T09:00:00+07:00']) {
     const result = await run({ people, asOf });
@@ -585,7 +609,10 @@ test('slip-override-gap: ô tiền Admin sửa lệch từ 500.000 ₫ và 20% b
   const slip = values => [{ username: 'qa_a', month: '2026-10', values }];
   const opts = { people: [a], days: { qa_a: workDays } };
   // số tự tính của ô chuyên cần lấy từ chính phát hiện của bộ soát (ô lệch rất lớn nên chắc chắn bị gắn)
-  const probe = find(await run({ ...opts, slipOverrides: await slip({ attendance: 100000000 }) }), 'slip-override-gap')[0];
+  const probe = find(
+    await run({ ...opts, slipOverrides: await slip({ attendance: 100000000 }) }),
+    'slip-override-gap'
+  )[0];
   const attendance = probe.evidence.inputs.fields[0].computed;
   assert.ok(attendance > 0);
   const big = await run({ ...opts, slipOverrides: await slip({ attendance: attendance + 700000 }) });
@@ -613,7 +640,10 @@ test('slip-override-gap: ô tiền Admin sửa lệch từ 500.000 ₫ và 20% b
 });
 
 test('locked-with-pending: khoản chờ duyệt của tài khoản đã khoá bị gắn, tài khoản đang hoạt động thì không', async () => {
-  const people = [await person('qa_lock', { locked: true, lockedAt: '2026-10-09T05:00:00.000Z' }), await person('qa_a')];
+  const people = [
+    await person('qa_lock', { locked: true, lockedAt: '2026-10-09T05:00:00.000Z' }),
+    await person('qa_a')
+  ];
   const days = { qa_lock: { '2026-10-14': { kind: 'approved' } }, qa_a: { '2026-10-14': { kind: 'approved' } } };
   const result = await run({ people, days });
   assert.deepEqual(ids(result, 'locked-with-pending'), ['qa_lock|2026-10-14']);
@@ -840,7 +870,7 @@ test('includeImpacts: có thì trả tiền tác động của mọi khoản ch�
   const days = { qa_a: { '2026-10-03': { kind: 'isat' }, '2026-10-10': { kind: 'approved' } } };
   const plain = await review(await world({ people: [a], days }));
   assert.equal(Object.hasOwn(plain, 'impacts'), false);
-  const withImpacts = await review({ ...await world({ people: [a], days }), includeImpacts: true });
+  const withImpacts = await review({ ...(await world({ people: [a], days })), includeImpacts: true });
   assert.deepEqual(withImpacts.impacts, [
     { username: 'qa_a', date: '2026-10-03', item: 'isat', impactVnd: 230769 },
     { username: 'qa_a', date: '2026-10-10', item: 'approved', impactVnd: 0 }
@@ -851,10 +881,10 @@ test('includeImpacts: có thì trả tiền tác động của mọi khoản ch�
 /* ---------- KPI 5 thành phần (input.kpiScores) ---------- */
 const FIVE = { wework: 100, user: 90, peer: 80, manager: 85, self: 100 }; // 100/90/80/85/100 → 92,2% → 5.532.000 ₫ trên mức 6.000.000
 const fiveWorld = async (options = {}) => ({
-  ...await world({
+  ...(await world({
     kpi: { qa_a: { kpiAmt: 6000000 } },
     ...options
-  }),
+  })),
   kpiScores: options.kpiScores || [{ username: 'qa_a', month: '2026-10', parts: { complete: true, ...FIVE } }]
 });
 const workDays = dates => Object.fromEntries(dates.map(d => [d, workDay()]));
@@ -870,7 +900,10 @@ test('KPI 5 thành phần: slip-override-gap so với lương KPI năm điểm 5
   assert.ok(f);
   assert.deepEqual(f.evidence.inputs.fields, [{ key: 'kpiPay', computed: 5532000, override: 3000000, diff: -2532000 }]);
   // đúng bằng số tự tính thì không lệch
-  assert.deepEqual(ids(await review(await fiveWorld({ ...base, slipOverrides: await slip(5532000) })), 'slip-override-gap'), []);
+  assert.deepEqual(
+    ids(await review(await fiveWorld({ ...base, slipOverrides: await slip(5532000) })), 'slip-override-gap'),
+    []
+  );
 });
 
 test('KPI 5 thành phần: impacts dùng lương KPI năm điểm (ngày nghỉ làm vượt 24 giờ thì KPI nhân tỷ lệ ngày đi làm)', async () => {
@@ -883,7 +916,7 @@ test('KPI 5 thành phần: impacts dùng lương KPI năm điểm (ngày nghỉ 
     '2026-10-21': { kind: 'unpaid' },
     '2026-10-24': { kind: 'isat' }
   };
-  const input = { ...await fiveWorld({ people: [a], days: { qa_a: days } }), includeImpacts: true };
+  const input = { ...(await fiveWorld({ people: [a], days: { qa_a: days } })), includeImpacts: true };
   const five = await review(input);
   assert.equal(five.checked.payrollErrors, 0);
   const impact = five.impacts.find(x => x.date === '2026-10-24').impactVnd;
@@ -899,7 +932,7 @@ test('KPI 5 thành phần: impacts dùng lương KPI năm điểm (ngày nghỉ 
     '2026-10-22': { kind: 'approved' }
   };
   const duyet = await review({
-    ...await fiveWorld({ people: [a], days: { qa_a: approved } }),
+    ...(await fiveWorld({ people: [a], days: { qa_a: approved } })),
     includeImpacts: true
   });
   assert.equal(duyet.impacts.find(x => x.date === '2026-10-22').impactVnd, 0);
@@ -921,7 +954,7 @@ test('KPI 5 thành phần: kpi-self-100-streak ở tháng nào cũng bị bỏ q
   });
   const kpi = { qa_a: { kpiPct: 100 } };
   const otherSheets = [await sheetOf('2026-09'), await sheetOf('2026-08')];
-  const five = await review({ ...await fiveWorld({ people: [a], kpi, otherSheets }) });
+  const five = await review({ ...(await fiveWorld({ people: [a], kpi, otherSheets })) });
   assert.deepEqual(ids(five, 'kpi-self-100-streak'), []);
   const skip = five.checked.skipped.find(s => s.rule === 'kpi-self-100-streak');
   assert.ok(skip);

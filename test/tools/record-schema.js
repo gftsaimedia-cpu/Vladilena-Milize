@@ -30,8 +30,8 @@ function describeStore(store) {
         : value instanceof DatabaseSync
           ? 'DatabaseSync'
           : value && typeof value === 'object'
-          ? `object{${Object.keys(value).sort().join(',')}}`
-          : typeof value;
+            ? `object{${Object.keys(value).sort().join(',')}}`
+            : typeof value;
   }
   return out;
 }
@@ -109,25 +109,25 @@ module.exports = { capture, columnSets, indexSets, describeStore, SNAPSHOT, ROOT
 
 if (require.main === module)
   (async () => {
-  const index = process.argv.indexOf('--capture');
-  process.env.DB_PATH = index > 0 ? process.argv[index + 1] : ':memory:';
-  process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-schema-snapshot';
-  const store = require('../../lib/db');
-  await store.ready; // nâng cấp dữ liệu lúc mở DB chạy bất đồng bộ: chụp lược đồ sau khi xong
-  const snap = capture(store.db, store);
-  if (index > 0) {
-    fs.writeFileSync(process.argv[process.argv.indexOf('--out') + 1], JSON.stringify(snap));
-    store.db.close();
-  } else if (process.argv.includes('--write')) {
-    (async () => {
-      const prettier = require('prettier');
-      const config = (await prettier.resolveConfig(SNAPSHOT)) || {};
-      fs.writeFileSync(SNAPSHOT, await prettier.format(JSON.stringify(snap), { ...config, parser: 'json' }));
-      console.log(
-        `Đã ghi ${path.relative(ROOT, SNAPSHOT)}: ${Object.keys(snap.tables).length} bảng, ${snap.objects.length} đối tượng khác, ${Object.keys(snap.store).length} khoá store.`
-      );
-    })();
-  } else console.log(JSON.stringify(snap, null, 2));
+    const index = process.argv.indexOf('--capture');
+    process.env.DB_PATH = index > 0 ? process.argv[index + 1] : ':memory:';
+    process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-schema-snapshot';
+    const store = require('../../lib/db');
+    await store.ready; // nâng cấp dữ liệu lúc mở DB chạy bất đồng bộ: chụp lược đồ sau khi xong
+    const snap = capture(store.db, store);
+    if (index > 0) {
+      fs.writeFileSync(process.argv[process.argv.indexOf('--out') + 1], JSON.stringify(snap));
+      store.db.close();
+    } else if (process.argv.includes('--write')) {
+      (async () => {
+        const prettier = require('prettier');
+        const config = (await prettier.resolveConfig(SNAPSHOT)) || {};
+        fs.writeFileSync(SNAPSHOT, await prettier.format(JSON.stringify(snap), { ...config, parser: 'json' }));
+        console.log(
+          `Đã ghi ${path.relative(ROOT, SNAPSHOT)}: ${Object.keys(snap.tables).length} bảng, ${snap.objects.length} đối tượng khác, ${Object.keys(snap.store).length} khoá store.`
+        );
+      })();
+    } else console.log(JSON.stringify(snap, null, 2));
   })().catch(error => {
     console.error(error);
     process.exit(1);

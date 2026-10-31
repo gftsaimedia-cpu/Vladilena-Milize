@@ -18,7 +18,8 @@ beforeEach(async () => {
   await S.world();
   await F.person('qa_s_nv', 'staff', { leaveAdjust: 30 }); // phép năm còn đủ, không phụ thuộc số tháng làm việc
 });
-const put = async (days, who = 'qa_s_nv', month = S.MONTH) => await F.call('PUT', '/sheet', { who, body: { month, days } });
+const put = async (days, who = 'qa_s_nv', month = S.MONTH) =>
+  await F.call('PUT', '/sheet', { who, body: { month, days } });
 // Lưu được (200), kèm cảnh báo mang mã `code` nêu ngày; trả phản hồi để test kiểm thêm
 async function warnSave(days, code, pattern, who = 'qa_s_nv') {
   const res = await put(days, who);
@@ -95,7 +96,7 @@ test('lịch ước tính 11: người mặc định (NV, TTS): Chủ nhật và
     'ngày trong lịch'
   );
   assert.equal(
-    (await nv({ ...await day('2026-11-03'), ...await day('2026-11-07') })).status,
+    (await nv({ ...(await day('2026-11-03')), ...(await day('2026-11-07')) })).status,
     200,
     'T2–T7 đều là ngày trong lịch của NV'
   );

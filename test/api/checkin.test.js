@@ -242,7 +242,8 @@ test('lịch sử điều chỉnh cũ chỉ đọc: nhân viên thấy qua /shee
     originalCorrections = await store.listCorrections();
   const sheetsOfAll = async () => {
     const out = [];
-    for (const s of await store.listStaff()) out.push({ username: s.username, sheets: await store.listSheets(s.username) });
+    for (const s of await store.listStaff())
+      out.push({ username: s.username, sheets: await store.listSheets(s.username) });
     return out;
   };
   const originalSheets = await sheetsOfAll();
@@ -272,7 +273,10 @@ test('OT tự khai chỉ là ước tính, không tự tạo yêu cầu duyệt 
   const recorded = await day('an', '2026-10-14');
   const days = async () => (await store.getSheet('an', '2026-10')).days,
     put = d => call(an, 'PUT', '/api/sheet', { month: '2026-10', days: d });
-  const withOt = async x => ({ ...await days(), '2026-10-14': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', ...x } });
+  const withOt = async x => ({
+    ...(await days()),
+    '2026-10-14': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', ...x }
+  });
   assert.equal((await put(await withOt({ extraOut: '19:00', otReview: { ok: true } }))).status, 200);
   assert.equal((await estimate('an', '2026-10-14')).otReview, undefined);
   assert.equal((await estimate('an', '2026-10-14')).src, undefined);

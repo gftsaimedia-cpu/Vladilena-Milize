@@ -81,7 +81,11 @@ test('OT Chủ nhật ngoài lịch ×2: 230.769 − 4 × 28.846,15 = 115.385', 
     ...F.punches(staff, F.datesOn('2026-10', F.MON_SAT), { sched: F.MON_SAT }),
     ...F.punches(staff, [SUN], { sched: F.MON_SAT, to: 240 })
   ];
-  const r = F.run(staff, days, { actualFrom: '2026-10-01', sessions, approvals: await F.approved(days, [], 'nv', [SUN]) });
+  const r = F.run(staff, days, {
+    actualFrom: '2026-10-01',
+    sessions,
+    approvals: await F.approved(days, [], 'nv', [SUN])
+  });
   const s = fromMonth(r.m, staff, r.params, '2026-10');
   assert.equal(s.n.exemptOt, 115385);
   assert.equal(s.f.exempt, '(230.769 đ OT cuối tuần − 4 giờ OT cuối tuần × 28.846,15 đ/giờ)');

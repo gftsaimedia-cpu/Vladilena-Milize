@@ -49,7 +49,7 @@ test('GĐ2 ⑤: attendance.cutRounding: mặc định nửa lên theo bậc (15�
 /* ---------- ② làm thêm ---------- */
 // NV bậc 1, thiếu 4 giờ ngày 05/10 (08:00–13:00) và OT 1 giờ ngày 06/10 (17:00–18:00)
 const shortThenOt = async input => {
-  input.days = { ...await day(5, { out: '13:00' }), ...await day(6, { extraKind: 'ot', extraOut: '18:00' }) };
+  input.days = { ...(await day(5, { out: '13:00' })), ...(await day(6, { extraKind: 'ot', extraOut: '18:00' })) };
   input.approvals = await approved(input.days, [], 'nv', ['2026-10-06']);
 };
 test('GĐ2 ②: ot.afterMakeup: mặc định block chặn OT khi còn nợ giờ bù; independent tính OT ngay, giờ thiếu vẫn bị trừ riêng', async () => {

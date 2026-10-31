@@ -73,7 +73,10 @@ test('không còn mã đọc khoá hay hằng số của các giới hạn giờ
 });
 
 test('mô-đun giới hạn và giờ làm không xuất hằng số của giới hạn đã bỏ', () => {
-  assert.deepEqual(Object.keys(limits).filter(name => /YEAR|DAY_CAP|HOLIDAY/.test(name)), []);
+  assert.deepEqual(
+    Object.keys(limits).filter(name => /YEAR|DAY_CAP|HOLIDAY/.test(name)),
+    []
+  );
   assert.equal(workHours.MAX_EXTRA, undefined);
 });
 

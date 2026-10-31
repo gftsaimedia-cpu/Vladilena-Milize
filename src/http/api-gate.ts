@@ -64,7 +64,8 @@ export class ApiGate {
     const routeKey = authz.routeKey(method, seg);
     if (HEAVY_ROUTES.has(routeKey)) {
       const reason = shedder.check();
-      if (reason) throw new Overloaded(`Máy chủ đang bận (${reason}), thử lại sau ít giây`, config.OVERLOAD_RETRY_AFTER_SEC);
+      if (reason)
+        throw new Overloaded(`Máy chủ đang bận (${reason}), thử lại sau ít giây`, config.OVERLOAD_RETRY_AFTER_SEC);
     }
     if (me && method !== 'GET' && !UNLIMITED_WRITE_ROUTES.has(routeKey)) {
       const waitSec = writeLimiter.take(me.username);

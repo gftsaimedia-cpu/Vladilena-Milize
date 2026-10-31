@@ -86,7 +86,9 @@ async function submit() {
       reason: reason.value.trim(),
       expectedRev: old ? old.rev : undefined
     });
-    toast.ok(`Đã ${adding ? 'thêm' : 'lưu'} bậc ${level} của ${props.row.name}, áp dụng từ ${monthLabel(m).toLowerCase()}`);
+    toast.ok(
+      `Đã ${adding ? 'thêm' : 'lưu'} bậc ${level} của ${props.row.name}, áp dụng từ ${monthLabel(m).toLowerCase()}`
+    );
     emit('saved');
     emit('close');
   } catch (e) {

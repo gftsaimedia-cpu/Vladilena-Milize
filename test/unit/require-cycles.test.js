@@ -115,10 +115,7 @@ function violations(rule) {
 }
 
 test('lib/domain/* không require lib/routes/* (luật 1 của mục 4.5)', async () => {
-  assert.deepEqual(
-    await violations((from, to) => inDir(from, 'lib/domain') && inDir(to, 'lib/routes')),
-    []
-  );
+  assert.deepEqual(await violations((from, to) => inDir(from, 'lib/domain') && inDir(to, 'lib/routes')), []);
 });
 
 test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được require các file miền (luật 2)', async () => {
@@ -141,8 +138,5 @@ test('lib/http.js, lib/request-rules.js không require lib/domain/* hay lib/rout
 });
 
 test('lib/** không require server.js (máy chủ là gốc của đồ thị)', async () => {
-  assert.deepEqual(
-    await violations((from, to) => from !== 'server.js' && to === 'server.js'),
-    []
-  );
+  assert.deepEqual(await violations((from, to) => from !== 'server.js' && to === 'server.js'), []);
 });

@@ -17,10 +17,10 @@ const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
 export class PeriodsController {
-    /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
+  /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
   // Quyền duyệt TỪNG khoản: nhóm duyệt = loại khoản (request.decide.<khoản>), kèm phạm vi dữ liệu của vai trò (nhóm mình: chỉ chính mình cho tới khi có
   // bảng phân công). Cổng ROUTE_CAPS chỉ hỏi "có ít nhất một nhóm".
-        /* ---------- Admin sửa số trên phiếu lương (chỉ Admin đọc / ghi; nhân sự luôn thấy số tự tính) ---------- */
+  /* ---------- Admin sửa số trên phiếu lương (chỉ Admin đọc / ghi; nhân sự luôn thấy số tự tính) ---------- */
   @Get('slip-override')
   async getSlipOverride(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
     const { req, res, url, me, actx, needAdmin, guardPeriod } = c;
@@ -28,7 +28,7 @@ export class PeriodsController {
       b = req.method === 'PUT' ? await readJson(req) : null;
     const who = String((b ? b.user : url.searchParams.get('user')) || '').toLowerCase(),
       month = b ? b.month : url.searchParams.get('month');
-    if (!await store.getStaff(who)) throw new HttpError(404, 'Không có nhân sự này');
+    if (!(await store.getStaff(who))) throw new HttpError(404, 'Không có nhân sự này');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     if (b) {
       await guardPeriod(month);
@@ -69,7 +69,7 @@ export class PeriodsController {
     return this.getSlipOverride(c, r);
   }
 
-      /* ---------- kỳ lương: danh sách kiểm, chốt công, tính lương và bản chụp, AI kiểm tra, duyệt, chi trả, mở lại ---------- */
+  /* ---------- kỳ lương: danh sách kiểm, chốt công, tính lương và bản chụp, AI kiểm tra, duyệt, chi trả, mở lại ---------- */
   @Get('periods')
   async getPeriods(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
     const { res, url, need } = c;
@@ -124,7 +124,7 @@ export class PeriodsController {
         } catch {
           throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
         }
-        const viewAll = await authz.scopeOf(me, 'payroll.view') === 'all'; // nhân sự chỉ có phạm vi tự mình
+        const viewAll = (await authz.scopeOf(me, 'payroll.view')) === 'all'; // nhân sự chỉ có phạm vi tự mình
         // phiếu ước tính của người khác (kể cả của chính mình) chỉ dành cho phạm vi tất cả: lớp chặn thứ hai sau cổng route
         if (!viewAll && (step === '/estimates/:username' || username !== me.username))
           throw new HttpError(403, 'Chỉ xem được phiếu của chính mình', { code: 'FORBIDDEN_CAP' });
@@ -148,7 +148,7 @@ export class PeriodsController {
       if (step === '/lock-attendance') return await stepDone(await periods.lockAttendance(month, b, actx, by));
       if (step === '/calculate') return await stepDone(await periods.calculate(month, b, actx, by));
       if (step === '/ai-review') {
-        if (!await authz.can(me, 'payroll.calculate'))
+        if (!(await authz.can(me, 'payroll.calculate')))
           throw new HttpError(403, 'Cần quyền tính lương để chạy AI kiểm tra', {
             code: 'FORBIDDEN_CAP',
             cap: 'payroll.calculate'
@@ -164,14 +164,15 @@ export class PeriodsController {
       }
       if (step === '/reopen') {
         const inputsCap = periods.REOPEN_INPUTS_CAP(b.to);
-        if (inputsCap && !await authz.can(me, inputsCap))
+        if (inputsCap && !(await authz.can(me, inputsCap)))
           throw new HttpError(403, 'Mở lại về bước này cần quyền mở lại dữ liệu đầu vào (chỉ Admin)', {
             code: 'FORBIDDEN_CAP',
             cap: inputsCap
           });
         return stepDone(await periods.reopen(month, b, actx, by));
       }
-      if (step === '/payslips/decide') return send(res, 200, { items: await periods.decidePayslips(month, b, me, actx) });
+      if (step === '/payslips/decide')
+        return send(res, 200, { items: await periods.decidePayslips(month, b, me, actx) });
     }
   }
 
@@ -234,6 +235,4 @@ export class PeriodsController {
   async getPeriodsMonthVerify(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
     return this.periodStep(c, r);
   }
-
-
 }

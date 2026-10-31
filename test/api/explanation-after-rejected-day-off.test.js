@@ -9,7 +9,8 @@ const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
 const { reconcileMonthApprovals } = require('../../lib/domain/approvals');
 
-const adminRows = async (username, date) => (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
+const adminRows = async (username, date) =>
+  (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);
 const warningCodes = res => (res.data.warnings || []).map(w => w.code);
 
 before(async () => {

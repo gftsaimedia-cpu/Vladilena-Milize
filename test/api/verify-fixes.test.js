@@ -82,7 +82,9 @@ test('B2: ngày làm bù kiểu cũ có giờ ra làm thêm rơi vào 22h–6h, 
   assert.ok((await savedDays('worker'))['2026-10-08']);
 });
 test('B2: gửi lại đúng bản ghi cũ (không có extraKind) cũng không bị chặn', async () => {
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' }
+  });
   const r = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '23:00' },
     ...OTHER
@@ -104,7 +106,9 @@ test('B2: ngày kind "makeup" kiểu cũ nằm trong lịch làm việc và có 
 });
 test('B2: ngày lễ đã có giờ làm bù kiểu cũ, lưu lại không đổi kèm ngày khác: 200', async () => {
   await store.setSetting('holidays', ['2026-10-07']);
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' }
+  });
   const r = await putSheet('worker', {
     '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' },
     ...OTHER
@@ -140,7 +144,9 @@ test('B2 (giữ nguyên): khai MỚI làm bù / giờ làm thêm vào ngày lễ
   assert.deepEqual(await savedDays('worker'), {});
 });
 test('B2: sửa giờ làm thêm của ngày làm bù kiểu cũ sang khung 22h–6h vẫn lưu, kèm cảnh báo SHEET_EXTRA_NIGHT', async () => {
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' }
+  });
   const r = await putSheet('worker', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '05:30' } });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.ok(
@@ -152,7 +158,9 @@ test('B2: sửa giờ làm thêm của ngày làm bù kiểu cũ sang khung 22h�
 
 /* ---------- GET /sheet trả extraKind hiệu lực của bản ghi cũ ---------- */
 test('5: GET /sheet trả extraKind "makeup" cho ngày cũ có giờ ra làm thêm; lưu lại nguyên bản giữ giờ; dấu vân tay không đổi', async () => {
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraOut: '19:00' }
+  });
   const got = await call('GET', '/sheet?month=2026-10', undefined, 'worker');
   assert.equal(got.status, 200);
   assert.equal(got.data.days['2026-10-07'].extraKind, 'makeup');
@@ -164,7 +172,9 @@ test('5: GET /sheet trả extraKind "makeup" cho ngày cũ có giờ ra làm th�
   assert.equal(r.data.approvals['2026-10-07'].fingerprint, 'makeup_hours||17:00-19:00');
 });
 test('5 (giữ nguyên): ngày cũ chỉ có giờ vào làm thêm vẫn để extraKind rỗng', async () => {
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' }
+  });
   const got = await call('GET', '/sheet?month=2026-10', undefined, 'worker');
   assert.ok(!got.data.days['2026-10-07'].extraKind);
   assert.equal(got.data.days['2026-10-07'].extraIn, '06:30');
@@ -172,7 +182,9 @@ test('5 (giữ nguyên): ngày cũ chỉ có giờ vào làm thêm vẫn để e
 
 /* ---------- GET /approvals: declared.extraKind giống cleanDays và approval-view ---------- */
 test('4: declared.extraKind chỉ suy ra "makeup" từ extraOut, không từ extraIn', async () => {
-  await store.setSheet('worker', '2026-10', { '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' } });
+  await store.setSheet('worker', '2026-10', {
+    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraIn: '06:30' }
+  });
   await store.db
     .prepare(
       "INSERT INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at) VALUES ('worker', '2026-10-07', 'makeup_hours', 'makeup_hours|06:30-08:00|', 'pending', 1, ?)"

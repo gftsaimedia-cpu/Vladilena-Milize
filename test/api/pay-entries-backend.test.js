@@ -61,7 +61,8 @@ const approve = async (month, extra = {}) => {
   assert.equal(res.status, 200, JSON.stringify(res.data));
   return res.data.entry;
 };
-const rowsIn = async month => await store.db.prepare('SELECT * FROM pay_entries WHERE month = ? ORDER BY id').all(month);
+const rowsIn = async month =>
+  await store.db.prepare('SELECT * FROM pay_entries WHERE month = ? ORDER BY id').all(month);
 const lockPeriod = async (month, status = 'approved') =>
   await store.db.prepare('INSERT INTO payroll_periods (month, status, rev) VALUES (?, ?, 1)').run(month, status);
 const auditRows = async (action, month) =>
@@ -102,7 +103,10 @@ test('1c: người duyệt = người lập vẫn duyệt được, kèm cảnh 
   const entry = await make(month);
   const res = await decideOf(entry, 'approved', 'admin');
   assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'), JSON.stringify(res.data.warnings));
+  assert.ok(
+    res.data.warnings.some(w => w.code === 'SELF_DECISION_FORBIDDEN'),
+    JSON.stringify(res.data.warnings)
+  );
   assert.equal((await rowsIn(month))[0].status, 'approved');
   const logged = await auditRows('entry.decide', month);
   assert.equal(logged.length, 1);
@@ -492,7 +496,10 @@ test('1c: huỷ khoản đã duyệt thành trạng thái cuối, ra khỏi tín
   const logged = await auditRows('entry.void', month);
   assert.equal(logged.length, 1);
   assert.equal(logged[0].reason, 'Nhập nhầm người nhận, lập lại cho đúng người');
-  await assert.rejects(async () => await store.db.prepare('DELETE FROM pay_entries WHERE id = ?').run(entry.id), /không được xoá/);
+  await assert.rejects(
+    async () => await store.db.prepare('DELETE FROM pay_entries WHERE id = ?').run(entry.id),
+    /không được xoá/
+  );
 });
 
 test('1c: cờ thuế và bảo hiểm: Kế toán xác nhận một lần (409 lần hai); khoản không có cờ thì 400 NO_FLAGS; bộ máy chỉ nhận cờ đã xác nhận', async () => {
@@ -504,7 +511,8 @@ test('1c: cờ thuế và bảo hiểm: Kế toán xác nhận một lần (409 
       .data.code,
     'NO_FLAGS'
   );
-  const inputsOf = async () => (await service.loadInputs(month, { usernames: ['worker'] })).people.get('worker').entries;
+  const inputsOf = async () =>
+    (await service.loadInputs(month, { usernames: ['worker'] })).people.get('worker').entries;
   const approved = (await decideOf(flagged)).data.entry;
   assert.equal((await inputsOf())[0].flagsConfirmedBy, null); // đã duyệt nhưng cờ chưa xác nhận: bộ máy thấy flagsConfirmedBy null (chịu thuế)
   const confirmed = await F.call('POST', `/pay-entries/${flagged.id}/confirm-flags`, {

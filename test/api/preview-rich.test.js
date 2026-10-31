@@ -22,7 +22,12 @@ after(F.stop);
 // Kết quả của bộ máy cho cả bốn người với một bộ tham số (đầu vào đọc từ DB của tháng, như máy chủ)
 const run = async (month, over = {}) =>
   Object.fromEntries(
-    await Promise.all(PEOPLE.map(async u => [u, P.Engine.computeMonth(await flow.legacyInput(u, month), { ...await flow.paramsOf(month), ...over }).m]))
+    await Promise.all(
+      PEOPLE.map(async u => [
+        u,
+        P.Engine.computeMonth(await flow.legacyInput(u, month), { ...(await flow.paramsOf(month)), ...over }).m
+      ])
+    )
   );
 const company = m => m.net.gross + m.net.employer;
 const preview = async (month, changes, extra = {}) => await P.preview({ changes, effectiveMonth: month, ...extra });

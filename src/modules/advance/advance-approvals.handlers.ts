@@ -40,7 +40,8 @@ const ACTIONS = Object.freeze({
 });
 
 // Người xem được của người khác: có quyền duyệt (phạm vi tất cả) hoặc xem lương
-const viewsAll = async me => await authz.scopeOf(me, DECIDE_CAP) === 'all' || await authz.scopeOf(me, 'payroll.view') === 'all';
+const viewsAll = async me =>
+  (await authz.scopeOf(me, DECIDE_CAP)) === 'all' || (await authz.scopeOf(me, 'payroll.view')) === 'all';
 
 function monthOf(body) {
   const month = body && body.month;
@@ -84,7 +85,7 @@ function assertEligible(month, figure) {
 // Một dòng: số theo quy tắc + trạng thái yêu cầu
 const itemOf = async (username, figure, entry) => ({
   username,
-  name: (await store.getStaff(username) || {}).name || username,
+  name: ((await store.getStaff(username)) || {}).name || username,
   eligible: figure.eligible,
   ...(figure.reason ? { reason: figure.reason } : {}),
   amount: figure.amount,
@@ -182,7 +183,11 @@ export async function own({ req, res, me, actx }, move) {
     return change;
   });
   await announce(month, [username], null);
-  return send(res, 200, { month, rev: (await advanceApprovals.read(month)).rev, item: await itemOf(username, figure, done.after) });
+  return send(res, 200, {
+    month,
+    rev: (await advanceApprovals.read(month)).rev,
+    item: await itemOf(username, figure, done.after)
+  });
 }
 
 // Admin duyệt, từ chối hoặc huỷ duyệt yêu cầu của một người
@@ -196,7 +201,7 @@ export async function decideOne({ req, res, me, actx }, move) {
       : optionalReason(body.reason, { max: NOTE_MAX, tooLong: `Lý do tối đa ${NOTE_MAX} ký tự` }) || null;
   const staff = await store.getStaff(username);
   if (!staff) throw new HttpError(404, 'Không có nhân sự này', { code: 'STAFF_NOT_FOUND' });
-  if (!await canDecide(me, username))
+  if (!(await canDecide(me, username)))
     throw new HttpError(403, 'Bạn không có quyền duyệt tạm ứng của người này', { code: 'FORBIDDEN_CAP' });
   const figure = await figureOf(month, username);
   if (move === 'approve') assertEligible(month, figure);
@@ -205,18 +210,28 @@ export async function decideOne({ req, res, me, actx }, move) {
     selfDecision(authz.isSelfDecision(me, username), {
       doing: ACTIONS[move].doing
     });
-    const change = await advanceApprovals.move(month, username, move, { expectedRev: revOf(body), by: me.username, reason });
+    const change = await advanceApprovals.move(month, username, move, {
+      expectedRev: revOf(body),
+      by: me.username,
+      reason
+    });
     await auditMove(actx, ACTIONS[move].audit, month, username, change.before, change.after, reason);
     return change;
   });
   await announce(month, [username], ACTIONS[move].decision);
-  return send(res, 200, { month, rev: (await advanceApprovals.read(month)).rev, item: await itemOf(username, figure, done.after) });
+  return send(res, 200, {
+    month,
+    rev: (await advanceApprovals.read(month)).rev,
+    item: await itemOf(username, figure, done.after)
+  });
 }
 
 export async function approveAll({ req, res, me, actx }) {
   const body = await readJson(req);
   const month = monthOf(body);
-  const pendingUsers = [...await advanceApprovals.requests(month)].filter(([, e]) => e.status === 'pending').map(([u]) => u);
+  const pendingUsers = [...(await advanceApprovals.requests(month))]
+    .filter(([, e]) => e.status === 'pending')
+    .map(([u]) => u);
   const { provisional, figures } = pendingUsers.length
     ? await advanceCap.figuresOf(month, pendingUsers)
     : { provisional: false, figures: new Map() };
@@ -227,14 +242,15 @@ export async function approveAll({ req, res, me, actx }) {
     if (!figure || !figure.eligible) skipped.push({ username, code: 'ADVANCE_NOT_ELIGIBLE' });
     // Số đã chốt (qua ngày advance.untilDay) bằng 0: duyệt không đổi tiền. Chưa chốt thì vẫn duyệt vì số còn tăng
     else if (!provisional && !(figure.amount > 0)) skipped.push({ username, code: 'ADVANCE_ZERO' });
-    else if (!await canDecide(me, username)) skipped.push({ username, code: 'FORBIDDEN_CAP' });
+    else if (!(await canDecide(me, username))) skipped.push({ username, code: 'FORBIDDEN_CAP' });
     else if (authz.isSelfDecision(me, username)) skipped.push({ username, code: 'SELF_DECISION_FORBIDDEN' });
     else wanted.push(username);
   }
   const done = await store.transaction(async () => {
     await assertEditable(month);
     const changes = await advanceApprovals.approveMany(month, wanted, { expectedRev: revOf(body), by: me.username });
-    for (const c of changes) await auditMove(actx, 'advance.approve', month, c.username, c.before, c.after, 'Duyệt tất cả');
+    for (const c of changes)
+      await auditMove(actx, 'advance.approve', month, c.username, c.before, c.after, 'Duyệt tất cả');
     return changes;
   });
   const approved = done.map(c => c.username);

@@ -423,7 +423,10 @@ test('PUT /sheet với OT vào khung 22h–6h vẫn lưu, kèm cảnh báo SHEET
   await decide('approve', refsOf([item]));
   const r = await saveSheet('worker', { [OT]: otDay('17:00', { extraIn: '05:30' }) });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'), JSON.stringify(r.data.warnings));
+  assert.ok(
+    r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'),
+    JSON.stringify(r.data.warnings)
+  );
   const row = (await rowsOf('worker')).find(x => x.date === OT);
   assert.equal(row.status, 'pending');
   assert.equal((await store.getSheet('worker', '2026-10')).days[OT].extraIn, '05:30');
@@ -753,23 +756,26 @@ sqliteOnly('di chuyển: khoản từ tháng 09/2026 trở về trước thành 
   }
 });
 
-sqliteOnly('di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền', async () => {
-  const dbPath = await buildLegacyDb();
-  const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  for (const [month, days] of Object.entries(LEGACY_DAYS))
-    for (const [date, day] of Object.entries(days)) {
-      const found = ApprovalView.itemOf(day);
-      const row = rows.find(x => x.date === date);
-      if (!found) {
-        assert.equal(row, undefined, `${date} không phải khoản cần duyệt`);
-        continue;
+sqliteOnly(
+  'di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền',
+  async () => {
+    const dbPath = await buildLegacyDb();
+    const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
+    for (const [month, days] of Object.entries(LEGACY_DAYS))
+      for (const [date, day] of Object.entries(days)) {
+        const found = ApprovalView.itemOf(day);
+        const row = rows.find(x => x.date === date);
+        if (!found) {
+          assert.equal(row, undefined, `${date} không phải khoản cần duyệt`);
+          continue;
+        }
+        assert.equal(row.item, found.item, date);
+        assert.equal(row.fingerprint, found.fingerprint, date);
+        const view = ApprovalView.payView({ [date]: day }, { [date]: row });
+        assert.equal(view.pendingItems.length === 0, row.status === 'approved', `${month} ${date}`);
       }
-      assert.equal(row.item, found.item, date);
-      assert.equal(row.fingerprint, found.fingerprint, date);
-      const view = ApprovalView.payView({ [date]: day }, { [date]: row });
-      assert.equal(view.pendingItems.length === 0, row.status === 'approved', `${month} ${date}`);
-    }
-});
+  }
+);
 
 sqliteOnly('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
   const dbPath = await buildLegacyDb();
@@ -900,7 +906,10 @@ test('lưu lịch ước tính không mang trường chấm công vào approvals
 test('OT rơi vào khung 22h–6h vẫn lưu, kèm cảnh báo SHEET_EXTRA_NIGHT và một dòng chờ duyệt', async () => {
   const r = await saveSheet('worker', { [OT]: otDay('17:00', { extraIn: '05:30' }) });
   assert.equal(r.status, 200, JSON.stringify(r.data));
-  assert.ok(r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'), JSON.stringify(r.data.warnings));
+  assert.ok(
+    r.data.warnings.some(w => w.code === 'SHEET_EXTRA_NIGHT'),
+    JSON.stringify(r.data.warnings)
+  );
   assert.equal((await rowsOf('worker')).length, 1);
   assert.equal((await rowsOf('worker'))[0].status, 'pending');
 });

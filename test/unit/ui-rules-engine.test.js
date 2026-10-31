@@ -53,12 +53,9 @@ test('Hợp đồng và bảo hiểm mặc định theo nhóm khi hồ sơ chưa
     assert.deepEqual([net.taxOn, net.deductOn, net.advanceOn], [true, true, true], type);
   }
   // hồ sơ ghi riêng thì thắng mặc định của nhóm (Admin tuỳ chỉnh được giữ)
-  const custom = (await month(
-    { type: 'nv', level: 1, nightPct: 40, contract: 'short', insured: false },
-    day,
-    [],
-    '2026-09'
-  )).net;
+  const custom = (
+    await month({ type: 'nv', level: 1, nightPct: 40, contract: 'short', insured: false }, day, [], '2026-09')
+  ).net;
   assert.equal(custom.contract, 'short');
   assert.equal(custom.insured, false);
 });

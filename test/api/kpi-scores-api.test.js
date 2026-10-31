@@ -260,12 +260,7 @@ test('hai lần ghi cùng lúc cùng (người, tháng): đúng 1 dòng kpi_scor
   const item = (await getScores(MONTH)).data.items.find(i => i.username === 'an');
   assert.equal(item.scores.wework, 91);
   assert.equal(item.scores.user, 82);
-  assert.deepEqual(
-    (await logOf('an'))
-      .map(l => l.field)
-      .sort(),
-    ['user', 'wework']
-  );
+  assert.deepEqual((await logOf('an')).map(l => l.field).sort(), ['user', 'wework']);
 });
 
 test('amt hợp lệ ghi mức KPI đã duyệt (kpi_adm_amt) và nhật ký field "amt", kpi_adm_pct vẫn null cho tháng mới', async () => {

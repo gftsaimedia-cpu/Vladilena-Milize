@@ -34,7 +34,10 @@ const profile = (extra = {}) => ({
 // Tài khoản đã có không nhận mật khẩu qua hồ sơ (400 USE_PASSWORD_RESET): bỏ trường password khi tài khoản đã tồn tại
 const put = async (username, body, who = 'admin') => {
   const { password, ...withoutPassword } = body;
-  return F.call('PUT', `/staff/${username}`, { who, body: await store.getStaffRow(username) ? withoutPassword : body });
+  return F.call('PUT', `/staff/${username}`, {
+    who,
+    body: (await store.getStaffRow(username)) ? withoutPassword : body
+  });
 };
 const staffCount = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM staff').get()).n;
 
@@ -43,14 +46,14 @@ async function rejects(extra, message) {
   for (const username of ['qa_new_t8', 'qa_exist']) {
     const before = await F.snapshot();
     const count = await staffCount();
-    const prev = JSON.stringify(await store.getStaff(username) || null);
+    const prev = JSON.stringify((await store.getStaff(username)) || null);
     const res = await put(username, await profile(extra));
     assert.equal(res.status, 400, `${username} ${JSON.stringify(extra)}: ${res.status} ${JSON.stringify(res.data)}`);
     if (message instanceof RegExp) assert.match(res.data.error, message, JSON.stringify(extra));
     else assert.equal(res.data.error, message, JSON.stringify(extra));
     assert.deepEqual(F.changedTables(before, await F.snapshot()), [], `${JSON.stringify(extra)} không được ghi gì`);
     assert.equal(await staffCount(), count, 'số nhân sự không đổi');
-    assert.equal(JSON.stringify(await store.getStaff(username) || null), prev, `${username} nguyên vẹn`);
+    assert.equal(JSON.stringify((await store.getStaff(username)) || null), prev, `${username} nguyên vẹn`);
   }
 }
 

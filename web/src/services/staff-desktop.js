@@ -64,7 +64,11 @@ export const submitStaffDayRequest = (payload, ctx) => sendDayRequest(payload, c
 export { cancelDayRequest as cancelStaffDayRequest };
 
 // GET /api/advance-approvals?month= (tháng hiện tại); POST /api/advance-approvals/request và /withdraw
-export { getAdvance as getStaffAdvance, requestAdvance as requestStaffAdvance, withdrawAdvance as withdrawStaffAdvance };
+export {
+  getAdvance as getStaffAdvance,
+  requestAdvance as requestStaffAdvance,
+  withdrawAdvance as withdrawStaffAdvance
+};
 
 // GET /api/explanations; POST /api/explanations { sessionId, text } hoặc { date, text }; POST /api/explanations/:id/answer { text }
 export {

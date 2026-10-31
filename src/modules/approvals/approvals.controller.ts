@@ -47,19 +47,14 @@ export class ApprovalsController {
       .sort((a, b) => a.username.localeCompare(b.username) || a.date.localeCompare(b.date))
       .slice(offset, offset + limit);
     const sheets = {};
-    const lockedNames = new Set(
-      (await store
-        .listStaff())
-        .filter(s => s.locked)
-        .map(s => s.username)
-    );
+    const lockedNames = new Set((await store.listStaff()).filter(s => s.locked).map(s => s.username));
     const items = await AsyncList.map(picked, async row => {
       const sheetMonth = row.date.slice(0, 7),
         key = `${row.username}|${sheetMonth}`;
       if (!sheets[key]) {
         const sheet = await estimateSheet(row.username, sheetMonth);
         sheets[key] = {
-          ...await sheetForViewer(me, row.username, sheet),
+          ...(await sheetForViewer(me, row.username, sheet)),
           approvals: await sheetApprovals(row.username, sheetMonth, sheet.days)
         };
       }
@@ -154,7 +149,8 @@ export class ApprovalsController {
     return send(res, 200, {
       missingPunches,
       absentNoExplanation,
-      pendingApprovals: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow)).pending
+      pendingApprovals: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow))
+        .pending
     });
   }
 
@@ -199,7 +195,7 @@ export class ApprovalsController {
     // Từng khoản phải thuộc nhóm duyệt và phạm vi của người duyệt; một khoản không đủ quyền thì cả lô bị từ chối và không lưu gì
     for (const item of items) {
       const stored = await store.approvals.get(item.username, item.date);
-      if (stored && !await canDecideRow(stored))
+      if (stored && !(await canDecideRow(stored)))
         throw new HttpError(
           403,
           `Bạn không có quyền duyệt khoản "${stored.item}" của ${item.username} ngày ${item.date}`,
@@ -212,7 +208,11 @@ export class ApprovalsController {
         const stored = await store.approvals.get(item.username, item.date),
           owner = await store.getStaff(item.username);
         if (!stored || stored.item !== 'isat' || !owner) continue;
-        const refusal = isatRefusal({ params: (await rulesFor(item.date.slice(0, 7))).params, staff: owner, date: item.date });
+        const refusal = isatRefusal({
+          params: (await rulesFor(item.date.slice(0, 7))).params,
+          staff: owner,
+          date: item.date
+        });
         if (refusal)
           throw new HttpError(400, `${item.username}: ${refusal.message}`, { code: refusal.code, date: item.date });
       }

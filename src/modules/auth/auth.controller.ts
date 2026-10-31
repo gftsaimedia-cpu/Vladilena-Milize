@@ -56,7 +56,7 @@ export class AuthController {
       {
         user: await publicStaff(await store.getStaff(u)),
         holidays: await store.getSetting('holidays', []),
-        ...await geofenceView(await store.getStaff(u))
+        ...(await geofenceView(await store.getStaff(u)))
       },
       { 'Set-Cookie': auth.cookieHeader(await auth.createSession(u), auth.SESSION_MAX_AGE_SEC) }
     );
@@ -85,8 +85,8 @@ export class AuthController {
       payrollSubject: !!(me && me.payrollSubject),
       agentsEnabled: await agents.enabled(), // công tắc Agents (route /settings/agents)
       holidays: await store.getSetting('holidays', []),
-      ...await myPosition(me),
-      ...await geofenceView(me)
+      ...(await myPosition(me)),
+      ...(await geofenceView(me))
     });
   }
 
@@ -103,7 +103,12 @@ export class AuthController {
     await store.transaction(async () => {
       await store.setPassword(u.username, passHash);
       // Chỉ ghi hành động, không bao giờ ghi mật khẩu hay hàm băm
-      await audit.write(actx, { action: 'password.change', entityKind: 'staff', entityId: u.username, subject: u.username });
+      await audit.write(actx, {
+        action: 'password.change',
+        entityKind: 'staff',
+        entityId: u.username,
+        subject: u.username
+      });
     });
     await store.bumpSessionVersion(u.username); // phiên cũ hết hiệu lực; cấp phiên mới cho trình duyệt đang đổi
     events.closeUser(u.username, 'password'); // luồng cũ gắn với cookie cũ; trình duyệt này nối lại bằng cookie mới
