@@ -32,3 +32,7 @@ export {
   KpiScoresRepository
 } from './records.repository';
 export type { FindingActionRow, AiRunRow, StaffRow, StaffRoleRow, CorrectionRow, TimesheetRow, KpiScoresRow, KpiLogRow } from './records.repository';
+export { SheetApprovalsRepository, AttendanceSessionsRepository } from './attendance.repository';
+export type { SheetApprovalRow, AttendanceSessionRow, PunchRequestRow, PunchRow, SheetApprovalFilter } from './attendance.repository';
+export { PayEntriesRepository, AdvanceRequestsRepository } from './pay.repository';
+export type { PayEntryRow, AdvanceRequestRow } from './pay.repository';
