@@ -102,8 +102,9 @@ test('quá tải: route nặng nhận 503 + Retry-After, route thiết yếu v�
 
 test('giới hạn tốc độ ghi theo người: quá số lệnh/phút thì 429, đọc không bị ảnh hưởng, người khác không bị ảnh hưởng', async () => {
   const { writeLimiter } = limits();
-  const saved = writeLimiter.capacity;
+  const saved = { capacity: writeLimiter.capacity, refillPerMs: writeLimiter.refillPerMs };
   writeLimiter.capacity = 2;
+  writeLimiter.refillPerMs = 0; // không nạp lại token giữa các yêu cầu: kết quả không phụ thuộc tốc độ máy/DB
   writeLimiter.buckets.clear();
   try {
     const put = async who =>
@@ -116,7 +117,7 @@ test('giới hạn tốc độ ghi theo người: quá số lệnh/phút thì 42
     assert.equal((await as('nv0', '/api/me')).status, 200);
     assert.notEqual((await put('nv1')).status, 429);
   } finally {
-    writeLimiter.capacity = saved;
+    Object.assign(writeLimiter, saved);
     writeLimiter.buckets.clear();
   }
 });
