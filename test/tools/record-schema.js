@@ -9,6 +9,7 @@
 //   node test/tools/record-schema.js             in bản chụp của DB trong bộ nhớ
 const fs = require('node:fs');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.join(__dirname, '../..');
 const SNAPSHOT = path.join(ROOT, 'test/fixtures/db-schema-snapshot.json');
@@ -22,10 +23,13 @@ function describeStore(store) {
   const out = {};
   for (const key of Object.keys(store).sort()) {
     const value = store[key];
+    // Khoá của DatabaseSync do Node định nghĩa và thay đổi theo phiên bản (vd. `limits` ở Node 24.18), không phải lược đồ của mã này
     out[key] =
       typeof value === 'function'
         ? 'function'
-        : value && typeof value === 'object'
+        : value instanceof DatabaseSync
+          ? 'DatabaseSync'
+          : value && typeof value === 'object'
           ? `object{${Object.keys(value).sort().join(',')}}`
           : typeof value;
   }

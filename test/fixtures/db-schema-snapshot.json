@@ -1185,7 +1185,7 @@
     "audit": "object{count,list,mode,verify,write}",
     "bumpSessionVersion": "function",
     "createSession": "function",
-    "db": "object{isOpen,isTransaction}",
+    "db": "DatabaseSync",
     "decideCorrection": "function",
     "getCorrection": "function",
     "getKpiScores": "function",
