@@ -199,6 +199,17 @@ const EXEMPT = {
   'PUT /password': 'mật khẩu của chính mình',
   'PUT /settings/geofence': 'vùng GPS, không theo tháng',
   'PUT /settings/agents': 'công tắc Agents, không theo tháng',
+  'POST /periods/:month/lock-attendance': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/calculate': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/ai-review': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/approve': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/mark-paid': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'POST /periods/:month/reopen': 'chính là vòng đời kỳ: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+  'PUT /periods/:month/payslips/decide': 'duyệt phiếu của lần chạy: lib/periods.js tự kiểm trạng thái kỳ (PERIOD_STATE)',
+  'PUT /settings/params': 'bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu nên không bị đổi',
+  'POST /settings/params/preview': 'chỉ xem trước tác động, không ghi',
+  'POST /settings/params/revert': 'hoàn tác bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu',
+  'PUT /staff/shift-bulk': 'gán ca theo hồ sơ (profile.write), không ghi ngày công của một kỳ cụ thể',
   'PUT /staff/:u': 'hồ sơ ảnh hưởng lương: TK 6.2 nói "các trường ảnh hưởng lương, xem 8.6" nhưng chưa nói tháng nào',
   'POST /ai/findings':
     'bỏ qua cờ AI của lần tính nháp, không theo tháng của dữ liệu (kiểm theo lần chạy nháp: PERIOD_STATE khi đã chốt)'
