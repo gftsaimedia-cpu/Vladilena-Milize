@@ -104,7 +104,7 @@ export class ApprovalsController {
       throw new HttpError(400, `month "${month.slice(0, 12)}" không hợp lệ: phải dạng YYYY-MM`, { code: 'BAD_MONTH' });
     const holidays = await store.getSetting('holidays', []),
       found = new Map(),
-      absentFound = [];
+      absentFound: any[] = [];
     const explained = await explanations.explainedByUser(month); // ngày đã có giải trình (mọi trạng thái): không còn là ngày vắng chưa ai xử lý
     const ActualHours = (await rulesFor(month)).actualHours;
     // Quên Check-in/out là việc sửa chấm công: chỉ người có attendance.correct, và chỉ người trong phạm vi của mình

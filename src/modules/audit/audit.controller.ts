@@ -20,7 +20,7 @@ export class AuditController {
     const limit = q.has('limit') ? Number(q.get('limit')) : config.AUDIT_PAGE_DEFAULT;
     if (!Number.isInteger(limit) || limit < 1) throw new HttpError(400, 'limit phải là số nguyên dương');
     for (const key of ['afterId', 'beforeId'])
-      if (q.has(key) && !/^\d+$/.test(q.get(key))) throw new HttpError(400, `${key} phải là số nguyên không âm`);
+      if (q.has(key) && !/^\d+$/.test(q.get(key) ?? '')) throw new HttpError(400, `${key} phải là số nguyên không âm`);
     for (const key of ['from', 'to'])
       if (q.has(key) && !validDate(q.get(key))) throw new HttpError(400, `${key} phải dạng YYYY-MM-DD`);
     if (q.has('month') && !validMonth(q.get('month'))) throw new HttpError(400, 'month phải dạng YYYY-MM');

@@ -22,7 +22,7 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `GET /approvals` | `request.decide.*` | — | [`src/modules/approvals/approvals.controller.ts:22`](../../src/modules/approvals/approvals.controller.ts#L22) `getApprovals` |  |
 | `GET /approvals/count` | `request.decide.*` | — | [`src/modules/approvals/approvals.controller.ts:84`](../../src/modules/approvals/approvals.controller.ts#L84) `getApprovalsCount` |  |
 | `PUT /approvals/decide` | `request.decide.*` | `attendance` (tháng: items[].date) | [`src/modules/approvals/approvals.controller.ts:157`](../../src/modules/approvals/approvals.controller.ts#L157) `putApprovalsDecide` |  |
-| `GET /attendance` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:350`](../../src/modules/attendance/attendance.controller.ts#L350) `getAttendance` |  |
+| `GET /attendance` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:351`](../../src/modules/attendance/attendance.controller.ts#L351) `getAttendance` |  |
 | `GET /audit` | `audit.read` | — | [`src/modules/audit/audit.controller.ts:14`](../../src/modules/audit/audit.controller.ts#L14) `getAudit` |  |
 | `GET /audit/verify` | `audit.read` | — | [`src/modules/audit/audit.controller.ts:52`](../../src/modules/audit/audit.controller.ts#L52) `getAuditVerify` |  |
 | `POST /blocks` | `config.payroll` | — | [`src/modules/blocks/blocks.controller.ts:14`](../../src/modules/blocks/blocks.controller.ts#L14) `add` | (config.payroll) { label, method, values \| positions, … } → { code, block, …kết quả save() } |
@@ -108,4 +108,4 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `GET /staff/:u/schedule` | `self-or:profile.read` | — | [`src/modules/staff/staff.controller.ts:570`](../../src/modules/staff/staff.controller.ts#L570) `getStaffSchedule` | ?month= lịch làm việc hiệu lực của một người (self-or:profile.read); kiểm quyền TRƯỚC khi tra tên để không dò được tên đăng nhập |
 | `PUT /staff/shift-bulk` | `profile.write` | — | [`src/modules/sheet/sheet.controller.ts:155`](../../src/modules/sheet/sheet.controller.ts#L155) `putStaffShiftBulk` |  |
 | `GET /team` | `payroll.view` | — | [`src/modules/staff/staff.controller.ts:45`](../../src/modules/staff/staff.controller.ts#L45) `getTeam` |  |
-| `GET /today` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:283`](../../src/modules/attendance/attendance.controller.ts#L283) `getToday` |  |
+| `GET /today` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:284`](../../src/modules/attendance/attendance.controller.ts#L284) `getToday` |  |

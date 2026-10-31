@@ -154,7 +154,7 @@ export class AttendanceController {
     const { res, url, needAdmin } = c;
     needAdmin();
     const status = url.searchParams.get('status');
-    return send(res, 200, { ot: await listOt(['approved', 'rejected'].includes(status) ? status : 'pending') });
+    return send(res, 200, { ot: await listOt(['approved', 'rejected'].includes(status ?? '') ? status : 'pending') });
   }
 
   @Post('ot')
@@ -220,7 +220,7 @@ export class AttendanceController {
     const { req, res, me, actx, needAdmin, guardPeriod } = c;
     const admin = needAdmin(),
       b = await readJson(req);
-    let otSession = null,
+    let otSession: { username: string; date: string } | null = null,
       onSheet = false;
     await store.transaction(async () => {
       if (!positiveId(b.sessionId)) throw new HttpError(400, 'Cần chọn lượt OT');
@@ -271,11 +271,12 @@ export class AttendanceController {
         reason: note || null
       });
     });
-    events.emit.punchCorrected(otSession.username, otSession.date);
-    events.emit.attendanceChanged('ot', otSession.date.slice(0, 7));
+    const ot = otSession as unknown as { username: string; date: string }; // đặt trong giao dịch ở trên (không có thì giao dịch đã ném)
+    events.emit.punchCorrected(ot.username, ot.date);
+    events.emit.attendanceChanged('ot', ot.date.slice(0, 7));
     if (onSheet) {
-      await events.emit.approvalsChanged(otSession.date.slice(0, 7));
-      events.emit.estimateChanged(otSession.username, otSession.date.slice(0, 7));
+      await events.emit.approvalsChanged(ot.date.slice(0, 7));
+      events.emit.estimateChanged(ot.username, ot.date.slice(0, 7));
     }
     return send(res, 200, { ok: true });
   }

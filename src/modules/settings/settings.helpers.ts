@@ -9,7 +9,7 @@ const { OtLimits } = require('../../../lib/domain/overtime/ot-limits'); // trầ
 export async function holidayOtConflicts(beforeDates, afterDates) {
   const before = new Set(beforeDates),
     after = new Set(afterDates),
-    conflicts = [];
+    conflicts: any[] = [];
   const added = date => after.has(date) && !before.has(date);
   for (const staff of (await store.listStaff()).filter(s => s.payrollSubject)) {
     const identity = { username: staff.username, name: staff.name };

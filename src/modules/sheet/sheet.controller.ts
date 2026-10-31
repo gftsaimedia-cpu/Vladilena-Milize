@@ -192,8 +192,8 @@ export class SheetController {
       { doing: 'đổi ca' }
     );
     const result = await store.transaction(async () => {
-      const updated = [],
-        unchanged = [];
+      const updated: any[] = [],
+        unchanged: any[] = [];
       for (const person of people) {
         if (person.shiftCode === shiftCode) {
           unchanged.push(person.username);

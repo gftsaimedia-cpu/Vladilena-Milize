@@ -10,16 +10,16 @@ export interface AdvanceRequestsTable {
   month: string;
   amount: number;
   cap: number;
-  note: string | null;
+  note: Generated<string | null>;
   status: Generated<string>;
-  granted: number | null;
+  granted: Generated<number | null>;
   rev: Generated<number>;
   created_at: string;
-  decided_by: string | null;
-  decided_at: string | null;
-  decision_note: string | null;
-  cancelled_by: string | null;
-  cancelled_at: string | null;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  decision_note: Generated<string | null>;
+  cancelled_by: Generated<string | null>;
+  cancelled_at: Generated<string | null>;
 }
 
 export interface AiFindingActionsTable {
@@ -37,12 +37,12 @@ export interface AiFindingActionsTable {
 export interface AiReviewRunsTable {
   id: Generated<number>;
   month: string;
-  run_id: number | null;
+  run_id: Generated<number | null>;
   rules_json: string;
   thresholds_hash: string;
   params_hash: string;
-  findings_total: number | null;
-  summary_json: string | null;
+  findings_total: Generated<number | null>;
+  summary_json: Generated<string | null>;
   by: string;
   at: string;
 }
@@ -61,7 +61,7 @@ export interface AttendanceSessionsTable {
   state: string;
   entry_json: string;
   version: Generated<number>;
-  legacy_key: string | null;
+  legacy_key: Generated<string | null>;
   created_at: string;
   updated_at: string;
 }
@@ -70,26 +70,26 @@ export interface AuditLogTable {
   id: Generated<number>;
   at: string;
   actor: string;
-  actor_roles: string | null;
+  actor_roles: Generated<string | null>;
   action: string;
   entity_kind: string;
   entity_id: string;
-  subject: string | null;
-  month: string | null;
-  before_json: string | null;
-  after_json: string | null;
-  reason: string | null;
+  subject: Generated<string | null>;
+  month: Generated<string | null>;
+  before_json: Generated<string | null>;
+  after_json: Generated<string | null>;
+  reason: Generated<string | null>;
   sensitivity: Generated<string>;
-  request_id: string | null;
+  request_id: Generated<string | null>;
   prev_hash: string;
   hash: string;
-  subject_uuid: string | null;
-  actor_uuid: string | null;
+  subject_uuid: Generated<string | null>;
+  actor_uuid: Generated<string | null>;
 }
 
 export interface BenefitTypesTable {
   code: string;
-  label: string | null;
+  label: Generated<string | null>;
 }
 
 export interface CorrectionsTable {
@@ -100,13 +100,13 @@ export interface CorrectionsTable {
   req_out: string;
   reason: string;
   status: Generated<string>;
-  decided_by: string | null;
-  decided_at: string | null;
-  note: string | null;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  note: Generated<string | null>;
   created_at: string;
-  context_json: string | null;
-  session_id: number | null;
-  session_version: number | null;
+  context_json: Generated<string | null>;
+  session_id: Generated<number | null>;
+  session_version: Generated<number | null>;
 }
 
 export interface ExplanationsTable {
@@ -114,17 +114,17 @@ export interface ExplanationsTable {
   username: string;
   date: string;
   kind: string;
-  session_id: number | null;
+  session_id: Generated<number | null>;
   prompt: Generated<string>;
-  rule_id: string | null;
+  rule_id: Generated<string | null>;
   requested_by: string;
   requested_at: string;
   status: Generated<string>;
-  answer: string | null;
-  answered_at: string | null;
-  decided_by: string | null;
-  decided_at: string | null;
-  decision_note: string | null;
+  answer: Generated<string | null>;
+  answered_at: Generated<string | null>;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  decision_note: Generated<string | null>;
   rev: Generated<number>;
 }
 
@@ -133,21 +133,21 @@ export interface KpiScoreLogTable {
   username: string;
   month: string;
   field: string;
-  old_value: number | null;
-  new_value: number | null;
+  old_value: Generated<number | null>;
+  new_value: Generated<number | null>;
   by: string;
   at: string;
-  reason: string | null;
+  reason: Generated<string | null>;
 }
 
 export interface KpiScoresTable {
   username: string;
   month: string;
-  wework: number | null;
-  user_score: number | null;
-  peer: number | null;
-  manager: number | null;
-  self_score: number | null;
+  wework: Generated<number | null>;
+  user_score: Generated<number | null>;
+  peer: Generated<number | null>;
+  manager: Generated<number | null>;
+  self_score: Generated<number | null>;
   created_by: string;
   created_at: string;
   updated_by: string;
@@ -171,11 +171,11 @@ export interface ParamVersionsTable {
   effective_month: string;
   value_json: string;
   reason: string;
-  basis: string | null;
-  ack_json: string | null;
+  basis: Generated<string | null>;
+  ack_json: Generated<string | null>;
   created_by: string;
   created_at: string;
-  batch_id: string | null;
+  batch_id: Generated<string | null>;
 }
 
 export interface PayEntriesTable {
@@ -185,38 +185,38 @@ export interface PayEntriesTable {
   direction: string;
   amount: number;
   label: string;
-  slip_line: string | null;
+  slip_line: Generated<string | null>;
   reason: string;
-  tax_mode: string | null;
-  tax_cap: number | null;
-  insurance_base: number | null;
-  flags_confirmed_by: string | null;
-  flags_confirmed_at: string | null;
+  tax_mode: Generated<string | null>;
+  tax_cap: Generated<number | null>;
+  insurance_base: Generated<number | null>;
+  flags_confirmed_by: Generated<string | null>;
+  flags_confirmed_at: Generated<string | null>;
   status: Generated<string>;
   rev: Generated<number>;
   created_by: string;
   created_at: string;
-  decided_by: string | null;
-  decided_at: string | null;
-  decision_note: string | null;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  decision_note: Generated<string | null>;
 }
 
 export interface PayrollPeriodsTable {
   month: string;
   status: string;
   rev: Generated<number>;
-  current_run_id: number | null;
-  attendance_locked_by: string | null;
-  attendance_locked_at: string | null;
-  calculated_by: string | null;
-  calculated_at: string | null;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  approved_by: string | null;
-  approved_at: string | null;
-  paid_by: string | null;
-  paid_at: string | null;
-  paid_ref: string | null;
+  current_run_id: Generated<number | null>;
+  attendance_locked_by: Generated<string | null>;
+  attendance_locked_at: Generated<string | null>;
+  calculated_by: Generated<string | null>;
+  calculated_at: Generated<string | null>;
+  reviewed_by: Generated<string | null>;
+  reviewed_at: Generated<string | null>;
+  approved_by: Generated<string | null>;
+  approved_at: Generated<string | null>;
+  paid_by: Generated<string | null>;
+  paid_at: Generated<string | null>;
+  paid_ref: Generated<string | null>;
   reopen_count: Generated<number>;
 }
 
@@ -230,12 +230,12 @@ export interface PayrollRunsTable {
   params_rev: number;
   params_json: string;
   switches_json: string;
-  inputs_digest: string | null;
-  slips_total: number | null;
-  slips_error: number | null;
+  inputs_digest: Generated<string | null>;
+  slips_total: Generated<number | null>;
+  slips_error: Generated<number | null>;
   created_by: string;
   created_at: string;
-  finished_at: string | null;
+  finished_at: Generated<string | null>;
 }
 
 export interface PayslipsTable {
@@ -244,17 +244,20 @@ export interface PayslipsTable {
   username: string;
   status: string;
   rev: Generated<number>;
-  error_code: string | null;
-  error_detail: string | null;
-  gross: number | null;
-  insurance: number | null;
-  tax: number | null;
-  advance: number | null;
-  net: number | null;
+  error_code: Generated<string | null>;
+  error_detail: Generated<string | null>;
+  gross: Generated<number | null>;
+  insurance: Generated<number | null>;
+  tax: Generated<number | null>;
+  advance: Generated<number | null>;
+  net: Generated<number | null>;
   staff_terms_json: string;
   snapshot_gz: Buffer;
-  override_json: string | null;
-  flags_json: string | null;
+  override_json: Generated<string | null>;
+  flags_json: Generated<string | null>;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  note: Generated<string | null>;
 }
 
 export interface PositionLevelsTable {
@@ -264,9 +267,9 @@ export interface PositionLevelsTable {
   effective_month: string;
   name: string;
   base_salary: number;
-  kpi_max: number | null;
-  night_pct: number | null;
-  reason: string | null;
+  kpi_max: Generated<number | null>;
+  night_pct: Generated<number | null>;
+  reason: Generated<string | null>;
   updated_by: string;
   updated_at: string;
   rev: Generated<number>;
@@ -290,7 +293,7 @@ export interface PositionTypesTable {
   attendance_pct: number;
   regular_dows: string;
   makeup_dows: string;
-  reason: string | null;
+  reason: Generated<string | null>;
   updated_by: string;
   updated_at: string;
   rev: Generated<number>;
@@ -300,9 +303,9 @@ export interface PunchRequestsTable {
   username: string;
   request_id: string;
   operation: string;
-  session_id: number | null;
+  session_id: Generated<number | null>;
   response_json: string;
-  created_at: string | null;
+  created_at: Generated<string | null>;
 }
 
 export interface PunchesTable {
@@ -310,10 +313,10 @@ export interface PunchesTable {
   username: string;
   at: string;
   type: string;
-  ip: string | null;
+  ip: Generated<string | null>;
   auto: Generated<number>;
-  context_json: string | null;
-  session_id: number | null;
+  context_json: Generated<string | null>;
+  session_id: Generated<number | null>;
 }
 
 export interface SettingsTable {
@@ -329,18 +332,18 @@ export interface SheetApprovalsTable {
   status: Generated<string>;
   rev: Generated<number>;
   submitted_at: string;
-  decided_by: string | null;
-  decided_at: string | null;
-  note: string | null;
+  decided_by: Generated<string | null>;
+  decided_at: Generated<string | null>;
+  note: Generated<string | null>;
 }
 
 export interface SlipOverridesTable {
   username: string;
   month: string;
   values_json: string;
-  updated_by: string | null;
+  updated_by: Generated<string | null>;
   updated_at: string;
-  reason: string | null;
+  reason: Generated<string | null>;
   rev: Generated<number>;
 }
 
@@ -350,32 +353,32 @@ export interface StaffTable {
   role: Generated<string>;
   type: Generated<string>;
   level: Generated<number>;
-  night_pct: number | null;
+  night_pct: Generated<number | null>;
   idorm: Generated<number>;
-  shift_code: string | null;
+  shift_code: Generated<string | null>;
   pass_hash: string;
   created_at: string;
-  start_date: string | null;
-  birthday: string | null;
+  start_date: Generated<string | null>;
+  birthday: Generated<string | null>;
   leave_adjust: Generated<number>;
-  contract: string | null;
-  insured: number | null;
+  contract: Generated<string | null>;
+  insured: Generated<number | null>;
   dependants: Generated<number>;
-  job_title: string | null;
-  tax_on: number | null;
-  deduct_on: number | null;
-  advance_on: number | null;
-  locked_at: string | null;
-  locked_by: string | null;
+  job_title: Generated<string | null>;
+  tax_on: Generated<number | null>;
+  deduct_on: Generated<number | null>;
+  advance_on: Generated<number | null>;
+  locked_at: Generated<string | null>;
+  locked_by: Generated<string | null>;
   session_version: Generated<number>;
-  payroll_subject: number | null;
-  uuid: string | null;
-  family_name: string | null;
-  given_name: string | null;
-  contract_status: string | null;
-  resigned_on: string | null;
-  leave_balance: number | null;
-  leave_balance_on: string | null;
+  payroll_subject: Generated<number | null>;
+  uuid: Generated<string | null>;
+  family_name: Generated<string | null>;
+  given_name: Generated<string | null>;
+  contract_status: Generated<string | null>;
+  resigned_on: Generated<string | null>;
+  leave_balance: Generated<number | null>;
+  leave_balance_on: Generated<string | null>;
 }
 
 export interface StaffRolesTable {
@@ -384,17 +387,17 @@ export interface StaffRolesTable {
   role: string;
   granted_by: string;
   granted_at: string;
-  revoked_at: string | null;
+  revoked_at: Generated<string | null>;
 }
 
 export interface TimesheetsTable {
   username: string;
   month: string;
   days_json: Generated<string>;
-  kpi_pct: number | null;
-  kpi_amt: number | null;
-  kpi_adm_pct: number | null;
-  kpi_adm_amt: number | null;
+  kpi_pct: Generated<number | null>;
+  kpi_amt: Generated<number | null>;
+  kpi_adm_pct: Generated<number | null>;
+  kpi_adm_amt: Generated<number | null>;
   updated_at: string;
   rev: Generated<number>;
 }
@@ -406,8 +409,8 @@ export interface WorkShiftsTable {
   kind: string;
   sort: Generated<number>;
   deprecated: Generated<number>;
-  updated_by: string | null;
-  updated_at: string | null;
+  updated_by: Generated<string | null>;
+  updated_at: Generated<string | null>;
   rev: Generated<number>;
 }
 

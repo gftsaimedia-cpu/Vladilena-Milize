@@ -147,7 +147,7 @@ export async function list({ res, url, me }) {
   const { provisional, figures } = requests.size
     ? await advanceCap.figuresOf(month, [...requests.keys()])
     : { provisional: false, figures: new Map() };
-  const items = [];
+  const items: any[] = [];
   for (const [username, entry] of requests)
     items.push(await itemOf(username, figures.get(username) || { eligible: false, amount: 0 }, entry));
   const pending = items.filter(r => r.status === 'pending').length;
@@ -235,8 +235,8 @@ export async function approveAll({ req, res, me, actx }) {
   const { provisional, figures } = pendingUsers.length
     ? await advanceCap.figuresOf(month, pendingUsers)
     : { provisional: false, figures: new Map() };
-  const wanted = [];
-  const skipped = [];
+  const wanted: any[] = [];
+  const skipped: any[] = [];
   for (const username of pendingUsers) {
     const figure = figures.get(username);
     if (!figure || !figure.eligible) skipped.push({ username, code: 'ADVANCE_NOT_ELIGIBLE' });

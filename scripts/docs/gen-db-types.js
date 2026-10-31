@@ -41,7 +41,8 @@ function build() {
     .filter(f => f.endsWith('.sql'))
     .sort()
     .map(f => fs.readFileSync(path.join(dir, f), 'utf8').replace(/\r\n/g, '\n'))
-    .join('\n');
+    .join('\n')
+    .replace(/--.*$/gm, ''); // bỏ chú thích trước khi tìm thân bảng: chú thích có ");" làm cụt thân
   const tables = [];
   for (const m of sql.matchAll(/CREATE TABLE (\w+)\s*\(([\s\S]*?)\n?\)\s*;/g)) tables.push({ name: m[1], parts: splitTop(m[2]) });
   // cột thêm sau bằng ALTER TABLE ... ADD COLUMN
@@ -67,7 +68,8 @@ function build() {
     for (const c of cols) {
       const base = tsType(c.type);
       const isPk = /PRIMARY KEY/i.test(c.rest) || pkCols.has(c.name);
-      const generated = /GENERATED|DEFAULT/i.test(c.rest);
+      const nullableCol = !/NOT NULL/i.test(c.rest) && !(/PRIMARY KEY/i.test(c.rest) || pkCols.has(c.name));
+      const generated = /GENERATED|DEFAULT/i.test(c.rest) || nullableCol; // cột cho phép NULL mà không khai mặc định thì mặc định NULL: bỏ được khi INSERT
       const nullable = !/NOT NULL/i.test(c.rest) && !isPk;
       const type = nullable ? `${base} | null` : base;
       out += `  ${c.name}: ${generated ? `Generated<${type}>` : type};\n`;
