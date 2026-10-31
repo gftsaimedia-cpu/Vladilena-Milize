@@ -1,4 +1,4 @@
-import { cutRuleView } from '../sheet/sheet.helpers';
+import { cutRuleView } from '../sheet';
 const store = require('../../../lib/db');
 const { CheckinEntitlement } = require('../../../lib/domain/attendance/checkin-entitlement'); // Check-in lúc này có được không, theo quyền nào
 const { punchStaff } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
