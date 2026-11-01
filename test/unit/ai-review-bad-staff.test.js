@@ -4,7 +4,7 @@
 // Toàn người giả (qa_*), tháng 10/2026, dữ liệu của ai-review-world.js (cùng ca với test attendance-allowance-risk và large-pay-impact).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { review } = require('../../lib/ai/review.js');
+const { review } = require('../../lib/ai/review.ts');
 const W = require('./ai-review-world.js');
 
 const { person, world, find, workDay } = W;

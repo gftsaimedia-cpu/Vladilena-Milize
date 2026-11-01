@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
 const SCAN = ['lib', 'public', 'scripts', 'spec', 'src/server.ts'];
-const TEXT = /\.(js|cjs|mjs|json|md|html|css)$/;
+const TEXT = /\.(js|cjs|mjs|ts|json|md|html|css)$/;
 const SKIP_FILES = new Set([
   'lib/params/registry.data.json',
   'lib/params/keys.lock.json',

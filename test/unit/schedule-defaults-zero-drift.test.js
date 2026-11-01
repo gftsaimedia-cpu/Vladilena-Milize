@@ -3,7 +3,7 @@
 //   - 300 đầu vào ca vàng: người không có lịch riêng không mang khoá workdaysStd (ca có staff.sched giữ ngày công chuẩn của chức vụ) và mọi đẳng thức tiền (test/helpers/payroll-invariants.js) đều đúng;
 //   - ca hạt cố định (mặc định 600; PAYROLL_DIFF_CASES=5000 cho đủ 5.000): ghi tường minh type.<mã>.workdaysMode = 'fixed' cho cùng kết quả từng bit với không ghi, VÀ không ca nào có m.workdaysStd hay staff.schedule;
 //   - sáu ca ghim Z1..Z6 (số tính tay);
-//   - bản chụp canonical: kết quả tháng của người mặc định không mang khoá workdaysStd và tính hai lần cho cùng một bản chụp JSON (như lib/periods.js lưu).
+//   - bản chụp canonical: kết quả tháng của người mặc định không mang khoá workdaysStd và tính hai lần cho cùng một bản chụp JSON (như lib/periods.ts lưu).
 // Phần đọc `public/work-schedule.js` chạy khi tệp đó có mặt.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

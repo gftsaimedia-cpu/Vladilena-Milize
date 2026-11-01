@@ -1,4 +1,4 @@
-// Đường ĐỌC không được ghi DB. lib/domain/attendance.js → closeStaleFor lọc bằng SQL
+// Đường ĐỌC không được ghi DB. lib/domain/attendance.ts → closeStaleFor lọc bằng SQL
 // (state='open' + presIn trước mốc punch.staleBefore) nên chỉ mở một giao dịch cho người THẬT SỰ quá hạn 16 giờ.
 // Test đếm SAVEPOINT/RELEASE: người có lượt mở chưa quá hạn (kể cả vừa Check-in 1 phút) không mở giao dịch nào.
 process.env.DB_PATH = ':memory:';

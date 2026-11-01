@@ -1,5 +1,5 @@
 'use strict';
-// Vai trò tuỳ chỉnh (lib/roles.js, lib/domain/roles.js, lib/authz.js):
+// Vai trò tuỳ chỉnh (lib/roles.ts, lib/domain/roles.js, lib/authz.ts):
 //   GET /api/roles, POST /api/roles, PUT /api/roles/:code, POST /api/roles/:code/deprecate; gán qua PUT /api/staff/:u/roles
 // Vai trò mặc định chỉ đọc; roles.manage chỉ của Admin; vai trò ngưng dùng mất năng lực ngay. Chỉ người bịa (qa_*).
 const F = require('../helpers/api-fixture');

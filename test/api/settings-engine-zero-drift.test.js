@@ -18,7 +18,7 @@ const { pending, pendingUnless, need, exists } = require('../helpers/red');
 const { store } = F;
 const PARAMS = 'public/payroll-params.js';
 const ENGINE = 'public/payroll-engine.js';
-const PARAMS_STORE = 'lib/params/store.js';
+const PARAMS_STORE = 'lib/params/store.ts';
 const MODES = ['defaults-only', 'active'];
 const MONTHS = ['2026-09', '2026-10', '2026-11', '2026-12'];
 
@@ -54,12 +54,12 @@ test(
 
 test(
   'settings-engine-zero-drift: params_mode quyết định có dùng dòng phiên bản hay không (defaults-only bỏ qua, active áp dụng), không dòng nào thì như nhau',
-  pending('S2: lib/params/store.js (đọc tham số) chưa có', PARAMS, PARAMS_STORE),
+  pending('S2: lib/params/store.ts (đọc tham số) chưa có', PARAMS, PARAMS_STORE),
   async () => {
     const { resolveParamSet } = need(PARAMS);
     const params = need(PARAMS_STORE);
     const unwrap = value => (value && (value.params || value.paramSet)) || value; // resolve có thể trả thẳng ParamSet hoặc bọc trong params/paramSet
-    // Danh mục chức vụ/bậc/ca nằm trong DB và luôn được chồng lên bộ tham số (lib/domain/catalog-params.js), ở cả hai chế độ.
+    // Danh mục chức vụ/bậc/ca nằm trong DB và luôn được chồng lên bộ tham số (lib/domain/catalog-params.ts), ở cả hai chế độ.
     // Danh mục nạp sẵn giữ nguyên mọi số tiền của DEFAULTS, chỉ thêm tên bậc và khoá mới (phụ cấp đêm theo bậc, loại ca, mã ca),
     // nên "không có dòng nào" nghĩa là DEFAULTS + dòng danh mục (test/unit/domain-classes.test.js kiểm danh mục khớp DEFAULTS).
     const { catalogParams } = require('../../lib/domain/catalog-params');
@@ -139,7 +139,7 @@ test(
       'test vàng chạy với param_versions rỗng (không dòng nào rò từ test khác)'
     );
     const golden = readGolden().cases;
-    // "Không dòng nào" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.js), như nhóm 2
+    // "Không dòng nào" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.ts), như nhóm 2
     const { catalogParams } = require('../../lib/domain/catalog-params');
     const reference = new Map();
     const referenceEngine = async month => {
@@ -172,8 +172,8 @@ test(
 );
 
 /* ================= nhóm 4: qua DB, API và bản chụp phiếu ================= */
-// Nhóm 4 chạy khi có lib/payroll-service.js
-const routesReady = pendingUnless('V1-A bước 3: lib/payroll-service.js chưa có', exists('lib/payroll-service.js'));
+// Nhóm 4 chạy khi có lib/payroll-service.ts
+const routesReady = pendingUnless('V1-A bước 3: lib/payroll-service.ts chưa có', exists('lib/payroll-service.ts'));
 // Bốn tổ hợp: (chế độ) × (tháng 2026-10, tháng 2026-11)
 for (const mode of MODES)
   for (const month of ['2026-10', '2026-11'])

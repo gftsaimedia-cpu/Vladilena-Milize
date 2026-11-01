@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 const AV = require('../../public/approval-view.js');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.js');
-const { formulasOf } = require('../../lib/slip-formulas.js');
+const { cellsOf } = require('../../lib/slip-paid.ts');
+const { formulasOf } = require('../../lib/slip-formulas.ts');
 const { near: near2, plainAll } = require('../helpers/formula-eval');
 const { declaredPunches } = require('../helpers/declared-punches');
 

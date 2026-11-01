@@ -164,7 +164,7 @@ const CASES = [
 ];
 const CASE_TITLE = Object.fromEntries(CASES);
 
-// 22 luật của lib/ai/review.js (thứ tự RULES). selfcheck.js so với RULES thật.
+// 22 luật của lib/ai/review.ts (thứ tự RULES). selfcheck.js so với RULES thật.
 const AI_RULES = [
   'isat-frequency',
   'approved-leave-frequency',
@@ -187,14 +187,14 @@ const AI_RULES = [
   'net-nonpositive',
   // Luật HỆ THỐNG (không gắn người, xem SYSTEM_RULES): chỉ bắn khi tham số đổi
   'formula-changed-recently',
-  // Hai luật thêm ở lib/ai/rules-extra.js: block-flags-unconfirmed là luật hệ thống, override-looks-like-entry gắn người
+  // Hai luật thêm ở lib/ai/rules-extra.ts: block-flags-unconfirmed là luật hệ thống, override-looks-like-entry gắn người
   'block-flags-unconfirmed',
   'override-looks-like-entry'
 ];
 // Luật hệ thống: kết quả không phụ thuộc persona nào mà phụ thuộc trạng thái param_versions (dòng hiệu lực đúng tháng soát) hoặc khối phụ cấp do C&B thêm.
 // selfcheck.js KHÔNG đòi persona "phải bắn" hay "sát ngưỡng" cho các luật này; muốn kiểm phải dựng dòng param_versions / khối phụ cấp qua đường ghi tham số của app.
 const SYSTEM_RULES = ['formula-changed-recently', 'block-flags-unconfirmed', 'net-nonpositive'];
-// Luật luôn bị bỏ qua theo thiết kế (skipWhen trong lib/ai/review.js): không đòi bắn, không đòi persona
+// Luật luôn bị bỏ qua theo thiết kế (skipWhen trong lib/ai/review.ts): không đòi bắn, không đòi persona
 const DISABLED_BY_DESIGN = ['kpi-self-100-streak'];
 
 /* ---------- tên giả ---------- */

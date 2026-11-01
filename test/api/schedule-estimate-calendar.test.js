@@ -54,7 +54,7 @@ test('lịch ước tính 7: TTS nghỉ không lương Thứ Bảy 07/11 (ngoài
   assert.deepEqual(Object.keys((await store.getSheet('qa_s_tts', S.MONTH)).days), [SAT]);
 });
 
-// Gọi thẳng lib/data-quality.js → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
+// Gọi thẳng lib/data-quality.ts → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
 async function negativeLeaveOf(username) {
   const { evaluate } = require('../../lib/data-quality');
   const result = evaluate({

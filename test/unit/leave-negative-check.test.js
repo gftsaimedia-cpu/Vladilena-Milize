@@ -1,8 +1,8 @@
-// Kiểm phép âm của lib/data-quality.js (cũng là nguồn của luật negative-leave trong lib/ai/review.js): báo khi SỐ DƯ của sổ phép theo từng năm
+// Kiểm phép âm của lib/data-quality.ts (cũng là nguồn của luật negative-leave trong lib/ai/review.ts): báo khi SỐ DƯ của sổ phép theo từng năm
 // (public/leave.js → ledger) âm, với used = số ngày phép trừ được, accrued = phép còn trong sổ (đã cộng, chưa hết hạn), balance = số dư của sổ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const quality = require('../../lib/data-quality.js');
+const quality = require('../../lib/data-quality.ts');
 const Leave = require('../../public/leave.js');
 
 const pad = n => String(n).padStart(2, '0');

@@ -3,7 +3,7 @@
 //   - ActualHours.apply ghi hai trường vào ngày hiệu lực, bộ máy chuyển sang snapshot.rows; tiền, giờ làm, phút cắt không đổi;
 //   - ngày dùng lượt nào thì lấy giờ của lượt đó: lượt Admin khai thay (sheet.onBehalf) là giờ đã khai, lượt thật thắng lượt Admin;
 //   - ca đêm: giờ ra là giờ đồng hồ của sáng hôm sau; quên Check-out chỉ có giờ vào; vắng không có giờ nào;
-//   - bản chụp cũ chưa có hai trường: máy chủ lấy lúc đọc từ attendance_sessions (lib/slip-paid.js → withDayFigures) và so bản chụp
+//   - bản chụp cũ chưa có hai trường: máy chủ lấy lúc đọc từ attendance_sessions (lib/slip-paid.ts → withDayFigures) và so bản chụp
 //     (verify) không tính hai trường này.
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { test } = require('node:test');
@@ -12,9 +12,9 @@ const P = require('../../public/punch.js');
 const Engine = require('../../public/payroll-engine.js');
 const ActualHours = require('../../public/actual-hours.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { AdminPresence } = require('../../lib/domain/attendance/admin-presence.js');
+const { AdminPresence } = require('../../lib/domain/attendance/admin-presence.ts');
 const store = require('../../lib/db');
-const { withDayFigures, withoutPunchTimes } = require('../../lib/slip-paid.js');
+const { withDayFigures, withoutPunchTimes } = require('../../lib/slip-paid.ts');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const MONTH = '2026-10';

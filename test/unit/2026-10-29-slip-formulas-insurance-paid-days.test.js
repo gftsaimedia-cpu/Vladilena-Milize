@@ -1,12 +1,12 @@
 'use strict';
 // Dòng bảo hiểm ở "Chi tiết" phiếu Admin theo số ngày có lương: số ngày không lương = ngày công chuẩn − ngày có lương;
 // từ 14 ngày trở lên thì không đóng và công thức ghi phép trừ so với ngưỡng, dưới 14 ngày thì công thức là nền × 10,5%.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.js nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.js');
-const { formulasOf } = require('../../lib/slip-formulas.js');
+const { cellsOf } = require('../../lib/slip-paid.ts');
+const { formulasOf } = require('../../lib/slip-formulas.ts');
 const { plainAll } = require('../helpers/formula-eval');
 const F = require('../helpers/schedule-fixtures');
 

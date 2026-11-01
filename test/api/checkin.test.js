@@ -110,7 +110,7 @@ test('check-in → check-out gửi giờ có mặt riêng cho Admin, không tạ
   assert.equal((await call(an, 'POST', '/api/punch', { type: 'in' })).status, 409); // bấm trùng
   await at('2026-10-07T17:40:00');
   // Check-out muộn 40 phút sau giờ hết ca 17:00 (quá CHECKOUT_GRACE_MIN): phải giải trình, giờ ra chỉ tính khi Admin duyệt
-  // (lib/domain/explanation/late-checkout-session.js)
+  // (lib/domain/explanation/late-checkout-session.ts)
   r = await call(an, 'POST', '/api/punch', { type: 'out' });
   assert.equal(r.status, 409);
   assert.equal(r.data.code, 'CHECKOUT_NEEDS_EXPLANATION');

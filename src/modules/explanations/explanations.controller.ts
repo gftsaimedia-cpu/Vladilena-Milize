@@ -9,7 +9,7 @@ const { USERNAME_RE } = require('../../../lib/domain/input');
 const { container } = require('../../../lib/domain/container');
 
 /**
- * Giải trình Check-out muộn, ngày vắng và yêu cầu giải trình của Admin (nghiệp vụ ở lib/domain/explanation/explanation-service.js).
+ * Giải trình Check-out muộn, ngày vắng và yêu cầu giải trình của Admin (nghiệp vụ ở lib/domain/explanation/explanation-service.ts).
  * Chưa duyệt / không duyệt thì ngày đó không tính lương. expectedRev lệch → 409 EXPLANATION_STALE.
  */
 @Controller('api')

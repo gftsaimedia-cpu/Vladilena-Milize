@@ -1,13 +1,13 @@
 'use strict';
-// Soát dữ liệu trước khi chốt lương (lib/ai/review.js): mỗi luật có ca phải bắn và ca sát ngưỡng không được bắn.
+// Soát dữ liệu trước khi chốt lương (lib/ai/review.ts): mỗi luật có ca phải bắn và ca sát ngưỡng không được bắn.
 // Toàn người giả, tháng 10/2026. 04/11/2026 là sau hạn mùng 3; 10/2026 có Thứ Bảy 3, 10, 17, 24, 31.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');
 const fs = require('node:fs');
 const path = require('node:path');
-const { review, RULES, EVIDENCE_FIELDS } = require('../../lib/ai/review.js');
-const { THRESHOLDS } = require('../../lib/ai/thresholds.js');
+const { review, RULES, EVIDENCE_FIELDS } = require('../../lib/ai/review.ts');
+const { THRESHOLDS } = require('../../lib/ai/thresholds.ts');
 const W = require('./ai-review-world.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 
@@ -39,7 +39,7 @@ test('review thuần: không sửa đầu vào, không đọc đồng hồ, khô
     Date.now = realNow;
   }
   assert.equal(JSON.stringify(input), before);
-  for (const file of ['review.js', 'thresholds.js']) {
+  for (const file of ['review.ts', 'thresholds.ts']) {
     const source = fs.readFileSync(path.join(__dirname, '../../lib/ai', file), 'utf8');
     assert.ok(!/Date\.now\(|new Date\(\)|require\(['"]node:(fs|http|https|net|child_process)/.test(source), file);
     assert.ok(!/fetch\(|XMLHttpRequest|https?:\/\/(?!docs)/.test(source.replace(/\/\/.*$/gm, '')), file);

@@ -7,8 +7,8 @@
 const fs = require('node:fs');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const Params = require('../../public/payroll-params.js');
-const registry = require('../../lib/params/registry.js');
-const { fmt } = require('../../lib/params/validate.js');
+const registry = require('../../lib/params/registry.ts');
+const { fmt } = require('../../lib/params/validate.ts');
 
 const CLASS_LABEL = {
   choice: 'chọn',

@@ -4,8 +4,8 @@ import { list as listApprovals, own, decideOne, approveAll } from './advance-app
 import { list as listRequests } from './advance-requests.handlers';
 
 /**
- * Tạm ứng lương. Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.js); không ai nhập số.
- * CHỈ người cần mới gửi yêu cầu; chỉ trừ vào phiếu khi Admin đã duyệt. Quyền ở cổng ROUTE_CAPS (lib/authz.js).
+ * Tạm ứng lương. Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.ts); không ai nhập số.
+ * CHỈ người cần mới gửi yêu cầu; chỉ trừ vào phiếu khi Admin đã duyệt. Quyền ở cổng ROUTE_CAPS (lib/authz.ts).
  */
 @Controller('api')
 export class AdvanceController {

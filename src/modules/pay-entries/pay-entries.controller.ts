@@ -17,8 +17,8 @@ const notify = (entry: any) => {
 };
 
 /**
- * Khoản điền thêm theo người theo tháng. Quyền đã kiểm ở cổng ROUTE_CAPS (lib/authz.js);
- * quy tắc, kiểm đầu vào, khoá kỳ và nhật ký ở lib/pay-entries.js.
+ * Khoản điền thêm theo người theo tháng. Quyền đã kiểm ở cổng ROUTE_CAPS (lib/authz.ts);
+ * quy tắc, kiểm đầu vào, khoá kỳ và nhật ký ở lib/pay-entries.ts.
  */
 @Controller('api')
 export class PayEntriesController {

@@ -9,7 +9,7 @@
  *   DATABASE_URL=postgres://… BACKUP_DIR=<thư-mục-sao-lưu> node scripts/ops/params-mode.js defaults-only --reason "<10 đến 300 ký tự>" --yes
  *
  * `status` chỉ đọc. `defaults-only`:
- *   1. đổi từ "active": sao lưu DB bằng lib/ops/pg-backup.js vào BACKUP_DIR (hoặc --backup-dir=...), không có thì từ chối chạy;
+ *   1. đổi từ "active": sao lưu DB bằng lib/ops/pg-backup.ts vào BACKUP_DIR (hoặc --backup-dir=...), không có thì từ chối chạy;
  *   2. trong MỘT giao dịch: settings.params_mode = 'defaults-only', tăng config_rev (màn hình và GET /api/settings/version
  *      thấy cấu hình đã đổi) và ghi một dòng nhật ký `param.mode` vào chuỗi băm (actor = "ops:<người dùng hệ điều hành>");
  *   3. không sửa, không xoá dòng nào của param_versions (lịch sử giữ nguyên, bật lại thì các dòng có hiệu lực trở lại).
@@ -22,7 +22,7 @@ const os = require('node:os');
 const { PostgresDatabase } = require('../../lib/data/postgres-database');
 const pgBackup = require('../../lib/ops/pg-backup');
 
-const REASON_MIN = 10; // cùng giới hạn với param_versions.reason và lib/config.js REASON_MIN / REASON_MAX
+const REASON_MIN = 10; // cùng giới hạn với param_versions.reason và lib/config.ts REASON_MIN / REASON_MAX
 const REASON_MAX = 300;
 const ACTOR_MAX = 60;
 
@@ -119,7 +119,7 @@ async function toDefaultsOnly({ url, reason, backupDir }) {
     keep: process.env.BACKUP_KEEP ? Number(process.env.BACKUP_KEEP) : undefined
   });
   const backup = { name: require('node:path').basename(made.file), size: made.bytes };
-  process.env.DATABASE_URL = url; // lib/db.js đọc DATABASE_URL lúc require
+  process.env.DATABASE_URL = url; // lib/db.ts đọc DATABASE_URL lúc require
   const store = require('../../lib/db');
   const audit = require('../../lib/audit');
   const configRev = require('../../lib/params/config-rev');

@@ -1,13 +1,13 @@
 'use strict';
-// Gộp mảnh cùng đơn giá trong công thức phiếu Admin (lib/slip-formulas.js → netSum): các mảnh giờ × lương giờ × hệ số cùng đơn giá và
+// Gộp mảnh cùng đơn giá trong công thức phiếu Admin (lib/slip-formulas.ts → netSum): các mảnh giờ × lương giờ × hệ số cùng đơn giá và
 // cùng hệ số cộng trừ thành một mảnh ròng, mảnh ròng bằng 0 không in. Test tự đọc chuỗi công thức rồi tính, so với số trên dòng. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.js nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.js');
-const { formulasOf } = require('../../lib/slip-formulas.js');
+const { cellsOf } = require('../../lib/slip-paid.ts');
+const { formulasOf } = require('../../lib/slip-formulas.ts');
 const F = require('../helpers/schedule-fixtures');
 
 const { near, plain, plainAll } = require('../helpers/formula-eval');
@@ -108,7 +108,7 @@ test('ca đêm 09/10 vào lễ, ca ngày 10/10 không có giờ thường: còn 
 });
 
 test('gộp mảnh trong chuỗi: cùng đơn giá, cùng hệ số thì cộng giờ; khác hệ số thì để riêng; triệt tiêu một phần in mảnh ròng', () => {
-  const { netSum: rawNetSum, hourTerm, sharedName } = require('../../lib/slip-formulas.js')._test;
+  const { netSum: rawNetSum, hourTerm, sharedName } = require('../../lib/slip-formulas.ts')._test;
   const netSum = terms => ({ ...rawNetSum(terms), t: plain(rawNetSum(terms).t) });
   const unit = { t: '28.846,15 đ/giờ', v: 28846.15, k: 'a' };
   const x15 = { t: '1,5', v: 1.5, k: 'a' };

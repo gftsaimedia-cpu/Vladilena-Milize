@@ -1,5 +1,5 @@
 'use strict';
-// Số ước tính của chính nhân sự (lib/periods.js → estimate, route GET /api/me/estimate):
+// Số ước tính của chính nhân sự (lib/periods.ts → estimate, route GET /api/me/estimate):
 //   - CHỈ dữ liệu của người đăng nhập (tham số user bị bỏ qua); chưa đăng nhập là 401; người không được trả lương nhận payrollSubject:false;
 //   - mặc định không có từng dòng ngày, chỉ khi rows=1; tháng hiện tại tính tới hôm nay (đồng hồ giả);
 //   - slip.staffVisibleFrom: mặc định afterPaid: kỳ đã chi trả thì nhân sự thấy BẢN CHỤP chính thức (official: true), chưa chi trả là số ước tính;

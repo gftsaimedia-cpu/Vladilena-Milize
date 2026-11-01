@@ -1,5 +1,5 @@
 'use strict';
-// Phiếu thực lĩnh âm chỉ cảnh báo (lib/periods.js → negativePaidNets, decidePayslips, approve; lib/period-warnings.js → warnNegativeNet):
+// Phiếu thực lĩnh âm chỉ cảnh báo (lib/periods.ts → negativePaidNets, decidePayslips, approve; lib/period-warnings.ts → warnNegativeNet):
 //   - duyệt phiếu (PUT /api/periods/:m/payslips/decide, action approve) có phiếu thực lĩnh CHI TRẢ (sau số Admin đã sửa) < 0 vẫn là 200 kèm cảnh báo đỏ PAYSLIP_NEGATIVE_NET
 //     nêu tên tài khoản và số âm; thực lĩnh đúng 0 không cảnh báo;
 //   - duyệt kỳ (POST /api/periods/:m/approve) cũng 200 kèm cảnh báo khi còn phiếu âm, kể cả số sửa lưu SAU khi phiếu đã duyệt; số âm đóng băng trên phiếu.

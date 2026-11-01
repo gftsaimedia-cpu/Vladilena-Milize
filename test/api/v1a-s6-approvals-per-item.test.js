@@ -1,8 +1,8 @@
 'use strict';
-// Quyền duyệt khoản chờ (GET/PUT /api/approvals*, GET /api/alerts, lib/authz.js) kiểm TỪNG KHOẢN theo nhóm,
+// Quyền duyệt khoản chờ (GET/PUT /api/approvals*, GET /api/alerts, lib/authz.ts) kiểm TỪNG KHOẢN theo nhóm,
 // không chỉ "có ít nhất một request.decide.<nhóm>".
 // `request.decide.*` của HR là `leave`; của Quản lý là
-// "nhóm mình, bước 1" (phạm vi `team`; lib/authz.js ROLE_SCOPE.manager = 'team', chưa có bảng staff_assignments nên chỉ gồm chính mình);
+// "nhóm mình, bước 1" (phạm vi `team`; lib/authz.ts ROLE_SCOPE.manager = 'team', chưa có bảng staff_assignments nên chỉ gồm chính mình);
 // C&B có mọi nhóm. Quản lý và HR không thấy số tiền (kpiAdmAmt, kpiAdmPct là tiền/điểm Admin duyệt cho lương KPI).
 // APPROVAL_FORBIDDEN_TYPE ("vai trò không được duyệt loại này"); một lô có khoản không được phép thì cả lô bị từ chối, không lưu gì.
 // Tháng 2026-10, đồng hồ 14/10/2026; người bịa qa_*. Vai trò gán bằng store.roles.grant (staff_roles).

@@ -28,7 +28,7 @@ async function readChange(req: any) {
 
 /**
  * Danh mục chức vụ, bậc và ca làm trong DB (Admin sửa thẳng ở màn Admin, có phiên bản theo tháng áp dụng).
- * Bảng lương đọc danh mục qua bộ tham số của tháng (lib/params/store.js), nên sửa ở đây có hiệu lực từ tháng áp dụng như sửa tham số.
+ * Bảng lương đọc danh mục qua bộ tham số của tháng (lib/params/store.ts), nên sửa ở đây có hiệu lực từ tháng áp dụng như sửa tham số.
  */
 @Controller('api')
 export class CatalogController {

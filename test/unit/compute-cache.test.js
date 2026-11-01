@@ -1,5 +1,5 @@
 'use strict';
-// Bộ nhớ đệm phép tính nặng (lib/ops/compute-cache.js): hợp lệ khi cùng số lần ghi và chưa quá TTL; DB đổi thì tính lại ngay.
+// Bộ nhớ đệm phép tính nặng (lib/ops/compute-cache.ts): hợp lệ khi cùng số lần ghi và chưa quá TTL; DB đổi thì tính lại ngay.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { ComputeCache } = require('../../lib/ops/compute-cache');

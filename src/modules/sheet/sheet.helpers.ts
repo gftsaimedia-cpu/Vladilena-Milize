@@ -91,7 +91,7 @@ export async function cleanDays(days: any) {
       // Bản ghi cũ có giờ ra làm thêm mà thiếu extraKind là làm bù (đúng như calcDay và approval-view đọc): giữ nguyên giờ,
       // không xoá. Chỉ có giờ vào làm thêm thì calcDay không tính gì: giữ nguyên giờ, để extraKind rỗng, không đoán loại.
       const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
-      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/timesheet/services.js → checkExtraTimes
+      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/timesheet/services.ts → checkExtraTimes
       timesheet().extraTimes.check(date, d, { extraKind, extraIn, extraOut });
       if (d.preset != null && d.preset !== '' && !(await isShiftCode(d.preset)))
         throw new HttpError(400, `Ngày ${DayMath.dm(date)}: ca chọn sẵn không hợp lệ`);

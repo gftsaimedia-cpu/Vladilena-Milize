@@ -1,5 +1,5 @@
 'use strict';
-// Kênh báo cho màn đang mở (lib/events.js, GET /api/events):
+// Kênh báo cho màn đang mở (lib/events.ts, GET /api/events):
 //   events-auth      401 khi chưa đăng nhập; hello có epoch, serverTime, configRev, build, retry; đăng xuất, khoá tài khoản, đổi mật khẩu thì bye; trần kết nối; nhịp tim
 //   events-audience  người nhận và chiếu trường theo tầng: nhân viên chỉ nhận { configRev, fromMonth } của params.changed, không bao giờ approvals.changed,
 //                    chỉ request.decided / estimate.changed / payslip.available của CHÍNH mình; payload không có tên, tiền, lý do tự do, mã băm

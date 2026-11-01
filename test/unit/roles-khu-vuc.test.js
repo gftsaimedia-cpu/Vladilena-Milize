@@ -1,5 +1,5 @@
 'use strict';
-// Vai trò tuỳ chỉnh: bảng khu vực (ma trận Không / Xem / Sửa), mã từ tên và bộ lọc năng lực của lib/authz.js (không cần máy chủ).
+// Vai trò tuỳ chỉnh: bảng khu vực (ma trận Không / Xem / Sửa), mã từ tên và bộ lọc năng lực của lib/authz.ts (không cần máy chủ).
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

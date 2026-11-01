@@ -151,7 +151,7 @@ export class StaffRolesRepository {
   }
 }
 
-/** Bảng `staff`: tài khoản và hồ sơ nhân sự. Việc dựng đối tượng nhân sự (rowToStaff) nằm ở lib/db.js. */
+/** Bảng `staff`: tài khoản và hồ sơ nhân sự. Việc dựng đối tượng nhân sự (rowToStaff) nằm ở lib/db.ts. */
 export class StaffRepository {
   constructor(private readonly qb: Kysely<Schema>) {}
 

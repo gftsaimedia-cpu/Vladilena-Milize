@@ -83,7 +83,7 @@ test('block-add-allowance: đầu vào sai là 400 và không lưu gì: thiếu 
     [{ ...lunch(-1) }, 'số tiền âm'],
     [{ ...lunch(1500.5) }, 'số tiền lẻ'],
     [{ label: 'Khối chức vụ lạ', method: 'fixed', values: { khongco: { on: true, amount: 1000 } } }, 'chức vụ lạ'],
-    // Lý do không bắt buộc ở mọi nơi trong dự án (lib/warnings.js optionalReason); chỉ quá dài (> REASON_MAX) mới là lỗi
+    // Lý do không bắt buộc ở mọi nơi trong dự án (lib/warnings.ts optionalReason); chỉ quá dài (> REASON_MAX) mới là lỗi
     [{ ...lunch(500000), reason: 'x'.repeat(301) }, 'lý do quá dài']
   ];
   for (const [body, what] of bad) {

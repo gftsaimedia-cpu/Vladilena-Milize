@@ -2,7 +2,7 @@
 // Luồng kỳ lương dùng chung (bản chụp phiếu, không lệch một đồng): dựng một tháng người bịa qua API thật,
 // duyệt hết khoản chờ, chốt công, tính lương rồi đọc phiếu từ bảng payslips.
 // Kết quả mong đợi tính bằng bộ máy lương dùng chung trên chính dữ liệu đã lưu trong DB (đọc thẳng từ bảng, không qua loadInputs), nên
-// lệch nào của lib/payroll-service.js hay của bản chụp phiếu đều lộ ra bằng từng đồng.
+// lệch nào của lib/payroll-service.ts hay của bản chụp phiếu đều lộ ra bằng từng đồng.
 const zlib = require('node:zlib');
 const F = require('./api-fixture');
 const PunchRules = require('../../public/punch.js');

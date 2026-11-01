@@ -1,5 +1,5 @@
 // Route yêu cầu tạm ứng theo tháng (lưu ở ./advance-approvals.js). lib/domain/routes.js gửi
-// /api/advance-approvals/... tới handle(). Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.js → figuresOf); không ai nhập số.
+// /api/advance-approvals/... tới handle(). Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.ts → figuresOf); không ai nhập số.
 // CHỈ người cần mới gửi yêu cầu; chỉ trừ vào phiếu khi Admin đã duyệt. Không xin, đang chờ, bị từ chối: 0.
 //   GET  /api/advance-approvals?month=[&username=]   người duyệt (hoặc xem lương): CHỈ người đã gửi yêu cầu của tháng (mọi trạng thái), mỗi người
 //        { username, name, eligible, reason?, amount, status, rev, requestedAt, decidedAt, decidedBy, note }, kèm pending (số chờ duyệt);

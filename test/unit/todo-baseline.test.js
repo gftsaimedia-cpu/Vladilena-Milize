@@ -28,7 +28,7 @@ test('todo: baseline có số liệu hợp lệ', () => {
   assert.ok(Object.keys(baseline.sources).length > 5);
 });
 
-// Cờ trỏ vào mã đã có (server.js) mà hết khớp là cờ hỏng: test âm thầm thành todo. Cờ trỏ vào tính năng CHƯA làm (viết đỏ trước, vd. lib/authz.js
+// Cờ trỏ vào mã đã có (server.js) mà hết khớp là cờ hỏng: test âm thầm thành todo. Cờ trỏ vào tính năng CHƯA làm (viết đỏ trước, vd. lib/authz.ts
 // chưa có route history) là todo có chủ đích và đã được số chỗ nguồn ở trên đếm, nên không đòi khớp.
 test('todo: mọi cờ mentions("src/server.ts", /mẫu/) còn khớp server.js (mẫu hết khớp = test âm thầm thành todo)', () => {
   const flags = mentionFlags();

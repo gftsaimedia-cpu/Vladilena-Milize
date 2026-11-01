@@ -333,7 +333,7 @@ export class AttendanceController {
         session: session || null
       };
     });
-    // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.js), nạp lô một lần cho mọi người; không có lượt thì null
+    // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.ts), nạp lô một lần cho mọi người; không có lượt thì null
     const shown = new Map<any, any>(
       (await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map(
         (s: any) => [s.id, s] as [any, any]

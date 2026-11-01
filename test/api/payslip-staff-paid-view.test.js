@@ -1,5 +1,5 @@
 'use strict';
-// Nhân sự KHÔNG thấy số tự tính khi phiếu có số Admin sửa (lib/periods.js → staffPaidSnapshot, staffLinesOf, selfView, estimate nhánh chính thức):
+// Nhân sự KHÔNG thấy số tự tính khi phiếu có số Admin sửa (lib/periods.ts → staffPaidSnapshot, staffLinesOf, selfView, estimate nhánh chính thức):
 //   - phiếu của chính mình (GET /api/periods/:m/payslips/:u) và GET /api/me/estimate: bản chụp gửi đi là BẢN SAO theo số chi trả (m.total, m.net, m.trace),
 //     ô sửa ánh xạ thẳng một dòng thì dòng đó mang giá trị sửa; ô sửa mà tiền nằm rải nhiều dòng thì bỏ các dòng chi tiết đó (không đoán cách chia);
 //   - Admin (không selfView) vẫn nhận bản chụp gốc cùng computed; phiếu không có số sửa thì nhân sự nhận đúng bản chụp đã lưu.
@@ -239,8 +239,8 @@ test('Lần tính có params_json là JSON null, chuỗi không phải JSON ho�
   }
 });
 //   1. params_json là số hoặc chuỗi JSON: public/payroll-params.js → fillLate gọi WeakMap.set với khoá không phải đối tượng
-//      (TypeError qua lib/periods.js → workdaysStdOf) nên chi tiết phiếu trả 500;
-//   2. params_json = 'null': lib/periods.js → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
+//      (TypeError qua lib/periods.ts → workdaysStdOf) nên chi tiết phiếu trả 500;
+//   2. params_json = 'null': lib/periods.ts → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
 test('params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500', async () => {
   for (const broken of ['123', '"chuỗi"', 'null', '[]']) {
     const status = await brokenParamsStatuses(broken);

@@ -1,5 +1,5 @@
 'use strict';
-// Ghi bộ dữ liệu demo vào DB qua các hàm của lib/db.js (store), như thể máy chủ vừa lưu. Dữ liệu hợp lệ đi qua store.setSheet +
+// Ghi bộ dữ liệu demo vào DB qua các hàm của lib/db.ts (store), như thể máy chủ vừa lưu. Dữ liệu hợp lệ đi qua store.setSheet +
 // approvals.reconcile + approvals.decide, Check-in/out đi theo đúng các bước của POST /punch (punch.js: openSessionDay, buildDay);
 // dữ liệu bất thường ghi thẳng bằng SQL (đánh dấu unreasonable trong scenarios.js).
 // Đồng hồ: mọi lệnh ghi chạy dưới Date.now giả (mỗi sự kiện đặt đúng giờ của nó) nên submitted_at, decided_at... không phụ thuộc ngày chạy.

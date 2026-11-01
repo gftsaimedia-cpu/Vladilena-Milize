@@ -13,7 +13,7 @@ const H = require('../../scripts/db/demo/helpers.js');
 const gen = require('../../scripts/db/demo/generate.js');
 const selfcheck = require('../../scripts/db/demo/selfcheck.js');
 const store = require('../../lib/db');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.js');
+const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
 
 const today = S.TODAY;
 

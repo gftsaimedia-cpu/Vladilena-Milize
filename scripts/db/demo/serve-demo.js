@@ -54,7 +54,6 @@ copyDemo(source, copy);
 process.env.DB_PATH = copy;
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || `serve-demo-${Date.now()}`;
 process.env.COOKIE_SECURE = '0'; // chạy http://127.0.0.1, không có https
-require('../../../lib/register-ts');
 const server = require('../../../src/server');
 
 // Đồng hồ giả chạy tiếp theo giờ thật từ S.NOW_TIME (giờ Việt Nam) của ngày today, cùng mốc mà generate.js dựng dữ liệu

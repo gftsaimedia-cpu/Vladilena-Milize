@@ -1,7 +1,7 @@
 'use strict';
 // Độ bền của bộ tham số khi một dòng param_versions hỏng hoặc sai khoá (sửa tay trong DB, hoặc dòng của khoá đã bị khoá): store.resolve phải BỎ QUA dòng đó
 // và báo lại trong `skipped`, KHÔNG ném lỗi, vì mọi route đọc tham số theo tháng (monthParams) sẽ 500 và bảng lương không dùng được
-// (lib/params/store.js ghi: "Dòng của khoá lạ, hoặc giá trị sai cấu trúc, bị bỏ qua và báo lại; không bao giờ làm hỏng bảng lương").
+// (lib/params/store.ts ghi: "Dòng của khoá lạ, hoặc giá trị sai cấu trúc, bị bỏ qua và báo lại; không bao giờ làm hỏng bảng lương").
 // File này chỉ có test chèn dòng hỏng (append-only nên dòng ở lại cho tới hết tiến trình): đặt riêng để không làm hỏng test khác.
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');

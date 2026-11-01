@@ -7,7 +7,7 @@ const P = require('../../public/punch.js');
 const AV = require('../../public/approval-view.js');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { lateCheckoutMin } = require('../../lib/domain/explanation/late-checkout.js');
+const { lateCheckoutMin } = require('../../lib/domain/explanation/late-checkout.ts');
 
 const SAT = '2026-10-10'; // thứ Bảy: trong lịch NV (T2–T7), ngoài lịch TTS (T2–T6)
 const ASOF = '2026-11-02T12:00:00+07:00';

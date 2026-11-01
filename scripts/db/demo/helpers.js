@@ -152,7 +152,7 @@ function rng(seedText) {
   return next;
 }
 
-// Mật khẩu băm scrypt với muối cố định: cùng định dạng lib/auth.js (scrypt$muối$băm) nên đăng nhập được, và đầu ra không đổi giữa các lần chạy
+// Mật khẩu băm scrypt với muối cố định: cùng định dạng lib/auth.ts (scrypt$muối$băm) nên đăng nhập được, và đầu ra không đổi giữa các lần chạy
 function fixedHash(password, saltHex = 'de3a0c0de3a0c0de3a0c0de3a0c0de3a') {
   const crypto = require('node:crypto');
   return `scrypt$${saltHex}$${crypto.scryptSync(password, saltHex, 64).toString('hex')}`;

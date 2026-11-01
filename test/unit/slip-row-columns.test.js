@@ -1,15 +1,15 @@
 'use strict';
-// Bốn cột tiền của một dòng ngày trên phiếu (PayrollEngine.columnsOfDay, gắn vào dòng ngày bởi lib/slip-paid.js → dayFiguresOf):
+// Bốn cột tiền của một dòng ngày trên phiếu (PayrollEngine.columnsOfDay, gắn vào dòng ngày bởi lib/slip-paid.ts → dayFiguresOf):
 //   luongNgay + phuCapCa + lamThem − truGio = làm tròn đồng của total; mỗi cột là số nguyên đồng.
 //   luongNgay = mọi phần lương ngày (kể cả lương ngày lễ và tiền giờ ngày thường của ca sang ngày sau) + giờ trừ;
 //   phuCapCa = phụ cấp ca + Off Paid; lamThem = OT + làm bù + OT ngày lễ; truGio = giờ thiếu của ngày đi làm.
 // Ca tham chiếu: NV bậc 1 (6.000.000 / 26 = 230.769 mỗi ngày), ca đêm 40 %, ca Night2 22:00–07:00.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.js nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { dayFiguresOf, withDayFigures } = require('../../lib/slip-paid.js');
+const { dayFiguresOf, withDayFigures } = require('../../lib/slip-paid.ts');
 
 const KINDS = { Normal1: 'normal', Flex1: 'flex', Night1: 'night', Night2: 'night', n1: 'normal', g2: 'night' };
 const P = { ...DEFAULTS, 'shift.allowance.basis': 'assigned', 'type.nv.nightPct': 40 };

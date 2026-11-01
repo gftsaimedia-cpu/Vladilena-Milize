@@ -1,6 +1,6 @@
 'use strict';
 // GET /api/ai/review: phản hồi có `period: { status }` ở cuối và mỗi phát hiện có `dismissed: null | { by, at, note }` (khoá cuối cùng).
-// Cờ lấy từ lib/findings.js → annotate(month, list): ghép theo (tháng, tài khoản, mã luật) với lần tính hiện hành, dùng CÙNG băm với
+// Cờ lấy từ lib/findings.ts → annotate(month, list): ghép theo (tháng, tài khoản, mã luật) với lần tính hiện hành, dùng CÙNG băm với
 // POST /api/ai/findings/dismiss (đầu vào + băm tham số của lần chạy). Chưa có lần tính thì chưa ai bỏ qua được: tất cả null.
 // Dữ liệu: bốn người bịa của test/helpers/period-flow.js; qa_nv1 và qa_nv2 khai 4 ngày iSAT mỗi người (đang chờ duyệt) nên AI có phát hiện thật
 // (isat-frequency của qa_nv1, cộng attendance-allowance-risk và repeated-edits của qa_nv1; qa_nv2 có tuỳ tháng nên test không dựa vào nó). Chốt công phải bỏ qua PENDING_APPROVALS kèm lý do vì các khoản iSAT còn chờ.

@@ -1,4 +1,4 @@
-import store = require('../lib/db');
+const store = require('../lib/db');
 import Roles = require('../lib/roles');
 import { monthParams, typeParam } from '../lib/request-rules';
 

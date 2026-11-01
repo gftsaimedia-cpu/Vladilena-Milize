@@ -2,7 +2,7 @@
 // Ma trận quyền:
 //   - tài khoản `admin` hiện có giữ TOÀN BỘ năng lực: mọi route chỉ-Admin cho Admin vào (không 401, không 403);
 //   - nhân sự (role `staff`) bị 403 ở mọi route chỉ-Admin và không đọc được dữ liệu của người khác; chưa đăng nhập bị 401.
-// Nhóm 1 kiểm hợp đồng quyền ở tầng HTTP; nhóm 2 kiểm khung năng lực của lib/authz.js (ROLE_CAPS, ROUTE_CAPS).
+// Nhóm 1 kiểm hợp đồng quyền ở tầng HTTP; nhóm 2 kiểm khung năng lực của lib/authz.ts (ROLE_CAPS, ROUTE_CAPS).
 const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
@@ -127,7 +127,7 @@ test('permissions-matrix: GET /api/me của Admin và nhân sự giữ các trư
   for (const res of [admin, staff]) assert.ok('holidays' in res.data);
 });
 
-/* ================= nhóm 2: khung năng lực (lib/authz.js) ================= */
+/* ================= nhóm 2: khung năng lực (lib/authz.ts) ================= */
 // Danh sách năng lực (request.decide.<nhóm> là họ khoá có khuôn; request.config nằm trong config.payroll)
 const CAPABILITIES = [
   'profile.read',
@@ -165,7 +165,7 @@ const CAPABILITIES = [
 ];
 // Năng lực mà nhân sự thường KHÔNG được có (nhân sự chỉ có phạm vi "tự mình" cho hồ sơ, chấm công, lương; không gì khác)
 const SELF_ONLY = new Set(['profile.read', 'attendance.read', 'salary.read', 'payroll.view', 'contract.read']);
-const authzReady = pending('V1-A bước 3: lib/authz.js chưa có', 'lib/authz.js');
+const authzReady = pending('V1-A bước 3: lib/authz.ts chưa có', 'lib/authz.ts');
 
 // ROLE_CAPS[vai trò] có thể là mảng, Set hoặc '*' (toàn quyền); chuẩn hoá thành hàm kiểm
 function hasCap(roleCaps, cap) {
@@ -174,8 +174,8 @@ function hasCap(roleCaps, cap) {
   return list.includes('*') || list.includes(cap) || list.some(c => c.endsWith('.*') && cap.startsWith(c.slice(0, -1)));
 }
 
-test('permissions-matrix: lib/authz.js xuất ROLE_CAPS, ROUTE_CAPS và can(me, cap, target)', authzReady, () => {
-  const authz = need('lib/authz.js');
+test('permissions-matrix: lib/authz.ts xuất ROLE_CAPS, ROUTE_CAPS và can(me, cap, target)', authzReady, () => {
+  const authz = need('lib/authz.ts');
   assert.equal(typeof authz.can, 'function', 'can(me, cap, target)');
   assert.ok(authz.ROLE_CAPS && typeof authz.ROLE_CAPS === 'object', 'ROLE_CAPS');
   assert.ok(authz.ROUTE_CAPS && typeof authz.ROUTE_CAPS === 'object', 'ROUTE_CAPS');
@@ -186,7 +186,7 @@ test(
   'permissions-matrix: vai trò admin có mọi năng lực của TK 10.2 (tài khoản admin hiện có giữ nguyên quyền)',
   authzReady,
   async () => {
-    const { can, ROLE_CAPS } = need('lib/authz.js');
+    const { can, ROLE_CAPS } = need('lib/authz.ts');
     const admin = await store.getStaff('admin');
     const missing = CAPABILITIES.filter(cap => !hasCap(ROLE_CAPS.admin, cap) || !can(admin, cap));
     assert.deepEqual(missing, []);
@@ -198,7 +198,7 @@ test(
   'permissions-matrix: nhân sự (role staff) chỉ có năng lực "tự mình", mọi năng lực quản trị bị từ chối',
   authzReady,
   async () => {
-    const { can, ROLE_CAPS } = need('lib/authz.js');
+    const { can, ROLE_CAPS } = need('lib/authz.ts');
     const staff = await store.getStaff('worker');
     const leaked = [];
     for (const cap of CAPABILITIES)
@@ -212,7 +212,7 @@ test(
   'permissions-matrix: năng lực phạm vi "tự mình": nhân sự đọc được hồ sơ và chấm công của chính mình, không của người khác',
   authzReady,
   async () => {
-    const { can } = need('lib/authz.js');
+    const { can } = need('lib/authz.ts');
     const me = await store.getStaff('worker');
     for (const cap of ['profile.read', 'attendance.read']) {
       assert.equal(await can(me, cap, { username: 'worker' }), true, `${cap} của chính mình`);
@@ -227,7 +227,7 @@ test(
   'permissions-matrix: mọi route của server.js có chính sách trong ROUTE_CAPS (route không có thì 403 NO_ROUTE_POLICY)',
   authzReady,
   () => {
-    const { ROUTE_CAPS } = need('lib/authz.js');
+    const { ROUTE_CAPS } = need('lib/authz.ts');
     const routes = routeKeysInSource(); // `route === '…'` hoặc mục bảng `'GET /x': async …` trong mã máy chủ
     assert.ok(routes.size >= 30, `chỉ tìm thấy ${routes.size} route trong mã máy chủ`);
     // route có tham số (staff/:username …) do server.js dò bằng seg[...] nên không kiểm khoá của chúng ở đây
@@ -240,7 +240,7 @@ test(
   'permissions-matrix: mỗi năng lực nêu trong ROUTE_CAPS là năng lực đã biết và admin có nó (cho cả dạng "self-or:<năng lực>")',
   authzReady,
   () => {
-    const { ROUTE_CAPS, ROLE_CAPS } = need('lib/authz.js');
+    const { ROUTE_CAPS, ROLE_CAPS } = need('lib/authz.ts');
     const known = new Set(CAPABILITIES);
     const problems = [];
     for (const [route, entry] of Object.entries(ROUTE_CAPS)) {

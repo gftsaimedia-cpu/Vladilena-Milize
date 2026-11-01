@@ -1,5 +1,5 @@
 'use strict';
-// Vai trò và gán ca hàng loạt (server.js → GET /roles, PUT /staff/:u/roles, PUT /staff/shift-bulk; lib/db.js → store.roles; lib/events.js → roles.changed):
+// Vai trò và gán ca hàng loạt (server.js → GET /roles, PUT /staff/:u/roles, PUT /staff/shift-bulk; lib/db.ts → store.roles; lib/events.ts → roles.changed):
 //   GET /api/roles          cần roles.manage: { roles:[{id,caps,scope}], caps, staff:[{username,name,roles,rev,locked}] }, không có số liệu lương
 //   PUT /api/staff/:u/roles { roles, reason 10–300, expectedRev? } → { username, roles, granted, revoked, rev }; một dòng nhật ký role.grant / role.revoke cho mỗi vai trò đổi
 //   PUT /api/staff/shift-bulk { usernames, preset | in+out, effective?, reason } → { ok, shiftCode, updated, unchanged }; tất cả hoặc không

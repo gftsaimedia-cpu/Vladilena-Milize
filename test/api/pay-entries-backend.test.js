@@ -1,6 +1,6 @@
 'use strict';
 // Khoản điền thêm theo người theo tháng.
-// Lưu trữ lib/pay-entries.js, route lib/domain/pay-entries.js, nạp vào bộ máy ở lib/payroll-service.js → loadInputs.
+// Lưu trữ lib/pay-entries.ts, route lib/domain/pay-entries.ts, nạp vào bộ máy ở lib/payroll-service.ts → loadInputs.
 // Người bịa (qa_*), đồng hồ giả 02/11/2026. pay_entries chỉ thêm dòng (không DELETE) nên mỗi test dùng THÁNG RIÊNG, không dùng lại tháng của test trước.
 const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
 const { test, before, after } = require('node:test');

@@ -1,5 +1,5 @@
 import type http from 'node:http';
-import store = require('../lib/db');
+const store = require('../lib/db');
 import auth = require('../lib/auth');
 import config = require('../lib/config');
 import events = require('../lib/events');

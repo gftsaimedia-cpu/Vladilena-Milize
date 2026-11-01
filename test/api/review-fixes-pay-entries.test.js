@@ -1,6 +1,6 @@
 'use strict';
-// Khoản điền thêm (lib/pay-entries.js), checklist duyệt kỳ (lib/periods.js),
-// chức vụ mới trong màn Cài đặt (lib/params/store.js → view) và nhãn (lib/params/positions.js). Dùng đồ dùng của test/helpers/pay-entry-api.js.
+// Khoản điền thêm (lib/pay-entries.ts), checklist duyệt kỳ (lib/periods.ts),
+// chức vụ mới trong màn Cài đặt (lib/params/store.ts → view) và nhãn (lib/params/positions.ts). Dùng đồ dùng của test/helpers/pay-entry-api.js.
 const E = require('../helpers/pay-entry-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

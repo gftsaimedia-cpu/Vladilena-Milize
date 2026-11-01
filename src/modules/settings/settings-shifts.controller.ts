@@ -12,7 +12,7 @@ const bad = (message: string, code: string) => new HttpError(400, message, { cod
 
 /**
  * Ca làm (Cài đặt › Kỳ lương & chấm công › Ca làm): bao quanh các khoá shift.preset.<mã>.in | out của bộ tham số, nên tháng áp dụng,
- * lý do, khoá kỳ, nhật ký và kiểm giờ ca đi qua lib/params/save.js như mọi tham số. Mã ca là mã của danh mục ca (Normal1…Night2);
+ * lý do, khoá kỳ, nhật ký và kiểm giờ ca đi qua lib/params/save.ts như mọi tham số. Mã ca là mã của danh mục ca (Normal1…Night2);
  * đầu vào nhận cả mã mới lẫn mã cũ.
  */
 @Controller('api')
@@ -47,7 +47,7 @@ export class SettingsShiftsController {
         { key: `shift.preset.${preset}.out`, value: item.out }
       );
     }
-    // expectedRev bắt buộc (không tự điền): thiếu là 400 PARAM_REV_REQUIRED, lệch là 409 PARAMS_STALE (lib/params/save.js)
+    // expectedRev bắt buộc (không tự điền): thiếu là 400 PARAM_REV_REQUIRED, lệch là 409 PARAMS_STALE (lib/params/save.ts)
     const saved = await paramsSave.save(me, actx, {
       changes,
       effectiveMonth: b.effectiveMonth,

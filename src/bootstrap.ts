@@ -50,7 +50,7 @@ export function createServer(): http.Server {
     req.url = (req.url as string).replace(/%/g, '%25');
     instance(req, res);
   });
-  // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem lib/config.js → HTTP_KEEP_ALIVE_MS)
+  // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem lib/config.ts → HTTP_KEEP_ALIVE_MS)
   server.keepAliveTimeout = config.HTTP_KEEP_ALIVE_MS;
   server.headersTimeout = config.HTTP_HEADERS_TIMEOUT_MS;
   server.requestTimeout = config.HTTP_REQUEST_TIMEOUT_MS; // kẻ gửi chậm không giữ socket mãi (luồng SSE là phản hồi nên không bị tính)

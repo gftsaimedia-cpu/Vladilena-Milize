@@ -1,5 +1,5 @@
 // Dọn bảng punch_requests (~3,7 KB/dòng, 2 dòng/người/ngày).
-// lib/attendance-sessions.js → purgePunchRequests(olderThanDays) chạy trong store.transaction, xoá theo created_at;
+// lib/attendance-sessions.ts → purgePunchRequests(olderThanDays) chạy trong store.transaction, xoá theo created_at;
 // server.js gọi một lần lúc khởi động rồi mỗi config.PUNCH_REQUEST_PURGE_MS (chỉ khi require.main === module).
 // CHỈ xoá bản ghi cũ hơn hạn.
 process.env.DB_PATH = ':memory:';

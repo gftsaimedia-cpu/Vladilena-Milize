@@ -10,7 +10,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { validateValue } = require('../../lib/params/validate.js');
+const { validateValue } = require('../../lib/params/validate.ts');
 
 const k = Engine.create(DEFAULTS);
 const nv = { type: 'nv', level: 1, nightPct: 40 };

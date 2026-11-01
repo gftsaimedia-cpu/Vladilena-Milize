@@ -35,8 +35,8 @@ const { createClient } = require('./lib/client.cjs');
 const { compactSlip } = require('./lib/ops.cjs');
 const { dayView, LABEL_TEXT } = require('./lib/view.cjs');
 const { byUser, PAYROLL } = require('./lib/cast.cjs');
-const { rulesFor } = require(path.join(app.REPO, 'lib', 'request-rules.js'));
-const { leaveDates } = require(path.join(app.REPO, 'lib', 'domain', 'leave-days.js'));
+const { rulesFor } = require(path.join(app.REPO, 'lib', 'request-rules'));
+const { leaveDates } = require(path.join(app.REPO, 'lib', 'domain', 'leave-days'));
 
 const SEVERITY = ['OK', 'SKIP', 'CHECK', 'PENDING-RULE', 'DIFF', 'ERROR'];
 const worst = list => list.reduce((a, b) => (SEVERITY.indexOf(b) > SEVERITY.indexOf(a) ? b : a), 'OK');

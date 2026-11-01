@@ -1,7 +1,7 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
 import type { Schema } from './schema.generated';
 
-/** Điều kiện lọc nhật ký đã chuẩn hoá (lib/db.js `auditFilter` đổi bộ lọc người gọi sang dạng này). */
+/** Điều kiện lọc nhật ký đã chuẩn hoá (lib/db.ts `auditFilter` đổi bộ lọc người gọi sang dạng này). */
 export interface AuditCriteria {
   /** cột = giá trị (chỉ các cột đây) */
   equals: Partial<Record<'actor' | 'action' | 'subject' | 'subject_uuid' | 'entity_kind' | 'entity_id' | 'month', string>>;
@@ -17,7 +17,7 @@ export interface AuditCriteria {
 
 export type AuditLogRow = Selectable<Schema['audit_log']>;
 
-/** Bảng `audit_log` (nối chuỗi băm): chỉ thêm, đọc theo bộ lọc. Việc băm/nối nằm ở `lib/db.js` (store.audit). */
+/** Bảng `audit_log` (nối chuỗi băm): chỉ thêm, đọc theo bộ lọc. Việc băm/nối nằm ở `lib/db.ts` (store.audit). */
 export class AuditLogRepository {
   constructor(private readonly qb: Kysely<Schema>) {}
 

@@ -4,7 +4,7 @@ Phạm vi: khoản tự khai trên Lịch ước tính cần duyệt (iSAT, Ngh�
 
 Tài liệu viết từ mã. Khi chú thích và mã nói khác nhau thì theo mã. Số dòng là vị trí ở thời điểm viết; luôn tìm theo tên hàm hoặc chuỗi đã nêu khi số dòng lệch.
 
-Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của phản hồi 2xx và chạy tiếp (`lib/warnings.js`). Kiểm quyền, định dạng, không tồn tại, chống ghi đè (rev) và các kiểm ghi "luôn chặn" không đi qua `warnIf` (bảng ở mục 4.20).
+Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của phản hồi 2xx và chạy tiếp (`lib/warnings.ts`). Kiểm quyền, định dạng, không tồn tại, chống ghi đè (rev) và các kiểm ghi "luôn chặn" không đi qua `warnIf` (bảng ở mục 4.20).
 
 ---
 
@@ -14,41 +14,41 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 
 | File | Việc |
 | --- | --- |
-| `lib/approvals.js` | Kho bảng `sheet_approvals`: tạo bảng, `declaredItems`, `reconcile`, `list`, `get`, `forSheet`, `decide` (duyệt theo lô, khoá lạc quan rev + fingerprint), bốn đợt tạo dòng duyệt cho lịch đã lưu chạy lúc mở DB. Gắn vào `store.approvals` (`lib/db.js`). |
-| `lib/domain/approvals.js` | Hàm nghiệp vụ dùng ở route: `sheetApprovals` (dòng duyệt hiệu lực gửi giao diện), `reconcileHolidayWork`, `reconcileMonthApprovals`, `reconcileStaffType`, `listApprovals` (bỏ tài khoản ngoài bảng lương), `tallyApprovals`, `approvalHttpError` (mã lỗi → HTTP). |
-| `lib/request-rules.js` | `rulesFor(tháng)` dựng bảy mô-đun quy tắc dùng chung (`punch`, `leave`, `calendar`, `approvalView`, `actualHours`, `kpi`, `workSchedule`) từ bộ tham số hiệu lực của tháng; nhớ theo request HTTP (AsyncLocalStorage). Kèm `typeParam`, `benefitOf`, `vnToday`, `nowIso`. |
+| `lib/approvals.ts` | Kho bảng `sheet_approvals`: tạo bảng, `declaredItems`, `reconcile`, `list`, `get`, `forSheet`, `decide` (duyệt theo lô, khoá lạc quan rev + fingerprint), bốn đợt tạo dòng duyệt cho lịch đã lưu chạy lúc mở DB. Gắn vào `store.approvals` (`lib/db.ts`). |
+| `lib/domain/approvals.ts` | Hàm nghiệp vụ dùng ở route: `sheetApprovals` (dòng duyệt hiệu lực gửi giao diện), `reconcileHolidayWork`, `reconcileMonthApprovals`, `reconcileStaffType`, `listApprovals` (bỏ tài khoản ngoài bảng lương), `tallyApprovals`, `approvalHttpError` (mã lỗi → HTTP). |
+| `lib/request-rules.ts` | `rulesFor(tháng)` dựng bảy mô-đun quy tắc dùng chung (`punch`, `leave`, `calendar`, `approvalView`, `actualHours`, `kpi`, `workSchedule`) từ bộ tham số hiệu lực của tháng; nhớ theo request HTTP (AsyncLocalStorage). Kèm `typeParam`, `benefitOf`, `vnToday`, `nowIso`. |
 | `public/approval-view.js` | Mô-đun dùng chung trình duyệt + máy chủ: `ITEMS`, nhận diện khoản (`itemOf`), dấu vân tay (`fingerprint`), trạng thái hiệu lực (`effectiveStatus`), lịch tính tiền đã xử lý khoản chưa duyệt (`payView`), `POLICY`, `COUNTS_ABSENT`, `ALLOWED_ACTIONS`. |
 | `src/modules/sheet/sheet.helpers.ts` / `src/modules/attendance/attendance.controller.ts` (route) | `GET/PUT /holidays`, `GET /sheet`, `PUT /sheet`, `GET/PUT /kpi/scores` (,), `GET /approvals`, `GET /approvals/count`, `GET /alerts`, `PUT /approvals/decide`, `POST /punch` (, nhánh Check-out muộn), `GET/POST/PUT /ot` (,,), `checkInDay`, `cleanDays`, `leaveBalanceView`, `holidayOtConflicts`. |
-| `lib/domain/sheet-on-behalf.js` | Admin khai lịch thay (`sheetOwner`) và duyệt ngay khoản được khai thay (`approveOnBehalf`). |
-| `lib/domain/timesheet/` (nối ở `timesheet/services.js`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
-| `lib/domain/isat-rule.js` | `isatRefusal`: iSAT chỉ đúng thứ `isat.weekday` và chỉ chức vụ có `benefit.isat`. |
-| `lib/domain/overtime/hour-limits.js` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
-| `lib/domain/ai-block.js` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
-| `lib/domain/leave/*` | Sổ phép lưu sẵn: `migrations/postgres/0001_baseline.sql` (bảng `leave_ledger`), `leave-events.js` (các lần cộng phép có ngày), `leave-ledger-repository.js` (đồng bộ sổ, ghi số dư), `leave-account-service.js` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
-| `lib/domain/leave-days.js` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
+| `lib/domain/sheet-on-behalf.ts` | Admin khai lịch thay (`sheetOwner`) và duyệt ngay khoản được khai thay (`approveOnBehalf`). |
+| `lib/domain/timesheet/` (nối ở `timesheet/services.ts`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
+| `lib/domain/isat-rule.ts` | `isatRefusal`: iSAT chỉ đúng thứ `isat.weekday` và chỉ chức vụ có `benefit.isat`. |
+| `lib/domain/overtime/hour-limits.ts` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
+| `lib/domain/ai-block.ts` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
+| `lib/domain/leave/*` | Sổ phép lưu sẵn: `migrations/postgres/0001_baseline.sql` (bảng `leave_ledger`), `leave-events.ts` (các lần cộng phép có ngày), `leave-ledger-repository.ts` (đồng bộ sổ, ghi số dư), `leave-account-service.ts` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
+| `lib/domain/leave-days.ts` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
 | `public/leave.js` | Quy tắc phép dùng chung: `accrued`, `counted`, `ledger` (hết hạn, quy tiền), `settlementFor`. |
-| `lib/domain/advance/advance-approvals.js` | Lớp `AdvanceApprovals`: yêu cầu tạm ứng theo tháng lưu ở `settings.advance_approvals_<YYYY-MM>`, bước chuyển trạng thái, rev. |
-| `lib/domain/advance/index.js` | Đối tượng dùng chung `advanceApprovals` (đọc/ghi qua `store.getSetting/setSetting`). |
+| `lib/domain/advance/advance-approvals.ts` | Lớp `AdvanceApprovals`: yêu cầu tạm ứng theo tháng lưu ở `settings.advance_approvals_<YYYY-MM>`, bước chuyển trạng thái, rev. |
+| `lib/domain/advance/index.ts` | Đối tượng dùng chung `advanceApprovals` (đọc/ghi qua `store.getSetting/setSetting`). |
 | `src/modules/advance/advance-approvals.handlers.ts` | Route `/api/advance-approvals[...]`: xem, xin, rút, duyệt, từ chối, huỷ duyệt, duyệt tất cả. |
-| `lib/advance-cap.js` | Số tạm ứng theo quy tắc của một người / nhiều người (`figuresOf`) bằng chính bộ máy lương; `capOf` cho route cũ. |
-| `lib/advance-requests.js` | Bảng cũ `advance_requests` (yêu cầu ứng lương có số tiền): đọc, huỷ; `create` và `decide` còn trong mã nhưng route trả 410. |
+| `lib/advance-cap.ts` | Số tạm ứng theo quy tắc của một người / nhiều người (`figuresOf`) bằng chính bộ máy lương; `capOf` cho route cũ. |
+| `lib/advance-requests.ts` | Bảng cũ `advance_requests` (yêu cầu ứng lương có số tiền): đọc, huỷ; `create` và `decide` còn trong mã nhưng route trả 410. |
 | `src/modules/advance/advance-requests.handlers.ts` | Route cũ `/api/advance-requests[...]`: GET lịch sử, POST và PUT decide → 410, POST cancel. |
-| `lib/explanations.js` | Lối vào của giải trình, chuyển tiếp sang `container.explanations`. |
-| `lib/domain/explanation/*` | `explanation.js` (lớp `Explanation` kế thừa `Request`), `explanation-repository.js`, `explanation-service.js`, `absent-day.js` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `migrations/postgres/0001_baseline.sql` (bảng `explanations`), `late-checkout.js` (phút Check-out muộn), `late-checkout-session.js` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
-| `lib/domain/attendance/admin-presence.js` | Lượt chấm công nguồn Admin: từ Admin khai thay lịch (`sync`) và từ giải trình ngày quên chấm đã duyệt (`syncExplanation`). |
-| `lib/domain/attendance/session-status.js` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
-| `lib/domain/shared/request.js`, `domain-error.js`, `repository.js` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
-| `lib/domain/kpi/kpi-scoring.js` | KPI: `kpiMaxOf`, `hasKpi`, `cleanKpi`, `cleanKpiAmt`, `kpiScoreItem`, `kpiPartsView`, `selfScoreOnly`, `kpiHttpError`. |
+| `lib/explanations.ts` | Lối vào của giải trình, chuyển tiếp sang `container.explanations`. |
+| `lib/domain/explanation/*` | `explanation.js` (lớp `Explanation` kế thừa `Request`), `explanation-repository.ts`, `explanation-service.ts`, `absent-day.ts` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `migrations/postgres/0001_baseline.sql` (bảng `explanations`), `late-checkout.ts` (phút Check-out muộn), `late-checkout-session.ts` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
+| `lib/domain/attendance/admin-presence.ts` | Lượt chấm công nguồn Admin: từ Admin khai thay lịch (`sync`) và từ giải trình ngày quên chấm đã duyệt (`syncExplanation`). |
+| `lib/domain/attendance/session-status.ts` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
+| `lib/domain/shared/request.ts`, `domain-error.ts`, `repository.ts` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
+| `lib/domain/kpi/kpi-scoring.ts` | KPI: `kpiMaxOf`, `hasKpi`, `cleanKpi`, `cleanKpiAmt`, `kpiScoreItem`, `kpiPartsView`, `selfScoreOnly`, `kpiHttpError`. |
 | `public/kpi-score.js` | Quy tắc KPI dùng chung: trọng số, `checkScore`, `evaluate`, `pay`. |
-| `lib/domain/ot.js` | OT khai ở Check-in/out: `listOt`, `validateOtDeclaration`. |
-| `lib/authz.js` | `ROUTE_CAPS`, vai trò, `can`, `scopeOf`, `gate`, `isSelfDecision`, `DECIDE_ITEMS`. |
-| `lib/warnings.js` | `warnIf`, `selfDecision`, `optionalReason`. |
-| `lib/events.js` | SSE: `approvalsChanged`, `requestsDecided`, `advanceDecided`, `estimateChanged`, `punchChanged`, `punchCorrected`, `attendanceChanged`, `paramsChanged`. |
-| `lib/payroll-service.js`, `public/payroll-engine.js` | Người dùng kết quả duyệt: đưa dòng duyệt, cờ tạm ứng đã duyệt, ngày giữ lương do giải trình, số ngày phép dư quy tiền vào bộ máy. |
+| `lib/domain/ot.ts` | OT khai ở Check-in/out: `listOt`, `validateOtDeclaration`. |
+| `lib/authz.ts` | `ROUTE_CAPS`, vai trò, `can`, `scopeOf`, `gate`, `isSelfDecision`, `DECIDE_ITEMS`. |
+| `lib/warnings.ts` | `warnIf`, `selfDecision`, `optionalReason`. |
+| `lib/events.ts` | SSE: `approvalsChanged`, `requestsDecided`, `advanceDecided`, `estimateChanged`, `punchChanged`, `punchCorrected`, `attendanceChanged`, `paramsChanged`. |
+| `lib/payroll-service.ts`, `public/payroll-engine.js` | Người dùng kết quả duyệt: đưa dòng duyệt, cờ tạm ứng đã duyệt, ngày giữ lương do giải trình, số ngày phép dư quy tiền vào bộ máy. |
 
 ### Trình duyệt
 
-Giao diện web phục vụ từ `public/`; khi có bản dựng, `lib/http.js` phục vụ `web/dist`. Danh sách dưới đây là phần của `public/`.
+Giao diện web phục vụ từ `public/`; khi có bản dựng, `lib/http.ts` phục vụ `web/dist`. Danh sách dưới đây là phần của `public/`.
 
 | File | Việc |
 | --- | --- |
@@ -59,7 +59,7 @@ Giao diện web phục vụ từ `public/`; khi có bản dựng, `lib/http.js` 
 
 ### 2.1 Bảng
 
-**`sheet_approvals`** (`lib/approvals.js`) — một dòng cho mỗi (người, ngày) có khoản tự khai.
+**`sheet_approvals`** (`lib/approvals.ts`) — một dòng cho mỗi (người, ngày) có khoản tự khai.
 
 | Cột | Ý nghĩa |
 | --- | --- |
@@ -73,15 +73,15 @@ Giao diện web phục vụ từ `public/`; khi có bản dựng, `lib/http.js` 
 
 Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 
-**`timesheets`** (`lib/db.js`): lịch khai `days_json`, `kpi_pct`, `kpi_amt` (mức KPI tự đề xuất qua `PUT /sheet`), `kpi_adm_pct`, `kpi_adm_amt` (mức KPI Admin duyệt, ghi qua `PUT /kpi/scores`), `rev` (khoá lạc quan của `PUT /sheet`, `store.setSheet` +1 mỗi lần lưu — `lib/db.js`). Lịch không mang trạng thái duyệt. Ngày trong lịch (`cleanDays`, `src/modules/sheet/sheet.controller.ts` / `src/modules/kpi/kpi.controller.ts`) có `kind` ∈ `work, makeup (loại cũ, chỉ để ngày đã lưu gửi lại không đổi), leave, unpaid, willmakeup, approved, isat` (`DAY_KINDS`,).
+**`timesheets`** (`lib/db.ts`): lịch khai `days_json`, `kpi_pct`, `kpi_amt` (mức KPI tự đề xuất qua `PUT /sheet`), `kpi_adm_pct`, `kpi_adm_amt` (mức KPI Admin duyệt, ghi qua `PUT /kpi/scores`), `rev` (khoá lạc quan của `PUT /sheet`, `store.setSheet` +1 mỗi lần lưu — `lib/db.ts`). Lịch không mang trạng thái duyệt. Ngày trong lịch (`cleanDays`, `src/modules/sheet/sheet.controller.ts` / `src/modules/kpi/kpi.controller.ts`) có `kind` ∈ `work, makeup (loại cũ, chỉ để ngày đã lưu gửi lại không đổi), leave, unpaid, willmakeup, approved, isat` (`DAY_KINDS`,).
 
-**`advance_requests`** (dạng cũ, `lib/db.js`): `id`, `username`, `month`, `amount` (số xin, nguyên > 0), `cap`, `note`, `status` (`pending|approved|rejected|cancelled`), `granted`, `rev`, `created_at`, `decided_by/at`, `decision_note`, `cancelled_by/at`. Chỉ mục duy nhất `(username, month) WHERE status='pending'`. Trigger `advance_requests_guard_update` cấm đổi người/tháng/số xin/created_at, cấm đổi dòng đã `rejected`/`cancelled`, và từ `approved` chỉ sang `approved`/`cancelled`.
+**`advance_requests`** (dạng cũ, `lib/db.ts`): `id`, `username`, `month`, `amount` (số xin, nguyên > 0), `cap`, `note`, `status` (`pending|approved|rejected|cancelled`), `granted`, `rev`, `created_at`, `decided_by/at`, `decision_note`, `cancelled_by/at`. Chỉ mục duy nhất `(username, month) WHERE status='pending'`. Trigger `advance_requests_guard_update` cấm đổi người/tháng/số xin/created_at, cấm đổi dòng đã `rejected`/`cancelled`, và từ `approved` chỉ sang `approved`/`cancelled`.
 
 **`explanations`** (`migrations/postgres/0001_baseline.sql`): `id`, `username`, `date`, `kind` (`late-checkout|admin|ai`), `session_id`, `prompt`, `rule_id`, `requested_by`, `requested_at`, `status` (`requested|answered|approved|rejected`), `answer`, `answered_at`, `decided_by`, `decided_at`, `decision_note`, `rev` (mặc định 0). Chỉ mục `(username,status)`, `(status,id)`, `(session_id)`.
 
 **`leave_ledger`** (`migrations/postgres/0001_baseline.sql`): `id`, `staff_uuid`, `username`, `kind` (`start|month|year|seniority|birthday|expire`), `on_date`, `days` (REAL, `expire` âm), `created_at`, `updated_at`; UNIQUE `(staff_uuid, kind, on_date)`. Số dư lưu sẵn: `staff.leave_balance`, `staff.leave_balance_on`.
 
-**`kpi_scores`** (`lib/db.js`): mỗi (người, tháng) một dòng; cột `wework`, `user_score`, `peer`, `manager`, `self_score` là điểm × 100 (0..10000, null = chưa nhập); `created_by/at`, `updated_by/at`. **`kpi_score_log`** (`lib/db.js`): chỉ thêm dòng; `field` (`wework|user|peer|manager|self|amt`), `old_value`, `new_value`, `by`, `at`, `reason`.
+**`kpi_scores`** (`lib/db.ts`): mỗi (người, tháng) một dòng; cột `wework`, `user_score`, `peer`, `manager`, `self_score` là điểm × 100 (0..10000, null = chưa nhập); `created_by/at`, `updated_by/at`. **`kpi_score_log`** (`lib/db.ts`): chỉ thêm dòng; `field` (`wework|user|peer|manager|self|amt`), `old_value`, `new_value`, `by`, `at`, `reason`.
 
 **`attendance_sessions.entry`** (OT khai ở Check-in/out): `extraKind:'ot'`, `extraIn`, `extraOut`, `otDeclaration {by, at, reason}`, `otNeedsReview`, `otReview {ok, by, at, note?}`, `otDeclarationHistory[]`, `otHistory[]`; Check-out muộn: `requestedOut`, `reason:'forgot-out'`; lượt Admin ghi nhận: `origin` = `ADMIN_ORIGIN`, `explanationId` khi sinh từ giải trình.
 
@@ -90,14 +90,14 @@ Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 | Khoá | Nội dung |
 | --- | --- |
 | `holidays` | Mảng ngày lễ `YYYY-MM-DD`. |
-| `advance_approvals_<YYYY-MM>` | `{ rev, users: { <username>: { status, rev, requestedAt, requestedBy, decidedAt, decidedBy, reason } } }`. `status` null = đã rút (giữ dòng để rev người đó không về 0). Dòng dạng `{ approved: true, by, at }` đọc như `approved` (`normalize`, `advance-approvals.js`). |
+| `advance_approvals_<YYYY-MM>` | `{ rev, users: { <username>: { status, rev, requestedAt, requestedBy, decidedAt, decidedBy, reason } } }`. `status` null = đã rút (giữ dòng để rev người đó không về 0). Dòng dạng `{ approved: true, by, at }` đọc như `approved` (`normalize`, `advance-approvals.ts`). |
 | `sheet_approvals_v1` … `_v4` | Dấu các đợt tạo dòng duyệt cho lịch đã lưu đã chạy: `{ at, cutoffMonth, approved, pending }`. |
-| `ai_block_rules` | Mảng id luật AI chặn duyệt; chưa đặt: `['leave-with-checkin','ot-checkin-mismatch']` (DB thật) hoặc `[]` khi `DB_PATH=':memory:'` (`ai-block.js`). |
+| `ai_block_rules` | Mảng id luật AI chặn duyệt; chưa đặt: `['leave-with-checkin','ot-checkin-mismatch']` (DB thật) hoặc `[]` khi `DB_PATH=':memory:'` (`ai-block.ts`). |
 | `roles.custom` | Vai trò tuỳ chỉnh; `approvals[]` cấp `request.decide.<khoản>`. |
 
 ### 2.3 Bộ nhớ đệm
 
-- `rulesFor(tháng)`: một bản cho mỗi tháng trong một request HTTP (`lib/request-rules.js`); ngoài request dựng mới mỗi lần.
+- `rulesFor(tháng)`: một bản cho mỗi tháng trong một request HTTP (`lib/request-rules.ts`); ngoài request dựng mới mỗi lần.
 - `ApprovalView.create(params)`, `LeaveRules.create`, `KpiScore.create`: nhớ theo đối tượng tham số (WeakMap).
 - `aiReview.aiReviewResultCached(month, false)`: kết quả soát AI dùng cho chặn duyệt.
 - Không có cache cho `sheet_approvals`, `advance_approvals_*`, `explanations`: mỗi lần gọi đọc DB.
@@ -109,14 +109,14 @@ Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 | Từ | Sang | Ai / khi nào |
 | --- | --- | --- |
 | (không có dòng) | `pending` | `reconcile` thấy khoản mới (PUT /sheet, đổi lễ, đổi loại). |
-| (không có dòng) | `approved` (by `system`) | `reconcile` với `approveBefore` và tháng đứng trước tháng mốc `CUTOFF_MONTH` (`lib/approvals.js`), hoặc đợt tạo dòng. Chỉ đường `reconcileMonthApprovals` truyền `approveBefore`. |
+| (không có dòng) | `approved` (by `system`) | `reconcile` với `approveBefore` và tháng đứng trước tháng mốc `CUTOFF_MONTH` (`lib/approvals.ts`), hoặc đợt tạo dòng. Chỉ đường `reconcileMonthApprovals` truyền `approveBefore`. |
 | bất kỳ | `pending` (rev+1, xoá người duyệt và lý do) | Mục hoặc dấu vân tay đổi. Trả về trong `reset` (trước là approved) hoặc `resubmitted` (trước là pending/rejected). |
 | `pending` / `rejected` / `approved` | `approved` / `rejected` (rev+1) | `decide`. Cùng trạng thái đích → 409 `APPROVAL_NOOP`. Đổi từ approved/rejected = "đổi kết quả duyệt". |
 | có dòng | (xoá) | Ngày không còn khoản. |
 
 Trạng thái hiệu lực (khác trạng thái lưu): `approved` chỉ khi dòng tồn tại, `status='approved'` và `fingerprint` khớp ngày hiện tại; không có dòng hoặc vân tay lệch = `pending` (`effectiveStatus`, `approval-view.js`).
 
-**Tạm ứng (`advance_approvals_<tháng>`)** — `MOVES` (`advance-approvals.js`)
+**Tạm ứng (`advance_approvals_<tháng>`)** — `MOVES` (`advance-approvals.ts`)
 
 | Bước | Từ | Sang | Lỗi khi sai trạng thái (409) |
 | --- | --- | --- | --- |
@@ -132,15 +132,15 @@ Trạng thái hiệu lực (khác trạng thái lưu): `approved` chỉ khi dòn
 
 **Giải trình (`explanations`)**: `requested → answered` (nhân viên trả lời, `answerWith`); `answered|approved|rejected → approved|rejected` (`decide`, `DECIDABLE`); Check-out muộn: tạo thẳng `answered`; gửi lại (`resubmit`) từ `answered|rejected → answered` (xoá kết quả duyệt), từ `approved` → 409 `EXPLANATION_ALREADY_APPROVED`.
 
-**OT Check-in/out**: suy ra từ `entry.otReview`: không có = `pending`, `ok:true` = `approved`, `ok:false` = `rejected` (`lib/domain/ot.js`). Đã có `otReview` thì `PUT /ot` trả 409; khai lại (`POST /ot`) xoá `otReview` (lưu vào `otHistory`).
+**OT Check-in/out**: suy ra từ `entry.otReview`: không có = `pending`, `ok:true` = `approved`, `ok:false` = `rejected` (`lib/domain/ot.ts`). Đã có `otReview` thì `PUT /ot` trả 409; khai lại (`POST /ot`) xoá `otReview` (lưu vào `otHistory`).
 
-**Kỳ lương**: `assertPeriodOpen(month, scope)` (`lib/db.js`) khoá từ `attendance_locked` cho scope `attendance`/`params`, từ `approved` cho `kpi`/`slip` (`SCOPE_LOCKED_FROM`,); mọi tháng khoá như nhau.
+**Kỳ lương**: `assertPeriodOpen(month, scope)` (`lib/db.ts`) khoá từ `attendance_locked` cho scope `attendance`/`params`, từ `approved` cho `kpi`/`slip` (`SCOPE_LOCKED_FROM`,); mọi tháng khoá như nhau.
 
 ---
 
 ## 3. API
 
-Quyền ở cổng `ROUTE_CAPS` (`lib/authz.js`), kiểm trước khi đọc thân. `request.decide.*` ở cổng = có quyền duyệt ít nhất một nhóm (`gate`, `authz.js`). `A` = mọi người đã đăng nhập. "Khoá kỳ" = `guardPeriod` (`src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts`) → `store.assertPeriodOpen` (chỉ cảnh báo `PERIOD_LOCKED`, cộng `PERIOD_FROZEN` nếu kỳ đã duyệt/chi trả, `warnFrozen`).
+Quyền ở cổng `ROUTE_CAPS` (`lib/authz.ts`), kiểm trước khi đọc thân. `request.decide.*` ở cổng = có quyền duyệt ít nhất một nhóm (`gate`, `authz.ts`). `A` = mọi người đã đăng nhập. "Khoá kỳ" = `guardPeriod` (`src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts`) → `store.assertPeriodOpen` (chỉ cảnh báo `PERIOD_LOCKED`, cộng `PERIOD_FROZEN` nếu kỳ đã duyệt/chi trả, `warnFrozen`).
 
 ### 3.1 Khoản tự khai và bảng duyệt
 
@@ -177,14 +177,14 @@ Tất cả qua `src/modules/advance/advance-approvals.handlers.ts` `handle`. Kho
 
 ### 3.4 Ứng lương dạng cũ
 
-`src/modules/advance/advance-requests.handlers.ts` (`handle`). Lỗi của `lib/advance-requests.js` mang `httpStatus` được bọc thành `HttpError`.
+`src/modules/advance/advance-requests.handlers.ts` (`handle`). Lỗi của `lib/advance-requests.ts` mang `httpStatus` được bọc thành `HttpError`.
 
 | Route | Quyền | Hành vi |
 | --- | --- | --- |
 | `GET /api/advance-requests?month=&username=&status=` | `A` | Lịch sử. Một người: kèm `cap, granted, remaining, eligible, reason?` (`capOf`). Người xem tất cả: kèm `pending` (tháng), `pendingAll` (mọi tháng, lọc theo quyền duyệt). |
 | `POST /api/advance-requests` | `A` | 410 `ADVANCE_REQUEST_RETIRED`. |
 | `PUT /api/advance-requests/:id/decide` | `request.decide.*` | 410 `ADVANCE_REQUEST_RETIRED`. |
-| `POST /api/advance-requests/:id/cancel` | `A` | `{ rev?, reason? }` → `{ request }`. 404 `ADVANCE_NOT_FOUND`, 409 `REV_STALE`, 403 `FORBIDDEN_CAP`, 409 `ADVANCE_NOT_CANCELLABLE`. Khoá kỳ: `store.assertPeriodOpen(month,'slip')` (`lib/advance-requests.js`; chỉ cảnh báo). |
+| `POST /api/advance-requests/:id/cancel` | `A` | `{ rev?, reason? }` → `{ request }`. 404 `ADVANCE_NOT_FOUND`, 409 `REV_STALE`, 403 `FORBIDDEN_CAP`, 409 `ADVANCE_NOT_CANCELLABLE`. Khoá kỳ: `store.assertPeriodOpen(month,'slip')` (`lib/advance-requests.ts`; chỉ cảnh báo). |
 
 ### 3.5 Giải trình
 
@@ -271,7 +271,7 @@ Bảng mặc định (registry `request.type.<khoản>.pendingRule` / `.rejected
 
 Chuỗi tính lương một người (`computeMonth`, `payroll-engine.js`): `payView(days, approvals, approvalPolicy(params), { holidays, staffType, schedule })` → `ActualHours.apply` → ghi đè mỗi ngày trong `explanationHold` thành `{ kind:'unpaid', punchIn?, punchOut?, held }` (`held` = `'rejected'` hoặc `'pending'`) → `calcMonth(..., { advance: advanceApproved === true, settleDays: leaveSettleDays })`.
 
-### 4.3 Đồng bộ dòng duyệt (`reconcile`, `lib/approvals.js`)
+### 4.3 Đồng bộ dòng duyệt (`reconcile`, `lib/approvals.ts`)
 
 Input `declared = { ngày: { item, fingerprint } }` của đúng một tháng. Kiểm: tháng đúng dạng; mỗi ngày đúng dạng và thuộc tháng; item hợp lệ; fingerprint không rỗng (sai → Error thường). Trong giao dịch:
 
@@ -287,7 +287,7 @@ Nơi gọi:
 | Nơi | Ngữ cảnh | approveBefore |
 | --- | --- | --- |
 | `PUT /sheet` (`src/modules/sheet/sheet.controller.ts`) | `declaredItems(clean, { holidays, staffType: u.type, schedule: sched })` | không |
-| `reconcileMonthApprovals` (`lib/domain/approvals.js`) | `declaredItems(estimateSheet(...).days, { holidays, staffType, schedule })`, bỏ khoá ngày ngoài tháng/không thật | `CUTOFF_MONTH` |
+| `reconcileMonthApprovals` (`lib/domain/approvals.ts`) | `declaredItems(estimateSheet(...).days, { holidays, staffType, schedule })`, bỏ khoá ngày ngoài tháng/không thật | `CUTOFF_MONTH` |
 | ← `reconcileHolidayWork(before, after)` | PUT /holidays: mọi nhân sự `payrollSubject`, các tháng có ngày lễ thêm/bỏ | |
 | ← `reconcileStaffType(username, type)` | đổi loại nhân sự (`src/modules/sheet/sheet.controller.ts`): mọi tháng đã có lịch | |
 
@@ -297,9 +297,9 @@ Bốn đợt tạo dòng cho lịch đã lưu (`migrate`, `migrateHolidayWork`, 
 
 ### 4.4 Duyệt theo lô (`PUT /approvals/decide` → `store.approvals.decide`)
 
-Thứ tự kiểm (`src/modules/approvals/approvals.controller.ts`, `lib/approvals.js`):
+Thứ tự kiểm (`src/modules/approvals/approvals.controller.ts`, `lib/approvals.ts`):
 
-1. `action` ∈ `approve|reject` (400). `note` là chuỗi, cắt khoảng trắng, ≤ `NOTE_MAX` (300, `lib/domain/input.js`) (400).
+1. `action` ∈ `approve|reject` (400). `note` là chuỗi, cắt khoảng trắng, ≤ `NOTE_MAX` (300, `lib/domain/input.ts`) (400).
 2. 1 ≤ số khoản ≤ `system.approval.maxDecideItems` (mặc định 200).
 3. Mỗi khoản: `username` đúng `USERNAME_RE`, `date` hợp lệ, `rev` nguyên, `fingerprint` không rỗng; không trùng `(username, date)`; người tồn tại mà `payrollSubject` false → 400.
 4. `guardPeriod(ngày…)` scope `attendance`.
@@ -310,17 +310,17 @@ Thứ tự kiểm (`src/modules/approvals/approvals.controller.ts`, `lib/approva
 
 Dấu vân tay Admin đã thấy là bắt buộc, vì khoản xoá rồi khai lại bắt đầu lại rev 1.
 
-### 4.5 Dòng duyệt gửi giao diện (`sheetApprovals`, `lib/domain/approvals.js`)
+### 4.5 Dòng duyệt gửi giao diện (`sheetApprovals`, `lib/domain/approvals.ts`)
 
 Với mỗi ngày của lịch: `rulesFor(month).approvalView.itemOf` với `ctx = { holidays, staffType, schedule: scheduleOf(staff kèm staffType, month) }`; trả `{ item, fingerprint, holiday?, status (effectiveStatus), rev (0 nếu chưa có dòng), decidedBy/decidedAt/note (chỉ khi vân tay khớp) }`. Ngày không có khoản không có mục.
 
 `listApprovals(filter)` bỏ dòng của tài khoản `payrollSubject` false (dòng vẫn còn trong DB). `GET /approvals` lọc thêm theo `canDecideRow`, đếm `counts` trên mọi trạng thái **trước** lọc trạng thái và phân trang, rồi sắp theo `username`, `date`.
 
-### 4.6 Admin khai thay (`lib/domain/sheet-on-behalf.js`)
+### 4.6 Admin khai thay (`lib/domain/sheet-on-behalf.ts`)
 
 - `sheetOwner(caller, user)`: `user` vắng hoặc trùng người gọi → người gọi. Khác → cần `can(caller, 'request.decide.*', { username })` (403 trước cả khi kiểm tên), tên hợp lệ, người tồn tại (404), `payrollSubject` (400).
 - `approveOnBehalf` (trong giao dịch PUT /sheet và PUT /sheet/bulk, sau reconcile; trả `{ decided, presence }`): các ngày `added + reset + resubmitted` có dòng `pending` và người khai có `request.decide.<item>` được `store.approvals.decide(..., 'approved', caller, 'Admin khai thay')`. Không qua `assertNotAiBlocked`. Đồng bộ lượt chấm công nguồn Admin (`container.adminPresence.sync`). Nhật ký `sheet.onBehalf` `{ changedDays, autoApproved }`. KPI tự đề xuất của người được khai giữ nguyên.
-- Ca của ngày khai thay (`adminShiftOf`, `timesheet/timesheet-validator.js`): Admin chọn được mọi ca trong danh mục (`preset`); không chọn thì ca có đúng giờ vào – ra đã khai (ưu tiên ca được gán); không ca nào khớp mà ngày đổi → `SHEET_ADMIN_SHIFT_REQUIRED` (cảnh báo). `checkSheet` không báo `SHEET_SHIFT_MISMATCH` cho khai thay. Lượt Admin dựng theo ca đó, nên ngày được trả phụ cấp ca (đêm theo bậc / Flex theo giờ), giờ nghỉ và giờ thiếu theo ca Admin chọn. Nhân sự tự khai và Check-in/out vẫn tính theo ca được gán.
+- Ca của ngày khai thay (`adminShiftOf`, `timesheet/timesheet-validator.ts`): Admin chọn được mọi ca trong danh mục (`preset`); không chọn thì ca có đúng giờ vào – ra đã khai (ưu tiên ca được gán); không ca nào khớp mà ngày đổi → `SHEET_ADMIN_SHIFT_REQUIRED` (cảnh báo). `checkSheet` không báo `SHEET_SHIFT_MISMATCH` cho khai thay. Lượt Admin dựng theo ca đó, nên ngày được trả phụ cấp ca (đêm theo bậc / Flex theo giờ), giờ nghỉ và giờ thiếu theo ca Admin chọn. Nhân sự tự khai và Check-in/out vẫn tính theo ca được gán.
 - Ngày đi làm do Admin khai thay (đã qua giờ ra) thành một lượt chấm công nguồn Admin có hiệu lực như một lượt Check-in/out hợp lệ (trễ / về sớm vẫn bị trừ như lượt bấm thật); lượt bấm thật dùng được thắng lượt Admin.
 
 ### 4.7 Đổi ngày lễ (`PUT /holidays`, `src/modules/settings/settings.controller.ts`)
@@ -347,17 +347,17 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 - `balance = counted.total − used − expired`: chỉ gồm các quỹ đang mở.
 - `leave.expiry.month = 0`: không hết hạn, `counted = accrued` (đếm từ ngày vào làm).
 
-**Quy tiền phép dư**: phép chưa dùng của một năm được quy tiền vào phiếu của tháng liền sau tháng hết hạn của năm đó. `settlementFor(month)` = tổng `settled` có tháng liền sau hạn bằng `month`. `payroll-service.loadInputs` chỉ đọc lịch nghỉ của mọi người khi `tháng = (leave.expiry.month mod 12) + 1` (`leaveSettlements`, `payroll-service.js`), đưa vào `leaveSettleDays` của người có quyền lợi `leaveAccount` và ngày vào làm hợp lệ; bộ máy trả dòng quyết toán phép cho số ngày đó (`calcMonth`, `extra.settleDays`). Quỹ của năm nào chỉ quy tiền một lần ở tháng đó; phép cộng trước năm `first` không có tiền quy đổi.
+**Quy tiền phép dư**: phép chưa dùng của một năm được quy tiền vào phiếu của tháng liền sau tháng hết hạn của năm đó. `settlementFor(month)` = tổng `settled` có tháng liền sau hạn bằng `month`. `payroll-service.loadInputs` chỉ đọc lịch nghỉ của mọi người khi `tháng = (leave.expiry.month mod 12) + 1` (`leaveSettlements`, `payroll-service.ts`), đưa vào `leaveSettleDays` của người có quyền lợi `leaveAccount` và ngày vào làm hợp lệ; bộ máy trả dòng quyết toán phép cho số ngày đó (`calcMonth`, `extra.settleDays`). Quỹ của năm nào chỉ quy tiền một lần ở tháng đó; phép cộng trước năm `first` không có tiền quy đổi.
 
-**Ngày đã dùng** (`leaveDates`, `lib/domain/leave-days.js`): mọi ngày `kind:'leave'` ở mọi tháng, **gồm ngày chờ duyệt** (giữ chỗ), bỏ ngày có dòng `leave` bị `rejected` (với tháng đang lưu: chỉ khi ngày khai y nguyên cùng vân tay), bỏ ngày lễ nằm trong lịch làm việc.
+**Ngày đã dùng** (`leaveDates`, `lib/domain/leave-days.ts`): mọi ngày `kind:'leave'` ở mọi tháng, **gồm ngày chờ duyệt** (giữ chỗ), bỏ ngày có dòng `leave` bị `rejected` (với tháng đang lưu: chỉ khi ngày khai y nguyên cùng vân tay), bỏ ngày lễ nằm trong lịch làm việc.
 
-**Kiểm khi lưu lịch** (`timesheet/timesheet-validator.js`): không kiểm số dư phép, khai ngày phép vượt số dư vẫn lưu (chờ duyệt, số dư âm). Ngày `unpaid` mới vào T2–T6 trong lịch mà còn ≥ 1 ngày phép → `SHEET_UNPAID_WITH_LEAVE`. Chức vụ không `absenceDeclarable` không khai `leave` hoặc `unpaid` trong lịch → `BENEFIT_NOT_ALLOWED`. Bộ máy không xét số dư: phép vượt mà được duyệt vẫn có lương.
+**Kiểm khi lưu lịch** (`timesheet/timesheet-validator.ts`): không kiểm số dư phép, khai ngày phép vượt số dư vẫn lưu (chờ duyệt, số dư âm). Ngày `unpaid` mới vào T2–T6 trong lịch mà còn ≥ 1 ngày phép → `SHEET_UNPAID_WITH_LEAVE`. Chức vụ không `absenceDeclarable` không khai `leave` hoặc `unpaid` trong lịch → `BENEFIT_NOT_ALLOWED`. Bộ máy không xét số dư: phép vượt mà được duyệt vẫn có lương.
 
-**Sổ lưu sẵn** (`LeaveAccountService.refresh`, `leave-account-service.js`): chỉ người có `uuid`, `payrollSubject`, `startDate`, quyền lợi `leaveAccount` (không thì xoá số dư lưu). `upTo` = ngày nghỉ việc nếu đã qua, ngược lại ngày hiện tại. Sự kiện = `accrualEvents` (cùng quy tắc với `counted`: chỉ các lần cộng sau cuối năm `first − 1`, không gồm điều chỉnh tay) + `expire` (âm, mỗi quỹ đã hết hạn còn ngày). Số dư lưu = `ledger.balance`. `ledger.sync` thêm/sửa/xoá để sổ khớp; `saveBalance` chỉ ghi khi khác. Chạy lúc khởi động (`setImmediate`) và mỗi `config.LEAVE_REFRESH_MS` (3.600.000 ms), và mỗi lần `GET /leave/ledger`. Lỗi một người: ghi console một lần, bỏ qua.
+**Sổ lưu sẵn** (`LeaveAccountService.refresh`, `leave-account-service.ts`): chỉ người có `uuid`, `payrollSubject`, `startDate`, quyền lợi `leaveAccount` (không thì xoá số dư lưu). `upTo` = ngày nghỉ việc nếu đã qua, ngược lại ngày hiện tại. Sự kiện = `accrualEvents` (cùng quy tắc với `counted`: chỉ các lần cộng sau cuối năm `first − 1`, không gồm điều chỉnh tay) + `expire` (âm, mỗi quỹ đã hết hạn còn ngày). Số dư lưu = `ledger.balance`. `ledger.sync` thêm/sửa/xoá để sổ khớp; `saveBalance` chỉ ghi khi khác. Chạy lúc khởi động (`setImmediate`) và mỗi `config.LEAVE_REFRESH_MS` (3.600.000 ms), và mỗi lần `GET /leave/ledger`. Lỗi một người: ghi console một lần, bỏ qua.
 
 ### 4.9 Tạm ứng
 
-**Số theo quy tắc** (`advance-cap.js:figureFor`): chạy `service.computeFor(month, staff, inputs, params, { upTo: undefined })` (tới ngày hiện tại) và lấy `max(0, round(m.trace.tamUngToiDa))`.
+**Số theo quy tắc** (`advance-cap.ts:figureFor`): chạy `service.computeFor(month, staff, inputs, params, { upTo: undefined })` (tới ngày hiện tại) và lấy `max(0, round(m.trace.tamUngToiDa))`.
 
 - `tamUngToiDa` = công thức `formula.tamUng`: `nếu batTamUng thì roundDong(advance.rate × tienUng) ngược lại 0`.
 - `batTamUng = staff.advanceOn !== false && advance.eligibleTypes.<loại> !== false` (`payroll-engine.js`, `pay-options-calc.js`).
@@ -368,7 +368,7 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 **Chưa cuối cùng** (`provisional`): `vnToday() <= "<tháng>-<untilDay 2 chữ số>"` (đúng ngày `untilDay` vẫn chưa cuối cùng).
 
-**Xin**: chỉ tạo được vào ngày 16 và 17 hằng tháng (giờ Việt Nam, theo `vnToday()`; `ADVANCE_REQUEST_DAYS` ở `lib/domain/overtime/hour-limits.js`), ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; `month` phải là tháng của hôm nay (yêu cầu tạo ngày 16 hoặc 17 của tháng M là tạm ứng của tháng M), khác thì 409 `ADVANCE_MONTH_NOT_CURRENT` (Admin cũng vậy; duyệt, từ chối, huỷ duyệt, rút không bị giới hạn theo ngày); `GET /api/advance-approvals` trả thêm `window: { days: [16, 17], open }`. Sau đó phải `eligible`; số = 0 và `provisional` false → 409 `ADVANCE_ZERO`. **Duyệt**: phải `eligible`. **Duyệt tất cả** (`src/modules/advance/advance-approvals.handlers.ts`): chỉ người đang `pending`; bỏ qua (`skipped`) khi không eligible, số đã chốt (không còn `provisional`) bằng 0, không có quyền với người đó, hoặc là chính người duyệt (bỏ qua). Không có ai được duyệt thì không ghi, rev tháng giữ nguyên.
+**Xin**: chỉ tạo được vào ngày 16 và 17 hằng tháng (giờ Việt Nam, theo `vnToday()`; `ADVANCE_REQUEST_DAYS` ở `lib/domain/overtime/hour-limits.ts`), ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; `month` phải là tháng của hôm nay (yêu cầu tạo ngày 16 hoặc 17 của tháng M là tạm ứng của tháng M), khác thì 409 `ADVANCE_MONTH_NOT_CURRENT` (Admin cũng vậy; duyệt, từ chối, huỷ duyệt, rút không bị giới hạn theo ngày); `GET /api/advance-approvals` trả thêm `window: { days: [16, 17], open }`. Sau đó phải `eligible`; số = 0 và `provisional` false → 409 `ADVANCE_ZERO`. **Duyệt**: phải `eligible`. **Duyệt tất cả** (`src/modules/advance/advance-approvals.handlers.ts`): chỉ người đang `pending`; bỏ qua (`skipped`) khi không eligible, số đã chốt (không còn `provisional`) bằng 0, không có quyền với người đó, hoặc là chính người duyệt (bỏ qua). Không có ai được duyệt thì không ghi, rev tháng giữ nguyên.
 
 **Rev**: rev của người kiểm ở xin/rút/duyệt/từ chối/huỷ (`ADVANCE_REQUEST_STALE`); rev của tháng kiểm ở duyệt tất cả (`ADVANCE_REQUESTS_STALE`). `expectedRev` vắng thì không kiểm. Mỗi lần ghi tăng rev tháng; mỗi bước tăng rev người.
 
@@ -380,8 +380,8 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 Hai luồng khác nhau:
 
-1. **OT trên Lịch ước tính** (khoản `ot`, 4.1): nguồn tiền. Kiểm khi lưu: tổng OT thô trong tháng cộng giờ ca chính làm ngày lễ > `MONTH_OT_CAP` (40) và tăng so với lịch đang lưu → 400 `OT_MONTH_CAP` (`overtime/hour-limits.js`); quyền lợi `ot` → `BENEFIT_NOT_ALLOWED`; đoạn làm thêm rơi 22h–6h → `SHEET_EXTRA_NIGHT`; đoạn làm thêm ghi nhầm phía ca → 400 `EXTRA_WRONG_SIDE`; giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, trừ giờ nghỉ giữa ca) > `DAY_HOURS_CAP` (12) → 400 `DAY_HOURS_CAP` (`limits.checkDayHours`); cả hai là lỗi chặn. Bộ máy không cắt theo các trần.
-2. **OT khai ở Check-in/out** (`POST/PUT /ot`): chỉ để theo dõi, không tự cộng tiền (`ot.js`; nguồn đoạn làm thêm của giờ thực tế là Lịch ước tính — `attendance.extraSourceRule` = calendar — và `otReview` của lượt bị bỏ khi dựng ngày tính tiền). `validateOtDeclaration`: lượt phải `closed` (409), có `plannedShift` (400), không đang khai làm bù (409), giờ HH:MM, ít nhất một đoạn, có giờ có mặt hợp lệ; các kiểm `BENEFIT_NOT_ALLOWED`, `OT_NEEDS_CONFIRMED_SHIFT`, `OT_OUTSIDE_PRESENCE`, `OT_NIGHT` (đoạn OT chồng 22h–6h) là cảnh báo (`warnIf`); sau đó hai trần cứng `DAY_HOURS_CAP` (giờ ròng ngày, cộng OT của các lượt khác cùng ngày) và `OT_MONTH_CAP` (so với Lịch ước tính) chặn 400.
+1. **OT trên Lịch ước tính** (khoản `ot`, 4.1): nguồn tiền. Kiểm khi lưu: tổng OT thô trong tháng cộng giờ ca chính làm ngày lễ > `MONTH_OT_CAP` (40) và tăng so với lịch đang lưu → 400 `OT_MONTH_CAP` (`overtime/hour-limits.ts`); quyền lợi `ot` → `BENEFIT_NOT_ALLOWED`; đoạn làm thêm rơi 22h–6h → `SHEET_EXTRA_NIGHT`; đoạn làm thêm ghi nhầm phía ca → 400 `EXTRA_WRONG_SIDE`; giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, trừ giờ nghỉ giữa ca) > `DAY_HOURS_CAP` (12) → 400 `DAY_HOURS_CAP` (`limits.checkDayHours`); cả hai là lỗi chặn. Bộ máy không cắt theo các trần.
+2. **OT khai ở Check-in/out** (`POST/PUT /ot`): chỉ để theo dõi, không tự cộng tiền (`ot.ts`; nguồn đoạn làm thêm của giờ thực tế là Lịch ước tính — `attendance.extraSourceRule` = calendar — và `otReview` của lượt bị bỏ khi dựng ngày tính tiền). `validateOtDeclaration`: lượt phải `closed` (409), có `plannedShift` (400), không đang khai làm bù (409), giờ HH:MM, ít nhất một đoạn, có giờ có mặt hợp lệ; các kiểm `BENEFIT_NOT_ALLOWED`, `OT_NEEDS_CONFIRMED_SHIFT`, `OT_OUTSIDE_PRESENCE`, `OT_NIGHT` (đoạn OT chồng 22h–6h) là cảnh báo (`warnIf`); sau đó hai trần cứng `DAY_HOURS_CAP` (giờ ròng ngày, cộng OT của các lượt khác cùng ngày) và `OT_MONTH_CAP` (so với Lịch ước tính) chặn 400.
 
 **Điều kiện để OT trên lịch ra tiền**: khoản đã `approved` (chưa duyệt / bị từ chối: `strip`, mục 4.2); chức vụ có `benefit.ot`; có chấm công: `ActualHours` chỉ giữ phần đoạn đã khai nằm trong khoảng có mặt liền với ca (`clipExtra`, `actual-hours.js`), số giờ không vượt số giờ đã khai; ngày ngoài lịch làm việc của người chỉ trả đoạn làm thêm (`extraOnly`: không ngày công, không giờ thiếu, không lương ngày, không phụ cấp ca); khai OT ngoài lịch mà không có chấm công nào thì không tính tiền và không là vắng.
 
@@ -405,10 +405,10 @@ Chức vụ không có `benefit.ot` không có OT nào, kể cả ngày lễ (`e
 
 ### 4.11 Làm bù
 
-- Không có loại ngày làm bù cả ngày. Ngày `kind: 'makeup'` mới hoặc đã đổi → 400 `SHEET_MAKEUP_DAY_REMOVED` ("Không còn loại ngày Làm bù cả ngày. Giờ làm bù khai ở ngày đi làm, trước hoặc sau ca."), cả khi Admin khai thay. Ngày `makeup` đã lưu gửi lại không đổi: không chặn, cảnh báo `SHEET_MAKEUP_DAY_LEGACY`; bộ máy tính ngày đó 0 đồng, không ngày công, không giờ làm bù. Vai trò tuỳ chỉnh: `makeup_day` không có trong `APPROVAL_ITEMS` (`lib/roles.js`); quyền `makeup_day` đã lưu bị bỏ qua khi đọc (`RETIRED_ITEMS`,).
+- Không có loại ngày làm bù cả ngày. Ngày `kind: 'makeup'` mới hoặc đã đổi → 400 `SHEET_MAKEUP_DAY_REMOVED` ("Không còn loại ngày Làm bù cả ngày. Giờ làm bù khai ở ngày đi làm, trước hoặc sau ca."), cả khi Admin khai thay. Ngày `makeup` đã lưu gửi lại không đổi: không chặn, cảnh báo `SHEET_MAKEUP_DAY_LEGACY`; bộ máy tính ngày đó 0 đồng, không ngày công, không giờ làm bù. Vai trò tuỳ chỉnh: `makeup_day` không có trong `APPROVAL_ITEMS` (`lib/roles.ts`); quyền `makeup_day` đã lưu bị bỏ qua khi đọc (`RETIRED_ITEMS`,).
 - `makeup_hours`: đoạn trước/sau ca có `extraKind:'makeup'` trên ngày đi làm; chức vụ không có `benefit.makeupHours` → `BENEFIT_NOT_ALLOWED` (`checkRequestFlags`, `positions.js`).
 - `willmakeup`: ngày nghỉ, kế hoạch làm bù `makeupPlans[{date,from,to}]` (tối đa 31 dòng, ô sai dạng thành rỗng, chỉ để Admin xem khi duyệt, không chặn gì). Đã duyệt: 0 đồng, không ngày công, cộng một công (`time.workHoursPerDay` giờ) vào giờ cần bù của tháng.
-- Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`timesheet/timesheet-validator.js`); ngày đã lưu không đổi thì giữ.
+- Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`timesheet/timesheet-validator.ts`); ngày đã lưu không đổi thì giữ.
 - **Tiền**: giờ làm bù được trả đủ = giờ × lương giờ × 1, không cắt theo giờ cần bù (`makeupPay`, `payroll-engine.js`); đoạn làm bù trừ giờ nghỉ rơi trong đoạn (OT không trừ). Ngày có giờ làm bù được trả (`makeupH > 0`) không có phụ cấp ca và giờ nghỉ đêm có lương (`noShiftAllowance`,); ngày có OT được trả vẫn giữ phụ cấp ca và giờ nghỉ đêm có lương.
 - **Sổ giờ bù tháng** (`calcMonth`,): `need` = giờ thiếu của ngày đi làm + một công cho mỗi ngày `willmakeup` đã duyệt; `made` = giờ làm bù đã duyệt và có chấm công; `debt = max(0, need − made)` (giờ còn thiếu); `makeupCredit = max(0, made − need)` (phần làm bù nhiều hơn giờ thiếu, đã trả trong `makeupPay`). Số dư luỹ kế theo ngày chỉ dùng để giữ OT ngày thường (4.10) và báo giờ còn thiếu.
 
@@ -425,7 +425,7 @@ Bộ máy với khoản **đã duyệt** (`calcDay`, `payroll-engine.js`):
 | `willmakeup` | 0 | Cộng một công vào giờ cần bù (4.11). |
 | `makeup` (loại cũ) | 0 | Không ngày công, không giờ làm bù. |
 
-**iSAT**: chỉ vào thứ Bảy (`isat.weekday`) và chỉ chức vụ có `benefit.isat` (mặc định chỉ nhóm NV). Kiểm bằng `isatRefusal` (`isat-rule.js`) ở ba nơi, luôn chặn, kể cả khi Admin khai thay: lưu lịch với ngày iSAT mới (`BENEFIT_NOT_ALLOWED` hoặc `SHEET_ISAT_WEEKDAY`), duyệt khoản iSAT, và danh sách kiểm kỳ đếm iSAT đã lưu vi phạm. `isat.monthlyLimit` (mặc định null) → cảnh báo `SHEET_ISAT_LIMIT`; bộ máy không cắt theo giới hạn này. Chưa duyệt hoặc bị từ chối: `unpaid`, vẫn tính ngày nghỉ.
+**iSAT**: chỉ vào thứ Bảy (`isat.weekday`) và chỉ chức vụ có `benefit.isat` (mặc định chỉ nhóm NV). Kiểm bằng `isatRefusal` (`isat-rule.ts`) ở ba nơi, luôn chặn, kể cả khi Admin khai thay: lưu lịch với ngày iSAT mới (`BENEFIT_NOT_ALLOWED` hoặc `SHEET_ISAT_WEEKDAY`), duyệt khoản iSAT, và danh sách kiểm kỳ đếm iSAT đã lưu vi phạm. `isat.monthlyLimit` (mặc định null) → cảnh báo `SHEET_ISAT_LIMIT`; bộ máy không cắt theo giới hạn này. Chưa duyệt hoặc bị từ chối: `unpaid`, vẫn tính ngày nghỉ.
 
 **Ngày vắng xét chuyên cần / KPI** (`finishMonth`, `payroll-engine.js`):
 
@@ -451,18 +451,18 @@ Giữ phụ cấp chuyên cần (`giuChuyenCan`,, chỉ loại có phụ cấp �
 
 Nhân viên chỉ Check-in được trên ngày có lịch hoặc ngày có OT / làm bù theo giờ đã duyệt. Ngày tự khai "Đi làm" không mở Check-in, khai mà không chấm công thì sau khi ca kết thúc là vắng (4.10, `attendance.missingAllRule`). Nhân viên vẫn tạo yêu cầu (nghỉ, OT, làm bù, OT ngày lễ, nghỉ sẽ làm bù) qua `PUT /sheet`; không có ngày tuỳ chọn trong lịch: ngày ngoài lịch (`SHEET_OFF_SCHEDULE`) chỉ nên khai nghỉ không lương, các khoản làm thêm gửi bằng yêu cầu.
 
-### 4.14 Chặn của AI (`lib/domain/ai-block.js`)
+### 4.14 Chặn của AI (`lib/domain/ai-block.ts`)
 
 Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rules` (mảng chuỗi; rỗng = tắt) hoặc mặc định (2.2). Với mỗi tháng có khoản: phát hiện có `rule` thuộc danh sách, có `approval`, và trùng `(username, date)` và `approval.rev === item.rev` → 409 `AI_BLOCKED` `{ blocked: [{username,date,rule}] }`. Chỉ khi công tắc Agents bật; tắt thì bỏ qua. Từ chối luôn được.
 
 ### 4.15 Giải trình
 
-- Check-out muộn: `lateCheckoutMin` = phút từ `allowedUntil` tới giờ bấm; `allowedUntil = plannedShift.endIso + phút làm thêm sau ca (lớn hơn của lượt và của ngày khai trong lịch)`. Không có ca theo lịch → 0. Muộn > `config.CHECKOUT_GRACE_MIN` (30) → phải giải trình (`late-checkout.js`).
+- Check-out muộn: `lateCheckoutMin` = phút từ `allowedUntil` tới giờ bấm; `allowedUntil = plannedShift.endIso + phút làm thêm sau ca (lớn hơn của lượt và của ngày khai trong lịch)`. Không có ca theo lịch → 0. Muộn > `config.CHECKOUT_GRACE_MIN` (30) → phải giải trình (`late-checkout.ts`).
 - `record`: chưa có giải trình và không gửi kèm → 409 `CHECKOUT_NEEDS_EXPLANATION`. Lượt lưu thành `kind:'pending', reason:'forgot-out', requestedOut` (bỏ `presOut`), thêm dòng `punches` bằng chứng; nếu giải trình đã duyệt thì `sync` áp giờ ngay.
 - `sync` (trong giao dịch duyệt giải trình): `approved` và lượt chưa có `presOut` → dựng lại lượt như Check-out tại `requestedOut` (chồng lượt → 409 `SESSION_OVERLAP`); không `approved` mà `presOut === requestedOut` → về "Quên Check-out". Lượt `src:'admin'` hoặc không có `requestedOut` → không đổi.
 - **Giữ lương**: `heldByUser(month)` = mọi giải trình `status != 'approved'` (gồm `requested`, `answered`, `rejected`) trong tháng; một ngày nhiều giải trình lấy trạng thái bị từ chối trước, rồi đã trả lời, rồi chờ trả lời. `payroll-service` bỏ các ngày đã có lượt Admin ghi nhận khi giải trình chưa có kết quả duyệt (giờ Admin ghi thắng); giải trình bị từ chối giữ ngày dù có lượt Admin. Các ngày còn lại thành `explanationHold` (và `explanationRejected`) → bộ máy đổi ngày đó thành `{ kind:'unpaid', punchIn, punchOut, held }` kể cả có Check-in/out: không tính công, đếm như nghỉ không lương. Dòng ngày giữ lại mang giờ bấm thật và nhãn `held`: "Bị từ chối" hoặc "Chờ xử lý".
-- **Giải trình ngày được duyệt** (`AdminPresence.syncExplanation`, `admin-presence.js`): ngày thiếu giờ vào hoặc ra (quên chấm) → ghi MỘT lượt Admin có giờ vào = giờ bắt đầu ca, giờ ra = giờ kết thúc ca (ca Admin chọn cho ngày nếu có, không thì ca được gán), mang `explanationId`: ngày tính một công với giờ ca như Admin ghi nhận. Không ghi được (ngoài lịch, chưa gán ca, ngày lễ không khai giờ, ngày đã khai nghỉ, chồng giờ) → cảnh báo `EXPLANATION_NOT_RECORDED`. Ngày chỉ trễ / về sớm (đã có đủ giờ vào ra): duyệt chỉ hết giữ lương, `ActualHours` vẫn cắt giờ theo bậc làm tròn hiện hành. Không duyệt (hoặc đổi từ duyệt sang từ chối): xoá lượt mang `explanationId`, ngày không tính công. Ghi hoặc xoá lượt đòi kỳ còn mở chấm công.
-- Nhãn lượt chấm công (`SessionStatus.classify`, `session-status.js`): `Đã Check-in` (lượt mở hợp lệ), `Đã Check-out` (lượt đóng hợp lệ), `Chờ xử lý` (giờ vào/ra chưa hợp lệ chưa có kết quả, hoặc giải trình đang chờ), `Được phê duyệt`, `Bị từ chối` (kết quả mới nhất của giải trình / yêu cầu điều chỉnh), `Đã chấm công` (lượt do Admin ghi). Lý do giờ: vào trễ khi phút trễ > `attendance.graceMin`; về sớm khi có bất kỳ phút nào trước giờ kết thúc ca; Check-out muộn khi > `CHECKOUT_GRACE_MIN` phút. Bấm Check-out sớm hiện hộp xác nhận ("Vẫn Check-out" / "Tiếp tục làm") ở giao diện nhân viên; Check-out xong lượt có lý do về sớm là `Chờ xử lý` cho tới khi có giải trình được duyệt.
+- **Giải trình ngày được duyệt** (`AdminPresence.syncExplanation`, `admin-presence.ts`): ngày thiếu giờ vào hoặc ra (quên chấm) → ghi MỘT lượt Admin có giờ vào = giờ bắt đầu ca, giờ ra = giờ kết thúc ca (ca Admin chọn cho ngày nếu có, không thì ca được gán), mang `explanationId`: ngày tính một công với giờ ca như Admin ghi nhận. Không ghi được (ngoài lịch, chưa gán ca, ngày lễ không khai giờ, ngày đã khai nghỉ, chồng giờ) → cảnh báo `EXPLANATION_NOT_RECORDED`. Ngày chỉ trễ / về sớm (đã có đủ giờ vào ra): duyệt chỉ hết giữ lương, `ActualHours` vẫn cắt giờ theo bậc làm tròn hiện hành. Không duyệt (hoặc đổi từ duyệt sang từ chối): xoá lượt mang `explanationId`, ngày không tính công. Ghi hoặc xoá lượt đòi kỳ còn mở chấm công.
+- Nhãn lượt chấm công (`SessionStatus.classify`, `session-status.ts`): `Đã Check-in` (lượt mở hợp lệ), `Đã Check-out` (lượt đóng hợp lệ), `Chờ xử lý` (giờ vào/ra chưa hợp lệ chưa có kết quả, hoặc giải trình đang chờ), `Được phê duyệt`, `Bị từ chối` (kết quả mới nhất của giải trình / yêu cầu điều chỉnh), `Đã chấm công` (lượt do Admin ghi). Lý do giờ: vào trễ khi phút trễ > `attendance.graceMin`; về sớm khi có bất kỳ phút nào trước giờ kết thúc ca; Check-out muộn khi > `CHECKOUT_GRACE_MIN` phút. Bấm Check-out sớm hiện hộp xác nhận ("Vẫn Check-out" / "Tiếp tục làm") ở giao diện nhân viên; Check-out xong lượt có lý do về sớm là `Chờ xử lý` cho tới khi có giải trình được duyệt.
 - Văn bản: bắt buộc (trừ ghi chú duyệt), ≤ `TEXT_MAX` 500 ký tự; `ruleId` cắt 80 ký tự; danh sách tối đa 500, mặc định 200.
 
 ### 4.16 KPI
@@ -476,7 +476,7 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 
 ### 4.17 Tự duyệt việc của chính mình
 
-`isSelfDecision(me, u)` = `me.payrollSubject && u === me.username` (`authz.js`). Tài khoản Admin không thuộc bảng lương không bao giờ "tự".
+`isSelfDecision(me, u)` = `me.payrollSubject && u === me.username` (`authz.ts`). Tài khoản Admin không thuộc bảng lương không bao giờ "tự".
 
 | Việc | Mã | Hành vi |
 | --- | --- | --- |
@@ -489,7 +489,7 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 
 ### 4.18 Quyền duyệt theo vai trò
 
-`request.decide.<item>` cho từng loại; `request.decide.*` cấp mọi loại (`authz.js`). Mặc định: `admin`, `cb`, `manager` có `request.decide.*`; `hr` chỉ `request.decide.leave`. Phạm vi vai trò: `admin`, `cb`, `hr` là `all`; `manager` là `team`, hiện chỉ là chính mình (`can`, `authz.js`). Vai trò tuỳ chỉnh chỉ nhận `request.decide.<item>` với item ∈ `ApprovalView.ITEMS` (`authz.js, 121-127`). Tạm ứng cần `request.decide.advance`; giải trình và OT Check-in/out cần `attendance.correct`; KPI cần `kpi.score.write`.
+`request.decide.<item>` cho từng loại; `request.decide.*` cấp mọi loại (`authz.ts`). Mặc định: `admin`, `cb`, `manager` có `request.decide.*`; `hr` chỉ `request.decide.leave`. Phạm vi vai trò: `admin`, `cb`, `hr` là `all`; `manager` là `team`, hiện chỉ là chính mình (`can`, `authz.ts`). Vai trò tuỳ chỉnh chỉ nhận `request.decide.<item>` với item ∈ `ApprovalView.ITEMS` (`authz.ts, 121-127`). Tạm ứng cần `request.decide.advance`; giải trình và OT Check-in/out cần `attendance.correct`; KPI cần `kpi.score.write`.
 
 ### 4.19 Khoá kỳ theo việc
 
@@ -500,7 +500,7 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 | Tạm ứng (xin, rút, duyệt, từ chối, huỷ) | tự kiểm `approved`/`paid` | **409** |
 | Huỷ ứng lương dạng cũ | `slip` (từ `approved`) | lưu + cảnh báo |
 | Giải trình | không | — |
-| Khoá chấm công khi còn khoản chờ duyệt | mục `PENDING_APPROVALS` mức `block` của danh sách kiểm kỳ (`lib/periods.js`); mục `EXPLANATION_PENDING` mức `warn` đếm ngày giữ lương do giải trình chưa có kết quả duyệt; mục `ABSENT_NO_EXPLANATION` mức `warn` đếm ngày trong lịch không có lượt nào và chưa có giải trình | thành cảnh báo (`soften`); vẫn khoá được |
+| Khoá chấm công khi còn khoản chờ duyệt | mục `PENDING_APPROVALS` mức `block` của danh sách kiểm kỳ (`lib/periods.ts`); mục `EXPLANATION_PENDING` mức `warn` đếm ngày giữ lương do giải trình chưa có kết quả duyệt; mục `ABSENT_NO_EXPLANATION` mức `warn` đếm ngày trong lịch không có lượt nào và chưa có giải trình | thành cảnh báo (`soften`); vẫn khoá được |
 
 ### 4.20 Cảnh báo và chặn ở lịch ước tính và duyệt
 
@@ -511,11 +511,11 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 | Quyền (`FORBIDDEN_CAP`), định dạng, không tồn tại, tài khoản ngoài bảng lương | route, `cleanDays` |
 | `SHEET_STALE` (rev lịch lệch) | `assertSheetRev` |
 | `APPROVAL_STALE`, `APPROVAL_NOT_FOUND`, `APPROVAL_NOOP` | `decide` |
-| `OT_MONTH_CAP` (tháng > `MONTH_OT_CAP`, chỉ khi tổng tăng), `DAY_HOURS_CAP` (ngày vừa đổi > `DAY_HOURS_CAP`) | `overtime/hour-limits.js` |
+| `OT_MONTH_CAP` (tháng > `MONTH_OT_CAP`, chỉ khi tổng tăng), `DAY_HOURS_CAP` (ngày vừa đổi > `DAY_HOURS_CAP`) | `overtime/hour-limits.ts` |
 | `SHEET_MAKEUP_ON_HOLIDAY`, `SHEET_MAKEUP_DAY_REMOVED` | `checkSheet` |
 | `EXTRA_WRONG_SIDE`, giờ làm thêm thiếu hoặc trùng giờ ca | `checkExtraTimes` |
 | iSAT sai thứ (`SHEET_ISAT_WEEKDAY`) hoặc sai quyền lợi (`BENEFIT_NOT_ALLOWED`) khi lưu ngày iSAT mới và khi duyệt | `isatRefusal` |
-| `AI_BLOCKED` (chỉ khi duyệt và công tắc Agents bật) | `ai-block.js` |
+| `AI_BLOCKED` (chỉ khi duyệt và công tắc Agents bật) | `ai-block.ts` |
 | `CHECKIN_NOT_ALLOWED`, `CHECKIN_OUTSIDE_SHIFT`, `CHECKOUT_NEEDS_EXPLANATION` | `POST /punch` |
 | `PERIOD_LOCKED` của tạm ứng | `src/modules/advance/advance-approvals.handlers.ts` |
 | Tạm ứng: `ADVANCE_NOT_ELIGIBLE`, `ADVANCE_ZERO`, các 409 sai trạng thái / sai rev | `src/modules/advance/advance-approvals.handlers.ts` |
@@ -532,7 +532,7 @@ Hệ quả tiền của các cảnh báo (đối chiếu bộ máy): ngày ngoà
 
 ## 5. Realtime và nhật ký
 
-### 5.1 Sự kiện SSE (`lib/events.js`, phát sau COMMIT)
+### 5.1 Sự kiện SSE (`lib/events.ts`, phát sau COMMIT)
 
 | Tên | Payload | Người nhận | Phát ở |
 | --- | --- | --- | --- |
@@ -572,40 +572,40 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 ### 6.1 Ai gọi module này
 
 - `src/modules/staff/staff.controller.ts`: route mục 3; `GET /team` gọi `sheetApprovals`; đổi loại nhân sự gọi `reconcileStaffType`; `checkInDay` gọi `sheetApprovals`.
-- `lib/payroll-service.js` → `store.approvals.forSheet`, `explanations.heldByUser`, `AdminPresence.declaredDates`, `advanceApprovals.approvedSet`, `leaveDates`, `LeaveRules.settlementFor`.
-- `lib/periods.js` → `store.approvals.list({status:'pending'})` cho `PENDING_APPROVALS`; `explanations.heldByUser` cho `EXPLANATION_PENDING`; `periods.estimate` cho `GET /me/estimate`.
-- `lib/domain/ai-review.js` → `store.approvals.list({status:'all'})`, `advanceApprovals.approvedSet`.
-- `lib/events.js` → `store.approvals.list` (đếm chờ).
-- `lib/authz.js` → `ApprovalView.ITEMS` (`DECIDE_ITEMS`).
-- `lib/domain/leave-days.js` → `store.approvals.list`, `declaredItems` (ngày phép bị từ chối).
-- `lib/domain/timesheet/` (nối ở `timesheet/services.js`) → `leaveDates`, `rulesFor().leave`, `isatRefusal`.
+- `lib/payroll-service.ts` → `store.approvals.forSheet`, `explanations.heldByUser`, `AdminPresence.declaredDates`, `advanceApprovals.approvedSet`, `leaveDates`, `LeaveRules.settlementFor`.
+- `lib/periods.ts` → `store.approvals.list({status:'pending'})` cho `PENDING_APPROVALS`; `explanations.heldByUser` cho `EXPLANATION_PENDING`; `periods.estimate` cho `GET /me/estimate`.
+- `lib/domain/ai-review.ts` → `store.approvals.list({status:'all'})`, `advanceApprovals.approvedSet`.
+- `lib/events.ts` → `store.approvals.list` (đếm chờ).
+- `lib/authz.ts` → `ApprovalView.ITEMS` (`DECIDE_ITEMS`).
+- `lib/domain/leave-days.ts` → `store.approvals.list`, `declaredItems` (ngày phép bị từ chối).
+- `lib/domain/timesheet/` (nối ở `timesheet/services.ts`) → `leaveDates`, `rulesFor().leave`, `isatRefusal`.
 - `POST /punch` → `explanations.needsExplanation`, `container.lateCheckout`, `checkInVerdict`.
 
 ### 6.2 Module này gọi
 
-`lib/db.js` (store, transaction, settings, periods, sessions, staff), `lib/warnings.js`, `lib/authz.js`, `lib/audit.js`, `lib/events.js`, `lib/request-rules.js` → `lib/params/store.js`, `lib/domain/schedule.js` / `public/work-schedule.js`, `lib/domain/sheet.js` (`estimateSheet` → `payroll-service.estimateDays`), `lib/payroll-service.js` + `public/payroll-engine.js` (số tạm ứng), `public/pay-options-calc.js`, `lib/domain/ai-review.js`, `lib/domain/attendance*.js`, `lib/domain/container.js`.
+`lib/db.ts` (store, transaction, settings, periods, sessions, staff), `lib/warnings.ts`, `lib/authz.ts`, `lib/audit.ts`, `lib/events.ts`, `lib/request-rules.ts` → `lib/params/store.ts`, `lib/domain/schedule.ts` / `public/work-schedule.js`, `lib/domain/sheet.ts` (`estimateSheet` → `payroll-service.estimateDays`), `lib/payroll-service.ts` + `public/payroll-engine.js` (số tạm ứng), `public/pay-options-calc.js`, `lib/domain/ai-review.ts`, `lib/domain/attendance*.js`, `lib/domain/container.ts`.
 
 ### 6.3 Mô-đun dùng chung trình duyệt + máy chủ
 
-`public/approval-view.js`, `public/leave.js`, `public/kpi-score.js`, `public/work-schedule.js`, `public/actual-hours.js`, `public/payroll-params.js` (DEFAULTS), `public/payroll-engine.js`, `public/pay-options-calc.js`, `public/payroll-calendar.js`, `public/punch.js`. Trình duyệt dùng bản trần (`create(DEFAULTS)`), máy chủ dùng `rulesFor(tháng)` (trừ `lib/approvals.js` dùng bản trần, xem mục 8).
+`public/approval-view.js`, `public/leave.js`, `public/kpi-score.js`, `public/work-schedule.js`, `public/actual-hours.js`, `public/payroll-params.js` (DEFAULTS), `public/payroll-engine.js`, `public/pay-options-calc.js`, `public/payroll-calendar.js`, `public/punch.js`. Trình duyệt dùng bản trần (`create(DEFAULTS)`), máy chủ dùng `rulesFor(tháng)` (trừ `lib/approvals.ts` dùng bản trần, xem mục 8).
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
 - Đổi `itemOf` / `holidayFingerprint` / `segmentsOf` (approval-view.js) → mọi dòng `sheet_approvals` đã lưu có vân tay cũ thành `pending` ở lần lưu sau và trạng thái hiệu lực thành `pending` ngay (tiền mất cho tới khi duyệt lại); kiểm `effectiveStatus`, `reconcile`, `declaredItems`, các đợt tạo dòng, `itemFromRow`, `rejectedLeaveDates`, giao diện test approval-view*.
-- Đổi `ITEMS` → `authz.DECIDE_ITEMS` (vai trò tuỳ chỉnh), `ALLOWED_ACTIONS`, `FALLBACK`, khoá registry `request.type.<khoản>.*`, `reconcile` (từ chối item lạ), `A.ITEM_LABEL` và `ITEM_LABEL` của logic.js, `approvalPolicy` của bộ máy, `APPROVAL_ITEMS` của `lib/roles.js`.
+- Đổi `ITEMS` → `authz.DECIDE_ITEMS` (vai trò tuỳ chỉnh), `ALLOWED_ACTIONS`, `FALLBACK`, khoá registry `request.type.<khoản>.*`, `reconcile` (từ chối item lạ), `A.ITEM_LABEL` và `ITEM_LABEL` của logic.js, `approvalPolicy` của bộ máy, `APPROVAL_ITEMS` của `lib/roles.ts`.
 - Đổi `POLICY` / `pendingRule` / `countsAbsent` → `payView`, `approvalPolicy` (`payroll-engine.js`), `calcMonth` (`absentExempt`, `unpaidExempt`), golden fixtures.
 - Đổi chiếu ngày (`projectDay`, `estimateDays`, `ESTIMATE_FIELDS`, `DAY_FIELDS`) → vân tay tính ở reconcile và ở `sheetApprovals` phải cùng đầu vào; nếu lệch, khoản hiện "chờ duyệt" mãi.
 - Đổi `reconcile` → PUT /sheet, `approveOnBehalf` (dùng `added/reset/resubmitted`), `reconcileMonthApprovals` (đổi lễ, đổi loại), `approvals.changed`.
-- Đổi `decide` / mã lỗi → `APPROVAL_HTTP_STATUS` (`lib/domain/approvals.js`) (đọc `APPROVAL_STALE`, `items`), `approveOnBehalf`.
+- Đổi `decide` / mã lỗi → `APPROVAL_HTTP_STATUS` (`lib/domain/approvals.ts`) (đọc `APPROVAL_STALE`, `items`), `approveOnBehalf`.
 - Đổi danh sách lễ hoặc cách đọc lễ → `reconcileHolidayWork`, `isScheduledHoliday`, `leaveDates` (bỏ ngày lễ), `HOLIDAY_*_CONFLICT`, `holidayOtConflicts`, `checkInDay`, bộ máy (`holBase`, `holWork`, `splitMainWork`, `splitExtraWork`).
 - Đổi `WorkSchedule` / `type.*.dows` → nhận diện OT ngày lễ, `leaveDates`, `SHEET_UNPAID_WITH_LEAVE`, `isRestDay` (hệ số OT cuối tuần), `checkInDay`; nhớ gọi `reconcileMonthApprovals` cho các tháng bị ảnh hưởng.
 - Đổi `leaveDates` → số dư ở các nơi (mục 8), `HOLIDAY_LEAVE_CONFLICT`, sổ lưu sẵn, quy tiền phép hết hạn (`leaveSettlements`).
-- Đổi `public/leave.js` `accrued` → phải đổi cùng `leave-events.js` `accrualEvents` (cùng quy tắc, viết lại), test đối chiếu tổng.
+- Đổi `public/leave.js` `accrued` → phải đổi cùng `leave-events.ts` `accrualEvents` (cùng quy tắc, viết lại), test đối chiếu tổng.
 - Đổi công thức `tamUng`, `tienUng`, `advance.*` → `advance-cap.figureFor` (đọc `m.trace.tamUngToiDa`), `netFrame` (`payroll-engine.js`, dòng trừ tạm ứng), cả hai bản `tienUng` ( và), số hiện ở màn nhân viên/Admin, `ADVANCE_ZERO`, `provisional`.
 - Đổi lưu trữ tạm ứng (`advance_approvals_<tháng>`) → `approvedSet` (bộ máy và AI soát), `inputs_digest`, `normalize` (dòng dạng cũ).
 - Đổi `heldByUser` / trạng thái giải trình → `explanationHold` trong bộ máy, `AdminPresence.declaredDates` / `syncExplanation`, `LateCheckout.sync`, `inputs_digest`, `EXPLANATION_PENDING`.
 - Đổi hệ số OT (`ot.rate`, `ot.weekendRate`, `ot.holidayRate`, `night.otAddRate`) hay `ot.afterMakeup` → `calcDay`, `mienThueOf` (mức miễn thuế theo nhóm OT), bảng ở mục 4.10, phiếu.
-- Đổi `NOTE_MAX` / độ dài lý do → `lib/domain/input.js`, `lib/approvals.js` NOTE_MAX, `config.REASON_MAX`, `slice(0,300)` ở /ot, `maxlength` giao diện, `limits.noteMax`.
+- Đổi `NOTE_MAX` / độ dài lý do → `lib/domain/input.ts`, `lib/approvals.ts` NOTE_MAX, `config.REASON_MAX`, `slice(0,300)` ở /ot, `maxlength` giao diện, `limits.noteMax`.
 - Đổi `warnIf` → mọi hàng cảnh báo ở mục 3–4; `PERIOD_LOCKED` của tạm ứng luôn là lỗi 409.
 - Đổi `ROUTE_CAPS` / vai trò → `canDecideRow`, `sheetOwner` (khai thay dùng `request.decide.*`), `viewsAll` (tạm ứng), `isAdmin` (giải trình dùng `attendance.correct`), test permissions-matrix.
 - Đổi `KpiScore` / `kpi.*` → `kpiScoreItem`, `kpiPartsView`, bộ máy (tiền KPI), `kpiOf` ở payroll-service.
@@ -641,42 +641,42 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 
 ### 8.1 Hai nơi tính cùng một thứ khác nhau
 
-1. **Nhận diện khoản dùng hai bộ tham số.** `lib/approvals.js, :107` (`declaredItems`, dùng cho `reconcile` và các đợt tạo dòng) gọi bản trần `view` = `require('../public/approval-view.js')` (= `create(DEFAULTS)`), trong khi `lib/domain/approvals.js` (`sheetApprovals`) và bộ máy dùng `rulesFor(tháng).approvalView`. Nếu lịch làm việc theo tham số tháng khác mặc định, khoản OT ngày lễ lưu ở DB và khoản hiện trên màn có thể khác nhau.
-2. **Tháng mốc duyệt sẵn chỉ áp một nửa.** `reconcileMonthApprovals` truyền `approveBefore: CUTOFF_MONTH` (`lib/domain/approvals.js`), còn `PUT /sheet` gọi `reconcile` không có `approveBefore` (`src/modules/sheet/sheet.controller.ts`): khoản mới của tháng đứng trước mốc lưu qua PUT /sheet thì chờ duyệt, tạo qua đổi lễ / đổi loại thì duyệt sẵn. Mốc viết cứng trong mã (`lib/approvals.js`).
-3. **Số dư phép tính ở nhiều nơi.** `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` `leaveBalanceView` (tới ngày hiện tại, không xét ngày nghỉ việc, cờ `sheetFlagsOf().hasLeaveAccount`); `lib/domain/sheet.js` `leaveSummary` (`rulesFor()` tháng hiện tại); `LeaveAccountService.refresh` (`leave-account-service.js`, tính tới ngày nghỉ việc, cần `uuid`); `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` (`HOLIDAY_LEAVE_CONFLICT`). Người đã nghỉ việc có thể thấy hai số dư khác nhau giữa `GET /sheet` và `GET /leave/ledger`.
-4. **Quy tắc cộng phép viết hai lần.** `lib/domain/leave/leave-events.js` chép lại `public/leave.js` `accrued` (`NV_TYPE`, cách đếm tháng tròn, năm, thâm niên, sinh nhật); chỉ test đối chiếu tổng giữ hai bản khớp.
-5. **Chiếu ngày khai viết hai lần.** `lib/approvals.js` `projectDay` khác `lib/payroll-service.js` `estimateDays`: `projectDay` giữ cả `makeupPlans` lẫn `makeupDate` cho mọi loại khác work/makeup; `estimateDays` chỉ cho `willmakeup` và chỉ một trong hai, thêm `punchNote`, điền `extraKind:'makeup'` khi thiếu.
+1. **Nhận diện khoản dùng hai bộ tham số.** `lib/approvals.ts, :107` (`declaredItems`, dùng cho `reconcile` và các đợt tạo dòng) gọi bản trần `view` = `require('../public/approval-view.js')` (= `create(DEFAULTS)`), trong khi `lib/domain/approvals.ts` (`sheetApprovals`) và bộ máy dùng `rulesFor(tháng).approvalView`. Nếu lịch làm việc theo tham số tháng khác mặc định, khoản OT ngày lễ lưu ở DB và khoản hiện trên màn có thể khác nhau.
+2. **Tháng mốc duyệt sẵn chỉ áp một nửa.** `reconcileMonthApprovals` truyền `approveBefore: CUTOFF_MONTH` (`lib/domain/approvals.ts`), còn `PUT /sheet` gọi `reconcile` không có `approveBefore` (`src/modules/sheet/sheet.controller.ts`): khoản mới của tháng đứng trước mốc lưu qua PUT /sheet thì chờ duyệt, tạo qua đổi lễ / đổi loại thì duyệt sẵn. Mốc viết cứng trong mã (`lib/approvals.ts`).
+3. **Số dư phép tính ở nhiều nơi.** `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` `leaveBalanceView` (tới ngày hiện tại, không xét ngày nghỉ việc, cờ `sheetFlagsOf().hasLeaveAccount`); `lib/domain/sheet.ts` `leaveSummary` (`rulesFor()` tháng hiện tại); `LeaveAccountService.refresh` (`leave-account-service.ts`, tính tới ngày nghỉ việc, cần `uuid`); `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` (`HOLIDAY_LEAVE_CONFLICT`). Người đã nghỉ việc có thể thấy hai số dư khác nhau giữa `GET /sheet` và `GET /leave/ledger`.
+4. **Quy tắc cộng phép viết hai lần.** `lib/domain/leave/leave-events.ts` chép lại `public/leave.js` `accrued` (`NV_TYPE`, cách đếm tháng tròn, năm, thâm niên, sinh nhật); chỉ test đối chiếu tổng giữ hai bản khớp.
+5. **Chiếu ngày khai viết hai lần.** `lib/approvals.ts` `projectDay` khác `lib/payroll-service.ts` `estimateDays`: `projectDay` giữ cả `makeupPlans` lẫn `makeupDate` cho mọi loại khác work/makeup; `estimateDays` chỉ cho `willmakeup` và chỉ một trong hai, thêm `punchNote`, điền `extraKind:'makeup'` khi thiếu.
 6. **POLICY dựng hai lần.** `approval-view.js` (kiểm thiếu khoá, ném `PARAM_MISSING`) và `payroll-engine.js` `approvalPolicy` (quét regex, không kiểm thiếu khoá hay `ALLOWED_ACTIONS`). Bộ máy luôn truyền bản thứ hai vào `payView`.
 7. **Nền tạm ứng viết hai lần.** `payroll-engine.js` `tienUngCong` và builtin `tienUng` cùng một quy tắc.
-8. **Đếm "chờ duyệt" khác nhau.** `approvals.changed` gửi `pending = store.approvals.list({status:'pending'}).length` (`lib/events.js`): gồm tài khoản ngoài bảng lương và không lọc theo quyền người xem; `GET /approvals/count` và `GET /alerts` lọc cả hai (`src/modules/approvals/approvals.controller.ts, :1083`). Danh sách kiểm kỳ `PENDING_APPROVALS` (`lib/periods.js`) lại đếm theo danh sách người của kỳ.
-10. **Thứ tự danh sách duyệt.** `store.approvals.list` xếp theo `date, username` (`ORDER BY` ở `lib/approvals.js`, hàm `list` bắt đầu), `GET /approvals` xếp lại theo `username, date` rồi mới phân trang.
+8. **Đếm "chờ duyệt" khác nhau.** `approvals.changed` gửi `pending = store.approvals.list({status:'pending'}).length` (`lib/events.ts`): gồm tài khoản ngoài bảng lương và không lọc theo quyền người xem; `GET /approvals/count` và `GET /alerts` lọc cả hai (`src/modules/approvals/approvals.controller.ts, :1083`). Danh sách kiểm kỳ `PENDING_APPROVALS` (`lib/periods.ts`) lại đếm theo danh sách người của kỳ.
+10. **Thứ tự danh sách duyệt.** `store.approvals.list` xếp theo `date, username` (`ORDER BY` ở `lib/approvals.ts`, hàm `list` bắt đầu), `GET /approvals` xếp lại theo `username, date` rồi mới phân trang.
 
 ### 8.2 Mã lỗi, khoá kỳ, tự duyệt không đồng bộ
 
 11. **`APPROVAL_NOTE_TOO_LONG` không tới được** từ route: `src/modules/**/*.controller.ts` đã trả 400 không mã khi note > `NOTE_MAX` trước khi gọi `decide`.
-12. **Hai mã cho tự duyệt.** Khoản tự khai dùng `APPROVAL_SELF` và so `row.username === by` không xét `payrollSubject` (`lib/approvals.js`); mọi nơi khác dùng `SELF_DECISION_FORBIDDEN` qua `isSelfDecision` (cần `payrollSubject`).
+12. **Hai mã cho tự duyệt.** Khoản tự khai dùng `APPROVAL_SELF` và so `row.username === by` không xét `payrollSubject` (`lib/approvals.ts`); mọi nơi khác dùng `SELF_DECISION_FORBIDDEN` qua `isSelfDecision` (cần `payrollSubject`).
 13. **Duyệt tất cả tạm ứng bỏ qua chính mình** (`src/modules/advance/advance-approvals.handlers.ts`), trong khi duyệt từng người chỉ cảnh báo (`decideOne`,).
 14. **Khoá kỳ của tạm ứng luôn là lỗi.** `src/modules/advance/advance-approvals.handlers.ts` luôn 409; ứng lương dạng cũ dùng `store.assertPeriodOpen(...,'slip')` (chỉ cảnh báo).
 15. **Giải trình không khoá kỳ** (`src/modules/explanations/explanations.controller.ts`, `ROUTE_CAPS` không có `periodScope`) dù kết quả duyệt đổi `explanationHold`, tức đổi tiền của kỳ; không có cả cảnh báo `PERIOD_FROZEN`. Ghi / xoá lượt Admin từ giải trình ngày thì đòi kỳ còn mở chấm công.
-16. **Quy tắc duyệt giải trình khác khoản tự khai**: từ chối không cần lý do, không có lỗi "đã ở trạng thái này", không kiểm fingerprint (`explanation.js`, `request.js`).
+16. **Quy tắc duyệt giải trình khác khoản tự khai**: từ chối không cần lý do, không có lỗi "đã ở trạng thái này", không kiểm fingerprint (`explanation.js`, `request.ts`).
 17. **`PUT /ot` bỏ qua kết quả `updateSession`** (`src/modules/attendance/attendance.controller.ts`), còn `POST /ot` kiểm và trả 409.
-18. **`approveOnBehalf` không qua chặn AI** (`sheet-on-behalf.js`), còn `PUT /approvals/decide` thì có.
+18. **`approveOnBehalf` không qua chặn AI** (`sheet-on-behalf.ts`), còn `PUT /approvals/decide` thì có.
 
 ### 8.3 Số viết cứng, tham số không được đọc
 
-19. **Độ dài lý do có nhiều nguồn**: `lib/domain/input.js` `NOTE_MAX = 300`; `lib/approvals.js` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.js`).
-21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `public/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `public/kpi-score.js` (`checkScore`, `toUnits`) và `lib/domain/kpi/kpi-scoring.js` (`cleanKpi`).
-22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`public/leave.js`, `leave-events.js`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.js`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.js`); `config.CHECKOUT_GRACE_MIN` 30.
-23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.js` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
+19. **Độ dài lý do có nhiều nguồn**: `lib/domain/input.ts` `NOTE_MAX = 300`; `lib/approvals.ts` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.ts`).
+21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `public/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `public/kpi-score.js` (`checkScore`, `toUnits`) và `lib/domain/kpi/kpi-scoring.ts` (`cleanKpi`).
+22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`public/leave.js`, `leave-events.ts`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.ts`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.ts`); `config.CHECKOUT_GRACE_MIN` 30.
+23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.ts` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
 
 ### 8.4 Mã chết, trùng, quyền
 
-24. **Mã chết**: `lib/advance-requests.js` `create` và `decide` không còn nơi gọi trong `lib/` hay `src/modules/**/*.controller.ts` (route trả 410); `store.setKpiApproval` (`lib/db.js`) không có nơi gọi trong `lib/`/`src/modules/**/*.controller.ts`.
+24. **Mã chết**: `lib/advance-requests.ts` `create` và `decide` không còn nơi gọi trong `lib/` hay `src/modules/**/*.controller.ts` (route trả 410); `store.setKpiApproval` (`lib/db.ts`) không có nơi gọi trong `lib/`/`src/modules/**/*.controller.ts`.
 25. **Một tên nhật ký cho hai hệ**: `advance.cancel` dùng cho ứng lương dạng cũ (`entityId = id`) và tạm ứng (`entityId = <month>/<user>`).
-26. **Vai trò tuỳ chỉnh không duyệt được tạm ứng**: `DECIDE_ITEMS = ApprovalView.ITEMS` (`authz.js`) không có `advance`; `request.decide.advance` chỉ có qua `request.decide.*`. Vai trò `manager` có `request.decide.*` nhưng phạm vi `team` = chỉ chính mình (`authz.js`), nên chỉ duyệt được khoản của mình (tự duyệt).
-28. **Hai luồng OT**: OT Check-in/out có duyệt riêng (`PUT /ot`, `otReview`) nhưng không vào tiền (`ot.js`); tiền OT chỉ từ khoản `ot` trên lịch. Hai hàng duyệt cùng tên "OT".
+26. **Vai trò tuỳ chỉnh không duyệt được tạm ứng**: `DECIDE_ITEMS = ApprovalView.ITEMS` (`authz.ts`) không có `advance`; `request.decide.advance` chỉ có qua `request.decide.*`. Vai trò `manager` có `request.decide.*` nhưng phạm vi `team` = chỉ chính mình (`authz.ts`), nên chỉ duyệt được khoản của mình (tự duyệt).
+28. **Hai luồng OT**: OT Check-in/out có duyệt riêng (`PUT /ot`, `otReview`) nhưng không vào tiền (`ot.ts`); tiền OT chỉ từ khoản `ot` trên lịch. Hai hàng duyệt cùng tên "OT".
 29. **Ghi khi đọc**: `GET /alerts` đóng lượt quá hạn (`src/modules/approvals/approvals.controller.ts` / `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts`); `GET /sheet` đóng lượt mở quá hạn của người được xem; `GET /leave/ledger` ghi sổ và số dư (`src/modules/leave/leave.controller.ts`).
-30. **Tạm ứng bị từ chối không xin lại được** trong cùng tháng (`advance-approvals.js`: `request` chỉ từ `null`; không có bước ra khỏi `rejected`).
+30. **Tạm ứng bị từ chối không xin lại được** trong cùng tháng (`advance-approvals.ts`: `request` chỉ từ `null`; không có bước ra khỏi `rejected`).
 31. **Dòng duyệt của người ra khỏi bảng lương** vẫn nằm trong DB; `listApprovals` ẩn chúng nhưng `approvals.changed` vẫn đếm (mục 8.1 điểm 8).
-32. **Phạm vi `team` chưa có bảng phân công**: vai trò `manager` chỉ thấy và duyệt dữ liệu của chính mình (`can`, `authz.js`).
+32. **Phạm vi `team` chưa có bảng phân công**: vai trò `manager` chỉ thấy và duyệt dữ liệu của chính mình (`can`, `authz.ts`).
 33. **Khoản OT khai ở Check-in/out không ra tiền**: chỉ theo dõi; muốn trả OT phải có khoản `ot` đã duyệt trên Lịch ước tính cùng chấm công liền ca (mục 4.10).

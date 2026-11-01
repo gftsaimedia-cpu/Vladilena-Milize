@@ -150,7 +150,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     if (!item) throw fail(400, 'Không có bản sao lưu này; tạo bản mới');
     return item;
   };
-  // Kiểm toàn vẹn bản sao lưu: đọc cả file, tính lại số dòng và dấu vân tay từng bảng (lib/ops/pg-backup.js → verifyFile)
+  // Kiểm toàn vẹn bản sao lưu: đọc cả file, tính lại số dòng và dấu vân tay từng bảng (lib/ops/pg-backup.ts → verifyFile)
   const integrityOf = async file => {
     try {
       const r = await pgBackup.verifyFile(file);

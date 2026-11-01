@@ -1,5 +1,5 @@
 'use strict';
-// Vòng đời kỳ lương (lib/periods.js, route /api/periods/* của server.js):
+// Vòng đời kỳ lương (lib/periods.ts, route /api/periods/* của server.js):
 // open → attendance_locked → calculated → reviewed → approved → paid, mỗi bước sai trạng thái là 409 PERIOD_STATE, rev lệch là PERIOD_STALE,
 // danh sách kiểm, tính lương tạo lần chạy và bản chụp, duyệt phiếu cả lô hoặc không, nhật ký cho từng bước, verify.
 // Các bước vẫn đi tiếp khi còn việc chưa xong (chỉ cảnh báo): period-flow-warns.test.js.

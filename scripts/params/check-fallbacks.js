@@ -44,7 +44,7 @@ function libProblems() {
     pending = [];
   for (const name of LIB_MODULES) {
     // Đọc bảng từ văn bản nguồn: KHÔNG require lib/*.js vì chúng mở cơ sở dữ liệu lúc nạp
-    const source = fs.readFileSync(path.join(ROOT, 'lib', name + '.js'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'lib', name + '.ts'), 'utf8');
     const m = new RegExp('const FALLBACK = Object\\.freeze\\((\\{[\\s\\S]*?\\n\\})\\);').exec(source);
     if (!m) {
       out.push(`lib/${name}.js: không tìm thấy const FALLBACK = Object.freeze({...})`);

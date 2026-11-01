@@ -242,7 +242,7 @@
       "devNote": {
         "help": "Không đổi tiền; dùng để nhắc và cho cờ AI \"khai sau hạn\"",
         "basis": "chủ dự án 15/10 (LUAT-DU-AN.md khung đầu)",
-        "defaultNote": "3 · lib/ai/thresholds.js → reportDeadlineDay",
+        "defaultNote": "3 · lib/ai/thresholds.ts → reportDeadlineDay",
         "lockReason": null,
         "legalBasis": null
       },
@@ -302,7 +302,7 @@
       "devNote": {
         "help": "Chỉ cảnh báo (mặc định): nhận và gắn \"Cần xem\" (AI). Chặn: sau hạn nhân sự không sửa được lịch tháng trước; Admin mở lại bằng quyền và lý do. [chưa có] Chuyển kỳ sau (khoản khai muộn tính vào kỳ kế tiếp): L, cần phiếu điều chỉnh. Tiền chỉ đổi nếu việc chặn khiến khoản không được khai",
         "basis": "chính sách",
-        "defaultNote": "Chỉ cảnh báo · lib/ai/review.js → late-declaration; app không chặn",
+        "defaultNote": "Chỉ cảnh báo · lib/ai/review.ts → late-declaration; app không chặn",
         "lockReason": null,
         "legalBasis": "chính sách"
       },
@@ -2712,7 +2712,7 @@
       "devNote": {
         "help": "Giờ công lấy từ phiên Check-in/out",
         "basis": "quyết định chủ dự án (AiCB là hệ thống chấm công)",
-        "defaultNote": "lib/attendance-sessions.js, public/actual-hours.js → apply",
+        "defaultNote": "lib/attendance-sessions.ts, public/actual-hours.js → apply",
         "lockReason": "quyết định chủ dự án (AiCB là hệ thống chấm công)",
         "legalBasis": null
       },
@@ -3801,7 +3801,7 @@
       "devNote": {
         "help": "Lượt đóng tự động thành \"quên Check-out\" chờ Admin",
         "basis": "chính sách",
-        "defaultNote": "16 · lib/attendance-sessions.js → MAX_OPEN",
+        "defaultNote": "16 · lib/attendance-sessions.ts → MAX_OPEN",
         "lockReason": null,
         "legalBasis": "chính sách"
       },
@@ -6008,7 +6008,7 @@
       "devNote": {
         "help": "Khoản quá hạn vẫn chờ; AI nhắc. [chưa có] nhắc cấp trên sau N ngày (approval.autoEscalateDays, mục thiếu)",
         "basis": "tách nhiệm vụ",
-        "defaultNote": "lib/approvals.js",
+        "defaultNote": "lib/approvals.ts",
         "lockReason": "tách nhiệm vụ",
         "legalBasis": null
       },
@@ -6043,7 +6043,7 @@
       "devNote": {
         "help": "Độ dài lý do theo control.reasonMinLength, control.reasonMaxLength (locked, mục 25.2); control.reasonRequired.reject và .changeDecision = true",
         "basis": "điều khiển bắt buộc",
-        "defaultNote": "lib/approvals.js → decide (APPROVAL_NOTE_REQUIRED)",
+        "defaultNote": "lib/approvals.ts → decide (APPROVAL_NOTE_REQUIRED)",
         "lockReason": "điều khiển bắt buộc",
         "legalBasis": null
       },
@@ -6078,7 +6078,7 @@
       "devNote": {
         "help": "APPROVAL_SELF / SELF_DECISION_FORBIDDEN",
         "basis": "điều khiển bắt buộc",
-        "defaultNote": "lib/approvals.js → decide",
+        "defaultNote": "lib/approvals.ts → decide",
         "lockReason": "điều khiển bắt buộc",
         "legalBasis": null
       },
@@ -6148,7 +6148,7 @@
       "devNote": {
         "help": "rev và dấu vân tay phải khớp (APPROVAL_STALE)",
         "basis": "điều khiển bắt buộc",
-        "defaultNote": "lib/approvals.js → decide",
+        "defaultNote": "lib/approvals.ts → decide",
         "lockReason": "điều khiển bắt buộc",
         "legalBasis": null
       },
@@ -7889,7 +7889,7 @@
       "devNote": {
         "help": "Bật (mặc định). Tắt: không chạy, ghi skipped: \"Admin tắt\"",
         "basis": "",
-        "defaultNote": "Bật · lib/ai/review.js → RULES",
+        "defaultNote": "Bật · lib/ai/review.ts → RULES",
         "lockReason": null,
         "legalBasis": null
       },
@@ -13469,7 +13469,7 @@
         "min": 1
       },
       "devNote": {
-        "help": "Bằng giới hạn CHECK length(label) ≤ 80 của bảng pay_entries (lib/db.js)",
+        "help": "Bằng giới hạn CHECK length(label) ≤ 80 của bảng pay_entries (lib/db.ts)",
         "basis": "",
         "defaultNote": "80",
         "lockReason": null,

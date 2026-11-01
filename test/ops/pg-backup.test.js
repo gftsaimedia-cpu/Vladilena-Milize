@@ -1,5 +1,5 @@
 'use strict';
-// Sao lưu / kiểm / khôi phục PostgreSQL (lib/ops/pg-backup.js, scripts/ops/pg-backup.js) trên PGlite trong RAM.
+// Sao lưu / kiểm / khôi phục PostgreSQL (lib/ops/pg-backup.ts, scripts/ops/pg-backup.js) trên PGlite trong RAM.
 // Luôn chạy ở chế độ PostgreSQL bất kể DB_DIALECT của lần chạy test (file này tự đặt), không đụng DB nào ngoài RAM.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'pg-backup-test';

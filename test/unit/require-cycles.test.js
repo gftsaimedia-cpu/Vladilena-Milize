@@ -3,7 +3,7 @@
 // dựng đồ thị và đòi:
 //   (1) không có vòng nào trong server.js + lib/** (kể cả require trong hàm: vòng ẩn khi chia file vẫn là vòng);
 //   (2) lib/domain/* không require lib/routes/*; (3) lib/routes/* không require lẫn nhau (trừ routes/index → routes/* và _legacy);
-//   (4) lib/http.js và lib/request-rules.js không require lib/domain/* hay lib/routes/*.
+//   (4) lib/http.ts và lib/request-rules.ts không require lib/domain/* hay lib/routes/*.
 // Luật (2) đến (4) không kiểm gì khi các thư mục đó chưa có file.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -34,7 +34,14 @@ function requiresOf(source) {
 }
 function resolve(fromRel, spec) {
   const base = path.join(ROOT, path.dirname(fromRel), spec);
-  for (const candidate of [base, base + '.js', base + '.json', path.join(base, 'index.js')])
+  for (const candidate of [
+    base,
+    base + '.js',
+    base + '.ts',
+    base + '.json',
+    path.join(base, 'index.js'),
+    path.join(base, 'index.ts')
+  ])
     if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return toRel(candidate);
   return null;
 }
@@ -85,9 +92,9 @@ test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể c�
 });
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
-  assert.ok(GRAPH.get('src/main.ts').has('lib/db.js'), 'src/main.ts → lib/db.js');
-  assert.ok(GRAPH.get('src/http/api-gate.ts').has('lib/authz.js'), 'cổng ApiGuard → lib/authz.js');
-  assert.ok(GRAPH.get('lib/auth.js').has('lib/db.js'));
+  assert.ok(GRAPH.get('src/main.ts').has('lib/db.ts'), 'src/main.ts → lib/db.ts');
+  assert.ok(GRAPH.get('src/http/api-gate.ts').has('lib/authz.ts'), 'cổng ApiGuard → lib/authz.ts');
+  assert.ok(GRAPH.get('lib/auth.ts').has('lib/db.ts'));
   const edges = [...GRAPH.values()].reduce((n, set) => n + set.size, 0);
   assert.ok(edges >= 30, `chỉ thấy ${edges} cạnh`);
 });
@@ -129,8 +136,8 @@ test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được req
   assert.deepEqual(bad, []);
 });
 
-test('lib/http.js, lib/request-rules.js không require lib/domain/* hay lib/routes/* (luật 3)', async () => {
-  const leaves = ['lib/http.js', 'lib/request-rules.js'];
+test('lib/http.ts, lib/request-rules.ts không require lib/domain/* hay lib/routes/* (luật 3)', async () => {
+  const leaves = ['lib/http.ts', 'lib/request-rules.ts'];
   assert.deepEqual(
     await violations((from, to) => leaves.includes(from) && (inDir(to, 'lib/domain') || inDir(to, 'lib/routes'))),
     []

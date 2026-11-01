@@ -1,5 +1,5 @@
 'use strict';
-// "Số đã sửa" trên phiếu là số CHI TRẢ (lib/periods.js → slipBasisOf, paidFigures, withPaid, paidRows, runScan):
+// "Số đã sửa" trên phiếu là số CHI TRẢ (lib/periods.ts → slipBasisOf, paidFigures, withPaid, paidRows, runScan):
 //   GET /api/periods/:m/payslips, tổng kỳ ở GET /api/periods/:m và GET /api/periods/:m/payslips/:u (Admin, và nhân sự xem phiếu của mình sau khi chi trả)
 //   trả số tự tính của bản chụp đã áp các ô Admin sửa, tính lại tổng lương, thuế TNCN và thực lĩnh. Bản chụp và bảng phiếu không đổi.
 // Người xem là nhân sự không bao giờ thấy computed, overridden, override.

@@ -1,5 +1,5 @@
 'use strict';
-// Trạng thái hiển thị của một lượt chấm công (lib/domain/attendance/session-status.js): mỗi mã, các mốc 15 phút trễ / 30 phút Check-out muộn,
+// Trạng thái hiển thị của một lượt chấm công (lib/domain/attendance/session-status.ts): mỗi mã, các mốc 15 phút trễ / 30 phút Check-out muộn,
 // thứ tự ưu tiên và quyết định mới nhất thắng. Ca n1 08:00–17:00.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');

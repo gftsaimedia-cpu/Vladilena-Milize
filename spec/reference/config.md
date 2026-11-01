@@ -1,8 +1,8 @@
 # Cấu hình kỹ thuật và biến môi trường
 
-> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/config.js` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/config.ts` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
-## Hằng số có tên (`lib/config.js`, 70)
+## Hằng số có tên (`lib/config.ts`, 70)
 
 | Tên | Giá trị |
 | --- | --- |
@@ -81,21 +81,21 @@
 
 | Biến | Đọc ở |
 | --- | --- |
-| `ACCESS_LOG` | `lib/ops/access-log.js:12` |
-| `AUDIT_KEY` | `lib/db.js:348` |
-| `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:39` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
-| `DATABASE_URL` | `lib/db.js:40` `lib/db.js:54` `lib/db.js:55` |
-| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:154` |
-| `DB_PATH` | `lib/db.js:39` `lib/domain/ai-block.js:18` |
-| `DB_SQL_STATS` | `lib/data/postgres-database.js:144` |
-| `NODE_ENV` | `lib/params/save.js:69` `lib/params/save.js:73` `lib/params/save.js:89` |
-| `PARAMS_ALLOW_ACTIVATE` | `lib/params/save.js:88` |
-| `PG_TEST_URL` | `lib/db.js:40` `lib/db.js:56` `lib/db.js:57` |
+| `ACCESS_LOG` | `lib/ops/access-log.ts:12` |
+| `AUDIT_KEY` | `lib/db.ts:347` |
+| `COOKIE_SECURE` | `lib/auth.ts:276` `lib/http.ts:39` `lib/params/save.ts:69` `lib/params/save.ts:73` (+1) |
+| `DATABASE_URL` | `lib/db.ts:39` `lib/db.ts:53` `lib/db.ts:54` |
+| `DB_DEBUG_SQL` | `lib/data/postgres-database.ts:157` |
+| `DB_PATH` | `lib/db.ts:38` `lib/domain/ai-block.ts:18` |
+| `DB_SQL_STATS` | `lib/data/postgres-database.ts:147` |
+| `NODE_ENV` | `lib/params/save.ts:69` `lib/params/save.ts:73` `lib/params/save.ts:89` |
+| `PARAMS_ALLOW_ACTIVATE` | `lib/params/save.ts:88` |
+| `PG_TEST_URL` | `lib/db.ts:39` `lib/db.ts:55` `lib/db.ts:56` |
 | `PORT` | `src/main.ts:89` |
-| `SCHEDULE_ALLOW_EDIT` | `lib/params/save.js:68` |
-| `SESSION_COOKIE_NAME` | `lib/auth.js:227` |
-| `SESSION_DAYS` | `lib/auth.js:223` |
-| `SESSION_SECRET` | `lib/auth.js:216` |
-| `SHIFT_ALLOW_EDIT` | `lib/params/save.js:73` |
+| `SCHEDULE_ALLOW_EDIT` | `lib/params/save.ts:68` |
+| `SESSION_COOKIE_NAME` | `lib/auth.ts:227` |
+| `SESSION_DAYS` | `lib/auth.ts:223` |
+| `SESSION_SECRET` | `lib/auth.ts:216` |
+| `SHIFT_ALLOW_EDIT` | `lib/params/save.ts:73` |
 | `UV_THREADPOOL_SIZE` | `src/preload.ts:7` `src/preload.ts:7` |
-| `WEB_DIST` | `lib/http.js:10` |
+| `WEB_DIST` | `lib/http.ts:10` |

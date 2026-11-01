@@ -3,7 +3,7 @@
 //   - PUT /staff/:u/roles cấp staff thì bật payrollSubject, gỡ staff thì tắt (nhật ký staff.payrollSubject, mức pay); gỡ staff không trả 409;
 //   - PUT /staff/:u với payrollSubject:false gỡ luôn dòng cấp staff tường minh;
 //   - Admin gốc có chấm công và lương chỉ khi được cấp staff; bậc 0 thì cảnh báo ROLE_STAFF_NO_LEVEL;
-//   - lib/roles.js → reconcileStaffRole() (chạy khi nạp máy chủ) sửa dòng có staff tường minh mà payrollSubject false, người làm là "system".
+//   - lib/roles.ts → reconcileStaffRole() (chạy khi nạp máy chủ) sửa dòng có staff tường minh mà payrollSubject false, người làm là "system".
 //   - Luật AI late-declaration TẮT mặc định (ai.rule.lateDeclaration.enabled); danh sách kiểm không có mục "Hạn nhân sự báo công".
 // Chỉ người bịa (qa_*) và DB trong bộ nhớ.
 const P = require('../helpers/period-api');

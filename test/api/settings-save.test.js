@@ -33,8 +33,8 @@ const TWO = S.readyWith(KEYS.length >= 2, 'hai khoá số Admin sửa được v
 const HISTORY = ONE.todo
   ? ONE
   : S.pendingUnless(
-      'GET /settings/params/history chưa có chính sách quyền trong lib/authz.js (TK 4.7, ngoài hợp đồng R1)',
-      S.mentions('lib/authz.js', /settings\/params\/history/)
+      'GET /settings/params/history chưa có chính sách quyền trong lib/authz.ts (TK 4.7, ngoài hợp đồng R1)',
+      S.mentions('lib/authz.ts', /settings\/params\/history/)
     );
 // Tháng của mỗi test chạy tới 2027: ngày vào làm là đầu năm của tháng đó để số phép cộng tay 30 ngày nằm trong quỹ phép của đúng năm đó
 const startOf = month => (month < '2027' ? '2026-01-05' : `${month.slice(0, 4)}-01-01`);

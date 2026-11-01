@@ -11,7 +11,7 @@ export class Reply {
 }
 
 /**
- * Cách duy nhất ghi phản hồi của route: giá trị route trả về (hoặc `Reply`) đi qua `send` của lib/http.js (nén gzip, Cache-Control, cảnh báo
+ * Cách duy nhất ghi phản hồi của route: giá trị route trả về (hoặc `Reply`) đi qua `send` của lib/http.ts (nén gzip, Cache-Control, cảnh báo
  * gom theo yêu cầu). Mã mặc định luôn là 200, kể cả POST (Nest mặc định 201). Route phát luồng (SSE, file) dùng @Res() và tự ghi.
  */
 export class ReplyAdapter extends ExpressAdapter {
@@ -22,7 +22,7 @@ export class ReplyAdapter extends ExpressAdapter {
 }
 
 /**
- * Gắn cảnh báo của yêu cầu vào phản hồi (xem withWarnings ở lib/http.js). Phải gọi TRONG phạm vi cảnh báo của yêu cầu
+ * Gắn cảnh báo của yêu cầu vào phản hồi (xem withWarnings ở lib/http.ts). Phải gọi TRONG phạm vi cảnh báo của yêu cầu
  * (request-scope.interceptor), vì phản hồi được ghi sau khi phạm vi đó đã đóng.
  */
 export function withRequestWarnings(value: unknown): unknown {

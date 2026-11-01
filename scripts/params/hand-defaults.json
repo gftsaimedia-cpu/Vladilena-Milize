@@ -25,43 +25,43 @@
   },
   "ai.rule.approvedLeaveFrequency.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.attendanceAllowanceRisk.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.attributeUnused.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.blockFlagsUnconfirmed.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.formulaChangedRecently.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.formulaLargeChange.enabled": {
     "value": true,
-    "why": "luật AI của xem trước (lib/ai/preview-suggestions.js), bật mặc định"
+    "why": "luật AI của xem trước (lib/ai/preview-suggestions.ts), bật mặc định"
   },
   "ai.rule.holidayWorkReview.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.isatFrequency.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.kpiSelf100Streak.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.largePayImpact.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.lateDeclaration.enabled": {
     "value": false,
@@ -69,59 +69,59 @@
   },
   "ai.rule.leaveWithCheckin.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.lockedWithPending.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.missingFixedShift.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.missingStartDate.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.negativeLeave.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.netNonpositive.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.otAboveTeam.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.otAfterPendingMakeup.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.otCheckinMismatch.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.overrideLooksLikeEntry.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.positionScopeLeak.enabled": {
     "value": true,
-    "why": "luật AI của xem trước (lib/ai/preview-suggestions.js), bật mặc định"
+    "why": "luật AI của xem trước (lib/ai/preview-suggestions.ts), bật mặc định"
   },
   "ai.rule.previouslyRejected.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.repeatedEdits.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.rule.slipOverrideGap.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.js)"
+    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
   },
   "ai.threshold.netChangePct": {
     "value": 0.2,

@@ -5,14 +5,14 @@
 //   serverFiles()          đường dẫn tương đối (dấu /) của mọi file mã máy chủ ĐANG CÓ, src/server.ts đứng đầu
 //   serverSource()         văn bản các file đó nối nhau (mỗi file cách nhau một dòng trống)
 //   serverSourceOf(rel)    văn bản của một file trong số đó (ném lỗi nếu không phải mã máy chủ hoặc không có)
-// Bộ lọc: src/server.ts + lib/http.js + lib/request-rules.js + lib/announce.js + lib/routes/** + lib/domain/**.
+// Bộ lọc: src/server.ts + lib/http.ts + lib/request-rules.ts + lib/announce.ts + lib/routes/** + lib/domain/**.
 // File nào trong số đó chưa có thì bỏ qua, nên trước và sau khi chia src/server.ts kết quả của
 // serverSource() chứa cùng các đoạn mã.
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
-const SINGLE = ['src/server.ts', 'lib/http.js', 'lib/request-rules.js', 'lib/announce.js'];
+const SINGLE = ['src/server.ts', 'lib/http.ts', 'lib/request-rules.ts', 'lib/announce.ts'];
 const TREES = ['lib/routes', 'lib/domain', 'src']; // src: module NestJS (.ts)
 
 function walk(dir) {

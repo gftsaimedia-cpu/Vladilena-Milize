@@ -1,6 +1,6 @@
 'use strict';
 // Ghi / so "bảng vàng điều phối" của máy chủ:
-// cho MỌI khoá của lib/authz.js → ROUTE_CAPS và một danh sách đường dẫn lạ, gọi API thật (DB trong bộ nhớ, đồng hồ giả)
+// cho MỌI khoá của lib/authz.ts → ROUTE_CAPS và một danh sách đường dẫn lạ, gọi API thật (DB trong bộ nhớ, đồng hồ giả)
 // với ba loại người dùng (chưa đăng nhập, nhân sự qa_nv, Admin) và ghi: mã HTTP, mã lỗi, thông báo lỗi, HÌNH DẠNG phản hồi
 // (chỉ tên khoá và kiểu, không bao giờ giá trị) và vài tiêu đề phản hồi (Set-Cookie chỉ ghi các thuộc tính, không ghi giá trị).
 // Không ghi tên người, tiền hay điểm. Bảng ghi trên mã cũ rồi mọi lần chia file phải khớp từng dòng.

@@ -8,8 +8,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../../lib/db');
 const registry = require('../../lib/params/registry');
-const { RULES } = require('../../lib/ai/review.js');
-const { THRESHOLDS, PARAM_KEY } = require('../../lib/ai/thresholds.js');
+const { RULES } = require('../../lib/ai/review.ts');
+const { THRESHOLDS, PARAM_KEY } = require('../../lib/ai/thresholds.ts');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 
 after(() => store.db.close());

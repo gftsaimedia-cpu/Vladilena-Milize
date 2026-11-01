@@ -1,5 +1,5 @@
 'use strict';
-// So dòng chuyển: sau khi cắt mã từ server.js (hay lib/db.js)
+// So dòng chuyển: sau khi cắt mã từ server.js (hay lib/db.ts)
 // sang file mới, mọi dòng không trống của bản cũ phải xuất hiện lại NGUYÊN VĂN (bỏ khoảng trắng, kể cả số lần lặp) trong các file mới,
 // ngoài phần "keo" cho phép. In hai danh sách:
 //   - dòng cũ không còn ở đâu (kỳ vọng: chỉ `if (route === …) {` của khối đã chuyển thành mục bảng, và dấu đóng)
@@ -8,7 +8,7 @@
 //
 //   node test/tools/moved-lines.js                                  bản cũ = server.js ở HEAD; mới = server.js + lib/{http,request-rules,announce}.js + lib/routes/** + lib/domain/** trong cây làm việc
 //   node test/tools/moved-lines.js --base=<commit> --head=<commit>  so hai commit thay vì cây làm việc (--head bỏ trống = cây làm việc)
-//   node test/tools/moved-lines.js --old=lib/db.js --new=lib/db.js,lib/store/*.js     áp cho lib/db.js → lib/store/
+//   node test/tools/moved-lines.js --old=lib/db.ts --new=lib/db.ts,lib/store/*.js     áp cho lib/db.ts → lib/store/
 //   thêm --verbose để in cả các dòng keo đã bỏ qua; thoát mã 1 nếu còn dòng không giải thích được.
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');

@@ -1,10 +1,10 @@
 'use strict';
-// Dữ liệu giả cho test của lib/ai/review.js: toàn người giả (qa_*), tháng 10/2026, không đụng data/.
+// Dữ liệu giả cho test của lib/ai/review.ts: toàn người giả (qa_*), tháng 10/2026, không đụng data/.
 // world() dựng đầu vào của review() giống cách máy chủ sẽ dựng: mỗi ngày có khoản cần duyệt sinh một hàng duyệt chờ duyệt
 // (fingerprint tính bằng chính ApprovalView), muốn đổi hàng nào thì truyền rows['username|YYYY-MM-DD'].
 const P = require('../../public/punch.js');
 const ApprovalView = require('../../public/approval-view.js');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.js');
+const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 

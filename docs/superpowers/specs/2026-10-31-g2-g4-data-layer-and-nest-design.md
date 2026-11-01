@@ -6,8 +6,8 @@ Ngày: 2026-10-31. Trạng thái: **đã duyệt qua ủy quyền toàn quyền*
 
 | Số đo | Giá trị | Nguồn |
 |---|---|---|
-| Kho dữ liệu | `lib/db.js` 2182 dòng, một object `store` + các nhóm con (`approvals`, `periods`, `payroll`, `roles`, `params`, `aiFindings`, `aiReviews`, `audit`) | `lib/db.js` |
-| Truy cập | `node:sqlite` `DatabaseSync` ĐỒNG BỘ | `lib/db.js:2` |
+| Kho dữ liệu | `lib/db.ts` 2182 dòng, một object `store` + các nhóm con (`approvals`, `periods`, `payroll`, `roles`, `params`, `aiFindings`, `aiReviews`, `audit`) | `lib/db.ts` |
+| Truy cập | `node:sqlite` `DatabaseSync` ĐỒNG BỘ | `lib/db.ts:2` |
 | File gọi `store.` | 60 (lib + server.js) | `grep` |
 | Hàm `store` khác nhau được gọi | ~70 (nhiều nhất: `transaction` 49, `getStaff` 43, `getSetting` 35, `periods.get` 17, `listSessions` 17, `getSheet` 15) | `grep` |
 | `.prepare(` ngoài db.js | `advance-requests`, `approvals`, `attendance-sessions`, `ai-review`, `admin-presence`, `schema.js` của các module, `pay-entries`, `payroll-service`, `params/save`, `ops/shared-cache`, `server.js` | `grep` |
@@ -31,8 +31,8 @@ Hệ quả cho các quyết định sau:
 
 ### G2 — Repository bất đồng bộ trên SQLite (chưa đổi DB, chưa đổi framework)
 
-1. `lib/data/` mới: `UnitOfWork`, `Database` (cổng mở kết nối, hiện là SQLite), các `*Repository` bọc code cũ của `lib/db.js` theo từng aggregate; mọi phương thức **trả Promise**.
-2. Chuyển người gọi từng aggregate một: `await` ở mọi chỗ gọi, các hàm gọi chúng thành `async`, tới tận handler. `lib/db.js` thu nhỏ dần rồi chỉ còn là nơi dựng `Database`.
+1. `lib/data/` mới: `UnitOfWork`, `Database` (cổng mở kết nối, hiện là SQLite), các `*Repository` bọc code cũ của `lib/db.ts` theo từng aggregate; mọi phương thức **trả Promise**.
+2. Chuyển người gọi từng aggregate một: `await` ở mọi chỗ gọi, các hàm gọi chúng thành `async`, tới tận handler. `lib/db.ts` thu nhỏ dần rồi chỉ còn là nơi dựng `Database`.
 3. Test: mỗi test thêm `await`; helper dùng chung (`api-fixture`, `period-flow`…) làm trước để 86 file đổi ít nhất.
 4. Điều kiện xong: không còn `.prepare(`/`store.db` ngoài `lib/data/**`; `npm test` xanh; test kiến trúc kiểm điều đó.
 

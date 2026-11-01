@@ -1,5 +1,5 @@
 'use strict';
-// Đồ dùng chung cho test khoản điền thêm: hợp đồng của backend (lib/domain/pay-entries.js, lib/pay-entries.js):
+// Đồ dùng chung cho test khoản điền thêm: hợp đồng của backend (lib/domain/pay-entries.ts, lib/pay-entries.ts):
 //   GET  /api/pay-entries?month=&username=&status=      { month, periodStatus, requireApproval, entries }
 //   POST /api/pay-entries                               { entry }           body: { username, month, direction, amount, label, reason, slipLine?, taxMode?, taxCap?, insuranceBase? }
 //   POST /api/pay-entries/bulk                          { count, entries }  body { month, entries:[…] } hoặc { usernames, month, … }; tất cả hoặc không

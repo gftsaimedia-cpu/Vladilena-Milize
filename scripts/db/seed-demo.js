@@ -114,7 +114,7 @@ const gen = require('./demo/generate.js');
 const selfcheck = require('./demo/selfcheck.js');
 const { exportAll } = require('./demo/export-csv.js');
 const store = require('../../lib/db');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.js');
+const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
 
 const today = typeof args.today === 'string' ? args.today : S.TODAY;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || today < '2026-10-01' || today > '2026-11-30')
@@ -196,7 +196,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     lifecycle = new Lifecycle({
       store,
       auth: require('../../lib/auth'),
-      server: (require('../../lib/register-ts'), require('../../src/server')),
+      server: require('../../src/server'),
       admin: S.ADMINS[0].username,
       personas,
       today

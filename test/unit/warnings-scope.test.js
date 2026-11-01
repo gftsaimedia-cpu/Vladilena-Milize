@@ -1,5 +1,5 @@
 'use strict';
-// lib/warnings.js → scope({ label, details }, fn): lô nhiều người trong một yêu cầu.
+// lib/warnings.ts → scope({ label, details }, fn): lô nhiều người trong một yêu cầu.
 //   cảnh báo ghi trong fn mở đầu bằng "<label>: " và mang details của scope (trộn với details riêng của cảnh báo)
 //   cùng một cảnh báo của hai người là hai mục (không bị gộp theo mã và câu)
 //   ra khỏi scope (kể cả khi fn ném lỗi) thì cảnh báo trở lại không nhãn; scope lồng nhau trả về nhãn ngoài

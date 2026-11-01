@@ -1,5 +1,5 @@
 'use strict';
-// Lưu công thức tạo VÒNG qua cây mặc định phải bị từ chối ngay lúc lưu (lib/params/validate.js → checkFormula).
+// Lưu công thức tạo VÒNG qua cây mặc định phải bị từ chối ngay lúc lưu (lib/params/validate.ts → checkFormula).
 // Ví dụ `lương KPI = tổng thu nhập × 10%` (tổng thu nhập mặc định cộng lương KPI): nếu lưu được thì lúc tính kernelFor ném PAYROLL_BAD_FORMULA
 // và ước tính, tính lương của cả tháng trả 500.
 // Mong đợi: PUT /api/settings/params trả 400 với mã FORMULA_CYCLE, không lưu gì; và dù thế nào GET estimates, chốt công, tính lương không bao giờ 500.

@@ -2,7 +2,6 @@
 // SettingsRepository (Kysely, src/data) chạy trên kết nối của ứng dụng: SQLite hoặc PostgreSQL tuỳ DB_DIALECT; cùng một câu lệnh Kysely
 // phải cho cùng kết quả ở cả hai (PostgreSQL qua lớp dịch SQL).
 process.env.DB_PATH = ':memory:';
-require('../../lib/register-ts');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');

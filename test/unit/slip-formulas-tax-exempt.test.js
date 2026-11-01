@@ -1,14 +1,14 @@
 'use strict';
-// Công thức miễn thuế và thu nhập chịu thuế trên phiếu Admin (lib/slip-formulas.js → exemptOf): chỉ phần trả cao hơn lương giờ thường
+// Công thức miễn thuế và thu nhập chịu thuế trên phiếu Admin (lib/slip-formulas.ts → exemptOf): chỉ phần trả cao hơn lương giờ thường
 // của cùng số giờ được miễn. Test tự đọc chuỗi công thức (số vi-VN, × ÷ + −) rồi tính, so với số miễn thuế của bộ máy, sai không quá
 // 1 đồng mỗi bước làm tròn. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.js nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.js');
-const { formulasOf } = require('../../lib/slip-formulas.js');
+const { cellsOf } = require('../../lib/slip-paid.ts');
+const { formulasOf } = require('../../lib/slip-formulas.ts');
 const F = require('../helpers/schedule-fixtures');
 
 const { near, plainAll } = require('../helpers/formula-eval');

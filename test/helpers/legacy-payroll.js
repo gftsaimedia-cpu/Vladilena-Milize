@@ -1,6 +1,6 @@
 'use strict';
 // Bộ máy lương CŨ làm chuẩn so sánh: khối công thức đã đóng băng trong
-// test/fixtures/legacy-payroll-block.js, cộng chuỗi đầy đủ của lib/ai/review.js → payResult:
+// test/fixtures/legacy-payroll-block.js, cộng chuỗi đầy đủ của lib/ai/review.ts → payResult:
 //   lịch → ApprovalView.payView → (ActualHours.apply từ ngày bật) → calcMonth.
 // Đây là "hợp đồng" mà bộ máy mới (public/payroll-engine.js) phải khớp: computeMonth(input) trả
 // { m, payDays, pendingItems, actualReport } và m phải bằng m của bản này đến từng trường, kể cả rows và m.net.

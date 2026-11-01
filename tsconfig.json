@@ -8,6 +8,7 @@
     "strictNullChecks": true,
     "noImplicitAny": false,
     "esModuleInterop": true,
+    "moduleDetection": "force",
     "experimentalDecorators": true,
     "allowJs": true,
     "checkJs": false,
@@ -16,6 +17,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "lib/**/*.ts"],
   "exclude": ["node_modules", "web", "test"]
 }

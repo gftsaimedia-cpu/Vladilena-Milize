@@ -35,38 +35,38 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 
 | File | Vai trò |
 | --- | --- |
-| `lib/params/store.js` | Bộ tham số hiệu lực của tháng: `resolveUncached` :37, `resolve` :108 (bộ nhớ đệm tối đa 64 mục), `view` :240, `firstRun` :456. |
-| `lib/params/save.js` | Lưu / xem trước / hoàn tác tham số: `preview` :632, `save` :704, `revert` :850, `addPosition` :880. |
-| `lib/params/validate.js` | Kiểm giá trị và công thức: `checkFormula` :212, `shiftKindOf` :467, `crossChecks` :547. |
-| `lib/params/registry.js`, `config-rev.js`, `block-defs.js`, `positions.js`, `attributes.js` | Mục registry, quyền ghi, số phiên bản cấu hình, định nghĩa khối phụ cấp, chức vụ, thuộc tính bậc. |
-| `lib/domain/payroll/policy.js` | `PayrollPolicy.paramRows` (hai khoá chính sách + số tháng thâm niên), `tenureContract`, `contractFor`. |
-| `lib/domain/catalog-params.js` | Dòng tham số sinh từ danh mục chức vụ / bậc / ca, kèm dòng chính sách. |
-| `lib/payroll-service.js` | Gom đầu vào: `kpiOf` :82, `payrollPeople` :106, `leaveSettlements` :144, `withPersonSchedules` :158, `loadInputs` :169; tính: `computeFor` :265, `digestOf` :294, `thanhPhanOf` :322. |
-| `lib/periods.js` | Vòng đời kỳ lương: `lockAttendance` :284, `slipOf` :320, `calculate` :347, `aiReview` :381, `decidePayslips` :421, `approve` :492, `markPaid` :516, `reopen` :528, `payslips` :772, `estimatesOfMonth` :832, `estimateOne` :883, `payslip` :938, `verify` :995, `allowanceStatus` :1055, `estimate` :1080. |
-| `lib/slip-paid.js` | Số chi trả của phiếu: `slipBasisOf` :33, `cellsOf` :65, `paidFigures` :97, `taxFromOf` :129, `staffPaidSnapshot` :195, `dayFiguresOf` :256, `withPunchTimes` :274, `staffDayNotesOf` :302. |
-| `lib/slip-pins.js` | `repinned` :10: tính lại bản chụp theo ô số lượng ghim. |
-| `lib/slip-formulas.js` | `formulasOf` :519: công thức dưới từng dòng "Chi tiết" của phiếu Admin. |
-| `lib/advance-cap.js` | Mức tạm ứng tối đa: `figureFor` :22, `figuresOf` :41, `capOf` :51. |
-| `lib/domain/advance/` | `advance-approvals.js` (trạng thái yêu cầu theo người theo tháng), `src/modules/advance/advance-approvals.handlers.ts` (route duyệt), `index.js`. |
+| `lib/params/store.ts` | Bộ tham số hiệu lực của tháng: `resolveUncached` :37, `resolve` :108 (bộ nhớ đệm tối đa 64 mục), `view` :240, `firstRun` :456. |
+| `lib/params/save.ts` | Lưu / xem trước / hoàn tác tham số: `preview` :632, `save` :704, `revert` :850, `addPosition` :880. |
+| `lib/params/validate.ts` | Kiểm giá trị và công thức: `checkFormula` :212, `shiftKindOf` :467, `crossChecks` :547. |
+| `lib/params/registry.ts`, `config-rev.ts`, `block-defs.ts`, `positions.js`, `attributes.ts` | Mục registry, quyền ghi, số phiên bản cấu hình, định nghĩa khối phụ cấp, chức vụ, thuộc tính bậc. |
+| `lib/domain/payroll/policy.ts` | `PayrollPolicy.paramRows` (hai khoá chính sách + số tháng thâm niên), `tenureContract`, `contractFor`. |
+| `lib/domain/catalog-params.ts` | Dòng tham số sinh từ danh mục chức vụ / bậc / ca, kèm dòng chính sách. |
+| `lib/payroll-service.ts` | Gom đầu vào: `kpiOf` :82, `payrollPeople` :106, `leaveSettlements` :144, `withPersonSchedules` :158, `loadInputs` :169; tính: `computeFor` :265, `digestOf` :294, `thanhPhanOf` :322. |
+| `lib/periods.ts` | Vòng đời kỳ lương: `lockAttendance` :284, `slipOf` :320, `calculate` :347, `aiReview` :381, `decidePayslips` :421, `approve` :492, `markPaid` :516, `reopen` :528, `payslips` :772, `estimatesOfMonth` :832, `estimateOne` :883, `payslip` :938, `verify` :995, `allowanceStatus` :1055, `estimate` :1080. |
+| `lib/slip-paid.ts` | Số chi trả của phiếu: `slipBasisOf` :33, `cellsOf` :65, `paidFigures` :97, `taxFromOf` :129, `staffPaidSnapshot` :195, `dayFiguresOf` :256, `withPunchTimes` :274, `staffDayNotesOf` :302. |
+| `lib/slip-pins.ts` | `repinned` :10: tính lại bản chụp theo ô số lượng ghim. |
+| `lib/slip-formulas.ts` | `formulasOf` :519: công thức dưới từng dòng "Chi tiết" của phiếu Admin. |
+| `lib/advance-cap.ts` | Mức tạm ứng tối đa: `figureFor` :22, `figuresOf` :41, `capOf` :51. |
+| `lib/domain/advance/` | `advance-approvals.ts` (trạng thái yêu cầu theo người theo tháng), `src/modules/advance/advance-approvals.handlers.ts` (route duyệt), `index.js`. |
 | `lib/domain/explanation/` | Giải trình ngày công; `heldByUser` cho engine biết ngày bị giữ lương. |
-| `lib/domain/attendance/admin-presence.js` | Lượt chấm công nguồn Admin (Admin khai thay giờ vào/ra, duyệt giải trình quên chấm). |
-| `lib/domain/isat-rule.js` | Điều kiện hợp lệ của ngày iSAT (`isatRefusal`). |
-| `lib/pay-entries.js` | `approvedByUser(month)`: khoản điền thêm đã duyệt đưa vào engine. |
-| `src/http/api-gate.ts`, `lib/authz.js` | Route HTTP và bảng quyền `ROUTE_CAPS`. |
-| `lib/events.js`, `lib/audit.js` | SSE và nhật ký (mục 5). |
-| `lib/db.js` | Bảng, khoá kỳ (`SCOPE_LOCKED_FROM` :1009, `assertPeriodOpen` :1080), `rowToStaff`. |
+| `lib/domain/attendance/admin-presence.ts` | Lượt chấm công nguồn Admin (Admin khai thay giờ vào/ra, duyệt giải trình quên chấm). |
+| `lib/domain/isat-rule.ts` | Điều kiện hợp lệ của ngày iSAT (`isatRefusal`). |
+| `lib/pay-entries.ts` | `approvedByUser(month)`: khoản điền thêm đã duyệt đưa vào engine. |
+| `src/http/api-gate.ts`, `lib/authz.ts` | Route HTTP và bảng quyền `ROUTE_CAPS`. |
+| `lib/events.ts`, `lib/audit.ts` | SSE và nhật ký (mục 5). |
+| `lib/db.ts` | Bảng, khoá kỳ (`SCOPE_LOCKED_FROM` :1009, `assertPeriodOpen` :1080), `rowToStaff`. |
 | `scripts/dev/sandbox-server.cjs`, `sandbox-ops.cjs` | Máy chủ thử nghiệm riêng và thao tác phụ trợ (mục 2.7). |
 
 ### 1.3 Nơi khác gọi bộ máy (ngoài phạm vi file này)
 
-- `lib/ai/review.js` dùng `calcMonth` và `computeMonth` của bộ máy do `lib/ai/payroll-loader.js` dựng (rà soát quy tắc, không dùng mô hình ngôn ngữ).
-- `web/` là giao diện Vue; khi đã build thì `lib/http.js` phục vụ `web/dist`. Thư mục này không thuộc tài liệu này.
+- `lib/ai/review.ts` dùng `calcMonth` và `computeMonth` của bộ máy do `lib/ai/payroll-loader.ts` dựng (rà soát quy tắc, không dùng mô hình ngôn ngữ).
+- `web/` là giao diện Vue; khi đã build thì `lib/http.ts` phục vụ `web/dist`. Thư mục này không thuộc tài liệu này.
 
 ---
 
 ## 2. Dữ liệu
 
-### 2.1 Bảng DB (`lib/db.js`)
+### 2.1 Bảng DB (`lib/db.ts`)
 
 | Bảng / nguồn | Dùng cho |
 | --- | --- |
@@ -81,7 +81,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `explanations` | Giải trình ngày công; trạng thái `requested`, `answered`, `rejected`, `approved`. |
 | chấm công | Phiên chấm công (`listSessions`) với `entry` (`presIn`, `presOut`, `plannedShift`, `origin`, `reason`). |
 
-`rowToStaff` (`lib/db.js`): `insured` NULL ⇒ theo hợp đồng; hợp đồng mặc định của loại `tts` là `short` (viết cứng), loại khác lấy từ bộ giải được cài bằng `setDefaultContractResolver` (`src/modules/**/*.controller.ts`, đọc `type.<mã>.defaultContract`).
+`rowToStaff` (`lib/db.ts`): `insured` NULL ⇒ theo hợp đồng; hợp đồng mặc định của loại `tts` là `short` (viết cứng), loại khác lấy từ bộ giải được cài bằng `setDefaultContractResolver` (`src/modules/**/*.controller.ts`, đọc `type.<mã>.defaultContract`).
 
 Khoá kỳ: `SCOPE_LOCKED_FROM` = `{ attendance: 'attendance_locked', params: 'attendance_locked', kpi: 'approved', slip: 'approved' }`. `assertPeriodOpen` áp cho mọi tháng như nhau.
 
@@ -91,7 +91,7 @@ Bộ tham số là object **phẳng** `{ 'khoá.chấm': giá trị }`, đóng b
 
 1. `PayrollParams.DEFAULTS` (bản sao).
 2. Dòng `param_versions` hiệu lực: chỉ khi `params_mode = 'active'`. Với mỗi khoá lấy dòng có `effectiveMonth ≤ tháng` lớn nhất, hoà thì `id` lớn nhất (`resolveParamSet`). Dòng của khoá `locked`/`fixed`/`removed` do người dùng ghi bị bỏ (`PARAM_LOCKED`), dòng không qua `validateValue` (structureOnly) bị bỏ và ghi `console.error` một lần mỗi dòng. Danh sách bỏ trả ở `skipped`.
-3. Dòng danh mục và chính sách (`catalogParams.rows()`, `lib/domain/catalog-params.js`): `id = config.CATALOG_ROW_ID_BASE + chỉ số + 1`, nên thắng dòng `param_versions` cùng tháng. Sinh khoá `type.*`, `level.<t>.<l>.*` (gồm `nightPct`), `shift.kind.<mã>`, hiệu lực từ `config.CATALOG_BASE_MONTH` (mọi tháng). Ba khoá chính sách `shift.allowance.basis = 'assigned'`, `tax.contract.basis = 'tenure'`, `tax.longTermMonths = 3` nằm trong `DEFAULTS` như mọi tham số khác. **Áp ở cả hai chế độ** `defaults-only` và `active`. Dòng danh mục không tính vào `rev` / `applied`.
+3. Dòng danh mục và chính sách (`catalogParams.rows()`, `lib/domain/catalog-params.ts`): `id = config.CATALOG_ROW_ID_BASE + chỉ số + 1`, nên thắng dòng `param_versions` cùng tháng. Sinh khoá `type.*`, `level.<t>.<l>.*` (gồm `nightPct`), `shift.kind.<mã>`, hiệu lực từ `config.CATALOG_BASE_MONTH` (mọi tháng). Ba khoá chính sách `shift.allowance.basis = 'assigned'`, `tax.contract.basis = 'tenure'`, `tax.longTermMonths = 3` nằm trong `DEFAULTS` như mọi tham số khác. **Áp ở cả hai chế độ** `defaults-only` và `active`. Dòng danh mục không tính vào `rev` / `applied`.
 4. `derive` (`payroll-params.js`), tính khi dựng nhân:
    - `insuranceCap.bhxh = insuranceCap.bhyt = law.luongCoSo × tax.insurance.capMultiple`; `insuranceCap.bhtn = law.regionMinWage.<law.region> × capMultiple` (null nếu thiếu lương tối thiểu vùng ⇒ `PARAM_MISSING`);
    - `holidayNightRate = round(night.otAddRate × ot.holidayRate)` (mặc định 0,6);
@@ -135,7 +135,7 @@ Mọi bộ nhớ đệm (`kernelFor`, `KpiScore.create`, `LeaveRules.create`, `P
 
 Kernel dựng bảng `TYPES` bằng regex trên khoá `type.<t>.benefit.<f>`, `type.<t>.<f>`, `level.<t>.<l>.<f>` (`payroll-engine.js`): quyền lợi `benefit.ot` thành `T.ot`, `benefit.paidLeave` thành `T.paidLeave`... Loại hoặc bậc không có trong bảng ⇒ `assertStaff` :198 ném `PAYROLL_BAD_TYPE` / `PAYROLL_BAD_LEVEL`.
 
-### 2.5 Đầu vào một người một tháng (`loadInputs`, `payroll-service.js`)
+### 2.5 Đầu vào một người một tháng (`loadInputs`, `payroll-service.ts`)
 
 - `staff` (từ `payrollPeople` :106): người thuộc diện trả lương, đã bắt đầu làm trước hết tháng, chưa nghỉ việc trước đầu tháng, tài khoản khoá chỉ vào khi có dữ liệu trong tháng. Hợp đồng theo thâm niên khi `tax.contract.basis = 'tenure'` (`PayrollPolicy.contractFor`: đủ `tax.longTermMonths` tháng tròn tính từ ngày vào làm tới hết tháng lương thì `long`, chưa đủ thì `short`; người chưa có ngày vào làm giữ hợp đồng hồ sơ). `insured` NULL ⇒ `insurance.coverage.<hợp đồng>`.
 - `days`: lịch ngày đã khai (`estimateDays`), `approvals`: dòng duyệt theo ngày, `sessions`: phiên chấm công của đúng tháng (mọi tháng đều trả lương theo Check-in/out).
@@ -168,13 +168,13 @@ Kernel dựng bảng `TYPES` bằng regex trên khoá `type.<t>.benefit.<f>`, `t
 
 ## 3. API
 
-Quyền theo `lib/authz.js` `ROUTE_CAPS`; handler ở `src/http/api-gate.ts`, `lib/periods.js`, `src/modules/advance/advance-approvals.handlers.ts`, `src/modules/explanations/explanations.controller.ts`.
+Quyền theo `lib/authz.ts` `ROUTE_CAPS`; handler ở `src/http/api-gate.ts`, `lib/periods.ts`, `src/modules/advance/advance-approvals.handlers.ts`, `src/modules/explanations/explanations.controller.ts`.
 
 | Route | Quyền | Việc |
 | --- | --- | --- |
 | `GET /api/settings/params` | `config.read` | `store.view`: bộ tham số + lớp + `skipped`. |
-| `PUT /api/settings/params` | write(`config.read`) + quyền ghi theo khoá (`admin` → `config.payroll`, `accounting` → `config.legal`) | `save.save` :704; phát `params.changed`. Quyền ghi theo khoá: `registry.WRITE_CAP` (`lib/params/registry.js`, `lib/params/save.js`); lô trộn khoá của hai bên cần cả hai quyền. |
-| `POST /api/settings/params/preview` | write(`config.read`); handler đòi thêm `payroll.view` + `salary.read` phạm vi all (`lib/params/save.js`) | `save.preview` :632; luôn trả 200 kèm lỗi trong thân. |
+| `PUT /api/settings/params` | write(`config.read`) + quyền ghi theo khoá (`admin` → `config.payroll`, `accounting` → `config.legal`) | `save.save` :704; phát `params.changed`. Quyền ghi theo khoá: `registry.WRITE_CAP` (`lib/params/registry.ts`, `lib/params/save.ts`); lô trộn khoá của hai bên cần cả hai quyền. |
+| `POST /api/settings/params/preview` | write(`config.read`); handler đòi thêm `payroll.view` + `salary.read` phạm vi all (`lib/params/save.ts`) | `save.preview` :632; luôn trả 200 kèm lỗi trong thân. |
 | `POST /api/settings/params/revert` | write(`config.read`) | `save.revert` :850. |
 | `GET /api/settings/first-run` | theo `ROUTE_CAPS` | `store.firstRun`. |
 | `GET /api/periods`, `GET /api/periods/:month` | `payroll.view` | Danh sách / chi tiết kỳ (kèm `period.payDay`). |
@@ -204,7 +204,7 @@ Mọi bước kỳ kiểm `rev` (khoá lạc quan) ⇒ 409 `*_STALE`. Các kiể
 | --- | --- |
 | Bộ máy | `PARAM_MISSING` (thiếu khoá, gồm `law.regionMinWage` khi trần bhtn null), `PARAM_INVALID_VALUE`, `PAYROLL_BAD_FORMULA`, `PAYROLL_BAD_TYPE`, `PAYROLL_BAD_LEVEL`, `PAYROLL_BAD_BLOCK`, `PAYROLL_BAD_ENTRY`, `PARAM_OPTION_UNAVAILABLE` (`PayTailCalc.assertAvailable`, chỉ `computeFor` của máy chủ gọi), `FORMULA_DIV_ZERO`, `FORMULA_MISSING_INPUT` |
 | Lưu tham số | `PARAM_NO_CHANGES`, `PARAM_BATCH_TOO_LARGE`, `PARAM_UNKNOWN_KEY`, `PARAM_BACKED_BY_SETTINGS`, `PARAM_LOCKED`, `FORBIDDEN_CAP` 403, `PARAM_NOT_WIRED`, `SHIFT_EDIT_NOT_ALLOWED` / `SCHEDULE_EDIT_NOT_ALLOWED` 409, `PERIOD_LOCKED` 409, `PARAMS_DEFAULTS_ONLY` 409, `PARAMS_STALE` 409, `PARAM_REV_REQUIRED`, `REASON_REQUIRED`, `BASIS_REQUIRED`, `PARAM_FLOOR_ACK_REQUIRED`, `PARAM_CROSS_CHECK_FAILED`, `ATTR_TOO_MANY` |
-| Phiếu | Phiếu lỗi khi tính: `status 'error'` + `errorCode` (`slipOf`, `periods.js`); `PAYSLIP_NOT_VISIBLE` 403 (nhân sự xem phiếu khi kỳ chưa `paid`), `PAYSLIP_NOT_FOUND` 404; ước tính trả `reason` thuộc `PAYROLL_BAD_TYPE`, `PAYROLL_BAD_LEVEL`, `PAYROLL_BAD_FORMULA` thay vì 500 |
+| Phiếu | Phiếu lỗi khi tính: `status 'error'` + `errorCode` (`slipOf`, `periods.ts`); `PAYSLIP_NOT_VISIBLE` 403 (nhân sự xem phiếu khi kỳ chưa `paid`), `PAYSLIP_NOT_FOUND` 404; ước tính trả `reason` thuộc `PAYROLL_BAD_TYPE`, `PAYROLL_BAD_LEVEL`, `PAYROLL_BAD_FORMULA` thay vì 500 |
 | Tạm ứng | `ADVANCE_ALREADY_REQUESTED`, `ADVANCE_NOT_PENDING`, `ADVANCE_NOT_APPROVED`, `ADVANCE_WINDOW_CLOSED`, `ADVANCE_MONTH_NOT_CURRENT` (409) |
 | iSAT | `BENEFIT_NOT_ALLOWED`, `SHEET_ISAT_WEEKDAY` |
 
@@ -364,8 +364,8 @@ Luồng: sao chép bản chụp, bỏ `blocks`, `entries`, `settleDays`, `settle
 ### 4.10 Tạm ứng
 
 - Số theo quy tắc (`tamUngToiDa`) = `roundDong(advance.rate × cơ sở)`; cơ sở = `PayOptions.advanceBase`: `byWorkedDays` (tổng `daily − cut` các ngày công từ ngày 1 đến ngày `advance.untilDay`, cộng `holBase` của ngày lễ có đi làm thật; ngày lễ nghỉ hưởng lương và OT ngày lễ không vào) hoặc `fixedPctByLevel` (lương cơ bản bậc). `advance.rate` đọc theo chức vụ (`type.<mã>.advanceRate`). Bật khi `staff.advanceOn !== false` và chức vụ có trong `advance.eligibleTypes`.
-- `lib/advance-cap.js` tính mức tối đa tới ngày đang chạy theo đồng hồ máy chủ (`upTo: undefined`, `lib/advance-cap.js`), kèm cờ `provisional` khi ngày đó chưa qua `advance.untilDay` của tháng. Điều kiện: tài khoản thuộc diện trả lương, `advanceOn`, chức vụ được ứng, đã bắt đầu làm việc.
-- Nhân sự bấm xin tạm ứng (không nhập số tiền) chỉ vào ngày 16 và 17 hằng tháng (`ADVANCE_REQUEST_DAYS`; ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; tháng xin phải là tháng của hôm nay, khác thì 409 `ADVANCE_MONTH_NOT_CURRENT`); mỗi tháng một yêu cầu; Admin duyệt hoặc từ chối. `lib/domain/advance/advance-approvals.js` lưu `{ status: pending|approved|rejected, rev, requestedAt, decidedAt, ... }` theo người theo tháng trong `settings`; các bước `request`, `withdraw`, `approve`, `reject`, `cancel` có bảng bước chuyển hợp lệ (409 khi sai). Số trừ vào lương = số theo quy tắc **chỉ khi** yêu cầu `approved` (`approvedSet(month)` → `input.advanceApproved`); không xin, đang chờ hay bị từ chối đều là 0. Duyệt hoặc huỷ duyệt làm băm đầu vào đổi nên lần tính hiện có lỗi thời.
+- `lib/advance-cap.ts` tính mức tối đa tới ngày đang chạy theo đồng hồ máy chủ (`upTo: undefined`, `lib/advance-cap.ts`), kèm cờ `provisional` khi ngày đó chưa qua `advance.untilDay` của tháng. Điều kiện: tài khoản thuộc diện trả lương, `advanceOn`, chức vụ được ứng, đã bắt đầu làm việc.
+- Nhân sự bấm xin tạm ứng (không nhập số tiền) chỉ vào ngày 16 và 17 hằng tháng (`ADVANCE_REQUEST_DAYS`; ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; tháng xin phải là tháng của hôm nay, khác thì 409 `ADVANCE_MONTH_NOT_CURRENT`); mỗi tháng một yêu cầu; Admin duyệt hoặc từ chối. `lib/domain/advance/advance-approvals.ts` lưu `{ status: pending|approved|rejected, rev, requestedAt, decidedAt, ... }` theo người theo tháng trong `settings`; các bước `request`, `withdraw`, `approve`, `reject`, `cancel` có bảng bước chuyển hợp lệ (409 khi sai). Số trừ vào lương = số theo quy tắc **chỉ khi** yêu cầu `approved` (`approvedSet(month)` → `input.advanceApproved`); không xin, đang chờ hay bị từ chối đều là 0. Duyệt hoặc huỷ duyệt làm băm đầu vào đổi nên lần tính hiện có lỗi thời.
 
 ### 4.11 Phép năm (`leave.js`)
 
@@ -375,9 +375,9 @@ Luồng: sao chép bản chụp, bỏ `blocks`, `entries`, `settleDays`, `settle
 
 ### 4.12 Số chi trả, công thức "Chi tiết" và cột ngày của phiếu
 
-- **Số chi trả** (`lib/slip-paid.js`): phiếu có ô tiền Admin chỉnh thì mọi nơi trên máy chủ trả số chi trả = số tự tính của bản chụp áp các ô chỉnh, tính lại tổng lương, miễn thuế, thuế (`taxFrom` của bộ tham số lần tính, nếu Admin không chỉnh tay thuế) và thực lĩnh (`paidFigures`); bản chụp trong DB không đổi và số chi trả tính lúc đọc. Ô tiền: `workBase`, `leavePay`, `settlePay`, `isatPay`, `holidayPay`, `otPay` (gồm OT, làm lễ, làm bù), `attendance`, `travel`, `flexPay`, `breakPay`, `nightPay`, `kpiPay`; ô trừ: `lateCut`, `exempt`, `insurance`, `tax`, `advance`. Tổng lương làm tròn bằng `Math.round`.
+- **Số chi trả** (`lib/slip-paid.ts`): phiếu có ô tiền Admin chỉnh thì mọi nơi trên máy chủ trả số chi trả = số tự tính của bản chụp áp các ô chỉnh, tính lại tổng lương, miễn thuế, thuế (`taxFrom` của bộ tham số lần tính, nếu Admin không chỉnh tay thuế) và thực lĩnh (`paidFigures`); bản chụp trong DB không đổi và số chi trả tính lúc đọc. Ô tiền: `workBase`, `leavePay`, `settlePay`, `isatPay`, `holidayPay`, `otPay` (gồm OT, làm lễ, làm bù), `attendance`, `travel`, `flexPay`, `breakPay`, `nightPay`, `kpiPay`; ô trừ: `lateCut`, `exempt`, `insurance`, `tax`, `advance`. Tổng lương làm tròn bằng `Math.round`.
 - **Phiếu nhân sự** (`self`): xem được sau khi kỳ `paid`; phiếu có số Admin chỉnh thì bản chụp và các dòng chi tiết theo số chi trả (`staffPaidSnapshot` bỏ các trường dẫn xuất không còn đúng), không có công thức. Mỗi ô tiền là một số cộng sẵn.
-- **Công thức dưới từng dòng "Chi tiết"** (`lib/slip-formulas.js` `formulasOf`): chỉ Admin nhận (`GET .../payslips/:username` không `self`), dựng lúc đọc từ bản chụp và bộ tham số **của lần tính** (qua cùng các view tham số của engine), không ghi DB. Mỗi công thức mang chữ và giá trị, chỉ giữ khi giá trị bằng số tự tính của dòng (lệch không quá 1 đồng mỗi bước làm tròn); không khớp thì dòng đó không có công thức.
+- **Công thức dưới từng dòng "Chi tiết"** (`lib/slip-formulas.ts` `formulasOf`): chỉ Admin nhận (`GET .../payslips/:username` không `self`), dựng lúc đọc từ bản chụp và bộ tham số **của lần tính** (qua cùng các view tham số của engine), không ghi DB. Mỗi công thức mang chữ và giá trị, chỉ giữ khi giá trị bằng số tự tính của dòng (lệch không quá 1 đồng mỗi bước làm tròn); không khớp thì dòng đó không có công thức.
 - **Cột ngày**: `dayFiguresOf` gắn `cot = columnsOfDay(row)` cho ngày `work` và ngày lễ có giờ làm; `withPunchTimes` gắn `punchIn`, `punchOut` (giờ bấm thật, có sẵn trong dòng của bản chụp; bản chụp thiếu thì lấy từ các lượt của tháng bằng `ActualHours.punchTimesOf`) cho ngày làm, vắng, chờ xử lý (trừ chưa tới ngày) và ngày bị giữ vì giải trình (`held`). `staffDayNotesOf` thêm `holidayShifts` và `paidDays` (lễ, phép, iSAT hưởng lương) cho thẻ Thu nhập.
 - `verify` so bản chụp với bản tính lại bỏ `punchIn`, `punchOut`, `held` (chỉ để hiển thị).
 
@@ -389,7 +389,7 @@ Luồng: sao chép bản chụp, bỏ `blocks`, `entries`, `settleDays`, `settle
 
 ## 5. Realtime và nhật ký
 
-### 5.1 SSE (`lib/events.js`, `GET /api/events`)
+### 5.1 SSE (`lib/events.ts`, `GET /api/events`)
 
 | Sự kiện | Khi | Thân (đầy đủ / rút gọn) |
 | --- | --- | --- |
@@ -400,18 +400,18 @@ Luồng: sao chép bản chụp, bỏ `blocks`, `entries`, `settleDays`, `settle
 | `request.decided` | Duyệt/từ chối yêu cầu, gồm tạm ứng (`kind: 'advance'`) | `{month, date?, decision, kind}`, gửi theo người |
 | `attendance.changed`, `approvals.changed`, `punch.changed`, `punch.corrected` | Thay đổi chấm công, duyệt khoản | theo danh mục `EVENTS` |
 
-Thông báo khi lưu tham số (`save.js`): `{configRev, paramsRev, paramsHash, fromMonth, keys, by}`; `config_rev` tăng qua `config-rev.js`.
+Thông báo khi lưu tham số (`save.ts`): `{configRev, paramsRev, paramsHash, fromMonth, keys, by}`; `config_rev` tăng qua `config-rev.ts`.
 
-### 5.2 Nhật ký (`lib/audit.js`)
+### 5.2 Nhật ký (`lib/audit.ts`)
 
 | Hành động | Nơi |
 | --- | --- |
 | `param.set` (độ nhạy `pay` hoặc `normal`) | `save.save`, `save.revert` |
 | `param.mode` | Đổi `params_mode` |
-| `period.lock-attendance`, `period.calculate`, `period.ai-review`, `period.approve`, `period.mark-paid`, `period.reopen` | `lib/periods.js` |
+| `period.lock-attendance`, `period.calculate`, `period.ai-review`, `period.approve`, `period.mark-paid`, `period.reopen` | `lib/periods.ts` |
 | `payslip.approve`, `payslip.return` | `periods.decidePayslips` |
 | `slip.override` | `PUT /api/slip-override` |
-| `advance.request`, `advance.withdraw`, `advance.approve`, `advance.reject`, `advance.cancel` | `src/modules/advance/advance-approvals.handlers.ts`; `advance.create`, `advance.decide`, `advance.cancel` ở `lib/advance-requests.js` |
+| `advance.request`, `advance.withdraw`, `advance.approve`, `advance.reject`, `advance.cancel` | `src/modules/advance/advance-approvals.handlers.ts`; `advance.create`, `advance.decide`, `advance.cancel` ở `lib/advance-requests.ts` |
 | `explanation.request` | `src/modules/explanations/explanations.controller.ts` |
 
 Mỗi run lưu `engineVersion`, `paramsHash`, `paramsRev`, `params`, `switches`, `inputsDigest` để `verify` tính lại được. `ENGINE_VERSION` được đặt tay trong mã; `verify` trả `engineChanged = (run.engineVersion ≠ ENGINE_VERSION hiện tại)`.
@@ -423,41 +423,41 @@ Mỗi run lưu `engineVersion`, `paramsHash`, `paramsRev`, `params`, `switches`,
 ### 6.1 Đồ thị gọi
 
 ```
-src/modules/**/*.controller.ts ─┬─ lib/periods.js ─┬─ lib/payroll-service.js ── PayrollEngine.create / computeMonth / calcNet / repin
-           │                  ├─ lib/slip-paid.js, lib/slip-pins.js, lib/slip-formulas.js
-           │                  └─ lib/params/store.js
-           ├─ lib/params/save.js ── store, validate, registry, payroll-service
-           ├─ lib/domain/advance ── lib/advance-cap.js ── payroll-service
+src/modules/**/*.controller.ts ─┬─ lib/periods.ts ─┬─ lib/payroll-service.ts ── PayrollEngine.create / computeMonth / calcNet / repin
+           │                  ├─ lib/slip-paid.ts, lib/slip-pins.ts, lib/slip-formulas.ts
+           │                  └─ lib/params/store.ts
+           ├─ lib/params/save.ts ── store, validate, registry, payroll-service
+           ├─ lib/domain/advance ── lib/advance-cap.ts ── payroll-service
            └─ lib/domain/explanation (heldByUser) ── payroll-service.loadInputs
-lib/ai/review.js ── bộ máy từ lib/ai/payroll-loader.js (calcMonth, computeMonth)
+lib/ai/review.ts ── bộ máy từ lib/ai/payroll-loader.ts (calcMonth, computeMonth)
 
 payroll-engine.js ── payroll-params, payroll-calendar, kpi-score, approval-view, actual-hours, punch,
                      formula, formula-vocab, payroll-graph (nạp lười), pay-entries-calc, pay-blocks-calc,
                      work-schedule, pay-options-calc, pay-tail-calc, payroll-pins, payroll-day-parts
 payroll-graph.js ── formula, formula-vocab, (lười) payroll-engine, kpi-score
-lib/params/validate.js ── payroll-graph.validateTree, formula
+lib/params/validate.ts ── payroll-graph.validateTree, formula
 ```
 
 ### 6.2 Đổi X thì phải kiểm tra Y
 
 | Đổi | Phải kiểm tra |
 | --- | --- |
-| Công thức trong `calcDay` (`total`, `bonus`, `breakPay`, `otPay`, `makeupPay`) | `partsOfDay` / `columnsOfDay`, `lib/slip-paid.js` `slipBasisOf` (ô flex/đêm trên phiếu), `lib/slip-formulas.js`, `mienThueOf` (giờ đêm, OT), test golden (`payroll-golden`, `formula-golden`, `payroll-engine-differential`), tăng `ENGINE_VERSION` |
-| `shiftFor` (phân loại ca) | `lib/params/validate.js` `shiftKindOf` :467 (bản viết lại), `shiftOfDay` khi `assigned` |
-| `absent`, `gioVuotNguong` | Builtin `tinhGioVuotNguong`, `lib/periods.js` `allowanceStatus`, KPI `heSoNgayKpi`, khối phụ cấp (`PayBlocksCalc`) |
+| Công thức trong `calcDay` (`total`, `bonus`, `breakPay`, `otPay`, `makeupPay`) | `partsOfDay` / `columnsOfDay`, `lib/slip-paid.ts` `slipBasisOf` (ô flex/đêm trên phiếu), `lib/slip-formulas.ts`, `mienThueOf` (giờ đêm, OT), test golden (`payroll-golden`, `formula-golden`, `payroll-engine-differential`), tăng `ENGINE_VERSION` |
+| `shiftFor` (phân loại ca) | `lib/params/validate.ts` `shiftKindOf` :467 (bản viết lại), `shiftOfDay` khi `assigned` |
+| `absent`, `gioVuotNguong` | Builtin `tinhGioVuotNguong`, `lib/periods.ts` `allowanceStatus`, KPI `heSoNgayKpi`, khối phụ cấp (`PayBlocksCalc`) |
 | `otBlocked` / sổ giờ bù | `owes` trong `calcDay`, `ApprovalView` (`willmakeup`) |
 | Hệ số OT (`ot.rate`, `ot.weekendRate`, `ot.holidayRate`) | `OVERRIDES`, `repinMonth` (dùng giá trị toàn cục), `tax.exempt.*`, `payroll-pins.js` (`ot15H/20H/30H`) |
 | Thêm/đổi khoá tham số | `DEFAULTS` là khối GENERATED (`npm run params:extract/lock/check`); `LATE_KEYS` nếu bản chụp tham số thiếu khoá; registry (`entryFor`, `WRITE_CAP`, cờ wired); `formula-vocab.js` (sinh lại); `derive`; `validate.crossChecks`; FALLBACK của module (kiểm bằng `scripts/params/check-fallbacks.js`) |
 | `TEXTS` trong `payroll-graph.js` | Cây phải parse ra **đúng** cây đã lưu `formula.<tên>`; test `formula-golden`, `formula-roundtrip`, `formula-locked` |
 | `VARIABLES`, `DAY_VARIABLES` | `variablesOf`, `contextFor`, từ vựng công thức, `checkVocabulary` |
-| `roundDong` / chế độ làm tròn | `PayTailCalc.assertParams`, `slip-paid.js` (`Math.round` riêng), test `pay-tail-half-dong-boundary` |
-| Bảo hiểm (`baoHiemOf`, `isPaidDay`) | `m.paidDays`, `tax.insurance.skipDays`, `lib/slip-formulas.js` `insuranceOf`, test `insurance-paid-days`, `pay-tail-insurance-options` |
-| Thuế (`taxFrom`, `contractOf`) | `PayrollPolicy.contractFor`, `tax.method.*`, `slip-paid.js` `taxFromOf` |
-| Tạm ứng | `payroll-graph` `batTamUng` / `tamUng`, `advance-cap.js`, `netFrame`, `advance-approvals` |
-| Ghim (`Pins.KEYS`) | `src/modules/periods/periods.helpers.ts` `SLIP_MONEY` / `SLIP_QTY`, `lib/slip-pins.js`, `cellsOf` |
+| `roundDong` / chế độ làm tròn | `PayTailCalc.assertParams`, `slip-paid.ts` (`Math.round` riêng), test `pay-tail-half-dong-boundary` |
+| Bảo hiểm (`baoHiemOf`, `isPaidDay`) | `m.paidDays`, `tax.insurance.skipDays`, `lib/slip-formulas.ts` `insuranceOf`, test `insurance-paid-days`, `pay-tail-insurance-options` |
+| Thuế (`taxFrom`, `contractOf`) | `PayrollPolicy.contractFor`, `tax.method.*`, `slip-paid.ts` `taxFromOf` |
+| Tạm ứng | `payroll-graph` `batTamUng` / `tamUng`, `advance-cap.ts`, `netFrame`, `advance-approvals` |
+| Ghim (`Pins.KEYS`) | `src/modules/periods/periods.helpers.ts` `SLIP_MONEY` / `SLIP_QTY`, `lib/slip-pins.ts`, `cellsOf` |
 | `ENGINE_VERSION` | `verify` so với lần chạy đã lưu; bản chụp phiếu |
 | `ActualHours.LOCKED_FIELDS` | Nhánh `d.src` / `otReview` / `attendanceConfirmed` trong `calcDay` (`payroll-engine.js, :475`) |
-| Danh mục chức vụ / ca | `catalog-params.js`, `catalog_rev` (khoá bộ nhớ đệm store), `shift.kind.*` |
+| Danh mục chức vụ / ca | `catalog-params.ts`, `catalog_rev` (khoá bộ nhớ đệm store), `shift.kind.*` |
 | `prepare` / view | `create().calcMonth` không qua `prepare` |
 | Ngưỡng ngày/giờ miễn trừ của khoản chưa duyệt (`request.type.*.countsAbsent`) | `finishMonth` (`approvedCounted`, `unpaidExempt`) |
 
@@ -503,18 +503,18 @@ Chưa thấy test nào xác nhận trực tiếp các trường hợp biên: ph�
 | 6 | `payroll-engine.js` | `repinMonth` dùng `need('ot.rate')` toàn cục; `calcDay` dùng `entitlementOf('ot.rate')` (ghi đè theo chức vụ). Ghim giờ OT cho chức vụ có hệ số riêng dùng đơn giá toàn cục khi bản chụp chưa có giờ nào. |
 | 7 | `payroll-engine.js` | `R.advanceRate` được đọc nhưng không dùng (tạm ứng đi qua cây `tamUng` với `advance.rate` của `overlay`). |
 | 8 | `payroll-engine.js` | Với `shift.allowance.basis = 'assigned'`, phụ cấp ca đêm = `daily × pct` kể cả ngày `work` không có giờ làm. |
-| 9 | `actual-hours.js` và `payroll-engine.js, :475` | `LOCKED_FIELDS` xoá `src`, `otReview`, `attendanceConfirmed` khỏi ngày hiệu lực, nên nhánh `plannedShift` và `otOk` dựa trên `d.src` chỉ chạy khi dòng ngày đầu vào mang `src` (`payroll-engine.js, :475`). Trong `lib/` và `public/`, `src` chỉ được gán cho lượt chấm công (`lib/attendance-sessions.js, :269`) và trong kiểm OT (`lib/domain/ot.js`); không thấy nơi nào gán `src` cho dòng ngày mà `payroll-service` đưa vào engine. Mức này là suy luận, chưa kiểm bằng test. |
+| 9 | `actual-hours.js` và `payroll-engine.js, :475` | `LOCKED_FIELDS` xoá `src`, `otReview`, `attendanceConfirmed` khỏi ngày hiệu lực, nên nhánh `plannedShift` và `otOk` dựa trên `d.src` chỉ chạy khi dòng ngày đầu vào mang `src` (`payroll-engine.js, :475`). Trong `lib/` và `public/`, `src` chỉ được gán cho lượt chấm công (`lib/attendance-sessions.ts, :269`) và trong kiểm OT (`lib/domain/ot.ts`); không thấy nơi nào gán `src` cho dòng ngày mà `payroll-service` đưa vào engine. Mức này là suy luận, chưa kiểm bằng test. |
 | 10 | `payroll-engine.js`, | `isatTaken` đếm mọi dòng iSAT vào `absent`, nhưng `gioVuotNguong` không có iSAT và `m.isat` chỉ đếm ngày iSAT hưởng lương; `willmakeup` vào `absent` (theo giờ thiếu) mà không phải ngày có lương của bảo hiểm; `leave` (phép) nằm trong cả `absent` lẫn `gioVuotNguong` và đồng thời là ngày có lương của bảo hiểm. |
 | 11 | `payroll-engine.js` | Bảo hiểm: phần người lao động làm tròn từng khoản, phần công ty làm tròn một lần trên tổng; tổng hai cách có thể lệch 1 đến 2 đồng. |
-| 12 | `lib/periods.js` | `allowanceStatus` dùng `attendance.overLimitHours` toàn cục, bỏ qua ghi đè theo chức vụ và `attendance.overLimitTolerance` (engine :843 có cả hai). |
-| 13 | `lib/params/validate.js` | `shiftKindOf` viết lại `shiftFor` (giờ cố định 60 và 1440 viết cứng); hai bản có thể lệch nhau. |
-| 14 | `lib/db.js`, `public/leave.js` (hằng `NV_TYPE`) | Viết cứng `'tts'` ⇒ `short` (trùng `type.tts.defaultContract`) và loại `'nv'` được năm nhân viên và sinh nhật. |
+| 12 | `lib/periods.ts` | `allowanceStatus` dùng `attendance.overLimitHours` toàn cục, bỏ qua ghi đè theo chức vụ và `attendance.overLimitTolerance` (engine :843 có cả hai). |
+| 13 | `lib/params/validate.ts` | `shiftKindOf` viết lại `shiftFor` (giờ cố định 60 và 1440 viết cứng); hai bản có thể lệch nhau. |
+| 14 | `lib/db.ts`, `public/leave.js` (hằng `NV_TYPE`) | Viết cứng `'tts'` ⇒ `short` (trùng `type.tts.defaultContract`) và loại `'nv'` được năm nhân viên và sinh nhật. |
 | 15 | `public/kpi-score.js, :65, :116, :122` | Viết cứng 100 (:47), 1 000 000 (:65), 10 000 (:116, :122); giả định tổng `kpi.weight.*` bằng 100. `kpi.weworkMinCompare` không được đọc (mốc Base Wework so bằng `≥`). |
-| 16 | `lib/slip-paid.js` | Tổng lương dùng `Math.round` thay `roundDong` (bỏ qua `money.roundTo`). |
+| 16 | `lib/slip-paid.ts` | Tổng lương dùng `Math.round` thay `roundDong` (bỏ qua `money.roundTo`). |
 | 17 | `src/modules/periods/periods.helpers.ts` `SLIP_QTY` | `leaveLeft` và `kpiBonus` được nhận và lưu nhưng không có trong `Pins.KEYS` nên không đổi tiền; không có cảnh báo cho các ô này. Giới hạn giá trị viết cứng ở `src/modules/periods/periods.helpers.ts`. |
-| 18 | `lib/slip-paid.js` `slipBasisOf` | `flexPay` và `nightPay` lấy từ `bonus` theo `shift` của dòng; phần sàn phụ trội đêm ngày lễ của ca `normal` (nhánh `nightH × hourly × night.breakPremium` trong `bonus`) không vào ô flex hay ô đêm nào trên phiếu. |
-| 19 | `lib/domain/overtime/hour-limits.js` | `DAY_HOURS_CAP` (12), `MONTH_OT_CAP` (40) đọc từ `DEFAULTS` của registry (`law.ceiling.otDayTotalHours`, `law.ceiling.otMonthHours`), một nơi khai số. |
+| 18 | `lib/slip-paid.ts` `slipBasisOf` | `flexPay` và `nightPay` lấy từ `bonus` theo `shift` của dòng; phần sàn phụ trội đêm ngày lễ của ca `normal` (nhánh `nightH × hourly × night.breakPremium` trong `bonus`) không vào ô flex hay ô đêm nào trên phiếu. |
+| 19 | `lib/domain/overtime/hour-limits.ts` | `DAY_HOURS_CAP` (12), `MONTH_OT_CAP` (40) đọc từ `DEFAULTS` của registry (`law.ceiling.otDayTotalHours`, `law.ceiling.otMonthHours`), một nơi khai số. |
 | 20 | `public/payroll-params.js` DEFAULTS | Có trong DEFAULTS nhưng không tìm thấy code đọc theo chuỗi khoá: `kpi.ratioRule`, `kpi.payCurveRule`, `kpi.scoreDecimals`, `kpi.scoreMax`, `kpi.weworkMinCompare`, `ot.nightAddScope`, `net.deductionPriority`, `net.stepOrder`, `leave.birthdayMode`, `leave.accrualMode`, `leave.settleMethod`, `leave.useLeaveFirst`, `holiday.compensatory`, `time.maxSpanHours`, `attendance.graceCompare`, `attendance.makeupDayStepRule`. Ngoại lệ: `pay.otHourlyDivisor` có một chỗ đọc theo chuỗi ở (chọn bước hiển thị '2' hoặc '1' cho trang cấu hình), không ảnh hưởng tiền. |
 | 21 | `payroll-calendar.js` | Làm tròn số thực 1e10 viết cứng. |
-| 22 | `payroll-engine.js` và `payroll-service.js` | `calcMonth` gọi trần có `upTo === undefined` thì tính tới ngày đang chạy (đọc đồng hồ máy chủ); `computeFor` mặc định `upTo = null` (cả tháng). Cùng đầu vào gọi từ hai nơi cho kết quả khác. |
+| 22 | `payroll-engine.js` và `payroll-service.ts` | `calcMonth` gọi trần có `upTo === undefined` thì tính tới ngày đang chạy (đọc đồng hồ máy chủ); `computeFor` mặc định `upTo = null` (cả tháng). Cùng đầu vào gọi từ hai nơi cho kết quả khác. |
 | 23 | `payroll-engine.js` | `mienThueOf` còn đọc `otHolHours`, `otHolPay`, `otHolNightHours` từ bản chụp, nhưng bộ máy hiện tại không ghi các trường này (luôn 0 ở bản chụp mới). |

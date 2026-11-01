@@ -1,10 +1,10 @@
 'use strict';
-// Đường tham số của "Soát dữ liệu trước khi chốt lương" (lib/ai/thresholds.js và lib/ai/review.js): giá trị ngưỡng và công tắc luật
+// Đường tham số của "Soát dữ liệu trước khi chốt lương" (lib/ai/thresholds.ts và lib/ai/review.ts): giá trị ngưỡng và công tắc luật
 // lấy từ bộ tham số phẳng (input.params, mặc định PayrollParams.DEFAULTS). Toàn người giả (qa_*), tháng 10/2026, dữ liệu của ai-review-world.js.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { review } = require('../../lib/ai/review.js');
-const { THRESHOLDS, resolveThresholds, ruleKeyOf } = require('../../lib/ai/thresholds.js');
+const { review } = require('../../lib/ai/review.ts');
+const { THRESHOLDS, resolveThresholds, ruleKeyOf } = require('../../lib/ai/thresholds.ts');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 const W = require('./ai-review-world.js');
 

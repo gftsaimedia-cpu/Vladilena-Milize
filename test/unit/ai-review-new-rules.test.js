@@ -1,11 +1,11 @@
 'use strict';
-// Hai luật của "Soát dữ liệu trước khi chốt lương" (lib/ai/review.js): net-nonpositive, formula-changed-recently
+// Hai luật của "Soát dữ liệu trước khi chốt lương" (lib/ai/review.ts): net-nonpositive, formula-changed-recently
 // và mảng systemFindings (phát hiện không gắn người). Toàn người giả (qa_*), tháng 10/2026, dữ liệu của ai-review-world.js.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');
-const { review } = require('../../lib/ai/review.js');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.js');
+const { review } = require('../../lib/ai/review.ts');
+const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 const W = require('./ai-review-world.js');
 

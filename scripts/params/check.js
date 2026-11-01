@@ -10,11 +10,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { extract, sources, ROOT } = require('./extract-defaults');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/params/store.js kéo lib/db; script này không chạm DB thật
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/params/store.ts kéo lib/db; script này không chạm DB thật
 
 const Params = require(path.join(ROOT, 'public/payroll-params.js'));
-const registry = require(path.join(ROOT, 'lib/params/registry.js'));
-const { validateValue } = require(path.join(ROOT, 'lib/params/validate.js'));
+const registry = require(path.join(ROOT, 'lib/params/registry.ts'));
+const { validateValue } = require(path.join(ROOT, 'lib/params/validate.ts'));
 
 const errors = [];
 const fail = message => errors.push(message);
@@ -296,11 +296,11 @@ function checkAgainstCode() {
     );
   const table = registry.byId('request.type.<code>').ui.table.rowKeys[0].values.map(v => v.value);
   same([...table].sort(), ApprovalItemsSorted(ApprovalItems), 'loại yêu cầu của registry so với ApprovalView.ITEMS');
-  const { RULES } = require(path.join(ROOT, 'lib/ai/review.js'));
+  const { RULES } = require(path.join(ROOT, 'lib/ai/review.ts'));
   same(
     registry.AI_RULES.map(r => r.id).sort(),
     RULES.map(r => r.id).sort(),
-    'luật AI của registry so với lib/ai/review.js RULES'
+    'luật AI của registry so với lib/ai/review.ts RULES'
   );
   same(
     set['time.workHoursPerDay'] * set['unit.minutesPerHour'],
@@ -352,7 +352,7 @@ function checkWired() {
   }
 }
 
-// Bản chép chuyển tiếp FALLBACK của sáu mô-đun luật dùng chung và của mã máy chủ (lib/auth.js…) phải bằng DEFAULTS từng khoá (scripts/params/check-fallbacks.js)
+// Bản chép chuyển tiếp FALLBACK của sáu mô-đun luật dùng chung và của mã máy chủ (lib/auth.ts…) phải bằng DEFAULTS từng khoá (scripts/params/check-fallbacks.js)
 function checkFallbacks() {
   const { problems, libProblems } = require('./check-fallbacks');
   for (const line of [...problems(), ...libProblems().problems]) fail(line);
@@ -375,8 +375,8 @@ function checkLock() {
 // Tên được khoá: mẫu khoá của mục (họ khoá khoá theo mẫu); mục không có khoá (mục cố định) khoá theo id
 function lockedNames() {
   const names = new Set([
-    ...require(path.join(ROOT, 'lib/params/positions.js')).LOCKED_NAMES,
-    ...require(path.join(ROOT, 'lib/params/block-defs.js')).LOCKED_NAMES
+    ...require(path.join(ROOT, 'lib/params/positions.ts')).LOCKED_NAMES,
+    ...require(path.join(ROOT, 'lib/params/block-defs.ts')).LOCKED_NAMES
   ]); // họ khoá động của chức vụ (không có mục registry riêng)
   for (const entry of registry.entries) {
     if (entry.keys && entry.keys.length) for (const key of entry.keys) names.add(key);

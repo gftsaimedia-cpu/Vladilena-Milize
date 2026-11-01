@@ -13,7 +13,7 @@ const path = require('node:path');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { extract, ROOT } = require('./extract-defaults');
 const { isKeyWired } = require('../../lib/params/wired-flag');
-const registry = require(path.join(ROOT, 'lib/params/registry.js'));
+const registry = require(path.join(ROOT, 'lib/params/registry.ts'));
 
 const read = file => fs.readFileSync(path.join(ROOT, file), 'utf8');
 // Nơi đọc bộ tham số đã giải: bộ máy, lớp dẫn xuất của payroll-params.js (không tính khối DEFAULTS được sinh), AI, và hai mô-đun máy chủ
@@ -22,8 +22,8 @@ const ENGINE_FILES = [
   'public/payroll-engine.js',
   'public/payroll-params.js',
   'public/pay-tail-calc.js', // phép chọn của bảo hiểm và thuế do Kế toán cấu hình
-  'lib/periods.js',
-  'lib/payroll-service.js',
+  'lib/periods.ts',
+  'lib/payroll-service.ts',
   'public/pay-options-calc.js', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
   'public/work-schedule.js', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
   'lib/domain/limits.js', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
@@ -34,7 +34,7 @@ const ENGINE_FILES = [
 ].filter(f => f.endsWith('.js'));
 // Khoá dựng bằng chuỗi nhiều dòng hoặc nối chuỗi mà biểu thức chính quy bên dưới không bắt: ghi nơi dựng và bằng chứng nó còn đó
 const EXTRA_READS = [
-  { pattern: 'ai.rule.*.enabled', file: 'lib/ai/thresholds.js', re: /ai\.rule\.\$\{/ },
+  { pattern: 'ai.rule.*.enabled', file: 'lib/ai/thresholds.ts', re: /ai\.rule\.\$\{/ },
   { pattern: 'law.regionMinWage.*', file: 'public/payroll-params.js', re: /'law\.regionMinWage\.' \+/ }
 ];
 // Khoá dựng động type.<mã>.<đuôi> (mẫu 'type.*.*' ở trên) khớp MỌI đuôi, kể cả đuôi mà bộ máy không đọc theo tên: ở đây khai các đuôi đó để cờ không nói dối.
@@ -135,41 +135,41 @@ const SERVER_COPIES = [
   // `unless` chứng minh nơi đó đã chuyển sang create(params): khớp thì không còn là bản sao.
   {
     pattern: 'attendance.openSessionMaxHours',
-    file: 'lib/attendance-sessions.js',
+    file: 'lib/attendance-sessions.ts',
     re: /require\('\.\.\/public\/punch'\)/,
     unless: /\.create\(/,
-    why: 'lib/attendance-sessions.js dùng punch mặc định (buildDay, forgotDay)'
+    why: 'lib/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
   },
   {
     pattern: 'attendance.earlyCheckinMaxHours',
-    file: 'lib/attendance-sessions.js',
+    file: 'lib/attendance-sessions.ts',
     re: /require\('\.\.\/public\/punch'\)/,
     unless: /\.create\(/,
-    why: 'lib/attendance-sessions.js dùng punch mặc định (buildDay, forgotDay)'
+    why: 'lib/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
   },
-  // shift.preset.*.*: không còn bản sao chạy thật. lib/attendance-sessions.js dùng punch mặc định chỉ trong đợt di chuyển
-  // MỘT LẦN lúc nạp lib/db cho dấu Check-in cũ chưa có phiên (trước khi có tham số theo tháng); lib/ai/review.js chỉ hỏi mã ca có trong bảng
+  // shift.preset.*.*: không còn bản sao chạy thật. lib/attendance-sessions.ts dùng punch mặc định chỉ trong đợt di chuyển
+  // MỘT LẦN lúc nạp lib/db cho dấu Check-in cũ chưa có phiên (trước khi có tham số theo tháng); lib/ai/review.ts chỉ hỏi mã ca có trong bảng
   // (ActualHours.SHIFT_TIMES có mặt), mã ca không đổi khi sửa giờ.
   {
     pattern: 'kpi.weight.*',
-    file: 'lib/ai/review.js',
+    file: 'lib/ai/review.ts',
     re: /KpiScore\.evaluate/,
     unless: /KpiScore\.create\(/,
-    why: 'lib/ai/review.js → KpiScore mặc định (trọng số)'
+    why: 'lib/ai/review.ts → KpiScore mặc định (trọng số)'
   },
   {
     pattern: 'kpi.weworkMin',
-    file: 'lib/ai/review.js',
+    file: 'lib/ai/review.ts',
     re: /KpiScore\.evaluate/,
     unless: /KpiScore\.create\(/,
-    why: 'lib/ai/review.js → KpiScore mặc định (mốc Base Wework)'
+    why: 'lib/ai/review.ts → KpiScore mặc định (mốc Base Wework)'
   },
   {
     pattern: 'type.*.dows',
-    file: 'lib/approvals.js',
+    file: 'lib/approvals.ts',
     re: /require\('\.\.\/public\/approval-view/,
     unless: /\.create\(/,
-    why: 'lib/approvals.js dùng approval-view mặc định (dayCtx, itemOf: lịch làm việc)'
+    why: 'lib/approvals.ts dùng approval-view mặc định (dayCtx, itemOf: lịch làm việc)'
   }
 ];
 

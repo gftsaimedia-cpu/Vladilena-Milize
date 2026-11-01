@@ -1,5 +1,5 @@
 'use strict';
-// Mọi khoá trong lib/ops/route-classes.js phải có thật trong ROUTE_CAPS; Check-in/out và đăng nhập không bao giờ nằm trong danh sách route nặng.
+// Mọi khoá trong lib/ops/route-classes.ts phải có thật trong ROUTE_CAPS; Check-in/out và đăng nhập không bao giờ nằm trong danh sách route nặng.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

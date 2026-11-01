@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { lockedNames } = require('./check');
-const registry = require('../../lib/params/registry.js');
+const registry = require('../../lib/params/registry.ts');
 
 const FILE = path.join(__dirname, '..', '..', 'lib/params/keys.lock.json');
 const released = new Date().toISOString().slice(0, 10);

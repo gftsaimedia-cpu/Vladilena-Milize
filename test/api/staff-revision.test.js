@@ -1,5 +1,5 @@
 'use strict';
-// Hồ sơ nhân sự có phiên bản (lib/domain/staff.js → staffRevision, server.js → PUT /staff/:u):
+// Hồ sơ nhân sự có phiên bản (lib/domain/staff.ts → staffRevision, server.js → PUT /staff/:u):
 //   - hồ sơ trả về có `rev` (chuỗi băm 16 ký tự hex), đổi khi hồ sơ đổi ở bất kỳ cột nào;
 //   - PUT /api/staff/:u với expectedRev khác rev hiện tại là 409 STAFF_STALE kèm currentRev và KHÔNG lưu gì; đúng rev thì lưu;
 //   - body chỉ có `locked` (kèm hoặc không kèm expectedRev) đi nhánh khoá / mở khoá, không bị đòi họ tên.

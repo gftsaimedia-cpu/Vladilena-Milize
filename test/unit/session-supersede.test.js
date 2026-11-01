@@ -1,5 +1,5 @@
 'use strict';
-// Lượt bị thay trong ngày công (lib/domain/attendance/session-view.js → supersededIds), cùng luật public/actual-hours.js dùng để tính
+// Lượt bị thay trong ngày công (lib/domain/attendance/session-view.ts → supersededIds), cùng luật public/actual-hours.js dùng để tính
 // lương: lượt Admin khai thay thắng các lượt bấm bị chặn cùng ngày; lượt chấm thật dùng được thắng lượt Admin; lượt đang mở giữ nguyên.
 // Nhãn của ngày (public/attendance-status.js → dayStatus, dayNotes) bỏ qua lượt bị thay.
 process.env.DB_PATH = ':memory:';

@@ -1,7 +1,7 @@
 const { AsyncList } = require('../../../lib/shared/async-list');
 // Route đọc lịch sử yêu cầu ứng lương.
-// server.js không có gì ở đây: lib/domain/routes.js gửi đường dẫn /api/advance-requests tới handle(). Quyền ở cổng ROUTE_CAPS (lib/authz.js);
-// đọc bảng ở lib/advance-requests.js; mức tối đa do bộ máy lương tính (lib/advance-cap.js).
+// server.js không có gì ở đây: lib/domain/routes.js gửi đường dẫn /api/advance-requests tới handle(). Quyền ở cổng ROUTE_CAPS (lib/authz.ts);
+// đọc bảng ở lib/advance-requests.ts; mức tối đa do bộ máy lương tính (lib/advance-cap.ts).
 //   GET  /api/advance-requests?month=[&username=][&status=]   { month, scope, items, pending?, cap, granted, remaining, eligible, reason? }
 //        nhân sự: của mình, kèm cap (đồng) = mức tối đa của tháng; người có quyền duyệt (hoặc xem lương): mọi người (không có cap), hoặc một người nếu có username
 // Số đã duyệt ở đây không trừ vào phiếu; tạm ứng là số theo quy tắc, chỉ trừ khi Admin duyệt (lib/domain/advance/routes.js).
@@ -20,7 +20,7 @@ const capView = info => ({
   eligible: info.eligible,
   ...(info.reason ? { reason: info.reason } : {})
 });
-// Mã lỗi của lib/advance-requests.js mang httpStatus; chuyển thành HttpError để send() trả đúng mã
+// Mã lỗi của lib/advance-requests.ts mang httpStatus; chuyển thành HttpError để send() trả đúng mã
 const wrap = async fn => {
   try {
     return await fn();

@@ -13,7 +13,7 @@ Luật nghiệp vụ nằm rải rác: cùng một trần OT tháng được ki�
 
 ## Kiến trúc
 ```
-lib/domain/shared/rule.js        Violation, Rule, RuleSet (block -> HttpError, warn -> warnIf)
+lib/domain/shared/rule.ts        Violation, Rule, RuleSet (block -> HttpError, warn -> warnIf)
 lib/domain/<module>/             class nghiệp vụ + rules/ + index.js (API công khai của module)
 lib/domain/<tên cũ>.js           mặt tiền mỏng (facade) giữ nguyên tên hàm xuất cũ, uỷ quyền cho class
 ```

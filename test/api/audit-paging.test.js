@@ -1,5 +1,5 @@
 'use strict';
-// GET /api/audit: phân trang bằng con trỏ id và biên ngày giờ Việt Nam (server.js → GET /audit, lib/db.js → store.audit.list):
+// GET /api/audit: phân trang bằng con trỏ id và biên ngày giờ Việt Nam (server.js → GET /audit, lib/db.ts → store.audit.list):
 //   - mới → cũ; nextBeforeId của trang này truyền vào beforeId của trang sau; trang cuối nextBeforeId null; không trùng, không sót dòng;
 //   - afterId cho thứ tự cũ → mới và không có nextBeforeId; beforeId/afterId phải là số nguyên không âm (regex /^\d+$/);
 //   - from, to dạng YYYY-MM-DD nghĩa là đầu và cuối NGÀY GIỜ VIỆT NAM (UTC+7), không phải ngày UTC.

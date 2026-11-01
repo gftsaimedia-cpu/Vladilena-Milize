@@ -3,7 +3,7 @@
 // (vẫn chạy, in lỗi, nhưng KHÔNG làm npm test đỏ). Khi file chủ xuất hiện,
 // cờ todo tự biến mất và chúng thành test bắt buộc: đỏ nghĩa là mô-đun mới làm chưa xong hoặc làm sai.
 //   RED=1 npm test      ép chạy như test thường để thấy từng test đỏ vì lý do gì
-//   const opts = pending('lib/periods.js chưa có', 'lib/periods.js');  test('...', opts, fn)
+//   const opts = pending('lib/periods.ts chưa có', 'lib/periods.ts');  test('...', opts, fn)
 //   pendingUnless('...', mentions('src/server.ts', /assertPeriodOpen/)) khi cờ là một điều kiện thay vì một file
 const fs = require('node:fs');
 const path = require('node:path');

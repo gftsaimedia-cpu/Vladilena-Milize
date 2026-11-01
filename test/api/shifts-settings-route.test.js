@@ -1,5 +1,5 @@
 'use strict';
-// GET và PUT /api/settings/shifts bao quanh các khoá shift.preset.<mã>.in | out (lib/domain/shifts.js): cùng kiểm giờ ca và nhật ký với PUT /api/settings/params.
+// GET và PUT /api/settings/shifts bao quanh các khoá shift.preset.<mã>.in | out (lib/domain/shifts.ts): cùng kiểm giờ ca và nhật ký với PUT /api/settings/params.
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

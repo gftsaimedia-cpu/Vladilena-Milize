@@ -1,5 +1,5 @@
 'use strict';
-// Số tổng hợp cho màn Lương của Admin (lib/periods.js): GET /api/periods/:month trả totals, attendanceKept, needsRecalculate;
+// Số tổng hợp cho màn Lương của Admin (lib/periods.ts): GET /api/periods/:month trả totals, attendanceKept, needsRecalculate;
 // danh sách phiếu có tên, số ngày công và các dòng tiền lấy từ bản chụp (tổng các dòng bằng tổng thu nhập trong 0,5 đồng); lọc theo loại nhân sự;
 // GET /api/periods/:month/estimates tính cả kỳ TRƯỚC khi có lần tính lương (hàng lỗi cho hồ sơ sai, không bao giờ 0 ₫) và tổng bằng tổng sau khi tính lương.
 // Mỗi test dùng một tháng riêng (test/helpers/period-api.js → monthPool).
@@ -24,7 +24,7 @@ const estimates = async (month, query = '', who = 'admin') =>
 const typeFilterWired = {};
 const estimatesWired = P.pendingUnless(
   'route GET /periods/:month/estimates chưa có',
-  P.mentions('lib/authz.js', /periods\/:month\/estimates/)
+  P.mentions('lib/authz.ts', /periods\/:month\/estimates/)
 );
 const SUM_KEYS = ['gross', 'insurance', 'tax', 'advance', 'net'];
 const dbSlips = async month => Object.values((await flow.payslipsOf(month)).slips);

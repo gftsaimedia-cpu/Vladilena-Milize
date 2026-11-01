@@ -1,5 +1,5 @@
 'use strict';
-// Công thức dưới từng dòng Chi tiết của phiếu Admin (lib/slip-formulas.js, gắn ở lib/periods.js):
+// Công thức dưới từng dòng Chi tiết của phiếu Admin (lib/slip-formulas.ts, gắn ở lib/periods.ts):
 //   - GET /periods/:m/estimates/:u (ước tính) và GET /periods/:m/payslips/:u (đã tính lương) cho Admin đều có `formulas`;
 //   - nhân sự xem phiếu của chính mình (selfView) không nhận `formulas`;
 //   - Admin sửa một ô của phiếu thì công thức vẫn là công thức của số tự tính (không đổi).

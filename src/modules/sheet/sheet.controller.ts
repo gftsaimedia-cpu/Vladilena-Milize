@@ -110,7 +110,7 @@ export class SheetController {
       clean,
       prevDays,
       onBehalf
-    }); // kiểm nghiệp vụ lịch ước tính (lib/domain/timesheet/services.js)
+    }); // kiểm nghiệp vụ lịch ước tính (lib/domain/timesheet/services.ts)
     await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
     // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
     const kept = onBehalf ? await store.getSheet(u.username, month) : null;
@@ -148,7 +148,7 @@ export class SheetController {
     };
   }
 
-  // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.js)
+  // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.ts)
   @Put('sheet/bulk')
   async putSheetBulk(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin, guardPeriod } = c;

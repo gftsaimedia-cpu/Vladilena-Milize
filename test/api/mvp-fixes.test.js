@@ -348,7 +348,7 @@ for (const breakMin of [0, 30, 1440]) {
 /* ---------- không đọc được file ngoài public/ ---------- */
 for (const path of [
   '/../server.js',
-  '/../lib/db.js',
+  '/../lib/db.ts',
   '/../package.json',
   '/..%2fserver.js',
   '/%2e%2e/server.js',

@@ -1,6 +1,6 @@
 'use strict';
 /*
- * Sao lưu / kiểm / khôi phục PostgreSQL (không cần pg_dump). Logic ở lib/ops/pg-backup.js.
+ * Sao lưu / kiểm / khôi phục PostgreSQL (không cần pg_dump). Logic ở lib/ops/pg-backup.ts.
  *
  *   node scripts/ops/pg-backup.js backup  [--source=<DB>] [--dir=<thư-mục>] [--keep=<n>]
  *   node scripts/ops/pg-backup.js verify  --backup=<file>

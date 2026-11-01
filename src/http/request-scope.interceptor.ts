@@ -7,7 +7,7 @@ import { announceAttendance } from '../../lib/announce';
 import { announcePunches } from '../../lib/domain/attendance';
 
 /**
- * Phạm vi của MỘT yêu cầu: cảnh báo gom theo yêu cầu (lib/warnings.js), bộ quy tắc theo tháng dựng một lần (lib/request-rules.js).
+ * Phạm vi của MỘT yêu cầu: cảnh báo gom theo yêu cầu (lib/warnings.ts), bộ quy tắc theo tháng dựng một lần (lib/request-rules.ts).
  * Sau khi route xong (đã COMMIT) mới báo tin cho màn đang mở: chấm công mới và cấu hình đổi.
  */
 @Injectable()

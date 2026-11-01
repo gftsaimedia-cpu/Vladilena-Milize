@@ -94,7 +94,7 @@ test(
     // ---- đường cơ sở trước khi Lưu ----
     const estBefore = (await estimate(M)).data;
     const estOtherBefore = (await estimate(M, 'qa_ctv1')).data;
-    // "chưa lưu gì" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.js), như bộ tham số hiệu lực của tháng
+    // "chưa lưu gì" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.ts), như bộ tham số hiệu lực của tháng
     const baseParams = (await paramsStore.resolve(M)).params;
     const expectedBefore = await netOf('qa_nv1', M, baseParams);
     assert.deepEqual(

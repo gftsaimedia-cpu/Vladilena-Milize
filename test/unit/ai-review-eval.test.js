@@ -4,7 +4,7 @@
 // là ca bình thường không được bắn. Mục tiêu thiết kế: precision và recall của từng luật đều từ 0,95.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { review } = require('../../lib/ai/review.js');
+const { review } = require('../../lib/ai/review.ts');
 const W = require('./ai-review-world.js');
 
 const { person, world, workDay, otDay, makeupHoursDay, closedSession } = W;

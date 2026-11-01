@@ -12,7 +12,7 @@ const P = require('../../public/punch.js');
 const AV = require('../../public/approval-view.js');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { AdminPresence } = require('../../lib/domain/attendance/admin-presence.js');
+const { AdminPresence } = require('../../lib/domain/attendance/admin-presence.ts');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const HOL = '2026-10-20'; // Thứ Ba, trong lịch NV (T2–T7)

@@ -5,7 +5,7 @@
 // Chia hai phần:
 //   - máy chủ và mô-đun dùng chung (server.js, lib/, public/*.js);
 //   - giao diện (public/admin/, public/nhan-vien/): đọc workSchedule và scheduledDates do máy chủ trả.
-// Ngoại lệ có chủ ý: khối đóng băng legacy-payroll-block.js và đợt di chuyển một lần của lib/attendance-sessions.js.
+// Ngoại lệ có chủ ý: khối đóng băng legacy-payroll-block.js và đợt di chuyển một lần của lib/attendance-sessions.ts.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -23,21 +23,19 @@ const ALLOWED = {
     'create(params) dựng bảng SCHEDULE từ khoá type.<mã>.dows và FALLBACK: giữ xuất ra để tương thích (thiết kế mục 2 dòng 13), không còn là nguồn quyết định ngày lễ',
   'public/payroll-params.js':
     'DEFAULTS: nơi đặt giá trị tham số type.<mã>.dows (định nghĩa tham số; ngày công chuẩn theo lịch nay do work-schedule.js đếm, methodView đã bỏ 16/10/2026)',
-  'lib/attendance-sessions.js':
-    'đợt di chuyển MỘT LẦN các lượt chấm công cũ, chạy lúc nạp lib/db trước khi có tham số theo tháng; không đọc dữ liệu mới',
-  'lib/params/save.js':
+  'lib/params/save.ts':
     'kiểm chéo khoá khi Admin lưu tham số: lưu khoá lịch thì đồng bộ hàng duyệt (thiết kế 4.4); không hỏi ngày làm',
-  'lib/params/blocks.js':
+  'lib/params/blocks.ts':
     'bảng khối phụ cấp: liệt kê đuôi khoá lịch của chức vụ là dữ liệu cấu hình, không hỏi ngày làm',
-  'lib/params/block-defs.js': 'như blocks.js: định nghĩa khối',
-  'lib/params/positions.js':
+  'lib/params/block-defs.ts': 'như blocks.js: định nghĩa khối',
+  'lib/params/positions.ts':
     'đọc và sao chép các khoá type.<mã>.* của một chức vụ (dữ liệu chức vụ, không hỏi ngày làm)',
-  'lib/domain/positions.js': 'sao chép khoá chức vụ',
-  'lib/domain/position/position-catalog.js':
+  'lib/domain/positions.ts': 'sao chép khoá chức vụ',
+  'lib/domain/position/position-catalog.ts':
     'danh mục chức vụ trong DB (28/10/2026): lưu thứ đi làm của từng phiên bản chức vụ và đưa ra đúng khoá type.<mã>.dows cho bộ tham số của tháng; không hỏi ngày làm',
   'lib/domain/position/schema.js':
     'nạp danh mục chức vụ lần đầu từ DEFAULTS type.<mã>.dows (dữ liệu chức vụ, không hỏi ngày làm)',
-  'lib/domain/schedule.js':
+  'lib/domain/schedule.ts':
     'cầu nối của máy chủ: liệt kê khoá type.<mã>.dows của bộ tham số cho GET /api/team rồi giao việc giải lịch cho work-schedule.js',
   'public/punch.js':
     'quy tắc Check-in/out nhận staff.sched (tương thích) khi không có staff.isWorkDay: giữ nguyên theo thiết kế mục 2 dòng 19',
@@ -117,17 +115,4 @@ test('S1: khối công thức đóng băng (legacy-payroll-block.js): TYPES[*].d
     timeout: 1000
   });
   assert.deepEqual(JSON.parse(JSON.stringify(dowsOf)), EXPECTED);
-});
-test('S1: ngoại lệ có chủ ý: lib/attendance-sessions.js scheduleOfType (đợt di chuyển một lần) trả đúng lịch mẫu cho tts, ctv, nv; loại lạ hiểu như NV; trả bản sao, không đụng DEFAULTS', () => {
-  const { DEFAULTS } = require('../../public/payroll-params.js');
-  const source = fs.readFileSync(path.join(ROOT, 'lib/attendance-sessions.js'), 'utf8');
-  const m = source.match(/const scheduleOfType = [\s\S]*?\n\};/);
-  assert.ok(m, 'không tìm thấy scheduleOfType trong lib/attendance-sessions.js');
-  const scheduleOfType = new Function('DEFAULTS', m[0] + '\nreturn scheduleOfType;')(DEFAULTS);
-  for (const type of Object.keys(EXPECTED)) assert.deepEqual(scheduleOfType(type), EXPECTED[type], type);
-  for (const unknown of ['xyz', '', 'constructor', '__proto__', undefined, null])
-    assert.deepEqual(scheduleOfType(unknown), EXPECTED.nv, `loại lạ ${String(unknown)} hiểu như NV`);
-  const copy = scheduleOfType('tts');
-  copy.push(0);
-  assert.deepEqual(DEFAULTS['type.tts.dows'], EXPECTED.tts, 'sửa kết quả không làm đổi DEFAULTS');
 });

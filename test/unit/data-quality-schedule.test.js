@@ -1,9 +1,9 @@
 'use strict';
-// lib/data-quality.js đếm phép đã dùng theo lịch làm việc của người (public/work-schedule.js): chỉ ngày làm theo lịch mới tính, không phải mọi ngày khác Chủ nhật.
+// lib/data-quality.ts đếm phép đã dùng theo lịch làm việc của người (public/work-schedule.js): chỉ ngày làm theo lịch mới tính, không phải mọi ngày khác Chủ nhật.
 // Toàn người giả. 27/10/2026 là Thứ Ba; 28/10 là Thứ Tư.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const quality = require('../../lib/data-quality.js');
+const quality = require('../../lib/data-quality.ts');
 
 const TODAY = '2026-10-30';
 const staffOf = extra => ({

@@ -55,7 +55,7 @@ function controllerRoutes() {
 }
 
 function routesDoc() {
-  const authz = require(path.join(ROOT, 'lib/authz.js'));
+  const authz = require(path.join(ROOT, 'lib/authz.ts'));
   const routes = controllerRoutes();
   const byKey = new Map();
   for (const r of routes) if (!byKey.has(r.key)) byKey.set(r.key, r);
@@ -69,7 +69,7 @@ function routesDoc() {
     return `| \`${key}\` | ${who} | ${scope} | ${where} | ${esc(r && r.doc || '')} |`;
   });
   const orphans = [...byKey.keys()].filter(k => !Object.hasOwn(authz.ROUTE_CAPS, k));
-  let out = HEADER('Bảng route /api', '`lib/authz.js` (`ROUTE_CAPS`) và các decorator `@Controller/@Get/@Post/@Put` trong `src/modules/**/*.controller.ts`');
+  let out = HEADER('Bảng route /api', '`lib/authz.ts` (`ROUTE_CAPS`) và các decorator `@Controller/@Get/@Post/@Put` trong `src/modules/**/*.controller.ts`');
   out += `Mọi route đi qua \`ApiGuard\` (\`src/http/api.guard.ts\`): đọc phiên → tra \`ROUTE_CAPS\` (không có khoá thì 403 \`NO_ROUTE_POLICY\`) → kiểm năng lực → giới hạn tải → giới hạn tốc độ ghi → dựng ngữ cảnh nhật ký. Cột *khoá kỳ* là \`periodScope\`: loại ghi mà cổng khoá kỳ (\`ctx.guardPeriod\`) áp dụng.\n\n`;
   out += `Số route: **${keys.length}**; đường dẫn không module nào nhận trả 404 sau cổng quyền (\`src/http/not-found.controller.ts\`).\n\n`;
   out += '| Khoá chính sách | Quyền | Khoá kỳ | Controller (file:dòng, phương thức) | Mô tả (chú thích trong mã) |\n| --- | --- | --- | --- | --- |\n' + rows.join('\n') + '\n';
@@ -115,9 +115,9 @@ function modulesDoc() {
 
 /* ---------- 3. quyền ---------- */
 function capsDoc() {
-  const authz = require(path.join(ROOT, 'lib/authz.js'));
-  let out = HEADER('Năng lực và vai trò', '`lib/authz.js` (`CAPS`, `ROLE_CAPS`, `ROLE_SCOPE`, `DECIDE_ITEMS`)');
-  out += `Nguồn: [\`lib/authz.js\`](../../lib/authz.js). Quyền kiểm theo *năng lực*; vai trò chỉ là tập năng lực kèm phạm vi. Vai trò tuỳ chỉnh lưu ở \`settings\` (\`lib/roles.js\`).\n\n`;
+  const authz = require(path.join(ROOT, 'lib/authz.ts'));
+  let out = HEADER('Năng lực và vai trò', '`lib/authz.ts` (`CAPS`, `ROLE_CAPS`, `ROLE_SCOPE`, `DECIDE_ITEMS`)');
+  out += `Nguồn: [\`lib/authz.ts\`](../../lib/authz.ts). Quyền kiểm theo *năng lực*; vai trò chỉ là tập năng lực kèm phạm vi. Vai trò tuỳ chỉnh lưu ở \`settings\` (\`lib/roles.ts\`).\n\n`;
   out += `## Năng lực (${authz.CAPS.length})\n\n${authz.CAPS.map(c => `\`${c}\``).join(', ')}\n\n`;
   out += `## Loại khoản duyệt (\`request.decide.<loại>\`)\n\n${authz.DECIDE_ITEMS.map(c => `\`${c}\``).join(', ')}\n\n`;
   out += '## Vai trò mặc định\n\n| Vai trò | Phạm vi | Năng lực |\n| --- | --- | --- |\n';
@@ -151,7 +151,7 @@ function databaseDoc() {
   const text = read(file);
   let out = HEADER('Lược đồ cơ sở dữ liệu', '`migrations/postgres/*.sql`');
   const migs = walk('migrations/postgres', f => f.endsWith('.sql'));
-  out += `Migration có đánh số, chạy theo thứ tự và ghi vào \`schema_migrations\` (\`lib/data/postgres-database.js\`): ${migs.map(m => `\`${path.basename(m)}\``).join(', ')}.\n\n`;
+  out += `Migration có đánh số, chạy theo thứ tự và ghi vào \`schema_migrations\` (\`lib/data/postgres-database.ts\`): ${migs.map(m => `\`${path.basename(m)}\``).join(', ')}.\n\n`;
   const tables = [];
   for (const m of text.matchAll(/CREATE TABLE (\w+)\s*\(([\s\S]*?)\n?\)\s*;/g)) {
     const line = text.slice(0, m.index).split('\n').length;
@@ -179,7 +179,7 @@ function databaseDoc() {
 function rulesDoc() {
   const files = walk('lib/domain', f => /\/rules\/[^/]+\.js$/.test(f) || /-rule\.js$/.test(f) || /\/rules\.js$/.test(f));
   let out = HEADER('Luật nghiệp vụ dạng lớp', '`lib/domain/**/rules/*.js` và các file `*-rule.js` (lớp kế thừa `Rule`)');
-  out += `Mỗi luật là một lớp kế thừa \`Rule\` (\`lib/domain/shared/rule.js\`), trả về \`Violation\` (\`block\` = từ chối, \`warn\` = cảnh báo kèm hệ quả); \`RuleSet\` chạy lần lượt. Con số của luật nằm ở bộ tham số (một nguồn, ví dụ \`OtLimits\` trong \`lib/domain/overtime/ot-limits.js\`), không nằm trong luật.\n\n`;
+  out += `Mỗi luật là một lớp kế thừa \`Rule\` (\`lib/domain/shared/rule.ts\`), trả về \`Violation\` (\`block\` = từ chối, \`warn\` = cảnh báo kèm hệ quả); \`RuleSet\` chạy lần lượt. Con số của luật nằm ở bộ tham số (một nguồn, ví dụ \`OtLimits\` trong \`lib/domain/overtime/ot-limits.ts\`), không nằm trong luật.\n\n`;
   for (const file of files) {
     const text = read(file);
     const classes = [...text.matchAll(/^class (\w+) extends (\w+)/gm)];
@@ -202,8 +202,8 @@ function rulesDoc() {
 
 /* ---------- 6. sự kiện thời gian thực ---------- */
 function eventsDoc() {
-  const events = require(path.join(ROOT, 'lib/events.js'));
-  let out = HEADER('Sự kiện thời gian thực (SSE)', '`lib/events.js` (`EVENTS`, `SYSTEM_FRAMES`, `emit`)');
+  const events = require(path.join(ROOT, 'lib/events.ts'));
+  let out = HEADER('Sự kiện thời gian thực (SSE)', '`lib/events.ts` (`EVENTS`, `SYSTEM_FRAMES`, `emit`)');
   out += `Luồng \`GET /api/events\` (module \`system\`) chỉ gợi ý nạp lại, không mang dữ liệu. Phát SAU KHI giao dịch đã COMMIT.\n\n`;
   out += `## Sự kiện (${Object.keys(events.EVENTS).length})\n\n| Khoá | Tên sự kiện |\n| --- | --- |\n`;
   for (const [k, v] of Object.entries(events.EVENTS)) out += `| \`${k}\` | \`${typeof v === 'string' ? v : JSON.stringify(v)}\` |\n`;
@@ -213,9 +213,9 @@ function eventsDoc() {
 
 /* ---------- 7. cấu hình & biến môi trường ---------- */
 function configDoc() {
-  const config = require(path.join(ROOT, 'lib/config.js'));
-  let out = HEADER('Cấu hình kỹ thuật và biến môi trường', '`lib/config.js` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`');
-  out += `## Hằng số có tên (\`lib/config.js\`, ${Object.keys(config).length})\n\n| Tên | Giá trị |\n| --- | --- |\n`;
+  const config = require(path.join(ROOT, 'lib/config.ts'));
+  let out = HEADER('Cấu hình kỹ thuật và biến môi trường', '`lib/config.ts` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`');
+  out += `## Hằng số có tên (\`lib/config.ts\`, ${Object.keys(config).length})\n\n| Tên | Giá trị |\n| --- | --- |\n`;
   for (const k of Object.keys(config).sort()) out += `| \`${k}\` | \`${esc(JSON.stringify(config[k]))}\` |\n`;
   const sources = [...walk('lib', f => /\.(js|ts)$/.test(f)), ...walk('src', f => f.endsWith('.ts')), 'src/server.ts'];
   const env = new Map();

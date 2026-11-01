@@ -6,7 +6,7 @@
 // trả về cây ESTree thuần; phần phân tích phạm vi viết tay ở dưới (khoảng 200 dòng).
 //
 //   node test/tools/free-identifiers.js lib/routes lib/domain server.js     in "file:dòng:cột tên" cho mỗi tên thiếu, thoát 1 nếu có
-//   node test/tools/free-identifiers.js --unused lib/http.js                 thêm danh sách khai báo cấp module không được dùng (require thừa sau khi chuyển)
+//   node test/tools/free-identifiers.js --unused lib/http.ts                 thêm danh sách khai báo cấp module không được dùng (require thừa sau khi chuyển)
 //   node test/tools/free-identifiers.js --allow=foo,bar file.js              bỏ qua một số tên (toàn cục lạ của môi trường)
 // Dùng từ code: const { freeIdentifiers, analyze } = require('./free-identifiers'); await freeIdentifiers(source) -> [{ name, line, col }]
 //

@@ -1,16 +1,16 @@
 'use strict';
-// Chữ công thức dưới dòng "Chi tiết" của phiếu Admin (lib/slip-formulas.js → formulasOf):
+// Chữ công thức dưới dòng "Chi tiết" của phiếu Admin (lib/slip-formulas.ts → formulasOf):
 //   - dòng đếm giờ thiếu chưa bù cộng gộp số hạng cùng tên ("1 giờ thiếu + 1 giờ thiếu + 1 giờ thiếu" → "3 giờ thiếu");
 //   - dòng bằng 0 vì số lượng 0 không có công thức "× 0 …";
 //   - số và tên (đơn vị) của nó nối bằng khoảng trắng không ngắt dòng (U+00A0), xuống dòng chỉ ở chỗ có phép tính;
 //   - mọi công thức dạng phép tính vẫn tính ra đúng số của dòng, tổng thu nhập cộng các dòng nguyên đồng khớp từng đồng.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.js nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.js');
-const { formulasOf } = require('../../lib/slip-formulas.js');
+const { cellsOf } = require('../../lib/slip-paid.ts');
+const { formulasOf } = require('../../lib/slip-formulas.ts');
 const { generateCases } = require('../helpers/payroll-cases');
 const { evaluate, near, isArithmetic, plain } = require('../helpers/formula-eval');
 

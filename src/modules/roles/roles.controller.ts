@@ -3,7 +3,7 @@ import { Ctx, ApiContext } from '../../http/api-context';
 const roles = require('../../../lib/roles');
 const { HttpError, readJson } = require('../../../lib/http');
 
-// Vai trò (Cài đặt › Phân quyền); quyền roles.manage đã kiểm ở cổng ROUTE_CAPS (lib/authz.js) trước khi tới đây.
+// Vai trò (Cài đặt › Phân quyền); quyền roles.manage đã kiểm ở cổng ROUTE_CAPS (lib/authz.ts) trước khi tới đây.
 function decodeSegment(raw: string): string {
   try {
     return decodeURIComponent(raw);

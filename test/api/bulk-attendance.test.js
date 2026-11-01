@@ -1,5 +1,5 @@
 'use strict';
-// Admin chấm công thay hàng loạt (PUT /api/sheet/bulk, lib/domain/sheet-bulk.js): nhiều người, nhiều ngày, một ca, tất cả hoặc không.
+// Admin chấm công thay hàng loạt (PUT /api/sheet/bulk, lib/domain/sheet-bulk.ts): nhiều người, nhiều ngày, một ca, tất cả hoặc không.
 //   thân { month, usernames[], days: { 'YYYY-MM-DD': { kind: 'work', preset } }, confirmDays?, expectedRevs?: { tên: rev } }
 //   200 { ok, month, results: [{ username, rev, autoApproved, reset, resubmitted, removed, presence: { set, removed, skipped }, skipped: [{ date, kind }] }], warnings? }
 // Mỗi người đi đúng đường PUT /api/sheet kèm user; một lỗi cứng của một người thì DB không đổi gì (kiểm bảng lịch, lượt chấm công, nhật ký).

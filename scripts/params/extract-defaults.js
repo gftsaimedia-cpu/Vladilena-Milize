@@ -1,7 +1,7 @@
 'use strict';
 // Sinh `public/payroll-params.js → DEFAULTS` từ MÃ ĐANG CHẠY.
-// Đọc: public/{actual-hours,kpi-score,approval-view}.js (mặc định của mô-đun), public/payroll-graph.js, lib/ai/thresholds.js,
-// lib/config.js và một số hằng số có tên (regex). Mọi LÁ của các đối tượng nguồn phải khớp một mục của key-map.js, nếu không thì
+// Đọc: public/{actual-hours,kpi-score,approval-view}.js (mặc định của mô-đun), public/payroll-graph.js, lib/ai/thresholds.ts,
+// lib/config.ts và một số hằng số có tên (regex). Mọi LÁ của các đối tượng nguồn phải khớp một mục của key-map.js, nếu không thì
 // script DỪNG và báo đường dẫn (không bao giờ đoán). Số mà mã không giữ hằng số
 // nằm ở hand-defaults.json, kèm lý do. KHÔNG đọc public/index.html.
 //
@@ -48,8 +48,8 @@ function sources() {
   const ActualHours = require(path.join(ROOT, 'public/actual-hours.js'));
   const KpiScore = require(path.join(ROOT, 'public/kpi-score.js'));
   const ApprovalView = require(path.join(ROOT, 'public/approval-view.js'));
-  const { THRESHOLDS, LIMITS } = require(path.join(ROOT, 'lib/ai/thresholds.js'));
-  const config = require(path.join(ROOT, 'lib/config.js'));
+  const { THRESHOLDS, LIMITS } = require(path.join(ROOT, 'lib/ai/thresholds.ts'));
+  const config = require(path.join(ROOT, 'lib/config.ts'));
   out.ActualHours = { RULE: { ...ActualHours.RULE }, POLICY: { ...ActualHours.POLICY } };
   out.KpiScore = {
     COMPONENTS: Object.fromEntries(KpiScore.COMPONENTS.map(c => [c.key, { weight: c.weight }])),

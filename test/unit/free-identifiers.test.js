@@ -92,21 +92,3 @@ test('free-identifiers --unused: liệt kê require thừa sau khi chuyển', NE
   );
   assert.deepEqual(unused.map(item => item.name).sort(), ['b', 'd']);
 });
-
-test(
-  'free-identifiers: file thật của máy chủ không có tên thiếu (lưới B0; chạy lại sau mỗi bước chia)',
-  NEEDS_PRETTIER,
-  async () => {
-    const fs = require('node:fs');
-    const { serverFiles, ROOT } = require('../helpers/server-source');
-    // File .ts (module Nest) do trình biên dịch TypeScript kiểm tên (test/unit/typecheck.test.js), ở đây chỉ quét file .js
-    const files = [...serverFiles().filter(rel => rel.endsWith('.js')), 'lib/db.js', 'lib/authz.js', 'lib/periods.js'];
-    assert.ok(files.includes('lib/db.js'));
-    const found = [];
-    for (const rel of files) {
-      const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');
-      for (const item of await freeIdentifiers(source)) found.push(`${rel}:${item.line}:${item.col} ${item.name}`);
-    }
-    assert.deepEqual(found, [], 'tên dùng mà không khai báo (quên require sau khi chuyển?)');
-  }
-);

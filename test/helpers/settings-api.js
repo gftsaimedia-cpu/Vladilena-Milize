@@ -12,10 +12,10 @@ const { DEFAULTS } = require('../../public/payroll-params.js');
 
 const { F, store } = P;
 
-// Đường Lưu tham số có đủ khi có số phiên bản chung (lib/params/config-rev.js)
+// Đường Lưu tham số có đủ khi có số phiên bản chung (lib/params/config-rev.ts)
 const READY = pendingUnless(
-  'R1: chưa có GET /api/settings/version và lib/params/config-rev.js (đường Lưu tham số chưa vào)',
-  mentions('lib/params/config-rev.js', /config_rev/)
+  'R1: chưa có GET /api/settings/version và lib/params/config-rev.ts (đường Lưu tham số chưa vào)',
+  mentions('lib/params/config-rev.ts', /config_rev/)
 );
 // Như READY nhưng thêm điều kiện khoá tìm được: todo ghi lý do cụ thể
 const readyWith = (found, why) => (READY.todo ? READY : found ? {} : { todo: `registry chưa có ${why}` });

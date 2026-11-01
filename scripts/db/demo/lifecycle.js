@@ -98,7 +98,7 @@ class Lifecycle {
         this.at(`${this.today}T19:30:00`, () => this.lateCheckouts())
       );
       await this.step('lịch sử yêu cầu ứng lương cũ', () => this.legacyAdvanceHistory());
-      // cửa sổ xin tạm ứng chỉ mở ngày 16 và 17 hằng tháng (lib/domain/advance/advance-request-window.js)
+      // cửa sổ xin tạm ứng chỉ mở ngày 16 và 17 hằng tháng (lib/domain/advance/advance-request-window.ts)
       await this.step('tạm ứng', () => this.at(`${this.today.slice(0, 7)}-16T${this.clock}`, () => this.advances()));
       await this.step('sổ phép', () => this.at(`${this.today}T${this.clock}`, () => this.leave()));
       await this.step('kỳ lương ở mọi trạng thái', () => this.at(`${this.today}T${this.clock}`, () => this.periods()));

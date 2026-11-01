@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const quality = require('../../lib/data-quality.js');
+const quality = require('../../lib/data-quality.ts');
 const person = (username, extra = {}) => ({
   username,
   name: username,

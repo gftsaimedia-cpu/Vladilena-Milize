@@ -3,7 +3,7 @@ import config = require('../../lib/config');
 import { RuntimeMonitor } from '../../lib/ops/runtime-monitor';
 import { AsyncGate, RateLimiter, LoadShedder } from '../../lib/ops/limiters';
 
-// Biến môi trường (số dương) ghi đè giá trị mặc định trong lib/config.js: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
+// Biến môi trường (số dương) ghi đè giá trị mặc định trong lib/config.ts: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
 const limitOf = (name: string, fallback: number): number =>
   Number(process.env[name]) > 0 ? Number(process.env[name]) : fallback;
 

@@ -1,5 +1,5 @@
 'use strict';
-// Hai chỗ kiểm đầu vào của kỳ lương (lib/periods.js):
+// Hai chỗ kiểm đầu vào của kỳ lương (lib/periods.ts):
 //   decide: PUT /api/periods/:month/payslips/decide với `note` không phải chuỗi (số, đối tượng, mảng) không được lọt qua cổng bỏ qua phát hiện AI:
 //     cổng chỉ chạy khi note là chuỗi, nên note khác kiểu phải bị 400, không duyệt gì, không ghi nhật ký.
 //   mark-paid: POST /api/periods/:month/mark-paid với paidAt "1" (Date.parse nhận) phải bị 400, kỳ vẫn "approved".

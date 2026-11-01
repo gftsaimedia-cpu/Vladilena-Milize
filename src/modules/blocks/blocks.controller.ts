@@ -4,7 +4,7 @@ const paramsSave = require('../../../lib/params/save');
 const events = require('../../../lib/events');
 const { HttpError, readJson } = require('../../../lib/http');
 
-// Khối phụ cấp do C&B thêm. Cả hai route đi qua save() của lib/params/save.js (một giao dịch, tháng áp dụng, lý do, nhật ký, khoá kỳ)
+// Khối phụ cấp do C&B thêm. Cả hai route đi qua save() của lib/params/save.ts (một giao dịch, tháng áp dụng, lý do, nhật ký, khoá kỳ)
 // rồi báo params.changed SAU khi đã COMMIT. Quyền đã kiểm ở ROUTE_CAPS.
 const CODE_RE = /^[a-z][a-z0-9]*$/;
 

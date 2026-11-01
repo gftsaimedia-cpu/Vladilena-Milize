@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import store = require('../../lib/db');
+const store = require('../../lib/db');
 import auth = require('../../lib/auth');
 import authz = require('../../lib/authz');
 import audit = require('../../lib/audit');

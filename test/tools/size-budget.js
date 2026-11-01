@@ -12,7 +12,7 @@ const { execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '../..');
 const BUDGET = path.join(ROOT, 'test/fixtures/file-size-budget.json');
-const CODE = /\.(?:js|cjs|mjs|html|css)$/;
+const CODE = /\.(?:js|cjs|mjs|ts|html|css)$/;
 const SKIP_DIRS = new Set([
   'node_modules',
   '.git',

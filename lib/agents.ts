@@ -1,0 +1,18 @@
+'use strict';
+// Công tắc Agents: settings.agents_enabled = '1' (bật) hoặc '0' (tắt, mặc định khi chưa có dòng).
+// Tắt thì mọi route của Trợ lý AI trả 403 AGENTS_DISABLED và không làm gì (server.js gọi assertEnabled sau khi qua cổng quyền).
+const store = require('./db');
+const { HttpError } = require('./http');
+const config = require('./config');
+
+const SETTING_KEY = config.AGENTS_SETTING_KEY;
+const ON = config.AGENTS_ON;
+const OFF = config.AGENTS_OFF;
+
+const enabled = async () => (await store.getSetting(SETTING_KEY, OFF)) === ON;
+const set = async (value?) => await store.setSetting(SETTING_KEY, value ? ON : OFF);
+async function assertEnabled() {
+  if (!(await enabled())) throw new HttpError(403, 'Agents đang tắt', { code: 'AGENTS_DISABLED' });
+}
+
+export = { SETTING_KEY, enabled, set, assertEnabled };

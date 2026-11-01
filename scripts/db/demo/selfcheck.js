@@ -1,12 +1,12 @@
 'use strict';
-// Tự kiểm sau khi dựng DB: chạy "Soát dữ liệu trước khi chốt lương" (lib/ai/review.js + payroll-loader.js) cho các tháng đã chọn,
+// Tự kiểm sau khi dựng DB: chạy "Soát dữ liệu trước khi chốt lương" (lib/ai/review.ts + payroll-loader.js) cho các tháng đã chọn,
 // dựng đầu vào đúng như route GET /api/ai/review (server.js → aiReviewResult), rồi so với kỳ vọng ghi trong scenarios.js:
 //   ai.fire: luật PHẢI bắn (theo người, hoặc theo người + ngày); ai.miss: luật KHÔNG được bắn (ca sát ngưỡng).
-// Thêm bước "phiếu kỳ lương": tính lương tháng S.PAYSLIP_MONTH trong tiến trình bằng lib/payroll-service.js (cùng hàm mà bước "Tính lương"
+// Thêm bước "phiếu kỳ lương": tính lương tháng S.PAYSLIP_MONTH trong tiến trình bằng lib/payroll-service.ts (cùng hàm mà bước "Tính lương"
 // của kỳ gọi), gắn cờ AI lên phiếu như periods.aiReview (cờ = mã luật của các phát hiện của người đó trong tháng), rồi so với
 // S.PAYSLIP (từng persona) và S.PERIOD_EXPECT (số đếm cả kỳ). Không ghi gì vào DB; luồng route thật chạy bằng period-check.js.
 // Không in tên hay số tiền: chỉ mã luật, tên đăng nhập giả và số đếm.
-const { review, RULES } = require('../../../lib/ai/review.js');
+const { review, RULES } = require('../../../lib/ai/review.ts');
 const KpiScore = require('../../../public/kpi-score.js');
 const S = require('./scenarios.js');
 
@@ -45,7 +45,7 @@ async function buildInput(store, payroll, month, asOf) {
     slipOverrides,
     payroll,
     // bộ tham số hiệu lực của tháng (luật AI bật/tắt, ngưỡng): như bước "AI kiểm tra" của kỳ
-    params: (await require('../../../lib/payroll-service.js').paramsFor(month)).params
+    params: (await require('../../../lib/payroll-service.ts').paramsFor(month)).params
   };
 }
 
@@ -55,7 +55,7 @@ const norm = item => (typeof item === 'string' ? { rule: item, date: null } : it
 // Phiếu của kỳ `month` như bước "Tính lương" rồi "AI kiểm tra" sẽ ra, không ghi DB. findings: phát hiện của review() cho đúng tháng đó.
 // Trả { slips: [{ username, type, status, errorCode, flags, attendOk, iDorm, advanceOff }], summary, problems }.
 async function slipCheck({ store, personas, month, asOf, findings }) {
-  const service = require('../../../lib/payroll-service.js');
+  const service = require('../../../lib/payroll-service.ts');
   const params = (await service.paramsFor(month)).params;
   const inputs = await service.loadInputs(month, { asOf, params });
   const flagsOf = new Map();

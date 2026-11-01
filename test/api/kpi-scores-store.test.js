@@ -1,4 +1,4 @@
-// Lưu trữ điểm KPI 5 thành phần (lib/db.js): bảng kpi_scores, kpi_score_log (không có công tắc kpi_five_from).
+// Lưu trữ điểm KPI 5 thành phần (lib/db.ts): bảng kpi_scores, kpi_score_log (không có công tắc kpi_five_from).
 // Điểm lưu số nguyên điểm × 100 (0..10000).
 process.env.DB_PATH = ':memory:';
 const { test, beforeEach, after } = require('node:test');

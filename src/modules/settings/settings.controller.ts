@@ -208,7 +208,7 @@ export class SettingsController {
   @Put('settings/params')
   async putSettingsParams(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, seg, actx, need } = c;
-    need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.js
+    need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.ts
     const b = await readJson(req);
     if (req.method === 'PUT' && seg.length === 3) {
       const saved = await paramsSave.save(me, actx, b);

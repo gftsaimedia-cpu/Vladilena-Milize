@@ -1,5 +1,5 @@
 'use strict';
-// Các class của module overtime và hạ tầng luật dùng chung (lib/domain/shared/rule.js, lib/domain/overtime/*).
+// Các class của module overtime và hạ tầng luật dùng chung (lib/domain/shared/rule.ts, lib/domain/overtime/*).
 // Trọng tâm: MỘT nguồn con số (đổi trần trong bộ tham số thì mọi nơi kiểm trần theo) và thêm luật không phải sửa service.
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');

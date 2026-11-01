@@ -16,7 +16,7 @@ interface Statement {
 }
 
 /**
- * Kết nối của ứng dụng (PostgresDatabase, lib/data/postgres-database.js). `native(sql)` chạy câu lệnh PostgreSQL nguyên văn
+ * Kết nối của ứng dụng (PostgresDatabase, lib/data/postgres-database.ts). `native(sql)` chạy câu lệnh PostgreSQL nguyên văn
  * (`$1`, `ILIKE`, `RETURNING`...) trên đúng kết nối đang dùng (kết nối của giao dịch đang mở nếu có).
  */
 export interface AppDatabase {
