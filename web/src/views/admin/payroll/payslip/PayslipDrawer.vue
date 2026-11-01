@@ -9,7 +9,7 @@ import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
-import { approvePayslip, dismissWarning, getPayslip, returnPayslip } from '@/services/payslip';
+import { approvePayslip, getPayslip, returnPayslip } from '@/services/payslip';
 import { useSessionStore } from '@/stores/session';
 import { monthShort } from '@/utils/format';
 import PayslipBody from './PayslipBody.vue';
@@ -24,7 +24,6 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 const route = useRoute();
-const agents = computed(() => useSessionStore().agentsEnabled);
 
 const {
   data: slip,
@@ -63,13 +62,6 @@ const giveBack = () =>
     () => returnPayslip(props.month, props.username),
     () => emit('close')
   );
-const skipWarning = (w?) =>
-  act(
-    () => dismissWarning(props.month, props.username, w.id),
-    () => {
-      slip.value.warnings = slip.value.warnings.filter(x => x.id !== w.id);
-    }
-  );
 </script>
 
 <template>
@@ -90,17 +82,6 @@ const skipWarning = (w?) =>
           <Icon v-if="p.icon" :name="p.icon" :size="12" />{{ p.label }}
         </span>
         <span class="meta">{{ slip.meta }}</span>
-      </div>
-
-      <div v-if="agents && slip.warnings.length" class="sec">
-        <div class="aibox">
-          <h4>Cảnh báo AI · {{ slip.warnings.length }}</h4>
-          <div v-for="w in slip.warnings" :key="w.id" class="aif">
-            <span class="tag"><Icon name="spark" :size="11" />AI</span>
-            <span>{{ w.text }}</span>
-            <button type="button" class="btn sm" :disabled="busy" @click="skipWarning(w)">Bỏ qua</button>
-          </div>
-        </div>
       </div>
 
       <PayslipBody :payslip="slip" @edit="showEdit = true" />

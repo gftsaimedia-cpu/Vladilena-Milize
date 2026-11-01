@@ -2,7 +2,6 @@
 // Mỗi hàm đọc máy chủ rồi đổi phản hồi về đúng hình dạng màn đang dùng (builders/admin-config).
 // Hàm lưu so bản nháp với bản vừa đọc và chỉ gửi các khoá đã đổi, kèm tháng áp dụng và số phiên bản (paramsRev) của lần đọc đó.
 import { api, qs } from '@/services/http';
-import { buildAlerts, alertsWanted } from '@/builders/admin-config/alerts';
 import { allSettingsWanted, buildAllSettings } from '@/builders/admin-config/all-settings';
 import { benefitsWanted, buildBenefits } from '@/builders/admin-config/benefits';
 import { buildAuditPage } from '@/builders/admin-config/audit';
@@ -185,19 +184,6 @@ export async function saveAllSettings(group?, draft?) {
   return putParams(idx, allSettingsWanted(draft));
 }
 
-// ---------- Cảnh báo AI ----------
-export async function getAlerts() {
-  const idx = await readParams(11);
-  state.alerts = { idx };
-  return plain(buildAlerts(idx));
-}
-
-export async function saveAlerts(draft?) {
-  const { idx } = state.alerts || {};
-  if (!idx) throw new Error('Chưa tải dữ liệu để lưu');
-  return putParams(idx, alertsWanted(draft));
-}
-
 // ---------- Đánh giá KPI ----------
 const KPI_LABEL = {
   wework: 'Base Wework',
@@ -256,12 +242,6 @@ export async function getPositionTypes() {
 // POST /api/positions { label, copyFrom, effectiveMonth, reason }
 export const addPosition = ({ name, copyFrom, fromMonth, reason }: any) =>
   api('POST', '/positions', { label: name, copyFrom, effectiveMonth: fromMonth, ...(reason ? { reason } : {}) });
-
-// ---------- Công tắc Agents ----------
-// GET /api/settings/agents → { enabled }
-export const getAgents = () => api('GET', '/settings/agents');
-// PUT /api/settings/agents { enabled }
-export const saveAgents = (enabled?) => api('PUT', '/settings/agents', { enabled: !!enabled });
 
 // ---------- Lịch, ca & chấm công ----------
 const addDays = (iso?, n?) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);

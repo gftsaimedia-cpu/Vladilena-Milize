@@ -1,5 +1,5 @@
 'use strict';
-// Chạy thử luồng kỳ lương (chốt công → tính lương → AI kiểm tra) trên MỘT BẢN SAO của DB demo, bằng máy chủ thật trong cùng tiến trình
+// Chạy thử luồng kỳ lương (chốt công → tính lương → duyệt → chi trả) trên MỘT BẢN SAO của DB demo, bằng máy chủ thật trong cùng tiến trình
 // (đồng hồ giả: ngày 2 của tháng sau), rồi đếm phiếu theo trạng thái, cờ AI theo luật, phiếu lỗi theo mã, và kiểm các kỳ vọng của kịch bản
 // (scenarios.js → PAYSLIP, PERIOD_EXPECT). Đi đúng các route của Admin: lock-attendance, calculate, ai-review, GET payslips có bộ lọc.
 //   node scripts/db/demo/period-check.ts --db=data/demo [--month=2026-10] [--today=YYYY-MM-DD] [--full] [--keep=đường/dẫn/bản-sao.sqlite]
@@ -92,12 +92,9 @@ async function main() {
     if (!ok) problems.push(text);
   };
 
-  /* ---------- chốt công → tính lương → AI kiểm tra ---------- */
+  /* ---------- chốt công → tính lương ---------- */
   const view0 = (await call('GET', `/periods/${month}`)).data;
   log(`Kỳ ${month}: trạng thái ban đầu ${view0.status}; đồng hồ giả ${today} 09:00`);
-  // Bản sao demo dựng bằng --no-lifecycle chưa bật công tắc Agents (lớp vận hành bật nó); bước AI kiểm tra cần
-  const cfg = require('../../../src/platform/config');
-  await store.setSetting(cfg.AGENTS_SETTING_KEY, cfg.AGENTS_ON);
   let step = await call('POST', `/periods/${month}/lock-attendance`, { rev: view0.rev });
   let acknowledged: any[] = [];
   if (step.status === 409 && step.data.checklist) {
@@ -118,9 +115,6 @@ async function main() {
   step = await call('POST', `/periods/${month}/calculate`, { rev: await revOf() });
   if (step.status !== 200) fail(`Tính lương thất bại: ${step.status} ${short(step.data)}`);
   log(`Tính lương: ${step.data.status}; phiếu ${JSON.stringify(step.data.counts)}`);
-  step = await call('POST', `/periods/${month}/ai-review`, { rev: await revOf() });
-  if (step.status !== 200) fail(`AI kiểm tra thất bại: ${step.status} ${short(step.data)}`);
-  log(`AI kiểm tra: ${step.data.status}; phát hiện ${step.data.findings}; mức ${JSON.stringify(step.data.bySeverity)}`);
 
   /* ---------- đếm, đọc qua đúng route của Admin ---------- */
   const view = (await call('GET', `/periods/${month}`)).data;
@@ -160,8 +154,6 @@ async function main() {
   const persona = new Map<any, any>(S.PERSONAS.map(x => [x.username, x]));
   const healthy = all.filter(p => p.status !== 'error');
   log('\nPhiếu theo trạng thái ' + JSON.stringify(byStatus));
-  log(`Phiếu có cờ AI: ${flagged}/${all.length}`);
-  log('Cờ theo luật ' + JSON.stringify(Object.fromEntries(Object.entries<any>(byRule).sort())));
   log('Phiếu lỗi theo mã ' + JSON.stringify(byError));
   log('Phiếu theo loại nhân sự ' + JSON.stringify(byType));
   const kept = view.attendanceKept || { kept: 0, of: 0 };
@@ -174,18 +166,14 @@ async function main() {
   // Bộ lọc danh sách phiếu: mỗi bộ lọc phải khớp với cách đếm ở trên
   const filtered = {
     'status=error': (await list('&status=error')).total,
-    'status=pending': (await list('&status=pending')).total,
-    'flag=1': (await list('&flag=1')).total,
-    'flag=0': (await list('&flag=0')).total,
+    'status=draft': (await list('&status=draft')).total,
     'q=demo_bad': (await list('&q=demo_bad')).total,
     'type=nv': (await list('&type=nv')).total,
     'type=tts': (await list('&type=tts')).total
   };
   log('Bộ lọc danh sách phiếu ' + JSON.stringify(filtered));
   expect(filtered['status=error'] === (byStatus.error || 0), 'bộ lọc status=error lệch số đếm');
-  expect(filtered['status=pending'] === (byStatus.pending || 0), 'bộ lọc status=pending lệch số đếm');
-  expect(filtered['flag=1'] === flagged, 'bộ lọc flag=1 lệch số đếm');
-  expect(filtered['flag=1'] + filtered['flag=0'] === all.length, 'flag=1 + flag=0 khác tổng phiếu');
+  expect(filtered['status=draft'] === (byStatus.draft || 0), 'bộ lọc status=draft lệch số đếm');
   expect(filtered['type=nv'] === (byType.nv || 0), 'bộ lọc type=nv lệch số đếm');
   expect(filtered['type=tts'] === (byType.tts || 0), 'bộ lọc type=tts lệch số đếm');
   const badTypeFilter = await call('GET', `/periods/${month}/payslips?type=intern`);
@@ -206,20 +194,12 @@ async function main() {
     expect(slip.status === want.status, `${p.username}: phiếu ${slip.status}, kỳ vọng ${want.status}`);
     if (want.errorCode)
       expect(slip.errorCode === want.errorCode, `${p.username}: mã lỗi ${slip.errorCode}, kỳ vọng ${want.errorCode}`);
-    for (const rule of want.flags || [])
-      expect(slip.flags.includes(rule), `${p.username}: thiếu cờ ${rule} (có ${slip.flags.join(',') || 'không'})`);
-    if (want.noFlags) expect(!slip.flags.length, `${p.username}: phiếu phải sạch, có cờ ${slip.flags.join(',')}`);
   }
   if (month === S.PERIOD_EXPECT.month) {
     const E = S.PERIOD_EXPECT;
     expect(
       JSON.stringify(Object.entries<any>(byError).sort()) === JSON.stringify(Object.entries<any>(E.errorCodes).sort()),
       `phiếu lỗi theo mã ${JSON.stringify(byError)}, kỳ vọng ${JSON.stringify(E.errorCodes)}`
-    );
-    expect(flagged >= E.minFlagged, `chỉ ${flagged} phiếu có cờ, kỳ vọng ít nhất ${E.minFlagged}`);
-    expect(
-      Object.keys(byRule).length >= E.minRules,
-      `cờ chỉ trải trên ${Object.keys(byRule).length} luật, kỳ vọng ít nhất ${E.minRules}`
     );
     for (const t of E.types) expect(byType[t] > 0, `kỳ không có loại nhân sự ${t}`);
     expect(kept.kept >= E.attendanceKept, 'không ai còn phụ cấp chuyên cần');
@@ -229,75 +209,16 @@ async function main() {
   }
   log(`\nKỳ vọng kịch bản (PAYSLIP + PERIOD_EXPECT): ${expectations.length} persona`);
 
-  /* ---------- đường phụ: bỏ qua phát hiện (chỉ ghi vào bản sao) ---------- */
-  const target = all.find(p => p.status === 'pending' && p.flags.length > 1);
-  if (target) {
-    const body = {
-      month,
-      username: target.username,
-      rule: target.flags[0],
-      reason: 'Demo: đã xem, đúng dữ liệu thật của kỳ'
-    };
-    const first = await call('POST', '/ai/findings/dismiss', body);
-    log(
-      `Bỏ qua phát hiện ${body.rule} của ${body.username}: HTTP ${first.status}, còn lại ${JSON.stringify((first.data || {}).remaining)}`
-    );
-    expect(first.status === 200, `bỏ qua phát hiện: HTTP ${first.status} ${short(first.data)}`);
-    const again = await call('POST', '/ai/findings/dismiss', body);
-    expect(again.status === 200 && again.data.already === true, 'bỏ qua lần hai phải trả already = true');
-    const n = (await store.db.prepare('SELECT COUNT(*) AS n FROM ai_finding_actions').get()).n;
-    expect(n === 1, `ai_finding_actions có ${n} dòng, kỳ vọng 1 (lần hai không ghi thêm)`);
-  } else problems.push('không có phiếu pending nào có từ hai cờ để thử bỏ qua phát hiện');
-
   /* ---------- đường phụ: duyệt, loại phiếu lỗi, chi trả ---------- */
   if (args.full) {
     const decide = (items?, note?) =>
       call('PUT', `/periods/${month}/payslips/decide`, { items, action: 'approve', ...(note ? { note } : {}) });
     const fresh = (await listAll()).rows;
-    const clean = fresh
-      .filter(p => p.status === 'pending' && !p.flags.length)
-      .map(p => ({ username: p.username, rev: p.rev }));
+    const clean = fresh.filter(p => p.status === 'draft').map(p => ({ username: p.username, rev: p.rev }));
     for (let i = 0; i < clean.length; i += 200) {
       const r = await decide(clean.slice(i, i + 200));
       expect(r.status === 200, `duyệt lô phiếu sạch: HTTP ${r.status} ${short(r.data)}`);
     }
-    const withFlags = fresh.filter(p => p.status === 'pending' && p.flags.length);
-    // Phiếu có cờ chưa bỏ qua thì không duyệt được; sau khi bỏ qua từng cờ kèm lý do cũng KHÔNG vào lô nhiều phiếu (D9)
-    const dismissAll = async (p?) => {
-      for (const rule of p.flags) {
-        const r = await call('POST', '/ai/findings/dismiss', {
-          month,
-          username: p.username,
-          rule,
-          reason: 'Demo: đã xem từng cờ trước khi duyệt'
-        });
-        expect(r.status === 200, `bỏ qua cờ ${rule}: HTTP ${r.status} ${short(r.data)}`);
-      }
-    };
-    const pair = withFlags.slice(0, 2);
-    const beforeDismiss = await decide(
-      pair.map(p => ({ username: p.username, rev: p.rev })),
-      'Demo: thử duyệt lô có cờ'
-    );
-    log(`Duyệt lô 2 phiếu có cờ: HTTP ${beforeDismiss.status} ${beforeDismiss.data.code || ''} (phải bị chặn, D9)`);
-    expect(beforeDismiss.status === 409, 'phiếu có cờ AI không được vào lô nhiều phiếu (409)');
-    for (const p of pair) await dismissAll(p);
-    const afterDismiss = await decide(
-      pair.map(p => ({ username: p.username, rev: p.rev })),
-      'Demo: thử duyệt lô có cờ đã bỏ qua'
-    );
-    log(
-      `Duyệt lô 2 phiếu có cờ ĐÃ bỏ qua: HTTP ${afterDismiss.status} ${afterDismiss.data.code || ''} (vẫn phải bị chặn, D9)`
-    );
-    expect(afterDismiss.status === 409, 'cờ đã bỏ qua vẫn không được vào lô nhiều phiếu (409)');
-    for (const p of withFlags) {
-      await dismissAll(p);
-      const r = await decide([{ username: p.username, rev: p.rev }], 'Demo: đã xem từng cờ trước khi duyệt');
-      expect(r.status === 200, `duyệt phiếu có cờ (từng phiếu): HTTP ${r.status} ${short(r.data)}`);
-    }
-    log(
-      `Đã duyệt ${clean.length} phiếu sạch theo lô và ${withFlags.length} phiếu có cờ từng phiếu (bỏ qua từng cờ kèm lý do)`
-    );
     const early = await call('POST', `/periods/${month}/approve`, { rev: await revOf(), excludeErrors: [] });
     log(`Duyệt kỳ khi chưa loại phiếu lỗi: HTTP ${early.status} ${early.data.code || ''} (phải bị chặn)`);
     expect(early.status === 409, 'duyệt kỳ khi còn phiếu lỗi chưa loại phải bị chặn (409)');

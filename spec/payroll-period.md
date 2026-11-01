@@ -30,8 +30,6 @@ Thuật ngữ dùng trong tài liệu:
 | `src/domain/period/period-warnings.ts` | Câu cảnh báo của kỳ (`CHECKLIST_TEXT`), làm mềm danh sách kiểm (`soften`), các cổng cảnh báo: thực lĩnh âm, phiếu còn cờ AI, khoá công khi còn việc, đếm phiếu tự duyệt/tự loại. |
 | `src/domain/period/period-stale.ts` | `staleOf` (kỳ đã tính mà tham số hoặc đầu vào đã đổi), `errorSummaryOf` (phiếu lỗi gom theo mã). |
 | `src/domain/period/period-allowance.ts` | `allowanceTotalOf`: tổng phụ cấp của một bản chụp. |
-| `src/domain/findings/findings.ts` | Cờ AI của phiếu: `activeFindings`, `dismiss` (bỏ qua có lý do), `annotate` (gắn trạng thái bỏ qua vào danh sách phát hiện). |
-| `src/domain/ai-review.ts`, `src/ai/*` | Dựng đầu vào và chạy bộ luật soát dữ liệu (`aiReviewResult`, `aiReviewResultCached`; luật ở `src/ai/review.ts`, ngưỡng ở `src/ai/thresholds.ts`). |
 | `src/platform/warnings.ts` | Danh sách cảnh báo theo từng yêu cầu HTTP (AsyncLocalStorage): `run`, `warnIf`, `warn`, `selfDecision`, `optionalReason`, `take`, `codes`. |
 | `src/domain/payroll/pay-entries.ts` | Khoản điền thêm theo người/tháng (bảng `pay_entries`): lập, lập lô, sửa, duyệt/từ chối, huỷ, xác nhận cờ thuế/bảo hiểm, liệt kê, nạp khoản đã duyệt cho bộ máy (`approvedByUser`). |
 | `src/domain/pay-entries.ts` | Route HTTP của `/api/pay-entries/...`; phát `estimate.changed` khi khoản có hiệu lực. |
@@ -106,7 +104,7 @@ Trigger `payslips_no_delete`; `payslips_guard_update` (`src/platform/db.ts`): kh
 
 **`ai_review_runs`** (`src/platform/db.ts`): chỉ thêm dòng; `month`, `run_id`, `rules_json`, `thresholds_hash`, `params_hash`, `findings_total`, `summary_json` (chỉ số đếm), `by`, `at`. `store.aiReviews.latest(month, runId)` là dấu "AI đã chạy cho lần tính này".
 
-**`ai_finding_actions`** (`src/platform/db.ts`): chỉ thêm dòng; mỗi dòng là một lần bỏ qua một cờ của phiếu (`finding_id`, `digest`, `month`, `rule_id`, `by`, `at`, `note`), đọc qua `src/domain/findings/findings.ts`.
+**`ai_finding_actions`** (`src/platform/db.ts`): chỉ thêm dòng; mỗi dòng là một lần bỏ qua một cờ của phiếu (`finding_id`, `digest`, `month`, `rule_id`, `by`, `at`, `note`), đọc qua `(đã bỏ)`.
 
 **`pay_entries`** (`src/platform/db.ts`): `username`, `month`, `direction` (`add|deduct`), `amount` (số nguyên > 0), `label` (1–80), `slip_line`, `reason` (CHECK 10–300), `tax_mode` (`none|full|cap|null`), `tax_cap`, `insurance_base`, `flags_confirmed_by/at`, `status` (`pending|approved|rejected|void`), `rev`, `created_by/at`, `decided_by/at`, `decision_note`. Trigger: không xoá; không đổi người lập; `void` là cuối; `approved` chỉ sang `void`; khoản đã duyệt không đổi tiền, hướng, cờ, người, tháng (`src/platform/db.ts`).
 
@@ -116,7 +114,6 @@ Bảng đọc gián tiếp qua `loadInputs`: `staff`, `timesheets` (lịch khai 
 
 | Khoá | Giá trị | Ghi chú |
 | --- | --- | --- |
-| `agents_enabled` | `'1'` \| `'0'`, mặc định `'0'` | khác `'1'` → tắt (`src/platform/agents.ts`) |
 | `holidays` | mảng ngày lễ | lưu vào `switches_json.holidays` |
 
 ### 2.3 Khoá tham số (registry, theo tháng)
@@ -150,7 +147,6 @@ Bảng đọc gián tiếp qua `loadInputs`: `staff`, `timesheets` (lịch khai 
 | `linesCache` | Map theo tháng, khoá `${run.id}:${run.inputsDigest}:${run.finishedAt}`; chỉ lưu khi lần chạy đã có `finishedAt`. Không giữ số sửa | `src/domain/period/periods.ts` |
 | `taxFromCache` | WeakMap theo đối tượng tham số | `src/domain/payroll/slip-paid.ts` |
 | `engines` | WeakMap theo đối tượng tham số → `Engine.create(params)` | `src/domain/payroll/payroll-service.ts` |
-| kết quả AI soát | `aiReviewResultCached` dùng chung `sharedCache.compute` với khoá `ai-review|<tháng>|<0/1>`; bước AI kiểm tra của kỳ luôn tính mới | `src/domain/ai-review.ts` |
 
 ### 2.5 Trạng thái và chuyển trạng thái
 
@@ -305,10 +301,6 @@ Luôn có `{ month, period, estimate, upTo, label }`; nhãn mặc định `'Số
 - `expectedRev` (tuỳ chọn, số nguyên ≥ 0) khác `rev` hiện có → 409 `SLIP_STALE`. Không gửi → không kiểm.
 - Ghi trong một giao dịch cùng nhật ký `slip.override` (một dòng mỗi ô đổi). Không phát SSE. Không ô nào bị từ chối vì "không có tác dụng": mọi khoá của `SLIP_MONEY`/`SLIP_QTY` được lưu (mục 9.3 nói ô nào không đổi số).
 
-### 3.4 Công tắc Agents — `GET|PUT /api/settings/agents`
-
-Xem `spec/platform.md`.
-
 ### 3.5 Khoản điền thêm — `/api/pay-entries` (`src/domain/pay-entries.ts`)
 
 | Method + path | Cap | Thân / query | Trả về |
@@ -322,16 +314,6 @@ Xem `spec/platform.md`.
 | `POST /api/pay-entries/:id/confirm-flags` | `config.legal` | `{ rev, basis? }` | `{ entry }` |
 
 Lỗi: `BAD_MONTH`, `BAD_BODY`, `BAD_FIELD`, `BAD_DIRECTION`, `BAD_AMOUNT` (không phải số nguyên > 0 hoặc > `maxAmount`), `BAD_TAX_MODE`, `BAD_TAX_CAP`, `BAD_INSURANCE_BASE`, `FLAGS_ON_DEDUCT`, `LABEL_FORBIDDEN` (khoản trừ có chữ phạt/fine/penalty; cảnh báo), `DUPLICATE_ENTRY` (cảnh báo), `TOO_MANY`, `BAD_USERNAME`, `NO_SUCH_STAFF` 404, `NOT_PAYROLL_SUBJECT`, `SELF_DECISION_FORBIDDEN` (cảnh báo), `EDIT_CREATOR_ONLY` (cảnh báo), `BAD_ID`, `ENTRY_NOT_FOUND` 404, `BAD_REV`, `REV_STALE` 409, `ENTRY_NOT_PENDING` 409, `ENTRY_NOT_VOIDABLE` 409, `ENTRY_NOT_CONFIRMABLE` 409, `NO_FLAGS`, `FLAGS_ALREADY_CONFIRMED` 409, `BASIS_TOO_LONG`, `PERIOD_LOCKED` 409 kèm `suggestMonth` khi kỳ `approved|paid`, `BAD_DECISION`.
-
-### 3.6 AI soát và cờ của phiếu
-
-| Method + path | Cap | Thân / query | Trả về |
-| --- | --- | --- | --- |
-| `GET /api/ai/review?month=&impacts=1` | `ai.review.read` | | kết quả `aiReviewResultCached` (`findings`, `systemFindings`, `checked`, `checklist`, `summary`, `thresholds`, `names`, `impacts?`) với mỗi phát hiện gắn `dismissed: { by, at, note } \| null` và `period: { status }` (`src/modules/ai/ai.controller.ts`) |
-| `POST /api/ai/findings/dismiss` | `ai.review.dismiss` | `{ month, username, rule, reason }` | `{ month, username, rule, dismissed: true, already, by, at, remaining }` (`src/modules/ai/ai.controller.ts`) |
-| `POST /api/periods/:month/ai-review` | xem 3.1 | | bước của kỳ: tính mới (không dùng bản đệm), gắn cờ vào phiếu |
-
----
 
 ## 4. Cách tính / quy tắc
 
@@ -443,7 +425,7 @@ Mọi bước ghi chạy trong `store.transaction` cùng dòng nhật ký. `prec
 
 `slipOf`: thành công → `{ status 'draft', gross, insurance, tax, advance, net (= m.net.*), staffTerms, snapshot: { ...m, trace } }`; ném lỗi → `{ status 'error', errorCode: e.code (chuỗi) hoặc 'CALC_ERROR', errorDetail (≤ 300; lỗi PAYROLL_BAD_FORMULA được thêm tiền tố "Công thức đã lưu không hợp lệ: " bởi `errorMessageOf`), staffTerms, snapshot: {} }`.
 
-**AI kiểm tra** (`aiReview`,): `precheck(['calculated','reviewed'])`; không có `currentRunId` → 409 `PERIOD_NOT_READY`. Trong giao dịch: `runAi(month)` (= `aiReviewResult(month, false)` của `src/domain/ai-review.ts`, tính mới) → cờ theo người = các `rule` của `result.findings` có `username`, bỏ trùng, sắp xếp (phát hiện cấp hệ thống `systemFindings` không gắn cờ vào phiếu nào) → `applyAiReview` (`draft → pending`, thay `flags_json`, `rev + 1` khi trạng thái hoặc cờ đổi) → `aiReviews.add` (`thresholdsHash = sha256(canonical(result.thresholds || THRESHOLDS))`, `paramsHash` của lần chạy, chỉ số đếm) → `markReviewed` → nhật ký `period.ai-review` (`after { status, findings, flagged }`).
+**AI kiểm tra** (`aiReview`,): `precheck(['calculated','reviewed'])`; không có `currentRunId` → 409 `PERIOD_NOT_READY`. Trong giao dịch: `runAi(month)` (= `aiReviewResult(month, false)` của `(đã bỏ)`, tính mới) → cờ theo người = các `rule` của `result.findings` có `username`, bỏ trùng, sắp xếp (phát hiện cấp hệ thống `systemFindings` không gắn cờ vào phiếu nào) → `applyAiReview` (`draft → pending`, thay `flags_json`, `rev + 1` khi trạng thái hoặc cờ đổi) → `aiReviews.add` (`thresholdsHash = sha256(canonical(result.thresholds || THRESHOLDS))`, `paramsHash` của lần chạy, chỉ số đếm) → `markReviewed` → nhật ký `period.ai-review` (`after { status, findings, flagged }`).
 
 **Duyệt / trả lại phiếu** (`decidePayslips`,): tháng; có `currentRunId` (không thì 409 `PERIOD_STATE`); `note` là chữ hoặc vắng; `selfDecision` nếu có `items[i].username === me.username` và `me.payrollSubject`. Trong giao dịch, theo thứ tự:
 1. Duyệt: `warnFlagged` (một cảnh báo `PAYSLIP_FLAGGED` nêu ≤ 5 tên).
@@ -557,13 +539,6 @@ Mọi phiếu của lần chạy hiện hành; `loadInputs(month, { usernames, a
 - Từ chối, huỷ khoản `approved` và xác nhận cờ: lý do / `basis` không bắt buộc. Xác nhận cờ: khoản `add` có cờ, chưa xác nhận.
 - Bộ máy chỉ nhận khoản `approved` (`approvedByUser`,, qua `PayEntriesCalc.list`): khoản cộng vào `m.total`, khoản trừ trừ sau thuế; miễn thuế/nền BH chỉ khi cờ đã xác nhận.
 
-### 4.21 AI soát và cờ của phiếu
-
-- Bước AI kiểm tra của kỳ (mục 4.7) lưu cờ theo người vào `payslips.flags_json` (mã luật). Danh sách luật theo người/khoản (`RULES`, `src/ai/review.ts`): `isat-frequency`, `approved-leave-frequency`, `leave-with-checkin`, `late-declaration`, `previously-rejected`, `repeated-edits`, `ot-checkin-mismatch`, `ot-after-pending-makeup`, `holiday-work-review`, `attendance-allowance-risk`, `large-pay-impact`, `ot-above-team`, `missing-start-date`, `negative-leave`, `missing-fixed-shift`, `slip-override-gap`, `locked-with-pending`, `kpi-self-100-streak`, `net-nonpositive`, `formula-changed-recently` (cấp hệ thống), cộng `block-flags-unconfirmed`, `override-looks-like-entry` (`src/ai/rules-extra.ts`). Mỗi luật có `severity` (`low|medium|high`), `scope` (`item|person|system`), ngưỡng đọc từ `src/ai/thresholds.ts` theo bộ tham số của tháng. Ngoài ra `systemFindings` tổng hợp: `pending-items`, `flagged-items`, `punch-waiting`, `profile-gaps`, `kpi-unapproved`, `slip-overrides`, `holidays`. Luật cần tiền dùng bộ máy lương của tháng (`src/ai/payroll-loader.ts`); luật `net-nonpositive` báo thực nhận ước tính ≤ 0.
-- Phát hiện còn hiệu lực (`activeFindings`) = cờ trên phiếu của lần chạy hiện hành chưa có lần bỏ qua khớp digest `inputsDigest|paramsHash`. Đổi đầu vào hoặc tham số làm mọi lần bỏ qua cũ hết hiệu lực.
-- Bỏ qua (`dismiss`): lý do tuỳ chọn, quá 300 là lỗi; không bỏ qua cờ trên phiếu của chính mình (`SELF_DECISION_FORBIDDEN`); lần chạy không `draft` thì cảnh báo `PERIOD_STATE`; phiếu phải có cờ đó (`FINDING_NOT_FOUND` 404), phiếu phải tồn tại (404); lặp lại thì `already: true` và không ghi thêm. Ghi `ai_finding_actions` và nhật ký `ai.finding.dismiss` trong một giao dịch.
-- Cờ AI không đổi số tiền; chúng chỉ ảnh hưởng quy tắc duyệt phiếu (mục 3.1.3).
-
 ### 4.22 Cơ chế cảnh báo (`src/platform/warnings.ts`)
 
 - `warnIf(code, violated, opts)`: không vi phạm → `false`. Vi phạm → `quiet` thì chỉ trả `true`; không thì `warn(code, text, { severity?, count?, link?, details? })` với `text` = `"<message bỏ dấu cuối>. <consequence>"` hoặc `message`; trả `true`.
@@ -600,7 +575,6 @@ Không phát gì: duyệt/trả lại phiếu, sửa số phiếu, đổi công 
 | `payslip.approve`, `payslip.return` | `payslip` / `<tháng>:<username>` | null / `{ status, rev }`, reason = note |
 | `slip.override` | `slip_override` / `<username>:<tháng>:<ô>` | `{ <ô>: cũ }` / `{ <ô>: mới }` — một dòng mỗi ô đổi |
 | `entry.create`, `entry.update`, `entry.decide`, `entry.void`, `entry.confirmFlags` | `pay_entry` / id | các trường `AUDIT_FIELDS` (`src/domain/payroll/pay-entries.ts`) |
-| `ai.finding.dismiss` | `ai-finding` / `slip:<luật>:<tài khoản>:<tháng>` | null / `{ rule, runId }`, reason = note (`src/domain/findings/findings.ts`) |
 
 Mọi dòng có thể kèm `after.warnings`, `after.self` (4.22).
 
@@ -612,14 +586,12 @@ Mọi dòng có thể kèm `after.warnings`, `after.self` (4.22).
 
 - `src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts`: mọi route mục 3; `warnings.run` bọc mỗi yêu cầu; `warnFrozen`/`guardPeriod` dùng `store.periods`.
 - `scripts/ops/pg-backup.ts`: `require('../../lib/periods')` (kiểm bản sao lưu); `scripts/params/wired.ts`.
-- `src/domain/payroll/payroll-service.ts` được dùng bởi: `src/domain/period/periods.ts`, `src/domain/period/period-stale.ts`, `src/domain/payroll/slip-pins.ts` (`engineFor`), `src/domain/advance/advance-cap.ts` (số tạm ứng theo quy tắc), `src/domain/ai-review.ts` (`previousMonth`), `src/domain/sheet.ts` (`estimateDays`), `src/params/save.ts` (xem trước tác động tham số, dùng `COMPONENTS`, `thanhPhanOf`).
-- `src/platform/warnings.ts` được dùng bởi gần như mọi module ghi (`src/platform/db.ts`, `src/domain/approvals/approvals.ts`, `src/domain/advance/advance-requests.ts`, `src/domain/findings/findings.ts`, `src/params/save.ts`, `src/params/validate.ts`, `src/domain/roles/roles.ts`, `src/domain/*`); `src/platform/http.ts` (gộp cảnh báo), `src/platform/audit.ts` (mã cảnh báo vào nhật ký).
 - `store.assertPeriodOpen` (cổng khoá kỳ của module này) được gọi từ: `src/http/api-gate.ts` (`guardPeriod` và nhiều route lịch, chấm công, OT, KPI), `src/domain/payroll/pay-entries.ts`, `src/domain/advance/advance-requests.ts`, `src/params/save.ts`, `src/domain/attendance/admin-presence.ts`, `src/domain/shared/catalog-change.ts`.
 - Giao diện: danh sách ở mục 1.
 
 ### 6.2 Module này gọi
 
-`src/platform/db.ts` (store), `src/platform/audit.ts`, `src/params/store.ts` (`resolve`), `src/domain/findings/findings.ts` (`activeFindings`), `src/domain/attendance/index.ts` (`closeStaleIn`), `src/ai/thresholds.ts`, `src/ops/shared-cache.ts`, `src/domain/explanation/explanations.ts` (`heldByUser`), `src/domain/advance` (`advanceApprovals.approvedSet`), `src/platform/request-rules.ts` (`benefitOf`), `src/domain/leave-days.ts` (`leaveDates`), `src/domain/isat-rule.ts` (`isatRefusal`), `src/domain/attendance/admin-presence.ts`, `src/domain/payroll/policy.ts`, `src/platform/authz.ts` (`isSelfDecision`, `scopeOf`, `can`), `src/platform/events.ts`.
+`src/platform/db.ts` (store), `src/platform/audit.ts`, `src/params/store.ts` (`resolve`), `(đã bỏ)` (`activeFindings`), `src/domain/attendance/index.ts` (`closeStaleIn`), `(đã bỏ)`, `src/ops/shared-cache.ts`, `src/domain/explanation/explanations.ts` (`heldByUser`), `src/domain/advance` (`advanceApprovals.approvedSet`), `src/platform/request-rules.ts` (`benefitOf`), `src/domain/leave-days.ts` (`leaveDates`), `src/domain/isat-rule.ts` (`isatRefusal`), `src/domain/attendance/admin-presence.ts`, `src/domain/payroll/policy.ts`, `src/platform/authz.ts` (`isSelfDecision`, `scopeOf`, `can`), `src/platform/events.ts`.
 
 ### 6.3 File dùng chung trình duyệt và máy chủ (UMD trong `public/`)
 
@@ -628,11 +600,9 @@ Mọi dòng có thể kèm `after.warnings`, `after.self` (4.22).
 ### 6.4 Đổi X thì phải kiểm tra Y
 
 - Đổi bất kỳ công thức nào trong `src/engine/payroll-engine.ts` (hoặc `approval-view.ts`, `actual-hours.ts`, `payroll-pins.ts`, `payroll-day-parts.ts`, `pay-tail-calc.ts`) → tăng `ENGINE_VERSION`, nếu không `verify` báo lệch mà `engineChanged = false`; chạy `period-*`, `payslip-*`, `verify-fixes`, `me-estimate`, các test `*zero-drift*`; bản chụp cũ vẫn phải đọc được (`slipBasisOf`, `linesOf`, `cellsOf` đọc các trường của `m`).
-- Đổi tên/ý nghĩa trường của `m` hoặc `m.trace` (`basePay`, `off`, `cut`, `otPay`, `holWorkPay`, `makeupPay`, `rows[].kind/total/holBase/bonus/shift/daily/holWorkH/hourly/normalWorkH/nightH/holMainNightH/otWeekendH`, `trace.tienNgayCong/phuCapCa/…`) → `src/domain/payroll/slip-paid.ts` (`slipBasisOf`, `cellsOf`, `PAID_DIRECT`, `PAID_WITHHELD`, `dayFiguresOf`, `staffDayNotesOf`), `src/domain/payroll/slip-formulas.ts` (đọc cùng các trường), `src/domain/period/periods.ts` (`linesOf`, `staffLinesOf`), `src/domain/period/period-allowance.ts`, `src/domain/payroll/payroll-service.ts → thanhPhanOf`, `src/engine/admin/view-phieu.js → figures/effective`.
 - Đổi cách bộ máy tính một khoản tiền (OT, làm bù, lễ, chuyên cần, miễn thuế, bảo hiểm, tạm ứng) → `src/domain/payroll/slip-formulas.ts` phải dựng lại đúng công thức của khoản đó, nếu không dòng đó mất công thức (công thức lệch số tự tính thì bị bỏ, mục 4.13); test `slip-detail-formulas`, `slip-formulas-*`.
 - Thêm/bớt ô sửa phiếu → đồng bộ BA chỗ: `src/modules/periods/periods.helpers.ts` `SLIP_MONEY/SLIP_QTY`, `src/domain/payroll/slip-paid.ts SLIP_INCOME_KEYS/SLIP_DEDUCT_KEYS` (ô tiền) hoặc `src/engine/payroll-pins.ts KEYS` (ô số lượng),.
 - Thêm trường mới vào đầu vào một người (`loadInputs`) → chỉ thêm khi có giá trị, nếu không `inputs_digest` của mọi kỳ đã tính đổi và mọi kỳ thành `stale`; `computeFor` phải chuyển trường đó cho bộ máy; `verify` phải nạp được trường đó với trạng thái của lần chạy.
-- Đổi `digestOf` hoặc `switchesOf` → mọi kỳ `calculated|reviewed` hiện có thành `stale`; mọi lần bỏ qua phát hiện AI hết hiệu lực (digest của `src/domain/findings/findings.ts` dùng `inputsDigest`).
 - Đổi `payrollPeople` → danh sách kiểm, số phiếu khi tính, ước tính, `approvalWarnings`, `src/params/save.ts` (xem trước), `src/domain/advance/advance-cap.ts`.
 - Đổi máy trạng thái (`store.periods.*`, `PERIOD_STATES`, `SCOPE_LOCKED_FROM`) → `precheck` trong `src/domain/period/periods.ts` (danh sách `from` lặp lại), `staleOf` (chỉ `calculated|reviewed`), `view.checklist`, `assertPeriodOpen` của mọi module ghi, `src/platform/events.ts STAGE_OF`, giao diện sandbox `PERIOD_TABLES`, test `period-lifecycle`, `period-reopen`, `period-lock-guards`,.
 - Đổi `warnIf` → test `warnings`, `no-control-mode`; giao diện hiện `warnings[]` của phản hồi, không có công tắc chế độ.
@@ -650,18 +620,11 @@ Tên test dưới đây bỏ tiền tố ngày của tên file (các file `test/
 
 Trực tiếp về kỳ, phiếu, số chi trả, ước tính:
 
-- `test/api/period-lifecycle.test.ts`, `period-reopen.test.ts`, `period-lock-guards.test.ts`, `period-permissions.test.ts`, `period-stale.test.ts`, `period-aggregates.test.ts`, `period-days-worked.test.ts`, `period-estimate-one.test.ts`, `period-payday-settings.test.ts`, `period-sessions-month.test.ts`, `*-checklist-explanation-pending.test.ts`
-- `test/api/payslip-snapshot.test.ts`, `payslip-negative-net.test.ts`, `payslip-paid-numbers.test.ts`, `payslip-staff-paid-view.test.ts`, `payroll-bad-profile.test.ts`, `verify-fixes.test.ts`, `checklist-punch-review.test.ts`, `slip-detail-formulas.test.ts`, `slip-row-columns-api.test.ts`, `*-held-day-row-punch-times.test.ts`
-- `test/api/me-estimate.test.ts`, `slip-override-reason.test.ts`, `*-phan-6-sua-phieu.test.ts`, `*-so-lieu-phieu.test.ts`, `*-cho-giao-dien.test.ts`, `admin-entered-shift-pay.test.ts`
 - `test/api/warnings-cases.test.ts`, `warnings-no-crash.test.ts`, `warnings-inventory.test.ts`, `period-flow-warns.test.ts`
 - `test/api/pay-entry.test.ts`, `pay-entries-backend.test.ts`, `pay-entries-period.test.ts`, `pay-entry-zero-drift.test.ts`, `review-fixes-pay-entries.test.ts`
-- `test/api/v1a-s6-period-input-guards.test.ts`, `permissions-matrix.test.ts`, `ai-review-api.test.ts`, `ai-review-dismissed.test.ts`, `findings.test.ts`, `audit-log.test.ts`
-- `test/api/*-phan-6-ung-luong.test.ts`, `*-advance-approval.test.ts` (tạm ứng vào phiếu), `sandbox.test.ts`, `sandbox-reset-explanations.test.ts`, `*-sandbox-reset-period-state.test.ts`
-- `test/unit/warnings.test.ts`, `slip-row-columns.test.ts`, `slip-real-punch-times.test.ts`, `*-slip-held-day-punch-times.test.ts`, `slip-detail-formulas.test.ts`, `slip-formulas-merge-terms.test.ts`, `slip-formulas-named-terms.test.ts`, `slip-formulas-tax-exempt.test.ts`, `*-slip-formulas-insurance-paid-days.test.ts`, `old-snapshot-counts-absent.test.ts`, `phase2-old-snapshot.test.ts`, `phase2-tail-unavailable.test.ts`, `pay-entries-calc.test.ts`, `db-pay-entries.test.ts`, `domain-classes.test.ts`
-- Tính tiền chạm phiếu: `test/unit/ot-weekend-rate.test.ts`, `ot-day-allowance.test.ts`, `ot-unscheduled-day-paid.test.ts`, `makeup-paid-in-full.test.ts`, `makeup-into-holiday.test.ts`, `tax-exempt-premium-only.test.ts`, `insurance-paid-days.test.ts`, `leave-year-settlement.test.ts`, `advance-approved-month.test.ts`, `*-holiday-rules.test.ts`, `holiday-break-paid-once.test.ts`, `holiday-ot-after-night-shift.test.ts`
 - Helper: `test/helpers/period-flow.ts`, `period-api.ts`, `warning-cases.ts`, `pay-entry-api.ts`, `api-fixture.ts`, `explanation-flow.ts`
 
-Có chạm module (qua tính lương / ước tính) nhưng không phải trọng tâm: `test/api/*-admin-khai-thay.test.ts`, `*-phan-6-phep-nam.test.ts`, `*-makeup-date-note-ai-block.test.ts`, `*-block-ot-late-checkout.test.ts`, `*-holiday-ot-entry.test.ts`, `*-late-checkout-approval.test.ts`, `*-makeup-entry-fixes.test.ts`, `*-explanation-*.test.ts`, `approvals*.test.ts`, `audit-followup-backend.test.ts`, `backend-followup.test.ts`, `fixed-attendance.test.ts`, `mvp-fixes.test.ts`, `review-fixes.test.ts`, `save-applies-everywhere.test.ts`, `schedule-estimate-calendar.test.ts`, `server-logic-regression.test.ts`, `settings-engine-zero-drift.test.ts`; `test/unit/ai-review*.test.ts`, `phase2-options.test.ts`, `phase2-review.test.ts`, `schedule-defaults-zero-drift.test.ts`.
+Có chạm module (qua tính lương / ước tính) nhưng không phải trọng tâm: `test/api/*(đã bỏ)`, `*(đã bỏ)`, `*(đã bỏ)`, `*(đã bỏ)`, `*(đã bỏ)`, `*(đã bỏ)`, `*(đã bỏ)`, `*-explanation-*.test.ts`, `approvals*.test.ts`, `audit-followup-backend.test.ts`, `backend-followup.test.ts`, `fixed-attendance.test.ts`, `mvp-fixes.test.ts`, `review-fixes.test.ts`, `save-applies-everywhere.test.ts`, `schedule-estimate-calendar.test.ts`, `server-logic-regression.test.ts`, `settings-engine-zero-drift.test.ts`; `test/unit/ai-review*.test.ts`, `phase2-options.test.ts`, `phase2-review.test.ts`, `schedule-defaults-zero-drift.test.ts`.
 
 ---
 

@@ -54,19 +54,7 @@ test('lịch ước tính 7: TTS nghỉ không lương Thứ Bảy 07/11 (ngoài
   assert.deepEqual(Object.keys((await store.getSheet('qa_s_tts', S.MONTH)).days), [SAT]);
 });
 
-// Gọi thẳng src/domain/findings/data-quality.ts → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
-async function negativeLeaveOf(username?) {
-  const { evaluate } = require('../../src/domain/findings/data-quality');
-  const result = evaluate({
-    staff: [await store.getStaff(username)],
-    sheets: (await store.listSheets(username)).map(sheet => ({ ...sheet, username })),
-    holidays: await store.getSetting('holidays', []),
-    approvals: await store.approvals.list({ username }),
-    today: '2026-11-30'
-  });
-  return result.issues.find(i => i.username === username && i.code === 'negative-leave');
-}
-test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm đúng ngày lễ trong lịch: không trừ phép; leaveDates, leaveSummary và data-quality cho cùng số', async () => {
+test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm đúng ngày lễ trong lịch: không trừ phép; leaveDates và leaveSummary cho cùng số', async () => {
   await F.person('qa_s_new', 'staff', { startDate: '2026-10-30', leaveAdjust: -30 }); // chưa được cộng phép nào: ngày nghỉ thật sự trừ ra số âm
   await store.setSetting('holidays', ['2026-10-27']); // Thứ Ba, nằm trong lịch T2–T7
   await store.setSheet('qa_s_new', '2026-10', { '2026-10-27': { kind: 'leave' }, '2026-10-28': { kind: 'leave' } });
@@ -74,9 +62,6 @@ test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm �
   const staff = await store.getStaff('qa_s_new');
   assert.deepEqual(await leaveDates(staff), ['2026-10-28'], 'ngày lễ trong lịch không trừ phép');
   assert.equal((await leaveSummary(staff)).used, 1);
-  const issue = await negativeLeaveOf('qa_s_new');
-  assert.ok(issue, 'phép âm được báo');
-  assert.equal(issue.used, (await leaveDates(staff)).length, 'data-quality và leaveDates cùng một số');
 });
 
 test('lịch ước tính 10: GET /api/sheet người mặc định: source "type", scheduledDates đúng T2–T7 (25 ngày tháng 11), TTS T2–T6', async () => {

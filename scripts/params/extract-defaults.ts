@@ -48,7 +48,6 @@ function sources() {
   const ActualHours = require(path.join(ROOT, 'src/engine/actual-hours'));
   const KpiScore = require(path.join(ROOT, 'src/engine/kpi-score'));
   const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view'));
-  const { THRESHOLDS, LIMITS } = require(path.join(ROOT, 'src/ai/thresholds.ts'));
   const config = require(path.join(ROOT, 'src/platform/config.ts'));
   out.ActualHours = { RULE: { ...ActualHours.RULE }, POLICY: { ...ActualHours.POLICY } };
   out.KpiScore = {
@@ -60,8 +59,6 @@ function sources() {
     POLICY: { pending: { ...ApprovalView.POLICY.pending }, rejected: { ...ApprovalView.POLICY.rejected } },
     COUNTS_ABSENT: { ...ApprovalView.COUNTS_ABSENT }
   };
-  out.AiLimits = { ...LIMITS };
-  out.THRESHOLDS = Object.fromEntries(Object.entries<any>(THRESHOLDS).map(([name, item]: any) => [name, item.value]));
   out.config = { ...config };
   return { out, ApprovalItems: [...ApprovalView.ITEMS], Punch: require(path.join(ROOT, 'src/engine/punch')) };
 }

@@ -26,17 +26,13 @@ const ENGINE_FILES = [
   'src/domain/payroll/payroll-service.ts',
   'src/engine/pay-options-calc.ts', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
   'src/engine/work-schedule.ts', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
-  'src/domain/limits.js', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
+  'src/domain/limits.ts', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
   // Sáu mô-đun luật dùng chung nhận params qua create(params). Bảng FALLBACK của chúng là bản chép chuyển tiếp bằng DEFAULTS
   // (scripts/params/check-fallbacks.ts kiểm): không tính là nơi đọc và không tính là bản sao chạy thật
-  ...['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar'].map(
-    m => `src/engine/${m}.js`
-  ),
-  ...fs.readdirSync(path.join(ROOT, 'src/ai')).map(f => `src/ai/${f}`)
-].filter(f => f.endsWith('.js'));
+  ...['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar'].map(m => `src/engine/${m}.ts`)
+].filter(f => f.endsWith('.ts'));
 // Khoá dựng bằng chuỗi nhiều dòng hoặc nối chuỗi mà biểu thức chính quy bên dưới không bắt: ghi nơi dựng và bằng chứng nó còn đó
 const EXTRA_READS = [
-  { pattern: 'ai.rule.*.enabled', file: 'src/ai/thresholds.ts', re: /ai\.rule\.\$\{/ },
   { pattern: 'law.regionMinWage.*', file: 'src/engine/payroll-params.ts', re: /'law\.regionMinWage\.' \+/ }
 ];
 // Khoá dựng động type.<mã>.<đuôi> (mẫu 'type.*.*' ở trên) khớp MỌI đuôi, kể cả đuôi mà bộ máy không đọc theo tên: ở đây khai các đuôi đó để cờ không nói dối.
@@ -152,20 +148,6 @@ const SERVER_COPIES = [
   // shift.preset.*.*: không còn bản sao chạy thật. src/domain/attendance/attendance-sessions.ts dùng punch mặc định chỉ trong đợt di chuyển
   // MỘT LẦN lúc nạp src/platform/db cho dấu Check-in cũ chưa có phiên (trước khi có tham số theo tháng); src/ai/review.ts chỉ hỏi mã ca có trong bảng
   // (ActualHours.SHIFT_TIMES có mặt), mã ca không đổi khi sửa giờ.
-  {
-    pattern: 'kpi.weight.*',
-    file: 'src/ai/review.ts',
-    re: /KpiScore\.evaluate/,
-    unless: /KpiScore\.create\(/,
-    why: 'src/ai/review.ts → KpiScore mặc định (trọng số)'
-  },
-  {
-    pattern: 'kpi.weworkMin',
-    file: 'src/ai/review.ts',
-    re: /KpiScore\.evaluate/,
-    unless: /KpiScore\.create\(/,
-    why: 'src/ai/review.ts → KpiScore mặc định (mốc Base Wework)'
-  },
   {
     pattern: 'type.*.dows',
     file: 'src/domain/approvals/approvals.ts',

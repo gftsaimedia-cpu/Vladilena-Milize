@@ -7,7 +7,6 @@
 const assert = require('node:assert/strict');
 const F = require('./api-fixture');
 const flow = require('./period-flow');
-const agents = require('../../src/platform/agents');
 
 const { store } = F;
 const ORDER = ['open', 'attendance_locked', 'calculated', 'reviewed', 'approved', 'paid'];
@@ -27,7 +26,6 @@ function monthPool() {
 const revOf = async (month?) => (await F.call('GET', `/periods/${month}`)).data.rev;
 // POST một bước của kỳ; rev lấy từ kỳ hiện tại (admin đọc) trừ khi body ghi đè
 async function step(month?, name?, body: any = {}, who = 'admin') {
-  if (name === 'ai-review') await agents.set(true); // bước AI chỉ chạy khi công tắc Agents bật
   return await F.call('POST', `/periods/${month}/${name}`, { who, body: { rev: await revOf(month), ...body } });
 }
 const slipRows = async (month?) =>
@@ -38,7 +36,7 @@ const decide = async (month?, items?, action = 'approve', note?, who = 'admin') 
   await F.call('PUT', `/periods/${month}/payslips/decide`, { who, body: { items, action, ...(note ? { note } : {}) } });
 const itemsOf = (rows?) => rows.map(r => ({ username: r.username, rev: r.rev }));
 async function approveAllPending(month?) {
-  const rows = (await slipRows(month)).filter(r => r.status === 'pending');
+  const rows = (await slipRows(month)).filter(r => r.status === 'pending' || r.status === 'draft');
   return await decide(month, itemsOf(rows));
 }
 const must = (res?, what?) => {
@@ -52,7 +50,6 @@ async function advance(month?, target?) {
   assert.ok(goal >= 0, `trạng thái lạ: ${target}`);
   if (goal >= 1) must(await step(month, 'lock-attendance'), 'chốt công');
   if (goal >= 2) must(await step(month, 'calculate'), 'tính lương');
-  if (goal >= 3) must(await step(month, 'ai-review'), 'AI kiểm tra');
   if (goal >= 4) {
     must(await approveAllPending(month), 'duyệt phiếu');
     must(await step(month, 'approve'), 'duyệt kỳ');

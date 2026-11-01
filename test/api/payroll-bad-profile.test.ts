@@ -68,7 +68,6 @@ test('calculate: mọi kiểu hồ sơ sai (bậc 0, 7 của tts, loại xyz) đ
   assert.equal(slips.qa_ctv1.status, 'draft');
   for (const name of ['qa_tts1', 'qa_nv1', 'qa_nv2']) assert.equal(slips[name].net, null, name);
 
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rows = await P.slipRows(M);
   assert.deepEqual(
     rows
@@ -80,7 +79,7 @@ test('calculate: mọi kiểu hồ sơ sai (bậc 0, 7 của tts, loại xyz) đ
   const denied = await P.decide(M, [{ username: 'qa_nv1', rev: rows.find(r => r.username === 'qa_nv1').rev }]);
   assert.equal(denied.status, 409);
   assert.equal(denied.data.code, 'PAYSLIP_ERROR');
-  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'pending'))), 'duyệt phiếu tốt');
+  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'draft'))), 'duyệt phiếu tốt');
   const excluded = P.must(
     await P.step(M, 'approve', {
       excludeErrors: ['qa_nv1', 'qa_nv2', 'qa_tts1'].map(username => ({ username, reason: 'Hồ sơ sai, xử lý riêng' }))
@@ -199,35 +198,16 @@ test('estimate: người có hồ sơ sai nhưng kỳ đã có bản chụp chí
 });
 
 /* ================= AI soát dữ liệu ================= */
-test('GET /api/ai/review: người có bậc lương sai được đếm vào checked.payrollErrors, không có phát hiện dựa trên tiền của người đó; người khác không đổi', async () => {
-  const M = monthOf();
-  await P.seed(M);
-  const clean = (await F.call('GET', `/ai/review?month=${M}`)).data;
-  assert.equal(clean.checked.payrollErrors, 0);
-  await setLevel('qa_ctv1', 99);
-  const res = await F.call('GET', `/ai/review?month=${M}`);
-  assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(res.data.checked.payrollErrors >= 1, `payrollErrors ${res.data.checked.payrollErrors}`);
-  const PAYROLL_RULES = ['attendance-allowance-risk', 'large-pay-impact', 'ot-above-team', 'slip-override-gap'];
-  const bad = res.data.findings.filter(f => f.username === 'qa_ctv1' && PAYROLL_RULES.includes(f.rule));
-  assert.deepEqual(bad, []);
-  assert.equal(/"impactVnd":0\b/.test(JSON.stringify(res.data.findings)), false);
-  const strip = (r?, user?) => r.findings.filter(f => f.username === user).map(f => `${f.rule}|${f.date}|${f.message}`);
-  for (const user of ['qa_nv1', 'qa_nv2', 'qa_tts1']) assert.deepEqual(strip(res.data, user), strip(clean, user), user);
-});
-
-test('ai-review của kỳ (POST /periods/:month/ai-review) vẫn chạy được khi có phiếu lỗi hồ sơ, và không biến phiếu lỗi thành chờ duyệt', async () => {
+test('tính lương vẫn chạy được khi có phiếu lỗi hồ sơ, các phiếu còn lại là bản nháp', async () => {
   const M = monthOf();
   await P.seed(M);
   await setLevel('qa_ctv1', 99);
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');
   P.must(await P.step(M, 'calculate'), 'tính lương');
-  const ai = P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
-  assert.equal(ai.data.status, 'reviewed');
   const rows = await P.slipRows(M);
   assert.equal(rows.find(r => r.username === 'qa_ctv1').status, 'error');
   assert.deepEqual(
     rows.filter(r => r.username !== 'qa_ctv1').map(r => r.status),
-    ['pending', 'pending', 'pending']
+    ['draft', 'draft', 'draft']
   );
 });

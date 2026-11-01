@@ -9,8 +9,6 @@ const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const server = require('./server');
 
-const agents = require('../../src/platform/agents');
-
 const realNow = Date.now;
 let clock = Date.parse('2026-11-02T09:00:00+07:00');
 let base: any = null;
@@ -24,7 +22,6 @@ async function start() {
   Date.now = () => clock;
   await new Promise<any>(resolve => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
-  await agents.set(true); // công tắc Agents bật cho test của Trợ lý / AI; test/api/agents-toggle.test.ts kiểm mặc định tắt
 }
 async function stop() {
   Date.now = realNow;

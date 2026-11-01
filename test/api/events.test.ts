@@ -365,7 +365,6 @@ test('events-audience: estimate.changed chỉ tới đúng nhân viên bị đ�
     assert.deepEqual(frame.data, { month: M, stage: 'locked' }, `${who}: tầng ngắn, không lộ trạng thái chi tiết`);
   }
   S.must(await S.step(M, 'calculate'), 'tính lương');
-  S.must(await S.step(M, 'ai-review'), 'AI kiểm tra');
   S.must(await S.approveAllPending(M), 'duyệt phiếu');
   S.must(await S.step(M, 'approve'), 'duyệt kỳ');
   got = await settle(Object.values<any>(streams));

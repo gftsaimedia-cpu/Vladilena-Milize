@@ -31,7 +31,6 @@ const SOURCES = sources();
 const WARN_CODES = [
   'PERIOD_NOT_READY',
   'PAYSLIP_STATE',
-  'PAYSLIP_FLAGGED',
   'PAYSLIP_NEGATIVE_NET',
   'SELF_DECISION_FORBIDDEN',
   'APPROVAL_SELF',
@@ -46,7 +45,6 @@ const WARN_CODES = [
 // Kỳ đã chốt: cảnh báo PERIOD_LOCKED ở phần lớn chỗ ghi; riêng vài chỗ ném thẳng vì phiếu đã chốt không đổi được (tạm ứng)
 const LOCKED_CODE = 'PERIOD_LOCKED';
 // Lý do / ghi chú tuỳ chọn (optionalReason, bọc thành softReason trong src/platform/db.ts): thiếu thì lưu bình thường
-const SOFT_PATH_CODES = ['NOTE_REQUIRED'];
 // Ba cổng triển khai môi trường thật luôn từ chối; bật hay tắt bằng biến môi trường lúc triển khai
 const DEPLOY_GATES = ['PARAMS_DEFAULTS_ONLY', 'SCHEDULE_EDIT_NOT_ALLOWED', 'SHIFT_EDIT_NOT_ALLOWED'];
 // Chỗ ném thẳng mã cảnh báo nhưng thực chất là K2 (không có gì để làm): bỏ qua khi quét throw
@@ -135,15 +133,6 @@ test('không còn câu lệnh throw nào ném thẳng mã cảnh báo (PERIOD_LO
     for (const statement of throwStatements(text))
       if (new RegExp(`['"\`]${LOCKED_CODE}['"\`]`).test(statement.text)) locked.push(file);
   assert.deepEqual([...new Set<any>(locked)], ['src/modules/advance/advance-approvals.handlers.ts']);
-});
-
-test('đường mềm: mã ghi chú / lý do tuỳ chọn (NOTE_REQUIRED) chỉ còn được ném qua optionalReason, không ném thẳng', () => {
-  for (const code of SOFT_PATH_CODES) {
-    const files = SOURCES.filter(({ text }: any) => text.includes("'" + code + "'"));
-    assert.ok(files.length > 0, code + ' không còn trong mã nguồn (cập nhật danh sách?)');
-    for (const { file, text } of files)
-      assert.match(text, /optionalReason\(/, file + ': ' + code + ' phải đi qua optionalReason');
-  }
 });
 
 test('K1/K2/K3: quyền, định dạng, trạng thái không thể và chống ghi đè không bao giờ đi qua warnIf (không biến thành cảnh báo)', () => {

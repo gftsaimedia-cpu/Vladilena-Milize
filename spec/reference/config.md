@@ -2,13 +2,10 @@
 
 > Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `src/platform/config.ts` và các chỗ đọc `process.env` trong `src/`. Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
-## Hằng số có tên (`src/platform/config.ts`, 70)
+## Hằng số có tên (`src/platform/config.ts`, 67)
 
 | Tên | Giá trị |
 | --- | --- |
-| `AGENTS_OFF` | `"0"` |
-| `AGENTS_ON` | `"1"` |
-| `AGENTS_SETTING_KEY` | `"agents_enabled"` |
 | `APPROVAL_MAX_DECIDE_ITEMS` | `200` |
 | `ATTR_MAX_PER_CLASS` | `20` |
 | `AUDIT_PAGE_DEFAULT` | `50` |
@@ -82,20 +79,20 @@
 | Biến | Đọc ở |
 | --- | --- |
 | `ACCESS_LOG` | `src/ops/access-log.ts:12` |
-| `AUDIT_KEY` | `src/platform/db.ts:347` |
-| `COOKIE_SECURE` | `src/params/save.ts:69` `src/params/save.ts:73` `src/params/save.ts:89` `src/platform/auth.ts:276` (+1) |
-| `DATABASE_URL` | `src/platform/db.ts:39` `src/platform/db.ts:53` `src/platform/db.ts:54` |
+| `AUDIT_KEY` | `src/platform/db.ts:341` |
+| `COOKIE_SECURE` | `src/params/save.ts:68` `src/params/save.ts:72` `src/params/save.ts:88` `src/platform/auth.ts:276` (+1) |
+| `DATABASE_URL` | `src/platform/db.ts:35` `src/platform/db.ts:49` `src/platform/db.ts:50` |
 | `DB_DEBUG_SQL` | `src/data/postgres-database.ts:157` |
-| `DB_PATH` | `src/domain/ai-block.ts:18` `src/platform/db.ts:38` |
+| `DB_PATH` | `src/platform/db.ts:34` |
 | `DB_SQL_STATS` | `src/data/postgres-database.ts:147` |
-| `NODE_ENV` | `src/params/save.ts:69` `src/params/save.ts:73` `src/params/save.ts:89` |
-| `PARAMS_ALLOW_ACTIVATE` | `src/params/save.ts:88` |
-| `PG_TEST_URL` | `src/platform/db.ts:39` `src/platform/db.ts:55` `src/platform/db.ts:56` |
+| `NODE_ENV` | `src/params/save.ts:68` `src/params/save.ts:72` `src/params/save.ts:88` |
+| `PARAMS_ALLOW_ACTIVATE` | `src/params/save.ts:87` |
+| `PG_TEST_URL` | `src/platform/db.ts:35` `src/platform/db.ts:51` `src/platform/db.ts:52` |
 | `PORT` | `src/main.ts:89` |
-| `SCHEDULE_ALLOW_EDIT` | `src/params/save.ts:68` |
+| `SCHEDULE_ALLOW_EDIT` | `src/params/save.ts:67` |
 | `SESSION_COOKIE_NAME` | `src/platform/auth.ts:227` |
 | `SESSION_DAYS` | `src/platform/auth.ts:223` |
 | `SESSION_SECRET` | `src/platform/auth.ts:216` |
-| `SHIFT_ALLOW_EDIT` | `src/params/save.ts:73` |
+| `SHIFT_ALLOW_EDIT` | `src/params/save.ts:72` |
 | `UV_THREADPOOL_SIZE` | `src/preload.ts:7` `src/preload.ts:8` |
 | `WEB_DIST` | `src/platform/http.ts:10` |

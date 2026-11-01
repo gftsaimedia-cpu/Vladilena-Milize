@@ -107,7 +107,6 @@ test('1c: kỳ đã duyệt: lập khoản mới và huỷ khoản đã duyệt 
   P.must(await P.step(M, 'calculate'), 'tính lương');
   const entry = await makeApproved(M);
   P.must(await P.step(M, 'calculate'), 'tính lại có khoản');
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
   const slips = await P.slipRows(M);

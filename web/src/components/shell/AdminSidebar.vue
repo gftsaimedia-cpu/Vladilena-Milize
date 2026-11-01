@@ -33,16 +33,9 @@ const GROUPS = [
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]
   ],
-  ['Đội ngũ', [['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']]],
-  ['Phân tích', [['tro-ly', 'spark', 'Trợ lý AI', '/admin/tro-ly-ai']]]
+  ['Đội ngũ', [['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']]]
 ];
-// Mục Trợ lý AI chỉ có khi công tắc Agents bật
-const groups = computed(() =>
-  GROUPS.map(([grp, items]: any) => [
-    grp,
-    items.filter(([key]: any) => key !== 'tro-ly' || session.agentsEnabled)
-  ]).filter(([, items]: any) => items.length)
-);
+const groups = computed(() => GROUPS);
 </script>
 
 <template>

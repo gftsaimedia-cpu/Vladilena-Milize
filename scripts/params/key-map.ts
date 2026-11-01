@@ -31,25 +31,6 @@ const RULES = [
   { path: 'ApprovalView.POLICY.pending.<item>', key: 'request.type.<item>.pendingRule' },
   { path: 'ApprovalView.POLICY.rejected.<item>', key: 'request.type.<item>.rejectedRule' },
   { path: 'ApprovalView.COUNTS_ABSENT.<item>', key: 'request.type.<item>.countsAbsent' },
-  /* ---- src/ai/thresholds.ts ---- */
-  {
-    path: 'THRESHOLDS.<name:isatPerMonth|approvedLeavePerMonth|rejectedLookbackDays|repeatedEditsRev|presenceGapMin|otMedianFactor|otMedianMinHours|otMedianMinPeers|impactVnd|slipDiffVnd|slipDiffRatio|kpiFullMonths|paramChangePeoplePct|formulaChangeTotalVnd|scopeLeakMinPeople|overrideEntryRoundVnd>',
-    key: 'ai.threshold.<name>'
-  },
-  { path: 'AiLimits.<name>', key: 'ai.limit.<name>' }, // giới hạn kỹ thuật của src/ai/ (LIMITS)
-  { path: 'THRESHOLDS.reportDeadlineDay', key: 'period.reportDeadlineDay' }, // ngưỡng AI nhắc lại luật gốc: lấy từ khoá gốc
-  {
-    path: 'THRESHOLDS.attendMaxAbsentDays',
-    ignore: 'bỏ khỏi bảng ngưỡng AI: lấy từ type.nv.maxAbsent (removed.ai.threshold.attendMaxAbsentDays)'
-  },
-  {
-    path: 'THRESHOLDS.overLimitHours',
-    ignore: 'bỏ khỏi bảng ngưỡng AI: lấy từ attendance.overLimitHours (removed.ai.threshold.overLimitHours)'
-  },
-  {
-    path: 'THRESHOLDS.kpiFullPct',
-    ignore: 'bỏ khỏi bảng ngưỡng AI: 100 là mức tối đa của tự đánh giá, luật cố định (removed.ai.threshold.kpiFullPct)'
-  },
   /* ---- src/platform/config.ts ---- */
   { path: 'config.AUDIT_PAGE_MAX', key: 'system.audit.pageMax' },
   { path: 'config.AUDIT_PAGE_DEFAULT', key: 'system.audit.pageDefault' },

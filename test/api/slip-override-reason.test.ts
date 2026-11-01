@@ -130,7 +130,6 @@ test('Số sửa phiếu từ kỳ approved vẫn lưu, kèm cảnh báo PERIOD_
   assert.equal((await putTts(body(2))).status, 200, 'attendance_locked');
   P.must(await P.step(M, 'calculate'), 'tính lương');
   assert.equal((await putTts(body(3))).status, 200, 'calculated');
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rev = await putTts(body(4));
   assert.equal(rev.status, 200, 'reviewed');
   assert.equal(rev.data.rev, 4);

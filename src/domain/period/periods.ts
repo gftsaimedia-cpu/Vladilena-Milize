@@ -11,7 +11,6 @@ const paramsStore = require('../../params/store');
 const service = require('../payroll/payroll-service');
 const config = require('../../platform/config');
 const crypto = require('node:crypto');
-const { THRESHOLDS } = require('../../ai/thresholds');
 const Params = require('../../engine/payroll-params');
 const hashOf = (value?) => crypto.createHash('sha256').update(Params.canonical(value)).digest('hex');
 const Engine = require('../../engine/payroll-engine');
@@ -27,15 +26,7 @@ const sharedCache = require('../../ops/shared-cache'); // phép tính nặng ch�
 const { closeStaleIn } = require('../attendance');
 const { isatRefusal } = require('../isat-rule'); // ngày iSAT đúng thứ và đúng quyền lợi
 const { warn, selfDecision, optionalReason } = require('../../platform/warnings');
-const agents = require('../../platform/agents');
-const {
-  CHECKLIST_TEXT,
-  soften,
-  warnNegativeNet,
-  warnLockChecklist,
-  autoCounts,
-  warnFlagged
-} = require('./period-warnings'); // câu cảnh báo của kỳ lương
+const { CHECKLIST_TEXT, soften, warnNegativeNet, warnLockChecklist, autoCounts } = require('./period-warnings'); // câu cảnh báo của kỳ lương
 
 const error = (code?, message?, httpStatus = 409, details?) =>
   Object.assign(new Error(message), { code, httpStatus, ...(details ? { details } : {}) });
@@ -56,7 +47,7 @@ const toSafeStaff = ({ sessionVersion, ...rest }: any) => rest; // không bao gi
 // Mã không bỏ qua được: tháng chưa hết và còn phiên Check-in mở. Mã `block` khác bỏ qua được bằng acknowledge kèm lý do.
 const NOT_ACKNOWLEDGEABLE = Object.freeze(['MONTH_NOT_ENDED', 'OPEN_SESSIONS']);
 // "Bỏ qua kèm lý do" (acknowledge) chỉ có ở bước chốt công (lockAttendance). Danh sách của bước duyệt (forApprove) không có nơi nào nhận
-// acknowledge nên không mục nào bỏ qua được ở đó, kể cả AI_NOT_RUN: việc cần làm là chạy AI kiểm tra.
+// acknowledge nên không mục nào bỏ qua được ở đó,.
 // Mục CẢNH BÁO (không chặn) cho bước duyệt kỳ:
 //   PENDING_PAY_ENTRIES  còn khoản điền thêm chờ duyệt của kỳ (khoản chưa duyệt không vào lương)
 //   RUN_STALE            lần tính hiện hành đã cũ (đầu vào hoặc tham số đổi sau khi tính): duyệt sẽ chốt số cũ
@@ -181,12 +172,6 @@ async function checklist(month?, { forApprove = false, stale, raw = false }: any
   add('ISAT_INVALID', badIsat, 'warn', 'attendance');
   if (forApprove) {
     const period = await store.periods.get(month);
-    // Chưa có lần tính hiện hành (vừa mở lại về "calculated") thì kết quả AI cũ thuộc lần tính cũ, không tính là đã kiểm tra
-    if (
-      (await agents.enabled()) &&
-      (period.currentRunId == null || !(await store.aiReviews.latest(month, period.currentRunId)))
-    )
-      add('AI_NOT_RUN', 1, 'block', 'ai-review');
     items.push(...(await approvalWarningsRaw(month, { people, stale })));
   }
   return raw ? items : soften(items, month);
@@ -222,7 +207,6 @@ async function view(month?) {
     attendanceKept: slips ? attendanceKeptOf(await runLines(run)) : null,
     needsRecalculate,
     ...stale,
-    ai: period.currentRunId == null ? null : await store.aiReviews.latest(month, period.currentRunId),
     // Kỳ đã soát (sắp duyệt) chỉ còn các cảnh báo; kỳ mở hoặc đã tính có đủ danh sách kiểm
     checklist:
       period.status === 'open' || period.status === 'calculated'
@@ -386,39 +370,6 @@ async function calculate(month, { rev }: any, actx?, by?) {
   });
 }
 
-// "AI kiểm tra": runAi(month) do server.js đưa vào (aiReviewResult); chỉ đếm phát hiện, không lưu nội dung
-async function aiReview(month, { rev }: any, actx?, by?, runAi?) {
-  const period = await precheck(month, rev, ['calculated', 'reviewed']);
-  if (period.currentRunId == null)
-    throw error('PERIOD_NOT_READY', 'Chưa có lần tính lương để kiểm tra', 409, { month });
-  return await store.transaction(async () => {
-    const result = await runAi(month);
-    const flagsByUser: Record<string, any> = {};
-    // systemFindings (không gắn với ai) nằm ngoài result.findings; phát hiện không có tài khoản không gắn cờ vào phiếu nào
-    for (const finding of result.findings.filter(f => typeof f.username === 'string' && f.username))
-      (flagsByUser[finding.username] = flagsByUser[finding.username] || []).push(finding.rule);
-    for (const user of Object.keys(flagsByUser)) flagsByUser[user] = [...new Set<any>(flagsByUser[user])].sort();
-    await store.payroll.applyAiReview(period.currentRunId, flagsByUser);
-    await store.aiReviews.add({
-      month,
-      runId: period.currentRunId,
-      rules: result.checked.ruleIds || [],
-      thresholdsHash: hashOf(result.thresholds || THRESHOLDS), // ngưỡng đã giải theo tham số của tháng (aiReviewResult); bản thử thay thế runAi có thể không trả
-      paramsHash: (await store.payroll.getRun(period.currentRunId)).paramsHash,
-      findingsTotal: result.summary.total,
-      summary: { total: result.summary.total, bySeverity: result.summary.bySeverity, byRule: result.summary.byRule },
-      by
-    });
-    const next = await store.periods.markReviewed(month, { rev, by });
-    await auditPeriod(actx, 'period.ai-review', month, null, {
-      status: next.status,
-      findings: result.summary.total,
-      flagged: Object.keys(flagsByUser).length
-    });
-    return { ...brief(next), findings: result.summary.total, bySeverity: result.summary.bySeverity };
-  });
-}
-
 async function decidePayslips(month?, body?, me?, actx?) {
   needMonth(month);
   const period = await store.periods.get(month);
@@ -437,7 +388,6 @@ async function decidePayslips(month?, body?, me?, actx?) {
     }
   );
   return await store.transaction(async () => {
-    if (body.action === 'approve') await warnFlagged(month, items); // nêu số phiếu còn cờ AI chưa xử lý
     // Phiếu có thực lĩnh chi trả âm (sau số đã sửa) vẫn duyệt được, kèm cảnh báo đỏ
     if (body.action === 'approve') {
       const run = await store.payroll.getRun(period.currentRunId);
@@ -468,10 +418,7 @@ async function decidePayslips(month?, body?, me?, actx?) {
 }
 
 async function approve(month, { rev, excludeErrors }: any, actx?, by?) {
-  // Duyệt kỳ từ cả 'calculated'; chưa chạy AI thì cảnh báo
   const period = await precheck(month, rev, ['calculated', 'reviewed']);
-  if (period.status === 'calculated' && (await agents.enabled()))
-    warn('AI_NOT_RUN', CHECKLIST_TEXT.AI_NOT_RUN(), { link: 'ai-review' });
   return await store.transaction(async () => {
     // Còn phiếu có thực lĩnh chi trả âm (kể cả số sửa lưu sau khi phiếu đã duyệt) thì cảnh báo; số sửa sẽ đóng băng đúng số này
     const run = period.currentRunId == null ? null : await store.payroll.getRun(period.currentRunId);
@@ -486,7 +433,7 @@ async function approve(month, { rev, excludeErrors }: any, actx?, by?) {
       actx,
       'period.approve',
       month,
-      { status: 'reviewed' },
+      { status: period.status },
       { status: next.status, excluded: Array.isArray(excludeErrors) ? excludeErrors.length : 0, ...auto }
     );
     return brief(next);
@@ -1156,7 +1103,6 @@ export = {
   list,
   lockAttendance,
   calculate,
-  aiReview,
   decidePayslips,
   approve,
   markPaid,

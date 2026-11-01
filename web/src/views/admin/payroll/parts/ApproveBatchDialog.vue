@@ -4,7 +4,6 @@ import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { approveBatch } from '@/services/admin-payroll';
-import { useSessionStore } from '@/stores/session';
 
 const props = defineProps({
   month: { type: String, required: true },
@@ -16,7 +15,6 @@ const props = defineProps({
   total: { type: Number, default: 0 }
 });
 const emit = defineEmits(['close', 'done']);
-const agents = computed(() => useSessionStore().agentsEnabled);
 const busy = ref(false);
 const error = ref('');
 
@@ -36,7 +34,7 @@ async function submit() {
 <template>
   <AppModal
     :title="`Phê duyệt ${total} phiếu`"
-    :sub="agents ? `Bản nháp lần tính ${run} · phiếu không có cảnh báo AI` : `Bản nháp lần tính ${run}`"
+    :sub="`Bản nháp lần tính ${run}`"
     :width="640"
     :top="260"
     @close="emit('close')"

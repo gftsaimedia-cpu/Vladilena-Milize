@@ -16,7 +16,7 @@ function writeCsv(dir?, file?, header?, rows?) {
   return rows.length;
 }
 
-async function exportAll({ store, personas, selfcheck, dir, people = personas }: any) {
+async function exportAll({ store, personas, dir, people = personas }: any) {
   const byUser = new Map<any, any>(people.map(p => [p.username, p]));
   fs.mkdirSync(dir, { recursive: true });
   const out: Record<string, any> = {};
@@ -275,13 +275,6 @@ async function exportAll({ store, personas, selfcheck, dir, people = personas }:
     ['id', 'title', 'personas'],
     S.CASES.map(([id, title]: any) => [id, title, (coverMap.get(id) || []).join(' ')])
   );
-  if (selfcheck)
-    out['ai_rules.csv'] = writeCsv(
-      dir,
-      'ai_rules.csv',
-      ['rule', 'hits', 'peopleFlagged', 'mustFlag', 'mustNotFlag'],
-      selfcheck.mapping.map(m => [m.rule, m.hits, m.people, m.fire.join(' '), m.miss.join(' ')])
-    );
   return out;
 }
 

@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Nhóm "Các tháng trước" của Yêu cầu · Mọi tháng: AI chưa kiểm tra nên chỉ xử lý từng cái.
-import { useSessionStore } from '@/stores/session';
+// Nhóm "Các tháng trước" của Yêu cầu · Mọi tháng.
 import RequestTable from './RequestTable.vue';
 
 defineProps({
@@ -9,7 +8,6 @@ defineProps({
   canMore: { type: Boolean, default: false }
 });
 defineEmits(['approve', 'reject', 'more']);
-const session = useSessionStore();
 const HEADS = ['Nhân sự', 'Loại yêu cầu', 'Chi tiết', 'Ghi chú'];
 const WIDTHS = [260, 170, '', 170, 190];
 </script>
@@ -18,11 +16,7 @@ const WIDTHS = [260, 170, '', 170, 190];
   <section class="card">
     <div class="card-h">
       <h2>Các tháng trước</h2>
-      <span class="cap"
-        >{{ total }} yêu cầu<template v-if="session.agentsEnabled">
-          · AI chưa kiểm tra nên không đồng ý cả loạt được, xử lý từng cái</template
-        ></span
-      >
+      <span class="cap">{{ total }} yêu cầu</span>
     </div>
     <RequestTable :items="items" :heads="HEADS" :widths="WIDTHS">
       <template #extra="{ r }">

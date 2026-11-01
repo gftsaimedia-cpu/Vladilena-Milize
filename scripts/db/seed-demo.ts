@@ -111,10 +111,10 @@ if (dbArg) process.env.DB_PATH = dbArg;
 const S = require('./demo/scenarios');
 const H = require('./demo/helpers');
 const gen = require('./demo/generate');
-const selfcheck = require('./demo/selfcheck');
 const { exportAll } = require('./demo/export-csv');
 const store = require('../../src/platform/db');
-const { loadPayroll } = require('../../src/ai/payroll-loader');
+const PayrollEngine = require('../../src/engine/payroll-engine');
+const PayrollParams = require('../../src/engine/payroll-params');
 
 const today = typeof args.today === 'string' ? args.today : S.TODAY;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || today < '2026-10-01' || today > '2026-11-30')
@@ -126,7 +126,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
   // Đánh dấu ngay khi file mới được tạo: nếu lần dựng bị lỗi giữa chừng, lần sau vẫn nhận ra đây là file demo và dựng lại được
   await store.setSetting(MARKER_KEY, { version: 1, building: true });
   const t0 = Date.now();
-  const payroll = loadPayroll();
+  const payroll = PayrollEngine.create(PayrollParams.DEFAULTS);
   const passHash = H.fixedHash(DEMO_PASSWORD);
   const personas = S.PERSONAS;
   const generator = gen.create({ store, payroll, passHash, today });
@@ -206,50 +206,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     for (const step of prepared.filter(s => !s.ok)) warnings.push(`Lớp vận hành: ${step.name}: ${step.detail}`);
   }
 
-  /* ---------- tự kiểm bằng "Soát dữ liệu" ---------- */
-  let check: any = null;
   let exitCode = 0;
-  if (!args['no-check']) {
-    check = await selfcheck.run({ store, payroll, personas, today });
-    console.log(`\nTự kiểm "Soát dữ liệu" (${check.months.join(', ')}, tính đến ${today})`);
-    for (const [month, total] of Object.entries<any>(check.perMonth)) line(`  Phát hiện tháng ${month}`, total);
-    for (const m of check.mapping)
-      console.log(
-        `  ${m.rule.padEnd(28)} ${String(m.hits).padStart(3)} lần, ${String(m.people).padStart(2)} người · phải bắn: ${m.fire.length} persona · sát ngưỡng: ${m.miss.length} persona${S.SYSTEM_RULES.includes(m.rule) ? ' · luật hệ thống, không kiểm bằng persona' : ''}`
-      );
-    line('  Lỗi tính lương (payrollErrors)', check.payrollErrors);
-    if (check.period) {
-      const p = check.period.summary;
-      console.log(`
-Phiếu kỳ lương ${p.month} (tính trong tiến trình, không ghi DB; luồng route thật: scripts/db/demo/period-check.ts)`);
-      line('  Phiếu', `${p.total} (loại: ${p.types.join(', ')})`);
-      line('  Phiếu lỗi theo mã', JSON.stringify(p.errors));
-      line('  Phiếu có cờ AI', `${p.flagged} (trên ${p.rules} luật)`);
-      line('  Chuyên cần giữ / mất', `${p.attendanceKept} / ${p.attendanceLost}`);
-      line('  iDorm · tắt tạm ứng', `${p.iDorm} · ${p.advanceOff}`);
-      for (const problem of check.period.problems) warnings.push(`Kỳ lương: ${problem}`);
-    }
-    for (const problem of check.clock) warnings.push(`Đồng hồ: ${problem}`);
-    if (check.skipped.length) console.log(`  Luật bị bỏ qua: ${check.skipped.join(', ')}`);
-    if (check.missingRules.length) warnings.push(`Danh sách luật lệch review.js: ${check.missingRules.join(', ')}`);
-    if (check.zero.length) warnings.push(`Luật KHÔNG bắn lần nào: ${check.zero.join(', ')}`);
-    if (check.noFire.length) warnings.push(`Luật chưa có persona "phải bắn": ${check.noFire.join(', ')}`);
-    if (check.noMiss.length) warnings.push(`Luật chưa có persona "sát ngưỡng": ${check.noMiss.join(', ')}`);
-    for (const mm of check.mismatches)
-      warnings.push(`${mm.kind}: ${mm.username} · ${mm.rule}${mm.date ? ' · ' + mm.date : ''}`);
-    if (check.clock.length) exitCode = 2;
-    if (
-      today === S.TODAY &&
-      (check.zero.length ||
-        check.mismatches.length ||
-        check.noFire.length ||
-        check.noMiss.length ||
-        check.missingRules.length ||
-        (check.period && check.period.problems.length))
-    )
-      exitCode = 2;
-    if (today !== S.TODAY) warnings.push('Đã đổi --today nên kỳ vọng của AI có thể lệch: chỉ kiểm bản mặc định');
-  }
   if (warnings.length) {
     console.log('\nCảnh báo');
     for (const w of warnings) console.log(`  - ${w}`);
@@ -292,7 +249,6 @@ Phiếu kỳ lương ${p.month} (tính trong tiến trình, không ghi DB; luồ
     const written = await exportAll({
       store,
       personas,
-      selfcheck: check,
       dir,
       people: [...personas, ...S.ADMINS, ...bulk]
     });

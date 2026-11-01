@@ -2,7 +2,6 @@
 // "Lưu là áp dụng toàn hệ thống": sau khi Admin Lưu MỘT khoá tiền đã nối với tháng hiệu lực M,
 // từ lúc COMMIT mọi nơi đọc của tháng M thấy giá trị mới, còn tháng trước M và tháng đã khoá thì không đổi một đồng:
 //   - GET /api/me/estimate?month=M: số tiền ước tính của nhân viên (đúng từng đồng theo bộ máy chạy bộ tham số mới);
-//   - GET /api/ai/review?month=M: soát dữ liệu dùng bộ tham số mới (tác động tiền của khoản chờ duyệt đổi theo);
 //   - POST /api/periods/M/calculate: bản chụp phiếu mang params_hash, params_rev và giá trị mới;
 //   - GET /api/settings/params?month=M: màn Cài đặt thấy giá trị mới, kèm dòng lịch sử (lý do, tháng áp dụng);
 //   - tháng M-1 (đã chốt công và tính lương) giữ nguyên ước tính, bản chụp, băm tham số và verify; đặt hiệu lực ở đó vẫn lưu được và chỉ cảnh báo PERIOD_LOCKED.
@@ -28,15 +27,6 @@ const estimate = (month?, who = 'qa_nv1') => F.call('GET', `/me/estimate?month=$
 const netOf = async (username?, month?, params?) =>
   Engine.computeMonth(await flow.legacyInput(username, month), params).m.net;
 const viaJson = (value?) => JSON.parse(JSON.stringify(value));
-const holidaySlip = async (month?) => {
-  const res = await F.call('GET', `/ai/review?month=${month}&impacts=1`);
-  assert.equal(res.status, 200, JSON.stringify(res.data).slice(0, 300));
-  return res;
-};
-const impactOf = (review?) => {
-  const hit = review.data.findings.find(f => f.rule === 'large-pay-impact' && f.username === 'qa_nv1');
-  return hit ? hit.evidence.inputs.impactVnd : null;
-};
 // Dữ liệu tháng M cho bốn người của period-flow: ngày công theo ca (không OT, mỗi ngày một lượt Check-in/out), thêm một ngày làm lễ chờ duyệt của qa_nv1 (khoản chờ duyệt đổi tiền theo lương)
 async function addMonthData(month?, holiday?) {
   for (const p of flow.PEOPLE) {
@@ -74,7 +64,7 @@ const fingerprint = async (month?) => {
 };
 
 test(
-  'R1 lưu là áp dụng: một khoá tiền đã nối lưu với tháng M đổi ước tính, soát AI, bản chụp tính lương và màn Cài đặt của M; tháng M-1 đã khoá giữ nguyên từng đồng',
+  'R1 lưu là áp dụng: một khoá tiền đã nối lưu với tháng M đổi ước tính, bản chụp tính lương và màn Cài đặt của M; tháng M-1 đã khoá giữ nguyên từng đồng',
   S.readyWith(S.wiredMoneyKey(), 'khoá tiền đã nối (wired) cho NV'),
   async t => {
     const A = monthOf(); // M-1: đã chốt công và tính lương trước khi Lưu
@@ -102,8 +92,6 @@ test(
       viaJson(expectedBefore),
       'trước khi Lưu: bằng bộ máy với mặc định cộng danh mục, từng đồng'
     );
-    const aiBefore = await impactOf(await holidaySlip(M));
-    assert.ok(aiBefore > 0, 'điều kiện của bài: khoản làm lễ chờ duyệt có tác động tiền để soát');
     const estABefore = (await estimate(A)).data;
     const viewABefore = (await S.paramsView(A)).data;
     const fingerprintABefore = await fingerprint(A);
@@ -136,25 +124,6 @@ test(
     assert.notEqual(estAfter.paramsHash, estBefore.paramsHash);
     const estOtherAfter = (await estimate(M, 'qa_ctv1')).data;
     assert.deepEqual(estOtherAfter.net, estOtherBefore.net, 'CTV không bị khoá NV ảnh hưởng');
-
-    // (2) soát AI của tháng M dùng bộ tham số mới: tác động tiền của khoản chờ duyệt đổi
-    const aiAfter = await impactOf(await holidaySlip(M));
-    if (key.key.startsWith('level.')) {
-      // lương cơ bản đổi thì tiền ngày công làm lễ đổi theo tỷ lệ
-      assert.notEqual(aiAfter, aiBefore, `tác động tiền của khoản làm lễ ${aiBefore} → ${aiAfter}`);
-      assert.ok(
-        Math.abs(aiAfter - Math.round((aiBefore * key.value) / key.was)) <= 2,
-        'tác động tỷ lệ với lương cơ bản mới'
-      );
-    } else {
-      // phụ cấp theo tỷ lệ không đổi tiền làm lễ (ngày lễ không vào ngày đi làm): tác động y nguyên, nhưng soát vẫn phải chạy trên bộ tham số mới không lỗi
-      t.diagnostic(
-        `khoá ${key.key} không làm đổi tác động của khoản làm lễ (${aiBefore} → ${aiAfter}); kiểm AI bằng số chỉ chặt với khoá level.*`
-      );
-      assert.ok(aiAfter > 0);
-    }
-    const aiRun = await holidaySlip(M);
-    assert.equal(aiRun.data.checked.payrollErrors, 0, 'AI soát không lỗi tính lương trên bộ tham số mới');
 
     // (3) màn Cài đặt: giá trị mới, phiên bản, dòng lịch sử có lý do và tháng áp dụng; tháng sau M thừa hưởng
     const viewM = (await S.paramsView(M)).data;

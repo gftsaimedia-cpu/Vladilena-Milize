@@ -18,7 +18,6 @@ export const SETTINGS_NAV: any[] = [
   [
     'Kiểm soát',
     [
-      ['canh-bao', 'spark', 'Cảnh báo AI', '/admin/cai-dat/canh-bao'],
       ['phan-quyen', 'shield', 'Phân quyền', '/admin/cai-dat/phan-quyen'],
       ['nhat-ky', 'history', 'Nhật ký thay đổi', '/admin/cai-dat/nhat-ky']
     ]

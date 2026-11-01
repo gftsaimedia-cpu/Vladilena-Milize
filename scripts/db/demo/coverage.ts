@@ -17,8 +17,15 @@ const EXCLUDED = {
     'phép hết hạn chỉ sinh khi sang năm mới của một khoản phép cũ; mốc demo (cuối 2026-11) chưa tới hạn hết phép năm',
   'leave_ledger.kind=start':
     'leave.accrual.start = 0 (mặc định): ngày vào làm không cộng phép nên không sinh dòng "start"',
-  'ai_finding_actions.action=restore':
-    'khôi phục phát hiện đã bỏ qua: lớp vận hành thử ở bước "bỏ qua phát hiện" (xem lifecycle.js); nếu route khôi phục chưa có thì ngoại lệ này giữ nguyên'
+  'payroll_periods.status=reviewed':
+    'trạng thái cũ của bước AI kiểm tra đã bỏ: không còn đường nào sinh ra, chỉ còn được chấp nhận để mở kỳ cũ',
+  'payslips.status=pending': 'trạng thái phiếu chờ duyệt do bước AI kiểm tra sinh ra, đã bỏ'
+};
+
+// Bảng giữ lại để không mất lịch sử nhưng không còn mã nào ghi vào (bước AI kiểm tra đã bỏ).
+const TABLES_UNUSED = {
+  ai_finding_actions: 'lịch sử bỏ qua phát hiện AI, chỉ còn đọc được từ bản cũ',
+  ai_review_runs: 'lịch sử các lần chạy AI kiểm tra, chỉ còn đọc được từ bản cũ'
 };
 
 function migrationsSql() {
@@ -62,7 +69,7 @@ async function measure({ store, personas }: any) {
   const counts: Record<string, any> = {};
   for (const table of tables) {
     counts[table] = (await db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get()).n;
-    if (!counts[table]) gaps.push(`bảng ${table} không có dòng nào`);
+    if (!counts[table] && !TABLES_UNUSED[table]) gaps.push(`bảng ${table} không có dòng nào`);
   }
   for (const { table, column, values: wanted } of enums) {
     if (!counts[table]) continue; // đã báo ở trên
@@ -76,7 +83,7 @@ async function measure({ store, personas }: any) {
   // trạng thái kỳ lương theo mã (PERIOD_STATES)
   const authz = require('../../../src/platform/authz');
   const periodStatuses = new Set<any>(await values(db, 'payroll_periods', 'status'));
-  for (const s of ['open', 'attendance_locked', 'calculated', 'reviewed', 'approved', 'paid'])
+  for (const s of ['open', 'attendance_locked', 'calculated', 'approved', 'paid'])
     if (s !== 'open' && !periodStatuses.has(s)) gaps.push(`kỳ lương chưa có trạng thái '${s}'`);
   const reopened = await db.prepare('SELECT COUNT(*) AS n FROM payroll_runs WHERE run_no > 1').get();
   if (!reopened.n) gaps.push('chưa có kỳ nào được mở lại và tính lần hai (payroll_runs.run_no > 1)');
@@ -127,4 +134,4 @@ async function measure({ store, personas }: any) {
   };
 }
 
-module.exports = { measure, schemaUniverse, EXCLUDED };
+module.exports = { measure, schemaUniverse, EXCLUDED, TABLES_UNUSED };

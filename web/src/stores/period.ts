@@ -37,7 +37,7 @@ export const usePeriodStore = defineStore('period', {
       try {
         const period = await api('GET', `/periods/${month}`);
         if (month !== this.month) return;
-        this.base = buildStrip(month, period, useSessionStore().agentsEnabled);
+        this.base = buildStrip(month, period);
         this.strip = JSON.parse(JSON.stringify(this.base));
       } catch {
         if (month === this.month) this.base = null;

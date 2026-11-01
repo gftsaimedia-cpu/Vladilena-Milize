@@ -113,9 +113,5 @@ export = Object.freeze({
   // Số id cộng thêm cho dòng của danh mục khi trộn với param_versions: cùng tháng áp dụng thì danh mục thắng (sửa sau cùng ở danh mục)
   CATALOG_ROW_ID_BASE: 1099511627776,
   // Nhịp làm mới số dư phép lưu sẵn trong bảng staff (mili giây): cộng phép tháng tròn, sinh nhật và ghi sổ phép
-  LEAVE_REFRESH_MS: 3600000,
-  // Công tắc Agents: khoá trong bảng settings và hai giá trị bật / tắt (src/platform/agents.ts, và src/platform/db.ts khi quyết định có cảnh báo bước AI)
-  AGENTS_SETTING_KEY: 'agents_enabled',
-  AGENTS_ON: '1',
-  AGENTS_OFF: '0'
+  LEAVE_REFRESH_MS: 3600000
 });

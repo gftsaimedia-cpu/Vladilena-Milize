@@ -4,69 +4,6 @@ import type { Schema } from './schema.generated';
 
 const count = sql<number>`COUNT(*)`.as('n');
 
-/* ---------- AI: bỏ qua phát hiện và lần chạy ---------- */
-
-export type FindingActionRow = Selectable<Schema['ai_finding_actions']>;
-export type AiRunRow = Selectable<Schema['ai_review_runs']>;
-
-/** Bảng `ai_finding_actions`: lịch sử bỏ qua phát hiện AI (chỉ thêm; dòng mới nhất của một phát hiện quyết định trạng thái). */
-export class AiFindingActionsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
-
-  async insert(row: Insertable<Schema['ai_finding_actions']>): Promise<number> {
-    const result = await this.qb.insertInto('ai_finding_actions').values(row).returning('id').executeTakeFirstOrThrow();
-    return Number(result.id);
-  }
-
-  find(id: number): Promise<FindingActionRow | undefined> {
-    return this.qb.selectFrom('ai_finding_actions').selectAll().where('id', '=', id).executeTakeFirst();
-  }
-
-  latest(findingId: string): Promise<FindingActionRow | undefined> {
-    return this.qb.selectFrom('ai_finding_actions').selectAll().where('finding_id', '=', findingId).orderBy('id', 'desc').limit(1).executeTakeFirst();
-  }
-
-  /** Dòng 'dismiss' đang là dòng mới nhất của phát hiện, trong tháng. */
-  dismissedIn(month: string): Promise<FindingActionRow[]> {
-    return this.qb
-      .selectFrom('ai_finding_actions as a')
-      .selectAll('a')
-      .where('a.month', '=', month)
-      .where('a.id', '=', eb => eb.selectFrom('ai_finding_actions as b').select(sql<number>`MAX(b.id)`.as('id')).whereRef('b.finding_id', '=', 'a.finding_id'))
-      .where('a.action', '=', 'dismiss')
-      .execute();
-  }
-
-  list(filter: { findingId?: string; month?: string; ruleId?: string }, limit: number): Promise<FindingActionRow[]> {
-    let query = this.qb.selectFrom('ai_finding_actions').selectAll();
-    if (filter.findingId) query = query.where('finding_id', '=', filter.findingId);
-    if (filter.month) query = query.where('month', '=', filter.month);
-    if (filter.ruleId) query = query.where('rule_id', '=', filter.ruleId);
-    return query.orderBy('id').limit(limit).execute();
-  }
-}
-
-/** Bảng `ai_review_runs`: mỗi lần chạy bước "AI kiểm tra" (chỉ số đếm, không có dữ liệu cá nhân). */
-export class AiReviewRunsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
-
-  async insert(row: Insertable<Schema['ai_review_runs']>): Promise<number> {
-    const result = await this.qb.insertInto('ai_review_runs').values(row).returning('id').executeTakeFirstOrThrow();
-    return Number(result.id);
-  }
-
-  find(id: number): Promise<AiRunRow | undefined> {
-    return this.qb.selectFrom('ai_review_runs').selectAll().where('id', '=', id).executeTakeFirst();
-  }
-
-  /** Lần chạy mới nhất của tháng, hoặc của một lần tính lương (`runId`). */
-  latest(month: string, runId?: number | null): Promise<AiRunRow | undefined> {
-    let query = this.qb.selectFrom('ai_review_runs').selectAll().where('month', '=', month);
-    if (runId != null) query = query.where('run_id', '=', runId);
-    return query.orderBy('id', 'desc').limit(1).executeTakeFirst();
-  }
-}
-
 /* ---------- Nhân sự và vai trò ---------- */
 
 export type StaffRow = Selectable<Schema['staff']>;

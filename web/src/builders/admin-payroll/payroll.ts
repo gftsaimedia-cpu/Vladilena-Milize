@@ -14,24 +14,23 @@ function stamp(at?) {
 const dayOf = (at?) => (at ? new Date(new Date(at).getTime() + 7 * 3600 * 1000).toISOString().slice(0, 10) : '');
 
 // Giai đoạn của màn: chọn kịch bản giao diện theo trạng thái kỳ và số phiếu đã duyệt
-function stageOf(period?, agents?) {
+function stageOf(period?) {
   const { status, totals } = period;
   if (status === 'open') return 'tam-tinh';
   if (status === 'attendance_locked') return 'da-chot-cong';
   if (status === 'approved') return 'da-phe-duyet';
   if (status === 'paid') return 'da-tra-luong';
   if (period.needsRecalculate || period.stale) return 'can-tinh-lai';
-  if (status === 'calculated' && agents) return 'ban-nhap';
   return totals && totals.approved > 0 ? 'da-duyet-50' : 'cho-phe-duyet';
 }
 
-const STEP_LABELS = ['Chấm công', 'Chốt công', 'Tính lương', 'AI kiểm tra', 'Phê duyệt', 'Trả lương'];
+const STEP_LABELS = ['Chấm công', 'Chốt công', 'Tính lương', 'Phê duyệt', 'Trả lương'];
 const RANK = { open: 1, attendance_locked: 2, calculated: 3, reviewed: 4, approved: 5, paid: 6 };
 
-function stripOf(month?, period?, agents?, facts?) {
-  const labels = agents ? STEP_LABELS : STEP_LABELS.filter(l => l !== 'AI kiểm tra');
+function stripOf(month?, period?, facts?) {
+  const labels = STEP_LABELS;
   let cur = RANK[period.status] ?? 1;
-  if (!agents && cur >= 4) cur -= 1;
+  if (cur >= 4) cur -= 1;
   const notes: Record<string, any> = {};
   const approvalIdx = labels.indexOf('Phê duyệt');
   if (period.status === 'calculated' || period.status === 'reviewed')
@@ -60,18 +59,12 @@ function stripOf(month?, period?, agents?, facts?) {
   };
 }
 
-function chipsOf(stage?, facts?, agents?) {
+function chipsOf(stage?, facts?) {
   const all = ['all', 'Tất cả', facts.total];
   const err = ['err', 'Chưa tính được', facts.failed];
   if (stage === 'ban-nhap') return [all, ['draft', 'Bản nháp', facts.calculated], err];
   if (['cho-phe-duyet', 'da-duyet-50', 'can-tinh-lai'].includes(stage)) {
-    return [
-      all,
-      ['pending', 'Chờ phê duyệt', facts.pending],
-      ...(agents ? [['ai', 'Có cảnh báo AI', facts.aiCards]] : []),
-      err,
-      ['approved', 'Đã phê duyệt', facts.approved]
-    ];
+    return [all, ['pending', 'Chờ phê duyệt', facts.pending], err, ['approved', 'Đã phê duyệt', facts.approved]];
   }
   if (stage === 'da-phe-duyet' || stage === 'da-tra-luong') {
     return [all, ['approved', 'Đã phê duyệt', facts.approved], ['excluded', 'Loại khỏi kỳ', facts.failed]];
@@ -99,7 +92,6 @@ export function buildRow(r?) {
     net: r.net,
     // Khác = Tổng thu nhập trừ bốn cột còn lại, nên các cột cộng đúng Tổng thu nhập kể cả khi có khoản thêm hay số Admin đã sửa
     detail: { base: r.tienNgayCong, allowance: r.phuCap, allowanceNote: '', ot: r.ot, kpi: r.kpi, other: otherOf(r) },
-    ai: Array.isArray(r.flags) ? r.flags.length : 0,
     status: failed
       ? 'failed'
       : r.status === 'draft' || r.status === 'pending' || r.status === 'approved'
@@ -109,7 +101,7 @@ export function buildRow(r?) {
 }
 
 /** Bảng lương một kỳ. period: GET /periods/:month; list: GET /periods/:month/(payslips|estimates). */
-export function buildPeriodView(month, period, list, { agents, flagged, filter, pageSize }: any) {
+export function buildPeriodView(month, period, list, { filter, pageSize }: any) {
   const t = period.totals ||
     list.totals || {
       people: list.total,
@@ -123,7 +115,7 @@ export function buildPeriodView(month, period, list, { agents, flagged, filter, 
       draft: 0,
       error: 0
     };
-  const stage = stageOf(period, agents);
+  const stage = stageOf(period);
   const rows = (list.rows || []).map(buildRow);
   const final = FINAL.includes(period.status);
   const facts: Record<string, any> = {
@@ -132,14 +124,12 @@ export function buildPeriodView(month, period, list, { agents, flagged, filter, 
     failed: t.error,
     pending: t.pending,
     approved: t.approved,
-    aiCards: flagged || 0,
-    aiFindings: null,
     run: period.run ? period.run.runNo : 0,
     deadline: '',
     closedAt: stamp(period.stages.attendanceLocked.at),
     approvedAt: stamp(period.stages.approved.at),
     paidDate: dayOf(period.stages.paid.at),
-    selectable: Math.max(0, t.pending - (flagged || 0)),
+    selectable: Math.max(0, t.pending),
     selectedOtherNames: [],
     selectedOtherMore: 0
   };
@@ -151,7 +141,7 @@ export function buildPeriodView(month, period, list, { agents, flagged, filter, 
     month,
     kb: stage,
     wide: false,
-    strip: stripOf(month, period, agents, facts),
+    strip: stripOf(month, period, facts),
     facts,
     formula: {
       income: t.gross,
@@ -162,7 +152,7 @@ export function buildPeriodView(month, period, list, { agents, flagged, filter, 
       notes: { income: '', insurance: '', tax: '', advance: '', net: '' },
       locked: final
     },
-    chips: chipsOf(stage, facts, agents),
+    chips: chipsOf(stage, facts),
     rows,
     failed: rows.filter(r => r.status === 'failed'),
     paging: {

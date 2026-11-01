@@ -104,9 +104,7 @@ export function buildRequestRow(row?, staffBy?) {
     status: STATUS_OF[row.status] || 'cho',
     impact: impactOf(row),
     lateNote: '',
-    aiChecked: false,
-    warningCount: 0,
-    aiSummary: ''
+    warningCount: 0
   };
 }
 

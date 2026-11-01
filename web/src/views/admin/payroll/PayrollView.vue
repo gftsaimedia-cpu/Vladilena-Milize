@@ -14,7 +14,6 @@ import { getPayroll, returnPayslips } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { useSessionStore } from '@/stores/session';
 import { monthLabel } from '@/utils/format';
-import AiBanner from './parts/AiBanner.vue';
 import ExtrasCard from './parts/ExtrasCard.vue';
 import PayrollDialogs from './parts/PayrollDialogs.vue';
 import PayrollFormula from './parts/PayrollFormula.vue';
@@ -28,7 +27,6 @@ import { describeScenario, printLabel } from './scenarios';
 const route = useRoute();
 const router = useRouter();
 const period = usePeriodStore();
-const agents = computed(() => useSessionStore().agentsEnabled);
 
 const month = computed(() => period.month);
 const kbQuery = computed(() => String(route.query.kb || ''));
@@ -59,13 +57,9 @@ const { data, loading, error, reload } = useLoad(
 
 const facts = computed(() => data.value?.facts);
 const ui = computed(() =>
-  data.value && !data.value.empty ? describeScenario(month.value, data.value.kb, facts.value, agents.value) : null
+  data.value && !data.value.empty ? describeScenario(month.value, data.value.kb, facts.value) : null
 );
-// Công tắc Agents tắt thì cờ cảnh báo AI còn sót trên phiếu không tính.
-const rows = computed(() => {
-  const list = data.value?.rows || [];
-  return agents.value ? list : list.map(r => (r.ai ? { ...r, ai: 0 } : r));
-});
+const rows = computed(() => data.value?.rows || []);
 const monthNo = computed(() => Number(month.value.slice(5, 7)));
 const final = computed(() => ui.value?.variant === 'final');
 const canVerify = computed(() => useSessionStore().caps.includes('audit.read'));
@@ -73,7 +67,7 @@ const canVerify = computed(() => useSessionStore().caps.includes('audit.read'));
 // ---- Chọn phiếu (kỳ đang chờ phê duyệt) ----
 const selected = reactive(new Set());
 const others = ref(0);
-const selectable = computed(() => rows.value.filter(r => r.status === 'pending' && !r.ai));
+const selectable = computed(() => rows.value.filter(r => r.status === 'pending'));
 const selTotal = computed(() => selected.size + others.value);
 let autoSelect = false;
 
@@ -163,7 +157,6 @@ function onAction(key?) {
     close: () => openHop('chot-cong'),
     'reopen-hours': () => reopen('hours', 'tam-tinh', 'Mở lại công'),
     calc: () => openHop('tinh-luong'),
-    ai: () => openHop('chay-ai'),
     reopen: () => reopen('draft', 'ban-nhap', 'Mở lại'),
     'approve-period': () => openHop('phe-duyet-ky'),
     'reopen-period': () => reopen('approval', 'cho-phe-duyet', 'Mở lại kỳ'),
@@ -172,23 +165,9 @@ function onAction(key?) {
   };
   map[key]?.();
 }
-function onAiButton(key?) {
-  openHop({ findings: 'bo-qua-ai', skip: 'bo-qua-ai', rerun: 'chay-ai', recalc: 'tinh-luong' }[key]);
-}
 function toggleWide() {
   if (month.value === '2026-11') go(wide.value ? '' : 'du-cot');
   else wide.value = !wide.value;
-}
-
-// Phê duyệt riêng một phiếu có cảnh báo AI
-const aiTarget = ref(null);
-const approveRow = computed(
-  () =>
-    aiTarget.value || rows.value.find(r => r.ai > 0 && r.status === 'pending') || rows.value.find(r => r.ai > 0) || null
-);
-function openApproveOne(row?) {
-  aiTarget.value = row;
-  openHop('phe-duyet-rieng');
 }
 
 // Phiếu lương một người (ngăn kéo của nhóm phiếu lương)
@@ -271,7 +250,6 @@ const payslipName = computed(() => rows.value.find(r => r.username === phieu.val
         </button>
       </div>
 
-      <AiBanner v-if="agents && ui.ai" :ai="ui.ai" @button="onAiButton" />
       <SelectionBanner
         v-if="ui.selection && !final && !wide"
         :total="selTotal"
@@ -291,7 +269,6 @@ const payslipName = computed(() => rows.value.find(r => r.username === phieu.val
         :selected="selected"
         @open="openPayslip"
         @toggle="toggle"
-        @ai="openApproveOne"
       />
       <div v-if="!rows.length && !loading" class="none">Không có phiếu nào khớp.</div>
 
@@ -331,7 +308,6 @@ const payslipName = computed(() => rows.value.find(r => r.username === phieu.val
     :hop="hop"
     :data="data"
     :selection="{ usernames: [...selected], others, names: batchNames, more: batchMore, total: selTotal }"
-    :approve-row="approveRow"
     :reopen-target="reopenTarget"
     @close="closeHop"
     @finish="finishHop"

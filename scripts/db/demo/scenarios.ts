@@ -164,39 +164,6 @@ const CASES = [
 ];
 const CASE_TITLE = Object.fromEntries(CASES);
 
-// 22 luật của src/ai/review.ts (thứ tự RULES). selfcheck.js so với RULES thật.
-const AI_RULES = [
-  'isat-frequency',
-  'approved-leave-frequency',
-  'leave-with-checkin',
-  'late-declaration',
-  'previously-rejected',
-  'repeated-edits',
-  'ot-checkin-mismatch',
-  'ot-after-pending-makeup',
-  'holiday-work-review',
-  'attendance-allowance-risk',
-  'large-pay-impact',
-  'ot-above-team',
-  'missing-start-date',
-  'negative-leave',
-  'missing-fixed-shift',
-  'slip-override-gap',
-  'locked-with-pending',
-  'kpi-self-100-streak',
-  'net-nonpositive',
-  // Luật HỆ THỐNG (không gắn người, xem SYSTEM_RULES): chỉ bắn khi tham số đổi
-  'formula-changed-recently',
-  // Hai luật thêm ở src/ai/rules-extra.ts: block-flags-unconfirmed là luật hệ thống, override-looks-like-entry gắn người
-  'block-flags-unconfirmed',
-  'override-looks-like-entry'
-];
-// Luật hệ thống: kết quả không phụ thuộc persona nào mà phụ thuộc trạng thái param_versions (dòng hiệu lực đúng tháng soát) hoặc khối phụ cấp do C&B thêm.
-// selfcheck.js KHÔNG đòi persona "phải bắn" hay "sát ngưỡng" cho các luật này; muốn kiểm phải dựng dòng param_versions / khối phụ cấp qua đường ghi tham số của app.
-const SYSTEM_RULES = ['formula-changed-recently', 'block-flags-unconfirmed', 'net-nonpositive'];
-// Luật luôn bị bỏ qua theo thiết kế (skipWhen trong src/ai/review.ts): không đòi bắn, không đòi persona
-const DISABLED_BY_DESIGN = ['kpi-self-100-streak'];
-
 /* ---------- tên giả ---------- */
 const HO = [
   'Nguyễn',
@@ -1545,9 +1512,6 @@ module.exports = {
   KPI_MAX,
   CASES,
   CASE_TITLE,
-  AI_RULES,
-  SYSTEM_RULES,
-  DISABLED_BY_DESIGN,
   ADMINS,
   PERSONAS,
   PAYSLIP,

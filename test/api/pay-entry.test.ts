@@ -14,7 +14,6 @@ const { F, flow, MAKER, CHECKER } = E;
 async function moveOn(month?, target?) {
   const status = (await F.call('GET', `/periods/${month}`)).data.status;
   if (status === 'calculated') {
-    E.must(await E.step(month, 'ai-review'), 'AI kiểm tra');
     E.must(await E.approveAllPending(month), 'duyệt phiếu');
     E.must(await E.step(month, 'approve'), 'duyệt kỳ');
   }

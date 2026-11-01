@@ -29,11 +29,6 @@ export default [
     meta: meta('Đánh giá KPI')
   },
   {
-    path: '/admin/cai-dat/canh-bao',
-    component: () => import('@/views/admin/settings/AlertsView.vue'),
-    meta: meta('Cảnh báo AI')
-  },
-  {
     path: '/admin/cai-dat/phan-quyen',
     component: () => import('@/views/admin/settings/PermRolesView.vue'),
     meta: meta('Phân quyền · Vai trò')

@@ -157,9 +157,8 @@ test('Duyệt kỳ khi còn phiếu lỗi chưa loại vẫn duyệt, kèm cản
   } finally {
     service.computeFor = original;
   }
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rows = await P.slipRows(M);
-  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'pending'))), 'duyệt các phiếu tốt');
+  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'draft'))), 'duyệt các phiếu tốt');
   const res = await P.step(M, 'approve');
   assert.equal(res.status, 200, JSON.stringify(res.data));
   assert.equal(res.data.status, 'approved');
@@ -168,71 +167,6 @@ test('Duyệt kỳ khi còn phiếu lỗi chưa loại vẫn duyệt, kèm cản
 });
 
 /* ================= duyệt và trả lại phiếu ================= */
-test('Duyệt phiếu còn nháp (chưa qua AI kiểm tra) vẫn được, kèm cảnh báo PAYSLIP_STATE', async () => {
-  const M = monthOf();
-  await P.setupMonth(M, 'calculated');
-  const rows = await P.slipRows(M);
-  assert.deepEqual(
-    rows.map(r => r.status),
-    ['draft', 'draft', 'draft', 'draft']
-  );
-  const res = await P.decide(M, P.itemsOf(rows));
-  assert.equal(res.status, 200, JSON.stringify(res.data));
-  assert.ok(codesOf(res).includes('PAYSLIP_STATE'), JSON.stringify(res.data.warnings));
-  assert.deepEqual(
-    (await P.slipRows(M)).map(r => r.status),
-    ['approved', 'approved', 'approved', 'approved']
-  );
-});
-
-test('Duyệt phiếu còn phát hiện AI chưa xử lý vẫn được kèm cảnh báo PAYSLIP_FLAGGED, ghi chú tuỳ chọn; phát hiện đã bỏ qua kèm lý do thì không cảnh báo', async () => {
-  const flagFirst = async (month?) => {
-    await P.setupMonth(month, 'reviewed');
-    // AI của kỳ này không có phát hiện nào; gắn cờ trực tiếp ở tầng kho dữ liệu để mô phỏng một phát hiện còn mở
-    await store.payroll.applyAiReview((await store.payroll.currentRun(month)).id, { qa_nv1: ['isat-frequency'] });
-    const rows = await P.slipRows(month);
-    assert.deepEqual(rows.find(r => r.username === 'qa_nv1').flags, ['isat-frequency']);
-    return rows;
-  };
-  // duyệt riêng một phiếu, không ghi chú
-  const A = monthOf();
-  const rowsA = await flagFirst(A);
-  const flaggedA = rowsA.find(r => r.username === 'qa_nv1');
-  const single = await P.decide(A, [{ username: 'qa_nv1', rev: flaggedA.rev }]);
-  assert.equal(single.status, 200, JSON.stringify(single.data));
-  assert.ok(codesOf(single).includes('PAYSLIP_FLAGGED'), JSON.stringify(single.data.warnings));
-  assert.equal(single.data.items[0].status, 'approved');
-  // duyệt cả lô có phiếu cờ
-  const B = monthOf();
-  const rowsB = await flagFirst(B);
-  const batch = await P.decide(B, P.itemsOf(rowsB));
-  assert.equal(batch.status, 200, JSON.stringify(batch.data));
-  assert.ok(codesOf(batch).includes('PAYSLIP_FLAGGED'), JSON.stringify(batch.data.warnings));
-  assert.deepEqual(
-    (await P.slipRows(B)).map(r => r.status),
-    ['approved', 'approved', 'approved', 'approved']
-  );
-  // phát hiện đã bỏ qua kèm lý do: duyệt riêng không còn cảnh báo, ghi chú được lưu
-  const C = monthOf();
-  const rowsC = await flagFirst(C);
-  const flaggedC = rowsC.find(r => r.username === 'qa_nv1');
-  await require('../../src/domain/findings/findings').dismiss({
-    month: C,
-    username: 'qa_nv1',
-    rule: 'isat-frequency',
-    reason: 'Đã xem, hợp lệ theo biên bản',
-    by: 'admin'
-  });
-  const ok = P.must(
-    await P.decide(C, [{ username: 'qa_nv1', rev: flaggedC.rev }], 'approve', 'Đã xem phát hiện, hợp lệ'),
-    'duyệt riêng'
-  );
-  assert.ok(!codesOf(ok).includes('PAYSLIP_FLAGGED'), JSON.stringify(ok.data.warnings));
-  const after = (await P.slipRows(C)).find(r => r.username === 'qa_nv1');
-  assert.equal(after.note, 'Đã xem phát hiện, hợp lệ');
-  assert.equal(after.decidedBy, 'admin');
-});
-
 test('Duyệt hay trả lại phiếu của chính mình vẫn được, kèm cảnh báo SELF_DECISION_FORBIDDEN; phiếu người khác không cảnh báo', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
@@ -258,6 +192,7 @@ test('Duyệt hay trả lại phiếu của chính mình vẫn được, kèm c�
 test('Trả lại phiếu: ghi chú tuỳ chọn (thiếu, rỗng, ngắn đều được), quá 300 ký tự là 400 NOTE_TOO_LONG; phiếu về draft và rev tăng; duyệt kỳ lúc còn phiếu nháp vẫn được kèm cảnh báo', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'reviewed');
+  P.must(await P.approveAllPending(M), 'duyệt phiếu để có phiếu trả lại');
   const rows = await P.slipRows(M);
   const longNote = await P.decide(M, [{ username: rows[3].username, rev: rows[3].rev }], 'return', P.text(301));
   assert.equal(longNote.status, 400);

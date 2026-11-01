@@ -112,7 +112,3 @@ export async function returnPayslip(month?, username?) {
   await decide(month, username, 'return');
   return { ok: true, month, username };
 }
-
-/** Bỏ qua một cảnh báo AI của phiếu. */
-// Nối máy chủ: POST /api/periods/:month/payslips/:username/warnings/:id/dismiss
-export const dismissWarning = (month?, username?, id?) => mockSave({ month, username, id });

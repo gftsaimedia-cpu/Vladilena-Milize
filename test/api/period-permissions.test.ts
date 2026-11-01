@@ -65,10 +65,6 @@ const ROUTES = [
     call: (M?) => F.call('POST', `/periods/${M.month}/calculate`, { who: M.who, body: { rev: 99 } })
   },
   {
-    key: 'POST /periods/:month/ai-review',
-    call: (M?) => F.call('POST', `/periods/${M.month}/ai-review`, { who: M.who, body: { rev: 99 } })
-  },
-  {
     key: 'POST /periods/:month/approve',
     call: (M?) => F.call('POST', `/periods/${M.month}/approve`, { who: M.who, body: { rev: 99 } })
   },
@@ -220,8 +216,6 @@ test('Chuỗi thật theo vai trò: C&B chốt công, tính lương, AI, duyệt
   P.must(await P.step(M, 'lock-attendance', {}, cb), 'C&B chốt công');
   assert.equal((await P.step(M, 'calculate', {}, acc)).status, 403);
   P.must(await P.step(M, 'calculate', {}, cb), 'C&B tính lương');
-  assert.equal((await P.step(M, 'ai-review', {}, acc)).status, 403);
-  P.must(await P.step(M, 'ai-review', {}, cb), 'C&B chạy AI');
   const rows = await P.slipRows(M);
   assert.equal(
     (await P.decide(M, P.itemsOf(rows), 'approve', undefined, acc)).status,

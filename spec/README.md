@@ -16,7 +16,6 @@ Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/s
 | [events.md](reference/events.md) | Sự kiện SSE và hàm phát | `src/platform/events.ts` |
 | [config.md](reference/config.md) | Hằng số kỹ thuật và biến môi trường | `src/platform/config.ts`, `process.env.*` |
 | [web-routes.md](reference/web-routes.md) | Route và màn của giao diện Vue | `web/src/router/**` |
-| [params.md](reference/params.md) | Danh mục tham số lương | `src/params/registry.data.json` |
 
 ## 2. Mô tả nghiệp vụ và vận hành — viết tay
 

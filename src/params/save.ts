@@ -25,7 +25,6 @@ const configRev = require('./config-rev');
 const service = require('../domain/payroll/payroll-service');
 const { vnToday } = require('../platform/request-rules');
 const Engine = require('../engine/payroll-engine');
-const { suggestFromPreview } = require('../ai/preview-suggestions');
 const { isKeyWired } = require('./wired-flag');
 const Attributes = require('./attributes');
 const Positions = require('./positions');
@@ -72,7 +71,7 @@ const SHIFT_KEY = /^shift\.preset\.[a-z0-9]+\.(in|out)$/;
 const shiftEditAllowed = () =>
   process.env.SHIFT_ALLOW_EDIT === '1' || !(process.env.NODE_ENV === 'production' || process.env.COOKIE_SECURE === '1');
 // Khoá không thuộc nhóm lương (nhật ký mức normal); còn lại là mức pay vì đổi tiền của người
-const NON_PAY_PREFIXES = ['ai.', 'system.', 'employeeCode.', 'contract.', 'catalog.', 'slip.', 'approval.', 'period.'];
+const NON_PAY_PREFIXES = ['system.', 'employeeCode.', 'contract.', 'catalog.', 'slip.', 'approval.', 'period.'];
 const same = (a?, b?) => JSON.stringify(a) === JSON.stringify(b);
 const nextMonthOf = (month?) => {
   const [y, m] = month.split('-').map(Number);
@@ -651,12 +650,6 @@ async function preview(me?, body?) {
     { scope }
   );
   out.impact = impact;
-  // gợi ý của AI (cục bộ, theo quy tắc, chỉ gợi ý không chặn): nhận danh sách người đổi đầy đủ, mỗi người có mã chức vụ
-  out.suggestions = suggestFromPreview({
-    impact: { ...impact, people: changedPeople },
-    scope: scope ? { positions: scope.positions } : undefined,
-    params: after.params
-  }).suggestions;
   if (impact.scope && impact.scope.leak)
     out.info.push({
       code: 'SCOPE_LEAK',

@@ -36,54 +36,6 @@ after(F.stop);
 const RULE = { id: 'isat-frequency', key: 'ai.rule.isatFrequency.enabled' };
 const review = async (month?) => await F.call('GET', `/ai/review?month=${month}`);
 
-test('Tắt luật AI: lưu "Tắt" từ tháng hiệu lực; tháng đó ghi checked.skipped { rule, reason: "Admin tắt" } và bỏ khỏi ruleIds; tháng trước vẫn chạy; bật lại thì chạy lại', async () => {
-  const before = monthOf();
-  const M = monthOf();
-  await P.seed(M);
-  await S.setMode('defaults-only');
-  const entry = await S.entryOf(RULE.key);
-  assert.ok(entry && entry.editableBy === 'admin', 'registry có khoá của luật');
-  const off = (entry.options || []).find(o => o.value === false);
-  assert.ok(off && off.available !== false, 'lựa chọn "Tắt" dùng được');
-
-  const base = await review(M);
-  assert.equal(base.status, 200, JSON.stringify(base.data).slice(0, 200));
-  assert.ok(base.data.checked.ruleIds.includes(RULE.id), 'điều kiện: luật chạy mặc định');
-  assert.ok(!base.data.checked.skipped.some(s => s.rule === RULE.id));
-
-  // nhân sự không tắt được luật
-  assert.equal((await S.saveChanges([{ key: RULE.key, value: false }], { month: M, who: 'qa_tts1' })).status, 403);
-
-  const saved = await S.saveChanges([{ key: RULE.key, value: false }], {
-    month: M,
-    reason: 'Tạm tắt luật iSAT trong tuần thử'
-  });
-  assert.equal(saved.status, 200, JSON.stringify(saved.data).slice(0, 300));
-  const audit = (await S.auditRows()).filter(r => r.entity_id === RULE.key);
-  assert.equal(audit.length, 1, 'nhật ký một dòng cho khoá');
-  assert.equal(audit[0].after.value, false);
-  assert.equal(audit[0].after.effectiveMonth, M);
-
-  const offReview = await review(M);
-  assert.deepEqual(
-    offReview.data.checked.skipped.filter(s => s.rule === RULE.id),
-    [{ rule: RULE.id, reason: 'Admin tắt' }]
-  );
-  assert.ok(!offReview.data.checked.ruleIds.includes(RULE.id), 'luật tắt không nằm trong ruleIds');
-  assert.equal(offReview.data.checked.rules, base.data.checked.rules - 1, 'số luật đã chạy giảm một');
-  assert.equal(offReview.data.findings.filter(f => f.rule === RULE.id).length, 0, 'không có phát hiện của luật đã tắt');
-
-  const earlier = await review(before);
-  assert.ok(earlier.data.checked.ruleIds.includes(RULE.id), 'tháng trước tháng hiệu lực vẫn chạy luật');
-  assert.ok(!earlier.data.checked.skipped.some(s => s.rule === RULE.id));
-
-  const on = await S.saveChanges([{ key: RULE.key, value: true }], { month: M, reason: 'Bật lại luật iSAT' });
-  assert.equal(on.status, 200, JSON.stringify(on.data).slice(0, 300));
-  const again = await review(M);
-  assert.ok(again.data.checked.ruleIds.includes(RULE.id), 'bật lại thì chạy lại');
-  assert.ok(!again.data.checked.skipped.some(s => s.rule === RULE.id));
-});
-
 /* ================= 3. allowanceTotal ================= */
 const SNAP_KEYS = ['phuCapCa', 'gioNghiDem', 'phuCapDiLai', 'phuCapChuyenCan'];
 // Tổng tính độc lập từ bản chụp: bốn dòng của vết tính + mọi khối phụ cấp C&B

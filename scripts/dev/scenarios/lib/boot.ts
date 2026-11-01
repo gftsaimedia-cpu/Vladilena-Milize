@@ -52,10 +52,6 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any
   // Cảnh báo console của ứng dụng (ví dụ lỗi đã được trả 4xx) không làm rối dòng tiến độ
   if (quietWarnings) {
     console.warn = () => {};
-    // Dòng nhật ký nội bộ của bước AI soát lặp lại mỗi lần duyệt: bỏ để dòng tiến độ dễ đọc
-    const log = console.log;
-    console.log = (...items) =>
-      typeof items[0] === 'string' && items[0].startsWith('[ai-review]') ? undefined : log(...items);
   }
   const store = require(path.join(REPO, 'src', 'platform', 'db'));
   const auth = require(path.join(REPO, 'src', 'platform', 'auth'));

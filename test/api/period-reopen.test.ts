@@ -32,7 +32,7 @@ const fingerprint = async (month?) =>
 /* ================= quyền ================= */
 test('C&B chỉ mở lại về calculated; về open hoặc attendance_locked cần period.reopen.inputs nên 403 FORBIDDEN_CAP và không đổi gì', async () => {
   const M = monthOf();
-  await P.setupMonth(M, 'reviewed');
+  await P.setupMonth(M, 'approved');
   await P.grant('qa_nv1', 'cb');
   const before = await F.snapshot();
   for (const to of ['open', 'attendance_locked']) {
@@ -121,7 +121,7 @@ test('Lý do không bắt buộc: thiếu, null, rỗng, toàn dấu cách, 9 k�
 test('`to` lạ là 400 BAD_TARGET (Admin); rev lệch là 409 PERIOD_STALE', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'approved');
-  for (const to of ['paid', 'approved', 'reviewed', 'xyz', undefined]) {
+  for (const to of ['paid', 'approved', 'xyz', undefined]) {
     const res = await reopen(M, to);
     assert.equal(res.status, 400, String(to));
     assert.equal(res.data.code, 'BAD_TARGET');
@@ -225,7 +225,6 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
     ['draft', 'draft', 'draft', 'draft']
   );
   // duyệt lại hết rồi mở lần hai: reopen_count 2
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   P.must(await P.approveAllPending(M), 'duyệt');
   P.must(await P.step(M, 'approve'), 'duyệt kỳ');
   P.must(await reopen(M, 'calculated'), 'mở lần hai');
@@ -234,19 +233,6 @@ test('Mở lại từ approved về calculated: lần chạy final thành supers
     (await P.runsOf(M)).map(r => r.status),
     ['superseded', 'superseded']
   );
-});
-
-test('Mở lại từ reviewed về calculated: lần chạy nháp bị thay thế (superseded), phiếu giữ nguyên', async () => {
-  const M = monthOf();
-  await P.setupMonth(M, 'reviewed');
-  const before = await fingerprint(M);
-  P.must(await reopen(M, 'calculated'), 'mở lại từ reviewed');
-  assert.deepEqual(
-    (await P.runsOf(M)).map(r => r.status),
-    ['superseded']
-  );
-  assert.deepEqual(await fingerprint(M), before);
-  assert.equal((await getPeriod(M)).stages.reviewed.by, null);
 });
 
 test('Mở về attendance_locked rồi calculate: tạo lần chạy mới, lần cũ giữ nguyên; verify của lần mới không lệch', async () => {

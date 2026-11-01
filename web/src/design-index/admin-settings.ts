@@ -12,7 +12,6 @@ export default [
   { file: 'cd-che-do-nv.html', title: 'Cài đặt · Chế độ theo loại · Nhân viên', to: `${B}/che-do/nhan-vien` },
   { file: 'cd-lich.html', title: 'Cài đặt · Lịch, ca & chấm công', to: `${B}/lich` },
   { file: 'cd-kpi5.html', title: 'Cài đặt · Đánh giá KPI', to: `${B}/kpi` },
-  { file: 'cd-canh-bao.html', title: 'Cài đặt · Cảnh báo AI', to: `${B}/canh-bao` },
   { file: 'cd-phan-quyen.html', title: 'Cài đặt · Phân quyền · Vai trò', to: `${B}/phan-quyen` },
   { file: 'cd-tai-khoan.html', title: 'Cài đặt · Phân quyền · Tài khoản', to: `${B}/phan-quyen/tai-khoan` },
   { file: 'cd-quy-tac-duyet.html', title: 'Cài đặt · Phân quyền · Xử lý yêu cầu', to: `${B}/phan-quyen/xu-ly-yeu-cau` },

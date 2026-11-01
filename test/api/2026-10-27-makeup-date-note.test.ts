@@ -1,14 +1,12 @@
-// Ngày làm bù của "Nghỉ, sẽ làm bù", giải trình Check-in/out, và AI chặn duyệt (src/domain/ai-block.ts).
+// Ngày làm bù của "Nghỉ, sẽ làm bù", giải trình Check-in/out.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
-const aiReview = require('../../src/domain/ai-review');
 
 const MONTH = '2026-10';
 const putDays = async (days?) => await F.call('PUT', '/sheet', { who: 'an', body: { month: MONTH, days } });
 const getDays = async () => (await F.call('GET', `/sheet?month=${MONTH}`, { who: 'an' })).data.days;
-const realAi = aiReview.aiReviewResultCached;
 
 before(async () => {
   await F.start();
@@ -17,7 +15,6 @@ before(async () => {
   await F.person('admin', 'admin');
 });
 after(async () => {
-  aiReview.aiReviewResultCached = realAi;
   await F.stop();
 });
 
@@ -90,82 +87,4 @@ test('lịch làm bù không bị chặn: ngoài tháng, trùng ngày, qua đêm
   assert.equal((await putDays({ '2026-10-06': { kind: 'willmakeup' } })).status, 200);
   const long = 'x'.repeat(301);
   assert.equal((await putDays({ '2026-10-06': { kind: 'unpaid', punchNote: long } })).status, 400);
-});
-
-test('AI chặn duyệt khoản dính luật chặn khi công tắc Agents bật; Từ chối vẫn được; mảng rỗng thì tắt chặn', async () => {
-  await putDays({ '2026-10-17': { kind: 'isat' } });
-  const pending = (await F.call('GET', '/approvals?status=pending')).data.items.find(i => i.date === '2026-10-17');
-  assert.ok(pending, 'có khoản chờ duyệt');
-  const body = (action?) => ({
-    action,
-    note: 'thử',
-    items: [{ username: 'an', date: pending.date, rev: pending.rev, fingerprint: pending.fingerprint }]
-  });
-  aiReview.aiReviewResultCached = () => ({
-    names: { an: 'An' },
-    findings: [
-      {
-        rule: 'leave-with-checkin',
-        username: 'an',
-        date: pending.date,
-        approval: { rev: pending.rev },
-        message: 'Có Check-in'
-      }
-    ]
-  });
-  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
-  const blocked = await F.call('PUT', '/approvals/decide', { body: body('approve') });
-  assert.equal(blocked.status, 409);
-  assert.equal(blocked.data.code, 'AI_BLOCKED');
-  await F.store.setSetting('ai_block_rules', []);
-  assert.equal((await F.call('PUT', '/approvals/decide', { body: body('approve') })).status, 200);
-});
-
-test('công tắc Agents tắt thì AI không chặn duyệt dù luật chặn còn trong cài đặt', async () => {
-  await putDays({ '2026-10-24': { kind: 'isat' } });
-  const pending = (await F.call('GET', '/approvals?status=pending')).data.items.find(i => i.date === '2026-10-24');
-  aiReview.aiReviewResultCached = () => ({
-    names: { an: 'An' },
-    findings: [
-      { rule: 'leave-with-checkin', username: 'an', date: pending.date, approval: { rev: pending.rev }, message: 'x' }
-    ]
-  });
-  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
-  await F.store.setSetting('agents_enabled', '0');
-  try {
-    const res = await F.call('PUT', '/approvals/decide', {
-      body: {
-        action: 'approve',
-        items: [{ username: 'an', date: pending.date, rev: pending.rev, fingerprint: pending.fingerprint }]
-      }
-    });
-    assert.equal(res.status, 200, JSON.stringify(res.data));
-    assert.deepEqual(
-      await F.store.getSetting('ai_block_rules', null),
-      ['leave-with-checkin'],
-      'cài đặt luật chặn giữ nguyên'
-    );
-  } finally {
-    await F.store.setSetting('agents_enabled', '1');
-  }
-});
-
-test('AI chặn không ảnh hưởng Từ chối', async () => {
-  await putDays({ '2026-10-10': { kind: 'isat' } });
-  const pending = (await F.call('GET', '/approvals?status=pending')).data.items.find(i => i.date === '2026-10-10');
-  aiReview.aiReviewResultCached = () => ({
-    names: {},
-    findings: [
-      { rule: 'leave-with-checkin', username: 'an', date: pending.date, approval: { rev: pending.rev }, message: 'x' }
-    ]
-  });
-  await F.store.setSetting('ai_block_rules', ['leave-with-checkin']);
-  const res = await F.call('PUT', '/approvals/decide', {
-    body: {
-      action: 'reject',
-      note: 'Không hợp lệ vì có Check-in',
-      items: [{ username: 'an', date: pending.date, rev: pending.rev, fingerprint: pending.fingerprint }]
-    }
-  });
-  assert.equal(res.status, 200);
 });

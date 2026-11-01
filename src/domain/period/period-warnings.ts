@@ -1,8 +1,7 @@
 'use strict';
 const { AsyncList } = require('../../shared/async-list');
-// Câu cảnh báo của kỳ lương: danh sách kiểm, thực lĩnh âm, phiếu còn cờ AI. Dùng cho src/domain/period/periods.ts.
+// Câu cảnh báo của kỳ lương: danh sách kiểm, thực lĩnh âm. Dùng cho src/domain/period/periods.ts.
 const config = require('../../platform/config');
-const findings = require('../findings/findings');
 const { warn, warnIf } = require('../../platform/warnings');
 
 // Câu nói chuyện gì bất thường, bao nhiêu, hệ quả cho tiền lương. Hệ quả đối chiếu với bộ máy:
@@ -27,7 +26,6 @@ const CHECKLIST_TEXT = Object.freeze({
   ISAT_INVALID: (n?) =>
     `Có ${n} ngày iSAT sai thứ hoặc chức vụ không có quyền lợi iSAT: các ngày này không được trả lương (0 ₫) cho tới khi Admin sửa hoặc bỏ.`,
   MISSING_SHIFT: (n?) => `Có ${n} người chưa gán ca cố định: không Check-in được nên chưa có giờ thực tế để tính.`,
-  AI_NOT_RUN: () => 'AI chưa kiểm tra lần tính này: duyệt kỳ vẫn được, các phát hiện bất thường sẽ không được soát.',
   PENDING_PAY_ENTRIES: (n?) => `Còn ${n} khoản điền thêm chờ duyệt: khoản chưa duyệt không vào lương kỳ này.`,
   RUN_STALE: () =>
     'Dữ liệu hoặc cài đặt đã đổi sau lần tính hiện hành: duyệt bây giờ chốt số cũ, hãy tính lại nếu muốn số mới.'
@@ -49,26 +47,6 @@ const negativeNetWarning = (negative?) =>
     .join(
       ', '
     )}${negative.length > NEG_SHOWN ? ` và ${negative.length - NEG_SHOWN} người khác` : ''}. Các khoản trừ (bảo hiểm, thuế, tạm ứng) lớn hơn thu nhập: nếu duyệt, số chi trả của họ là số âm. Nên kiểm tra số đã sửa, tạm ứng, bảo hiểm hoặc công trước khi chi trả.`;
-
-// Duyệt phiếu còn cờ AI chưa xử lý: cảnh báo nêu số phiếu và số cờ (cờ AI chỉ là gợi ý, không đổi số tiền)
-async function warnFlagged(month?, items?) {
-  const flagged = (
-    await AsyncList.map(
-      items.filter(i => i && typeof i.username === 'string'),
-      async i => ({ username: i.username, flags: await findings.activeFindings(month, i.username) })
-    )
-  ).filter(i => i.flags.length);
-  if (!flagged.length) return;
-  const names = flagged
-    .slice(0, NEG_SHOWN)
-    .map(f => f.username)
-    .join(', ');
-  warn(
-    'PAYSLIP_FLAGGED',
-    `${flagged.length} phiếu còn cờ AI chưa xử lý (${names}${flagged.length > NEG_SHOWN ? '...' : ''}): cờ chỉ là gợi ý kiểm tra, số tiền trên phiếu không đổi.`,
-    { count: flagged.length, details: { items: flagged.slice(0, NEG_SHOWN) } }
-  );
-}
 
 // Phiếu có thực lĩnh chi trả âm: cảnh báo đỏ nêu người và số âm
 function warnNegativeNet(month?, negative?) {
@@ -105,6 +83,5 @@ export = {
   soften,
   negativeNetWarning,
   warnNegativeNet,
-  warnLockChecklist,
-  warnFlagged
+  warnLockChecklist
 };

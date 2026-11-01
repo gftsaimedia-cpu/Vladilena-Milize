@@ -162,34 +162,3 @@ test('reconcileStaffRole (chạy khi nạp máy chủ): dòng có Nhân viên t�
   assert.equal(await Roles.reconcileStaffRole(), 0, 'chạy lại không còn gì để sửa');
   assert.equal((await auditOf('qa_lech')).length, 1);
 });
-
-test('AI soát: không còn mục "Hạn nhân sự báo công" và không phát hiện late-declaration mặc định; bật ai.rule.lateDeclaration.enabled thì khoản khai sau mùng 3 bị gắn', async () => {
-  const M = monthOf();
-  await P.seed(M);
-  await S.setMode('defaults-only');
-  // khai muộn: sau mùng 3 tháng sau (đồng hồ 10/11/2026), một khoản iSAT chờ duyệt
-  const [y, m] = M.split('-').map(Number);
-  await F.at(`${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}-10T10:00:00`);
-  const days = { ...(await store.getSheet('qa_nv1', M)).days, [await S.lastDow(M, 6)]: { kind: 'isat' } };
-  assert.equal((await F.call('PUT', '/sheet', { who: 'qa_nv1', body: { month: M, days } })).status, 200);
-
-  const off = (await F.call('GET', `/ai/review?month=${M}`)).data;
-  assert.ok(
-    !off.checklist.some(i => i.id === 'report-deadline' || /Hạn nhân sự báo công/.test(i.label)),
-    'không còn mục hạn báo công'
-  );
-  assert.doesNotMatch(JSON.stringify(off.checklist), /Hạn nhân sự báo công|đã qua \d+ ngày|còn \d+ ngày/);
-  assert.equal(off.findings.filter(f => f.rule === 'late-declaration').length, 0, 'tắt mặc định');
-  assert.deepEqual(
-    off.checked.skipped.filter(s => s.rule === 'late-declaration'),
-    [{ rule: 'late-declaration', reason: 'Admin tắt' }]
-  );
-
-  const saved = await S.saveChanges([{ key: 'ai.rule.lateDeclaration.enabled', value: true }], { month: M });
-  assert.equal(saved.status, 200, JSON.stringify(saved.data).slice(0, 200));
-  const on = (await F.call('GET', `/ai/review?month=${M}`)).data;
-  const late = on.findings.filter(f => f.rule === 'late-declaration');
-  assert.ok(late.length >= 1, 'bật thì có phát hiện khai sau hạn');
-  assert.ok(late.every(f => f.username === 'qa_nv1'));
-  assert.ok(!on.checklist.some(i => i.id === 'report-deadline'), 'bật luật cũng không đưa mục hạn báo công trở lại');
-});

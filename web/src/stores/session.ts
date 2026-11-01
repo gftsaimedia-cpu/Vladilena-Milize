@@ -45,7 +45,6 @@ export const useSessionStore = defineStore('session', {
     roles: [],
     caps: [],
     payrollSubject: true,
-    agentsEnabled: false,
     serverNow: null,
     me: null
   }),
@@ -76,7 +75,6 @@ export const useSessionStore = defineStore('session', {
       this.roles = user && Array.isArray(data.roles) ? data.roles : [];
       this.caps = user && Array.isArray(data.caps) ? data.caps : [];
       this.payrollSubject = user ? data.payrollSubject !== false : true;
-      this.agentsEnabled = !!(user && data.agentsEnabled);
       this.serverNow = (data && data.serverNow) || null;
       this.me = user ? data : null;
       this.ready = true;

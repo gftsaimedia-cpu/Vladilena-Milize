@@ -61,7 +61,6 @@ export = {
   VERSION: data.version,
   GROUPS: Object.freeze(data.groups),
   TYPES: Object.freeze(data.types),
-  AI_RULES: Object.freeze(data.aiRules),
   CLASSES,
   EDITABLE_BY,
   LEGAL_TIERS,

@@ -95,7 +95,6 @@ const HEAVY_ADMIN_ROUTES = (month?) => [
   `/api/team?month=${month}`,
   '/api/approvals?status=pending',
   `/api/periods/${month}/estimates`,
-  `/api/ai/review?month=${month}`,
   '/api/staff'
 ];
 

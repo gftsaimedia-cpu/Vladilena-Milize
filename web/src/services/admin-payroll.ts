@@ -33,9 +33,8 @@ const CHIP_TYPE = { tts: 'tts', ctv: 'ctv', nv: 'nv' };
  */
 // GET /api/periods/:month, rồi /payslips (đã có lần tính) hoặc /estimates (chưa tính)
 export async function getPayroll(month?, opts: any = {}) {
-  const [period, me] = await Promise.all([api('GET', `/periods/${enc(month)}`), api('GET', '/me')]);
+  const period = await api('GET', `/periods/${enc(month)}`);
   periodRev.set(month, period.rev);
-  const agents = !!(me && me.agentsEnabled);
   const source = period.run ? 'payslips' : 'estimates';
   const pageSize = opts.wide ? PAGE_WIDE : PAGE;
   const filter = opts.filter || 'all';
@@ -45,19 +44,13 @@ export async function getPayroll(month?, opts: any = {}) {
       qs({
         q: (opts.q || '').trim(),
         status: source === 'payslips' ? CHIP_STATUS[filter] : '',
-        flag: source === 'payslips' && filter === 'ai' ? '1' : '',
         type: CHIP_TYPE[filter],
         page: opts.page || 1,
         pageSize
       })
   );
   for (const row of list.rows) slipRev.set(`${month}|${row.username}`, row.rev);
-  let flagged: any = null;
-  if (source === 'payslips' && agents) {
-    const f = await api('GET', `/periods/${enc(month)}/payslips` + qs({ flag: '1', pageSize: 1 }));
-    flagged = f.total;
-  }
-  return buildPeriodView(month, period, list, { agents, flagged, filter, pageSize });
+  return buildPeriodView(month, period, list, { filter, pageSize });
 }
 
 // ---- Chốt công ----
@@ -92,51 +85,11 @@ export async function reopenStep(month?, stepKey?, reason = '') {
   return step(month, 'reopen', { rev: period.rev, to, reason });
 }
 
-// ---- Tính lương, AI kiểm tra ----
+// ---- Tính lương ----
 
 // POST /api/periods/:month/calculate  { rev }  (mỗi lần tạo một bản nháp mới)
 export async function calculate(month?) {
   return step(month, 'calculate', { rev: await currentRev(month) });
-}
-
-// POST /api/periods/:month/ai-review  { rev }  (chỉ khi công tắc Agents bật)
-export async function runAiReview(month?) {
-  return step(month, 'ai-review', { rev: await currentRev(month) });
-}
-
-/**
- * Phát hiện của AI theo nhân sự: [{ username, name, items: [{ id, text, skipped }] }]
- */
-// GET /api/ai/review?month=  (chỉ khi công tắc Agents bật; tắt thì không có phát hiện). Mã phát hiện = tài khoản:mã luật.
-export async function getFindings(month?, username = '') {
-  const me = await api('GET', '/me');
-  if (!(me && me.agentsEnabled)) return [];
-  const out = await api('GET', `/ai/review${qs({ month })}`);
-  const names = out.names || {};
-  const groups = new Map<any, any>();
-  for (const f of out.findings || []) {
-    if (username && f.username !== username) continue;
-    if (!groups.has(f.username))
-      groups.set(f.username, { username: f.username, name: names[f.username] || f.username, items: [] });
-    groups
-      .get(f.username)
-      .items.push({ id: `${f.username}:${f.rule}`, text: f.message || f.rule, skipped: !!f.dismissed });
-  }
-  return [...groups.values()];
-}
-
-// POST /api/ai/findings/dismiss  { month, username, rule, reason }  (reason 10–300 ký tự)
-export async function skipFinding(month?, id?, reason?) {
-  const len = (reason || '').trim().length;
-  if (len < 10 || len > 300) return err('Lý do bỏ qua cần từ 10 đến 300 ký tự');
-  const at = id.indexOf(':');
-  await api('POST', '/ai/findings/dismiss', {
-    month,
-    username: id.slice(0, at),
-    rule: id.slice(at + 1),
-    reason: reason.trim()
-  });
-  return { ok: true, id };
 }
 
 // GET /api/periods/:month/verify → { checked, mismatched: [tài khoản], engineChanged, runNo } (cần audit.read)

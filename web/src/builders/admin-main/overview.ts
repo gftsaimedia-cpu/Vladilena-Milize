@@ -191,8 +191,6 @@ export function buildOverview({
     },
     approvals: { total: requests.length, month: inMonth.length, items: inMonth.slice(0, APPROVAL_ROWS) },
     kpis,
-    // Thẻ Cảnh báo AI chỉ có khi đã nối Trợ lý AI
-    alerts: null,
     upcoming: upcoming({ month, today: todayOf(serverNow), paydayExpected, holidays })
   };
 }

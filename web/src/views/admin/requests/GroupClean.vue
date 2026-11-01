@@ -2,7 +2,6 @@
 // Nhóm "Không có cảnh báo" của Yêu cầu: chọn nhiều rồi đồng ý cả loạt, hoặc từ chối từng cái.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useSessionStore } from '@/stores/session';
 import RequestTable from './RequestTable.vue';
 
 const props = defineProps({
@@ -11,7 +10,6 @@ const props = defineProps({
   olderCount: { type: Number, default: 0 }
 });
 const emit = defineEmits(['update:selected', 'approve-selected', 'reject', 'all-months']);
-const agents = computed(() => useSessionStore().agentsEnabled);
 const HEADS = ['Nhân sự', 'Loại yêu cầu', 'Chi tiết', 'Ảnh hưởng'];
 const WIDTHS = [64, 270, 170, 230, '', 130];
 
@@ -81,8 +79,7 @@ const toggle = (id?) =>
     <div v-if="olderCount" class="later">
       <Icon name="info" />
       <span>
-        {{ olderCount }} yêu cầu của các tháng trước<template v-if="agents"> AI chưa kiểm tra</template>, cần xử lý từng
-        cái ở
+        {{ olderCount }} yêu cầu của các tháng trước, cần xử lý từng cái ở
         <button type="button" class="link" @click="emit('all-months')">Mọi tháng</button>
       </span>
     </div>

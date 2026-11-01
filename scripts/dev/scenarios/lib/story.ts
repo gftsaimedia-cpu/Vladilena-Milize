@@ -29,14 +29,12 @@ function periods(S?) {
   // Tháng 10
   step('2026-11-02T09:00', '2026-10', 'lock-attendance', {}, { ref: 'lock-2026-10', caseId: 'G04' });
   step('2026-11-02T09:10', '2026-10', 'calculate', {}, { ref: 'calc-2026-10', caseId: 'G04' });
-  step('2026-11-02T09:20', '2026-10', 'ai-review', {}, { ref: 'ai-2026-10', caseId: 'G04' });
   step('2026-11-05T10:00', '2026-10', 'approve', {}, { ref: 'approve-2026-10', caseId: 'G04' });
   step('2026-11-10T10:00', '2026-10', 'mark-paid', { paidAt: '2026-11-10' }, { ref: 'paid-2026-10', caseId: 'G04' });
   // Tháng 11: tính lại sau khi duyệt giải trình P16-04 và phép P33-04; duyệt bằng rev cũ (G09)
   step('2026-12-01T09:00', '2026-11', 'lock-attendance', {}, { ref: 'lock-2026-11', caseId: 'G05' });
   step('2026-12-01T09:10', '2026-11', 'calculate', {}, { ref: 'calc-2026-11', caseId: 'G05' });
   step('2026-12-03T10:00', '2026-11', 'calculate', {}, { ref: 'calc2-2026-11', caseId: 'G05' });
-  step('2026-12-04T10:00', '2026-11', 'ai-review', {}, { ref: 'ai-2026-11', caseId: 'G05' });
   step('2026-12-05T10:00', '2026-11', 'approve', { revDelta: -1 }, { ref: 'G09', caseId: 'G09' });
   step('2026-12-05T10:05', '2026-11', 'approve', {}, { ref: 'approve-2026-11', caseId: 'G05' });
   step('2026-12-10T10:00', '2026-11', 'mark-paid', { paidAt: '2026-12-10' }, { ref: 'paid-2026-11', caseId: 'G05' });

@@ -25,8 +25,6 @@ export {
 } from './payroll.repository';
 export type { PeriodRow, RunRow, PayslipRow, PayslipFilter, SlipOverrideRow } from './payroll.repository';
 export {
-  AiFindingActionsRepository,
-  AiReviewRunsRepository,
   StaffRolesRepository,
   StaffRepository,
   PunchesRepository,
@@ -34,7 +32,7 @@ export {
   TimesheetsRepository,
   KpiScoresRepository
 } from './records.repository';
-export type { FindingActionRow, AiRunRow, StaffRow, StaffRoleRow, CorrectionRow, TimesheetRow, KpiScoresRow, KpiLogRow } from './records.repository';
+export type { StaffRow, StaffRoleRow, CorrectionRow, TimesheetRow, KpiScoresRow, KpiLogRow } from './records.repository';
 export { SheetApprovalsRepository, AttendanceSessionsRepository } from './attendance.repository';
 export type { SheetApprovalRow, AttendanceSessionRow, PunchRequestRow, PunchRow, SheetApprovalFilter } from './attendance.repository';
 export {

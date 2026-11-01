@@ -142,21 +142,12 @@ const SCENARIOS = [
   S('GET', `/attendance?month=${MONTH}`, 'đọc'),
 
   // dữ liệu và AI
-  S('GET', '/ai/review', 'thiếu tháng'),
-  S('GET', `/ai/review?month=${PREV}`, 'đọc'),
-  S('POST', '/ai/findings/dismiss', 'thân rỗng', { body: {} }),
-  S('POST', '/ai/findings/dismiss', 'thiếu lý do', { body: { month: PREV, username: 'qa_nv', rule: 'r1' } }),
   S('GET', '/events', 'luồng báo tin', { stream: true }),
 
   // công tắc và tham số
   // cài đặt ngày bắt đầu Check-in không có route: mặc định từ chối
   S('PUT', '/settings/checkin', 'đã xoá 23/10/2026', { odd: true, body: {} }),
   S('PUT', '/settings/checkin', 'đã xoá, thân cũ', { odd: true, body: { from: '2026-11-05' } }),
-  S('GET', '/settings/agents', 'đọc'),
-  S('PUT', '/settings/agents', 'thân rỗng', { body: {} }),
-  S('PUT', '/settings/agents', 'giá trị lạ', { body: { enabled: 'khong_co' } }),
-  S('PUT', '/settings/agents', 'bật', { body: { enabled: true } }),
-  S('PUT', '/settings/agents', 'tắt', { body: { enabled: false } }),
   S('PUT', '/settings/geofence', 'thân rỗng', { body: {} }),
   S('PUT', '/settings/geofence', 'tắt', { body: { geofence: null } }),
   // công tắc KPI 5 thành phần không có route: mặc định từ chối
@@ -203,8 +194,6 @@ const SCENARIOS = [
   S('POST', `/periods/${PREV}/lock-attendance`, 'chốt công: rev 0', { body: { rev: 0 } }),
   S('POST', `/periods/${PREV}/calculate`, 'tính lương: thân rỗng', { body: {} }),
   S('POST', `/periods/${PREV}/calculate`, 'tính lương: rev 0', { body: { rev: 0 } }),
-  S('POST', `/periods/${PREV}/ai-review`, 'AI kiểm tra: thân rỗng', { body: {} }),
-  S('POST', `/periods/${PREV}/ai-review`, 'AI kiểm tra: rev 0', { body: { rev: 0 } }),
   S('POST', `/periods/${PREV}/approve`, 'duyệt kỳ: thân rỗng', { body: {} }),
   S('POST', `/periods/${PREV}/approve`, 'duyệt kỳ: rev 0', { body: { rev: 0 } }),
   S('POST', `/periods/${PREV}/mark-paid`, 'đã chi trả: thân rỗng', { body: {} }),
@@ -355,8 +344,6 @@ const SCENARIOS = [
   S('PUT', '/sheet/', 'dấu / ở cuối', { odd: true, body: {} }),
   S('GET', '/me/', 'dấu / ở cuối', { odd: true }),
   S('GET', '/me/extra', 'thừa đoạn đường dẫn', { odd: true }),
-  S('POST', '/ai/findings', 'không có dismiss', { odd: true, body: {} }),
-  S('POST', '/ai/findings/khac', 'đoạn cuối khác dismiss', { odd: true, body: {} }),
   S('PUT', '/settings/params/x/y', 'đoạn con thừa', { odd: true, body: {} }),
   S('PUT', '/settings/params/lung-tung', 'đoạn con lạ', { odd: true, body: {} }),
   S('POST', '/settings/params', 'POST không đoạn con', { odd: true, body: {} }),
@@ -404,7 +391,6 @@ async function seedWorld() {
       passHash: PASS_HASH
     });
   await store.lockStaff('qa_locked', 'admin');
-  await require('../../src/platform/agents').set(true); // route Trợ lý / AI chạy thật; một kịch bản tắt Agents không được rò sang ô sau
   // staff_roles chỉ-thêm-dòng nên reset() không xoá được: thu hồi vai trò còn lại của ô trước
   await store.db
     .prepare('UPDATE staff_roles SET revoked_at = ? WHERE revoked_at IS NULL')

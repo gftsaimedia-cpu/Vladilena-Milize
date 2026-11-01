@@ -17,7 +17,6 @@ const { isatRefusal } = require('../../domain/isat-rule'); // ngày iSAT đúng 
 // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const explanations = require('../../domain/explanation/explanations'); // giải trình Check-out muộn
 const { validMonth, validDate, USERNAME_RE, NOTE_MAX } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { assertNotAiBlocked } = require('../../domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
 
 @Controller('api')
 export class ApprovalsController {
@@ -230,8 +229,6 @@ export class ApprovalsController {
         if (refusal)
           throw new HttpError(400, `${item.username}: ${refusal.message}`, { code: refusal.code, date: item.date });
       }
-    // AI chặn (khác các cảnh báo): chỉ khi duyệt và công tắc Agents bật; Từ chối luôn được
-    if (b.action === 'approve') await assertNotAiBlocked(items);
     try {
       const decided = await this.store.transaction(async () => {
         const rows = await this.store.approvals.decide(

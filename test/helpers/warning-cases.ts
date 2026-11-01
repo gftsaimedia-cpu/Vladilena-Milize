@@ -71,21 +71,16 @@ const CASES = [
     }
   },
   {
-    id: 'A3',
-    title: 'duyệt phiếu còn nháp (chưa qua AI kiểm tra)',
-    setup: toState('calculated'),
-    fire: async (ctx?) => await S.decide(ctx.M, await items(ctx)),
-    warn: { codes: ['PAYSLIP_STATE'] },
-    saved: async (ctx?) => assert.ok((await S.slipRows(ctx.M)).every(r => r.status === 'approved'))
-  },
-  {
     id: 'A5',
     title: 'trả lại phiếu không ghi chú',
-    setup: toState('reviewed'),
+    setup: async (ctx?) => {
+      await S.advance(ctx.M, 'calculated');
+      await S.decide(ctx.M, await items(ctx));
+    },
     fire: async (ctx?) => await S.decide(ctx.M, [(await items(ctx))[0]], 'return'),
     warn: { optional: true },
     saved: async (ctx?) =>
-      assert.equal((await S.slipRows(ctx.M))[0].status, 'draft', 'phiếu trả lại về bản nháp (trước đó chờ duyệt)')
+      assert.equal((await S.slipRows(ctx.M))[0].status, 'draft', 'phiếu trả lại về bản nháp (trước đó đã duyệt)')
   },
   {
     id: 'A6',

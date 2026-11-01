@@ -40,7 +40,7 @@ test('Thực lĩnh âm: duyệt phiếu có phiếu âm vẫn được, kèm c�
 
   const rows = await P.slipRows(M);
   assert.equal(rows.length, 4);
-  assert.ok(rows.every(row => row.status === 'pending'));
+  assert.ok(rows.every(row => row.status === 'draft'));
   const res = await P.decide(M, P.itemsOf(rows));
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const warning = negativeWarning(res);
@@ -54,7 +54,7 @@ test('Thực lĩnh âm: duyệt phiếu có phiếu âm vẫn được, kèm c�
     rows.map(row => [row.username, 'approved'])
   );
   assert.equal((await rowOf(M)).net, -1630000, 'số chi trả vẫn là số âm đã sửa');
-  assert.equal(await statusOf(M), 'reviewed');
+  assert.equal(await statusOf(M), 'calculated');
 });
 
 test('Thực lĩnh âm: chỉ duyệt riêng các phiếu không âm thì không có cảnh báo; duyệt riêng phiếu âm có cảnh báo; số tính ra bình thường không cảnh báo', async () => {
@@ -120,7 +120,7 @@ test('Thực lĩnh âm: duyệt kỳ vẫn được kèm cảnh báo khi số s�
 
   await mustOverride(M, { advance: old.gross + 5000000 }); // lưu sau khi phiếu đã duyệt (kỳ còn reviewed)
   assert.equal((await rowOf(M)).net, -INSURANCE - 5000000);
-  assert.equal(await statusOf(M), 'reviewed');
+  assert.equal(await statusOf(M), 'calculated');
 
   const approved = await P.step(M, 'approve');
   assert.equal(approved.status, 200, JSON.stringify(approved.data));

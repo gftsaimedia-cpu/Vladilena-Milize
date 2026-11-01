@@ -2,7 +2,7 @@
 // Yêu cầu (duyet, yc-moi-thang): hai chế độ xem theo route (meta.scope):
 //   'thang'     /admin/yeu-cau            yêu cầu của tháng hiện tại, chia nhóm Có cảnh báo AI / Không có cảnh báo
 //   'moi-thang' /admin/yeu-cau/moi-thang  thêm các tháng trước (AI chưa kiểm tra)
-// ?hop=dong-y-5 mở hộp đồng ý cả loạt; ?hop=ly-do-ai mở ngăn kéo lý do AI của yêu cầu có cảnh báo đầu tiên.
+// ?hop=dong-y-5 mở hộp đồng ý cả loạt.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
@@ -13,21 +13,17 @@ import { approveRequest, getOlderRequests, getRequests, rejectRequest } from '@/
 import { usePeriodStore } from '@/stores/period';
 import { useSessionStore } from '@/stores/session';
 import AdvanceGroup from './AdvanceGroup.vue';
-import AiReasonDrawer from './AiReasonDrawer.vue';
 import BulkApproveDialog from './BulkApproveDialog.vue';
 import ExplanationsGroup from './ExplanationsGroup.vue';
 import GroupClean from './GroupClean.vue';
 import GroupHistory from './GroupHistory.vue';
 import GroupOlder from './GroupOlder.vue';
-import GroupWarned from './GroupWarned.vue';
 import { monthNo } from './helpers';
 import SelectBox from './SelectBox.vue';
 
 const route = useRoute();
 const router = useRouter();
-// Chữ về cảnh báo AI chỉ hiện khi công tắc Agents bật
 const session = useSessionStore();
-const agents = computed(() => session.agentsEnabled);
 // Nhóm đang xem: yêu cầu theo ngày, giải trình, tạm ứng (hai nhóm sau chỉ khi có năng lực duyệt)
 const { data: waitingExplanations, reload: reloadWaiting } = useLoad(listWaitingExplanations);
 const waitingCount = computed(() => countWaiting(waitingExplanations.value));
@@ -68,8 +64,7 @@ const { data, reload } = useLoad(
 const counts = computed(() => data.value?.counts);
 const month = computed(() => monthNo(counts.value?.currentMonth));
 const items = computed(() => data.value?.items || []);
-const warned = computed(() => items.value.filter(r => r.warningCount > 0));
-const clean = computed(() => items.value.filter(r => r.warningCount === 0));
+const clean = computed(() => items.value);
 const kindOptions = computed(() => [
   { value: '', label: 'Mọi loại yêu cầu' },
   ...(data.value?.kinds || []).map(k => ({ value: k, label: k }))
@@ -101,7 +96,6 @@ const selectedItems = computed(() => clean.value.filter(r => selected.value.incl
 
 // Hộp và ngăn kéo
 const bulkOpen = ref(false);
-const reasonId = ref('');
 let openedHop = '';
 watch(
   () => [route.query.hop, data.value],
@@ -110,7 +104,6 @@ watch(
     if (!d || !hop || hop === openedHop) return;
     openedHop = hop;
     if (hop === 'dong-y-5') bulkOpen.value = true;
-    if (hop === 'ly-do-ai') reasonId.value = warned.value[0]?.id || '';
   },
   { immediate: true }
 );
@@ -136,10 +129,8 @@ function setScope(next?) {
       <div>
         <h1>Yêu cầu</h1>
         <p v-if="scope === 'thang'">
-          <b>{{ counts.pendingMonth }} yêu cầu</b> của tháng {{ month }} đang chờ bạn<template v-if="agents">
-            · {{ warned.length }} có cảnh báo AI</template
-          >
-          · còn {{ counts.pendingOlder }} yêu cầu của các tháng trước
+          <b>{{ counts.pendingMonth }} yêu cầu</b> của tháng {{ month }} đang chờ bạn · còn
+          {{ counts.pendingOlder }} yêu cầu của các tháng trước
         </p>
         <p v-else>
           <b>{{ counts.pending }} yêu cầu</b> đang chờ bạn · {{ counts.pendingMonth }} của tháng {{ month }},
@@ -193,7 +184,6 @@ function setScope(next?) {
 
       <template v-if="tab === 'cho'">
         <template v-if="scope === 'thang'">
-          <GroupWarned v-if="warned.length" :items="warned" @reason="r => (reasonId = r.id)" />
           <GroupClean
             v-if="clean.length"
             v-model:selected="selected"
@@ -209,8 +199,7 @@ function setScope(next?) {
           <section class="card" style="margin-bottom: 24px">
             <div class="sumc">
               <h2>Tháng {{ month }}</h2>
-              <span class="cap">{{ items.length }} yêu cầu<template v-if="agents"> · AI đã kiểm tra</template></span>
-              <span v-if="agents" class="aic"><Icon name="spark" :size="14" />{{ warned.length }} có cảnh báo</span>
+              <span class="cap">{{ items.length }} yêu cầu</span>
               <span class="cap">· {{ clean.length }} có thể đồng ý cả loạt</span>
               <button type="button" class="btn sm" @click="setScope('thang')">Xem tháng {{ month }}</button>
             </div>
@@ -234,7 +223,6 @@ function setScope(next?) {
       @close="bulkOpen = false"
       @done="reload"
     />
-    <AiReasonDrawer v-if="reasonId" :request-id="reasonId" @close="reasonId = ''" @done="reload" />
   </div>
 </template>
 

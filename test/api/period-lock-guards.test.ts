@@ -198,12 +198,9 @@ const EXEMPT = {
   'POST /logout': 'đăng xuất',
   'PUT /password': 'mật khẩu của chính mình',
   'PUT /settings/geofence': 'vùng GPS, không theo tháng',
-  'PUT /settings/agents': 'công tắc Agents, không theo tháng',
   'POST /periods/:month/lock-attendance':
     'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/calculate':
-    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
-  'POST /periods/:month/ai-review':
     'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/approve':
     'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
@@ -219,9 +216,7 @@ const EXEMPT = {
   'PUT /staff/shift-bulk': 'gán ca theo hồ sơ (profile.write), không ghi ngày công của một kỳ cụ thể',
   'PUT /staff/:u/roles': 'gán vai trò cho tài khoản, không theo tháng',
   'POST /staff/:u/password': 'đặt lại mật khẩu của tài khoản khác, không đổi dữ liệu lương',
-  'PUT /staff/:u': 'hồ sơ ảnh hưởng lương: TK 6.2 nói "các trường ảnh hưởng lương, xem 8.6" nhưng chưa nói tháng nào',
-  'POST /ai/findings':
-    'bỏ qua cờ AI của lần tính nháp, không theo tháng của dữ liệu (kiểm theo lần chạy nháp: PERIOD_STATE khi đã chốt)'
+  'PUT /staff/:u': 'hồ sơ ảnh hưởng lương: TK 6.2 nói "các trường ảnh hưởng lương, xem 8.6" nhưng chưa nói tháng nào'
 };
 
 // Route ghi của các module Nest (src/modules/*) khai periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module tự kiểm

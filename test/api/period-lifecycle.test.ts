@@ -1,6 +1,6 @@
 'use strict';
 // Vòng đời kỳ lương (src/domain/period/periods.ts, route /api/periods/* của server.js):
-// open → attendance_locked → calculated → reviewed → approved → paid, mỗi bước sai trạng thái là 409 PERIOD_STATE, rev lệch là PERIOD_STALE,
+// open → attendance_locked → calculated → approved → paid, mỗi bước sai trạng thái là 409 PERIOD_STATE, rev lệch là PERIOD_STALE,
 // danh sách kiểm, tính lương tạo lần chạy và bản chụp, duyệt phiếu cả lô hoặc không, nhật ký cho từng bước, verify.
 // Các bước vẫn đi tiếp khi còn việc chưa xong (chỉ cảnh báo): period-flow-warns.test.ts.
 // Mỗi test dùng một tháng riêng (test/helpers/period-api.ts → monthPool): không dòng nào rò từ test này sang test khác.
@@ -10,7 +10,6 @@ const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
 const Engine = require('../../src/engine/payroll-engine');
 const service = require('../../src/domain/payroll/payroll-service');
-const agents = require('../../src/platform/agents');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -29,7 +28,7 @@ async function addIsat(month?) {
 }
 
 /* ================= chuỗi trạng thái đầy đủ ================= */
-test('Vòng đời: open → attendance_locked → calculated → reviewed → approved → paid, rev tăng một ở mỗi bước, mỗi bước ghi nhật ký', async () => {
+test('Vòng đời: open → attendance_locked → calculated → approved → paid, rev tăng một ở mỗi bước, mỗi bước ghi nhật ký', async () => {
   const M = monthOf();
   await P.seed(M);
   let view = (await getPeriod(M)).data;
@@ -49,15 +48,11 @@ test('Vòng đời: open → attendance_locked → calculated → reviewed → a
   assert.equal(calc.data.run.status, 'draft');
   assert.deepEqual(calc.data.counts, { draft: 4, pending: 0, approved: 0, error: 0, total: 4 });
 
-  const ai = P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
-  assert.equal(ai.data.status, 'reviewed');
-  assert.equal(ai.data.rev, 3);
-  assert.equal(typeof ai.data.findings, 'number');
-  const pending = await P.slipRows(M);
+  const drafts = await P.slipRows(M);
   assert.deepEqual(
-    pending.map(r => r.status),
-    ['pending', 'pending', 'pending', 'pending'],
-    'sau AI kiểm tra mọi phiếu chờ duyệt'
+    drafts.map(r => r.status),
+    ['draft', 'draft', 'draft', 'draft'],
+    'sau tính lương mọi phiếu là bản nháp'
   );
 
   const decided = P.must(await P.approveAllPending(M), 'duyệt cả lô phiếu');
@@ -66,18 +61,18 @@ test('Vòng đời: open → attendance_locked → calculated → reviewed → a
 
   const approved = P.must(await P.step(M, 'approve'), 'duyệt kỳ');
   assert.equal(approved.data.status, 'approved');
-  assert.equal(approved.data.rev, 4);
+  assert.equal(approved.data.rev, 3);
 
   const paid = P.must(await P.step(M, 'mark-paid', { paidAt: '2026-11-05', reference: 'UNC-TEST-001' }), 'chi trả');
   assert.equal(paid.data.status, 'paid');
-  assert.equal(paid.data.rev, 5);
+  assert.equal(paid.data.rev, 4);
 
   view = (await getPeriod(M)).data;
   assert.equal(view.status, 'paid');
   assert.deepEqual(Object.fromEntries(Object.entries<any>(view.stages).map(([k, v]: any) => [k, v.by])), {
     attendanceLocked: 'admin',
     calculated: 'admin',
-    reviewed: 'admin',
+    reviewed: null,
     approved: 'admin',
     paid: 'admin'
   });
@@ -98,7 +93,7 @@ test('Vòng đời: open → attendance_locked → calculated → reviewed → a
   const actions = rows.map(r => r.action);
   assert.deepEqual(
     actions.filter(a => a.startsWith('period.')),
-    ['period.lock-attendance', 'period.calculate', 'period.ai-review', 'period.approve', 'period.mark-paid']
+    ['period.lock-attendance', 'period.calculate', 'period.approve', 'period.mark-paid']
   );
   assert.equal(actions.filter(a => a === 'payslip.approve').length, 4);
   for (const r of rows) {
@@ -123,7 +118,6 @@ test('Mỗi bước sai trạng thái là 409 PERIOD_STATE (kèm status và expe
   const ALLOWED = {
     'lock-attendance': ['open'],
     calculate: ['attendance_locked', 'calculated', 'reviewed'],
-    'ai-review': ['calculated', 'reviewed'],
     approve: ['calculated', 'reviewed'],
     'mark-paid': ['approved'],
     reopen: ['reviewed', 'approved', 'paid']
@@ -133,14 +127,14 @@ test('Mỗi bước sai trạng thái là 409 PERIOD_STATE (kèm status và expe
     open: async () => {},
     attendance_locked: async () => P.must(await P.step(M, 'lock-attendance'), 'chốt công'),
     calculated: async () => P.must(await P.step(M, 'calculate'), 'tính lương'),
-    reviewed: async () => P.must(await P.step(M, 'ai-review'), 'AI kiểm tra'),
+    reviewed: async () => {},
     approved: async () => {
       P.must(await P.approveAllPending(M), 'duyệt phiếu');
       P.must(await P.step(M, 'approve'), 'duyệt kỳ');
     },
     paid: async () => P.must(await P.step(M, 'mark-paid', { paidAt: '2026-11-05' }), 'chi trả')
   };
-  for (const state of P.ORDER) {
+  for (const state of P.ORDER.filter(s => s !== 'reviewed')) {
     await ENTER[state]();
     assert.equal((await getPeriod(M)).data.status, state);
     for (const [name, states] of Object.entries<any>(ALLOWED)) {
@@ -198,7 +192,7 @@ test('rev lệch là 409 PERIOD_STALE (kèm rev hiện tại) và không đổi 
   // rev đúng thì qua
   P.must(await P.step(M, 'calculate'), 'tính lương');
   // rev cũ cũng bị chặn ở các bước sau
-  for (const name of ['ai-review', 'approve']) {
+  for (const name of ['approve']) {
     const res = await F.call('POST', `/periods/${M}/${name}`, { body: { rev: 1 } });
     assert.equal(res.data.code, 'PERIOD_STALE', name);
   }
@@ -224,7 +218,7 @@ test('Tháng sai dạng là 400 BAD_MONTH ở mọi route kỳ lương (xem, phi
       assert.equal(res.status, 400, `${route}: ${res.status} ${JSON.stringify(res.data)}`);
       assert.equal(res.data.code, 'BAD_MONTH', route);
     }
-    for (const name of ['lock-attendance', 'calculate', 'ai-review', 'approve', 'mark-paid', 'reopen']) {
+    for (const name of ['lock-attendance', 'calculate', 'approve', 'mark-paid', 'reopen']) {
       const res = await F.call('POST', `/periods/${bad}/${name}`, { body: { rev: 0 } });
       assert.equal(res.status, 400, `${bad}/${name}: ${res.status} ${JSON.stringify(res.data)}`);
       assert.equal(res.data.code, 'BAD_MONTH', `${bad}/${name}`);
@@ -245,24 +239,6 @@ test('Danh sách kiểm: lý do đúng 300 ký tự được nhận, không cầ
   await P.seed(N);
   // acknowledge thừa (không có mã nào cần bỏ qua) không đòi lý do
   P.must(await P.step(N, 'lock-attendance', { acknowledge: ['PENDING_APPROVALS'] }), 'acknowledge thừa');
-});
-
-test('Danh sách kiểm: AI_NOT_RUN chỉ hiện ở bước duyệt (sau tính lương, trước AI kiểm tra) và hết sau khi AI chạy', async () => {
-  const M = monthOf();
-  await P.setupMonth(M, 'calculated');
-  await agents.set(false);
-  assert.equal(
-    codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'),
-    false,
-    'Agents tắt: không đòi chạy AI'
-  );
-  await agents.set(true);
-  assert.ok(codesOfChecklist((await getPeriod(M)).data).includes('AI_NOT_RUN'));
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
-  const view = (await getPeriod(M)).data;
-  assert.deepEqual(view.checklist, [], 'từ reviewed không còn danh sách kiểm');
-  assert.equal(view.ai.findingsTotal, 0);
-  assert.equal(view.ai.runId, view.run.id);
 });
 
 /* ================= tính lương ================= */
@@ -318,14 +294,13 @@ test('calculate: lỗi của một người thành phiếu error (mã và chi ti
   assert.match(slips.qa_ctv1.error_detail, /thiếu dữ liệu thử/);
   assert.equal(slips.qa_ctv1.net, null);
   assert.equal(slips.qa_nv1.status, 'draft');
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rows = await P.slipRows(M);
   assert.equal(rows.find(r => r.username === 'qa_ctv1').status, 'error', 'AI không biến phiếu lỗi thành chờ duyệt');
   const bad = rows.find(r => r.username === 'qa_ctv1');
   const denied = await P.decide(M, [{ username: 'qa_ctv1', rev: bad.rev }]);
   assert.equal(denied.status, 409);
   assert.equal(denied.data.code, 'PAYSLIP_ERROR');
-  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'pending'))), 'duyệt các phiếu tốt');
+  P.must(await P.decide(M, P.itemsOf(rows.filter(r => r.status === 'draft'))), 'duyệt các phiếu tốt');
   // loại phiếu lỗi: lý do quá 300 ký tự là lỗi dữ liệu
   const tooLong = await P.step(M, 'approve', { excludeErrors: [{ username: 'qa_ctv1', reason: P.text(301) }] });
   assert.equal(tooLong.status, 400);
@@ -378,7 +353,6 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
   // phiếu cũ không còn duyệt được
   const stale = await P.decide(M, [{ username: 'qa_nv1', rev: 2 }]);
   assert.equal(stale.status, 409, 'phiếu mới là draft, chưa qua AI');
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra lại');
   P.must(await P.step(M, 'calculate'), 'tính lại lần ba');
   assert.deepEqual(
     (await P.runsOf(M)).map(r => r.status),
@@ -407,7 +381,6 @@ test('calculate cho cùng đầu vào cho cùng băm đầu vào và cùng số 
 test('decide: cả lô hoặc không — một phiếu sai rev hoặc không có thật thì KHÔNG phiếu nào đổi', async () => {
   const M = monthOf();
   await P.setupMonth(M, 'calculated');
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
   const rows = await P.slipRows(M);
   const before = await F.snapshot();
   const items = P.itemsOf(rows);
@@ -423,7 +396,7 @@ test('decide: cả lô hoặc không — một phiếu sai rev hoặc không có
   assert.deepEqual(F.changedTables(before, await F.snapshot()), [], 'lô bị từ chối không được lưu gì');
   assert.deepEqual(
     (await P.slipRows(M)).map(r => r.status),
-    ['pending', 'pending', 'pending', 'pending']
+    ['draft', 'draft', 'draft', 'draft']
   );
   // lô trống, quá 200, action lạ
   assert.equal((await P.decide(M, [])).status, 400);

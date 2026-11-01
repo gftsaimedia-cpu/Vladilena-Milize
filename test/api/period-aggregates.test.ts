@@ -31,7 +31,7 @@ const dbSlips = async (month?) => Object.values<any>((await flow.payslipsOf(mont
 const sumOf = (rows?, key?) => rows.reduce((t, r) => t + (typeof r[key] === 'number' ? r[key] : 0), 0);
 
 /* ================= view: totals, attendanceKept, needsRecalculate ================= */
-test('view.totals là tổng các số đồng nguyên đã lưu trên từng phiếu + số phiếu theo trạng thái; đổi theo từng bước (draft → pending → approved)', async () => {
+test('view.totals là tổng các số đồng nguyên đã lưu trên từng phiếu + số phiếu theo trạng thái; đổi theo từng bước (draft → approved)', async () => {
   const M = monthOf();
   await P.seed(M);
   assert.equal((await view(M)).totals, null, 'chưa tính lương: không có tổng');
@@ -43,10 +43,6 @@ test('view.totals là tổng các số đồng nguyên đã lưu trên từng ph
   assert.equal(totals.people, 4);
   for (const key of SUM_KEYS) assert.equal(totals[key], sumOf(slips, key), key);
   assert.deepEqual([totals.draft, totals.pending, totals.approved, totals.error], [4, 0, 0, 0]);
-  P.must(await P.step(M, 'ai-review'), 'AI kiểm tra');
-  totals = (await view(M)).totals;
-  assert.deepEqual([totals.draft, totals.pending, totals.approved, totals.error], [0, 4, 0, 0]);
-  for (const key of SUM_KEYS) assert.equal(totals[key], sumOf(slips, key), `${key} không đổi khi chỉ đổi trạng thái`);
   P.must(await P.approveAllPending(M), 'duyệt phiếu');
   totals = (await view(M)).totals;
   assert.deepEqual([totals.draft, totals.pending, totals.approved, totals.error], [0, 0, 4, 0]);
@@ -92,8 +88,6 @@ test('view.needsRecalculate: false khi chưa tính hoặc đã có lần tính h
   assert.equal(reopened.run, null);
   assert.equal(reopened.totals, null);
   assert.equal(reopened.attendanceKept, null);
-  // AI chưa chạy được khi chưa tính lại
-  assert.equal((await P.step(M, 'ai-review')).status, 409);
   P.must(await P.step(M, 'calculate'), 'tính lại');
   const again = await view(M);
   assert.equal(again.needsRecalculate, false);
@@ -179,7 +173,7 @@ test(
       assert.equal(res.data.code, 'BAD_TYPE');
     }
     assert.equal((await list(M, '&type=nv&status=approved')).data.total, 0);
-    assert.equal((await list(M, '&type=nv&status=pending')).data.total, 2);
+    assert.equal((await list(M, '&type=nv&status=draft')).data.total, 2);
     assert.deepEqual(
       (await list(M, '&type=nv&q=nv2')).data.rows.map(r => r.username),
       ['qa_nv2']

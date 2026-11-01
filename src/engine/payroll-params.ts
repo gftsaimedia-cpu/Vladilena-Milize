@@ -17,49 +17,6 @@
     'advance.eligibleTypes.tts': true,
     'advance.rate': 0.8,
     'advance.untilDay': 15,
-    'ai.limit.evidenceListMax': 5,
-    'ai.rule.approvedLeaveFrequency.enabled': true,
-    'ai.rule.attendanceAllowanceRisk.enabled': true,
-    'ai.rule.attributeUnused.enabled': true,
-    'ai.rule.blockFlagsUnconfirmed.enabled': true,
-    'ai.rule.formulaChangedRecently.enabled': true,
-    'ai.rule.formulaLargeChange.enabled': true,
-    'ai.rule.holidayWorkReview.enabled': true,
-    'ai.rule.isatFrequency.enabled': true,
-    'ai.rule.kpiSelf100Streak.enabled': true,
-    'ai.rule.largePayImpact.enabled': true,
-    'ai.rule.lateDeclaration.enabled': false,
-    'ai.rule.leaveWithCheckin.enabled': true,
-    'ai.rule.lockedWithPending.enabled': true,
-    'ai.rule.missingFixedShift.enabled': true,
-    'ai.rule.missingStartDate.enabled': true,
-    'ai.rule.negativeLeave.enabled': true,
-    'ai.rule.netNonpositive.enabled': true,
-    'ai.rule.otAboveTeam.enabled': true,
-    'ai.rule.otAfterPendingMakeup.enabled': true,
-    'ai.rule.otCheckinMismatch.enabled': true,
-    'ai.rule.overrideLooksLikeEntry.enabled': true,
-    'ai.rule.positionScopeLeak.enabled': true,
-    'ai.rule.previouslyRejected.enabled': true,
-    'ai.rule.repeatedEdits.enabled': true,
-    'ai.rule.slipOverrideGap.enabled': true,
-    'ai.threshold.approvedLeavePerMonth': 3,
-    'ai.threshold.formulaChangeTotalVnd': 5000000,
-    'ai.threshold.impactVnd': 500000,
-    'ai.threshold.isatPerMonth': 4,
-    'ai.threshold.kpiFullMonths': 3,
-    'ai.threshold.netChangePct': 0.2,
-    'ai.threshold.otMedianFactor': 2,
-    'ai.threshold.otMedianMinHours': 8,
-    'ai.threshold.otMedianMinPeers': 5,
-    'ai.threshold.overrideEntryRoundVnd': 100000,
-    'ai.threshold.paramChangePeoplePct': 0.2,
-    'ai.threshold.presenceGapMin': 30,
-    'ai.threshold.rejectedLookbackDays': 60,
-    'ai.threshold.repeatedEditsRev': 3,
-    'ai.threshold.scopeLeakMinPeople': 1,
-    'ai.threshold.slipDiffRatio': 0.2,
-    'ai.threshold.slipDiffVnd': 500000,
     'approval.batch': true,
     'approval.pendingAtLock': 'confirm',
     'attendance.absentCompare': 'gte',
@@ -1002,13 +959,11 @@
   }
 
   /* ---------- bộ tham số chụp TRƯỚC khi có khoá mới (verify, tính lại kỳ cũ) ---------- */
-  // Khoá thêm sau (phương án bảo hiểm và thuế, chức vụ, khối, lịch, tạm ứng và làm bù, ngưỡng AI): `payroll_runs.params_json` chụp trước khi có chúng thì thiếu.
+  // Khoá thêm sau (phương án bảo hiểm và thuế, chức vụ, khối, lịch, tạm ứng và làm bù): `payroll_runs.params_json` chụp trước khi có chúng thì thiếu.
   // Khoá thiếu trong bản chụp cũ đọc bằng MẶC ĐỊNH (đúng hành vi lúc chụp), không ném PARAM_MISSING; bộ máy gọi fillLate lúc dựng nhân và lúc tính một tháng. Danh sách CHỈ thêm khi có khoá mới của một đợt phát hành; khoá của mọi đợt trước giữ nguyên là bắt buộc (thiếu là lỗi).
   const LATE_KEYS = Object.freeze(
     `
-    ai.rule.blockFlagsUnconfirmed.enabled ai.rule.formulaLargeChange.enabled
-    ai.rule.overrideLooksLikeEntry.enabled ai.rule.positionScopeLeak.enabled ai.threshold.formulaChangeTotalVnd
-    ai.threshold.overrideEntryRoundVnd ai.threshold.scopeLeakMinPeople insurance.baseAttr insurance.coverage.long
+    insurance.baseAttr insurance.coverage.long
     insurance.coverage.short insurance.floorMode
     system.entries.labelMaxLength system.entries.maxAmount system.entries.maxPerBatch
     system.entries.requireApproval system.positions.max system.positions.maxCopyKeys tax.arise.mode

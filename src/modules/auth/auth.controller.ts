@@ -1,4 +1,4 @@
-import { AGENTS, AUDIT, AUTH, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from '../../core/tokens';
+import { AUDIT, AUTH, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from '../../core/tokens';
 import { Controller, Post, Get, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { Reply } from '../../http/reply';
@@ -8,7 +8,6 @@ const { HttpError, readJson } = require('../../platform/http'); // tiện ích H
 // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { publicStaff } = require('../../domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
 // các lớp của src/domain dựng một lần
-// công tắc Agents
 // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
@@ -25,7 +24,6 @@ export class AuthController {
     @Inject(EVENTS) private readonly events: any,
     @Inject(RULES) private readonly rules: any,
     @Inject(AUTHZ) private readonly authz: any,
-    @Inject(AGENTS) private readonly agents: any,
     @Inject(AUDIT) private readonly audit: any
   ) {}
 
@@ -92,7 +90,6 @@ export class AuthController {
       roles: await this.authz.rolesOf(me),
       caps: await this.authz.capsOf(me),
       payrollSubject: !!(me && me.payrollSubject),
-      agentsEnabled: await this.agents.enabled(), // công tắc Agents (route /settings/agents)
       holidays: await this.store.getSetting('holidays', []),
       ...(await myPosition(me)),
       ...(await this.domain.geofencePolicy.viewFor(me))

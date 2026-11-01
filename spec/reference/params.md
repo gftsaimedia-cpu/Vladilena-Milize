@@ -214,28 +214,28 @@ Sinh bởi `npm run params:doc` từ `src/params/registry.data.json` và `src/en
 
 | Khoá | Nhãn trên màn | Loại | Thành phần | Phương án | Mặc định | editableBy | Nối | Căn cứ · tầng | Đợt |
 |---|---|---|---|---|---|---|---|---|---|
-| `ai.threshold.isatPerMonth` | iSAT: gắn cờ từ … lần mỗi tháng | số(times) | quantity |  | 4 lần | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.approvedLeavePerMonth` | "Nghỉ được duyệt": từ … lần mỗi tháng | số(times) | quantity |  | 3 lần | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.rejectedLookbackDays` | Khoản cùng loại bị từ chối trong … ngày gần nhất | số(day) | quantity |  | 60 ngày | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.repeatedEditsRev` | Khoản chờ duyệt đã đổi từ … lần (rev) | số(count) | quantity |  | 3 | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.presenceGapMin` | Lệch giờ khai và Check-in từ … phút | số(minute) | quantity |  | 30 phút | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.otMedianFactor` | OT của một người từ … lần trung vị nhóm | số(count) | quantity |  | 2 | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.otMedianMinHours` | và ít nhất … giờ OT trong tháng | số(hour) | quantity |  | 8 giờ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.otMedianMinPeers` | chỉ so khi có ít nhất … người có OT | số(count) | quantity |  | 5 | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.impactVnd` | "Tác động tiền lớn" từ … ₫ | số(vnd) | money |  | 500.000 ₫ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.slipDiffVnd` | Số sửa trên phiếu lệch từ … ₫ | số(vnd) | money |  | 500.000 ₫ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.slipDiffRatio` | và lệch từ … % so với số tự tính | số(ratio) | percent |  | 20 % | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.kpiFullMonths` | Tự chấm KPI 100 % từ … tháng liền | số(month) | quantity |  | 3 tháng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.netChangePct` | Thực nhận đổi quá … % so với tháng trước | số(ratio) | percent |  | 20 % | admin | có | Chủ dự án chốt mức 20% | V1-B |
-| `ai.rule.<id>.enabled` | Bật luật cảnh báo | chọn | toggle | Bật (mặc định) · Tắt | approvedLeaveFrequency.enabled: Có; attendanceAllowanceRisk.enabled: Có; attributeUnused.enabled: Có … (+22) | admin | có | Chính sách công ty, do C&B chọn | V1-B |
+| `ai.threshold.isatPerMonth` | iSAT: gắn cờ từ … lần mỗi tháng | số(times) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.approvedLeavePerMonth` | "Nghỉ được duyệt": từ … lần mỗi tháng | số(times) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.rejectedLookbackDays` | Khoản cùng loại bị từ chối trong … ngày gần nhất | số(day) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.repeatedEditsRev` | Khoản chờ duyệt đã đổi từ … lần (rev) | số(count) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.presenceGapMin` | Lệch giờ khai và Check-in từ … phút | số(minute) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.otMedianFactor` | OT của một người từ … lần trung vị nhóm | số(count) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.otMedianMinHours` | và ít nhất … giờ OT trong tháng | số(hour) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.otMedianMinPeers` | chỉ so khi có ít nhất … người có OT | số(count) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.impactVnd` | "Tác động tiền lớn" từ … ₫ | số(vnd) | money |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.slipDiffVnd` | Số sửa trên phiếu lệch từ … ₫ | số(vnd) | money |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.slipDiffRatio` | và lệch từ … % so với số tự tính | số(ratio) | percent |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.kpiFullMonths` | Tự chấm KPI 100 % từ … tháng liền | số(month) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.netChangePct` | Thực nhận đổi quá … % so với tháng trước | số(ratio) | percent |  | rỗng | admin | có | Chủ dự án chốt mức 20% | V1-B |
+| `ai.rule.<id>.enabled` | Bật luật cảnh báo | chọn | toggle | Bật (mặc định) · Tắt | rỗng | admin | có | Chính sách công ty, do C&B chọn | V1-B |
 | `fixed.ai.dismissReason` | Bỏ qua cảnh báo bắt buộc ghi lý do | cố định | fixed |  |  | locked | — | Điều khiển bắt buộc của hệ thống |  |
 | `fixed.ai.lock` | AI không chạy thì khoá duyệt cả lô | cố định | fixed |  |  | locked | — | Điều khiển bắt buộc của hệ thống |  |
 | `fixed.ai.local` | AI chỉ chạy trong công ty, chỉ gợi ý | cố định | fixed |  |  | locked | — | Chủ dự án chốt ngày 14/10/2026 |  |
-| `ai.limit.evidenceListMax` | AI: số mục tối đa trong một danh sách ở bằng chứng của phát hiện | số(count) | quantity |  | 5 | ops | — | Cấu hình kỹ thuật, do bộ phận vận hành đặt | V1-A đọc |
-| `ai.threshold.paramChangePeoplePct` | Công thức hoặc tham số đổi làm đổi thực nhận từ … % số người thì gắn "Cần xem" | số(ratio) | percent |  | 20 % | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.formulaChangeTotalVnd` | Thay đổi cài đặt làm đổi tổng thực nhận từ … ₫ thì gắn "Cần xem" | số(vnd) | money |  | 5.000.000 ₫ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.overrideEntryRoundVnd` | Số sửa phiếu tăng đúng bội của … ₫ thì gắn "giống khoản cộng thêm" | số(vnd) | money |  | 100.000 ₫ | admin | có | Đề xuất, chờ C&B chốt | V1-B |
-| `ai.threshold.scopeLeakMinPeople` | Thay đổi cho một chức vụ chạm từ … người ngoài chức vụ thì gắn "Cần xem" | số(count) | quantity |  | 1 | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.limit.evidenceListMax` | AI: số mục tối đa trong một danh sách ở bằng chứng của phát hiện | số(count) | quantity |  | rỗng | ops | — | Cấu hình kỹ thuật, do bộ phận vận hành đặt | V1-A đọc |
+| `ai.threshold.paramChangePeoplePct` | Công thức hoặc tham số đổi làm đổi thực nhận từ … % số người thì gắn "Cần xem" | số(ratio) | percent |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.formulaChangeTotalVnd` | Thay đổi cài đặt làm đổi tổng thực nhận từ … ₫ thì gắn "Cần xem" | số(vnd) | money |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.overrideEntryRoundVnd` | Số sửa phiếu tăng đúng bội của … ₫ thì gắn "giống khoản cộng thêm" | số(vnd) | money |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
+| `ai.threshold.scopeLeakMinPeople` | Thay đổi cho một chức vụ chạm từ … người ngoài chức vụ thì gắn "Cần xem" | số(count) | quantity |  | rỗng | admin | có | Đề xuất, chờ C&B chốt | V1-B |
 
 ## Nhóm 12. Phiếu lương
 

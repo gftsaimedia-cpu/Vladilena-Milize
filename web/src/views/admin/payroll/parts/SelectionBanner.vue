@@ -2,9 +2,7 @@
 // Dải chọn phiếu: gợi ý chọn hàng loạt, hoặc số phiếu đã chọn cùng nút Trả lại / Phê duyệt.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useSessionStore } from '@/stores/session';
 
-const agents = computed(() => useSessionStore().agentsEnabled);
 defineProps({
   total: { type: Number, default: 0 }, // tổng phiếu đã chọn
   onPage: { type: Number, default: 0 }, // trong đó ở trang này
@@ -17,7 +15,7 @@ defineEmits(['select-all', 'clear', 'return', 'approve']);
   <div class="bnr sel">
     <template v-if="total > 0">
       <span class="t">
-        <b>Đã chọn {{ total }} phiếu{{ agents ? ' không có cảnh báo' : '' }}</b>
+        <b>Đã chọn {{ total }} phiếu</b>
         · {{ onPage }} phiếu ở trang này<template v-if="others">, {{ others }} ở các trang khác</template>
       </span>
       <span class="bs">
@@ -31,15 +29,9 @@ defineEmits(['select-all', 'clear', 'return', 'approve']);
       </span>
     </template>
     <template v-else>
-      <span class="t">
-        Chọn phiếu để phê duyệt hoặc trả lại.<template v-if="agents">
-          Phiếu có cảnh báo AI không chọn hàng loạt được: mở phiếu, bỏ qua từng cảnh báo kèm lý do rồi phê duyệt riêng.
-        </template>
-      </span>
+      <span class="t"> Chọn phiếu để phê duyệt hoặc trả lại. </span>
       <span class="bs">
-        <button type="button" class="btn sm" @click="$emit('select-all')">
-          {{ agents ? 'Chọn mọi phiếu không có cảnh báo' : 'Chọn mọi phiếu' }}
-        </button>
+        <button type="button" class="btn sm" @click="$emit('select-all')">Chọn mọi phiếu</button>
         <button type="button" class="btn sm off" disabled>Trả lại</button>
         <button type="button" class="btn sm off" disabled>Phê duyệt phiếu</button>
       </span>

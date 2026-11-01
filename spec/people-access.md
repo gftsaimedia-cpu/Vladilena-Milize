@@ -492,7 +492,6 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 | `makeup` | Khối cấu hình "Làm bù" (hệ số `holiday.makeupRate`) bật theo cờ này (`src/params/blocks.ts`); `src/engine/payroll-engine.ts` không đọc cờ này. |
 | `makeupHours` | Khai làm bù theo giờ trên lịch (`extraKind='makeup'`): thiếu cờ thì cảnh báo `BENEFIT_NOT_ALLOWED` (khoản chờ duyệt và nếu được duyệt vẫn có tiền) (`checkRequestFlags`, `src/domain/positions.ts`). |
 | `makeupDay` | Bộ máy (`src/engine/payroll-engine.ts`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị và chỉ giữ nhãn cho nhật ký; `src/engine/payroll-params.ts,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
-| `kpi` | Chức vụ có lương KPI: bộ máy tính KPI (`src/engine/payroll-engine.ts`); kiểm tra AI chỉ xét người có cờ (`src/ai/review.ts,1097`); khối cấu hình "KPI". |
 | `paidHoliday` | Ngày lễ trong thời gian làm việc được lương ngày (`src/engine/payroll-engine.ts`); thiếu cờ thì lương lễ là 0. |
 | `paidLeave` | Ngày nghỉ phép năm có lương ngày. |
 | `isat` | Ngày iSAT được khai và được trả; điều kiện đầy đủ ở "iSAT" dưới. |
@@ -638,7 +637,6 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | --- | --- |
 | Thêm route mới | Thêm khoá vào `ROUTE_CAPS` (`authz.ts`), nếu có tham số trong đường dẫn thì thêm nhánh `routeKey` **đúng thứ tự** (`authz.ts`); `src/ops/route-classes.ts` nếu là route nặng/ghi tự do; test `permissions-matrix`, `route-dispatch-golden`, `route-classes`. |
 | Thứ tự nhánh `routeKey` | Các khoá `/staff/*`: `shift-bulk`, `:u/roles`, `:u/password`, `:u/schedule` phải đứng trước `PUT|DELETE /staff/:u`. |
-| `CAPS` / `ROLE_CAPS` / `ROLE_SCOPE` | `src/domain/roles/roles.ts AREAS`, `EXTRAS` (ma trận màn Phân quyền), `src/engine/home-route.js ADMIN_CAPS`, nhãn `CAP_TXT`/`ROLE_TXT` trong tầng người nhận trong `src/platform/events.ts EVENTS`, `auditSensitivities`. |
 | `src/engine/approval-view.ts ITEMS` | `src/domain/roles/roles.ts APPROVAL_ITEMS` (danh sách riêng: nếu thiếu, tạo/sửa vai trò với loại mới bị 400 `ROLE_APPROVAL_UNKNOWN` dù `authz` chấp nhận). `makeup_day` (Làm bù cả ngày) còn trong `ITEMS` vì khoá tham số còn, nhưng không còn trong `APPROVAL_ITEMS`: vai trò gửi loại này thì bị bỏ qua (`RETIRED_ITEMS`). |
 | `RESERVED_CAPS` | `PUT /staff/:u` và `POST /staff/:u/password` dựa vào việc chỉ `admin` có `roles.manage`; `guardAdminLock`. |
 | Cột mới trong `staff` | `staffRevision` tự tính cột đó; nếu cột tự đổi (kỹ thuật) phải thêm vào `REV_SKIP_COLUMNS` (`staff.ts`) nếu không Admin bị 409 `STAFF_STALE` giả. Thêm vào `rowToStaff`, `upsertStaff` (câu `ON CONFLICT` liệt kê từng cột), `audit.ts STAFF_PLAIN/STAFF_PAY/STAFF_PII`, `staffForViewer PAY_STAFF_FIELDS` nếu là trường tiền, `effectivePay` ở `src/modules/staff/staff.controller.ts` nếu đổi tiền, `Profile.fromRow`. |
@@ -652,16 +650,15 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | `BENEFITS` (`position/benefits.ts`) | `src/params/positions.ts BENEFIT_FLAGS` (bản riêng, không có `holidayWork`), bảng `benefit_types` (dòng mới chỉ nạp ở mốc một lần), `sheetFlagsOf`/`checkRequestFlags` (`src/domain/positions.ts`), `src/domain/timesheet/` (nối ở `timesheet/services.ts`), `src/domain/ot.ts`, `src/domain/isat-rule.ts`, `src/engine/payroll-engine.ts` (mục 4.11). |
 | Danh mục ca / `shift.kind.*` / `shift.alias.*` | `src/engine/punch.ts`, `src/engine/actual-hours.ts`, phụ cấp ca trong bộ máy lương, `seed-data.ts SHIFTS`, `PRESET_RE` trong `src/modules/staff/staff.controller.ts`. |
 | `PersonName` | `db.rowToStaff`, `db.upsertStaff`, `Profile.fromRow`, mốc `staff_identity_v1`. |
-| `agents_enabled` | `src/platform/agents.ts`; `/me.agentsEnabled`; mọi route Trợ lý AI; `assertNotAiBlocked`. |
 | `config.REASON_MIN/MAX`, `PASSWORD_MIN_LENGTH` | Bản sao trong `src/platform/db.ts`. |
 
 ---
 
 ## 7. Test hiện có
 
-API (`test/api/`): `mvp-auth.test.ts`, `*-dang-nhap-tai-khoan-khoa.test.ts`, `security-headers.test.ts`, `password-reset-admin.test.ts`, `permissions-matrix.test.ts`, `route-dispatch-golden.test.ts`, `period-permissions.test.ts`, `roles-and-bulk-shift.test.ts`, `roles-custom.test.ts`, `roles-giao-dien.test.ts`, `*-vai-tro-nhan-vien.test.ts`, `lock-admin-guard.test.ts`, `*-staff-unlock-audit.test.ts`, `self-edit-guard.test.ts`, `staff-profile-validation.test.ts`, `staff-revision.test.ts`, `v1a-s6-hr-staff-put.test.ts`, `optimistic-rev.test.ts`, `audit-log.test.ts`, `audit-paging.test.ts`, `events.test.ts`, `agents-toggle.test.ts`, `domain-catalog-routes.test.ts`, `position-copy.test.ts`, `levels-add.test.ts`, `levels-entitlements.test.ts`, `levels-idorm.test.ts`, `levels-night-options.test.ts`, `levels-request-flags.test.ts`, `entitlement-write.test.ts`, `shifts-edit.test.ts`, `shifts-settings-route.test.ts`, `punch-shift-config.test.ts`, `shift-code-validation-regression.test.ts`, `checkin.test.ts`, `review-fixes.test.ts`, `review-fixes-positions.test.ts`, `verify-fixes.test.ts`, `contract-web.test.ts`, `*-load-phase0.test.ts`, `*-ha-tang-http-db.test.ts`, `api-input-validation.test.ts`.
+API (`test/api/`): `mvp-auth.test.ts`, `*(đã bỏ)`, `security-headers.test.ts`, `password-reset-admin.test.ts`, `permissions-matrix.test.ts`, `route-dispatch-golden.test.ts`, `period-permissions.test.ts`, `roles-and-bulk-shift.test.ts`, `roles-custom.test.ts`, `roles-giao-dien.test.ts`, `*(đã bỏ)`, `lock-admin-guard.test.ts`, `*(đã bỏ)`, `self-edit-guard.test.ts`, `staff-profile-validation.test.ts`, `staff-revision.test.ts`, `v1a-s6-hr-staff-put.test.ts`, `optimistic-rev.test.ts`, `audit-log.test.ts`, `audit-paging.test.ts`, `events.test.ts`, `(đã bỏ)`, `domain-catalog-routes.test.ts`, `position-copy.test.ts`, `levels-add.test.ts`, `levels-entitlements.test.ts`, `levels-idorm.test.ts`, `levels-night-options.test.ts`, `levels-request-flags.test.ts`, `entitlement-write.test.ts`, `shifts-edit.test.ts`, `shifts-settings-route.test.ts`, `punch-shift-config.test.ts`, `shift-code-validation-regression.test.ts`, `checkin.test.ts`, `review-fixes.test.ts`, `review-fixes-positions.test.ts`, `verify-fixes.test.ts`, `contract-web.test.ts`, `*(đã bỏ)`, `*(đã bỏ)`, `api-input-validation.test.ts`.
 
-Unit (`test/unit/`): `*-bam-mat-khau-bat-dong-bo.test.ts`, `domain-classes.test.ts`, `roles-khu-vuc.test.ts`, `route-classes.test.ts`, `limiters.test.ts`, `warnings.test.ts`, `require-cycles.test.ts`, `position-defaults-zero-drift.test.ts`, `isat-saturday-entitled.test.ts`.
+Unit (`test/unit/`): `*(đã bỏ)`, `domain-classes.test.ts`, `roles-khu-vuc.test.ts`, `route-classes.test.ts`, `limiters.test.ts`, `warnings.test.ts`, `require-cycles.test.ts`, `position-defaults-zero-drift.test.ts`, `isat-saturday-entitled.test.ts`.
 
 Hỗ trợ: `test/helpers/api-fixture.ts`, `test/helpers/sse-client.ts`, `test/session-contract-helper.ts`.
 

@@ -10,7 +10,6 @@ const HEAVY_ROUTES = Object.freeze(
     'GET /approvals',
     'GET /periods/:month/estimates',
     'GET /staff',
-    'GET /ai/review',
     'PUT /sheet/bulk'
   ])
 );

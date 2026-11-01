@@ -12,31 +12,22 @@ const props = defineProps({
   variant: { type: String, default: 'draft10' },
   selected: { type: Object as () => any, default: () => new Set() }
 });
-const emit = defineEmits(['open', 'toggle', 'ai']);
+const emit = defineEmits(['open', 'toggle']);
 
 const WIDTHS = {
   draft10: [null, 76, 112, 96, 88, 104, 118],
-  review: [44, null, 76, 112, 96, 88, 104, 118, 112, 132],
-  final: [null, 76, 112, 96, 88, 104, 118, 112]
+  review: [44, null, 76, 112, 96, 88, 104, 118, 132],
+  final: [null, 76, 112, 96, 88, 104, 118]
 };
-const AI_COL = { review: 8, final: 7 }; // vị trí cột Cảnh báo AI trong WIDTHS
-const agents = computed(() => useSessionStore().agentsEnabled);
 const review = computed(() => props.variant === 'review');
 const final = computed(() => props.variant === 'final');
-const aiCol = computed(() => agents.value && (review.value || final.value));
-const widths = computed(() => {
-  const w = WIDTHS[props.variant];
-  return w && !aiCol.value && AI_COL[props.variant] != null
-    ? w.filter((_, i) => i !== AI_COL[props.variant])
-    : w || null;
-});
+const widths = computed(() => WIDTHS[props.variant] || null);
 const draft11 = computed(() => props.variant === 'draft11');
 const estimated = computed(() => !final.value);
 
 const moneyCls = (v?) => (v === 0 ? 'z' : estimated.value ? 'est' : '');
 const rowCls = (r?) => ({
-  err: r.status === 'failed',
-  warn: agents.value && review.value && r.status === 'pending' && r.ai > 0
+  err: r.status === 'failed'
 });
 const pillOf = (s?) =>
   s === 'approved'
@@ -61,7 +52,6 @@ const pillOf = (s?) =>
         <th class="n">Thuế TNCN</th>
         <th class="n">Tạm ứng</th>
         <th class="n">Thực nhận</th>
-        <th v-if="aiCol">Cảnh báo AI</th>
         <th v-if="review">Trạng thái</th>
         <th v-if="draft11"></th>
       </tr>
@@ -79,17 +69,6 @@ const pillOf = (s?) =>
         <td v-if="review" class="cbc">
           <template v-if="r.status === 'pending'">
             <button
-              v-if="agents && r.ai"
-              type="button"
-              class="aim"
-              title="Có cảnh báo AI, phải phê duyệt riêng"
-              aria-label="Phê duyệt riêng phiếu có cảnh báo AI"
-              @click.stop="emit('ai', r)"
-            >
-              <Icon name="spark" :size="12" :stroke="2.2" />
-            </button>
-            <button
-              v-else
               type="button"
               class="cb"
               :class="{ on: selected.has(r.username) }"
@@ -124,7 +103,6 @@ const pillOf = (s?) =>
               <RouterLink v-else class="link" to="/admin/nhan-su" @click.stop>Sửa hồ sơ</RouterLink>
             </div>
           </td>
-          <td v-if="aiCol"></td>
           <td v-if="review"><span class="pill p-err">Chưa tính được</span></td>
         </template>
         <template v-else>
@@ -134,17 +112,6 @@ const pillOf = (s?) =>
           <td class="n" :class="moneyCls(r.tax)">{{ vnd(r.tax) }}</td>
           <td class="n" :class="moneyCls(r.advance)">{{ vnd(r.advance) }}</td>
           <td class="n tl" :class="{ est: estimated }">{{ vnd(r.net) }}</td>
-          <td v-if="aiCol">
-            <button
-              v-if="r.ai && review && r.status === 'pending'"
-              type="button"
-              class="aic"
-              @click.stop="emit('ai', r)"
-            >
-              <Icon name="spark" :size="13" :stroke="2" />{{ r.ai }} cảnh báo
-            </button>
-            <span v-else-if="r.ai" class="aic"><Icon name="spark" :size="13" :stroke="2" />{{ r.ai }} cảnh báo</span>
-          </td>
           <td v-if="review">
             <span class="pill" :class="pillOf(r.status)[0]">{{ pillOf(r.status)[1] }}</span>
           </td>

@@ -1,6 +1,6 @@
 # Bộ máy tính lương (payroll engine)
 
-Tài liệu mô tả code **đang làm gì**, viết từ code (không từ comment). Số dòng `file:dòng` đúng với code hiện tại; nếu lệch vài dòng thì tìm theo tên hàm hoặc tên biến. Đường dẫn test có tiền tố ngày được ghi bằng dấu `*` (ví dụ `test/unit/*-holiday-rules.test.ts`).
+Tài liệu mô tả code **đang làm gì**, viết từ code (không từ comment). Số dòng `file:dòng` đúng với code hiện tại; nếu lệch vài dòng thì tìm theo tên hàm hoặc tên biến. Đường dẫn test có tiền tố ngày được ghi bằng dấu `*` (ví dụ `test/unit/*(đã bỏ)`).
 
 ---
 
@@ -59,7 +59,6 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 
 ### 1.3 Nơi khác gọi bộ máy (ngoài phạm vi file này)
 
-- `src/ai/review.ts` dùng `calcMonth` và `computeMonth` của bộ máy do `src/ai/payroll-loader.ts` dựng (rà soát quy tắc, không dùng mô hình ngôn ngữ).
 - `web/` là giao diện Vue; khi đã build thì `src/platform/http.ts` phục vụ `web/dist`. Thư mục này không thuộc tài liệu này.
 
 ---
@@ -429,7 +428,7 @@ src/modules/**/*.controller.ts ─┬─ src/domain/period/periods.ts ─┬─ 
            ├─ src/params/save.ts ── store, validate, registry, payroll-service
            ├─ src/domain/advance ── src/domain/advance/advance-cap.ts ── payroll-service
            └─ src/domain/explanation (heldByUser) ── payroll-service.loadInputs
-src/ai/review.ts ── bộ máy từ src/ai/payroll-loader.ts (calcMonth, computeMonth)
+(đã bỏ) ── bộ máy từ (đã bỏ) (calcMonth, computeMonth)
 
 payroll-engine.ts ── payroll-params, payroll-calendar, kpi-score, approval-view, actual-hours, punch,
                      formula, formula-vocab, payroll-graph (nạp lười), pay-entries-calc, pay-blocks-calc,

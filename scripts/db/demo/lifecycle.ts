@@ -84,11 +84,9 @@ class Lifecycle {
     await new Promise(resolve => this.server.close(resolve));
   }
 
-  /** Phần chạy TRƯỚC tự kiểm của AI: cấu hình mà các kỳ vọng của persona dựa vào (luật AI "Khai sau hạn" bật, Agents bật). */
+  /** Phần chạy trước lớp vận hành chính: cấu hình mà các kỳ vọng của persona dựa vào. */
   async prepare() {
-    await this.step('tham số theo tháng áp dụng và công tắc Agents', () =>
-      this.at(`${this.today}T${this.clock}`, () => this.params())
-    );
+    await this.step('tham số theo tháng áp dụng', () => this.at(`${this.today}T${this.clock}`, () => this.params()));
     return this.report;
   }
 
@@ -109,9 +107,7 @@ class Lifecycle {
       await this.step('tạm ứng', () => this.at(`${this.today.slice(0, 7)}-16T${this.clock}`, () => this.advances()));
       await this.step('sổ phép', () => this.at(`${this.today}T${this.clock}`, () => this.leave()));
       await this.step('kỳ lương ở mọi trạng thái', () => this.at(`${this.today}T${this.clock}`, () => this.periods()));
-      await this.step('số sửa phiếu và bỏ qua phát hiện AI', () =>
-        this.at(`${this.today}T${this.clock}`, () => this.overridesAndFindings())
-      );
+      await this.step('số sửa phiếu', () => this.at(`${this.today}T${this.clock}`, () => this.overridesAndFindings()));
       await this.step('bảng nhớ lượt bấm', () => this.punchRequests());
     } catch (error) {
       this.report.push({ name: 'lớp vận hành', ok: false, detail: error.message });
@@ -174,17 +170,16 @@ class Lifecycle {
   async params() {
     const view = this.ok(await this.call('GET', '/settings/version'), 'đọc số phiên bản cấu hình');
     const rev = view.configRev !== undefined ? view.configRev : view.rev;
-    this.ok(await this.call('PUT', '/settings/agents', { enabled: true }), 'bật công tắc Agents');
     const saved = this.ok(
       await this.call('PUT', '/settings/params', {
-        changes: [{ key: 'ai.rule.lateDeclaration.enabled', value: true }],
+        changes: [{ key: 'period.payDay', value: 11 }],
         effectiveMonth: '2026-10',
-        reason: 'Demo: bật luật AI "Khai sau hạn" để bộ dữ liệu có ca này',
+        reason: 'Demo: đổi ngày trả lương dự kiến để bộ dữ liệu có dòng param_versions',
         expectedRev: rev
       }),
-      'bật luật AI'
+      'lưu tham số'
     );
-    return `Agents bật; luật AI "Khai sau hạn" bật từ 2026-10 (rev ${saved.configRev !== undefined ? saved.configRev : '?'})`;
+    return `period.payDay = 11 từ 2026-10 (rev ${saved.configRev !== undefined ? saved.configRev : '?'})`;
   }
 
   /* ---------- khoản điền thêm ---------- */
@@ -518,24 +513,9 @@ class Lifecycle {
     const decide = (items?, note?) =>
       this.call('PUT', `/periods/${month}/payslips/decide`, { items, action: 'approve', ...(note ? { note } : {}) });
     const slips = await this.slipList(month);
-    const clean = slips
-      .filter(p => p.status === 'pending' && !p.flags.length)
-      .map(p => ({ username: p.username, rev: p.rev }));
+    const clean = slips.filter(p => p.status === 'draft').map(p => ({ username: p.username, rev: p.rev }));
     for (let i = 0; i < clean.length; i += 200)
       this.ok(await decide(clean.slice(i, i + 200)), `duyệt lô phiếu sạch ${month}`);
-    for (const p of slips.filter(x => x.status === 'pending' && x.flags.length)) {
-      for (const rule of p.flags)
-        await this.call('POST', '/ai/findings/dismiss', {
-          month,
-          username: p.username,
-          rule,
-          reason: 'Demo: đã xem từng cờ trước khi duyệt'
-        });
-      this.ok(
-        await decide([{ username: p.username, rev: p.rev }], 'Demo: duyệt từng phiếu có cờ'),
-        `duyệt phiếu có cờ ${p.username}`
-      );
-    }
     const errors = slips
       .filter(p => p.status === 'error')
       .map(p => ({ username: p.username, reason: 'Demo: hồ sơ sai, loại khỏi kỳ này' }));
@@ -552,10 +532,6 @@ class Lifecycle {
     // 07 và 09: lịch sử đã chi trả; 08: đã duyệt, chưa chi trả
     for (const month of ['2026-07', '2026-08', '2026-09']) {
       await this.lockAndCalculate(month);
-      this.ok(
-        await this.call('POST', `/periods/${month}/ai-review`, { rev: await this.revOf(month) }),
-        `AI kiểm ${month}`
-      );
       await this.approveAll(month);
       if (month !== '2026-08')
         this.ok(
@@ -591,10 +567,6 @@ class Lifecycle {
     await mark('2026-09-reopened');
     states['2026-09-reopened'] = (await this.call('GET', '/periods/2026-09')).data.status;
     await this.lockAndCalculate('2026-09');
-    this.ok(
-      await this.call('POST', '/periods/2026-09/ai-review', { rev: await this.revOf('2026-09') }),
-      'AI kiểm 2026-09 lần hai'
-    );
     // 10: tới "đã AI kiểm", chưa duyệt (kỳ đang xử lý); 11 vẫn mở
     // kỳ 06 đã chốt công nhưng được mở lại ngay: dòng payroll_periods ở trạng thái 'open' (kỳ chưa từng có dòng cũng là open nhưng không có bản ghi)
     this.ok(
@@ -606,10 +578,6 @@ class Lifecycle {
       'mở lại kỳ 2026-06'
     );
     await this.lockAndCalculate('2026-10');
-    this.ok(
-      await this.call('POST', '/periods/2026-10/ai-review', { rev: await this.revOf('2026-10') }),
-      'AI kiểm 2026-10'
-    );
     await mark('2026-10');
     await mark('2026-11');
     return 'trạng thái kỳ: ' + JSON.stringify(states);
@@ -619,18 +587,7 @@ class Lifecycle {
   async overridesAndFindings() {
     const month = '2026-10';
     const slips = await this.slipList(month);
-    const target = slips.find(p => p.status === 'pending' && p.flags.length);
-    if (!target) throw new Error('không có phiếu có cờ để bỏ qua phát hiện');
-    this.ok(
-      await this.call('POST', '/ai/findings/dismiss', {
-        month,
-        username: target.username,
-        rule: target.flags[0],
-        reason: 'Demo: đã xem, đúng dữ liệu thật của kỳ'
-      }),
-      'bỏ qua phát hiện'
-    );
-    const plain = slips.find(p => p.status === 'pending' && !p.flags.length);
+    const plain = slips.find(p => p.status === 'draft');
     if (plain) {
       const got = await this.call('GET', `/slip-override?month=${month}&user=${plain.username}`);
       if (got.status === 200) {
@@ -643,7 +600,7 @@ class Lifecycle {
         this.ok(saved, 'sửa số phiếu');
       }
     }
-    return 'bỏ qua 1 phát hiện AI; thử sửa số phiếu';
+    return 'thử sửa số phiếu';
   }
 
   /* ---------- bảng nhớ lượt bấm ---------- */

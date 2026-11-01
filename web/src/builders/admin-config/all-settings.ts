@@ -44,7 +44,6 @@ export const SECTIONS = [
       { key: 'cham-cong', name: 'Chấm công', pick: (e?) => e.group === 6 && !KHAU_TRU.has(e.id) },
       { key: 'nghi-phep', name: 'Nghỉ và phép', pick: (e?) => e.group === 7 },
       { key: 'phe-duyet', name: 'Phê duyệt', pick: (e?) => e.group === 9 },
-      { key: 'canh-bao-ai', name: 'Cảnh báo AI', pick: (e?) => e.group === 11 },
       { key: 'ho-so', name: 'Hồ sơ và hợp đồng', pick: (e?) => e.group === 13 },
       { key: 'phieu-luong', name: 'Phiếu lương', pick: (e?) => e.group === 12 },
       { key: 'nang-cao', name: 'Nâng cao', pick: (e?) => e.group === 14 || e.group === 15 }

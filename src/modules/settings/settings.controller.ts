@@ -1,4 +1,4 @@
-import { AGENTS, AUDIT, EVENTS, RULES, STORE } from '../../core/tokens';
+import { AUDIT, EVENTS, RULES, STORE } from '../../core/tokens';
 import { SettingsHelpers } from './settings.helpers';
 import { Controller, Get, Put, Post, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
@@ -27,7 +27,6 @@ export class SettingsController {
     @Inject(STORE) private readonly store: any,
     @Inject(RULES) private readonly rules: any,
     @Inject(AUDIT) private readonly audit: any,
-    @Inject(AGENTS) private readonly agents: any,
     @Inject(EVENTS) private readonly events: any,
     @Inject(SettingsHelpers) private readonly settingsHelpers: SettingsHelpers
   ) {}
@@ -133,37 +132,6 @@ export class SettingsController {
     ].sort();
     if (changedHolidays.length) await announceSetting('holidays', me.username, changedHolidays[0].slice(0, 7));
     return { dates: clean, names: namesClean };
-  }
-
-  @Get('settings/agents')
-  async getSettingsAgents(@Ctx() c: ApiContext): Promise<unknown> {
-    const { res, needAdmin } = c;
-    needAdmin();
-    return { enabled: await this.agents.enabled() };
-  }
-
-  @Put('settings/agents')
-  async putSettingsAgents(@Ctx() c: ApiContext): Promise<unknown> {
-    const { req, res, actx, needAdmin } = c;
-    const admin = needAdmin(),
-      b = await readJson(req);
-    if (typeof b.enabled !== 'boolean') throw new HttpError(400, 'enabled phải là true hoặc false');
-    const was = await this.agents.enabled();
-    if (b.enabled !== was)
-      await this.store.transaction(async () => {
-        await this.agents.set(b.enabled);
-        await configRev.bump(); // số phiên bản chung, cùng giao dịch
-        await this.audit.write(actx, {
-          action: 'setting.agents',
-          entityKind: 'setting',
-          entityId: this.agents.SETTING_KEY,
-          before: { enabled: was },
-          after: { enabled: b.enabled },
-          sensitivity: 'pay'
-        });
-      });
-    if (b.enabled !== was) await announceSetting('agents', admin.username);
-    return { enabled: await this.agents.enabled() };
   }
 
   @Put('settings/geofence')

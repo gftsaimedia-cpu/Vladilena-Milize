@@ -207,23 +207,6 @@ test('R1 preview: tháng hiệu lực đã khoá là 200 ok:true kèm cảnh bá
 });
 
 test(
-  'R1 preview: khoá không đổi tiền (ngưỡng AI) cho tác động rỗng: 0 người bị ảnh hưởng',
-  S.readyWith(
-    S.entryOf('ai.threshold.isatPerMonth') && S.entryOf('ai.threshold.isatPerMonth').wired !== false,
-    'khoá ai.threshold.isatPerMonth đã nối'
-  ),
-  async () => {
-    const M = monthOf();
-    await setup(M);
-    const res = await S.preview(body([{ key: 'ai.threshold.isatPerMonth', value: 5 }], M));
-    assert.equal(res.status, 200);
-    assert.equal(res.data.ok, true, JSON.stringify(res.data.errors));
-    assert.deepEqual(res.data.impact ? res.data.impact.people : [], []);
-    assert.ok(!res.data.impact || res.data.impact.totals.affected === 0);
-  }
-);
-
-test(
   'R1 preview: quyền — Admin, C&B, Kế toán xem trước được; hr, quản lý, nhân sự là 403 FORBIDDEN_CAP; ẩn danh 401; C&B xem trước khoá pháp lý nhận FORBIDDEN_CAP trong errors',
   S.READY,
   async () => {

@@ -94,20 +94,18 @@ after(() => {
   server.close();
 });
 
-test('hợp đồng GET /api/me: phiên, năng lực, công tắc Agents, quyền lợi theo chức vụ', async () => {
+test('hợp đồng GET /api/me: phiên, năng lực, quyền lợi theo chức vụ', async () => {
   const me = await contract(staffCookie, '/api/me', {
     user: { username: 'string', name: 'string', role: 'string' },
     serverNow: 'string',
     roles: 'array',
     caps: 'array',
     payrollSubject: 'boolean',
-    agentsEnabled: 'boolean',
     holidays: 'array',
     benefits: 'object',
     positionLabel: 'string',
     geofenceRequired: 'boolean'
   });
-  assert.equal(me.agentsEnabled, false, 'công tắc Agents mặc định tắt');
   assert.ok(
     Number.isFinite(Date.parse(me.serverNow)),
     'serverNow là thời điểm hợp lệ (giao diện đồng bộ đồng hồ theo đó)'

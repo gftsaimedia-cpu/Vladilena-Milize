@@ -1,4 +1,4 @@
-import { AGENTS, AUDIT, AUTHZ, EVENTS, RULES, STORE } from '../../core/tokens';
+import { AUDIT, AUTHZ, EVENTS, RULES, STORE } from '../../core/tokens';
 import { Controller, Get, Put, Post, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { SLIP_MONEY, SLIP_QTY } from './periods.helpers';
@@ -6,7 +6,6 @@ import { SLIP_MONEY, SLIP_QTY } from './periods.helpers';
 const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { aiReviewResult } = require('../../domain/ai-review'); // kết quả soát dữ liệu của AI
 // công tắc Agents
 // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
@@ -23,8 +22,7 @@ export class PeriodsController {
     @Inject(AUTHZ) private readonly authz: any,
     @Inject(AUDIT) private readonly audit: any,
     @Inject(RULES) private readonly rules: any,
-    @Inject(EVENTS) private readonly events: any,
-    @Inject(AGENTS) private readonly agents: any
+    @Inject(EVENTS) private readonly events: any
   ) {}
 
   /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
@@ -145,15 +143,6 @@ export class PeriodsController {
       };
       if (step === '/lock-attendance') return await stepDone(await periods.lockAttendance(month, b, actx, by));
       if (step === '/calculate') return await stepDone(await periods.calculate(month, b, actx, by));
-      if (step === '/ai-review') {
-        if (!(await this.authz.can(me, 'payroll.calculate')))
-          throw new HttpError(403, 'Cần quyền tính lương để chạy AI kiểm tra', {
-            code: 'FORBIDDEN_CAP',
-            cap: 'payroll.calculate'
-          });
-        await this.agents.assertEnabled();
-        return await stepDone(await periods.aiReview(month, b, actx, by, async m => await aiReviewResult(m, false)));
-      }
       if (step === '/approve') return await stepDone(await periods.approve(month, b, actx, by));
       if (step === '/mark-paid') {
         const paid = await periods.markPaid(month, b, actx, by);
@@ -180,11 +169,6 @@ export class PeriodsController {
 
   @Post('periods/:month/calculate')
   async postPeriodsMonthCalculate(@Ctx() c: ApiContext): Promise<unknown> {
-    return this.periodStep(c);
-  }
-
-  @Post('periods/:month/ai-review')
-  async postPeriodsMonthAiReview(@Ctx() c: ApiContext): Promise<unknown> {
     return this.periodStep(c);
   }
 

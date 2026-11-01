@@ -10,8 +10,6 @@ const {
   PayrollRunsRepository,
   PayslipsRepository,
   SlipOverridesRepository,
-  AiFindingActionsRepository,
-  AiReviewRunsRepository,
   StaffRolesRepository,
   StaffRepository,
   PunchesRepository,
@@ -26,8 +24,6 @@ const zlib = require('node:zlib');
 const { AsyncLocalStorage } = require('node:async_hooks');
 const { warnIf, optionalReason } = require('./warnings'); // warnings.js không require src/platform/db
 const config = require('./config'); // hằng số kỹ thuật có tên (không số trong mã)
-const agentsOn = async () =>
-  (await module.exports.getSetting(config.AGENTS_SETTING_KEY, config.AGENTS_OFF)) === config.AGENTS_ON; // công tắc Agents bật
 const { AsyncList } = require('../shared/async-list');
 const { PersonName, titleCase } = require('../domain/employee/person-name'); // lớp thuần, không require src/platform/db
 
@@ -68,8 +64,6 @@ const periodsRepo = new PayrollPeriodsRepository(queryBuilder);
 const runsRepo = new PayrollRunsRepository(queryBuilder);
 const payslipsRepo = new PayslipsRepository(queryBuilder);
 const slipOverridesRepo = new SlipOverridesRepository(queryBuilder);
-const findingActionsRepo = new AiFindingActionsRepository(queryBuilder);
-const aiRunsRepo = new AiReviewRunsRepository(queryBuilder);
 const staffRolesRepo = new StaffRolesRepository(queryBuilder);
 const staffRepo = new StaffRepository(queryBuilder);
 const punchesRepo = new PunchesRepository(queryBuilder);
@@ -648,7 +642,7 @@ const readPeriod = async (month?) => rowToPeriod(await periodsRepo.find(month), 
 const PERIOD_STATUS_TEXT = {
   attendance_locked: 'đã chốt công',
   calculated: 'đã tính lương',
-  reviewed: 'đã qua bước AI kiểm tra',
+  reviewed: 'đã qua bước kiểm tra cũ (đã bỏ)',
   approved: 'đã duyệt',
   paid: 'đã chi trả'
 };
@@ -739,15 +733,6 @@ const periodsStore = {
       });
     });
   },
-  // Xong bước "AI kiểm tra": calculated | reviewed → reviewed. Cần đã có lần chạy hiện hành.
-  async markReviewed(month, { rev, by }: any) {
-    return await transaction(async () => {
-      const current = await readPeriod(monthOf(month));
-      if (current.status !== 'open' && current.currentRunId == null)
-        throw storeError('PERIOD_NOT_READY', 'Chưa có lần tính lương để duyệt', 409, { month: current.month });
-      return await advancePeriod(month, rev, { from: ['calculated', 'reviewed'], to: 'reviewed', by: requireBy(by) });
-    });
-  },
   // Duyệt kỳ: reviewed hoặc calculated (chưa qua AI kiểm tra, cảnh báo PERIOD_STATE) → approved. Phiếu lỗi được loại ra qua
   // excludeErrors: [{ username, reason }]. Phiếu draft và pending còn lại được duyệt luôn trong cùng giao dịch
   // (người duyệt là người bấm, ghi chú rỗng), phiếu lỗi chưa loại tự loại với lý do ''; cả hai vào cảnh báo PERIOD_NOT_READY.
@@ -757,13 +742,8 @@ const periodsStore = {
     return await transaction(async () => {
       const { month: m } = await loadPeriodForChange(month, rev);
       const period = await readPeriod(m);
-      if (period.status !== 'reviewed') {
-        if (period.status !== 'calculated') throw stateError(m, period.status, ['reviewed'], 'approved');
-        warnIf('PERIOD_STATE', await agentsOn(), {
-          details: { month: m, status: period.status, expected: ['reviewed'], to: 'approved' },
-          message: `Kỳ ${m} chưa qua bước AI kiểm tra: vẫn duyệt được nhưng lần tính này chưa được soát tự động`
-        });
-      }
+      if (period.status !== 'reviewed' && period.status !== 'calculated')
+        throw stateError(m, period.status, ['calculated'], 'approved');
       const run = period.currentRunId == null ? null : await payrollStore.getRun(period.currentRunId);
       if (!run || run.status !== 'draft')
         throw storeError('PERIOD_NOT_READY', 'Chưa có lần tính lương hiện hành để duyệt', 409, { month: m });
@@ -1016,24 +996,6 @@ const payrollStore = {
     }
     return counts;
   },
-  // Kết quả bước "AI kiểm tra" (chỉ lần chạy nháp): flagsByUser { username: [mã] }. Phiếu draft → pending; flags được thay mới cho phiếu
-  // draft, pending và error (phiếu đã duyệt giữ nguyên). rev + 1 khi trạng thái hoặc cờ đổi, để lần duyệt dùng số cũ bị PAYSLIP_STALE.
-  async applyAiReview(runId?, flagsByUser: any = {}) {
-    return await transaction(async () => {
-      const run = await payrollStore.getRun(runId);
-      if (!run || run.status !== 'draft') throw storeError('RUN_INVALID', 'Lần chạy lương không còn là bản nháp', 409);
-      let changed = 0;
-      for (const p of await payslipsRepo.unapprovedWithFlags(runId)) {
-        const list = flagsByUser[p.username];
-        const flags = Array.isArray(list) && list.length ? JSON.stringify(list.map(String)) : null;
-        const status = p.status === 'draft' ? 'pending' : p.status;
-        if (status === p.status && flags === p.flags_json) continue;
-        await payslipsRepo.setStatusFlags(p.id, status, flags);
-        changed++;
-      }
-      return { changed };
-    });
-  },
   // Duyệt hoặc trả lại phiếu: items [{ username, rev }] tối đa 200, CẢ LÔ HOẶC KHÔNG; action 'approve' | 'return'; note tuỳ chọn.
   // approve: phiếu không lỗi (PAYSLIP_ERROR luôn chặn); duyệt được phiếu 'draft' (chưa qua AI, cảnh báo PAYSLIP_STATE) và phiếu có cờ AI
   // cả lô lẫn riêng lẻ (cảnh báo PAYSLIP_FLAGGED), note tuỳ chọn; phiếu đã duyệt gửi lại thì giữ nguyên (không đổi rev hay người duyệt).
@@ -1073,20 +1035,12 @@ const payrollStore = {
           throw storeError('PAYSLIP_ERROR', 'Phiếu lỗi không duyệt được', 409, {
             items: errors.map(r => ({ username: r.username }))
           });
-        const wrong = await AsyncList.filter(
-          rows,
-          async r => r.status !== 'pending' && (r.status !== 'draft' || (await agentsOn()))
-        );
+        const wrong = await AsyncList.filter(rows, async r => r.status !== 'pending' && r.status !== 'draft');
         const stateItems = wrong.map(r => ({ username: r.username, status: r.status }));
         warnIf('PAYSLIP_STATE', wrong.length > 0, {
           count: wrong.length,
           details: { items: stateItems },
-          message: () => {
-            const drafts = wrong.filter(r => r.status === 'draft').length;
-            return drafts
-              ? `${drafts} phiếu chưa qua bước AI kiểm tra nhưng vẫn được duyệt`
-              : `${wrong.length} phiếu đã duyệt từ trước, giữ nguyên`;
-          }
+          message: () => `${wrong.length} phiếu đã duyệt từ trước, giữ nguyên`
         });
         const flagged = rows.filter(r => flaggedOf(r).length);
         const flaggedItems = flagged.map(r => ({ username: r.username, flags: flaggedOf(r) }));
@@ -1111,130 +1065,6 @@ const payrollStore = {
         return { username: r.username, status: next, rev: r.rev + 1 };
       });
     });
-  }
-};
-
-/* ---------- Bỏ qua phát hiện AI có lý do và lần chạy AI ---------- */
-const rowToFindingAction = (r?) => ({
-  id: r.id,
-  findingId: r.finding_id,
-  digest: r.digest,
-  month: r.month,
-  ruleId: r.rule_id,
-  action: r.action,
-  by: r.by,
-  at: r.at,
-  note: r.note
-});
-const latestFindingAction = async (findingId?) => await findingActionsRepo.latest(findingId);
-const aiFindingStore = {
-  // Bỏ qua một phát hiện. { findingId, digest, month, ruleId, by, note }: note tuỳ chọn, tối đa 300 ký tự.
-  // digest là băm bằng chứng LÚC BỎ QUA; dữ liệu đổi thì digest hiện tại lệch và phát hiện hiện lại (isDismissed).
-  // Việc so digest với phát hiện hiện tại (FINDING_STALE) do route làm vì store không biết phát hiện.
-  async dismiss({ findingId, digest, month, ruleId, by, note }: any) {
-    requireBy(by);
-    for (const [name, value] of [
-      ['findingId', findingId],
-      ['digest', digest],
-      ['ruleId', ruleId]
-    ])
-      if (typeof value !== 'string' || !value) throw storeError('BAD_ARGS', `Thiếu ${name}`);
-    const m = monthOf(month);
-    const reason = padReason(softReason(note, 'NOTE_REQUIRED')); // cột note có CHECK 10 đến 300: thiếu lý do thì lưu NO_REASON_TEXT
-    const id = await findingActionsRepo.insert({
-      finding_id: findingId,
-      digest,
-      month: m,
-      rule_id: ruleId,
-      action: 'dismiss',
-      by,
-      at: now(),
-      note: reason
-    });
-    return rowToFindingAction(await findingActionsRepo.find(id));
-  },
-  // Dòng mới nhất của một phát hiện (hoặc null).
-  latest: async (findingId?) => {
-    const r = await latestFindingAction(findingId);
-    return r ? rowToFindingAction(r) : null;
-  },
-  // Phát hiện đang "bỏ qua": dòng mới nhất là 'dismiss' VÀ digest khớp digest hiện tại (currentDigest). Thiếu currentDigest thì chỉ xét dòng mới nhất.
-  async isDismissed(findingId?, currentDigest?) {
-    const last = await latestFindingAction(findingId);
-    return !!last && last.action === 'dismiss' && (currentDigest === undefined || last.digest === currentDigest);
-  },
-  // Cho một tháng: tập findingId đang bỏ qua. digests { findingId: digestHiệnTại } để áp luật hết hạn khi dữ liệu đổi (thiếu khoá thì không xét digest).
-  async dismissedIds(month?, digests: any = {}) {
-    const rows = await findingActionsRepo.dismissedIn(monthOf(month));
-    return new Set<any>(
-      rows
-        .filter(r => !Object.hasOwn(digests, r.finding_id) || digests[r.finding_id] === r.digest)
-        .map(r => r.finding_id)
-    );
-  },
-  // Lịch sử (cũ → mới), lọc theo findingId, month, ruleId; limit tối đa 200.
-  async list({ findingId, month, ruleId, limit }: any = {}) {
-    return (
-      await findingActionsRepo.list(
-        {
-          findingId: findingId ? String(findingId) : undefined,
-          month: month ? monthOf(month) : undefined,
-          ruleId: ruleId ? String(ruleId) : undefined
-        },
-        Math.min(200, Math.max(1, Math.trunc(Number(limit)) || 200))
-      )
-    ).map(rowToFindingAction);
-  }
-};
-// summary_json chỉ chứa SỐ ĐẾM (đối tượng lồng nhau, lá là số): chặn tên người, số tiền dạng chuỗi, mô tả lọt vào bảng.
-function countsOnly(value?, depth = 0) {
-  if (typeof value === 'number') return Number.isSafeInteger(value) && value >= 0;
-  if (depth > 3 || !value || typeof value !== 'object' || Array.isArray(value)) return false;
-  return Object.values<any>(value).every(v => countsOnly(v, depth + 1));
-}
-const rowToAiRun = (r?) => ({
-  id: r.id,
-  month: r.month,
-  runId: r.run_id ?? null,
-  rules: safeParse(r.rules_json, []),
-  thresholdsHash: r.thresholds_hash,
-  paramsHash: r.params_hash,
-  findingsTotal: r.findings_total ?? null,
-  summary: safeParse(r.summary_json),
-  by: r.by,
-  at: r.at
-});
-const aiReviewStore = {
-  // Ghi một lần chạy AI. { month, runId?, rules (mảng id luật), thresholdsHash, paramsHash, findingsTotal, summary, by }.
-  // summary chỉ gồm số đếm theo mức và theo luật (AI_SUMMARY_NOT_COUNTS nếu có chuỗi, tên hay tiền).
-  async add({ month, runId, rules, thresholdsHash, paramsHash, findingsTotal, summary, by }: any) {
-    requireBy(by);
-    const m = monthOf(month);
-    if (!Array.isArray(rules) || rules.some(r => typeof r !== 'string'))
-      throw storeError('BAD_ARGS', 'rules phải là mảng id luật');
-    if (typeof thresholdsHash !== 'string' || typeof paramsHash !== 'string')
-      throw storeError('BAD_ARGS', 'Thiếu thresholdsHash hoặc paramsHash');
-    if (findingsTotal != null && !(Number.isSafeInteger(findingsTotal) && findingsTotal >= 0))
-      throw storeError('AI_SUMMARY_NOT_COUNTS', 'findingsTotal phải là số đếm');
-    if (summary != null && !countsOnly(summary))
-      throw storeError('AI_SUMMARY_NOT_COUNTS', 'Bản tóm tắt lần chạy AI chỉ được chứa số đếm', 500);
-    const id = await aiRunsRepo.insert({
-      month: m,
-      run_id: runId ?? null,
-      rules_json: JSON.stringify(rules),
-      thresholds_hash: thresholdsHash,
-      params_hash: paramsHash,
-      findings_total: findingsTotal ?? null,
-      summary_json: summary == null ? null : JSON.stringify(summary),
-      by,
-      at: now()
-    });
-    return rowToAiRun(await aiRunsRepo.find(id));
-  },
-  // Lần chạy AI mới nhất của tháng (hoặc của một lần tính lương nếu có runId); null nếu chưa chạy. AI_NOT_RUN = không có dòng này sau lần tính gần nhất.
-  async latest(month?, runId?) {
-    const r = await aiRunsRepo.latest(monthOf(month), runId);
-    return r ? rowToAiRun(r) : null;
   }
 };
 
@@ -1562,8 +1392,6 @@ Object.assign(module.exports, {
   params: paramsStore,
   periods: periodsStore,
   payroll: payrollStore,
-  aiFindings: aiFindingStore,
-  aiReviews: aiReviewStore,
   roles: rolesStore,
   assertPeriodOpen,
   // Lý do cho cột có CHECK 10 đến 300 ký tự khi lý do không bắt buộc (xem padReason)

@@ -3,9 +3,9 @@
     "about": "Bảng vàng điều phối của máy chủ, ghi trên mã trước khi chia server.js. Tạo bằng: node test/tools/record-dispatch.ts --write. Chỉ có mã HTTP, mã lỗi, thông báo lỗi, tên khoá và kiểu của phản hồi.",
     "clock": "2026-11-02T09:00:00+07:00",
     "identities": ["anon", "staff", "admin"],
-    "routeKeys": 101,
-    "scenarios": 226,
-    "cells": 674
+    "routeKeys": 96,
+    "scenarios": 213,
+    "cells": 635
   },
   "scenarios": [
     {
@@ -211,7 +211,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": "null",
             "caps": ["empty"],
             "holidays": ["empty"],
@@ -226,7 +225,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": {
               "absenceDeclarable": "boolean",
               "approvedLeave": "boolean",
@@ -257,7 +255,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": "null",
             "caps": ["array", "string"],
             "geofence": "null",
@@ -2188,165 +2185,6 @@
       }
     },
     {
-      "id": "GET /ai/review #thiếu tháng",
-      "method": "GET",
-      "path": "/ai/review",
-      "key": "GET /ai/review",
-      "request": null,
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 400,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "month phải dạng YYYY-MM"
-        }
-      }
-    },
-    {
-      "id": "GET /ai/review?month=2026-10 #đọc",
-      "method": "GET",
-      "path": "/ai/review?month=2026-10",
-      "key": "GET /ai/review",
-      "request": null,
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 200,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "shape": {
-            "asOf": "string",
-            "checked": {
-              "days": "number",
-              "payrollErrors": "number",
-              "ruleIds": ["array", "string"],
-              "rules": "number",
-              "skipped": ["array", { "reason": "string", "rule": "string" }],
-              "staff": "number"
-            },
-            "checklist": [
-              "array",
-              {
-                "byItem": {},
-                "count": "number",
-                "detail": "string",
-                "id": "string",
-                "label": "string",
-                "status": "string"
-              }
-            ],
-            "findings": ["empty"],
-            "month": "string",
-            "names": {},
-            "period": { "status": "string" },
-            "summary": {
-              "byRule": {},
-              "bySeverity": { "high": "number", "low": "number", "medium": "number" },
-              "total": "number"
-            },
-            "systemFindings": ["empty"],
-            "thresholds": {
-              "approvedLeavePerMonth": { "proposal": "boolean", "source": "string", "value": "number" },
-              "attendMaxAbsentDays": { "proposal": "boolean", "source": "string", "value": "number" },
-              "formulaChangeTotalVnd": { "proposal": "boolean", "source": "string", "value": "number" },
-              "impactVnd": { "proposal": "boolean", "source": "string", "value": "number" },
-              "isatPerMonth": { "proposal": "boolean", "source": "string", "value": "number" },
-              "kpiFullMonths": { "proposal": "boolean", "source": "string", "value": "number" },
-              "kpiFullPct": { "proposal": "boolean", "source": "string", "value": "number" },
-              "otMedianFactor": { "proposal": "boolean", "source": "string", "value": "number" },
-              "otMedianMinHours": { "proposal": "boolean", "source": "string", "value": "number" },
-              "otMedianMinPeers": { "proposal": "boolean", "source": "string", "value": "number" },
-              "overLimitHours": { "proposal": "boolean", "source": "string", "value": "number" },
-              "overrideEntryRoundVnd": { "proposal": "boolean", "source": "string", "value": "number" },
-              "paramChangePeoplePct": { "proposal": "boolean", "source": "string", "value": "number" },
-              "presenceGapMin": { "proposal": "boolean", "source": "string", "value": "number" },
-              "rejectedLookbackDays": { "proposal": "boolean", "source": "string", "value": "number" },
-              "repeatedEditsRev": { "proposal": "boolean", "source": "string", "value": "number" },
-              "reportDeadlineDay": { "proposal": "boolean", "source": "string", "value": "number" },
-              "scopeLeakMinPeople": { "proposal": "boolean", "source": "string", "value": "number" },
-              "slipDiffRatio": { "proposal": "boolean", "source": "string", "value": "number" },
-              "slipDiffVnd": { "proposal": "boolean", "source": "string", "value": "number" }
-            }
-          }
-        }
-      }
-    },
-    {
-      "id": "POST /ai/findings/dismiss #thân rỗng",
-      "method": "POST",
-      "path": "/ai/findings/dismiss",
-      "key": "POST /ai/findings",
-      "request": {},
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 400,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "month phải dạng YYYY-MM"
-        }
-      }
-    },
-    {
-      "id": "POST /ai/findings/dismiss #thiếu lý do",
-      "method": "POST",
-      "path": "/ai/findings/dismiss",
-      "key": "POST /ai/findings",
-      "request": { "month": "2026-10", "username": "qa_nv", "rule": "r1" },
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 409,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Kỳ này chưa có lần tính lương",
-          "code": "PERIOD_NOT_READY",
-          "errorExtra": { "month": "string" }
-        }
-      }
-    },
-    {
       "id": "GET /events #luồng báo tin",
       "method": "GET",
       "path": "/events",
@@ -2415,136 +2253,6 @@
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "error": "Đường dẫn này chưa có chính sách quyền, bị từ chối",
           "code": "NO_ROUTE_POLICY"
-        }
-      }
-    },
-    {
-      "id": "GET /settings/agents #đọc",
-      "method": "GET",
-      "path": "/settings/agents",
-      "key": "GET /settings/agents",
-      "request": null,
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 200,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "shape": { "enabled": "boolean" }
-        }
-      }
-    },
-    {
-      "id": "PUT /settings/agents #thân rỗng",
-      "method": "PUT",
-      "path": "/settings/agents",
-      "key": "PUT /settings/agents",
-      "request": {},
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 400,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "enabled phải là true hoặc false"
-        }
-      }
-    },
-    {
-      "id": "PUT /settings/agents #giá trị lạ",
-      "method": "PUT",
-      "path": "/settings/agents",
-      "key": "PUT /settings/agents",
-      "request": { "enabled": "khong_co" },
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 400,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "enabled phải là true hoặc false"
-        }
-      }
-    },
-    {
-      "id": "PUT /settings/agents #bật",
-      "method": "PUT",
-      "path": "/settings/agents",
-      "key": "PUT /settings/agents",
-      "request": { "enabled": true },
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 200,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "shape": { "enabled": "boolean" }
-        }
-      }
-    },
-    {
-      "id": "PUT /settings/agents #tắt",
-      "method": "PUT",
-      "path": "/settings/agents",
-      "key": "PUT /settings/agents",
-      "request": { "enabled": false },
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 200,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "shape": { "enabled": "boolean" }
         }
       }
     },
@@ -3598,7 +3306,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "ai": "null",
             "attendanceKept": "null",
             "checklist": [
               "array",
@@ -3733,61 +3440,6 @@
       "method": "POST",
       "path": "/periods/2026-10/calculate",
       "key": "POST /periods/:month/calculate",
-      "request": { "rev": 0 },
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 409,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Kỳ không ở trạng thái cho phép làm bước này",
-          "code": "PERIOD_STATE",
-          "errorExtra": { "expected": ["array", "string"], "month": "string", "status": "string" }
-        }
-      }
-    },
-    {
-      "id": "POST /periods/2026-10/ai-review #AI kiểm tra: thân rỗng",
-      "method": "POST",
-      "path": "/periods/2026-10/ai-review",
-      "key": "POST /periods/:month/ai-review",
-      "request": {},
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 400,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Thiếu số phiên bản (rev) của kỳ",
-          "code": "BAD_REV"
-        }
-      }
-    },
-    {
-      "id": "POST /periods/2026-10/ai-review #AI kiểm tra: rev 0",
-      "method": "POST",
-      "path": "/periods/2026-10/ai-review",
-      "key": "POST /periods/:month/ai-review",
       "request": { "rev": 0 },
       "results": {
         "anon": {
@@ -6861,7 +6513,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": "null",
             "caps": ["empty"],
             "holidays": ["empty"],
@@ -6876,7 +6527,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": {
               "absenceDeclarable": "boolean",
               "approvedLeave": "boolean",
@@ -6907,7 +6557,6 @@
           "status": 200,
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "shape": {
-            "agentsEnabled": "boolean",
             "benefits": "null",
             "caps": ["array", "string"],
             "geofence": "null",
@@ -6977,60 +6626,6 @@
           "headers": { "contentType": "application/json", "cache-control": "no-store" },
           "error": "Đường dẫn này chưa có chính sách quyền, bị từ chối",
           "code": "NO_ROUTE_POLICY"
-        }
-      }
-    },
-    {
-      "id": "POST /ai/findings #không có dismiss",
-      "method": "POST",
-      "path": "/ai/findings",
-      "odd": true,
-      "key": "POST /ai/findings",
-      "request": {},
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 404,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Không có API này"
-        }
-      }
-    },
-    {
-      "id": "POST /ai/findings/khac #đoạn cuối khác dismiss",
-      "method": "POST",
-      "path": "/ai/findings/khac",
-      "odd": true,
-      "key": "POST /ai/findings",
-      "request": {},
-      "results": {
-        "anon": {
-          "status": 401,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chưa đăng nhập"
-        },
-        "staff": {
-          "status": 403,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Chỉ Admin hoặc vai trò được giao quyền mới được thao tác này",
-          "code": "FORBIDDEN_CAP",
-          "errorExtra": { "cap": "string" }
-        },
-        "admin": {
-          "status": 404,
-          "headers": { "contentType": "application/json", "cache-control": "no-store" },
-          "error": "Không có API này"
         }
       }
     },

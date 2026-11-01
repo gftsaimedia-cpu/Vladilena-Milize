@@ -300,12 +300,6 @@ function checkAgainstCode() {
     );
   const table = registry.byId('request.type.<code>').ui.table.rowKeys[0].values.map(v => v.value);
   same([...table].sort(), ApprovalItemsSorted(ApprovalItems), 'loại yêu cầu của registry so với ApprovalView.ITEMS');
-  const { RULES } = require(path.join(ROOT, 'src/ai/review.ts'));
-  same(
-    registry.AI_RULES.map(r => r.id).sort(),
-    RULES.map(r => r.id).sort(),
-    'luật AI của registry so với src/ai/review.ts RULES'
-  );
   same(
     set['time.workHoursPerDay'] * set['unit.minutesPerHour'],
     require(path.join(ROOT, 'src/engine/actual-hours')).RULE.SHIFT_WORK_MIN,

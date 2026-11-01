@@ -11,11 +11,6 @@ export default [
     to: '/admin/bang-luong?thang=2026-10&kb=da-duyet-50&phieu=demo_a_broken'
   },
   {
-    file: 'phieu-t10-co-canh-bao.html',
-    title: 'Phiếu lương · tháng 10 có cảnh báo AI (ngăn kéo)',
-    to: '/admin/bang-luong?thang=2026-10&kb=da-duyet-50&phieu=demo_a_ot_check'
-  },
-  {
     file: 'phieu-t11-tam-tinh.html',
     title: 'Phiếu lương · tháng 11 (ngăn kéo)',
     to: '/admin/bang-luong?thang=2026-11&phieu=demo_a_broken'

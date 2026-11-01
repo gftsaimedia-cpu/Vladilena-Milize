@@ -12,7 +12,6 @@ import { SettingsModule } from './modules/settings';
 import { SheetModule } from './modules/sheet';
 import { KpiModule } from './modules/kpi';
 import { ApprovalsModule } from './modules/approvals';
-import { AiModule } from './modules/ai';
 import { AttendanceModule } from './modules/attendance';
 import { PeriodsModule } from './modules/periods';
 import { AuditModule } from './modules/audit';
@@ -38,7 +37,6 @@ const FEATURE_MODULES = [
   SheetModule,
   KpiModule,
   ApprovalsModule,
-  AiModule,
   AttendanceModule,
   PeriodsModule,
   AuditModule,

@@ -599,62 +599,6 @@
     "basis": "Luật Công đoàn 2024 (cần pháp chế xác nhận)",
     "legalBasis": "Luật Công đoàn 2024"
   },
-  "ai.threshold.isatPerMonth": {
-    "help": "AI gắn cờ nhân sự khai iSAT từ số lần này trong tháng; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.approvedLeavePerMonth": {
-    "help": "AI gắn cờ nhân sự khai Nghỉ được duyệt từ số lần này trong tháng; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.rejectedLookbackDays": {
-    "help": "AI gắn cờ khoản vừa khai nếu khoản cùng loại bị từ chối trong số ngày gần nhất này; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.repeatedEditsRev": {
-    "help": "AI gắn cờ khoản chờ duyệt đã bị sửa từ số lần này; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.presenceGapMin": {
-    "help": "AI gắn cờ khi giờ khai làm thêm lệch giờ Check-in từ số phút này; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.otMedianFactor": {
-    "help": "AI gắn cờ nhân sự có OT từ số lần này so với trung vị của nhóm; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.otMedianMinHours": {
-    "help": "Chỉ gắn cờ OT cao so với nhóm khi người đó có ít nhất số giờ OT này trong tháng.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.otMedianMinPeers": {
-    "help": "Chỉ so với trung vị khi nhóm có ít nhất số người có OT này.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.impactVnd": {
-    "help": "AI gắn cờ khoản làm đổi tiền của một người từ mức này; không đổi tiền.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.slipDiffVnd": {
-    "help": "AI gắn cờ số Admin sửa trên phiếu khi lệch so với số tự tính từ mức tiền này, đồng thời từ mức phần trăm ở dòng dưới.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.slipDiffRatio": {
-    "help": "Phần trăm lệch so với số tự tính; AI chỉ gắn cờ khi vượt cả mức tiền và mức phần trăm.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.kpiFullMonths": {
-    "help": "AI gắn cờ nhân sự tự chấm KPI 100% liên tiếp từ số tháng này khi chưa được duyệt.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.threshold.netChangePct": {
-    "help": "AI gắn cờ khi thực nhận của một người đổi quá mức này so với tháng trước; không đổi tiền.",
-    "basis": "Chủ dự án chốt mức 20%"
-  },
-  "ai.rule.<id>.enabled": {
-    "help": "Bật hay tắt từng luật cảnh báo của AI; luật bị tắt không chạy và được ghi là Admin tắt.",
-    "basis": "Chính sách công ty, do C&B chọn"
-  },
   "fixed.ai.dismissReason": {
     "help": "Bỏ qua cảnh báo AI bắt buộc ghi lý do từ 10 đến 300 ký tự.",
     "basis": "Điều khiển bắt buộc của hệ thống"
@@ -1133,14 +1077,6 @@
   },
   "system.attr.maxPerClass": {
     "help": "Số thuộc tính tuỳ chỉnh tối đa của một lớp như bậc lương; chặn việc thêm cột vô hạn.",
-    "basis": "Đề xuất, chờ C&B chốt"
-  },
-  "ai.limit.evidenceListMax": {
-    "help": "Số mục tối đa trong một danh sách bằng chứng của cảnh báo AI; danh sách dài hơn được cắt và ghi tổng.",
-    "basis": "Cấu hình kỹ thuật, do bộ phận vận hành đặt"
-  },
-  "ai.threshold.paramChangePeoplePct": {
-    "help": "AI gắn cờ Cần xem khi một thay đổi công thức hoặc cài đặt làm đổi thực nhận của từ tỷ lệ này số người; không đổi tiền.",
     "basis": "Đề xuất, chờ C&B chốt"
   },
   "system.auth.scryptSaltBytes": {

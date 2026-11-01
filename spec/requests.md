@@ -23,7 +23,6 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `src/domain/timesheet/` (nối ở `timesheet/services.ts`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
 | `src/domain/isat-rule.ts` | `isatRefusal`: iSAT chỉ đúng thứ `isat.weekday` và chỉ chức vụ có `benefit.isat`. |
 | `src/domain/overtime/hour-limits.ts` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
-| `src/domain/ai-block.ts` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
 | `src/domain/leave/*` | Sổ phép lưu sẵn: `migrations/postgres/0001_baseline.sql` (bảng `leave_ledger`), `leave-events.ts` (các lần cộng phép có ngày), `leave-ledger-repository.ts` (đồng bộ sổ, ghi số dư), `leave-account-service.ts` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
 | `src/domain/leave-days.ts` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
 | `src/engine/leave.ts` | Quy tắc phép dùng chung: `accrued`, `counted`, `ledger` (hết hạn, quy tiền), `settlementFor`. |
@@ -92,7 +91,6 @@ Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 | `holidays` | Mảng ngày lễ `YYYY-MM-DD`. |
 | `advance_approvals_<YYYY-MM>` | `{ rev, users: { <username>: { status, rev, requestedAt, requestedBy, decidedAt, decidedBy, reason } } }`. `status` null = đã rút (giữ dòng để rev người đó không về 0). Dòng dạng `{ approved: true, by, at }` đọc như `approved` (`normalize`, `advance-approvals.ts`). |
 | `sheet_approvals_v1` … `_v4` | Dấu các đợt tạo dòng duyệt cho lịch đã lưu đã chạy: `{ at, cutoffMonth, approved, pending }`. |
-| `ai_block_rules` | Mảng id luật AI chặn duyệt; chưa đặt: `['leave-with-checkin','ot-checkin-mismatch']` (DB thật) hoặc `[]` khi `DB_PATH=':memory:'` (`ai-block.ts`). |
 | `roles.custom` | Vai trò tuỳ chỉnh; `approvals[]` cấp `request.decide.<khoản>`. |
 
 ### 2.3 Bộ nhớ đệm
@@ -451,10 +449,6 @@ Giữ phụ cấp chuyên cần (`giuChuyenCan`,, chỉ loại có phụ cấp �
 
 Nhân viên chỉ Check-in được trên ngày có lịch hoặc ngày có OT / làm bù theo giờ đã duyệt. Ngày tự khai "Đi làm" không mở Check-in, khai mà không chấm công thì sau khi ca kết thúc là vắng (4.10, `attendance.missingAllRule`). Nhân viên vẫn tạo yêu cầu (nghỉ, OT, làm bù, OT ngày lễ, nghỉ sẽ làm bù) qua `PUT /sheet`; không có ngày tuỳ chọn trong lịch: ngày ngoài lịch (`SHEET_OFF_SCHEDULE`) chỉ nên khai nghỉ không lương, các khoản làm thêm gửi bằng yêu cầu.
 
-### 4.14 Chặn của AI (`src/domain/ai-block.ts`)
-
-Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rules` (mảng chuỗi; rỗng = tắt) hoặc mặc định (2.2). Với mỗi tháng có khoản: phát hiện có `rule` thuộc danh sách, có `approval`, và trùng `(username, date)` và `approval.rev === item.rev` → 409 `AI_BLOCKED` `{ blocked: [{username,date,rule}] }`. Chỉ khi công tắc Agents bật; tắt thì bỏ qua. Từ chối luôn được.
-
 ### 4.15 Giải trình
 
 - Check-out muộn: `lateCheckoutMin` = phút từ `allowedUntil` tới giờ bấm; `allowedUntil = plannedShift.endIso + phút làm thêm sau ca (lớn hơn của lượt và của ngày khai trong lịch)`. Không có ca theo lịch → 0. Muộn > `config.CHECKOUT_GRACE_MIN` (30) → phải giải trình (`late-checkout.ts`).
@@ -467,7 +461,6 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 
 ### 4.16 KPI
 
-- Có KPI khi khoá `level.<loại>.<bậc>.kpi` tồn tại và khác 0/null (`kpiMaxOf`, `kpi.ts`); mặc định CTV, NV có, TTS không.
 - Điểm: số 0..100, tối đa 2 chữ số thập phân (`checkScore`), lưu × 100. `null` = xoá điểm.
 - `evaluate(parts, { pass: type.<loại>.kpiPass (75) })`: thiếu điểm → `incomplete`; `wework × 100 < kpi.weworkMin (75) × 100` → `wework`; `units = Σ điểm×100×trọng số`; `units < pass × 10000` → `below-pass`; ngược lại `ok`. Trọng số `kpi.weight.{wework 40, user 24, peer 18, manager 12, self 6}`. Tiền = `amt × units ÷ 1.000.000 × hệ số` (bộ máy, mức KPI kẹp ở trần bậc).
 - `PUT /kpi/scores`: người không có `kpi.score.write` phạm vi all chỉ được gửi đúng `scores: { self }` của chính mình, không `amt` (403 `KPI_SELF_ONLY`). Tự đánh giá của chính mình không qua kiểm tự duyệt; còn lại `selfDecision`. `amt` > trần → `KPI_OVER_CAP` (cảnh báo: lưu nhưng chỉ trả tới trần). Tháng tương lai → `KPI_MONTH_FUTURE`. Mọi giá trị kiểm xong mới ghi; mỗi giá trị đổi một dòng `kpi_score_log`; `amt` ghi `timesheets.kpi_adm_amt`.
@@ -515,7 +508,6 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 | `SHEET_MAKEUP_ON_HOLIDAY`, `SHEET_MAKEUP_DAY_REMOVED` | `checkSheet` |
 | `EXTRA_WRONG_SIDE`, giờ làm thêm thiếu hoặc trùng giờ ca | `checkExtraTimes` |
 | iSAT sai thứ (`SHEET_ISAT_WEEKDAY`) hoặc sai quyền lợi (`BENEFIT_NOT_ALLOWED`) khi lưu ngày iSAT mới và khi duyệt | `isatRefusal` |
-| `AI_BLOCKED` (chỉ khi duyệt và công tắc Agents bật) | `ai-block.ts` |
 | `CHECKIN_NOT_ALLOWED`, `CHECKIN_OUTSIDE_SHIFT`, `CHECKOUT_NEEDS_EXPLANATION` | `POST /punch` |
 | `PERIOD_LOCKED` của tạm ứng | `src/modules/advance/advance-approvals.handlers.ts` |
 | Tạm ứng: `ADVANCE_NOT_ELIGIBLE`, `ADVANCE_ZERO`, các 409 sai trạng thái / sai rev | `src/modules/advance/advance-approvals.handlers.ts` |
@@ -574,7 +566,6 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 - `src/modules/staff/staff.controller.ts`: route mục 3; `GET /team` gọi `sheetApprovals`; đổi loại nhân sự gọi `reconcileStaffType`; `checkInDay` gọi `sheetApprovals`.
 - `src/domain/payroll/payroll-service.ts` → `store.approvals.forSheet`, `explanations.heldByUser`, `AdminPresence.declaredDates`, `advanceApprovals.approvedSet`, `leaveDates`, `LeaveRules.settlementFor`.
 - `src/domain/period/periods.ts` → `store.approvals.list({status:'pending'})` cho `PENDING_APPROVALS`; `explanations.heldByUser` cho `EXPLANATION_PENDING`; `periods.estimate` cho `GET /me/estimate`.
-- `src/domain/ai-review.ts` → `store.approvals.list({status:'all'})`, `advanceApprovals.approvedSet`.
 - `src/platform/events.ts` → `store.approvals.list` (đếm chờ).
 - `src/platform/authz.ts` → `ApprovalView.ITEMS` (`DECIDE_ITEMS`).
 - `src/domain/leave-days.ts` → `store.approvals.list`, `declaredItems` (ngày phép bị từ chối).
@@ -583,7 +574,7 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 
 ### 6.2 Module này gọi
 
-`src/platform/db.ts` (store, transaction, settings, periods, sessions, staff), `src/platform/warnings.ts`, `src/platform/authz.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/request-rules.ts` → `src/params/store.ts`, `src/domain/schedule.ts` / `src/engine/work-schedule.ts`, `src/domain/sheet.ts` (`estimateSheet` → `payroll-service.estimateDays`), `src/domain/payroll/payroll-service.ts` + `src/engine/payroll-engine.ts` (số tạm ứng), `src/engine/pay-options-calc.ts`, `src/domain/ai-review.ts`, `src/domain/attendance*.js`, `src/domain/container.ts`.
+`src/platform/db.ts` (store, transaction, settings, periods, sessions, staff), `src/platform/warnings.ts`, `src/platform/authz.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/request-rules.ts` → `src/params/store.ts`, `src/domain/schedule.ts` / `src/engine/work-schedule.ts`, `src/domain/sheet.ts` (`estimateSheet` → `payroll-service.estimateDays`), `src/domain/payroll/payroll-service.ts` + `src/engine/payroll-engine.ts` (số tạm ứng), `src/engine/pay-options-calc.ts`, `(đã bỏ)`, `src/domain/attendance*.js`, `src/domain/container.ts`.
 
 ### 6.3 Mô-đun dùng chung trình duyệt + máy chủ
 
@@ -617,21 +608,21 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 Tên file có tiền tố ngày được viết bằng `*-` thay cho tiền tố.
 
 Khoản tự khai, bảng duyệt, quy tắc duyệt:
-`test/api/approvals.test.ts`, `test/api/approvals-holiday-work.test.ts`, `test/api/approvals-leave.test.ts`, `test/api/approvals-limits.test.ts`, `test/api/v1a-s6-approvals-per-item.test.ts`, `test/api/approval-rules-settings.test.ts`, `test/api/alerts.test.ts`, `test/api/*-admin-khai-thay.test.ts`, `test/api/*-admin-willmakeup-on-behalf.test.ts`, `test/api/*-makeup-date-note-ai-block.test.ts`, `test/api/*-makeup-entry-fixes.test.ts`, `test/api/makeup-day-removed.test.ts`, `test/api/*-staff-sheet-rev.test.ts`, `test/api/sheet-rev.test.ts`, `test/api/sheet-shift-lock.test.ts`, `test/api/*-holiday-ot-entry.test.ts`, `test/api/holiday-ot-guard.test.ts`, `test/api/holiday-names.test.ts`, `test/api/schedule-isat-holiday-makeup.test.ts`, `test/api/staff-checkin-gate.test.ts`, `test/api/warnings-cases.test.ts`, `test/api/period-lock-guards.test.ts`, `test/api/events.test.ts`, `test/api/audit-log.test.ts`, `test/api/roles-custom.test.ts`, `test/api/permissions-matrix.test.ts`, `test/api/review-fixes.test.ts`, `test/api/verify-fixes.test.ts`, `test/api/backend-followup.test.ts`, `test/api/save-applies-everywhere.test.ts`, `test/api/contract-web.test.ts`.
-`test/unit/approval-view.test.ts`, `test/unit/approval-view-holiday-ot.test.ts`, `test/unit/approval-view-leave.test.ts`, `test/unit/approval-rules-counts-absent.test.ts`, `test/unit/*-nghi-duoc-duyet-tinh-chuyen-can.test.ts`, `test/unit/*-holiday-rules.test.ts`, `test/unit/*-makeup-review-fixes.test.ts`, `test/unit/shared-rules-params.test.ts`, `test/unit/schedule-isat-holiday-makeup.test.ts`, `test/unit/isat-calendar.test.ts`, `test/unit/isat-saturday-entitled.test.ts`, `test/unit/checkin-blocked-on-off-day.test.ts`, `test/unit/warnings.test.ts`.
+`test/api/approvals.test.ts`, `test/api/approvals-holiday-work.test.ts`, `test/api/approvals-leave.test.ts`, `test/api/approvals-limits.test.ts`, `test/api/v1a-s6-approvals-per-item.test.ts`, `test/api/approval-rules-settings.test.ts`, `test/api/alerts.test.ts`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/makeup-day-removed.test.ts`, `test/api/*(đã bỏ)`, `test/api/sheet-rev.test.ts`, `test/api/sheet-shift-lock.test.ts`, `test/api/*(đã bỏ)`, `test/api/holiday-ot-guard.test.ts`, `test/api/holiday-names.test.ts`, `test/api/schedule-isat-holiday-makeup.test.ts`, `test/api/staff-checkin-gate.test.ts`, `test/api/warnings-cases.test.ts`, `test/api/period-lock-guards.test.ts`, `test/api/events.test.ts`, `test/api/audit-log.test.ts`, `test/api/roles-custom.test.ts`, `test/api/permissions-matrix.test.ts`, `test/api/review-fixes.test.ts`, `test/api/verify-fixes.test.ts`, `test/api/backend-followup.test.ts`, `test/api/save-applies-everywhere.test.ts`, `test/api/contract-web.test.ts`.
+`test/unit/approval-view.test.ts`, `test/unit/approval-view-holiday-ot.test.ts`, `test/unit/approval-view-leave.test.ts`, `test/unit/approval-rules-counts-absent.test.ts`, `test/unit/*(đã bỏ)`, `test/unit/*(đã bỏ)`, `test/unit/*(đã bỏ)`, `test/unit/shared-rules-params.test.ts`, `test/unit/schedule-isat-holiday-makeup.test.ts`, `test/unit/isat-calendar.test.ts`, `test/unit/isat-saturday-entitled.test.ts`, `test/unit/checkin-blocked-on-off-day.test.ts`, `test/unit/warnings.test.ts`.
 
 Tiền OT, làm bù, ngày lễ, bảo hiểm theo ngày có lương:
 `test/unit/ot-weekend-rate.test.ts`, `test/unit/ot-day-allowance.test.ts`, `test/unit/ot-no-break.test.ts`, `test/unit/ot-unscheduled-day-paid.test.ts`, `test/unit/makeup-paid-in-full.test.ts`, `test/unit/makeup-surplus-removed.test.ts`, `test/unit/makeup-into-holiday.test.ts`, `test/unit/attendance-makeup-days.test.ts`, `test/unit/legacy-makeup-day-engine.test.ts`, `test/unit/holiday-ot-after-night-shift.test.ts`, `test/unit/holiday-ot-approved-window.test.ts`, `test/unit/holiday-break-paid-once.test.ts`, `test/unit/payroll-holiday.test.ts`, `test/unit/insurance-paid-days.test.ts`, `test/unit/tax-exempt-premium-only.test.ts`.
 
-Phép năm: `test/api/*-phan-6-phep-nam.test.ts`, `test/api/*-leave-refresh-count.test.ts`, `test/api/leave-ledger-per-year.test.ts`, `test/api/sheet-leave-over-balance.test.ts`, `test/api/domain-catalog-routes.test.ts`, `test/api/schedule-estimate-calendar.test.ts`, `test/unit/leave-rules.test.ts`, `test/unit/*-phan-6-phep-nam.test.ts`, `test/unit/leave-year-settlement.test.ts`, `test/unit/leave-events-per-year.test.ts`, `test/unit/leave-negative-check.test.ts`, `test/unit/domain-classes.test.ts`.
+Phép năm: `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/leave-ledger-per-year.test.ts`, `test/api/sheet-leave-over-balance.test.ts`, `test/api/domain-catalog-routes.test.ts`, `test/api/schedule-estimate-calendar.test.ts`, `test/unit/leave-rules.test.ts`, `test/unit/*(đã bỏ)`, `test/unit/leave-year-settlement.test.ts`, `test/unit/leave-events-per-year.test.ts`, `(đã bỏ)`, `test/unit/domain-classes.test.ts`.
 
-Tạm ứng: `test/api/*-advance-approval.test.ts`, `test/api/*-phan-6-ung-luong.test.ts`, `test/unit/advance-approved-month.test.ts`, `test/unit/advance-base-holiday.test.ts`, `test/api/advance-holiday-base.test.ts`.
+Tạm ứng: `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/unit/advance-approved-month.test.ts`, `test/unit/advance-base-holiday.test.ts`, `test/api/advance-holiday-base.test.ts`.
 
-Giải trình: `test/api/*-late-checkout-approval.test.ts`, `test/api/*-block-ot-late-checkout.test.ts`, `test/api/*-explanation-rejected-no-workday.test.ts`, `test/api/*-explanation-late-early-approved.test.ts`, `test/api/*-explanation-forgot-punch-approved.test.ts`, `test/api/explanation-no-punch-pay.test.ts`, `test/api/*-explanation-declared-off-day.test.ts`, `test/api/*-held-day-row-punch-times.test.ts`, `test/api/*-checklist-explanation-pending.test.ts`, `test/api/explanation-attendance-event.test.ts`, `test/api/attendance-session-status.test.ts`, `test/api/checkin.test.ts`, `test/api/fixed-attendance.test.ts`, `test/unit/*-session-status-day-explanation.test.ts`, `test/unit/*-held-by-user-status.test.ts`.
+Giải trình: `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/explanation-no-punch-pay.test.ts`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/*(đã bỏ)`, `test/api/explanation-attendance-event.test.ts`, `test/api/attendance-session-status.test.ts`, `test/api/checkin.test.ts`, `test/api/fixed-attendance.test.ts`, `test/unit/*(đã bỏ)`, `test/unit/*(đã bỏ)`.
 
-KPI: `test/api/kpi-scores-api.test.ts`, `test/api/kpi-scores-store.test.ts`, `test/api/*-phan-6-kpi-tu-danh-gia.test.ts`, `test/unit/kpi-score.test.ts`, `test/unit/kpi-max-drift.test.ts`.
+KPI: `test/api/kpi-scores-api.test.ts`, `test/api/kpi-scores-store.test.ts`, `test/api/*(đã bỏ)`, `test/unit/kpi-score.test.ts`, `test/unit/kpi-max-drift.test.ts`.
 
-OT Check-in/out: `test/api/holiday-ot-guard.test.ts`, `test/api/attendance-sessions.test.ts`, `test/api/warnings-cases.test.ts`, `test/api/audit-followup-backend.test.ts`, `test/api/*-cho-giao-dien.test.ts`.
+OT Check-in/out: `test/api/holiday-ot-guard.test.ts`, `test/api/attendance-sessions.test.ts`, `test/api/warnings-cases.test.ts`, `test/api/audit-followup-backend.test.ts`, `test/api/*(đã bỏ)`.
 
 ---
 
@@ -667,7 +658,6 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 19. **Độ dài lý do có nhiều nguồn**: `src/domain/input.ts` `NOTE_MAX = 300`; `src/domain/approvals/approvals.ts` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.ts`).
 21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `src/engine/payroll-params.ts`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `src/engine/kpi-score.ts` (`checkScore`, `toUnits`) và `src/domain/kpi/kpi-scoring.ts` (`cleanKpi`).
 22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`src/engine/leave.ts`, `leave-events.ts`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.ts`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.ts`); `config.CHECKOUT_GRACE_MIN` 30.
-23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.ts` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
 
 ### 8.4 Mã chết, trùng, quyền
 

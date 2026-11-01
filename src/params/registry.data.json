@@ -78,96 +78,6 @@
       "label": "Nhân viên"
     }
   ],
-  "aiRules": [
-    {
-      "id": "approved-leave-frequency",
-      "key": "approvedLeaveFrequency"
-    },
-    {
-      "id": "attendance-allowance-risk",
-      "key": "attendanceAllowanceRisk"
-    },
-    {
-      "id": "block-flags-unconfirmed",
-      "key": "blockFlagsUnconfirmed"
-    },
-    {
-      "id": "formula-changed-recently",
-      "key": "formulaChangedRecently"
-    },
-    {
-      "id": "holiday-work-review",
-      "key": "holidayWorkReview"
-    },
-    {
-      "id": "isat-frequency",
-      "key": "isatFrequency"
-    },
-    {
-      "id": "kpi-self-100-streak",
-      "key": "kpiSelf100Streak"
-    },
-    {
-      "id": "large-pay-impact",
-      "key": "largePayImpact"
-    },
-    {
-      "id": "late-declaration",
-      "key": "lateDeclaration"
-    },
-    {
-      "id": "leave-with-checkin",
-      "key": "leaveWithCheckin"
-    },
-    {
-      "id": "locked-with-pending",
-      "key": "lockedWithPending"
-    },
-    {
-      "id": "missing-fixed-shift",
-      "key": "missingFixedShift"
-    },
-    {
-      "id": "missing-start-date",
-      "key": "missingStartDate"
-    },
-    {
-      "id": "negative-leave",
-      "key": "negativeLeave"
-    },
-    {
-      "id": "net-nonpositive",
-      "key": "netNonpositive"
-    },
-    {
-      "id": "ot-above-team",
-      "key": "otAboveTeam"
-    },
-    {
-      "id": "ot-after-pending-makeup",
-      "key": "otAfterPendingMakeup"
-    },
-    {
-      "id": "ot-checkin-mismatch",
-      "key": "otCheckinMismatch"
-    },
-    {
-      "id": "override-looks-like-entry",
-      "key": "overrideLooksLikeEntry"
-    },
-    {
-      "id": "previously-rejected",
-      "key": "previouslyRejected"
-    },
-    {
-      "id": "repeated-edits",
-      "key": "repeatedEdits"
-    },
-    {
-      "id": "slip-override-gap",
-      "key": "slipOverrideGap"
-    }
-  ],
   "entries": [
     {
       "id": "fixed.period.cutoff",
@@ -7281,7 +7191,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 1,
       "max": 31,
@@ -7326,7 +7236,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 1,
       "max": 31,
@@ -7371,7 +7281,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 1,
       "max": 365,
@@ -7416,7 +7326,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 2,
       "max": 20,
@@ -7461,7 +7371,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 0,
       "max": 240,
@@ -7506,7 +7416,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 1,
       "max": 10,
@@ -7551,7 +7461,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 0,
       "max": 100,
@@ -7596,7 +7506,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 2,
       "max": 100,
@@ -7641,7 +7551,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "unit": "vnd",
       "min": 0,
@@ -7684,7 +7594,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "unit": "vnd",
       "min": 0,
@@ -7727,7 +7637,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 0,
       "max": 1,
@@ -7772,7 +7682,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 2,
       "max": 12,
@@ -7817,7 +7727,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 0.01,
       "max": 1,
@@ -7862,7 +7772,7 @@
       "cost": "review() nhận enabledRules: S · V1-B",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "options": [
         {
           "value": true,
@@ -12454,7 +12364,7 @@
       "phase": "V1-A đọc",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "valueBearing": true,
       "id": "ai.limit.evidenceListMax",
       "group": 11,
@@ -12494,7 +12404,7 @@
       "phase": "V1-B",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "valueBearing": true,
       "id": "ai.threshold.paramChangePeoplePct",
@@ -13198,7 +13108,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "unit": "vnd",
       "min": 0,
@@ -13241,7 +13151,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "unit": "vnd",
       "min": 0,
@@ -13284,7 +13194,7 @@
       "cost": "",
       "legal": null,
       "firstRun": null,
-      "deprecated": false,
+      "deprecated": true,
       "proposal": true,
       "min": 1,
       "unit": "count",

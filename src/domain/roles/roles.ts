@@ -97,8 +97,6 @@ const EXTRAS = Object.freeze([
   { cap: 'period.reopen', label: 'Mở lại kỳ lương', design: false },
   { cap: 'period.reopen.inputs', label: 'Mở lại dữ liệu đầu vào của kỳ lương', design: false },
   { cap: 'config.profile', label: 'Sửa cấu hình hồ sơ', design: false },
-  { cap: 'ai.review.read', label: 'Xem cảnh báo AI', design: false },
-  { cap: 'ai.review.dismiss', label: 'Bỏ qua cảnh báo AI', design: false },
   { cap: 'audit.read', label: 'Xem nhật ký thay đổi', design: false }
 ]);
 // Loại yêu cầu được duyệt, theo thứ tự trên màn hình

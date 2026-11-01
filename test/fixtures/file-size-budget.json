@@ -5,7 +5,7 @@
   "exceptions": {
     "src/engine/formula.ts": 2900,
     "src/engine/payroll-engine.ts": 1700,
-    "src/platform/db.ts": 1700,
-    "scripts/db/demo/scenarios.ts": 1600
+    "scripts/db/demo/scenarios.ts": 1600,
+    "src/platform/db.ts": 1500
   }
 }

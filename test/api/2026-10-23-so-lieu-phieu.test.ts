@@ -175,11 +175,9 @@ const createAccount = (username?, extra: any = {}) =>
     }
   });
 
-test('S: tài khoản lưu với payrollSubject false không vào bảng lương, ước tính, AI soát hay thẻ thu nhập; tài khoản thường (không gửi cờ) vẫn vào', async () => {
+test('S: tài khoản lưu với payrollSubject false không vào bảng lương, ước tính hay thẻ thu nhập; tài khoản thường (không gửi cờ) vẫn vào', async () => {
   const M = monthOf();
   await P.seed(M);
-  const reviewBefore = await F.call('GET', `/ai/review?month=${M}`);
-  assert.equal(reviewBefore.status, 200, JSON.stringify(reviewBefore.data).slice(0, 200));
 
   const off = await createAccount('qa_phanquyen', { payrollSubject: false });
   assert.equal(off.status, 200, JSON.stringify(off.data));
@@ -203,13 +201,6 @@ test('S: tài khoản lưu với payrollSubject false không vào bảng lương
   assert.equal(card.data.estimate, null);
 
   // AI soát: số người được soát không tăng vì tài khoản này, không có phát hiện nào của nó
-  const review = await F.call('GET', `/ai/review?month=${M}`);
-  assert.equal(review.status, 200);
-  assert.equal(review.data.checked.staff, reviewBefore.data.checked.staff + 1, 'chỉ tài khoản thường được soát thêm');
-  assert.ok(
-    review.data.findings.every(f => f.username !== 'qa_phanquyen'),
-    'không có phát hiện cho tài khoản ngoài bảng lương'
-  );
 
   // bảng lương sau khi tính
   P.must(await P.step(M, 'lock-attendance'), 'chốt công');

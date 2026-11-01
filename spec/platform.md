@@ -14,7 +14,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | --- | --- |
 | `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.ts`. |
 | `scripts/seed.ts` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.ts` (lệnh `npm run seed` chạy bản trong `scripts/`). |
-| `lib/` | Mã máy chủ: `db.ts` (PostgreSQL + store), `http.ts`, `auth.ts`, `authz.ts`, `audit.ts`, `events.ts`, `warnings.ts`, `config.ts`, `periods.ts`, `payroll-service.ts`, `roles.ts`, `pay-entries.ts`, `advance-*.js`, `explanations.ts`, `slip-*.js`, `findings.ts`, `data-quality.ts`, `period-*.js`, `request-rules.ts`, `announce.ts`, `approvals.ts`, `attendance-sessions.ts`. |
 | `src/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.ts`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
 | `src/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `src/params/` | Registry tham số, đọc theo tháng (`store.ts`), lưu / xem trước / hoàn tác (`save.ts`), kiểm (`src/params/validate.ts`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.ts`, `keys.lock.json`, `registry.data.json`. |
@@ -40,7 +39,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `src/modules/*` | 20 module nghiệp vụ (controller, module, helpers, `index.ts`); bảng route sinh từ mã ở `spec/reference/api-routes.md`, bảng module ở `spec/reference/modules.md`. |
 | `src/platform/http.ts` | `HttpError`, `send` (JSON, gộp cảnh báo, gzip, chỉ trả lời một lần), `readJson` (bắt buộc `application/json`, trần 1 MB), `serveStatic` (`web/dist` rồi `public/`, ETag, gzip giữ trong RAM), `securityHeaders` (CSP…), `clientIp` (`TRUST_PROXY`). |
 | `src/platform/warnings.ts` | Cảnh báo thay cho chặn: `run` (AsyncLocalStorage mỗi yêu cầu), `warnIf`, `warn`, `take`, `codes`, `selfDecision`, `optionalReason`. |
-| `src/platform/agents.ts` | Công tắc Agents: `enabled`, `set`, `assertEnabled` (403 `AGENTS_DISABLED`). |
 | `src/platform/request-rules.ts` | `rulesFor(tháng)`: dựng các mô-đun quy tắc dùng chung (`public/*.js`) theo bộ tham số của tháng, nhớ trong một yêu cầu (AsyncLocalStorage `requestRules`). Cùng `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`, `nowIso`. |
 | `src/platform/announce.ts` | Phát SSE sau COMMIT cho thay đổi cấu hình (`announceSetting`) và gom tháng có việc chấm công chờ (`attendanceHints` → `announceAttendance`). |
 | `src/platform/config.ts` | Hằng số kỹ thuật có tên (đóng băng lúc `require`). Một số hằng là số nghiệp vụ (mục 8.2). |
@@ -61,7 +59,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `src/platform/events.ts` | Danh mục sự kiện (`EVENTS`,), chọn người nhận + chiếu trường theo tầng quyền, SSE `GET /api/events` (`handleSse`,), `emit.*` theo nghiệp vụ, `closeUser`, `closeAll`. |
 | `src/platform/audit.ts` | Ghi nhật ký phía ứng dụng: `context(me)`, `write` (gắn mã cảnh báo, hàng rào bí mật), `staffSaved`, `staffLock`, `slipOverride`, `publicRow`. |
 | `src/platform/db.ts` (khối `auditStore`,) | Lưu nhật ký: chuỗi băm SHA-256 / HMAC-SHA256, `list`, `count`, `verify`, `mode`. |
-| `src/domain/findings/findings.ts` | Bỏ qua cờ AI trên phiếu lương (bảng `ai_finding_actions`), gắn trạng thái bỏ qua vào kết quả soát. |
 
 ### 1.3 Dữ liệu
 
@@ -86,21 +83,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `src/modules/leave/leave.controller.ts` | `GET /api/leave/ledger`, `POST /api/leave/refresh`. |
 | `src/modules/catalog/catalog.controller.ts`, `src/modules/catalog/catalog.controller.ts` | `GET/PUT /api/catalog/positions`, `PUT /api/catalog/levels`, `GET/PUT /api/catalog/shifts`. |
 
-### 1.5 AI rà soát theo luật (không gọi mô hình, không mạng)
-
-| File | Vai trò |
-| --- | --- |
-| `src/ai/review.ts` | `review(input)`: thuần, chạy danh mục luật (`RULES`, `RUNNERS`), trả `findings`, `systemFindings`, `checked`, `checklist`, `summary`, tuỳ chọn `impacts`. |
-| `src/ai/rules-extra.ts` | Hai luật thêm: `block-flags-unconfirmed`, `override-looks-like-entry`. |
-| `src/ai/thresholds.ts` | Bảng ngưỡng duy nhất (`THRESHOLDS`), ánh xạ sang khoá tham số (`PARAM_KEY` hoặc `ai.threshold.<tên>`), `LIMITS`, `isRuleEnabled` (`ai.rule.<camelCase>.enabled`). |
-| `src/ai/units.ts` | Hằng đơn vị (`unit.*`) và hàm ngày giờ thuần (VN = UTC+7). |
-| `src/ai/positions.ts` | Đọc cờ quyền lợi chức vụ và định nghĩa khối phụ cấp từ bộ tham số phẳng. |
-| `src/ai/payroll-loader.ts` | `loadPayroll(params)` = `PayrollEngine.create(params)` (bộ máy dùng chung `src/engine/payroll-engine.ts`). |
-| `src/ai/preview-suggestions.ts` | Gợi ý khi xem trước thay đổi cài đặt (`formula-large-change`, `position-scope-leak`), gọi từ `src/params/save.ts`. |
-| `src/domain/findings/data-quality.ts` | Phát hiện thiếu ngày vào làm / phép âm (số dư `ledger` của `src/engine/leave.ts` < 0); `review.ts` dùng lại (luật `missing-start-date`, `negative-leave`). |
-| `src/domain/ai-review.ts` | Dựng đầu vào cho `review()` chỉ bằng hàm đọc của store; `aiReviewResultCached` (cache dùng chung). |
-| `src/domain/ai-block.ts` | `assertNotAiBlocked(items)`: chặn duyệt khoản dính luật nặng (409 `AI_BLOCKED`); bỏ qua khi công tắc Agents tắt. |
-
 ### 1.6 Vận hành, sandbox
 
 | File | Vai trò |
@@ -118,12 +100,9 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `test/tools/size-budget.ts` | Ngân sách cỡ file (mềm 800, cứng 1.200 dòng; ngoại lệ trong `test/fixtures/file-size-budget.json`, trần chỉ giảm). |
-| `test/tools/record-dispatch.ts` | Ghi / so "bảng vàng điều phối" (mọi khoá `ROUTE_CAPS` × 3 loại người dùng) vào `test/fixtures/route-dispatch-golden.json`. |
 | `test/helpers/api-fixture.ts` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
 | `test/helpers/sse-client.ts`, `server-source.ts` | Máy khách SSE cho test; gom văn bản mã máy chủ cho test đọc tĩnh. |
 | `test/helpers/red.ts`, `open-bug.ts` | Test đỏ viết trước / lỗi đã biết chạy như `todo`. |
-| `test/helpers/*-api.ts`, `*-flow.js`, `*-fixtures.js` | Đồ dùng dựng dữ liệu qua API thật: kỳ lương (`period-api`, `period-flow`), khoản điền thêm, chức vụ, lịch, cài đặt, giải trình (`explanation-flow`). |
 | `test/helpers/legacy-*.ts`, `payroll-vm.ts`, `golden.ts`, `payroll-cases.ts`, `payroll-differential.ts`, `pay-oracle.ts`, `formula-*.js` | Bộ so sánh bộ máy lương với khối công thức đóng băng (`test/fixtures/legacy-payroll-block.js`, `payroll-golden-v0.json`), sinh ca, đọc công thức phiếu. |
 
 ---
@@ -171,7 +150,6 @@ Số phiên bản lược đồ là danh sách file đã chạy trong bảng `sc
 
 | Khoá | Giá trị | Ai đọc / ghi |
 | --- | --- | --- |
-| `agents_enabled` | `'1'` \| `'0'`; vắng hoặc lạ = `'0'` (tắt) | `src/platform/agents.ts`; ghi ở `PUT /api/settings/agents` (`src/modules/settings/settings.controller.ts`). |
 | `params_mode` | `'defaults-only'` \| `'active'`; gieo `'defaults-only'` | `src/platform/db.ts,951-954`; bật `active` ở `src/params/save.ts`; lùi bằng `scripts/ops/params-mode.ts`. |
 | `config_rev` | số nguyên ≥ 0 (vắng = 0) | `src/params/config-rev.ts`; `bump()` trong cùng giao dịch của mọi thay đổi cấu hình. |
 | `catalog_rev` | số nguyên | `src/domain/catalog-params.ts`. |
@@ -179,7 +157,6 @@ Số phiên bản lược đồ là danh sách file đã chạy trong bảng `sc
 | `holidays` | `['YYYY-MM-DD']` | Đọc ở rất nhiều nơi; ghi ở `PUT /api/holidays`. |
 | `holiday_names` | `{ ngày: tên }` | `src/domain/holidays.ts`. |
 | `geofence` | đối tượng vùng GPS hoặc `null` | `src/domain/attendance/geofence-policy.ts`, `PUT /api/settings/geofence`. |
-| `ai_block_rules` | mảng id luật; `[]` = tắt | `src/domain/ai-block.ts`. |
 | `roles.custom` | `{ rev, roles: [...] }` | `src/platform/authz.ts`, `src/domain/roles/roles.ts`. |
 | `advance_approvals_<YYYY-MM>` | `{ rev, users }` | `src/domain/advance/advance-approvals.ts`. |
 
@@ -228,7 +205,6 @@ Mọi bước: `rev` không phải số nguyên ≥ 0 → 400 `BAD_REV`; `rev` l
 | Bộ tham số hiệu lực theo tháng | `src/params/store.ts` (`resolve`) | Khoá = (kết nối DB, chế độ, id dòng tham số mới nhất, `catalog_rev`); tối đa 64 tháng; xem trước (`drafts`/`active`) không vào cache. |
 | File tĩnh nén sẵn | `src/platform/http.ts` `staticCache` | Theo ETag (cỡ + mtime); chỉ file ≤ `STATIC_CACHE_MAX_BYTES` (2 MB), đuôi chữ. Không có trần số mục. |
 | Kết quả nặng (soát AI, ước tính cả kỳ) | `src/ops/shared-cache.ts` | Hợp lệ khi `total_changes()` không đổi và tuổi < 15.000 ms; tối đa 64 mục. |
-| Bộ máy lương của AI theo `paramsHash` | `src/domain/ai-review.ts` | Không trần (một mục mỗi bộ tham số khác nhau). |
 | Đếm đăng nhập sai | `src/platform/auth.ts` | Cửa sổ `system.login.windowMin`; ≤ `system.login.maxKeys` khoá, không đẩy khoá đang khoá ra. |
 | Xô token ghi | `RateLimiter.buckets` | ≤ 10.000 khoá, bỏ khoá lâu nhất. |
 | Kết nối SSE | `src/platform/events.ts` (`conns`, `byUser`) | Theo kết nối. |
@@ -264,7 +240,6 @@ Mọi bước: `rev` không phải số nguyên ≥ 0 → 400 `BAD_REV`; `rev` l
 | --- | --- |
 | `Overloaded` | 503 `{ error, code: 'OVERLOADED' }` + `Retry-After` |
 | `HttpError` | `e.status`, `{ error: e.message, ...e.details }` (code nằm trong `details` nếu có) |
-| có `code` (chuỗi) và `httpStatus` nguyên < 500 (store, `DomainError`, `src/domain/period/periods.ts`, `src/domain/findings/findings.ts`, `src/params/save.ts`) | `httpStatus`, `{ error, code, ...details }` |
 | khác (kể cả `httpStatus ≥ 500`, ví dụ `AUDIT_ARGS`, `BAD_ARGS` 500) | log, 500 `{ error: 'Lỗi máy chủ' }` |
 
 `send()` (`src/platform/http.ts`): chỉ trả lời một lần (bỏ qua lặng nếu đã gửi / đang nén); phản hồi 2xx dạng đối tượng được gộp `warnings` của yêu cầu (không trùng code+message với mảng `warnings` có sẵn); ≥ `HTTP_GZIP_MIN_BYTES` (1024) và client nhận gzip → nén mức 1 ở luồng nền. Luôn `Cache-Control: no-store`.
@@ -291,7 +266,6 @@ Dạng chính sách: `{ public: true }` (không cần đăng nhập) · `{ authe
 | Duyệt | `GET /approvals`, `GET /approvals/count`, `GET /alerts` → request.decide.*; `PUT /approvals/decide` → request.decide.* (attendance) | `src/modules/approvals/approvals.controller.ts` |
 | Phiếu sửa | `GET /slip-override` → payroll.override; `PUT /slip-override` → payroll.override (slip) | `src/modules/periods/periods.controller.ts` |
 | Chấm công | `GET /punch` → A; `POST /punch` → A (attendance); `GET /ot` → attendance.correct; `POST /ot`, `PUT /ot` → attendance.correct (attendance); `GET /today`, `GET /attendance` → attendance.read | `src/modules/attendance/attendance.controller.ts` |
-| AI | `GET /ai/review` → ai.review.read; `POST /ai/findings` → ai.review.dismiss | `src/modules/ai/ai.controller.ts` |
 | Công tắc | `PUT /settings/geofence` → config.payroll | `src/modules/settings/settings.controller.ts` |
 | Nhân sự | `GET /staff` → profile.read; `GET /team` → payroll.view; `PUT /staff/:u`, `PUT /staff/shift-bulk` → profile.write; `PUT /staff/:u/roles`, `POST /staff/:u/password` → roles.manage; `DELETE /staff/:u` → staff.lock | `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts` |
 | Vai trò | `GET /roles`, `POST /roles`, `PUT /roles/:code`, `POST /roles/:code/deprecate` → roles.manage | `src/modules/roles/roles.controller.ts` |
@@ -350,9 +324,6 @@ Không còn bảng gửi theo `seg`: mỗi nhóm route là một module Nest (`s
 #### `GET /api/settings/version` — A (`src/modules/settings/settings.controller.ts`)
 - `{ configRev, mode (params_mode), epoch, build }`.
 
-#### `GET|PUT /api/settings/agents` — roles.manage (chỉ Admin), không periodScope (`src/modules/settings/settings.controller.ts`)
-- Công tắc Agents là cài đặt `agents_enabled` (`'1'` bật, `'0'` tắt, mặc định tắt; `src/platform/agents.ts`). `GET` trả `{ enabled }`; `PUT { enabled: boolean }` (kiểu khác → 400) chỉ ghi khi đổi: giao dịch `configRev.bump()` + audit `setting.agents` (before/after `{ enabled }`), sau COMMIT `announceSetting('agents')`. `GET /api/me` trả `agentsEnabled`. Khi tắt, mọi route Trợ lý AI và bước `POST /api/periods/:month/ai-review` trả 403 `AGENTS_DISABLED`, `assertNotAiBlocked` không chặn, và kỳ không có cảnh báo `AI_NOT_RUN`.
-
 #### `PUT /api/settings/geofence` — config.payroll (`src/modules/settings/settings.controller.ts`)
 - Thân `null` hoặc `{ geofence: null }` = tắt; thân khác qua `cleanGeofence`. Giao dịch: ghi `settings.geofence`, `configRev.bump()`, audit `setting.geofence` (chỉ `enabled`, `radiusM`, `centreChanged`, không ghi toạ độ); sau COMMIT `announceSetting('geofence')`. Trả `{ geofence }`.
 
@@ -365,16 +336,9 @@ Không còn bảng gửi theo `seg`: mỗi nhóm route là một module Nest (`s
 #### `GET /api/audit/verify` — audit.read (`src/modules/audit/audit.controller.ts`)
 - `store.audit.verify()` → `{ ok, checked, firstBadId, reason, unverifiable }` (mục 4.7).
 
-#### `GET /api/ai/review?month=YYYY-MM[&impacts=1]` — ai.review.read, route nặng (`src/modules/ai/ai.controller.ts`)
-- `month` sai → 400 (không code). Kết quả `aiReviewResultCached(month, impacts==='1')` + `findings` gắn `dismissed: { by, at, note } | null` (`src/domain/findings/findings.ts` → `annotate`) + `period: { status }`.
+#### `GET /api/ai/review?month=YYYY-MM[&impacts=1]` — ai.review.read, route nặng (`(đã bỏ)`)
 - Trường của kết quả: `asOf, month, findings, systemFindings, checked { rules, ruleIds, staff, days, skipped, payrollErrors }, checklist, summary { total, bySeverity, byRule }, thresholds, names`, có `impacts` khi yêu cầu.
 - Không ghi DB. Không phụ thuộc khoá kỳ.
-
-#### `POST /api/ai/findings/dismiss` — ai.review.dismiss (`src/modules/ai/ai.controller.ts`, `src/domain/findings/findings.ts`)
-- Vào `{ month, username, rule, reason }`. Đường dẫn khác `/dismiss` dưới `/ai/findings` → 404.
-- Lỗi: `month` sai → 400; thiếu `username`/`rule` → 400 `BAD_ARGS`; tự bỏ qua phiếu của mình → cảnh báo `SELF_DECISION_FORBIDDEN`; lý do > 300 → 400 `REASON_REQUIRED`; chưa có lần tính → 409 `PERIOD_NOT_READY`; lần chạy không ở trạng thái `draft` → cảnh báo `PERIOD_STATE` và vẫn ghi; không phiếu → 404 `PAYSLIP_NOT_FOUND`; phiếu không có cờ → 404 `FINDING_NOT_FOUND`.
-- Ghi (một giao dịch, chỉ khi chưa bỏ qua với cùng digest): dòng `ai_finding_actions` + audit `ai.finding.dismiss` (pay).
-- Trả `{ month, username, rule, dismissed: true, already, by, at, remaining }`.
 
 #### `GET /api/settings/params`, `GET /api/settings/first-run`, `PUT /api/settings/params`, `POST /api/settings/params/preview`, `POST /api/settings/params/revert` — config.read (`src/modules/settings/settings.controller.ts`)
 - `month` mặc định tháng hiện tại, sai dạng → 400 `BAD_MONTH`; `group` phải nguyên. `GET` trả `paramsStore.view`/`firstRun`. Ghi / xem trước / hoàn tác đi qua `src/params/save.ts` (mục 4.10); kết quả có `notice` thì `events.emit.paramsChanged`.
@@ -485,78 +449,6 @@ Quy ước người gọi: gọi `audit.write` bên trong `store.transaction` c�
 
 ### 4.8 SSE — xem mục 5.
 
-### 4.9 AI rà soát (`src/ai/review.ts`, `src/domain/ai-review.ts`)
-
-**Đầu vào do máy chủ dựng** (`src/domain/ai-review.ts`): tham số hiệu lực của tháng (`paramsStore.resolve(month)`), mọi staff, danh sách `insured IS NULL`, lịch ước tính của người được trả lương (mọi tháng), mọi `sheet_approvals`, mọi phiên chấm công, ngày lễ, điểm KPI 5 phần của tháng, số sửa phiếu của tháng, người được duyệt tạm ứng của tháng, bộ máy lương của tháng và tháng trước (nhớ theo `paramsHash`; nạp lỗi → `null`, luật cần tiền bị bỏ qua), các khoá `param_versions` có `effective_month = tháng`. Mỗi lần tính ghi một dòng log đếm (không tên, không tiền).
-
-**Thuật toán `review()`** (`src/ai/review.ts`):
-1. `prepare`: `asOf` ISO hợp lệ, `month` `YYYY-MM` (sai → `TypeError` → 500). Người xét = staff có `payrollSubject` (vắng thì `role !== 'admin'`). Hàng duyệt chỉ nhận item thuộc `ApprovalView.ITEMS` và trạng thái pending/approved/rejected. Khoản được soát mặc định là `pending`.
-2. Với từng luật theo thứ tự `RULES`: bỏ qua (ghi `checked.skipped` kèm lý do) nếu `ai.rule.<camelCase>.enabled === false`, `skipWhen` trả lý do, cần `payroll` mà không có.
-3. Chạy runner → mỗi hit thành finding: evidence chỉ được chứa trường trong `rule.fields` (khác → ném `Error`), `id = "<luật>:<user>:<ngày|tháng>"` (hệ thống: `"<luật>:system:<khoá>"`), `digest` = băm `inputs`, `approval = { rev, fingerprint }` nếu gắn khoản. Trùng `id` → bỏ.
-4. Sắp: mức (high < medium < low) → user → ngày → luật. `impacts` (khi yêu cầu và có bộ máy): với mỗi khoản đang soát, `impactVnd = round(tổng thu nhập nếu duyệt − nếu từ chối)`, giả định các khoản chờ khác được duyệt.
-5. `checklist`: `pending-items`, `flagged-items`, `punch-waiting`, `profile-gaps`, `kpi-unapproved`, `slip-overrides`, `holidays`.
-
-**Danh mục luật** (`src/ai/review.ts`, `src/ai/rules-extra.ts`):
-
-| Luật | Mức | Phạm vi | Ngưỡng | Cần |
-| --- | --- | --- | --- | --- |
-| `isat-frequency` | medium | item | isatPerMonth | |
-| `approved-leave-frequency` | medium | item | approvedLeavePerMonth | |
-| `leave-with-checkin` | high | item | — | |
-| `late-declaration` | medium | item | reportDeadlineDay | |
-| `previously-rejected` | medium | item | rejectedLookbackDays | |
-| `repeated-edits` | low | item | repeatedEditsRev | |
-| `ot-checkin-mismatch` | high | item | presenceGapMin | checkin |
-| `ot-after-pending-makeup` | medium | item | — | |
-| `holiday-work-review` | medium | item | — | |
-| `attendance-allowance-risk` | high | item | attendMaxAbsentDays, overLimitHours | payroll |
-| `large-pay-impact` | medium | item | impactVnd | payroll |
-| `ot-above-team` | medium | person | otMedianFactor, otMedianMinHours, otMedianMinPeers | payroll |
-| `missing-start-date` | medium | person | — (từ `src/domain/findings/data-quality.ts`) | |
-| `negative-leave` | high | person | — (từ `src/domain/findings/data-quality.ts`) | |
-| `missing-fixed-shift` | medium | person | — | |
-| `slip-override-gap` | medium | person | slipDiffVnd, slipDiffRatio | payroll |
-| `locked-with-pending` | medium | item | — | |
-| `kpi-self-100-streak` | low | person | kpiFullMonths, kpiFullPct | legacyKpi |
-| `net-nonpositive` | high | person | — | payroll |
-| `formula-changed-recently` | low | system | paramChangePeoplePct | |
-| `block-flags-unconfirmed`, `override-looks-like-entry` | (rules-extra) | | formulaChangeTotalVnd / overrideEntryRoundVnd… | |
-
-`attendance-allowance-risk` xác định "duyệt thì giữ / mất chuyên cần" bằng cách chạy bộ máy lương hai lần (duyệt và từ chối khoản đó, các khoản chờ khác coi là duyệt) rồi so cờ chuyên cần của kết quả (`attendOk`, số ngày vắng, giờ vượt ngưỡng); ngưỡng `attendMaxAbsentDays` (khoá `type.nv.maxAbsent`) chỉ dùng để viết câu "ngày nghỉ thứ N", còn điều kiện đạt / mất do bộ máy lương xác định (số ngày tính theo từng chức vụ trong bộ máy, xem `payroll-engine.md`).
-
-**Ngưỡng** (`src/ai/thresholds.ts`): giá trị = tham số của tháng theo khoá; vắng/null → mặc định trong bảng; khác mặc định → đánh dấu `proposal` (với khoá `ai.threshold.*`).
-
-| Tên | Khoá tham số | Mặc định | Đơn vị |
-| --- | --- | --- | --- |
-| isatPerMonth | ai.threshold.isatPerMonth | 4 | lần/tháng |
-| approvedLeavePerMonth | ai.threshold.approvedLeavePerMonth | 3 | lần/tháng |
-| reportDeadlineDay | period.reportDeadlineDay | 3 | ngày của tháng sau |
-| rejectedLookbackDays | ai.threshold.rejectedLookbackDays | 60 | ngày |
-| repeatedEditsRev | ai.threshold.repeatedEditsRev | 3 | rev |
-| presenceGapMin | ai.threshold.presenceGapMin | 30 | phút |
-| otMedianFactor | ai.threshold.otMedianFactor | 2 | lần trung vị |
-| otMedianMinHours | ai.threshold.otMedianMinHours | 8 | giờ |
-| otMedianMinPeers | ai.threshold.otMedianMinPeers | 5 | người |
-| attendMaxAbsentDays | type.nv.maxAbsent | 3 | ngày |
-| overLimitHours | attendance.overLimitHours | 24 | giờ |
-| impactVnd | ai.threshold.impactVnd | 500.000 | VND |
-| slipDiffVnd | ai.threshold.slipDiffVnd | 500.000 | VND |
-| slipDiffRatio | ai.threshold.slipDiffRatio | 0,2 | tỉ lệ |
-| kpiFullMonths | ai.threshold.kpiFullMonths | 3 | tháng |
-| kpiFullPct | (không khoá) | 100 | % |
-| paramChangePeoplePct | ai.threshold.paramChangePeoplePct | 0,2 | tỉ lệ người |
-| formulaChangeTotalVnd | ai.threshold.formulaChangeTotalVnd | 5.000.000 | VND |
-| scopeLeakMinPeople | ai.threshold.scopeLeakMinPeople | 1 | người |
-| overrideEntryRoundVnd | ai.threshold.overrideEntryRoundVnd | 100.000 | VND |
-
-Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu → `TypeError` (500).
-
-**AI chặn duyệt** (`src/domain/ai-block.ts`): luật chặn = `settings.ai_block_rules` nếu là mảng; chưa đặt → `[]` khi `DB_PATH === ':memory:'`, ngược lại `['leave-with-checkin', 'ot-checkin-mismatch']`. Với mỗi tháng của các khoản sắp duyệt: lấy kết quả soát (cache), khoản trùng (user, date, `approval.rev`) với finding của luật chặn → 409 `AI_BLOCKED { blocked: [{ username, date, rule }] }`, khi công tắc Agents bật; tắt thì không chặn.
-
-**Bước AI của kỳ** (`src/domain/period/periods.ts`, chi tiết ở `payroll-period.md`): dùng bản tính không qua cache, gắn cờ luật vào phiếu (`payslips.flags_json`), thêm `ai_review_runs`, `markReviewed`, audit `period.ai-review`.
-
-**Bỏ qua cờ** (`src/domain/findings/findings.ts`): `findingId = "slip:<luật>:<user>:<tháng>"`; digest = `"<inputs_digest | run:<id>>|<params_hash>"` của lần chạy hiện hành → tính lại với đầu vào hoặc tham số khác thì lần bỏ qua trước đó hết hiệu lực.
-
 ### 4.10 Registry tham số và dữ liệu sinh
 
 **Thành phần**
@@ -564,14 +456,12 @@ Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu 
 | File | Vai trò |
 | --- | --- |
 | `src/engine/payroll-params.ts` | `DEFAULTS` (bản phẳng của mọi khoá tham số, khối `GENERATED` do script sinh), `resolveParamSet`, `buildParamClasses`, `canonical`, `UI_COMPONENTS`. Dùng chung trình duyệt + máy chủ. |
-| `src/params/registry.data.json` | Siêu dữ liệu duy nhất: `version`, `groups`, `types`, `aiRules`, `entries` (mỗi mục: `id`, `group`, `section`, `order`, `label`, `class`, `editableBy`, `keys` (mẫu khoá), `valueBearing`, `help`, `basis`, `defaultNote`, `capability`, `phase`, `cost`, `legal`, `firstRun`, `wired`, `unwiredKeys`, `ui.component`…). Không đọc cả file khi duyệt; tra qua `registry.ts`. |
 | `src/params/registry.ts` | Nạp JSON, biên dịch mẫu khoá `a.<x>.b` thành RegExp (`<x>` khớp đúng một đoạn); `entryFor(key)` chọn mẫu có nhiều chữ cố định nhất; `keysOf(entry)`. Hằng: `CLASSES` (`choice, number, table, formula, fixed, removed`), `EDITABLE_BY` (`admin, accounting, ops, locked`), `LEGAL_TIERS` (`floor, ceiling, exact, release, policy, structure`), `WRITE_CAP` (`admin → config.payroll`, `accounting → config.legal`; `ops`, `locked` không ai sửa trên màn). |
 | `src/params/store.ts` | Đọc theo tháng: `resolve(month)` (bộ tham số hiệu lực, đóng băng, kèm `classes`, `rev`, `hash` sha256 của `canonical(params)`, `applied`, `skipped`), `view(month, {group})` (dữ liệu màn Cài đặt, dựng hoàn toàn từ registry), `firstRun(month)`. `params_mode = defaults-only` bỏ qua mọi dòng phiên bản và dùng `DEFAULTS`; `active` chồng các dòng `param_versions` hợp lệ lên `DEFAULTS`, rồi chồng dòng danh mục chức vụ / bậc / ca. Dòng sai cấu trúc hoặc dòng người dùng ghi cho khoá `locked/ops/fixed` bị bỏ qua và báo ở `skipped` (log một lần mỗi dòng). |
 | `src/params/save.ts` | Ghi: `preview` (luôn trả dữ liệu, không ghi gì), `save` (các dòng `param_versions` + một dòng nhật ký cho mỗi khoá + `config_rev` trong một giao dịch), `revert` (thêm dòng mới mang giá trị của phiên bản được hoàn tác), `addPosition`, `addLevel`, `addBlock`, `confirmBlock`. |
 | `src/params/validate.ts` | Nơi duy nhất sinh thông báo lỗi tham số: kiểm cấu trúc (kiểu, khoảng, tập phương án có `available`), liên trường (`crossChecks`), sàn / trần luật (`floor`/`ceiling`; mức `hard` chặn, mức `warn` trả cảnh báo cần xác nhận). |
 | `src/params/attributes.ts`, `positions.ts`, `blocks.ts`, `block-defs.ts` | Thuộc tính mở rộng của bậc lương, chức vụ do C&B thêm, danh mục khối phụ cấp có sẵn, khối phụ cấp do C&B thêm — đều là dữ liệu đi vào các họ khoá hiện có qua cùng đường ghi. |
 | `src/params/wired-flag.ts` | `isKeyWired(entry, key)`: khoá đã nối vào bộ máy chưa. |
-| `src/params/keys.lock.json` | Danh sách tên khoá đã phát hành, chỉ thêm. |
 
 **Lưu tham số** (`src/params/save.ts`): thân `{ changes: [{ key, value }], effectiveMonth?, reason, expectedRev, acknowledge?, basis? }`. `effectiveMonth` mặc định là tháng chưa khoá công sớm nhất (`earliestOpenMonth`; chưa có kỳ nào thì là tháng hiện tại); sớm hơn → cảnh báo `PERIOD_LOCKED` kèm `minEffectiveMonth`. `expectedRev` lệch `paramsRev` → 409 `PARAMS_STALE`. Khoá có nền `settings:*` → 400 `PARAM_BACKED_BY_SETTINGS`; khoá `ops`, `locked`, `fixed` → 400 `PARAM_LOCKED`; khoá chưa nối vào bộ máy → 400 `PARAM_NOT_WIRED` (xem trước vẫn kiểm được, liệt kê ở `notWired`). Năng lực theo `editableBy` từng khoá (lô trộn cần cả `config.payroll` và `config.legal`, thiếu một → 403 `FORBIDDEN_CAP`). Tối đa `system.params.maxChanges` (50) thay đổi một lần. Lần Lưu đầu bật `params_mode = active`: cho phép khi không phải môi trường production (`NODE_ENV` ≠ production và `COOKIE_SECURE` ≠ 1), hoặc khi `PARAMS_ALLOW_ACTIVATE=1` (`activationAllowed`, `save.ts`). Sửa lịch làm việc của chức vụ cần `SCHEDULE_ALLOW_EDIT=1`, sửa giờ vào / ra của ca có sẵn (`shift.preset.<mã>.in|out`) cần `SHIFT_ALLOW_EDIT=1` trong môi trường production (`save.ts,73`); môi trường khác sửa tự do.
 
@@ -579,7 +469,6 @@ Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu 
 
 | Script | Lệnh | Việc làm |
 | --- | --- | --- |
-| `extract-defaults.ts` | `npm run params:extract` | Ghi lại khối `GENERATED` của `src/engine/payroll-params.ts` từ mã đang chạy (mặc định của `src/engine/actual-hours.ts`, `kpi-score.ts`, `approval-view.ts`, `payroll-graph.ts`, `src/ai/thresholds.ts`, `src/platform/config.ts` và một số hằng có tên). Lá nào của nguồn không khớp mục nào trong `key-map.ts` thì dừng. Số không có hằng trong mã nằm ở `hand-defaults.json`. `--check`: không ghi, thoát 1 nếu lệch. |
 | `key-map.ts` | (dữ liệu) | Bảng đường dẫn mã → khoá tham số; mục kiểu `key`, `ignore`, `derived`. |
 | `check.ts` | `npm run params:check` | Kiểm: `DEFAULTS` khớp mã; mỗi mục registry hợp lệ (loại, `editableBy`, nhóm, nhãn, thành phần giao diện theo loại, khuôn bảng); mọi khoá của `DEFAULTS` thuộc đúng một mục; giá trị dẫn xuất khớp bản chép trong mã; khoá đã phát hành không mất. `--counts` in số mục theo loại / `editableBy` / nhóm. Thoát 1 khi có lỗi. |
 | `lock.ts` | `npm run params:lock` | Thêm tên khoá vào `keys.lock.json` (chỉ thêm). |
@@ -723,7 +612,6 @@ Quy ước: mọi lần phát nằm sau khi giao dịch của route đã COMMIT 
 | `explanation.request`, `explanation.self`, `explanation.late-checkout` | — | `src/modules/explanations/explanations.controller.ts`, `late-checkout-session.ts` | xem file |
 | `checkout.late.apply`, `checkout.late.revert` | — | `src/domain/explanation/late-checkout-session.ts` | xem file |
 | `attendance.admin.set`, `attendance.admin.remove` | attendance_session | `src/domain/attendance/admin-presence.ts,286` | normal |
-| `ai.finding.dismiss` | ai-finding | `src/domain/findings/findings.ts` | pay |
 
 Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một UUID cho cả yêu cầu), `at` (ISO UTC). `subject_uuid`/`actor_uuid` tra lúc ghi.
 
@@ -740,7 +628,6 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - `src/platform/events.ts` → `src/platform/db`, `src/platform/auth`, `src/platform/authz`, `src/platform/config`, `src/params/config-rev`, `src/params/registry`.
 - `src/platform/audit.ts` → `src/platform/db`, `src/platform/authz`, `src/platform/warnings`.
 - `src/domain/container.ts` → `src/platform/db`, các lớp `src/domain/*`; nạp muộn `src/platform/request-rules`, `src/domain/attendance`, `src/platform/audit`, `src/platform/warnings` trong getter (tránh vòng `db ↔ params ↔ domain`).
-- `src/domain/ai-review.ts` → `src/platform/db`, `src/params/store`, `src/domain/payroll/payroll-service`, `src/platform/request-rules`, `src/domain/attendance`, `src/domain/kpi`, `src/domain/advance`, `src/ops/shared-cache`, (muộn) `src/ai/review`, `src/ai/thresholds`, `src/ai/payroll-loader`.
 - `src/ai/*` thuần (không I/O, không đồng hồ), chỉ `require` `public/*.js` và nhau.
 - `src/params/registry.ts` → `registry.data.json`, `src/engine/payroll-params.ts`; `src/params/store.ts` → `src/platform/db`, `registry`, `config-rev`, `attributes`, `positions`, `block-defs`, `validate`, `src/domain/catalog-params`.
 
@@ -756,10 +643,6 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 | File | Máy chủ dùng ở (nền tảng) |
 | --- | --- |
 | `src/engine/payroll-params.ts` (`DEFAULTS`) | `src/platform/auth.ts` (số `system.*`, `unit.*`), `src/ai/*`, `migrations/postgres/0001_baseline.sql` (gieo danh mục), `src/domain/approvals/approvals.ts`, `src/domain/attendance/attendance-sessions.ts`, `src/params/*` |
-| `src/engine/payroll-engine.ts` | `src/ai/payroll-loader.ts` (AI tính tiền), `src/domain/payroll/payroll-service.ts` |
-| `src/engine/approval-view.ts` | `src/platform/authz.ts` (`DECIDE_ITEMS`), `src/ai/review.ts`, `src/domain/approvals/approvals.ts`, `src/platform/request-rules.ts` |
-| `src/engine/actual-hours.ts`, `src/engine/kpi-score.ts` | `src/ai/review.ts`, `src/platform/request-rules.ts` |
-| `src/engine/payroll-calendar.ts` | `src/domain/findings/findings.ts`, `src/platform/request-rules.ts` |
 | `src/engine/leave.ts`, `src/engine/punch.ts`, `src/engine/work-schedule.ts` | `src/platform/request-rules.ts` |
 | `src/engine/formula.ts`, `src/engine/payroll-graph.ts` | `src/params/validate.ts` (kiểm công thức, đồ thị) |
 
@@ -770,7 +653,6 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - **Đổi `send` / `HttpError` / nhánh catch** → mọi phản hồi lỗi (`error`, `code`, `details`) và việc gộp `warnings`; giao diện đọc `code`. Test hạ tầng HTTP, `security-headers`, `warnings-cases`, `warnings-no-crash`.
 - **Đổi `warnIf`** → mọi chỗ cảnh báo nghiệp vụ trong `src/platform/db.ts`, `src/domain/period/periods.ts`, `src/params/save.ts`, handler; `after.warnings` trong audit; `test/unit/warnings.test.ts`, `test/unit/no-control-mode.test.ts`, `test/api/warnings-cases.test.ts`.
 - **Đổi `assertPeriodOpen` / `SCOPE_LOCKED_FROM`** → mọi route có `periodScope`, `catalog-change.ts`, `src/params/save.ts`, `src/domain/payroll/pay-entries.ts`, `src/domain/advance/advance-requests.ts`; `test/api/period-lifecycle.test.ts`.
-- **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `scripts/ops/pg-backup.ts` (danh sách bảng), `sandbox-server.ts` (danh sách bảng reset), `test/helpers/api-fixture.ts` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
 - **Đổi `auditCanonical` / `auditHash`** → mọi chuỗi có sẵn không kiểm được nữa (`verify` báo `HASH` từ dòng đầu); `scripts/ops/pg-backup.ts`, `params-mode.ts` (kiểm kiểu băm dòng cuối). Đổi/bỏ `AUDIT_KEY` → dòng HMAC có sẵn thành `unverifiable`.
 - **Thêm trường vào `before/after` của audit** → hàng rào `SECRET_RE` (`lat`/`lng` làm hỏng cả thao tác), trần 65.536 ký tự.
 - **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; thêm chỗ nghe ở giao diện Vue (`web/src`); `test/api/events.test.ts`.
@@ -806,7 +688,7 @@ Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng 
 
 **Tham số**: `settings-save`, `settings-save-failures`, `settings-preview`, `save-applies-everywhere`, `params-resolve-robust`, `formula-locked`, `levels-*`, `shifts-edit` (`test/api/`); `formula-*`, `shared-rules-params`, `position-defaults-zero-drift`, `schedule-defaults-zero-drift` (`test/unit/`).
 
-**AI**: `ai-review*` (cùng `ai-review-world.ts`), `phase2-review` (`test/unit/`); `ai-review-api`, `ai-review-dismissed`, `findings`, `checklist-punch-review`, test AI chặn duyệt (`test/api/`).
+**AI**: `ai-review*` (cùng `(đã bỏ)`), `phase2-review` (`test/unit/`); `ai-review-api`, `ai-review-dismissed`, `findings`, `checklist-punch-review`, test AI chặn duyệt (`test/api/`).
 
 **Bộ máy lương so với khối đóng băng**: `payroll-golden`, `payroll-engine-differential`, `payroll-engine-bad-staff`, `pay-tail-*` (`test/unit/`).
 
@@ -831,7 +713,6 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - Hằng tháng mốc: `DEFAULT_CUTOFF_MONTH` (`src/domain/approvals/approvals.ts`).
 - Số nghiệp vụ nằm trong `src/platform/config.ts` thay vì registry: `CHECKOUT_GRACE_MIN` (30), `TAX_LONG_TERM_MONTHS` (3) (`src/platform/config.ts`).
 - `UV_THREADPOOL_SIZE` đặt trong `.env` bị bỏ qua vì `src/platform/config.ts` được nạp trước khi `.env` được đọc (`src/server.ts` và); chỉ biến môi trường thật của tiến trình có tác dụng.
-- `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`: độ lệch múi giờ VN viết cứng `7 * 3600 * 1000`; `src/ai/units.ts` đọc từ `unit.vnUtcOffsetMin`.
 
 ### 8.2 Cùng một giá trị ở nhiều nơi
 
@@ -851,7 +732,6 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 
 ### 8.5 Hành vi dễ gây lỗi dây chuyền
 
-- `src/domain/ai-block.ts` rẽ nhánh theo `process.env.DB_PATH === ':memory:'` → sandbox (cũng DB RAM) không có AI chặn duyệt khi chưa đặt `ai_block_rules`.
 - `scripts/ops/pg-backup.ts` đòi `GET /` = 302; `src/platform/http.ts` trả 200 `index.html` khi có `web/dist` → diễn tập khôi phục không qua khi `web/dist` có mặt, trừ khi `WEB_DIST` trỏ chỗ khác.
 - `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay khi dựng máy chủ, tức khi `require('./server')` (test, sandbox, restore-drill).
 - `GET /api/leave/ledger` ghi DB (`src/modules/leave/leave.controller.ts`) → làm `total_changes()` tăng, xoá cache AI/ước tính; `POST /api/leave/refresh` ghi mà không có audit.
@@ -862,9 +742,6 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - `src/modules/leave/leave.controller.ts` (nhánh `HttpError`) và `src/modules/leave/leave.controller.ts` (nhánh lỗi có mã của store) trải `...e.details` sau `error` / `code`: `details` có trường `error` (hoặc `code`) sẽ ghi đè.
 - Mã lỗi không đều: `month` sai trả 400 có `code: 'BAD_MONTH'` ở `/settings/params`, nhưng không có code ở `/ai/review`, `/ai/findings/dismiss`, `/audit`; các lỗi 401, 403, 413 và 400 của `src/platform/http.ts` và `POST /login` không có code.
 - `PUT /api/password` băm không qua `hashGate` (chỉ `POST /login` qua).
-- `src/ai/thresholds.ts` — `attendMaxAbsentDays` luôn lấy `type.nv.maxAbsent`, không theo chức vụ của người đang xét (chỉ ảnh hưởng câu chữ của luật `attendance-allowance-risk`).
-- `src/domain/ai-review.ts` dựng người xem giả `{ role: 'admin' }` cho `kpiPartsView`.
-- `src/ai/review.ts` (`kpi-unapproved`) viết cứng tên chức vụ trong câu hiển thị ("CTV/NV …") trong khi chức vụ là dữ liệu.
 
 ### 8.6 Mã không được gọi / thừa
 
@@ -875,8 +752,6 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 
 ### 8.7 Quy ước chưa đều
 
-- Thiếu `'use strict'` ở đầu: `src/server.ts`, `src/platform/announce.ts`, `src/domain/attendance/attendance-sessions.ts`, `src/platform/auth.ts`, `src/platform/db.ts`, `src/domain/ai-review.ts`, `src/domain/approvals/index.ts`, `src/domain/attendance/index.ts`, `src/domain/positions.ts`, `src/domain/sheet.ts`, `src/domain/staff.ts`, `src/platform/http.ts`, `src/platform/request-rules.ts` (danh sách tính bằng cách quét `src/server.ts` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.ts`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `src/engine/formula.ts` (2.900), `src/platform/db.ts` (1.700; thực tế 1.606), `src/engine/payroll-engine.ts` (1.700), `scripts/db/demo/scenarios.ts` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `src/platform/db.ts` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
 
 ### 8.8 Chưa có
 

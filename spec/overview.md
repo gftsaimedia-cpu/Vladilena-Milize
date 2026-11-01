@@ -44,7 +44,6 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.ts`) quyết đ
 - **Mô-đun dùng chung trình duyệt và máy chủ (UMD) trong `public/`**: cùng một file nạp bằng `<script>` ở trình duyệt và `require` ở máy chủ. Gồm bộ máy tính lương (`payroll-engine.ts`, `payroll-calendar.ts`, `payroll-day-parts.ts`, `payroll-graph.ts`, `payroll-pins.ts`, `pay-*-calc.js`), tham số mặc định (`payroll-params.ts`), quy tắc chấm công (`punch.ts`, `actual-hours.ts`, `work-schedule.ts`), quy tắc phép và KPI (`leave.ts`, `kpi-score.ts`), duyệt khoản (`approval-view.ts`), công thức (`formula.ts`, `formula-vocab.ts`), nhãn chấm công (`attendance-status.ts`). **Số tiền chính thức chỉ do máy chủ tính**; trình duyệt dùng cùng mã để hiển thị, xem trước và kiểm.
 - **Giao diện**: ứng dụng Vue 3 ở `web/` (build ra `web/dist`; `src/platform/http.ts` → `serveStatic` phục vụ `web/dist` ở "/" và mọi đường dẫn của router Vue; chưa build thì "/" trả 503 kèm cách build, `/api` vẫn chạy). Giao diện tĩnh cũ trong `public/` đã bỏ; `public/` chỉ còn các mô-đun tính lương mà máy chủ nạp bằng `require`. Tham chiếu route của giao diện: `spec/reference/web-routes.md`.
 - **Sự kiện thời gian thực**: `GET /api/events` (SSE, `src/platform/events.ts`). Sự kiện: `params.changed`, `period.changed`, `approvals.changed`, `attendance.changed`, `request.decided`, `punch.corrected`, `punch.changed`, `estimate.changed`, `payslip.available`, `roles.changed`, `announcement.posted`. Phát sau khi giao dịch COMMIT; mỗi sự kiện chọn người nhận và lọc trường theo quyền; màn hình tự nối lại và đồng bộ lại bằng `configRev`.
-- **Registry tham số**: `src/params/registry.data.json` là bảng siêu dữ liệu cho mọi con số (nhãn, nhóm, kiểu, đơn vị, khoảng, sàn/trần của luật, thành phần giao diện); giá trị mặc định ở `src/engine/payroll-params.ts` (`DEFAULTS`). Giá trị theo tháng áp dụng nằm ở `param_versions` (mỗi lần lưu thêm dòng mới, không sửa dòng cũ). `src/params/save.ts` kiểm, xem trước tác động, ghi cả lô trong một giao dịch kèm nhật ký, và hoàn tác bằng dòng mới. `src/params/store.ts` giải bộ tham số hiệu lực của một tháng. `src/params/keys.lock.json` khoá danh sách khoá.
 - **Công thức**: bảy công thức tháng có tên (`tyLeNgayDiLam`, `phuCapDiLai`, `phuCapChuyenCan`, `heSoNgayKpi`, `luongKpi`, `tongThuNhap`, `tamUng`) là cây định nghĩa trong `src/engine/payroll-graph.ts`; khoá `formula.*` bị khoá nên Admin không lưu công thức, chỉ chỉnh tham số bằng biểu mẫu. Bộ máy kiểm cây theo từ vựng, đơn vị và vòng lặp mỗi khi dựng nhân tính (`src/engine/payroll-engine.ts`); cây hỏng thì báo lỗi, không quay về công thức khác.
 - **Lớp domain** (`src/domain/`): lớp có trách nhiệm rõ gắn với DB: `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance` (nhãn trạng thái, Admin khai thay), `payroll`, `timesheet` (luật kiểm lịch khai dạng lớp `Rule`), `overtime`, `kpi`. `src/domain/container.ts` dựng lười các repository/service một lần. Luật nghiệp vụ là lớp kế thừa `Rule` (`src/domain/shared/rule.ts`), liệt kê ở `spec/reference/rules.md`.
 - **Cảnh báo** (`src/platform/warnings.ts`): các kiểm nghiệp vụ gọi `warnIf(...)`: ghi cảnh báo kèm câu hệ quả vào phản hồi và chạy tiếp. Lỗi dữ liệu (sai dạng, trái ràng buộc cứng), bảo mật, quyền, không tồn tại, quá cỡ và chống ghi đè vẫn chặn bằng lỗi 4xx.
@@ -52,7 +51,6 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.ts`) quyết đ
 - **Khoá kỳ**: `PERIOD_STATES` ở `src/platform/db.ts`. Từ `attendance_locked` trở đi chấm công, lịch, tham số, ngày lễ bị khoá; từ `approved` trở đi KPI và số sửa phiếu bị khoá. Route ghi gọi cổng này qua `ctx.guardPeriod(...)` (`src/http/api-gate.ts`).
 - **Nhật ký kiểm toán**: `audit_log` ghi cùng giao dịch với thay đổi, chuỗi băm để kiểm (`GET /api/audit/verify`).
 - **Giới hạn tải**: giới hạn đồng thời băm mật khẩu, giới hạn tốc độ ghi theo người, từ chối route nặng khi vòng lặp sự kiện trễ kéo dài (`src/ops/`, dựng ở `src/http/load-control.ts`, áp ở `ApiGate`).
-- **AI rà soát theo luật** (`src/ai/`): không gọi mô hình hay mạng; 22 luật thuần chạy trên dữ liệu tháng (ví dụ `isat-frequency`, `leave-with-checkin`, `ot-checkin-mismatch`, `negative-leave`, `net-nonpositive`, `locked-with-pending`, `override-looks-like-entry`). Kết quả vào bước "AI kiểm tra" của kỳ và, khi công tắc Agents bật, chặn duyệt khoản dính luật nặng (`src/domain/ai-block.ts`, 409 `AI_BLOCKED`).
 - **Sandbox**: máy chủ thử `scripts/dev/sandbox-server.ts` (mục 4.2).
 - **Giao diện Vue** ở `web/`: front-end tách rời, gọi `/api` qua `web/src/services/*`; các spec giao diện mô tả bộ tĩnh cũ ở `public/`.
 
@@ -130,11 +128,11 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   ├── periods.ts             Vòng đời kỳ lương, phiếu, ước tính, danh sách kiểm
 │   ├── period-stale.ts, period-warnings.ts, period-allowance.ts   Kỳ lỗi thời, cảnh báo kỳ, tình trạng chuyên cần
 │   ├── slip-paid.ts, slip-pins.ts, slip-formulas.ts   Số chi trả, ghim ô số lượng, công thức Chi tiết của phiếu Admin
-│   ├── findings.ts, data-quality.ts   Bỏ qua cờ AI trên phiếu, phát hiện dữ liệu thiếu
-│   ├── ai/                    AI rà soát theo luật: review.ts (22 luật), rules-extra.ts, thresholds.ts, units.ts, positions.ts, payroll-loader.ts, preview-suggestions.ts
+│   ├── (đã bỏ), (đã bỏ)   Bỏ qua cờ AI trên phiếu, phát hiện dữ liệu thiếu
+│   ├── ai/                    AI rà soát theo luật: (đã bỏ) (22 luật), (đã bỏ), (đã bỏ), (đã bỏ), positions.ts, (đã bỏ), (đã bỏ)
 │   ├── domain/                Lớp domain
 │   │   ├── container.ts, input.ts   Dựng đối tượng, kiểm dạng đầu vào
-│   │   ├── attendance.ts, attendance/   Phiên Check-in/out; session-status.ts (nhãn), session-view.ts, admin-presence.ts (Admin khai thay)
+│   │   ├── (đã bỏ), attendance/   Phiên Check-in/out; session-status.ts (nhãn), session-view.ts, admin-presence.ts (Admin khai thay)
 │   │   ├── explanation/       Giải trình: lược đồ, repository, service, Check-out muộn, route
 │   │   ├── employee/          Hồ sơ nhân sự theo uuid, tên, thư mục nhân sự
 │   │   ├── position/, shift/  Danh mục chức vụ, bậc, quyền lợi, ca
@@ -143,7 +141,7 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   │   ├── payroll/           Đối tượng bảng lương và chính sách
 │   │   ├── shared/            Repository gốc, DomainError, đổi danh mục có khoá kỳ
 │   │   ├── sheet.ts, sheet-on-behalf.ts, isat-rule.ts, ot.ts, schedule.ts   Lịch ước tính: kiểm, khai thay, giới hạn, iSAT, OT, giờ làm
-│   │   ├── approvals.js, ai-review.ts, ai-block.ts, holidays.ts, blocks.ts, pay-entries.js, staff.ts, positions.ts, shifts.ts, catalog-params.ts
+│   │   ├── approvals.js, (đã bỏ), (đã bỏ), holidays.ts, blocks.ts, pay-entries.js, staff.ts, positions.ts, shifts.ts, catalog-params.ts
 │   ├── ops/                   Giới hạn tải, theo dõi vòng lặp, nhật ký truy cập, bộ nhớ đệm tính toán
 │   └── params/                Registry (registry.data.json, registry.ts), store.ts, save.ts, validate.js, config-rev.ts, positions.ts, blocks.ts, block-defs.ts, attributes.ts, keys.lock.json, wired-flag.ts
 ├── public/                    Mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng require; không phục vụ ra ngoài
@@ -330,7 +328,6 @@ Số liệu dưới đây là kết quả của một lần chạy `node --test`
 
 | Lỗi | File |
 | --- | --- |
-| 12 | `test/api/*-phan-6-sua-phieu.test.ts` |
 | 10 | `test/api/period-lifecycle.test.ts` |
 | 9 | `test/api/period-reopen.test.ts`, `test/api/me-estimate.test.ts` |
 | 8 | `test/unit/ca-kiem-bang-tien.test.ts` |

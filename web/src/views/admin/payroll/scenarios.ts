@@ -1,4 +1,4 @@
-// Chữ và nút của màn Bảng lương theo từng kịch bản (?kb=): tiêu đề phụ, nút bước kỳ, ghi chú, dải AI, kiểu bảng.
+// Chữ và nút của màn Bảng lương theo từng kịch bản (?kb=): tiêu đề phụ, nút bước kỳ, ghi chú, kiểu bảng.
 // Số phiếu lấy từ facts do máy chủ trả; ở đây chỉ ghép câu.
 import { dmy } from '@/utils/format';
 
@@ -7,7 +7,6 @@ const A = {
   close: { key: 'close', label: 'Chốt công', icon: 'lock', pri: true },
   reopenHours: { key: 'reopen-hours', label: 'Mở lại công', icon: 'unlock' },
   calc: { key: 'calc', label: 'Tính lương', icon: 'play', pri: true },
-  ai: { key: 'ai', label: 'Chạy AI kiểm tra', icon: 'spark', pri: true },
   reopen: { key: 'reopen', label: 'Mở lại', icon: 'unlock' },
   approvePeriod: { key: 'approve-period', label: 'Phê duyệt kỳ lương', icon: 'lock', pri: true },
   reopenPeriod: { key: 'reopen-period', label: 'Mở lại kỳ', icon: 'unlock' },
@@ -18,36 +17,12 @@ const print = (f?) => ({ key: 'print', label: `In ${f.approved} phiếu`, icon: 
 const EST = { est: 'Số màu nâu' };
 const monthNo = (month?) => Number(month.slice(5, 7));
 
-// Dải AI trên bảng. Khoá nút: findings xem phát hiện, rerun chạy lại AI, recalc tính lại lương, skip bỏ qua có lý do
-function aiBanner(kb?, f?) {
-  if (kb === 'ban-nhap') {
-    return {
-      segs: ['AI chưa kiểm tra lần tính này. Chạy AI kiểm tra để phiếu chuyển sang ', { b: 'Chờ phê duyệt' }, '.'],
-      buttons: ['recalc', 'skip']
-    };
-  }
-  const s = f.aiFindings;
-  if (!s) return null;
-  const head = { b: `AI kiểm tra lần tính ${f.run}: ${s.total} phát hiện` };
-  const count = ` · ${s.high} cao, ${s.mid} trung bình, ${s.low} thấp. `;
-  if (kb === 'da-phe-duyet' || kb === 'da-tra-luong') {
-    const tail = 'Mọi cảnh báo đã được bỏ qua kèm lý do hoặc phê duyệt riêng.';
-    return { segs: [head, count + tail], buttons: ['findings'] };
-  }
-  return {
-    segs: [head, count + 'Phiếu có cảnh báo phải phê duyệt riêng, kèm ghi chú.'],
-    buttons: ['findings', 'rerun', 'recalc', 'skip']
-  };
-}
-
 /**
  * Mô tả giao diện của một kịch bản.
- * Trả { variant, sub, actions, note, cap, ai, selection, extras, printInTools }.
- * agents: công tắc Agents; tắt thì không có dải AI, nút Chạy AI và chữ nhắc AI.
+ * Trả { variant, sub, actions, note, cap, selection, extras, printInTools }.
  */
-export function describeScenario(month?, kb?, f?, agents = false): any {
+export function describeScenario(month?, kb?, f?): any {
   const n = monthNo(month);
-  const aiOf = (k?) => (agents ? aiBanner(k, f) : null);
   if (month === '2026-11') {
     const wide = kb === 'du-cot';
     return {
@@ -70,7 +45,6 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
             ' thành số chính thức sau bước Tính lương · Tiền ngày công đã gồm nghỉ lễ hưởng lương và đã trừ đi muộn, về sớm'
           ]
         : [EST, ' thành số chính thức sau bước Tính lương'],
-      ai: null,
       selection: false,
       extras: false,
       printInTools: false
@@ -79,7 +53,6 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
   const base: Record<string, any> = {
     variant: 'draft10',
     note: null,
-    ai: null,
     selection: false,
     extras: false,
     printInTools: false
@@ -123,39 +96,28 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
           { b: `${f.calculated} phiếu` },
           ' có số, ',
           { b: `${f.failed} phiếu` },
-          agents ? ' chưa tính được · chờ AI kiểm tra' : ' chưa tính được'
+          ' chưa tính được'
         ],
-        actions: agents ? [A.formula, A.reopenHours, A.ai] : [A.formula, A.reopenHours],
-        cap: [`Bản nháp lần tính ${f.run} · số chưa phải lương chính thức cho tới khi phê duyệt kỳ lương`],
-        ai: aiOf(kb)
+        actions: [A.formula, A.reopenHours],
+        cap: [`Bản nháp lần tính ${f.run} · số chưa phải lương chính thức cho tới khi phê duyệt kỳ lương`]
       };
     case 'cho-phe-duyet':
     case 'chon-phieu':
       return {
         ...base,
         variant: 'review',
-        sub: [
-          { b: `${f.pending} phiếu` },
-          agents ? ` chờ phê duyệt · ${f.aiCards} phiếu có cảnh báo AI phải phê duyệt riêng` : ' chờ phê duyệt'
-        ],
+        sub: [{ b: `${f.pending} phiếu` }, ' chờ phê duyệt'],
         actions: [A.formula, A.reopen, A.approvePeriod],
         cap: [`Bản nháp lần tính ${f.run}`],
-        ai: aiOf(kb),
         selection: true
       };
     case 'da-duyet-50':
       return {
         ...base,
         variant: 'review',
-        sub: [
-          { b: `${f.approved}/${f.total} phiếu` },
-          agents
-            ? ` đã phê duyệt · còn ${f.pending} phiếu có cảnh báo AI chờ phê duyệt riêng`
-            : ` đã phê duyệt · còn ${f.pending} phiếu chờ phê duyệt`
-        ],
+        sub: [{ b: `${f.approved}/${f.total} phiếu` }, ` đã phê duyệt · còn ${f.pending} phiếu chờ phê duyệt`],
         actions: [A.formula, A.reopen, A.approvePeriod],
         cap: [`Bản nháp lần tính ${f.run}`],
-        ai: aiOf(kb),
         selection: true,
         printInTools: true
       };
@@ -178,7 +140,6 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
           ]
         },
         cap: [`Bản nháp lần tính ${f.run}`],
-        ai: aiOf(kb),
         selection: true,
         printInTools: true
       };
@@ -201,7 +162,6 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
           ]
         },
         cap: ['Số chính thức'],
-        ai: aiOf(kb),
         printInTools: true
       };
     default:
@@ -215,8 +175,7 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
           icon: 'lock',
           segs: ['Kỳ đã trả lương nên không mở lại được. Muốn điều chỉnh thì làm ở kỳ sau (truy thu hoặc truy lĩnh).']
         },
-        cap: ['Số chính thức · đã trả lương'],
-        ai: aiOf('da-tra-luong')
+        cap: ['Số chính thức · đã trả lương']
       };
   }
 }

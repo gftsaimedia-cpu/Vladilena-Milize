@@ -5,14 +5,12 @@ import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { approveRequests } from '@/services/admin-main';
-import { useSessionStore } from '@/stores/session';
 import { dm } from '@/utils/format';
 import FieldArea from './FieldArea.vue';
 import { monthNo } from './helpers';
 
 const props = defineProps({ items: { type: Array as () => any[], required: true } });
 const emit = defineEmits(['close', 'done']);
-const agents = computed(() => useSessionStore().agentsEnabled);
 const note = ref('');
 const busy = ref(false);
 const error = ref('');
@@ -39,7 +37,7 @@ async function submit() {
 <template>
   <AppModal
     :title="`Đồng ý ${items.length} yêu cầu`"
-    :sub="`Tháng ${monthNo(items[0]?.month)}${agents ? ' · đã qua AI kiểm tra và không có cảnh báo' : ''}`"
+    :sub="`Tháng ${monthNo(items[0]?.month)}`"
     :width="600"
     :top="160"
     @close="emit('close')"

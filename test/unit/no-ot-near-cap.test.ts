@@ -8,8 +8,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../../src/platform/db');
 const registry = require('../../src/params/registry');
-const { RULES } = require('../../src/ai/review');
-const { THRESHOLDS, PARAM_KEY } = require('../../src/ai/thresholds');
 const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 after(() => store.db.close());
@@ -28,20 +26,10 @@ const REMOVED_NAMES = [
 ];
 const REMOVED_KEYS = ['ai.rule.otNearCap.enabled', 'ai.threshold.holidayOtWarnHours', 'ai.limit.hourEpsilon'];
 
-test('luật ot-near-cap và ba ngưỡng của nó không còn trong RULES, bảng ngưỡng và PARAM_KEY', () => {
-  assert.ok(!RULES.some(rule => rule.id === 'ot-near-cap'));
-  assert.ok(!RULES.some(rule => rule.thresholds.some(name => REMOVED_NAMES.includes(name))));
-  for (const name of ['holidayOtCapHours', 'otDayCapHours', 'holidayOtWarnHours']) {
-    assert.ok(!Object.hasOwn(THRESHOLDS, name), `THRESHOLDS ${name}`);
-    assert.ok(!Object.hasOwn(PARAM_KEY, name), `PARAM_KEY ${name}`);
-  }
-});
-
 test('khoá tham số của luật không còn trong DEFAULTS và registry', () => {
   for (const key of REMOVED_KEYS) {
     assert.ok(!Object.hasOwn(DEFAULTS, key), `DEFAULTS ${key}`);
   }
-  assert.ok(!registry.AI_RULES.some(rule => rule.id === 'ot-near-cap' || rule.key === 'otNearCap'));
   assert.equal(registry.entryFor('ai.threshold.holidayOtWarnHours'), null);
   assert.ok(!registry.entries.some(entry => /holidayOtCapHours|otDayCapHours|holidayOtWarnHours/.test(entry.id)));
 });

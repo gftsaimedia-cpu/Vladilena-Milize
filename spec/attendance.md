@@ -141,7 +141,6 @@ Không có route nào mở lại lượt đã đóng hay xoá lượt bấm th�
 | --- | --- | --- |
 | `settings.holidays` | khắp nơi | mảng ngày lễ |
 | `settings.geofence` | `src/domain/attendance/geofence-policy.ts` | `{lat,lng,radiusM,maxAccuracyM}` hoặc null |
-| `settings.agents_enabled` | `src/platform/agents.ts` | `1` (bật) \| `0` (tắt, mặc định) |
 | `settings.attendance_sessions_v1` | `src/domain/attendance/attendance-sessions.ts` | dấu đã chạy đợt chuyển dữ liệu |
 | `config.CHECKOUT_GRACE_MIN` = 30 | `src/platform/config.ts` | phút Check-out muộn cho phép |
 | `config.PUNCH_REQUEST_KEEP_DAYS` = 30, `PUNCH_REQUEST_PURGE_MS` = 86400000 | | dọn `punch_requests` |
@@ -694,7 +693,6 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 - `src/domain/period/periods.ts`: `closeStaleIn`, `listSessions`, `computeFor`, `isatRefusal`.
 - `src/domain/payroll/slip-paid.ts`: `ActualHours.punchTimesOf`.
 - `src/domain/approvals/index.ts`, `src/domain/approvals/approvals.ts`: `declaredItems`/`reconcile` cho lịch khai.
-- `src/ai/review.ts`, `src/domain/ai-review.ts`: đọc lượt và lý do (`needs-review`, `incomplete-shift`…).
 - Giao diện ở mục 1.
 
 ### 6.2 Module này gọi
@@ -713,7 +711,6 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 | `PunchRules.openSessionDay` / `checkInMsg` / `occurrence` | ngày công của lượt (`date`), `checkInDay`, `CheckinEntitlement.decide`, `guardPeriod` dùng ngày đó, ca đêm cuối tháng, `/today`, `punchView` |
 | `attendance.openSessionMaxHours` | `forgotOut`, `staleBefore` (SQL `closeStaleFor`), `forgotOutDate` (`/today`), `shiftConfig` gửi nhân viên |
 | `CHECKOUT_GRACE_MIN` / `lateCheckoutMin` | `POST /api/punch` (409), lượt `forgot-out` + `requestedOut`, ngày giữ vì giải trình, nhãn "Check-out muộn", màn giải trình hai phía |
-| Trạng thái / reason của lượt | `ActualHours.inspectDay`, `AdminPresence.isUsableReal`/`#overlap`, `SessionStatus.#issues`, `/team` `pendingDays`, `periods.checklist`, `src/ai/review.ts` |
 | `ADMIN_ORIGIN` | nguồn `src/domain/attendance/attendance-sessions.ts` (cũng dùng trong SQL), `src/engine/actual-hours.ts` (chép tay), mọi `origin !==` trong `sessionOverlap`, `closedEntry` |
 | Ẩn lượt Admin chưa tới giờ ra (`NOT_SCHEDULED`) | `listSessions`, `lastSession`, `AdminPresence.sync` (`includeScheduled`), `ActualHours.apply` (lọc lại theo `asOf`), băm đầu vào kỳ lương |
 | `ActualHours.apply` (bất kỳ nhánh nào) | bộ máy lương, `actualReportView`, `/alerts`, `checkoutPreview`, `periods.checklist`, test `actual-hours`, `payroll-attendance`, `payroll-golden` |
@@ -762,7 +759,6 @@ Chỉ ghi nhận hiện trạng của mã.
 10. `attendanceHints` không bao giờ được thêm, nên `announceAttendance` và tin `attendance.changed` kind `forgot` không bao giờ phát (`src/platform/announce.ts`).
 11. `noShowDates()` luôn trả tập rỗng (`src/engine/payroll-engine.ts`); vắng thật đến từ `ActualHours.apply` (`kind:'noshow'`).
 12. (đã gỡ) Lớp `AttendanceCalendar` chưa nối đã bị xoá khỏi mã; số ngày đi làm do `ActualHours` và bộ máy lương tính.
-13. Lý do `needs-review` được nhận diện (`actual-hours.ts`, `admin-presence.ts`, `session-status.ts`, `src/ai/review.ts`) nhưng không mã nào tạo ra.
 14. Trường ghi mà không đọc: `otNeedsReview`, `otDeclarationHistory`, `otHistory` (`src/modules/attendance/attendance.controller.ts` `1410`). `punchState` trả hằng `sunday:false`, `outside:''`.
 15. Tính năng sửa giờ (`corrections`) không có route ghi nhưng `GET /api/sheet` vẫn trả `corrections` và mọi lượt vẫn kèm `corrections` (`src/domain/attendance/index.ts`); hàm kiểm `version` của lượt vẫn tên `correctionVersion` dù chỉ OT dùng.
 16. Tham số `time.maxSpanHours` (9) còn trong `src/engine/payroll-params.ts` nhưng không mã nào đọc. Các ô chính sách một giá trị (`beyondShiftRule`, `extraWindowRule`, `extraSourceRule`, `futureDaysRule`, `declaredLeaveRule`, `missingOneSideRule`, `undeclaredPunchRule`) chỉ được kiểm hợp lệ, không rẽ nhánh nào.
@@ -775,8 +771,6 @@ Chỉ ghi nhận hiện trạng của mã.
 
 ### 8.4 Hành vi dễ gây lỗi dây chuyền
 
-20. **Bước "tháng hiện tại" thay vì tháng của lượt**: `closeStale` (`attendance.ts`), `POST /api/punch` (`src/modules/attendance/attendance.controller.ts`), `LateCheckout.closedEntry` (`late-checkout-session.ts`) dùng `rulesFor()` của ngày hiện tại; lượt qua ranh giới tháng có tham số khác (giờ ca, ngưỡng) sẽ được dựng theo tháng mới. `admin-presence.ts` và `late-checkout.ts` dùng bản trần ở vài hàm (`presenceOf`, `spanH`).
-21. `closeStale` ghi punch `out` tự động với giờ lúc phát hiện, không phải lúc đủ 16 giờ (`attendance.ts`). `GET /api/punch` và `GET /api/sheet` vẫn gọi `closeStale` nên mở giao dịch ghi mỗi lần đọc khi có lượt quá hạn (`src/domain/attendance/index.ts` chỉ nói đường đọc dùng `closeStaleFor` mới lọc bằng SQL).
 22. Lượt `kind:'pending'` lý do `incomplete-shift` / `multiple-sessions` vẫn được tính tiền (`actual-hours.ts`) nhưng bị đếm vào `pendingDays` ở `/team` (`src/modules/attendance/attendance.controller.ts` / `src/modules/sheet/sheet.controller.ts`).
 23. Lượt Admin chỉ được đồng bộ khi Admin khai thay (`sheet-on-behalf.ts`): nhân viên tự đổi ngày đó (sang nghỉ, đổi giờ) thì lượt Admin cũ vẫn còn với giờ cũ.
 24. `AdminPresence.#build` ghi cả entry `pending/off-shift` khi giờ khai không chồng ca (`admin-presence.ts` + `punch.ts`): ngày đó thành "không khớp ca, chờ Admin" thay vì báo lỗi lúc lưu.

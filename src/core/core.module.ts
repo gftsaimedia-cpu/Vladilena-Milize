@@ -1,5 +1,5 @@
 import { Global, Module } from '@nestjs/common';
-import { AGENTS, AUDIT, AUTH, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from './tokens';
+import { AUDIT, AUTH, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from './tokens';
 
 /**
  * Cung cấp các dịch vụ dùng chung cho mọi module qua bộ chứa phụ thuộc của Nest: controller và lớp hỗ trợ nhận chúng
@@ -15,7 +15,6 @@ const PROVIDERS = [
   lazy(AUDIT, () => require('../platform/audit')),
   lazy(EVENTS, () => require('../platform/events')),
   lazy(RULES, () => require('../platform/request-rules')),
-  lazy(AGENTS, () => require('../platform/agents')),
   lazy(DOMAIN, () => require('../domain/container').container)
 ];
 
