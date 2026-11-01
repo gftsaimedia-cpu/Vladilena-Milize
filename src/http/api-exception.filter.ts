@@ -29,6 +29,12 @@ export class ApiExceptionFilter implements ExceptionFilter {
     // Lỗi có mã của store (PERIOD_LOCKED, SLIP_STALE, REASON_REQUIRED...): code và mã HTTP do store quyết, chi tiết trải ra như HttpError
     if (error && typeof error.code === 'string' && Number.isInteger(error.httpStatus) && error.httpStatus < 500)
       return send(res, error.httpStatus, { error: error.message, code: error.code, ...error.details });
+    // Vi phạm ràng buộc duy nhất của PostgreSQL (23505): hai yêu cầu cùng lúc chạm một dòng; bên thua là xung đột, không phải lỗi máy chủ
+    if (error && error.code === '23505')
+      return send(res, 409, {
+        error: 'Dữ liệu vừa được người khác thay đổi, hãy tải lại rồi làm lại',
+        code: 'CONFLICT'
+      });
     console.error(error);
     send(res, 500, { error: 'Lỗi máy chủ' });
   }

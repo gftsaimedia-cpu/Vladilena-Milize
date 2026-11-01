@@ -78,19 +78,20 @@
 | `WARN_NAMES_SHORT` | `5` |
 | `WRITE_RATE_PER_MINUTE` | `240` |
 
-## Biến môi trường (17)
+## Biến môi trường (18)
 
 | Biến | Đọc ở |
 | --- | --- |
 | `ACCESS_LOG` | `lib/ops/access-log.js:12` |
-| `AUDIT_KEY` | `lib/db.js:754` |
+| `AUDIT_KEY` | `lib/db.js:762` |
 | `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:39` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
-| `DATABASE_URL` | `lib/db.js:39` `lib/db.js:55` `lib/db.js:55` |
-| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:128` |
-| `DB_DIALECT` | `lib/db.js:37` |
-| `DB_PATH` | `lib/db.js:38` `lib/domain/ai-block.js:18` |
+| `DATABASE_URL` | `lib/db.js:40` `lib/db.js:57` `lib/db.js:58` |
+| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:149` |
+| `DB_DIALECT` | `lib/db.js:38` |
+| `DB_PATH` | `lib/db.js:39` `lib/domain/ai-block.js:18` |
 | `NODE_ENV` | `lib/params/save.js:69` `lib/params/save.js:73` `lib/params/save.js:89` |
 | `PARAMS_ALLOW_ACTIVATE` | `lib/params/save.js:88` |
+| `PG_TEST_URL` | `lib/db.js:59` `lib/db.js:60` |
 | `PORT` | `src/main.ts:89` |
 | `SCHEDULE_ALLOW_EDIT` | `lib/params/save.js:68` |
 | `SESSION_COOKIE_NAME` | `lib/auth.js:227` |

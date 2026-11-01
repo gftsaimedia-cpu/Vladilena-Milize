@@ -65,51 +65,60 @@ test(
     const { catalogParams } = require('../../lib/domain/catalog-params');
     const baseline = async month => digest(resolveParamSet(await catalogParams.rows(), month));
     // param_versions chỉ được thêm dòng (trigger chặn DELETE), nên dòng thử nằm trong SAVEPOINT và được ROLLBACK: các test khác thấy bảng rỗng.
-    await store.db.exec('SAVEPOINT zero_drift_probe');
+    // Giao dịch thật (SAVEPOINT chỉ dùng được trong giao dịch, và PostgreSQL nhiều kết nối không có 'một kết nối chung'): ném ROLLBACK ở cuối để hoàn tác.
+    const ROLLBACK = new Error('hoàn tác dòng thử');
+    let failure = null;
     try {
-      for (const mode of MODES) {
-        await store.setSetting('params_mode', mode);
-        for (const month of MONTHS)
+      await store.transaction(async () => {
+        try {
+          for (const mode of MODES) {
+            await store.setSetting('params_mode', mode);
+            for (const month of MONTHS)
+              assert.equal(
+                digest(unwrap(await params.resolve(month))),
+                await baseline(month),
+                `${mode} ${month} khi chưa có dòng nào`
+              );
+          }
+          await store.db
+            .prepare(
+              'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+            )
+            .run(
+              'attendance.overLimitHours',
+              '2026-10',
+              '20',
+              'Thử đổi ngưỡng giờ vượt',
+              'admin',
+              new Date(Date.now()).toISOString()
+            );
+          await store.setSetting('params_mode', 'defaults-only');
           assert.equal(
-            digest(unwrap(await params.resolve(month))),
-            await baseline(month),
-            `${mode} ${month} khi chưa có dòng nào`
+            digest(unwrap(await params.resolve('2026-10'))),
+            await baseline('2026-10'),
+            'defaults-only phải bỏ qua mọi dòng phiên bản'
           );
-      }
-      await store.db
-        .prepare(
-          'INSERT INTO param_versions (key, effective_month, value_json, reason, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-        )
-        .run(
-          'attendance.overLimitHours',
-          '2026-10',
-          '20',
-          'Thử đổi ngưỡng giờ vượt',
-          'admin',
-          new Date(Date.now()).toISOString()
-        );
-      await store.setSetting('params_mode', 'defaults-only');
-      assert.equal(
-        digest(unwrap(await params.resolve('2026-10'))),
-        await baseline('2026-10'),
-        'defaults-only phải bỏ qua mọi dòng phiên bản'
-      );
-      await store.setSetting('params_mode', 'active');
-      assert.notEqual(
-        digest(unwrap(await params.resolve('2026-10'))),
-        await baseline('2026-10'),
-        'active phải áp dụng dòng phiên bản'
-      );
-      assert.equal(
-        digest(unwrap(await params.resolve('2026-09'))),
-        await baseline('2026-09'),
-        'dòng có hiệu lực từ 2026-10 không ảnh hưởng tháng 2026-09'
-      );
-    } finally {
-      await store.db.exec('ROLLBACK TO zero_drift_probe');
-      await store.db.exec('RELEASE zero_drift_probe');
-      await store.setSetting('params_mode', 'defaults-only');
+          await store.setSetting('params_mode', 'active');
+          assert.notEqual(
+            digest(unwrap(await params.resolve('2026-10'))),
+            await baseline('2026-10'),
+            'active phải áp dụng dòng phiên bản'
+          );
+          assert.equal(
+            digest(unwrap(await params.resolve('2026-09'))),
+            await baseline('2026-09'),
+            'dòng có hiệu lực từ 2026-10 không ảnh hưởng tháng 2026-09'
+          );
+        } catch (error) {
+          failure = error;
+        }
+        throw ROLLBACK;
+      });
+    } catch (error) {
+      if (error !== ROLLBACK) throw error;
     }
+    await store.setSetting('params_mode', 'defaults-only');
+    if (failure) throw failure;
   }
 );
 

@@ -62,6 +62,7 @@ export class AttendanceController {
     if (type === 'out' && !positiveId(sessionId)) throw new HttpError(400, 'Cần ID lượt Check-out');
     const operation = JSON.stringify({ type, sessionId: type === 'out' ? sessionId : null });
     const response = await store.transaction(async () => {
+      await store.lock(`punch:${u.username}`); // mọi Check-in/out của một người xếp hàng: không hai lượt mở cùng lúc
       const prior = await store.getPunchRequest(u.username, requestId);
       if (prior) {
         if (prior.operation !== operation) throw new HttpError(409, 'requestId đã dùng cho thao tác khác');

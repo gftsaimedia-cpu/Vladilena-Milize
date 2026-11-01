@@ -17,6 +17,7 @@ export function createQueryBuilder(db: AppDatabase): Kysely<Schema> {
   return useFlavor(new Kysely<Schema>({ dialect }), typeof db.native === 'function' ? flavors.postgres : flavors.sqlite);
 }
 export { flavorOf } from './flavor';
+export { AdvisoryLocks } from './locks';
 export type { SqlFlavor } from './flavor';
 export {
   PayrollPeriodsRepository,
