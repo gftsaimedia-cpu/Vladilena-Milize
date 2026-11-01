@@ -6,6 +6,6 @@
     "public/formula.js": 2900,
     "public/payroll-engine.js": 1700,
     "lib/db.ts": 1700,
-    "scripts/db/demo/scenarios.js": 1600
+    "scripts/db/demo/scenarios.ts": 1600
   }
 }

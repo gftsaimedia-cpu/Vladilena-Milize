@@ -47,7 +47,7 @@ Thuật ngữ dùng trong tài liệu:
 | `src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts` (phần liên quan) | `SLIP_MONEY`, `SLIP_QTY`, `warnFrozen`, `guardPeriod`, các route `/api/periods...`, `/api/me/estimate`, `/api/slip-override`, `/api/ai/review`, `/api/ai/findings/dismiss`; ánh xạ lỗi có mã sang HTTP. |
 | `lib/authz.ts` (phần liên quan) | `ROUTE_CAPS` và `routeKey` của các route trên. |
 | `lib/events.ts` (phần liên quan) | Sự kiện SSE `period.changed`, `payslip.available`, `estimate.changed`. |
-| `scripts/dev/sandbox-server.cjs` | Máy chủ thử: DB trong RAM, đồng hồ giả, route điều khiển `/__sandbox/...`; đặt lại dữ liệu xoá cả bảng kỳ lương (mục 4.17). |
+| `scripts/dev/sandbox-server.ts` | Máy chủ thử: DB trong RAM, đồng hồ giả, route điều khiển `/__sandbox/...`; đặt lại dữ liệu xoá cả bảng kỳ lương (mục 4.17). |
 
 Giao diện đọc các route trên: ứng dụng Vue ở `web/` (màn Bảng lương, hộp phiếu, phiếu chi tiết, bản in A4 `web/src/views/print/A4Payslip.vue`). Máy chủ phục vụ giao diện từ `web/dist` khi đã build (`lib/http.ts`).
 
@@ -537,7 +537,7 @@ Mọi phiếu của lần chạy hiện hành; `loadInputs(month, { usernames, a
 
 ### 4.17 Sandbox
 
-`scripts/dev/sandbox-server.cjs` chạy máy chủ thật với `DB_PATH=:memory:` (DB trong RAM), đồng hồ giả (`Date.now` và `new Date()` theo đồng hồ của sandbox) và chỉ nghe loopback. Route điều khiển `GET /__sandbox/state`, `GET /__sandbox/ops`, `POST /__sandbox/clock | user | reset` và các thao tác tải/sao lưu (`sandbox-ops.cjs`); POST cần header `X-Sandbox-Control`. Không lùi đồng hồ được khi đã có dữ liệu chấm công. `POST /__sandbox/reset` (cần `confirm: true`) xoá dữ liệu chấm công, giải trình, lịch khai, `slip_overrides`, KPI, nhân sự, cài đặt rồi nạp lại nhân sự mẫu; đồng thời xoá cả bảng trạng thái kỳ lương `payslips`, `payroll_runs`, `payroll_periods`, `ai_finding_actions`, `ai_review_runs`, `pay_entries`, `advance_requests` (gỡ trigger không cho xoá, xoá dòng, tạo lại trigger từ `sqlite_master`); nhật ký `audit_log` không bị xoá.
+`scripts/dev/sandbox-server.ts` chạy máy chủ thật với `DB_PATH=:memory:` (DB trong RAM), đồng hồ giả (`Date.now` và `new Date()` theo đồng hồ của sandbox) và chỉ nghe loopback. Route điều khiển `GET /__sandbox/state`, `GET /__sandbox/ops`, `POST /__sandbox/clock | user | reset` và các thao tác tải/sao lưu (`sandbox-ops.ts`); POST cần header `X-Sandbox-Control`. Không lùi đồng hồ được khi đã có dữ liệu chấm công. `POST /__sandbox/reset` (cần `confirm: true`) xoá dữ liệu chấm công, giải trình, lịch khai, `slip_overrides`, KPI, nhân sự, cài đặt rồi nạp lại nhân sự mẫu; đồng thời xoá cả bảng trạng thái kỳ lương `payslips`, `payroll_runs`, `payroll_periods`, `ai_finding_actions`, `ai_review_runs`, `pay_entries`, `advance_requests` (gỡ trigger không cho xoá, xoá dòng, tạo lại trigger từ `sqlite_master`); nhật ký `audit_log` không bị xoá.
 
 ### 4.18 Tình trạng chuyên cần (`allowanceStatus`, `lib/periods.ts`)
 
@@ -611,7 +611,7 @@ Mọi dòng có thể kèm `after.warnings`, `after.self` (4.22).
 ### 6.1 Ai gọi module này
 
 - `src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts`: mọi route mục 3; `warnings.run` bọc mỗi yêu cầu; `warnFrozen`/`guardPeriod` dùng `store.periods`.
-- `scripts/ops/pg-backup.js`: `require('../../lib/periods')` (kiểm bản sao lưu); `scripts/params/wired.js`.
+- `scripts/ops/pg-backup.ts`: `require('../../lib/periods')` (kiểm bản sao lưu); `scripts/params/wired.ts`.
 - `lib/payroll-service.ts` được dùng bởi: `lib/periods.ts`, `lib/period-stale.ts`, `lib/slip-pins.ts` (`engineFor`), `lib/advance-cap.ts` (số tạm ứng theo quy tắc), `lib/domain/ai-review.ts` (`previousMonth`), `lib/domain/sheet.ts` (`estimateDays`), `lib/params/save.ts` (xem trước tác động tham số, dùng `COMPONENTS`, `thanhPhanOf`).
 - `lib/warnings.ts` được dùng bởi gần như mọi module ghi (`lib/db.ts`, `lib/approvals.ts`, `lib/advance-requests.ts`, `lib/findings.ts`, `lib/params/save.ts`, `lib/params/validate.ts`, `lib/roles.ts`, `lib/domain/*`); `lib/http.ts` (gộp cảnh báo), `lib/audit.ts` (mã cảnh báo vào nhật ký).
 - `store.assertPeriodOpen` (cổng khoá kỳ của module này) được gọi từ: `src/http/api-gate.ts` (`guardPeriod` và nhiều route lịch, chấm công, OT, KPI), `lib/pay-entries.ts`, `lib/advance-requests.ts`, `lib/params/save.ts`, `lib/domain/attendance/admin-presence.ts`, `lib/domain/shared/catalog-change.ts`.
@@ -735,7 +735,7 @@ Liệt kê để người sửa biết chỗ dễ vỡ; tài liệu này không 
 28. `store.periods.markReviewed` kiểm `current.status !== 'open' && currentRunId == null` (`lib/db.ts`); vế `'open'` vô nghĩa vì `advancePeriod` ngay sau chỉ nhận `calculated|reviewed`.
 29. Ô `leaveLeft` và `kpiBonus` thuộc `SLIP_QTY` (`src/modules/periods/periods.helpers.ts` `173`) được lưu nhưng không có tác dụng (không thuộc `PayrollPins.KEYS` hay ô tiền) và không có cảnh báo.
 30. `kpiAmt` nằm trong `SLIP_MONEY` (làm tròn như tiền) nhưng thực chất là ô ghim (`PayrollPins.KPI_KEYS`), không thuộc `SLIP_INCOME_KEYS`.
-31. `ENTRIES_REQUIRE_APPROVAL`, `ENTRIES_MAX_PER_BATCH`, `ENTRIES_MAX_AMOUNT` của `lib/config.ts` không được `lib/pay-entries.ts` đọc (đọc `system.entries.*`); chỉ `scripts/params/key-map.js` nhắc tới.
+31. `ENTRIES_REQUIRE_APPROVAL`, `ENTRIES_MAX_PER_BATCH`, `ENTRIES_MAX_AMOUNT` của `lib/config.ts` không được `lib/pay-entries.ts` đọc (đọc `system.entries.*`); chỉ `scripts/params/key-map.ts` nhắc tới.
 32. `store.payroll.listPayslips` nhận bộ lọc `type` trong SQL (`lib/db.ts`), nhưng `periods.payslips` không truyền mà tự lọc sau khi lấy cả tập.
 
 ### 9.4 Số nghiệp vụ / giới hạn viết cứng

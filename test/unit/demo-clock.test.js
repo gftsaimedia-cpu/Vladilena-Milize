@@ -1,6 +1,6 @@
 'use strict';
 // DB demo chỉ có MỘT "bây giờ" (ngày today lúc S.NOW_TIME giờ Việt Nam, ghi ở khoá demo_dataset) và serve-demo chạy đồng hồ giả từ đúng mốc đó.
-// scripts/db/demo/selfcheck.js → clockProblems báo mọi phiên, lượt bấm hay yêu cầu điều chỉnh nằm sau mốc; phiên còn mở phải thuộc ngày today trở về trước.
+// scripts/db/demo/selfcheck.ts → clockProblems báo mọi phiên, lượt bấm hay yêu cầu điều chỉnh nằm sau mốc; phiên còn mở phải thuộc ngày today trở về trước.
 // Bài dựng bộ dữ liệu demo (người bịa demo_*) trong bộ nhớ, không mở data/demo.sqlite hay data/luong.sqlite.
 process.env.DB_PATH = ':memory:';
 const { test, before } = require('node:test');
@@ -8,10 +8,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const S = require('../../scripts/db/demo/scenarios.js');
-const H = require('../../scripts/db/demo/helpers.js');
-const gen = require('../../scripts/db/demo/generate.js');
-const selfcheck = require('../../scripts/db/demo/selfcheck.js');
+const S = require('../../scripts/db/demo/scenarios.ts');
+const H = require('../../scripts/db/demo/helpers.ts');
+const gen = require('../../scripts/db/demo/generate.ts');
+const selfcheck = require('../../scripts/db/demo/selfcheck.ts');
 const store = require('../../lib/db');
 const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
 
@@ -62,7 +62,7 @@ test('L4: clockProblems báo phiên còn mở thuộc ngày sau today và khoá 
 });
 
 test('L4: serve-demo mặc định lấy --today từ khoá demo_dataset của chính DB demo, không còn ngày gõ cứng', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../scripts/db/demo/serve-demo.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../../scripts/db/demo/serve-demo.ts'), 'utf8');
   assert.match(source, /datasetToday/, 'đọc today từ demo_dataset');
   assert.doesNotMatch(source, /'2026-11-02'/, 'không còn ngày mặc định gõ cứng');
 });

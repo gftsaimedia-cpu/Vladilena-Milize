@@ -17,7 +17,7 @@
     typeof module !== 'undefined' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
   // Số ngày cộng cho mỗi sự kiện đọc từ bộ tham số phẳng `params` qua create(params); hàm trần của mô-đun = create(mặc định), mặc định
   // là PayrollParams.DEFAULTS. FALLBACK là bản chép của đúng các khoá mô-đun này đọc, để trang chưa nạp payroll-params.js
-  // vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.js kiểm).
+  // vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts kiểm).
   const FALLBACK = Object.freeze({
     'leave.accrual.start': 0, // ngày vào làm không cộng thêm
     'leave.accrual.perMonth': 1, // mỗi tháng làm việc tròn

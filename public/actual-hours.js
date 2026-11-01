@@ -20,7 +20,7 @@
   // đổi giá trị khoá đó (và ALLOWED bên dưới).
   //
   // FALLBACK: bản chép của đúng các khoá mô-đun này đọc, để trang chưa nạp payroll-params.js (và các test nạp mô-đun
-  // trong `vm` không có `require`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.js kiểm).
+  // trong `vm` không có `require`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts kiểm).
   const FALLBACK = Object.freeze({
     'attendance.graceMin': 15,
     'attendance.stepMin': 30,

@@ -1,5 +1,5 @@
 'use strict';
-// Đặt lại dữ liệu thử của sandbox (scripts/dev/sandbox-server.cjs → resetSyntheticData) xoá luôn giải trình: sau khi đặt lại,
+// Đặt lại dữ liệu thử của sandbox (scripts/dev/sandbox-server.ts → resetSyntheticData) xoá luôn giải trình: sau khi đặt lại,
 // danh sách giải trình trống và đồng hồ lùi lại được (không còn dữ liệu chấm công nào chặn). Sandbox chạy ở tiến trình con, cổng 3411.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
@@ -41,7 +41,7 @@ const control = (route, body) => call('POST', '/__sandbox/' + route, body, true)
 before(async () => {
   child = spawn(
     process.execPath,
-    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.cjs')],
+    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.ts')],
     {
       cwd: project,
       env: { ...process.env, SANDBOX_PORT: String(PORT), DB_PATH: ':memory:', COOKIE_SECURE: '1' },

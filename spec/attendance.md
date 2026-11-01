@@ -703,7 +703,7 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 
 ### 6.3 Dùng chung trình duyệt và máy chủ
 
-`public/punch.js`, `public/actual-hours.js`, `public/work-schedule.js`, `public/payroll-calendar.js`, `public/approval-view.js`, `public/payroll-engine.js`, `public/payroll-params.js`, `public/attendance-status.js`. Mỗi file có `FALLBACK` phải bằng `PayrollParams.DEFAULTS` (`scripts/params/check-fallbacks.js`). Máy chủ dùng bản `rulesFor(tháng).<mô-đun>`; trình duyệt và vài chỗ máy chủ (`admin-presence.ts` và `late-checkout.ts` dùng bản trần/mặc định ở một số hàm) dùng bản mặc định.
+`public/punch.js`, `public/actual-hours.js`, `public/work-schedule.js`, `public/payroll-calendar.js`, `public/approval-view.js`, `public/payroll-engine.js`, `public/payroll-params.js`, `public/attendance-status.js`. Mỗi file có `FALLBACK` phải bằng `PayrollParams.DEFAULTS` (`scripts/params/check-fallbacks.ts`). Máy chủ dùng bản `rulesFor(tháng).<mô-đun>`; trình duyệt và vài chỗ máy chủ (`admin-presence.ts` và `late-checkout.ts` dùng bản trần/mặc định ở một số hàm) dùng bản mặc định.
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 

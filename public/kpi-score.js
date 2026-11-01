@@ -16,7 +16,7 @@
   // Mọi trọng số, mốc Base Wework và ô chính sách đến từ bộ tham số phẳng `params` qua create(params); hàm trần của mô-đun =
   // create(mặc định), mặc định là PayrollParams.DEFAULTS. FALLBACK là bản chép của đúng các khoá mô-đun này đọc,
   // để trang chưa nạp payroll-params.js (và test nạp mô-đun trong `vm`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS
-  // (scripts/params/check-fallbacks.js kiểm).
+  // (scripts/params/check-fallbacks.ts kiểm).
   const FALLBACK = Object.freeze({
     'kpi.weight.wework': 40, // Base Wework
     'kpi.weight.user': 24, // người dùng

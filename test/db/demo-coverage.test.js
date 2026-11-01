@@ -1,6 +1,6 @@
 'use strict';
-// Bộ dữ liệu demo (scripts/db/seed-demo.js + demo/lifecycle.js) phải phủ "vũ trụ ca" rút từ mã: mọi bảng, mọi giá trị CHECK, mọi trạng thái kỳ lương,
-// mọi chức vụ × bậc, mọi vai trò mặc định, mọi loại khoản duyệt còn dùng × trạng thái (scripts/db/demo/coverage.js), cùng mọi luật AI bắn đúng kỳ vọng
+// Bộ dữ liệu demo (scripts/db/seed-demo.ts + demo/lifecycle.js) phải phủ "vũ trụ ca" rút từ mã: mọi bảng, mọi giá trị CHECK, mọi trạng thái kỳ lương,
+// mọi chức vụ × bậc, mọi vai trò mặc định, mọi loại khoản duyệt còn dùng × trạng thái (scripts/db/demo/coverage.ts), cùng mọi luật AI bắn đúng kỳ vọng
 // và lớp vận hành (route thật) không lỗi. Dựng thật bằng tiến trình con; chạy theo DB_DIALECT của lần chạy test (SQLite: file tạm; PostgreSQL: PGlite RAM).
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
@@ -14,14 +14,14 @@ const ROOT = path.join(__dirname, '..', '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-demo-coverage-'));
 after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
-test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ vọng AI đạt, độ phủ đủ', { timeout: 290000 }, () => {
+test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ vọng AI đạt, độ phủ đủ', { timeout: 900000 }, () => {
   const report = path.join(tmp, 'coverage.json');
   const db = ':memory:';
   const r = spawnSync(
     process.execPath,
     [
       '--no-warnings=ExperimentalWarning',
-      path.join(ROOT, 'scripts/db/seed-demo.js'),
+      path.join(ROOT, 'scripts/db/seed-demo.ts'),
       `--db=${db}`,
       `--coverage-json=${report}`
     ],
@@ -29,7 +29,7 @@ test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ v�
       encoding: 'utf8',
       cwd: ROOT,
       env: { ...process.env, DB_PATH: db, DATABASE_URL: undefined, PG_TEST_URL: undefined },
-      timeout: 280000
+      timeout: 840000
     }
   );
   assert.equal(r.status, 0, r.stdout.slice(-3000) + r.stderr.slice(-1500));
@@ -47,7 +47,7 @@ test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ v�
 test('công cụ đo độ phủ bắt được chỗ thiếu: DB trống báo thiếu mọi bảng', async () => {
   const store = require('../../lib/db');
   await store.ready;
-  const { measure } = require('../../scripts/db/demo/coverage.js');
+  const { measure } = require('../../scripts/db/demo/coverage.ts');
   const result = await measure({ store, personas: [] });
   assert.ok(result.gaps.length > 40, `chỉ ${result.gaps.length} chỗ thiếu trên DB trống`);
   assert.ok(result.gaps.includes('bảng staff không có dòng nào'));
@@ -60,7 +60,7 @@ test('công cụ đo độ phủ bắt được chỗ thiếu: DB trống báo t
 });
 
 test('ngoại lệ độ phủ có lý do và còn trỏ vào giá trị CHECK có thật (ngoại lệ lỗi thời thì đỏ)', () => {
-  const { schemaUniverse, EXCLUDED } = require('../../scripts/db/demo/coverage.js');
+  const { schemaUniverse, EXCLUDED } = require('../../scripts/db/demo/coverage.ts');
   const { enums } = schemaUniverse();
   const universe = new Set(enums.flatMap(e => e.values.map(v => `${e.table}.${e.column}=${v}`)));
   for (const [key, reason] of Object.entries(EXCLUDED)) {

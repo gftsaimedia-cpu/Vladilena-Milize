@@ -203,7 +203,7 @@ function rulesOf(entry?, key?, params?, columnKey?) {
 }
 
 /* ---------- công thức tháng: { text, tree } (khoá formula.<tên>) ---------- */
-// Khoá formula.* là locked: Admin không lưu được (save.js trả PARAM_LOCKED trước khi vào đây). Hàm này còn để scripts/params/check.js kiểm
+// Khoá formula.* là locked: Admin không lưu được (save.js trả PARAM_LOCKED trước khi vào đây). Hàm này còn để scripts/params/check.ts kiểm
 // CẤU TRÚC của 7 công thức mặc định (validateValue với structureOnly) và để store.resolve kiểm dòng do `system` ghi.
 // Dùng đúng mô-đun public/formula.js: deserialize từ chối cây hỏng, validate kiểm từ vựng, đơn vị, vòng lặp và thành phần bắt buộc theo luật.
 // Lỗi trả nguyên mã của mô-đun, mọi lỗi nằm ở `errors`. Giá trị lưu là { text, tree } với tree đã serialize lại (dạng chuẩn).

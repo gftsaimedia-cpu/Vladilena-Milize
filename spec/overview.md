@@ -40,7 +40,7 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết đ
 ### 2.1 Thành phần
 
 - **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `src/server.ts` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, chạy thẳng TypeScript bằng `tsx` (`node --import tsx src/server.ts`, không có bước build; test và script đi qua `scripts/dev/ts.cjs` đặt `NODE_OPTIONS=--import=tsx` để cả tiến trình con nạp được `.ts`), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.js`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
-- **Cơ sở dữ liệu**: **PostgreSQL** (`lib/db.ts`), chọn bằng biến môi trường, không có mặc định: `DATABASE_URL` → `pg.Pool` (máy chủ thật, vận hành); `PG_TEST_URL` → test chạy trên máy chủ thật, mỗi tiến trình một database riêng; `DB_PATH=:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev. Lược đồ do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.ts` (bảng `schema_migrations`). Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Truy vấn của ứng dụng là **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`), biên dịch thẳng ra PostgreSQL (`$1`, `ILIKE`, `jsonb`; cú pháp riêng gom ở `src/data/flavor.ts`) và chạy qua đúng kết nối của ứng dụng nên nằm trong `store.transaction`. Mọi aggregate của `lib/db.ts` (`settings`, nhật ký, tham số, kỳ lương/lần chạy/phiếu, AI, vai trò, nhân sự, bảng công, KPI), các store `approvals`, `attendance-sessions`, `pay-entries`, `advance-requests` và các lớp `lib/domain` (ca, chức vụ, sổ phép, giải trình, hồ sơ) đi qua các `*Repository` trong `src/data`. SQL thô chỉ còn ở công cụ sao lưu `lib/ops/pg-backup.ts` (đọc/ghi mọi bảng theo tên), bộ điều hợp `PostgresDatabase` và kiểm sức khoẻ; `test/unit/raw-sql-ratchet.test.js` giữ số đó chỉ giảm và cấm controller import `src/data`. Ghi đồng thời an toàn nhờ khoá tư vấn `store.lock` (`src/data/locks.ts`) và 409 cho vi phạm ràng buộc duy nhất. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.js`.
+- **Cơ sở dữ liệu**: **PostgreSQL** (`lib/db.ts`), chọn bằng biến môi trường, không có mặc định: `DATABASE_URL` → `pg.Pool` (máy chủ thật, vận hành); `PG_TEST_URL` → test chạy trên máy chủ thật, mỗi tiến trình một database riêng; `DB_PATH=:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev. Lược đồ do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.ts` (bảng `schema_migrations`). Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Truy vấn của ứng dụng là **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`), biên dịch thẳng ra PostgreSQL (`$1`, `ILIKE`, `jsonb`; cú pháp riêng gom ở `src/data/flavor.ts`) và chạy qua đúng kết nối của ứng dụng nên nằm trong `store.transaction`. Mọi aggregate của `lib/db.ts` (`settings`, nhật ký, tham số, kỳ lương/lần chạy/phiếu, AI, vai trò, nhân sự, bảng công, KPI), các store `approvals`, `attendance-sessions`, `pay-entries`, `advance-requests` và các lớp `lib/domain` (ca, chức vụ, sổ phép, giải trình, hồ sơ) đi qua các `*Repository` trong `src/data`. SQL thô chỉ còn ở công cụ sao lưu `lib/ops/pg-backup.ts` (đọc/ghi mọi bảng theo tên), bộ điều hợp `PostgresDatabase` và kiểm sức khoẻ; `test/unit/raw-sql-ratchet.test.js` giữ số đó chỉ giảm và cấm controller import `src/data`. Ghi đồng thời an toàn nhờ khoá tư vấn `store.lock` (`src/data/locks.ts`) và 409 cho vi phạm ràng buộc duy nhất. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.ts`.
 - **Mô-đun dùng chung trình duyệt và máy chủ (UMD) trong `public/`**: cùng một file nạp bằng `<script>` ở trình duyệt và `require` ở máy chủ. Gồm bộ máy tính lương (`payroll-engine.js`, `payroll-calendar.js`, `payroll-day-parts.js`, `payroll-graph.js`, `payroll-pins.js`, `pay-*-calc.js`), tham số mặc định (`payroll-params.js`), quy tắc chấm công (`punch.js`, `actual-hours.js`, `work-schedule.js`), quy tắc phép và KPI (`leave.js`, `kpi-score.js`), duyệt khoản (`approval-view.js`), công thức (`formula.js`, `formula-vocab.js`), nhãn chấm công (`attendance-status.js`). **Số tiền chính thức chỉ do máy chủ tính**; trình duyệt dùng cùng mã để hiển thị, xem trước và kiểm.
 - **Giao diện**: ứng dụng Vue 3 ở `web/` (build ra `web/dist`; `lib/http.ts` → `serveStatic` phục vụ `web/dist` ở "/" và mọi đường dẫn của router Vue; chưa build thì "/" trả 503 kèm cách build, `/api` vẫn chạy). Giao diện tĩnh cũ trong `public/` đã bỏ; `public/` chỉ còn các mô-đun tính lương mà máy chủ nạp bằng `require`. Tham chiếu route của giao diện: `spec/reference/web-routes.md`.
 - **Sự kiện thời gian thực**: `GET /api/events` (SSE, `lib/events.ts`). Sự kiện: `params.changed`, `period.changed`, `approvals.changed`, `attendance.changed`, `request.decided`, `punch.corrected`, `punch.changed`, `estimate.changed`, `payslip.available`, `roles.changed`, `announcement.posted`. Phát sau khi giao dịch COMMIT; mỗi sự kiện chọn người nhận và lọc trường theo quyền; màn hình tự nối lại và đồng bộ lại bằng `configRev`.
@@ -53,7 +53,7 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết đ
 - **Nhật ký kiểm toán**: `audit_log` ghi cùng giao dịch với thay đổi, chuỗi băm để kiểm (`GET /api/audit/verify`).
 - **Giới hạn tải**: giới hạn đồng thời băm mật khẩu, giới hạn tốc độ ghi theo người, từ chối route nặng khi vòng lặp sự kiện trễ kéo dài (`lib/ops/`, dựng ở `src/http/load-control.ts`, áp ở `ApiGate`).
 - **AI rà soát theo luật** (`lib/ai/`): không gọi mô hình hay mạng; 22 luật thuần chạy trên dữ liệu tháng (ví dụ `isat-frequency`, `leave-with-checkin`, `ot-checkin-mismatch`, `negative-leave`, `net-nonpositive`, `locked-with-pending`, `override-looks-like-entry`). Kết quả vào bước "AI kiểm tra" của kỳ và, khi công tắc Agents bật, chặn duyệt khoản dính luật nặng (`lib/domain/ai-block.ts`, 409 `AI_BLOCKED`).
-- **Sandbox**: máy chủ thử `scripts/dev/sandbox-server.cjs` (mục 4.2).
+- **Sandbox**: máy chủ thử `scripts/dev/sandbox-server.ts` (mục 4.2).
 - **Giao diện Vue** ở `web/`: front-end tách rời, gọi `/api` qua `web/src/services/*`; các spec giao diện mô tả bộ tĩnh cũ ở `public/`.
 
 ### 2.2 Một yêu cầu `/api/*` đi qua
@@ -154,11 +154,11 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   └── slip/                  Ảnh dùng cho phiếu A4 (logo, khẩu hiệu, hình mờ)
 ├── scripts/
 │   ├── seed.js                npm run seed: nạp mẫu, kiểm đường dẫn DB trước khi mở
-│   ├── dev/                   sandbox-server.cjs, sandbox-ops.cjs, sandbox.html, sandbox.js, sandbox-ops.js, scenarios/ (bộ dựng DB kịch bản cả năm)
+│   ├── dev/                   sandbox-server.ts, sandbox-ops.ts, sandbox.html, sandbox.js, sandbox-ops.js, scenarios/ (bộ dựng DB kịch bản cả năm)
 │   ├── db/                    Công cụ DB: dữ liệu demo, kiểm migration, kiểm hiệu năng (chỉ nêu tên thư mục)
-│   ├── ops/                   pg-backup.js, pg-backup.js, pg-backup.js, pg-backup.js, pg-backup.js, params-mode.js
+│   ├── ops/                   pg-backup.js, pg-backup.js, pg-backup.js, pg-backup.js, pg-backup.js, params-mode.ts
 │   ├── params/                Công cụ registry: extract-defaults, lock, check, doc, wired, plain-text, key-map...
-│   └── loadtest/              Bộ đo tải qua HTTP (run.js, perf-1000.js, kit/, runs/)
+│   └── loadtest/              Bộ đo tải qua HTTP (run.ts, perf-1000.ts, kit/, runs/)
 ├── spec/                      Bộ SPEC này
 ├── test/
 │   ├── unit/                  130 file test đơn vị
@@ -182,9 +182,9 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 | --- | --- |
 | `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts`. Đọc `.env` cạnh `src/server.ts` (`src/env.ts`, không ghi đè biến đã đặt). Cần `DATABASE_URL` (máy chủ PostgreSQL) hoặc `DB_PATH` (PGlite, để thử). DB trống thì tạo tài khoản `admin` bằng `ADMIN_PASSWORD`, không đặt thì mật khẩu ngẫu nhiên (không hiển thị); `NODE_ENV=production` đòi mật khẩu đủ dài. |
 | `npm run sandbox` | Máy chủ thử (mục 4.2). |
-| `npm run seed` | `scripts/seed.js`: nạp tài khoản mẫu vào DB trỏ bởi `DB_PATH`, từ chối đường dẫn trùng DB thật. Chỉ thêm tài khoản chưa có. |
-| `npm run seed:demo` | `scripts/db/seed-demo.js`: nạp bộ dữ liệu demo. |
-| `npm run backup` | `scripts/ops/pg-backup.js`: sao lưu nhất quán, kiểm toàn vẹn, xoay vòng. |
+| `npm run seed` | `scripts/seed.ts`: nạp tài khoản mẫu vào DB trỏ bởi `DB_PATH`, từ chối đường dẫn trùng DB thật. Chỉ thêm tài khoản chưa có. |
+| `npm run seed:demo` | `scripts/db/seed-demo.ts`: nạp bộ dữ liệu demo. |
+| `npm run backup` | `scripts/ops/pg-backup.ts`: sao lưu nhất quán, kiểm toàn vẹn, xoay vòng. |
 | `npm test` | `node --test "test/**/*.test.js"`. |
 | `npm run test:unit`, `test:api`, `test:ui` | Chạy riêng từng thư mục. |
 | `npm run format`, `format:check` | Prettier. |
@@ -194,7 +194,7 @@ Biến môi trường chính: `PORT`, `DB_PATH`, `ADMIN_PASSWORD`, `SESSION_SECR
 
 ### 4.2 Sandbox
 
-`scripts/dev/sandbox-server.cjs` nạp `src/server.ts` (ứng dụng NestJS) trong một tiến trình riêng:
+`scripts/dev/sandbox-server.ts` nạp `src/server.ts` (ứng dụng NestJS) trong một tiến trình riêng:
 
 - DB luôn là `:memory:` (ghi đè cả biến shell), chỉ nghe `127.0.0.1`, từ chối kết nối không phải loopback.
 - Cổng lấy từ `SANDBOX_PORT` (mặc định 3104; `0` để hệ điều hành chọn). Ví dụ: `SANDBOX_PORT=0 npm run sandbox`; dòng `SANDBOX_READY ...` in cổng thật.
@@ -209,12 +209,12 @@ Biến môi trường chính: `PORT`, `DB_PATH`, `ADMIN_PASSWORD`, `SESSION_SECR
 | `POST /__sandbox/clock` `{ local: 'YYYY-MM-DDTHH:mm[:ss]' }` | Đặt đồng hồ (giờ Việt Nam). Không lùi được khi đã có dữ liệu chấm công. |
 | `POST /__sandbox/user` `{ username }` | Chọn tài khoản đang đóng vai. |
 | `POST /__sandbox/reset` `{ confirm: true }` | Xoá dữ liệu thử và dựng lại tài khoản mẫu; xoá cả bảng kỳ lương (`payroll_periods`, `payroll_runs`, `payslips`, kết quả AI, khoản điền thêm, tạm ứng). Không đụng `audit_log`. |
-| `POST /__sandbox/load-seed`, `load-run`, `load-cancel`, `backup`, `corrupt`, `verify`, `drill` | Thử tải, sao lưu, làm hỏng bản sao, kiểm và diễn tập khôi phục (`sandbox-ops.cjs`). |
+| `POST /__sandbox/load-seed`, `load-run`, `load-cancel`, `backup`, `corrupt`, `verify`, `drill` | Thử tải, sao lưu, làm hỏng bản sao, kiểm và diễn tập khôi phục (`sandbox-ops.ts`). |
 | `GET /` , `/app` | Trang điều khiển và lối vào giao diện của tài khoản đang chọn. |
 
 Mọi `POST /__sandbox/*` đòi header `x-sandbox-control: 1` và `Origin` cùng địa chỉ với `Host`.
 
-`scripts/dev/scenarios/` dựng một DB kịch bản cả năm (`generate.cjs`), phục vụ nó bằng một máy chủ xem (`server.cjs`) và đối chiếu kết quả (`verify.cjs`); file sinh ra nằm trong `out/` (không đưa vào git).
+`scripts/dev/scenarios/` dựng một DB kịch bản cả năm (`scripts/dev/scenarios/generate.ts`), phục vụ nó bằng một máy chủ xem (`scripts/dev/scenarios/server.ts`) và đối chiếu kết quả (`verify.ts`); file sinh ra nằm trong `out/` (không đưa vào git).
 
 ### 4.3 Test
 

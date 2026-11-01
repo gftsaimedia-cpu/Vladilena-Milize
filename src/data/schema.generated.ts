@@ -1,4 +1,4 @@
-// Sinh tự động bởi scripts/docs/gen-db-types.js (npm run db:types) từ migrations/postgres/*.sql. Đừng sửa tay.
+// Sinh tự động bởi scripts/docs/gen-db-types.ts (npm run db:types) từ migrations/postgres/*.sql. Đừng sửa tay.
 import type { ColumnType } from 'kysely';
 
 /** Cột có giá trị mặc định / tự sinh: đọc ra T, có thể bỏ khi INSERT. */

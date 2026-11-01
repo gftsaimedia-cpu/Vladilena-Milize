@@ -1,5 +1,5 @@
 'use strict';
-// scripts/db/migrate-sqlite-to-pg.js: chuyển một DB SQLite (file fixture của lược đồ cũ) sang PostgreSQL trong
+// scripts/db/migrate-sqlite-to-pg.ts: chuyển một DB SQLite (file fixture của lược đồ cũ) sang PostgreSQL trong
 // tiến trình (PGlite, --to=memory) và đối chiếu số dòng, dấu vân tay từng bảng, tổng tiền từng kỳ lương. Không đụng DB thật.
 // Chạy giống nhau ở hai chế độ DB_DIALECT vì mọi thứ chạy trong tiến trình con có môi trường riêng.
 const { test, before, after } = require('node:test');

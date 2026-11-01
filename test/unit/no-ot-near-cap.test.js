@@ -50,7 +50,7 @@ test('không tệp nào trong lib, public, scripts, server.js và spec còn nh�
   const walk = folder =>
     fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap(entry => {
       const rel = path.posix.join(folder, entry.name);
-      return entry.isDirectory() ? walk(rel) : /\.(js|cjs|html|json|md)$/.test(entry.name) ? [rel] : [];
+      return entry.isDirectory() ? walk(rel) : /\.(js|cjs|ts|html|json|md)$/.test(entry.name) ? [rel] : [];
     });
   const files = ['src/server.ts', ...walk('lib'), ...walk('public'), ...walk('scripts'), ...walk('spec')];
   assert.ok(files.length > 100, 'quét đủ tệp');

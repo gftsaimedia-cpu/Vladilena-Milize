@@ -1,6 +1,6 @@
 # Lược đồ cơ sở dữ liệu
 
-> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `migrations/postgres/*.sql`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `migrations/postgres/*.sql`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
 Migration có đánh số, chạy theo thứ tự và ghi vào `schema_migrations` (`lib/data/postgres-database.ts`): `0001_baseline.sql`, `0002_seed.sql`.
 

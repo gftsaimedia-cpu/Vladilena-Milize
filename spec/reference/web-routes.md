@@ -1,6 +1,6 @@
 # Route của giao diện Vue
 
-> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `web/src/router/index.js` và `web/src/router/routes/*.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `web/src/router/index.js` và `web/src/router/routes/*.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
 Giao diện duy nhất là ứng dụng Vue 3 ở `web/` (máy chủ phục vụ `web/dist`; mọi đường dẫn không có đuôi file trả `index.html`, router Vue xử lý tiếp). Cột *khung* là `meta.layout` (`admin`, `phone`, `staffDesktop`, `blank`).
 

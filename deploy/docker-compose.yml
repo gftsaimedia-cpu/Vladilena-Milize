@@ -54,7 +54,7 @@ services:
         max-file: '5'
     # HEALTHCHECK đã nằm trong Dockerfile (GET /api/me)
 
-  # PostgreSQL 16. Chỉ app trong mạng compose nói chuyện được với nó (không mở cổng ra máy chủ). Sao lưu: scripts/ops/pg-backup.js (README mục sao lưu).
+  # PostgreSQL 16. Chỉ app trong mạng compose nói chuyện được với nó (không mở cổng ra máy chủ). Sao lưu: scripts/ops/pg-backup.ts (README mục sao lưu).
   db:
     image: postgres:16
     container_name: luong-db

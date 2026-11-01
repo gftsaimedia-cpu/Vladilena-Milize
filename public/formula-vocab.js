@@ -7,7 +7,7 @@
   // Từ vựng của công thức gõ chữ (public/formula.js): biến, tham số, công thức có tên và hàm có sẵn của cách tính lương hôm nay.
   // Đây là DỮ LIỆU, không phải luật: khoá, nhãn, từ đồng nghĩa, đơn vị, miền.
   //
-  // SINH RA, không viết tay: khối GENERATED dưới đây do `node scripts/params/gen-formula-vocab.js` ghi từ
+  // SINH RA, không viết tay: khối GENERATED dưới đây do `node scripts/params/gen-formula-vocab.ts` ghi từ
   // PayrollEngine.VARIABLES / FORMULAS / BUILTINS (public/payroll-engine.js) và lib/params/registry.data.json; `--check` báo lệch.
   // Khoá là khoá của bộ máy (tongThanhPhanNgay, phuCapDiLai, luongCoBan, ngayDiLam, gioVuotNguong, iDorm…). Mục có `engineGap: true`
   // là phần bộ máy chưa công bố (giờ OT, cờ KPI, cờ loại, phép so sánh có tên); `source` ghi nó lấy từ đâu.
@@ -21,7 +21,7 @@
   // `covers: [khoá…]` trên một biến (tổng sáu thành phần ngày) = đã gồm nguyên vẹn các khoản đó, nên tổng thu nhập cộng nguyên vẹn nó
   // là đã cộng đủ sáu khoản bắt buộc theo luật. `required` của tongThuNhap là sáu khoản đó.
 
-  /* GENERATED:BEGIN (scripts/params/gen-formula-vocab.js) */
+  /* GENERATED:BEGIN (scripts/params/gen-formula-vocab.ts) */
   const GENERATED = [
     {
       key: 'tienNgayCong',

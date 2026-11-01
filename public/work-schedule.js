@@ -3,7 +3,7 @@
    Lịch của một người trong một tháng = lịch của loại nhân sự của người đó (type.<mã>.dows, workdays, workdaysMode của bộ tham số tháng),
    hoặc các thứ trong staff.sched khi đầu vào của bộ máy hay của bước dựng lượt chấm công có mảng đó. Thứ trong tuần: 0 = Chủ nhật như Date.getUTCDay.
    Mọi con số đến từ bộ tham số phẳng `params` qua create(params); FALLBACK là bản chép CHUYỂN TIẾP (như punch.js, actual-hours.js) cho trang chưa nạp
-   payroll-params.js và phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.js kiểm).
+   payroll-params.js và phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts kiểm).
    Chỉ có lịch tuần (`week`); lịch theo chu kỳ (`cycle`) chưa hỗ trợ. Chủ nhật không bao giờ là ngày làm. */
 (function (root, factory) {
   const PayrollParams =

@@ -1,7 +1,7 @@
 'use strict';
 // Sáu mô-đun luật dùng chung đọc số của chúng từ bộ tham số qua create(params). Mỗi mô-đun: đổi MỘT giá trị của bộ tham số thì
 // kết quả khác, bản trần của mô-đun bằng create(DEFAULTS), khoá vắng ném PARAM_MISSING (không đoán), create nhớ theo đối tượng tham số, và không sửa bộ tham số.
-// FALLBACK chuyển tiếp của từng mô-đun phải bằng DEFAULTS (scripts/params/check-fallbacks.js).
+// FALLBACK chuyển tiếp của từng mô-đun phải bằng DEFAULTS (scripts/params/check-fallbacks.ts).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { DEFAULTS } = require('../../public/payroll-params.js');
@@ -156,11 +156,11 @@ test('Bản trần của mỗi mô-đun bằng create(DEFAULTS) (người gọi 
   }
 });
 
-test('scripts/params/check-fallbacks.js không báo lệch nào và thoát 0', () => {
-  const { problems } = require('../../scripts/params/check-fallbacks.js');
+test('scripts/params/check-fallbacks.ts không báo lệch nào và thoát 0', () => {
+  const { problems } = require('../../scripts/params/check-fallbacks.ts');
   assert.deepEqual(problems(), []);
   const { spawnSync } = require('node:child_process');
-  const run = spawnSync(process.execPath, ['scripts/params/check-fallbacks.js'], {
+  const run = spawnSync(process.execPath, ['scripts/params/check-fallbacks.ts'], {
     cwd: require('node:path').join(__dirname, '../..'),
     encoding: 'utf8'
   });

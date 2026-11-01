@@ -6,7 +6,7 @@
     typeof module !== 'undefined' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
   // Mọi con số đến từ bộ tham số phẳng `params` qua create(params); hàm trần của mô-đun = create(mặc định), mặc định là
   // PayrollParams.DEFAULTS. FALLBACK là bản chép CHUYỂN TIẾP của đúng các khoá mô-đun này đọc, để trang chưa nạp
-  // payroll-params.js (và test nạp mô-đun trong `vm`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.js
+  // payroll-params.js (và test nạp mô-đun trong `vm`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts
   // kiểm). Ca cố định dùng khoá shift.preset.<mã>.in / .out.
   const FALLBACK = Object.freeze({
     'shift.preset.n1.in': '08:00',

@@ -1,6 +1,6 @@
 # Cấu hình kỹ thuật và biến môi trường
 
-> Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/config.ts` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/config.ts` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
 ## Hằng số có tên (`lib/config.ts`, 70)
 

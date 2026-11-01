@@ -4,7 +4,7 @@ Spec mô tả **mã đang có trong cây này**. Hai loại tài liệu:
 
 ## 1. Tham chiếu sinh từ mã — `spec/reference/`
 
-Do `scripts/docs/gen-spec.js` dựng từ mã (`npm run spec:gen`); `test/unit/spec-reference.test.js` dựng lại và so sánh nên spec không thể lệch mã âm thầm. Mỗi mục dẫn tới file và dòng thật.
+Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/spec-reference.test.js` dựng lại và so sánh nên spec không thể lệch mã âm thầm. Mỗi mục dẫn tới file và dòng thật.
 
 | File | Nội dung | Nguồn trong mã |
 | --- | --- | --- |

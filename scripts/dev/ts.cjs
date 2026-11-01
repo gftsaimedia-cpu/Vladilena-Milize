@@ -1,7 +1,7 @@
 'use strict';
 // Chạy node với trình nạp TypeScript (tsx) cho tiến trình này VÀ mọi tiến trình con (NODE_OPTIONS=--import=tsx):
 // test và script nạp các file .ts của lib/ và src/, và nhiều chỗ tự sinh tiến trình con (`node -e "require('./lib/db')"`).
-//   node scripts/dev/ts.cjs scripts/ops/pg-backup.js backup      → node --import=tsx scripts/ops/pg-backup.js backup
+//   node scripts/dev/ts.cjs scripts/ops/pg-backup.ts backup      → node --import=tsx scripts/ops/pg-backup.ts backup
 //   node scripts/dev/ts.cjs --test "test/**/*.test.js"           → node --test … (tiến trình test con cũng nạp tsx)
 const { spawn } = require('node:child_process');
 

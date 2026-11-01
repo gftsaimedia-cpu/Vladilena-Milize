@@ -60,13 +60,13 @@ const control = (route, body) => call('POST', '/__sandbox/' + route, body, { con
 const clock = local => control('clock', { local });
 const select = username => control('user', { username });
 const sheet = () => call('GET', '/api/sheet?month=2026-10');
-// Mốc đồng hồ sau reset: 01/10/2026 (scripts/dev/sandbox-server.cjs INITIAL_LOCAL)
+// Mốc đồng hồ sau reset: 01/10/2026 (scripts/dev/sandbox-server.ts INITIAL_LOCAL)
 const RESET_LOCAL = '2026-10-01T07:55:00';
 
 before(async () => {
   child = spawn(
     process.execPath,
-    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.cjs')],
+    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.ts')],
     {
       cwd: project,
       env: {

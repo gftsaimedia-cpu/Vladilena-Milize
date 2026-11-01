@@ -1,6 +1,6 @@
 'use strict';
 // Spec viết tay (spec/*.md) không được dẫn tới file không còn tồn tại, và không dùng neo số dòng (`file.js:123`) vì số dòng trôi sau mỗi
-// lần sửa mã. Chỗ cần vị trí chính xác (route, module, lược đồ, luật...) đã có spec/reference/*.md do scripts/docs/gen-spec.js sinh từ mã.
+// lần sửa mã. Chỗ cần vị trí chính xác (route, module, lược đồ, luật...) đã có spec/reference/*.md do scripts/docs/gen-spec.ts sinh từ mã.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

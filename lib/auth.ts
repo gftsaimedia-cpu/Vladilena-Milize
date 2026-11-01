@@ -7,7 +7,7 @@ const { DEFAULTS } = require('../public/payroll-params.js');
 // Mọi con số của mô-đun đọc từ registry tham số, vì mô-đun nạp trước khi có cơ sở dữ liệu nên dùng
 // PayrollParams.DEFAULTS (ops và locked không đổi theo tháng). FALLBACK là bản chép CHUYỂN TIẾP của các khoá system.auth.* và
 // unit.msPerSecond đề xuất mà registry chưa có: khoá đã có trong DEFAULTS thì DEFAULTS thắng, và
-// scripts/params/check-fallbacks.js kiểm hai bên bằng nhau. Bỏ bảng này khi registry có đủ khoá.
+// scripts/params/check-fallbacks.ts kiểm hai bên bằng nhau. Bỏ bảng này khi registry có đủ khoá.
 const FALLBACK = Object.freeze({
   'system.auth.scryptSaltBytes': 16, // locked: độ dài muối scrypt của mật khẩu mới
   'system.auth.scryptKeyBytes': 64, // locked: độ dài khoá scrypt; đổi là mọi mật khẩu đã băm không đăng nhập được

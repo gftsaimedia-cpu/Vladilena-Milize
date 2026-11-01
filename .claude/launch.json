@@ -4,13 +4,13 @@
     {
       "name": "sandbox",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/dev/sandbox-server.cjs"],
+      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/dev/sandbox-server.ts"],
       "port": 3104
     },
     {
       "name": "admin-demo",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.js", "--port=3160"],
+      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3160"],
       "port": 3160
     },
     {
@@ -19,7 +19,7 @@
       "runtimeArgs": [
         "--no-warnings=ExperimentalWarning",
         "-e",
-        "process.env.SANDBOX_PORT='3192';require('./scripts/dev/sandbox-server.cjs')"
+        "process.env.SANDBOX_PORT='3192';require('./scripts/dev/sandbox-server.ts')"
       ],
       "port": 3192
     },
@@ -41,21 +41,21 @@
       "runtimeArgs": [
         "--no-warnings=ExperimentalWarning",
         "-e",
-        "process.env.SANDBOX_PORT='3200';require('./scripts/dev/sandbox-server.cjs')"
+        "process.env.SANDBOX_PORT='3200';require('./scripts/dev/sandbox-server.ts')"
       ],
       "port": 3200
     },
     {
       "name": "demo-moi",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.js", "--port=3205"],
+      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3205"],
       "port": 3205,
       "url": "http://127.0.0.1:3205"
     },
     {
       "name": "demo-kiem-ui",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.js", "--port=3195"],
+      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3195"],
       "port": 3195,
       "url": "http://127.0.0.1:3195"
     }

@@ -28,7 +28,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `public/leave.js` | Phép năm: `accrued` :63, `counted` :108, `ledger` :132, `settlementFor` :160. |
 | `public/payroll-pins.js` | Ghim ô số lượng trên phiếu: `pinsOf` :38, `apply` :50, `kpiInput` :136. |
 | `public/formula.js` | Cây công thức: `evaluate` :1758, `validate` :1878, `parse` :2708, `serialize` :1610, `deserialize` :1630, `dependencies` :1723, `describe` :1745. |
-| `public/formula-vocab.js` | Từ vựng công thức (sinh bằng `scripts/params/gen-formula-vocab.js`). |
+| `public/formula-vocab.js` | Từ vựng công thức (sinh bằng `scripts/params/gen-formula-vocab.ts`). |
 | `public/payroll-graph.js` | Bảy công thức tháng mặc định bằng chữ (`TEXTS`, `ORDER`), `treesWith` :125, `validateTree` :116, `extraVariables` :133, `contextFor` :163, `evalNamed` :185. |
 
 ### 1.2 File máy chủ
@@ -55,7 +55,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `src/http/api-gate.ts`, `lib/authz.ts` | Route HTTP và bảng quyền `ROUTE_CAPS`. |
 | `lib/events.ts`, `lib/audit.ts` | SSE và nhật ký (mục 5). |
 | `lib/db.ts` | Bảng, khoá kỳ (`SCOPE_LOCKED_FROM` :1009, `assertPeriodOpen` :1080), `rowToStaff`. |
-| `scripts/dev/sandbox-server.cjs`, `sandbox-ops.cjs` | Máy chủ thử nghiệm riêng và thao tác phụ trợ (mục 2.7). |
+| `scripts/dev/sandbox-server.ts`, `sandbox-ops.ts` | Máy chủ thử nghiệm riêng và thao tác phụ trợ (mục 2.7). |
 
 ### 1.3 Nơi khác gọi bộ máy (ngoài phạm vi file này)
 
@@ -162,7 +162,7 @@ Kernel dựng bảng `TYPES` bằng regex trên khoá `type.<t>.benefit.<f>`, `t
 
 ### 2.7 Máy chủ thử nghiệm (sandbox)
 
-`scripts/dev/sandbox-server.cjs` là tiến trình Node riêng: luôn dùng PostgreSQL trong RAM (PGlite) (`DB_PATH=':memory:'`, ghi đè cả biến môi trường từ shell), chỉ nghe loopback, đồng hồ giả (`Date.now` đứng yên cho tới khi thao tác tua), cổng lấy từ `SANDBOX_PORT` (0 = hệ điều hành chọn). Dùng chính `src/modules/**/*.controller.ts` và bộ máy tính lương thật nên số tính ra cùng một đường với máy chủ chính; `POST /__sandbox/reset` (cần `confirm === true`, `resetSyntheticData`, `sandbox-server.cjs`,) xoá các bảng `punch_requests`, `explanations`, `attendance_sessions`, `attendance_days`, `timesheets`, `slip_overrides`, `punches`, `corrections`, `sheet_approvals`, `kpi_scores`, `kpi_score_log`, `staff`, `settings`, xoá trạng thái kỳ lương (`clearPeriodState`) rồi tạo lại nhân sự thử. `sandbox-ops.cjs` cung cấp các thao tác nạp dữ liệu mẫu (seed), bắt đầu và huỷ tải, sao lưu, làm hỏng dữ liệu thử, chạy công cụ, đọc tình trạng và chụp trạng thái, không có thao tác đặt lại.
+`scripts/dev/sandbox-server.ts` là tiến trình Node riêng: luôn dùng PostgreSQL trong RAM (PGlite) (`DB_PATH=':memory:'`, ghi đè cả biến môi trường từ shell), chỉ nghe loopback, đồng hồ giả (`Date.now` đứng yên cho tới khi thao tác tua), cổng lấy từ `SANDBOX_PORT` (0 = hệ điều hành chọn). Dùng chính `src/modules/**/*.controller.ts` và bộ máy tính lương thật nên số tính ra cùng một đường với máy chủ chính; `POST /__sandbox/reset` (cần `confirm === true`, `resetSyntheticData`, `sandbox-server.ts`,) xoá các bảng `punch_requests`, `explanations`, `attendance_sessions`, `attendance_days`, `timesheets`, `slip_overrides`, `punches`, `corrections`, `sheet_approvals`, `kpi_scores`, `kpi_score_log`, `staff`, `settings`, xoá trạng thái kỳ lương (`clearPeriodState`) rồi tạo lại nhân sự thử. `sandbox-ops.ts` cung cấp các thao tác nạp dữ liệu mẫu (seed), bắt đầu và huỷ tải, sao lưu, làm hỏng dữ liệu thử, chạy công cụ, đọc tình trạng và chụp trạng thái, không có thao tác đặt lại.
 
 ---
 
@@ -447,7 +447,7 @@ lib/params/validate.ts ── payroll-graph.validateTree, formula
 | `absent`, `gioVuotNguong` | Builtin `tinhGioVuotNguong`, `lib/periods.ts` `allowanceStatus`, KPI `heSoNgayKpi`, khối phụ cấp (`PayBlocksCalc`) |
 | `otBlocked` / sổ giờ bù | `owes` trong `calcDay`, `ApprovalView` (`willmakeup`) |
 | Hệ số OT (`ot.rate`, `ot.weekendRate`, `ot.holidayRate`) | `OVERRIDES`, `repinMonth` (dùng giá trị toàn cục), `tax.exempt.*`, `payroll-pins.js` (`ot15H/20H/30H`) |
-| Thêm/đổi khoá tham số | `DEFAULTS` là khối GENERATED (`npm run params:extract/lock/check`); `LATE_KEYS` nếu bản chụp tham số thiếu khoá; registry (`entryFor`, `WRITE_CAP`, cờ wired); `formula-vocab.js` (sinh lại); `derive`; `validate.crossChecks`; FALLBACK của module (kiểm bằng `scripts/params/check-fallbacks.js`) |
+| Thêm/đổi khoá tham số | `DEFAULTS` là khối GENERATED (`npm run params:extract/lock/check`); `LATE_KEYS` nếu bản chụp tham số thiếu khoá; registry (`entryFor`, `WRITE_CAP`, cờ wired); `formula-vocab.js` (sinh lại); `derive`; `validate.crossChecks`; FALLBACK của module (kiểm bằng `scripts/params/check-fallbacks.ts`) |
 | `TEXTS` trong `payroll-graph.js` | Cây phải parse ra **đúng** cây đã lưu `formula.<tên>`; test `formula-golden`, `formula-roundtrip`, `formula-locked` |
 | `VARIABLES`, `DAY_VARIABLES` | `variablesOf`, `contextFor`, từ vựng công thức, `checkVocabulary` |
 | `roundDong` / chế độ làm tròn | `PayTailCalc.assertParams`, `slip-paid.ts` (`Math.round` riêng), test `pay-tail-half-dong-boundary` |

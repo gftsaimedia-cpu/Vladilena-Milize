@@ -9,7 +9,7 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '../..');
 
 test('db:types: schema.generated.ts khớp migrations (npm run db:types nếu đỏ)', () => {
-  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/docs/gen-db-types.js'), '--check'], {
+  const result = spawnSync(process.execPath, [path.join(ROOT, 'scripts/docs/gen-db-types.ts'), '--check'], {
     encoding: 'utf8',
     cwd: ROOT
   });

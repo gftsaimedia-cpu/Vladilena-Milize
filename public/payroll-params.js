@@ -9,7 +9,7 @@
   // Giá trị giữ nguyên đơn vị của mã (0,08 vẫn là 0,08; 75 điểm vẫn là 75). Siêu dữ liệu (nhãn, loại, sàn, thành phần giao diện)
   // nằm ở lib/params/registry.js; khối GENERATED dưới đây chỉ chứa GIÁ TRỊ, sinh bởi `npm run params:extract`, không sửa tay.
 
-  /* GENERATED:BEGIN (scripts/params/extract-defaults.js) */
+  /* GENERATED:BEGIN (scripts/params/extract-defaults.ts) */
   const DEFAULTS = {
     'advance.basis': 'byWorkedDays',
     'advance.eligibleTypes.ctv': true,

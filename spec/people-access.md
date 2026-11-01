@@ -698,7 +698,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 19. Độ dài lý do: `config.ts`, `db.ts`, khoá registry `control.reasonMinLength`/`control.reasonMaxLength` (không được máy chủ đọc).
 20. Độ dài mật khẩu: `config.ts` (số `6` viết thẳng).
 21. Tên đăng nhập: máy chủ `/^[a-z0-9._-]{2,40}$/` (`input.ts`).
-22. `config.ts` (`LOGIN_*`, `SESSION_DAYS`, `STAFF_BULK_MAX`) là nguồn trích xuất của registry (`scripts/params/key-map.js`) nhưng lúc chạy không được đọc; máy chủ đọc bản trong `DEFAULTS`/bộ tham số.
+22. `config.ts` (`LOGIN_*`, `SESSION_DAYS`, `STAFF_BULK_MAX`) là nguồn trích xuất của registry (`scripts/params/key-map.ts`) nhưng lúc chạy không được đọc; máy chủ đọc bản trong `DEFAULTS`/bộ tham số.
 
 ### 8.3 Số nghiệp vụ / kỹ thuật viết cứng
 
