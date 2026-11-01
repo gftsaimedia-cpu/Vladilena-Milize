@@ -1,4 +1,5 @@
 import { Insertable, Kysely, Selectable, sql, Updateable } from 'kysely';
+import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
 
 export type PeriodRow = Selectable<Schema['payroll_periods']>;
@@ -7,7 +8,11 @@ export type PayslipRow = Selectable<Schema['payslips']>;
 
 /** Bảng `payroll_periods`: một dòng mỗi tháng đã từng được chốt/đổi trạng thái (tháng chưa có dòng coi như mở). */
 export class PayrollPeriodsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   find(month: string): Promise<PeriodRow | undefined> {
     return this.qb.selectFrom('payroll_periods').selectAll().where('month', '=', month).executeTakeFirst();
@@ -16,7 +21,7 @@ export class PayrollPeriodsRepository {
   /** Các tháng có dòng, tăng dần; `year` thì chỉ năm đó. */
   list(year?: number): Promise<PeriodRow[]> {
     let query = this.qb.selectFrom('payroll_periods').selectAll();
-    if (year) query = query.where('month', 'like', `${year}-%`);
+    if (year) query = query.where('month', this.flavor.like, `${year}-%`);
     return query.orderBy('month').execute();
   }
 
@@ -63,8 +68,8 @@ export class PayrollRunsRepository {
   }
 
   async insert(row: Insertable<Schema['payroll_runs']>): Promise<number> {
-    const result = await this.qb.insertInto('payroll_runs').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('payroll_runs').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   async finish(id: number, total: number, errors: number, at: string): Promise<void> {
@@ -87,7 +92,11 @@ export interface PayslipFilter {
 
 /** Bảng `payslips`: phiếu lương của một người trong một lần chạy (bản chụp nén gzip). */
 export class PayslipsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   find(runId: number, username: string): Promise<PayslipRow | undefined> {
     return this.qb.selectFrom('payslips').selectAll().where('run_id', '=', runId).where('username', '=', username).executeTakeFirst();
@@ -126,15 +135,15 @@ export class PayslipsRepository {
   }
 
   async insert(row: Insertable<Schema['payslips']>): Promise<number> {
-    const result = await this.qb.insertInto('payslips').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('payslips').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   private filtered(query: any, runId: number, f: PayslipFilter) {
     let q = query.where('p.run_id', '=', runId);
     if (f.status) q = q.where('p.status', '=', f.status);
-    if (f.type) q = q.where(sql`json_extract(p.staff_terms_json, '$.type') = ${f.type}`);
-    if (f.like) q = q.where(sql`(p.username LIKE ${f.like} ESCAPE '\\' OR s.name LIKE ${f.like} ESCAPE '\\')`);
+    if (f.type) q = q.where(sql`${this.flavor.jsonText('p.staff_terms_json', 'type')} = ${f.type}`);
+    if (f.like) q = q.where(sql`(p.username ${sql.raw(this.flavor.like)} ${f.like} ESCAPE '\\' OR s.name ${sql.raw(this.flavor.like)} ${f.like} ESCAPE '\\')`);
     if (f.flagged === true) q = q.where('p.flags_json', 'is not', null);
     if (f.flagged === false) q = q.where('p.flags_json', 'is', null);
     return q;

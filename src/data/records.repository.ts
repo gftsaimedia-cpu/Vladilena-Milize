@@ -1,4 +1,5 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
+import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
 
 const count = sql<number>`COUNT(*)`.as('n');
@@ -13,8 +14,8 @@ export class AiFindingActionsRepository {
   constructor(private readonly qb: Kysely<Schema>) {}
 
   async insert(row: Insertable<Schema['ai_finding_actions']>): Promise<number> {
-    const result = await this.qb.insertInto('ai_finding_actions').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('ai_finding_actions').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   find(id: number): Promise<FindingActionRow | undefined> {
@@ -50,8 +51,8 @@ export class AiReviewRunsRepository {
   constructor(private readonly qb: Kysely<Schema>) {}
 
   async insert(row: Insertable<Schema['ai_review_runs']>): Promise<number> {
-    const result = await this.qb.insertInto('ai_review_runs').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('ai_review_runs').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   find(id: number): Promise<AiRunRow | undefined> {
@@ -80,8 +81,8 @@ export class StaffRolesRepository {
   }
 
   async insert(username: string, role: string, grantedBy: string, grantedAt: string): Promise<number> {
-    const result = await this.qb.insertInto('staff_roles').values({ username, role, granted_by: grantedBy, granted_at: grantedAt }).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('staff_roles').values({ username, role, granted_by: grantedBy, granted_at: grantedAt }).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   find(id: number): Promise<StaffRoleRow | undefined> {
@@ -313,7 +314,11 @@ export class PunchesRepository {
 
 /** Bảng `corrections`: yêu cầu điều chỉnh giờ (chỉ còn được đọc ở API; công cụ dữ liệu demo và test dựng dòng lịch sử). */
 export class CorrectionsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   /** Yêu cầu đang chờ của cùng lượt (hoặc cùng ngày khi không có lượt) chuyển sang 'replaced'. */
   async replacePending(target: { sessionId: number } | { username: string; date: string }): Promise<void> {
@@ -323,8 +328,8 @@ export class CorrectionsRepository {
   }
 
   async insert(row: Insertable<Schema['corrections']>): Promise<number> {
-    const result = await this.qb.insertInto('corrections').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('corrections').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   find(id: number): Promise<CorrectionRow | undefined> {
@@ -340,7 +345,7 @@ export class CorrectionsRepository {
     let query = this.qb.selectFrom('corrections').selectAll();
     if (filter.username) query = query.where('username', '=', filter.username);
     if (filter.status) query = query.where('status', '=', filter.status);
-    if (filter.month) query = query.where('date', 'like', `${filter.month}-%`);
+    if (filter.month) query = query.where('date', this.flavor.like, `${filter.month}-%`);
     if (filter.sessionId !== undefined && filter.sessionId !== null) query = query.where('session_id', '=', filter.sessionId);
     query = query.orderBy('id', 'desc');
     if (page) query = query.limit(page.limit).offset(page.offset);

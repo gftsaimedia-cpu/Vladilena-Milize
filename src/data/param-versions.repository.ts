@@ -48,8 +48,8 @@ export class ParamVersionsRepository {
 
   /** Thêm một dòng; trả id mới. */
   async insert(row: Insertable<Schema['param_versions']>): Promise<number> {
-    const result = await this.qb.insertInto('param_versions').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('param_versions').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   /** Các dòng có hiệu lực từ đúng tháng `month` (khoá, tháng, lúc tạo), cũ → mới. */

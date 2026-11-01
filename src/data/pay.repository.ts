@@ -26,8 +26,8 @@ export class PayEntriesRepository {
 
   /** Thêm một khoản; trả id mới. */
   async insert(row: Insertable<Schema['pay_entries']>): Promise<number> {
-    const result = await this.qb.insertInto('pay_entries').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('pay_entries').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   /** Sửa khoản đang chờ duyệt đúng phiên bản; trả số dòng đổi (1 = được, 0 = đã bị người khác đổi). */

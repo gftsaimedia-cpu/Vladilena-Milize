@@ -1,4 +1,5 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
+import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
 
 export type SheetApprovalRow = Selectable<Schema['sheet_approvals']>;
@@ -15,7 +16,11 @@ export interface SheetApprovalFilter {
 
 /** Bảng `sheet_approvals`: các khoản tự khai chờ Admin duyệt (OT, giờ bù, nghỉ phép...), một dòng mỗi (người, ngày). */
 export class SheetApprovalsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   find(username: string, date: string): Promise<SheetApprovalRow | undefined> {
     return this.qb.selectFrom('sheet_approvals').selectAll().where('username', '=', username).where('date', '=', date).executeTakeFirst();
@@ -23,7 +28,7 @@ export class SheetApprovalsRepository {
 
   /** Các dòng của một người trong tháng, theo ngày. */
   ofMonth(username: string, month: string): Promise<SheetApprovalRow[]> {
-    return this.qb.selectFrom('sheet_approvals').selectAll().where('username', '=', username).where('date', 'like', `${month}-%`).orderBy('date').execute();
+    return this.qb.selectFrom('sheet_approvals').selectAll().where('username', '=', username).where('date', this.flavor.like, `${month}-%`).orderBy('date').execute();
   }
 
   async remove(username: string, date: string): Promise<void> {
@@ -48,7 +53,7 @@ export class SheetApprovalsRepository {
   list(filter: SheetApprovalFilter, page?: { limit: number; offset: number }) {
     let query = this.qb.selectFrom('sheet_approvals as a').leftJoin('staff as s', 's.username', 'a.username').selectAll('a').select('s.name as name');
     if (filter.status) query = query.where('a.status', '=', filter.status);
-    if (filter.month) query = query.where('a.date', 'like', `${filter.month}-%`);
+    if (filter.month) query = query.where('a.date', this.flavor.like, `${filter.month}-%`);
     if (filter.username) query = query.where('a.username', '=', filter.username);
     query = query.orderBy('a.date').orderBy('a.username');
     if (page) query = query.limit(page.limit).offset(page.offset);
@@ -70,12 +75,16 @@ export class SheetApprovalsRepository {
 }
 
 /** Điều kiện "chưa tới giờ ra" của lượt Admin khai trước: loại khỏi mọi lần đọc thường (xem attendance-sessions). */
-const notScheduled = (origin: string, nowIso: string) =>
-  sql<boolean>`NOT (COALESCE(json_extract(entry_json,'$.origin'),'') = ${origin} AND json_extract(entry_json,'$.presOut') > ${nowIso})`;
+const notScheduled = (f: SqlFlavor, origin: string, nowIso: string) =>
+  sql<boolean>`NOT (COALESCE(${f.jsonText('entry_json', 'origin')}, '') = ${origin} AND ${f.jsonText('entry_json', 'presOut')} > ${nowIso})`;
 
 /** Các bảng `attendance_sessions`, `punches` (đọc theo phiên) và `punch_requests` (bản nhớ requestId của Check-in/out). */
 export class AttendanceSessionsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   find(id: number): Promise<AttendanceSessionRow | undefined> {
     return this.qb.selectFrom('attendance_sessions').selectAll().where('id', '=', id).executeTakeFirst();
@@ -91,8 +100,8 @@ export class AttendanceSessionsRepository {
       .selectFrom('attendance_sessions')
       .selectAll()
       .where('username', '=', username)
-      .where(notScheduled(origin, nowIso))
-      .orderBy(sql`COALESCE(json_extract(entry_json,'$.presOut'), json_extract(entry_json,'$.presIn'), created_at)`, 'desc')
+      .where(notScheduled(this.flavor, origin, nowIso))
+      .orderBy(sql`COALESCE(${this.flavor.jsonText('entry_json', 'presOut')}, ${this.flavor.jsonText('entry_json', 'presIn')}, created_at)`, 'desc')
       .orderBy('id', 'desc')
       .limit(1)
       .executeTakeFirst();
@@ -100,16 +109,16 @@ export class AttendanceSessionsRepository {
 
   list(filter: { username?: string; month?: string; date?: string }, hideScheduled: { origin: string; nowIso: string } | null): Promise<AttendanceSessionRow[]> {
     let query = this.qb.selectFrom('attendance_sessions').selectAll();
-    if (hideScheduled) query = query.where(notScheduled(hideScheduled.origin, hideScheduled.nowIso));
+    if (hideScheduled) query = query.where(notScheduled(this.flavor, hideScheduled.origin, hideScheduled.nowIso));
     if (filter.username) query = query.where('username', '=', filter.username);
-    if (filter.month) query = query.where('date', 'like', `${filter.month}-%`);
+    if (filter.month) query = query.where('date', this.flavor.like, `${filter.month}-%`);
     if (filter.date) query = query.where('date', '=', filter.date);
     return query.orderBy('date').orderBy('id').execute();
   }
 
   async insert(row: Insertable<Schema['attendance_sessions']>): Promise<number> {
-    const result = await this.qb.insertInto('attendance_sessions').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('attendance_sessions').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   /** Cập nhật đúng phiên bản; trả số dòng đổi (0 = phiên bản đã khác). */
@@ -134,7 +143,7 @@ export class AttendanceSessionsRepository {
       .selectFrom('attendance_sessions')
       .select('username')
       .where('state', '=', 'open')
-      .where(sql<boolean>`json_extract(entry_json,'$.presIn') < ${before}`)
+      .where(sql<boolean>`${this.flavor.jsonText('entry_json', 'presIn')} < ${before}`)
       .execute();
   }
 
@@ -144,7 +153,7 @@ export class AttendanceSessionsRepository {
       .deleteFrom('attendance_sessions')
       .where('id', '=', id)
       .where('version', '=', version)
-      .where(sql<boolean>`json_extract(entry_json,'$.origin') = ${origin}`)
+      .where(sql<boolean>`${this.flavor.jsonText('entry_json', 'origin')} = ${origin}`)
       .executeTakeFirst();
     return Number(result.numDeletedRows);
   }

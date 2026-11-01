@@ -4,18 +4,27 @@ import {
   Dialect,
   Driver,
   Kysely,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
   QueryResult,
   SqliteAdapter,
   SqliteIntrospector,
   SqliteQueryCompiler
 } from 'kysely';
 
-/** Kết nối `prepare(sql).all/run` của ứng dụng: `node:sqlite` DatabaseSync hoặc PostgresDatabase (lib/data/postgres-database.js). */
+interface Statement {
+  all(...params: unknown[]): unknown[] | Promise<unknown[]>;
+  run(...params: unknown[]): { changes?: number | bigint; lastInsertRowid?: number | bigint } | Promise<{ changes?: number | bigint; lastInsertRowid?: number | bigint }>;
+}
+
+/**
+ * Kết nối của ứng dụng: `node:sqlite` DatabaseSync (SQLite) hoặc PostgresDatabase (lib/data/postgres-database.js).
+ * Trên PostgreSQL, `native(sql)` chạy câu lệnh PostgreSQL nguyên văn (`$1`, `ILIKE`, ...) không qua bộ dịch SQLite → PostgreSQL.
+ */
 export interface AppDatabase {
-  prepare(sql: string): {
-    all(...params: unknown[]): unknown[] | Promise<unknown[]>;
-    run(...params: unknown[]): { changes?: number | bigint; lastInsertRowid?: number | bigint } | Promise<{ changes?: number | bigint; lastInsertRowid?: number | bigint }>;
-  };
+  prepare(sql: string): Statement;
+  native?(sql: string): Statement;
 }
 
 const RETURNS_ROWS = /^\s*(select|with)\b|\breturning\b/i;
@@ -24,14 +33,10 @@ class AppConnection implements DatabaseConnection {
   constructor(private readonly db: AppDatabase) {}
 
   async executeQuery<R>(query: CompiledQuery): Promise<QueryResult<R>> {
-    const statement = this.db.prepare(query.sql);
+    const statement = this.db.native ? this.db.native(query.sql) : this.db.prepare(query.sql);
     if (RETURNS_ROWS.test(query.sql)) return { rows: (await statement.all(...query.parameters)) as R[] };
     const result = await statement.run(...query.parameters);
-    return {
-      rows: [],
-      numAffectedRows: BigInt(result.changes ?? 0),
-      insertId: result.lastInsertRowid === undefined || result.lastInsertRowid === null ? undefined : BigInt(result.lastInsertRowid)
-    };
+    return { rows: [], numAffectedRows: BigInt(result.changes ?? 0) };
   }
 
   // eslint-disable-next-line require-yield
@@ -64,22 +69,22 @@ class AppDriver implements Driver {
   async destroy(): Promise<void> {}
 }
 
-/**
- * Biên dịch theo cú pháp SQLite (`?`, nhãn "..."), vốn cũng là PostgreSQL hợp lệ; lúc chạy trên PostgreSQL, `PostgresSql`
- * (lib/data/postgres-sql.js) đổi `?` thành `$n` như mọi câu lệnh khác của ứng dụng.
- */
+/** Biên dịch theo cú pháp của dialect đang chạy: PostgreSQL gốc khi kết nối có `native`, ngược lại SQLite. */
 export class AppDialect implements Dialect {
   constructor(private readonly db: AppDatabase) {}
+  private get postgres(): boolean {
+    return typeof this.db.native === 'function';
+  }
   createAdapter() {
-    return new SqliteAdapter();
+    return this.postgres ? new PostgresAdapter() : new SqliteAdapter();
   }
   createDriver(): Driver {
     return new AppDriver(this.db);
   }
   createIntrospector(db: Kysely<any>) {
-    return new SqliteIntrospector(db);
+    return this.postgres ? new PostgresIntrospector(db) : new SqliteIntrospector(db);
   }
   createQueryCompiler() {
-    return new SqliteQueryCompiler();
+    return this.postgres ? new PostgresQueryCompiler() : new SqliteQueryCompiler();
   }
 }

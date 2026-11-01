@@ -36,10 +36,11 @@ test('SettingsRepository: store.getSetting/setSetting dùng cùng repository và
   assert.equal(await store.getSetting('giao_dich_thu'), 1, 'lệnh Kysely trong giao dịch bị hoàn tác cùng giao dịch');
 });
 
-test('Kysely biên dịch ra SQL chuẩn dùng được ở cả SQLite và PostgreSQL (nhãn "..." và ?)', async () => {
+test('Kysely biên dịch theo cú pháp gốc của dialect đang chạy: ? trên SQLite, $1 trên PostgreSQL (không qua bộ dịch)', async () => {
   await store.ready;
   const qb = createQueryBuilder(store.db);
   const compiled = qb.selectFrom('settings').select('value_json').where('key', '=', 'k').compile();
-  assert.equal(compiled.sql, 'select "value_json" from "settings" where "key" = ?');
+  const placeholder = typeof store.db.native === 'function' ? '$1' : '?';
+  assert.equal(compiled.sql, `select "value_json" from "settings" where "key" = ${placeholder}`);
   assert.deepEqual(compiled.parameters, ['k']);
 });

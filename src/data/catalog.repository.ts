@@ -1,4 +1,5 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
+import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
 
 export type WorkShiftRow = Selectable<Schema['work_shifts']>;
@@ -58,7 +59,11 @@ export class WorkShiftsRepository {
 
 /** Bảng `leave_ledger` (sổ phép) và số dư phép lưu sẵn trên `staff`. */
 export class LeaveLedgerRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  private readonly flavor: SqlFlavor;
+
+  constructor(private readonly qb: Kysely<Schema>) {
+    this.flavor = flavorOf(qb);
+  }
 
   eventsOf(staffUuid: string): Promise<Pick<LeaveLedgerRow, 'kind' | 'on_date' | 'days'>[]> {
     return this.qb.selectFrom('leave_ledger').select(['kind', 'on_date', 'days']).where('staff_uuid', '=', staffUuid).orderBy('on_date').orderBy('id').execute();
@@ -83,7 +88,7 @@ export class LeaveLedgerRepository {
       .updateTable('staff')
       .set({ leave_balance: balance, leave_balance_on: on })
       .where('username', '=', username)
-      .where(eb => eb.or([eb('leave_balance', 'is not', balance), eb('leave_balance_on', 'is not', on)]))
+      .where(eb => eb.or([this.flavor.differs('leave_balance', balance), this.flavor.differs('leave_balance_on', on)]))
       .executeTakeFirst();
     return Number(result.numUpdatedRows) > 0;
   }
@@ -126,8 +131,8 @@ export class ExplanationsRepository {
   }
 
   async insert(row: Insertable<Schema['explanations']>): Promise<number> {
-    const result = await this.qb.insertInto('explanations').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('explanations').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   /** Giải trình CHƯA được duyệt có ngày trong [from, to], theo ngày. */
@@ -244,13 +249,13 @@ export class PositionRepository {
   }
 
   async insertType(row: Insertable<Schema['position_types']>): Promise<number> {
-    const result = await this.qb.insertInto('position_types').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('position_types').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   async insertLevel(row: Insertable<Schema['position_levels']>): Promise<number> {
-    const result = await this.qb.insertInto('position_levels').values(row).executeTakeFirstOrThrow();
-    return Number(result.insertId);
+    const result = await this.qb.insertInto('position_levels').values(row).returning('id').executeTakeFirstOrThrow();
+    return Number(result.id);
   }
 
   type(id: number): Promise<PositionTypeRow | undefined> {

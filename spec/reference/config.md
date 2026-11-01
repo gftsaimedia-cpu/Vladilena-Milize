@@ -86,7 +86,7 @@
 | `AUDIT_KEY` | `lib/db.js:754` |
 | `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:39` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
 | `DATABASE_URL` | `lib/db.js:39` `lib/db.js:55` `lib/db.js:55` |
-| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:116` |
+| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:128` |
 | `DB_DIALECT` | `lib/db.js:37` |
 | `DB_PATH` | `lib/db.js:38` `lib/domain/ai-block.js:18` |
 | `NODE_ENV` | `lib/params/save.js:69` `lib/params/save.js:73` `lib/params/save.js:89` |
