@@ -59,7 +59,10 @@ export function describeScenario(month?, kb?, f?, agents = false): any {
         { b: `${f.failed} phiếu` },
         ' chưa tính được vì hồ sơ thiếu thông tin'
       ],
-      actions: [A.formula, { ...A.close, pri: false, off: true, small: `· mở từ ${f.openFrom}` }],
+      actions: [
+        A.formula,
+        { ...A.close, pri: false, off: true, small: f.openFrom ? `· mở từ ${f.openFrom}` : undefined }
+      ],
       note: null,
       cap: wide
         ? [

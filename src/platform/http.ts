@@ -7,7 +7,7 @@ const auth = require('./auth');
 const warnings = require('./warnings');
 const config = require('./config');
 
-const WEB_DIST = path.resolve(process.env.WEB_DIST || path.join(__dirname, '..', 'web', 'dist'));
+const WEB_DIST = path.resolve(process.env.WEB_DIST || path.join(__dirname, '..', '..', 'web', 'dist'));
 const ASSET_CACHE = 'public, max-age=31536000, immutable';
 const MAX_BODY_BYTES = 1e6; // giới hạn thân yêu cầu, tính theo byte
 
