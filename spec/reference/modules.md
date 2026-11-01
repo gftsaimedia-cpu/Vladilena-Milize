@@ -1,8 +1,8 @@
 # Module NestJS
 
-> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ cây `src/` (import và decorator). Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ cây `src/` (import và decorator). Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
-Luật kiến trúc do `test/unit/architecture.test.js` giữ: module nghiệp vụ chỉ import module khác qua `index.ts`; hạ tầng (`src/http`, `src/shared`) không phụ thuộc module; `AppModule` (`src/app.module.ts`) đăng ký mọi module, `NotFoundModule` đứng cuối.
+Luật kiến trúc do `test/unit/architecture.test.ts` giữ: module nghiệp vụ chỉ import module khác qua `index.ts`; hạ tầng (`src/http`, `src/shared`) không phụ thuộc module; `AppModule` (`src/app.module.ts`) đăng ký mọi module, `NotFoundModule` đứng cuối.
 
 ## Hạ tầng (`src/`)
 

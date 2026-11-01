@@ -43,8 +43,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (DEPS) {
   'use strict';
   // Bộ máy tính lương dùng chung.
-  // Thuần: không I/O, không đồng hồ (trừ deps.today khi người gọi không truyền upTo), không DOM. MỌI con số đến từ `params` (bộ tham số phẳng: PayrollParams.DEFAULTS hoặc store.resolve(tháng).params); mã này chỉ dùng 0 và 1. Công thức, tỷ lệ và chỗ làm tròn giữ NGUYÊN như khối công thức trong public/index.html (bản đóng băng test/fixtures/legacy-payroll-block.js):
-  // bài so sánh kép (test/unit/payroll-engine-differential.test.js) chứng minh bằng nhau đến từng trường, kể cả rows và m.net. Ba lớp: lớp ngày (thanhPhanNgay: calcDay và các thành phần có tên) · lớp tháng (mỗi công thức có tên là MỘT biểu thức: FORMULAS) · lớp thực lĩnh (khung khoá bảy bước, calcNet) BUILTINS và VARIABLES là DỮ LIỆU (mã, nhãn, từ đồng nghĩa, đơn vị, miền, chữ ký); m.trace ghi giá trị từng công thức có tên.
+  // Thuần: không I/O, không đồng hồ (trừ deps.today khi người gọi không truyền upTo), không DOM. MỌI con số đến từ `params` (bộ tham số phẳng: PayrollParams.DEFAULTS hoặc store.resolve(tháng).params); mã này chỉ dùng 0 và 1. Công thức, tỷ lệ và chỗ làm tròn giữ NGUYÊN như khối công thức trong public/index.html (bản đóng băng test/fixtures/legacy-payroll-block.ts):
+  // bài so sánh kép (test/unit/payroll-engine-differential.test.ts) chứng minh bằng nhau đến từng trường, kể cả rows và m.net. Ba lớp: lớp ngày (thanhPhanNgay: calcDay và các thành phần có tên) · lớp tháng (mỗi công thức có tên là MỘT biểu thức: FORMULAS) · lớp thực lĩnh (khung khoá bảy bước, calcNet) BUILTINS và VARIABLES là DỮ LIỆU (mã, nhãn, từ đồng nghĩa, đơn vị, miền, chữ ký); m.trace ghi giá trị từng công thức có tên.
   const ENGINE_VERSION = 'payroll-engine-14'; // tăng tay khi đổi công thức (verify báo engineChanged)
   // Ngày giả (một thứ Hai) khi gọi calcDay lẻ không có ngữ cảnh, như khối công thức của index.html: chỉ để chia giờ theo ngày dân sự, không ảnh hưởng tiền theo ngày thật
   const SENTINEL_DATE = '2000-01-03';
@@ -1580,7 +1580,7 @@
     }
     return policy;
   }
-  // Chuỗi đầy đủ: lịch → payView → ActualHours.apply → calcMonth. input như test/helpers/payroll-cases.js
+  // Chuỗi đầy đủ: lịch → payView → ActualHours.apply → calcMonth. input như test/helpers/payroll-cases.ts
   // Các góc nhìn bộ tham số của MỘT người trong MỘT tháng, dùng chung cho computeMonth và repin để hai đường tính cùng một bộ tham số
   function prepare(params, staff, month) {
     params = DEPS.WorkSchedule.create(DEPS.PayrollParams.fillLate(params)).monthView(month); // pay.method C: ngày công chuẩn theo lịch của tháng (một nguồn lịch)

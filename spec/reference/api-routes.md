@@ -1,6 +1,6 @@
 # Bảng route /api
 
-> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/authz.ts` (`ROUTE_CAPS`) và các decorator `@Controller/@Get/@Post/@Put` trong `src/modules/**/*.controller.ts`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/authz.ts` (`ROUTE_CAPS`) và các decorator `@Controller/@Get/@Post/@Put` trong `src/modules/**/*.controller.ts`. Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
 Mọi route đi qua `ApiGuard` (`src/http/api.guard.ts`): đọc phiên → tra `ROUTE_CAPS` (không có khoá thì 403 `NO_ROUTE_POLICY`) → kiểm năng lực → giới hạn tải → giới hạn tốc độ ghi → dựng ngữ cảnh nhật ký. Cột *khoá kỳ* là `periodScope`: loại ghi mà cổng khoá kỳ (`ctx.guardPeriod`) áp dụng.
 

@@ -4,7 +4,7 @@
 // vai trò (có vai trò tuỳ chỉnh và vai trò bị thu hồi), tham số theo tháng áp dụng, khoản điền thêm (chờ / duyệt / huỷ / cờ chờ Kế toán),
 // giải trình (yêu cầu của Admin, trả lời, duyệt, từ chối), tạm ứng (xin / rút / duyệt / từ chối / huỷ duyệt), sổ phép, kỳ lương ở MỌI trạng thái
 // (mở, đã chốt công, đã tính, đã AI kiểm, đã duyệt, đã chi trả, mở lại rồi tính lần hai), số sửa phiếu, bỏ qua phát hiện của AI, bảng nhớ lượt bấm.
-// Mỗi bước độc lập: lỗi một bước chỉ ghi vào báo cáo (HTTP, mã lỗi), không dừng cả lần dựng; test/db/demo-coverage.test.js đòi báo cáo sạch.
+// Mỗi bước độc lập: lỗi một bước chỉ ghi vào báo cáo (HTTP, mã lỗi), không dừng cả lần dựng; test/db/demo-coverage.test.ts đòi báo cáo sạch.
 const crypto = require('node:crypto');
 
 const short = (data?) => JSON.stringify(data).slice(0, 240);

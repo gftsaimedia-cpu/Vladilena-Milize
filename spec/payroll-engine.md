@@ -1,6 +1,6 @@
 # Bộ máy tính lương (payroll engine)
 
-Tài liệu mô tả code **đang làm gì**, viết từ code (không từ comment). Số dòng `file:dòng` đúng với code hiện tại; nếu lệch vài dòng thì tìm theo tên hàm hoặc tên biến. Đường dẫn test có tiền tố ngày được ghi bằng dấu `*` (ví dụ `test/unit/*-holiday-rules.test.js`).
+Tài liệu mô tả code **đang làm gì**, viết từ code (không từ comment). Số dòng `file:dòng` đúng với code hiện tại; nếu lệch vài dòng thì tìm theo tên hàm hoặc tên biến. Đường dẫn test có tiền tố ngày được ghi bằng dấu `*` (ví dụ `test/unit/*-holiday-rules.test.ts`).
 
 ---
 

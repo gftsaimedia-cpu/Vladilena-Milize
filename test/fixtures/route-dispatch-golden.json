@@ -1,6 +1,6 @@
 {
   "meta": {
-    "about": "Bảng vàng điều phối của máy chủ, ghi trên mã trước khi chia server.js. Tạo bằng: node test/tools/record-dispatch.js --write. Chỉ có mã HTTP, mã lỗi, thông báo lỗi, tên khoá và kiểu của phản hồi.",
+    "about": "Bảng vàng điều phối của máy chủ, ghi trên mã trước khi chia server.js. Tạo bằng: node test/tools/record-dispatch.ts --write. Chỉ có mã HTTP, mã lỗi, thông báo lỗi, tên khoá và kiểu của phản hồi.",
     "clock": "2026-11-02T09:00:00+07:00",
     "identities": ["anon", "staff", "admin"],
     "routeKeys": 101,

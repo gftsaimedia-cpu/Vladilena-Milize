@@ -1,7 +1,7 @@
 'use strict';
 // db:types — dựng src/data/schema.generated.ts (kiểu Kysely cho mọi bảng) TỪ migrations/postgres/*.sql.
 //   node scripts/docs/gen-db-types.ts            ghi file
-//   node scripts/docs/gen-db-types.ts --check    thoát 1 nếu file trên đĩa khác bản dựng từ migration (test/unit/db-types.test.js)
+//   node scripts/docs/gen-db-types.ts --check    thoát 1 nếu file trên đĩa khác bản dựng từ migration (test/unit/db-types.test.ts)
 // Quy ước: TEXT → string; BIGINT/INTEGER/REAL/DOUBLE → number; BYTEA → Buffer; cột không NOT NULL và không khoá chính → T | null;
 // cột có DEFAULT hoặc IDENTITY → Generated<T> (có thể bỏ khi INSERT).
 const fs = require('node:fs');

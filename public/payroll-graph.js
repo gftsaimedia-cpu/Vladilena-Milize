@@ -35,7 +35,7 @@
   'use strict';
   // Đồ thị công thức tháng MẶC ĐỊNH: mỗi công thức tháng của
   // DEPS.PayrollEngine.FORMULAS viết một lần bằng CHỮ tiếng Việt chuẩn, phân tích thành cây bằng Formula.parse, và cây tính ra ĐÚNG từng bit
-  // số của bản tham chiếu viết bằng mã (test/fixtures/legacy-payroll-block.js).
+  // số của bản tham chiếu viết bằng mã (test/fixtures/legacy-payroll-block.ts).
   // Chữ dưới đây chỉ là nguồn viết; cái được tính là cây (bộ máy nạp cây qua params['formula.<tên>'], xem resolveFormulaTrees).
   //
   // Xuất:

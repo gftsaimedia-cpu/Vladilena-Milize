@@ -1,7 +1,7 @@
 'use strict';
 // Danh mục chức vụ, bậc, ca (bảng trong DB) → dòng tham số { key, value, effectiveMonth, id } để lib/params/store.ts
 // chồng lên bộ tham số của tháng. Tách khỏi lib/domain/container.ts để lib/params/store.ts không require ngược vào container
-// (container nạp các mô-đun đọc tham số; test/unit/require-cycles.test.js cấm vòng require, kể cả require trong hàm).
+// (container nạp các mô-đun đọc tham số; test/unit/require-cycles.test.ts cấm vòng require, kể cả require trong hàm).
 // Chỉ phụ thuộc lib/db, lib/config và các lớp danh mục (không đọc tham số).
 const store = require('../db');
 const config = require('../config');

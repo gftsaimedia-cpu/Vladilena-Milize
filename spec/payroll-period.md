@@ -650,18 +650,18 @@ Tên test dưới đây bỏ tiền tố ngày của tên file (các file `test/
 
 Trực tiếp về kỳ, phiếu, số chi trả, ước tính:
 
-- `test/api/period-lifecycle.test.js`, `period-reopen.test.js`, `period-lock-guards.test.js`, `period-permissions.test.js`, `period-stale.test.js`, `period-aggregates.test.js`, `period-days-worked.test.js`, `period-estimate-one.test.js`, `period-payday-settings.test.js`, `period-sessions-month.test.js`, `*-checklist-explanation-pending.test.js`
-- `test/api/payslip-snapshot.test.js`, `payslip-negative-net.test.js`, `payslip-paid-numbers.test.js`, `payslip-staff-paid-view.test.js`, `payroll-bad-profile.test.js`, `verify-fixes.test.js`, `checklist-punch-review.test.js`, `slip-detail-formulas.test.js`, `slip-row-columns-api.test.js`, `*-held-day-row-punch-times.test.js`
-- `test/api/me-estimate.test.js`, `slip-override-reason.test.js`, `*-phan-6-sua-phieu.test.js`, `*-so-lieu-phieu.test.js`, `*-cho-giao-dien.test.js`, `admin-entered-shift-pay.test.js`
-- `test/api/warnings-cases.test.js`, `warnings-no-crash.test.js`, `warnings-inventory.test.js`, `period-flow-warns.test.js`
-- `test/api/pay-entry.test.js`, `pay-entries-backend.test.js`, `pay-entries-period.test.js`, `pay-entry-zero-drift.test.js`, `review-fixes-pay-entries.test.js`
-- `test/api/v1a-s6-period-input-guards.test.js`, `permissions-matrix.test.js`, `ai-review-api.test.js`, `ai-review-dismissed.test.js`, `findings.test.js`, `audit-log.test.js`
-- `test/api/*-phan-6-ung-luong.test.js`, `*-advance-approval.test.js` (tạm ứng vào phiếu), `sandbox.test.js`, `sandbox-reset-explanations.test.js`, `*-sandbox-reset-period-state.test.js`
-- `test/unit/warnings.test.js`, `slip-row-columns.test.js`, `slip-real-punch-times.test.js`, `*-slip-held-day-punch-times.test.js`, `slip-detail-formulas.test.js`, `slip-formulas-merge-terms.test.js`, `slip-formulas-named-terms.test.js`, `slip-formulas-tax-exempt.test.js`, `*-slip-formulas-insurance-paid-days.test.js`, `old-snapshot-counts-absent.test.js`, `phase2-old-snapshot.test.js`, `phase2-tail-unavailable.test.js`, `pay-entries-calc.test.js`, `db-pay-entries.test.js`, `domain-classes.test.js`
-- Tính tiền chạm phiếu: `test/unit/ot-weekend-rate.test.js`, `ot-day-allowance.test.js`, `ot-unscheduled-day-paid.test.js`, `makeup-paid-in-full.test.js`, `makeup-into-holiday.test.js`, `tax-exempt-premium-only.test.js`, `insurance-paid-days.test.js`, `leave-year-settlement.test.js`, `advance-approved-month.test.js`, `*-holiday-rules.test.js`, `holiday-break-paid-once.test.js`, `holiday-ot-after-night-shift.test.js`
-- Helper: `test/helpers/period-flow.js`, `period-api.js`, `warning-cases.js`, `pay-entry-api.js`, `api-fixture.js`, `explanation-flow.js`
+- `test/api/period-lifecycle.test.ts`, `period-reopen.test.ts`, `period-lock-guards.test.ts`, `period-permissions.test.ts`, `period-stale.test.ts`, `period-aggregates.test.ts`, `period-days-worked.test.ts`, `period-estimate-one.test.ts`, `period-payday-settings.test.ts`, `period-sessions-month.test.ts`, `*-checklist-explanation-pending.test.ts`
+- `test/api/payslip-snapshot.test.ts`, `payslip-negative-net.test.ts`, `payslip-paid-numbers.test.ts`, `payslip-staff-paid-view.test.ts`, `payroll-bad-profile.test.ts`, `verify-fixes.test.ts`, `checklist-punch-review.test.ts`, `slip-detail-formulas.test.ts`, `slip-row-columns-api.test.ts`, `*-held-day-row-punch-times.test.ts`
+- `test/api/me-estimate.test.ts`, `slip-override-reason.test.ts`, `*-phan-6-sua-phieu.test.ts`, `*-so-lieu-phieu.test.ts`, `*-cho-giao-dien.test.ts`, `admin-entered-shift-pay.test.ts`
+- `test/api/warnings-cases.test.ts`, `warnings-no-crash.test.ts`, `warnings-inventory.test.ts`, `period-flow-warns.test.ts`
+- `test/api/pay-entry.test.ts`, `pay-entries-backend.test.ts`, `pay-entries-period.test.ts`, `pay-entry-zero-drift.test.ts`, `review-fixes-pay-entries.test.ts`
+- `test/api/v1a-s6-period-input-guards.test.ts`, `permissions-matrix.test.ts`, `ai-review-api.test.ts`, `ai-review-dismissed.test.ts`, `findings.test.ts`, `audit-log.test.ts`
+- `test/api/*-phan-6-ung-luong.test.ts`, `*-advance-approval.test.ts` (tạm ứng vào phiếu), `sandbox.test.ts`, `sandbox-reset-explanations.test.ts`, `*-sandbox-reset-period-state.test.ts`
+- `test/unit/warnings.test.ts`, `slip-row-columns.test.ts`, `slip-real-punch-times.test.ts`, `*-slip-held-day-punch-times.test.ts`, `slip-detail-formulas.test.ts`, `slip-formulas-merge-terms.test.ts`, `slip-formulas-named-terms.test.ts`, `slip-formulas-tax-exempt.test.ts`, `*-slip-formulas-insurance-paid-days.test.ts`, `old-snapshot-counts-absent.test.ts`, `phase2-old-snapshot.test.ts`, `phase2-tail-unavailable.test.ts`, `pay-entries-calc.test.ts`, `db-pay-entries.test.ts`, `domain-classes.test.ts`
+- Tính tiền chạm phiếu: `test/unit/ot-weekend-rate.test.ts`, `ot-day-allowance.test.ts`, `ot-unscheduled-day-paid.test.ts`, `makeup-paid-in-full.test.ts`, `makeup-into-holiday.test.ts`, `tax-exempt-premium-only.test.ts`, `insurance-paid-days.test.ts`, `leave-year-settlement.test.ts`, `advance-approved-month.test.ts`, `*-holiday-rules.test.ts`, `holiday-break-paid-once.test.ts`, `holiday-ot-after-night-shift.test.ts`
+- Helper: `test/helpers/period-flow.ts`, `period-api.ts`, `warning-cases.ts`, `pay-entry-api.ts`, `api-fixture.ts`, `explanation-flow.ts`
 
-Có chạm module (qua tính lương / ước tính) nhưng không phải trọng tâm: `test/api/*-admin-khai-thay.test.js`, `*-phan-6-phep-nam.test.js`, `*-makeup-date-note-ai-block.test.js`, `*-block-ot-late-checkout.test.js`, `*-holiday-ot-entry.test.js`, `*-late-checkout-approval.test.js`, `*-makeup-entry-fixes.test.js`, `*-explanation-*.test.js`, `approvals*.test.js`, `audit-followup-backend.test.js`, `backend-followup.test.js`, `fixed-attendance.test.js`, `mvp-fixes.test.js`, `review-fixes.test.js`, `save-applies-everywhere.test.js`, `schedule-estimate-calendar.test.js`, `server-logic-regression.test.js`, `settings-engine-zero-drift.test.js`; `test/unit/ai-review*.test.js`, `phase2-options.test.js`, `phase2-review.test.js`, `schedule-defaults-zero-drift.test.js`.
+Có chạm module (qua tính lương / ước tính) nhưng không phải trọng tâm: `test/api/*-admin-khai-thay.test.ts`, `*-phan-6-phep-nam.test.ts`, `*-makeup-date-note-ai-block.test.ts`, `*-block-ot-late-checkout.test.ts`, `*-holiday-ot-entry.test.ts`, `*-late-checkout-approval.test.ts`, `*-makeup-entry-fixes.test.ts`, `*-explanation-*.test.ts`, `approvals*.test.ts`, `audit-followup-backend.test.ts`, `backend-followup.test.ts`, `fixed-attendance.test.ts`, `mvp-fixes.test.ts`, `review-fixes.test.ts`, `save-applies-everywhere.test.ts`, `schedule-estimate-calendar.test.ts`, `server-logic-regression.test.ts`, `settings-engine-zero-drift.test.ts`; `test/unit/ai-review*.test.ts`, `phase2-options.test.ts`, `phase2-review.test.ts`, `schedule-defaults-zero-drift.test.ts`.
 
 ---
 
@@ -731,7 +731,7 @@ Liệt kê để người sửa biết chỗ dễ vỡ; tài liệu này không 
 
 ### 9.3 Mã chết hoặc vô hiệu
 
-27. Lớp `Payroll` (`lib/domain/payroll/payroll.ts`) không được mã chạy thật dùng (chỉ `test/unit/domain-classes.test.js`).
+27. Lớp `Payroll` (`lib/domain/payroll/payroll.ts`) không được mã chạy thật dùng (chỉ `test/unit/domain-classes.test.ts`).
 28. `store.periods.markReviewed` kiểm `current.status !== 'open' && currentRunId == null` (`lib/db.ts`); vế `'open'` vô nghĩa vì `advancePeriod` ngay sau chỉ nhận `calculated|reviewed`.
 29. Ô `leaveLeft` và `kpiBonus` thuộc `SLIP_QTY` (`src/modules/periods/periods.helpers.ts` `173`) được lưu nhưng không có tác dụng (không thuộc `PayrollPins.KEYS` hay ô tiền) và không có cảnh báo.
 30. `kpiAmt` nằm trong `SLIP_MONEY` (làm tròn như tiền) nhưng thực chất là ô ghim (`PayrollPins.KPI_KEYS`), không thuộc `SLIP_INCOME_KEYS`.

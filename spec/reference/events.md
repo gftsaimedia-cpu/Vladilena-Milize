@@ -1,6 +1,6 @@
 # Sự kiện thời gian thực (SSE)
 
-> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/events.ts` (`EVENTS`, `SYSTEM_FRAMES`, `emit`). Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/events.ts` (`EVENTS`, `SYSTEM_FRAMES`, `emit`). Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
 Luồng `GET /api/events` (module `system`) chỉ gợi ý nạp lại, không mang dữ liệu. Phát SAU KHI giao dịch đã COMMIT.
 

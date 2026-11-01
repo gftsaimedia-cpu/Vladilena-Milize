@@ -1,7 +1,7 @@
 {
   "soft": 800,
   "hard": 1200,
-  "about": "Trần chỉ được giảm (server.js và public/formula.js có thêm 200 dòng chỗ trống vì còn đang có việc V1 thêm vào, tới khi chia). Cập nhật bằng node test/tools/size-budget.js --write",
+  "about": "Trần chỉ được giảm (server.js và public/formula.js có thêm 200 dòng chỗ trống vì còn đang có việc V1 thêm vào, tới khi chia). Cập nhật bằng node test/tools/size-budget.ts --write",
   "exceptions": {
     "public/formula.js": 2900,
     "public/payroll-engine.js": 1700,

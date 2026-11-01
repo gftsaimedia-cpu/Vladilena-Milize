@@ -12,7 +12,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | Đường dẫn | Nội dung |
 | --- | --- |
-| `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.js`. |
+| `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.ts`. |
 | `scripts/seed.ts` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.ts` (lệnh `npm run seed` chạy bản trong `scripts/`). |
 | `lib/` | Mã máy chủ: `db.ts` (PostgreSQL + store), `http.js`, `auth.ts`, `authz.ts`, `audit.js`, `events.ts`, `warnings.ts`, `config.ts`, `periods.ts`, `payroll-service.ts`, `roles.js`, `pay-entries.ts`, `advance-*.js`, `explanations.js`, `slip-*.js`, `findings.ts`, `data-quality.ts`, `period-*.js`, `request-rules.ts`, `announce.ts`, `approvals.ts`, `attendance-sessions.ts`. |
 | `lib/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.ts`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
@@ -118,16 +118,16 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `test/tools/size-budget.js` | Ngân sách cỡ file (mềm 800, cứng 1.200 dòng; ngoại lệ trong `test/fixtures/file-size-budget.json`, trần chỉ giảm). |
-| `test/tools/check-todo.js` | Số test `todo` không được tăng (baseline `test/fixtures/todo-baseline.json`). |
-| `test/tools/free-identifiers.js` | Tìm tên dùng mà không khai báo (bắt `require` bị quên khi chuyển mã), dùng parser của Prettier. |
-| `test/tools/moved-lines.js` | So dòng khi cắt mã từ file lớn sang file khác (từng dùng khi tách `src/server.ts` sang `src/modules`). |
-| `test/tools/record-dispatch.js` | Ghi / so "bảng vàng điều phối" (mọi khoá `ROUTE_CAPS` × 3 loại người dùng) vào `test/fixtures/route-dispatch-golden.json`. |
-| `test/helpers/api-fixture.js` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
-| `test/helpers/sse-client.js`, `server-source.js` | Máy khách SSE cho test; gom văn bản mã máy chủ cho test đọc tĩnh. |
-| `test/helpers/red.js`, `open-bug.js` | Test đỏ viết trước / lỗi đã biết chạy như `todo`. |
-| `test/helpers/*-api.js`, `*-flow.js`, `*-fixtures.js` | Đồ dùng dựng dữ liệu qua API thật: kỳ lương (`period-api`, `period-flow`), khoản điền thêm, chức vụ, lịch, cài đặt, giải trình (`explanation-flow`). |
-| `test/helpers/legacy-*.js`, `payroll-vm.js`, `golden.js`, `payroll-cases.js`, `payroll-differential.js`, `pay-oracle.js`, `formula-*.js` | Bộ so sánh bộ máy lương với khối công thức đóng băng (`test/fixtures/legacy-payroll-block.js`, `payroll-golden-v0.json`), sinh ca, đọc công thức phiếu. |
+| `test/tools/size-budget.ts` | Ngân sách cỡ file (mềm 800, cứng 1.200 dòng; ngoại lệ trong `test/fixtures/file-size-budget.json`, trần chỉ giảm). |
+| `test/tools/check-todo.ts` | Số test `todo` không được tăng (baseline `test/fixtures/todo-baseline.json`). |
+| `test/tools/free-identifiers.ts` | Tìm tên dùng mà không khai báo (bắt `require` bị quên khi chuyển mã), dùng parser của Prettier. |
+| `test/tools/moved-lines.ts` | So dòng khi cắt mã từ file lớn sang file khác (từng dùng khi tách `src/server.ts` sang `src/modules`). |
+| `test/tools/record-dispatch.ts` | Ghi / so "bảng vàng điều phối" (mọi khoá `ROUTE_CAPS` × 3 loại người dùng) vào `test/fixtures/route-dispatch-golden.json`. |
+| `test/helpers/api-fixture.ts` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
+| `test/helpers/sse-client.ts`, `server-source.ts` | Máy khách SSE cho test; gom văn bản mã máy chủ cho test đọc tĩnh. |
+| `test/helpers/red.ts`, `open-bug.ts` | Test đỏ viết trước / lỗi đã biết chạy như `todo`. |
+| `test/helpers/*-api.ts`, `*-flow.js`, `*-fixtures.js` | Đồ dùng dựng dữ liệu qua API thật: kỳ lương (`period-api`, `period-flow`), khoản điền thêm, chức vụ, lịch, cài đặt, giải trình (`explanation-flow`). |
+| `test/helpers/legacy-*.ts`, `payroll-vm.ts`, `golden.ts`, `payroll-cases.ts`, `payroll-differential.ts`, `pay-oracle.ts`, `formula-*.js` | Bộ so sánh bộ máy lương với khối công thức đóng băng (`test/fixtures/legacy-payroll-block.js`, `payroll-golden-v0.json`), sinh ca, đọc công thức phiếu. |
 
 ---
 
@@ -320,7 +320,7 @@ Vai trò mặc định và phạm vi (`lib/authz.ts`): `admin` (mọi năng lự
 Không còn bảng gửi theo `seg`: mỗi nhóm route là một module Nest (`src/modules/<tên>/`) với `<tên>.controller.ts`, `<tên>.module.ts`, `index.ts` (cổng công khai) và `<tên>.helpers.ts` (hàm phụ của module). `AppModule.register()` import `FEATURE_MODULES` theo thứ tự rồi `NotFoundModule`:
 
 - Thứ tự import là thứ tự đăng ký route của Express: route cụ thể (`PUT /staff/shift-bulk`, trong module `sheet`) phải đứng trước route có tham số (`PUT /staff/:u`, module `staff`); `NotFoundModule` (`@All('*')`) luôn cuối.
-- Module chỉ import module khác qua `index.ts` (ví dụ `attendance` dùng `cutRuleView` của `sheet`); hạ tầng không import module nghiệp vụ; `test/unit/architecture.test.js` giữ các luật đó.
+- Module chỉ import module khác qua `index.ts` (ví dụ `attendance` dùng `cutRuleView` của `sheet`); hạ tầng không import module nghiệp vụ; `test/unit/architecture.test.ts` giữ các luật đó.
 - Controller nhận `@Ctx() c: ApiContext` (đã qua cổng quyền) và `@Res()` (để Nest không tự kết thúc phản hồi: `send()` có thể gửi chậm sau khi nén). Đọc đường dẫn gốc qua `c.seg`, không dùng `@Param` (xem 3.1 bước 5).
 - Route mới: thêm khoá vào `ROUTE_CAPS` (`lib/authz.ts`), thêm phương thức có decorator vào controller của module, chạy `npm run spec:gen`. Khi đường dẫn Express dài hơn khoá `ROUTE_CAPS` (chỉ `POST /ai/findings/dismiss`) đặt chú thích `// route-key: POST /ai/findings` ngay trên decorator.
 
@@ -590,7 +590,7 @@ Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu 
 | `wired.ts` | (tay) `node scripts/dev/ts.cjs scripts/params/wired.ts [--write]` | Tính cờ `wired` bằng đọc tĩnh văn bản nguồn; `--write` ghi vào registry. |
 | `check-fallbacks.ts` | (tay) | So bản `FALLBACK` trong các mô-đun dùng chung (`actual-hours, approval-view, kpi-score, punch, leave, payroll-calendar, work-schedule`) với `DEFAULTS`. |
 | `gen-formula-vocab.ts` | (tay) | Sinh khối `GENERATED` của `public/formula-vocab.js` từ bộ máy lương và registry; `--check` dùng trong `params:check`. |
-| `plain-text.js`, `apply-plain-text.ts`, `plain-text.json`, `first-run-text.json` | (tay) | Chữ hiển thị cho Admin của từng mục (`help`, `basis`, `legalBasis`, `lockReason`) và chữ Cài đặt ban đầu; `apply-plain-text.ts` vá `registry.data.json`. |
+| `plain-text.ts`, `apply-plain-text.ts`, `plain-text.json`, `first-run-text.json` | (tay) | Chữ hiển thị cho Admin của từng mục (`help`, `basis`, `legalBasis`, `lockReason`) và chữ Cài đặt ban đầu; `apply-plain-text.ts` vá `registry.data.json`. |
 | `prove-default-graph.ts`, `scan-magic-numbers.ts` | (tay) | So đồ thị công thức mặc định với bộ máy từng bit trên ca vàng; quét hằng số ngoài 0 và 1 trong mã tính lương. |
 
 Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ khoá đáng nhớ: `system.*` (giới hạn kỹ thuật, `editableBy: ops`), `unit.*`, `ai.threshold.*`, `ai.rule.<id>.enabled`, `ai.limit.*`, `type.<mã>.*`, `level.<mã>.<bậc>.*`, `position.def.<mã>`, `block.def.<mã>`, `class.level.attr.<mã>`, `shift.preset.<mã>.in|out`.
@@ -610,7 +610,7 @@ Không cần `pg_dump`; không đọc `.env`; không in dữ liệu hay mật kh
 | `npm run pg:drill` (`drill --backup=<file>`) | Khôi phục vào PGlite trong RAM rồi bỏ: chứng minh bản sao lưu dùng được mà không đụng DB nào; đối chiếu từng bảng và tổng tiền từng kỳ lương. |
 | `npm run pg:restore` (`restore --backup=<file> --to=<DB mới> --confirm-new-empty-db`) | Chỉ vào DB MỚI (đã chạy migration, chưa có dữ liệu ngoài các bảng gieo sẵn): thiếu migration hoặc đích không rỗng thì từ chối. Một giao dịch: xoá dòng gieo sẵn, chép theo thứ tự khoá ngoại (`OVERRIDING SYSTEM VALUE`), đặt lại dãy số tự tăng, đối chiếu dấu vân tay từng bảng và tổng tiền kỳ lương TRƯỚC khi COMMIT; lệch là hoàn tác. Thiếu cờ xác nhận thì không làm gì. |
 
-`<DB>` là `postgres://user:pass@host/db`, `pglite:<thư-mục>` hoặc `memory` (chỉ cho restore/drill). Định dạng file: gzip của NDJSON — dòng đầu là header (`format`, `version`, `createdAt`, `migrations`, `order`, `tables[{ name, rows, sha256, identity }]`, `payroll`), tiếp theo `{ t, r }` từng dòng (BYTEA dạng `{ $b64 }`), dòng cuối `{ end, rows }`. Mẫu hẹn giờ hằng ngày: `deploy/systemd/luong-pg-backup.service.example` và `deploy/systemd/luong-pg-backup.timer.example` (sao lưu rồi diễn tập khôi phục bản mới nhất). Test: `test/ops/pg-backup.test.js` (PGlite trong RAM và qua `pg.Pool` tới máy chủ socket giả).
+`<DB>` là `postgres://user:pass@host/db`, `pglite:<thư-mục>` hoặc `memory` (chỉ cho restore/drill). Định dạng file: gzip của NDJSON — dòng đầu là header (`format`, `version`, `createdAt`, `migrations`, `order`, `tables[{ name, rows, sha256, identity }]`, `payroll`), tiếp theo `{ t, r }` từng dòng (BYTEA dạng `{ $b64 }`), dòng cuối `{ end, rows }`. Mẫu hẹn giờ hằng ngày: `deploy/systemd/luong-pg-backup.service.example` và `deploy/systemd/luong-pg-backup.timer.example` (sao lưu rồi diễn tập khôi phục bản mới nhất). Test: `test/ops/pg-backup.test.ts` (PGlite trong RAM và qua `pg.Pool` tới máy chủ socket giả).
 
 Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ cho quy mô hiện tại; bảng lớn hơn cần xuất theo lô); chưa có sao lưu liên tục (WAL/PITR) — cần `pg_basebackup`/dịch vụ quản lý nếu yêu cầu RPO thấp hơn một ngày. Sao chép bản sao lưu ra khỏi máy chủ là việc vận hành, ngoài phạm vi script.
 
@@ -654,17 +654,17 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | `npm run seed` | `scripts/seed.ts` (không đọc `.env`). |
 | `npm run seed:demo` | `scripts/db/seed-demo.ts`. |
 | `npm run backup` | `scripts/ops/pg-backup.ts`. |
-| `npm test` | `node --test "test/**/*.test.js"` (gồm `test/ops`). |
+| `npm test` | `node --test "test/**/*.test.ts"` (gồm `test/ops`). |
 | `npm run test:unit` / `test:api` / `test:ui` | Chỉ thư mục tương ứng (không gồm `test/ops`). |
 | `npm run format` / `format:check` | `prettier --write .` / `--check .` (cả repo). |
 | `npm run params:extract|lock|check|doc` | `scripts/params/*` (mục 4.10). |
 
-Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test không cần `.env`: `test/helpers/api-fixture.js` đặt `DB_PATH=':memory:'`, `SESSION_SECRET`, bật công tắc Agents. Test API chạy `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.js` chạy sandbox ở tiến trình con.
+Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test không cần `.env`: `test/helpers/api-fixture.ts` đặt `DB_PATH=':memory:'`, `SESSION_SECRET`, bật công tắc Agents. Test API chạy `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.ts` chạy sandbox ở tiến trình con.
 
 **Ngân sách cỡ file và todo** (`test/tools`)
-- `size-budget.js`: đếm dòng file `.js .cjs .mjs .html .css` theo `git ls-files -co --exclude-standard` (không có git thì duyệt thư mục, bỏ `node_modules, .git, data, docs, playwright-report, test-results, GFT OFFICE, .claude, backups, ban-giao`). ≤ 800 không báo; 801..1200 chỉ in; > 1200 phải có trong `exceptions` của fixture với trần = bội trăm kế tiếp; `--write` chỉ hạ trần; `--allow-growth [--headroom=N]` cho nâng. Test: `test/unit/file-size-budget.test.js` (ba kiểm: không file vượt 1.200 ngoài danh sách, file ngoại lệ không vượt trần, ngoại lệ còn đúng thực tế).
-- `check-todo.js`: (1) tĩnh trong `npm test` (`test/unit/todo-baseline.test.js`): đếm chỗ gây todo (`pending(`, `pendingUnless(`, `todo:`, `.todo(`, `{ todo`) theo file trong `test/` (bỏ `red.js`, `test/tools/`, chính test đó), không được tăng; mỗi cờ `mentions('file', /mẫu/)` phải còn khớp. (2) động khi chạy tay: chạy cả bộ test, đọc `# todo N`, đỏ khi `fail > 0` hoặc todo > baseline.
-- `free-identifiers.js <đường dẫn…> [--unused] [--allow=a,b]`: in `file:dòng:cột tên` cho tên không khai báo; thoát 1 nếu có.
+- `size-budget.ts`: đếm dòng file `.js .cjs .mjs .html .css` theo `git ls-files -co --exclude-standard` (không có git thì duyệt thư mục, bỏ `node_modules, .git, data, docs, playwright-report, test-results, GFT OFFICE, .claude, backups, ban-giao`). ≤ 800 không báo; 801..1200 chỉ in; > 1200 phải có trong `exceptions` của fixture với trần = bội trăm kế tiếp; `--write` chỉ hạ trần; `--allow-growth [--headroom=N]` cho nâng. Test: `test/unit/file-size-budget.test.ts` (ba kiểm: không file vượt 1.200 ngoài danh sách, file ngoại lệ không vượt trần, ngoại lệ còn đúng thực tế).
+- `check-todo.ts`: (1) tĩnh trong `npm test` (`test/unit/todo-baseline.test.ts`): đếm chỗ gây todo (`pending(`, `pendingUnless(`, `todo:`, `.todo(`, `{ todo`) theo file trong `test/` (bỏ `red.ts`, `test/tools/`, chính test đó), không được tăng; mỗi cờ `mentions('file', /mẫu/)` phải còn khớp. (2) động khi chạy tay: chạy cả bộ test, đọc `# todo N`, đỏ khi `fail > 0` hoặc todo > baseline.
+- `free-identifiers.ts <đường dẫn…> [--unused] [--allow=a,b]`: in `file:dòng:cột tên` cho tên không khai báo; thoát 1 nếu có.
 
 ---
 
@@ -738,10 +738,10 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 
 ### 6.1 Đồ thị require chính
 
-- `src/server.ts` → `lib/config` (trước `.env`), `lib/register-ts`, `src/env`, `src/bootstrap`, `src/main`; `src/**` → `lib/db`, `lib/auth`, `lib/http`, `lib/request-rules`, `lib/announce`, `lib/authz`, `lib/roles`, `lib/audit`, `lib/params/*`, `lib/periods`, `lib/events`, `lib/findings`, `lib/ops/*`, `lib/explanations`, `lib/domain/*` (container, ai-review, ai-block, …), `lib/warnings`. Đồ thị không vòng do `test/unit/require-cycles.test.js` giữ (quét cả `src/`).
+- `src/server.ts` → `lib/config` (trước `.env`), `lib/register-ts`, `src/env`, `src/bootstrap`, `src/main`; `src/**` → `lib/db`, `lib/auth`, `lib/http`, `lib/request-rules`, `lib/announce`, `lib/authz`, `lib/roles`, `lib/audit`, `lib/params/*`, `lib/periods`, `lib/events`, `lib/findings`, `lib/ops/*`, `lib/explanations`, `lib/domain/*` (container, ai-review, ai-block, …), `lib/warnings`. Đồ thị không vòng do `test/unit/require-cycles.test.ts` giữ (quét cả `src/`).
 - `lib/db.ts` → `lib/warnings` (chỉ `warnIf`, `optionalReason`), `lib/config`, `lib/domain/employee/person-name`, các schema của `lib/domain`, `lib/attendance-sessions`, `lib/approvals`. `warnings.ts` không `require('./db')`.
 - `lib/http.ts` → `lib/auth`, `lib/warnings` (gắn `bindHttpError(HttpError)`), `lib/config`.
-- `lib/warnings.ts` → chỉ `lib/config` (lá; `test/unit/require-cycles.test.js` giữ).
+- `lib/warnings.ts` → chỉ `lib/config` (lá; `test/unit/require-cycles.test.ts` giữ).
 - `lib/events.ts` → `lib/db`, `lib/auth`, `lib/authz`, `lib/config`, `lib/params/config-rev`, `lib/params/registry`.
 - `lib/audit.ts` → `lib/db`, `lib/authz`, `lib/warnings`.
 - `lib/domain/container.ts` → `lib/db`, các lớp `lib/domain/*`; nạp muộn `lib/request-rules`, `lib/domain/attendance`, `lib/audit`, `lib/warnings` trong getter (tránh vòng `db ↔ params ↔ domain`).
@@ -770,24 +770,24 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
-- **Thêm / đổi tên route** → thêm khoá `ROUTE_CAPS` trước (không có → 403 `NO_ROUTE_POLICY`); nếu đường dẫn có tham số phải sửa `routeKey`; đặt phương thức vào controller của module (`src/modules/<tên>/`) và đăng ký module trong `FEATURE_MODULES` đúng thứ tự (route cụ thể trước route có tham số); chạy `npm run spec:gen`; cập nhật `lib/ops/route-classes.ts` nếu là route nặng / không giới hạn; chạy `test/api/permissions-matrix.test.js`, `test/api/route-dispatch-golden.test.js` (`record-dispatch.js --write` khi cố ý đổi), `test/unit/route-classes.test.js`.
-- **Đổi `routeKey` hay thứ tự `FEATURE_MODULES` (`src/app.module.ts`)** → route có tham số có thể nuốt route cụ thể (ví dụ `PUT /staff/:u` nuốt `PUT /staff/shift-bulk` nếu module `staff` đứng trước `sheet`); kiểm `test/api/route-dispatch-golden.test.js` và `test/unit/architecture.test.js`.
+- **Thêm / đổi tên route** → thêm khoá `ROUTE_CAPS` trước (không có → 403 `NO_ROUTE_POLICY`); nếu đường dẫn có tham số phải sửa `routeKey`; đặt phương thức vào controller của module (`src/modules/<tên>/`) và đăng ký module trong `FEATURE_MODULES` đúng thứ tự (route cụ thể trước route có tham số); chạy `npm run spec:gen`; cập nhật `lib/ops/route-classes.ts` nếu là route nặng / không giới hạn; chạy `test/api/permissions-matrix.test.ts`, `test/api/route-dispatch-golden.test.ts` (`record-dispatch.ts --write` khi cố ý đổi), `test/unit/route-classes.test.ts`.
+- **Đổi `routeKey` hay thứ tự `FEATURE_MODULES` (`src/app.module.ts`)** → route có tham số có thể nuốt route cụ thể (ví dụ `PUT /staff/:u` nuốt `PUT /staff/shift-bulk` nếu module `staff` đứng trước `sheet`); kiểm `test/api/route-dispatch-golden.test.ts` và `test/unit/architecture.test.ts`.
 - **Đổi `send` / `HttpError` / nhánh catch** → mọi phản hồi lỗi (`error`, `code`, `details`) và việc gộp `warnings`; giao diện đọc `code`. Test hạ tầng HTTP, `security-headers`, `warnings-cases`, `warnings-no-crash`.
-- **Đổi `warnIf`** → mọi chỗ cảnh báo nghiệp vụ trong `lib/db.ts`, `lib/periods.ts`, `lib/params/save.ts`, handler; `after.warnings` trong audit; `test/unit/warnings.test.js`, `test/unit/no-control-mode.test.js`, `test/api/warnings-cases.test.js`.
-- **Đổi `assertPeriodOpen` / `SCOPE_LOCKED_FROM`** → mọi route có `periodScope`, `catalog-change.ts`, `lib/params/save.ts`, `lib/pay-entries.ts`, `lib/advance-requests.ts`; `test/api/period-lifecycle.test.js`.
-- **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `scripts/ops/pg-backup.ts` (danh sách bảng), `sandbox-server.ts` (danh sách bảng reset), `test/helpers/api-fixture.js` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
+- **Đổi `warnIf`** → mọi chỗ cảnh báo nghiệp vụ trong `lib/db.ts`, `lib/periods.ts`, `lib/params/save.ts`, handler; `after.warnings` trong audit; `test/unit/warnings.test.ts`, `test/unit/no-control-mode.test.ts`, `test/api/warnings-cases.test.ts`.
+- **Đổi `assertPeriodOpen` / `SCOPE_LOCKED_FROM`** → mọi route có `periodScope`, `catalog-change.ts`, `lib/params/save.ts`, `lib/pay-entries.ts`, `lib/advance-requests.ts`; `test/api/period-lifecycle.test.ts`.
+- **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `scripts/ops/pg-backup.ts` (danh sách bảng), `sandbox-server.ts` (danh sách bảng reset), `test/helpers/api-fixture.ts` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
 - **Đổi `auditCanonical` / `auditHash`** → mọi chuỗi có sẵn không kiểm được nữa (`verify` báo `HASH` từ dòng đầu); `scripts/ops/pg-backup.ts`, `params-mode.ts` (kiểm kiểu băm dòng cuối). Đổi/bỏ `AUDIT_KEY` → dòng HMAC có sẵn thành `unverifiable`.
 - **Thêm trường vào `before/after` của audit** → hàng rào `SECRET_RE` (`lat`/`lng` làm hỏng cả thao tác), trần 65.536 ký tự.
-- **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; thêm chỗ nghe ở giao diện Vue (`web/src`); `test/api/events.test.js`.
+- **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; thêm chỗ nghe ở giao diện Vue (`web/src`); `test/api/events.test.ts`.
 - **Đổi `config.EVENTS_*`** → không đổi khoá registry `system.events.*` tương ứng (hai nơi), và ngược lại.
 - **Đổi `lib/config.ts`** → chạy `npm run params:extract` (một số hằng là nguồn của `DEFAULTS`), `params:check`; `config` đóng băng lúc nạp và nạp trước `.env`.
 - **Thêm / đổi khoá tham số** → thêm vào mã nguồn mặc định, `key-map.ts`, mục registry; chạy `params:extract`, `params:lock`, `params:check`; cờ `wired` qua `scripts/params/wired.ts --write`.
 - **Đổi bộ máy lương (`public/payroll-engine.js`) hay tham số** → kết quả AI (luật cần payroll, `impacts`), cache AI theo `paramsHash`, `verify-backup` (tính lại phiếu từ bản chụp).
-- **Đổi luật AI hoặc `rule.fields`** → `EVIDENCE_FIELDS`; id finding (`<luật>:<user>:<ngày>`) và digest xác định hiệu lực lần bỏ qua; `ai_block_rules`/`DEFAULT_BLOCK_RULES` dùng id luật; khoá `ai.rule.<camelCase>.enabled`; `test/unit/ai-review*.test.js`.
+- **Đổi luật AI hoặc `rule.fields`** → `EVIDENCE_FIELDS`; id finding (`<luật>:<user>:<ngày>`) và digest xác định hiệu lực lần bỏ qua; `ai_block_rules`/`DEFAULT_BLOCK_RULES` dùng id luật; khoá `ai.rule.<camelCase>.enabled`; `test/unit/ai-review*.test.ts`.
 - **Đổi ngưỡng AI** → `THRESHOLDS` là nguồn của `ai.threshold.*` trong `DEFAULTS`; `lib/periods.ts` băm `THRESHOLDS` khi không có `result.thresholds`.
-- **Đổi hành vi của `GET /`** → `scripts/ops/pg-backup.ts` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.js`.
+- **Đổi hành vi của `GET /`** → `scripts/ops/pg-backup.ts` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.ts`.
 - **Đổi giới hạn thân yêu cầu** → `MAX_BODY_BYTES` (`lib/http.ts`).
-- **Đổi cookie / phiên** → SSE heartbeat (đọc lại cookie), `restore-drill`, sandbox (`luong_sandbox_sid`), `test/helpers/api-fixture.js` (`auth.createSession`).
+- **Đổi cookie / phiên** → SSE heartbeat (đọc lại cookie), `restore-drill`, sandbox (`luong_sandbox_sid`), `test/helpers/api-fixture.ts` (`auth.createSession`).
 
 ---
 
@@ -801,9 +801,9 @@ Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng 
 
 **Phiên, đăng nhập**: `mvp-auth`, `verify-fixes`, test đăng nhập tài khoản khoá, test mở khoá nhật ký, `password-reset-admin` (`test/api/`); test băm mật khẩu bất đồng bộ (`test/unit/`).
 
-**Cảnh báo / Agents**: `test/unit/warnings.test.js`, `no-control-mode` (`test/unit/`); `warnings-cases`, `warnings-no-crash`, `warnings-inventory`, `period-flow-warns`, `settings-save-warns`, `agents-toggle` (`test/api/`).
+**Cảnh báo / Agents**: `test/unit/warnings.test.ts`, `no-control-mode` (`test/unit/`); `warnings-cases`, `warnings-no-crash`, `warnings-inventory`, `period-flow-warns`, `settings-save-warns`, `agents-toggle` (`test/api/`).
 
-**SSE**: `events`, test realtime chấm công (`test/api/`), dùng `test/helpers/sse-client.js`.
+**SSE**: `events`, test realtime chấm công (`test/api/`), dùng `test/helpers/sse-client.ts`.
 
 **Nhật ký**: `audit-log`, `audit-paging`, `audit-followup-backend` (`test/api/`).
 
@@ -811,17 +811,17 @@ Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng 
 
 **Tham số**: `settings-save`, `settings-save-failures`, `settings-preview`, `save-applies-everywhere`, `params-resolve-robust`, `formula-locked`, `levels-*`, `shifts-edit` (`test/api/`); `formula-*`, `shared-rules-params`, `position-defaults-zero-drift`, `schedule-defaults-zero-drift` (`test/unit/`).
 
-**AI**: `ai-review*` (cùng `ai-review-world.js`), `phase2-review` (`test/unit/`); `ai-review-api`, `ai-review-dismissed`, `findings`, `checklist-punch-review`, test AI chặn duyệt (`test/api/`).
+**AI**: `ai-review*` (cùng `ai-review-world.ts`), `phase2-review` (`test/unit/`); `ai-review-api`, `ai-review-dismissed`, `findings`, `checklist-punch-review`, test AI chặn duyệt (`test/api/`).
 
 **Bộ máy lương so với khối đóng băng**: `payroll-golden`, `payroll-engine-differential`, `payroll-engine-bad-staff`, `pay-tail-*` (`test/unit/`).
 
 **Phiếu và công thức Admin**: `slip-*` (`test/unit/`), `slip-detail-formulas`, `slip-row-columns-api`, `payslip-*` (`test/api/`).
 
-**Vận hành, sandbox**: (cũng chạy `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`), `test/api/sandbox.test.js`, test sandbox đặt lại trạng thái kỳ và giải trình. Không có test riêng cho `scripts/ops/pg-backup.ts` ngoài đường `--verify` của backup-daily, không có test cho `params-mode.ts`.
+**Vận hành, sandbox**: (cũng chạy `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`), `test/api/sandbox.test.ts`, test sandbox đặt lại trạng thái kỳ và giải trình. Không có test riêng cho `scripts/ops/pg-backup.ts` ngoài đường `--verify` của backup-daily, không có test cho `params-mode.ts`.
 
-**Giao diện (Node)**: `test/ui/*.test.js` — nhãn chấm công, lưới chấm công Admin, lịch làm bù Admin, loại ngày, iSAT chỉ thứ Bảy, KPI 5 thành phần, yêu cầu OT ngày lễ và yêu cầu tự gửi của nhân viên.
+**Giao diện (Node)**: `test/ui/*.test.ts` — nhãn chấm công, lưới chấm công Admin, lịch làm bù Admin, loại ngày, iSAT chỉ thứ Bảy, KPI 5 thành phần, yêu cầu OT ngày lễ và yêu cầu tự gửi của nhân viên.
 
-**Công cụ**: `test/unit/file-size-budget.test.js`, `todo-baseline`, `free-identifiers`, `moved-lines`.
+**Công cụ**: `test/unit/file-size-budget.test.ts`, `todo-baseline`, `free-identifiers`, `moved-lines`.
 
 Không có test trình duyệt thật: `@playwright/test` là devDependency nhưng không có `playwright.config.js` hay thư mục `e2e/`.
 
@@ -844,7 +844,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - Giới hạn SSE: `lib/events.ts` đọc `config.EVENTS_*`, registry có `system.events.*`; tương tự `system.audit.page*` vs `config.AUDIT_PAGE_*`, `control.reasonMinLength` vs `config.REASON_MIN`, `system.login.*` (dùng ở `lib/auth.ts`) vs `config.LOGIN_*` (chỉ là nguồn cho `extract-defaults`). `config.LOGIN_WINDOW_MIN`, `config.ATTR_MAX_PER_CLASS` không được mã chạy đọc (chỉ `scripts/params/key-map.ts`).
 - `MAX_BODY_BYTES = 1e6` viết cứng ở `lib/http.ts` (không trong `config`), registry có `system.http.maxBodyBytes`.
 - Hàm trùng: `realResolve`/`isInside` ở `scripts/ops/pg-backup.ts` và `scripts/ops/pg-backup.ts`; chuỗi tên theo giờ VN ở `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`; `vnDayIso` ở `src/modules/audit/audit.helpers.ts`.
-- `test/session-contract-helper.js` giống hệt `test/helpers/session-contract-helper.js`.
+- `test/session-contract-helper.ts` giống hệt `test/helpers/session-contract-helper.ts`.
 - `scripts/seed.ts` ở gốc khác `scripts/seed.ts` (lệnh `npm run seed` chạy bản trong `scripts/`); bản gốc mặc định mật khẩu `'123456'` (hoặc `SEED_PASSWORD`).
 
 ### 8.3 Ba cách khoá kỳ
@@ -881,7 +881,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 ### 8.7 Quy ước chưa đều
 
 - Thiếu `'use strict'` ở đầu: `src/server.ts`, `lib/announce.ts`, `lib/attendance-sessions.ts`, `lib/auth.ts`, `lib/db.ts`, `lib/domain/ai-review.ts`, `lib/domain/approvals.ts`, `lib/domain/attendance.ts`, `lib/domain/positions.ts`, `lib/domain/sheet.ts`, `lib/domain/staff.ts`, `lib/http.ts`, `lib/request-rules.ts` (danh sách tính bằng cách quét `src/server.ts` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.ts` (1.700; thực tế 1.606), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.ts` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.ts` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
+- Ngân sách cỡ file (`test/unit/file-size-budget.test.ts`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.ts` (1.700; thực tế 1.606), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.ts` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.ts` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
 
 ### 8.8 Chưa có
 

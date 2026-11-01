@@ -37,7 +37,7 @@
   const isMoney = v => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
   // Mọi lựa chọn đang `available: false` ở registry bị bộ máy từ chối rõ ràng dù giá trị lọt qua đường không kiểm
-  // (bộ tham số đặt trong bộ nhớ, dòng ghi tay vào DB): khoá → các giá trị chưa dùng được. test/unit/phase2-tail-unavailable.test.js đối chiếu bảng này với registry.
+  // (bộ tham số đặt trong bộ nhớ, dòng ghi tay vào DB): khoá → các giá trị chưa dùng được. test/unit/phase2-tail-unavailable.test.ts đối chiếu bảng này với registry.
   const UNAVAILABLE = Object.freeze({
     'tax.method.long': Object.freeze(['flat', 'none']),
     'tax.method.short': Object.freeze(['progressive', 'none']),

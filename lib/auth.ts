@@ -44,7 +44,7 @@ function verifyPassword(password?, stored?) {
 // Bản bất đồng bộ của hai hàm trên (crypto.scrypt chạy trên thread pool, không chặn event loop): dùng ở đường có người thật chờ
 // (POST /login, PUT /password, POST /staff/:u/password, POST /staff). Bản đồng bộ dùng cho dựng dữ liệu, script và test.
 // Hai bản cho cùng kết quả: cùng muối/số byte/khoá nên băm bên này kiểm được bên kia.
-// promisify gọi tại lúc dùng (không giữ hàm đã bọc lúc nạp mô-đun) để test/api/mvp-auth.test.js đếm được số lần băm.
+// promisify gọi tại lúc dùng (không giữ hàm đã bọc lúc nạp mô-đun) để test/api/mvp-auth.test.ts đếm được số lần băm.
 const scryptAsync = (...args) => promisify(crypto.scrypt)(...args);
 async function hashPasswordAsync(password?) {
   const salt = crypto.randomBytes(SALT_BYTES).toString('hex');

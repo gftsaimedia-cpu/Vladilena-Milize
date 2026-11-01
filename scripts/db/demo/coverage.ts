@@ -4,7 +4,7 @@
 //   2. mọi giá trị của mỗi ràng buộc CHECK (cột IN (...)) xuất hiện ít nhất một lần (trạng thái, loại, mức nhạy cảm...);
 //   3. mọi trạng thái kỳ lương (PERIOD_STATES), mọi chức vụ × bậc, mọi ca cố định, mọi vai trò mặc định đều có người;
 //   4. mọi loại khoản duyệt còn dùng × ba trạng thái; vai trò tuỳ chỉnh có cả loại ngưng dùng.
-// Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà bộ demo chưa phủ thì báo thiếu ở đây (test/db/demo-coverage.test.js đòi báo cáo sạch).
+// Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà bộ demo chưa phủ thì báo thiếu ở đây (test/db/demo-coverage.test.ts đòi báo cáo sạch).
 // Ngoại lệ phải ghi lý do trong EXCLUDED; không có ngoại lệ ngầm.
 const fs = require('node:fs');
 const path = require('node:path');

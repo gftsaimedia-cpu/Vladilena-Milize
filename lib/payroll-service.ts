@@ -3,7 +3,7 @@
 // (public/payroll-engine.js) với bộ tham số của tháng. Không ghi gì vào DB: việc ghi (lần chạy, phiếu, kỳ) là của lib/periods.ts.
 //   loadInputs(month, { usernames?, lookbackMonths?, asOf?, params? })  đầu vào của mọi nhân sự được trả lương (hoặc chỉ các `usernames`)
 //   computeFor(month, staff, inputs, params)                  một người: { m, payDays, pendingItems, actualReport, trace }
-// Đầu vào của một người đúng như test/helpers/period-flow.js → legacyInput: lịch qua estimateDays, hàng duyệt, phiên Check-in/out
+// Đầu vào của một người đúng như test/helpers/period-flow.ts → legacyInput: lịch qua estimateDays, hàng duyệt, phiên Check-in/out
 // (chỉ khi đã bật giờ thực tế), KPI theo cách tính của tháng, công tắc và ngày lễ.
 const crypto = require('node:crypto');
 const { AsyncList } = require('./shared/async-list');

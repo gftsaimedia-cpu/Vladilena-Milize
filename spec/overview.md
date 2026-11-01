@@ -39,8 +39,8 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết đ
 
 ### 2.1 Thành phần
 
-- **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `src/server.ts` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, chạy thẳng TypeScript bằng `tsx` (`node --import tsx src/server.ts`, không có bước build; test và script đi qua `scripts/dev/ts.cjs` đặt `NODE_OPTIONS=--import=tsx` để cả tiến trình con nạp được `.ts`), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.js`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
-- **Cơ sở dữ liệu**: **PostgreSQL** (`lib/db.ts`), chọn bằng biến môi trường, không có mặc định: `DATABASE_URL` → `pg.Pool` (máy chủ thật, vận hành); `PG_TEST_URL` → test chạy trên máy chủ thật, mỗi tiến trình một database riêng; `DB_PATH=:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev. Lược đồ do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.ts` (bảng `schema_migrations`). Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Truy vấn của ứng dụng là **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`), biên dịch thẳng ra PostgreSQL (`$1`, `ILIKE`, `jsonb`; cú pháp riêng gom ở `src/data/flavor.ts`) và chạy qua đúng kết nối của ứng dụng nên nằm trong `store.transaction`. Mọi aggregate của `lib/db.ts` (`settings`, nhật ký, tham số, kỳ lương/lần chạy/phiếu, AI, vai trò, nhân sự, bảng công, KPI), các store `approvals`, `attendance-sessions`, `pay-entries`, `advance-requests` và các lớp `lib/domain` (ca, chức vụ, sổ phép, giải trình, hồ sơ) đi qua các `*Repository` trong `src/data`. SQL thô chỉ còn ở công cụ sao lưu `lib/ops/pg-backup.ts` (đọc/ghi mọi bảng theo tên), bộ điều hợp `PostgresDatabase` và kiểm sức khoẻ; `test/unit/raw-sql-ratchet.test.js` giữ số đó chỉ giảm và cấm controller import `src/data`. Ghi đồng thời an toàn nhờ khoá tư vấn `store.lock` (`src/data/locks.ts`) và 409 cho vi phạm ràng buộc duy nhất. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.ts`.
+- **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `src/server.ts` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, chạy thẳng TypeScript bằng `tsx` (`node --import tsx src/server.ts`, không có bước build; test và script đi qua `scripts/dev/ts.cjs` đặt `NODE_OPTIONS=--import=tsx` để cả tiến trình con nạp được `.ts`), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.ts`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
+- **Cơ sở dữ liệu**: **PostgreSQL** (`lib/db.ts`), chọn bằng biến môi trường, không có mặc định: `DATABASE_URL` → `pg.Pool` (máy chủ thật, vận hành); `PG_TEST_URL` → test chạy trên máy chủ thật, mỗi tiến trình một database riêng; `DB_PATH=:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev. Lược đồ do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.ts` (bảng `schema_migrations`). Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Truy vấn của ứng dụng là **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`), biên dịch thẳng ra PostgreSQL (`$1`, `ILIKE`, `jsonb`; cú pháp riêng gom ở `src/data/flavor.ts`) và chạy qua đúng kết nối của ứng dụng nên nằm trong `store.transaction`. Mọi aggregate của `lib/db.ts` (`settings`, nhật ký, tham số, kỳ lương/lần chạy/phiếu, AI, vai trò, nhân sự, bảng công, KPI), các store `approvals`, `attendance-sessions`, `pay-entries`, `advance-requests` và các lớp `lib/domain` (ca, chức vụ, sổ phép, giải trình, hồ sơ) đi qua các `*Repository` trong `src/data`. SQL thô chỉ còn ở công cụ sao lưu `lib/ops/pg-backup.ts` (đọc/ghi mọi bảng theo tên), bộ điều hợp `PostgresDatabase` và kiểm sức khoẻ; `test/unit/raw-sql-ratchet.test.ts` giữ số đó chỉ giảm và cấm controller import `src/data`. Ghi đồng thời an toàn nhờ khoá tư vấn `store.lock` (`src/data/locks.ts`) và 409 cho vi phạm ràng buộc duy nhất. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.ts`.
 - **Mô-đun dùng chung trình duyệt và máy chủ (UMD) trong `public/`**: cùng một file nạp bằng `<script>` ở trình duyệt và `require` ở máy chủ. Gồm bộ máy tính lương (`payroll-engine.js`, `payroll-calendar.js`, `payroll-day-parts.js`, `payroll-graph.js`, `payroll-pins.js`, `pay-*-calc.js`), tham số mặc định (`payroll-params.js`), quy tắc chấm công (`punch.js`, `actual-hours.js`, `work-schedule.js`), quy tắc phép và KPI (`leave.js`, `kpi-score.js`), duyệt khoản (`approval-view.js`), công thức (`formula.js`, `formula-vocab.js`), nhãn chấm công (`attendance-status.js`). **Số tiền chính thức chỉ do máy chủ tính**; trình duyệt dùng cùng mã để hiển thị, xem trước và kiểm.
 - **Giao diện**: ứng dụng Vue 3 ở `web/` (build ra `web/dist`; `lib/http.ts` → `serveStatic` phục vụ `web/dist` ở "/" và mọi đường dẫn của router Vue; chưa build thì "/" trả 503 kèm cách build, `/api` vẫn chạy). Giao diện tĩnh cũ trong `public/` đã bỏ; `public/` chỉ còn các mô-đun tính lương mà máy chủ nạp bằng `require`. Tham chiếu route của giao diện: `spec/reference/web-routes.md`.
 - **Sự kiện thời gian thực**: `GET /api/events` (SSE, `lib/events.ts`). Sự kiện: `params.changed`, `period.changed`, `approvals.changed`, `attendance.changed`, `request.decided`, `punch.corrected`, `punch.changed`, `estimate.changed`, `payslip.available`, `roles.changed`, `announcement.posted`. Phát sau khi giao dịch COMMIT; mỗi sự kiện chọn người nhận và lọc trường theo quyền; màn hình tự nối lại và đồng bộ lại bằng `configRev`.
@@ -166,9 +166,9 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   ├── ui/                    8 file test logic giao diện
 │   ├── ops/                   Test sao lưu
 │   ├── tools/                 Công cụ kiểm tĩnh: size-budget, check-todo, free-identifiers, moved-lines, record-dispatch, record-schema
-│   ├── helpers/               api-fixture.js, sse-client.js, golden.js, ...
+│   ├── helpers/               api-fixture.ts, sse-client.ts, golden.ts, ...
 │   ├── fixtures/              Dữ liệu vàng và bảng đã ghi (chỉ nêu tên)
-│   └── session-contract-helper.js
+│   └── session-contract-helper.ts
 └── web/                       Front-end Vue riêng; máy chủ phục vụ web/dist khi đã build (chỉ nêu tên)
 ```
 
@@ -185,7 +185,7 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 | `npm run seed` | `scripts/seed.ts`: nạp tài khoản mẫu vào DB trỏ bởi `DB_PATH`, từ chối đường dẫn trùng DB thật. Chỉ thêm tài khoản chưa có. |
 | `npm run seed:demo` | `scripts/db/seed-demo.ts`: nạp bộ dữ liệu demo. |
 | `npm run backup` | `scripts/ops/pg-backup.ts`: sao lưu nhất quán, kiểm toàn vẹn, xoay vòng. |
-| `npm test` | `node --test "test/**/*.test.js"`. |
+| `npm test` | `node --test "test/**/*.test.ts"`. |
 | `npm run test:unit`, `test:api`, `test:ui` | Chạy riêng từng thư mục. |
 | `npm run format`, `format:check` | Prettier. |
 | `npm run params:extract`, `params:lock`, `params:check`, `params:doc` | Công cụ registry tham số (trích mặc định, khoá danh sách khoá, kiểm, sinh tài liệu). |
@@ -218,8 +218,8 @@ Mọi `POST /__sandbox/*` đòi header `x-sandbox-control: 1` và `Origin` cùng
 
 ### 4.3 Test
 
-- Dùng `node:test`. Thư mục: `test/unit` (hàm thuần, bộ máy lương, tham số), `test/api` (khởi máy chủ thật trên DB RAM bằng `test/helpers/api-fixture.js`: đồng hồ giả, `call()`, `reset()`, công tắc Agents bật), `test/ui` (logic giao diện chạy trong Node), `test/ops` (sao lưu), `test/tools` (công cụ kiểm tĩnh: ngân sách cỡ file, số test `todo`, tên chưa khai báo, bảng vàng điều phối, lược đồ DB).
-- `npm test` chỉ lấy `test/**/*.test.js`. Chạy `node --test` không đối số còn nhặt cả các file `.js` trong `test/tools` và `test/helpers` như test.
+- Dùng `node:test`. Thư mục: `test/unit` (hàm thuần, bộ máy lương, tham số), `test/api` (khởi máy chủ thật trên DB RAM bằng `test/helpers/api-fixture.ts`: đồng hồ giả, `call()`, `reset()`, công tắc Agents bật), `test/ui` (logic giao diện chạy trong Node), `test/ops` (sao lưu), `test/tools` (công cụ kiểm tĩnh: ngân sách cỡ file, số test `todo`, tên chưa khai báo, bảng vàng điều phối, lược đồ DB).
+- `npm test` chỉ lấy `test/**/*.test.ts`. Chạy `node --test` không đối số còn nhặt cả các file `.js` trong `test/tools` và `test/helpers` như test.
 - `test/fixtures/` chứa dữ liệu vàng và bảng đã ghi mà một số test so sánh.
 
 ---
@@ -330,13 +330,13 @@ Số liệu dưới đây là kết quả của một lần chạy `node --test`
 
 | Lỗi | File |
 | --- | --- |
-| 12 | `test/api/*-phan-6-sua-phieu.test.js` |
-| 10 | `test/api/period-lifecycle.test.js` |
-| 9 | `test/api/period-reopen.test.js`, `test/api/me-estimate.test.js` |
-| 8 | `test/unit/ca-kiem-bang-tien.test.js` |
-| 6 | `test/unit/schedule-defaults-zero-drift.test.js`, `test/unit/schedule-actual-hours.test.js`, `test/api/payslip-staff-paid-view.test.js` |
-| 5 | `test/unit/pay-tail-tax-options.test.js`, `test/api/settings-engine-zero-drift.test.js` |
-| 4 | `test/unit/schedule-workdays-computed.test.js`, `test/unit/tax-block-exempt-flags.test.js`, `test/api/payslip-negative-net.test.js`, `test/api/pay-entry.test.js` |
+| 12 | `test/api/*-phan-6-sua-phieu.test.ts` |
+| 10 | `test/api/period-lifecycle.test.ts` |
+| 9 | `test/api/period-reopen.test.ts`, `test/api/me-estimate.test.ts` |
+| 8 | `test/unit/ca-kiem-bang-tien.test.ts` |
+| 6 | `test/unit/schedule-defaults-zero-drift.test.ts`, `test/unit/schedule-actual-hours.test.ts`, `test/api/payslip-staff-paid-view.test.ts` |
+| 5 | `test/unit/pay-tail-tax-options.test.ts`, `test/api/settings-engine-zero-drift.test.ts` |
+| 4 | `test/unit/schedule-workdays-computed.test.ts`, `test/unit/tax-block-exempt-flags.test.ts`, `test/api/payslip-negative-net.test.ts`, `test/api/pay-entry.test.ts` |
 | 3 trở xuống | Các file còn lại (kỳ lương, phiếu, khoản điền thêm, bảng vàng, AI rà soát...) |
 
 Nhóm nguyên nhân thấy trong thông báo lỗi (số là số lỗi của lần chạy trên):
@@ -344,7 +344,7 @@ Nhóm nguyên nhân thấy trong thông báo lỗi (số là số lỗi của l�
 - 53 lỗi: bước duyệt phiếu bị từ chối với `PAYSLIP_FLAGGED` vì AI gắn cờ `net-nonpositive` trên dữ liệu của test (vòng đời kỳ, mở lại kỳ, thực lĩnh âm, tổng hợp kỳ).
 - 6 lỗi: không tìm thấy file cần chép (`ENOENT`).
 - Các test so sánh với bảng vàng hoặc bộ so lệch (`route-dispatch-golden`, `formula-golden`, `payroll-golden`, `payroll-engine-differential`, `file-size-budget`) báo khác biệt; trong đó `file-size-budget` báo `lib/periods.ts` còn 1.196 dòng nên phải rút khỏi danh sách ngoại lệ.
-- 4 lỗi đến từ các file không phải test (`test/tools/check-todo.js`, `free-identifiers.js`, `moved-lines.js`, `test/helpers/sse-client.js`) bị `node --test` không đối số nhặt như test.
+- 4 lỗi đến từ các file không phải test (`test/tools/check-todo.ts`, `free-identifiers.ts`, `moved-lines.ts`, `test/helpers/sse-client.ts`) bị `node --test` không đối số nhặt như test.
 - Phần còn lại là lệch số tiền giữa kết quả của mã và số test chờ (thuế, bảo hiểm, ca đêm, chuyên cần).
 
 ### 6.6 Công việc đang nằm ở nhánh khác (không thuộc mã này)

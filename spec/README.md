@@ -4,7 +4,7 @@ Spec mô tả **mã đang có trong cây này**. Hai loại tài liệu:
 
 ## 1. Tham chiếu sinh từ mã — `spec/reference/`
 
-Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/spec-reference.test.js` dựng lại và so sánh nên spec không thể lệch mã âm thầm. Mỗi mục dẫn tới file và dòng thật.
+Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/spec-reference.test.ts` dựng lại và so sánh nên spec không thể lệch mã âm thầm. Mỗi mục dẫn tới file và dòng thật.
 
 | File | Nội dung | Nguồn trong mã |
 | --- | --- | --- |
@@ -33,7 +33,7 @@ Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/s
 | [payroll-period.md](payroll-period.md) | Vòng đời kỳ lương, phiếu, ước tính |
 | [data-fixtures.md](data-fixtures.md) | Bộ dữ liệu thử đủ mọi trường hợp (demo), cách dựng và đo độ phủ |
 
-Quy ước của phần viết tay (`test/unit/spec-refs.test.js` giữ):
+Quy ước của phần viết tay (`test/unit/spec-refs.test.ts` giữ):
 
 - File được dẫn trong dấu huyền (`` `lib/db.ts` ``) phải tồn tại.
 - Không dùng neo "tên file : số dòng": số dòng trôi sau mỗi lần sửa. Chỉ định vị bằng tên hàm/lớp/khoá; cần dòng chính xác thì xem `spec/reference/`.

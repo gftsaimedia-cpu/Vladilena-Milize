@@ -1,7 +1,7 @@
 'use strict';
 // spec:gen — dựng spec/reference/*.md TỪ MÃ (không từ trí nhớ): route, module, quyền, lược đồ DB, luật, sự kiện, cấu hình.
 //   node scripts/docs/gen-spec.ts            ghi lại các file
-//   node scripts/docs/gen-spec.ts --check    thoát 1 nếu file trên đĩa khác bản dựng từ mã (test/unit/spec-reference.test.js gọi chế độ này)
+//   node scripts/docs/gen-spec.ts --check    thoát 1 nếu file trên đĩa khác bản dựng từ mã (test/unit/spec-reference.test.ts gọi chế độ này)
 // Mỗi mục dẫn tới file thật (đường dẫn#ký hiệu hoặc đường dẫn:dòng — dòng do chính script tính nên luôn đúng lúc sinh).
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'spec-gen';
@@ -22,7 +22,7 @@ const walk = (dir?, filter?) =>
     .sort();
 const esc = (s?) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const HEADER = (title?, what?) =>
-  `# ${title}\n\n> Sinh tự động bởi \`scripts/docs/gen-spec.ts\` (\`npm run spec:gen\`) từ ${what}. Đừng sửa tay: \`test/unit/spec-reference.test.js\` so sánh file này với bản dựng từ mã.\n\n`;
+  `# ${title}\n\n> Sinh tự động bởi \`scripts/docs/gen-spec.ts\` (\`npm run spec:gen\`) từ ${what}. Đừng sửa tay: \`test/unit/spec-reference.test.ts\` so sánh file này với bản dựng từ mã.\n\n`;
 
 /* ---------- 1. route ---------- */
 function controllerRoutes() {
@@ -82,7 +82,7 @@ function modulesDoc() {
   const routes = controllerRoutes();
   const mods = fs.readdirSync(path.join(ROOT, 'src/modules'), { withFileTypes: true }).filter(e => e.isDirectory()).map(e => e.name).sort();
   let out = HEADER('Module NestJS', 'cây `src/` (import và decorator)');
-  out += `Luật kiến trúc do \`test/unit/architecture.test.js\` giữ: module nghiệp vụ chỉ import module khác qua \`index.ts\`; hạ tầng (\`src/http\`, \`src/shared\`) không phụ thuộc module; \`AppModule\` (\`src/app.module.ts\`) đăng ký mọi module, \`NotFoundModule\` đứng cuối.\n\n`;
+  out += `Luật kiến trúc do \`test/unit/architecture.test.ts\` giữ: module nghiệp vụ chỉ import module khác qua \`index.ts\`; hạ tầng (\`src/http\`, \`src/shared\`) không phụ thuộc module; \`AppModule\` (\`src/app.module.ts\`) đăng ký mọi module, \`NotFoundModule\` đứng cuối.\n\n`;
   out += '## Hạ tầng (`src/`)\n\n| File | Việc |\n| --- | --- |\n';
   const infra = [
     ['src/bootstrap.ts', 'dựng `http.Server`: tiêu đề bảo mật, file tĩnh ngoài `/api`, chuyển `/api/*` cho Nest; mã hoá lại `%` để Express không lỗi giải mã'],
@@ -235,7 +235,7 @@ function configDoc() {
 function paramsDoc() {
   const { execFileSync } = require('node:child_process');
   const body = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/params/doc.ts')], { encoding: 'utf8', env: { ...process.env, DB_PATH: ':memory:' } });
-  // Khoá đã bỏ (lớp "bỏ") không còn là tham số nên không liệt kê (test/unit/no-month-rules.test.js cấm tên các công tắc theo tháng cũ trong spec)
+  // Khoá đã bỏ (lớp "bỏ") không còn là tham số nên không liệt kê (test/unit/no-month-rules.test.ts cấm tên các công tắc theo tháng cũ trong spec)
   const live = body
     .replace(/\r\n/g, '\n')
     .split('\n')

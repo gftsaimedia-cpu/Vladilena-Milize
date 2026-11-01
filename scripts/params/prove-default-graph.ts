@@ -9,8 +9,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const PayrollEngine = require(path.join(ROOT, 'public/payroll-engine.js'));
 const PayrollParams = require(path.join(ROOT, 'public/payroll-params.js'));
 const Graph = require(path.join(ROOT, 'public/payroll-graph.js'));
-const { generateCases } = require(path.join(ROOT, 'test/helpers/payroll-cases.js'));
-const { readGolden } = require(path.join(ROOT, 'test/helpers/golden.js'));
+const { generateCases } = require(path.join(ROOT, 'test/helpers/payroll-cases.ts'));
+const { readGolden } = require(path.join(ROOT, 'test/helpers/golden.ts'));
 
 const arg = (name?, fallback?) => {
   const hit = process.argv.find(a => a.startsWith(`--${name}=`));

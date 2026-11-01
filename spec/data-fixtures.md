@@ -25,7 +25,7 @@ Mã thoát: 0 = mọi kỳ vọng đạt; 2 = kỳ vọng AI hoặc đồng hồ
 
 `scripts/db/demo/coverage.ts` đo trên DB vừa dựng và đối chiếu với vũ trụ ca **rút từ mã**: mọi bảng của `migrations/postgres` có dòng (29/29); mọi giá trị của mọi ràng buộc `CHECK (cột IN (...))` xuất hiện (48 giá trị); mọi trạng thái kỳ lương và có kỳ tính lần hai; mọi chức vụ × bậc và mọi ca có người; mọi vai trò mặc định có người và có vai trò bị thu hồi; vai trò tuỳ chỉnh có cả loại ngưng dùng; mọi loại khoản duyệt còn dùng (`isat`, `approved`, `ot`, `makeup_hours`, `leave`, `willmakeup`) × `pending`/`approved`/`rejected`.
 
-Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.ts` thoát 4 và `test/db/demo-coverage.test.js` đỏ (chạy trên PGlite, hoặc trên máy chủ thật khi đặt `PG_TEST_URL`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED` (hiện 3):
+Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.ts` thoát 4 và `test/db/demo-coverage.test.ts` đỏ (chạy trên PGlite, hoặc trên máy chủ thật khi đặt `PG_TEST_URL`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED` (hiện 3):
 
 | Giá trị | Lý do |
 | --- | --- |

@@ -1,6 +1,6 @@
 # Danh mục tham số lương
 
-> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/params/registry.data.json` qua `scripts/params/doc.ts` (không kể các khoá lớp "bỏ"). Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/params/registry.data.json` qua `scripts/params/doc.ts` (không kể các khoá lớp "bỏ"). Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
 # Danh mục cấu hình (sinh từ registry)
 
