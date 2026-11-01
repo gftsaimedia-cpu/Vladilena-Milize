@@ -7,24 +7,20 @@ import {
   PostgresAdapter,
   PostgresIntrospector,
   PostgresQueryCompiler,
-  QueryResult,
-  SqliteAdapter,
-  SqliteIntrospector,
-  SqliteQueryCompiler
+  QueryResult
 } from 'kysely';
 
 interface Statement {
   all(...params: unknown[]): unknown[] | Promise<unknown[]>;
-  run(...params: unknown[]): { changes?: number | bigint; lastInsertRowid?: number | bigint } | Promise<{ changes?: number | bigint; lastInsertRowid?: number | bigint }>;
+  run(...params: unknown[]): { changes?: number | bigint } | Promise<{ changes?: number | bigint }>;
 }
 
 /**
- * Kết nối của ứng dụng: `node:sqlite` DatabaseSync (SQLite) hoặc PostgresDatabase (lib/data/postgres-database.js).
- * Trên PostgreSQL, `native(sql)` chạy câu lệnh PostgreSQL nguyên văn (`$1`, `ILIKE`, ...) không qua bộ dịch SQLite → PostgreSQL.
+ * Kết nối của ứng dụng (PostgresDatabase, lib/data/postgres-database.js). `native(sql)` chạy câu lệnh PostgreSQL nguyên văn
+ * (`$1`, `ILIKE`, `RETURNING`...) trên đúng kết nối đang dùng (kết nối của giao dịch đang mở nếu có).
  */
 export interface AppDatabase {
-  prepare(sql: string): Statement;
-  native?(sql: string): Statement;
+  native(sql: string): Statement;
 }
 
 const RETURNS_ROWS = /^\s*(select|with)\b|\breturning\b/i;
@@ -33,7 +29,7 @@ class AppConnection implements DatabaseConnection {
   constructor(private readonly db: AppDatabase) {}
 
   async executeQuery<R>(query: CompiledQuery): Promise<QueryResult<R>> {
-    const statement = this.db.native ? this.db.native(query.sql) : this.db.prepare(query.sql);
+    const statement = this.db.native(query.sql);
     if (RETURNS_ROWS.test(query.sql)) return { rows: (await statement.all(...query.parameters)) as R[] };
     const result = await statement.run(...query.parameters);
     return { rows: [], numAffectedRows: BigInt(result.changes ?? 0) };
@@ -46,9 +42,9 @@ class AppConnection implements DatabaseConnection {
 }
 
 /**
- * Driver chạy câu lệnh qua đúng kết nối của ứng dụng (một kết nối SQLite, hoặc kết nối của giao dịch đang mở trên PostgreSQL), nên một lệnh
- * Kysely nằm trong `store.transaction(...)` thuộc cùng giao dịch. Giao dịch do `store.transaction` quản lý (hàng đợi + SAVEPOINT),
- * không mở giao dịch riêng ở đây.
+ * Driver chạy câu lệnh qua đúng kết nối của ứng dụng (kết nối của giao dịch đang mở nếu có), nên một lệnh Kysely nằm trong
+ * `store.transaction(...)` thuộc cùng giao dịch. Giao dịch do `store.transaction` quản lý (BEGIN/COMMIT hoặc SAVEPOINT), không mở
+ * giao dịch riêng ở đây.
  */
 class AppDriver implements Driver {
   constructor(private readonly db: AppDatabase) {}
@@ -69,22 +65,19 @@ class AppDriver implements Driver {
   async destroy(): Promise<void> {}
 }
 
-/** Biên dịch theo cú pháp của dialect đang chạy: PostgreSQL gốc khi kết nối có `native`, ngược lại SQLite. */
+/** Biên dịch thẳng ra PostgreSQL (`$1`, nhãn "..."). */
 export class AppDialect implements Dialect {
   constructor(private readonly db: AppDatabase) {}
-  private get postgres(): boolean {
-    return typeof this.db.native === 'function';
-  }
   createAdapter() {
-    return this.postgres ? new PostgresAdapter() : new SqliteAdapter();
+    return new PostgresAdapter();
   }
   createDriver(): Driver {
     return new AppDriver(this.db);
   }
   createIntrospector(db: Kysely<any>) {
-    return this.postgres ? new PostgresIntrospector(db) : new SqliteIntrospector(db);
+    return new PostgresIntrospector(db);
   }
   createQueryCompiler() {
-    return this.postgres ? new PostgresQueryCompiler() : new SqliteQueryCompiler();
+    return new PostgresQueryCompiler();
   }
 }

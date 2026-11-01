@@ -14,7 +14,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | --- | --- |
 | `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.js`. |
 | `seed.js` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.js` (lệnh `npm run seed` chạy bản trong `scripts/`). |
-| `lib/` | Mã máy chủ: `db.js` (SQLite + store), `http.js`, `auth.js`, `authz.js`, `audit.js`, `events.js`, `warnings.js`, `config.js`, `periods.js`, `payroll-service.js`, `roles.js`, `pay-entries.js`, `advance-*.js`, `explanations.js`, `slip-*.js`, `findings.js`, `data-quality.js`, `period-*.js`, `request-rules.js`, `announce.js`, `approvals.js`, `attendance-sessions.js`. |
+| `lib/` | Mã máy chủ: `db.js` (PostgreSQL + store), `http.js`, `auth.js`, `authz.js`, `audit.js`, `events.js`, `warnings.js`, `config.js`, `periods.js`, `payroll-service.js`, `roles.js`, `pay-entries.js`, `advance-*.js`, `explanations.js`, `slip-*.js`, `findings.js`, `data-quality.js`, `period-*.js`, `request-rules.js`, `announce.js`, `approvals.js`, `attendance-sessions.js`. |
 | `lib/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.js`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
 | `lib/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `lib/params/` | Registry tham số, đọc theo tháng (`store.js`), lưu / xem trước / hoàn tác (`save.js`), kiểm (`validate.js`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.js`, `keys.lock.json`, `registry.data.json`. |
@@ -67,13 +67,9 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `lib/db.js` | Mở SQLite (`node:sqlite`, `DB_PATH` bắt buộc), PRAGMA, DDL chỉ-thêm + `addColumn` + mốc `once`, `transaction` (SAVEPOINT lồng được), kho staff / timesheets / settings / KPI / slip_overrides, `auditStore`, `paramsStore` (đọc `param_versions`), `periodsStore` (vòng đời kỳ), `payrollStore` (lần chạy + phiếu), `aiFindingStore`, `aiReviewStore`, `rolesStore`, `assertPeriodOpen`. Cuối file gắn thêm kho của `attendance-sessions.js`, `approvals.js`. |
+| `lib/db.js` | Chọn và mở PostgreSQL (`DATABASE_URL` / `PG_TEST_URL` / `DB_PATH`), `transaction` (SAVEPOINT lồng được), kho staff / timesheets / settings / KPI / slip_overrides, `auditStore`, `paramsStore` (đọc `param_versions`), `periodsStore` (vòng đời kỳ), `payrollStore` (lần chạy + phiếu), `aiFindingStore`, `aiReviewStore`, `rolesStore`, `assertPeriodOpen`. Cuối file gắn thêm kho của `attendance-sessions.js`, `approvals.js`. |
 | `lib/attendance-sessions.js` | DDL `attendance_sessions`, `punch_requests` (+ cột, chỉ mục), migration `attendance_sessions_v1`, `purgePunchRequests`. |
 | `lib/approvals.js` | DDL `sheet_approvals`, migration `sheet_approvals_v1…v4`. |
-| `lib/domain/employee/schema.js` | Cột danh tính trên `staff` (uuid, họ/tên, ngày nghỉ việc, số phép lưu sẵn…), cột `audit_log.subject_uuid/actor_uuid`, trigger khoá `username`/`uuid`, mốc `staff_identity_v1`. |
-| `lib/domain/position/schema.js` | Bảng danh mục `benefit_types`, `position_types`, `position_type_benefits`, `position_levels`, `work_shifts`; mốc `position_catalog_v1` nạp dòng nền từ `PayrollParams.DEFAULTS`. |
-| `lib/domain/leave/schema.js` | Bảng `leave_ledger`. |
-| `lib/domain/explanation/schema.js` | Bảng `explanations` (nâng dạng bảng bằng RENAME → chép → DROP trong một giao dịch). |
 
 ### 1.4 lib/domain: container và lớp gốc
 
@@ -109,11 +105,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `scripts/ops/backup-db.js` | Sao lưu nhất quán bằng `VACUUM INTO` → `integrity_check` → đổi tên → xoay vòng giữ `BACKUP_KEEP` bản. |
-| `scripts/ops/backup-daily.js` | Một lệnh cho bộ lập lịch: gọi `backup()`, tuỳ chọn chạy `verify-backup.js`, ghi một dòng JSON log; kiểm hỏng thì đổi tên `.failed`. |
-| `scripts/ops/check-backup.js` | Giám sát: có bản, bản mới nhất trẻ hơn `--max-age-hours`, không có `.failed`/`.partial` mới hơn. |
-| `scripts/ops/verify-backup.js` | Kiểm bản sao trên bản chép tạm: integrity, foreign_key, đếm dòng, chuỗi băm nhật ký, tính lại phiếu từ bản chụp. |
-| `scripts/ops/restore-drill.js` | Diễn tập khôi phục: chạy `src/server.ts` (ứng dụng NestJS) ở tiến trình con trên bản chép, gửi 3 yêu cầu kiểm. |
 | `scripts/ops/params-mode.js` | Xem / lùi `params_mode` về `defaults-only` (có sao lưu, audit `param.mode`, tăng `config_rev`). |
 | `scripts/dev/sandbox-server.cjs` | Máy chủ thử: DB RAM, đồng hồ giả, chỉ loopback, nạp `src/server.ts` (ứng dụng NestJS). |
 | `scripts/dev/sandbox-ops.cjs` | Điều khiển thử tải và sao lưu/khôi phục bên trong sandbox. |
@@ -132,7 +123,6 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `test/tools/free-identifiers.js` | Tìm tên dùng mà không khai báo (bắt `require` bị quên khi chuyển mã), dùng parser của Prettier. |
 | `test/tools/moved-lines.js` | So dòng khi cắt mã từ file lớn sang file khác (từng dùng khi tách `src/server.ts` sang `src/modules`). |
 | `test/tools/record-dispatch.js` | Ghi / so "bảng vàng điều phối" (mọi khoá `ROUTE_CAPS` × 3 loại người dùng) vào `test/fixtures/route-dispatch-golden.json`. |
-| `test/tools/record-schema.js` | Bản chụp lược đồ DB do `lib/db.js` dựng (`test/fixtures/db-schema-snapshot.json`). |
 | `test/helpers/api-fixture.js` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
 | `test/helpers/sse-client.js`, `server-source.js` | Máy khách SSE cho test; gom văn bản mã máy chủ cho test đọc tĩnh. |
 | `test/helpers/red.js`, `open-bug.js` | Test đỏ viết trước / lỗi đã biết chạy như `todo`. |
@@ -145,26 +135,28 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 ### 2.1 Kết nối và giao dịch
 
-- `DB_PATH` bắt buộc; thiếu thì `lib/db.js` ném lỗi ngay khi `require` (`lib/db.js`). Thư mục cha được tạo.
-- `PRAGMA journal_mode = WAL`, `busy_timeout = config.DB_BUSY_TIMEOUT_MS` (5000) (`lib/db.js`). Khoá ngoại bật (mặc định của `node:sqlite`).
-- Một kết nối duy nhất cho cả tiến trình. `transaction(fn)` dùng `SAVEPOINT write_<n>`; lỗi thì `ROLLBACK TO` + `RELEASE` rồi ném tiếp; gọi lồng được (`lib/db.js`).
+- Chọn DB bằng biến môi trường (không có mặc định; thiếu cả ba thì `lib/db.js` ném lỗi ngay khi `require`): `DATABASE_URL` = máy chủ PostgreSQL thật (`pg.Pool`, tối đa 10 kết nối); `PG_TEST_URL` = test, mỗi tiến trình một database riêng `luong_test_<pid>_<mã>` tạo lúc mở và xoá khi `close()` (`PostgresDatabase({ isolatedFrom })`); `DB_PATH` = `:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev.
+- Lược đồ do `migrations/postgres/NNNN_*.sql` dựng; `PostgresDatabase` chạy các file chưa chạy lúc mở, mỗi file một giao dịch, tên file ghi ở bảng `schema_migrations`. `db.ready` chờ xong.
+- Truy vấn của ứng dụng là Kysely (`src/data`), biên dịch thẳng ra PostgreSQL qua `PostgresDatabase.native`; chỗ cú pháp riêng (`jsonb #>>`, `ILIKE`, `IS DISTINCT FROM`) nằm ở `src/data/flavor.ts`. `prepare(sql).get/all/run` còn dùng cho test, script và `lib/ops`: chỉ đổi `?` thành `$n` và thêm `RETURNING id` cho INSERT (`lib/data/postgres-sql.js`).
+- Giao dịch: `transaction(fn)`. PGlite (một kết nối) xếp hàng giao dịch ngoài cùng; `pg.Pool` mỗi giao dịch một kết nối riêng (`db.concurrent`), bên trong là `SAVEPOINT write_<n>`, lỗi thì `ROLLBACK TO` + `RELEASE` rồi ném tiếp; gọi lồng được (`lib/db.js`).
+- Ghi đồng thời: mẫu "đọc xem có chưa rồi mới chèn" dùng khoá tư vấn `store.lock(khoá)` = `pg_advisory_xact_lock` (`src/data/locks.ts`) ở đầu giao dịch (Check-in/out theo người, điểm KPI theo người + tháng). Vi phạm ràng buộc duy nhất `23505` còn sót được `ApiExceptionFilter` đổi thành 409 `CONFLICT`.
 - Đồng hồ DB: `now()` = `new Date(Date.now()).toISOString()` để test/sandbox giả giờ được (`lib/db.js`).
 - Lỗi có mã của store: `storeError(code, message, httpStatus=400, details)` → `Error` có `code`, `httpStatus`, `details` (`lib/db.js`).
 - Lỗi khi khởi động mà người vận hành phải xử lý (`bootFail`, `lib/db.js`): in hướng dẫn rồi `process.exit(1)`.
 
 ### 2.2 Bảng
 
-Không có số phiên bản lược đồ. Mọi DDL là `CREATE … IF NOT EXISTS` chạy mỗi lần mở DB, cột bổ sung qua `addColumn` (kiểm `PRAGMA table_info`), dữ liệu chuyển một lần qua mốc trong `settings`.
+Số phiên bản lược đồ là danh sách file đã chạy trong bảng `schema_migrations` (`migrations/postgres/NNNN_*.sql`); dữ liệu nền do `0002_seed.sql` gieo.
 
 | Bảng | Tạo ở | Ghi chú cho nền tảng |
 | --- | --- | --- |
-| `staff` | `lib/db.js` + nhiều `addColumn` (,), `employee/schema.js` | Khoá `username`. Cột phiên: `locked_at`, `locked_by`, `session_version`. `payroll_subject` (null = suy từ role). `uuid` (sinh bằng SQL nếu thiếu, không đổi được — trigger). |
+| `staff` | `migrations/postgres/0001_baseline.sql` | Khoá `username`. Cột phiên: `locked_at`, `locked_by`, `session_version`. `payroll_subject` (null = suy từ role). `uuid` (sinh bằng SQL nếu thiếu, không đổi được — trigger). |
 | `timesheets` | `lib/db.js` | Lịch ước tính theo (username, month), `days_json`, `rev`. |
 | `settings` | `lib/db.js` | `key` → `value_json`. Xem 2.3. |
 | `slip_overrides` | `lib/db.js` | Số Admin sửa trên phiếu; `reason`, `rev`. |
 | `punches`, `corrections`, `attendance_days` | `lib/db.js` | Lượt bấm lẻ, điều chỉnh giờ, giờ chấm công gửi Admin; `context_json`, `session_id`, `session_version`. |
 | `kpi_scores`, `kpi_score_log` | `lib/db.js` | Điểm ×100 (0..10000, CHECK kiểu integer). |
-| `audit_log` | `lib/db.js` + `subject_uuid`, `actor_uuid` (`employee/schema.js`) | Chỉ thêm (trigger chặn UPDATE/DELETE). `sensitivity ∈ normal/pay/pii`. Chuỗi băm `prev_hash`, `hash`. Chỉ mục: `at`, `(entity_kind, entity_id, id)`, `(subject, month, id)`, `(actor, at)`, `(action, at)`, `(actor,id)`, `(action,id)`, `(month,id)`, `(entity_kind,id)`, `(subject_uuid,id)`. |
+| `audit_log` | `lib/db.js` + `subject_uuid`, `actor_uuid` (`migrations/postgres/0001_baseline.sql`) | Chỉ thêm (trigger chặn UPDATE/DELETE). `sensitivity ∈ normal/pay/pii`. Chuỗi băm `prev_hash`, `hash`. Chỉ mục: `at`, `(entity_kind, entity_id, id)`, `(subject, month, id)`, `(actor, at)`, `(action, at)`, `(actor,id)`, `(action,id)`, `(month,id)`, `(entity_kind,id)`, `(subject_uuid,id)`. |
 | `param_versions` | `lib/db.js`, `batch_id` | Chỉ thêm. `reason` CHECK 10..300. Đọc qua `paramsStore`. |
 | `payroll_periods` | `lib/db.js` | Trạng thái kỳ, `rev`, `current_run_id`, cột "ai/lúc nào" từng bước, `reopen_count`. Không có dòng = `open`. |
 | `payroll_runs`, `payslips` | `lib/db.js` | Bất biến bằng trigger: không xoá; lần chạy không đổi tham số/đầu vào/không lùi trạng thái; phiếu không đổi số; phiếu của lần chạy `final`/`superseded` không đổi gì. |
@@ -174,9 +166,9 @@ Không có số phiên bản lược đồ. Mọi DDL là `CREATE … IF NOT EXI
 | `pay_entries`, `advance_requests` | `lib/db.js` | Trigger khoá trạng thái cuối / trường tiền sau duyệt; `advance_requests` có chỉ mục duy nhất một yêu cầu `pending` mỗi (người, tháng). |
 | `attendance_sessions`, `punch_requests` | `lib/attendance-sessions.js` | Một phiên mở mỗi người (unique partial index `session_one_open`). `punch_requests` là bộ nhớ chống bấm lặp theo `requestId`, `created_at` để dọn. |
 | `sheet_approvals` | `lib/approvals.js` | Khoản tự khai chờ duyệt. |
-| `benefit_types`, `position_types`, `position_type_benefits`, `position_levels`, `work_shifts` | `lib/domain/position/schema.js` | Danh mục có tháng áp dụng. |
-| `leave_ledger` | `lib/domain/leave/schema.js` | Sổ phép, duy nhất (staff_uuid, kind, on_date). |
-| `explanations` | `lib/domain/explanation/schema.js` | Giải trình. |
+| `benefit_types`, `position_types`, `position_type_benefits`, `position_levels`, `work_shifts` | `migrations/postgres/0001_baseline.sql` | Danh mục có tháng áp dụng. |
+| `leave_ledger` | `migrations/postgres/0001_baseline.sql` | Sổ phép, duy nhất (staff_uuid, kind, on_date). |
+| `explanations` | `migrations/postgres/0001_baseline.sql` | Giải trình. |
 
 ### 2.3 Khoá `settings`
 
@@ -193,19 +185,14 @@ Không có số phiên bản lược đồ. Mọi DDL là `CREATE … IF NOT EXI
 | `ai_block_rules` | mảng id luật; `[]` = tắt | `lib/domain/ai-block.js`. |
 | `roles.custom` | `{ rev, roles: [...] }` | `lib/authz.js`, `lib/roles.js`. |
 | `advance_approvals_<YYYY-MM>` | `{ rev, users }` | `lib/domain/advance/advance-approvals.js`. |
-| Mốc migration | `{ at }` | `attendance_split_v1` (`lib/db.js`), `backend_v4_v1a_v1`, `staff_payroll_subject_v1`, `staff_identity_v1` (`employee/schema.js`), `position_catalog_v1` (`position/schema.js`), `staff_shift_codes_v1` (`lib/db.js`), `sheet_approvals_v1…v4` (`lib/approvals.js`), `attendance_sessions_v1` (`lib/attendance-sessions.js,289`). |
 
 ### 2.4 Migration khi mở DB (thứ tự chạy)
 
-1. DDL cơ bản + `addColumn` của `staff`, `timesheets`, `slip_overrides`, `punches`, `corrections`, `attendance_days` (`lib/db.js`).
-2. `attendance_split_v1`: chép ngày có `src` từ `timesheets.days_json` sang `attendance_days`, BEGIN/COMMIT riêng (`lib/db.js`).
-3. KPI, audit, param, kỳ lương, AI, vai trò, pay_entries, advance_requests (`lib/db.js`), cột thêm, chỉ mục.
-4. `once('backend_v4_v1a_v1')` gieo `params_mode`; `once('staff_payroll_subject_v1')` đặt `payroll_subject` (admin = 0, còn lại = 1) (`lib/db.js`). `once` chạy trong `transaction` và ghi mốc cùng giao dịch.
-5. Schema của `lib/domain`: employee, position (gieo danh mục), leave, explanation (`lib/db.js`), rồi `staff_shift_codes_v1` đổi mã ca ngắn sang mã danh mục.
-6. Cuối file: `attendance-sessions.js` (migration phiên; lỗi → `bootFail`), `approvals.js` (migration `sheet_approvals_v1…v4`, lỗi → `bootFail`), rồi `warnings.bindSettings(getSetting)`.
-7. Khi `src/server.ts` nạp: `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay lúc dựng máy chủ, kể cả trong test.
+1. `PostgresDatabase` chạy các file `migrations/postgres/NNNN_*.sql` chưa chạy: `0001_baseline.sql` (toàn bộ bảng, chỉ mục, trigger PL/pgSQL chặn sửa/xoá bảng chỉ-thêm-dòng) và `0002_seed.sql` (danh mục chức vụ, bậc, quyền lợi, ca nền, `params_mode`).
+2. Khi `src/server.ts` nạp: `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay lúc dựng máy chủ, kể cả trong test.
+3. `warnings.bindSettings(getSetting)` nối cảnh báo với cài đặt.
 
-Quy ước của mã: chỉ thêm bảng/cột/chỉ mục/trigger; cột mới có mặc định hoặc null; không viết lại dòng có sẵn (ngoại lệ có mốc `once`). `test/tools/record-schema.js` + `test/api/db-schema-snapshot.test.js` khoá lược đồ.
+Quy ước của mã: đổi lược đồ = thêm file `migrations/postgres/NNNN_*.sql` mới (không sửa file đã chạy); cột mới có mặc định hoặc null; không viết lại dòng có sẵn.
 
 ### 2.5 Kỳ lương: trạng thái và cổng khoá
 
@@ -610,31 +597,11 @@ Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ 
 
 ### 4.11 Sao lưu và khôi phục (`scripts/ops`)
 
-**backup-db.js** — `DB_PATH=<db> node scripts/ops/backup-db.js [thư-mục]` (không đọc `.env`):
-1. Từ chối: thiếu `DB_PATH`, `:memory:`/`file:`, không phải file, thư mục đích (sau realpath) nằm trong `public/`.
-2. Tên `luong-YYYYMMDD-HHMMSS.sqlite` theo giờ VN (UTC+7 cố định); trùng tên → lỗi.
-3. Mở DB `readOnly`, `busy_timeout 10000`, `VACUUM INTO '<tên>.partial'`; mở bản sao `readOnly`, `PRAGMA integrity_check` phải đúng một dòng `ok`; `chmod 600`; đổi tên.
-4. Xoá bản lâu nhất khớp mẫu, giữ `BACKUP_KEEP` (mặc định 30, nguyên ≥ 1) bản mới nhất (sắp theo tên).
-5. Thư mục mặc định: `BACKUP_DIR` hoặc `<repo>/backups`. Mã thoát 1 khi lỗi.
-
-**backup-daily.js** — `--db --dir [--keep] [--verify] [--log] [--label=daily|weekly|monthly]`: gọi `backup()`; `--verify` chạy `verify-backup.js` (timeout 30 phút), mã ≠ 0 (kể cả 2) → đổi tên bản được tạo thành `.failed`; ghi một dòng JSON vào `--log`. Thoát 0 chỉ khi sao lưu xong và (nếu có) kiểm trả 0.
-
-**check-backup.js** — `--dir [--max-age-hours=26] [--log]`: đạt khi có bản đúng mẫu, bản mới nhất (theo mtime) trẻ hơn ngưỡng, không có `<tên>.failed` và không có `.failed`/`.partial` mới hơn bản lành mới nhất. Hỏng in một dòng, thoát 1.
-
-**verify-backup.js** — `[AUDIT_KEY=…] node scripts/ops/verify-backup.js <file> [--skip-periods] [--keep-copy] [--expect-head=<id>]`:
-1. Chép file (+ `-wal`, `-shm`) vào thư mục tạm (`VERIFY_TMP` hoặc tmp hệ điều hành), từ chối `.partial`, file trong `public/`, file trùng `DB_PATH`.
-2. Trước khi nạp mã máy chủ: `integrity_check`, `foreign_key_check`, đếm dòng mọi bảng; thiếu `staff`/`settings` → hỏng; thiếu bảng của kỳ lương / nhật ký → chỉ báo.
-3. Nạp `lib/db.js` trên bản chép (migration chạy trên bản chép), `audit.verify()`; `--expect-head` lớn hơn id cuối → hỏng (bị cắt đuôi). In "mỏ neo" id + 12 ký tự đầu của băm.
-4. Mỗi kỳ có `currentRunId`: `periods.verify(tháng)`; có phiếu lệch → hỏng.
-5. Mã thoát: 0 đạt, 1 hỏng, 2 một phần (thiếu `AUDIT_KEY` cho dòng HMAC). Xoá bản chép (cả khi `process.exit`).
-
-**restore-drill.js** — `--backup=<file> [--work-dir] [--port=0] [--keep]`: chép thành `restore.sqlite` (xoá `-wal`/`-shm` sót), chạy `src/server.ts` ở tiến trình con với `DB_PATH` bản chép, `PORT`, `SESSION_SECRET` ngẫu nhiên, `COOKIE_SECURE=0`, xoá `ADMIN_PASSWORD`; chờ khởi động ≤ 60 s; kiểm `GET /` = 200 (đã build giao diện) hoặc 503 (chưa build), `GET /api/me` = 200 và ≥ 40 byte, `GET /api/periods` không cookie = 401. Từ chối tên `luong.sqlite`, `.partial`, `.failed`.
-
-**params-mode.js** — `status` (chỉ đọc: mode, config_rev, số dòng param_versions, id audit cuối) hoặc `defaults-only --reason "<10..300>" --yes [--backup-dir=]`: đang `defaults-only` → không làm gì; nhật ký là HMAC mà thiếu `AUDIT_KEY` → từ chối; sao lưu bằng `backup-db.js` (bắt buộc); một giao dịch: `params_mode = 'defaults-only'`, `configRev.bump()`, audit `param.mode` với actor `ops:<user hệ điều hành>`. Không đụng `param_versions`.
+**params-mode.js** — `status` (chỉ đọc: mode, config_rev, số dòng param_versions, id audit cuối) hoặc `defaults-only --reason "<10..300>" --yes [--backup-dir=]`: đang `defaults-only` → không làm gì; nhật ký là HMAC mà thiếu `AUDIT_KEY` → từ chối; sao lưu bằng `pg-backup.js` (bắt buộc); một giao dịch: `params_mode = 'defaults-only'`, `configRev.bump()`, audit `param.mode` với actor `ops:<user hệ điều hành>`. Không đụng `param_versions`.
 
 #### Sao lưu PostgreSQL (`scripts/ops/pg-backup.js`, `lib/ops/pg-backup.js`)
 
-Dành cho `DB_DIALECT=postgres` (các script SQLite ở trên không dùng được cho PostgreSQL). Không cần `pg_dump`; không đọc `.env`; không in dữ liệu hay mật khẩu (URL được che `//***@`).
+Không cần `pg_dump`; không đọc `.env`; không in dữ liệu hay mật khẩu (URL được che `//***@`).
 
 | Lệnh | Việc |
 | --- | --- |
@@ -663,16 +630,16 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | `POST /__sandbox/clock { local }` | Đặt đồng hồ, dạng `YYYY-MM-DDTHH:mm[:ss]` giờ Việt Nam; sai dạng → 400; lùi giờ khi đã có dữ liệu chấm công (`attendance_sessions`, `attendance_days`, `punches`, `corrections`, `timesheets`, `explanations`) → 400. |
 | `POST /__sandbox/user { username }` | Chọn tài khoản (phải có trong `staff`); trả cookie phiên. |
 | `POST /__sandbox/reset { confirm: true }` | Đặt lại dữ liệu thử. |
-| `POST /__sandbox/<tên của sandbox-ops>` | Nạp người dùng đo tải (tối đa 1.000), chạy / huỷ đo tải (kịch bản `login, checkin, mix, admin-burst, probe`, chạy `scripts/loadtest/run.js` ở tiến trình con nhắm chính sandbox), sao lưu (`VACUUM INTO` tạm, tối đa 6 bản), kiểm (`verify-backup.js`), diễn tập (`restore-drill.js`), làm hỏng bản sao giả. File tạm nằm trong thư mục tạm riêng, xoá khi tắt. |
+| `POST /__sandbox/<tên của sandbox-ops>` | Nạp người dùng đo tải (tối đa 1.000), chạy / huỷ đo tải (kịch bản `login, checkin, mix, admin-burst, probe`, chạy `scripts/loadtest/run.js` ở tiến trình con nhắm chính sandbox), sao lưu (`lib/ops/pg-backup.js` → file `.pgbak.gz` tạm, tối đa 6 bản), kiểm (`pg-backup.js verify`), diễn tập (`pg-backup.js drill`), làm hỏng bản sao giả (ghi đè 16 byte giữa luồng nén; bước kiểm phải bắt được). File tạm nằm trong thư mục tạm riêng, xoá khi tắt. |
 | `GET /`, `/__sandbox/panel.js`, `/__sandbox/ops.js` | Bảng điều khiển. |
 | `GET /app` | 302 tới `/admin` (tài khoản chọn là admin) hoặc `/nhan-vien` kèm `?dong-ho-sandbox=1`; mọi đường dẫn của router Vue (không có đuôi file) khi có tham số đó được trả `index.html` của `web/dist` kèm script đóng băng `Date` chèn vào đầu `<head>` (503 nếu chưa build). |
 
-- Reset (`resetSyntheticData`): trong một giao dịch xoá dữ liệu 13 bảng — `punch_requests, explanations, attendance_sessions, attendance_days, timesheets, slip_overrides, punches, corrections, sheet_approvals, kpi_scores, kpi_score_log, staff, settings` — rồi xoá bảng trạng thái kỳ lương theo thứ tự con trước cha — `payslips, payroll_runs, payroll_periods, ai_finding_actions, ai_review_runs, pay_entries, advance_requests`. Các bảng này có trigger chặn xoá nên sandbox gỡ trigger (đọc từ `sqlite_master`), xoá dòng, tạo lại đúng câu lệnh đã lưu. `audit_log` không bị đụng. Sau đó đồng hồ về `INITIAL_LOCAL`, gieo 7 tài khoản `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (ngày vào làm = ngày của đồng hồ đầu), `holidays = []`, `qa_cb` không nhận lương + vai trò `cb`, người chọn về `qa_nv`.
+- Reset (`resetSyntheticData`): trong một giao dịch xoá dữ liệu 13 bảng — `punch_requests, explanations, attendance_sessions, attendance_days, timesheets, slip_overrides, punches, corrections, sheet_approvals, kpi_scores, kpi_score_log, staff, settings` — rồi xoá bảng trạng thái kỳ lương theo thứ tự con trước cha — `payslips, payroll_runs, payroll_periods, ai_finding_actions, ai_review_runs, pay_entries, advance_requests`. Các bảng này có trigger chặn xoá nên sandbox (PGlite trong RAM, chỉ tiến trình này dùng) đặt `SET LOCAL session_replication_role = replica` trong chính giao dịch đặt lại để tắt trigger, xoá dòng, rồi đặt lại `origin`. `audit_log` không bị đụng. Sau đó đồng hồ về `INITIAL_LOCAL`, gieo 7 tài khoản `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (ngày vào làm = ngày của đồng hồ đầu), `holidays = []`, `qa_cb` không nhận lương + vai trò `cb`, người chọn về `qa_nv`.
 - Bộ nhớ trong tiến trình sandbox gồm cả DB: tắt tiến trình là mất hết.
 
 **Máy chủ kịch bản** (`scripts/dev/scenarios/`)
 
-- `generate.cjs` dựng DB kịch bản gần một năm vào `out/scenario-year.sqlite` (kèm `events.jsonl`, `cases.json`; `--smoke`, `--only u1,u2`); `server.cjs` mở bản làm việc `out/scenario-year.run.sqlite` (`--fresh` chép lại từ bản dựng; `--at YYYY-MM-DDTHH:mm`) ở cổng cố định 3300, `127.0.0.1`, đồng hồ đóng băng chỉ cho tiến (lưu ở `out/clock.json`), dùng lại bảng điều khiển của sandbox; `/__scenario` liệt kê dàn nhân vật, `/__scenario/as/<tài khoản>` vào thẳng giao diện; lệnh điều khiển `/__scenario/clock|user|reset|state` là tên khác của `/__sandbox/...`, cần `x-scenario-control: 1` hoặc `x-sandbox-control: 1`. `verify.cjs` đối chiếu ra `out/report.md`, `out/report.json`.
+- `generate.cjs` dựng DB kịch bản gần một năm vào `out/scenario-year` (kèm `events.jsonl`, `cases.json`; `--smoke`, `--only u1,u2`); `server.cjs` mở bản làm việc `out/scenario-year.run` (`--fresh` chép lại từ bản dựng; `--at YYYY-MM-DDTHH:mm`) ở cổng cố định 3300, `127.0.0.1`, đồng hồ đóng băng chỉ cho tiến (lưu ở `out/clock.json`), dùng lại bảng điều khiển của sandbox; `/__scenario` liệt kê dàn nhân vật, `/__scenario/as/<tài khoản>` vào thẳng giao diện; lệnh điều khiển `/__scenario/clock|user|reset|state` là tên khác của `/__sandbox/...`, cần `x-scenario-control: 1` hoặc `x-sandbox-control: 1`. `verify.cjs` đối chiếu ra `out/report.md`, `out/report.json`.
 
 ### 4.13 Biến môi trường
 
@@ -686,7 +653,7 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | `npm run sandbox` | `scripts/dev/sandbox-server.cjs`. |
 | `npm run seed` | `scripts/seed.js` (không đọc `.env`). |
 | `npm run seed:demo` | `scripts/db/seed-demo.js`. |
-| `npm run backup` | `scripts/ops/backup-db.js`. |
+| `npm run backup` | `scripts/ops/pg-backup.js`. |
 | `npm test` | `node --test "test/**/*.test.js"` (gồm `test/ops`). |
 | `npm run test:unit` / `test:api` / `test:ui` | Chỉ thư mục tương ứng (không gồm `test/ops`). |
 | `npm run format` / `format:check` | `prettier --write .` / `--check .` (cả repo). |
@@ -787,13 +754,13 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - Mọi handler gọi `send`, `readJson`, `HttpError` (`lib/http.js`), `warnIf`/`warn` (`lib/warnings.js`), `audit.write` (trong giao dịch), `events.emit.*` (sau giao dịch), `store.transaction`, `store.assertPeriodOpen`.
 - `lib/periods.js` gọi `aiReviewResult` (bản không cache), `lib/ai/thresholds` (`THRESHOLDS` để băm), `shared-cache` (ước tính).
 - `lib/params/save.js` gọi `lib/ai/preview-suggestions`, `configRev.bump`, `audit.write`.
-- `scripts/ops/verify-backup.js` nạp `lib/db` và `lib/periods`; `scripts/ops/params-mode.js` nạp `lib/db`, `lib/audit`, `lib/params/config-rev`; `scripts/ops/restore-drill.js` chạy `src/server.ts`; `scripts/dev/sandbox-server.cjs` nạp `lib/db`, `lib/auth`, `src/server.ts`.
+- `scripts/ops/pg-backup.js` nạp `lib/db` và `lib/periods`; `scripts/ops/params-mode.js` nạp `lib/db`, `lib/audit`, `lib/params/config-rev`; `scripts/ops/pg-backup.js` chạy `src/server.ts`; `scripts/dev/sandbox-server.cjs` nạp `lib/db`, `lib/auth`, `src/server.ts`.
 
 ### 6.3 Mô-đun dùng chung trình duyệt + máy chủ (UMD trong `public/`)
 
 | File | Máy chủ dùng ở (nền tảng) |
 | --- | --- |
-| `public/payroll-params.js` (`DEFAULTS`) | `lib/auth.js` (số `system.*`, `unit.*`), `lib/ai/*`, `lib/domain/position/schema.js` (gieo danh mục), `lib/approvals.js`, `lib/attendance-sessions.js`, `lib/params/*` |
+| `public/payroll-params.js` (`DEFAULTS`) | `lib/auth.js` (số `system.*`, `unit.*`), `lib/ai/*`, `migrations/postgres/0001_baseline.sql` (gieo danh mục), `lib/approvals.js`, `lib/attendance-sessions.js`, `lib/params/*` |
 | `public/payroll-engine.js` | `lib/ai/payroll-loader.js` (AI tính tiền), `lib/payroll-service.js` |
 | `public/approval-view.js` | `lib/authz.js` (`DECIDE_ITEMS`), `lib/ai/review.js`, `lib/approvals.js`, `lib/request-rules.js` |
 | `public/actual-hours.js`, `public/kpi-score.js` | `lib/ai/review.js`, `lib/request-rules.js` |
@@ -808,8 +775,8 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - **Đổi `send` / `HttpError` / nhánh catch** → mọi phản hồi lỗi (`error`, `code`, `details`) và việc gộp `warnings`; giao diện đọc `code`. Test hạ tầng HTTP, `security-headers`, `warnings-cases`, `warnings-no-crash`.
 - **Đổi `warnIf`** → mọi chỗ cảnh báo nghiệp vụ trong `lib/db.js`, `lib/periods.js`, `lib/params/save.js`, handler; `after.warnings` trong audit; `test/unit/warnings.test.js`, `test/unit/no-control-mode.test.js`, `test/api/warnings-cases.test.js`.
 - **Đổi `assertPeriodOpen` / `SCOPE_LOCKED_FROM`** → mọi route có `periodScope`, `catalog-change.js`, `lib/params/save.js`, `lib/pay-entries.js`, `lib/advance-requests.js`; `test/api/period-lifecycle.test.js`.
-- **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `verify-backup.js` (danh sách bảng), `sandbox-server.cjs` (danh sách bảng reset), `test/helpers/api-fixture.js` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
-- **Đổi `auditCanonical` / `auditHash`** → mọi chuỗi có sẵn không kiểm được nữa (`verify` báo `HASH` từ dòng đầu); `verify-backup.js`, `params-mode.js` (kiểm kiểu băm dòng cuối). Đổi/bỏ `AUDIT_KEY` → dòng HMAC có sẵn thành `unverifiable`.
+- **Đổi lược đồ (bảng/cột/trigger/chỉ mục)** → chỉ thêm; cập nhật bản chụp `test/tools/record-schema.js --write` khi cố ý; `pg-backup.js` (danh sách bảng), `sandbox-server.cjs` (danh sách bảng reset), `test/helpers/api-fixture.js` (`CATALOG_TABLES`, `reset`). Bảng chỉ-thêm không xoá được trong test (fixture bỏ qua) và sandbox (gỡ trigger rồi tạo lại).
+- **Đổi `auditCanonical` / `auditHash`** → mọi chuỗi có sẵn không kiểm được nữa (`verify` báo `HASH` từ dòng đầu); `pg-backup.js`, `params-mode.js` (kiểm kiểu băm dòng cuối). Đổi/bỏ `AUDIT_KEY` → dòng HMAC có sẵn thành `unverifiable`.
 - **Thêm trường vào `before/after` của audit** → hàng rào `SECRET_RE` (`lat`/`lng` làm hỏng cả thao tác), trần 65.536 ký tự.
 - **Thêm sự kiện SSE** → khai trong `EVENTS` (tên, kiểu người nhận, tầng, trường) rồi mới phát; thêm chỗ nghe ở giao diện Vue (`web/src`); `test/api/events.test.js`.
 - **Đổi `config.EVENTS_*`** → không đổi khoá registry `system.events.*` tương ứng (hai nơi), và ngược lại.
@@ -818,7 +785,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - **Đổi bộ máy lương (`public/payroll-engine.js`) hay tham số** → kết quả AI (luật cần payroll, `impacts`), cache AI theo `paramsHash`, `verify-backup` (tính lại phiếu từ bản chụp).
 - **Đổi luật AI hoặc `rule.fields`** → `EVIDENCE_FIELDS`; id finding (`<luật>:<user>:<ngày>`) và digest xác định hiệu lực lần bỏ qua; `ai_block_rules`/`DEFAULT_BLOCK_RULES` dùng id luật; khoá `ai.rule.<camelCase>.enabled`; `test/unit/ai-review*.test.js`.
 - **Đổi ngưỡng AI** → `THRESHOLDS` là nguồn của `ai.threshold.*` trong `DEFAULTS`; `lib/periods.js` băm `THRESHOLDS` khi không có `result.thresholds`.
-- **Đổi hành vi của `GET /`** → `restore-drill.js` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.js`.
+- **Đổi hành vi của `GET /`** → `pg-backup.js` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.js`.
 - **Đổi giới hạn thân yêu cầu** → `MAX_BODY_BYTES` (`lib/http.js`).
 - **Đổi cookie / phiên** → SSE heartbeat (đọc lại cookie), `restore-drill`, sandbox (`luong_sandbox_sid`), `test/helpers/api-fixture.js` (`auth.createSession`).
 
@@ -850,7 +817,7 @@ Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng 
 
 **Phiếu và công thức Admin**: `slip-*` (`test/unit/`), `slip-detail-formulas`, `slip-row-columns-api`, `payslip-*` (`test/api/`).
 
-**Vận hành, sandbox**: `test/ops/backup-db.test.js`, `test/ops/backup-daily.test.js` (cũng chạy `check-backup.js`, `restore-drill.js`), `test/api/sandbox.test.js`, test sandbox đặt lại trạng thái kỳ và giải trình. Không có test riêng cho `verify-backup.js` ngoài đường `--verify` của backup-daily, không có test cho `params-mode.js`.
+**Vận hành, sandbox**: (cũng chạy `pg-backup.js`, `pg-backup.js`), `test/api/sandbox.test.js`, test sandbox đặt lại trạng thái kỳ và giải trình. Không có test riêng cho `pg-backup.js` ngoài đường `--verify` của backup-daily, không có test cho `params-mode.js`.
 
 **Giao diện (Node)**: `test/ui/*.test.js` — nhãn chấm công, lưới chấm công Admin, lịch làm bù Admin, loại ngày, iSAT chỉ thứ Bảy, KPI 5 thành phần, yêu cầu OT ngày lễ và yêu cầu tự gửi của nhân viên.
 
@@ -869,14 +836,14 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - Hằng tháng mốc: `DEFAULT_CUTOFF_MONTH` (`lib/approvals.js`).
 - Số nghiệp vụ nằm trong `lib/config.js` thay vì registry: `CHECKOUT_GRACE_MIN` (30), `TAX_LONG_TERM_MONTHS` (3) (`lib/config.js`).
 - `UV_THREADPOOL_SIZE` đặt trong `.env` bị bỏ qua vì `lib/config.js` được nạp trước khi `.env` được đọc (`src/server.ts` và); chỉ biến môi trường thật của tiến trình có tác dụng.
-- `scripts/ops/backup-db.js`, `backup-daily.js`, `check-backup.js`: độ lệch múi giờ VN viết cứng `7 * 3600 * 1000`; `lib/ai/units.js` đọc từ `unit.vnUtcOffsetMin`.
+- `scripts/ops/pg-backup.js`, `pg-backup.js`, `pg-backup.js`: độ lệch múi giờ VN viết cứng `7 * 3600 * 1000`; `lib/ai/units.js` đọc từ `unit.vnUtcOffsetMin`.
 
 ### 8.2 Cùng một giá trị ở nhiều nơi
 
 - Độ dài lý do 10..300: `lib/config.js` (`REASON_MIN/MAX`), `lib/db.js` (hằng riêng), `scripts/ops/params-mode.js` (hằng riêng), `lib/approvals.js` (`DEFAULTS['control.reasonMaxLength']`), CHECK trong DDL (`lib/db.js,538,585`).
 - Giới hạn SSE: `lib/events.js` đọc `config.EVENTS_*`, registry có `system.events.*`; tương tự `system.audit.page*` vs `config.AUDIT_PAGE_*`, `control.reasonMinLength` vs `config.REASON_MIN`, `system.login.*` (dùng ở `lib/auth.js`) vs `config.LOGIN_*` (chỉ là nguồn cho `extract-defaults`). `config.LOGIN_WINDOW_MIN`, `config.ATTR_MAX_PER_CLASS` không được mã chạy đọc (chỉ `scripts/params/key-map.js`).
 - `MAX_BODY_BYTES = 1e6` viết cứng ở `lib/http.js` (không trong `config`), registry có `system.http.maxBodyBytes`.
-- Hàm trùng: `realResolve`/`isInside` ở `scripts/ops/backup-db.js` và `verify-backup.js`; chuỗi tên theo giờ VN ở `backup-db.js`, `backup-daily.js`, `check-backup.js`; `vnDayIso` ở `src/modules/audit/audit.helpers.ts`.
+- Hàm trùng: `realResolve`/`isInside` ở `scripts/ops/pg-backup.js` và `pg-backup.js`; chuỗi tên theo giờ VN ở `pg-backup.js`, `pg-backup.js`, `pg-backup.js`; `vnDayIso` ở `src/modules/audit/audit.helpers.ts`.
 - `test/session-contract-helper.js` giống hệt `test/helpers/session-contract-helper.js`.
 - `seed.js` ở gốc khác `scripts/seed.js` (lệnh `npm run seed` chạy bản trong `scripts/`); bản gốc mặc định mật khẩu `'123456'` (hoặc `SEED_PASSWORD`).
 
@@ -890,7 +857,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 ### 8.5 Hành vi dễ gây lỗi dây chuyền
 
 - `lib/domain/ai-block.js` rẽ nhánh theo `process.env.DB_PATH === ':memory:'` → sandbox (cũng DB RAM) không có AI chặn duyệt khi chưa đặt `ai_block_rules`.
-- `scripts/ops/restore-drill.js` đòi `GET /` = 302; `lib/http.js` trả 200 `index.html` khi có `web/dist` → diễn tập khôi phục không qua khi `web/dist` có mặt, trừ khi `WEB_DIST` trỏ chỗ khác.
+- `scripts/ops/pg-backup.js` đòi `GET /` = 302; `lib/http.js` trả 200 `index.html` khi có `web/dist` → diễn tập khôi phục không qua khi `web/dist` có mặt, trừ khi `WEB_DIST` trỏ chỗ khác.
 - `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay khi dựng máy chủ, tức khi `require('./server')` (test, sandbox, restore-drill).
 - `GET /api/leave/ledger` ghi DB (`src/modules/leave/leave.controller.ts`) → làm `total_changes()` tăng, xoá cache AI/ước tính; `POST /api/leave/refresh` ghi mà không có audit.
 - `lib/ops/shared-cache.js` nhớ câu lệnh `total_changes()` trên `store.db` lần đầu, không dựng lại khi `store.db` đổi; `lib/domain/container.js` thì kiểm `store.db` đổi.
@@ -914,7 +881,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 ### 8.7 Quy ước chưa đều
 
 - Thiếu `'use strict'` ở đầu: `src/server.ts`, `lib/announce.js`, `lib/attendance-sessions.js`, `lib/auth.js`, `lib/db.js`, `lib/domain/ai-review.js`, `lib/domain/approvals.js`, `lib/domain/attendance.js`, `lib/domain/positions.js`, `lib/domain/sheet.js`, `lib/domain/staff.js`, `lib/http.js`, `lib/request-rules.js` (danh sách tính bằng cách quét `src/server.ts` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (2.300; thực tế 2.259), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu, DDL SQLite).
+- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (1.700; thực tế 1.606), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
 
 ### 8.8 Chưa có
 
@@ -922,4 +889,4 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - Không có API sửa / xoá nhật ký, không có API đọc `ai_review_runs`, không có API xem `param_versions` thô (chỉ qua `GET /api/settings/params`).
 - Không có thông báo qua kênh ngoài (thư, tin nhắn): sự kiện SSE chỉ là gợi ý nạp lại, không mang dữ liệu và không phát lại tin lỡ.
 - Không có sao lưu hay lập lịch sao lưu bên trong ứng dụng: `scripts/ops/*` là lệnh chạy ngoài; repo không kèm tệp lập lịch cho chúng.
-- Không có test trình duyệt thật (mục 7); `verify-backup.js` và `params-mode.js` không có test riêng.
+- Không có test trình duyệt thật (mục 7); `pg-backup.js` và `params-mode.js` không có test riêng.

@@ -11,19 +11,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const ENTRY = /\.prepare\(|\bthis\.(?:one|all|run)\(/g;
 
 const ALLOWED = {
-  'lib/approvals.js': [
-    23,
-    'bước nâng cấp dữ liệu một lần chỉ chạy trên SQLite (migrate*, init); PostgreSQL dựng từ migrations/postgres'
-  ],
-  'lib/attendance-sessions.js': [12, 'DDL + đợt chuyển dữ liệu một lần chỉ chạy trên SQLite (init)'],
-  'lib/db.js': [8, 'PRAGMA table_info và các mốc nâng cấp lược đồ SQLite (initDb)'],
-  'lib/domain/employee/schema.js': [2, 'DDL create-if-not-exists chỉ SQLite'],
-  'lib/domain/explanation/schema.js': [1, 'DDL create-if-not-exists chỉ SQLite'],
-  'lib/domain/position/schema.js': [6, 'DDL + seed chỉ SQLite'],
-  'lib/data/postgres-database.js': [1, 'bộ điều hợp PostgreSQL: tự chuẩn bị câu lệnh đã dịch'],
+  'lib/data/postgres-database.js': [1, 'bộ điều hợp PostgreSQL: tự chuẩn bị câu lệnh đã đổi dấu ?'],
   'lib/ops/pg-backup.js': [10, 'công cụ sao lưu đọc/ghi mọi bảng theo tên: SQL động theo thiết kế'],
-  'lib/ops/shared-cache.js': [1, 'total_changes() của SQLite (khoá bộ nhớ đệm), không có trong Kysely'],
-  'src/data/db-dialect.ts': [1, 'cầu nối Kysely → kết nối của ứng dụng'],
   'src/modules/system/system.controller.ts': [1, 'SELECT 1 kiểm sức khoẻ kết nối']
 };
 

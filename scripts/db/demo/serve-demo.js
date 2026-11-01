@@ -4,14 +4,14 @@
 // Không còn ngày gõ cứng: dữ liệu không có phiên hay lượt bấm nào sau mốc này, nên nhân sự demo bấm Check-out là đóng đúng phiên của hôm nay. Dùng để thử màn Admin Lương trên dữ liệu có đủ ca, thay cho
 // sandbox (dev/sandbox-server.cjs luôn dùng DB trong RAM với 6 tài khoản qa_*, không có phát hiện AI hay phiếu lỗi).
 //   npm run seed:demo
-//   node scripts/db/demo/serve-demo.js [--db=data/demo.sqlite] [--port=3116] [--today=YYYY-MM-DD]
+//   node scripts/db/demo/serve-demo.js [--db=data/demo] [--port=3116] [--today=YYYY-MM-DD]
 // Đăng nhập bằng tài khoản demo (demo_admin là Admin); mật khẩu: biến DEMO_PASSWORD, nếu bỏ trống thì mật khẩu mặc định ghi ở scripts/db/seed-demo.js.
 // AN TOÀN: không bao giờ mở data/luong.sqlite (từ chối theo đường dẫn và theo tên file), chỉ nhận DB demo (khoá demo_dataset) và chỉ nghe ở
 // 127.0.0.1. Mọi thao tác ghi vào bản sao trong thư mục tạm, xoá khi dừng (Ctrl+C); DB demo gốc không bị đổi. Dùng DB sạch lần sau = chạy lại script.
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { demoInfo, copyDemo } = require('./demo-dir');
 const S = require('./scenarios.js');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
@@ -33,26 +33,14 @@ const canonical = file => {
   } catch {}
   return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
 };
-const source = typeof args.db === 'string' ? args.db : path.join(ROOT, 'data', 'demo.sqlite');
-{
-  const wanted = canonical(source);
-  if (wanted === canonical(path.join(ROOT, 'data', 'luong.sqlite')) || path.basename(wanted) === 'luong.sqlite')
-    fail('Từ chối chạy: đường dẫn trỏ vào DB lương thật (data/luong.sqlite).');
-}
+const source = typeof args.db === 'string' ? args.db : path.join(ROOT, 'data', 'demo');
+if (path.basename(path.resolve(source)).toLowerCase() === 'luong')
+  fail('Từ chối chạy: đường dẫn trông như DB lương thật.');
 if (!fs.existsSync(source)) fail(`Không thấy ${source}. Dựng trước bằng: npm run seed:demo`);
 // Ngày "hôm nay" mà dữ liệu giả định, ghi lúc dựng ở khoá demo_dataset
-let datasetToday = null;
-{
-  let marked = false;
-  try {
-    const probe = new DatabaseSync(source, { readOnly: true });
-    const row = probe.prepare("SELECT value_json FROM settings WHERE key = 'demo_dataset'").get();
-    marked = !!row;
-    if (row) datasetToday = JSON.parse(row.value_json).today || null;
-    probe.close();
-  } catch {}
-  if (!marked) fail('Từ chối chạy: file không phải DB demo (thiếu khoá demo_dataset).');
-}
+const info = demoInfo(source);
+if (!info.marked) fail('Từ chối chạy: thư mục không phải DB demo (thiếu khoá demo_dataset).');
+const datasetToday = info.today;
 const port = args.port === undefined ? 3116 : Number(args.port);
 if (!Number.isInteger(port) || port < 0 || port > 65535) fail('--port không hợp lệ');
 const today = typeof args.today === 'string' ? args.today : datasetToday;
@@ -61,12 +49,8 @@ if (typeof today !== 'string')
 if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || Number.isNaN(Date.parse(today))) fail('--today phải có dạng YYYY-MM-DD');
 
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'aicb-serve-demo-'));
-const copy = path.join(work, 'copy.sqlite');
-{
-  const db = new DatabaseSync(source, { readOnly: true });
-  db.exec(`VACUUM INTO '${copy.replace(/'/g, "''")}'`);
-  db.close();
-}
+const copy = path.join(work, 'copy');
+copyDemo(source, copy);
 process.env.DB_PATH = copy;
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || `serve-demo-${Date.now()}`;
 process.env.COOKIE_SECURE = '0'; // chạy http://127.0.0.1, không có https

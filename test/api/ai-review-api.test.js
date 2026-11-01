@@ -51,11 +51,13 @@ async function person(username, overrides = {}) {
 // Chụp MỌI bảng của DB (theo sqlite_master), để mọi thứ bị ghi nhầm đều lộ ra
 async function snapshot() {
   const tables = await store.db
-    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .prepare(
+      "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations' ORDER BY table_name"
+    )
     .all();
   return Object.fromEntries(
     await Promise.all(
-      tables.map(async t => [t.name, await store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY rowid`).all()])
+      tables.map(async t => [t.name, await store.db.prepare(`SELECT * FROM "${t.name}" ORDER BY ctid`).all()])
     )
   );
 }

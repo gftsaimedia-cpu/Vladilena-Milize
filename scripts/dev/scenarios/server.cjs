@@ -1,6 +1,6 @@
 'use strict';
 // Mở DB kịch bản cả năm để xem bằng giao diện thật: http://127.0.0.1:3300 (chỉ máy này).
-// Chạy trên BẢN LÀM VIỆC out/scenario-year.run.sqlite (file dựng giữ sạch; --fresh chép lại từ file dựng), đồng hồ đóng băng mặc định
+// Chạy trên BẢN LÀM VIỆC out/scenario-year.run (file dựng giữ sạch; --fresh chép lại từ file dựng), đồng hồ đóng băng mặc định
 // 01/03/2027 09:30, chỉ cho tiến (giờ đang đặt lưu ở out/clock.json). Bảng điều khiển của sandbox (scripts/dev/sandbox.html) đổi giờ và tài khoản;
 // /__scenario liệt kê dàn nhân vật (tài khoản, vai trò, cốt truyện) kèm liên kết vào thẳng giao diện của người đó.
 //   node scripts/dev/scenarios/server.cjs [--fresh] [--at YYYY-MM-DDTHH:mm]
@@ -10,8 +10,8 @@ const path = require('node:path');
 
 const OUT = path.join(__dirname, 'out');
 const SANDBOX_DIR = path.join(__dirname, '..');
-const BUILT = path.join(OUT, 'scenario-year.sqlite');
-const RUN = path.join(OUT, 'scenario-year.run.sqlite');
+const BUILT = path.join(OUT, 'scenario-year');
+const RUN = path.join(OUT, 'scenario-year.run');
 const CLOCK_FILE = path.join(OUT, 'clock.json');
 const PORT = 3300;
 const DEFAULT_LOCAL = '2027-03-01T09:30';
@@ -24,9 +24,9 @@ if (!fs.existsSync(BUILT) && !fs.existsSync(RUN))
 const builtIsNewer =
   fs.existsSync(BUILT) && fs.existsSync(RUN) && fs.statSync(BUILT).mtimeMs > fs.statSync(RUN).mtimeMs + 1000;
 if (args.includes('--fresh') || !fs.existsSync(RUN) || builtIsNewer) {
-  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(RUN + suffix, { force: true });
+  fs.rmSync(RUN, { recursive: true, force: true });
   fs.rmSync(CLOCK_FILE, { force: true });
-  fs.copyFileSync(BUILT, RUN);
+  fs.cpSync(BUILT, RUN, { recursive: true });
 }
 
 const { boot, parseLocal, toLocal } = require('./lib/boot.cjs');
@@ -125,7 +125,7 @@ function panelHtml() {
     .replace(
       /<body([^>]*)>/i,
       m =>
-        `${m}<p style="margin:8px 16px;font:14px system-ui"><a href="/__scenario">Dàn nhân vật kịch bản cả năm</a> · DB: out/scenario-year.run.sqlite</p>`
+        `${m}<p style="margin:8px 16px;font:14px system-ui"><a href="/__scenario">Dàn nhân vật kịch bản cả năm</a> · DB: out/scenario-year.run</p>`
     );
 }
 const esc = s =>

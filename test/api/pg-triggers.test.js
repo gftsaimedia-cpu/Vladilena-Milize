@@ -2,11 +2,9 @@
 // Trigger PL/pgSQL của migrations/postgres/0001_baseline.sql phải chặn đúng những gì trigger SQLite chặn, với cùng câu báo lỗi:
 // bảng chỉ-thêm-dòng (UPDATE/DELETE bị từ chối), bản chụp phiếu lương, staff.username/uuid bất biến, uuid tự sinh.
 // Chỉ chạy trên PostgreSQL (trên SQLite các trigger này được test-schema-snapshot và các test riêng từng bảng kiểm).
-if (!require('../helpers/dialect').isPostgres) return require('../helpers/dialect').skipWholeFile(__filename); // trigger PL/pgSQL chỉ có trên PostgreSQL
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { isPostgres } = require('../helpers/dialect');
 const store = require('../../lib/db');
 
 after(() => store.db.close());
@@ -17,7 +15,7 @@ const rejects = (sql, args, message) =>
     err => message.test(err.message),
     sql
   );
-const skip = isPostgres ? false : 'chỉ chạy trên PostgreSQL (DB_DIALECT=postgres)';
+const skip = false;
 
 test('staff: uuid tự sinh khi thêm, username và uuid không đổi được', { skip }, async () => {
   await store.ready;
@@ -45,39 +43,4 @@ test('bảng chỉ-thêm-dòng từ chối UPDATE và DELETE với câu báo l�
   await store.roles.grant('pg_trigger_a', 'hr', 'admin');
   await rejects('DELETE FROM staff_roles', [], /staff_roles chỉ được thu hồi/);
   await rejects("UPDATE staff_roles SET role = 'cb'", [], /staff_roles chỉ được đặt revoked_at một lần/);
-});
-
-test('mọi trigger của lược đồ SQLite đều có bản PostgreSQL cùng tên', { skip }, async () => {
-  await store.ready;
-  const have = new Set(
-    (await store.db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all()).map(r => r.name)
-  );
-  const expected = [
-    'advance_requests_guard_update',
-    'ai_finding_actions_no_delete',
-    'ai_finding_actions_no_update',
-    'ai_review_runs_no_delete',
-    'ai_review_runs_no_update',
-    'audit_log_no_delete',
-    'audit_log_no_update',
-    'param_versions_no_delete',
-    'param_versions_no_update',
-    'pay_entries_frozen_update',
-    'pay_entries_guard_update',
-    'pay_entries_no_delete',
-    'payroll_runs_guard_update',
-    'payroll_runs_no_delete',
-    'payslips_frozen_update',
-    'payslips_guard_update',
-    'payslips_no_delete',
-    'staff_roles_guard_update',
-    'staff_roles_no_delete',
-    'staff_username_fixed',
-    'staff_uuid_default',
-    'staff_uuid_fixed'
-  ];
-  assert.deepEqual(
-    expected.filter(name => !have.has(name)),
-    []
-  );
 });

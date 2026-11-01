@@ -128,7 +128,13 @@ async function run() {
 
   const tables = orderedTables(source);
   for (const table of tables) {
-    const columns = (await target.prepare(`PRAGMA table_info(${table})`).all()).map(c => c.name);
+    const columns = (
+      await target
+        .prepare(
+          "SELECT column_name AS name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ? ORDER BY ordinal_position"
+        )
+        .all(table)
+    ).map(c => c.name);
     if (!columns.length) {
       report.problems.push(`${table}: bảng nguồn không có ở đích (bỏ qua)`);
       continue;

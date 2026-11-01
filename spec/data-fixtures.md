@@ -6,12 +6,12 @@ Một lệnh dựng ra một DB đầy đủ để thử bằng tay hoặc chạ
 
 | Việc | Lệnh |
 | --- | --- |
-| SQLite (file) | `npm run seed:demo` → `data/demo.sqlite` (hoặc `--db=<file>`; `DB_PATH` cũng được) |
-| PostgreSQL trong RAM (PGlite) | `DB_DIALECT=postgres node scripts/db/seed-demo.js --db=:memory:` |
-| PostgreSQL máy chủ | `DB_DIALECT=postgres DATABASE_URL=postgres://… node scripts/db/seed-demo.js --confirm-demo-db` — chỉ vào DB **mới** (chưa có nhân sự); từ chối DB đã có nhân sự; không bao giờ xoá gì trên máy chủ |
+| PostgreSQL trong tiến trình (PGlite), lưu thư mục | `npm run seed:demo` → `data/demo` (hoặc `--db=<thư mục>`; `DB_PATH` cũng được) |
+| PostgreSQL trong RAM (PGlite) | `node scripts/db/seed-demo.js --db=:memory:` |
+| PostgreSQL máy chủ | `DATABASE_URL=postgres://… node scripts/db/seed-demo.js --confirm-demo-db` — chỉ vào DB **mới** (chưa có nhân sự); từ chối DB đã có nhân sự; không bao giờ xoá gì trên máy chủ |
 | Xem CSV | `node scripts/db/seed-demo.js --export` → `data/demo/*.csv` |
 
-Cờ: `--today=YYYY-MM-DD` (mặc định 2026-11-26 12:00 giờ VN; chỉ bản mặc định được đòi mọi kỳ vọng AI đạt), `--scale=N` (thêm N nhân sự nền thử hiệu năng), `--no-check` (bỏ tự kiểm AI), `--no-lifecycle` (bỏ lớp vận hành), `--no-coverage` (bỏ đo độ phủ), `--coverage-json=<file>` (ghi kết quả đo độ phủ). Mật khẩu mọi tài khoản demo: `DEMO_PASSWORD` hoặc mặc định ghi đầu `scripts/db/seed-demo.js`. An toàn: từ chối `data/luong.sqlite`; chỉ ghi vào file mới, file rỗng hoặc file demo (khoá `demo_dataset`).
+Cờ: `--today=YYYY-MM-DD` (mặc định 2026-11-26 12:00 giờ VN; chỉ bản mặc định được đòi mọi kỳ vọng AI đạt), `--scale=N` (thêm N nhân sự nền thử hiệu năng), `--no-check` (bỏ tự kiểm AI), `--no-lifecycle` (bỏ lớp vận hành), `--no-coverage` (bỏ đo độ phủ), `--coverage-json=<file>` (ghi kết quả đo độ phủ). Mật khẩu mọi tài khoản demo: `DEMO_PASSWORD` hoặc mặc định ghi đầu `scripts/db/seed-demo.js`. An toàn: từ chối đường dẫn trông như DB lương thật (`.../luong`); chỉ ghi vào thư mục mới, thư mục rỗng hoặc thư mục demo (khoá `demo_dataset`); với `DATABASE_URL` thì chỉ vào DB mới.
 
 Mã thoát: 0 = mọi kỳ vọng đạt; 2 = kỳ vọng AI hoặc đồng hồ lệch; 3 = lớp vận hành có bước lỗi; 4 = độ phủ thiếu.
 
@@ -25,7 +25,7 @@ Mã thoát: 0 = mọi kỳ vọng đạt; 2 = kỳ vọng AI hoặc đồng hồ
 
 `scripts/db/demo/coverage.js` đo trên DB vừa dựng và đối chiếu với vũ trụ ca **rút từ mã**: mọi bảng của `migrations/postgres` có dòng (29/29); mọi giá trị của mọi ràng buộc `CHECK (cột IN (...))` xuất hiện (48 giá trị); mọi trạng thái kỳ lương và có kỳ tính lần hai; mọi chức vụ × bậc và mọi ca có người; mọi vai trò mặc định có người và có vai trò bị thu hồi; vai trò tuỳ chỉnh có cả loại ngưng dùng; mọi loại khoản duyệt còn dùng (`isat`, `approved`, `ot`, `makeup_hours`, `leave`, `willmakeup`) × `pending`/`approved`/`rejected`.
 
-Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.js` thoát 4 và `test/db/demo-coverage.test.js` đỏ (chạy ở cả SQLite và `DB_DIALECT=postgres`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED` (hiện 3):
+Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.js` thoát 4 và `test/db/demo-coverage.test.js` đỏ (chạy trên PGlite, hoặc trên máy chủ thật khi đặt `PG_TEST_URL`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED` (hiện 3):
 
 | Giá trị | Lý do |
 | --- | --- |
@@ -35,6 +35,6 @@ Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có 
 
 ## Dùng để thử các tình huống
 
-- Mở giao diện Vue (`web/`) trỏ vào máy chủ chạy trên DB demo (`DB_PATH=data/demo.sqlite npm start`) rồi đăng nhập `demo_admin` hoặc một `demo_*`.
-- Soát nhanh một kỳ: `node scripts/db/demo/period-check.js --db=data/demo.sqlite --month=2026-10 --full` (chạy trên bản sao, không ghi vào DB nguồn).
+- Mở giao diện Vue (`web/`) trỏ vào máy chủ chạy trên DB demo (`DB_PATH=data/demo npm start`) rồi đăng nhập `demo_admin` hoặc một `demo_*`.
+- Soát nhanh một kỳ: `node scripts/db/demo/period-check.js --db=data/demo --month=2026-10 --full` (chạy trên bản sao, không ghi vào DB nguồn).
 - Dựng một DB demo rồi sao lưu/khôi phục thử: `npm run pg:backup` / `pg:drill` (xem `platform.md`).

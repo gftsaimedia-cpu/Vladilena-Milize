@@ -56,7 +56,7 @@ async function snapshot() {
   const out = {};
   for (const table of ['kpi_scores', 'kpi_score_log', 'timesheets', 'settings']) {
     try {
-      out[table] = await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all();
+      out[table] = await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY ctid').all();
     } catch (error) {
       if (!/no such table/.test(error.message)) throw error;
       out[table] = [];

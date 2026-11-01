@@ -10,7 +10,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
-const { DatabaseSync } = require('node:sqlite');
+const pgBackup = require('../../lib/ops/pg-backup');
 const { seedLoadUsers, DEFAULT_PREFIX } = require('../loadtest/kit/seed');
 const { reconcile } = require('../loadtest/kit/reconcile');
 
@@ -36,22 +36,26 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
   let toolRunning = false;
 
   /* ---------- tải ---------- */
-  const countLoadUsers = () =>
-    store.db
-      .prepare("SELECT COUNT(*) AS n FROM staff WHERE username LIKE ? AND role = 'staff'")
-      .get(DEFAULT_PREFIX + '%').n;
+  const countLoadUsers = async () =>
+    Number(
+      (
+        await store.db
+          .prepare("SELECT COUNT(*) AS n FROM staff WHERE username LIKE ? AND role = 'staff'")
+          .get(DEFAULT_PREFIX + '%')
+      ).n
+    );
 
-  function seed(data) {
+  async function seed(data) {
     if (state.load.job?.status === 'running') throw fail(409, 'Đang chạy đo tải; chờ xong hoặc hủy trước');
     const count = clamp(data.count, 1, MAX_LOAD_USERS, 300);
     state.load.password = crypto.randomBytes(12).toString('hex');
-    seedLoadUsers(store, { count, passHash: auth.hashPassword(state.load.password) });
+    await seedLoadUsers(store, { count, passHash: auth.hashPassword(state.load.password) });
     state.load.seeded = count;
     state.load.job = null;
   }
 
-  function startLoad(data) {
-    if (!state.load.password || !countLoadUsers()) throw fail(400, 'Chưa nạp người dùng đo tải');
+  async function startLoad(data) {
+    if (!state.load.password || !(await countLoadUsers())) throw fail(400, 'Chưa nạp người dùng đo tải');
     if (state.load.job?.status === 'running') throw fail(409, 'Đang chạy đo tải');
     const scenarios = (Array.isArray(data.scenarios) ? data.scenarios : []).filter(name =>
       LOAD_SCENARIOS.includes(name)
@@ -60,7 +64,9 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     // Check-in chỉ chạy được một lần mỗi lần đặt lại: đồng hồ sandbox đứng yên nên lượt mở của lần trước vẫn còn
     if (
       scenarios.includes('checkin') &&
-      store.db.prepare('SELECT 1 FROM attendance_sessions WHERE username LIKE ? LIMIT 1').get(DEFAULT_PREFIX + '%')
+      (await store.db
+        .prepare('SELECT 1 FROM attendance_sessions WHERE username LIKE ? LIMIT 1')
+        .get(DEFAULT_PREFIX + '%'))
     )
       throw fail(
         400,
@@ -144,19 +150,13 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     if (!item) throw fail(400, 'Không có bản sao lưu này; tạo bản mới');
     return item;
   };
-  const integrityOf = file => {
-    const db = new DatabaseSync(file, { readOnly: true });
+  // Kiểm toàn vẹn bản sao lưu: đọc cả file, tính lại số dòng và dấu vân tay từng bảng (lib/ops/pg-backup.js → verifyFile)
+  const integrityOf = async file => {
     try {
-      return db
-        .prepare('PRAGMA integrity_check')
-        .all()
-        .map(r => Object.values(r)[0])
-        .join('; ')
-        .slice(0, 200);
+      const r = await pgBackup.verifyFile(file);
+      return r.ok ? 'ok' : r.problems.join('; ').slice(0, 200);
     } catch (error) {
       return `lỗi: ${error.message}`.slice(0, 200);
-    } finally {
-      db.close();
     }
   };
   const addBackup = (file, kind) => {
@@ -166,34 +166,30 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     return item;
   };
 
-  function backup() {
-    const file = path.join(workDir, `backup-${++counter}.sqlite`);
+  async function backup() {
+    const dir = path.join(workDir, `backup-${++counter}`);
     const t0 = performance.now();
-    store.db.exec(`VACUUM INTO '${file.replace(/'/g, "''")}'`); // sao nhất quán khi đang ghi (cùng cách scripts/ops/backup-db.js)
-    const item = addBackup(file, 'backup');
-    item.integrity = integrityOf(file);
+    const made = await pgBackup.backup(store.db, dir); // ảnh chụp nhất quán (giao dịch REPEATABLE READ chỉ đọc) của DB trong RAM
+    const item = addBackup(made.file, 'backup');
+    item.integrity = await integrityOf(made.file);
     item.ms = Math.round(performance.now() - t0);
   }
 
-  // Chép một bản rồi ghi đè 16 byte đầu của trang thứ 2 (tiêu đề cây B-tree): mô phỏng đĩa hỏng/ghi dở làm hỏng CẤU TRÚC.
-  // Byte hỏng nằm trong nội dung một dòng dữ liệu thì integrity_check không bắt được (SQLite không có tổng kiểm từng trang);
-  // phần đó chỉ được chuỗi băm nhật ký và việc tính lại phiếu lương bảo vệ.
-  function corrupt(data) {
+  // Chép một bản rồi ghi đè 16 byte ở giữa luồng nén: mô phỏng đĩa hỏng/ghi dở. Bước kiểm (đọc lại cả file, giải nén, tính lại
+  // dấu vân tay từng bảng) phải BẮT được.
+  async function corrupt(data) {
     const source = findBackup(data.name);
-    const file = path.join(workDir, `corrupt-${++counter}.sqlite`);
+    const file = path.join(workDir, `corrupt-${++counter}.pgbak.gz`);
     fs.copyFileSync(source.file, file);
     const fd = fs.openSync(file, 'r+');
     try {
-      const head = Buffer.alloc(18);
-      fs.readSync(fd, head, 0, 18, 0);
-      const raw = head.readUInt16BE(16);
-      const pageSize = raw === 1 ? 65536 : raw;
-      fs.writeSync(fd, Buffer.alloc(16, 0xff), 0, 16, pageSize);
+      const size = fs.fstatSync(fd).size;
+      fs.writeSync(fd, Buffer.alloc(16, 0xff), 0, 16, Math.max(20, Math.floor(size / 2)));
     } finally {
       fs.closeSync(fd);
     }
     const item = addBackup(file, 'corrupt');
-    item.integrity = integrityOf(file);
+    item.integrity = await integrityOf(file);
   }
 
   // Chạy một script ops ở tiến trình con và đợi xong (một lần một việc)
@@ -240,8 +236,10 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     });
   }
 
-  const verify = data => runTool('verify', data.name, 'verify-backup.js', [findBackup(data.name).file]);
-  const drill = data => runTool('drill', data.name, 'restore-drill.js', [`--backup=${findBackup(data.name).file}`]);
+  const verify = data =>
+    runTool('verify', data.name, 'pg-backup.js', ['verify', `--backup=${findBackup(data.name).file}`]);
+  const drill = data =>
+    runTool('drill', data.name, 'pg-backup.js', ['drill', `--backup=${findBackup(data.name).file}`]);
 
   /* ---------- đọc trạng thái ---------- */
   function fetchHealth() {
@@ -267,7 +265,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }) {
     const gate = limits?.hashGate?.stats();
     return {
       load: {
-        seeded: countLoadUsers(),
+        seeded: await countLoadUsers(),
         scenarios: LOAD_SCENARIOS,
         job: job && {
           status: job.status,

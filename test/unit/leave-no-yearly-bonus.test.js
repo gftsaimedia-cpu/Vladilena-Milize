@@ -3,11 +3,9 @@
 // Ngày giả định cố định, người bịa; không đọc đồng hồ thật.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { DatabaseSync } = require('node:sqlite');
 const Leave = require('../../public/leave.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 const { accrualEvents } = require('../../lib/domain/leave/leave-events');
-const { ensureLeaveSchema } = require('../../lib/domain/leave/schema');
 
 const sum = events => events.reduce((total, e) => total + e.days, 0);
 const TODAY = '2026-10-30';
@@ -91,16 +89,31 @@ test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total �
 });
 
 test('bảng leave_ledger không còn nhận loại dòng year', async () => {
-  const db = new DatabaseSync(':memory:');
-  await ensureLeaveSchema(db);
-  const insert = async kind =>
-    await db
-      .prepare(
-        "INSERT INTO leave_ledger (staff_uuid, username, kind, on_date, days, created_at, updated_at) VALUES ('u', 'a', ?, '2026-10-05', 1, 'x', 'x')"
-      )
-      .run(kind);
-  await assert.rejects(async () => await insert('year'), /CHECK/);
-  await assert.doesNotReject(async () => await insert('seniority'));
+  process.env.DB_PATH = ':memory:';
+  process.env.SESSION_SECRET = 'leave-ledger-test';
+  const store = require('../../lib/db');
+  try {
+    await store.ready;
+    await store.upsertStaff({
+      username: 'leave_a',
+      name: 'Người phép',
+      role: 'staff',
+      type: 'nv',
+      level: 1,
+      passHash: 'x'
+    });
+    const { uuid } = await store.db.prepare('SELECT uuid FROM staff WHERE username = ?').get('leave_a');
+    const insert = async kind =>
+      await store.db
+        .prepare(
+          "INSERT INTO leave_ledger (staff_uuid, username, kind, on_date, days, created_at, updated_at) VALUES (?, 'leave_a', ?, '2026-10-05', 1, 'x', 'x')"
+        )
+        .run(uuid, kind);
+    await assert.rejects(async () => await insert('year'), /check constraint|CHECK/i);
+    await assert.doesNotReject(async () => await insert('seniority'));
+  } finally {
+    await store.db.close();
+  }
 });
 
 test('phép dư đổi tiền cuối năm theo số mới: Nhân viên vào làm 05/10/2025 không nghỉ ngày nào được quy 13 ngày ở phiếu 02/2027', () => {

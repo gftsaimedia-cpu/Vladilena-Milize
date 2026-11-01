@@ -14,7 +14,7 @@ RUN npm ci --omit=dev --ignore-scripts
 # Máy chủ phục vụ web/dist khi có (lib/http.js); mã nguồn web/ không cần ở image chạy.
 RUN rm -rf /app/web
 COPY --from=web /web/dist /app/web/dist
-ENV NODE_ENV=production PORT=3000 DB_PATH=/app/data/luong.sqlite
+ENV NODE_ENV=production PORT=3000
 # Code stays owned by root (read-only for the app); only the data directory belongs to the unprivileged user.
 # The directory is created with its owner before VOLUME so a new named volume inherits node:node.
 RUN mkdir -p /app/data && chown node:node /app/data

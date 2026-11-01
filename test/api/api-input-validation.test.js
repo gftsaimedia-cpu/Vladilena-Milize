@@ -31,7 +31,7 @@ async function snapshot() {
         'punches',
         'corrections',
         'punch_requests'
-      ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+      ].map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY ctid').all()])
     )
   );
 }

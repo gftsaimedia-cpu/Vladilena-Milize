@@ -35,7 +35,7 @@ Quy ước trong tài liệu:
 | `lib/domain/attendance/geofence-policy.js` | Vùng GPS khi Check-in (`checkGeofence`), làm sạch cài đặt (`cleanGeofence`), dạng xem theo người (`geofenceView`). |
 | `lib/domain/schedule.js` | Lịch làm việc của một người (theo loại nhân sự) cho máy chủ, và `GET /staff/:u/schedule`: `scheduleOf`, `isWorkDay`, `isWorkDayFn`, `scheduleView`, `team`, `punchSchedule`. |
 | `lib/domain/shifts.js` | Giờ ca cho nhân viên qua `/api/punch` (`employeeView(month)`) và màn Ca làm của Admin. |
-| `lib/domain/explanation/*` | Giải trình: lớp `Explanation` (`explanation.js`), bảng (`schema.js`), đọc/ghi (`explanation-repository.js`), nghiệp vụ (`explanation-service.js`), ngày vắng không phép giải trình được (`absent-day.js`: `AbsentDay.stateOf`), phút Check-out muộn (`late-checkout.js`), Check-out muộn chờ duyệt và đồng bộ lượt (`late-checkout-session.js`, lớp `LateCheckout`), route (`src/modules/explanations/explanations.controller.ts`). |
+| `lib/domain/explanation/*` | Giải trình: lớp `Explanation` (`explanation.js`), bảng (`migrations/postgres/0001_baseline.sql`), đọc/ghi (`explanation-repository.js`), nghiệp vụ (`explanation-service.js`), ngày vắng không phép giải trình được (`absent-day.js`: `AbsentDay.stateOf`), phút Check-out muộn (`late-checkout.js`), Check-out muộn chờ duyệt và đồng bộ lượt (`late-checkout-session.js`, lớp `LateCheckout`), route (`src/modules/explanations/explanations.controller.ts`). |
 | `lib/explanations.js` | Lối vào chuyển tiếp tới `container.explanations`; xuất `lateCheckoutMin`, `needsExplanation`, `heldByUser`, `explainedByUser`, `submitLate`, `request`, `answer`, `decide`. |
 | `lib/domain/container.js` | Dựng lười `explanations`, `explanationRepository`, `lateCheckout`, `adminPresence`, `sessionStatus` với phụ thuộc tiêm qua constructor; dựng lại khi `store.db` đổi. |
 | `lib/announce.js` | `announceSetting` (tin `params.changed`), `attendanceHints` / `announceAttendance` (tin `attendance.changed` kind `forgot`; không nơi nào thêm gợi ý, mục 8). |
@@ -92,7 +92,7 @@ Chỉ mục: `session_one_open` UNIQUE (username) WHERE state='open' ⇒ **mỗi
 
 **`timesheets`** (`lib/db.js`, `getSheet`/`setSheet`): `days_json`, `kpi_pct`, `kpi_amt`, `kpi_adm_pct`, `kpi_adm_amt`, `rev`. `setSheet` tăng `rev` mỗi lần lưu.
 
-**`explanations`** (`lib/domain/explanation/schema.js`): `id, username, date, kind ('late-checkout'|'admin'|'ai'), session_id, prompt, rule_id, requested_by, requested_at, status ('requested'|'answered'|'approved'|'rejected'), answer, answered_at, decided_by, decided_at, decision_note, rev`.
+**`explanations`** (`migrations/postgres/0001_baseline.sql`): `id, username, date, kind ('late-checkout'|'admin'|'ai'), session_id, prompt, rule_id, requested_by, requested_at, status ('requested'|'answered'|'approved'|'rejected'), answer, answered_at, decided_by, decided_at, decision_note, rev`.
 
 **`sheet_approvals`** (`lib/approvals.js`): trạng thái duyệt khoản tự khai của lịch (module duyệt, không mô tả ở đây).
 

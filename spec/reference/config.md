@@ -2,7 +2,7 @@
 
 > Sinh tự động bởi `scripts/docs/gen-spec.js` (`npm run spec:gen`) từ `lib/config.js` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`. Đừng sửa tay: `test/unit/spec-reference.test.js` so sánh file này với bản dựng từ mã.
 
-## Hằng số có tên (`lib/config.js`, 71)
+## Hằng số có tên (`lib/config.js`, 70)
 
 | Tên | Giá trị |
 | --- | --- |
@@ -20,7 +20,6 @@
 | `CHECKOUT_GRACE_MIN` | `30` |
 | `COMPUTE_CACHE_MAX_ENTRIES` | `64` |
 | `COMPUTE_CACHE_TTL_MS` | `15000` |
-| `DB_BUSY_TIMEOUT_MS` | `5000` |
 | `ENTRIES_LABEL_MAX` | `80` |
 | `ENTRIES_MAX_AMOUNT` | `100000000000` |
 | `ENTRIES_MAX_PER_BATCH` | `200` |
@@ -83,15 +82,15 @@
 | Biến | Đọc ở |
 | --- | --- |
 | `ACCESS_LOG` | `lib/ops/access-log.js:12` |
-| `AUDIT_KEY` | `lib/db.js:762` |
+| `AUDIT_KEY` | `lib/db.js:348` |
 | `COOKIE_SECURE` | `lib/auth.js:276` `lib/http.js:39` `lib/params/save.js:69` `lib/params/save.js:73` (+1) |
-| `DATABASE_URL` | `lib/db.js:40` `lib/db.js:57` `lib/db.js:58` |
-| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:149` |
-| `DB_DIALECT` | `lib/db.js:38` |
+| `DATABASE_URL` | `lib/db.js:40` `lib/db.js:54` `lib/db.js:55` |
+| `DB_DEBUG_SQL` | `lib/data/postgres-database.js:154` |
 | `DB_PATH` | `lib/db.js:39` `lib/domain/ai-block.js:18` |
+| `DB_SQL_STATS` | `lib/data/postgres-database.js:144` |
 | `NODE_ENV` | `lib/params/save.js:69` `lib/params/save.js:73` `lib/params/save.js:89` |
 | `PARAMS_ALLOW_ACTIVATE` | `lib/params/save.js:88` |
-| `PG_TEST_URL` | `lib/db.js:59` `lib/db.js:60` |
+| `PG_TEST_URL` | `lib/db.js:40` `lib/db.js:56` `lib/db.js:57` |
 | `PORT` | `src/main.ts:89` |
 | `SCHEDULE_ALLOW_EDIT` | `lib/params/save.js:68` |
 | `SESSION_COOKIE_NAME` | `lib/auth.js:227` |

@@ -1,7 +1,6 @@
 'use strict';
 // Đặt lại dữ liệu thử của sandbox (scripts/dev/sandbox-server.cjs → resetSyntheticData) xoá luôn giải trình: sau khi đặt lại,
 // danh sách giải trình trống và đồng hồ lùi lại được (không còn dữ liệu chấm công nào chặn). Sandbox chạy ở tiến trình con, cổng 3411.
-if (require('../helpers/dialect').skipWholeFile(__filename)) return; // kiểm chính thứ chỉ SQLite có
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -55,7 +54,7 @@ before(async () => {
   });
   await new Promise((resolve, reject) => {
     let output = '';
-    const timer = setTimeout(() => reject(new Error('Sandbox chưa sẵn sàng: ' + stderr)), 10000);
+    const timer = setTimeout(() => reject(new Error('Sandbox chưa sẵn sàng: ' + stderr)), 90000);
     child.once('exit', code => {
       if (!base) {
         clearTimeout(timer);

@@ -66,7 +66,9 @@ async function person(username, role = 'staff', extra = {}) {
 const tables = async () =>
   (
     await store.db
-      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+      .prepare(
+        "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations' ORDER BY table_name"
+      )
       .all()
   ).map(row => row.name);
 
@@ -92,7 +94,7 @@ async function snapshot(exclude = []) {
   const out = {};
   for (const name of await tables()) {
     if (exclude.includes(name)) continue;
-    const rows = await store.db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all();
+    const rows = await store.db.prepare(`SELECT * FROM ${name} ORDER BY ctid`).all();
     out[name] = {
       rows: rows.length,
       digest: crypto

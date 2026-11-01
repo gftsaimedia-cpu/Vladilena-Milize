@@ -23,7 +23,7 @@ const fingerprint = async month =>
   (
     await store.db
       .prepare(
-        `SELECT r.run_no AS run_no, p.username AS username, p.gross AS gross, p.net AS net, p.status AS status, hex(p.snapshot_gz) AS snap, p.staff_terms_json AS terms
+        `SELECT r.run_no AS run_no, p.username AS username, p.gross AS gross, p.net AS net, p.status AS status, upper(encode(p.snapshot_gz, 'hex')) AS snap, p.staff_terms_json AS terms
        FROM payroll_runs r JOIN payslips p ON p.run_id = r.id WHERE r.month = ? ORDER BY r.run_no, p.username`
       )
       .all(month)

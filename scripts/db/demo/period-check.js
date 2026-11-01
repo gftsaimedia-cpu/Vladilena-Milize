@@ -2,7 +2,7 @@
 // Chạy thử luồng kỳ lương (chốt công → tính lương → AI kiểm tra) trên MỘT BẢN SAO của DB demo, bằng máy chủ thật trong cùng tiến trình
 // (đồng hồ giả: ngày 2 của tháng sau), rồi đếm phiếu theo trạng thái, cờ AI theo luật, phiếu lỗi theo mã, và kiểm các kỳ vọng của kịch bản
 // (scenarios.js → PAYSLIP, PERIOD_EXPECT). Đi đúng các route của Admin: lock-attendance, calculate, ai-review, GET payslips có bộ lọc.
-//   node scripts/db/demo/period-check.js --db=data/demo.sqlite [--month=2026-10] [--today=YYYY-MM-DD] [--full] [--keep=đường/dẫn/bản-sao.sqlite]
+//   node scripts/db/demo/period-check.js --db=data/demo [--month=2026-10] [--today=YYYY-MM-DD] [--full] [--keep=đường/dẫn/bản-sao.sqlite]
 //   --full   đi tiếp: duyệt phiếu (lô sạch, từng phiếu có cờ), loại phiếu lỗi khi duyệt kỳ, chi trả
 //   --keep   giữ bản sao ở đường dẫn này (mặc định xoá khi xong); chỉ ghi đè được file chưa có hoặc file demo
 // AN TOÀN: không bao giờ mở data/luong.sqlite (từ chối theo đường dẫn và theo tên file) và chỉ nhận DB demo (khoá demo_dataset). DB nguồn
@@ -11,7 +11,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
+const { demoInfo, copyDemo } = require('./demo-dir');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const args = Object.fromEntries(
@@ -33,27 +33,17 @@ const canonical = file => {
   return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
 };
 const refuseReal = file => {
-  const wanted = canonical(file);
-  if (wanted === canonical(path.join(ROOT, 'data', 'luong.sqlite')) || path.basename(wanted) === 'luong.sqlite')
-    fail('Từ chối chạy: đường dẫn trỏ vào DB lương thật (data/luong.sqlite).');
+  if (path.basename(path.resolve(file)).toLowerCase() === 'luong')
+    fail('Từ chối chạy: đường dẫn trông như DB lương thật.');
 };
-// File là DB demo (có khoá demo_dataset)? Mở chỉ đọc; file hỏng hoặc không phải SQLite là không.
-const isDemoDb = file => {
-  try {
-    const probe = new DatabaseSync(file, { readOnly: true });
-    const marked = !!probe.prepare("SELECT 1 FROM settings WHERE key = 'demo_dataset'").get();
-    probe.close();
-    return marked;
-  } catch {
-    return false;
-  }
-};
+// Thư mục là DB demo (có khoá demo_dataset)? Hỏng hoặc không phải DB demo là không.
+const isDemoDb = dir => demoInfo(dir).marked;
 
 if (typeof args.db !== 'string')
-  fail('Cách dùng: node scripts/db/demo/period-check.js --db=data/demo.sqlite [--month=2026-10] [--full]');
+  fail('Cách dùng: node scripts/db/demo/period-check.js --db=data/demo [--month=2026-10] [--full]');
 refuseReal(args.db);
-if (!fs.existsSync(args.db)) fail(`Không thấy file ${args.db}. Dựng trước bằng: npm run seed:demo`);
-if (!isDemoDb(args.db)) fail('Từ chối chạy: file không phải DB demo (thiếu khoá demo_dataset).');
+if (!fs.existsSync(args.db)) fail(`Không thấy ${args.db}. Dựng trước bằng: npm run seed:demo`);
+if (!isDemoDb(args.db)) fail('Từ chối chạy: thư mục không phải DB demo (thiếu khoá demo_dataset).');
 const month = typeof args.month === 'string' ? args.month : '2026-10';
 if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) fail('--month phải có dạng YYYY-MM');
 const nextMonthStart = m => {
@@ -65,17 +55,11 @@ const today = typeof args.today === 'string' ? args.today : nextMonthStart(month
 if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || Number.isNaN(Date.parse(today))) fail('--today phải có dạng YYYY-MM-DD');
 
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'aicb-period-check-'));
-const copy = typeof args.keep === 'string' ? args.keep : path.join(work, 'copy.sqlite');
+const copy = typeof args.keep === 'string' ? args.keep : path.join(work, 'copy');
 refuseReal(copy);
 if (canonical(copy) === canonical(args.db)) fail('Từ chối chạy: bản sao trùng DB nguồn.');
-if (fs.existsSync(copy) && !isDemoDb(copy)) fail('Từ chối ghi đè: --keep trỏ vào file đã có mà không phải DB demo.');
-for (const suffix of ['', '-wal', '-shm']) fs.rmSync(copy + suffix, { force: true });
-{
-  // Nhất quán kể cả khi file nguồn còn -wal: mở chỉ đọc rồi VACUUM INTO
-  const source = new DatabaseSync(args.db, { readOnly: true });
-  source.exec(`VACUUM INTO '${copy.replace(/'/g, "''")}'`);
-  source.close();
-}
+if (fs.existsSync(copy) && !isDemoDb(copy)) fail('Từ chối ghi đè: --keep trỏ vào thư mục đã có mà không phải DB demo.');
+copyDemo(args.db, copy);
 
 process.env.DB_PATH = copy;
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'demo-period-check';
@@ -112,6 +96,9 @@ async function main() {
   /* ---------- chốt công → tính lương → AI kiểm tra ---------- */
   const view0 = (await call('GET', `/periods/${month}`)).data;
   log(`Kỳ ${month}: trạng thái ban đầu ${view0.status}; đồng hồ giả ${today} 09:00`);
+  // Bản sao demo dựng bằng --no-lifecycle chưa bật công tắc Agents (lớp vận hành bật nó); bước AI kiểm tra cần
+  const cfg = require('../../../lib/config');
+  await store.setSetting(cfg.AGENTS_SETTING_KEY, cfg.AGENTS_ON);
   let step = await call('POST', `/periods/${month}/lock-attendance`, { rev: view0.rev });
   let acknowledged = [];
   if (step.status === 409 && step.data.checklist) {

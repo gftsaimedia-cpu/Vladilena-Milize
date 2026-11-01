@@ -346,7 +346,9 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
     [[1, 'draft']]
   );
   const firstRows = await store.db
-    .prepare('SELECT username, net, hex(snapshot_gz) AS snap FROM payslips WHERE run_id = ? ORDER BY username')
+    .prepare(
+      "SELECT username, net, upper(encode(snapshot_gz, 'hex')) AS snap FROM payslips WHERE run_id = ? ORDER BY username"
+    )
     .all(first[0].id);
   assert.equal(firstRows.length, 4);
 
@@ -361,7 +363,9 @@ test('calculate lại: lần chạy trước thành superseded (run_no + 1), phi
     ]
   );
   const keep = await store.db
-    .prepare('SELECT username, net, hex(snapshot_gz) AS snap FROM payslips WHERE run_id = ? ORDER BY username')
+    .prepare(
+      "SELECT username, net, upper(encode(snapshot_gz, 'hex')) AS snap FROM payslips WHERE run_id = ? ORDER BY username"
+    )
     .all(first[0].id);
   assert.deepEqual(keep, firstRows, 'phiếu của lần chạy bị thay vẫn còn nguyên');
   const view = (await getPeriod(M)).data;

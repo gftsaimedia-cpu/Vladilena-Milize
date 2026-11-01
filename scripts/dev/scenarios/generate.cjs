@@ -1,6 +1,6 @@
 'use strict';
 // Dựng DB kịch bản cả năm (01/2026 → 01/03/2027) bằng route HTTP thật của ứng dụng chạy trong cùng tiến trình, đồng hồ đóng băng đi tới theo
-// một hàng đợi sự kiện duy nhất. Kết quả: out/scenario-year.sqlite, out/events.jsonl (mọi lời gọi + trạng thái), out/cases.json, out/probes.json.
+// một hàng đợi sự kiện duy nhất. Kết quả: out/scenario-year, out/events.jsonl (mọi lời gọi + trạng thái), out/cases.json, out/probes.json.
 //   node scripts/dev/scenarios/generate.cjs [--variant A|B] [--only u1,u2] [--from YYYY-MM] [--to YYYY-MM] [--smoke] [--no-early] [--out file]
 // --smoke = 3 nhân vật × 2 tháng (kiểm chạy thông, không phải bản đầy đủ).
 const fs = require('node:fs');
@@ -20,15 +20,14 @@ const only = smoke ? ['nv2_lan', 'ctv1_binh', 'nv2_kim'] : opt('only', '') ? opt
 const from = opt('from', smoke ? '2027-01' : '2026-01');
 const to = opt('to', smoke ? '2027-02' : '2027-03');
 const early = variant === 'B' ? !flag('no-early') : flag('early');
-const dbFile = path.resolve(opt('out', path.join(OUT, 'scenario-year.sqlite')));
+const dbFile = path.resolve(opt('out', path.join(OUT, 'scenario-year')));
 if (!['A', 'B'].includes(variant)) throw new Error('--variant phải là A hoặc B');
 if (path.dirname(dbFile) !== OUT) throw new Error('DB kịch bản chỉ được nằm trong scripts/dev/scenarios/out/');
 
 fs.mkdirSync(OUT, { recursive: true });
-for (const suffix of ['', '-wal', '-shm']) fs.rmSync(dbFile + suffix, { force: true });
+fs.rmSync(dbFile, { recursive: true, force: true });
 // Bản làm việc của server.cjs và giờ đã lưu thuộc bản dựng cũ: xoá để máy chủ chép lại từ bản dựng mới, giờ về mặc định
-for (const suffix of ['', '-wal', '-shm'])
-  fs.rmSync(path.join(OUT, 'scenario-year.run.sqlite') + suffix, { force: true });
+fs.rmSync(path.join(OUT, 'scenario-year.run'), { recursive: true, force: true });
 fs.rmSync(path.join(OUT, 'clock.json'), { force: true });
 
 const { boot, NativeDate } = require('./lib/boot.cjs');
@@ -146,7 +145,6 @@ async function main() {
   fs.writeFileSync(path.join(OUT, 'cases.json'), JSON.stringify({ meta, cases }, null, 1));
   fs.writeFileSync(path.join(OUT, 'probes.json'), JSON.stringify(probes, null, 1));
   await new Promise(resolve => logStream.end(resolve));
-  app.store.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   app.store.db.close();
   console.log(
     `Xong sau ${meta.seconds}s: ${n} lời gọi, ${cases.length} trường hợp, DB ${path.relative(process.cwd(), dbFile)}`

@@ -104,7 +104,11 @@ test('tham số schedule.person.* không còn: không có trong bộ tham số m
 
 // DB đã chạy trước đây còn cột staff.schedule_json (và trigger chỉ-thêm): dựng lại cột đó rồi ghi một lịch riêng cũ Hai-Tư-Sáu
 async function legacyColumn(username) {
-  const columns = await store.db.prepare('PRAGMA table_info(staff)').all();
+  const columns = await store.db
+    .prepare(
+      "SELECT column_name AS name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'staff'"
+    )
+    .all();
   if (!columns.some(c => c.name === 'schedule_json'))
     await store.db.exec('ALTER TABLE staff ADD COLUMN schedule_json TEXT');
   const entry = {

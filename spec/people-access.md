@@ -15,7 +15,6 @@ Ký hiệu `file:dòng` trỏ tới vị trí trong cây mã hiện tại; khi d
 | `lib/roles.js` | Vai trò tuỳ chỉnh: mô tả cho `GET /api/roles` (`describeAll`), tạo / sửa / ngưng dùng (`create`, `update`, `deprecate`), ma trận khu vực Không/Xem/Sửa (`AREAS`, `EXTRAS`, `APPROVAL_ITEMS`), `rolesOfStaff`, `rolesRevOf`, `syncPayroll`, `reconcileStaffRole`. |
 | `src/modules/roles/roles.controller.ts` | Handler HTTP mỏng cho `/api/roles*`, gọi `lib/roles.js`. |
 | `lib/domain/staff.js` | Hồ sơ gửi ra ngoài: `publicStaff`, `staffForViewer` (che trường theo quyền), `staffRevision` (số phiên bản hồ sơ), hàm `ownerView`, `sheetForViewer`. |
-| `lib/domain/employee/schema.js` | Thêm cột danh tính vào `staff` (uuid, họ/tên tách, trạng thái hợp đồng, ngày nghỉ việc, số dư phép), cột uuid vào `audit_log`, trigger khoá `username` và `uuid`, trigger sinh uuid. |
 | `lib/domain/employee/person-name.js` | Lớp thuần `PersonName`: tách họ tên Việt (tên = chữ cuối), viết hoa chữ đầu. |
 | `lib/domain/employee/profile.js` | Lớp `Profile` (một dòng `staff` dạng đối tượng), `CONTRACT_STATUSES`, `isResignedBy`. |
 | `lib/domain/employee/employee.js` | Lớp `Employee` = Profile + Position (của tháng) + Shift; trả lời câu hỏi quyền lợi, phụ cấp ca, `view()`. |
@@ -25,7 +24,6 @@ Ký hiệu `file:dòng` trỏ tới vị trí trong cây mã hiện tại; khi d
 | `lib/domain/employee/index.js` | Gom export. |
 | `lib/domain/positions.js` | `GET /api/positions`, `GET /api/entitlements`, `POST /api/positions`, `POST /api/positions/:code/levels` (qua `lib/params/save.js`); cờ quyền lợi của người đăng nhập (`myPosition`), cờ khai lịch (`sheetFlagsOf`, `checkRequestFlags`), `activeCodesOf`, `withLeave`. |
 | `lib/domain/isat-rule.js` | `isatRefusal({ params, staff, date })`: lý do một ngày iSAT không hợp lệ (thiếu `benefit.isat` hoặc sai thứ `isat.weekday`), hoặc `null`. |
-| `lib/domain/position/schema.js` | Tạo bảng `benefit_types`, `position_types`, `position_type_benefits`, `position_levels`, `work_shifts`; nạp dòng nền một lần từ `PayrollParams.DEFAULTS`. |
 | `lib/domain/position/seed-data.js` | Tên chức vụ, tên bậc, danh mục 6 ca (mã mới → khoá giờ ca cũ lấy từ `public/punch.js` `SHIFT_CODES`). |
 | `lib/domain/position/benefits.js` | Danh sách 14 tên cờ quyền lợi `BENEFITS`: 13 cờ đang đọc và `holidayWork` (nằm trong `RETIRED_BENEFITS`, danh mục, tham số và bộ máy không đọc cờ này). |
 | `lib/domain/position/position.js` | Lớp `Position` (chức vụ + bậc hiệu lực của tháng). |
@@ -59,12 +57,12 @@ Ký hiệu `file:dòng` trỏ tới vị trí trong cây mã hiện tại; khi d
 
 ### 2.1 Bảng `staff` (một dòng một tài khoản / một người)
 
-Tạo ở `lib/db.js`, cột thêm dần bằng `addColumn` (`lib/db.js`,, `lib/domain/employee/schema.js`).
+Tạo ở `migrations/postgres/0001_baseline.sql`.
 
 | Cột | Kiểu | Ý nghĩa / quy tắc |
 | --- | --- | --- |
-| `username` | TEXT PK | Tên đăng nhập. Không đổi được: trigger `staff_username_fixed` (`employee/schema.js`). Server ép chữ thường và kiểm `USERNAME_RE = /^[a-z0-9._-]{2,40}$/` (`lib/domain/input.js`). |
-| `uuid` | TEXT, UNIQUE | Sinh một lần (`crypto.randomUUID()` trong `upsertStaff`, `db.js`; dòng thêm thẳng bằng SQL được trigger `staff_uuid_default` sinh, `employee/schema.js`). Không đổi được khi đã có (`staff_uuid_fixed`). |
+| `username` | TEXT PK | Tên đăng nhập. Không đổi được: trigger `staff_username_fixed` (`migrations/postgres/0001_baseline.sql`). Server ép chữ thường và kiểm `USERNAME_RE = /^[a-z0-9._-]{2,40}$/` (`lib/domain/input.js`). |
+| `uuid` | TEXT, UNIQUE | Sinh một lần (`crypto.randomUUID()` trong `upsertStaff`, `db.js`; dòng thêm thẳng bằng SQL được trigger `staff_uuid_default` sinh, `migrations/postgres/0001_baseline.sql`). Không đổi được khi đã có (`staff_uuid_fixed`). |
 | `name` | TEXT NOT NULL | Họ tên hiển thị. |
 | `family_name`, `given_name` | TEXT | Họ (gồm tên đệm) và tên. Tính trong `upsertStaff` (`db.js`): nếu `familyName`/`givenName` gửi kèm ghép lại đúng bằng `titleCase(name)` thì dùng, ngược lại tách lại từ `name` (tên = chữ cuối). |
 | `role` | TEXT `'staff' \| 'admin'` | Loại tài khoản cũ. `role='admin'` luôn cho vai trò `admin` mà không cần dòng `staff_roles` (`db.js`). |
@@ -85,7 +83,7 @@ Tạo ở `lib/db.js`, cột thêm dần bằng `addColumn` (`lib/db.js`,, `lib/
 | `locked_at`, `locked_by` | TEXT | Khoá tài khoản; NULL = đang hoạt động. |
 | `session_version` | INTEGER, mặc định 0 | Tăng là mọi cookie cũ hết hiệu lực. |
 | `payroll_subject` | INTEGER 1/0/NULL | Nhân sự được trả lương. NULL = suy từ `role` (`admin` → 0). Mốc `staff_payroll_subject_v1` điền giá trị cho dòng cũ (`db.js`). |
-| `contract_status` | TEXT `probation \| official \| NULL` | CHECK ở `employee/schema.js`; chỉ để hiển thị, không đổi tiền. |
+| `contract_status` | TEXT `probation \| official \| NULL` | CHECK ở `migrations/postgres/0001_baseline.sql`; chỉ để hiển thị, không đổi tiền. |
 | `resigned_on` | TEXT | Ngày nghỉ việc; `Profile.isResignedBy(d)` = `resigned_on < d` (`profile.js`). |
 | `leave_balance`, `leave_balance_on` | REAL, TEXT | Số dư phép lưu sẵn, do `lib/domain/leave` làm mới (`container.leave.start(config.LEAVE_REFRESH_MS)`, `src/modules/**/*.controller.ts`). |
 | `schedule_json` | | Cột còn trong DB đã chạy trước đây (lịch riêng cũ); không còn đọc hay ghi, không có migration xoá. |
@@ -100,7 +98,7 @@ Tạo ở `lib/db.js`, cột thêm dần bằng `addColumn` (`lib/db.js`,, `lib/
 - `grant` kiểm `ROLE_RE = /^[a-z][a-z_]{1,31}$/` và tài khoản có thật (404 `ROLE_USER_UNKNOWN`), đã có thì trả dòng cũ (`db.js`). `revoke` không kiểm "Admin cuối cùng" (`db.js`).
 - `countRole('admin')` đếm tài khoản **chưa khoá** có `role='admin'` hoặc dòng `admin` còn hiệu lực (`db.js`).
 
-### 2.3 Bảng danh mục (`lib/domain/position/schema.js`)
+### 2.3 Bảng danh mục (`migrations/postgres/0001_baseline.sql`)
 
 | Bảng | Khoá | Cột chính |
 | --- | --- | --- |
@@ -110,7 +108,7 @@ Tạo ở `lib/db.js`, cột thêm dần bằng `addColumn` (`lib/db.js`,, `lib/
 | `position_levels` | `id`; UNIQUE `(type_code, level_no, effective_month)` | `name`, `base_salary` (VND nguyên ≥ 0), `kpi_max` (NULL = không có KPI), `night_pct` (NULL = theo chức vụ), `reason`, `updated_by`, `updated_at`, `rev`. |
 | `work_shifts` | `code` | `preset` (UNIQUE, khoá giờ ca cũ), `name`, `kind` (`normal/flex/night`), `sort`, `deprecated` 0/1, `updated_by`, `updated_at`, `rev`. |
 
-Nạp nền một lần dưới mốc `position_catalog_v1` (`lib/domain/position/schema.js`), tháng áp dụng `config.CATALOG_BASE_MONTH` (tháng nền cố định dạng `YYYY-MM`, sớm hơn mọi tháng lương nên dòng nền hiệu lực ở mọi tháng):
+Nạp nền một lần dưới mốc `position_catalog_v1` (`migrations/postgres/0001_baseline.sql`), tháng áp dụng `config.CATALOG_BASE_MONTH` (tháng nền cố định dạng `YYYY-MM`, sớm hơn mọi tháng lương nên dòng nền hiệu lực ở mọi tháng):
 - Chức vụ = mọi mã có khoá `type.<mã>.workdays` trong `PayrollParams.DEFAULTS`.
 - `flex_pct = pctOf(type.<mã>.flexBonus ?? shift.flex.bonus)`, `travel_pct = pctOf(type.<mã>.travel)`, `attendance_pct = pctOf(type.<mã>.attendance)`, `pctOf(r) = round(r × 10000) / 100`.
 - `night_pct` = phần tử đầu của `type.<mã>.nightOptions` nếu có, không thì `pctOf(shift.night.bonus)` (mặc định 0,3 → 30).
@@ -613,7 +611,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 ### 6.1 Module này gọi
 
 - `lib/db.js`: mọi đọc/ghi `staff`, `staff_roles`, `settings`, `audit_log`, `payroll_periods` (`assertPeriodOpen`), `work_shifts` (trong `upsertStaff`).
-- `public/payroll-params.js` (`DEFAULTS`): `lib/auth.js`, `position/schema.js`, `lib/params/positions.js`.
+- `public/payroll-params.js` (`DEFAULTS`): `lib/auth.js`, `migrations/postgres/0001_baseline.sql`, `lib/params/positions.js`.
 - `public/approval-view.js` (`ITEMS`): `lib/authz.js` (`DECIDE_ITEMS`).
 - `public/punch.js` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.js`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.js`.
 - `lib/request-rules.js` (`rulesFor`, `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`): `src/modules/**/*.controller.ts` hồ sơ, `staff.js`, `positions.js`, `shifts.js`.
@@ -661,7 +659,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 
 ## 7. Test hiện có
 
-API (`test/api/`): `mvp-auth.test.js`, `*-dang-nhap-tai-khoan-khoa.test.js`, `session-migration.test.js`, `security-headers.test.js`, `password-reset-admin.test.js`, `permissions-matrix.test.js`, `route-dispatch-golden.test.js`, `period-permissions.test.js`, `roles-and-bulk-shift.test.js`, `roles-custom.test.js`, `roles-giao-dien.test.js`, `*-vai-tro-nhan-vien.test.js`, `lock-admin-guard.test.js`, `*-staff-unlock-audit.test.js`, `self-edit-guard.test.js`, `staff-profile-validation.test.js`, `staff-revision.test.js`, `v1a-s6-hr-staff-put.test.js`, `optimistic-rev.test.js`, `audit-log.test.js`, `audit-paging.test.js`, `events.test.js`, `agents-toggle.test.js`, `domain-catalog-routes.test.js`, `position-copy.test.js`, `levels-add.test.js`, `levels-entitlements.test.js`, `levels-idorm.test.js`, `levels-night-options.test.js`, `levels-request-flags.test.js`, `entitlement-write.test.js`, `shifts-edit.test.js`, `shifts-settings-route.test.js`, `punch-shift-config.test.js`, `shift-code-validation-regression.test.js`, `checkin.test.js`, `review-fixes.test.js`, `review-fixes-positions.test.js`, `verify-fixes.test.js`, `contract-web.test.js`, `*-load-phase0.test.js`, `*-ha-tang-http-db.test.js`, `api-input-validation.test.js`.
+API (`test/api/`): `mvp-auth.test.js`, `*-dang-nhap-tai-khoan-khoa.test.js`, `security-headers.test.js`, `password-reset-admin.test.js`, `permissions-matrix.test.js`, `route-dispatch-golden.test.js`, `period-permissions.test.js`, `roles-and-bulk-shift.test.js`, `roles-custom.test.js`, `roles-giao-dien.test.js`, `*-vai-tro-nhan-vien.test.js`, `lock-admin-guard.test.js`, `*-staff-unlock-audit.test.js`, `self-edit-guard.test.js`, `staff-profile-validation.test.js`, `staff-revision.test.js`, `v1a-s6-hr-staff-put.test.js`, `optimistic-rev.test.js`, `audit-log.test.js`, `audit-paging.test.js`, `events.test.js`, `agents-toggle.test.js`, `domain-catalog-routes.test.js`, `position-copy.test.js`, `levels-add.test.js`, `levels-entitlements.test.js`, `levels-idorm.test.js`, `levels-night-options.test.js`, `levels-request-flags.test.js`, `entitlement-write.test.js`, `shifts-edit.test.js`, `shifts-settings-route.test.js`, `punch-shift-config.test.js`, `shift-code-validation-regression.test.js`, `checkin.test.js`, `review-fixes.test.js`, `review-fixes-positions.test.js`, `verify-fixes.test.js`, `contract-web.test.js`, `*-load-phase0.test.js`, `*-ha-tang-http-db.test.js`, `api-input-validation.test.js`.
 
 Unit (`test/unit/`): `*-bam-mat-khau-bat-dong-bo.test.js`, `domain-classes.test.js`, `roles-khu-vuc.test.js`, `route-classes.test.js`, `limiters.test.js`, `warnings.test.js`, `require-cycles.test.js`, `position-defaults-zero-drift.test.js`, `isat-saturday-entitled.test.js`.
 
@@ -695,7 +693,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 14. Loại yêu cầu duyệt: `lib/roles.js` (`APPROVAL_ITEMS`) và `public/approval-view.js` (`ITEMS`, thứ tự khác).
 15. Mã chức vụ: `position-catalog.js` viết cứng `/^[a-z][a-z0-9]{1,15}$/`; `lib/params/positions.js` dựng từ `config.POSITION_CODE_MIN/MAX`.
 16. Mã vai trò: `lib/db.js` viết cứng `/^[a-z][a-z_]{1,31}$/`; `lib/roles.js` dựng từ `config.ROLE_CODE_MAX`.
-17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.js` (`CONTRACT_STATUSES`), CHECK ở `employee/schema.js`, `db.js`.
+17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.js` (`CONTRACT_STATUSES`), CHECK ở `migrations/postgres/0001_baseline.sql`, `db.js`.
 18. Tên vai trò mặc định: `lib/roles.js` (giao diện Vue có bản sao nhãn riêng ở `web/src`).
 19. Độ dài lý do: `config.js`, `db.js`, khoá registry `control.reasonMinLength`/`control.reasonMaxLength` (không được máy chủ đọc).
 20. Độ dài mật khẩu: `config.js` (số `6` viết thẳng).
@@ -706,7 +704,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 
 23. `src/modules/**/*.controller.ts` `581` `Math.ceil(wait / 60)` (giây/phút).
 24. `src/modules/**/*.controller.ts` bước 0,5 ngày (`× 2 / 2`) và trần ±365 ngày điều chỉnh phép; trần 20 người phụ thuộc; 80 ký tự vị trí công việc; câu "2–40 ký tự" viết tay.
-25. `position-catalog.js` `DOW_MAX = 6`, `PCT_MAX = 100`, `WORKDAYS_MAX = 31`, `HUNDRED = 100`; `slice(0, 40)` thay vì `config.ERROR_ECHO_FIELD_MAX`; `position/schema.js` CHECK `1..31`, `× 10000 / 100`.
+25. `position-catalog.js` `DOW_MAX = 6`, `PCT_MAX = 100`, `WORKDAYS_MAX = 31`, `HUNDRED = 100`; `slice(0, 40)` thay vì `config.ERROR_ECHO_FIELD_MAX`; `migrations/postgres/0001_baseline.sql` CHECK `1..31`, `× 10000 / 100`.
 26. `sheetFlagsOf` trả cờ `canIsat` (`lib/domain/positions.js`) nhưng không nơi nào đọc; iSAT được kiểm bằng `isatRefusal` (`lib/domain/isat-rule.js`) chứ không qua cờ này.
 
 ### 8.4 Mã không có nơi gọi hoặc không có tác dụng

@@ -298,7 +298,11 @@ test('GPS: không lưu toạ độ, độ chính xác hay khoảng cách ở b�
       for (const col of Object.keys(row)) assert.ok(!/lat|lng|geo|accur|dist|loc/i.test(col), `cột ${table}.${col}`);
   }
   // và không bảng nào ngoài cấu hình công ty chứa toạ độ nhân sự
-  const tables = await dm.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+  const tables = await dm
+    .prepare(
+      "SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name <> 'schema_migrations'"
+    )
+    .all();
   for (const { name } of tables) {
     if (name === 'settings') continue;
     const text = JSON.stringify(await dm.prepare(`SELECT * FROM "${name}"`).all());

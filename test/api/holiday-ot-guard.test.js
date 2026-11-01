@@ -57,7 +57,7 @@ async function snapshot() {
     await Promise.all(
       ['attendance_sessions', 'corrections', 'punches', 'timesheets', 'settings'].map(async table => [
         table,
-        await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()
+        await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY ctid').all()
       ])
     )
   );

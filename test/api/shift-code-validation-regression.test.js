@@ -31,7 +31,7 @@ const profile = {
 async function snapshot() {
   return Object.fromEntries(
     await Promise.all(
-      tables.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY rowid').all()])
+      tables.map(async table => [table, await store.db.prepare('SELECT * FROM ' + table + ' ORDER BY ctid').all()])
     )
   );
 }

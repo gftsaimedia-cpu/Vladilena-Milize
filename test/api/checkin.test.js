@@ -5,7 +5,7 @@ const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
 
-process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'luong-checkin-')), 'test.sqlite');
+process.env.DB_PATH = ':memory:';
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
   server = require('../helpers/server');

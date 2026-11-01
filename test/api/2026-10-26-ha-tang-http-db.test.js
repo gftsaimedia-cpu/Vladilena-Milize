@@ -3,7 +3,6 @@ process.env.SESSION_SECRET = 'ha-tang-2026-10-26';
 // Trang chủ về trang đăng nhập khi chưa build giao diện Vue: không để web/dist có sẵn trên máy dev (npm run build) đổi kết quả
 process.env.WEB_DIST = require('node:path').join(require('node:os').tmpdir(), 'luong-no-web-dist');
 const { test, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const store = require('../../lib/db');
@@ -56,16 +55,6 @@ test('máy chủ giữ kết nối 65 giây và headersTimeout lớn hơn keepAl
   assert.equal(server.headersTimeout, config.HTTP_HEADERS_TIMEOUT_MS);
   assert.ok(server.headersTimeout > server.keepAliveTimeout, 'Node yêu cầu headersTimeout lớn hơn keepAliveTimeout');
   assert.ok(server.keepAliveTimeout > 5000, 'phải dài hơn mặc định 5 giây của Node');
-});
-
-sqliteOnly('cơ sở dữ liệu chờ khoá ghi theo cấu hình thay vì báo SQLITE_BUSY ngay', async () => {
-  const busy = await store.db.prepare('PRAGMA busy_timeout').get();
-  assert.equal(Object.values(busy)[0], config.DB_BUSY_TIMEOUT_MS);
-});
-
-sqliteOnly('khoá ngoại đang BẬT (ghi chú cũ trong lib/db.js nói tắt là sai)', async () => {
-  const fk = await store.db.prepare('PRAGMA foreign_keys').get();
-  assert.equal(Object.values(fk)[0], 1);
 });
 
 test('máy chủ thật vẫn trả lời bình thường sau khi áp cấu hình mới', async () => {

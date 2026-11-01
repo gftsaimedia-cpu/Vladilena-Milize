@@ -2,7 +2,6 @@ process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'db-pay-entries-tests';
 const { test, after } = require('node:test'),
   assert = require('node:assert/strict');
-const { sqliteOnly } = require('../helpers/dialect');
 const store = require('../../lib/db'),
   auth = require('../../lib/auth');
 const db = store.db;
@@ -163,29 +162,6 @@ test('pay_entries: chờ duyệt đi được sang rejected và void', async () 
   await db.prepare("UPDATE pay_entries SET status = 'void' WHERE id = ?").run(b);
   assert.equal((await row(a)).status, 'rejected');
   assert.equal((await row(b)).status, 'void');
-});
-
-sqliteOnly('pay_entries: truy vấn theo (tháng, trạng thái) và (người, tháng) dùng chỉ mục', async () => {
-  const plan = async sql => (await db.prepare('EXPLAIN QUERY PLAN ' + sql).all()).map(r => r.detail).join(' | ');
-  assert.match(
-    await plan("SELECT * FROM pay_entries WHERE month = '2026-10' AND status = 'pending'"),
-    /pay_entries_month_status/
-  );
-  assert.match(
-    await plan("SELECT * FROM pay_entries WHERE username = 'u' AND month = '2026-10'"),
-    /pay_entries_user_month/
-  );
-});
-
-sqliteOnly('pay_entries: migration chạy lại trên DB đã có bảng không mất dòng (CREATE IF NOT EXISTS)', async () => {
-  const id = await insert({ amount: 123456 });
-  const before = (await db.prepare('SELECT count(*) n FROM pay_entries').get()).n;
-  const sql = await db
-    .prepare("SELECT name, sql FROM sqlite_master WHERE name LIKE 'pay_entries%' AND sql IS NOT NULL")
-    .all();
-  assert.ok(sql.length >= 5, 'bảng, hai chỉ mục, ba trigger');
-  assert.equal((await row(id)).amount, 123456);
-  assert.ok(before >= 1);
 });
 
 async function person(username, type, contract) {

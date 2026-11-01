@@ -1,6 +1,5 @@
 import { Kysely } from 'kysely';
 import { AppDatabase, AppDialect } from './db-dialect';
-import { flavors, useFlavor } from './flavor';
 import type { Schema } from './schema.generated';
 
 export type { Schema } from './schema.generated';
@@ -13,8 +12,7 @@ export type { AuditCriteria, AuditLogRow } from './audit-log.repository';
 
 /** Trình dựng truy vấn có kiểu (Kysely) trên kết nối của ứng dụng; kiểu bảng sinh từ migration (`npm run db:types`). */
 export function createQueryBuilder(db: AppDatabase): Kysely<Schema> {
-  const dialect = new AppDialect(db);
-  return useFlavor(new Kysely<Schema>({ dialect }), typeof db.native === 'function' ? flavors.postgres : flavors.sqlite);
+  return new Kysely<Schema>({ dialect: new AppDialect(db) });
 }
 export { flavorOf } from './flavor';
 export { AdvisoryLocks } from './locks';

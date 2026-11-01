@@ -24,15 +24,19 @@ services:
       # Mặc định cho môi trường thật (sau proxy HTTPS). Chạy thử qua HTTP thường (demo): đặt trong deploy/.env, xem demo.env.example.
       TRUST_PROXY: '${TRUST_PROXY:-1}'
       COOKIE_SECURE: '${COOKIE_SECURE:-1}'
-      DB_PATH: '${DB_PATH:-/app/data/luong.sqlite}'
+      # PostgreSQL ở dịch vụ db bên dưới. Mật khẩu lấy từ POSTGRES_PASSWORD trong secrets/luong.env (cùng file env_file ở trên).
+      DATABASE_URL: 'postgres://luong:${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong deploy/.env}@db:5432/${POSTGRES_DB:-luong}'
       # PARAMS_ALLOW_ACTIVATE: "1"   # CHỈ khi chủ dự án đã duyệt bật chế độ áp dụng tham số; xem RUNBOOK-THAM-SO.md. Xong thì xoá dòng này.
       # SCHEDULE_ALLOW_EDIT: "1"     # Mặc định TẮT. Cho Lưu lịch làm việc theo chức vụ; chỉ sau khi chủ dự án đồng ý và kiểm thử không lệch (CHECKLIST mục 17).
       # SHIFT_ALLOW_EDIT: "1"        # Mặc định TẮT. Cho sửa giờ ca làm; cùng điều kiện. Tắt lại: xoá dòng và khởi động lại container.
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       # Mặc định chỉ proxy trên cùng máy chủ vào được (KHÔNG dùng "3000:3000", xem CHECKLIST mục 2). Demo qua IP/HTTP: BIND_ADDR=0.0.0.0.
       - '${BIND_ADDR:-127.0.0.1}:${APP_PORT:-3000}:3000'
     volumes:
-      - luong-data:/app/data # DB SQLite (+ -wal, -shm) và thư mục sao lưu tại chỗ /app/data/backups
+      - luong-data:/app/data # thư mục sao lưu tại chỗ /app/data/backups (DB nằm ở volume pg-data của dịch vụ db)
     ulimits:
       nofile: # mỗi luồng SSE là một socket; trần mặc định 1.024 ở một số máy chủ không đủ cho ~1.000 luồng
         soft: 65536
@@ -41,7 +45,7 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    # read_only: true            # thử sau: app chỉ ghi /app/data; SQLite cần /tmp và /var/tmp cho tệp tạm
+    # read_only: true            # thử sau: app chỉ ghi /app/data
     # tmpfs: [/tmp, /var/tmp]
     logging:
       driver: json-file
@@ -49,6 +53,25 @@ services:
         max-size: '10m'
         max-file: '5'
     # HEALTHCHECK đã nằm trong Dockerfile (GET /api/me)
+
+  # PostgreSQL 16. Chỉ app trong mạng compose nói chuyện được với nó (không mở cổng ra máy chủ). Sao lưu: scripts/ops/pg-backup.js (README mục sao lưu).
+  db:
+    image: postgres:16
+    container_name: luong-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: luong
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong deploy/.env}'
+      POSTGRES_DB: '${POSTGRES_DB:-luong}'
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U luong -d $${POSTGRES_DB:-luong}']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
 
   # HTTPS tự động bằng Caddy trước app: docker compose --profile https up -d (cần SITE_ADDRESS là tên miền đã trỏ về máy chủ, cổng 80 và 443 mở).
   # Dùng cách này thì để BIND_ADDR mặc định (127.0.0.1) để cổng 3000 của app không lộ ra ngoài.
@@ -72,5 +95,6 @@ services:
 
 volumes:
   luong-data:
+  pg-data:
   caddy-data:
   caddy-config:

@@ -11,7 +11,6 @@
 // Thu nhập chịu thuế 7.328.364 = 8.988.461 − miễn thuế 1.660.097 (phần đêm 1.094.712 + phần OT 565.385). Chuyên cần sửa +500.000 cộng đủ vào tổng, chịu thuế và thực lĩnh.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const Engine = require('../../public/payroll-engine.js');
 
@@ -41,17 +40,13 @@ async function paidMonth(edits) {
 const dump = value => JSON.stringify(value);
 // Sửa cột của lần chạy trong DB TEST (trong bộ nhớ): trigger payroll_runs_guard_update chặn sửa engine_version và params_json, nên gỡ tạm rồi dựng lại đúng câu cũ
 async function editRun(month, column, value) {
-  const trigger = await store.db
-    .prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?")
-    .get('payroll_runs_guard_update');
-  assert.ok(trigger, 'trigger bảo vệ lần chạy có mặt');
-  await store.db.exec('DROP TRIGGER payroll_runs_guard_update');
+  await store.db.exec('ALTER TABLE payroll_runs DISABLE TRIGGER payroll_runs_guard_update');
   try {
     await store.db
       .prepare(`UPDATE payroll_runs SET ${column} = ? WHERE month = ? AND status != 'superseded'`)
       .run(value, month);
   } finally {
-    await store.db.exec(trigger.sql);
+    await store.db.exec('ALTER TABLE payroll_runs ENABLE TRIGGER payroll_runs_guard_update');
   }
 }
 
@@ -201,30 +196,27 @@ test('Admin (không selfView) vẫn nhận bản chụp gốc và computed; phi�
 });
 
 /* ================= (5) engineVersion ================= */
-sqliteOnly(
-  'engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản chụp có engineVersion cũ thì verify báo engineChanged: true',
-  async () => {
-    const M = monthOf();
-    await P.setupMonth(M, 'calculated');
-    assert.equal(Engine.ENGINE_VERSION, 'payroll-engine-14');
-    assert.equal((await store.payroll.currentRun(M)).engineVersion, Engine.ENGINE_VERSION);
-    const fresh = await F.call('GET', `/periods/${M}/verify`);
-    assert.equal(fresh.status, 200, dump(fresh.data));
-    assert.equal(fresh.data.engineVersion, Engine.ENGINE_VERSION);
-    assert.equal(fresh.data.engineChanged, false);
-    assert.deepEqual(fresh.data.mismatched, []);
-    assert.equal(fresh.data.checked, 4);
-    // dựng bản chụp cũ: sửa cột engine_version của lần chạy trong DB test
-    await editRun(M, 'engine_version', 'payroll-engine-1');
-    const old = await F.call('GET', `/periods/${M}/verify`);
-    assert.equal(old.status, 200, dump(old.data));
-    assert.equal(old.data.engineVersion, 'payroll-engine-1');
-    assert.equal(old.data.engineChanged, true);
-    assert.deepEqual(old.data.mismatched, [], 'số liệu vẫn khớp, chỉ phiên bản bộ máy khác');
-    const slip = await payslipOf(M, 'qa_nv1', 'admin');
-    assert.equal(slip.data.run.engineVersion, 'payroll-engine-1', 'phiếu báo phiên bản đã chụp');
-  }
-);
+test('engineVersion của lần tính mới là Engine.ENGINE_VERSION; bản chụp có engineVersion cũ thì verify báo engineChanged: true', async () => {
+  const M = monthOf();
+  await P.setupMonth(M, 'calculated');
+  assert.equal(Engine.ENGINE_VERSION, 'payroll-engine-14');
+  assert.equal((await store.payroll.currentRun(M)).engineVersion, Engine.ENGINE_VERSION);
+  const fresh = await F.call('GET', `/periods/${M}/verify`);
+  assert.equal(fresh.status, 200, dump(fresh.data));
+  assert.equal(fresh.data.engineVersion, Engine.ENGINE_VERSION);
+  assert.equal(fresh.data.engineChanged, false);
+  assert.deepEqual(fresh.data.mismatched, []);
+  assert.equal(fresh.data.checked, 4);
+  // dựng bản chụp cũ: sửa cột engine_version của lần chạy trong DB test
+  await editRun(M, 'engine_version', 'payroll-engine-1');
+  const old = await F.call('GET', `/periods/${M}/verify`);
+  assert.equal(old.status, 200, dump(old.data));
+  assert.equal(old.data.engineVersion, 'payroll-engine-1');
+  assert.equal(old.data.engineChanged, true);
+  assert.deepEqual(old.data.mismatched, [], 'số liệu vẫn khớp, chỉ phiên bản bộ máy khác');
+  const slip = await payslipOf(M, 'qa_nv1', 'admin');
+  assert.equal(slip.data.run.engineVersion, 'payroll-engine-1', 'phiếu báo phiên bản đã chụp');
+});
 
 /* ================= (6) params_json hỏng ================= */
 // Dựng kỳ có số sửa (cần bộ tính thuế của lần chạy), gán params_json hỏng rồi gọi danh sách, chi tiết (Admin và nhân sự) và tổng kỳ
@@ -239,20 +231,17 @@ async function brokenParamsStatuses(broken) {
     view: (await F.call('GET', `/periods/${M}`)).status
   };
 }
-sqliteOnly(
-  'Lần tính có params_json là JSON null, chuỗi không phải JSON hoặc mảng rỗng (cột NOT NULL nên null thật không có): danh sách phiếu, chi tiết phiếu (Admin và nhân sự) và tổng kỳ không trả 500',
-  async () => {
-    for (const broken of ['null', 'không phải JSON', '[]']) {
-      const { estimate, ...status } = await brokenParamsStatuses(broken);
-      for (const [where, code] of Object.entries(status)) assert.notEqual(code, 500, `${where}, params_json=${broken}`);
-      assert.equal(status.list, 200, `danh sách vẫn đọc được, params_json=${broken}`);
-    }
+test('Lần tính có params_json là JSON null, chuỗi không phải JSON hoặc mảng rỗng (cột NOT NULL nên null thật không có): danh sách phiếu, chi tiết phiếu (Admin và nhân sự) và tổng kỳ không trả 500', async () => {
+  for (const broken of ['null', 'không phải JSON', '[]']) {
+    const { estimate, ...status } = await brokenParamsStatuses(broken);
+    for (const [where, code] of Object.entries(status)) assert.notEqual(code, 500, `${where}, params_json=${broken}`);
+    assert.equal(status.list, 200, `danh sách vẫn đọc được, params_json=${broken}`);
   }
-);
+});
 //   1. params_json là số hoặc chuỗi JSON: public/payroll-params.js → fillLate gọi WeakMap.set với khoá không phải đối tượng
 //      (TypeError qua lib/periods.js → workdaysStdOf) nên chi tiết phiếu trả 500;
 //   2. params_json = 'null': lib/periods.js → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
-sqliteOnly('params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500', async () => {
+test('params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500', async () => {
   for (const broken of ['123', '"chuỗi"', 'null', '[]']) {
     const status = await brokenParamsStatuses(broken);
     for (const [where, code] of Object.entries(status)) assert.notEqual(code, 500, `${where}, params_json=${broken}`);

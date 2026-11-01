@@ -1,19 +1,18 @@
 // Dựng bộ dữ liệu DEMO của AiCB: người giả phủ mọi ca có thể xảy ra, kèm các ca bất thường cố ý.
-//   npm run seed:demo                       → ./data/demo.sqlite (hoặc DB_PATH nếu đặt)
+//   npm run seed:demo                       → ./data/demo (PostgreSQL trong tiến trình, lưu thư mục; hoặc DATABASE_URL / DB_PATH nếu đặt)
 //   node scripts/db/seed-demo.js --export   → thêm CSV (UTF-8 có BOM) vào data/demo/
 //   --today=YYYY-MM-DD   "hôm nay" mà dữ liệu giả định (mặc định 2026-11-26); lượt Check-in/out và quyết định sau ngày này bị bỏ
 //   --scale=1000         thêm 1000 nhân sự nền demo_bulk_0001… để thử hiệu năng
 //   --no-check           bỏ qua bước tự kiểm bằng "Soát dữ liệu" (AI)
-//   --db=đường/dẫn       đường dẫn DB (ưu tiên hơn DB_PATH)   --out=thư/mục   thư mục CSV (mặc định data/demo)
-// AN TOÀN: tuyệt đối không mở data/luong.sqlite (DB lương thật). Chỉ ghi vào file chưa có, file rỗng, hoặc file demo do chính script này tạo
-// (nhận ra bằng khoá `demo_dataset` trong bảng settings); mọi file khác bị từ chối. Dựng lại = xoá file demo cũ rồi tạo mới, kết quả luôn giống nhau.
+//   --db=thư/mục|:memory:  nơi lưu DB (ưu tiên hơn DB_PATH)   --out=thư/mục   thư mục CSV (mặc định data/demo)
+// AN TOÀN: chỉ ghi vào thư mục chưa có, thư mục rỗng, hoặc thư mục demo do chính script này tạo
+// (nhận ra bằng khoá `demo_dataset` trong bảng settings); mọi thư mục khác bị từ chối. Dựng lại = xoá thư mục demo cũ rồi tạo mới, kết quả luôn giống nhau.
 // Mật khẩu mọi tài khoản demo: biến môi trường DEMO_PASSWORD, nếu bỏ trống dùng mật khẩu mặc định ghi ngay dưới đây (chỉ dùng cho DB demo).
 const fs = require('node:fs');
 const path = require('node:path');
-const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = path.join(__dirname, '..', '..');
-const DEFAULT_DB = path.join(ROOT, 'data', 'demo.sqlite');
+const DEFAULT_DB = path.join(ROOT, 'data', 'demo');
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'demo1234';
 const MARKER_KEY = 'demo_dataset';
 
@@ -37,10 +36,9 @@ const canonical = file => {
   } catch {}
   return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
 };
-const REAL_DB = canonical(path.join(ROOT, 'data', 'luong.sqlite'));
 // PostgreSQL thật qua DATABASE_URL: chỉ nạp vào DB MỚI (chưa có nhân sự) hoặc DB demo đã nạp trước đó, và phải có --confirm-demo-db.
 // Kiểm trước khi nạp lib/db (nạp lib/db là chạy migration lên DB đó) bằng một kết nối riêng chỉ đọc.
-if (process.env.DB_DIALECT === 'postgres' && process.env.DATABASE_URL) {
+if (process.env.DATABASE_URL) {
   if (args['confirm-demo-db'] !== true)
     fail(
       'Từ chối chạy: DATABASE_URL trỏ vào một máy chủ PostgreSQL. Thêm --confirm-demo-db để xác nhận đó là DB MỚI hoặc DB demo (dữ liệu demo ghi thẳng vào đó).'
@@ -70,34 +68,46 @@ if (process.env.DB_DIALECT === 'postgres' && process.env.DATABASE_URL) {
       'DB PostgreSQL đích đã là DB demo: dựng lại bằng cách tạo DB mới (script không xoá dữ liệu trên máy chủ PostgreSQL).'
     );
 }
-const dbArg = typeof args.db === 'string' ? args.db : process.env.DB_PATH || DEFAULT_DB;
+// Không có DATABASE_URL: PostgreSQL trong tiến trình (PGlite). --db=:memory: (RAM) hoặc --db=<thư mục> (lưu đĩa; mặc định data/demo).
+const dbArg = process.env.DATABASE_URL
+  ? null
+  : typeof args.db === 'string'
+    ? args.db
+    : process.env.DB_PATH || DEFAULT_DB;
 const MEMORY = dbArg === ':memory:';
-if (!MEMORY) {
-  const wanted = canonical(dbArg);
-  if (wanted === REAL_DB || path.basename(wanted) === 'luong.sqlite')
-    fail(
-      'Từ chối chạy: đường dẫn trỏ vào DB lương thật (data/luong.sqlite). Dữ liệu demo chỉ ghi vào data/demo.sqlite hoặc file demo khác.'
+if (dbArg && !MEMORY) {
+  const dir = path.resolve(dbArg);
+  const pathParts = dir.split(path.sep).map(p => p.toLowerCase());
+  if (pathParts.includes('luong') || path.basename(dir) === 'luong')
+    fail('Từ chối chạy: đường dẫn trông như DB lương thật. Dữ liệu demo chỉ ghi vào data/demo hoặc thư mục demo khác.');
+  if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) {
+    // Thư mục có sẵn: chỉ dựng lại nếu là DB demo do chính script này tạo (khoá demo_dataset trong settings)
+    const probe = require('node:child_process').spawnSync(
+      process.execPath,
+      [
+        '--no-warnings=ExperimentalWarning',
+        '-e',
+        "const { PostgresDatabase } = require('./lib/data/postgres-database');(async()=>{const db=new PostgresDatabase({dataDir:process.argv[1]});let marked=false;try{await db.ready;marked=!!(await db.prepare('SELECT 1 FROM settings WHERE key = ?').get('demo_dataset'));}catch{}await db.close();console.log(JSON.stringify({marked}));})()",
+        dir
+      ],
+      { encoding: 'utf8', cwd: ROOT }
     );
-  if (fs.existsSync(dbArg) && fs.statSync(dbArg).size > 0) {
     let marked = false;
     try {
-      const probe = new DatabaseSync(dbArg, { readOnly: true });
-      marked = !!probe.prepare('SELECT 1 FROM settings WHERE key = ?').get(MARKER_KEY);
-      probe.close();
+      marked = JSON.parse(String(probe.stdout).trim().split('\n').pop()).marked;
     } catch {
       marked = false;
     }
     if (!marked)
       fail(
-        'Từ chối chạy: file đã tồn tại và không phải DB demo do script này tạo (thiếu khoá demo_dataset). Chọn đường dẫn khác hoặc xoá file đó bằng tay nếu chắc chắn.'
+        'Từ chối chạy: thư mục đã có dữ liệu và không phải DB demo do script này tạo (thiếu khoá demo_dataset). Chọn đường dẫn khác hoặc xoá thư mục nếu chắc đó là dữ liệu thử.'
       );
-    // File demo cũ: xoá cùng -wal và -shm để dựng lại từ trống (migration chạy lại trên DB mới)
-    for (const suffix of ['', '-wal', '-shm']) fs.rmSync(dbArg + suffix, { force: true });
+    fs.rmSync(dir, { recursive: true, force: true }); // dựng lại từ trống (migration chạy lại trên DB mới)
   }
 }
 
 // Chỉ nạp lib/db SAU khi đường dẫn đã được kiểm: nạp lib/db là mở và nâng cấp file DB
-process.env.DB_PATH = dbArg;
+if (dbArg) process.env.DB_PATH = dbArg;
 const S = require('./demo/scenarios.js');
 const H = require('./demo/helpers.js');
 const gen = require('./demo/generate.js');

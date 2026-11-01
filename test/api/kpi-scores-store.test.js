@@ -2,7 +2,6 @@
 // Điểm lưu số nguyên điểm × 100 (0..10000).
 process.env.DB_PATH = ':memory:';
 const { test, beforeEach, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 
@@ -143,43 +142,45 @@ test('một giá trị sai trong gói thì cả gói bị từ chối, kể cả
   assert.equal(await logRows(), 0);
 });
 
-sqliteOnly(
-  'giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ',
-  async () => {
-    await store.setKpiScores('an', '2026-10', { wework: 8000 }, 'admin');
-    const before = await store.getKpiScores('an', '2026-10');
-    const logBefore = await logRows();
-    // Mô phỏng lỗi giữa chừng: dòng nhật ký của điểm "peer" bị chặn ở tầng DB, sau khi điểm và mức KPI đã ghi.
-    await store.db.exec(`CREATE TRIGGER fail_peer_log BEFORE INSERT ON kpi_score_log WHEN NEW.field = 'peer'
-    BEGIN SELECT RAISE(ABORT, 'giả lập lỗi ghi nhật ký'); END`);
-    try {
-      await assert.rejects(
-        async () => await store.setKpiScores('an', '2026-10', { wework: 9000, amt: 4000000, peer: 7000 }, 'admin'),
-        /giả lập lỗi/
-      );
-    } finally {
-      await store.db.exec('DROP TRIGGER fail_peer_log');
-    }
-    assert.deepEqual(await store.getKpiScores('an', '2026-10'), before);
-    assert.equal(await logRows(), logBefore);
-    assert.equal((await store.getSheet('an', '2026-10')).kpiAdmAmt, null);
-    // sau lỗi, kho vẫn dùng được
-    assert.deepEqual((await store.setKpiScores('an', '2026-10', { peer: 7000 }, 'admin')).changed, ['peer']);
+test('giao dịch hoàn tác khi ghi dở dang: lỗi ở dòng nhật ký thì điểm, mức KPI và nhật ký đều về như cũ', async () => {
+  await store.setKpiScores('an', '2026-10', { wework: 8000 }, 'admin');
+  const before = await store.getKpiScores('an', '2026-10');
+  const logBefore = await logRows();
+  // Mô phỏng lỗi giữa chừng: dòng nhật ký của điểm "peer" bị chặn ở tầng DB, sau khi điểm và mức KPI đã ghi.
+  await store.db.exec(
+    "CREATE FUNCTION fail_peer_log_fn() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'giả lập lỗi ghi nhật ký'; END $$"
+  );
+  await store.db.exec(
+    "CREATE TRIGGER fail_peer_log BEFORE INSERT ON kpi_score_log FOR EACH ROW WHEN (NEW.field = 'peer') EXECUTE FUNCTION fail_peer_log_fn()"
+  );
+  try {
+    await assert.rejects(
+      async () => await store.setKpiScores('an', '2026-10', { wework: 9000, amt: 4000000, peer: 7000 }, 'admin'),
+      /giả lập lỗi/
+    );
+  } finally {
+    await store.db.exec('DROP TRIGGER fail_peer_log ON kpi_score_log');
+    await store.db.exec('DROP FUNCTION fail_peer_log_fn()');
   }
-);
+  assert.deepEqual(await store.getKpiScores('an', '2026-10'), before);
+  assert.equal(await logRows(), logBefore);
+  assert.equal((await store.getSheet('an', '2026-10')).kpiAdmAmt, null);
+  // sau lỗi, kho vẫn dùng được
+  assert.deepEqual((await store.setKpiScores('an', '2026-10', { peer: 7000 }, 'admin')).changed, ['peer']);
+});
 
-sqliteOnly('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài kho (số thập phân, ngoài khoảng)', async () => {
+test('ràng buộc CHECK của bảng chặn cả ghi trực tiếp ngoài kho (số thập phân, ngoài khoảng)', async () => {
   const insert = async value =>
     await store.db
       .prepare(
         "INSERT INTO kpi_scores (username, month, wework, created_by, created_at, updated_by, updated_at) VALUES ('x', '2026-10', ?, 'a', 't', 'a', 't')"
       )
       .run(value);
-  await assert.rejects(async () => await insert(87.5), /CHECK/);
-  await assert.rejects(async () => await insert(10001), /CHECK/);
-  await assert.rejects(async () => await insert(-1), /CHECK/);
-  await assert.rejects(async () => await insert('90.5'), /CHECK/);
-  await assert.rejects(async () => await insert('abc'), /CHECK/);
+  await assert.rejects(async () => await insert(87.5), /CHECK|check constraint|invalid input syntax/i);
+  await assert.rejects(async () => await insert(10001), /CHECK|check constraint|invalid input syntax/i);
+  await assert.rejects(async () => await insert(-1), /CHECK|check constraint|invalid input syntax/i);
+  await assert.rejects(async () => await insert('90.5'), /CHECK|check constraint|invalid input syntax/i);
+  await assert.rejects(async () => await insert('abc'), /CHECK|check constraint|invalid input syntax/i);
   await insert(8750);
   assert.equal((await store.getKpiScores('x', '2026-10')).scores.wework, 8750);
 });

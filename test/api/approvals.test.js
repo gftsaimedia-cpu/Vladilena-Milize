@@ -3,7 +3,6 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-tests';
 const { test, before, beforeEach, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -50,8 +49,8 @@ const rowsOf = async username =>
 const allRows = async () => await store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all();
 const snapshot = async () => ({
   approvals: await allRows(),
-  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all(),
-  sessions: await store.db.prepare('SELECT * FROM attendance_sessions ORDER BY rowid').all()
+  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY ctid').all(),
+  sessions: await store.db.prepare('SELECT * FROM attendance_sessions ORDER BY ctid').all()
 });
 
 // ---------- lịch mẫu tháng 10/2026 (1/10 là Thứ 5; Thứ 7: 3, 10, 17, 24, 31) ----------
@@ -733,77 +732,6 @@ async function buildLegacyDb() {
   );
   return dbPath;
 }
-
-sqliteOnly('di chuyển: khoản từ tháng 09/2026 trở về trước thành đã duyệt, từ 10/2026 thành chờ duyệt', async () => {
-  const dbPath = await buildLegacyDb();
-  const { rows, marker } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.equal(marker, 1);
-  const summary = Object.fromEntries(rows.map(row => [row.date, `${row.item}:${row.status}`]));
-  assert.deepEqual(summary, {
-    '2026-08-08': 'isat:approved',
-    '2026-09-12': 'isat:approved',
-    '2026-09-16': 'ot:approved',
-    '2026-09-23': 'makeup_hours:approved',
-    '2026-10-03': 'isat:pending',
-    '2026-10-05': 'approved:pending',
-    '2026-10-07': 'ot:pending',
-    '2026-10-10': 'makeup_hours:pending',
-    '2026-11-07': 'isat:pending'
-  });
-  for (const row of rows) {
-    if (row.date < '2026-10') assert.equal(row.decided_by, 'system', row.date);
-    else assert.equal(row.decided_by, null, row.date);
-  }
-});
-
-sqliteOnly(
-  'di chuyển: dấu vân tay của dòng cũ khớp ApprovalView, nên khoản đã duyệt vẫn là đã duyệt khi tính tiền',
-  async () => {
-    const dbPath = await buildLegacyDb();
-    const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-    for (const [month, days] of Object.entries(LEGACY_DAYS))
-      for (const [date, day] of Object.entries(days)) {
-        const found = ApprovalView.itemOf(day);
-        const row = rows.find(x => x.date === date);
-        if (!found) {
-          assert.equal(row, undefined, `${date} không phải khoản cần duyệt`);
-          continue;
-        }
-        assert.equal(row.item, found.item, date);
-        assert.equal(row.fingerprint, found.fingerprint, date);
-        const view = ApprovalView.payView({ [date]: day }, { [date]: row });
-        assert.equal(view.pendingItems.length === 0, row.status === 'approved', `${month} ${date}`);
-      }
-  }
-);
-
-sqliteOnly('di chuyển: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
-  const dbPath = await buildLegacyDb();
-  const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  const afterDecision = await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    store.db.prepare("UPDATE sheet_approvals SET status = 'approved', rev = 4, decided_by = 'admin' WHERE date = '2026-10-07'").run();
-    store.db.prepare("UPDATE sheet_approvals SET status = 'rejected', rev = 3, decided_by = 'admin', note = 'sai' WHERE date = '2026-10-03'").run();
-    store.db.prepare("DELETE FROM sheet_approvals WHERE date = '2026-11-07'").run();
-    ${DUMP}
-  `
-  );
-  assert.equal(first.rows.length, 9);
-  assert.equal(afterDecision.rows.length, 8);
-  const rerun = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(rerun, afterDecision, 'lần chạy thứ ba không thêm, không xoá, không đổi dòng nào');
-  const again = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(again, afterDecision);
-});
-
-sqliteOnly('di chuyển trên DB trống: không tạo dòng nào, đặt dấu sheet_approvals_v1', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-approvals-'));
-  const { rows, marker } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(rows, []);
-  assert.equal(marker, 1);
-});
 
 // ================= Tài khoản bị khoá =================
 

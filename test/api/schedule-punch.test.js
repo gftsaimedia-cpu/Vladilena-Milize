@@ -69,12 +69,3 @@ test('S1: chấm công 3: ca đêm cuối tháng: người ca g2 vào lúc 00:30
   assert.equal(r.data.scheduled, true, 'ngày công 31/10 là Thứ Bảy, nằm trong lịch T2–T7 của NV');
   assert.equal(r.data.open.plannedShift.kind, 'work');
 });
-
-test('S1: chấm công 4: đợt di chuyển lượt chấm cũ của lib/attendance-sessions.js không đổi (ngoại lệ có chủ ý, bản vàng sẵn có ở test/api/attendance-sessions.test.js và session-migration.test.js)', () => {
-  const source = require('node:fs').readFileSync(
-    require('node:path').join(__dirname, '../../lib/attendance-sessions.js'),
-    'utf8'
-  );
-  assert.match(source, /scheduleOfType/);
-  assert.ok(require('node:fs').existsSync(require('node:path').join(__dirname, 'session-migration.test.js')));
-});

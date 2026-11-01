@@ -1,6 +1,6 @@
 'use strict';
 // Bộ đo tải qua HTTP. Không thư viện ngoài. Hai chế độ:
-//   Tự dựng (mặc định): tạo DB tạm trong thư mục tạm, nạp N người giả, chạy server.js ở tiến trình riêng, đo, đối soát DB, xoá thư mục tạm.
+//   Tự dựng (mặc định): tạo database tạm trên máy chủ PostgreSQL (LT_DATABASE_URL), nạp N người giả, chạy src/server.ts ở tiến trình riêng, đo, đối soát DB, xoá thư mục tạm.
 //     node --no-warnings=ExperimentalWarning scripts/loadtest/run.js --users=300 --seconds=30
 //   Máy chủ có sẵn (ví dụ sandbox): --base=http://127.0.0.1:3104 và mật khẩu của người dùng đo tải trong biến môi trường LT_PASSWORD
 //     (người dùng lt_0001..lt_NNNN và lt_admin phải có sẵn; sandbox nạp bằng nút "Nạp người dùng đo tải"). Đối soát DB không làm được từ ngoài:
@@ -53,15 +53,26 @@ async function main() {
   let base = args.base;
   let password = process.env.LT_PASSWORD;
   let child = null;
-  let workDir = null;
-  let dbPath = null;
+  let dbUrl = null; // chế độ tự dựng: database tạm trên máy chủ PostgreSQL
+  let adminPool = null;
+  let tempDb = null;
 
   if (!base) {
-    // Tự dựng: DB tạm, nạp người dùng, chạy server.js riêng
-    workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-loadtest-'));
-    dbPath = path.join(workDir, 'load.sqlite');
+    // Tự dựng: database tạm trên máy chủ PostgreSQL (LT_DATABASE_URL), nạp người dùng, chạy src/server.ts riêng
+    const admin = process.env.LT_DATABASE_URL;
+    if (!admin)
+      throw new Error(
+        'Chế độ tự dựng cần LT_DATABASE_URL=postgres://… (máy chủ PostgreSQL; bộ đo tạo một database tạm rồi xoá). Hoặc đo máy chủ có sẵn bằng --base=…'
+      );
+    const { Pool } = require('pg');
+    adminPool = new Pool({ connectionString: admin, max: 1 });
+    tempDb = 'lt_' + crypto.randomBytes(5).toString('hex');
+    await adminPool.query('CREATE DATABASE ' + tempDb);
+    const target = new URL(admin);
+    target.pathname = '/' + tempDb;
+    dbUrl = target.toString();
     password = crypto.randomBytes(12).toString('hex');
-    process.env.DB_PATH = dbPath;
+    process.env.DATABASE_URL = dbUrl;
     process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
     const store = require('../../lib/db');
     const auth = require('../../lib/auth');
@@ -115,11 +126,12 @@ async function main() {
     let reconciled = null;
     if (state.confirmed) {
       if (args['ids-out']) fs.writeFileSync(args['ids-out'], JSON.stringify(state.confirmed));
-      if (dbPath) {
-        const { DatabaseSync } = require('node:sqlite');
-        const db = new DatabaseSync(dbPath, { readOnly: true });
-        reconciled = reconcile(db, state.confirmed, { prefix });
-        db.close();
+      if (dbUrl) {
+        const { PostgresDatabase } = require('../../lib/data/postgres-database');
+        const db = new PostgresDatabase({ url: dbUrl, max: 1 });
+        await db.ready;
+        reconciled = await reconcile(db, state.confirmed, { prefix });
+        await db.close();
       }
     }
 
@@ -151,7 +163,10 @@ async function main() {
       await new Promise(resolve => (child.exitCode !== null ? resolve() : child.once('exit', resolve)));
       clearTimeout(timer);
     }
-    if (workDir) fs.rmSync(workDir, { recursive: true, force: true });
+    if (adminPool) {
+      await adminPool.query('DROP DATABASE IF EXISTS ' + tempDb + ' WITH (FORCE)').catch(() => {});
+      await adminPool.end();
+    }
   }
 }
 

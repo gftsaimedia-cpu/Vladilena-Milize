@@ -1,7 +1,7 @@
 # Mẫu cho VPS chạy thẳng bằng systemd (không Docker). Cài: sudo cp luong-app.service.example /etc/systemd/system/luong-app.service
 # Chưa chạy thử trong dự án này. Sau khi sửa đường dẫn: systemctl daemon-reload && systemctl enable --now luong-app
 #
-# /etc/luong/luong.env (chmod 600, chủ sở hữu root) chứa DB_PATH, ADMIN_PASSWORD, SESSION_SECRET, AUDIT_KEY, COOKIE_SECURE=1,
+# /etc/luong/luong.env (chmod 600, chủ sở hữu root) chứa DATABASE_URL, ADMIN_PASSWORD, SESSION_SECRET, AUDIT_KEY, COOKIE_SECURE=1,
 # TRUST_PROXY=1, NODE_ENV=production (xem .env.example). Không để file này trong thư mục mã nguồn hay git.
 [Unit]
 Description=Luong Nhan Su (AiCB)

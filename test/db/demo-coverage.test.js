@@ -9,7 +9,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { isPostgres } = require('../helpers/dialect');
 
 const ROOT = path.join(__dirname, '..', '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-demo-coverage-'));
@@ -17,7 +16,7 @@ after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 
 test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ vọng AI đạt, độ phủ đủ', { timeout: 290000 }, () => {
   const report = path.join(tmp, 'coverage.json');
-  const db = isPostgres ? ':memory:' : path.join(tmp, 'demo.sqlite');
+  const db = ':memory:';
   const r = spawnSync(
     process.execPath,
     [
@@ -29,7 +28,7 @@ test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ v�
     {
       encoding: 'utf8',
       cwd: ROOT,
-      env: { ...process.env, DB_PATH: db, DB_DIALECT: isPostgres ? 'postgres' : undefined, DATABASE_URL: undefined },
+      env: { ...process.env, DB_PATH: db, DATABASE_URL: undefined, PG_TEST_URL: undefined },
       timeout: 280000
     }
   );

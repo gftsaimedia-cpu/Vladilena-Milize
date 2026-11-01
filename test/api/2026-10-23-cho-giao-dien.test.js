@@ -16,7 +16,6 @@ const P = require('../helpers/period-api');
 const S = require('../helpers/settings-api');
 const { assertPlain } = require('../helpers/plain-text');
 const { test, before, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { allowanceTotalOf } = require('../../lib/period-allowance');
 const { sessionHistory, sessionsWithHistory } = require('../../lib/domain/attendance');
@@ -403,34 +402,6 @@ test('GET /attendance, /team, /today: mọi phiên trong phản hồi bằng đ�
   assert.equal((await F.call('GET', `/attendance?month=${M}`, { who: 'qa_tts1' })).status, 403);
   assert.equal((await F.call('GET', `/team?month=${M}`, { who: 'qa_tts1' })).status, 403);
 });
-
-sqliteOnly(
-  'chỉ mục punches_session và corrections_session có trong DB và được dùng (EXPLAIN QUERY PLAN không quét cả bảng)',
-  async () => {
-    const names = (
-      await store.db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'index' AND name IN ('punches_session', 'corrections_session')"
-        )
-        .all()
-    )
-      .map(r => r.name)
-      .sort();
-    assert.deepEqual(names, ['corrections_session', 'punches_session']);
-    for (const [table, index] of [
-      ['punches', 'punches_session'],
-      ['corrections', 'corrections_session']
-    ]) {
-      const plan = await store.db
-        .prepare(`EXPLAIN QUERY PLAN SELECT * FROM ${table} WHERE session_id IN (?, ?, ?)`)
-        .all(1, 2, 3);
-      assert.ok(
-        plan.some(row => String(row.detail).includes(index)),
-        `${table}: ${JSON.stringify(plan)}`
-      );
-    }
-  }
-);
 
 test('chữ máy chủ tự sinh cho người dùng là tiếng Việt thường: lỗi thường gặp và ghi chú tự động không lộ tên file, khoá cài đặt, mã lỗi đợt rà soát', async () => {
   const M = monthOf();

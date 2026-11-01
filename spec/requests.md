@@ -24,7 +24,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `lib/domain/isat-rule.js` | `isatRefusal`: iSAT chỉ đúng thứ `isat.weekday` và chỉ chức vụ có `benefit.isat`. |
 | `lib/domain/overtime/hour-limits.js` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
 | `lib/domain/ai-block.js` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
-| `lib/domain/leave/*` | Sổ phép lưu sẵn: `schema.js` (bảng `leave_ledger`), `leave-events.js` (các lần cộng phép có ngày), `leave-ledger-repository.js` (đồng bộ sổ, ghi số dư), `leave-account-service.js` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
+| `lib/domain/leave/*` | Sổ phép lưu sẵn: `migrations/postgres/0001_baseline.sql` (bảng `leave_ledger`), `leave-events.js` (các lần cộng phép có ngày), `leave-ledger-repository.js` (đồng bộ sổ, ghi số dư), `leave-account-service.js` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
 | `lib/domain/leave-days.js` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
 | `public/leave.js` | Quy tắc phép dùng chung: `accrued`, `counted`, `ledger` (hết hạn, quy tiền), `settlementFor`. |
 | `lib/domain/advance/advance-approvals.js` | Lớp `AdvanceApprovals`: yêu cầu tạm ứng theo tháng lưu ở `settings.advance_approvals_<YYYY-MM>`, bước chuyển trạng thái, rev. |
@@ -34,7 +34,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `lib/advance-requests.js` | Bảng cũ `advance_requests` (yêu cầu ứng lương có số tiền): đọc, huỷ; `create` và `decide` còn trong mã nhưng route trả 410. |
 | `src/modules/advance/advance-requests.handlers.ts` | Route cũ `/api/advance-requests[...]`: GET lịch sử, POST và PUT decide → 410, POST cancel. |
 | `lib/explanations.js` | Lối vào của giải trình, chuyển tiếp sang `container.explanations`. |
-| `lib/domain/explanation/*` | `explanation.js` (lớp `Explanation` kế thừa `Request`), `explanation-repository.js`, `explanation-service.js`, `absent-day.js` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `schema.js` (bảng `explanations`), `late-checkout.js` (phút Check-out muộn), `late-checkout-session.js` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
+| `lib/domain/explanation/*` | `explanation.js` (lớp `Explanation` kế thừa `Request`), `explanation-repository.js`, `explanation-service.js`, `absent-day.js` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `migrations/postgres/0001_baseline.sql` (bảng `explanations`), `late-checkout.js` (phút Check-out muộn), `late-checkout-session.js` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
 | `lib/domain/attendance/admin-presence.js` | Lượt chấm công nguồn Admin: từ Admin khai thay lịch (`sync`) và từ giải trình ngày quên chấm đã duyệt (`syncExplanation`). |
 | `lib/domain/attendance/session-status.js` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
 | `lib/domain/shared/request.js`, `domain-error.js`, `repository.js` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
@@ -77,9 +77,9 @@ Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 
 **`advance_requests`** (dạng cũ, `lib/db.js`): `id`, `username`, `month`, `amount` (số xin, nguyên > 0), `cap`, `note`, `status` (`pending|approved|rejected|cancelled`), `granted`, `rev`, `created_at`, `decided_by/at`, `decision_note`, `cancelled_by/at`. Chỉ mục duy nhất `(username, month) WHERE status='pending'`. Trigger `advance_requests_guard_update` cấm đổi người/tháng/số xin/created_at, cấm đổi dòng đã `rejected`/`cancelled`, và từ `approved` chỉ sang `approved`/`cancelled`.
 
-**`explanations`** (`lib/domain/explanation/schema.js`): `id`, `username`, `date`, `kind` (`late-checkout|admin|ai`), `session_id`, `prompt`, `rule_id`, `requested_by`, `requested_at`, `status` (`requested|answered|approved|rejected`), `answer`, `answered_at`, `decided_by`, `decided_at`, `decision_note`, `rev` (mặc định 0). Chỉ mục `(username,status)`, `(status,id)`, `(session_id)`.
+**`explanations`** (`migrations/postgres/0001_baseline.sql`): `id`, `username`, `date`, `kind` (`late-checkout|admin|ai`), `session_id`, `prompt`, `rule_id`, `requested_by`, `requested_at`, `status` (`requested|answered|approved|rejected`), `answer`, `answered_at`, `decided_by`, `decided_at`, `decision_note`, `rev` (mặc định 0). Chỉ mục `(username,status)`, `(status,id)`, `(session_id)`.
 
-**`leave_ledger`** (`lib/domain/leave/schema.js`): `id`, `staff_uuid`, `username`, `kind` (`start|month|year|seniority|birthday|expire`), `on_date`, `days` (REAL, `expire` âm), `created_at`, `updated_at`; UNIQUE `(staff_uuid, kind, on_date)`. Số dư lưu sẵn: `staff.leave_balance`, `staff.leave_balance_on`.
+**`leave_ledger`** (`migrations/postgres/0001_baseline.sql`): `id`, `staff_uuid`, `username`, `kind` (`start|month|year|seniority|birthday|expire`), `on_date`, `days` (REAL, `expire` âm), `created_at`, `updated_at`; UNIQUE `(staff_uuid, kind, on_date)`. Số dư lưu sẵn: `staff.leave_balance`, `staff.leave_balance_on`.
 
 **`kpi_scores`** (`lib/db.js`): mỗi (người, tháng) một dòng; cột `wework`, `user_score`, `peer`, `manager`, `self_score` là điểm × 100 (0..10000, null = chưa nhập); `created_by/at`, `updated_by/at`. **`kpi_score_log`** (`lib/db.js`): chỉ thêm dòng; `field` (`wework|user|peer|manager|self|amt`), `old_value`, `new_value`, `by`, `at`, `reason`.
 
@@ -629,7 +629,7 @@ Tạm ứng: `test/api/*-advance-approval.test.js`, `test/api/*-phan-6-ung-luong
 
 Giải trình: `test/api/*-late-checkout-approval.test.js`, `test/api/*-block-ot-late-checkout.test.js`, `test/api/*-explanation-rejected-no-workday.test.js`, `test/api/*-explanation-late-early-approved.test.js`, `test/api/*-explanation-forgot-punch-approved.test.js`, `test/api/explanation-no-punch-pay.test.js`, `test/api/*-explanation-declared-off-day.test.js`, `test/api/*-held-day-row-punch-times.test.js`, `test/api/*-checklist-explanation-pending.test.js`, `test/api/explanation-attendance-event.test.js`, `test/api/attendance-session-status.test.js`, `test/api/checkin.test.js`, `test/api/fixed-attendance.test.js`, `test/unit/*-session-status-day-explanation.test.js`, `test/unit/*-held-by-user-status.test.js`.
 
-KPI: `test/api/kpi-scores-api.test.js`, `test/api/kpi-scores-store.test.js`, `test/api/kpi-scores-migration.test.js`, `test/api/*-phan-6-kpi-tu-danh-gia.test.js`, `test/unit/kpi-score.test.js`, `test/unit/kpi-max-drift.test.js`.
+KPI: `test/api/kpi-scores-api.test.js`, `test/api/kpi-scores-store.test.js`, `test/api/*-phan-6-kpi-tu-danh-gia.test.js`, `test/unit/kpi-score.test.js`, `test/unit/kpi-max-drift.test.js`.
 
 OT Check-in/out: `test/api/holiday-ot-guard.test.js`, `test/api/attendance-sessions.test.js`, `test/api/warnings-cases.test.js`, `test/api/audit-followup-backend.test.js`, `test/api/*-cho-giao-dien.test.js`.
 

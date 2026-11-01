@@ -3,7 +3,6 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-holiday-tests';
 const { test, before, beforeEach, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -403,95 +402,3 @@ async function buildV1Db({ dropV1 = false } = {}) {
 }
 const summary = rows =>
   Object.fromEntries(rows.map(r => [`${r.username}:${r.date}`, `${r.item}:${r.status}:${r.decided_by ?? '-'}`]));
-
-sqliteOnly(
-  'di chuyển v2 (DB đã chạy v1): thêm holiday_work, tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt',
-  async () => {
-    const dbPath = await buildV1Db();
-    // Dòng v1 đã có trước v2: tạo bằng cách chạy bản v1 trên lịch cũ rồi xoá dấu v2
-    const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-    assert.deepEqual(first.markers.sort(), [
-      'sheet_approvals_v1',
-      'sheet_approvals_v2',
-      'sheet_approvals_v3',
-      'sheet_approvals_v4'
-    ]);
-    const got = summary(first.rows);
-    // NV: 2/9 và 20/10, 17/10 (Thứ 7) có khoản; 4/9 đã là OT của v1 (không phải holiday_work vì có OT: xem fingerprint bên dưới)
-    assert.equal(got[`worker:${SEP2}`], 'ot:approved:system');
-    assert.equal(got[`worker:${TUE}`], 'ot:pending:-');
-    assert.equal(got[`worker:${SAT}`], 'ot:pending:-');
-    assert.equal(got[`worker:${SUN}`], undefined, 'Chủ nhật không có khoản');
-    assert.equal(got[`worker:2026-10-21`], undefined, 'ngày thường không có khoản');
-    assert.equal(got['worker:2026-10-22'], 'willmakeup:pending:-');
-    assert.equal(got['intern:2026-10-22'], 'willmakeup:pending:-');
-    // ngày lễ khai "Nghỉ phép năm" không phải holiday_work; từ khoản thứ bảy nó là khoản leave (v3 chạy sau v2, tháng 11/2026 chờ duyệt)
-    assert.equal(got[`worker:${NOV2}`], 'leave:pending:-');
-    // TTS: Thứ 7 không thuộc lịch
-    assert.equal(got[`intern:${TUE}`], undefined, 'TTS không có quyền lợi OT nên không có khoản');
-    assert.equal(got[`intern:${SAT}`], undefined);
-    assert.equal(got[`intern:${SEP2}`], undefined);
-    // Khoản khác của v1 vẫn như cũ
-    assert.equal(got['worker:2026-09-16'], 'isat:approved:system');
-    assert.equal(got['worker:2026-10-07'], 'ot:pending:-');
-  }
-);
-
-sqliteOnly(
-  'di chuyển v2: ngày lễ vốn có OT kèm theo (dòng OT của v1) được thay bằng holiday_work, vẫn đã duyệt vì tháng 09/2026',
-  async () => {
-    const dbPath = await buildV1Db();
-    const { rows } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-    const row = rows.find(r => r.username === 'worker' && r.date === '2026-09-04');
-    assert.equal(row.item, 'ot');
-    // OT ngày lễ được trả nên đoạn OT nằm trong dấu vân tay của holiday_work (ApprovalView.itemOf)
-    assert.equal(row.fingerprint, 'holiday_work|08:00-17:00|ot||17:00-19:00');
-    assert.equal(row.status, 'approved');
-  }
-);
-
-sqliteOnly('di chuyển v2: chạy lại không đổi gì và không đặt lại quyết định đã có', async () => {
-  const dbPath = await buildV1Db();
-  await runChild(dbPath, `const store = require(${LIB_DB});console.log('{}')`);
-  const decided = await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    store.db.prepare("UPDATE sheet_approvals SET status = 'rejected', rev = 5, decided_by = 'admin', note = 'sai' WHERE username = 'worker' AND date = '${TUE}'").run();
-    store.db.prepare("DELETE FROM sheet_approvals WHERE username = 'intern' AND date = '${TUE}'").run();
-    ${DUMP}
-  `
-  );
-  const rerun = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(rerun, decided);
-  assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), decided);
-});
-
-sqliteOnly('di chuyển v2: DB cũ chưa từng chạy v1 chạy cả hai, không có dòng nào bị tạo hai lần', async () => {
-  const dbPath = await buildV1Db({ dropV1: true });
-  const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(markers.sort(), [
-    'sheet_approvals_v1',
-    'sheet_approvals_v2',
-    'sheet_approvals_v3',
-    'sheet_approvals_v4'
-  ]);
-  const keys = rows.map(r => `${r.username}:${r.date}`);
-  assert.equal(new Set(keys).size, keys.length);
-  const got = summary(rows);
-  assert.equal(got[`worker:${TUE}`], 'ot:pending:-');
-  assert.equal(got['worker:2026-10-07'], 'ot:pending:-');
-  assert.equal(got['worker:2026-09-16'], 'isat:approved:system');
-});
-
-sqliteOnly('di chuyển v2 trên DB trống: không tạo dòng nào, đặt dấu v1 và v2', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-holiday-approvals-'));
-  const { rows, markers } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(rows, []);
-  assert.deepEqual(markers.sort(), [
-    'sheet_approvals_v1',
-    'sheet_approvals_v2',
-    'sheet_approvals_v3',
-    'sheet_approvals_v4'
-  ]);
-});

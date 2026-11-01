@@ -44,7 +44,7 @@ async function history(username) {
     await Promise.all(
       HISTORY_TABLES.map(async table => [
         table,
-        await store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY rowid').all(username)
+        await store.db.prepare('SELECT * FROM ' + table + ' WHERE username = ? ORDER BY ctid').all(username)
       ])
     )
   );

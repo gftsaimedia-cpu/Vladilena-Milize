@@ -439,10 +439,12 @@ function createOps(ctx) {
       };
       await store.setSheet(u, month, { ...cur.days, [date]: day }, cur.kpiPct, cur.kpiAmt);
       const at = new Date(clock.now()).toISOString();
-      store.db
+      await store.db
         .prepare(
-          `INSERT OR REPLACE INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at, decided_by, decided_at, note)
-           VALUES (?, ?, 'holiday_work', ?, 'approved', 1, ?, 'system', ?, NULL)`
+          `INSERT INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at, decided_by, decided_at, note)
+           VALUES (?, ?, 'holiday_work', ?, 'approved', 1, ?, 'system', ?, NULL)
+           ON CONFLICT (username, date) DO UPDATE SET item = EXCLUDED.item, fingerprint = EXCLUDED.fingerprint, status = EXCLUDED.status,
+             rev = EXCLUDED.rev, submitted_at = EXCLUDED.submitted_at, decided_by = EXCLUDED.decided_by, decided_at = EXCLUDED.decided_at, note = EXCLUDED.note`
         )
         .run(u, date, `holiday_work|${ev.args.in}-${ev.args.out}`, at, at);
       log(ev, {

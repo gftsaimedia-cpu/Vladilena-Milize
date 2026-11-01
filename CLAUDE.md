@@ -79,7 +79,7 @@ npm run params:check   # kiểm tra khoá tham số lương
 ```
 
 - Cần Node >= 22.13 và `npm install` (NestJS, express, pg, tsx là phụ thuộc chạy; devDependencies gồm TypeScript, PGlite, Playwright, Prettier). Máy chủ là NestJS + TypeScript trong `src/` (không có bước build, chạy bằng `tsx`).
-- Thêm kiểm tra: `npm run typecheck` (kiểu), `npm run spec:check` (spec/reference khớp mã; `npm run spec:gen` để dựng lại). Chạy trên PostgreSQL: `DB_DIALECT=postgres npm test` (PGlite trong tiến trình).
+- Thêm kiểm tra: `npm run typecheck` (kiểu), `npm run spec:check` (spec/reference khớp mã; `npm run spec:gen` để dựng lại). `npm test` chạy trên PostgreSQL trong tiến trình (PGlite). Chạy trên máy chủ PostgreSQL thật: `PG_TEST_URL=postgres://… npm test` (mỗi tiến trình test một database riêng, tự xoá).
 - Thay đổi luật tính lương/chấm công: đối chiếu thư mục `spec/` (payroll-engine, attendance, payroll-period, …) — đó là nguồn sự thật. Nếu code và spec mâu thuẫn, hỏi người dùng trước khi sửa spec.
 
 ## 7. Kết thúc nhánh

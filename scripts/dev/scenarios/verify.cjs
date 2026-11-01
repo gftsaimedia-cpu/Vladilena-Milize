@@ -2,15 +2,15 @@
 // Đối chiếu từng trường hợp của out/cases.json với hệ thống: mở BẢN SAO của DB đã dựng (file dựng giữ sạch), cùng ứng dụng trong tiến trình,
 // đồng hồ 01/03/2027 09:30. Đọc qua API (nhãn chấm công, dòng ngày và tiền của phiếu, kỳ lương, số phép) và ảnh chụp lúc dựng (out/probes.json),
 // mã trả về của các lời gọi (out/events.jsonl). Ghi out/report.md và out/report.json.
-//   node scripts/dev/scenarios/verify.cjs [--db out/scenario-year.sqlite]
+//   node scripts/dev/scenarios/verify.cjs [--db out/scenario-year]
 const fs = require('node:fs');
 const path = require('node:path');
 
 const OUT = path.join(__dirname, 'out');
 const args = process.argv.slice(2);
 const dbArg = args.includes('--db') ? args[args.indexOf('--db') + 1] : null;
-const built = path.resolve(dbArg || path.join(OUT, 'scenario-year.sqlite'));
-const copy = path.join(OUT, 'verify.sqlite');
+const built = path.resolve(dbArg || path.join(OUT, 'scenario-year'));
+const copy = path.join(OUT, 'verify');
 if (!fs.existsSync(built)) throw new Error(`Chưa có DB kịch bản: ${built}. Chạy generate.cjs trước.`);
 const { meta, cases } = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
 const probes = JSON.parse(fs.readFileSync(path.join(OUT, 'probes.json'), 'utf8'));
@@ -22,8 +22,8 @@ const eventLines = fs
   .filter(Boolean)
   .map(JSON.parse);
 for (const line of eventLines) if (line.ref) refs[line.ref] = line;
-for (const suffix of ['', '-wal', '-shm']) fs.rmSync(copy + suffix, { force: true });
-fs.copyFileSync(built, copy);
+fs.rmSync(copy, { recursive: true, force: true });
+fs.cpSync(built, copy, { recursive: true });
 
 const { boot, toLocal, parseLocal } = require('./lib/boot.cjs');
 const startLocal =
@@ -413,12 +413,12 @@ async function main() {
 
   // D10: lần chạy lương đã tính không sửa được tham số (trigger của DB). Thử trên bản sao đối chiếu, bản sao bị xoá sau đó
   {
-    const run = app.store.db.prepare('SELECT id FROM payroll_runs ORDER BY id LIMIT 1').get();
+    const run = await app.store.db.prepare('SELECT id FROM payroll_runs ORDER BY id LIMIT 1').get();
     let d10;
     if (!run) d10 = { outcome: 'ERROR', note: 'không có lần chạy lương nào' };
     else
       try {
-        app.store.db.prepare(`UPDATE payroll_runs SET params_json = '{}' WHERE id = ?`).run(run.id);
+        await app.store.db.prepare(`UPDATE payroll_runs SET params_json = '{}' WHERE id = ?`).run(run.id);
         d10 = { outcome: 'DIFF', actual: { error: null }, note: 'UPDATE không bị chặn' };
       } catch (error) {
         const message = String(error && error.message);
@@ -449,7 +449,7 @@ async function main() {
   };
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 1));
   fs.writeFileSync(path.join(OUT, 'report.md'), renderMarkdown(report));
-  for (const suffix of ['', '-wal', '-shm']) fs.rmSync(copy + suffix, { force: true });
+  fs.rmSync(copy, { recursive: true, force: true });
   console.log(
     `Đối chiếu ${results.length} trường hợp: ${Object.entries(tally)
       .map(([k, v]) => `${k} ${v}`)

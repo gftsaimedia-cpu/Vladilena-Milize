@@ -1,7 +1,6 @@
 'use strict';
 // Sao lưu / kiểm / khôi phục PostgreSQL (lib/ops/pg-backup.js, scripts/ops/pg-backup.js) trên PGlite trong RAM.
 // Luôn chạy ở chế độ PostgreSQL bất kể DB_DIALECT của lần chạy test (file này tự đặt), không đụng DB nào ngoài RAM.
-process.env.DB_DIALECT = 'postgres';
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'pg-backup-test';
 delete process.env.DATABASE_URL;
@@ -181,7 +180,7 @@ test('CLI: verify và drill đạt; restore đòi cờ xác nhận, rồi khôi 
     spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', SCRIPT, ...extra], {
       encoding: 'utf8',
       cwd: ROOT,
-      env: { ...process.env, DB_DIALECT: undefined }
+      env: { ...process.env }
     });
   const verify = run(['verify', `--backup=${file}`]);
   assert.equal(verify.status, 0, verify.stderr + verify.stdout);

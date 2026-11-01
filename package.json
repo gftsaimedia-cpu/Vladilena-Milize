@@ -12,7 +12,6 @@
     "sandbox": "node --no-warnings=ExperimentalWarning scripts/dev/sandbox-server.cjs",
     "seed": "node --no-warnings=ExperimentalWarning scripts/seed.js",
     "seed:demo": "node --no-warnings=ExperimentalWarning scripts/db/seed-demo.js",
-    "backup": "node --no-warnings=ExperimentalWarning scripts/ops/backup-db.js",
     "test": "node --no-warnings=ExperimentalWarning --test \"test/**/*.test.js\"",
     "test:unit": "node --no-warnings=ExperimentalWarning --test \"test/unit/**/*.test.js\"",
     "test:api": "node --no-warnings=ExperimentalWarning --test \"test/api/**/*.test.js\"",

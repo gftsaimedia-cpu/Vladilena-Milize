@@ -51,8 +51,9 @@ const profileDefaults = [
 ];
 let selectedUser = 'qa_nv';
 
-// Bảng trạng thái kỳ lương (kỳ, lần chạy, phiếu chụp, kết quả AI kiểm, khoản điền thêm, tạm ứng) theo thứ tự xoá con trước cha. Các bảng này có trigger
-// chặn xoá nên sandbox (DB trong bộ nhớ) gỡ trigger của chúng, xoá dòng, rồi tạo lại đúng câu lệnh đã lưu trong sqlite_master. audit_log không đụng tới.
+// Bảng trạng thái kỳ lương (kỳ, lần chạy, phiếu chụp, kết quả AI kiểm, khoản điền thêm, tạm ứng). Các bảng này có trigger chặn xoá,
+// nên sandbox (DB PostgreSQL trong RAM, chỉ tiến trình này dùng) tắt trigger trong chính giao dịch đặt lại bằng
+// session_replication_role = replica (chỉ siêu người dùng làm được), xoá dòng, rồi bật lại. audit_log không đụng tới.
 const PERIOD_TABLES = [
   'payslips',
   'payroll_runs',
@@ -62,20 +63,14 @@ const PERIOD_TABLES = [
   'pay_entries',
   'advance_requests'
 ];
-function clearPeriodState() {
-  const marks = PERIOD_TABLES.map(() => '?').join(',');
-  const triggers = store.db
-    .prepare(`SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name IN (${marks})`)
-    .all(...PERIOD_TABLES);
-  for (const { name } of triggers) store.db.exec(`DROP TRIGGER "${name}"`);
-  for (const table of PERIOD_TABLES) store.db.exec(`DELETE FROM ${table}`);
-  for (const { sql } of triggers) store.db.exec(sql);
+async function clearPeriodState() {
+  for (const table of PERIOD_TABLES) await store.db.exec(`DELETE FROM ${table}`);
 }
 
 async function resetSyntheticData() {
   // DB này chỉ được tạo sau DB_PATH=:memory:. Không dùng đường dẫn hay lệnh xoá file.
-  store.db.exec('BEGIN');
-  try {
+  await store.transaction(async () => {
+    await store.db.exec('SET LOCAL session_replication_role = replica'); // tắt trigger chặn xoá của các bảng bên dưới
     for (const table of [
       'punch_requests',
       'explanations',
@@ -91,22 +86,19 @@ async function resetSyntheticData() {
       'staff',
       'settings'
     ])
-      store.db.exec(`DELETE FROM ${table}`);
-    clearPeriodState();
+      await store.db.exec(`DELETE FROM ${table}`);
+    await clearPeriodState();
+    await store.db.exec('SET LOCAL session_replication_role = origin');
     clock = NativeDate.parse(INITIAL_LOCAL + '+07:00');
     const passHash = auth.hashPassword(crypto.randomBytes(24).toString('hex'));
     // ngày bắt đầu làm việc = ngày của đồng hồ ban đầu (không có ngày "trước ngày vào làm" trong tháng thử)
     const startDate = INITIAL_LOCAL.slice(0, 10);
     for (const profile of profileDefaults) await store.upsertStaff({ ...profile, passHash, startDate });
     await store.setSetting('holidays', []);
-    store.db.exec('COMMIT');
-    await store.setPayrollSubject('qa_cb', false); // C&B không có lương trong sandbox: không vào danh sách tính lương
-    await store.roles.grant('qa_cb', 'cb', 'qa_admin');
-    selectedUser = 'qa_nv';
-  } catch (error) {
-    store.db.exec('ROLLBACK');
-    throw error;
-  }
+  });
+  await store.setPayrollSubject('qa_cb', false); // C&B không có lương trong sandbox: không vào danh sách tính lương
+  await store.roles.grant('qa_cb', 'cb', 'qa_admin');
+  selectedUser = 'qa_nv';
 }
 const seeded = resetSyntheticData();
 
@@ -125,10 +117,18 @@ const state = async () => ({
   }))
 });
 const sessionCookie = async () => auth.cookieHeader(await auth.createSession(selectedUser), auth.SESSION_DAYS * 86400);
-const hasAttendanceData = () =>
-  ['attendance_sessions', 'attendance_days', 'punches', 'corrections', 'timesheets', 'explanations'].some(
-    table => !!store.db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()
-  );
+const hasAttendanceData = async () => {
+  for (const table of [
+    'attendance_sessions',
+    'attendance_days',
+    'punches',
+    'corrections',
+    'timesheets',
+    'explanations'
+  ])
+    if (await store.db.prepare(`SELECT 1 FROM ${table} LIMIT 1`).get()) return true;
+  return false;
+};
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
   res.end(JSON.stringify(body));
@@ -218,7 +218,7 @@ const sandbox = http.createServer(async (req, res) => {
         const next = parseLocal(data.local);
         if (next === null)
           return send(res, 400, { error: 'Ngày giờ không hợp lệ; dùng YYYY-MM-DDTHH:mm:ss theo giờ Việt Nam' });
-        if (next < clock && hasAttendanceData())
+        if (next < clock && (await hasAttendanceData()))
           return send(res, 400, {
             error: 'Đã có dữ liệu chấm công. Muốn lùi thời gian, hãy đặt lại dữ liệu thử trước'
           });
@@ -273,8 +273,7 @@ function shutdown() {
   ops.close();
   sandbox.closeAllConnections();
   sandbox.close(() => {
-    store.db.close();
-    process.exit(0);
+    Promise.resolve(store.db.close()).finally(() => process.exit(0));
   });
 }
 process.on('SIGINT', shutdown);

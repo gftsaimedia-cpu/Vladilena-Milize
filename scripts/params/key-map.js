@@ -86,7 +86,6 @@ const RULES = [
   { path: 'config.STATIC_CACHE_MAX_BYTES', ignore: 'giới hạn kỹ thuật bộ nhớ đệm file tĩnh' },
   { path: 'config.SHUTDOWN_GRACE_MS', ignore: 'giới hạn kỹ thuật khi tắt máy chủ' },
   { path: 'config.LOOP_LAG_RESOLUTION_MS', ignore: 'độ phân giải đo vòng lặp sự kiện (kỹ thuật)' },
-  { path: 'config.DB_BUSY_TIMEOUT_MS', ignore: 'giới hạn kỹ thuật của SQLite' },
   { path: 'config.WARN_CODES_AUDIT_MAX', ignore: 'số mã cảnh báo ghi vào nhật ký (kỹ thuật)' },
   { path: 'config.SQL_IN_CHUNK', ignore: 'số id tối đa trong một mệnh đề IN khi nạp lô (kỹ thuật)' },
   { path: 'config.CATALOG_BASE_MONTH', ignore: 'tháng nền của dòng danh mục (dữ liệu, không phải tham số)' },
@@ -159,13 +158,29 @@ const REGEX_SOURCES = [
   { file: 'src/server.ts', regex: /paging\('limit', \d+, 1, (\d+)\)/, key: 'system.page.approvals.max' },
   { file: 'src/server.ts', regex: /paging\('pageSize', (\d+), \d+\)/, key: 'system.page.corrections.default' },
   { file: 'src/server.ts', regex: /paging\('pageSize', \d+, (\d+)\)/, key: 'system.page.corrections.max' },
-  { file: 'scripts/ops/backup-db.js', regex: /const DEFAULT_KEEP = (\d+)/, key: 'system.backup.keep' },
-  { file: 'lib/domain/geofence.js', regex: /finiteIn\(b\.radiusM, (\d+), \d+\)/, key: 'geofence.radiusM.min' },
-  { file: 'lib/domain/geofence.js', regex: /finiteIn\(b\.radiusM, \d+, (\d+)\)/, key: 'geofence.radiusM.max' },
-  { file: 'lib/domain/geofence.js', regex: /finiteIn\(maxAccuracyM, (\d+), \d+\)/, key: 'geofence.maxAccuracyM.min' },
-  { file: 'lib/domain/geofence.js', regex: /finiteIn\(maxAccuracyM, \d+, (\d+)\)/, key: 'geofence.maxAccuracyM.max' },
+  { file: 'lib/ops/pg-backup.js', regex: /const DEFAULT_KEEP = (\d+)/, key: 'system.backup.keep' },
   {
-    file: 'lib/domain/geofence.js',
+    file: 'lib/domain/attendance/geofence-policy.js',
+    regex: /finiteIn\(b\.radiusM, (\d+), \d+\)/,
+    key: 'geofence.radiusM.min'
+  },
+  {
+    file: 'lib/domain/attendance/geofence-policy.js',
+    regex: /finiteIn\(b\.radiusM, \d+, (\d+)\)/,
+    key: 'geofence.radiusM.max'
+  },
+  {
+    file: 'lib/domain/attendance/geofence-policy.js',
+    regex: /finiteIn\(maxAccuracyM, (\d+), \d+\)/,
+    key: 'geofence.maxAccuracyM.min'
+  },
+  {
+    file: 'lib/domain/attendance/geofence-policy.js',
+    regex: /finiteIn\(maxAccuracyM, \d+, (\d+)\)/,
+    key: 'geofence.maxAccuracyM.max'
+  },
+  {
+    file: 'lib/domain/attendance/geofence-policy.js',
     regex: /b\.maxAccuracyM === undefined \? (\d+)/,
     key: 'geofence.maxAccuracyM.default'
   }

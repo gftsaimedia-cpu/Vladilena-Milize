@@ -1,62 +1,9 @@
 // Từng test dùng nhân sự riêng; DB tạm được đặt trước khi nạp máy chủ.
 const { test, before, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
-const fs = require('node:fs'),
-  os = require('node:os'),
-  path = require('node:path');
-process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'luong-fixed-attendance-')), 'test.sqlite');
+process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'fixed-attendance-isolated-tests';
-// Dựng DB của phiên bản cũ trước khi nạp ứng dụng để kiểm migration thực tế.
 const iso = value => new Date(value + '+07:00').toISOString();
-const legacyFirst = {
-  kind: 'work',
-  in: '22:00',
-  out: '07:00',
-  src: 'punch',
-  preset: 'g2',
-  presIn: iso('2026-10-06T22:00:00'),
-  presOut: iso('2026-10-07T07:00:00'),
-  extraKind: '',
-  extraIn: '',
-  extraOut: '',
-  breakMin: 0
-};
-const legacySecond = {
-  ...legacyFirst,
-  in: '00:30',
-  breakMin: 30,
-  presIn: iso('2026-10-08T00:30:00'),
-  presOut: iso('2026-10-08T07:00:00')
-};
-const legacyPending = { kind: 'pending', reason: 'forgot-out', src: 'punch', presIn: iso('2026-10-09T22:00:00') };
-const legacyDays = {
-  '2026-10-06': legacyFirst,
-  '2026-10-07': legacySecond,
-  '2026-10-09': legacyPending,
-  '2026-10-12': { kind: 'work', in: '08:00', out: '17:00' }
-};
-const legacyEdgePrev = { ...legacyFirst, presIn: iso('2026-08-31T22:00:00'), presOut: iso('2026-09-01T07:00:00') };
-const legacyEdgeNext = { ...legacySecond, presIn: iso('2026-09-02T00:30:00'), presOut: iso('2026-09-02T07:00:00') };
-{
-  const { DatabaseSync } = require('node:sqlite'),
-    oldDb = new DatabaseSync(process.env.DB_PATH);
-  oldDb.exec(
-    'CREATE TABLE timesheets (username TEXT NOT NULL, month TEXT NOT NULL, days_json TEXT NOT NULL, kpi_pct REAL, kpi_amt REAL, kpi_adm_pct REAL, kpi_adm_amt REAL, updated_at TEXT NOT NULL, PRIMARY KEY(username,month))'
-  );
-  oldDb
-    .prepare('INSERT INTO timesheets VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run('legacy', '2026-10', JSON.stringify(legacyDays), 75, 1000000, null, null, iso('2026-10-15T10:00:00'));
-  for (const [month, days] of [
-    ['2026-08', { '2026-08-31': legacyEdgePrev }],
-    ['2026-09', { '2026-09-01': legacyEdgeNext }]
-  ]) {
-    oldDb
-      .prepare('INSERT INTO timesheets VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run('legacy-edge', month, JSON.stringify(days), null, null, null, null, iso('2026-10-15T10:00:00'));
-  }
-  oldDb.close();
-}
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
   server = require('../helpers/server');
@@ -261,77 +208,6 @@ test('đêm qua tháng, trễ sau 0h vẫn thuộc ngày ca cũ và không tạo
     200
   );
 });
-
-sqliteOnly('migration giữ lịch sử cũ và trả lịch ước tính có thể sửa, kể cả ca đêm vào sau 0h', async () => {
-  await at('2026-10-15T10:00:00');
-  const u = await person('legacy', 'g2');
-  assert.deepEqual((await store.getSheet('legacy', '2026-10')).days, legacyDays, 'migration không thay bản gốc');
-  const r = await call(u, 'GET', '/sheet?month=2026-10');
-  assert.equal(r.status, 200);
-  assert.deepEqual(r.data.attendanceSessions.find(s => s.date === '2026-10-06')?.entry, legacyFirst);
-  assert.deepEqual(r.data.attendanceSessions.find(s => s.date === '2026-10-07')?.entry, legacySecond);
-  assert.deepEqual(r.data.attendanceSessions.find(s => s.date === '2026-10-09')?.entry, legacyPending);
-  assert.equal(
-    r.data.attendanceSessions.find(s => s.date === '2026-10-12')?.entry,
-    undefined,
-    'ngày tự khai không đưa vào lịch sử check-in'
-  );
-  assert.equal(r.data.days['2026-10-09'], undefined, 'ngày chờ chấm công không trở thành ngày lương tự khai');
-  assert.equal(r.data.days['2026-10-07'].in, '00:30');
-  assert.equal(r.data.days['2026-10-07'].breakMin, 30);
-  assert.equal(r.data.days['2026-10-07'].src, undefined);
-  assert.equal(r.data.days['2026-10-07'].presIn, undefined);
-  assert.equal(r.data.kpiPct, 75);
-  assert.equal(r.data.kpiAmt, 1000000);
-  assert.deepEqual((await store.getSheet('legacy', '2026-10')).days, legacyDays, 'đọc projected sheet không ghi ngầm');
-  const roundtrip = await call(u, 'PUT', '/sheet', {
-    month: '2026-10',
-    days: r.data.days,
-    kpiPct: 75,
-    kpiAmt: 1000000
-  });
-  assert.equal(roundtrip.status, 200, 'lưu nguyên lịch cũ không tạo chồng giờ giả: ' + JSON.stringify(roundtrip.data));
-  const conflicting = { ...r.data.days, '2026-10-07': { kind: 'work', in: '06:30', out: '15:30' } };
-  const overlap = await call(u, 'PUT', '/sheet', { month: '2026-10', days: conflicting });
-  assert.equal(overlap.status, 200, JSON.stringify(overlap.data));
-  assert.ok(
-    overlap.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'),
-    'đổi giờ cũ thành giờ chồng thật vẫn lưu, kèm cảnh báo'
-  );
-  const changed = { ...r.data.days, '2026-10-07': { kind: 'work', in: '22:00', out: '07:00' } };
-  assert.equal(
-    (await call(u, 'PUT', '/sheet', { month: '2026-10', days: changed, kpiPct: 75, kpiAmt: 1000000 })).status,
-    200
-  );
-  assert.equal((await estimate('legacy', '2026-10-07')).in, '22:00');
-  assert.deepEqual(await day('legacy', '2026-10-07'), legacySecond, 'sửa ước tính không ghi đè lịch sử gốc');
-  assert.deepEqual(await day('legacy', '2026-10-09'), legacyPending);
-  assert.equal((await call(u, 'PUT', '/sheet', { month: '2026-10', days: {} })).status, 200);
-  assert.deepEqual((await call(u, 'GET', '/sheet?month=2026-10')).data.days, {});
-  assert.deepEqual(await day('legacy', '2026-10-06'), legacyFirst, 'xoá lịch ước tính vẫn giữ bản ghi Admin');
-});
-
-sqliteOnly(
-  'lịch cũ qua ranh giới tháng lưu lại được; sửa chồng giờ vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP',
-  async () => {
-    const u = await person('legacy-edge', 'g2');
-    for (const month of ['2026-08', '2026-09']) {
-      const r = await call(u, 'GET', '/sheet?month=' + month);
-      assert.equal(r.status, 200);
-      const saved = await call(u, 'PUT', '/sheet', { month, days: r.data.days });
-      assert.equal(saved.status, 200, JSON.stringify(saved.data));
-    }
-    const changed = { '2026-09-01': { kind: 'work', in: '06:30', out: '15:30' } };
-    const overlap = await call(u, 'PUT', '/sheet', { month: '2026-09', days: changed });
-    assert.equal(overlap.status, 200, JSON.stringify(overlap.data));
-    assert.ok(
-      overlap.data.warnings.some(w => w.code === 'SHEET_DAYS_OVERLAP'),
-      JSON.stringify(overlap.data.warnings)
-    );
-    assert.deepEqual(await day('legacy-edge', '2026-08-31'), legacyEdgePrev);
-    assert.deepEqual(await day('legacy-edge', '2026-09-01'), legacyEdgeNext);
-  }
-);
 
 test('lịch ước tính chồng giờ thật giữa hai ngày vẫn lưu, kèm cảnh báo SHEET_DAYS_OVERLAP', async () => {
   const u = await person('manual-overlap', 'g2');

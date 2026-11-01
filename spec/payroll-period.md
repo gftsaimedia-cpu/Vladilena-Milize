@@ -611,7 +611,7 @@ Mọi dòng có thể kèm `after.warnings`, `after.self` (4.22).
 ### 6.1 Ai gọi module này
 
 - `src/modules/periods/periods.helpers.ts` / `src/http/api-gate.ts`: mọi route mục 3; `warnings.run` bọc mỗi yêu cầu; `warnFrozen`/`guardPeriod` dùng `store.periods`.
-- `scripts/ops/verify-backup.js`: `require('../../lib/periods')` (kiểm bản sao lưu); `scripts/params/wired.js`.
+- `scripts/ops/pg-backup.js`: `require('../../lib/periods')` (kiểm bản sao lưu); `scripts/params/wired.js`.
 - `lib/payroll-service.js` được dùng bởi: `lib/periods.js`, `lib/period-stale.js`, `lib/slip-pins.js` (`engineFor`), `lib/advance-cap.js` (số tạm ứng theo quy tắc), `lib/domain/ai-review.js` (`previousMonth`), `lib/domain/sheet.js` (`estimateDays`), `lib/params/save.js` (xem trước tác động tham số, dùng `COMPONENTS`, `thanhPhanOf`).
 - `lib/warnings.js` được dùng bởi gần như mọi module ghi (`lib/db.js`, `lib/approvals.js`, `lib/advance-requests.js`, `lib/findings.js`, `lib/params/save.js`, `lib/params/validate.js`, `lib/roles.js`, `lib/domain/*`); `lib/http.js` (gộp cảnh báo), `lib/audit.js` (mã cảnh báo vào nhật ký).
 - `store.assertPeriodOpen` (cổng khoá kỳ của module này) được gọi từ: `src/http/api-gate.ts` (`guardPeriod` và nhiều route lịch, chấm công, OT, KPI), `lib/pay-entries.js`, `lib/advance-requests.js`, `lib/params/save.js`, `lib/domain/attendance/admin-presence.js`, `lib/domain/shared/catalog-change.js`.
@@ -753,7 +753,7 @@ Liệt kê để người sửa biết chỗ dễ vỡ; tài liệu này không 
 40. Nhật ký `period.approve` luôn ghi `before { status: 'reviewed' }` (`lib/periods.js`) kể cả khi duyệt từ `calculated`.
 41. Nhật ký `period.mark-paid` không ghi `reference` (`lib/periods.js`).
 42. `paydayExpected` ghép `period.payDay` vào tháng sau không kiểm số ngày của tháng (`lib/periods.js`): `payDay` 31 cho ra ngày không có thật ở tháng 30 ngày.
-43. Chạy bộ máy cho cả bảng lương (`calculate`) và chạy AI (`aiReview`) nằm TRONG giao dịch ghi (`lib/periods.js`, `385-410`): giữ khoá ghi của SQLite suốt thời gian tính.
+43. Chạy bộ máy cho cả bảng lương (`calculate`) và chạy AI (`aiReview`) nằm TRONG giao dịch ghi (`lib/periods.js`, `385-410`): giữ giao dịch ghi (và các khoá hàng nó đã lấy) suốt thời gian tính.
 44. Giữa tháng, `estimate()` của nhân sự tính bảo hiểm trên cả tháng theo lịch đã khai (mục 4.5): ngày chưa tới không phải ngày có lương nên bảo hiểm có thể hiện 0 cho tới khi đủ ngày có lương, rồi mới hiện đủ.
 
 ### 9.6 Giao diện tự tính tiền

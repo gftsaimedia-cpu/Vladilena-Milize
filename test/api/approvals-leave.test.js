@@ -4,7 +4,6 @@
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-leave-tests';
 const { test, before, beforeEach, after } = require('node:test');
-const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
@@ -47,7 +46,7 @@ const rowsOf = async username =>
 const rowAt = async (username, date) => (await rowsOf(username)).find(row => row.date === date);
 const snapshot = async () => ({
   approvals: await store.db.prepare('SELECT * FROM sheet_approvals ORDER BY username, date').all(),
-  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY rowid').all()
+  timesheets: await store.db.prepare('SELECT * FROM timesheets ORDER BY ctid').all()
 });
 
 // 1/10/2026 là Thứ 5: 5/10 Thứ 2, 6/10 Thứ 3, 7/10 Thứ 4; 8/9/2026 Thứ 3; 3/11/2026 Thứ 3
@@ -373,79 +372,3 @@ async function buildProductionDb() {
   );
   return dbPath;
 }
-
-sqliteOnly(
-  'di chuyển v3 (DB đã chạy v1, v2): ngày phép tháng ≤ 09/2026 đã duyệt bởi system, từ 10/2026 chờ duyệt; dòng cũ giữ nguyên',
-  async () => {
-    const dbPath = await buildProductionDb();
-    const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-    assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
-    assert.deepEqual(summaryOf(rows), {
-      '2026-08-11': 'leave:approved:system',
-      [SEP_LEAVE]: 'leave:approved:system',
-      '2026-09-16': 'isat:approved:system',
-      [LEAVE]: 'leave:pending:null',
-      [LEAVE2]: 'leave:approved:admin', // đã có dòng cùng mục và dấu vân tay: không bị đặt lại
-      [NOV_LEAVE]: 'leave:pending:null'
-    });
-    assert.equal(rows.find(r => r.date === LEAVE2).rev, 3);
-    for (const row of rows.filter(r => r.item === 'leave')) assert.equal(row.fingerprint, 'leave', row.date);
-    assert.equal(
-      rows.find(r => r.date === '2026-10-17'),
-      undefined,
-      'nghỉ không lương không cần duyệt'
-    );
-  }
-);
-
-sqliteOnly('di chuyển v3: chạy lại không đổi gì, kể cả khi một dòng bị xoá hoặc đã được quyết định lại', async () => {
-  const dbPath = await buildProductionDb();
-  const first = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  const changed = await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    store.db.prepare("UPDATE sheet_approvals SET status = 'rejected', rev = 5, decided_by = 'admin', note = 'sai' WHERE date = '${LEAVE}'").run();
-    store.db.prepare("DELETE FROM sheet_approvals WHERE date = '${NOV_LEAVE}'").run();
-    ${DUMP}
-  `
-  );
-  assert.equal(first.rows.length, 6);
-  assert.equal(changed.rows.length, 5);
-  assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
-  assert.deepEqual(await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`), changed);
-});
-
-sqliteOnly('di chuyển v3: DB cũ chưa từng chạy v1 chạy cả ba đợt, mỗi ngày phép đúng một dòng', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
-  const dbPath = path.join(dir, 'legacy.sqlite');
-  await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    ${PERSON_SQL}
-    ${SHEETS_SQL}
-    store.db.exec('DROP TABLE IF EXISTS sheet_approvals');
-    store.db.exec("DELETE FROM settings WHERE key LIKE 'sheet_approvals_v%'");
-    console.log('{}');
-  `
-  );
-  const { rows, markers } = await runChild(dbPath, `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
-  assert.deepEqual(summaryOf(rows), {
-    '2026-08-11': 'leave:approved:system',
-    [SEP_LEAVE]: 'leave:approved:system',
-    '2026-09-16': 'isat:approved:system',
-    [LEAVE]: 'leave:pending:null',
-    [LEAVE2]: 'leave:pending:null',
-    [NOV_LEAVE]: 'leave:pending:null'
-  });
-  assert.equal(rows.length, 6);
-});
-
-sqliteOnly('di chuyển v3 trên DB trống: không tạo dòng nào, đặt đủ ba dấu v1, v2, v3', async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
-  const { rows, markers } = await runChild(path.join(dir, 'empty.sqlite'), `const store = require(${LIB_DB});${DUMP}`);
-  assert.deepEqual(rows, []);
-  assert.deepEqual(markers.slice(0, 3), ['sheet_approvals_v1', 'sheet_approvals_v2', 'sheet_approvals_v3']); // ba dấu đầu; các dấu v4 trở đi do đợt di chuyển sau
-});
