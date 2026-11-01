@@ -34,5 +34,20 @@ export {
 export type { FindingActionRow, AiRunRow, StaffRow, StaffRoleRow, CorrectionRow, TimesheetRow, KpiScoresRow, KpiLogRow } from './records.repository';
 export { SheetApprovalsRepository, AttendanceSessionsRepository } from './attendance.repository';
 export type { SheetApprovalRow, AttendanceSessionRow, PunchRequestRow, PunchRow, SheetApprovalFilter } from './attendance.repository';
+export {
+  RevisionedWrites,
+  WorkShiftsRepository,
+  LeaveLedgerRepository,
+  ExplanationsRepository,
+  PositionRepository
+} from './catalog.repository';
+export type {
+  WorkShiftRow,
+  LeaveLedgerRow,
+  ExplanationRow,
+  PositionTypeRow,
+  PositionLevelRow,
+  RevisionedUpdate
+} from './catalog.repository';
 export { PayEntriesRepository, AdvanceRequestsRepository } from './pay.repository';
 export type { PayEntryRow, AdvanceRequestRow } from './pay.repository';

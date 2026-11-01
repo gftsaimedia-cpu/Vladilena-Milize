@@ -20,15 +20,6 @@ const ALLOWED = {
   'lib/domain/employee/schema.js': [2, 'DDL create-if-not-exists chỉ SQLite'],
   'lib/domain/explanation/schema.js': [1, 'DDL create-if-not-exists chỉ SQLite'],
   'lib/domain/position/schema.js': [6, 'DDL + seed chỉ SQLite'],
-  'lib/domain/position/position-catalog.js': [
-    14,
-    'lớp danh mục chức vụ: SQL có tham số trong một lớp (chưa chuyển sang Kysely)'
-  ],
-  'lib/domain/shared/repository.js': [6, 'lớp nền one/all/run cho các repository trong lib/domain'],
-  'lib/domain/employee/employee-repository.js': [4, 'repository hồ sơ nhân sự (SQL có tham số trong một lớp)'],
-  'lib/domain/explanation/explanation-repository.js': [12, 'repository giải trình (SQL có tham số trong một lớp)'],
-  'lib/domain/leave/leave-ledger-repository.js': [4, 'repository sổ phép (SQL có tham số trong một lớp)'],
-  'lib/domain/shift/shift-catalog.js': [2, 'danh mục ca làm việc (SQL có tham số trong một lớp)'],
   'lib/data/postgres-database.js': [1, 'bộ điều hợp PostgreSQL: tự chuẩn bị câu lệnh đã dịch'],
   'lib/ops/pg-backup.js': [10, 'công cụ sao lưu đọc/ghi mọi bảng theo tên: SQL động theo thiết kế'],
   'lib/ops/shared-cache.js': [1, 'total_changes() của SQLite (khoá bộ nhớ đệm), không có trong Kysely'],

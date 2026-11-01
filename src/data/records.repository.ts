@@ -162,6 +162,10 @@ export class StaffRepository {
     return this.qb.selectFrom('staff').selectAll().where('username', '=', username).executeTakeFirst();
   }
 
+  findByUuid(uuid: string): Promise<StaffRow | undefined> {
+    return this.qb.selectFrom('staff').selectAll().where('uuid', '=', uuid).executeTakeFirst();
+  }
+
   uuidOf(username: string): Promise<{ uuid: string | null } | undefined> {
     return this.qb.selectFrom('staff').select('uuid').where('username', '=', username).executeTakeFirst();
   }

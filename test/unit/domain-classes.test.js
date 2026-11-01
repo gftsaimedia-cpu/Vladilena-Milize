@@ -113,7 +113,7 @@ test('giải trình: duyệt cần đúng rev, giải trình đã duyệt không
   });
   const denied = [];
   const service = new ExplanationService({
-    repository: new ExplanationRepository({ db: store.db, transaction: store.transaction }),
+    repository: new ExplanationRepository({ queryBuilder: store.queryBuilder, transaction: store.transaction }),
     staffExists: async u => !!(await store.getStaff(u)),
     clock: () => '2026-11-02T02:00:00.000Z',
     onSelf: error => denied.push(error.code)
