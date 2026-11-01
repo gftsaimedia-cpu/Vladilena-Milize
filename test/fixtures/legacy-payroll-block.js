@@ -2,7 +2,7 @@
 // Nguồn: src/engine/index.html từ khai báo TYPES đến mốc Lịch, chép tại commit 9cf7f6a (lần sửa cuối của index.html: b63d623), ngày 15/10/2026.
 // Chỉ bỏ 6 ký tự thụt đầu dòng và để Prettier định dạng lại; không đổi chữ nào của mã. KHÔNG SỬA FILE NÀY.
 // File này không được require: test/helpers/payroll-vm.js chạy nó trong vm sau payroll-calendar.js và kpi-score.js. Từ 16/10/2026 src/engine/index.html
-// đã bị xoá, nên đây là bản duy nhất còn lại của khối công thức cũ: bộ máy đang chạy (src/engine/payroll-engine.js) được so với nó bởi
+// đã bị xoá, nên đây là bản duy nhất còn lại của khối công thức cũ: bộ máy đang chạy (src/engine/payroll-engine.ts) được so với nó bởi
 // payroll-engine-differential.test.js và payroll-golden.test.js. Giữ file này; test/fixtures/payroll-golden-v0.json ở lại cùng nó.
 const TYPES = {
   tts: {

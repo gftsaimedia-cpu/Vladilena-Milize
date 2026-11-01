@@ -1,6 +1,6 @@
 'use strict';
 // "MỘT NGUỒN" cho lịch làm việc:
-// lịch chỉ được hỏi qua src/engine/work-schedule.js, nên test quét mã nguồn: ngoài danh sách cho phép (mỗi mục có lý do), không tệp sản phẩm nào đọc thứ trong tuần
+// lịch chỉ được hỏi qua src/engine/work-schedule.ts, nên test quét mã nguồn: ngoài danh sách cho phép (mỗi mục có lý do), không tệp sản phẩm nào đọc thứ trong tuần
 // của lịch trực tiếp (`dows`, `type.<mã>.dows`, `T.dows`, `staff.sched`).
 // Chia hai phần:
 //   - máy chủ và mô-đun dùng chung (server.js, lib/, public/*.js);
@@ -18,10 +18,10 @@ const EXPECTED = { tts: [1, 2, 3, 4, 5], ctv: [1, 2, 3, 4, 5, 6], nv: [1, 2, 3, 
 /* ---------- quét "một nguồn" ---------- */
 // Mỗi mục: tệp (đường dẫn tương đối, dấu /) được phép đọc trực tiếp, và LÝ DO.
 const ALLOWED = {
-  'src/engine/work-schedule.js': 'chính mô-đun: nguồn duy nhất',
-  'src/engine/approval-view.js':
+  'src/engine/work-schedule.ts': 'chính mô-đun: nguồn duy nhất',
+  'src/engine/approval-view.ts':
     'create(params) dựng bảng SCHEDULE từ khoá type.<mã>.dows và FALLBACK: giữ xuất ra để tương thích (thiết kế mục 2 dòng 13), không còn là nguồn quyết định ngày lễ',
-  'src/engine/payroll-params.js':
+  'src/engine/payroll-params.ts':
     'DEFAULTS: nơi đặt giá trị tham số type.<mã>.dows (định nghĩa tham số; ngày công chuẩn theo lịch nay do work-schedule.js đếm, methodView đã bỏ 16/10/2026)',
   'src/params/save.ts':
     'kiểm chéo khoá khi Admin lưu tham số: lưu khoá lịch thì đồng bộ hàng duyệt (thiết kế 4.4); không hỏi ngày làm',
@@ -37,7 +37,7 @@ const ALLOWED = {
     'nạp danh mục chức vụ lần đầu từ DEFAULTS type.<mã>.dows (dữ liệu chức vụ, không hỏi ngày làm)',
   'src/domain/schedule.ts':
     'cầu nối của máy chủ: liệt kê khoá type.<mã>.dows của bộ tham số cho GET /api/team rồi giao việc giải lịch cho work-schedule.js',
-  'src/engine/punch.js':
+  'src/engine/punch.ts':
     'quy tắc Check-in/out nhận staff.sched (tương thích) khi không có staff.isWorkDay: giữ nguyên theo thiết kế mục 2 dòng 19',
   'src/engine/admin/view-khung-luong.js': 'màn Cài đặt: nhãn và ô nhập của các khoá lịch chức vụ',
   'src/engine/admin/view-ho-so.js':
@@ -83,7 +83,7 @@ test('S1: một nguồn (máy chủ và mô-đun dùng chung): ngoài danh sách
 
 test('S1: một nguồn: không còn bản lịch chép tay dạng { tts: [...], ctv: [...], nv: [...] } trong mã sản phẩm ngoài approval-view.js (SCHEDULE giữ xuất ra để tương thích) và payroll-params.js', () => {
   const LITERAL = /\{\s*tts:\s*\[[\d,\s]+\],\s*ctv:\s*\[[\d,\s]+\],\s*nv:\s*\[[\d,\s]+\]\s*\}/;
-  const keep = new Set<any>(['src/engine/approval-view.js', 'src/engine/payroll-params.js']);
+  const keep = new Set<any>(['src/engine/approval-view.ts', 'src/engine/payroll-params.ts']);
   const hits = [...productionFiles()]
     .map(f => path.relative(ROOT, f).split(path.sep).join('/'))
     .filter(rel => !keep.has(rel) && LITERAL.test(stripComments(fs.readFileSync(path.join(ROOT, rel), 'utf8'))));
@@ -97,7 +97,7 @@ test('S1: lịch mẫu của bài test đúng như luật: TTS Thứ 2–6, CTV 
   assert.deepEqual(EXPECTED.nv, [1, 2, 3, 4, 5, 6]);
 });
 test('S1: PayrollParams.DEFAULTS giữ lịch mẫu của ba chức vụ (nguồn giá trị của mô-đun lịch)', () => {
-  const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+  const { DEFAULTS } = require('../../src/engine/payroll-params');
   for (const type of Object.keys(EXPECTED))
     assert.deepEqual(DEFAULTS[`type.${type}.dows`], EXPECTED[type], `DEFAULTS type.${type}.dows`);
 });

@@ -7,7 +7,7 @@
 // S.PAYSLIP (từng persona) và S.PERIOD_EXPECT (số đếm cả kỳ). Không ghi gì vào DB; luồng route thật chạy bằng period-check.js.
 // Không in tên hay số tiền: chỉ mã luật, tên đăng nhập giả và số đếm.
 const { review, RULES } = require('../../../src/ai/review');
-const KpiScore = require('../../../src/engine/kpi-score.js');
+const KpiScore = require('../../../src/engine/kpi-score');
 const S = require('./scenarios');
 
 async function buildInput(store?, payroll?, month?, asOf?) {

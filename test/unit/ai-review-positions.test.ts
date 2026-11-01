@@ -9,7 +9,7 @@ const { suggestFromPreview, PREVIEW_RULES } = require('../../src/ai/preview-sugg
 const { THRESHOLDS, resolveThresholds } = require('../../src/ai/thresholds');
 const { benefitOf, blockDefsOf } = require('../../src/ai/positions');
 const { loadPayroll } = require('../../src/ai/payroll-loader');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const W = require('./ai-review-world.js');
 
 const { person, world, find, otDay, workDay } = W;

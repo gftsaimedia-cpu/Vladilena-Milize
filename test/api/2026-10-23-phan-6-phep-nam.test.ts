@@ -5,7 +5,7 @@
 //   - Hết 31/01 năm N+1: số ngày đó quy tiền vào phiếu tháng 02/N+1 (dòng "Quyết toán phép dư": ngày × lương cơ bản ÷ ngày công chuẩn của tháng 02)
 //     rồi trừ khỏi số dư. Phiếu các tháng khác không có khoản này.
 // Tiền kiểm bằng cách ghim ô settlePay = 0 qua PUT /api/slip-override (số sửa áp cả phiếu ước tính): tổng lương giảm đúng bằng số quyết toán.
-// Lương cơ bản CTV bậc 2 và NV bậc 1: 6.000.000 ₫, ngày công chuẩn 26 (src/engine/payroll-params.js); tính tay: số ngày × 6.000.000 ÷ 26.
+// Lương cơ bản CTV bậc 2 và NV bậc 1: 6.000.000 ₫, ngày công chuẩn 26 (src/engine/payroll-params.ts); tính tay: số ngày × 6.000.000 ÷ 26.
 // Người bịa qa_phep*, đồng hồ giả (F.at), DB trong bộ nhớ.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');

@@ -3,7 +3,7 @@
 // Số tiền tính bằng khối công thức đóng băng (test/fixtures/legacy-payroll-block.js) nạp vào vm như approval-view.test.ts.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const ApprovalView = require('../../src/engine/approval-view.js');
+const ApprovalView = require('../../src/engine/approval-view');
 const { loadPayroll } = require('../helpers/payroll-vm');
 
 const {

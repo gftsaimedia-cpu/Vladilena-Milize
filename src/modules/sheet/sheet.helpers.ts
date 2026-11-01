@@ -28,7 +28,7 @@ export async function leaveBalanceView(staff) {
   if (!staff || !staff.payrollSubject) return null;
   const today = vnToday();
   if (!sheetFlagsOf((await rulesFor(today.slice(0, 7))).params, staff.type, staff.level).hasLeaveAccount) return null;
-  // Sổ phép (src/engine/leave.js → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
+  // Sổ phép (src/engine/leave.ts → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
   const got = (await rulesFor(today.slice(0, 7))).leave.ledger(
     staff,
     (await leaveDates(staff)).filter(d => d <= today),

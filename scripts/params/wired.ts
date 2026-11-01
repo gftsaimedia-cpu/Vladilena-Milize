@@ -1,5 +1,5 @@
 'use strict';
-// Cờ `wired` của registry: một khoá chỉ `wired: true` khi (1) bộ máy src/engine/payroll-engine.js hoặc src/ai/*
+// Cờ `wired` của registry: một khoá chỉ `wired: true` khi (1) bộ máy src/engine/payroll-engine.ts hoặc src/ai/*
 // ĐỌC nó từ bộ tham số và (2) không còn bản sao hằng số của giá trị đó ở chỗ khác mà chạy thật (hằng số trong server.js, các mô-đun dùng chung
 // punch, actual-hours, kpi-score, approval-view). Khoá chưa nối mà vẫn cho Lưu thì Lưu "không có tác dụng" hoặc, tệ hơn, bộ máy tính một
 // số còn nơi kiểm đầu vào dùng số cũ. PUT /api/settings/params từ chối khoá `wired: false` bằng 400 PARAM_NOT_WIRED.
@@ -19,13 +19,13 @@ const read = (file?) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 // Nơi đọc bộ tham số đã giải: bộ máy, lớp dẫn xuất của payroll-params.js (không tính khối DEFAULTS được sinh), AI, và hai mô-đun máy chủ
 // nhận params từ paramsStore.resolve (kỳ lương, ước tính của nhân sự)
 const ENGINE_FILES = [
-  'src/engine/payroll-engine.js',
-  'src/engine/payroll-params.js',
-  'src/engine/pay-tail-calc.js', // phép chọn của bảo hiểm và thuế do Kế toán cấu hình
+  'src/engine/payroll-engine.ts',
+  'src/engine/payroll-params.ts',
+  'src/engine/pay-tail-calc.ts', // phép chọn của bảo hiểm và thuế do Kế toán cấu hình
   'src/domain/period/periods.ts',
   'src/domain/payroll/payroll-service.ts',
-  'src/engine/pay-options-calc.js', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
-  'src/engine/work-schedule.js', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
+  'src/engine/pay-options-calc.ts', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
+  'src/engine/work-schedule.ts', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
   'src/domain/limits.js', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
   // Sáu mô-đun luật dùng chung nhận params qua create(params). Bảng FALLBACK của chúng là bản chép chuyển tiếp bằng DEFAULTS
   // (scripts/params/check-fallbacks.ts kiểm): không tính là nơi đọc và không tính là bản sao chạy thật
@@ -37,7 +37,7 @@ const ENGINE_FILES = [
 // Khoá dựng bằng chuỗi nhiều dòng hoặc nối chuỗi mà biểu thức chính quy bên dưới không bắt: ghi nơi dựng và bằng chứng nó còn đó
 const EXTRA_READS = [
   { pattern: 'ai.rule.*.enabled', file: 'src/ai/thresholds.ts', re: /ai\.rule\.\$\{/ },
-  { pattern: 'law.regionMinWage.*', file: 'src/engine/payroll-params.js', re: /'law\.regionMinWage\.' \+/ }
+  { pattern: 'law.regionMinWage.*', file: 'src/engine/payroll-params.ts', re: /'law\.regionMinWage\.' \+/ }
 ];
 // Khoá dựng động type.<mã>.<đuôi> (mẫu 'type.*.*' ở trên) khớp MỌI đuôi, kể cả đuôi mà bộ máy không đọc theo tên: ở đây khai các đuôi đó để cờ không nói dối.
 // `named` là bằng chứng: chỉ khi KHÔNG tệp nào của ENGINE_FILES (ngoài bảng GENERATED và FALLBACK) nhắc tên đuôi thì khoá mới bị coi là chưa đọc;

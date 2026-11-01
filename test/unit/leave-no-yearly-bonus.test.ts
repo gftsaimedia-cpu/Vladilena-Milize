@@ -3,8 +3,8 @@
 // Ngày giả định cố định, người bịa; không đọc đồng hồ thật.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Leave = require('../../src/engine/leave.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Leave = require('../../src/engine/leave');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { accrualEvents } = require('../../src/domain/leave/leave-events');
 
 const sum = (events?) => events.reduce((total, e) => total + e.days, 0);

@@ -1,8 +1,8 @@
 'use strict';
-// Ô số lượng Admin ghim trên phiếu: tính lại bản chụp theo ghim bằng bộ máy lương (src/engine/payroll-engine.js → repin), từ CHÍNH bản chụp
+// Ô số lượng Admin ghim trên phiếu: tính lại bản chụp theo ghim bằng bộ máy lương (src/engine/payroll-engine.ts → repin), từ CHÍNH bản chụp
 // và bộ tham số của lần tính (không đọc lại lịch, Check-in/out), nên số luôn khớp bản chụp dù dữ liệu đầu vào đã đổi sau đó. Chỉ đọc, không ghi DB.
 // Phiếu ước tính, phiếu của lần tính nháp và phiếu đã chốt đều đi qua đây với cùng một phép tính; ô tiền sửa thẳng áp SAU (src/domain/payroll/slip-paid.ts → paidFigures).
-const Pins = require('../../engine/payroll-pins.js');
+const Pins = require('../../engine/payroll-pins');
 const service = require('./payroll-service');
 
 // Bản chụp đã tính lại theo ghim trong `values` (số Admin đã sửa của phiếu), hoặc null khi không có ghim nào làm đổi tiền hay phiếu không tính lại được.

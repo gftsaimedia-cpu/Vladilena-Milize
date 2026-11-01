@@ -98,7 +98,7 @@ test('GET /today khi không còn ai quá hạn: 0 giao dịch (đường đọc 
 });
 
 test('staleBefore của punch là đúng ranh giới forgotOut: trước mốc quá hạn, đúng mốc thì chưa', () => {
-  const P = require('../../src/engine/punch.js');
+  const P = require('../../src/engine/punch');
   const now = new Date(clock).toISOString(),
     cutoff = P.staleBefore(now);
   assert.equal(P.forgotOut(cutoff, now), false);

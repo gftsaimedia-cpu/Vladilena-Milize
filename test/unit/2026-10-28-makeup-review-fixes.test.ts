@@ -3,10 +3,10 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // late-checkout nạp lib/work-hours (qua src/platform/db): DB trong RAM, không đụng DB thật
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
-const AV = require('../../src/engine/approval-view.js');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const P = require('../../src/engine/punch');
+const AV = require('../../src/engine/approval-view');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { lateCheckoutMin } = require('../../src/domain/explanation/late-checkout');
 
 const SAT = '2026-10-10'; // thứ Bảy: trong lịch NV (T2–T7), ngoài lịch TTS (T2–T6)

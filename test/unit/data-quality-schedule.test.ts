@@ -1,5 +1,5 @@
 'use strict';
-// src/domain/findings/data-quality.ts đếm phép đã dùng theo lịch làm việc của người (src/engine/work-schedule.js): chỉ ngày làm theo lịch mới tính, không phải mọi ngày khác Chủ nhật.
+// src/domain/findings/data-quality.ts đếm phép đã dùng theo lịch làm việc của người (src/engine/work-schedule.ts): chỉ ngày làm theo lịch mới tính, không phải mọi ngày khác Chủ nhật.
 // Toàn người giả. 27/10/2026 là Thứ Ba; 28/10 là Thứ Tư.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -31,7 +31,7 @@ test('S1-2d: lịch mặc định T2–T7, ngày lễ Thứ Ba nằm trong lịc
 });
 
 test('S1-2d: loại NV làm T2/T4/T6, ngày lễ Thứ Ba ngoài lịch của loại: ngày nghỉ phép đó vẫn trừ phép (bỏ xấp xỉ dow khác Chủ nhật)', async () => {
-  const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+  const { DEFAULTS } = require('../../src/engine/payroll-params');
   const days = { '2026-10-27': { kind: 'leave' } };
   assert.equal(
     await usedOf(await staffOf({}), days, ['2026-10-27']),
@@ -59,7 +59,7 @@ test('S1-2d: ngày phép có dòng duyệt bị từ chối (approvals) không t
 });
 
 test('quyền lợi theo bậc: bậc tắt cờ tài khoản phép (level.<mã>.<bậc>.benefit.leaveAccount) thì không đối soát phép của người ở bậc đó', async () => {
-  const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+  const { DEFAULTS } = require('../../src/engine/payroll-params');
   const params = { ...DEFAULTS, 'level.nv.2.benefit.leaveAccount': false };
   const days = { '2026-10-28': { kind: 'leave' } };
   assert.equal(

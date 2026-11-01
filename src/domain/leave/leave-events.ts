@@ -1,19 +1,19 @@
 'use strict';
-// Các lần cộng phép có ngày phát sinh của một người tới hết ngày `upTo`, dựng theo ĐÚNG quy tắc đếm của src/engine/leave.js → counted
+// Các lần cộng phép có ngày phát sinh của một người tới hết ngày `upTo`, dựng theo ĐÚNG quy tắc đếm của src/engine/leave.ts → counted
 // (tháng tròn tính từ ngày vào làm, lùi về cuối tháng nếu tháng ngắn hơn; năm tròn = 12 tháng tròn, chỉ để tính mốc thâm niên mỗi leave.seniority.stepYears năm;
 // sinh nhật chỉ cấp Nhân viên). Chỉ lấy các lần cộng từ 01/01 của năm quỹ đầu tiên (max(năm vào làm, leave.expiry.fromYear),
 // leave.expiry.month ≥ 1): lần cộng trước đó không nằm trong quỹ nào. Điều chỉnh tay của Admin là số mở đầu của quỹ đầu tiên, không phải dòng có ngày.
 // Tổng số ngày của các dòng = counted(...).total − điều chỉnh tay (đối chiếu trong test).
 // Thuần: không đọc DB, không đọc đồng hồ.
-const NV_TYPE = 'nv'; // cùng quy ước NV_TYPE của src/engine/leave.js
+const NV_TYPE = 'nv'; // cùng quy ước NV_TYPE của src/engine/leave.ts
 const MONTHS_PER_YEAR = 12; // đơn vị lịch, không phải tham số nghiệp vụ
-const SENIORITY_DAYS = 1; // src/engine/leave.js cộng 1 ngày mỗi bậc thâm niên
+const SENIORITY_DAYS = 1; // src/engine/leave.ts cộng 1 ngày mỗi bậc thâm niên
 const pad = (n?) => String(n).padStart(2, '0');
 const daysIn = (y?, m?) => new Date(y, m, 0).getDate();
 const iso = (y?, m?, d?) => `${y}-${pad(m)}-${pad(Math.min(d, daysIn(y, m)))}`;
 const parts = (s?) => s.split('-').map(Number);
 
-// Ngày tròn k tháng kể từ `start` (cùng cách src/engine/leave.js → fullMonths)
+// Ngày tròn k tháng kể từ `start` (cùng cách src/engine/leave.ts → fullMonths)
 function monthMark(start?, k?) {
   const [sy, sm, sd] = parts(start);
   const t = new Date(sy, sm - 1 + k, 1);

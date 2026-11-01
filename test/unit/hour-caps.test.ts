@@ -6,8 +6,8 @@ process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const {
   DAY_HOURS_CAP,
   MONTH_OT_CAP,

@@ -9,10 +9,10 @@
 //   benefitsOf(set, code)       cờ quyền lợi của một chức vụ (GET /api/me)
 //   copyChanges(...)            lô khoá của một chức vụ mới sao từ chức vụ có sẵn
 // Thuần: không I/O, không đồng hồ.
-const Params = require('../engine/payroll-params.js');
+const Params = require('../engine/payroll-params');
 const registry = require('./registry');
 const { BLOCKS } = require('./blocks');
-const PayBlocksCalc = require('../engine/pay-blocks-calc.js');
+const PayBlocksCalc = require('../engine/pay-blocks-calc');
 const config = require('../platform/config');
 
 const DEF_RE = /^position\.def\.([^.]+)$/;

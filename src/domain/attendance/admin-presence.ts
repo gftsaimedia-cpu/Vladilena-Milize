@@ -2,7 +2,7 @@
 // Admin ghi giờ vào / ra ⇒ lượt chấm công nguồn Admin, từ hai đường: Admin khai thay lịch (sync) và Admin duyệt giải trình ngày quên
 // chấm (syncExplanation).
 // Ngày công = số ngày có Check-in/out hợp lệ: ngày khai "Đi làm" mà không có lượt nào là nghỉ không phép
-// (tham số attendance.missingAllRule = 'absent', src/engine/actual-hours.js). Không có chức năng sửa giờ chấm công, nên Admin
+// (tham số attendance.missingAllRule = 'absent', src/engine/actual-hours.ts). Không có chức năng sửa giờ chấm công, nên Admin
 // khai thay lịch (PUT /api/sheet kèm user) là cách duy nhất ghi nhận một ngày người đó quên chấm. Lớp này dựng, sửa, xoá đúng MỘT lượt
 // đã đóng (src 'admin', đánh dấu origin = ORIGIN) cho mỗi ngày Admin khai thay, để ActualHours coi như một lượt Check-in/out hợp lệ
 // (trễ / về sớm vẫn bị trừ như lượt bấm thật).

@@ -1,7 +1,7 @@
 'use strict';
 // Bộ nạp DUY NHẤT cho khối công thức lương CŨ trong vm.
 // Khối công thức chỉ còn bản ĐÓNG BĂNG
-// test/fixtures/legacy-payroll-block.js. Bộ máy đang chạy là src/engine/payroll-engine.js,
+// test/fixtures/legacy-payroll-block.js. Bộ máy đang chạy là src/engine/payroll-engine.ts,
 // được so với bản đóng băng này bởi payroll-engine-differential.test.ts và payroll-golden.test.ts.
 //
 //   const { api } = loadPayroll({ exports: ['calcDay', 'calcMonth'] });
@@ -18,6 +18,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readAsJs } = require('../../scripts/dev/ts-source');
 
 const PUBLIC_DIR = path.join(__dirname, '../../src/engine');
 const FIXTURE = path.join(__dirname, '../fixtures/legacy-payroll-block.js');
@@ -41,7 +42,7 @@ function loadPayroll(options: any = {}) {
   const run = (code?, context?) => vm.runInContext(code, context, timeout === undefined ? undefined : { timeout });
   const context = vm.createContext({ ...globals });
   for (const lib of libs)
-    vm.runInContext(fs.readFileSync(path.join(PUBLIC_DIR, lib + '.js'), 'utf8'), context, { filename: lib + '.js' });
+    vm.runInContext(readAsJs(path.join(PUBLIC_DIR, lib + '.ts')), context, { filename: lib + '.ts' });
   const exporter = names.length ? `this.${exportAs} = { ${names.join(', ')} };` : '';
   run([prelude, block, exporter, append].filter(Boolean).join('\n'), context);
   return { context, api: context[exportAs], run: (code?) => vm.runInContext(code, context) };

@@ -4,7 +4,7 @@
 
 # Danh mục cấu hình (sinh từ registry)
 
-Sinh bởi `npm run params:doc` từ `src/params/registry.data.json` và `src/engine/payroll-params.js → DEFAULTS`. Không sửa tay.
+Sinh bởi `npm run params:doc` từ `src/params/registry.data.json` và `src/engine/payroll-params.ts → DEFAULTS`. Không sửa tay.
 
 ## Nhóm 1. Kỳ lương
 

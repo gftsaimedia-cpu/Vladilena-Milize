@@ -2,12 +2,13 @@
 // An toàn của công thức gõ chữ:
 //   - không eval, new Function, vm, setTimeout(chuỗi), import() động, require tính từ chuỗi, biểu thức chính quy dựng từ dữ liệu;
 //   - cây chỉ gồm các lớp nút trong danh sách đóng; deserialize kiểm lại từng nút, không tin dữ liệu đã lưu.
-// Nhóm quét tĩnh luôn chạy trên public/ và lib/; phần còn lại chạy như `todo` khi thiếu src/engine/formula.js.
+// Nhóm quét tĩnh luôn chạy trên public/ và lib/; phần còn lại chạy như `todo` khi thiếu src/engine/formula.ts.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readAsJs } = require('../../scripts/dev/ts-source');
 const F = require('../helpers/formula-fixture');
 const { pending, ROOT } = require('../helpers/red');
 
@@ -89,21 +90,21 @@ test(
   opts,
   async () => {
     await load(); // thiếu file thì ném "module missing"
-    const files = fs.readdirSync(path.join(ROOT, 'src/engine')).filter(name => /^formula.*\.js$/.test(name));
-    assert.ok(files.includes('formula.js'));
+    const files = fs.readdirSync(path.join(ROOT, 'src/engine')).filter(name => /^formula.*\.ts$/.test(name));
+    assert.ok(files.includes('formula.ts'));
     for (const name of files) {
       const source = fs.readFileSync(path.join(ROOT, 'src/engine', name), 'utf8');
-      assert.deepEqual(scan(source, true), [], `public/${name}`);
+      assert.deepEqual(scan(source, true), [], `src/engine/${name}`);
     }
   }
 );
 
 test(
-  'src/engine/formula.js: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
+  'src/engine/formula.ts: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
   opts,
   async () => {
     await load();
-    const source = fs.readFileSync(path.join(ROOT, 'src/engine/formula.js'), 'utf8');
+    const source = readAsJs(path.join(ROOT, 'src/engine/formula.ts'));
     const sandbox = vm.createContext({});
     vm.runInContext(source, sandbox, { timeout: 2000 });
     const api = sandbox.Formula;
@@ -116,11 +117,11 @@ test(
 );
 
 test(
-  'src/engine/formula.js: không chạm DOM, mạng, đồng hồ hay đĩa (mô-đun thuần dùng chung trình duyệt và máy chủ)',
+  'src/engine/formula.ts: không chạm DOM, mạng, đồng hồ hay đĩa (mô-đun thuần dùng chung trình duyệt và máy chủ)',
   opts,
   async () => {
     await load();
-    const code = stripComments(fs.readFileSync(path.join(ROOT, 'src/engine/formula.js'), 'utf8'));
+    const code = stripComments(fs.readFileSync(path.join(ROOT, 'src/engine/formula.ts'), 'utf8'));
     for (const [pattern, label] of [
       [/\bdocument\b/, 'document'],
       [/\bwindow\b/, 'window'],

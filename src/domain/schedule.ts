@@ -2,7 +2,7 @@
 const { rulesFor, vnToday } = require('../platform/request-rules');
 
 // Lịch làm việc của MỘT người cho mọi nơi của máy chủ (PUT /sheet, chấm công, duyệt, leaveDates, /team): giải bằng rulesFor(tháng).workSchedule
-// (src/engine/work-schedule.js, một nguồn), tức lịch của loại nhân sự theo tham số của THÁNG chứa ngày (type.<mã>.dows, workdays, workdaysMode).
+// (src/engine/work-schedule.ts, một nguồn), tức lịch của loại nhân sự theo tham số của THÁNG chứa ngày (type.<mã>.dows, workdays, workdaysMode).
 //   scheduleOf(staff, month)   lịch hiệu lực { source, from, pattern, workdays }
 //   isWorkDay(staff, date)     ngày có phải ngày làm theo lịch của người (tháng của ngày quyết định)
 //   isWorkDayFn(staff)         hàm đóng date → boolean cho punch.js (staff.isWorkDay)
@@ -23,7 +23,7 @@ const monthsAround = (dates?) => {
   }
   return months;
 };
-// Hàm đóng date → boolean ĐỒNG BỘ cho src/engine/punch.js (staff.isWorkDay): punch.js dùng chung với trình duyệt nên không async được.
+// Hàm đóng date → boolean ĐỒNG BỘ cho src/engine/punch.ts (staff.isWorkDay): punch.js dùng chung với trình duyệt nên không async được.
 // Vì vậy nạp trước lịch của các tháng quanh các ngày sẽ dùng (mặc định hôm nay); ngày ngoài các tháng đó là lỗi lập trình.
 async function isWorkDayFn(staff, ...dates) {
   const byMonth = new Map<any, any>();

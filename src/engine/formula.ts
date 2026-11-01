@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.Formula = api;
@@ -78,12 +78,15 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // Tiện ích chung
   // ---------------------------------------------------------------------------------------------------------------------
-  const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
-  const isObj = v => typeof v === 'object' && v !== null && !Array.isArray(v);
-  const isNum = v => typeof v === 'number' && Number.isFinite(v);
+  const hasOwn = (o?, k?) => Object.prototype.hasOwnProperty.call(o, k);
+  const isObj = (v?) => typeof v === 'object' && v !== null && !Array.isArray(v);
+  const isNum = (v?) => typeof v === 'number' && Number.isFinite(v);
 
   class FormulaError extends Error {
-    constructor(code, message, extra) {
+    name: any;
+    code: any;
+
+    constructor(code?, message?, extra?) {
       super(message);
       this.name = 'FormulaError';
       this.code = code;
@@ -91,16 +94,16 @@
     }
   }
 
-  function limitsOf(opts) {
+  function limitsOf(opts?) {
     const given = opts && isObj(opts.limits) ? opts.limits : null;
     if (!given) return LIMITS;
-    const out = { ...LIMITS };
+    const out: Record<string, any> = { ...LIMITS };
     for (const k of Object.keys(LIMITS)) if (hasOwn(given, k) && isNum(given[k]) && given[k] > 0) out[k] = given[k];
     return out;
   }
 
   // Bỏ dấu và hoa thường: "Lương Cơ Bản" và "luong co ban" cùng một chuỗi. Chỉ dùng để SO KHỚP, không đổi chữ gốc.
-  const fold = s =>
+  const fold = (s?) =>
     String(s)
       .toLowerCase()
       .normalize('NFD')
@@ -111,13 +114,13 @@
   const RE_WORD_CH = /[\p{L}\p{M}\p{N}_]/u;
   const RE_SPACE = /\s/;
   const RE_WORDS = /[\p{L}\p{M}\p{N}_]+/gu;
-  const isDigit = ch => ch !== undefined && ch >= '0' && ch <= '9';
-  const isLetter = ch => ch !== undefined && RE_LETTER.test(ch);
-  const isWordCh = ch => ch !== undefined && RE_WORD_CH.test(ch);
-  const isSpace = ch => ch !== undefined && RE_SPACE.test(ch);
+  const isDigit = (ch?) => ch !== undefined && ch >= '0' && ch <= '9';
+  const isLetter = (ch?) => ch !== undefined && RE_LETTER.test(ch);
+  const isWordCh = (ch?) => ch !== undefined && RE_WORD_CH.test(ch);
+  const isSpace = (ch?) => ch !== undefined && RE_SPACE.test(ch);
 
-  function wordsOf(text) {
-    const out = [];
+  function wordsOf(text?) {
+    const out: any[] = [];
     RE_WORDS.lastIndex = 0;
     let m = RE_WORDS.exec(text);
     while (m) {
@@ -127,7 +130,7 @@
     return out;
   }
 
-  function levenshtein(a, b, cap) {
+  function levenshtein(a?, b?, cap?) {
     a = a.slice(0, cap);
     b = b.slice(0, cap);
     const m = a.length,
@@ -148,7 +151,7 @@
   }
 
   // Số kiểu Việt Nam: 1.234,5 (chấm ngăn nghìn, phẩy thập phân)
-  function fmtNum(v) {
+  function fmtNum(v?) {
     let s = String(Number(v.toPrecision(15)));
     if (/e/i.test(s)) s = v.toFixed(12).replace(/0+$/, '').replace(/\.$/, '');
     const parts = s.split('.');
@@ -157,7 +160,7 @@
   }
 
   // Khoá viết liền từ tên: "khoản mới" → "khoanMoi" (dùng cho khoá tham số tự sinh)
-  function slugKey(text) {
+  function slugKey(text?) {
     const ws = wordsOf(String(text)).map(w => w.f.replace(/[^a-z0-9_]/g, ''));
     const parts = ws.filter(Boolean);
     if (!parts.length) return 'x';
@@ -168,9 +171,9 @@
   const RE_PLACEHOLDER = /<([A-Za-z0-9_]+)>/g;
   const RE_NAME = /^[^\u0000-\u001f\u007f]+$/;
   const RE_CONST_KEY = /^formula\.[A-Za-z0-9_]+\.const\.[0-9]+$/;
-  const isKey = (s, lim) => typeof s === 'string' && s.length > 0 && s.length <= lim.maxNameChars && RE_KEY.test(s);
-  const isName = (s, lim) => typeof s === 'string' && s.length > 0 && s.length <= lim.maxNameChars && RE_NAME.test(s);
-  const isConstKey = s => typeof s === 'string' && RE_CONST_KEY.test(s);
+  const isKey = (s?, lim?) => typeof s === 'string' && s.length > 0 && s.length <= lim.maxNameChars && RE_KEY.test(s);
+  const isName = (s?, lim?) => typeof s === 'string' && s.length > 0 && s.length <= lim.maxNameChars && RE_NAME.test(s);
+  const isConstKey = (s?) => typeof s === 'string' && RE_CONST_KEY.test(s);
 
   // ---------------------------------------------------------------------------------------------------------------------
   // Đơn vị: vector số mũ trên các đơn vị gốc. tỷ lệ, phần trăm và "số đếm" không có chiều (dims rỗng).
@@ -182,14 +185,14 @@
   const CONST_UNITS = Object.freeze(['VND', 'hour', 'day', 'minute', 'percent']);
   const UNIT_WORD = Object.freeze({ VND: 'đồng', hour: 'giờ', day: 'ngày', minute: 'phút' });
 
-  function unitInfo(unit) {
+  function unitInfo(unit?) {
     if (unit === 'flag') return { dims: {}, bool: true, cnt: true };
     if (typeof unit !== 'string' || !unit) return null;
     if (unit === 'percent' || unit === 'ratio') return { dims: {} };
     if (unit === 'count') return { dims: {}, cnt: true };
     const parts = unit.split('/');
     if (parts.length > 2) return null;
-    const dims = {};
+    const dims: Record<string, any> = {};
     for (let i = 0; i < parts.length; i++) {
       for (const name of parts[i].split('*')) {
         if (!BASE_UNITS.includes(name)) return null;
@@ -200,27 +203,27 @@
     return { dims };
   }
 
-  function dimsEq(a, b) {
+  function dimsEq(a?, b?) {
     const ka = Object.keys(a),
       kb = Object.keys(b);
     return ka.length === kb.length && ka.every(k => b[k] === a[k]);
   }
-  function dimsOp(a, b, sign) {
-    const out = { ...a };
+  function dimsOp(a?, b?, sign?) {
+    const out: Record<string, any> = { ...a };
     for (const k of Object.keys(b)) {
       out[k] = (out[k] || 0) + sign * b[k];
       if (out[k] === 0) delete out[k];
     }
     return out;
   }
-  function unitText(dims) {
+  function unitText(dims?) {
     const keys = Object.keys(dims).sort();
     if (!keys.length) return 'số không đơn vị';
     const num = keys.filter(k => dims[k] > 0).map(k => (dims[k] > 1 ? `${UNIT_VN[k]}^${dims[k]}` : UNIT_VN[k]));
     const den = keys.filter(k => dims[k] < 0).map(k => (dims[k] < -1 ? `${UNIT_VN[k]}^${-dims[k]}` : UNIT_VN[k]));
     return (num.length ? num.join('×') : '1') + (den.length ? `/${den.join('×')}` : '');
   }
-  function unitName(dims) {
+  function unitName(dims?) {
     const keys = Object.keys(dims).sort();
     if (!keys.length) return 'ratio';
     const num = keys.filter(k => dims[k] > 0).map(k => (dims[k] > 1 ? `${k}^${dims[k]}` : k));
@@ -233,13 +236,13 @@
   const T_ANY = Object.freeze({ any: true, dims: {} });
   const T_BOOL = Object.freeze({ bool: true, dims: {} });
   const T_UNKNOWN = Object.freeze({ unknown: true, dims: {} });
-  const tNum = (dims, cnt) => ({ dims, cnt: Boolean(cnt) });
+  const tNum = (dims?, cnt?) => ({ dims, cnt: Boolean(cnt) });
 
   // ---------------------------------------------------------------------------------------------------------------------
   // Từ vựng
   // ---------------------------------------------------------------------------------------------------------------------
   // Từ khoá cấu trúc (đã bỏ dấu). Khớp dài nhất trước; khi bằng nhau thì từ khoá thắng nhãn.
-  const KEYWORDS = new Map();
+  const KEYWORDS = new Map<any, any>();
   let KW_MAX_WORDS = 1;
   [
     ['nếu', { k: 'if' }],
@@ -272,13 +275,13 @@
     ['đến dưới', { k: 'tierto' }],
     ['bảng bậc theo', { k: 'tier' }],
     ['bảng bậc', { k: 'tier' }]
-  ].forEach(([phrase, spec]) => {
+  ].forEach(([phrase, spec]: any) => {
     const f = fold(phrase);
     KEYWORDS.set(f, Object.freeze(spec));
     KW_MAX_WORDS = Math.max(KW_MAX_WORDS, f.split(' ').length);
   });
   // Chữ đầu của từ khoá mà một vế trái "gần giống tên" không được chứa (để phân biệt "Tên = ..." với "nếu a = b ...")
-  const RESERVED_LHS = new Set([
+  const RESERVED_LHS = new Set<any>([
     'neu',
     'thi',
     'nguoc',
@@ -297,10 +300,10 @@
     'x'
   ]);
 
-  function buildIndex(vocab, lim, extraFormulas) {
-    const byKey = new Map();
-    const phrases = new Map();
-    const entryPhrases = new Map();
+  function buildIndex(vocab?, lim?, extraFormulas?) {
+    const byKey = new Map<any, any>();
+    const phrases = new Map<any, any>();
+    const entryPhrases = new Map<any, any>();
     let maxWords = 1;
     const list = Array.isArray(vocab) ? vocab.slice() : [];
     // Công thức có tên truyền riêng (formulas) mà từ vựng chưa khai: nhận bằng chính khoá của nó
@@ -331,23 +334,23 @@
     return { byKey, phrases, entryPhrases, maxWords: Math.max(maxWords, KW_MAX_WORDS) };
   }
 
-  const labelOf = (idx, key) => {
+  const labelOf = (idx?, key?) => {
     const e = idx.byKey.get(key);
     return e && typeof e.label === 'string' && e.label ? e.label : key;
   };
 
   // Kiểm một từ vựng: trả lỗi (không dùng được) và cảnh báo (dùng được nhưng nên xem lại)
-  function checkVocabulary(vocab) {
-    const errors = [];
-    const warnings = [];
-    const add = (list, code, message, key) => list.push({ code, message, key });
+  function checkVocabulary(vocab?) {
+    const errors: any[] = [];
+    const warnings: any[] = [];
+    const add = (list?, code?, message?, key?) => list.push({ code, message, key });
     if (!Array.isArray(vocab)) {
       add(errors, 'FORMULA_VOCAB_BAD', 'Từ vựng phải là một danh sách.');
       return { ok: false, errors, warnings };
     }
-    const keys = new Set();
-    const labels = new Map();
-    const synonyms = new Map();
+    const keys = new Set<any>();
+    const labels = new Map<any, any>();
+    const synonyms = new Map<any, any>();
     for (const e of vocab) {
       if (!isObj(e) || typeof e.key !== 'string' || !e.key) {
         add(errors, 'FORMULA_VOCAB_BAD', 'Mục từ vựng thiếu khoá.');
@@ -397,7 +400,7 @@
       if (ks.length > 1) add(errors, 'FORMULA_VOCAB_CLASH', `Nhãn ‘${f}’ dùng chung cho ${ks.join(', ')}.`, ks[0]);
     for (const [f, ks] of synonyms) {
       const own = labels.get(f) || [];
-      const all = [...new Set([...ks, ...own])];
+      const all = [...new Set<any>([...ks, ...own])];
       if (all.length > 1)
         add(
           warnings,
@@ -416,9 +419,9 @@
   }
 
   // Gợi ý: nhãn gần nhất theo khoảng cách chỉnh sửa, cộng điểm cho từ trùng hoặc lệch một chữ
-  function suggest(queries, idx, lim) {
-    const scored = new Map();
-    const closeWord = (a, b) =>
+  function suggest(queries?, idx?, lim?) {
+    const scored = new Map<any, any>();
+    const closeWord = (a?, b?) =>
       a === b ||
       (a.length >= lim.suggestWordMinLen &&
         b.length >= lim.suggestWordMinLen &&
@@ -449,8 +452,8 @@
       }
     }
     const ranked = [...scored.entries()]
-      .map(([key, v]) => ({ key, score: v.score, qi: v.qi, label: labelOf(idx, key) }))
-      .sort((a, b) => a.score - b.score || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
+      .map(([key, v]: any) => ({ key, score: v.score, qi: v.qi, label: labelOf(idx, key) }))
+      .sort((a: any, b: any) => a.score - b.score || (a.label < b.label ? -1 : a.label > b.label ? 1 : 0))
       .slice(0, lim.maxSuggestions);
     return { labels: ranked.map(r => r.label), keys: ranked.map(r => r.key), queryIdx: ranked.map(r => r.qi) };
   }
@@ -458,9 +461,9 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // Vị trí trong chữ gốc của từng nút (không nằm trong cây, nên cây so sánh được và lưu được)
   // ---------------------------------------------------------------------------------------------------------------------
-  const SPAN = new WeakMap();
-  const TARGET_SPAN = new WeakMap();
-  const spanOf = node => (isObj(node) ? SPAN.get(node) || null : null);
+  const SPAN = new WeakMap<any, any>();
+  const TARGET_SPAN = new WeakMap<any, any>();
+  const spanOf = (node?) => (isObj(node) ? SPAN.get(node) || null : null);
 
   // ---------------------------------------------------------------------------------------------------------------------
   // Các lớp nút (danh sách đóng). Mỗi lớp có: children, shapeError, evaluate, describe, validate, dependencies (qua walk),
@@ -486,12 +489,12 @@
     ref: 'FormulaRef',
     builtin: 'BuiltinCall'
   });
-  const clsOf = node => {
+  const clsOf = (node?) => {
     if (!isObj(node) || typeof node.t !== 'string' || !hasOwn(T2C, node.t)) return null;
     return CLASSES[T2C[node.t]];
   };
 
-  function precOf(node) {
+  function precOf(node?) {
     switch (node.t) {
       case 'cond':
       case 'tier':
@@ -512,17 +515,17 @@
     }
   }
 
-  const dnode = (node, dc, minPrec) => clsOf(node).describe(node, dc, minPrec);
-  const wrap = (s, node, minPrec) => (precOf(node) < minPrec ? `(${s})` : s);
+  const dnode = (node?, dc?, minPrec?) => clsOf(node).describe(node, dc, minPrec);
+  const wrap = (s?, node?, minPrec?) => (precOf(node) < minPrec ? `(${s})` : s);
 
-  function numFromInput(src, key) {
+  function numFromInput(src?, key?) {
     if (typeof src === 'boolean') return src ? 1 : 0;
     if (typeof src !== 'number' || !Number.isFinite(src))
       throw new FormulaError('FORMULA_MISSING_INPUT', `Thiếu hoặc sai giá trị đầu vào ‘${key}’.`, { key });
     return src;
   }
   // Khoá có chỗ giữ chỗ, ví dụ 'type.<type>.travel' (cùng dạng khoá registry): thay <type> bằng ctx.scope.type (loại nhân sự của người đang tính)
-  function resolveKey(st, key) {
+  function resolveKey(st?, key?) {
     if (!key.includes('<')) return key;
     return key.replace(RE_PLACEHOLDER, (all, name) => {
       const v = st.scope && hasOwn(st.scope, name) ? st.scope[name] : undefined;
@@ -531,7 +534,7 @@
       return String(v);
     });
   }
-  function inputOf(st, rawKey, prefer) {
+  function inputOf(st?, rawKey?, prefer?) {
     const key = resolveKey(st, rawKey);
     const first = prefer === 'params' ? st.params : st.vars;
     const second = prefer === 'params' ? st.vars : st.params;
@@ -546,7 +549,7 @@
     }
     return { found, src };
   }
-  function readInput(st, key, prefer) {
+  function readInput(st?, key?, prefer?) {
     const { found, src } = inputOf(st, key, prefer);
     if (!found) throw new FormulaError('FORMULA_MISSING_INPUT', `Thiếu giá trị đầu vào ‘${key}’.`, { key });
     if (Array.isArray(src)) {
@@ -561,12 +564,12 @@
     }
     return numFromInput(src, key);
   }
-  function fin(x, node) {
+  function fin(x?, node?) {
     if (!Number.isFinite(x))
       throw new FormulaError('FORMULA_NOT_FINITE', 'Kết quả không phải số hữu hạn.', { at: spanOf(node) });
     return x === 0 ? 0 : x;
   }
-  const evalNode = (node, st, depth) => {
+  const evalNode = (node?, st?, depth?) => {
     if (depth > st.lim.maxEvalDepth) throw new FormulaError('FORMULA_TOO_LARGE', 'Công thức lồng quá sâu để tính.');
     const c = clsOf(node);
     if (!c) throw new FormulaError('FORMULA_UNKNOWN_NODE', 'Nút lạ trong cây công thức.');
@@ -574,9 +577,9 @@
   };
 
   // Các khoá đầu vào (biến, tham số) mà một cây dùng, kể cả đi qua công thức có tên: để biết "tổng theo ngày" lặp bao nhiêu ngày
-  function inputKeysDeep(node, st) {
-    const keys = new Set();
-    const seenRefs = new Set();
+  function inputKeysDeep(node?, st?) {
+    const keys = new Set<any>();
+    const seenRefs = new Set<any>();
     const stack = [node];
     let guard = 0;
     while (stack.length && guard++ < st.lim.maxNodes * 10) {
@@ -594,43 +597,43 @@
     return keys;
   }
 
-  const unitSuffixText = (unit, value) => {
+  const unitSuffixText = (unit?, value?) => {
     if (unit === 'percent') return `${fmtNum(Number((value * 100).toPrecision(12)))}%`;
     if (unit && hasOwn(UNIT_WORD, unit)) return `${fmtNum(value)} ${UNIT_WORD[unit]}`;
     return fmtNum(value);
   };
 
-  function onlyKeys(raw, allowed) {
+  function onlyKeys(raw?, allowed?) {
     for (const k of Object.keys(raw))
       if (!allowed.includes(k))
         throw new FormulaError('FORMULA_BAD_NODE', `Nút có trường lạ ‘${String(k).slice(0, 30)}’.`);
   }
-  function needChild(dz, id, field) {
+  function needChild(dz?, id?, field?) {
     if (typeof id !== 'string') throw new FormulaError('FORMULA_BAD_NODE', `Thiếu nút con ‘${field}’.`);
     return dz.child(id);
   }
-  function needArgs(dz, raw, min) {
+  function needArgs(dz?, raw?, min?) {
     if (!Array.isArray(raw.args) || raw.args.length < min)
       throw new FormulaError('FORMULA_BAD_NODE', `Nút ‘${raw.t}’ cần danh sách args có ít nhất ${min} phần tử.`);
     return raw.args.map(id => needChild(dz, id, 'args'));
   }
 
   // Báo lỗi kiểm: có mã, câu tiếng Việt, vị trí trong chữ (nếu cây vừa được phân tích) và đường đi trong cây
-  function report(vs, node, path, code, message, extra) {
+  function report(vs?, node?, path?, code?, message?, extra?) {
     if (vs.errors.length >= vs.lim.maxNodes) return;
     const err = { code, message, at: spanOf(node), path };
     if (extra) for (const k of Object.keys(extra)) err[k] = extra[k];
     vs.errors.push(err);
   }
   // Nhãn đơn vị của một kiểu để hiện trên từng nút: 'VND', 'hour', 'VND/day', 'ratio', 'count', 'any' (0, 1 và hằng chưa gắn đơn vị), 'flag' (đúng/sai)
-  const typeLabel = t => (t.unknown ? null : t.bool ? 'flag' : t.any ? 'any' : t.cnt ? 'count' : unitName(t.dims));
-  const checkNode = (node, vs, path) => {
+  const typeLabel = (t?) => (t.unknown ? null : t.bool ? 'flag' : t.any ? 'any' : t.cnt ? 'count' : unitName(t.dims));
+  const checkNode = (node?, vs?, path?) => {
     const t = clsOf(node).validate(node, vs, path);
     const label = typeLabel(t);
     if (label && vs.units) vs.units[path] = label;
     return t;
   };
-  const descr = (node, vs) => {
+  const descr = (node?, vs?) => {
     try {
       return dnode(node, vs.dc, 0);
     } catch {
@@ -638,7 +641,7 @@
     }
   };
 
-  function needNumeric(t, vs, node, path) {
+  function needNumeric(t?, vs?, node?, path?) {
     if (t.unknown) return T_UNKNOWN;
     if (t.bool) {
       report(
@@ -652,7 +655,7 @@
     }
     return t;
   }
-  function needProp(t, vs, node, path) {
+  function needProp(t?, vs?, node?, path?) {
     if (t.unknown || t.bool || t.cnt) return true;
     report(
       vs,
@@ -663,7 +666,7 @@
     );
     return false;
   }
-  function unify(A, B, vs, node, path, verb) {
+  function unify(A?, B?, vs?, node?, path?, verb?) {
     if (A.unknown || B.unknown) return T_UNKNOWN;
     if (A.bool || B.bool) {
       needNumeric(A, vs, node.t === 'op' ? node.a : node, path);
@@ -697,7 +700,7 @@
   }
 
   // Có "tổng theo ngày" nằm trong cây này không (không đi vào công thức có tên)?
-  function hasSumDays(tree, lim) {
+  function hasSumDays(tree?, lim?) {
     let found = false;
     walk(
       tree,
@@ -709,7 +712,7 @@
     return found;
   }
   // Nhánh này có dùng biến/tham số/hàm có sẵn THEO NGÀY không (không đi vào công thức có tên)?
-  function usesDay(node, vs) {
+  function usesDay(node?, vs?) {
     let found = false;
     walk(
       node,
@@ -724,7 +727,7 @@
   }
   // Trong "tổng theo ngày", các số hạng CỘNG/TRỪ/CHỌN (cộng, trừ, nhỏ nhất, lớn nhất, hai nhánh, giá trị các hàng) mà một số hạng theo ngày
   // còn số hạng kia là số cấp tháng (không phải 0, 1 hay tỷ lệ) sẽ bị cộng lại MỖI NGÀY: từ chối. Nhân/chia với số cấp tháng thì hợp lệ.
-  function monthTermInDaySum(vs, parts) {
+  function monthTermInDaySum(vs?, parts?) {
     if (!vs.insideSum) return;
     const dayFlags = parts.map(x => usesDay(x.node, vs));
     if (!dayFlags.some(Boolean)) return;
@@ -742,7 +745,7 @@
   // Giá trị số của một cạnh nếu nó là hằng (số 0/1 hoặc hằng tự sinh); không thì undefined
   // Cạnh là hằng (số 0/1, hằng tự sinh, dấu trừ của hằng) hoặc tham số registry đã biết giá trị (opts.parameters, khoá không có <chỗ giữ chỗ>):
   // trả số; không thì undefined
-  function boundValue(node, vs) {
+  function boundValue(node?, vs?) {
     if (!isObj(node)) return undefined;
     if (node.t === 'lit') return node.v;
     if (node.t === 'param') {
@@ -759,13 +762,13 @@
     return undefined;
   }
   // Hai cạnh "bằng nhau": cùng giá trị khi biết giá trị, không thì cùng cây
-  function boundKey(node, vs) {
+  function boundKey(node?, vs?) {
     const v = boundValue(node, vs);
     return v !== undefined ? `n:${v === 0 ? 0 : v}` : JSON.stringify(serialize(node));
   }
 
   // Chia cho 0: số hằng bằng 0 (gấp được thành số) hoặc đầu vào có khoảng giá trị chứa 0
-  function constFold(node) {
+  function constFold(node?) {
     if (!isObj(node)) return undefined;
     if (node.t === 'lit') return node.v;
     if (node.t === 'op' && node.op === 'neg') {
@@ -783,14 +786,14 @@
     }
     return undefined;
   }
-  function rangeHasZero(e) {
+  function rangeHasZero(e?) {
     if (!isObj(e) || e.nonZero === true) return false;
     const lo = isNum(e.min) ? e.min : null;
     const hi = isNum(e.max) ? e.max : null;
     if (lo === null && hi === null) return false;
     return (lo === null ? -Infinity : lo) <= 0 && (hi === null ? Infinity : hi) >= 0;
   }
-  function entryOfNode(node, vs) {
+  function entryOfNode(node?, vs?) {
     if (node.t === 'var') return vs.idx.byKey.get(node.id);
     if (node.t === 'param') return vs.idx.byKey.get(node.key);
     if (node.t === 'ref') return vs.idx.byKey.get(node.name);
@@ -799,7 +802,7 @@
   }
 
   // Biến, tham số, hàm có sẵn theo ngày: chỉ dùng trong "tổng theo ngày (…)"
-  function dayCheck(e, node, vs, path) {
+  function dayCheck(e?, node?, vs?, path?) {
     if (!isObj(e) || e.domain !== 'day') return;
     if (vs.insideSum) {
       vs.sawDay = true;
@@ -810,7 +813,7 @@
       key: e.key
     });
   }
-  function typeOfEntry(e, vs, node, path) {
+  function typeOfEntry(e?, vs?, node?, path?) {
     const info = unitInfo(e.unit);
     if (!info) {
       report(vs, node, path, 'FORMULA_BAD_VOCAB', `‘${e.key}’ trong từ vựng có đơn vị không hợp lệ.`, { key: e.key });
@@ -823,13 +826,13 @@
     // ----- Literal: chỉ 0 và 1; mọi số khác gõ vào đã thành tham số tự sinh -----
     Literal: {
       children: () => [],
-      shapeError: node =>
+      shapeError: (node?) =>
         node.v === 0 || node.v === 1 ? null : 'Số viết thẳng chỉ được là 0 hoặc 1 (số khác là tham số).',
-      evaluate: node => node.v,
-      describe: node => fmtNum(node.v),
+      evaluate: (node?) => node.v,
+      describe: (node?) => fmtNum(node.v),
       validate: () => T_ANY,
-      serialize: node => ({ t: 'lit', v: node.v }),
-      deserialize: raw => {
+      serialize: (node?) => ({ t: 'lit', v: node.v }),
+      deserialize: (raw?) => {
         onlyKeys(raw, ['t', 'v']);
         if (!(raw.v === 0 || raw.v === 1))
           throw new FormulaError('FORMULA_BAD_NODE', 'Số viết thẳng chỉ được là 0 hoặc 1.');
@@ -840,10 +843,10 @@
     // ----- Variable: đầu vào của bộ máy, có đơn vị và miền (tra trong từ vựng) -----
     Variable: {
       children: () => [],
-      shapeError: (node, lim) => (isKey(node.id, lim) ? null : 'Biến thiếu mã hợp lệ (id).'),
-      evaluate: (node, st) => readInput(st, node.id, 'vars'),
-      describe: (node, dc) => labelOf(dc, node.id),
-      validate: (node, vs, path) => {
+      shapeError: (node?, lim?) => (isKey(node.id, lim) ? null : 'Biến thiếu mã hợp lệ (id).'),
+      evaluate: (node?, st?) => readInput(st, node.id, 'vars'),
+      describe: (node?, dc?) => labelOf(dc, node.id),
+      validate: (node?, vs?, path?) => {
         const e = vs.idx.byKey.get(node.id);
         if (!e || e.kind !== 'variable') {
           report(vs, node, path, 'FORMULA_UNKNOWN_VARIABLE', `‘${node.id}’ không phải biến trong từ vựng.`, {
@@ -854,8 +857,8 @@
         dayCheck(e, node, vs, path);
         return typeOfEntry(e, vs, node, path);
       },
-      serialize: node => ({ t: 'var', id: node.id }),
-      deserialize: (raw, dz) => {
+      serialize: (node?) => ({ t: 'var', id: node.id }),
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'id']);
         if (!isKey(raw.id, dz.lim)) throw new FormulaError('FORMULA_BAD_NODE', 'Nút ‘var’ thiếu id hợp lệ.');
         return { t: 'var', id: raw.id };
@@ -865,7 +868,7 @@
     // ----- Parameter: khoá registry. Số Admin gõ (khác 0 và 1) là tham số tự sinh `formula.<tên>.const.<n>` kèm giá trị đề xuất -----
     Parameter: {
       children: () => [],
-      shapeError: (node, lim) => {
+      shapeError: (node?, lim?) => {
         if (!isKey(node.key, lim)) return 'Tham số thiếu khoá hợp lệ (key).';
         if (isConstKey(node.key)) {
           if (!isNum(node.value) || node.value < 0 || node.value > lim.maxLiteral)
@@ -875,17 +878,17 @@
           return 'Chỉ hằng tự sinh mới mang value và unit.';
         return null;
       },
-      evaluate: (node, st) => {
+      evaluate: (node?, st?) => {
         const { found } = inputOf(st, node.key, 'params');
         if (!found && isConstKey(node.key)) return node.value;
         return readInput(st, node.key, 'params');
       },
-      describe: (node, dc) => (isConstKey(node.key) ? unitSuffixText(node.unit, node.value) : labelOf(dc, node.key)),
-      validate: (node, vs, path) => {
+      describe: (node?, dc?) => (isConstKey(node.key) ? unitSuffixText(node.unit, node.value) : labelOf(dc, node.key)),
+      validate: (node?, vs?, path?) => {
         if (isConstKey(node.key)) {
           if (node.unit === undefined) return T_ANY;
           const info = unitInfo(node.unit);
-          return tNum(info.dims, false);
+          return tNum(info!.dims, false);
         }
         const e = vs.idx.byKey.get(node.key);
         if (!e || e.kind !== 'parameter') {
@@ -897,17 +900,17 @@
         dayCheck(e, node, vs, path);
         return typeOfEntry(e, vs, node, path);
       },
-      serialize: node => {
-        const out = { t: 'param', key: node.key };
+      serialize: (node?) => {
+        const out: Record<string, any> = { t: 'param', key: node.key };
         if (isConstKey(node.key)) {
           out.value = node.value;
           if (node.unit !== undefined) out.unit = node.unit;
         }
         return out;
       },
-      deserialize: (raw, dz) => {
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'key', 'value', 'unit']);
-        const node = { t: 'param', key: raw.key };
+        const node: Record<string, any> = { t: 'param', key: raw.key };
         if (hasOwn(raw, 'value')) node.value = raw.value;
         if (hasOwn(raw, 'unit')) node.unit = raw.unit;
         const bad = CLASSES.Parameter.shapeError(node, dz.lim);
@@ -918,12 +921,12 @@
 
     // ----- Operator: + − × ÷, dấu trừ một ngôi, so sánh, và, hoặc, không -----
     Operator: {
-      children: node => {
+      children: (node?) => {
         if (node.t === 'and' || node.t === 'or') return node.args;
         if (node.t === 'not') return [node.arg];
         return node.op === 'neg' ? [node.a] : [node.a, node.b];
       },
-      shapeError: node => {
+      shapeError: (node?) => {
         if (node.t === 'and' || node.t === 'or')
           return Array.isArray(node.args) && node.args.length >= 2 && node.args.every(isObj)
             ? null
@@ -933,7 +936,7 @@
         if (!ARITH_OPS.includes(node.op) && !CMP_OPS.includes(node.op)) return 'Toán tử lạ.';
         return isObj(node.a) && isObj(node.b) ? null : 'Toán tử thiếu toán hạng.';
       },
-      evaluate: (node, st, d) => {
+      evaluate: (node?, st?, d?) => {
         if (node.t === 'and') {
           for (const a of node.args) if (evalNode(a, st, d + 1) === 0) return 0;
           return 1;
@@ -969,7 +972,7 @@
             return a === b ? 1 : 0;
         }
       },
-      describe: (node, dc, minPrec) => {
+      describe: (node?, dc?, minPrec?) => {
         let s;
         if (node.t === 'and') s = node.args.map(a => dnode(a, dc, PREC.not)).join(' và ');
         else if (node.t === 'or') s = node.args.map(a => dnode(a, dc, PREC.and)).join(' hoặc ');
@@ -989,7 +992,7 @@
         }
         return wrap(s, node, minPrec);
       },
-      validate: (node, vs, path) => {
+      validate: (node?, vs?, path?) => {
         if (node.t === 'and' || node.t === 'or') {
           node.args.forEach((a, i) => needProp(checkNode(a, vs, `${path}.args[${i}]`), vs, a, `${path}.args[${i}]`));
           return T_BOOL;
@@ -1039,13 +1042,13 @@
           }
         }
       },
-      serialize: (node, ser) => {
+      serialize: (node?, ser?) => {
         if (node.t === 'and' || node.t === 'or') return { t: node.t, args: node.args.map(a => ser(a)) };
         if (node.t === 'not') return { t: 'not', arg: ser(node.arg) };
         if (node.op === 'neg') return { t: 'op', op: 'neg', a: ser(node.a) };
         return { t: 'op', op: node.op, a: ser(node.a), b: ser(node.b) };
       },
-      deserialize: (raw, dz) => {
+      deserialize: (raw?, dz?) => {
         if (raw.t === 'and' || raw.t === 'or') {
           onlyKeys(raw, ['t', 'args']);
           return { t: raw.t, args: needArgs(dz, raw, 2) };
@@ -1067,17 +1070,17 @@
 
     // ----- Function: nhỏ nhất, lớn nhất, tổng theo ngày -----
     Function: {
-      children: node => node.args,
-      shapeError: node =>
+      children: (node?) => node.args,
+      shapeError: (node?) =>
         FN_NAMES.includes(node.name) && Array.isArray(node.args) && node.args.every(isObj)
           ? null
           : 'Hàm lạ hoặc thiếu đối số.',
-      evaluate: (node, st, d) => {
+      evaluate: (node?, st?, d?) => {
         if (node.name === 'sumDays') {
           if (st.day !== null) throw new FormulaError('FORMULA_DOMAIN_MIXED', '‘tổng theo ngày’ không lồng nhau được.');
           if (node.args.length !== 1)
             throw new FormulaError('FORMULA_ARG_COUNT', '‘tổng theo ngày’ nhận đúng một đối số.');
-          let n = null;
+          let n: any = null;
           for (const key of inputKeysDeep(node.args[0], st)) {
             const { found, src } = inputOf(st, key, 'vars');
             if (!found || !Array.isArray(src)) continue;
@@ -1110,11 +1113,11 @@
         }
         return best;
       },
-      describe: (node, dc) => {
+      describe: (node?, dc?) => {
         const name = node.name === 'min' ? 'nhỏ nhất của' : node.name === 'max' ? 'lớn nhất của' : 'tổng theo ngày';
         return `${name} (${node.args.map(a => dnode(a, dc, PREC.cond)).join(' ; ')})`;
       },
-      validate: (node, vs, path) => {
+      validate: (node?, vs?, path?) => {
         if (node.name === 'sumDays') {
           if (node.args.length !== 1) {
             report(vs, node, path, 'FORMULA_ARG_COUNT', '‘tổng theo ngày’ nhận đúng một đối số.');
@@ -1160,8 +1163,8 @@
         for (let i = 1; i < argTypes.length; i++) acc = unify(acc, argTypes[i], vs, node, path, 'so sánh');
         return acc;
       },
-      serialize: (node, ser) => ({ t: 'fn', name: node.name, args: node.args.map(a => ser(a)) }),
-      deserialize: (raw, dz) => {
+      serialize: (node?, ser?) => ({ t: 'fn', name: node.name, args: node.args.map(a => ser(a)) }),
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'name', 'args']);
         if (!FN_NAMES.includes(raw.name)) throw new FormulaError('FORMULA_BAD_NODE', 'Hàm lạ trong nút ‘fn’.');
         return { t: 'fn', name: raw.name, args: needArgs(dz, raw, 1) };
@@ -1170,18 +1173,18 @@
 
     // ----- Condition: nếu … thì … ngược lại … (ngược lại bắt buộc) -----
     Condition: {
-      children: node => [node.if, node.then, node.else],
-      shapeError: node =>
+      children: (node?) => [node.if, node.then, node.else],
+      shapeError: (node?) =>
         isObj(node.if) && isObj(node.then) && isObj(node.else) ? null : 'Điều kiện thiếu if, then hoặc else.',
-      evaluate: (node, st, d) =>
+      evaluate: (node?, st?, d?) =>
         evalNode(node.if, st, d + 1) !== 0 ? evalNode(node.then, st, d + 1) : evalNode(node.else, st, d + 1),
-      describe: (node, dc, minPrec) =>
+      describe: (node?, dc?, minPrec?) =>
         wrap(
           `nếu ${dnode(node.if, dc, PREC.cond)} thì ${dnode(node.then, dc, PREC.or)} ngược lại ${dnode(node.else, dc, PREC.cond)}`,
           node,
           minPrec
         ),
-      validate: (node, vs, path) => {
+      validate: (node?, vs?, path?) => {
         needProp(checkNode(node.if, vs, `${path}.if`), vs, node.if, `${path}.if`);
         const A = checkNode(node.then, vs, `${path}.then`),
           B = checkNode(node.else, vs, `${path}.else`);
@@ -1191,8 +1194,8 @@
         ]);
         return unify(A, B, vs, node, path, 'chọn nhánh');
       },
-      serialize: (node, ser) => ({ t: 'cond', if: ser(node.if), then: ser(node.then), else: ser(node.else) }),
-      deserialize: (raw, dz) => {
+      serialize: (node?, ser?) => ({ t: 'cond', if: ser(node.if), then: ser(node.then), else: ser(node.else) }),
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'if', 'then', 'else']);
         return {
           t: 'cond',
@@ -1206,8 +1209,8 @@
     // ----- FormulaRef: tham chiếu một công thức có tên khác (đồ thị không được có vòng) -----
     FormulaRef: {
       children: () => [],
-      shapeError: (node, lim) => (isName(node.name, lim) ? null : 'Tham chiếu công thức thiếu tên hợp lệ.'),
-      evaluate: (node, st, d) => {
+      shapeError: (node?, lim?) => (isName(node.name, lim) ? null : 'Tham chiếu công thức thiếu tên hợp lệ.'),
+      evaluate: (node?, st?, d?) => {
         const f = st.formulas && hasOwn(st.formulas, node.name) ? asTree(st.formulas[node.name]) : null;
         if (f) {
           // kết quả đã nhớ luôn là của công thức theo tháng (không đọc biến ngày), nên dùng lại được cả trong vòng "tổng theo ngày"
@@ -1231,8 +1234,8 @@
           key: node.name
         });
       },
-      describe: (node, dc) => labelOf(dc, node.name),
-      validate: (node, vs, path) => {
+      describe: (node?, dc?) => labelOf(dc, node.name),
+      validate: (node?, vs?, path?) => {
         const e = vs.idx.byKey.get(node.name);
         if (e && e.kind !== 'formula') {
           report(vs, node, path, 'FORMULA_UNKNOWN_REF', `‘${node.name}’ không phải công thức có tên.`, {
@@ -1260,13 +1263,13 @@
         }
         if (vs.refStack.includes(node.name)) return T_UNKNOWN;
         vs.refStack.push(node.name);
-        const sink = { ...vs, errors: [], units: {}, insideSum: false, sawDay: false };
+        const sink = { ...vs, errors: [] as any[], units: {} as Record<string, any>, insideSum: false, sawDay: false };
         const t = checkNode(f, sink, 'tham chiếu');
         vs.refStack.pop();
         return t;
       },
-      serialize: node => ({ t: 'ref', name: node.name }),
-      deserialize: (raw, dz) => {
+      serialize: (node?) => ({ t: 'ref', name: node.name }),
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'name']);
         if (!isName(raw.name, dz.lim)) throw new FormulaError('FORMULA_BAD_NODE', 'Nút ‘ref’ thiếu tên hợp lệ.');
         return { t: 'ref', name: raw.name };
@@ -1276,7 +1279,7 @@
     // ----- BuiltinCall: hàm có sẵn bị khoá (gọi được, không sửa được); nhận (args, params) và trả số hoặc đúng/sai -----
     // ----- Tier: bảng bậc "bảng bậc theo <chỉ số>: từ a trở lên → x; từ a đến dưới b → y; dưới b → z". "từ a" gồm a, "đến dưới b" không gồm b -----
     Tier: {
-      children: node => {
+      children: (node?) => {
         const out = [node.by];
         for (const r of node.rows) {
           if (r.from) out.push(r.from);
@@ -1285,7 +1288,7 @@
         }
         return out;
       },
-      shapeError: (node, lim) => {
+      shapeError: (node?, lim?) => {
         if (!isObj(node.by) || !Array.isArray(node.rows)) return 'Bảng bậc thiếu chỉ số hoặc danh sách hàng.';
         if (node.rows.length < 2 || node.rows.length > lim.maxTierRows)
           return `Bảng bậc cần từ 2 đến ${lim.maxTierRows} hàng.`;
@@ -1297,9 +1300,9 @@
         }
         return null;
       },
-      evaluate: (node, st, d) => {
+      evaluate: (node?, st?, d?) => {
         const x = evalNode(node.by, st, d + 1);
-        let hit = null;
+        let hit: any = null;
         let matches = 0;
         for (const r of node.rows) {
           const lo = r.from ? evalNode(r.from, st, d + 1) : null;
@@ -1335,7 +1338,7 @@
           );
         return evalNode(hit.value, st, d + 1);
       },
-      describe: (node, dc, minPrec) => {
+      describe: (node?, dc?, minPrec?) => {
         const rows = node.rows.map(r => {
           const head =
             r.from && r.to
@@ -1347,11 +1350,11 @@
         });
         return wrap(`bảng bậc theo ${dnode(node.by, dc, PREC.sum)}: ${rows.join('; ')}`, node, minPrec);
       },
-      validate: (node, vs, path) => {
+      validate: (node?, vs?, path?) => {
         const X = needNumeric(checkNode(node.by, vs, `${path}.by`), vs, node.by, `${path}.by`);
         const rows = node.rows;
-        let acc = null;
-        const valueParts = [];
+        let acc: any = null;
+        const valueParts: any[] = [];
         rows.forEach((r, i) => {
           const rp = `${path}.rows[${i}]`;
           for (const side of ['from', 'to']) {
@@ -1376,7 +1379,7 @@
             'Bảng bậc phải có đúng một hàng thấp nhất (‘dưới …’) và đúng một hàng cao nhất (‘từ … trở lên’), để mọi giá trị đều rơi vào một hàng.'
           );
         } else {
-          const seen = new Set();
+          const seen = new Set<any>();
           let cur = lowers[0];
           seen.add(cur);
           while (cur.to) {
@@ -1421,18 +1424,18 @@
         }
         return acc === null ? T_UNKNOWN : acc;
       },
-      serialize: (node, ser) => ({
+      serialize: (node?, ser?) => ({
         t: 'tier',
         by: ser(node.by),
         rows: node.rows.map(r => {
-          const out = {};
+          const out: Record<string, any> = {};
           if (r.from) out.from = ser(r.from);
           if (r.to) out.to = ser(r.to);
           out.value = ser(r.value);
           return out;
         })
       }),
-      deserialize: (raw, dz) => {
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'by', 'rows']);
         if (!Array.isArray(raw.rows) || raw.rows.length < 2 || raw.rows.length > dz.lim.maxTierRows)
           throw new FormulaError(
@@ -1443,7 +1446,7 @@
         const rows = raw.rows.map(r => {
           if (!isObj(r)) throw new FormulaError('FORMULA_BAD_NODE', 'Hàng của bảng bậc phải là đối tượng.');
           onlyKeys(r, ['from', 'to', 'value']);
-          const out = {};
+          const out: Record<string, any> = {};
           if (hasOwn(r, 'from')) out.from = needChild(dz, r.from, 'from');
           if (hasOwn(r, 'to')) out.to = needChild(dz, r.to, 'to');
           out.value = needChild(dz, r.value, 'value');
@@ -1454,12 +1457,12 @@
     },
 
     BuiltinCall: {
-      children: node => node.args,
-      shapeError: (node, lim) =>
+      children: (node?) => node.args,
+      shapeError: (node?, lim?) =>
         isKey(node.name, lim) && Array.isArray(node.args) && node.args.every(isObj)
           ? null
           : 'Lời gọi hàm có sẵn thiếu tên hoặc đối số.',
-      evaluate: (node, st, d) => {
+      evaluate: (node?, st?, d?) => {
         const fn = st.builtins && hasOwn(st.builtins, node.name) ? st.builtins[node.name] : null;
         if (typeof fn !== 'function')
           throw new FormulaError('FORMULA_MISSING_BUILTIN', `Thiếu cài đặt hàm có sẵn ‘${node.name}’.`, {
@@ -1474,11 +1477,11 @@
           });
         return out;
       },
-      describe: (node, dc) => {
+      describe: (node?, dc?) => {
         const label = labelOf(dc, node.name);
         return node.args.length ? `${label} (${node.args.map(a => dnode(a, dc, PREC.cond)).join(' ; ')})` : label;
       },
-      validate: (node, vs, path) => {
+      validate: (node?, vs?, path?) => {
         const e = vs.idx.byKey.get(node.name);
         const types = node.args.map((a, i) => checkNode(a, vs, `${path}.args[${i}]`));
         if (!e || e.kind !== 'builtin') {
@@ -1516,8 +1519,8 @@
         }
         return typeOfEntry(e, vs, node, path);
       },
-      serialize: (node, ser) => ({ t: 'builtin', name: node.name, args: node.args.map(a => ser(a)) }),
-      deserialize: (raw, dz) => {
+      serialize: (node?, ser?) => ({ t: 'builtin', name: node.name, args: node.args.map(a => ser(a)) }),
+      deserialize: (raw?, dz?) => {
         onlyKeys(raw, ['t', 'name', 'args']);
         if (!isKey(raw.name, dz.lim)) throw new FormulaError('FORMULA_BAD_NODE', 'Nút ‘builtin’ thiếu tên hợp lệ.');
         return { t: 'builtin', name: raw.name, args: needArgs(dz, raw, 0) };
@@ -1528,7 +1531,7 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // Duyệt cây bằng ngăn xếp tường minh (không đệ quy: cây từ nguồn ngoài có thể rất sâu)
   // ---------------------------------------------------------------------------------------------------------------------
-  function walk(root, visit, lim) {
+  function walk(root?, visit?, lim?) {
     const stack = [root];
     let n = 0;
     const cap = lim.maxNodes * 10;
@@ -1545,9 +1548,9 @@
   }
 
   // Quét cây trước khi tin nó: đủ nhỏ, đủ nông, mọi nút thuộc danh sách đóng và đúng hình dạng
-  function scan(tree, lim) {
-    const errors = [];
-    const bad = (code, message, path, node) => errors.push({ code, message, at: spanOf(node), path });
+  function scan(tree?, lim?) {
+    const errors: any[] = [];
+    const bad = (code?, message?, path?, node?) => errors.push({ code, message, at: spanOf(node), path });
     if (!isObj(tree)) {
       bad('FORMULA_BAD_NODE', 'Cây công thức rỗng hoặc sai kiểu.', 'cây', null);
       return { errors, count: 0, depth: 0 };
@@ -1556,7 +1559,7 @@
     let count = 0,
       depth = 0;
     while (stack.length) {
-      const [node, d, path] = stack.pop();
+      const [node, d, path] = stack.pop()!;
       count++;
       if (count > lim.maxNodes) {
         bad('FORMULA_TOO_LARGE', `Công thức có quá ${lim.maxNodes} nút.`, path, node);
@@ -1607,19 +1610,19 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // serialize / deserialize: dạng lưu phẳng ({ v, root, nodes }), kiểm lại toàn bộ khi nạp
   // ---------------------------------------------------------------------------------------------------------------------
-  function serialize(tree) {
+  function serialize(tree?) {
     const sc = scan(tree, LIMITS);
     if (sc.errors.length) throw new FormulaError(sc.errors[0].code, sc.errors[0].message);
-    const nodes = {};
+    const nodes: Record<string, any> = {};
     let n = 0;
-    const ser = node => {
+    const ser = (node?) => {
       const id = `n${++n}`;
       nodes[id] = null;
       nodes[id] = clsOf(node).serialize(node, ser);
       return id;
     };
     const root = ser(tree);
-    const out = { v: FORMAT_VERSION };
+    const out: Record<string, any> = { v: FORMAT_VERSION };
     if (typeof tree.target === 'string' && tree.target) out.name = tree.target;
     out.root = root;
     out.nodes = nodes;
@@ -1627,7 +1630,7 @@
   }
 
   const RE_ID = /^[A-Za-z0-9_]+$/;
-  function deserialize(input, opts) {
+  function deserialize(input?, opts?) {
     const lim = limitsOf(opts);
     let raw = input;
     if (typeof raw === 'string') {
@@ -1651,7 +1654,7 @@
     const ids = Object.keys(raw.nodes);
     if (!ids.length) throw new FormulaError('FORMULA_BAD_NODE', 'Danh sách nodes rỗng.');
     if (ids.length > lim.maxNodes) throw new FormulaError('FORMULA_TOO_LARGE', `Bản lưu có quá ${lim.maxNodes} nút.`);
-    const nodes = new Map();
+    const nodes = new Map<any, any>();
     for (const id of ids) {
       if (id === '__proto__' || id.length > lim.maxIdChars || !RE_ID.test(id))
         throw new FormulaError('FORMULA_BAD_NODE', `Mã nút ‘${id.slice(0, 20)}’ không hợp lệ.`);
@@ -1659,12 +1662,12 @@
     }
     if (typeof raw.root !== 'string' || !nodes.has(raw.root))
       throw new FormulaError('FORMULA_BAD_NODE', 'root không trỏ vào nút nào.');
-    const visiting = new Set();
-    const used = new Set();
+    const visiting = new Set<any>();
+    const used = new Set<any>();
     let built = 0;
     const dz = {
       lim,
-      child: id => {
+      child: (id?) => {
         if (typeof id !== 'string' || !nodes.has(id))
           throw new FormulaError('FORMULA_BAD_NODE', 'Có nút con trỏ vào mã không tồn tại.');
         if (visiting.has(id)) throw new FormulaError('FORMULA_CYCLE', 'Cây có vòng giữa các nút.');
@@ -1696,7 +1699,7 @@
   }
 
   // Công thức có tên có thể đến dưới dạng cây hoặc bản lưu
-  function asTree(x) {
+  function asTree(x?) {
     if (clsOf(x)) return x;
     if (isObj(x) && isObj(x.nodes) && typeof x.root === 'string') {
       try {
@@ -1707,8 +1710,8 @@
     }
     return null;
   }
-  function normalizeFormulas(f) {
-    const out = new Map();
+  function normalizeFormulas(f?) {
+    const out = new Map<any, any>();
     if (!isObj(f)) return out;
     for (const k of Object.keys(f)) {
       const t = asTree(f[k]);
@@ -1720,10 +1723,10 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // dependencies, describe, evaluate
   // ---------------------------------------------------------------------------------------------------------------------
-  function dependencies(tree) {
-    const out = [];
-    const seen = new Set();
-    const add = k => {
+  function dependencies(tree?) {
+    const out: any[] = [];
+    const seen = new Set<any>();
+    const add = (k?) => {
       if (!seen.has(k)) {
         seen.add(k);
         out.push(k);
@@ -1742,7 +1745,7 @@
     return out;
   }
 
-  function describe(tree, vocabulary) {
+  function describe(tree?, vocabulary?) {
     const sc = scan(tree, LIMITS);
     if (sc.errors.length) throw new FormulaError(sc.errors[0].code, sc.errors[0].message);
     const vocab = isObj(vocabulary) && Array.isArray(vocabulary.vocabulary) ? vocabulary.vocabulary : vocabulary;
@@ -1751,16 +1754,16 @@
     return typeof tree.target === 'string' && tree.target ? `${labelOf(dc, tree.target)} = ${body}` : body;
   }
 
-  function pick(ctx, names) {
+  function pick(ctx?, names?) {
     for (const n of names) if (isObj(ctx[n])) return ctx[n];
     return null;
   }
-  function evaluate(tree, ctx) {
+  function evaluate(tree?, ctx?) {
     const lim = LIMITS;
     const sc = scan(tree, lim);
     if (sc.errors.length) throw new FormulaError(sc.errors[0].code, sc.errors[0].message);
     if (!isObj(ctx)) throw new FormulaError('FORMULA_BAD_CONTEXT', 'Thiếu ctx để tính công thức.');
-    const st = {
+    const st: Record<string, any> = {
       lim,
       vars: pick(ctx, ['vars', 'variables', 'values']) || {},
       params: pick(ctx, ['params', 'parameters']) || {},
@@ -1778,8 +1781,8 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // validate: đơn vị, miền ngày/tháng, chia cho 0, vòng, khoá, thành phần bắt buộc, giới hạn kích thước
   // ---------------------------------------------------------------------------------------------------------------------
-  function refNames(tree, lim) {
-    const out = new Set();
+  function refNames(tree?, lim?) {
+    const out = new Set<any>();
     walk(
       tree,
       n => {
@@ -1790,12 +1793,12 @@
     return [...out];
   }
 
-  function findCycle(tree, target, formulas, lim) {
+  function findCycle(tree?, target?, formulas?, lim?) {
     const root = target || '(công thức này)';
-    const treeOf = name => (name === root ? tree : formulas.get(name) || null);
-    const state = new Map();
-    const stack = [];
-    const dfs = name => {
+    const treeOf = (name?) => (name === root ? tree : formulas.get(name) || null);
+    const state = new Map<any, any>();
+    const stack: any[] = [];
+    const dfs = (name?) => {
       state.set(name, 1);
       stack.push(name);
       const t = treeOf(name);
@@ -1817,19 +1820,19 @@
   // không nằm trong nếu/thì/ngược lại, không nhân, chia hay đi qua hàm. Đi qua công thức có tên (FormulaRef) thì chính tham chiếu
   // phải là một số hạng nguyên vẹn, và bên trong nó khoản đó lại là một số hạng nguyên vẹn của tổng ngoài cùng của nó.
   // Trả { whole: số lần xuất hiện nguyên vẹn, bad: [nút xuất hiện không nguyên vẹn, thuộc cây này] }.
-  function requiredState(tree, key, formulas, stack, lim, idx) {
+  function requiredState(tree?, key?, formulas?, stack?, lim?, idx?) {
     // Một mục từ vựng khai `covers: [khoá…]` là MỘT khoản đã gồm nguyên vẹn các khoản đó (ví dụ tổng sáu thành phần ngày):
     // cộng nguyên vẹn mục đó vào tổng thì mỗi khoản được phủ cũng coi là đã cộng nguyên vẹn.
-    const covered = k => {
+    const covered = (k?) => {
       const e = idx && idx.byKey.get(k);
       return Boolean(e) && Array.isArray(e.covers) && e.covers.includes(key);
     };
-    const isKeyNode = n =>
+    const isKeyNode = (n?) =>
       (n.t === 'var' && (n.id === key || covered(n.id))) ||
       (n.t === 'param' && (n.key === key || covered(n.key))) ||
       ((n.t === 'builtin' || n.t === 'ref') && (n.name === key || covered(n.name)));
-    const terms = [];
-    const collect = (n, positive) => {
+    const terms: any[] = [];
+    const collect = (n?, positive?) => {
       if (isObj(n) && n.t === 'op' && n.op === 'add') {
         collect(n.a, positive);
         collect(n.b, positive);
@@ -1840,8 +1843,8 @@
     };
     collect(tree, true);
     // có khoản này ở đâu đó trong nhánh (kể cả sau một tham chiếu công thức có tên)?
-    const occurrences = n => {
-      const found = [];
+    const occurrences = (n?) => {
+      const found: any[] = [];
       walk(
         n,
         x => {
@@ -1856,8 +1859,8 @@
       );
       return found;
     };
-    const wholeNodes = [];
-    const bad = [];
+    const wholeNodes: any[] = [];
+    const bad: any[] = [];
     for (const { n, positive } of terms) {
       if (positive && isKeyNode(n)) {
         wholeNodes.push(n);
@@ -1875,12 +1878,12 @@
     return { whole: wholeNodes.length, wholeNodes, bad };
   }
 
-  function validate(tree, opts) {
+  function validate(tree?, opts?) {
     opts = isObj(opts) ? opts : {};
     const lim = limitsOf(opts);
     const sc = scan(tree, lim);
     if (sc.errors.length) return { ok: false, errors: sc.errors, unit: null, units: {} };
-    const errors = [];
+    const errors: any[] = [];
     const formulas = normalizeFormulas(opts.formulas);
     const idx = buildIndex(opts.vocabulary, lim, null);
     const target =
@@ -1896,13 +1899,13 @@
       dc: idx,
       errors,
       formulas,
-      units: {},
+      units: {} as Record<string, any>,
       insideSum: false,
       sawDay: false,
       refStack: target ? [target] : []
     };
     const rootSpan = TARGET_SPAN.get(tree) || spanOf(tree);
-    const rootErr = (code, message, extra) => {
+    const rootErr = (code?, message?, extra?) => {
       const e = { code, message, at: rootSpan, path: 'cây' };
       if (extra) for (const k of Object.keys(extra)) e[k] = extra[k];
       errors.push(e);
@@ -1934,7 +1937,7 @@
 
     // 3. đơn vị, miền, chia cho 0, khoá lạ
     const t = checkNode(tree, vs, 'cây');
-    let unit = null;
+    let unit: any = null;
     if (!t.unknown) unit = t.bool ? 'bool' : t.any ? 'any' : unitName(t.dims);
     if (!t.unknown && t.bool)
       errors.push({
@@ -1996,8 +1999,8 @@
   // ---------------------------------------------------------------------------------------------------------------------
   // Bộ tách từ
   // ---------------------------------------------------------------------------------------------------------------------
-  function gatherWords(text, i, max) {
-    const out = [];
+  function gatherWords(text?, i?, max?) {
+    const out: any[] = [];
     let p = i;
     while (out.length < max && isLetter(text[p])) {
       let e = p;
@@ -2011,7 +2014,7 @@
     return out;
   }
   // Khớp dài nhất bắt đầu tại vị trí i: từ khoá hoặc nhãn trong từ vựng (từ khoá thắng khi bằng nhau)
-  function findMatch(text, i, idx) {
+  function findMatch(text?, i?, idx?) {
     const run = gatherWords(text, i, idx.maxWords);
     for (let len = run.length; len >= 1; len--) {
       const key = run
@@ -2026,7 +2029,7 @@
     return { len: 0, run };
   }
 
-  function scanNumber(text, i) {
+  function scanNumber(text?, i?) {
     let j = i;
     while (isDigit(text[j])) j++;
     while ((text[j] === '.' || text[j] === ',') && isDigit(text[j + 1])) {
@@ -2036,7 +2039,7 @@
     return j;
   }
   // Số kiểu vi-VN: 1.234.567 · 1.234,5 · 1,5 · 0,15. "1.5" mơ hồ (1.500 hay 1,5): hỏi lại.
-  function interpretNumber(lex) {
+  function interpretNumber(lex?) {
     if (/^\d+$/.test(lex)) return { value: Number(lex) };
     const hasDot = lex.includes('.'),
       hasComma = lex.includes(',');
@@ -2057,19 +2060,19 @@
   }
 
   // Câu trả lời của người dùng cho một chỗ mơ hồ: theo "đầu:cuối" (vị trí trong chữ), "@đầu", hoặc theo chữ đã bỏ dấu
-  function choiceOf(choices, phrase, start, end) {
+  function choiceOf(choices?, phrase?, start?, end?) {
     for (const k of [`${start}:${end}`, `@${start}`, phrase]) if (hasOwn(choices, k)) return choices[k];
     return undefined;
   }
 
-  function tokenize(text, from, idx, opts, lim) {
-    const toks = [];
-    const errors = [];
-    const questions = [];
+  function tokenize(text?, from?, idx?, opts?, lim?) {
+    const toks: any[] = [];
+    const errors: any[] = [];
+    const questions: any[] = [];
     const choices = isObj(opts.choices) ? opts.choices : {};
     const n = text.length;
     let i = from;
-    const err = (code, message, s, e, extra) => {
+    const err = (code?, message?, s?, e?, extra?) => {
       if (errors.length >= lim.maxErrors) return;
       const o = { code, message, at: { start: s, end: e } };
       if (extra) for (const k of Object.keys(extra)) o[k] = extra[k];
@@ -2079,7 +2082,7 @@
       const p = toks[toks.length - 1];
       return Boolean(p) && (p.k === 'num' || p.k === 'ref' || p.k === 'amb' || p.k === ')');
     };
-    const push = (k, v, s, e) => toks.push({ k, v, start: s, end: e });
+    const push = (k?, v?, s?, e?) => toks.push({ k, v, start: s, end: e });
 
     while (i < n) {
       if (toks.length >= lim.maxTokens) {
@@ -2121,7 +2124,7 @@
             i = j;
             continue;
           }
-          const cv =
+          const cv: any =
             typeof chosen === 'number' ? { value: chosen } : typeof chosen === 'string' ? interpretNumber(chosen) : {};
           if (!isNum(cv.value)) {
             err('PARSE_BAD_CHOICE', `Lựa chọn cho ‘${lex}’ không hợp lệ.`, i, j);
@@ -2258,7 +2261,7 @@
     }
 
     // ----- chữ lạ (gộp chữ lạ liền nhau) và chữ mơ hồ -----
-    const out = [];
+    const out: any[] = [];
     let runs = 0;
     for (let a = 0; a < toks.length; a++) {
       const tk = toks[a];
@@ -2268,7 +2271,7 @@
         const s = tk.start,
           e = toks[b].end;
         const raw = text.slice(s, e);
-        let sug = { labels: [], keys: [], queryIdx: [] };
+        let sug = { labels: [] as any[], keys: [] as any[], queryIdx: [] as any[] };
         // khoảng chữ mà mỗi truy vấn đại diện: chỉ chữ lạ, hoặc chữ lạ + nhãn quen liền kề (trước hoặc sau)
         const spans = [{ start: s, end: e }];
         if (runs++ < lim.maxSuggestRuns) {
@@ -2335,39 +2338,42 @@
   // Bộ phân tích: đệ quy xuống, văn phạm đóng (so sánh chỉ nằm trong điều kiện của "nếu")
   // ---------------------------------------------------------------------------------------------------------------------
   class ParseFail extends Error {
-    constructor(code, message, at) {
+    code: any;
+    at: any;
+
+    constructor(code?, message?, at?) {
       super(message);
       this.code = code;
       this.at = at;
     }
   }
 
-  function buildTree(toks, text, lim, constBase, constLabel, constants, idx) {
+  function buildTree(toks?, text?, lim?, constBase?, constLabel?, constants?, idx?) {
     let p = 0;
     let nest = 0;
     let constSeq = 0;
     const eof = { start: text.length, end: text.length };
     const peek = () => toks[p];
-    const atOf = tk => (tk ? { start: tk.start, end: tk.end } : eof);
-    const fail = (code, message, tk) => {
+    const atOf = (tk?) => (tk ? { start: tk.start, end: tk.end } : eof);
+    const fail = (code?, message?, tk?) => {
       throw new ParseFail(code, message, atOf(tk));
     };
-    const mk = (node, s, e) => {
+    const mk = (node?, s?, e?) => {
       SPAN.set(node, { start: s, end: e });
       return node;
     };
-    const sStart = node => SPAN.get(node).start;
-    const sEnd = node => SPAN.get(node).end;
-    const enter = tk => {
+    const sStart = (node?) => SPAN.get(node).start;
+    const sEnd = (node?) => SPAN.get(node).end;
+    const enter = (tk?) => {
       if (++nest > lim.maxNesting) fail('FORMULA_TOO_LARGE', 'Công thức lồng quá sâu.', tk);
     };
     const leave = () => {
       nest--;
     };
-    const slice = tk => text.slice(tk.start, tk.end);
+    const slice = (tk?) => text.slice(tk.start, tk.end);
 
     // Có toán tử mệnh đề (so sánh, và, hoặc, không) ngay tầng ngoặc này? Dùng để phân biệt "(a > b)" với "(a + b) > c"
-    const groupHasProp = open => {
+    const groupHasProp = (open?) => {
       let depth = 0;
       for (let q = open; q < toks.length; q++) {
         const k = toks[q].k;
@@ -2401,7 +2407,7 @@
             colon
           );
         p++;
-        const rows = [];
+        const rows: any[] = [];
         for (;;) {
           const t = peek();
           let from, to;
@@ -2422,7 +2428,7 @@
           if (!arrow || arrow.k !== 'arrow') fail('PARSE_TIER_ARROW', 'Thiếu ‘→’ trước giá trị của hàng.', arrow);
           p++;
           const value = expr();
-          const row = {};
+          const row: Record<string, any> = {};
           if (from) row.from = from;
           if (to) row.to = to;
           row.value = value;
@@ -2567,12 +2573,12 @@
       }
       return primary();
     }
-    function args(open, label) {
+    function args(open?, label?) {
       const first = peek();
       if (!first || first.k !== '(')
         fail('PARSE_EXPECTED_PAREN', `Sau ‘${label}’ cần dấu ngoặc, ví dụ: ${label} (a ; b).`, first || open);
       p++;
-      const list = [];
+      const list: any[] = [];
       if (peek() && peek().k === ')') {
         p++;
         return { list, end: toks[p - 1].end };
@@ -2600,7 +2606,7 @@
           if (bare && (t.value === 0 || t.value === 1)) return mk({ t: 'lit', v: t.value }, t.start, t.end);
           // Mọi số khác 0 và 1 tự thành một tham số của công thức: cây không chứa số viết thẳng
           const key = `formula.${constBase}.const.${++constSeq}`;
-          const node = { t: 'param', key, value: t.value };
+          const node: Record<string, any> = { t: 'param', key, value: t.value };
           if (t.unit !== undefined) node.unit = t.unit;
           constants.push({
             key,
@@ -2691,7 +2697,7 @@
   }
 
   // Vế trái "Tên =": phân biệt với dấu = của phép so sánh trong "nếu …"
-  function splitTarget(text) {
+  function splitTarget(text?) {
     for (let i = 0; i < text.length; i++) {
       if (text[i] !== '=') continue;
       const before = text[i - 1],
@@ -2705,11 +2711,11 @@
     return -1;
   }
 
-  function parse(text, opts) {
+  function parse(text?, opts?) {
     opts = isObj(opts) ? opts : {};
     const lim = limitsOf(opts);
-    const out = { ok: false, errors: [], questions: [], constants: [] };
-    const fail = (code, message, s, e) => {
+    const out: Record<string, any> = { ok: false, errors: [], questions: [], constants: [] };
+    const fail = (code?, message?, s?, e?) => {
       out.errors.push({ code, message, at: { start: s, end: e } });
       return out;
     };

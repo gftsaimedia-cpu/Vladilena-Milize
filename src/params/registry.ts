@@ -1,10 +1,10 @@
 'use strict';
 // Registry tham số: MỘT bảng siêu dữ liệu cho mọi con số của hệ thống.
-// Dữ liệu ở registry.data.json (nguồn duy nhất); giá trị mặc định KHÔNG nằm ở đây mà ở src/engine/payroll-params.js → DEFAULTS
+// Dữ liệu ở registry.data.json (nguồn duy nhất); giá trị mặc định KHÔNG nằm ở đây mà ở src/engine/payroll-params.ts → DEFAULTS
 // (sinh từ mã). Mỗi mục: nhãn, nhóm, loại (chọn, số, bảng, cố định, bỏ), editableBy, phương án có `available`, đơn vị, khoảng,
 // sàn hoặc trần của luật kèm tầng căn cứ, và thành phần giao diện (ui.component) để màn Cài đặt dựng hoàn toàn từ registry.
 const data = require('./registry.data.json');
-const Params = require('../engine/payroll-params.js');
+const Params = require('../engine/payroll-params');
 
 const CLASSES = Object.freeze(['choice', 'number', 'table', 'formula', 'fixed', 'removed']);
 const EDITABLE_BY = Object.freeze(['admin', 'accounting', 'ops', 'locked']);

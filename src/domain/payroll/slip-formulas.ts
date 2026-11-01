@@ -6,12 +6,12 @@
 // mỗi bước làm tròn), không khớp thì dòng đó không có công thức, không bao giờ chỉnh cho khớp.
 // Số kiểu vi-VN (6.000.000; 1,5; 25%), phép tính × ÷ + −. Mỗi số đi kèm tên hoặc đơn vị ngắn ngay sau nó (6.000.000 đ, 23 ngày công,
 // 28.846,15 đ/giờ); tỷ lệ (30%) và hệ số nhân (× 1,5) đứng một mình; nhóm cộng trừ nằm trong ngoặc. Dòng đếm (ngày, giờ) chỉ liệt kê ngày được đếm.
-const Params = require('../../engine/payroll-params.js');
-const WorkSchedule = require('../../engine/work-schedule.js');
-const PayOptions = require('../../engine/pay-options-calc.js');
-const PayTailCalc = require('../../engine/pay-tail-calc.js');
-const PayEntriesCalc = require('../../engine/pay-entries-calc.js');
-const PayBlocksCalc = require('../../engine/pay-blocks-calc.js');
+const Params = require('../../engine/payroll-params');
+const WorkSchedule = require('../../engine/work-schedule');
+const PayOptions = require('../../engine/pay-options-calc');
+const PayTailCalc = require('../../engine/pay-tail-calc');
+const PayEntriesCalc = require('../../engine/pay-entries-calc');
+const PayBlocksCalc = require('../../engine/pay-blocks-calc');
 
 const num = (v?) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const EPS = 1e-6;
@@ -158,7 +158,7 @@ function datesText(dates?) {
 const hoursText = (items?) => items.map(({ date, h }: any) => `${dm(date)} (${nb(`${fmt(h, 2)} giờ`)})`).join(', ');
 
 /* ---------- ngữ cảnh của một phiếu ---------- */
-// Bộ tham số của người này trong tháng, đúng các bước của src/engine/payroll-engine.js → prepare
+// Bộ tham số của người này trong tháng, đúng các bước của src/engine/payroll-engine.ts → prepare
 function paramsOf(params?, staff?, month?) {
   const monthly = WorkSchedule.create(Params.fillLate(params)).monthView(month);
   const person = WorkSchedule.create(monthly).forPerson(staff, month);

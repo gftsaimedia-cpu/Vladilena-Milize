@@ -8,7 +8,7 @@ const P = require('./period-api');
 const { pendingUnless, mentions } = require('./red');
 const registry = require('../../src/params/registry');
 const { validateValue } = require('../../src/params/validate');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const { F, store } = P;
 

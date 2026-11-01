@@ -1,9 +1,9 @@
-// Các dòng sổ phép lưu trong leave_ledger (accrualEvents + dòng hết hạn của LeaveAccountService) bám theo quỹ phép từng năm của src/engine/leave.js:
+// Các dòng sổ phép lưu trong leave_ledger (accrualEvents + dòng hết hạn của LeaveAccountService) bám theo quỹ phép từng năm của src/engine/leave.ts:
 // chỉ gồm lần cộng từ 01/01 của năm quỹ đầu tiên (max(năm vào làm, leave.expiry.fromYear)); điều chỉnh tay là số mở đầu, không thành dòng.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Leave = require('../../src/engine/leave.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Leave = require('../../src/engine/leave');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { accrualEvents } = require('../../src/domain/leave/leave-events');
 
 const sum = (events?) => events.reduce((total, e) => total + e.days, 0);

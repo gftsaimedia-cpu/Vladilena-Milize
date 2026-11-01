@@ -2,7 +2,7 @@
 // Quyền theo năng lực. Vai trò mặc định là tập năng lực viết trong mã (chỉ đọc); vai trò tuỳ chỉnh là dữ liệu ở settings (src/domain/roles/roles.ts); vai trò gán cho từng người nằm ở store.roles.
 // Từ chối theo mặc định: route không có trong ROUTE_CAPS bị 403 NO_ROUTE_POLICY (server.js → api()).
 const store = require('./db');
-const ApprovalView = require('../engine/approval-view.js'); // danh sách loại yêu cầu duyệt được (ITEMS) cho vai trò tuỳ chỉnh
+const ApprovalView = require('../engine/approval-view'); // danh sách loại yêu cầu duyệt được (ITEMS) cho vai trò tuỳ chỉnh
 
 /* ---------- năng lực ---------- */
 const CAPS = [

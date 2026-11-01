@@ -1,6 +1,6 @@
 'use strict';
 // Dịch vụ tính lương phía máy chủ: nạp đầu vào của một tháng MỘT lượt (chỉ đọc), rồi chạy bộ máy dùng chung
-// (src/engine/payroll-engine.js) với bộ tham số của tháng. Không ghi gì vào DB: việc ghi (lần chạy, phiếu, kỳ) là của src/domain/period/periods.ts.
+// (src/engine/payroll-engine.ts) với bộ tham số của tháng. Không ghi gì vào DB: việc ghi (lần chạy, phiếu, kỳ) là của src/domain/period/periods.ts.
 //   loadInputs(month, { usernames?, lookbackMonths?, asOf?, params? })  đầu vào của mọi nhân sự được trả lương (hoặc chỉ các `usernames`)
 //   computeFor(month, staff, inputs, params)                  một người: { m, payDays, pendingItems, actualReport, trace }
 // Đầu vào của một người đúng như test/helpers/period-flow.ts → legacyInput: lịch qua estimateDays, hàng duyệt, phiên Check-in/out
@@ -8,14 +8,14 @@
 const crypto = require('node:crypto');
 const { AsyncList } = require('../../shared/async-list');
 const store = require('../../platform/db');
-const Params = require('../../engine/payroll-params.js');
-const Engine = require('../../engine/payroll-engine.js');
-const KpiScore = require('../../engine/kpi-score.js');
-const PayrollCalendar = require('../../engine/payroll-calendar.js');
+const Params = require('../../engine/payroll-params');
+const Engine = require('../../engine/payroll-engine');
+const KpiScore = require('../../engine/kpi-score');
+const PayrollCalendar = require('../../engine/payroll-calendar');
 const paramsStore = require('../../params/store');
-const PayTailCalc = require('../../engine/pay-tail-calc.js'); // kiểm phương án bảo hiểm và thuế chưa dùng được
+const PayTailCalc = require('../../engine/pay-tail-calc'); // kiểm phương án bảo hiểm và thuế chưa dùng được
 const payEntries = require('./pay-entries');
-const LeaveRules = require('../../engine/leave.js'); // phép năm: số ngày phép dư hết hạn quy tiền vào phiếu
+const LeaveRules = require('../../engine/leave'); // phép năm: số ngày phép dư hết hạn quy tiền vào phiếu
 const { benefitOf } = require('../../platform/request-rules');
 const { leaveDates } = require('../leave-days'); // ngày nghỉ phép năm thực sự trừ phép
 const { advanceApprovals } = require('../advance'); // tạm ứng ⑥ = số theo quy tắc, chỉ khi Admin đã duyệt tạm ứng của tháng

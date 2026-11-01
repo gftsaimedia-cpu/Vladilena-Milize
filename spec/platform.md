@@ -19,7 +19,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `src/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `src/params/` | Registry tham số, đọc theo tháng (`store.ts`), lưu / xem trước / hoàn tác (`save.ts`), kiểm (`src/params/validate.ts`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.ts`, `keys.lock.json`, `registry.data.json`. |
 | `src/ai/` | AI rà soát theo luật (thuần, không mạng). |
-| `public/` | Chỉ còn các mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng `require` (`payroll-engine.js`, `payroll-params.js`, `payroll-calendar.js`, `punch.js`, `leave.js`, `kpi-score.js`, `actual-hours.js`, `approval-view.js`, `work-schedule.js`, `formula*.js`, `payroll-graph.js`, `pay-*-calc.js`, `attendance-status.js`…). Không được phục vụ ra ngoài; giao diện là ứng dụng Vue ở `web/`. |
+| `public/` | Chỉ còn các mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng `require` (`payroll-engine.ts`, `payroll-params.ts`, `payroll-calendar.ts`, `punch.ts`, `leave.ts`, `kpi-score.ts`, `actual-hours.ts`, `approval-view.ts`, `work-schedule.ts`, `formula*.js`, `payroll-graph.ts`, `pay-*-calc.js`, `attendance-status.ts`…). Không được phục vụ ra ngoài; giao diện là ứng dụng Vue ở `web/`. |
 | `web/` | Mã nguồn giao diện Vue (dựng ra `web/dist`). `src/platform/http.ts` phục vụ `web/dist` khi đã build. |
 | `scripts/ops/` | Sao lưu, kiểm bản sao, diễn tập khôi phục, lùi chế độ tham số. |
 | `scripts/dev/` | Sandbox (`sandbox-server.ts`, `sandbox-ops.ts`, trang điều khiển) và máy chủ kịch bản (`scenarios/`). |
@@ -95,9 +95,9 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `src/ai/thresholds.ts` | Bảng ngưỡng duy nhất (`THRESHOLDS`), ánh xạ sang khoá tham số (`PARAM_KEY` hoặc `ai.threshold.<tên>`), `LIMITS`, `isRuleEnabled` (`ai.rule.<camelCase>.enabled`). |
 | `src/ai/units.ts` | Hằng đơn vị (`unit.*`) và hàm ngày giờ thuần (VN = UTC+7). |
 | `src/ai/positions.ts` | Đọc cờ quyền lợi chức vụ và định nghĩa khối phụ cấp từ bộ tham số phẳng. |
-| `src/ai/payroll-loader.ts` | `loadPayroll(params)` = `PayrollEngine.create(params)` (bộ máy dùng chung `src/engine/payroll-engine.js`). |
+| `src/ai/payroll-loader.ts` | `loadPayroll(params)` = `PayrollEngine.create(params)` (bộ máy dùng chung `src/engine/payroll-engine.ts`). |
 | `src/ai/preview-suggestions.ts` | Gợi ý khi xem trước thay đổi cài đặt (`formula-large-change`, `position-scope-leak`), gọi từ `src/params/save.ts`. |
-| `src/domain/findings/data-quality.ts` | Phát hiện thiếu ngày vào làm / phép âm (số dư `ledger` của `src/engine/leave.js` < 0); `review.ts` dùng lại (luật `missing-start-date`, `negative-leave`). |
+| `src/domain/findings/data-quality.ts` | Phát hiện thiếu ngày vào làm / phép âm (số dư `ledger` của `src/engine/leave.ts` < 0); `review.ts` dùng lại (luật `missing-start-date`, `negative-leave`). |
 | `src/domain/ai-review.ts` | Dựng đầu vào cho `review()` chỉ bằng hàm đọc của store; `aiReviewResultCached` (cache dùng chung). |
 | `src/domain/ai-block.ts` | `assertNotAiBlocked(items)`: chặn duyệt khoản dính luật nặng (409 `AI_BLOCKED`); bỏ qua khi công tắc Agents tắt. |
 
@@ -563,7 +563,7 @@ Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu 
 
 | File | Vai trò |
 | --- | --- |
-| `src/engine/payroll-params.js` | `DEFAULTS` (bản phẳng của mọi khoá tham số, khối `GENERATED` do script sinh), `resolveParamSet`, `buildParamClasses`, `canonical`, `UI_COMPONENTS`. Dùng chung trình duyệt + máy chủ. |
+| `src/engine/payroll-params.ts` | `DEFAULTS` (bản phẳng của mọi khoá tham số, khối `GENERATED` do script sinh), `resolveParamSet`, `buildParamClasses`, `canonical`, `UI_COMPONENTS`. Dùng chung trình duyệt + máy chủ. |
 | `src/params/registry.data.json` | Siêu dữ liệu duy nhất: `version`, `groups`, `types`, `aiRules`, `entries` (mỗi mục: `id`, `group`, `section`, `order`, `label`, `class`, `editableBy`, `keys` (mẫu khoá), `valueBearing`, `help`, `basis`, `defaultNote`, `capability`, `phase`, `cost`, `legal`, `firstRun`, `wired`, `unwiredKeys`, `ui.component`…). Không đọc cả file khi duyệt; tra qua `registry.ts`. |
 | `src/params/registry.ts` | Nạp JSON, biên dịch mẫu khoá `a.<x>.b` thành RegExp (`<x>` khớp đúng một đoạn); `entryFor(key)` chọn mẫu có nhiều chữ cố định nhất; `keysOf(entry)`. Hằng: `CLASSES` (`choice, number, table, formula, fixed, removed`), `EDITABLE_BY` (`admin, accounting, ops, locked`), `LEGAL_TIERS` (`floor, ceiling, exact, release, policy, structure`), `WRITE_CAP` (`admin → config.payroll`, `accounting → config.legal`; `ops`, `locked` không ai sửa trên màn). |
 | `src/params/store.ts` | Đọc theo tháng: `resolve(month)` (bộ tham số hiệu lực, đóng băng, kèm `classes`, `rev`, `hash` sha256 của `canonical(params)`, `applied`, `skipped`), `view(month, {group})` (dữ liệu màn Cài đặt, dựng hoàn toàn từ registry), `firstRun(month)`. `params_mode = defaults-only` bỏ qua mọi dòng phiên bản và dùng `DEFAULTS`; `active` chồng các dòng `param_versions` hợp lệ lên `DEFAULTS`, rồi chồng dòng danh mục chức vụ / bậc / ca. Dòng sai cấu trúc hoặc dòng người dùng ghi cho khoá `locked/ops/fixed` bị bỏ qua và báo ở `skipped` (log một lần mỗi dòng). |
@@ -579,14 +579,14 @@ Giới hạn kỹ thuật `ai.limit.evidenceListMax` (5). Giá trị sai kiểu 
 
 | Script | Lệnh | Việc làm |
 | --- | --- | --- |
-| `extract-defaults.ts` | `npm run params:extract` | Ghi lại khối `GENERATED` của `src/engine/payroll-params.js` từ mã đang chạy (mặc định của `src/engine/actual-hours.js`, `kpi-score.js`, `approval-view.js`, `payroll-graph.js`, `src/ai/thresholds.ts`, `src/platform/config.ts` và một số hằng có tên). Lá nào của nguồn không khớp mục nào trong `key-map.ts` thì dừng. Số không có hằng trong mã nằm ở `hand-defaults.json`. `--check`: không ghi, thoát 1 nếu lệch. |
+| `extract-defaults.ts` | `npm run params:extract` | Ghi lại khối `GENERATED` của `src/engine/payroll-params.ts` từ mã đang chạy (mặc định của `src/engine/actual-hours.ts`, `kpi-score.ts`, `approval-view.ts`, `payroll-graph.ts`, `src/ai/thresholds.ts`, `src/platform/config.ts` và một số hằng có tên). Lá nào của nguồn không khớp mục nào trong `key-map.ts` thì dừng. Số không có hằng trong mã nằm ở `hand-defaults.json`. `--check`: không ghi, thoát 1 nếu lệch. |
 | `key-map.ts` | (dữ liệu) | Bảng đường dẫn mã → khoá tham số; mục kiểu `key`, `ignore`, `derived`. |
 | `check.ts` | `npm run params:check` | Kiểm: `DEFAULTS` khớp mã; mỗi mục registry hợp lệ (loại, `editableBy`, nhóm, nhãn, thành phần giao diện theo loại, khuôn bảng); mọi khoá của `DEFAULTS` thuộc đúng một mục; giá trị dẫn xuất khớp bản chép trong mã; khoá đã phát hành không mất. `--counts` in số mục theo loại / `editableBy` / nhóm. Thoát 1 khi có lỗi. |
 | `lock.ts` | `npm run params:lock` | Thêm tên khoá vào `keys.lock.json` (chỉ thêm). |
 | `doc.ts` | `npm run params:doc` | Dựng bảng danh mục cấu hình từ registry (`--out`, `--check`, `--json`). |
 | `wired.ts` | (tay) `node scripts/dev/ts.cjs scripts/params/wired.ts [--write]` | Tính cờ `wired` bằng đọc tĩnh văn bản nguồn; `--write` ghi vào registry. |
 | `check-fallbacks.ts` | (tay) | So bản `FALLBACK` trong các mô-đun dùng chung (`actual-hours, approval-view, kpi-score, punch, leave, payroll-calendar, work-schedule`) với `DEFAULTS`. |
-| `gen-formula-vocab.ts` | (tay) | Sinh khối `GENERATED` của `src/engine/formula-vocab.js` từ bộ máy lương và registry; `--check` dùng trong `params:check`. |
+| `gen-formula-vocab.ts` | (tay) | Sinh khối `GENERATED` của `src/engine/formula-vocab.ts` từ bộ máy lương và registry; `--check` dùng trong `params:check`. |
 | `plain-text.ts`, `apply-plain-text.ts`, `plain-text.json`, `first-run-text.json` | (tay) | Chữ hiển thị cho Admin của từng mục (`help`, `basis`, `legalBasis`, `lockReason`) và chữ Cài đặt ban đầu; `apply-plain-text.ts` vá `registry.data.json`. |
 | `prove-default-graph.ts`, `scan-magic-numbers.ts` | (tay) | So đồ thị công thức mặc định với bộ máy từng bit trên ca vàng; quét hằng số ngoài 0 và 1 trong mã tính lương. |
 
@@ -742,7 +742,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - `src/domain/container.ts` → `src/platform/db`, các lớp `src/domain/*`; nạp muộn `src/platform/request-rules`, `src/domain/attendance`, `src/platform/audit`, `src/platform/warnings` trong getter (tránh vòng `db ↔ params ↔ domain`).
 - `src/domain/ai-review.ts` → `src/platform/db`, `src/params/store`, `src/domain/payroll/payroll-service`, `src/platform/request-rules`, `src/domain/attendance`, `src/domain/kpi`, `src/domain/advance`, `src/ops/shared-cache`, (muộn) `src/ai/review`, `src/ai/thresholds`, `src/ai/payroll-loader`.
 - `src/ai/*` thuần (không I/O, không đồng hồ), chỉ `require` `public/*.js` và nhau.
-- `src/params/registry.ts` → `registry.data.json`, `src/engine/payroll-params.js`; `src/params/store.ts` → `src/platform/db`, `registry`, `config-rev`, `attributes`, `positions`, `block-defs`, `validate`, `src/domain/catalog-params`.
+- `src/params/registry.ts` → `registry.data.json`, `src/engine/payroll-params.ts`; `src/params/store.ts` → `src/platform/db`, `registry`, `config-rev`, `attributes`, `positions`, `block-defs`, `validate`, `src/domain/catalog-params`.
 
 ### 6.2 Ai gọi nền tảng
 
@@ -755,13 +755,13 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 
 | File | Máy chủ dùng ở (nền tảng) |
 | --- | --- |
-| `src/engine/payroll-params.js` (`DEFAULTS`) | `src/platform/auth.ts` (số `system.*`, `unit.*`), `src/ai/*`, `migrations/postgres/0001_baseline.sql` (gieo danh mục), `src/domain/approvals/approvals.ts`, `src/domain/attendance/attendance-sessions.ts`, `src/params/*` |
-| `src/engine/payroll-engine.js` | `src/ai/payroll-loader.ts` (AI tính tiền), `src/domain/payroll/payroll-service.ts` |
-| `src/engine/approval-view.js` | `src/platform/authz.ts` (`DECIDE_ITEMS`), `src/ai/review.ts`, `src/domain/approvals/approvals.ts`, `src/platform/request-rules.ts` |
-| `src/engine/actual-hours.js`, `src/engine/kpi-score.js` | `src/ai/review.ts`, `src/platform/request-rules.ts` |
-| `src/engine/payroll-calendar.js` | `src/domain/findings/findings.ts`, `src/platform/request-rules.ts` |
-| `src/engine/leave.js`, `src/engine/punch.js`, `src/engine/work-schedule.js` | `src/platform/request-rules.ts` |
-| `src/engine/formula.js`, `src/engine/payroll-graph.js` | `src/params/validate.ts` (kiểm công thức, đồ thị) |
+| `src/engine/payroll-params.ts` (`DEFAULTS`) | `src/platform/auth.ts` (số `system.*`, `unit.*`), `src/ai/*`, `migrations/postgres/0001_baseline.sql` (gieo danh mục), `src/domain/approvals/approvals.ts`, `src/domain/attendance/attendance-sessions.ts`, `src/params/*` |
+| `src/engine/payroll-engine.ts` | `src/ai/payroll-loader.ts` (AI tính tiền), `src/domain/payroll/payroll-service.ts` |
+| `src/engine/approval-view.ts` | `src/platform/authz.ts` (`DECIDE_ITEMS`), `src/ai/review.ts`, `src/domain/approvals/approvals.ts`, `src/platform/request-rules.ts` |
+| `src/engine/actual-hours.ts`, `src/engine/kpi-score.ts` | `src/ai/review.ts`, `src/platform/request-rules.ts` |
+| `src/engine/payroll-calendar.ts` | `src/domain/findings/findings.ts`, `src/platform/request-rules.ts` |
+| `src/engine/leave.ts`, `src/engine/punch.ts`, `src/engine/work-schedule.ts` | `src/platform/request-rules.ts` |
+| `src/engine/formula.ts`, `src/engine/payroll-graph.ts` | `src/params/validate.ts` (kiểm công thức, đồ thị) |
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
@@ -777,7 +777,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - **Đổi `config.EVENTS_*`** → không đổi khoá registry `system.events.*` tương ứng (hai nơi), và ngược lại.
 - **Đổi `src/platform/config.ts`** → chạy `npm run params:extract` (một số hằng là nguồn của `DEFAULTS`), `params:check`; `config` đóng băng lúc nạp và nạp trước `.env`.
 - **Thêm / đổi khoá tham số** → thêm vào mã nguồn mặc định, `key-map.ts`, mục registry; chạy `params:extract`, `params:lock`, `params:check`; cờ `wired` qua `scripts/params/wired.ts --write`.
-- **Đổi bộ máy lương (`src/engine/payroll-engine.js`) hay tham số** → kết quả AI (luật cần payroll, `impacts`), cache AI theo `paramsHash`, `verify-backup` (tính lại phiếu từ bản chụp).
+- **Đổi bộ máy lương (`src/engine/payroll-engine.ts`) hay tham số** → kết quả AI (luật cần payroll, `impacts`), cache AI theo `paramsHash`, `verify-backup` (tính lại phiếu từ bản chụp).
 - **Đổi luật AI hoặc `rule.fields`** → `EVIDENCE_FIELDS`; id finding (`<luật>:<user>:<ngày>`) và digest xác định hiệu lực lần bỏ qua; `ai_block_rules`/`DEFAULT_BLOCK_RULES` dùng id luật; khoá `ai.rule.<camelCase>.enabled`; `test/unit/ai-review*.test.ts`.
 - **Đổi ngưỡng AI** → `THRESHOLDS` là nguồn của `ai.threshold.*` trong `DEFAULTS`; `src/domain/period/periods.ts` băm `THRESHOLDS` khi không có `result.thresholds`.
 - **Đổi hành vi của `GET /`** → `scripts/ops/pg-backup.ts` (đòi `GET /` = 200 khi đã build giao diện, 503 khi chưa) và `test/api/web-dist-static.test.ts`.
@@ -876,7 +876,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 ### 8.7 Quy ước chưa đều
 
 - Thiếu `'use strict'` ở đầu: `src/server.ts`, `src/platform/announce.ts`, `src/domain/attendance/attendance-sessions.ts`, `src/platform/auth.ts`, `src/platform/db.ts`, `src/domain/ai-review.ts`, `src/domain/approvals/index.ts`, `src/domain/attendance/index.ts`, `src/domain/positions.ts`, `src/domain/sheet.ts`, `src/domain/staff.ts`, `src/platform/http.ts`, `src/platform/request-rules.ts` (danh sách tính bằng cách quét `src/server.ts` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.ts`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `src/engine/formula.js` (2.900), `src/platform/db.ts` (1.700; thực tế 1.606), `src/engine/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.ts` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `src/platform/db.ts` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
+- Ngân sách cỡ file (`test/unit/file-size-budget.test.ts`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `src/engine/formula.ts` (2.900), `src/platform/db.ts` (1.700; thực tế 1.606), `src/engine/payroll-engine.ts` (1.700), `scripts/db/demo/scenarios.ts` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `src/platform/db.ts` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu).
 
 ### 8.8 Chưa có
 

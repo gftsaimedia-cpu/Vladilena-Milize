@@ -8,13 +8,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { isDeepStrictEqual } = require('node:util');
 const ROOT = path.join(__dirname, '..', '..');
-const { DEFAULTS } = require(path.join(ROOT, 'src/engine/payroll-params.js'));
+const { DEFAULTS } = require(path.join(ROOT, 'src/engine/payroll-params'));
 const MODULES = ['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar', 'work-schedule'];
 
 function problems() {
   const out: any[] = [];
   for (const name of MODULES) {
-    const mod = require(path.join(ROOT, 'src/engine', name + '.js'));
+    const mod = require(path.join(ROOT, 'src/engine', name + '.ts'));
     if (!mod.FALLBACK || typeof mod.create !== 'function') {
       out.push(`${name}.js: thiếu FALLBACK hoặc create(params)`);
       continue;

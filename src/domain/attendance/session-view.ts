@@ -14,7 +14,7 @@ const epochMin = (iso?) => {
   const ms = typeof iso === 'string' ? Date.parse(iso) : NaN;
   return Number.isFinite(ms) ? Math.floor(ms / 60000) : NaN;
 };
-// Lượt dùng được để tính giờ, đúng điều kiện ActualHours (src/engine/actual-hours.js → inspectDay): đã đóng, không chờ đối soát, giờ ra sau
+// Lượt dùng được để tính giờ, đúng điều kiện ActualHours (src/engine/actual-hours.ts → inspectDay): đã đóng, không chờ đối soát, giờ ra sau
 // giờ vào (tính theo phút), có ca đã gán
 function usable(session?) {
   const e = session.entry || {};
@@ -33,7 +33,7 @@ function usable(session?) {
 // id các lượt bị thay trong ngày công của mỗi người, cùng luật ActualHours dùng để tính lương: ngày có lượt Admin khai thay dùng được
 // mà cũng có lượt chấm thật dùng được thì lượt Admin bị thay (ngày tính theo giờ thật); không có lượt thật dùng được thì lượt Admin
 // thay mọi lượt bấm đã đóng còn lại của ngày (quên Check-in/out, chờ đối soát, Check-out muộn chờ duyệt). Lượt đang mở giữ nguyên.
-// Nhãn của ngày (src/engine/attendance-status.js → dayStatus) bỏ qua lượt bị thay; nhãn riêng của từng lượt vẫn giữ.
+// Nhãn của ngày (src/engine/attendance-status.ts → dayStatus) bỏ qua lượt bị thay; nhãn riêng của từng lượt vẫn giữ.
 function supersededIds(sessions?) {
   const days = new Map<any, any>();
   for (const s of sessions) {

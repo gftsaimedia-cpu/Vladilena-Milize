@@ -2535,9 +2535,9 @@
       },
       "wired": true,
       "devNote": {
-        "help": "Số nhập là bội nhân nguyên giá trị (3 ↔ ×3, không nhân 100 như ot.rate). Giá trị > 1 mới nhân tiền làm bù (src/engine/actual-hours.js: effective.makeupHolRate). Sàn luật 3 (law.floor.holidayRate, BLLĐ Điều 98 khoản 1, cần pháp chế xác nhận): lưu dưới 3 vẫn được, kèm cảnh báo",
+        "help": "Số nhập là bội nhân nguyên giá trị (3 ↔ ×3, không nhân 100 như ot.rate). Giá trị > 1 mới nhân tiền làm bù (src/engine/actual-hours.ts: effective.makeupHolRate). Sàn luật 3 (law.floor.holidayRate, BLLĐ Điều 98 khoản 1, cần pháp chế xác nhận): lưu dưới 3 vẫn được, kèm cảnh báo",
         "basis": "BLLĐ Điều 98 khoản 1 (cần pháp chế xác nhận): sàn cứng 300 % tạm thời",
-        "defaultNote": "×3 · src/engine/actual-hours.js → POLICY.makeupHolidayRate; [đang chờ] Q9 chủ dự án",
+        "defaultNote": "×3 · src/engine/actual-hours.ts → POLICY.makeupHolidayRate; [đang chờ] Q9 chủ dự án",
         "lockReason": null,
         "legalBasis": "BLLĐ Điều 98 khoản 1 (cần pháp chế xác nhận): sàn cứng 300 % tạm thời"
       },
@@ -2712,7 +2712,7 @@
       "devNote": {
         "help": "Giờ công lấy từ phiên Check-in/out",
         "basis": "quyết định chủ dự án (AiCB là hệ thống chấm công)",
-        "defaultNote": "src/domain/attendance/attendance-sessions.ts, src/engine/actual-hours.js → apply",
+        "defaultNote": "src/domain/attendance/attendance-sessions.ts, src/engine/actual-hours.ts → apply",
         "lockReason": "quyết định chủ dự án (AiCB là hệ thống chấm công)",
         "legalBasis": null
       },
@@ -3162,7 +3162,7 @@
       "devNote": {
         "help": "Dưới mức này không trừ giờ",
         "basis": "chủ dự án 14/10",
-        "defaultNote": "15 · src/engine/actual-hours.js → RULE.GRACE_MIN",
+        "defaultNote": "15 · src/engine/actual-hours.ts → RULE.GRACE_MIN",
         "lockReason": null,
         "legalBasis": null
       },
@@ -3266,7 +3266,7 @@
       "devNote": {
         "help": "Bậc làm tròn nửa lên (mặc định): 15 đến 44 phút trừ 30, 45 đến 74 trừ 60… Làm tròn lên theo bậc: 15 đến 30 phút trừ 30, 31 đến 60 trừ 60. Đúng số phút: trừ đúng số phút đã trễ (từ mức miễn trở lên, trừ cả phần miễn). Màn hiện bảng xem trước \"trễ X phút → trừ Y phút\"",
         "basis": "chính sách; TL#14: cắt lương vì đi trễ có rủi ro theo BLLĐ Điều 127 khoản 2 (cần pháp chế xác nhận)",
-        "defaultNote": "Bậc làm tròn nửa lên · src/engine/actual-hours.js → cutMin",
+        "defaultNote": "Bậc làm tròn nửa lên · src/engine/actual-hours.ts → cutMin",
         "lockReason": null,
         "legalBasis": "chính sách; TL#14: cắt lương vì đi trễ có rủi ro theo BLLĐ Điều 127 khoản 2 (cần pháp chế xác nhận)"
       },
@@ -3848,7 +3848,7 @@
       "devNote": {
         "help": "Sớm hơn mức này bị từ chối (\"Ngoài ca cố định\")",
         "basis": "chính sách",
-        "defaultNote": "4 · src/engine/punch.js → EARLY",
+        "defaultNote": "4 · src/engine/punch.ts → EARLY",
         "lockReason": null,
         "legalBasis": "chính sách"
       },
@@ -4032,7 +4032,7 @@
       "devNote": {
         "help": "Sửa giờ ca mở 16/10 (SHIFT_ALLOW_EDIT ở môi trường thật). Kiểm: HH:MM, dài đúng time.workHoursPerDay + time.breakHours, giữ loại ca, không trùng cặp giờ.",
         "basis": "chủ dự án 14/10",
-        "defaultNote": "src/engine/punch.js → SHIFT, index.html → PRESETS",
+        "defaultNote": "src/engine/punch.ts → SHIFT, index.html → PRESETS",
         "lockReason": null,
         "legalBasis": null
       },
@@ -4216,7 +4216,7 @@
       "devNote": {
         "help": "Cấu trúc",
         "basis": "n/a",
-        "defaultNote": "src/engine/actual-hours.js → RULE.SHIFT_WORK_MIN",
+        "defaultNote": "src/engine/actual-hours.ts → RULE.SHIFT_WORK_MIN",
         "lockReason": "n/a",
         "legalBasis": null
       },
@@ -4273,7 +4273,7 @@
       "devNote": {
         "help": "App (mặc định): +1 ngày đầu đi làm, +1 mỗi tháng tròn, +1 sinh nhật (ba số bên dưới). 12 ngày/năm chia theo tháng: mỗi tháng tròn cộng 12 ÷ 12 = 1 ngày, cộng thâm niên. Cấp đủ đầu năm: cấp 12 ngày vào ngày đầu của năm làm việc, cộng thâm niên. Số dư phép đổi nên số ngày phép có lương và quyết toán đổi",
         "basis": "BLLĐ Điều 113, 114 (cần pháp chế xác nhận); phép năm giữ như app (lead 15/10)",
-        "defaultNote": "App · src/engine/leave.js → accrued",
+        "defaultNote": "App · src/engine/leave.ts → accrued",
         "lockReason": null,
         "legalBasis": null
       },
@@ -4352,7 +4352,7 @@
       "devNote": {
         "help": "Số ngày cộng ngay ngày vào làm; mặc định 0 từ 23/10/2026",
         "basis": "chủ dự án 23/10/2026",
-        "defaultNote": "0 · src/engine/leave.js → accrued (start)",
+        "defaultNote": "0 · src/engine/leave.ts → accrued (start)",
         "lockReason": null,
         "legalBasis": null
       },
@@ -4535,7 +4535,7 @@
       "devNote": {
         "help": "Phép tích luỹ tới 31/12 mà chưa dùng (dùng phép cũ trước) hết hạn cuối tháng 1 năm sau và được quy tiền vào phiếu lương tháng 2; xem leave.expiry.month.",
         "basis": "n/a",
-        "defaultNote": "src/engine/leave.js → ledger",
+        "defaultNote": "src/engine/leave.ts → ledger",
         "lockReason": "n/a",
         "legalBasis": null
       },
@@ -5083,7 +5083,7 @@
       "devNote": {
         "help": "Tổng điểm = Σ điểm × trọng số; đổi trọng số đổi KPI mọi người",
         "basis": "Quy chế lương 3P; tổng ≠ 100 là cứng",
-        "defaultNote": "40 / 24 / 18 / 12 / 6 · src/engine/kpi-score.js → COMPONENTS",
+        "defaultNote": "40 / 24 / 18 / 12 / 6 · src/engine/kpi-score.ts → COMPONENTS",
         "lockReason": null,
         "legalBasis": "Quy chế lương 3P; tổng ≠ 100 là cứng"
       },
@@ -5763,7 +5763,7 @@
       "devNote": {
         "help": "Mỗi hàng: cần duyệt (Có/Không), số bước (1 hoặc 2), có lương (Có/Không), trừ phép (Có/Không), tính là ngày nghỉ khi xét chuyên cần (Có/Không), tính vào giờ vượt ngưỡng KPI (Có/Không), cần chứng từ (Có/Không), số ngày tối đa mỗi lần (số), giới hạn mỗi tháng (số), loại nhân sự áp dụng, cách xử lý khoản chưa duyệt (Nghỉ không lương, Bỏ cả ngày, Bỏ đoạn làm thêm; theo tập cho phép của loại), nhãn, nhóm, đang dùng. \"Việc riêng có lương\" tách ba dòng theo luật: kết hôn 3 ngày, con kết hôn 1 ngày, cha mẹ hoặc vợ chồng hoặc con mất 3 ngày",
         "basis": "sàn cứng số ngày việc riêng có lương: BLLĐ Điều 115 (3 / 1 / 3 ngày; cần pháp chế xác nhận)",
-        "defaultNote": "8 loại hiện có, tất cả cần duyệt 1 bước: Nghỉ phép năm (CTV, NV; có lương theo loại; trừ phép; tính ngày nghỉ), Nghỉ được duyệt (chỉ NV; không lương; tính ngày nghỉ như nghỉ không lương, Đ43 26/10/2026), iSAT (chỉ NV, thứ Bảy), OT (CTV, NV), Làm bù theo giờ (tất cả), Làm bù cả ngày (TTS), Đi làm ngày lễ (tất cả), Nghỉ sẽ làm bù (không lương khi chờ hoặc bị từ chối) · src/engine/approval-view.js → ITEMS, POLICY; server.js → PUT /api/sheet (iSAT và \"Nghỉ được duyệt\" chỉ NV; LUAT-DU-AN.md 10.1 dòng 13)",
+        "defaultNote": "8 loại hiện có, tất cả cần duyệt 1 bước: Nghỉ phép năm (CTV, NV; có lương theo loại; trừ phép; tính ngày nghỉ), Nghỉ được duyệt (chỉ NV; không lương; tính ngày nghỉ như nghỉ không lương, Đ43 26/10/2026), iSAT (chỉ NV, thứ Bảy), OT (CTV, NV), Làm bù theo giờ (tất cả), Làm bù cả ngày (TTS), Đi làm ngày lễ (tất cả), Nghỉ sẽ làm bù (không lương khi chờ hoặc bị từ chối) · src/engine/approval-view.ts → ITEMS, POLICY; server.js → PUT /api/sheet (iSAT và \"Nghỉ được duyệt\" chỉ NV; LUAT-DU-AN.md 10.1 dòng 13)",
         "lockReason": null,
         "legalBasis": "sàn cứng số ngày việc riêng có lương: BLLĐ Điều 115 (3 / 1 / 3 ngày; cần pháp chế xác nhận)"
       },
@@ -12178,7 +12178,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12214,7 +12214,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12250,7 +12250,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12286,7 +12286,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12322,7 +12322,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12358,7 +12358,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -12394,7 +12394,7 @@
         "component": "formula"
       },
       "devNote": {
-        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.js (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
+        "help": "Công thức gõ bằng chữ, lưu kèm cây; kiểm bằng src/engine/formula.ts (từ vựng, đơn vị, vòng lặp, thành phần bắt buộc theo luật). Bộ máy tính lương chạy cây đã lưu từ tháng hiệu lực; null quay về công thức có sẵn",
         "basis": "chủ dự án 15/10: công thức là chữ gõ, phân tích theo quy tắc",
         "defaultNote": "công thức có sẵn (DEFAULT_GRAPH), gõ bằng chữ",
         "lockReason": "Công thức do hệ thống giữ, cấu hình bằng biểu mẫu",
@@ -13990,7 +13990,7 @@
       "devNote": {
         "help": "Phép tích luỹ tới 31/12 mà chưa dùng hết hạn vào cuối tháng này của năm sau và được quy tiền vào phiếu tháng liền sau. Đặt 0 nếu phép không hết hạn.",
         "basis": "chủ dự án 23/10/2026",
-        "defaultNote": "1 (cuối tháng 1) · src/engine/leave.js → ledger",
+        "defaultNote": "1 (cuối tháng 1) · src/engine/leave.ts → ledger",
         "lockReason": null,
         "legalBasis": null
       },
@@ -14034,7 +14034,7 @@
       "devNote": {
         "help": "Chỉ phép tích luỹ tới 31/12 của năm này trở đi mới hết hạn; các năm trước không tính hồi tố.",
         "basis": "chủ dự án 23/10/2026",
-        "defaultNote": "2026 · src/engine/leave.js → ledger",
+        "defaultNote": "2026 · src/engine/leave.ts → ledger",
         "lockReason": null,
         "legalBasis": null
       },

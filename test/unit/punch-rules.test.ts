@@ -1,7 +1,7 @@
 // Unit tests: chỉ nạp các hàm thuần, không khởi động HTTP server hoặc mở SQLite.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
+const P = require('../../src/engine/punch');
 
 const iso = (local?) => new Date(`${local}+07:00`).toISOString();
 const staff = (code?) => ({ shiftCode: code, sched: [1, 2, 3, 4, 5, 6] });

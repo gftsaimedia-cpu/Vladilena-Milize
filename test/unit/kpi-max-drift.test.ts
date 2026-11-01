@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { serverSource } = require('../helpers/server-source');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { createLegacyEngine } = require('../helpers/legacy-payroll');
 
 const { TYPES } = createLegacyEngine();

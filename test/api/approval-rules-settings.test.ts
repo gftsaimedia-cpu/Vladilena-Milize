@@ -5,8 +5,8 @@
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const ApprovalView = require('../../src/engine/approval-view.js');
-const Params = require('../../src/engine/payroll-params.js');
+const ApprovalView = require('../../src/engine/approval-view');
+const Params = require('../../src/engine/payroll-params');
 
 const REASON = 'Đổi cách xử lý khoản chưa duyệt theo quyết định tháng này';
 before(F.start);

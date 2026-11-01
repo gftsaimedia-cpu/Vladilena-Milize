@@ -5,7 +5,7 @@
 // lệch nào của src/domain/payroll/payroll-service.ts hay của bản chụp phiếu đều lộ ra bằng từng đồng.
 const zlib = require('node:zlib');
 const F = require('./api-fixture');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 const service = require('../../src/domain/payroll/payroll-service');
 
 const { store } = F;

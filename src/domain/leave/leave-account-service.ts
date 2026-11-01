@@ -1,6 +1,6 @@
 'use strict';
 // Tài khoản phép năm của nhân viên: lưu số phép hiện tại và tự cập nhật DB mỗi khi qua tháng làm việc tròn hoặc sinh nhật.
-// Cách làm: máy chủ tính lại theo src/engine/leave.js (một nguồn quy tắc, giữ nguyên hết hạn và quy tiền phép dư), rồi ghi số dư vào staff.leave_balance
+// Cách làm: máy chủ tính lại theo src/engine/leave.ts (một nguồn quy tắc, giữ nguyên hết hạn và quy tiền phép dư), rồi ghi số dư vào staff.leave_balance
 // và các lần cộng/hết hạn vào sổ leave_ledger. Chạy khi máy chủ khởi động, rồi mỗi config.LEAVE_REFRESH_MS; xem sổ của một người cũng làm mới người đó.
 // Một hồ sơ lỗi không làm dừng cả lượt: lỗi được ghi nhật ký chạy và bỏ qua người đó.
 const { accrualEvents } = require('./leave-events');

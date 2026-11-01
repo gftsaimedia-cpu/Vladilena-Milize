@@ -19,7 +19,7 @@
 // Mỗi gợi ý: { rule, severity, month, message, evidence: { inputs, threshold }, id, digest }; threshold.proposal = true khi có ngưỡng đang là đề xuất.
 // checked: { ruleIds: [luật đã chạy], skipped: [{ rule, reason }] }.
 
-const PayrollParams = require('../engine/payroll-params.js');
+const PayrollParams = require('../engine/payroll-params');
 const { resolveThresholds, resolveLimits, describeThresholds, isRuleEnabled } = require('./thresholds');
 const { units } = require('./units');
 

@@ -8,8 +8,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Engine = require('../../src/engine/payroll-engine.js');
-const Params = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const Params = require('../../src/engine/payroll-params');
 const { readGolden, summarize } = require('../helpers/golden');
 
 const OLD_KEYS = new Set<any>(
@@ -17,7 +17,7 @@ const OLD_KEYS = new Set<any>(
 );
 const golden = readGolden();
 const clone = (value?) => JSON.parse(JSON.stringify(value));
-// Hai khoá bộ máy đọc không bắt buộc: thiếu trong bản chụp cũ thì tính đúng cách lúc chụp (src/engine/payroll-engine.js: BY_ASSIGNED, paidBreakH),
+// Hai khoá bộ máy đọc không bắt buộc: thiếu trong bản chụp cũ thì tính đúng cách lúc chụp (src/engine/payroll-engine.ts: BY_ASSIGNED, paidBreakH),
 // nên bản đối chiếu đặt hai khoá này bằng cách hiểu khi thiếu: phụ cấp ca theo giờ có mặt ('present'), giờ nghỉ đêm của TTS vẫn trả (true).
 const MISSING_READS_AS = Object.freeze({ 'shift.allowance.basis': 'present', 'type.tts.benefit.breakPay': true });
 

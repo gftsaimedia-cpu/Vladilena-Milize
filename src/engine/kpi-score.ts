@@ -1,6 +1,6 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   // payroll-params.js phải nạp trước trang (trình duyệt) để mô-đun lấy mặc định từ DEFAULTS; vắng thì dùng FALLBACK.
-  const params = typeof module === 'object' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
+  const params = typeof module === 'object' && module.exports ? require('./payroll-params') : root.PayrollParams;
   const api = factory(params);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.KpiScore = api;
@@ -44,11 +44,11 @@
   const SCORE_ERROR = 'Điểm phải là số từ 0 đến 100, tối đa 2 chữ số thập phân';
 
   // Điểm → số nguyên (điểm × 100). Chỉ dùng cho điểm đã qua checkScore.
-  const toUnits = score => Math.round(score * 100);
-  const isFiniteNumber = v => typeof v === 'number' && Number.isFinite(v);
+  const toUnits = (score?) => Math.round(score * 100);
+  const isFiniteNumber = (v?) => typeof v === 'number' && Number.isFinite(v);
 
   // Kiểm một điểm. Từ chối (không kẹp) mọi giá trị ngoài 0..100, kiểu khác số, hoặc quá 2 chữ số thập phân. null = xóa điểm.
-  function checkScore(v) {
+  function checkScore(v?) {
     if (v === null) return { ok: true, value: null };
     if (!isFiniteNumber(v) || v < 0 || v > 100) return { ok: false, error: SCORE_ERROR };
     // Đúng tối đa 2 chữ số thập phân: làm tròn về phần trăm phải cho lại chính giá trị đó (74,999999999 bị từ chối, 87,5 và 1,15 qua)
@@ -57,17 +57,17 @@
   }
 
   // Một điểm có tính là "đã nhập" không: số hợp lệ 0..100 (điểm 0 là đã nhập). Giá trị hỏng coi như chưa nhập để không trả tiền nhầm.
-  const present = v => v !== null && v !== undefined && checkScore(v).ok;
+  const present = (v?) => v !== null && v !== undefined && checkScore(v).ok;
 
   // Lương KPI = mức KPI × units / 1.000.000 × hệ số ngày nghỉ. Không làm tròn giữa chừng (VND() làm tròn khi hiển thị).
   // Nơi gọi đã kẹp mức KPI ở trần level và chỉ gọi khi evaluate(...).pass là true.
-  function pay(amt, units, ratio) {
+  function pay(amt?, units?, ratio?) {
     return ((amt * units) / 1000000) * ratio;
   }
 
   // Bộ tham số phẳng → trọng số, mốc Base Wework, ô chính sách và evaluate. Khoá vắng là lỗi (không đoán giá trị).
-  function build(P) {
-    const need = key => {
+  function build(P?) {
+    const need = (key?) => {
       if (!Object.hasOwn(P, key))
         throw Object.assign(new Error(`Thiếu tham số ${key}`), { code: 'PARAM_MISSING', key });
       return P[key];
@@ -76,7 +76,7 @@
       COMPONENT_KEYS.map(key => Object.freeze({ key, weight: need(`kpi.weight.${key}`) }))
     );
     const WEWORK_MIN = need('kpi.weworkMin');
-    const POLICY = {};
+    const POLICY: Record<string, any> = {};
     for (const [name, key] of Object.entries(POLICY_KEYS)) {
       POLICY[name] = need(key);
       if (!ALLOWED[name].includes(POLICY[name]))
@@ -89,7 +89,7 @@
     //   units = Σ (điểm × 100) × trọng số (số nguyên; 1.000.000 = 100%), total = units / 10000 (để hiển thị),
     //   weworkOk = Base Wework ≥ 75 (null khi chưa có điểm Wework), pass = đạt và được trả tiền,
     //   reason = 'incomplete' | 'wework' | 'below-pass' | 'ok' (xét theo thứ tự này). Đạt khi Base Wework ≥ ngưỡng VÀ tổng ≥ opts.pass (bằng mốc là đạt).
-    function evaluate(parts, opts) {
+    function evaluate(parts?, opts?) {
       const pass = opts && opts.pass;
       if (!isFiniteNumber(pass)) throw new TypeError('KpiScore.evaluate cần mốc đạt (opts.pass)');
       const source = parts && typeof parts === 'object' ? parts : {};
@@ -117,8 +117,8 @@
   }
 
   // Một bộ tham số → một bản mô-đun (nhớ theo đối tượng: bộ tham số của tháng được đóng băng và dùng lại cho cả bảng lương)
-  const built = new WeakMap();
-  function create(params) {
+  const built = new WeakMap<any, any>();
+  function create(params?) {
     if (!params || typeof params !== 'object')
       throw new TypeError('create(params): cần bộ tham số phẳng (PayrollParams.DEFAULTS)');
     if (!built.has(params)) {
@@ -131,11 +131,11 @@
   return create(PayrollParams && PayrollParams.DEFAULTS ? PayrollParams.DEFAULTS : FALLBACK);
 });
 
-/* Tự kiểm tra: node src/engine/kpi-score.js */
+/* Tự kiểm tra: node src/engine/kpi-score.ts */
 if (typeof require !== 'undefined' && require.main === module) {
   const assert = require('node:assert');
   const K = module.exports;
-  const p = (a, b, c, d, e) => ({ wework: a, user: b, peer: c, manager: d, self: e });
+  const p = (a?, b?, c?, d?, e?) => ({ wework: a, user: b, peer: c, manager: d, self: e });
   assert.deepEqual(
     K.COMPONENTS.map(c => c.weight),
     [40, 24, 18, 12, 6]

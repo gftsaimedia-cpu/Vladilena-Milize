@@ -5,7 +5,7 @@
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Params = require('../../src/engine/payroll-params.js');
+const Params = require('../../src/engine/payroll-params');
 const { rulesFor } = require('../../src/platform/request-rules');
 
 const REASON = 'Đổi giờ ca theo thông báo của công ty tháng này';

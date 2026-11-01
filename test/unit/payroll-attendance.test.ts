@@ -4,8 +4,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { loadPayroll } = require('../helpers/payroll-vm');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const {
   context: sandbox,

@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PayrollParams = api;
@@ -10,7 +10,7 @@
   // nằm ở src/params/registry.ts; khối GENERATED dưới đây chỉ chứa GIÁ TRỊ, sinh bởi `npm run params:extract`, không sửa tay.
 
   /* GENERATED:BEGIN (scripts/params/extract-defaults.ts) */
-  const DEFAULTS = {
+  const DEFAULTS: Record<string, any> = {
     'advance.basis': 'byWorkedDays',
     'advance.eligibleTypes.ctv': true,
     'advance.eligibleTypes.nv': true,
@@ -917,7 +917,7 @@
     'InvariantParams'
   ]);
   // Lớp của một khoá. Ngoại lệ: holiday.makeupRate thuộc OtParams; mọi `…Compare`, law.floor.*, law.ceiling.* là bất biến.
-  function classOf(key) {
+  function classOf(key?) {
     const parts = key.split('.');
     if (key === 'holiday.makeupRate') return 'OtParams';
     if (
@@ -931,15 +931,15 @@
   /* ---------- thuộc tính mở rộng của lớp ---------- */
   // Định nghĩa là khoá `class.level.attr.<mã>` mang { label, component, unit, min?, max?, default?, deprecated? }; giá trị theo hàng là
   // `level.<loại>.<bậc>.attr.<mã>`. Cả hai nằm trong bộ tham số của tháng như mọi khoá khác (không có mặc định trong DEFAULTS: chưa định nghĩa
-  // thì không có gì). Một thuộc tính KHÔNG đổi tiền, trừ thuộc tính tiền mà `insurance.baseAttr` trỏ tới (nền bảo hiểm, src/engine/pay-tail-calc.js).
+  // thì không có gì). Một thuộc tính KHÔNG đổi tiền, trừ thuộc tính tiền mà `insurance.baseAttr` trỏ tới (nền bảo hiểm, src/engine/pay-tail-calc.ts).
   const ATTR_DEF_PREFIX = 'class.level.attr.';
   const ATTR_CODE_RE = /^[a-z][A-Za-z0-9]{0,31}$/;
   const ATTR_COMPONENTS = Object.freeze(['money', 'percent', 'quantity', 'toggle', 'text']);
   // Đơn vị chọn được cho kiểu "quantity"
   const ATTR_QUANTITY_UNITS = Object.freeze(['count', 'hour', 'day', 'minute', 'times', 'month']);
   // Các định nghĩa còn dùng trong một bộ tham số: [{ code, key, label, component, unit, min?, max?, default?, deprecated }] theo mã
-  function attributeDefs(set) {
-    const out = [];
+  function attributeDefs(set?) {
+    const out: any[] = [];
     for (const key of Object.keys(set || {})) {
       if (!key.startsWith(ATTR_DEF_PREFIX)) continue;
       const code = key.slice(ATTR_DEF_PREFIX.length);
@@ -947,10 +947,10 @@
       if (ATTR_CODE_RE.test(code) && def && typeof def === 'object' && !Array.isArray(def))
         out.push({ ...def, code, key, deprecated: !!def.deprecated });
     }
-    return out.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+    return out.sort((a: any, b: any) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
   }
   // Giá trị của thuộc tính cho một hàng (loại, bậc): giá trị riêng nếu có, không thì mặc định của định nghĩa, không thì 0 / false / ''
-  function attributeValue(set, def, type, level) {
+  function attributeValue(set?, def?, type?, level?) {
     const own = set[`level.${type}.${level}.attr.${def.code}`];
     const value = own !== undefined && own !== null ? own : def.default;
     if (value !== undefined && value !== null) return value;
@@ -959,13 +959,13 @@
 
   /* ---------- quyền lợi của chức vụ ---------- */
   // Lỗi hồ sơ: mã chức vụ không có trong bảng tham số (shownType là mã đã rút gọn để đưa vào thông báo)
-  const badType = shownType =>
+  const badType = (shownType?) =>
     Object.assign(new Error(`Loại nhân sự ${shownType} không có trong bảng tham số; sửa loại trong hồ sơ nhân sự`), {
       code: 'PAYROLL_BAD_TYPE',
       field: 'type'
     });
   // Mã chức vụ của một người trong bảng loại của bộ tham số (TYPES do bộ máy dựng); mã lạ hoặc sai kiểu ném PAYROLL_BAD_TYPE
-  const typeKeyOf = (types, staff, shown) => {
+  const typeKeyOf = (types?, staff?, shown?) => {
     if (staff && typeof staff.type === 'string' && Object.hasOwn(types, staff.type)) return staff.type;
     throw badType(shown(staff && staff.type));
   };
@@ -978,7 +978,7 @@
   });
   // MỘT hàm đọc: ghi đè theo chức vụ type.<mã>.<đuôi> (khác null) → khoá toàn cục (đuôi, hoặc khoá của OVERRIDES) → mặc định của mã
   // (bộ tham số chụp trước khi có cờ mới vẫn đọc được vì ba chức vụ mặc định có mặc định trong DEFAULTS); không có gì thì undefined
-  function entitlement(set, type, tail) {
+  function entitlement(set?, type?, tail?) {
     const key = `type.${type}.${tail}`;
     if (Object.hasOwn(set, key) && set[key] !== null) return set[key];
     const global = OVERRIDES[tail] || tail;
@@ -987,9 +987,9 @@
   }
   // Bộ tham số của MỘT chức vụ: bộ tháng với các khoá toàn cục thay bằng ghi đè của chức vụ. Không có ghi đè nào thì trả đúng bộ tháng (cùng đối tượng,
   // nên tiền và nhân của bộ máy không đổi); có thì nhớ một bản cho mỗi chức vụ.
-  const overlays = new WeakMap();
-  function overlay(set, type) {
-    const patch = {};
+  const overlays = new WeakMap<any, any>();
+  function overlay(set?, type?) {
+    const patch: Record<string, any> = {};
     for (const [tail, key] of Object.entries(OVERRIDES)) {
       const own = `type.${type}.${tail}`;
       if (Object.hasOwn(set, own) && set[own] !== null) patch[key] = set[own];
@@ -1024,8 +1024,8 @@
       .trim()
       .split(/\s+/)
   );
-  const fills = new WeakMap();
-  function fillLate(set) {
+  const fills = new WeakMap<any, any>();
+  function fillLate(set?) {
     if (!fills.has(set)) {
       const missing = LATE_KEYS.filter(key => !Object.hasOwn(set, key));
       fills.set(
@@ -1042,8 +1042,8 @@
   }
 
   /* ---------- tiện ích ---------- */
-  const clone = value => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
-  function deepFreeze(value) {
+  const clone = (value?) => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
+  function deepFreeze(value?) {
     if (value && typeof value === 'object' && !Object.isFrozen(value)) {
       Object.freeze(value);
       for (const item of Object.values(value)) deepFreeze(item);
@@ -1051,7 +1051,7 @@
     return value;
   }
   // Chuỗi chuẩn hoá (khoá sắp xếp) để băm: máy chủ băm bằng node:crypto, ở đây không có thư viện băm
-  function canonical(value) {
+  function canonical(value?) {
     if (Array.isArray(value)) return '[' + value.map(canonical).join(',') + ']';
     if (value && typeof value === 'object')
       return (
@@ -1064,16 +1064,16 @@
       );
     return JSON.stringify(value === undefined ? null : value);
   }
-  const month = text => (typeof text === 'string' ? text.slice(0, 7) : '');
+  const month = (text?) => (typeof text === 'string' ? text.slice(0, 7) : '');
 
   /* ---------- hợp nhất theo tháng ---------- */
   // rows: [{ id, key, effectiveMonth, value }] (store.params.resolvedRows hoặc toàn bộ dòng). Giá trị hiệu lực của khoá k cho tháng M là dòng
   // có effectiveMonth <= M lớn nhất, hoà thì id lớn nhất; không có dòng thì mặc định. Trả bộ tham số phẳng đã đóng băng, cùng tập khoá với DEFAULTS
   // (cộng khoá có dòng nhưng chưa có mặc định, nếu người gọi đã lọc khoá hợp lệ ở registry).
-  function resolveParamSet(rows, forMonth) {
+  function resolveParamSet(rows?, forMonth?) {
     const target = month(forMonth);
     if (!/^\d{4}-\d{2}$/.test(target)) throw new TypeError('Tháng phải có dạng YYYY-MM');
-    const best = new Map();
+    const best = new Map<any, any>();
     for (const row of rows || []) {
       if (!row || typeof row.key !== 'string' || month(row.effectiveMonth) > target) continue;
       const have = best.get(row.key);
@@ -1090,7 +1090,7 @@
   }
 
   /* ---------- lớp tham số có kiểu ---------- */
-  function put(tree, key, value) {
+  function put(tree?, key?, value?) {
     const parts = key.split('.');
     let node = tree;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -1101,9 +1101,9 @@
   }
   // Giá trị dẫn xuất (trần đóng BH = 20 lần, miễn thuế giờ đêm ngày lễ): cùng giá trị với TAX_RULES.
   // Làm tròn theo unit.percent để 0,3 + 0,2 × 3 ra đúng 0,9 (không phải 0,8999999999999999).
-  function derive(set) {
+  function derive(set?) {
     const percent = set['unit.percent'];
-    const roundPct = x => Math.round(x * percent) / percent;
+    const roundPct = (x?) => Math.round(x * percent) / percent;
     const multiple = set['tax.insurance.capMultiple'];
     const regionWage = set['law.regionMinWage.' + set['law.region']];
     return {
@@ -1121,8 +1121,8 @@
   }
   // Cây theo lớp: classes.PayParams.level.nv[2].base, classes.TaxParams.tax.insurance.employee.bhxh ...
   // Trần bậc thuế cuối lưu null được đổi lại thành Infinity ở đây.
-  function buildParamClasses(set) {
-    const classes = {};
+  function buildParamClasses(set?) {
+    const classes: Record<string, any> = {};
     for (const name of CLASS_NAMES) classes[name] = {};
     for (const [key, value] of Object.entries(set)) {
       const name = classOf(key);
@@ -1130,7 +1130,9 @@
       put(
         classes[name],
         key,
-        key === 'tax.brackets' ? value.map(([cap, rate]) => [cap === null ? Infinity : cap, rate]) : clone(value)
+        key === 'tax.brackets'
+          ? (value as any[]).map(([cap, rate]: any) => [cap === null ? Infinity : cap, rate])
+          : clone(value)
       );
     }
     const derived = derive(set);

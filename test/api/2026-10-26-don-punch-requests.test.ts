@@ -9,7 +9,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../../src/platform/db');
 const config = require('../../src/platform/config');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const realExec = store.db.exec;
 const rowCount = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM punch_requests').get()).n;

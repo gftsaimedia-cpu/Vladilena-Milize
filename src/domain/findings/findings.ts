@@ -17,7 +17,7 @@ const audit = require('../../platform/audit');
 const authz = require('../../platform/authz');
 const config = require('../../platform/config');
 const { warnIf, optionalReason } = require('../../platform/warnings');
-const PayrollCalendar = require('../../engine/payroll-calendar.js');
+const PayrollCalendar = require('../../engine/payroll-calendar');
 
 const error = (code?, message?, httpStatus = 409, details?) =>
   Object.assign(new Error(message), { code, httpStatus, ...(details ? { details } : {}) });

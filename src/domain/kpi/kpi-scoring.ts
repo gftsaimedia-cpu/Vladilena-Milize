@@ -8,7 +8,7 @@ const { warnIf } = require('../../platform/warnings');
 //   monthParams(month?)        bộ tham số của tháng
 //   rulesFor(month)            quy tắc theo tháng (rulesFor(month).kpi)
 //   typeParam(params, type, suffix)
-//   KpiRules                   src/engine/kpi-score.js: KPI 5 thành phần, điểm, trọng số, ngưỡng
+//   KpiRules                   src/engine/kpi-score.ts: KPI 5 thành phần, điểm, trọng số, ngưỡng
 class KpiScoring {
   declare sheetOf: any;
   declare monthParams: any;
@@ -51,7 +51,7 @@ class KpiScoring {
     const n = typeof v === 'number' || typeof v === 'string' ? Number(v) : NaN;
     if (!Number.isFinite(n) || n < 0) throw new HttpError(400, 'Lương KPI phải là số không âm');
     const max = await this.maxOf(staff, await this.monthParams(month));
-    // Vượt trần chỉ cảnh báo; bộ máy kẹp mức KPI ở trần của bậc khi tính (src/engine/payroll-engine.js → ca()), nên tiền KPI không vượt trần
+    // Vượt trần chỉ cảnh báo; bộ máy kẹp mức KPI ở trần của bậc khi tính (src/engine/payroll-engine.ts → ca()), nên tiền KPI không vượt trần
     warnIf('KPI_OVER_CAP', max != null && n > max, {
       message: () => `Lương KPI không được vượt mức tối đa của level ${staff.level} (${max.toLocaleString('vi-VN')} đ)`, // lazy: max có thể null (TTS)
       consequence: () =>

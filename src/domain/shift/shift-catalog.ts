@@ -1,7 +1,7 @@
 'use strict';
 // Danh mục ca làm (bảng work_shifts, tạo và nạp ở src/domain/position/schema.js cùng danh mục chức vụ).
 // Mã ca mới (Normal1…Night2) là mã lưu trong hồ sơ; mã cũ n1 n2 f1 f2 g1 g2 vẫn được nhận ở mọi đầu vào và đổi sang mã mới (canonicalOf).
-// paramRows() đưa loại ca và bảng đổi mã vào bộ tham số của tháng, để bộ máy lương (phụ cấp theo ca được xếp) và src/engine/punch.js
+// paramRows() đưa loại ca và bảng đổi mã vào bộ tham số của tháng, để bộ máy lương (phụ cấp theo ca được xếp) và src/engine/punch.ts
 // (giờ ca theo mã mới) đọc được mà không cần biết tới DB.
 const config = require('../../platform/config');
 const { WorkShiftsRepository } = require('../../data');
@@ -81,7 +81,7 @@ class ShiftCatalog extends Repository {
   }
 
   // Dòng tham số (áp mọi tháng, tháng nền CATALOG_BASE_MONTH): shift.kind.<mã> (cả mã mới và mã cũ, vì lượt chấm công cũ chụp mã cũ)
-  // và shift.alias.<mã mới> = <mã cũ> để src/engine/punch.js, src/engine/actual-hours.js tra giờ ca bằng mã mới
+  // và shift.alias.<mã mới> = <mã cũ> để src/engine/punch.ts, src/engine/actual-hours.ts tra giờ ca bằng mã mới
   async paramRows() {
     const at = config.CATALOG_BASE_MONTH;
     const rows: any[] = [];

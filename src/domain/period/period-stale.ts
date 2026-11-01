@@ -3,7 +3,7 @@
 const store = require('../../platform/db');
 const paramsStore = require('../../params/store');
 const service = require('../payroll/payroll-service');
-const Params = require('../../engine/payroll-params.js');
+const Params = require('../../engine/payroll-params');
 
 // Phiếu lỗi của lần tính hiện hành gom theo mã: { code, count, message }. message là câu của lỗi đầu tiên (công thức hỏng ghi rõ "Công thức đã lưu không hợp lệ"),
 // để màn kỳ lương nói thẳng nguyên nhân thay vì chỉ đếm số phiếu lỗi. Không mang tên hay số tiền.

@@ -205,7 +205,7 @@ test(
     assert.equal(res.data.run, null);
     assert.equal(res.data.period.status, 'open');
     assert.match(res.data.paramsHash, /^[0-9a-f]{64}$/);
-    assert.equal(res.data.engineVersion, require('../../src/engine/payroll-engine.js').ENGINE_VERSION);
+    assert.equal(res.data.engineVersion, require('../../src/engine/payroll-engine').ENGINE_VERSION);
     assert.equal(typeof res.data.asOf, 'string');
     assert.deepEqual(res.data.rows.map(r => r.username).sort(), NAMES);
     for (const row of res.data.rows) {

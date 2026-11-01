@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 let base;
 const originalNow = Date.now;
 const tables = [

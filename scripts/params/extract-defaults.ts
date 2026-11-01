@@ -1,18 +1,18 @@
 'use strict';
-// Sinh `src/engine/payroll-params.js → DEFAULTS` từ MÃ ĐANG CHẠY.
-// Đọc: public/{actual-hours,kpi-score,approval-view}.js (mặc định của mô-đun), src/engine/payroll-graph.js, src/ai/thresholds.ts,
+// Sinh `src/engine/payroll-params.ts → DEFAULTS` từ MÃ ĐANG CHẠY.
+// Đọc: public/{actual-hours,kpi-score,approval-view}.js (mặc định của mô-đun), src/engine/payroll-graph.ts, src/ai/thresholds.ts,
 // src/platform/config.ts và một số hằng số có tên (regex). Mọi LÁ của các đối tượng nguồn phải khớp một mục của key-map.js, nếu không thì
 // script DỪNG và báo đường dẫn (không bao giờ đoán). Số mà mã không giữ hằng số
 // nằm ở hand-defaults.json, kèm lý do. KHÔNG đọc src/engine/index.html.
 //
-//   node scripts/params/extract-defaults.ts           ghi lại khối GENERATED trong src/engine/payroll-params.js
+//   node scripts/params/extract-defaults.ts           ghi lại khối GENERATED trong src/engine/payroll-params.ts
 //   node scripts/params/extract-defaults.ts --check   không ghi; thoát 1 nếu tệp không khớp mã hiện tại (dùng trong params:check)
 const fs = require('node:fs');
 const path = require('node:path');
 const { RULES, REGEX_SOURCES, HAND_FILE } = require('./key-map');
 
 const ROOT = path.join(__dirname, '..', '..');
-const TARGET = 'src/engine/payroll-params.js';
+const TARGET = 'src/engine/payroll-params.ts';
 const BEGIN = '/* GENERATED:BEGIN (scripts/params/extract-defaults.ts) */';
 const END = '/* GENERATED:END */';
 
@@ -45,9 +45,9 @@ const COMPILED = RULES.map(rule => ({ ...rule, compiled: compile(rule.path) }));
 /* ---------- đối tượng nguồn ---------- */
 function sources() {
   const out: Record<string, any> = {};
-  const ActualHours = require(path.join(ROOT, 'src/engine/actual-hours.js'));
-  const KpiScore = require(path.join(ROOT, 'src/engine/kpi-score.js'));
-  const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view.js'));
+  const ActualHours = require(path.join(ROOT, 'src/engine/actual-hours'));
+  const KpiScore = require(path.join(ROOT, 'src/engine/kpi-score'));
+  const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view'));
   const { THRESHOLDS, LIMITS } = require(path.join(ROOT, 'src/ai/thresholds.ts'));
   const config = require(path.join(ROOT, 'src/platform/config.ts'));
   out.ActualHours = { RULE: { ...ActualHours.RULE }, POLICY: { ...ActualHours.POLICY } };
@@ -63,7 +63,7 @@ function sources() {
   out.AiLimits = { ...LIMITS };
   out.THRESHOLDS = Object.fromEntries(Object.entries<any>(THRESHOLDS).map(([name, item]: any) => [name, item.value]));
   out.config = { ...config };
-  return { out, ApprovalItems: [...ApprovalView.ITEMS], Punch: require(path.join(ROOT, 'src/engine/punch.js')) };
+  return { out, ApprovalItems: [...ApprovalView.ITEMS], Punch: require(path.join(ROOT, 'src/engine/punch')) };
 }
 function* leaves(value?, prefix?) {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -128,11 +128,11 @@ function extract() {
       firstOf[src.key] = value;
     }
   }
-  // Công thức tháng mặc định gõ bằng chữ (src/engine/payroll-graph.js → DEFAULT_GRAPH): mặc định của khoá formula.<tên> là { text, tree } đã serialize.
+  // Công thức tháng mặc định gõ bằng chữ (src/engine/payroll-graph.ts → DEFAULT_GRAPH): mặc định của khoá formula.<tên> là { text, tree } đã serialize.
   // Chưa nối vào bộ máy (wired:false) nên lưu giá trị này không đổi một đồng; nó cho màn Công thức biết công thức đang chạy bằng chữ gì.
   {
-    const Formula = require(path.join(ROOT, 'src/engine/formula.js'));
-    const { DEFAULT_GRAPH } = require(path.join(ROOT, 'src/engine/payroll-graph.js'));
+    const Formula = require(path.join(ROOT, 'src/engine/formula'));
+    const { DEFAULT_GRAPH } = require(path.join(ROOT, 'src/engine/payroll-graph'));
     for (const [name, g] of Object.entries<any>(DEFAULT_GRAPH))
       put(
         `formula.${name}`,
@@ -206,7 +206,7 @@ async function main(argv?) {
         (k, x) => (x === Infinity ? null : x)
       );
     if (text(current) !== text(values)) {
-      console.error('src/engine/payroll-params.js → DEFAULTS không khớp mã hiện tại: chạy `npm run params:extract`');
+      console.error('src/engine/payroll-params.ts → DEFAULTS không khớp mã hiện tại: chạy `npm run params:extract`');
       process.exit(1);
     }
     console.log(`DEFAULTS khớp mã (${Object.keys(values).length} khoá)`);

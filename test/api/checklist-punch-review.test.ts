@@ -6,7 +6,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 
 const { F, store, flow } = P;
 

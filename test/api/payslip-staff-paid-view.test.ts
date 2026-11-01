@@ -12,7 +12,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -240,7 +240,7 @@ test('Lần tính có params_json là JSON null, chuỗi không phải JSON ho�
     assert.equal(status.list, 200, `danh sách vẫn đọc được, params_json=${broken}`);
   }
 });
-//   1. params_json là số hoặc chuỗi JSON: src/engine/payroll-params.js → fillLate gọi WeakMap.set với khoá không phải đối tượng
+//   1. params_json là số hoặc chuỗi JSON: src/engine/payroll-params.ts → fillLate gọi WeakMap.set với khoá không phải đối tượng
 //      (TypeError qua src/domain/period/periods.ts → workdaysStdOf) nên chi tiết phiếu trả 500;
 //   2. params_json = 'null': src/domain/period/periods.ts → allowanceStatus đọc params.<khoá> khi run.params là null nên GET /api/me/estimate nhánh chính thức trả 500.
 test('params_json hỏng (số, chuỗi JSON, null): chi tiết phiếu và /me/estimate không trả 500', async () => {

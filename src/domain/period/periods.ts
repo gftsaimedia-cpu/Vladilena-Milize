@@ -12,12 +12,12 @@ const service = require('../payroll/payroll-service');
 const config = require('../../platform/config');
 const crypto = require('node:crypto');
 const { THRESHOLDS } = require('../../ai/thresholds');
-const Params = require('../../engine/payroll-params.js');
+const Params = require('../../engine/payroll-params');
 const hashOf = (value?) => crypto.createHash('sha256').update(Params.canonical(value)).digest('hex');
-const Engine = require('../../engine/payroll-engine.js');
-const WorkSchedule = require('../../engine/work-schedule.js');
-const PunchRules = require('../../engine/punch.js');
-const PayrollCalendar = require('../../engine/payroll-calendar.js');
+const Engine = require('../../engine/payroll-engine');
+const WorkSchedule = require('../../engine/work-schedule');
+const PunchRules = require('../../engine/punch');
+const PayrollCalendar = require('../../engine/payroll-calendar');
 const { allowanceTotalOf } = require('./period-allowance'); // tổng phụ cấp (thành phần ③) của một bản chụp
 const { formulasOf } = require('../payroll/slip-formulas'); // công thức dưới từng dòng Chi tiết của phiếu Admin
 const { errorSummaryOf, staleOf } = require('./period-stale'); // phiếu lỗi gom theo mã; kỳ đã tính mà đầu vào hoặc tham số đổi sau đó
@@ -1021,7 +1021,7 @@ async function verify(month?) {
 // của lần chạy chốt (số tự tính, không có số Admin sửa) thay cho số ước tính.
 // Tình trạng phụ cấp chuyên cần để giao diện hiện "đã nghỉ X ngày, thêm Y ngày sẽ mất" mà không viết cứng số và không tự so sánh:
 // mọi ngưỡng lấy từ tham số của tháng, còn "còn bao nhiêu thì mất" do máy chủ tính theo đúng phép so sánh của bộ máy (gte: chạm ngưỡng là mất,
-// gt: phải vượt ngưỡng mới mất; INVERSE trong src/engine/payroll-engine.js).
+// gt: phải vượt ngưỡng mới mất; INVERSE trong src/engine/payroll-engine.ts).
 //   daysUntilLoss   số ngày nghỉ nữa (nguyên) thì mất; 0 = đã mất vì số ngày nghỉ
 //   hoursUntilLoss  số giờ vượt ngưỡng nữa thì mất (khoảng cách tới ngưỡng, không âm); 0 = đã mất vì giờ
 //   hoursLossStrict true khi phép so sánh của giờ là gt: tới đúng ngưỡng vẫn còn, chỉ vượt mới mất (giờ liên tục, không có "thêm 1")
@@ -1050,7 +1050,7 @@ function allowanceStatus(staff?, m?, params?) {
     kept: m.attendOk
   };
 }
-// src/engine/payroll-engine.js → assertStaff (hồ sơ sai) và kernelFor (công thức đã lưu hỏng, ví dụ có vòng): báo lý do, không trả 500
+// src/engine/payroll-engine.ts → assertStaff (hồ sơ sai) và kernelFor (công thức đã lưu hỏng, ví dụ có vòng): báo lý do, không trả 500
 const BAD_PROFILE_CODES = Object.freeze(['PAYROLL_BAD_TYPE', 'PAYROLL_BAD_LEVEL', 'PAYROLL_BAD_FORMULA']);
 async function estimate(me?, month?, { rows }: any = {}) {
   needMonth(month);

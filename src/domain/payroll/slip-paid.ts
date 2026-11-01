@@ -2,9 +2,9 @@
 // Số chi trả của phiếu (số Admin đã sửa là số chi trả).
 // Chỉ đọc, không ghi DB. Dùng ở src/domain/period/periods.ts (phiếu, danh sách, ước tính) và src/domain/payroll/slip-pins.ts.
 const store = require('../../platform/db');
-const Engine = require('../../engine/payroll-engine.js');
-const ActualHours = require('../../engine/actual-hours.js');
-const DayParts = require('../../engine/payroll-day-parts.js');
+const Engine = require('../../engine/payroll-engine');
+const ActualHours = require('../../engine/actual-hours');
+const DayParts = require('../../engine/payroll-day-parts');
 
 const numOr0 = (value?) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
 

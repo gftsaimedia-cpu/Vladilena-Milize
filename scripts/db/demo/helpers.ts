@@ -1,7 +1,7 @@
 'use strict';
 // Hàm dùng chung của bộ dữ liệu demo: ngày giờ (giờ Việt Nam), dựng ngày trong lịch ước tính, số ngẫu nhiên có hạt giống.
-// Không đọc đồng hồ, không đọc DB: chỉ tính toán. Các quy tắc ca, lịch dùng lại src/engine/punch.js, không viết lại.
-const P = require('../../../src/engine/punch.js');
+// Không đọc đồng hồ, không đọc DB: chỉ tính toán. Các quy tắc ca, lịch dùng lại src/engine/punch.ts, không viết lại.
+const P = require('../../../src/engine/punch');
 
 const SHIFT = P.SHIFT;
 const SCHED = Object.freeze({ tts: [1, 2, 3, 4, 5], ctv: [1, 2, 3, 4, 5, 6], nv: [1, 2, 3, 4, 5, 6] });

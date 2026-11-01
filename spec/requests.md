@@ -17,7 +17,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `src/domain/approvals/approvals.ts` | Kho bảng `sheet_approvals`: tạo bảng, `declaredItems`, `reconcile`, `list`, `get`, `forSheet`, `decide` (duyệt theo lô, khoá lạc quan rev + fingerprint), bốn đợt tạo dòng duyệt cho lịch đã lưu chạy lúc mở DB. Gắn vào `store.approvals` (`src/platform/db.ts`). |
 | `src/domain/approvals/index.ts` | Hàm nghiệp vụ dùng ở route: `sheetApprovals` (dòng duyệt hiệu lực gửi giao diện), `reconcileHolidayWork`, `reconcileMonthApprovals`, `reconcileStaffType`, `listApprovals` (bỏ tài khoản ngoài bảng lương), `tallyApprovals`, `approvalHttpError` (mã lỗi → HTTP). |
 | `src/platform/request-rules.ts` | `rulesFor(tháng)` dựng bảy mô-đun quy tắc dùng chung (`punch`, `leave`, `calendar`, `approvalView`, `actualHours`, `kpi`, `workSchedule`) từ bộ tham số hiệu lực của tháng; nhớ theo request HTTP (AsyncLocalStorage). Kèm `typeParam`, `benefitOf`, `vnToday`, `nowIso`. |
-| `src/engine/approval-view.js` | Mô-đun dùng chung trình duyệt + máy chủ: `ITEMS`, nhận diện khoản (`itemOf`), dấu vân tay (`fingerprint`), trạng thái hiệu lực (`effectiveStatus`), lịch tính tiền đã xử lý khoản chưa duyệt (`payView`), `POLICY`, `COUNTS_ABSENT`, `ALLOWED_ACTIONS`. |
+| `src/engine/approval-view.ts` | Mô-đun dùng chung trình duyệt + máy chủ: `ITEMS`, nhận diện khoản (`itemOf`), dấu vân tay (`fingerprint`), trạng thái hiệu lực (`effectiveStatus`), lịch tính tiền đã xử lý khoản chưa duyệt (`payView`), `POLICY`, `COUNTS_ABSENT`, `ALLOWED_ACTIONS`. |
 | `src/modules/sheet/sheet.helpers.ts` / `src/modules/attendance/attendance.controller.ts` (route) | `GET/PUT /holidays`, `GET /sheet`, `PUT /sheet`, `GET/PUT /kpi/scores` (,), `GET /approvals`, `GET /approvals/count`, `GET /alerts`, `PUT /approvals/decide`, `POST /punch` (, nhánh Check-out muộn), `GET/POST/PUT /ot` (,,), `checkInDay`, `cleanDays`, `leaveBalanceView`, `holidayOtConflicts`. |
 | `src/domain/sheet-on-behalf.ts` | Admin khai lịch thay (`sheetOwner`) và duyệt ngay khoản được khai thay (`approveOnBehalf`). |
 | `src/domain/timesheet/` (nối ở `timesheet/services.ts`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
@@ -26,7 +26,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `src/domain/ai-block.ts` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
 | `src/domain/leave/*` | Sổ phép lưu sẵn: `migrations/postgres/0001_baseline.sql` (bảng `leave_ledger`), `leave-events.ts` (các lần cộng phép có ngày), `leave-ledger-repository.ts` (đồng bộ sổ, ghi số dư), `leave-account-service.ts` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
 | `src/domain/leave-days.ts` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
-| `src/engine/leave.js` | Quy tắc phép dùng chung: `accrued`, `counted`, `ledger` (hết hạn, quy tiền), `settlementFor`. |
+| `src/engine/leave.ts` | Quy tắc phép dùng chung: `accrued`, `counted`, `ledger` (hết hạn, quy tiền), `settlementFor`. |
 | `src/domain/advance/advance-approvals.ts` | Lớp `AdvanceApprovals`: yêu cầu tạm ứng theo tháng lưu ở `settings.advance_approvals_<YYYY-MM>`, bước chuyển trạng thái, rev. |
 | `src/domain/advance/index.ts` | Đối tượng dùng chung `advanceApprovals` (đọc/ghi qua `store.getSetting/setSetting`). |
 | `src/modules/advance/advance-approvals.handlers.ts` | Route `/api/advance-approvals[...]`: xem, xin, rút, duyệt, từ chối, huỷ duyệt, duyệt tất cả. |
@@ -39,12 +39,12 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `src/domain/attendance/session-status.ts` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
 | `src/domain/shared/request.ts`, `domain-error.ts`, `repository.ts` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
 | `src/domain/kpi/kpi-scoring.ts` | KPI: `kpiMaxOf`, `hasKpi`, `cleanKpi`, `cleanKpiAmt`, `kpiScoreItem`, `kpiPartsView`, `selfScoreOnly`, `kpiHttpError`. |
-| `src/engine/kpi-score.js` | Quy tắc KPI dùng chung: trọng số, `checkScore`, `evaluate`, `pay`. |
+| `src/engine/kpi-score.ts` | Quy tắc KPI dùng chung: trọng số, `checkScore`, `evaluate`, `pay`. |
 | `src/domain/ot.ts` | OT khai ở Check-in/out: `listOt`, `validateOtDeclaration`. |
 | `src/platform/authz.ts` | `ROUTE_CAPS`, vai trò, `can`, `scopeOf`, `gate`, `isSelfDecision`, `DECIDE_ITEMS`. |
 | `src/platform/warnings.ts` | `warnIf`, `selfDecision`, `optionalReason`. |
 | `src/platform/events.ts` | SSE: `approvalsChanged`, `requestsDecided`, `advanceDecided`, `estimateChanged`, `punchChanged`, `punchCorrected`, `attendanceChanged`, `paramsChanged`. |
-| `src/domain/payroll/payroll-service.ts`, `src/engine/payroll-engine.js` | Người dùng kết quả duyệt: đưa dòng duyệt, cờ tạm ứng đã duyệt, ngày giữ lương do giải trình, số ngày phép dư quy tiền vào bộ máy. |
+| `src/domain/payroll/payroll-service.ts`, `src/engine/payroll-engine.ts` | Người dùng kết quả duyệt: đưa dòng duyệt, cờ tạm ứng đã duyệt, ngày giữ lương do giải trình, số ngày phép dư quy tiền vào bộ máy. |
 
 ### Trình duyệt
 
@@ -114,7 +114,7 @@ Chỉ mục `idx_sheet_approvals_status_date (status, date)`.
 | `pending` / `rejected` / `approved` | `approved` / `rejected` (rev+1) | `decide`. Cùng trạng thái đích → 409 `APPROVAL_NOOP`. Đổi từ approved/rejected = "đổi kết quả duyệt". |
 | có dòng | (xoá) | Ngày không còn khoản. |
 
-Trạng thái hiệu lực (khác trạng thái lưu): `approved` chỉ khi dòng tồn tại, `status='approved'` và `fingerprint` khớp ngày hiện tại; không có dòng hoặc vân tay lệch = `pending` (`effectiveStatus`, `approval-view.js`).
+Trạng thái hiệu lực (khác trạng thái lưu): `approved` chỉ khi dòng tồn tại, `status='approved'` và `fingerprint` khớp ngày hiện tại; không có dòng hoặc vân tay lệch = `pending` (`effectiveStatus`, `approval-view.ts`).
 
 **Tạm ứng (`advance_approvals_<tháng>`)** — `MOVES` (`advance-approvals.ts`)
 
@@ -227,7 +227,7 @@ Tất cả qua `src/modules/advance/advance-approvals.handlers.ts` `handle`. Kho
 
 ## 4. Cách tính / quy tắc
 
-### 4.1 Nhận diện khoản và dấu vân tay (`itemOf`, `approval-view.js`)
+### 4.1 Nhận diện khoản và dấu vân tay (`itemOf`, `approval-view.ts`)
 
 Đầu vào: một ngày khai `day` và ngữ cảnh `ctx = { date, holidays (mảng hoặc Set), staffType, schedule? }`.
 
@@ -245,7 +245,7 @@ Tất cả qua `src/modules/advance/advance-approvals.handlers.ts` `handle`. Kho
 
 Đổi ca, preset, giờ nghỉ không đổi vân tay; đổi loại, đoạn làm thêm, giờ vào/ra liền đoạn (hoặc giờ vào/ra của ngày lễ) thì đổi.
 
-### 4.2 Lịch tính tiền với khoản chưa duyệt (`payView`, `approval-view.js`)
+### 4.2 Lịch tính tiền với khoản chưa duyệt (`payView`, `approval-view.ts`)
 
 Cho từng ngày theo thứ tự tăng dần:
 
@@ -269,7 +269,7 @@ Bảng mặc định (registry `request.type.<khoản>.pendingRule` / `.rejected
 | `leave` | unpaid | unpaid | drop, unpaid | true | nghỉ không lương |
 | `willmakeup` | unpaid | unpaid | unpaid | true | nghỉ không lương, không phát sinh giờ cần bù |
 
-Chuỗi tính lương một người (`computeMonth`, `payroll-engine.js`): `payView(days, approvals, approvalPolicy(params), { holidays, staffType, schedule })` → `ActualHours.apply` → ghi đè mỗi ngày trong `explanationHold` thành `{ kind:'unpaid', punchIn?, punchOut?, held }` (`held` = `'rejected'` hoặc `'pending'`) → `calcMonth(..., { advance: advanceApproved === true, settleDays: leaveSettleDays })`.
+Chuỗi tính lương một người (`computeMonth`, `payroll-engine.ts`): `payView(days, approvals, approvalPolicy(params), { holidays, staffType, schedule })` → `ActualHours.apply` → ghi đè mỗi ngày trong `explanationHold` thành `{ kind:'unpaid', punchIn?, punchOut?, held }` (`held` = `'rejected'` hoặc `'pending'`) → `calcMonth(..., { advance: advanceApproved === true, settleDays: leaveSettleDays })`.
 
 ### 4.3 Đồng bộ dòng duyệt (`reconcile`, `src/domain/approvals/approvals.ts`)
 
@@ -334,13 +334,13 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 ### 4.8 Phép năm
 
-**Cộng phép** (`accrued` trong `src/engine/leave.js`; tham số `leave.*`; `accrued` luôn đếm từ ngày vào làm, phần cắt theo năm nằm ở `counted`):
+**Cộng phép** (`accrued` trong `src/engine/leave.ts`; tham số `leave.*`; `accrued` luôn đếm từ ngày vào làm, phần cắt theo năm nằm ở `counted`):
 
 - Tháng tròn thứ k = ngày vào làm + k tháng (lùi về cuối tháng nếu tháng ngắn). `months` = số tháng tròn tới `upTo`.
 - `total = leave.accrual.start (0) + months × leave.accrual.perMonth (1) + seniority + birthdays × leave.accrual.birthday (1) + leaveAdjust`.
 - `years = floor(months ÷ 12)`; `seniority = floor(years ÷ leave.seniority.stepYears (5))` (mỗi bậc +1 ngày, số 1 viết trong mã); tròn một năm không cộng riêng; sinh nhật chỉ `nv`, ngày sinh trong năm (sinh nhật cuối tháng 2 của năm nhuận lùi về ngày cuối tháng 2 ở năm thường) nằm trong [ngày vào làm, upTo].
 
-**Sổ và hết hạn** (`ledger`, `counted`, `firstYearOf` trong `src/engine/leave.js`): mỗi năm dương lịch N là một quỹ phép riêng; dùng quỹ cũ trước. Khi `leave.expiry.month` ≥ 1:
+**Sổ và hết hạn** (`ledger`, `counted`, `firstYearOf` trong `src/engine/leave.ts`): mỗi năm dương lịch N là một quỹ phép riêng; dùng quỹ cũ trước. Khi `leave.expiry.month` ≥ 1:
 
 - Năm đầu tiên được quản lý `first = max(năm vào làm, leave.expiry.fromYear)`. Phép cộng ở các năm trước `first` không tính vào quỹ nào: `counted(upTo) = accrued(upTo) − accrued(cuối năm first−1)` từng thành phần (ngày vào làm thật vẫn dùng để đếm tháng tròn, thâm niên, năm Nhân viên, sinh nhật); ngày phép dùng trước đầu năm `first` không tính. `leaveAdjust` là số mở đầu của quỹ `first` (dương hay âm), cộng đúng một lần vào `counted.total`.
 - Với mỗi năm y từ `first` mà cuối năm y < `upTo`: hạn = ngày cuối tháng `expiry.month` năm y+1; `pool = counted(cuối năm y).total − expired` (đã gồm `leaveAdjust` ở năm `first`); nếu hạn < upTo: `days = max(0, pool − đã dùng tới hạn)` vào `settled`, cộng `expired`; ngược lại nếu còn > 0 → `expiring { days, on }`.
@@ -360,8 +360,8 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 **Số theo quy tắc** (`advance-cap.ts:figureFor`): chạy `service.computeFor(month, staff, inputs, params, { upTo: undefined })` (tới ngày hiện tại) và lấy `max(0, round(m.trace.tamUngToiDa))`.
 
 - `tamUngToiDa` = công thức `formula.tamUng`: `nếu batTamUng thì roundDong(advance.rate × tienUng) ngược lại 0`.
-- `batTamUng = staff.advanceOn !== false && advance.eligibleTypes.<loại> !== false` (`payroll-engine.js`, `pay-options-calc.js`).
-- `tienUng = advance.basis === 'fixedPctByLevel' ? lương cơ bản của bậc : advanceBase`; `advanceBase` = Σ `advancePayOfDay` của các dòng ngày có ngày trong tháng ≤ `advance.untilDay` (`tienUngCong` `payroll-engine.js`, cộng ở; bản builtin `tienUng`): ngày `work` = `daily − cut`; ngày lễ có đi làm thật (`hours > 0`) = `holBase`; mọi dòng khác 0, kể cả OT ngày lễ. Ngày đi làm là ngày còn lại sau khi áp chấm công thực tế.
+- `batTamUng = staff.advanceOn !== false && advance.eligibleTypes.<loại> !== false` (`payroll-engine.ts`, `pay-options-calc.ts`).
+- `tienUng = advance.basis === 'fixedPctByLevel' ? lương cơ bản của bậc : advanceBase`; `advanceBase` = Σ `advancePayOfDay` của các dòng ngày có ngày trong tháng ≤ `advance.untilDay` (`tienUngCong` `payroll-engine.ts`, cộng ở; bản builtin `tienUng`): ngày `work` = `daily − cut`; ngày lễ có đi làm thật (`hours > 0`) = `holBase`; mọi dòng khác 0, kể cả OT ngày lễ. Ngày đi làm là ngày còn lại sau khi áp chấm công thực tế.
 - Mặc định: `advance.rate` 0.8, `advance.untilDay` 15, `advance.basis` 'byWorkedDays', `advance.eligibleTypes.{ctv,nv,tts}` true.
 
 **Điều kiện** (theo thứ tự): không `payrollSubject` → không được ứng; `advanceOn === false`; chức vụ không được ứng; chưa có trong đầu vào tháng (chưa làm) → `eligible: true, amount 0`; lỗi hồ sơ `PAYROLL_BAD_TYPE|LEVEL|FORMULA` → `eligible: true, amount 0` kèm lý do.
@@ -372,7 +372,7 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 **Rev**: rev của người kiểm ở xin/rút/duyệt/từ chối/huỷ (`ADVANCE_REQUEST_STALE`); rev của tháng kiểm ở duyệt tất cả (`ADVANCE_REQUESTS_STALE`). `expectedRev` vắng thì không kiểm. Mỗi lần ghi tăng rev tháng; mỗi bước tăng rev người.
 
-**Vào phiếu**: `payroll-service.loadInputs` đặt `advance: true` cho người trong `approvedSet(month)`; bộ máy trừ `advance = approved ? F.tamUng : 0` (hàm `netFrame` bắt đầu ở `payroll-engine.js`, dòng trừ tạm ứng ở). Số trừ là số tính lúc chạy lương (cả tháng, `upTo` null), không phải số hiển thị lúc duyệt. Duyệt/huỷ duyệt đổi `inputs_digest` nên lần tính cũ thành lỗi thời.
+**Vào phiếu**: `payroll-service.loadInputs` đặt `advance: true` cho người trong `approvedSet(month)`; bộ máy trừ `advance = approved ? F.tamUng : 0` (hàm `netFrame` bắt đầu ở `payroll-engine.ts`, dòng trừ tạm ứng ở). Số trừ là số tính lúc chạy lương (cả tháng, `upTo` null), không phải số hiển thị lúc duyệt. Duyệt/huỷ duyệt đổi `inputs_digest` nên lần tính cũ thành lỗi thời.
 
 **Ứng lương dạng cũ**: `granted` không trừ vào phiếu (không nơi nào đưa `grantedByUser` vào bộ máy); chỉ dùng cho `capOf.remaining`.
 
@@ -383,9 +383,9 @@ Hai luồng khác nhau:
 1. **OT trên Lịch ước tính** (khoản `ot`, 4.1): nguồn tiền. Kiểm khi lưu: tổng OT thô trong tháng cộng giờ ca chính làm ngày lễ > `MONTH_OT_CAP` (40) và tăng so với lịch đang lưu → 400 `OT_MONTH_CAP` (`overtime/hour-limits.ts`); quyền lợi `ot` → `BENEFIT_NOT_ALLOWED`; đoạn làm thêm rơi 22h–6h → `SHEET_EXTRA_NIGHT`; đoạn làm thêm ghi nhầm phía ca → 400 `EXTRA_WRONG_SIDE`; giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, trừ giờ nghỉ giữa ca) > `DAY_HOURS_CAP` (12) → 400 `DAY_HOURS_CAP` (`limits.checkDayHours`); cả hai là lỗi chặn. Bộ máy không cắt theo các trần.
 2. **OT khai ở Check-in/out** (`POST/PUT /ot`): chỉ để theo dõi, không tự cộng tiền (`ot.ts`; nguồn đoạn làm thêm của giờ thực tế là Lịch ước tính — `attendance.extraSourceRule` = calendar — và `otReview` của lượt bị bỏ khi dựng ngày tính tiền). `validateOtDeclaration`: lượt phải `closed` (409), có `plannedShift` (400), không đang khai làm bù (409), giờ HH:MM, ít nhất một đoạn, có giờ có mặt hợp lệ; các kiểm `BENEFIT_NOT_ALLOWED`, `OT_NEEDS_CONFIRMED_SHIFT`, `OT_OUTSIDE_PRESENCE`, `OT_NIGHT` (đoạn OT chồng 22h–6h) là cảnh báo (`warnIf`); sau đó hai trần cứng `DAY_HOURS_CAP` (giờ ròng ngày, cộng OT của các lượt khác cùng ngày) và `OT_MONTH_CAP` (so với Lịch ước tính) chặn 400.
 
-**Điều kiện để OT trên lịch ra tiền**: khoản đã `approved` (chưa duyệt / bị từ chối: `strip`, mục 4.2); chức vụ có `benefit.ot`; có chấm công: `ActualHours` chỉ giữ phần đoạn đã khai nằm trong khoảng có mặt liền với ca (`clipExtra`, `actual-hours.js`), số giờ không vượt số giờ đã khai; ngày ngoài lịch làm việc của người chỉ trả đoạn làm thêm (`extraOnly`: không ngày công, không giờ thiếu, không lương ngày, không phụ cấp ca); khai OT ngoài lịch mà không có chấm công nào thì không tính tiền và không là vắng.
+**Điều kiện để OT trên lịch ra tiền**: khoản đã `approved` (chưa duyệt / bị từ chối: `strip`, mục 4.2); chức vụ có `benefit.ot`; có chấm công: `ActualHours` chỉ giữ phần đoạn đã khai nằm trong khoảng có mặt liền với ca (`clipExtra`, `actual-hours.ts`), số giờ không vượt số giờ đã khai; ngày ngoài lịch làm việc của người chỉ trả đoạn làm thêm (`extraOnly`: không ngày công, không giờ thiếu, không lương ngày, không phụ cấp ca); khai OT ngoài lịch mà không có chấm công nào thì không tính tiền và không là vắng.
 
-**Hệ số OT** (`calcDay`, `payroll-engine.js`; lương giờ = lương cơ bản của bậc ÷ ngày công chuẩn ÷ `time.workHoursPerDay`; hệ số đọc theo chức vụ qua `entitlementOf`, giá trị trong ngoặc là mặc định registry). Giờ OT được tách theo ngày dân sự của từng phút (`splitExtraWork`, `payroll-calendar.js`); OT không trừ giờ nghỉ:
+**Hệ số OT** (`calcDay`, `payroll-engine.ts`; lương giờ = lương cơ bản của bậc ÷ ngày công chuẩn ÷ `time.workHoursPerDay`; hệ số đọc theo chức vụ qua `entitlementOf`, giá trị trong ngoặc là mặc định registry). Giờ OT được tách theo ngày dân sự của từng phút (`splitExtraWork`, `payroll-calendar.ts`); OT không trừ giờ nghỉ:
 
 | Phút OT rơi vào | Tiền | Ghi chú |
 | --- | --- | --- |
@@ -397,7 +397,7 @@ Chức vụ không có `benefit.ot` không có OT nào, kể cả ngày lễ (`e
 
 **OT ngày lễ** (khoản `ot` mang vân tay `holiday_work|…`, khung giờ từ – đến của ngày lễ):
 
-- Tiền trả cho phần khung đã duyệt ∩ giờ có mặt liền mạch (`holidayWindow` `actual-hours.js`), phần nằm trong ngày lễ theo hệ số lễ; phút sang ngày thường kề bên tính như OT thường (hệ số theo bảng trên); không cần duyệt OT riêng và không bị chặn bởi giờ cần bù.
+- Tiền trả cho phần khung đã duyệt ∩ giờ có mặt liền mạch (`holidayWindow` `actual-hours.ts`), phần nằm trong ngày lễ theo hệ số lễ; phút sang ngày thường kề bên tính như OT thường (hệ số theo bảng trên); không cần duyệt OT riêng và không bị chặn bởi giờ cần bù.
 - Giờ ca chính rơi vào ngày lễ không còn trong lương ngày: dòng ngày trừ `(holMainH − holMainBreakH) × lương giờ` và trả `holWorkPay`; giờ nghỉ của ca rơi vào ngày lễ được trả như giờ làm (ngày lễ không có giờ nghỉ), nên phần nghỉ đêm có lương không trả lần hai (`calcDay`). Ca đêm sang ngày lễ được tách theo ngày dân sự: phần trước nửa đêm tính ngày thường, phần sau tính ngày lễ; phụ cấp ca chỉ cộng một lần.
 - Lương ngày lễ (`holBase` = lương ngày) trả khi chức vụ có `benefit.paidHoliday`, trong thời gian làm việc, và ngày không bị đánh dấu vắng. Ngày lễ khai đi làm (có in/out) mà hết ca không có Check-in/out nào là vắng (`noshow`, `attendance.missingAllRule` = absent): mất lương lễ, tính như nghỉ không lương.
 - Chức vụ không có `benefit.ot`: không có khoản OT ngày lễ, ngày lễ chỉ có lương lễ (nếu chức vụ có).
@@ -409,25 +409,25 @@ Chức vụ không có `benefit.ot` không có OT nào, kể cả ngày lễ (`e
 - `makeup_hours`: đoạn trước/sau ca có `extraKind:'makeup'` trên ngày đi làm; chức vụ không có `benefit.makeupHours` → `BENEFIT_NOT_ALLOWED` (`checkRequestFlags`, `positions.ts`).
 - `willmakeup`: ngày nghỉ, kế hoạch làm bù `makeupPlans[{date,from,to}]` (tối đa 31 dòng, ô sai dạng thành rỗng, chỉ để Admin xem khi duyệt, không chặn gì). Đã duyệt: 0 đồng, không ngày công, cộng một công (`time.workHoursPerDay` giờ) vào giờ cần bù của tháng.
 - Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`timesheet/timesheet-validator.ts`); ngày đã lưu không đổi thì giữ.
-- **Tiền**: giờ làm bù được trả đủ = giờ × lương giờ × 1, không cắt theo giờ cần bù (`makeupPay`, `payroll-engine.js`); đoạn làm bù trừ giờ nghỉ rơi trong đoạn (OT không trừ). Ngày có giờ làm bù được trả (`makeupH > 0`) không có phụ cấp ca và giờ nghỉ đêm có lương (`noShiftAllowance`,); ngày có OT được trả vẫn giữ phụ cấp ca và giờ nghỉ đêm có lương.
+- **Tiền**: giờ làm bù được trả đủ = giờ × lương giờ × 1, không cắt theo giờ cần bù (`makeupPay`, `payroll-engine.ts`); đoạn làm bù trừ giờ nghỉ rơi trong đoạn (OT không trừ). Ngày có giờ làm bù được trả (`makeupH > 0`) không có phụ cấp ca và giờ nghỉ đêm có lương (`noShiftAllowance`,); ngày có OT được trả vẫn giữ phụ cấp ca và giờ nghỉ đêm có lương.
 - **Sổ giờ bù tháng** (`calcMonth`,): `need` = giờ thiếu của ngày đi làm + một công cho mỗi ngày `willmakeup` đã duyệt; `made` = giờ làm bù đã duyệt và có chấm công; `debt = max(0, need − made)` (giờ còn thiếu); `makeupCredit = max(0, made − need)` (phần làm bù nhiều hơn giờ thiếu, đã trả trong `makeupPay`). Số dư luỹ kế theo ngày chỉ dùng để giữ OT ngày thường (4.10) và báo giờ còn thiếu.
 
 ### 4.12 Nghỉ phép, nghỉ không lương, nghỉ được duyệt, iSAT
 
-Bộ máy với khoản **đã duyệt** (`calcDay`, `payroll-engine.js`):
+Bộ máy với khoản **đã duyệt** (`calcDay`, `payroll-engine.ts`):
 
 | Loại ngày | Lương | Ghi chú |
 | --- | --- | --- |
 | `leave` | lương ngày nếu chức vụ có `benefit.paidLeave`, ngược lại 0 | Có lương thì là ngày có lương cho bảo hiểm. |
 | `unpaid` | 0 | |
 | `approved` ("Nghỉ được duyệt") | 0 | Tính là ngày nghỉ khi xét chuyên cần theo `request.type.approved.countsAbsent`. Chức vụ không có `benefit.approvedLeave` → `BENEFIT_NOT_ALLOWED`. |
-| `isat` | lương ngày khi chức vụ có `benefit.isat` **và** ngày đúng thứ `isat.weekday` (mặc định 6, thứ Bảy), ngược lại 0 | Không phụ cấp. Bộ đếm `r.isat` (`payroll-engine.js`) và ngày có lương chỉ tính ngày iSAT được trả; riêng vắng xét chuyên cần đếm mọi dòng iSAT (bên dưới). |
+| `isat` | lương ngày khi chức vụ có `benefit.isat` **và** ngày đúng thứ `isat.weekday` (mặc định 6, thứ Bảy), ngược lại 0 | Không phụ cấp. Bộ đếm `r.isat` (`payroll-engine.ts`) và ngày có lương chỉ tính ngày iSAT được trả; riêng vắng xét chuyên cần đếm mọi dòng iSAT (bên dưới). |
 | `willmakeup` | 0 | Cộng một công vào giờ cần bù (4.11). |
 | `makeup` (loại cũ) | 0 | Không ngày công, không giờ làm bù. |
 
 **iSAT**: chỉ vào thứ Bảy (`isat.weekday`) và chỉ chức vụ có `benefit.isat` (mặc định chỉ nhóm NV). Kiểm bằng `isatRefusal` (`isat-rule.ts`) ở ba nơi, luôn chặn, kể cả khi Admin khai thay: lưu lịch với ngày iSAT mới (`BENEFIT_NOT_ALLOWED` hoặc `SHEET_ISAT_WEEKDAY`), duyệt khoản iSAT, và danh sách kiểm kỳ đếm iSAT đã lưu vi phạm. `isat.monthlyLimit` (mặc định null) → cảnh báo `SHEET_ISAT_LIMIT`; bộ máy không cắt theo giới hạn này. Chưa duyệt hoặc bị từ chối: `unpaid`, vẫn tính ngày nghỉ.
 
-**Ngày vắng xét chuyên cần / KPI** (`finishMonth`, `payroll-engine.js`):
+**Ngày vắng xét chuyên cần / KPI** (`finishMonth`, `payroll-engine.ts`):
 
 `absent = leave + unpaid + approvedCounted − unpaidExempt + noshow + isat + willmakeupCounted`
 
@@ -583,25 +583,25 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 
 ### 6.2 Module này gọi
 
-`src/platform/db.ts` (store, transaction, settings, periods, sessions, staff), `src/platform/warnings.ts`, `src/platform/authz.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/request-rules.ts` → `src/params/store.ts`, `src/domain/schedule.ts` / `src/engine/work-schedule.js`, `src/domain/sheet.ts` (`estimateSheet` → `payroll-service.estimateDays`), `src/domain/payroll/payroll-service.ts` + `src/engine/payroll-engine.js` (số tạm ứng), `src/engine/pay-options-calc.js`, `src/domain/ai-review.ts`, `src/domain/attendance*.js`, `src/domain/container.ts`.
+`src/platform/db.ts` (store, transaction, settings, periods, sessions, staff), `src/platform/warnings.ts`, `src/platform/authz.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/request-rules.ts` → `src/params/store.ts`, `src/domain/schedule.ts` / `src/engine/work-schedule.ts`, `src/domain/sheet.ts` (`estimateSheet` → `payroll-service.estimateDays`), `src/domain/payroll/payroll-service.ts` + `src/engine/payroll-engine.ts` (số tạm ứng), `src/engine/pay-options-calc.ts`, `src/domain/ai-review.ts`, `src/domain/attendance*.js`, `src/domain/container.ts`.
 
 ### 6.3 Mô-đun dùng chung trình duyệt + máy chủ
 
-`src/engine/approval-view.js`, `src/engine/leave.js`, `src/engine/kpi-score.js`, `src/engine/work-schedule.js`, `src/engine/actual-hours.js`, `src/engine/payroll-params.js` (DEFAULTS), `src/engine/payroll-engine.js`, `src/engine/pay-options-calc.js`, `src/engine/payroll-calendar.js`, `src/engine/punch.js`. Trình duyệt dùng bản trần (`create(DEFAULTS)`), máy chủ dùng `rulesFor(tháng)` (trừ `src/domain/approvals/approvals.ts` dùng bản trần, xem mục 8).
+`src/engine/approval-view.ts`, `src/engine/leave.ts`, `src/engine/kpi-score.ts`, `src/engine/work-schedule.ts`, `src/engine/actual-hours.ts`, `src/engine/payroll-params.ts` (DEFAULTS), `src/engine/payroll-engine.ts`, `src/engine/pay-options-calc.ts`, `src/engine/payroll-calendar.ts`, `src/engine/punch.ts`. Trình duyệt dùng bản trần (`create(DEFAULTS)`), máy chủ dùng `rulesFor(tháng)` (trừ `src/domain/approvals/approvals.ts` dùng bản trần, xem mục 8).
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
-- Đổi `itemOf` / `holidayFingerprint` / `segmentsOf` (approval-view.js) → mọi dòng `sheet_approvals` đã lưu có vân tay cũ thành `pending` ở lần lưu sau và trạng thái hiệu lực thành `pending` ngay (tiền mất cho tới khi duyệt lại); kiểm `effectiveStatus`, `reconcile`, `declaredItems`, các đợt tạo dòng, `itemFromRow`, `rejectedLeaveDates`, giao diện test approval-view*.
+- Đổi `itemOf` / `holidayFingerprint` / `segmentsOf` (approval-view.ts) → mọi dòng `sheet_approvals` đã lưu có vân tay cũ thành `pending` ở lần lưu sau và trạng thái hiệu lực thành `pending` ngay (tiền mất cho tới khi duyệt lại); kiểm `effectiveStatus`, `reconcile`, `declaredItems`, các đợt tạo dòng, `itemFromRow`, `rejectedLeaveDates`, giao diện test approval-view*.
 - Đổi `ITEMS` → `authz.DECIDE_ITEMS` (vai trò tuỳ chỉnh), `ALLOWED_ACTIONS`, `FALLBACK`, khoá registry `request.type.<khoản>.*`, `reconcile` (từ chối item lạ), `A.ITEM_LABEL` và `ITEM_LABEL` của logic.js, `approvalPolicy` của bộ máy, `APPROVAL_ITEMS` của `src/domain/roles/roles.ts`.
-- Đổi `POLICY` / `pendingRule` / `countsAbsent` → `payView`, `approvalPolicy` (`payroll-engine.js`), `calcMonth` (`absentExempt`, `unpaidExempt`), golden fixtures.
+- Đổi `POLICY` / `pendingRule` / `countsAbsent` → `payView`, `approvalPolicy` (`payroll-engine.ts`), `calcMonth` (`absentExempt`, `unpaidExempt`), golden fixtures.
 - Đổi chiếu ngày (`projectDay`, `estimateDays`, `ESTIMATE_FIELDS`, `DAY_FIELDS`) → vân tay tính ở reconcile và ở `sheetApprovals` phải cùng đầu vào; nếu lệch, khoản hiện "chờ duyệt" mãi.
 - Đổi `reconcile` → PUT /sheet, `approveOnBehalf` (dùng `added/reset/resubmitted`), `reconcileMonthApprovals` (đổi lễ, đổi loại), `approvals.changed`.
 - Đổi `decide` / mã lỗi → `APPROVAL_HTTP_STATUS` (`src/domain/approvals/index.ts`) (đọc `APPROVAL_STALE`, `items`), `approveOnBehalf`.
 - Đổi danh sách lễ hoặc cách đọc lễ → `reconcileHolidayWork`, `isScheduledHoliday`, `leaveDates` (bỏ ngày lễ), `HOLIDAY_*_CONFLICT`, `holidayOtConflicts`, `checkInDay`, bộ máy (`holBase`, `holWork`, `splitMainWork`, `splitExtraWork`).
 - Đổi `WorkSchedule` / `type.*.dows` → nhận diện OT ngày lễ, `leaveDates`, `SHEET_UNPAID_WITH_LEAVE`, `isRestDay` (hệ số OT cuối tuần), `checkInDay`; nhớ gọi `reconcileMonthApprovals` cho các tháng bị ảnh hưởng.
 - Đổi `leaveDates` → số dư ở các nơi (mục 8), `HOLIDAY_LEAVE_CONFLICT`, sổ lưu sẵn, quy tiền phép hết hạn (`leaveSettlements`).
-- Đổi `src/engine/leave.js` `accrued` → phải đổi cùng `leave-events.ts` `accrualEvents` (cùng quy tắc, viết lại), test đối chiếu tổng.
-- Đổi công thức `tamUng`, `tienUng`, `advance.*` → `advance-cap.figureFor` (đọc `m.trace.tamUngToiDa`), `netFrame` (`payroll-engine.js`, dòng trừ tạm ứng), cả hai bản `tienUng` ( và), số hiện ở màn nhân viên/Admin, `ADVANCE_ZERO`, `provisional`.
+- Đổi `src/engine/leave.ts` `accrued` → phải đổi cùng `leave-events.ts` `accrualEvents` (cùng quy tắc, viết lại), test đối chiếu tổng.
+- Đổi công thức `tamUng`, `tienUng`, `advance.*` → `advance-cap.figureFor` (đọc `m.trace.tamUngToiDa`), `netFrame` (`payroll-engine.ts`, dòng trừ tạm ứng), cả hai bản `tienUng` ( và), số hiện ở màn nhân viên/Admin, `ADVANCE_ZERO`, `provisional`.
 - Đổi lưu trữ tạm ứng (`advance_approvals_<tháng>`) → `approvedSet` (bộ máy và AI soát), `inputs_digest`, `normalize` (dòng dạng cũ).
 - Đổi `heldByUser` / trạng thái giải trình → `explanationHold` trong bộ máy, `AdminPresence.declaredDates` / `syncExplanation`, `LateCheckout.sync`, `inputs_digest`, `EXPLANATION_PENDING`.
 - Đổi hệ số OT (`ot.rate`, `ot.weekendRate`, `ot.holidayRate`, `night.otAddRate`) hay `ot.afterMakeup` → `calcDay`, `mienThueOf` (mức miễn thuế theo nhóm OT), bảng ở mục 4.10, phiếu.
@@ -641,13 +641,13 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 
 ### 8.1 Hai nơi tính cùng một thứ khác nhau
 
-1. **Nhận diện khoản dùng hai bộ tham số.** `src/domain/approvals/approvals.ts, :107` (`declaredItems`, dùng cho `reconcile` và các đợt tạo dòng) gọi bản trần `view` = `require('../src/engine/approval-view.js')` (= `create(DEFAULTS)`), trong khi `src/domain/approvals/index.ts` (`sheetApprovals`) và bộ máy dùng `rulesFor(tháng).approvalView`. Nếu lịch làm việc theo tham số tháng khác mặc định, khoản OT ngày lễ lưu ở DB và khoản hiện trên màn có thể khác nhau.
+1. **Nhận diện khoản dùng hai bộ tham số.** `src/domain/approvals/approvals.ts, :107` (`declaredItems`, dùng cho `reconcile` và các đợt tạo dòng) gọi bản trần `view` = `require('../src/engine/approval-view')` (= `create(DEFAULTS)`), trong khi `src/domain/approvals/index.ts` (`sheetApprovals`) và bộ máy dùng `rulesFor(tháng).approvalView`. Nếu lịch làm việc theo tham số tháng khác mặc định, khoản OT ngày lễ lưu ở DB và khoản hiện trên màn có thể khác nhau.
 2. **Tháng mốc duyệt sẵn chỉ áp một nửa.** `reconcileMonthApprovals` truyền `approveBefore: CUTOFF_MONTH` (`src/domain/approvals/index.ts`), còn `PUT /sheet` gọi `reconcile` không có `approveBefore` (`src/modules/sheet/sheet.controller.ts`): khoản mới của tháng đứng trước mốc lưu qua PUT /sheet thì chờ duyệt, tạo qua đổi lễ / đổi loại thì duyệt sẵn. Mốc viết cứng trong mã (`src/domain/approvals/approvals.ts`).
 3. **Số dư phép tính ở nhiều nơi.** `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` `leaveBalanceView` (tới ngày hiện tại, không xét ngày nghỉ việc, cờ `sheetFlagsOf().hasLeaveAccount`); `src/domain/sheet.ts` `leaveSummary` (`rulesFor()` tháng hiện tại); `LeaveAccountService.refresh` (`leave-account-service.ts`, tính tới ngày nghỉ việc, cần `uuid`); `src/modules/sheet/sheet.controller.ts` / `src/modules/leave/leave.controller.ts` (`HOLIDAY_LEAVE_CONFLICT`). Người đã nghỉ việc có thể thấy hai số dư khác nhau giữa `GET /sheet` và `GET /leave/ledger`.
-4. **Quy tắc cộng phép viết hai lần.** `src/domain/leave/leave-events.ts` chép lại `src/engine/leave.js` `accrued` (`NV_TYPE`, cách đếm tháng tròn, năm, thâm niên, sinh nhật); chỉ test đối chiếu tổng giữ hai bản khớp.
+4. **Quy tắc cộng phép viết hai lần.** `src/domain/leave/leave-events.ts` chép lại `src/engine/leave.ts` `accrued` (`NV_TYPE`, cách đếm tháng tròn, năm, thâm niên, sinh nhật); chỉ test đối chiếu tổng giữ hai bản khớp.
 5. **Chiếu ngày khai viết hai lần.** `src/domain/approvals/approvals.ts` `projectDay` khác `src/domain/payroll/payroll-service.ts` `estimateDays`: `projectDay` giữ cả `makeupPlans` lẫn `makeupDate` cho mọi loại khác work/makeup; `estimateDays` chỉ cho `willmakeup` và chỉ một trong hai, thêm `punchNote`, điền `extraKind:'makeup'` khi thiếu.
-6. **POLICY dựng hai lần.** `approval-view.js` (kiểm thiếu khoá, ném `PARAM_MISSING`) và `payroll-engine.js` `approvalPolicy` (quét regex, không kiểm thiếu khoá hay `ALLOWED_ACTIONS`). Bộ máy luôn truyền bản thứ hai vào `payView`.
-7. **Nền tạm ứng viết hai lần.** `payroll-engine.js` `tienUngCong` và builtin `tienUng` cùng một quy tắc.
+6. **POLICY dựng hai lần.** `approval-view.ts` (kiểm thiếu khoá, ném `PARAM_MISSING`) và `payroll-engine.ts` `approvalPolicy` (quét regex, không kiểm thiếu khoá hay `ALLOWED_ACTIONS`). Bộ máy luôn truyền bản thứ hai vào `payView`.
+7. **Nền tạm ứng viết hai lần.** `payroll-engine.ts` `tienUngCong` và builtin `tienUng` cùng một quy tắc.
 8. **Đếm "chờ duyệt" khác nhau.** `approvals.changed` gửi `pending = store.approvals.list({status:'pending'}).length` (`src/platform/events.ts`): gồm tài khoản ngoài bảng lương và không lọc theo quyền người xem; `GET /approvals/count` và `GET /alerts` lọc cả hai (`src/modules/approvals/approvals.controller.ts, :1083`). Danh sách kiểm kỳ `PENDING_APPROVALS` (`src/domain/period/periods.ts`) lại đếm theo danh sách người của kỳ.
 10. **Thứ tự danh sách duyệt.** `store.approvals.list` xếp theo `date, username` (`ORDER BY` ở `src/domain/approvals/approvals.ts`, hàm `list` bắt đầu), `GET /approvals` xếp lại theo `username, date` rồi mới phân trang.
 
@@ -665,8 +665,8 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 ### 8.3 Số viết cứng, tham số không được đọc
 
 19. **Độ dài lý do có nhiều nguồn**: `src/domain/input.ts` `NOTE_MAX = 300`; `src/domain/approvals/approvals.ts` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.ts`).
-21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `src/engine/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `src/engine/kpi-score.js` (`checkScore`, `toUnits`) và `src/domain/kpi/kpi-scoring.ts` (`cleanKpi`).
-22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`src/engine/leave.js`, `leave-events.ts`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.ts`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.ts`); `config.CHECKOUT_GRACE_MIN` 30.
+21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `src/engine/payroll-params.ts`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `src/engine/kpi-score.ts` (`checkScore`, `toUnits`) và `src/domain/kpi/kpi-scoring.ts` (`cleanKpi`).
+22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`src/engine/leave.ts`, `leave-events.ts`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.ts`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.ts`); `config.CHECKOUT_GRACE_MIN` 30.
 23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.ts` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
 
 ### 8.4 Mã chết, trùng, quyền

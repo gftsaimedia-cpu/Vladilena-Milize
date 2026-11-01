@@ -3,8 +3,8 @@
 // khi KHÔNG có dòng tham số nào (param_versions rỗng), mọi kết quả lương bằng đúng kết quả của bộ tham số mặc định (DEFAULTS), từng đồng,
 // ở CẢ HAI giá trị params_mode ('defaults-only' và 'active').
 //   - nhóm 1: migration để param_versions rỗng và params_mode = defaults-only;
-//   - nhóm 2 (src/engine/payroll-params.js): ParamSet của mọi tháng bằng DEFAULTS, và 'defaults-only' bỏ qua mọi dòng phiên bản;
-//   - nhóm 3 (thêm src/engine/payroll-engine.js): bộ máy chạy ParamSet của tháng trả đúng từng đồng và đúng dấu vân tay như bộ máy chạy DEFAULTS cộng dòng danh mục trên đầu vào của 300 ca vàng;
+//   - nhóm 2 (src/engine/payroll-params.ts): ParamSet của mọi tháng bằng DEFAULTS, và 'defaults-only' bỏ qua mọi dòng phiên bản;
+//   - nhóm 3 (thêm src/engine/payroll-engine.ts): bộ máy chạy ParamSet của tháng trả đúng từng đồng và đúng dấu vân tay như bộ máy chạy DEFAULTS cộng dòng danh mục trên đầu vào của 300 ca vàng;
 //   - nhóm 4 (route kỳ lương): qua cả DB, API và bản chụp phiếu, bốn người bịa, hai tháng (có và không có giờ thực tế).
 // Nhóm thiếu file chạy như `todo` và đỏ bằng "module missing", không bằng lỗi nạp. RED=1 để xem.
 const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
@@ -16,8 +16,8 @@ const { summarize, readGolden } = require('../helpers/golden');
 const { pending, pendingUnless, need, exists } = require('../helpers/red');
 
 const { store } = F;
-const PARAMS = 'src/engine/payroll-params.js';
-const ENGINE = 'src/engine/payroll-engine.js';
+const PARAMS = 'src/engine/payroll-params.ts';
+const ENGINE = 'src/engine/payroll-engine.ts';
 const PARAMS_STORE = 'src/params/store.ts';
 const MODES = ['defaults-only', 'active'];
 const MONTHS = ['2026-09', '2026-10', '2026-11', '2026-12'];
@@ -32,10 +32,10 @@ test('settings-engine-zero-drift: migration để param_versions rỗng và para
   assert.equal(await store.params.getMode(), 'defaults-only');
 });
 
-/* ================= nhóm 2: src/engine/payroll-params.js ================= */
+/* ================= nhóm 2: src/engine/payroll-params.ts ================= */
 test(
-  'settings-engine-zero-drift: src/engine/payroll-params.js xuất DEFAULTS và resolveParamSet(rows, month)',
-  pending('S2: src/engine/payroll-params.js chưa có', PARAMS),
+  'settings-engine-zero-drift: src/engine/payroll-params.ts xuất DEFAULTS và resolveParamSet(rows, month)',
+  pending('S2: src/engine/payroll-params.ts chưa có', PARAMS),
   () => {
     const Params = need(PARAMS);
     assert.ok(Params.DEFAULTS && typeof Params.DEFAULTS === 'object', 'DEFAULTS');
@@ -45,7 +45,7 @@ test(
 
 test(
   'settings-engine-zero-drift: không có dòng tham số nào thì ParamSet của mọi tháng bằng DEFAULTS (so từng giá trị)',
-  pending('S2: src/engine/payroll-params.js chưa có', PARAMS),
+  pending('S2: src/engine/payroll-params.ts chưa có', PARAMS),
   () => {
     const { DEFAULTS, resolveParamSet } = need(PARAMS);
     for (const month of MONTHS) assert.equal(digest(resolveParamSet([], month)), digest(DEFAULTS), month);
@@ -125,7 +125,7 @@ test(
 /* ================= nhóm 3: bộ máy + ParamSet trên ca vàng ================= */
 test(
   'settings-engine-zero-drift: bộ máy chạy ParamSet của tháng (không dòng nào) trả đúng từng đồng của bộ máy chạy DEFAULTS cộng danh mục trên 300 ca vàng ở cả hai params_mode',
-  pending('S3: src/engine/payroll-engine.js hoặc src/engine/payroll-params.js chưa có', PARAMS, ENGINE),
+  pending('S3: src/engine/payroll-engine.ts hoặc src/engine/payroll-params.ts chưa có', PARAMS, ENGINE),
   async () => {
     const { DEFAULTS, resolveParamSet } = need(PARAMS);
     const Engine = need(ENGINE);

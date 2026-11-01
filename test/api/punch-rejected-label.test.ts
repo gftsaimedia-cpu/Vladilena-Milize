@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const AS = require('../../src/engine/attendance-status.js');
+const AS = require('../../src/engine/attendance-status');
 
 before(async () => {
   await F.start();

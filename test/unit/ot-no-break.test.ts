@@ -7,9 +7,9 @@
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
-const Calendar = require('../../src/engine/payroll-calendar.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const Calendar = require('../../src/engine/payroll-calendar');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const store = require('../../src/platform/db');
 const { estimateOtHours, actualOtHours, extraOtHours } = require('../../src/domain/overtime/worked-hours').WorkedHours;
 

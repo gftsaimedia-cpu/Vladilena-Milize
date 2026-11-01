@@ -5,7 +5,7 @@
 const { AsyncList } = require('../../shared/async-list');
 const store = require('../../platform/db');
 const authz = require('../../platform/authz');
-const PayrollCalendar = require('../../engine/payroll-calendar.js');
+const PayrollCalendar = require('../../engine/payroll-calendar');
 
 const { AdvanceRequestsRepository } = require('../../data');
 const requestsRepo = new AdvanceRequestsRepository(store.queryBuilder);

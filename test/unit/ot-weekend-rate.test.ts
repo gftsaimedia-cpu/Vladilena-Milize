@@ -8,7 +8,7 @@
 // Mọi số là NV L1 (lương cơ bản 6.000.000 ₫): lương ngày 230.769,23 ₫, lương giờ 28.846,15 ₫.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const { validateValue } = require('../../src/params/validate');
 

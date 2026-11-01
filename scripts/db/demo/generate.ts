@@ -6,8 +6,8 @@
 const H = require('./helpers');
 const S = require('./scenarios');
 const { validatePersona } = require('./validate');
-const ApprovalView = require('../../../src/engine/approval-view.js');
-const ActualHours = require('../../../src/engine/actual-hours.js');
+const ApprovalView = require('../../../src/engine/approval-view');
+const ActualHours = require('../../../src/engine/actual-hours');
 
 const { P, SCHED, SHIFT } = H;
 const ADMIN = 'demo_admin';

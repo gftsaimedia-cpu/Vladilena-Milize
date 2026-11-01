@@ -4,7 +4,7 @@
 //   đơn vị     phút mỗi giờ, phút mỗi ngày, ms mỗi ngày, lệch múi giờ VN, phần trăm: đọc từ khoá unit.* của bộ tham số (khoá khoá cứng
 //              `locked`, không đổi theo tháng, nên mặc định PayrollParams.DEFAULTS luôn đúng);
 //   định dạng  độ rộng của chuỗi ngày, tháng, giờ ('YYYY-MM-DD', 'HH:MM'): suy ra từ chính khuôn chuỗi, không phải ngưỡng nghiệp vụ.
-const PayrollParams = require('../engine/payroll-params.js');
+const PayrollParams = require('../engine/payroll-params');
 
 const DATE_FORMAT = 'YYYY-MM-DD';
 const CLOCK_FORMAT = 'HH:MM';

@@ -23,7 +23,7 @@ async function listOt(status?) {
     .sort((a: any, b: any) => b.date.localeCompare(a.date) || a.id - b.id);
 }
 // OT khai ở Check-in/out (POST /ot) chỉ ra tiền khi được duyệt (PUT /ot): lúc đó khung OT được ghi vào ngày trên Lịch ước tính và duyệt cùng dòng duyệt của ngày
-// (src/domain/ot-sheet.ts), nguồn extra duy nhất của giờ thực tế ('attendance.extraSourceRule' = calendar, src/engine/actual-hours.js → POLICY.extraSource).
+// (src/domain/ot-sheet.ts), nguồn extra duy nhất của giờ thực tế ('attendance.extraSourceRule' = calendar, src/engine/actual-hours.ts → POLICY.extraSource).
 // otReview của lượt bị bỏ khi dựng ngày tính tiền (LOCKED_FIELDS).
 const OT_NOTE =
   'OT ghi ở Check-in/out khi được duyệt thành OT đã duyệt của ngày trên Lịch ước tính, và chỉ phần có mặt liền ca được trả.';

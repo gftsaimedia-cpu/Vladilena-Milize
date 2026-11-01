@@ -7,7 +7,7 @@
 // GIÁ TRỊ đang chạy lấy từ bộ tham số (AiParams): khoá ai.threshold.<tên>, hoặc khoá gốc mà ngưỡng nhắc lại
 // (PARAM_KEY). Bảng THRESHOLDS vẫn giữ nhãn proposal, nguồn và giá trị mặc định (nguồn sinh của PayrollParams.DEFAULTS, và giá trị
 // dùng khi bộ tham số không có khoá đó); đổi giá trị thật ở Cài đặt, không sửa review.js.
-const PayrollParams = require('../engine/payroll-params.js');
+const PayrollParams = require('../engine/payroll-params');
 
 const entry = (value?, proposal?, source?) => Object.freeze({ value, proposal, source });
 

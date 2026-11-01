@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 
 const k = Engine.create(DEFAULTS);

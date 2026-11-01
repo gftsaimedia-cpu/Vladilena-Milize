@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { review } = require('../../src/ai/review');
 const { loadPayroll } = require('../../src/ai/payroll-loader');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const W = require('./ai-review-world.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 

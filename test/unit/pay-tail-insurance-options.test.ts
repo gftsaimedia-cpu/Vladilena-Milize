@@ -6,7 +6,7 @@
 // Số tiền là đồng nguyên của người bịa (ca vàng known-kpi-five-100-90-80-85-100 và s20261015-00129), tham số giả chỉ ở bộ nhớ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
 const PayrollParams = require('../helpers/defaults-old-basis.js');
 const { legacyParams } = require('../helpers/legacy-params');
 const golden = require('../fixtures/payroll-golden-v0.json');

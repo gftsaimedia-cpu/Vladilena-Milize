@@ -3,8 +3,8 @@
 // Lương ngày mẫu = lương cơ bản ÷ ngày công chuẩn: 7.500.000 ÷ 26.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Leave = require('../../src/engine/leave.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Leave = require('../../src/engine/leave');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const { accrued, ledger, settlementFor } = Leave;
 const pad = (n?) => String(n).padStart(2, '0');

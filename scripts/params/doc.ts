@@ -6,7 +6,7 @@
 //   node scripts/params/doc.ts --json           in registry dạng JSON gọn (để xuất .docx)
 const fs = require('node:fs');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
-const Params = require('../../src/engine/payroll-params.js');
+const Params = require('../../src/engine/payroll-params');
 const registry = require('../../src/params/registry');
 const { fmt } = require('../../src/params/validate');
 
@@ -51,7 +51,7 @@ function render() {
   const lines = [
     '# Danh mục cấu hình (sinh từ registry)',
     '',
-    'Sinh bởi `npm run params:doc` từ `src/params/registry.data.json` và `src/engine/payroll-params.js → DEFAULTS`. Không sửa tay.',
+    'Sinh bởi `npm run params:doc` từ `src/params/registry.data.json` và `src/engine/payroll-params.ts → DEFAULTS`. Không sửa tay.',
     ''
   ];
   for (const group of registry.GROUPS) {

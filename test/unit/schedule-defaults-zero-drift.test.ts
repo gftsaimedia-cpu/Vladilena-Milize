@@ -4,7 +4,7 @@
 //   - ca hạt cố định (mặc định 600; PAYROLL_DIFF_CASES=5000 cho đủ 5.000): ghi tường minh type.<mã>.workdaysMode = 'fixed' cho cùng kết quả từng bit với không ghi, VÀ không ca nào có m.workdaysStd hay staff.schedule;
 //   - sáu ca ghim Z1..Z6 (số tính tay);
 //   - bản chụp canonical: kết quả tháng của người mặc định không mang khoá workdaysStd và tính hai lần cho cùng một bản chụp JSON (như src/domain/period/periods.ts lưu).
-// Phần đọc `src/engine/work-schedule.js` chạy khi tệp đó có mặt.
+// Phần đọc `src/engine/work-schedule.ts` chạy khi tệp đó có mặt.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, DEFAULTS, LEGACY_DEFAULTS, golden, clone: cloneOf } = require('../helpers/pay-oracle');
@@ -121,13 +121,13 @@ test('S1: Z6 TTS, lễ Thứ Bảy 10/10: không hưởng lễ, gộp vẫn 2.00
 });
 
 /* ---------- đọc từ mô-đun lịch ---------- */
-const moduleReady = pending('S1-2a: src/engine/work-schedule.js chưa có', 'src/engine/work-schedule.js');
+const moduleReady = pending('S1-2a: src/engine/work-schedule.ts chưa có', 'src/engine/work-schedule.ts');
 
 test(
   'S1: scheduleOf của ba chức vụ mặc định, mọi tháng 2026 và 2027, đúng {dows, workdays} của khối cũ; workdaysOf = 22, 26, 26; không có lịch riêng thì nguồn là chức vụ',
   moduleReady,
   () => {
-    const WS = require('../../src/engine/work-schedule.js');
+    const WS = require('../../src/engine/work-schedule');
     const { api: legacy } = loadPayroll({
       append:
         'this.t = Object.fromEntries(Object.entries(TYPES).map(([k, t]) => [k, { dows: t.dows, workdays: t.workdays }]));',

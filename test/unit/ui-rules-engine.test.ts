@@ -1,11 +1,11 @@
 'use strict';
-// Quy tắc lương kiểm thẳng ở bộ máy dùng chung src/engine/payroll-engine.js với các số tính sẵn.
+// Quy tắc lương kiểm thẳng ở bộ máy dùng chung src/engine/payroll-engine.ts với các số tính sẵn.
 // Mọi số là NV L1 (lương cơ bản 6.000.000 ₫): lương ngày 230.769,23 ₫, lương giờ 28.846,15 ₫.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const { legacyParams } = require('../helpers/legacy-params');
 

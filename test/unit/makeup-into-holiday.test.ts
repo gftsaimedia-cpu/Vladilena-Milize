@@ -2,8 +2,8 @@
 // Giờ bù kéo qua nửa đêm sang ngày lễ: ngày có giờ bù không hưởng phụ cấp ca nên 3 giờ bù (22:00–01:00) chỉ có lương giờ, giờ 00:00–01:00 của ngày lễ cộng thêm phần (3 − 1) × lương giờ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const engine = PayrollEngine.create(DEFAULTS);
 const HOURLY = 6000000 / 26 / 8;

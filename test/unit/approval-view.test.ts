@@ -1,11 +1,11 @@
-// Khoản tự khai "chờ duyệt": module dùng chung src/engine/approval-view.js và số tiền qua calcMonth thật.
+// Khoản tự khai "chờ duyệt": module dùng chung src/engine/approval-view.ts và số tiền qua calcMonth thật.
 // Số tiền tính bằng khối công thức đóng băng (test/fixtures/legacy-payroll-block.js) nạp vào vm như payroll-attendance.test.ts.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const ApprovalView = require('../../src/engine/approval-view.js');
+const ApprovalView = require('../../src/engine/approval-view');
 const { loadPayroll } = require('../helpers/payroll-vm');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const {

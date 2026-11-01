@@ -13,7 +13,7 @@ const daysIn = (y?, m?) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
 class PayrollPolicy {
   // 'long' nếu tới hết tháng `month` người vào làm ngày `startDate` đã đủ `months` tháng tròn, 'short' nếu chưa; thiếu ngày thì null.
-  // Tháng tròn tính như phép năm (src/engine/leave.js): cùng ngày của tháng sau, tháng ngắn hơn thì lùi về ngày cuối tháng.
+  // Tháng tròn tính như phép năm (src/engine/leave.ts): cùng ngày của tháng sau, tháng ngắn hơn thì lùi về ngày cuối tháng.
   static tenureContract(startDate?, month?, months?) {
     if (!DATE_RE.test(String(startDate)) || !MONTH_RE.test(String(month)) || !Number.isInteger(months) || months < 0)
       return null;

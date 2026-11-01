@@ -10,7 +10,7 @@
 const P = require('../helpers/period-api');
 const { requestInWindow } = require('../helpers/advance-window');
 const SSE = require('../helpers/sse-client');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 

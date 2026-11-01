@@ -8,8 +8,8 @@
 // gì), nên không có thuộc tính nào thì bộ tham số, băm và tiền không đổi.
 // Chốt chặn: mã đúng khuôn và không trùng cột có sẵn; số thuộc tính mỗi lớp có trần (system.attr.maxPerClass); không đổi kiểu hay đơn vị sau khi tạo
 // (409 ATTR_TYPE_LOCKED); không xoá, chỉ ngưng dùng (deprecated); hạ khoảng min/max chỉ khi mọi giá trị hiện có còn hợp lệ.
-const Params = require('../engine/payroll-params.js');
-const Formula = require('../engine/formula.js');
+const Params = require('../engine/payroll-params');
+const Formula = require('../engine/formula');
 const registry = require('./registry');
 
 const DEF_RE = /^class\.level\.attr\.(.+)$/;

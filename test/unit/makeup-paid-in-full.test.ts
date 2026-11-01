@@ -4,8 +4,8 @@
 // Ca tham chiếu: NV bậc 1 (6.000.000 / 26 / 8 giờ), ca đêm 40 %, ca Night2 22:00–07:00.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const KINDS = { Normal1: 'normal', Flex1: 'flex', Night1: 'night', Night2: 'night', n1: 'normal', g2: 'night' };
 const P = { ...DEFAULTS, 'shift.allowance.basis': 'assigned', 'type.nv.nightPct': 40 };

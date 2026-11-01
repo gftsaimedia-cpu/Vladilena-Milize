@@ -3,8 +3,8 @@
 // tháng thay đổi không làm đổi cách tính; bản chụp tham số cũ thiếu ba khoá vẫn tính theo cách đoán cũ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { OLD_BASIS } = require('../helpers/defaults-old-basis.js');
 const registry = require('../../src/params/registry');
 const { attendDeclaredDays } = require('../helpers/payroll-cases');

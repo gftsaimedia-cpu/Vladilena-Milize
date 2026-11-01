@@ -11,7 +11,7 @@ const store = require('../../src/platform/db');
 const registry = require('../../src/params/registry');
 const limits = require('../../src/domain/overtime/hour-limits').HourLimits;
 const workHours = require('../../src/domain/overtime/worked-hours').WorkedHours;
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 after(() => store.db.close());
 

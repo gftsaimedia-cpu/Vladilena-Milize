@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { review } = require('../../src/ai/review');
 const { THRESHOLDS, resolveThresholds, ruleKeyOf } = require('../../src/ai/thresholds');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const W = require('./ai-review-world.js');
 
 const { person, world, find } = W;

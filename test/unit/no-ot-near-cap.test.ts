@@ -10,7 +10,7 @@ const store = require('../../src/platform/db');
 const registry = require('../../src/params/registry');
 const { RULES } = require('../../src/ai/review');
 const { THRESHOLDS, PARAM_KEY } = require('../../src/ai/thresholds');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 after(() => store.db.close());
 

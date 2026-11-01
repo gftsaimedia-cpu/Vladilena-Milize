@@ -1,14 +1,14 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PayrollDayParts = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  // Chia tiền của MỘT dòng ngày (kết quả calcDay của src/engine/payroll-engine.js) thành các thành phần có tên (partsOfDay) và bốn cột tiền của phiếu (columnsOfDay); DAY_VARIABLES và dayArraysOf là từ vựng và dữ liệu mảng theo ngày của công thức.
+  // Chia tiền của MỘT dòng ngày (kết quả calcDay của src/engine/payroll-engine.ts) thành các thành phần có tên (partsOfDay) và bốn cột tiền của phiếu (columnsOfDay); DAY_VARIABLES và dayArraysOf là từ vựng và dữ liệu mảng theo ngày của công thức.
   // Thuần: chỉ đọc các trường của dòng ngày, không tham số, không I/O, không đồng hồ, không DOM.
 
   // Các thành phần có tên của một ngày (tổng khớp c.total đến sai số thực; tổng tháng lấy từ c.total, xem tongThanhPhanNgay)
-  function partsOfDay(c) {
+  function partsOfDay(c?) {
     const holiday = c.kind === 'holiday';
     if (c.kind !== 'work' && !holiday)
       return { tienNgayCong: c.total, phuCapCa: 0, gioNghiDem: 0, lamBu: 0, tienOt: 0, tienLamLe: 0, ngayDiLam: 0 }; // nghỉ phép có lương, iSAT, các loại ngày không có tiền (0)
@@ -27,7 +27,7 @@
   // Bốn cột tiền của một dòng ngày trên phiếu (nguồn duy nhất cho phiếu A4 và thẻ Thu nhập), lấy từ các thành phần có tên ở trên:
   // luongNgay = tiền ngày công + giờ trừ (cột Trừ giờ hiện riêng); phuCapCa = phụ cấp ca + giờ nghỉ đêm; lamThem = làm bù + OT + OT ngày lễ.
   // Mỗi cột làm tròn đồng, phần lệch làm tròn dồn vào luongNgay để luongNgay + phuCapCa + lamThem − truGio = c.pay (số nguyên đồng của ngày), dòng cũ không có pay thì làm tròn của c.total.
-  function columnsOfDay(c) {
+  function columnsOfDay(c?) {
     const p = partsOfDay(c);
     const truGio = Math.round(c.kind === 'work' ? c.cut || 0 : 0); // dòng lễ không trừ giờ thiếu
     const phuCapCa = Math.round(p.phuCapCa + p.gioNghiDem);
@@ -42,10 +42,10 @@
   //   workBase  lương ngày công trước khi trừ giờ thiếu = tiền cơ bản − tiền ngày nghỉ, lễ + tiền giờ thiếu
   //   leavePay, isatPay, holidayPay  tiền ngày nghỉ có lương, iSAT, lễ (cộng phần ô số lượng ghim đổi mà dòng ngày không đổi theo: r.pinAdjust)
   //   otPay  OT + giờ làm ngày lễ + giờ làm bù;  flexPay, nightPay  phụ cấp ca Flex, các ca còn lại;  breakPay  giờ nghỉ đêm;  lateCut  tiền giờ thiếu
-  function linesOf(r, round) {
+  function linesOf(r?, round?) {
     const adj = r.pinAdjust || {};
     const rows = Array.isArray(r.rows) ? r.rows : [];
-    const sum = (test, pick) => rows.reduce((s, row) => (test(row) ? s + (Number(pick(row)) || 0) : s), 0);
+    const sum = (test?, pick?) => rows.reduce((s, row) => (test(row) ? s + (Number(pick(row)) || 0) : s), 0);
     return {
       workBase: round(r.basePay - r.off + r.cut),
       leavePay: round(
@@ -84,17 +84,17 @@
     };
   }
   // Tiền ngày của tháng = các dòng nguyên đồng lấy từ ngày, trừ giờ thiếu
-  const dayPayOf = L =>
+  const dayPayOf = (L?) =>
     L.workBase + L.leavePay + L.isatPay + L.holidayPay + L.otPay + L.flexPay + L.nightPay + L.breakPay - L.lateCut;
   // Chia số nguyên `target` cho các số thực xs: mỗi số lấy phần nguyên dưới, phần còn thiếu (hoặc thừa) chia từng đồng cho số có phần lẻ lớn nhất (nhỏ nhất)
   // trước, số 0 không nhận đồng nào; tổng kết quả đúng bằng target
-  function apportion(xs, target) {
+  function apportion(xs?, target?) {
     const out = xs.map(x => Math.floor(x));
     let left = target - out.reduce((s, x) => s + x, 0);
     const order = xs
       .map((x, i) => ({ i, f: x - Math.floor(x), live: x !== 0 }))
       .filter(e => e.live)
-      .sort((a, b) => b.f - a.f || a.i - b.i);
+      .sort((a: any, b: any) => b.f - a.f || a.i - b.i);
     if (!order.length) return out;
     for (let k = 0; left !== 0; k += 1) {
       const e = left > 0 ? order[k % order.length] : order[order.length - 1 - (k % order.length)];
@@ -104,7 +104,7 @@
     return out;
   }
   // Ghi pay (số nguyên đồng của ngày) vào mỗi dòng ngày: tổng pay các ngày đúng bằng target
-  function payRows(rows, target) {
+  function payRows(rows?, target?) {
     const paid = apportion(
       rows.map(row => Number(row.total) || 0),
       target
@@ -118,7 +118,7 @@
   // Biến theo NGÀY cho "tổng theo ngày (…)": mỗi biến là một danh sách, mỗi dòng của lịch tháng (m.rows) một số, theo thứ tự ngày.
   // pick(dòng, thànhPhầnNgày) lấy từ dòng calcDay và các thành phần có tên của ngày (partsOfDay). Cộng theo ngày bằng "tổng theo ngày" cho đúng
   // từng bit số cộng dồn của calcMonth (cùng thứ tự ngày, cùng phép cộng).
-  const dayVariable = (key, label, unit, from, pick) => ({
+  const dayVariable = (key?, label?, unit?, from?, pick?) => ({
     key,
     label,
     synonyms: [],
@@ -208,8 +208,8 @@
     tienLamLeNgay: 'tienLamLe'
   };
   // { <khoá>: [số mỗi ngày] } cho ctx.variables
-  function dayArraysOf(rows, trace) {
-    const out = {};
+  function dayArraysOf(rows?, trace?) {
+    const out: Record<string, any> = {};
     for (const key of Object.keys(DAY_VARIABLES)) out[key] = [];
     for (const row of rows) {
       const parts = partsOfDay(row);

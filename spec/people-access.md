@@ -24,7 +24,7 @@ Ký hiệu `file:dòng` trỏ tới vị trí trong cây mã hiện tại; khi d
 | `src/domain/employee/index.ts` | Gom export. |
 | `src/domain/positions.ts` | `GET /api/positions`, `GET /api/entitlements`, `POST /api/positions`, `POST /api/positions/:code/levels` (qua `src/params/save.ts`); cờ quyền lợi của người đăng nhập (`myPosition`), cờ khai lịch (`sheetFlagsOf`, `checkRequestFlags`), `activeCodesOf`, `withLeave`. |
 | `src/domain/isat-rule.ts` | `isatRefusal({ params, staff, date })`: lý do một ngày iSAT không hợp lệ (thiếu `benefit.isat` hoặc sai thứ `isat.weekday`), hoặc `null`. |
-| `src/domain/position/seed-data.ts` | Tên chức vụ, tên bậc, danh mục 6 ca (mã mới → khoá giờ ca cũ lấy từ `src/engine/punch.js` `SHIFT_CODES`). |
+| `src/domain/position/seed-data.ts` | Tên chức vụ, tên bậc, danh mục 6 ca (mã mới → khoá giờ ca cũ lấy từ `src/engine/punch.ts` `SHIFT_CODES`). |
 | `src/domain/position/benefits.ts` | Danh sách 14 tên cờ quyền lợi `BENEFITS`: 13 cờ đang đọc và `holidayWork` (nằm trong `RETIRED_BENEFITS`, danh mục, tham số và bộ máy không đọc cờ này). |
 | `src/domain/position/position.ts` | Lớp `Position` (chức vụ + bậc hiệu lực của tháng). |
 | `src/domain/position/position-catalog.ts` | Repository danh mục chức vụ/bậc: đọc theo tháng, `saveType`, `saveLevel` (khoá lạc quan `rev`), `paramRows()` đổi danh mục thành dòng tham số. |
@@ -113,7 +113,7 @@ Nạp nền một lần dưới mốc `position_catalog_v1` (`migrations/postgre
 - `flex_pct = pctOf(type.<mã>.flexBonus ?? shift.flex.bonus)`, `travel_pct = pctOf(type.<mã>.travel)`, `attendance_pct = pctOf(type.<mã>.attendance)`, `pctOf(r) = round(r × 10000) / 100`.
 - `night_pct` = phần tử đầu của `type.<mã>.nightOptions` nếu có, không thì `pctOf(shift.night.bonus)` (mặc định 0,3 → 30).
 - Bậc: `level.<mã>.<n>.base` liên tiếp từ 1; tên lấy `seed-data.ts` → `level.<mã>.<n>.name` → `Bậc n`.
-- Ca: 6 dòng `Normal1/2 (normal)`, `Flex1/2 (flex)`, `Night1/2 (night)`, preset từ `src/engine/punch.js SHIFT_CODES`.
+- Ca: 6 dòng `Normal1/2 (normal)`, `Flex1/2 (flex)`, `Night1/2 (night)`, preset từ `src/engine/punch.ts SHIFT_CODES`.
 
 ### 2.4 Khoá `settings` dùng trong module
 
@@ -478,7 +478,7 @@ Lúc khởi động `Roles.reconcileStaffRole()` (`src/modules/staff/staff.contr
 - `save`: chỉ `name` (1..40), `kind` (`normal/flex/night`), `sort` (số nguyên an toàn), `deprecated` (boolean); `updateWithRev` với `expectedRev` (route bắt buộc).
 - `paramRows()` áp ở tháng `CATALOG_BASE_MONTH` (tức mọi tháng): `shift.kind.<mã mới> = kind`; nếu `preset ≠ code` thêm `shift.kind.<preset> = kind` và `shift.alias.<mã mới> = preset`. Đổi loại ca vì vậy đổi phụ cấp ca của mọi tháng mà bộ máy đọc khoá này.
 - `Shift.allowance()` = `null` cho `normal`, ngược lại `kind`. `Employee.shiftAllowancePct()` = `position.nightPct` nếu `night`, `position.flexPct` nếu `flex`, 0 nếu không có ca/không có vị trí (`employee.ts`).
-- `shift.allowance.basis = 'assigned'` (mặc định trong `DEFAULTS`, mọi tháng): bộ máy lấy loại ca từ danh mục ca (qua `shift.kind.*`) và phụ cấp ca đêm theo bậc: `level.<mã>.<n>.nightPct`, không có thì `type.<mã>.nightPct`, không có nữa thì phần tử đầu `nightOptions` (`src/engine/payroll-engine.js,222-236`). Cột `staff.night_pct` (phụ cấp đêm chọn theo người) chỉ được dùng khi bản chụp tham số cũ thiếu khoá `shift.allowance.basis` (bộ máy khi đó đoán ca theo giờ có mặt).
+- `shift.allowance.basis = 'assigned'` (mặc định trong `DEFAULTS`, mọi tháng): bộ máy lấy loại ca từ danh mục ca (qua `shift.kind.*`) và phụ cấp ca đêm theo bậc: `level.<mã>.<n>.nightPct`, không có thì `type.<mã>.nightPct`, không có nữa thì phần tử đầu `nightOptions` (`src/engine/payroll-engine.ts,222-236`). Cột `staff.night_pct` (phụ cấp đêm chọn theo người) chỉ được dùng khi bản chụp tham số cũ thiếu khoá `shift.allowance.basis` (bộ máy khi đó đoán ca theo giờ có mặt).
 - Giờ ca (`src/domain/shifts.ts`): `shiftsOf(m)` = ca chưa ngưng trong danh mục có giờ `rulesFor(m).punch.SHIFT[preset]`, rồi giờ ca không có trong danh mục (mã = preset, tên = PRESET viết hoa, `kind: null`). `hours = time.workHoursPerDay + time.breakHours` (8 + 1 = 9 giờ). `PUT /settings/shifts` đổi `{code,in,out}` thành `shift.preset.<preset>.in|out` rồi gọi `paramsSave.save` (một đường với `PUT /settings/params`). `employeeView(m)` gửi `{ shifts: {mã: {name,start,end}}, earlyCheckinHours (attendance.earlyCheckinMaxHours = 4), openSessionMaxHours (attendance.openSessionMaxHours = 16) }`.
 - Gán ca hàng loạt: `preset` hoặc cặp `in/out` trùng đúng một ca trong `punch.SHIFT`; mã phải là khoá của `punch.SHIFT`; lưu mã mới; `effective` chỉ nhận ngày hiện tại (hoặc trống); người làm là nhân sự lương và có mình trong danh sách mà ca của mình đổi → `selfDecision`. Một giao dịch: chỉ ghi người có `shift_code` khác, câu lệnh SQL trực tiếp `UPDATE staff SET shift_code` (`src/modules/settings/settings-shifts.controller.ts` / `src/modules/settings/settings.controller.ts`), nhật ký `staff.update` mỗi người.
 
@@ -488,19 +488,19 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 
 | Cờ | Tác dụng trong mã |
 | --- | --- |
-| `ot` | Khai OT trên lịch (`src/domain/timesheet/` (nối ở `timesheet/services.ts`)), khai đi làm ngày lễ trong lịch có khung giờ vào – ra và khai OT từ lượt chấm công (`src/domain/ot.ts`): thiếu cờ thì lưu kèm cảnh báo `BENEFIT_NOT_ALLOWED` (khoản không được trả tiền). Bộ máy: thiếu cờ thì không có giờ OT và không có giờ làm ngày lễ, ngày lễ chỉ còn lương lễ nếu chức vụ có `paidHoliday` (`src/engine/payroll-engine.js,472`). Khối cấu hình "Làm thêm (OT)" bật theo cờ này. |
-| `makeup` | Khối cấu hình "Làm bù" (hệ số `holiday.makeupRate`) bật theo cờ này (`src/params/blocks.ts`); `src/engine/payroll-engine.js` không đọc cờ này. |
+| `ot` | Khai OT trên lịch (`src/domain/timesheet/` (nối ở `timesheet/services.ts`)), khai đi làm ngày lễ trong lịch có khung giờ vào – ra và khai OT từ lượt chấm công (`src/domain/ot.ts`): thiếu cờ thì lưu kèm cảnh báo `BENEFIT_NOT_ALLOWED` (khoản không được trả tiền). Bộ máy: thiếu cờ thì không có giờ OT và không có giờ làm ngày lễ, ngày lễ chỉ còn lương lễ nếu chức vụ có `paidHoliday` (`src/engine/payroll-engine.ts,472`). Khối cấu hình "Làm thêm (OT)" bật theo cờ này. |
+| `makeup` | Khối cấu hình "Làm bù" (hệ số `holiday.makeupRate`) bật theo cờ này (`src/params/blocks.ts`); `src/engine/payroll-engine.ts` không đọc cờ này. |
 | `makeupHours` | Khai làm bù theo giờ trên lịch (`extraKind='makeup'`): thiếu cờ thì cảnh báo `BENEFIT_NOT_ALLOWED` (khoản chờ duyệt và nếu được duyệt vẫn có tiền) (`checkRequestFlags`, `src/domain/positions.ts`). |
-| `makeupDay` | Bộ máy (`src/engine/payroll-engine.js`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị và chỉ giữ nhãn cho nhật ký; `src/engine/payroll-params.js,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
-| `kpi` | Chức vụ có lương KPI: bộ máy tính KPI (`src/engine/payroll-engine.js`); kiểm tra AI chỉ xét người có cờ (`src/ai/review.ts,1097`); khối cấu hình "KPI". |
-| `paidHoliday` | Ngày lễ trong thời gian làm việc được lương ngày (`src/engine/payroll-engine.js`); thiếu cờ thì lương lễ là 0. |
+| `makeupDay` | Bộ máy (`src/engine/payroll-engine.ts`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị và chỉ giữ nhãn cho nhật ký; `src/engine/payroll-params.ts,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
+| `kpi` | Chức vụ có lương KPI: bộ máy tính KPI (`src/engine/payroll-engine.ts`); kiểm tra AI chỉ xét người có cờ (`src/ai/review.ts,1097`); khối cấu hình "KPI". |
+| `paidHoliday` | Ngày lễ trong thời gian làm việc được lương ngày (`src/engine/payroll-engine.ts`); thiếu cờ thì lương lễ là 0. |
 | `paidLeave` | Ngày nghỉ phép năm có lương ngày. |
 | `isat` | Ngày iSAT được khai và được trả; điều kiện đầy đủ ở "iSAT" dưới. |
 | `approvedLeave` | Khai "Nghỉ được duyệt": thiếu cờ thì `BENEFIT_NOT_ALLOWED` (ngày chờ Admin duyệt, không lương), trừ ngày đã lưu loại này từ trước (`timesheet/timesheet-validator.ts`). |
 | `absenceDeclarable` | Khai nghỉ phép (`leave`) hoặc nghỉ không lương vào ngày trong lịch: thiếu cờ thì `BENEFIT_NOT_ALLOWED` (`timesheet/timesheet-validator.ts`). |
 | `leaveAccount` | Có tài khoản phép năm: `withLeave` thêm `leave` vào hồ sơ trả ra; ngày trong lịch còn phép năm thì không khai nghỉ không lương (`timesheet/timesheet-validator.ts`); sổ phép (`src/domain/leave/leave-account-service.ts`); quy đổi phép dư (`src/domain/payroll/payroll-service.ts`). |
-| `idorm` | Cho phép đặt `staff.idorm = 1` (mục 4.6 bước 13); bộ máy đọc `staff.idorm` làm biến `iDorm` (`src/engine/payroll-engine.js`). |
-| `breakPay` | Giờ nghỉ đêm có lương: `breakPay === false` thì 0, vắng khoá vẫn trả (`src/engine/payroll-engine.js`). |
+| `idorm` | Cho phép đặt `staff.idorm = 1` (mục 4.6 bước 13); bộ máy đọc `staff.idorm` làm biến `iDorm` (`src/engine/payroll-engine.ts`). |
+| `breakPay` | Giờ nghỉ đêm có lương: `breakPay === false` thì 0, vắng khoá vẫn trả (`src/engine/payroll-engine.ts`). |
 | `holidayWork` | Nằm trong `RETIRED_BENEFITS`: danh mục, tham số và bộ máy không đọc. Làm ngày lễ theo cờ `ot`. |
 
 **Dữ liệu cờ gửi cho giao diện** (`src/domain/positions.ts`):
@@ -512,9 +512,9 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 
 **iSAT** (`src/domain/isat-rule.ts`): `isatRefusal({ params, staff, date })` trả lý do từ chối hoặc `null`.
 1. Chức vụ/bậc không có `benefit.isat` → `BENEFIT_NOT_ALLOWED`.
-2. Ngày không đúng thứ `isat.weekday` (mặc định `6`, thứ Bảy; `src/engine/payroll-params.js`) → `SHEET_ISAT_WEEKDAY`.
+2. Ngày không đúng thứ `isat.weekday` (mặc định `6`, thứ Bảy; `src/engine/payroll-params.ts`) → `SHEET_ISAT_WEEKDAY`.
 
-Chặn cứng (400) cả với Admin ở: `PUT /sheet` khi ngày được khai hoặc đổi sang loại iSAT, trừ ngày iSAT đã lưu và giữ nguyên loại thì được miễn kiểm (`src/domain/timesheet/` (nối ở `timesheet/services.ts`)); `PUT /approvals/decide` khi duyệt khoản iSAT (`src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`). Danh sách kiểm khi chốt công đếm các ngày iSAT đã lưu vi phạm hai điều kiện trên bằng cảnh báo `ISAT_INVALID` (`src/domain/period/periods.ts`). Bộ máy chỉ trả lương ngày iSAT khi chức vụ có cờ `isat` và ngày đúng thứ `isat.weekday` (`src/engine/payroll-engine.js`).
+Chặn cứng (400) cả với Admin ở: `PUT /sheet` khi ngày được khai hoặc đổi sang loại iSAT, trừ ngày iSAT đã lưu và giữ nguyên loại thì được miễn kiểm (`src/domain/timesheet/` (nối ở `timesheet/services.ts`)); `PUT /approvals/decide` khi duyệt khoản iSAT (`src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`). Danh sách kiểm khi chốt công đếm các ngày iSAT đã lưu vi phạm hai điều kiện trên bằng cảnh báo `ISAT_INVALID` (`src/domain/period/periods.ts`). Bộ máy chỉ trả lương ngày iSAT khi chức vụ có cờ `isat` và ngày đúng thứ `isat.weekday` (`src/engine/payroll-engine.ts`).
 
 **Check-in trên ngày đã khai nghỉ cả ngày** (`checkInDay`, `src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`): ngày có khoản OT hoặc làm bù theo giờ đã duyệt thì luôn được Check-in. Ngày có loại `isat`, `leave` hoặc `unpaid` đóng Check-in, trừ khi khoản bị từ chối (chờ duyệt, đã duyệt hay chưa có khoản đều đóng). Ngày có loại `approved` hoặc `willmakeup` đóng Check-in chỉ khi khoản đã duyệt. Còn lại, nhân viên chỉ Check-in được ngày là ngày làm việc trong lịch được gán và không phải ngày lễ; ngày khác trả câu báo "không có lịch làm việc hay giờ OT/làm bù được duyệt".
 
@@ -566,7 +566,7 @@ Danh sách người được tính lương trong tháng `YYYY-MM` lấy từ `st
 1. **Hợp đồng hiệu lực**: `PayrollPolicy.contractFor(params, startDate, month, staff.contract)`. Khi `tax.contract.basis = 'tenure'` (mặc định trong `DEFAULTS`, mọi tháng), hợp đồng suy từ thâm niên: `'long'` nếu tới hết tháng lương người đó đã đủ `tax.longTermMonths` tháng tròn kể từ `startDate` (mặc định `tax.longTermMonths = 3`; tháng tròn tính theo cùng ngày của tháng sau, tháng ngắn hơn lùi về ngày cuối tháng), `'short'` nếu chưa đủ. Thiếu hoặc sai `startDate` thì giữ `staff.contract`. Bản chụp tham số cũ thiếu khoá `tax.contract.basis` giữ `staff.contract`.
 2. **Bảo hiểm**: người có cột `insured` NULL đóng khi `insurance.coverage.<hợp đồng hiệu lực>` của tháng đúng `true`; cột có giá trị thì giữ.
 3. **Lọc**: chỉ `payrollSubject`; `startDate` hợp lệ thì phải `<=` ngày cuối tháng; `resignedOn` hợp lệ thì phải `>=` ngày 1 của tháng (nghỉ việc từ trước tháng thì không vào bảng); tài khoản đã khoá chỉ vào khi tháng đó có ngày đã khai trong bảng chấm công hoặc có lượt Check-in/out.
-4. Bộ máy từ chối tính người có `type` không có trong bảng chức vụ của tháng (`PAYROLL_BAD_TYPE`) hoặc `level` không có trong bảng bậc (`PAYROLL_BAD_LEVEL`) (`src/engine/payroll-engine.js`).
+4. Bộ máy từ chối tính người có `type` không có trong bảng chức vụ của tháng (`PAYROLL_BAD_TYPE`) hoặc `level` không có trong bảng bậc (`PAYROLL_BAD_LEVEL`) (`src/engine/payroll-engine.ts`).
 
 ---
 
@@ -611,9 +611,9 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 ### 6.1 Module này gọi
 
 - `src/platform/db.ts`: mọi đọc/ghi `staff`, `staff_roles`, `settings`, `audit_log`, `payroll_periods` (`assertPeriodOpen`), `work_shifts` (trong `upsertStaff`).
-- `src/engine/payroll-params.js` (`DEFAULTS`): `src/platform/auth.ts`, `migrations/postgres/0001_baseline.sql`, `src/params/positions.ts`.
-- `src/engine/approval-view.js` (`ITEMS`): `src/platform/authz.ts` (`DECIDE_ITEMS`).
-- `src/engine/punch.js` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.ts`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.ts`.
+- `src/engine/payroll-params.ts` (`DEFAULTS`): `src/platform/auth.ts`, `migrations/postgres/0001_baseline.sql`, `src/params/positions.ts`.
+- `src/engine/approval-view.ts` (`ITEMS`): `src/platform/authz.ts` (`DECIDE_ITEMS`).
+- `src/engine/punch.ts` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.ts`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.ts`.
 - `src/platform/request-rules.ts` (`rulesFor`, `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`): `src/modules/**/*.controller.ts` hồ sơ, `staff.ts`, `positions.ts`, `shifts.ts`.
 - `src/params/store.ts`, `src/params/save.ts`, `src/params/positions.ts`, `src/params/registry.ts`, `src/params/config-rev.ts`.
 - `src/domain/approvals/index.ts` (`reconcileStaffType`), `src/domain/sheet.ts` (`leaveSummary`), `src/domain/attendance/geofence-policy.ts` (`geofenceView`), `src/domain/attendance/index.ts`.
@@ -630,7 +630,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 
 ### 6.3 File dùng chung trình duyệt và máy chủ (UMD)
 
-`src/engine/payroll-params.js`, `src/engine/approval-view.js`, `src/engine/punch.js`, `src/engine/payroll-calendar.js` (qua `src/domain/input.ts`), `src/engine/work-schedule.js`, `src/engine/leave.js` (máy chủ nạp bằng `require`).
+`src/engine/payroll-params.ts`, `src/engine/approval-view.ts`, `src/engine/punch.ts`, `src/engine/payroll-calendar.ts` (qua `src/domain/input.ts`), `src/engine/work-schedule.ts`, `src/engine/leave.ts` (máy chủ nạp bằng `require`).
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
@@ -639,7 +639,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | Thêm route mới | Thêm khoá vào `ROUTE_CAPS` (`authz.ts`), nếu có tham số trong đường dẫn thì thêm nhánh `routeKey` **đúng thứ tự** (`authz.ts`); `src/ops/route-classes.ts` nếu là route nặng/ghi tự do; test `permissions-matrix`, `route-dispatch-golden`, `route-classes`. |
 | Thứ tự nhánh `routeKey` | Các khoá `/staff/*`: `shift-bulk`, `:u/roles`, `:u/password`, `:u/schedule` phải đứng trước `PUT|DELETE /staff/:u`. |
 | `CAPS` / `ROLE_CAPS` / `ROLE_SCOPE` | `src/domain/roles/roles.ts AREAS`, `EXTRAS` (ma trận màn Phân quyền), `src/engine/home-route.js ADMIN_CAPS`, nhãn `CAP_TXT`/`ROLE_TXT` trong tầng người nhận trong `src/platform/events.ts EVENTS`, `auditSensitivities`. |
-| `src/engine/approval-view.js ITEMS` | `src/domain/roles/roles.ts APPROVAL_ITEMS` (danh sách riêng: nếu thiếu, tạo/sửa vai trò với loại mới bị 400 `ROLE_APPROVAL_UNKNOWN` dù `authz` chấp nhận). `makeup_day` (Làm bù cả ngày) còn trong `ITEMS` vì khoá tham số còn, nhưng không còn trong `APPROVAL_ITEMS`: vai trò gửi loại này thì bị bỏ qua (`RETIRED_ITEMS`). |
+| `src/engine/approval-view.ts ITEMS` | `src/domain/roles/roles.ts APPROVAL_ITEMS` (danh sách riêng: nếu thiếu, tạo/sửa vai trò với loại mới bị 400 `ROLE_APPROVAL_UNKNOWN` dù `authz` chấp nhận). `makeup_day` (Làm bù cả ngày) còn trong `ITEMS` vì khoá tham số còn, nhưng không còn trong `APPROVAL_ITEMS`: vai trò gửi loại này thì bị bỏ qua (`RETIRED_ITEMS`). |
 | `RESERVED_CAPS` | `PUT /staff/:u` và `POST /staff/:u/password` dựa vào việc chỉ `admin` có `roles.manage`; `guardAdminLock`. |
 | Cột mới trong `staff` | `staffRevision` tự tính cột đó; nếu cột tự đổi (kỹ thuật) phải thêm vào `REV_SKIP_COLUMNS` (`staff.ts`) nếu không Admin bị 409 `STAFF_STALE` giả. Thêm vào `rowToStaff`, `upsertStaff` (câu `ON CONFLICT` liệt kê từng cột), `audit.ts STAFF_PLAIN/STAFF_PAY/STAFF_PII`, `staffForViewer PAY_STAFF_FIELDS` nếu là trường tiền, `effectivePay` ở `src/modules/staff/staff.controller.ts` nếu đổi tiền, `Profile.fromRow`. |
 | Quy tắc "thiếu trường" trong `PUT /staff/:u` | Khách gọi (tạo hoặc sửa tài khoản) phải gửi đủ các trường "đặt lại khi thiếu" (mục 4.6), nếu không sẽ xoá ngày vào làm, ca, điều chỉnh phép, iDorm, đổi chức vụ về mặc định. |
@@ -649,8 +649,8 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | `store.roles.effectiveRoles` | `authz.rolesOf` (mọi quyền), `audit.context`. `roles.rolesOfStaff` là bản riêng (màn Phân quyền, gán vai trò) — sửa cả hai nếu đổi quy tắc "ai có vai trò gì". |
 | Cờ `payrollSubject` | Vai trò `staff` tự dẫn xuất (`rolesOf`), `isSelfDecision`, `publicStaff`, `myPosition`, danh sách bảng lương/duyệt (`listApprovals` bỏ người ngoài bảng lương), `reconcileStaffRole`. |
 | Bảng danh mục chức vụ / `paramRows` | Bộ máy lương và mọi module đọc `type.*`/`level.*`; đơn vị: `flexBonus/travel/attendance` là tỉ lệ, `nightPct` là %; `src/params/positions.ts copyChanges` bỏ khoá `.nightPct`. |
-| `BENEFITS` (`position/benefits.ts`) | `src/params/positions.ts BENEFIT_FLAGS` (bản riêng, không có `holidayWork`), bảng `benefit_types` (dòng mới chỉ nạp ở mốc một lần), `sheetFlagsOf`/`checkRequestFlags` (`src/domain/positions.ts`), `src/domain/timesheet/` (nối ở `timesheet/services.ts`), `src/domain/ot.ts`, `src/domain/isat-rule.ts`, `src/engine/payroll-engine.js` (mục 4.11). |
-| Danh mục ca / `shift.kind.*` / `shift.alias.*` | `src/engine/punch.js`, `src/engine/actual-hours.js`, phụ cấp ca trong bộ máy lương, `seed-data.ts SHIFTS`, `PRESET_RE` trong `src/modules/staff/staff.controller.ts`. |
+| `BENEFITS` (`position/benefits.ts`) | `src/params/positions.ts BENEFIT_FLAGS` (bản riêng, không có `holidayWork`), bảng `benefit_types` (dòng mới chỉ nạp ở mốc một lần), `sheetFlagsOf`/`checkRequestFlags` (`src/domain/positions.ts`), `src/domain/timesheet/` (nối ở `timesheet/services.ts`), `src/domain/ot.ts`, `src/domain/isat-rule.ts`, `src/engine/payroll-engine.ts` (mục 4.11). |
+| Danh mục ca / `shift.kind.*` / `shift.alias.*` | `src/engine/punch.ts`, `src/engine/actual-hours.ts`, phụ cấp ca trong bộ máy lương, `seed-data.ts SHIFTS`, `PRESET_RE` trong `src/modules/staff/staff.controller.ts`. |
 | `PersonName` | `db.rowToStaff`, `db.upsertStaff`, `Profile.fromRow`, mốc `staff_identity_v1`. |
 | `agents_enabled` | `src/platform/agents.ts`; `/me.agentsEnabled`; mọi route Trợ lý AI; `assertNotAiBlocked`. |
 | `config.REASON_MIN/MAX`, `PASSWORD_MIN_LENGTH` | Bản sao trong `src/platform/db.ts`. |
@@ -690,7 +690,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 ### 8.2 Danh sách / hằng số chép nhiều nơi
 
 13. Cờ quyền lợi: `src/domain/position/benefits.ts` (`BENEFITS`) và `src/params/positions.ts` (`BENEFIT_FLAGS`), cộng bảng `benefit_types`.
-14. Loại yêu cầu duyệt: `src/domain/roles/roles.ts` (`APPROVAL_ITEMS`) và `src/engine/approval-view.js` (`ITEMS`, thứ tự khác).
+14. Loại yêu cầu duyệt: `src/domain/roles/roles.ts` (`APPROVAL_ITEMS`) và `src/engine/approval-view.ts` (`ITEMS`, thứ tự khác).
 15. Mã chức vụ: `position-catalog.ts` viết cứng `/^[a-z][a-z0-9]{1,15}$/`; `src/params/positions.ts` dựng từ `config.POSITION_CODE_MIN/MAX`.
 16. Mã vai trò: `src/platform/db.ts` viết cứng `/^[a-z][a-z_]{1,31}$/`; `src/domain/roles/roles.ts` dựng từ `config.ROLE_CODE_MAX`.
 17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.ts` (`CONTRACT_STATUSES`), CHECK ở `migrations/postgres/0001_baseline.sql`, `db.ts`.
@@ -709,7 +709,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 
 ### 8.4 Mã không có nơi gọi hoặc không có tác dụng
 
-27. `src/platform/auth.ts` `FALLBACK`: mọi khoá trong đó đã có trong `DEFAULTS` (`src/engine/payroll-params.js,822`) và `param()` ưu tiên `DEFAULTS`, nên bảng này không bao giờ được dùng. Chú thích `auth.ts` nói "các khoá ... mà registry chưa có".
+27. `src/platform/auth.ts` `FALLBACK`: mọi khoá trong đó đã có trong `DEFAULTS` (`src/engine/payroll-params.ts,822`) và `param()` ưu tiên `DEFAULTS`, nên bảng này không bao giờ được dùng. Chú thích `auth.ts` nói "các khoá ... mà registry chưa có".
 28. `authz.can` nhánh `team` (`authz.ts`) giống hệt nhánh `self`.
 29. `EmployeeRepository.list`, `EmployeeRepository.uuidOf`, `Employee.can`, `Employee.benefits`, `Employee.baseSalary`, `Employee.worksOn`: chưa có nơi gọi ngoài lớp/test.
 30. `src/http/api-gate.ts` `needAdmin()` chỉ kiểm `policy.cap` có khai báo; cổng thật đã chạy trước đó.
@@ -735,5 +735,5 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 47. `PUT /password`, `POST /staff/:u/password`, `PUT /staff/:u` băm mật khẩu ngoài `hashGate` (`src/modules/auth/auth.controller.ts,1852,2304`) trong khi `POST /login` qua `hashGate`; kiểm mật khẩu hiện tại ở `PUT /password` không có giới hạn đoán ngoài giới hạn ghi 240/phút.
 48. Gán tên: khi lưu hồ sơ không gửi `familyName`/`givenName`, `upsertStaff` tách lại họ/tên từ `name` (`db.ts`): tên hai chữ đã nhập riêng trước đó (ví dụ họ "Nguyễn Văn", tên "An Bình") bị tách lại thành tên "Bình".
 49. `ROUTE_CAPS` cho thêm chức vụ và thêm bậc khác nhau ở cổng: `POST /positions` cần `config.read` (`authz.ts`), `POST /positions/:code/levels` cần `config.payroll` (`authz.ts`); cả hai kiểm lại `config.payroll` trong `save.ts`.
-51. Hai danh sách cờ quyền lợi lệch nhau: `BENEFITS` có 14 tên (gồm `holidayWork`), `BENEFIT_FLAGS` có 13; `makeupDay` nằm ở cả hai nhưng bộ máy và máy chủ không đọc giá trị; riêng màn danh mục chức vụ lọc cờ này khỏi danh sách hiển thị và `src/engine/payroll-params.js,771,796` giữ mặc định `true`.
+51. Hai danh sách cờ quyền lợi lệch nhau: `BENEFITS` có 14 tên (gồm `holidayWork`), `BENEFIT_FLAGS` có 13; `makeupDay` nằm ở cả hai nhưng bộ máy và máy chủ không đọc giá trị; riêng màn danh mục chức vụ lọc cờ này khỏi danh sách hiển thị và `src/engine/payroll-params.ts,771,796` giữ mặc định `true`.
 52. Hợp đồng dùng để tính thuế và bảo hiểm có hai nguồn: bảng lương dùng hợp đồng suy từ thâm niên (mục 4.15), còn `rowToStaff`, `publicStaff` và `effectivePay` ở `PUT /staff/:u` dùng cột `contract` (NULL → `defaultContract`). Hợp đồng và `insured` hiện trên màn Hồ sơ có thể khác với phiếu lương.

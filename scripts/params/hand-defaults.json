@@ -141,7 +141,7 @@
   },
   "attendance.earlyCheckinMaxHours": {
     "value": 4,
-    "why": "S5: src/engine/punch.js đọc khoá này (trước là hằng số EARLY = 4 * 60); check-in sớm nhất 4 giờ trước giờ vào ca"
+    "why": "S5: src/engine/punch.ts đọc khoá này (trước là hằng số EARLY = 4 * 60); check-in sớm nhất 4 giờ trước giờ vào ca"
   },
   "attendance.graceCompare": {
     "value": "gte",
@@ -165,7 +165,7 @@
   },
   "attendance.openSessionMaxHours": {
     "value": 16,
-    "why": "S5: src/engine/punch.js đọc khoá này (trước là hằng số MAX_OPEN = 16 * 60); ca mở quá 16 giờ là quên check-out"
+    "why": "S5: src/engine/punch.ts đọc khoá này (trước là hằng số MAX_OPEN = 16 * 60); ca mở quá 16 giờ là quên check-out"
   },
   "attendance.overLimitCompare": {
     "value": "gte",

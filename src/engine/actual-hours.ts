@@ -1,9 +1,9 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   // payroll-params.js phải nạp trước trang (trình duyệt) để mô-đun lấy mặc định từ DEFAULTS; vắng thì dùng FALLBACK.
-  const params = typeof module === 'object' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
-  const schedule = typeof module === 'object' && module.exports ? require('./work-schedule.js') : root.WorkSchedule; // lịch làm việc: một nguồn
-  // Bảng đổi mã ca mới (Normal1…) ↔ khoá giờ ca cũ (n1…): một nguồn ở src/engine/punch.js (trình duyệt nạp punch.js trước tệp này)
-  const punch = typeof module === 'object' && module.exports ? require('./punch.js') : root.PunchRules;
+  const params = typeof module === 'object' && module.exports ? require('./payroll-params') : root.PayrollParams;
+  const schedule = typeof module === 'object' && module.exports ? require('./work-schedule') : root.WorkSchedule; // lịch làm việc: một nguồn
+  // Bảng đổi mã ca mới (Normal1…) ↔ khoá giờ ca cũ (n1…): một nguồn ở src/engine/punch.ts (trình duyệt nạp punch.js trước tệp này)
+  const punch = typeof module === 'object' && module.exports ? require('./punch') : root.PunchRules;
   const api = factory(params, schedule, punch);
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.ActualHours = api;
@@ -14,7 +14,7 @@
   // đã thay giờ ca chính bằng ca đã gán cùng số phút cắt; calcDay/calcMonth chạy tiếp trên bản sao đó. Không bao giờ ghi ngược vào lịch.
 
   // Mọi con số và mọi ô chính sách đến từ bộ tham số phẳng `params` (khoá registry), qua create(params): bộ máy dùng chung
-  // (src/engine/payroll-engine.js) truyền tham số của tháng đang tính. Gọi hàm trần của mô-đun = create(mặc định), mặc định là
+  // (src/engine/payroll-engine.ts) truyền tham số của tháng đang tính. Gọi hàm trần của mô-đun = create(mặc định), mặc định là
   // PayrollParams.DEFAULTS. Ba hằng số: 1 công = 8 giờ làm việc; đến 15 phút không trừ; quá 15 phút trừ theo bậc 30 phút.
   // Bảng POLICY nằm ở registry: attendance.<ô>Rule và holiday.makeupRate; muốn đổi cách tính chỉ
   // đổi giá trị khoá đó (và ALLOWED bên dưới).
@@ -87,7 +87,7 @@
     missingAll: Object.freeze(['declared', 'absent', 'pending']),
     offSchedule: Object.freeze(['unpaid', 'declared']),
     undeclaredPunch: Object.freeze(['report']),
-    makeupHolidayRate: v => Number.isFinite(v) && v >= 1 && v <= 10,
+    makeupHolidayRate: (v?) => Number.isFinite(v) && v >= 1 && v <= 10,
     cutRounding: Object.freeze(['halfUpStep', 'ceilStep', 'exact'])
   });
 
@@ -106,8 +106,8 @@
   const ADMIN_ORIGIN = 'sheet.onBehalf';
 
   // Bộ tham số phẳng → mọi con số và ô chính sách của mô-đun. Khoá vắng là lỗi (không đoán giá trị).
-  function build(P) {
-    const need = key => {
+  function build(P?) {
+    const need = (key?) => {
       if (!Object.hasOwn(P, key))
         throw Object.assign(new Error(`Thiếu tham số ${key}`), { code: 'PARAM_MISSING', key });
       return P[key];
@@ -116,7 +116,7 @@
     const MIN_D = need('unit.minutesPerDay');
     const MS_MIN = need('unit.msPerDay') / MIN_D; // mili giây trong một phút
     const SHOWN_MAX = need('control.reasonMaxLength'); // giá trị lạ được cắt tới độ dài này khi đưa vào thông báo lỗi
-    const VN_OFFSET_MIN = need('unit.vnUtcOffsetMin'); // UTC+7, phải trùng src/engine/punch.js (Việt Nam không có giờ mùa hè)
+    const VN_OFFSET_MIN = need('unit.vnUtcOffsetMin'); // UTC+7, phải trùng src/engine/punch.ts (Việt Nam không có giờ mùa hè)
     const BREAK_EVERY = need('time.breakAfterWorkHours') * MIN_H; // làm liền bấy nhiêu phút thì nghỉ
     const CYCLE = BREAK_EVERY + need('time.breakHours') * MIN_H; // một vòng: giờ làm + giờ nghỉ
     // Ba hằng số (SHIFT_WORK_MIN dẫn xuất = giờ mỗi công × phút mỗi giờ)
@@ -125,7 +125,7 @@
       GRACE_MIN: need('attendance.graceMin'),
       STEP_MIN: need('attendance.stepMin')
     });
-    const POLICY = {};
+    const POLICY: Record<string, any> = {};
     for (const [name, key] of Object.entries(POLICY_KEYS)) {
       POLICY[name] = need(key);
       const ok =
@@ -140,37 +140,37 @@
         );
     }
     Object.freeze(POLICY);
-    // Ca cố định: phải trùng SHIFT trong src/engine/punch.js (cả hai đọc shift.preset.<mã>.in / .out). Dùng cho ngày chưa khai để biết ca đã kết thúc chưa.
-    const presets = {};
+    // Ca cố định: phải trùng SHIFT trong src/engine/punch.ts (cả hai đọc shift.preset.<mã>.in / .out). Dùng cho ngày chưa khai để biết ca đã kết thúc chưa.
+    const presets: Record<string, any> = {};
     for (const key of Object.keys(P)) {
       const m = /^shift\.preset\.(?<code>[a-z0-9]+)\.in$/.exec(key);
-      if (m) presets[m.groups.code] = Object.freeze([need(key), need(`shift.preset.${m.groups.code}.out`)]);
+      if (m) presets[m.groups!.code] = Object.freeze([need(key), need(`shift.preset.${m.groups!.code}.out`)]);
     }
     if (PunchRules) PunchRules.addAliases(presets, PunchRules.shiftAliases(P));
     const SHIFT_TIMES = Object.freeze(presets);
 
     // ---------- phút và ngày ----------
-    const toMin = t => {
+    const toMin = (t?) => {
       if (typeof t !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(t)) return null;
       return Number(t.slice(0, 2)) * MIN_H + Number(t.slice(3));
     };
-    const spanOf = (a, b) => (((b - a) % MIN_D) + MIN_D) % MIN_D || MIN_D; // a → b qua nửa đêm; trùng nhau = 24 giờ
-    const epochMin = (iso, up) => {
+    const spanOf = (a?, b?) => (((b - a) % MIN_D) + MIN_D) % MIN_D || MIN_D; // a → b qua nửa đêm; trùng nhau = 24 giờ
+    const epochMin = (iso?, up?) => {
       const ms = typeof iso === 'string' ? Date.parse(iso) : NaN;
       return Number.isFinite(ms) ? (up ? Math.ceil : Math.floor)(ms / MS_MIN) : NaN;
     };
-    const vnDateOf = epoch => new Date((epoch + VN_OFFSET_MIN) * MS_MIN).toISOString().slice(0, 10);
-    const vnClock = epoch => new Date((epoch + VN_OFFSET_MIN) * MS_MIN).toISOString().slice(11, 16);
-    const dayStart = date => Date.parse(date + 'T00:00:00Z') / MS_MIN - VN_OFFSET_MIN; // 00:00 giờ VN của ngày date, phút epoch
-    const dowOf = date => new Date(date + 'T00:00:00Z').getUTCDay(); // 0 = Chủ nhật
-    const validDate = d => {
+    const vnDateOf = (epoch?) => new Date((epoch + VN_OFFSET_MIN) * MS_MIN).toISOString().slice(0, 10);
+    const vnClock = (epoch?) => new Date((epoch + VN_OFFSET_MIN) * MS_MIN).toISOString().slice(11, 16);
+    const dayStart = (date?) => Date.parse(date + 'T00:00:00Z') / MS_MIN - VN_OFFSET_MIN; // 00:00 giờ VN của ngày date, phút epoch
+    const dowOf = (date?) => new Date(date + 'T00:00:00Z').getUTCDay(); // 0 = Chủ nhật
+    const validDate = (d?) => {
       if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d)) return false;
       const t = Date.parse(d + 'T00:00:00Z');
       return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === d;
     };
-    const isWorkOffset = o => o < BREAK_EVERY || o >= CYCLE; // 4 giờ làm, 1 giờ nghỉ MỘT lần mỗi ca, rồi làm tiếp; phải trùng breakSlots và splitMainWork
+    const isWorkOffset = (o?) => o < BREAK_EVERY || o >= CYCLE; // 4 giờ làm, 1 giờ nghỉ MỘT lần mỗi ca, rồi làm tiếp; phải trùng breakSlots và splitMainWork
 
-    function cutMin(missed) {
+    function cutMin(missed?) {
       const m = Math.floor(Number(missed));
       if (!(m > RULE.GRACE_MIN)) return 0; // chỉ trừ khi số phút thiếu lớn hơn ngưỡng miễn
       if (POLICY.cutRounding === 'exact') return Math.min(RULE.SHIFT_WORK_MIN, m); // đúng số phút đã trễ (cả phần miễn)
@@ -180,10 +180,10 @@
       return Math.min(RULE.SHIFT_WORK_MIN, RULE.STEP_MIN * Math.floor((2 * m + RULE.STEP_MIN) / (2 * RULE.STEP_MIN)));
     }
 
-    function clone(value) {
+    function clone(value?) {
       if (Array.isArray(value)) return value.map(clone);
       if (value && typeof value === 'object') {
-        const out = {};
+        const out: Record<string, any> = {};
         for (const key of Object.keys(value)) out[key] = clone(value[key]);
         return out;
       }
@@ -192,15 +192,15 @@
 
     // Khoảng có mặt [a, b) theo phút nguyên. Cho ca chính: vào lấy sàn, ra lấy trần (nghiêng về nhân sự khi trừ);
     // cho đoạn làm thêm ngược lại (không trả quá phút có mặt). Gộp khoảng chồng hoặc sát nhau.
-    function presenceRuns(list, forExtra) {
-      const runs = [];
+    function presenceRuns(list?, forExtra?) {
+      const runs: any[] = [];
       for (const s of list) {
         const a = epochMin(s.entry.presIn, forExtra),
           b = epochMin(s.entry.presOut, !forExtra);
         if (Number.isFinite(a) && Number.isFinite(b) && b > a) runs.push([a, b]);
       }
-      runs.sort((x, y) => x[0] - y[0]);
-      const merged = [];
+      runs.sort((x: any, y: any) => x[0] - y[0]);
+      const merged: any[] = [];
       for (const run of runs) {
         const last = merged[merged.length - 1];
         if (last && run[0] <= last[1]) last[1] = Math.max(last[1], run[1]);
@@ -208,10 +208,10 @@
       }
       return merged;
     }
-    const coversMinute = (runs, t) => runs.some(r => r[0] <= t && t < r[1]);
+    const coversMinute = (runs?, t?) => runs.some(r => r[0] <= t && t < r[1]);
 
     // Phân tích một ca theo các khoảng có mặt: chỉ đếm "phút làm việc" (giờ nghỉ không bao giờ là trễ, sớm hay khoảng trống)
-    function analyseShift(plan, runs) {
+    function analyseShift(plan?, runs?) {
       const start = epochMin(plan.startIso),
         end = epochMin(plan.endIso);
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end - start > MIN_D) return null;
@@ -244,7 +244,7 @@
     }
 
     // Số phút trừ của trễ, sớm và khoảng trống theo POLICY
-    function cutsOf(shift) {
+    function cutsOf(shift?) {
       const { missedStart, missedEnd, gapMin } = shift;
       let cutStartMin, cutEndMin;
       if (POLICY.lateEarly === 'combined') {
@@ -260,12 +260,12 @@
     }
 
     // Cắt đoạn OT / làm bù đã duyệt theo khoảng có mặt liền mạch với biên ca. Trả { extraKind, extraIn, extraOut }.
-    function clipExtra(declared, plan, shift, extraRuns) {
+    function clipExtra(declared?, plan?, shift?, extraRuns?) {
       const none = { extraKind: '', extraIn: '', extraOut: '' };
       const kind = declared.extraKind || (declared.extraOut ? 'makeup' : '');
       if (kind !== 'ot' && kind !== 'makeup') return none;
-      let post = null,
-        pre = null;
+      let post: any = null,
+        pre: any = null;
       const eo = toMin(declared.extraOut),
         ei = toMin(declared.extraIn),
         po = toMin(plan.out);
@@ -300,12 +300,12 @@
 
     // OT ngày lễ: khung giờ trả là khung giờ đã khai (giờ vào – ra của ngày), không phải ca được gán. Trả bản sao của ca với giờ và mốc ISO
     // của khung đã khai (mã ca giữ nguyên để tính phụ cấp ca); phút có mặt ngoài khung không được trả, như OT thường.
-    function holidayWindow(plan, date, declared) {
+    function holidayWindow(plan?, date?, declared?) {
       const a = toMin(declared.in),
         b = toMin(declared.out);
       if (a === null || b === null) return plan;
       const start = dayStart(date) + a;
-      const iso = t => new Date(t * MS_MIN).toISOString();
+      const iso = (t?) => new Date(t * MS_MIN).toISOString();
       return { ...plan, in: declared.in, out: declared.out, startIso: iso(start), endIso: iso(start + spanOf(a, b)) };
     }
 
@@ -324,20 +324,20 @@
       'makeupHolRate',
       'extraOnly'
     ];
-    function declaredKindOf(day) {
+    function declaredKindOf(day?) {
       if (!day || typeof day !== 'object') return '';
       return day.kind || (day.in && day.out ? 'work' : '');
     }
     // Ngày còn mang khoản OT / làm bù theo giờ: sau ApprovalView.payView nghĩa là khoản đã được duyệt
-    function hasApprovedItem(day) {
+    function hasApprovedItem(day?) {
       const kind = day.extraKind || (day.extraOut ? 'makeup' : '');
       if (kind !== 'ot' && kind !== 'makeup') return false;
       return !!((day.extraOut && day.extraOut !== day.out) || (day.extraIn && day.extraIn !== day.in));
     }
 
     // Gom lượt theo ngày công (ngày bắt đầu ca); lượt không có ca đã gán xếp theo ngày lưu
-    function groupByDate(sessions) {
-      const byDate = new Map();
+    function groupByDate(sessions?) {
+      const byDate = new Map<any, any>();
       for (const s of Array.isArray(sessions) ? sessions : []) {
         if (!s || !s.entry || typeof s.entry !== 'object') continue;
         const date = (s.entry.plannedShift && s.entry.plannedShift.date) || s.date;
@@ -348,14 +348,14 @@
       return byDate;
     }
     // Đọc các lượt của một ngày: lượt dùng được, và các tình trạng chặn tính tiền
-    function inspectDay(list) {
+    function inspectDay(list?) {
       const info = {
         punched: list.length > 0,
         open: false,
         forgotIn: false,
         forgotOut: false,
         review: false,
-        usable: []
+        usable: [] as any[]
       };
       for (const s of list) {
         const e = s.entry;
@@ -383,14 +383,14 @@
       return info;
     }
     // Nhiều lượt cùng ngày nhưng khác ca đã gán (đổi ca giữa chừng): lấy ca có nhiều phút làm việc được phủ nhất
-    function bestShift(usable) {
-      const groups = new Map();
+    function bestShift(usable?) {
+      const groups = new Map<any, any>();
       for (const s of usable) {
         const key = s.entry.plannedShift.code + '|' + s.entry.plannedShift.startIso;
         if (!groups.has(key)) groups.set(key, []);
         groups.get(key).push(s);
       }
-      let best = null;
+      let best: any = null;
       for (const list of groups.values()) {
         const plan = list[0].entry.plannedShift;
         const shift = analyseShift(plan, presenceRuns(list, false));
@@ -400,21 +400,21 @@
       return best;
     }
     // Giờ bấm thật của một nhóm lượt (giờ Việt Nam HH:MM): giờ vào sớm nhất và giờ ra muộn nhất trong các lượt; vắng bên nào thì bên đó null
-    function punchTimes(list) {
-      const clock = (field, pick) => {
+    function punchTimes(list?) {
+      const clock = (field?, pick?) => {
         const at = list.map(s => epochMin(s.entry[field])).filter(Number.isFinite);
         return at.length ? vnClock(pick(...at)) : null;
       };
       return { punchIn: clock('presIn', Math.min), punchOut: clock('presOut', Math.max) };
     }
     // Các lượt đã dùng để tính ngày: nhóm lượt của ca được chọn (bestShift); ngày chưa có lượt dùng được thì mọi lượt của ngày
-    const usedOf = list => {
+    const usedOf = (list?) => {
       const best = bestShift(inspectDay(list).usable);
       return best ? best.list : list;
     };
     // Giờ bấm thật từng ngày công của danh sách lượt chấm công: { 'YYYY-MM-DD': { punchIn, punchOut } }
-    function punchTimesOf(sessions) {
-      const out = {};
+    function punchTimesOf(sessions?) {
+      const out: Record<string, any> = {};
       for (const [date, list] of groupByDate(sessions)) out[date] = punchTimes(usedOf(list));
       return out;
     }
@@ -428,32 +428,32 @@
     //     'off-shift' | 'absent' | 'off-schedule' | 'declared-wins' | 'undeclared-punch' | 'no-checkin'
     //   missing: ngày chờ Admin xử lý (quên check-in / check-out, chờ đối soát, không khớp ca); Admin cần được báo
     //   absent: ngày khai đi làm mà không có chấm công nào, đã tính là nghỉ
-    function apply(days, sessions, ctx) {
+    function apply(days?, sessions?, ctx?) {
       const input = days && typeof days === 'object' ? days : {};
       const context = ctx || {};
-      const out = {};
-      const report = {};
-      const missing = [];
-      const absent = [];
+      const out: Record<string, any> = {};
+      const report: Record<string, any> = {};
+      const missing: any[] = [];
+      const absent: any[] = [];
       // Ngày không được thay bằng ngày hiệu lực bên dưới giữ lịch đã khai
       for (const [date, day] of Object.entries(input)) out[date] = clone(day);
 
       const asOf = epochMin(context.asOf);
       const today = Number.isFinite(asOf) ? vnDateOf(asOf) : '';
-      const holidays = new Set(Array.from(context.holidays || []));
+      const holidays = new Set<any>(Array.from(context.holidays || []));
       const ws = WorkSchedule.create(P); // lịch giải THEO TỪNG NGÀY của người (phiên của nhiều tháng đi qua đây)
-      const inSchedule = date => ws.isWorkDay(ws.scheduleFor(context.staff, date), date);
+      const inSchedule = (date?) => ws.isWorkDay(ws.scheduleFor(context.staff, date), date);
       // Lượt Admin khai trước chưa tới giờ ra chỉ là lịch (máy chủ đã giấu, lọc lại ở đây cho chắc khi asOf khác lúc đọc)
-      const scheduled = s => s && s.entry && s.entry.origin === ADMIN_ORIGIN && epochMin(s.entry.presOut) > asOf;
+      const scheduled = (s?) => s && s.entry && s.entry.origin === ADMIN_ORIGIN && epochMin(s.entry.presOut) > asOf;
       const byDate = groupByDate(Array.isArray(sessions) ? sessions.filter(s => !scheduled(s)) : []);
 
-      const setPending = (date, reason, state, note, waitsAdmin) => {
+      const setPending = (date?, reason?, state?, note?, waitsAdmin?) => {
         out[date] = { kind: 'pending', reason };
         report[date] = { state, note, notifyAdmin: !!waitsAdmin && (state === 'forgot-in' || state === 'forgot-out') };
         if (waitsAdmin) missing.push(date);
       };
       // Tình trạng chặn tính tiền chung cho ngày đi làm: trả true nếu đã xử lý xong ngày
-      const blocked = (date, info) => {
+      const blocked = (date?, info?) => {
         if (info.open) {
           setPending(date, 'open', 'open', 'Đang trong ca', false);
           return true;
@@ -480,7 +480,7 @@
       const startDate = context.staff && validDate(context.staff.startDate) ? context.staff.startDate : '';
       // Sau ngày nghỉ việc (staff.resignedOn) như trước ngày bắt đầu: không mặc định đi làm, không vắng; chính ngày nghỉ việc vẫn là ngày làm việc
       const resignedOn = context.staff && validDate(context.staff.resignedOn) ? context.staff.resignedOn : '';
-      const defaulted = new Map();
+      const defaulted = new Map<any, any>();
       if (month && today) {
         for (let day = 1; day <= 31; day++) {
           const date = `${month}-${String(day).padStart(2, '0')}`;
@@ -493,7 +493,7 @@
         }
       }
 
-      const dates = new Set([...Object.keys(input), ...byDate.keys(), ...defaulted.keys()]);
+      const dates = new Set<any>([...Object.keys(input), ...byDate.keys(), ...defaulted.keys()]);
       for (const date of [...dates].sort()) {
         if (resignedOn && date > resignedOn) continue; // sau ngày nghỉ việc: bộ máy bỏ, không báo vắng
         const declared = defaulted.has(date) ? defaulted.get(date) : input[date];
@@ -623,7 +623,7 @@
           effective.cutStartMin = RULE.SHIFT_WORK_MIN;
           effective.cutEndMin = 0;
           effective.breakMin = 0;
-          // Bộ máy: không ngày công, không giờ thiếu, không trừ tiền ngày cho ca chính không tính (src/engine/payroll-engine.js → calcDay, calcMonth)
+          // Bộ máy: không ngày công, không giờ thiếu, không trừ tiền ngày cho ca chính không tính (src/engine/payroll-engine.ts → calcDay, calcMonth)
           effective.extraOnly = true;
           state = 'ok';
         }
@@ -662,12 +662,12 @@
           day.kind === 'work' || day.kind === 'noshow' || (day.kind === 'pending' && day.reason !== 'not-yet');
         if (shown) Object.assign(day, punchTimes(usedOf(byDate.get(date) || [])));
       }
-      const waiting = [...new Set(missing)].sort();
+      const waiting = [...new Set<any>(missing)].sort();
       return { days: out, report, missing: waiting, absent: absent.sort() };
     }
 
     // Số phút làm việc đã trễ lúc vào (đã bỏ giờ nghỉ), lấy sàn theo phút; chỉ để hiển thị ở màn "Hôm nay"
-    function lateMinutes(plannedShift, presIn) {
+    function lateMinutes(plannedShift?, presIn?) {
       const shift = plannedShift && analyseShift(plannedShift, [[epochMin(presIn), epochMin(plannedShift.endIso)]]);
       return shift && shift.coveredWork ? shift.missedStart : 0;
     }
@@ -676,8 +676,8 @@
   }
 
   // Một bộ tham số → một bản mô-đun (nhớ theo đối tượng: bộ tham số của tháng được đóng băng và dùng lại cho cả bảng lương)
-  const built = new WeakMap();
-  function create(params) {
+  const built = new WeakMap<any, any>();
+  function create(params?) {
     if (!params || typeof params !== 'object')
       throw new TypeError('create(params): cần bộ tham số phẳng (PayrollParams.DEFAULTS)');
     if (!built.has(params)) built.set(params, Object.freeze({ ...build(params), FALLBACK, create }));

@@ -11,7 +11,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 const { pending, need, exists, ROOT } = require('../helpers/red');
 const { serverSource, routeKeysInSource } = require('../helpers/server-source');
 

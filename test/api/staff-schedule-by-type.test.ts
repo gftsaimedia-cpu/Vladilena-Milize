@@ -9,7 +9,7 @@ const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const authz = require('../../src/platform/authz');
 const registry = require('../../src/params/registry');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const payrollService = require('../../src/domain/payroll/payroll-service');
 const paramsStore = require('../../src/params/store');
 

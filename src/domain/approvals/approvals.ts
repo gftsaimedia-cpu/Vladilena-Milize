@@ -6,8 +6,8 @@ const { AsyncList } = require('../../shared/async-list');
 // Một bảng duy nhất; người duyệt, lúc duyệt và lý do nằm ngay trên dòng.
 
 // Luật nhận diện khoản cần duyệt dùng chung với trình duyệt: không viết lại ở đây.
-const view = require('../../engine/approval-view.js');
-const { DEFAULTS } = require('../../engine/payroll-params.js');
+const view = require('../../engine/approval-view');
+const { DEFAULTS } = require('../../engine/payroll-params');
 const { warnIf } = require('../../platform/warnings');
 
 const ITEMS = view.ITEMS;

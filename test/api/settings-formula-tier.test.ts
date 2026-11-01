@@ -5,8 +5,8 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Formula = require('../../src/engine/formula.js');
-const FormulaVocab = require('../../src/engine/formula-vocab.js');
+const Formula = require('../../src/engine/formula');
+const FormulaVocab = require('../../src/engine/formula-vocab');
 
 const { F } = S;
 const monthOf = S.monthPool();

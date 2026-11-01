@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 // Giờ làm ngày lễ là OT nên không có giờ nghỉ: mọi phút có mặt trong ngày lễ (kể cả phút nằm trong giờ nghỉ của ca) là phút làm ngày lễ.
-const Engine = require('../../src/engine/payroll-engine.js');
-const Calendar = require('../../src/engine/payroll-calendar.js');
+const Engine = require('../../src/engine/payroll-engine');
+const Calendar = require('../../src/engine/payroll-calendar');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const engine = Engine.create(DEFAULTS);
 const PayrollCalendar = Calendar.create(DEFAULTS);

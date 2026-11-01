@@ -6,7 +6,7 @@ process.env.DB_PATH = ':memory:';
 const store = require('../../src/platform/db'),
   auth = require('../../src/platform/auth'),
   paramsStore = require('../../src/params/store'),
-  { DEFAULTS } = require('../../src/engine/payroll-params.js'),
+  { DEFAULTS } = require('../../src/engine/payroll-params'),
   server = require('../helpers/server');
 
 let base, cookie;

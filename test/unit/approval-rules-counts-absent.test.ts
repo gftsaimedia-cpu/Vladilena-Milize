@@ -4,8 +4,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Params = require('../helpers/defaults-old-basis.js');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
-const ApprovalView = require('../../src/engine/approval-view.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
+const ApprovalView = require('../../src/engine/approval-view');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const D = Params.DEFAULTS;

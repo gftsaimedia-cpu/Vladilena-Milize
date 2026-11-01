@@ -1,23 +1,23 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const isNode = typeof module === 'object' && module.exports;
   const deps = isNode
     ? {
-        PayrollParams: require('./payroll-params.js'),
-        PayrollCalendar: require('./payroll-calendar.js'),
-        KpiScore: require('./kpi-score.js'),
-        ApprovalView: require('./approval-view.js'),
-        ActualHours: require('./actual-hours.js'),
-        PunchRules: require('./punch.js'),
-        Formula: require('./formula.js'),
-        FormulaVocab: require('./formula-vocab.js'),
-        PayrollGraph: require('./payroll-graph.js'),
-        PayEntriesCalc: require('./pay-entries-calc.js'),
-        PayBlocksCalc: require('./pay-blocks-calc.js'),
-        WorkSchedule: require('./work-schedule.js'),
-        PayOptions: require('./pay-options-calc.js'),
-        PayTailCalc: require('./pay-tail-calc.js'),
-        PayrollPins: require('./payroll-pins.js'),
-        PayrollDayParts: require('./payroll-day-parts.js')
+        PayrollParams: require('./payroll-params'),
+        PayrollCalendar: require('./payroll-calendar'),
+        KpiScore: require('./kpi-score'),
+        ApprovalView: require('./approval-view'),
+        ActualHours: require('./actual-hours'),
+        PunchRules: require('./punch'),
+        Formula: require('./formula'),
+        FormulaVocab: require('./formula-vocab'),
+        PayrollGraph: require('./payroll-graph'),
+        PayEntriesCalc: require('./pay-entries-calc'),
+        PayBlocksCalc: require('./pay-blocks-calc'),
+        WorkSchedule: require('./work-schedule'),
+        PayOptions: require('./pay-options-calc'),
+        PayTailCalc: require('./pay-tail-calc'),
+        PayrollPins: require('./payroll-pins'),
+        PayrollDayParts: require('./payroll-day-parts')
       }
     : {
         PayrollParams: root.PayrollParams,
@@ -51,43 +51,43 @@
   const SENTINEL_HOLIDAYS = ['2000-01-03', '2000-01-04'];
   // Lương cơ bản thực nhận của một dòng ngày để tính tạm ứng: ngày đi làm = lương ngày − tiền thiếu giờ; ngày lễ có đi làm thật = lương ngày lễ (holBase);
   // mọi ngày khác 0 (OT, OT ngày lễ, phụ cấp ca, giờ nghỉ đêm và tiền làm bù không vào)
-  const advancePayOfDay = c =>
+  const advancePayOfDay = (c?) =>
     c.kind === 'work' ? c.daily - c.cut : c.kind === 'holiday' && c.hours > 0 ? c.holBase : 0;
 
   /* ========================= phép so sánh có tên (khoá …Compare của registry) ========================= */
   const COMPARE = {
-    gt: (a, b) => a > b,
-    gte: (a, b) => a >= b,
-    lt: (a, b) => a < b,
-    lte: (a, b) => a <= b
+    gt: (a?, b?) => a > b,
+    gte: (a?, b?) => a >= b,
+    lt: (a?, b?) => a < b,
+    lte: (a?, b?) => a <= b
   };
   // Đảo phép so sánh: "mất khi ≥ ngưỡng" (gte) thì "còn giữ khi < ngưỡng" (lt)
   const INVERSE = { gt: 'lte', gte: 'lt', lt: 'gte', lte: 'gt' };
-  function so(op, a, b) {
+  function so(op?, a?, b?) {
     if (!Object.hasOwn(COMPARE, op)) throw paramError(`Phép so sánh không hợp lệ: ${op}`, 'PARAM_INVALID_VALUE');
     return COMPARE[op](a, b);
   }
-  function paramError(message, code, key) {
+  function paramError(message?, code?, key?) {
     return Object.assign(new Error(message), { code, key });
   }
 
   /* ========================= cây công thức tháng của một bộ tham số ========================= */
-  // Mỗi công thức tháng có tên (PayrollGraph.ORDER) chạy bằng CÂY: cây mặc định của src/engine/payroll-graph.js, hoặc cây ở
+  // Mỗi công thức tháng có tên (PayrollGraph.ORDER) chạy bằng CÂY: cây mặc định của src/engine/payroll-graph.ts, hoặc cây ở
   // params['formula.<tên>'] = { text, tree } (tree đã serialize; bộ mặc định DEFAULTS mang bảy cây này). Admin không lưu công thức
   // (khoá formula.* là locked, store.resolve bỏ dòng người dùng). Cây được nạp lại và kiểm lại (deserialize + validate theo từ vựng,
   // đơn vị, vòng lặp, thành phần bắt buộc theo luật) mỗi khi dựng nhân cho bộ tham số đó; hỏng thì ném PAYROLL_BAD_FORMULA, KHÔNG quay về
   // công thức mặc định âm thầm. Kết quả nằm trong nhân nên được nhớ theo từng đối tượng params.
-  function formulaError(name, message, errors) {
+  function formulaError(name?, message?, errors?) {
     return Object.assign(new Error(`Công thức đã lưu ‘${name}’ không dùng được: ${message}`), {
       code: 'PAYROLL_BAD_FORMULA',
       key: `formula.${name}`,
       errors: errors || []
     });
   }
-  function resolveFormulaTrees(P) {
+  function resolveFormulaTrees(P?) {
     const { Formula, FormulaVocab, PayrollGraph } = DEPS;
     const trees = PayrollGraph.treesWith(null);
-    const saved = [];
+    const saved: any[] = [];
     for (const name of PayrollGraph.ORDER) {
       const value = P[`formula.${name}`];
       if (value === undefined || value === null) continue; // chưa lưu: dùng công thức có sẵn trong mã
@@ -111,23 +111,23 @@
     return trees;
   }
 
-  // Thành phần có tên và bốn cột tiền của một dòng ngày: src/engine/payroll-day-parts.js
+  // Thành phần có tên và bốn cột tiền của một dòng ngày: src/engine/payroll-day-parts.ts
   const { partsOfDay, columnsOfDay, linesOf, dayPayOf, payRows } = DEPS.PayrollDayParts;
 
   /* ========================= nhân: dựng mọi hàm từ MỘT bộ tham số ========================= */
-  const kernels = new WeakMap();
-  const kernelFor = params => {
+  const kernels = new WeakMap<any, any>();
+  const kernelFor = (params?) => {
     if (!kernels.has(params)) kernels.set(params, makeKernel(DEPS.PayrollParams.fillLate(params))); // bản chụp thiếu khoá: đọc mặc định
     return kernels.get(params);
   };
 
-  function makeKernel(P) {
+  function makeKernel(P?) {
     const { PayrollParams } = DEPS;
     const PayrollCalendar = DEPS.PayrollCalendar.create(P); // giờ làm, giờ nghỉ, khung đêm của đúng bộ tham số này
     const PunchRules = DEPS.PunchRules.create(P); // ca cố định, múi giờ và giới hạn Check-in/out của đúng bộ tham số này
     const WS = DEPS.WorkSchedule.create(P); // lịch làm việc của chức vụ và của người (một nguồn)
     const KpiScore = DEPS.KpiScore.create(P); // trọng số, mốc Base Wework và ô chính sách của đúng bộ tham số này
-    const need = key => {
+    const need = (key?) => {
       if (!Object.hasOwn(P, key)) throw paramError(`Thiếu tham số ${key}`, 'PARAM_MISSING', key);
       return P[key];
     };
@@ -164,42 +164,42 @@
     if (!Object.hasOwn(ROUND_MODE, need('money.roundMode')))
       throw paramError('money.roundMode không hợp lệ', 'PARAM_INVALID_VALUE', 'money.roundMode');
     // roundDong: CHỈ đặt ở các điểm calcNet đang làm tròn (đích đọc từ money.roundTo)
-    const roundDong = x => ROUND_MODE[P['money.roundMode']](x / roundTo) * roundTo;
+    const roundDong = (x?) => ROUND_MODE[P['money.roundMode']](x / roundTo) * roundTo;
     DEPS.PayTailCalc.assertParams(P); // phương án bảo hiểm và thuế do Kế toán chọn: giá trị lạ hoặc chưa dùng được là lỗi
 
     /* ---- loại nhân sự và bậc lương dựng từ khoá phẳng (cùng hình với TYPES của index.html) ---- */
-    const TYPES = {};
-    const ensure = t => (TYPES[t] = TYPES[t] || { levels: {} });
+    const TYPES: Record<string, any> = {};
+    const ensure = (t?) => (TYPES[t] = TYPES[t] || { levels: {} });
     for (const [key, value] of Object.entries(P)) {
       let m = /^type\.(?<type>[a-z0-9_]+)\.benefit\.(?<field>[A-Za-z0-9]+)$/.exec(key);
       if (m) {
-        ensure(m.groups.type)[m.groups.field] = value;
+        ensure(m.groups!.type)[m.groups!.field] = value;
         continue;
       }
       m = /^type\.(?<type>[a-z0-9_]+)\.(?<field>[A-Za-z0-9]+)$/.exec(key);
       if (m) {
-        ensure(m.groups.type)[m.groups.field] = value;
+        ensure(m.groups!.type)[m.groups!.field] = value;
         continue;
       }
       m = /^level\.(?<type>[a-z0-9_]+)\.(?<level>[0-9]+)\.(?<field>[A-Za-z0-9]+)$/.exec(key);
       if (m) {
-        const levels = ensure(m.groups.type).levels;
-        levels[m.groups.level] = levels[m.groups.level] || {};
-        levels[m.groups.level][m.groups.field] = value;
+        const levels = ensure(m.groups!.type).levels;
+        levels[m.groups!.level] = levels[m.groups!.level] || {};
+        levels[m.groups!.level][m.groups!.field] = value;
       }
     }
-    const typeKey = s => PayrollParams.typeKeyOf(TYPES, s, shown); // mã chức vụ lạ: PAYROLL_BAD_TYPE, không rơi về chức vụ nào
-    const typeOf = s => TYPES[typeKey(s)];
-    const entitlementOf = (staff, tail) => PayrollParams.entitlement(P, typeKey(staff), tail); // ghi đè theo chức vụ → toàn cục → mặc định
-    const levelOf = s => typeOf(s).levels[s.level] || { name: '?', base: 0 };
+    const typeKey = (s?) => PayrollParams.typeKeyOf(TYPES, s, shown); // mã chức vụ lạ: PAYROLL_BAD_TYPE, không rơi về chức vụ nào
+    const typeOf = (s?) => TYPES[typeKey(s)];
+    const entitlementOf = (staff?, tail?) => PayrollParams.entitlement(P, typeKey(staff), tail); // ghi đè theo chức vụ → toàn cục → mặc định
+    const levelOf = (s?) => typeOf(s).levels[s.level] || { name: '?', base: 0 };
     // Kiểm hồ sơ trước khi tính: bậc không có trong bảng bậc không được thành lương 0 âm thầm. typeOf và levelOf không kiểm; chỉ cổng vào đầy đủ gọi hàm này.
-    const shown = v =>
+    const shown = (v?) =>
       v === null || v === undefined
         ? 'trống'
         : typeof v === 'object'
           ? 'sai kiểu dữ liệu'
           : `"${String(v).slice(0, SHOWN_MAX)}"`;
-    function assertStaff(staff) {
+    function assertStaff(staff?) {
       const who =
         staff && typeof staff.username === 'string' ? ` của tài khoản ${staff.username.slice(0, SHOWN_MAX)}` : '';
       if (
@@ -223,7 +223,7 @@
           { code: 'PAYROLL_BAD_LEVEL', field: 'level' }
         );
     }
-    const bonusOf = (staff, shift) => {
+    const bonusOf = (staff?, shift?) => {
       const T = typeOf(staff);
       if (shift === 'flex') return T.flexBonus ?? MATCH_FLEX;
       if (shift === 'night' && BY_ASSIGNED) {
@@ -244,7 +244,7 @@
     };
     // Giờ nghỉ đêm có lương (Off Paid) theo cờ type.<mã>.benefit.breakPay, TTS không có. Chỉ false mới tắt: bản chụp
     // và chức vụ thiếu khoá thì vẫn trả, kỳ đã chốt tính lại vẫn đúng số lúc chụp (không cần LATE_KEYS).
-    const paidBreakH = (T, slots, off) =>
+    const paidBreakH = (T?, slots?, off?) =>
       T.breakPay === false ? 0 : slots.reduce((s, x) => s + (off && x.inMain ? 0 : x.paidH), 0);
 
     /* ---- thuế và bảo hiểm ---- */
@@ -283,23 +283,23 @@
     const OVER_ATTEND = need('attendance.overLimitHours') + need('attendance.overLimitTolerance'); // ngưỡng giờ vượt của chuyên cần + biên độ (mặc định 0)
 
     /* ---- giờ và ca ---- */
-    function toMin(t) {
+    function toMin(t?) {
       if (!t) return null;
       const [h, m] = t.split(':').map(Number);
       return h * MIN_H + m;
     }
-    const isNightMin = x => {
+    const isNightMin = (x?) => {
       const h = ((x % MIN_D) + MIN_D) % MIN_D;
       return h >= NIGHT_FROM || h < NIGHT_TO;
     };
-    function overlapsNight(a, b) {
+    function overlapsNight(a?, b?) {
       if (a == null || b == null) return false;
       let e = b;
       if (e <= a) e += MIN_D;
       for (let t = a; t < e; t += 1) if (isNightMin(t)) return true;
       return false;
     }
-    function shiftFor(tin, tout) {
+    function shiftFor(tin?, tout?) {
       const a = toMin(tin),
         b = toMin(tout);
       if (a == null || b == null) return 'normal';
@@ -309,23 +309,23 @@
     }
     // Loại ca dùng cho phụ cấp của một ngày. Theo ca được xếp: mã ca của ngày (d.preset), không có thì ca cố định trong hồ sơ; loại ca đọc từ
     // danh mục ca (shift.kind.<mã>), mã lạ hoặc chưa xếp ca là ca thường (không phụ cấp). Giờ làm, giờ nghỉ đêm vẫn tính theo giờ thật.
-    function shiftOfDay(staff, d) {
+    function shiftOfDay(staff?, d?) {
       if (!BY_ASSIGNED) return shiftFor(d.in, d.out);
       const code = (typeof d.preset === 'string' && d.preset) || (staff && staff.shiftCode);
       const kind = typeof code === 'string' && code ? P['shift.kind.' + code] : null;
       return SHIFT_KINDS.includes(kind) ? kind : 'normal';
     }
     // Ngày trong thời gian làm việc: từ ngày bắt đầu đến hết ngày nghỉ việc (staff.resignedOn vẫn là ngày làm việc); không có ngày thì đúng
-    const inService = (staff, date) =>
+    const inService = (staff?, date?) =>
       !date ||
       ((!PayrollCalendar.isValidDate(staff.startDate) || date >= staff.startDate) &&
         (!PayrollCalendar.isValidDate(staff.resignedOn) || date <= staff.resignedOn));
     // Ngày có lương của một dòng ngày: ngày công (kể cả ngày lễ có giờ làm) hoặc ngày nghỉ được trả (phép năm, nghỉ lễ hưởng lương, iSAT hưởng lương);
     // ngoài thời gian làm việc, nghỉ không lương, nghỉ được duyệt, vắng, chờ xử lý và ngày chỉ có giờ làm thêm không phải ngày có lương
-    const isPaidDay = (staff, row) =>
+    const isPaidDay = (staff?, row?) =>
       inService(staff, row.date) &&
       (row.kind === 'work' ? !row.extraOnly : (row.kind === 'holiday' && row.hours > 0) || row.paidOff === true);
-    function spanHours(d) {
+    function spanHours(d?) {
       const a = toMin(d.in),
         b = toMin(d.out);
       if (a == null || b == null) return 0;
@@ -333,22 +333,22 @@
       if (diff <= 0) diff += MIN_D;
       return diff / MIN_H;
     } // ca đêm qua ngày hôm sau
-    const fmtMin = t => {
+    const fmtMin = (t?) => {
       t = ((t % MIN_D) + MIN_D) % MIN_D;
       return String(Math.floor(t / MIN_H)).padStart(PAD, '0') + ':' + String(t % MIN_H).padStart(PAD, '0');
     };
-    function preSpan(d) {
+    function preSpan(d?) {
       return d.extraKind && d.extraIn && d.in && d.extraIn !== d.in ? spanHours({ in: d.extraIn, out: d.in }) : 0;
     } // giờ làm thêm trước ca (có mặt)
-    function postSpan(d) {
+    function postSpan(d?) {
       return d.extraKind && d.extraOut && d.out && d.extraOut !== d.out ? spanHours({ in: d.out, out: d.extraOut }) : 0;
     } // giờ làm thêm sau ca (có mặt)
-    function breakSlots(d) {
+    function breakSlots(d?) {
       const a = toMin(d.in);
       if (a == null || !spanHours(d)) return [];
       const mainEnd = a + spanHours(d) * MIN_H,
-        slots = [];
-      const seg = (s, end, main) => {
+        slots: any[] = [];
+      const seg = (s?, end?, main?) => {
         // Một đoạn làm liền chỉ nghỉ MỘT lần (1 ca làm nghỉ 1 tiếng); breakSlots, splitMainWork và actual-hours phải trùng nhau
         const t = s + BREAK_EVERY; // nghỉ sau BREAK_EVERY phút làm đầu tiên, đếm từ đầu đoạn
         if (t >= end) return;
@@ -373,7 +373,7 @@
       if (extraBreak) seg(mainEnd, mainEnd + postSpan(d) * MIN_H, false);
       return slots;
     }
-    function workedHours(d) {
+    function workedHours(d?) {
       const span = spanHours(d);
       if (!span) return 0;
       const brk = breakSlots(d).reduce((s, x) => s + x.inMain, 0);
@@ -383,7 +383,7 @@
       const cutEnd = Math.min(workMin - cutStart, Math.max(0, Math.floor(Number(d.cutEndMin) || 0)));
       return Math.max(0, span - brk - Number(d.breakMin || 0) / MIN_H - (cutStart + cutEnd) / MIN_H);
     }
-    function extraWorkHours(d) {
+    function extraWorkHours(d?) {
       const span = preSpan(d) + postSpan(d);
       if (!span) return 0;
       const brk = breakSlots(d).reduce((s, x) => s + x.inExtra, 0);
@@ -391,7 +391,7 @@
     }
 
     /* ========================= LỚP NGÀY: calcDay (giữ nguyên) và thanhPhanNgay ========================= */
-    function calcDay(staff, d, isHoliday, avail, context) {
+    function calcDay(staff?, d?, isHoliday?, avail?, context?) {
       // context: ngày bắt đầu và toàn bộ lịch lễ, kể cả tháng kế tiếp
       // Ngày đã xác nhận lấy ca được gán làm căn cứ trả lương; giờ có mặt chỉ dùng đối chiếu.
       if (d.attendanceConfirmed)
@@ -561,18 +561,18 @@
           otPay
       };
     }
-    function thanhPhanNgay(staff, d, isHoliday, avail, context) {
+    function thanhPhanNgay(staff?, d?, isHoliday?, avail?, context?): { c: any; parts: any } {
       const c = calcDay(staff, d, isHoliday, avail, context);
       return { c, parts: d.extraOnly ? { ...partsOfDay(c), ngayDiLam: 0 } : partsOfDay(c) };
     }
 
     /* ========================= lớp nặng của tháng: giờ vượt ngưỡng, tiền ứng ========================= */
-    const dateParts = date => date.split('-');
-    const dayOfMonth = date => {
+    const dateParts = (date?) => date.split('-');
+    const dayOfMonth = (date?) => {
       const [, , dd] = dateParts(date);
       return Number(dd);
     };
-    const monthOfDate = date => {
+    const monthOfDate = (date?) => {
       const [y, m] = dateParts(date);
       return `${y}-${m}`;
     };
@@ -581,31 +581,31 @@
     // counted: số ngày "Nghỉ được duyệt" tính vào (tắt
     // request.type.approved.countsAbsent thì counted = 0)
     // exempt: số ngày nghỉ không lương KHÔNG tính vào giờ vượt ngưỡng (khoản chưa duyệt mà quy tắc duyệt đặt "không tính là ngày nghỉ", mặc định 0)
-    const gioVuotNguong = (r, T, exempt = 0, counted = 0) =>
+    const gioVuotNguong = (r?, T?, exempt = 0, counted = 0) =>
       T.travel || T.attendance || T.kpi
         ? (r.unpaid + counted - exempt + r.noshow) * HOURS + r.debt + r.leave * HOURS
         : null;
-    const tienUngCong = (date, c) => (dayOfMonth(date) <= R.advanceUntil ? advancePayOfDay(c) : 0); // lương cơ bản thực nhận của ngày đi làm (kể cả ngày lễ đi làm) từ ngày 1 đến ngày advance.untilDay
+    const tienUngCong = (date?, c?) => (dayOfMonth(date) <= R.advanceUntil ? advancePayOfDay(c) : 0); // lương cơ bản thực nhận của ngày đi làm (kể cả ngày lễ đi làm) từ ngày 1 đến ngày advance.untilDay
 
     /* ========================= LỚP THÁNG: mỗi công thức có tên là MỘT biểu thức ========================= */
     // Hàm có sẵn đã gắn tham số (BUILTINS chỉ là bản dữ liệu của các hàm này)
     const builtinFns = {
       so,
       roundDong,
-      giuChuyenCan: (ngayNghi, gioVuot, maxAbsent, overLimit = OVER_ATTEND) =>
+      giuChuyenCan: (ngayNghi?, gioVuot?, maxAbsent?, overLimit = OVER_ATTEND) =>
         so(INVERSE[P['attendance.absentCompare']], ngayNghi, maxAbsent) &&
         so(INVERSE[P['attendance.overLimitCompare']], gioVuot, overLimit),
-      tienKpi: (amt, units, heSo) => KpiScore.pay(amt, units, heSo), // KPI 5 thành phần: điểm × 100 là số nguyên (KpiScore)
-      tienKpiCu: (amt, pct, heSo) => ((amt * pct) / PERCENT) * heSo // KPI cũ: % tự đánh giá hoặc % Admin duyệt
+      tienKpi: (amt?, units?, heSo?) => KpiScore.pay(amt, units, heSo), // KPI 5 thành phần: điểm × 100 là số nguyên (KpiScore)
+      tienKpiCu: (amt?, pct?, heSo?) => ((amt * pct) / PERCENT) * heSo // KPI cũ: % tự đánh giá hoặc % Admin duyệt
     };
     // Cây của các công thức tháng (mặc định hoặc đã lưu) và hàm có sẵn gọi theo (args, params) cho Formula.evaluate
     const FORMULA_TREES = resolveFormulaTrees(P);
-    const FORMULA_BUILTINS = {};
-    for (const [key, entry] of Object.entries(BUILTINS)) FORMULA_BUILTINS[key] = (args, p) => entry.fn(args, p || P);
+    const FORMULA_BUILTINS: Record<string, any> = {};
+    for (const [key, entry] of Object.entries(BUILTINS)) FORMULA_BUILTINS[key] = (args?, p?) => entry.fn(args, p || P);
     // phép so sánh có tên của tham số registry kpi.overLimitCompare (cây viết "vượt ngưỡng giờ KPI (a ; b)")
-    FORMULA_BUILTINS.vuotNguongKpi = ([a, b]) => so(P['kpi.overLimitCompare'], a, b);
+    FORMULA_BUILTINS.vuotNguongKpi = ([a, b]: any) => so(P['kpi.overLimitCompare'], a, b);
     // Bảy cây mặc định không dùng biến theo ngày (DAY_VARIABLES) hay thuộc tính của bậc (level.attr.<mã>) nên ctx chỉ mang biến tháng v.
-    const formulaCtx = (variables, staff) => ({
+    const formulaCtx = (variables?, staff?) => ({
       variables,
       parameters: PayrollParams.overlay(P, typeKey(staff)), // ghi đè theo chức vụ (advance.rate, attendance.overLimitHours…); không có thì chính P
       builtins: FORMULA_BUILTINS,
@@ -613,10 +613,10 @@
       formulas: FORMULA_TREES
     });
     // Tập công thức tháng của một người: đánh giá lười, nhớ kết quả, chạy cây trên biến v (v được cập nhật dần trong calcMonth)
-    function monthFormulas(v, staff) {
+    function monthFormulas(v?, staff?) {
       const ctx = formulaCtx(v, staff);
-      const cache = new Map();
-      const f = {};
+      const cache = new Map<any, any>();
+      const f: Record<string, any> = {};
       for (const name of DEPS.PayrollGraph.ORDER)
         Object.defineProperty(f, name, {
           enumerable: true,
@@ -629,10 +629,10 @@
     }
 
     /* ========================= calcMonth ========================= */
-    function noShowDates() {
-      return new Set(); // bảng ước tính chỉ dùng lịch tự nhập; thiếu Check-in/out không tự suy ra ngày vắng
+    function noShowDates(_staff?, _days?, _mk?, _hol?): Set<any> {
+      return new Set<any>(); // bảng ước tính chỉ dùng lịch tự nhập; thiếu Check-in/out không tự suy ra ngày vắng
     }
-    function calcMonth(staff, days, kpiPct, holidays, mk, upTo, entries, asOf, extra = {}) {
+    function calcMonth(staff?, days?, kpiPct?, holidays?, mk?, upTo?, entries?, asOf?, extra: any = {}) {
       const { advance, settleDays } = extra;
       // upTo: chỉ tính đến ngày này; mặc định = hôm nay (null = cả tháng)
       // asOf: thời điểm tính (ISO); không ảnh hưởng số tiền
@@ -641,7 +641,7 @@
       if (upTo === undefined) upTo = PunchRules.vnDate(new Date(Date.now()).toISOString()); // mặc định đọc đồng hồ; computeMonth luôn truyền upTo
       const T = typeOf(staff),
         L = levelOf(staff);
-      const r = {
+      const r: Record<string, any> = {
         count: 0,
         makeup: 0,
         base: 0,
@@ -699,26 +699,26 @@
         net: null
       };
       const parts = { tienNgayCong: 0, phuCapCa: 0, gioNghiDem: 0, lamBu: 0, tienOt: 0, tienLamLe: 0, ngayDiLam: 0 }; // trace, không vào m
-      const inMonth = date =>
+      const inMonth = (date?) =>
         PayrollCalendar.isValidDate(date) && (!mk || (PayrollCalendar.isValidMonth(mk) && monthOfDate(date) === mk));
       // Tiền ca và bộ đếm ngày công vẫn thuộc ngày/tháng bắt đầu; chỉ hệ số lễ theo ngày thực tế của từng phút.
       // Lương nghỉ lễ theo ngày hưởng quyền, cộng một lần trong tháng của chính ngày lễ đó.
       const allHolidays = (holidays || []).filter(PayrollCalendar.isValidDate);
       const S = WS.scheduleOf(staff); // lịch của người: theo loại nhân sự, hoặc mảng thứ staff.sched của đầu vào
-      const hol = new Set(allHolidays.filter(inMonth).filter(h => WS.isWorkDay(S, h)));
+      const hol = new Set<any>(allHolidays.filter(inMonth).filter(h => WS.isWorkDay(S, h)));
       const eligibleHolidays = [...hol].filter(date => inService(staff, date));
       const noshow = noShowDates(staff, days, mk, hol); // vắng không phép (giai đoạn check-in), tính lúc chạy, không lưu DB
-      const monthDates = [...new Set([...Object.keys(days), ...eligibleHolidays, ...noshow])]
+      const monthDates = [...new Set<any>([...Object.keys(days), ...eligibleHolidays, ...noshow])]
         .filter(inMonth)
         .filter(date => !PayrollCalendar.isValidDate(staff.resignedOn) || date <= staff.resignedOn) // sau ngày nghỉ việc: không còn ngày nào
         .filter(date => WS.isWorkDay(S, date) || days[date]?.extraOnly === true) // ngày trong lịch làm việc, và ngày ngoài lịch chỉ có đoạn OT đã duyệt (extraOnly)
         .sort();
       const dates = monthDates.filter(date => !upTo || date <= upTo);
-      const dayOf = date => days[date] || (noshow.has(date) ? { kind: 'noshow' } : {});
-      const restDate = date => WS.isRestDay(S, date); // Thứ Bảy, Chủ nhật không nằm trong lịch của người: OT trả theo ot.weekendRate
+      const dayOf = (date?) => days[date] || (noshow.has(date) ? { kind: 'noshow' } : {});
+      const restDate = (date?) => WS.isRestDay(S, date); // Thứ Bảy, Chủ nhật không nằm trong lịch của người: OT trả theo ot.weekendRate
       // Sổ giờ bù của tháng (phút nguyên): giờ cần bù = giờ thiếu ngày đi làm + một công mỗi ngày "Nghỉ, sẽ làm bù"; giờ làm bù = giờ làm bù
       // đã trả của từng ngày (trả đủ, không cắt theo giờ cần bù). Số dư chỉ dùng để chặn OT và báo giờ còn thiếu.
-      const toM = h => Math.round((h || 0) * MIN_H);
+      const toM = (h?) => Math.round((h || 0) * MIN_H);
       const total = { need: 0, made: 0 };
       let unpaidExempt = 0; // ngày nghỉ không lương do khoản chưa duyệt đổi thành và quy tắc duyệt đặt "không tính là ngày nghỉ" (ApprovalView absentExempt)
       // OT ngày D chỉ bị chặn khi tới trước D còn giờ phải bù (bal > 0); làm bù nhiều hơn giờ thiếu không chặn OT.
@@ -802,7 +802,7 @@
 
     // Phần của tháng SAU vòng các ngày: giờ vượt ngưỡng, công thức tháng, phụ cấp, KPI, khối, khoản điền thêm, quyết toán phép, thực lĩnh, vết.
     // Chạy lại được từ một bản chụp đã đổi một vài số tổng hợp (repin: ô số lượng Admin ghim trên phiếu), nên chỉ ghi đè các trường nó tính ra.
-    function finishMonth(staff, r, c) {
+    function finishMonth(staff?, r?, c?) {
       const T = typeOf(staff),
         L = levelOf(staff);
       const { parts, unpaidExempt, kpiPct, entries, advance, settleDays } = c;
@@ -855,8 +855,8 @@
       if (T.kpi) {
         // kpiPct có thể là số (% hoàn thành) hoặc {pct, amt} với amt = mức đề xuất lương KPI (0 … KPI tối đa)
         const kin = kpiPct && typeof kpiPct === 'object' ? kpiPct : { pct: kpiPct, amt: null };
-        const cp = x => (x == null || x === '' ? null : Math.max(0, Math.min(PERCENT, Number(x))));
-        const ca = x => (x == null || x === '' ? null : Math.max(0, Math.min(L.kpi || 0, Number(x) || 0)));
+        const cp = (x?) => (x == null || x === '' ? null : Math.max(0, Math.min(PERCENT, Number(x))));
+        const ca = (x?) => (x == null || x === '' ? null : Math.max(0, Math.min(L.kpi || 0, Number(x) || 0)));
         const selfP = cp(kin.pct),
           selfAmt = ca(kin.amt) == null ? L.kpi || 0 : ca(kin.amt);
         if (kin.method === 'five') {
@@ -992,9 +992,9 @@
     }
 
     /* ========================= LỚP THỰC LĨNH: khung khoá bảy bước ========================= */
-    const entrySums = m => DEPS.PayBlocksCalc.mergeSums(DEPS.PayEntriesCalc.sumsOf(m, P), m, P); // khoản điền thêm của m (toàn 0 khi không có khoản)
+    const entrySums = (m?) => DEPS.PayBlocksCalc.mergeSums(DEPS.PayEntriesCalc.sumsOf(m, P), m, P); // khoản điền thêm của m (toàn 0 khi không có khoản)
     /* Thuế lũy tiến từng phần trên thu nhập tính thuế của tháng */
-    function progressiveTax(income) {
+    function progressiveTax(income?) {
       let tax = 0,
         lower = 0;
       for (const [upper, rate] of R.brackets) {
@@ -1009,7 +1009,13 @@
        chịu thuế − BH − giảm trừ gia cảnh (bản thân + người phụ thuộc), phần dương áp biểu lũy tiến;
        flat (HĐ dưới 3 tháng): khấu trừ trên tổng thu nhập từ ngưỡng (Admin tắt được); none: không khấu trừ. */
     // Giảm trừ gia cảnh đưa vào qua tham số thứ 5 hoặc contractInfo.deduction (số đã chụp trên phiếu); thiếu cả hai thì 0
-    function taxFrom({ contract, taxOn, deduction: carried }, gross, taxable, insurance, deduction = carried || 0) {
+    function taxFrom(
+      { contract, taxOn, deduction: carried }: any,
+      gross?,
+      taxable?,
+      insurance?,
+      deduction = carried || 0
+    ) {
       const method = DEPS.PayTailCalc.taxMethodOf(P, contract);
       if (method === 'progressive') {
         const income = taxable - insurance;
@@ -1023,7 +1029,7 @@
     // Bảy bước: (1) tổng thu nhập → gross; (2) miễn thuế và chịu thuế; (3) bảo hiểm bắt buộc; (4) thuế TNCN; (5) tạm ứng; (6) khoản trừ khác;
     // (7) khoản cộng ngoài lương. Bước 6 và 7 chưa có danh mục (mặc định 0): không thêm trường vào kết quả để thực lĩnh khớp calcNet từng đồng.
     // Hợp đồng và cờ đóng BH của người (mặc định theo loại nhân sự)
-    function contractOf(staff) {
+    function contractOf(staff?) {
       const contract =
         staff.contract === 'long' || staff.contract === 'short'
           ? staff.contract
@@ -1035,7 +1041,7 @@
     // Hàm có sẵn mienThue: chỉ phần trả cao hơn lương giờ thường của cùng số giờ được miễn thuế. Giờ đêm: phụ trội đêm (tax.exempt.nightPremium × lương giờ × giờ),
     // mỗi ngày không quá phụ cấp ca đã trả của ngày đó (ngày không có phụ cấp ca thì giờ đêm không được miễn). OT / làm lễ: mỗi nhóm giờ miễn
     // phần tiền trả (đến mức luật của nhóm) trừ lương giờ thường × số giờ của nhóm
-    function mienThueOf(staff, m, gross) {
+    function mienThueOf(staff?, m?, gross?) {
       const T = typeOf(staff),
         L = levelOf(staff),
         hourly = L.base / T.workdays / HOURS;
@@ -1053,7 +1059,7 @@
             )
           : hourly * m.nightHours * R.nightPremium
       );
-      const above = (pay, cap, hours) => Math.max(0, Math.min(pay, cap) - hourly * hours);
+      const above = (pay?, cap?, hours?) => Math.max(0, Math.min(pay, cap) - hourly * hours);
       // otHol*: OT rơi vào ngày lễ tách riêng chỉ có trong bản chụp của bộ máy cũ; bộ máy này gộp mọi giờ ngày lễ vào holWork* (0 ở đây)
       const otHolHours = m.otHolHours || 0,
         otHolPay = m.otHolPay || 0;
@@ -1081,7 +1087,7 @@
     // type.<mã>.workdays) trừ số ngày có lương tính đến mốc tính (m.paidDays: ngày công, phép năm, nghỉ lễ hưởng lương, iSAT hưởng lương; bản chụp không có
     // m.paidDays thì đếm lại từ m.rows), không âm; từ tax.insurance.skipDays ngày trở lên (so theo tax.insurance.skipCompare) thì tháng đó không đóng.
     // Mức đóng không chia theo ngày.
-    function baoHiemOf(staff, m) {
+    function baoHiemOf(staff?, m?) {
       const L = levelOf(staff);
       const { insured } = contractOf(staff);
       // nền đóng (insurance.base, sàn insurance.floorMode)
@@ -1098,7 +1104,7 @@
         (typeof m.workdaysStd === 'number' ? m.workdaysStd : typeOf(staff).workdays) - paidDays
       );
       const insuredMonth = insured && !so(P['tax.insurance.skipCompare'], noPayDays, R.insuranceSkipDays);
-      const ins = k => (insuredMonth ? roundDong(Math.min(base, R.insuranceCap[k]) * R.insurance[k]) : 0);
+      const ins = (k?) => (insuredMonth ? roundDong(Math.min(base, R.insuranceCap[k]) * R.insurance[k]) : 0);
       const bhxh = ins('bhxh'),
         bhyt = ins('bhyt'),
         bhtn = ins('bhtn');
@@ -1107,7 +1113,7 @@
         : 0;
       return { insured, insuredMonth, noPayDays, bhxh, bhyt, bhtn, insurance: bhxh + bhyt + bhtn, employer };
     }
-    function netFrame(staff, m, F, approved) {
+    function netFrame(staff?, m?, F?, approved?) {
       const T = typeOf(staff),
         L = levelOf(staff),
         daily = L.base / T.workdays;
@@ -1165,19 +1171,19 @@
         ...DEPS.PayEntriesCalc.netOf(m, P)
       };
     }
-    const calcNet = (staff, m) => netFrame(staff, m, undefined, !!(m.net && m.net.advanceApproved === true));
+    const calcNet = (staff?, m?) => netFrame(staff, m, undefined, !!(m.net && m.net.advanceApproved === true));
 
-    // Tính lại một tháng từ BẢN CHỤP đã có khi Admin ghim ô số lượng trên phiếu: đổi các số tổng hợp theo ghim (src/engine/payroll-pins.js),
+    // Tính lại một tháng từ BẢN CHỤP đã có khi Admin ghim ô số lượng trên phiếu: đổi các số tổng hợp theo ghim (src/engine/payroll-pins.ts),
     // rồi chạy lại phần tháng (finishMonth) để phụ cấp, KPI, khối, miễn thuế, bảo hiểm, thuế, thực lĩnh tính theo. Bản chụp gốc không đổi; không có ghim nào làm đổi tiền
     // thì trả null. Không dùng đầu vào ban đầu (lịch, Check-in/out) nên số luôn khớp bản chụp dù dữ liệu đã đổi sau đó.
-    function repinMonth(staff, m, pins) {
+    function repinMonth(staff?, m?, pins?) {
       const Pins = DEPS.PayrollPins;
       if (!Pins.hasEffect(pins) || !m || !m.net || !Array.isArray(m.rows) || !m.trace) return null;
       const T = typeOf(staff),
         L = levelOf(staff),
         daily = L.base / T.workdays;
       const r = JSON.parse(JSON.stringify(m));
-      const parts = {};
+      const parts: Record<string, any> = {};
       for (const name of ['tienNgayCong', 'phuCapCa', 'gioNghiDem', 'lamBu', 'tienOt', 'tienLamLe', 'ngayDiLam'])
         parts[name] = m.trace[name] || 0;
       const entries = r.entries;
@@ -1199,7 +1205,7 @@
       const unpaidExempt = r.rows.filter(x => x.kind === 'unpaid' && x.absentExempt === true).length;
       if (Object.keys(adj).length) r.pinAdjust = adj; // tiền/ngày ghim đổi mà các dòng ngày (rows) không đổi theo: các dòng tiền (linesOf) cộng vào
       finishMonth(staff, r, { parts, unpaidExempt, kpiPct: Pins.kpiInput(r, pins), entries, advance, settleDays });
-      r.pinned = Object.fromEntries(Object.entries(pins).filter(([key]) => !Pins.IGNORED_KEYS.includes(key)));
+      r.pinned = Object.fromEntries(Object.entries(pins).filter(([key]: any) => !Pins.IGNORED_KEYS.includes(key)));
       return r;
     }
 
@@ -1234,15 +1240,15 @@
   }
 
   /* ========================= BUILTINS, VARIABLES, FORMULAS: dữ liệu ========================= */
-  // Cùng hình với từ vựng của src/engine/formula-vocab.js (key, label, synonyms, kind, unit, domain, locked, args).
+  // Cùng hình với từ vựng của src/engine/formula-vocab.ts (key, label, synonyms, kind, unit, domain, locked, args).
   // Đơn vị: VND, day, hour, minute, ratio (không đơn vị), point (điểm), count (đúng sai hoặc số đếm), text. Miền: day, month, person.
   // BUILTINS: hàm có sẵn bị khoá, gọi được theo `fn(args, params)` thuần, đúng chữ ký của ctx.builtins trong Formula.evaluate
   //   (params = bộ tham số phẳng PayrollParams.DEFAULTS hoặc store.resolve(tháng).params).
   // VARIABLES: `from` là đường dẫn vào ngữ cảnh của một tháng đã tính: gốc `m` (kết quả calcMonth), `trace` (m.trace), `staff`, `level` (bậc
   //   lương của người), `type` (loại nhân sự); variablesOf(m, staff, params) dựng ctx.variables từ đó.
   // FORMULAS: công thức tháng có tên; giá trị đã tính nằm ở m.trace[khoá] (`from: 'trace.<khoá>'`).
-  const arg = (name, unit, domain) => ({ name, unit, domain });
-  const builtin = (key, label, synonyms, unit, domain, args, fn, extra) => ({
+  const arg = (name?, unit?, domain?) => ({ name, unit, domain });
+  const builtin = (key?, label?, synonyms?, unit?, domain?, args?, fn?, extra?) => ({
     key,
     label,
     synonyms,
@@ -1268,7 +1274,7 @@
         arg('gioBuConDuoc', 'hour', 'month'),
         arg('boiCanh', 'text', 'day')
       ],
-      ([staff, day, isHoliday, avail, context], params) =>
+      ([staff, day, isHoliday, avail, context]: any, params) =>
         kernelFor(params).thanhPhanNgay(staff, day, isHoliday, avail, context),
       { returns: ['tienNgayCong', 'phuCapCa', 'gioNghiDem', 'lamBu', 'tienOt', 'tienLamLe', 'ngayDiLam'] }
     ),
@@ -1284,7 +1290,7 @@
         arg('gioThieuChuaBu', 'hour', 'month'),
         arg('ngayPhepNam', 'day', 'month')
       ],
-      ([khongLuong, vang, thieu, phep], params) =>
+      ([khongLuong, vang, thieu, phep]: any, params) =>
         (khongLuong + vang) * params['time.workHoursPerDay'] + thieu + phep * params['time.workHoursPerDay']
     ),
     giuChuyenCan: builtin(
@@ -1294,7 +1300,7 @@
       'count',
       'month',
       [arg('ngayNghi', 'day', 'month'), arg('gioVuotNguong', 'hour', 'month'), arg('nguongNgayNghi', 'day', 'person')],
-      ([ngayNghi, gioVuot, maxAbsent], params) =>
+      ([ngayNghi, gioVuot, maxAbsent]: any, params) =>
         kernelFor(params).builtinFns.giuChuyenCan(ngayNghi, gioVuot, maxAbsent)
     ),
     tienKpi: builtin(
@@ -1304,7 +1310,7 @@
       'VND',
       'month',
       [arg('mucKpi', 'VND', 'month'), arg('diemDonVi', 'point', 'month'), arg('heSo', 'ratio', 'month')],
-      ([amt, units, heSo], params) => kernelFor(params).builtinFns.tienKpi(amt, units, heSo)
+      ([amt, units, heSo]: any, params) => kernelFor(params).builtinFns.tienKpi(amt, units, heSo)
     ),
     tienKpiCu: builtin(
       'tienKpiCu',
@@ -1313,7 +1319,7 @@
       'VND',
       'month',
       [arg('mucKpi', 'VND', 'month'), arg('diemPhanTram', 'point', 'month'), arg('heSo', 'ratio', 'month')],
-      ([amt, pct, heSo], params) => kernelFor(params).builtinFns.tienKpiCu(amt, pct, heSo)
+      ([amt, pct, heSo]: any, params) => kernelFor(params).builtinFns.tienKpiCu(amt, pct, heSo)
     ),
     so: builtin(
       'so',
@@ -1322,7 +1328,7 @@
       'count',
       'month',
       [arg('phep', 'text', 'person'), arg('a', 'ratio', 'month'), arg('b', 'ratio', 'month')],
-      ([op, a, b]) => so(op, a, b)
+      ([op, a, b]: any) => so(op, a, b)
     ),
     roundDong: builtin(
       'roundDong',
@@ -1331,7 +1337,7 @@
       'VND',
       'month',
       [arg('x', 'VND', 'month')],
-      ([x], params) => kernelFor(params).builtinFns.roundDong(x)
+      ([x]: any, params) => kernelFor(params).builtinFns.roundDong(x)
     ),
     baoHiem: builtin(
       'baoHiem',
@@ -1340,7 +1346,7 @@
       'VND',
       'month',
       [arg('nguoi', 'text', 'person'), arg('thang', 'text', 'month')],
-      ([staff, m], params) => kernelFor(params).baoHiemOf(staff, m).insurance
+      ([staff, m]: any, params) => kernelFor(params).baoHiemOf(staff, m).insurance
     ),
     mienThue: builtin(
       'mienThue',
@@ -1349,7 +1355,7 @@
       'VND',
       'month',
       [arg('nguoi', 'text', 'person'), arg('thang', 'text', 'month'), arg('tongThuNhap', 'VND', 'month')],
-      ([staff, m, gross], params) => kernelFor(params).mienThueOf(staff, m, gross).exempt
+      ([staff, m, gross]: any, params) => kernelFor(params).mienThueOf(staff, m, gross).exempt
     ),
     tienUng: builtin(
       'tienUng',
@@ -1358,13 +1364,13 @@
       'VND',
       'day',
       [arg('ngay', 'text', 'day'), arg('ngayCong', 'text', 'day')],
-      ([date, c], params) => {
+      ([date, c]: any, params) => {
         const [, , dd] = date.split('-');
         return Number(dd) <= params['advance.untilDay'] ? advancePayOfDay(c) : 0;
       }
     )
   });
-  const variable = (key, label, synonyms, unit, domain, from, extra) => ({
+  const variable = (key?, label?, synonyms?, unit?, domain?, from?, extra?) => ({
     key,
     label,
     synonyms,
@@ -1456,11 +1462,11 @@
     diemKpi: variable('diemKpi', 'Điểm KPI', ['tổng điểm KPI'], 'point', 'month', 'm.kpiPct'),
     tienUng: variable('tienUng', 'Cơ sở tạm ứng', ['nền tạm ứng'], 'VND', 'month', 'm.advanceBase')
   });
-  // Biến theo ngày của công thức "tổng theo ngày (…)": src/engine/payroll-day-parts.js
+  // Biến theo ngày của công thức "tổng theo ngày (…)": src/engine/payroll-day-parts.ts
   const { DAY_VARIABLES, dayArraysOf } = DEPS.PayrollDayParts;
-  const dayVariablesOf = m => dayArraysOf(m.rows, m.trace);
+  const dayVariablesOf = (m?) => dayArraysOf(m.rows, m.trace);
 
-  const formula = (key, label, synonyms, unit, dependsOn, extra) => ({
+  const formula = (key?, label?, synonyms?, unit?, dependsOn?, extra?) => ({
     key,
     label,
     synonyms,
@@ -1547,10 +1553,10 @@
   ]);
 
   // Dựng ctx.variables cho Formula.evaluate từ một tháng đã tính: giá trị của mỗi biến lấy theo `from` (không eval, chỉ đi theo khoá)
-  function variablesOf(m, staff, params) {
+  function variablesOf(m?, staff?, params?) {
     const k = kernelFor(params);
     const roots = { m, trace: m.trace, staff, level: k.levelOf(staff), type: k.typeOf(staff) };
-    const out = {};
+    const out: Record<string, any> = {};
     for (const [key, entry] of Object.entries(VARIABLES)) {
       const [rootName, ...rest] = entry.from.split('.');
       let value = roots[rootName];
@@ -1564,31 +1570,31 @@
     return out;
   }
   // ctx đủ cho Formula.evaluate(tree, ctx): biến của tháng, tham số phẳng, hàm có sẵn gọi theo (args, params)
-  function contextFor(m, staff, params) {
-    const builtins = {};
-    for (const [key, entry] of Object.entries(BUILTINS)) builtins[key] = (args, p) => entry.fn(args, p || params);
+  function contextFor(m?, staff?, params?) {
+    const builtins: Record<string, any> = {};
+    for (const [key, entry] of Object.entries(BUILTINS)) builtins[key] = (args?, p?) => entry.fn(args, p || params);
     return { variables: variablesOf(m, staff, params), parameters: params, builtins, formulas: {} };
   }
 
   /* ========================= API ========================= */
   // Chính sách duyệt khoản chưa duyệt, dựng từ tham số request.type.<mã>.pendingRule / rejectedRule (cùng hình ApprovalView.POLICY)
-  function approvalPolicy(params) {
-    const policy = { pending: {}, rejected: {} };
+  function approvalPolicy(params?) {
+    const policy = { pending: {} as Record<string, any>, rejected: {} as Record<string, any> };
     for (const [key, value] of Object.entries(params)) {
       const m = /^request\.type\.(?<item>[a-z_]+)\.(?<rule>pendingRule|rejectedRule)$/.exec(key);
-      if (m) policy[m.groups.rule === 'pendingRule' ? 'pending' : 'rejected'][m.groups.item] = value;
+      if (m) policy[m.groups!.rule === 'pendingRule' ? 'pending' : 'rejected'][m.groups!.item] = value;
     }
     return policy;
   }
   // Chuỗi đầy đủ: lịch → payView → ActualHours.apply → calcMonth. input như test/helpers/payroll-cases.ts
   // Các góc nhìn bộ tham số của MỘT người trong MỘT tháng, dùng chung cho computeMonth và repin để hai đường tính cùng một bộ tham số
-  function prepare(params, staff, month) {
+  function prepare(params?, staff?, month?) {
     params = DEPS.WorkSchedule.create(DEPS.PayrollParams.fillLate(params)).monthView(month); // pay.method C: ngày công chuẩn theo lịch của tháng (một nguồn lịch)
     const person = DEPS.WorkSchedule.create(params).forPerson(staff, month); // lịch của người, mẫu số lương ngày của người
     params = DEPS.PayOptions.levelView(person.params, staff); // quyền lợi theo bậc (không ghi đè nào thì giữ nguyên bộ tham số)
     return { params, person, k: kernelFor(params) };
   }
-  function computeMonth(input, params) {
+  function computeMonth(input?, params?) {
     const { params: viewed0, person, k } = prepare(params, input.staff, input.month);
     params = viewed0;
     const { staff, days, approvals, sessions, kpi, holidays, month, upTo, asOf } = input;
@@ -1605,7 +1611,7 @@
       // Giải trình chưa được Admin duyệt (hoặc bị từ chối): ngày đó không tính lương, như nghỉ không lương, kể cả khi có Check-in/out.
       // Dòng ngày giữ giờ bấm thật của ngày (punchIn, punchOut) và ghi held = 'rejected' (bị từ chối) hoặc 'pending' (chưa duyệt) để phiếu in nhãn
       payDays = { ...payDays };
-      const rejected = new Set(input.explanationRejected || []);
+      const rejected = new Set<any>(input.explanationRejected || []);
       for (const date of input.explanationHold) {
         const { punchIn, punchOut } = payDays[date] || {};
         payDays[date] = {
@@ -1623,7 +1629,7 @@
     if (person.workdaysStd !== undefined) m.workdaysStd = person.workdaysStd; // chỉ khi lịch là mảng thứ của đầu vào hoặc ngày công chuẩn tự đếm theo lịch
     return { m, payDays, pendingItems, actualReport, trace: m.trace };
   }
-  function create(params, overrides) {
+  function create(params?, overrides?) {
     if (!params || typeof params !== 'object')
       throw new TypeError('create(params): cần bộ tham số phẳng (PayrollParams.DEFAULTS)');
     const k = kernelFor(params);
@@ -1641,9 +1647,9 @@
       payslip: k.calcNet,
       taxFrom: k.taxFrom,
       progressiveTax: k.progressiveTax,
-      computeMonth: input => computeMonth(input, params),
+      computeMonth: (input?) => computeMonth(input, params),
       // Tính lại tháng từ bản chụp m với ô số lượng Admin ghim (pins: { workDays, ot20H, kpiAmt, ... }); null khi không ghim nào làm đổi tiền
-      repin: (m, staff, pins, month) => {
+      repin: (m?, staff?, pins?, month?) => {
         const { k } = prepare(params, staff, month);
         k.assertStaff(staff);
         return k.repinMonth(staff, m, pins);

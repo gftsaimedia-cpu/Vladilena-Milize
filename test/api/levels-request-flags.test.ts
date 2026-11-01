@@ -3,7 +3,7 @@
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { SHIFT } = require('../../src/engine/punch.js');
+const { SHIFT } = require('../../src/engine/punch');
 const { sheetFlagsOf } = require('../../src/domain/positions');
 
 const { F } = P;

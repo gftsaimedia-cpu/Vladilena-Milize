@@ -367,7 +367,7 @@ export class StaffController {
     if ((startDate && !validDate(startDate)) || (birthday && !validDate(birthday)))
       throw new HttpError(400, 'Ngày bắt đầu làm / ngày sinh phải là ngày hợp lệ dạng YYYY-MM-DD');
     // Chức vụ có cờ startDateRequired cần ngày bắt đầu làm để tính phép năm; Admin thì không
-    // Thiếu ngày bắt đầu làm thì phép năm của người này chưa tính được (src/engine/leave.js → accrued cần ngày bắt đầu)
+    // Thiếu ngày bắt đầu làm thì phép năm của người này chưa tính được (src/engine/leave.ts → accrued cần ngày bắt đầu)
     warnIf('START_DATE_REQUIRED', needsLevel && staffParams[`type.${type}.startDateRequired`] === true && !startDate, {
       message: 'Chức vụ này cần ngày bắt đầu làm: chưa có ngày thì số phép năm của người này chưa tính được.'
     });

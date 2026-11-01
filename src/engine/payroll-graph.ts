@@ -1,18 +1,18 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   // PayrollEngine và KpiScore chỉ cần khi dựng ctx (contextFor) nên nạp LƯỜI: bộ máy tính lương sẽ nạp mô-đun này, không được vòng tròn
   const isNode = typeof module === 'object' && module.exports;
   const deps = isNode
     ? {
-        Formula: require('./formula.js'),
-        Vocab: require('./formula-vocab.js'),
+        Formula: require('./formula'),
+        Vocab: require('./formula-vocab'),
         get PayrollParams() {
-          return require('./payroll-params.js');
+          return require('./payroll-params');
         },
         get PayrollEngine() {
-          return require('./payroll-engine.js');
+          return require('./payroll-engine');
         },
         get KpiScore() {
-          return require('./kpi-score.js');
+          return require('./kpi-score');
         }
       }
     : {
@@ -47,7 +47,7 @@
   //   validateDefaults()             kiểm cả đồ thị mặc định (đơn vị, miền, vòng, khoản bắt buộc); trả danh sách lỗi (rỗng = sạch)
   const { Formula, Vocab } = DEPS;
 
-  // Chữ chuẩn của từng công thức. Nhãn trong chữ là nhãn của từ vựng (src/engine/formula-vocab.js, sinh từ bộ máy).
+  // Chữ chuẩn của từng công thức. Nhãn trong chữ là nhãn của từ vựng (src/engine/formula-vocab.ts, sinh từ bộ máy).
   // Ghi chú đối chiếu với công thức viết bằng mã:
   //   - 'tỷ lệ phụ cấp đi lại theo loại' = p('type.<type>.travel'): một cây cho mọi loại, ctx.scope.type chọn loại.
   //   - 'vượt ngưỡng giờ KPI (a ; b)' = so(p('kpi.overLimitCompare'), a, b): phép so sánh là tham số registry, không viết sẵn dấu.
@@ -78,13 +78,13 @@
     'tamUng'
   ]);
 
-  const labelOf = key => {
+  const labelOf = (key?) => {
     const e = Vocab.byKey(key);
     return e ? e.label : key;
   };
 
-  const DEFAULT_GRAPH = {};
-  const TREES = {};
+  const DEFAULT_GRAPH: Record<string, any> = {};
+  const TREES: Record<string, any> = {};
   for (const key of ORDER) {
     const res = Formula.parse(TEXTS[key], { vocabulary: Vocab });
     if (!res.ok || !res.tree || res.target.key !== key)
@@ -97,7 +97,7 @@
   Object.freeze(DEFAULT_GRAPH);
 
   function validateDefaults() {
-    const errors = [];
+    const errors: any[] = [];
     for (const key of ORDER) {
       const v = Formula.validate(TREES[key], { vocabulary: Vocab, formulas: TREES });
       for (const e of v.errors) errors.push({ key, ...e });
@@ -107,13 +107,13 @@
 
   // Từ vựng để kiểm cây công thức: từ vựng gốc (formula-vocab.js). Thuộc tính của bậc không phải biến công thức nên `params` không đổi gì;
   // tham số giữ để lời gọi vocabularyFor(params) vẫn chạy.
-  function vocabularyFor() {
+  function vocabularyFor(_params?: any) {
     return Vocab;
   }
 
   // Kiểm MỘT cây công thức `name` đúng như bộ máy sẽ nạp nó: đồ thị gồm cây mặc định cộng các cây của bộ tham số (`saved`: { <tên>: cây }) để bắt vòng
   // qua cây mặc định, và giá trị tham số của tháng (cạnh bảng bậc là tham số). src/params/validate.ts → checkFormula gọi hàm này thay cho Formula.validate trần.
-  function validateTree(name, tree, params, saved) {
+  function validateTree(name?, tree?, params?, saved?) {
     return Formula.validate(tree, {
       vocabulary: vocabularyFor(params),
       target: name,
@@ -122,19 +122,19 @@
     });
   }
 
-  const treesWith = saved => {
-    const out = { ...TREES };
+  const treesWith = (saved?) => {
+    const out: Record<string, any> = { ...TREES };
     if (saved && typeof saved === 'object') for (const k of Object.keys(saved)) if (saved[k]) out[k] = saved[k];
     return out;
   };
 
   // Biến và cờ mà bộ máy tháng dùng nội bộ (v trong calcMonth) nhưng DEPS.PayrollEngine.VARIABLES chưa công bố: dựng lại từ kết quả tháng m,
   // hồ sơ và loại nhân sự.
-  function extraVariables(m, staff, params) {
+  function extraVariables(m?, staff?, params?) {
     const k = DEPS.PayrollEngine.kernelFor(params);
     const T = k.typeOf(staff);
     const five = m.kpiMethod === 'five';
-    const out = {
+    const out: Record<string, any> = {
       gioOt: m.otHours,
       gioLamBu: m.makeupHours,
       gioLamLe: m.holWorkHours,
@@ -160,7 +160,7 @@
   }
 
   // ctx cho Formula.evaluate của MỘT người trong MỘT tháng đã tính (m = kết quả calcMonth / computeMonth)
-  function contextFor(m, staff, params, saved) {
+  function contextFor(m?, staff?, params?, saved?) {
     const base = DEPS.PayrollEngine.contextFor(m, staff, params);
     const k = DEPS.PayrollEngine.kernelFor(params);
     const typeId = k.typeKey(staff); // cùng cách chọn loại với bộ máy (loại lạ là PAYROLL_BAD_TYPE, không rơi về loại nào)
@@ -175,14 +175,14 @@
       builtins: {
         ...base.builtins,
         // phép so sánh có tên: phép (gt, gte…) là tham số registry kpi.overLimitCompare
-        vuotNguongKpi: ([a, b], p) => compare([(p || params)['kpi.overLimitCompare'], a, b])
+        vuotNguongKpi: ([a, b]: any, p?) => compare([(p || params)['kpi.overLimitCompare'], a, b])
       },
       scope: { type: typeId },
       formulas: treesWith(saved)
     };
   }
 
-  function evalNamed(key, ctx) {
+  function evalNamed(key?, ctx?) {
     const formulas = { ...TREES, ...((ctx && ctx.formulas) || {}) };
     const tree = formulas[key];
     if (!tree) throw new Error(`payroll-graph: không có công thức có tên ‘${key}’`);

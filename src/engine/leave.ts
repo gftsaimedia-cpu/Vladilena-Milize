@@ -1,4 +1,4 @@
-/* Quy tắc phép năm — dùng chung cho trình duyệt (window.LeaveRules) và máy chủ (require('./src/engine/leave.js')).
+/* Quy tắc phép năm — dùng chung cho trình duyệt (window.LeaveRules) và máy chủ (require('./src/engine/leave')).
    Căn cứ Bộ luật Lao động 45/2019/QH14 Điều 113, 114; Nghị định 145/2020/NĐ-CP Điều 65:
    · 1 ngày mỗi tháng làm việc tròn, tính từ ngày vào làm, KỂ CẢ thời gian thử việc; ngày vào làm không cộng thêm (leave.accrual.start = 0)
    · +1 ngày mỗi leave.seniority.stepYears năm tròn (thâm niên); tròn một năm không cộng riêng
@@ -11,10 +11,10 @@
    · phép cộng trước năm leave.expiry.fromYear không tính vào quỹ nào: không nằm trong số dư, phép hết hạn hay tiền quy đổi; ngày nghỉ phép trước 01/01 của năm đó cũng không trừ.
      Quỹ đầu tiên của một người là năm max(năm vào làm, leave.expiry.fromYear); số dư hiện tại chỉ gồm các quỹ đang mở.
    Ngày dạng 'YYYY-MM-DD'; so sánh chuỗi được vì cùng định dạng. */
-(function (root) {
+(function (root: any) {
   // payroll-params.js phải nạp trước trang (trình duyệt) để mô-đun lấy mặc định từ DEFAULTS; vắng thì dùng FALLBACK.
   const PayrollParams =
-    typeof module !== 'undefined' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
+    typeof module !== 'undefined' && module.exports ? require('./payroll-params') : root.PayrollParams;
   // Số ngày cộng cho mỗi sự kiện đọc từ bộ tham số phẳng `params` qua create(params); hàm trần của mô-đun = create(mặc định), mặc định
   // là PayrollParams.DEFAULTS. FALLBACK là bản chép của đúng các khoá mô-đun này đọc, để trang chưa nạp payroll-params.js
   // vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts kiểm).
@@ -28,12 +28,12 @@
   });
   const NV_TYPE = 'nv'; // chỉ cấp Nhân viên có ngày sinh nhật
   const MONTHS_PER_YEAR = 12; // đơn vị lịch, không phải tham số nghiệp vụ
-  const pad = n => String(n).padStart(2, '0');
-  const daysIn = (y, m) => new Date(y, m, 0).getDate();
-  const iso = (y, m, d) => `${y}-${pad(m)}-${pad(Math.min(d, daysIn(y, m)))}`; // ngày 31 / 29-02 không có thì lùi về ngày cuối tháng
-  const parts = s => s.split('-').map(Number);
+  const pad = (n?) => String(n).padStart(2, '0');
+  const daysIn = (y?, m?) => new Date(y, m, 0).getDate();
+  const iso = (y?, m?, d?) => `${y}-${pad(m)}-${pad(Math.min(d, daysIn(y, m)))}`; // ngày 31 / 29-02 không có thì lùi về ngày cuối tháng
+  const parts = (s?) => s.split('-').map(Number);
   // Số tháng tròn kể từ ngày vào làm tới hết ngày upTo: tháng tròn thứ k vào ngày vào làm cộng k tháng, lùi về cuối tháng nếu tháng đó ngắn hơn
-  function fullMonths(start, upTo) {
+  function fullMonths(start?, upTo?) {
     const [sy, sm, sd] = parts(start);
     let n = 0;
     for (let k = 1; ; k++) {
@@ -45,8 +45,8 @@
   }
 
   // Bộ tham số phẳng → các hàm. Khoá vắng là lỗi (không đoán giá trị).
-  function build(P) {
-    const need = key => {
+  function build(P?) {
+    const need = (key?) => {
       if (!Object.hasOwn(P, key))
         throw Object.assign(new Error(`Thiếu tham số ${key}`), { code: 'PARAM_MISSING', key });
       return P[key];
@@ -60,7 +60,7 @@
 
     // Số ngày phép đã được cộng tính đến hết ngày upTo. start / adjust / total tính bằng ngày; months, seniority và birthdays là SỐ LẦN cộng
     // (tháng và sinh nhật cộng đúng tham số tương ứng; thâm niên cộng 1 ngày mỗi lần).
-    function accrued(staff, upTo) {
+    function accrued(staff?, upTo?) {
       const adjust = Number(staff.leaveAdjust) || 0;
       const start = staff.startDate;
       if (!start || upTo < start) return { start: 0, months: 0, seniority: 0, birthdays: 0, adjust, total: adjust };
@@ -89,27 +89,27 @@
     }
 
     // Ngày cuối cùng còn dùng được của phép tích luỹ tới 31/12 năm `year`: cuối tháng leave.expiry.month của năm sau
-    const expiryOf = year => iso(year + 1, EXPIRY_MONTH, daysIn(year + 1, EXPIRY_MONTH));
+    const expiryOf = (year?) => iso(year + 1, EXPIRY_MONTH, daysIn(year + 1, EXPIRY_MONTH));
     // Tháng liền sau tháng chứa ngày `date` ('YYYY-MM')
-    const monthAfter = date => {
+    const monthAfter = (date?) => {
       const [y, m] = parts(date);
       return m === MONTHS_PER_YEAR ? `${y + 1}-01` : `${y}-${pad(m + 1)}`;
     };
     // Năm của quỹ phép đầu tiên của người này = max(năm vào làm, leave.expiry.fromYear); không hết hạn / không ngày vào làm thì null.
     // Phép cộng ở các năm trước năm đó không nằm trong số dư, phép hết hạn hay tiền quy đổi.
-    const firstYearOf = staff =>
+    const firstYearOf = (staff?) =>
       EXPIRY_MONTH >= 1 && staff.startDate ? Math.max(parts(staff.startDate)[0], EXPIRY_FROM_YEAR) : null;
     // Phép được tính tới hết ngày upTo: accrued trừ phần tích luỹ tới 31/12 của năm liền trước quỹ đầu tiên
     // (ngày vào làm vẫn dùng để đếm tháng tròn, thâm niên, sinh nhật). Điều chỉnh phép của Admin là số mở đầu
     // của quỹ đầu tiên nên luôn được giữ nguyên. Cùng các trường như accrued.
-    function counted(staff, upTo) {
+    function counted(staff?, upTo?) {
       const got = accrued(staff, upTo);
       const first = firstYearOf(staff);
       if (first === null || first <= parts(staff.startDate)[0]) return got;
       const base = `${first - 1}-12-31`;
       const before = accrued(staff, base);
       const cut = upTo > base ? key => got[key] - before[key] : () => 0;
-      const out = {
+      const out: Record<string, any> = {
         start: cut('start'),
         months: cut('months'),
         seniority: cut('seniority'),
@@ -125,15 +125,15 @@
     // dùng phép cũ trước: quỹ N còn lại khi hết hạn = tích luỹ tới 31/12 năm N − phần đã hết hạn trước đó − số ngày phép đã dùng tới ngày hết hạn (không âm).
     // Trả { ...counted, used, expired, settled: [{ year, on, days }], balance, expiring: { days, on } | null }, balance = total − used − expired.
     //   expiring chỉ có trong khoảng từ 01/01 năm N+1 tới ngày hết hạn, khi còn ngày sắp hết hạn
-    function ledger(staff, leaveDays, upTo) {
+    function ledger(staff?, leaveDays?, upTo?) {
       const got = counted(staff, upTo);
       const first = firstYearOf(staff);
       const from = first === null ? '' : `${first}-01-01`;
       const dates = [...leaveDays].sort().filter(d => d >= from);
-      const usedBy = date => dates.filter(d => d <= date).length;
+      const usedBy = (date?) => dates.filter(d => d <= date).length;
       let expired = 0,
-        expiring = null;
-      const settled = [];
+        expiring: any = null;
+      const settled: any[] = [];
       if (first !== null) {
         for (let y = first; `${y}-12-31` < upTo; y++) {
           const on = expiryOf(y);
@@ -153,7 +153,7 @@
       return { ...got, used, expired, settled, balance: got.total - used - expired, expiring };
     }
     // Số ngày phép dư quy tiền vào phiếu lương tháng `month` ('YYYY-MM'): phần hết hạn của năm có ngày hết hạn nằm ở tháng liền trước tháng này
-    function settlementFor(staff, leaveDays, month) {
+    function settlementFor(staff?, leaveDays?, month?) {
       if (EXPIRY_MONTH < 1 || !staff.startDate) return 0;
       const end = iso(
         Number(month.slice(0, 4)),
@@ -169,8 +169,8 @@
   }
 
   // Một bộ tham số → một bản mô-đun (nhớ theo đối tượng)
-  const built = new WeakMap();
-  function create(params) {
+  const built = new WeakMap<any, any>();
+  function create(params?) {
     if (!params || typeof params !== 'object')
       throw new TypeError('create(params): cần bộ tham số phẳng (PayrollParams.DEFAULTS)');
     if (!built.has(params)) built.set(params, Object.freeze({ ...build(params), FALLBACK, create }));
@@ -182,7 +182,7 @@
   else root.LeaveRules = api;
 })(this);
 
-/* Tự kiểm tra: node src/engine/leave.js */
+/* Tự kiểm tra: node src/engine/leave.ts */
 if (typeof require !== 'undefined' && require.main === module) {
   const assert = require('node:assert');
   const { accrued, ledger, settlementFor } = module.exports;

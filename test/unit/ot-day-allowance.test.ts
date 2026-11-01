@@ -5,7 +5,7 @@
 // Số tay theo bộ tham số mặc định: NV level 1 lương 6.000.000 ₫ / 26 ngày / 8 giờ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 
 const DATE = '2026-10-13'; // Thứ Ba, không phải ngày lễ

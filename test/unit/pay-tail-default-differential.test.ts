@@ -5,8 +5,8 @@
 // Số ca mặc định 600 (đặt PAYROLL_DIFF_CASES để chạy nhiều hơn).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
-const PayrollParams = require('../../src/engine/payroll-params.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
+const PayrollParams = require('../../src/engine/payroll-params');
 const { payrollEngineDifferential } = require('../helpers/payroll-differential');
 
 const D = PayrollParams.DEFAULTS;

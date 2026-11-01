@@ -10,7 +10,7 @@
 // Hình dạng định nghĩa khối mà src/ai/ đọc: def.tax ('none' | 'full' | 'cap'), def.insuranceBase (true/false),
 // def.deprecated, và dấu xác nhận của Kế toán: def.flagsConfirmedBy (chữ không rỗng) hoặc def.flagsConfirmed === true.
 
-const PayrollParams = require('../engine/payroll-params.js');
+const PayrollParams = require('../engine/payroll-params');
 
 const BENEFIT_PREFIX = 'benefit';
 const BLOCK_DEF_RE = /^block\.def\.([^.]+)$/;

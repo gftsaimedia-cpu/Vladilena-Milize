@@ -6,8 +6,8 @@ const findings = require('../findings/findings');
 const { warn, warnIf } = require('../../platform/warnings');
 
 // Câu nói chuyện gì bất thường, bao nhiêu, hệ quả cho tiền lương. Hệ quả đối chiếu với bộ máy:
-//   ngày chờ Admin (quên Check-in/out, chờ đối soát, đang mở) có kind 'pending' nên chưa được tính tiền (src/engine/actual-hours.js → setPending);
-//   khoản tự khai chưa duyệt bị bỏ hoặc đổi theo src/engine/approval-view.js → payView.
+//   ngày chờ Admin (quên Check-in/out, chờ đối soát, đang mở) có kind 'pending' nên chưa được tính tiền (src/engine/actual-hours.ts → setPending);
+//   khoản tự khai chưa duyệt bị bỏ hoặc đổi theo src/engine/approval-view.ts → payView.
 const CHECKLIST_TEXT = Object.freeze({
   MONTH_NOT_ENDED: (n?, m?) =>
     `Tháng ${m} chưa hết: chốt công bây giờ thì các ngày còn lại chưa có dữ liệu và chưa được tính tiền (số tiền chỉ tính các ngày đã tới).`,

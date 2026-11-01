@@ -5,9 +5,9 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const AV = require('../../src/engine/approval-view.js');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const AV = require('../../src/engine/approval-view');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { cellsOf } = require('../../src/domain/payroll/slip-paid');
 const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const { near: near2, plainAll } = require('../helpers/formula-eval');

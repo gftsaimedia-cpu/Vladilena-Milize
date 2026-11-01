@@ -8,7 +8,7 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 
 const { F, store, DEFAULTS } = S;
 const monthOf = S.monthPool();

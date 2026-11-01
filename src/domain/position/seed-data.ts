@@ -21,8 +21,8 @@ const LEVEL_NAMES = Object.freeze({
 
 // Ca làm: mã mới Normal1…Night2 thay n1 n2 f1 f2 g1 g2. preset = khoá giờ ca cũ trong bộ tham số (shift.preset.<preset>.*),
 // giữ nguyên để giờ ca, lịch sử chấm công và các lượt đã chụp ca cũ vẫn đọc được.
-// Mã mới → khoá giờ ca cũ lấy từ src/engine/punch.js (SHIFT_CODES), một nguồn với màn chấm công
-const { SHIFT_CODES } = require('../../engine/punch.js');
+// Mã mới → khoá giờ ca cũ lấy từ src/engine/punch.ts (SHIFT_CODES), một nguồn với màn chấm công
+const { SHIFT_CODES } = require('../../engine/punch');
 const SHIFTS = Object.freeze(
   [
     ['Normal1', 'Normal 1', 'normal'],

@@ -1,9 +1,9 @@
 'use strict';
-// src/engine/attendance-status.js: bảng nhãn duy nhất của chấm công, nhãn của một ô ngày theo thứ tự ưu tiên, và cách suy tối thiểu
+// src/engine/attendance-status.ts: bảng nhãn duy nhất của chấm công, nhãn của một ô ngày theo thứ tự ưu tiên, và cách suy tối thiểu
 // khi lượt chưa có status do máy chủ gửi.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const AS = require('../../src/engine/attendance-status.js');
+const AS = require('../../src/engine/attendance-status');
 
 test('bảng nhãn có đúng sáu nhãn chấm công', () => {
   assert.deepEqual(AS.LABEL, {

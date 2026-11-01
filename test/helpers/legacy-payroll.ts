@@ -2,11 +2,11 @@
 // Bộ máy lương CŨ làm chuẩn so sánh: khối công thức đã đóng băng trong
 // test/fixtures/legacy-payroll-block.js, cộng chuỗi đầy đủ của src/ai/review.ts → payResult:
 //   lịch → ApprovalView.payView → (ActualHours.apply từ ngày bật) → calcMonth.
-// Đây là "hợp đồng" mà bộ máy mới (src/engine/payroll-engine.js) phải khớp: computeMonth(input) trả
+// Đây là "hợp đồng" mà bộ máy mới (src/engine/payroll-engine.ts) phải khớp: computeMonth(input) trả
 // { m, payDays, pendingItems, actualReport } và m phải bằng m của bản này đến từng trường, kể cả rows và m.net.
 // Mỗi lần gọi createLegacyEngine() nạp một vm mới nên hai bộ máy không dùng chung trạng thái.
-const ApprovalView = require('../../src/engine/approval-view.js');
-const ActualHours = require('../../src/engine/actual-hours.js');
+const ApprovalView = require('../../src/engine/approval-view');
+const ActualHours = require('../../src/engine/actual-hours');
 const { loadPayroll } = require('./payroll-vm');
 
 const LEGACY_EXPORTS = [

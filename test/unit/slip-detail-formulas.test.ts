@@ -6,7 +6,7 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const { cellsOf } = require('../../src/domain/payroll/slip-paid');
 const { allowanceTotalOf } = require('../../src/domain/period/period-allowance');

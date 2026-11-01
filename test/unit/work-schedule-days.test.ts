@@ -3,8 +3,8 @@
 // ngày ngoài lịch không tính công; người cần thêm ngày gửi yêu cầu (OT, giờ làm bù, đi làm ngày lễ).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const WS = require('../../src/engine/work-schedule.js');
-const Engine = require('../../src/engine/payroll-engine.js');
+const WS = require('../../src/engine/work-schedule');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const Positions = require('../../src/params/positions');
 const { declaredPunches } = require('../helpers/declared-punches');

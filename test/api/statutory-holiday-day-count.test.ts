@@ -11,7 +11,7 @@ process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { requestInWindow } = require('../helpers/advance-window');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const MONTH = '2026-10';
 const HOL = '2026-10-07';

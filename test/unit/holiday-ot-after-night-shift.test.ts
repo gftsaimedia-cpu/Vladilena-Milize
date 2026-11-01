@@ -12,9 +12,9 @@
 //   OT 07:00–11:00 ngày lễ: 4 giờ × 3 = 12h → tổng ngày 43,1h = 1.243.269 ₫ (ngày không lễ: 12,5h + OT 4 × 2 = 20,5h).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
-const Calendar = require('../../src/engine/payroll-calendar.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const Calendar = require('../../src/engine/payroll-calendar');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const k = Engine.create(DEFAULTS);
 const PC = Calendar.create(DEFAULTS);

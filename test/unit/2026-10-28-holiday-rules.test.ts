@@ -8,9 +8,9 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // admin-presence nạp src/platform/db: DB trong RAM
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
-const AV = require('../../src/engine/approval-view.js');
-const Engine = require('../../src/engine/payroll-engine.js');
+const P = require('../../src/engine/punch');
+const AV = require('../../src/engine/approval-view');
+const Engine = require('../../src/engine/payroll-engine');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const { AdminPresence } = require('../../src/domain/attendance/admin-presence');
 const { declaredPunches } = require('../helpers/declared-punches');

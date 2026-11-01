@@ -1,7 +1,7 @@
 'use strict';
 // Giới hạn kỹ thuật của máy chủ ở MỘT chỗ (không số trong mã nghiệp vụ).
 // Các hằng số này là NGUỒN của khoá registry `system.audit.*`, `control.reason*Length` và `system.slipOverride.reasonRequired`
-// (editableBy: ops, hiện chỉ đọc ở tab Hệ thống): scripts/params/extract-defaults.ts đọc chúng vào src/engine/payroll-params.js → DEFAULTS,
+// (editableBy: ops, hiện chỉ đọc ở tab Hệ thống): scripts/params/extract-defaults.ts đọc chúng vào src/engine/payroll-params.ts → DEFAULTS,
 // nên đổi giá trị ở đây rồi chạy `npm run params:extract`. Module giữ vai trò người đọc mỏng cho server.js.
 export = Object.freeze({
   // Nhật ký kiểm toán

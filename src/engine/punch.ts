@@ -1,9 +1,9 @@
-/* Quy tắc check-in / check-out — dùng chung cho trình duyệt (window.PunchRules) và máy chủ (require('./src/engine/punch.js')).
+/* Quy tắc check-in / check-out — dùng chung cho trình duyệt (window.PunchRules) và máy chủ (require('./src/engine/punch')).
    Mọi phép tính dùng "phút giờ Việt Nam kể từ 1970" (UTC+7, Việt Nam không có giờ mùa hè) để ca qua 0 giờ và qua tháng không sai. */
-(function (root) {
+(function (root: any) {
   // payroll-params.js phải nạp trước trang (trình duyệt) để mô-đun lấy mặc định từ DEFAULTS; vắng thì dùng FALLBACK chuyển tiếp.
   const PayrollParams =
-    typeof module !== 'undefined' && module.exports ? require('./payroll-params.js') : root.PayrollParams;
+    typeof module !== 'undefined' && module.exports ? require('./payroll-params') : root.PayrollParams;
   // Mọi con số đến từ bộ tham số phẳng `params` qua create(params); hàm trần của mô-đun = create(mặc định), mặc định là
   // PayrollParams.DEFAULTS. FALLBACK là bản chép CHUYỂN TIẾP của đúng các khoá mô-đun này đọc, để trang chưa nạp
   // payroll-params.js (và test nạp mô-đun trong `vm`) vẫn chạy. Phải bằng PayrollParams.DEFAULTS (scripts/params/check-fallbacks.ts
@@ -40,68 +40,68 @@
     Night2: 'g2'
   });
   // Bảng đổi mã của bộ tham số P: mặc định + shift.alias.<mã mới> = <khoá cũ>
-  function shiftAliases(P) {
+  function shiftAliases(P?) {
     const map = { ...SHIFT_CODES };
     for (const key of Object.keys(P || {})) {
       const m = /^shift\.alias\.(?<code>[A-Za-z0-9]+)$/.exec(key);
-      if (m && typeof P[key] === 'string') map[m.groups.code] = P[key];
+      if (m && typeof P[key] === 'string') map[m.groups!.code] = P[key];
     }
     return map;
   }
-  // Gắn mã mới vào bảng giờ ca theo khoá cũ (table), không ghi đè khoá đã có; dùng chung với src/engine/actual-hours.js
-  function addAliases(table, aliases) {
-    for (const [code, preset] of Object.entries(aliases))
+  // Gắn mã mới vào bảng giờ ca theo khoá cũ (table), không ghi đè khoá đã có; dùng chung với src/engine/actual-hours.ts
+  function addAliases(table?, aliases?) {
+    for (const [code, preset] of Object.entries<any>(aliases))
       if (!Object.hasOwn(table, code) && Object.hasOwn(table, preset))
         Object.defineProperty(table, code, { value: table[preset], enumerable: false });
     return table;
   }
 
   // Bộ tham số phẳng → toàn bộ quy tắc. Khoá vắng là lỗi (không đoán giá trị).
-  function build(P) {
-    const need = key => {
+  function build(P?) {
+    const need = (key?) => {
       if (!Object.hasOwn(P, key))
         throw Object.assign(new Error(`Thiếu tham số ${key}`), { code: 'PARAM_MISSING', key });
       return P[key];
     };
-    const SHIFT = {};
+    const SHIFT: Record<string, any> = {};
     for (const key of Object.keys(P)) {
       const m = /^shift\.preset\.(?<code>[a-z0-9]+)\.in$/.exec(key);
-      if (m) SHIFT[m.groups.code] = [need(key), need(`shift.preset.${m.groups.code}.out`)];
+      if (m) SHIFT[m.groups!.code] = [need(key), need(`shift.preset.${m.groups!.code}.out`)];
     }
     // Mã mới là thuộc tính ẩn (không đếm khi liệt kê) trỏ cùng giờ ca với khoá cũ
     const ALIASES = shiftAliases(P);
     addAliases(SHIFT, ALIASES);
     // Khoá giờ ca của một mã (mới hoặc cũ); mã lạ trả chính nó. Mã mới của một khoá cũ; không có thì trả chính nó
-    const presetOf = code => (Object.hasOwn(ALIASES, code) ? ALIASES[code] : code);
-    const canonicalOf = code => Object.keys(ALIASES).find(c => ALIASES[c] === code) || code;
+    const presetOf = (code?) => (Object.hasOwn(ALIASES, code) ? ALIASES[code] : code);
+    const canonicalOf = (code?) => Object.keys(ALIASES).find(c => ALIASES[c] === code) || code;
     const MIN_H = need('unit.minutesPerHour');
     const DAY = need('unit.minutesPerDay');
     const MS_MIN = need('unit.msPerDay') / DAY; // mili giây trong một phút
     const VN = need('unit.vnUtcOffsetMin'); // UTC+7
     const MAX_OPEN = need('attendance.openSessionMaxHours') * MIN_H; // ca mở quá bấy nhiêu phút là quên check-out
     const EARLY = need('attendance.earlyCheckinMaxHours') * MIN_H; // check-in sớm nhất trước giờ vào ca bấy nhiêu phút
-    const toMin = t => {
+    const toMin = (t?) => {
       const [h, m] = t.split(':').map(Number);
       return h * MIN_H + m;
     };
-    const vmin = (iso, up) => (up ? Math.ceil : Math.floor)(Date.parse(iso) / MS_MIN) + VN; // thời điểm → phút giờ VN (làm tròn xuống; up = làm tròn lên)
-    const isoOf = v => new Date((v - VN) * MS_MIN).toISOString();
-    const dateOf = v => new Date(v * MS_MIN).toISOString().slice(0, 10);
-    const timeOf = v => new Date(v * MS_MIN).toISOString().slice(11, 16);
-    const dayMin = date => Date.parse(date + 'T00:00:00Z') / MS_MIN; // 00:00 của ngày date (giờ VN)
-    const dow = date => new Date(date + 'T00:00:00Z').getUTCDay(); // 0 = Chủ nhật
-    // Ngày công có trong lịch làm việc của người không: staff.isWorkDay(ngày) (lịch giải theo từng ngày, src/engine/work-schedule.js) hoặc staff.sched (mảng thứ, tương thích)
-    const inSchedule = (staff, date) =>
+    const vmin = (iso?, up?) => (up ? Math.ceil : Math.floor)(Date.parse(iso) / MS_MIN) + VN; // thời điểm → phút giờ VN (làm tròn xuống; up = làm tròn lên)
+    const isoOf = (v?) => new Date((v - VN) * MS_MIN).toISOString();
+    const dateOf = (v?) => new Date(v * MS_MIN).toISOString().slice(0, 10);
+    const timeOf = (v?) => new Date(v * MS_MIN).toISOString().slice(11, 16);
+    const dayMin = (date?) => Date.parse(date + 'T00:00:00Z') / MS_MIN; // 00:00 của ngày date (giờ VN)
+    const dow = (date?) => new Date(date + 'T00:00:00Z').getUTCDay(); // 0 = Chủ nhật
+    // Ngày công có trong lịch làm việc của người không: staff.isWorkDay(ngày) (lịch giải theo từng ngày, src/engine/work-schedule.ts) hoặc staff.sched (mảng thứ, tương thích)
+    const inSchedule = (staff?, date?) =>
       staff.isWorkDay ? !!staff.isWorkDay(date) : (staff.sched || []).includes(dow(date));
-    const mod = x => ((x % DAY) + DAY) % DAY;
-    const span = (a, b) => mod(toMin(b) - toMin(a)) || DAY; // độ dài a → b (qua 0 giờ được); trùng nhau = 24 giờ
+    const mod = (x?) => ((x % DAY) + DAY) % DAY;
+    const span = (a?, b?) => mod(toMin(b) - toMin(a)) || DAY; // độ dài a → b (qua 0 giờ được); trùng nhau = 24 giờ
 
     // Lần ca cố định gần thời điểm v nhất: { date, start, end } (phút VN). Không có ca cố định → null.
-    function occurrence(code, v) {
+    function occurrence(code?, v?) {
       const s = SHIFT[code];
       if (!s) return null;
       const d0 = dayMin(dateOf(v));
-      let best = null;
+      let best: any = null;
       for (const k of [-1, 0, 1]) {
         const start = d0 + k * DAY + toMin(s[0]);
         if (!best || Math.abs(start - v) < Math.abs(best.start - v))
@@ -110,7 +110,7 @@
       return best;
     }
     // Ngày công của lần check-in lúc inIso: ngày bắt đầu của lần ca gần nhất; không có ca cố định → ngày check-in
-    function workDate(code, inIso) {
+    function workDate(code?, inIso?) {
       const v = vmin(inIso),
         o = occurrence(code, v);
       return o ? o.date : dateOf(v);
@@ -118,7 +118,7 @@
 
     // Giữ ca/ngày công tại lúc check-in; đổi ca trong hồ sơ không đổi ca đang mở.
     // Ca dự kiến luôn là ca đã gán; ngày ngoài lịch mang kind 'makeup' (lượt chấm ngoài lịch: chỉ đoạn làm thêm đã duyệt được trả).
-    function planShift(staff, date) {
+    function planShift(staff?, date?) {
       const s = SHIFT[staff.shiftCode];
       if (!s) return null;
       const scheduled = inSchedule(staff, date);
@@ -135,13 +135,13 @@
     }
 
     // Dựng ngày công từ khoảng có mặt [inIso, outIso]. staff: { shiftCode, sched } (sched: các thứ trong lịch làm việc)
-    function buildDay(staff, inIso, outIso, src, options = {}) {
+    function buildDay(staff?, inIso?, outIso?, src?, options: any = {}) {
       const a = Date.parse(inIso) / MS_MIN + VN,
         b = Date.parse(outIso) / MS_MIN + VN;
       const plannedShift = options.plannedShift || planShift(staff, workDate(staff.shiftCode, inIso));
       const date = plannedShift ? plannedShift.date : dateOf(a);
       const pres = { presIn: new Date(inIso).toISOString(), presOut: new Date(outIso).toISOString() };
-      const pending = reason => ({
+      const pending = (reason?) => ({
         date,
         entry: { kind: 'pending', reason, src, ...pres, ...(plannedShift ? { plannedShift } : {}) }
       });
@@ -171,14 +171,14 @@
       };
     }
     // Ca mở từ inIso đã quá 16 tiếng tính tới nowIso chưa
-    const forgotOut = (inIso, nowIso) => vmin(nowIso) - vmin(inIso) > MAX_OPEN;
+    const forgotOut = (inIso?, nowIso?) => vmin(nowIso) - vmin(inIso) > MAX_OPEN;
     // Mốc ISO của đúng ranh giới quên Check-out tại nowIso: lượt mở có presIn TRƯỚC mốc này là quá hạn (cùng mốc phút với forgotOut,
     // không chép lại hệ số 16 giờ ở chỗ khác). src/domain/attendance/index.ts → closeStaleFor lọc bằng SQL theo mốc này để đường ĐỌC
     // (GET /api/attendance, /alerts, /today, /team) không mở giao dịch cho người chưa quá hạn.
-    const staleBefore = nowIso => isoOf(vmin(nowIso) - MAX_OPEN);
+    const staleBefore = (nowIso?) => isoOf(vmin(nowIso) - MAX_OPEN);
     // Ngày bắt đầu quá hạn theo cùng mốc phút; không phụ thuộc lúc trang được mở.
-    const forgotOutDate = inIso => dateOf(vmin(inIso) + MAX_OPEN + 1);
-    const pendingDay = reason => (staff, inIso, snapshot) => {
+    const forgotOutDate = (inIso?) => dateOf(vmin(inIso) + MAX_OPEN + 1);
+    const pendingDay = (reason?) => (staff, inIso, snapshot) => {
       const plannedShift = snapshot || planShift(staff, workDate(staff.shiftCode, inIso));
       return {
         date: plannedShift ? plannedShift.date : workDate(staff.shiftCode, inIso),
@@ -191,12 +191,12 @@
         }
       };
     };
-    const openDay = pendingDay('open'); // lúc check-in: "đang trong ca"
+    const openDay: any = pendingDay('open'); // lúc check-in: "đang trong ca"
     const forgotDay = pendingDay('forgot-out'); // sau 16 tiếng chưa check-out
 
     // Trong khung check-in của ca đã gán thì lượt nhận ca đó (ngày ngoài lịch mang kind 'makeup' qua planShift: chỉ đoạn OT/làm bù đã duyệt được trả);
     // ngoài khung đó giữ giờ có mặt thật, không đoán ca.
-    function openSessionDay(staff, inIso) {
+    function openSessionDay(staff?, inIso?) {
       const date = workDate(staff.shiftCode, inIso),
         inside = !checkInMsg(staff.shiftCode, inIso);
       if (inside) return openDay(staff, inIso);
@@ -215,7 +215,7 @@
     }
 
     // Cảnh báo trước khi check-out sớm theo ca đã chốt lúc check-in; không sửa dữ liệu ca.
-    function checkoutWarning(open, nowIso) {
+    function checkoutWarning(open?, nowIso?) {
       const endIso = open?.plannedShift?.endIso;
       const end = Date.parse(endIso),
         now = Date.parse(nowIso);
@@ -224,7 +224,7 @@
     }
 
     // Khoảng có mặt cho yêu cầu điều chỉnh: giờ HH:MM của ngày công date — giờ vào lấy lần gần giờ bắt đầu ca của ngày đó nhất; giờ ra ≤ giờ vào → hôm sau
-    function presenceFor(code, date, tin, tout) {
+    function presenceFor(code?, date?, tin?, tout?) {
       const s = SHIFT[code],
         anchor = dayMin(date) + toMin(s ? s[0] : tin);
       let a = dayMin(date) + toMin(tin);
@@ -237,7 +237,7 @@
     // Check-in lúc iso có nằm trong khung [bắt đầu ca − 4 tiếng, kết thúc ca) của lần ca gần nhất không: '' = được, ngược lại là câu báo lỗi.
     // Chặn việc bấm khi ca đã kết thúc (bị gán nhầm vào ca vừa xong) hoặc quá sớm (bị gán sang ca hôm sau).
     // Chưa gán ca cố định → không check-in được: không có khung ca để cắt giờ, ra muộn sẽ thành thêm giờ làm / ca đêm.
-    function checkInMsg(code, iso) {
+    function checkInMsg(code?, iso?) {
       const v = vmin(iso),
         o = occurrence(code, v);
       if (!o) return 'Chưa được gán ca cố định — nhờ Admin gán ca rồi mới check-in được.';
@@ -246,14 +246,14 @@
       return '';
     }
     // Số phút trễ so với lần ca cố định của lần check-in (0 nếu đúng giờ / sớm / không có ca)
-    const lateMin = (code, inIso) => {
+    const lateMin = (code?, inIso?) => {
       const v = Date.parse(inIso) / MS_MIN + VN,
         o = occurrence(code, v);
       return o ? Math.max(0, Math.ceil(v - o.start)) : 0;
     };
 
     // Phần khai làm thêm của ngày khoá phải nằm trong khoảng có mặt: '' = hợp lệ, ngược lại là câu báo lỗi
-    function extraFits(e) {
+    function extraFits(e?) {
       if (!e || !e.src || !e.presIn || !e.presOut || !e.extraKind) return '';
       const a = Date.parse(e.presIn) / MS_MIN + VN,
         b = Date.parse(e.presOut) / MS_MIN + VN,
@@ -269,7 +269,7 @@
     }
 
     // Thời điểm có đủ ngày để kiểm chồng giờ, kể cả bản ghi cũ vào sau 0h.
-    function workBounds(e, date) {
+    function workBounds(e?, date?) {
       let start = e.plannedShift
         ? vmin(e.plannedShift.startIso)
         : e.presIn
@@ -283,7 +283,7 @@
 
     // Khoảng cách (mét) giữa hai toạ độ theo công thức haversine, Trái Đất là hình cầu bán kính 6.371 km.
     // Máy chủ dùng để kiểm "đang ở trong khu vực công ty" khi Check-in; không bao giờ lưu toạ độ hay khoảng cách.
-    function distanceM(lat1, lng1, lat2, lng2) {
+    function distanceM(lat1?, lng1?, lat2?, lng2?) {
       const rad = Math.PI / 180,
         dLat = (lat2 - lat1) * rad,
         dLng = (lng2 - lng1) * rad;
@@ -313,14 +313,14 @@
       workBounds,
       dow,
       distanceM,
-      vnDate: iso => dateOf(vmin(iso)),
-      vnTime: iso => timeOf(vmin(iso))
+      vnDate: (iso?) => dateOf(vmin(iso)),
+      vnTime: (iso?) => timeOf(vmin(iso))
     };
   }
 
   // Một bộ tham số → một bản mô-đun (nhớ theo đối tượng: bộ tham số của tháng được đóng băng và dùng lại cho cả bảng lương)
-  const built = new WeakMap();
-  function create(params) {
+  const built = new WeakMap<any, any>();
+  function create(params?) {
     if (!params || typeof params !== 'object')
       throw new TypeError('create(params): cần bộ tham số phẳng (PayrollParams.DEFAULTS)');
     if (!built.has(params))
@@ -333,11 +333,11 @@
   else root.PunchRules = api;
 })(this);
 
-/* Tự kiểm tra: node src/engine/punch.js */
+/* Tự kiểm tra: node src/engine/punch.ts */
 if (typeof require !== 'undefined' && require.main === module) {
   const assert = require('node:assert');
   const P = module.exports;
-  const T = (date, hm) => new Date(Date.parse(`${date}T${hm}:00+07:00`)).toISOString(); // giờ VN → ISO UTC
+  const T = (date?, hm?) => new Date(Date.parse(`${date}T${hm}:00+07:00`)).toISOString(); // giờ VN → ISO UTC
   const nv = { shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] },
     night = { shiftCode: 'g2', sched: [1, 2, 3, 4, 5, 6] };
   // Ca đủ điều kiện xác nhận đủ ngày; giờ có mặt vẫn được giữ để khai thêm giờ.

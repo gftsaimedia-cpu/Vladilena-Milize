@@ -18,7 +18,7 @@ const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { oracle } = require('../helpers/pay-oracle');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const { F, store } = P;
 const monthOf = P.monthPool();

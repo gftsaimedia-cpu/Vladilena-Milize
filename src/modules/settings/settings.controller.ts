@@ -73,7 +73,7 @@ export class SettingsController {
       if (conflicts.length) {
         const first = conflicts[0];
         // Lưu và cảnh báo, nêu tối đa config.WARN_NAMES_MAX người. Bộ máy trả lương ngày phép theo chức vụ chứ không xét số dư,
-        // nên ngày phép vượt số dư vẫn được tính lương nếu Admin duyệt (src/engine/payroll-engine.js → kind 'leave').
+        // nên ngày phép vượt số dư vẫn được tính lương nếu Admin duyệt (src/engine/payroll-engine.ts → kind 'leave').
         const people = [...new Set(conflicts.map(c => c.username))];
         const months = [...new Set(conflicts.map(c => c.date.slice(0, 7)))].sort();
         warnIf('HOLIDAY_LEAVE_CONFLICT', true, {

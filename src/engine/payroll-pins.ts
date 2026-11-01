@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PayrollPins = api;
@@ -6,7 +6,7 @@
   'use strict';
   // Ô SỐ LƯỢNG Admin sửa trên phiếu lương là ĐẦU VÀO GHIM của bộ máy: ghim ngày công, ngày nghỉ, giờ OT, điểm KPI... thì
   // các ô tiền phụ thuộc, bảo hiểm, thuế, thực nhận tính lại theo; ô tiền sửa thẳng giữ đúng số sửa (src/domain/payroll/slip-paid.ts). Thuần: không I/O, không đồng hồ, không DOM.
-  // Bộ máy (src/engine/payroll-engine.js → repinMonth) đổi các số tổng hợp của một bản chụp tháng theo ghim bằng apply() ở đây, rồi chạy lại phần tháng (finishMonth).
+  // Bộ máy (src/engine/payroll-engine.ts → repinMonth) đổi các số tổng hợp của một bản chụp tháng theo ghim bằng apply() ở đây, rồi chạy lại phần tháng (finishMonth).
   // Mỗi thay đổi số lượng đi kèm tiền của chính nó theo đơn giá hiện có của bản chụp (lương một ngày, trung bình tiền một giờ OT đang có, hoặc giờ × hệ số khi chưa có giờ nào).
   // Chỉ bộ phương án mặc định (pay.method A) được hỗ trợ khi ghim: các phương án khác chưa dùng được (registry options.available = false).
   const DAY_KEYS = Object.freeze([
@@ -29,30 +29,30 @@
   });
   const KPI_KEYS = Object.freeze(['kpiAmt', 'kpiPct', ...Object.keys(KPI_PART_KEYS)]);
   // Ô hiển thị không có đường tính trong bộ máy (nhận và lưu nhưng không đổi tiền): hiện không còn ô nào
-  const IGNORED_KEYS = Object.freeze([]);
+  const IGNORED_KEYS = Object.freeze<string[]>([]);
   const SETTLE_KEY = 'settleDays';
   const KEYS = Object.freeze([...DAY_KEYS, ...KPI_KEYS, SETTLE_KEY, ...IGNORED_KEYS]);
-  const finite = value => typeof value === 'number' && Number.isFinite(value);
+  const finite = (value?) => typeof value === 'number' && Number.isFinite(value);
 
   // Các ghim hợp lệ của một bộ giá trị sửa phiếu (ô khác bị bỏ)
-  function pinsOf(values) {
-    const out = {};
+  function pinsOf(values?) {
+    const out: Record<string, any> = {};
     if (values && typeof values === 'object')
       for (const key of KEYS) if (Object.hasOwn(values, key) && finite(values[key])) out[key] = values[key];
     return out;
   }
   // Có ghim nào làm đổi tiền hay không (ghim chỉ có ô bị bỏ qua thì bản chụp giữ nguyên)
-  const hasEffect = pins => Object.keys(pins).some(key => !IGNORED_KEYS.includes(key));
+  const hasEffect = (pins?) => Object.keys(pins).some(key => !IGNORED_KEYS.includes(key));
 
   // Đổi các số tổng hợp của r (kết quả tháng, bản sao) và parts (các thành phần ngày của vết) theo ghim ngày công, nghỉ, OT, nợ giờ.
   // u: đơn giá { daily, hourly, otRate, weekendRate, holidayRate, paidLeave, paidHoliday, isat, holidayDaysNow }
   // Trả adj: phần tiền và số ngày nằm ở các dòng ngày (rows) mà ghim đổi nhưng rows không đổi theo { leavePay, isatPay, holidayPay, holidayDays } (chỉ khoá khác 0)
-  function apply(r, parts, pins, u) {
+  function apply(r?, parts?, pins?, u?) {
     const adj = { leavePay: 0, isatPay: 0, holidayPay: 0, holidayDays: 0 };
-    const has = key => Object.hasOwn(pins, key);
-    const atLeast0 = value => Math.max(0, value);
+    const has = (key?) => Object.hasOwn(pins, key);
+    const atLeast0 = (value?) => Math.max(0, value);
     // tiền của số ngày/giờ đổi: vào tổng thành phần ngày (r.work), tiền lương cơ bản (r.basePay) và vết
-    const dayPay = (amount, { off = 0, base = 0 } = {}) => {
+    const dayPay = (amount?, { off = 0, base = 0 }: any = {}) => {
       r.work += amount;
       r.basePay += amount;
       r.off += off;
@@ -97,7 +97,7 @@
     // Giờ OT trên phiếu có ba loại: ot15H = OT trả theo ot.rate (ngày thường), ot20H = OT trả theo ot.weekendRate (cuối tuần ngoài lịch), ot30H = OT ngày lễ.
     // Ghim đổi số giờ của một loại theo đơn giá trung bình hiện có của loại đó; otHours và otPay là tổng của hai loại ngày thường.
     // otHolHours, otHolPay: chỉ có ở bản chụp của bộ máy cũ (OT ngày lễ tách riêng).
-    const pinOt = (pin, now, pay, rate, onDelta) => {
+    const pinOt = (pin?, now?, pay?, rate?, onDelta?) => {
       const delta = Math.max(pin - now, -now);
       const money = delta * (now > 0 ? pay / now : u.hourly * rate);
       r.otHours += delta;
@@ -129,14 +129,14 @@
       parts.tienLamLe += delta * unit;
     }
     if (has('debtH')) r.debt = atLeast0(pins.debtH);
-    return Object.fromEntries(Object.entries(adj).filter(([, value]) => value !== 0));
+    return Object.fromEntries(Object.entries(adj).filter(([, value]: any) => value !== 0));
   }
 
   // Đầu vào KPI của tháng dựng lại từ bản chụp r rồi chồng ghim KPI lên (cùng hình kpiPct của calcMonth). Không có ghim KPI thì trả đúng đầu vào gốc.
-  function kpiInput(r, pins) {
-    const has = key => Object.hasOwn(pins, key);
+  function kpiInput(r?, pins?) {
+    const has = (key?) => Object.hasOwn(pins, key);
     if (r.kpiMethod === 'five') {
-      const parts = { ...(r.kpiParts || {}) };
+      const parts: Record<string, any> = { ...(r.kpiParts || {}) };
       for (const [key, part] of Object.entries(KPI_PART_KEYS)) if (has(key)) parts[part] = pins[key];
       return {
         method: 'five',

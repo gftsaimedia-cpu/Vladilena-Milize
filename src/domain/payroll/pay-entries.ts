@@ -15,8 +15,8 @@ const store = require('../../platform/db');
 const paramsStore = require('../../params/store');
 const authz = require('../../platform/authz');
 const audit = require('../../platform/audit');
-const PayrollCalendar = require('../../engine/payroll-calendar.js');
-const PayEntriesCalc = require('../../engine/pay-entries-calc.js');
+const PayrollCalendar = require('../../engine/payroll-calendar');
+const PayEntriesCalc = require('../../engine/pay-entries-calc');
 const config = require('../../platform/config');
 const { USERNAME_RE } = require('../input');
 const { warnIf, warn, selfDecision } = require('../../platform/warnings');
@@ -91,7 +91,7 @@ async function list({ month, username, status }: any = {}) {
   ).map(rowTo);
 }
 
-// Khoản ĐÃ DUYỆT của một tháng, gom theo người, đúng hình bộ máy nhận (src/engine/pay-entries-calc.js): không lý do, không người lập.
+// Khoản ĐÃ DUYỆT của một tháng, gom theo người, đúng hình bộ máy nhận (src/engine/pay-entries-calc.ts): không lý do, không người lập.
 // Một lượt đọc cho cả tháng (src/domain/payroll/payroll-service.ts → loadInputs gọi một lần). Người không có khoản nào không có mục trong Map.
 async function approvedByUser(month?) {
   const out = new Map<any, any>();

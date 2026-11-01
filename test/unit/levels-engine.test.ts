@@ -4,7 +4,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, DEFAULTS, caseOf, clone, closeTo } = require('../helpers/pay-oracle');
-const PayOptions = require('../../src/engine/pay-options-calc.js');
+const PayOptions = require('../../src/engine/pay-options-calc');
 
 const KNOWN = 'known-kpi-five-100-90-80-85-100';
 const run = (params?, level?) => {

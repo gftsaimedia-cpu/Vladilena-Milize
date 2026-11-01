@@ -9,7 +9,7 @@ process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 F.explainPunches = true; // lượt trễ / ngoài ca được cho qua cổng vẫn cần giải trình lúc bấm: ở đây chỉ kiểm cổng
 const { CheckinEntitlement } = require('../../src/domain/attendance/checkin-entitlement');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 const { store } = F;
 
 // 02/11/2026 là Thứ Hai: nv làm T2–T7; 07/11 Thứ Bảy (trong lịch), 08/11 Chủ nhật (ngoài lịch).

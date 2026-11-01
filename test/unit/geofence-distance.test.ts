@@ -1,7 +1,7 @@
 // Khoảng cách haversine dùng cho GPS check-in (PunchRules.distanceM): thử bằng các điểm đã biết.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
+const P = require('../../src/engine/punch');
 
 const METERS_PER_DEGREE = (Math.PI / 180) * 6371000; // 1° cung lớn trên mặt cầu bán kính 6.371 km ≈ 111.195 m
 

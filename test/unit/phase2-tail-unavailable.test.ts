@@ -3,8 +3,8 @@
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayTailCalc = require('../../src/engine/pay-tail-calc.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const PayTailCalc = require('../../src/engine/pay-tail-calc');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const registry = require('../../src/params/registry');
 
 test('GĐ2: bảng UNAVAILABLE của pay-tail-calc.js khớp đúng các phương án available: false của registry (một nguồn, test khoá)', () => {

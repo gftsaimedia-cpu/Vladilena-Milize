@@ -2,7 +2,7 @@
 const crypto = require('node:crypto');
 const { promisify } = require('node:util');
 const store = require('./db');
-const { DEFAULTS } = require('../engine/payroll-params.js');
+const { DEFAULTS } = require('../engine/payroll-params');
 
 // Mọi con số của mô-đun đọc từ registry tham số, vì mô-đun nạp trước khi có cơ sở dữ liệu nên dùng
 // PayrollParams.DEFAULTS (ops và locked không đổi theo tháng). FALLBACK là bản chép CHUYỂN TIẾP của các khoá system.auth.* và

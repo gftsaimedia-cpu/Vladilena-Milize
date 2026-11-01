@@ -1,13 +1,13 @@
 'use strict';
-// Các đẳng thức tiền của bộ máy lương dùng chung (src/engine/payroll-engine.js) trên các ca bịa, không cần bộ máy chuẩn để so:
+// Các đẳng thức tiền của bộ máy lương dùng chung (src/engine/payroll-engine.ts) trên các ca bịa, không cần bộ máy chuẩn để so:
 // mỗi dòng tiền là số nguyên đồng và tổng thu nhập là tổng đúng của chúng; pay của các dòng ngày cộng lại đúng tiền ngày;
 // thực lĩnh = gross − bảo hiểm − thuế − tạm ứng; tính hai lần cho cùng kết quả; bộ máy không sửa đầu vào. Danh sách đẳng thức: test/helpers/payroll-invariants.ts.
 // Bộ ca: 300 đầu vào ca vàng (test/fixtures/payroll-golden-v0.json, chỉ lấy đầu vào) và 5.000 ca hạt cố định, 1.000 ca hạt ngẫu nhiên mới (in hạt khi đỏ).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { readGolden } = require('../helpers/golden');
 const { payrollEngineInvariants, monthProblems } = require('../helpers/payroll-invariants');
 

@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PayTailCalc = api;
@@ -6,7 +6,7 @@
   'use strict';
   // Phép chọn của ⑦ Bảo hiểm và ⑧ Thuế TNCN do Kế toán cấu hình.
   // Dùng chung trình duyệt và máy chủ; thuần: không I/O, không đồng hồ, không con số nào ngoài 0 và 1.
-  // Mô-đun này CHỈ chọn đầu vào và phương án của logic luật trong src/engine/payroll-engine.js (baoHiemOf, taxFrom, mienThueOf); nó không chứa mức luật mới
+  // Mô-đun này CHỈ chọn đầu vào và phương án của logic luật trong src/engine/payroll-engine.ts (baoHiemOf, taxFrom, mienThueOf); nó không chứa mức luật mới
   // nào: mọi giá trị luật (tỷ lệ, trần, giảm trừ, biểu thuế) vẫn ở registry (src/params/), mặc định của mọi lựa chọn là cách tính gốc của bộ máy.
   // Các phương án (nền đóng theo thuộc tính, nâng nền lên lương tối thiểu vùng, miễn thuế OT theo số giờ, ngưỡng
   // phát sinh thuế riêng) có trong danh sách nhưng chưa chọn được (available: false ở registry); ở đây chúng bị từ chối rõ ràng, không rơi về mặc định âm thầm.
@@ -22,19 +22,19 @@
   const ARISE_MODES = Object.freeze(['personalDeduction', 'custom']);
   const CONTRACTS = Object.freeze(['long', 'short']);
 
-  function tailError(message, code, key) {
+  function tailError(message?, code?, key?) {
     return Object.assign(new Error(message), { code, key });
   }
-  const need = (P, key) => {
+  const need = (P?, key?) => {
     if (!Object.hasOwn(P, key)) throw tailError(`Thiếu tham số ${key}`, 'PARAM_MISSING', key);
     return P[key];
   };
-  const oneOf = (P, key, list) => {
+  const oneOf = (P?, key?, list?) => {
     const value = need(P, key);
     if (!list.includes(value)) throw tailError(`Tham số ${key} có giá trị không hợp lệ`, 'PARAM_INVALID_VALUE', key);
     return value;
   };
-  const isMoney = v => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  const isMoney = (v?) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
 
   // Mọi lựa chọn đang `available: false` ở registry bị bộ máy từ chối rõ ràng dù giá trị lọt qua đường không kiểm
   // (bộ tham số đặt trong bộ nhớ, dòng ghi tay vào DB): khoá → các giá trị chưa dùng được. test/unit/phase2-tail-unavailable.test.ts đối chiếu bảng này với registry.
@@ -47,8 +47,8 @@
     'tax.arise.mode': Object.freeze(['custom'])
   });
   // Máy chủ gọi hàm này ở src/domain/payroll/payroll-service.ts → computeFor (đường tính lương thật); bộ máy thuần KHÔNG gọi để test đặt được các phương án này trong bộ nhớ.
-  function assertAvailable(P) {
-    for (const [key, values] of Object.entries(UNAVAILABLE))
+  function assertAvailable(P?) {
+    for (const [key, values] of Object.entries<any>(UNAVAILABLE))
       if (Object.hasOwn(P, key) && values.includes(P[key]))
         throw tailError(
           `Tham số ${key}: phương án này chưa dùng được (chờ chủ dự án, kế toán hoặc pháp chế chốt)`,
@@ -56,7 +56,7 @@
           key
         );
   }
-  function assertParams(P) {
+  function assertParams(P?) {
     for (const contract of CONTRACTS) {
       if (typeof need(P, `insurance.coverage.${contract}`) !== 'boolean')
         throw tailError(
@@ -78,12 +78,12 @@
       );
   }
 
-  const insuredOf = (P, contract) => need(P, `insurance.coverage.${contract}`) === true;
+  const insuredOf = (P?, contract?) => need(P, `insurance.coverage.${contract}`) === true;
 
   // Nền đóng bảo hiểm. input: { levelBase, flagged (phần khối và khoản có cờ bảo hiểm ĐÃ xác nhận; 0 khi không có), type, level }
   // baseSalary: lương cơ bản. withFlaggedAllowances: lương cơ bản cộng phần có cờ (flagged đã là 0 ở nơi gọi khi chưa bật phương án này).
   // insuranceAttr: giá trị thuộc tính tiền của bậc mà insurance.baseAttr trỏ tới. Sàn: raiseToRegionMin nâng nền lên lương tối thiểu vùng đã chọn.
-  function insuranceBase(P, input, PayrollParams) {
+  function insuranceBase(P?, input?, PayrollParams?) {
     const mode = oneOf(P, 'insurance.base', INSURANCE_BASES);
     let base;
     if (mode === 'baseSalary') base = input.levelBase;
@@ -108,10 +108,10 @@
     return Math.max(base, regionMin);
   }
 
-  const taxMethodOf = (P, contract) => oneOf(P, `tax.method.${contract}`, TAX_METHODS);
+  const taxMethodOf = (P?, contract?) => oneOf(P, `tax.method.${contract}`, TAX_METHODS);
 
   // Ngưỡng so với (chịu thuế − bảo hiểm) để thuế phát sinh: giảm trừ bản thân (mặc định), hoặc ngưỡng riêng tax.arise.threshold khi phương án này được bật
-  function ariseThreshold(P, personal) {
+  function ariseThreshold(P?, personal?) {
     if (oneOf(P, 'tax.arise.mode', ARISE_MODES) === ARISE_MODES[0]) return personal;
     const threshold = need(P, 'tax.arise.threshold');
     if (!isMoney(threshold))

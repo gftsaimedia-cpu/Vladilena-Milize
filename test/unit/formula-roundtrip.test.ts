@@ -2,7 +2,7 @@
 // Vòng tròn chữ → cây → câu → cây: cái được lưu là cây, chữ luôn sinh lại từ cây.
 // Với mỗi công thức: parse → describe → parse lại phải ra CÙNG cây (serialize bằng nhau), và deserialize(serialize(cây)) cũng ra cùng cây.
 // sentenceOf lấy câu từ describe(); câu đó phải đọc lại được bởi chính văn phạm.
-// Thiếu src/engine/formula.js thì các test chạy như `todo`; RED=1 để xem đỏ.
+// Thiếu src/engine/formula.ts thì các test chạy như `todo`; RED=1 để xem đỏ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const F = require('../helpers/formula-fixture');

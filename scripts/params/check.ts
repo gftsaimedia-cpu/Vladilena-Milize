@@ -9,10 +9,11 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { readAsJs } = require('../dev/ts-source');
 const { extract, sources, ROOT } = require('./extract-defaults');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/params/store.ts kéo src/platform/db; script này không chạm DB thật
 
-const Params = require(path.join(ROOT, 'src/engine/payroll-params.js'));
+const Params = require(path.join(ROOT, 'src/engine/payroll-params'));
 const registry = require(path.join(ROOT, 'src/params/registry.ts'));
 const { validateValue } = require(path.join(ROOT, 'src/params/validate.ts'));
 
@@ -253,8 +254,8 @@ function checkDefaults() {
 function legacyBlock() {
   const context = vm.createContext({});
   for (const lib of ['payroll-calendar', 'kpi-score'])
-    vm.runInContext(fs.readFileSync(path.join(ROOT, `src/engine/${lib}.js`), 'utf8'), context, {
-      filename: lib + '.js'
+    vm.runInContext(readAsJs(path.join(ROOT, `src/engine/${lib}.ts`)), context, {
+      filename: lib + '.ts'
     });
   const block = fs.readFileSync(path.join(ROOT, 'test/fixtures/legacy-payroll-block.js'), 'utf8');
   vm.runInContext(
@@ -288,9 +289,9 @@ function checkAgainstCode() {
   same(
     byCode(Object.fromEntries(Object.entries<any>(out.PRESETS).map(([c, p]: any) => [c, [p.in, p.out]]))),
     byCode(Punch.SHIFT),
-    'ca cố định: khối cũ đóng băng PRESETS so với src/engine/punch.js SHIFT'
+    'ca cố định: khối cũ đóng băng PRESETS so với src/engine/punch.ts SHIFT'
   );
-  const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view.js'));
+  const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view'));
   for (const t of Object.keys(out.TYPES))
     same(
       set[`type.${t}.dows`],
@@ -307,7 +308,7 @@ function checkAgainstCode() {
   );
   same(
     set['time.workHoursPerDay'] * set['unit.minutesPerHour'],
-    require(path.join(ROOT, 'src/engine/actual-hours.js')).RULE.SHIFT_WORK_MIN,
+    require(path.join(ROOT, 'src/engine/actual-hours')).RULE.SHIFT_WORK_MIN,
     'SHIFT_WORK_MIN = giờ mỗi công × phút mỗi giờ'
   );
 }
@@ -315,7 +316,7 @@ const ApprovalItemsSorted = (items?) => [...items].sort();
 
 // Bộ máy dùng chung: từ vựng bắt buộc có đủ trong ba bảng dữ liệu, mọi biến có đường dẫn `from`, mã không có hằng số ngoài 0 và 1
 function checkEngine() {
-  const Engine = require(path.join(ROOT, 'src/engine/payroll-engine.js'));
+  const Engine = require(path.join(ROOT, 'src/engine/payroll-engine'));
   const { scan } = require('./scan-magic-numbers');
   for (const key of Engine.VOCABULARY_KEYS)
     if (![Engine.VARIABLES, Engine.FORMULAS, Engine.BUILTINS].some(table => Object.hasOwn(table, key)))
@@ -332,9 +333,9 @@ function checkEngine() {
       if (name !== 'BUILTINS' && !entry.from) fail(`payroll-engine ${name}.${key}: thiếu đường dẫn from`);
       if (name === 'BUILTINS' && typeof entry.fn !== 'function') fail(`payroll-engine BUILTINS.${key}: thiếu fn`);
     }
-  const found = scan(fs.readFileSync(path.join(ROOT, 'src/engine/payroll-engine.js'), 'utf8'));
+  const found = scan(fs.readFileSync(path.join(ROOT, 'src/engine/payroll-engine.ts'), 'utf8'));
   for (const hit of found)
-    fail(`src/engine/payroll-engine.js dòng ${hit.line}: hằng số ${hit.value} ngoài 0 và 1 (${hit.text})`);
+    fail(`src/engine/payroll-engine.ts dòng ${hit.line}: hằng số ${hit.value} ngoài 0 và 1 (${hit.text})`);
 }
 
 // Cờ wired của registry phải bằng kết quả kiểm tĩnh ở scripts/params/wired.ts (bộ máy đọc khoá và không còn bản sao hằng số). Lệch là lỗi:
@@ -429,7 +430,7 @@ function main(argv?) {
         (k, x) => (x === Infinity ? null : x)
       );
     if (text(extract().values) !== text(Params.DEFAULTS))
-      fail('src/engine/payroll-params.js → DEFAULTS không khớp mã hiện tại: chạy npm run params:extract');
+      fail('src/engine/payroll-params.ts → DEFAULTS không khớp mã hiện tại: chạy npm run params:extract');
   } catch (error) {
     fail(error.message);
   }

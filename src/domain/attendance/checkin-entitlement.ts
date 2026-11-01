@@ -7,7 +7,7 @@
 //                          ngày lễ có khoản OT đã duyệt: cả khung giờ vào – ra của ngày cộng hai đoạn làm thêm, vì giờ vào – ra của ngày lễ là khung OT.
 //                          Ngày ngoài lịch hay ngày lễ: khung ca không áp dụng, chỉ khoảng giờ của khoản đã duyệt mới cho Check-in.
 // Quyền chỉ tính từ dòng duyệt có status approved cùng loại khoản; không có quyền nào thì không được.
-const PayrollParams = require('../../engine/payroll-params.js');
+const PayrollParams = require('../../engine/payroll-params');
 
 const MIN_PER_HOUR = PayrollParams.DEFAULTS['unit.minutesPerHour'];
 const WINDOW_RE = /từ (\d{2}:\d{2}) đến trước (\d{2}:\d{2})/;

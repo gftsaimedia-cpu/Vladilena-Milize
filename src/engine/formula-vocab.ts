@@ -1,14 +1,14 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.FormulaVocab = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  // Từ vựng của công thức gõ chữ (src/engine/formula.js): biến, tham số, công thức có tên và hàm có sẵn của cách tính lương hôm nay.
+  // Từ vựng của công thức gõ chữ (src/engine/formula.ts): biến, tham số, công thức có tên và hàm có sẵn của cách tính lương hôm nay.
   // Đây là DỮ LIỆU, không phải luật: khoá, nhãn, từ đồng nghĩa, đơn vị, miền.
   //
   // SINH RA, không viết tay: khối GENERATED dưới đây do `node scripts/params/gen-formula-vocab.ts` ghi từ
-  // PayrollEngine.VARIABLES / FORMULAS / BUILTINS (src/engine/payroll-engine.js) và src/params/registry.data.json; `--check` báo lệch.
+  // PayrollEngine.VARIABLES / FORMULAS / BUILTINS (src/engine/payroll-engine.ts) và src/params/registry.data.json; `--check` báo lệch.
   // Khoá là khoá của bộ máy (tongThanhPhanNgay, phuCapDiLai, luongCoBan, ngayDiLam, gioVuotNguong, iDorm…). Mục có `engineGap: true`
   // là phần bộ máy chưa công bố (giờ OT, cờ KPI, cờ loại, phép so sánh có tên); `source` ghi nó lấy từ đâu.
   //
@@ -678,7 +678,7 @@
   ];
 
   const VOCABULARY = [...GENERATED, ...LEGACY];
-  const byKey = key => VOCABULARY.find(e => e.key === key);
+  const byKey = (key?) => VOCABULARY.find(e => e.key === key);
   Object.defineProperty(VOCABULARY, 'byKey', { value: byKey, enumerable: false });
   Object.defineProperty(VOCABULARY, 'VOCABULARY', { value: VOCABULARY, enumerable: false });
   Object.defineProperty(VOCABULARY, 'generated', { value: GENERATED, enumerable: false });

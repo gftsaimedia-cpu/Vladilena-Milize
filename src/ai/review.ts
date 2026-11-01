@@ -8,7 +8,7 @@
 //   - Chỉ GỢI Ý: hàm chỉ đọc đầu vào và trả phát hiện; không sửa lương, công, KPI hay hồ sơ (đầu vào không bị đổi).
 //   - Mỗi phát hiện nêu luật nào bắn (rule), đầu vào đã dùng (evidence.inputs) và ngưỡng (evidence.threshold, đánh dấu proposal).
 //   - Thuần: không I/O, không đồng hồ. "Bây giờ" truyền vào qua input.asOf; công thức lương lấy từ input.payroll (calcMonth) chứ
-//     không viết lại ở đây (bộ máy dùng chung src/engine/payroll-engine.js). Thiếu payroll thì các luật cần nó được bỏ qua và ghi vào checked.skipped.
+//     không viết lại ở đây (bộ máy dùng chung src/engine/payroll-engine.ts). Thiếu payroll thì các luật cần nó được bỏ qua và ghi vào checked.skipped.
 //   - Evidence chỉ chứa trường luật cần (EVIDENCE_FIELDS); không có tên, lương, ghi chú hay số tiền nếu luật không cần số tiền.
 //
 // input:
@@ -33,10 +33,10 @@
 //   itemStatuses trạng thái của khoản được soát, mặc định ['pending']
 //   includeImpacts true thì kết quả có thêm `impacts`: tiền tác động của mọi khoản đang soát (cần payroll)
 
-const ApprovalView = require('../engine/approval-view.js');
-const ActualHours = require('../engine/actual-hours.js');
-const KpiScore = require('../engine/kpi-score.js');
-const PayrollParams = require('../engine/payroll-params.js');
+const ApprovalView = require('../engine/approval-view');
+const ActualHours = require('../engine/actual-hours');
+const KpiScore = require('../engine/kpi-score');
+const PayrollParams = require('../engine/payroll-params');
 const quality = require('../domain/findings/data-quality');
 const { resolveThresholds, resolveLimits, describeThresholds, isRuleEnabled } = require('./thresholds');
 const { benefitOf } = require('./positions');
@@ -57,7 +57,7 @@ const SLIP_COMPARABLE = Object.freeze({
   tax: (m?) => m.net && m.net.tax,
   advance: (m?) => m.net && m.net.advance
 });
-// Lượt chấm công đang chờ Admin xử lý (khớp reason của src/engine/punch.js và actual-hours.js)
+// Lượt chấm công đang chờ Admin xử lý (khớp reason của src/engine/punch.ts và actual-hours.js)
 const PUNCH_WAITING = Object.freeze([
   'forgot-in',
   'forgot-out',

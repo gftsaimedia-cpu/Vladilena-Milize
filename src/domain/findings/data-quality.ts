@@ -9,7 +9,7 @@ const { benefitOf, positionFlagOf } = require('../../ai/positions');
 
 // Read-only reconciliation: source records are never changed or inferred here.
 // params: bộ tham số phẳng của tháng đối soát (mặc định PayrollParams.DEFAULTS): luật phép năm (LeaveRules.create) và lịch (PayrollCalendar.create)
-// đọc từ đây. Số phép đã dùng đếm lại bằng cùng quy tắc với lịch làm việc từ src/engine/work-schedule.js
+// đọc từ đây. Số phép đã dùng đếm lại bằng cùng quy tắc với lịch làm việc từ src/engine/work-schedule.ts
 // (lịch của loại nhân sự theo bộ tham số): ngày nghỉ phép trùng ngày lễ nằm TRONG lịch của người thì không trừ phép.
 // approvals: các dòng duyệt [{ username, date, item, status }] (store.approvals.list, mọi trạng thái; trạng thái khác 'rejected' bị bỏ qua).
 // Cùng quy tắc với src/domain/sheet.ts → leaveDates: ngày phép năm có dòng duyệt khoản 'leave' bị TỪ CHỐI thì đã trả lại phép,
@@ -66,7 +66,7 @@ function evaluate({
           !(holidayDates.has(date) && isWorkDay(person, date))
         )
           usedDates.push(date);
-      // Số dư của sổ phép theo từng năm (cùng src/engine/leave.js → ledger như màn Phép còn lại): quỹ cũ đã hết hạn không còn nằm trong số được cộng
+      // Số dư của sổ phép theo từng năm (cùng src/engine/leave.ts → ledger như màn Phép còn lại): quỹ cũ đã hết hạn không còn nằm trong số được cộng
       const led = ledger(
         { ...person, startDate, birthday: isValidDate(person.birthday) ? person.birthday : null },
         usedDates,

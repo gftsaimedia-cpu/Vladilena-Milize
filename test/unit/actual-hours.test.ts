@@ -1,5 +1,5 @@
 'use strict';
-// Giờ công tính từ Check-in/out thực tế: module dùng chung src/engine/actual-hours.js.
+// Giờ công tính từ Check-in/out thực tế: module dùng chung src/engine/actual-hours.ts.
 //
 // Các quy tắc được kiểm:
 //   - Trễ / sớm đến 15 phút không trừ; quá 15 phút làm tròn nửa lên theo bậc 30 phút: 14 → 0, 15 → 0, 16 → 30, 20 → 30,
@@ -13,10 +13,10 @@
 // mặt nạ phút làm việc được kiểm gián tiếp qua apply (xem "đối chiếu từng phút").
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
+const P = require('../../src/engine/punch');
 const { loadPayroll } = require('../helpers/payroll-vm');
 
-const loadModule = () => require('../../src/engine/actual-hours.js');
+const loadModule = () => require('../../src/engine/actual-hours');
 
 // ---------- công thức tiền (chỉ để đổi phút trừ sang đồng) ----------
 const {
@@ -413,7 +413,7 @@ test('apply: ngày nghỉ khai trong lịch, không có Check-in nào → giữ 
 
 // ---------- chấm công ngoài lịch: không có đề xuất được duyệt thì không tính tiền ----------
 // POLICY.offSchedule = 'unpaid'. Ngoài lịch: Chủ nhật với mọi người, Thứ 7 với TTS, ngày lễ. NV L1: lương giờ 28.846,15 ₫.
-const AV = require('../../src/engine/approval-view.js');
+const AV = require('../../src/engine/approval-view');
 const SUNDAY = '2026-10-11';
 const SATURDAY = '2026-10-10';
 const TTS = { username: 'qa_tts', type: 'tts', level: 1, shiftCode: 'n1' };

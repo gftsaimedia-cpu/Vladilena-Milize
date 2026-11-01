@@ -2,10 +2,10 @@
 // Dữ liệu giả cho test của src/ai/review.ts: toàn người giả (qa_*), tháng 10/2026, không đụng data/.
 // world() dựng đầu vào của review() giống cách máy chủ sẽ dựng: mỗi ngày có khoản cần duyệt sinh một hàng duyệt chờ duyệt
 // (fingerprint tính bằng chính ApprovalView), muốn đổi hàng nào thì truyền rows['username|YYYY-MM-DD'].
-const P = require('../../src/engine/punch.js');
-const ApprovalView = require('../../src/engine/approval-view.js');
+const P = require('../../src/engine/punch');
+const ApprovalView = require('../../src/engine/approval-view');
 const { loadPayroll } = require('../../src/ai/payroll-loader');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const payroll = loadPayroll();

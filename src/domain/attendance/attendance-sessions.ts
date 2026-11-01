@@ -2,7 +2,7 @@
 const { AttendanceSessionsRepository } = require('../../data');
 const { AsyncList } = require('../../shared/async-list');
 const P = require('../../engine/punch');
-const { DEFAULTS } = require('../../engine/payroll-params.js');
+const { DEFAULTS } = require('../../engine/payroll-params');
 
 // Lịch làm việc (các thứ, 0 = Chủ nhật) của loại nhân sự, đọc từ khoá type.<loại>.dows của DEFAULTS: đợt di chuyển dưới đây chạy
 // lúc nạp src/platform/db, trước khi có tham số theo tháng. Loại lạ hiểu như NV (mọi loại khác TTS đều Thứ 2–Thứ 7).

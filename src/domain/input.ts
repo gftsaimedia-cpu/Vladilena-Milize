@@ -1,5 +1,5 @@
 'use strict';
-const CalendarRules = require('../engine/payroll-calendar.js');
+const CalendarRules = require('../engine/payroll-calendar');
 
 const NOTE_MAX = 300; // lý do duyệt / từ chối
 const USERNAME_RE = /^[a-z0-9._-]{2,40}$/;

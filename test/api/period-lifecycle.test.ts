@@ -8,7 +8,7 @@ const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const service = require('../../src/domain/payroll/payroll-service');
 const agents = require('../../src/platform/agents');
 

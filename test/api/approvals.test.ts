@@ -11,7 +11,7 @@ const path = require('node:path');
 const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const punch = require('../../src/engine/punch');
-const ApprovalView = require('../../src/engine/approval-view.js');
+const ApprovalView = require('../../src/engine/approval-view');
 const server = require('../helpers/server');
 
 let base;

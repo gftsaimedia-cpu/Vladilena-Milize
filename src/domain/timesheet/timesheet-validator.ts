@@ -23,7 +23,7 @@ const { UnpaidWithLeaveRule } = require('./rules/unpaid-with-leave-rule');
 
 // Kiểm tra nghiệp vụ khi lưu Lịch ước tính (PUT /api/sheet). Chạy trên hồ sơ của người sở hữu lịch (khai thay: người được khai).
 // Lịch VẪN được lưu, mỗi vi phạm là một cảnh báo nói chuyện gì, ngày nào và hệ quả cho tiền lương. Hệ quả tiền đã đối chiếu với bộ máy
-// (src/engine/payroll-engine.js, src/engine/work-schedule.js):
+// (src/engine/payroll-engine.ts, src/engine/work-schedule.ts):
 //   - ngày ngoài lịch làm việc (kể cả Chủ nhật): ca chính không có tiền; chỉ đoạn OT đã duyệt và có chấm công liền mạch được trả;
 //   - giờ vào – ra khác ca cố định: nhân sự tự khai vẫn tính theo ca được gán; Admin khai thay tính theo ca Admin chọn;
 //   - OT chỉ ra tiền khi chức vụ có quyền lợi OT và Admin đã duyệt khoản; hai trần giờ chặn khi lưu (src/domain/overtime);
@@ -87,7 +87,7 @@ class TimesheetValidator {
   // câu cảnh báo không nói "chờ duyệt". Trả { sheetParams, sched, holidays } cho phần còn lại của PUT /sheet.
   async validate({ u, month, clean, prevDays, onBehalf = false }: any) {
     const rules = await this.rulesFor(month);
-    const sched = await this.schedule.scheduleOf(u, month); // lịch làm việc của người trong tháng (một nguồn: src/engine/work-schedule.js)
+    const sched = await this.schedule.scheduleOf(u, month); // lịch làm việc của người trong tháng (một nguồn: src/engine/work-schedule.ts)
     const holidays = new Set<any>(await this.holidays());
     const sheet = new SheetContext({
       u,

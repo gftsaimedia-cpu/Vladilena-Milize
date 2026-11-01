@@ -1,13 +1,13 @@
 'use strict';
 // Khối phụ cấp do C&B thêm: khoá `block.def.<mã>` và `type.<chức vụ>.block.<mã>.<trường>` đi vào các họ khoá
-// của bộ tham số như chức vụ (cùng một đường ghi PUT /api/settings/params; tháng áp dụng, lý do, nhật ký, hoàn tác). Phép tính ở src/engine/pay-blocks-calc.js.
+// của bộ tham số như chức vụ (cùng một đường ghi PUT /api/settings/params; tháng áp dụng, lý do, nhật ký, hoàn tác). Phép tính ở src/engine/pay-blocks-calc.ts.
 //   classify(key)                  { kind:'def', code } | { kind:'row', position, block, field } | null
 //   validate(hit, key, value, ctx) kiểm cấu trúc (ctx.params, ctx.blocks: mã khối cùng lô, ctx.positions: mã chức vụ cùng lô, ctx.structureOnly)
 //   buildCreate(set, body)         lô thay đổi của POST /api/blocks (chỉ dựng và kiểm, chưa ghi)
 // Cờ thuế và bảo hiểm do C&B ĐỀ NGHỊ; chỉ có hiệu lực khi flagsConfirmedBy do Kế toán xác nhận qua PUT /api/blocks/:mã/confirm (máy chủ tự đặt, không tin client).
 const Positions = require('./positions');
 const config = require('../platform/config');
-const PayBlocksCalc = require('../engine/pay-blocks-calc.js');
+const PayBlocksCalc = require('../engine/pay-blocks-calc');
 
 const DEF_RE = /^block\.def\.([^.]+)$/;
 const ROW_RE = /^type\.([^.]+)\.block\.([^.]+)\.(on|amount|pct|byLevel\.[0-9]+)$/;

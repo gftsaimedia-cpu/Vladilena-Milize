@@ -9,7 +9,7 @@ const { AsyncList } = require('../../shared/async-list');
 const store = require('../../platform/db');
 const service = require('../payroll/payroll-service');
 const paramsStore = require('../../params/store');
-const PayOptions = require('../../engine/pay-options-calc.js');
+const PayOptions = require('../../engine/pay-options-calc');
 const advances = require('./advance-requests');
 const { vnToday } = require('../../platform/request-rules');
 

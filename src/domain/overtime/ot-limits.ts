@@ -3,7 +3,7 @@
 //   dayCap    giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, không tính giờ nghỉ giữa ca)
 //   monthCap  tổng giờ OT trong một tháng, cộng giờ ca chính làm ngày lễ
 // Đổi trần = đổi giá trị khoá trong bộ tham số; mọi nơi kiểm trần đọc qua class này nên không phải sửa chỗ nào khác.
-const { DEFAULTS } = require('../../engine/payroll-params.js');
+const { DEFAULTS } = require('../../engine/payroll-params');
 
 const DAY_KEY = 'law.ceiling.otDayTotalHours';
 const MONTH_KEY = 'law.ceiling.otMonthHours';

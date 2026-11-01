@@ -158,7 +158,7 @@ class Container {
   // Điểm KPI: nối KpiScoring với kho dữ liệu và bộ tham số. Nạp muộn và đọc store mỗi lần gọi (test mở DB khác vẫn đúng)
   get kpi() {
     return this.#once('kpi', () => {
-      const KpiRules = require('../engine/kpi-score.js'); // KPI 5 thành phần: điểm, trọng số, ngưỡng
+      const KpiRules = require('../engine/kpi-score'); // KPI 5 thành phần: điểm, trọng số, ngưỡng
       const { rulesFor, monthParams, typeParam } = require('../platform/request-rules');
       const { KpiScoring } = require('./kpi/kpi-scoring');
       return new KpiScoring({

@@ -1,7 +1,7 @@
 'use strict';
-// Bộ tính và danh sách phụ thuộc của cây công thức: src/engine/formula.js → Formula.evaluate, Formula.dependencies.
+// Bộ tính và danh sách phụ thuộc của cây công thức: src/engine/formula.ts → Formula.evaluate, Formula.dependencies.
 // evaluate không làm tròn giữa chừng, lỗi tính không âm thầm thành 0.
-// Phần ca vàng nằm ở formula-golden.test.ts. Thiếu src/engine/formula.js thì các test chạy như `todo`; RED=1 để xem đỏ.
+// Phần ca vàng nằm ở formula-golden.test.ts. Thiếu src/engine/formula.ts thì các test chạy như `todo`; RED=1 để xem đỏ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const F = require('../helpers/formula-fixture');

@@ -9,7 +9,7 @@ process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const explanations = require('../../src/domain/explanation/explanations');
-const AS = require('../../src/engine/attendance-status.js');
+const AS = require('../../src/engine/attendance-status');
 
 const iso = X.iso;
 const punch = X.punch;

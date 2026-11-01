@@ -2,8 +2,8 @@
 // Kiểm "máy chủ có nhận lịch này không" cho dữ liệu demo. Phản chiếu các kiểm tra chính của cleanDays và PUT /sheet trong server.js
 // (không import được vì server.js không xuất hàm). Chỉ dùng để: persona hợp lệ phải không có vi phạm nào; persona `unreasonable`
 // thì báo cho biết máy chủ hôm nay sẽ từ chối những gì. Không sửa dữ liệu, không đọc DB.
-const PayrollCalendar = require('../../../src/engine/payroll-calendar.js');
-const { accrued } = require('../../../src/engine/leave.js');
+const PayrollCalendar = require('../../../src/engine/payroll-calendar');
+const { accrued } = require('../../../src/engine/leave');
 const H = require('./helpers');
 
 const KINDS = ['work', 'makeup', 'leave', 'unpaid', 'willmakeup', 'approved', 'isat'];

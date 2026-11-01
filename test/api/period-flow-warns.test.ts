@@ -45,7 +45,7 @@ test('Chốt công: tháng chưa hết (MONTH_NOT_ENDED) vẫn chốt được, 
 test('Chốt công: còn phiên Check-in mở (OPEN_SESSIONS) vẫn chốt được, kèm cảnh báo OPEN_SESSIONS; lượt mở quá 16 giờ được đóng thành quên Check-out và không đếm', async () => {
   const M = monthOf();
   await P.seed(M);
-  const PunchRules = require('../../src/engine/punch.js');
+  const PunchRules = require('../../src/engine/punch');
   const staff = { shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] };
   const plan = PunchRules.planShift(staff, P.firstDow(M, 1));
   const stale = PunchRules.openDay(staff, `${plan.date}T08:00:00+07:00`, plan);

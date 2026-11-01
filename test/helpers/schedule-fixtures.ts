@@ -4,9 +4,9 @@
 // Hợp đồng ĐƯỢC GIẢ ĐỊNH:
 //   - Lịch của người suy từ loại nhân sự (type.<mã>.dows của bộ tham số); đổi lịch cả loại bằng `over` của run().
 //   - Kết quả tháng m.workdaysStd chỉ có khi ngày công chuẩn của loại là 'computed'.
-const PunchRules = require('../../src/engine/punch.js');
-const ApprovalView = require('../../src/engine/approval-view.js');
-const Engine = require('../../src/engine/payroll-engine.js');
+const PunchRules = require('../../src/engine/punch');
+const ApprovalView = require('../../src/engine/approval-view');
+const Engine = require('../../src/engine/payroll-engine');
 const { declaredPunches } = require('./declared-punches');
 const { DEFAULTS } = require('./defaults-old-basis.js');
 

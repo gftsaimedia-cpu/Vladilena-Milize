@@ -1,22 +1,22 @@
 'use strict';
-// Sinh khối GENERATED của `src/engine/formula-vocab.js` (từ vựng của công thức gõ chữ) từ bộ máy tính lương và registry:
+// Sinh khối GENERATED của `src/engine/formula-vocab.ts` (từ vựng của công thức gõ chữ) từ bộ máy tính lương và registry:
 //   - biến, công thức có tên, hàm có sẵn: PayrollEngine.VARIABLES / FORMULAS / BUILTINS (khoá, nhãn, từ đồng nghĩa, đơn vị, miền, nguồn);
 //   - tham số: danh sách chọn lọc dưới đây, đơn vị đối chiếu với src/params/registry.data.json (khoá `type.<type>.*` giữ nguyên dạng
 //     registry; công thức giải <type> bằng ctx.scope.type khi tính);
 //   - phần bộ máy chưa có (biến giờ OT..., cờ KPI, cờ loại, phép so sánh có tên): khai ở đây, đánh dấu `engineGap: true`.
 //
-//   node scripts/params/gen-formula-vocab.ts           ghi lại khối GENERATED trong src/engine/formula-vocab.js
+//   node scripts/params/gen-formula-vocab.ts           ghi lại khối GENERATED trong src/engine/formula-vocab.ts
 //   node scripts/params/gen-formula-vocab.ts --check   không ghi; thoát 1 nếu tệp lệch bộ máy hoặc registry (dùng trong params:check)
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
-const TARGET = path.join(ROOT, 'src/engine/formula-vocab.js');
+const TARGET = path.join(ROOT, 'src/engine/formula-vocab.ts');
 const BEGIN = '/* GENERATED:BEGIN (scripts/params/gen-formula-vocab.ts) */';
 const END = '/* GENERATED:END */';
 
-const Engine = require(path.join(ROOT, 'src/engine/payroll-engine.js'));
-const Formula = require(path.join(ROOT, 'src/engine/formula.js'));
+const Engine = require(path.join(ROOT, 'src/engine/payroll-engine'));
+const Formula = require(path.join(ROOT, 'src/engine/formula'));
 const registry = require(path.join(ROOT, 'src/params/registry.data.json'));
 
 /* ---------- nhãn: chữ thường đầu câu (trừ từ viết tắt), chỉ chữ-số-dấu cách ---------- */
@@ -293,7 +293,7 @@ async function main() {
     const current = require(TARGET).generated || [];
     if (JSON.stringify(current) !== JSON.stringify(entries)) {
       console.error(
-        'src/engine/formula-vocab.js lệch bộ máy hoặc registry. Chạy: node scripts/params/gen-formula-vocab.ts'
+        'src/engine/formula-vocab.ts lệch bộ máy hoặc registry. Chạy: node scripts/params/gen-formula-vocab.ts'
       );
       process.exit(1);
     }

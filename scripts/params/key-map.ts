@@ -11,23 +11,23 @@
 //   { path, derived: 'lý do' }     giá trị dẫn xuất từ khoá khác; params:check kiểm bằng nhau, không lưu
 // Nguồn kiểu regex (`regex`): giá trị là nhóm bắt đầu tiên, biểu thức `a * b` được tính; `transform` đổi đơn vị.
 
-// Các khoá TYPES, TAX_RULES, hằng số rời, ca cố định, trần OT nằm ở hand-defaults.json và src/engine/payroll-params.js → DEFAULTS,
+// Các khoá TYPES, TAX_RULES, hằng số rời, ca cố định, trần OT nằm ở hand-defaults.json và src/engine/payroll-params.ts → DEFAULTS,
 // là nguồn duy nhất; KHÔNG script nào ở scripts/params/ đọc src/engine/index.html.
 // Bản đóng băng test/fixtures/legacy-payroll-block.js chỉ dùng để đối chiếu trong check.js.
 
 const RULES = [
-  /* ---- src/engine/actual-hours.js ---- */
+  /* ---- src/engine/actual-hours.ts ---- */
   { path: 'ActualHours.RULE.GRACE_MIN', key: 'attendance.graceMin' },
   { path: 'ActualHours.RULE.STEP_MIN', key: 'attendance.stepMin' },
   { path: 'ActualHours.RULE.SHIFT_WORK_MIN', derived: '= time.workHoursPerDay × unit.minutesPerHour' },
   { path: 'ActualHours.POLICY.makeupHolidayRate', key: 'holiday.makeupRate' },
   { path: 'ActualHours.POLICY.cutRounding', key: 'attendance.cutRounding' },
   { path: 'ActualHours.POLICY.<name>', key: 'attendance.<name>Rule' },
-  /* ---- src/engine/kpi-score.js ---- */
+  /* ---- src/engine/kpi-score.ts ---- */
   { path: 'KpiScore.COMPONENTS.<key>.weight', key: 'kpi.weight.<key>' },
   { path: 'KpiScore.WEWORK_MIN', key: 'kpi.weworkMin' },
   { path: 'KpiScore.POLICY.<name>', key: 'kpi.<name>Rule' },
-  /* ---- src/engine/approval-view.js ---- */
+  /* ---- src/engine/approval-view.ts ---- */
   { path: 'ApprovalView.POLICY.pending.<item>', key: 'request.type.<item>.pendingRule' },
   { path: 'ApprovalView.POLICY.rejected.<item>', key: 'request.type.<item>.rejectedRule' },
   { path: 'ApprovalView.COUNTS_ABSENT.<item>', key: 'request.type.<item>.countsAbsent' },

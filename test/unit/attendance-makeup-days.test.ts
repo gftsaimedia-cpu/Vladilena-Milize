@@ -2,8 +2,8 @@
 // Ngày nghỉ xét chuyên cần: mỗi ngày iSAT đã nghỉ tính một ngày; ngày "Nghỉ, sẽ làm bù" chỉ tính theo giờ bù còn thiếu cuối kỳ (làm tròn lên theo giờ mỗi công).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const E = Engine.create(DEFAULTS);
 const NV = { username: 'qa_nv', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2025-01-06' };

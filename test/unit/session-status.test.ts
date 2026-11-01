@@ -4,7 +4,7 @@
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const ActualHours = require('../../src/engine/actual-hours.js');
+const ActualHours = require('../../src/engine/actual-hours');
 const config = require('../../src/platform/config');
 const { lateCheckoutMin } = require('../../src/domain/explanation/late-checkout');
 const { SessionStatus } = require('../../src/domain/attendance/session-status');

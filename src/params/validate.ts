@@ -8,10 +8,10 @@ const registry = require('./registry');
 const Attributes = require('./attributes');
 const Positions = require('./positions');
 const BlockDefs = require('./block-defs');
-const Formula = require('../engine/formula.js');
-const PayrollGraph = require('../engine/payroll-graph.js');
-const ApprovalView = require('../engine/approval-view.js');
-const { DEFAULTS } = require('../engine/payroll-params.js');
+const Formula = require('../engine/formula');
+const PayrollGraph = require('../engine/payroll-graph');
+const ApprovalView = require('../engine/approval-view');
+const { DEFAULTS } = require('../engine/payroll-params');
 const { warnIf } = require('../platform/warnings');
 
 const LAW_NOTE =
@@ -205,7 +205,7 @@ function rulesOf(entry?, key?, params?, columnKey?) {
 /* ---------- công thức tháng: { text, tree } (khoá formula.<tên>) ---------- */
 // Khoá formula.* là locked: Admin không lưu được (save.js trả PARAM_LOCKED trước khi vào đây). Hàm này còn để scripts/params/check.ts kiểm
 // CẤU TRÚC của 7 công thức mặc định (validateValue với structureOnly) và để store.resolve kiểm dòng do `system` ghi.
-// Dùng đúng mô-đun src/engine/formula.js: deserialize từ chối cây hỏng, validate kiểm từ vựng, đơn vị, vòng lặp và thành phần bắt buộc theo luật.
+// Dùng đúng mô-đun src/engine/formula.ts: deserialize từ chối cây hỏng, validate kiểm từ vựng, đơn vị, vòng lặp và thành phần bắt buộc theo luật.
 // Lỗi trả nguyên mã của mô-đun, mọi lỗi nằm ở `errors`. Giá trị lưu là { text, tree } với tree đã serialize lại (dạng chuẩn).
 function checkFormula(key?, value?, ctx: any = {}) {
   const bad = (code?, message?, errors?) => ({ ok: false, code, message, key, errors: errors || [{ code, message }] });
@@ -438,7 +438,7 @@ function validateValue(key?, value?, ctx: any = {}) {
 }
 
 /* ---------- giờ ca cố định ---------- */
-// Loại ca suy từ giờ, cùng quy tắc với src/engine/payroll-engine.js → shiftFor: có phút nào trong khung đêm là Night; vào sớm hơn mốc Flex hoặc ra từ mốc đêm là Flex
+// Loại ca suy từ giờ, cùng quy tắc với src/engine/payroll-engine.ts → shiftFor: có phút nào trong khung đêm là Night; vào sớm hơn mốc Flex hoặc ra từ mốc đêm là Flex
 const minutesOf = (text?) => {
   const [h, m] = text.split(':').map(Number);
   return h * 60 + m;
@@ -503,7 +503,7 @@ function shiftErrors(set?) {
 }
 
 /* ---------- phụ cấp đi lại và chuyên cần của chức vụ ---------- */
-// Cây công thức đi lại và chuyên cần (src/engine/payroll-graph.js) đọc type.<mã>.travel, type.<mã>.attendance và type.<mã>.maxAbsent của chức vụ, không có
+// Cây công thức đi lại và chuyên cần (src/engine/payroll-graph.ts) đọc type.<mã>.travel, type.<mã>.attendance và type.<mã>.maxAbsent của chức vụ, không có
 // giá trị mặc định: thiếu một khoá là FORMULA_MISSING_INPUT và MỌI phiếu lương của chức vụ đó thành lỗi. Chức vụ sao từ tts hoặc ctv không có maxAbsent
 // (chỉ nv có), nên chức vụ có phụ cấp đi lại hoặc chuyên cần khác 0 mà thiếu một khoá thì chặn lúc lưu (cùng điều kiện T.travel || T.attendance của bộ máy).
 const ALLOWANCE_TAILS = Object.freeze(['travel', 'attendance', 'maxAbsent']);

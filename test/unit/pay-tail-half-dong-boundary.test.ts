@@ -5,7 +5,7 @@
 // Các biên .5 ở đây tính bằng tay; số giả chỉ nằm trong bộ nhớ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../src/engine/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine');
 const { legacyParams } = require('../helpers/legacy-params');
 const golden = require('../fixtures/payroll-golden-v0.json');
 

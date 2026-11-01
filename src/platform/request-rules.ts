@@ -2,13 +2,13 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const paramsStore = require('../params/store');
 // Sáu mô-đun quy tắc dùng chung với giao diện. Máy chủ KHÔNG gọi bản trần của chúng: mọi chỗ dùng qua rulesFor(tháng).<mô-đun>, dựng bằng
 // create(bộ tham số hiệu lực của tháng đó), để giá trị Admin đã lưu đến mọi đường kiểm.
-const LeaveRules = require('../engine/leave.js'); // quy tắc cộng phép năm
-const PunchRules = require('../engine/punch.js'); // quy tắc check-in / check-out
-const CalendarRules = require('../engine/payroll-calendar.js'); // ngày, tháng hợp lệ; tách giờ làm theo ngày lễ
-const ApprovalViewRules = require('../engine/approval-view.js'); // khoản tự khai cần Admin duyệt
-const ActualHoursRules = require('../engine/actual-hours.js'); // giờ công theo Check-in/out thực tế
-const KpiRules = require('../engine/kpi-score.js'); // KPI 5 thành phần: điểm, trọng số, ngưỡng
-const WorkScheduleRules = require('../engine/work-schedule.js'); // lịch làm việc của chức vụ và của người (một nguồn)
+const LeaveRules = require('../engine/leave'); // quy tắc cộng phép năm
+const PunchRules = require('../engine/punch'); // quy tắc check-in / check-out
+const CalendarRules = require('../engine/payroll-calendar'); // ngày, tháng hợp lệ; tách giờ làm theo ngày lễ
+const ApprovalViewRules = require('../engine/approval-view'); // khoản tự khai cần Admin duyệt
+const ActualHoursRules = require('../engine/actual-hours'); // giờ công theo Check-in/out thực tế
+const KpiRules = require('../engine/kpi-score'); // KPI 5 thành phần: điểm, trọng số, ngưỡng
+const WorkScheduleRules = require('../engine/work-schedule'); // lịch làm việc của chức vụ và của người (một nguồn)
 
 // Số liệu quy tắc đọc từ bộ tham số hiệu lực của đúng tháng, không có bản sao số trong mã. Tra khoá theo loại nhân sự bằng
 // Object.hasOwn, nên loại lạ ("constructor", "__proto__") không bao giờ trúng khoá nào.

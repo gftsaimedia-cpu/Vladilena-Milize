@@ -1,5 +1,5 @@
 'use strict';
-// Mô-đun thuần src/engine/work-schedule.js: lịch của một người luôn suy từ loại nhân sự (type.<mã>.dows, workdays, workdaysMode của bộ tham số).
+// Mô-đun thuần src/engine/work-schedule.ts: lịch của một người luôn suy từ loại nhân sự (type.<mã>.dows, workdays, workdaysMode của bộ tham số).
 // Hợp đồng: WorkSchedule.create(params) / mặc định bằng create(DEFAULTS), các hàm scheduleOf, scheduleFor, isWorkDay, workdaysOf, scheduledDates, describe.
 //
 // Loại lạ: không ném lỗi, không có ngày làm, khác TTS (mã loại lạ KHÔNG BAO GIỜ rơi về tts, như request-rules.dowsOf).
@@ -9,8 +9,8 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const F = require('../helpers/schedule-fixtures');
-const WS = require('../../src/engine/work-schedule.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const WS = require('../../src/engine/work-schedule');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 
 const sha = (value?) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 // Mô-đun dựng trên bộ tham số có sửa lịch của loại NV
@@ -102,7 +102,7 @@ test('bất biến: đầu vào không bị sửa, kết quả đóng băng, cù
     Date.now = realNow;
   }
   assert.equal(sha(staff), before, 'đầu vào bị sửa');
-  const source = fs.readFileSync(path.join(__dirname, '../../src/engine/work-schedule.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../../src/engine/work-schedule.ts'), 'utf8');
   assert.doesNotMatch(source, /Date\.now|new Date\(\)/, 'không tham chiếu đồng hồ');
 });
 

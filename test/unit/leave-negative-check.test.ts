@@ -1,9 +1,9 @@
 // Kiểm phép âm của src/domain/findings/data-quality.ts (cũng là nguồn của luật negative-leave trong src/ai/review.ts): báo khi SỐ DƯ của sổ phép theo từng năm
-// (src/engine/leave.js → ledger) âm, với used = số ngày phép trừ được, accrued = phép còn trong sổ (đã cộng, chưa hết hạn), balance = số dư của sổ.
+// (src/engine/leave.ts → ledger) âm, với used = số ngày phép trừ được, accrued = phép còn trong sổ (đã cộng, chưa hết hạn), balance = số dư của sổ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const quality = require('../../src/domain/findings/data-quality');
-const Leave = require('../../src/engine/leave.js');
+const Leave = require('../../src/engine/leave');
 
 const pad = (n?) => String(n).padStart(2, '0');
 // Người vào làm 01/08/2026: tới 07/10/2026 đã tròn 2 tháng = 2 ngày phép

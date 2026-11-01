@@ -1,11 +1,11 @@
-(function (root, factory) {
+(function (root: any, factory: any) {
   const api = factory();
   if (typeof module === 'object' && module.exports) module.exports = api;
   else root.PayBlocksCalc = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   // Phép tính thuần của "khối phụ cấp do C&B thêm". Dùng chung trình duyệt và máy chủ:
-  // bộ máy tính lương (src/engine/payroll-engine.js) gọi attach() và mergeSums() ở đúng hai chỗ; không I/O, không đồng hồ, không con số nào ngoài 0 và 1.
+  // bộ máy tính lương (src/engine/payroll-engine.ts) gọi attach() và mergeSums() ở đúng hai chỗ; không I/O, không đồng hồ, không con số nào ngoài 0 và 1.
   // Khối là DỮ LIỆU trong bộ tham số phẳng của tháng:
   //   block.def.<mã>                      { label, component, mode, method: 'fixed'|'pctBase'|'byLevel', scalesWithDays, loss, tax: 'none'|'full'|'cap', taxCap,
   //                                         insuranceBase, deprecated, flagsConfirmedBy, flagsConfirmedAt }
@@ -22,30 +22,30 @@
   const METHODS = Object.freeze(['fixed', 'pctBase', 'byLevel']);
   const TAX_MODES = Object.freeze(['none', 'full', 'cap']);
   const DEF_PREFIX = 'block.def.';
-  const own = (set, key) => (Object.hasOwn(set, key) ? set[key] : undefined);
-  const confirmed = item => typeof item.flagsConfirmedBy === 'string' && item.flagsConfirmedBy !== '';
-  const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+  const own = (set?, key?) => (Object.hasOwn(set, key) ? set[key] : undefined);
+  const confirmed = (item?) => typeof item.flagsConfirmedBy === 'string' && item.flagsConfirmedBy !== '';
+  const isObj = (v?) => !!v && typeof v === 'object' && !Array.isArray(v);
 
-  function blockError(message) {
+  function blockError(message?) {
     return Object.assign(new Error(message), { code: 'PAYROLL_BAD_BLOCK' });
   }
 
   // Định nghĩa khối đang dùng của bộ tham số P, sắp theo mã; nhớ theo đối tượng P (bộ tham số không đổi sau khi dựng)
-  const defsCache = new WeakMap();
-  function defsOf(P) {
+  const defsCache = new WeakMap<any, any>();
+  function defsOf(P?) {
     if (!defsCache.has(P)) {
-      const list = [];
+      const list: any[] = [];
       for (const key of Object.keys(P))
         if (key.startsWith(DEF_PREFIX) && isObj(P[key]) && !P[key].deprecated)
           list.push({ code: key.slice(DEF_PREFIX.length), def: P[key] });
-      list.sort((a, b) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+      list.sort((a: any, b: any) => (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
       defsCache.set(P, list);
     }
     return defsCache.get(P);
   }
 
   // Số tiền của một khối cho một người (trước khi xét mất khối). ctx: { type, level, base, ratio }
-  function amountOf(P, code, def, ctx) {
+  function amountOf(P?, code?, def?, ctx?) {
     const prefix = `type.${ctx.type}.block.${code}.`;
     let amount;
     if (def.method === 'fixed') amount = own(P, `${prefix}amount`);
@@ -65,7 +65,7 @@
   // (ngày nghỉ đã trừ ngày nghỉ không lương được miễn; ngưỡng đã cộng biên độ attendance.overLimitTolerance) rồi đưa vào ctx, nên khối, cờ r.attendOk
   // và đường tiền của chuyên cần luôn dùng cùng một số.
   // Khối bị mất (số tiền 0) vì nghỉ nhiều hoặc giờ vượt ngưỡng; so: phép so sánh có tên của bộ máy
-  function lostOf(P, def, r, so, { absent, overLimit }) {
+  function lostOf(P, def, r, so, { absent, overLimit }: any) {
     const loss = def.loss;
     if (!loss) return false;
     if (loss.kind === 'absentDays') return so(P['attendance.absentCompare'], absent, loss.days);
@@ -75,8 +75,8 @@
 
   // Các khối áp cho một người trong tháng đã tính (r = kết quả tháng; chỉ khối có type.<chức vụ>.block.<mã>.on = true).
   // Mỗi phần tử: { code, label, amount, taxMode, taxCap, insuranceBase, flagsConfirmedBy, lost }. Số tiền làm tròn đồng một lần bằng hàm round của bộ máy (ctx.round; không có thì giữ nguyên số).
-  function itemsFor(P, r, ctx) {
-    const out = [];
+  function itemsFor(P?, r?, ctx?) {
+    const out: any[] = [];
     for (const { code, def } of defsOf(P)) {
       if (own(P, `type.${ctx.type}.block.${code}.on`) !== true) continue;
       const lost = lostOf(P, def, r, ctx.so, ctx);
@@ -97,7 +97,7 @@
   // Cửa 1 của bộ máy: thêm khối vào kết quả tháng r (r.blocks và cộng vào r.total). Không khối nào áp cho người: không đổi gì.
   //   staff: hồ sơ; kernel: { typeKey, levelOf, so } của bộ máy; ratio: tỷ lệ ngày đi làm (tyLeNgayDiLam);
   //   absent, overLimit: ngày nghỉ xét chuyên cần và ngưỡng giờ vượt của chuyên cần, do bộ máy tính một lần
-  function attach(r, P, staff, { typeKey, levelOf, so, ratio, absent, overLimit, round }) {
+  function attach(r, P, staff, { typeKey, levelOf, so, ratio, absent, overLimit, round }: any) {
     if (!defsOf(P).length) return r;
     const type = typeKey(staff);
     const items = itemsFor(P, r, {
@@ -118,7 +118,7 @@
   }
 
   // Phần miễn thuế và nền bảo hiểm của các khối trong m (cờ chưa xác nhận: 0)
-  function sumsOf(m, P) {
+  function sumsOf(m?, P?) {
     const out = { exempt: 0, insuranceBase: 0 };
     const flagged = P['insurance.base'] === 'withFlaggedAllowances';
     for (const item of m.blocks || []) {
@@ -131,7 +131,7 @@
   }
 
   // Cửa 2: cộng phần của khối vào tổng hợp khoản điền thêm; m không có khối thì trả đúng đối tượng cũ (không đổi bit nào)
-  function mergeSums(sums, m, P) {
+  function mergeSums(sums?, m?, P?) {
     if (!m.blocks) return sums;
     const b = sumsOf(m, P);
     return { ...sums, exempt: sums.exempt + b.exempt, insuranceBase: sums.insuranceBase + b.insuranceBase };

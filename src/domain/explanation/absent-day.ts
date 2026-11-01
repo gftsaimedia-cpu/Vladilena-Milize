@@ -1,6 +1,6 @@
 'use strict';
 // Ngày vắng không phép của một người: ngày trong lịch làm việc đã qua giờ kết thúc ca mà không có lượt Check-in/out nào
-// (ActualHours.apply ghi trạng thái 'absent', src/engine/actual-hours.js). Ngày này tính 0 công cho tới khi có giải trình được duyệt.
+// (ActualHours.apply ghi trạng thái 'absent', src/engine/actual-hours.ts). Ngày này tính 0 công cho tới khi có giải trình được duyệt.
 const { rulesFor, vnToday, nowIso } = require('../../platform/request-rules');
 const schedule = require('../schedule');
 const { estimateSheet } = require('../sheet');

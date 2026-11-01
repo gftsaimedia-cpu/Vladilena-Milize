@@ -8,7 +8,7 @@ Quy ước trong tài liệu:
 - "Lịch khai" / "lịch ước tính" = `timesheets.days_json` (mỗi ngày một bản khai), đọc qua `estimateSheet` (chỉ giữ các trường khai tay `kind, shift, in, out, extraKind, extraIn, extraOut, preset, breakMin`, cộng `punchNote`, `makeupPlans`/`makeupDate`; bỏ ngày `pending`; `src/domain/payroll/payroll-service.ts`).
 - `rulesFor(tháng)` = bộ quy tắc dựng từ bộ tham số hiệu lực của tháng (`src/platform/request-rules.ts`). `rulesFor()` không đối số = tháng hiện tại theo giờ VN.
 - Giờ VN = UTC+7 (`unit.vnUtcOffsetMin` = 420), không có giờ mùa hè.
-- Lịch làm việc của người: NV, CTV làm Thứ Hai đến Thứ Bảy; TTS làm Thứ Hai đến Thứ Sáu (`type.<loại>.dows`); Chủ nhật không bao giờ là ngày làm (`src/engine/work-schedule.js`).
+- Lịch làm việc của người: NV, CTV làm Thứ Hai đến Thứ Bảy; TTS làm Thứ Hai đến Thứ Sáu (`type.<loại>.dows`); Chủ nhật không bao giờ là ngày làm (`src/engine/work-schedule.ts`).
 
 ---
 
@@ -50,13 +50,13 @@ Quy ước trong tài liệu:
 
 | File | Việc |
 | --- | --- |
-| `src/engine/punch.js` | Quy tắc Check-in/out (`PunchRules`): bảng ca, ngày công của lần Check-in, ca dự kiến, dựng ngày từ khoảng có mặt, quên Check-out, khung Check-in, cảnh báo Check-out sớm, khoảng cách GPS. |
-| `src/engine/actual-hours.js` | `ActualHours`: tính ngày hiệu lực từ lịch khai + lượt (`apply`), số phút trừ (`cutMin`), phút trễ để hiển thị (`lateMinutes`), giờ bấm thật từng ngày (`punchTimesOf`). |
-| `src/engine/work-schedule.js` | `WorkSchedule`: ngày nào là ngày làm của loại nhân sự, ngày công chuẩn. |
-| `src/engine/payroll-calendar.js` | `PayrollCalendar`: kiểm ngày/tháng, tách giờ ca chính và đoạn làm thêm theo ngày lễ / khung đêm. |
-| `src/engine/attendance-status.js` | `AttendanceStatus` (trình duyệt và test): `LABEL` (sáu nhãn), `DAY_ORDER`, `TONE`, `statusOf` (đọc `session.status`; thiếu trường thì `entry.kind 'pending'` (trừ `reason 'open'`) ⇒ Chờ xử lý, còn lại theo `state`), `labelOf`, `noteOf`, `dayStatus` (nhãn ô ngày, bỏ qua lượt `superseded`), `dayNotes`. |
-| `src/engine/payroll-engine.js` | Bộ máy lương: chạy `ActualHours.apply` trong `computeMonth`, áp ngày giữ vì giải trình, đếm ngày công trong `calcMonth` (ngoài phạm vi, chỉ ghi điểm nối). |
-| `src/engine/approval-view.js` | `payView`: bỏ / đổi khoản tự khai chưa duyệt trước khi `ActualHours.apply` chạy (ngoài phạm vi, chỉ ghi điểm nối). |
+| `src/engine/punch.ts` | Quy tắc Check-in/out (`PunchRules`): bảng ca, ngày công của lần Check-in, ca dự kiến, dựng ngày từ khoảng có mặt, quên Check-out, khung Check-in, cảnh báo Check-out sớm, khoảng cách GPS. |
+| `src/engine/actual-hours.ts` | `ActualHours`: tính ngày hiệu lực từ lịch khai + lượt (`apply`), số phút trừ (`cutMin`), phút trễ để hiển thị (`lateMinutes`), giờ bấm thật từng ngày (`punchTimesOf`). |
+| `src/engine/work-schedule.ts` | `WorkSchedule`: ngày nào là ngày làm của loại nhân sự, ngày công chuẩn. |
+| `src/engine/payroll-calendar.ts` | `PayrollCalendar`: kiểm ngày/tháng, tách giờ ca chính và đoạn làm thêm theo ngày lễ / khung đêm. |
+| `src/engine/attendance-status.ts` | `AttendanceStatus` (trình duyệt và test): `LABEL` (sáu nhãn), `DAY_ORDER`, `TONE`, `statusOf` (đọc `session.status`; thiếu trường thì `entry.kind 'pending'` (trừ `reason 'open'`) ⇒ Chờ xử lý, còn lại theo `state`), `labelOf`, `noteOf`, `dayStatus` (nhãn ô ngày, bỏ qua lượt `superseded`), `dayNotes`. |
+| `src/engine/payroll-engine.ts` | Bộ máy lương: chạy `ActualHours.apply` trong `computeMonth`, áp ngày giữ vì giải trình, đếm ngày công trong `calcMonth` (ngoài phạm vi, chỉ ghi điểm nối). |
+| `src/engine/approval-view.ts` | `payView`: bỏ / đổi khoản tự khai chưa duyệt trước khi `ActualHours.apply` chạy (ngoài phạm vi, chỉ ghi điểm nối). |
 
 ### Giao diện dùng module (chỉ đọc, không tính tiền)
 
@@ -158,8 +158,8 @@ Không có route nào mở lại lượt đã đóng hay xoá lượt bấm th�
 
 | Khoá | Mặc định | Dùng ở |
 | --- | --- | --- |
-| `shift.preset.<n1|n2|f1|f2|g1|g2>.in/.out` | 08–17, 10–19, 06–15, 13–22, 21–06, 22–07 | `punch.js` `SHIFT`, `actual-hours.js` `SHIFT_TIMES` |
-| `shift.alias.<mã mới>` | (không có) | đổi mã ca trong danh mục (`Normal1`…`Night2` và ca thêm) → khoá giờ ca (`punch.js`) |
+| `shift.preset.<n1|n2|f1|f2|g1|g2>.in/.out` | 08–17, 10–19, 06–15, 13–22, 21–06, 22–07 | `punch.ts` `SHIFT`, `actual-hours.ts` `SHIFT_TIMES` |
+| `shift.alias.<mã mới>` | (không có) | đổi mã ca trong danh mục (`Normal1`…`Night2` và ca thêm) → khoá giờ ca (`punch.ts`) |
 | `attendance.openSessionMaxHours` | 16 | quên Check-out |
 | `attendance.earlyCheckinMaxHours` | 4 | khung Check-in sớm |
 | `attendance.graceMin` | 15 | phút miễn trừ |
@@ -339,7 +339,7 @@ Không route giải trình nào có `periodScope` ở cổng: làm được cả
 
 ## 4. Cách tính / quy tắc
 
-### 4.1 Thời gian và ca (`src/engine/punch.js`)
+### 4.1 Thời gian và ca (`src/engine/punch.ts`)
 
 - Phút giờ VN: `vmin(iso) = floor(ms / 60000) + 420` (`up` thì `ceil`). `dateOf`, `timeOf` đọc phút VN như UTC.
 - Bảng ca `SHIFT[code] = [in, out]` dựng từ mọi khoá `shift.preset.<code>.in`; mã trong danh mục (`Normal1`…`Night2` và `shift.alias.*`) là thuộc tính ẩn trỏ cùng giờ (`:31-57,72-73`).
@@ -427,7 +427,7 @@ Admin chấm công cho một người (quên chấm, đi làm ca khác ca đư�
 5. Có entry ⇒ `#write`: sửa lượt Admin đầu tiên (giữ trường OT `extraKind/In/Out` của lượt cũ, bỏ `attendanceApproved`, `reason`, `explanationId`) hoặc tạo mới, `state:'closed'`, thêm `origin`, `declaredBy`, `declaredAt`; nhật ký `attendance.admin.set`. Các lượt Admin thừa của ngày bị xoá. Không có entry ⇒ xoá mọi lượt Admin của ngày (nhật ký `attendance.admin.remove`). Xoá bằng `DELETE ... WHERE id=? AND version=? AND json_extract(entry_json,'$.origin')=?`, lệch ⇒ 409 `SESSION_STALE`.
 6. `hintPunch` cho ngày có thay đổi.
 
-**Tiền theo ca Admin chọn.** `plannedShift.code` của lượt Admin = ca Admin chọn; `ActualHours.apply` đặt `preset` của ngày hiệu lực bằng mã đó (mục 4.10.3) và bộ máy lấy loại ca (`normal` / `flex` / `night`) từ `preset` của ngày, rồi mới tới ca được gán, khi tham số `shift.allowance.basis` = `'assigned'` (`src/engine/payroll-engine.js` đọc, `shiftOfDay` ở dùng). Tham số này không nằm trong bảng tham số mặc định mà do `src/domain/payroll/policy.ts` ghi theo tháng, có hiệu lực từ tháng bắt đầu chuyển đổi; ở tháng chưa có giá trị `'assigned'`, loại ca lấy từ giờ có mặt (`shiftFor(vào, ra)`) nên ca Admin chọn không đổi loại ca hay phụ cấp; phụ cấp ca, giờ nghỉ đêm có lương, giờ thiếu đều tính theo ca này. Nhân viên Check-in/out và tự khai vẫn theo ca được gán (không có `preset` khác).
+**Tiền theo ca Admin chọn.** `plannedShift.code` của lượt Admin = ca Admin chọn; `ActualHours.apply` đặt `preset` của ngày hiệu lực bằng mã đó (mục 4.10.3) và bộ máy lấy loại ca (`normal` / `flex` / `night`) từ `preset` của ngày, rồi mới tới ca được gán, khi tham số `shift.allowance.basis` = `'assigned'` (`src/engine/payroll-engine.ts` đọc, `shiftOfDay` ở dùng). Tham số này không nằm trong bảng tham số mặc định mà do `src/domain/payroll/policy.ts` ghi theo tháng, có hiệu lực từ tháng bắt đầu chuyển đổi; ở tháng chưa có giá trị `'assigned'`, loại ca lấy từ giờ có mặt (`shiftFor(vào, ra)`) nên ca Admin chọn không đổi loại ca hay phụ cấp; phụ cấp ca, giờ nghỉ đêm có lương, giờ thiếu đều tính theo ca này. Nhân viên Check-in/out và tự khai vẫn theo ca được gán (không có `preset` khác).
 
 Lượt Admin có `presOut` sau thời điểm hiện tại bị **giấu** khỏi `lastSession` và `listSessions` thường (`src/domain/attendance/attendance-sessions.ts,56-86`): trước giờ ra lượt chỉ là lịch. Không giấu khỏi `getSession`, `openSession`, câu SQL của `closeStaleFor`, và `listSessions({ includeScheduled: true })`.
 
@@ -474,13 +474,13 @@ Gọi trong giao dịch của `POST /api/explanations/:id/decide`, sau `lateChec
 
 `actualOtHours(entry)` = `extraOtHours` nếu chưa duyệt hoặc đã duyệt, 0 nếu bị từ chối (`overtime/worked-hours.ts`). `actualHolidayOtHours(rows)` = tổng OT các lượt + giờ lễ của ca chính (mỗi `plannedShift` một lần, lấy max).
 
-**OT này không ra tiền**: `ActualHours.apply` dùng ngày khai trên lịch làm nguồn đoạn làm thêm (`effective = clone(declared)`, `actual-hours.js`) và bỏ `otReview` (`LOCKED_FIELDS`,). Nó chỉ tham gia trần giờ lễ + OT (`holidayOtConflicts`, `validateOtDeclaration`) và danh sách `/api/ot`.
+**OT này không ra tiền**: `ActualHours.apply` dùng ngày khai trên lịch làm nguồn đoạn làm thêm (`effective = clone(declared)`, `actual-hours.ts`) và bỏ `otReview` (`LOCKED_FIELDS`,). Nó chỉ tham gia trần giờ lễ + OT (`holidayOtConflicts`, `validateOtDeclaration`) và danh sách `/api/ot`.
 
 ### 4.9 GPS (`src/domain/attendance/geofence-policy.ts`)
 
-Chưa bật vùng ⇒ không kiểm. Bật: (1) thiếu / sai vị trí ⇒ cảnh báo `GEO_NO_LOCATION`, (2) `accuracy > maxAccuracyM` ⇒ cảnh báo `GEO_LOW_ACCURACY`, (3) haversine (`punch.js`, R = 6.371 km) > `radiusM` ⇒ cảnh báo `GEO_OUTSIDE`. Check-in vẫn thành công, entry `outsideZone: true`. Không lưu toạ độ ở đâu cả; GPS không tham gia tính lương. `cleanGeofence`: lat −90..90, lng −180..180, `radiusM` 20..5000, `maxAccuracyM` 10..1000 (mặc định 100). Nhân viên chỉ biết có bật vùng hay không; Admin thấy cả cài đặt (`geofenceView`).
+Chưa bật vùng ⇒ không kiểm. Bật: (1) thiếu / sai vị trí ⇒ cảnh báo `GEO_NO_LOCATION`, (2) `accuracy > maxAccuracyM` ⇒ cảnh báo `GEO_LOW_ACCURACY`, (3) haversine (`punch.ts`, R = 6.371 km) > `radiusM` ⇒ cảnh báo `GEO_OUTSIDE`. Check-in vẫn thành công, entry `outsideZone: true`. Không lưu toạ độ ở đâu cả; GPS không tham gia tính lương. `cleanGeofence`: lat −90..90, lng −180..180, `radiusM` 20..5000, `maxAccuracyM` 10..1000 (mặc định 100). Nhân viên chỉ biết có bật vùng hay không; Admin thấy cả cài đặt (`geofenceView`).
 
-### 4.10 Giờ công thực tế `ActualHours.apply(days, sessions, ctx)` (`src/engine/actual-hours.js`)
+### 4.10 Giờ công thực tế `ActualHours.apply(days, sessions, ctx)` (`src/engine/actual-hours.ts`)
 
 Đầu vào: `days` (lịch khai; trong bộ máy là kết quả `payView`), `sessions` (`[{state, date, entry}]`), `ctx { asOf, staff, holidays, month }`. Thuần, không I/O.
 
@@ -570,8 +570,8 @@ Quy tắc ngày công: **ngày công = ngày có Check-in/out hợp lệ** (lư�
 Chuỗi: `loadInputs` → `computeMonth` → `calcMonth`; công thức tiền ở `spec/payroll-engine.md`.
 
 1. `loadInputs` (`src/domain/payroll/payroll-service.ts`): lượt của đúng tháng luôn được nạp; ngày giữ vì giải trình `heldFor`: ngày của tháng có giải trình **chưa duyệt** (`requested`, `answered`) hoặc **bị từ chối** (`rejected`), mọi kind (`explanation-repository.ts` `heldByUser`). Ngày có lượt Admin đóng (`AdminPresence.declaredDates`) không bị giữ vì giải trình chưa quyết định, nhưng **bị giữ nếu giải trình bị từ chối**. `explanationRejected` liệt kê phần bị từ chối của các ngày giữ.
-2. `computeMonth` (`src/engine/payroll-engine.js`): `payView` (bỏ / đổi khoản chưa duyệt) → `ActualHours.apply(payDays, sessions, {asOf, staff, holidays, month})` thay toàn bộ `payDays` → mỗi ngày trong `explanationHold` ⇒ `{ kind:'unpaid', punchIn, punchOut, held: 'rejected' | 'pending' }` (giữ giờ bấm thật của ngày, `held` = `rejected` nếu giải trình ngày đó bị từ chối, còn lại `pending`) → `calcMonth`. Giải trình **bị từ chối ⇒ ngày không tính công**; giải trình **được duyệt** ⇒ hết giữ: late / early duyệt thì `ActualHours` vẫn cắt phút theo bậc làm tròn hiện hành; quên chấm duyệt thì ngày là 1 ngày công theo giờ ca của lượt Admin (mục 4.6.1).
-3. `calcDay` (`payroll-engine.js`): `attendanceConfirmed` ⇒ giờ ca = `plannedShift`; `noshow` ⇒ 0 đồng, không lương lễ (ngày lễ khai đi làm mà vắng mất lương lễ); `pending` ⇒ 0 đồng; `unpaid` (kể cả ngày giữ) ⇒ 0 đồng; `cutStartMin/cutEndMin` trừ phút làm (`workedHours`,); `extraOnly` ⇒ không lương ngày, không phụ cấp, không giờ thiếu.
+2. `computeMonth` (`src/engine/payroll-engine.ts`): `payView` (bỏ / đổi khoản chưa duyệt) → `ActualHours.apply(payDays, sessions, {asOf, staff, holidays, month})` thay toàn bộ `payDays` → mỗi ngày trong `explanationHold` ⇒ `{ kind:'unpaid', punchIn, punchOut, held: 'rejected' | 'pending' }` (giữ giờ bấm thật của ngày, `held` = `rejected` nếu giải trình ngày đó bị từ chối, còn lại `pending`) → `calcMonth`. Giải trình **bị từ chối ⇒ ngày không tính công**; giải trình **được duyệt** ⇒ hết giữ: late / early duyệt thì `ActualHours` vẫn cắt phút theo bậc làm tròn hiện hành; quên chấm duyệt thì ngày là 1 ngày công theo giờ ca của lượt Admin (mục 4.6.1).
+3. `calcDay` (`payroll-engine.ts`): `attendanceConfirmed` ⇒ giờ ca = `plannedShift`; `noshow` ⇒ 0 đồng, không lương lễ (ngày lễ khai đi làm mà vắng mất lương lễ); `pending` ⇒ 0 đồng; `unpaid` (kể cả ngày giữ) ⇒ 0 đồng; `cutStartMin/cutEndMin` trừ phút làm (`workedHours`,); `extraOnly` ⇒ không lương ngày, không phụ cấp, không giờ thiếu.
 4. Giờ làm bù theo giờ: trả đủ toàn bộ giờ làm bù đã duyệt và có mặt liền ca, `makeupH × lương giờ` (cộng phần trả thêm của giờ rơi ngày lễ theo `makeupHolRate`), **không cắt theo số giờ còn nợ**. Ngày có giờ làm bù được trả (`makeupH > 0`) **không hưởng phụ cấp ca** và giờ nghỉ đêm có lương; ngày có OT **vẫn hưởng** phụ cấp ca (`noShiftAllowance`,).
 5. OT theo ngày: giờ OT rơi ngày thường trong lịch của người ×`ot.rate` (1,5); rơi Thứ Bảy, Chủ nhật **không nằm trong lịch của người** ×`ot.weekendRate` (2); giờ rơi ngày lễ ×`ot.holidayRate` (3), phần trong khung đêm cộng thêm `night.otAddRate × ot.holidayRate`, áp cho cả giờ ca chính rơi ngày lễ lẫn giờ OT rơi ngày lễ (`holNightH = holMainNightH + holExtraNightH`,); ca đêm sang ngày lễ tách theo ngày dân sự của từng phút. OT ngày thường chỉ ra tiền khi tới trước ngày đó không còn giờ phải bù (`otBlocked`, theo `ot.afterMakeup`; giờ chưa tính vào `otHold`).
 6. **Đếm ngày công** (`calcMonth`,): `r.count++` khi ngày là `work` và không `extraOnly`, hoặc ngày lễ có giờ làm > 0. Chỉ xét ngày `WorkSchedule.isWorkDay` (cộng ngày ngoài lịch có `extraOnly`). Ngày `noshow` vào số ngày nghỉ. Ngày `makeup` (loại không còn dùng): `calcDay` trả 0 đồng, không ngày công, không giờ làm bù. `noShowDates()` luôn rỗng; vắng đến từ `ActualHours.apply`.
@@ -590,7 +590,7 @@ Chuỗi: `loadInputs` → `computeMonth` → `calcMonth`; công thức tiền �
 
 ### 4.13 Giờ bấm thật trên dòng ngày của phiếu
 
-- Nguồn: `ActualHours.apply` ghi `punchIn` / `punchOut` (mục 4.10) vào ngày `work`, `noshow`, `pending` (trừ `not-yet`); ngày giữ vì giải trình mang cùng hai trường (`payroll-engine.js`) cộng `held`. Bản chụp phiếu có hai trường này trong `m.rows[]`.
+- Nguồn: `ActualHours.apply` ghi `punchIn` / `punchOut` (mục 4.10) vào ngày `work`, `noshow`, `pending` (trừ `not-yet`); ngày giữ vì giải trình mang cùng hai trường (`payroll-engine.ts`) cộng `held`. Bản chụp phiếu có hai trường này trong `m.rows[]`.
 - Bản chụp không có hai trường (dòng `work`, `noshow`, ngày lễ có giờ làm, `pending` trừ `not-yet`, hoặc ngày `held`): `withPunchTimes` (`src/domain/payroll/slip-paid.ts`) lấy từ các lượt của tháng bằng `ActualHours.punchTimesOf` khi đọc, thiếu thì `null` cả hai. Bản chụp trong DB không đổi; khi so bản chụp đã lưu với bản tính lại, `withoutPunchTimes` bỏ `punchIn`, `punchOut`, `held`.
 - Hiển thị: ô "Vào – ra" của dòng ngày là `HH:MM – HH:MM`; bên nào không có giờ bấm thì in `--:--`. Ngày vắng, ngày chờ xử lý (trừ chưa tới ngày) và ngày giữ vì giải trình đều in giờ bấm thật ở ô này; ca qua nửa đêm thì giờ ra là giờ đồng hồ của sáng hôm sau.
 - Nhãn ngày giữ: `held === 'rejected'` ⇒ "Bị từ chối", còn lại ⇒ "Chờ xử lý". Ngày giữ không có tiền.
@@ -619,7 +619,7 @@ Chuỗi: `loadInputs` → `computeMonth` → `calcMonth`; công thức tiền �
 
 ### 2.7 Nhãn hiển thị của lượt (`status`, `statusNote`)
 
-Máy chủ tính cho từng lượt gửi ra màn hình (`SessionStatus.classify`, `session-status.ts`); giao diện chỉ đổi mã ra chữ (`src/engine/attendance-status.js`). Nhãn không đổi giờ, tiền hay luồng giải trình.
+Máy chủ tính cho từng lượt gửi ra màn hình (`SessionStatus.classify`, `session-status.ts`); giao diện chỉ đổi mã ra chữ (`src/engine/attendance-status.ts`). Nhãn không đổi giờ, tiền hay luồng giải trình.
 
 | `status` | Nhãn | Khi nào |
 | --- | --- | --- |
@@ -699,11 +699,11 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 
 ### 6.2 Module này gọi
 
-`src/platform/db.ts` (store), `src/platform/request-rules.ts` (`rulesFor`, `nowIso`, `vnToday`, `benefitOf`), `src/platform/warnings.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/authz.ts`, `src/platform/config.ts`, `src/domain/positions.ts` (`sheetFlagsOf`, `checkRequestFlags`), `src/domain/leave-days.ts` + `src/engine/leave.js` (số dư phép), `src/params/store.ts` (bộ tham số theo tháng), `src/domain/shift/*` (danh mục ca, `canonicalOf`).
+`src/platform/db.ts` (store), `src/platform/request-rules.ts` (`rulesFor`, `nowIso`, `vnToday`, `benefitOf`), `src/platform/warnings.ts`, `src/platform/audit.ts`, `src/platform/events.ts`, `src/platform/authz.ts`, `src/platform/config.ts`, `src/domain/positions.ts` (`sheetFlagsOf`, `checkRequestFlags`), `src/domain/leave-days.ts` + `src/engine/leave.ts` (số dư phép), `src/params/store.ts` (bộ tham số theo tháng), `src/domain/shift/*` (danh mục ca, `canonicalOf`).
 
 ### 6.3 Dùng chung trình duyệt và máy chủ
 
-`src/engine/punch.js`, `src/engine/actual-hours.js`, `src/engine/work-schedule.js`, `src/engine/payroll-calendar.js`, `src/engine/approval-view.js`, `src/engine/payroll-engine.js`, `src/engine/payroll-params.js`, `src/engine/attendance-status.js`. Mỗi file có `FALLBACK` phải bằng `PayrollParams.DEFAULTS` (`scripts/params/check-fallbacks.ts`). Máy chủ dùng bản `rulesFor(tháng).<mô-đun>`; trình duyệt và vài chỗ máy chủ (`admin-presence.ts` và `late-checkout.ts` dùng bản trần/mặc định ở một số hàm) dùng bản mặc định.
+`src/engine/punch.ts`, `src/engine/actual-hours.ts`, `src/engine/work-schedule.ts`, `src/engine/payroll-calendar.ts`, `src/engine/approval-view.ts`, `src/engine/payroll-engine.ts`, `src/engine/payroll-params.ts`, `src/engine/attendance-status.ts`. Mỗi file có `FALLBACK` phải bằng `PayrollParams.DEFAULTS` (`scripts/params/check-fallbacks.ts`). Máy chủ dùng bản `rulesFor(tháng).<mô-đun>`; trình duyệt và vài chỗ máy chủ (`admin-presence.ts` và `late-checkout.ts` dùng bản trần/mặc định ở một số hàm) dùng bản mặc định.
 
 ### 6.4 Đổi X thì phải kiểm tra Y
 
@@ -714,7 +714,7 @@ Không có dòng nhật ký cho: Check-in / Check-out thường (bằng chứng 
 | `attendance.openSessionMaxHours` | `forgotOut`, `staleBefore` (SQL `closeStaleFor`), `forgotOutDate` (`/today`), `shiftConfig` gửi nhân viên |
 | `CHECKOUT_GRACE_MIN` / `lateCheckoutMin` | `POST /api/punch` (409), lượt `forgot-out` + `requestedOut`, ngày giữ vì giải trình, nhãn "Check-out muộn", màn giải trình hai phía |
 | Trạng thái / reason của lượt | `ActualHours.inspectDay`, `AdminPresence.isUsableReal`/`#overlap`, `SessionStatus.#issues`, `/team` `pendingDays`, `periods.checklist`, `src/ai/review.ts` |
-| `ADMIN_ORIGIN` | nguồn `src/domain/attendance/attendance-sessions.ts` (cũng dùng trong SQL), `src/engine/actual-hours.js` (chép tay), mọi `origin !==` trong `sessionOverlap`, `closedEntry` |
+| `ADMIN_ORIGIN` | nguồn `src/domain/attendance/attendance-sessions.ts` (cũng dùng trong SQL), `src/engine/actual-hours.ts` (chép tay), mọi `origin !==` trong `sessionOverlap`, `closedEntry` |
 | Ẩn lượt Admin chưa tới giờ ra (`NOT_SCHEDULED`) | `listSessions`, `lastSession`, `AdminPresence.sync` (`includeScheduled`), `ActualHours.apply` (lọc lại theo `asOf`), băm đầu vào kỳ lương |
 | `ActualHours.apply` (bất kỳ nhánh nào) | bộ máy lương, `actualReportView`, `/alerts`, `checkoutPreview`, `periods.checklist`, test `actual-hours`, `payroll-attendance`, `payroll-golden` |
 | `cutMin` / `attendance.graceMin|stepMin|cutRounding` | `cutRuleView` (bảng gửi nhân viên), `checkoutPreview`, ngưỡng "Vào trễ" của `SessionStatus` |
@@ -737,7 +737,7 @@ Unit (`test/unit/`): `punch-rules`, `actual-hours`, `schedule-actual-hours`, `pa
 
 UI (`test/ui/`): `admin-attendance-grid-labels`, `attendance-labels`, `admin-makeup-calendar`, `day-kind-options`, `isat-only-saturday-entitled`, `staff-holiday-ot-request`, `staff-self-requests`.
 
-Tự kiểm của mô-đun: `node src/engine/punch.js` (`src/engine/punch.js`).
+Tự kiểm của mô-đun: `node src/engine/punch.ts` (`src/engine/punch.ts`).
 
 ---
 
@@ -750,8 +750,8 @@ Chỉ ghi nhận hiện trạng của mã.
 1. **Phút vào muộn tính nhiều cách.** `ActualHours.lateMinutes` theo bộ tham số tháng ở `/today` (`src/modules/attendance/attendance.controller.ts`) và ở nhãn lượt (`SessionStatus` qua `rules(month)`); cùng hàm nhưng bản trần (mặc định) ở màn Admin; `PunchRules.lateMin` phút thô có tính cả giờ nghỉ, theo lần ca gần nhất của **mã ca** chứ không theo `plannedShift` ở app nhân viên; báo cáo `apply` (`missedStart`, chỉ phút làm). Phút **ra sớm** ở màn Admin tính thô `endIso − presOut` (`earlyMinutes`), khác `missedEnd` của `ActualHours` (bỏ giờ nghỉ).
 2. **`ActualHours.apply` chạy trên đầu vào khác bộ máy.** Bộ máy chạy trên lịch đã qua `payView`; `actualReportView`, `/alerts` chạy trên lịch khai; `checkoutPreview` dựng ngày giả `kind:'work'` bỏ qua ngày khai thật (làm bù, OT). Trạng thái ngày nhân viên / Admin thấy có thể khác ngày được trả (vd. khoản đi làm lễ chưa duyệt bị bỏ trong bộ máy nhưng hiện `absent` cho nhân viên). `actualReport` cũng không áp ngày giữ vì giải trình.
 3. **Hai hàm kiểm chồng giờ lượt** với luật loại trừ khác nhau: `sessionOverlap` (`src/domain/attendance/index.ts`) và `AdminPresence.#overlap` (`admin-presence.ts`).
-4. **Bảng đổi mã ca hai nơi**: `SHIFT_CODES` + `shiftAliases` (`src/engine/punch.js`) và `ShiftCatalog.canonicalOf/presetOf` (`src/domain/shift/shift-catalog.ts`); thêm `PRESET_RE` riêng ở `src/modules/sheet/sheet.helpers.ts`.
-5. **`ADMIN_ORIGIN` chép tay** ở `src/engine/actual-hours.js` (nguồn: `src/domain/attendance/attendance-sessions.ts`).
+4. **Bảng đổi mã ca hai nơi**: `SHIFT_CODES` + `shiftAliases` (`src/engine/punch.ts`) và `ShiftCatalog.canonicalOf/presetOf` (`src/domain/shift/shift-catalog.ts`); thêm `PRESET_RE` riêng ở `src/modules/sheet/sheet.helpers.ts`.
+5. **`ADMIN_ORIGIN` chép tay** ở `src/engine/actual-hours.ts` (nguồn: `src/domain/attendance/attendance-sessions.ts`).
 6. **Trần giờ làm một nguồn**: `DAY_HOURS_CAP` (`src/domain/overtime/hour-limits.ts`, giờ ròng một ngày) và `MONTH_OT_CAP`, đọc từ `law.ceiling.otDayTotalHours` / `law.ceiling.otMonthHours` của `DEFAULTS`.
 7. **Khung đêm 22h–6h hai nguồn**: `overlapsNight` và `shiftFor` viết cứng 1320/360/420 (`src/domain/overtime/worked-hours.ts`), trong khi `PayrollCalendar` đọc `time.nightStartHour/nightEndHour`.
 8. **Giờ OT ngày lễ đếm ở hai nơi**: lịch khai (`estimateHolidayOtHours`) và Check-in/out (`actualHolidayOtHours`). Cùng giờ thô, khác nguồn dữ liệu.
@@ -760,12 +760,12 @@ Chỉ ghi nhận hiện trạng của mã.
 ### 8.2 Mã chết / trường không ai đọc
 
 10. `attendanceHints` không bao giờ được thêm, nên `announceAttendance` và tin `attendance.changed` kind `forgot` không bao giờ phát (`src/platform/announce.ts`).
-11. `noShowDates()` luôn trả tập rỗng (`src/engine/payroll-engine.js`); vắng thật đến từ `ActualHours.apply` (`kind:'noshow'`).
+11. `noShowDates()` luôn trả tập rỗng (`src/engine/payroll-engine.ts`); vắng thật đến từ `ActualHours.apply` (`kind:'noshow'`).
 12. (đã gỡ) Lớp `AttendanceCalendar` chưa nối đã bị xoá khỏi mã; số ngày đi làm do `ActualHours` và bộ máy lương tính.
-13. Lý do `needs-review` được nhận diện (`actual-hours.js`, `admin-presence.ts`, `session-status.ts`, `src/ai/review.ts`) nhưng không mã nào tạo ra.
+13. Lý do `needs-review` được nhận diện (`actual-hours.ts`, `admin-presence.ts`, `session-status.ts`, `src/ai/review.ts`) nhưng không mã nào tạo ra.
 14. Trường ghi mà không đọc: `otNeedsReview`, `otDeclarationHistory`, `otHistory` (`src/modules/attendance/attendance.controller.ts` `1410`). `punchState` trả hằng `sunday:false`, `outside:''`.
 15. Tính năng sửa giờ (`corrections`) không có route ghi nhưng `GET /api/sheet` vẫn trả `corrections` và mọi lượt vẫn kèm `corrections` (`src/domain/attendance/index.ts`); hàm kiểm `version` của lượt vẫn tên `correctionVersion` dù chỉ OT dùng.
-16. Tham số `time.maxSpanHours` (9) còn trong `src/engine/payroll-params.js` nhưng không mã nào đọc. Các ô chính sách một giá trị (`beyondShiftRule`, `extraWindowRule`, `extraSourceRule`, `futureDaysRule`, `declaredLeaveRule`, `missingOneSideRule`, `undeclaredPunchRule`) chỉ được kiểm hợp lệ, không rẽ nhánh nào.
+16. Tham số `time.maxSpanHours` (9) còn trong `src/engine/payroll-params.ts` nhưng không mã nào đọc. Các ô chính sách một giá trị (`beyondShiftRule`, `extraWindowRule`, `extraSourceRule`, `futureDaysRule`, `declaredLeaveRule`, `missingOneSideRule`, `undeclaredPunchRule`) chỉ được kiểm hợp lệ, không rẽ nhánh nào.
 17. OT ghi ở Check-in/out (`POST/PUT /api/ot`) không bao giờ ra tiền (mục 4.8) nhưng vẫn đi qua đầy đủ kiểm trần, duyệt, nhật ký, và vẫn được cộng vào trần giờ lễ + OT (`src/modules/attendance/attendance.controller.ts`, `ot.ts`).
 18. `PunchRules.checkInMsg` còn câu "nhờ Admin ghi giờ" / "nhờ Admin gán ca"; câu này chỉ hiện qua `punchView` (`mode: 'window' | 'noshift'`) khi máy chủ không trả `checkInBlock`; máy chủ dùng câu của `CheckinEntitlement`.
 
@@ -777,9 +777,9 @@ Chỉ ghi nhận hiện trạng của mã.
 
 20. **Bước "tháng hiện tại" thay vì tháng của lượt**: `closeStale` (`attendance.ts`), `POST /api/punch` (`src/modules/attendance/attendance.controller.ts`), `LateCheckout.closedEntry` (`late-checkout-session.ts`) dùng `rulesFor()` của ngày hiện tại; lượt qua ranh giới tháng có tham số khác (giờ ca, ngưỡng) sẽ được dựng theo tháng mới. `admin-presence.ts` và `late-checkout.ts` dùng bản trần ở vài hàm (`presenceOf`, `spanH`).
 21. `closeStale` ghi punch `out` tự động với giờ lúc phát hiện, không phải lúc đủ 16 giờ (`attendance.ts`). `GET /api/punch` và `GET /api/sheet` vẫn gọi `closeStale` nên mở giao dịch ghi mỗi lần đọc khi có lượt quá hạn (`src/domain/attendance/index.ts` chỉ nói đường đọc dùng `closeStaleFor` mới lọc bằng SQL).
-22. Lượt `kind:'pending'` lý do `incomplete-shift` / `multiple-sessions` vẫn được tính tiền (`actual-hours.js`) nhưng bị đếm vào `pendingDays` ở `/team` (`src/modules/attendance/attendance.controller.ts` / `src/modules/sheet/sheet.controller.ts`).
+22. Lượt `kind:'pending'` lý do `incomplete-shift` / `multiple-sessions` vẫn được tính tiền (`actual-hours.ts`) nhưng bị đếm vào `pendingDays` ở `/team` (`src/modules/attendance/attendance.controller.ts` / `src/modules/sheet/sheet.controller.ts`).
 23. Lượt Admin chỉ được đồng bộ khi Admin khai thay (`sheet-on-behalf.ts`): nhân viên tự đổi ngày đó (sang nghỉ, đổi giờ) thì lượt Admin cũ vẫn còn với giờ cũ.
-24. `AdminPresence.#build` ghi cả entry `pending/off-shift` khi giờ khai không chồng ca (`admin-presence.ts` + `punch.js`): ngày đó thành "không khớp ca, chờ Admin" thay vì báo lỗi lúc lưu.
+24. `AdminPresence.#build` ghi cả entry `pending/off-shift` khi giờ khai không chồng ca (`admin-presence.ts` + `punch.ts`): ngày đó thành "không khớp ca, chờ Admin" thay vì báo lỗi lúc lưu.
 25. `SHEET_SUNDAY` không miễn ngày không đổi (`timesheet/timesheet-validator.ts`) như các kiểm khác: một ngày Chủ nhật đã lưu làm mọi lần lưu sau của tháng đó có cảnh báo `SHEET_SUNDAY`.
 26. `lateCheckoutMin` dùng `spanH(planned.out, extraOut)` (`late-checkout.ts`); `spanH` trả 24 giờ khi hai giờ bằng nhau và gần 24 giờ khi `extraOut` sớm hơn `planned.out` (`overtime/worked-hours.ts`). Ngày khai có ca khác ca được gán (vd. ca gán 08–17, khai 06–15 kèm `extraOut` 17:00) cho khoảng được phép ~24 giờ, nên Check-out muộn không bị đòi giải trình.
 27. Route giải trình không khoá kỳ ở cổng (`src/platform/authz.ts`) nhưng quyết định đổi `presOut` của lượt (`late-checkout-session.ts`) và ngày giữ vì giải trình đổi tiền; kỳ đã khoá chấm công vẫn bị thay đổi dữ liệu đầu vào khi quyết định là Check-out muộn.

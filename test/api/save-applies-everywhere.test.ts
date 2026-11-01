@@ -10,9 +10,9 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../src/engine/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine');
 const paramsStore = require('../../src/params/store');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 
 const { F, store, flow } = S;
 const monthOf = S.monthPool();

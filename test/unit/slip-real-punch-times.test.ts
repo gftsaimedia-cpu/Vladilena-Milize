@@ -8,10 +8,10 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../src/engine/punch.js');
-const Engine = require('../../src/engine/payroll-engine.js');
-const ActualHours = require('../../src/engine/actual-hours.js');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const P = require('../../src/engine/punch');
+const Engine = require('../../src/engine/payroll-engine');
+const ActualHours = require('../../src/engine/actual-hours');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const { AdminPresence } = require('../../src/domain/attendance/admin-presence');
 const store = require('../../src/platform/db');
 const { withDayFigures, withoutPunchTimes } = require('../../src/domain/payroll/slip-paid');

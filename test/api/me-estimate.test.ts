@@ -11,7 +11,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params');
 const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store, flow } = P;
@@ -137,7 +137,7 @@ test('Số ước tính của cả bốn người (TTS, CTV, hai NV) bằng đú
     );
     assert.equal(body.toDate, null, `${username}: tháng đã qua không có khối tới-hôm-nay`);
     assert.match(body.paramsHash, /^[0-9a-f]{64}$/);
-    assert.equal(body.engineVersion, require('../../src/engine/payroll-engine.js').ENGINE_VERSION);
+    assert.equal(body.engineVersion, require('../../src/engine/payroll-engine').ENGINE_VERSION);
   }
 });
 
@@ -146,7 +146,7 @@ test('Một ca cụ thể: NV level 1, 20 ngày chấm đủ ca, không KPI: t�
   await P.seed(M);
   await store.setSetting('holidays', []); // ngày lễ có lương làm số ngày trả lệch khỏi số ngày làm
   await F.person('qa_exact', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
-  const PunchRules = require('../../src/engine/punch.js');
+  const PunchRules = require('../../src/engine/punch');
   const holidays = await store.getSetting('holidays', []);
   const [tin, tout] = PunchRules.SHIFT.n1;
   const workDates = Array.from({ length: 31 }, (_, i) => `${M}-${String(i + 1).padStart(2, '0')}`).filter(d => {

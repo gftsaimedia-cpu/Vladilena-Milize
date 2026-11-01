@@ -12,7 +12,7 @@ const events = require('../../src/platform/events');
 const authz = require('../../src/platform/authz');
 const auth = require('../../src/platform/auth');
 const config = require('../../src/platform/config');
-const PunchRules = require('../../src/engine/punch.js');
+const PunchRules = require('../../src/engine/punch');
 
 const { store } = F;
 
