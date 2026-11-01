@@ -1,12 +1,12 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { AUTHZ, DOMAIN, STORE } from '../../core/tokens';
+import { ExplanationsHandlers } from './explanations.handlers';
+import { Controller, Get, Post, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-import { isAdmin, auditRow, withName, changed, absentDay } from './explanations.handlers';
+
 const { AsyncList } = require('../../shared/async-list');
-const store = require('../../platform/db');
-const authz = require('../../platform/authz');
+
 const { HttpError, readJson } = require('../../platform/http');
 const { USERNAME_RE } = require('../../domain/input');
-const { container } = require('../../domain/container');
 
 /**
  * Giải trình Check-out muộn, ngày vắng và yêu cầu giải trình của Admin (nghiệp vụ ở src/domain/explanation/explanation-service.ts).
@@ -14,18 +14,25 @@ const { container } = require('../../domain/container');
  */
 @Controller('api')
 export class ExplanationsController {
+  constructor(
+    @Inject(DOMAIN) private readonly domain: any,
+    @Inject(STORE) private readonly store: any,
+    @Inject(AUTHZ) private readonly authz: any,
+    @Inject(ExplanationsHandlers) private readonly explanationsHandlers: ExplanationsHandlers
+  ) {}
+
   /** [?status=][&user=] nhân sự: của mình; người có attendance.correct (Admin): mọi người (user= lọc một người) */
   @Get('explanations')
   async list(@Ctx() c: ApiContext): Promise<unknown> {
     const { url, me, res } = c;
-    const explanations = container.explanations;
+    const explanations = this.domain.explanations;
     const status = url.searchParams.get('status') || undefined;
     const asked = (url.searchParams.get('user') || '').toLowerCase();
     if (asked && !USERNAME_RE.test(asked)) throw new HttpError(400, 'user không hợp lệ');
-    const admin = await isAdmin(me);
+    const admin = await this.explanationsHandlers.isAdmin(me);
     const username = admin ? asked || undefined : me.username;
     return {
-      items: await AsyncList.map(await explanations.list({ username, status }), withName),
+      items: await AsyncList.map(await explanations.list({ username, status }), this.explanationsHandlers.withName),
       waitingForYou: await explanations.countOpen(me.username), // yêu cầu đang chờ chính người xem trả lời
       toRead: admin ? await explanations.countOpen() : 0 // đã trả lời, Admin chưa đọc
     };
@@ -38,12 +45,12 @@ export class ExplanationsController {
   @Post('explanations')
   async submit(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx } = c;
-    const explanations = container.explanations;
+    const explanations = this.domain.explanations;
     const body = await readJson(req);
     if (body && body.username && String(body.username).toLowerCase() !== me.username) {
-      if (!(await isAdmin(me)))
+      if (!(await this.explanationsHandlers.isAdmin(me)))
         throw new HttpError(403, 'Chỉ Admin được yêu cầu người khác giải trình', { code: 'FORBIDDEN_CAP' });
-      const row = await store.transaction(async () => {
+      const row = await this.store.transaction(async () => {
         const made = await explanations.request({
           username: String(body.username).toLowerCase(),
           date: body.date,
@@ -52,35 +59,36 @@ export class ExplanationsController {
           requestedBy: body.source === 'ai' ? `ai (${me.username})` : me.username,
           ruleId: body.ruleId
         });
-        await auditRow(actx, 'explanation.request', null, made, made.prompt);
+        await this.explanationsHandlers.auditRow(actx, 'explanation.request', null, made, made.prompt);
         return made;
       });
-      await changed(row);
-      return { item: await withName(row) };
+      await this.explanationsHandlers.changed(row);
+      return { item: await this.explanationsHandlers.withName(row) };
     }
     if (body && body.sessionId === undefined && body.date !== undefined) {
-      const row = await store.transaction(async () => {
+      const row = await this.store.transaction(async () => {
         const made = await explanations.submitAbsentDay({
           username: me.username,
           date: body.date,
           text: body.text,
-          stateOf: async (username: string, date: string) => await absentDay.stateOf(username, date)
+          stateOf: async (username: string, date: string) =>
+            await this.explanationsHandlers.absentDay.stateOf(username, date)
         });
-        await auditRow(actx, 'explanation.self', null, made, null);
+        await this.explanationsHandlers.auditRow(actx, 'explanation.self', null, made, null);
         return made;
       });
-      await changed(row);
-      return { item: await withName(row) };
+      await this.explanationsHandlers.changed(row);
+      return { item: await this.explanationsHandlers.withName(row) };
     }
-    const session = await store.getSession(Number(body && body.sessionId));
-    const row = await store.transaction(async () => {
-      const before = session ? await container.explanationRepository.lateFor(session.id) : null;
+    const session = await this.store.getSession(Number(body && body.sessionId));
+    const row = await this.store.transaction(async () => {
+      const before = session ? await this.domain.explanationRepository.lateFor(session.id) : null;
       const made = await explanations.submitLate({ username: me.username, session, text: body && body.text });
-      await auditRow(actx, 'explanation.late-checkout', before && before.view(), made, null);
+      await this.explanationsHandlers.auditRow(actx, 'explanation.late-checkout', before && before.view(), made, null);
       return made;
     });
-    await changed(row);
-    return { item: await withName(row) };
+    await this.explanationsHandlers.changed(row);
+    return { item: await this.explanationsHandlers.withName(row) };
   }
 
   /** { text } nhân sự trả lời yêu cầu của mình */
@@ -99,11 +107,11 @@ export class ExplanationsController {
   }
 
   private async move({ req, res, seg, me, actx }: ApiContext, step: 'answer' | 'decide'): Promise<unknown> {
-    const explanations = container.explanations;
+    const explanations = this.domain.explanations;
     if (!/^\d+$/.test(seg[2])) throw new HttpError(404, 'Không có đường dẫn này');
     const id = Number(seg[2]);
     const body = await readJson(req);
-    const row = await store.transaction(async () => {
+    const row = await this.store.transaction(async () => {
       const before = await explanations.byId(id);
       const done =
         step === 'answer'
@@ -114,16 +122,16 @@ export class ExplanationsController {
               approve: !!(body && body.approve),
               note: body && body.note,
               expectedRev: body && body.expectedRev,
-              isSelf: !!before && authz.isSelfDecision(me, before.username)
+              isSelf: !!before && this.authz.isSelfDecision(me, before.username)
             });
-      await auditRow(actx, `explanation.${step}`, before, done, null);
+      await this.explanationsHandlers.auditRow(actx, `explanation.${step}`, before, done, null);
       // Check-out muộn: duyệt thì giờ bấm thành giờ Check-out của lượt, không duyệt thì lượt giữ "Quên Check-out" (cùng giao dịch)
-      if (step === 'decide') await container.lateCheckout.sync(done, actx);
+      if (step === 'decide') await this.domain.lateCheckout.sync(done, actx);
       // Giải trình ngày: duyệt ngày quên chấm thì ghi công theo giờ ca, không duyệt thì bỏ công đã ghi theo giải trình này (cùng giao dịch)
-      const day = step === 'decide' ? await container.adminPresence.syncExplanation({ view: done, actx }) : null;
+      const day = step === 'decide' ? await this.domain.adminPresence.syncExplanation({ view: done, actx }) : null;
       return { done, recorded: !!(day && day.set.length) };
     });
-    await changed(row.done);
-    return { item: await withName(row.done), recorded: row.recorded };
+    await this.explanationsHandlers.changed(row.done);
+    return { item: await this.explanationsHandlers.withName(row.done), recorded: row.recorded };
   }
 }

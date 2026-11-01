@@ -1,3 +1,5 @@
+import { Inject, Injectable } from '@nestjs/common';
+import { AUTHZ, DOMAIN, EVENTS, STORE } from '../../core/tokens';
 const { AsyncList } = require('../../shared/async-list');
 // Route giải trình (nghiệp vụ ở explanation-service.js). src/domain/routes.js gửi /api/explanations/... tới handle().
 //   GET  /api/explanations[?status=][&user=]   nhân sự: của mình; người có attendance.correct (Admin): mọi người (user= lọc một người)
@@ -14,32 +16,50 @@ const { AsyncList } = require('../../shared/async-list');
 //                                                             giờ Check-out của lượt (late-checkout-session.js)
 //                                                             Giải trình ngày: duyệt ngày quên Check-in/out thì ghi công theo giờ ca (phản hồi
 //                                                             recorded; admin-presence.js → syncExplanation), từ chối thì bỏ công đó, ngày không tính công
-const store = require('../../platform/db');
-const authz = require('../../platform/authz');
-const events = require('../../platform/events');
+
 const { HttpError, readJson } = require('../../platform/http');
 const { USERNAME_RE } = require('../../domain/input');
-const { container } = require('../../domain/container');
+
 const { AbsentDay } = require('../../domain/explanation/absent-day');
 
 const CAP = 'attendance.correct';
-export const absentDay = new AbsentDay({ store });
-export const isAdmin = async me => (await authz.scopeOf(me, CAP)) === 'all';
-export const auditRow = async (...args) => await container.lateCheckout.auditExplanation(...args);
+
 // requestedOut: giờ nhân sự bấm Check-out muộn (lượt đang "Quên Check-out" chờ duyệt); Admin duyệt thì giờ này thành giờ Check-out
-const requestedOut = async row =>
-  (row.kind === 'late-checkout' &&
-    row.sessionId &&
-    ((await store.getSession(row.sessionId)) || {}).entry?.requestedOut) ||
-  null;
-export const withName = async row => ({
-  ...row,
-  name: ((await store.getStaff(row.username)) || {}).name || row.username,
-  requestedOut: await requestedOut(row)
-});
-export const changed = async row => {
-  await events.emit.approvalsChanged(row.date.slice(0, 7)); // Admin nạp lại
-  // giải trình gắn với một lượt quyết định trạng thái hiển thị của lượt đó: màn Chấm công đang mở nạp lại
-  if (row.sessionId) await events.emit.attendanceChanged('explanation', row.date.slice(0, 7));
-  await events.emit.punchChanged(row.username, row.date); // nhân sự nạp lại
-};
+
+@Injectable()
+export class ExplanationsHandlers {
+  constructor(
+    @Inject(STORE) private readonly store: any,
+    @Inject(AUTHZ) private readonly authz: any,
+    @Inject(DOMAIN) private readonly domain: any,
+    @Inject(EVENTS) private readonly events: any
+  ) {}
+
+  private _absentDay: any;
+  get absentDay() {
+    return (this._absentDay ??= new AbsentDay({ store: this.store }));
+  }
+
+  isAdmin = async me => (await this.authz.scopeOf(me, CAP)) === 'all';
+
+  auditRow = async (...args) => await this.domain.lateCheckout.auditExplanation(...args);
+
+  requestedOut = async row =>
+    (row.kind === 'late-checkout' &&
+      row.sessionId &&
+      ((await this.store.getSession(row.sessionId)) || {}).entry?.requestedOut) ||
+    null;
+
+  withName = async row => ({
+    ...row,
+    name: ((await this.store.getStaff(row.username)) || {}).name || row.username,
+    requestedOut: await this.requestedOut(row)
+  });
+
+  changed = async row => {
+    await this.events.emit.approvalsChanged(row.date.slice(0, 7)); // Admin nạp lại
+    // giải trình gắn với một lượt quyết định trạng thái hiển thị của lượt đó: màn Chấm công đang mở nạp lại
+    if (row.sessionId) await this.events.emit.attendanceChanged('explanation', row.date.slice(0, 7));
+    await this.events.emit.punchChanged(row.username, row.date); // nhân sự nạp lại
+  };
+}

@@ -1,11 +1,11 @@
-import { Controller, Get, Put } from '@nestjs/common';
+import { DOMAIN, EVENTS, RULES } from '../../core/tokens';
+import { Controller, Get, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const paramsSave = require('../../params/save');
-const events = require('../../platform/events');
+
 const { HttpError, readJson } = require('../../platform/http');
 const { validMonth } = require('../../domain/input');
-const { rulesFor, vnToday } = require('../../platform/request-rules');
-const { container } = require('../../domain/container');
+
 const { view, shiftsOf } = require('../../domain/shifts');
 
 const bad = (message: string, code: string) => new HttpError(400, message, { code });
@@ -17,10 +17,16 @@ const bad = (message: string, code: string) => new HttpError(400, message, { cod
  */
 @Controller('api')
 export class SettingsShiftsController {
+  constructor(
+    @Inject(RULES) private readonly rules: any,
+    @Inject(DOMAIN) private readonly domain: any,
+    @Inject(EVENTS) private readonly events: any
+  ) {}
+
   /** ?month= → { month, paramsRev, editable, hours, shifts: [{ code, preset, name, kind, in, out }] } */
   @Get('settings/shifts')
   async get(@Ctx() c: ApiContext): Promise<unknown> {
-    const month = c.url.searchParams.get('month') || vnToday().slice(0, 7);
+    const month = c.url.searchParams.get('month') || this.rules.vnToday().slice(0, 7);
     if (!validMonth(month)) throw bad('month phải dạng YYYY-MM', 'BAD_MONTH');
     return await view(month);
   }
@@ -32,14 +38,14 @@ export class SettingsShiftsController {
     const b = await readJson(req);
     if (!b || typeof b !== 'object' || !Array.isArray(b.shifts) || !b.shifts.length)
       throw bad('shifts phải là mảng { code, in, out }', 'SHIFTS_REQUIRED');
-    const known = Object.keys((await rulesFor()).punch.SHIFT);
+    const known = Object.keys((await this.rules.rulesFor()).punch.SHIFT);
     const changes: Array<{ key: string; value: unknown }> = [];
     for (const item of b.shifts) {
       const preset =
-        item && typeof item === 'object' ? (await container.shifts.presetOf(item.code)) || item.code : null;
+        item && typeof item === 'object' ? (await this.domain.shifts.presetOf(item.code)) || item.code : null;
       if (!preset || !known.includes(preset))
         throw bad(
-          `Mã ca phải là một trong: ${(await shiftsOf(vnToday().slice(0, 7))).map((sh: any) => sh.code).join(', ')}`,
+          `Mã ca phải là một trong: ${(await shiftsOf(this.rules.vnToday().slice(0, 7))).map((sh: any) => sh.code).join(', ')}`,
           'SHIFT_UNKNOWN'
         );
       changes.push(
@@ -55,7 +61,7 @@ export class SettingsShiftsController {
       expectedRev: b.expectedRev,
       acknowledge: b.acknowledge
     });
-    if (saved.notice) events.emit.paramsChanged(saved.notice);
+    if (saved.notice) this.events.emit.paramsChanged(saved.notice);
     return saved;
   }
 }

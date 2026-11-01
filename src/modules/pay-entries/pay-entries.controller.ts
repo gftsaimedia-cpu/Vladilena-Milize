@@ -1,7 +1,7 @@
-import { Controller, Get, Post, Put } from '@nestjs/common';
+import { EVENTS, STORE } from '../../core/tokens';
+import { Controller, Get, Post, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const store = require('../../platform/db');
-const events = require('../../platform/events');
+
 const entries = require('../../domain/payroll/pay-entries');
 const { HttpError, readJson } = require('../../platform/http');
 const { validMonth } = require('../../domain/input');
@@ -12,9 +12,6 @@ function idOf(segment: string): number {
   return Number(segment);
 }
 // Khoản đã duyệt (hoặc có hiệu lực ngay) làm ước tính của người đó đổi: báo estimate.changed cho đúng người sau khi COMMIT
-const notify = (entry: any) => {
-  if (entry && entry.status === 'approved') events.emit.estimateChanged(entry.username, entry.month);
-};
 
 /**
  * Khoản điền thêm theo người theo tháng. Quyền đã kiểm ở cổng ROUTE_CAPS (src/platform/authz.ts);
@@ -22,6 +19,15 @@ const notify = (entry: any) => {
  */
 @Controller('api')
 export class PayEntriesController {
+  constructor(
+    @Inject(STORE) private readonly store: any,
+    @Inject(EVENTS) private readonly events: any
+  ) {}
+
+  notify = (entry: any) => {
+    if (entry && entry.status === 'approved') this.events.emit.estimateChanged(entry.username, entry.month);
+  };
+
   /** ?month=&username=&status= (salary.read) → { month, periodStatus, requireApproval, entries } */
   @Get('pay-entries')
   async list(@Ctx() c: ApiContext): Promise<unknown> {
@@ -35,7 +41,7 @@ export class PayEntriesController {
     });
     return {
       month,
-      periodStatus: await store.periods.status(month),
+      periodStatus: await this.store.periods.status(month),
       requireApproval: (await entries.limitsFor(month)).requireApproval,
       entries: rows
     };
@@ -45,7 +51,7 @@ export class PayEntriesController {
   @Post('pay-entries')
   async create(@Ctx() c: ApiContext): Promise<unknown> {
     const entry = await entries.create(await readJson(c.req), c.me, c.actx);
-    notify(entry);
+    this.notify(entry);
     return { entry };
   }
 
@@ -53,7 +59,7 @@ export class PayEntriesController {
   @Post('pay-entries/bulk')
   async createBulk(@Ctx() c: ApiContext): Promise<unknown> {
     const made = await entries.createBulk(await readJson(c.req), c.me, c.actx);
-    made.forEach(notify);
+    made.forEach(this.notify);
     return { count: made.length, entries: made };
   }
 
@@ -68,7 +74,7 @@ export class PayEntriesController {
   @Put('pay-entries/:id/decide')
   async decide(@Ctx() c: ApiContext): Promise<unknown> {
     const entry = await entries.decide(idOf(c.seg[2]), await readJson(c.req), c.me, c.actx);
-    notify(entry);
+    this.notify(entry);
     return { entry };
   }
 
@@ -76,7 +82,7 @@ export class PayEntriesController {
   @Post('pay-entries/:id/void')
   async void(@Ctx() c: ApiContext): Promise<unknown> {
     const { entry, wasApproved } = await entries.voidEntry(idOf(c.seg[2]), await readJson(c.req), c.me, c.actx);
-    if (wasApproved) events.emit.estimateChanged(entry.username, entry.month);
+    if (wasApproved) this.events.emit.estimateChanged(entry.username, entry.month);
     return { entry };
   }
 
@@ -84,7 +90,7 @@ export class PayEntriesController {
   @Post('pay-entries/:id/confirm-flags')
   async confirmFlags(@Ctx() c: ApiContext): Promise<unknown> {
     const entry = await entries.confirmFlags(idOf(c.seg[2]), await readJson(c.req), c.me, c.actx);
-    notify(entry);
+    this.notify(entry);
     return { entry };
   }
 }

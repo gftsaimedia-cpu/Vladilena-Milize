@@ -94,7 +94,7 @@ test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể c�
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
   assert.ok(GRAPH.get('src/main.ts').has('src/platform/db.ts'), 'src/main.ts → src/platform/db.ts');
-  assert.ok(GRAPH.get('src/http/api-gate.ts').has('src/platform/authz.ts'), 'cổng ApiGuard → src/platform/authz.ts');
+  assert.ok(GRAPH.get('src/http/api-gate.ts').has('src/platform/config.ts'), 'cổng ApiGate → src/platform/config.ts');
   assert.ok(GRAPH.get('src/platform/auth.ts').has('src/platform/db.ts'));
   const edges = [...GRAPH.values()].reduce((n, set) => n + set.size, 0);
   assert.ok(edges >= 30, `chỉ thấy ${edges} cạnh`);

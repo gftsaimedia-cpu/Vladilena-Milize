@@ -1,32 +1,42 @@
-import { Controller, Get, Put, Post } from '@nestjs/common';
+import { AGENTS, AUDIT, EVENTS, RULES, STORE } from '../../core/tokens';
+import { SettingsHelpers } from './settings.helpers';
+import { Controller, Get, Put, Post, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-import { holidayOtConflicts } from './settings.helpers';
-const store = require('../../platform/db');
+
 const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, benefitOf, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+// quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { announceSetting } = require('../../platform/announce'); // báo sau COMMIT: cấu hình đổi (chấm công mới đi qua punchHints, kind 'punch')
 const { validMonth, validDate } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { leaveDates } = require('../../domain/sheet'); // lịch ước tính và ngày phép
 const { GeofencePolicy } = require('../../domain/attendance/geofence-policy');
 const { reconcileHolidayWork } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
-const agents = require('../../platform/agents'); // công tắc Agents
-const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+// công tắc Agents
+// nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
 const paramsStore = require('../../params/store');
 const configRev = require('../../params/config-rev'); // số phiên bản chung của cấu hình (settings.config_rev)
 const HolidayNames = require('../../domain/holidays'); // tên ngày lễ (nhãn hiển thị)
 const paramsSave = require('../../params/save'); // lưu tham số: kiểm, xem trước tác động, ghi cả lô, hoàn tác
-const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+// báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
 export class SettingsController {
+  constructor(
+    @Inject(STORE) private readonly store: any,
+    @Inject(RULES) private readonly rules: any,
+    @Inject(AUDIT) private readonly audit: any,
+    @Inject(AGENTS) private readonly agents: any,
+    @Inject(EVENTS) private readonly events: any,
+    @Inject(SettingsHelpers) private readonly settingsHelpers: SettingsHelpers
+  ) {}
+
   @Get('holidays')
   async getHolidays(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     need();
-    return { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() };
+    return { dates: await this.store.getSetting('holidays', []), names: await HolidayNames.read() };
   }
 
   @Put('holidays')
@@ -39,21 +49,21 @@ export class SettingsController {
     const clean = [...new Set(dates)].sort();
     const namesClean = await HolidayNames.clean(names, clean); // tên hiển thị của ngày lễ; sai đầu vào là 400 trước mọi thay đổi
     // Khoá kỳ: chỉ các ngày thật sự đổi (thêm hoặc bỏ) mới bị xét, lưu lại danh sách y nguyên không bị chặn
-    const holidaysBefore = await store.getSetting('holidays', []);
+    const holidaysBefore = await this.store.getSetting('holidays', []);
     await guardPeriod(
       holidaysBefore.filter(d => !clean.includes(d)),
       clean.filter(d => !holidaysBefore.includes(d))
     );
-    await store.transaction(async () => {
+    await this.store.transaction(async () => {
       const conflicts: any[] = [];
-      const holidayParams = await monthParams();
-      for (const staff of (await store.listStaff()).filter(
-        s => s.payrollSubject && benefitOf(holidayParams, s.type, 'leaveAccount', s.level)
+      const holidayParams = await this.rules.monthParams();
+      for (const staff of (await this.store.listStaff()).filter(
+        s => s.payrollSubject && this.rules.benefitOf(holidayParams, s.type, 'leaveAccount', s.level)
       )) {
         const before = await leaveDates(staff),
           after = await leaveDates(staff, undefined, clean);
         for (const date of after) {
-          const led = (await rulesFor(date.slice(0, 7))).leave.ledger(staff, after, date),
+          const led = (await this.rules.rulesFor(date.slice(0, 7))).leave.ledger(staff, after, date),
             got = led.total - led.expired, // phép còn được dùng tại ngày đó: đã cộng trừ phần đã hết hạn
             used = led.used;
           const beforeDeficit = Math.max(0, before.filter(d => d <= date).length - got),
@@ -83,7 +93,10 @@ export class SettingsController {
           count: people.length
         });
       }
-      const otConflicts = await holidayOtConflicts(await store.getSetting('holidays', []), clean);
+      const otConflicts = await this.settingsHelpers.holidayOtConflicts(
+        await this.store.getSetting('holidays', []),
+        clean
+      );
       if (otConflicts.length) {
         const first = otConflicts[0],
           source = first.source === 'estimate' ? 'Lịch ước tính' : 'Check-in/out';
@@ -100,13 +113,13 @@ export class SettingsController {
           count: people.length
         });
       }
-      const before = await store.getSetting('holidays', []);
+      const before = await this.store.getSetting('holidays', []);
       const namesBefore = await HolidayNames.read();
-      await store.setSetting('holidays', clean);
+      await this.store.setSetting('holidays', clean);
       const namesChanged = await HolidayNames.write(namesClean);
       await configRev.bump(); // số phiên bản chung, cùng giao dịch
       await reconcileHolidayWork(before, clean);
-      await audit.write(actx, {
+      await this.audit.write(actx, {
         action: 'holiday.set',
         entityKind: 'setting',
         entityId: 'holidays',
@@ -126,7 +139,7 @@ export class SettingsController {
   async getSettingsAgents(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, needAdmin } = c;
     needAdmin();
-    return { enabled: await agents.enabled() };
+    return { enabled: await this.agents.enabled() };
   }
 
   @Put('settings/agents')
@@ -135,22 +148,22 @@ export class SettingsController {
     const admin = needAdmin(),
       b = await readJson(req);
     if (typeof b.enabled !== 'boolean') throw new HttpError(400, 'enabled phải là true hoặc false');
-    const was = await agents.enabled();
+    const was = await this.agents.enabled();
     if (b.enabled !== was)
-      await store.transaction(async () => {
-        await agents.set(b.enabled);
+      await this.store.transaction(async () => {
+        await this.agents.set(b.enabled);
         await configRev.bump(); // số phiên bản chung, cùng giao dịch
-        await audit.write(actx, {
+        await this.audit.write(actx, {
           action: 'setting.agents',
           entityKind: 'setting',
-          entityId: agents.SETTING_KEY,
+          entityId: this.agents.SETTING_KEY,
           before: { enabled: was },
           after: { enabled: b.enabled },
           sensitivity: 'pay'
         });
       });
     if (b.enabled !== was) await announceSetting('agents', admin.username);
-    return { enabled: await agents.enabled() };
+    return { enabled: await this.agents.enabled() };
   }
 
   @Put('settings/geofence')
@@ -161,13 +174,13 @@ export class SettingsController {
     // Tắt phải nói rõ: null (hoặc { geofence: null }). Thân rỗng hay thiếu trường không được ngầm hiểu là tắt.
     const off = b === null || (Object.keys(b).length === 1 && b.geofence === null);
     const next = off ? null : GeofencePolicy.clean(b);
-    await store.transaction(async () => {
-      const was = await store.getSetting('geofence', null);
-      await store.setSetting('geofence', next);
+    await this.store.transaction(async () => {
+      const was = await this.store.getSetting('geofence', null);
+      await this.store.setSetting('geofence', next);
       await configRev.bump(); // số phiên bản chung, cùng giao dịch
       // Chỉ ghi bật/tắt và bán kính; KHÔNG ghi toạ độ
       const view = fence => ({ enabled: !!fence, ...(fence ? { radiusM: fence.radiusM } : {}) });
-      await audit.write(actx, {
+      await this.audit.write(actx, {
         action: 'setting.geofence',
         entityKind: 'setting',
         entityId: 'geofence',
@@ -184,7 +197,7 @@ export class SettingsController {
   async getSettingsParams(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, route, need } = c;
     need(); // năng lực config.read đã kiểm ở cổng ROUTE_CAPS
-    const month = url.searchParams.get('month') || vnToday().slice(0, 7);
+    const month = url.searchParams.get('month') || this.rules.vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
     if (route === 'GET /settings/first-run') return await paramsStore.firstRun(month);
     const groupText = url.searchParams.get('group');
@@ -212,13 +225,13 @@ export class SettingsController {
     const b = await readJson(req);
     if (req.method === 'PUT' && seg.length === 3) {
       const saved = await paramsSave.save(me, actx, b);
-      if (saved.notice) await events.emit.paramsChanged(saved.notice);
+      if (saved.notice) await this.events.emit.paramsChanged(saved.notice);
       return saved;
     }
     if (req.method === 'POST' && seg[3] === 'preview') return await paramsSave.preview(me, b);
     if (req.method === 'POST' && seg[3] === 'revert') {
       const reverted = await paramsSave.revert(me, actx, b);
-      if (reverted.notice) events.emit.paramsChanged(reverted.notice);
+      if (reverted.notice) this.events.emit.paramsChanged(reverted.notice);
       return reverted;
     }
   }

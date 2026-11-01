@@ -107,7 +107,7 @@ test('kiến trúc: AppModule đăng ký mọi module nghiệp vụ, NotFoundMod
   );
   assert.match(
     text,
-    /imports:\s*\[\s*\.\.\.FEATURE_MODULES,\s*NotFoundModule\s*\]/,
+    /imports:\s*\[\s*CoreModule,\s*\.\.\.FEATURE_MODULES,\s*NotFoundModule\s*\]/,
     'NotFoundModule phải đứng cuối imports'
   );
 });
@@ -138,4 +138,17 @@ test('kiến trúc: src/data là lớp lá (không import module, hạ tầng HT
       if (!rel(target).startsWith('src/data/') && !rel(target).startsWith('node_modules'))
         bad.push(`${rel(file)} → ${rel(target)}`);
   assert.deepEqual(bad, []);
+});
+
+test('kiến trúc: controller, lớp hỗ trợ và hạ tầng HTTP nhận dịch vụ dùng chung qua DI của Nest, không require thẳng singleton', () => {
+  const DIRECT =
+    /(?:require\(|from\s+)'[./]+\/(?:platform\/(?:db|auth|authz|audit|events|request-rules|agents)|domain\/container)'\)?/;
+  const bad: any[] = [];
+  for (const file of FILES.filter(f => /\/src\/(modules|http)\//.test(f.split(path.sep).join('/'))))
+    fs.readFileSync(file, 'utf8')
+      .split('\n')
+      .forEach((line, i) => {
+        if (DIRECT.test(line) && !/^\s*(\/\/|\*)/.test(line)) bad.push(`${rel(file)}:${i + 1}: ${line.trim()}`);
+      });
+  assert.deepEqual(bad, [], 'dùng @Inject(TOKEN) từ src/core/tokens.ts (đăng ký ở src/core/core.module.ts)');
 });

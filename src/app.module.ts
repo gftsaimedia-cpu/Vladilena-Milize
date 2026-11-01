@@ -1,5 +1,6 @@
 import { DynamicModule, Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { CoreModule } from './core/core.module';
 import { ApiGate } from './http/api-gate';
 import { ApiGuard } from './http/api.guard';
 import { ApiExceptionFilter } from './http/api-exception.filter';
@@ -58,7 +59,7 @@ export class AppModule {
   static register(): DynamicModule {
     return {
       module: AppModule,
-      imports: [...FEATURE_MODULES, NotFoundModule],
+      imports: [CoreModule, ...FEATURE_MODULES, NotFoundModule],
       providers: [
         ApiGate,
         { provide: APP_GUARD, useClass: ApiGuard },

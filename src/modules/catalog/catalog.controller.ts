@@ -1,10 +1,10 @@
-import { Controller, Get, Put } from '@nestjs/common';
+import { DOMAIN, RULES } from '../../core/tokens';
+import { Controller, Get, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const config = require('../../platform/config');
 const { HttpError, readJson } = require('../../platform/http');
 const { validMonth } = require('../../domain/input');
-const { vnToday } = require('../../platform/request-rules');
-const { container } = require('../../domain/container');
+
 const { applyCatalogChange } = require('../../domain/shared/catalog-change');
 const { CODE_RE } = require('../../domain/position/position-catalog');
 
@@ -32,11 +32,16 @@ async function readChange(req: any) {
  */
 @Controller('api')
 export class CatalogController {
+  constructor(
+    @Inject(DOMAIN) private readonly domain: any,
+    @Inject(RULES) private readonly rules: any
+  ) {}
+
   /** ?month= → { month, baseMonth, benefits, positions: [{ code, name, …, benefits, rev, levels }] }; baseMonth: tháng của dòng nền nạp từ bộ mặc định */
   @Get('catalog/positions')
   async listPositions(@Ctx() c: ApiContext): Promise<unknown> {
-    const positions = container.positions;
-    const month = c.url.searchParams.get('month') || vnToday().slice(0, 7);
+    const positions = this.domain.positions;
+    const month = c.url.searchParams.get('month') || this.rules.vnToday().slice(0, 7);
     if (!validMonth(month)) throw bad('month phải dạng YYYY-MM', 'BAD_MONTH');
     return {
       month,
@@ -50,7 +55,7 @@ export class CatalogController {
   @Put('catalog/positions/:code')
   async savePosition(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, seg, req, res } = c;
-    const positions = container.positions;
+    const positions = this.domain.positions;
     const code = seg[3];
     if (!CODE_RE.test(code)) throw bad('Mã chức vụ không hợp lệ', 'POSITION_BAD_CODE');
     const body = await readChange(req);
@@ -75,7 +80,7 @@ export class CatalogController {
   @Put('catalog/levels')
   async saveLevel(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, req, res } = c;
-    const positions = container.positions;
+    const positions = this.domain.positions;
     const body = await readChange(req);
     const type = String(body.type || '');
     const level = Number(body.level);
@@ -100,7 +105,7 @@ export class CatalogController {
   /** { shifts: [{ code, preset, name, kind, sort, deprecated, rev }] } */
   @Get('catalog/shifts')
   async listShifts(@Ctx() c: ApiContext): Promise<unknown> {
-    return { shifts: await container.shifts.list() };
+    return { shifts: await this.domain.shifts.list() };
   }
 
   /**
@@ -110,7 +115,7 @@ export class CatalogController {
   @Put('catalog/shifts')
   async saveShift(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, req, res } = c;
-    const shifts = container.shifts;
+    const shifts = this.domain.shifts;
     const body = await readJson(req);
     if (!body || typeof body !== 'object' || typeof body.code !== 'string' || !body.code)
       throw bad('Cần code của ca', 'SHIFT_CODE_REQUIRED');
@@ -120,7 +125,7 @@ export class CatalogController {
       throw bad('Thiếu số phiên bản (expectedRev) của ca', 'CATALOG_REV_REQUIRED');
     const code = (await shifts.canonicalOf(body.code)) || body.code;
     const saved = await applyCatalogChange(me, actx, {
-      effectiveMonth: vnToday().slice(0, 7),
+      effectiveMonth: this.rules.vnToday().slice(0, 7),
       reason: body.reason,
       entity: { action: 'catalog.shift.save', entityKind: 'shift', entityId: code },
       run: async (at: string) =>

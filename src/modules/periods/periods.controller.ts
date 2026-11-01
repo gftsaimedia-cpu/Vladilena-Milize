@@ -1,22 +1,32 @@
-import { Controller, Get, Put, Post } from '@nestjs/common';
+import { AGENTS, AUDIT, AUTHZ, EVENTS, RULES, STORE } from '../../core/tokens';
+import { Controller, Get, Put, Post, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { SLIP_MONEY, SLIP_QTY } from './periods.helpers';
-const store = require('../../platform/db');
+
 const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+// quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { aiReviewResult } = require('../../domain/ai-review'); // kết quả soát dữ liệu của AI
-const agents = require('../../platform/agents'); // công tắc Agents
-const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+// công tắc Agents
+// quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+// nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
 const periods = require('../../domain/period/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
-const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+// báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
 export class PeriodsController {
+  constructor(
+    @Inject(STORE) private readonly store: any,
+    @Inject(AUTHZ) private readonly authz: any,
+    @Inject(AUDIT) private readonly audit: any,
+    @Inject(RULES) private readonly rules: any,
+    @Inject(EVENTS) private readonly events: any,
+    @Inject(AGENTS) private readonly agents: any
+  ) {}
+
   /* ---------- Admin duyệt khoản tự khai trong Lịch ước tính (iSAT, nghỉ được duyệt, OT, làm bù) ---------- */
   // Quyền duyệt TỪNG khoản: nhóm duyệt = loại khoản (request.decide.<khoản>), kèm phạm vi dữ liệu của vai trò (nhóm mình: chỉ chính mình cho tới khi có
   // bảng phân công). Cổng ROUTE_CAPS chỉ hỏi "có ít nhất một nhóm".
@@ -28,11 +38,11 @@ export class PeriodsController {
       b = req.method === 'PUT' ? await readJson(req) : null;
     const who = String((b ? b.user : url.searchParams.get('user')) || '').toLowerCase(),
       month = b ? b.month : url.searchParams.get('month');
-    if (!(await store.getStaff(who))) throw new HttpError(404, 'Không có nhân sự này');
+    if (!(await this.store.getStaff(who))) throw new HttpError(404, 'Không có nhân sự này');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     if (b) {
       await guardPeriod(month);
-      selfDecision(authz.isSelfDecision(me, who), {
+      selfDecision(this.authz.isSelfDecision(me, who), {
         doing: 'sửa số trên phiếu lương'
       });
       if (!b.values || typeof b.values !== 'object' || Array.isArray(b.values))
@@ -55,13 +65,13 @@ export class PeriodsController {
           throw new HttpError(400, 'expectedRev phải là số nguyên không âm');
         opts.expectedRev = b.expectedRev;
       }
-      await store.transaction(async () => {
-        const prior = (await store.getSlipOverride(who, month)).values;
-        await store.setSlipOverride(who, month, clean, admin.username, reason, opts);
-        await audit.slipOverride(actx, who, month, prior, clean, reason);
+      await this.store.transaction(async () => {
+        const prior = (await this.store.getSlipOverride(who, month)).values;
+        await this.store.setSlipOverride(who, month, clean, admin.username, reason, opts);
+        await this.audit.slipOverride(actx, who, month, prior, clean, reason);
       });
     }
-    return await store.getSlipOverride(who, month);
+    return await this.store.getSlipOverride(who, month);
   }
 
   @Put('slip-override')
@@ -75,8 +85,8 @@ export class PeriodsController {
     const { res, url, need } = c;
     need();
     return {
-      year: Number(url.searchParams.get('year') || vnToday().slice(0, 4)),
-      periods: await periods.list(url.searchParams.get('year') || vnToday().slice(0, 4))
+      year: Number(url.searchParams.get('year') || this.rules.vnToday().slice(0, 4)),
+      periods: await periods.list(url.searchParams.get('year') || this.rules.vnToday().slice(0, 4))
     };
   }
 
@@ -116,7 +126,7 @@ export class PeriodsController {
         } catch {
           throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
         }
-        const viewAll = (await authz.scopeOf(me, 'payroll.view')) === 'all'; // nhân sự chỉ có phạm vi tự mình
+        const viewAll = (await this.authz.scopeOf(me, 'payroll.view')) === 'all'; // nhân sự chỉ có phạm vi tự mình
         // phiếu ước tính của người khác (kể cả của chính mình) chỉ dành cho phạm vi tất cả: lớp chặn thứ hai sau cổng route
         if (!viewAll && (step === '/estimates/:username' || username !== me.username))
           throw new HttpError(403, 'Chỉ xem được phiếu của chính mình', { code: 'FORBIDDEN_CAP' });
@@ -130,29 +140,29 @@ export class PeriodsController {
       const by = me.username;
       // Mỗi bước kỳ trả { month, status, rev }: báo cho các màn sau khi bước đã COMMIT
       const stepDone = async out => {
-        await events.emit.periodChanged(out);
+        await this.events.emit.periodChanged(out);
         return out;
       };
       if (step === '/lock-attendance') return await stepDone(await periods.lockAttendance(month, b, actx, by));
       if (step === '/calculate') return await stepDone(await periods.calculate(month, b, actx, by));
       if (step === '/ai-review') {
-        if (!(await authz.can(me, 'payroll.calculate')))
+        if (!(await this.authz.can(me, 'payroll.calculate')))
           throw new HttpError(403, 'Cần quyền tính lương để chạy AI kiểm tra', {
             code: 'FORBIDDEN_CAP',
             cap: 'payroll.calculate'
           });
-        await agents.assertEnabled();
+        await this.agents.assertEnabled();
         return await stepDone(await periods.aiReview(month, b, actx, by, async m => await aiReviewResult(m, false)));
       }
       if (step === '/approve') return await stepDone(await periods.approve(month, b, actx, by));
       if (step === '/mark-paid') {
         const paid = await periods.markPaid(month, b, actx, by);
-        await events.emit.payslipAvailable(month, await periods.payslipUsers(month));
+        await this.events.emit.payslipAvailable(month, await periods.payslipUsers(month));
         return await stepDone(paid);
       }
       if (step === '/reopen') {
         const inputsCap = periods.REOPEN_INPUTS_CAP(b.to);
-        if (inputsCap && !(await authz.can(me, inputsCap)))
+        if (inputsCap && !(await this.authz.can(me, inputsCap)))
           throw new HttpError(403, 'Mở lại về bước này cần quyền mở lại dữ liệu đầu vào (chỉ Admin)', {
             code: 'FORBIDDEN_CAP',
             cap: inputsCap

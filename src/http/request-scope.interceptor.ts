@@ -1,8 +1,8 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import { Inject, CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { from, lastValueFrom, Observable } from 'rxjs';
 import warnings = require('../platform/warnings');
 import { withRequestWarnings } from './reply';
-import { requestRules } from '../platform/request-rules';
+import { RULES } from '../core/tokens';
 import { announceAttendance } from '../platform/announce';
 import { announcePunches } from '../domain/attendance';
 
@@ -12,10 +12,12 @@ import { announcePunches } from '../domain/attendance';
  */
 @Injectable()
 export class RequestScopeInterceptor implements NestInterceptor {
+  constructor(@Inject(RULES) private readonly rules: any) {}
+
   intercept(_host: ExecutionContext, next: CallHandler): Observable<unknown> {
     const run = async () => {
       const result = await warnings.run(async () => {
-        const value = await requestRules.run(
+        const value = await this.rules.requestRules.run(
           new Map(),
           async () => await lastValueFrom(next.handle(), { defaultValue: undefined })
         );

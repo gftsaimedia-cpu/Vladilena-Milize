@@ -14,10 +14,9 @@
 //        bỏ qua người không còn được ứng, chính người duyệt, người ngoài phạm vi duyệt và người có số đã chốt bằng 0 (trả trong skipped)
 // Quyền: gửi / rút chỉ cho chính mình (cổng ROUTE_CAPS: đã đăng nhập); duyệt, từ chối, huỷ duyệt cần request.decide.advance ở phạm vi từng người
 // (cổng: request.decide.*). Kỳ đã duyệt hoặc đã chi trả: luôn 409 PERIOD_LOCKED (phiếu đã chốt, không đổi khoản trừ; kiểm chống ghi đè). Ghi, nhật ký trong một giao dịch; sự kiện sau khi COMMIT.
-const store = require('../../platform/db');
-const authz = require('../../platform/authz');
-const audit = require('../../platform/audit');
-const events = require('../../platform/events');
+import { Inject, Injectable } from '@nestjs/common';
+import { AUDIT, AUTHZ, EVENTS, STORE } from '../../core/tokens';
+
 const advanceCap = require('../../domain/advance/advance-cap');
 const { DECIDE_CAP } = require('../../domain/advance/advance-requests');
 const { selfDecision, optionalReason } = require('../../platform/warnings');
@@ -41,8 +40,6 @@ const ACTIONS = Object.freeze({
 });
 
 // Người xem được của người khác: có quyền duyệt (phạm vi tất cả) hoặc xem lương
-const viewsAll = async me =>
-  (await authz.scopeOf(me, DECIDE_CAP)) === 'all' || (await authz.scopeOf(me, 'payroll.view')) === 'all';
 
 function monthOf(body) {
   const month = body && body.month;
@@ -55,20 +52,7 @@ function userOf(value) {
   return username;
 }
 const revOf = body => (body.expectedRev !== undefined ? body.expectedRev : body.rev);
-async function assertEditable(month) {
-  const status = await store.periods.status(month);
-  if (LOCKED_STATUSES.includes(status))
-    throw DomainError.conflict(
-      'PERIOD_LOCKED',
-      `Kỳ lương ${month} ${PERIOD_TEXT[status]}: không đổi tạm ứng được nữa`,
-      {
-        month,
-        status,
-        scope: 'slip'
-      }
-    );
-}
-const canDecide = async (me, username) => await authz.can(me, DECIDE_CAP, { username });
+
 const figureOf = async (month, username) =>
   (await advanceCap.figuresOf(month, [username])).figures.get(username) || {
     eligible: false,
@@ -84,185 +68,219 @@ function assertEligible(month, figure) {
 }
 
 // Một dòng: số theo quy tắc + trạng thái yêu cầu
-const itemOf = async (username, figure, entry) => ({
-  username,
-  name: ((await store.getStaff(username)) || {}).name || username,
-  eligible: figure.eligible,
-  ...(figure.reason ? { reason: figure.reason } : {}),
-  amount: figure.amount,
-  status: entry.status,
-  rev: entry.rev,
-  requestedAt: entry.requestedAt,
-  decidedAt: entry.decidedAt,
-  decidedBy: entry.decidedBy,
-  note: entry.reason
-});
 
-async function auditMove(actx, action, month, username, before, after, reason) {
-  await audit.write(actx, {
-    action,
-    entityKind: 'advance_request',
-    entityId: `${month}/${username}`,
-    subject: username,
-    month,
-    before: before && before.status ? audit.pick(before, ['status', 'rev']) : null,
-    after: audit.pick(after, ['status', 'rev']),
-    reason: reason || null,
-    sensitivity: 'pay'
-  });
-}
 // Sau COMMIT: Admin nạp lại danh sách và huy hiệu; người được quyết định nạp lại ước tính và thẻ tạm ứng
-async function announce(month, usernames, decision) {
-  await events.emit.approvalsChanged(month);
-  if (!decision) return;
-  for (const username of usernames) {
-    events.emit.advanceDecided(username, month, decision);
-    events.emit.estimateChanged(username, month);
-  }
-}
 
-export async function list({ res, url, me }) {
-  const q = url.searchParams;
-  const month = q.get('month');
-  if (!validMonth(month)) throw new HttpError(400, 'month phải có dạng YYYY-MM', { code: 'BAD_MONTH' });
-  const asked = q.get('username') ? userOf(q.get('username')) : undefined;
-  const all = await viewsAll(me);
-  if (asked !== undefined && asked !== me.username && !all)
-    throw new HttpError(403, 'Chỉ xem được tạm ứng của chính mình', { code: 'FORBIDDEN_CAP' });
-  const target = asked !== undefined ? asked : all ? undefined : me.username;
-  const doc = await advanceApprovals.read(month);
-  if (target !== undefined) {
-    const { provisional, figures } = await advanceCap.figuresOf(month, [target]);
-    const figure = figures.get(target) || { eligible: false, reason: 'Không có nhân sự này', amount: 0 };
+// Nhân sự gửi hoặc rút yêu cầu của chính mình
+
+// Admin duyệt, từ chối hoặc huỷ duyệt yêu cầu của một người
+
+@Injectable()
+export class AdvanceApprovalsHandlers {
+  constructor(
+    @Inject(AUTHZ) private readonly authz: any,
+    @Inject(STORE) private readonly store: any,
+    @Inject(AUDIT) private readonly audit: any,
+    @Inject(EVENTS) private readonly events: any
+  ) {}
+
+  viewsAll = async me =>
+    (await this.authz.scopeOf(me, DECIDE_CAP)) === 'all' || (await this.authz.scopeOf(me, 'payroll.view')) === 'all';
+
+  assertEditable = async month => {
+    const status = await this.store.periods.status(month);
+    if (LOCKED_STATUSES.includes(status))
+      throw DomainError.conflict(
+        'PERIOD_LOCKED',
+        `Kỳ lương ${month} ${PERIOD_TEXT[status]}: không đổi tạm ứng được nữa`,
+        {
+          month,
+          status,
+          scope: 'slip'
+        }
+      );
+  };
+
+  canDecide = async (me, username) => await this.authz.can(me, DECIDE_CAP, { username });
+
+  itemOf = async (username, figure, entry) => ({
+    username,
+    name: ((await this.store.getStaff(username)) || {}).name || username,
+    eligible: figure.eligible,
+    ...(figure.reason ? { reason: figure.reason } : {}),
+    amount: figure.amount,
+    status: entry.status,
+    rev: entry.rev,
+    requestedAt: entry.requestedAt,
+    decidedAt: entry.decidedAt,
+    decidedBy: entry.decidedBy,
+    note: entry.reason
+  });
+
+  auditMove = async (actx, action, month, username, before, after, reason) => {
+    await this.audit.write(actx, {
+      action,
+      entityKind: 'advance_request',
+      entityId: `${month}/${username}`,
+      subject: username,
+      month,
+      before: before && before.status ? this.audit.pick(before, ['status', 'rev']) : null,
+      after: this.audit.pick(after, ['status', 'rev']),
+      reason: reason || null,
+      sensitivity: 'pay'
+    });
+  };
+
+  announce = async (month, usernames, decision) => {
+    await this.events.emit.approvalsChanged(month);
+    if (!decision) return;
+    for (const username of usernames) {
+      this.events.emit.advanceDecided(username, month, decision);
+      this.events.emit.estimateChanged(username, month);
+    }
+  };
+
+  list = async ({ res, url, me }) => {
+    const q = url.searchParams;
+    const month = q.get('month');
+    if (!validMonth(month)) throw new HttpError(400, 'month phải có dạng YYYY-MM', { code: 'BAD_MONTH' });
+    const asked = q.get('username') ? userOf(q.get('username')) : undefined;
+    const all = await this.viewsAll(me);
+    if (asked !== undefined && asked !== me.username && !all)
+      throw new HttpError(403, 'Chỉ xem được tạm ứng của chính mình', { code: 'FORBIDDEN_CAP' });
+    const target = asked !== undefined ? asked : all ? undefined : me.username;
+    const doc = await advanceApprovals.read(month);
+    if (target !== undefined) {
+      const { provisional, figures } = await advanceCap.figuresOf(month, [target]);
+      const figure = figures.get(target) || { eligible: false, reason: 'Không có nhân sự này', amount: 0 };
+      return {
+        month,
+        scope: target === me.username ? 'self' : 'person',
+        rev: doc.rev,
+        provisional,
+        window: requestWindow.view(),
+        item: await this.itemOf(target, figure, await advanceApprovals.entryOf(month, target))
+      };
+    }
+    // Chỉ người đã gửi yêu cầu (không liệt kê người được ứng mà chưa xin: trông như yêu cầu tự gửi)
+    const requests = await advanceApprovals.requests(month);
+    const { provisional, figures } = requests.size
+      ? await advanceCap.figuresOf(month, [...requests.keys()])
+      : { provisional: false, figures: new Map() };
+    const items: any[] = [];
+    for (const [username, entry] of requests)
+      items.push(await this.itemOf(username, figures.get(username) || { eligible: false, amount: 0 }, entry));
+    const pending = items.filter(r => r.status === 'pending').length;
     return {
       month,
-      scope: target === me.username ? 'self' : 'person',
+      scope: 'all',
       rev: doc.rev,
       provisional,
       window: requestWindow.view(),
-      item: await itemOf(target, figure, await advanceApprovals.entryOf(month, target))
+      pending,
+      items
     };
-  }
-  // Chỉ người đã gửi yêu cầu (không liệt kê người được ứng mà chưa xin: trông như yêu cầu tự gửi)
-  const requests = await advanceApprovals.requests(month);
-  const { provisional, figures } = requests.size
-    ? await advanceCap.figuresOf(month, [...requests.keys()])
-    : { provisional: false, figures: new Map() };
-  const items: any[] = [];
-  for (const [username, entry] of requests)
-    items.push(await itemOf(username, figures.get(username) || { eligible: false, amount: 0 }, entry));
-  const pending = items.filter(r => r.status === 'pending').length;
-  return {
-    month,
-    scope: 'all',
-    rev: doc.rev,
-    provisional,
-    window: requestWindow.view(),
-    pending,
-    items
   };
-}
 
-// Nhân sự gửi hoặc rút yêu cầu của chính mình
-export async function own({ req, res, me, actx }, move) {
-  const body = await readJson(req);
-  const month = monthOf(body);
-  if (move === 'request') {
-    requestWindow.assertOpen();
-    requestWindow.assertMonthCurrent(month);
-  }
-  const username = me.username;
-  const { provisional, figures } = await advanceCap.figuresOf(month, [username]);
-  const figure = figures.get(username) || { eligible: false, reason: 'Không có nhân sự này', amount: 0 };
-  if (move === 'request') {
-    assertEligible(month, figure);
-    if (!figure.amount && !provisional)
-      throw DomainError.conflict(
-        'ADVANCE_ZERO',
-        'Tạm ứng của tháng này là 0 ₫ (không có ngày đi làm tới hạn tạm ứng)',
-        {
-          month
-        }
-      );
-  }
-  const done = await store.transaction(async () => {
-    await assertEditable(month);
-    const change = await advanceApprovals.move(month, username, move, { expectedRev: revOf(body), by: username });
-    await auditMove(actx, ACTIONS[move].audit, month, username, change.before, change.after, null);
-    return change;
-  });
-  await announce(month, [username], null);
-  return {
-    month,
-    rev: (await advanceApprovals.read(month)).rev,
-    item: await itemOf(username, figure, done.after)
-  };
-}
-
-// Admin duyệt, từ chối hoặc huỷ duyệt yêu cầu của một người
-export async function decideOne({ req, res, me, actx }, move) {
-  const body = await readJson(req);
-  const month = monthOf(body);
-  const username = userOf(body && body.username);
-  const reason =
-    move === 'approve'
-      ? null
-      : optionalReason(body.reason, { max: NOTE_MAX, tooLong: `Lý do tối đa ${NOTE_MAX} ký tự` }) || null;
-  const staff = await store.getStaff(username);
-  if (!staff) throw new HttpError(404, 'Không có nhân sự này', { code: 'STAFF_NOT_FOUND' });
-  if (!(await canDecide(me, username)))
-    throw new HttpError(403, 'Bạn không có quyền duyệt tạm ứng của người này', { code: 'FORBIDDEN_CAP' });
-  const figure = await figureOf(month, username);
-  if (move === 'approve') assertEligible(month, figure);
-  const done = await store.transaction(async () => {
-    await assertEditable(month);
-    selfDecision(authz.isSelfDecision(me, username), {
-      doing: ACTIONS[move].doing
+  own = async ({ req, res, me, actx }, move) => {
+    const body = await readJson(req);
+    const month = monthOf(body);
+    if (move === 'request') {
+      requestWindow.assertOpen();
+      requestWindow.assertMonthCurrent(month);
+    }
+    const username = me.username;
+    const { provisional, figures } = await advanceCap.figuresOf(month, [username]);
+    const figure = figures.get(username) || { eligible: false, reason: 'Không có nhân sự này', amount: 0 };
+    if (move === 'request') {
+      assertEligible(month, figure);
+      if (!figure.amount && !provisional)
+        throw DomainError.conflict(
+          'ADVANCE_ZERO',
+          'Tạm ứng của tháng này là 0 ₫ (không có ngày đi làm tới hạn tạm ứng)',
+          {
+            month
+          }
+        );
+    }
+    const done = await this.store.transaction(async () => {
+      await this.assertEditable(month);
+      const change = await advanceApprovals.move(month, username, move, { expectedRev: revOf(body), by: username });
+      await this.auditMove(actx, ACTIONS[move].audit, month, username, change.before, change.after, null);
+      return change;
     });
-    const change = await advanceApprovals.move(month, username, move, {
-      expectedRev: revOf(body),
-      by: me.username,
-      reason
-    });
-    await auditMove(actx, ACTIONS[move].audit, month, username, change.before, change.after, reason);
-    return change;
-  });
-  await announce(month, [username], ACTIONS[move].decision);
-  return {
-    month,
-    rev: (await advanceApprovals.read(month)).rev,
-    item: await itemOf(username, figure, done.after)
+    await this.announce(month, [username], null);
+    return {
+      month,
+      rev: (await advanceApprovals.read(month)).rev,
+      item: await this.itemOf(username, figure, done.after)
+    };
   };
-}
 
-export async function approveAll({ req, res, me, actx }) {
-  const body = await readJson(req);
-  const month = monthOf(body);
-  const pendingUsers = [...(await advanceApprovals.requests(month))]
-    .filter(([, e]) => e.status === 'pending')
-    .map(([u]) => u);
-  const { provisional, figures } = pendingUsers.length
-    ? await advanceCap.figuresOf(month, pendingUsers)
-    : { provisional: false, figures: new Map() };
-  const wanted: any[] = [];
-  const skipped: any[] = [];
-  for (const username of pendingUsers) {
-    const figure = figures.get(username);
-    if (!figure || !figure.eligible) skipped.push({ username, code: 'ADVANCE_NOT_ELIGIBLE' });
-    // Số đã chốt (qua ngày advance.untilDay) bằng 0: duyệt không đổi tiền. Chưa chốt thì vẫn duyệt vì số còn tăng
-    else if (!provisional && !(figure.amount > 0)) skipped.push({ username, code: 'ADVANCE_ZERO' });
-    else if (!(await canDecide(me, username))) skipped.push({ username, code: 'FORBIDDEN_CAP' });
-    else if (authz.isSelfDecision(me, username)) skipped.push({ username, code: 'SELF_DECISION_FORBIDDEN' });
-    else wanted.push(username);
-  }
-  const done = await store.transaction(async () => {
-    await assertEditable(month);
-    const changes = await advanceApprovals.approveMany(month, wanted, { expectedRev: revOf(body), by: me.username });
-    for (const c of changes)
-      await auditMove(actx, 'advance.approve', month, c.username, c.before, c.after, 'Duyệt tất cả');
-    return changes;
-  });
-  const approved = done.map(c => c.username);
-  if (approved.length) await announce(month, approved, 'approved');
-  return { month, rev: (await advanceApprovals.read(month)).rev, approved, skipped };
+  decideOne = async ({ req, res, me, actx }, move) => {
+    const body = await readJson(req);
+    const month = monthOf(body);
+    const username = userOf(body && body.username);
+    const reason =
+      move === 'approve'
+        ? null
+        : optionalReason(body.reason, { max: NOTE_MAX, tooLong: `Lý do tối đa ${NOTE_MAX} ký tự` }) || null;
+    const staff = await this.store.getStaff(username);
+    if (!staff) throw new HttpError(404, 'Không có nhân sự này', { code: 'STAFF_NOT_FOUND' });
+    if (!(await this.canDecide(me, username)))
+      throw new HttpError(403, 'Bạn không có quyền duyệt tạm ứng của người này', { code: 'FORBIDDEN_CAP' });
+    const figure = await figureOf(month, username);
+    if (move === 'approve') assertEligible(month, figure);
+    const done = await this.store.transaction(async () => {
+      await this.assertEditable(month);
+      selfDecision(this.authz.isSelfDecision(me, username), {
+        doing: ACTIONS[move].doing
+      });
+      const change = await advanceApprovals.move(month, username, move, {
+        expectedRev: revOf(body),
+        by: me.username,
+        reason
+      });
+      await this.auditMove(actx, ACTIONS[move].audit, month, username, change.before, change.after, reason);
+      return change;
+    });
+    await this.announce(month, [username], ACTIONS[move].decision);
+    return {
+      month,
+      rev: (await advanceApprovals.read(month)).rev,
+      item: await this.itemOf(username, figure, done.after)
+    };
+  };
+
+  approveAll = async ({ req, res, me, actx }) => {
+    const body = await readJson(req);
+    const month = monthOf(body);
+    const pendingUsers = [...(await advanceApprovals.requests(month))]
+      .filter(([, e]) => e.status === 'pending')
+      .map(([u]) => u);
+    const { provisional, figures } = pendingUsers.length
+      ? await advanceCap.figuresOf(month, pendingUsers)
+      : { provisional: false, figures: new Map() };
+    const wanted: any[] = [];
+    const skipped: any[] = [];
+    for (const username of pendingUsers) {
+      const figure = figures.get(username);
+      if (!figure || !figure.eligible) skipped.push({ username, code: 'ADVANCE_NOT_ELIGIBLE' });
+      // Số đã chốt (qua ngày advance.untilDay) bằng 0: duyệt không đổi tiền. Chưa chốt thì vẫn duyệt vì số còn tăng
+      else if (!provisional && !(figure.amount > 0)) skipped.push({ username, code: 'ADVANCE_ZERO' });
+      else if (!(await this.canDecide(me, username))) skipped.push({ username, code: 'FORBIDDEN_CAP' });
+      else if (this.authz.isSelfDecision(me, username)) skipped.push({ username, code: 'SELF_DECISION_FORBIDDEN' });
+      else wanted.push(username);
+    }
+    const done = await this.store.transaction(async () => {
+      await this.assertEditable(month);
+      const changes = await advanceApprovals.approveMany(month, wanted, { expectedRev: revOf(body), by: me.username });
+      for (const c of changes)
+        await this.auditMove(actx, 'advance.approve', month, c.username, c.before, c.after, 'Duyệt tất cả');
+      return changes;
+    });
+    const approved = done.map(c => c.username);
+    if (approved.length) await this.announce(month, approved, 'approved');
+    return { month, rev: (await advanceApprovals.read(month)).rev, approved, skipped };
+  };
 }

@@ -1,15 +1,22 @@
-import { Controller, Get } from '@nestjs/common';
+import { AUDIT, AUTHZ, STORE } from '../../core/tokens';
+import { Controller, Get, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { vnDayIso } from './audit.helpers';
-const store = require('../../platform/db');
+
 const { HttpError } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { validMonth, validDate } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+// quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+// nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
 
 @Controller('api')
 export class AuditController {
+  constructor(
+    @Inject(AUTHZ) private readonly authz: any,
+    @Inject(AUDIT) private readonly audit: any,
+    @Inject(STORE) private readonly store: any
+  ) {}
+
   /* ---------- nhật ký kiểm toán (chỉ đọc; không có API sửa hay xoá) ---------- */
   @Get('audit')
   async getAudit(@Ctx() c: ApiContext): Promise<unknown> {
@@ -36,13 +43,13 @@ export class AuditController {
       afterId: q.has('afterId') ? Number(q.get('afterId')) : undefined,
       beforeId: q.has('beforeId') ? Number(q.get('beforeId')) : undefined,
       // Mức nhạy cảm theo năng lực người xem
-      sensitivities: await authz.auditSensitivities(me)
+      sensitivities: await this.authz.auditSensitivities(me)
     };
     const size = Math.min(limit, config.AUDIT_PAGE_MAX);
-    const rows = (await store.audit.list({ ...filter, limit: size })).map(audit.publicRow);
+    const rows = (await this.store.audit.list({ ...filter, limit: size })).map(this.audit.publicRow);
     return {
       rows,
-      total: await store.audit.count(filter),
+      total: await this.store.audit.count(filter),
       limit: size,
       // Trang kế (mới → cũ): truyền nextBeforeId vào beforeId
       nextBeforeId: rows.length === size && !q.has('afterId') ? rows[rows.length - 1].id : null
@@ -53,6 +60,6 @@ export class AuditController {
   async getAuditVerify(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     need(); // năng lực audit.read đã kiểm ở cổng ROUTE_CAPS
-    return await store.audit.verify();
+    return await this.store.audit.verify();
   }
 }
