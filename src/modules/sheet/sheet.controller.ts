@@ -1,25 +1,25 @@
-import { Controller, Get, Put, Res } from '@nestjs/common';
+import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { cutRuleView, leaveBalanceView, actualReportView, cleanDays } from './sheet.helpers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 import { reasonOf } from '../../shared/reason';
 const store = require('../../../lib/db');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, monthParams, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth, USERNAME_RE } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { ownerView, sheetForViewer } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
 const { closeStale } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
 const { sessionsFor } = require('../../../lib/domain/attendance/session-view');
-const { hasKpi, cleanKpi, cleanKpiAmt, kpiPartsView } = require('../../../lib/domain/kpi'); // KPI: trần, điểm, hiển thị
+const { KpiScoring } = require('../../../lib/domain/kpi/kpi-scoring');
 const { sheetApprovals } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
-const { checkSheetLimits } = require('../../../lib/domain/limits'); // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
+const { checkSheetLimits } = require('../../../lib/domain/overtime/hour-limits').HourLimits; // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
 const sheetBulk = require('../../../lib/domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
-const { checkSheet, assertSheetRev } = require('../../../lib/domain/sheet-checks'); // kiểm nghiệp vụ khi lưu lịch ước tính
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const periods = require('../../../lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
 const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
+const { container } = require('../../../lib/domain/container');
+const { timesheet } = require('../../../lib/domain/timesheet/services'); // kiểm nghiệp vụ lịch khai // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
 const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
 const { estimateSheet, leaveDates, neighborDays, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
 const { sheetOwner, approveOnBehalf } = require('../../../lib/domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
@@ -29,17 +29,17 @@ const { warnIf, selfDecision } = warnings;
 export class SheetController {
   /* ---------- số ước tính của chính người đăng nhập (chỉ dữ liệu của mình; ghi rõ là ước tính) ---------- */
   @Get('me/estimate')
-  async getMeEstimate(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getMeEstimate(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, route, need } = c;
     const u = need();
     const month = url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
     // Không đọc tham số user: người khác không bao giờ xem được qua route này
-    return send(res, 200, await periods.estimate(u, month, { rows: url.searchParams.get('rows') === '1' }));
+    return await periods.estimate(u, month, { rows: url.searchParams.get('rows') === '1' });
   }
 
   @Get('sheet')
-  async getSheet(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getSheet(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, need } = c;
     const u = need();
     const month = url.searchParams.get('month'),
@@ -48,7 +48,7 @@ export class SheetController {
     // Tài khoản ngoài bảng lương và không có quyền xem lịch (tài khoản chỉ có vai trò) xem lịch của CHÍNH MÌNH: 200 với lịch trống, không phải 403 "xem bảng của người khác"; Admin nhận bảng đầy đủ
     // (an toàn: không có dữ liệu của ai; payrollSubject false để giao diện ẩn các phần chỉ dành cho người được trả lương)
     if (who === u.username && !u.payrollSubject && !(await authz.can(u, 'attendance.read', { username: who })))
-      return send(res, 200, {
+      return {
         month,
         payrollSubject: false,
         days: {},
@@ -59,13 +59,13 @@ export class SheetController {
         corrections: [],
         kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
         kpiParts: { complete: false }
-      });
+      };
     if (!(await authz.can(u, 'attendance.read', { username: who })))
       throw new HttpError(403, 'Không được xem bảng của người khác');
     const staff = who === u.username ? u : await store.getStaff(who);
     if (staff && staff.payrollSubject) await closeStale(staff);
     // otherLeave: ngày nghỉ phép năm ở các tháng khác, để giao diện tính số phép còn lại; corrections: yêu cầu điều chỉnh trong tháng
-    return send(res, 200, {
+    return {
       ...(await sheetForViewer(u, who, await estimateSheet(who, month))),
       rev: (await store.getSheet(who, month)).rev, // số lần lưu lịch khai; gửi lại làm expectedRev khi PUT /api/sheet
       ...(staff && who !== u.username ? { owner: await ownerView(u, staff, month) } : {}), // hồ sơ tóm tắt người được xem (khai thay)
@@ -75,8 +75,9 @@ export class SheetController {
       ...(await schedule.scheduleView(staff, month)),
       // Trọng số 5 thành phần KPI của tháng (tham số kpi.weight.*), để màn nhân viên không viết cứng
       kpiWeights: Object.fromEntries((await rulesFor(month)).kpi.COMPONENTS.map(c => [c.key, c.weight])),
-      kpiParts: await kpiPartsView(
-        (await hasKpi(staff, await monthParams(month))) && (await authz.can(u, 'salary.read', { username: who }))
+      kpiParts: await container.kpi.partsView(
+        (await container.kpi.has(staff, await monthParams(month))) &&
+          (await authz.can(u, 'salary.read', { username: who }))
           ? await store.getKpiScores(who, month)
           : null,
         month,
@@ -88,11 +89,11 @@ export class SheetController {
       leaveBalance: await leaveBalanceView(staff),
       actualReport: await actualReportView(staff, month),
       cutRule: await cutRuleView(month)
-    });
+    };
   }
 
   @Put('sheet')
-  async putSheet(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putSheet(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, need, guardPeriod } = c;
     const caller = need();
     const { month, days, kpiPct, kpiAmt, user: onBehalfOf, expectedRev, confirmDays } = await readJson(req);
@@ -103,16 +104,22 @@ export class SheetController {
     await guardPeriod(month);
     const prevDays = (await estimateSheet(u.username, month)).days;
     const clean = await cleanDays(days);
-    const { sheetParams, sched, holidays } = await checkSheet({ u, month, clean, prevDays, onBehalf }); // kiểm nghiệp vụ lịch ước tính (lib/domain/sheet-checks.js)
+    const { sheetParams, sched, holidays } = await timesheet().validator.validate({
+      u,
+      month,
+      clean,
+      prevDays,
+      onBehalf
+    }); // kiểm nghiệp vụ lịch ước tính (lib/domain/timesheet/services.js)
     await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
     // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
     const kept = onBehalf ? await store.getSheet(u.username, month) : null;
-    const amt = onBehalf ? kept.kpiAmt : await cleanKpiAmt(kpiAmt, u, month),
-      pct = onBehalf ? kept.kpiPct : cleanKpi(kpiPct);
+    const amt = onBehalf ? kept.kpiAmt : await container.kpi.cleanAmount(kpiAmt, u, month),
+      pct = onBehalf ? kept.kpiPct : KpiScoring.cleanScore(kpiPct);
     // Lịch và trạng thái duyệt đổi cùng nhau hoặc không đổi gì; trạng thái duyệt chỉ do máy chủ quyết, không đọc từ yêu cầu
     let decided = [];
     const changes = await store.transaction(async () => {
-      await assertSheetRev(u.username, month, expectedRev); // lệch rev → 409 SHEET_STALE, chưa ghi gì
+      await timesheet().revision.assert(u.username, month, expectedRev); // lệch rev → 409 SHEET_STALE, chưa ghi gì
       await store.setSheet(u.username, month, clean, pct, amt);
       const found = await store.approvals.reconcile(
         u.username,
@@ -130,7 +137,7 @@ export class SheetController {
       await events.emit.estimateChanged(u.username, month); // máy của người được khai nạp lại lịch
       if (decided.length) await events.emit.requestsDecided(decided);
     }
-    return send(res, 200, {
+    return {
       ok: true,
       rev: (await store.getSheet(u.username, month)).rev, // gửi lại làm expectedRev ở lần lưu sau
       approvals: await sheetApprovals(u.username, month, (await estimateSheet(u.username, month)).days),
@@ -138,22 +145,22 @@ export class SheetController {
       resubmitted: changes.resubmitted,
       removed: changes.removed,
       ...(onBehalf ? { onBehalf: true, autoApproved: decided.length } : {})
-    });
+    };
   }
 
   // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.js)
   @Put('sheet/bulk')
-  async putSheetBulk(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putSheetBulk(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin, guardPeriod } = c;
     const caller = needAdmin();
     const plan = await sheetBulk.plan(caller, await readJson(req));
     await guardPeriod(plan.month);
-    return send(res, 200, await sheetBulk.save({ caller, actx, plan, cleanDays }));
+    return await sheetBulk.save({ caller, actx, plan, cleanDays });
   }
 
   /* ---------- gán ca cho nhiều người (Hồ sơ › Gán ca): tất cả hoặc không ---------- */
   @Put('staff/shift-bulk')
-  async putStaffShiftBulk(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putStaffShiftBulk(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx, needAdmin } = c;
     needAdmin();
     const b = await readJson(req);
@@ -213,6 +220,6 @@ export class SheetController {
       }
       return { updated, unchanged };
     });
-    return send(res, 200, { ok: true, shiftCode, ...result });
+    return { ok: true, shiftCode, ...result };
   }
 }

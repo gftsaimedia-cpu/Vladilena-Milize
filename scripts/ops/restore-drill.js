@@ -29,7 +29,7 @@ const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const SERVER_SCRIPT = path.join(REPO_ROOT, 'server.js');
+const SERVER_SCRIPT = path.join(REPO_ROOT, 'src/server.ts');
 const RESTORE_NAME = 'restore.sqlite';
 const BOOT_TIMEOUT_MS = 60000; // DB lớn: migration trên bản chép có thể lâu
 const STOP_TIMEOUT_MS = 5000;
@@ -272,7 +272,7 @@ async function main() {
       COOKIE_SECURE: '0'
     };
     delete env.ADMIN_PASSWORD; // diễn tập không cần mật khẩu và không nên đặt mật khẩu nào lên bản chép
-    child = spawn(process.execPath, ['--no-warnings=ExperimentalWarning', SERVER_SCRIPT], {
+    child = spawn(process.execPath, ['--no-warnings=ExperimentalWarning', '--import', 'tsx', SERVER_SCRIPT], {
       cwd: REPO_ROOT,
       env,
       stdio: ['ignore', 'pipe', 'pipe'],

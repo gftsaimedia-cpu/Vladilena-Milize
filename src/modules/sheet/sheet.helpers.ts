@@ -2,9 +2,10 @@ const store = require('../../../lib/db');
 const { HttpError } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, vnToday, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validDate, TIME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { shiftFor } = require('../../../lib/domain/work-hours'); // giờ ca, OT, giờ làm ngày lễ
+const { shiftFor } = require('../../../lib/domain/overtime/worked-hours').WorkedHours; // giờ ca, OT, giờ làm ngày lễ
 const { estimateSheet, leaveDates } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { checkExtraTimes, dm } = require('../../../lib/domain/sheet-checks'); // kiểm nghiệp vụ khi lưu lịch ước tính
+const { timesheet } = require('../../../lib/domain/timesheet/services'); // kiểm nghiệp vụ lịch khai
+const { DayMath } = require('../../../lib/domain/timesheet/day-math');
 const { sheetFlagsOf } = require('../../../lib/domain/positions'); // cờ quyền lợi và chức vụ
 
 /* ---------- số liệu theo tham số của tháng, cho app nhân viên: chỉ đọc, không ghi ---------- */
@@ -70,33 +71,33 @@ export async function cleanDays(days: any) {
     if (!validDate(date) || !d || typeof d !== 'object') throw new HttpError(400, `Ngày không hợp lệ: ${date}`);
     // Thiếu kind (bản ghi rất cũ) là đi làm; giá trị lạ bị từ chối, không âm thầm đổi thành đi làm
     const kind = d.kind === undefined ? 'work' : d.kind;
-    if (!DAY_KINDS.includes(kind)) throw new HttpError(400, `Ngày ${dm(date)}: loại ngày không hợp lệ`);
+    if (!DAY_KINDS.includes(kind)) throw new HttpError(400, `Ngày ${DayMath.dm(date)}: loại ngày không hợp lệ`);
     if (kind === 'work' || kind === 'makeup') {
       if (typeof d.in !== 'string' || typeof d.out !== 'string' || !TIME_RE.test(d.in) || !TIME_RE.test(d.out))
-        throw new HttpError(400, `Giờ không hợp lệ ở ngày ${dm(date)}`);
+        throw new HttpError(400, `Giờ không hợp lệ ở ngày ${DayMath.dm(date)}`);
       // Không giới hạn khoảng cách giữa giờ vào và giờ ra (vd. 20:00→09:00 được lưu); giờ trả lương do engine giới hạn
       if (
         (d.extraOut && (typeof d.extraOut !== 'string' || !TIME_RE.test(d.extraOut))) ||
         (d.extraIn && (typeof d.extraIn !== 'string' || !TIME_RE.test(d.extraIn)))
       )
-        throw new HttpError(400, `Giờ làm thêm không hợp lệ ở ngày ${dm(date)}`);
+        throw new HttpError(400, `Giờ làm thêm không hợp lệ ở ngày ${DayMath.dm(date)}`);
       if (d.extraKind != null && typeof d.extraKind !== 'string')
-        throw new HttpError(400, `Ngày ${dm(date)}: loại làm thêm không hợp lệ`);
+        throw new HttpError(400, `Ngày ${DayMath.dm(date)}: loại làm thêm không hợp lệ`);
       if (d.extraKind && !['makeup', 'ot'].includes(d.extraKind))
-        throw new HttpError(400, `Ngày ${dm(date)}: loại làm thêm phải là làm bù hoặc OT`);
+        throw new HttpError(400, `Ngày ${DayMath.dm(date)}: loại làm thêm phải là làm bù hoặc OT`);
       // làm thêm trước ca (giờ vào làm thêm → giờ vào) và/hoặc sau ca (giờ ra → giờ ra làm thêm); trùng giờ ca coi như không có
       const extraIn = d.extraIn && d.extraIn !== d.in ? d.extraIn : '',
         extraOut = d.extraOut && d.extraOut !== d.out ? d.extraOut : '';
       // Bản ghi cũ có giờ ra làm thêm mà thiếu extraKind là làm bù (đúng như calcDay và approval-view đọc): giữ nguyên giờ,
       // không xoá. Chỉ có giờ vào làm thêm thì calcDay không tính gì: giữ nguyên giờ, để extraKind rỗng, không đoán loại.
       const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
-      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/sheet-checks.js → checkExtraTimes
-      checkExtraTimes(date, d, { extraKind, extraIn, extraOut });
+      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/timesheet/services.js → checkExtraTimes
+      timesheet().extraTimes.check(date, d, { extraKind, extraIn, extraOut });
       if (d.preset != null && d.preset !== '' && !(await isShiftCode(d.preset)))
-        throw new HttpError(400, `Ngày ${dm(date)}: ca chọn sẵn không hợp lệ`);
+        throw new HttpError(400, `Ngày ${DayMath.dm(date)}: ca chọn sẵn không hợp lệ`);
       const breakMin = d.breakMin == null ? 0 : d.breakMin;
       if (!Number.isInteger(breakMin) || breakMin < 0 || breakMin > 1440)
-        throw new HttpError(400, `Ngày ${dm(date)}: số phút ra khỏi văn phòng phải là số nguyên từ 0 đến 1440`);
+        throw new HttpError(400, `Ngày ${DayMath.dm(date)}: số phút ra khỏi văn phòng phải là số nguyên từ 0 đến 1440`);
       out[date] = {
         kind,
         shift: shiftFor(d.in, d.out),
@@ -111,10 +112,10 @@ export async function cleanDays(days: any) {
     } else out[date] = { kind };
     // Giải trình Check-in/out (tuỳ chọn, mọi loại ngày): chữ do người khai nhập, Admin xem khi duyệt
     if (d.punchNote != null) {
-      if (typeof d.punchNote !== 'string') throw new HttpError(400, `Ngày ${dm(date)}: giải trình phải là chữ`);
+      if (typeof d.punchNote !== 'string') throw new HttpError(400, `Ngày ${DayMath.dm(date)}: giải trình phải là chữ`);
       const punchNote = d.punchNote.trim();
       if (punchNote.length > NOTE_MAX)
-        throw new HttpError(400, `Ngày ${dm(date)}: giải trình tối đa ${NOTE_MAX} ký tự`);
+        throw new HttpError(400, `Ngày ${DayMath.dm(date)}: giải trình tối đa ${NOTE_MAX} ký tự`);
       if (punchNote) out[date].punchNote = punchNote;
     }
     // "Nghỉ, sẽ làm bù": ngày/giờ làm bù dự kiến CHỈ để Admin xem khi duyệt, không chặn gì (ngày nào, giờ nào, dài bao lâu, qua đêm, để trống).

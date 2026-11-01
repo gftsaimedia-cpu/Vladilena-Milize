@@ -43,11 +43,11 @@ server {
     server_tokens off;
     access_log /var/log/nginx/luong-access.log luong;
     error_log  /var/log/nginx/luong-error.log warn;
-    client_max_body_size 1m;       # khớp MAX_BODY_BYTES (1e6) của server.js; lớn hơn thì app vẫn trả 413 sau khi đọc hết
+    client_max_body_size 1m;       # khớp MAX_BODY_BYTES (1e6) của src/server.ts; lớn hơn thì app vẫn trả 413 sau khi đọc hết
     client_body_timeout   15s;
     client_header_timeout 15s;
 
-    # KHÔNG thêm add_header bảo mật (CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy) ở đây: server.js gắn sẵn cho mọi
+    # KHÔNG thêm add_header bảo mật (CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy) ở đây: src/server.ts gắn sẵn cho mọi
     # phản hồi, thêm ở proxy sẽ trùng hoặc ghi đè (CHECKLIST mục 8). Riêng Permissions-Policy phải giữ geolocation=(self) cho chấm công GPS.
 
     proxy_http_version 1.1;

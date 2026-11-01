@@ -7,7 +7,7 @@ const { sqliteOnly } = require('../helpers/dialect');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const store = require('../../lib/db');
-const server = require('../../server');
+const server = require('../helpers/server');
 const config = require('../../lib/config');
 const { send } = require('../../lib/http');
 

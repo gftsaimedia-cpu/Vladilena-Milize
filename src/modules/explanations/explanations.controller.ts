@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Res } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { isAdmin, auditRow, withName, changed, absentDay } from './explanations.handlers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
 const authz = require('../../../lib/authz');
-const { HttpError, send, readJson } = require('../../../lib/http');
+const { HttpError, readJson } = require('../../../lib/http');
 const { USERNAME_RE } = require('../../../lib/domain/input');
 const { container } = require('../../../lib/domain/container');
 
@@ -16,7 +16,7 @@ const { container } = require('../../../lib/domain/container');
 export class ExplanationsController {
   /** [?status=][&user=] nhân sự: của mình; người có attendance.correct (Admin): mọi người (user= lọc một người) */
   @Get('explanations')
-  async list(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async list(@Ctx() c: ApiContext): Promise<unknown> {
     const { url, me, res } = c;
     const explanations = container.explanations;
     const status = url.searchParams.get('status') || undefined;
@@ -24,11 +24,11 @@ export class ExplanationsController {
     if (asked && !USERNAME_RE.test(asked)) throw new HttpError(400, 'user không hợp lệ');
     const admin = await isAdmin(me);
     const username = admin ? asked || undefined : me.username;
-    return send(res, 200, {
+    return {
       items: await AsyncList.map(await explanations.list({ username, status }), withName),
       waitingForYou: await explanations.countOpen(me.username), // yêu cầu đang chờ chính người xem trả lời
       toRead: admin ? await explanations.countOpen() : 0 // đã trả lời, Admin chưa đọc
-    });
+    };
   }
 
   /**
@@ -36,7 +36,7 @@ export class ExplanationsController {
    * (chờ Admin duyệt một công theo giờ ca hoặc từ chối); { username, date, prompt, source?, ruleId? } Admin yêu cầu một người giải trình.
    */
   @Post('explanations')
-  async submit(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async submit(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx } = c;
     const explanations = container.explanations;
     const body = await readJson(req);
@@ -56,7 +56,7 @@ export class ExplanationsController {
         return made;
       });
       await changed(row);
-      return send(res, 200, { item: await withName(row) });
+      return { item: await withName(row) };
     }
     if (body && body.sessionId === undefined && body.date !== undefined) {
       const row = await store.transaction(async () => {
@@ -70,7 +70,7 @@ export class ExplanationsController {
         return made;
       });
       await changed(row);
-      return send(res, 200, { item: await withName(row) });
+      return { item: await withName(row) };
     }
     const session = await store.getSession(Number(body && body.sessionId));
     const row = await store.transaction(async () => {
@@ -80,12 +80,12 @@ export class ExplanationsController {
       return made;
     });
     await changed(row);
-    return send(res, 200, { item: await withName(row) });
+    return { item: await withName(row) };
   }
 
   /** { text } nhân sự trả lời yêu cầu của mình */
   @Post('explanations/:id/answer')
-  async answer(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async answer(@Ctx() c: ApiContext): Promise<unknown> {
     return await this.move(c, 'answer');
   }
 
@@ -94,7 +94,7 @@ export class ExplanationsController {
    * giải trình ngày: duyệt ngày quên Check-in/out thì ghi công theo giờ ca, từ chối thì bỏ công đó.
    */
   @Post('explanations/:id/decide')
-  async decide(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async decide(@Ctx() c: ApiContext): Promise<unknown> {
     return await this.move(c, 'decide');
   }
 
@@ -124,6 +124,6 @@ export class ExplanationsController {
       return { done, recorded: !!(day && day.set.length) };
     });
     await changed(row.done);
-    return send(res, 200, { item: await withName(row.done), recorded: row.recorded });
+    return { item: await withName(row.done), recorded: row.recorded };
   }
 }

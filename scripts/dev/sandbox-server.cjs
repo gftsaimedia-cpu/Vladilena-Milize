@@ -26,7 +26,8 @@ process.env.COOKIE_SECURE = '0';
 process.env.TZ = 'Asia/Ho_Chi_Minh';
 const store = require('../../lib/db.js');
 const auth = require('../../lib/auth.js');
-const appServer = require('../../server.js');
+require('../../lib/register-ts');
+const appServer = require('../../src/server');
 const { createOps } = require('./sandbox-ops.cjs');
 const project = path.resolve(__dirname, '..', '..');
 let listenPort = 0; // cổng thật sau khi nghe (SANDBOX_PORT=0 → hệ điều hành chọn)

@@ -100,7 +100,15 @@ async function startServer({ db, shimNow, name, port = PORT, extraEnv = {}, node
   const mon = path.join(WORK, 'out', `mon-${name}.jsonl`);
   const child = spawn(
     process.execPath,
-    ['--no-warnings=ExperimentalWarning', ...nodeArgs, '-r', path.join(HERE, 'shim.js'), path.join(ROOT, 'server.js')],
+    [
+      '--no-warnings=ExperimentalWarning',
+      ...nodeArgs,
+      '-r',
+      path.join(HERE, 'shim.js'),
+      '--import',
+      'tsx',
+      path.join(ROOT, 'src/server.ts')
+    ],
     {
       cwd: ROOT,
       env: {

@@ -4,7 +4,7 @@ const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 let base;
 const dates = ['2026-10-10', '2026-10-17'];
 const work = { kind: 'work', in: '08:00', out: '17:00' };

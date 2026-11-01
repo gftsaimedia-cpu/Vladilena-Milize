@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 
 let base,
   clock = Date.parse('2026-10-20T12:00:00+07:00');

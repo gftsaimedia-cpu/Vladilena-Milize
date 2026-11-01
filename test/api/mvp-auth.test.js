@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 const { insertLegacyAttendanceDay } = require('../helpers/legacy-attendance');
 let base;
 // đồng hồ giả: không phụ thuộc ngày thật; mỗi test nhảy 20 phút để cửa sổ giới hạn của test trước đã hết hạn

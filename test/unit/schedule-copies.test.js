@@ -77,7 +77,7 @@ function offenders(files) {
   return out;
 }
 const productionFiles = () => [
-  path.join(ROOT, 'server.js'),
+  path.join(ROOT, 'src/server.ts'),
   ...walk(path.join(ROOT, 'lib')),
   ...fs
     .readdirSync(path.join(ROOT, 'public'))

@@ -81,7 +81,8 @@ process.env.DB_PATH = copy;
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'demo-period-check';
 const store = require('../../../lib/db');
 const auth = require('../../../lib/auth');
-const server = require('../../../server');
+require('../../../lib/register-ts');
+const server = require('../../../src/server');
 const S = require('./scenarios.js');
 
 const realNow = Date.now;

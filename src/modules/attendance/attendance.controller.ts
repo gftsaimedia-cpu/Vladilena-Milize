@@ -1,13 +1,12 @@
-import { Controller, Get, Post, Put, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { checkInVerdict, punchState, checkoutPreview, punchExtras } from './attendance.helpers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
-const { HttpError, send, readJson, clientIp } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson, clientIp } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth, positiveId } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { checkGeofence } = require('../../../lib/domain/geofence'); // vùng GPS Check-in
 const {
   punchStaff,
   closeStale,
@@ -31,23 +30,23 @@ const { warnIf, selfDecision } = warnings;
 export class AttendanceController {
   /* ---------- check-in / check-out: mỗi lần ghi nhắm đúng một phiên ---------- */
   @Get('punch')
-  async getPunch(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getPunch(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     const u = need();
     if (!u.payrollSubject)
-      return send(res, 200, {
+      return {
         enabled: false,
         canCheckIn: false,
         openSession: null,
         lastSession: null,
         serverNow: nowIso()
-      });
+      };
     await closeStale(u);
-    return send(res, 200, { ...(await punchState(u)), ...(await punchExtras(u)) });
+    return { ...(await punchState(u)), ...(await punchExtras(u)) };
   }
 
   @Post('punch')
-  async postPunch(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async postPunch(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, need, guardPeriod } = c;
     const u = need();
     if (!u.payrollSubject)
@@ -72,7 +71,7 @@ export class AttendanceController {
       const t = nowIso();
       let session;
       if (type === 'in') {
-        const outsideZone = await checkGeofence(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
+        const outsideZone = await container.geofencePolicy.check(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
         if (await store.openSession(u.username)) throw new HttpError(409, 'Bạn đang có lượt mở — Check-out trước');
         const opened = await punch.openSessionDay(await punchStaff(u, t), t);
         const verdict = await checkInVerdict(u, t); // không có lịch / khoản được duyệt, hay ngoài khung ca mà không khoản nào phủ giờ này: không ghi gì
@@ -146,19 +145,19 @@ export class AttendanceController {
       return response;
     });
     // serverNow lấy lúc gửi (không lưu trong bản phát lại theo requestId, nếu không máy khách sẽ nhận giờ cũ)
-    return send(res, 200, { ...response, ...(await punchExtras(u)) });
+    return { ...response, ...(await punchExtras(u)) };
   }
 
   @Get('ot')
-  async getOt(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getOt(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, needAdmin } = c;
     needAdmin();
     const status = url.searchParams.get('status');
-    return send(res, 200, { ot: await listOt(['approved', 'rejected'].includes(status ?? '') ? status : 'pending') });
+    return { ot: await listOt(['approved', 'rejected'].includes(status ?? '') ? status : 'pending') };
   }
 
   @Post('ot')
-  async postOt(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async postOt(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin, guardPeriod } = c;
     const admin = needAdmin(),
       b = await readJson(req);
@@ -212,11 +211,11 @@ export class AttendanceController {
       const declared = await store.getSession(result.sessionId);
       if (declared) events.emit.attendanceChanged('ot', declared.date.slice(0, 7));
     }
-    return send(res, 200, result);
+    return result;
   }
 
   @Put('ot')
-  async putOt(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putOt(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx, needAdmin, guardPeriod } = c;
     const admin = needAdmin(),
       b = await readJson(req);
@@ -278,11 +277,11 @@ export class AttendanceController {
       await events.emit.approvalsChanged(ot.date.slice(0, 7));
       events.emit.estimateChanged(ot.username, ot.date.slice(0, 7));
     }
-    return send(res, 200, { ok: true });
+    return { ok: true };
   }
 
   @Get('today')
-  async getToday(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getToday(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, needAdmin } = c;
     needAdmin();
     const { punch, actualHours: ActualHours } = await rulesFor();
@@ -345,11 +344,11 @@ export class AttendanceController {
       row.status = s ? s.status : null;
       row.statusNote = s ? s.statusNote : '';
     }
-    return send(res, 200, { today, rows });
+    return { today, rows };
   }
 
   @Get('attendance')
-  async getAttendance(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getAttendance(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, needAdmin } = c;
     needAdmin();
     const month = url.searchParams.get('month');
@@ -358,13 +357,13 @@ export class AttendanceController {
       names = Object.fromEntries(staff.map(s => [s.username, s.name])),
       types = Object.fromEntries(staff.map(s => [s.username, s.type]));
     await closeStaleFor(staff.filter(s => s.payrollSubject));
-    return send(res, 200, {
+    return {
       month,
       rows: (await sessionsFor({ month })).map(s => ({
         ...s,
         name: names[s.username] || s.username,
         type: types[s.username]
       }))
-    });
+    };
   }
 }

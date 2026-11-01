@@ -72,11 +72,11 @@ module.exports = {
 };
 `;
 
-const run = (oldText, files) => compare([{ file: 'server.js', text: oldText }], files);
+const run = (oldText, files) => compare([{ file: 'src/server.ts', text: oldText }], files);
 
 test('moved-lines: cắt dán nguyên văn (kèm require, module.exports, đầu mục bảng) không còn dòng lạ', () => {
   const result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER },
+    { file: 'src/server.ts', text: SERVER_AFTER },
     { file: 'lib/routes/kpi.js', text: ROUTES_AFTER }
   ]);
   assert.deepEqual(result.removed, [], 'dòng cũ mất');
@@ -88,7 +88,7 @@ test('moved-lines: cắt dán nguyên văn (kèm require, module.exports, đầu
 test('moved-lines: bắt dòng bị sửa một chữ, dòng bị mất và dòng bị nhân đôi', () => {
   const edited = ROUTES_AFTER.replace('YYYY-MM', 'YYYY/MM');
   let result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER },
+    { file: 'src/server.ts', text: SERVER_AFTER },
     { file: 'lib/routes/kpi.js', text: edited }
   ]);
   assert.equal(result.removed.length, 1);
@@ -101,7 +101,7 @@ test('moved-lines: bắt dòng bị sửa một chữ, dòng bị mất và dòn
     '      return send(res, 200, { pending'
   );
   result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER },
+    { file: 'src/server.ts', text: SERVER_AFTER },
     { file: 'lib/routes/kpi.js', text: dropped }
   ]);
   assert.deepEqual(
@@ -116,7 +116,7 @@ test('moved-lines: bắt dòng bị sửa một chữ, dòng bị mất và dòn
     '      audit.log();\n      return send(res, 200, { pending'
   );
   result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER },
+    { file: 'src/server.ts', text: SERVER_AFTER },
     { file: 'lib/routes/kpi.js', text: doubled }
   ]);
   assert.deepEqual(
@@ -131,7 +131,7 @@ test('moved-lines: nhận ra dòng Prettier ngắt lại (nối lại thì trùn
     "return send(res, 200, {\n        pending: tallyApprovals(listApprovals({ status: 'pending' })).pending\n      });"
   );
   const result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER },
+    { file: 'src/server.ts', text: SERVER_AFTER },
     { file: 'lib/routes/kpi.js', text: wrapped }
   ]);
   assert.deepEqual(result.removed, []);
@@ -141,7 +141,7 @@ test('moved-lines: nhận ra dòng Prettier ngắt lại (nối lại thì trùn
 
 test('moved-lines: không coi khoảng trắng và kết thúc dòng CRLF là khác biệt', () => {
   const result = run(OLD, [
-    { file: 'server.js', text: SERVER_AFTER.replace(/^ {2}/gm, '\t\t') },
+    { file: 'src/server.ts', text: SERVER_AFTER.replace(/^ {2}/gm, '\t\t') },
     { file: 'lib/routes/kpi.js', text: ROUTES_AFTER.replace(/^ {6}/gm, '        ') }
   ]);
   assert.deepEqual([result.removed, result.added], [[], []]);

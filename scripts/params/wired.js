@@ -109,20 +109,25 @@ const COPY_ORIGIN = [/^server/];
 const SERVER_COPIES = [
   {
     pattern: 'level.*.*.kpi',
-    file: 'server.js',
+    file: 'src/server.ts',
     re: /const KPI_MAX = /,
     why: 'server.js → KPI_MAX (kiểm lương KPI tối đa khi nhập)'
   },
-  { pattern: 'type.*.kpiPass', file: 'server.js', re: /const KPI_PASS = /, why: 'server.js → KPI_PASS (mốc KPI đạt)' },
+  {
+    pattern: 'type.*.kpiPass',
+    file: 'src/server.ts',
+    re: /const KPI_PASS = /,
+    why: 'server.js → KPI_PASS (mốc KPI đạt)'
+  },
   {
     pattern: 'type.*.dows',
-    file: 'server.js',
+    file: 'src/server.ts',
     re: /const SCHED_OF = /,
     why: 'server.js → SCHED_OF (thứ trong lịch làm việc)'
   },
   {
     pattern: 'type.*.nightOptions',
-    file: 'server.js',
+    file: 'src/server.ts',
     re: /Number\(b\.nightPct\) === \d+/,
     why: 'server.js → PUT /api/staff (nightPct 40 hoặc 60)'
   },

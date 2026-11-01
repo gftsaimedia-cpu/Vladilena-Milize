@@ -9,7 +9,7 @@ const { runGolden, closeTo, DEFAULTS } = require('../helpers/pay-oracle');
 const ActualHours = require('../../public/actual-hours.js');
 const registry = require('../../lib/params/registry');
 const { approved } = require('../helpers/schedule-fixtures'); // hàng duyệt đã duyệt như máy chủ lưu
-const { checkSheetLimits } = require('../../lib/domain/limits');
+const { checkSheetLimits } = require('../../lib/domain/overtime/hour-limits').HourLimits;
 const warnings = require('../../lib/warnings');
 
 const NV1 = 'known-kpi-five-100-90-80-85-100';

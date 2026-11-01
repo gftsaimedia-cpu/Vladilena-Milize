@@ -7,7 +7,7 @@ const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
   paramsStore = require('../../lib/params/store'),
   { DEFAULTS } = require('../../public/payroll-params.js'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 let base, cookie;
 async function call(method, url) {

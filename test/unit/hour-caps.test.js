@@ -18,8 +18,8 @@ const {
   checkDayHours,
   checkMonthOt,
   checkSheetLimits
-} = require('../../lib/domain/limits');
-const { estimateHolidayOtHours } = require('../../lib/domain/work-hours');
+} = require('../../lib/domain/overtime/hour-limits').HourLimits;
+const { estimateHolidayOtHours } = require('../../lib/domain/overtime/worked-hours').WorkedHours;
 
 after(() => store.db.close());
 

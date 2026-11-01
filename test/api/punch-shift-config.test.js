@@ -8,7 +8,7 @@ const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
   paramsStore = require('../../lib/params/store'),
   { rulesFor } = require('../../lib/request-rules'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 let base, cookie;
 const clock = Date.parse('2026-10-07T07:55:00+07:00');

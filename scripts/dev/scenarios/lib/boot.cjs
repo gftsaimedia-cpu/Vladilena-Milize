@@ -59,7 +59,8 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }) {
   }
   const store = require(path.join(REPO, 'lib', 'db.js'));
   const auth = require(path.join(REPO, 'lib', 'auth.js'));
-  const app = require(path.join(REPO, 'server.js'));
+  require(path.join(REPO, 'lib/register-ts'));
+  const app = require(path.join(REPO, 'src/server'));
   const clockApi = {
     now: () => clock,
     local: () => toLocal(clock),

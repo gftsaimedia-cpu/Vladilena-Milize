@@ -13,7 +13,7 @@ const store = require('../../lib/db');
 const auth = require('../../lib/auth');
 const punch = require('../../public/punch');
 const ApprovalView = require('../../public/approval-view.js');
-const server = require('../../server');
+const server = require('../helpers/server');
 
 let base;
 // Đồng hồ giả: không phụ thuộc ngày thật. 14/10/2026 12:00 giờ Việt Nam.

@@ -186,7 +186,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     lifecycle = new Lifecycle({
       store,
       auth: require('../../lib/auth'),
-      server: require('../../server'),
+      server: (require('../../lib/register-ts'), require('../../src/server')),
       admin: S.ADMINS[0].username,
       personas,
       today

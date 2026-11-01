@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 let base, clock;
 const originalNow = Date.now;
 const at = value => {

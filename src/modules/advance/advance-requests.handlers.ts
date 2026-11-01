@@ -52,12 +52,12 @@ export async function list({ res, url, me }) {
       return { ...r, name: person ? person.name : r.username };
     }
   );
-  return send(res, 200, {
+  return {
     month,
     scope: target === undefined ? 'all' : target === me.username ? 'self' : 'person',
     ...(target !== undefined ? capView(await advanceCap.capOf(target, month)) : {}),
     pending: all ? await advances.pendingCount(month) : undefined, // chờ duyệt của tháng này
     pendingAll: all ? await advances.pendingFor(me) : undefined, // chờ duyệt mọi tháng mà người xem duyệt được (huy hiệu "Yêu cầu")
     items
-  });
+  };
 }

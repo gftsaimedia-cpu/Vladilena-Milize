@@ -1,7 +1,7 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const store = require('../../../lib/db');
-const { send } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const {} = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const { monitor } = require('../../http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
 
@@ -9,10 +9,10 @@ const { monitor } = require('../../http/load-control'); // giới hạn tải d�
 export class SystemController {
   // Cho proxy/giám sát: tiến trình còn sống, DB trả lời được, vòng lặp có đang nghẽn không. Không lộ dữ liệu nghiệp vụ.
   @Get('health')
-  async getHealth(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getHealth(@Ctx() c: ApiContext): Promise<unknown> {
     const { res } = c;
     await store.db.prepare('SELECT 1').get();
-    return send(res, 200, { ok: true, ...monitor.snapshot() });
+    return { ok: true, ...monitor.snapshot() };
   }
 
   @Get('events')

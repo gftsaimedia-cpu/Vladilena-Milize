@@ -1,18 +1,18 @@
-import { Controller, Get, Post, Put, Res } from '@nestjs/common';
+import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
+import { Reply } from '../../http/reply';
 import { reasonOf } from '../../shared/reason';
 const { staffView: staffScheduleView } = require('../../../lib/domain/schedule');
 import { rolesOfStaff, rolesRevOf } from './staff.helpers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
 const auth = require('../../../lib/auth');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, monthParams, typeParam, benefitOf, levelCountOf, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { estimateSheet, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
 const { staffForViewer, sheetForViewer, staffRevision } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
 const { closeStaleFor } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
 const { sessionsFor } = require('../../../lib/domain/attendance/session-view');
-const { hasKpi, kpiPartsView } = require('../../../lib/domain/kpi'); // KPI: trần, điểm, hiển thị
 const { sheetApprovals, reconcileStaffType } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const Roles = require('../../../lib/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
@@ -30,20 +30,20 @@ const { warnIf, selfDecision } = warnings;
 @Controller('api')
 export class StaffController {
   @Get('staff')
-  async getStaff(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getStaff(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, me, needAdmin } = c;
     needAdmin();
     const listParams = await monthParams();
-    return send(res, 200, {
+    return {
       staff: await AsyncList.map(
         await store.listStaff(),
         async s => await staffForViewer(me, s.payrollSubject ? await withLeave(listParams, s) : s)
       )
-    });
+    };
   }
 
   @Get('team')
-  async getTeam(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getTeam(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, me, needAdmin } = c;
     needAdmin();
     const month = url.searchParams.get('month');
@@ -67,8 +67,8 @@ export class StaffController {
         staff: await staffForViewer(me, await withLeave(teamParams, s)),
         ...(await sheetForViewer(me, s.username, sh)),
         approvals,
-        kpiParts: await kpiPartsView(
-          (await hasKpi(s, teamParams)) && (await authz.can(me, 'salary.read', { username: s.username }))
+        kpiParts: await container.kpi.partsView(
+          (await container.kpi.has(s, teamParams)) && (await authz.can(me, 'salary.read', { username: s.username }))
             ? kpiRows.get(s.username)
             : null,
           month,
@@ -80,17 +80,17 @@ export class StaffController {
         pendingOt: attendanceSessions.filter(s => s.entry.extraKind === 'ot' && !s.entry.otReview).length
       };
     });
-    return send(res, 200, {
+    return {
       month,
       rows,
       schedules: teamSchedule.schedules,
       holidays: await store.getSetting('holidays', [])
-    });
+    };
   }
 
   // Đặt lại mật khẩu của tài khoản KHÁC (màn Tài khoản): cần roles.manage ở cổng; không dùng cho chính mình (PUT /password). Mọi phiên cũ của người đó hết hiệu lực.
   @Post('staff/:u/password')
-  async postStaffPassword(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async postStaffPassword(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, seg, actx, needAdmin } = c;
     const admin = needAdmin(),
       b = await readJson(req);
@@ -122,11 +122,11 @@ export class StaffController {
     });
     await store.bumpSessionVersion(username); // mọi phiên cũ của người đó hết hiệu lực
     events.closeUser(username, 'password');
-    return send(res, 200, { ok: true });
+    return { ok: true };
   }
 
   @Put('staff/:u/roles')
-  async putStaffRoles(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putStaffRoles(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, seg, actx, needAdmin } = c;
     const admin = needAdmin(),
       b = await readJson(req);
@@ -211,11 +211,11 @@ export class StaffController {
       };
     });
     if (outcome.granted.length || outcome.revoked.length) await events.emit.rolesChanged(username);
-    return send(res, 200, { username, roles: await rolesOfStaff(await store.getStaff(username)), ...outcome });
+    return { username, roles: await rolesOfStaff(await store.getStaff(username)), ...outcome };
   }
 
   @Put('staff/:u')
-  async putStaff(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putStaff(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, seg, actx, needAdmin } = c;
     const admin = needAdmin();
     let username;
@@ -272,7 +272,7 @@ export class StaffController {
         if (changed) await audit.staffLock(actx, username, b.locked);
       });
       if (b.locked) events.closeUser(username, 'locked');
-      return send(res, 200, { staff: await staffForViewer(me, await store.getStaff(username)), created: false });
+      return { staff: await staffForViewer(me, await store.getStaff(username)), created: false };
     }
     // Họ tên: name; hoặc familyName + givenName nhập riêng (họ trước, tên sau, viết hoa chữ đầu) thì name = họ + tên
     const nameParts =
@@ -560,15 +560,15 @@ export class StaffController {
     const result = { staff: await staffForViewer(me, await store.getStaff(username)), created: !prev };
     // Admin tự đặt lại mật khẩu của mình: phiên hiện tại vừa bị thu hồi, cấp phiên mới cho trình duyệt đang dùng
     if (b.password && prev && username === admin.username)
-      return send(res, 200, result, {
+      return new Reply(200, result, {
         'Set-Cookie': auth.cookieHeader(await auth.createSession(username), auth.SESSION_MAX_AGE_SEC)
       });
-    return send(res, 200, result);
+    return result;
   }
 
   /** ?month= lịch làm việc hiệu lực của một người (self-or:profile.read); kiểm quyền TRƯỚC khi tra tên để không dò được tên đăng nhập */
   @Get('staff/:u/schedule')
-  async getStaffSchedule(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getStaffSchedule(@Ctx() c: ApiContext): Promise<unknown> {
     const { url, me, seg, res } = c;
     let username: string;
     try {
@@ -582,6 +582,6 @@ export class StaffController {
     if (!staff) throw new HttpError(404, 'Không có nhân sự này');
     const month = url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
-    return send(res, 200, await staffScheduleView(staff, month));
+    return await staffScheduleView(staff, month);
   }
 }

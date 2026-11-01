@@ -59,7 +59,7 @@ const legacyEdgeNext = { ...legacySecond, presIn: iso('2026-09-02T00:30:00'), pr
 }
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 // Đọc thẳng các ngày chấm công của tháng từ DB
 const ATT = async (u, month) =>
   await store.db.prepare('SELECT date FROM attendance_days WHERE username = ? AND date LIKE ?').all(u, month + '-%');

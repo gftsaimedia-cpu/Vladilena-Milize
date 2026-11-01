@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
-const SCAN = ['lib', 'public', 'scripts', 'spec', 'server.js'];
+const SCAN = ['lib', 'public', 'scripts', 'spec', 'src/server.ts'];
 const TEXT = /\.(js|cjs|mjs|json|md|html|css)$/;
 const SKIP_FILES = new Set([
   'lib/params/registry.data.json',

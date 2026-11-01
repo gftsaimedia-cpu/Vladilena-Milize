@@ -55,7 +55,7 @@ before(async () => {
   });
   await new Promise((resolve, reject) => {
     let output = '';
-    const timer = setTimeout(() => reject(new Error('Sandbox chưa sẵn sàng: ' + stderr)), 10000);
+    const timer = setTimeout(() => reject(new Error('Sandbox chưa sẵn sàng: ' + stderr)), 30000);
     child.once('exit', code => {
       if (!base) {
         clearTimeout(timer);

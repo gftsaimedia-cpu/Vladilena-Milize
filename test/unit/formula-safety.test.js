@@ -77,7 +77,7 @@ test('Bộ quét tĩnh bắt đúng mã nguy hiểm và bỏ qua chú thích (t�
 // Không có danh sách cho phép: mọi file .js của public/, lib/ và server.js đều không được dùng mã động.
 test('no-dynamic-code: không file .js nào của public/ và lib/ dùng eval, new Function, vm, setTimeout(chuỗi), import() động, require động (không ngoại lệ)', () => {
   const offenders = [];
-  for (const file of [...jsFiles('public'), ...jsFiles('lib'), 'server.js']) {
+  for (const file of [...jsFiles('public'), ...jsFiles('lib'), 'src/server.ts']) {
     const hits = scan(fs.readFileSync(path.join(ROOT, file), 'utf8'));
     if (hits.length) offenders.push(`${file}: ${hits.join(', ')}`);
   }

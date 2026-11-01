@@ -1,18 +1,12 @@
-import { Controller, Get, Put, Res } from '@nestjs/common';
+import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, monthParams, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const {
-  hasKpi,
-  cleanKpiAmt,
-  kpiScoreItem,
-  kpiPartsView,
-  kpiHttpError,
-  selfScoreOnly
-} = require('../../../lib/domain/kpi'); // KPI: trần, điểm, hiển thị
+const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain dựng một lần
+const { KpiScoring } = require('../../../lib/domain/kpi/kpi-scoring');
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
 const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
@@ -23,7 +17,7 @@ const { warnIf, selfDecision } = warnings;
 export class KpiController {
   /* ---------- KPI 5 thành phần: Admin nhập điểm ---------- */
   @Get('kpi/scores')
-  async getKpiScores(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getKpiScores(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, needAdmin } = c;
     needAdmin();
     const month = url.searchParams.get('month');
@@ -31,19 +25,19 @@ export class KpiController {
     const KpiScore = (await rulesFor(month)).kpi;
     const kpiParams = await monthParams(month),
       rows = new Map((await store.listKpiScores(month)).map(row => [row.username, row]));
-    return send(res, 200, {
+    return {
       month,
       method: 'five',
       weights: Object.fromEntries(KpiScore.COMPONENTS.map(c => [c.key, c.weight])),
       items: await AsyncList.map(
-        await AsyncList.filter(await store.listStaff(), staff => hasKpi(staff, kpiParams)),
-        staff => kpiScoreItem(staff, month, rows.get(staff.username) || null, kpiParams)
+        await AsyncList.filter(await store.listStaff(), staff => container.kpi.has(staff, kpiParams)),
+        staff => container.kpi.scoreItem(staff, month, rows.get(staff.username) || null, kpiParams)
       )
-    });
+    };
   }
 
   @Put('kpi/scores')
-  async putKpiScores(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putKpiScores(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx, need, guardPeriod } = c;
     const actor = need();
     const body = await readJson(req);
@@ -53,11 +47,12 @@ export class KpiController {
     // Nhân sự không có kpi.score.write ở phạm vi all chỉ lưu được điểm `self` của chính mình (bỏ trống user = chính mình)
     const full = (await authz.scopeOf(me, 'kpi.score.write')) === 'all';
     const wanted = user === undefined && !full ? me.username : typeof user === 'string' ? user.toLowerCase() : '';
-    if (!full) selfScoreOnly(me, wanted, scores, amt);
+    if (!full) KpiScoring.selfScoreOnly(me, wanted, scores, amt);
     if (!USERNAME_RE.test(wanted)) throw new HttpError(400, 'user không hợp lệ');
     const target = await store.getStaff(wanted);
     if (!target) throw new HttpError(404, 'Không có nhân sự này');
-    if (!(await hasKpi(target, await monthParams(month)))) throw new HttpError(400, 'Nhân sự này không có KPI');
+    if (!(await container.kpi.has(target, await monthParams(month))))
+      throw new HttpError(400, 'Nhân sự này không có KPI');
     // Người có quyền đầy đủ tự nhập điểm self của mình cũng là việc của chính chủ, không phải tự quyết định điểm của người khác
     const ownSelfEntry =
       target.username === me.username && amt === undefined && Object.keys(scores || {}).join() === 'self';
@@ -88,7 +83,7 @@ export class KpiController {
     if (amt !== undefined) {
       if (amt !== null && (typeof amt !== 'number' || !Number.isFinite(amt)))
         throw new HttpError(400, 'Lương KPI phải là số không âm');
-      patch.amt = await cleanKpiAmt(amt, target, month); // không âm, không vượt trần level
+      patch.amt = await container.kpi.cleanAmount(amt, target, month); // không âm, không vượt trần level
     }
     if (reason != null && typeof reason !== 'string') throw new HttpError(400, 'Lý do phải là chữ');
     const note = (reason || '').trim();
@@ -113,20 +108,20 @@ export class KpiController {
         return saved;
       });
     } catch (error) {
-      throw kpiHttpError(error);
+      throw KpiScoring.httpError(error);
     }
     if (result.changed.length) await events.emit.estimateChanged(target.username, month);
     // Nhân sự tự nhập điểm self chỉ nhận lại phần của mình, không nhận dòng điểm đầy đủ (điểm các thành phần khác chưa lộ)
     if (!full)
-      return send(res, 200, {
+      return {
         ok: true,
         changed: result.changed,
-        kpiParts: await kpiPartsView(result.item, month, me)
-      });
-    return send(res, 200, {
+        kpiParts: await container.kpi.partsView(result.item, month, me)
+      };
+    return {
       ok: true,
-      item: await kpiScoreItem(target, month, result.item),
+      item: await container.kpi.scoreItem(target, month, result.item),
       changed: result.changed
-    });
+    };
   }
 }

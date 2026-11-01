@@ -4,7 +4,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 let base;
 
 async function person(username, role = 'staff') {

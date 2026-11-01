@@ -6,7 +6,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 const sessionBody = require('../helpers/session-contract-helper');
 let base, clock;
 const realNow = Date.now;

@@ -1,8 +1,8 @@
-import { Controller, Get, Put, Res } from '@nestjs/common';
+import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const paramsSave = require('../../../lib/params/save');
 const events = require('../../../lib/events');
-const { HttpError, send, readJson } = require('../../../lib/http');
+const { HttpError, readJson } = require('../../../lib/http');
 const { validMonth } = require('../../../lib/domain/input');
 const { rulesFor, vnToday } = require('../../../lib/request-rules');
 const { container } = require('../../../lib/domain/container');
@@ -19,15 +19,15 @@ const bad = (message: string, code: string) => new HttpError(400, message, { cod
 export class SettingsShiftsController {
   /** ?month= → { month, paramsRev, editable, hours, shifts: [{ code, preset, name, kind, in, out }] } */
   @Get('settings/shifts')
-  async get(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async get(@Ctx() c: ApiContext): Promise<unknown> {
     const month = c.url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw bad('month phải dạng YYYY-MM', 'BAD_MONTH');
-    return send(c.res, 200, await view(month));
+    return await view(month);
   }
 
   /** { shifts: [{ code, in, out }], effectiveMonth?, reason, expectedRev? } → như lưu tham số */
   @Put('settings/shifts')
-  async put(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async put(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx } = c;
     const b = await readJson(req);
     if (!b || typeof b !== 'object' || !Array.isArray(b.shifts) || !b.shifts.length)
@@ -56,6 +56,6 @@ export class SettingsShiftsController {
       acknowledge: b.acknowledge
     });
     if (saved.notice) events.emit.paramsChanged(saved.notice);
-    return send(res, 200, saved);
+    return saved;
   }
 }

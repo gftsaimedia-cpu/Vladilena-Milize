@@ -97,5 +97,5 @@
 | `SESSION_DAYS` | `lib/auth.js:223` |
 | `SESSION_SECRET` | `lib/auth.js:216` |
 | `SHIFT_ALLOW_EDIT` | `lib/params/save.js:73` |
-| `UV_THREADPOOL_SIZE` | `server.js:4` `server.js:4` |
+| `UV_THREADPOOL_SIZE` | `src/preload.ts:7` `src/preload.ts:7` |
 | `WEB_DIST` | `lib/http.js:10` |

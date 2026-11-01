@@ -8,7 +8,7 @@ const fs = require('node:fs'),
 process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'luong-checkin-')), 'test.sqlite');
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 const sessionBody = require('../helpers/session-contract-helper');
 const recordedDay = async (u, date) => (await (await store.listSessions({ username: u, date })).at(-1))?.entry || null;
 

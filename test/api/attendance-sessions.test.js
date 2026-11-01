@@ -5,7 +5,7 @@ const { test, before, after } = require('node:test'),
   crypto = require('node:crypto');
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 let base, clock;
 const originalNow = Date.now;
 const at = t => (clock = Date.parse(t + '+07:00'));

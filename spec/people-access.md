@@ -490,7 +490,7 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 
 | Cờ | Tác dụng trong mã |
 | --- | --- |
-| `ot` | Khai OT trên lịch (`lib/domain/sheet-checks.js`), khai đi làm ngày lễ trong lịch có khung giờ vào – ra và khai OT từ lượt chấm công (`lib/domain/ot.js`): thiếu cờ thì lưu kèm cảnh báo `BENEFIT_NOT_ALLOWED` (khoản không được trả tiền). Bộ máy: thiếu cờ thì không có giờ OT và không có giờ làm ngày lễ, ngày lễ chỉ còn lương lễ nếu chức vụ có `paidHoliday` (`public/payroll-engine.js,472`). Khối cấu hình "Làm thêm (OT)" bật theo cờ này. |
+| `ot` | Khai OT trên lịch (`lib/domain/timesheet/` (nối ở `timesheet/services.js`)), khai đi làm ngày lễ trong lịch có khung giờ vào – ra và khai OT từ lượt chấm công (`lib/domain/ot.js`): thiếu cờ thì lưu kèm cảnh báo `BENEFIT_NOT_ALLOWED` (khoản không được trả tiền). Bộ máy: thiếu cờ thì không có giờ OT và không có giờ làm ngày lễ, ngày lễ chỉ còn lương lễ nếu chức vụ có `paidHoliday` (`public/payroll-engine.js,472`). Khối cấu hình "Làm thêm (OT)" bật theo cờ này. |
 | `makeup` | Khối cấu hình "Làm bù" (hệ số `holiday.makeupRate`) bật theo cờ này (`lib/params/blocks.js`); `public/payroll-engine.js` không đọc cờ này. |
 | `makeupHours` | Khai làm bù theo giờ trên lịch (`extraKind='makeup'`): thiếu cờ thì cảnh báo `BENEFIT_NOT_ALLOWED` (khoản chờ duyệt và nếu được duyệt vẫn có tiền) (`checkRequestFlags`, `lib/domain/positions.js`). |
 | `makeupDay` | Bộ máy (`public/payroll-engine.js`) và máy chủ không đọc. Màn danh mục chức vụ lọc riêng cờ này khỏi danh sách cờ hiển thị và chỉ giữ nhãn cho nhật ký; `public/payroll-params.js,771,796` vẫn giữ mặc định `type.<mã>.benefit.makeupDay: true`. |
@@ -498,16 +498,16 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 | `paidHoliday` | Ngày lễ trong thời gian làm việc được lương ngày (`public/payroll-engine.js`); thiếu cờ thì lương lễ là 0. |
 | `paidLeave` | Ngày nghỉ phép năm có lương ngày. |
 | `isat` | Ngày iSAT được khai và được trả; điều kiện đầy đủ ở "iSAT" dưới. |
-| `approvedLeave` | Khai "Nghỉ được duyệt": thiếu cờ thì `BENEFIT_NOT_ALLOWED` (ngày chờ Admin duyệt, không lương), trừ ngày đã lưu loại này từ trước (`sheet-checks.js`). |
-| `absenceDeclarable` | Khai nghỉ phép (`leave`) hoặc nghỉ không lương vào ngày trong lịch: thiếu cờ thì `BENEFIT_NOT_ALLOWED` (`sheet-checks.js`). |
-| `leaveAccount` | Có tài khoản phép năm: `withLeave` thêm `leave` vào hồ sơ trả ra; ngày trong lịch còn phép năm thì không khai nghỉ không lương (`sheet-checks.js`); sổ phép (`lib/domain/leave/leave-account-service.js`); quy đổi phép dư (`lib/payroll-service.js`). |
+| `approvedLeave` | Khai "Nghỉ được duyệt": thiếu cờ thì `BENEFIT_NOT_ALLOWED` (ngày chờ Admin duyệt, không lương), trừ ngày đã lưu loại này từ trước (`timesheet/timesheet-validator.js`). |
+| `absenceDeclarable` | Khai nghỉ phép (`leave`) hoặc nghỉ không lương vào ngày trong lịch: thiếu cờ thì `BENEFIT_NOT_ALLOWED` (`timesheet/timesheet-validator.js`). |
+| `leaveAccount` | Có tài khoản phép năm: `withLeave` thêm `leave` vào hồ sơ trả ra; ngày trong lịch còn phép năm thì không khai nghỉ không lương (`timesheet/timesheet-validator.js`); sổ phép (`lib/domain/leave/leave-account-service.js`); quy đổi phép dư (`lib/payroll-service.js`). |
 | `idorm` | Cho phép đặt `staff.idorm = 1` (mục 4.6 bước 13); bộ máy đọc `staff.idorm` làm biến `iDorm` (`public/payroll-engine.js`). |
 | `breakPay` | Giờ nghỉ đêm có lương: `breakPay === false` thì 0, vắng khoá vẫn trả (`public/payroll-engine.js`). |
 | `holidayWork` | Nằm trong `RETIRED_BENEFITS`: danh mục, tham số và bộ máy không đọc. Làm ngày lễ theo cờ `ot`. |
 
 **Dữ liệu cờ gửi cho giao diện** (`lib/domain/positions.js`):
 - `myPosition(me)` (, gửi trong `GET /me`): `me.payrollSubject` false → `{ benefits: null, positionLabel: null }`. Ngược lại `benefits = Positions.benefitsOf(params, type, level)` kèm `startDateRequired`, và `positionLabel = defOf(type).label` nếu có `type.<type>.workdays`.
-- `sheetFlagsOf(params, type, level)` → 6 cờ `canOt, canIsat, canApproved, canDeclareAbsence, hasLeaveAccount, canMakeupHours`; `PUT /sheet` đọc `canOt, canApproved, canDeclareAbsence, hasLeaveAccount` (`lib/domain/sheet-checks.js`), `canMakeupHours` đi vào `checkRequestFlags`; `canIsat` không nơi nào đọc.
+- `sheetFlagsOf(params, type, level)` → 6 cờ `canOt, canIsat, canApproved, canDeclareAbsence, hasLeaveAccount, canMakeupHours`; `PUT /sheet` đọc `canOt, canApproved, canDeclareAbsence, hasLeaveAccount` (`lib/domain/timesheet/` (nối ở `timesheet/services.js`)), `canMakeupHours` đi vào `checkRequestFlags`; `canIsat` không nơi nào đọc.
 - `checkRequestFlags(flags, day, date, { onBehalf })` chỉ kiểm làm bù theo giờ qua `warnIf('BENEFIT_NOT_ALLOWED', ...)`. `onBehalf` (Admin khai thay, khoản được duyệt luôn trong lần lưu) chỉ đổi câu cảnh báo.
 - `activeCodesOf(params)`: mã chức vụ có `type.<mã>.workdays` và `position.def.<mã>.deprecated` không bật.
 - `withLeave(params, staff)`: chức vụ/bậc có `leaveAccount` → thêm `leave: leaveSummary(staff)`.
@@ -516,7 +516,7 @@ Cờ là khoá `type.<mã>.benefit.<cờ>` (theo chức vụ) và `level.<mã>.<
 1. Chức vụ/bậc không có `benefit.isat` → `BENEFIT_NOT_ALLOWED`.
 2. Ngày không đúng thứ `isat.weekday` (mặc định `6`, thứ Bảy; `public/payroll-params.js`) → `SHEET_ISAT_WEEKDAY`.
 
-Chặn cứng (400) cả với Admin ở: `PUT /sheet` khi ngày được khai hoặc đổi sang loại iSAT, trừ ngày iSAT đã lưu và giữ nguyên loại thì được miễn kiểm (`lib/domain/sheet-checks.js`); `PUT /approvals/decide` khi duyệt khoản iSAT (`src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`). Danh sách kiểm khi chốt công đếm các ngày iSAT đã lưu vi phạm hai điều kiện trên bằng cảnh báo `ISAT_INVALID` (`lib/periods.js`). Bộ máy chỉ trả lương ngày iSAT khi chức vụ có cờ `isat` và ngày đúng thứ `isat.weekday` (`public/payroll-engine.js`).
+Chặn cứng (400) cả với Admin ở: `PUT /sheet` khi ngày được khai hoặc đổi sang loại iSAT, trừ ngày iSAT đã lưu và giữ nguyên loại thì được miễn kiểm (`lib/domain/timesheet/` (nối ở `timesheet/services.js`)); `PUT /approvals/decide` khi duyệt khoản iSAT (`src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`). Danh sách kiểm khi chốt công đếm các ngày iSAT đã lưu vi phạm hai điều kiện trên bằng cảnh báo `ISAT_INVALID` (`lib/periods.js`). Bộ máy chỉ trả lương ngày iSAT khi chức vụ có cờ `isat` và ngày đúng thứ `isat.weekday` (`public/payroll-engine.js`).
 
 **Check-in trên ngày đã khai nghỉ cả ngày** (`checkInDay`, `src/modules/sheet/sheet.controller.ts` / `src/modules/approvals/approvals.controller.ts`): ngày có khoản OT hoặc làm bù theo giờ đã duyệt thì luôn được Check-in. Ngày có loại `isat`, `leave` hoặc `unpaid` đóng Check-in, trừ khi khoản bị từ chối (chờ duyệt, đã duyệt hay chưa có khoản đều đóng). Ngày có loại `approved` hoặc `willmakeup` đóng Check-in chỉ khi khoản đã duyệt. Còn lại, nhân viên chỉ Check-in được ngày là ngày làm việc trong lịch được gán và không phải ngày lễ; ngày khác trả câu báo "không có lịch làm việc hay giờ OT/làm bù được duyệt".
 
@@ -618,7 +618,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 - `public/punch.js` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.js`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.js`.
 - `lib/request-rules.js` (`rulesFor`, `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`): `src/modules/**/*.controller.ts` hồ sơ, `staff.js`, `positions.js`, `shifts.js`.
 - `lib/params/store.js`, `lib/params/save.js`, `lib/params/positions.js`, `lib/params/registry.js`, `lib/params/config-rev.js`.
-- `lib/domain/approvals.js` (`reconcileStaffType`), `lib/domain/sheet.js` (`leaveSummary`), `lib/domain/geofence.js` (`geofenceView`), `lib/domain/attendance.js`.
+- `lib/domain/approvals.js` (`reconcileStaffType`), `lib/domain/sheet.js` (`leaveSummary`), `lib/domain/attendance/geofence-policy.js` (`geofenceView`), `lib/domain/attendance.js`.
 - `lib/warnings.js`, `lib/audit.js`, `lib/events.js`, `lib/announce.js`, `lib/http.js`, `lib/ops/limiters.js`.
 
 ### 6.2 Ai gọi module này
@@ -651,7 +651,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | `store.roles.effectiveRoles` | `authz.rolesOf` (mọi quyền), `audit.context`. `roles.rolesOfStaff` là bản riêng (màn Phân quyền, gán vai trò) — sửa cả hai nếu đổi quy tắc "ai có vai trò gì". |
 | Cờ `payrollSubject` | Vai trò `staff` tự dẫn xuất (`rolesOf`), `isSelfDecision`, `publicStaff`, `myPosition`, danh sách bảng lương/duyệt (`listApprovals` bỏ người ngoài bảng lương), `reconcileStaffRole`. |
 | Bảng danh mục chức vụ / `paramRows` | Bộ máy lương và mọi module đọc `type.*`/`level.*`; đơn vị: `flexBonus/travel/attendance` là tỉ lệ, `nightPct` là %; `lib/params/positions.js copyChanges` bỏ khoá `.nightPct`. |
-| `BENEFITS` (`position/benefits.js`) | `lib/params/positions.js BENEFIT_FLAGS` (bản riêng, không có `holidayWork`), bảng `benefit_types` (dòng mới chỉ nạp ở mốc một lần), `sheetFlagsOf`/`checkRequestFlags` (`lib/domain/positions.js`), `lib/domain/sheet-checks.js`, `lib/domain/ot.js`, `lib/domain/isat-rule.js`, `public/payroll-engine.js` (mục 4.11). |
+| `BENEFITS` (`position/benefits.js`) | `lib/params/positions.js BENEFIT_FLAGS` (bản riêng, không có `holidayWork`), bảng `benefit_types` (dòng mới chỉ nạp ở mốc một lần), `sheetFlagsOf`/`checkRequestFlags` (`lib/domain/positions.js`), `lib/domain/timesheet/` (nối ở `timesheet/services.js`), `lib/domain/ot.js`, `lib/domain/isat-rule.js`, `public/payroll-engine.js` (mục 4.11). |
 | Danh mục ca / `shift.kind.*` / `shift.alias.*` | `public/punch.js`, `public/actual-hours.js`, phụ cấp ca trong bộ máy lương, `seed-data.js SHIFTS`, `PRESET_RE` trong `src/modules/staff/staff.controller.ts`. |
 | `PersonName` | `db.rowToStaff`, `db.upsertStaff`, `Profile.fromRow`, mốc `staff_identity_v1`. |
 | `agents_enabled` | `lib/agents.js`; `/me.agentsEnabled`; mọi route Trợ lý AI; `assertNotAiBlocked`. |
@@ -687,7 +687,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 9. **Bộ tham số của module đăng nhập**: `lib/auth.js` đọc `PayrollParams.DEFAULTS` lúc nạp; `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts` đọc `system.staff.bulkMax` từ bộ tham số đã lưu. Các khoá `system.login.*`, `system.session.days`, `system.auth.*` nếu được lưu vào `param_versions` không có tác dụng.
 10. **Ba bộ kiểm lý do**: `roles.parseReason` (`roles.js`), `warnings.optionalReason` (`warnings.js` theo dòng của file), `db.softReason` (`db.js`); `src/modules/staff/staff.controller.ts reasonOf` bọc `optionalReason`. Mọi lý do đều không bắt buộc. Route danh mục (`catalog-change.js`) không kiểm lý do.
 11. **`uuidOf`**: `lib/db.js` và `employee-repository.js` cùng tra uuid theo username.
-12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.js` (bỏ `insured`, `levelName`), `lib/domain/geofence.js` (chỉ gửi toạ độ vùng cho `staff.role='admin'`). Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
+12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.js` (bỏ `insured`, `levelName`), `lib/domain/attendance/geofence-policy.js` (chỉ gửi toạ độ vùng cho `staff.role='admin'`). Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
 
 ### 8.2 Danh sách / hằng số chép nhiều nơi
 

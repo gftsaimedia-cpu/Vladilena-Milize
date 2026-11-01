@@ -21,9 +21,10 @@ const events = require('../../../lib/events');
 const advanceCap = require('../../../lib/advance-cap');
 const { DECIDE_CAP } = require('../../../lib/advance-requests');
 const { selfDecision, optionalReason } = require('../../../lib/warnings');
-const { HttpError, send, readJson } = require('../../../lib/http');
+const { HttpError, readJson } = require('../../../lib/http');
 const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input');
-const { advanceWindow, assertAdvanceWindowOpen, assertAdvanceMonthCurrent } = require('../../../lib/domain/limits');
+const { AdvanceRequestWindow } = require('../../../lib/domain/advance/advance-request-window');
+const requestWindow = new AdvanceRequestWindow();
 const { DomainError } = require('../../../lib/domain/shared/domain-error');
 const { advanceApprovals } = require('../../../lib/domain/advance/index');
 
@@ -133,14 +134,14 @@ export async function list({ res, url, me }) {
   if (target !== undefined) {
     const { provisional, figures } = await advanceCap.figuresOf(month, [target]);
     const figure = figures.get(target) || { eligible: false, reason: 'Không có nhân sự này', amount: 0 };
-    return send(res, 200, {
+    return {
       month,
       scope: target === me.username ? 'self' : 'person',
       rev: doc.rev,
       provisional,
-      window: advanceWindow(),
+      window: requestWindow.view(),
       item: await itemOf(target, figure, await advanceApprovals.entryOf(month, target))
-    });
+    };
   }
   // Chỉ người đã gửi yêu cầu (không liệt kê người được ứng mà chưa xin: trông như yêu cầu tự gửi)
   const requests = await advanceApprovals.requests(month);
@@ -151,7 +152,15 @@ export async function list({ res, url, me }) {
   for (const [username, entry] of requests)
     items.push(await itemOf(username, figures.get(username) || { eligible: false, amount: 0 }, entry));
   const pending = items.filter(r => r.status === 'pending').length;
-  return send(res, 200, { month, scope: 'all', rev: doc.rev, provisional, window: advanceWindow(), pending, items });
+  return {
+    month,
+    scope: 'all',
+    rev: doc.rev,
+    provisional,
+    window: requestWindow.view(),
+    pending,
+    items
+  };
 }
 
 // Nhân sự gửi hoặc rút yêu cầu của chính mình
@@ -159,8 +168,8 @@ export async function own({ req, res, me, actx }, move) {
   const body = await readJson(req);
   const month = monthOf(body);
   if (move === 'request') {
-    assertAdvanceWindowOpen();
-    assertAdvanceMonthCurrent(month);
+    requestWindow.assertOpen();
+    requestWindow.assertMonthCurrent(month);
   }
   const username = me.username;
   const { provisional, figures } = await advanceCap.figuresOf(month, [username]);
@@ -183,11 +192,11 @@ export async function own({ req, res, me, actx }, move) {
     return change;
   });
   await announce(month, [username], null);
-  return send(res, 200, {
+  return {
     month,
     rev: (await advanceApprovals.read(month)).rev,
     item: await itemOf(username, figure, done.after)
-  });
+  };
 }
 
 // Admin duyệt, từ chối hoặc huỷ duyệt yêu cầu của một người
@@ -219,11 +228,11 @@ export async function decideOne({ req, res, me, actx }, move) {
     return change;
   });
   await announce(month, [username], ACTIONS[move].decision);
-  return send(res, 200, {
+  return {
     month,
     rev: (await advanceApprovals.read(month)).rev,
     item: await itemOf(username, figure, done.after)
-  });
+  };
 }
 
 export async function approveAll({ req, res, me, actx }) {
@@ -255,5 +264,5 @@ export async function approveAll({ req, res, me, actx }) {
   });
   const approved = done.map(c => c.username);
   if (approved.length) await announce(month, approved, 'approved');
-  return send(res, 200, { month, rev: (await advanceApprovals.read(month)).rev, approved, skipped });
+  return { month, rev: (await advanceApprovals.read(month)).rev, approved, skipped };
 }

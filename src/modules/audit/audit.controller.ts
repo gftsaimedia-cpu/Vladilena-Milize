@@ -1,8 +1,8 @@
-import { Controller, Get, Res } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { vnDayIso } from './audit.helpers';
 const store = require('../../../lib/db');
-const { HttpError, send } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { validMonth, validDate } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
@@ -12,7 +12,7 @@ const config = require('../../../lib/config'); // giới hạn kỹ thuật có 
 export class AuditController {
   /* ---------- nhật ký kiểm toán (chỉ đọc; không có API sửa hay xoá) ---------- */
   @Get('audit')
-  async getAudit(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getAudit(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, me, need } = c;
     need(); // năng lực audit.read đã kiểm ở cổng ROUTE_CAPS
     const q = url.searchParams,
@@ -40,19 +40,19 @@ export class AuditController {
     };
     const size = Math.min(limit, config.AUDIT_PAGE_MAX);
     const rows = (await store.audit.list({ ...filter, limit: size })).map(audit.publicRow);
-    return send(res, 200, {
+    return {
       rows,
       total: await store.audit.count(filter),
       limit: size,
       // Trang kế (mới → cũ): truyền nextBeforeId vào beforeId
       nextBeforeId: rows.length === size && !q.has('afterId') ? rows[rows.length - 1].id : null
-    });
+    };
   }
 
   @Get('audit/verify')
-  async getAuditVerify(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getAuditVerify(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     need(); // năng lực audit.read đã kiểm ở cổng ROUTE_CAPS
-    return send(res, 200, await store.audit.verify());
+    return await store.audit.verify();
   }
 }

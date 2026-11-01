@@ -22,7 +22,7 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `GET /approvals` | `request.decide.*` | — | [`src/modules/approvals/approvals.controller.ts:22`](../../src/modules/approvals/approvals.controller.ts#L22) `getApprovals` |  |
 | `GET /approvals/count` | `request.decide.*` | — | [`src/modules/approvals/approvals.controller.ts:84`](../../src/modules/approvals/approvals.controller.ts#L84) `getApprovalsCount` |  |
 | `PUT /approvals/decide` | `request.decide.*` | `attendance` (tháng: items[].date) | [`src/modules/approvals/approvals.controller.ts:157`](../../src/modules/approvals/approvals.controller.ts#L157) `putApprovalsDecide` |  |
-| `GET /attendance` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:351`](../../src/modules/attendance/attendance.controller.ts#L351) `getAttendance` |  |
+| `GET /attendance` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:350`](../../src/modules/attendance/attendance.controller.ts#L350) `getAttendance` |  |
 | `GET /audit` | `audit.read` | — | [`src/modules/audit/audit.controller.ts:14`](../../src/modules/audit/audit.controller.ts#L14) `getAudit` |  |
 | `GET /audit/verify` | `audit.read` | — | [`src/modules/audit/audit.controller.ts:52`](../../src/modules/audit/audit.controller.ts#L52) `getAuditVerify` |  |
 | `POST /blocks` | `config.payroll` | — | [`src/modules/blocks/blocks.controller.ts:14`](../../src/modules/blocks/blocks.controller.ts#L14) `add` | (config.payroll) { label, method, values \| positions, … } → { code, block, …kết quả save() } |
@@ -43,18 +43,18 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `GET /health` | công khai | — | [`src/modules/system/system.controller.ts:11`](../../src/modules/system/system.controller.ts#L11) `getHealth` |  |
 | `GET /holidays` | đã đăng nhập | — | [`src/modules/settings/settings.controller.ts:25`](../../src/modules/settings/settings.controller.ts#L25) `getHolidays` |  |
 | `PUT /holidays` | `config.payroll` | `attendance` (tháng: ngày lễ đổi (hiệu hai tập)) | [`src/modules/settings/settings.controller.ts:32`](../../src/modules/settings/settings.controller.ts#L32) `putHolidays` |  |
-| `GET /kpi/scores` | `kpi.score.write` | — | [`src/modules/kpi/kpi.controller.ts:25`](../../src/modules/kpi/kpi.controller.ts#L25) `getKpiScores` |  |
-| `PUT /kpi/scores` | `self-or:kpi.score.write` | `kpi` (tháng: body.month) | [`src/modules/kpi/kpi.controller.ts:45`](../../src/modules/kpi/kpi.controller.ts#L45) `putKpiScores` |  |
+| `GET /kpi/scores` | `kpi.score.write` | — | [`src/modules/kpi/kpi.controller.ts:19`](../../src/modules/kpi/kpi.controller.ts#L19) `getKpiScores` |  |
+| `PUT /kpi/scores` | `self-or:kpi.score.write` | `kpi` (tháng: body.month) | [`src/modules/kpi/kpi.controller.ts:39`](../../src/modules/kpi/kpi.controller.ts#L39) `putKpiScores` |  |
 | `GET /leave/ledger` | `self-or:profile.read` | — | [`src/modules/leave/leave.controller.ts:25`](../../src/modules/leave/leave.controller.ts#L25) `ledger` | [?user=] số dư hiện tại + các lần cộng/hết hạn của một người (mặc định chính mình); xem người khác cần profile.read |
 | `POST /leave/refresh` | `profile.write` | — | [`src/modules/leave/leave.controller.ts:45`](../../src/modules/leave/leave.controller.ts#L45) `refresh` | { user? } tính lại ngay một người (user) hoặc mọi người; cần profile.write |
-| `POST /login` | công khai | — | [`src/modules/auth/auth.controller.ts:20`](../../src/modules/auth/auth.controller.ts#L20) `postLogin` |  |
-| `POST /logout` | công khai | — | [`src/modules/auth/auth.controller.ts:65`](../../src/modules/auth/auth.controller.ts#L65) `postLogout` |  |
-| `GET /me` | công khai | — | [`src/modules/auth/auth.controller.ts:76`](../../src/modules/auth/auth.controller.ts#L76) `getMe` |  |
+| `POST /login` | công khai | — | [`src/modules/auth/auth.controller.ts:21`](../../src/modules/auth/auth.controller.ts#L21) `postLogin` |  |
+| `POST /logout` | công khai | — | [`src/modules/auth/auth.controller.ts:63`](../../src/modules/auth/auth.controller.ts#L63) `postLogout` |  |
+| `GET /me` | công khai | — | [`src/modules/auth/auth.controller.ts:74`](../../src/modules/auth/auth.controller.ts#L74) `getMe` |  |
 | `GET /me/estimate` | đã đăng nhập | — | [`src/modules/sheet/sheet.controller.ts:31`](../../src/modules/sheet/sheet.controller.ts#L31) `getMeEstimate` |  |
-| `GET /ot` | `attendance.correct` | — | [`src/modules/attendance/attendance.controller.ts:152`](../../src/modules/attendance/attendance.controller.ts#L152) `getOt` |  |
-| `POST /ot` | `attendance.correct` | `attendance` (tháng: ngày của lượt) | [`src/modules/attendance/attendance.controller.ts:160`](../../src/modules/attendance/attendance.controller.ts#L160) `postOt` |  |
-| `PUT /ot` | `attendance.correct` | `attendance` (tháng: ngày của lượt) | [`src/modules/attendance/attendance.controller.ts:218`](../../src/modules/attendance/attendance.controller.ts#L218) `putOt` |  |
-| `PUT /password` | đã đăng nhập | — | [`src/modules/auth/auth.controller.ts:93`](../../src/modules/auth/auth.controller.ts#L93) `putPassword` |  |
+| `GET /ot` | `attendance.correct` | — | [`src/modules/attendance/attendance.controller.ts:151`](../../src/modules/attendance/attendance.controller.ts#L151) `getOt` |  |
+| `POST /ot` | `attendance.correct` | `attendance` (tháng: ngày của lượt) | [`src/modules/attendance/attendance.controller.ts:159`](../../src/modules/attendance/attendance.controller.ts#L159) `postOt` |  |
+| `PUT /ot` | `attendance.correct` | `attendance` (tháng: ngày của lượt) | [`src/modules/attendance/attendance.controller.ts:217`](../../src/modules/attendance/attendance.controller.ts#L217) `putOt` |  |
+| `PUT /password` | đã đăng nhập | — | [`src/modules/auth/auth.controller.ts:91`](../../src/modules/auth/auth.controller.ts#L91) `putPassword` |  |
 | `GET /pay-entries` | `salary.read` | — | [`src/modules/pay-entries/pay-entries.controller.ts:26`](../../src/modules/pay-entries/pay-entries.controller.ts#L26) `list` | ?month=&username=&status= (salary.read) → { month, periodStatus, requireApproval, entries } |
 | `POST /pay-entries` | `salary.write` | — | [`src/modules/pay-entries/pay-entries.controller.ts:45`](../../src/modules/pay-entries/pay-entries.controller.ts#L45) `create` | (salary.write) → { entry } |
 | `PUT /pay-entries/:id` | `salary.write` | — | [`src/modules/pay-entries/pay-entries.controller.ts:61`](../../src/modules/pay-entries/pay-entries.controller.ts#L61) `update` | (salary.write) → { entry }; sửa khi chờ duyệt, cần rev |
@@ -64,23 +64,23 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `POST /pay-entries/bulk` | `salary.write` | — | [`src/modules/pay-entries/pay-entries.controller.ts:53`](../../src/modules/pay-entries/pay-entries.controller.ts#L53) `createBulk` | (salary.write) → { count, entries }; tất cả hoặc không |
 | `GET /periods` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:73`](../../src/modules/periods/periods.controller.ts#L73) `getPeriods` |  |
 | `GET /periods/:month` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:83`](../../src/modules/periods/periods.controller.ts#L83) `periodStep` |  |
-| `POST /periods/:month/ai-review` | `ai.review.read` | — | [`src/modules/periods/periods.controller.ts:189`](../../src/modules/periods/periods.controller.ts#L189) `postPeriodsMonthAiReview` |  |
-| `POST /periods/:month/approve` | `payroll.approve` | — | [`src/modules/periods/periods.controller.ts:194`](../../src/modules/periods/periods.controller.ts#L194) `postPeriodsMonthApprove` |  |
-| `POST /periods/:month/calculate` | `payroll.calculate` | — | [`src/modules/periods/periods.controller.ts:184`](../../src/modules/periods/periods.controller.ts#L184) `postPeriodsMonthCalculate` |  |
-| `GET /periods/:month/estimates` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:214`](../../src/modules/periods/periods.controller.ts#L214) `getPeriodsMonthEstimates` |  |
-| `GET /periods/:month/estimates/:username` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:219`](../../src/modules/periods/periods.controller.ts#L219) `getPeriodsMonthEstimatesUsername` |  |
-| `POST /periods/:month/lock-attendance` | `attendance.lock` | — | [`src/modules/periods/periods.controller.ts:179`](../../src/modules/periods/periods.controller.ts#L179) `postPeriodsMonthLockAttendance` |  |
-| `POST /periods/:month/mark-paid` | `payroll.pay` | — | [`src/modules/periods/periods.controller.ts:199`](../../src/modules/periods/periods.controller.ts#L199) `postPeriodsMonthMarkPaid` |  |
-| `GET /periods/:month/payslips` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:209`](../../src/modules/periods/periods.controller.ts#L209) `getPeriodsMonthPayslips` |  |
-| `GET /periods/:month/payslips/:username` | `self-or:payroll.view` | — | [`src/modules/periods/periods.controller.ts:224`](../../src/modules/periods/periods.controller.ts#L224) `getPeriodsMonthPayslipsUsername` |  |
-| `PUT /periods/:month/payslips/decide` | `payroll.approve` | — | [`src/modules/periods/periods.controller.ts:229`](../../src/modules/periods/periods.controller.ts#L229) `putPeriodsMonthPayslipsDecide` |  |
-| `POST /periods/:month/reopen` | `period.reopen` | — | [`src/modules/periods/periods.controller.ts:204`](../../src/modules/periods/periods.controller.ts#L204) `postPeriodsMonthReopen` |  |
-| `GET /periods/:month/verify` | `audit.read` | — | [`src/modules/periods/periods.controller.ts:234`](../../src/modules/periods/periods.controller.ts#L234) `getPeriodsMonthVerify` |  |
+| `POST /periods/:month/ai-review` | `ai.review.read` | — | [`src/modules/periods/periods.controller.ts:176`](../../src/modules/periods/periods.controller.ts#L176) `postPeriodsMonthAiReview` |  |
+| `POST /periods/:month/approve` | `payroll.approve` | — | [`src/modules/periods/periods.controller.ts:181`](../../src/modules/periods/periods.controller.ts#L181) `postPeriodsMonthApprove` |  |
+| `POST /periods/:month/calculate` | `payroll.calculate` | — | [`src/modules/periods/periods.controller.ts:171`](../../src/modules/periods/periods.controller.ts#L171) `postPeriodsMonthCalculate` |  |
+| `GET /periods/:month/estimates` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:201`](../../src/modules/periods/periods.controller.ts#L201) `getPeriodsMonthEstimates` |  |
+| `GET /periods/:month/estimates/:username` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:206`](../../src/modules/periods/periods.controller.ts#L206) `getPeriodsMonthEstimatesUsername` |  |
+| `POST /periods/:month/lock-attendance` | `attendance.lock` | — | [`src/modules/periods/periods.controller.ts:166`](../../src/modules/periods/periods.controller.ts#L166) `postPeriodsMonthLockAttendance` |  |
+| `POST /periods/:month/mark-paid` | `payroll.pay` | — | [`src/modules/periods/periods.controller.ts:186`](../../src/modules/periods/periods.controller.ts#L186) `postPeriodsMonthMarkPaid` |  |
+| `GET /periods/:month/payslips` | `payroll.view` | — | [`src/modules/periods/periods.controller.ts:196`](../../src/modules/periods/periods.controller.ts#L196) `getPeriodsMonthPayslips` |  |
+| `GET /periods/:month/payslips/:username` | `self-or:payroll.view` | — | [`src/modules/periods/periods.controller.ts:211`](../../src/modules/periods/periods.controller.ts#L211) `getPeriodsMonthPayslipsUsername` |  |
+| `PUT /periods/:month/payslips/decide` | `payroll.approve` | — | [`src/modules/periods/periods.controller.ts:216`](../../src/modules/periods/periods.controller.ts#L216) `putPeriodsMonthPayslipsDecide` |  |
+| `POST /periods/:month/reopen` | `period.reopen` | — | [`src/modules/periods/periods.controller.ts:191`](../../src/modules/periods/periods.controller.ts#L191) `postPeriodsMonthReopen` |  |
+| `GET /periods/:month/verify` | `audit.read` | — | [`src/modules/periods/periods.controller.ts:221`](../../src/modules/periods/periods.controller.ts#L221) `getPeriodsMonthVerify` |  |
 | `GET /positions` | `config.read` | — | [`src/modules/positions/positions.controller.ts:14`](../../src/modules/positions/positions.controller.ts#L14) `listPositions` | ?month= (config.read) |
 | `POST /positions` | `config.read` | — | [`src/modules/positions/positions.controller.ts:26`](../../src/modules/positions/positions.controller.ts#L26) `addPosition` | thêm chức vụ bằng sao chép |
 | `POST /positions/:code/levels` | `config.payroll` | — | [`src/modules/positions/positions.controller.ts:34`](../../src/modules/positions/positions.controller.ts#L34) `addLevel` | thêm bậc cho một chức vụ |
-| `GET /punch` | đã đăng nhập | — | [`src/modules/attendance/attendance.controller.ts:33`](../../src/modules/attendance/attendance.controller.ts#L33) `getPunch` |  |
-| `POST /punch` | đã đăng nhập | `attendance` (tháng: ngày công của lượt (ca đêm thuộc ngày bắt đầu)) | [`src/modules/attendance/attendance.controller.ts:49`](../../src/modules/attendance/attendance.controller.ts#L49) `postPunch` |  |
+| `GET /punch` | đã đăng nhập | — | [`src/modules/attendance/attendance.controller.ts:32`](../../src/modules/attendance/attendance.controller.ts#L32) `getPunch` |  |
+| `POST /punch` | đã đăng nhập | `attendance` (tháng: ngày công của lượt (ca đêm thuộc ngày bắt đầu)) | [`src/modules/attendance/attendance.controller.ts:48`](../../src/modules/attendance/attendance.controller.ts#L48) `postPunch` |  |
 | `GET /roles` | `roles.manage` | — | [`src/modules/roles/roles.controller.ts:18`](../../src/modules/roles/roles.controller.ts#L18) `list` | danh sách vai trò mặc định + tuỳ chỉnh, khu vực của ma trận, loại yêu cầu duyệt, tài khoản |
 | `POST /roles` | `roles.manage` | — | [`src/modules/roles/roles.controller.ts:24`](../../src/modules/roles/roles.controller.ts#L24) `create` | { label, copyFrom?, code?, caps? \| levels?+extras?, approvals?, scope?, reason? } tạo hoặc sao chép |
 | `PUT /roles/:code` | `roles.manage` | — | [`src/modules/roles/roles.controller.ts:30`](../../src/modules/roles/roles.controller.ts#L30) `update` | { rev, label?, caps? \| levels?+extras?, approvals?, scope?, reason } sửa vai trò tuỳ chỉnh |
@@ -97,8 +97,8 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `PUT /settings/shifts` | `config.read` | — | [`src/modules/settings/settings-shifts.controller.ts:29`](../../src/modules/settings/settings-shifts.controller.ts#L29) `put` | { shifts: [{ code, in, out }], effectiveMonth?, reason, expectedRev? } → như lưu tham số |
 | `GET /settings/version` | đã đăng nhập | — | [`src/modules/settings/settings.controller.ts:201`](../../src/modules/settings/settings.controller.ts#L201) `getSettingsVersion` |  |
 | `GET /sheet` | `self-or:attendance.read` | — | [`src/modules/sheet/sheet.controller.ts:41`](../../src/modules/sheet/sheet.controller.ts#L41) `getSheet` |  |
-| `PUT /sheet` | đã đăng nhập | `attendance` (tháng: body.month) | [`src/modules/sheet/sheet.controller.ts:94`](../../src/modules/sheet/sheet.controller.ts#L94) `putSheet` |  |
-| `PUT /sheet/bulk` | `request.decide.*` | `attendance` (tháng: body.month) | [`src/modules/sheet/sheet.controller.ts:145`](../../src/modules/sheet/sheet.controller.ts#L145) `putSheetBulk` |  |
+| `PUT /sheet` | đã đăng nhập | `attendance` (tháng: body.month) | [`src/modules/sheet/sheet.controller.ts:95`](../../src/modules/sheet/sheet.controller.ts#L95) `putSheet` |  |
+| `PUT /sheet/bulk` | `request.decide.*` | `attendance` (tháng: body.month) | [`src/modules/sheet/sheet.controller.ts:152`](../../src/modules/sheet/sheet.controller.ts#L152) `putSheetBulk` |  |
 | `GET /slip-override` | `payroll.override` | — | [`src/modules/periods/periods.controller.ts:24`](../../src/modules/periods/periods.controller.ts#L24) `getSlipOverride` |  |
 | `PUT /slip-override` | `payroll.override` | `slip` (tháng: body.month) | [`src/modules/periods/periods.controller.ts:67`](../../src/modules/periods/periods.controller.ts#L67) `putSlipOverride` |  |
 | `GET /staff` | `profile.read` | — | [`src/modules/staff/staff.controller.ts:32`](../../src/modules/staff/staff.controller.ts#L32) `getStaff` |  |
@@ -106,6 +106,6 @@ Số route: **101**; đường dẫn không module nào nhận trả 404 sau c�
 | `POST /staff/:u/password` | `roles.manage` | — | [`src/modules/staff/staff.controller.ts:92`](../../src/modules/staff/staff.controller.ts#L92) `postStaffPassword` |  |
 | `PUT /staff/:u/roles` | `roles.manage` | — | [`src/modules/staff/staff.controller.ts:128`](../../src/modules/staff/staff.controller.ts#L128) `putStaffRoles` |  |
 | `GET /staff/:u/schedule` | `self-or:profile.read` | — | [`src/modules/staff/staff.controller.ts:570`](../../src/modules/staff/staff.controller.ts#L570) `getStaffSchedule` | ?month= lịch làm việc hiệu lực của một người (self-or:profile.read); kiểm quyền TRƯỚC khi tra tên để không dò được tên đăng nhập |
-| `PUT /staff/shift-bulk` | `profile.write` | — | [`src/modules/sheet/sheet.controller.ts:155`](../../src/modules/sheet/sheet.controller.ts#L155) `putStaffShiftBulk` |  |
+| `PUT /staff/shift-bulk` | `profile.write` | — | [`src/modules/sheet/sheet.controller.ts:162`](../../src/modules/sheet/sheet.controller.ts#L162) `putStaffShiftBulk` |  |
 | `GET /team` | `payroll.view` | — | [`src/modules/staff/staff.controller.ts:45`](../../src/modules/staff/staff.controller.ts#L45) `getTeam` |  |
-| `GET /today` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:284`](../../src/modules/attendance/attendance.controller.ts#L284) `getToday` |  |
+| `GET /today` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:283`](../../src/modules/attendance/attendance.controller.ts#L283) `getToday` |  |

@@ -101,7 +101,7 @@ test(
     const { serverFiles, ROOT } = require('../helpers/server-source');
     // File .ts (module Nest) do trình biên dịch TypeScript kiểm tên (test/unit/typecheck.test.js), ở đây chỉ quét file .js
     const files = [...serverFiles().filter(rel => rel.endsWith('.js')), 'lib/db.js', 'lib/authz.js', 'lib/periods.js'];
-    assert.ok(files.includes('server.js'));
+    assert.ok(files.includes('lib/db.js'));
     const found = [];
     for (const rel of files) {
       const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');

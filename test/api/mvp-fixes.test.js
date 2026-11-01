@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 let base;
 
 async function person(username, role = 'staff', type = 'nv', shiftCode = 'n1') {

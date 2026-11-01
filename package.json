@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "Web app chấm công và tự tính lương cho thực tập sinh, chuyên trách viên và nhân viên",
   "private": true,
-  "main": "server.js",
+  "main": "src/server.ts",
   "engines": {
     "node": ">=22.13"
   },
   "scripts": {
-    "start": "node --no-warnings=ExperimentalWarning server.js",
+    "start": "node --no-warnings=ExperimentalWarning --import tsx src/server.ts",
     "sandbox": "node --no-warnings=ExperimentalWarning scripts/dev/sandbox-server.cjs",
     "seed": "node --no-warnings=ExperimentalWarning scripts/seed.js",
     "seed:demo": "node --no-warnings=ExperimentalWarning scripts/db/seed-demo.js",

@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Res } from '@nestjs/common';
+import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const paramsSave = require('../../../lib/params/save');
 const events = require('../../../lib/events');
-const { HttpError, send, readJson } = require('../../../lib/http');
+const { HttpError, readJson } = require('../../../lib/http');
 const { vnToday } = require('../../../lib/request-rules');
 const { validMonth } = require('../../../lib/domain/input');
 const { positionsView, entitlementsView } = require('../../../lib/domain/positions');
@@ -12,30 +12,30 @@ const { positionsView, entitlementsView } = require('../../../lib/domain/positio
 export class PositionsController {
   /** ?month= (config.read) */
   @Get('positions')
-  async listPositions(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
-    return send(c.res, 200, await positionsView(this.monthOf(c)));
+  async listPositions(@Ctx() c: ApiContext): Promise<unknown> {
+    return await positionsView(this.monthOf(c));
   }
 
   /** ?month= (config.read) */
   @Get('entitlements')
-  async listEntitlements(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
-    return send(c.res, 200, await entitlementsView(this.monthOf(c)));
+  async listEntitlements(@Ctx() c: ApiContext): Promise<unknown> {
+    return await entitlementsView(this.monthOf(c));
   }
 
   /** thêm chức vụ bằng sao chép */
   @Post('positions')
-  async addPosition(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async addPosition(@Ctx() c: ApiContext): Promise<unknown> {
     const saved = await paramsSave.addPosition(c.me, c.actx, await readJson(c.req));
     if (saved.notice) events.emit.paramsChanged(saved.notice);
-    return send(c.res, 200, saved);
+    return saved;
   }
 
   /** thêm bậc cho một chức vụ */
   @Post('positions/:code/levels')
-  async addLevel(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async addLevel(@Ctx() c: ApiContext): Promise<unknown> {
     const saved = await paramsSave.addLevel(c.me, c.actx, c.seg[2], await readJson(c.req));
     if (saved.notice) events.emit.paramsChanged(saved.notice);
-    return send(c.res, 200, saved);
+    return saved;
   }
 
   private monthOf(c: ApiContext): string {

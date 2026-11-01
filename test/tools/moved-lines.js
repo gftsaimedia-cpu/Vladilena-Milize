@@ -281,7 +281,7 @@ if (require.main === module) {
   const arg = name => (process.argv.find(a => a.startsWith(`--${name}=`)) || '').slice(name.length + 3);
   const base = arg('base') || 'HEAD',
     head = arg('head') || null;
-  const oldPaths = (arg('old') || 'server.js').split(',').filter(Boolean);
+  const oldPaths = (arg('old') || 'src/server.ts').split(',').filter(Boolean);
   const newPaths = arg('new')
     ? arg('new').split(',').filter(Boolean)
     : require('../helpers/server-source').serverFiles();

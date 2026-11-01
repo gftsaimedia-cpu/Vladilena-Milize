@@ -1,9 +1,9 @@
-import { Controller, Get, Put, Res } from '@nestjs/common';
+import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { decidableBy } from './approvals.helpers';
 const { AsyncList } = require('../../../lib/shared/async-list');
 const store = require('../../../lib/db');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
 const { sheetForViewer } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
@@ -20,7 +20,7 @@ const { assertNotAiBlocked } = require('../../../lib/domain/ai-block'); // AI ch
 @Controller('api')
 export class ApprovalsController {
   @Get('approvals')
-  async getApprovals(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getApprovals(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, me, needAdmin } = c;
     const canDecideRow = decidableBy(me);
     needAdmin();
@@ -78,22 +78,22 @@ export class ApprovalsController {
     });
     // limits: để màn duyệt cắt lô và đặt độ dài ô lý do theo đúng số của máy chủ, không chép tay
     const limits = { decideMax: (await rulesFor()).params['system.approval.maxDecideItems'], noteMax: NOTE_MAX };
-    return send(res, 200, { items, counts: tallyApprovals(rows), sheets, limits });
+    return { items, counts: tallyApprovals(rows), sheets, limits };
   }
 
   @Get('approvals/count')
-  async getApprovalsCount(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getApprovalsCount(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, needAdmin, me } = c;
     const canDecideRow = decidableBy(me);
     needAdmin();
-    return send(res, 200, {
+    return {
       pending: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow)).pending
-    });
+    };
   }
 
   // Việc Admin cần xử lý trong tháng, để giao diện hiện huy hiệu: quên Check-in/out, ngày vắng chưa có giải trình và số khoản chờ duyệt (mọi tháng, như /approvals/count).
   @Get('alerts')
-  async getAlerts(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getAlerts(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, me, needAdmin } = c;
     const canDecideRow = decidableBy(me);
     needAdmin();
@@ -146,16 +146,16 @@ export class ApprovalsController {
     const absentNoExplanation = absentFound.sort(
       (a, b) => a.username.localeCompare(b.username) || a.date.localeCompare(b.date)
     );
-    return send(res, 200, {
+    return {
       missingPunches,
       absentNoExplanation,
       pendingApprovals: tallyApprovals(await AsyncList.filter(await listApprovals({ status: 'pending' }), canDecideRow))
         .pending
-    });
+    };
   }
 
   @Put('approvals/decide')
-  async putApprovalsDecide(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putApprovalsDecide(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin, guardPeriod, me } = c;
     const canDecideRow = decidableBy(me);
     const admin = needAdmin(),
@@ -242,7 +242,7 @@ export class ApprovalsController {
       for (const decidedMonth of new Set(decided.map(row => row.date.slice(0, 7))))
         await events.emit.approvalsChanged(decidedMonth);
       await events.emit.requestsDecided(decided);
-      return send(res, 200, { ok: true, decided: decided.length, items: decided });
+      return { ok: true, decided: decided.length, items: decided };
     } catch (error) {
       throw approvalHttpError(error);
     }

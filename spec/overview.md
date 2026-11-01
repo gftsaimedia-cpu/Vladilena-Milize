@@ -39,14 +39,14 @@ Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết đ
 
 ### 2.1 Thành phần
 
-- **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `server.js` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, nạp trình biên dịch TypeScript lúc chạy (`lib/register-ts.js` → `tsx`, không có bước build), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.js`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
+- **Máy chủ**: Node 22+ (`engines.node >= 22.13`), ứng dụng **NestJS 10 + TypeScript** trong `src/` (Express adapter). `src/server.ts` chỉ là điểm vào CommonJS (15 dòng): đặt `UV_THREADPOOL_SIZE`, nạp trình biên dịch TypeScript lúc chạy (`lib/register-ts.js` → `tsx`, không có bước build), nạp `.env` (`src/env.ts`), dựng `http.Server` (`src/bootstrap.ts`) và gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Phụ thuộc chạy: `@nestjs/*`, `express`, `rxjs`, `reflect-metadata`, `pg`, `tsx` (`package.json`). Kiểm kiểu: `npm run typecheck` (`tsc --noEmit`, cũng là test `test/unit/typecheck.test.js`). Logic nghiệp vụ nằm ở `lib/` (luật, kho dữ liệu) và `src/modules/*` (route).
 - **Cơ sở dữ liệu**: hai chế độ chọn bằng `DB_DIALECT` (`lib/db.js`). Mặc định **SQLite** (`node:sqlite`, `DatabaseSync`, WAL, khoá ngoại bật, `DB_PATH` bắt buộc; lược đồ tạo bằng DDL "chỉ thêm" và mốc migration một lần). `DB_DIALECT=postgres` chạy trên **PostgreSQL**: `DATABASE_URL` → `pg.Pool`; `DB_PATH=:memory:` → PGlite trong tiến trình (dùng khi thử). Lược đồ PostgreSQL do migration có đánh số ở `migrations/postgres/*.sql`, chạy bởi `lib/data/postgres-database.js` (bảng `schema_migrations`); câu SQL của mã vẫn viết dạng SQLite và được dịch lúc chạy bởi `lib/data/postgres-sql.js`. Mọi truy cập DB là `async` (`await store.ready` chờ khởi tạo). Lớp truy vấn có kiểu **Kysely** ở `src/data` (kiểu bảng sinh từ migration bằng `npm run db:types`; câu lệnh biên dịch cú pháp SQLite rồi chạy qua đúng kết nối của ứng dụng, nên nằm trong `store.transaction` và chạy được trên cả hai CSDL); mọi aggregate của `lib/db.js` (`settings`, nhật ký, tham số, kỳ lương/lần chạy/phiếu, AI, vai trò, nhân sự, bảng công, KPI) và các store `approvals`, `attendance-sessions`, `pay-entries`, `advance-requests` đi qua các `*Repository` trong `src/data`. SQL thô chỉ còn ở bước nâng cấp lược đồ riêng SQLite, công cụ sao lưu và các repository trong `lib/domain` (chưa chuyển); `test/unit/raw-sql-ratchet.test.js` giữ số đó chỉ giảm và cấm controller import `src/data`. Danh sách bảng, ràng buộc, trigger, chỉ mục: `spec/reference/database.md`. Chuyển dữ liệu SQLite sang PostgreSQL và đối chiếu: `scripts/db/migrate-sqlite-to-pg.js`.
 - **Mô-đun dùng chung trình duyệt và máy chủ (UMD) trong `public/`**: cùng một file nạp bằng `<script>` ở trình duyệt và `require` ở máy chủ. Gồm bộ máy tính lương (`payroll-engine.js`, `payroll-calendar.js`, `payroll-day-parts.js`, `payroll-graph.js`, `payroll-pins.js`, `pay-*-calc.js`), tham số mặc định (`payroll-params.js`), quy tắc chấm công (`punch.js`, `actual-hours.js`, `work-schedule.js`), quy tắc phép và KPI (`leave.js`, `kpi-score.js`), duyệt khoản (`approval-view.js`), công thức (`formula.js`, `formula-vocab.js`), nhãn chấm công (`attendance-status.js`). **Số tiền chính thức chỉ do máy chủ tính**; trình duyệt dùng cùng mã để hiển thị, xem trước và kiểm.
 - **Giao diện**: ứng dụng Vue 3 ở `web/` (build ra `web/dist`; `lib/http.js` → `serveStatic` phục vụ `web/dist` ở "/" và mọi đường dẫn của router Vue; chưa build thì "/" trả 503 kèm cách build, `/api` vẫn chạy). Giao diện tĩnh cũ trong `public/` đã bỏ; `public/` chỉ còn các mô-đun tính lương mà máy chủ nạp bằng `require`. Tham chiếu route của giao diện: `spec/reference/web-routes.md`.
 - **Sự kiện thời gian thực**: `GET /api/events` (SSE, `lib/events.js`). Sự kiện: `params.changed`, `period.changed`, `approvals.changed`, `attendance.changed`, `request.decided`, `punch.corrected`, `punch.changed`, `estimate.changed`, `payslip.available`, `roles.changed`, `announcement.posted`. Phát sau khi giao dịch COMMIT; mỗi sự kiện chọn người nhận và lọc trường theo quyền; màn hình tự nối lại và đồng bộ lại bằng `configRev`.
 - **Registry tham số**: `lib/params/registry.data.json` là bảng siêu dữ liệu cho mọi con số (nhãn, nhóm, kiểu, đơn vị, khoảng, sàn/trần của luật, thành phần giao diện); giá trị mặc định ở `public/payroll-params.js` (`DEFAULTS`). Giá trị theo tháng áp dụng nằm ở `param_versions` (mỗi lần lưu thêm dòng mới, không sửa dòng cũ). `lib/params/save.js` kiểm, xem trước tác động, ghi cả lô trong một giao dịch kèm nhật ký, và hoàn tác bằng dòng mới. `lib/params/store.js` giải bộ tham số hiệu lực của một tháng. `lib/params/keys.lock.json` khoá danh sách khoá.
 - **Công thức**: bảy công thức tháng có tên (`tyLeNgayDiLam`, `phuCapDiLai`, `phuCapChuyenCan`, `heSoNgayKpi`, `luongKpi`, `tongThuNhap`, `tamUng`) là cây định nghĩa trong `public/payroll-graph.js`; khoá `formula.*` bị khoá nên Admin không lưu công thức, chỉ chỉnh tham số bằng biểu mẫu. Bộ máy kiểm cây theo từ vựng, đơn vị và vòng lặp mỗi khi dựng nhân tính (`public/payroll-engine.js`); cây hỏng thì báo lỗi, không quay về công thức khác.
-- **Lớp domain** (`lib/domain/`): lớp có trách nhiệm rõ gắn với DB: `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance` (nhãn trạng thái, Admin khai thay), `payroll`, `attendance-calendar`, `timesheet` (luật kiểm lịch khai dạng lớp `Rule`), `overtime`, `kpi`. `lib/domain/container.js` dựng lười các repository/service một lần. Luật nghiệp vụ là lớp kế thừa `Rule` (`lib/domain/shared/rule.js`), liệt kê ở `spec/reference/rules.md`.
+- **Lớp domain** (`lib/domain/`): lớp có trách nhiệm rõ gắn với DB: `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance` (nhãn trạng thái, Admin khai thay), `payroll`, `timesheet` (luật kiểm lịch khai dạng lớp `Rule`), `overtime`, `kpi`. `lib/domain/container.js` dựng lười các repository/service một lần. Luật nghiệp vụ là lớp kế thừa `Rule` (`lib/domain/shared/rule.js`), liệt kê ở `spec/reference/rules.md`.
 - **Cảnh báo** (`lib/warnings.js`): các kiểm nghiệp vụ gọi `warnIf(...)`: ghi cảnh báo kèm câu hệ quả vào phản hồi và chạy tiếp. Lỗi dữ liệu (sai dạng, trái ràng buộc cứng), bảo mật, quyền, không tồn tại, quá cỡ và chống ghi đè vẫn chặn bằng lỗi 4xx.
 - **Quyền**: năng lực (`CAPS`), vai trò mặc định (`admin`, `cb`, `accounting`, `hr`, `manager`, `staff`), vai trò tuỳ chỉnh lưu ở `settings`. Chính sách từng route ở `ROUTE_CAPS` (`lib/authz.js`); cổng quyền chạy trước handler.
 - **Khoá kỳ**: `PERIOD_STATES` ở `lib/db.js`. Từ `attendance_locked` trở đi chấm công, lịch, tham số, ngày lễ bị khoá; từ `approved` trở đi KPI và số sửa phiếu bị khoá. Route ghi gọi cổng này qua `ctx.guardPeriod(...)` (`src/http/api-gate.ts`).
@@ -93,7 +93,7 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 
 ```text
 .
-├── server.js                  Điểm vào (15 dòng): nạp TypeScript, .env, dựng máy chủ, start()
+├── src/server.ts                  Điểm vào (15 dòng): nạp TypeScript, .env, dựng máy chủ, start()
 ├── tsconfig.json              Cấu hình kiểm kiểu cho src/ (không build: chạy bằng tsx)
 ├── src/                       Ứng dụng NestJS (TypeScript)
 │   ├── bootstrap.ts, main.ts, app.module.ts, app.init.ts, env.ts
@@ -141,10 +141,9 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   │   ├── leave/, leave-days.js   Sổ phép lưu sẵn và tính ngày phép
 │   │   ├── advance/           Duyệt tạm ứng theo tháng
 │   │   ├── payroll/           Đối tượng bảng lương và chính sách
-│   │   ├── attendance-calendar/   Lịch chấm công theo tháng
 │   │   ├── shared/            Repository gốc, DomainError, đổi danh mục có khoá kỳ
-│   │   ├── sheet.js, sheet-checks.js, sheet-on-behalf.js, limits.js, isat-rule.js, ot.js, work-hours.js, schedule.js   Lịch ước tính: kiểm, khai thay, giới hạn, iSAT, OT, giờ làm
-│   │   ├── approvals.js, ai-review.js, ai-block.js, kpi.js, holidays.js, geofence.js, blocks.js, pay-entries.js, staff.js, positions.js, shifts.js, catalog-params.js
+│   │   ├── sheet.js, sheet-on-behalf.js, isat-rule.js, ot.js, schedule.js   Lịch ước tính: kiểm, khai thay, giới hạn, iSAT, OT, giờ làm
+│   │   ├── approvals.js, ai-review.js, ai-block.js, holidays.js, blocks.js, pay-entries.js, staff.js, positions.js, shifts.js, catalog-params.js
 │   ├── ops/                   Giới hạn tải, theo dõi vòng lặp, nhật ký truy cập, bộ nhớ đệm tính toán
 │   └── params/                Registry (registry.data.json, registry.js), store.js, save.js, validate.js, config-rev.js, positions.js, blocks.js, block-defs.js, attributes.js, keys.lock.json, wired-flag.js
 ├── public/                    Mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng require; không phục vụ ra ngoài
@@ -181,7 +180,7 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 
 | Lệnh | Việc |
 | --- | --- |
-| `npm start` | `node --no-warnings=ExperimentalWarning server.js`. Đọc `.env` cạnh `server.js` (`src/env.ts`, không ghi đè biến đã đặt). Cần `DB_PATH` (hoặc `DB_DIALECT=postgres` + `DATABASE_URL`). DB trống thì tạo tài khoản `admin` bằng `ADMIN_PASSWORD`, không đặt thì mật khẩu ngẫu nhiên (không hiển thị); `NODE_ENV=production` đòi mật khẩu đủ dài. |
+| `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts`. Đọc `.env` cạnh `src/server.ts` (`src/env.ts`, không ghi đè biến đã đặt). Cần `DB_PATH` (hoặc `DB_DIALECT=postgres` + `DATABASE_URL`). DB trống thì tạo tài khoản `admin` bằng `ADMIN_PASSWORD`, không đặt thì mật khẩu ngẫu nhiên (không hiển thị); `NODE_ENV=production` đòi mật khẩu đủ dài. |
 | `npm run sandbox` | Máy chủ thử (mục 4.2). |
 | `npm run seed` | `scripts/seed.js`: nạp tài khoản mẫu vào DB trỏ bởi `DB_PATH`, từ chối đường dẫn trùng DB thật. Chỉ thêm tài khoản chưa có. |
 | `npm run seed:demo` | `scripts/db/seed-demo.js`: nạp bộ dữ liệu demo. |
@@ -195,7 +194,7 @@ Biến môi trường chính: `PORT`, `DB_PATH`, `ADMIN_PASSWORD`, `SESSION_SECR
 
 ### 4.2 Sandbox
 
-`scripts/dev/sandbox-server.cjs` nạp `server.js` (ứng dụng NestJS) trong một tiến trình riêng:
+`scripts/dev/sandbox-server.cjs` nạp `src/server.ts` (ứng dụng NestJS) trong một tiến trình riêng:
 
 - DB luôn là `:memory:` (ghi đè cả biến shell), chỉ nghe `127.0.0.1`, từ chối kết nối không phải loopback.
 - Cổng lấy từ `SANDBOX_PORT` (mặc định 3104; `0` để hệ điều hành chọn). Ví dụ: `SANDBOX_PORT=0 npm run sandbox`; dòng `SANDBOX_READY ...` in cổng thật.
@@ -233,7 +232,7 @@ Mỗi mục dưới đây đã đối chiếu với mã. Chi tiết quy tắc n�
 
 - Check-in/out theo lịch được cấp; mỗi lượt giữ ca chốt lúc Check-in (`plannedShift`), giờ có mặt tới giây, và mã `requestId` để bấm lại không bị ghi hai lần (`POST /api/punch`).
 - Nhân viên chỉ Check-in được ở ngày có lịch làm việc (không phải ngày lễ) hoặc ngày có OT/giờ bù đã duyệt. Ngày đã khai hoặc được duyệt nghỉ (phép năm, nghỉ không lương, iSAT, nghỉ được duyệt, nghỉ sẽ làm bù) bị chặn Check-in, trừ khi ngày đó có OT hoặc giờ bù đã duyệt (`checkInDay`, `src/modules/attendance/attendance.controller.ts`; giờ bấm còn phải thuộc khung ca hoặc khoản đã duyệt: `attendance.md` 3.2b). Admin (không thuộc bảng lương) không chấm công.
-- Vùng GPS (`PUT /api/settings/geofence`, `lib/domain/geofence.js`): khi đã đặt vùng, Check-in thiếu vị trí hoặc ngoài vùng vẫn ghi lượt, đánh dấu "Ngoài vùng GPS" và cảnh báo. GPS không tham gia tính tiền.
+- Vùng GPS (`PUT /api/settings/geofence`, `lib/domain/attendance/geofence-policy.js`): khi đã đặt vùng, Check-in thiếu vị trí hoặc ngoài vùng vẫn ghi lượt, đánh dấu "Ngoài vùng GPS" và cảnh báo. GPS không tham gia tính tiền.
 - Lượt mở quá `attendance.openSessionMaxHours` thành "Quên Check-out" (Chờ xử lý).
 - Check-out muộn hơn giờ kết thúc ca (cộng phần làm thêm đã khai) quá `CHECKOUT_GRACE_MIN` phút phải đi kèm giải trình; lượt giữ giờ bấm ở Chờ xử lý tới khi Admin duyệt.
 - Check-out sớm hiện hộp xác nhận ("Vẫn Check-out" / "Tiếp tục làm"); Check-out xong, lượt về sớm ở trạng thái Chờ xử lý.
@@ -247,7 +246,7 @@ Mỗi mục dưới đây đã đối chiếu với mã. Chi tiết quy tắc n�
 - Lịch ước tính theo tháng (`GET/PUT /api/sheet`) với các loại ngày: đi làm, làm bù, phép năm, nghỉ không lương, nghỉ được duyệt, nghỉ sẽ làm bù, iSAT, kèm OT/giờ bù/đi làm ngày lễ. Các mục khoản chờ duyệt: `isat`, `approved`, `makeup_day`, `ot`, `makeup_hours`, `holiday_work`, `leave`, `willmakeup` (`public/approval-view.js`); đi làm ngày lễ mang mục `ot`, còn `holiday_work` là tên hàng chính sách "chưa duyệt thì bỏ cả ngày".
 - Duyệt theo lô (`PUT /api/approvals/decide`). Lý do từ chối không bắt buộc; người duyệt tự duyệt khoản của chính mình thì chỉ ghi cảnh báo `SELF_DECISION_FORBIDDEN` và nhật ký.
 - iSAT chỉ khai được vào thứ Bảy và chỉ chức vụ có quyền lợi iSAT, chặn cả ở Admin (`lib/domain/isat-rule.js`).
-- Giới hạn giờ làm: chỉ hai trần, đều chặn 400: giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, không tính giờ nghỉ giữa ca) không quá `DAY_HOURS_CAP` (12), và tổng OT một tháng cộng giờ ca chính làm ngày lễ không quá `MONTH_OT_CAP` (40). Giới hạn iSAT `isat.monthlyLimit` mặc định `null` (không giới hạn) (`lib/domain/limits.js`).
+- Giới hạn giờ làm: chỉ hai trần, đều chặn 400: giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, không tính giờ nghỉ giữa ca) không quá `DAY_HOURS_CAP` (12), và tổng OT một tháng cộng giờ ca chính làm ngày lễ không quá `MONTH_OT_CAP` (40). Giới hạn iSAT `isat.monthlyLimit` mặc định `null` (không giới hạn) (`lib/domain/overtime/hour-limits.js`).
 - Ngày lễ: Admin đặt danh sách (`PUT /api/holidays`); khai đi làm ngày lễ mà không có Check-in/out là vắng; làm bù vào ngày lễ bị chặn.
 - Tạm ứng: nhân viên bấm xin (không nhập số); Admin duyệt theo tháng; chỉ khi đã duyệt mới trừ vào thực lĩnh.
 - KPI: tự chấm, Admin chấm; năm thành phần (`kpi-score.js`).
@@ -315,7 +314,7 @@ Mã làm như mô tả; chưa có xác nhận rằng đây là cách đúng.
 | --- | --- |
 | Miễn thuế phần đêm so với phụ cấp ca | Phần đêm miễn thuế dùng `tax.exempt.nightPremium` (30%) trong khi phụ cấp ca đêm trả theo bậc/chức vụ (NV chọn 40 hoặc 60); miễn thuế mỗi ngày bị chặn trên bằng phụ cấp ca đã trả của ngày đó (`public/payroll-engine.js`). |
 | Giờ nghỉ nằm trong ngày lễ | Phần giờ nghỉ của ca chính rơi vào ngày lễ được trả như giờ làm ngày lễ (× `ot.holidayRate` = 3), không theo mức giờ nghỉ đêm (× 1,3); các phút đó không cộng thêm giờ nghỉ đêm (`public/payroll-engine.js`: `holWorkPay`, `breakH`). |
-| `isat.monthlyLimit` rỗng | `null` nghĩa là không giới hạn; ngay cả khi đặt số, bộ máy vẫn trả các ngày iSAT đúng thứ và đúng quyền lợi vượt giới hạn nếu Admin duyệt, giới hạn chỉ gây cảnh báo/chặn lúc khai (`lib/domain/limits.js`). |
+| `isat.monthlyLimit` rỗng | `null` nghĩa là không giới hạn; ngay cả khi đặt số, bộ máy vẫn trả các ngày iSAT đúng thứ và đúng quyền lợi vượt giới hạn nếu Admin duyệt, giới hạn chỉ gây cảnh báo/chặn lúc khai (`lib/domain/overtime/hour-limits.js`). |
 | Ngày chuyển sang chính thức | Hồ sơ chỉ có trạng thái thử việc/chính thức (`contract_status`) để hiển thị, không có trường ngày chuyển và không đổi tiền (`lib/domain/employee/profile.js`). |
 | Điều chỉnh phép âm | `leaveAdjust` nhận số âm trong ±365, bước 0,5 (`src/modules/staff/staff.controller.ts`); số dư phép âm không bị chặn, chỉ được AI gắn cờ `negative-leave`. |
 | Ca đêm bắt đầu ở ngày lễ | Tính một ngày công ở ngày bắt đầu ca (`calcMonth`, `c.kind === 'holiday' && c.hours > 0`), phần phút trong ngày lễ trả hệ số lễ, phần còn lại tính thường. |

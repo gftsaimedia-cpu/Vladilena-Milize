@@ -13,9 +13,9 @@
 # tháng lương: phải lọc bỏ query và tiêu đề Cookie trước khi bật (chưa thử cấu hình lọc nào ở dự án này).
 
 <ten-mien> {
-    # Không thêm header bảo mật ở đây: server.js đã gắn sẵn cho mọi phản hồi (CHECKLIST mục 8).
+    # Không thêm header bảo mật ở đây: src/server.ts đã gắn sẵn cho mọi phản hồi (CHECKLIST mục 8).
     request_body {
-        max_size 1MB # khớp MAX_BODY_BYTES (1e6) của server.js
+        max_size 1MB # khớp MAX_BODY_BYTES (1e6) của src/server.ts
     }
 
     # Kênh báo SSE đi nhánh riêng: KHÔNG nén, không đệm. flush_interval -1 đẩy từng khung ra ngay.

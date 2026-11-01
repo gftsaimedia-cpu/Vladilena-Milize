@@ -16,7 +16,7 @@ services:
     container_name: luong-app
     restart: unless-stopped
     init: true # PID 1 chuyển tiếp SIGTERM đúng và dọn tiến trình con
-    stop_grace_period: 15s # server.js đóng êm luồng SSE ngay khi nhận SIGTERM; 15 giây dư để ghi dở xong
+    stop_grace_period: 15s # src/server.ts đóng êm luồng SSE ngay khi nhận SIGTERM; 15 giây dư để ghi dở xong
     env_file:
       - ./secrets/luong.env
     environment:

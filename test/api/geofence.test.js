@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 const HQ = { lat: 10.7769, lng: 106.7009 };
 const M = (Math.PI / 180) * 6371000; // mét trên một độ vĩ tuyến

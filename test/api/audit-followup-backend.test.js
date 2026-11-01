@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
 const punch = require('../../public/punch');
-const server = require('../../server');
+const server = require('../helpers/server');
 let base;
 const originalNow = Date.now;
 const T = (date, time) => new Date(`${date}T${time}+07:00`).toISOString();

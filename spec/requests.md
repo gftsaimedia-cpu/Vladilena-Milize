@@ -20,9 +20,9 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `public/approval-view.js` | Mô-đun dùng chung trình duyệt + máy chủ: `ITEMS`, nhận diện khoản (`itemOf`), dấu vân tay (`fingerprint`), trạng thái hiệu lực (`effectiveStatus`), lịch tính tiền đã xử lý khoản chưa duyệt (`payView`), `POLICY`, `COUNTS_ABSENT`, `ALLOWED_ACTIONS`. |
 | `src/modules/sheet/sheet.helpers.ts` / `src/modules/attendance/attendance.controller.ts` (route) | `GET/PUT /holidays`, `GET /sheet`, `PUT /sheet`, `GET/PUT /kpi/scores` (,), `GET /approvals`, `GET /approvals/count`, `GET /alerts`, `PUT /approvals/decide`, `POST /punch` (, nhánh Check-out muộn), `GET/POST/PUT /ot` (,,), `checkInDay`, `cleanDays`, `leaveBalanceView`, `holidayOtConflicts`. |
 | `lib/domain/sheet-on-behalf.js` | Admin khai lịch thay (`sheetOwner`) và duyệt ngay khoản được khai thay (`approveOnBehalf`). |
-| `lib/domain/sheet-checks.js` | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
+| `lib/domain/timesheet/` (nối ở `timesheet/services.js`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`, `assertSheetRev`, `checkExtraTimes`): phép đủ số dư, cấm làm bù ngày lễ, quyền lợi, trần OT, iSAT, ca của ngày… |
 | `lib/domain/isat-rule.js` | `isatRefusal`: iSAT chỉ đúng thứ `isat.weekday` và chỉ chức vụ có `benefit.isat`. |
-| `lib/domain/limits.js` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
+| `lib/domain/overtime/hour-limits.js` | Hai trần giờ làm chặn cứng (giờ ròng một ngày `DAY_HOURS_CAP`, OT cộng giờ ca chính làm ngày lễ một tháng `MONTH_OT_CAP`) và giới hạn iSAT `isat.monthlyLimit`; ngày được xin tạm ứng `ADVANCE_REQUEST_DAYS` (`assertAdvanceWindowOpen`, `advanceWindow`). |
 | `lib/domain/ai-block.js` | Chặn duyệt khoản bị AI soát gắn luật nặng khi công tắc Agents bật. |
 | `lib/domain/leave/*` | Sổ phép lưu sẵn: `schema.js` (bảng `leave_ledger`), `leave-events.js` (các lần cộng phép có ngày), `leave-ledger-repository.js` (đồng bộ sổ, ghi số dư), `leave-account-service.js` (tính lại, hẹn giờ), `src/modules/leave/leave.controller.ts` (`/api/leave/ledger`, `/api/leave/refresh`). |
 | `lib/domain/leave-days.js` | `leaveDates(staff)`: các ngày "Nghỉ phép năm" thực sự trừ phép (gồm ngày chờ duyệt, bỏ ngày bị từ chối và ngày lễ nằm trong lịch). |
@@ -38,7 +38,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `lib/domain/attendance/admin-presence.js` | Lượt chấm công nguồn Admin: từ Admin khai thay lịch (`sync`) và từ giải trình ngày quên chấm đã duyệt (`syncExplanation`). |
 | `lib/domain/attendance/session-status.js` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
 | `lib/domain/shared/request.js`, `domain-error.js`, `repository.js` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
-| `lib/domain/kpi.js` | KPI: `kpiMaxOf`, `hasKpi`, `cleanKpi`, `cleanKpiAmt`, `kpiScoreItem`, `kpiPartsView`, `selfScoreOnly`, `kpiHttpError`. |
+| `lib/domain/kpi/kpi-scoring.js` | KPI: `kpiMaxOf`, `hasKpi`, `cleanKpi`, `cleanKpiAmt`, `kpiScoreItem`, `kpiPartsView`, `selfScoreOnly`, `kpiHttpError`. |
 | `public/kpi-score.js` | Quy tắc KPI dùng chung: trọng số, `checkScore`, `evaluate`, `pay`. |
 | `lib/domain/ot.js` | OT khai ở Check-in/out: `listOt`, `validateOtDeclaration`. |
 | `lib/authz.js` | `ROUTE_CAPS`, vai trò, `can`, `scopeOf`, `gate`, `isSelfDecision`, `DECIDE_ITEMS`. |
@@ -320,7 +320,7 @@ Với mỗi ngày của lịch: `rulesFor(month).approvalView.itemOf` với `ctx
 
 - `sheetOwner(caller, user)`: `user` vắng hoặc trùng người gọi → người gọi. Khác → cần `can(caller, 'request.decide.*', { username })` (403 trước cả khi kiểm tên), tên hợp lệ, người tồn tại (404), `payrollSubject` (400).
 - `approveOnBehalf` (trong giao dịch PUT /sheet và PUT /sheet/bulk, sau reconcile; trả `{ decided, presence }`): các ngày `added + reset + resubmitted` có dòng `pending` và người khai có `request.decide.<item>` được `store.approvals.decide(..., 'approved', caller, 'Admin khai thay')`. Không qua `assertNotAiBlocked`. Đồng bộ lượt chấm công nguồn Admin (`container.adminPresence.sync`). Nhật ký `sheet.onBehalf` `{ changedDays, autoApproved }`. KPI tự đề xuất của người được khai giữ nguyên.
-- Ca của ngày khai thay (`adminShiftOf`, `sheet-checks.js`): Admin chọn được mọi ca trong danh mục (`preset`); không chọn thì ca có đúng giờ vào – ra đã khai (ưu tiên ca được gán); không ca nào khớp mà ngày đổi → `SHEET_ADMIN_SHIFT_REQUIRED` (cảnh báo). `checkSheet` không báo `SHEET_SHIFT_MISMATCH` cho khai thay. Lượt Admin dựng theo ca đó, nên ngày được trả phụ cấp ca (đêm theo bậc / Flex theo giờ), giờ nghỉ và giờ thiếu theo ca Admin chọn. Nhân sự tự khai và Check-in/out vẫn tính theo ca được gán.
+- Ca của ngày khai thay (`adminShiftOf`, `timesheet/timesheet-validator.js`): Admin chọn được mọi ca trong danh mục (`preset`); không chọn thì ca có đúng giờ vào – ra đã khai (ưu tiên ca được gán); không ca nào khớp mà ngày đổi → `SHEET_ADMIN_SHIFT_REQUIRED` (cảnh báo). `checkSheet` không báo `SHEET_SHIFT_MISMATCH` cho khai thay. Lượt Admin dựng theo ca đó, nên ngày được trả phụ cấp ca (đêm theo bậc / Flex theo giờ), giờ nghỉ và giờ thiếu theo ca Admin chọn. Nhân sự tự khai và Check-in/out vẫn tính theo ca được gán.
 - Ngày đi làm do Admin khai thay (đã qua giờ ra) thành một lượt chấm công nguồn Admin có hiệu lực như một lượt Check-in/out hợp lệ (trễ / về sớm vẫn bị trừ như lượt bấm thật); lượt bấm thật dùng được thắng lượt Admin.
 
 ### 4.7 Đổi ngày lễ (`PUT /holidays`, `src/modules/settings/settings.controller.ts`)
@@ -351,7 +351,7 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 **Ngày đã dùng** (`leaveDates`, `lib/domain/leave-days.js`): mọi ngày `kind:'leave'` ở mọi tháng, **gồm ngày chờ duyệt** (giữ chỗ), bỏ ngày có dòng `leave` bị `rejected` (với tháng đang lưu: chỉ khi ngày khai y nguyên cùng vân tay), bỏ ngày lễ nằm trong lịch làm việc.
 
-**Kiểm khi lưu lịch** (`sheet-checks.js`): không kiểm số dư phép, khai ngày phép vượt số dư vẫn lưu (chờ duyệt, số dư âm). Ngày `unpaid` mới vào T2–T6 trong lịch mà còn ≥ 1 ngày phép → `SHEET_UNPAID_WITH_LEAVE`. Chức vụ không `absenceDeclarable` không khai `leave` hoặc `unpaid` trong lịch → `BENEFIT_NOT_ALLOWED`. Bộ máy không xét số dư: phép vượt mà được duyệt vẫn có lương.
+**Kiểm khi lưu lịch** (`timesheet/timesheet-validator.js`): không kiểm số dư phép, khai ngày phép vượt số dư vẫn lưu (chờ duyệt, số dư âm). Ngày `unpaid` mới vào T2–T6 trong lịch mà còn ≥ 1 ngày phép → `SHEET_UNPAID_WITH_LEAVE`. Chức vụ không `absenceDeclarable` không khai `leave` hoặc `unpaid` trong lịch → `BENEFIT_NOT_ALLOWED`. Bộ máy không xét số dư: phép vượt mà được duyệt vẫn có lương.
 
 **Sổ lưu sẵn** (`LeaveAccountService.refresh`, `leave-account-service.js`): chỉ người có `uuid`, `payrollSubject`, `startDate`, quyền lợi `leaveAccount` (không thì xoá số dư lưu). `upTo` = ngày nghỉ việc nếu đã qua, ngược lại ngày hiện tại. Sự kiện = `accrualEvents` (cùng quy tắc với `counted`: chỉ các lần cộng sau cuối năm `first − 1`, không gồm điều chỉnh tay) + `expire` (âm, mỗi quỹ đã hết hạn còn ngày). Số dư lưu = `ledger.balance`. `ledger.sync` thêm/sửa/xoá để sổ khớp; `saveBalance` chỉ ghi khi khác. Chạy lúc khởi động (`setImmediate`) và mỗi `config.LEAVE_REFRESH_MS` (3.600.000 ms), và mỗi lần `GET /leave/ledger`. Lỗi một người: ghi console một lần, bỏ qua.
 
@@ -368,7 +368,7 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 **Chưa cuối cùng** (`provisional`): `vnToday() <= "<tháng>-<untilDay 2 chữ số>"` (đúng ngày `untilDay` vẫn chưa cuối cùng).
 
-**Xin**: chỉ tạo được vào ngày 16 và 17 hằng tháng (giờ Việt Nam, theo `vnToday()`; `ADVANCE_REQUEST_DAYS` ở `lib/domain/limits.js`), ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; `month` phải là tháng của hôm nay (yêu cầu tạo ngày 16 hoặc 17 của tháng M là tạm ứng của tháng M), khác thì 409 `ADVANCE_MONTH_NOT_CURRENT` (Admin cũng vậy; duyệt, từ chối, huỷ duyệt, rút không bị giới hạn theo ngày); `GET /api/advance-approvals` trả thêm `window: { days: [16, 17], open }`. Sau đó phải `eligible`; số = 0 và `provisional` false → 409 `ADVANCE_ZERO`. **Duyệt**: phải `eligible`. **Duyệt tất cả** (`src/modules/advance/advance-approvals.handlers.ts`): chỉ người đang `pending`; bỏ qua (`skipped`) khi không eligible, số đã chốt (không còn `provisional`) bằng 0, không có quyền với người đó, hoặc là chính người duyệt (bỏ qua). Không có ai được duyệt thì không ghi, rev tháng giữ nguyên.
+**Xin**: chỉ tạo được vào ngày 16 và 17 hằng tháng (giờ Việt Nam, theo `vnToday()`; `ADVANCE_REQUEST_DAYS` ở `lib/domain/overtime/hour-limits.js`), ngoài hai ngày đó 409 `ADVANCE_WINDOW_CLOSED`; `month` phải là tháng của hôm nay (yêu cầu tạo ngày 16 hoặc 17 của tháng M là tạm ứng của tháng M), khác thì 409 `ADVANCE_MONTH_NOT_CURRENT` (Admin cũng vậy; duyệt, từ chối, huỷ duyệt, rút không bị giới hạn theo ngày); `GET /api/advance-approvals` trả thêm `window: { days: [16, 17], open }`. Sau đó phải `eligible`; số = 0 và `provisional` false → 409 `ADVANCE_ZERO`. **Duyệt**: phải `eligible`. **Duyệt tất cả** (`src/modules/advance/advance-approvals.handlers.ts`): chỉ người đang `pending`; bỏ qua (`skipped`) khi không eligible, số đã chốt (không còn `provisional`) bằng 0, không có quyền với người đó, hoặc là chính người duyệt (bỏ qua). Không có ai được duyệt thì không ghi, rev tháng giữ nguyên.
 
 **Rev**: rev của người kiểm ở xin/rút/duyệt/từ chối/huỷ (`ADVANCE_REQUEST_STALE`); rev của tháng kiểm ở duyệt tất cả (`ADVANCE_REQUESTS_STALE`). `expectedRev` vắng thì không kiểm. Mỗi lần ghi tăng rev tháng; mỗi bước tăng rev người.
 
@@ -380,7 +380,7 @@ Ngày lễ bị bỏ: dòng OT ngày lễ biến mất (hoặc thành khoản OT
 
 Hai luồng khác nhau:
 
-1. **OT trên Lịch ước tính** (khoản `ot`, 4.1): nguồn tiền. Kiểm khi lưu: tổng OT thô trong tháng cộng giờ ca chính làm ngày lễ > `MONTH_OT_CAP` (40) và tăng so với lịch đang lưu → 400 `OT_MONTH_CAP` (`limits.js`); quyền lợi `ot` → `BENEFIT_NOT_ALLOWED`; đoạn làm thêm rơi 22h–6h → `SHEET_EXTRA_NIGHT`; đoạn làm thêm ghi nhầm phía ca → 400 `EXTRA_WRONG_SIDE`; giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, trừ giờ nghỉ giữa ca) > `DAY_HOURS_CAP` (12) → 400 `DAY_HOURS_CAP` (`limits.checkDayHours`); cả hai là lỗi chặn. Bộ máy không cắt theo các trần.
+1. **OT trên Lịch ước tính** (khoản `ot`, 4.1): nguồn tiền. Kiểm khi lưu: tổng OT thô trong tháng cộng giờ ca chính làm ngày lễ > `MONTH_OT_CAP` (40) và tăng so với lịch đang lưu → 400 `OT_MONTH_CAP` (`overtime/hour-limits.js`); quyền lợi `ot` → `BENEFIT_NOT_ALLOWED`; đoạn làm thêm rơi 22h–6h → `SHEET_EXTRA_NIGHT`; đoạn làm thêm ghi nhầm phía ca → 400 `EXTRA_WRONG_SIDE`; giờ ròng một ngày (giờ ca + OT + làm thêm + làm bù, trừ giờ nghỉ giữa ca) > `DAY_HOURS_CAP` (12) → 400 `DAY_HOURS_CAP` (`limits.checkDayHours`); cả hai là lỗi chặn. Bộ máy không cắt theo các trần.
 2. **OT khai ở Check-in/out** (`POST/PUT /ot`): chỉ để theo dõi, không tự cộng tiền (`ot.js`; nguồn đoạn làm thêm của giờ thực tế là Lịch ước tính — `attendance.extraSourceRule` = calendar — và `otReview` của lượt bị bỏ khi dựng ngày tính tiền). `validateOtDeclaration`: lượt phải `closed` (409), có `plannedShift` (400), không đang khai làm bù (409), giờ HH:MM, ít nhất một đoạn, có giờ có mặt hợp lệ; các kiểm `BENEFIT_NOT_ALLOWED`, `OT_NEEDS_CONFIRMED_SHIFT`, `OT_OUTSIDE_PRESENCE`, `OT_NIGHT` (đoạn OT chồng 22h–6h) là cảnh báo (`warnIf`); sau đó hai trần cứng `DAY_HOURS_CAP` (giờ ròng ngày, cộng OT của các lượt khác cùng ngày) và `OT_MONTH_CAP` (so với Lịch ước tính) chặn 400.
 
 **Điều kiện để OT trên lịch ra tiền**: khoản đã `approved` (chưa duyệt / bị từ chối: `strip`, mục 4.2); chức vụ có `benefit.ot`; có chấm công: `ActualHours` chỉ giữ phần đoạn đã khai nằm trong khoảng có mặt liền với ca (`clipExtra`, `actual-hours.js`), số giờ không vượt số giờ đã khai; ngày ngoài lịch làm việc của người chỉ trả đoạn làm thêm (`extraOnly`: không ngày công, không giờ thiếu, không lương ngày, không phụ cấp ca); khai OT ngoài lịch mà không có chấm công nào thì không tính tiền và không là vắng.
@@ -408,7 +408,7 @@ Chức vụ không có `benefit.ot` không có OT nào, kể cả ngày lễ (`e
 - Không có loại ngày làm bù cả ngày. Ngày `kind: 'makeup'` mới hoặc đã đổi → 400 `SHEET_MAKEUP_DAY_REMOVED` ("Không còn loại ngày Làm bù cả ngày. Giờ làm bù khai ở ngày đi làm, trước hoặc sau ca."), cả khi Admin khai thay. Ngày `makeup` đã lưu gửi lại không đổi: không chặn, cảnh báo `SHEET_MAKEUP_DAY_LEGACY`; bộ máy tính ngày đó 0 đồng, không ngày công, không giờ làm bù. Vai trò tuỳ chỉnh: `makeup_day` không có trong `APPROVAL_ITEMS` (`lib/roles.js`); quyền `makeup_day` đã lưu bị bỏ qua khi đọc (`RETIRED_ITEMS`,).
 - `makeup_hours`: đoạn trước/sau ca có `extraKind:'makeup'` trên ngày đi làm; chức vụ không có `benefit.makeupHours` → `BENEFIT_NOT_ALLOWED` (`checkRequestFlags`, `positions.js`).
 - `willmakeup`: ngày nghỉ, kế hoạch làm bù `makeupPlans[{date,from,to}]` (tối đa 31 dòng, ô sai dạng thành rỗng, chỉ để Admin xem khi duyệt, không chặn gì). Đã duyệt: 0 đồng, không ngày công, cộng một công (`time.workHoursPerDay` giờ) vào giờ cần bù của tháng.
-- Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`sheet-checks.js`); ngày đã lưu không đổi thì giữ.
+- Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`timesheet/timesheet-validator.js`); ngày đã lưu không đổi thì giữ.
 - **Tiền**: giờ làm bù được trả đủ = giờ × lương giờ × 1, không cắt theo giờ cần bù (`makeupPay`, `payroll-engine.js`); đoạn làm bù trừ giờ nghỉ rơi trong đoạn (OT không trừ). Ngày có giờ làm bù được trả (`makeupH > 0`) không có phụ cấp ca và giờ nghỉ đêm có lương (`noShiftAllowance`,); ngày có OT được trả vẫn giữ phụ cấp ca và giờ nghỉ đêm có lương.
 - **Sổ giờ bù tháng** (`calcMonth`,): `need` = giờ thiếu của ngày đi làm + một công cho mỗi ngày `willmakeup` đã duyệt; `made` = giờ làm bù đã duyệt và có chấm công; `debt = max(0, need − made)` (giờ còn thiếu); `makeupCredit = max(0, made − need)` (phần làm bù nhiều hơn giờ thiếu, đã trả trong `makeupPay`). Số dư luỹ kế theo ngày chỉ dùng để giữ OT ngày thường (4.10) và báo giờ còn thiếu.
 
@@ -511,7 +511,7 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 | Quyền (`FORBIDDEN_CAP`), định dạng, không tồn tại, tài khoản ngoài bảng lương | route, `cleanDays` |
 | `SHEET_STALE` (rev lịch lệch) | `assertSheetRev` |
 | `APPROVAL_STALE`, `APPROVAL_NOT_FOUND`, `APPROVAL_NOOP` | `decide` |
-| `OT_MONTH_CAP` (tháng > `MONTH_OT_CAP`, chỉ khi tổng tăng), `DAY_HOURS_CAP` (ngày vừa đổi > `DAY_HOURS_CAP`) | `limits.js` |
+| `OT_MONTH_CAP` (tháng > `MONTH_OT_CAP`, chỉ khi tổng tăng), `DAY_HOURS_CAP` (ngày vừa đổi > `DAY_HOURS_CAP`) | `overtime/hour-limits.js` |
 | `SHEET_MAKEUP_ON_HOLIDAY`, `SHEET_MAKEUP_DAY_REMOVED` | `checkSheet` |
 | `EXTRA_WRONG_SIDE`, giờ làm thêm thiếu hoặc trùng giờ ca | `checkExtraTimes` |
 | iSAT sai thứ (`SHEET_ISAT_WEEKDAY`) hoặc sai quyền lợi (`BENEFIT_NOT_ALLOWED`) khi lưu ngày iSAT mới và khi duyệt | `isatRefusal` |
@@ -578,7 +578,7 @@ Không có nhật ký: lưu lịch thường (PUT /sheet không khai thay), đ�
 - `lib/events.js` → `store.approvals.list` (đếm chờ).
 - `lib/authz.js` → `ApprovalView.ITEMS` (`DECIDE_ITEMS`).
 - `lib/domain/leave-days.js` → `store.approvals.list`, `declaredItems` (ngày phép bị từ chối).
-- `lib/domain/sheet-checks.js` → `leaveDates`, `rulesFor().leave`, `isatRefusal`.
+- `lib/domain/timesheet/` (nối ở `timesheet/services.js`) → `leaveDates`, `rulesFor().leave`, `isatRefusal`.
 - `POST /punch` → `explanations.needsExplanation`, `container.lateCheckout`, `checkInVerdict`.
 
 ### 6.2 Module này gọi
@@ -665,8 +665,8 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 ### 8.3 Số viết cứng, tham số không được đọc
 
 19. **Độ dài lý do có nhiều nguồn**: `lib/domain/input.js` `NOTE_MAX = 300`; `lib/approvals.js` `DEFAULTS['control.reasonMaxLength']` (mặc định, không theo tháng); `config.REASON_MAX` 300; `src/modules/**/*.controller.ts` `:1395` cắt im lặng `slice(0, 300)` thay vì báo lỗi;  `maxlength="300"`; giải trình `TEXT_MAX = 500` (`explanation-service.js`).
-21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `public/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `public/kpi-score.js` (`checkScore`, `toUnits`) và `lib/domain/kpi.js` (`cleanKpi`).
-22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`public/leave.js`, `leave-events.js`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`limits.js`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`sheet-checks.js`); `config.CHECKOUT_GRACE_MIN` 30.
+21. **Tham số có trong registry nhưng không nơi nào đọc**: `approval.batch`, `approval.pendingAtLock`, `control.reasonRequired.reject`, `control.reasonRequired.changeDecision`, `kpi.scoreMax`, `kpi.scoreDecimals` (chỉ có ở `public/payroll-params.js`). Thang điểm 0..100 và 2 chữ số thập phân viết cứng ở `public/kpi-score.js` (`checkScore`, `toUnits`) và `lib/domain/kpi/kpi-scoring.js` (`cleanKpi`).
+22. **Số nghiệp vụ trong mã/config**: +1 ngày mỗi bậc thâm niên (`public/leave.js`, `leave-events.js`); `MONTH_OT_CAP` 40 và `DAY_HOURS_CAP` 12 chặn cứng (`overtime/hour-limits.js`); T2–T6 viết cứng `dow >= 1 && dow <= 5` (`timesheet/timesheet-validator.js`); `config.CHECKOUT_GRACE_MIN` 30.
 23. **Hành vi phụ thuộc biến môi trường test**: `ai-block.js` bỏ qua khi công tắc Agents tắt và, khi chưa đặt `ai_block_rules`, tắt chặn AI nếu `DB_PATH === ':memory:'`.
 
 ### 8.4 Mã chết, trùng, quyền

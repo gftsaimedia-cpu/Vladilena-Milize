@@ -12,10 +12,10 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | Đường dẫn | Nội dung |
 | --- | --- |
-| `server.js` | Điểm vào (15 dòng): đặt `UV_THREADPOOL_SIZE`, nạp TypeScript (`lib/register-ts.js`), nạp `.env` (`src/env.ts`), dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. |
+| `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.js`. |
 | `seed.js` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.js` (lệnh `npm run seed` chạy bản trong `scripts/`). |
 | `lib/` | Mã máy chủ: `db.js` (SQLite + store), `http.js`, `auth.js`, `authz.js`, `audit.js`, `events.js`, `warnings.js`, `config.js`, `periods.js`, `payroll-service.js`, `roles.js`, `pay-entries.js`, `advance-*.js`, `explanations.js`, `slip-*.js`, `findings.js`, `data-quality.js`, `period-*.js`, `request-rules.js`, `announce.js`, `approvals.js`, `attendance-sessions.js`. |
-| `lib/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.js`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `attendance-calendar`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
+| `lib/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.js`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
 | `lib/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `lib/params/` | Registry tham số, đọc theo tháng (`store.js`), lưu / xem trước / hoàn tác (`save.js`), kiểm (`validate.js`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.js`, `keys.lock.json`, `registry.data.json`. |
 | `lib/ai/` | AI rà soát theo luật (thuần, không mạng). |
@@ -113,9 +113,9 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `scripts/ops/backup-daily.js` | Một lệnh cho bộ lập lịch: gọi `backup()`, tuỳ chọn chạy `verify-backup.js`, ghi một dòng JSON log; kiểm hỏng thì đổi tên `.failed`. |
 | `scripts/ops/check-backup.js` | Giám sát: có bản, bản mới nhất trẻ hơn `--max-age-hours`, không có `.failed`/`.partial` mới hơn. |
 | `scripts/ops/verify-backup.js` | Kiểm bản sao trên bản chép tạm: integrity, foreign_key, đếm dòng, chuỗi băm nhật ký, tính lại phiếu từ bản chụp. |
-| `scripts/ops/restore-drill.js` | Diễn tập khôi phục: chạy `server.js` (ứng dụng NestJS) ở tiến trình con trên bản chép, gửi 3 yêu cầu kiểm. |
+| `scripts/ops/restore-drill.js` | Diễn tập khôi phục: chạy `src/server.ts` (ứng dụng NestJS) ở tiến trình con trên bản chép, gửi 3 yêu cầu kiểm. |
 | `scripts/ops/params-mode.js` | Xem / lùi `params_mode` về `defaults-only` (có sao lưu, audit `param.mode`, tăng `config_rev`). |
-| `scripts/dev/sandbox-server.cjs` | Máy chủ thử: DB RAM, đồng hồ giả, chỉ loopback, nạp `server.js` (ứng dụng NestJS). |
+| `scripts/dev/sandbox-server.cjs` | Máy chủ thử: DB RAM, đồng hồ giả, chỉ loopback, nạp `src/server.ts` (ứng dụng NestJS). |
 | `scripts/dev/sandbox-ops.cjs` | Điều khiển thử tải và sao lưu/khôi phục bên trong sandbox. |
 | `scripts/dev/sandbox.html`, `sandbox.js`, `sandbox-ops.js` | Trang điều khiển sandbox (trình duyệt). |
 | `scripts/dev/scenarios/` | Dựng DB kịch bản gần một năm (`generate.cjs`), máy chủ xem (`server.cjs`), đối chiếu (`verify.cjs`), thư viện `lib/`; file sinh ra nằm trong `out/` (không vào git). |
@@ -130,7 +130,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `test/tools/size-budget.js` | Ngân sách cỡ file (mềm 800, cứng 1.200 dòng; ngoại lệ trong `test/fixtures/file-size-budget.json`, trần chỉ giảm). |
 | `test/tools/check-todo.js` | Số test `todo` không được tăng (baseline `test/fixtures/todo-baseline.json`). |
 | `test/tools/free-identifiers.js` | Tìm tên dùng mà không khai báo (bắt `require` bị quên khi chuyển mã), dùng parser của Prettier. |
-| `test/tools/moved-lines.js` | So dòng khi cắt mã từ file lớn sang file khác (từng dùng khi tách `server.js` sang `src/modules`). |
+| `test/tools/moved-lines.js` | So dòng khi cắt mã từ file lớn sang file khác (từng dùng khi tách `src/server.ts` sang `src/modules`). |
 | `test/tools/record-dispatch.js` | Ghi / so "bảng vàng điều phối" (mọi khoá `ROUTE_CAPS` × 3 loại người dùng) vào `test/fixtures/route-dispatch-golden.json`. |
 | `test/tools/record-schema.js` | Bản chụp lược đồ DB do `lib/db.js` dựng (`test/fixtures/db-schema-snapshot.json`). |
 | `test/helpers/api-fixture.js` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
@@ -189,7 +189,7 @@ Không có số phiên bản lược đồ. Mọi DDL là `CREATE … IF NOT EXI
 | `session_secret` | hex | Chỉ khi không production và không có `SESSION_SECRET` (`lib/auth.js`). |
 | `holidays` | `['YYYY-MM-DD']` | Đọc ở rất nhiều nơi; ghi ở `PUT /api/holidays`. |
 | `holiday_names` | `{ ngày: tên }` | `lib/domain/holidays.js`. |
-| `geofence` | đối tượng vùng GPS hoặc `null` | `lib/domain/geofence.js`, `PUT /api/settings/geofence`. |
+| `geofence` | đối tượng vùng GPS hoặc `null` | `lib/domain/attendance/geofence-policy.js`, `PUT /api/settings/geofence`. |
 | `ai_block_rules` | mảng id luật; `[]` = tắt | `lib/domain/ai-block.js`. |
 | `roles.custom` | `{ rev, roles: [...] }` | `lib/authz.js`, `lib/roles.js`. |
 | `advance_approvals_<YYYY-MM>` | `{ rev, users }` | `lib/domain/advance/advance-approvals.js`. |
@@ -203,7 +203,7 @@ Không có số phiên bản lược đồ. Mọi DDL là `CREATE … IF NOT EXI
 4. `once('backend_v4_v1a_v1')` gieo `params_mode`; `once('staff_payroll_subject_v1')` đặt `payroll_subject` (admin = 0, còn lại = 1) (`lib/db.js`). `once` chạy trong `transaction` và ghi mốc cùng giao dịch.
 5. Schema của `lib/domain`: employee, position (gieo danh mục), leave, explanation (`lib/db.js`), rồi `staff_shift_codes_v1` đổi mã ca ngắn sang mã danh mục.
 6. Cuối file: `attendance-sessions.js` (migration phiên; lỗi → `bootFail`), `approvals.js` (migration `sheet_approvals_v1…v4`, lỗi → `bootFail`), rồi `warnings.bindSettings(getSetting)`.
-7. Khi `server.js` nạp: `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay lúc dựng máy chủ, kể cả trong test.
+7. Khi `src/server.ts` nạp: `initApp()` (`src/app.init.ts`) gọi `Roles.reconcileStaffRole()` ghi DB ngay lúc dựng máy chủ, kể cả trong test.
 
 Quy ước của mã: chỉ thêm bảng/cột/chỉ mục/trigger; cột mới có mặc định hoặc null; không viết lại dòng có sẵn (ngoại lệ có mốc `once`). `test/tools/record-schema.js` + `test/api/db-schema-snapshot.test.js` khoá lược đồ.
 
@@ -259,7 +259,7 @@ Mọi bước: `rev` không phải số nguyên ≥ 0 → 400 `BAD_REV`; `rev` l
 `src/bootstrap.ts` (`http.createServer`), rồi `src/http/*` trong ứng dụng Nest:
 
 1. `securityHeaders(res)` cho mọi phản hồi (CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy`, HSTS khi `COOKIE_SECURE=1`) (`lib/http.js`).
-2. Nếu `access-log` gắn (chỉ khi chạy `server.js` trực tiếp, `src/main.ts`): đặt `X-Request-Id` (nhận từ client nếu khớp `^[\w.-]{1,64}$`, không thì 12 hex) (`lib/ops/access-log.js`).
+2. Nếu `access-log` gắn (chỉ khi chạy `src/server.ts` trực tiếp, `src/main.ts`): đặt `X-Request-Id` (nhận từ client nếu khớp `^[\w.-]{1,64}$`, không thì 12 hex) (`lib/ops/access-log.js`).
 3. URL không parse được → 400 `{ error }`. Không bắt đầu bằng `/api/` → `serveStatic`.
 4. `inflight.count++` (trừ `/api/events`), giảm khi `res` đóng (`src/http/load-control.ts`).
 5. Chờ ứng dụng Nest khởi tạo xong (`ready`); lưu URL gốc ở `req.rawUrl`, đổi `%` thành `%25` trong `req.url` để Express không bao giờ trả 400 HTML khi gặp `%`-mã sai.
@@ -421,11 +421,11 @@ Các route nghiệp vụ còn lại (sheet, punch, kpi, approvals, periods, staf
 
 ## 4. Cách tính / quy tắc
 
-### 4.1 Nạp môi trường và khởi động (`server.js`, `src/bootstrap.ts`, `src/main.ts`)
+### 4.1 Nạp môi trường và khởi động (`src/server.ts`, `src/bootstrap.ts`, `src/main.ts`)
 
-1. `server.js`: đặt `UV_THREADPOOL_SIZE` (mặc định `config.UV_THREADPOOL_SIZE` = 8) — nạp `lib/config.js` trước khi đọc `.env`, nên biến này đặt trong `.env` bị bỏ qua.
+1. `src/server.ts`: đặt `UV_THREADPOOL_SIZE` (mặc định `config.UV_THREADPOOL_SIZE` = 8) — nạp `lib/config.js` trước khi đọc `.env`, nên biến này đặt trong `.env` bị bỏ qua.
 2. `require('./lib/register-ts')`: đăng ký `tsx` để nạp `src/**/*.ts` lúc chạy.
-3. `loadDotEnv(__dirname)` (`src/env.ts`): đọc `.env` cạnh `server.js` nếu có; dòng `KEY=value` (khoá `[A-Z0-9_]+`, bỏ dòng `#`, bỏ một cặp nháy), không ghi đè biến đã có. Phải chạy trước mọi module đọc biến lúc nạp (`DB_PATH`, `SESSION_SECRET`).
+3. `loadDotEnv(__dirname)` (`src/env.ts`): đọc `.env` cạnh `src/server.ts` nếu có; dòng `KEY=value` (khoá `[A-Z0-9_]+`, bỏ dòng `#`, bỏ một cặp nháy), không ghi đè biến đã có. Phải chạy trước mọi module đọc biến lúc nạp (`DB_PATH`, `SESSION_SECRET`).
 4. `createServer()` (`src/bootstrap.ts`): `initApp()` (`src/app.init.ts`: `store.setDefaultContractResolver(...)`, `Roles.reconcileStaffRole()`), dựng ứng dụng Nest bất đồng bộ (`NestFactory.create(AppModule.register(), new ExpressAdapter(...), { bodyParser: false })`), trả `http.Server`; đặt `keepAliveTimeout` 65 s, `headersTimeout` 66 s, `requestTimeout` 30 s; gắn `server.limits`. Yêu cầu đến trước khi Nest sẵn sàng thì chờ.
 5. `lib/db` mở DB và chạy migration khi được nạp; `hashGate`, `writeLimiter`, `shedder`, `monitor` dựng ở `src/http/load-control.ts` — giới hạn đọc env `PASSWORD_HASH_CONCURRENCY`, `WRITE_RATE_PER_MINUTE`, `SHED_MAX_LAG_MS`, `SHED_MAX_INFLIGHT` nếu là số dương (`limitOf`).
 6. Chỉ khi `require.main === module`, `start(server)` (`src/main.ts`):
@@ -628,7 +628,7 @@ Quy ước khoá: `KEY_RE = ^[a-z][a-zA-Z0-9]*(\.([a-zA-Z0-9_]+))*$`. Các họ 
 4. Mỗi kỳ có `currentRunId`: `periods.verify(tháng)`; có phiếu lệch → hỏng.
 5. Mã thoát: 0 đạt, 1 hỏng, 2 một phần (thiếu `AUDIT_KEY` cho dòng HMAC). Xoá bản chép (cả khi `process.exit`).
 
-**restore-drill.js** — `--backup=<file> [--work-dir] [--port=0] [--keep]`: chép thành `restore.sqlite` (xoá `-wal`/`-shm` sót), chạy `server.js` ở tiến trình con với `DB_PATH` bản chép, `PORT`, `SESSION_SECRET` ngẫu nhiên, `COOKIE_SECURE=0`, xoá `ADMIN_PASSWORD`; chờ khởi động ≤ 60 s; kiểm `GET /` = 200 (đã build giao diện) hoặc 503 (chưa build), `GET /api/me` = 200 và ≥ 40 byte, `GET /api/periods` không cookie = 401. Từ chối tên `luong.sqlite`, `.partial`, `.failed`.
+**restore-drill.js** — `--backup=<file> [--work-dir] [--port=0] [--keep]`: chép thành `restore.sqlite` (xoá `-wal`/`-shm` sót), chạy `src/server.ts` ở tiến trình con với `DB_PATH` bản chép, `PORT`, `SESSION_SECRET` ngẫu nhiên, `COOKIE_SECURE=0`, xoá `ADMIN_PASSWORD`; chờ khởi động ≤ 60 s; kiểm `GET /` = 200 (đã build giao diện) hoặc 503 (chưa build), `GET /api/me` = 200 và ≥ 40 byte, `GET /api/periods` không cookie = 401. Từ chối tên `luong.sqlite`, `.partial`, `.failed`.
 
 **params-mode.js** — `status` (chỉ đọc: mode, config_rev, số dòng param_versions, id audit cuối) hoặc `defaults-only --reason "<10..300>" --yes [--backup-dir=]`: đang `defaults-only` → không làm gì; nhật ký là HMAC mà thiếu `AUDIT_KEY` → từ chối; sao lưu bằng `backup-db.js` (bắt buộc); một giao dịch: `params_mode = 'defaults-only'`, `configRev.bump()`, audit `param.mode` với actor `ops:<user hệ điều hành>`. Không đụng `param_versions`.
 
@@ -652,8 +652,8 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 **Sandbox** (`scripts/dev/sandbox-server.cjs`, `npm run sandbox`)
 
 - Ghi đè env bất kể shell: `DB_PATH=':memory:'`, `SESSION_SECRET` ngẫu nhiên, cookie `luong_sandbox_sid`, `SESSION_DAYS=14`, `COOKIE_SECURE=0`, `TZ=Asia/Ho_Chi_Minh`. `global.Date` thay bằng đồng hồ đóng băng, thời điểm đầu là hằng `INITIAL_LOCAL` (07:55 sáng, ngày đầu tháng) giờ Việt Nam; `Date.now()` của mọi mô-đun máy chủ đọc đồng hồ này.
-- Là tiến trình Node riêng, nạp `server.js` (ứng dụng NestJS) và chuyển yêu cầu vào `http.Server` của nó (`appServer.emit('request', …)`): mọi đường không bắt đầu bằng `/__sandbox/` (trừ `/`, `/app`, trang có đồng hồ) đi vào ứng dụng thật. Chỉ nhận loopback (socket 127.0.0.1/::1 và `Host` là 127.0.0.1/localhost) → khác 403.
-- Cổng `SANDBOX_PORT` (mặc định 3104; 0 = hệ điều hành chọn), nghe `127.0.0.1`. In `SANDBOX_READY {url, initialLocal}`. Bật `monitor` của `server.limits` (vì `start()` ở `src/main.ts` chỉ tự bật khi `server.js` chạy trực tiếp). SIGINT/SIGTERM đóng gọn.
+- Là tiến trình Node riêng, nạp `src/server.ts` (ứng dụng NestJS) và chuyển yêu cầu vào `http.Server` của nó (`appServer.emit('request', …)`): mọi đường không bắt đầu bằng `/__sandbox/` (trừ `/`, `/app`, trang có đồng hồ) đi vào ứng dụng thật. Chỉ nhận loopback (socket 127.0.0.1/::1 và `Host` là 127.0.0.1/localhost) → khác 403.
+- Cổng `SANDBOX_PORT` (mặc định 3104; 0 = hệ điều hành chọn), nghe `127.0.0.1`. In `SANDBOX_READY {url, initialLocal}`. Bật `monitor` của `server.limits` (vì `start()` ở `src/main.ts` chỉ tự bật khi `src/server.ts` chạy trực tiếp). SIGINT/SIGTERM đóng gọn.
 - API điều khiển (POST cần header `X-Sandbox-Control: 1` và `Origin` cùng host; thân ≤ 4096 byte):
 
 | Đường | Việc |
@@ -682,7 +682,7 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 
 | Lệnh | Làm gì |
 | --- | --- |
-| `npm start` | `node --no-warnings=ExperimentalWarning server.js` (đọc `.env`). |
+| `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts` (đọc `.env`). |
 | `npm run sandbox` | `scripts/dev/sandbox-server.cjs`. |
 | `npm run seed` | `scripts/seed.js` (không đọc `.env`). |
 | `npm run seed:demo` | `scripts/db/seed-demo.js`. |
@@ -771,7 +771,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 
 ### 6.1 Đồ thị require chính
 
-- `server.js` → `lib/config` (trước `.env`), `lib/register-ts`, `src/env`, `src/bootstrap`, `src/main`; `src/**` → `lib/db`, `lib/auth`, `lib/http`, `lib/request-rules`, `lib/announce`, `lib/authz`, `lib/roles`, `lib/audit`, `lib/params/*`, `lib/periods`, `lib/events`, `lib/findings`, `lib/ops/*`, `lib/explanations`, `lib/domain/*` (container, ai-review, ai-block, …), `lib/warnings`. Đồ thị không vòng do `test/unit/require-cycles.test.js` giữ (quét cả `src/`).
+- `src/server.ts` → `lib/config` (trước `.env`), `lib/register-ts`, `src/env`, `src/bootstrap`, `src/main`; `src/**` → `lib/db`, `lib/auth`, `lib/http`, `lib/request-rules`, `lib/announce`, `lib/authz`, `lib/roles`, `lib/audit`, `lib/params/*`, `lib/periods`, `lib/events`, `lib/findings`, `lib/ops/*`, `lib/explanations`, `lib/domain/*` (container, ai-review, ai-block, …), `lib/warnings`. Đồ thị không vòng do `test/unit/require-cycles.test.js` giữ (quét cả `src/`).
 - `lib/db.js` → `lib/warnings` (chỉ `warnIf`, `optionalReason`), `lib/config`, `lib/domain/employee/person-name`, các schema của `lib/domain`, `lib/attendance-sessions`, `lib/approvals`. `warnings.js` không `require('./db')`.
 - `lib/http.js` → `lib/auth`, `lib/warnings` (gắn `bindHttpError(HttpError)`), `lib/config`.
 - `lib/warnings.js` → chỉ `lib/config` (lá; `test/unit/require-cycles.test.js` giữ).
@@ -787,7 +787,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 - Mọi handler gọi `send`, `readJson`, `HttpError` (`lib/http.js`), `warnIf`/`warn` (`lib/warnings.js`), `audit.write` (trong giao dịch), `events.emit.*` (sau giao dịch), `store.transaction`, `store.assertPeriodOpen`.
 - `lib/periods.js` gọi `aiReviewResult` (bản không cache), `lib/ai/thresholds` (`THRESHOLDS` để băm), `shared-cache` (ước tính).
 - `lib/params/save.js` gọi `lib/ai/preview-suggestions`, `configRev.bump`, `audit.write`.
-- `scripts/ops/verify-backup.js` nạp `lib/db` và `lib/periods`; `scripts/ops/params-mode.js` nạp `lib/db`, `lib/audit`, `lib/params/config-rev`; `scripts/ops/restore-drill.js` chạy `server.js`; `scripts/dev/sandbox-server.cjs` nạp `lib/db`, `lib/auth`, `server.js`.
+- `scripts/ops/verify-backup.js` nạp `lib/db` và `lib/periods`; `scripts/ops/params-mode.js` nạp `lib/db`, `lib/audit`, `lib/params/config-rev`; `scripts/ops/restore-drill.js` chạy `src/server.ts`; `scripts/dev/sandbox-server.cjs` nạp `lib/db`, `lib/auth`, `src/server.ts`.
 
 ### 6.3 Mô-đun dùng chung trình duyệt + máy chủ (UMD trong `public/`)
 
@@ -868,7 +868,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 
 - Hằng tháng mốc: `DEFAULT_CUTOFF_MONTH` (`lib/approvals.js`).
 - Số nghiệp vụ nằm trong `lib/config.js` thay vì registry: `CHECKOUT_GRACE_MIN` (30), `TAX_LONG_TERM_MONTHS` (3) (`lib/config.js`).
-- `UV_THREADPOOL_SIZE` đặt trong `.env` bị bỏ qua vì `lib/config.js` được nạp trước khi `.env` được đọc (`server.js` và); chỉ biến môi trường thật của tiến trình có tác dụng.
+- `UV_THREADPOOL_SIZE` đặt trong `.env` bị bỏ qua vì `lib/config.js` được nạp trước khi `.env` được đọc (`src/server.ts` và); chỉ biến môi trường thật của tiến trình có tác dụng.
 - `scripts/ops/backup-db.js`, `backup-daily.js`, `check-backup.js`: độ lệch múi giờ VN viết cứng `7 * 3600 * 1000`; `lib/ai/units.js` đọc từ `unit.vnUtcOffsetMin`.
 
 ### 8.2 Cùng một giá trị ở nhiều nơi
@@ -909,12 +909,12 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - `lib/events.js` `batch()` không có nơi gọi trong mã chạy; `announcement.posted` không được phát (chỉ test); `SYSTEM_FRAMES` chỉ xuất ra.
 - `package.json` devDependency `@playwright/test` không được test nào dùng.
 - `ApiGate.open` (`src/http/api-gate.ts`) tính `authz.routeKey(method, seg)` hai lần trong cùng yêu cầu (một lần cho `policyOf`, một lần cho `routeKey` của bộ chặn tải).
-- Cột `staff.leave_balance` và sổ phép lưu sẵn được làm mới bằng hẹn giờ `LEAVE_REFRESH_MS` chỉ khi chạy `server.js` trực tiếp; nạp qua `require` (test, sandbox) không có hẹn giờ này, nên số dư chỉ cập nhật khi có lời gọi `leave.refresh`.
+- Cột `staff.leave_balance` và sổ phép lưu sẵn được làm mới bằng hẹn giờ `LEAVE_REFRESH_MS` chỉ khi chạy `src/server.ts` trực tiếp; nạp qua `require` (test, sandbox) không có hẹn giờ này, nên số dư chỉ cập nhật khi có lời gọi `leave.refresh`.
 
 ### 8.7 Quy ước chưa đều
 
-- Thiếu `'use strict'` ở đầu: `server.js`, `lib/announce.js`, `lib/attendance-sessions.js`, `lib/auth.js`, `lib/db.js`, `lib/domain/ai-review.js`, `lib/domain/approvals.js`, `lib/domain/attendance.js`, `lib/domain/positions.js`, `lib/domain/sheet.js`, `lib/domain/staff.js`, `lib/http.js`, `lib/request-rules.js` (danh sách tính bằng cách quét `server.js` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
-- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (2.300; thực tế 2.259), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600) (1.500) (1.400) (1.300). `server.js` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu, DDL SQLite).
+- Thiếu `'use strict'` ở đầu: `src/server.ts`, `lib/announce.js`, `lib/attendance-sessions.js`, `lib/auth.js`, `lib/db.js`, `lib/domain/ai-review.js`, `lib/domain/approvals.js`, `lib/domain/attendance.js`, `lib/domain/positions.js`, `lib/domain/sheet.js`, `lib/domain/staff.js`, `lib/http.js`, `lib/request-rules.js` (danh sách tính bằng cách quét `src/server.ts` và `lib/**/*.js`). File `src/**/*.ts` là module ES nên luôn ở chế độ nghiêm ngặt.
+- Ngân sách cỡ file (`test/unit/file-size-budget.test.js`, `test/fixtures/file-size-budget.json`): trần mềm 800, trần cứng 1.200 dòng; ngoại lệ hiện có: `public/formula.js` (2.900), `lib/db.js` (2.300; thực tế 2.259), `public/payroll-engine.js` (1.700), `scripts/db/demo/scenarios.js` (1.600) (1.500) (1.400) (1.300). `src/server.ts` đã xuống 15 dòng nên rời danh sách ngoại lệ. `lib/db.js` là file lớn nhất còn lại (hàng đợi giao dịch, cổng `ready`, kho dữ liệu, DDL SQLite).
 
 ### 8.8 Chưa có
 

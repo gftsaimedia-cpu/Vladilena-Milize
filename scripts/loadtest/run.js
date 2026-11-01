@@ -71,11 +71,15 @@ async function main() {
     base = `http://127.0.0.1:${port}`;
     // LT_NODE_ARGS: thêm cờ cho tiến trình máy chủ tự dựng, ví dụ --cpu-prof --cpu-prof-dir=<thư mục> để xem hàm nào tốn CPU
     const extraNodeArgs = (process.env.LT_NODE_ARGS || '').split(' ').filter(Boolean);
-    child = spawn(process.execPath, ['--no-warnings=ExperimentalWarning', ...extraNodeArgs, 'server.js'], {
-      cwd: root,
-      env: { ...process.env, PORT: String(port), COOKIE_SECURE: '0', ACCESS_LOG: 'off' },
-      stdio: ['ignore', 'ignore', 'inherit', 'ipc']
-    });
+    child = spawn(
+      process.execPath,
+      ['--no-warnings=ExperimentalWarning', ...extraNodeArgs, '--import', 'tsx', 'src/server.ts'],
+      {
+        cwd: root,
+        env: { ...process.env, PORT: String(port), COOKIE_SECURE: '0', ACCESS_LOG: 'off' },
+        stdio: ['ignore', 'ignore', 'inherit', 'ipc']
+      }
+    );
   } else if (!password) {
     throw new Error('Chế độ --base cần mật khẩu của người dùng đo tải trong biến môi trường LT_PASSWORD');
   }

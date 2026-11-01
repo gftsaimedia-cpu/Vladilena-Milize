@@ -24,5 +24,5 @@ EXPOSE 3000
 # GET /api/me là route công khai, trả 200 khi máy chủ nhận yêu cầu và mở được DB (không cần cookie, không trả dữ liệu).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/me').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
-# SIGTERM: server.js đóng êm các luồng SSE rồi thoát; docker stop mặc định chờ 10 giây (compose đặt stop_grace_period).
-CMD ["node", "--no-warnings=ExperimentalWarning", "server.js"]
+# SIGTERM: src/server.ts đóng êm các luồng SSE rồi thoát; docker stop mặc định chờ 10 giây (compose đặt stop_grace_period).
+CMD ["node", "--no-warnings=ExperimentalWarning", "--import", "tsx", "src/server.ts"]

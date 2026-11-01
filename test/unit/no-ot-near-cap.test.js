@@ -52,7 +52,7 @@ test('không tệp nào trong lib, public, scripts, server.js và spec còn nh�
       const rel = path.posix.join(folder, entry.name);
       return entry.isDirectory() ? walk(rel) : /\.(js|cjs|html|json|md)$/.test(entry.name) ? [rel] : [];
     });
-  const files = ['server.js', ...walk('lib'), ...walk('public'), ...walk('scripts'), ...walk('spec')];
+  const files = ['src/server.ts', ...walk('lib'), ...walk('public'), ...walk('scripts'), ...walk('spec')];
   assert.ok(files.length > 100, 'quét đủ tệp');
   for (const file of files) {
     const text = await read(file);

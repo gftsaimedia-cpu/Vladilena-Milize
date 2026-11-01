@@ -13,10 +13,10 @@ User=luong
 Group=luong
 WorkingDirectory=/opt/luong-app
 EnvironmentFile=/etc/luong/luong.env
-ExecStart=/usr/bin/node --no-warnings=ExperimentalWarning server.js
+ExecStart=/usr/bin/node --no-warnings=ExperimentalWarning --import tsx src/server.ts
 Restart=on-failure
 RestartSec=3
-# server.js bắt SIGTERM và đóng êm các luồng SSE; chờ tối đa 20 giây rồi mới SIGKILL
+# src/server.ts bắt SIGTERM và đóng êm các luồng SSE; chờ tối đa 20 giây rồi mới SIGKILL
 KillSignal=SIGTERM
 TimeoutStopSec=20
 # Mỗi luồng SSE là một socket (trần mặc định của app 3.000): nâng giới hạn tệp mở
@@ -27,7 +27,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/luong
-# Địa chỉ nghe: server.js nghe mọi giao diện; chặn cổng 3000 từ ngoài bằng tường lửa (chỉ proxy trên 127.0.0.1 vào được)
+# Địa chỉ nghe: src/server.ts nghe mọi giao diện; chặn cổng 3000 từ ngoài bằng tường lửa (chỉ proxy trên 127.0.0.1 vào được)
 
 [Install]
 WantedBy=multi-user.target

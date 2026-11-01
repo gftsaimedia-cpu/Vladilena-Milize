@@ -1,13 +1,13 @@
-import { Controller, Get, Put, Post, Res } from '@nestjs/common';
+import { Controller, Get, Put, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { holidayOtConflicts } from './settings.helpers';
 const store = require('../../../lib/db');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { rulesFor, monthParams, benefitOf, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { announceSetting } = require('../../../lib/announce'); // báo sau COMMIT: cấu hình đổi (chấm công mới đi qua punchHints, kind 'punch')
 const { validMonth, validDate } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { leaveDates } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { cleanGeofence } = require('../../../lib/domain/geofence'); // vùng GPS Check-in
+const { GeofencePolicy } = require('../../../lib/domain/attendance/geofence-policy');
 const { reconcileHolidayWork } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
 const agents = require('../../../lib/agents'); // công tắc Agents
 const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
@@ -23,14 +23,14 @@ const { warnIf, selfDecision } = warnings;
 @Controller('api')
 export class SettingsController {
   @Get('holidays')
-  async getHolidays(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getHolidays(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     need();
-    return send(res, 200, { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() });
+    return { dates: await store.getSetting('holidays', []), names: await HolidayNames.read() };
   }
 
   @Put('holidays')
-  async putHolidays(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putHolidays(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx, needAdmin, guardPeriod } = c;
     needAdmin();
     const { dates, names } = await readJson(req);
@@ -119,18 +119,18 @@ export class SettingsController {
       ...clean.filter(d => !holidaysBefore.includes(d))
     ].sort();
     if (changedHolidays.length) await announceSetting('holidays', me.username, changedHolidays[0].slice(0, 7));
-    return send(res, 200, { dates: clean, names: namesClean });
+    return { dates: clean, names: namesClean };
   }
 
   @Get('settings/agents')
-  async getSettingsAgents(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getSettingsAgents(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, needAdmin } = c;
     needAdmin();
-    return send(res, 200, { enabled: await agents.enabled() });
+    return { enabled: await agents.enabled() };
   }
 
   @Put('settings/agents')
-  async putSettingsAgents(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putSettingsAgents(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin } = c;
     const admin = needAdmin(),
       b = await readJson(req);
@@ -150,17 +150,17 @@ export class SettingsController {
         });
       });
     if (b.enabled !== was) await announceSetting('agents', admin.username);
-    return send(res, 200, { enabled: await agents.enabled() });
+    return { enabled: await agents.enabled() };
   }
 
   @Put('settings/geofence')
-  async putSettingsGeofence(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putSettingsGeofence(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, actx, needAdmin } = c;
     needAdmin();
     const b = await readJson(req, true);
     // Tắt phải nói rõ: null (hoặc { geofence: null }). Thân rỗng hay thiếu trường không được ngầm hiểu là tắt.
     const off = b === null || (Object.keys(b).length === 1 && b.geofence === null);
-    const next = off ? null : cleanGeofence(b);
+    const next = off ? null : GeofencePolicy.clean(b);
     await store.transaction(async () => {
       const was = await store.getSetting('geofence', null);
       await store.setSetting('geofence', next);
@@ -176,60 +176,60 @@ export class SettingsController {
       });
     });
     await announceSetting('geofence', me.username);
-    return send(res, 200, { geofence: next });
+    return { geofence: next };
   }
 
   /* ---------- tham số tính lương: màn Cài đặt dựng từ registry ---------- */
   @Get('settings/params')
-  async getSettingsParams(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getSettingsParams(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, route, need } = c;
     need(); // năng lực config.read đã kiểm ở cổng ROUTE_CAPS
     const month = url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM', { code: 'BAD_MONTH' });
-    if (route === 'GET /settings/first-run') return send(res, 200, await paramsStore.firstRun(month));
+    if (route === 'GET /settings/first-run') return await paramsStore.firstRun(month);
     const groupText = url.searchParams.get('group');
     const group = groupText === null ? undefined : Number(groupText);
     if (group !== undefined && !Number.isInteger(group)) throw new HttpError(400, 'group phải là số nguyên');
-    return send(res, 200, await paramsStore.view(month, { group }));
+    return await paramsStore.view(month, { group });
   }
 
   @Get('settings/first-run')
-  async getSettingsFirstRun(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.getSettingsParams(c, r);
+  async getSettingsFirstRun(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.getSettingsParams(c);
   }
 
   @Get('settings/version')
-  async getSettingsVersion(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getSettingsVersion(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, need } = c;
     need();
-    return send(res, 200, await configRev.info());
+    return await configRev.info();
   }
 
   @Put('settings/params')
-  async putSettingsParams(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async putSettingsParams(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, seg, actx, need } = c;
     need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.js
     const b = await readJson(req);
     if (req.method === 'PUT' && seg.length === 3) {
       const saved = await paramsSave.save(me, actx, b);
       if (saved.notice) await events.emit.paramsChanged(saved.notice);
-      return send(res, 200, saved);
+      return saved;
     }
-    if (req.method === 'POST' && seg[3] === 'preview') return send(res, 200, await paramsSave.preview(me, b));
+    if (req.method === 'POST' && seg[3] === 'preview') return await paramsSave.preview(me, b);
     if (req.method === 'POST' && seg[3] === 'revert') {
       const reverted = await paramsSave.revert(me, actx, b);
       if (reverted.notice) events.emit.paramsChanged(reverted.notice);
-      return send(res, 200, reverted);
+      return reverted;
     }
   }
 
   @Post('settings/params/preview')
-  async postSettingsParamsPreview(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.putSettingsParams(c, r);
+  async postSettingsParamsPreview(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.putSettingsParams(c);
   }
 
   @Post('settings/params/revert')
-  async postSettingsParamsRevert(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.putSettingsParams(c, r);
+  async postSettingsParamsRevert(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.putSettingsParams(c);
   }
 }

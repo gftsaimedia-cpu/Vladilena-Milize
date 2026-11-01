@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 const MONTH = '2026-10';
 const FORBIDDEN_KEYS = ['passHash', 'pass_hash', 'sessionVersion', 'session_version', 'password'];

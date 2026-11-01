@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import http from 'node:http';
 import express from 'express';
 import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
+import { ReplyAdapter } from './http/reply';
 import { AppModule } from './app.module';
 import { inflight } from './http/load-control';
 import { RAW_URL } from './http/api-context';
@@ -20,7 +20,7 @@ export function createServer(): http.Server {
   const instance = express();
   instance.disable('x-powered-by');
   instance.disable('etag');
-  const ready = NestFactory.create(AppModule.register(), new ExpressAdapter(instance), {
+  const ready = NestFactory.create(AppModule.register(), new ReplyAdapter(instance), {
     bodyParser: false,
     logger: ['error', 'warn']
   }).then(app => app.init());

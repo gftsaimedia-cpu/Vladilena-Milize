@@ -7,7 +7,7 @@ process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-v1a-api-tests';
 const crypto = require('node:crypto');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('./server');
 
 const agents = require('../../lib/agents');
 

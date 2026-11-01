@@ -11,7 +11,7 @@ const Engine = require('../../public/payroll-engine.js');
 const Calendar = require('../../public/payroll-calendar.js');
 const { DEFAULTS } = require('../../public/payroll-params.js');
 const store = require('../../lib/db');
-const { estimateOtHours, actualOtHours, extraOtHours } = require('../../lib/domain/work-hours');
+const { estimateOtHours, actualOtHours, extraOtHours } = require('../../lib/domain/overtime/worked-hours').WorkedHours;
 
 const k = Engine.create(DEFAULTS);
 const PC = Calendar.create(DEFAULTS);

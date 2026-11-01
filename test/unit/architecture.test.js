@@ -68,9 +68,9 @@ test('kiến trúc: chỉ app.module.ts import src/modules; hạ tầng không p
   assert.deepEqual(bad, [], 'hạ tầng (src/http, src/shared, ...) không được import module nghiệp vụ');
 });
 
-test('kiến trúc: không file nào trong src/ import server.js', () => {
+test('kiến trúc: không file nào trong src/ import src/server.ts (điểm vào là gốc của đồ thị)', () => {
   const bad = FILES.filter(file =>
-    importsOf(file).some(target => target === path.join(ROOT, 'server') || target === path.join(ROOT, 'server.js'))
+    importsOf(file).some(target => target === path.join(ROOT, 'server') || target === path.join(ROOT, 'src/server.ts'))
   );
   assert.deepEqual(bad.map(rel), []);
 });

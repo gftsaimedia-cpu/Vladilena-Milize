@@ -1,8 +1,8 @@
-import { Controller, Get, Put, Post, Res } from '@nestjs/common';
+import { Controller, Get, Put, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { SLIP_MONEY, SLIP_QTY } from './periods.helpers';
 const store = require('../../../lib/db');
-const { HttpError, send, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 const { vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { validMonth } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { aiReviewResult } = require('../../../lib/domain/ai-review'); // kết quả soát dữ liệu của AI
@@ -22,7 +22,7 @@ export class PeriodsController {
   // bảng phân công). Cổng ROUTE_CAPS chỉ hỏi "có ít nhất một nhóm".
   /* ---------- Admin sửa số trên phiếu lương (chỉ Admin đọc / ghi; nhân sự luôn thấy số tự tính) ---------- */
   @Get('slip-override')
-  async getSlipOverride(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getSlipOverride(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, url, me, actx, needAdmin, guardPeriod } = c;
     const admin = needAdmin(),
       b = req.method === 'PUT' ? await readJson(req) : null;
@@ -61,61 +61,53 @@ export class PeriodsController {
         await audit.slipOverride(actx, who, month, prior, clean, reason);
       });
     }
-    return send(res, 200, await store.getSlipOverride(who, month));
+    return await store.getSlipOverride(who, month);
   }
 
   @Put('slip-override')
-  async putSlipOverride(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.getSlipOverride(c, r);
+  async putSlipOverride(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.getSlipOverride(c);
   }
 
   /* ---------- kỳ lương: danh sách kiểm, chốt công, tính lương và bản chụp, AI kiểm tra, duyệt, chi trả, mở lại ---------- */
   @Get('periods')
-  async getPeriods(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async getPeriods(@Ctx() c: ApiContext): Promise<unknown> {
     const { res, url, need } = c;
     need();
-    return send(res, 200, {
+    return {
       year: Number(url.searchParams.get('year') || vnToday().slice(0, 4)),
       periods: await periods.list(url.searchParams.get('year') || vnToday().slice(0, 4))
-    });
+    };
   }
 
   @Get('periods/:month')
-  async periodStep(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async periodStep(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, url, me, seg, route, actx, need, routeKey } = c;
     need(); // quyền đã kiểm ở cổng ROUTE_CAPS
     const month = seg[2];
     const step = routeKey.slice(routeKey.indexOf(':month') + ':month'.length);
     if (req.method === 'GET') {
-      if (step === '') return send(res, 200, await periods.view(month));
-      if (step === '/verify') return send(res, 200, await periods.verify(month));
+      if (step === '') return await periods.view(month);
+      if (step === '/verify') return await periods.verify(month);
       if (step === '/estimates') {
         const q = url.searchParams;
-        return send(
-          res,
-          200,
-          await periods.estimates(month, {
-            q: q.get('q') || undefined,
-            type: q.get('type') || undefined,
-            page: q.get('page') || undefined,
-            pageSize: q.get('pageSize') || undefined
-          })
-        );
+        return await periods.estimates(month, {
+          q: q.get('q') || undefined,
+          type: q.get('type') || undefined,
+          page: q.get('page') || undefined,
+          pageSize: q.get('pageSize') || undefined
+        });
       }
       if (step === '/payslips') {
         const q = url.searchParams;
-        return send(
-          res,
-          200,
-          await periods.payslips(month, {
-            status: q.get('status') || undefined,
-            q: q.get('q') || undefined,
-            flag: q.get('flag') || undefined,
-            type: q.get('type') || undefined,
-            page: q.get('page') || undefined,
-            pageSize: q.get('pageSize') || undefined
-          })
-        );
+        return await periods.payslips(month, {
+          status: q.get('status') || undefined,
+          q: q.get('q') || undefined,
+          flag: q.get('flag') || undefined,
+          type: q.get('type') || undefined,
+          page: q.get('page') || undefined,
+          pageSize: q.get('pageSize') || undefined
+        });
       }
       if (step === '/payslips/:username' || step === '/estimates/:username') {
         let username;
@@ -129,13 +121,9 @@ export class PeriodsController {
         if (!viewAll && (step === '/estimates/:username' || username !== me.username))
           throw new HttpError(403, 'Chỉ xem được phiếu của chính mình', { code: 'FORBIDDEN_CAP' });
         // phiếu ước tính của một người đi cùng cổng payroll.view với danh sách ước tính (nhân sự đã bị chặn ở cổng)
-        return send(
-          res,
-          200,
-          step === '/estimates/:username'
-            ? await periods.estimateOne(month, username)
-            : await periods.payslip(month, username, { self: !viewAll })
-        );
+        return step === '/estimates/:username'
+          ? await periods.estimateOne(month, username)
+          : await periods.payslip(month, username, { self: !viewAll });
       }
     } else {
       const b = await readJson(req);
@@ -143,7 +131,7 @@ export class PeriodsController {
       // Mỗi bước kỳ trả { month, status, rev }: báo cho các màn sau khi bước đã COMMIT
       const stepDone = async out => {
         await events.emit.periodChanged(out);
-        return send(res, 200, out);
+        return out;
       };
       if (step === '/lock-attendance') return await stepDone(await periods.lockAttendance(month, b, actx, by));
       if (step === '/calculate') return await stepDone(await periods.calculate(month, b, actx, by));
@@ -171,68 +159,67 @@ export class PeriodsController {
           });
         return stepDone(await periods.reopen(month, b, actx, by));
       }
-      if (step === '/payslips/decide')
-        return send(res, 200, { items: await periods.decidePayslips(month, b, me, actx) });
+      if (step === '/payslips/decide') return { items: await periods.decidePayslips(month, b, me, actx) };
     }
   }
 
   @Post('periods/:month/lock-attendance')
-  async postPeriodsMonthLockAttendance(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthLockAttendance(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Post('periods/:month/calculate')
-  async postPeriodsMonthCalculate(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthCalculate(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Post('periods/:month/ai-review')
-  async postPeriodsMonthAiReview(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthAiReview(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Post('periods/:month/approve')
-  async postPeriodsMonthApprove(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthApprove(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Post('periods/:month/mark-paid')
-  async postPeriodsMonthMarkPaid(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthMarkPaid(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Post('periods/:month/reopen')
-  async postPeriodsMonthReopen(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async postPeriodsMonthReopen(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Get('periods/:month/payslips')
-  async getPeriodsMonthPayslips(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async getPeriodsMonthPayslips(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Get('periods/:month/estimates')
-  async getPeriodsMonthEstimates(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async getPeriodsMonthEstimates(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Get('periods/:month/estimates/:username')
-  async getPeriodsMonthEstimatesUsername(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async getPeriodsMonthEstimatesUsername(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Get('periods/:month/payslips/:username')
-  async getPeriodsMonthPayslipsUsername(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async getPeriodsMonthPayslipsUsername(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Put('periods/:month/payslips/decide')
-  async putPeriodsMonthPayslipsDecide(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async putPeriodsMonthPayslipsDecide(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 
   @Get('periods/:month/verify')
-  async getPeriodsMonthVerify(@Ctx() c: ApiContext, @Res() r: unknown): Promise<unknown> {
-    return this.periodStep(c, r);
+  async getPeriodsMonthVerify(@Ctx() c: ApiContext): Promise<unknown> {
+    return this.periodStep(c);
   }
 }

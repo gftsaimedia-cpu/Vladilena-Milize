@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 
 let base;
 const realNow = Date.now;

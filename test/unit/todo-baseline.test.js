@@ -30,19 +30,19 @@ test('todo: baseline có số liệu hợp lệ', () => {
 
 // Cờ trỏ vào mã đã có (server.js) mà hết khớp là cờ hỏng: test âm thầm thành todo. Cờ trỏ vào tính năng CHƯA làm (viết đỏ trước, vd. lib/authz.js
 // chưa có route history) là todo có chủ đích và đã được số chỗ nguồn ở trên đếm, nên không đòi khớp.
-test('todo: mọi cờ mentions("server.js", /mẫu/) còn khớp server.js (mẫu hết khớp = test âm thầm thành todo)', () => {
+test('todo: mọi cờ mentions("src/server.ts", /mẫu/) còn khớp server.js (mẫu hết khớp = test âm thầm thành todo)', () => {
   const flags = mentionFlags();
-  const text = fs.readFileSync(path.join(ROOT, 'server.js'), 'utf8');
+  const text = fs.readFileSync(path.join(ROOT, 'src/server.ts'), 'utf8');
   const dead = flags
-    .filter(flag => flag.file === 'server.js' && !new RegExp(flag.source, flag.flags).test(text))
-    .map(flag => `${flag.test}: mentions('server.js', /${flag.source}/) không khớp`);
+    .filter(flag => flag.file === 'src/server.ts' && !new RegExp(flag.source, flag.flags).test(text))
+    .map(flag => `${flag.test}: mentions('src/server.ts', /${flag.source}/) không khớp`);
   assert.deepEqual(dead, [], 'cờ này đang tắt phủ của test; sau khi chia server.js hãy bỏ cờ (test thành bắt buộc)');
 });
 
-test('todo: cờ mentions("server.js", …) vẫn khớp trong tổng mã máy chủ (serverSource) nên bỏ cờ đi không mất phủ', () => {
+test('todo: cờ mentions("src/server.ts", …) vẫn khớp trong tổng mã máy chủ (serverSource) nên bỏ cờ đi không mất phủ', () => {
   const source = serverSource();
   const missing = mentionFlags()
-    .filter(flag => flag.file === 'server.js')
+    .filter(flag => flag.file === 'src/server.ts')
     .filter(flag => !new RegExp(flag.source, flag.flags).test(source))
     .map(flag => `${flag.test}: /${flag.source}/`);
   assert.deepEqual(missing, []);

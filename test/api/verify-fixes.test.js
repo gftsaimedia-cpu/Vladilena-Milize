@@ -20,7 +20,7 @@ const net = require('node:net');
 const { Readable } = require('node:stream');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 
 let base, port;
 const realNow = Date.now;

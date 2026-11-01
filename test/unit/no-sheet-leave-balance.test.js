@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
-const TARGETS = ['lib', 'server.js', 'public', 'scripts'];
+const TARGETS = ['lib', 'src/server.ts', 'public', 'scripts'];
 const SKIP_DIR = new Set(['node_modules', '.git']);
 const TEXT_EXT = new Set(['.js', '.cjs', '.mjs', '.json', '.html', '.css', '.md', '.txt', '.vue']);
 // dựng từ hai nửa để tệp này không tự chứa mã cần tìm

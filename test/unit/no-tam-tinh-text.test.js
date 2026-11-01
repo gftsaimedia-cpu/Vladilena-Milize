@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
-const TARGETS = ['public', 'lib', 'server.js', 'spec'];
+const TARGETS = ['public', 'lib', 'src/server.ts', 'spec'];
 const TEXT_EXT = new Set(['.js', '.cjs', '.mjs', '.html', '.css', '.json', '.md', '.txt', '.svg']);
 const SKIP_DIR = new Set(['node_modules', '.git', 'fixtures']);
 

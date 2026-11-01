@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 let base,
   clock = Date.parse('2026-10-07T07:55:00+07:00');

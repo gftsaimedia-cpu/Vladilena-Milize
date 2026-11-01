@@ -1,7 +1,7 @@
 'use strict';
 // Chặn "xanh giả": số test `todo` của `npm test` không được tăng.
 // Một test bị đặt thành todo (bởi pending() / pendingUnless() / { todo }) vẫn chạy nhưng KHÔNG làm npm test đỏ, nên một cờ sai
-// (ví dụ mentions('server.js', …) sau khi mã chuyển sang file khác) âm thầm tắt phủ. Hai lớp bảo vệ:
+// (ví dụ mentions('src/server.ts', …) sau khi mã chuyển sang file khác) âm thầm tắt phủ. Hai lớp bảo vệ:
 //   1. Tĩnh, nằm trong npm test (test/unit/todo-baseline.test.js): đếm các chỗ nguồn gây todo trong test/ theo file và mỗi cờ
 //      mentions('…', /mẫu/) phải còn khớp file nó nhìn. Số chỗ nguồn theo file không được tăng.
 //   2. Động, chạy tay / CI sau mỗi bước chia file (công cụ này): chạy cả bộ test, đọc dòng `# todo N` và so với baseline.

@@ -723,7 +723,7 @@ Liệt kê để người sửa biết chỗ dễ vỡ; tài liệu này không 
 19. Lý do mở lại được kiểm hai lần: `cleanText` (`lib/periods.js`) và `softReason` (`lib/db.js`).
 20. `paidAt` kiểm hai luật: `lib/periods.js` chỉ nhận `YYYY-MM-DD` có thật; `store.periods.markPaid` nhận cả chuỗi `Date.parse` được (`lib/db.js`).
 21. Danh sách trạng thái `from` của mỗi bước lặp ở cả `lib/periods.js` (`precheck`) và `lib/db.js` (`advancePeriod`, `createRun`).
-22. Thang điểm KPI lưu là số nguyên điểm × đơn vị: `lib/payroll-service.js` dùng `rules.toUnits(1)`; `lib/domain/kpi.js` chia `/ 100` cố định.
+22. Thang điểm KPI lưu là số nguyên điểm × đơn vị: `lib/payroll-service.js` dùng `rules.toUnits(1)`; `lib/domain/kpi/kpi-scoring.js` chia `/ 100` cố định.
 23. Hằng `REASON_MIN`/`REASON_MAX` khai hai lần: `lib/config.js` và `lib/db.js`.
 24. `workDays` và `daysWorked` của dòng phiếu là cùng một số (`lib/periods.js`).
 25. `allowanceStatus` (`lib/periods.js`) đọc ngưỡng giờ `attendance.overLimitHours` toàn cục, không cộng `attendance.overLimitTolerance`, không đọc `type.<mã>.overLimitHours`; bộ máy (`public/payroll-engine.js`) dùng ghi đè theo chức vụ cộng biên độ. Khi biên độ khác 0 hoặc có ghi đè theo chức vụ, "còn bao nhiêu giờ thì mất" hiện cho nhân sự lệch với kết quả giữ/mất thật.

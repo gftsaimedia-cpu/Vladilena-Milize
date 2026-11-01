@@ -11,7 +11,7 @@ const assert = require('node:assert/strict');
 
 const ROOT = path.join(__dirname, '../..');
 function sources() {
-  const out = [path.join(ROOT, 'server.js')];
+  const out = [path.join(ROOT, 'src/server.ts')];
   const walk = dir => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);

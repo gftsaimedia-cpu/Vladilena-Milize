@@ -217,7 +217,7 @@ function configDoc() {
   let out = HEADER('Cấu hình kỹ thuật và biến môi trường', '`lib/config.js` và các chỗ đọc `process.env` trong `lib/`, `src/`, `server.js`');
   out += `## Hằng số có tên (\`lib/config.js\`, ${Object.keys(config).length})\n\n| Tên | Giá trị |\n| --- | --- |\n`;
   for (const k of Object.keys(config).sort()) out += `| \`${k}\` | \`${esc(JSON.stringify(config[k]))}\` |\n`;
-  const sources = [...walk('lib', f => /\.(js|ts)$/.test(f)), ...walk('src', f => f.endsWith('.ts')), 'server.js'];
+  const sources = [...walk('lib', f => /\.(js|ts)$/.test(f)), ...walk('src', f => f.endsWith('.ts')), 'src/server.ts'];
   const env = new Map();
   for (const f of sources)
     read(f).split('\n').forEach((l, i) => {

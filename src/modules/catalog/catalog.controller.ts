@@ -1,7 +1,7 @@
-import { Controller, Get, Put, Res } from '@nestjs/common';
+import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 const config = require('../../../lib/config');
-const { HttpError, send, readJson } = require('../../../lib/http');
+const { HttpError, readJson } = require('../../../lib/http');
 const { validMonth } = require('../../../lib/domain/input');
 const { vnToday } = require('../../../lib/request-rules');
 const { container } = require('../../../lib/domain/container');
@@ -34,21 +34,21 @@ async function readChange(req: any) {
 export class CatalogController {
   /** ?month= → { month, baseMonth, benefits, positions: [{ code, name, …, benefits, rev, levels }] }; baseMonth: tháng của dòng nền nạp từ bộ mặc định */
   @Get('catalog/positions')
-  async listPositions(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async listPositions(@Ctx() c: ApiContext): Promise<unknown> {
     const positions = container.positions;
     const month = c.url.searchParams.get('month') || vnToday().slice(0, 7);
     if (!validMonth(month)) throw bad('month phải dạng YYYY-MM', 'BAD_MONTH');
-    return send(c.res, 200, {
+    return {
       month,
       baseMonth: config.CATALOG_BASE_MONTH,
       benefits: await positions.benefitCodes(),
       positions: await positions.forMonth(month)
-    });
+    };
   }
 
   /** { changes, effectiveMonth, reason?, expectedRev }; changes: một phần { name, workdays, flexPct, nightPct, travelPct, attendancePct, regularDows, benefits } */
   @Put('catalog/positions/:code')
-  async savePosition(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async savePosition(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, seg, req, res } = c;
     const positions = container.positions;
     const code = seg[3];
@@ -68,12 +68,12 @@ export class CatalogController {
           expectedRev: body.expectedRev
         })
     });
-    return send(res, 200, { position: saved.after, configRev: saved.configRev });
+    return { position: saved.after, configRev: saved.configRev };
   }
 
   /** { type, level, changes, effectiveMonth, reason?, expectedRev? }; expectedRev bắt buộc khi sửa bậc đã có, bỏ trống khi thêm bậc kế tiếp */
   @Put('catalog/levels')
-  async saveLevel(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async saveLevel(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, req, res } = c;
     const positions = container.positions;
     const body = await readChange(req);
@@ -94,13 +94,13 @@ export class CatalogController {
           expectedRev: body.expectedRev
         })
     });
-    return send(res, 200, { level: saved.after, configRev: saved.configRev });
+    return { level: saved.after, configRev: saved.configRev };
   }
 
   /** { shifts: [{ code, preset, name, kind, sort, deprecated, rev }] } */
   @Get('catalog/shifts')
-  async listShifts(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
-    return send(c.res, 200, { shifts: await container.shifts.list() });
+  async listShifts(@Ctx() c: ApiContext): Promise<unknown> {
+    return { shifts: await container.shifts.list() };
   }
 
   /**
@@ -108,7 +108,7 @@ export class CatalogController {
    * Loại ca không có tháng áp dụng riêng: đổi loại ca có hiệu lực cho mọi tháng, nên kiểm khoá kỳ của tháng hiện tại.
    */
   @Put('catalog/shifts')
-  async saveShift(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
+  async saveShift(@Ctx() c: ApiContext): Promise<unknown> {
     const { me, actx, req, res } = c;
     const shifts = container.shifts;
     const body = await readJson(req);
@@ -126,6 +126,6 @@ export class CatalogController {
       run: async (at: string) =>
         await shifts.save(code, body.changes, { by: me.username, at, expectedRev: Number(body.expectedRev) })
     });
-    return send(res, 200, { shift: saved.after, configRev: saved.configRev });
+    return { shift: saved.after, configRev: saved.configRev };
   }
 }

@@ -11,7 +11,7 @@ const { DayMath } = require('../../lib/domain/timesheet/day-math');
 const { ExtraTimes } = require('../../lib/domain/timesheet/extra-times');
 const { SheetRevision } = require('../../lib/domain/timesheet/sheet-revision');
 const { TimesheetValidator } = require('../../lib/domain/timesheet/timesheet-validator');
-const { checkSheet } = require('../../lib/domain/sheet-checks');
+const { timesheet } = require('../../lib/domain/timesheet/services');
 
 after(() => store.db.close());
 
@@ -48,7 +48,13 @@ const work = (over = {}) => ({
 async function run(clean, prevDays = {}, { who = 'qa_ts', ...extra } = {}) {
   let out;
   await warnings.run(async () => {
-    const result = await checkSheet({ u: await staff(who), month: '2026-10', clean, prevDays, ...extra });
+    const result = await timesheet().validator.validate({
+      u: await staff(who),
+      month: '2026-10',
+      clean,
+      prevDays,
+      ...extra
+    });
     out = { result, codes: warnings.take().map(w => w.code) };
   });
   return out;

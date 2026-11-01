@@ -4,7 +4,7 @@ const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../lib/db');
 const auth = require('../../lib/auth');
-const server = require('../../server');
+const server = require('../helpers/server');
 const PunchRules = require('../../public/punch.js');
 let base;
 const originalNow = Date.now;

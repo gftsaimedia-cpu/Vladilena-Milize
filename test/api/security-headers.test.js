@@ -14,7 +14,7 @@ distFs.writeFileSync(
 distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'app.js'), 'export default 1;');
 distFs.writeFileSync(require('node:path').join(distDir, 'assets', 'logo.png'), Buffer.alloc(4096, 1));
 process.env.WEB_DIST = distDir;
-const server = require('../../server');
+const server = require('../helpers/server');
 
 let base;
 before(async () => {

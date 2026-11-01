@@ -9,8 +9,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const store = require('../../lib/db');
 const registry = require('../../lib/params/registry');
-const limits = require('../../lib/domain/limits');
-const workHours = require('../../lib/domain/work-hours');
+const limits = require('../../lib/domain/overtime/hour-limits').HourLimits;
+const workHours = require('../../lib/domain/overtime/worked-hours').WorkedHours;
 const { DEFAULTS } = require('../../public/payroll-params.js');
 
 after(() => store.db.close());
@@ -64,7 +64,7 @@ test('không còn mã đọc khoá hay hằng số của các giới hạn giờ
       const rel = path.posix.join(folder, entry.name);
       return entry.isDirectory() ? walk(rel) : /\.(js|cjs|html|json)$/.test(entry.name) ? [rel] : [];
     });
-  const files = ['server.js', ...walk('lib'), ...walk('public'), ...walk('scripts')];
+  const files = ['src/server.ts', ...walk('lib'), ...walk('public'), ...walk('scripts')];
   for (const file of files) {
     const text = await read(file);
     for (const key of REMOVED_KEYS) assert.ok(!text.includes(key), `${file}: ${key}`);

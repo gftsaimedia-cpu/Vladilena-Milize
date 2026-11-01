@@ -14,7 +14,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 const store = require('../../lib/db');
-const server = require('../../server');
+const server = require('../helpers/server');
 let base;
 
 // gọi qua node:http để giữ nguyên đường dẫn thô (fetch tự chuẩn hoá "..")

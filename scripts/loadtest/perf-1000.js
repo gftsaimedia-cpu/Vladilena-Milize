@@ -121,7 +121,9 @@ function startServer() {
     [
       '--no-warnings=ExperimentalWarning',
       ...(args.clock === 'real' ? [] : ['-r', path.join(__dirname, 'clock-shim.js')]),
-      path.join(ROOT, 'server.js')
+      '--import',
+      'tsx',
+      path.join(ROOT, 'src/server.ts')
     ],
     {
       cwd: ROOT,

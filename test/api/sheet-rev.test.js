@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const store = require('../../lib/db'),
   auth = require('../../lib/auth'),
-  server = require('../../server');
+  server = require('../helpers/server');
 
 const MONTH = '2026-10';
 const DAY = '2026-10-03';

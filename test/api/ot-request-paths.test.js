@@ -152,7 +152,7 @@ test('khai lại OT ở Check-in/out sau khi đã duyệt: duyệt lần sau tha
 });
 
 test('làm bù theo giờ và đi làm ngày lễ không có route riêng: chỉ đi qua PUT /sheet và duyệt khoản', async () => {
-  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../server.js'), 'utf8');
+  const src = require('node:fs').readFileSync(require('node:path').join(__dirname, '../../src/server.ts'), 'utf8');
   const routes = [...src.matchAll(/route === '([A-Z]+ \/[^']*)'/g)].map(m => m[1]);
   assert.deepEqual(
     routes.filter(r => /makeup|holiday-work|lam-bu/i.test(r)),

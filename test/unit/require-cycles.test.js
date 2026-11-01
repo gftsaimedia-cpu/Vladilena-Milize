@@ -76,7 +76,7 @@ async function findCycles(graph) {
   return [...cycles.values()];
 }
 
-const FILES = ['server.js', ...walk('lib'), ...walk('src')];
+const FILES = ['src/server.ts', ...walk('lib'), ...walk('src')];
 const GRAPH = buildGraph(FILES);
 
 test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể cả require trong hàm)', async () => {
@@ -138,5 +138,5 @@ test('lib/http.js, lib/request-rules.js không require lib/domain/* hay lib/rout
 });
 
 test('lib/** không require server.js (máy chủ là gốc của đồ thị)', async () => {
-  assert.deepEqual(await violations((from, to) => from !== 'server.js' && to === 'server.js'), []);
+  assert.deepEqual(await violations((from, to) => from !== 'src/server.ts' && to === 'src/server.ts'), []);
 });

@@ -25,20 +25,19 @@ Quy ước trong tài liệu:
 | `lib/domain/attendance/session-view.js` | Lượt gửi cho màn hình: `sessionHistory`, `sessionsWithHistory`, `sessionsFor` cộng `status` / `statusNote` (`withStatus`: giải trình theo lô `session_id`, giải trình đã quyết định của ngày công, ngày khai từ `estimateSheet` mỗi người mỗi tháng một lần) và `superseded: true` (`supersededIds`). `src/modules/**/*.controller.ts` đọc lượt từ đây. |
 | `lib/domain/attendance/admin-presence.js` | Lớp `AdminPresence`: tạo / sửa / xoá lượt đã đóng `origin:'sheet.onBehalf'` khi Admin khai thay lịch (`sync`) và khi Admin duyệt giải trình ngày quên chấm (`syncExplanation`). |
 | `lib/domain/sheet.js` | `estimateSheet` (lịch khai đã lọc trường), `neighborDays` (ngày cuối tháng trước, ngày 1 tháng sau), `leaveSummary`. |
-| `lib/domain/sheet-checks.js` | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`), kiểm giờ làm thêm (`checkExtraTimes`), mã ca của ngày Admin khai thay (`adminShiftOf`), khoá lạc quan lịch (`assertSheetRev`), định dạng `dd/mm` (`dm`). |
+| `lib/domain/timesheet/` (nối ở `timesheet/services.js`) | Kiểm nghiệp vụ khi lưu lịch (`checkSheet`), kiểm giờ làm thêm (`checkExtraTimes`), mã ca của ngày Admin khai thay (`adminShiftOf`), khoá lạc quan lịch (`assertSheetRev`), định dạng `dd/mm` (`dm`). |
 | `lib/domain/sheet-on-behalf.js` | Xác định người sở hữu lịch khi Admin khai thay (`sheetOwner`), duyệt ngay khoản và gọi `AdminPresence.sync` (`approveOnBehalf`, trả `{ decided, presence }`). |
 | `lib/domain/sheet-bulk.js` | Admin chấm công thay nhiều người, nhiều ngày, một ca (`PUT /api/sheet/bulk`, mục 3.4b): `plan` (`parse` đầu vào và đổi mã ca thành giờ vào – ra, `owners` kiểm quyền và tìm từng người), `save` (cả lô trong một giao dịch). |
-| `lib/domain/limits.js` | Trần giờ làm thêm (hằng `DAY_HOURS_CAP` 12, `MONTH_OT_CAP` 40 và các hàm kiểm), giới hạn của lịch khai: iSAT tháng. |
+| `lib/domain/overtime/hour-limits.js` | Trần giờ làm thêm (hằng `DAY_HOURS_CAP` 12, `MONTH_OT_CAP` 40 và các hàm kiểm), giới hạn của lịch khai: iSAT tháng. |
 | `lib/domain/isat-rule.js` | `isatRefusal`: ngày iSAT phải đúng `isat.weekday` và chức vụ (bậc) có `benefit.isat`; dùng ở `PUT /api/sheet`, duyệt khoản iSAT (`src/modules/sheet/sheet.controller.ts`), danh sách kiểm kỳ lương (`lib/periods.js`). |
-| `lib/domain/work-hours.js` | Giờ ca dạng phút, khung đêm, loại ca (`shiftFor`), giờ OT của lịch (`estimateOtHours`) và của lượt (`actualOtHours`), giờ lễ + OT theo tháng. |
+| `lib/domain/overtime/worked-hours.js` | Giờ ca dạng phút, khung đêm, loại ca (`shiftFor`), giờ OT của lịch (`estimateOtHours`) và của lượt (`actualOtHours`), giờ lễ + OT theo tháng. |
 | `lib/domain/ot.js` | Danh sách OT ở Check-in/out (`listOt`), kiểm khai OT trên lượt (`validateOtDeclaration`). |
-| `lib/domain/geofence.js` | Vùng GPS khi Check-in (`checkGeofence`), làm sạch cài đặt (`cleanGeofence`), dạng xem theo người (`geofenceView`). |
+| `lib/domain/attendance/geofence-policy.js` | Vùng GPS khi Check-in (`checkGeofence`), làm sạch cài đặt (`cleanGeofence`), dạng xem theo người (`geofenceView`). |
 | `lib/domain/schedule.js` | Lịch làm việc của một người (theo loại nhân sự) cho máy chủ, và `GET /staff/:u/schedule`: `scheduleOf`, `isWorkDay`, `isWorkDayFn`, `scheduleView`, `team`, `punchSchedule`. |
 | `lib/domain/shifts.js` | Giờ ca cho nhân viên qua `/api/punch` (`employeeView(month)`) và màn Ca làm của Admin. |
 | `lib/domain/explanation/*` | Giải trình: lớp `Explanation` (`explanation.js`), bảng (`schema.js`), đọc/ghi (`explanation-repository.js`), nghiệp vụ (`explanation-service.js`), ngày vắng không phép giải trình được (`absent-day.js`: `AbsentDay.stateOf`), phút Check-out muộn (`late-checkout.js`), Check-out muộn chờ duyệt và đồng bộ lượt (`late-checkout-session.js`, lớp `LateCheckout`), route (`src/modules/explanations/explanations.controller.ts`). |
 | `lib/explanations.js` | Lối vào chuyển tiếp tới `container.explanations`; xuất `lateCheckoutMin`, `needsExplanation`, `heldByUser`, `explainedByUser`, `submitLate`, `request`, `answer`, `decide`. |
 | `lib/domain/container.js` | Dựng lười `explanations`, `explanationRepository`, `lateCheckout`, `adminPresence`, `sessionStatus` với phụ thuộc tiêm qua constructor; dựng lại khi `store.db` đổi. |
-| `lib/domain/attendance-calendar/attendance-calendar.js` | Lớp `AttendanceCalendar`: `dayOf()` đọc được; `workedDays()` và `summary()` luôn ném lỗi "chưa nối" (mục 8). |
 | `lib/announce.js` | `announceSetting` (tin `params.changed`), `attendanceHints` / `announceAttendance` (tin `attendance.changed` kind `forgot`; không nơi nào thêm gợi ý, mục 8). |
 | `src/modules/attendance`, `src/modules/sheet`, `src/modules/settings`... (controller) | Route `/api/punch`, `/api/sheet`, `/api/me/estimate`, `/api/ot`, `/api/today`, `/api/attendance`, `/api/team`, `/api/alerts`, `/api/settings/geofence`, `/api/holidays`; hàm `checkInDay`, `checkInVerdict`, `punchState`, `punchExtras`, `cutRuleView`, `actualReportView`, `checkoutPreview`, `cleanDays`, `holidayOtConflicts`; dọn `punch_requests` định kỳ. |
 | `lib/authz.js` | `ROUTE_CAPS` (quyền từng route, `periodScope`). |
@@ -141,7 +140,7 @@ Không có route nào mở lại lượt đã đóng hay xoá lượt bấm th�
 | Khoá | Nơi đọc | Ghi chú |
 | --- | --- | --- |
 | `settings.holidays` | khắp nơi | mảng ngày lễ |
-| `settings.geofence` | `lib/domain/geofence.js` | `{lat,lng,radiusM,maxAccuracyM}` hoặc null |
+| `settings.geofence` | `lib/domain/attendance/geofence-policy.js` | `{lat,lng,radiusM,maxAccuracyM}` hoặc null |
 | `settings.agents_enabled` | `lib/agents.js` | `1` (bật) \| `0` (tắt, mặc định) |
 | `settings.attendance_sessions_v1` | `lib/attendance-sessions.js` | dấu đã chạy đợt chuyển dữ liệu |
 | `config.CHECKOUT_GRACE_MIN` = 30 | `lib/config.js` | phút Check-out muộn cho phép |
@@ -175,7 +174,7 @@ Không có route nào mở lại lượt đã đóng hay xoá lượt bấm th�
 | `time.workHoursPerDay` | 8 | một công = 480 phút |
 | `time.breakAfterWorkHours`, `time.breakHours` | 4, 1 | nghỉ MỘT lần 60 phút sau 240 phút làm |
 | `time.nightStartHour`, `time.nightEndHour` | 22, 6 | khung đêm của `PayrollCalendar` |
-| `law.ceiling.otDayTotalHours`, `law.ceiling.otMonthHours` | 12, 40 | hai trần giờ làm duy nhất (`DAY_HOURS_CAP`, `MONTH_OT_CAP`, `lib/domain/limits.js`), chặn 400 |
+| `law.ceiling.otDayTotalHours`, `law.ceiling.otMonthHours` | 12, 40 | hai trần giờ làm duy nhất (`DAY_HOURS_CAP`, `MONTH_OT_CAP`, `lib/domain/overtime/hour-limits.js`), chặn 400 |
 | `isat.monthlyLimit` | null | không giới hạn |
 | `isat.weekday` | 6 | iSAT chỉ Thứ Bảy |
 | `type.<nv|ctv|tts>.dows` / `.workdays` / `.workdaysMode` | NV, CTV: T2–T7, 26 ngày; TTS: T2–T6, 22 ngày; `fixed` | lịch làm việc |
@@ -376,9 +375,9 @@ Không route giải trình nào có `periodScope` ở cổng: làm được cả
 - `work`/`makeup`: `in`, `out` dạng `HH:MM`; `extraIn`/`extraOut` dạng `HH:MM` nếu có; `extraKind` chỉ `makeup`/`ot`; giờ làm thêm trùng giờ ca coi như không có; thiếu `extraKind` mà có `extraOut` ⇒ `makeup`; `checkExtraTimes` (mục 4.5.1); `preset` phải là mã ca có trong `SHIFT` (`PRESET_RE` + `hasOwn`); `breakMin` nguyên 0..1440. Không giới hạn độ dài ca. Lưu `{kind, shift: shiftFor(in,out), in, out, extraKind, extraIn, extraOut, preset, breakMin}`.
 - Mọi loại: `punchNote` (chuỗi, cắt khoảng trắng, ≤ `NOTE_MAX` = 300).
 - `willmakeup`: `makeupPlans` (≤ 31 dòng, ô sai dạng thành '', bỏ dòng trống) hoặc dạng chỉ có ngày `makeupDate`.
-- `shiftFor(in,out)` (`lib/domain/work-hours.js`): chồng 22h–6h ⇒ `night`; vào trước 07:00 hoặc ra ≥ 22:00 ⇒ `flex`; còn lại `normal`.
+- `shiftFor(in,out)` (`lib/domain/overtime/worked-hours.js`): chồng 22h–6h ⇒ `night`; vào trước 07:00 hoặc ra ≥ 22:00 ⇒ `flex`; còn lại `normal`.
 
-### 4.5 Kiểm nghiệp vụ lịch khai `checkSheet` (`lib/domain/sheet-checks.js`)
+### 4.5 Kiểm nghiệp vụ lịch khai `checkSheet` (`lib/domain/timesheet/` (nối ở `timesheet/services.js`))
 
 Chạy trên hồ sơ người sở hữu lịch (khai thay: người được khai), bộ tham số và lịch của tháng. "Không đổi" (`unchanged`) = ngày đã lưu có cùng `kind/in/out/extraKind/extraIn/extraOut`.
 
@@ -392,7 +391,7 @@ Chạy trên hồ sơ người sở hữu lịch (khai thay: người được k
 | `SHEET_MAKEUP_DAY_REMOVED` | ngày `kind: 'makeup'` khai hoặc sửa (so với ngày đã lưu): 400 "Không còn loại ngày Làm bù cả ngày. Giờ làm bù khai ở ngày đi làm, trước hoặc sau ca." kèm `date`. Ngày `makeup` đã lưu gửi lại không đổi: không chặn, cảnh báo `SHEET_MAKEUP_DAY_LEGACY` "Ngày dd/mm: loại Làm bù cả ngày không còn dùng, không tính lương. Hãy khai lại." |
 | `SHEET_MAKEUP_ON_HOLIDAY` | giờ làm bù trên ngày lễ (trừ ngày không đổi), hoặc ngày làm bù dự kiến của `willmakeup` rơi ngày lễ |
 | `OT_MONTH_CAP` | `limits.checkMonthOt` (qua `checkSheetLimits`) và `limits.assertMonthOt` (`POST /ot`, so với lịch đang lưu): tổng giờ OT thô của tháng cộng giờ ca chính làm ngày lễ (`monthOtHours` = `estimateHolidayOtHours`: giờ OT của ngày có `extraKind==='ot'`, kể cả phần rơi vào ngày lễ, cộng `splitMainWork(...).holidayH` của ngày đi làm; không có làm bù) > 40 và tăng so với lịch đang lưu; câu báo "OT (kể cả giờ làm ngày lễ) tối đa 40 giờ" |
-| `BENEFIT_NOT_ALLOWED` / `SHEET_ISAT_WEEKDAY` (iSAT) | ngày iSAT khai thêm hoặc đổi loại sang iSAT mà chức vụ (bậc) không có `benefit.isat`, hoặc không đúng `isat.weekday`: `isatRefusal` (`lib/domain/isat-rule.js`, gọi ở `sheet-checks.js`), kiểm quyền lợi trước rồi thứ; áp cho cả Admin khai thay. Ngày iSAT đã lưu và không đổi loại giữ nguyên, danh sách kiểm kỳ báo `ISAT_INVALID`. Duyệt khoản iSAT (`PUT /approvals/decide`, approve) kiểm lại hai điều kiện này, sai thì 400 cả lô |
+| `BENEFIT_NOT_ALLOWED` / `SHEET_ISAT_WEEKDAY` (iSAT) | ngày iSAT khai thêm hoặc đổi loại sang iSAT mà chức vụ (bậc) không có `benefit.isat`, hoặc không đúng `isat.weekday`: `isatRefusal` (`lib/domain/isat-rule.js`, gọi ở `timesheet/timesheet-validator.js`), kiểm quyền lợi trước rồi thứ; áp cho cả Admin khai thay. Ngày iSAT đã lưu và không đổi loại giữ nguyên, danh sách kiểm kỳ báo `ISAT_INVALID`. Duyệt khoản iSAT (`PUT /approvals/decide`, approve) kiểm lại hai điều kiện này, sai thì 400 cả lô |
 
 #### 4.5.2 Cảnh báo (`warnIf`: lưu và thêm cảnh báo)
 
@@ -409,7 +408,7 @@ Chạy trên hồ sơ người sở hữu lịch (khai thay: người được k
 | `BENEFIT_NOT_ALLOWED` | OT mà chức vụ không có quyền lợi `ot` (cùng câu "Chức vụ của bạn không có overtime" cho OT ngày thường và cho ngày lễ khai giờ vào – ra: làm ngày lễ là OT, không có cờ riêng); nghỉ được duyệt thêm mà không có quyền lợi; khai nghỉ trong lịch khi không được khai nghỉ |
 | `SHEET_UNPAID_WITH_LEAVE` | nghỉ không lương chọn ở T2–T6 trong lịch khi còn ≥ 1 ngày phép |
 
-#### 4.5.3 `checkSheetLimits` (`lib/domain/limits.js`)
+#### 4.5.3 `checkSheetLimits` (`lib/domain/overtime/hour-limits.js`)
 
 `OT_MONTH_CAP` (cứng, ở trên) và `SHEET_ISAT_LIMIT` khi `isat.monthlyLimit` là số (cảnh báo). Cả hai chỉ xét khi tổng tăng. Không còn trần OT ngày, trần giờ lễ + OT tháng hay trần OT năm riêng: chỉ hai trần `DAY_HOURS_CAP` và `MONTH_OT_CAP`.
 
@@ -473,11 +472,11 @@ Gọi trong giao dịch của `POST /api/explanations/:id/decide`, sau `lateChec
 - Cảnh báo: `BENEFIT_NOT_ALLOWED` (chức vụ không có OT), `OT_NEEDS_CONFIRMED_SHIFT` (chưa `attendanceConfirmed` hoặc không phải `work`), `OT_OUTSIDE_PRESENCE` (`extraFits`), `OT_NIGHT` (đoạn OT chồng 22h–6h). Hai trần giờ làm của `POST /ot` (`DAY_HOURS_CAP`, `OT_MONTH_CAP`) chặn 400, không qua `warnIf`.
 - Trả entry đề xuất `{...entry, in: plan.in, out: plan.out, extraKind:'ot', extraIn, extraOut}` (giờ trùng biên ca = '').
 
-`actualOtHours(entry)` = `extraOtHours` nếu chưa duyệt hoặc đã duyệt, 0 nếu bị từ chối (`work-hours.js`). `actualHolidayOtHours(rows)` = tổng OT các lượt + giờ lễ của ca chính (mỗi `plannedShift` một lần, lấy max).
+`actualOtHours(entry)` = `extraOtHours` nếu chưa duyệt hoặc đã duyệt, 0 nếu bị từ chối (`overtime/worked-hours.js`). `actualHolidayOtHours(rows)` = tổng OT các lượt + giờ lễ của ca chính (mỗi `plannedShift` một lần, lấy max).
 
 **OT này không ra tiền**: `ActualHours.apply` dùng ngày khai trên lịch làm nguồn đoạn làm thêm (`effective = clone(declared)`, `actual-hours.js`) và bỏ `otReview` (`LOCKED_FIELDS`,). Nó chỉ tham gia trần giờ lễ + OT (`holidayOtConflicts`, `validateOtDeclaration`) và danh sách `/api/ot`.
 
-### 4.9 GPS (`lib/domain/geofence.js`)
+### 4.9 GPS (`lib/domain/attendance/geofence-policy.js`)
 
 Chưa bật vùng ⇒ không kiểm. Bật: (1) thiếu / sai vị trí ⇒ cảnh báo `GEO_NO_LOCATION`, (2) `accuracy > maxAccuracyM` ⇒ cảnh báo `GEO_LOW_ACCURACY`, (3) haversine (`punch.js`, R = 6.371 km) > `radiusM` ⇒ cảnh báo `GEO_OUTSIDE`. Check-in vẫn thành công, entry `outsideZone: true`. Không lưu toạ độ ở đâu cả; GPS không tham gia tính lương. `cleanGeofence`: lat −90..90, lng −180..180, `radiusM` 20..5000, `maxAccuracyM` 10..1000 (mặc định 100). Nhân viên chỉ biết có bật vùng hay không; Admin thấy cả cài đặt (`geofenceView`).
 
@@ -753,8 +752,8 @@ Chỉ ghi nhận hiện trạng của mã.
 3. **Hai hàm kiểm chồng giờ lượt** với luật loại trừ khác nhau: `sessionOverlap` (`lib/domain/attendance.js`) và `AdminPresence.#overlap` (`admin-presence.js`).
 4. **Bảng đổi mã ca hai nơi**: `SHIFT_CODES` + `shiftAliases` (`public/punch.js`) và `ShiftCatalog.canonicalOf/presetOf` (`lib/domain/shift/shift-catalog.js`); thêm `PRESET_RE` riêng ở `src/modules/sheet/sheet.helpers.ts`.
 5. **`ADMIN_ORIGIN` chép tay** ở `public/actual-hours.js` (nguồn: `lib/attendance-sessions.js`).
-6. **Trần giờ làm một nguồn**: `DAY_HOURS_CAP` (`lib/domain/limits.js`, giờ ròng một ngày) và `MONTH_OT_CAP`, đọc từ `law.ceiling.otDayTotalHours` / `law.ceiling.otMonthHours` của `DEFAULTS`.
-7. **Khung đêm 22h–6h hai nguồn**: `overlapsNight` và `shiftFor` viết cứng 1320/360/420 (`lib/domain/work-hours.js`), trong khi `PayrollCalendar` đọc `time.nightStartHour/nightEndHour`.
+6. **Trần giờ làm một nguồn**: `DAY_HOURS_CAP` (`lib/domain/overtime/hour-limits.js`, giờ ròng một ngày) và `MONTH_OT_CAP`, đọc từ `law.ceiling.otDayTotalHours` / `law.ceiling.otMonthHours` của `DEFAULTS`.
+7. **Khung đêm 22h–6h hai nguồn**: `overlapsNight` và `shiftFor` viết cứng 1320/360/420 (`lib/domain/overtime/worked-hours.js`), trong khi `PayrollCalendar` đọc `time.nightStartHour/nightEndHour`.
 8. **Giờ OT ngày lễ đếm ở hai nơi**: lịch khai (`estimateHolidayOtHours`) và Check-in/out (`actualHolidayOtHours`). Cùng giờ thô, khác nguồn dữ liệu.
 9. **Hai hàm giờ OT**: `estimateOtHours` (lịch khai), `actualOtHours` (lượt, bỏ OT bị từ chối); cả hai đếm giờ thô, không trừ giờ nghỉ.
 
@@ -762,7 +761,7 @@ Chỉ ghi nhận hiện trạng của mã.
 
 10. `attendanceHints` không bao giờ được thêm, nên `announceAttendance` và tin `attendance.changed` kind `forgot` không bao giờ phát (`lib/announce.js`).
 11. `noShowDates()` luôn trả tập rỗng (`public/payroll-engine.js`); vắng thật đến từ `ActualHours.apply` (`kind:'noshow'`).
-12. `AttendanceCalendar.workedDays()` / `summary()` luôn ném lỗi "chưa nối" (`lib/domain/attendance-calendar/attendance-calendar.js`).
+12. (đã gỡ) Lớp `AttendanceCalendar` chưa nối đã bị xoá khỏi mã; số ngày đi làm do `ActualHours` và bộ máy lương tính.
 13. Lý do `needs-review` được nhận diện (`actual-hours.js`, `admin-presence.js`, `session-status.js`, `lib/ai/review.js`) nhưng không mã nào tạo ra.
 14. Trường ghi mà không đọc: `otNeedsReview`, `otDeclarationHistory`, `otHistory` (`src/modules/attendance/attendance.controller.ts` `1410`). `punchState` trả hằng `sunday:false`, `outside:''`.
 15. Tính năng sửa giờ (`corrections`) không có route ghi nhưng `GET /api/sheet` vẫn trả `corrections` và mọi lượt vẫn kèm `corrections` (`lib/domain/attendance.js`); hàm kiểm `version` của lượt vẫn tên `correctionVersion` dù chỉ OT dùng.
@@ -772,7 +771,7 @@ Chỉ ghi nhận hiện trạng của mã.
 
 ### 8.3 Số nghiệp vụ viết cứng (không qua registry)
 
-19. `lib/domain/work-hours.js` (1320, 360, 420 của khung đêm); `lib/domain/sheet-checks.js` (1440, 60); `src/modules/**/*.controller.ts` (`breakMin` ≤ 1440); `lib/domain/geofence.js` (20–5000 m, 100 m, 10–1000 m); `lib/domain/explanation/explanation-service.js` (`TEXT_MAX` 500, khác `NOTE_MAX` 300 và `control.reasonMaxLength`); `src/modules/**/*.controller.ts` `1395` (lý do OT cắt 300 ký tự viết cứng); `DAY_HOURS_CAP` = 12 và `MONTH_OT_CAP` = 40 (`lib/domain/limits.js`) là hai trần chặn cứng, đọc từ khoá luật `law.ceiling.otDayTotalHours` / `law.ceiling.otMonthHours` của `DEFAULTS`.
+19. `lib/domain/overtime/worked-hours.js` (1320, 360, 420 của khung đêm); `lib/domain/timesheet/` (nối ở `timesheet/services.js`) (1440, 60); `src/modules/**/*.controller.ts` (`breakMin` ≤ 1440); `lib/domain/attendance/geofence-policy.js` (20–5000 m, 100 m, 10–1000 m); `lib/domain/explanation/explanation-service.js` (`TEXT_MAX` 500, khác `NOTE_MAX` 300 và `control.reasonMaxLength`); `src/modules/**/*.controller.ts` `1395` (lý do OT cắt 300 ký tự viết cứng); `DAY_HOURS_CAP` = 12 và `MONTH_OT_CAP` = 40 (`lib/domain/overtime/hour-limits.js`) là hai trần chặn cứng, đọc từ khoá luật `law.ceiling.otDayTotalHours` / `law.ceiling.otMonthHours` của `DEFAULTS`.
 
 ### 8.4 Hành vi dễ gây lỗi dây chuyền
 
@@ -781,8 +780,8 @@ Chỉ ghi nhận hiện trạng của mã.
 22. Lượt `kind:'pending'` lý do `incomplete-shift` / `multiple-sessions` vẫn được tính tiền (`actual-hours.js`) nhưng bị đếm vào `pendingDays` ở `/team` (`src/modules/attendance/attendance.controller.ts` / `src/modules/sheet/sheet.controller.ts`).
 23. Lượt Admin chỉ được đồng bộ khi Admin khai thay (`sheet-on-behalf.js`): nhân viên tự đổi ngày đó (sang nghỉ, đổi giờ) thì lượt Admin cũ vẫn còn với giờ cũ.
 24. `AdminPresence.#build` ghi cả entry `pending/off-shift` khi giờ khai không chồng ca (`admin-presence.js` + `punch.js`): ngày đó thành "không khớp ca, chờ Admin" thay vì báo lỗi lúc lưu.
-25. `SHEET_SUNDAY` không miễn ngày không đổi (`sheet-checks.js`) như các kiểm khác: một ngày Chủ nhật đã lưu làm mọi lần lưu sau của tháng đó có cảnh báo `SHEET_SUNDAY`.
-26. `lateCheckoutMin` dùng `spanH(planned.out, extraOut)` (`late-checkout.js`); `spanH` trả 24 giờ khi hai giờ bằng nhau và gần 24 giờ khi `extraOut` sớm hơn `planned.out` (`work-hours.js`). Ngày khai có ca khác ca được gán (vd. ca gán 08–17, khai 06–15 kèm `extraOut` 17:00) cho khoảng được phép ~24 giờ, nên Check-out muộn không bị đòi giải trình.
+25. `SHEET_SUNDAY` không miễn ngày không đổi (`timesheet/timesheet-validator.js`) như các kiểm khác: một ngày Chủ nhật đã lưu làm mọi lần lưu sau của tháng đó có cảnh báo `SHEET_SUNDAY`.
+26. `lateCheckoutMin` dùng `spanH(planned.out, extraOut)` (`late-checkout.js`); `spanH` trả 24 giờ khi hai giờ bằng nhau và gần 24 giờ khi `extraOut` sớm hơn `planned.out` (`overtime/worked-hours.js`). Ngày khai có ca khác ca được gán (vd. ca gán 08–17, khai 06–15 kèm `extraOut` 17:00) cho khoảng được phép ~24 giờ, nên Check-out muộn không bị đòi giải trình.
 27. Route giải trình không khoá kỳ ở cổng (`lib/authz.js`) nhưng quyết định đổi `presOut` của lượt (`late-checkout-session.js`) và ngày giữ vì giải trình đổi tiền; kỳ đã khoá chấm công vẫn bị thay đổi dữ liệu đầu vào khi quyết định là Check-out muộn.
 28. Mọi giải trình chưa duyệt (cả kind `admin`, `ai`) giữ ngày công (`heldByUser`); `POST /api/explanations {sessionId, text}` cho phép nhân viên tự tạo giải trình Check-out muộn cho bất kỳ lượt nào của mình, kể cả lượt không muộn, và việc này tự giữ ngày đó (`src/modules/explanations/explanations.controller.ts`, `explanation-service.js`); `POST /api/explanations {date, text}` cho phép nhân viên giải trình ngày vắng của chính mình (không có lượt nào).
 29. Lượt Admin bị giấu theo đồng hồ (`NOT_SCHEDULED`, `lib/attendance-sessions.js`): kết quả `listSessions` — và do đó đầu vào kỳ lương — đổi chỉ vì thời gian trôi qua giờ ra của lượt Admin khai trước.
