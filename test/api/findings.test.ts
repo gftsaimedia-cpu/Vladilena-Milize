@@ -1,5 +1,5 @@
 'use strict';
-// Bỏ qua phát hiện AI của phiếu lương, có lý do (lib/findings.ts): đơn vị là CỜ của phiếu (tháng, tài khoản, mã luật).
+// Bỏ qua phát hiện AI của phiếu lương, có lý do (src/domain/findings/findings.ts): đơn vị là CỜ của phiếu (tháng, tài khoản, mã luật).
 //   dismiss({ month, username, rule, reason, by }, actx?)   lý do không bắt buộc, tối đa 300 ký tự; ghi nhật ký cùng giao dịch; lặp lại thì không ghi thêm
 //   activeFindings(month, username) / annotate(month, danh sách { username, rule })
 //   - tính lại với đầu vào ĐỔI thì băm đầu vào của lần chạy đổi và mọi lần bỏ qua cũ hết hiệu lực; đầu vào y nguyên thì giữ.
@@ -7,8 +7,8 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const findings = require('../../lib/findings');
-const warnings = require('../../lib/warnings');
+const findings = require('../../src/domain/findings/findings');
+const warnings = require('../../src/platform/warnings');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();

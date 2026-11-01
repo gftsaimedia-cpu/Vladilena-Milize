@@ -1,13 +1,13 @@
 'use strict';
 // Ngày ngoài lịch chỉ trả đoạn làm thêm đã duyệt; Check-out muộn chỉ nới theo đoạn làm thêm sau ca đã khai.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // late-checkout nạp lib/work-hours (qua lib/db): DB trong RAM, không đụng DB thật
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // late-checkout nạp lib/work-hours (qua src/platform/db): DB trong RAM, không đụng DB thật
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../public/punch.js');
-const AV = require('../../public/approval-view.js');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const { lateCheckoutMin } = require('../../lib/domain/explanation/late-checkout.ts');
+const P = require('../../src/engine/punch.js');
+const AV = require('../../src/engine/approval-view.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { lateCheckoutMin } = require('../../src/domain/explanation/late-checkout');
 
 const SAT = '2026-10-10'; // thứ Bảy: trong lịch NV (T2–T7), ngoài lịch TTS (T2–T6)
 const ASOF = '2026-11-02T12:00:00+07:00';

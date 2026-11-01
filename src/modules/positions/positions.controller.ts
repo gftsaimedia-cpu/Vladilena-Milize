@@ -1,11 +1,11 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const paramsSave = require('../../../lib/params/save');
-const events = require('../../../lib/events');
-const { HttpError, readJson } = require('../../../lib/http');
-const { vnToday } = require('../../../lib/request-rules');
-const { validMonth } = require('../../../lib/domain/input');
-const { positionsView, entitlementsView } = require('../../../lib/domain/positions');
+const paramsSave = require('../../params/save');
+const events = require('../../platform/events');
+const { HttpError, readJson } = require('../../platform/http');
+const { vnToday } = require('../../platform/request-rules');
+const { validMonth } = require('../../domain/input');
+const { positionsView, entitlementsView } = require('../../domain/positions');
 
 // Chức vụ và bảng quyền lợi theo tháng; quyền đã kiểm ở ROUTE_CAPS.
 @Controller('api')

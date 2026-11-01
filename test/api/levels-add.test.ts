@@ -5,7 +5,7 @@ const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, caseOf, clone, closeTo } = require('../helpers/pay-oracle');
-const { levelCountOf } = require('../../lib/request-rules');
+const { levelCountOf } = require('../../src/platform/request-rules');
 
 const { F } = P;
 

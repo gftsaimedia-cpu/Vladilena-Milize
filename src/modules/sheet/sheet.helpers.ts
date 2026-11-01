@@ -1,12 +1,12 @@
-const store = require('../../../lib/db');
-const { HttpError } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, vnToday, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { validDate, TIME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { shiftFor } = require('../../../lib/domain/overtime/worked-hours').WorkedHours; // giờ ca, OT, giờ làm ngày lễ
-const { estimateSheet, leaveDates } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { timesheet } = require('../../../lib/domain/timesheet/services'); // kiểm nghiệp vụ lịch khai
-const { DayMath } = require('../../../lib/domain/timesheet/day-math');
-const { sheetFlagsOf } = require('../../../lib/domain/positions'); // cờ quyền lợi và chức vụ
+const store = require('../../platform/db');
+const { HttpError } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, vnToday, nowIso } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { validDate, TIME_RE, NOTE_MAX } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { shiftFor } = require('../../domain/overtime/worked-hours').WorkedHours; // giờ ca, OT, giờ làm ngày lễ
+const { estimateSheet, leaveDates } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { timesheet } = require('../../domain/timesheet/services'); // kiểm nghiệp vụ lịch khai
+const { DayMath } = require('../../domain/timesheet/day-math');
+const { sheetFlagsOf } = require('../../domain/positions'); // cờ quyền lợi và chức vụ
 
 /* ---------- số liệu theo tham số của tháng, cho app nhân viên: chỉ đọc, không ghi ---------- */
 // Bảng số phút bị trừ theo số phút trễ / về sớm (chỉ số = số phút, 0..SHIFT_WORK_MIN; trễ hơn nữa thì dùng phần tử cuối), dựng từ cutMin
@@ -28,7 +28,7 @@ export async function leaveBalanceView(staff) {
   if (!staff || !staff.payrollSubject) return null;
   const today = vnToday();
   if (!sheetFlagsOf((await rulesFor(today.slice(0, 7))).params, staff.type, staff.level).hasLeaveAccount) return null;
-  // Sổ phép (public/leave.js → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
+  // Sổ phép (src/engine/leave.js → ledger): dùng phép cũ trước, phép tích luỹ tới 31/12 hết hạn cuối tháng leave.expiry.month của năm sau
   const got = (await rulesFor(today.slice(0, 7))).leave.ledger(
     staff,
     (await leaveDates(staff)).filter(d => d <= today),
@@ -91,7 +91,7 @@ export async function cleanDays(days: any) {
       // Bản ghi cũ có giờ ra làm thêm mà thiếu extraKind là làm bù (đúng như calcDay và approval-view đọc): giữ nguyên giờ,
       // không xoá. Chỉ có giờ vào làm thêm thì calcDay không tính gì: giữ nguyên giờ, để extraKind rỗng, không đoán loại.
       const extraKind = d.extraKind || (extraOut ? 'makeup' : '');
-      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): lib/domain/timesheet/services.ts → checkExtraTimes
+      // Thiếu giờ làm thêm, giờ trùng giờ ca, nhập nhầm phía (trước / sau ca): src/domain/timesheet/services.ts → checkExtraTimes
       timesheet().extraTimes.check(date, d, { extraKind, extraIn, extraOut });
       if (d.preset != null && d.preset !== '' && !(await isShiftCode(d.preset)))
         throw new HttpError(400, `Ngày ${DayMath.dm(date)}: ca chọn sẵn không hợp lệ`);

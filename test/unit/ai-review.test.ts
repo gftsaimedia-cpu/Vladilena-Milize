@@ -1,13 +1,13 @@
 'use strict';
-// Soát dữ liệu trước khi chốt lương (lib/ai/review.ts): mỗi luật có ca phải bắn và ca sát ngưỡng không được bắn.
+// Soát dữ liệu trước khi chốt lương (src/ai/review.ts): mỗi luật có ca phải bắn và ca sát ngưỡng không được bắn.
 // Toàn người giả, tháng 10/2026. 04/11/2026 là sau hạn mùng 3; 10/2026 có Thứ Bảy 3, 10, 17, 24, 31.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');
 const fs = require('node:fs');
 const path = require('node:path');
-const { review, RULES, EVIDENCE_FIELDS } = require('../../lib/ai/review.ts');
-const { THRESHOLDS } = require('../../lib/ai/thresholds.ts');
+const { review, RULES, EVIDENCE_FIELDS } = require('../../src/ai/review');
+const { THRESHOLDS } = require('../../src/ai/thresholds');
 const W = require('./ai-review-world.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 
@@ -40,7 +40,7 @@ test('review thuần: không sửa đầu vào, không đọc đồng hồ, khô
   }
   assert.equal(JSON.stringify(input), before);
   for (const file of ['review.ts', 'thresholds.ts']) {
-    const source = fs.readFileSync(path.join(__dirname, '../../lib/ai', file), 'utf8');
+    const source = fs.readFileSync(path.join(__dirname, '../../src/ai', file), 'utf8');
     assert.ok(!/Date\.now\(|new Date\(\)|require\(['"]node:(fs|http|https|net|child_process)/.test(source), file);
     assert.ok(!/fetch\(|XMLHttpRequest|https?:\/\/(?!docs)/.test(source.replace(/\/\/.*$/gm, '')), file);
   }
@@ -505,7 +505,7 @@ test('pay: ngày đã duyệt không còn được rà bằng luật khoản ch�
 });
 
 /* ---------- hồ sơ ---------- */
-test('missing-start-date và negative-leave: dùng lại lib/data-quality, chỉ CTV/NV, không tính tài khoản khoá', async () => {
+test('missing-start-date và negative-leave: dùng lại src/domain/findings/data-quality, chỉ CTV/NV, không tính tài khoản khoá', async () => {
   const people = [
     await person('qa_a', { startDate: null }),
     await person('qa_t', { type: 'tts', startDate: null }),

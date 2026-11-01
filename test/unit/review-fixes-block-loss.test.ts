@@ -1,5 +1,5 @@
 'use strict';
-// Khối phụ cấp có điều kiện mất (public/pay-blocks-calc.js → lostOf) dùng ĐÚNG ngưỡng và số ngày nghỉ của chuyên cần trong bộ máy:
+// Khối phụ cấp có điều kiện mất (src/engine/pay-blocks-calc.js → lostOf) dùng ĐÚNG ngưỡng và số ngày nghỉ của chuyên cần trong bộ máy:
 //   - giờ vượt: MỘT ngưỡng duy nhất = ghi đè theo chức vụ (type.<mã>.overLimitHours, khác null) hoặc attendance.overLimitHours, CỘNG biên độ
 //     attendance.overLimitTolerance; cờ chuyên cần (r.attendOk), tiền chuyên cần và khối dùng cùng ngưỡng
 //   - ngày nghỉ: max(0, leave + unpaid - unpaidExempt + noshow + willmakeup - makeup), do bộ máy tính một lần và đưa vào khối, kể cả chức vụ không có
@@ -7,7 +7,7 @@
 // Mặc định (biên độ 0, không ghi đè) giữ nguyên. Số tiền 100.000 ₫ của khối là số GIẢ để thử, chỉ nằm trong bộ nhớ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const PayrollParams = require('../helpers/defaults-old-basis.js');
 const golden = require('../fixtures/payroll-golden-v0.json');
 const { attendDeclaredDays } = require('../helpers/payroll-cases');

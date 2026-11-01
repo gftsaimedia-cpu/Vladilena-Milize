@@ -18,8 +18,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const net = require('node:net');
 const { Readable } = require('node:stream');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 
 let base, port;

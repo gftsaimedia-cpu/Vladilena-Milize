@@ -1,5 +1,5 @@
 'use strict';
-// Vòng đời kỳ lương (lib/periods.ts, route /api/periods/* của server.js):
+// Vòng đời kỳ lương (src/domain/period/periods.ts, route /api/periods/* của server.js):
 // open → attendance_locked → calculated → reviewed → approved → paid, mỗi bước sai trạng thái là 409 PERIOD_STATE, rev lệch là PERIOD_STALE,
 // danh sách kiểm, tính lương tạo lần chạy và bản chụp, duyệt phiếu cả lô hoặc không, nhật ký cho từng bước, verify.
 // Các bước vẫn đi tiếp khi còn việc chưa xong (chỉ cảnh báo): period-flow-warns.test.ts.
@@ -8,9 +8,9 @@ const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
-const Engine = require('../../public/payroll-engine.js');
-const service = require('../../lib/payroll-service');
-const agents = require('../../lib/agents');
+const Engine = require('../../src/engine/payroll-engine.js');
+const service = require('../../src/domain/payroll/payroll-service');
+const agents = require('../../src/platform/agents');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();

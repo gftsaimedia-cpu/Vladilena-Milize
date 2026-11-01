@@ -8,13 +8,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { isDeepStrictEqual } = require('node:util');
 const ROOT = path.join(__dirname, '..', '..');
-const { DEFAULTS } = require(path.join(ROOT, 'public/payroll-params.js'));
+const { DEFAULTS } = require(path.join(ROOT, 'src/engine/payroll-params.js'));
 const MODULES = ['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar', 'work-schedule'];
 
 function problems() {
   const out: any[] = [];
   for (const name of MODULES) {
-    const mod = require(path.join(ROOT, 'public', name + '.js'));
+    const mod = require(path.join(ROOT, 'src/engine', name + '.js'));
     if (!mod.FALLBACK || typeof mod.create !== 'function') {
       out.push(`${name}.js: thiếu FALLBACK hoặc create(params)`);
       continue;
@@ -45,10 +45,10 @@ function libProblems() {
     pending: any[] = [];
   for (const name of LIB_MODULES) {
     // Đọc bảng từ văn bản nguồn: KHÔNG require lib/*.js vì chúng mở cơ sở dữ liệu lúc nạp
-    const source = fs.readFileSync(path.join(ROOT, 'lib', name + '.ts'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'src/platform', name + '.ts'), 'utf8');
     const m = new RegExp('const FALLBACK = Object\\.freeze\\((\\{[\\s\\S]*?\\n\\})\\);').exec(source);
     if (!m) {
-      out.push(`lib/${name}.js: không tìm thấy const FALLBACK = Object.freeze({...})`);
+      out.push(`src/platform/${name}.ts: không tìm thấy const FALLBACK = Object.freeze({...})`);
       continue;
     }
     const table = vm.runInNewContext(`(${m[1]})`);
@@ -56,7 +56,7 @@ function libProblems() {
       if (!Object.hasOwn(DEFAULTS, key)) pending.push(key);
       else if (!isDeepStrictEqual(DEFAULTS[key], value))
         out.push(
-          `lib/${name}.js: FALLBACK["${key}"] = ${JSON.stringify(value)} khác DEFAULTS (${JSON.stringify(DEFAULTS[key])})`
+          `src/platform/${name}.ts: FALLBACK["${key}"] = ${JSON.stringify(value)} khác DEFAULTS (${JSON.stringify(DEFAULTS[key])})`
         );
     }
   }

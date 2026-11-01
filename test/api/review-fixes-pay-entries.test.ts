@@ -1,6 +1,6 @@
 'use strict';
-// Khoản điền thêm (lib/pay-entries.ts), checklist duyệt kỳ (lib/periods.ts),
-// chức vụ mới trong màn Cài đặt (lib/params/store.ts → view) và nhãn (lib/params/positions.ts). Dùng đồ dùng của test/helpers/pay-entry-api.ts.
+// Khoản điền thêm (src/domain/payroll/pay-entries.ts), checklist duyệt kỳ (src/domain/period/periods.ts),
+// chức vụ mới trong màn Cài đặt (src/params/store.ts → view) và nhãn (src/params/positions.ts). Dùng đồ dùng của test/helpers/pay-entry-api.ts.
 const E = require('../helpers/pay-entry-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

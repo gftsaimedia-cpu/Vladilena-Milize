@@ -1,8 +1,8 @@
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
-import { HttpError, send } from '../../lib/http';
-import { Overloaded } from '../../lib/ops/limiters';
-import { attendanceHints } from '../../lib/announce';
-import { punchHints } from '../../lib/domain/attendance';
+import { HttpError, send } from '../platform/http';
+import { Overloaded } from '../ops/limiters';
+import { attendanceHints } from '../platform/announce';
+import { punchHints } from '../domain/attendance';
 
 /** Một nơi đổi mọi lỗi của route thành phản hồi JSON (cùng quy ước với server.js cũ). */
 @Catch()

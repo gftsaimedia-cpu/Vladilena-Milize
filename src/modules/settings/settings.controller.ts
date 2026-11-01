@@ -1,23 +1,23 @@
 import { Controller, Get, Put, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { holidayOtConflicts } from './settings.helpers';
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, benefitOf, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { announceSetting } = require('../../../lib/announce'); // báo sau COMMIT: cấu hình đổi (chấm công mới đi qua punchHints, kind 'punch')
-const { validMonth, validDate } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { leaveDates } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { GeofencePolicy } = require('../../../lib/domain/attendance/geofence-policy');
-const { reconcileHolidayWork } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
-const agents = require('../../../lib/agents'); // công tắc Agents
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const config = require('../../../lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
-const paramsStore = require('../../../lib/params/store');
-const configRev = require('../../../lib/params/config-rev'); // số phiên bản chung của cấu hình (settings.config_rev)
-const HolidayNames = require('../../../lib/domain/holidays'); // tên ngày lễ (nhãn hiển thị)
-const paramsSave = require('../../../lib/params/save'); // lưu tham số: kiểm, xem trước tác động, ghi cả lô, hoàn tác
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, monthParams, benefitOf, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { announceSetting } = require('../../platform/announce'); // báo sau COMMIT: cấu hình đổi (chấm công mới đi qua punchHints, kind 'punch')
+const { validMonth, validDate } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { leaveDates } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { GeofencePolicy } = require('../../domain/attendance/geofence-policy');
+const { reconcileHolidayWork } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
+const agents = require('../../platform/agents'); // công tắc Agents
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
+const paramsStore = require('../../params/store');
+const configRev = require('../../params/config-rev'); // số phiên bản chung của cấu hình (settings.config_rev)
+const HolidayNames = require('../../domain/holidays'); // tên ngày lễ (nhãn hiển thị)
+const paramsSave = require('../../params/save'); // lưu tham số: kiểm, xem trước tác động, ghi cả lô, hoàn tác
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
@@ -73,7 +73,7 @@ export class SettingsController {
       if (conflicts.length) {
         const first = conflicts[0];
         // Lưu và cảnh báo, nêu tối đa config.WARN_NAMES_MAX người. Bộ máy trả lương ngày phép theo chức vụ chứ không xét số dư,
-        // nên ngày phép vượt số dư vẫn được tính lương nếu Admin duyệt (public/payroll-engine.js → kind 'leave').
+        // nên ngày phép vượt số dư vẫn được tính lương nếu Admin duyệt (src/engine/payroll-engine.js → kind 'leave').
         const people = [...new Set(conflicts.map(c => c.username))];
         const months = [...new Set(conflicts.map(c => c.date.slice(0, 7)))].sort();
         warnIf('HOLIDAY_LEAVE_CONFLICT', true, {
@@ -208,7 +208,7 @@ export class SettingsController {
   @Put('settings/params')
   async putSettingsParams(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, me, seg, actx, need } = c;
-    need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong lib/params/save.ts
+    need(); // cổng config.read đã kiểm ở ROUTE_CAPS; năng lực sửa từng khoá kiểm trong src/params/save.ts
     const b = await readJson(req);
     if (req.method === 'PUT' && seg.length === 3) {
       const saved = await paramsSave.save(me, actx, b);

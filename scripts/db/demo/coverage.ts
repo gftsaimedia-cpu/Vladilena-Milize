@@ -74,7 +74,7 @@ async function measure({ store, personas }: any) {
   }
 
   // trạng thái kỳ lương theo mã (PERIOD_STATES)
-  const authz = require('../../../lib/authz.ts');
+  const authz = require('../../../src/platform/authz');
   const periodStatuses = new Set<any>(await values(db, 'payroll_periods', 'status'));
   for (const s of ['open', 'attendance_locked', 'calculated', 'reviewed', 'approved', 'paid'])
     if (s !== 'open' && !periodStatuses.has(s)) gaps.push(`kỳ lương chưa có trạng thái '${s}'`);

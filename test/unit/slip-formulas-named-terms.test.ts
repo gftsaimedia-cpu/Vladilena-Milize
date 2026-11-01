@@ -1,16 +1,16 @@
 'use strict';
-// Công thức dưới từng dòng "Chi tiết" của phiếu Admin (lib/slip-formulas.ts → formulasOf) ghi tên hoặc đơn vị ngay sau mỗi số
+// Công thức dưới từng dòng "Chi tiết" của phiếu Admin (src/domain/payroll/slip-formulas.ts → formulasOf) ghi tên hoặc đơn vị ngay sau mỗi số
 // (6.000.000 đ, 23 ngày công, 28.846,15 đ/giờ), nhóm cộng trừ nằm trong ngoặc. Test này kiểm: mọi số trong mọi công thức của một loạt phiếu
 // sinh có hạt đều có tên, là tỷ lệ (30%) hoặc là hệ số nhân (× 1,5); ngoặc cân; công thức tính ra đúng số của dòng (bộ đọc bỏ tên);
 // các ví dụ chốt in đúng từng chữ. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { cellsOf } = require('../../lib/slip-paid.ts');
-const { allowanceTotalOf } = require('../../lib/period-allowance.ts');
-const { formulasOf } = require('../../lib/slip-formulas.ts');
+const { cellsOf } = require('../../src/domain/payroll/slip-paid');
+const { allowanceTotalOf } = require('../../src/domain/period/period-allowance');
+const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const F = require('../helpers/schedule-fixtures');
 const Cases = require('../helpers/payroll-cases');
 const { near, isArithmetic, plainAll } = require('../helpers/formula-eval');

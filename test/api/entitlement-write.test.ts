@@ -6,7 +6,7 @@ const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, caseOf, clone } = require('../helpers/pay-oracle');
-const { SHIFT } = require('../../public/punch.js');
+const { SHIFT } = require('../../src/engine/punch.js');
 
 const { F, flow } = P;
 const KNOWN = 'known-kpi-five-100-90-80-85-100';

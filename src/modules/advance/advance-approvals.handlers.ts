@@ -1,5 +1,5 @@
-// Route yêu cầu tạm ứng theo tháng (lưu ở ./advance-approvals.js). lib/domain/routes.js gửi
-// /api/advance-approvals/... tới handle(). Số tạm ứng là số theo quy tắc do bộ máy lương tính (lib/advance-cap.ts → figuresOf); không ai nhập số.
+// Route yêu cầu tạm ứng theo tháng (lưu ở ./advance-approvals.js). src/domain/routes.js gửi
+// /api/advance-approvals/... tới handle(). Số tạm ứng là số theo quy tắc do bộ máy lương tính (src/domain/advance/advance-cap.ts → figuresOf); không ai nhập số.
 // CHỈ người cần mới gửi yêu cầu; chỉ trừ vào phiếu khi Admin đã duyệt. Không xin, đang chờ, bị từ chối: 0.
 //   GET  /api/advance-approvals?month=[&username=]   người duyệt (hoặc xem lương): CHỈ người đã gửi yêu cầu của tháng (mọi trạng thái), mỗi người
 //        { username, name, eligible, reason?, amount, status, rev, requestedAt, decidedAt, decidedBy, note }, kèm pending (số chờ duyệt);
@@ -14,19 +14,19 @@
 //        bỏ qua người không còn được ứng, chính người duyệt, người ngoài phạm vi duyệt và người có số đã chốt bằng 0 (trả trong skipped)
 // Quyền: gửi / rút chỉ cho chính mình (cổng ROUTE_CAPS: đã đăng nhập); duyệt, từ chối, huỷ duyệt cần request.decide.advance ở phạm vi từng người
 // (cổng: request.decide.*). Kỳ đã duyệt hoặc đã chi trả: luôn 409 PERIOD_LOCKED (phiếu đã chốt, không đổi khoản trừ; kiểm chống ghi đè). Ghi, nhật ký trong một giao dịch; sự kiện sau khi COMMIT.
-const store = require('../../../lib/db');
-const authz = require('../../../lib/authz');
-const audit = require('../../../lib/audit');
-const events = require('../../../lib/events');
-const advanceCap = require('../../../lib/advance-cap');
-const { DECIDE_CAP } = require('../../../lib/advance-requests');
-const { selfDecision, optionalReason } = require('../../../lib/warnings');
-const { HttpError, readJson } = require('../../../lib/http');
-const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input');
-const { AdvanceRequestWindow } = require('../../../lib/domain/advance/advance-request-window');
+const store = require('../../platform/db');
+const authz = require('../../platform/authz');
+const audit = require('../../platform/audit');
+const events = require('../../platform/events');
+const advanceCap = require('../../domain/advance/advance-cap');
+const { DECIDE_CAP } = require('../../domain/advance/advance-requests');
+const { selfDecision, optionalReason } = require('../../platform/warnings');
+const { HttpError, readJson } = require('../../platform/http');
+const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../domain/input');
+const { AdvanceRequestWindow } = require('../../domain/advance/advance-request-window');
 const requestWindow = new AdvanceRequestWindow();
-const { DomainError } = require('../../../lib/domain/shared/domain-error');
-const { advanceApprovals } = require('../../../lib/domain/advance/index');
+const { DomainError } = require('../../domain/shared/domain-error');
+const { advanceApprovals } = require('../../domain/advance/index');
 
 // Trạng thái kỳ khoá mọi thay đổi tạm ứng: phiếu đã duyệt hoặc đã chi trả không đổi nữa
 const LOCKED_STATUSES = Object.freeze(['approved', 'paid']);

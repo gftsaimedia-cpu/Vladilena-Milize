@@ -57,8 +57,8 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any
     console.log = (...items) =>
       typeof items[0] === 'string' && items[0].startsWith('[ai-review]') ? undefined : log(...items);
   }
-  const store = require(path.join(REPO, 'lib', 'db'));
-  const auth = require(path.join(REPO, 'lib', 'auth'));
+  const store = require(path.join(REPO, 'src', 'platform', 'db'));
+  const auth = require(path.join(REPO, 'src', 'platform', 'auth'));
   const app = require(path.join(REPO, 'src/server'));
   const clockApi = {
     now: () => clock,

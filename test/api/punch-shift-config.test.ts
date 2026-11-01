@@ -4,10 +4,10 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 process.env.DB_PATH = ':memory:';
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
-  paramsStore = require('../../lib/params/store'),
-  { rulesFor } = require('../../lib/request-rules'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
+  paramsStore = require('../../src/params/store'),
+  { rulesFor } = require('../../src/platform/request-rules'),
   server = require('../helpers/server');
 
 let base, cookie;

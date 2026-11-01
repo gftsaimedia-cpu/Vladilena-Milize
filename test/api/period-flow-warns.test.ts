@@ -8,7 +8,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const service = require('../../lib/payroll-service');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -45,7 +45,7 @@ test('Chốt công: tháng chưa hết (MONTH_NOT_ENDED) vẫn chốt được, 
 test('Chốt công: còn phiên Check-in mở (OPEN_SESSIONS) vẫn chốt được, kèm cảnh báo OPEN_SESSIONS; lượt mở quá 16 giờ được đóng thành quên Check-out và không đếm', async () => {
   const M = monthOf();
   await P.seed(M);
-  const PunchRules = require('../../public/punch.js');
+  const PunchRules = require('../../src/engine/punch.js');
   const staff = { shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] };
   const plan = PunchRules.planShift(staff, P.firstDow(M, 1));
   const stale = PunchRules.openDay(staff, `${plan.date}T08:00:00+07:00`, plan);
@@ -216,7 +216,7 @@ test('Duyệt phiếu còn phát hiện AI chưa xử lý vẫn được kèm c�
   const C = monthOf();
   const rowsC = await flagFirst(C);
   const flaggedC = rowsC.find(r => r.username === 'qa_nv1');
-  await require('../../lib/findings').dismiss({
+  await require('../../src/domain/findings/findings').dismiss({
     month: C,
     username: 'qa_nv1',
     rule: 'isat-frequency',

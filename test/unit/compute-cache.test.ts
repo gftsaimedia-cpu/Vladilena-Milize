@@ -1,8 +1,8 @@
 'use strict';
-// Bộ nhớ đệm phép tính nặng (lib/ops/compute-cache.ts): hợp lệ khi cùng số lần ghi và chưa quá TTL; DB đổi thì tính lại ngay.
+// Bộ nhớ đệm phép tính nặng (src/ops/compute-cache.ts): hợp lệ khi cùng số lần ghi và chưa quá TTL; DB đổi thì tính lại ngay.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { ComputeCache } = require('../../lib/ops/compute-cache');
+const { ComputeCache } = require('../../src/ops/compute-cache');
 
 function make({ ttlMs = 1000, maxEntries = 3 }: any = {}) {
   const state = { rev: 1, time: 0, calls: 0 };

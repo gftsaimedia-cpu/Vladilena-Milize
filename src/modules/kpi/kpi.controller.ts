@@ -1,16 +1,16 @@
 import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const { AsyncList } = require('../../../lib/shared/async-list');
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain dựng một lần
-const { KpiScoring } = require('../../../lib/domain/kpi/kpi-scoring');
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
+const { AsyncList } = require('../../shared/async-list');
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, monthParams, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { validMonth, USERNAME_RE, NOTE_MAX } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { container } = require('../../domain/container'); // các lớp của src/domain dựng một lần
+const { KpiScoring } = require('../../domain/kpi/kpi-scoring');
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')

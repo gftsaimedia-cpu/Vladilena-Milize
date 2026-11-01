@@ -1,17 +1,17 @@
 'use strict';
 // Một hệ thống lương: tháng không bao giờ đổi cách tính. Test quét mã nguồn và spec, đỏ khi tên của công tắc theo tháng xuất hiện lại.
-// Ngoại lệ: tên khoá đã bỏ trong bảng khoá của tham số (lib/params), danh sách chữ hiển thị của scripts/params, và chính file này.
+// Ngoại lệ: tên khoá đã bỏ trong bảng khoá của tham số (src/params), danh sách chữ hiển thị của scripts/params, và chính file này.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
-const SCAN = ['lib', 'public', 'scripts', 'spec', 'src/server.ts'];
+const SCAN = ['src', 'scripts', 'spec'];
 const TEXT = /\.(js|cjs|mjs|ts|json|md|html|css)$/;
 const SKIP_FILES = new Set<any>([
-  'lib/params/registry.data.json',
-  'lib/params/keys.lock.json',
+  'src/params/registry.data.json',
+  'src/params/keys.lock.json',
   'scripts/params/plain-text.json',
   'test/unit/no-month-rules.test.ts'
 ]);
@@ -66,7 +66,7 @@ test('mã nguồn và spec không còn tên công tắc theo tháng (luật thá
 });
 
 test('tên công tắc theo tháng chỉ còn trong bảng khoá đã bỏ của tham số, không có khoá nào sống', () => {
-  const registry = JSON.parse(fs.readFileSync(path.join(ROOT, 'lib/params/registry.data.json'), 'utf8'));
+  const registry = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/params/registry.data.json'), 'utf8'));
   const alive: any[] = [];
   const walk = (value?) => {
     if (Array.isArray(value)) return value.forEach(walk);

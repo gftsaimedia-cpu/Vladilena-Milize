@@ -4,7 +4,7 @@
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const registry = require('../../lib/params/registry');
+const registry = require('../../src/params/registry');
 
 const { F } = P;
 

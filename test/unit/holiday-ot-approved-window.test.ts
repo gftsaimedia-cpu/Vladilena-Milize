@@ -5,9 +5,9 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../public/punch.js');
-const AV = require('../../public/approval-view.js');
-const Engine = require('../../public/payroll-engine.js');
+const P = require('../../src/engine/punch.js');
+const AV = require('../../src/engine/approval-view.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 

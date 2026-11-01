@@ -1,9 +1,9 @@
-// Ngày làm bù của "Nghỉ, sẽ làm bù", giải trình Check-in/out, và AI chặn duyệt (lib/domain/ai-block.ts).
+// Ngày làm bù của "Nghỉ, sẽ làm bù", giải trình Check-in/out, và AI chặn duyệt (src/domain/ai-block.ts).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
-const aiReview = require('../../lib/domain/ai-review');
+const aiReview = require('../../src/domain/ai-review');
 
 const MONTH = '2026-10';
 const putDays = async (days?) => await F.call('PUT', '/sheet', { who: 'an', body: { month: MONTH, days } });

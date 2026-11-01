@@ -1,5 +1,5 @@
 'use strict';
-// Quyền của các route kỳ lương (lib/authz.ts → ROUTE_CAPS, ROLE_CAPS; server.js nhận route kỳ lương qua
+// Quyền của các route kỳ lương (src/platform/authz.ts → ROUTE_CAPS, ROLE_CAPS; server.js nhận route kỳ lương qua
 // authz.routeKey nên bài quét tĩnh của permissions-matrix và period-lock-guards KHÔNG thấy chúng — file này phủ chúng tường minh):
 //   - mọi khoá ROUTE_CAPS dạng /periods phải nằm trong bảng dưới (thêm route mới mà thiếu test thì test cuối đỏ);
 //   - với MỌI vai trò × MỌI route: vai trò có năng lực của route thì qua cổng (không 401/403), không có thì 403 FORBIDDEN_CAP và không đổi gì;
@@ -9,7 +9,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
+const authz = require('../../src/platform/authz');
 
 const { F, store } = P;
 const monthOf = P.monthPool();

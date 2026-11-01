@@ -5,7 +5,7 @@
 //   - sau đó đổi tham số, đổi lịch (bị khoá), đổi hồ sơ: bản chụp không đổi; `verify` tính lại từ đầu vào đã lưu và không báo lệch;
 //   - sửa dữ liệu ngoài đường API thì `verify` chỉ đúng người bị lệch;
 //   - sửa trực tiếp bảng phiếu hay lần chạy bằng node:sqlite bị trigger chặn.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
+const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');

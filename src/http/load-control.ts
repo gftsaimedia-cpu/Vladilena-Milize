@@ -1,9 +1,9 @@
 // Giới hạn tải của máy chủ: một nơi giữ các bộ đếm và cổng, dùng chung cho cổng ApiGuard, route đăng nhập và công cụ vận hành.
-import config = require('../../lib/config');
-import { RuntimeMonitor } from '../../lib/ops/runtime-monitor';
-import { AsyncGate, RateLimiter, LoadShedder } from '../../lib/ops/limiters';
+import config = require('../platform/config');
+import { RuntimeMonitor } from '../ops/runtime-monitor';
+import { AsyncGate, RateLimiter, LoadShedder } from '../ops/limiters';
 
-// Biến môi trường (số dương) ghi đè giá trị mặc định trong lib/config.ts: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
+// Biến môi trường (số dương) ghi đè giá trị mặc định trong src/platform/config.ts: vận hành nới/siết giới hạn khi triển khai mà không sửa mã
 const limitOf = (name: string, fallback: number): number =>
   Number(process.env[name]) > 0 ? Number(process.env[name]) : fallback;
 

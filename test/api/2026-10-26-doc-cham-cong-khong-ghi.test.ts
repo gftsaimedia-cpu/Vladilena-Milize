@@ -1,12 +1,12 @@
-// Đường ĐỌC không được ghi DB. lib/domain/attendance.ts → closeStaleFor lọc bằng SQL
+// Đường ĐỌC không được ghi DB. src/domain/attendance/index.ts → closeStaleFor lọc bằng SQL
 // (state='open' + presIn trước mốc punch.staleBefore) nên chỉ mở một giao dịch cho người THẬT SỰ quá hạn 16 giờ.
 // Test đếm SAVEPOINT/RELEASE: người có lượt mở chưa quá hạn (kể cả vừa Check-in 1 phút) không mở giao dịch nào.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'qa-doc-cham-cong-khong-ghi';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 
 const realNow = Date.now;
@@ -98,7 +98,7 @@ test('GET /today khi không còn ai quá hạn: 0 giao dịch (đường đọc 
 });
 
 test('staleBefore của punch là đúng ranh giới forgotOut: trước mốc quá hạn, đúng mốc thì chưa', () => {
-  const P = require('../../public/punch.js');
+  const P = require('../../src/engine/punch.js');
   const now = new Date(clock).toISOString(),
     cutoff = P.staleBefore(now);
   assert.equal(P.forgotOut(cutoff, now), false);

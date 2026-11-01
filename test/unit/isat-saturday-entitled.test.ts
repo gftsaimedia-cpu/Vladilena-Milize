@@ -8,7 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
-const periods = require('../../lib/periods');
+const periods = require('../../src/domain/period/periods');
 const { store } = F;
 
 // 01/11/2026 là Chủ nhật: 03/11 Thứ Ba, 07/11 và 14/11 Thứ Bảy
@@ -117,7 +117,7 @@ test('danh sách kiểm chốt công đếm ngày iSAT đã lưu sai thứ hoặ
 });
 
 test('mô tả isat.monthlyLimit trong danh mục nói đúng việc mã làm: để trống không giới hạn; vượt thì vẫn lưu và báo', () => {
-  const registry = JSON.parse(fs.readFileSync(path.join(__dirname, '../../lib/params/registry.data.json'), 'utf8'));
+  const registry = JSON.parse(fs.readFileSync(path.join(__dirname, '../../src/params/registry.data.json'), 'utf8'));
   const entry = (registry.entries || registry).find(e => e.id === 'isat.monthlyLimit');
   assert.ok(entry, 'có mục isat.monthlyLimit');
   assert.match(entry.help, /để trống là không giới hạn/);

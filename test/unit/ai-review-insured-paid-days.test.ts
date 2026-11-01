@@ -4,9 +4,9 @@
 // Chỉ người giả (qa_*), tháng 10/2026. Bảo hiểm đọc từ kết quả tính của bộ máy mà bộ soát gọi (bọc computeMonth để ghi lại).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { review } = require('../../lib/ai/review.ts');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { review } = require('../../src/ai/review');
+const { loadPayroll } = require('../../src/ai/payroll-loader');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const W = require('./ai-review-world.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 

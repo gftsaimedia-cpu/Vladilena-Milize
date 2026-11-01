@@ -65,7 +65,7 @@ const cleanup = () => {
   try {
     server.closeAllConnections();
     server.close();
-    require('../../../lib/db').db.close();
+    require('../../../src/platform/db').db.close();
   } catch {}
   fs.rmSync(work, { recursive: true, force: true });
   process.exit(0);

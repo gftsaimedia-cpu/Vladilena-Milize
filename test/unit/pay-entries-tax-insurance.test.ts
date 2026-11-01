@@ -6,7 +6,7 @@
 // Thực lĩnh = tổng thu nhập − bảo hiểm − thuế − tạm ứng đã duyệt (0 ở đây).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const { legacyParams } = require('../helpers/legacy-params');
 const golden = require('../fixtures/payroll-golden-v0.json');
 

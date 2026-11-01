@@ -348,7 +348,7 @@ const CASES = [
     fire: async () => await post('admin', '/staff/qa_tts1/password', { password: 'mat-khau-moi-12345' }),
     warn: { optional: true },
     saved: async () => {
-      const auth = require('../../lib/auth');
+      const auth = require('../../src/platform/auth');
       assert.equal(auth.verifyPassword('mat-khau-moi-12345', (await store.getStaffRow('qa_tts1')).pass_hash), true);
     }
   },

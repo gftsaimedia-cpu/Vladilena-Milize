@@ -3,13 +3,13 @@
 // Giảm trừ gia cảnh = tax.deduction.personal (15.500.000) + số người phụ thuộc × tax.deduction.dependant (6.200.000).
 // Thuế phát sinh khi (chịu thuế − bảo hiểm) lớn hơn giảm trừ bản thân; dưới hoặc bằng thì 0.
 // Biểu: đến 10 triệu 5 %, đến 30 triệu 10 %, đến 60 triệu 20 %, đến 100 triệu 30 %, trên đó 35 % (tính tay ở đây, không đọc từ tham số).
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const { cellsOf } = require('../../lib/slip-paid.ts');
-const { formulasOf } = require('../../lib/slip-formulas.ts');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { cellsOf } = require('../../src/domain/payroll/slip-paid');
+const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const F = require('../helpers/schedule-fixtures');
 const { near, plainAll } = require('../helpers/formula-eval');
 

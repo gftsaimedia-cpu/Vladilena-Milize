@@ -2,10 +2,10 @@ process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'shift-code-validation-regression-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 let base;
 const originalNow = Date.now;
 const tables = [

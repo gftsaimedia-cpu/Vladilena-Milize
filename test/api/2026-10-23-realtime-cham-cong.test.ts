@@ -186,7 +186,7 @@ test('R: yêu cầu bị từ chối không phát sự kiện nào (bấm trùng
 test('R: danh mục sự kiện — punch.changed chỉ gửi theo người nhận chỉ định, chỉ giữ month và date; attendance.changed nhận kind punch', async () => {
   await setup();
   const catalog = events.EVENTS['punch.changed'];
-  assert.ok(catalog, 'lib/events.ts → EVENTS phải có punch.changed');
+  assert.ok(catalog, 'src/platform/events.ts → EVENTS phải có punch.changed');
   assert.deepEqual(catalog.audiences, ['users']);
   assert.deepEqual(
     catalog.tiers.flatMap(tier => tier.fields),

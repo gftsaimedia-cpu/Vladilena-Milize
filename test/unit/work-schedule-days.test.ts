@@ -3,10 +3,10 @@
 // ngày ngoài lịch không tính công; người cần thêm ngày gửi yêu cầu (OT, giờ làm bù, đi làm ngày lễ).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const WS = require('../../public/work-schedule.js');
-const Engine = require('../../public/payroll-engine.js');
+const WS = require('../../src/engine/work-schedule.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const Positions = require('../../lib/params/positions.ts');
+const Positions = require('../../src/params/positions');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const TTS = { username: 'qa_tts', type: 'tts', level: 1, shiftCode: 'Normal1', startDate: '2025-01-06' };

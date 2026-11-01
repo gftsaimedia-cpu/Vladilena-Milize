@@ -35,7 +35,7 @@ function files(entry?, out: any[] = []) {
 
 test('lib, server.js, public và scripts không còn tên controlMode, control_mode, control-mode, blockMode, enforce()', () => {
   const hits: any[] = [];
-  for (const file of ['src/server.ts', 'lib', 'public', 'scripts'].flatMap(entry => files(entry))) {
+  for (const file of ['src', 'scripts'].flatMap(entry => files(entry))) {
     const lines = fs.readFileSync(file, 'utf8').split('\n');
     lines.forEach((line, index) => {
       for (const { name, re } of FORBIDDEN)

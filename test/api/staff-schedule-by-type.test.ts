@@ -7,11 +7,11 @@
 const S = require('../helpers/schedule-api');
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
-const registry = require('../../lib/params/registry');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const payrollService = require('../../lib/payroll-service');
-const paramsStore = require('../../lib/params/store');
+const authz = require('../../src/platform/authz');
+const registry = require('../../src/params/registry');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const payrollService = require('../../src/domain/payroll/payroll-service');
+const paramsStore = require('../../src/params/store');
 
 const { F, store, F0 } = S;
 

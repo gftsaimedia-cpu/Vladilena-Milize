@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const explanations = require('../../lib/explanations');
-const AS = require('../../public/attendance-status.js');
+const explanations = require('../../src/domain/explanation/explanations');
+const AS = require('../../src/engine/attendance-status.js');
 
 const iso = X.iso;
 const punch = X.punch;

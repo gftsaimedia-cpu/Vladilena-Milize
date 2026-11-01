@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { serverSource } = require('../helpers/server-source');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { createLegacyEngine } = require('../helpers/legacy-payroll');
 
 const { TYPES } = createLegacyEngine();
@@ -46,7 +46,7 @@ test('bậc trong khối cũ đánh số liên tục từ 1 nên khoá level.<lo
 });
 
 test('server.js không còn bản sao KPI_MAX (đọc khoá theo tháng qua kpiMaxOf)', () => {
-  const source = serverSource(); // kpiMaxOf nằm ở server.js hoặc lib/domain/kpi.js
+  const source = serverSource(); // kpiMaxOf nằm ở server.js hoặc src/domain/kpi.js
   assert.doesNotMatch(
     source,
     /^const KPI_MAX = /m,

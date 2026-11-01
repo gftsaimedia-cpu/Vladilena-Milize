@@ -8,8 +8,8 @@
 //   Trước đây còn cộng Off Paid 1 giờ × 1,3 (1,3h) cho giờ nghỉ 02:00–03:00 đã nằm trong 7 giờ ngày lễ: 31,1h = 897.115 ₫.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const Calendar = require('../../public/payroll-calendar.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const Calendar = require('../../src/engine/payroll-calendar.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 
 const k = Engine.create(DEFAULTS);

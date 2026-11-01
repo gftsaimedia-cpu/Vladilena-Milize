@@ -6,11 +6,11 @@ process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runGolden, closeTo, DEFAULTS } = require('../helpers/pay-oracle');
-const ActualHours = require('../../public/actual-hours.js');
-const registry = require('../../lib/params/registry');
+const ActualHours = require('../../src/engine/actual-hours.js');
+const registry = require('../../src/params/registry');
 const { approved } = require('../helpers/schedule-fixtures'); // hàng duyệt đã duyệt như máy chủ lưu
-const { checkSheetLimits } = require('../../lib/domain/overtime/hour-limits').HourLimits;
-const warnings = require('../../lib/warnings');
+const { checkSheetLimits } = require('../../src/domain/overtime/hour-limits').HourLimits;
+const warnings = require('../../src/platform/warnings');
 
 const NV1 = 'known-kpi-five-100-90-80-85-100';
 const day = (n?, over: any = {}) => ({

@@ -8,7 +8,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
 
 const k = Engine.create(DEFAULTS);
@@ -137,7 +137,7 @@ test('lương cao, nhiều giờ đêm và OT: phần chịu thuế tăng làm t
 });
 
 test('mô tả khoá miễn thuế nói phần cao hơn lương giờ thường', () => {
-  const entries = JSON.parse(fs.readFileSync(path.join(__dirname, '../../lib/params/registry.data.json'), 'utf8'));
+  const entries = JSON.parse(fs.readFileSync(path.join(__dirname, '../../src/params/registry.data.json'), 'utf8'));
   const list = Array.isArray(entries) ? entries : entries.entries || entries.params || [];
   for (const id of [
     'tax.exempt.nightPremium',

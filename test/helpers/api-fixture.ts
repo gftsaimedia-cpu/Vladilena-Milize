@@ -1,15 +1,15 @@
 'use strict';
 // Dựng máy chủ thật trên DB trong bộ nhớ cho các test API (khoá kỳ, bản chụp phiếu, quyền, nhật ký).
-// Đặt DB_PATH và SESSION_SECRET TRƯỚC khi require lib/db: require file này trước mọi file khác của dự án.
+// Đặt DB_PATH và SESSION_SECRET TRƯỚC khi require src/platform/db: require file này trước mọi file khác của dự án.
 // Chỉ người bịa (qa_*); đồng hồ giả bằng cách ghi đè Date.now như test/api/checkin.test.ts; không chạm data/luong.sqlite.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-v1a-api-tests';
 const crypto = require('node:crypto');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('./server');
 
-const agents = require('../../lib/agents');
+const agents = require('../../src/platform/agents');
 
 const realNow = Date.now;
 let clock = Date.parse('2026-11-02T09:00:00+07:00');
@@ -73,7 +73,7 @@ const tables = async () =>
   ).map(row => row.name);
 
 // Xoá hết dòng của mọi bảng (bảng chỉ-thêm-dòng như audit_log, param_versions, payslips từ chối DELETE nên bị bỏ qua), rồi trả DB về trạng thái dùng được.
-// Danh mục chức vụ, bậc, ca (lib/domain/position/schema.js) là dữ liệu nền do migration nạp, như hai khoá settings giữ lại: không xoá
+// Danh mục chức vụ, bậc, ca (src/domain/position/schema.js) là dữ liệu nền do migration nạp, như hai khoá settings giữ lại: không xoá
 const CATALOG_TABLES = ['benefit_types', 'position_types', 'position_type_benefits', 'position_levels', 'work_shifts'];
 async function reset({ keep = [] }: any = {}) {
   for (const name of await tables()) {

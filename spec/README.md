@@ -8,15 +8,15 @@ Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/s
 
 | File | Nội dung | Nguồn trong mã |
 | --- | --- | --- |
-| [api-routes.md](reference/api-routes.md) | 101 route `/api`: quyền, khoá kỳ, controller (file:dòng) | `lib/authz.ts` (`ROUTE_CAPS`), `src/modules/**/*.controller.ts` |
+| [api-routes.md](reference/api-routes.md) | 101 route `/api`: quyền, khoá kỳ, controller (file:dòng) | `src/platform/authz.ts` (`ROUTE_CAPS`), `src/modules/**/*.controller.ts` |
 | [modules.md](reference/modules.md) | Hạ tầng `src/` và 20 module NestJS, quan hệ import | cây `src/` |
-| [capabilities.md](reference/capabilities.md) | Năng lực, loại khoản duyệt, vai trò mặc định | `lib/authz.ts` |
+| [capabilities.md](reference/capabilities.md) | Năng lực, loại khoản duyệt, vai trò mặc định | `src/platform/authz.ts` |
 | [database.md](reference/database.md) | Bảng, cột, ràng buộc, trigger, chỉ mục | `migrations/postgres/*.sql` |
-| [rules.md](reference/rules.md) | Luật nghiệp vụ dạng lớp `Rule` và mã cảnh báo | `lib/domain/**/rules/*.js` |
-| [events.md](reference/events.md) | Sự kiện SSE và hàm phát | `lib/events.ts` |
-| [config.md](reference/config.md) | Hằng số kỹ thuật và biến môi trường | `lib/config.ts`, `process.env.*` |
+| [rules.md](reference/rules.md) | Luật nghiệp vụ dạng lớp `Rule` và mã cảnh báo | `src/domain/**/rules/*.js` |
+| [events.md](reference/events.md) | Sự kiện SSE và hàm phát | `src/platform/events.ts` |
+| [config.md](reference/config.md) | Hằng số kỹ thuật và biến môi trường | `src/platform/config.ts`, `process.env.*` |
 | [web-routes.md](reference/web-routes.md) | Route và màn của giao diện Vue | `web/src/router/**` |
-| [params.md](reference/params.md) | Danh mục tham số lương | `lib/params/registry.data.json` |
+| [params.md](reference/params.md) | Danh mục tham số lương | `src/params/registry.data.json` |
 
 ## 2. Mô tả nghiệp vụ và vận hành — viết tay
 
@@ -35,6 +35,6 @@ Do `scripts/docs/gen-spec.ts` dựng từ mã (`npm run spec:gen`); `test/unit/s
 
 Quy ước của phần viết tay (`test/unit/spec-refs.test.ts` giữ):
 
-- File được dẫn trong dấu huyền (`` `lib/db.ts` ``) phải tồn tại.
+- File được dẫn trong dấu huyền (`` `src/platform/db.ts` ``) phải tồn tại.
 - Không dùng neo "tên file : số dòng": số dòng trôi sau mỗi lần sửa. Chỉ định vị bằng tên hàm/lớp/khoá; cần dòng chính xác thì xem `spec/reference/`.
 - Luật nghiệp vụ và con số trong spec phải khớp mã; khi mã và spec mâu thuẫn, mã là sự thật và spec phải sửa (hoặc hỏi người quyết định nghiệp vụ trước khi đổi mã).

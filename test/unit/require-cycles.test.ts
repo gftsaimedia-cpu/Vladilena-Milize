@@ -2,8 +2,8 @@
 // Luật cấm vòng `require`: quét chuỗi require('./…') tĩnh trong server.js và lib/**,
 // dựng đồ thị và đòi:
 //   (1) không có vòng nào trong server.js + lib/** (kể cả require trong hàm: vòng ẩn khi chia file vẫn là vòng);
-//   (2) lib/domain/* không require lib/routes/*; (3) lib/routes/* không require lẫn nhau (trừ routes/index → routes/* và _legacy);
-//   (4) lib/http.ts và lib/request-rules.ts không require lib/domain/* hay lib/routes/*.
+//   (2) src/domain/* không require lib/routes/*; (3) lib/routes/* không require lẫn nhau (trừ routes/index → routes/* và _legacy);
+//   (4) src/platform/http.ts và src/platform/request-rules.ts không require src/domain/* hay lib/routes/*.
 // Luật (2) đến (4) không kiểm gì khi các thư mục đó chưa có file.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -83,7 +83,8 @@ async function findCycles(graph?) {
   return [...cycles.values()];
 }
 
-const FILES = ['src/server.ts', ...walk('lib'), ...walk('src')];
+// src/engine (mã tính toán thuần, trước đây ở public/) có vòng payroll-engine ↔ payroll-graph từ trước; chưa nằm trong phạm vi luật này
+const FILES = walk('src').filter(f => !f.startsWith('src/engine/'));
 const GRAPH = buildGraph(FILES);
 
 test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể cả require trong hàm)', async () => {
@@ -92,9 +93,9 @@ test('không có vòng require giữa server.js và lib/** (quét tĩnh, kể c�
 });
 
 test('đồ thị require nhìn thấy các cạnh đã biết (công cụ quét không trượt vì đổi cú pháp)', () => {
-  assert.ok(GRAPH.get('src/main.ts').has('lib/db.ts'), 'src/main.ts → lib/db.ts');
-  assert.ok(GRAPH.get('src/http/api-gate.ts').has('lib/authz.ts'), 'cổng ApiGuard → lib/authz.ts');
-  assert.ok(GRAPH.get('lib/auth.ts').has('lib/db.ts'));
+  assert.ok(GRAPH.get('src/main.ts').has('src/platform/db.ts'), 'src/main.ts → src/platform/db.ts');
+  assert.ok(GRAPH.get('src/http/api-gate.ts').has('src/platform/authz.ts'), 'cổng ApiGuard → src/platform/authz.ts');
+  assert.ok(GRAPH.get('src/platform/auth.ts').has('src/platform/db.ts'));
   const edges = [...GRAPH.values()].reduce((n, set) => n + set.size, 0);
   assert.ok(edges >= 30, `chỉ thấy ${edges} cạnh`);
 });
@@ -121,8 +122,8 @@ function violations(rule?) {
   return out;
 }
 
-test('lib/domain/* không require lib/routes/* (luật 1 của mục 4.5)', async () => {
-  assert.deepEqual(await violations((from, to) => inDir(from, 'lib/domain') && inDir(to, 'lib/routes')), []);
+test('src/domain/* không require lib/routes/* (luật 1 của mục 4.5)', async () => {
+  assert.deepEqual(await violations((from, to) => inDir(from, 'src/domain') && inDir(to, 'lib/routes')), []);
 });
 
 test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được require các file miền (luật 2)', async () => {
@@ -136,10 +137,10 @@ test('lib/routes/* không require lẫn nhau; chỉ routes/index.js được req
   assert.deepEqual(bad, []);
 });
 
-test('lib/http.ts, lib/request-rules.ts không require lib/domain/* hay lib/routes/* (luật 3)', async () => {
-  const leaves = ['lib/http.ts', 'lib/request-rules.ts'];
+test('src/platform/http.ts, src/platform/request-rules.ts không require src/domain/* hay lib/routes/* (luật 3)', async () => {
+  const leaves = ['src/platform/http.ts', 'src/platform/request-rules.ts'];
   assert.deepEqual(
-    await violations((from, to) => leaves.includes(from) && (inDir(to, 'lib/domain') || inDir(to, 'lib/routes'))),
+    await violations((from, to) => leaves.includes(from) && (inDir(to, 'src/domain') || inDir(to, 'lib/routes'))),
     []
   );
 });

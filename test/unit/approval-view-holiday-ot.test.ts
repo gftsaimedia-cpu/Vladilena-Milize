@@ -3,9 +3,9 @@
 // Chưa duyệt thì bỏ cả ngày theo hàng chính sách holiday_work; chức vụ không có quyền lợi OT (TTS) không có khoản này.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const ApprovalView = require('../../public/approval-view.js');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const ApprovalView = require('../../src/engine/approval-view.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const calcMonth = (...args) => Engine.create(DEFAULTS).calcMonth(...args);
 const { itemOf, fingerprint, effectiveStatus, payView, POLICY, ITEMS } = ApprovalView;

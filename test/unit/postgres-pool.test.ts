@@ -5,7 +5,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { PGlite } = require('@electric-sql/pglite');
 const { PGLiteSocketServer } = require('@electric-sql/pglite-socket');
-const { PostgresDatabase } = require('../../lib/data/postgres-database');
+const { PostgresDatabase } = require('../../src/data/postgres-database');
 
 let lite;
 let server;

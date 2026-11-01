@@ -5,7 +5,7 @@
 //   - GET /api/sheet gửi kèm trọng số KPI của tháng (kpi.weight.*) để màn nhân viên không viết cứng 40/24/12/18/6.
 //   - PUT /api/staff/:u nhận payrollSubject: tài khoản lưu với false không vào bảng lương, AI soát, thẻ thu nhập, ước tính.
 //     Đổi role admin ↔ staff không làm mất bậc.
-//   - lib/periods.ts → checklist đóng các lượt mở quá 16 giờ (closeStale) trước khi đếm OPEN_SESSIONS.
+//   - src/domain/period/periods.ts → checklist đóng các lượt mở quá 16 giờ (closeStale) trước khi đếm OPEN_SESSIONS.
 // Vị trí trường kpiBase… trong phản hồi phiếu không cố định: test tìm trường đầu tiên có tên đó trong phản hồi (bỏ qua nhánh override / computed),
 // ưu tiên cấp phiếu; tên trường chứa trọng số trong GET /api/sheet cũng được tìm theo khoá thành phần. Đơn vị: điểm 0–100 như lúc nhập.
 // Số tiền kiểm (VND) cố định vì điền ô điểm không đổi tiền (qa_ctv1, CTV bậc 2, tháng 2026-10 của period-flow, điểm 80/90/70/85/100 → KPI 82,4 %).
@@ -13,7 +13,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { F, store, flow } = P;
 // tháng 2026-10 dành riêng cho bài KPI có số tiền cố định; các bài khác lấy tháng riêng từ đây

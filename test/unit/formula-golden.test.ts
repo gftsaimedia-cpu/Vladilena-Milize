@@ -1,5 +1,5 @@
 'use strict';
-// Ca vàng của công thức gõ chữ: cây do bộ phân tích dựng (public/formula.js) phải cho ĐÚNG số của khối công thức cũ trên cả 300 ca vàng
+// Ca vàng của công thức gõ chữ: cây do bộ phân tích dựng (src/engine/formula.js) phải cho ĐÚNG số của khối công thức cũ trên cả 300 ca vàng
 // (test/fixtures/payroll-golden-v0.json): không lệch một đồng.
 //
 // KẾT QUẢ ĐO TRÊN KHỐI CŨ:
@@ -16,7 +16,7 @@
 // Hệ quả: "tổng thu nhập = a + b + c + d" gõ phẳng không bằng khối cũ từng bit; muốn khớp từng bit cần biến `phụ cấp` (= đi lại + chuyên cần)
 // hoặc dung sai ≤ 1e-6 đồng vì gross luôn qua Math.round (calcNet: D(m.total)).
 //
-// Thiếu public/formula.js thì các test chạy như `todo` (trừ nhóm "khối cũ": không cần mô-đun); RED=1 để xem đỏ.
+// Thiếu src/engine/formula.js thì các test chạy như `todo` (trừ nhóm "khối cũ": không cần mô-đun); RED=1 để xem đỏ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const F = require('../helpers/formula-fixture');

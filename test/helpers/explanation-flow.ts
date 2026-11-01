@@ -1,7 +1,7 @@
 'use strict';
 // Đồ dùng chung cho test giải trình ngày: dựng lượt quên Check-out, Admin yêu cầu / nhân sự trả lời / Admin quyết định qua API thật,
 // và đọc kết quả tính lương của một người (cùng đường loadInputs → computeFor như bảng lương).
-// Nạp SAU test/helpers/api-fixture.ts (đặt DB_PATH trước khi nạp lib/db).
+// Nạp SAU test/helpers/api-fixture.ts (đặt DB_PATH trước khi nạp src/platform/db).
 const assert = require('node:assert/strict');
 const F = require('./api-fixture');
 
@@ -16,9 +16,12 @@ const punch = async (who?, body?) => await F.call('POST', '/punch', { who, body 
 async function press(who?, body?) {
   const res = await punch(who, { explanation: 'Giải trình lúc bấm', ...body });
   if (res.status !== 200) return res;
-  const { container } = require('../../lib/domain/container');
+  const { container } = require('../../src/domain/container');
   const sessionIds = new Set<any>([res.data.openSession, res.data.lastSession].filter(Boolean).map(s => s.id));
-  for (const item of await require('../../lib/explanations').list({ username: who, status: 'answered' }))
+  for (const item of await require('../../src/domain/explanation/explanations').list({
+    username: who,
+    status: 'answered'
+  }))
     if (sessionIds.has(item.sessionId) && /^punch-/.test(item.kind)) {
       await container.explanations.decide({ id: item.id, by: 'admin', approve: true, note: '', isSelf: false });
     }
@@ -32,7 +35,7 @@ async function forgotOut(who?, date?, at?, requestId?) {
   assert.equal(res.status, 200, JSON.stringify(res.data));
   const next = new Date(Date.parse(`${date}T12:00:00+07:00`) + 24 * 3600 * 1000);
   await F.at(next.toISOString().replace('Z', '').slice(0, 19));
-  const { closeStaleIn } = require('../../lib/domain/attendance');
+  const { closeStaleIn } = require('../../src/domain/attendance');
   await closeStaleIn(MONTH, new Set<any>([who]));
   return res.data.open.id;
 }
@@ -72,7 +75,7 @@ async function decide(id?, approve?, who = 'admin') {
 // Kết quả tính lương tháng MONTH của một người: { m, payDays, actualReport }
 async function payOf(username?, month = MONTH) {
   await F.at(NOW);
-  const service = require('../../lib/payroll-service');
+  const service = require('../../src/domain/payroll/payroll-service');
   const inputs = await service.loadInputs(month, { usernames: [username] });
   return service.computeFor(month, inputs.people.get(username).staff, inputs, (await service.paramsFor(month)).params);
 }

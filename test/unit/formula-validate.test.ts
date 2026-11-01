@@ -1,5 +1,5 @@
 'use strict';
-// Bộ kiểm công thức: public/formula.js → Formula.validate.
+// Bộ kiểm công thức: src/engine/formula.js → Formula.validate.
 // Kiểm: đơn vị, miền (ngày hay tháng), chia cho 0, vòng, khoá, thành phần bắt buộc, giới hạn kích thước.
 // Luật có thể báo lỗi ở bước phân tích hoặc bước kiểm thì dùng checkAll = phân tích rồi kiểm, gộp lỗi.
 const { test } = require('node:test');

@@ -1,4 +1,4 @@
-// KPI 5 thành phần (Quy chế lương 3P), phần hàm thuần: public/kpi-score.js (module dùng chung trình duyệt và máy chủ).
+// KPI 5 thành phần (Quy chế lương 3P), phần hàm thuần: src/engine/kpi-score.js (module dùng chung trình duyệt và máy chủ).
 // Các tên được kiểm: COMPONENTS, WEWORK_MIN, checkScore, evaluate, pay.
 // Các trường hợp biên (chờ điểm, dưới mốc đạt, Wework dưới 75) dùng cách tính mặc định của mô-đun.
 const { test } = require('node:test');
@@ -7,10 +7,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { serverFiles, serverSourceOf } = require('../helpers/server-source');
 
-// Chưa có public/kpi-score.js thì mỗi test thất bại với lỗi "Cannot find module" (đúng lý do), không dừng cả tệp.
+// Chưa có src/engine/kpi-score.js thì mỗi test thất bại với lỗi "Cannot find module" (đúng lý do), không dừng cả tệp.
 let KpiScore;
 try {
-  KpiScore = require('../../public/kpi-score.js');
+  KpiScore = require('../../src/engine/kpi-score.js');
 } catch (error) {
   KpiScore = new Proxy(
     {},

@@ -6,16 +6,16 @@
 // không viết cứng khoá mà registry có thể đổi, và khoá không có thì test ghi rõ "todo: registry chưa có khoá ..." thay vì đỏ vô cớ.
 const P = require('./period-api');
 const { pendingUnless, mentions } = require('./red');
-const registry = require('../../lib/params/registry');
-const { validateValue } = require('../../lib/params/validate');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const registry = require('../../src/params/registry');
+const { validateValue } = require('../../src/params/validate');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const { F, store } = P;
 
-// Đường Lưu tham số có đủ khi có số phiên bản chung (lib/params/config-rev.ts)
+// Đường Lưu tham số có đủ khi có số phiên bản chung (src/params/config-rev.ts)
 const READY = pendingUnless(
-  'R1: chưa có GET /api/settings/version và lib/params/config-rev.ts (đường Lưu tham số chưa vào)',
-  mentions('lib/params/config-rev.ts', /config_rev/)
+  'R1: chưa có GET /api/settings/version và src/params/config-rev.ts (đường Lưu tham số chưa vào)',
+  mentions('src/params/config-rev.ts', /config_rev/)
 );
 // Như READY nhưng thêm điều kiện khoá tìm được: todo ghi lý do cụ thể
 const readyWith = (found?, why?) => (READY.todo ? READY : found ? {} : { todo: `registry chưa có ${why}` });

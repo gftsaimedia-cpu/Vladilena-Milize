@@ -6,7 +6,7 @@ backups/
 
 # Dependencies, tool state, test output
 node_modules/
-public/.claude-flow/
+src/engine/.claude-flow/
 .claude/
 test-results/
 playwright-report/

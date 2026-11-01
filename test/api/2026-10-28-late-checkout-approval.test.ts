@@ -8,7 +8,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const P = require('../helpers/period-api');
-const explanations = require('../../lib/explanations');
+const explanations = require('../../src/domain/explanation/explanations');
 const heldDates = async (month?) =>
   new Map<any, any>(
     [...(await explanations.heldByUser(month))].map(([username, days]: any) => [username, days.map(d => d.date)])
@@ -116,7 +116,7 @@ test('Admin không duyệt: lượt giữ Quên Check-out, cả ngày không tí
   let s = await F.store.getSession(sessionId);
   assert.equal(s.entry.reason, 'forgot-out');
   assert.equal(s.entry.presOut, undefined);
-  const held = await require('../../lib/payroll-service').loadInputs(MONTH, { usernames: ['dung'] });
+  const held = await require('../../src/domain/payroll/payroll-service').loadInputs(MONTH, { usernames: ['dung'] });
   assert.deepEqual(held.people.get('dung').explanationHold, ['2026-10-20']);
   // duyệt rồi đổi ý
   await F.call('POST', `/explanations/${id}/decide`, { who: 'admin', body: { approve: true } });

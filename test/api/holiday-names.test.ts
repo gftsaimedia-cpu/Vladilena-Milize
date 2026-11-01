@@ -4,7 +4,7 @@
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const config = require('../../lib/config');
+const config = require('../../src/platform/config');
 
 const { F } = P;
 

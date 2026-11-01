@@ -1,12 +1,12 @@
 'use strict';
 // Phép tính của khoản điền thêm.
-// Hàm thuần public/pay-entries-calc.js và móc nhỏ của public/payroll-engine.js: khoản cộng vào tổng thu nhập, cờ miễn thuế chỉ có hiệu lực khi đã xác nhận,
+// Hàm thuần src/engine/pay-entries-calc.js và móc nhỏ của src/engine/payroll-engine.js: khoản cộng vào tổng thu nhập, cờ miễn thuế chỉ có hiệu lực khi đã xác nhận,
 // cờ bảo hiểm chỉ khi insurance.base = withFlaggedAllowances, khoản trừ sau thuế; không có khoản nào thì kết quả không đổi.
 // Mọi số tiền là đồng nguyên của người bịa (ca known-short-nv2-full-month và known-kpi-five-100-90-80-85-100).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayEntriesCalc = require('../../public/pay-entries-calc.js');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const PayEntriesCalc = require('../../src/engine/pay-entries-calc.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const { legacyParams } = require('../helpers/legacy-params');
 const golden = require('../fixtures/payroll-golden-v0.json');
 

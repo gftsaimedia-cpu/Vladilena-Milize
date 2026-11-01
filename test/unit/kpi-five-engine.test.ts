@@ -2,8 +2,8 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Params = require('../../public/payroll-params.js');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const Params = require('../../src/engine/payroll-params.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const { KNOWN_CASES } = require('../helpers/payroll-cases');
 
 const inputFor = (id?) => {

@@ -3,8 +3,8 @@ process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'backend-followup-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 
 let base;

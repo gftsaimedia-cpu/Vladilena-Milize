@@ -1,12 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { vnDayIso } from './audit.helpers';
-const store = require('../../../lib/db');
-const { HttpError } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { validMonth, validDate } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const config = require('../../../lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
+const store = require('../../platform/db');
+const { HttpError } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { validMonth, validDate } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
 
 @Controller('api')
 export class AuditController {

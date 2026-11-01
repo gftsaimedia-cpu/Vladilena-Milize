@@ -13,7 +13,7 @@ process.env.SESSION_SECRET = 'web-dist-tests';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const store = require('../../lib/db');
+const store = require('../../src/platform/db');
 const server = require('../helpers/server');
 let base;
 
@@ -99,7 +99,7 @@ test('mọi phản hồi tĩnh vẫn mang tiêu đề bảo mật', async () => 
 test('chưa build web/dist: "/" trả 503 nói rõ cách build, file khác 404, không chuyển hướng', () => {
   const { spawnSync } = require('node:child_process');
   const code = `
-    const { serveStatic } = require('./lib/http');
+    const { serveStatic } = require('./src/platform/http');
     const out = [];
     for (const p of ['/', '/admin/tong-quan', '/payroll-engine.js']) {
       const res = { writeHead(s, h) { this.s = s; this.h = h || {}; }, end(b) { out.push({ p, s: this.s, loc: this.h.Location || null, b: String(b || '') }); } };

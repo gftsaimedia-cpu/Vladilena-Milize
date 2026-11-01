@@ -7,7 +7,7 @@ process.env.REORG_FROM_MONTH = '2026-10';
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const { store } = F;
 const M = '2026-10';

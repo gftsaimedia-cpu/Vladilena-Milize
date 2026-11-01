@@ -1,14 +1,14 @@
 'use strict';
-// Chứng minh: cây của đồ thị công thức tháng MẶC ĐỊNH (public/payroll-graph.js) cho ĐÚNG từng bit số của bộ máy (m.trace) trên
+// Chứng minh: cây của đồ thị công thức tháng MẶC ĐỊNH (src/engine/payroll-graph.js) cho ĐÚNG từng bit số của bộ máy (m.trace) trên
 // 300 ca vàng và N ca so sánh kép có hạt giống. Không dung sai: so bằng Object.is. Lệch một ca là thoát 1 và in ca đó.
 //
 //   node scripts/params/prove-default-graph.ts [--cases=1000] [--seed=20261016]
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
-const PayrollEngine = require(path.join(ROOT, 'public/payroll-engine.js'));
-const PayrollParams = require(path.join(ROOT, 'public/payroll-params.js'));
-const Graph = require(path.join(ROOT, 'public/payroll-graph.js'));
+const PayrollEngine = require(path.join(ROOT, 'src/engine/payroll-engine.js'));
+const PayrollParams = require(path.join(ROOT, 'src/engine/payroll-params.js'));
+const Graph = require(path.join(ROOT, 'src/engine/payroll-graph.js'));
 const { generateCases } = require(path.join(ROOT, 'test/helpers/payroll-cases.ts'));
 const { readGolden } = require(path.join(ROOT, 'test/helpers/golden.ts'));
 

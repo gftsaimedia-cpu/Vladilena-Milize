@@ -3,10 +3,10 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 process.env.DB_PATH = ':memory:';
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
-  paramsStore = require('../../lib/params/store'),
-  { DEFAULTS } = require('../../public/payroll-params.js'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
+  paramsStore = require('../../src/params/store'),
+  { DEFAULTS } = require('../../src/engine/payroll-params.js'),
   server = require('../helpers/server');
 
 let base, cookie;

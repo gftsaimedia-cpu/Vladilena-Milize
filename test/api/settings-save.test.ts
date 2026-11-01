@@ -11,7 +11,7 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const audit = require('../../lib/audit');
+const audit = require('../../src/platform/audit');
 
 const { F, store } = S;
 const monthOf = S.monthPool();
@@ -33,8 +33,8 @@ const TWO = S.readyWith(KEYS.length >= 2, 'hai khoá số Admin sửa được v
 const HISTORY = ONE.todo
   ? ONE
   : S.pendingUnless(
-      'GET /settings/params/history chưa có chính sách quyền trong lib/authz.ts (TK 4.7, ngoài hợp đồng R1)',
-      S.mentions('lib/authz.ts', /settings\/params\/history/)
+      'GET /settings/params/history chưa có chính sách quyền trong src/platform/authz.ts (TK 4.7, ngoài hợp đồng R1)',
+      S.mentions('src/platform/authz.ts', /settings\/params\/history/)
     );
 // Tháng của mỗi test chạy tới 2027: ngày vào làm là đầu năm của tháng đó để số phép cộng tay 30 ngày nằm trong quỹ phép của đúng năm đó
 const startOf = (month?) => (month < '2027' ? '2026-01-05' : `${month.slice(0, 4)}-01-01`);
@@ -237,7 +237,7 @@ test(
     const A = monthOf();
     await S.setupMonth(A, 'calculated'); // trước A còn tháng mở nên tháng mặc định có thể nhỏ hơn A: so với earliestOpenMonth()
     const base = KEYS[0];
-    const earliest = await require('../../lib/params/save').earliestOpenMonth();
+    const earliest = await require('../../src/params/save').earliestOpenMonth();
     const [value] = await S.differing(base, earliest);
     const rev = await S.paramsRevOf(earliest);
     const res = await S.save({ changes: [{ key: base.key, value }], reason: S.REASON, expectedRev: rev });

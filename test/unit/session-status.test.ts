@@ -1,14 +1,14 @@
 'use strict';
-// Trạng thái hiển thị của một lượt chấm công (lib/domain/attendance/session-status.ts): mỗi mã, các mốc 15 phút trễ / 30 phút Check-out muộn,
+// Trạng thái hiển thị của một lượt chấm công (src/domain/attendance/session-status.ts): mỗi mã, các mốc 15 phút trễ / 30 phút Check-out muộn,
 // thứ tự ưu tiên và quyết định mới nhất thắng. Ca n1 08:00–17:00.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const ActualHours = require('../../public/actual-hours.js');
-const config = require('../../lib/config');
-const { lateCheckoutMin } = require('../../lib/domain/explanation/late-checkout');
-const { SessionStatus } = require('../../lib/domain/attendance/session-status');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
+const ActualHours = require('../../src/engine/actual-hours.js');
+const config = require('../../src/platform/config');
+const { lateCheckoutMin } = require('../../src/domain/explanation/late-checkout');
+const { SessionStatus } = require('../../src/domain/attendance/session-status');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
 
 const GRACE = ActualHours.RULE.GRACE_MIN;
 const classifier = new SessionStatus({

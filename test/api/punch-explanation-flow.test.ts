@@ -9,7 +9,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const AS = require('../../public/attendance-status.js');
+const AS = require('../../src/engine/attendance-status.js');
 
 const { MONTH } = X;
 const web = (file?) => import(`../../web/src/${file}`);
@@ -151,7 +151,7 @@ test('Check-out sớm không kèm lý do: 409 CHECKOUT_NEEDS_EXPLANATION, lượ
 
 test('Lý do chỉ có khoảng trắng hoặc quá dài bị chặn ở giao diện đúng theo giới hạn máy chủ nhận; máy chủ cũng không nhận lý do rỗng', async () => {
   const { checkExplanationText, EXPLANATION_MAX } = await web('builders/staff-requests/punch-explanation.js');
-  const { TEXT_MAX } = require('../../lib/domain/explanation/explanation-service');
+  const { TEXT_MAX } = require('../../src/domain/explanation/explanation-service');
   assert.equal(EXPLANATION_MAX, TEXT_MAX);
   assert.ok(checkExplanationText('   ').error);
   assert.ok(checkExplanationText(undefined).error);

@@ -4,7 +4,7 @@
 // Đặt ở đây để các file test dùng chung. Yêu cầu F.start() đã chạy (máy chủ đang nghe).
 const http = require('node:http');
 const assert = require('node:assert/strict');
-const events = require('../../lib/events');
+const events = require('../../src/platform/events');
 const F = require('./api-fixture');
 
 async function openStream(who?, headers: any = {}) {

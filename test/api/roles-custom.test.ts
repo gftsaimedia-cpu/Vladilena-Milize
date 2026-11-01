@@ -1,12 +1,12 @@
 'use strict';
-// Vai trò tuỳ chỉnh (lib/roles.ts, lib/domain/roles.js, lib/authz.ts):
+// Vai trò tuỳ chỉnh (src/domain/roles/roles.ts, src/domain/roles.js, src/platform/authz.ts):
 //   GET /api/roles, POST /api/roles, PUT /api/roles/:code, POST /api/roles/:code/deprecate; gán qua PUT /api/staff/:u/roles
 // Vai trò mặc định chỉ đọc; roles.manage chỉ của Admin; vai trò ngưng dùng mất năng lực ngay. Chỉ người bịa (qa_*).
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
-const config = require('../../lib/config');
+const authz = require('../../src/platform/authz');
+const config = require('../../src/platform/config');
 
 const { store } = F;
 const REASON = 'Phân quyền theo quyết định tháng này';

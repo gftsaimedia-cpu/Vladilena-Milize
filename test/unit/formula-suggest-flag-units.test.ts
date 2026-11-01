@@ -1,5 +1,5 @@
 'use strict';
-// Ba tính năng của public/formula.js:
+// Ba tính năng của src/engine/formula.js:
 //   1. PARSE_UNKNOWN_WORD có `suggestionReplace` (một khoảng chữ cho mỗi gợi ý, cùng thứ tự) và `replace`: khoảng chữ phủ cả nhãn đã biết
 //      liền kề, nên nhận một gợi ý không bao giờ làm lặp chữ;
 //   2. đơn vị 'flag' (cờ đúng/sai) cho giá trị điều kiện: dùng được trong nếu/và/hoặc/không, không cộng trừ hay so sánh được
@@ -12,7 +12,7 @@ const F = require('../helpers/formula-fixture');
 const { STD_VOCAB } = F;
 const opts = F.READY();
 const load = F.loadFormula;
-const starter = () => F.loadFormula() && require('../../public/formula-vocab.js');
+const starter = () => F.loadFormula() && require('../../src/engine/formula-vocab.js');
 
 // STD_VOCAB khai "ở iDorm" và "giữ được chuyên cần" là 'count'; FLAG_VOCAB khai 'flag'
 const FLAG_VOCAB = STD_VOCAB.map(w => (w.unit === 'count' ? { ...w, unit: 'flag' } : w));

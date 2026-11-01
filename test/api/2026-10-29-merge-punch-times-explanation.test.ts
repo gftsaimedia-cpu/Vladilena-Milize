@@ -8,8 +8,8 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const { cellsOf } = require('../../lib/slip-paid');
-const { formulasOf } = require('../../lib/slip-formulas');
+const { cellsOf } = require('../../src/domain/payroll/slip-paid');
+const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const { evaluate, plainAll } = require('../helpers/formula-eval');
 
 const { MONTH } = X;
@@ -18,7 +18,7 @@ const clone = (v?) => JSON.parse(JSON.stringify(v));
 // Kết quả tính lương của một người cùng hồ sơ và tham số, để dựng công thức như lúc phát hành phiếu
 async function slipOf(username?) {
   await F.at('2026-10-29T12:00:00');
-  const service = require('../../lib/payroll-service');
+  const service = require('../../src/domain/payroll/payroll-service');
   const inputs = await service.loadInputs(MONTH, { usernames: [username] });
   const staff = inputs.people.get(username).staff;
   const params = (await service.paramsFor(MONTH)).params;

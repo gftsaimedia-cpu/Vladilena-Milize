@@ -1,10 +1,10 @@
 'use strict';
-// Mọi khoá trong lib/ops/route-classes.ts phải có thật trong ROUTE_CAPS; Check-in/out và đăng nhập không bao giờ nằm trong danh sách route nặng.
+// Mọi khoá trong src/ops/route-classes.ts phải có thật trong ROUTE_CAPS; Check-in/out và đăng nhập không bao giờ nằm trong danh sách route nặng.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
-const { HEAVY_ROUTES, UNLIMITED_WRITE_ROUTES } = require('../../lib/ops/route-classes');
+const authz = require('../../src/platform/authz');
+const { HEAVY_ROUTES, UNLIMITED_WRITE_ROUTES } = require('../../src/ops/route-classes');
 
 test('mọi khoá route nặng và route không giới hạn ghi đều có chính sách quyền', () => {
   for (const key of [...HEAVY_ROUTES, ...UNLIMITED_WRITE_ROUTES])

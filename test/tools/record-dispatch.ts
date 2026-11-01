@@ -1,6 +1,6 @@
 'use strict';
 // Ghi / so "bảng vàng điều phối" của máy chủ:
-// cho MỌI khoá của lib/authz.ts → ROUTE_CAPS và một danh sách đường dẫn lạ, gọi API thật (DB trong bộ nhớ, đồng hồ giả)
+// cho MỌI khoá của src/platform/authz.ts → ROUTE_CAPS và một danh sách đường dẫn lạ, gọi API thật (DB trong bộ nhớ, đồng hồ giả)
 // với ba loại người dùng (chưa đăng nhập, nhân sự qa_nv, Admin) và ghi: mã HTTP, mã lỗi, thông báo lỗi, HÌNH DẠNG phản hồi
 // (chỉ tên khoá và kiểu, không bao giờ giá trị) và vài tiêu đề phản hồi (Set-Cookie chỉ ghi các thuộc tính, không ghi giá trị).
 // Không ghi tên người, tiền hay điểm. Bảng ghi trên mã cũ rồi mọi lần chia file phải khớp từng dòng.
@@ -33,7 +33,7 @@ const ROOT = path.join(__dirname, '../..');
 const GOLDEN = path.join(ROOT, 'test/fixtures/route-dispatch-golden.json');
 const fx = require('../helpers/api-fixture');
 const { store, auth } = fx;
-const authz = require('../../lib/authz');
+const authz = require('../../src/platform/authz');
 
 const MONTH = '2026-11'; // tháng của đồng hồ giả (thứ Hai 02/11/2026 09:00)
 const PREV = '2026-10';
@@ -404,7 +404,7 @@ async function seedWorld() {
       passHash: PASS_HASH
     });
   await store.lockStaff('qa_locked', 'admin');
-  await require('../../lib/agents').set(true); // route Trợ lý / AI chạy thật; một kịch bản tắt Agents không được rò sang ô sau
+  await require('../../src/platform/agents').set(true); // route Trợ lý / AI chạy thật; một kịch bản tắt Agents không được rò sang ô sau
   // staff_roles chỉ-thêm-dòng nên reset() không xoá được: thu hồi vai trò còn lại của ô trước
   await store.db
     .prepare('UPDATE staff_roles SET revoked_at = ? WHERE revoked_at IS NULL')

@@ -4,7 +4,7 @@
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
+const store = require('../../src/platform/db');
 const { createQueryBuilder, SettingsRepository } = require('../../src/data');
 
 after(() => store.db.close());

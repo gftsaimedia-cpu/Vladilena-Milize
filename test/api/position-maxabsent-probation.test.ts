@@ -1,5 +1,5 @@
 'use strict';
-// Chức vụ (lib/params/positions.ts → classify, validate.js → allowanceErrors, save.js → copyBatch):
+// Chức vụ (src/params/positions.ts → classify, validate.js → allowanceErrors, save.js → copyBatch):
 //   (a) type.ctv.maxAbsent và type.tts.maxAbsent (số ngày nghỉ tối đa giữ chuyên cần) lưu được qua PUT /api/settings/params;
 //   (b) chức vụ có chuyên cần > 0 mà thiếu maxAbsent bị chặn lúc lưu (nếu lưu thì mọi phiếu của chức vụ đó thành lỗi);
 //   (c) không có thử việc, nên type.<mã>.probationPayPct chưa nối: Lưu thường bị 400 PARAM_NOT_WIRED;

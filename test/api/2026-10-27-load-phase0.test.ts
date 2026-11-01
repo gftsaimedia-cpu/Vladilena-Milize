@@ -13,8 +13,8 @@ fs.writeFileSync(
 );
 process.env.WEB_DIST = dist;
 const F = require('../helpers/api-fixture');
-const { RuntimeMonitor } = require('../../lib/ops/runtime-monitor');
-const { attachAccessLog } = require('../../lib/ops/access-log');
+const { RuntimeMonitor } = require('../../src/ops/runtime-monitor');
+const { attachAccessLog } = require('../../src/ops/access-log');
 
 const lines: any[] = [];
 let base;
@@ -75,7 +75,7 @@ test('nhật ký truy cập: mã yêu cầu ở tiêu đề khớp dòng log, kh
 });
 
 test('số lần ghi của DB (khoá bộ nhớ đệm): đọc không làm đổi, mọi lệnh ghi đều làm tăng', async () => {
-  const { dataRevision } = require('../../lib/ops/shared-cache');
+  const { dataRevision } = require('../../src/ops/shared-cache');
   const before = await dataRevision();
   await F.store.getSetting('holidays', []);
   await F.store.listStaff();

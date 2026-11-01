@@ -3,8 +3,8 @@
 // lịch, khoá nối thêm, ngưỡng AI). Khoá thiếu đọc bằng MẶC ĐỊNH, không ném PARAM_MISSING, để verify và tính lại kỳ cũ cho đúng số lúc chụp.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS, LATE_KEYS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS, LATE_KEYS } = require('../../src/engine/payroll-params.js');
 const { readGolden } = require('../helpers/golden');
 const clone = (value?) => JSON.parse(JSON.stringify(value));
 const snapshotBefore = () => {

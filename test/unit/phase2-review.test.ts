@@ -4,7 +4,7 @@ process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runGolden, closeTo } = require('../helpers/pay-oracle');
-const service = require('../../lib/payroll-service');
+const service = require('../../src/domain/payroll/payroll-service');
 
 test('GĐ2 ④: thanhPhanOf cộng khối phụ cấp thêm vào phụ cấp (③): tổng tám thành phần ngày + phụ cấp + KPI − trừ khớp tổng thu nhập', async () => {
   const block = {

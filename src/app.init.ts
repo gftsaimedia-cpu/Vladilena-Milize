@@ -1,6 +1,6 @@
-const store = require('../lib/db');
-import Roles = require('../lib/roles');
-import { monthParams, typeParam } from '../lib/request-rules';
+const store = require('./platform/db');
+import Roles = require('./domain/roles/roles');
+import { monthParams, typeParam } from './platform/request-rules';
 
 /** Việc khởi tạo cấp ứng dụng, chạy một lần khi dựng máy chủ (kể cả khi test nạp server). */
 export function initApp(): void {

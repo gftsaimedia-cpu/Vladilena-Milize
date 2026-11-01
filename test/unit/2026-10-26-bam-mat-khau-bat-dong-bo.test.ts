@@ -5,7 +5,7 @@ process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'qa-bam-mat-khau-bat-dong-bo';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const auth = require('../../lib/auth');
+const auth = require('../../src/platform/auth');
 
 test('băm bằng bản bất đồng bộ thì bản đồng bộ kiểm được, và ngược lại', async () => {
   const asyncHash = await auth.hashPasswordAsync('mat-khau-vi-du');

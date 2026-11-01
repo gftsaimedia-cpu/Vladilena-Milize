@@ -2,7 +2,7 @@
 // An toàn của công thức gõ chữ:
 //   - không eval, new Function, vm, setTimeout(chuỗi), import() động, require tính từ chuỗi, biểu thức chính quy dựng từ dữ liệu;
 //   - cây chỉ gồm các lớp nút trong danh sách đóng; deserialize kiểm lại từng nút, không tin dữ liệu đã lưu.
-// Nhóm quét tĩnh luôn chạy trên public/ và lib/; phần còn lại chạy như `todo` khi thiếu public/formula.js.
+// Nhóm quét tĩnh luôn chạy trên public/ và lib/; phần còn lại chạy như `todo` khi thiếu src/engine/formula.js.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -29,7 +29,7 @@ const FORBIDDEN = [
   [/\bimport\s*\(/, 'import() động'],
   [/\brequire\s*\(\s*[^'")\s]/, 'require với đường dẫn tính từ chuỗi']
 ];
-// Chặt hơn, chỉ cho public/formula*.js: chữ và từ vựng do Admin sửa được nên không dựng RegExp từ chúng (nguy cơ ReDoS)
+// Chặt hơn, chỉ cho src/engine/formula*.js: chữ và từ vựng do Admin sửa được nên không dựng RegExp từ chúng (nguy cơ ReDoS)
 const FORMULA_ONLY = [
   [/\bnew\s+RegExp\b|(^|[^.\w])RegExp\s*\(/, 'RegExp dựng từ chuỗi'],
   [/\bwith\s*\(/, 'with(...)'],
@@ -77,7 +77,7 @@ test('Bộ quét tĩnh bắt đúng mã nguy hiểm và bỏ qua chú thích (t�
 // Không có danh sách cho phép: mọi file .js của public/, lib/ và server.js đều không được dùng mã động.
 test('no-dynamic-code: không file .js nào của public/ và lib/ dùng eval, new Function, vm, setTimeout(chuỗi), import() động, require động (không ngoại lệ)', () => {
   const offenders: any[] = [];
-  for (const file of [...jsFiles('public'), ...jsFiles('lib'), 'src/server.ts']) {
+  for (const file of [...jsFiles('src')]) {
     const hits = scan(fs.readFileSync(path.join(ROOT, file), 'utf8'));
     if (hits.length) offenders.push(`${file}: ${hits.join(', ')}`);
   }
@@ -85,25 +85,25 @@ test('no-dynamic-code: không file .js nào của public/ và lib/ dùng eval, n
 });
 
 test(
-  'public/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào',
+  'src/engine/formula*.js: không dùng mã động, kể cả RegExp dựng từ từ vựng, và không có ngoại lệ nào',
   opts,
   async () => {
     await load(); // thiếu file thì ném "module missing"
-    const files = fs.readdirSync(path.join(ROOT, 'public')).filter(name => /^formula.*\.js$/.test(name));
+    const files = fs.readdirSync(path.join(ROOT, 'src/engine')).filter(name => /^formula.*\.js$/.test(name));
     assert.ok(files.includes('formula.js'));
     for (const name of files) {
-      const source = fs.readFileSync(path.join(ROOT, 'public', name), 'utf8');
+      const source = fs.readFileSync(path.join(ROOT, 'src/engine', name), 'utf8');
       assert.deepEqual(scan(source, true), [], `public/${name}`);
     }
   }
 );
 
 test(
-  'public/formula.js: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
+  'src/engine/formula.js: chạy được trong trình duyệt giả (vm không có module/require/window): gắn Formula vào đối tượng toàn cục',
   opts,
   async () => {
     await load();
-    const source = fs.readFileSync(path.join(ROOT, 'public/formula.js'), 'utf8');
+    const source = fs.readFileSync(path.join(ROOT, 'src/engine/formula.js'), 'utf8');
     const sandbox = vm.createContext({});
     vm.runInContext(source, sandbox, { timeout: 2000 });
     const api = sandbox.Formula;
@@ -116,11 +116,11 @@ test(
 );
 
 test(
-  'public/formula.js: không chạm DOM, mạng, đồng hồ hay đĩa (mô-đun thuần dùng chung trình duyệt và máy chủ)',
+  'src/engine/formula.js: không chạm DOM, mạng, đồng hồ hay đĩa (mô-đun thuần dùng chung trình duyệt và máy chủ)',
   opts,
   async () => {
     await load();
-    const code = stripComments(fs.readFileSync(path.join(ROOT, 'public/formula.js'), 'utf8'));
+    const code = stripComments(fs.readFileSync(path.join(ROOT, 'src/engine/formula.js'), 'utf8'));
     for (const [pattern, label] of [
       [/\bdocument\b/, 'document'],
       [/\bwindow\b/, 'window'],

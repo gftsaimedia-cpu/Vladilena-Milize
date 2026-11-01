@@ -1,8 +1,8 @@
 'use strict';
 // Kiểm kê tĩnh các chỗ cảnh báo và các chỗ từ chối:
-//   - mọi mã quy trình, nghiệp vụ (kỳ, tự duyệt, sàn luật tham số, ngày lễ) chỉ ghi cảnh báo qua `warnIf` của lib/warnings.ts, không `throw` thẳng;
+//   - mọi mã quy trình, nghiệp vụ (kỳ, tự duyệt, sàn luật tham số, ngày lễ) chỉ ghi cảnh báo qua `warnIf` của src/platform/warnings.ts, không `throw` thẳng;
 //   - mọi mã nhóm K1 (bảo mật, quyền), K2 (định dạng, không tồn tại, trạng thái không thể) và K3 (chống ghi đè) KHÔNG BAO GIỜ đi qua `warnIf`.
-// Dò mã nguồn (server.js và lib/**/*.js, trừ lib/warnings.ts), không chạy máy chủ. Chặn lùi: thêm một chỗ ném mã cảnh báo sẽ làm test này đỏ.
+// Dò mã nguồn (server.js và lib/**/*.js, trừ src/platform/warnings.ts), không chạy máy chủ. Chặn lùi: thêm một chỗ ném mã cảnh báo sẽ làm test này đỏ.
 // Mã không phải HttpError có mã (câu lỗi trần của lịch ước tính) không kiểm được ở đây; chúng nằm trong test/api/warnings-cases.test.ts.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,7 +19,6 @@ function sources() {
       else if (/.(js|ts)$/.test(entry.name) && path.basename(full) !== 'warnings.js') out.push(full);
     }
   };
-  walk(path.join(ROOT, 'lib'));
   walk(path.join(ROOT, 'src'));
   return out.map(file => ({
     file: path.relative(ROOT, file).replaceAll('\\', '/'),
@@ -46,7 +45,7 @@ const WARN_CODES = [
 ];
 // Kỳ đã chốt: cảnh báo PERIOD_LOCKED ở phần lớn chỗ ghi; riêng vài chỗ ném thẳng vì phiếu đã chốt không đổi được (tạm ứng)
 const LOCKED_CODE = 'PERIOD_LOCKED';
-// Lý do / ghi chú tuỳ chọn (optionalReason, bọc thành softReason trong lib/db.ts): thiếu thì lưu bình thường
+// Lý do / ghi chú tuỳ chọn (optionalReason, bọc thành softReason trong src/platform/db.ts): thiếu thì lưu bình thường
 const SOFT_PATH_CODES = ['NOTE_REQUIRED'];
 // Ba cổng triển khai môi trường thật luôn từ chối; bật hay tắt bằng biến môi trường lúc triển khai
 const DEPLOY_GATES = ['PARAMS_DEFAULTS_ONLY', 'SCHEDULE_EDIT_NOT_ALLOWED', 'SHIFT_EDIT_NOT_ALLOWED'];

@@ -19,7 +19,7 @@ ban-giao/
 .claude/
 # Bản build giao diện Vue trên máy dev: image tự build lại ở stage "web" của Dockerfile
 web/dist
-public/.claude-flow/
+src/engine/.claude-flow/
 test/
 docs/
 *.md

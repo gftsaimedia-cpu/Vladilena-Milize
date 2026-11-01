@@ -1,18 +1,18 @@
 import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const paramsSave = require('../../../lib/params/save');
-const events = require('../../../lib/events');
-const { HttpError, readJson } = require('../../../lib/http');
-const { validMonth } = require('../../../lib/domain/input');
-const { rulesFor, vnToday } = require('../../../lib/request-rules');
-const { container } = require('../../../lib/domain/container');
-const { view, shiftsOf } = require('../../../lib/domain/shifts');
+const paramsSave = require('../../params/save');
+const events = require('../../platform/events');
+const { HttpError, readJson } = require('../../platform/http');
+const { validMonth } = require('../../domain/input');
+const { rulesFor, vnToday } = require('../../platform/request-rules');
+const { container } = require('../../domain/container');
+const { view, shiftsOf } = require('../../domain/shifts');
 
 const bad = (message: string, code: string) => new HttpError(400, message, { code });
 
 /**
  * Ca làm (Cài đặt › Kỳ lương & chấm công › Ca làm): bao quanh các khoá shift.preset.<mã>.in | out của bộ tham số, nên tháng áp dụng,
- * lý do, khoá kỳ, nhật ký và kiểm giờ ca đi qua lib/params/save.ts như mọi tham số. Mã ca là mã của danh mục ca (Normal1…Night2);
+ * lý do, khoá kỳ, nhật ký và kiểm giờ ca đi qua src/params/save.ts như mọi tham số. Mã ca là mã của danh mục ca (Normal1…Night2);
  * đầu vào nhận cả mã mới lẫn mã cũ.
  */
 @Controller('api')
@@ -47,7 +47,7 @@ export class SettingsShiftsController {
         { key: `shift.preset.${preset}.out`, value: item.out }
       );
     }
-    // expectedRev bắt buộc (không tự điền): thiếu là 400 PARAM_REV_REQUIRED, lệch là 409 PARAMS_STALE (lib/params/save.ts)
+    // expectedRev bắt buộc (không tự điền): thiếu là 400 PARAM_REV_REQUIRED, lệch là 409 PARAMS_STALE (src/params/save.ts)
     const saved = await paramsSave.save(me, actx, {
       changes,
       effectiveMonth: b.effectiveMonth,

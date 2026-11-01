@@ -6,11 +6,11 @@ const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const store = require('../../lib/db');
-const registry = require('../../lib/params/registry');
-const { RULES } = require('../../lib/ai/review.ts');
-const { THRESHOLDS, PARAM_KEY } = require('../../lib/ai/thresholds.ts');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const store = require('../../src/platform/db');
+const registry = require('../../src/params/registry');
+const { RULES } = require('../../src/ai/review');
+const { THRESHOLDS, PARAM_KEY } = require('../../src/ai/thresholds');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 after(() => store.db.close());
 
@@ -52,7 +52,7 @@ test('không tệp nào trong lib, public, scripts, server.js và spec còn nh�
       const rel = path.posix.join(folder, entry.name);
       return entry.isDirectory() ? walk(rel) : /\.(js|cjs|ts|html|json|md)$/.test(entry.name) ? [rel] : [];
     });
-  const files = ['src/server.ts', ...walk('lib'), ...walk('public'), ...walk('scripts'), ...walk('spec')];
+  const files = [...walk('src'), ...walk('scripts'), ...walk('spec')];
   assert.ok(files.length > 100, 'quét đủ tệp');
   for (const file of files) {
     const text = await read(file);

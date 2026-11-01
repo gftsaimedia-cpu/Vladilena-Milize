@@ -3,9 +3,9 @@
 //   runGolden(id, over)  chạy bộ máy dùng chung (DEFAULTS cộng `over`) trên đầu vào của một ca vàng hoặc ca có tên; không chạm DB
 //   oracle               tái tính ĐỘC LẬP phần đuôi luật (thuế lũy tiến, khấu trừ 10 %, bảo hiểm, thực lĩnh) bằng hằng số viết tay ở đây,
 //                        KHÔNG đọc bộ máy, để số tiền được kiểm bằng hai đường tính khác nhau
-// Hằng số dưới đây sao từ public/payroll-params.js chỉ để làm chuẩn so sánh; bộ máy không đọc chúng.
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+// Hằng số dưới đây sao từ src/engine/payroll-params.js chỉ để làm chuẩn so sánh; bộ máy không đọc chúng.
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { readGolden } = require('./golden');
 const { LEGACY_OVERRIDE, legacyParams } = require('./legacy-params');
 const { KNOWN_CASES, attendDeclaredDays } = require('./payroll-cases');

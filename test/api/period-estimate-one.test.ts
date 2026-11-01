@@ -1,7 +1,7 @@
 'use strict';
 // GET /api/periods/:month/estimates/:username: phiếu ước tính đầy đủ của MỘT người khi kỳ chưa tính lương.
-// Giao diện Admin (public/admin/view-ky-luong-phieu.js → A.actions.kyslip) gọi đường dẫn này để hiện phiếu ước tính.
-// Hợp đồng: cùng dạng với GET /periods/:month/payslips/:username (lib/periods.ts → payslip) nhưng tính trực tiếp như GET /periods/:month/estimates, không ghi gì:
+// Giao diện Admin (src/engine/admin/view-ky-luong-phieu.js → A.actions.kyslip) gọi đường dẫn này để hiện phiếu ước tính.
+// Hợp đồng: cùng dạng với GET /periods/:month/payslips/:username (src/domain/period/periods.ts → payslip) nhưng tính trực tiếp như GET /periods/:month/estimates, không ghi gì:
 //   200 { month, period, run: null, source: 'estimate', payslip: { …hàng của danh sách estimates, staffTerms, snapshot } };
 //   quyền payroll.view phạm vi toàn bộ (như danh sách); chưa đăng nhập 401; nhân sự 403 FORBIDDEN_CAP; tên không có trong bảng lương 404 PAYSLIP_NOT_FOUND;
 //   tháng sai 400 BAD_MONTH; hồ sơ sai (bậc/loại) 200 với payslip.status 'error' và errorCode, không bao giờ 0 ₫.

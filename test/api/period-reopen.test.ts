@@ -1,5 +1,5 @@
 'use strict';
-// Mở lại kỳ lương (lib/periods.ts → reopen, lib/db.ts → periods.reopen, server.js):
+// Mở lại kỳ lương (src/domain/period/periods.ts → reopen, src/platform/db.ts → periods.reopen, server.js):
 //   - C&B (period.reopen) chỉ mở về `calculated`; về `open` hoặc `attendance_locked` cần period.reopen.inputs (Admin), nếu không 403 FORBIDDEN_CAP;
 //   - lý do không bắt buộc (thiếu, rỗng hay ngắn đều được, quá 300 ký tự là 400 REASON_REQUIRED); kỳ `paid` mở lại được kèm cảnh báo PERIOD_STATE;
 //   - mở lại không xoá gì: lần chạy thành `superseded`, phiếu giữ nguyên byte; lần tính kế tiếp là run_no mới;

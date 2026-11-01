@@ -2,18 +2,18 @@ import { Controller, Post, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { Reply } from '../../http/reply';
 import { LOCKED_MESSAGE, loginAddress } from './auth.helpers';
-const store = require('../../../lib/db');
-const auth = require('../../../lib/auth');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { publicStaff } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
-const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain dựng một lần
-const agents = require('../../../lib/agents'); // công tắc Agents
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const config = require('../../../lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
-const { myPosition } = require('../../../lib/domain/positions'); // cờ quyền lợi và chức vụ
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const store = require('../../platform/db');
+const auth = require('../../platform/auth');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { nowIso } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { publicStaff } = require('../../domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
+const { container } = require('../../domain/container'); // các lớp của src/domain dựng một lần
+const agents = require('../../platform/agents'); // công tắc Agents
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
+const { myPosition } = require('../../domain/positions'); // cờ quyền lợi và chức vụ
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const { hashGate } = require('../../http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
 
 @Controller('api')

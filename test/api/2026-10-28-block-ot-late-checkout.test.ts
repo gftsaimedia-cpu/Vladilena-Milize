@@ -44,7 +44,7 @@ test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên 
   assert.equal(done.data.lastSession.entry.presOut, undefined);
   assert.equal(done.data.pending, 'forgot-out');
   // Admin thấy giải trình; chưa duyệt thì ngày đó bị giữ lương, duyệt xong thì hết giữ; không duyệt thì vẫn giữ; nhân sự không tự duyệt được
-  const explanations = require('../../lib/explanations');
+  const explanations = require('../../src/domain/explanation/explanations');
   const heldDates = async (month?) =>
     new Map<any, any>(
       [...(await explanations.heldByUser(month))].map(([username, days]: any) => [username, days.map(d => d.date)])
@@ -66,7 +66,9 @@ test('Check-out muộn quá 30 phút: cần giải trình; lượt thành Quên 
   assert.equal(rejected.data.item.status, 'rejected');
   assert.equal((await F.store.getSession(sessionId)).entry.reason, 'forgot-out'); // không duyệt: lượt giữ Quên Check-out
   // bộ tính lương nhận ngày bị giữ: người này có explanationHold, người khác thì không
-  const held = await require('../../lib/payroll-service').loadInputs(MONTH, { usernames: ['binh', 'an'] });
+  const held = await require('../../src/domain/payroll/payroll-service').loadInputs(MONTH, {
+    usernames: ['binh', 'an']
+  });
   assert.deepEqual(held.people.get('binh').explanationHold, ['2026-10-14']);
   assert.equal(held.people.get('an').explanationHold, undefined);
   assert.deepEqual((await heldDates(MONTH)).get('binh'), ['2026-10-14']); // không duyệt: ngày đó vẫn không tính lương

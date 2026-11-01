@@ -6,7 +6,7 @@
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { PayrollPolicy } = require('../../lib/domain/payroll/policy');
+const { PayrollPolicy } = require('../../src/domain/payroll/policy');
 
 const { F, flow, store } = P;
 

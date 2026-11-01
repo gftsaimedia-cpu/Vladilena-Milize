@@ -5,8 +5,8 @@
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const F = require('../helpers/schedule-fixtures');
 
 const LONG = F.nvStaff({ dependants: 1, contract: 'long' });

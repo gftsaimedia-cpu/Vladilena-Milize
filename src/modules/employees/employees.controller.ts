@@ -1,13 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const authz = require('../../../lib/authz');
-const config = require('../../../lib/config');
-const audit = require('../../../lib/audit');
-const { HttpError } = require('../../../lib/http');
-const { validMonth } = require('../../../lib/domain/input');
-const { vnToday } = require('../../../lib/request-rules');
-const { container } = require('../../../lib/domain/container');
-const { UUID_RE } = require('../../../lib/domain/employee/employee-repository');
+const authz = require('../../platform/authz');
+const config = require('../../platform/config');
+const audit = require('../../platform/audit');
+const { HttpError } = require('../../platform/http');
+const { validMonth } = require('../../domain/input');
+const { vnToday } = require('../../platform/request-rules');
+const { container } = require('../../domain/container');
+const { UUID_RE } = require('../../domain/employee/employee-repository');
 
 const bad = (message: string, code: string) => new HttpError(400, message, { code });
 const notFound = () => new HttpError(404, 'Không có nhân viên này', { code: 'EMPLOYEE_NOT_FOUND' });

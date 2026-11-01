@@ -1,17 +1,17 @@
 'use strict';
-// Module timesheet (lib/domain/timesheet/*): bộ luật khai Lịch ước tính. Trọng tâm: thứ tự cảnh báo giữ nguyên, thêm luật không phải
+// Module timesheet (src/domain/timesheet/*): bộ luật khai Lịch ước tính. Trọng tâm: thứ tự cảnh báo giữ nguyên, thêm luật không phải
 // sửa TimesheetValidator, ca của ngày do ShiftAssignment quyết, và các phép tính ngày giờ thuần.
 process.env.DB_PATH = ':memory:';
 const { test, after, before } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const warnings = require('../../lib/warnings');
-const { Rule, RuleSet, Violation } = require('../../lib/domain/shared/rule');
-const { DayMath } = require('../../lib/domain/timesheet/day-math');
-const { ExtraTimes } = require('../../lib/domain/timesheet/extra-times');
-const { SheetRevision } = require('../../lib/domain/timesheet/sheet-revision');
-const { TimesheetValidator } = require('../../lib/domain/timesheet/timesheet-validator');
-const { timesheet } = require('../../lib/domain/timesheet/services');
+const store = require('../../src/platform/db');
+const warnings = require('../../src/platform/warnings');
+const { Rule, RuleSet, Violation } = require('../../src/domain/shared/rule');
+const { DayMath } = require('../../src/domain/timesheet/day-math');
+const { ExtraTimes } = require('../../src/domain/timesheet/extra-times');
+const { SheetRevision } = require('../../src/domain/timesheet/sheet-revision');
+const { TimesheetValidator } = require('../../src/domain/timesheet/timesheet-validator');
+const { timesheet } = require('../../src/domain/timesheet/services');
 
 after(() => store.db.close());
 

@@ -6,7 +6,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Leave = require('../../public/leave.js');
+const Leave = require('../../src/engine/leave.js');
 
 const { F, store } = P;
 const MONTH = '2027-09';

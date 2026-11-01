@@ -140,7 +140,10 @@ test(
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        Cookie: require('../../lib/auth').cookieHeader(await require('../../lib/auth').createSession('admin'), 86400)
+        Cookie: require('../../src/platform/auth').cookieHeader(
+          await require('../../src/platform/auth').createSession('admin'),
+          86400
+        )
       },
       body: '{khong phai json'
     });

@@ -5,7 +5,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { Engine, DEFAULTS, caseOf, clone } = require('../helpers/pay-oracle');
-const Params = require('../../public/payroll-params.js');
+const Params = require('../../src/engine/payroll-params.js');
 
 const KEYS = Object.keys(DEFAULTS).filter(key => /^request\.type\..+\.countsAbsent$/.test(key));
 

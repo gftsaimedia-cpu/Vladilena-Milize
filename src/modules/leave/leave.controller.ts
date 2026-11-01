@@ -1,10 +1,10 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const store = require('../../../lib/db');
-const authz = require('../../../lib/authz');
-const { HttpError, readJson } = require('../../../lib/http');
-const { USERNAME_RE } = require('../../../lib/domain/input');
-const { container } = require('../../../lib/domain/container');
+const store = require('../../platform/db');
+const authz = require('../../platform/authz');
+const { HttpError, readJson } = require('../../platform/http');
+const { USERNAME_RE } = require('../../domain/input');
+const { container } = require('../../domain/container');
 
 const bad = (message: string, code: string) => new HttpError(400, message, { code });
 

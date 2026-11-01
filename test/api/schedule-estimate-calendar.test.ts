@@ -54,9 +54,9 @@ test('lịch ước tính 7: TTS nghỉ không lương Thứ Bảy 07/11 (ngoài
   assert.deepEqual(Object.keys((await store.getSheet('qa_s_tts', S.MONTH)).days), [SAT]);
 });
 
-// Gọi thẳng lib/data-quality.ts → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
+// Gọi thẳng src/domain/findings/data-quality.ts → evaluate (cùng hàm AI soát dữ liệu dùng) với hồ sơ của người
 async function negativeLeaveOf(username?) {
-  const { evaluate } = require('../../lib/data-quality');
+  const { evaluate } = require('../../src/domain/findings/data-quality');
   const result = evaluate({
     staff: [await store.getStaff(username)],
     sheets: (await store.listSheets(username)).map(sheet => ({ ...sheet, username })),
@@ -70,7 +70,7 @@ test('lịch ước tính 8: người mặc định T2–T7, nghỉ phép năm �
   await F.person('qa_s_new', 'staff', { startDate: '2026-10-30', leaveAdjust: -30 }); // chưa được cộng phép nào: ngày nghỉ thật sự trừ ra số âm
   await store.setSetting('holidays', ['2026-10-27']); // Thứ Ba, nằm trong lịch T2–T7
   await store.setSheet('qa_s_new', '2026-10', { '2026-10-27': { kind: 'leave' }, '2026-10-28': { kind: 'leave' } });
-  const { leaveDates, leaveSummary } = require('../../lib/domain/sheet');
+  const { leaveDates, leaveSummary } = require('../../src/domain/sheet');
   const staff = await store.getStaff('qa_s_new');
   assert.deepEqual(await leaveDates(staff), ['2026-10-28'], 'ngày lễ trong lịch không trừ phép');
   assert.equal((await leaveSummary(staff)).used, 1);

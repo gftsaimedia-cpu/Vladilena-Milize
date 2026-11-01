@@ -1,6 +1,6 @@
 'use strict';
 // Admin khai thay "Nghỉ, sẽ làm bù" kèm lịch làm bù dự kiến như màn nhân viên, và bỏ qua bước duyệt
-// (máy chủ duyệt luôn qua lib/domain/sheet-on-behalf.ts → approveOnBehalf). Nhân sự tự khai thì chờ duyệt.
+// (máy chủ duyệt luôn qua src/domain/sheet-on-behalf.ts → approveOnBehalf). Nhân sự tự khai thì chờ duyệt.
 // Chỉ người bịa (qa_*) và DB trong bộ nhớ; đồng hồ giả.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');

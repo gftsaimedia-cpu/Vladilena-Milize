@@ -1,15 +1,15 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { isAdmin, auditRow, withName, changed, absentDay } from './explanations.handlers';
-const { AsyncList } = require('../../../lib/shared/async-list');
-const store = require('../../../lib/db');
-const authz = require('../../../lib/authz');
-const { HttpError, readJson } = require('../../../lib/http');
-const { USERNAME_RE } = require('../../../lib/domain/input');
-const { container } = require('../../../lib/domain/container');
+const { AsyncList } = require('../../shared/async-list');
+const store = require('../../platform/db');
+const authz = require('../../platform/authz');
+const { HttpError, readJson } = require('../../platform/http');
+const { USERNAME_RE } = require('../../domain/input');
+const { container } = require('../../domain/container');
 
 /**
- * Giải trình Check-out muộn, ngày vắng và yêu cầu giải trình của Admin (nghiệp vụ ở lib/domain/explanation/explanation-service.ts).
+ * Giải trình Check-out muộn, ngày vắng và yêu cầu giải trình của Admin (nghiệp vụ ở src/domain/explanation/explanation-service.ts).
  * Chưa duyệt / không duyệt thì ngày đó không tính lương. expectedRev lệch → 409 EXPLANATION_STALE.
  */
 @Controller('api')

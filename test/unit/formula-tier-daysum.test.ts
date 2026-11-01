@@ -1,15 +1,15 @@
 'use strict';
-// Hai lớp của công thức gõ chữ (public/formula.js, public/payroll-engine.js, public/payroll-graph.js):
+// Hai lớp của công thức gõ chữ (src/engine/formula.js, src/engine/payroll-engine.js, src/engine/payroll-graph.js):
 //   1. nút `tier` "bảng bậc theo <chỉ số>: từ a trở lên → x; từ a đến dưới b → y; dưới b → z" ("từ a" gồm a, "đến dưới b" không gồm b);
 //   2. biến THEO NGÀY (PayrollEngine.DAY_VARIABLES, 11 biến) cộng bằng "tổng theo ngày (…)": phải bằng đúng giá trị tháng của calcMonth.
-// Dùng từ vựng khởi đầu thật (public/formula-vocab.js), người và số đều bịa. Không phụ thuộc ngày thật.
+// Dùng từ vựng khởi đầu thật (src/engine/formula-vocab.js), người và số đều bịa. Không phụ thuộc ngày thật.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Formula = require('../../public/formula.js');
-const Vocab = require('../../public/formula-vocab.js');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const Formula = require('../../src/engine/formula.js');
+const Vocab = require('../../src/engine/formula-vocab.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const PayrollParams = require('../helpers/defaults-old-basis.js');
-const PayrollGraph = require('../../public/payroll-graph.js');
+const PayrollGraph = require('../../src/engine/payroll-graph.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 const { readGolden } = require('../helpers/golden');
 

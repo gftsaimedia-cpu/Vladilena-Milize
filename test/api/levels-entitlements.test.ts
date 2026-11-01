@@ -4,7 +4,7 @@
 const P = require('../helpers/position-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { SHIFT } = require('../../public/punch.js');
+const { SHIFT } = require('../../src/engine/punch.js');
 
 const { F } = P;
 

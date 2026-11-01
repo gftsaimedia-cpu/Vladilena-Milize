@@ -2,29 +2,29 @@ import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { Reply } from '../../http/reply';
 import { reasonOf } from '../../shared/reason';
-const { staffView: staffScheduleView } = require('../../../lib/domain/schedule');
+const { staffView: staffScheduleView } = require('../../domain/schedule');
 import { rolesOfStaff, rolesRevOf } from './staff.helpers';
-const { AsyncList } = require('../../../lib/shared/async-list');
-const store = require('../../../lib/db');
-const auth = require('../../../lib/auth');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, typeParam, benefitOf, levelCountOf, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { estimateSheet, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { staffForViewer, sheetForViewer, staffRevision } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
-const { closeStaleFor } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
-const { sessionsFor } = require('../../../lib/domain/attendance/session-view');
-const { sheetApprovals, reconcileStaffType } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const Roles = require('../../../lib/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const config = require('../../../lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
-const Positions = require('../../../lib/params/positions'); // chức vụ là dữ liệu: danh sách, quyền lợi, bảng quyền lợi
-const { activeCodesOf, withLeave } = require('../../../lib/domain/positions'); // cờ quyền lợi và chức vụ
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
-const { PersonName } = require('../../../lib/domain/employee/person-name'); // họ trước, tên sau
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
-const { validMonth, validDate, USERNAME_RE } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { AsyncList } = require('../../shared/async-list');
+const store = require('../../platform/db');
+const auth = require('../../platform/auth');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, monthParams, typeParam, benefitOf, levelCountOf, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { estimateSheet, schedule } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { staffForViewer, sheetForViewer, staffRevision } = require('../../domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
+const { closeStaleFor } = require('../../domain/attendance'); // phiên Check-in/out dùng chung
+const { sessionsFor } = require('../../domain/attendance/session-view');
+const { sheetApprovals, reconcileStaffType } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const Roles = require('../../domain/roles/roles'); // vai trò tuỳ chỉnh (dữ liệu ở settings)
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
+const Positions = require('../../params/positions'); // chức vụ là dữ liệu: danh sách, quyền lợi, bảng quyền lợi
+const { activeCodesOf, withLeave } = require('../../domain/positions'); // cờ quyền lợi và chức vụ
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const { container } = require('../../domain/container'); // các lớp của src/domain (danh mục ca, sổ phép, nhân viên theo uuid)
+const { PersonName } = require('../../domain/employee/person-name'); // họ trước, tên sau
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
+const { validMonth, validDate, USERNAME_RE } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
@@ -367,7 +367,7 @@ export class StaffController {
     if ((startDate && !validDate(startDate)) || (birthday && !validDate(birthday)))
       throw new HttpError(400, 'Ngày bắt đầu làm / ngày sinh phải là ngày hợp lệ dạng YYYY-MM-DD');
     // Chức vụ có cờ startDateRequired cần ngày bắt đầu làm để tính phép năm; Admin thì không
-    // Thiếu ngày bắt đầu làm thì phép năm của người này chưa tính được (public/leave.js → accrued cần ngày bắt đầu)
+    // Thiếu ngày bắt đầu làm thì phép năm của người này chưa tính được (src/engine/leave.js → accrued cần ngày bắt đầu)
     warnIf('START_DATE_REQUIRED', needsLevel && staffParams[`type.${type}.startDateRequired`] === true && !startDate, {
       message: 'Chức vụ này cần ngày bắt đầu làm: chưa có ngày thì số phép năm của người này chưa tính được.'
     });

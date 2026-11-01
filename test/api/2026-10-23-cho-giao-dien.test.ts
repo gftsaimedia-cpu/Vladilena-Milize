@@ -1,5 +1,5 @@
 'use strict';
-const { AsyncList } = require('../../lib/shared/async-list');
+const { AsyncList } = require('../../src/shared/async-list');
 // Sáu việc máy chủ làm cho giao diện:
 //   1. Tắt luật AI: lựa chọn "Tắt" của ai.rule.<id>.enabled lưu được qua PUT /settings/params (tháng hiệu lực, nhật ký); GET /ai/review liệt kê vào
 //      checked.skipped { rule, reason: 'Admin tắt' } và bỏ khỏi checked.ruleIds; tháng trước tháng hiệu lực vẫn chạy luật đó.
@@ -17,8 +17,8 @@ const S = require('../helpers/settings-api');
 const { assertPlain } = require('../helpers/plain-text');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { allowanceTotalOf } = require('../../lib/period-allowance');
-const { sessionHistory, sessionsWithHistory } = require('../../lib/domain/attendance');
+const { allowanceTotalOf } = require('../../src/domain/period/period-allowance');
+const { sessionHistory, sessionsWithHistory } = require('../../src/domain/attendance');
 
 const { F, store, flow } = P;
 // tháng 2026-10 dành riêng cho bài tiền có số cố định; các bài khác lấy tháng riêng từ đây
@@ -349,7 +349,7 @@ test('sessionsWithHistory (gộp theo nhóm id) giống hệt đường cũ sess
   );
   assert.deepEqual(await sessionsWithHistory([]), []);
   // chia nhóm id: hơn hai nhóm (SQL_IN_CHUNK) phiên khác nhau vẫn giống sessionHistory
-  const config = require('../../lib/config');
+  const config = require('../../src/platform/config');
   const total = config.SQL_IN_CHUNK * 2 + 37;
   await store.transaction(async () => {
     for (let i = 0; i < total; i++) {

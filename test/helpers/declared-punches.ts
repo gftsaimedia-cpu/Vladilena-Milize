@@ -1,7 +1,7 @@
 'use strict';
 // Lượt Check-in/out của một người đã bấm đúng giờ như lịch đã khai: mỗi ngày đi làm hoặc làm bù có giờ vào – ra thì có một lượt đóng
 // từ giờ vào đến giờ ra đã khai (giờ OT hoặc giờ bù đi kèm kéo dài lượt). Dùng cho test cần "người này đi làm đủ như khai".
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 
 const MON_SAT = [1, 2, 3, 4, 5, 6];
 const vn = (date?, time?) => Date.parse(`${date}T${time}:00+07:00`);

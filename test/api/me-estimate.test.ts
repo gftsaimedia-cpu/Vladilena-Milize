@@ -1,5 +1,5 @@
 'use strict';
-// Số ước tính của chính nhân sự (lib/periods.ts → estimate, route GET /api/me/estimate):
+// Số ước tính của chính nhân sự (src/domain/period/periods.ts → estimate, route GET /api/me/estimate):
 //   - CHỈ dữ liệu của người đăng nhập (tham số user bị bỏ qua); chưa đăng nhập là 401; người không được trả lương nhận payrollSubject:false;
 //   - mặc định không có từng dòng ngày, chỉ khi rows=1; tháng hiện tại tính tới hôm nay (đồng hồ giả);
 //   - slip.staffVisibleFrom: mặc định afterPaid: kỳ đã chi trả thì nhân sự thấy BẢN CHỤP chính thức (official: true), chưa chi trả là số ước tính;
@@ -11,8 +11,8 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const service = require('../../lib/payroll-service');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -137,7 +137,7 @@ test('Số ước tính của cả bốn người (TTS, CTV, hai NV) bằng đú
     );
     assert.equal(body.toDate, null, `${username}: tháng đã qua không có khối tới-hôm-nay`);
     assert.match(body.paramsHash, /^[0-9a-f]{64}$/);
-    assert.equal(body.engineVersion, require('../../public/payroll-engine.js').ENGINE_VERSION);
+    assert.equal(body.engineVersion, require('../../src/engine/payroll-engine.js').ENGINE_VERSION);
   }
 });
 
@@ -146,7 +146,7 @@ test('Một ca cụ thể: NV level 1, 20 ngày chấm đủ ca, không KPI: t�
   await P.seed(M);
   await store.setSetting('holidays', []); // ngày lễ có lương làm số ngày trả lệch khỏi số ngày làm
   await F.person('qa_exact', 'staff', { type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-05' });
-  const PunchRules = require('../../public/punch.js');
+  const PunchRules = require('../../src/engine/punch.js');
   const holidays = await store.getSetting('holidays', []);
   const [tin, tout] = PunchRules.SHIFT.n1;
   const workDates = Array.from({ length: 31 }, (_, i) => `${M}-${String(i + 1).padStart(2, '0')}`).filter(d => {

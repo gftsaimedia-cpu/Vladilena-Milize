@@ -14,7 +14,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { oracle } = require('../helpers/pay-oracle');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const { F, store } = P;
 

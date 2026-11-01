@@ -3,9 +3,9 @@
 // bị từ chối rõ ràng, mặc định luôn dùng được. Cách tính của từng phương pháp thuế ở tax-methods-brackets.test.ts.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../public/payroll-engine.js');
-const PayrollParams = require('../../public/payroll-params.js');
-const registry = require('../../lib/params/registry');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
+const PayrollParams = require('../../src/engine/payroll-params.js');
+const registry = require('../../src/params/registry');
 const golden = require('../fixtures/payroll-golden-v0.json');
 
 const D = PayrollParams.DEFAULTS;

@@ -4,13 +4,13 @@
 // FALLBACK chuyển tiếp của từng mô-đun phải bằng DEFAULTS (scripts/params/check-fallbacks.ts).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const ActualHours = require('../../public/actual-hours.js');
-const ApprovalView = require('../../public/approval-view.js');
-const KpiScore = require('../../public/kpi-score.js');
-const Punch = require('../../public/punch.js');
-const Leave = require('../../public/leave.js');
-const PayrollCalendar = require('../../public/payroll-calendar.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const ActualHours = require('../../src/engine/actual-hours.js');
+const ApprovalView = require('../../src/engine/approval-view.js');
+const KpiScore = require('../../src/engine/kpi-score.js');
+const Punch = require('../../src/engine/punch.js');
+const Leave = require('../../src/engine/leave.js');
+const PayrollCalendar = require('../../src/engine/payroll-calendar.js');
 
 const MODULES = {
   'actual-hours': [ActualHours, 'attendance.graceMin'],
@@ -169,7 +169,7 @@ test('scripts/params/check-fallbacks.ts không báo lệch nào và thoát 0', (
 });
 
 test('Bộ máy chạy được với bộ tham số đã đổi (truyền xuống sáu mô-đun) và với mặc định vẫn ra đúng số của ca vàng', async () => {
-  const Engine = require('../../public/payroll-engine.js');
+  const Engine = require('../../src/engine/payroll-engine.js');
   const { readGolden } = require('../helpers/golden');
   const golden = readGolden();
   // bộ máy với tham số mặc định và tham số đã đổi cùng chạy được trên một ca vàng (không ném lỗi), kết quả hợp lệ

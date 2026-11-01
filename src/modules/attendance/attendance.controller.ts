@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { checkInVerdict, punchState, checkoutPreview, punchExtras } from './attendance.helpers';
-const { AsyncList } = require('../../../lib/shared/async-list');
-const store = require('../../../lib/db');
-const { HttpError, readJson, clientIp } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { validMonth, positiveId } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
+const { AsyncList } = require('../../shared/async-list');
+const store = require('../../platform/db');
+const { HttpError, readJson, clientIp } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, nowIso } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { validMonth, positiveId } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { estimateSheet } = require('../../domain/sheet'); // lịch ước tính và ngày phép
 const {
   punchStaff,
   closeStale,
@@ -14,16 +14,16 @@ const {
   hintPunch,
   sessionOverlap,
   correctionVersion
-} = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
-const { sessionsFor, sessionsWithHistory } = require('../../../lib/domain/attendance/session-view');
-const otSheet = require('../../../lib/domain/ot-sheet'); // OT Check-in/out được duyệt thành OT đã duyệt của ngày trong Lịch ước tính
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const explanations = require('../../../lib/explanations'); // giải trình Check-out muộn
-const { container } = require('../../../lib/domain/container'); // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
-const { listOt, validateOtDeclaration } = require('../../../lib/domain/ot'); // khai OT thực tế ở Check-in/out
+} = require('../../domain/attendance'); // phiên Check-in/out dùng chung
+const { sessionsFor, sessionsWithHistory } = require('../../domain/attendance/session-view');
+const otSheet = require('../../domain/ot-sheet'); // OT Check-in/out được duyệt thành OT đã duyệt của ngày trong Lịch ước tính
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const explanations = require('../../domain/explanation/explanations'); // giải trình Check-out muộn
+const { container } = require('../../domain/container'); // các lớp của src/domain (danh mục ca, sổ phép, nhân viên theo uuid)
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
+const { listOt, validateOtDeclaration } = require('../../domain/ot'); // khai OT thực tế ở Check-in/out
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
@@ -333,7 +333,7 @@ export class AttendanceController {
         session: session || null
       };
     });
-    // Trạng thái hiển thị của lượt được chọn (lib/domain/attendance/session-status.ts), nạp lô một lần cho mọi người; không có lượt thì null
+    // Trạng thái hiển thị của lượt được chọn (src/domain/attendance/session-status.ts), nạp lô một lần cho mọi người; không có lượt thì null
     const shown = new Map<any, any>(
       (await sessionsWithHistory(rows.filter(r => r.session).map(r => r.session))).map(
         (s: any) => [s.id, s] as [any, any]

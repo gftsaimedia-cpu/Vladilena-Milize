@@ -1,5 +1,5 @@
 'use strict';
-// Vai trò và gán ca hàng loạt (server.js → GET /roles, PUT /staff/:u/roles, PUT /staff/shift-bulk; lib/db.ts → store.roles; lib/events.ts → roles.changed):
+// Vai trò và gán ca hàng loạt (server.js → GET /roles, PUT /staff/:u/roles, PUT /staff/shift-bulk; src/platform/db.ts → store.roles; src/platform/events.ts → roles.changed):
 //   GET /api/roles          cần roles.manage: { roles:[{id,caps,scope}], caps, staff:[{username,name,roles,rev,locked}] }, không có số liệu lương
 //   PUT /api/staff/:u/roles { roles, reason 10–300, expectedRev? } → { username, roles, granted, revoked, rev }; một dòng nhật ký role.grant / role.revoke cho mỗi vai trò đổi
 //   PUT /api/staff/shift-bulk { usernames, preset | in+out, effective?, reason } → { ok, shiftCode, updated, unchanged }; tất cả hoặc không
@@ -8,11 +8,11 @@ const http = require('node:http');
 const F = require('../helpers/api-fixture');
 const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const events = require('../../lib/events');
-const authz = require('../../lib/authz');
-const auth = require('../../lib/auth');
-const config = require('../../lib/config');
-const PunchRules = require('../../public/punch.js');
+const events = require('../../src/platform/events');
+const authz = require('../../src/platform/authz');
+const auth = require('../../src/platform/auth');
+const config = require('../../src/platform/config');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { store } = F;
 

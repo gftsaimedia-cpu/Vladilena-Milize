@@ -1,6 +1,6 @@
 import { All, Controller, Res } from '@nestjs/common';
 import { Module } from '@nestjs/common';
-import { HttpError } from '../../lib/http';
+import { HttpError } from '../platform/http';
 
 /**
  * Đường dẫn /api/* không module nào nhận. Vẫn đi qua ApiGuard trước (route không có chính sách trong ROUTE_CAPS bị từ chối 403/401,

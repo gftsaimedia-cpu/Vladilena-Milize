@@ -5,8 +5,8 @@ process.env.SESSION_SECRET = 'ai-review-api-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 
 let base,
@@ -107,7 +107,7 @@ beforeEach(async () => {
       if (!/no such table/.test(error.message)) throw error;
     }
   }
-  await require('../../lib/agents').set(true); // route AI chỉ trả lời khi công tắc Agents bật
+  await require('../../src/platform/agents').set(true); // route AI chỉ trả lời khi công tắc Agents bật
   await person('qa_admin', { role: 'admin', type: 'tts', level: 0 });
   await person('qa_bon');
   await person('qa_ba');

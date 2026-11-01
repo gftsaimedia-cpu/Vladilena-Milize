@@ -1,17 +1,17 @@
 'use strict';
-// Các lớp của lib/domain: họ tên, hợp đồng theo thâm niên,
+// Các lớp của src/domain: họ tên, hợp đồng theo thâm niên,
 // danh mục chức vụ/ca trong DB khớp DEFAULTS, giải trình (khoá lạc quan, tự duyệt, không mở lại giải trình đã duyệt), mã ca mới.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const Params = require('../../public/payroll-params.js');
-const PunchRules = require('../../public/punch.js');
-const ActualHours = require('../../public/actual-hours.js');
-const { PersonName } = require('../../lib/domain/employee/person-name');
-const { PayrollPolicy } = require('../../lib/domain/payroll/policy');
-const { container } = require('../../lib/domain/container');
-const { ExplanationService, ExplanationRepository } = require('../../lib/domain/explanation');
+const store = require('../../src/platform/db');
+const Params = require('../../src/engine/payroll-params.js');
+const PunchRules = require('../../src/engine/punch.js');
+const ActualHours = require('../../src/engine/actual-hours.js');
+const { PersonName } = require('../../src/domain/employee/person-name');
+const { PayrollPolicy } = require('../../src/domain/payroll/policy');
+const { container } = require('../../src/domain/container');
+const { ExplanationService, ExplanationRepository } = require('../../src/domain/explanation');
 
 test('PersonName: họ trước, tên là chữ cuối, viết hoa chữ đầu', () => {
   const khoa = PersonName.parse('Bùi đăng khoa');

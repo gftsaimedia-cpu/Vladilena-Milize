@@ -8,7 +8,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
-const PROBE = `const { PostgresDatabase } = require('./lib/data/postgres-database');
+const PROBE = `const { PostgresDatabase } = require('./src/data/postgres-database');
 (async () => {
   const db = new PostgresDatabase({ dataDir: process.argv[1] });
   let out = { marked: false, today: null };

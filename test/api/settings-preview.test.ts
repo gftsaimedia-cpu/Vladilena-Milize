@@ -9,7 +9,7 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 
 const { F, store, flow } = S;
 const monthOf = S.monthPool();
@@ -265,7 +265,7 @@ test(
     const money = await S.wiredMoneyKey();
     const cap = MAX_PEOPLE();
     const extra = cap + 8;
-    const PunchRules = require('../../public/punch.js');
+    const PunchRules = require('../../src/engine/punch.js');
     const [tin, tout] = PunchRules.SHIFT.n1;
     const monday = S.firstDow(M, 1);
     for (let i = 0; i < extra; i++) {

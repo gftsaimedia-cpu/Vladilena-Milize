@@ -21,7 +21,7 @@ before(async () => {
   await F.person('qa_locker', 'staff');
   await store.roles.grant('qa_hr', 'hr', 'admin');
   await store.roles.grant('qa_cb', 'cb', 'admin');
-  const authz = require('../../lib/authz');
+  const authz = require('../../src/platform/authz');
   const saved = (await store.getSetting(authz.CUSTOM_ROLES_KEY, null)) || { rev: 0, roles: [] };
   await store.setSetting(authz.CUSTOM_ROLES_KEY, {
     rev: saved.rev + 1,

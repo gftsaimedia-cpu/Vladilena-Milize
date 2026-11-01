@@ -4,8 +4,8 @@ process.env.SESSION_SECRET = 'server-logic-isolated-tests';
 process.env.COOKIE_SECURE = '0';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
 const sessionBody = require('../helpers/session-contract-helper');
 let base, clock;

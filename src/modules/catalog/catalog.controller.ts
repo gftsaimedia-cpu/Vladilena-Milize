@@ -1,12 +1,12 @@
 import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const config = require('../../../lib/config');
-const { HttpError, readJson } = require('../../../lib/http');
-const { validMonth } = require('../../../lib/domain/input');
-const { vnToday } = require('../../../lib/request-rules');
-const { container } = require('../../../lib/domain/container');
-const { applyCatalogChange } = require('../../../lib/domain/shared/catalog-change');
-const { CODE_RE } = require('../../../lib/domain/position/position-catalog');
+const config = require('../../platform/config');
+const { HttpError, readJson } = require('../../platform/http');
+const { validMonth } = require('../../domain/input');
+const { vnToday } = require('../../platform/request-rules');
+const { container } = require('../../domain/container');
+const { applyCatalogChange } = require('../../domain/shared/catalog-change');
+const { CODE_RE } = require('../../domain/position/position-catalog');
 
 const bad = (message: string, code: string) => new HttpError(400, message, { code });
 const revRequired = () => bad('Thiếu số phiên bản (expectedRev) của dòng đang sửa', 'CATALOG_REV_REQUIRED');
@@ -28,7 +28,7 @@ async function readChange(req: any) {
 
 /**
  * Danh mục chức vụ, bậc và ca làm trong DB (Admin sửa thẳng ở màn Admin, có phiên bản theo tháng áp dụng).
- * Bảng lương đọc danh mục qua bộ tham số của tháng (lib/params/store.ts), nên sửa ở đây có hiệu lực từ tháng áp dụng như sửa tham số.
+ * Bảng lương đọc danh mục qua bộ tham số của tháng (src/params/store.ts), nên sửa ở đây có hiệu lực từ tháng áp dụng như sửa tham số.
  */
 @Controller('api')
 export class CatalogController {

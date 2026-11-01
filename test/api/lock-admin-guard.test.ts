@@ -5,7 +5,7 @@
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
+const authz = require('../../src/platform/authz');
 
 const { store } = F;
 

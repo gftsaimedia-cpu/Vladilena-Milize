@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** Nạp file .env (nếu có) vào biến môi trường, không ghi đè biến đã đặt sẵn. Phải chạy TRƯỚC khi nạp lib/db, lib/auth... (đọc biến lúc nạp). */
+/** Nạp file .env (nếu có) vào biến môi trường, không ghi đè biến đã đặt sẵn. Phải chạy TRƯỚC khi nạp src/platform/db, src/platform/auth... (đọc biến lúc nạp). */
 export function loadDotEnv(dir: string): void {
   try {
     for (const line of fs.readFileSync(path.join(dir, '.env'), 'utf8').split('\n')) {

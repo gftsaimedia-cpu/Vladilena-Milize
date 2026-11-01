@@ -6,7 +6,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Params = require('../helpers/defaults-old-basis.js');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const D = Params.DEFAULTS;

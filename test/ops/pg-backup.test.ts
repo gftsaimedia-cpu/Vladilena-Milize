@@ -1,5 +1,5 @@
 'use strict';
-// Sao lưu / kiểm / khôi phục PostgreSQL (lib/ops/pg-backup.ts, scripts/ops/pg-backup.ts) trên PGlite trong RAM.
+// Sao lưu / kiểm / khôi phục PostgreSQL (src/ops/pg-backup.ts, scripts/ops/pg-backup.ts) trên PGlite trong RAM.
 // Luôn chạy ở chế độ PostgreSQL bất kể DB_DIALECT của lần chạy test (file này tự đặt), không đụng DB nào ngoài RAM.
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'pg-backup-test';
@@ -11,9 +11,9 @@ const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const { spawnSync } = require('node:child_process');
-const store = require('../../lib/db');
-const { PostgresDatabase } = require('../../lib/data/postgres-database');
-const pgBackup = require('../../lib/ops/pg-backup');
+const store = require('../../src/platform/db');
+const { PostgresDatabase } = require('../../src/data/postgres-database');
+const pgBackup = require('../../src/ops/pg-backup');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'ops', 'pg-backup.js');

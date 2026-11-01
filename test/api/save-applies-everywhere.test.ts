@@ -10,9 +10,9 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const paramsStore = require('../../lib/params/store');
-const PunchRules = require('../../public/punch.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const paramsStore = require('../../src/params/store');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { F, store, flow } = S;
 const monthOf = S.monthPool();
@@ -94,7 +94,7 @@ test(
     // ---- đường cơ sở trước khi Lưu ----
     const estBefore = (await estimate(M)).data;
     const estOtherBefore = (await estimate(M, 'qa_ctv1')).data;
-    // "chưa lưu gì" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (lib/domain/catalog-params.ts), như bộ tham số hiệu lực của tháng
+    // "chưa lưu gì" nghĩa là DEFAULTS + dòng danh mục chức vụ, bậc, ca (src/domain/catalog-params.ts), như bộ tham số hiệu lực của tháng
     const baseParams = (await paramsStore.resolve(M)).params;
     const expectedBefore = await netOf('qa_nv1', M, baseParams);
     assert.deepEqual(

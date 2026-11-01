@@ -7,11 +7,11 @@ const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const store = require('../../lib/db');
-const registry = require('../../lib/params/registry');
-const limits = require('../../lib/domain/overtime/hour-limits').HourLimits;
-const workHours = require('../../lib/domain/overtime/worked-hours').WorkedHours;
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const store = require('../../src/platform/db');
+const registry = require('../../src/params/registry');
+const limits = require('../../src/domain/overtime/hour-limits').HourLimits;
+const workHours = require('../../src/domain/overtime/worked-hours').WorkedHours;
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 after(() => store.db.close());
 
@@ -43,8 +43,8 @@ test('các khoá giới hạn giờ đã bỏ không còn trong DEFAULTS, regist
     assert.equal(registry.entryFor(key), null, `registry ${key}`);
   }
   for (const file of [
-    'lib/params/registry.data.json',
-    'lib/params/keys.lock.json',
+    'src/params/registry.data.json',
+    'src/params/keys.lock.json',
     'scripts/params/hand-defaults.json',
     'scripts/params/plain-text.json'
   ])
@@ -64,7 +64,7 @@ test('không còn mã đọc khoá hay hằng số của các giới hạn giờ
       const rel = path.posix.join(folder, entry.name);
       return entry.isDirectory() ? walk(rel) : /\.(js|cjs|html|json)$/.test(entry.name) ? [rel] : [];
     });
-  const files = ['src/server.ts', ...walk('lib'), ...walk('public'), ...walk('scripts')];
+  const files = [...walk('src'), ...walk('scripts')];
   for (const file of files) {
     const text = await read(file);
     for (const key of REMOVED_KEYS) assert.ok(!text.includes(key), `${file}: ${key}`);

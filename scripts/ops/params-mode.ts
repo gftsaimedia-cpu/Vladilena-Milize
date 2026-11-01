@@ -9,7 +9,7 @@
  *   DATABASE_URL=postgres://… BACKUP_DIR=<thư-mục-sao-lưu> node scripts/ops/params-mode.ts defaults-only --reason "<10 đến 300 ký tự>" --yes
  *
  * `status` chỉ đọc. `defaults-only`:
- *   1. đổi từ "active": sao lưu DB bằng lib/ops/pg-backup.ts vào BACKUP_DIR (hoặc --backup-dir=...), không có thì từ chối chạy;
+ *   1. đổi từ "active": sao lưu DB bằng src/ops/pg-backup.ts vào BACKUP_DIR (hoặc --backup-dir=...), không có thì từ chối chạy;
  *   2. trong MỘT giao dịch: settings.params_mode = 'defaults-only', tăng config_rev (màn hình và GET /api/settings/version
  *      thấy cấu hình đã đổi) và ghi một dòng nhật ký `param.mode` vào chuỗi băm (actor = "ops:<người dùng hệ điều hành>");
  *   3. không sửa, không xoá dòng nào của param_versions (lịch sử giữ nguyên, bật lại thì các dòng có hiệu lực trở lại).
@@ -19,10 +19,10 @@
  * Cần AUDIT_KEY trong môi trường nếu máy chủ dùng nó (để dòng nhật ký mới nối đúng kiểu băm của chuỗi).
  */
 const os = require('node:os');
-const { PostgresDatabase } = require('../../lib/data/postgres-database');
-const pgBackup = require('../../lib/ops/pg-backup');
+const { PostgresDatabase } = require('../../src/data/postgres-database');
+const pgBackup = require('../../src/ops/pg-backup');
 
-const REASON_MIN = 10; // cùng giới hạn với param_versions.reason và lib/config.ts REASON_MIN / REASON_MAX
+const REASON_MIN = 10; // cùng giới hạn với param_versions.reason và src/platform/config.ts REASON_MIN / REASON_MAX
 const REASON_MAX = 300;
 const ACTOR_MAX = 60;
 
@@ -119,10 +119,10 @@ async function toDefaultsOnly({ url, reason, backupDir }: any) {
     keep: process.env.BACKUP_KEEP ? Number(process.env.BACKUP_KEEP) : undefined
   });
   const backup = { name: require('node:path').basename(made.file), size: made.bytes };
-  process.env.DATABASE_URL = url; // lib/db.ts đọc DATABASE_URL lúc require
-  const store = require('../../lib/db');
-  const audit = require('../../lib/audit');
-  const configRev = require('../../lib/params/config-rev');
+  process.env.DATABASE_URL = url; // src/platform/db.ts đọc DATABASE_URL lúc require
+  const store = require('../../src/platform/db');
+  const audit = require('../../src/platform/audit');
+  const configRev = require('../../src/params/config-rev');
   const os_user = String(os.userInfo().username || 'unknown').replace(/[^A-Za-z0-9._-]/g, '_');
   const ctx = {
     actor: ('ops:' + os_user).slice(0, ACTOR_MAX),

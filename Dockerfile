@@ -11,7 +11,7 @@ WORKDIR /app
 COPY . .
 # NestJS, pg và trình nạp TypeScript (tsx) là phụ thuộc chạy thật; devDependencies (test, kiểm kiểu) không vào image.
 RUN npm ci --omit=dev --ignore-scripts
-# Máy chủ phục vụ web/dist khi có (lib/http.ts); mã nguồn web/ không cần ở image chạy.
+# Máy chủ phục vụ web/dist khi có (src/platform/http.ts); mã nguồn web/ không cần ở image chạy.
 RUN rm -rf /app/web
 COPY --from=web /web/dist /app/web/dist
 ENV NODE_ENV=production PORT=3000

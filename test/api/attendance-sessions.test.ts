@@ -3,8 +3,8 @@ process.env.SESSION_SECRET = 'sessions-tests';
 const { test, before, after } = require('node:test'),
   assert = require('node:assert/strict'),
   crypto = require('node:crypto');
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
 let base, clock;
 const originalNow = Date.now;
@@ -169,7 +169,10 @@ test('changing a legacy work night to makeup with identical times cannot bypass 
 test('OT targets one session, writes the approved OT on its day only and rejects a stale version', async () => {
   await person('ot-session');
   await at('2026-10-07T20:00:00');
-  const plan = require('../../public/punch').planShift({ shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] }, '2026-10-07');
+  const plan = require('../../src/engine/punch').planShift(
+    { shiftCode: 'n1', sched: [1, 2, 3, 4, 5, 6] },
+    '2026-10-07'
+  );
   const entry = {
     kind: 'work',
     in: '08:00',

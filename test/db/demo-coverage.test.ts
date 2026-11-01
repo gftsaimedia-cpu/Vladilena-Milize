@@ -45,7 +45,7 @@ test('dựng bộ demo: thoát 0, lớp vận hành không lỗi, mọi kỳ v�
 });
 
 test('công cụ đo độ phủ bắt được chỗ thiếu: DB trống báo thiếu mọi bảng', async () => {
-  const store = require('../../lib/db');
+  const store = require('../../src/platform/db');
   await store.ready;
   const { measure } = require('../../scripts/db/demo/coverage.ts');
   const result = await measure({ store, personas: [] });

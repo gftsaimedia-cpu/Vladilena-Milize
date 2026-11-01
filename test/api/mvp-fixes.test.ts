@@ -7,8 +7,8 @@ process.env.WEB_DIST = require('node:path').join(require('node:os').tmpdir(), 'l
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 let base;
 
@@ -349,7 +349,7 @@ for (const breakMin of [0, 30, 1440]) {
 /* ---------- không đọc được file ngoài public/ ---------- */
 for (const path of [
   '/../server.js',
-  '/../lib/db.ts',
+  '/../src/platform/db.ts',
   '/../package.json',
   '/..%2fserver.js',
   '/%2e%2e/server.js',

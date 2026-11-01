@@ -8,8 +8,8 @@ const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const store = require('../../lib/db');
-const auth = require('../../lib/auth');
+const store = require('../../src/platform/db');
+const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
 
 let base;
@@ -344,7 +344,7 @@ test('nhân sự không đổi được lịch lễ: 403 và không tạo khoả
 
 // ================= Di chuyển (sheet_approvals_v2) =================
 
-const LIB_DB = JSON.stringify(path.join(__dirname, '../../lib/db'));
+const LIB_DB = JSON.stringify(path.join(__dirname, '../../src/platform/db'));
 const { wrapScript } = require('../helpers/child-script');
 async function runChild(dbPath?, script?) {
   const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {

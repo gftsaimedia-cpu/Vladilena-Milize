@@ -4,12 +4,12 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');
-const { review, RULES } = require('../../lib/ai/review.ts');
-const { suggestFromPreview, PREVIEW_RULES } = require('../../lib/ai/preview-suggestions.ts');
-const { THRESHOLDS, resolveThresholds } = require('../../lib/ai/thresholds.ts');
-const { benefitOf, blockDefsOf } = require('../../lib/ai/positions.ts');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { review, RULES } = require('../../src/ai/review');
+const { suggestFromPreview, PREVIEW_RULES } = require('../../src/ai/preview-suggestions');
+const { THRESHOLDS, resolveThresholds } = require('../../src/ai/thresholds');
+const { benefitOf, blockDefsOf } = require('../../src/ai/positions');
+const { loadPayroll } = require('../../src/ai/payroll-loader');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const W = require('./ai-review-world.js');
 
 const { person, world, find, otDay, workDay } = W;

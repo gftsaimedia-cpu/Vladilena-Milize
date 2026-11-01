@@ -1,18 +1,18 @@
 import { Controller, Get, Put, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { SLIP_MONEY, SLIP_QTY } from './periods.helpers';
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { validMonth } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { aiReviewResult } = require('../../../lib/domain/ai-review'); // kết quả soát dữ liệu của AI
-const agents = require('../../../lib/agents'); // công tắc Agents
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const config = require('../../../lib/config'); // giới hạn kỹ thuật có tên (không số trong mã)
-const periods = require('../../../lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { validMonth } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { aiReviewResult } = require('../../domain/ai-review'); // kết quả soát dữ liệu của AI
+const agents = require('../../platform/agents'); // công tắc Agents
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const config = require('../../platform/config'); // giới hạn kỹ thuật có tên (không số trong mã)
+const periods = require('../../domain/period/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')

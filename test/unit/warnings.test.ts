@@ -1,15 +1,15 @@
 'use strict';
-// lib/warnings.ts:
+// src/platform/warnings.ts:
 //   warnIf(code, violated, opts)    ghi cảnh báo khi vi phạm rồi chạy tiếp; trả true khi vi phạm
 //   run(fn) / warn / take / codes   danh sách cảnh báo của MỘT yêu cầu; ngoài yêu cầu thì không có nơi nhận
 //   optionalReason()                lý do không bắt buộc; quá 300 ký tự vẫn 400
-//   lib/http.ts → send              gộp warnings vào phản hồi 2xx dạng đối tượng; lỗi thì bỏ
+//   src/platform/http.ts → send              gộp warnings vào phản hồi 2xx dạng đối tượng; lỗi thì bỏ
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'warnings-unit-tests';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const warnings = require('../../lib/warnings');
-const { send } = require('../../lib/http');
+const warnings = require('../../src/platform/warnings');
+const { send } = require('../../src/platform/http');
 
 // res giả: gom mã HTTP và thân đã gửi
 const fakeRes = () => {

@@ -3,8 +3,8 @@ process.env.SESSION_SECRET = 'today-overnight-isolated-tests';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
 let base, clock;
 const originalNow = Date.now;

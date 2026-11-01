@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'fixed-attendance-isolated-tests';
 const iso = (value?) => new Date(value + '+07:00').toISOString();
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
 // Đọc thẳng các ngày chấm công của tháng từ DB
 const ATT = async (u?, month?) =>

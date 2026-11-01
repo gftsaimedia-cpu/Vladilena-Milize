@@ -121,25 +121,17 @@ test('kiến trúc: công cụ quét thấy file và cạnh import thật (khôn
   assert.ok(crossModuleEdges.length >= 1, 'phải thấy ít nhất cạnh attendance → sheet');
 });
 
-test('kiến trúc: lib/** chỉ được phụ thuộc src/data (lớp truy vấn có kiểu) và register-ts, không phụ thuộc module hay hạ tầng HTTP', () => {
-  const walkJs = (dir?) =>
-    fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {
-      const full = path.join(dir, entry.name);
-      return entry.isDirectory() ? walkJs(full) : /\.(js|cjs)$/.test(entry.name) ? [full] : [];
-    });
+test('kiến trúc: tầng lõi (platform, domain, ai, ops, params, engine, shared) không phụ thuộc module NestJS hay hạ tầng HTTP của Nest', () => {
+  const CORE = ['platform', 'domain', 'ai', 'ops', 'params', 'engine', 'shared'].map(d => path.join(SRC, d) + path.sep);
+  const FORBIDDEN = ['modules', 'http'].map(d => path.join(SRC, d) + path.sep);
   const bad: any[] = [];
-  for (const file of walkJs(path.join(ROOT, 'lib'))) {
-    const text = fs.readFileSync(file, 'utf8');
-    for (const m of text.matchAll(/require\('((?:\.\.\/)+src\/[^']*)'\)/g)) {
-      const target = path.resolve(path.dirname(file), m[1]);
-      const ok = target === path.join(SRC, 'data') || target.startsWith(path.join(SRC, 'data') + path.sep);
-      if (!ok) bad.push(`${rel(file)} → ${rel(target)}`);
-    }
-  }
-  assert.deepEqual(bad, [], 'lib/ chỉ được import src/data');
+  for (const file of FILES.filter(f => CORE.some(c => f.startsWith(c))))
+    for (const target of importsOf(file))
+      if (FORBIDDEN.some(x => target.startsWith(x))) bad.push(`${rel(file)} → ${rel(target)}`);
+  assert.deepEqual(bad, [], 'tầng lõi chỉ được import tầng lõi và src/data');
 });
 
-test('kiến trúc: src/data là lớp lá (không import module, hạ tầng HTTP hay lib)', () => {
+test('kiến trúc: src/data là lớp lá (không import module, hạ tầng HTTP hay tầng lõi)', () => {
   const bad: any[] = [];
   for (const file of FILES.filter(f => rel(f).startsWith('src/data/')))
     for (const target of importsOf(file))

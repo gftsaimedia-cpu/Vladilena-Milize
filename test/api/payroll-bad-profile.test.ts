@@ -7,7 +7,7 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const service = require('../../lib/payroll-service');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store } = P;
 const monthOf = P.monthPool();

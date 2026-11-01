@@ -1,17 +1,17 @@
 'use strict';
 // OT không có giờ nghỉ: mọi phút có mặt trong đoạn OT (trước hoặc sau ca) là một phút OT, ở mọi nơi tính giờ OT:
-//   - tiền (calcDay: otH, otPay) và giờ OT của lịch ước tính / Check-in/out (lib/domain/work-hours.js);
+//   - tiền (calcDay: otH, otPay) và giờ OT của lịch ước tính / Check-in/out (src/domain/work-hours.js);
 //   - tách ngày lễ của đoạn OT (PayrollCalendar.splitExtraWork).
 // Đoạn làm bù theo giờ vẫn trừ giờ nghỉ của đoạn như trước.
 // Ví dụ: ca 08:00–17:00 + OT 17:00–22:00 là đúng 5 giờ OT (không phải 4).
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const Calendar = require('../../public/payroll-calendar.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const store = require('../../lib/db');
-const { estimateOtHours, actualOtHours, extraOtHours } = require('../../lib/domain/overtime/worked-hours').WorkedHours;
+const Engine = require('../../src/engine/payroll-engine.js');
+const Calendar = require('../../src/engine/payroll-calendar.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const store = require('../../src/platform/db');
+const { estimateOtHours, actualOtHours, extraOtHours } = require('../../src/domain/overtime/worked-hours').WorkedHours;
 
 const k = Engine.create(DEFAULTS);
 const PC = Calendar.create(DEFAULTS);

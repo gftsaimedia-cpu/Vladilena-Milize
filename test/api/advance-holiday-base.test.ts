@@ -5,7 +5,7 @@
 // NV bậc 1 ca n1, Admin khai thay mọi ngày Thứ Hai–Thứ Bảy của tháng đúng giờ ca; người bịa qa_*, DB trong bộ nhớ, đồng hồ giả.
 const P = require('../helpers/period-api');
 const { requestInWindow } = require('../helpers/advance-window');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 

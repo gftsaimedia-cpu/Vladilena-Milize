@@ -10,8 +10,8 @@
 //   sessions   lượt Check-in/out [{ id, state, date, entry }] (đầu vào của ActualHours.apply)
 //   kpi        { pct, amt, admPct, admAmt } hoặc { method: 'five', parts, ... } hoặc số
 // Chạy trực tiếp để (tạo lại) file vàng:  node test/helpers/payroll-cases.ts --golden   (xem cuối file)
-const PunchRules = require('../../public/punch.js');
-const ApprovalView = require('../../public/approval-view.js');
+const PunchRules = require('../../src/engine/punch.js');
+const ApprovalView = require('../../src/engine/approval-view.js');
 const { declaredPunches } = require('./declared-punches');
 
 const GENERATOR_VERSION = 2;

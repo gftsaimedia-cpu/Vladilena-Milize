@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-const store = require('../../lib/db');
-import auth = require('../../lib/auth');
-import authz = require('../../lib/authz');
-import audit = require('../../lib/audit');
-import config = require('../../lib/config');
-import warnings = require('../../lib/warnings');
-import { HttpError } from '../../lib/http';
-import { Overloaded } from '../../lib/ops/limiters';
-import { HEAVY_ROUTES, UNLIMITED_WRITE_ROUTES } from '../../lib/ops/route-classes';
+const store = require('../platform/db');
+import auth = require('../platform/auth');
+import authz = require('../platform/authz');
+import audit = require('../platform/audit');
+import config = require('../platform/config');
+import warnings = require('../platform/warnings');
+import { HttpError } from '../platform/http';
+import { Overloaded } from '../ops/limiters';
+import { HEAVY_ROUTES, UNLIMITED_WRITE_ROUTES } from '../ops/route-classes';
 import { shedder, writeLimiter } from './load-control';
 import { RAW_URL, type ApiContext } from './api-context';
 

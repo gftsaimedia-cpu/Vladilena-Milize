@@ -4,7 +4,7 @@
 const F = require('../helpers/api-fixture');
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const punch = require('../../public/punch');
+const punch = require('../../src/engine/punch');
 
 const { store } = F;
 const M = '2026-10';

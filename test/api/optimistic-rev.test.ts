@@ -4,7 +4,7 @@
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { rulesFor } = require('../../lib/request-rules');
+const { rulesFor } = require('../../src/platform/request-rules');
 
 const REASON = 'Điều chỉnh theo quyết định của quản lý tháng này';
 const MONTH = '2028-03';

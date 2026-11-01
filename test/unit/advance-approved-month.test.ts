@@ -2,8 +2,8 @@
 // Tạm ứng của tháng: chỉ có số khi Admin đã duyệt (extra.advance === true); số = advance.rate × lương cơ bản thực nhận của các ngày công từ ngày 1 đến advance.untilDay.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayrollEngine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { legacyParams } = require('../helpers/legacy-params');
 
 const engine = PayrollEngine.create(legacyParams());

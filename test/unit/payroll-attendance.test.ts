@@ -1,11 +1,11 @@
 // Payroll regression tests: inspect the browser's pure formula block in a VM.
-// Do not load server.js, lib/db.ts, browser boot code, or real personnel data.
+// Do not load server.js, src/platform/db.ts, browser boot code, or real personnel data.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const { loadPayroll } = require('../helpers/payroll-vm');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const {
   context: sandbox,

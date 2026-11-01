@@ -1,7 +1,7 @@
 'use strict';
 // Bộ nạp DUY NHẤT cho khối công thức lương CŨ trong vm.
 // Khối công thức chỉ còn bản ĐÓNG BĂNG
-// test/fixtures/legacy-payroll-block.js. Bộ máy đang chạy là public/payroll-engine.js,
+// test/fixtures/legacy-payroll-block.js. Bộ máy đang chạy là src/engine/payroll-engine.js,
 // được so với bản đóng băng này bởi payroll-engine-differential.test.ts và payroll-golden.test.ts.
 //
 //   const { api } = loadPayroll({ exports: ['calcDay', 'calcMonth'] });
@@ -19,7 +19,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const PUBLIC_DIR = path.join(__dirname, '../../public');
+const PUBLIC_DIR = path.join(__dirname, '../../src/engine');
 const FIXTURE = path.join(__dirname, '../fixtures/legacy-payroll-block.js');
 
 function loadPayroll(options: any = {}) {
@@ -35,7 +35,7 @@ function loadPayroll(options: any = {}) {
   for (const removed of ['source', 'scope', 'slices'])
     if (options[removed] !== undefined)
       throw new Error(
-        `loadPayroll: tuỳ chọn "${removed}" đã bỏ cùng giao diện cũ (public/index.html); chỉ còn khối đóng băng ${path.basename(FIXTURE)}`
+        `loadPayroll: tuỳ chọn "${removed}" đã bỏ cùng giao diện cũ (src/engine/index.html); chỉ còn khối đóng băng ${path.basename(FIXTURE)}`
       );
   const block = fs.readFileSync(FIXTURE, 'utf8');
   const run = (code?, context?) => vm.runInContext(code, context, timeout === undefined ? undefined : { timeout });

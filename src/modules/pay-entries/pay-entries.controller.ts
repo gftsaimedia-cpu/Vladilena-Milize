@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const store = require('../../../lib/db');
-const events = require('../../../lib/events');
-const entries = require('../../../lib/pay-entries');
-const { HttpError, readJson } = require('../../../lib/http');
-const { validMonth } = require('../../../lib/domain/input');
+const store = require('../../platform/db');
+const events = require('../../platform/events');
+const entries = require('../../domain/payroll/pay-entries');
+const { HttpError, readJson } = require('../../platform/http');
+const { validMonth } = require('../../domain/input');
 
 const ID_RE = /^[0-9]+$/;
 function idOf(segment: string): number {
@@ -17,8 +17,8 @@ const notify = (entry: any) => {
 };
 
 /**
- * Khoản điền thêm theo người theo tháng. Quyền đã kiểm ở cổng ROUTE_CAPS (lib/authz.ts);
- * quy tắc, kiểm đầu vào, khoá kỳ và nhật ký ở lib/pay-entries.ts.
+ * Khoản điền thêm theo người theo tháng. Quyền đã kiểm ở cổng ROUTE_CAPS (src/platform/authz.ts);
+ * quy tắc, kiểm đầu vào, khoá kỳ và nhật ký ở src/domain/payroll/pay-entries.ts.
  */
 @Controller('api')
 export class PayEntriesController {

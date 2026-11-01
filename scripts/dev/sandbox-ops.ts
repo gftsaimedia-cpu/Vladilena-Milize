@@ -10,7 +10,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const http = require('node:http');
 const { spawn } = require('node:child_process');
-const pgBackup = require('../../lib/ops/pg-backup');
+const pgBackup = require('../../src/ops/pg-backup');
 const { seedLoadUsers, DEFAULT_PREFIX } = require('../loadtest/kit/seed');
 const { reconcile } = require('../loadtest/kit/reconcile');
 
@@ -80,7 +80,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
     const idsFile = path.join(workDir, `load-${counter}-ids.json`);
     const args = [
       '--no-warnings=ExperimentalWarning',
-      path.join(project, 'scripts', 'loadtest', 'run.js'),
+      path.join(project, 'scripts', 'loadtest', 'run.ts'),
       `--base=http://127.0.0.1:${getPort()}`,
       `--users=${users}`,
       `--scenarios=${scenarios.join(',')}`,
@@ -150,7 +150,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
     if (!item) throw fail(400, 'Không có bản sao lưu này; tạo bản mới');
     return item;
   };
-  // Kiểm toàn vẹn bản sao lưu: đọc cả file, tính lại số dòng và dấu vân tay từng bảng (lib/ops/pg-backup.ts → verifyFile)
+  // Kiểm toàn vẹn bản sao lưu: đọc cả file, tính lại số dòng và dấu vân tay từng bảng (src/ops/pg-backup.ts → verifyFile)
   const integrityOf = async (file?) => {
     try {
       const r = await pgBackup.verifyFile(file);

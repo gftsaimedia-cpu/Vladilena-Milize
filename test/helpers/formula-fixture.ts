@@ -1,14 +1,14 @@
 'use strict';
-// Đồ dùng chung cho test của public/formula.js (bộ phân tích công thức gõ bằng tiếng Việt).
-// Mỗi test mở đầu bằng loadFormula(); chưa có public/formula.js thì test đỏ với "module missing".
+// Đồ dùng chung cho test của src/engine/formula.js (bộ phân tích công thức gõ bằng tiếng Việt).
+// Mỗi test mở đầu bằng loadFormula(); chưa có src/engine/formula.js thì test đỏ với "module missing".
 // Mọi giả định về hình dạng dữ liệu nằm ở ĐÂY (ctx của evaluate, cách đọc mã lỗi, serialize trả chuỗi hay đối tượng),
 // để khi hình dạng đổi thì chỉ sửa một chỗ.
 const assert = require('node:assert/strict');
 const { pending, need } = require('./red');
 
 // Cờ todo khi chưa có mô-đun; RED=1 ép chạy như test thường.
-const READY = () => pending('V1: public/formula.js chưa có (bộ phân tích công thức)', 'public/formula.js');
-const loadFormula = () => need('public/formula.js');
+const READY = () => pending('V1: src/engine/formula.js chưa có (bộ phân tích công thức)', 'src/engine/formula.js');
+const loadFormula = () => need('src/engine/formula.js');
 
 // ---------- từ vựng ----------
 const word = (key?, label?, unit?, domain?, extra: any = {}) => ({

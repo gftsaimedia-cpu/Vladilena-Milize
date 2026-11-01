@@ -1,5 +1,5 @@
 'use strict';
-// lib/payroll-service.ts → loadInputs chỉ nạp phiên Check-in/out của tháng đang tính (giờ trả lương luôn lấy từ Check-in/out).
+// src/domain/payroll/payroll-service.ts → loadInputs chỉ nạp phiên Check-in/out của tháng đang tính (giờ trả lương luôn lấy từ Check-in/out).
 // Nạp phiên của MỌI tháng thì digestOf băm cả phiên tháng khác (kỳ đã tính bị báo stale, lý do 'inputs') và checklist đếm FORGOT_PUNCH
 // trên cả phiên tháng sau. Phiên trong chính tháng đang tính là đầu vào của kỳ: thêm phiên sau khi tính thì kỳ báo lỗi thời.
 // Tiền không đổi khi có phiên tháng khác vì calcMonth chỉ giữ ngày của tháng; bài (d) canh giữ điều đó.
@@ -7,8 +7,8 @@
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../public/punch.js');
-const service = require('../../lib/payroll-service');
+const PunchRules = require('../../src/engine/punch.js');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store, flow } = P;
 

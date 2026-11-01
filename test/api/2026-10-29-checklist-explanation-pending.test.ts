@@ -1,10 +1,10 @@
 'use strict';
-// Danh sách kiểm chốt công (lib/periods.ts → checklist): mã EXPLANATION_PENDING đếm ngày có giải trình chưa quyết định (cảnh báo, không
+// Danh sách kiểm chốt công (src/domain/period/periods.ts → checklist): mã EXPLANATION_PENDING đếm ngày có giải trình chưa quyết định (cảnh báo, không
 // chặn); ngày có giải trình bị từ chối là đã chốt "không tính công" nên không còn nằm trong FORGOT_PUNCH.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { F, store, flow } = P;
 

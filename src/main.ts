@@ -1,11 +1,11 @@
 import type http from 'node:http';
-const store = require('../lib/db');
-import auth = require('../lib/auth');
-import config = require('../lib/config');
-import events = require('../lib/events');
-import Positions = require('../lib/params/positions');
-import { attachAccessLog } from '../lib/ops/access-log';
-import { container } from '../lib/domain/container';
+const store = require('./platform/db');
+import auth = require('./platform/auth');
+import config = require('./platform/config');
+import events = require('./platform/events');
+import Positions = require('./params/positions');
+import { attachAccessLog } from './ops/access-log';
+import { container } from './domain/container';
 import { monitor } from './http/load-control';
 
 /** Tài khoản admin đầu tiên khi DB còn trống (mật khẩu từ ADMIN_PASSWORD hoặc sinh ngẫu nhiên, không bao giờ in ra log). */

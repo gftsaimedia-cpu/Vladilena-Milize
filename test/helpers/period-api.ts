@@ -7,7 +7,7 @@
 const assert = require('node:assert/strict');
 const F = require('./api-fixture');
 const flow = require('./period-flow');
-const agents = require('../../lib/agents');
+const agents = require('../../src/platform/agents');
 
 const { store } = F;
 const ORDER = ['open', 'attendance_locked', 'calculated', 'reviewed', 'approved', 'paid'];

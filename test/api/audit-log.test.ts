@@ -1,16 +1,16 @@
 'use strict';
 // Nhật ký kiểm toán: chỉ thêm dòng, nối băm, ghi cùng giao dịch với thay đổi, không chứa bí mật, chỉ người có quyền đọc.
 // Chia hai nhóm:
-//   - tầng kho dữ liệu (lib/db.ts: store.audit, trigger của bảng audit_log);
-//   - tầng nối vào API (lib/audit.ts và các route): chạy như `todo` khi chưa có lib/audit.ts, RED=1 để chạy như test thường.
+//   - tầng kho dữ liệu (src/platform/db.ts: store.audit, trigger của bảng audit_log);
+//   - tầng nối vào API (src/platform/audit.ts và các route): chạy như `todo` khi chưa có src/platform/audit.ts, RED=1 để chạy như test thường.
 // Tên test: audit-append-only, audit-hash-chain, audit-atomic, audit-no-secrets, audit-permissions.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
+const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { pending } = require('../helpers/red');
 
 const { store } = F;
-const wired = pending('V1-A bước 3: lib/audit.ts và các route ghi nhật ký chưa có', 'lib/audit.ts');
+const wired = pending('V1-A bước 3: src/platform/audit.ts và các route ghi nhật ký chưa có', 'src/platform/audit.ts');
 
 before(F.start);
 after(F.stop);

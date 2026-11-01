@@ -6,8 +6,8 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
-const { reconcileMonthApprovals } = require('../../lib/domain/approvals');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
+const { reconcileMonthApprovals } = require('../../src/domain/approvals');
 
 const adminRows = async (username?, date?) =>
   (await X.sessionsOn(username, date)).filter(s => s.entry.origin === ADMIN_ORIGIN);

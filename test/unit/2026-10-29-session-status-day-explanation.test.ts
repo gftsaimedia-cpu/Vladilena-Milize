@@ -4,12 +4,12 @@
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../public/punch.js');
-const ActualHours = require('../../public/actual-hours.js');
-const config = require('../../lib/config');
-const { lateCheckoutMin } = require('../../lib/domain/explanation/late-checkout');
-const { SessionStatus } = require('../../lib/domain/attendance/session-status');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
+const P = require('../../src/engine/punch.js');
+const ActualHours = require('../../src/engine/actual-hours.js');
+const config = require('../../src/platform/config');
+const { lateCheckoutMin } = require('../../src/domain/explanation/late-checkout');
+const { SessionStatus } = require('../../src/domain/attendance/session-status');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
 
 const DATE = '2026-10-20';
 const at = (hhmm?) => new Date(`${DATE}T${hhmm}:00+07:00`).toISOString();

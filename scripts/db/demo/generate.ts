@@ -1,13 +1,13 @@
 'use strict';
-// Ghi bộ dữ liệu demo vào DB qua các hàm của lib/db.ts (store), như thể máy chủ vừa lưu. Dữ liệu hợp lệ đi qua store.setSheet +
+// Ghi bộ dữ liệu demo vào DB qua các hàm của src/platform/db.ts (store), như thể máy chủ vừa lưu. Dữ liệu hợp lệ đi qua store.setSheet +
 // approvals.reconcile + approvals.decide, Check-in/out đi theo đúng các bước của POST /punch (punch.js: openSessionDay, buildDay);
 // dữ liệu bất thường ghi thẳng bằng SQL (đánh dấu unreasonable trong scenarios.js).
 // Đồng hồ: mọi lệnh ghi chạy dưới Date.now giả (mỗi sự kiện đặt đúng giờ của nó) nên submitted_at, decided_at... không phụ thuộc ngày chạy.
 const H = require('./helpers');
 const S = require('./scenarios');
 const { validatePersona } = require('./validate');
-const ApprovalView = require('../../../public/approval-view.js');
-const ActualHours = require('../../../public/actual-hours.js');
+const ApprovalView = require('../../../src/engine/approval-view.js');
+const ActualHours = require('../../../src/engine/actual-hours.js');
 
 const { P, SCHED, SHIFT } = H;
 const ADMIN = 'demo_admin';

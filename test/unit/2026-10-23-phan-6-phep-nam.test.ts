@@ -10,8 +10,8 @@
 // Ngày giả định cố định, người bịa; không đọc đồng hồ thật.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const Leave = require('../../public/leave.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const Leave = require('../../src/engine/leave.js');
 
 const total = (staff?, upTo?) => Leave.accrued(staff, upTo).total;
 const withParams = (patch?) => ({ ...DEFAULTS, ...patch });

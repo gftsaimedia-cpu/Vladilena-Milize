@@ -5,8 +5,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const ROOT = path.join(__dirname, '../..');
 const read = (file?) => fs.readFileSync(path.join(ROOT, file), 'utf8');
@@ -14,8 +14,8 @@ const read = (file?) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 test('makeup.surplus không còn trong DEFAULTS, registry.data.json, keys.lock.json và các tệp mô tả tham số', async () => {
   assert.ok(!Object.hasOwn(DEFAULTS, 'makeup.surplus'));
   for (const file of [
-    'lib/params/registry.data.json',
-    'lib/params/keys.lock.json',
+    'src/params/registry.data.json',
+    'src/params/keys.lock.json',
     'scripts/params/hand-defaults.json',
     'scripts/params/plain-text.json'
   ])
@@ -23,7 +23,7 @@ test('makeup.surplus không còn trong DEFAULTS, registry.data.json, keys.lock.j
 });
 
 test('không còn mã đọc hay hiển thị cài đặt makeup.surplus trong máy chủ và giao diện', async () => {
-  for (const dir of ['lib', 'public']) {
+  for (const dir of ['src']) {
     const walk = (folder?) =>
       fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap(entry => {
         const rel = path.posix.join(folder, entry.name);

@@ -1,6 +1,6 @@
 'use strict';
 /*
- * Sao lưu / kiểm / khôi phục PostgreSQL (không cần pg_dump). Logic ở lib/ops/pg-backup.ts.
+ * Sao lưu / kiểm / khôi phục PostgreSQL (không cần pg_dump). Logic ở src/ops/pg-backup.ts.
  *
  *   node scripts/ops/pg-backup.ts backup  [--source=<DB>] [--dir=<thư-mục>] [--keep=<n>]
  *   node scripts/ops/pg-backup.ts verify  --backup=<file>
@@ -17,7 +17,7 @@
  * restore : chỉ vào DB MỚI (đã chạy migration, chưa có dữ liệu); một giao dịch, lệch là hoàn tác. Cần cờ --confirm-new-empty-db.
  */
 const path = require('node:path');
-const { backup, verifyFile, restore, drill, PgBackupError } = require('../../lib/ops/pg-backup');
+const { backup, verifyFile, restore, drill, PgBackupError } = require('../../src/ops/pg-backup');
 
 const args = Object.fromEntries(
   process.argv

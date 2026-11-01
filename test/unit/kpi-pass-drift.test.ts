@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { serverSource } = require('../helpers/server-source');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { createLegacyEngine } = require('../helpers/legacy-payroll');
 
 const { TYPES } = createLegacyEngine();
@@ -26,7 +26,7 @@ test('loại không có KPI (TTS) không có kpiPass trong khối cũ và DEFAUL
 });
 
 test('server.js không còn bản sao KPI_PASS (đọc type.<loại>.kpiPass qua typeParam)', () => {
-  const source = serverSource(); // kpiScoreItem nằm ở server.js hoặc lib/domain/kpi.js
+  const source = serverSource(); // kpiScoreItem nằm ở server.js hoặc src/domain/kpi.js
   assert.doesNotMatch(source, /^const KPI_PASS = /m);
   assert.match(source, /typeParam\(params, staff\.type, 'kpiPass'\)/);
 });

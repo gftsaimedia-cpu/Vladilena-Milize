@@ -3,10 +3,10 @@
 // tháng thay đổi không làm đổi cách tính; bản chụp tham số cũ thiếu ba khoá vẫn tính theo cách đoán cũ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { OLD_BASIS } = require('../helpers/defaults-old-basis.js');
-const registry = require('../../lib/params/registry');
+const registry = require('../../src/params/registry');
 const { attendDeclaredDays } = require('../helpers/payroll-cases');
 
 const NV = { username: 'qa_one_nv', type: 'nv', level: 1, nightPct: 40, startDate: '2026-01-05' };
@@ -73,7 +73,7 @@ test('bản chụp tham số cũ thiếu ba khoá vẫn tính được và ra đ
 });
 
 test('hợp đồng theo thâm niên với bộ tham số mặc định, mọi tháng như nhau: vào làm 01/08/2026 là hợp đồng ngắn ở tháng 10 và dài từ tháng 11', () => {
-  const { PayrollPolicy } = require('../../lib/domain/payroll/policy');
+  const { PayrollPolicy } = require('../../src/domain/payroll/policy');
   assert.equal(PayrollPolicy.contractFor(DEFAULTS, '2026-08-01', '2026-10', 'long'), 'short');
   assert.equal(PayrollPolicy.contractFor(DEFAULTS, '2026-08-01', '2026-11', 'long'), 'long');
   assert.equal(PayrollPolicy.contractFor(DEFAULTS, '2026-08-01', '2026-09', 'long'), 'short');

@@ -74,8 +74,8 @@ async function main() {
     password = crypto.randomBytes(12).toString('hex');
     process.env.DATABASE_URL = dbUrl;
     process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
-    const store = require('../../lib/db');
-    const auth = require('../../lib/auth');
+    const store = require('../../src/platform/db');
+    const auth = require('../../src/platform/auth');
     await seedLoadUsers(store, { count: userCount, passHash: auth.hashPassword(password), prefix });
     store.db.close();
     const port = num('port', 3590);
@@ -127,7 +127,7 @@ async function main() {
     if (state.confirmed) {
       if (args['ids-out']) fs.writeFileSync(args['ids-out'], JSON.stringify(state.confirmed));
       if (dbUrl) {
-        const { PostgresDatabase } = require('../../lib/data/postgres-database');
+        const { PostgresDatabase } = require('../../src/data/postgres-database');
         const db = new PostgresDatabase({ url: dbUrl, max: 1 });
         await db.ready;
         reconciled = await reconcile(db, state.confirmed, { prefix });

@@ -6,8 +6,8 @@ import { ReplyAdapter } from './http/reply';
 import { AppModule } from './app.module';
 import { inflight } from './http/load-control';
 import { RAW_URL } from './http/api-context';
-import { send, securityHeaders, serveStatic } from '../lib/http';
-import config = require('../lib/config');
+import { send, securityHeaders, serveStatic } from './platform/http';
+import config = require('./platform/config');
 import { initApp } from './app.init';
 import { hashGate, writeLimiter, shedder, monitor } from './http/load-control';
 
@@ -50,7 +50,7 @@ export function createServer(): http.Server {
     req.url = (req.url as string).replace(/%/g, '%25');
     instance(req, res);
   });
-  // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem lib/config.ts → HTTP_KEEP_ALIVE_MS)
+  // Giữ kết nối 65 giây thay vì 5 giây mặc định của Node (xem src/platform/config.ts → HTTP_KEEP_ALIVE_MS)
   server.keepAliveTimeout = config.HTTP_KEEP_ALIVE_MS;
   server.headersTimeout = config.HTTP_HEADERS_TIMEOUT_MS;
   server.requestTimeout = config.HTTP_REQUEST_TIMEOUT_MS; // kẻ gửi chậm không giữ socket mãi (luồng SSE là phản hồi nên không bị tính)

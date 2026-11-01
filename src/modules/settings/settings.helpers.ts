@@ -1,9 +1,9 @@
-const store = require('../../../lib/db');
-const { monthParams } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const store = require('../../platform/db');
+const { monthParams } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
 const { actualOtHours, estimateHolidayOtHours, actualHolidayOtHours } =
-  require('../../../lib/domain/overtime/worked-hours').WorkedHours; // giờ ca, OT, giờ làm ngày lễ
-const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { OtLimits } = require('../../../lib/domain/overtime/ot-limits'); // trần giờ làm: MỘT nguồn đọc từ bộ tham số của tháng
+  require('../../domain/overtime/worked-hours').WorkedHours; // giờ ca, OT, giờ làm ngày lễ
+const { estimateSheet } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { OtLimits } = require('../../domain/overtime/ot-limits'); // trần giờ làm: MỘT nguồn đọc từ bộ tham số của tháng
 
 // So cả hai lịch trước khi ghi. Xung đột cũ không liên quan giữ nguyên;
 // xung đột mới phải xử lý trước ở luồng lịch ước tính / chấm công của nó.

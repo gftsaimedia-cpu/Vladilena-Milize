@@ -1,13 +1,13 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { from, lastValueFrom, Observable } from 'rxjs';
-import warnings = require('../../lib/warnings');
+import warnings = require('../platform/warnings');
 import { withRequestWarnings } from './reply';
-import { requestRules } from '../../lib/request-rules';
-import { announceAttendance } from '../../lib/announce';
-import { announcePunches } from '../../lib/domain/attendance';
+import { requestRules } from '../platform/request-rules';
+import { announceAttendance } from '../platform/announce';
+import { announcePunches } from '../domain/attendance';
 
 /**
- * Phạm vi của MỘT yêu cầu: cảnh báo gom theo yêu cầu (lib/warnings.ts), bộ quy tắc theo tháng dựng một lần (lib/request-rules.ts).
+ * Phạm vi của MỘT yêu cầu: cảnh báo gom theo yêu cầu (src/platform/warnings.ts), bộ quy tắc theo tháng dựng một lần (src/platform/request-rules.ts).
  * Sau khi route xong (đã COMMIT) mới báo tin cho màn đang mở: chấm công mới và cấu hình đổi.
  */
 @Injectable()

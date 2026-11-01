@@ -1,7 +1,7 @@
 'use strict';
 // Hai chỗ cảnh báo không được ném TypeError (500): phải ra kết quả bình thường hoặc 4xx có lời báo.
-//   1. lib/domain/kpi.js → cleanKpiAmt: người không có mức KPI (TTS, bậc không có khoá level.<loại>.<bậc>.kpi) không làm câu cảnh báo KPI_OVER_CAP gọi max.toLocaleString trên giá trị rỗng.
-//   2. lib/domain/ot.ts → validateOtDeclaration: lượt không có ca đối chiếu (plannedShift rỗng, ví dụ lượt ngoài ca) không đọc plan.in.
+//   1. src/domain/kpi.js → cleanKpiAmt: người không có mức KPI (TTS, bậc không có khoá level.<loại>.<bậc>.kpi) không làm câu cảnh báo KPI_OVER_CAP gọi max.toLocaleString trên giá trị rỗng.
+//   2. src/domain/ot.ts → validateOtDeclaration: lượt không có ca đối chiếu (plannedShift rỗng, ví dụ lượt ngoài ca) không đọc plan.in.
 // Chỉ người bịa (qa_*) và DB trong bộ nhớ.
 const K = require('../helpers/warning-cases');
 const { test, before, after } = require('node:test');

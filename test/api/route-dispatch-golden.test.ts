@@ -7,7 +7,7 @@
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 const dispatch = require('../tools/record-dispatch');
-const authz = require('../../lib/authz');
+const authz = require('../../src/platform/authz');
 
 let recorded, golden;
 before(async () => {

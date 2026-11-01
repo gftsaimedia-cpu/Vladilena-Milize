@@ -6,13 +6,13 @@
 // Người và số đều bịa; không đọc đồng hồ.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Formula = require('../../public/formula.js');
-const Vocab = require('../../public/formula-vocab.js');
-const PayrollEngine = require('../../public/payroll-engine.js');
+const Formula = require('../../src/engine/formula.js');
+const Vocab = require('../../src/engine/formula-vocab.js');
+const PayrollEngine = require('../../src/engine/payroll-engine.js');
 const PayrollParams = require('../helpers/defaults-old-basis.js');
-const PayrollGraph = require('../../public/payroll-graph.js');
+const PayrollGraph = require('../../src/engine/payroll-graph.js');
 const { attendDeclaredDays } = require('../helpers/payroll-cases');
-const FormulaVocab = require('../../public/formula-vocab.js');
+const FormulaVocab = require('../../src/engine/formula-vocab.js');
 
 const params = PayrollParams.DEFAULTS;
 const clone = (value?) => JSON.parse(JSON.stringify(value));

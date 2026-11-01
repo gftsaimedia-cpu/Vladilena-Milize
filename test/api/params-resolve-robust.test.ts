@@ -1,7 +1,7 @@
 'use strict';
 // Độ bền của bộ tham số khi một dòng param_versions hỏng hoặc sai khoá (sửa tay trong DB, hoặc dòng của khoá đã bị khoá): store.resolve phải BỎ QUA dòng đó
 // và báo lại trong `skipped`, KHÔNG ném lỗi, vì mọi route đọc tham số theo tháng (monthParams) sẽ 500 và bảng lương không dùng được
-// (lib/params/store.ts ghi: "Dòng của khoá lạ, hoặc giá trị sai cấu trúc, bị bỏ qua và báo lại; không bao giờ làm hỏng bảng lương").
+// (src/params/store.ts ghi: "Dòng của khoá lạ, hoặc giá trị sai cấu trúc, bị bỏ qua và báo lại; không bao giờ làm hỏng bảng lương").
 // File này chỉ có test chèn dòng hỏng (append-only nên dòng ở lại cho tới hết tiến trình): đặt riêng để không làm hỏng test khác.
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
@@ -27,7 +27,7 @@ test('Dòng param_versions của khoá không sửa được trên màn (khoá l
     const locked = await S.lockedKey();
     assert.ok(locked, 'registry có khoá locked kiểu số');
     await insertRaw(locked.key, '2026-10', JSON.stringify(locked.value));
-    const paramsStore = require('../../lib/params/store');
+    const paramsStore = require('../../src/params/store');
     let resolved;
     await assert.doesNotReject(async () => {
       resolved = await paramsStore.resolve('2026-10');
@@ -51,7 +51,7 @@ test('Dòng param_versions của khoá lạ hoặc giá trị sai kiểu bị b�
     await insertRaw('khong.co.khoa.nay', '2026-11', '1');
     await insertRaw('type.nv.travel', '2026-11', '"abc"');
     await insertRaw('level.nv.1.base', '2026-11', '{"loi":true}');
-    const paramsStore = require('../../lib/params/store');
+    const paramsStore = require('../../src/params/store');
     let resolved;
     await assert.doesNotReject(async () => {
       resolved = await paramsStore.resolve('2026-11');

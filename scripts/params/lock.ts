@@ -1,14 +1,14 @@
 'use strict';
-// params:lock — ghi tên khoá (mẫu khoá của từng mục registry, hoặc id của mục không có khoá) vào lib/params/keys.lock.json.
+// params:lock — ghi tên khoá (mẫu khoá của từng mục registry, hoặc id của mục không có khoá) vào src/params/keys.lock.json.
 // Chỉ THÊM: tên đã có trong tệp không bao giờ bị xoá ở đây (muốn bỏ khoá thì đặt deprecated: true ở registry; tệp vẫn giữ).
 // Diff của tệp chỉ có dòng thêm. Tệp khoá không có chỗ trong public/ (ai cũng tải được thư mục đó).
 const fs = require('node:fs');
 const path = require('node:path');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { lockedNames } = require('./check');
-const registry = require('../../lib/params/registry.ts');
+const registry = require('../../src/params/registry');
 
-const FILE = path.join(__dirname, '..', '..', 'lib/params/keys.lock.json');
+const FILE = path.join(__dirname, '..', '..', 'src/params/keys.lock.json');
 const released = new Date().toISOString().slice(0, 10);
 const domainOf = (name?) => name.split('.')[0];
 

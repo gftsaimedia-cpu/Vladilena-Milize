@@ -1,16 +1,16 @@
-const { AsyncList } = require('../../../lib/shared/async-list');
+const { AsyncList } = require('../../shared/async-list');
 // Route đọc lịch sử yêu cầu ứng lương.
-// server.js không có gì ở đây: lib/domain/routes.js gửi đường dẫn /api/advance-requests tới handle(). Quyền ở cổng ROUTE_CAPS (lib/authz.ts);
-// đọc bảng ở lib/advance-requests.ts; mức tối đa do bộ máy lương tính (lib/advance-cap.ts).
+// server.js không có gì ở đây: src/domain/routes.js gửi đường dẫn /api/advance-requests tới handle(). Quyền ở cổng ROUTE_CAPS (src/platform/authz.ts);
+// đọc bảng ở src/domain/advance/advance-requests.ts; mức tối đa do bộ máy lương tính (src/domain/advance/advance-cap.ts).
 //   GET  /api/advance-requests?month=[&username=][&status=]   { month, scope, items, pending?, cap, granted, remaining, eligible, reason? }
 //        nhân sự: của mình, kèm cap (đồng) = mức tối đa của tháng; người có quyền duyệt (hoặc xem lương): mọi người (không có cap), hoặc một người nếu có username
-// Số đã duyệt ở đây không trừ vào phiếu; tạm ứng là số theo quy tắc, chỉ trừ khi Admin duyệt (lib/domain/advance/routes.js).
-const store = require('../../../lib/db');
-const authz = require('../../../lib/authz');
-const advances = require('../../../lib/advance-requests');
-const advanceCap = require('../../../lib/advance-cap');
-const { HttpError, send } = require('../../../lib/http');
-const { validMonth, USERNAME_RE } = require('../../../lib/domain/input');
+// Số đã duyệt ở đây không trừ vào phiếu; tạm ứng là số theo quy tắc, chỉ trừ khi Admin duyệt (src/domain/advance/routes.js).
+const store = require('../../platform/db');
+const authz = require('../../platform/authz');
+const advances = require('../../domain/advance/advance-requests');
+const advanceCap = require('../../domain/advance/advance-cap');
+const { HttpError, send } = require('../../platform/http');
+const { validMonth, USERNAME_RE } = require('../../domain/input');
 
 // Mức tối đa của một người trong tháng, phẳng để giao diện đọc thẳng: cap (đồng), granted (đã duyệt), remaining (còn được ứng), eligible và reason khi không được ứng
 const capView = info => ({
@@ -20,7 +20,7 @@ const capView = info => ({
   eligible: info.eligible,
   ...(info.reason ? { reason: info.reason } : {})
 });
-// Mã lỗi của lib/advance-requests.ts mang httpStatus; chuyển thành HttpError để send() trả đúng mã
+// Mã lỗi của src/domain/advance/advance-requests.ts mang httpStatus; chuyển thành HttpError để send() trả đúng mã
 const wrap = async fn => {
   try {
     return await fn();

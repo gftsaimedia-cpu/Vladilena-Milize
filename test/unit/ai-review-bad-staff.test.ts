@@ -4,7 +4,7 @@
 // Toàn người giả (qa_*), tháng 10/2026, dữ liệu của ai-review-world.js (cùng ca với test attendance-allowance-risk và large-pay-impact).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { review } = require('../../lib/ai/review.ts');
+const { review } = require('../../src/ai/review');
 const W = require('./ai-review-world.js');
 
 const { person, world, find, workDay } = W;
@@ -97,7 +97,7 @@ test('T16: thiếu bộ máy lương (payroll: undefined) bỏ qua luật cần 
 
 // approval-view.js tra lịch theo loại nhân sự bằng thuộc tính của chính nó, nên 'constructor' / 'toString' / '__proto__' không ném TypeError.
 test('T16: approval-view.itemOf với loại nhân sự trùng tên thuộc tính Object ("constructor") không ném TypeError trong ngày lễ', () => {
-  const ApprovalView = require('../../public/approval-view.js');
+  const ApprovalView = require('../../src/engine/approval-view.js');
   for (const staffType of ['constructor', 'toString', '__proto__'])
     assert.doesNotThrow(
       () => ApprovalView.itemOf(workDay(), { date: '2026-10-12', holidays: ['2026-10-12'], staffType }),

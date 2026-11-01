@@ -1,13 +1,13 @@
 'use strict';
-// Lượt bị thay trong ngày công (lib/domain/attendance/session-view.ts → supersededIds), cùng luật public/actual-hours.js dùng để tính
+// Lượt bị thay trong ngày công (src/domain/attendance/session-view.ts → supersededIds), cùng luật src/engine/actual-hours.js dùng để tính
 // lương: lượt Admin khai thay thắng các lượt bấm bị chặn cùng ngày; lượt chấm thật dùng được thắng lượt Admin; lượt đang mở giữ nguyên.
-// Nhãn của ngày (public/attendance-status.js → dayStatus, dayNotes) bỏ qua lượt bị thay.
+// Nhãn của ngày (src/engine/attendance-status.js → dayStatus, dayNotes) bỏ qua lượt bị thay.
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { supersededIds } = require('../../lib/domain/attendance/session-view');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
-const AS = require('../../public/attendance-status.js');
+const { supersededIds } = require('../../src/domain/attendance/session-view');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
+const AS = require('../../src/engine/attendance-status.js');
 
 const DATE = '2026-11-10';
 const plan = { code: 'Normal1', date: DATE, startIso: `${DATE}T01:00:00.000Z`, endIso: `${DATE}T10:00:00.000Z` };

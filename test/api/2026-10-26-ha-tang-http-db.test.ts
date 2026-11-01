@@ -5,10 +5,10 @@ process.env.WEB_DIST = require('node:path').join(require('node:os').tmpdir(), 'l
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
-const store = require('../../lib/db');
+const store = require('../../src/platform/db');
 const server = require('../helpers/server');
-const config = require('../../lib/config');
-const { send } = require('../../lib/http');
+const config = require('../../src/platform/config');
+const { send } = require('../../src/platform/http');
 
 after(() => {
   server.closeAllConnections?.();

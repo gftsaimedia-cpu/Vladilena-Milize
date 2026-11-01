@@ -1,9 +1,9 @@
 'use strict';
-// GET và PUT /api/settings/shifts bao quanh các khoá shift.preset.<mã>.in | out (lib/domain/shifts.ts): cùng kiểm giờ ca và nhật ký với PUT /api/settings/params.
+// GET và PUT /api/settings/shifts bao quanh các khoá shift.preset.<mã>.in | out (src/domain/shifts.ts): cùng kiểm giờ ca và nhật ký với PUT /api/settings/params.
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { rulesFor } = require('../../lib/request-rules');
+const { rulesFor } = require('../../src/platform/request-rules');
 
 const REASON = 'Đổi giờ ca theo thông báo của công ty tháng này';
 before(async () => {

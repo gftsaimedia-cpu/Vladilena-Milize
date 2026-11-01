@@ -1,5 +1,5 @@
 'use strict';
-// Cờ `wired` của registry: một khoá chỉ `wired: true` khi (1) bộ máy public/payroll-engine.js hoặc lib/ai/*
+// Cờ `wired` của registry: một khoá chỉ `wired: true` khi (1) bộ máy src/engine/payroll-engine.js hoặc src/ai/*
 // ĐỌC nó từ bộ tham số và (2) không còn bản sao hằng số của giá trị đó ở chỗ khác mà chạy thật (hằng số trong server.js, các mô-đun dùng chung
 // punch, actual-hours, kpi-score, approval-view). Khoá chưa nối mà vẫn cho Lưu thì Lưu "không có tác dụng" hoặc, tệ hơn, bộ máy tính một
 // số còn nơi kiểm đầu vào dùng số cũ. PUT /api/settings/params từ chối khoá `wired: false` bằng 400 PARAM_NOT_WIRED.
@@ -7,35 +7,37 @@
 // Kiểm tĩnh, không chạy mã: đọc văn bản nguồn. params:check so cờ trong registry với kết quả ở đây, nên khi một mô-đun chuyển sang đọc params
 // (hết bản sao) hoặc khi có bản sao mới, params:check báo lỗi cho tới khi chạy lại `node scripts/params/wired.ts --write`.
 //   node scripts/params/wired.ts            in bảng và số lượng
-//   node scripts/params/wired.ts --write    ghi cờ vào lib/params/registry.data.json (chỉ đổi trường wired)
+//   node scripts/params/wired.ts --write    ghi cờ vào src/params/registry.data.json (chỉ đổi trường wired)
 const fs = require('node:fs');
 const path = require('node:path');
 process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { extract, ROOT } = require('./extract-defaults');
-const { isKeyWired } = require('../../lib/params/wired-flag');
-const registry = require(path.join(ROOT, 'lib/params/registry.ts'));
+const { isKeyWired } = require('../../src/params/wired-flag');
+const registry = require(path.join(ROOT, 'src/params/registry.ts'));
 
 const read = (file?) => fs.readFileSync(path.join(ROOT, file), 'utf8');
 // Nơi đọc bộ tham số đã giải: bộ máy, lớp dẫn xuất của payroll-params.js (không tính khối DEFAULTS được sinh), AI, và hai mô-đun máy chủ
 // nhận params từ paramsStore.resolve (kỳ lương, ước tính của nhân sự)
 const ENGINE_FILES = [
-  'public/payroll-engine.js',
-  'public/payroll-params.js',
-  'public/pay-tail-calc.js', // phép chọn của bảo hiểm và thuế do Kế toán cấu hình
-  'lib/periods.ts',
-  'lib/payroll-service.ts',
-  'public/pay-options-calc.js', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
-  'public/work-schedule.js', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
-  'lib/domain/limits.js', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
+  'src/engine/payroll-engine.js',
+  'src/engine/payroll-params.js',
+  'src/engine/pay-tail-calc.js', // phép chọn của bảo hiểm và thuế do Kế toán cấu hình
+  'src/domain/period/periods.ts',
+  'src/domain/payroll/payroll-service.ts',
+  'src/engine/pay-options-calc.js', // phương án cách tính: pay.method, attendance.lossMode, shortHoursRounding, advance.basis
+  'src/engine/work-schedule.js', // lịch làm việc: type.<mã>.workdaysMode, dows, workdays
+  'src/domain/limits.js', // giới hạn khai: isat.monthlyLimit, tham số nghỉ giữa ca của trần giờ ngày
   // Sáu mô-đun luật dùng chung nhận params qua create(params). Bảng FALLBACK của chúng là bản chép chuyển tiếp bằng DEFAULTS
   // (scripts/params/check-fallbacks.ts kiểm): không tính là nơi đọc và không tính là bản sao chạy thật
-  ...['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar'].map(m => `public/${m}.js`),
-  ...fs.readdirSync(path.join(ROOT, 'lib/ai')).map(f => `lib/ai/${f}`)
+  ...['actual-hours', 'approval-view', 'kpi-score', 'punch', 'leave', 'payroll-calendar'].map(
+    m => `src/engine/${m}.js`
+  ),
+  ...fs.readdirSync(path.join(ROOT, 'src/ai')).map(f => `src/ai/${f}`)
 ].filter(f => f.endsWith('.js'));
 // Khoá dựng bằng chuỗi nhiều dòng hoặc nối chuỗi mà biểu thức chính quy bên dưới không bắt: ghi nơi dựng và bằng chứng nó còn đó
 const EXTRA_READS = [
-  { pattern: 'ai.rule.*.enabled', file: 'lib/ai/thresholds.ts', re: /ai\.rule\.\$\{/ },
-  { pattern: 'law.regionMinWage.*', file: 'public/payroll-params.js', re: /'law\.regionMinWage\.' \+/ }
+  { pattern: 'ai.rule.*.enabled', file: 'src/ai/thresholds.ts', re: /ai\.rule\.\$\{/ },
+  { pattern: 'law.regionMinWage.*', file: 'src/engine/payroll-params.js', re: /'law\.regionMinWage\.' \+/ }
 ];
 // Khoá dựng động type.<mã>.<đuôi> (mẫu 'type.*.*' ở trên) khớp MỌI đuôi, kể cả đuôi mà bộ máy không đọc theo tên: ở đây khai các đuôi đó để cờ không nói dối.
 // `named` là bằng chứng: chỉ khi KHÔNG tệp nào của ENGINE_FILES (ngoài bảng GENERATED và FALLBACK) nhắc tên đuôi thì khoá mới bị coi là chưa đọc;
@@ -135,41 +137,41 @@ const SERVER_COPIES = [
   // `unless` chứng minh nơi đó đã chuyển sang create(params): khớp thì không còn là bản sao.
   {
     pattern: 'attendance.openSessionMaxHours',
-    file: 'lib/attendance-sessions.ts',
+    file: 'src/domain/attendance/attendance-sessions.ts',
     re: /require\('\.\.\/public\/punch'\)/,
     unless: /\.create\(/,
-    why: 'lib/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
+    why: 'src/domain/attendance/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
   },
   {
     pattern: 'attendance.earlyCheckinMaxHours',
-    file: 'lib/attendance-sessions.ts',
+    file: 'src/domain/attendance/attendance-sessions.ts',
     re: /require\('\.\.\/public\/punch'\)/,
     unless: /\.create\(/,
-    why: 'lib/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
+    why: 'src/domain/attendance/attendance-sessions.ts dùng punch mặc định (buildDay, forgotDay)'
   },
-  // shift.preset.*.*: không còn bản sao chạy thật. lib/attendance-sessions.ts dùng punch mặc định chỉ trong đợt di chuyển
-  // MỘT LẦN lúc nạp lib/db cho dấu Check-in cũ chưa có phiên (trước khi có tham số theo tháng); lib/ai/review.ts chỉ hỏi mã ca có trong bảng
+  // shift.preset.*.*: không còn bản sao chạy thật. src/domain/attendance/attendance-sessions.ts dùng punch mặc định chỉ trong đợt di chuyển
+  // MỘT LẦN lúc nạp src/platform/db cho dấu Check-in cũ chưa có phiên (trước khi có tham số theo tháng); src/ai/review.ts chỉ hỏi mã ca có trong bảng
   // (ActualHours.SHIFT_TIMES có mặt), mã ca không đổi khi sửa giờ.
   {
     pattern: 'kpi.weight.*',
-    file: 'lib/ai/review.ts',
+    file: 'src/ai/review.ts',
     re: /KpiScore\.evaluate/,
     unless: /KpiScore\.create\(/,
-    why: 'lib/ai/review.ts → KpiScore mặc định (trọng số)'
+    why: 'src/ai/review.ts → KpiScore mặc định (trọng số)'
   },
   {
     pattern: 'kpi.weworkMin',
-    file: 'lib/ai/review.ts',
+    file: 'src/ai/review.ts',
     re: /KpiScore\.evaluate/,
     unless: /KpiScore\.create\(/,
-    why: 'lib/ai/review.ts → KpiScore mặc định (mốc Base Wework)'
+    why: 'src/ai/review.ts → KpiScore mặc định (mốc Base Wework)'
   },
   {
     pattern: 'type.*.dows',
-    file: 'lib/approvals.ts',
+    file: 'src/domain/approvals/approvals.ts',
     re: /require\('\.\.\/public\/approval-view/,
     unless: /\.create\(/,
-    why: 'lib/approvals.ts dùng approval-view mặc định (dayCtx, itemOf: lịch làm việc)'
+    why: 'src/domain/approvals/approvals.ts dùng approval-view mặc định (dayCtx, itemOf: lịch làm việc)'
   }
 ];
 
@@ -227,7 +229,7 @@ module.exports = { derive, readPatterns, SERVER_COPIES, isKeyWired };
 if (require.main === module) {
   const derived = derive();
   if (process.argv.includes('--write')) {
-    const file = path.join(ROOT, 'lib/params/registry.data.json');
+    const file = path.join(ROOT, 'src/params/registry.data.json');
     const data = JSON.parse(fs.readFileSync(file, 'utf8')); // đọc ngay trước khi ghi: không mang bản cũ
     for (const entry of data.entries) {
       const got = derived.get(entry.id);
@@ -238,7 +240,7 @@ if (require.main === module) {
       if (got.unwiredKeys) entry.unwiredKeys = got.unwiredKeys;
     }
     fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
-    console.log('Đã ghi cờ wired vào lib/params/registry.data.json (chạy prettier --write lên tệp này)');
+    console.log('Đã ghi cờ wired vào src/params/registry.data.json (chạy prettier --write lên tệp này)');
   }
   const rows = [...derived.entries()].filter(([, v]: any) => v.wired !== null);
   console.log(

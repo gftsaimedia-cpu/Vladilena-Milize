@@ -1,8 +1,8 @@
 'use strict';
-// Bộ giới hạn tải (lib/ops/limiters.ts): cổng bất đồng bộ có hàng đợi, xô token theo khoá, bộ chặn khi quá tải.
+// Bộ giới hạn tải (src/ops/limiters.ts): cổng bất đồng bộ có hàng đợi, xô token theo khoá, bộ chặn khi quá tải.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { Overloaded, AsyncGate, RateLimiter, LoadShedder } = require('../../lib/ops/limiters');
+const { Overloaded, AsyncGate, RateLimiter, LoadShedder } = require('../../src/ops/limiters');
 
 const deferred = () => {
   let resolve;

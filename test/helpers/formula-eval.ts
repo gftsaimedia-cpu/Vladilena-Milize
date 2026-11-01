@@ -1,5 +1,5 @@
 'use strict';
-// Đọc và tính chuỗi công thức của phiếu Admin (lib/slip-formulas.ts → formulasOf) cho các test công thức.
+// Đọc và tính chuỗi công thức của phiếu Admin (src/domain/payroll/slip-formulas.ts → formulasOf) cho các test công thức.
 // Mỗi số trong công thức đi kèm tên hoặc đơn vị ("23 ngày công", "28.846,15 đ/giờ"): bộ đọc bỏ hết chữ, giữ số, phép tính và ngoặc,
 // rồi tính bằng × ÷ + − (số kiểu vi-VN: 6.000.000; 1,5; 25%; phân số 56/9).
 const assert = require('node:assert/strict');

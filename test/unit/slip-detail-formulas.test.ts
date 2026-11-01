@@ -1,16 +1,16 @@
 'use strict';
-// Công thức dưới từng dòng ở phần "Chi tiết" của phiếu Admin (lib/slip-formulas.ts → formulasOf).
+// Công thức dưới từng dòng ở phần "Chi tiết" của phiếu Admin (src/domain/payroll/slip-formulas.ts → formulasOf).
 // Mỗi công thức là chuỗi chữ kiểu vi-VN (6.000.000 ÷ 26 × 1; 1,5; 25%): test tự đọc chuỗi (không dùng giá trị mà module giữ) rồi tính
 // bằng × ÷ + − và so với số tự tính của dòng, sai không quá 1 đồng mỗi bước làm tròn. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫,
 // ngày công chuẩn 26, lương ngày 230.769,23 ₫, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { cellsOf } = require('../../lib/slip-paid.ts');
-const { allowanceTotalOf } = require('../../lib/period-allowance.ts');
-const { formulasOf } = require('../../lib/slip-formulas.ts');
+const { cellsOf } = require('../../src/domain/payroll/slip-paid');
+const { allowanceTotalOf } = require('../../src/domain/period/period-allowance');
+const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const F = require('../helpers/schedule-fixtures');
 const Cases = require('../helpers/payroll-cases');
 

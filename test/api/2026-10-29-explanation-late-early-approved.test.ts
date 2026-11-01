@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
 
 const cutOf = async (username?, date?) => {
   const day = (await X.payOf(username)).payDays[date];

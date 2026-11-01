@@ -6,7 +6,7 @@ const userName = (prefix?, i?) => `${prefix}${pad(i)}`;
 const ADMIN_NAME = 'lt_admin';
 const DEFAULT_PREFIX = 'lt_';
 
-// store: lib/db, passHash: chuỗi băm đã tính sẵn. Trả { users: [tên...], admin }.
+// store: src/platform/db, passHash: chuỗi băm đã tính sẵn. Trả { users: [tên...], admin }.
 async function seedLoadUsers(store, { count, passHash, prefix = DEFAULT_PREFIX }: any) {
   const users: any[] = [];
   await store.transaction(async () => {

@@ -4,7 +4,7 @@
 // (Tròn một năm không cộng riêng: xem leave-no-yearly-bonus.test.ts.)
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { accrued } = require('../../public/leave.js');
+const { accrued } = require('../../src/engine/leave.js');
 
 const C = (months?, extra: any = {}) => ({
   start: 0,

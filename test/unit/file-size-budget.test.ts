@@ -13,7 +13,7 @@ test('ngân sách cỡ file: ngưỡng mềm 800, cứng 1.200 như thiết kế
   assert.equal(budget.soft, 800);
   assert.equal(budget.hard, 1200);
   assert.ok(Object.keys(sizes).length > 100, 'quét thiếu file?');
-  assert.ok('lib/db.ts' in sizes);
+  assert.ok('src/platform/db.ts' in sizes);
 });
 
 test('ngân sách cỡ file: không file mã nào vượt 1.200 dòng trừ file trong danh sách ngoại lệ', t => {

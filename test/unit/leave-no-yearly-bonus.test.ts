@@ -3,9 +3,9 @@
 // Ngày giả định cố định, người bịa; không đọc đồng hồ thật.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Leave = require('../../public/leave.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const { accrualEvents } = require('../../lib/domain/leave/leave-events');
+const Leave = require('../../src/engine/leave.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { accrualEvents } = require('../../src/domain/leave/leave-events');
 
 const sum = (events?) => events.reduce((total, e) => total + e.days, 0);
 const TODAY = '2026-10-30';
@@ -91,7 +91,7 @@ test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total �
 test('bảng leave_ledger không còn nhận loại dòng year', async () => {
   process.env.DB_PATH = ':memory:';
   process.env.SESSION_SECRET = 'leave-ledger-test';
-  const store = require('../../lib/db');
+  const store = require('../../src/platform/db');
   try {
     await store.ready;
     await store.upsertStaff({

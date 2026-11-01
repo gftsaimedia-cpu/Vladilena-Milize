@@ -1,13 +1,13 @@
 'use strict';
 // Khoản điền thêm theo người theo tháng.
-// Lưu trữ lib/pay-entries.ts, route lib/domain/pay-entries.ts, nạp vào bộ máy ở lib/payroll-service.ts → loadInputs.
+// Lưu trữ src/domain/payroll/pay-entries.ts, route src/domain/pay-entries.ts, nạp vào bộ máy ở src/domain/payroll/payroll-service.ts → loadInputs.
 // Người bịa (qa_*), đồng hồ giả 02/11/2026. pay_entries chỉ thêm dòng (không DELETE) nên mỗi test dùng THÁNG RIÊNG, không dùng lại tháng của test trước.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
+const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');
-const paramsStore = require('../../lib/params/store');
-const service = require('../../lib/payroll-service');
+const paramsStore = require('../../src/params/store');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { store } = F;
 before(async () => {

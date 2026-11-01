@@ -1,6 +1,6 @@
 'use strict';
-// Bộ phân tích công thức gõ bằng tiếng Việt: public/formula.js → Formula.parse.
-// Thiếu public/formula.js thì các test chạy như `todo`; RED=1 để xem đỏ. Giả định riêng của từng nhóm ghi ở đầu nhóm.
+// Bộ phân tích công thức gõ bằng tiếng Việt: src/engine/formula.js → Formula.parse.
+// Thiếu src/engine/formula.js thì các test chạy như `todo`; RED=1 để xem đỏ. Giả định riêng của từng nhóm ghi ở đầu nhóm.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const F = require('../helpers/formula-fixture');

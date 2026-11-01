@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const roles = require('../../../lib/roles');
-const { HttpError, readJson } = require('../../../lib/http');
+const roles = require('../../domain/roles/roles');
+const { HttpError, readJson } = require('../../platform/http');
 
-// Vai trò (Cài đặt › Phân quyền); quyền roles.manage đã kiểm ở cổng ROUTE_CAPS (lib/authz.ts) trước khi tới đây.
+// Vai trò (Cài đặt › Phân quyền); quyền roles.manage đã kiểm ở cổng ROUTE_CAPS (src/platform/authz.ts) trước khi tới đây.
 function decodeSegment(raw: string): string {
   try {
     return decodeURIComponent(raw);

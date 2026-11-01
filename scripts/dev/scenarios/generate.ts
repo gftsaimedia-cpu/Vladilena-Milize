@@ -36,7 +36,7 @@ const { createClient } = require('./lib/client');
 const { Story } = require('./lib/builder');
 const story = require('./lib/story');
 const queue = require('./lib/queue');
-const { createOps } = require('./lib/ops');
+const { createOps } = require('./src/ops');
 const { dayView } = require('./lib/view');
 const { ADMINS } = require('./lib/cast');
 

@@ -1,21 +1,21 @@
 import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { decidableBy } from './approvals.helpers';
-const { AsyncList } = require('../../../lib/shared/async-list');
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, nowIso } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { estimateSheet } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { sheetForViewer } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
-const { closeStaleFor } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
-const { sheetApprovals, listApprovals, tallyApprovals, approvalHttpError } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
-const { isatRefusal } = require('../../../lib/domain/isat-rule'); // ngày iSAT đúng thứ và đúng quyền lợi
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const explanations = require('../../../lib/explanations'); // giải trình Check-out muộn
-const { validMonth, validDate, USERNAME_RE, NOTE_MAX } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { assertNotAiBlocked } = require('../../../lib/domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
+const { AsyncList } = require('../../shared/async-list');
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, nowIso } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { estimateSheet } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { sheetForViewer } = require('../../domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
+const { closeStaleFor } = require('../../domain/attendance'); // phiên Check-in/out dùng chung
+const { sheetApprovals, listApprovals, tallyApprovals, approvalHttpError } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
+const { isatRefusal } = require('../../domain/isat-rule'); // ngày iSAT đúng thứ và đúng quyền lợi
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const explanations = require('../../domain/explanation/explanations'); // giải trình Check-out muộn
+const { validMonth, validDate, USERNAME_RE, NOTE_MAX } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { assertNotAiBlocked } = require('../../domain/ai-block'); // AI chặn duyệt khoản dính luật nặng (chỉ khi công tắc Agents bật)
 
 @Controller('api')
 export class ApprovalsController {

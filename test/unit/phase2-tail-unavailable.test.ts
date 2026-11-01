@@ -3,9 +3,9 @@
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const PayTailCalc = require('../../public/pay-tail-calc.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const registry = require('../../lib/params/registry');
+const PayTailCalc = require('../../src/engine/pay-tail-calc.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const registry = require('../../src/params/registry');
 
 test('GĐ2: bảng UNAVAILABLE của pay-tail-calc.js khớp đúng các phương án available: false của registry (một nguồn, test khoá)', () => {
   const keys = [
@@ -42,7 +42,7 @@ test('GĐ2: mỗi phương án chưa dùng được bị assertAvailable từ ch
 });
 
 test('GĐ2: payrollService.computeFor từ chối bộ tham số có phương án chưa dùng được (kỳ lương thành phiếu lỗi, không tính ra số lạ)', () => {
-  const service = require('../../lib/payroll-service');
+  const service = require('../../src/domain/payroll/payroll-service');
   assert.throws(
     () =>
       service.computeFor(

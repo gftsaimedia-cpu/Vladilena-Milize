@@ -63,8 +63,8 @@ copyDemo(args.db, copy);
 
 process.env.DB_PATH = copy;
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'demo-period-check';
-const store = require('../../../lib/db');
-const auth = require('../../../lib/auth');
+const store = require('../../../src/platform/db');
+const auth = require('../../../src/platform/auth');
 const server = require('../../../src/server');
 const S = require('./scenarios');
 
@@ -96,7 +96,7 @@ async function main() {
   const view0 = (await call('GET', `/periods/${month}`)).data;
   log(`Kỳ ${month}: trạng thái ban đầu ${view0.status}; đồng hồ giả ${today} 09:00`);
   // Bản sao demo dựng bằng --no-lifecycle chưa bật công tắc Agents (lớp vận hành bật nó); bước AI kiểm tra cần
-  const cfg = require('../../../lib/config');
+  const cfg = require('../../../src/platform/config');
   await store.setSetting(cfg.AGENTS_SETTING_KEY, cfg.AGENTS_ON);
   let step = await call('POST', `/periods/${month}/lock-attendance`, { rev: view0.rev });
   let acknowledged: any[] = [];

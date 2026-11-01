@@ -2,8 +2,8 @@ process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'db-pay-entries-tests';
 const { test, after } = require('node:test'),
   assert = require('node:assert/strict');
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth');
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth');
 const db = store.db;
 
 after(() => store.setDefaultContractResolver(null));

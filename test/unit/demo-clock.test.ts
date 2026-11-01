@@ -12,8 +12,8 @@ const S = require('../../scripts/db/demo/scenarios.ts');
 const H = require('../../scripts/db/demo/helpers.ts');
 const gen = require('../../scripts/db/demo/generate.ts');
 const selfcheck = require('../../scripts/db/demo/selfcheck.ts');
-const store = require('../../lib/db');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
+const store = require('../../src/platform/db');
+const { loadPayroll } = require('../../src/ai/payroll-loader');
 
 const today = S.TODAY;
 

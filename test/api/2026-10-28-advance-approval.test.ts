@@ -11,7 +11,7 @@
 // (không trễ, không về sớm) nên mỗi ngày ≤ advance.untilDay góp đủ một ngày lương. Người bịa qa_*, DB trong bộ nhớ, đồng hồ giả.
 const P = require('../helpers/period-api');
 const { requestInWindow } = require('../helpers/advance-window');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 

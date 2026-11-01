@@ -5,14 +5,14 @@
 //     phút sang ngày thường như OT thường; ngày có OT vẫn hưởng phụ cấp ca và giờ nghỉ đêm như ngày không OT;
 //   - khai "Đi làm ngày lễ" mà hết ca không có Check-in/out là vắng, mất lương lễ; ngày lễ không khai đi làm vẫn hưởng lương lễ;
 //   - sau ngày nghỉ việc (staff.resignedOn) như trước ngày bắt đầu: không lương lễ, không vắng.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // admin-presence nạp lib/db: DB trong RAM
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // admin-presence nạp src/platform/db: DB trong RAM
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const P = require('../../public/punch.js');
-const AV = require('../../public/approval-view.js');
-const Engine = require('../../public/payroll-engine.js');
+const P = require('../../src/engine/punch.js');
+const AV = require('../../src/engine/approval-view.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { AdminPresence } = require('../../lib/domain/attendance/admin-presence.ts');
+const { AdminPresence } = require('../../src/domain/attendance/admin-presence');
 const { declaredPunches } = require('../helpers/declared-punches');
 
 const HOL = '2026-10-20'; // Thứ Ba, trong lịch NV (T2–T7)

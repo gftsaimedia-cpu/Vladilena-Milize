@@ -11,32 +11,32 @@
 //   { path, derived: 'lý do' }     giá trị dẫn xuất từ khoá khác; params:check kiểm bằng nhau, không lưu
 // Nguồn kiểu regex (`regex`): giá trị là nhóm bắt đầu tiên, biểu thức `a * b` được tính; `transform` đổi đơn vị.
 
-// Các khoá TYPES, TAX_RULES, hằng số rời, ca cố định, trần OT nằm ở hand-defaults.json và public/payroll-params.js → DEFAULTS,
-// là nguồn duy nhất; KHÔNG script nào ở scripts/params/ đọc public/index.html.
+// Các khoá TYPES, TAX_RULES, hằng số rời, ca cố định, trần OT nằm ở hand-defaults.json và src/engine/payroll-params.js → DEFAULTS,
+// là nguồn duy nhất; KHÔNG script nào ở scripts/params/ đọc src/engine/index.html.
 // Bản đóng băng test/fixtures/legacy-payroll-block.js chỉ dùng để đối chiếu trong check.js.
 
 const RULES = [
-  /* ---- public/actual-hours.js ---- */
+  /* ---- src/engine/actual-hours.js ---- */
   { path: 'ActualHours.RULE.GRACE_MIN', key: 'attendance.graceMin' },
   { path: 'ActualHours.RULE.STEP_MIN', key: 'attendance.stepMin' },
   { path: 'ActualHours.RULE.SHIFT_WORK_MIN', derived: '= time.workHoursPerDay × unit.minutesPerHour' },
   { path: 'ActualHours.POLICY.makeupHolidayRate', key: 'holiday.makeupRate' },
   { path: 'ActualHours.POLICY.cutRounding', key: 'attendance.cutRounding' },
   { path: 'ActualHours.POLICY.<name>', key: 'attendance.<name>Rule' },
-  /* ---- public/kpi-score.js ---- */
+  /* ---- src/engine/kpi-score.js ---- */
   { path: 'KpiScore.COMPONENTS.<key>.weight', key: 'kpi.weight.<key>' },
   { path: 'KpiScore.WEWORK_MIN', key: 'kpi.weworkMin' },
   { path: 'KpiScore.POLICY.<name>', key: 'kpi.<name>Rule' },
-  /* ---- public/approval-view.js ---- */
+  /* ---- src/engine/approval-view.js ---- */
   { path: 'ApprovalView.POLICY.pending.<item>', key: 'request.type.<item>.pendingRule' },
   { path: 'ApprovalView.POLICY.rejected.<item>', key: 'request.type.<item>.rejectedRule' },
   { path: 'ApprovalView.COUNTS_ABSENT.<item>', key: 'request.type.<item>.countsAbsent' },
-  /* ---- lib/ai/thresholds.ts ---- */
+  /* ---- src/ai/thresholds.ts ---- */
   {
     path: 'THRESHOLDS.<name:isatPerMonth|approvedLeavePerMonth|rejectedLookbackDays|repeatedEditsRev|presenceGapMin|otMedianFactor|otMedianMinHours|otMedianMinPeers|impactVnd|slipDiffVnd|slipDiffRatio|kpiFullMonths|paramChangePeoplePct|formulaChangeTotalVnd|scopeLeakMinPeople|overrideEntryRoundVnd>',
     key: 'ai.threshold.<name>'
   },
-  { path: 'AiLimits.<name>', key: 'ai.limit.<name>' }, // giới hạn kỹ thuật của lib/ai/ (LIMITS)
+  { path: 'AiLimits.<name>', key: 'ai.limit.<name>' }, // giới hạn kỹ thuật của src/ai/ (LIMITS)
   { path: 'THRESHOLDS.reportDeadlineDay', key: 'period.reportDeadlineDay' }, // ngưỡng AI nhắc lại luật gốc: lấy từ khoá gốc
   {
     path: 'THRESHOLDS.attendMaxAbsentDays',
@@ -50,7 +50,7 @@ const RULES = [
     path: 'THRESHOLDS.kpiFullPct',
     ignore: 'bỏ khỏi bảng ngưỡng AI: 100 là mức tối đa của tự đánh giá, luật cố định (removed.ai.threshold.kpiFullPct)'
   },
-  /* ---- lib/config.ts ---- */
+  /* ---- src/platform/config.ts ---- */
   { path: 'config.AUDIT_PAGE_MAX', key: 'system.audit.pageMax' },
   { path: 'config.AUDIT_PAGE_DEFAULT', key: 'system.audit.pageDefault' },
   { path: 'config.PAYSLIP_PAGE_DEFAULT', key: 'system.page.payslips.default' },
@@ -94,14 +94,14 @@ const RULES = [
     ignore: 'số id cộng thêm cho dòng danh mục khi trộn với param_versions (kỹ thuật)'
   },
   { path: 'config.LEAVE_REFRESH_MS', ignore: 'nhịp làm mới số dư phép lưu sẵn (kỹ thuật)' },
-  // Giới hạn đoán mật khẩu và thời hạn phiên: lib/auth.ts đọc khoá qua PayrollParams.DEFAULTS, nguồn của mặc định là lib/config.ts
+  // Giới hạn đoán mật khẩu và thời hạn phiên: src/platform/auth.ts đọc khoá qua PayrollParams.DEFAULTS, nguồn của mặc định là src/platform/config.ts
   { path: 'config.LOGIN_MAX_FAILURES', key: 'system.login.maxFailures' },
   { path: 'config.LOGIN_SPRAY_USERS', key: 'system.login.sprayUsers' },
   { path: 'config.LOGIN_WINDOW_MIN', key: 'system.login.windowMin' },
   { path: 'config.LOGIN_MAX_KEYS', key: 'system.login.maxKeys' },
   { path: 'config.SESSION_DAYS', key: 'system.session.days' },
   { path: 'config.STAFF_BULK_MAX', key: 'system.staff.bulkMax' },
-  // server.js đọc system.approval.maxDecideItems từ tham số: mặc định nằm ở lib/config.ts
+  // server.js đọc system.approval.maxDecideItems từ tham số: mặc định nằm ở src/platform/config.ts
   { path: 'config.APPROVAL_MAX_DECIDE_ITEMS', key: 'system.approval.maxDecideItems' },
   { path: 'config.ENTRIES_REQUIRE_APPROVAL', key: 'system.entries.requireApproval' },
   { path: 'config.ENTRIES_MAX_PER_BATCH', key: 'system.entries.maxPerBatch' },
@@ -147,9 +147,9 @@ const RULES = [
 // transform: 'none' | 'minToHours' | 'msToMin' (đổi đơn vị của mã sang đơn vị của khoá)
 const REGEX_SOURCES = [
   // attendance.openSessionMaxHours và attendance.earlyCheckinMaxHours: punch.js đọc khoá, mặc định nằm ở hand-defaults.json
-  { file: 'lib/http.ts', regex: /const MAX_BODY_BYTES = ([\de.+]+)/, key: 'system.http.maxBodyBytes' },
+  { file: 'src/platform/http.ts', regex: /const MAX_BODY_BYTES = ([\de.+]+)/, key: 'system.http.maxBodyBytes' },
   {
-    file: 'lib/domain/input.ts',
+    file: 'src/domain/input.ts',
     regex: /const NOTE_MAX = (\d+)/,
     key: 'control.reasonMaxLength',
     mustEqualFirst: true
@@ -158,29 +158,29 @@ const REGEX_SOURCES = [
   { file: 'src/server.ts', regex: /paging\('limit', \d+, 1, (\d+)\)/, key: 'system.page.approvals.max' },
   { file: 'src/server.ts', regex: /paging\('pageSize', (\d+), \d+\)/, key: 'system.page.corrections.default' },
   { file: 'src/server.ts', regex: /paging\('pageSize', \d+, (\d+)\)/, key: 'system.page.corrections.max' },
-  { file: 'lib/ops/pg-backup.ts', regex: /const DEFAULT_KEEP = (\d+)/, key: 'system.backup.keep' },
+  { file: 'src/ops/pg-backup.ts', regex: /const DEFAULT_KEEP = (\d+)/, key: 'system.backup.keep' },
   {
-    file: 'lib/domain/attendance/geofence-policy.ts',
+    file: 'src/domain/attendance/geofence-policy.ts',
     regex: /finiteIn\(b\.radiusM, (\d+), \d+\)/,
     key: 'geofence.radiusM.min'
   },
   {
-    file: 'lib/domain/attendance/geofence-policy.ts',
+    file: 'src/domain/attendance/geofence-policy.ts',
     regex: /finiteIn\(b\.radiusM, \d+, (\d+)\)/,
     key: 'geofence.radiusM.max'
   },
   {
-    file: 'lib/domain/attendance/geofence-policy.ts',
+    file: 'src/domain/attendance/geofence-policy.ts',
     regex: /finiteIn\(maxAccuracyM, (\d+), \d+\)/,
     key: 'geofence.maxAccuracyM.min'
   },
   {
-    file: 'lib/domain/attendance/geofence-policy.ts',
+    file: 'src/domain/attendance/geofence-policy.ts',
     regex: /finiteIn\(maxAccuracyM, \d+, (\d+)\)/,
     key: 'geofence.maxAccuracyM.max'
   },
   {
-    file: 'lib/domain/attendance/geofence-policy.ts',
+    file: 'src/domain/attendance/geofence-policy.ts',
     regex: /b\.maxAccuracyM === undefined \? (\d+)/,
     key: 'geofence.maxAccuracyM.default'
   }

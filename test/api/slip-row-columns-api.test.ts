@@ -1,6 +1,6 @@
 'use strict';
 // Dòng ngày của phiếu mà trang 1 bản in A4 đọc (GET /periods/:month/estimates/:username và GET /periods/:month/payslips/:username) có
-// kèm cot = { luongNgay, phuCapCa, lamThem, truGio } do máy chủ tính (lib/slip-paid.ts → dayFiguresOf → PayrollEngine.columnsOfDay) cho
+// kèm cot = { luongNgay, phuCapCa, lamThem, truGio } do máy chủ tính (src/domain/payroll/slip-paid.ts → dayFiguresOf → PayrollEngine.columnsOfDay) cho
 // ngày đi làm: bốn cột cộng trừ đúng làm tròn của total. Bản chụp lưu trong DB không có cot (chỉ thêm lúc trả). Chỉ người bịa (qa_*).
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');

@@ -1,12 +1,12 @@
 'use strict';
-// Số tổng hợp cho màn Lương của Admin (lib/periods.ts): GET /api/periods/:month trả totals, attendanceKept, needsRecalculate;
+// Số tổng hợp cho màn Lương của Admin (src/domain/period/periods.ts): GET /api/periods/:month trả totals, attendanceKept, needsRecalculate;
 // danh sách phiếu có tên, số ngày công và các dòng tiền lấy từ bản chụp (tổng các dòng bằng tổng thu nhập trong 0,5 đồng); lọc theo loại nhân sự;
 // GET /api/periods/:month/estimates tính cả kỳ TRƯỚC khi có lần tính lương (hàng lỗi cho hồ sơ sai, không bao giờ 0 ₫) và tổng bằng tổng sau khi tính lương.
 // Mỗi test dùng một tháng riêng (test/helpers/period-api.ts → monthPool).
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const service = require('../../lib/payroll-service');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { F, store, flow } = P;
 const monthOf = P.monthPool();
@@ -24,7 +24,7 @@ const estimates = async (month?, query = '', who = 'admin') =>
 const typeFilterWired: Record<string, any> = {};
 const estimatesWired = P.pendingUnless(
   'route GET /periods/:month/estimates chưa có',
-  P.mentions('lib/authz.ts', /periods\/:month\/estimates/)
+  P.mentions('src/platform/authz.ts', /periods\/:month\/estimates/)
 );
 const SUM_KEYS = ['gross', 'insurance', 'tax', 'advance', 'net'];
 const dbSlips = async (month?) => Object.values<any>((await flow.payslipsOf(month)).slips);
@@ -205,7 +205,7 @@ test(
     assert.equal(res.data.run, null);
     assert.equal(res.data.period.status, 'open');
     assert.match(res.data.paramsHash, /^[0-9a-f]{64}$/);
-    assert.equal(res.data.engineVersion, require('../../public/payroll-engine.js').ENGINE_VERSION);
+    assert.equal(res.data.engineVersion, require('../../src/engine/payroll-engine.js').ENGINE_VERSION);
     assert.equal(typeof res.data.asOf, 'string');
     assert.deepEqual(res.data.rows.map(r => r.username).sort(), NAMES);
     for (const row of res.data.rows) {

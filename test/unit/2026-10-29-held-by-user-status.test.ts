@@ -4,8 +4,8 @@
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { container } = require('../../lib/domain/container');
-const { Explanation } = require('../../lib/domain/explanation/explanation');
+const { container } = require('../../src/domain/container');
+const { Explanation } = require('../../src/domain/explanation/explanation');
 
 const repo = () => container.explanationRepository;
 const add = async (username?, date?, status?, extra: any = {}) =>

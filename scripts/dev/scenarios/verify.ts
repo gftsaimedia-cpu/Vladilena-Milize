@@ -32,11 +32,11 @@ const startLocal =
     : '2027-03-01T09:30';
 const app = boot({ dbPath: copy, initialLocal: startLocal, variant: null });
 const { createClient } = require('./lib/client');
-const { compactSlip } = require('./lib/ops');
+const { compactSlip } = require('./src/ops');
 const { dayView, LABEL_TEXT } = require('./lib/view');
 const { byUser, PAYROLL } = require('./lib/cast');
-const { rulesFor } = require(path.join(app.REPO, 'lib', 'request-rules'));
-const { leaveDates } = require(path.join(app.REPO, 'lib', 'domain', 'leave-days'));
+const { rulesFor } = require(path.join(app.REPO, 'src', 'platform', 'request-rules'));
+const { leaveDates } = require(path.join(app.REPO, 'src', 'domain', 'leave-days'));
 
 const SEVERITY = ['OK', 'SKIP', 'CHECK', 'PENDING-RULE', 'DIFF', 'ERROR'];
 const worst = (list?) => list.reduce((a, b) => (SEVERITY.indexOf(b) > SEVERITY.indexOf(a) ? b : a), 'OK');

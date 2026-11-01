@@ -17,51 +17,51 @@
   },
   "advance.rate": {
     "value": 0.8,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.advanceRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.advanceRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "advance.untilDay": {
     "value": 15,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.advanceUntil); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.advanceUntil); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "ai.rule.approvedLeaveFrequency.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.attendanceAllowanceRisk.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.attributeUnused.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.blockFlagsUnconfirmed.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.formulaChangedRecently.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.formulaLargeChange.enabled": {
     "value": true,
-    "why": "luật AI của xem trước (lib/ai/preview-suggestions.ts), bật mặc định"
+    "why": "luật AI của xem trước (src/ai/preview-suggestions.ts), bật mặc định"
   },
   "ai.rule.holidayWorkReview.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.isatFrequency.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.kpiSelf100Streak.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.largePayImpact.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.lateDeclaration.enabled": {
     "value": false,
@@ -69,59 +69,59 @@
   },
   "ai.rule.leaveWithCheckin.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.lockedWithPending.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.missingFixedShift.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.missingStartDate.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.negativeLeave.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.netNonpositive.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.otAboveTeam.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.otAfterPendingMakeup.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.otCheckinMismatch.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.overrideLooksLikeEntry.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.positionScopeLeak.enabled": {
     "value": true,
-    "why": "luật AI của xem trước (lib/ai/preview-suggestions.ts), bật mặc định"
+    "why": "luật AI của xem trước (src/ai/preview-suggestions.ts), bật mặc định"
   },
   "ai.rule.previouslyRejected.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.repeatedEdits.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.rule.slipOverrideGap.enabled": {
     "value": true,
-    "why": "mọi luật AI bật mặc định (RULES trong lib/ai/review.ts)"
+    "why": "mọi luật AI bật mặc định (RULES trong src/ai/review.ts)"
   },
   "ai.threshold.netChangePct": {
     "value": 0.2,
@@ -141,7 +141,7 @@
   },
   "attendance.earlyCheckinMaxHours": {
     "value": 4,
-    "why": "S5: public/punch.js đọc khoá này (trước là hằng số EARLY = 4 * 60); check-in sớm nhất 4 giờ trước giờ vào ca"
+    "why": "S5: src/engine/punch.js đọc khoá này (trước là hằng số EARLY = 4 * 60); check-in sớm nhất 4 giờ trước giờ vào ca"
   },
   "attendance.graceCompare": {
     "value": "gte",
@@ -165,7 +165,7 @@
   },
   "attendance.openSessionMaxHours": {
     "value": 16,
-    "why": "S5: public/punch.js đọc khoá này (trước là hằng số MAX_OPEN = 16 * 60); ca mở quá 16 giờ là quên check-out"
+    "why": "S5: src/engine/punch.js đọc khoá này (trước là hằng số MAX_OPEN = 16 * 60); ca mở quá 16 giờ là quên check-out"
   },
   "attendance.overLimitCompare": {
     "value": "gte",
@@ -173,7 +173,7 @@
   },
   "attendance.overLimitHours": {
     "value": 24,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "attendance.overLimitTolerance": {
     "value": 0,
@@ -317,7 +317,7 @@
   },
   "kpi.overLimitHours": {
     "value": 24,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (OVER_LIMIT); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "kpi.passCompare": {
     "value": "gte",
@@ -473,103 +473,103 @@
   },
   "level.ctv.1.base": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.1.kpi": {
     "value": 1500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.1.name": {
     "value": "Fresher",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.2.base": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.2.kpi": {
     "value": 3000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.2.name": {
     "value": "Practitioner",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.3.base": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.3.kpi": {
     "value": 4500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.3.name": {
     "value": "Advanced Practitioner",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.4.base": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.4.kpi": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.ctv.4.name": {
     "value": "Senior Practitioner",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.1.base": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.1.kpi": {
     "value": 6000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.1.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.1.name": {
     "value": "Nhân viên",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.1.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.2.base": {
     "value": 6500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.2.kpi": {
     "value": 6500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.2.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.2.name": {
     "value": "Chuyên viên",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.2.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.3.base": {
     "value": 7000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.3.kpi": {
     "value": 7000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.3.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.3.name": {
     "value": "Lead",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.3.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.4.base": {
     "value": 7500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.4.kpi": {
     "value": 7500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.4.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.nv.4.name": {
     "value": "HDO (Human Development Officer)",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.levels.4.name); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.1.base": {
     "value": 1000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.1.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.1.name": {
     "value": "Bậc 1",
@@ -577,7 +577,7 @@
   },
   "level.tts.2.base": {
     "value": 1500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.2.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.2.name": {
     "value": "Bậc 2",
@@ -585,7 +585,7 @@
   },
   "level.tts.3.base": {
     "value": 2000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.3.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.3.name": {
     "value": "Bậc 3",
@@ -593,7 +593,7 @@
   },
   "level.tts.4.base": {
     "value": 3000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.4.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.4.name": {
     "value": "Bậc 4",
@@ -601,7 +601,7 @@
   },
   "level.tts.5.base": {
     "value": 4000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.5.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.5.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.5.name": {
     "value": "Bậc 5",
@@ -609,7 +609,7 @@
   },
   "level.tts.6.base": {
     "value": 5000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.levels.6.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.levels.6.base); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "level.tts.6.name": {
     "value": "Bậc 6",
@@ -633,7 +633,7 @@
   },
   "night.breakPremium": {
     "value": 0.3,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (NIGHT_BREAK); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (NIGHT_BREAK); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "night.otAddRate": {
     "value": 0.2,
@@ -693,59 +693,59 @@
   },
   "shift.flex.bonus": {
     "value": 0.1,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (SHIFTS.flex.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (SHIFTS.flex.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.night.bonus": {
     "value": 0.3,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (SHIFTS.night.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (SHIFTS.night.bonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.f1.in": {
     "value": "06:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.f1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.f1.out": {
     "value": "15:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.f1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.f2.in": {
     "value": "13:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.f2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.f2.out": {
     "value": "22:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.f2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.f2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.g1.in": {
     "value": "21:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.g1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.g1.out": {
     "value": "06:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.g1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.g2.in": {
     "value": "22:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.g2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.g2.out": {
     "value": "07:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.g2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.g2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.n1.in": {
     "value": "08:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.n1.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.n1.out": {
     "value": "17:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.n1.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.n2.in": {
     "value": "10:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.n2.in); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "shift.preset.n2.out": {
     "value": "19:00",
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (PRESETS.n2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (PRESETS.n2.out); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "slip.staffVisibleFrom": {
     "value": "afterPaid",
@@ -815,15 +815,15 @@
       [100000000, 0.3],
       [null, 0.35]
     ],
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.brackets); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.brackets); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.casual.rate": {
     "value": 0.1,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.casualRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.casualRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.casual.threshold": {
     "value": 5000000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.casualThreshold); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.casualThreshold); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.casual.thresholdCompare": {
     "value": "gte",
@@ -831,19 +831,19 @@
   },
   "tax.deduction.dependant": {
     "value": 6200000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.dependant); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.dependant); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.deduction.personal": {
     "value": 15500000,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.personal); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.personal); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.exempt.holidayRate": {
     "value": 3,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.holidayRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.holidayRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.exempt.nightPremium": {
     "value": 0.3,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.nightPremium); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.nightPremium); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.exempt.otMethod": {
     "value": "byRate",
@@ -851,7 +851,7 @@
   },
   "tax.exempt.otRate": {
     "value": 1.5,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.otNormalRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.otNormalRate); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.exempt.weekendRate": {
     "value": 2,
@@ -863,27 +863,27 @@
   },
   "tax.insurance.employee.bhtn": {
     "value": 0.01,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.insurance.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.employee.bhxh": {
     "value": 0.08,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.insurance.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.employee.bhyt": {
     "value": 0.015,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insurance.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.insurance.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.employer.bhtn": {
     "value": 0.01,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.employer.bhtn); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.employer.bhxh": {
     "value": 0.175,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.employer.bhxh); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.employer.bhyt": {
     "value": 0.03,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.employer.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.employer.bhyt); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.insurance.skipCompare": {
     "value": "gte",
@@ -891,7 +891,7 @@
   },
   "tax.insurance.skipDays": {
     "value": 14,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TAX_RULES.insuranceSkipDays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TAX_RULES.insuranceSkipDays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "tax.method.long": {
     "value": "progressive",
@@ -919,7 +919,7 @@
   },
   "time.maxSpanHours": {
     "value": 9,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (MAX_SPAN); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (MAX_SPAN); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "time.nightEndHour": {
     "value": 6,
@@ -931,7 +931,7 @@
   },
   "time.workHoursPerDay": {
     "value": 8,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (HOURS); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (HOURS); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.attendance": {
     "value": 0,
@@ -955,11 +955,11 @@
   },
   "type.ctv.benefit.isat": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.benefit.kpi": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.benefit.leaveAccount": {
     "value": true,
@@ -967,7 +967,7 @@
   },
   "type.ctv.benefit.makeup": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.benefit.makeupDay": {
     "value": true,
@@ -979,15 +979,15 @@
   },
   "type.ctv.benefit.ot": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.benefit.paidHoliday": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.benefit.paidLeave": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.defaultContract": {
     "value": "long",
@@ -995,7 +995,7 @@
   },
   "type.ctv.dows": {
     "value": [1, 2, 3, 4, 5, 6],
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.flexBonus": {
     "value": 0.1,
@@ -1003,7 +1003,7 @@
   },
   "type.ctv.kpiPass": {
     "value": 75,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.probationPayPct": {
     "value": 1,
@@ -1019,7 +1019,7 @@
   },
   "type.ctv.workdays": {
     "value": 26,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.ctv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.ctv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.ctv.workdaysMode": {
     "value": "fixed",
@@ -1027,7 +1027,7 @@
   },
   "type.nv.attendance": {
     "value": 0.25,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.attendance); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.attendance); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.absenceDeclarable": {
     "value": true,
@@ -1047,11 +1047,11 @@
   },
   "type.nv.benefit.isat": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.isat); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.isat); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.kpi": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.leaveAccount": {
     "value": true,
@@ -1059,7 +1059,7 @@
   },
   "type.nv.benefit.makeup": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.makeupDay": {
     "value": true,
@@ -1071,15 +1071,15 @@
   },
   "type.nv.benefit.ot": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.ot); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.paidHoliday": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.benefit.paidLeave": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.defaultContract": {
     "value": "long",
@@ -1087,23 +1087,23 @@
   },
   "type.nv.dows": {
     "value": [1, 2, 3, 4, 5, 6],
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.flexBonus": {
     "value": 0.2,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.flexBonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.flexBonus); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.kpiPass": {
     "value": 75,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.kpiPass); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.maxAbsent": {
     "value": 3,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.maxAbsent); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.maxAbsent); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.nightOptions": {
     "value": [40, 60],
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.nightOptions); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.nightOptions); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.probationPayPct": {
     "value": 1,
@@ -1115,11 +1115,11 @@
   },
   "type.nv.travel": {
     "value": 0.15,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.travel); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.travel); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.workdays": {
     "value": 26,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.nv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.nv.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.nv.workdaysMode": {
     "value": "fixed",
@@ -1147,11 +1147,11 @@
   },
   "type.tts.benefit.isat": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.isat (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.benefit.kpi": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.kpi); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.benefit.leaveAccount": {
     "value": false,
@@ -1159,7 +1159,7 @@
   },
   "type.tts.benefit.makeup": {
     "value": true,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.makeup); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.benefit.makeupDay": {
     "value": true,
@@ -1171,15 +1171,15 @@
   },
   "type.tts.benefit.ot": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.ot (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.ot (vắng = false)); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.benefit.paidHoliday": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.paidHoliday); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.benefit.paidLeave": {
     "value": false,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.paidLeave); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.defaultContract": {
     "value": "short",
@@ -1187,7 +1187,7 @@
   },
   "type.tts.dows": {
     "value": [1, 2, 3, 4, 5],
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.dows); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.flexBonus": {
     "value": 0.1,
@@ -1207,7 +1207,7 @@
   },
   "type.tts.workdays": {
     "value": 22,
-    "why": "S8: trước đây trích từ khối công thức của public/index.html (TYPES.tts.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
+    "why": "S8: trước đây trích từ khối công thức của src/engine/index.html (TYPES.tts.workdays); index.html bị bỏ, nguồn duy nhất nay là tệp này và DEFAULTS"
   },
   "type.tts.workdaysMode": {
     "value": "fixed",

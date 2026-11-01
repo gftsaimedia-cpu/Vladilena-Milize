@@ -6,7 +6,7 @@
 const F = require('../helpers/api-fixture');
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const punch = require('../../public/punch');
+const punch = require('../../src/engine/punch');
 const sessionBody = require('../helpers/session-contract-helper');
 
 const { store } = F;

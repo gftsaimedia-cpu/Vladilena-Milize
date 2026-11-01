@@ -4,14 +4,14 @@
 // Hai mức khoá: lịch ước tính, duyệt, chấm công, điều chỉnh giờ, OT, ngày lễ khoá từ `attendance_locked`;
 // điểm KPI và số sửa phiếu còn mở tới hết `reviewed`, khoá từ `approved`.
 // Danh sách route lấy từ mã máy chủ (test tĩnh bên dưới đỏ nếu thêm route ghi mới mà chưa khai báo); test cuối buộc mọi route ghi
-// trong ROUTE_CAPS của lib/authz.ts phải khai báo periodScope và nằm trong bảng này.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require lib/db
+// trong ROUTE_CAPS của src/platform/authz.ts phải khai báo periodScope và nằm trong bảng này.
+const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
 F.explainPunches = true; // lượt bấm trễ / ngoài ca ở đây chỉ là đầu vào: kèm giải trình lúc bấm
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 const { pending, need, exists, ROOT } = require('../helpers/red');
 const { serverSource, routeKeysInSource } = require('../helpers/server-source');
 
@@ -200,19 +200,19 @@ const EXEMPT = {
   'PUT /settings/geofence': 'vùng GPS, không theo tháng',
   'PUT /settings/agents': 'công tắc Agents, không theo tháng',
   'POST /periods/:month/lock-attendance':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/calculate':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/ai-review':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/approve':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/mark-paid':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'POST /periods/:month/reopen':
-    'chính là vòng đời kỳ: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
+    'chính là vòng đời kỳ: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE) trong giao dịch',
   'PUT /periods/:month/payslips/decide':
-    'duyệt phiếu của lần chạy: lib/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE)',
+    'duyệt phiếu của lần chạy: src/domain/period/periods.ts tự kiểm trạng thái kỳ (PERIOD_STATE)',
   'PUT /settings/params': 'bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu nên không bị đổi',
   'POST /settings/params/preview': 'chỉ xem trước tác động, không ghi',
   'POST /settings/params/revert': 'hoàn tác bộ tham số có hiệu lực theo tháng; kỳ đã chốt giữ bản chụp phiếu',
@@ -258,7 +258,7 @@ for (const key of [
   EXEMPT[key] =
     'route của module Nest, periodScope = null trong ROUTE_CAPS: khoá kỳ (nếu có) do tầng dịch vụ của module kiểm';
 
-// Route có periodScope mà server.js không khai trực tiếp (nằm ở mô-đun lib/domain/*) và được test khác phủ khoá kỳ
+// Route có periodScope mà server.js không khai trực tiếp (nằm ở mô-đun src/domain/*) và được test khác phủ khoá kỳ
 const COVERED_ELSEWHERE: Record<string, any> = {};
 
 async function lock(status?) {
@@ -318,7 +318,7 @@ for (const route of ROUTES)
 
 /* ---------- 3. thêm route ghi mới mà chưa khai báo thì đỏ ---------- */
 test('period-lock-guards: mọi route ghi trong server.js được khai báo là có khoá kỳ hoặc miễn (kèm lý do)', () => {
-  const source = serverSource(); // mã máy chủ: server.js, lib/routes và lib/domain
+  const source = serverSource(); // mã máy chủ: server.js, lib/routes và src/domain
   // khoá ghi khai báo bằng `route === '…'` hoặc mục bảng `'PUT /x': async …`
   const found = new Set<any>([...routeKeysInSource(source)].filter(key => /^(POST|PUT|DELETE|PATCH) /.test(key)));
   // route có tham số trong đường dẫn không đi qua `route ===` (server.js dùng seg[1] === ...)
@@ -340,11 +340,11 @@ test('period-lock-guards: mọi route ghi trong server.js được khai báo là
 
 test(
   'period-lock-guards: ROUTE_CAPS khai báo periodScope cho mọi route ghi và bảng test này phủ đủ các route có periodScope',
-  pending('V1-A bước 3: lib/authz.ts (ROUTE_CAPS) chưa có', 'lib/authz.ts'),
+  pending('V1-A bước 3: src/platform/authz.ts (ROUTE_CAPS) chưa có', 'src/platform/authz.ts'),
   () => {
-    assert.ok(exists('lib/authz.ts'));
-    const { ROUTE_CAPS } = need('lib/authz.ts');
-    assert.ok(ROUTE_CAPS && typeof ROUTE_CAPS === 'object', 'lib/authz.ts phải xuất ROUTE_CAPS');
+    assert.ok(exists('src/platform/authz.ts'));
+    const { ROUTE_CAPS } = need('src/platform/authz.ts');
+    assert.ok(ROUTE_CAPS && typeof ROUTE_CAPS === 'object', 'src/platform/authz.ts phải xuất ROUTE_CAPS');
     const writes = Object.entries<any>(ROUTE_CAPS).filter(([key]: any) => !key.startsWith('GET '));
     assert.ok(writes.length > 0);
     const undeclared = writes

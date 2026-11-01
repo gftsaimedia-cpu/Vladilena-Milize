@@ -2,11 +2,11 @@
 // Luồng kỳ lương dùng chung (bản chụp phiếu, không lệch một đồng): dựng một tháng người bịa qua API thật,
 // duyệt hết khoản chờ, chốt công, tính lương rồi đọc phiếu từ bảng payslips.
 // Kết quả mong đợi tính bằng bộ máy lương dùng chung trên chính dữ liệu đã lưu trong DB (đọc thẳng từ bảng, không qua loadInputs), nên
-// lệch nào của lib/payroll-service.ts hay của bản chụp phiếu đều lộ ra bằng từng đồng.
+// lệch nào của src/domain/payroll/payroll-service.ts hay của bản chụp phiếu đều lộ ra bằng từng đồng.
 const zlib = require('node:zlib');
 const F = require('./api-fixture');
-const PunchRules = require('../../public/punch.js');
-const service = require('../../lib/payroll-service');
+const PunchRules = require('../../src/engine/punch.js');
+const service = require('../../src/domain/payroll/payroll-service');
 
 const { store } = F;
 const pad = (n?) => String(n).padStart(2, '0');

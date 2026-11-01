@@ -1,17 +1,17 @@
 'use strict';
-// Các class của module overtime và hạ tầng luật dùng chung (lib/domain/shared/rule.ts, lib/domain/overtime/*).
+// Các class của module overtime và hạ tầng luật dùng chung (src/domain/shared/rule.ts, src/domain/overtime/*).
 // Trọng tâm: MỘT nguồn con số (đổi trần trong bộ tham số thì mọi nơi kiểm trần theo) và thêm luật không phải sửa service.
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const warnings = require('../../lib/warnings');
-const { DEFAULTS } = require('../../public/payroll-params.js');
-const { Rule, RuleSet, Violation } = require('../../lib/domain/shared/rule');
-const { OtLimits } = require('../../lib/domain/overtime/ot-limits');
-const { SheetLimits } = require('../../lib/domain/overtime/sheet-limits');
-const { WorkedHours } = require('../../lib/domain/overtime/worked-hours');
-const { AdvanceRequestWindow } = require('../../lib/domain/advance/advance-request-window');
+const store = require('../../src/platform/db');
+const warnings = require('../../src/platform/warnings');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
+const { Rule, RuleSet, Violation } = require('../../src/domain/shared/rule');
+const { OtLimits } = require('../../src/domain/overtime/ot-limits');
+const { SheetLimits } = require('../../src/domain/overtime/sheet-limits');
+const { WorkedHours } = require('../../src/domain/overtime/worked-hours');
+const { AdvanceRequestWindow } = require('../../src/domain/advance/advance-request-window');
 
 after(() => store.db.close());
 

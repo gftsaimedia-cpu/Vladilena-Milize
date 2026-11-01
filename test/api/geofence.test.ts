@@ -4,8 +4,8 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
 process.env.DB_PATH = ':memory:';
-const store = require('../../lib/db'),
-  auth = require('../../lib/auth'),
+const store = require('../../src/platform/db'),
+  auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
 
 const HQ = { lat: 10.7769, lng: 106.7009 };

@@ -1,12 +1,12 @@
 'use strict';
-// Hồ sơ nhân sự sai KHÔNG được tính ra 0 ₫ âm thầm. public/payroll-engine.js → assertStaff làm cho
+// Hồ sơ nhân sự sai KHÔNG được tính ra 0 ₫ âm thầm. src/engine/payroll-engine.js → assertStaff làm cho
 // computeMonth(input) và create(params).calcMonth(...) ném lỗi có mã, có `field`, thông báo tiếng Việt nêu tên trường và giá trị, không bao giờ trả tiền:
 //   PAYROLL_BAD_TYPE   staff thiếu, loại không phải chuỗi, loại lạ ('xyz') hoặc trùng tên thuộc tính Object ('constructor');
 //   PAYROLL_BAD_LEVEL  bậc null, object, 'abc', 0, 99, hoặc không có trong bảng bậc của loại (tts bậc 7).
 // Nhân sự hợp lệ giữ nguyên kết quả (ca vàng và so sánh kép lo phần đó; ở đây chỉ một ca để thấy cổng không chặn nhầm).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { LEGACY_DEFAULTS } = require('../helpers/pay-oracle');
 const { readGolden } = require('../helpers/golden');
 

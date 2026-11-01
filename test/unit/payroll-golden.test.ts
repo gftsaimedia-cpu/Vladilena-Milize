@@ -1,7 +1,7 @@
 'use strict';
 // Ca vàng của khối công thức lương cũ: 300 ca người bịa, đầu vào và kết quả
 // của khối đã đóng băng (test/fixtures/legacy-payroll-block.js) lưu ở test/fixtures/payroll-golden-v0.json.
-// Giữ làm test hồi quy VĨNH VIỄN: bộ máy dùng chung (public/payroll-engine.js) phải trả đúng từng đồng này.
+// Giữ làm test hồi quy VĨNH VIỄN: bộ máy dùng chung (src/engine/payroll-engine.js) phải trả đúng từng đồng này.
 // Tạo lại file vàng: xem đầu test/helpers/golden.ts. Đổi nội dung file vàng = đổi công thức.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

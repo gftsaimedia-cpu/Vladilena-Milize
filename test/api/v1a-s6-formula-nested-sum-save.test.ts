@@ -1,5 +1,5 @@
 'use strict';
-// (public/formula.js → FormulaRef.validate, lib/params/validate.ts → checkFormula): "tổng theo ngày" đi qua một công thức có tên
+// (src/engine/formula.js → FormulaRef.validate, src/params/validate.ts → checkFormula): "tổng theo ngày" đi qua một công thức có tên
 // mà chính công thức đó có "tổng theo ngày" phải bị từ chối LÚC LƯU, không để tới lúc tính mới ném lỗi cho từng nhân sự.
 // Trình tự: (1) lưu `lương KPI = tổng theo ngày (tiền OT trong ngày)` (hợp lệ); (2) lưu `tạm ứng = … tổng theo ngày (tiền công cả ngày + lương KPI) …`
 // phải bị 400 (FORMULA_DOMAIN_MIXED hoặc FORMULA_NESTED_SUMDAYS: hai mã đều diễn đạt "tổng theo ngày lồng nhau"),
@@ -8,8 +8,8 @@
 const S = require('../helpers/settings-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const Formula = require('../../public/formula.js');
-const FormulaVocab = require('../../public/formula-vocab.js');
+const Formula = require('../../src/engine/formula.js');
+const FormulaVocab = require('../../src/engine/formula-vocab.js');
 
 const { F } = S;
 const M = '2026-10';

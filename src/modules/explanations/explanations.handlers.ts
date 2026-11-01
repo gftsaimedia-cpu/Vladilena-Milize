@@ -1,5 +1,5 @@
-const { AsyncList } = require('../../../lib/shared/async-list');
-// Route giải trình (nghiệp vụ ở explanation-service.js). lib/domain/routes.js gửi /api/explanations/... tới handle().
+const { AsyncList } = require('../../shared/async-list');
+// Route giải trình (nghiệp vụ ở explanation-service.js). src/domain/routes.js gửi /api/explanations/... tới handle().
 //   GET  /api/explanations[?status=][&user=]   nhân sự: của mình; người có attendance.correct (Admin): mọi người (user= lọc một người)
 //   POST /api/explanations { sessionId, text }                nhân sự giải trình Check-out muộn cho lượt của CHÍNH MÌNH (gửi lại sau khi bị từ chối;
 //                                                             lần đầu thường gửi kèm POST /api/punch { explanation })
@@ -14,13 +14,13 @@ const { AsyncList } = require('../../../lib/shared/async-list');
 //                                                             giờ Check-out của lượt (late-checkout-session.js)
 //                                                             Giải trình ngày: duyệt ngày quên Check-in/out thì ghi công theo giờ ca (phản hồi
 //                                                             recorded; admin-presence.js → syncExplanation), từ chối thì bỏ công đó, ngày không tính công
-const store = require('../../../lib/db');
-const authz = require('../../../lib/authz');
-const events = require('../../../lib/events');
-const { HttpError, readJson } = require('../../../lib/http');
-const { USERNAME_RE } = require('../../../lib/domain/input');
-const { container } = require('../../../lib/domain/container');
-const { AbsentDay } = require('../../../lib/domain/explanation/absent-day');
+const store = require('../../platform/db');
+const authz = require('../../platform/authz');
+const events = require('../../platform/events');
+const { HttpError, readJson } = require('../../platform/http');
+const { USERNAME_RE } = require('../../domain/input');
+const { container } = require('../../domain/container');
+const { AbsentDay } = require('../../domain/explanation/absent-day');
 
 const CAP = 'attendance.correct';
 export const absentDay = new AbsentDay({ store });

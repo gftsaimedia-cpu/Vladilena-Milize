@@ -1,9 +1,9 @@
-// Lưu trữ điểm KPI 5 thành phần (lib/db.ts): bảng kpi_scores, kpi_score_log (không có công tắc kpi_five_from).
+// Lưu trữ điểm KPI 5 thành phần (src/platform/db.ts): bảng kpi_scores, kpi_score_log (không có công tắc kpi_five_from).
 // Điểm lưu số nguyên điểm × 100 (0..10000).
 process.env.DB_PATH = ':memory:';
 const { test, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
+const store = require('../../src/platform/db');
 
 const realNow = Date.now;
 let clock = Date.parse('2026-10-15T03:00:00Z');

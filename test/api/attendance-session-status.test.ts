@@ -1,6 +1,6 @@
 'use strict';
 // Mọi lượt chấm công gửi cho màn Chấm công (Admin) và app nhân viên mang status + statusNote do máy chủ tính
-// (lib/domain/attendance/session-status.ts): GET /api/attendance, /api/team, /api/today, /api/sheet, GET / POST /api/punch.
+// (src/domain/attendance/session-status.ts): GET /api/attendance, /api/team, /api/today, /api/sheet, GET / POST /api/punch.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 process.env.DB_PATH = ':memory:';
@@ -124,7 +124,7 @@ test('Check-out muộn gửi giải trình: chờ Admin; Admin không duyệt l�
 });
 
 test('Quên Check-out rồi Admin khai thay ngày đó: lượt bấm giữ nhãn riêng nhưng bị thay, nhãn của ngày là Đã chấm công', async () => {
-  const AS = require('../../public/attendance-status.js');
+  const AS = require('../../src/engine/attendance-status.js');
   await checkIn('chi', '2026-10-22T08:00:00', 'status-in-chi-forgot');
   await F.at('2026-10-23T12:00:00');
   const dayRows = async (path?, pick?) => {

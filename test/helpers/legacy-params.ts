@@ -5,7 +5,7 @@
 // trong mọi tháng, và bỏ trường m.paidDays (khối cũ không có trường này); m.net.noPayDays của hai bên đếm khác nhau nên so từng trường phải bỏ cả trường này (withoutNoPayDays).
 // Khối cũ cũng không tính ngày "Nghỉ được duyệt" vào ngày nghỉ xét chuyên cần và giờ vượt ngưỡng; bộ máy thì tính
 // (khoá request.type.approved.countsAbsent), nên khi so với khối cũ phải tắt cờ đó cho hai bên cùng cách hiểu.
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const LEGACY_OVERRIDE = Object.freeze({
   'tax.insurance.skipDays': 999,

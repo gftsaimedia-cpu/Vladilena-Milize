@@ -1,7 +1,7 @@
 'use strict';
 // Ratchet SQL thô: truy vấn mới phải đi qua repository Kysely (src/data), không viết `db.prepare(...)` mới.
 // Mỗi file dưới đây còn SQL thô vì một lý do ghi rõ; số đếm chỉ được GIẢM (giảm thì hạ số trong bảng, tăng thì đỏ).
-// Điểm vào SQL thô được đếm: `.prepare(` và `this.one/all/run(` (lớp nền lib/domain/shared/repository.ts).
+// Điểm vào SQL thô được đếm: `.prepare(` và `this.one/all/run(` (lớp nền src/domain/shared/repository.ts).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -11,8 +11,8 @@ const ROOT = path.join(__dirname, '..', '..');
 const ENTRY = /\.prepare\(|\bthis\.(?:one|all|run)\(/g;
 
 const ALLOWED = {
-  'lib/data/postgres-database.ts': [1, 'bộ điều hợp PostgreSQL: tự chuẩn bị câu lệnh đã đổi dấu ?'],
-  'lib/ops/pg-backup.ts': [10, 'công cụ sao lưu đọc/ghi mọi bảng theo tên: SQL động theo thiết kế'],
+  'src/data/postgres-database.ts': [1, 'bộ điều hợp PostgreSQL: tự chuẩn bị câu lệnh đã đổi dấu ?'],
+  'src/ops/pg-backup.ts': [10, 'công cụ sao lưu đọc/ghi mọi bảng theo tên: SQL động theo thiết kế'],
   'src/modules/system/system.controller.ts': [1, 'SELECT 1 kiểm sức khoẻ kết nối']
 };
 
@@ -24,7 +24,7 @@ function walk(dir?) {
 }
 
 const counts: Record<string, any> = {};
-for (const file of [...walk(path.join(ROOT, 'lib')), ...walk(path.join(ROOT, 'src'))]) {
+for (const file of walk(path.join(ROOT, 'src'))) {
   const n = (fs.readFileSync(file, 'utf8').match(ENTRY) || []).length;
   if (n) counts[path.relative(ROOT, file).split(path.sep).join('/')] = n;
 }

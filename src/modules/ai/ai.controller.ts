@@ -1,11 +1,11 @@
 import { Controller, Get, Post } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { validMonth } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { aiReviewResultCached } = require('../../../lib/domain/ai-review'); // kết quả soát dữ liệu của AI
-const agents = require('../../../lib/agents'); // công tắc Agents
-const findings = require('../../../lib/findings'); // bỏ qua phát hiện AI của phiếu, có lý do
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { validMonth } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { aiReviewResultCached } = require('../../domain/ai-review'); // kết quả soát dữ liệu của AI
+const agents = require('../../platform/agents'); // công tắc Agents
+const findings = require('../../domain/findings/findings'); // bỏ qua phát hiện AI của phiếu, có lý do
 
 @Controller('api')
 export class AiController {

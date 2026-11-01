@@ -8,7 +8,7 @@ process.env.DB_PATH = ':memory:';
 const F = require('../helpers/api-fixture');
 const P = require('../helpers/period-api');
 const X = require('../helpers/explanation-flow');
-const { ADMIN_ORIGIN } = require('../../lib/attendance-sessions');
+const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');
 
 const { MONTH, iso } = X;
 const adminRows = async (username?, date?) =>

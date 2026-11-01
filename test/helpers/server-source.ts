@@ -1,19 +1,19 @@
 'use strict';
 // Một chỗ biết "mã máy chủ nằm ở đâu".
 // Các test đọc mã máy chủ như văn bản (không chạy nó) gọi serverSource() thay vì readFileSync('src/server.ts'), nên
-// việc chia src/server.ts ra lib/routes, lib/domain... không làm chúng hỏng hay xanh giả.
+// việc chia src/server.ts ra lib/routes, src/domain... không làm chúng hỏng hay xanh giả.
 //   serverFiles()          đường dẫn tương đối (dấu /) của mọi file mã máy chủ ĐANG CÓ, src/server.ts đứng đầu
 //   serverSource()         văn bản các file đó nối nhau (mỗi file cách nhau một dòng trống)
 //   serverSourceOf(rel)    văn bản của một file trong số đó (ném lỗi nếu không phải mã máy chủ hoặc không có)
-// Bộ lọc: src/server.ts + lib/http.ts + lib/request-rules.ts + lib/announce.ts + lib/routes/** + lib/domain/**.
+// Bộ lọc: src/server.ts + src/platform/http.ts + src/platform/request-rules.ts + src/platform/announce.ts + lib/routes/** + src/domain/**.
 // File nào trong số đó chưa có thì bỏ qua, nên trước và sau khi chia src/server.ts kết quả của
 // serverSource() chứa cùng các đoạn mã.
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '../..');
-const SINGLE = ['src/server.ts', 'lib/http.ts', 'lib/request-rules.ts', 'lib/announce.ts'];
-const TREES = ['lib/routes', 'lib/domain', 'src']; // src: module NestJS (.ts)
+const SINGLE = ['src/server.ts', 'src/platform/http.ts', 'src/platform/request-rules.ts', 'src/platform/announce.ts'];
+const TREES = ['lib/routes', 'src/domain', 'src']; // src: module NestJS (.ts)
 
 function walk(dir?) {
   const abs = path.join(ROOT, dir);

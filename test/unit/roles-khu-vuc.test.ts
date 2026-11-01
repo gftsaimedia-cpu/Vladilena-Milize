@@ -1,10 +1,10 @@
 'use strict';
-// Vai trò tuỳ chỉnh: bảng khu vực (ma trận Không / Xem / Sửa), mã từ tên và bộ lọc năng lực của lib/authz.ts (không cần máy chủ).
+// Vai trò tuỳ chỉnh: bảng khu vực (ma trận Không / Xem / Sửa), mã từ tên và bộ lọc năng lực của src/platform/authz.ts (không cần máy chủ).
 process.env.DB_PATH = ':memory:';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const authz = require('../../lib/authz');
-const roles = require('../../lib/roles');
+const authz = require('../../src/platform/authz');
+const roles = require('../../src/domain/roles/roles');
 
 test('vai trò: mọi năng lực của hệ thống nằm trong một khu vực, một mục lẻ hoặc danh sách dành riêng cho Admin', () => {
   const covered = new Set<any>([

@@ -5,7 +5,7 @@
 const S = require('../helpers/schedule-api');
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { F, store, F0 } = S;
 F.explainPunches = true; // lượt bấm trễ ở đây chỉ là đầu vào: kèm giải trình lúc bấm

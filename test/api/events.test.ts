@@ -1,5 +1,5 @@
 'use strict';
-// Kênh báo cho màn đang mở (lib/events.ts, GET /api/events):
+// Kênh báo cho màn đang mở (src/platform/events.ts, GET /api/events):
 //   events-auth      401 khi chưa đăng nhập; hello có epoch, serverTime, configRev, build, retry; đăng xuất, khoá tài khoản, đổi mật khẩu thì bye; trần kết nối; nhịp tim
 //   events-audience  người nhận và chiếu trường theo tầng: nhân viên chỉ nhận { configRev, fromMonth } của params.changed, không bao giờ approvals.changed,
 //                    chỉ request.decided / estimate.changed / payslip.available của CHÍNH mình; payload không có tên, tiền, lý do tự do, mã băm
@@ -9,9 +9,9 @@ const http = require('node:http');
 const S = require('../helpers/settings-api');
 const { test, before, after, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const events = require('../../lib/events');
-const auth = require('../../lib/auth');
-const config = require('../../lib/config');
+const events = require('../../src/platform/events');
+const auth = require('../../src/platform/auth');
+const config = require('../../src/platform/config');
 
 const { F, store } = S;
 const monthOf = S.monthPool();

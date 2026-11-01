@@ -1,28 +1,28 @@
 import { Controller, Get, Put } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { cutRuleView, leaveBalanceView, actualReportView, cleanDays } from './sheet.helpers';
-const { AsyncList } = require('../../../lib/shared/async-list');
+const { AsyncList } = require('../../shared/async-list');
 import { reasonOf } from '../../shared/reason';
-const store = require('../../../lib/db');
-const { HttpError, readJson } = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const { rulesFor, monthParams, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { validMonth, USERNAME_RE } = require('../../../lib/domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
-const { ownerView, sheetForViewer } = require('../../../lib/domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
-const { closeStale } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
-const { sessionsFor } = require('../../../lib/domain/attendance/session-view');
-const { KpiScoring } = require('../../../lib/domain/kpi/kpi-scoring');
-const { sheetApprovals } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
-const { checkSheetLimits } = require('../../../lib/domain/overtime/hour-limits').HourLimits; // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
-const sheetBulk = require('../../../lib/domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
-const authz = require('../../../lib/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
-const audit = require('../../../lib/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
-const periods = require('../../../lib/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const { container } = require('../../../lib/domain/container');
-const { timesheet } = require('../../../lib/domain/timesheet/services'); // kiểm nghiệp vụ lịch khai // các lớp của lib/domain (danh mục ca, sổ phép, nhân viên theo uuid)
-const warnings = require('../../../lib/warnings'); // cảnh báo thay cho chặn
-const { estimateSheet, leaveDates, neighborDays, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { sheetOwner, approveOnBehalf } = require('../../../lib/domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
+const store = require('../../platform/db');
+const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const { rulesFor, monthParams, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { validMonth, USERNAME_RE } = require('../../domain/input'); // kiểm dạng tháng, ngày, giờ, tên đăng nhập
+const { ownerView, sheetForViewer } = require('../../domain/staff'); // hồ sơ gửi ra ngoài, che trường theo quyền
+const { closeStale } = require('../../domain/attendance'); // phiên Check-in/out dùng chung
+const { sessionsFor } = require('../../domain/attendance/session-view');
+const { KpiScoring } = require('../../domain/kpi/kpi-scoring');
+const { sheetApprovals } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
+const { checkSheetLimits } = require('../../domain/overtime/hour-limits').HourLimits; // trần OT tháng (OT cộng giờ ca chính làm ngày lễ), giới hạn iSAT theo tháng
+const sheetBulk = require('../../domain/sheet-bulk'); // Admin chấm công thay nhiều người, nhiều ngày, một ca
+const authz = require('../../platform/authz'); // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
+const audit = require('../../platform/audit'); // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
+const periods = require('../../domain/period/periods'); // vòng đời kỳ lương, phiếu chụp bất biến, số ước tính của nhân sự
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const { container } = require('../../domain/container');
+const { timesheet } = require('../../domain/timesheet/services'); // kiểm nghiệp vụ lịch khai // các lớp của src/domain (danh mục ca, sổ phép, nhân viên theo uuid)
+const warnings = require('../../platform/warnings'); // cảnh báo thay cho chặn
+const { estimateSheet, leaveDates, neighborDays, schedule } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { sheetOwner, approveOnBehalf } = require('../../domain/sheet-on-behalf'); // Admin khai lịch thay nhân sự
 const { warnIf, selfDecision } = warnings;
 
 @Controller('api')
@@ -110,7 +110,7 @@ export class SheetController {
       clean,
       prevDays,
       onBehalf
-    }); // kiểm nghiệp vụ lịch ước tính (lib/domain/timesheet/services.ts)
+    }); // kiểm nghiệp vụ lịch ước tính (src/domain/timesheet/services.ts)
     await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
     // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
     const kept = onBehalf ? await store.getSheet(u.username, month) : null;
@@ -148,7 +148,7 @@ export class SheetController {
     };
   }
 
-  // Admin chấm công thay hàng loạt: tất cả hoặc không (lib/domain/sheet-bulk.ts)
+  // Admin chấm công thay hàng loạt: tất cả hoặc không (src/domain/sheet-bulk.ts)
   @Put('sheet/bulk')
   async putSheetBulk(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, needAdmin, guardPeriod } = c;

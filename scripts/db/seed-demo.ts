@@ -37,7 +37,7 @@ const canonical = (file?) => {
   return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
 };
 // PostgreSQL thật qua DATABASE_URL: chỉ nạp vào DB MỚI (chưa có nhân sự) hoặc DB demo đã nạp trước đó, và phải có --confirm-demo-db.
-// Kiểm trước khi nạp lib/db (nạp lib/db là chạy migration lên DB đó) bằng một kết nối riêng chỉ đọc.
+// Kiểm trước khi nạp src/platform/db (nạp src/platform/db là chạy migration lên DB đó) bằng một kết nối riêng chỉ đọc.
 if (process.env.DATABASE_URL) {
   if (args['confirm-demo-db'] !== true)
     fail(
@@ -87,7 +87,7 @@ if (dbArg && !MEMORY) {
       [
         '--no-warnings=ExperimentalWarning',
         '-e',
-        "const { PostgresDatabase } = require('./lib/data/postgres-database');(async()=>{const db=new PostgresDatabase({dataDir:process.argv[1]});let marked=false;try{await db.ready;marked=!!(await db.prepare('SELECT 1 FROM settings WHERE key = ?').get('demo_dataset'));}catch{}await db.close();console.log(JSON.stringify({marked}));})()",
+        "const { PostgresDatabase } = require('./src/data/postgres-database');(async()=>{const db=new PostgresDatabase({dataDir:process.argv[1]});let marked=false;try{await db.ready;marked=!!(await db.prepare('SELECT 1 FROM settings WHERE key = ?').get('demo_dataset'));}catch{}await db.close();console.log(JSON.stringify({marked}));})()",
         dir
       ],
       { encoding: 'utf8', cwd: ROOT }
@@ -106,15 +106,15 @@ if (dbArg && !MEMORY) {
   }
 }
 
-// Chỉ nạp lib/db SAU khi đường dẫn đã được kiểm: nạp lib/db là mở và nâng cấp file DB
+// Chỉ nạp src/platform/db SAU khi đường dẫn đã được kiểm: nạp src/platform/db là mở và nâng cấp file DB
 if (dbArg) process.env.DB_PATH = dbArg;
 const S = require('./demo/scenarios');
 const H = require('./demo/helpers');
 const gen = require('./demo/generate');
 const selfcheck = require('./demo/selfcheck');
 const { exportAll } = require('./demo/export-csv');
-const store = require('../../lib/db');
-const { loadPayroll } = require('../../lib/ai/payroll-loader.ts');
+const store = require('../../src/platform/db');
+const { loadPayroll } = require('../../src/ai/payroll-loader');
 
 const today = typeof args.today === 'string' ? args.today : S.TODAY;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(today) || today < '2026-10-01' || today > '2026-11-30')
@@ -195,7 +195,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
     const { Lifecycle } = require('./demo/lifecycle');
     lifecycle = new Lifecycle({
       store,
-      auth: require('../../lib/auth'),
+      auth: require('../../src/platform/auth'),
       server: require('../../src/server'),
       admin: S.ADMINS[0].username,
       personas,

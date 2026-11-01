@@ -1,5 +1,5 @@
 // Dọn bảng punch_requests (~3,7 KB/dòng, 2 dòng/người/ngày).
-// lib/attendance-sessions.ts → purgePunchRequests(olderThanDays) chạy trong store.transaction, xoá theo created_at;
+// src/domain/attendance/attendance-sessions.ts → purgePunchRequests(olderThanDays) chạy trong store.transaction, xoá theo created_at;
 // server.js gọi một lần lúc khởi động rồi mỗi config.PUNCH_REQUEST_PURGE_MS (chỉ khi require.main === module).
 // CHỈ xoá bản ghi cũ hơn hạn.
 process.env.DB_PATH = ':memory:';
@@ -7,9 +7,9 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const store = require('../../lib/db');
-const config = require('../../lib/config');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const store = require('../../src/platform/db');
+const config = require('../../src/platform/config');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const realExec = store.db.exec;
 const rowCount = async () => (await store.db.prepare('SELECT COUNT(*) AS n FROM punch_requests').get()).n;
@@ -30,7 +30,7 @@ test('purgePunchRequests chỉ xoá bản ghi cũ hơn hạn, giữ bản ghi m�
   assert.equal(await rowCount(), 3);
 
   let opened = 0;
-  // store.transaction của lib/db dựng bằng SAVEPOINT/RELEASE: đếm qua db.exec để thấy cả đợt dọn nằm trong một giao dịch
+  // store.transaction của src/platform/db dựng bằng SAVEPOINT/RELEASE: đếm qua db.exec để thấy cả đợt dọn nằm trong một giao dịch
   // PostgreSQL: giao dịch ngoài cùng là runTransaction (BEGIN … COMMIT), giao dịch lồng mới là SAVEPOINT; đếm cả hai
   const realRun = store.db.runTransaction;
   store.db.runTransaction = async function (...args) {

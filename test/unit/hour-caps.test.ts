@@ -1,13 +1,13 @@
 'use strict';
-// Trần giờ làm thêm (lib/domain/limits.js):
+// Trần giờ làm thêm (src/domain/limits.js):
 //   - một ngày: giờ ca + OT + làm thêm + làm bù, không tính giờ nghỉ giữa ca, tối đa DAY_HOURS_CAP (12) giờ;
 //   - một tháng: OT cộng giờ ca chính làm ngày lễ (kể cả giờ OT của ngày lễ), tối đa MONTH_OT_CAP (40) giờ.
 process.env.DB_PATH = ':memory:';
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
-const store = require('../../lib/db');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const store = require('../../src/platform/db');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 const {
   DAY_HOURS_CAP,
   MONTH_OT_CAP,
@@ -18,8 +18,8 @@ const {
   checkDayHours,
   checkMonthOt,
   checkSheetLimits
-} = require('../../lib/domain/overtime/hour-limits').HourLimits;
-const { estimateHolidayOtHours } = require('../../lib/domain/overtime/worked-hours').WorkedHours;
+} = require('../../src/domain/overtime/hour-limits').HourLimits;
+const { estimateHolidayOtHours } = require('../../src/domain/overtime/worked-hours').WorkedHours;
 
 after(() => store.db.close());
 

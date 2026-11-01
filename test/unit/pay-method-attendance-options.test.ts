@@ -7,7 +7,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runGolden, closeTo, DEFAULTS } = require('../helpers/pay-oracle');
-const registry = require('../../lib/params/registry');
+const registry = require('../../src/params/registry');
 
 const NV1 = 'known-kpi-five-100-90-80-85-100';
 const T65_BELOW = 'known-t65-over-limit-23.75h';

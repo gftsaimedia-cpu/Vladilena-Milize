@@ -3,14 +3,14 @@
 // làm tròn đồng MỘT lần; tổng phụ cấp, tổng thu nhập, thu nhập chịu thuế, sau bảo hiểm, thực nhận là cộng trừ đúng các số nguyên đó. Quét nhiều tháng sinh
 // từ hạt giống: mọi tổng bằng tổng các dòng hiện ra, không trường tiền nào có phần lẻ, Thành tiền các ngày cộng đúng tiền ngày của tháng và bốn cột
 // của từng ngày cộng đúng Thành tiền; công thức dưới dòng tính ra đúng số của dòng (kể cả các tổng).
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/slip-paid.ts nạp lib/db
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
+const Engine = require('../../src/engine/payroll-engine.js');
 const { DEFAULTS } = require('../helpers/defaults-old-basis.js');
-const { cellsOf, withDayFigures } = require('../../lib/slip-paid.ts');
-const { allowanceTotalOf } = require('../../lib/period-allowance.ts');
-const { formulasOf } = require('../../lib/slip-formulas.ts');
+const { cellsOf, withDayFigures } = require('../../src/domain/payroll/slip-paid');
+const { allowanceTotalOf } = require('../../src/domain/period/period-allowance');
+const { formulasOf } = require('../../src/domain/payroll/slip-formulas');
 const { generateCases } = require('../helpers/payroll-cases');
 const { evaluate } = require('../helpers/formula-eval');
 const F = require('../helpers/schedule-fixtures');
@@ -342,7 +342,7 @@ function loadPhieu() {
   };
   const context = vm.createContext({ console, window: { Admin } });
   for (const file of ['view-phieu.js', 'phieu-a4.js', 'phieu-a4-days.js'])
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../public/admin', file), 'utf8'), context, {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../src/engine/admin', file), 'utf8'), context, {
       filename: file
     });
   return (Admin as any).Phieu;

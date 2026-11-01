@@ -1,7 +1,7 @@
 'use strict';
 // Hàm dùng chung của bộ dữ liệu demo: ngày giờ (giờ Việt Nam), dựng ngày trong lịch ước tính, số ngẫu nhiên có hạt giống.
-// Không đọc đồng hồ, không đọc DB: chỉ tính toán. Các quy tắc ca, lịch dùng lại public/punch.js, không viết lại.
-const P = require('../../../public/punch.js');
+// Không đọc đồng hồ, không đọc DB: chỉ tính toán. Các quy tắc ca, lịch dùng lại src/engine/punch.js, không viết lại.
+const P = require('../../../src/engine/punch.js');
 
 const SHIFT = P.SHIFT;
 const SCHED = Object.freeze({ tts: [1, 2, 3, 4, 5], ctv: [1, 2, 3, 4, 5, 6], nv: [1, 2, 3, 4, 5, 6] });
@@ -154,7 +154,7 @@ function rng(seedText?) {
   return next;
 }
 
-// Mật khẩu băm scrypt với muối cố định: cùng định dạng lib/auth.ts (scrypt$muối$băm) nên đăng nhập được, và đầu ra không đổi giữa các lần chạy
+// Mật khẩu băm scrypt với muối cố định: cùng định dạng src/platform/auth.ts (scrypt$muối$băm) nên đăng nhập được, và đầu ra không đổi giữa các lần chạy
 function fixedHash(password?, saltHex = 'de3a0c0de3a0c0de3a0c0de3a0c0de3a') {
   const crypto = require('node:crypto');
   return `scrypt$${saltHex}$${crypto.scryptSync(password, saltHex, 64).toString('hex')}`;

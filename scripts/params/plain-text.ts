@@ -6,7 +6,7 @@
 //   legalBasis    (mục có sàn, trần, đúng luật) trích dẫn luật ngắn, hiện trong thông báo khi giá trị chạm sàn hoặc trần
 //   lockReason    (mục khoá) lý do khoá; vắng thì dùng basis
 // Ghi chú cho lập trình viên (mặc định của mã, chi phí, giai đoạn, nguồn trong mã, bản help/basis cũ) nằm ở các trường API KHÔNG gửi cho giao diện:
-// phase, cost và devNote (lib/params/store.ts → view chỉ gửi defaultNote đã cắt phần nguồn).
+// phase, cost và devNote (src/params/store.ts → view chỉ gửi defaultNote đã cắt phần nguồn).
 // applyPlainText là hàm thuần trên mảng mục; apply-plain-text.js dùng nó để vá registry.data.json đã có.
 const text = require('./plain-text.json');
 const firstRunText = require('./first-run-text.json'); // Đề xuất và căn cứ của Cài đặt ban đầu (cùng quy tắc chữ)

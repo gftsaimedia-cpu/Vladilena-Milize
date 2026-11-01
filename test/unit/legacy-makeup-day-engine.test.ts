@@ -3,8 +3,8 @@
 // Giờ làm bù khai ở ngày đi làm (kind 'work' + extraKind 'makeup') vẫn được trả như trước.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const Engine = require('../../public/payroll-engine.js');
-const { DEFAULTS } = require('../../public/payroll-params.js');
+const Engine = require('../../src/engine/payroll-engine.js');
+const { DEFAULTS } = require('../../src/engine/payroll-params.js');
 
 const E = Engine.create(DEFAULTS);
 const NV = { username: 'qa_nv', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2025-01-06' };

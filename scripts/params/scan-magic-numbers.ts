@@ -1,7 +1,7 @@
 'use strict';
 // Quét hằng số ngoài 0 và 1 trong mã tính lương. Chỉ đọc tệp, không phụ thuộc thư viện phân tích cú pháp.
 // Bỏ qua chú thích, chuỗi, biểu thức chính quy; số trong ${...} của chuỗi mẫu vẫn bị quét.
-//   node scripts/params/scan-magic-numbers.ts public/payroll-engine.js [thêm tệp ...]    thoát 1 nếu có vi phạm
+//   node scripts/params/scan-magic-numbers.ts src/engine/payroll-engine.js [thêm tệp ...]    thoát 1 nếu có vi phạm
 const fs = require('node:fs');
 
 function scan(source?) {

@@ -1,11 +1,11 @@
 'use strict';
-// Route của các lớp lib/domain: danh mục chức vụ/bậc/ca trong DB, nhân viên theo uuid,
+// Route của các lớp src/domain: danh mục chức vụ/bậc/ca trong DB, nhân viên theo uuid,
 // sổ phép lưu sẵn, hồ sơ có họ/tên, thử việc/chính thức, ngày nghỉ việc và mã ca dạng Normal1.
 process.env.REORG_FROM_MONTH = '2026-11'; // các quy tắc này có hiệu lực từ tháng của đồng hồ giả
 const F = require('../helpers/api-fixture');
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
-const paramsStore = require('../../lib/params/store');
+const paramsStore = require('../../src/params/store');
 
 before(F.start);
 after(F.stop);
@@ -23,7 +23,7 @@ test('GET /catalog/positions: ba chức vụ mặc định, bậc theo tên củ
   assert.equal(tts.levels[0].name, 'Explorer');
   assert.equal(data.positions.find(p => p.code === 'nv').nightPct, 40);
   // dòng nền chưa ai sửa mang tháng nền; màn Admin dựa vào baseMonth để không ghi "Từ 01/2000"
-  assert.equal(data.baseMonth, require('../../lib/config').CATALOG_BASE_MONTH);
+  assert.equal(data.baseMonth, require('../../src/platform/config').CATALOG_BASE_MONTH);
   assert.equal(tts.effectiveMonth, data.baseMonth);
   assert.equal((await F.call('GET', '/catalog/positions', { who: 'qa_nv' })).status, 403);
 });
@@ -145,7 +145,7 @@ test('sổ phép: nhân viên xem sổ của mình, số dư lưu vào hồ sơ;
 });
 
 test('lương tháng: hợp đồng theo thâm niên tới cuối tháng tính, người nghỉ việc trước tháng không vào bảng lương, tháng nào cũng một cách', async () => {
-  const service = require('../../lib/payroll-service');
+  const service = require('../../src/domain/payroll/payroll-service');
   await F.person('qa_moi', 'staff', { startDate: '2026-10-20', contract: 'long' });
   await F.person('qa_nghi', 'staff', { resignedOn: '2026-10-31' });
   const people = await service.payrollPeople('2026-11');

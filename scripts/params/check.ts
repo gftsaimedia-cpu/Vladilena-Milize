@@ -4,17 +4,17 @@
 //   2. mỗi mục registry hợp lệ: loại, editableBy, nhóm, nhãn, thành phần giao diện đúng loại, lược đồ bảng và bảng bậc đúng khuôn
 //   3. mọi khoá của DEFAULTS thuộc đúng một mục; mọi mục mang giá trị có mặc định, mặc định qua chính bộ kiểm của nó
 //   4. giá trị dẫn xuất và bản chép trong mã khớp nhau (trần đóng BH, miễn thuế giờ đêm ngày lễ, ca cố định, lịch loại nhân sự, luật AI)
-//   5. khoá đã phát hành (lib/params/keys.lock.json) không mất, khoá mới đã vào tệp
+//   5. khoá đã phát hành (src/params/keys.lock.json) không mất, khoá mới đã vào tệp
 //   --counts  in số mục theo loại, theo editableBy và theo nhóm
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { extract, sources, ROOT } = require('./extract-defaults');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // lib/params/store.ts kéo lib/db; script này không chạm DB thật
+process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/params/store.ts kéo src/platform/db; script này không chạm DB thật
 
-const Params = require(path.join(ROOT, 'public/payroll-params.js'));
-const registry = require(path.join(ROOT, 'lib/params/registry.ts'));
-const { validateValue } = require(path.join(ROOT, 'lib/params/validate.ts'));
+const Params = require(path.join(ROOT, 'src/engine/payroll-params.js'));
+const registry = require(path.join(ROOT, 'src/params/registry.ts'));
+const { validateValue } = require(path.join(ROOT, 'src/params/validate.ts'));
 
 const errors: any[] = [];
 const fail = (message?) => errors.push(message);
@@ -249,11 +249,13 @@ function checkDefaults() {
 }
 
 // Đối chiếu với khối công thức cũ đã đóng băng (test/fixtures/legacy-payroll-block.js):
-// DEFAULTS phải còn bằng số của khối đó (TYPES, TAX_RULES, ca cố định). KHÔNG đọc public/index.html.
+// DEFAULTS phải còn bằng số của khối đó (TYPES, TAX_RULES, ca cố định). KHÔNG đọc src/engine/index.html.
 function legacyBlock() {
   const context = vm.createContext({});
   for (const lib of ['payroll-calendar', 'kpi-score'])
-    vm.runInContext(fs.readFileSync(path.join(ROOT, `public/${lib}.js`), 'utf8'), context, { filename: lib + '.js' });
+    vm.runInContext(fs.readFileSync(path.join(ROOT, `src/engine/${lib}.js`), 'utf8'), context, {
+      filename: lib + '.js'
+    });
   const block = fs.readFileSync(path.join(ROOT, 'test/fixtures/legacy-payroll-block.js'), 'utf8');
   vm.runInContext(
     `${block}
@@ -286,9 +288,9 @@ function checkAgainstCode() {
   same(
     byCode(Object.fromEntries(Object.entries<any>(out.PRESETS).map(([c, p]: any) => [c, [p.in, p.out]]))),
     byCode(Punch.SHIFT),
-    'ca cố định: khối cũ đóng băng PRESETS so với public/punch.js SHIFT'
+    'ca cố định: khối cũ đóng băng PRESETS so với src/engine/punch.js SHIFT'
   );
-  const ApprovalView = require(path.join(ROOT, 'public/approval-view.js'));
+  const ApprovalView = require(path.join(ROOT, 'src/engine/approval-view.js'));
   for (const t of Object.keys(out.TYPES))
     same(
       set[`type.${t}.dows`],
@@ -297,15 +299,15 @@ function checkAgainstCode() {
     );
   const table = registry.byId('request.type.<code>').ui.table.rowKeys[0].values.map(v => v.value);
   same([...table].sort(), ApprovalItemsSorted(ApprovalItems), 'loại yêu cầu của registry so với ApprovalView.ITEMS');
-  const { RULES } = require(path.join(ROOT, 'lib/ai/review.ts'));
+  const { RULES } = require(path.join(ROOT, 'src/ai/review.ts'));
   same(
     registry.AI_RULES.map(r => r.id).sort(),
     RULES.map(r => r.id).sort(),
-    'luật AI của registry so với lib/ai/review.ts RULES'
+    'luật AI của registry so với src/ai/review.ts RULES'
   );
   same(
     set['time.workHoursPerDay'] * set['unit.minutesPerHour'],
-    require(path.join(ROOT, 'public/actual-hours.js')).RULE.SHIFT_WORK_MIN,
+    require(path.join(ROOT, 'src/engine/actual-hours.js')).RULE.SHIFT_WORK_MIN,
     'SHIFT_WORK_MIN = giờ mỗi công × phút mỗi giờ'
   );
 }
@@ -313,7 +315,7 @@ const ApprovalItemsSorted = (items?) => [...items].sort();
 
 // Bộ máy dùng chung: từ vựng bắt buộc có đủ trong ba bảng dữ liệu, mọi biến có đường dẫn `from`, mã không có hằng số ngoài 0 và 1
 function checkEngine() {
-  const Engine = require(path.join(ROOT, 'public/payroll-engine.js'));
+  const Engine = require(path.join(ROOT, 'src/engine/payroll-engine.js'));
   const { scan } = require('./scan-magic-numbers');
   for (const key of Engine.VOCABULARY_KEYS)
     if (![Engine.VARIABLES, Engine.FORMULAS, Engine.BUILTINS].some(table => Object.hasOwn(table, key)))
@@ -330,9 +332,9 @@ function checkEngine() {
       if (name !== 'BUILTINS' && !entry.from) fail(`payroll-engine ${name}.${key}: thiếu đường dẫn from`);
       if (name === 'BUILTINS' && typeof entry.fn !== 'function') fail(`payroll-engine BUILTINS.${key}: thiếu fn`);
     }
-  const found = scan(fs.readFileSync(path.join(ROOT, 'public/payroll-engine.js'), 'utf8'));
+  const found = scan(fs.readFileSync(path.join(ROOT, 'src/engine/payroll-engine.js'), 'utf8'));
   for (const hit of found)
-    fail(`public/payroll-engine.js dòng ${hit.line}: hằng số ${hit.value} ngoài 0 và 1 (${hit.text})`);
+    fail(`src/engine/payroll-engine.js dòng ${hit.line}: hằng số ${hit.value} ngoài 0 và 1 (${hit.text})`);
 }
 
 // Cờ wired của registry phải bằng kết quả kiểm tĩnh ở scripts/params/wired.ts (bộ máy đọc khoá và không còn bản sao hằng số). Lệch là lỗi:
@@ -353,15 +355,15 @@ function checkWired() {
   }
 }
 
-// Bản chép chuyển tiếp FALLBACK của sáu mô-đun luật dùng chung và của mã máy chủ (lib/auth.ts…) phải bằng DEFAULTS từng khoá (scripts/params/check-fallbacks.ts)
+// Bản chép chuyển tiếp FALLBACK của sáu mô-đun luật dùng chung và của mã máy chủ (src/platform/auth.ts…) phải bằng DEFAULTS từng khoá (scripts/params/check-fallbacks.ts)
 function checkFallbacks() {
   const { problems, libProblems } = require('./check-fallbacks');
   for (const line of [...problems(), ...libProblems().problems]) fail(line);
 }
 
 function checkLock() {
-  const lockPath = path.join(ROOT, 'lib/params/keys.lock.json');
-  if (!fs.existsSync(lockPath)) return fail('thiếu lib/params/keys.lock.json: chạy npm run params:lock');
+  const lockPath = path.join(ROOT, 'src/params/keys.lock.json');
+  if (!fs.existsSync(lockPath)) return fail('thiếu src/params/keys.lock.json: chạy npm run params:lock');
   const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
   const current = new Set<any>(lockedNames());
   for (const name of Object.keys(lock.keys))
@@ -376,8 +378,8 @@ function checkLock() {
 // Tên được khoá: mẫu khoá của mục (họ khoá khoá theo mẫu); mục không có khoá (mục cố định) khoá theo id
 function lockedNames() {
   const names = new Set<any>([
-    ...require(path.join(ROOT, 'lib/params/positions.ts')).LOCKED_NAMES,
-    ...require(path.join(ROOT, 'lib/params/block-defs.ts')).LOCKED_NAMES
+    ...require(path.join(ROOT, 'src/params/positions.ts')).LOCKED_NAMES,
+    ...require(path.join(ROOT, 'src/params/block-defs.ts')).LOCKED_NAMES
   ]); // họ khoá động của chức vụ (không có mục registry riêng)
   for (const entry of registry.entries) {
     if (entry.keys && entry.keys.length) for (const key of entry.keys) names.add(key);
@@ -427,7 +429,7 @@ function main(argv?) {
         (k, x) => (x === Infinity ? null : x)
       );
     if (text(extract().values) !== text(Params.DEFAULTS))
-      fail('public/payroll-params.js → DEFAULTS không khớp mã hiện tại: chạy npm run params:extract');
+      fail('src/engine/payroll-params.js → DEFAULTS không khớp mã hiện tại: chạy npm run params:extract');
   } catch (error) {
     fail(error.message);
   }

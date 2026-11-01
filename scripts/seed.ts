@@ -1,5 +1,5 @@
 // Tạo dữ liệu mẫu để xem thử: DB_PATH=./data/dev npm run seed  (an toàn chạy lại; chỉ thêm tài khoản chưa có)
-// Phải kiểm biến môi trường TRƯỚC khi nạp lib/db: nạp lib/db là mở DB và chạy migrations luôn.
+// Phải kiểm biến môi trường TRƯỚC khi nạp src/platform/db: nạp src/platform/db là mở DB và chạy migrations luôn.
 // Seed chỉ đọc biến môi trường (không đọc .env như npm start). DB_PATH là PostgreSQL trong tiến trình (PGlite) lưu ở một thư mục,
 // dùng để thử. Máy chủ PostgreSQL thật (DATABASE_URL) bị từ chối, trừ khi đặt rõ SEED_ALLOW_REAL_DB=1.
 if (!process.env.DB_PATH && !process.env.DATABASE_URL) {
@@ -16,8 +16,8 @@ if (process.env.DATABASE_URL && process.env.SEED_ALLOW_REAL_DB !== '1') {
   );
   process.exit(1);
 }
-const store = require('../lib/db');
-const auth = require('../lib/auth');
+const store = require('../src/platform/db');
+const auth = require('../src/platform/auth');
 
 const now = new Date(),
   y = now.getFullYear(),

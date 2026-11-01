@@ -1,8 +1,8 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
-const store = require('../../../lib/db');
-const {} = require('../../../lib/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-const events = require('../../../lib/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
+const store = require('../../platform/db');
+const {} = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
+const events = require('../../platform/events'); // báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
 const { monitor } = require('../../http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
 
 @Controller('api')

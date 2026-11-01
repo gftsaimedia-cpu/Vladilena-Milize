@@ -1,5 +1,5 @@
 'use strict';
-// Hợp đồng gọi của màn Phân quyền: perms khong|xem|sua, approve, extras, active:false, rev tuỳ chọn (lib/roles.ts; cùng nguồn với levels, approvals, deprecate).
+// Hợp đồng gọi của màn Phân quyền: perms khong|xem|sua, approve, extras, active:false, rev tuỳ chọn (src/domain/roles/roles.ts; cùng nguồn với levels, approvals, deprecate).
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

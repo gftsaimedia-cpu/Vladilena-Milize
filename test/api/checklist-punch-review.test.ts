@@ -1,12 +1,12 @@
 'use strict';
-// lib/periods.ts → checklist có mã PUNCH_REVIEW.
+// src/domain/period/periods.ts → checklist có mã PUNCH_REVIEW.
 // Ngày chờ Admin xử lý nhưng KHÔNG phải quên Check-in/out (lượt chấm lệch ca, chờ đối soát: ActualHours.missing trừ forgot-in/forgot-out)
 // được đếm riêng để chốt công không lọt qua ngày trả 0 ₫; cùng mức cảnh báo và cùng cách bỏ qua
 // (acknowledge + lý do) với FORGOT_PUNCH. Ngày quên Check-out chỉ tính vào FORGOT_PUNCH, không tính hai lần.
 const P = require('../helpers/period-api');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const PunchRules = require('../../public/punch.js');
+const PunchRules = require('../../src/engine/punch.js');
 
 const { F, store, flow } = P;
 

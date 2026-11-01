@@ -50,7 +50,7 @@ test('hồ sơ mang staff.schedule (dữ liệu cũ) không đổi tiền: NV đ
 });
 
 test('TTS đặt lịch T2–T7 theo tham số loại: thứ Bảy là ngày làm thật, không phải ngày làm bù', () => {
-  const WS = require('../../public/work-schedule.js');
+  const WS = require('../../src/engine/work-schedule.js');
   const ws = WS.create({ ...F.DEFAULTS, 'type.tts.dows': F.MON_SAT });
   const s = ws.scheduleOf({ type: 'tts' });
   assert.equal(ws.isWorkDay(s, '2026-10-10'), true);

@@ -1,12 +1,12 @@
 import { cutRuleView } from '../sheet';
-const store = require('../../../lib/db');
-const { CheckinEntitlement } = require('../../../lib/domain/attendance/checkin-entitlement'); // Check-in lúc này có được không, theo quyền nào
-const { punchStaff } = require('../../../lib/domain/attendance'); // phiên Check-in/out dùng chung
-const shiftsDomain = require('../../../lib/domain/shifts'); // giờ ca (nhân viên đọc qua phần bổ sung của /api/punch)
-const { rulesFor, nowIso, vnToday } = require('../../../lib/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
-const { estimateSheet, schedule } = require('../../../lib/domain/sheet'); // lịch ước tính và ngày phép
-const { sessionHistory } = require('../../../lib/domain/attendance/session-view');
-const { sheetApprovals } = require('../../../lib/domain/approvals'); // khoản tự khai chờ duyệt
+const store = require('../../platform/db');
+const { CheckinEntitlement } = require('../../domain/attendance/checkin-entitlement'); // Check-in lúc này có được không, theo quyền nào
+const { punchStaff } = require('../../domain/attendance'); // phiên Check-in/out dùng chung
+const shiftsDomain = require('../../domain/shifts'); // giờ ca (nhân viên đọc qua phần bổ sung của /api/punch)
+const { rulesFor, nowIso, vnToday } = require('../../platform/request-rules'); // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
+const { estimateSheet, schedule } = require('../../domain/sheet'); // lịch ước tính và ngày phép
+const { sessionHistory } = require('../../domain/attendance/session-view');
+const { sheetApprovals } = require('../../domain/approvals'); // khoản tự khai chờ duyệt
 
 /* ---------- check-in / check-out ---------- */
 // Nhân viên chỉ Check-in được cho ngày công (ngày punch.js gán cho lượt: ca đêm thuộc ngày bắt đầu ca, lượt ngoài khung ca thuộc ngày bấm) là:
@@ -15,7 +15,7 @@ const { sheetApprovals } = require('../../../lib/domain/approvals'); // khoản 
 // Ngày tự khai đi làm không có khoản duyệt, khoản chờ duyệt hay bị từ chối đều không mở Check-in.
 // Ngày nghỉ cả ngày cũng đóng Check-in: iSAT, nghỉ phép năm, nghỉ không lương đã khai (chờ duyệt hay đã duyệt, trừ khoản bị từ chối);
 // nghỉ được duyệt, nghỉ sẽ làm bù chỉ khi đã duyệt. Ngoại lệ: ngày đó có khoản OT hay làm bù đã duyệt. checkInDay trả câu báo '' khi ngày qua, ngược lại câu báo cho nhân viên.
-// Thời điểm bấm còn phải nằm trong khung ca hoặc trong khoảng giờ của khoản đã duyệt: lib/domain/attendance/checkin-entitlement.ts (checkInVerdict) ghép hai điều kiện.
+// Thời điểm bấm còn phải nằm trong khung ca hoặc trong khoảng giờ của khoản đã duyệt: src/domain/attendance/checkin-entitlement.ts (checkInVerdict) ghép hai điều kiện.
 export const CHECKIN_ITEMS = ['ot', 'makeup_hours'];
 export const OFF_DECLARED = ['isat', 'leave', 'unpaid'];
 export const OFF_DAY_TEXT = {

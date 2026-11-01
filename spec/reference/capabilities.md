@@ -1,8 +1,8 @@
 # Năng lực và vai trò
 
-> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `lib/authz.ts` (`CAPS`, `ROLE_CAPS`, `ROLE_SCOPE`, `DECIDE_ITEMS`). Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
+> Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `src/platform/authz.ts` (`CAPS`, `ROLE_CAPS`, `ROLE_SCOPE`, `DECIDE_ITEMS`). Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
-Nguồn: [`lib/authz.ts`](../../lib/authz.ts). Quyền kiểm theo *năng lực*; vai trò chỉ là tập năng lực kèm phạm vi. Vai trò tuỳ chỉnh lưu ở `settings` (`lib/roles.ts`).
+Nguồn: [`src/platform/authz.ts`](../../src/platform/authz.ts). Quyền kiểm theo *năng lực*; vai trò chỉ là tập năng lực kèm phạm vi. Vai trò tuỳ chỉnh lưu ở `settings` (`src/domain/roles/roles.ts`).
 
 ## Năng lực (32)
 
