@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Ngăn kéo "Lý do AI cảnh báo" của một yêu cầu (drw-yc-ly-do-ai, drw-tq-ly-do-ai): các cảnh báo AI của yêu cầu,
 // ô lý do bắt buộc, rồi đồng ý hoặc từ chối kèm lý do. Mở từ Yêu cầu và từ Tổng quan.
 // Props: requestId.  Emit: close; done (đã đồng ý/từ chối, màn gọi tải lại dữ liệu).
 import { computed, ref } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { approveRequest, getRequestReasons, rejectRequest, skipWarning } from '@/services/admin-main.js';
-import { dm, dmy } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { approveRequest, getRequestReasons, rejectRequest, skipWarning } from '@/services/admin-main';
+import { dm, dmy } from '@/utils/format';
 import WarningCard from '@/views/admin/assistant/WarningCard.vue';
 import FieldArea from './FieldArea.vue';
 
@@ -21,7 +21,7 @@ const reason = ref('');
 const busy = ref(false);
 const canSend = computed(() => reason.value.trim().length > 0 && !busy.value);
 
-async function skip(id) {
+async function skip(id?) {
   if (busy.value) return;
   busy.value = true;
   try {
@@ -36,7 +36,7 @@ async function skip(id) {
     emit('close');
   }
 }
-async function decide(action) {
+async function decide(action?) {
   if (!canSend.value) return;
   busy.value = true;
   try {

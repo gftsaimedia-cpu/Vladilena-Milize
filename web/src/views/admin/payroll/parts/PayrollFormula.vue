@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Dải công thức: quỹ lương − bảo hiểm − thuế TNCN − tạm ứng = thực nhận (số có sẵn từ máy chủ).
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { vnd } from '@/utils/format.js';
+import { vnd } from '@/utils/format';
 
-const props = defineProps({ formula: { type: Object, required: true } });
+const props = defineProps({ formula: { type: Object as () => any, required: true } });
 
 const ITEMS = [
   ['income', 'Quỹ lương'],
@@ -13,7 +13,7 @@ const ITEMS = [
   ['advance', 'Tạm ứng'],
   ['net', 'Thực nhận']
 ];
-const cls = key => {
+const cls = (key?) => {
   if (props.formula.locked) return '';
   return key === 'income' || key === 'net' ? 'est-u' : 'est';
 };

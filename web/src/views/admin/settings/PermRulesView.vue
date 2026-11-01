@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Phân quyền › Xử lý yêu cầu: yêu cầu chưa được đồng ý hoặc bị từ chối thì ngày đó tính thế nào.
-import { useLoad } from '@/composables/useLoad.js';
-import { getRequestRules, saveRequestRules } from '@/services/admin-settings.js';
+import { useLoad } from '@/composables/useLoad';
+import { getRequestRules, saveRequestRules } from '@/services/admin-settings';
 import SettingsFrame from './SettingsFrame.vue';
 import PermTabs from './perm/PermTabs.vue';
 import CheckBox from './fields/CheckBox.vue';
 import SaveBar from './fields/SaveBar.vue';
 import SelectBox from './fields/SelectBox.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { PATHS } from './nav.js';
-import { useDraft } from './lib/useDraft.js';
+import { PATHS } from './nav';
+import { useDraft } from './lib/useDraft';
 
 const { data } = useLoad(() => getRequestRules());
 const form = useDraft(() => data.value);

@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Tab Lịch sử sửa điểm: mỗi dòng là lần sửa gần nhất của một người; chi tiết từng lần nằm trong Nhật ký thay đổi (Cài đặt).
 import { computed } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getKpiHistory } from '@/services/admin-kpi.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { dmy, initials } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getKpiHistory } from '@/services/admin-kpi';
+import { usePeriodStore } from '@/stores/period';
+import { dmy, initials } from '@/utils/format';
 import PagerBar from '@/views/admin/attendance/PagerBar.vue';
-import { LINKS } from '@/views/admin/attendance/links.js';
+import { LINKS } from '@/views/admin/attendance/links';
 
 const period = usePeriodStore();
 const month = computed(() => period.month);
@@ -16,7 +16,7 @@ const { data } = useLoad(
   () => month.value
 );
 const rows = computed(() => data.value?.rows || []);
-const when = at => `${at.slice(11, 16)} ${dmy(at.slice(0, 10))}`;
+const when = (at?) => `${at.slice(11, 16)} ${dmy(at.slice(0, 10))}`;
 </script>
 
 <template>

@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Bảng lương (luong.html, bl-t10-*.html, bl-t11-du-cot.html): một màn, nhiều trạng thái theo ?kb= và ?thang=.
 //   tháng 2026-10: tam-tinh, da-chot-cong, ban-nhap, cho-phe-duyet, chon-phieu, da-duyet-50, can-tinh-lai,
 //                  da-phe-duyet, da-tra-luong (mặc định)
@@ -8,12 +8,12 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPayroll, returnPayslips } from '@/services/admin-payroll.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
-import { monthLabel } from '@/utils/format.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { getPayroll, returnPayslips } from '@/services/admin-payroll';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
+import { monthLabel } from '@/utils/format';
 import AiBanner from './parts/AiBanner.vue';
 import ExtrasCard from './parts/ExtrasCard.vue';
 import PayrollDialogs from './parts/PayrollDialogs.vue';
@@ -23,7 +23,7 @@ import PayrollWideTable from './parts/PayrollWideTable.vue';
 import RichText from './parts/RichText.vue';
 import SelectionBanner from './parts/SelectionBanner.vue';
 import PayslipDrawer from './payslip/PayslipDrawer.vue';
-import { describeScenario, printLabel } from './scenarios.js';
+import { describeScenario, printLabel } from './scenarios';
 
 const route = useRoute();
 const router = useRouter();
@@ -82,7 +82,7 @@ function selectAll() {
   for (const r of selectable.value) selected.add(r.username);
   others.value = Math.max(0, (facts.value?.selectable || 0) - selectable.value.length);
 }
-function toggle(row) {
+function toggle(row?) {
   if (selected.has(row.username)) selected.delete(row.username);
   else selected.add(row.username);
 }
@@ -135,29 +135,29 @@ watch(loading, isLoading => {
 watch([filter, q], () => (page.value = 1));
 
 // ---- Đi tới kịch bản kế tiếp, mở/đóng hộp ----
-function queryWith(patch) {
+function queryWith(patch?) {
   const next = { ...route.query, ...patch };
   for (const k of Object.keys(next)) if (next[k] === '' || next[k] == null) delete next[k];
   return next;
 }
-const go = kb => router.replace({ query: queryWith({ kb, hop: '' }) });
-const openHop = name => router.replace({ query: queryWith({ hop: name }) });
+const go = (kb?) => router.replace({ query: queryWith({ kb, hop: '' }) });
+const openHop = (name?) => router.replace({ query: queryWith({ hop: name }) });
 const closeHop = () => router.replace({ query: queryWith({ hop: '' }) });
 const refresh = () => {
   reloadTick.value++;
 };
-function finishHop(kb) {
+function finishHop(kb?) {
   if (kb && kb !== data.value?.kb) go(kb);
   else closeHop();
   refresh();
 }
 const reopenTarget = ref(null);
-function reopen(step, kb, label) {
+function reopen(step?, kb?, label?) {
   reopenTarget.value = { step, kb, label };
   openHop('mo-lai');
 }
 
-function onAction(key) {
+function onAction(key?) {
   const map = {
     formula: () => router.push('/admin/cai-dat'), // Cài đặt › Cách tính lương
     close: () => openHop('chot-cong'),
@@ -172,7 +172,7 @@ function onAction(key) {
   };
   map[key]?.();
 }
-function onAiButton(key) {
+function onAiButton(key?) {
   openHop({ findings: 'bo-qua-ai', skip: 'bo-qua-ai', rerun: 'chay-ai', recalc: 'tinh-luong' }[key]);
 }
 function toggleWide() {
@@ -186,13 +186,13 @@ const approveRow = computed(
   () =>
     aiTarget.value || rows.value.find(r => r.ai > 0 && r.status === 'pending') || rows.value.find(r => r.ai > 0) || null
 );
-function openApproveOne(row) {
+function openApproveOne(row?) {
   aiTarget.value = row;
   openHop('phe-duyet-rieng');
 }
 
 // Phiếu lương một người (ngăn kéo của nhóm phiếu lương)
-const openPayslip = row => router.replace({ query: queryWith({ phieu: row.username }) });
+const openPayslip = (row?) => router.replace({ query: queryWith({ phieu: row.username }) });
 const closePayslip = () => {
   router.replace({ query: queryWith({ phieu: '' }) });
   refresh();

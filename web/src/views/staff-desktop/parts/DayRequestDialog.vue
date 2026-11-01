@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Khai ngày" của khối Yêu cầu: cùng trường với bảng trượt Khai ngày của điện thoại.
 // preset = { date: 'YYYY-MM-DD', type } chọn sẵn ngày và loại ngày; gửi xong phát 'saved' rồi 'close'.
 import { computed, reactive, ref } from 'vue';
-import { checkForm, isHolidayDate } from '@/builders/staff-requests/form.js';
-import { toast } from '@/components/shell/toast.js';
+import { checkForm, isHolidayDate } from '@/builders/staff-requests/form';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getStaffDayFormContext, submitStaffDayRequest } from '@/services/staff-desktop.js';
+import { useLoad } from '@/composables/useLoad';
+import { getStaffDayFormContext, submitStaffDayRequest } from '@/services/staff-desktop';
 
-const props = defineProps({ preset: { type: Object, default: () => ({}) } });
+const props = defineProps({ preset: { type: Object as () => any, default: () => ({}) } });
 const emit = defineEmits(['close', 'saved']);
 
 const { data: ctx } = useLoad(() => getStaffDayFormContext());

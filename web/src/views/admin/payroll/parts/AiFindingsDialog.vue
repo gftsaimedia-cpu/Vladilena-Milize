@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Bỏ qua phát hiện của AI" (dlg-t10-bo-qua-ai): mọi phát hiện chưa xử lý của kỳ, nhóm theo nhân sự.
 // readonly (kỳ đã khoá): chỉ xem, không còn nút Bỏ qua.
 import { computed } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getFindings } from '@/services/admin-payroll.js';
+import { useLoad } from '@/composables/useLoad';
+import { getFindings } from '@/services/admin-payroll';
 import FindingRow from './FindingRow.vue';
 
 const props = defineProps({
@@ -29,7 +29,7 @@ const sub = computed(() => {
   const tail = props.readonly ? '' : ' chưa xử lý';
   return `Bản nháp lần tính ${props.run} · ${people.value} nhân sự, ${count.value} phát hiện${tail}`;
 });
-const onSkipped = id => {
+const onSkipped = (id?) => {
   for (const g of groups.value) {
     const it = g.items.find(i => i.id === id);
     if (it) it.skipped = true;

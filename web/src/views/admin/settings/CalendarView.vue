@@ -1,21 +1,21 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Lịch, ca & chấm công: lịch năm và ngày lễ, ca làm và vùng chấm công.
 // ?hop=them-ngay-le mở hộp thêm ngày lễ.
 import { computed, ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getCalendar, getCalendarSetup, removeHoliday, saveCalendarSetup } from '@/services/admin-settings.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { dm } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getCalendar, getCalendarSetup, removeHoliday, saveCalendarSetup } from '@/services/admin-settings';
+import { usePeriodStore } from '@/stores/period';
+import { dm } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import HolidayDialog from './calendar/HolidayDialog.vue';
 import YearCalendar from './calendar/YearCalendar.vue';
 import FieldNum from './fields/FieldNum.vue';
 import FieldText from './fields/FieldText.vue';
 import SaveBar from './fields/SaveBar.vue';
-import { useDraft } from './lib/useDraft.js';
-import { useHop } from './lib/useHop.js';
+import { useDraft } from './lib/useDraft';
+import { useHop } from './lib/useHop';
 
 const year = ref(Number(usePeriodStore().month.slice(0, 4))); // năm của kỳ lương đang xem
 const { data, reload } = useLoad(
@@ -33,8 +33,8 @@ const openHoliday = (iso = '') => {
   open('them-ngay-le');
 };
 
-const rangeLabel = h => (h.from === h.to ? dm(h.from) : `${dm(h.from)} – ${dm(h.to)}`);
-async function dropHoliday(id) {
+const rangeLabel = (h?) => (h.from === h.to ? dm(h.from) : `${dm(h.from)} – ${dm(h.to)}`);
+async function dropHoliday(id?) {
   try {
     await removeHoliday(id);
   } catch (e) {

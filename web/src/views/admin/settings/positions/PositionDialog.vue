@@ -1,41 +1,41 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Sửa chức vụ": tên, ngày công chuẩn và bốn phụ cấp theo %, áp dụng từ một tháng.
 // Ô chưa gõ mang số đang hiệu lực ở tháng áp dụng; chỉ trường khác số đó mới được gửi.
 import { computed, reactive, ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { PCT_FIELDS, positionChanges } from '@/builders/admin-catalog/positions.js';
-import { savePosition } from '@/services/admin-catalog.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { monthLabel } from '@/utils/format.js';
+import { PCT_FIELDS, positionChanges } from '@/builders/admin-catalog/positions';
+import { savePosition } from '@/services/admin-catalog';
+import { usePeriodStore } from '@/stores/period';
+import { monthLabel } from '@/utils/format';
 import FieldNum from '../fields/FieldNum.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
-import { monthOptions } from '../lib/date.js';
-import { REASON_MAX } from '../lib/rules.js';
-import { isStale, useSnapshots } from './useSnapshots.js';
+import { monthOptions } from '../lib/date';
+import { REASON_MAX } from '../lib/rules';
+import { isStale, useSnapshots } from './useSnapshots';
 
 const props = defineProps({
-  row: { type: Object, required: true } // dòng chức vụ đang hiện (kèm rev)
+  row: { type: Object as () => any, required: true } // dòng chức vụ đang hiện (kèm rev)
 });
 const emit = defineEmits(['close', 'saved', 'stale']);
 
-const FIELDS = ['name', 'workdays', ...PCT_FIELDS.map(([key]) => key)];
+const FIELDS = ['name', 'workdays', ...PCT_FIELDS.map(([key]: any) => key)];
 const period = usePeriodStore();
 const months = monthOptions(period.month);
 const month = ref(months[0].value);
 const reason = ref('');
 const saving = ref(false);
 const form = reactive(Object.fromEntries(FIELDS.map(key => [key, props.row[key]])));
-const touched = new Set();
+const touched = new Set<any>();
 const snaps = useSnapshots(props.row.code, period.month, props.row);
 
-const set = (key, value) => {
+const set = (key?, value?) => {
   form[key] = value;
   touched.add(key);
 };
-const fill = src => {
+const fill = (src?) => {
   for (const key of FIELDS) if (!touched.has(key)) form[key] = src[key];
 };
 watch(month, async m => {

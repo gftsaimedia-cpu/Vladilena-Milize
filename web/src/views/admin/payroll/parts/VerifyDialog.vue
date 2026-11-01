@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Kiểm tra lại" kỳ đã khoá: tính lại từng phiếu từ đầu vào hiện có và so với bản đã chụp; nêu số phiếu khớp và các tài khoản lệch.
 import { computed } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { verifyPeriod } from '@/services/admin-payroll.js';
-import { monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { verifyPeriod } from '@/services/admin-payroll';
+import { monthShort } from '@/utils/format';
 
 const props = defineProps({ month: { type: String, required: true } });
 const emit = defineEmits(['close']);

@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Bảng lương gọn. variant: 'draft10' (tháng 10 chưa có trạng thái phiếu) | 'draft11' (tháng 11, có mũi tên mở phiếu)
 // | 'review' (có ô chọn, cảnh báo AI, trạng thái phiếu) | 'final' (số chính thức, không còn ô chọn).
 // Bấm dòng = mở phiếu lương (emit 'open'); ô chọn và biểu tượng cảnh báo AI không mở phiếu.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useSessionStore } from '@/stores/session.js';
-import { initials, vnd } from '@/utils/format.js';
+import { useSessionStore } from '@/stores/session';
+import { initials, vnd } from '@/utils/format';
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as () => any[], default: () => [] },
   variant: { type: String, default: 'draft10' },
-  selected: { type: Object, default: () => new Set() }
+  selected: { type: Object as () => any, default: () => new Set() }
 });
 const emit = defineEmits(['open', 'toggle', 'ai']);
 
@@ -33,12 +33,12 @@ const widths = computed(() => {
 const draft11 = computed(() => props.variant === 'draft11');
 const estimated = computed(() => !final.value);
 
-const moneyCls = v => (v === 0 ? 'z' : estimated.value ? 'est' : '');
-const rowCls = r => ({
+const moneyCls = (v?) => (v === 0 ? 'z' : estimated.value ? 'est' : '');
+const rowCls = (r?) => ({
   err: r.status === 'failed',
   warn: agents.value && review.value && r.status === 'pending' && r.ai > 0
 });
-const pillOf = s =>
+const pillOf = (s?) =>
   s === 'approved'
     ? ['p-done', 'Đã phê duyệt']
     : s === 'failed'

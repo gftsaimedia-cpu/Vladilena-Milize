@@ -1,21 +1,21 @@
-<script setup>
+<script setup lang="ts">
 // Khối thu nhập của tháng: thực nhận, các dòng chính, và bảng "cách tính" mở rộng.
 import { ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { vnd, vndSigned } from '@/utils/format.js';
-import { smallText } from './small-text.js';
+import { vnd, vndSigned } from '@/utils/format';
+import { smallText } from './small-text';
 
 const props = defineProps({
-  data: { type: Object, required: true },
+  data: { type: Object as () => any, required: true },
   month: { type: String, default: '' },
-  staff: { type: Object, default: () => ({}) }, // { username, name } của người đang xem
+  staff: { type: Object as () => any, default: () => ({}) }, // { username, name } của người đang xem
   initialExpanded: { type: Boolean, default: false }
 });
 
 const expanded = ref(props.initialExpanded && !!props.data.breakdown);
 
-const amount = v => (v < 0 ? vndSigned(v) : vnd(v));
-const rowValue = r => (r.text != null ? r.text : r.signed ? vndSigned(r.value) : vnd(r.value));
+const amount = (v?) => (v < 0 ? vndSigned(v) : vnd(v));
+const rowValue = (r?) => (r.text != null ? r.text : r.signed ? vndSigned(r.value) : vnd(r.value));
 // Phiếu A4 mở ở tab mới (trang in của nhóm phiếu lương: /in/phieu-luong/:month/:username)
 const openPayslip = () => {
   const { username = '', name = '' } = props.staff || {};
@@ -69,7 +69,7 @@ const openPayslip = () => {
     </template>
     <div class="foot">
       <template v-for="(k, i) in data.links" :key="k">
-        <span v-if="i > 0">·</span>
+        <span v-if="(i as number) > 0">·</span>
         <button v-if="k === 'calc'" type="button" class="link" @click="expanded = !expanded">
           {{ expanded ? 'Thu gọn' : 'Xem cách tính' }}
         </button>

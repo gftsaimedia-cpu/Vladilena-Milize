@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Màn Nhân sự: danh sách hồ sơ, lọc theo loại và theo vấn đề (chưa có ca, thiếu ngày bắt đầu, đã khoá).
 // ?loc=chua-co-ca chọn sẵn bộ lọc "chưa có ca" · ?hop=them | sua-ho-so (&nv=tên đăng nhập) mở sẵn hộp / ngăn kéo.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getStaffList } from '@/services/admin-hr.js';
-import { dmy, initials } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getStaffList } from '@/services/admin-hr';
+import { dmy, initials } from '@/utils/format';
 import PagerBar from '@/views/admin/attendance/PagerBar.vue';
 import SearchBox from '@/views/admin/attendance/SearchBox.vue';
-import { useHop } from '@/views/admin/attendance/useHop.js';
+import { useHop } from '@/views/admin/attendance/useHop';
 import AddStaffDialog from './AddStaffDialog.vue';
 import BulkShiftDialog from './BulkShiftDialog.vue';
 import ProfileDrawer from './ProfileDrawer.vue';
@@ -29,8 +29,8 @@ const ISSUE_CHIPS = [
   ['da-khoa', 'Đã khoá']
 ];
 const LOCS = [...TYPE_CHIPS, ...ISSUE_CHIPS].map(c => c[0]);
-const loc = computed(() => (LOCS.includes(route.query.loc) ? route.query.loc : 'all'));
-const setLoc = key => router.replace({ query: { ...route.query, loc: key === 'all' ? undefined : key } });
+const loc = computed(() => (LOCS.includes(route.query.loc as string) ? route.query.loc : 'all'));
+const setLoc = (key?) => router.replace({ query: { ...route.query, loc: key === 'all' ? undefined : key } });
 
 const q = ref('');
 const page = ref(1);
@@ -45,13 +45,13 @@ const summary = computed(() => data.value?.summary);
 // Chọn nhiều người để gán ca
 const selected = ref([]);
 const allOn = computed(() => rows.value.length > 0 && rows.value.every(r => selected.value.includes(r.username)));
-const toggle = u =>
+const toggle = (u?) =>
   (selected.value = selected.value.includes(u) ? selected.value.filter(x => x !== u) : [...selected.value, u]);
 const toggleAll = () => {
   const names = rows.value.map(r => r.username);
   selected.value = allOn.value
     ? selected.value.filter(u => !names.includes(u))
-    : [...new Set([...selected.value, ...names])];
+    : [...new Set<any>([...selected.value, ...names])];
 };
 
 // Hộp và ngăn kéo
@@ -70,7 +70,7 @@ function closeProfile() {
   profileUser.value = null;
   closeProfileHop();
 }
-function saved(close) {
+function saved(close?) {
   close();
   reload();
 }

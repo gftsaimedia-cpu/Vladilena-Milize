@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thao tác trên một khoản điền thêm: sửa, duyệt, từ chối, huỷ, xác nhận cờ thuế và bảo hiểm. Lỗi của máy chủ hiện nguyên văn.
 import { computed, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { confirmPayEntryFlags, decidePayEntry, editPayEntry, voidPayEntry } from '@/services/admin-payroll.js';
+import { confirmPayEntryFlags, decidePayEntry, editPayEntry, voidPayEntry } from '@/services/admin-payroll';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({
   kind: { type: String, required: true }, // 'edit' | 'approve' | 'reject' | 'void' | 'confirm'
-  item: { type: Object, required: true }
+  item: { type: Object as () => any, required: true }
 });
 const emit = defineEmits(['close', 'done']);
 

@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Ô chọn một giá trị (khung .select của thiết kế, bên trong là select thật).
 // options: [{ value, label }]
 import Icon from '@/components/ui/Icon.vue';
 
 defineProps({
   modelValue: { type: String, default: '' },
-  options: { type: Array, default: () => [] },
+  options: { type: Array as () => any[], default: () => [] },
   label: { type: String, default: '' }
 });
 defineEmits(['update:modelValue']);
@@ -16,7 +16,7 @@ defineEmits(['update:modelValue']);
     <select
       :value="modelValue"
       :aria-label="label || undefined"
-      @change="$emit('update:modelValue', $event.target.value)"
+      @change="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     >
       <option v-for="o in options" :key="o.value" :value="o.value">{{ o.label }}</option>
     </select>

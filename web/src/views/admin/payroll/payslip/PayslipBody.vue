@@ -1,19 +1,19 @@
-<script setup>
+<script setup lang="ts">
 // Thân ngăn kéo phiếu lương: dải 5 số (tổng thu nhập − bảo hiểm − thuế − tạm ứng = thực nhận) và danh sách "Chi tiết".
 // Dòng bằng 0 hoặc để trống ẩn mặc định, bấm để hiện. Số đã được máy chủ tính; ở đây chỉ định dạng.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { num, vnd, vndc } from '@/utils/format.js';
-import { cellText } from '@/views/print/slipFormat.js';
+import { num, vnd, vndc } from '@/utils/format';
+import { cellText } from '@/views/print/slipFormat';
 
-const props = defineProps({ payslip: { type: Object, required: true } });
+const props = defineProps({ payslip: { type: Object as () => any, required: true } });
 defineEmits(['edit']);
 
 const est = computed(() => props.payslip.estimated);
 const showZero = ref(false);
 
-const UNIT = { days: v => `${cellText(v)} ngày`, hours: v => `${num(v)} giờ`, pct: v => `${num(v)}%` };
-const lineText = l => (UNIT[l.kind] ? UNIT[l.kind](l.v) : l.kind === 'text' ? l.v : cellText(l.v));
+const UNIT = { days: (v?) => `${cellText(v)} ngày`, hours: (v?) => `${num(v)} giờ`, pct: (v?) => `${num(v)}%` };
+const lineText = (l?) => (UNIT[l.kind] ? UNIT[l.kind](l.v) : l.kind === 'text' ? l.v : cellText(l.v));
 
 const sum = computed(() => {
   const s = props.payslip.sum;

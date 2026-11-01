@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 // Mục "Lịch sử thay đổi" trong hồ sơ nhân sự: các dòng nhật ký về người này, mới nhất trước, nạp khi mở mục.
 import { ref } from 'vue';
-import { getEmployeeTrace } from '@/services/admin-hr.js';
+import { getEmployeeTrace } from '@/services/admin-hr';
 
 const props = defineProps({ uuid: { type: String, required: true } });
 
@@ -10,7 +10,7 @@ const items = ref([]);
 const loading = ref(false);
 const error = ref('');
 
-const when = at =>
+const when = (at?) =>
   String(at || '')
     .replace('T', ' ')
     .slice(0, 16);

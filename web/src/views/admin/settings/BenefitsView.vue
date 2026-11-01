@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Chế độ theo loại nhân sự: ba thẻ Thực tập sinh / Chuyên trách viên / Nhân viên, mỗi thẻ hai bảng theo bậc
 // (phụ cấp, lương KPI, iDorm và loại yêu cầu được gửi). Gõ hoặc tick ngay trong ô, "Xem trước và lưu" để áp dụng.
 // Địa chỉ: /admin/cai-dat/che-do[/chuyen-trach | /nhan-vien] · ?hop=them-che-do mở hộp thêm khoản phụ cấp.
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getBenefits, saveBenefits } from '@/services/admin-settings.js';
-import { getAllowanceFlags, previewBenefits } from '@/services/admin-config.js';
-import { useSessionStore } from '@/stores/session.js';
-import { dmy, vndc } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getBenefits, saveBenefits } from '@/services/admin-settings';
+import { getAllowanceFlags, previewBenefits } from '@/services/admin-config';
+import { useSessionStore } from '@/stores/session';
+import { dmy, vndc } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import AddAllowanceDialog from './benefits/AddAllowanceDialog.vue';
 import ConfirmFlagsDialog from './benefits/ConfirmFlagsDialog.vue';
@@ -17,9 +17,9 @@ import PreviewDialog from './benefits/PreviewDialog.vue';
 import CheckBox from './fields/CheckBox.vue';
 import FieldNum from './fields/FieldNum.vue';
 import SaveBar from './fields/SaveBar.vue';
-import { PATHS } from './nav.js';
-import { useDraft } from './lib/useDraft.js';
-import { useHop } from './lib/useHop.js';
+import { PATHS } from './nav';
+import { useDraft } from './lib/useDraft';
+import { useHop } from './lib/useHop';
 
 const route = useRoute();
 const { data, reload } = useLoad(() => getBenefits());
@@ -32,8 +32,8 @@ const session = useSessionStore();
 const { data: flags, reload: reloadFlags } = useLoad(() => getAllowanceFlags());
 const canConfirm = computed(() => session.caps.includes('config.legal'));
 const confirming = ref(null);
-const taxText = r => (r.tax === 'full' ? 'Miễn toàn bộ' : r.tax === 'cap' ? `Miễn đến ${vndc(r.taxCap)}` : 'Không');
-const flagsText = r => `Thuế: ${taxText(r)} · BH: ${r.insuranceBase ? 'Có' : 'Không'}`;
+const taxText = (r?) => (r.tax === 'full' ? 'Miễn toàn bộ' : r.tax === 'cap' ? `Miễn đến ${vndc(r.taxCap)}` : 'Không');
+const flagsText = (r?) => `Thuế: ${taxText(r)} · BH: ${r.insuranceBase ? 'Có' : 'Không'}`;
 
 // Bấm lưu: hỏi máy chủ tác động trước, hộp xem trước hiện lỗi và cảnh báo nguyên văn; bấm Lưu trong hộp mới ghi.
 const preview = ref(null);
@@ -56,7 +56,7 @@ async function onConfirm() {
   preview.value = null;
 }
 
-const tabPath = key => (key === 'thuc-tap-sinh' ? PATHS.cheDo : `${PATHS.cheDo}/${key}`);
+const tabPath = (key?) => (key === 'thuc-tap-sinh' ? PATHS.cheDo : `${PATHS.cheDo}/${key}`);
 const current = computed(() => {
   if (!draft.value) return null;
   const key = route.params.loai || 'thuc-tap-sinh';

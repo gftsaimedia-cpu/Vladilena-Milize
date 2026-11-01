@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Tab Nhập điểm: bảng nhập 5 điểm thành phần (0–100) cho mỗi người. Tab sang ô bên phải, Enter xuống dòng dưới,
 // tự lưu khi rời ô; tổng điểm, kết quả và lương KPI do máy chủ tính lại và trả về.
 import { computed, inject, ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { getKpiScores, saveKpiScore } from '@/services/admin-kpi.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { initials, num, vnd } from '@/utils/format.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { getKpiScores, saveKpiScore } from '@/services/admin-kpi';
+import { usePeriodStore } from '@/stores/period';
+import { initials, num, vnd } from '@/utils/format';
 import PagerBar from '@/views/admin/attendance/PagerBar.vue';
 import SearchBox from '@/views/admin/attendance/SearchBox.vue';
 
@@ -42,13 +42,13 @@ const footText = computed(() => {
 
 // Nhập điểm: ô sai (ngoài 0–100) viền đỏ cho tới khi sửa
 const invalid = ref(new Set());
-const mark = (key, on) => {
-  const next = new Set(invalid.value);
+const mark = (key?, on?) => {
+  const next = new Set<any>(invalid.value);
   if (on) next.add(key);
   else next.delete(key);
   invalid.value = next;
 };
-async function commit(row, k, e) {
+async function commit(row?, k?, e?) {
   const key = `${row.id}-${k}`;
   const raw = e.target.value.trim().replace(',', '.');
   const value = raw === '' ? null : Number(raw);
@@ -67,7 +67,7 @@ async function commit(row, k, e) {
   if (i >= 0 && res.row) data.value.rows[i] = res.row;
   reloadSummary();
 }
-function nextRow(i, k, e) {
+function nextRow(i?, k?, e?) {
   const el = e.target.closest('tbody').querySelector(`[data-pos="${i + 1}-${k}"]`);
   if (el) {
     el.focus();

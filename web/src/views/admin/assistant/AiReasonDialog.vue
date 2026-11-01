@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Lý do AI cảnh báo" của một cảnh báo (dlg-ai-ly-do), mở từ Trợ lý AI và từ thẻ Cảnh báo AI của Tổng quan.
 // Props: id = mã cảnh báo.  Emit: close; skipped (đã bấm "Bỏ qua cảnh báo này", màn gọi tải lại danh sách).
 import { ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getWarning, skipWarning } from '@/services/admin-main.js';
+import { useLoad } from '@/composables/useLoad';
+import { getWarning, skipWarning } from '@/services/admin-main';
 import WarningCard from './WarningCard.vue';
 
 const props = defineProps({ id: { type: String, required: true } });

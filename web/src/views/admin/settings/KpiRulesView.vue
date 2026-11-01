@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Đánh giá KPI: cách tính tổng điểm KPI (tỉ lệ các thành phần) và những chỗ khác đang dùng điểm KPI.
-import { useLoad } from '@/composables/useLoad.js';
-import { getKpiRules } from '@/services/admin-settings.js';
+import { useLoad } from '@/composables/useLoad';
+import { getKpiRules } from '@/services/admin-settings';
 import SettingsFrame from './SettingsFrame.vue';
-import { PATHS } from './nav.js';
+import { PATHS } from './nav';
 
 const { data } = useLoad(() => getKpiRules());
 </script>
@@ -27,7 +27,7 @@ const { data } = useLoad(() => getKpiRules());
               <div class="v">{{ w.percent }}%</div>
               <div class="n">{{ w.note }}</div>
             </div>
-            <div class="op">{{ i < data.weights.length - 1 ? '+' : '=' }}</div>
+            <div class="op">{{ (i as number) < data.weights.length - 1 ? '+' : '=' }}</div>
           </template>
           <div>
             <div class="l">Tổng điểm</div>

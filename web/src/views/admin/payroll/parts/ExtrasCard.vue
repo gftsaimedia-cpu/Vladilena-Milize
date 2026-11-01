@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ "Khoản cộng/trừ thêm" dưới Bảng lương tháng 10: khoản một lần cho một người trong tháng.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getExtras } from '@/services/admin-payroll.js';
-import { useSessionStore } from '@/stores/session.js';
-import { vnd } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getExtras } from '@/services/admin-payroll';
+import { useSessionStore } from '@/stores/session';
+import { vnd } from '@/utils/format';
 import EntryActionDialog from './EntryActionDialog.vue';
 
 const props = defineProps({

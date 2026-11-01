@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Trang in phiếu lương A4 (layout 'blank'), hai route cùng dùng:
 //   /in/phieu-luong/:month/:username  một phiếu (a4-t10-chinh-thuc, a4-t11-tam-tinh)
 //   /in/phieu-luong/:month            tất cả phiếu đã phê duyệt của kỳ
@@ -6,9 +6,9 @@
 // ?kb=<kịch bản của Bảng lương> và ?ten=<tên hiển thị> chỉ để chọn dữ liệu giả cho đúng phiếu đang xem.
 import { computed, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useLoad } from '@/composables/useLoad.js';
-import { getApprovedSheets, getPayslipSheet } from '@/services/payslip.js';
-import { monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getApprovedSheets, getPayslipSheet } from '@/services/payslip';
+import { monthShort } from '@/utils/format';
 import A4Payslip from './A4Payslip.vue';
 
 const route = useRoute();
@@ -24,9 +24,7 @@ const {
   reload
 } = useLoad(
   async () =>
-    username.value
-      ? [await getPayslipSheet(month.value, username.value, { name: shownName.value, scenario: scenario.value })]
-      : await getApprovedSheets(month.value),
+    username.value ? [await getPayslipSheet(month.value, username.value)] : await getApprovedSheets(month.value),
   () => [month.value, username.value, scenario.value, shownName.value].join('|')
 );
 

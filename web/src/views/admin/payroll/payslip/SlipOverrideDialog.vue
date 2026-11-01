@@ -1,18 +1,18 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Sửa số trên phiếu": Admin nhập số thay cho số tự tính của từng ô tiền; ô để trống là dùng số tự tính.
 // Máy chủ tính lại Tổng thu nhập, thuế và Thực nhận từ các ô đã sửa; lỗi của máy chủ hiện nguyên văn.
 import { onMounted, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { getSlipOverride, saveSlipOverride } from '@/services/payslip.js';
-import { monthShort, vnd } from '@/utils/format.js';
+import { getSlipOverride, saveSlipOverride } from '@/services/payslip';
+import { monthShort, vnd } from '@/utils/format';
 import DlgField from '../parts/DlgField.vue';
 
 const props = defineProps({
   month: { type: String, required: true },
   username: { type: String, required: true },
   name: { type: String, default: '' },
-  auto: { type: Object, required: true } // ô tiền tự tính của phiếu (cells)
+  auto: { type: Object as () => any, required: true } // ô tiền tự tính của phiếu (cells)
 });
 const emit = defineEmits(['close', 'done']);
 
@@ -55,7 +55,7 @@ async function submit() {
   busy.value = true;
   error.value = '';
   try {
-    const values = {};
+    const values: Record<string, any> = {};
     for (const [key] of FIELDS) {
       const raw = String(text[key] ?? '').replace(/\D/g, '');
       if (raw === '') continue;

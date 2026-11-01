@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Một mục cài đặt sửa được trong Tất cả cài đặt: tên + nhãn trạng thái + mô tả bên trái, ô sửa bên phải
 // (mỗi loại nhân sự một ô, hoặc chọn một trong các phương án).
 import { ref } from 'vue';
-import { dmy, monthShort } from '@/utils/format.js';
+import { dmy, monthShort } from '@/utils/format';
 import FieldNum from '../fields/FieldNum.vue';
 
 defineProps({
-  item: { type: Object, required: true },
+  item: { type: Object as () => any, required: true },
   changed: { type: Boolean, default: false },
   canRevert: { type: Boolean, default: false }
 });
@@ -15,7 +15,7 @@ defineEmits(['undo', 'revert']);
 const showHistory = ref(false);
 
 const BADGE = { adjusted: ['p-gold', 'Admin đã sửa'], unconfirmed: ['p-pend', 'Chưa xác nhận'] };
-const pickOption = (item, o) => {
+const pickOption = (item?, o?) => {
   if (!o.disabled) item.value = o.key;
 };
 </script>

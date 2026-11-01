@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Khung chung của 6 tab Chấm công & phép: tiêu đề, nút Chốt công (chưa mở), thanh tab; nội dung tab ở <RouterView>.
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAttendanceSummary } from '@/services/admin-attendance.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAttendanceSummary } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
 
 const route = useRoute();
 const period = usePeriodStore();
@@ -23,7 +23,7 @@ const TABS = [
   ['sua-gio', 'Sửa giờ'],
   ['gio-ot', 'Giờ OT']
 ];
-const tabTo = key => ({
+const tabTo = (key?) => ({
   path: key ? `/admin/cham-cong/${key}` : '/admin/cham-cong',
   query: { thang: route.query.thang }
 });

@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Khung màn nhân viên trên máy tính: thanh trên tối (logo, AiCB, người đang đăng nhập) + menu tài khoản + hộp hồ sơ.
 // ?hop=menu mở sẵn menu tài khoản; ?hop=ho-so mở sẵn hộp hồ sơ.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/img/gft-logo-light.png';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { logout } from '@/services/session.js';
-import { getStaffMe } from '@/services/staff-desktop.js';
+import { useLoad } from '@/composables/useLoad';
+import { logout } from '@/services/session';
+import { getStaffMe } from '@/services/staff-desktop';
 import AccountPopover from '@/views/staff-desktop/parts/AccountPopover.vue';
 import ProfileDialog from '@/views/staff-desktop/parts/ProfileDialog.vue';
 
@@ -15,7 +15,7 @@ const route = useRoute();
 const router = useRouter();
 const kb = computed(() => (typeof route.query.kb === 'string' && route.query.kb ? route.query.kb : 'linh'));
 const { data: me } = useLoad(
-  () => getStaffMe(kb.value),
+  () => getStaffMe(),
   () => kb.value
 );
 

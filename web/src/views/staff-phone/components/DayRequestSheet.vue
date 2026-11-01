@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt "Khai ngày": một thành phần cho cả ba bảng của thiết kế (xin nghỉ phép năm, khai OT, khai một ngày khác).
 // preset = { date: 'YYYY-MM-DD', type } chọn sẵn ngày và loại ngày; gửi xong phát 'saved' (yêu cầu mới) rồi 'close'.
 import { computed, reactive, ref } from 'vue';
-import { checkForm, isHolidayDate } from '@/builders/staff-requests/form.js';
-import { toast } from '@/components/shell/toast.js';
+import { checkForm, isHolidayDate } from '@/builders/staff-requests/form';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getDayFormContext, submitDayRequest } from '@/services/staff-phone.js';
-import { dayLong } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getDayFormContext, submitDayRequest } from '@/services/staff-phone';
+import { dayLong } from '@/utils/format';
 import BottomSheet from './BottomSheet.vue';
 
-const props = defineProps({ preset: { type: Object, default: () => ({}) } });
+const props = defineProps({ preset: { type: Object as () => any, default: () => ({}) } });
 const emit = defineEmits(['close', 'saved']);
 
 const { data: ctx } = useLoad(() => getDayFormContext());
@@ -58,7 +58,7 @@ const monthNo = computed(() => (form.date ? `tháng ${Number(form.date.slice(5, 
 const holiday = computed(() => isHolidayDate(ctx.value, form.date));
 
 // Mở bảng chọn của trình duyệt khi bấm vào khung (ô ngày, ô giờ)
-function showPicker(e) {
+function showPicker(e?) {
   try {
     e.target.showPicker?.();
   } catch {

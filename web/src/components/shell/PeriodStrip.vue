@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Thanh kỳ lương trên đầu mọi màn Admin: chọn tháng, trạng thái kỳ, sáu bước, chuông việc cần xử lý.
 // Đổi tháng = đổi ?thang= trên đường dẫn (AdminLayout đọc và cập nhật store kỳ lương).
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { usePeriodStore } from '@/stores/period.js';
+import { usePeriodStore } from '@/stores/period';
 
 defineProps({ bell: { type: Number, default: 0 } });
 defineEmits(['open-bell']);
 const period = usePeriodStore();
 const route = useRoute();
 const router = useRouter();
-const go = month => month && router.replace({ query: { ...route.query, thang: month } });
+const go = (month?) => month && router.replace({ query: { ...route.query, thang: month } });
 </script>
 
 <template>

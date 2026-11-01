@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Thu nhập: "Tháng này tôi được khoảng bao nhiêu, và vì sao?" → một con số, rồi phiếu lương đọc từ trên xuống.
 // ?kb=thang-10: phiếu chính thức tháng 10; ?kb=ca-dem|ctv|quen-checkout|tts: phiếu của người khác.
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getIncome, getMonthContext } from '@/services/staff-phone.js';
-import { monthLabel } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getIncome, getMonthContext } from '@/services/staff-phone';
+import { monthLabel } from '@/utils/format';
 import IncomeSlip from './components/IncomeSlip.vue';
 import KpiSelf from './components/KpiSelf.vue';
 import MonthSwitch from './components/MonthSwitch.vue';
@@ -17,7 +17,7 @@ const kb = computed(() => (kbRaw.value === 'thang-10' ? 'mac-dinh' : kbRaw.value
 const month = ref('');
 getMonthContext().then(c => (month.value = c.month));
 const { data, loading, error } = useLoad(
-  async () => getIncome(month.value || (await getMonthContext()).month, kb.value),
+  async () => getIncome(month.value || (await getMonthContext()).month),
   () => `${month.value}|${kb.value}`
 );
 const monthNo = computed(() => Number(month.value.slice(5, 7)));

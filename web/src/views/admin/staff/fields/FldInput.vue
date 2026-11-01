@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô nhập có nhãn của hộp thoại/ngăn kéo (lớp .fld .inp của thiết kế, ô nhập thật bên trong).
 // kind: text | password | number | date | time | area. date: giá trị là 'YYYY-MM-DD', hiển thị dd/mm/yyyy.
 import { ref, useId, watch } from 'vue';
@@ -17,7 +17,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 const id = useId();
 
-const toText = v => (props.kind === 'date' && v ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : (v ?? ''));
+const toText = (v?) => (props.kind === 'date' && v ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : (v ?? ''));
 const text = ref(toText(props.modelValue));
 watch(
   () => props.modelValue,
@@ -27,17 +27,17 @@ watch(
     } else if (String(v ?? '') !== String(text.value)) text.value = v ?? '';
   }
 );
-const parseDate = s => {
+const parseDate = (s?) => {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim());
   return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
 };
-function onInput(e) {
+function onInput(e?) {
   text.value = e.target.value;
   if (props.kind === 'date') emit('update:modelValue', parseDate(text.value));
   else if (props.kind === 'number') emit('update:modelValue', text.value === '' ? '' : Number(text.value));
   else emit('update:modelValue', text.value);
 }
-const vFocus = { mounted: (el, { value }) => value && el.focus() };
+const vFocus = { mounted: (el, { value }: any) => value && el.focus() };
 </script>
 
 <template>

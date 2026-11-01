@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Khung chung của Đánh giá KPI: tiêu đề, công thức tổng điểm (5 thành phần × tỉ lệ), 4 số tổng, thanh tab.
 // Nội dung tab (nhập điểm / lịch sử sửa điểm) ở <RouterView>; số liệu đầu trang chia sẻ cho tab qua provide('kpiSummary').
 import { computed, provide } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getKpiSummary } from '@/services/admin-kpi.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { vnd } from '@/utils/format.js';
-import { LINKS } from '@/views/admin/attendance/links.js';
+import { useLoad } from '@/composables/useLoad';
+import { getKpiSummary } from '@/services/admin-kpi';
+import { usePeriodStore } from '@/stores/period';
+import { vnd } from '@/utils/format';
+import { LINKS } from '@/views/admin/attendance/links';
 
 const route = useRoute();
 const period = usePeriodStore();

@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt "Tạm ứng": số tiền do máy chủ tính; nhân viên chỉ bấm xin hoặc rút yêu cầu đang chờ.
 import { ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { getMyAdvance, requestAdvance, withdrawAdvance } from '@/services/staff-phone.js';
-import { vndc } from '@/utils/format.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { getMyAdvance, requestAdvance, withdrawAdvance } from '@/services/staff-phone';
+import { vndc } from '@/utils/format';
 import BottomSheet from './BottomSheet.vue';
 
 const emit = defineEmits(['close']);
 const { data, error } = useLoad(() => getMyAdvance());
 const busy = ref(false);
 
-async function act(fn) {
+async function act(fn?) {
   if (busy.value) return;
   busy.value = true;
   try {

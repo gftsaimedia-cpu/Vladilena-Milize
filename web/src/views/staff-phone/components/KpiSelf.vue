@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Ô điểm Tự đánh giá KPI của tháng đang xem: lưu qua PUT /kpi/scores; kỳ đã chốt thì chỉ đọc.
 import { ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
-import { getSelfKpi, saveSelfKpi } from '@/services/staff-phone.js';
+import { toast } from '@/components/shell/toast';
+import { getSelfKpi, saveSelfKpi } from '@/services/staff-phone';
 
 const props = defineProps({ month: { type: String, required: true } });
 const info = ref(null);

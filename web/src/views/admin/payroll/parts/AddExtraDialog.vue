@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Thêm khoản cộng/trừ" (dlg-t11-them-khoan): khoản một lần cho một người trong tháng, chờ phê duyệt mới vào lương.
 import { reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { addExtra, searchExtraPeople } from '@/services/admin-payroll.js';
-import { monthShort } from '@/utils/format.js';
+import { addExtra, searchExtraPeople } from '@/services/admin-payroll';
+import { monthShort } from '@/utils/format';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({ month: { type: String, required: true } });
@@ -42,7 +42,7 @@ function onQuery() {
 function hideList() {
   setTimeout(() => (showList.value = false), 150);
 }
-function pick(p) {
+function pick(p?) {
   person.value = p;
   query.value = p.name;
   showList.value = false;

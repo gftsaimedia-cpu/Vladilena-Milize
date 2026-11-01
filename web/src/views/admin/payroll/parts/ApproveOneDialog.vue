@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Phê duyệt riêng phiếu có cảnh báo AI" (dlg-t10-phe-duyet-rieng): bỏ qua từng cảnh báo rồi phê duyệt kèm ghi chú.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { approveOne, getFindings } from '@/services/admin-payroll.js';
-import { vndc } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { approveOne, getFindings } from '@/services/admin-payroll';
+import { vndc } from '@/utils/format';
 import DlgField from './DlgField.vue';
 import FindingRow from './FindingRow.vue';
 
 const props = defineProps({
   month: { type: String, required: true },
-  row: { type: Object, required: true }
+  row: { type: Object as () => any, required: true }
 });
 const emit = defineEmits(['close', 'done']);
 
@@ -37,7 +37,7 @@ async function submit() {
     busy.value = false;
   }
 }
-const onSkipped = id => {
+const onSkipped = (id?) => {
   const it = items.value.find(i => i.id === id);
   if (it) it.skipped = true;
   error.value = '';

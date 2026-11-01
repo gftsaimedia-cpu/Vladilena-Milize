@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Đăng nhập (dang-nhap, dang-nhap-sai). ?kb=sai mở sẵn trạng thái báo sai tên đăng nhập hoặc mật khẩu.
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/img/gft-logo-light.png';
 import Icon from '@/components/ui/Icon.vue';
-import { login } from '@/services/session.js';
+import { login } from '@/services/session';
 
 const route = useRoute();
 const router = useRouter();

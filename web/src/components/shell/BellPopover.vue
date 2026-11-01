@@ -1,21 +1,21 @@
-<script setup>
+<script setup lang="ts">
 // Bảng việc cần xử lý mở từ chuông trên thanh kỳ lương (pop-chuong.html).
 // Hợp đồng: không props; emit('close') khi đóng (bấm ra ngoài, Esc, hoặc đi tới màn khác).
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getBell } from '@/services/admin-main.js';
-import { dm, monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getBell } from '@/services/admin-main';
+import { dm, monthShort } from '@/utils/format';
 
 const emit = defineEmits(['close']);
 const { data } = useLoad(() => getBell());
 const root = ref(null);
 
 // Bấm lên chính nút chuông thì để nút tự đóng/mở, không đóng ở đây
-const onDown = e => {
+const onDown = (e?) => {
   if (root.value && !root.value.contains(e.target) && !e.target.closest('.bell')) emit('close');
 };
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape') emit('close');
 };
 onMounted(() => {

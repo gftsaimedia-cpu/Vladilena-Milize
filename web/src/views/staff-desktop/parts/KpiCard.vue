@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Khối KPI của tháng đã chốt (hiện ở cột phải, dưới khối thu nhập).
-import { vnd } from '@/utils/format.js';
-import { smallText } from './small-text.js';
+import { vnd } from '@/utils/format';
+import { smallText } from './small-text';
 
-defineProps({ data: { type: Object, required: true } });
-const rowValue = r => (r.text != null ? r.text : vnd(r.value));
+defineProps({ data: { type: Object as () => any, required: true } });
+const rowValue = (r?) => (r.text != null ? r.text : vnd(r.value));
 </script>
 
 <template>

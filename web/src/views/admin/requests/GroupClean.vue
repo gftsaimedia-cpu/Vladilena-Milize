@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Nhóm "Không có cảnh báo" của Yêu cầu: chọn nhiều rồi đồng ý cả loạt, hoặc từ chối từng cái.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useSessionStore } from '@/stores/session.js';
+import { useSessionStore } from '@/stores/session';
 import RequestTable from './RequestTable.vue';
 
 const props = defineProps({
-  items: { type: Array, required: true },
-  selected: { type: Array, default: () => [] },
+  items: { type: Array as () => any[], required: true },
+  selected: { type: Array as () => any[], default: () => [] },
   olderCount: { type: Number, default: 0 }
 });
 const emit = defineEmits(['update:selected', 'approve-selected', 'reject', 'all-months']);
@@ -17,7 +17,7 @@ const WIDTHS = [64, 270, 170, 230, '', 130];
 
 const allOn = computed(() => props.items.length > 0 && props.selected.length === props.items.length);
 const toggleAll = () => emit('update:selected', allOn.value ? [] : props.items.map(r => r.id));
-const toggle = id =>
+const toggle = (id?) =>
   emit('update:selected', props.selected.includes(id) ? props.selected.filter(x => x !== id) : [...props.selected, id]);
 </script>
 

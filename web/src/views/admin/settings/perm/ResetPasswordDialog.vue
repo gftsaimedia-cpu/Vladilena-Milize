@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Đặt lại mật khẩu" (mở từ Phân quyền · Tài khoản): Admin nhập mật khẩu mới cho tài khoản khác.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { resetAccountPassword } from '@/services/admin-settings.js';
+import { resetAccountPassword } from '@/services/admin-settings';
 import TextBox from '../fields/TextBox.vue';
-import { REASON_MAX } from '../lib/rules.js';
+import { REASON_MAX } from '../lib/rules';
 
 const props = defineProps({
-  account: { type: Object, required: true } // dòng tài khoản của danh sách
+  account: { type: Object as () => any, required: true } // dòng tài khoản của danh sách
 });
 const emit = defineEmits(['close', 'done']);
 

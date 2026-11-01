@@ -1,18 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Giải trình": trả lời yêu cầu giải trình của Admin (canAnswer), giải trình ngày vắng (canExplain), giải trình lại Check-out muộn bị từ chối (canResubmit)
 // hoặc giải trình lần bấm Check-in / Check-out không hợp lệ (item.submit(text) bấm lại cùng thao tác kèm lý do).
 import { ref } from 'vue';
-import { EXPLANATION_MAX, checkExplanationText } from '@/builders/staff-requests/punch-explanation.js';
+import { EXPLANATION_MAX, checkExplanationText } from '@/builders/staff-requests/punch-explanation';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import {
-  answerStaffExplanation,
-  submitStaffAbsentExplanation,
-  submitStaffExplanation
-} from '@/services/staff-desktop.js';
-import { dmy } from '@/utils/format.js';
+import { answerStaffExplanation, submitStaffAbsentExplanation, submitStaffExplanation } from '@/services/staff-desktop';
+import { dmy } from '@/utils/format';
 
-const props = defineProps({ item: { type: Object, required: true } });
+const props = defineProps({ item: { type: Object as () => any, required: true } });
 const emit = defineEmits(['close', 'saved']);
 
 const text = ref('');

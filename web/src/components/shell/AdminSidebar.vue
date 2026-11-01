@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Thanh bên Admin (thiết kế 22/10, shell.js): logo, các mục theo nhóm, Cài đặt và tài khoản ở đáy.
 import Icon from '@/components/ui/Icon.vue';
 import logoDark from '@/assets/img/gft-logo.png';
 import logoLight from '@/assets/img/gft-logo-light.png';
 import { computed } from 'vue';
-import { useSessionStore } from '@/stores/session.js';
-import { useUiStore } from '@/stores/ui.js';
+import { useSessionStore } from '@/stores/session';
+import { useUiStore } from '@/stores/ui';
 
 defineProps({
   active: { type: String, default: '' },
-  me: { type: Object, default: () => ({}) },
-  counts: { type: Object, default: () => ({}) }
+  me: { type: Object as () => any, default: () => ({}) },
+  counts: { type: Object as () => any, default: () => ({}) }
 });
 defineEmits(['open-menu']);
 const ui = useUiStore();
@@ -38,9 +38,10 @@ const GROUPS = [
 ];
 // Mục Trợ lý AI chỉ có khi công tắc Agents bật
 const groups = computed(() =>
-  GROUPS.map(([grp, items]) => [grp, items.filter(([key]) => key !== 'tro-ly' || session.agentsEnabled)]).filter(
-    ([, items]) => items.length
-  )
+  GROUPS.map(([grp, items]: any) => [
+    grp,
+    items.filter(([key]: any) => key !== 'tro-ly' || session.agentsEnabled)
+  ]).filter(([, items]: any) => items.length)
 );
 </script>
 

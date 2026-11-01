@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Đồng ý N yêu cầu" (dlg-yc-dong-y-5): đồng ý cả loạt các yêu cầu không có cảnh báo AI.
 // Props: items = các yêu cầu đã chọn.  Emit: close; done (đã lưu hoặc danh sách đã cũ, màn tải lại).
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { approveRequests } from '@/services/admin-main.js';
-import { useSessionStore } from '@/stores/session.js';
-import { dm } from '@/utils/format.js';
+import { approveRequests } from '@/services/admin-main';
+import { useSessionStore } from '@/stores/session';
+import { dm } from '@/utils/format';
 import FieldArea from './FieldArea.vue';
-import { monthNo } from './helpers.js';
+import { monthNo } from './helpers';
 
-const props = defineProps({ items: { type: Array, required: true } });
+const props = defineProps({ items: { type: Array as () => any[], required: true } });
 const emit = defineEmits(['close', 'done']);
 const agents = computed(() => useSessionStore().agentsEnabled);
 const note = ref('');

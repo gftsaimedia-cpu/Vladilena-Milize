@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Tổng quan (tong-quan): kỳ lương còn gì chặn trước khi chốt công, yêu cầu chờ, chỉ số chính, cảnh báo AI, mốc sắp tới.
 // ?hop=ly-do-ai mở ngăn kéo lý do AI của yêu cầu có cảnh báo đầu tiên.
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { approveRequest, getOverview } from '@/services/admin-main.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { dm, initials, num, vnd, vndc } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { approveRequest, getOverview } from '@/services/admin-main';
+import { usePeriodStore } from '@/stores/period';
+import { dm, initials, num, vnd, vndc } from '@/utils/format';
 import AiReasonDialog from '@/views/admin/assistant/AiReasonDialog.vue';
 import AiReasonDrawer from '@/views/admin/requests/AiReasonDrawer.vue';
-import { monthNo } from '@/views/admin/requests/helpers.js';
+import { monthNo } from '@/views/admin/requests/helpers';
 
 const route = useRoute();
 const period = usePeriodStore();
@@ -24,7 +24,7 @@ const reasonWarningId = ref('');
 let openedHop = '';
 watch(
   () => [route.query.hop, data.value],
-  ([hop, d]) => {
+  ([hop, d]: any) => {
     if (!hop) openedHop = '';
     if (!d || !hop || hop === openedHop) return;
     openedHop = hop;
@@ -33,7 +33,7 @@ watch(
   { immediate: true }
 );
 
-async function approve(r) {
+async function approve(r?) {
   await approveRequest(r.id);
   reload();
 }

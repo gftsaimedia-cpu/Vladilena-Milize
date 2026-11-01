@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Ngăn kéo sửa một khoản của công thức lương. Cả sáu ngăn (ngày công, làm thêm, phụ cấp, KPI, khấu trừ, tạm ứng)
 // vẽ từ một bản mô tả theo khối (xem mock/admin-settings/pay.js) nên cùng một khung, cùng một thanh lưu.
 import { ref } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPayDrawer, savePayDrawer } from '@/services/admin-settings.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPayDrawer, savePayDrawer } from '@/services/admin-settings';
 import FieldNum from '../fields/FieldNum.vue';
 import FieldText from '../fields/FieldText.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import AddPositionDialog from '../all/AddPositionDialog.vue';
-import { useDraft } from '../lib/useDraft.js';
+import { useDraft } from '../lib/useDraft';
 
 const props = defineProps({ name: { type: String, required: true } });
 const emit = defineEmits(['close', 'saved']);
@@ -21,7 +21,7 @@ const { draft } = form;
 const positionOpen = ref(false);
 
 // Thêm một dòng (bậc) vào cuối nhóm, ngay trước nút "Thêm …"
-function addRow(items, at) {
+function addRow(items?, at?) {
   const add = items[at];
   items.splice(at, 0, {
     kind: 'row',

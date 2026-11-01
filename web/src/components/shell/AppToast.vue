@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 // Chỗ hiện thông báo nổi (toast.js): góc dưới bên phải, lỗi đỏ, cảnh báo cam, thành công xanh.
 import Icon from '@/components/ui/Icon.vue';
-import { dismiss, toasts } from './toast.js';
+import { dismiss, toasts } from './toast';
 
 const ICON = { error: 'alert', warn: 'alert', ok: 'check' };
 </script>

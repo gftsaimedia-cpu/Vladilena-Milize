@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt từ dưới lên dùng chung cho màn nhân viên (điện thoại): Teleport vào body, nền mờ,
 // bấm nền hoặc Esc để đóng, kéo thanh nắm/tiêu đề xuống để đóng. Thân ở slot mặc định, huy hiệu cạnh tiêu đề ở #badge.
 //   <BottomSheet title="Đổi mật khẩu" sub="Tài khoản demo_nv4" @close="…"> …thân… </BottomSheet>
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { lockScroll, unlockScroll } from '@/components/ui/overlay-lock.js';
+import { lockScroll, unlockScroll } from '@/components/ui/overlay-lock';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -21,16 +21,16 @@ const CLOSE_AT = 90; // kéo xuống quá ngần này (px) thì đóng
 const close = () => {
   if (props.dismissable) emit('close');
 };
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape') close();
 };
-function down(e) {
+function down(e?) {
   if (e.button > 0) return;
   dragging.value = true;
   startY = e.clientY;
   e.currentTarget.setPointerCapture?.(e.pointerId);
 }
-function move(e) {
+function move(e?) {
   if (dragging.value) dy.value = Math.max(0, e.clientY - startY);
 }
 function up() {

@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Nhóm Giải trình của Yêu cầu: giải trình của tháng đang xem, Admin đồng ý hoặc từ chối.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { decideExplanation, listExplanations } from '@/services/admin-explanations.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { decideExplanation, listExplanations } from '@/services/admin-explanations';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
 import RequestTable from './RequestTable.vue';
 
 const emit = defineEmits(['changed']);
@@ -23,7 +23,7 @@ const WIDTHS = [260, 170, '', 170, 220];
 
 // Đang gửi: mỗi giải trình một lần gửi tại một thời điểm
 const busy = ref('');
-async function decide(r, action) {
+async function decide(r?, action?) {
   if (busy.value) return;
   busy.value = r.id;
   try {

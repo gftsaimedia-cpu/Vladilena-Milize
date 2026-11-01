@@ -5,7 +5,7 @@
  * @param {{ read: (file: string) => string, walk: (dir: string, filter: (f: string) => boolean) => string[], header: (title: string, what: string) => string, esc: (s: string) => string }} tools
  */
 function webRoutesDoc({ read, walk, header, esc }: any) {
-  const files = ['web/src/router/index.js', ...walk('web/src/router/routes', f => f.endsWith('.js'))];
+  const files = ['web/src/router/index.ts', ...walk('web/src/router/routes', f => f.endsWith('.ts'))];
   const rows: any[] = [];
   for (const file of files) {
     const text = read(file);
@@ -35,7 +35,7 @@ function webRoutesDoc({ read, walk, header, esc }: any) {
       );
     });
   }
-  let out = header('Route của giao diện Vue', '`web/src/router/index.js` và `web/src/router/routes/*.js`');
+  let out = header('Route của giao diện Vue', '`web/src/router/index.ts` và `web/src/router/routes/*.ts`');
   out +=
     'Giao diện duy nhất là ứng dụng Vue 3 ở `web/` (máy chủ phục vụ `web/dist`; mọi đường dẫn không có đuôi file trả `index.html`, router Vue xử lý tiếp). Cột *khung* là `meta.layout` (`admin`, `phone`, `staffDesktop`, `blank`).\n\n';
   out += `Số route: **${rows.length}**.\n\n`;

@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Nhóm Tạm ứng của Yêu cầu: yêu cầu tạm ứng của tháng đang xem; Admin đồng ý, từ chối, huỷ duyệt từng người hoặc đồng ý tất cả.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { approveAllAdvances, decideAdvance, listAdvances } from '@/services/admin-advance.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { approveAllAdvances, decideAdvance, listAdvances } from '@/services/admin-advance';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
 import RequestTable from './RequestTable.vue';
 
 const period = usePeriodStore();
@@ -26,7 +26,7 @@ const WIDTHS = [260, 170, '', 170, 300];
 
 // Đang gửi: một lần gửi tại một thời điểm cho cả nhóm
 const busy = ref('');
-async function run(key, fn) {
+async function run(key?, fn?) {
   if (busy.value) return;
   busy.value = key;
   try {
@@ -38,7 +38,7 @@ async function run(key, fn) {
     reload();
   }
 }
-const decide = (r, action) =>
+const decide = (r?, action?) =>
   run(r.id, () => decideAdvance({ month: data.value.month, username: r.username, action, rev: r.rev }));
 const approveAll = () =>
   run('all', async () => {

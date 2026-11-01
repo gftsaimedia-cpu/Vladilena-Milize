@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại Kế toán xác nhận cờ miễn thuế, tính vào bảo hiểm của một khoản phụ cấp thêm: nhập căn cứ rồi xác nhận đúng cờ đang xem.
 import { ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
-import { confirmAllowanceFlags } from '@/services/admin-config.js';
+import { confirmAllowanceFlags } from '@/services/admin-config';
 import TextBox from '../fields/TextBox.vue';
-import { REASON_MAX } from '../lib/rules.js';
+import { REASON_MAX } from '../lib/rules';
 
 const props = defineProps({
-  row: { type: Object, required: true },
+  row: { type: Object as () => any, required: true },
   flagsText: { type: String, default: '' },
   month: { type: String, required: true },
   rev: { type: Number, default: undefined }

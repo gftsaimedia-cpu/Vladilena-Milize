@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Khối giữa: chấm công của tháng (số liệu, lịch, chú thích) và chi tiết một ngày khi bấm vào lịch.
 import { computed, onMounted, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { getStaffDay } from '@/services/staff-desktop.js';
+import { getStaffDay } from '@/services/staff-desktop';
 
 const props = defineProps({
-  data: { type: Object, required: true },
+  data: { type: Object as () => any, required: true },
   prev: { type: String, default: null },
   next: { type: String, default: null },
   kb: { type: String, default: 'linh' },
@@ -20,10 +20,10 @@ const dayPanel = ref(null);
 const panel = computed(() => (selected.value ? dayPanel.value || props.data.defaultPanel : props.data.defaultPanel));
 let seq = 0;
 
-async function pick(day) {
+async function pick(day?) {
   const mine = ++seq;
   selected.value = day.date;
-  const result = await getStaffDay(props.kb, day.date, day.kind);
+  const result = await getStaffDay(props.kb, day.date);
   if (mine === seq) dayPanel.value = result;
 }
 

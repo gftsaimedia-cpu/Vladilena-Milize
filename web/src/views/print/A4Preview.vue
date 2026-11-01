@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Khung xem trước bản in A4 trong hộp thoại: các trang thu nhỏ, cuộn trong khung xám (.well của thiết kế).
 import A4Payslip from './A4Payslip.vue';
 
-defineProps({ sheet: { type: Object, required: true } });
+defineProps({ sheet: { type: Object as () => any, required: true } });
 </script>
 
 <template>

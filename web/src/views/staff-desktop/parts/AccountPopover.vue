@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Menu tài khoản mở từ góc phải thanh trên (nvpc-linh-menu): hồ sơ, đổi mật khẩu, đăng xuất.
 import { onBeforeUnmount, onMounted } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 
-defineProps({ me: { type: Object, required: true } });
+defineProps({ me: { type: Object as () => any, required: true } });
 const emit = defineEmits(['close', 'profile', 'password', 'logout']);
 
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape') emit('close');
 };
 onMounted(() => document.addEventListener('keydown', onKey));

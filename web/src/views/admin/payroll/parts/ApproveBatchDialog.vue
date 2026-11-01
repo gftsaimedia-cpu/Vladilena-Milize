@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Phê duyệt N phiếu" (dlg-t10-phe-duyet-50): phê duyệt cả loạt phiếu không có cảnh báo AI, hoặc không phiếu nào.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { approveBatch } from '@/services/admin-payroll.js';
-import { useSessionStore } from '@/stores/session.js';
+import { approveBatch } from '@/services/admin-payroll';
+import { useSessionStore } from '@/stores/session';
 
 const props = defineProps({
   month: { type: String, required: true },
   run: { type: Number, default: 1 },
-  usernames: { type: Array, default: () => [] },
+  usernames: { type: Array as () => any[], default: () => [] },
   others: { type: Number, default: 0 },
-  names: { type: Array, default: () => [] },
+  names: { type: Array as () => any[], default: () => [] },
   more: { type: Number, default: 0 },
   total: { type: Number, default: 0 }
 });

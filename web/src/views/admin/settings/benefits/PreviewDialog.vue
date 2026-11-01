@@ -1,12 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Hộp xem trước tác động của lần lưu: số người đổi, tổng thực lĩnh trước và sau, lỗi và cảnh báo của máy chủ; bấm Lưu mới ghi.
 import { computed } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 
-const props = defineProps({ preview: { type: Object, required: true }, saving: { type: Boolean, default: false } });
+const props = defineProps({
+  preview: { type: Object as () => any, required: true },
+  saving: { type: Boolean, default: false }
+});
 const emit = defineEmits(['close', 'confirm']);
 
-const money = n => `${Math.round(Number(n) || 0).toLocaleString('vi-VN')} đ`;
+const money = (n?) => `${Math.round(Number(n) || 0).toLocaleString('vi-VN')} đ`;
 const totals = computed(() => props.preview.totals);
 </script>
 

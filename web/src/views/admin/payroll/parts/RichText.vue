@@ -1,6 +1,6 @@
-<script setup>
+<script setup lang="ts">
 // Một dòng chữ có phần đậm / phần màu nâu (số chưa chốt): chuỗi thường, { b: 'đậm' } hoặc { est: 'màu nâu' }.
-defineProps({ segs: { type: Array, default: () => [] } });
+defineProps({ segs: { type: Array as () => any[], default: () => [] } });
 </script>
 
 <template>

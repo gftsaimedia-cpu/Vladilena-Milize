@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Phê duyệt kỳ lương tháng …" (dlg-t10-phe-duyet-ky-bi-chan, dlg-t10-phe-duyet-ky-con-1):
 // còn phiếu chưa phê duyệt thì nút bị khoá; phiếu chưa tính được phải loại khỏi kỳ kèm lý do.
 import { reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { approvePeriod } from '@/services/admin-payroll.js';
-import { monthShort } from '@/utils/format.js';
+import { approvePeriod } from '@/services/admin-payroll';
+import { monthShort } from '@/utils/format';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({
   month: { type: String, required: true },
   pending: { type: Number, default: 0 },
-  failed: { type: Array, default: () => [] }
+  failed: { type: Array as () => any[], default: () => [] }
 });
 const emit = defineEmits(['close', 'done']);
 
@@ -29,7 +29,7 @@ async function submit() {
   busy.value = true;
   error.value = '';
   try {
-    await approvePeriod(props.month, excluded);
+    await approvePeriod(props.month);
     emit('done');
   } catch (e) {
     error.value = e.message;

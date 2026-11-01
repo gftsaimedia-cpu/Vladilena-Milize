@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Phân quyền › Vai trò: chọn một vai trò, đặt mức quyền theo khu vực và loại yêu cầu được xử lý.
 // Vai trò Admin toàn quyền, không sửa được. ?hop=tao-vai-tro mở hộp tạo vai trò.
 import { computed, nextTick, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getRoles, saveRoles } from '@/services/admin-settings.js';
-import { useSessionStore } from '@/stores/session.js';
+import { useLoad } from '@/composables/useLoad';
+import { getRoles, saveRoles } from '@/services/admin-settings';
+import { useSessionStore } from '@/stores/session';
 import SettingsFrame from './SettingsFrame.vue';
 import CreateRoleDialog from './perm/CreateRoleDialog.vue';
 import DeprecateRoleDialog from './perm/DeprecateRoleDialog.vue';
@@ -13,8 +13,8 @@ import PermTabs from './perm/PermTabs.vue';
 import CheckBox from './fields/CheckBox.vue';
 import SaveBar from './fields/SaveBar.vue';
 import SelectBox from './fields/SelectBox.vue';
-import { useDraft } from './lib/useDraft.js';
-import { useHop } from './lib/useHop.js';
+import { useDraft } from './lib/useDraft';
+import { useHop } from './lib/useHop';
 
 const { data, reload } = useLoad(() => getRoles());
 const form = useDraft(() => data.value && data.value.roles);
@@ -32,8 +32,8 @@ const role = computed(() => {
 const copyOpen = ref(false); // hộp tạo vai trò mở từ "Sao chép thành vai trò mới"
 
 // Phạm vi là của cả vai trò: đổi ở một khu thì mọi khu cùng đổi.
-function setScope(value) {
-  for (const area of Object.values(role.value.areas)) area.scope = value;
+function setScope(value?) {
+  for (const area of Object.values<any>(role.value.areas)) area.scope = value;
 }
 // Lưu xong tải lại để lấy số phiên bản mới của vai trò, giữ dòng "Đã lưu thay đổi".
 async function onSave() {
@@ -43,7 +43,7 @@ async function onSave() {
   form.saved.value = true;
 }
 
-async function onCreated(key) {
+async function onCreated(key?) {
   await reload();
   activeKey.value = key;
 }

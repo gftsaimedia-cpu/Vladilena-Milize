@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Hộp chi tiết một ô ngày của Bảng công (dlg-cc-chi-tiet-ngay): các lượt Check-in/out trong ngày và form sửa giờ.
 import { computed, ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getDayDetail, saveTimeFix } from '@/services/admin-attendance.js';
-import { ApiError } from '@/services/http.js';
-import { dayLong } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getDayDetail, saveTimeFix } from '@/services/admin-attendance';
+import { ApiError } from '@/services/http';
+import { dayLong } from '@/utils/format';
 import FldInput from '@/views/admin/staff/fields/FldInput.vue';
 import FldSelect from '@/views/admin/staff/fields/FldSelect.vue';
 
@@ -30,7 +30,7 @@ const form = ref({ punchId: '', shift: '', checkIn: '', checkOut: '', reason: ''
 const punchOptions = computed(() =>
   punches.value.map(p => ({ value: String(p.id), label: `Lượt #${p.id} · ${p.checkIn}–${p.checkOut || '…'}` }))
 );
-const fillFrom = id => {
+const fillFrom = (id?) => {
   const p = punches.value.find(x => String(x.id) === String(id));
   form.value.punchId = p ? String(p.id) : '';
   form.value.checkIn = p?.checkIn || '';
@@ -38,7 +38,7 @@ const fillFrom = id => {
 };
 watch(data, d => d && fillFrom(d.punches[0]?.id), { immediate: true });
 
-const timeOk = t => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(t).trim());
+const timeOk = (t?) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(t).trim());
 const canSave = computed(
   () => punches.value.length && timeOk(form.value.checkIn) && timeOk(form.value.checkOut) && form.value.reason.trim()
 );

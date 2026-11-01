@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Dải chọn phiếu: gợi ý chọn hàng loạt, hoặc số phiếu đã chọn cùng nút Trả lại / Phê duyệt.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useSessionStore } from '@/stores/session.js';
+import { useSessionStore } from '@/stores/session';
 
 const agents = computed(() => useSessionStore().agentsEnabled);
 defineProps({

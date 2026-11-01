@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Khối bên trái: lời chào, ca hôm nay, nút Check-in / Check-out, tuần này, các ngày gần đây.
 import Icon from '@/components/ui/Icon.vue';
 
-defineProps({ home: { type: Object, required: true } });
+defineProps({ home: { type: Object as () => any, required: true } });
 const emit = defineEmits(['check']);
 </script>
 
@@ -18,7 +18,7 @@ const emit = defineEmits(['check']);
       <div class="nm">{{ home.shift.name }}</div>
       <div class="meta">
         <template v-for="(line, i) in home.shift.meta" :key="i">
-          <br v-if="i > 0" />
+          <br v-if="(i as number) > 0" />
           <template v-for="(seg, j) in line" :key="j">
             <span v-if="seg.tone" :class="seg.tone">{{ seg.t }}</span>
             <template v-else>{{ seg.t }}</template>

@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt "Đổi mật khẩu" mở từ màn Tôi: mật khẩu hiện tại, mật khẩu mới (≥ 6 ký tự), nhập lại.
 import { computed, reactive, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { changePassword } from '@/services/staff-phone.js';
+import { changePassword } from '@/services/staff-phone';
 import BottomSheet from './BottomSheet.vue';
 
 const props = defineProps({ username: { type: String, default: '' } });

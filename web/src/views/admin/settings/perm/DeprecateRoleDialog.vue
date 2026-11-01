@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Ngừng dùng" một vai trò tuỳ chỉnh: gửi số phiên bản của vai trò kèm lý do; tài khoản đang giữ vai trò vẫn giữ dòng gán.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
-import { deprecateRole } from '@/services/admin-perm.js';
+import { deprecateRole } from '@/services/admin-perm';
 import TextBox from '../fields/TextBox.vue';
-import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules.js';
+import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules';
 
-const props = defineProps({ role: { type: Object, required: true } });
+const props = defineProps({ role: { type: Object as () => any, required: true } });
 const emit = defineEmits(['close', 'saved']);
 
 const reason = ref('');

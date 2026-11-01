@@ -1,22 +1,22 @@
-<script setup>
+<script setup lang="ts">
 // Yêu cầu: "Tôi muốn xin nghỉ hoặc khai OT, và đơn của tôi tới đâu rồi?" → hành động, đơn của tôi, phép năm.
 // ?hop=xin-nghi | khai-ot | ngay-khac mở sẵn bảng "Khai ngày".
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { cancelDayRequest, getExplanations, getRequests } from '@/services/staff-phone.js';
-import { dayLong, dm } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { cancelDayRequest, getExplanations, getRequests } from '@/services/staff-phone';
+import { dayLong, dm } from '@/utils/format';
 import AdvanceSheet from './components/AdvanceSheet.vue';
 import DayRequestSheet from './components/DayRequestSheet.vue';
 import ExplanationSheet from './components/ExplanationSheet.vue';
-import { useHop } from './useHop.js';
+import { useHop } from './useHop';
 
 const route = useRoute();
 const kb = computed(() => String(route.query.kb || 'mac-dinh'));
 const { data, reload } = useLoad(
-  () => getRequests(kb.value),
+  () => getRequests(),
   () => kb.value
 );
 const { data: explanations, reload: reloadExplanations } = useLoad(() => getExplanations());
@@ -28,7 +28,7 @@ const ACTIONS = [
     hop: 'xin-nghi',
     icon: 'cal',
     title: 'Xin nghỉ phép năm',
-    hint: left => (left === null ? '' : `Còn ${left} ngày phép`)
+    hint: (left?) => (left === null ? '' : `Còn ${left} ngày phép`)
   },
   { hop: 'khai-ot', icon: 'clock', title: 'Khai OT hoặc làm bù', hint: () => 'Theo giờ, ngoài giờ ca' },
   {
@@ -43,11 +43,11 @@ const ACTIONS = [
 const monthNo = computed(() => Number(data.value.month.slice(5, 7)));
 const pending = computed(() => data.value.items.filter(i => i.status === 'pend').length);
 const preset = computed(() => data.value.presets[hop.value] || null);
-const dateText = item =>
+const dateText = (item?) =>
   `${dayLong(item.date)}/${item.date.slice(0, 4)}${item.range ? ` · ${item.range}` : ''}${item.reason ? ` · Lý do: ${item.reason}` : ''}`;
 const onSaved = () => reload();
 // Huỷ yêu cầu đang chờ: bỏ khai báo ngày đó
-async function cancel(item) {
+async function cancel(item?) {
   try {
     await cancelDayRequest(item.date);
     await reload();

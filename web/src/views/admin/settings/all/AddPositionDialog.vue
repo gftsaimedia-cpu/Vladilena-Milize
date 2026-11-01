@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Thêm chức vụ": sao chép chế độ từ một chức vụ có sẵn. Mở từ Tất cả cài đặt (?hop=them-chuc-vu)
 // và từ nút "Thêm chức vụ" trong ngăn kéo Lương theo ngày công.
 import { computed, ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { addPosition, getPositionTypes } from '@/services/admin-settings.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { useLoad } from '@/composables/useLoad';
+import { addPosition, getPositionTypes } from '@/services/admin-settings';
+import { usePeriodStore } from '@/stores/period';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
-import { monthOptions } from '../lib/date.js';
-import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules.js';
+import { monthOptions } from '../lib/date';
+import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules';
 
 const emit = defineEmits(['close', 'saved']);
 

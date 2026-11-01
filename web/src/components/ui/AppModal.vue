@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại (lớp .dlg của thiết kế). Dùng:
 //   <AppModal title="Chốt công tháng 10/2026" sub="Còn 2 việc…" :width="640" :top="120" @close="open = false">
 //     …thân hộp…
@@ -7,7 +7,7 @@
 // Slot #head thay tiêu đề mặc định. dismissable=false: bấm nền hay Esc không đóng (hộp có dữ liệu đang nhập).
 import { onBeforeUnmount, onMounted } from 'vue';
 import Icon from './Icon.vue';
-import { lockScroll, unlockScroll } from './overlay-lock.js';
+import { lockScroll, unlockScroll } from './overlay-lock';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -18,7 +18,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 const close = () => emit('close');
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape' && props.dismissable) close();
 };
 onMounted(() => {

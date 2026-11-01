@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Tab Sửa giờ: yêu cầu sửa giờ Check-in/out. Từ chối phải ghi lý do; giờ gốc luôn được giữ trong lịch sử của lượt.
 import { computed, ref } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getTimeFixRequests } from '@/services/admin-attendance.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { useLoad } from '@/composables/useLoad';
+import { getTimeFixRequests } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
 import RequestTable from './RequestTable.vue';
 
 const period = usePeriodStore();

@@ -1,18 +1,18 @@
-<script setup>
+<script setup lang="ts">
 // Phiếu thu nhập đọc từ trên xuống dưới: số thực nhận, nhóm Thu nhập, nhóm Các khoản trừ, dòng tổng.
 // Mọi số (tổng nhóm, thực nhận) là số máy chủ trả sẵn; ở đây chỉ định dạng.
-import { vnd, vndSigned } from '@/utils/format.js';
+import { vnd, vndSigned } from '@/utils/format';
 
 defineProps({
-  figure: { type: Object, required: true },
-  groups: { type: Array, required: true },
-  total: { type: Object, required: true },
+  figure: { type: Object as () => any, required: true },
+  groups: { type: Array as () => any[], required: true },
+  total: { type: Object as () => any, required: true },
   official: { type: Boolean, default: false }
 });
 
 // Khoản trừ hiện dấu −, khoản cộng hiện số thường
-const amount = n => (n < 0 ? vndSigned(n) : vnd(n));
-const money = n => `${amount(n)} ₫`;
+const amount = (n?) => (n < 0 ? vndSigned(n) : vnd(n));
+const money = (n?) => `${amount(n)} ₫`;
 </script>
 
 <template>

@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Dải AI trên Bảng lương: tóm tắt phát hiện của AI và các nút xử lý (xem, chạy lại, tính lại, bỏ qua có lý do).
 import Icon from '@/components/ui/Icon.vue';
-import { AI_BUTTONS } from '../scenarios.js';
+import { AI_BUTTONS } from '../scenarios';
 import RichText from './RichText.vue';
 
-defineProps({ ai: { type: Object, required: true } });
+defineProps({ ai: { type: Object as () => any, required: true } });
 defineEmits(['button']);
 </script>
 

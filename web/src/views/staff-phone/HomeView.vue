@@ -1,20 +1,20 @@
-<script setup>
+<script setup lang="ts">
 // Hôm nay: "Hôm nay tôi chấm công chưa?" và "Tháng này tôi được khoảng bao nhiêu?". Kịch bản theo ?kb= (ca-dem, ctv, quen-checkout, tts).
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { punchExplanationItem } from '@/builders/staff-requests/punch-explanation.js';
+import { punchExplanationItem } from '@/builders/staff-requests/punch-explanation';
 import logoLight from '@/assets/img/gft-logo-light.png';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getHome, punch } from '@/services/staff-phone.js';
-import { dayLong, dm, vnd } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getHome, punch } from '@/services/staff-phone';
+import { dayLong, dm, vnd } from '@/utils/format';
 import ExplanationSheet from './components/ExplanationSheet.vue';
 
 const route = useRoute();
 const kb = computed(() => String(route.query.kb || 'mac-dinh'));
 const { data, reload } = useLoad(
-  () => getHome(kb.value),
+  () => getHome(),
   () => kb.value
 );
 

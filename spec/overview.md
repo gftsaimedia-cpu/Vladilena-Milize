@@ -21,7 +21,7 @@ Ca làm: ca cố định `f1`, `f2`, `n1`, `n2` (ca ngày), `g1`, `g2` (ca đêm
 | Nhân viên (`staff`) | `/nhan-vien` (giao diện Vue, `web/`) | Check-in/out, xem lịch tháng, gửi yêu cầu, giải trình, xin tạm ứng, xem thu nhập và phiếu lương của mình. |
 | Admin, C&B (`cb`), kế toán (`accounting`), nhân sự (`hr`), quản lý (`manager`) và vai trò tuỳ chỉnh | `/admin` (giao diện Vue) | Theo năng lực của vai trò (`lib/authz.ts`): duyệt yêu cầu, sửa chấm công, tính và duyệt lương, cấu hình, xem nhật ký. |
 
-Router Vue (`web/src/router`, kho phiên `web/src/stores/session.js`) quyết định trang vào sau đăng nhập theo `GET /api/me`: người có năng lực quản trị vào `/admin`, còn lại vào `/nhan-vien`. Máy chủ vẫn kiểm quyền từng yêu cầu. Admin có thể thao tác thay một nhân sự (khai thay).
+Router Vue (`web/src/router`, kho phiên `web/src/stores/session.ts`) quyết định trang vào sau đăng nhập theo `GET /api/me`: người có năng lực quản trị vào `/admin`, còn lại vào `/nhan-vien`. Máy chủ vẫn kiểm quyền từng yêu cầu. Admin có thể thao tác thay một nhân sự (khai thay).
 
 ### 1.3 Các luồng chính từ đầu đến cuối
 
@@ -112,18 +112,18 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 ├── lib/
 │   ├── db.ts                  Chọn PostgreSQL (DATABASE_URL / PG_TEST_URL / PGlite), hàng đợi giao dịch, các kho (staff, timesheets, settings, audit, kỳ lương, phiếu)
 │   ├── data/                  postgres-database.js (pg.Pool / PGlite, migration), postgres-sql.js (đổi ? thành $n cho prepare())
-│   ├── http.js                HttpError, send, readJson, serveStatic, tiêu đề bảo mật, clientIp
+│   ├── http.ts                HttpError, send, readJson, serveStatic, tiêu đề bảo mật, clientIp
 │   ├── auth.ts                Băm scrypt, giới hạn đoán mật khẩu, cookie phiên, mật khẩu admin đầu tiên
-│   ├── authz.ts, roles.js     Năng lực, vai trò, ROUTE_CAPS, vai trò tuỳ chỉnh
+│   ├── authz.ts, roles.ts     Năng lực, vai trò, ROUTE_CAPS, vai trò tuỳ chỉnh
 │   ├── warnings.ts            cảnh báo thay cho chặn
 │   ├── config.ts              Hằng số kỹ thuật có tên (giới hạn, thời gian...)
 │   ├── events.ts              Danh mục sự kiện và luồng SSE
-│   ├── audit.js               Ghi nhật ký kiểm toán
+│   ├── audit.ts               Ghi nhật ký kiểm toán
 │   ├── request-rules.ts       rulesFor(tháng): dựng các mô-đun quy tắc dùng chung từ tham số của tháng
 │   ├── announce.ts            Phát SSE sau COMMIT cho cấu hình và chấm công
 │   ├── attendance-sessions.ts Bảng lượt chấm công và bảng nhớ requestId
 │   ├── approvals.js           Bảng khoản chờ duyệt và đồng bộ dòng duyệt
-│   ├── explanations.js        Giải trình Check-out muộn
+│   ├── explanations.ts        Giải trình Check-out muộn
 │   ├── advance-requests.ts, advance-cap.ts   Yêu cầu và mức tạm ứng
 │   ├── pay-entries.js         Khoản điền thêm theo người theo tháng
 │   ├── payroll-service.ts     Nạp đầu vào và tính lương một người
@@ -131,10 +131,10 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   ├── period-stale.ts, period-warnings.ts, period-allowance.ts   Kỳ lỗi thời, cảnh báo kỳ, tình trạng chuyên cần
 │   ├── slip-paid.ts, slip-pins.ts, slip-formulas.ts   Số chi trả, ghim ô số lượng, công thức Chi tiết của phiếu Admin
 │   ├── findings.ts, data-quality.ts   Bỏ qua cờ AI trên phiếu, phát hiện dữ liệu thiếu
-│   ├── ai/                    AI rà soát theo luật: review.ts (22 luật), rules-extra.ts, thresholds.ts, units.ts, positions.js, payroll-loader.ts, preview-suggestions.ts
+│   ├── ai/                    AI rà soát theo luật: review.ts (22 luật), rules-extra.ts, thresholds.ts, units.ts, positions.ts, payroll-loader.ts, preview-suggestions.ts
 │   ├── domain/                Lớp domain
 │   │   ├── container.ts, input.ts   Dựng đối tượng, kiểm dạng đầu vào
-│   │   ├── attendance.js, attendance/   Phiên Check-in/out; session-status.ts (nhãn), session-view.ts, admin-presence.ts (Admin khai thay)
+│   │   ├── attendance.ts, attendance/   Phiên Check-in/out; session-status.ts (nhãn), session-view.ts, admin-presence.ts (Admin khai thay)
 │   │   ├── explanation/       Giải trình: lược đồ, repository, service, Check-out muộn, route
 │   │   ├── employee/          Hồ sơ nhân sự theo uuid, tên, thư mục nhân sự
 │   │   ├── position/, shift/  Danh mục chức vụ, bậc, quyền lợi, ca
@@ -142,10 +142,10 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 │   │   ├── advance/           Duyệt tạm ứng theo tháng
 │   │   ├── payroll/           Đối tượng bảng lương và chính sách
 │   │   ├── shared/            Repository gốc, DomainError, đổi danh mục có khoá kỳ
-│   │   ├── sheet.js, sheet-on-behalf.ts, isat-rule.ts, ot.ts, schedule.ts   Lịch ước tính: kiểm, khai thay, giới hạn, iSAT, OT, giờ làm
-│   │   ├── approvals.js, ai-review.ts, ai-block.ts, holidays.ts, blocks.ts, pay-entries.js, staff.js, positions.js, shifts.js, catalog-params.ts
+│   │   ├── sheet.ts, sheet-on-behalf.ts, isat-rule.ts, ot.ts, schedule.ts   Lịch ước tính: kiểm, khai thay, giới hạn, iSAT, OT, giờ làm
+│   │   ├── approvals.js, ai-review.ts, ai-block.ts, holidays.ts, blocks.ts, pay-entries.js, staff.ts, positions.ts, shifts.ts, catalog-params.ts
 │   ├── ops/                   Giới hạn tải, theo dõi vòng lặp, nhật ký truy cập, bộ nhớ đệm tính toán
-│   └── params/                Registry (registry.data.json, registry.ts), store.ts, save.ts, validate.js, config-rev.ts, positions.js, blocks.ts, block-defs.ts, attributes.ts, keys.lock.json, wired-flag.ts
+│   └── params/                Registry (registry.data.json, registry.ts), store.ts, save.ts, validate.js, config-rev.ts, positions.ts, blocks.ts, block-defs.ts, attributes.ts, keys.lock.json, wired-flag.ts
 ├── public/                    Mô-đun tính lương/chấm công dùng chung (UMD) mà máy chủ nạp bằng require; không phục vụ ra ngoài
 │   ├── payroll-engine.js, payroll-params.js, payroll-calendar.js, payroll-day-parts.js, payroll-graph.js, payroll-pins.js, pay-blocks-calc.js, pay-entries-calc.js, pay-options-calc.js, pay-tail-calc.js   Bộ máy lương
 │   ├── punch.js, actual-hours.js, work-schedule.js, attendance-status.js   Chấm công và lịch

@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp xem trước bản in A4 của một phiếu (dlg-t11-ban-in.html), mở từ ngăn kéo phiếu lương.
 // Nút "In / Lưu PDF" mở trang in ở tab mới, trang đó tự gọi hộp in của trình duyệt.
 import { useRouter } from 'vue-router';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPayslipSheet } from '@/services/payslip.js';
-import { monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPayslipSheet } from '@/services/payslip';
+import { monthShort } from '@/utils/format';
 import A4Preview from '@/views/print/A4Preview.vue';
-import { openPrint } from '@/views/print/printLink.js';
+import { openPrint } from '@/views/print/printLink';
 
 const props = defineProps({
   month: { type: String, required: true },
@@ -25,7 +25,7 @@ const {
   error,
   reload
 } = useLoad(
-  () => getPayslipSheet(props.month, props.username, { name: props.name, scenario: props.scenario }),
+  () => getPayslipSheet(props.month, props.username),
   () => [props.month, props.username, props.scenario].join('|')
 );
 

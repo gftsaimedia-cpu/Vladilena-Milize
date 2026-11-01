@@ -38,7 +38,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `lib/params/store.ts` | Bộ tham số hiệu lực của tháng: `resolveUncached` :37, `resolve` :108 (bộ nhớ đệm tối đa 64 mục), `view` :240, `firstRun` :456. |
 | `lib/params/save.ts` | Lưu / xem trước / hoàn tác tham số: `preview` :632, `save` :704, `revert` :850, `addPosition` :880. |
 | `lib/params/validate.ts` | Kiểm giá trị và công thức: `checkFormula` :212, `shiftKindOf` :467, `crossChecks` :547. |
-| `lib/params/registry.ts`, `config-rev.ts`, `block-defs.ts`, `positions.js`, `attributes.ts` | Mục registry, quyền ghi, số phiên bản cấu hình, định nghĩa khối phụ cấp, chức vụ, thuộc tính bậc. |
+| `lib/params/registry.ts`, `config-rev.ts`, `block-defs.ts`, `positions.ts`, `attributes.ts` | Mục registry, quyền ghi, số phiên bản cấu hình, định nghĩa khối phụ cấp, chức vụ, thuộc tính bậc. |
 | `lib/domain/payroll/policy.ts` | `PayrollPolicy.paramRows` (hai khoá chính sách + số tháng thâm niên), `tenureContract`, `contractFor`. |
 | `lib/domain/catalog-params.ts` | Dòng tham số sinh từ danh mục chức vụ / bậc / ca, kèm dòng chính sách. |
 | `lib/payroll-service.ts` | Gom đầu vào: `kpiOf` :82, `payrollPeople` :106, `leaveSettlements` :144, `withPersonSchedules` :158, `loadInputs` :169; tính: `computeFor` :265, `digestOf` :294, `thanhPhanOf` :322. |
@@ -47,7 +47,7 @@ Bộ máy là một khối module UMD/IIFE trong `public/`, dùng chung trình d
 | `lib/slip-pins.ts` | `repinned` :10: tính lại bản chụp theo ô số lượng ghim. |
 | `lib/slip-formulas.ts` | `formulasOf` :519: công thức dưới từng dòng "Chi tiết" của phiếu Admin. |
 | `lib/advance-cap.ts` | Mức tạm ứng tối đa: `figureFor` :22, `figuresOf` :41, `capOf` :51. |
-| `lib/domain/advance/` | `advance-approvals.ts` (trạng thái yêu cầu theo người theo tháng), `src/modules/advance/advance-approvals.handlers.ts` (route duyệt), `index.js`. |
+| `lib/domain/advance/` | `advance-approvals.ts` (trạng thái yêu cầu theo người theo tháng), `src/modules/advance/advance-approvals.handlers.ts` (route duyệt), `index.ts`. |
 | `lib/domain/explanation/` | Giải trình ngày công; `heldByUser` cho engine biết ngày bị giữ lương. |
 | `lib/domain/attendance/admin-presence.ts` | Lượt chấm công nguồn Admin (Admin khai thay giờ vào/ra, duyệt giải trình quên chấm). |
 | `lib/domain/isat-rule.ts` | Điều kiện hợp lệ của ngày iSAT (`isatRefusal`). |

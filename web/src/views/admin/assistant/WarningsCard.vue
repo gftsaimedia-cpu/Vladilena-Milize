@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ "Cảnh báo AI" của Trợ lý AI: lọc theo trạng thái và quy tắc, danh sách xếp theo mức độ, phân trang.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { warningText } from '@/views/admin/requests/helpers.js';
+import { warningText } from '@/views/admin/requests/helpers';
 import SelectBox from '@/views/admin/requests/SelectBox.vue';
 
 const props = defineProps({
-  data: { type: Object, required: true },
+  data: { type: Object as () => any, required: true },
   status: { type: String, required: true },
   rule: { type: String, default: '' }
 });

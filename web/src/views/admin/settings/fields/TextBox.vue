@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô nhập chữ của hộp thoại (khung .inp): một dòng hoặc nhiều dòng (area).
 import '../settings-extra.css';
 
@@ -21,7 +21,7 @@ defineEmits(['update:modelValue']);
       :placeholder="placeholder"
       :maxlength="maxlength"
       :aria-label="label || undefined"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
     <input
       v-else
@@ -31,7 +31,7 @@ defineEmits(['update:modelValue']);
       :placeholder="placeholder"
       :maxlength="maxlength"
       :aria-label="label || undefined"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </div>
 </template>

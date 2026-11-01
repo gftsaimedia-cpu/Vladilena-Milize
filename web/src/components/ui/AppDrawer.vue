@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Ngăn kéo bên phải (lớp .drw của thiết kế, rộng 720 mặc định). Dùng như AppModal:
 //   <AppDrawer title="Phụ cấp" sub="…" @close="…"> …thân… <template #footer>…</template> </AppDrawer>
 // Thân ngăn kéo tự cuộn; chân (#footer) dính đáy.
 import { onBeforeUnmount, onMounted } from 'vue';
 import Icon from './Icon.vue';
-import { lockScroll, unlockScroll } from './overlay-lock.js';
+import { lockScroll, unlockScroll } from './overlay-lock';
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -14,7 +14,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 const close = () => emit('close');
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape' && props.dismissable) close();
 };
 onMounted(() => {

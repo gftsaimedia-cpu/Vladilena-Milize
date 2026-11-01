@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Chân thẻ: dòng "1–20 trên 71 …" và nút chuyển trang. Không truyền `pages` thì chỉ hiện dòng chữ.
 import Icon from '@/components/ui/Icon.vue';
 

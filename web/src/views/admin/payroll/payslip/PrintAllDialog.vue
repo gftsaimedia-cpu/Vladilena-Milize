@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Hộp in tất cả phiếu đã phê duyệt của kỳ (dlg-t10-in-tat-ca.html), mở từ Bảng lương.
 // Hợp đồng: props { month: 'YYYY-MM' }; emit('close').
 // Nút "In … phiếu / Lưu PDF" mở trang in cả lô ở tab mới, trang đó tự gọi hộp in của trình duyệt.
@@ -6,11 +6,11 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPrintBatch } from '@/services/payslip.js';
-import { dm, monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPrintBatch } from '@/services/payslip';
+import { dm, monthShort } from '@/utils/format';
 import A4Preview from '@/views/print/A4Preview.vue';
-import { openPrint } from '@/views/print/printLink.js';
+import { openPrint } from '@/views/print/printLink';
 
 const props = defineProps({ month: { type: String, required: true } });
 const emit = defineEmits(['close']);

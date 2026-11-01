@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Hộp Thêm nhân sự (dlg-ns-them): tạo hồ sơ và tài khoản đăng nhập vai trò Nhân viên.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { toast } from '@/components/shell/toast.js';
-import { createStaff, getStaffOptions } from '@/services/admin-hr.js';
-import { normalizeUsername } from '@/builders/admin-hr/staff.js';
+import { useLoad } from '@/composables/useLoad';
+import { toast } from '@/components/shell/toast';
+import { createStaff, getStaffOptions } from '@/services/admin-hr';
+import { normalizeUsername } from '@/builders/admin-hr/staff';
 import FldInput from './fields/FldInput.vue';
 import FldSelect from './fields/FldSelect.vue';
 
@@ -26,7 +26,7 @@ const form = ref({
   leaveAdjust: 0
 });
 const levels = computed(() => opts.value?.levels[form.value.type] || []);
-function onType(type) {
+function onType(type?) {
   form.value.type = type;
   form.value.level = opts.value.levels[type]?.[0]?.value || '';
 }

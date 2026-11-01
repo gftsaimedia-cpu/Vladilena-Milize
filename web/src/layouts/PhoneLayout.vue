@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Khung màn nhân viên trên điện thoại: cột tối đa ~430px giữa màn hình, thanh tab 5 mục ở đáy (nv.js của thiết kế).
 // Gốc phải có class "ph-app" (styles/phone.css đặt mọi luật dưới lớp này).
 import Icon from '@/components/ui/Icon.vue';

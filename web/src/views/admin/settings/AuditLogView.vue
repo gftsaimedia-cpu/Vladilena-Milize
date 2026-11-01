@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Nhật ký thay đổi: ai làm gì, lúc nào, đổi từ gì sang gì (25 dòng một trang, lọc theo người/mục/ngày).
 import { reactive, ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAuditLog, verifyAuditLog } from '@/services/admin-settings.js';
-import { dayLong } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAuditLog, verifyAuditLog } from '@/services/admin-settings';
+import { dayLong } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import FieldDate from './fields/FieldDate.vue';
 import SelectBox from './fields/SelectBox.vue';
@@ -30,8 +30,8 @@ function clear() {
 
 // Mục gộp (×17) mở ra thành từng dòng
 const opened = ref(new Set());
-const toggle = id => {
-  const next = new Set(opened.value);
+const toggle = (id?) => {
+  const next = new Set<any>(opened.value);
   if (next.has(id)) next.delete(id);
   else next.add(id);
   opened.value = next;
@@ -51,7 +51,7 @@ async function verify() {
     checking.value = false;
   }
 }
-const dayText = iso => `${dayLong(iso)}/${iso.slice(0, 4)}`;
+const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
 </script>
 
 <template>

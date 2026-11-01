@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ lịch tháng của Chấm công, dựng từ danh sách ngày máy chủ trả: { date: 'YYYY-MM-DD', kind: 'ok'|'sun'|'hol'|'today'|'fut' }.
 // Tuần bắt đầu từ T2; ngày Chủ nhật và ngày chưa tới không bấm được.
 import { computed } from 'vue';
 
-const props = defineProps({ days: { type: Array, required: true } });
+const props = defineProps({ days: { type: Array as () => any[], required: true } });
 defineEmits(['select']);
 
 const WEEK = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -12,7 +12,7 @@ const blanks = computed(() => {
   const first = new Date(`${props.days[0].date}T00:00:00Z`).getUTCDay();
   return (first + 6) % 7;
 });
-const pickable = d => d.kind === 'ok' || d.kind === 'hol' || d.kind === 'today';
+const pickable = (d?) => d.kind === 'ok' || d.kind === 'hol' || d.kind === 'today';
 </script>
 
 <template>

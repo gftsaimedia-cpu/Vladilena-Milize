@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Tính lương tháng …" (dlg-t10-tinh-luong): mỗi lần tính tạo một bản nháp mới.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { calculate } from '@/services/admin-payroll.js';
-import { useSessionStore } from '@/stores/session.js';
-import { monthShort } from '@/utils/format.js';
+import { calculate } from '@/services/admin-payroll';
+import { useSessionStore } from '@/stores/session';
+import { monthShort } from '@/utils/format';
 
 const props = defineProps({
   month: { type: String, required: true },

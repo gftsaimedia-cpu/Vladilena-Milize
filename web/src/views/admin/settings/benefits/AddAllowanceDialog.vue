@@ -1,19 +1,19 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Thêm chế độ phụ cấp": khoản mới thành một cột của bảng Chế độ theo loại nhân sự. Mở từ ?hop=them-che-do.
 import { computed, reactive, ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { addAllowance } from '@/services/admin-settings.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { addAllowance } from '@/services/admin-settings';
+import { usePeriodStore } from '@/stores/period';
 import CheckBox from '../fields/CheckBox.vue';
 import FieldNum from '../fields/FieldNum.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
-import { monthOptions } from '../lib/date.js';
-import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules.js';
+import { monthOptions } from '../lib/date';
+import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules';
 
-const props = defineProps({ types: { type: Array, required: true } }); // [{ key, name }]
+const props = defineProps({ types: { type: Array as () => any[], required: true } }); // [{ key, name }]
 const emit = defineEmits(['close', 'saved']);
 
 const MODES = [
@@ -125,7 +125,9 @@ async function submit() {
               :aria-label="`Mức của ${t.name}`"
               @input="
                 picks[t.key].amount =
-                  $event.target.value.replace(/\D/g, '') === '' ? null : Number($event.target.value.replace(/\D/g, ''))
+                  ($event.target as HTMLInputElement).value.replace(/\D/g, '') === ''
+                    ? null
+                    : Number(($event.target as HTMLInputElement).value.replace(/\D/g, ''))
               "
             />
             <span class="end">{{ unit }}</span>

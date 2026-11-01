@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ngăn kéo phiếu lương một người (phieu-t10-chinh-thuc, phieu-t10-da-duyet, phieu-t10-co-canh-bao, phieu-t11-tam-tinh),
 // mở từ màn Bảng lương. Loại phiếu (chính thức, đã duyệt, chờ duyệt có cảnh báo AI, bản nháp, chưa tính lương) do dữ liệu quyết định.
 // Hợp đồng: props { month: 'YYYY-MM', username, name (tên hiển thị, tuỳ chọn), scenario (?kb của Bảng lương, tuỳ chọn) };
@@ -7,11 +7,11 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
-import { approvePayslip, dismissWarning, getPayslip, returnPayslip } from '@/services/payslip.js';
-import { useSessionStore } from '@/stores/session.js';
-import { monthShort } from '@/utils/format.js';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
+import { approvePayslip, dismissWarning, getPayslip, returnPayslip } from '@/services/payslip';
+import { useSessionStore } from '@/stores/session';
+import { monthShort } from '@/utils/format';
 import PayslipBody from './PayslipBody.vue';
 import PrintPreviewDialog from './PrintPreviewDialog.vue';
 import SlipOverrideDialog from './SlipOverrideDialog.vue';
@@ -32,7 +32,7 @@ const {
   error,
   reload
 } = useLoad(
-  () => getPayslip(props.month, props.username, { name: props.name, scenario: props.scenario }),
+  () => getPayslip(props.month, props.username),
   () => [props.month, props.username, props.scenario].join('|')
 );
 
@@ -41,7 +41,7 @@ const showEdit = ref(false);
 const busy = ref(false);
 
 // Chạy một thao tác ghi; xong thì chạy then (cập nhật phiếu trên màn hoặc đóng ngăn kéo).
-async function act(fn, then) {
+async function act(fn?, then?) {
   if (busy.value) return;
   busy.value = true;
   try {
@@ -63,7 +63,7 @@ const giveBack = () =>
     () => returnPayslip(props.month, props.username),
     () => emit('close')
   );
-const skipWarning = w =>
+const skipWarning = (w?) =>
   act(
     () => dismissWarning(props.month, props.username, w.id),
     () => {

@@ -1,20 +1,20 @@
-<script setup>
+<script setup lang="ts">
 // Lịch năm 12 tháng: ngày lễ tô vàng, ngày bắt đầu tính công gạch chân, ngày trả lương khoanh tròn.
 // Bấm một ngày → báo ra ngoài (pick) để đặt ngày lễ từ ngày đó.
 import { computed } from 'vue';
 
 const props = defineProps({
   year: { type: Number, required: true },
-  holidays: { type: Array, default: () => [] }, // [{ from, to }] 'YYYY-MM-DD'
+  holidays: { type: Array as () => any[], default: () => [] }, // [{ from, to }] 'YYYY-MM-DD'
   startDay: { type: Number, default: 1 },
   payDay: { type: Number, default: 10 }
 });
 defineEmits(['pick']);
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const pad = n => String(n).padStart(2, '0');
-const isoOf = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
-const isHoliday = iso => props.holidays.some(h => iso >= h.from && iso <= h.to);
+const pad = (n?) => String(n).padStart(2, '0');
+const isoOf = (y?, m?, d?) => `${y}-${pad(m)}-${pad(d)}`;
+const isHoliday = (iso?) => props.holidays.some(h => iso >= h.from && iso <= h.to);
 
 const months = computed(() =>
   Array.from({ length: 12 }, (_, i) => {

@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Gán ca cho nhiều người": gán cùng một ca cho những người đã chọn ở danh sách Nhân sự.
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { toast } from '@/components/shell/toast.js';
-import { assignShifts, getStaffOptions } from '@/services/admin-hr.js';
+import { useLoad } from '@/composables/useLoad';
+import { toast } from '@/components/shell/toast';
+import { assignShifts, getStaffOptions } from '@/services/admin-hr';
 import FldSelect from './fields/FldSelect.vue';
 
-const props = defineProps({ usernames: { type: Array, required: true } });
+const props = defineProps({ usernames: { type: Array as () => any[], required: true } });
 const emit = defineEmits(['close', 'saved']);
 const { data: opts } = useLoad(() => getStaffOptions());
 const shift = ref('n1');

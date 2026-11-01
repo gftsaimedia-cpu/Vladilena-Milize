@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Khung mọi màn Admin: thanh bên + thanh kỳ lương + nội dung (RouterView ở slot).
 // Chuông (BellPopover), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getShell } from '@/services/shell.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useUiStore } from '@/stores/ui.js';
+import { getShell } from '@/services/shell';
+import { usePeriodStore } from '@/stores/period';
+import { useUiStore } from '@/stores/ui';
 import AccountMenu from './AccountMenu.vue';
 import AdminSidebar from './AdminSidebar.vue';
 import BellPopover from './BellPopover.vue';
@@ -62,7 +62,12 @@ function openPassword() {
 
 <template>
   <div class="app">
-    <AdminSidebar :active="route.meta.nav" :me="shell.me" :counts="shell.counts" @open-menu="menuOpen = !menuOpen" />
+    <AdminSidebar
+      :active="route.meta.nav as string"
+      :me="shell.me"
+      :counts="shell.counts"
+      @open-menu="menuOpen = !menuOpen"
+    />
     <main class="canvas">
       <PeriodStrip :bell="shell.bell" @open-bell="bellOpen = !bellOpen" />
       <slot />

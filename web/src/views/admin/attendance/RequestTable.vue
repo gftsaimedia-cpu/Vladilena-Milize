@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ danh sách yêu cầu có thanh lọc trạng thái và trạng thái rỗng (tab Sửa giờ, tab Giờ OT).
 // rows: [{ id, name, sub, cols: [chữ từng cột giữa], pill: { cls, label } }]
-import { initials } from '@/utils/format.js';
+import { initials } from '@/utils/format';
 import Icon from '@/components/ui/Icon.vue';
 
 defineProps({
   title: { type: String, required: true },
   cap: { type: String, default: '' },
-  chips: { type: Array, required: true }, // [{ key, label, count? }]
+  chips: { type: Array as () => any[], required: true }, // [{ key, label, count? }]
   active: { type: String, required: true },
-  columns: { type: Array, required: true }, // tên cột, kể cả cột đầu (Nhân sự) và cuối (Trạng thái)
-  rows: { type: Array, default: () => [] },
-  empty: { type: Object, required: true } // { icon, title, lines: [] }
+  columns: { type: Array as () => any[], required: true }, // tên cột, kể cả cột đầu (Nhân sự) và cuối (Trạng thái)
+  rows: { type: Array as () => any[], default: () => [] },
+  empty: { type: Object as () => any, required: true } // { icon, title, lines: [] }
 });
 defineEmits(['select']);
 </script>

@@ -1,18 +1,18 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Tạm ứng": số tiền do máy chủ tính; nhân viên chỉ bấm xin hoặc rút yêu cầu đang chờ.
 import { ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getStaffAdvance, requestStaffAdvance, withdrawStaffAdvance } from '@/services/staff-desktop.js';
-import { vndc } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getStaffAdvance, requestStaffAdvance, withdrawStaffAdvance } from '@/services/staff-desktop';
+import { vndc } from '@/utils/format';
 
 const emit = defineEmits(['close']);
 const { data, error } = useLoad(() => getStaffAdvance());
 const busy = ref(false);
 
-async function act(fn) {
+async function act(fn?) {
   if (busy.value) return;
   busy.value = true;
   try {

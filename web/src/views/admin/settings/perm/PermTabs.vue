@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Thanh ba tab của Phân quyền (Vai trò · Tài khoản · Xử lý yêu cầu) + liên kết Nhật ký. Mỗi tab là một địa chỉ riêng.
-import { useLoad } from '@/composables/useLoad.js';
-import { getPermSummary } from '@/services/admin-settings.js';
-import { PATHS } from '../nav.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPermSummary } from '@/services/admin-settings';
+import { PATHS } from '../nav';
 
 defineProps({ active: { type: String, required: true } }); // vai-tro | tai-khoan | xu-ly
 const { data } = useLoad(() => getPermSummary());

@@ -1,7 +1,7 @@
-<script setup>
+<script setup lang="ts">
 // <Icon name="check" :size="16" :stroke="1.6" />: biểu tượng nét của thiết kế (icons.js). Tên không có thì vẽ khung rỗng.
 import { computed } from 'vue';
-import { ICONS } from './icons.js';
+import { ICONS } from './icons';
 
 const props = defineProps({
   name: { type: String, required: true },

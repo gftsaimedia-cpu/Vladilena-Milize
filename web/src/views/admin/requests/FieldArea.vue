@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô nhập nhiều dòng (khung .inp.area của thiết kế, bên trong là textarea thật).
 defineProps({
   modelValue: { type: String, default: '' },
@@ -14,7 +14,7 @@ defineEmits(['update:modelValue']);
       :value="modelValue"
       :placeholder="placeholder"
       :rows="rows"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </div>
 </template>

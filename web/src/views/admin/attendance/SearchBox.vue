@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô "Tìm nhân sự" của thanh công cụ: gõ xong khoảng 0,25 giây mới báo ra ngoài (v-model).
 import { onBeforeUnmount, ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
@@ -9,7 +9,7 @@ const props = defineProps({
 });
 const emit = defineEmits(['update:modelValue']);
 const text = ref(props.modelValue);
-let timer = null;
+let timer: any = null;
 watch(text, v => {
   clearTimeout(timer);
   timer = setTimeout(() => emit('update:modelValue', v.trim()), 250);

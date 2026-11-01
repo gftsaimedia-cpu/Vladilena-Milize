@@ -22,6 +22,7 @@
     "params:check": "node scripts/dev/ts.cjs scripts/params/check.ts",
     "params:doc": "node scripts/dev/ts.cjs scripts/params/doc.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test",
+    "typecheck:web": "npm --prefix web exec -- vue-tsc --noEmit -p web",
     "spec:gen": "node scripts/dev/ts.cjs scripts/docs/gen-spec.ts",
     "spec:check": "node scripts/dev/ts.cjs scripts/docs/gen-spec.ts --check",
     "db:types": "node scripts/dev/ts.cjs scripts/docs/gen-db-types.ts",

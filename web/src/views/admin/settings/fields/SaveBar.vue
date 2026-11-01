@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Thanh lưu (.savebar): bật khi có thay đổi. "Xem trước và lưu" gọi hàm lưu của màn (mockSave).
 import { computed } from 'vue';
 

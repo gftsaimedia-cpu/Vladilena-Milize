@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Khung chung của mọi trang Cài đặt: tiêu đề + ô tìm, menu con bên trái (nav.sub) và vùng nội dung (.main).
 //   <SettingsFrame active="lich"> <template #sub>…câu mô tả dưới tiêu đề…</template> …nội dung… </SettingsFrame>
 // Slot #acts thay ô tìm mặc định (vd. nút trên trang Nhật ký).
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getSettingsBadges } from '@/services/admin-settings.js';
-import { SETTINGS_NAV, PATHS } from './nav.js';
+import { useLoad } from '@/composables/useLoad';
+import { getSettingsBadges } from '@/services/admin-settings';
+import { SETTINGS_NAV, PATHS } from './nav';
 import './settings-extra.css';
 
 defineProps({ active: { type: String, required: true } });

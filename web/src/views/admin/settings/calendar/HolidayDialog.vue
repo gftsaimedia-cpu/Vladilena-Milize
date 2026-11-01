@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Thêm ngày lễ" (mở từ Lịch, ca & chấm công: nút "Thêm ngày lễ" hoặc bấm một ngày trên lịch).
 import { computed, ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { addHoliday } from '@/services/admin-settings.js';
+import { addHoliday } from '@/services/admin-settings';
 import FieldDate from '../fields/FieldDate.vue';
 import TextBox from '../fields/TextBox.vue';
 

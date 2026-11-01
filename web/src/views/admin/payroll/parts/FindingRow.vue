@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Một phát hiện của AI: nhãn AI, nội dung, nút Bỏ qua. Bỏ qua cần lý do 10–300 ký tự (mở ô nhập ngay dưới dòng).
 import { ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { skipFinding } from '@/services/admin-payroll.js';
+import { skipFinding } from '@/services/admin-payroll';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({
   month: { type: String, required: true },
-  finding: { type: Object, required: true },
+  finding: { type: Object as () => any, required: true },
   readonly: { type: Boolean, default: false }
 });
 const emit = defineEmits(['skipped']);

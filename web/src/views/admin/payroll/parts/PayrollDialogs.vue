@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại các bước kỳ lương, chọn theo ?hop= của Bảng lương. Xác nhận trong hộp thì emit('finish', kịch bản kế tiếp):
 // '' = ở lại kịch bản hiện tại (chỉ đóng hộp và tải lại).
 import { computed } from 'vue';
-import { useSessionStore } from '@/stores/session.js';
+import { useSessionStore } from '@/stores/session';
 import PrintAllDialog from '../payslip/PrintAllDialog.vue';
 import AddExtraDialog from './AddExtraDialog.vue';
 import AiFindingsDialog from './AiFindingsDialog.vue';
@@ -18,10 +18,10 @@ import VerifyDialog from './VerifyDialog.vue';
 
 const props = defineProps({
   hop: { type: String, required: true },
-  data: { type: Object, required: true }, // kết quả getPayroll
-  selection: { type: Object, default: () => ({ usernames: [], others: 0, names: [], more: 0, total: 0 }) },
-  approveRow: { type: Object, default: null }, // dòng đang phê duyệt riêng
-  reopenTarget: { type: Object, default: null } // bước đang mở lại: { step, kb, label }
+  data: { type: Object as () => any, required: true }, // kết quả getPayroll
+  selection: { type: Object as () => any, default: () => ({ usernames: [], others: 0, names: [], more: 0, total: 0 }) },
+  approveRow: { type: Object as () => any, default: null }, // dòng đang phê duyệt riêng
+  reopenTarget: { type: Object as () => any, default: null } // bước đang mở lại: { step, kb, label }
 });
 const emit = defineEmits(['close', 'finish']);
 

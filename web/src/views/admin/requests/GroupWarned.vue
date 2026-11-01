@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Nhóm "Có cảnh báo AI" của Yêu cầu: xem lý do rồi đồng ý hoặc từ chối từng cái (không chọn hàng loạt được).
 import Icon from '@/components/ui/Icon.vue';
 import RequestTable from './RequestTable.vue';
 
-defineProps({ items: { type: Array, required: true } });
+defineProps({ items: { type: Array as () => any[], required: true } });
 defineEmits(['reason']);
 const HEADS = ['Nhân sự', 'Loại yêu cầu', 'Chi tiết', 'Cảnh báo AI'];
 const WIDTHS = [64, 270, 170, 230, '', 130];

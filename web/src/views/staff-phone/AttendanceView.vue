@@ -1,15 +1,15 @@
-<script setup>
+<script setup lang="ts">
 // Chấm công: "Tháng này tôi đi làm đủ chưa, ngày nào có vấn đề?" → ba con số, lịch chỉ tô màu ngày đáng chú ý, giờ bấm hôm nay.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAttendance, getMonthContext } from '@/services/staff-phone.js';
-import { dayLong, monthLabel } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAttendance, getMonthContext } from '@/services/staff-phone';
+import { dayLong, monthLabel } from '@/utils/format';
 import AttendanceCalendar from './components/AttendanceCalendar.vue';
 import DayDetailSheet from './components/DayDetailSheet.vue';
 import DayRequestSheet from './components/DayRequestSheet.vue';
 import MonthSwitch from './components/MonthSwitch.vue';
-import { useHop } from './useHop.js';
+import { useHop } from './useHop';
 
 const month = ref('');
 getMonthContext().then(c => (month.value = c.month));
@@ -28,7 +28,7 @@ function closeDetail() {
   detailDate.value = null;
   close();
 }
-function declare(date) {
+function declare(date?) {
   closeDetail();
   declareDate.value = date;
 }

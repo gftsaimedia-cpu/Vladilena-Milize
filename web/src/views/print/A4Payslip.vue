@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Bản in phiếu lương A4, đúng 2 trang mỗi phiếu (thiết kế gộp 2 trang):
 //   trang 1 = đầu phiếu + bảng chấm công từng ngày + dải tóm tắt; trang 2 = tổng hợp lương, chỗ ký, khẩu hiệu.
 // Dùng chung cho trang in (/in/phieu-luong/...), hộp xem trước bản in và hộp in tất cả.
@@ -7,10 +7,10 @@ import { computed } from 'vue';
 import logo from '@/assets/img/gft-logo.png';
 import slogan from '@/assets/img/gft-slogan.png';
 import watermark from '@/assets/img/gft-watermark.png';
-import { dm, dmy, monthShort, num, vnd, vndc } from '@/utils/format.js';
-import { cellText, dayLabel, isZero } from './slipFormat.js';
+import { dm, dmy, monthShort, num, vnd, vndc } from '@/utils/format';
+import { cellText, dayLabel, isZero } from './slipFormat';
 
-const props = defineProps({ sheet: { type: Object, required: true } });
+const props = defineProps({ sheet: { type: Object as () => any, required: true } });
 
 const tail = computed(() => monthShort(props.sheet.month));
 const title = computed(() => `Phiếu lương tháng ${tail.value}`);
@@ -51,7 +51,7 @@ const stats = computed(() => {
   ];
 });
 
-const cellClass = (v, bold) => (isZero(v) ? 'z' : bold ? 'b' : '');
+const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
 </script>
 
 <template>

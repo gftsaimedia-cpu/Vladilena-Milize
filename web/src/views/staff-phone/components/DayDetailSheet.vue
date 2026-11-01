@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt "chi tiết một ngày" mở từ lịch Chấm công: các lượt bấm gốc, công ngày đó, nút Khai ngày này.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getDayDetail } from '@/services/staff-phone.js';
-import { dayLong } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getDayDetail } from '@/services/staff-phone';
+import { dayLong } from '@/utils/format';
 import BottomSheet from './BottomSheet.vue';
 
 const props = defineProps({ date: { type: String, required: true } });

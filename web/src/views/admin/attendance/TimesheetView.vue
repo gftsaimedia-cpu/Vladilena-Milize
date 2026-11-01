@@ -1,19 +1,19 @@
-<script setup>
+<script setup lang="ts">
 // Tab Bảng công: một dòng mỗi người, một ô mỗi ngày; chỉ ô có việc cần xử lý mới có dấu, ngày đủ công là chấm xám.
 // Bấm vào ô → hộp chi tiết ngày (xem lượt Check-in/out, sửa giờ). ?hop=chi-tiet-ngay mở sẵn một ô.
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { useLoad } from '@/composables/useLoad.js';
-import { getTimesheet } from '@/services/admin-attendance.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
+import { useLoad } from '@/composables/useLoad';
+import { getTimesheet } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
 import Icon from '@/components/ui/Icon.vue';
 import BulkPunchDialog from './BulkPunchDialog.vue';
-import { dowShort, initials } from '@/utils/format.js';
+import { dowShort, initials } from '@/utils/format';
 import DayDetailDialog from './DayDetailDialog.vue';
 import PagerBar from './PagerBar.vue';
 import SearchBox from './SearchBox.vue';
-import { useHop } from './useHop.js';
+import { useHop } from './useHop';
 
 const route = useRoute();
 const period = usePeriodStore();
@@ -35,7 +35,7 @@ const LEGEND = [
   ['w', '', 'Chờ xử lý'],
   ['q', '', 'Bị từ chối']
 ];
-const MARK_TEXT = {};
+const MARK_TEXT: Record<string, any> = {};
 
 const filter = ref('all');
 const q = ref('');

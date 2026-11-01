@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Bảng yêu cầu dùng chung (thiết kế duyet / yc-moi-thang): cột đầu tuỳ chọn (ô tick), Nhân sự, Loại yêu cầu, Chi tiết,
 // một cột riêng (Cảnh báo AI / Ảnh hưởng / Ghi chú / Kết quả) và cột thao tác.
 // widths: độ rộng từng cột theo thứ tự hiển thị ('' = tự giãn).  heads: tiêu đề của 4 cột (không tính cột tick và cột thao tác).
 // Slot: #head-lead, #lead="{ r }", #extra="{ r }", #act="{ r }"; hàng được chọn truyền qua selected (mảng id).
-import { roleLine, sentLabel } from './helpers.js';
-import { dmy, initials } from '@/utils/format.js';
+import { roleLine, sentLabel } from './helpers';
+import { dmy, initials } from '@/utils/format';
 
 defineProps({
-  items: { type: Array, required: true },
-  heads: { type: Array, required: true },
-  widths: { type: Array, required: true },
+  items: { type: Array as () => any[], required: true },
+  heads: { type: Array as () => any[], required: true },
+  widths: { type: Array as () => any[], required: true },
   lead: { type: Boolean, default: false },
-  selected: { type: Array, default: () => [] },
+  selected: { type: Array as () => any[], default: () => [] },
   extraClass: { type: String, default: '' }
 });
 </script>

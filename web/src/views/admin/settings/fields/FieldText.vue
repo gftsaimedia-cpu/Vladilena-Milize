@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô chữ ngắn của Cài đặt (khung .fi.l): tên ca, giờ vào/ra…
 import '../settings-extra.css';
 
@@ -20,7 +20,7 @@ defineEmits(['update:modelValue']);
       :placeholder="placeholder"
       :disabled="disabled"
       :aria-label="label || undefined"
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
   </label>
 </template>

@@ -84,7 +84,7 @@ Tạo ở `migrations/postgres/0001_baseline.sql`.
 | `session_version` | INTEGER, mặc định 0 | Tăng là mọi cookie cũ hết hiệu lực. |
 | `payroll_subject` | INTEGER 1/0/NULL | Nhân sự được trả lương. NULL = suy từ `role` (`admin` → 0). Mốc `staff_payroll_subject_v1` điền giá trị cho dòng cũ (`db.ts`). |
 | `contract_status` | TEXT `probation \| official \| NULL` | CHECK ở `migrations/postgres/0001_baseline.sql`; chỉ để hiển thị, không đổi tiền. |
-| `resigned_on` | TEXT | Ngày nghỉ việc; `Profile.isResignedBy(d)` = `resigned_on < d` (`profile.js`). |
+| `resigned_on` | TEXT | Ngày nghỉ việc; `Profile.isResignedBy(d)` = `resigned_on < d` (`profile.ts`). |
 | `leave_balance`, `leave_balance_on` | REAL, TEXT | Số dư phép lưu sẵn, do `lib/domain/leave` làm mới (`container.leave.start(config.LEAVE_REFRESH_MS)`, `src/modules/**/*.controller.ts`). |
 | `schedule_json` | | Cột còn trong DB đã chạy trước đây (lịch riêng cũ); không còn đọc hay ghi, không có migration xoá. |
 
@@ -120,7 +120,7 @@ Nạp nền một lần dưới mốc `position_catalog_v1` (`migrations/postgre
 | Khoá | Giá trị | Ai ghi |
 | --- | --- | --- |
 | `session_secret` | hex 32 byte | `auth.sessionSecret` khi không có `SESSION_SECRET` và không phải production (`auth.ts`). |
-| `roles.custom` | `{ rev, roles: [{ code, label, caps, approvals, scope, rev, deprecated, deprecatedAt?, copiedFrom, createdBy, createdAt, updatedAt }] }` | `lib/roles.ts save()` (`roles.js`). |
+| `roles.custom` | `{ rev, roles: [{ code, label, caps, approvals, scope, rev, deprecated, deprecatedAt?, copiedFrom, createdBy, createdAt, updatedAt }] }` | `lib/roles.ts save()` (`roles.ts`). |
 | `agents_enabled` | `'1' \| '0'` (vắng/lạ = `'0'`) | `PUT /settings/agents`. |
 | `catalog_rev` | số nguyên | `catalogParams.bump()` mỗi lần sửa danh mục. |
 | `config_rev` | số nguyên | `configRev.bump()` (danh mục, agents, geofence, tham số). |
@@ -204,7 +204,7 @@ Không route nào dưới đây có `periodScope` trong `ROUTE_CAPS`; khoá kỳ
 | `PUT /roles/:code` | `roles.manage` | `{ rev (bắt buộc), label?, caps? \| levels/perms + extras?, approvals?, scope?, active?, reason }` | `{ role, rev, changed }` | 403 `ROLE_BUILTIN_READONLY`; 404 `ROLE_NOT_FOUND`; 400 `ROLE_REV_REQUIRED`; 409 `ROLE_STALE` `{ rev }`; 409 `ROLE_DEPRECATED`; 403 `ROLE_SELF_ESCALATION`; 400 `REASON_REQUIRED` (block: 10–300 ký tự) |
 | `POST /roles/:code/deprecate` | `roles.manage` | `{ rev, reason }` | `{ role, rev, holders }` | như trên |
 
-`active: false` trong `PUT` chuyển sang `deprecate` (`roles.js`). Mã vai trò trong URL được `decodeURIComponent`, lỗi giải mã → 400 (`src/modules/roles/roles.controller.ts`). Không có khoá kỳ.
+`active: false` trong `PUT` chuyển sang `deprecate` (`roles.ts`). Mã vai trò trong URL được `decodeURIComponent`, lỗi giải mã → 400 (`src/modules/roles/roles.controller.ts`). Không có khoá kỳ.
 
 ### 3.4 Chức vụ, bậc, ca
 
@@ -255,7 +255,7 @@ Không route nào dưới đây có `periodScope` trong `ROUTE_CAPS`; khoá kỳ
 | `unit.msPerSecond`, `unit.msPerDay`, `unit.minutesPerDay` | 1000, 86400000, 1440 | | đổi đơn vị |
 | `system.staff.bulkMax` | 200 | người | `PUT /staff/shift-bulk` |
 | `system.positions.max` | 30 | chức vụ | `POST /positions` |
-| `insurance.coverage.long` / `.short` | true / false | | `insured` hiệu lực khi cột NULL (staff.js, PUT /staff) |
+| `insurance.coverage.long` / `.short` | true / false | | `insured` hiệu lực khi cột NULL (staff.ts, PUT /staff) |
 | `type.<mã>.defaultContract` | tts=`short`, ctv/nv=`long` | | hợp đồng mặc định |
 | `type.<mã>.startDateRequired` | tts=false, ctv/nv=true | | `START_DATE_REQUIRED` |
 | `type.<mã>.nightOptions`, `level.<mã>.<n>.nightOptions` | | % | lựa chọn `nightPct` |
@@ -275,7 +275,7 @@ Biến môi trường: `SESSION_SECRET`, `SESSION_DAYS`, `SESSION_COOKIE_NAME` (
 
 ### 4.3 Giới hạn đoán mật khẩu (`auth.ts`, `src/modules/auth/auth.controller.ts` / `src/modules/staff/staff.controller.ts`)
 
-Khoá cặp `key = "<địa chỉ>|<username.slice(0,80)>"`. Địa chỉ = `clientIp(req)`: không có `TRUST_PROXY` hợp lệ → địa chỉ socket; có `n` → phần tử thứ `n` tính từ cuối của `X-Forwarded-For`, không phải IP hợp lệ thì địa chỉ socket (`http.js`).
+Khoá cặp `key = "<địa chỉ>|<username.slice(0,80)>"`. Địa chỉ = `clientIp(req)`: không có `TRUST_PROXY` hợp lệ → địa chỉ socket; có `n` → phần tử thứ `n` tính từ cuối của `X-Forwarded-For`, không phải IP hợp lệ thì địa chỉ socket (`http.ts`).
 
 Trình tự `POST /login`:
 1. `u = String(username).trim().toLowerCase()`.
@@ -408,9 +408,9 @@ Tóm tắt "thiếu trường thì sao" cho người viết giao diện:
 | --- | --- |
 | `contractStatus`, `resignedOn`, `payrollSubject`, `nightPct` (nếu còn hợp lệ), `contract`, `insured`, `dependants`, `jobTitle`, `taxOn`, `deductOn`, `advanceOn`, `locked`, `birthday` (chỉ khi người làm không có `profile.read.pii`), họ/tên tách (tách lại từ `name`) | `role` → `staff`, `type` → chức vụ mặc định, `level` → 1, `idorm` → false, `shiftCode` → null, `startDate` → null, `birthday` → null (người làm có `profile.read.pii`), `leaveAdjust` → 0, `name` bắt buộc |
 
-**Số phiên bản hồ sơ** `staffRevision(u)` = 16 ký tự hex đầu của SHA-256 trên JSON các cặp `[cột, giá trị]` của dòng `staff` đã sắp theo tên cột, **bỏ** `session_version`, `pass_hash`, `leave_balance`, `leave_balance_on` (`staff.js`). Cột nào có trong bảng `staff` đều được tính vào số này, trừ các cột bỏ qua ở trên.
+**Số phiên bản hồ sơ** `staffRevision(u)` = 16 ký tự hex đầu của SHA-256 trên JSON các cặp `[cột, giá trị]` của dòng `staff` đã sắp theo tên cột, **bỏ** `session_version`, `pass_hash`, `leave_balance`, `leave_balance_on` (`staff.ts`). Cột nào có trong bảng `staff` đều được tính vào số này, trừ các cột bỏ qua ở trên.
 
-**Che trường khi gửi ra** (`staff.js`):
+**Che trường khi gửi ra** (`staff.ts`):
 - `publicStaff`: bỏ `sessionVersion`. Với `role !== 'admin'` thêm `insured` hiệu lực (cột có giá trị → theo cột; NULL → `insurance.coverage.<contract>` của tháng hiện tại), `insuredExplicit`, `levelName` (= `level.<type>.<level>.name` tháng hiện tại hoặc null). `role='admin'` trả nguyên, không có ba trường này.
 - `staffForViewer`: thêm `rev`; không có `salary.read` với người đó → bỏ `dependants, contract, insured, insuredExplicit, taxOn, deductOn, advanceOn`; không có `profile.read.pii` → bỏ `birthday`. `type`, `level`, `nightPct`, `idorm`, `leaveAdjust` **không** bị che.
 - `GET /employees/:uuid` (`src/modules/employees/employees.controller.ts`): không có `salary.read` → bỏ `position.baseSalary`, `position.kpiMax`; không có `profile.read.pii` → bỏ `birthday`.
@@ -429,17 +429,17 @@ Tóm tắt "thiếu trường thì sao" cho người viết giao diện:
 10. Nhật ký `role.grant` / `role.revoke` mỗi vai trò (mức `pii`).
 11. Có đổi → SSE `roles.changed` cho người đó.
 
-Lúc khởi động `Roles.reconcileStaffRole()` (`src/modules/staff/staff.controller.ts`, `roles.js`): tài khoản có dòng `staff` còn hiệu lực mà `payrollSubject` false → bật cờ, nhật ký với `actor: 'system'`.
+Lúc khởi động `Roles.reconcileStaffRole()` (`src/modules/staff/staff.controller.ts`, `roles.ts`): tài khoản có dòng `staff` còn hiệu lực mà `payrollSubject` false → bật cờ, nhật ký với `actor: 'system'`.
 
 ### 4.8 Vai trò tuỳ chỉnh (`lib/roles.ts`)
 
-- **Lý do** `parseReason(value)`: trống → null. Có → trim; > 300 → 400 `REASON_REQUIRED` (`roles.js`).
+- **Lý do** `parseReason(value)`: trống → null. Có → trim; > 300 → 400 `REASON_REQUIRED` (`roles.ts`).
 - **Tên** `parseLabel`: trim, gộp khoảng trắng; 1..40 ký tự (đếm theo code point); không chứa `<` `>`. Trùng tên (không phân biệt hoa thường, locale `vi`) với vai trò mặc định hoặc vai trò tuỳ chỉnh khác → 409 `ROLE_LABEL_CLASH`.
 - **Mã**: gửi `code` → khớp `/^[a-z][a-z_]{1,31}$/` và không phải tên thuộc `Object.prototype`; không gửi → `codeFromLabel(label)` (bỏ dấu, `đ→d`, chữ thường, ký tự khác chữ thành `_`, cắt 32, bỏ `_` hai đầu). Trùng mã mặc định hoặc tuỳ chỉnh → 409 `ROLE_CODE_CLASH`.
 - **Năng lực từ thân** `capsFromBody`: `perms {khu vực: khong|xem|sua}` = `levels {khu vực: none|view|edit}`; `approve` = `approvals`. Gửi cả `caps` và `levels` → 400. `levels` → `capsFromLevels`: `view` cho năng lực `area.view`, `edit` cho `view + edit`; khu vực không có `view` không nhận mức `view`. Rồi `parseCaps`: `request.decide.*` → mọi loại; `request.decide.<x>` → loại x (phải thuộc `APPROVAL_ITEMS`); `roles.manage` → 400 `ROLE_CAP_RESERVED`; tên lạ → 400 `ROLE_CAP_UNKNOWN`. `approvals` gửi riêng **thay hẳn** loại suy từ `caps`.
 - **Loại yêu cầu được duyệt** (`APPROVAL_ITEMS`, thứ tự trên màn): `leave` (Nghỉ phép năm), `isat` (iSAT), `approved` (Nghỉ được duyệt), `ot` (Làm thêm giờ), `makeup_hours` (Làm bù theo giờ), `holiday_work` (OT ngày lễ), `willmakeup` (Nghỉ, sẽ làm bù). `makeup_day` nằm trong `RETIRED_ITEMS`: đầu vào mang loại này bị bỏ qua, không báo lỗi, không lưu.
 - **Tạo**: tối đa 30 vai trò tuỳ chỉnh (kể cả đã ngưng) → 409 `ROLE_LIMIT`. Sao chép từ vai trò mặc định: lấy năng lực được phép (bỏ `roles.manage`), loại duyệt, phạm vi; từ tuỳ chỉnh (kể cả đã ngưng): lấy `caps`, `approvals`, `scope`. Tên mặc định khi sao chép: `<tên nguồn> (bản sao)`. Phạm vi mặc định `all`. `rev = 1`. Lưu `settings['roles.custom'].rev + 1`.
-- **Sửa**: bắt buộc `rev` nguyên bằng `def.rev` (400 `ROLE_REV_REQUIRED` / 409 `ROLE_STALE`). Người đang giữ vai trò này thêm năng lực hoặc loại duyệt → 403 `ROLE_SELF_ESCALATION` (bớt thì được). Không đổi gì → không ghi, `changed: false`. Có đổi → `def.rev + 1`, `table.rev + 1`, nhật ký `role.update`, SSE `roles.changed` cho mọi người có dòng gán vai trò này **còn hiệu lực** (`holdersOf`, `roles.js`; kể cả tài khoản đang khoá).
+- **Sửa**: bắt buộc `rev` nguyên bằng `def.rev` (400 `ROLE_REV_REQUIRED` / 409 `ROLE_STALE`). Người đang giữ vai trò này thêm năng lực hoặc loại duyệt → 403 `ROLE_SELF_ESCALATION` (bớt thì được). Không đổi gì → không ghi, `changed: false`. Có đổi → `def.rev + 1`, `table.rev + 1`, nhật ký `role.update`, SSE `roles.changed` cho mọi người có dòng gán vai trò này **còn hiệu lực** (`holdersOf`, `roles.ts`; kể cả tài khoản đang khoá).
 - **Ngưng dùng**: người giữ mất năng lực ngay (vì `activeCustomRoles` bỏ vai trò ngưng); dòng gán giữ nguyên. Trả `holders` = số người.
 - **Mô tả** (`describeAll`): vai trò mặc định `readOnly: true`, `isDefault` chỉ `staff`; vai trò ngưng dùng có `caps: []`, `storedCaps`, `deprecatedAt`. `users` = số tài khoản **chưa khoá** giữ vai trò (theo `rolesOfStaff`). Mức khu vực `levelOf`: đủ năng lực Sửa (và khu vực có năng lực) → `edit`; đủ năng lực Xem → `view`; còn lại `none`.
 
@@ -602,7 +602,7 @@ Không phát sự kiện: lưu hồ sơ `PUT /staff/:u`, khoá/mở khoá (ngoà
 | `catalog.shift.save` | `shift` / code | pay | `month` = tháng hiện tại |
 | `param.set`, `param.mode` | (lib/params/save.ts) | theo khoá | từ `POST /positions`, `POST /positions/:code/levels`, `PUT /settings/shifts` |
 
-Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, `subject_uuid`/`actor_uuid` (tra từ username khi ghi). Khi yêu cầu có cảnh báo, `after.warnings` = mã cảnh báo; `after.self = true` nếu có `SELF_DECISION_FORBIDDEN`/`APPROVAL_SELF` và `subject === actor` (`audit.js`). Dữ liệu có mẫu bí mật (`scrypt$`, `luong_sid`, `pass_hash`, `session_secret`, `lat:`/`lng:`) → ném lỗi, không ghi gì (`audit.js,33`).
+Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, `subject_uuid`/`actor_uuid` (tra từ username khi ghi). Khi yêu cầu có cảnh báo, `after.warnings` = mã cảnh báo; `after.self = true` nếu có `SELF_DECISION_FORBIDDEN`/`APPROVAL_SELF` và `subject === actor` (`audit.ts`). Dữ liệu có mẫu bí mật (`scrypt$`, `luong_sid`, `pass_hash`, `session_secret`, `lat:`/`lng:`) → ném lỗi, không ghi gì (`audit.ts,33`).
 
 ---
 
@@ -613,8 +613,8 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 - `lib/db.ts`: mọi đọc/ghi `staff`, `staff_roles`, `settings`, `audit_log`, `payroll_periods` (`assertPeriodOpen`), `work_shifts` (trong `upsertStaff`).
 - `public/payroll-params.js` (`DEFAULTS`): `lib/auth.ts`, `migrations/postgres/0001_baseline.sql`, `lib/params/positions.ts`.
 - `public/approval-view.js` (`ITEMS`): `lib/authz.ts` (`DECIDE_ITEMS`).
-- `public/punch.js` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.ts`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.js`.
-- `lib/request-rules.ts` (`rulesFor`, `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`): `src/modules/**/*.controller.ts` hồ sơ, `staff.js`, `positions.js`, `shifts.js`.
+- `public/punch.js` (`SHIFT_CODES`, `SHIFT` qua `rulesFor().punch`): `seed-data.ts`, `src/modules/**/*.controller.ts` (ca của hồ sơ, gán ca), `shifts.ts`.
+- `lib/request-rules.ts` (`rulesFor`, `monthParams`, `typeParam`, `benefitOf`, `levelCountOf`, `vnToday`): `src/modules/**/*.controller.ts` hồ sơ, `staff.ts`, `positions.ts`, `shifts.ts`.
 - `lib/params/store.ts`, `lib/params/save.ts`, `lib/params/positions.ts`, `lib/params/registry.ts`, `lib/params/config-rev.ts`.
 - `lib/domain/approvals.ts` (`reconcileStaffType`), `lib/domain/sheet.ts` (`leaveSummary`), `lib/domain/attendance/geofence-policy.ts` (`geofenceView`), `lib/domain/attendance.ts`.
 - `lib/warnings.ts`, `lib/audit.ts`, `lib/events.ts`, `lib/announce.ts`, `lib/http.ts`, `lib/ops/limiters.ts`.
@@ -641,7 +641,7 @@ Mọi dòng có `actor`, `actorRoles` (= `rolesOf(me)` lúc làm), `requestId`, 
 | `CAPS` / `ROLE_CAPS` / `ROLE_SCOPE` | `lib/roles.ts AREAS`, `EXTRAS` (ma trận màn Phân quyền), `public/home-route.js ADMIN_CAPS`, nhãn `CAP_TXT`/`ROLE_TXT` trong tầng người nhận trong `lib/events.ts EVENTS`, `auditSensitivities`. |
 | `public/approval-view.js ITEMS` | `lib/roles.ts APPROVAL_ITEMS` (danh sách riêng: nếu thiếu, tạo/sửa vai trò với loại mới bị 400 `ROLE_APPROVAL_UNKNOWN` dù `authz` chấp nhận). `makeup_day` (Làm bù cả ngày) còn trong `ITEMS` vì khoá tham số còn, nhưng không còn trong `APPROVAL_ITEMS`: vai trò gửi loại này thì bị bỏ qua (`RETIRED_ITEMS`). |
 | `RESERVED_CAPS` | `PUT /staff/:u` và `POST /staff/:u/password` dựa vào việc chỉ `admin` có `roles.manage`; `guardAdminLock`. |
-| Cột mới trong `staff` | `staffRevision` tự tính cột đó; nếu cột tự đổi (kỹ thuật) phải thêm vào `REV_SKIP_COLUMNS` (`staff.js`) nếu không Admin bị 409 `STAFF_STALE` giả. Thêm vào `rowToStaff`, `upsertStaff` (câu `ON CONFLICT` liệt kê từng cột), `audit.js STAFF_PLAIN/STAFF_PAY/STAFF_PII`, `staffForViewer PAY_STAFF_FIELDS` nếu là trường tiền, `effectivePay` ở `src/modules/staff/staff.controller.ts` nếu đổi tiền, `Profile.fromRow`. |
+| Cột mới trong `staff` | `staffRevision` tự tính cột đó; nếu cột tự đổi (kỹ thuật) phải thêm vào `REV_SKIP_COLUMNS` (`staff.ts`) nếu không Admin bị 409 `STAFF_STALE` giả. Thêm vào `rowToStaff`, `upsertStaff` (câu `ON CONFLICT` liệt kê từng cột), `audit.ts STAFF_PLAIN/STAFF_PAY/STAFF_PII`, `staffForViewer PAY_STAFF_FIELDS` nếu là trường tiền, `effectivePay` ở `src/modules/staff/staff.controller.ts` nếu đổi tiền, `Profile.fromRow`. |
 | Quy tắc "thiếu trường" trong `PUT /staff/:u` | Khách gọi (tạo hoặc sửa tài khoản) phải gửi đủ các trường "đặt lại khi thiếu" (mục 4.6), nếu không sẽ xoá ngày vào làm, ca, điều chỉnh phép, iDorm, đổi chức vụ về mặc định. |
 | `passMark` / `system.auth.passMarkChars` / `SESSION_SECRET` / `SESSION_COOKIE_NAME` | Mọi phiên đang mở hết hiệu lực. |
 | `system.auth.scryptKeyBytes` | Mọi mật khẩu đã băm không đăng nhập được. |
@@ -675,7 +675,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 ### 8.1 Hai nơi tính cùng một thứ khác nhau
 
 1. **`insured` mặc định khi cột NULL**: `lib/db.ts` dùng `contract === 'long'`; `lib/domain/staff.ts` và `src/modules/**/*.controller.ts` dùng tham số `insurance.coverage.<contract>`. Hai giá trị trùng nhau chỉ khi tham số giữ mặc định (`long=true`, `short=false`). Ai đọc `getStaff().insured` (không qua `publicStaff`) nhận quy tắc cũ.
-2. **Vai trò của một người** có ba bản: `authz.rolesOf` (`authz.ts`: có xét khoá, bỏ vai trò tuỳ chỉnh đã ngưng), `roles.rolesOfStaff` (`roles.js`: không xét khoá, giữ vai trò đã ngưng), `store.roles.effectiveRoles` (`db.ts`: không thêm `staff`).
+2. **Vai trò của một người** có ba bản: `authz.rolesOf` (`authz.ts`: có xét khoá, bỏ vai trò tuỳ chỉnh đã ngưng), `roles.rolesOfStaff` (`roles.ts`: không xét khoá, giữ vai trò đã ngưng), `store.roles.effectiveRoles` (`db.ts`: không thêm `staff`).
 3. **Quyền lợi của chức vụ**: `request-rules.benefitOf` (`request-rules.ts`) và `Positions.benefitsOf` (`lib/params/positions.ts`) cho bậc ghi đè (`level.<mã>.<n>.benefit.<cờ>`); `PositionCatalog.position` / `Employee.can` (`position-catalog.ts`, `employee.ts`) chỉ đọc cờ của chức vụ trong DB, bỏ qua ghi đè theo bậc.
 4. **Phụ cấp đêm của một người**: hồ sơ lưu `staff.night_pct` chọn trong `nightOptions` (`src/modules/employees/employees.controller.ts`); `Employee.shiftAllowancePct` (`employee.ts`) và `GET /employees/:uuid` dùng `position.nightPct` của danh mục (`level.night_pct ?? type.night_pct`), không đọc `staff.night_pct`.
 5. **Hai đường thêm bậc**: `POST /positions/:code/levels` (`lib/params/save.ts`, ghi `param_versions`, kiểm tháng mở sớm nhất, kiểm bậc có ở tháng muộn hơn, lý do không bắt buộc) và `PUT /catalog/levels` (`position-catalog.ts`, ghi `position_levels`, chỉ `assertPeriodOpen` của tháng áp dụng, không kiểm tháng muộn hơn, lý do không bao giờ bắt buộc).
@@ -683,9 +683,9 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 7. **Hai đường đổi ca của người**: `PUT /staff/:u` (qua `upsertStaff`, nhật ký `staffSaved`) và `PUT /staff/shift-bulk` (SQL trực tiếp `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts`, nhật ký riêng). Cả hai không phát sự kiện.
 8. **Đơn vị trong `paramRows`**: `flexBonus/travel/attendance` đổi % → tỉ lệ, nhưng `type.<mã>.nightPct` và `level.<mã>.<n>.nightPct` giữ % (`position-catalog.ts,367`).
 9. **Bộ tham số của module đăng nhập**: `lib/auth.ts` đọc `PayrollParams.DEFAULTS` lúc nạp; `src/modules/staff/staff.controller.ts` / `src/modules/sheet/sheet.controller.ts` đọc `system.staff.bulkMax` từ bộ tham số đã lưu. Các khoá `system.login.*`, `system.session.days`, `system.auth.*` nếu được lưu vào `param_versions` không có tác dụng.
-10. **Ba bộ kiểm lý do**: `roles.parseReason` (`roles.js`), `warnings.optionalReason` (`warnings.ts` theo dòng của file), `db.softReason` (`db.ts`); `src/modules/staff/staff.controller.ts reasonOf` bọc `optionalReason`. Mọi lý do đều không bắt buộc. Route danh mục (`catalog-change.ts`) không kiểm lý do.
+10. **Ba bộ kiểm lý do**: `roles.parseReason` (`roles.ts`), `warnings.optionalReason` (`warnings.ts` theo dòng của file), `db.softReason` (`db.ts`); `src/modules/staff/staff.controller.ts reasonOf` bọc `optionalReason`. Mọi lý do đều không bắt buộc. Route danh mục (`catalog-change.ts`) không kiểm lý do.
 11. **`uuidOf`**: `lib/db.ts` và `employee-repository.ts` cùng tra uuid theo username.
-12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.js` (bỏ `insured`, `levelName`), `lib/domain/attendance/geofence-policy.ts` (chỉ gửi toạ độ vùng cho `staff.role='admin'`). Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
+12. **Kiểm `role === 'admin'` thay cho năng lực**: `staff.ts` (bỏ `insured`, `levelName`), `lib/domain/attendance/geofence-policy.ts` (chỉ gửi toạ độ vùng cho `staff.role='admin'`). Người có vai trò `admin` qua `staff_roles` (không phải `staff.role`) bị đối xử như tài khoản thường ở ba chỗ này.
 
 ### 8.2 Danh sách / hằng số chép nhiều nơi
 
@@ -693,7 +693,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 14. Loại yêu cầu duyệt: `lib/roles.ts` (`APPROVAL_ITEMS`) và `public/approval-view.js` (`ITEMS`, thứ tự khác).
 15. Mã chức vụ: `position-catalog.ts` viết cứng `/^[a-z][a-z0-9]{1,15}$/`; `lib/params/positions.ts` dựng từ `config.POSITION_CODE_MIN/MAX`.
 16. Mã vai trò: `lib/db.ts` viết cứng `/^[a-z][a-z_]{1,31}$/`; `lib/roles.ts` dựng từ `config.ROLE_CODE_MAX`.
-17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.js` (`CONTRACT_STATUSES`), CHECK ở `migrations/postgres/0001_baseline.sql`, `db.ts`.
+17. Trạng thái hợp đồng: `src/modules/**/*.controller.ts` (mảng viết tay), `profile.ts` (`CONTRACT_STATUSES`), CHECK ở `migrations/postgres/0001_baseline.sql`, `db.ts`.
 18. Tên vai trò mặc định: `lib/roles.ts` (giao diện Vue có bản sao nhãn riêng ở `web/src`).
 19. Độ dài lý do: `config.ts`, `db.ts`, khoá registry `control.reasonMinLength`/`control.reasonMaxLength` (không được máy chủ đọc).
 20. Độ dài mật khẩu: `config.ts` (số `6` viết thẳng).
@@ -729,7 +729,7 @@ Mô tả chỗ mã đang không nhất quán; không phải danh sách việc ph
 40. `PUT /staff/:u` có cả trường hồ sơ và `locked`: hồ sơ ghi ở giao dịch 1 (`src/modules/staff/staff.controller.ts`), khoá ở giao dịch 2; lỗi ở giao dịch 2 để lại hồ sơ đã lưu.
 41. `PUT /staff/:u` và `PUT /staff/shift-bulk` đổi trường tiền/ca mà không kiểm khoá kỳ (`periodScope` null, không gọi `assertPeriodOpen`/`warnFrozen`).
 43. Đổi loại ca (`PUT /catalog/shifts`) áp cho mọi tháng (`shift-catalog.ts`, tháng nền) nhưng chỉ kiểm khoá kỳ của tháng hiện tại (`src/modules/catalog/catalog.controller.ts`).
-44. `holdersOf(code)` (`roles.js`) và `describeAll` đếm người giữ khác nhau: `holdersOf` lấy mọi dòng `staff_roles` còn hiệu lực (kể cả tài khoản đang khoá), `users` trong `describeAll` chỉ đếm tài khoản chưa khoá; số `holders` trả về khi ngưng dùng vì vậy có thể lớn hơn số `users` trên màn Phân quyền.
+44. `holdersOf(code)` (`roles.ts`) và `describeAll` đếm người giữ khác nhau: `holdersOf` lấy mọi dòng `staff_roles` còn hiệu lực (kể cả tài khoản đang khoá), `users` trong `describeAll` chỉ đếm tài khoản chưa khoá; số `holders` trả về khi ngưng dùng vì vậy có thể lớn hơn số `users` trên màn Phân quyền.
 45. `SESSION_DAYS` từ biến môi trường không được kiểm (`auth.ts`): giá trị không phải số → `exp` NaN, mọi phiên mới không hợp lệ và `Max-Age=NaN`.
 46. `GET /employees/:uuid/trace`: `limit` âm không bị chặn (`src/modules/employees/employees.controller.ts`: `Math.min(-5, 200) = -5`), khác `GET /audit` kiểm `limit ≥ 1` (`src/modules/employees/employees.controller.ts` / `src/modules/audit/audit.controller.ts`).
 47. `PUT /password`, `POST /staff/:u/password`, `PUT /staff/:u` băm mật khẩu ngoài `hashGate` (`src/modules/auth/auth.controller.ts,1852,2304`) trong khi `POST /login` qua `hashGate`; kiểm mật khẩu hiện tại ở `PUT /password` không có giới hạn đoán ngoài giới hạn ghi 240/phút.

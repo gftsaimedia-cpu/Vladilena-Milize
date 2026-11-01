@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Bảng trượt "Giải trình": trả lời yêu cầu giải trình của Admin (canAnswer), giải trình ngày vắng (canExplain), giải trình lại Check-out muộn bị từ chối (canResubmit)
 // hoặc giải trình lần bấm Check-in / Check-out không hợp lệ (item.submit(text) bấm lại cùng thao tác kèm lý do).
 import { ref } from 'vue';
-import { EXPLANATION_MAX, checkExplanationText } from '@/builders/staff-requests/punch-explanation.js';
-import { answerExplanation, submitAbsentExplanation, submitExplanation } from '@/services/staff-phone.js';
-import { dayLong } from '@/utils/format.js';
+import { EXPLANATION_MAX, checkExplanationText } from '@/builders/staff-requests/punch-explanation';
+import { answerExplanation, submitAbsentExplanation, submitExplanation } from '@/services/staff-phone';
+import { dayLong } from '@/utils/format';
 import BottomSheet from './BottomSheet.vue';
 
-const props = defineProps({ item: { type: Object, required: true } });
+const props = defineProps({ item: { type: Object as () => any, required: true } });
 const emit = defineEmits(['close', 'saved']);
 
 const text = ref('');

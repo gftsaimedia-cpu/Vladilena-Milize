@@ -1,14 +1,14 @@
-<script setup>
+<script setup lang="ts">
 // Menu tài khoản mở từ tên ở đáy thanh bên (pop-menu-tai-khoan.html).
 // Hợp đồng: props { me: { name, roleLabel, initials, username } }; emit('close'), emit('change-password').
 // Màu nền và mật độ bảng ghi qua useUiStore().set({ ground, density }); bảng nổi nằm trên nút tên tài khoản.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { logout } from '@/services/session.js';
-import { useUiStore } from '@/stores/ui.js';
+import { logout } from '@/services/session';
+import { useUiStore } from '@/stores/ui';
 
-defineProps({ me: { type: Object, default: () => ({}) } });
+defineProps({ me: { type: Object as () => any, default: () => ({}) } });
 const emit = defineEmits(['close', 'change-password']);
 const ui = useUiStore();
 const router = useRouter();
@@ -16,10 +16,10 @@ const root = ref(null);
 const bottom = ref(72);
 
 // Bấm lên chính nút tên tài khoản thì để nút tự đóng/mở
-const onDown = e => {
+const onDown = (e?) => {
   if (root.value && !root.value.contains(e.target) && !e.target.closest('.me')) emit('close');
 };
-const onKey = e => {
+const onKey = (e?) => {
   if (e.key === 'Escape') emit('close');
 };
 onMounted(() => {

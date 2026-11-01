@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Trợ lý AI (tro-ly-ai, ai-nhieu-phep): danh sách cảnh báo AI và "Hỏi nhanh".
 // ?kb=nhieu-phep chọn câu hỏi "Ai còn nhiều phép?" (mặc định "Còn thiếu gì trước khi chốt công?").
 // ?hop=ly-do mở hộp lý do AI của cảnh báo đầu tiên.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAssistantAnswer, getWarnings } from '@/services/admin-main.js';
-import { useSessionStore } from '@/stores/session.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAssistantAnswer, getWarnings } from '@/services/admin-main';
+import { useSessionStore } from '@/stores/session';
 import AiReasonDialog from './AiReasonDialog.vue';
 import AskCard from './AskCard.vue';
 import WarningsCard from './WarningsCard.vue';
@@ -25,17 +25,17 @@ const { data: warnings, reload } = useLoad(
   () => getWarnings({ status: status.value, rule: rule.value, page: page.value }),
   () => [status.value, rule.value, page.value]
 );
-const { data: ask } = useLoad(() => getAssistantAnswer(key.value), key);
+const { data: ask } = useLoad(() => getAssistantAnswer(), key);
 
 // Đổi bộ lọc thì về trang 1
 watch([status, rule], () => (page.value = 1));
-const selectQuestion = k => router.replace({ query: { ...route.query, kb: k === 'thieu-gi' ? undefined : k } });
+const selectQuestion = (k?) => router.replace({ query: { ...route.query, kb: k === 'thieu-gi' ? undefined : k } });
 
 const reasonId = ref('');
 let openedHop = '';
 watch(
   () => [route.query.hop, warnings.value],
-  ([hop, d]) => {
+  ([hop, d]: any) => {
     if (!hop) openedHop = '';
     if (!d || !hop || hop === openedHop) return;
     openedHop = hop;

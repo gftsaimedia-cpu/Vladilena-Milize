@@ -1,12 +1,12 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Chốt công tháng …" (dlg-t10-chot-cong, dlg-t11-chot-cong): các việc còn lại trước khi khoá bảng công.
 // Việc bỏ qua được thì tick "Bỏ qua" và ghi lý do; việc không bỏ qua được chặn nút Chốt công.
 import { computed, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { closeHours, getCloseChecks } from '@/services/admin-payroll.js';
-import { monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { closeHours, getCloseChecks } from '@/services/admin-payroll';
+import { monthShort } from '@/utils/format';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({ month: { type: String, required: true } });
@@ -20,10 +20,10 @@ const busy = ref(false);
 
 const PILL = { err: 'p-err', pend: 'p-pend', draft: 'p-draft' };
 const LINKS = { req: '/admin/yeu-cau', nostart: '/admin/nhan-su', noshift: '/admin/nhan-su' };
-const linkOf = id => LINKS[id] || '/admin/cham-cong';
+const linkOf = (id?) => LINKS[id] || '/admin/cham-cong';
 const blocked = computed(() => Boolean(data.value?.items.some(i => i.mode === 'block')));
 
-function toggle(id) {
+function toggle(id?) {
   if (skipped.has(id)) skipped.delete(id);
   else skipped.add(id);
   error.value = '';

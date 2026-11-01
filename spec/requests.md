@@ -34,7 +34,7 @@ Quy ước: `warnIf(code, …)` chỉ thêm cảnh báo vào `warnings[]` của 
 | `lib/advance-requests.ts` | Bảng cũ `advance_requests` (yêu cầu ứng lương có số tiền): đọc, huỷ; `create` và `decide` còn trong mã nhưng route trả 410. |
 | `src/modules/advance/advance-requests.handlers.ts` | Route cũ `/api/advance-requests[...]`: GET lịch sử, POST và PUT decide → 410, POST cancel. |
 | `lib/explanations.ts` | Lối vào của giải trình, chuyển tiếp sang `container.explanations`. |
-| `lib/domain/explanation/*` | `explanation.js` (lớp `Explanation` kế thừa `Request`), `explanation-repository.ts`, `explanation-service.ts`, `absent-day.ts` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `migrations/postgres/0001_baseline.sql` (bảng `explanations`), `late-checkout.ts` (phút Check-out muộn), `late-checkout-session.ts` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
+| `lib/domain/explanation/*` | `explanation.ts` (lớp `Explanation` kế thừa `Request`), `explanation-repository.ts`, `explanation-service.ts`, `absent-day.ts` (`AbsentDay.stateOf`: ngày vắng không phép giải trình được), `migrations/postgres/0001_baseline.sql` (bảng `explanations`), `late-checkout.ts` (phút Check-out muộn), `late-checkout-session.ts` (lượt Check-out muộn chờ duyệt), `src/modules/explanations/explanations.controller.ts` (`/api/explanations[...]`). |
 | `lib/domain/attendance/admin-presence.ts` | Lượt chấm công nguồn Admin: từ Admin khai thay lịch (`sync`) và từ giải trình ngày quên chấm đã duyệt (`syncExplanation`). |
 | `lib/domain/attendance/session-status.ts` | Nhãn hiển thị của một lượt chấm công (`SessionStatus.classify`). |
 | `lib/domain/shared/request.ts`, `domain-error.ts`, `repository.ts` | Lớp gốc yêu cầu chờ duyệt (rev, tự duyệt), lỗi có mã/HTTP, `updateWithRev`. |
@@ -406,7 +406,7 @@ Chức vụ không có `benefit.ot` không có OT nào, kể cả ngày lễ (`e
 ### 4.11 Làm bù
 
 - Không có loại ngày làm bù cả ngày. Ngày `kind: 'makeup'` mới hoặc đã đổi → 400 `SHEET_MAKEUP_DAY_REMOVED` ("Không còn loại ngày Làm bù cả ngày. Giờ làm bù khai ở ngày đi làm, trước hoặc sau ca."), cả khi Admin khai thay. Ngày `makeup` đã lưu gửi lại không đổi: không chặn, cảnh báo `SHEET_MAKEUP_DAY_LEGACY`; bộ máy tính ngày đó 0 đồng, không ngày công, không giờ làm bù. Vai trò tuỳ chỉnh: `makeup_day` không có trong `APPROVAL_ITEMS` (`lib/roles.ts`); quyền `makeup_day` đã lưu bị bỏ qua khi đọc (`RETIRED_ITEMS`,).
-- `makeup_hours`: đoạn trước/sau ca có `extraKind:'makeup'` trên ngày đi làm; chức vụ không có `benefit.makeupHours` → `BENEFIT_NOT_ALLOWED` (`checkRequestFlags`, `positions.js`).
+- `makeup_hours`: đoạn trước/sau ca có `extraKind:'makeup'` trên ngày đi làm; chức vụ không có `benefit.makeupHours` → `BENEFIT_NOT_ALLOWED` (`checkRequestFlags`, `positions.ts`).
 - `willmakeup`: ngày nghỉ, kế hoạch làm bù `makeupPlans[{date,from,to}]` (tối đa 31 dòng, ô sai dạng thành rỗng, chỉ để Admin xem khi duyệt, không chặn gì). Đã duyệt: 0 đồng, không ngày công, cộng một công (`time.workHoursPerDay` giờ) vào giờ cần bù của tháng.
 - Làm bù vào ngày lễ (giờ làm bù, hay ngày dự kiến của `willmakeup`) → 400 `SHEET_MAKEUP_ON_HOLIDAY` (`timesheet/timesheet-validator.ts`); ngày đã lưu không đổi thì giữ.
 - **Tiền**: giờ làm bù được trả đủ = giờ × lương giờ × 1, không cắt theo giờ cần bù (`makeupPay`, `payroll-engine.js`); đoạn làm bù trừ giờ nghỉ rơi trong đoạn (OT không trừ). Ngày có giờ làm bù được trả (`makeupH > 0`) không có phụ cấp ca và giờ nghỉ đêm có lương (`noShiftAllowance`,); ngày có OT được trả vẫn giữ phụ cấp ca và giờ nghỉ đêm có lương.
@@ -467,7 +467,7 @@ Chỉ khi `approve` ở `PUT /approvals/decide`. Luật = `settings.ai_block_rul
 
 ### 4.16 KPI
 
-- Có KPI khi khoá `level.<loại>.<bậc>.kpi` tồn tại và khác 0/null (`kpiMaxOf`, `kpi.js`); mặc định CTV, NV có, TTS không.
+- Có KPI khi khoá `level.<loại>.<bậc>.kpi` tồn tại và khác 0/null (`kpiMaxOf`, `kpi.ts`); mặc định CTV, NV có, TTS không.
 - Điểm: số 0..100, tối đa 2 chữ số thập phân (`checkScore`), lưu × 100. `null` = xoá điểm.
 - `evaluate(parts, { pass: type.<loại>.kpiPass (75) })`: thiếu điểm → `incomplete`; `wework × 100 < kpi.weworkMin (75) × 100` → `wework`; `units = Σ điểm×100×trọng số`; `units < pass × 10000` → `below-pass`; ngược lại `ok`. Trọng số `kpi.weight.{wework 40, user 24, peer 18, manager 12, self 6}`. Tiền = `amt × units ÷ 1.000.000 × hệ số` (bộ máy, mức KPI kẹp ở trần bậc).
 - `PUT /kpi/scores`: người không có `kpi.score.write` phạm vi all chỉ được gửi đúng `scores: { self }` của chính mình, không `amt` (403 `KPI_SELF_ONLY`). Tự đánh giá của chính mình không qua kiểm tự duyệt; còn lại `selfDecision`. `amt` > trần → `KPI_OVER_CAP` (cảnh báo: lưu nhưng chỉ trả tới trần). Tháng tương lai → `KPI_MONTH_FUTURE`. Mọi giá trị kiểm xong mới ghi; mỗi giá trị đổi một dòng `kpi_score_log`; `amt` ghi `timesheets.kpi_adm_amt`.
@@ -658,7 +658,7 @@ Chỉ ghi nhận hành vi của mã, không phải mô tả mong muốn.
 13. **Duyệt tất cả tạm ứng bỏ qua chính mình** (`src/modules/advance/advance-approvals.handlers.ts`), trong khi duyệt từng người chỉ cảnh báo (`decideOne`,).
 14. **Khoá kỳ của tạm ứng luôn là lỗi.** `src/modules/advance/advance-approvals.handlers.ts` luôn 409; ứng lương dạng cũ dùng `store.assertPeriodOpen(...,'slip')` (chỉ cảnh báo).
 15. **Giải trình không khoá kỳ** (`src/modules/explanations/explanations.controller.ts`, `ROUTE_CAPS` không có `periodScope`) dù kết quả duyệt đổi `explanationHold`, tức đổi tiền của kỳ; không có cả cảnh báo `PERIOD_FROZEN`. Ghi / xoá lượt Admin từ giải trình ngày thì đòi kỳ còn mở chấm công.
-16. **Quy tắc duyệt giải trình khác khoản tự khai**: từ chối không cần lý do, không có lỗi "đã ở trạng thái này", không kiểm fingerprint (`explanation.js`, `request.ts`).
+16. **Quy tắc duyệt giải trình khác khoản tự khai**: từ chối không cần lý do, không có lỗi "đã ở trạng thái này", không kiểm fingerprint (`explanation.ts`, `request.ts`).
 17. **`PUT /ot` bỏ qua kết quả `updateSession`** (`src/modules/attendance/attendance.controller.ts`), còn `POST /ot` kiểm và trả 409.
 18. **`approveOnBehalf` không qua chặn AI** (`sheet-on-behalf.ts`), còn `PUT /approvals/decide` thì có.
 

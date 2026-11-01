@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Mở lại" một bước kỳ lương: lý do gửi nguyên văn cho máy chủ; lỗi của máy chủ hiện nguyên văn.
 import { ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { reopenStep } from '@/services/admin-payroll.js';
-import { monthShort } from '@/utils/format.js';
+import { reopenStep } from '@/services/admin-payroll';
+import { monthShort } from '@/utils/format';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({

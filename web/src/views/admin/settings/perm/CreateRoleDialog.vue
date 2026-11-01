@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Tạo vai trò" (mở từ Phân quyền · Vai trò: nút "Tạo vai trò" hoặc "Sao chép thành vai trò mới").
 import { computed, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { createRole } from '@/services/admin-settings.js';
+import { createRole } from '@/services/admin-settings';
 import TextBox from '../fields/TextBox.vue';
-import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules.js';
+import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules';
 
 const props = defineProps({
   copyFrom: { type: String, default: '' }, // khoá vai trò được sao chép quyền

@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ "một cảnh báo AI" dùng trong hộp thoại ở Trợ lý AI (có dòng Nhân sự/Kỳ) và ngăn kéo ở Yêu cầu (không có).
 import Icon from '@/components/ui/Icon.vue';
-import { figure } from '@/views/admin/requests/helpers.js';
-import { monthLabel, vndc } from '@/utils/format.js';
+import { figure } from '@/views/admin/requests/helpers';
+import { monthLabel, vndc } from '@/utils/format';
 
 defineProps({
-  warning: { type: Object, required: true },
+  warning: { type: Object as () => any, required: true },
   showPerson: { type: Boolean, default: false }
 });
 defineEmits(['skip']);

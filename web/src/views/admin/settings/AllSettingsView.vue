@@ -1,21 +1,21 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Tất cả cài đặt: tìm theo tên, chọn một nhóm để xem và sửa từng mục (bản demo có nội dung nhóm 1).
 // ?q=<từ khoá> điền sẵn ô tìm (từ ô "Tìm cài đặt" ở đầu trang) · ?hop=them-chuc-vu mở hộp thêm chức vụ.
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAllSettings, saveAllSettings } from '@/services/admin-settings.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
-import { monthShort } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAllSettings, saveAllSettings } from '@/services/admin-settings';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
+import { monthShort } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import AddPositionDialog from './all/AddPositionDialog.vue';
 import RevertDialog from './all/RevertDialog.vue';
 import SettingItem from './all/SettingItem.vue';
 import SaveBar from './fields/SaveBar.vue';
-import { useDraft } from './lib/useDraft.js';
-import { useHop } from './lib/useHop.js';
+import { useDraft } from './lib/useDraft';
+import { useHop } from './lib/useHop';
 
 const route = useRoute();
 const period = usePeriodStore();
@@ -58,18 +58,18 @@ const readonly = computed(() => {
 const showSoon = computed(() => filter.value === 'all' && draft.value && draft.value.soonCount > 0 && !needle.value);
 
 // Mục nào đã khác bản đã lưu (để bật "Hoàn tác")
-const isChanged = item => {
+const isChanged = (item?) => {
   const saved = data.value.detail.items.find(i => i.key === item.key);
   return JSON.stringify(saved) !== JSON.stringify(item);
 };
-function undo(item) {
+function undo(item?) {
   const i = draft.value.items.findIndex(x => x.key === item.key);
   draft.value.items[i] = JSON.parse(JSON.stringify(data.value.detail.items.find(x => x.key === item.key)));
 }
 
 // Hoàn tác về một phiên bản cũ của ô (lịch sử từng mục): chỉ khi có quyền ghi mục đó và không còn chỗ sửa dở
 const reverting = ref(null); // { item, row }
-const canRevert = item => form.changes.value === 0 && !!item.history && session.caps.includes(item.history.cap);
+const canRevert = (item?) => form.changes.value === 0 && !!item.history && session.caps.includes(item.history.cap);
 function onReverted() {
   reverting.value = null;
   reload();

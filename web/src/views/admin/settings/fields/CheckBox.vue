@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô tick (.cb). locked = tick xám, không bấm được (vai trò Admin).
 import Icon from '@/components/ui/Icon.vue';
 import '../settings-extra.css';

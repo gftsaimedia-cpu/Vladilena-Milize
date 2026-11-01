@@ -1,8 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Khối "Yêu cầu": các nút gửi yêu cầu, danh sách yêu cầu của tháng hoặc dòng báo chưa có.
 import Icon from '@/components/ui/Icon.vue';
 
-defineProps({ data: { type: Object, required: true }, explanations: { type: Object, default: null } });
+defineProps({
+  data: { type: Object as () => any, required: true },
+  explanations: { type: Object as () => any, default: null }
+});
 defineEmits(['open', 'answer', 'cancel']);
 </script>
 

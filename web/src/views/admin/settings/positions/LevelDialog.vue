@@ -1,23 +1,23 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Sửa bậc" (level là số bậc) hoặc "Thêm bậc" (level = 0: bậc kế tiếp, không gửi số phiên bản).
 // Tên bậc, lương cơ bản, lương KPI tối đa, phụ cấp đêm theo bậc; ô trống của KPI và phụ cấp đêm gửi null.
 import { computed, reactive, ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { levelChanges } from '@/builders/admin-catalog/positions.js';
-import { saveLevel } from '@/services/admin-catalog.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { monthLabel } from '@/utils/format.js';
+import { levelChanges } from '@/builders/admin-catalog/positions';
+import { saveLevel } from '@/services/admin-catalog';
+import { usePeriodStore } from '@/stores/period';
+import { monthLabel } from '@/utils/format';
 import FieldNum from '../fields/FieldNum.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
-import { monthOptions } from '../lib/date.js';
-import { REASON_MAX } from '../lib/rules.js';
-import { isStale, useSnapshots } from './useSnapshots.js';
+import { monthOptions } from '../lib/date';
+import { REASON_MAX } from '../lib/rules';
+import { isStale, useSnapshots } from './useSnapshots';
 
 const props = defineProps({
-  row: { type: Object, required: true }, // dòng chức vụ đang hiện (kèm levels)
+  row: { type: Object as () => any, required: true }, // dòng chức vụ đang hiện (kèm levels)
   level: { type: Number, default: 0 }
 });
 const emit = defineEmits(['close', 'saved', 'stale']);
@@ -29,17 +29,17 @@ const months = monthOptions(period.month);
 const month = ref(months[0].value);
 const reason = ref('');
 const saving = ref(false);
-const levelOf = pos => (pos.levels || []).find(l => l.level === props.level) || null;
+const levelOf = (pos?) => (pos.levels || []).find(l => l.level === props.level) || null;
 const start = adding ? null : levelOf(props.row);
 const form = reactive(Object.fromEntries(FIELDS.map(key => [key, start ? start[key] : key === 'name' ? '' : null])));
-const touched = new Set();
+const touched = new Set<any>();
 const snaps = useSnapshots(props.row.code, period.month, props.row);
 
-const set = (key, value) => {
+const set = (key?, value?) => {
   form[key] = value;
   touched.add(key);
 };
-const fill = pos => {
+const fill = (pos?) => {
   const src = levelOf(pos);
   if (!src) return;
   for (const key of FIELDS) if (!touched.has(key)) form[key] = src[key];

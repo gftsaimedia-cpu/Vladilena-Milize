@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Tab Phép còn lại: phép năm tính đến hôm nay (ngày), cộng theo ngày bắt đầu làm và sinh nhật.
 import { computed, ref, watch } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getLeaveLedger, refreshLeave } from '@/services/admin-attendance.js';
-import { getLeaveBalances } from '@/services/admin-hr.js';
-import { ApiError } from '@/services/http.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
-import { dmy, initials, num } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getLeaveLedger, refreshLeave } from '@/services/admin-attendance';
+import { getLeaveBalances } from '@/services/admin-hr';
+import { ApiError } from '@/services/http';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
+import { dmy, initials, num } from '@/utils/format';
 import PagerBar from './PagerBar.vue';
 import SearchBox from './SearchBox.vue';
 
@@ -71,7 +71,7 @@ const picked = ref(null); // { id, name }
 const ledger = ref(null);
 const ledgerErr = ref('');
 const year = computed(() => month.value.slice(0, 4));
-async function openLedger(r) {
+async function openLedger(r?) {
   picked.value = { id: r.id, name: r.name };
   ledger.value = null;
   ledgerErr.value = '';
@@ -84,7 +84,7 @@ async function openLedger(r) {
   }
 }
 const closeLedger = () => (picked.value = null);
-const adj = n => (n > 0 ? `+${num(n)}` : num(n));
+const adj = (n?) => (n > 0 ? `+${num(n)}` : num(n));
 const footText = computed(() => {
   const d = data.value;
   if (!d || !rows.value.length) return `0 trên ${d?.total || 0} nhân sự có phép năm · ngày`;

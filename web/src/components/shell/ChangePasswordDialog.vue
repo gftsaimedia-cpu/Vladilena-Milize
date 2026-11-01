@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp đổi mật khẩu của người đang đăng nhập (dlg-doi-mat-khau.html). Hợp đồng: emit('close').
 import { onMounted, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { changePassword } from '@/services/session.js';
-import { useSessionStore } from '@/stores/session.js';
+import { changePassword } from '@/services/session';
+import { useSessionStore } from '@/stores/session';
 
 const emit = defineEmits(['close']);
 const me = useSessionStore().shellMe;

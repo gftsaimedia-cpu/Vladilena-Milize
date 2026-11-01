@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Tab Hôm nay: lượt Check-in/out mới nhất của từng người theo giờ máy chủ.
 import { computed, ref, watch } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getToday } from '@/services/admin-attendance.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { dayLong, initials } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getToday } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
+import { dayLong, initials } from '@/utils/format';
 import PagerBar from './PagerBar.vue';
 import SearchBox from './SearchBox.vue';
 

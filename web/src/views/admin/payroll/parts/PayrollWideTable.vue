@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Bảng lương đủ cột: tách tổng thu nhập thành tiền ngày công, phụ cấp, OT, lương KPI, khác.
 import { computed } from 'vue';
-import { initials, vnd } from '@/utils/format.js';
+import { initials, vnd } from '@/utils/format';
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as () => any[], default: () => [] },
   estimated: { type: Boolean, default: true }
 });
 const emit = defineEmits(['open']);
 
 const WIDTHS = [null, 62, 96, 104, 50, 74, 64, 104, 82, 72, 92, 100];
-const cls = (v, bold = false) => [v === 0 ? 'z' : props.estimated ? 'est' : '', bold && 'b'];
+const cls = (v?, bold = false) => [v === 0 ? 'z' : props.estimated ? 'est' : '', bold && 'b'];
 const est = computed(() => (props.estimated ? 'est' : ''));
 </script>
 

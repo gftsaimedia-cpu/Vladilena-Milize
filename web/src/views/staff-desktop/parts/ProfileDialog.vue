@@ -1,16 +1,16 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Hồ sơ của tôi" (nvpc-linh-ho-so): thông tin do Admin quản lý và phần đổi mật khẩu.
 import { computed, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { changeMyPassword, getStaffProfile } from '@/services/staff-desktop.js';
-import { dmy } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { changeMyPassword, getStaffProfile } from '@/services/staff-desktop';
+import { dmy } from '@/utils/format';
 
 const props = defineProps({ kb: { type: String, default: 'linh' } });
 const emit = defineEmits(['close']);
 
-const { data: profile } = useLoad(() => getStaffProfile(props.kb));
+const { data: profile } = useLoad(() => getStaffProfile());
 const facts = computed(() => {
   const p = profile.value;
   if (!p) return [];

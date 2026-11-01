@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Tab Giờ OT: OT nhân viên khai đối chiếu với lượt Check-in/out; chỉ trả OT khi có mặt đúng khoảng đã khai.
 import { computed, ref } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getOvertimeRequests } from '@/services/admin-attendance.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { useLoad } from '@/composables/useLoad';
+import { getOvertimeRequests } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
 import RequestTable from './RequestTable.vue';
 
 const period = usePeriodStore();

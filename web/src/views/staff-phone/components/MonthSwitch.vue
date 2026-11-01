@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Thanh chọn tháng (.mon của thiết kế): nút lùi, "Tháng 11/2026" + trạng thái, nút tới. Nút tắt khi không có tháng đó.
 import Icon from '@/components/ui/Icon.vue';
 

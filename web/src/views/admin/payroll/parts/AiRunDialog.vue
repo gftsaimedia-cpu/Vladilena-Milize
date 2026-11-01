@@ -1,9 +1,9 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Chạy AI kiểm tra" (dlg-t10-chay-ai): AI kiểm tra theo quy tắc, chỉ gợi ý, không sửa số.
 import { ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { runAiReview } from '@/services/admin-payroll.js';
+import { runAiReview } from '@/services/admin-payroll';
 
 const props = defineProps({
   month: { type: String, required: true },

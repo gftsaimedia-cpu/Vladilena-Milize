@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Ô chọn thật. variant 'sel' = khung .sel nhỏ (trong bảng, ngăn kéo); 'inp' = khung .inp của hộp thoại.
 // options: ['A', 'B'] hoặc [{ value, label }].
 import { computed } from 'vue';
@@ -7,7 +7,7 @@ import '../settings-extra.css';
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
-  options: { type: Array, default: () => [] },
+  options: { type: Array as () => any[], default: () => [] },
   variant: { type: String, default: 'sel' },
   disabled: { type: Boolean, default: false },
   label: { type: String, default: '' }
@@ -23,7 +23,7 @@ const items = computed(() => props.options.map(o => (typeof o === 'object' ? o :
       :value="modelValue"
       :disabled="disabled"
       :aria-label="label || undefined"
-      @change="$emit('update:modelValue', $event.target.value)"
+      @change="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     >
       <option v-for="o in items" :key="o.value" :value="o.value">{{ o.label }}</option>
     </select>

@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Thẻ "Hỏi nhanh" của Trợ lý AI: câu hỏi dựng sẵn và câu trả lời (mỗi câu là một kịch bản ?kb=).
-import { atLabel } from '@/views/admin/requests/helpers.js';
+import { atLabel } from '@/views/admin/requests/helpers';
 
-defineProps({ data: { type: Object, required: true } });
+defineProps({ data: { type: Object as () => any, required: true } });
 defineEmits(['select']);
 </script>
 

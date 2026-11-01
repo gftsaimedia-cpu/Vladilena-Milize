@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // Yêu cầu (duyet, yc-moi-thang): hai chế độ xem theo route (meta.scope):
 //   'thang'     /admin/yeu-cau            yêu cầu của tháng hiện tại, chia nhóm Có cảnh báo AI / Không có cảnh báo
 //   'moi-thang' /admin/yeu-cau/moi-thang  thêm các tháng trước (AI chưa kiểm tra)
@@ -6,12 +6,12 @@
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { countWaiting } from '@/builders/admin-requests/explanations.js';
-import { listWaitingExplanations } from '@/services/admin-explanations.js';
-import { approveRequest, getOlderRequests, getRequests, rejectRequest } from '@/services/admin-main.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
+import { useLoad } from '@/composables/useLoad';
+import { countWaiting } from '@/builders/admin-requests/explanations';
+import { listWaitingExplanations } from '@/services/admin-explanations';
+import { approveRequest, getOlderRequests, getRequests, rejectRequest } from '@/services/admin-main';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
 import AdvanceGroup from './AdvanceGroup.vue';
 import AiReasonDrawer from './AiReasonDrawer.vue';
 import BulkApproveDialog from './BulkApproveDialog.vue';
@@ -20,7 +20,7 @@ import GroupClean from './GroupClean.vue';
 import GroupHistory from './GroupHistory.vue';
 import GroupOlder from './GroupOlder.vue';
 import GroupWarned from './GroupWarned.vue';
-import { monthNo } from './helpers.js';
+import { monthNo } from './helpers';
 import SelectBox from './SelectBox.vue';
 
 const route = useRoute();
@@ -105,7 +105,7 @@ const reasonId = ref('');
 let openedHop = '';
 watch(
   () => [route.query.hop, data.value],
-  ([hop, d]) => {
+  ([hop, d]: any) => {
     if (!hop) openedHop = '';
     if (!d || !hop || hop === openedHop) return;
     openedHop = hop;
@@ -115,15 +115,15 @@ watch(
   { immediate: true }
 );
 
-async function approve(r) {
+async function approve(r?) {
   await approveRequest(r.id);
   reload();
 }
-async function reject(r) {
+async function reject(r?) {
   await rejectRequest(r.id);
   reload();
 }
-function setScope(next) {
+function setScope(next?) {
   if (next === scope.value) return;
   const q = route.query.thang ? { thang: route.query.thang } : {};
   router.push({ path: next === 'thang' ? '/admin/yeu-cau' : '/admin/yeu-cau/moi-thang', query: q });

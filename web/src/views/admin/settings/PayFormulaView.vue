@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Cách tính lương: công thức thực nhận đọc từ trên xuống như một phiếu lương.
 // Bấm "Sửa" mở ngăn kéo của từng khoản (?hop=luong-ngay-cong | lam-them | phu-cap | luong-kpi | khau-tru | tam-ung).
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPayFormula } from '@/services/admin-settings.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPayFormula } from '@/services/admin-settings';
 import SettingsFrame from './SettingsFrame.vue';
 import PayDrawer from './pay/PayDrawer.vue';
-import { PATHS } from './nav.js';
-import { useHop } from './lib/useHop.js';
+import { PATHS } from './nav';
+import { useHop } from './lib/useHop';
 
 const { data, reload } = useLoad(() => getPayFormula());
 const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', 'luong-kpi', 'khau-tru', 'tam-ung']);

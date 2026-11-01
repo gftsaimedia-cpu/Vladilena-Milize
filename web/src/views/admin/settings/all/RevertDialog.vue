@@ -1,18 +1,18 @@
-<script setup>
+<script setup lang="ts">
 // Hộp thoại "Hoàn tác" một ô về phiên bản cũ: chọn tháng áp dụng, ghi lý do; máy chủ thêm một dòng mới mang giá trị đó.
 import { ref } from 'vue';
-import { toast } from '@/components/shell/toast.js';
+import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
-import { revertSetting } from '@/services/admin-config.js';
-import { usePeriodStore } from '@/stores/period.js';
+import { revertSetting } from '@/services/admin-config';
+import { usePeriodStore } from '@/stores/period';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
-import { monthOptions } from '../lib/date.js';
-import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules.js';
+import { monthOptions } from '../lib/date';
+import { REASON_MAX, REASON_MIN, reasonOk } from '../lib/rules';
 
 const props = defineProps({
   name: { type: String, required: true },
-  row: { type: Object, required: true }
+  row: { type: Object as () => any, required: true }
 });
 const emit = defineEmits(['close', 'saved']);
 

@@ -1,8 +1,8 @@
-<script setup>
+<script setup lang="ts">
 // Ô số của Cài đặt (khung .fi): gõ số thật. money = hàng nghìn ngăn bằng dấu chấm; dim = xám khi bằng 0.
 //   <FieldNum v-model="row.value" unit="%" /> · <FieldNum v-model="x" money /> · <FieldNum v-model="x" prefix="×" />
 import { computed, ref } from 'vue';
-import { vnd } from '@/utils/format.js';
+import { vnd } from '@/utils/format';
 import '../settings-extra.css';
 
 const props = defineProps({
@@ -23,7 +23,7 @@ const shown = computed(() => {
   return props.money ? vnd(props.modelValue) : String(props.modelValue).replace('.', ',');
 });
 
-function onInput(e) {
+function onInput(e?) {
   if (props.money) {
     const digits = e.target.value.replace(/\D/g, '');
     const n = digits === '' ? null : Number(digits);

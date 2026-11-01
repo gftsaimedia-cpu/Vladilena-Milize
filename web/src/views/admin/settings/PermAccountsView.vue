@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Phân quyền › Tài khoản: danh sách tài khoản (10 dòng một trang), đổi vai trò, đặt lại mật khẩu, khoá/mở khoá.
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings.js';
-import { initials } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
+import { initials } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import PermTabs from './perm/PermTabs.vue';
 import ResetPasswordDialog from './perm/ResetPasswordDialog.vue';
@@ -24,15 +24,15 @@ const noticeErr = ref(false);
 const redraw = ref(0); // đổi số này để ô chọn vai trò vẽ lại đúng vai trò chính đang lưu
 const resetting = ref(null); // tài khoản đang mở hộp đặt lại mật khẩu
 let noticeTimer = 0;
-function say(text, isErr = false) {
+function say(text?, isErr = false) {
   notice.value = text;
   noticeErr.value = isErr;
   clearTimeout(noticeTimer);
   noticeTimer = setTimeout(() => (notice.value = ''), isErr ? 8000 : 3000);
 }
-const fail = e => say(e && e.message ? e.message : 'Không lưu được, thử lại sau.', true);
+const fail = (e?) => say(e && e.message ? e.message : 'Không lưu được, thử lại sau.', true);
 
-async function changeRole(acc, value) {
+async function changeRole(acc?, value?) {
   try {
     await setAccountRole(acc, value);
     say(`Đã đổi vai trò của ${acc.name} thành ${value}`);
@@ -42,7 +42,7 @@ async function changeRole(acc, value) {
   await reload();
   redraw.value++;
 }
-async function toggleLock(acc) {
+async function toggleLock(acc?) {
   const lock = acc.status !== 'locked';
   try {
     await setAccountLocked(acc, lock);

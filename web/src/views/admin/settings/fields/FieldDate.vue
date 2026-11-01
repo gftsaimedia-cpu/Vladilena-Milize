@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Ô ngày nhập dd/mm/yyyy, giá trị là 'YYYY-MM-DD' ('' khi chưa nhập hoặc sai).
 // boxed = khung .inp của hộp thoại (có biểu tượng lịch); mặc định là khung .fi.l.
 import { ref, watch } from 'vue';
-import { dmy } from '@/utils/format.js';
+import { dmy } from '@/utils/format';
 import Icon from '@/components/ui/Icon.vue';
-import { parseDmy } from '../lib/date.js';
+import { parseDmy } from '../lib/date';
 import '../settings-extra.css';
 
 const props = defineProps({
@@ -22,7 +22,7 @@ watch(
     if (parseDmy(text.value) !== v) text.value = dmy(v);
   }
 );
-function onInput(e) {
+function onInput(e?) {
   text.value = e.target.value;
   emit('update:modelValue', parseDmy(text.value) || '');
 }

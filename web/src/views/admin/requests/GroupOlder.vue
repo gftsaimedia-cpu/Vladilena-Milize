@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Nhóm "Các tháng trước" của Yêu cầu · Mọi tháng: AI chưa kiểm tra nên chỉ xử lý từng cái.
-import { useSessionStore } from '@/stores/session.js';
+import { useSessionStore } from '@/stores/session';
 import RequestTable from './RequestTable.vue';
 
 defineProps({
-  items: { type: Array, required: true },
+  items: { type: Array as () => any[], required: true },
   total: { type: Number, required: true },
   canMore: { type: Boolean, default: false }
 });

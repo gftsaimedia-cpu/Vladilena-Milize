@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Hộp "Đánh dấu đã trả lương" (dlg-t10-da-tra-luong): sau khi đánh dấu, kỳ không mở lại được.
 import { ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { markPaid } from '@/services/admin-payroll.js';
-import { monthShort, vndc } from '@/utils/format.js';
+import { markPaid } from '@/services/admin-payroll';
+import { monthShort, vndc } from '@/utils/format';
 import DlgField from './DlgField.vue';
 
 const props = defineProps({

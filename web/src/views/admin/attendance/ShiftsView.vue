@@ -1,10 +1,10 @@
-<script setup>
+<script setup lang="ts">
 // Tab Ca làm: 6 ca cố định và số người của từng ca; bên phải là những người chưa có ca. Admin gán ca, nhân viên không tự chọn.
 import { computed } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getShiftOverview } from '@/services/admin-attendance.js';
-import { initials } from '@/utils/format.js';
-import { LINKS } from './links.js';
+import { useLoad } from '@/composables/useLoad';
+import { getShiftOverview } from '@/services/admin-attendance';
+import { initials } from '@/utils/format';
+import { LINKS } from './links';
 
 const { data } = useLoad(() => getShiftOverview());
 const shifts = computed(() => data.value?.shifts || []);

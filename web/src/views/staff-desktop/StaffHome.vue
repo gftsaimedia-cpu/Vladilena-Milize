@@ -1,19 +1,19 @@
-<script setup>
+<script setup lang="ts">
 // Trang chính của nhân viên trên máy tính: một trang ba cột (hôm nay | chấm công tháng | thu nhập và yêu cầu).
 // ?kb=linh|ca-dem|ctv|tts|quen-checkout|yeu-cau-cho  kịch bản   ?thang=YYYY-MM  tháng đang xem
 // ?hop=cach-tinh mở sẵn bảng cách tính   ?hop=chi-tiet-ngay chọn sẵn ngày 25/11   (menu, ho-so do khung trang xử lý)
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { punchExplanationItem } from '@/builders/staff-requests/punch-explanation.js';
-import { toast } from '@/components/shell/toast.js';
-import { useLoad } from '@/composables/useLoad.js';
+import { punchExplanationItem } from '@/builders/staff-requests/punch-explanation';
+import { toast } from '@/components/shell/toast';
+import { useLoad } from '@/composables/useLoad';
 import {
   cancelStaffDayRequest,
   getStaffExplanations,
   getStaffHome,
   getStaffMonth,
   staffCheck
-} from '@/services/staff-desktop.js';
+} from '@/services/staff-desktop';
 import AttendanceCard from './parts/AttendanceCard.vue';
 import AdvanceDialog from './parts/AdvanceDialog.vue';
 import DayRequestDialog from './parts/DayRequestDialog.vue';
@@ -26,13 +26,13 @@ import TodayHero from './parts/TodayHero.vue';
 
 const route = useRoute();
 const router = useRouter();
-const queryText = key => (typeof route.query[key] === 'string' ? route.query[key] : '');
+const queryText = (key?) => (typeof route.query[key] === 'string' ? route.query[key] : '');
 const kb = computed(() => queryText('kb') || 'linh');
 const thang = computed(() => queryText('thang'));
 const openedBox = queryText('hop'); // chỉ đọc lúc vào trang
 
 const { data: home, reload: reloadHome } = useLoad(
-  () => getStaffHome(kb.value),
+  () => getStaffHome(),
   () => kb.value
 );
 const { data: month, reload: reloadMonth } = useLoad(
@@ -46,7 +46,7 @@ const advanceOpen = ref(false);
 const { data: explanations, reload: reloadExplanations } = useLoad(() => getStaffExplanations());
 const answering = ref(null);
 // Huỷ yêu cầu đang chờ: bỏ khai báo ngày đó
-async function cancelRequest(r) {
+async function cancelRequest(r?) {
   try {
     await cancelStaffDayRequest(r.date);
     await reloadMonth();
@@ -54,10 +54,10 @@ async function cancelRequest(r) {
     toast.error(e && e.message);
   }
 }
-const openRequest = a => (a.dialog === 'advance' ? (advanceOpen.value = true) : (requestPreset.value = a.preset));
-const goMonth = m => router.replace({ query: { ...route.query, thang: m } });
+const openRequest = (a?) => (a.dialog === 'advance' ? (advanceOpen.value = true) : (requestPreset.value = a.preset));
+const goMonth = (m?) => router.replace({ query: { ...route.query, thang: m } });
 const punchExplaining = ref(null); // lần bấm đang chờ giải trình: hộp nhập lý do
-async function check(kind) {
+async function check(kind?) {
   try {
     const res = await staffCheck(kind);
     toast.warnings(res && res.warnings);

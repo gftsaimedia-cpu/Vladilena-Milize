@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Chức vụ và bậc: danh mục chức vụ, bậc lương và phụ cấp theo bậc của tháng đang xem.
 // Sửa chức vụ, sửa bậc, thêm bậc kế tiếp chỉ có khi tài khoản có quyền config.payroll.
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getPositions } from '@/services/admin-catalog.js';
-import { usePeriodStore } from '@/stores/period.js';
-import { useSessionStore } from '@/stores/session.js';
-import { monthLabel } from '@/utils/format.js';
+import { useLoad } from '@/composables/useLoad';
+import { getPositions } from '@/services/admin-catalog';
+import { usePeriodStore } from '@/stores/period';
+import { useSessionStore } from '@/stores/session';
+import { monthLabel } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import LevelDialog from './positions/LevelDialog.vue';
 import PositionDialog from './positions/PositionDialog.vue';
@@ -21,9 +21,9 @@ const { data, loading, error, reload } = useLoad(
 
 // Hộp thoại đang mở: { kind: 'position' | 'level', code, level }
 const dlg = ref(null);
-const openPosition = code => (dlg.value = { kind: 'position', code, level: 0 });
-const openLevel = (code, level) => (dlg.value = { kind: 'level', code, level });
-const rowOf = code => (data.value && data.value.positions.find(p => p.code === code)) || null;
+const openPosition = (code?) => (dlg.value = { kind: 'position', code, level: 0 });
+const openLevel = (code?, level?) => (dlg.value = { kind: 'level', code, level });
+const rowOf = (code?) => (data.value && data.value.positions.find(p => p.code === code)) || null;
 const dlgRow = computed(() => (dlg.value ? rowOf(dlg.value.code) : null));
 </script>
 

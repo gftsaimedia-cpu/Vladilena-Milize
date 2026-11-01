@@ -1,13 +1,13 @@
-<script setup>
+<script setup lang="ts">
 // Ngăn kéo Sửa hồ sơ nhân sự (drw-ns-sua-ho-so): thông tin chung, ca cố định, hợp đồng, bảo hiểm, thuế; khoá tài khoản.
 import { computed, ref, watch } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { toast } from '@/components/shell/toast.js';
-import { getStaffOptions, getStaffProfile, lockStaff, saveStaffProfile, unlockStaff } from '@/services/admin-hr.js';
+import { useLoad } from '@/composables/useLoad';
+import { toast } from '@/components/shell/toast';
+import { getStaffOptions, getStaffProfile, lockStaff, saveStaffProfile, unlockStaff } from '@/services/admin-hr';
 import FldInput from './fields/FldInput.vue';
-import { useSessionStore } from '@/stores/session.js';
+import { useSessionStore } from '@/stores/session';
 import FldSelect from './fields/FldSelect.vue';
 import StaffTrace from './StaffTrace.vue';
 
@@ -29,7 +29,7 @@ const levels = computed(() => {
     ? list
     : [{ value: form.value?.level || '', label: '—' }, ...list];
 });
-function onType(type) {
+function onType(type?) {
   form.value.type = type;
   form.value.level = opts.value.levels[type]?.[0]?.value || '';
 }
@@ -40,7 +40,7 @@ const CHECKS = [
 ];
 
 const busy = ref(false);
-async function run(fn) {
+async function run(fn?) {
   if (busy.value) return;
   busy.value = true;
   try {

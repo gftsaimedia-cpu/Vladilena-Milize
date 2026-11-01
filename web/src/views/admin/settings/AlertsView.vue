@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Cài đặt › Cảnh báo AI: 24 ngưỡng AI dùng khi kiểm tra dữ liệu, chia nhóm, gõ mức ngay trong ô.
 // Đề xuất = AI đang dùng, công ty chưa xác nhận · Đã chốt = công ty đã xác nhận.
 import { computed, ref } from 'vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { toast } from '@/components/shell/toast.js';
-import { getAgents, getAlerts, saveAgents, saveAlerts } from '@/services/admin-settings.js';
-import { useSessionStore } from '@/stores/session.js';
+import { useLoad } from '@/composables/useLoad';
+import { toast } from '@/components/shell/toast';
+import { getAgents, getAlerts, saveAgents, saveAlerts } from '@/services/admin-settings';
+import { useSessionStore } from '@/stores/session';
 import SettingsFrame from './SettingsFrame.vue';
 import CheckBox from './fields/CheckBox.vue';
 import FieldDate from './fields/FieldDate.vue';
 import FieldNum from './fields/FieldNum.vue';
 import SaveBar from './fields/SaveBar.vue';
-import { useDraft } from './lib/useDraft.js';
+import { useDraft } from './lib/useDraft';
 
 const { data } = useLoad(() => getAlerts());
 const form = useDraft(() => data.value);
@@ -25,7 +25,7 @@ getAgents()
   .then(r => (agents.value = r.enabled))
   .catch(e => toast.error(e.message))
   .finally(() => (agentsBusy.value = false));
-async function setAgents(on) {
+async function setAgents(on?) {
   agentsBusy.value = true;
   try {
     const r = await saveAgents(on);

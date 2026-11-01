@@ -1,17 +1,17 @@
-<script setup>
+<script setup lang="ts">
 // Mục lục 112 màn của bộ thiết kế 22/10: mỗi dòng mở đúng màn, kịch bản dữ liệu giả và hộp thoại tương ứng trong bản Vue.
 // Mỗi nhóm khai danh sách của mình trong src/design-index/<nhóm>.js.
 import { computed } from 'vue';
-import adminAttendance from '@/design-index/admin-attendance.js';
-import adminMain from '@/design-index/admin-main.js';
-import adminPayroll from '@/design-index/admin-payroll.js';
-import adminSettings from '@/design-index/admin-settings.js';
-import payslip from '@/design-index/payslip.js';
-import staffDesktop from '@/design-index/staff-desktop.js';
-import staffPhone from '@/design-index/staff-phone.js';
+import adminAttendance from '@/design-index/admin-attendance';
+import adminMain from '@/design-index/admin-main';
+import adminPayroll from '@/design-index/admin-payroll';
+import adminSettings from '@/design-index/admin-settings';
+import payslip from '@/design-index/payslip';
+import staffDesktop from '@/design-index/staff-desktop';
+import staffPhone from '@/design-index/staff-phone';
 
 const TOTAL = 112; // số màn của bộ thiết kế 22/10
-const GROUPS = [
+const GROUPS: any[] = [
   ['Admin · Tổng quan, Yêu cầu, Trợ lý AI, vỏ', adminMain],
   ['Admin · Chấm công, Nhân sự, Đánh giá KPI', adminAttendance],
   ['Admin · Cài đặt', adminSettings],
@@ -20,7 +20,7 @@ const GROUPS = [
   ['Nhân viên · điện thoại', staffPhone],
   ['Nhân viên · máy tính, Đăng nhập', staffDesktop]
 ];
-const count = computed(() => GROUPS.reduce((n, [, items]) => n + items.length, 0));
+const count = computed(() => GROUPS.reduce((n, [, items]: any) => n + items.length, 0));
 </script>
 
 <template>

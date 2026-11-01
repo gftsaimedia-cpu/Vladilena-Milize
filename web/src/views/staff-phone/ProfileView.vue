@@ -1,11 +1,11 @@
-<script setup>
+<script setup lang="ts">
 // Tôi: "Thông tin công ty đang giữ về tôi có đúng không?" → thông tin hồ sơ trước; đổi mật khẩu và đăng xuất là các dòng.
 import { useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad.js';
-import { getProfile, logout } from '@/services/staff-phone.js';
+import { useLoad } from '@/composables/useLoad';
+import { getProfile, logout } from '@/services/staff-phone';
 import ChangePasswordSheet from './components/ChangePasswordSheet.vue';
-import { useHop } from './useHop.js';
+import { useHop } from './useHop';
 
 const router = useRouter();
 const { data } = useLoad(() => getProfile());
