@@ -245,7 +245,7 @@
     // Giờ nghỉ đêm có lương (Off Paid) theo cờ type.<mã>.benefit.breakPay, TTS không có. Chỉ false mới tắt: bản chụp
     // và chức vụ thiếu khoá thì vẫn trả, kỳ đã chốt tính lại vẫn đúng số lúc chụp (không cần LATE_KEYS).
     const paidBreakH = (T?, slots?, off?) =>
-      T.breakPay === false ? 0 : slots.reduce((s, x) => s + (off && x.inMain ? 0 : x.paidH), 0);
+      T.breakPay === false ? 0 : slots.reduce((s, x) => s + (x.inMain && !off ? x.paidH : 0), 0);
 
     /* ---- thuế và bảo hiểm ---- */
     const R = {
@@ -494,11 +494,11 @@
         holWorkPay = holWorkH * hourly * HOL_RATE + holNightPay;
       const paidHours = Math.min(hours, HOURS); // không OT
       const slots = breakSlots(d);
-      // Phụ cấp ca (night, Flex) và giờ nghỉ đêm có lương (Off Paid) tính như ngày thường, kể cả ngày có OT được trả: tiền OT cộng thêm,
-      // không thay phụ cấp. Chỉ ngày có giờ làm bù được trả (makeupH > 0) mới không hưởng hai khoản này (ngày đó hưởng lương ngày + lương
-      // giờ làm bù). extraOnly: ngày ngoài lịch chỉ trả đoạn làm thêm đã duyệt (ActualHours.apply): không phụ cấp, không giờ thiếu,
+      // Phụ cấp ca (night, Flex) và Off Paid thuộc ca chính, tính như ngày thường kể cả khi có OT hoặc giờ làm bù: khoản làm thêm cộng thêm,
+      // không thay phụ cấp. Đoạn làm bù chỉ nhận lương giờ và không tạo Off Paid riêng. extraOnly: ngày ngoài lịch chỉ trả đoạn làm thêm
+      // đã duyệt (ActualHours.apply): không phụ cấp, không giờ thiếu,
       // không ngày công, không lương ngày.
-      const noShiftAllowance = makeupH > 0 || !!d.extraOnly;
+      const noShiftAllowance = !!d.extraOnly;
       // Phút nghỉ của ca chính rơi vào ngày lễ đã trả như giờ làm ngày lễ (holMainBreakH), nên không trả thêm Off Paid cho các phút đó
       const breakH = noShiftAllowance ? 0 : Math.max(0, paidBreakH(T, slots, d.breakPayOff) - split.holidayBreakNightH); // chỉ phần nghỉ trong khung đêm ngoài ngày lễ quy đổi thành tiền
       const breakPay = breakH * hourly * (1 + NIGHT_BREAK); // = lương giờ + phụ trội cho mỗi giờ nghỉ trong khung đêm
