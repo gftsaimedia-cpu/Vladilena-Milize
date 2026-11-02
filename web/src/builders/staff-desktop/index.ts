@@ -198,6 +198,15 @@ export function buildDayPanel({ date, sheet, today }: any) {
   const last = list[list.length - 1];
   const first = list[0].entry || {};
   const lastE = last.entry || {};
+  const explainSessions = list.flatMap(s => {
+    const e = s.entry || {};
+    const kind = e.presIn && !e.presOut && e.reason === 'forgot-out' && !e.requestedOut
+      ? 'punch-out'
+      : (e.forgotIn || (!e.presIn && e.presOut)) ? 'punch-in' : null;
+    return s.state === 'closed' && kind && !(s.explanations || []).some((x: any) => x.kind === kind)
+      ? [{ sessionId: s.id, kind, date, prompt: kind === 'punch-in' ? 'Giải trình quên Check-in' : 'Giải trình quên Check-out' }]
+      : [];
+  });
   const head = `${title} · ${first.presIn ? vnHm(first.presIn) : '--:--'} → ${lastE.presOut ? vnHm(lastE.presOut) : 'đang làm'}`;
   const extra: any[] = [];
   if (report && report.late) extra.push(`vào muộn ${report.late} phút`);
@@ -206,7 +215,8 @@ export function buildDayPanel({ date, sheet, today }: any) {
     title: head,
     sub: [...lines, ...(extra.length ? [extra.join(' · ')] : [])].join('  |  '),
     pill: STATUS_LABEL[last.status] ? { text: STATUS_LABEL[last.status], cls: STATUS_PILL[last.status] } : null,
-    action: false
+    action: false,
+    explainSessions
   };
 }
 
