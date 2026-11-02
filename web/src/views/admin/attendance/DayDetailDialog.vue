@@ -155,6 +155,16 @@ function setTime(field: 'checkIn' | 'checkOut', value: string) {
   const selected = data.value?.shiftOptions?.find((x: any) => x.value === form.value.shift);
   if (form.value.shift && (selected?.[field === 'checkIn' ? 'in' : 'out'] !== value)) form.value.shift = '';
 }
+function onTimeInput(field: 'checkIn' | 'checkOut', event: Event) {
+  setTime(field, (event.target as HTMLInputElement).value);
+}
+function showTimePicker(event: MouseEvent) {
+  try {
+    (event.currentTarget as HTMLInputElement).showPicker?.();
+  } catch {
+    // Nếu trình duyệt không mở picker, input giờ vẫn dùng được bằng bàn phím.
+  }
+}
 function addMakeupPlan() { form.value.makeupPlans.push({ date: '', from: '', to: '' }); }
 function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 1); }
 </script>
@@ -212,27 +222,61 @@ function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 
             :options="data.shiftOptions"
             @update:model-value="chooseShift"
           />
-          <FldInput
-            :model-value="form.checkIn"
-            label="Giờ vào"
-            kind="time"
-            icon="clock"
-            @update:model-value="setTime('checkIn', $event)"
-          />
-          <FldInput
-            :model-value="form.checkOut"
-            label="Giờ ra"
-            kind="time"
-            icon="clock"
-            @update:model-value="setTime('checkOut', $event)"
-          />
+          <div class="fld">
+            <label for="day-check-in">Giờ vào</label>
+            <div class="inp native-time">
+              <input
+                id="day-check-in"
+                type="time"
+                step="60"
+                :value="form.checkIn"
+                @input="onTimeInput('checkIn', $event)"
+                @click="showTimePicker"
+              />
+            </div>
+          </div>
+          <div class="fld">
+            <label for="day-check-out">Giờ ra</label>
+            <div class="inp native-time">
+              <input
+                id="day-check-out"
+                type="time"
+                step="60"
+                :value="form.checkOut"
+                @input="onTimeInput('checkOut', $event)"
+                @click="showTimePicker"
+              />
+            </div>
+          </div>
           <FldInput v-model="form.breakMin" label="Ra ngoài giữa giờ (phút)" kind="number" />
         </template>
         <template v-if="form.kind === 'work'">
           <FldSelect v-model="form.extraKind" label="Làm thêm" :options="extraOptions" />
           <template v-if="form.extraKind">
-            <FldInput v-model="form.extraIn" label="Giờ bắt đầu (trước ca)" kind="time" icon="clock" />
-            <FldInput v-model="form.extraOut" label="Giờ kết thúc (sau ca)" kind="time" icon="clock" />
+            <div class="fld">
+              <label for="day-extra-in">Giờ bắt đầu (trước ca)</label>
+              <div class="inp native-time">
+                <input
+                  id="day-extra-in"
+                  v-model="form.extraIn"
+                  type="time"
+                  step="60"
+                  @click="showTimePicker"
+                />
+              </div>
+            </div>
+            <div class="fld">
+              <label for="day-extra-out">Giờ kết thúc (sau ca)</label>
+              <div class="inp native-time">
+                <input
+                  id="day-extra-out"
+                  v-model="form.extraOut"
+                  type="time"
+                  step="60"
+                  @click="showTimePicker"
+                />
+              </div>
+            </div>
           </template>
         </template>
       </div>
@@ -243,8 +287,30 @@ function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 
             :label="`Ngày làm bù${form.makeupPlans.length > 1 ? ` ${Number(index) + 1}` : ''}`"
             kind="date"
           />
-          <FldInput v-model="plan.from" label="Giờ bắt đầu" kind="time" />
-          <FldInput v-model="plan.to" label="Giờ kết thúc" kind="time" />
+          <div class="fld">
+            <label :for="`makeup-from-${index}`">Giờ bắt đầu</label>
+            <div class="inp native-time">
+              <input
+                :id="`makeup-from-${index}`"
+                v-model="plan.from"
+                type="time"
+                step="60"
+                @click="showTimePicker"
+              />
+            </div>
+          </div>
+          <div class="fld">
+            <label :for="`makeup-to-${index}`">Giờ kết thúc</label>
+            <div class="inp native-time">
+              <input
+                :id="`makeup-to-${index}`"
+                v-model="plan.to"
+                type="time"
+                step="60"
+                @click="showTimePicker"
+              />
+            </div>
+          </div>
           <button
             v-if="form.makeupPlans.length > 1"
             type="button"
@@ -350,6 +416,22 @@ function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 
   color: var(--muted);
   font-size: 12px;
   margin: 12px 0 0;
+}
+.native-time:focus-within {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px #e9e9e9;
+}
+.native-time input[type='time'] {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
 }
 .btn.sm { min-height: 36px; }
 .none {

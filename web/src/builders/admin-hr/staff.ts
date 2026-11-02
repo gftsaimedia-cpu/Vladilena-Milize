@@ -13,6 +13,11 @@ export const INSURANCE_OPTIONS = [
   { value: 'yes', label: 'Có' },
   { value: 'no', label: 'Không' }
 ];
+export const CONTRACT_STATUS_OPTIONS = [
+  { value: '', label: 'Chưa xác định' },
+  { value: 'probation', label: 'Thử việc' },
+  { value: 'official', label: 'Chính thức' }
+];
 const NO_SHIFT = 'Chưa có ca';
 
 /** Bỏ dấu, hạ chữ thường để tìm không phân biệt dấu. */
@@ -186,7 +191,7 @@ export function buildProfile(raw?, positionsRes?, catalogRes?, scheduleRes?) {
   const levelName = raw.levelName || (lvl && lvl.name) || String(raw.level);
   const typeLabel = pos ? pos.label : raw.type;
   const catalogShift = raw.shiftCode ? ctx.shiftByCode.get(raw.shiftCode) || null : null;
-  const leave = raw.leave ? `cộng ${raw.leave.total} · dùng ${raw.leave.used} · còn ${raw.leave.balance}` : '—';
+  const leave = raw.leave && Number.isFinite(raw.leave.balance) ? raw.leave.balance : null;
   return {
     username: raw.username,
     name: raw.name,
@@ -199,10 +204,10 @@ export function buildProfile(raw?, positionsRes?, catalogRes?, scheduleRes?) {
     start: raw.startDate || null,
     birth: raw.birthday || null,
     birthHidden: !Object.hasOwn(raw, 'birthday'),
-    leaveAdjust: raw.leaveAdjust || 0,
     iDorm: !!raw.idorm,
     scheduleText: scheduleText(scheduleRes),
     contract: CONTRACT_TO_V2[raw.contract] || '',
+    contractStatus: Object.hasOwn(raw, 'contractStatus') ? raw.contractStatus : undefined,
     dependents: raw.dependants || 0,
     insurance: raw.insuredExplicit ? (raw.insured ? 'yes' : 'no') : 'default',
     taxDeduct: raw.taxOn !== false,
@@ -238,10 +243,12 @@ export function toStaffPutBody(draft?, ver?, shifts: any[] = []) {
     level: Number(draft.level),
     shiftCode: draft.shift ? catalogCode || draft.shiftCode || null : null,
     startDate: orNull(draft.start),
-    leaveAdjust: Number(draft.leaveAdjust) || 0,
-    jobTitle: draft.title || '',
     idorm: !!draft.iDorm
   };
+  if (Object.hasOwn(draft, 'title')) body.jobTitle = draft.title || '';
+  if (Object.hasOwn(draft, 'leaveAdjust')) body.leaveAdjust = Number(draft.leaveAdjust) || 0;
+  if (Object.hasOwn(draft, 'contractStatus') && draft.contractStatus !== undefined)
+    body.contractStatus = draft.contractStatus || null;
   if (!draft.birthHidden) body.birthday = orNull(draft.birth);
   if (typeof draft.payrollSubject === 'boolean') body.payrollSubject = draft.payrollSubject;
   if (!draft.payHidden) {
@@ -255,7 +262,7 @@ export function toStaffPutBody(draft?, ver?, shifts: any[] = []) {
   return body;
 }
 
-/** Thân tạo nhân sự mới (PUT /staff/:u, tên đăng nhập đi trong đường dẫn). */
+/** Thân tạo nhân sự mới (POST /staff; thông tin đăng nhập do máy chủ tạo). */
 export function toNewStaffBody(form?, shifts: any[] = []) {
   const catalogCode = form.shift ? (shifts.find(s => s.preset === form.shift) || {}).code : null;
   return {
@@ -266,9 +273,8 @@ export function toNewStaffBody(form?, shifts: any[] = []) {
     shiftCode: form.shift ? catalogCode || null : null,
     startDate: orNull(form.start),
     birthday: orNull(form.birth),
-    leaveAdjust: Number(form.leaveAdjust) || 0,
     jobTitle: form.title || '',
-    password: form.password
+    contractStatus: form.contractStatus || null
   };
 }
 

@@ -42,16 +42,17 @@ const dayRows = computed(() =>
 const stats = computed(() => {
   const s = props.sheet.stats;
   return [
-    ['Ngày công', `${s.count} ngày`],
+    ['Ngày công', s.count == null ? '—' : `${s.count} ngày`],
     ['Ca Flex · Night', `${s.flex} · ${s.night} ca`],
-    ['Nghỉ phép · iSAT', `${s.leave} · ${s.isat} ngày`],
-    ['Nghỉ không lương', `${s.unpaid} ngày`],
+    ['Nghỉ phép · iSAT', `${num(s.leave)} · ${num(s.isat)} ngày`],
+    ['Nghỉ không lương', s.unpaid == null ? '—' : `${s.unpaid} ngày`],
     ['Làm thêm OT', `${num(s.otHours)} giờ`],
     ['Đi muộn, về sớm', `${num(s.short)} giờ`]
   ];
 });
 
 const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
+const cutText = (value?) => (value === 0 ? vnd(value) : `−${vnd(value)}`);
 </script>
 
 <template>
@@ -71,6 +72,9 @@ const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
         </div>
         <div>
           <span>Tình trạng</span><b>{{ sheet.status }}</b>
+        </div>
+        <div v-if="sheet.employeeStatus">
+          <span>Trạng thái nhân sự</span><b>{{ sheet.employeeStatus }}</b>
         </div>
         <div>
           <span>Kỳ lương</span><b>Tháng {{ tail }}</b>
@@ -114,7 +118,7 @@ const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
             </td>
             <template v-if="d.off">
               <td colspan="2" class="cnote">{{ d.note }}</td>
-              <td :class="{ z: !d.total }">{{ vnd(d.total ? d.daily : 0) }}</td>
+              <td :class="{ z: d.total == null || d.total === 0 }">{{ d.daily == null ? '—' : vnd(d.total === 0 ? 0 : d.daily) }}</td>
               <td><span class="zz">—</span></td>
               <td><span class="zz">—</span></td>
               <td><span class="zz">—</span></td>
@@ -125,21 +129,25 @@ const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
               <td>{{ num(d.hours) }}</td>
               <td>{{ vnd(d.daily) }}</td>
               <td>
-                <template v-if="d.bonus || d.breakPay">
-                  <template v-if="d.bonus">+{{ vnd(d.bonus) }}</template>
+                <template v-if="d.bonus != null || d.breakPay != null">
+                  <template v-if="d.bonus != null">+{{ vnd(d.bonus) }}</template>
                   <span v-else class="zz">—</span>
-                  <i v-if="d.breakPay">+{{ vnd(d.breakPay) }} Off Paid</i>
+                  <i v-if="d.breakPay > 0">+{{ vnd(d.breakPay) }} Off Paid</i>
+                  <span v-else-if="d.breakPay === 0">+{{ vnd(d.breakPay) }} Off Paid</span>
                 </template>
                 <span v-else class="zz">—</span>
               </td>
               <td>
-                <template v-if="d.otH">
-                  +{{ vnd(d.otPay) }}<i>{{ num(d.otH) }} giờ, đến {{ d.otUntil }}</i>
+                <template v-if="d.otH != null || d.otPay != null">
+                  <span v-if="d.otPay != null">+{{ vnd(d.otPay) }}</span>
+                  <span v-else class="zz">—</span>
+                  <i v-if="d.otH > 0">{{ num(d.otH) }} giờ<span v-if="d.otUntil">, đến {{ d.otUntil }}</span></i>
+                  <span v-else-if="d.otH === 0"> · 0 giờ</span>
                 </template>
                 <span v-else class="zz">—</span>
               </td>
               <td>
-                <span v-if="d.cut" class="neg">−{{ vnd(d.cut) }}</span>
+                <span v-if="d.cut != null" class="neg">{{ cutText(d.cut) }}</span>
                 <span v-else class="zz">—</span>
               </td>
               <td class="b">{{ vnd(d.total) }}</td>
@@ -205,7 +213,7 @@ const cellClass = (v?, bold?) => (isZero(v) ? 'z' : bold ? 'b' : '');
             <tr v-else>
               <td>{{ row.label }}</td>
               <td :class="cellClass(row.std, row.b)">{{ cellText(row.std) }}</td>
-              <td :class="cellClass(row.act, row.b)">{{ cellText(row.act) }}</td>
+              <td :class="cellClass(row.act, row.b)">{{ row.act == null ? '—' : cellText(row.act) }}</td>
             </tr>
           </template>
         </tbody>
@@ -313,7 +321,7 @@ h1 {
 }
 .a4-who {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
   border: 1px solid #e0e0e0;
   border-radius: 10px;
   margin: 14px 0 12px;

@@ -1,5 +1,6 @@
 import { AUDIT, AUTH, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from '../../core/tokens';
 import { Controller, Get, Post, Put, Inject } from '@nestjs/common';
+const crypto = require('node:crypto');
 import { Ctx, ApiContext } from '../../http/api-context';
 import { Reply } from '../../http/reply';
 import { reasonOf } from '../../shared/reason';
@@ -225,16 +226,64 @@ export class StaffController {
     return { username, roles: await rolesOfStaff(await this.store.getStaff(username)), ...outcome };
   }
 
+  @Post('staff')
+  async createStaff(@Ctx() c: ApiContext): Promise<unknown> {
+    const { req, needAdmin } = c;
+    needAdmin();
+    const body = (await readJson(req)) || {};
+    const name = String(body.name || '').trim();
+    if (!name) throw new HttpError(400, 'Thiếu họ tên');
+    const slug =
+      name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/gi, 'd')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 24) || 'nhan-vien';
+    const password = crypto.randomBytes(24).toString('base64url');
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const username = `${slug}-${crypto.randomBytes(4).toString('hex')}`;
+      if (await this.store.getStaffRow(username)) continue;
+      try {
+        return await this.saveStaff(c, {
+          username,
+          body: { ...body, role: 'staff', password },
+          insertOnly: true,
+          credentials: { username, password }
+        });
+      } catch (error) {
+        if (error && error.details && error.details.code === 'STAFF_USERNAME_COLLISION') continue;
+        throw error;
+      }
+    }
+    throw new HttpError(503, 'Không tạo được tên đăng nhập duy nhất, vui lòng thử lại');
+  }
+
   @Put('staff/:u')
   async putStaff(@Ctx() c: ApiContext): Promise<unknown> {
+    return await this.saveStaff(c);
+  }
+
+  private async saveStaff(
+    c: ApiContext,
+    options: {
+      username?: string;
+      body?: any;
+      insertOnly?: boolean;
+      credentials?: { username: string; password: string };
+    } = {}
+  ): Promise<unknown> {
     const { req, res, me, seg, actx, needAdmin } = c;
     const admin = needAdmin();
-    let username;
-    try {
-      username = decodeURIComponent(seg[2]).toLowerCase();
-    } catch {
-      throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
-    }
+    let username = options.username;
+    if (!username)
+      try {
+        username = decodeURIComponent(seg[2]).toLowerCase();
+      } catch {
+        throw new HttpError(400, 'Tên đăng nhập không hợp lệ');
+      }
     if (!USERNAME_RE.test(username)) throw new HttpError(400, 'Tên đăng nhập: chữ thường, số, dấu . _ - (2–40 ký tự)');
     const prev = await this.store.getStaffRow(username);
     // Khoá hoặc mở khoá tài khoản đang giữ vai trò Admin cần năng lực quản lý vai trò (staff.lock gán được cho vai trò tuỳ chỉnh: không đủ để
@@ -249,7 +298,7 @@ export class StaffController {
       if (locking && !prev.locked_at && (await this.store.roles.countAdmins()) < 2)
         throw new HttpError(409, 'Không được khoá quản trị viên cuối cùng', { code: 'LAST_ADMIN' });
     };
-    const b = await readJson(req);
+    const b = options.body || (await readJson(req));
     // expectedRev (tuỳ chọn): số phiên bản hồ sơ Admin đã thấy (trường rev của GET /api/staff); lệch thì 409 STAFF_STALE và không ghi gì.
     // Thiếu expectedRev thì ghi đè. Mọi kiểm tra và ghi sau đây chạy đồng bộ cùng một lượt xử lý, không có ai chen vào giữa.
     if (b.expectedRev !== undefined && b.expectedRev !== null) {
@@ -384,7 +433,8 @@ export class StaffController {
     warnIf('START_DATE_REQUIRED', needsLevel && staffParams[`type.${type}.startDateRequired`] === true && !startDate, {
       message: 'Chức vụ này cần ngày bắt đầu làm: chưa có ngày thì số phép năm của người này chưa tính được.'
     });
-    const leaveAdjust = Math.round((Number(b.leaveAdjust) || 0) * 2) / 2;
+    const leaveAdjust =
+      b.leaveAdjust === undefined ? Number(prev?.leave_adjust) || 0 : Math.round((Number(b.leaveAdjust) || 0) * 2) / 2;
     if (Math.abs(leaveAdjust) > 365) throw new HttpError(400, 'Điều chỉnh phép tối đa ±365 ngày');
     // thuế TNCN / BH bắt buộc: thiếu trường (giao diện cũ) thì giữ giá trị đang lưu; null = dùng mặc định theo loại nhân sự
     const contract =
@@ -513,35 +563,42 @@ export class StaffController {
       throw new HttpError(400, 'Không thể tự bỏ quyền Admin của mình');
     // Hồ sơ và dòng duyệt đổi cùng nhau hoặc không đổi gì
     const staffBefore = prev ? await this.store.getStaff(username) : null;
+    let createdLeave: any = null;
     await this.store.transaction(async () => {
-      await this.store.upsertStaff({
-        username,
-        name,
-        role,
-        type,
-        level,
-        nightPct,
-        idorm,
-        shiftCode,
-        passHash,
-        createdAt: prev?.created_at,
-        startDate,
-        birthday,
-        leaveAdjust,
-        contract,
-        insured,
-        dependants,
-        jobTitle,
-        ...(payrollSubject === undefined ? {} : { payrollSubject }),
-        ...flags,
-        ...(nameParts ? { familyName: nameParts.familyName, givenName: nameParts.givenName } : {}),
-        contractStatus,
-        resignedOn
-      });
+      const inserted = await this.store.upsertStaff(
+        {
+          username,
+          name,
+          role,
+          type,
+          level,
+          nightPct,
+          idorm,
+          shiftCode,
+          passHash,
+          createdAt: prev?.created_at,
+          startDate,
+          birthday,
+          leaveAdjust,
+          contract,
+          insured,
+          dependants,
+          jobTitle,
+          ...(payrollSubject === undefined ? {} : { payrollSubject }),
+          ...flags,
+          ...(nameParts ? { familyName: nameParts.familyName, givenName: nameParts.givenName } : {}),
+          contractStatus,
+          resignedOn
+        },
+        { insertOnly: options.insertOnly }
+      );
+      if (!inserted)
+        throw new HttpError(409, 'Tên đăng nhập vừa được tạo, đang thử tên khác', { code: 'STAFF_USERNAME_COLLISION' });
       if (needsLevel && (!prev || prev.type !== type || payrollSubject === true))
         await reconcileStaffType(username, type);
       // Hồ sơ không nhạy cảm có cũ, mới; trường tiền có mức pay; ngày sinh chỉ ghi "đã đổi"; mật khẩu chỉ ghi cờ
       const staffAfter = await this.store.getStaff(username);
+      if (options.credentials) createdLeave = await this.domain.leave.refresh(staffAfter);
       // Tắt payrollSubject thì vai trò staff đã gán cũng được thu hồi (staff = nhân sự được trả lương); bật thì staff tự dẫn xuất
       if (!staffAfter.payrollSubject && (await this.store.roles.activeRoles(username)).includes('staff'))
         await this.store.roles.revoke(username, 'staff');
@@ -572,7 +629,10 @@ export class StaffController {
         if (changed) await this.audit.staffLock(actx, username, b.locked);
       });
     if (b.locked === true) this.events.closeUser(username, 'locked');
-    const result = { staff: await staffForViewer(me, await this.store.getStaff(username)), created: !prev };
+    let staff = await this.store.getStaff(username);
+    if (createdLeave) staff = { ...staff, leave: { balance: createdLeave.balance } };
+    const result: any = { staff: await staffForViewer(me, staff), created: !prev };
+    if (options.credentials) result.credentials = options.credentials;
     // Admin tự đặt lại mật khẩu của mình: phiên hiện tại vừa bị thu hồi, cấp phiên mới cho trình duyệt đang dùng
     if (b.password && prev && username === admin.username)
       return new Reply(200, result, {

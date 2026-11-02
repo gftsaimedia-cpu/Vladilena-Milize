@@ -17,7 +17,7 @@ Tài liệu này hướng dẫn Claude dùng plugin **superpowers** để tự c
 | 1 | Làm rõ yêu cầu & thiết kế | `superpowers:brainstorming` | Spec `docs/superpowers/specs/YYYY-MM-DD-<chủ đề>-design.md` | **Có** (cổng cứng) |
 | 2 | Tạo workspace tách biệt | `superpowers:using-git-worktrees` | Worktree + nhánh riêng | Không |
 | 3 | Lập kế hoạch | `superpowers:writing-plans` | Plan `docs/superpowers/plans/YYYY-MM-DD-<tên>.md` | **Có** (duyệt plan + chọn cách chạy) |
-| 4 | Thực thi | `superpowers:subagent-driven-development` (mặc định) hoặc `superpowers:executing-plans` | Code + test + commit theo từng task | Không — chạy liên tục |
+| 4 | Thực thi | `superpowers:subagent-driven-development` với worker Luna theo `AGENTS.md` và skill addon | Code + test + commit theo từng task | Không — chạy liên tục |
 | 5 | Review cuối | `superpowers:requesting-code-review` | Báo cáo review toàn nhánh | Không |
 | 6 | Xác minh | `superpowers:verification-before-completion` | Bằng chứng: lệnh chạy + kết quả | Không |
 | 7 | Kết thúc nhánh | `superpowers:finishing-a-development-branch` | Merge / PR / giữ nhánh | **Có** (chọn 1 trong 3) |
@@ -44,8 +44,8 @@ Phân vân giữa hai loại → chọn loại nặng hơn. Gặp độ phức t
 Sau khi người dùng đã duyệt spec và plan, và chọn cách thực thi:
 
 1. **Chạy liên tục.** Không hỏi "có tiếp tục không?" giữa các task, không báo cáo tiến độ giữa chừng. Mỗi lần gọi tool chỉ ghi tối đa một dòng.
-2. **Mỗi task** (subagent-driven-development): một implementer subagent mới → TDD + commit + tự review → task reviewer kiểm tra **đúng spec** và **chất lượng code**. Chưa qua cả hai thì chưa đánh dấu xong. Tối đa 5 vòng sửa mỗi task.
-3. **Trạng thái implementer trả về**: `DONE` → review; `DONE_WITH_CONCERNS` → đọc lo ngại, nếu liên quan đúng/sai hoặc phạm vi thì xử lý trước khi review; `NEEDS_CONTEXT` → bổ sung thông tin rồi giao lại; `BLOCKED` → đánh giá nguyên nhân, đổi cách hoặc dùng model mạnh hơn.
+2. **Mỗi task**: một Luna implementer (có thể kiêm operator cho worktree) → TDD + tự review → lead review **đúng spec** và **chất lượng code**; có thể dùng Luna reviewer riêng. Lead giao correction cho cùng implementer. Chưa qua cả hai review thì chưa xong. Tối đa 5 vòng sửa mỗi task.
+3. **Trạng thái implementer trả về**: `DONE` → review; `DONE_WITH_CONCERNS` → đọc lo ngại, nếu liên quan đúng/sai hoặc phạm vi thì xử lý trước khi review; `NEEDS_CONTEXT` → bổ sung thông tin rồi giao lại; `BLOCKED` → lead chẩn đoán, thu nhỏ task và giao lại cùng worker Luna theo skill addon.
 4. **Tự phán quyết, không đứng chờ.** Mâu thuẫn, mơ hồ, lỗi trong plan → tự quyết (spec là căn cứ cao nhất, plan là lập luận của spec) và ghi vào ledger: `Ruling: <quyết định> — <lý do> — <rủi ro nếu sai>`.
 5. **Hết task** → review toàn nhánh một lượt → nếu có lỗi: một đợt sửa + một lần review lại có phạm vi hẹp → sang giai đoạn 6–7.
 
@@ -107,7 +107,7 @@ npm run params:check   # kiểm tra khoá tham số lương
 Người dùng chỉ cần nêu mục tiêu bằng một câu. Claude sẽ:
 
 1. Gọi `brainstorming`, phân loại, hỏi từng câu, trình bày thiết kế/spec → **người dùng duyệt**.
-2. Gọi `writing-plans` → **người dùng duyệt plan và chọn cách chạy** (nên chọn subagent-driven).
+2. Gọi `writing-plans` → **người dùng duyệt plan**; thực thi theo chế độ worker Luna trong `AGENTS.md`.
 3. Tự chạy các giai đoạn 2 → 6 không ngắt quãng.
 4. Gọi `finishing-a-development-branch` → **người dùng chọn cách tích hợp**.
 

@@ -186,6 +186,7 @@ const ROUTE_CAPS = Object.freeze({
   // Công tắc ngày và vùng GPS: không theo tháng, có nhật ký
   'PUT /settings/geofence': write(readCap('config.payroll')),
   'GET /staff': readCap('profile.read'),
+  'POST /staff': write(readCap('profile.write')),
   'GET /team': readCap('payroll.view'),
   'PUT /staff/:u': write(readCap('profile.write')),
   'PUT /staff/shift-bulk': write(readCap('profile.write')),
@@ -312,6 +313,7 @@ function routeKey(method?, seg?) {
   if (seg[1] === 'roles' && seg.length === 4) return `${method} /roles/:code/${seg[3]}`;
   if (seg.length === 4 && seg[1] === 'staff' && seg[3] === 'roles') return `${method} /staff/:u/roles`;
   if (seg.length === 4 && seg[1] === 'staff' && seg[3] === 'password') return `${method} /staff/:u/password`;
+  if (seg.length === 2 && seg[1] === 'staff' && method === 'POST') return 'POST /staff';
   if (seg.length === 3 && seg[1] === 'staff' && method === 'PUT') return 'PUT /staff/:u';
   return `${method} /${seg.slice(1, 3).join('/')}`;
 }

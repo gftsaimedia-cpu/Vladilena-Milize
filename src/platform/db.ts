@@ -1144,13 +1144,13 @@ module.exports = {
   },
   // contractStatus / resignedOn: undefined = giữ giá trị đang lưu, null = xoá. Họ/tên tách từ name; familyName + givenName chỉ được dùng khi
   // ghép lại đúng bằng name (Admin nhập riêng tên hai chữ), lệch thì name mới thắng (đổi tên mà còn họ/tên cũ trong đối tượng).
-  async upsertStaff(s?) {
+  async upsertStaff(s?, { insertOnly = false }: any = {}) {
     const flag = (v?) => (v == null ? null : v ? 1 : 0);
     const given = PersonName.from({ familyName: s.familyName, givenName: s.givenName });
     const parts = given.fullName && given.fullName === titleCase(s.name) ? given : PersonName.parse(s.name);
     // Ca cố định luôn lưu mã mới (Normal1 …); người gọi còn gửi mã cũ (n1 …) thì đổi theo bảng work_shifts, mã lạ giữ nguyên
     const shift = s.shiftCode ? await staffRepo.shiftByCodeOrPreset(s.shiftCode) : null;
-    await staffRepo.upsert(
+    return await staffRepo.upsert(
       {
         username: s.username,
         name: s.name,
@@ -1184,7 +1184,8 @@ module.exports = {
         payrollSubjectOverride: flag(s.payrollSubject),
         keepContractStatus: s.contractStatus === undefined,
         keepResignedOn: s.resignedOn === undefined
-      }
+      },
+      { insertOnly }
     );
   },
   // tất cả bảng chấm công của một người (để đếm ngày nghỉ phép năm qua các tháng)

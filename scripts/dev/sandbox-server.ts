@@ -17,8 +17,19 @@ FrozenDate.prototype = NativeDate.prototype;
 FrozenDate.now = () => clock;
 (global as any).Date = FrozenDate;
 
-// Cố ý ghi đè cả cấu hình từ shell: không thể trỏ sandbox vào DB thật.
-process.env.DB_PATH = ':memory:';
+// Mặc định sandbox luôn cô lập trong RAM. Chỉ dùng DB thật khi cấu hình opt-in rõ ràng.
+const sandboxDatabaseUrl = process.env.SANDBOX_DATABASE_URL;
+const connectedDatabaseName = sandboxDatabaseUrl ? new URL(sandboxDatabaseUrl).pathname.replace(/^\//, '') : null;
+const connectedToMainDatabase = Boolean(sandboxDatabaseUrl);
+if (sandboxDatabaseUrl) {
+  process.env.DATABASE_URL = sandboxDatabaseUrl;
+  delete process.env.PG_TEST_URL;
+  delete process.env.DB_PATH;
+} else {
+  delete process.env.DATABASE_URL;
+  delete process.env.PG_TEST_URL;
+  process.env.DB_PATH = ':memory:';
+}
 process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.SESSION_COOKIE_NAME = 'luong_sandbox_sid';
 process.env.SESSION_DAYS = '14';
@@ -99,7 +110,24 @@ async function resetSyntheticData() {
   await store.roles.grant('qa_cb', 'cb', 'qa_admin');
   selectedUser = 'qa_nv';
 }
-const seeded = resetSyntheticData();
+async function seedConnectedFixtures() {
+  const passHash = auth.hashPassword(crypto.randomBytes(24).toString('hex'));
+  const startDate = INITIAL_LOCAL.slice(0, 10);
+  let addedCb = false;
+  for (const profile of profileDefaults) {
+    const inserted = await store.upsertStaff({ ...profile, passHash, startDate }, { insertOnly: true });
+    if (inserted && profile.username === 'qa_cb') addedCb = true;
+  }
+  if (addedCb) {
+    await store.setPayrollSubject('qa_cb', false);
+    await store.roles.grant('qa_cb', 'cb', 'qa_admin');
+  }
+  const staff = await store.listStaff();
+  selectedUser = profileDefaults.find(profile => staff.some(person => person.username === profile.username))?.username;
+  if (!selectedUser) selectedUser = staff[0]?.username;
+  if (!selectedUser) throw new Error('Không có tài khoản để mở sandbox');
+}
+const seeded = connectedToMainDatabase ? seedConnectedFixtures() : resetSyntheticData();
 
 const localTime = () => new NativeDate(clock + 7 * 3600000).toISOString().slice(0, 19);
 const state = async () => ({
@@ -107,6 +135,9 @@ const state = async () => ({
   local: localTime(),
   user: selectedUser,
   initialLocal: INITIAL_LOCAL,
+  databaseMode: connectedToMainDatabase ? 'main' : 'isolated',
+  databaseName: connectedDatabaseName,
+  resetAllowed: !connectedToMainDatabase,
   users: (await store.listStaff()).map(({ username, name, role, type, shiftCode }: any) => ({
     username,
     name,
@@ -227,6 +258,8 @@ const sandbox = http.createServer(async (req, res) => {
           return send(res, 400, { error: 'Không có tài khoản thử nghiệm này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
+        if (connectedToMainDatabase)
+          return send(res, 403, { error: 'Đã tắt đặt lại dữ liệu khi sandbox nối DB chính.' });
         if (data.confirm !== true) return send(res, 400, { error: 'Cần xác nhận đặt lại dữ liệu thử' });
         await resetSyntheticData();
       } else return send(res, 404, { error: 'Không có chức năng này' });

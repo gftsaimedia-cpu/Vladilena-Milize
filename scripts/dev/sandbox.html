@@ -111,6 +111,16 @@
         padding: 6px 8px;
         white-space: nowrap;
       }
+      .main-db-warning {
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border: 1px solid #e4a1a1;
+        border-radius: 7px;
+        background: #fff0f0;
+        color: #8c2424;
+        font-size: 13px;
+        font-weight: 650;
+      }
       h1 {
         font-size: 19px;
         line-height: 1.3;
@@ -455,10 +465,10 @@
     <header class="toolbar">
       <div class="heading">
         <div class="identity">
-          <span class="badge">BẢN TEST</span>
+          <span id="environment-badge" class="badge">BẢN TEST</span>
           <div>
             <h1>Thử chấm công</h1>
-            <p class="subtitle">Dữ liệu riêng · Đặt lại khi khởi động lại bản test</p>
+            <p id="database-subtitle" class="subtitle">Dữ liệu riêng · Đặt lại khi khởi động lại bản test</p>
           </div>
         </div>
         <div class="clock">Giờ đang áp dụng · Việt Nam (UTC+7)<strong id="applied-time">Đang tải…</strong></div>
@@ -487,6 +497,7 @@
         <button id="ops-open" type="button" disabled>Tải &amp; sao lưu</button>
         <button id="reset-open" type="button" class="reset danger" disabled>Xóa dữ liệu thử</button>
       </div>
+      <p id="main-db-warning" class="main-db-warning" hidden></p>
       <div class="support">
         <p>Chọn giờ → bấm Check-in / Check-out → đổi sang Admin xem dữ liệu. Lịch ước tính được nhập riêng.</p>
         <details>

@@ -16,6 +16,15 @@ import {
 const CELL = { pending: 'w', rejected: 'q', 'checked-in': 'in', 'checked-out': 'ok', approved: 'ok', admin: 'ok' };
 const RANK = ['pending', 'rejected', 'checked-in', 'checked-out', 'approved', 'admin'];
 const COUNTED = new Set<any>(['checked-in', 'checked-out', 'approved', 'admin']);
+const DAY_KIND: Record<string, { text: string; label: string }> = {
+  work: { text: 'LV', label: 'Khai ngày làm việc' },
+  leave: { text: 'PN', label: 'Nghỉ phép năm' },
+  unpaid: { text: 'KL', label: 'Nghỉ không lương' },
+  approved: { text: 'NP', label: 'Nghỉ được duyệt' },
+  isat: { text: 'iS', label: 'Ngày iSAT' },
+  willmakeup: { text: 'Bù', label: 'Nghỉ, sẽ làm bù' },
+  makeup: { text: 'Bù*', label: 'Làm bù (loại khai cũ)' }
+};
 
 function daysOf(sessions?) {
   const days = new Map<any, any>();
@@ -35,10 +44,17 @@ export function buildTimesheet({ team, shifts, today, holidays }: any, { filter 
     const cells: Record<string, any> = {};
     let present = 0;
     let pending = 0;
+    for (const [date, day] of Object.entries(r.days || {})) {
+      // estimateDays giữ lại bản ghi legacy thiếu kind; cleanDays mặc định các record đó thành work.
+      const storedKind = (day as any)?.kind;
+      const kind = DAY_KIND[storedKind === undefined ? 'work' : storedKind];
+      if (!kind) continue;
+      cells[date] = { ...cells[date], declared: kind };
+    }
     for (const [date, list] of daysOf(r.attendanceSessions)) {
       const code = worst(list);
       if (!code) continue;
-      cells[date] = { k: CELL[code] };
+      cells[date] = { ...cells[date], k: CELL[code] };
       if (code === 'pending') pending += 1;
       else if (COUNTED.has(code)) present += 1;
     }
@@ -51,7 +67,7 @@ export function buildTimesheet({ team, shifts, today, holidays }: any, { filter 
         ? [TYPE_SHORT[st.type], line].filter(Boolean).join(' · ')
         : `${TYPE_SHORT[st.type]} · chưa gán ca`,
       noShift: !st.shiftCode,
-      cells: st.shiftCode ? cells : {},
+      cells,
       present,
       pending
     };

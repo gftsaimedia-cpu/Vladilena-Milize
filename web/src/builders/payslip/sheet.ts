@@ -24,15 +24,15 @@ function dayOf(r?) {
     shift: work ? r.shift || 'normal' : '',
     in: work ? r.punchIn || r.in || '' : '',
     out: work ? r.punchOut || r.out || '' : '',
-    hours: r.hours || 0,
-    daily: r.daily ? Math.round(r.daily) : 0,
-    bonus: r.bonus ? Math.round(r.bonus) : 0,
-    breakPay: r.breakPay ? Math.round(r.breakPay) : 0,
-    otH: r.otH || 0,
-    otPay: r.otPay ? Math.round(r.otPay) : 0,
+    hours: r.hours,
+    daily: r.daily == null ? r.daily : Math.round(r.daily),
+    bonus: r.bonus == null ? r.bonus : Math.round(r.bonus),
+    breakPay: r.breakPay == null ? r.breakPay : Math.round(r.breakPay),
+    otH: r.otH,
+    otPay: r.otPay == null ? r.otPay : Math.round(r.otPay),
     otUntil: '',
-    cut: r.cut ? Math.round(r.cut) : 0,
-    total: r.pay || 0
+    cut: r.cut == null ? r.cut : Math.round(r.cut),
+    total: r.pay
   };
 }
 
@@ -47,21 +47,23 @@ export function buildSheet(drawer?, data?) {
   const official = drawer.kind === 'official';
   const estimate = drawer.kind === 'estimate';
   const net = snap.net || {};
+  const deductionItems = (drawer.groups.find(g => g.title === 'Khấu trừ')?.lines || []).filter(l => l.entryItem);
   const totals = [
     { label: 'Tổng thu nhập', value: slip.gross, k: true },
-    { label: 'Các khoản miễn thuế', value: slip.exempt || 0, k: false },
-    { label: 'Thu nhập chịu thuế', value: slip.taxable || 0, k: false },
-    { label: 'Bảo hiểm bắt buộc (BHXH, BHYT, BHTN)', value: slip.insurance || 0, k: false },
-    { label: 'Thu nhập sau bảo hiểm', value: slip.afterInsurance || 0, k: true },
-    { label: 'Thuế TNCN', value: slip.tax || 0, k: false },
-    { label: 'Tạm ứng', value: slip.advance || 0, k: false }
+    { label: 'Các khoản miễn thuế', value: slip.exempt, k: false },
+    { label: 'Thu nhập chịu thuế', value: slip.taxable, k: false },
+    { label: 'Bảo hiểm bắt buộc (BHXH, BHYT, BHTN)', value: slip.insurance, k: false },
+    { label: 'Thu nhập sau bảo hiểm', value: slip.afterInsurance, k: true },
+    { label: 'Thuế TNCN', value: slip.tax, k: false },
+    { label: 'Tạm ứng', value: slip.advance, k: false }
   ];
-  if (net.entriesDeduct) totals.push({ label: 'Khoản trừ thêm', value: net.entriesDeduct, k: false });
+  if (net.entriesDeduct != null) totals.push({ label: 'Khoản trừ thêm', value: net.entriesDeduct, k: false });
   return {
     month,
     username: drawer.username,
     name: drawer.name,
     role: drawer.role,
+    employeeStatus: drawer.employeeStatus || null,
     status: official ? 'Chính thức' : estimate ? 'Chưa tính lương' : 'Bản nháp',
     kind: drawer.kind,
     badge: official
@@ -75,21 +77,31 @@ export function buildSheet(drawer?, data?) {
     stdDays: slip.workdaysStd,
     days,
     stats: {
-      count: c.workDays || 0,
+      count: c.workDays,
       flex: days.filter(d => d.shift === 'flex').length,
       night: days.filter(d => d.shift === 'night').length,
-      leave: c.leaveDays || 0,
-      isat: c.isatDays || 0,
-      unpaid: c.unpaidDays || 0,
-      otHours: snap.otHours || 0,
-      short: snap.short || 0
+      leave: c.leaveDays,
+      isat: c.isatDays,
+      unpaid: c.unpaidDays,
+      otHours: snap.otHours,
+      short: snap.short
     },
-    sections: drawer.groups
-      .filter(g => g.title !== 'Khấu trừ')
-      .map(g => ({
-        title: g.title,
-        rows: g.lines.map(l => ({ label: l.label, std: null, act: l.v, b: false }))
-      })),
+    sections: [
+      ...drawer.groups
+        .filter(g => g.title !== 'Khấu trừ')
+        .map(g => ({
+          title: g.title,
+          rows: g.lines.map(l => ({ label: l.label, std: null, act: l.v, b: false }))
+        })),
+      ...(deductionItems.length
+        ? [
+            {
+              title: 'Chi tiết khoản trừ thêm',
+              rows: deductionItems.map(l => ({ label: l.label, std: null, act: l.v, b: false }))
+            }
+          ]
+        : [])
+    ],
     totals,
     net: slip.net,
     leaveLeft: '—'

@@ -7,13 +7,12 @@ import {
   buildStaffOptions,
   buildStaffRows,
   filterStaffRows,
-  normalizeUsername,
   requireRev,
   toNewStaffBody,
   toShiftBulkBody,
   toStaffPutBody,
   vnDate
-} from '@/builders/admin-hr/staff';
+} from '../builders/admin-hr/staff';
 
 // Nguồn phụ (chức vụ, ca): người xem không có quyền đọc thì coi như không có; lỗi khác nổi lên.
 const optional = (path?) =>
@@ -68,10 +67,27 @@ const catalogShifts = async () => {
 
 /** Tạo nhân sự: hồ sơ và tài khoản đăng nhập vai trò Nhân viên. */
 export async function createStaff(form?) {
-  const username = normalizeUsername(form.username);
   const body = toNewStaffBody(form, await catalogShifts());
-  const res = await api('PUT', `/staff/${seg(username)}`, body);
-  return { ok: true, username: res.staff ? res.staff.username : username, created: !!res.created };
+  const res = await api('POST', '/staff', body);
+  let staff = res.staff || null;
+  let leaveLookupFailed = false;
+  if (!Number.isFinite(staff?.leave?.balance) && res.credentials?.username) {
+    try {
+      const current = await api('GET', '/staff');
+      const persisted = ((current && current.staff) || []).find(s => s.username === res.credentials.username);
+      if (persisted) staff = persisted;
+      else leaveLookupFailed = true;
+    } catch {
+      leaveLookupFailed = true;
+    }
+  }
+  return {
+    ok: true,
+    staff,
+    leaveLookupFailed,
+    created: !!res.created,
+    credentials: res.credentials || null
+  };
 }
 
 /** Lưu hồ sơ; form mang ver.rev của lần đọc hồ sơ. */

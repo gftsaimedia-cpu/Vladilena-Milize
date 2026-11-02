@@ -304,7 +304,7 @@ const grp = (label?, lines?) => ({ label, lines, total: lines.reduce((s, l) => s
 
 /** Khoản điền thêm: mỗi khoản một dòng khi các khoản cộng đúng số tổng của máy chủ, lệch thì một dòng tổng. Giá trị dương, hướng của khoản quyết định dấu ở nơi gọi. */
 function entryLines(direction?, total?, label?, entries?) {
-  if (!isNum(total) || total === 0) return [];
+  if (!isNum(total)) return [];
   const items = (Array.isArray(entries) ? entries : []).filter(e => e && e.direction === direction && isNum(e.amount));
   if (items.length && items.reduce((s, e) => s + e.amount, 0) === total)
     return items.map(e => ({ label: String(e.slipLine || e.label || label), value: e.amount }));
@@ -319,11 +319,11 @@ function buildIncome({ month, est }: any) {
     return {
       ...base,
       netLabel: 'Thực nhận',
-      net: 0,
+      net: null,
       estimated: true,
       note: '',
       rows: [],
-      breakdown: { groups: [], netLabel: 'Thực nhận', net: 0 },
+      breakdown: { groups: [], netLabel: 'Thực nhận', net: null },
       links: []
     };
   }
@@ -333,7 +333,7 @@ function buildIncome({ month, est }: any) {
   const trace = est.trace || {};
   const income: any[] = [];
   const add = (label?, value?, small?) => {
-    if (isNum(value) && value !== 0) income.push({ label, value, ...(small ? { small } : {}) });
+    if (isNum(value)) income.push({ label, value, ...(small ? { small } : {}) });
   };
   add('Tiền ngày công', trace.tienNgayCong, isNum(m.count) ? [`${m.count} ngày công`] : undefined);
   add('Phụ cấp ca', trace.phuCapCa);
@@ -344,20 +344,20 @@ function buildIncome({ month, est }: any) {
   add('Quyết toán phép dư', trace.quyetToanPhepDu ?? m.settlePay);
   add('Phụ cấp đi lại', trace.phuCapDiLai ?? m.travel);
   add('Phụ cấp chuyên cần', trace.phuCapChuyenCan ?? m.attendance);
-  for (const b of Array.isArray(m.blocks) ? m.blocks : []) add(String(b.label || 'Khoản thêm'), Number(b.amount));
+  for (const b of Array.isArray(m.blocks) ? m.blocks : []) add(String(b.label || 'Khoản thêm'), b.amount);
   entryLines('add', net.entriesAdd, 'Khoản cộng thêm', m.entries).forEach(l => add(l.label, l.value));
   const hasKpi = m.kpiAmt !== undefined && m.kpiAmt !== null;
-  const kpiValue = trace.luongKpi ?? m.kpiPay ?? 0;
-  if (hasKpi) income.push({ label: 'Lương KPI', value: kpiValue });
+  const kpiValue = trace.luongKpi ?? m.kpiPay;
+  if (hasKpi && isNum(kpiValue)) income.push({ label: 'Lương KPI', value: kpiValue });
 
   const ded: any[] = [];
   const sub = (label?, value?, small?) => {
-    if (isNum(value) && value !== 0) ded.push({ label, value: -Math.abs(value), ...(small ? { small } : {}) });
+    if (isNum(value)) ded.push({ label, value: -Math.abs(value), ...(small ? { small } : {}) });
   };
   const split = [net.bhxh, net.bhyt, net.bhtn];
   if (
     split.some(isNum) &&
-    split.reduce((s, v) => s + (isNum(v) ? v : 0), 0) === (isNum(net.insurance) ? net.insurance : 0)
+    (!isNum(net.insurance) || split.reduce((s, v) => s + (isNum(v) ? v : 0), 0) === net.insurance)
   ) {
     sub('Bảo hiểm xã hội', net.bhxh);
     sub('Bảo hiểm y tế', net.bhyt);
@@ -367,8 +367,17 @@ function buildIncome({ month, est }: any) {
   sub('Tạm ứng', net.advance);
   entryLines('deduct', net.entriesDeduct, 'Khoản trừ thêm', m.entries).forEach(l => sub(l.label, l.value));
 
-  const grossTotal = isNum(net.gross) ? net.gross : income.reduce((s, l) => s + l.value, 0);
-  const dedTotal = ded.reduce((s, l) => s + l.value, 0);
+  const grossTotal = isNum(net.gross)
+    ? net.gross
+    : income.length
+      ? income.reduce((s, l) => s + l.value, 0)
+      : null;
+  // net.entriesDeduct chỉ được gửi khi có khoản; absence mang nghĩa không có khoản nào.
+  const deductionEntries = net.entriesDeduct === undefined ? 0 : net.entriesDeduct;
+  const deductionValues = [net.insurance, net.tax, net.advance, deductionEntries];
+  const dedTotal = deductionValues.every(isNum)
+    ? -deductionValues.reduce((total, value) => total + value, 0)
+    : null;
   const st = est.allowanceStatus;
   const rows: any[] = [
     { label: 'Thu nhập', value: grossTotal },
@@ -386,9 +395,13 @@ function buildIncome({ month, est }: any) {
       tone: 'mid'
     });
   }
-  if (hasKpi) rows.push({ label: 'Lương KPI', value: kpiValue });
+  if (hasKpi && isNum(kpiValue)) rows.push({ label: 'Lương KPI', value: kpiValue });
 
-  const netValue = isNum(net.net) ? net.net : grossTotal + dedTotal;
+  const netValue = isNum(net.net)
+    ? net.net
+    : grossTotal != null && dedTotal != null
+      ? grossTotal + dedTotal
+      : null;
   return {
     ...base,
     netLabel: 'Thực nhận',
@@ -405,7 +418,7 @@ function buildIncome({ month, est }: any) {
     rows,
     breakdown: {
       groups: [grp('Thu nhập', income), ...(ded.length ? [grp('Các khoản trừ', ded)] : [])].map(g =>
-        g.label === 'Thu nhập' ? { ...g, total: grossTotal } : g
+        g.label === 'Thu nhập' ? { ...g, total: grossTotal } : { ...g, total: dedTotal }
       ),
       netLabel: 'Thực nhận',
       net: netValue
@@ -421,7 +434,8 @@ function buildKpi({ month, est, today }: any) {
   const rows: any[] = [];
   if (isNum(m.kpiSelfPct)) rows.push({ label: 'Tự đánh giá', text: `${m.kpiSelfPct}%` });
   if (isNum(m.kpiSelfAmt)) rows.push({ label: 'Lương KPI tối đa', value: m.kpiSelfAmt });
-  rows.push({ label: 'Lương KPI', value: est.trace && isNum(est.trace.luongKpi) ? est.trace.luongKpi : m.kpiPay || 0 });
+  const kpiPay = est.trace && isNum(est.trace.luongKpi) ? est.trace.luongKpi : m.kpiPay;
+  if (isNum(kpiPay)) rows.push({ label: 'Lương KPI', value: kpiPay });
   return { title: `KPI tháng ${Number(month.slice(5, 7))}`, cap: est.official ? 'Đã chốt cùng phiếu lương' : '', rows };
 }
 

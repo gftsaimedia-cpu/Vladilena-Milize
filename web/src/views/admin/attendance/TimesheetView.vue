@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Tab Bảng công: một dòng mỗi người, một ô mỗi ngày; chỉ ô có việc cần xử lý mới có dấu, ngày đủ công là chấm xám.
+// Tab Bảng công: dấu khai loại ngày và dấu lượt Check-in/out hiển thị riêng trong từng ô.
 // Bấm vào ô → hộp chi tiết ngày (xem lượt Check-in/out, sửa giờ). ?hop=chi-tiet-ngay mở sẵn một ô.
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -36,6 +36,12 @@ const LEGEND = [
   ['q', '', 'Bị từ chối']
 ];
 const MARK_TEXT: Record<string, any> = {};
+const SESSION_LABEL: Record<string, string> = {
+  in: 'Có lượt Check-in',
+  ok: 'Có lượt Check-out, được duyệt hoặc do Admin chấm',
+  w: 'Lượt chờ xử lý',
+  q: 'Lượt bị từ chối'
+};
 
 const filter = ref('all');
 const q = ref('');
@@ -67,6 +73,13 @@ const days = computed(() => {
   });
 });
 const rows = computed(() => data.value?.rows || []);
+function cellAria(row: any, day: any) {
+  const cell = row.cells[day.date];
+  const details = [];
+  if (cell?.declared) details.push(cell.declared.label);
+  if (cell?.k) details.push(SESSION_LABEL[cell.k] || 'Có lượt chấm công');
+  return `${row.name}, ngày ${day.n}${details.length ? `: ${details.join(' · ')}` : ': Chưa khai ngày hoặc chưa có lượt chấm công'}`;
+}
 const heading = computed(() => `Bảng công tháng ${Number(month.value.slice(5))}`);
 const range = computed(() => {
   const last = days.value.length;
@@ -133,7 +146,8 @@ function onSaved() {
         <span class="m" :class="k">{{ text }}</span
         >{{ label }}
       </span>
-      <span class="k">Ô trống: chưa có lượt Check-in nào</span>
+      <span class="k"><span class="declared">LV</span>Khai báo: LV làm · PN phép năm · KL không lương · NP nghỉ duyệt · iS iSAT · Bù nghỉ sẽ bù · Bù* loại cũ</span>
+      <span class="k">Dấu khai báo và dấu lượt chấm công được hiển thị riêng</span>
     </div>
     <table class="bc">
       <colgroup>
@@ -175,12 +189,24 @@ function onSaved() {
             <button
               type="button"
               class="cell"
-              :aria-label="`${r.name}, ngày ${c.n}`"
+              :aria-label="cellAria(r, c)"
               @click="picked = { id: r.id, date: c.date }"
             >
-              <span v-if="r.cells[c.date]" class="m" :class="r.cells[c.date].k">{{
+              <span
+                v-if="r.cells[c.date]?.declared"
+                class="declared"
+                :title="r.cells[c.date].declared.label"
+                >{{ r.cells[c.date].declared.text }}</span
+              >
+              <span
+                v-if="r.cells[c.date]?.k"
+                class="m"
+                :class="r.cells[c.date].k"
+                :title="SESSION_LABEL[r.cells[c.date].k] || 'Có lượt chấm công'"
+                >{{
                 r.cells[c.date].t || MARK_TEXT[r.cells[c.date].k]
-              }}</span>
+              }}</span
+              >
             </button>
           </td>
           <td class="sum" :class="{ z: !r.present }">{{ r.present }}</td>
@@ -299,6 +325,9 @@ function onSaved() {
 .cell {
   display: grid;
   place-items: center;
+  align-content: center;
+  grid-template-rows: auto auto;
+  gap: 1px;
   width: 100%;
   height: 47px;
   padding: 0;
@@ -324,6 +353,20 @@ function onSaved() {
   font-size: 11px;
   font-weight: 600;
   vertical-align: middle;
+}
+.declared {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 13px;
+  padding: 0 2px;
+  border-radius: 4px;
+  background: #eef1f4;
+  color: #46515c;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
 }
 .m.ok {
   width: 5px;

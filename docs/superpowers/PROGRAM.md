@@ -29,7 +29,7 @@ Claude có **toàn quyền** đi hết các giai đoạn dưới đây không c�
 An toàn khi xoá file: luôn commit trước khi xoá, nên mọi thứ khôi phục được bằng git.
 
 ## Cách thực thi
-Thực thi inline theo `superpowers:executing-plans` (không phái subagent vì chưa được yêu cầu). Mỗi task: TDD, chạy test liên quan, commit nhỏ. Cuối mỗi giai đoạn: chạy toàn bộ `npm test` và ghi kết quả vào ledger.
+Thực thi theo chế độ worker Luna và worktree riêng trong `AGENTS.md` và `skills/superpowers-luna-workers/SKILL.md`; chỉ dẫn này thay thế các chỉ dẫn inline/không dùng agent cũ trong kế hoạch trước. Giữ nguyên thứ tự và điều kiện giữa các giai đoạn (A→B→C→D). Mỗi task áp dụng TDD, chạy test liên quan và ghi kết quả thực tế vào ledger. Cuối mỗi giai đoạn: chạy toàn bộ `npm test` và ghi kết quả vào ledger.
 
 ## Giai đoạn
 | ID | Nội dung | Điều kiện xong |

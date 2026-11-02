@@ -146,8 +146,18 @@ export class StaffRepository {
    */
   async upsert(
     row: Insertable<Schema['staff']>,
-    options: { payrollSubjectOverride: number | null; keepContractStatus: boolean; keepResignedOn: boolean }
-  ): Promise<void> {
+    options: { payrollSubjectOverride: number | null; keepContractStatus: boolean; keepResignedOn: boolean },
+    { insertOnly = false }: { insertOnly?: boolean } = {}
+  ): Promise<boolean> {
+    if (insertOnly) {
+      const inserted = await this.qb
+        .insertInto('staff')
+        .values(row)
+        .onConflict(oc => oc.column('username').doNothing())
+        .returning('username')
+        .executeTakeFirst();
+      return !!inserted;
+    }
     await this.qb
       .insertInto('staff')
       .values(row)
@@ -179,6 +189,7 @@ export class StaffRepository {
         }))
       )
       .execute();
+    return true;
   }
 
   async setPassword(username: string, passHash: string): Promise<void> {

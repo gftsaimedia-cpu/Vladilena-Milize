@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Ô nhập có nhãn của hộp thoại/ngăn kéo (lớp .fld .inp của thiết kế, ô nhập thật bên trong).
-// kind: text | password | number | date | time | area. date: giá trị là 'YYYY-MM-DD', hiển thị dd/mm/yyyy.
+// kind: text | password | number | date | time | area. Date values stay ISO YYYY-MM-DD.
 import { ref, useId, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 
@@ -17,24 +17,17 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 const id = useId();
 
-const toText = (v?) => (props.kind === 'date' && v ? `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)}` : (v ?? ''));
+const toText = v => (props.kind === 'date' && v ? String(v).slice(0, 10) : (v ?? ''));
 const text = ref(toText(props.modelValue));
 watch(
   () => props.modelValue,
   v => {
-    if (props.kind === 'date') {
-      if (v !== parseDate(text.value)) text.value = toText(v);
-    } else if (String(v ?? '') !== String(text.value)) text.value = v ?? '';
+    if (String(v ?? '') !== String(text.value)) text.value = toText(v);
   }
 );
-const parseDate = (s?) => {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s.trim());
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
-};
 function onInput(e?) {
   text.value = e.target.value;
-  if (props.kind === 'date') emit('update:modelValue', parseDate(text.value));
-  else if (props.kind === 'number') emit('update:modelValue', text.value === '' ? '' : Number(text.value));
+  if (props.kind === 'number') emit('update:modelValue', text.value === '' ? '' : Number(text.value));
   else emit('update:modelValue', text.value);
 }
 const vFocus = { mounted: (el, { value }: any) => value && el.focus() };
@@ -58,14 +51,14 @@ const vFocus = { mounted: (el, { value }: any) => value && el.focus() };
         v-else
         :id="id"
         v-focus="autofocus"
-        :type="kind === 'password' ? 'password' : kind === 'number' ? 'number' : 'text'"
+        :type="kind === 'password' ? 'password' : kind === 'number' ? 'number' : kind === 'date' ? 'date' : 'text'"
         :step="step"
         :value="text"
-        :placeholder="kind === 'date' ? 'dd/mm/yyyy' : kind === 'time' ? 'hh:mm' : placeholder"
+        :placeholder="kind === 'time' ? 'hh:mm' : placeholder"
         autocomplete="off"
         @input="onInput"
       />
-      <span v-if="icon" class="end"><Icon :name="icon" /></span>
+      <span v-if="icon && kind !== 'date'" class="end"><Icon :name="icon" /></span>
     </div>
   </div>
 </template>

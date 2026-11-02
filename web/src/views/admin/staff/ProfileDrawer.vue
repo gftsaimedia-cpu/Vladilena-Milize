@@ -8,6 +8,7 @@ import { toast } from '@/components/shell/toast';
 import { getStaffOptions, getStaffProfile, lockStaff, saveStaffProfile, unlockStaff } from '@/services/admin-hr';
 import FldInput from './fields/FldInput.vue';
 import { useSessionStore } from '@/stores/session';
+import { CONTRACT_STATUS_OPTIONS } from '@/builders/admin-hr/staff';
 import FldSelect from './fields/FldSelect.vue';
 import StaffTrace from './StaffTrace.vue';
 
@@ -83,24 +84,18 @@ const unlock = () => run(() => unlockStaff(props.username, form.value.ver));
             <span>Tạo lúc</span><b>{{ profile.createdAt }}</b>
           </div>
           <div>
-            <span>Phép năm</span><b>{{ profile.leave }}</b>
+            <span>Phép năm còn lại (ngày)</span><b>{{ profile.leave ?? 'Chưa có số dư phép năm' }}</b>
           </div>
         </div>
         <div class="g2">
           <FldInput v-model="form.name" label="Họ tên" />
-          <FldInput v-model="form.title" label="Chức danh" small="in trên phiếu lương" placeholder="Chưa có" />
+          <FldInput v-model="form.title" label="Chức danh" placeholder="Chưa có" />
+          <FldSelect v-model="form.contractStatus" label="Trạng thái nhân sự" :options="CONTRACT_STATUS_OPTIONS" />
           <FldSelect :model-value="form.type" label="Loại nhân sự" :options="opts.types" @update:model-value="onType" />
           <FldSelect v-model="form.level" label="Bậc" :options="levels" />
           <FldSelect v-model="form.shift" label="Ca cố định" :options="opts.shifts" :warn="!form.shift" />
           <FldInput v-model="form.start" label="Ngày bắt đầu làm" kind="date" icon="cal" />
           <FldInput v-model="form.birth" label="Ngày sinh" kind="date" icon="cal" />
-          <FldInput
-            v-model="form.leaveAdjust"
-            label="Điều chỉnh phép"
-            small="+/− ngày, bước 0,5"
-            kind="number"
-            step="0.5"
-          />
         </div>
         <div class="ck2">
           <button

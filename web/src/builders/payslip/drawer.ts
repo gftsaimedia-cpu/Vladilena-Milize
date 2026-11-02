@@ -3,6 +3,7 @@
 const L = (label?, kind?, v?) => ({ label, kind, v });
 const G = (title?, lines?) => ({ title, lines });
 const TYPE_LABEL = { nv: 'NV', ctv: 'CTV', tts: 'TTS' };
+const EMPLOYEE_STATUS_LABEL = { probation: 'Thử việc', official: 'Chính thức' };
 
 const PILL = {
   approved: { cls: 'p-done', label: 'Đã phê duyệt' },
@@ -22,21 +23,28 @@ function kindOf(period?, slip?, estimate?) {
 const sumOf = (list?) => list.reduce((s, e) => s + (Number(e.amount) || 0), 0);
 export function buildDrawer(month?, username?, period?, data?, extra: any = {}) {
   const slip = data.payslip;
+  const contractStatus = slip.staffTerms && slip.staffTerms.contractStatus;
+  const employeeStatus = Object.hasOwn(EMPLOYEE_STATUS_LABEL, contractStatus)
+    ? EMPLOYEE_STATUS_LABEL[contractStatus]
+    : null;
   const estimate = data.source === 'estimate';
   const kind = kindOf(period, slip, estimate);
   // Ô tiền: số Admin đã sửa nếu có, ngược lại số tự tính; Tổng thu nhập = cộng các ô thu nhập + khoản cộng thêm − trừ đi muộn, về sớm
   const c = { ...(slip.cells || {}), ...(extra.override || {}) };
   const net = (slip.snapshot && slip.snapshot.net) || {};
-  const entriesAdd = Number(net.entriesAdd) || 0;
-  const entriesDeduct = Number(net.entriesDeduct) || 0;
+  const entriesAdd = net.entriesAdd;
+  const entriesDeduct = net.entriesDeduct;
   const approved = Array.isArray(extra.entries) ? extra.entries.filter(e => e.status === 'approved') : [];
   // Mỗi khoản thêm một dòng khi các khoản đã duyệt cộng đúng số trong lần tính; lệch thì một dòng tổng của lần tính
   const entryLines = (direction?, total?, label?) => {
-    if (!total) return [];
+    if (total == null) return [];
     const items = approved.filter(e => e.direction === direction);
     const sign = direction === 'deduct' ? -1 : 1;
     if (items.length && sumOf(items) === total)
-      return items.map(e => L(e.slipLine || e.label, 'money', sign * e.amount));
+      return items.map(e => ({
+        ...L(e.slipLine || e.label, 'money', sign * e.amount),
+        entryItem: true
+      }));
     return [L(label, 'money', sign * total)];
   };
   const run = data.run;
@@ -84,26 +92,25 @@ export function buildDrawer(month?, username?, period?, data?, extra: any = {}) 
       money('Lương KPI', c.kpiPay)
     ]),
     G('Khoản cộng thêm', entryLines('add', entriesAdd, 'Khoản cộng thêm')),
-    G('Đi muộn, về sớm, ra ngoài', [money('Tiền trừ đi muộn, về sớm', -Math.abs(c.lateCut || 0))]),
+    G('Đi muộn, về sớm, ra ngoài', [
+      money('Tiền trừ đi muộn, về sớm', c.lateCut == null ? null : -Math.abs(c.lateCut))
+    ]),
     G('Khấu trừ', [
-      money('Bảo hiểm bắt buộc (BHXH, BHYT, BHTN)', -Math.abs(slip.insurance || 0)),
-      money('Thuế TNCN', -Math.abs(slip.tax || 0)),
-      money('Tạm ứng', -Math.abs(slip.advance || 0)),
+      money(
+        'Bảo hiểm bắt buộc (BHXH, BHYT, BHTN)',
+        slip.insurance == null ? null : -Math.abs(slip.insurance)
+      ),
+      money('Thuế TNCN', slip.tax == null ? null : -Math.abs(slip.tax)),
+      money('Tạm ứng', slip.advance == null ? null : -Math.abs(slip.advance)),
       ...entryLines('deduct', entriesDeduct, 'Khoản trừ thêm')
     ])
   ];
-  const shown: any[] = [];
-  const zero: any[] = [];
-  for (const g of groups) {
-    const keep = g.lines.filter(l => (l.kind === 'text' ? true : Number(l.v) !== 0));
-    zero.push(...g.lines.filter(l => !keep.includes(l)));
-    if (keep.length) shown.push({ ...g, lines: keep });
-  }
   return {
     month,
     username,
     name: slip.name || username,
     role: `${TYPE_LABEL[slip.type] || String(slip.type || '').toUpperCase()} · Bậc ${slip.level}`,
+    employeeStatus,
     kind,
     estimated: kind !== 'official',
     pills,
@@ -129,12 +136,11 @@ export function buildDrawer(month?, username?, period?, data?, extra: any = {}) 
       deduct: entriesDeduct,
       net: slip.net
     },
-    groups: shown,
+    groups: groups.filter(g => g.lines.length),
     totals: [
       { label: 'Tổng thu nhập', v: slip.gross },
       { label: 'Thực nhận', v: slip.net, hl: true }
     ],
-    zero,
     rev: slip.rev
   };
 }
