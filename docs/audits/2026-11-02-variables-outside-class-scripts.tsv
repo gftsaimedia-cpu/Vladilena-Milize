@@ -1604,35 +1604,37 @@ scripts/loadtest/run.ts	34	prefix	const	ngoài hàm/class	biểu thức/khác	kh
 scripts/loadtest/run.ts	35	scenarioNames	const	ngoài hàm/class	biểu thức/khác	không
 scripts/loadtest/run.ts	36	name	const	ngoài hàm/class	không khởi tạo	không
 scripts/loadtest/run.ts	39	i	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	52	userCount	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	53	base	let	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	54	password	let	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	55	child	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	56	dbUrl	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	57	adminPool	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	58	tempDb	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	62	admin	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	67	Pool	const	trong hàm ngoài class	require	không
-scripts/loadtest/run.ts	71	target	const	trong hàm ngoài class	new	không
-scripts/loadtest/run.ts	77	store	const	trong hàm ngoài class	require	không
-scripts/loadtest/run.ts	78	auth	const	trong hàm ngoài class	require	không
-scripts/loadtest/run.ts	81	port	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	84	extraNodeArgs	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	98	summaries	const	trong hàm ngoài class	object/array	không
-scripts/loadtest/run.ts	99	state	const	trong hàm ngoài class	object/array	không
-scripts/loadtest/run.ts	102	ctx	const	trong hàm ngoài class	object/array	không
-scripts/loadtest/run.ts	115	name	const	trong hàm ngoài class	không khởi tạo	không
-scripts/loadtest/run.ts	118	stats	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	119	summary	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	122	route	const	trong hàm ngoài class	không khởi tạo	không
-scripts/loadtest/run.ts	122	ms	const	trong hàm ngoài class	không khởi tạo	không
-scripts/loadtest/run.ts	126	reconciled	let	trong hàm ngoài class	giá trị cố định	không
-scripts/loadtest/run.ts	130	PostgresDatabase	const	trong hàm ngoài class	require	không
-scripts/loadtest/run.ts	131	db	const	trong hàm ngoài class	new	không
-scripts/loadtest/run.ts	139	s	const	trong hàm ngoài class	không khởi tạo	không
-scripts/loadtest/run.ts	146	report	const	trong hàm ngoài class	object/array	không
-scripts/loadtest/run.ts	156	failed	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/loadtest/run.ts	162	timer	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	53	userCount	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	54	base	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	55	password	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	56	child	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	57	dbUrl	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	58	adminPool	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	59	tempDb	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	60	tempDbCreated	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	61	seedStore	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	62	childError	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	67	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	72	Pool	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	77	target	const	trong hàm ngoài class	new	không
+scripts/loadtest/run.ts	87	auth	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	91	port	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	94	extraNodeArgs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	111	summaries	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	112	state	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	114	ctx	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	127	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	130	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	131	summary	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	134	route	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	134	ms	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	138	reconciled	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	142	PostgresDatabase	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	143	db	const	trong hàm ngoài class	new	không
+scripts/loadtest/run.ts	151	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	158	report	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	168	failed	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	176	timer	const	trong hàm ngoài class	biểu thức/khác	không
 scripts/ops/params-mode.ts	21	os	const	ngoài hàm/class	require	không
 scripts/ops/params-mode.ts	22	PostgresDatabase	const	ngoài hàm/class	require	không
 scripts/ops/params-mode.ts	23	pgBackup	const	ngoài hàm/class	require	không

@@ -46,7 +46,7 @@ Theo lựa chọn của chủ dự án, chuẩn hoá dữ liệu nghiệp vụ �
 | `params_mode`, `config_rev`, `catalog_rev` và các dấu migration | Công tắc hoặc phiên bản kỹ thuật. | Cần phân biệt trạng thái vận hành với dữ liệu nghiệp vụ và giữ đúng cơ chế tăng phiên bản/khởi tạo. |
 | `session_secret` | Khoá ký phiên khi chạy ngoài production mà không đặt biến môi trường. | Dữ liệu nhạy cảm; không đọc, in hoặc di chuyển giá trị thật khi kiểm kê. |
 
-**Nguy cơ ghi đè đồng thời ở tạm ứng:** `AdvanceApprovals.move()` đọc tài liệu tháng, thay một người rồi ghi đè toàn bộ `users` (`src/domain/advance/advance-approvals.ts:146–156`). Các handler bọc thao tác bằng giao dịch nhưng không thấy khoá chung theo tháng trước khi đọc (`src/modules/advance/advance-approvals.handlers.ts:206–210,234–244`); upsert `settings` thay toàn bộ giá trị (`src/data/settings.repository.ts:17–23`). Đã mô phỏng hai lần gọi thật của class với thứ tự đọc/ghi xen kẽ: cả hai trả thành công nhưng bản cuối chỉ còn một người. Đây là bằng chứng ở mức class và giả lập bộ lưu; cần kiểm lại trên PostgreSQL thật để xác nhận đầy đủ hành vi giao dịch của môi trường triển khai.
+**Lỗi ghi đè đồng thời ở tạm ứng:** `AdvanceApprovals.move()` đọc tài liệu tháng, thay một người rồi ghi đè toàn bộ `users` (`src/domain/advance/advance-approvals.ts:146–156`). Các handler bọc thao tác bằng giao dịch nhưng không thấy khoá chung theo tháng trước khi đọc (`src/modules/advance/advance-approvals.handlers.ts:206–210,234–244`); upsert `settings` thay toàn bộ giá trị (`src/data/settings.repository.ts:17–23`). Đã tái hiện trên PostgreSQL 16 thật bằng hai kết nối và hai giao dịch độc lập, gọi class thật và ép hai lượt đọc ban đầu xảy ra trước khi ghi: cả hai yêu cầu thành công nhưng tài liệu cuối chỉ còn một người, `rev` tháng bằng 1. Test dùng một database mới ngẫu nhiên trên máy chủ test riêng và đã xoá database đó sau khi chạy. Đây là tái hiện ở mức class và repository SQL; chưa phải kiểm thử đồng thời qua HTTP.
 
 `roles.custom` có mô hình đọc cả danh sách, sửa một vai trò, rồi ghi cả danh sách tương tự (`src/domain/roles/roles.ts:440–441,521–559`); cần kiểm thử đồng thời riêng cho vai trò. Đây là nghi vấn từ mã, chưa được tái hiện như trường hợp tạm ứng.
 
@@ -78,23 +78,23 @@ Các ứng viên cụ thể cần kiểm tra thêm trước khi gỡ:
 - Các bảng AI cũ, cờ AI trên phiếu, và `attendance_days`: có phần là dữ liệu lịch sử, có phần vẫn tham gia logic; không gộp tất cả thành một mục để xoá.
 - Registry vẫn có ít nhất 27 mục có `id` chứa AI/Agent; 18 mục trong số đó được đánh dấu `wired: true` nhưng không có khoá tương ứng trong `DEFAULTS` hiện tại. `src/params/store.ts:260–290` vẫn duyệt registry để dựng dữ liệu cài đặt, còn `src/params/save.ts:294–297` từ chối lưu khoá không có trong `DEFAULTS`. Đây là metadata còn sót và có thể gây hiểu sai về khả năng thực tế; chưa kết luận toàn bộ mục đều hiện trên giao diện. Ngoài 27 mục này còn các tên nhắc AI theo dạng khác, cần rà theo ý nghĩa chứ không chỉ đếm tên.
 
-Ví dụ tên cần làm rõ: `u` là người đăng nhập, `b` là nội dung yêu cầu ở `src/modules/attendance/attendance.controller.ts:63–71`; `u` và `r` lần lượt là người dùng và dòng bảng công ở `src/platform/db.ts:1262–1265`. Trong các khai báo ngoài class của `src`, 496 tên chỉ có một ký tự; số đó gồm cả chỉ số vòng lặp và biến thông dụng, không phải 496 lỗi đặt tên. Ưu tiên những tên làm mờ dữ liệu hoặc trách nhiệm nghiệp vụ.
+Ví dụ tên cần làm rõ: `u` là người đăng nhập, `b` là nội dung yêu cầu ở `src/modules/attendance/attendance.controller.ts:63–71`; `u` và `r` lần lượt là người dùng và dòng bảng công ở `src/platform/db.ts:1268–1271`. Trong các khai báo ngoài class của `src`, 496 tên chỉ có một ký tự; số đó gồm cả chỉ số vòng lặp và biến thông dụng, không phải 496 lỗi đặt tên. Ưu tiên những tên làm mờ dữ liệu hoặc trách nhiệm nghiệp vụ.
 
 ## Biến ngoài class
 
 Quét cú pháp TypeScript 244 file trong `src`, không có lỗi parse. Quy ước: đếm từng tên khai báo `const`, `let`, `var` và biến `catch` mà không có class bao quanh; bao gồm biến cục bộ trong hàm và biến nhận từ `require`. Không đếm tham số hàm, `import` của TypeScript, khai báo hàm hoặc thuộc tính class. Kết quả:
 
-- **5.140 tên khai báo ngoài class:** 3.601 trong hàm ngoài class và 1.539 ngoài cả hàm lẫn class. Con số sau bao gồm cả biến trong khối `if` ở cấp file, không đồng nghĩa tất cả là biến toàn cục.
-- 4.884 `const`, 234 `let`, 22 biến `catch`. Trong nhóm ngoài hàm/class, 750 tên là binding từ `require` và 325 tên khởi tạo bằng hàm; không nên kết luận chúng đều là trạng thái nghiệp vụ.
-- 4.377 tên nằm ngoài thư mục `src/params` và file `src/engine/payroll-params.ts`; 763 tên nằm trong các vị trí đó. Đây chỉ là phân nhóm theo vị trí, **không** khẳng định đã nhận diện chính xác mọi biến liên quan tham số bằng ngữ nghĩa.
+- **5.142 tên khai báo ngoài class:** 3.601 trong hàm ngoài class và 1.541 ngoài cả hàm lẫn class. Con số sau bao gồm cả biến trong khối `if` ở cấp file, không đồng nghĩa tất cả là biến toàn cục.
+- 4.886 `const`, 234 `let`, 22 biến `catch`. Trong nhóm ngoài hàm/class, 750 tên là binding từ `require` và 325 tên khởi tạo bằng hàm; không nên kết luận chúng đều là trạng thái nghiệp vụ.
+- 4.379 tên nằm ngoài thư mục `src/params` và file `src/engine/payroll-params.ts`; 763 tên nằm trong các vị trí đó. Đây chỉ là phân nhóm theo vị trí, **không** khẳng định đã nhận diện chính xác mọi biến liên quan tham số bằng ngữ nghĩa.
 - Danh sách từng file, dòng, tên, loại và phạm vi nằm trong `2026-11-02-variables-outside-class.tsv`. Vì đây là kết quả quét tĩnh, mỗi tên vẫn cần rà theo ngữ cảnh trước khi đổi tên hoặc gom vào class.
-- Quét riêng 57 file `.ts`, `.js`, `.cjs` trong `scripts`: thêm 2.136 tên ngoài class, gồm 1.452 tên trong hàm và 684 tên ngoài hàm/class. Danh sách ở `2026-11-02-variables-outside-class-scripts.tsv`; 427 tên thuộc `scripts/params`, đây cũng chỉ là phân nhóm theo thư mục. Chưa tính code test hay frontend trong hai thống kê này.
+- Quét riêng 57 file `.ts`, `.js`, `.cjs` trong `scripts`: thêm 2.138 tên ngoài class, gồm 1.454 tên trong hàm và 684 tên ngoài hàm/class. Danh sách ở `2026-11-02-variables-outside-class-scripts.tsv`; 427 tên thuộc `scripts/params`, đây cũng chỉ là phân nhóm theo thư mục. Chưa tính code test hay frontend trong hai thống kê này.
 
-Ví dụ trạng thái dùng chung cần xem thiết kế vòng đời: hàng đợi giao dịch `transactionTail` (`src/platform/db.ts:80–85`), danh sách kết nối sự kiện (`src/platform/events.ts:103–106`) và cache tham số (`src/params/store.ts:101–110`). Không phải biến cục bộ nào cũng nên thành thuộc tính class.
+Ví dụ trạng thái dùng chung cần xem thiết kế vòng đời: hàng đợi giao dịch `transactionTail` (`src/platform/db.ts:91`), danh sách kết nối sự kiện (`src/platform/events.ts:103–106`) và cache tham số (`src/params/store.ts:101–110`). Không phải biến cục bộ nào cũng nên thành thuộc tính class.
 
 ## Giới hạn kiểm chứng
 
 - Đã đối chiếu schema sinh kiểu, migration, các điểm `JSON.stringify`/`JSON.parse`, đường gọi chính và test liên quan. Không đọc dữ liệu cá nhân, khoá hay DB thật.
 - Đã dùng PGlite trong RAM ở lượt kiểm tra trước để xác minh hành vi hiện tại; đây là kiểm chứng mã cũ, không thay thế kiểm thử PostgreSQL thật cho phương án mới.
-- Chưa có `psql`, `postgres`, `initdb` hoặc `pg_ctl` trong môi trường shell hiện tại. Chưa kiểm thử database PostgreSQL thật trong lượt này.
-- Chưa rà hết backend bằng tay, chưa rà frontend theo phạm vi mới; thay đổi mã duy nhất ở thời điểm cập nhật là rào chắn tạm cho sandbox.
+- Đã dựng PostgreSQL 16 riêng cho dev/test bằng Docker và chạy một số test API trên database test thật. Chưa hoàn thành kiểm thử toàn bộ hệ thống hoặc chuyển toàn bộ đường chạy sang PostgreSQL-only.
+- Chưa rà hết backend bằng tay, chưa rà frontend theo phạm vi mới; thay đổi mã ở thời điểm cập nhật gồm rào chắn cho sandbox/cấu hình DB, kiểm tra schema mới và xử lý dọn DB tạm của bộ đo tải.

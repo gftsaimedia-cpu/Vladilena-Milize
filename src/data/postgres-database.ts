@@ -5,6 +5,7 @@ const { AsyncLocalStorage } = require('node:async_hooks');
 const { PostgresSql } = require('./postgres-sql');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', '..', 'migrations', 'postgres');
+const SCHEMA_MARKER = '@schema:luong-postgres-fresh-v1';
 const OID = Object.freeze({ BYTEA: 17, INT8: 20, NUMERIC: 1700 });
 const bytea = (value?) => (Buffer.isBuffer(value) ? value : Buffer.from(String(value).slice(2), 'hex'));
 
@@ -52,7 +53,20 @@ class PostgresDatabase {
     const { Pool, types } = require('pg');
     types.setTypeParser(OID.INT8, value => Number(value));
     types.setTypeParser(OID.NUMERIC, value => Number(value));
-    return new Pool({ connectionString: url, max });
+    let target;
+    try {
+      target = new URL(url);
+    } catch {
+      throw new Error('Địa chỉ PostgreSQL không hợp lệ.');
+    }
+    if (!['postgres:', 'postgresql:'].includes(target.protocol)) throw new Error('Địa chỉ PostgreSQL không hợp lệ.');
+    const options = target.searchParams.getAll('options');
+    if (options.length > 1) throw new Error('Địa chỉ PostgreSQL có nhiều tham số options.');
+    const existingOptions = options[0] ?? process.env.PGOPTIONS ?? '';
+    target.searchParams.delete('options');
+    // `options` trong URL có độ ưu tiên cao hơn cấu hình Pool; đưa về một chỗ và đặt schema cuối cùng.
+    const startupOptions = [existingOptions, '-c search_path=public,pg_catalog'].filter(Boolean).join(' ');
+    return new Pool({ connectionString: target.toString(), max, options: startupOptions });
   }
 
   // Mỗi tiến trình test một database riêng trên máy chủ thật (test chạy song song), xoá khi close()
@@ -70,6 +84,7 @@ class PostgresDatabase {
     if (this.options.isolatedFrom) await this.#createIsolated(this.options.isolatedFrom);
     await this.#driver.open();
     await this.#migrate();
+    if (!this.concurrent) await this.#driver.exec('SET search_path = public, pg_catalog');
     const ids = await this.#driver.query(
       "SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND is_identity = 'YES'",
       []
@@ -77,21 +92,68 @@ class PostgresDatabase {
     this.#sql.identityTables = new Set<any>(ids.rows.map(row => row.table_name));
   }
 
-  // Chạy các file migrations/postgres/NNNN_*.sql chưa chạy, theo thứ tự; mỗi file một giao dịch. Bảng schema_migrations ghi tên file đã chạy.
+  // Chỉ mở schema mới có dấu nhận diện. Kiểm tra và mọi migration cùng một giao dịch và một kết nối;
+  // advisory lock ngăn hai tiến trình cùng kiểm tra một DB trống rồi cùng tạo bảng.
   async #migrate() {
-    await this.#driver.exec('CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
-    const done = new Set<any>((await this.#driver.query('SELECT name FROM schema_migrations', [])).rows.map(row => row.name));
     const files = fs.readdirSync(MIGRATIONS_DIR).filter(name => /^\d{4}_.+\.sql$/.test(name)).sort();
-    for (const name of files) {
-      if (done.has(name)) continue;
-      const body = fs.readFileSync(path.join(MIGRATIONS_DIR, name), 'utf8');
-      try {
-        await this.#driver.exec(`BEGIN;\n${body}\nINSERT INTO schema_migrations (name, applied_at) VALUES ('${name}', '${new Date().toISOString()}');\nCOMMIT;`);
-      } catch (error) {
-        await this.#driver.exec('ROLLBACK').catch(() => {});
-        throw new Error(`Migration ${name} lỗi: ${error.message}`);
+    const incompatible = () =>
+      new Error('SCHEMA_INCOMPATIBLE: Database không có schema tương thích. Hãy chọn database PostgreSQL mới, trống.');
+    await this.#driver.transaction(async () => {
+      await this.#driver.exec('SET LOCAL search_path = public, pg_catalog');
+      await this.#driver.query("SELECT pg_advisory_xact_lock(hashtextextended('luong-schema-migration-v1', 0))", []);
+      const otherSchemas = await this.#driver.query(
+        "SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname NOT LIKE 'pg\\_%' ESCAPE '\\' AND nspname NOT IN ('public', 'information_schema') LIMIT 1",
+        []
+      );
+      if (otherSchemas.rows.length) throw incompatible();
+      const objects = await this.#driver.query(
+        "SELECT c.relname, c.relkind FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p', 'v', 'm', 'S', 'f')",
+        []
+      );
+      const migrationsTable = objects.rows.find(row => row.relname === 'schema_migrations' && row.relkind === 'r');
+      let done = new Set<any>();
+      if (!migrationsTable) {
+        if (objects.rows.length) throw incompatible();
+        // Các object như function, type hay operator có thể tồn tại dù không có bảng.
+        const otherObjects = await this.#driver.query(
+          "SELECT 1 FROM pg_catalog.pg_depend d JOIN pg_catalog.pg_namespace n ON d.refclassid = 'pg_catalog.pg_namespace'::regclass AND d.refobjid = n.oid WHERE n.nspname = 'public' LIMIT 1",
+          []
+        );
+        if (otherObjects.rows.length) throw incompatible();
+        await this.#driver.exec('CREATE TABLE public.schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)');
+        await this.#driver.query('INSERT INTO public.schema_migrations (name, applied_at) VALUES ($1, $2)', [
+          SCHEMA_MARKER,
+          new Date().toISOString()
+        ]);
+      } else {
+        try {
+          done = new Set<any>((await this.#driver.query('SELECT name FROM public.schema_migrations', [])).rows.map(row => row.name));
+        } catch {
+          throw incompatible();
+        }
+        const known = new Set([SCHEMA_MARKER, ...files]);
+        if (!done.has(SCHEMA_MARKER) || [...done].some(name => !known.has(name)) || !done.has(files[0]))
+          throw incompatible();
+        let missing = false;
+        for (const name of files) {
+          if (!done.has(name)) missing = true;
+          else if (missing) throw incompatible();
+        }
       }
-    }
+      for (const name of files) {
+        if (done.has(name)) continue;
+        const body = fs.readFileSync(path.join(MIGRATIONS_DIR, name), 'utf8');
+        try {
+          await this.#driver.exec(body);
+          await this.#driver.query('INSERT INTO public.schema_migrations (name, applied_at) VALUES ($1, $2)', [
+            name,
+            new Date().toISOString()
+          ]);
+        } catch (error) {
+          throw new Error(`Migration ${name} lỗi: ${error.message}`);
+        }
+      }
+    });
   }
 
   // Dịch SQL lười, ở lần chạy đầu của mỗi câu (sau khi migration xong): cần biết bảng nào có cột id tự tăng để thêm RETURNING id

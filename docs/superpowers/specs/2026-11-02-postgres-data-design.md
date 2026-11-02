@@ -1,6 +1,6 @@
 # Thiết kế giai đoạn 1: PostgreSQL và cấu trúc dữ liệu
 
-Trạng thái: **bản thiết kế để rà soát**, chưa triển khai. Phạm vi hiện trạng và vị trí từng cột nằm trong [`../../audits/2026-11-02-database-backend-inventory.md`](../../audits/2026-11-02-database-backend-inventory.md).
+Trạng thái: **đã được chủ dự án duyệt; đang triển khai**. Phạm vi hiện trạng và vị trí từng cột nằm trong [`../../audits/2026-11-02-database-backend-inventory.md`](../../audits/2026-11-02-database-backend-inventory.md).
 
 ## Mục tiêu và quyết định đã có
 
@@ -10,7 +10,7 @@ Trạng thái: **bản thiết kế để rà soát**, chưa triển khai. Phạ
 4. Hoàn thành nền DB và các adapter backend cần thiết trước. Sau đó rà, dọn backend và tên biến; frontend được rà và xử lý sau backend.
 5. Cơ chế thuộc tính động của bậc trong `src/params/attributes.ts` đã bị bỏ về nghiệp vụ; không thiết kế schema mới để tiếp tục chức năng này. Gỡ trọn đường liên quan khi xử lý backend, không chỉ xoá một file.
 
-Chủ dự án đã chọn các mục 1–3 ở cuộc trao đổi này. Các chi tiết bên dưới là đề xuất kỹ thuật cần được duyệt cùng thiết kế.
+Chủ dự án đã chọn các mục 1–3 và duyệt thiết kế này trong cuộc trao đổi ngày 2026-11-02.
 
 ## Các hướng đã cân nhắc
 

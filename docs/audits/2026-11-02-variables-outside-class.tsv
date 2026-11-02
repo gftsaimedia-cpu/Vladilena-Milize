@@ -22,8 +22,9 @@ src/data/postgres-database.ts	3	path	const	ngoài hàm/class	require	không
 src/data/postgres-database.ts	4	AsyncLocalStorage	const	ngoài hàm/class	require	không
 src/data/postgres-database.ts	5	PostgresSql	const	ngoài hàm/class	require	không
 src/data/postgres-database.ts	7	MIGRATIONS_DIR	const	ngoài hàm/class	biểu thức/khác	không
-src/data/postgres-database.ts	8	OID	const	ngoài hàm/class	biểu thức/khác	không
-src/data/postgres-database.ts	9	bytea	const	ngoài hàm/class	hàm	không
+src/data/postgres-database.ts	8	SCHEMA_MARKER	const	ngoài hàm/class	giá trị cố định	không
+src/data/postgres-database.ts	9	OID	const	ngoài hàm/class	biểu thức/khác	không
+src/data/postgres-database.ts	10	bytea	const	ngoài hàm/class	hàm	không
 src/data/records.repository.ts	5	count	const	ngoài hàm/class	biểu thức/khác	không
 src/domain/advance/advance-approvals.ts	11	DomainError	const	ngoài hàm/class	require	không
 src/domain/advance/advance-approvals.ts	13	MONTH_RE	const	ngoài hàm/class	giá trị cố định	không
@@ -4749,235 +4750,236 @@ src/platform/db.ts	27	AsyncList	const	ngoài hàm/class	require	không
 src/platform/db.ts	28	PersonName	const	ngoài hàm/class	require	không
 src/platform/db.ts	28	titleCase	const	ngoài hàm/class	require	không
 src/platform/db.ts	34	DB_PATH	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	48	db	const	ngoài hàm/class	new	không
-src/platform/db.ts	58	queryBuilder	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	59	locks	const	ngoài hàm/class	new	không
-src/platform/db.ts	60	settingsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	61	auditRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	62	paramVersionsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	63	periodsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	64	runsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	65	payslipsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	66	slipOverridesRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	67	staffRolesRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	68	staffRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	69	punchesRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	70	correctionsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	71	timesheetsRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	72	kpiScoresRepo	const	ngoài hàm/class	new	không
-src/platform/db.ts	76	now	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	80	transactionId	let	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	84	insideTransaction	const	ngoài hàm/class	new	không
-src/platform/db.ts	85	transactionTail	let	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	87	outermost	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	92	previous	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	93	release	let	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	103	name	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	106	value	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	109	error	catch	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	141	withContext	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	157	KPI_COLUMNS	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	158	KPI_KEYS	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	159	KPI_SCORE_MAX	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	160	KPI_MONTH_RE	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	161	kpiCheck	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	168	rowToKpiScores	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	181	rowToKpiLog	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	200	entries	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	201	key	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	201	value	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	224	defaultContractResolver	let	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	225	setDefaultContractResolver	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	228	defaultContract	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	231	v	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	239	rowToStaff	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	242	contract	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	243	parts	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	288	DATE_RE	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	297	safeParse	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	304	REASON_MIN	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	305	REASON_MAX	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	307	softReason	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	308	fail	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	314	NO_REASON_TEXT	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	315	padReason	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	316	t	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	320	clampPage	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	321	size	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	322	index	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	338	AUDIT_SENSITIVITY	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	339	AUDIT_JSON_MAX	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	340	auditKey	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	341	key	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	345	auditCanonical	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	367	text	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	372	rowToAudit	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	394	c	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	395	eq	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	408	kind	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	408	rest	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	423	auditStore	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	429	e	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	430	text	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	435	s	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	439	sensitivity	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	441	json	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	443	s	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	448	roles	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	449	fields	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	465	uuidOf	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	467	hit	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	474	subjectUuid	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	475	actorUuid	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	477	last	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	478	row	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	479	key	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	488	criteria	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	489	limit	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	490	order	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	496	criteria	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	497	cap	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	507	prev	let	trong hàm ngoài class	giá trị cố định	không
-src/platform/db.ts	508	lastId	let	trong hàm ngoài class	giá trị cố định	không
-src/platform/db.ts	509	checked	let	trong hàm ngoài class	giá trị cố định	không
-src/platform/db.ts	510	unverifiable	let	trong hàm ngoài class	giá trị cố định	không
-src/platform/db.ts	511	cursor	let	trong hàm ngoài class	giá trị cố định	không
-src/platform/db.ts	512	key	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	514	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	516	r	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	517	bad	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	520	kind	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	535	rowToParam	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	547	paramsStore	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	550	value	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	560	filter	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	563	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	581	PERIOD_STATES	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	582	periodRank	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	585	SCOPE_LOCKED_FROM	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	592	STAGE_COLUMNS	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	599	rowToPeriod	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	639	readPeriod	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	642	PERIOD_STATUS_TEXT	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	651	m	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	652	row	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	653	locked	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	654	details	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	666	month	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	668	row	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	669	current	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	686	month	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	686	row	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	687	status	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	689	t	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	690	set	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	691	byColumn	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	691	atColumn	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	697	stage	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	697	columns	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	698	c	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	704	requireBy	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	708	periodsStore	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	714	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	724	run	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	743	m	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	744	period	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	747	run	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	750	excluded	const	trong hàm ngoài class	new	không
-src/platform/db.ts	751	item	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	755	open	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	758	unapproved	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	759	errored	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	760	items	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	774	t	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	775	p	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	776	p	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	777	username	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	777	reason	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	785	at	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	788	ref	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	807	m	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	807	row	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	808	status	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	809	expected	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	828	PAYSLIP_AMOUNTS	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	830	plainObjectOrNull	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	831	rowToRun	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	851	rowToPayslip	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	878	p	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	879	o	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	880	values	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	894	payrollStore	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	899	month	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	900	bad	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	908	period	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	912	id	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	931	run	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	935	field	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	936	v	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	943	flags	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	962	run	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	970	period	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	981	like	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	982	paging	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	983	total	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	983	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	992	counts	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	993	r	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	1009	text	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1012	run	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1015	seen	const	trong hàm ngoài class	new	không
-src/platform/db.ts	1016	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1021	row	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1031	flaggedOf	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	1033	errors	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1038	wrong	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1039	stateItems	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1045	flagged	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1046	flaggedItems	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1053	wrong	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1059	next	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1060	t	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1074	ROLE_RE	const	ngoài hàm/class	giá trị cố định	không
-src/platform/db.ts	1075	rowToRole	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	1083	activeRoleRow	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	1084	rolesStore	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	1091	current	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1093	id	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1105	staff	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1107	roles	const	trong hàm ngoài class	new	không
-src/platform/db.ts	1142	version	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1148	flag	const	trong hàm ngoài class	hàm	không
-src/platform/db.ts	1149	given	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1150	parts	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1152	shift	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1232	page	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1263	r	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1280	r	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1297	current	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1334	entries	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1335	why	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1338	t	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1339	current	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1340	sheet	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1341	changes	const	trong hàm ngoài class	object/array	không
-src/platform/db.ts	1342	key	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	1342	value	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	1343	before	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1346	scoreChanges	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1348	columns	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1352	amt	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1354	c	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	1374	rows	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1402	r	const	trong hàm ngoài class	biểu thức/khác	không
-src/platform/db.ts	1409	helpers	const	ngoài hàm/class	object/array	không
-src/platform/db.ts	1410	sessionsApi	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	1411	approvalsApi	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	1417	ready	const	ngoài hàm/class	biểu thức/khác	không
-src/platform/db.ts	1421	gate	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	1426	gateAll	const	ngoài hàm/class	hàm	không
-src/platform/db.ts	1427	key	const	trong hàm ngoài class	không khởi tạo	không
-src/platform/db.ts	1427	value	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	36	conflicting	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	54	db	const	ngoài hàm/class	new	không
+src/platform/db.ts	64	queryBuilder	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	65	locks	const	ngoài hàm/class	new	không
+src/platform/db.ts	66	settingsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	67	auditRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	68	paramVersionsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	69	periodsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	70	runsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	71	payslipsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	72	slipOverridesRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	73	staffRolesRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	74	staffRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	75	punchesRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	76	correctionsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	77	timesheetsRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	78	kpiScoresRepo	const	ngoài hàm/class	new	không
+src/platform/db.ts	82	now	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	86	transactionId	let	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	90	insideTransaction	const	ngoài hàm/class	new	không
+src/platform/db.ts	91	transactionTail	let	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	93	outermost	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	98	previous	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	99	release	let	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	109	name	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	112	value	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	115	error	catch	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	147	withContext	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	163	KPI_COLUMNS	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	164	KPI_KEYS	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	165	KPI_SCORE_MAX	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	166	KPI_MONTH_RE	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	167	kpiCheck	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	174	rowToKpiScores	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	187	rowToKpiLog	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	206	entries	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	207	key	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	207	value	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	230	defaultContractResolver	let	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	231	setDefaultContractResolver	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	234	defaultContract	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	237	v	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	245	rowToStaff	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	248	contract	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	249	parts	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	294	DATE_RE	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	303	safeParse	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	310	REASON_MIN	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	311	REASON_MAX	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	313	softReason	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	314	fail	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	320	NO_REASON_TEXT	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	321	padReason	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	322	t	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	326	clampPage	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	327	size	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	328	index	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	344	AUDIT_SENSITIVITY	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	345	AUDIT_JSON_MAX	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	346	auditKey	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	347	key	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	351	auditCanonical	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	373	text	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	378	rowToAudit	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	400	c	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	401	eq	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	414	kind	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	414	rest	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	429	auditStore	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	435	e	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	436	text	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	441	s	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	445	sensitivity	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	447	json	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	449	s	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	454	roles	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	455	fields	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	471	uuidOf	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	473	hit	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	480	subjectUuid	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	481	actorUuid	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	483	last	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	484	row	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	485	key	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	494	criteria	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	495	limit	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	496	order	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	502	criteria	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	503	cap	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	513	prev	let	trong hàm ngoài class	giá trị cố định	không
+src/platform/db.ts	514	lastId	let	trong hàm ngoài class	giá trị cố định	không
+src/platform/db.ts	515	checked	let	trong hàm ngoài class	giá trị cố định	không
+src/platform/db.ts	516	unverifiable	let	trong hàm ngoài class	giá trị cố định	không
+src/platform/db.ts	517	cursor	let	trong hàm ngoài class	giá trị cố định	không
+src/platform/db.ts	518	key	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	520	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	522	r	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	523	bad	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	526	kind	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	541	rowToParam	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	553	paramsStore	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	556	value	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	566	filter	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	569	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	587	PERIOD_STATES	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	588	periodRank	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	591	SCOPE_LOCKED_FROM	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	598	STAGE_COLUMNS	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	605	rowToPeriod	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	645	readPeriod	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	648	PERIOD_STATUS_TEXT	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	657	m	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	658	row	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	659	locked	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	660	details	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	672	month	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	674	row	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	675	current	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	692	month	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	692	row	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	693	status	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	695	t	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	696	set	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	697	byColumn	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	697	atColumn	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	703	stage	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	703	columns	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	704	c	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	710	requireBy	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	714	periodsStore	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	720	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	730	run	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	749	m	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	750	period	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	753	run	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	756	excluded	const	trong hàm ngoài class	new	không
+src/platform/db.ts	757	item	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	761	open	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	764	unapproved	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	765	errored	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	766	items	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	780	t	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	781	p	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	782	p	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	783	username	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	783	reason	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	791	at	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	794	ref	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	813	m	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	813	row	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	814	status	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	815	expected	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	834	PAYSLIP_AMOUNTS	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	836	plainObjectOrNull	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	837	rowToRun	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	857	rowToPayslip	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	884	p	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	885	o	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	886	values	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	900	payrollStore	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	905	month	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	906	bad	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	914	period	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	918	id	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	937	run	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	941	field	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	942	v	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	949	flags	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	968	run	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	976	period	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	987	like	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	988	paging	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	989	total	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	989	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	998	counts	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	999	r	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	1015	text	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1018	run	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1021	seen	const	trong hàm ngoài class	new	không
+src/platform/db.ts	1022	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1027	row	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1037	flaggedOf	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	1039	errors	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1044	wrong	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1045	stateItems	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1051	flagged	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1052	flaggedItems	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1059	wrong	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1065	next	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1066	t	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1080	ROLE_RE	const	ngoài hàm/class	giá trị cố định	không
+src/platform/db.ts	1081	rowToRole	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	1089	activeRoleRow	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	1090	rolesStore	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	1097	current	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1099	id	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1111	staff	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1113	roles	const	trong hàm ngoài class	new	không
+src/platform/db.ts	1148	version	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1154	flag	const	trong hàm ngoài class	hàm	không
+src/platform/db.ts	1155	given	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1156	parts	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1158	shift	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1238	page	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1269	r	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1286	r	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1303	current	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1340	entries	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1341	why	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1344	t	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1345	current	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1346	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1347	changes	const	trong hàm ngoài class	object/array	không
+src/platform/db.ts	1348	key	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	1348	value	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	1349	before	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1352	scoreChanges	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1354	columns	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1358	amt	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1360	c	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	1380	rows	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1408	r	const	trong hàm ngoài class	biểu thức/khác	không
+src/platform/db.ts	1415	helpers	const	ngoài hàm/class	object/array	không
+src/platform/db.ts	1416	sessionsApi	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	1417	approvalsApi	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	1423	ready	const	ngoài hàm/class	biểu thức/khác	không
+src/platform/db.ts	1427	gate	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	1432	gateAll	const	ngoài hàm/class	hàm	không
+src/platform/db.ts	1433	key	const	trong hàm ngoài class	không khởi tạo	không
+src/platform/db.ts	1433	value	const	trong hàm ngoài class	không khởi tạo	không
 src/platform/events.ts	12	AsyncList	const	ngoài hàm/class	require	không
 src/platform/events.ts	13	store	const	ngoài hàm/class	require	không
 src/platform/events.ts	14	auth	const	ngoài hàm/class	require	không
