@@ -250,11 +250,28 @@ class PostgresDatabase {
       console.error(`[sql-stats] ${total} lệnh trong ${Math.round(this.#statsMs)} ms (chờ DB), ${this.#stats.size} câu khác nhau; nhiều nhất:`);
       for (const [sql, n] of top) console.error(`  ${String(n).padStart(6)}  ${sql.replace(/\s+/g, ' ').slice(0, 150)}`);
     }
-    if (this.#driver) await this.#driver.close();
-    if (this.#adminPool) {
-      await this.#adminPool.query(`DROP DATABASE IF EXISTS ${this.#isolatedName} WITH (FORCE)`).catch(() => {});
-      await this.#adminPool.end();
-      this.#adminPool = null;
+    try {
+      if (this.#driver) await this.#driver.close();
+    } finally {
+      if (this.#adminPool) {
+        try {
+          if (this.#isolatedName) {
+            // Pool.end() kết thúc phía client trước khi backend PostgreSQL biến mất khỏi pg_stat_activity.
+            // Cho các kết nối đang đóng êm một khoảng ngắn trước khi dùng FORCE cho DB do tiến trình này tạo.
+            for (let attempt = 0; attempt < 50; attempt++) {
+              const active = await this.#adminPool.query('SELECT 1 FROM pg_stat_activity WHERE datname = $1 LIMIT 1', [
+                this.#isolatedName
+              ]);
+              if (!active.rowCount) break;
+              await new Promise(resolve => setTimeout(resolve, 25));
+            }
+            await this.#adminPool.query(`DROP DATABASE IF EXISTS ${this.#isolatedName} WITH (FORCE)`);
+          }
+        } finally {
+          await this.#adminPool.end();
+          this.#adminPool = null;
+        }
+      }
     }
   }
 }

@@ -37,3 +37,13 @@
 - [x] Sửa `#migrate()` để mở một giao dịch trên một kết nối, lấy advisory lock, kiểm tra relations và dấu trước ghi, áp các migration theo thứ tự và ghi dấu trong cùng giao dịch. Nếu lỗi thì rollback, giữ nguyên database ban đầu.
 - [x] Mở rộng test và guard cho schema khác, function/type không có bảng và cấu hình `search_path` của kết nối; đảm bảo mọi kết nối dùng schema đã kiểm tra.
 - [x] Chạy test GREEN trên PostgreSQL thật, test PostgreSQL pool, typecheck và các test API đại diện. PostgreSQL-only và chuẩn hoá các nhóm dữ liệu vẫn còn phải thực hiện.
+
+## Task 2: Đóng database test tạm an toàn
+
+**Files:**
+- Create: `test/db/isolated-database-close.test.ts`
+- Modify: `src/data/postgres-database.ts`
+
+- [x] Viết test PostgreSQL thật: khi kết nối khác đang đóng êm, `close()` chờ trước khi xoá thay vì dùng FORCE ngay; khi `CREATE DATABASE` thất bại thì không gửi bất kỳ lệnh DROP nào.
+- [x] Chạy test RED, sau đó chờ các backend tự đóng trong thời gian giới hạn trước khi dọn DB và chỉ DROP nếu tiến trình đã tạo DB thành công. Vẫn đóng admin pool kể cả lỗi.
+- [x] Chạy lại test cùng kiểm thử đồng thời tạm ứng; xác nhận không còn lỗi bất đồng bộ hoặc database tạm bị bỏ lại.
