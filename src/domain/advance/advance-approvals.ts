@@ -2,8 +2,7 @@
 // Yêu cầu tạm ứng theo người theo tháng: số tạm ứng luôn là số theo quy tắc (công thức tamUng của bộ máy lương),
 // nhân sự không nhập số nào. CHỈ người cần mới bấm "Xin tạm ứng"; Admin duyệt hoặc từ chối. Số chỉ trừ vào phiếu khi yêu cầu ở trạng thái 'approved';
 // không xin, đang chờ hay bị từ chối đều là 0 (không có ai "tự động" có yêu cầu).
-// Lưu ở bảng settings (không đổi lược đồ DB), một khoá cho mỗi tháng: `advance_approvals_<YYYY-MM>` =
-//   { rev, users: { <tên đăng nhập>: { status, rev, requestedAt, requestedBy, decidedAt, decidedBy, reason } } }
+// Lưu phiên bản theo tháng và từng yêu cầu theo người/tháng trong các bảng quan hệ.
 // status: 'pending' | 'approved' | 'rejected'; null = không có yêu cầu (đã rút, giữ dòng để rev của người đó không quay về 0).
 // rev của tháng tăng ở mỗi lần ghi (duyệt tất cả kiểm rev này); rev của một người tăng ở mỗi lần đổi trạng thái của người đó (gửi, rút, duyệt,
 // từ chối, huỷ duyệt kiểm rev này). Lịch sử đầy đủ nằm ở nhật ký (advance.request / withdraw / approve / reject / cancel).
@@ -11,8 +10,6 @@
 const { DomainError } = require('../shared/domain-error');
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
-const KEY_PREFIX = 'advance_approvals_';
-const STATUSES = Object.freeze(['pending', 'approved', 'rejected']);
 
 // Bước chuyển hợp lệ: from = trạng thái phải có trước; code / text = lỗi 409 khi trạng thái không khớp
 const MOVES = Object.freeze({
@@ -49,21 +46,6 @@ const MOVES = Object.freeze({
   }
 });
 
-// Một dòng đã lưu → dạng chuẩn. Dòng dạng { approved, by, at } (không qua bước xin) đọc như yêu cầu đã duyệt
-function normalize(e?) {
-  if (!e || typeof e !== 'object') return null;
-  const rev = Number.isSafeInteger(e.rev) ? e.rev : 0;
-  const status = STATUSES.includes(e.status) ? e.status : e.approved === true ? 'approved' : null;
-  return {
-    status,
-    rev,
-    requestedAt: e.requestedAt ?? null,
-    requestedBy: e.requestedBy ?? null,
-    decidedAt: e.decidedAt ?? e.at ?? null,
-    decidedBy: e.decidedBy ?? e.by ?? null,
-    reason: e.reason ?? null
-  };
-}
 const EMPTY = Object.freeze({
   status: null,
   rev: 0,
@@ -75,41 +57,41 @@ const EMPTY = Object.freeze({
 });
 
 class AdvanceApprovals {
-  declare getSetting: any;
-  declare setSetting: any;
+  declare repository: any;
+  declare transaction: any;
+  declare lock: any;
   declare clock: any;
 
-  // getSetting(key, fallback) / setSetting(key, value): kho settings (src/platform/db.ts); clock() → ISO
-  constructor({ getSetting, setSetting, clock }: any) {
-    this.getSetting = getSetting;
-    this.setSetting = setSetting;
+  // transaction hỗ trợ lồng vào giao dịch của handler; lock giữ đến khi giao dịch ngoài cùng kết thúc.
+  constructor({ repository, transaction, lock, clock }: any) {
+    this.repository = repository;
+    this.transaction = transaction;
+    this.lock = lock;
     this.clock = clock;
   }
 
-  static keyOf(month?) {
+  static validateMonth(month?) {
     if (!MONTH_RE.test(String(month))) throw DomainError.invalid('BAD_MONTH', 'month phải có dạng YYYY-MM');
-    return KEY_PREFIX + month;
   }
 
   // Bản ghi của tháng; tháng chưa có ai xin: { rev: 0, users: {} }
   async read(month?) {
-    const doc = await this.getSetting(AdvanceApprovals.keyOf(month), null);
-    const users = doc && doc.users && typeof doc.users === 'object' ? doc.users : {};
-    return { rev: doc && Number.isSafeInteger(doc.rev) ? doc.rev : 0, users };
+    AdvanceApprovals.validateMonth(month);
+    return await this.repository.read(month);
   }
 
   // Trạng thái của một người trong tháng (chưa từng xin: status null, rev 0)
   async entryOf(month?, username?) {
-    return normalize((await this.read(month)).users[username]) || { ...EMPTY };
+    return (await this.read(month)).users[username] || { ...EMPTY };
   }
 
   // Mọi người có yêu cầu (chờ, đã duyệt, từ chối) của tháng: Map tên đăng nhập → entry. Người đã rút không có
   async requests(month?) {
     const users = (await this.read(month)).users;
     const out = new Map<any, any>();
-    for (const u of Object.keys(users)) {
-      const e = normalize(users[u]);
-      if (e && e.status) out.set(u, e);
+    for (const username of Object.keys(users)) {
+      const entry = users[username];
+      if (entry.status) out.set(username, entry);
     }
     return out;
   }
@@ -146,35 +128,41 @@ class AdvanceApprovals {
   // Đổi trạng thái một người. move: 'request' | 'withdraw' | 'approve' | 'reject' | 'cancel'. expectedRev: rev của NGƯỜI đó.
   // Trả { before, after } (dạng entryOf); trạng thái không khớp bước thì 409 và không ghi gì.
   async move(month, username, move, { expectedRev, by, reason }: any) {
-    const doc = await this.read(month);
-    const before = await this.entryOf(month, username);
-    AdvanceApprovals.checkRev(expectedRev, before.rev, 'ADVANCE_REQUEST_STALE');
-    const after = AdvanceApprovals.step(before, move, { by, at: this.clock(), reason });
-    await this.setSetting(AdvanceApprovals.keyOf(month), {
-      rev: doc.rev + 1,
-      users: { ...doc.users, [username]: after }
+    AdvanceApprovals.validateMonth(month);
+    return await this.transaction(async () => {
+      await this.lock(`advance-approvals:${month}`);
+      const doc = await this.read(month);
+      const before = doc.users[username] || { ...EMPTY };
+      AdvanceApprovals.checkRev(expectedRev, before.rev, 'ADVANCE_REQUEST_STALE');
+      const after = AdvanceApprovals.step(before, move, { by, at: this.clock(), reason });
+      await this.repository.save(month, [{ username, entry: after }]);
+      return { before, after };
     });
-    return { before, after };
   }
 
   // Duyệt nhiều yêu cầu đang chờ một lần. expectedRev: rev của THÁNG. Người không còn chờ bị bỏ qua.
   // Trả danh sách { username, before, after } của người vừa duyệt.
   async approveMany(month, usernames, { expectedRev, by }: any) {
-    const doc = await this.read(month);
-    AdvanceApprovals.checkRev(expectedRev, doc.rev, 'ADVANCE_REQUESTS_STALE');
-    const at = this.clock();
-    const users = { ...doc.users };
-    const done: any[] = [];
-    for (const username of usernames) {
-      const before = await this.entryOf(month, username);
-      if (before.status !== 'pending') continue;
-      const after = AdvanceApprovals.step(before, 'approve', { by, at });
-      users[username] = after;
-      done.push({ username, before, after });
-    }
-    if (done.length) await this.setSetting(AdvanceApprovals.keyOf(month), { rev: doc.rev + 1, users });
-    return done;
+    AdvanceApprovals.validateMonth(month);
+    return await this.transaction(async () => {
+      await this.lock(`advance-approvals:${month}`);
+      const doc = await this.read(month);
+      AdvanceApprovals.checkRev(expectedRev, doc.rev, 'ADVANCE_REQUESTS_STALE');
+      const at = this.clock();
+      const done: any[] = [];
+      for (const username of new Set<any>(usernames)) {
+        const before = doc.users[username] || { ...EMPTY };
+        if (before.status !== 'pending') continue;
+        const after = AdvanceApprovals.step(before, 'approve', { by, at });
+        done.push({ username, before, after });
+      }
+      await this.repository.save(
+        month,
+        done.map(change => ({ username: change.username, entry: change.after }))
+      );
+      return done;
+    });
   }
 }
 
-export = { AdvanceApprovals, STATUSES };
+export = { AdvanceApprovals };

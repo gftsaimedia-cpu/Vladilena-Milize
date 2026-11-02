@@ -30,6 +30,7 @@ function splitTop(raw?) {
 function tsType(sqlType?) {
   const t = sqlType.toUpperCase();
   if (/^(BIGINT|INTEGER|INT|SMALLINT|REAL|DOUBLE|NUMERIC)/.test(t)) return 'number';
+  if (t === 'TIMESTAMPTZ') return 'Date';
   if (/^(BYTEA|BLOB)/.test(t)) return 'Buffer';
   return 'string';
 }

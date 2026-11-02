@@ -73,7 +73,7 @@ test('an empty database is initialized once and can be reopened', async () => {
     const migrations = await pool.query('SELECT name FROM schema_migrations ORDER BY name');
     assert.deepEqual(
       migrations.rows.map((row: any) => row.name),
-      ['0001_baseline.sql', '0002_seed.sql', MARKER].sort()
+      ['0001_baseline.sql', '0002_seed.sql', '0003_advance_approvals.sql', MARKER].sort()
     );
   });
 });
@@ -155,6 +155,29 @@ test('a database with an unknown migration is rejected without changing its reco
   });
 });
 
+test('migration refuses unexpected old advance documents instead of silently ignoring them', async () => {
+  await withDatabase(async ({ url, pool }) => {
+    const db = await open(url);
+    await db.close();
+    await pool.query('DROP TABLE advance_approval_entries, advance_approval_months');
+    await pool.query("DELETE FROM schema_migrations WHERE name = '0003_advance_approvals.sql'");
+    await pool.query("INSERT INTO settings (key, value_json) VALUES ('advance_approvals_2026-11', '{\"rev\":1}')");
+    await expectIncompatible(url);
+    assert.equal(
+      (await pool.query("SELECT value_json FROM settings WHERE key = 'advance_approvals_2026-11'")).rows[0].value_json,
+      '{"rev":1}'
+    );
+    assert.equal(
+      (await pool.query("SELECT to_regclass('public.advance_approval_entries') AS name")).rows[0].name,
+      null
+    );
+    assert.equal(
+      (await pool.query("SELECT 1 FROM schema_migrations WHERE name = '0003_advance_approvals.sql'")).rowCount,
+      0
+    );
+  });
+});
+
 test('two connections can initialize the same empty database concurrently', async () => {
   await withDatabase(async ({ url, pool }) => {
     const first = new PostgresDatabase({ url, max: 1 });
@@ -164,7 +187,7 @@ test('two connections can initialize the same empty database concurrently', asyn
       const rows = await pool.query('SELECT name FROM schema_migrations ORDER BY name');
       assert.deepEqual(
         rows.rows.map((row: any) => row.name),
-        ['0001_baseline.sql', '0002_seed.sql', MARKER].sort()
+        ['0001_baseline.sql', '0002_seed.sql', '0003_advance_approvals.sql', MARKER].sort()
       );
     } finally {
       await Promise.all([first.close(), second.close()]);

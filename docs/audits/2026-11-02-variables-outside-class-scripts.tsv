@@ -674,34 +674,34 @@ scripts/dev/sandbox-server.ts	53	selectedUser	let	ngoài hàm/class	giá trị c
 scripts/dev/sandbox-server.ts	58	PERIOD_TABLES	const	ngoài hàm/class	object/array	không
 scripts/dev/sandbox-server.ts	68	table	const	trong hàm ngoài class	không khởi tạo	không
 scripts/dev/sandbox-server.ts	75	table	const	trong hàm ngoài class	không khởi tạo	không
-scripts/dev/sandbox-server.ts	94	passHash	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	96	startDate	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	97	profile	const	trong hàm ngoài class	không khởi tạo	không
-scripts/dev/sandbox-server.ts	104	seeded	const	ngoài hàm/class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	106	localTime	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	107	state	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	120	sessionCookie	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	121	hasAttendanceData	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	122	table	const	trong hàm ngoài class	không khởi tạo	không
-scripts/dev/sandbox-server.ts	138	body	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	152	body	let	trong hàm ngoài class	giá trị cố định	không
-scripts/dev/sandbox-server.ts	153	chunk	const	trong hàm ngoài class	không khởi tạo	không
-scripts/dev/sandbox-server.ts	158	data	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	171	normalized	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	172	result	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	178	homePage	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	179	staff	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	183	isSpaPage	const	ngoài hàm/class	hàm	không
-scripts/dev/sandbox-server.ts	191	CLOCK_QUERY	const	ngoài hàm/class	giá trị cố định	không
-scripts/dev/sandbox-server.ts	198	bootstrap	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	204	sandbox	const	ngoài hàm/class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	206	url	const	trong hàm ngoài class	new	không
-scripts/dev/sandbox-server.ts	214	data	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	216	opsResult	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	219	next	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	249	html	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/dev/sandbox-server.ts	255	error	catch	trong hàm ngoài class	không khởi tạo	không
-scripts/dev/sandbox-server.ts	260	port	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	96	passHash	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	98	startDate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	99	profile	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	106	seeded	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	108	localTime	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	109	state	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	122	sessionCookie	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	123	hasAttendanceData	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	124	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	140	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	154	body	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	155	chunk	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	160	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	173	normalized	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	174	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	180	homePage	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	181	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	185	isSpaPage	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	193	CLOCK_QUERY	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	200	bootstrap	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	206	sandbox	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	208	url	const	trong hàm ngoài class	new	không
+scripts/dev/sandbox-server.ts	216	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	218	opsResult	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	221	next	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	251	html	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	257	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	262	port	const	ngoài hàm/class	biểu thức/khác	không
 scripts/dev/sandbox.js	2	dateInput	const	ngoài hàm/class	biểu thức/khác	không
 scripts/dev/sandbox.js	3	timeInput	const	ngoài hàm/class	biểu thức/khác	không
 scripts/dev/sandbox.js	4	userInput	const	ngoài hàm/class	biểu thức/khác	không
@@ -1355,30 +1355,30 @@ scripts/docs/gen-db-types.ts	16	depth	let	trong hàm ngoài class	giá trị c�
 scripts/docs/gen-db-types.ts	17	cur	let	trong hàm ngoài class	giá trị cố định	không
 scripts/docs/gen-db-types.ts	18	ch	const	trong hàm ngoài class	không khởi tạo	không
 scripts/docs/gen-db-types.ts	31	t	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	38	dir	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	39	sql	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	46	tables	const	trong hàm ngoài class	object/array	không
-scripts/docs/gen-db-types.ts	47	m	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	49	extra	const	trong hàm ngoài class	object/array	không
-scripts/docs/gen-db-types.ts	50	out	let	trong hàm ngoài class	giá trị cố định	không
-scripts/docs/gen-db-types.ts	54	t	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	55	cols	const	trong hàm ngoài class	object/array	không
-scripts/docs/gen-db-types.ts	56	part	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	58	m	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	61	e	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	62	m	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	65	pk	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	66	pkCols	const	trong hàm ngoài class	new	không
-scripts/docs/gen-db-types.ts	68	c	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	69	base	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	70	isPk	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	71	nullableCol	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	72	generated	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	73	nullable	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	74	type	const	trong hàm ngoài class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	80	t	const	trong hàm ngoài class	không khởi tạo	không
-scripts/docs/gen-db-types.ts	87	built	const	ngoài hàm/class	biểu thức/khác	không
-scripts/docs/gen-db-types.ts	89	cur	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	39	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	40	sql	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	47	tables	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	48	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	50	extra	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	51	out	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-db-types.ts	55	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	56	cols	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	57	part	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	59	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	62	e	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	63	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	66	pk	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	67	pkCols	const	trong hàm ngoài class	new	không
+scripts/docs/gen-db-types.ts	69	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	70	base	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	71	isPk	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	72	nullableCol	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	73	generated	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	74	nullable	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	75	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	81	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	88	built	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	90	cur	const	ngoài hàm/class	biểu thức/khác	không
 scripts/docs/gen-spec.ts	8	fs	const	ngoài hàm/class	require	không
 scripts/docs/gen-spec.ts	9	path	const	ngoài hàm/class	require	không
 scripts/docs/gen-spec.ts	11	ROOT	const	ngoài hàm/class	biểu thức/khác	không

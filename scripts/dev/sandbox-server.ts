@@ -84,6 +84,8 @@ async function resetSyntheticData() {
       'sheet_approvals',
       'kpi_scores',
       'kpi_score_log',
+      'advance_approval_entries',
+      'advance_approval_months',
       'staff',
       'settings'
     ])

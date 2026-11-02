@@ -4,6 +4,7 @@ const {
   createQueryBuilder,
   AdvisoryLocks,
   SettingsRepository,
+  AdvanceApprovalsRepository,
   AuditLogRepository,
   ParamVersionsRepository,
   PayrollPeriodsRepository,
@@ -64,6 +65,7 @@ const db = new PostgresDatabase(
 const queryBuilder = createQueryBuilder(db);
 const locks = new AdvisoryLocks(queryBuilder);
 const settingsRepo = new SettingsRepository(queryBuilder);
+const advanceApprovalsRepo = new AdvanceApprovalsRepository(queryBuilder);
 const auditRepo = new AuditLogRepository(queryBuilder);
 const paramVersionsRepo = new ParamVersionsRepository(queryBuilder);
 const periodsRepo = new PayrollPeriodsRepository(queryBuilder);
@@ -1129,7 +1131,13 @@ const rolesStore = {
 module.exports = {
   db,
   queryBuilder,
-  repos: { params: paramVersionsRepo, periods: periodsRepo, staff: staffRepo, corrections: correctionsRepo },
+  repos: {
+    params: paramVersionsRepo,
+    periods: periodsRepo,
+    staff: staffRepo,
+    corrections: correctionsRepo,
+    advanceApprovals: advanceApprovalsRepo
+  },
   transaction,
   // Khoá tư vấn theo khoá nghiệp vụ tới hết giao dịch (xem src/data/locks.ts): gọi đầu giao dịch "đọc rồi mới chèn"
   lock: (key?) => locks.acquire(key),
