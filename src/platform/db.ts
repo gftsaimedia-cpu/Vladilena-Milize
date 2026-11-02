@@ -32,6 +32,12 @@ const { PersonName, titleCase } = require('../domain/employee/person-name'); // 
 //   PG_TEST_URL=postgres://…       test: mỗi tiến trình một database riêng trên máy chủ thật (xoá khi đóng)
 //   DB_PATH=:memory: | <thư mục>   PostgreSQL trong tiến trình (PGlite): RAM, hoặc lưu ở thư mục; dùng để thử và dựng thử
 const DB_PATH = process.env.DB_PATH;
+if (process.env.DATABASE_URL && (DB_PATH || process.env.PG_TEST_URL)) {
+  const conflicting = [DB_PATH && 'DB_PATH', process.env.PG_TEST_URL && 'PG_TEST_URL'].filter(Boolean).join(', ');
+  throw new Error(
+    `Cấu hình database mâu thuẫn: DATABASE_URL được đặt cùng ${conflicting}. Hãy bỏ cấu hình không chủ đích trước khi chạy.`
+  );
+}
 if (!process.env.DATABASE_URL && !process.env.PG_TEST_URL && !DB_PATH)
   throw new Error(
     [

@@ -88,10 +88,11 @@ before(async () => {
   staffCookie = await cookieOf('an');
   adminCookie = await cookieOf('admin');
 });
-after(() => {
+after(async () => {
   Date.now = realNow;
   server.closeAllConnections();
-  server.close();
+  await new Promise<void>((resolve, reject) => server.close((error?: Error) => (error ? reject(error) : resolve())));
+  await store.db.close();
 });
 
 test('hợp đồng GET /api/me: phiên, năng lực, quyền lợi theo chức vụ', async () => {

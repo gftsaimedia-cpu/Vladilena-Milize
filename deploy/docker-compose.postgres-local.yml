@@ -1,0 +1,39 @@
+# Chỉ cho phát triển và kiểm thử trên máy cá nhân; không dùng cho dữ liệu vận hành.
+name: luong-postgres-local
+
+services:
+  postgres-dev:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: luong_dev
+      POSTGRES_PASSWORD: '${LOCAL_PG_DEV_PASSWORD:?Thiếu LOCAL_PG_DEV_PASSWORD}'
+      POSTGRES_DB: luong_dev
+    ports:
+      - '127.0.0.1:${LOCAL_PG_DEV_PORT:-55432}:5432'
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U luong_dev -d luong_dev']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  postgres-test:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: luong_test
+      POSTGRES_PASSWORD: '${LOCAL_PG_TEST_PASSWORD:?Thiếu LOCAL_PG_TEST_PASSWORD}'
+      POSTGRES_DB: luong_test_control
+    ports:
+      - '127.0.0.1:${LOCAL_PG_TEST_PORT:-55433}:5432'
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U luong_test -d luong_test_control']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres-dev-data:
+  postgres-test-data:
