@@ -17,10 +17,14 @@ const DAY_KIND = {
 function dayOf(r?) {
   const kind = DAY_KIND[r.kind];
   if (!kind) return r.pay > 0 ? dayOf({ ...r, kind: 'work' }) : null;
-  const work = kind === 'work';
+  const holidayWorked =
+    kind === 'holiday' &&
+    [r.hours, r.holWorkH, r.otH, r.makeupH, r.holWorkPay, r.otPay, r.makeupPay].some(value => Number(value) > 0);
+  const work = kind === 'work' || holidayWorked;
   return {
     date: r.date,
     kind,
+    worked: work,
     shift: work ? r.shift || 'normal' : '',
     in: work ? r.punchIn || r.in || '' : '',
     out: work ? r.punchOut || r.out || '' : '',
@@ -30,6 +34,10 @@ function dayOf(r?) {
     breakPay: r.breakPay == null ? r.breakPay : Math.round(r.breakPay),
     otH: r.otH,
     otPay: r.otPay == null ? r.otPay : Math.round(r.otPay),
+    holWorkH: r.holWorkH,
+    holWorkPay: r.holWorkPay,
+    makeupH: r.makeupH,
+    makeupPay: r.makeupPay,
     otUntil: '',
     cut: r.cut == null ? r.cut : Math.round(r.cut),
     total: r.pay

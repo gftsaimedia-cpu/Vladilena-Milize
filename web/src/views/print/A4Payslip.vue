@@ -33,9 +33,27 @@ const OFF = {
 
 const dayRows = computed(() =>
   props.sheet.days.map(d => {
-    const off = d.kind !== 'work';
-    const [cls, label, note] = off ? OFF[d.kind] || ['p-o', d.kind, ''] : SHIFT[d.shift] || ['', d.shift, ''];
-    return { ...d, off, cls, label, note, label2: dayLabel(d.date), tall: !off && (d.breakPay > 0 || d.otH > 0) };
+    const holidayWorked =
+      d.kind === 'holiday' &&
+      [d.hours, d.holWorkH, d.otH, d.makeupH].some(value => Number(value) > 0);
+    const worked = d.worked ?? (d.kind === 'work' || holidayWorked);
+    const off = !worked;
+    const [cls, label, note] = d.kind === 'holiday'
+      ? OFF.holiday
+      : off
+        ? OFF[d.kind] || ['p-o', d.kind, '']
+        : SHIFT[d.shift] || ['', d.shift, ''];
+    return {
+      ...d,
+      off,
+      cls,
+      label,
+      note,
+      label2: dayLabel(d.date),
+      tall:
+        !off &&
+        (d.breakPay > 0 || d.otH > 0 || d.makeupH > 0 || d.otPay > 0 || d.makeupPay > 0 || d.holWorkH > 0 || d.holWorkPay > 0)
+    };
   })
 );
 
@@ -138,11 +156,25 @@ const cutText = (value?) => (value === 0 ? vnd(value) : `−${vnd(value)}`);
                 <span v-else class="zz">—</span>
               </td>
               <td>
-                <template v-if="d.otH != null || d.otPay != null">
-                  <span v-if="d.otPay != null">+{{ vnd(d.otPay) }}</span>
-                  <span v-else class="zz">—</span>
-                  <i v-if="d.otH > 0">{{ num(d.otH) }} giờ<span v-if="d.otUntil">, đến {{ d.otUntil }}</span></i>
-                  <span v-else-if="d.otH === 0"> · 0 giờ</span>
+                <template
+                  v-if="d.otH != null || d.otPay != null || d.makeupH != null || d.makeupPay != null || (d.kind === 'holiday' && (d.holWorkH != null || d.holWorkPay != null))"
+                >
+                  <div class="extra-line" :class="{ zz: d.otPay == null && d.otH == null }">
+                    OT <span v-if="d.otPay != null">+{{ vnd(d.otPay) }}</span><span v-else>—</span> ·
+                    <span v-if="d.otH != null">{{ num(d.otH) }}h</span><span v-else>—</span>
+                  </div>
+                  <div class="extra-line" :class="{ zz: d.makeupPay == null && d.makeupH == null }">
+                    Làm bù <span v-if="d.makeupPay != null">+{{ vnd(d.makeupPay) }}</span><span v-else>—</span> ·
+                    <span v-if="d.makeupH != null">{{ num(d.makeupH) }}h</span><span v-else>—</span>
+                  </div>
+                  <div
+                    v-if="d.kind === 'holiday' && (d.holWorkH != null || d.holWorkPay != null)"
+                    class="extra-line"
+                    :class="{ zz: d.holWorkPay == null && d.holWorkH == null }"
+                  >
+                    Làm lễ <span v-if="d.holWorkPay != null">+{{ vnd(d.holWorkPay) }}</span><span v-else>—</span> ·
+                    <span v-if="d.holWorkH != null">{{ num(d.holWorkH) }}h</span><span v-else>—</span>
+                  </div>
                 </template>
                 <span v-else class="zz">—</span>
               </td>
@@ -468,6 +500,10 @@ h1 {
   font-size: 9.5px;
   line-height: 12px;
   color: #757575;
+}
+.pl-a4 table.cc td .extra-line {
+  font-size: 8.5px;
+  line-height: 10px;
 }
 .pl-a4 table.cc td.cnote {
   color: #757575;

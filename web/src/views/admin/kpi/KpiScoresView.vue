@@ -28,44 +28,112 @@ const filter = ref('all');
 const q = ref('');
 const page = ref(1);
 watch([month, filter, q], () => (page.value = 1));
-const { data } = useLoad(
-  () => getKpiScores(month.value, { filter: filter.value, q: q.value, page: page.value }),
-  () => [month.value, filter.value, q.value, page.value].join('|')
+const queryKey = computed(() => JSON.stringify([month.value, filter.value, q.value, page.value]));
+const { data, reload } = useLoad(
+  async () => {
+    const requestedMonth = month.value;
+    const requestedFilter = filter.value;
+    const requestedQuery = queryKey.value;
+    const result = await getKpiScores(requestedMonth, {
+      filter: requestedFilter,
+      q: q.value,
+      page: page.value
+    });
+    return { ...result, _month: requestedMonth, _queryKey: requestedQuery };
+  },
+  () => queryKey.value
 );
-const rows = computed(() => data.value?.rows || []);
+const viewData = computed(() => (data.value?._queryKey === queryKey.value ? data.value : null));
+const viewMonth = computed(() => viewData.value?._month || month.value);
+const rows = computed(() => viewData.value?.rows || []);
 const footText = computed(() => {
-  const d = data.value;
+  const d = viewData.value;
   if (!d || !rows.value.length) return `0 trên ${d?.total || 0} nhân sự có đánh giá KPI`;
   const from = (d.page - 1) * 20 + 1;
   return `${from}–${from + rows.value.length - 1} trên ${d.total} nhân sự có đánh giá KPI · xếp theo tên`;
 });
 
-// Nhập điểm: ô sai (ngoài 0–100) viền đỏ cho tới khi sửa
+// Draft riêng theo tháng/nhân sự/điểm để rerender không chép đè ký tự đang gõ bằng giá trị đã lưu.
+const drafts = ref<Record<string, string>>({});
 const invalid = ref(new Set());
+const saving = new Map<string, string>();
+const queued = new Set<string>();
+const cellKey = (targetMonth?, id?, k?) => `${targetMonth}-${id}-${k}`;
+const hasDraft = (key?) => Object.prototype.hasOwnProperty.call(drafts.value, key);
+function inputValue(row?, k?, targetMonth?) {
+  const key = cellKey(targetMonth, row.id, k);
+  return hasDraft(key) ? drafts.value[key] : row.scores[k] ?? '';
+}
+function setDraft(key?, value?) {
+  drafts.value = { ...drafts.value, [key]: value };
+}
+function clearDraft(key?) {
+  if (!hasDraft(key)) return;
+  const next = { ...drafts.value };
+  delete next[key];
+  drafts.value = next;
+}
 const mark = (key?, on?) => {
   const next = new Set<any>(invalid.value);
   if (on) next.add(key);
   else next.delete(key);
   invalid.value = next;
 };
-async function commit(row?, k?, e?) {
-  const key = `${row.id}-${k}`;
-  const raw = e.target.value.trim().replace(',', '.');
+function onInput(row?, k?, e?, targetMonth?) {
+  const key = cellKey(targetMonth, row.id, k);
+  setDraft(key, e.target.value);
+  mark(key, false);
+}
+async function commit(row?, k?, e?, targetMonth = month.value) {
+  const key = cellKey(targetMonth, row.id, k);
+  const rawInput = hasDraft(key) ? drafts.value[key] : e.target.value;
+  if (saving.has(key)) {
+    if (rawInput !== saving.get(key)) queued.add(key);
+    return;
+  }
+  const raw = String(rawInput).trim().replace(',', '.');
   const value = raw === '' ? null : Number(raw);
   if (value !== null && (!Number.isFinite(value) || value < 0 || value > 100)) return mark(key, true);
   mark(key, false);
-  if (value === row.scores[k]) return;
+  const saved = row.scores[k] == null ? null : Number(row.scores[k]);
+  if (value === saved) return clearDraft(key);
+  const submittedInput = String(rawInput);
+  const submittedQuery = queryKey.value;
+  saving.set(key, submittedInput);
   let res;
+  let failed = false;
   try {
-    res = await saveKpiScore({ month: month.value, id: row.id, index: k, value });
+    res = await saveKpiScore({ month: targetMonth, id: row.id, index: k, value });
   } catch (err) {
     toast.error(err.message);
-    e.target.value = row.scores[k] ?? '';
+    failed = true;
+  } finally {
+    saving.delete(key);
+  }
+  if (failed) {
+    if (queued.delete(key) && hasDraft(key)) {
+      void commit(row, k, { target: { value: drafts.value[key] } }, targetMonth);
+    }
     return;
   }
-  const i = data.value.rows.findIndex(x => x.id === row.id);
-  if (i >= 0 && res.row) data.value.rows[i] = res.row;
-  reloadSummary();
+  if (res.row) Object.assign(row, res.row);
+  if (hasDraft(key) && drafts.value[key] === submittedInput) clearDraft(key);
+  if (month.value === targetMonth) {
+    if (viewData.value?._queryKey === submittedQuery) {
+      const i = data.value.rows.findIndex(x => x.id === row.id);
+      if (i >= 0 && res.row) data.value.rows[i] = res.row;
+    }
+    reload();
+    reloadSummary();
+  }
+  if (queued.delete(key) && hasDraft(key)) {
+    const latestRow = rows.value.find(x => x.id === row.id) || row;
+    void commit(latestRow, k, { target: { value: drafts.value[key] } }, targetMonth);
+  }
+}
+function commitAndNext(row?, k?, i?, e?, targetMonth?) {
+  void commit(row, k, e, targetMonth);
+  nextRow(i, k, e);
 }
 function nextRow(i?, k?, e?) {
   const el = e.target.closest('tbody').querySelector(`[data-pos="${i + 1}-${k}"]`);
@@ -91,7 +159,7 @@ function nextRow(i?, k?, e?) {
         :class="{ on: filter === key }"
         @click="filter = key"
       >
-        {{ label }} <small v-if="data?.counts?.[key] != null">{{ data.counts[key] }}</small>
+        {{ label }} <small v-if="viewData?.counts?.[key] != null">{{ viewData.counts[key] }}</small>
       </button>
       <SearchBox v-model="q" style="margin-left: auto" />
     </div>
@@ -130,16 +198,16 @@ function nextRow(i?, k?, e?) {
           <td v-for="(w, k) in weights" :key="w.key" class="c">
             <input
               class="in"
-              :class="{ v: r.scores[k] != null, bad: invalid.has(`${r.id}-${k}`) }"
+              :class="{ v: r.scores[k] != null, bad: invalid.has(cellKey(viewMonth, r.id, k)) }"
               inputmode="decimal"
               autocomplete="off"
               placeholder="—"
-              :value="r.scores[k] ?? ''"
+              :value="inputValue(r, k, viewMonth)"
               :data-pos="`${i}-${k}`"
               :aria-label="`${w.label} của ${r.name}`"
-              @input="mark(`${r.id}-${k}`, false)"
-              @change="commit(r, k, $event)"
-              @keydown.enter.prevent="nextRow(i, k, $event)"
+              @input="onInput(r, k, $event, viewMonth)"
+              @blur="commit(r, k, $event, viewMonth)"
+              @keydown.enter.prevent="commitAndNext(r, k, i, $event, viewMonth)"
             />
           </td>
           <td class="tot" :class="{ z: r.total == null }">{{ r.total == null ? '—' : `${num(r.total)}%` }}</td>
@@ -150,14 +218,14 @@ function nextRow(i?, k?, e?) {
           <td class="n">{{ vnd(r.max) }}</td>
           <td class="n" :class="{ z: !r.bonus }">{{ r.bonus == null ? '—' : vnd(r.bonus) }}</td>
         </tr>
-        <tr v-if="data && !rows.length">
+        <tr v-if="viewData && !rows.length">
           <td colspan="10" class="none">
-            {{ data.empty ? 'Chưa có dữ liệu KPI của tháng này' : 'Không có nhân sự nào phù hợp' }}
+            {{ viewData.empty ? 'Chưa có dữ liệu KPI của tháng này' : 'Không có nhân sự nào phù hợp' }}
           </td>
         </tr>
       </tbody>
     </table>
-    <PagerBar :text="footText" :page="data?.page || 1" :pages="data?.pages || 1" @page="page = $event" />
+    <PagerBar :text="footText" :page="viewData?.page || 1" :pages="viewData?.pages || 1" @page="page = $event" />
   </section>
 </template>
 

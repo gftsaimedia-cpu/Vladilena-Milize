@@ -834,14 +834,14 @@
       // Ngày nghỉ xét chuyên cần và ngưỡng giờ vượt của chuyên cần: tính MỘT lần cho cờ r.attendOk và cho khối phụ cấp do C&B thêm (PayBlocksCalc.attach).
       // Ngưỡng = ghi đè của chức vụ (type.<mã>.overLimitHours, khác null) hoặc attendance.overLimitHours, CỘNG biên độ attendance.overLimitTolerance:
       // đúng ngưỡng của đường tiền (kernelFor(overlay) → OVER_ATTEND)
-      // Ngày nghỉ xét chuyên cần = nghỉ phép + nghỉ không lương + nghỉ được duyệt (nếu tính) − khoản miễn + vắng + ngày iSAT đã nghỉ (mỗi dòng iSAT một ngày, đủ hạn mức hay vượt đều tính)
+      // Ngày nghỉ xét chuyên cần = nghỉ phép + nghỉ không lương + nghỉ được duyệt (nếu tính) − khoản miễn + vắng; ngày iSAT không làm tăng số ngày nghỉ xét chuyên cần.
       // + ngày "Nghỉ, sẽ làm bù" theo giờ bù còn thiếu: min(số ngày willmakeup, làm tròn lên (giờ bù thiếu cuối kỳ tính ÷ giờ mỗi công));
       // giờ bù đã đủ thì các ngày đó không tính, giờ còn thiếu (kể cả giờ thiếu của ngày đi làm trễ) xếp vào ngày willmakeup trước
       const willmakeupCounted = Math.min(r.willmakeup, Math.ceil((r.debt || 0) / HOURS));
       const isatTaken = r.rows.filter(x => x.kind === 'isat').length;
       const absent = Math.max(
         0,
-        r.leave + r.unpaid + approvedCounted - unpaidExempt + r.noshow + willmakeupCounted + isatTaken
+        r.leave + r.unpaid + approvedCounted - unpaidExempt + r.noshow + willmakeupCounted
       );
       const overLimitAttend =
         (T.overLimitHours ?? need('attendance.overLimitHours')) + need('attendance.overLimitTolerance');
@@ -907,7 +907,9 @@
       // Các dòng phiếu LUÔN đọc từ công thức (không rào theo loại): công thức mặc định ra 0 cho loại không có khoản đó, còn công thức Admin đã lưu
       // có thể trả khác 0, và số trên các dòng phải khớp với tổng thu nhập (cũng đọc cùng công thức)
       // Mỗi dòng tiền làm tròn đồng MỘT lần; tổng thu nhập và các tổng sau đó là tổng đúng của các dòng nguyên (lines, travel, attendance, kpiPay, khối, khoản, quyết toán)
-      const attendanceExact = DEPS.PayOptions.tiered('phuCapChuyenCan', F.phuCapChuyenCan, v, P); // lossMode = tiers: nhân tỷ lệ giữ (mặc định: đúng F.phuCapChuyenCan)
+      // iSAT không làm giảm tỷ lệ ngày làm riêng của phụ cấp chuyên cần; công thức đi lại và các công thức khác vẫn dùng ngày làm thực tế.
+      const attendanceF = isatTaken ? monthFormulas({ ...v, ngayDiLam: r.count + isatTaken }, staff) : F;
+      const attendanceExact = DEPS.PayOptions.tiered('phuCapChuyenCan', attendanceF.phuCapChuyenCan, v, P); // lossMode = tiers: nhân tỷ lệ giữ (mặc định: đúng F.phuCapChuyenCan)
       r.travel = roundDong(F.phuCapDiLai);
       r.attendance = roundDong(attendanceExact);
       r.allow = r.travel + r.attendance;
