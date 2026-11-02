@@ -248,7 +248,7 @@ Lỗi chính: 400 / 403 / 404 / 409 nêu trên; 409 `CHECKOUT_NEEDS_EXPLANATION`
 
 ### 3.4 `PUT /api/sheet` — quyền: `authenticated`, periodScope `attendance`
 
-Input: `{ month, days, kpiPct?, kpiAmt?, user? (khai thay), expectedRev?, confirmDays? }`. Output: `{ ok, rev, approvals, reset, resubmitted, removed, onBehalf?, autoApproved?, warnings? }`.
+Input: `{ month, days, kpiPct?, kpiAmt?, user? (khai thay), expectedRev?, confirmDays?, preserveKpi? }`. `preserveKpi:true` chỉ dùng với lịch của chính người gọi, không gửi kèm `kpiPct` / `kpiAmt`; máy chủ giữ giá trị KPI đang lưu mà không đưa chúng vào phản hồi. Output: `{ ok, rev, approvals, reset, resubmitted, removed, onBehalf?, autoApproved?, warnings? }`.
 
 Trình tự (`src/modules/sheet/sheet.controller.ts`):
 
@@ -258,7 +258,7 @@ Trình tự (`src/modules/sheet/sheet.controller.ts`):
 4. `cleanDays(days)` (mục 4.4) — lỗi định dạng luôn 400.
 5. `checkSheet` (mục 4.5) — kiểm nghiệp vụ là cảnh báo; vài lỗi chặn cứng.
 6. `checkSheetLimits` (mục 4.5.3).
-7. Khai thay: giữ nguyên `kpiPct`, `kpiAmt` đang lưu của người được khai.
+7. Khai thay: giữ nguyên `kpiPct`, `kpiAmt` đang lưu của người được khai. Nếu người gọi lưu lịch của chính mình với `preserveKpi:true`, máy chủ cũng giữ nguyên hai trường đó từ DB; yêu cầu này không được kèm KPI fields, không đọc hay trả KPI cho client.
 8. Giao dịch: `assertSheetRev` (lệch ⇒ 409 `SHEET_STALE` `{ rev }`; `expectedRev` không phải số nguyên ≥ 0 ⇒ 400; thiếu thì ghi đè) → `setSheet` → `approvals.reconcile(declaredItems(clean, {holidays, staffType, schedule}))` → nếu khai thay: `approveOnBehalf` (duyệt ngay khoản người gọi có quyền, `AdminPresence.sync`, nhật ký `sheet.onBehalf`). `confirmDays` sai dạng ⇒ 400; lượt Admin đã đổi so với bản đã đọc ⇒ 409 `SESSION_STALE`.
 9. Sau giao dịch: `approvals.changed` nếu có thay đổi duyệt; khai thay thêm `estimate.changed` (người được khai) và `request.decided`.
 

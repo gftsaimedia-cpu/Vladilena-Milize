@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// Hộp chi tiết một ô ngày của Bảng công (dlg-cc-chi-tiet-ngay): các lượt Check-in/out trong ngày và form sửa giờ.
+// Hộp ngày của Bảng công: lượt Check-in/out chỉ để đối chiếu; form khai ngày dùng PUT /sheet.
 import { computed, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
-import { getDayDetail, saveTimeFix } from '@/services/admin-attendance';
+import { getDayDetail, saveDayDeclaration } from '@/services/admin-attendance';
 import { ApiError } from '@/services/http';
 import { dayLong } from '@/utils/format';
 import FldInput from '@/views/admin/staff/fields/FldInput.vue';
@@ -26,37 +26,137 @@ const title = computed(() =>
 );
 const punches = computed(() => data.value?.punches || []);
 
-const form = ref({ punchId: '', shift: '', checkIn: '', checkOut: '', reason: '' });
-const punchOptions = computed(() =>
-  punches.value.map(p => ({ value: String(p.id), label: `Lượt #${p.id} · ${p.checkIn}–${p.checkOut || '…'}` }))
-);
-const fillFrom = (id?) => {
-  const p = punches.value.find(x => String(x.id) === String(id));
-  form.value.punchId = p ? String(p.id) : '';
-  form.value.checkIn = p?.checkIn || '';
-  form.value.checkOut = p?.checkOut || '';
-};
-watch(data, d => d && fillFrom(d.punches[0]?.id), { immediate: true });
+const KIND_OPTIONS = [
+  { value: 'work', label: 'Đi làm' },
+  { value: 'leave', label: 'Nghỉ phép năm' },
+  { value: 'unpaid', label: 'Nghỉ không lương' },
+  { value: 'approved', label: 'Nghỉ được duyệt' },
+  { value: 'isat', label: 'iSAT' },
+  { value: 'willmakeup', label: 'Nghỉ, sẽ làm bù' }
+];
+const kindOptions = computed(() => [
+  ...KIND_OPTIONS,
+  ...(form.value.kind === 'makeup' ? [{ value: 'makeup', label: 'Làm bù cả ngày (loại cũ)' }] : [])
+]);
+const extraOptions = [
+  { value: '', label: 'Không làm thêm' },
+  { value: 'ot', label: 'OT' },
+  { value: 'makeup', label: 'Làm bù theo giờ' }
+];
+function blankForm() {
+  return {
+    kind: 'work',
+    shift: '',
+    checkIn: '',
+    checkOut: '',
+    breakMin: 0,
+    extraKind: '',
+    extraIn: '',
+    extraOut: '',
+    makeupPlans: []
+  };
+}
+const form = ref<any>(blankForm());
+function formFromDay(day: any, detail: any) {
+  const current = day || {};
+  const kind = current.kind || (current.in && current.out ? 'work' : 'work');
+  const fallbackShift = detail.shiftOptions.find((x: any) => x.value === detail.assignedShift)?.value || '';
+  return {
+    kind,
+    shift: current.preset || fallbackShift,
+    checkIn: current.in || detail.shiftOptions.find((x: any) => x.value === fallbackShift)?.in || '',
+    checkOut: current.out || detail.shiftOptions.find((x: any) => x.value === fallbackShift)?.out || '',
+    breakMin: current.breakMin ?? 0,
+    extraKind: current.extraKind || (current.extraOut ? 'makeup' : ''),
+    extraIn: current.extraIn || '',
+    extraOut: current.extraOut || '',
+    makeupPlans:
+      kind === 'willmakeup'
+        ? (current.makeupPlans || (current.makeupDate ? [{ date: current.makeupDate }] : [])).map((p: any) => ({
+            date: p.date || '',
+            from: p.from || '',
+            to: p.to || ''
+          }))
+        : []
+  };
+}
+watch(data, d => {
+  if (d) form.value = formFromDay(d.days?.[props.date], d);
+}, { immediate: true });
 
-const timeOk = (t?) => /^([01]?\d|2[0-3]):[0-5]\d$/.test(String(t).trim());
 const canSave = computed(
-  () => punches.value.length && timeOk(form.value.checkIn) && timeOk(form.value.checkOut) && form.value.reason.trim()
+  () =>
+    form.value.kind &&
+    (!['work', 'makeup'].includes(form.value.kind) || (form.value.checkIn && form.value.checkOut))
 );
 const saving = ref(false);
 async function save() {
   if (!canSave.value || saving.value) return;
   saving.value = true;
   try {
-    await saveTimeFix({ personId: props.personId, date: props.date, ...form.value, reason: form.value.reason.trim() });
+    const f = form.value;
+    const day =
+      f.kind === 'willmakeup'
+        ? { kind: f.kind, makeupPlans: f.makeupPlans }
+        : f.kind === 'makeup'
+          ? { ...data.value.days[props.date] }
+          : f.kind === 'work'
+          ? {
+              kind: f.kind,
+              in: f.checkIn,
+              out: f.checkOut,
+              ...(f.shift ? { preset: f.shift } : {}),
+              breakMin: Number(f.breakMin) || 0,
+              ...(f.kind === 'work' && f.extraKind
+                ? {
+                    extraKind: f.extraKind,
+                    ...(f.extraIn ? { extraIn: f.extraIn } : {}),
+                    ...(f.extraOut ? { extraOut: f.extraOut } : {})
+                  }
+                : {})
+            }
+          : { kind: f.kind };
+    const result = await saveDayDeclaration({
+      personId: props.personId,
+      date: props.date,
+      day,
+      expectedRev: data.value.rev,
+      originalDay: data.value.days?.[props.date]
+    });
+    if (result.warnings?.length) toast.warnings(result.warnings);
+    const autoApproved = Number(result.autoApproved) || 0;
+    toast.ok(
+      autoApproved
+        ? `Đã lưu khai báo ngày công; ${autoApproved} khoản được duyệt tự động.`
+        : 'Đã lưu khai báo ngày công.'
+    );
     emit('saved');
   } catch (e) {
-    // Câu lỗi của máy chủ hiện nguyên văn
     if (!(e instanceof ApiError)) throw e;
-    toast.error(e.message);
+    toast.error(e.status === 409 ? `${e.message}. Tải lại dữ liệu ngày rồi lưu lại.` : e.message);
   } finally {
     saving.value = false;
   }
 }
+function chooseShift(value: any) {
+  form.value.shift = value;
+  const selected = data.value?.shiftOptions?.find((x: any) => x.value === value);
+  if (selected?.in && selected?.out) {
+    form.value.checkIn = selected.in;
+    form.value.checkOut = selected.out;
+  }
+}
+function chooseKind(value: string) {
+  form.value.kind = value;
+  if (value === 'willmakeup' && !form.value.makeupPlans.length) addMakeupPlan();
+}
+function setTime(field: 'checkIn' | 'checkOut', value: string) {
+  form.value[field] = value;
+  const selected = data.value?.shiftOptions?.find((x: any) => x.value === form.value.shift);
+  if (form.value.shift && (selected?.[field === 'checkIn' ? 'in' : 'out'] !== value)) form.value.shift = '';
+}
+function addMakeupPlan() { form.value.makeupPlans.push({ date: '', from: '', to: '' }); }
+function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 1); }
 </script>
 
 <template>
@@ -99,38 +199,69 @@ async function save() {
       </div>
       <p v-if="!punches.length" class="none">Ngày này chưa có lượt Check-in nào.</p>
 
-      <template v-if="punches.length">
-        <div class="hd2">Sửa giờ Check-in/out</div>
-        <div class="g2">
+      <div class="hd2">Khai báo ngày công</div>
+      <div class="g2">
+        <FldSelect :model-value="form.kind" label="Loại ngày" :options="kindOptions" @update:model-value="chooseKind" />
+        <p v-if="form.kind === 'makeup'" class="hint">
+          Đây là loại làm bù cả ngày cũ. Giữ nguyên hoặc chọn loại ngày mới để chuyển đổi; loại cũ không cho sửa giờ.
+        </p>
+        <template v-if="form.kind === 'work'">
           <FldSelect
-            :model-value="form.punchId"
-            label="Lượt cần sửa"
-            :options="punchOptions"
-            @update:model-value="fillFrom"
+            :model-value="form.shift"
+            label="Ca đối chiếu"
+            :options="data.shiftOptions"
+            @update:model-value="chooseShift"
           />
-          <FldSelect v-model="form.shift" label="Ca đối chiếu" :options="data.shiftOptions" />
-          <FldInput v-model="form.checkIn" label="Giờ vào" kind="time" icon="clock" />
-          <FldInput v-model="form.checkOut" label="Giờ ra" kind="time" icon="clock" />
+          <FldInput
+            :model-value="form.checkIn"
+            label="Giờ vào"
+            kind="time"
+            icon="clock"
+            @update:model-value="setTime('checkIn', $event)"
+          />
+          <FldInput
+            :model-value="form.checkOut"
+            label="Giờ ra"
+            kind="time"
+            icon="clock"
+            @update:model-value="setTime('checkOut', $event)"
+          />
+          <FldInput v-model="form.breakMin" label="Ra ngoài giữa giờ (phút)" kind="number" />
+        </template>
+        <template v-if="form.kind === 'work'">
+          <FldSelect v-model="form.extraKind" label="Làm thêm" :options="extraOptions" />
+          <template v-if="form.extraKind">
+            <FldInput v-model="form.extraIn" label="Giờ bắt đầu (trước ca)" kind="time" icon="clock" />
+            <FldInput v-model="form.extraOut" label="Giờ kết thúc (sau ca)" kind="time" icon="clock" />
+          </template>
+        </template>
+      </div>
+      <div v-if="form.kind === 'willmakeup'" class="plans">
+        <div v-for="(plan, index) in form.makeupPlans" :key="index" class="plan">
+          <FldInput
+            v-model="plan.date"
+            :label="`Ngày làm bù${form.makeupPlans.length > 1 ? ` ${Number(index) + 1}` : ''}`"
+            kind="date"
+          />
+          <FldInput v-model="plan.from" label="Giờ bắt đầu" kind="time" />
+          <FldInput v-model="plan.to" label="Giờ kết thúc" kind="time" />
+          <button
+            v-if="form.makeupPlans.length > 1"
+            type="button"
+            class="btn sm ghost"
+            @click="removeMakeupPlan(Number(index))"
+            >Bỏ ngày</button
+          >
         </div>
-        <FldInput
-          v-model="form.reason"
-          label="Lý do"
-          small="bắt buộc"
-          kind="area"
-          placeholder="Ghi rõ lý do để lưu vào nhật ký"
-        />
-        <div style="height: 12px" />
-        <div class="note">
-          <Icon name="info" />
-          <div>Chưa xem trước được ngày công và tiền khi sửa giờ: số mới hiện ở Bảng lương sau khi lưu.</div>
-        </div>
-      </template>
+        <button type="button" class="btn sm ghost" @click="addMakeupPlan">Thêm ngày làm bù</button>
+      </div>
+      <p class="hint">Ngày, ca, quyền lợi và giới hạn được kiểm tra theo quy tắc hiện hành của máy chủ. Các cảnh báo và tác động duyệt sẽ theo phản hồi của máy chủ.</p>
     </template>
     <template #footer>
       <span class="sp" />
       <button type="button" class="btn" @click="emit('close')">Đóng</button>
-      <button v-if="punches.length" type="button" class="btn pri" :disabled="!canSave || saving" @click="save">
-        <Icon name="check" />Lưu thay đổi
+      <button type="button" class="btn pri" :disabled="!canSave || saving" @click="save">
+        <Icon name="check" />{{ saving ? 'Đang lưu…' : 'Lưu khai báo' }}
       </button>
     </template>
   </AppModal>
@@ -204,6 +335,23 @@ async function save() {
   font-size: 14px;
   font-weight: 600;
 }
+.plans {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.plan {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr auto;
+  align-items: end;
+  gap: 10px;
+}
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+.btn.sm { min-height: 36px; }
 .none {
   margin: 0;
   color: var(--muted);

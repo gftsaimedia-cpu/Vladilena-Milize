@@ -108,11 +108,18 @@ export class SheetController {
   async putSheet(@Ctx() c: ApiContext): Promise<unknown> {
     const { req, res, actx, need, guardPeriod } = c;
     const caller = need();
-    const { month, days, kpiPct, kpiAmt, user: onBehalfOf, expectedRev, confirmDays } = await readJson(req);
+    const body = await readJson(req);
+    const { month, days, kpiPct, kpiAmt, user: onBehalfOf, expectedRev, confirmDays, preserveKpi } = body;
+    if (preserveKpi !== undefined && typeof preserveKpi !== 'boolean')
+      throw new HttpError(400, 'preserveKpi phải là true hoặc false');
     if (!validMonth(month)) throw new HttpError(400, 'month phải dạng YYYY-MM');
     // Admin khai lịch thay nhân sự (user khác người gọi, cần request.decide.* ở phạm vi người đó, nếu không 403): MỌI kiểm tra bên dưới chạy trên hồ sơ của người được khai
     const u = await sheetOwner(caller, onBehalfOf),
       onBehalf = u !== caller;
+    if (preserveKpi && onBehalf)
+      throw new HttpError(400, 'preserveKpi chỉ dùng khi khai lịch của chính mình');
+    if (preserveKpi && (Object.hasOwn(body, 'kpiPct') || Object.hasOwn(body, 'kpiAmt')))
+      throw new HttpError(400, 'Không gửi KPI khi yêu cầu giữ nguyên KPI đang lưu');
     await guardPeriod(month);
     const prevDays = (await estimateSheet(u.username, month)).days;
     const clean = await this.sheetHelpers.cleanDays(days);
@@ -125,9 +132,9 @@ export class SheetController {
     }); // kiểm nghiệp vụ lịch ước tính (src/domain/timesheet/services.ts)
     await checkSheetLimits({ params: sheetParams, month, clean, prevDays, holidays }); // trần OT tháng = OT cộng giờ ca chính làm ngày lễ (MONTH_OT_CAP), isat.monthlyLimit
     // Khai thay không đụng vào % và mức KPI tự đánh giá của người được khai (đó là phần của họ): giữ đúng số đang lưu
-    const kept = onBehalf ? await this.store.getSheet(u.username, month) : null;
-    const amt = onBehalf ? kept.kpiAmt : await this.domain.kpi.cleanAmount(kpiAmt, u, month),
-      pct = onBehalf ? kept.kpiPct : KpiScoring.cleanScore(kpiPct);
+    const kept = onBehalf || preserveKpi ? await this.store.getSheet(u.username, month) : null;
+    const amt = onBehalf || preserveKpi ? kept.kpiAmt : await this.domain.kpi.cleanAmount(kpiAmt, u, month),
+      pct = onBehalf || preserveKpi ? kept.kpiPct : KpiScoring.cleanScore(kpiPct);
     // Lịch và trạng thái duyệt đổi cùng nhau hoặc không đổi gì; trạng thái duyệt chỉ do máy chủ quyết, không đọc từ yêu cầu
     let decided = [];
     const changes = await this.store.transaction(async () => {

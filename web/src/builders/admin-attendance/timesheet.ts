@@ -140,9 +140,15 @@ export function buildDayDetail({ sheet, shifts }: any, personId?, date?) {
       ? `ca ${shiftLine(idx, owner.shiftCode) || owner.shiftLabel || owner.shiftCode}`
       : 'chưa có ca',
     shiftOptions: [
-      { value: '', label: 'Giữ ca đã gán' },
-      ...[...new Set<any>([...idx.values()])].map(s => ({ value: s.code, label: `${s.name} · ${s.in}–${s.out}` }))
+      { value: '', label: 'Không chọn ca (giờ tự đối chiếu)' },
+      ...[...new Set<any>([...idx.values()])].map(s => ({
+        value: s.code,
+        label: `${s.name} · ${s.in}–${s.out}`,
+        in: s.in,
+        out: s.out
+      }))
     ],
+    assignedShift: owner.shiftCode || '',
     punches,
     rev: sheet.rev,
     days: sheet.days || {}

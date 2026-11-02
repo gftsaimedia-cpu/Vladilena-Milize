@@ -1,10 +1,9 @@
 // Dịch vụ cho Chấm công & phép: bảng công, Hôm nay, OT, ca làm, sổ phép, chấm công thay hàng loạt.
 import { fromMock } from './mock';
-import { api } from './http';
+import { ApiError, api } from './http';
 import {
   buildDayDetail,
   buildOvertime,
-  buildSheetBody,
   buildToday,
   buildTimesheet
 } from '@/builders/admin-attendance/timesheet';
@@ -59,16 +58,36 @@ export async function getDayDetail(personId?, date?) {
   return buildDayDetail({ sheet, shifts }, personId, date);
 }
 
-/** Admin chấm công thay một người một ngày (ngày khai thay theo quy tắc của máy chủ); lỗi và cảnh báo giữ nguyên văn. */
-export async function saveTimeFix({ personId, date, checkIn, checkOut, shift }: any) {
-  const sheet = await api('GET', '/sheet?' + qs({ month: date.slice(0, 7), user: personId }));
-  const body = buildSheetBody(buildDayDetail({ sheet, shifts: { shifts: [] } }, personId, date), {
-    date,
-    checkIn,
-    checkOut,
-    shift
-  });
-  return api('PUT', '/sheet', body);
+/** Admin khai lại một ngày qua cùng bộ kiểm tra, cảnh báo và cơ chế duyệt của PUT /sheet. */
+export async function saveDayDeclaration({ personId, date, day, expectedRev, originalDay }: any) {
+  const month = date.slice(0, 7);
+  const fresh = await api('GET', '/sheet?' + qs({ month, user: personId }));
+  const same = JSON.stringify(fresh.days?.[date] ?? null) === JSON.stringify(originalDay ?? null);
+  if (!Number.isInteger(expectedRev) || fresh.rev !== expectedRev || !same)
+    throw new ApiError(409, 'Bảng công đã thay đổi sau khi mở ngày này. Tải lại ngày rồi kiểm tra trước khi lưu.', {
+      code: 'SHEET_STALE'
+    });
+
+  const self = !fresh.owner;
+
+  const days = { ...(fresh.days || {}) };
+  const previous = days[date];
+  if (day) {
+    days[date] = {
+      ...day,
+      ...(previous && Object.hasOwn(previous, 'punchNote') ? { punchNote: previous.punchNote } : {})
+    };
+  } else delete days[date];
+
+  return api('PUT', '/sheet', {
+    month,
+    user: personId,
+    days,
+    confirmDays: [date],
+    // The server keeps self-KPI values from storage without exposing them in GET /sheet.
+    ...(self ? { preserveKpi: true } : {}),
+    expectedRev
+  }, { showWarnings: false });
 }
 
 /** Tab Hôm nay. filter: all | in | none | late. */

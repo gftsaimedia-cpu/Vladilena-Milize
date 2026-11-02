@@ -63,7 +63,6 @@ const days = computed(() => {
       wd: hol ? 'Lễ' : dowShort(date),
       cls: [sun ? 'sun' : '', hol ? 'hol' : ''].filter(Boolean).join(' '),
       thCls: [sun ? 'sun' : '', hol ? 'hol' : '', today ? 'today' : '', fut ? 'fut' : ''].filter(Boolean).join(' '),
-      open: !sun && !fut
     };
   });
 });
@@ -162,32 +161,28 @@ function onSaved() {
               <div>
                 <div class="t">{{ r.name }}</div>
                 <div class="s" :class="{ bad: r.noShift }">{{ r.sub }}</div>
+                <RouterLink
+                  v-if="r.noShift"
+                  class="link"
+                  :to="{ path: '/admin/nhan-su', query: { thang: route.query.thang, loc: 'chua-co-ca' } }"
+                  @click.stop
+                  >Gán ca</RouterLink
+                >
               </div>
             </div>
           </td>
-          <td v-if="r.noShift" class="span" :colspan="days.length">
-            Chưa gán ca nên chưa tính được ngày công từ Check-in/out
-            <RouterLink
-              class="link"
-              :to="{ path: '/admin/nhan-su', query: { thang: route.query.thang, loc: 'chua-co-ca' } }"
-              >Gán ca</RouterLink
+          <td v-for="c in days" :key="c.date" :class="c.cls">
+            <button
+              type="button"
+              class="cell"
+              :aria-label="`${r.name}, ngày ${c.n}`"
+              @click="picked = { id: r.id, date: c.date }"
             >
+              <span v-if="r.cells[c.date]" class="m" :class="r.cells[c.date].k">{{
+                r.cells[c.date].t || MARK_TEXT[r.cells[c.date].k]
+              }}</span>
+            </button>
           </td>
-          <template v-else>
-            <td v-for="c in days" :key="c.date" :class="c.cls">
-              <button
-                v-if="c.open"
-                type="button"
-                class="cell"
-                :aria-label="`${r.name}, ngày ${c.n}`"
-                @click="picked = { id: r.id, date: c.date }"
-              >
-                <span v-if="r.cells[c.date]" class="m" :class="r.cells[c.date].k">{{
-                  r.cells[c.date].t || MARK_TEXT[r.cells[c.date].k]
-                }}</span>
-              </button>
-            </td>
-          </template>
           <td class="sum" :class="{ z: !r.present }">{{ r.present }}</td>
           <td class="sum" :class="r.pending ? 'p' : 'z'">{{ r.pending }}</td>
         </tr>
@@ -372,15 +367,6 @@ function onSaved() {
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-}
-td.span {
-  text-align: left !important;
-  padding-left: 12px !important;
-  color: var(--muted);
-  font-size: 13px;
-}
-td.span .link {
-  margin-left: 8px;
 }
 td.none {
   text-align: center !important;

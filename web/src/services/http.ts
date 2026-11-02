@@ -48,7 +48,7 @@ export function newRequestId() {
   return 'rq-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
 }
 
-export async function api(method?, path?, body?) {
+export async function api(method?, path?, body?, { showWarnings = true }: any = {}) {
   const hasBody = body !== undefined;
   const res = await fetch('/api' + path, {
     method,
@@ -69,7 +69,8 @@ export async function api(method?, path?, body?) {
     if (res.status === 401 && path !== '/login' && unauthorizedHandler) unauthorizedHandler();
     throw new ApiError(res.status, (data && data.error) || `Máy chủ trả lỗi ${res.status}`, data);
   }
-  if (data && Array.isArray(data.warnings) && data.warnings.length && warningsHandler) warningsHandler(data.warnings);
+  if (showWarnings && data && Array.isArray(data.warnings) && data.warnings.length && warningsHandler)
+    warningsHandler(data.warnings);
   return data;
 }
 
