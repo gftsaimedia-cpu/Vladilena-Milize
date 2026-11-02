@@ -1,6 +1,6 @@
 'use strict';
-// Giờ làm bù được trả đủ (giờ × lương giờ), không cắt theo giờ còn thiếu; ngày có giờ làm bù được trả không có phụ cấp ca và giờ nghỉ đêm
-// có lương. OT chỉ bị giữ khi trước ngày đó còn giờ phải bù, không bị giữ vì đã làm bù nhiều hơn giờ thiếu.
+// Giờ làm bù được trả đủ (giờ × lương giờ), không cắt theo giờ còn thiếu; ca chính vẫn nhận phụ cấp ca và Off Paid,
+// còn đoạn làm bù chỉ nhận lương giờ. OT chỉ bị giữ khi trước ngày đó còn giờ phải bù, không bị giữ vì đã làm bù nhiều hơn giờ thiếu.
 // Ca tham chiếu: NV bậc 1 (6.000.000 / 26 / 8 giờ), ca đêm 40 %, ca Night2 22:00–07:00.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -29,20 +29,21 @@ const night = (extra?) => ({
 const day = (staff?, d?, date?) => E.calcDay(staff, d, false, null, { date, holidays: [] });
 const month = (staff?, days?) => E.calcMonth(staff, days, null, [], '2026-10', null);
 
-test('ca đêm 02/10 có làm bù 20:00–22:00 và 07:00–09:00, không còn giờ thiếu: 230.769 + 4 × 28.846 = 346.154, không phụ cấp ca, không Off Paid', async () => {
+test('ca đêm 02/10 có làm bù 20:00–22:00 và 07:00–09:00 giữ allowance/Off Paid ca chính', async () => {
   const c = await day(NIGHT, night({ extraKind: 'makeup' }), '2026-10-02');
   assert.equal(c.makeupH, 4);
   near(c.makeupPay, 4 * HOURLY);
-  assert.deepEqual([c.bonus, c.breakPay], [0, 0]);
-  near(c.total, 346154);
+  near(c.bonus, DAILY * 0.4);
+  near(c.breakPay, HOURLY * 1.3);
+  near(c.total, 475962);
   // cả tháng chỉ có ngày đó: không giờ thiếu nào, 4 giờ làm bù vẫn trả đủ
   const m = await month(NIGHT, { '2026-10-02': night({ extraKind: 'makeup' }) });
   assert.deepEqual([m.makeupHours, m.makeupCredit, m.debt], [4, 4, 0]);
   near(m.makeupPay, 4 * HOURLY);
-  near(m.rows[0].total, 346154);
+  near(m.rows[0].total, 475962);
 });
 
-test('làm bù 4 giờ ngày thường khi không nợ giờ: trả 4 × lương giờ, ngày đó mất phụ cấp ca', async () => {
+test('làm bù 4 giờ ngày thường khi không nợ giờ giữ phụ cấp Flex của ca chính', async () => {
   const ca = { kind: 'work', in: '08:00', out: '17:00', preset: 'Normal1' };
   const flex = { ...DAY, shiftCode: 'Flex1' };
   const plain = await day(flex, { ...ca, preset: 'Flex1' }, '2026-10-05');
@@ -50,6 +51,6 @@ test('làm bù 4 giờ ngày thường khi không nợ giờ: trả 4 × lương
   const c = await day(flex, { ...ca, preset: 'Flex1', extraKind: 'makeup', extraOut: '21:00' }, '2026-10-05');
   assert.equal(c.makeupH, 4);
   near(c.makeupPay, 4 * HOURLY);
-  assert.equal(c.bonus, 0);
-  near(c.total, DAILY + 4 * HOURLY);
+  near(c.bonus, plain.bonus);
+  near(c.total, DAILY + plain.bonus + 4 * HOURLY);
 });

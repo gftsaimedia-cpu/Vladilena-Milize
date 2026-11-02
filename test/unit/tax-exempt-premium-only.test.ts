@@ -64,11 +64,11 @@ test('ca đêm 22:00 ngày 01/10 đến 07:00 ngày 02/10 (lễ 01/10): miễn 5
   assert.equal(m.net.tax, 0, 'thu nhập nhỏ: thuế vẫn 0');
 });
 
-test('giờ đêm của ngày có giờ làm bù không có phụ cấp ca nên không được miễn', async () => {
+test('giờ đêm của ngày có giờ làm bù được miễn theo phụ trội, tối đa bằng phụ cấp ca đã trả', async () => {
   const m = await month({ '2026-10-06': work('22:00', '07:00', { extraKind: 'makeup', extraOut: '09:00' }) });
   assert.equal(m.nightHours, 7);
-  assert.equal(m.rows[0].bonus, 0);
-  assert.equal(m.net.exemptNight, 0);
+  assert.equal(Math.round(m.rows[0].bonus), 92308);
+  assert.equal(m.net.exemptNight, 60577, 'min(7 night hours × hourly × 30%, paid shift allowance)');
 });
 
 test('bản chụp không có dòng ngày: miễn giờ đêm theo tổng giờ đêm × phụ trội', async () => {

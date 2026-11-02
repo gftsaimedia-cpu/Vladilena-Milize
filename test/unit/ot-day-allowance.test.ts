@@ -56,3 +56,32 @@ test('giờ nghỉ đêm trong đoạn làm bù không được trả như Off P
   assert.equal(mk.breakH, 1);
   near(mk.breakPay, HOURLY * 1.3, 'only the main-shift night break is paid');
 });
+
+test('extraOnly làm bù không có phụ cấp ca hoặc Off Paid', () => {
+  const k = Engine.create(DEFAULTS);
+  const extra = k.calcDay(
+    NIGHT,
+    { ...nightShift, extraKind: 'makeup', extraOut: '09:00', extraOnly: true },
+    false,
+    4,
+    CTX
+  );
+  assert.equal(extra.makeupH, 2);
+  assert.equal(extra.makeupPay, 2 * HOURLY);
+  assert.equal(extra.bonus, 0);
+  assert.equal(extra.breakPay, 0);
+});
+
+test('breakPayOff vẫn tắt Off Paid ca chính khi giờ nghỉ không được phủ', () => {
+  const k = Engine.create(DEFAULTS);
+  const day = k.calcDay(
+    NIGHT,
+    { ...nightShift, extraKind: 'makeup', extraOut: '09:00', breakPayOff: true },
+    false,
+    4,
+    CTX
+  );
+  near(day.bonus, DAILY * 0.4);
+  assert.equal(day.breakH, 0);
+  assert.equal(day.breakPay, 0);
+});
