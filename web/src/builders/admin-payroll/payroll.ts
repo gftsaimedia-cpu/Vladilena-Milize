@@ -94,9 +94,11 @@ export function buildRow(r?) {
     detail: { base: r.tienNgayCong, allowance: r.phuCap, allowanceNote: '', ot: r.ot, kpi: r.kpi, other: otherOf(r) },
     status: failed
       ? 'failed'
-      : r.status === 'draft' || r.status === 'pending' || r.status === 'approved'
-        ? r.status
-        : 'calculated'
+      : r.status === 'draft' || r.status === 'pending'
+        ? 'pending'
+        : r.status === 'approved'
+          ? 'approved'
+          : 'calculated'
   };
 }
 
@@ -122,14 +124,14 @@ export function buildPeriodView(month, period, list, { filter, pageSize }: any) 
     total: t.people,
     calculated: t.people - t.error,
     failed: t.error,
-    pending: t.pending,
+    pending: t.pending + t.draft,
     approved: t.approved,
     run: period.run ? period.run.runNo : 0,
     deadline: '',
     closedAt: stamp(period.stages.attendanceLocked.at),
     approvedAt: stamp(period.stages.approved.at),
     paidDate: dayOf(period.stages.paid.at),
-    selectable: Math.max(0, t.pending),
+    selectable: Math.max(0, t.pending + t.draft),
     selectedOtherNames: [],
     selectedOtherMore: 0
   };

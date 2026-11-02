@@ -22,7 +22,7 @@ const freshRev = async (month?) => {
 };
 const PAGE = 14;
 const PAGE_WIDE = 9;
-const CHIP_STATUS = { pending: 'pending', approved: 'approved', draft: 'draft', err: 'error', excluded: 'error' };
+const CHIP_STATUS = { pending: 'draft', approved: 'approved', draft: 'draft', err: 'error', excluded: 'error' };
 const CHIP_TYPE = { tts: 'tts', ctv: 'ctv', nv: 'nv' };
 
 // ---- Bảng lương ----
