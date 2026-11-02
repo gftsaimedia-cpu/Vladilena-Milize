@@ -18,6 +18,8 @@ FrozenDate.now = () => clock;
 (global as any).Date = FrozenDate;
 
 // Cố ý ghi đè cả cấu hình từ shell: không thể trỏ sandbox vào DB thật.
+delete process.env.DATABASE_URL;
+delete process.env.PG_TEST_URL;
 process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.SESSION_COOKIE_NAME = 'luong_sandbox_sid';
