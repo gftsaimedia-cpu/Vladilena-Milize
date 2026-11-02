@@ -30,20 +30,23 @@ class AbsentDay {
     if (date > vnToday()) return 'future';
     const month = date.slice(0, 7);
     const sessions = await this.store.listSessions({ username, month });
-    if (sessions.some(s => AbsentDay.dayOf(s) === date)) return 'punched';
+    if (sessions.some(s => AbsentDay.dayOf(s) === date && (s.entry.presIn || s.entry.presOut))) return 'punched';
     const holidays = await this.store.getSetting('holidays', []);
     const inService = (!staff.startDate || date >= staff.startDate) && (!staff.resignedOn || date <= staff.resignedOn);
     if (!inService || holidays.includes(date) || !(await schedule.isWorkDay(staff, date))) return 'off-schedule';
-    const { absent } = (await rulesFor(month)).actualHours.apply(
-      (await estimateSheet(username, month)).days,
-      sessions,
-      {
-        asOf: nowIso(),
-        staff,
-        holidays,
-        month
-      }
-    );
+    const days = (await estimateSheet(username, month)).days;
+    const approvals = await this.store.approvals.forSheet(username, month);
+    const leave = days[date];
+    const row = approvals[date];
+    // A rejected leave is no longer active; remove only this display day so the engine evaluates its ordinary scheduled shift.
+    if (leave?.kind === 'leave' && row?.item === 'leave' && row?.fingerprint === 'leave' && row?.status === 'rejected')
+      delete days[date];
+    const { absent } = (await rulesFor(month)).actualHours.apply(days, sessions, {
+      asOf: nowIso(),
+      staff,
+      holidays,
+      month
+    });
     return absent.includes(date) ? 'absent' : 'other';
   }
 }

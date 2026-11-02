@@ -4,6 +4,7 @@ import { Controller, Get, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 
 const { AsyncList } = require('../../shared/async-list');
+const { AbsentDay } = require('../../domain/explanation/absent-day');
 
 const { HttpError, readJson } = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
 // quy tắc theo tháng của từng yêu cầu: rulesFor(tháng).<mô-đun> dựng bằng create(bộ tham số của tháng đó)
@@ -130,13 +131,17 @@ export class ApprovalsController {
       const add = (date, kind) =>
         found.set(`${staff.username}|${date}|${kind}`, { username: staff.username, name: staff.name, date, kind });
       const sessions = await this.store.listSessions({ username: staff.username, month });
-      for (const x of sessions)
+      for (const x of sessions) {
         if (x.entry.kind === 'pending' && x.entry.reason === 'forgot-out') add(x.date, 'forgot-out');
+        if (x.entry.forgotIn) add(x.date, 'forgot-in');
+      }
       // Thêm các ngày thiếu giờ vào / giờ ra mà ActualHours.apply chờ Admin xử lý (cùng cách dựng với GET /team)
       {
         // quy tắc của đúng tháng, lịch của người như checklist kỳ và bộ máy
+        const declaredDays = (await estimateSheet(staff.username, month)).days;
+        const approvals = await this.store.approvals.forSheet(staff.username, month);
         const { report, absent } = (await this.rules.rulesFor(month)).actualHours.apply(
-          (await estimateSheet(staff.username, month)).days,
+          declaredDays,
           sessions,
           {
             asOf: this.rules.nowIso(),
@@ -148,9 +153,15 @@ export class ApprovalsController {
         for (const [date, r] of Object.entries(report as Record<string, any>))
           if (r.state === 'forgot-in' || r.state === 'forgot-out') add(date, r.state);
         // Ngày trong lịch không có lượt nào mà chưa ai giải trình: tính vắng, 0 công
-        for (const date of absent)
-          if (date.startsWith(month + '-') && !(explained.get(staff.username) || new Set()).has(date))
-            absentFound.push({ username: staff.username, name: staff.name, date });
+        const rejectedLeave = Object.keys(declaredDays).filter(date =>
+          declaredDays[date]?.kind === 'leave' && approvals[date]?.item === 'leave' && approvals[date]?.status === 'rejected'
+        );
+        const absentDay = new AbsentDay({ store: this.store });
+        for (const date of new Set([...absent, ...rejectedLeave])) {
+          if (!date.startsWith(month + '-') || (await absentDay.stateOf(staff.username, date)) !== 'absent') continue;
+          if (!(explained.get(staff.username) || new Set()).has(date))
+            absentFound.push({ username: staff.username, name: staff.name, date, flags: ['forgot-in', 'forgot-out'] });
+        }
       }
     }
     const missingPunches = [...found.values()].sort(

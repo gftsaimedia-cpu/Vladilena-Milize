@@ -11,7 +11,7 @@ const props = defineProps({
   kb: { type: String, default: 'linh' },
   initialDate: { type: String, default: null }
 });
-const emit = defineEmits(['month']);
+const emit = defineEmits(['month', 'explain-session']);
 
 const DOW = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const CLICKABLE = ['ok', 'hol', 'today', 'miss', 'pend'];
@@ -84,6 +84,7 @@ onMounted(() => {
         <span v-if="panel.pill" class="pill" :class="panel.pill.cls">{{ panel.pill.text }}</span>
         <button v-if="panel.action" type="button" class="btn sm"><Icon name="cal" />Khai ngày này</button>
       </div>
+      <button v-for="x in panel.explainSessions || []" :key="x.sessionId + x.kind" type="button" class="btn sm explain" @click="emit('explain-session', x)">Giải trình lượt này</button>
     </div>
   </section>
 </template>

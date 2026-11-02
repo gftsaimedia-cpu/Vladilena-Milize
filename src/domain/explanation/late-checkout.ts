@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 // Check-out muộn: Check-out sau giờ kết thúc ca (cộng phần làm thêm đã khai) quá config.CHECKOUT_GRACE_MIN phút thì phải giải trình;
 // giờ Check-out đó chỉ được tính khi Admin duyệt (late-checkout-session.js). Thuần: không đọc DB.
 const { spanH } = require('../overtime/worked-hours').WorkedHours;
@@ -20,6 +20,6 @@ function lateCheckoutMin(session?, atIso?, sheetDay?) {
 }
 
 const needsExplanation = (session?, atIso?, sheetDay?) =>
-  lateCheckoutMin(session, atIso, sheetDay) > config.CHECKOUT_GRACE_MIN;
+  lateCheckoutMin(session, atIso, sheetDay) >= config.CHECKOUT_GRACE_MIN;
 
 export = { lateCheckoutMin, needsExplanation };

@@ -86,6 +86,27 @@ class ExplanationService {
     });
   }
 
+  // Nhân sự giải trình lượt đã đóng thiếu một đầu giờ. Không sửa giờ chấm và không đi qua LateCheckout.
+  async submitMissingPunch({ username, session, text }: any) {
+    if (!session || session.username !== username || session.state !== 'closed')
+      throw DomainError.notFound('SESSION_NOT_FOUND', 'Không có lượt chấm công này');
+    const e = session.entry || {};
+    const kind = e.presIn && !e.presOut && e.reason === 'forgot-out' && !e.requestedOut
+      ? 'punch-out'
+      : (e.forgotIn || (!e.presIn && e.presOut)) ? 'punch-in' : null;
+    if (!kind)
+      throw DomainError.conflict('SESSION_NOT_MISSING_PUNCH', 'Lượt này không còn thiếu Check-in/out');
+    if (await this.repository.forSession(session.id, kind))
+      throw DomainError.conflict('EXPLANATION_EXISTS', 'Lượt này đã có giải trình');
+    return await this.submitForSession({
+      username,
+      session,
+      text,
+      kind,
+      prompt: kind === 'punch-in' ? 'Giải trình quên Check-in' : 'Giải trình quên Check-out'
+    });
+  }
+
   // Nhân sự tự giải trình ngày vắng không phép của CHÍNH MÌNH: ngày trong lịch, đã qua, không có lượt Check-in/out nào, kỳ chưa chốt công,
   // chưa có giải trình nào về ngày đó (mọi trạng thái). Tạo giải trình loại admin do chính nhân sự gửi (requestedBy = username), chờ Admin duyệt:
   // duyệt thì ngày tính một công theo giờ ca, từ chối thì ngày vắng.

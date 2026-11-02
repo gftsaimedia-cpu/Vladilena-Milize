@@ -94,6 +94,7 @@ async function withStatus(sessions?) {
   const superseded = supersededIds(sessions);
   return await AsyncList.map(sessions, async s => ({
     ...s,
+    explanations: (explanationsBy.get(s.id) || []).filter(x => x.username === s.username),
     ...(await classifier.classify(s, {
       explanations: [
         ...(explanationsBy.get(s.id) || []).filter(x => x.username === s.username),

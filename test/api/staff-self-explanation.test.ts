@@ -22,7 +22,7 @@ const REASON = 'Em quên bấm Check-in và Check-out cả ngày';
 before(async () => {
   await F.start();
   await F.at(NOW);
-  for (const name of ['ref', 'tu', 'tc', 'vang', 'khac', 'dup', 'le', 'fix'])
+  for (const name of ['ref', 'tu', 'tc', 'vang', 'khac', 'dup', 'le', 'fix', 'leave-active'])
     await F.person(name, 'staff', { startDate: '2026-10-26' });
   await F.person('cu', 'staff'); // vào làm từ 05/01: ngày Chủ nhật 25/10 ngoài lịch
   await F.person('moi', 'staff', { startDate: '2026-10-28' }); // 27/10 là trước ngày vào làm
@@ -66,6 +66,50 @@ const refuses = (res?, status?, code?) => {
   assert.ok(res.data.error, 'câu của máy chủ');
 };
 
+test('active leave suppresses absence; rejected or cancelled leave exposes both missing punch flags', async () => {
+  await F.at(NOW);
+  const saved = await F.call('PUT', '/sheet', {
+    who: 'leave-active',
+    body: { month: MONTH, days: { [DAY]: { kind: 'leave' } } }
+  });
+  assert.equal(saved.status, 200, JSON.stringify(saved.data));
+  const submit = await F.call('POST', '/explanations', {
+    who: 'leave-active', body: { date: DAY, text: REASON }
+  });
+  refuses(submit, 409, 'EXPLANATION_DAY_NOT_ABSENT');
+  let row = await F.store.approvals.get('leave-active', DAY);
+  assert.equal(row.status, 'pending');
+  const decide = (action, current) => F.call('PUT', '/approvals/decide', {
+    who: 'admin', body: { action, items: [{ username: current.username, date: current.date, rev: current.rev, fingerprint: current.fingerprint }] }
+  });
+  assert.equal((await decide('approve', row)).status, 200);
+  await F.at(NOW);
+  let alerts = (await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' })).data;
+  assert.equal(alerts.absentNoExplanation.some(x => x.username === 'leave-active' && x.date === DAY), false);
+  row = await F.store.approvals.get('leave-active', DAY);
+  assert.equal((await decide('reject', row)).status, 200);
+  await F.at(NOW);
+  alerts = (await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' })).data;
+  const absent = alerts.absentNoExplanation.find(x => x.username === 'leave-active' && x.date === DAY);
+  assert.deepEqual(absent.flags, ['forgot-in', 'forgot-out']);
+  assert.deepEqual(
+    alerts.missingPunches.filter(x => x.username === 'leave-active' && x.date === DAY),
+    [],
+    'absence flags stay on the absent-day row and do not duplicate missing-punch alerts'
+  );
+  assert.equal((await checklist()).item.count, alerts.absentNoExplanation.length);
+  const cancelled = await F.call('PUT', '/sheet', {
+    who: 'leave-active', body: { month: MONTH, days: {} }
+  });
+  assert.equal(cancelled.status, 200, JSON.stringify(cancelled.data));
+  await F.at(NOW);
+  alerts = (await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' })).data;
+  assert.deepEqual(
+    alerts.absentNoExplanation.find(x => x.username === 'leave-active' && x.date === DAY).flags,
+    ['forgot-in', 'forgot-out']
+  );
+});
+
 test('Chuẩn so sánh: người Check-in/out đủ ca ngày 27/10; Admin chưa thấy gì ở ngày này của họ', async () => {
   await X.fullDay('ref', DAY, '08:00', '17:00', 'self-ref');
   assert.deepEqual(await alertsOf('ref'), OTHER_DAYS);
@@ -75,7 +119,10 @@ test('Chuẩn so sánh: người Check-in/out đủ ca ngày 27/10; Admin chưa 
 test('Cảnh báo ngày vắng: có trong GET /alerts và danh sách kiểm kỳ (cảnh báo, không chặn), số khớp nhau', async () => {
   await F.at(NOW);
   const alerts = (await F.call('GET', `/alerts?month=${MONTH}`, { who: 'admin' })).data;
-  assert.deepEqual(alerts.missingPunches, []);
+  assert.deepEqual(
+    alerts.missingPunches.filter(r => r.username === 'vang').map(r => [r.date, r.kind]),
+    []
+  );
   const mine = alerts.absentNoExplanation.filter(r => r.username === 'vang');
   assert.deepEqual(
     mine.map(r => [r.username, r.name, r.date]),

@@ -119,7 +119,7 @@ export function buildOverview({
       blocking: false,
       count: absent,
       title: 'Ngày vắng chưa có giải trình',
-      sub: '',
+      sub: 'Mỗi ngày vắng được gắn cả cờ quên Check-in và quên Check-out',
       action: { label: 'Xem chấm công', to: '/admin/cham-cong' }
     },
     {

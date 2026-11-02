@@ -82,6 +82,14 @@ export class ExplanationsController {
     }
     const session = await this.store.getSession(Number(body && body.sessionId));
     const row = await this.store.transaction(async () => {
+      if (session && session.state === 'closed' &&
+          ((session.entry.forgotIn || (!session.entry.presIn && session.entry.presOut)) ||
+           (session.entry.presIn && !session.entry.presOut && session.entry.reason === 'forgot-out'))) {
+        const prior = await this.domain.explanationRepository.forSessions([session.id]);
+        const made = await explanations.submitMissingPunch({ username: me.username, session, text: body && body.text });
+        await this.explanationsHandlers.auditRow(actx, 'explanation.punch', prior[0] || null, made, null);
+        return made;
+      }
       const before = session ? await this.domain.explanationRepository.lateFor(session.id) : null;
       const made = await explanations.submitLate({ username: me.username, session, text: body && body.text });
       await this.explanationsHandlers.auditRow(actx, 'explanation.late-checkout', before && before.view(), made, null);

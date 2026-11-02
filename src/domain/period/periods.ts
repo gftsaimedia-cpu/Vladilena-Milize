@@ -22,6 +22,7 @@ const { formulasOf } = require('../payroll/slip-formulas'); // công thức dư�
 const { errorSummaryOf, staleOf } = require('./period-stale'); // phiếu lỗi gom theo mã; kỳ đã tính mà đầu vào hoặc tham số đổi sau đó
 const payEntries = require('../payroll/pay-entries');
 const explanations = require('../explanation/explanations');
+const { AbsentDay } = require('../explanation/absent-day');
 const sharedCache = require('../../ops/shared-cache'); // phép tính nặng chỉ-đọc dùng chung giữa các yêu cầu
 const { closeStaleIn } = require('../attendance');
 const { isatRefusal } = require('../isat-rule'); // ngày iSAT đúng thứ và đúng quyền lợi
@@ -100,6 +101,7 @@ async function checklist(month?, { forApprove = false, stale, raw = false }: any
       .filter(s => s.entry.kind === 'pending' && s.entry.reason === 'forgot-out')
       .map(s => `${s.username}|${s.date}`)
   );
+  for (const s of sessions) if (s.entry && s.entry.forgotIn) forgot.add(`${s.username}|${s.date}`);
   // Ngày chờ Admin xử lý nhưng không phải quên Check-in/out (chờ đối soát, không khớp ca...): trả 0 ₫ nếu không báo
   const punchReview = new Set<any>();
   const absentDays = new Set<any>(); // ngày trong lịch không có lượt Check-in/out nào (bộ máy tính vắng)
@@ -113,6 +115,15 @@ async function checklist(month?, { forApprove = false, stale, raw = false }: any
         if (r.state === 'forgot-in' || r.state === 'forgot-out') forgot.add(`${username}|${date}`);
       for (const date of (out.actualReport && out.actualReport.absent) || [])
         if (date.startsWith(month + '-')) absentDays.add(`${username}|${date}`);
+      const leaveAbsence = new AbsentDay({ store });
+      for (const [date, day] of Object.entries<any>(person.days || {}))
+        if (
+          day?.kind === 'leave' &&
+          person.approvals?.[date]?.item === 'leave' &&
+          person.approvals?.[date]?.status === 'rejected' &&
+          (await leaveAbsence.stateOf(username, date)) === 'absent'
+        )
+          absentDays.add(`${username}|${date}`);
       for (const date of (out.actualReport && out.actualReport.missing) || [])
         if (date.startsWith(month + '-') && !forgot.has(`${username}|${date}`)) punchReview.add(`${username}|${date}`);
     } catch {

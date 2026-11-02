@@ -101,13 +101,13 @@ test('về sớm dù 1 phút là chờ xử lý', async () => {
 
 test('Check-out muộn: đúng 30 phút sau giờ ra là hợp lệ, 31 phút là chờ xử lý; phần làm thêm đã khai nới giờ ra được phép', async () => {
   assert.equal(config.CHECKOUT_GRACE_MIN, 30);
-  assert.deepEqual(await of(closed(await at('08:00'), await plus('17:00', 30))), {
+  assert.deepEqual(await of(closed(await at('08:00'), await plus('17:00', 29))), {
     status: 'checked-out',
     statusNote: ''
   });
-  assert.deepEqual(await of(closed(await at('08:00'), await plus('17:00', 31))), {
+  assert.deepEqual(await of(closed(await at('08:00'), await plus('17:00', 30))), {
     status: 'pending',
-    statusNote: 'Check-out muộn 31 phút'
+    statusNote: 'Check-out muộn 30 phút'
   });
   const sheetDay = { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraIn: '17:00', extraOut: '19:00' };
   assert.deepEqual(await of(closed(await at('08:00'), await at('19:20')), { sheetDay }), {
@@ -175,13 +175,13 @@ test('lượt Admin ghi là Đã chấm công dù giờ thế nào; giờ Admin 
   const fromRequest = { status: 'approved', created_at: await at('18:00'), decided_at: await at('19:00') };
   assert.deepEqual(await of({ ...edited, corrections: [fromRequest] }), {
     status: 'approved',
-    statusNote: 'Yêu cầu điều chỉnh giờ · Vào trễ 60 phút'
+    statusNote: 'Yêu cầu điều chỉnh giờ · Quên Check-in'
   });
 });
 
 test('Admin xác nhận thiếu giờ (attendanceApproved) là Được phê duyệt', async () => {
   const s = closed(await plus('08:00', 40), await at('17:00'), { attendanceApproved: true });
-  assert.deepEqual(await of(s), { status: 'approved', statusNote: 'Vào trễ 40 phút' });
+  assert.deepEqual(await of(s), { status: 'approved', statusNote: 'Quên Check-in' });
 });
 
 test('các lý do chờ khác: nhiều lượt trong một ca, ngoài ca, cần đối soát, quên Check-in', async () => {
@@ -211,4 +211,25 @@ test('OT / làm thêm / đi làm lễ không phải trạng thái: giờ vào / 
     otReview: true
   });
   assert.deepEqual(await of(ot), { status: 'checked-out', statusNote: '' });
+});
+
+test('Check-out muộn đúng 30 phút cần giải trình; 29 phút không, và OT đã duyệt nới mốc', async () => {
+  const { needsExplanation } = require('../../src/domain/explanation/late-checkout');
+  const session = {
+    entry: { plannedShift: { date: DATE, in: '08:00', out: '17:00', startIso: at('08:00'), endIso: at('17:00') } }
+  };
+  assert.equal(needsExplanation(session, await plus('17:00', 29)), false);
+  assert.equal(needsExplanation(session, await plus('17:00', 30)), true);
+  assert.equal(needsExplanation(session, await plus('18:00', 29), { extraOut: '18:00' }), false);
+  assert.equal(needsExplanation(session, await plus('18:00', 30), { extraOut: '18:00' }), true);
+});
+
+test('trễ trên 30 phút có cờ Quên Check-in riêng nhưng giữ nguyên giờ thực và cờ đi trễ', async () => {
+  for (const late of [15, 16, 30, 31]) {
+    const session = await open(await plus('08:00', late));
+    const { statusNote } = await of(session);
+    assert.equal(session.entry.presIn, await plus('08:00', late));
+    assert.equal(statusNote.includes('Quên Check-in'), late > 30, `${late}: ${statusNote}`);
+    assert.equal(statusNote.includes(`Vào trễ ${late} phút`), late > GRACE && late <= 30, `${late}: ${statusNote}`);
+  }
 });

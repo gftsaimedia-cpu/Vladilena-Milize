@@ -1,4 +1,4 @@
-import { AUDIT, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from '../../core/tokens';
+﻿import { AUDIT, AUTHZ, DOMAIN, EVENTS, RULES, STORE } from '../../core/tokens';
 import { AttendanceHelpers } from './attendance.helpers';
 import { Controller, Get, Post, Put, Inject } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
@@ -18,6 +18,7 @@ const {
   correctionVersion
 } = require('../../domain/attendance'); // phiên Check-in/out dùng chung
 const { sessionsFor, sessionsWithHistory } = require('../../domain/attendance/session-view');
+const { ADMIN_ORIGIN } = require('../../domain/attendance/attendance-sessions');
 const otSheet = require('../../domain/ot-sheet'); // OT Check-in/out được duyệt thành OT đã duyệt của ngày trong Lịch ước tính
 // quyền theo năng lực: ROLE_CAPS, ROUTE_CAPS, can()
 // nhật ký kiểm toán: ghi cùng giao dịch với thay đổi
@@ -87,6 +88,23 @@ export class AttendanceController {
         const outsideZone = await this.domain.geofencePolicy.check(b.location); // chỉ Check-in cần vị trí; Check-out thì không. outsideZone: cờ ngoài vùng, chỉ true/false, không toạ độ
         if (await this.store.openSession(u.username)) throw new HttpError(409, 'Bạn đang có lượt mở — Check-out trước');
         const opened = await punch.openSessionDay(await punchStaff(u, t), t);
+        const previous = await this.store.listSessions({ username: u.username, date: opened.date });
+        const endedEarly = previous.some(s => {
+          const old = s.entry && s.entry.plannedShift;
+          return (
+            s.state === 'closed' &&
+            old &&
+            opened.entry.plannedShift &&
+            old.startIso === opened.entry.plannedShift.startIso &&
+            punch.canonicalOf(old.code) === punch.canonicalOf(opened.entry.plannedShift.code) &&
+            s.entry.origin !== ADMIN_ORIGIN &&
+            old.endIso &&
+            s.entry.presOut &&
+            Date.parse(s.entry.presOut) < Date.parse(old.endIso)
+          );
+        });
+        if (endedEarly)
+          throw new HttpError(409, 'Ca này đã kết thúc sớm; không Check-in lại trong cùng ca', { code: 'SHIFT_ALREADY_ENDED' });
         const verdict = await this.attendanceHelpers.checkInVerdict(u, t); // không có lịch / khoản được duyệt, hay ngoài khung ca mà không khoản nào phủ giờ này: không ghi gì
         if (!verdict.allowed) throw new HttpError(409, verdict.message, { code: verdict.code });
         await guardPeriod(opened.date); // ca đêm thuộc ngày bắt đầu ca
@@ -95,6 +113,7 @@ export class AttendanceController {
         if (overlap) throw new HttpError(400, overlap);
         // Check-in không hợp lệ (trễ, ngoài ca, ngoài vùng GPS, lượt thứ hai trong ca) phải có giải trình gửi kèm (b.explanation)
         const inCases = await this.domain.punchExplanation.casesIn(u.username, opened);
+        if (inCases.some(c => c.code === 'forgotIn')) opened.entry.forgotIn = true;
         this.domain.punchExplanation.demand('in', inCases, b.explanation);
         session = await this.store.createSession(u.username, opened.date, 'open', opened.entry);
         await this.store.addPunch(

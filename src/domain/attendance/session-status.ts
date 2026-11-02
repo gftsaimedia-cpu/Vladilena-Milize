@@ -16,7 +16,7 @@
 const MS_PER_MIN = 60000;
 const DECIDED = ['approved', 'rejected'];
 const OPEN_EXPLANATION = ['requested', 'answered'];
-const IN_CASES = ['offShift', 'late', 'outsideZone']; // trường hợp Check-in không hợp lệ
+const IN_CASES = ['offShift', 'late', 'forgotIn', 'outsideZone']; // trường hợp Check-in không hợp lệ
 const OUT_CASES = ['early', 'lateOut']; // trường hợp Check-out không hợp lệ
 // Trường hợp mà giải trình lúc bấm của mỗi đầu giải quyết (Check-in còn gồm lượt thứ hai trong ca, ghi lúc bấm Check-in)
 const COVERS = { 'punch-in': [...IN_CASES, 'multiple'], 'punch-out': OUT_CASES };
@@ -131,16 +131,18 @@ class SessionStatus {
     }
     if (session.state !== 'open' && hasIn && !hasOut && e.kind !== 'pending') add('forgotOut', NOTE.forgotOut);
     if (offShift || (comparable && !planned)) add('offShift', NOTE.offShift);
+    if (e.forgotIn) add('forgotIn', NOTE.forgotIn);
     if (planned && hasIn) {
       const { graceMin, lateMinutes } = await this.rules((planned.date || session.date || '').slice(0, 7));
       const late = lateMinutes(planned, e.presIn) || 0;
-      if (late > graceMin) add('late', NOTE.late(late), late);
+      if (late > 30) add('forgotIn', NOTE.forgotIn, late);
+      else if (late > graceMin) add('late', NOTE.late(late), late);
     }
     if (planned && hasIn && hasOut && session.state !== 'open') {
       const early = Math.ceil((time(planned.endIso) - time(e.presOut)) / MS_PER_MIN);
       if (early > 0) add('early', NOTE.early(early), early);
       const lateOut = this.#lateOut(session, e.presOut, sheetDay);
-      if (lateOut > this.checkoutGraceMin) add('lateOut', NOTE.lateOut(lateOut), lateOut);
+      if (lateOut >= this.checkoutGraceMin) add('lateOut', NOTE.lateOut(lateOut), lateOut);
     }
     if (e.outsideZone) add('outsideZone', NOTE.outsideZone);
     return out;

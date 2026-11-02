@@ -40,9 +40,9 @@ test('Check-in trễ không kèm lý do: 409 có mã, trường hợp, số phú
   const none = await pressIn('tre', '2026-10-19T08:40:00');
   assert.equal(none.status, 409);
   assert.equal(none.data.code, 'CHECKIN_NEEDS_EXPLANATION');
-  assert.equal(none.data.case, 'late');
+  assert.equal(none.data.case, 'forgotIn');
   assert.equal(none.data.minutes, 40);
-  assert.equal(none.data.error, 'Cần giải trình: Vào trễ 40 phút');
+  assert.equal(none.data.error, 'Cần giải trình: Quên Check-in');
   assert.equal(none.data.cases.length, 1);
   assert.equal((await F.store.listSessions({ username: 'tre' })).length, 0);
 
@@ -51,8 +51,8 @@ test('Check-in trễ không kèm lý do: 409 có mã, trường hợp, số phú
   const { explanationDemand } = await web('builders/staff-requests/punch-explanation.js');
   const demand = explanationDemand(new ApiError(none.status, none.data.error, none.data));
   assert.equal(demand.side, 'in');
-  assert.equal(demand.message, 'Cần giải trình: Vào trễ 40 phút');
-  assert.equal(demand.note, 'Vào trễ 40 phút');
+  assert.equal(demand.message, 'Cần giải trình: Quên Check-in');
+  assert.equal(demand.note, 'Quên Check-in');
   assert.equal(explanationDemand(new ApiError(409, 'Bạn đang có lượt mở — Check-out trước', {})), null);
   assert.equal(explanationDemand(new Error('mạng lỗi')), null);
 });

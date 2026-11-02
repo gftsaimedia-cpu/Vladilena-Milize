@@ -45,6 +45,7 @@ const requestPreset = ref(null);
 const advanceOpen = ref(false);
 const { data: explanations, reload: reloadExplanations } = useLoad(() => getStaffExplanations());
 const answering = ref(null);
+const sessionExplaining = ref(null);
 // Huỷ yêu cầu đang chờ: bỏ khai báo ngày đó
 async function cancelRequest(r?) {
   try {
@@ -72,6 +73,11 @@ async function punchExplained() {
   toast.ok('Đã gửi giải trình');
   await Promise.all([reloadHome(), reloadMonth(), reloadExplanations()]);
 }
+async function missingPunchExplained() {
+  sessionExplaining.value = null;
+  toast.ok('Đã gửi giải trình');
+  await Promise.all([reloadMonth(), reloadExplanations()]);
+}
 </script>
 
 <template>
@@ -88,6 +94,7 @@ async function punchExplained() {
         :kb="kb"
         :initial-date="openedBox === 'chi-tiet-ngay' ? '2026-11-25' : null"
         @month="goMonth"
+        @explain-session="sessionExplaining = $event"
       />
     </div>
     <div class="col">
@@ -118,6 +125,7 @@ async function punchExplained() {
       @saved="punchExplained"
     />
     <ExplanationDialog v-if="answering" :item="answering" @close="answering = null" @saved="reloadExplanations" />
+    <ExplanationDialog v-if="sessionExplaining" :item="sessionExplaining" @close="sessionExplaining = null" @saved="missingPunchExplained" />
   </main>
 </template>
 

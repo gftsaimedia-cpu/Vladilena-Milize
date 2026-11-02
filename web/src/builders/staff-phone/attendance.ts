@@ -10,9 +10,15 @@ function punchRow(s?, index?, nowIso?) {
   const start = e.presIn ? vnTime(e.presIn) : '';
   const end = e.presOut ? vnTime(e.presOut) : null;
   const present = e.presIn ? hoursText(minutesBetween(e.presIn, e.presOut || nowIso)) : '';
+  const missingKind = e.presIn && !e.presOut && e.reason === 'forgot-out' && !e.requestedOut
+    ? 'punch-out'
+    : (e.forgotIn || (!e.presIn && e.presOut)) ? 'punch-in' : null;
   return {
     title: `Lượt ${index + 1} · ${start} → ${end || 'đang làm'}`,
-    note: `${present} có mặt · giờ bấm gốc, luôn được giữ nguyên`
+    note: `${present} có mặt · giờ bấm gốc, luôn được giữ nguyên`,
+    sessionId: s.id,
+    explainMissing: s.state === 'closed' && missingKind && !(s.explanations || []).some(x => x.kind === missingKind),
+    explainKind: missingKind
   };
 }
 

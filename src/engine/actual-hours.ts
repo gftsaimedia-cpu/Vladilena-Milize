@@ -350,7 +350,7 @@
     // Đọc các lượt của một ngày: lượt dùng được, và các tình trạng chặn tính tiền
     function inspectDay(list?) {
       const info = {
-        punched: list.length > 0,
+        punched: false,
         open: false,
         forgotIn: false,
         forgotOut: false,
@@ -358,7 +358,12 @@
         usable: [] as any[]
       };
       for (const s of list) {
-        const e = s.entry;
+        const e = s.entry,
+          a = epochMin(e.presIn),
+          b = epochMin(e.presOut),
+          hasPunch = Number.isFinite(a) || Number.isFinite(b);
+        if (!hasPunch) continue; // session metadata without either punch is not attendance
+        info.punched = true;
         if (s.state === 'open') {
           info.open = true;
           continue;
@@ -367,8 +372,6 @@
           info.review = true;
           continue;
         }
-        const a = epochMin(e.presIn),
-          b = epochMin(e.presOut);
         if (Number.isFinite(a) && !Number.isFinite(b)) info.forgotOut = true;
         else if (!Number.isFinite(a) && Number.isFinite(b)) info.forgotIn = true;
         else if (Number.isFinite(a) && Number.isFinite(b) && b > a && e.plannedShift && e.plannedShift.startIso)
@@ -662,6 +665,13 @@
           day.kind === 'work' || day.kind === 'noshow' || (day.kind === 'pending' && day.reason !== 'not-yet');
         if (shown) Object.assign(day, punchTimes(usedOf(byDate.get(date) || [])));
       }
+      // Annotation for alerts/checklists only; preserve report state, hours, and payroll inputs.
+      for (const list of byDate.values())
+        for (const session of list)
+          if (session.entry && session.entry.forgotIn) {
+            const date = (session.entry.plannedShift && session.entry.plannedShift.date) || session.date;
+            if (report[date]) report[date].flags = [...new Set([...(report[date].flags || []), 'forgot-in'])];
+          }
       const waiting = [...new Set<any>(missing)].sort();
       return { days: out, report, missing: waiting, absent: absent.sort() };
     }
