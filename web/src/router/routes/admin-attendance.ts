@@ -9,8 +9,7 @@ export default [
       { path: 'bang-cong', redirect: (to?) => ({ path: '/admin/cham-cong', query: to.query }) },
       {
         path: 'hom-nay',
-        component: () => import('@/views/admin/attendance/TodayView.vue'),
-        meta: { title: 'Chấm công · Hôm nay' }
+        redirect: (to?: any) => ({ path: '/admin/cham-cong', query: { ...to.query, hop: 'hom-nay' } })
       },
       {
         path: 'sua-gio',
@@ -18,8 +17,7 @@ export default [
       },
       {
         path: 'gio-ot',
-        component: () => import('@/views/admin/attendance/OvertimeView.vue'),
-        meta: { title: 'Chấm công · Giờ OT' }
+        redirect: (to?: any) => ({ path: '/admin/cham-cong', query: { ...to.query, hop: 'duyet-ot' } })
       },
       {
         path: 'phep-con-lai',
