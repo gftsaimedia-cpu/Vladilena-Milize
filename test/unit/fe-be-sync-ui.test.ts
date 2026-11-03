@@ -253,16 +253,15 @@ test('KpiShell, GroupClean, HomeView: đã xoá các nhãn Sắp có / Không c�
   assert.ok(!phoneHome.includes('Sửa giờ <small>Sắp có</small>'));
 });
 
-test('GFT Shell & Dark Gold Theme: ui store mặc định side dark và density gon; AdminSidebar có role switcher HR/Nhân viên', () => {
+test('GFT Shell & Dark Gold Theme: ui store mặc định side dark và density gon; AdminSidebar không còn role switcher thừa', () => {
   const uiSrc = fs.readFileSync(path.join(__dirname, '../../web/src/stores/ui.ts'), 'utf8');
   assert.ok(uiSrc.includes("side: 'dark'"));
   assert.ok(uiSrc.includes("density: 'gon'"));
 
   const sidebar = fs.readFileSync(path.join(__dirname, '../../web/src/components/shell/AdminSidebar.vue'), 'utf8');
   assert.ok(!sidebar.includes('Lương, chấm công, phúc lợi · GFT'));
-  assert.ok(sidebar.includes('class="mode-switch"'));
-  assert.ok(sidebar.includes('>HR<'));
-  assert.ok(sidebar.includes('Nhân viên'));
+  assert.ok(!sidebar.includes('class="mode-switch"'), 'AdminSidebar không còn mode-switch');
+  assert.ok(!sidebar.includes('/nhan-vien/hom-nay'), 'AdminSidebar không còn link chết /nhan-vien/hom-nay');
 });
 
 test('OverviewView & overview.ts: buildOverview trả periodCard đầy đủ và OverviewView bố cục Dark & Gold hero + seg-bar + duyệt/từ chối', () => {
