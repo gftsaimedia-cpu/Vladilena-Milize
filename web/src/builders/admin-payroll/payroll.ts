@@ -64,7 +64,7 @@ function chipsOf(stage?, facts?) {
   const err = ['err', 'Chưa tính được', facts.failed];
   if (stage === 'ban-nhap') return [all, ['draft', 'Bản nháp', facts.calculated], err];
   if (['cho-phe-duyet', 'da-duyet-50', 'can-tinh-lai'].includes(stage)) {
-    return [all, ['pending', 'Chờ phê duyệt', facts.pending], err, ['approved', 'Đã phê duyệt', facts.approved]];
+    return [all, ['pending', 'Chờ phê duyệt', facts.unapproved], err, ['approved', 'Đã phê duyệt', facts.approved]];
   }
   if (stage === 'da-phe-duyet' || stage === 'da-tra-luong') {
     return [all, ['approved', 'Đã phê duyệt', facts.approved], ['excluded', 'Loại khỏi kỳ', facts.failed]];
@@ -98,7 +98,8 @@ export function buildRow(r?) {
         ? 'pending'
         : r.status === 'approved'
           ? 'approved'
-          : 'calculated'
+          : 'calculated',
+    shortProblem: r.errorMessage || r.problem || 'Hồ sơ hoặc công chưa hợp lệ'
   };
 }
 
@@ -124,14 +125,16 @@ export function buildPeriodView(month, period, list, { filter, pageSize }: any) 
     total: t.people,
     calculated: t.people - t.error,
     failed: t.error,
-    pending: t.pending + t.draft,
+    draft: t.draft || 0,
+    pending: t.pending || 0,
+    unapproved: (t.pending || 0) + (t.draft || 0),
     approved: t.approved,
     run: period.run ? period.run.runNo : 0,
     deadline: '',
     closedAt: stamp(period.stages.attendanceLocked.at),
     approvedAt: stamp(period.stages.approved.at),
     paidDate: dayOf(period.stages.paid.at),
-    selectable: Math.max(0, t.pending + t.draft),
+    selectable: Math.max(0, (t.pending || 0) + (t.draft || 0)),
     selectedOtherNames: [],
     selectedOtherMore: 0
   };

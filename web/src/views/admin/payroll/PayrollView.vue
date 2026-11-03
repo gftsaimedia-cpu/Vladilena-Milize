@@ -109,7 +109,7 @@ watch(
     filter.value = 'all';
     q.value = '';
     page.value = 1;
-    wide.value = month.value === '2026-11' && kbQuery.value === 'du-cot';
+    wide.value = kbQuery.value === 'du-cot';
     selected.clear();
     others.value = 0;
     autoSelect = true;
@@ -166,8 +166,7 @@ function onAction(key?) {
   map[key]?.();
 }
 function toggleWide() {
-  if (month.value === '2026-11') go(wide.value ? '' : 'du-cot');
-  else wide.value = !wide.value;
+  wide.value = !wide.value;
 }
 
 // Phiếu lương một người (ngăn kéo của nhóm phiếu lương)
