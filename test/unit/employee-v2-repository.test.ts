@@ -44,7 +44,7 @@ function createMockRow(overrides: Partial<StaffRow> = {}): StaffRow {
     uuid: '99999999-9999-9999-9999-999999999999',
     family_name: 'Vladilena',
     given_name: 'Milize',
-    contract_status: 'nv',
+    contract_status: 'official',
     resigned_on: null,
     leave_balance: 10,
     leave_balance_on: null,
@@ -274,7 +274,7 @@ describe('EmployeeV2Repository.toRow', () => {
     assert.equal(row.leave_adjust, 15);
     assert.equal(row.leave_balance, 12);
 
-    assert.equal(row.contract_status, 'nv');
+    assert.equal(row.contract_status, 'official');
     assert.equal(row.start_date, '2026-02-01');
     assert.equal(row.contract, '2028-02-01');
     assert.equal(row.resigned_on, null);
@@ -285,6 +285,50 @@ describe('EmployeeV2Repository.toRow', () => {
     assert.equal(row.advance_on, 0);
     assert.equal(row.idorm, 1);
     assert.equal(row.payroll_subject, 1);
+  });
+
+  test('maps domain contract.status to dbContractStatus (official, probation, null)', () => {
+    const baseEmp = EmployeeV2Repository.fromRow(createMockRow());
+
+    const testCases: Array<{ status: any; expected: string | null; useDomainContract: boolean }> = [
+      { status: 'nv', expected: 'official', useDomainContract: true },
+      { status: 'thuviec', expected: 'probation', useDomainContract: true },
+      { status: 'tts', expected: null, useDomainContract: true },
+      { status: 'ctv', expected: null, useDomainContract: true },
+      { status: 'nghiviec', expected: null, useDomainContract: true },
+      { status: 'official', expected: 'official', useDomainContract: false },
+      { status: 'probation', expected: 'probation', useDomainContract: false },
+      { status: 'other', expected: null, useDomainContract: false }
+    ];
+
+    for (const { status, expected, useDomainContract } of testCases) {
+      let contract: any;
+      if (useDomainContract) {
+        contract = new EmployeeContract({
+          position: baseEmp.contract.position,
+          shift: baseEmp.contract.shift,
+          leave: baseEmp.contract.leave,
+          status,
+          effectiveFrom: baseEmp.contract.effectiveFrom,
+          endDate: baseEmp.contract.endDate,
+          resignedOn: baseEmp.contract.resignedOn,
+          hasInsurance: baseEmp.contract.hasInsurance,
+          isUnionMember: baseEmp.contract.isUnionMember,
+          hasTax: baseEmp.contract.hasTax,
+          canAdvance: baseEmp.contract.canAdvance,
+          isDormResident: baseEmp.contract.isDormResident
+        });
+      } else {
+        contract = Object.assign(Object.create(EmployeeContract.prototype), baseEmp.contract, { status });
+      }
+      const emp = new Employee({
+        profile: baseEmp.profile,
+        account: baseEmp.account,
+        contract
+      });
+      const row = EmployeeV2Repository.toRow(emp);
+      assert.equal(row.contract_status, expected, `status ${status} should map to ${expected}`);
+    }
   });
 
   test('round-trip fidelity between fromRow and toRow', () => {
@@ -304,7 +348,7 @@ describe('EmployeeV2Repository.toRow', () => {
     assert.equal(convertedRow.shift_allowance_pct, originalRow.shift_allowance_pct);
     assert.equal(convertedRow.leave_total_days, originalRow.leave_total_days);
     assert.equal(convertedRow.leave_used_days, originalRow.leave_used_days);
-    assert.equal(convertedRow.contract_status, originalRow.contract_status);
+    assert.equal(convertedRow.contract_status, 'official');
   });
 });
 
