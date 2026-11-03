@@ -317,6 +317,21 @@ export interface PositionTypesTable {
   rev: Generated<number>;
 }
 
+export interface PunchEventsTable {
+  id: string;
+  employee_id: string;
+  punched_at: Date;
+  work_date: string;
+  type: string;
+  latitude: number;
+  longitude: number;
+  accuracy_meters: number;
+  distance_meters: number;
+  is_within_office: boolean;
+  note: Generated<string | null>;
+  created_at: Date;
+}
+
 export interface PunchRequestsTable {
   username: string;
   request_id: string;
@@ -411,6 +426,54 @@ export interface StaffRolesTable {
   revoked_at: Generated<string | null>;
 }
 
+export interface SystemRequestsTable {
+  id: string;
+  employee_id: string;
+  title: string;
+  type: string;
+  reason: string;
+  status: Generated<string>;
+  reviewed_by: Generated<string | null>;
+  reviewed_at: Generated<Date | null>;
+  review_note: Generated<string | null>;
+  leave_type: Generated<string | null>;
+  leave_start_date: Generated<string | null>;
+  leave_end_date: Generated<string | null>;
+  leave_days_count: Generated<number | null>;
+  correction_date: Generated<string | null>;
+  correction_punch_type: Generated<string | null>;
+  correction_actual_time: Generated<string | null>;
+  ot_date: Generated<string | null>;
+  ot_start_time: Generated<string | null>;
+  ot_end_time: Generated<string | null>;
+  ot_hours: Generated<number | null>;
+  advance_amount: Generated<number | null>;
+  advance_period: Generated<string | null>;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TimesheetEntriesTable {
+  id: string;
+  employee_id: string;
+  work_date: string;
+  shift_type: string;
+  shift_start_time: string;
+  shift_end_time: string;
+  shift_allowance_pct: number;
+  actual_check_in: Generated<Date | null>;
+  actual_check_out: Generated<Date | null>;
+  work_hours: Generated<number>;
+  work_units: Generated<number>;
+  ot_hours: Generated<number>;
+  late_minutes: Generated<number>;
+  early_minutes: Generated<number>;
+  status: string;
+  is_locked: Generated<boolean>;
+  created_at: Date;
+  updated_at: Date;
+}
+
 export interface TimesheetsTable {
   username: string;
   month: string;
@@ -458,6 +521,7 @@ export interface Schema {
   position_levels: PositionLevelsTable;
   position_type_benefits: PositionTypeBenefitsTable;
   position_types: PositionTypesTable;
+  punch_events: PunchEventsTable;
   punch_requests: PunchRequestsTable;
   punches: PunchesTable;
   settings: SettingsTable;
@@ -465,6 +529,8 @@ export interface Schema {
   slip_overrides: SlipOverridesTable;
   staff: StaffTable;
   staff_roles: StaffRolesTable;
+  system_requests: SystemRequestsTable;
+  timesheet_entries: TimesheetEntriesTable;
   timesheets: TimesheetsTable;
   work_shifts: WorkShiftsTable;
 }

@@ -30,6 +30,7 @@ function splitTop(raw?) {
 function tsType(sqlType?) {
   const t = sqlType.toUpperCase();
   if (/^(BIGINT|INTEGER|INT|SMALLINT|REAL|DOUBLE|NUMERIC)/.test(t)) return 'number';
+  if (/^(BOOLEAN|BOOL)/.test(t)) return 'boolean';
   if (t === 'TIMESTAMPTZ') return 'Date';
   if (/^(BYTEA|BLOB)/.test(t)) return 'Buffer';
   return 'string';
@@ -45,7 +46,7 @@ function build() {
     .join('\n')
     .replace(/--.*$/gm, ''); // bỏ chú thích trước khi tìm thân bảng: chú thích có ");" làm cụt thân
   const tables: any[] = [];
-  for (const m of sql.matchAll(/CREATE TABLE (\w+)\s*\(([\s\S]*?)\n?\)\s*;/g)) tables.push({ name: m[1], parts: splitTop(m[2]) });
+  for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)\s*\(([\s\S]*?)\n?\)\s*;/gi)) tables.push({ name: m[1], parts: splitTop(m[2]) });
   // cột thêm sau bằng ALTER TABLE ... ADD COLUMN
   const extra = [...sql.matchAll(/ALTER TABLE (\w+) ADD COLUMN (?:IF NOT EXISTS )?(\w+) ([^;]+);/g)];
   // cột xoá sau bằng ALTER TABLE ... DROP COLUMN
