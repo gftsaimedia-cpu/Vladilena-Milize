@@ -51,11 +51,14 @@ function build() {
   const extra = [...sql.matchAll(/ALTER TABLE (\w+) ADD COLUMN (?:IF NOT EXISTS )?(\w+) ([^;]+);/g)];
   // cột xoá sau bằng ALTER TABLE ... DROP COLUMN
   const dropped = [...sql.matchAll(/ALTER TABLE (\w+) DROP COLUMN (?:IF EXISTS )?(\w+);/g)];
+  // bảng xoá sau bằng DROP TABLE
+  const droppedTables = new Set([...sql.matchAll(/DROP TABLE (?:IF EXISTS )?(\w+)(?: CASCADE)?;/gi)].map(x => x[1]));
+  const liveTables = tables.filter(t => !droppedTables.has(t.name));
   let out = '// Sinh tự động bởi scripts/docs/gen-db-types.ts (npm run db:types) từ migrations/postgres/*.sql. Đừng sửa tay.\n';
   out += "import type { ColumnType } from 'kysely';\n\n";
   out += '/** Cột có giá trị mặc định / tự sinh: đọc ra T, có thể bỏ khi INSERT. */\n';
   out += 'export type Generated<T> = ColumnType<T, T | undefined, T>;\n\n';
-  for (const t of tables.sort((a: any, b: any) => a.name.localeCompare(b.name))) {
+  for (const t of liveTables.sort((a: any, b: any) => a.name.localeCompare(b.name))) {
     const droppedCols = new Set(dropped.filter(x => x[1] === t.name).map(x => x[2]));
     const cols: any[] = [];
     for (const part of t.parts) {
@@ -82,7 +85,7 @@ function build() {
     out += '}\n\n';
   }
   out += 'export interface Schema {\n';
-  for (const t of tables.sort((a: any, b: any) => a.name.localeCompare(b.name)))
+  for (const t of liveTables.sort((a: any, b: any) => a.name.localeCompare(b.name)))
     out += `  ${t.name}: ${t.name.split('_').map(w => w[0].toUpperCase() + w.slice(1)).join('')}Table;\n`;
   out += '}\n';
   return out;

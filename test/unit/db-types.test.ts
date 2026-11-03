@@ -20,7 +20,7 @@ test('db:types: mọi bảng của migration đều có kiểu, cột nullable v
   const fs = require('node:fs');
   const text = fs.readFileSync(path.join(ROOT, 'src/data/schema.generated.ts'), 'utf8');
   const tables = (text.match(/^export interface \w+Table /gm) || []).length;
-  assert.ok(tables >= 29, `chỉ ${tables} bảng`);
+  assert.ok(tables >= 20, `chỉ ${tables} bảng`);
   assert.match(text, /interface SettingsTable \{\n  key: string;\n  value_json: string;\n\}/);
   assert.match(text, /interface AuditLogTable \{\n  id: Generated<number>;/);
   assert.match(text, /prev_hash: string;/, 'cột sau dấu phẩy trong chú thích không được rơi mất');

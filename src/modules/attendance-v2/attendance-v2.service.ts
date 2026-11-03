@@ -8,8 +8,8 @@ import {
   DailyTimesheet,
   DailyTimesheetDTO,
   ShiftType,
-  DailyTimesheetStatus,
-  CreatePunchEventProps
+  CreatePunchEventProps,
+  WorkSchedule
 } from '../../domain/attendance-v2';
 
 export interface ShiftConfigInput {
@@ -35,14 +35,6 @@ export interface RecordPunchInput {
   punchedAt?: Date | string;
   shiftConfig?: ShiftConfigInput;
   officeLocation?: OfficeLocationInput;
-}
-
-export interface AdjustTimesheetInput {
-  checkIn?: Date | string | null;
-  checkOut?: Date | string | null;
-  status?: DailyTimesheetStatus;
-  reason: string;
-  adjustedBy: string;
 }
 
 export interface RecordPunchResult {
@@ -80,7 +72,29 @@ export class AttendanceV2Service {
 
     const workDate = input.workDate || new Date().toISOString().slice(0, 10);
 
-    // Kiểm tra xem ngày công đã bị khóa chưa
+    // 1. Lấy hoặc tạo lịch làm việc cho ngày công
+    let schedule = await this.repo.findSchedule(input.employeeId, workDate);
+    if (!schedule) {
+      if (input.shiftConfig) {
+        schedule = WorkSchedule.create({
+          employeeId: input.employeeId,
+          workDate,
+          shiftType: input.shiftConfig.shiftType,
+          plannedStartTime: input.shiftConfig.shiftStartTime,
+          plannedEndTime: input.shiftConfig.shiftEndTime
+        });
+        await this.repo.saveSchedule(schedule);
+      } else {
+        schedule = await this.repo.ensureDefaultSchedule(input.employeeId, workDate);
+      }
+    }
+
+    // 2. Chặn chấm công nếu nhân viên đang trong ngày nghỉ phép
+    if (schedule.status === 'ON_LEAVE') {
+      throw new Error('Nhân viên đang trong ngày nghỉ phép / làm bù đã duyệt, không thể chấm công');
+    }
+
+    // 3. Kiểm tra xem ngày công đã bị khóa chưa
     let timesheet = await this.repo.findTimesheet(input.employeeId, workDate);
     if (timesheet && timesheet.isLocked) {
       throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
@@ -118,9 +132,9 @@ export class AttendanceV2Service {
     const punches = await this.repo.findPunches(input.employeeId, workDate);
 
     if (!timesheet) {
-      const shiftType = input.shiftConfig?.shiftType ?? 'NORMAL';
-      const shiftStartTime = input.shiftConfig?.shiftStartTime ?? (shiftType === 'NIGHT' ? '21:00' : '08:00');
-      const shiftEndTime = input.shiftConfig?.shiftEndTime ?? (shiftType === 'NIGHT' ? '06:00' : '17:00');
+      const shiftType = (schedule.shiftType === 'CUSTOM' ? 'NORMAL' : schedule.shiftType) as ShiftType;
+      const shiftStartTime = schedule.plannedStartTime;
+      const shiftEndTime = schedule.plannedEndTime;
       let shiftAllowancePct = input.shiftConfig?.shiftAllowancePct;
       if (shiftAllowancePct === undefined) {
         if (shiftType === 'NORMAL') shiftAllowancePct = 0;
@@ -138,7 +152,7 @@ export class AttendanceV2Service {
       });
     }
 
-    timesheet = timesheet.calculate(punches);
+    timesheet = timesheet.calculate(punches, schedule);
     await this.repo.saveTimesheet(timesheet);
 
     return {
@@ -164,101 +178,5 @@ export class AttendanceV2Service {
 
   async lockTimesheets(employeeId: string, startDate: string, endDate: string): Promise<number> {
     return await this.repo.lockTimesheets(employeeId, startDate, endDate);
-  }
-
-  async adjustTimesheet(id: string, adjustments: AdjustTimesheetInput): Promise<DailyTimesheetDTO> {
-    const timesheet = await this.repo.findTimesheetById(id);
-    if (!timesheet) {
-      throw new Error(`Không tìm thấy bảng công với mã: ${id}`);
-    }
-
-    if (timesheet.isLocked) {
-      throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể điều chỉnh');
-    }
-
-    if (!adjustments.reason || !adjustments.reason.trim()) {
-      throw new Error('Lý do điều chỉnh không được để trống');
-    }
-
-    if (!adjustments.adjustedBy || !adjustments.adjustedBy.trim()) {
-      throw new Error('Người thực hiện điều chỉnh không được để trống');
-    }
-
-    const hasCheckInAdjustment = adjustments.checkIn !== undefined;
-    const hasCheckOutAdjustment = adjustments.checkOut !== undefined;
-
-    const finalCheckIn = hasCheckInAdjustment
-      ? adjustments.checkIn
-        ? adjustments.checkIn instanceof Date
-          ? adjustments.checkIn
-          : new Date(adjustments.checkIn)
-        : null
-      : timesheet.actualCheckIn;
-
-    const finalCheckOut = hasCheckOutAdjustment
-      ? adjustments.checkOut
-        ? adjustments.checkOut instanceof Date
-          ? adjustments.checkOut
-          : new Date(adjustments.checkOut)
-        : null
-      : timesheet.actualCheckOut;
-
-    let updated = timesheet;
-
-    if (hasCheckInAdjustment || hasCheckOutAdjustment) {
-      if (finalCheckIn && finalCheckOut) {
-        const syntheticPunches = [
-          PunchEvent.create({
-            employeeId: timesheet.employeeId,
-            punchedAt: finalCheckIn,
-            workDate: timesheet.workDate,
-            type: 'IN',
-            userLocation: new GeoLocation({ latitude: 10.7725, longitude: 106.698 }),
-            distanceMeters: 0,
-            isWithinOffice: true,
-            note: `Điều chỉnh bởi ${adjustments.adjustedBy}: ${adjustments.reason}`
-          }),
-          PunchEvent.create({
-            employeeId: timesheet.employeeId,
-            punchedAt: finalCheckOut,
-            workDate: timesheet.workDate,
-            type: 'OUT',
-            userLocation: new GeoLocation({ latitude: 10.7725, longitude: 106.698 }),
-            distanceMeters: 0,
-            isWithinOffice: true,
-            note: `Điều chỉnh bởi ${adjustments.adjustedBy}: ${adjustments.reason}`
-          })
-        ];
-        updated = timesheet.calculate(syntheticPunches);
-      } else {
-        updated = timesheet.calculate([]);
-      }
-    }
-
-    if (adjustments.status) {
-      if (adjustments.status === 'LEAVE_PAID') {
-        updated = updated.applyApprovedLeave(true);
-      } else if (adjustments.status === 'LEAVE_UNPAID') {
-        updated = updated.applyApprovedLeave(false);
-      } else {
-        updated = new DailyTimesheet({
-          id: updated.id,
-          employeeId: updated.employeeId,
-          workDate: updated.workDate,
-          shiftType: updated.shiftType,
-          shiftStartTime: updated.shiftStartTime,
-          shiftEndTime: updated.shiftEndTime,
-          shiftAllowancePct: updated.shiftAllowancePct,
-          actualCheckIn: updated.actualCheckIn,
-          actualCheckOut: updated.actualCheckOut,
-          metrics: updated.metrics,
-          status: adjustments.status,
-          isLocked: updated.isLocked
-        });
-      }
-    }
-
-    await this.repo.saveTimesheet(updated);
-    return updated.toJSON();
   }
 }

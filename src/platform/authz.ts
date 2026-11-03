@@ -302,8 +302,7 @@ const ROUTE_CAPS = Object.freeze({
   'POST /v2/attendance/punches': write(readCap('attendance.read')),
   'GET /v2/attendance/punches': readCap('attendance.read'),
   'GET /v2/attendance/timesheets': readCap('attendance.read'),
-  'GET /v2/attendance/timesheets/:employeeId/:workDate': readCap('attendance.read'),
-  'PATCH /v2/attendance/timesheets/:id/adjust': write(readCap('attendance.correct'))
+  'GET /v2/attendance/timesheets/:employeeId/:workDate': readCap('attendance.read')
 });
 
 /* ---------- tra cứu ---------- */
@@ -326,10 +325,7 @@ function routeKey(method?, seg?) {
     if (seg[3] === 'punches' && seg.length === 4) return `${method} /v2/attendance/punches`;
     if (seg[3] === 'timesheets') {
       if (seg.length === 4) return `${method} /v2/attendance/timesheets`;
-      if (seg.length === 6) {
-        if (seg[5] === 'adjust') return `${method} /v2/attendance/timesheets/:id/adjust`;
-        return `${method} /v2/attendance/timesheets/:employeeId/:workDate`;
-      }
+      if (seg.length === 6) return `${method} /v2/attendance/timesheets/:employeeId/:workDate`;
     }
   }
   // Kỳ lương: /api/periods/<tháng>[/<bước>[/<tên đăng nhập | decide>]]; tháng sai dạng cho handler trả 400 BAD_MONTH

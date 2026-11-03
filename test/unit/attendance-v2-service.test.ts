@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { AttendanceV2Service } from '../../src/modules/attendance-v2/attendance-v2.service';
 import { AttendanceV2Controller } from '../../src/modules/attendance-v2/attendance-v2.controller';
 import { AttendanceV2Repository } from '../../src/data/attendance-v2.repository';
-import { PunchEvent, DailyTimesheet, GeoLocation } from '../../src/domain/attendance-v2';
+import { PunchEvent, DailyTimesheet, GeoLocation, WorkSchedule } from '../../src/domain/attendance-v2';
 
 /**
  * In-memory repository fake for high-speed unit testing of domain service flows
@@ -12,9 +12,32 @@ import { PunchEvent, DailyTimesheet, GeoLocation } from '../../src/domain/attend
 class InMemoryAttendanceV2Repository extends AttendanceV2Repository {
   punches: PunchEvent[] = [];
   timesheets: Map<string, DailyTimesheet> = new Map();
+  schedules: Map<string, WorkSchedule> = new Map();
 
   constructor() {
     super({} as any);
+  }
+
+  override async saveSchedule(schedule: WorkSchedule): Promise<void> {
+    this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
+  }
+
+  override async findSchedule(employeeId: string, workDate: string): Promise<WorkSchedule | null> {
+    return this.schedules.get(`${employeeId}:${workDate}`) ?? null;
+  }
+
+  override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
+    const existing = await this.findSchedule(employeeId, workDate);
+    if (existing) return existing;
+    const def = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'NORMAL',
+      plannedStartTime: '08:00',
+      plannedEndTime: '17:00'
+    });
+    await this.saveSchedule(def);
+    return def;
   }
 
   override async savePunch(event: PunchEvent): Promise<void> {
@@ -165,9 +188,21 @@ describe('AttendanceV2Service', () => {
     assert.equal(outResult.timesheet.status, 'PRESENT');
   });
 
-  it('luồng về trễ tăng ca (OT): tính đúng otHours', async () => {
+  it('luồng về trễ tăng ca (OT): tính đúng otHours khi có phê duyệt OT', async () => {
     const repo = new InMemoryAttendanceV2Repository();
     const service = new AttendanceV2Service(repo);
+
+    // Đã có lịch duyệt OT đến 19:30 (2.5h OT)
+    const otSchedule = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'NORMAL',
+      plannedStartTime: '08:00',
+      plannedEndTime: '19:30',
+      approvedOtHours: 2.5,
+      scheduleType: 'OVERTIME'
+    });
+    await repo.saveSchedule(otSchedule);
 
     // IN lúc 08:00
     await service.recordPunch({
@@ -177,15 +212,10 @@ describe('AttendanceV2Service', () => {
       punchedAt: new Date(`${workDate}T08:00:00.000Z`),
       latitude: 10.7725,
       longitude: 106.698,
-      officeLocation: officeCoords,
-      shiftConfig: {
-        shiftType: 'NORMAL',
-        shiftStartTime: '08:00',
-        shiftEndTime: '17:00'
-      }
+      officeLocation: officeCoords
     });
 
-    // OUT lúc 19:30 (ca kết thúc 17:00 -> OT 2.5 giờ)
+    // OUT lúc 19:30 (ca kết thúc 17:00 dời đến 19:30 -> OT 2.5 giờ)
     const outResult = await service.recordPunch({
       employeeId,
       workDate,
@@ -196,6 +226,7 @@ describe('AttendanceV2Service', () => {
       officeLocation: officeCoords
     });
 
+    assert.equal(outResult.timesheet.checkOutStatus, 'VALID');
     assert.equal(outResult.timesheet.metrics.otHours, 2.5);
     assert.equal(outResult.timesheet.metrics.workHours, 11.5);
     assert.equal(outResult.timesheet.metrics.workUnits, 1.0);
@@ -275,56 +306,110 @@ describe('AttendanceV2Service', () => {
       },
       { message: /khóa/ }
     );
-
-    // Điều chỉnh bảng công khi đã khóa phải báo lỗi
-    await assert.rejects(
-      async () => {
-        await service.adjustTimesheet(lockedTs.id, {
-          reason: 'Bổ sung giờ công',
-          adjustedBy: 'admin',
-          checkIn: new Date(`${workDate}T08:00:00.000Z`),
-          checkOut: new Date(`${workDate}T17:00:00.000Z`)
-        });
-      },
-      { message: /khóa/ }
-    );
   });
 
-  it('điều chỉnh bảng công (adjustTimesheet) cập nhật giờ công và phép hợp lệ', async () => {
+  it('chấm công với đơn đổi ca sang 06:00 - 15:00 tính đúng giờ mới', async () => {
     const repo = new InMemoryAttendanceV2Repository();
     const service = new AttendanceV2Service(repo);
 
-    const ts = DailyTimesheet.create({
+    // Lịch đã được đổi ca sang 06:00 - 15:00
+    const changedSchedule = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'FLEX',
+      plannedStartTime: '06:00',
+      plannedEndTime: '15:00',
+      scheduleType: 'SHIFT_CHANGE'
+    });
+    await repo.saveSchedule(changedSchedule);
+
+    // Check-in lúc 05:55 -> VALID
+    const inRes = await service.recordPunch({
+      employeeId,
+      type: 'IN',
+      workDate,
+      punchedAt: new Date(`${workDate}T05:55:00.000Z`),
+      latitude: 10.7725,
+      longitude: 106.698
+    });
+    assert.equal(inRes.timesheet.checkInStatus, 'VALID');
+
+    // Check-out lúc 15:10 -> VALID
+    const outRes = await service.recordPunch({
+      employeeId,
+      type: 'OUT',
+      workDate,
+      punchedAt: new Date(`${workDate}T15:10:00.000Z`),
+      latitude: 10.7725,
+      longitude: 106.698
+    });
+    assert.equal(outRes.timesheet.checkOutStatus, 'VALID');
+    assert.equal(outRes.timesheet.dayStatus, 'VALID');
+  });
+
+  it('chấm công ngày làm bù 08:00 - 22:00 về sớm lúc 17:00 bị cờ EARLY và NEEDS_EXPLANATION', async () => {
+    const repo = new InMemoryAttendanceV2Repository();
+    const service = new AttendanceV2Service(repo);
+
+    const makeupSchedule = WorkSchedule.create({
       employeeId,
       workDate,
       shiftType: 'NORMAL',
-      shiftStartTime: '08:00',
-      shiftEndTime: '17:00'
+      plannedStartTime: '08:00',
+      plannedEndTime: '22:00',
+      scheduleType: 'MAKE_UP'
     });
-    await repo.saveTimesheet(ts);
+    await repo.saveSchedule(makeupSchedule);
 
-    // Điều chỉnh bổ sung giờ check-in và check-out
-    const adjusted = await service.adjustTimesheet(ts.id, {
-      checkIn: new Date(`${workDate}T08:00:00.000Z`),
-      checkOut: new Date(`${workDate}T17:00:00.000Z`),
-      reason: 'Quên chấm công sáng và chiều',
-      adjustedBy: 'hr_manager'
-    });
-
-    assert.equal(adjusted.status, 'PRESENT');
-    assert.equal(adjusted.metrics.workHours, 9.0);
-    assert.equal(adjusted.metrics.workUnits, 1.0);
-
-    // Điều chỉnh sang nghỉ phép có hưởng lương LEAVE_PAID
-    const leaveAdjusted = await service.adjustTimesheet(ts.id, {
-      status: 'LEAVE_PAID',
-      reason: 'Nghỉ phép năm đã phê duyệt',
-      adjustedBy: 'hr_manager'
+    await service.recordPunch({
+      employeeId,
+      type: 'IN',
+      workDate,
+      punchedAt: new Date(`${workDate}T08:00:00.000Z`),
+      latitude: 10.7725,
+      longitude: 106.698
     });
 
-    assert.equal(leaveAdjusted.status, 'LEAVE_PAID');
-    assert.equal(leaveAdjusted.metrics.workHours, 0);
-    assert.equal(leaveAdjusted.metrics.workUnits, 1.0);
+    const outRes = await service.recordPunch({
+      employeeId,
+      type: 'OUT',
+      workDate,
+      punchedAt: new Date(`${workDate}T17:00:00.000Z`),
+      latitude: 10.7725,
+      longitude: 106.698
+    });
+
+    assert.equal(outRes.timesheet.checkOutStatus, 'EARLY');
+    assert.equal(outRes.timesheet.metrics.earlyMinutes, 300);
+    assert.equal(outRes.timesheet.dayStatus, 'NEEDS_EXPLANATION');
+  });
+
+  it('từ chối chấm công khi nhân viên đang trong ngày nghỉ phép (ON_LEAVE)', async () => {
+    const repo = new InMemoryAttendanceV2Repository();
+    const service = new AttendanceV2Service(repo);
+
+    const leaveSchedule = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'NORMAL',
+      plannedStartTime: '08:00',
+      plannedEndTime: '17:00',
+      status: 'ON_LEAVE'
+    });
+    await repo.saveSchedule(leaveSchedule);
+
+    await assert.rejects(
+      async () => {
+        await service.recordPunch({
+          employeeId,
+          type: 'IN',
+          workDate,
+          latitude: 10.7725,
+          longitude: 106.698
+        });
+      },
+      { message: /nghỉ/ }
+    );
   });
 });
 
@@ -332,7 +417,7 @@ describe('AttendanceV2Controller', () => {
   const employeeId = randomUUID();
   const workDate = '2026-11-03';
 
-  it('controller thực hiện đủ các API punches, get, list và adjust', async () => {
+  it('controller thực hiện đủ các API punches, get và list', async () => {
     const repo = new InMemoryAttendanceV2Repository();
     const service = new AttendanceV2Service(repo);
     const controller = new AttendanceV2Controller(service);
@@ -364,15 +449,5 @@ describe('AttendanceV2Controller', () => {
     // 4. GET list timesheets
     const listTsRes = (await controller.listTimesheets(undefined, employeeId, '2026-11-01', '2026-11-30')) as any;
     assert.equal(listTsRes.timesheets.length, 1);
-
-    // 5. PATCH adjust timesheet
-    const adjustRes = (await controller.adjustTimesheet(undefined, getTsRes.timesheet.id, {
-      status: 'HOLIDAY',
-      reason: 'Nghỉ lễ theo quy định',
-      adjustedBy: 'admin'
-    })) as any;
-
-    assert.equal(adjustRes.adjusted, true);
-    assert.equal(adjustRes.timesheet.status, 'HOLIDAY');
   });
 });

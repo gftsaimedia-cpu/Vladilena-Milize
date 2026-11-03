@@ -1,10 +1,11 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
 import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
+import type { LegacySchema } from './legacy-schema';
 
 export type WorkShiftRow = Selectable<Schema['work_shifts']>;
-export type LeaveLedgerRow = Selectable<Schema['leave_ledger']>;
-export type ExplanationRow = Selectable<Schema['explanations']>;
+export type LeaveLedgerRow = Selectable<LegacySchema['leave_ledger']>;
+export type ExplanationRow = Selectable<LegacySchema['explanations']>;
 export type PositionTypeRow = Selectable<Schema['position_types']>;
 export type PositionLevelRow = Selectable<Schema['position_levels']>;
 
@@ -14,7 +15,7 @@ export type RevisionedUpdate = { updated: true; rev: number } | { updated: false
 
 /** Ghi một dòng có cột `rev` bằng khoá lạc quan: chỉ ghi khi rev trong DB bằng `expectedRev` (không truyền = ghi đè), rồi tăng rev. */
 export class RevisionedWrites {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
   async update(
     table: RevisionedTable,
@@ -61,8 +62,8 @@ export class WorkShiftsRepository {
 export class LeaveLedgerRepository {
   private readonly flavor: SqlFlavor;
 
-  constructor(private readonly qb: Kysely<Schema>) {
-    this.flavor = flavorOf(qb);
+  constructor(private readonly qb: Kysely<LegacySchema>) {
+    this.flavor = flavorOf(qb as any);
   }
 
   eventsOf(staffUuid: string): Promise<Pick<LeaveLedgerRow, 'kind' | 'on_date' | 'days'>[]> {
@@ -101,7 +102,7 @@ export interface ExplanationListFilter {
 
 /** Bảng `explanations`: giải trình (Admin yêu cầu, nhân viên trả lời, Admin duyệt). */
 export class ExplanationsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
   find(id: number): Promise<ExplanationRow | undefined> {
     return this.qb.selectFrom('explanations').selectAll().where('id', '=', id).executeTakeFirst();
@@ -130,7 +131,7 @@ export class ExplanationsRepository {
     return !!row;
   }
 
-  async insert(row: Insertable<Schema['explanations']>): Promise<number> {
+  async insert(row: Insertable<LegacySchema['explanations']>): Promise<number> {
     const result = await this.qb.insertInto('explanations').values(row).returning('id').executeTakeFirstOrThrow();
     return Number(result.id);
   }

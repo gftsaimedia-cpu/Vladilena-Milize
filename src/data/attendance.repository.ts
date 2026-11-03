@@ -1,11 +1,11 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
 import { flavorOf, SqlFlavor } from './flavor';
-import type { Schema } from './schema.generated';
+import type { LegacySchema } from './legacy-schema';
 
-export type SheetApprovalRow = Selectable<Schema['sheet_approvals']>;
-export type AttendanceSessionRow = Selectable<Schema['attendance_sessions']>;
-export type PunchRequestRow = Selectable<Schema['punch_requests']>;
-export type PunchRow = Selectable<Schema['punches']>;
+export type SheetApprovalRow = Selectable<LegacySchema['sheet_approvals']>;
+export type AttendanceSessionRow = Selectable<LegacySchema['attendance_sessions']>;
+export type PunchRequestRow = Selectable<LegacySchema['punch_requests']>;
+export type PunchRow = Selectable<LegacySchema['punches']>;
 
 export interface SheetApprovalFilter {
   status?: string;
@@ -18,8 +18,8 @@ export interface SheetApprovalFilter {
 export class SheetApprovalsRepository {
   private readonly flavor: SqlFlavor;
 
-  constructor(private readonly qb: Kysely<Schema>) {
-    this.flavor = flavorOf(qb);
+  constructor(private readonly qb: Kysely<LegacySchema>) {
+    this.flavor = flavorOf(qb as any);
   }
 
   find(username: string, date: string): Promise<SheetApprovalRow | undefined> {
@@ -35,7 +35,7 @@ export class SheetApprovalsRepository {
     await this.qb.deleteFrom('sheet_approvals').where('username', '=', username).where('date', '=', date).execute();
   }
 
-  async insert(row: Insertable<Schema['sheet_approvals']>): Promise<void> {
+  async insert(row: Insertable<LegacySchema['sheet_approvals']>): Promise<void> {
     await this.qb.insertInto('sheet_approvals').values(row).execute();
   }
 
@@ -82,8 +82,8 @@ const notScheduled = (f: SqlFlavor, origin: string, nowIso: string) =>
 export class AttendanceSessionsRepository {
   private readonly flavor: SqlFlavor;
 
-  constructor(private readonly qb: Kysely<Schema>) {
-    this.flavor = flavorOf(qb);
+  constructor(private readonly qb: Kysely<LegacySchema>) {
+    this.flavor = flavorOf(qb as any);
   }
 
   find(id: number): Promise<AttendanceSessionRow | undefined> {
@@ -116,7 +116,7 @@ export class AttendanceSessionsRepository {
     return query.orderBy('date').orderBy('id').execute();
   }
 
-  async insert(row: Insertable<Schema['attendance_sessions']>): Promise<number> {
+  async insert(row: Insertable<LegacySchema['attendance_sessions']>): Promise<number> {
     const result = await this.qb.insertInto('attendance_sessions').values(row).returning('id').executeTakeFirstOrThrow();
     return Number(result.id);
   }
@@ -166,7 +166,7 @@ export class AttendanceSessionsRepository {
     return this.qb.selectFrom('punch_requests').selectAll().where('username', '=', username).where('request_id', '=', requestId).executeTakeFirst();
   }
 
-  async savePunchRequest(row: Insertable<Schema['punch_requests']>): Promise<void> {
+  async savePunchRequest(row: Insertable<LegacySchema['punch_requests']>): Promise<void> {
     await this.qb.insertInto('punch_requests').values(row).execute();
   }
 

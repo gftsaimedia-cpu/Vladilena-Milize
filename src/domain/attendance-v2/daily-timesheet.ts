@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { WorkMetrics, WorkMetricsDTO } from './work-metrics';
 import { PunchEvent } from './punch-event';
-import { WorkSchedule, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
+import { WorkSchedule, ShiftType, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
 
-export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT';
 export type DailyTimesheetStatus = 'PRESENT' | 'LEAVE_PAID' | 'LEAVE_UNPAID' | 'ABSENT' | 'HOLIDAY';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -157,8 +156,13 @@ export class DailyTimesheet {
       throw new Error(`Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${props.workDate}`);
     }
 
-    if (props.shiftType !== 'NORMAL' && props.shiftType !== 'FLEX' && props.shiftType !== 'NIGHT') {
-      throw new Error(`Loại ca không hợp lệ (NORMAL, FLEX, NIGHT): ${props.shiftType}`);
+    if (
+      props.shiftType !== 'NORMAL' &&
+      props.shiftType !== 'FLEX' &&
+      props.shiftType !== 'NIGHT' &&
+      props.shiftType !== 'CUSTOM'
+    ) {
+      throw new Error(`Loại ca không hợp lệ (NORMAL, FLEX, NIGHT, CUSTOM): ${props.shiftType}`);
     }
 
     if (

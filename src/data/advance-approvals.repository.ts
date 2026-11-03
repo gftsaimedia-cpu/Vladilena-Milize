@@ -1,5 +1,5 @@
 import { Kysely, sql } from 'kysely';
-import type { Schema } from './schema.generated';
+import type { LegacySchema } from './legacy-schema';
 
 export interface AdvanceApprovalEntry {
   status: string | null;
@@ -13,7 +13,7 @@ export interface AdvanceApprovalEntry {
 
 /** Các yêu cầu tạm ứng theo từng người; mọi ghi được gọi trong giao dịch đã khoá tháng. */
 export class AdvanceApprovalsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
   /** Phiên bản tháng và các dòng được đọc cùng một snapshot PostgreSQL, theo thứ tự yêu cầu đầu tiên. */
   async read(month: string): Promise<{ rev: number; users: Record<string, AdvanceApprovalEntry> }> {

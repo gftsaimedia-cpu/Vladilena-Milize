@@ -1,8 +1,9 @@
 import { Insertable, Kysely, Selectable, sql, Updateable } from 'kysely';
 import type { Schema } from './schema.generated';
+import type { LegacySchema } from './legacy-schema';
 
 export type PayEntryRow = Selectable<Schema['pay_entries']>;
-export type AdvanceRequestRow = Selectable<Schema['advance_requests']>;
+export type AdvanceRequestRow = Selectable<LegacySchema['advance_requests']>;
 
 /** Bảng `pay_entries`: khoản điền thêm về lương (cộng hoặc trừ) theo tháng, qua duyệt. */
 export class PayEntriesRepository {
@@ -57,7 +58,7 @@ export class PayEntriesRepository {
 
 /** Bảng `advance_requests`: yêu cầu ứng lương cũ (chỉ còn đọc). */
 export class AdvanceRequestsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
   list(filter: { month: string; username?: string; status?: string }): Promise<AdvanceRequestRow[]> {
     let query = this.qb.selectFrom('advance_requests').selectAll().where('month', '=', filter.month);

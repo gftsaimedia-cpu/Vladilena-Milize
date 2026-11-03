@@ -19,6 +19,7 @@ CLAUDE.local.md
 # Tool state, not part of the app
 src/engine/.claude-flow/
 .claude/worktrees/
+.worktrees/
 # Test output
 test-results/
 playwright-report/

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Inject, Param, Query, Body } from '@nestjs/common';
+import { Controller, Get, Post, Inject, Param, Query, Body } from '@nestjs/common';
 import { Ctx, ApiContext } from '../../http/api-context';
 import { AttendanceV2Service } from './attendance-v2.service';
 const { HttpError, readJson } = require('../../platform/http');
@@ -72,20 +72,5 @@ export class AttendanceV2Controller {
       throw new HttpError(404, 'Không tìm thấy bảng công', { code: 'TIMESHEET_NOT_FOUND' });
     }
     return { timesheet };
-  }
-
-  @Patch('timesheets/:id/adjust')
-  async adjustTimesheet(@Ctx() c?: ApiContext, @Param('id') paramId?: string, @Body() body?: any): Promise<unknown> {
-    const id = paramId || (c?.seg ? c.seg[4] : undefined);
-    if (!id) {
-      throw new HttpError(400, 'Thiếu mã bảng công (id)', { code: 'MISSING_ID' });
-    }
-    const payload = body || (c?.req ? await readJson(c.req) : {}) || {};
-    try {
-      const timesheet = await this.service.adjustTimesheet(id, payload);
-      return { adjusted: true, timesheet };
-    } catch (err: any) {
-      throw new HttpError(400, err.message, { code: 'BAD_ADJUST_INPUT' });
-    }
   }
 }

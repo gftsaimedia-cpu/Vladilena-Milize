@@ -1,7 +1,0 @@
--- Cột mới cho mô hình Employee v2 (Shift: NORMAL/FLEX/NIGHT + giờ làm + phụ cấp ca; Leave: tổng phép + phép đã dùng)
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS shift_type TEXT NOT NULL DEFAULT 'NORMAL';
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS shift_start_time TEXT NOT NULL DEFAULT '08:00';
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS shift_end_time TEXT NOT NULL DEFAULT '17:00';
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS shift_allowance_pct INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS leave_total_days REAL NOT NULL DEFAULT 0;
-ALTER TABLE staff ADD COLUMN IF NOT EXISTS leave_used_days REAL NOT NULL DEFAULT 0;

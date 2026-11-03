@@ -1,6 +1,7 @@
 import { Insertable, Kysely, Selectable, sql } from 'kysely';
 import { flavorOf, SqlFlavor } from './flavor';
 import type { Schema } from './schema.generated';
+import type { LegacySchema } from './legacy-schema';
 
 const count = sql<number>`COUNT(*)`.as('n');
 
@@ -235,8 +236,8 @@ export class StaffRepository {
 
 /* ---------- Chấm công: lượt bấm, điều chỉnh giờ, bảng công ---------- */
 
-export type CorrectionRow = Selectable<Schema['corrections']>;
-export type TimesheetRow = Selectable<Schema['timesheets']>;
+export type CorrectionRow = Selectable<LegacySchema['corrections']>;
+export type TimesheetRow = Selectable<LegacySchema['timesheets']>;
 
 export interface CorrectionFilter {
   username?: string;
@@ -248,9 +249,9 @@ export interface CorrectionFilter {
 
 /** Bảng `punches`: từng lượt bấm Check-in/Check-out. */
 export class PunchesRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
-  async insert(row: Insertable<Schema['punches']>): Promise<void> {
+  async insert(row: Insertable<LegacySchema['punches']>): Promise<void> {
     await this.qb.insertInto('punches').values(row).execute();
   }
 }
@@ -259,8 +260,8 @@ export class PunchesRepository {
 export class CorrectionsRepository {
   private readonly flavor: SqlFlavor;
 
-  constructor(private readonly qb: Kysely<Schema>) {
-    this.flavor = flavorOf(qb);
+  constructor(private readonly qb: Kysely<LegacySchema>) {
+    this.flavor = flavorOf(qb as any);
   }
 
   /** Yêu cầu đang chờ của cùng lượt (hoặc cùng ngày khi không có lượt) chuyển sang 'replaced'. */
@@ -270,7 +271,7 @@ export class CorrectionsRepository {
     await query.execute();
   }
 
-  async insert(row: Insertable<Schema['corrections']>): Promise<number> {
+  async insert(row: Insertable<LegacySchema['corrections']>): Promise<number> {
     const result = await this.qb.insertInto('corrections').values(row).returning('id').executeTakeFirstOrThrow();
     return Number(result.id);
   }
@@ -318,7 +319,7 @@ export class CorrectionsRepository {
 
 /** Bảng `timesheets`: bảng công của một người trong một tháng (ngày, KPI tự chấm và KPI được duyệt). */
 export class TimesheetsRepository {
-  constructor(private readonly qb: Kysely<Schema>) {}
+  constructor(private readonly qb: Kysely<LegacySchema>) {}
 
   find(username: string, month: string): Promise<TimesheetRow | undefined> {
     return this.qb.selectFrom('timesheets').selectAll().where('username', '=', username).where('month', '=', month).executeTakeFirst();

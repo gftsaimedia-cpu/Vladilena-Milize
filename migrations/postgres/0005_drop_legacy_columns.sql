@@ -1,3 +1,0 @@
-ALTER TABLE staff DROP COLUMN IF EXISTS shift_code;
-ALTER TABLE staff DROP COLUMN IF EXISTS night_pct;
-ALTER TABLE staff DROP COLUMN IF EXISTS leave_adjust;
