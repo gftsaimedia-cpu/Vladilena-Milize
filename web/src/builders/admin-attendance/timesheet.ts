@@ -11,6 +11,7 @@ import {
   shiftIndex,
   shiftLine
 } from './common';
+import { titleOf } from '@/builders/staff-requests/catalog';
 
 // Mã trạng thái của máy chủ → dấu ô trong Bảng công. Ô của ngày lấy dấu của lượt cần xử lý nhất.
 const CELL = { pending: 'w', rejected: 'q', 'checked-in': 'in', 'checked-out': 'ok', approved: 'ok', admin: 'ok' };
@@ -138,7 +139,9 @@ export function buildDayDetail({ sheet, shifts }: any, personId?, date?) {
     const outs = (s.punches || []).filter(p => p.type === 'out');
     return {
       id: s.id,
+      sessionId: s.id,
       version: s.version,
+      canDecideOt: s.entry?.kind === 'ot' && s.status === 'pending',
       status: STATUS_LABEL[s.status] || s.status,
       closed: s.state !== 'open',
       checkIn: hhmm(ins.length ? ins[0].at : s.entry && s.entry.presIn),
@@ -148,6 +151,23 @@ export function buildDayDetail({ sheet, shifts }: any, personId?, date?) {
       result: s.statusNote || STATUS_LABEL[s.status] || ''
     };
   });
+  const rawApproval = sheet.approvals?.[date];
+  const day = (sheet.days || {})[date] || {};
+  const approval = rawApproval
+    ? {
+        item: rawApproval.item,
+        title: titleOf(rawApproval),
+        status: rawApproval.status,
+        rev: rawApproval.rev,
+        fingerprint: rawApproval.fingerprint,
+        note: rawApproval.note || day.note || day.punchNote || '',
+        decidedBy: rawApproval.decidedBy || null,
+        decidedAt: rawApproval.decidedAt || null,
+        submittedAt: rawApproval.submittedAt || null,
+        holiday: Boolean(rawApproval.holiday)
+      }
+    : null;
+
   return {
     personId,
     name: owner.name || personId,
@@ -167,6 +187,7 @@ export function buildDayDetail({ sheet, shifts }: any, personId?, date?) {
     ],
     assignedShift: owner.shiftCode || '',
     punches,
+    approval,
     rev: sheet.rev,
     days: sheet.days || {}
   };

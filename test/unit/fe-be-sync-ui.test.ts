@@ -7,7 +7,7 @@ const { buildPeriodView, buildRow } = require('../../web/src/builders/admin-payr
 const { buildDrawer } = require('../../web/src/builders/payslip/drawer');
 const { describeScenario } = require('../../web/src/views/admin/payroll/scenarios');
 const { getPeriodApprovalSummary, approvePeriod } = require('../../web/src/services/admin-payroll');
-const { buildSheetBody, buildOvertime, buildTimesheet } = require('../../web/src/builders/admin-attendance/timesheet');
+const { buildSheetBody, buildOvertime, buildTimesheet, buildDayDetail } = require('../../web/src/builders/admin-attendance/timesheet');
 const { buildOverview } = require('../../web/src/builders/admin-main/overview');
 const { buildPunchBodyForDesktop } = require('../../web/src/services/staff-desktop');
 const { buildHome: buildPhoneHome } = require('../../web/src/builders/staff-phone/home');
@@ -405,6 +405,54 @@ test('Tinh gọn Chấm công: không còn thanh tab con, mở Hôm nay dạng m
 
   const icons = fs.readFileSync(path.join(__dirname, '../../web/src/components/ui/icons.ts'), 'utf8');
   assert.ok(icons.includes('calendar:'), 'icons.ts có alias calendar');
+});
+
+test('DayDetailDialog & buildDayDetail: trích xuất approval và hỗ trợ duyệt / từ chối trực tiếp', () => {
+  const detailWithApproval = buildDayDetail({
+    sheet: {
+      owner: { name: 'Lê Thu Hà', type: 'nv', shiftCode: 'n1' },
+      rev: 4,
+      days: {
+        '2026-10-05': { note: 'Bận việc gia đình' }
+      },
+      approvals: {
+        '2026-10-05': {
+          item: 'leave',
+          status: 'pending',
+          rev: 4,
+          fingerprint: 'fp-123',
+          note: 'Con ốm cần nghỉ',
+          submittedAt: '2026-10-04T10:00:00Z'
+        }
+      },
+      attendanceSessions: [
+        {
+          id: 101,
+          date: '2026-10-05',
+          version: 2,
+          status: 'pending',
+          entry: { kind: 'ot', date: '2026-10-05' },
+          punches: [{ type: 'in', at: '2026-10-05T08:00:00Z' }]
+        }
+      ]
+    },
+    shifts: { shifts: [{ code: 'n1', name: 'Ca 1', in: '08:00', out: '17:30' }] }
+  }, 'ha.le', '2026-10-05');
+
+  assert.ok(detailWithApproval.approval, 'phải có đối tượng approval');
+  assert.equal(detailWithApproval.approval.title, 'Nghỉ phép năm');
+  assert.equal(detailWithApproval.approval.status, 'pending');
+  assert.equal(detailWithApproval.approval.note, 'Con ốm cần nghỉ');
+  assert.equal(detailWithApproval.punches[0].canDecideOt, true);
+  assert.equal(detailWithApproval.punches[0].sessionId, 101);
+
+  const dialogSrc = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/DayDetailDialog.vue'), 'utf8');
+  assert.ok(dialogSrc.includes('approval-card'), 'phải có class approval-card');
+  assert.ok(dialogSrc.includes('onApproveRequest'), 'phải có hàm onApproveRequest');
+  assert.ok(dialogSrc.includes('onRejectRequest'), 'phải có hàm onRejectRequest');
+  assert.ok(dialogSrc.includes('approveDayRequest'), 'phải dùng approveDayRequest');
+  assert.ok(dialogSrc.includes('rejectDayRequest'), 'phải dùng rejectDayRequest');
+  assert.ok(dialogSrc.includes('onApproveOt'), 'phải có hàm duyệt OT lẻ trong hộp ngày');
 });
 
 

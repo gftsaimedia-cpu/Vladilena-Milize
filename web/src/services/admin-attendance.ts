@@ -1,5 +1,6 @@
 // Dịch vụ cho Chấm công & phép: bảng công, Hôm nay, OT, ca làm, sổ phép, chấm công thay hàng loạt.
 import { ApiError, api } from './http';
+import { approveRequest, rejectRequest } from './admin-main';
 import {
   buildDayDetail,
   buildOvertime,
@@ -120,6 +121,15 @@ export function decideOvertime({ sessionId, version, action, reason }: any) {
     ...(reason ? { reason: String(reason).trim(), note: String(reason).trim() } : {})
   });
 }
+
+/** Duyệt hoặc từ chối yêu cầu của một ngày trong Bảng công (PUT /approvals). */
+export async function approveDayRequest(personId: string, date: string) {
+  return approveRequest(`${personId}|${date}`);
+}
+export async function rejectDayRequest(personId: string, date: string, reason?: string) {
+  return rejectRequest(`${personId}|${date}`, { reason });
+}
+export { approveRequest, rejectRequest };
 
 import { loadShiftOverview } from '@/builders/admin-attendance/shifts';
 /** Tab Ca làm: ca cố định kèm số người, và người chưa có ca (GET /staff, /settings/shifts, /positions). */

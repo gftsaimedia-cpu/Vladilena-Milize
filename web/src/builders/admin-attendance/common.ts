@@ -27,7 +27,7 @@ export function hhmm(iso?) {
 }
 
 /** Ngày công của một lượt: ngày của ca đã gán nếu có, ngược lại ngày của lượt. */
-export const dayKeyOf = (s?) => (s.entry && s.entry.plannedShift && s.entry.plannedShift.date) || s.date;
+export const dayKeyOf = (s?) => (s.entry && s.entry.plannedShift && s.entry.plannedShift.date) || (s.entry && s.entry.date) || s.date;
 
 export function paginate(list?, page = 1) {
   const total = list.length;
