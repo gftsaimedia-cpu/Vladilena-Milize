@@ -59,13 +59,15 @@ export function buildTimesheet({ team, shifts, today, holidays }: any, { filter 
       else if (COUNTED.has(code)) present += 1;
     }
     const line = shiftLine(idx, st.shiftCode);
+    const shiftName = idx.get(st.shiftCode)?.name || st.shiftCode;
     return {
       id: st.username,
       name: st.name,
       type: st.type,
       sub: st.shiftCode
-        ? [TYPE_SHORT[st.type], line].filter(Boolean).join(' · ')
+        ? [TYPE_SHORT[st.type], shiftName].filter(Boolean).join(' · ')
         : `${TYPE_SHORT[st.type]} · chưa gán ca`,
+      shiftTooltip: line || '',
       noShift: !st.shiftCode,
       cells,
       present,

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// Khung chung của 6 tab Chấm công & phép: tiêu đề, nút Chốt công (chưa mở), thanh tab; nội dung tab ở <RouterView>.
+// Khung chung của 4 tab Chấm công & phép: tiêu đề, nút Chốt công ở Bảng lương, thanh tab; nội dung tab ở <RouterView>.
 import { computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { RouterLink, useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getAttendanceSummary } from '@/services/admin-attendance';
@@ -17,11 +17,9 @@ const { data: summary } = useLoad(
 
 const TABS = [
   ['', 'Bảng công'],
-  ['ca-lam', 'Ca làm'],
-  ['phep-con-lai', 'Phép còn lại'],
   ['hom-nay', 'Hôm nay'],
-  ['sua-gio', 'Sửa giờ'],
-  ['gio-ot', 'Giờ OT']
+  ['gio-ot', 'Giờ OT'],
+  ['phep-con-lai', 'Phép còn lại']
 ];
 const tabTo = (key?) => ({
   path: key ? `/admin/cham-cong/${key}` : '/admin/cham-cong',
@@ -40,9 +38,13 @@ const tabTo = (key?) => ({
       <p v-else-if="summary">Chưa có dữ liệu chấm công của tháng này</p>
     </div>
     <div class="acts">
-      <button v-if="summary && !summary.empty" type="button" class="btn off" disabled>
-        <Icon name="lock" />Chốt công
-      </button>
+      <RouterLink
+        v-if="summary && !summary.empty"
+        class="btn"
+        :to="{ path: '/admin/bang-luong', query: { thang: route.query.thang } }"
+      >
+        <Icon name="lock" />Chốt công ở Bảng lương
+      </RouterLink>
     </div>
   </div>
 

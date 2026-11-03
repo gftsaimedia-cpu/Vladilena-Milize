@@ -5,7 +5,7 @@ const { buildPeriodView, buildRow } = require('../../web/src/builders/admin-payr
 const { buildDrawer } = require('../../web/src/builders/payslip/drawer');
 const { describeScenario } = require('../../web/src/views/admin/payroll/scenarios');
 const { getPeriodApprovalSummary, approvePeriod } = require('../../web/src/services/admin-payroll');
-const { buildSheetBody, buildOvertime } = require('../../web/src/builders/admin-attendance/timesheet');
+const { buildSheetBody, buildOvertime, buildTimesheet } = require('../../web/src/builders/admin-attendance/timesheet');
 const { buildOverview } = require('../../web/src/builders/admin-main/overview');
 const { buildPunchBodyForDesktop } = require('../../web/src/services/staff-desktop');
 const { buildHome: buildPhoneHome } = require('../../web/src/builders/staff-phone/home');
@@ -223,4 +223,18 @@ test('staff-phone buildHome & buildAttendance: đọc đúng r.late và tính Ph
   assert.equal(att.stats.length, 3);
   assert.deepEqual(att.stats[1], { value: '20', label: 'Phút đi trễ' });
   assert.deepEqual(att.stats[2], { value: '30', label: 'Phút bị trừ' });
+});
+
+test('buildTimesheet: dòng nhân sự chỉ hiện loại và tên ca ngắn, tách giờ ca sang shiftTooltip', () => {
+  const out = buildTimesheet({
+    team: {
+      month: '2026-10',
+      rows: [{ staff: { username: 'linh', name: 'Linh', type: 'nv', shiftCode: 'n1' }, attendanceSessions: [] }]
+    },
+    shifts: { shifts: [{ code: 'n1', name: 'Ca 1', in: '08:00', out: '17:30' }] },
+    today: '2026-10-15',
+    holidays: []
+  });
+  assert.equal(out.rows[0].sub, 'NV · Ca 1');
+  assert.equal(out.rows[0].shiftTooltip, 'Ca 1 08:00–17:30');
 });

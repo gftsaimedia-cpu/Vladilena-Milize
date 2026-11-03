@@ -30,10 +30,10 @@ const CHIPS = [
   ['nv', 'Nhân viên', 'nv']
 ];
 const LEGEND = [
-  ['in', '', 'Đã Check-in'],
-  ['ok', '', 'Đã Check-out · Được phê duyệt · Đã chấm công (Admin)'],
+  ['in', '', 'Đang làm'],
+  ['ok', '', 'Đủ công'],
   ['w', '', 'Chờ xử lý'],
-  ['q', '', 'Bị từ chối']
+  ['q', '', 'Từ chối']
 ];
 const MARK_TEXT: Record<string, any> = {};
 const SESSION_LABEL: Record<string, string> = {
@@ -43,10 +43,20 @@ const SESSION_LABEL: Record<string, string> = {
   q: 'Lượt bị từ chối'
 };
 
-const filter = ref('all');
+const filter = ref(
+  ['all', 'pending', 'tts', 'ctv', 'nv'].includes(String(route.query.filter)) ? String(route.query.filter) : 'all'
+);
 const q = ref('');
 const page = ref(1);
 watch([month, filter, q], () => (page.value = 1));
+watch(
+  () => route.query.filter,
+  val => {
+    if (val && ['all', 'pending', 'tts', 'ctv', 'nv'].includes(String(val))) {
+      filter.value = String(val);
+    }
+  }
+);
 const { data, reload } = useLoad(
   () => getTimesheet(month.value, { filter: filter.value, q: q.value, page: page.value }),
   () => [month.value, filter.value, q.value, page.value].join('|')
@@ -121,9 +131,7 @@ function onSaved() {
   <section class="card">
     <div class="card-h">
       <h2>{{ heading }}</h2>
-      <span class="cap"
-        >Tháng công {{ range }} · tính theo Check-in/out trên app có GPS · bấm vào ô để xem giờ vào, ra và sửa giờ</span
-      >
+      <span class="cap">{{ range }}</span>
     </div>
     <div class="tools">
       <button
@@ -151,7 +159,7 @@ function onSaved() {
     </div>
     <table class="bc">
       <colgroup>
-        <col style="width: 244px" />
+        <col style="width: 200px" />
         <col v-for="c in days" :key="c.date" style="width: 26px" />
         <col style="width: 55px" />
         <col style="width: 55px" />
@@ -174,7 +182,7 @@ function onSaved() {
               <span class="av">{{ initials(r.name) }}</span>
               <div>
                 <div class="t">{{ r.name }}</div>
-                <div class="s" :class="{ bad: r.noShift }">{{ r.sub }}</div>
+                <div class="s" :class="{ bad: r.noShift }" :title="r.shiftTooltip">{{ r.sub }}</div>
                 <RouterLink
                   v-if="r.noShift"
                   class="link"

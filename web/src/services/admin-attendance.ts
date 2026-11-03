@@ -104,10 +104,6 @@ export async function saveTimeFix({ personId, date, checkIn, checkOut, shift, re
   return api('PUT', '/sheet', body);
 }
 
-/** Tab Sửa giờ: yêu cầu sửa giờ của nhân viên. status: pending | approved | rejected | all. Chưa có yêu cầu nào. */
-export const getTimeFixRequests = async (month?, { status = 'pending' }: any = {}) =>
-  ({ month, status, counts: { pending: 0 }, rows: [] });
-
 /** Tab Giờ OT: OT khai đối chiếu với Check-in/out. status: pending | approved | rejected. */
 export async function getOvertimeRequests(month?, { status = 'pending' }: any = {}) {
   const ot = await api('GET', '/ot?' + qs({ status }));
