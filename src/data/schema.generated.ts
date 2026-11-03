@@ -371,14 +371,11 @@ export interface StaffTable {
   role: Generated<string>;
   type: Generated<string>;
   level: Generated<number>;
-  night_pct: Generated<number | null>;
   idorm: Generated<number>;
-  shift_code: Generated<string | null>;
   pass_hash: string;
   created_at: string;
   start_date: Generated<string | null>;
   birthday: Generated<string | null>;
-  leave_adjust: Generated<number>;
   contract: Generated<string | null>;
   insured: Generated<number | null>;
   dependants: Generated<number>;

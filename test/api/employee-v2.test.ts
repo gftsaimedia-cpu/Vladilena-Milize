@@ -71,7 +71,6 @@ describe('Employee V2 CRUD & PATCH API Endpoints', () => {
     assert.equal(rowNormal.shift_start_time, '08:00');
     assert.equal(rowNormal.shift_end_time, '17:00');
     assert.equal(Number(rowNormal.shift_allowance_pct), 0);
-    assert.equal(Number(rowNormal.night_pct), 0);
     assert.equal(Number(rowNormal.leave_total_days), 12);
     assert.equal(Number(rowNormal.leave_used_days), 0);
     assert.equal(Number(rowNormal.leave_balance), 12);
@@ -157,7 +156,6 @@ describe('Employee V2 CRUD & PATCH API Endpoints', () => {
     assert.equal(rowNight.shift_start_time, '21:00');
     assert.equal(rowNight.shift_end_time, '06:00');
     assert.equal(Number(rowNight.shift_allowance_pct), 40);
-    assert.equal(Number(rowNight.night_pct), 40);
 
     // 4. Flat structure creation
     const resFlat = await F.call('POST', '/v2/employees', {
@@ -387,7 +385,6 @@ describe('Employee V2 CRUD & PATCH API Endpoints', () => {
     assert.equal(row.shift_start_time, '22:00');
     assert.equal(row.shift_end_time, '07:00');
     assert.equal(Number(row.shift_allowance_pct), 60);
-    assert.equal(Number(row.night_pct), 60);
   });
 
   test('PATCH /api/v2/employees/:username/leave updates leave days and supports useDays', async () => {

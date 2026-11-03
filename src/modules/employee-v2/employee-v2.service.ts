@@ -22,9 +22,7 @@ export class EmployeeV2Service {
     const rawShiftType = (row.shift_type || '').toUpperCase();
     const shiftType: ShiftType = ['NORMAL', 'FLEX', 'NIGHT'].includes(rawShiftType)
       ? (rawShiftType as ShiftType)
-      : row.night_pct && Number(row.night_pct) > 0
-        ? 'NIGHT'
-        : 'NORMAL';
+      : 'NORMAL';
 
     let allowancePct = 0;
     if (shiftType === 'NORMAL') {
@@ -32,12 +30,7 @@ export class EmployeeV2Service {
     } else if (shiftType === 'FLEX') {
       allowancePct = 10;
     } else {
-      const pct =
-        row.shift_allowance_pct != null
-          ? Number(row.shift_allowance_pct)
-          : row.night_pct != null
-            ? Number(row.night_pct)
-            : 30;
+      const pct = row.shift_allowance_pct != null ? Number(row.shift_allowance_pct) : 30;
       allowancePct = [30, 40, 60].includes(pct) ? pct : 30;
     }
 
@@ -189,9 +182,6 @@ export class EmployeeV2Service {
       type: contract.position.type,
       level: contract.position.level,
       job_title: contract.position.jobTitle,
-      night_pct: contract.shift.type === 'NIGHT' ? contract.shift.allowancePct : 0,
-      shift_code:
-        contract.shift.type === 'NORMAL' ? 'hc' : contract.shift.type === 'FLEX' ? 'flex' : 'ca3',
       shift_type: contract.shift.type,
       shift_start_time: contract.shift.startTime,
       shift_end_time: contract.shift.endTime,
@@ -199,7 +189,6 @@ export class EmployeeV2Service {
       leave_total_days: contract.leave.totalDays,
       leave_used_days: contract.leave.usedDays,
       leave_balance: remainingDays,
-      leave_adjust: 0,
       contract_status: dbContractStatus,
       start_date: contract.effectiveFrom,
       contract: contract.endDate,
@@ -230,8 +219,6 @@ export class EmployeeV2Service {
           type: row.type,
           level: row.level,
           job_title: row.job_title,
-          night_pct: row.night_pct,
-          shift_code: row.shift_code,
           shift_type: row.shift_type,
           shift_start_time: row.shift_start_time,
           shift_end_time: row.shift_end_time,
@@ -346,11 +333,7 @@ export class EmployeeV2Service {
     const posType =
       body.contract?.position?.type || body.position?.type || body.type || existing?.contract.position.type || 'nv';
     const posLevel =
-      body.contract?.position?.level ??
-      body.position?.level ??
-      body.level ??
-      existing?.contract.position.level ??
-      1;
+      body.contract?.position?.level ?? body.position?.level ?? body.level ?? existing?.contract.position.level ?? 1;
     const posJobTitle =
       body.contract?.position?.jobTitle !== undefined
         ? body.contract.position.jobTitle
@@ -410,13 +393,15 @@ export class EmployeeV2Service {
       body.leave?.totalDays ??
       body.leaveTotalDays ??
       body.totalDays ??
-      (existing?.contract.leave.totalDays ?? 0);
+      existing?.contract.leave.totalDays ??
+      0;
     const leaveUsed =
       body.contract?.leave?.usedDays ??
       body.leave?.usedDays ??
       body.leaveUsedDays ??
       body.usedDays ??
-      (existing?.contract.leave.usedDays ?? 0);
+      existing?.contract.leave.usedDays ??
+      0;
     const leave = new Leave({ totalDays: leaveTotal, usedDays: leaveUsed });
 
     const status = (body.contract?.status || body.status || existing?.contract.status || 'nv') as ContractStatus;

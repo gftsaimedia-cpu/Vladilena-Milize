@@ -22,14 +22,11 @@ function createMockRow(overrides: Partial<StaffRow> = {}): StaffRow {
     role: 'staff',
     type: 'officer',
     level: 2,
-    night_pct: 0,
     idorm: 0,
-    shift_code: 'NORMAL:08:00-17:00',
     pass_hash: 'argon2$test_hash',
     created_at: '2026-01-01T00:00:00.000Z',
     start_date: '2026-01-15',
     birthday: '2000-06-12',
-    leave_adjust: 12,
     contract: '2027-01-15',
     insured: 1,
     dependants: 1,
@@ -144,10 +141,8 @@ describe('EmployeeV2Repository.fromRow', () => {
       shift_start_time: '' as any,
       shift_end_time: '' as any,
       shift_allowance_pct: undefined as any,
-      night_pct: 40,
       leave_total_days: null as any,
       leave_used_days: null as any,
-      leave_adjust: 14,
       contract_status: 'probation',
       start_date: null,
       contract: null,
@@ -171,14 +166,14 @@ describe('EmployeeV2Repository.fromRow', () => {
     assert.equal(emp.profile.givenName, 'Nouzen');
     assert.equal(emp.fullName, 'Shin Nouzen');
 
-    // Inferred NIGHT shift from night_pct = 40
-    assert.equal(emp.contract.shift.type, 'NIGHT');
-    assert.equal(emp.contract.shift.allowancePct, 40);
+    // Default NORMAL shift when shift_type is missing/empty
+    assert.equal(emp.contract.shift.type, 'NORMAL');
+    assert.equal(emp.contract.shift.allowancePct, 0);
     assert.equal(emp.contract.shift.startTime, '08:00');
     assert.equal(emp.contract.shift.endTime, '17:00');
 
-    // Leave mapped from leave_adjust
-    assert.equal(emp.contract.leave.totalDays, 14);
+    // Leave defaulted to 0
+    assert.equal(emp.contract.leave.totalDays, 0);
     assert.equal(emp.contract.leave.usedDays, 0);
 
     // Legacy status 'probation' -> 'thuviec'
@@ -205,7 +200,10 @@ describe('EmployeeV2Repository.fromRow', () => {
     }
 
     assert.equal(EmployeeV2Repository.fromRow(createMockRow({ contract_status: 'official' })).contract.status, 'nv');
-    assert.equal(EmployeeV2Repository.fromRow(createMockRow({ contract_status: 'probation' })).contract.status, 'thuviec');
+    assert.equal(
+      EmployeeV2Repository.fromRow(createMockRow({ contract_status: 'probation' })).contract.status,
+      'thuviec'
+    );
     assert.equal(EmployeeV2Repository.fromRow(createMockRow({ contract_status: 'unknown_xyz' })).contract.status, 'nv');
     assert.equal(EmployeeV2Repository.fromRow(createMockRow({ contract_status: null })).contract.status, 'nv');
   });
@@ -266,12 +264,9 @@ describe('EmployeeV2Repository.toRow', () => {
     assert.equal(row.shift_start_time, '22:00');
     assert.equal(row.shift_end_time, '06:00');
     assert.equal(row.shift_allowance_pct, 60);
-    assert.equal(row.night_pct, 60);
-    assert.equal(row.shift_code, 'NIGHT:22:00-06:00');
 
     assert.equal(row.leave_total_days, 15);
     assert.equal(row.leave_used_days, 3);
-    assert.equal(row.leave_adjust, 15);
     assert.equal(row.leave_balance, 12);
 
     assert.equal(row.contract_status, 'official');
@@ -378,7 +373,7 @@ describe('EmployeeV2Repository persistence operations with Kysely mock', () => {
     const qb = new Kysely<Schema>({ dialect: new AppDialect(mock) });
     const repo = new EmployeeV2Repository(qb);
 
-    mock.handler = (sql) => {
+    mock.handler = sql => {
       if (sql.includes('from "staff"')) {
         return {
           rows: [
@@ -466,7 +461,7 @@ describe('EmployeeV2Repository persistence operations with Kysely mock', () => {
     const repo = new EmployeeV2Repository(qb);
 
     const activeRolesInDb = [{ id: 1, role: 'old_role' }];
-    mock.handler = (sql) => {
+    mock.handler = sql => {
       if (sql.includes('from "staff_roles"')) {
         return { rows: activeRolesInDb };
       }
@@ -490,7 +485,9 @@ describe('EmployeeV2Repository persistence operations with Kysely mock', () => {
     assert.ok(staffUpsert.sql.includes('on conflict ("username") do update set'));
 
     // Verify staff_roles revoke of old_role
-    const revokeQuery = mock.executedQueries.find(q => q.sql.includes('update "staff_roles"') && q.sql.includes('set "revoked_at" ='));
+    const revokeQuery = mock.executedQueries.find(
+      q => q.sql.includes('update "staff_roles"') && q.sql.includes('set "revoked_at" =')
+    );
     assert.ok(revokeQuery, 'Must have revoked old_role');
 
     // Verify staff_roles insert of undertaker

@@ -2,7 +2,7 @@
 
 > Sinh tự động bởi `scripts/docs/gen-spec.ts` (`npm run spec:gen`) từ `migrations/postgres/*.sql`. Đừng sửa tay: `test/unit/spec-reference.test.ts` so sánh file này với bản dựng từ mã.
 
-Migration có đánh số, chạy theo thứ tự và ghi vào `schema_migrations` (`src/data/postgres-database.ts`): `0001_baseline.sql`, `0002_seed.sql`, `0003_advance_approvals.sql`, `0004_employee_v2_staff.sql`.
+Migration có đánh số, chạy theo thứ tự và ghi vào `schema_migrations` (`src/data/postgres-database.ts`): `0001_baseline.sql`, `0002_seed.sql`, `0003_advance_approvals.sql`, `0004_employee_v2_staff.sql`, `0005_drop_legacy_columns.sql`.
 
 Số bảng: **29**.
 
