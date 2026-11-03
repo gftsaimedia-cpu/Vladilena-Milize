@@ -297,7 +297,13 @@ const ROUTE_CAPS = Object.freeze({
   'POST /v2/requests/overtime': write(A),
   'POST /v2/requests/advance': write(A),
   'PATCH /v2/requests/:id/review': write(readCap(DECIDE_ALL)),
-  'PATCH /v2/requests/:id/cancel': write(A)
+  'PATCH /v2/requests/:id/cancel': write(A),
+  // Attendance V2
+  'POST /v2/attendance/punches': write(readCap('attendance.read')),
+  'GET /v2/attendance/punches': readCap('attendance.read'),
+  'GET /v2/attendance/timesheets': readCap('attendance.read'),
+  'GET /v2/attendance/timesheets/:employeeId/:workDate': readCap('attendance.read'),
+  'PATCH /v2/attendance/timesheets/:id/adjust': write(readCap('attendance.correct'))
 });
 
 /* ---------- tra cứu ---------- */
@@ -315,6 +321,16 @@ function routeKey(method?, seg?) {
       return `${method} /v2/requests/:id`;
     }
     if (seg.length === 5) return `${method} /v2/requests/:id/${seg[4]}`;
+  }
+  if (seg[1] === 'v2' && seg[2] === 'attendance') {
+    if (seg[3] === 'punches' && seg.length === 4) return `${method} /v2/attendance/punches`;
+    if (seg[3] === 'timesheets') {
+      if (seg.length === 4) return `${method} /v2/attendance/timesheets`;
+      if (seg.length === 6) {
+        if (seg[5] === 'adjust') return `${method} /v2/attendance/timesheets/:id/adjust`;
+        return `${method} /v2/attendance/timesheets/:employeeId/:workDate`;
+      }
+    }
   }
   // Kỳ lương: /api/periods/<tháng>[/<bước>[/<tên đăng nhập | decide>]]; tháng sai dạng cho handler trả 400 BAD_MONTH
   if (seg[1] === 'periods' && seg.length >= 3 && seg.length <= 5) {

@@ -13,6 +13,7 @@ import { SheetModule } from './modules/sheet';
 import { KpiModule } from './modules/kpi';
 import { ApprovalsModule } from './modules/approvals';
 import { AttendanceModule } from './modules/attendance';
+import { AttendanceV2Module } from './modules/attendance-v2';
 import { PeriodsModule } from './modules/periods';
 import { AuditModule } from './modules/audit';
 import { StaffModule } from './modules/staff';
@@ -40,6 +41,7 @@ const FEATURE_MODULES = [
   KpiModule,
   ApprovalsModule,
   AttendanceModule,
+  AttendanceV2Module,
   PeriodsModule,
   AuditModule,
   StaffModule,

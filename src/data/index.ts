@@ -55,4 +55,6 @@ export { PayEntriesRepository, AdvanceRequestsRepository } from './pay.repositor
 export type { PayEntryRow, AdvanceRequestRow } from './pay.repository';
 export { RequestV2Repository } from './request-v2.repository';
 export type { RequestListFilter } from './request-v2.repository';
+export { AttendanceV2Repository } from './attendance-v2.repository';
+export type { TimesheetFilter } from './attendance-v2.repository';
 
