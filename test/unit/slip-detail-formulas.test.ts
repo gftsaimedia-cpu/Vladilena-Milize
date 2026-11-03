@@ -3,7 +3,7 @@
 // Mỗi công thức là chuỗi chữ kiểu vi-VN (6.000.000 ÷ 26 × 1; 1,5; 25%): test tự đọc chuỗi (không dùng giá trị mà module giữ) rồi tính
 // bằng × ÷ + − và so với số tự tính của dòng, sai không quá 1 đồng mỗi bước làm tròn. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫,
 // ngày công chuẩn 26, lương ngày 230.769,23 ₫, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

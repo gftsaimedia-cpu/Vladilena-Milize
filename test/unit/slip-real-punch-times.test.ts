@@ -5,7 +5,7 @@
 //   - ca đêm: giờ ra là giờ đồng hồ của sáng hôm sau; quên Check-out chỉ có giờ vào; vắng không có giờ nào;
 //   - bản chụp cũ chưa có hai trường: máy chủ lấy lúc đọc từ attendance_sessions (src/domain/payroll/slip-paid.ts → withDayFigures) và so bản chụp
 //     (verify) không tính hai trường này.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

@@ -5,7 +5,7 @@
 //     phút sang ngày thường như OT thường; ngày có OT vẫn hưởng phụ cấp ca và giờ nghỉ đêm như ngày không OT;
 //   - khai "Đi làm ngày lễ" mà hết ca không có Check-in/out là vắng, mất lương lễ; ngày lễ không khai đi làm vẫn hưởng lương lễ;
 //   - sau ngày nghỉ việc (staff.resignedOn) như trước ngày bắt đầu: không lương lễ, không vắng.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // admin-presence nạp src/platform/db: DB trong RAM
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

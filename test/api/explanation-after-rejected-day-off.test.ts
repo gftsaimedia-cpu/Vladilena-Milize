@@ -3,7 +3,7 @@
 // cảnh báo EXPLANATION_NOT_RECORDED). Khai nghỉ bị từ chối thì Check-in được, ngày vẫn là ngày đi làm: duyệt giải trình ghi lượt Admin theo giờ ca.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');

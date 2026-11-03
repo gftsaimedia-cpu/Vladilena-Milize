@@ -4,7 +4,7 @@
 //   - tách ngày lễ của đoạn OT (PayrollCalendar.splitExtraWork).
 // Đoạn làm bù theo giờ vẫn trừ giờ nghỉ của đoạn như trước.
 // Ví dụ: ca 08:00–17:00 + OT 17:00–22:00 là đúng 5 giờ OT (không phải 4).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

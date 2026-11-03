@@ -9,6 +9,7 @@ const fs = require('node:fs'),
   os = require('node:os'),
   vm = require('node:vm');
 const project = path.resolve(__dirname, '../..');
+const { testControlUrl } = require('../helpers/postgres-control');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-sandbox-test-'));
 const sentinel = path.join(tmp, 'production-sentinel.sqlite');
 const sentinelBytes = Buffer.from('File thử chứng minh sandbox không mở/ghi DB_PATH bên ngoài.');
@@ -66,11 +67,12 @@ const RESET_LOCAL = '2026-10-01T07:55:00';
 before(async () => {
   child = spawn(
     process.execPath,
-    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.ts')],
+    ['--no-warnings=ExperimentalWarning', '--import', 'tsx', path.join(project, 'scripts/dev/sandbox-bootstrap.ts')],
     {
       cwd: project,
       env: {
         ...process.env,
+        SANDBOX_PG_CONTROL_URL: testControlUrl,
         SANDBOX_PORT: '0',
         WEB_DIST: webDist,
         DB_PATH: sentinel,

@@ -1,4 +1,5 @@
 'use strict';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

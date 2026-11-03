@@ -1,4 +1,4 @@
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'db-pay-entries-tests';
 const { test, after } = require('node:test'),
   assert = require('node:assert/strict');

@@ -2,7 +2,7 @@
 // Công thức miễn thuế và thu nhập chịu thuế trên phiếu Admin (src/domain/payroll/slip-formulas.ts → exemptOf): chỉ phần trả cao hơn lương giờ thường
 // của cùng số giờ được miễn. Test tự đọc chuỗi công thức (số vi-VN, × ÷ + −) rồi tính, so với số miễn thuế của bộ máy, sai không quá
 // 1 đồng mỗi bước làm tròn. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

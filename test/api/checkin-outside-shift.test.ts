@@ -5,7 +5,7 @@
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 F.explainPunches = true; // lượt trễ / ngoài ca được cho qua cổng vẫn cần giải trình lúc bấm: ở đây chỉ kiểm cổng
 const { CheckinEntitlement } = require('../../src/domain/attendance/checkin-entitlement');

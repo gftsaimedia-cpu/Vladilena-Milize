@@ -4,7 +4,7 @@
 //   cùng một cảnh báo của hai người là hai mục (không bị gộp theo mã và câu)
 //   ra khỏi scope (kể cả khi fn ném lỗi) thì cảnh báo trở lại không nhãn; scope lồng nhau trả về nhãn ngoài
 //   ngoài yêu cầu HTTP thì chỉ chạy fn
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'warnings-scope-unit-tests';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

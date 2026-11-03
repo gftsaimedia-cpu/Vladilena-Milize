@@ -1,7 +1,7 @@
 'use strict';
 // Các class của module overtime và hạ tầng luật dùng chung (src/domain/shared/rule.ts, src/domain/overtime/*).
 // Trọng tâm: MỘT nguồn con số (đổi trần trong bộ tham số thì mọi nơi kiểm trần theo) và thêm luật không phải sửa service.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');

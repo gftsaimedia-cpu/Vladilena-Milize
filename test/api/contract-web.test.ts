@@ -4,7 +4,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const store = require('../../src/platform/db'),
   auth = require('../../src/platform/auth'),
   server = require('../helpers/server');
@@ -88,10 +88,11 @@ before(async () => {
   staffCookie = await cookieOf('an');
   adminCookie = await cookieOf('admin');
 });
-after(() => {
+after(async () => {
   Date.now = realNow;
   server.closeAllConnections();
-  server.close();
+  await new Promise<void>((resolve, reject) => server.close((error?: Error) => (error ? reject(error) : resolve())));
+  await store.db.close();
 });
 
 test('hợp đồng GET /api/me: phiên, năng lực, quyền lợi theo chức vụ', async () => {

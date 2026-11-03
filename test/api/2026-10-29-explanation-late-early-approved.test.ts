@@ -3,7 +3,7 @@
 // hệ thống (quá 15 phút: 16 → 30, 40 → 30, 45 → 60). Đúng 15 phút không cắt.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');

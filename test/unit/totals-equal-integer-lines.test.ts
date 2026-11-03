@@ -3,7 +3,7 @@
 // làm tròn đồng MỘT lần; tổng phụ cấp, tổng thu nhập, thu nhập chịu thuế, sau bảo hiểm, thực nhận là cộng trừ đúng các số nguyên đó. Quét nhiều tháng sinh
 // từ hạt giống: mọi tổng bằng tổng các dòng hiện ra, không trường tiền nào có phần lẻ, Thành tiền các ngày cộng đúng tiền ngày của tháng và bốn cột
 // của từng ngày cộng đúng Thành tiền; công thức dưới dòng tính ra đúng số của dòng (kể cả các tổng).
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

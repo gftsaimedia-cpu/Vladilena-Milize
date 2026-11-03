@@ -1,4 +1,4 @@
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'ha-tang-2026-10-26';
 // Trang chủ về trang đăng nhập khi chưa build giao diện Vue: không để web/dist có sẵn trên máy dev (npm run build) đổi kết quả
 process.env.WEB_DIST = require('node:path').join(require('node:os').tmpdir(), 'luong-no-web-dist');

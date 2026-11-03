@@ -9,6 +9,7 @@ const P = require('../helpers/period-api');
 const { nextMonthOf } = require('../helpers/advance-window');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const { advanceApprovals } = require('../../src/domain/advance');
 
 const { F, store } = P;
 
@@ -70,14 +71,14 @@ test('ngày 15 và 18 bị chặn 409 ADVANCE_WINDOW_CLOSED; ngày 16 và 17 xin
 test('câu báo là một câu tiếng Việt nêu ngày 16 và 17; từ chối không lưu yêu cầu và không ghi nhật ký', async () => {
   const M = '2026-10';
   await setup(M);
-  const settingsBefore = await store.getSetting(`advance_approvals_${M}`, null);
+  const approvalsBefore = await advanceApprovals.read(M);
   const auditBefore = await advanceAudit();
   await F.at('2026-10-18T09:00:00');
   const res = await ask(M, 'qa_nv1');
   closed(res);
   assert.match(res.data.error, /16/);
   assert.match(res.data.error, /17/);
-  assert.equal(await store.getSetting(`advance_approvals_${M}`, null), settingsBefore);
+  assert.deepEqual(await advanceApprovals.read(M), approvalsBefore);
   assert.equal(await advanceAudit(), auditBefore);
   assert.equal((await list(M, 'qa_nv1')).data.item.status, null);
 });
@@ -106,7 +107,8 @@ test('chỉ xin được tạm ứng của tháng đang chạy: tháng trước 
       assert.equal(res.status, 409, `${date} xin ${month}: ${JSON.stringify(res.data)}`);
       assert.equal(res.data.code, 'ADVANCE_MONTH_NOT_CURRENT');
       assert.match(res.data.error, /tháng/);
-      assert.equal(await store.getSetting(`advance_approvals_${month}`, null), null);
+      assert.equal((await advanceApprovals.read(month)).rev, 0);
+      assert.equal((await advanceApprovals.requests(month)).size, 0);
     }
   }
   assert.equal(await advanceAudit(), auditBefore);

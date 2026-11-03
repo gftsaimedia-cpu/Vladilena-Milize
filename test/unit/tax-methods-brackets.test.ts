@@ -7,7 +7,7 @@
 // Thuế làm tròn đồng đúng một lần, ở cuối, trên thuế chưa làm tròn.
 // Số tiền ở đây tính tay; người mẫu NV bậc 1 (lương cơ bản 6.000.000, bảo hiểm 630.000 khi có đóng), có 1 người phụ thuộc
 // nên giảm trừ gia cảnh 21.700.000. Mọi tham số đổi chỉ nằm trong bộ nhớ.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

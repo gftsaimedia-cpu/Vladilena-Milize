@@ -1,8 +1,8 @@
 'use strict';
-// Dựng máy chủ thật trên DB trong bộ nhớ cho các test API (khoá kỳ, bản chụp phiếu, quyền, nhật ký).
-// Đặt DB_PATH và SESSION_SECRET TRƯỚC khi require src/platform/db: require file này trước mọi file khác của dự án.
-// Chỉ người bịa (qa_*); đồng hồ giả bằng cách ghi đè Date.now như test/api/checkin.test.ts; không chạm data/luong.sqlite.
-process.env.DB_PATH = ':memory:';
+// Dựng máy chủ thật trên PostgreSQL test riêng cho các test API (khoá kỳ, bản chụp phiếu, quyền, nhật ký).
+// Kiểm tra DB test và đặt SESSION_SECRET TRƯỚC khi require src/platform/db.
+// Chỉ người bịa (qa_*); đồng hồ giả bằng cách ghi đè Date.now như test/api/checkin.test.ts.
+require('./require-isolated-database');
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'qa-v1a-api-tests';
 const crypto = require('node:crypto');
 const store = require('../../src/platform/db');
@@ -27,7 +27,7 @@ async function stop() {
   Date.now = realNow;
   server.closeAllConnections();
   await new Promise<any>(resolve => server.close(resolve));
-  store.db.close();
+  await store.db.close();
 }
 
 // Gọi API như người dùng đã đăng nhập (who = tên đăng nhập) hoặc chưa đăng nhập (who = null). route bắt đầu bằng /, không gồm /api.

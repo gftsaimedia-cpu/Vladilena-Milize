@@ -3,7 +3,7 @@
 // nên duyệt chỉ lưu quyết định, không ghi lượt Admin theo giờ ca, ngày vẫn là ngày nghỉ đã khai; kèm cảnh báo EXPLANATION_NOT_RECORDED.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { ADMIN_ORIGIN } = require('../../src/domain/attendance/attendance-sessions');

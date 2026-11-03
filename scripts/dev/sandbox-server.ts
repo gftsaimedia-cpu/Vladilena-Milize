@@ -1,4 +1,4 @@
-// Máy chủ thử nghiệm riêng: luôn dùng SQLite trong RAM và chỉ nghe loopback.
+// Máy chủ thử nghiệm riêng: chỉ dùng database PostgreSQL tạm và nghe loopback.
 // Không khởi động file này trong tiến trình máy chủ thật; đây là tiến trình Node riêng.
 const http = require('node:http');
 const fs = require('node:fs');
@@ -17,19 +17,30 @@ FrozenDate.prototype = NativeDate.prototype;
 FrozenDate.now = () => clock;
 (global as any).Date = FrozenDate;
 
-// Mặc định sandbox luôn cô lập trong RAM. Chỉ dùng DB thật khi cấu hình opt-in rõ ràng.
-const sandboxDatabaseUrl = process.env.SANDBOX_DATABASE_URL;
-const connectedDatabaseName = sandboxDatabaseUrl ? new URL(sandboxDatabaseUrl).pathname.replace(/^\//, '') : null;
-const connectedToMainDatabase = Boolean(sandboxDatabaseUrl);
-if (sandboxDatabaseUrl) {
-  process.env.DATABASE_URL = sandboxDatabaseUrl;
-  delete process.env.PG_TEST_URL;
-  delete process.env.DB_PATH;
-} else {
-  delete process.env.DATABASE_URL;
-  delete process.env.PG_TEST_URL;
-  process.env.DB_PATH = ':memory:';
+// Bootstrap phải tạo DB tạm trước; từ chối cấu hình lệch trước khi nạp module DB.
+// Đây là kiểm tra tránh nhầm cấu hình, không thay thế việc dùng máy chủ sandbox riêng.
+const sandboxName = process.env.SANDBOX_PG_DATABASE_NAME || '';
+const sandboxConfigError = () =>
+  new Error('Cấu hình PostgreSQL sandbox không hợp lệ; hãy khởi động qua sandbox bootstrap.');
+let sandboxControl: URL;
+let sandboxDatabase: URL;
+try {
+  sandboxControl = new URL(process.env.SANDBOX_PG_CONTROL_URL || '');
+  sandboxDatabase = new URL(process.env.DATABASE_URL || '');
+} catch {
+  throw sandboxConfigError();
 }
+if (
+  !/^luong_sandbox_[0-9a-f]{24}$/.test(sandboxName) ||
+  !['postgres:', 'postgresql:'].includes(sandboxControl.protocol) ||
+  !['/luong_sandbox_control', '/luong_test_control'].includes(sandboxControl.pathname) ||
+  sandboxDatabase.pathname !== `/${sandboxName}`
+)
+  throw sandboxConfigError();
+sandboxControl.pathname = `/${sandboxName}`;
+if (sandboxDatabase.toString() !== sandboxControl.toString()) throw sandboxConfigError();
+process.env.PG_TEST_URL = '';
+process.env.DB_PATH = '';
 process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.SESSION_COOKIE_NAME = 'luong_sandbox_sid';
 process.env.SESSION_DAYS = '14';
@@ -61,9 +72,8 @@ const profileDefaults = [
 ];
 let selectedUser = 'qa_nv';
 
-// Bảng trạng thái kỳ lương (kỳ, lần chạy, phiếu chụp, kết quả AI kiểm, khoản điền thêm, tạm ứng). Các bảng này có trigger chặn xoá,
-// nên sandbox (DB PostgreSQL trong RAM, chỉ tiến trình này dùng) tắt trigger trong chính giao dịch đặt lại bằng
-// session_replication_role = replica (chỉ siêu người dùng làm được), xoá dòng, rồi bật lại. audit_log không đụng tới.
+// Trạng thái kỳ lương của DB sandbox tạm. TRUNCATE toàn bộ các bảng này trong cùng giao dịch
+// để đặt lại dữ liệu thử mà không cần quyền siêu người dùng; audit_log không bị đụng tới.
 const PERIOD_TABLES = [
   'payslips',
   'payroll_runs',
@@ -74,13 +84,12 @@ const PERIOD_TABLES = [
   'advance_requests'
 ];
 async function clearPeriodState() {
-  for (const table of PERIOD_TABLES) await store.db.exec(`DELETE FROM ${table}`);
+  await store.db.exec(`TRUNCATE TABLE ${PERIOD_TABLES.join(', ')}`);
 }
 
 async function resetSyntheticData() {
-  // DB này chỉ được tạo sau DB_PATH=:memory:. Không dùng đường dẫn hay lệnh xoá file.
+  // Guard ở đầu file yêu cầu DB tạm do bootstrap tạo trước khi nạp store.
   await store.transaction(async () => {
-    await store.db.exec('SET LOCAL session_replication_role = replica'); // tắt trigger chặn xoá của các bảng bên dưới
     for (const table of [
       'punch_requests',
       'explanations',
@@ -93,12 +102,13 @@ async function resetSyntheticData() {
       'sheet_approvals',
       'kpi_scores',
       'kpi_score_log',
+      'advance_approval_entries',
+      'advance_approval_months',
       'staff',
       'settings'
     ])
       await store.db.exec(`DELETE FROM ${table}`);
     await clearPeriodState();
-    await store.db.exec('SET LOCAL session_replication_role = origin');
     clock = NativeDate.parse(INITIAL_LOCAL + '+07:00');
     const passHash = auth.hashPassword(crypto.randomBytes(24).toString('hex'));
     // ngày bắt đầu làm việc = ngày của đồng hồ ban đầu (không có ngày "trước ngày vào làm" trong tháng thử)
@@ -110,24 +120,7 @@ async function resetSyntheticData() {
   await store.roles.grant('qa_cb', 'cb', 'qa_admin');
   selectedUser = 'qa_nv';
 }
-async function seedConnectedFixtures() {
-  const passHash = auth.hashPassword(crypto.randomBytes(24).toString('hex'));
-  const startDate = INITIAL_LOCAL.slice(0, 10);
-  let addedCb = false;
-  for (const profile of profileDefaults) {
-    const inserted = await store.upsertStaff({ ...profile, passHash, startDate }, { insertOnly: true });
-    if (inserted && profile.username === 'qa_cb') addedCb = true;
-  }
-  if (addedCb) {
-    await store.setPayrollSubject('qa_cb', false);
-    await store.roles.grant('qa_cb', 'cb', 'qa_admin');
-  }
-  const staff = await store.listStaff();
-  selectedUser = profileDefaults.find(profile => staff.some(person => person.username === profile.username))?.username;
-  if (!selectedUser) selectedUser = staff[0]?.username;
-  if (!selectedUser) throw new Error('Không có tài khoản để mở sandbox');
-}
-const seeded = connectedToMainDatabase ? seedConnectedFixtures() : resetSyntheticData();
+const seeded = resetSyntheticData();
 
 const localTime = () => new NativeDate(clock + 7 * 3600000).toISOString().slice(0, 19);
 const state = async () => ({
@@ -135,9 +128,6 @@ const state = async () => ({
   local: localTime(),
   user: selectedUser,
   initialLocal: INITIAL_LOCAL,
-  databaseMode: connectedToMainDatabase ? 'main' : 'isolated',
-  databaseName: connectedDatabaseName,
-  resetAllowed: !connectedToMainDatabase,
   users: (await store.listStaff()).map(({ username, name, role, type, shiftCode }: any) => ({
     username,
     name,
@@ -258,8 +248,6 @@ const sandbox = http.createServer(async (req, res) => {
           return send(res, 400, { error: 'Không có tài khoản thử nghiệm này' });
         selectedUser = data.username;
       } else if (url.pathname === '/__sandbox/reset') {
-        if (connectedToMainDatabase)
-          return send(res, 403, { error: 'Đã tắt đặt lại dữ liệu khi sandbox nối DB chính.' });
         if (data.confirm !== true) return send(res, 400, { error: 'Cần xác nhận đặt lại dữ liệu thử' });
         await resetSyntheticData();
       } else return send(res, 404, { error: 'Không có chức năng này' });

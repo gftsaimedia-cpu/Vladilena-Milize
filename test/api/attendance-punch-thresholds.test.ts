@@ -1,7 +1,7 @@
-﻿'use strict';
-process.env.DB_PATH = ':memory:';
+'use strict';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 
 const ids = { in: 0, out: 0 };

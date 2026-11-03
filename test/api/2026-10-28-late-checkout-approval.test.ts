@@ -5,7 +5,7 @@
 // Giải trình không khoá theo kỳ: đã chốt công vẫn duyệt được.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const P = require('../helpers/period-api');
 const explanations = require('../../src/domain/explanation/explanations');

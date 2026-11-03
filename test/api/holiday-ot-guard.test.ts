@@ -1,4 +1,4 @@
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'holiday-ot-guard-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

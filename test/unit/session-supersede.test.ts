@@ -2,7 +2,7 @@
 // Lượt bị thay trong ngày công (src/domain/attendance/session-view.ts → supersededIds), cùng luật src/engine/actual-hours.ts dùng để tính
 // lương: lượt Admin khai thay thắng các lượt bấm bị chặn cùng ngày; lượt chấm thật dùng được thắng lượt Admin; lượt đang mở giữ nguyên.
 // Nhãn của ngày (src/engine/attendance-status.ts → dayStatus, dayNotes) bỏ qua lượt bị thay.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { supersededIds } = require('../../src/domain/attendance/session-view');

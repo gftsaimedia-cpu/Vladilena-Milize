@@ -1,0 +1,2139 @@
+file	line	name	kind	scope	initializer	paramArea
+scripts/db/demo/coverage.ts	9	fs	const	ngoài hàm/class	require	không
+scripts/db/demo/coverage.ts	10	path	const	ngoài hàm/class	require	không
+scripts/db/demo/coverage.ts	12	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	15	EXCLUDED	const	ngoài hàm/class	object/array	không
+scripts/db/demo/coverage.ts	26	TABLES_UNUSED	const	ngoài hàm/class	object/array	không
+scripts/db/demo/coverage.ts	32	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	43	sql	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	44	tables	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/coverage.ts	45	enums	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/coverage.ts	46	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	47	name	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	49	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	50	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	51	values	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	58	values	const	ngoài hàm/class	hàm	không
+scripts/db/demo/coverage.ts	66	db	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	67	tables	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	67	enums	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	68	gaps	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/coverage.ts	69	counts	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/coverage.ts	70	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	74	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	74	column	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	74	wanted	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	76	have	const	trong hàm ngoài class	new	không
+scripts/db/demo/coverage.ts	77	v	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	84	authz	const	trong hàm ngoài class	require	không
+scripts/db/demo/coverage.ts	85	periodStatuses	const	trong hàm ngoài class	new	không
+scripts/db/demo/coverage.ts	86	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	88	reopened	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	92	types	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	93	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	94	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	95	levels	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	96	l	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	99	shifts	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	100	sh	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	107	roleRows	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	108	role	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	111	customRoles	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	112	customList	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	117	rows	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/coverage.ts	118	pairs	const	trong hàm ngoài class	new	không
+scripts/db/demo/coverage.ts	119	item	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	121	status	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/coverage.ts	124	unreasonable	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/demo-dir.ts	6	fs	const	ngoài hàm/class	require	không
+scripts/db/demo/demo-dir.ts	7	path	const	ngoài hàm/class	require	không
+scripts/db/demo/demo-dir.ts	8	spawnSync	const	ngoài hàm/class	require	không
+scripts/db/demo/demo-dir.ts	10	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/demo-dir.ts	11	PROBE	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/demo-dir.ts	26	probeDir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/demo-dir.ts	29	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	4	fs	const	ngoài hàm/class	require	không
+scripts/db/demo/export-csv.ts	5	path	const	ngoài hàm/class	require	không
+scripts/db/demo/export-csv.ts	6	S	const	ngoài hàm/class	require	không
+scripts/db/demo/export-csv.ts	8	cell	const	ngoài hàm/class	hàm	không
+scripts/db/demo/export-csv.ts	10	text	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	14	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	20	byUser	const	trong hàm ngoài class	new	không
+scripts/db/demo/export-csv.ts	22	out	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/export-csv.ts	23	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	78	sheetRows	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/export-csv.ts	79	kpiRows	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/export-csv.ts	80	KNOWN	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/export-csv.ts	81	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	82	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	85	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	86	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	86	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	87	rest	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	215	slips	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/export-csv.ts	216	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	217	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	218	o	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/export-csv.ts	270	coverMap	const	trong hàm ngoài class	new	không
+scripts/db/demo/export-csv.ts	271	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/export-csv.ts	271	id	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	6	H	const	ngoài hàm/class	require	không
+scripts/db/demo/generate.ts	7	S	const	ngoài hàm/class	require	không
+scripts/db/demo/generate.ts	8	validatePersona	const	ngoài hàm/class	require	không
+scripts/db/demo/generate.ts	9	ApprovalView	const	ngoài hàm/class	require	không
+scripts/db/demo/generate.ts	10	ActualHours	const	ngoài hàm/class	require	không
+scripts/db/demo/generate.ts	12	P	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/generate.ts	12	SCHED	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/generate.ts	12	SHIFT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/generate.ts	13	ADMIN	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/generate.ts	14	HISTORY_MONTHS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/generate.ts	15	DEFAULT_SAVE_AT	const	ngoài hàm/class	object/array	không
+scripts/db/demo/generate.ts	22	DEFAULT_KPI_ADM_AT	const	ngoài hàm/class	object/array	không
+scripts/db/demo/generate.ts	30	realNow	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	31	clock	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	32	setClock	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	35	nowMs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	36	holidays	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	37	stats	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	38	warn	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	41	punchStaff	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	42	ipOf	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	43	sessionOverlap	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	44	a	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	45	b	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	46	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	48	start	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	49	end	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	55	session	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	57	entry	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	71	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	74	opened	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	77	session	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	81	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	82	session	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	84	entry	let	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	91	duplicate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	107	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	108	session	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	110	snapshot	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	111	code	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	112	plannedShift	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	114	presence	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	115	id	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	125	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	131	entry	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	132	context	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	138	updated	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	158	isCleanDate	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	161	history	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	164	staffType	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	165	declared	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	166	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	178	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	179	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	180	days	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	181	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	181	entry	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	192	payDays	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	202	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	203	kpi	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	217	RAW	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	220	date	const	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/generate.ts	221	t	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	222	planned	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	223	session	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	235	date	const	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/generate.ts	236	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	237	planned	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	238	a	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	238	b	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	242	inIso	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	243	outIso	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	244	entry	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	248	session	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	283	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	289	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	296	RAW_AT	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	305	rowOfDay	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	308	out	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	309	sched	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	310	hol	const	trong hàm ngoài class	new	không
+scripts/db/demo/generate.ts	311	from	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	312	to	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	313	extra	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	314	skip	const	trong hàm ngoài class	new	không
+scripts/db/demo/generate.ts	315	date	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	317	base	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	318	random	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	319	pairs	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/generate.ts	321	value	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	323	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	325	inMs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	332	day	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	333	monthIsBlank	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	334	kind	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	340	shift	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	341	dIn	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	342	dOut	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	344	mainSpan	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	345	pre	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	346	post	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	347	start	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	348	end	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	350	early	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	351	late	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	359	pair	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	366	spec	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	372	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	373	kpiSpec	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	375	days	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	400	cap	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	402	pct	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	407	events	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	408	push	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/generate.ts	410	finalDays	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	411	allSheets	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	412	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	413	saves	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	418	last	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	421	kpiSpec	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	423	when	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	431	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	435	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	447	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	451	patch	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	460	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	468	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	472	columns	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	473	key	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	473	value	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	477	staffType	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	478	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	479	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	480	declared	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	481	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	493	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	494	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	497	plan	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	498	pair	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	513	createdAt	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	537	events	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	537	allSheets	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	539	issues	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	546	e	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	554	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	566	a	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	584	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	585	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/generate.ts	597	out	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	598	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/generate.ts	599	tag	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	600	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	601	x	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	602	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	603	level	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	604	shiftCode	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/generate.ts	605	edits	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/generate.ts	608	startDate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	4	P	const	ngoài hàm/class	require	không
+scripts/db/demo/helpers.ts	6	SHIFT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	7	SCHED	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	8	pad	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	9	dowOf	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	10	addDays	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	11	daysInMonth	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	13	datesOfMonth	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	14	nextMonth	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	15	y	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	16	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	20	vn	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	22	at	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	25	toMin	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	26	fromMin	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	28	spanH	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	29	d	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	34	e	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	36	t	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	37	x	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	44	a	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	45	b	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	51	blockH	const	ngoài hàm/class	hàm	không
+scripts/db/demo/helpers.ts	58	tin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	58	tout	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	73	E	const	ngoài hàm/class	object/array	không
+scripts/db/demo/helpers.ts	117	sched	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	118	hol	const	trong hàm ngoài class	new	không
+scripts/db/demo/helpers.ts	119	from	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	120	to	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	121	days	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/helpers.ts	123	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/helpers.ts	128	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/helpers.ts	128	make	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/helpers.ts	137	h	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/helpers.ts	138	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/helpers.ts	145	a	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	146	next	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/helpers.ts	148	t	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/helpers.ts	159	crypto	const	trong hàm ngoài class	require	không
+scripts/db/demo/lifecycle.ts	8	crypto	const	ngoài hàm/class	require	không
+scripts/db/demo/lifecycle.ts	10	short	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	11	fs	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	12	os	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	13	path	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	14	demoInfo	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	14	copyDemo	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	16	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	17	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	19	k	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	19	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	23	fail	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	27	canonical	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	28	full	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	29	real	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	35	refuseReal	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	40	isDemoDb	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	47	month	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	49	nextMonthStart	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	50	y	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	51	n	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	54	today	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	57	work	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	58	copy	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	66	store	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	67	auth	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	68	server	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	69	S	const	ngoài hàm/class	require	không
+scripts/db/demo/period-check.ts	71	realNow	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	73	ADMIN	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	74	base	let	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/period-check.ts	76	response	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	83	revOf	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	84	log	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	85	short	const	ngoài hàm/class	hàm	không
+scripts/db/demo/period-check.ts	90	problems	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	91	expect	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/period-check.ts	96	view0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	98	step	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	99	acknowledged	let	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	102	items	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	120	view	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	121	list	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/period-check.ts	123	listAll	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/period-check.ts	124	rows	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	125	total	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/period-check.ts	126	page	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/period-check.ts	127	got	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	133	t0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	134	everything	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	135	t1	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	140	all	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	142	byStatus	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	143	byRule	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	144	byError	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	145	byType	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	146	flagged	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/period-check.ts	147	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/period-check.ts	150	flag	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/period-check.ts	154	persona	const	trong hàm ngoài class	new	không
+scripts/db/demo/period-check.ts	155	healthy	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	159	kept	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	160	lost	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	162	iDorm	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	163	advanceOff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	167	filtered	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/period-check.ts	179	badTypeFilter	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	185	bySlip	const	trong hàm ngoài class	new	không
+scripts/db/demo/period-check.ts	186	expectations	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	187	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/period-check.ts	188	slip	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	189	want	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	199	E	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	204	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/period-check.ts	214	decide	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/period-check.ts	216	fresh	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	217	clean	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	218	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/period-check.ts	219	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	222	early	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	225	errors	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	228	approved	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	234	paid	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	241	audited	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	245	chain	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/period-check.ts	248	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/scenarios.ts	11	E	const	ngoài hàm/class	require	không
+scripts/db/demo/scenarios.ts	13	TODAY	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	14	NOW_TIME	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	15	NOW_LOCAL	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	16	MONTHS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	20	HOLIDAYS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	36	SETTINGS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	42	KPI_MAX	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	45	CASES	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	165	CASE_TITLE	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	168	HO	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	194	DEM	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	212	TEN	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	246	d0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	247	d1	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	248	d2	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	251	BIRTHDAY	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	255	m	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	256	jul	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	257	aug	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	258	sep	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	259	oct	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	260	nov	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	261	entries	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	263	decide	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	264	approveAll	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	265	FIRST_PASS	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	266	SECOND_PASS	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	270	UNITS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	271	unitAt	const	ngoài hàm/class	hàm	không
+scripts/db/demo/scenarios.ts	272	codeCounters	const	ngoài hàm/class	new	không
+scripts/db/demo/scenarios.ts	274	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	275	n	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	282	short	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	287	PERSONAS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	288	seq	let	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	290	i	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	291	p	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/scenarios.ts	307	unit	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	308	oldType	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	316	ADMINS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	1111	FIVE_AT	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	1454	PAYSLIP_MONTH	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/scenarios.ts	1455	PAYSLIP	const	ngoài hàm/class	object/array	không
+scripts/db/demo/scenarios.ts	1483	tag	const	ngoài hàm/class	không khởi tạo	không
+scripts/db/demo/scenarios.ts	1483	want	const	ngoài hàm/class	không khởi tạo	không
+scripts/db/demo/scenarios.ts	1484	p	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/scenarios.ts	1489	PERIOD_EXPECT	const	ngoài hàm/class	object/array	không
+scripts/db/demo/serve-demo.ts	11	fs	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	12	os	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	13	path	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	14	demoInfo	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	14	copyDemo	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	15	S	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	17	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	18	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	20	k	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	20	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	24	fail	const	ngoài hàm/class	hàm	không
+scripts/db/demo/serve-demo.ts	28	canonical	const	ngoài hàm/class	hàm	không
+scripts/db/demo/serve-demo.ts	29	full	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	30	real	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	36	source	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	41	info	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	43	datasetToday	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	44	port	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	46	today	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	51	work	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	52	copy	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	57	server	const	ngoài hàm/class	require	không
+scripts/db/demo/serve-demo.ts	60	realNow	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	61	offset	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/demo/serve-demo.ts	64	cleanup	const	ngoài hàm/class	hàm	không
+scripts/db/demo/validate.ts	5	PayrollCalendar	const	ngoài hàm/class	require	không
+scripts/db/demo/validate.ts	6	accrued	const	ngoài hàm/class	require	không
+scripts/db/demo/validate.ts	7	H	const	ngoài hàm/class	require	không
+scripts/db/demo/validate.ts	9	KINDS	const	ngoài hàm/class	object/array	không
+scripts/db/demo/validate.ts	10	TIME_RE	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/validate.ts	11	EPS	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/demo/validate.ts	15	hol	const	trong hàm ngoài class	new	không
+scripts/db/demo/validate.ts	16	sched	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	17	out	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/validate.ts	18	days	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	19	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	19	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	26	issues	const	trong hàm ngoài class	object/array	không
+scripts/db/demo/validate.ts	27	add	const	trong hàm ngoài class	hàm	không
+scripts/db/demo/validate.ts	29	hol	const	trong hàm ngoài class	new	không
+scripts/db/demo/validate.ts	30	assigned	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	31	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	31	days	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	32	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	33	sched	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	34	dates	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	35	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	36	d	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	42	kind	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	47	dow	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	56	extraIn	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	57	extraOut	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	58	extraKind	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	80	real	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	81	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/demo/validate.ts	82	a	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	83	b	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	91	leave	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	92	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	93	got	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	94	used	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	97	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	97	days	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	99	date	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	99	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/demo/validate.ts	101	dow	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/demo/validate.ts	102	left	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	11	fs	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	12	path	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	14	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	15	DEFAULT_DB	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	16	DEMO_PASSWORD	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	17	MARKER_KEY	const	ngoài hàm/class	giá trị cố định	không
+scripts/db/seed-demo.ts	19	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	21	k	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	21	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	25	fail	const	ngoài hàm/class	hàm	không
+scripts/db/seed-demo.ts	31	canonical	const	ngoài hàm/class	hàm	không
+scripts/db/seed-demo.ts	32	full	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	33	real	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	46	probe	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	61	staff	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	61	marked	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	72	dbArg	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	77	MEMORY	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	79	dir	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	80	pathParts	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	85	probe	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	95	marked	let	ngoài hàm/class	giá trị cố định	không
+scripts/db/seed-demo.ts	111	S	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	112	H	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	113	gen	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	114	exportAll	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	115	store	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	116	PayrollEngine	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	117	PayrollParams	const	ngoài hàm/class	require	không
+scripts/db/seed-demo.ts	119	today	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	122	scale	const	ngoài hàm/class	biểu thức/khác	không
+scripts/db/seed-demo.ts	128	t0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	129	payroll	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	130	passHash	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	131	personas	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	132	generator	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	133	bulk	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	138	line	const	trong hàm ngoài class	hàm	không
+scripts/db/seed-demo.ts	147	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	161	n	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	164	byGroup	const	trong hàm ngoài class	object/array	không
+scripts/db/seed-demo.ts	165	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	168	group	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	168	n	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	171	covered	const	trong hàm ngoài class	new	không
+scripts/db/seed-demo.ts	172	allCases	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	173	unknown	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	174	uncovered	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	175	unreasonable	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	183	warnings	const	trong hàm ngoài class	object/array	không
+scripts/db/seed-demo.ts	192	lifecycle	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/seed-demo.ts	195	Lifecycle	const	trong hàm ngoài class	require	không
+scripts/db/seed-demo.ts	205	prepared	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	206	step	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	209	exitCode	let	trong hàm ngoài class	giá trị cố định	không
+scripts/db/seed-demo.ts	212	w	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	218	report	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	221	step	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	223	failed	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	224	step	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	231	coverage	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	236	g	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	248	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	249	written	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/db/seed-demo.ts	256	file	const	trong hàm ngoài class	không khởi tạo	không
+scripts/db/seed-demo.ts	256	rows	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	4	dialog	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	5	$	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.js	6	timer	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.js	7	current	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.js	8	pending	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.js	11	response	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	21	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	25	el	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.js	26	node	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	31	verdictClass	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.js	32	kb	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.js	36	h	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	37	gate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	47	job	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	48	box	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	50	log	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	58	states	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.js	67	table	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	68	head	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	69	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	72	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	73	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	74	value	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	82	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	97	select	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	98	chosen	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	101	option	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	108	hasBackup	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	109	id	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	111	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	114	table	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	115	head	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	116	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	118	b	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	119	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	126	tool	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	130	labels	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.js	138	pre	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	155	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	164	active	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.js	179	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.js	186	selectedScenarios	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.js	188	num	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	7	fs	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	8	os	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	9	path	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	10	crypto	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	11	http	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	12	spawn	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	13	pgBackup	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	14	seedLoadUsers	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	14	DEFAULT_PREFIX	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	15	reconcile	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-ops.ts	17	LOAD_SCENARIOS	const	ngoài hàm/class	object/array	không
+scripts/dev/sandbox-ops.ts	18	MAX_LOAD_USERS	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	19	LOG_LINES	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	20	MAX_BACKUPS	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	21	TOOL_TIMEOUT_MS	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	22	clamp	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-ops.ts	23	n	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	26	fail	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-ops.ts	29	workDir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	30	state	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	35	counter	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	36	toolRunning	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	39	countLoadUsers	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	50	count	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	60	scenarios	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	75	users	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	76	seconds	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	77	spread	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	78	admins	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	79	outFile	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	80	idsFile	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	81	args	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	94	child	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	99	job	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	110	onData	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	111	line	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.ts	124	report	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	133	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.ts	141	job	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	148	findBackup	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	149	item	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	154	integrityOf	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	156	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	158	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.ts	162	addBackup	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	163	item	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	176	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	177	t0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	178	made	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	179	item	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	187	source	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	188	file	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	190	fd	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	192	size	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	197	item	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	205	lines	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	206	t0	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	208	child	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	217	timer	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	218	onData	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	219	line	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-ops.ts	223	finish	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	226	verdicts	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-ops.ts	245	verify	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	247	drill	const	trong hàm ngoài class	hàm	không
+scripts/dev/sandbox-ops.ts	253	req	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	254	body	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-ops.ts	270	job	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	271	gate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-ops.ts	297	POST	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox-server.ts	3	http	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	4	fs	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	5	path	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	6	crypto	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	8	NativeDate	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	9	INITIAL_LOCAL	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	10	clock	let	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	29	store	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	30	auth	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	31	appServer	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	32	createOps	const	ngoài hàm/class	require	không
+scripts/dev/sandbox-server.ts	33	project	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	34	listenPort	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	35	ops	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	43	profileDefaults	const	ngoài hàm/class	object/array	không
+scripts/dev/sandbox-server.ts	53	selectedUser	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	58	PERIOD_TABLES	const	ngoài hàm/class	object/array	không
+scripts/dev/sandbox-server.ts	68	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	75	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	96	passHash	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	98	startDate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	99	profile	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	106	seeded	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	108	localTime	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	109	state	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	122	sessionCookie	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	123	hasAttendanceData	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	124	table	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	140	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	154	body	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	155	chunk	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	160	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	173	normalized	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	174	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	180	homePage	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	181	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	185	isSpaPage	const	ngoài hàm/class	hàm	không
+scripts/dev/sandbox-server.ts	193	CLOCK_QUERY	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox-server.ts	200	bootstrap	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	206	sandbox	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	208	url	const	trong hàm ngoài class	new	không
+scripts/dev/sandbox-server.ts	216	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	218	opsResult	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	221	next	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	251	html	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox-server.ts	257	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox-server.ts	262	port	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	2	dateInput	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	3	timeInput	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	4	userInput	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	5	frame	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	6	statusLine	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	7	resetDialog	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/sandbox.js	8	currentState	let	ngoài hàm/class	không khởi tạo	không
+scripts/dev/sandbox.js	9	busy	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/sandbox.js	22	response	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox.js	32	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox.js	53	option	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/sandbox.js	54	shifts	const	trong hàm ngoài class	object/array	không
+scripts/dev/sandbox.js	87	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/sandbox.js	106	next	const	trong hàm ngoài class	new	không
+scripts/dev/sandbox.js	126	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/generate.ts	6	fs	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	7	path	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	8	performance	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	10	OUT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	11	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	12	flag	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/generate.ts	13	opt	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/generate.ts	14	i	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	17	smoke	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	18	variant	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	19	only	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	20	from	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	21	to	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	22	early	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	23	dbFile	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	33	boot	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	33	NativeDate	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	34	app	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	35	createClient	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	36	Story	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	37	story	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	38	queue	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	39	createOps	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	40	dayView	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	41	ADMINS	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/generate.ts	43	t0	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	44	S	const	ngoài hàm/class	new	không
+scripts/dev/scenarios/generate.ts	54	monthOfEvent	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/generate.ts	62	ALWAYS	const	ngoài hàm/class	new	không
+scripts/dev/scenarios/generate.ts	63	userOf	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/generate.ts	64	adminNames	const	ngoài hàm/class	new	không
+scripts/dev/scenarios/generate.ts	65	keep	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/generate.ts	67	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	71	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	74	events	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	75	cases	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	77	logStream	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	78	probes	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/generate.ts	79	vars	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/generate.ts	80	n	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/generate.ts	81	mismatches	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/generate.ts	84	line	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/generate.ts	95	client	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	97	ctx	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/generate.ts	107	ops	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	111	month	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/generate.ts	112	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/generate.ts	113	ev	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/generate.ts	118	sec	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	121	run	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/generate.ts	125	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/generate.ts	132	meta	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/boot.ts	4	path	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/boot.ts	5	crypto	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/boot.ts	7	REPO	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	8	NativeDate	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	9	VN_OFFSET_MS	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	13	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	15	ms	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	19	toLocal	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/boot.ts	22	clock	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/boot.ts	56	store	const	trong hàm ngoài class	require	không
+scripts/dev/scenarios/lib/boot.ts	57	auth	const	trong hàm ngoài class	require	không
+scripts/dev/scenarios/lib/boot.ts	58	app	const	trong hàm ngoài class	require	không
+scripts/dev/scenarios/lib/boot.ts	59	clockApi	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/builder.ts	4	cal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/builder.ts	5	byUser	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/builder.ts	7	T	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/builder.ts	8	norm	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/builder.ts	12	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	13	shift	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	14	ch	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/builder.ts	16	from	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	23	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	24	type	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	25	ch	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/builder.ts	28	resignedOn	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/builder.ts	29	ch	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/builder.ts	32	createdAt	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	8	HOLIDAYS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/calendar.ts	32	HOLIDAY_DATES	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	35	SHIFTS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/calendar.ts	44	TYPE_DOWS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/calendar.ts	46	DAY_MS	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/lib/calendar.ts	47	dateMs	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	48	msDate	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	49	addDays	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	50	dow	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	51	monthOf	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	53	d	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	55	addMinutes	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	56	t	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	59	toMin	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	60	nextMonth	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	61	y	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	62	mo	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	65	monthsBetween	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	66	out	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/calendar.ts	67	m	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	70	isHoliday	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	72	isWorkday	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/calendar.ts	75	count	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/calendar.ts	76	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/calendar.ts	81	x	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	87	x	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/calendar.ts	88	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/cast.ts	5	ADMINS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/cast.ts	12	P	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/cast.ts	25	PROTAGONISTS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/cast.ts	370	B	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/cast.ts	384	BACKGROUND	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/cast.ts	405	PAYROLL	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/cast.ts	406	byUser	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	4	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/client.ts	6	REMINT_MS	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/lib/client.ts	9	agent	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/lib/client.ts	10	cookies	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/lib/client.ts	11	port	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/client.ts	12	server	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	13	ready	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/lib/client.ts	16	now	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	17	known	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	19	header	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	20	value	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	25	forget	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/client.ts	29	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	30	headers	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/client.ts	36	req	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	37	chunks	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/client.ts	40	text	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/client.ts	41	json	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/ops.ts	4	crypto	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/ops.ts	5	cal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/ops.ts	6	byUser	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/ops.ts	8	ADMIN	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/lib/ops.ts	9	enc	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	38	out	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	43	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	53	ROW_FIELDS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	77	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	78	pick	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	79	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	101	snap	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	client	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	store	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	auth	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	clock	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	log	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	probes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	110	vars	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	111	state	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	112	openOf	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	113	lastOf	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	114	reqSeq	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/ops.ts	115	call	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/ops.ts	116	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	120	stamp	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/ops.ts	121	requestId	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/ops.ts	124	sessionId	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	128	st	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	131	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	137	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	145	ops	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	147	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	160	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	162	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	169	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	169	set	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	189	dates	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	190	names	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	194	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	194	level	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	194	changes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	194	effectiveMonth	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	194	reason	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	195	cat	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	196	pos	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	197	lv	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	208	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	212	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	212	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	212	location	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	212	explanation	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	212	tryWithout	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	214	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	216	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	221	first	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	227	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	227	by	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	227	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	227	days	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	227	confirmDays	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	228	cur	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	229	merged	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	230	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	230	day	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	234	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	240	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	240	dates	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	240	action	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	240	note	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	241	by	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	242	items	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	243	month	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	244	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	245	it	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/ops.ts	261	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	261	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	261	approve	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	261	note	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	262	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	263	item	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	285	action	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	285	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	285	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	285	reason	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	286	staffSide	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	287	as	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	288	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	294	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	294	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	294	scores	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	294	amt	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	295	body	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	300	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	300	step	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	300	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	301	as	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	302	view	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	303	rev	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	304	revDelta	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	304	rest	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	308	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	308	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	308	reason	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	309	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	310	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	316	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	317	entry	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	321	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	331	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	342	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	362	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	362	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	363	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	364	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	365	ledger	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	366	lb	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	387	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	387	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	387	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	392	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	392	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	392	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	393	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	398	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	398	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	398	entry	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	399	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	408	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	408	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	409	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	410	cur	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	411	days	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	429	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	429	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	429	values	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	429	reason	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	434	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	434	date	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	435	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	436	cur	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/ops.ts	437	day	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/ops.ts	449	at	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	4	cal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	5	ADMINS	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	5	PAYROLL	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	5	BACKGROUND	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	5	byUser	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	6	T	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	6	shiftOn	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	6	typeOn	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	6	resignedOn	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	6	createdAt	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/queue.ts	10	a	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	13	t	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	20	END	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/lib/queue.ts	22	OCTOBER_ADMIN	const	ngoài hàm/class	new	không
+scripts/dev/scenarios/lib/queue.ts	26	a	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	30	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	32	ch	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	38	rnd	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	39	from	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	40	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	41	start	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	42	resign	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	43	last	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	44	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	45	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	48	code	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	50	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	51	inOff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	52	late	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	53	inT	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	54	outT	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	56	outDate	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	62	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	63	resign	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	65	code	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	67	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	69	inOff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	76	sundays	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/queue.ts	77	u	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	78	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	79	sun	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	80	days	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/queue.ts	81	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/lib/queue.ts	82	d	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	85	code	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	97	b	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	98	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/queue.ts	100	filed	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/queue.ts	104	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	3	cal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	slip	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	row	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	lv	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	label	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	labelAt	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	slipAt	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	rowAt	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	observe	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	4	settle	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	7	B	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	14	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	14	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	104	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	104	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	261	p08	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	299	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	299	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	537	p15	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	547	id	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	547	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	547	a	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	547	b	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	547	money	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	549	p6	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	757	ot	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	786	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	836	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	899	freeDays	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	900	out	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	901	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	905	from	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	905	to	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	905	n	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	905	filed	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	905	ref	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	909	days	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p01-p18.ts	916	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	slip	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	row	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	lv	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	label	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	rowAt	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	observe	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	3	settle	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	6	B	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	8	p19	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	378	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	380	p26u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	447	hol	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	584	adv	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	630	kpi	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	632	all	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p19-p33.ts	689	d	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	slip	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	row	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	lv	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	label	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	observe	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	3	settle	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	6	B	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	109	entry	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story-p34-p44.ts	314	p41	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story-steps.ts	3	slip	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	4	row	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	5	lv	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	6	http	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	7	label	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	8	labelAt	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	9	period	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	10	slipAt	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	11	rowAt	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	12	observe	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story-steps.ts	13	settle	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/lib/story.ts	5	cal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	6	T	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	7	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	7	period	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	7	observe	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	8	protagonistsP01toP18	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	9	protagonistsP19toP33	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	10	protagonistsP34toP44	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/lib/story.ts	14	step	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/lib/story.ts	17	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/lib/story.ts	18	next	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story.ts	19	lockDay	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story.ts	23	paid	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/story.ts	173	NOT_IN_DB	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/view.ts	10	ADMIN_ORIGIN	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/lib/view.ts	11	PENDING_STATES	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/view.ts	21	LABEL_TEXT	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/lib/view.ts	33	ex	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	37	real	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	40	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	41	state	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	49	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	50	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	51	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	52	sessions	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	55	e	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	69	rep	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	70	report	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	73	ex	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	74	explanations	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/lib/view.ts	77	view	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/server.ts	7	http	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	8	fs	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	9	path	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	11	OUT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	12	SANDBOX_DIR	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	13	BUILT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	14	RUN	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	15	CLOCK_FILE	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	16	PORT	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/server.ts	17	DEFAULT_LOCAL	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/server.ts	18	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	19	atArg	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	24	builtIsNewer	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	32	boot	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	32	parseLocal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	32	toLocal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	33	savedLocal	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	41	startLocal	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	46	app	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	47	store	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	47	auth	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	47	clock	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	48	appServer	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	49	byUser	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/server.ts	51	selectedUser	let	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/server.ts	52	saveClock	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	55	state	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	68	sessionCookie	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	77	isLoopback	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	81	controlAllowed	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	85	SCENARIO_ALIASES	const	ngoài hàm/class	new	không
+scripts/dev/scenarios/server.ts	92	body	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/server.ts	93	chunk	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/server.ts	98	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	105	homePage	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	106	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	110	isSpaPage	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	117	CLOCK_QUERY	const	ngoài hàm/class	giá trị cố định	không
+scripts/dev/scenarios/server.ts	120	index	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	122	bootstrap	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	136	esc	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/server.ts	143	roleOf	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/server.ts	144	rows	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	146	c	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	147	extraRole	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	159	server	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	161	url	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/server.ts	168	data	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	170	next	let	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/server.ts	199	u	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/server.ts	214	html	let	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/server.ts	217	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/server.ts	226	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	6	fs	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	7	path	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	9	OUT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	10	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	11	dbArg	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	12	built	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	13	copy	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	15	meta	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	15	cases	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	16	probes	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	17	refs	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/verify.ts	18	eventLines	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	24	line	const	ngoài hàm/class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	28	boot	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	28	toLocal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	28	parseLocal	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	29	startLocal	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	33	app	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	34	createClient	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	35	compactSlip	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	36	dayView	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	36	LABEL_TEXT	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	37	byUser	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	37	PAYROLL	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	38	rulesFor	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	39	leaveDates	const	ngoài hàm/class	require	không
+scripts/dev/scenarios/verify.ts	41	SEVERITY	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/verify.ts	42	worst	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/verify.ts	43	PENDING_TAGS	const	ngoài hàm/class	object/array	không
+scripts/dev/scenarios/verify.ts	44	inWindow	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/verify.ts	45	enc	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	56	diffFields	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/verify.ts	62	client	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	64	slipCache	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/verify.ts	66	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	68	res	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	69	out	let	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	79	periodCache	const	trong hàm ngoài class	new	không
+scripts/dev/scenarios/verify.ts	82	res	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	88	month	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	89	sheet	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	90	ledger	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	91	lb	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	97	rowOf	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/verify.ts	101	pending	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	102	isCheck	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	103	verdict	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/verify.ts	105	diffs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	117	pickFields	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/verify.ts	132	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	140	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	142	actual	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	143	want	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	144	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	161	a	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	162	b	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	165	x	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	166	y	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	167	ok	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	168	actual	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	179	sum	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/verify.ts	180	byMonth	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	181	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	182	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	187	actual	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	197	view	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	198	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	203	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	209	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	213	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	218	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	223	w	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	224	actual	let	trong hàm ngoài class	giá trị cố định	không
+scripts/dev/scenarios/verify.ts	233	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	244	results	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	245	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	246	tags	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	247	checks	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	248	check	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	251	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	255	real	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	269	ledgerAt	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/verify.ts	270	got	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	283	leaveRows	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	284	accountHolders	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	285	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	286	staff	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	288	dates	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	289	dec	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	290	jan31	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	291	feb1	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	292	feb28	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	293	febSlip	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	294	janSlip	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	295	now	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	318	lvRow	const	trong hàm ngoài class	hàm	không
+scripts/dev/scenarios/verify.ts	319	owner	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	373	periodsTable	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	374	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	392	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	393	locks	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	417	run	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	418	d10	let	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	424	error	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	425	message	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	440	tally	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	441	r	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	442	report	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	463	money	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/verify.ts	465	cell	const	ngoài hàm/class	hàm	không
+scripts/dev/scenarios/verify.ts	473	L	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	480	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	488	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	489	t	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	490	states	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	500	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	505	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	505	v	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	507	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	518	lv	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	526	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	527	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	532	byU	const	trong hàm ngoài class	object/array	không
+scripts/dev/scenarios/verify.ts	533	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	534	u	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	534	list	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	535	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	542	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	543	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	544	what	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	550	expected	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	561	actual	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	575	diffs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/dev/scenarios/verify.ts	577	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	592	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	595	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	598	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/scenarios/verify.ts	600	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/dev/ts-source.ts	4	fs	const	ngoài hàm/class	require	không
+scripts/dev/ts-source.ts	5	transformSync	const	ngoài hàm/class	require	không
+scripts/dev/ts.cjs	6	spawn	const	ngoài hàm/class	require	không
+scripts/dev/ts.cjs	8	options	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/ts.cjs	9	child	const	ngoài hàm/class	biểu thức/khác	không
+scripts/dev/ts.cjs	13	signal	const	ngoài hàm/class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	7	fs	const	ngoài hàm/class	require	không
+scripts/docs/gen-db-types.ts	8	path	const	ngoài hàm/class	require	không
+scripts/docs/gen-db-types.ts	10	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	11	OUT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	14	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	15	parts	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	16	depth	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-db-types.ts	17	cur	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-db-types.ts	18	ch	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	31	t	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	39	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	40	sql	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	47	tables	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	48	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	50	extra	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	51	out	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-db-types.ts	55	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	56	cols	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-db-types.ts	57	part	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	59	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	62	e	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	63	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	66	pk	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	67	pkCols	const	trong hàm ngoài class	new	không
+scripts/docs/gen-db-types.ts	69	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	70	base	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	71	isPk	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	72	nullableCol	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	73	generated	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	74	nullable	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	75	type	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	81	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-db-types.ts	88	built	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-db-types.ts	90	cur	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	8	fs	const	ngoài hàm/class	require	không
+scripts/docs/gen-spec.ts	9	path	const	ngoài hàm/class	require	không
+scripts/docs/gen-spec.ts	11	ROOT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	12	OUT	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	13	rel	const	ngoài hàm/class	hàm	không
+scripts/docs/gen-spec.ts	14	read	const	ngoài hàm/class	hàm	không
+scripts/docs/gen-spec.ts	15	walk	const	ngoài hàm/class	hàm	không
+scripts/docs/gen-spec.ts	19	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	23	esc	const	ngoài hàm/class	hàm	không
+scripts/docs/gen-spec.ts	24	HEADER	const	ngoài hàm/class	hàm	không
+scripts/docs/gen-spec.ts	29	files	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	30	verbs	const	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	31	found	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	32	file	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	33	lines	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	34	prefix	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	36	c	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	38	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	40	override	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	41	p	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	42	method	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	44	doc	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	45	j	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	46	d	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	58	authz	const	trong hàm ngoài class	require	không
+scripts/docs/gen-spec.ts	59	routes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	60	byKey	const	trong hàm ngoài class	new	không
+scripts/docs/gen-spec.ts	61	r	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	62	keys	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	63	rows	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	64	policy	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	65	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	66	who	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	67	scope	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	68	where	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	71	orphans	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	72	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	82	routes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	83	mods	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	84	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	87	infra	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	103	f	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	103	what	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	105	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	106	files	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	107	mine	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	108	deps	const	trong hàm ngoài class	new	không
+scripts/docs/gen-spec.ts	109	f	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	110	x	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	118	authz	const	trong hàm ngoài class	require	không
+scripts/docs/gen-spec.ts	119	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	124	role	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	124	caps	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	125	list	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	126	scope	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	134	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	135	parts	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	136	depth	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	137	cur	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	138	ch	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	150	file	const	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/gen-spec.ts	151	text	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	152	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	153	migs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	155	tables	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	156	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	157	line	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	161	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	163	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	164	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	169	triggers	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	171	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	172	indexes	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	174	i	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	180	files	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	181	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	183	file	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	184	text	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	185	classes	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	188	c	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	189	line	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	190	before	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	191	doc	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	192	nextClass	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	193	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	194	codes	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	195	topCodes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	205	events	const	trong hàm ngoài class	require	không
+scripts/docs/gen-spec.ts	206	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	209	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	209	v	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	216	config	const	trong hàm ngoài class	require	không
+scripts/docs/gen-spec.ts	217	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	219	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	220	sources	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	221	env	const	trong hàm ngoài class	new	không
+scripts/docs/gen-spec.ts	222	f	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	224	m	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	230	k	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	236	execFileSync	const	trong hàm ngoài class	require	không
+scripts/docs/gen-spec.ts	237	body	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	239	live	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	247	webRoutesDoc	const	ngoài hàm/class	require	không
+scripts/docs/gen-spec.ts	249	FILES	const	ngoài hàm/class	object/array	không
+scripts/docs/gen-spec.ts	262	out	const	trong hàm ngoài class	object/array	không
+scripts/docs/gen-spec.ts	263	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	263	fn	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/gen-spec.ts	268	built	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	270	stale	const	ngoài hàm/class	biểu thức/khác	không
+scripts/docs/gen-spec.ts	279	name	const	ngoài hàm/class	không khởi tạo	không
+scripts/docs/gen-spec.ts	279	text	const	ngoài hàm/class	không khởi tạo	không
+scripts/docs/web-routes.ts	8	files	const	trong hàm ngoài class	object/array	không
+scripts/docs/web-routes.ts	9	rows	const	trong hàm ngoài class	object/array	không
+scripts/docs/web-routes.ts	10	file	const	trong hàm ngoài class	không khởi tạo	không
+scripts/docs/web-routes.ts	11	text	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	12	lines	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	13	consts	const	trong hàm ngoài class	new	không
+scripts/docs/web-routes.ts	14	starts	const	trong hàm ngoài class	object/array	không
+scripts/docs/web-routes.ts	16	m	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	20	end	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	21	block	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	22	direct	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	23	named	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	24	redirect	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	25	component	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	26	target	let	trong hàm ngoài class	giá trị cố định	không
+scripts/docs/web-routes.ts	28	real	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	31	layout	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	32	title	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/docs/web-routes.ts	38	out	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/client.ts	5	REQUEST_TIMEOUT_MS	const	ngoài hàm/class	giá trị cố định	không
+scripts/loadtest/kit/client.ts	7	sleep	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/client.ts	8	jitter	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/client.ts	61	stopped	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/kit/client.ts	62	loop	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/client.ts	65	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/client.ts	67	h	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/client.ts	85	next	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/kit/client.ts	86	workers	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/client.ts	88	i	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/reconcile.ts	7	byRequest	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/reconcile.ts	8	sessionOf	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/reconcile.ts	9	result	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/kit/reconcile.ts	17	expectedUsers	const	trong hàm ngoài class	new	không
+scripts/loadtest/kit/reconcile.ts	18	item	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/kit/reconcile.ts	20	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/reconcile.ts	29	perUser	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/reconcile.ts	32	username	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/kit/reconcile.ts	32	n	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/kit/scenarios.ts	5	Session	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	5	sampleHealth	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	5	pool	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	5	sleep	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	5	jitter	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	6	PhaseStats	const	ngoài hàm/class	require	không
+scripts/loadtest/kit/scenarios.ts	8	MAX_RETRIES	const	ngoài hàm/class	giá trị cố định	không
+scripts/loadtest/kit/scenarios.ts	12	stats	const	trong hàm ngoài class	new	không
+scripts/loadtest/kit/scenarios.ts	13	stopHealth	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	25	result	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	26	attempt	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/kit/scenarios.ts	33	arrival	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/scenarios.ts	38	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	42	session	const	trong hàm ngoài class	new	không
+scripts/loadtest/kit/scenarios.ts	43	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	58	session	const	trong hàm ngoài class	new	không
+scripts/loadtest/kit/scenarios.ts	59	result	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	71	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	75	requestId	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	76	body	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/kit/scenarios.ts	77	first	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	79	sessionId	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	82	again	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	94	HEAVY_ADMIN_ROUTES	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/scenarios.ts	103	deadline	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	104	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	105	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	106	staffLoop	const	trong hàm ngoài class	hàm	không
+scripts/loadtest/kit/scenarios.ts	118	adminLoop	const	trong hàm ngoài class	hàm	không
+scripts/loadtest/kit/scenarios.ts	119	routes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	121	n	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	136	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	137	routes	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	147	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	148	extra	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/kit/scenarios.ts	149	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/scenarios.ts	150	route	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/kit/scenarios.ts	152	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/kit/scenarios.ts	159	SCENARIOS	const	ngoài hàm/class	object/array	không
+scripts/loadtest/kit/scenarios.ts	161	DEFAULT_ORDER	const	ngoài hàm/class	object/array	không
+scripts/loadtest/kit/seed.ts	4	pad	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/seed.ts	5	userName	const	ngoài hàm/class	hàm	không
+scripts/loadtest/kit/seed.ts	6	ADMIN_NAME	const	ngoài hàm/class	giá trị cố định	không
+scripts/loadtest/kit/seed.ts	7	DEFAULT_PREFIX	const	ngoài hàm/class	giá trị cố định	không
+scripts/loadtest/kit/seed.ts	11	users	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/kit/seed.ts	21	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/kit/seed.ts	22	username	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/stats.ts	8	index	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/kit/stats.ts	95	rows	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/kit/stats.ts	96	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/kit/stats.ts	102	widths	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	11	fs	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	12	os	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	13	path	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	14	crypto	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	15	spawn	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	16	SCENARIOS	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	16	DEFAULT_ORDER	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	17	formatTable	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	18	seedLoadUsers	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	18	userName	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	18	ADMIN_NAME	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	18	DEFAULT_PREFIX	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	19	reconcile	const	ngoài hàm/class	require	không
+scripts/loadtest/run.ts	21	root	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	22	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	27	k	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	27	v	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	31	num	const	ngoài hàm/class	hàm	không
+scripts/loadtest/run.ts	32	month	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	33	thinkMin	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	33	thinkMax	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	34	prefix	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	35	scenarioNames	const	ngoài hàm/class	biểu thức/khác	không
+scripts/loadtest/run.ts	36	name	const	ngoài hàm/class	không khởi tạo	không
+scripts/loadtest/run.ts	39	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	53	userCount	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	54	base	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	55	password	let	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	56	child	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	57	dbUrl	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	58	adminPool	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	59	tempDb	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	60	tempDbCreated	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	61	seedStore	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	62	childError	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	67	admin	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	72	Pool	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	77	target	const	trong hàm ngoài class	new	không
+scripts/loadtest/run.ts	87	auth	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	91	port	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	94	extraNodeArgs	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	111	summaries	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	112	state	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	114	ctx	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	127	name	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	130	stats	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	131	summary	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	134	route	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	134	ms	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	138	reconciled	let	trong hàm ngoài class	giá trị cố định	không
+scripts/loadtest/run.ts	142	PostgresDatabase	const	trong hàm ngoài class	require	không
+scripts/loadtest/run.ts	143	db	const	trong hàm ngoài class	new	không
+scripts/loadtest/run.ts	151	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/loadtest/run.ts	158	report	const	trong hàm ngoài class	object/array	không
+scripts/loadtest/run.ts	168	failed	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/loadtest/run.ts	176	timer	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	21	os	const	ngoài hàm/class	require	không
+scripts/ops/params-mode.ts	22	PostgresDatabase	const	ngoài hàm/class	require	không
+scripts/ops/params-mode.ts	23	pgBackup	const	ngoài hàm/class	require	không
+scripts/ops/params-mode.ts	25	REASON_MIN	const	ngoài hàm/class	giá trị cố định	không
+scripts/ops/params-mode.ts	26	REASON_MAX	const	ngoài hàm/class	giá trị cố định	không
+scripts/ops/params-mode.ts	27	ACTOR_MAX	const	ngoài hàm/class	giá trị cố định	không
+scripts/ops/params-mode.ts	32	out	const	trong hàm ngoài class	object/array	không
+scripts/ops/params-mode.ts	33	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/ops/params-mode.ts	34	a	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	49	url	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	55	settingOf	const	ngoài hàm/class	hàm	không
+scripts/ops/params-mode.ts	56	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	64	modeOf	const	ngoài hàm/class	hàm	không
+scripts/ops/params-mode.ts	68	db	const	trong hàm ngoài class	new	không
+scripts/ops/params-mode.ts	71	count	const	trong hàm ngoài class	hàm	không
+scripts/ops/params-mode.ts	78	lastAudit	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	98	db	const	trong hàm ngoài class	new	không
+scripts/ops/params-mode.ts	101	row	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	111	before	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	118	made	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	121	backup	const	trong hàm ngoài class	object/array	không
+scripts/ops/params-mode.ts	123	store	const	trong hàm ngoài class	require	không
+scripts/ops/params-mode.ts	124	audit	const	trong hàm ngoài class	require	không
+scripts/ops/params-mode.ts	125	configRev	const	trong hàm ngoài class	require	không
+scripts/ops/params-mode.ts	126	os_user	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	127	ctx	const	trong hàm ngoài class	object/array	không
+scripts/ops/params-mode.ts	132	rev	let	trong hàm ngoài class	không khởi tạo	không
+scripts/ops/params-mode.ts	145	after	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	152	args	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	153	url	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	155	s	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	162	reason	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	166	backupDir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	169	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/params-mode.ts	179	err	catch	trong hàm ngoài class	không khởi tạo	không
+scripts/ops/pg-backup.ts	19	path	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	20	backup	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	20	verifyFile	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	20	restore	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	20	drill	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	20	PgBackupError	const	ngoài hàm/class	require	không
+scripts/ops/pg-backup.ts	22	args	const	ngoài hàm/class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	27	key	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	27	rest	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	31	command	const	ngoài hàm/class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	32	mask	const	ngoài hàm/class	hàm	không
+scripts/ops/pg-backup.ts	36	source	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	37	dir	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	38	keep	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	44	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	52	file	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	54	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	55	t	const	trong hàm ngoài class	không khởi tạo	không
+scripts/ops/pg-backup.ts	56	p	const	trong hàm ngoài class	không khởi tạo	không
+scripts/ops/pg-backup.ts	61	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/ops/pg-backup.ts	74	r	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/params/apply-plain-text.ts	4	fs	const	ngoài hàm/class	require	có
+scripts/params/apply-plain-text.ts	5	path	const	ngoài hàm/class	require	có
+scripts/params/apply-plain-text.ts	6	applyPlainText	const	ngoài hàm/class	require	có
+scripts/params/apply-plain-text.ts	8	FILE	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/apply-plain-text.ts	9	data	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	6	fs	const	ngoài hàm/class	require	có
+scripts/params/check-fallbacks.ts	7	path	const	ngoài hàm/class	require	có
+scripts/params/check-fallbacks.ts	8	vm	const	ngoài hàm/class	require	có
+scripts/params/check-fallbacks.ts	9	isDeepStrictEqual	const	ngoài hàm/class	require	có
+scripts/params/check-fallbacks.ts	10	ROOT	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	11	DEFAULTS	const	ngoài hàm/class	require	có
+scripts/params/check-fallbacks.ts	12	MODULES	const	ngoài hàm/class	object/array	có
+scripts/params/check-fallbacks.ts	15	out	const	trong hàm ngoài class	object/array	có
+scripts/params/check-fallbacks.ts	16	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	17	mod	const	trong hàm ngoài class	require	có
+scripts/params/check-fallbacks.ts	22	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	22	value	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	29	strip	const	trong hàm ngoài class	hàm	có
+scripts/params/check-fallbacks.ts	31	a	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	32	b	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	34	error	catch	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	42	LIB_MODULES	const	ngoài hàm/class	object/array	có
+scripts/params/check-fallbacks.ts	44	out	const	trong hàm ngoài class	object/array	có
+scripts/params/check-fallbacks.ts	45	pending	const	trong hàm ngoài class	object/array	có
+scripts/params/check-fallbacks.ts	46	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	48	source	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	49	m	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	54	table	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	55	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	55	value	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check-fallbacks.ts	68	lib	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/check-fallbacks.ts	69	found	const	ngoài hàm/class	object/array	có
+scripts/params/check-fallbacks.ts	70	line	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/check.ts	9	fs	const	ngoài hàm/class	require	có
+scripts/params/check.ts	10	path	const	ngoài hàm/class	require	có
+scripts/params/check.ts	11	vm	const	ngoài hàm/class	require	có
+scripts/params/check.ts	12	readAsJs	const	ngoài hàm/class	require	có
+scripts/params/check.ts	13	extract	const	ngoài hàm/class	require	có
+scripts/params/check.ts	13	sources	const	ngoài hàm/class	require	có
+scripts/params/check.ts	13	ROOT	const	ngoài hàm/class	require	có
+scripts/params/check.ts	16	Params	const	ngoài hàm/class	require	có
+scripts/params/check.ts	17	registry	const	ngoài hàm/class	require	có
+scripts/params/check.ts	18	validateValue	const	ngoài hàm/class	require	có
+scripts/params/check.ts	20	errors	const	ngoài hàm/class	object/array	có
+scripts/params/check.ts	21	fail	const	ngoài hàm/class	hàm	có
+scripts/params/check.ts	22	KEY_RE	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/check.ts	23	MAX_SEGMENTS	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/check.ts	24	MAX_KEY_LENGTH	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/check.ts	25	FAMILY_SEGMENT_RE	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/check.ts	26	COMPONENTS_BY_CLASS	const	ngoài hàm/class	object/array	có
+scripts/params/check.ts	35	COMPONENT_IDS	const	ngoài hàm/class	object/array	có
+scripts/params/check.ts	36	TABLE_KINDS	const	ngoài hàm/class	object/array	có
+scripts/params/check.ts	37	CELL_COMPONENTS	const	ngoài hàm/class	object/array	có
+scripts/params/check.ts	43	segments	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	58	columnKeys	const	trong hàm ngoài class	new	có
+scripts/params/check.ts	59	col	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	69	o	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	73	placeholders	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	76	rowKeys	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	77	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	79	rk	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	90	ids	const	trong hàm ngoài class	new	có
+scripts/params/check.ts	91	groupIds	const	trong hàm ngoài class	new	có
+scripts/params/check.ts	92	g	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	95	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	96	where	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	106	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	123	ui	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	149	c	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	152	k	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	159	options	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	164	o	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	165	o	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	167	o	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	177	DEV_TEXT	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/check.ts	180	bad	const	trong hàm ngoài class	hàm	có
+scripts/params/check.ts	186	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	196	side	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	199	o	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	210	keys	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	211	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	212	hit	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	217	entry	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	218	value	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	221	checked	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	226	def	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	233	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	237	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	238	side	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	239	l	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	241	ref	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	247	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	255	context	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	256	lib	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	260	block	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	273	ApprovalItems	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	273	Punch	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	274	out	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	275	set	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	276	classes	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	277	tax	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	278	same	const	trong hàm ngoài class	hàm	có
+scripts/params/check.ts	287	byCode	const	trong hàm ngoài class	hàm	có
+scripts/params/check.ts	294	ApprovalView	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	295	t	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	301	table	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	309	ApprovalItemsSorted	const	ngoài hàm/class	hàm	có
+scripts/params/check.ts	313	Engine	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	314	scan	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	315	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	318	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	318	table	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	323	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	323	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	330	found	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	331	hit	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	338	derive	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	339	derived	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	340	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	341	want	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	343	have	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	355	problems	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	355	libProblems	const	trong hàm ngoài class	require	có
+scripts/params/check.ts	356	line	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	360	lockPath	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	362	lock	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	363	current	const	trong hàm ngoài class	new	có
+scripts/params/check.ts	364	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	366	deprecated	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	370	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	375	names	const	trong hàm ngoài class	new	có
+scripts/params/check.ts	379	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	380	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	387	by	const	trong hàm ngoài class	hàm	có
+scripts/params/check.ts	388	rows	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/check.ts	417	text	const	trong hàm ngoài class	hàm	có
+scripts/params/check.ts	428	error	catch	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	436	error	catch	trong hàm ngoài class	không khởi tạo	có
+scripts/params/check.ts	441	error	catch	trong hàm ngoài class	không khởi tạo	có
+scripts/params/doc.ts	7	fs	const	ngoài hàm/class	require	có
+scripts/params/doc.ts	9	Params	const	ngoài hàm/class	require	có
+scripts/params/doc.ts	10	registry	const	ngoài hàm/class	require	có
+scripts/params/doc.ts	11	fmt	const	ngoài hàm/class	require	có
+scripts/params/doc.ts	13	CLASS_LABEL	const	ngoài hàm/class	object/array	có
+scripts/params/doc.ts	21	WIRED_LABEL	const	ngoài hàm/class	hàm	có
+scripts/params/doc.ts	22	cell	const	ngoài hàm/class	hàm	có
+scripts/params/doc.ts	27	defaultOf	const	ngoài hàm/class	hàm	có
+scripts/params/doc.ts	29	keys	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	31	shown	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	32	v	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	33	text	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	45	optionsOf	const	ngoài hàm/class	hàm	có
+scripts/params/doc.ts	51	lines	const	trong hàm ngoài class	object/array	có
+scripts/params/doc.ts	57	group	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/doc.ts	58	entries	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	65	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/doc.ts	66	key	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	67	unit	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/doc.ts	77	argv	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/doc.ts	80	text	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/doc.ts	81	at	const	ngoài hàm/class	hàm	có
+scripts/params/doc.ts	83	file	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	10	fs	const	ngoài hàm/class	require	có
+scripts/params/extract-defaults.ts	11	path	const	ngoài hàm/class	require	có
+scripts/params/extract-defaults.ts	12	RULES	const	ngoài hàm/class	require	có
+scripts/params/extract-defaults.ts	12	REGEX_SOURCES	const	ngoài hàm/class	require	có
+scripts/params/extract-defaults.ts	12	HAND_FILE	const	ngoài hàm/class	require	có
+scripts/params/extract-defaults.ts	14	ROOT	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	15	TARGET	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/extract-defaults.ts	16	BEGIN	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/extract-defaults.ts	17	END	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/extract-defaults.ts	19	read	const	ngoài hàm/class	hàm	có
+scripts/params/extract-defaults.ts	24	m	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	30	vars	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	31	i	let	trong hàm ngoài class	giá trị cố định	có
+scripts/params/extract-defaults.ts	32	c	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	42	fill	const	ngoài hàm/class	hàm	có
+scripts/params/extract-defaults.ts	43	COMPILED	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	47	out	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	48	ActualHours	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	49	KpiScore	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	50	ApprovalView	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	51	config	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	67	k	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	67	v	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	70	evalNumber	const	ngoài hàm/class	hàm	có
+scripts/params/extract-defaults.ts	71	cleaned	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	73	n	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	77	TRANSFORM	const	ngoài hàm/class	object/array	có
+scripts/params/extract-defaults.ts	85	out	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	86	values	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	87	ignored	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	88	derived	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	89	origin	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	90	unmapped	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	91	put	const	trong hàm ngoài class	hàm	có
+scripts/params/extract-defaults.ts	97	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	97	root	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	98	segments	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	98	value	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	99	hit	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	100	where	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	107	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	115	firstOf	const	trong hàm ngoài class	object/array	có
+scripts/params/extract-defaults.ts	116	src	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	117	m	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	119	value	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	121	keep	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	131	Formula	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	132	DEFAULT_GRAPH	const	trong hàm ngoài class	require	có
+scripts/params/extract-defaults.ts	133	name	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	133	g	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	140	hand	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	141	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	141	item	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	148	sorted	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	165	literal	const	ngoài hàm/class	hàm	có
+scripts/params/extract-defaults.ts	170	begin	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	171	end	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	178	prettier	let	trong hàm ngoài class	không khởi tạo	có
+scripts/params/extract-defaults.ts	185	config	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	190	values	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	191	file	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	192	next	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	195	current	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/extract-defaults.ts	196	text	const	trong hàm ngoài class	hàm	có
+scripts/params/gen-formula-vocab.ts	10	fs	const	ngoài hàm/class	require	có
+scripts/params/gen-formula-vocab.ts	11	path	const	ngoài hàm/class	require	có
+scripts/params/gen-formula-vocab.ts	13	ROOT	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	14	TARGET	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	15	BEGIN	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/gen-formula-vocab.ts	16	END	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/gen-formula-vocab.ts	18	Engine	const	ngoài hàm/class	require	có
+scripts/params/gen-formula-vocab.ts	19	Formula	const	ngoài hàm/class	require	có
+scripts/params/gen-formula-vocab.ts	20	registry	const	ngoài hàm/class	require	có
+scripts/params/gen-formula-vocab.ts	23	WORDS	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/gen-formula-vocab.ts	24	wordsOf	const	ngoài hàm/class	hàm	có
+scripts/params/gen-formula-vocab.ts	26	isValidPhrase	const	ngoài hàm/class	hàm	có
+scripts/params/gen-formula-vocab.ts	30	lowerFirst	const	ngoài hàm/class	hàm	có
+scripts/params/gen-formula-vocab.ts	33	LABEL	const	ngoài hàm/class	object/array	có
+scripts/params/gen-formula-vocab.ts	44	EXTRA_SYNONYMS	const	ngoài hàm/class	object/array	có
+scripts/params/gen-formula-vocab.ts	58	PRIORITY	const	ngoài hàm/class	object/array	có
+scripts/params/gen-formula-vocab.ts	61	REG_UNIT	const	ngoài hàm/class	object/array	có
+scripts/params/gen-formula-vocab.ts	62	regById	const	ngoài hàm/class	new	có
+scripts/params/gen-formula-vocab.ts	63	e	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	64	regUnit	const	ngoài hàm/class	hàm	có
+scripts/params/gen-formula-vocab.ts	65	e	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	70	FLAG_BUILTINS	const	ngoài hàm/class	new	có
+scripts/params/gen-formula-vocab.ts	71	FLAG_VARIABLES	const	ngoài hàm/class	new	có
+scripts/params/gen-formula-vocab.ts	79	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	80	candidates	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	81	out	const	trong hàm ngoài class	object/array	có
+scripts/params/gen-formula-vocab.ts	82	c	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	87	t	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	97	problems	const	trong hàm ngoài class	object/array	có
+scripts/params/gen-formula-vocab.ts	98	entries	const	trong hàm ngoài class	object/array	có
+scripts/params/gen-formula-vocab.ts	99	covers	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	102	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	103	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	103	synonyms	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	104	out	const	trong hàm ngoài class	object/array	có
+scripts/params/gen-formula-vocab.ts	117	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	118	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	118	synonyms	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	131	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	132	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	132	synonyms	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	136	gap	const	trong hàm ngoài class	hàm	có
+scripts/params/gen-formula-vocab.ts	137	p	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	160	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	161	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	161	synonyms	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	162	out	const	trong hàm ngoài class	object/array	có
+scripts/params/gen-formula-vocab.ts	177	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	179	label	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	179	synonyms	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	211	param	const	trong hàm ngoài class	hàm	có
+scripts/params/gen-formula-vocab.ts	212	reg	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	215	p	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	248	labels	const	trong hàm ngoài class	new	có
+scripts/params/gen-formula-vocab.ts	249	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	250	f	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	256	owner	const	trong hàm ngoài class	new	có
+scripts/params/gen-formula-vocab.ts	257	ranked	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	258	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/gen-formula-vocab.ts	260	f	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	275	check	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	281	i	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	282	j	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	288	entries	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	288	problems	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	289	check	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	290	text	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	291	i	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	291	j	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	293	current	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	303	body	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	304	next	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	305	prettier	const	trong hàm ngoài class	require	có
+scripts/params/gen-formula-vocab.ts	306	formatted	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/gen-formula-vocab.ts	308	p	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/key-map.ts	18	RULES	const	ngoài hàm/class	object/array	có
+scripts/params/key-map.ts	129	REGEX_SOURCES	const	ngoài hàm/class	object/array	có
+scripts/params/key-map.ts	172	HAND_FILE	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/lock.ts	5	fs	const	ngoài hàm/class	require	có
+scripts/params/lock.ts	6	path	const	ngoài hàm/class	require	có
+scripts/params/lock.ts	8	lockedNames	const	ngoài hàm/class	require	có
+scripts/params/lock.ts	9	registry	const	ngoài hàm/class	require	có
+scripts/params/lock.ts	11	FILE	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/lock.ts	12	released	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/lock.ts	13	domainOf	const	ngoài hàm/class	hàm	có
+scripts/params/lock.ts	15	old	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/lock.ts	16	keys	const	ngoài hàm/class	object/array	có
+scripts/params/lock.ts	17	added	const	ngoài hàm/class	object/array	có
+scripts/params/lock.ts	18	name	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/lock.ts	23	sorted	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/plain-text.ts	11	text	const	ngoài hàm/class	require	có
+scripts/params/plain-text.ts	12	firstRunText	const	ngoài hàm/class	require	có
+scripts/params/plain-text.ts	15	LIMIT_NOTES	const	ngoài hàm/class	object/array	có
+scripts/params/plain-text.ts	19	OPTION_NOT_READY	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/plain-text.ts	20	ROW_RULES	const	ngoài hàm/class	object/array	có
+scripts/params/plain-text.ts	23	LABELS	const	ngoài hàm/class	object/array	có
+scripts/params/plain-text.ts	29	DEFAULT_NOTES	const	ngoài hàm/class	object/array	có
+scripts/params/plain-text.ts	39	DEV_SOURCE	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/plain-text.ts	40	SOURCE_SEPARATOR	const	ngoài hàm/class	giá trị cố định	có
+scripts/params/plain-text.ts	43	e	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/plain-text.ts	44	t	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/plain-text.ts	59	note	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/plain-text.ts	61	value	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/plain-text.ts	69	side	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/plain-text.ts	72	option	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	6	path	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	8	ROOT	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	9	PayrollEngine	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	10	PayrollParams	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	11	Graph	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	12	generateCases	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	13	readGolden	const	ngoài hàm/class	require	có
+scripts/params/prove-default-graph.ts	15	arg	const	ngoài hàm/class	hàm	có
+scripts/params/prove-default-graph.ts	16	hit	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	19	CASES	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	20	SEED	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	22	params	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	23	tally	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	24	mismatches	const	ngoài hàm/class	object/array	có
+scripts/params/prove-default-graph.ts	25	computed	let	ngoài hàm/class	giá trị cố định	có
+scripts/params/prove-default-graph.ts	26	threw	let	ngoài hàm/class	giá trị cố định	có
+scripts/params/prove-default-graph.ts	29	out	let	trong hàm ngoài class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	37	m	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	38	ctx	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	39	key	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	40	want	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	45	got	let	trong hàm ngoài class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	48	e	catch	trong hàm ngoài class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	59	golden	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	61	goldenComputed	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	67	bad	let	ngoài hàm/class	giá trị cố định	có
+scripts/params/prove-default-graph.ts	68	key	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/prove-default-graph.ts	69	t	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/prove-default-graph.ts	77	x	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/scan-magic-numbers.ts	5	fs	const	ngoài hàm/class	require	có
+scripts/params/scan-magic-numbers.ts	8	out	let	trong hàm ngoài class	giá trị cố định	có
+scripts/params/scan-magic-numbers.ts	9	i	let	trong hàm ngoài class	giá trị cố định	có
+scripts/params/scan-magic-numbers.ts	10	n	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/scan-magic-numbers.ts	12	c	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/scan-magic-numbers.ts	13	d	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/scan-magic-numbers.ts	39	depth	let	trong hàm ngoài class	giá trị cố định	có
+scripts/params/scan-magic-numbers.ts	57	prev	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/scan-magic-numbers.ts	79	found	const	trong hàm ngoài class	object/array	có
+scripts/params/scan-magic-numbers.ts	81	m	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/scan-magic-numbers.ts	89	total	let	ngoài hàm/class	giá trị cố định	có
+scripts/params/scan-magic-numbers.ts	90	file	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/scan-magic-numbers.ts	91	found	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/scan-magic-numbers.ts	94	f	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/wired.ts	11	fs	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	12	path	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	14	extract	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	14	ROOT	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	15	isKeyWired	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	16	registry	const	ngoài hàm/class	require	có
+scripts/params/wired.ts	18	read	const	ngoài hàm/class	hàm	có
+scripts/params/wired.ts	21	ENGINE_FILES	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	35	EXTRA_READS	const	ngoài hàm/class	object/array	có
+scripts/params/wired.ts	41	NOT_READ_DYNAMIC	const	ngoài hàm/class	object/array	có
+scripts/params/wired.ts	49	withoutFallback	const	ngoài hàm/class	hàm	có
+scripts/params/wired.ts	50	at	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	52	depth	let	trong hàm ngoài class	giá trị cố định	có
+scripts/params/wired.ts	53	i	let	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	59	withoutGenerated	const	ngoài hàm/class	hàm	có
+scripts/params/wired.ts	60	begin	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	61	end	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	67	norm	const	ngoài hàm/class	hàm	có
+scripts/params/wired.ts	70	texts	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	74	patterns	const	trong hàm ngoài class	new	có
+scripts/params/wired.ts	75	file	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	76	text	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	77	m	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	79	m	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	81	converted	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	88	extra	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	91	toRegex	const	ngoài hàm/class	hàm	có
+scripts/params/wired.ts	105	COPY_ORIGIN	const	ngoài hàm/class	object/array	có
+scripts/params/wired.ts	107	SERVER_COPIES	const	ngoài hàm/class	object/array	có
+scripts/params/wired.ts	161	origin	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	162	reads	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	163	notRead	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	164	copies	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	167	result	const	trong hàm ngoài class	new	có
+scripts/params/wired.ts	168	entry	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	169	editable	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	178	keys	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	184	unread	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	185	copied	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	186	byOrigin	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	188	byList	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	192	bad	const	trong hàm ngoài class	new	có
+scripts/params/wired.ts	193	k	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	194	c	const	trong hàm ngoài class	không khởi tạo	có
+scripts/params/wired.ts	198	mixed	const	trong hàm ngoài class	biểu thức/khác	có
+scripts/params/wired.ts	212	derived	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	214	file	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	215	data	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	216	entry	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/wired.ts	217	got	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	227	rows	const	ngoài hàm/class	biểu thức/khác	có
+scripts/params/wired.ts	231	id	const	ngoài hàm/class	không khởi tạo	có
+scripts/params/wired.ts	231	v	const	ngoài hàm/class	không khởi tạo	có
+scripts/seed.ts	19	store	const	ngoài hàm/class	require	không
+scripts/seed.ts	20	auth	const	ngoài hàm/class	require	không
+scripts/seed.ts	22	now	const	ngoài hàm/class	new	không
+scripts/seed.ts	23	y	const	ngoài hàm/class	biểu thức/khác	không
+scripts/seed.ts	24	m	const	ngoài hàm/class	biểu thức/khác	không
+scripts/seed.ts	25	mk	const	ngoài hàm/class	biểu thức/khác	không
+scripts/seed.ts	26	iso	const	ngoài hàm/class	hàm	không
+scripts/seed.ts	27	dow	const	ngoài hàm/class	hàm	không
+scripts/seed.ts	28	daysIn	const	ngoài hàm/class	biểu thức/khác	không
+scripts/seed.ts	30	SAMPLE	const	ngoài hàm/class	object/array	không
+scripts/seed.ts	56	PASSWORD	const	ngoài hàm/class	biểu thức/khác	không
+scripts/seed.ts	59	days	const	trong hàm ngoài class	object/array	không
+scripts/seed.ts	60	sched	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/seed.ts	61	i	let	trong hàm ngoài class	giá trị cố định	không
+scripts/seed.ts	62	d	let	trong hàm ngoài class	giá trị cố định	không
+scripts/seed.ts	86	added	let	trong hàm ngoài class	giá trị cố định	không
+scripts/seed.ts	87	s	const	trong hàm ngoài class	không khởi tạo	không
+scripts/seed.ts	94	days	const	trong hàm ngoài class	biểu thức/khác	không
+scripts/seed.ts	98	pending	const	trong hàm ngoài class	biểu thức/khác	không

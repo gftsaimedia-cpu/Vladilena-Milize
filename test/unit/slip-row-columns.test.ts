@@ -4,7 +4,7 @@
 //   luongNgay = mọi phần lương ngày (kể cả lương ngày lễ và tiền giờ ngày thường của ca sang ngày sau) + giờ trừ;
 //   phuCapCa = phụ cấp ca + Off Paid; lamThem = OT + làm bù + OT ngày lễ; truGio = giờ thiếu của ngày đi làm.
 // Ca tham chiếu: NV bậc 1 (6.000.000 / 26 = 230.769 mỗi ngày), ca đêm 40 %, ca Night2 22:00–07:00.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

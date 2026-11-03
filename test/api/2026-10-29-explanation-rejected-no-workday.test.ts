@@ -3,7 +3,7 @@
 // Admin đã khai thay giờ; giải trình chưa quyết định chỉ giữ ngày chưa có lượt Admin. Nhãn của lượt trong ngày bị từ chối là "Bị từ chối".
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 

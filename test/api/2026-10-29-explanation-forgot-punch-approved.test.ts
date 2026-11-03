@@ -4,7 +4,7 @@
 // (ngày lễ không khai giờ, ngoài lịch, chưa gán ca, chồng giờ) chỉ cảnh báo. Kỳ đã chốt công: lượt vẫn ghi, kèm cảnh báo PERIOD_LOCKED.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const P = require('../helpers/period-api');
 const X = require('../helpers/explanation-flow');

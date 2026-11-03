@@ -5,6 +5,7 @@ import type { Schema } from './schema.generated';
 export type { Schema } from './schema.generated';
 export type { AppDatabase } from './db-dialect';
 export { SettingsRepository } from './settings.repository';
+export { AdvanceApprovalsRepository } from './advance-approvals.repository';
 export { ParamVersionsRepository } from './param-versions.repository';
 export type { ParamVersionRow } from './param-versions.repository';
 export { AuditLogRepository } from './audit-log.repository';

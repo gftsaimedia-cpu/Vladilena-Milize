@@ -35,9 +35,10 @@ const prefix = args.prefix || DEFAULT_PREFIX;
 const scenarioNames = (args.scenarios || DEFAULT_ORDER.join(',')).split(',').filter(Boolean);
 for (const name of scenarioNames) if (!SCENARIOS[name]) throw new Error(`Kịch bản không có: ${name}`);
 
-async function waitHealthy(base?, child?) {
+async function waitHealthy(base?, child?, childError?) {
   for (let i = 0; i < 100; i++) {
-    if (child && child.exitCode !== null) throw new Error('Máy chủ tự dựng thoát sớm');
+    if (childError && childError()) throw childError();
+    if (child && (child.exitCode !== null || child.signalCode != null)) throw new Error('Máy chủ tự dựng thoát sớm');
     try {
       if ((await fetch(`${base}/api/health`)).ok) return;
     } catch {
@@ -56,49 +57,60 @@ async function main() {
   let dbUrl: any = null; // chế độ tự dựng: database tạm trên máy chủ PostgreSQL
   let adminPool: any = null;
   let tempDb: any = null;
+  let tempDbCreated = false;
+  let seedStore: any = null;
+  let childError: any = null;
 
-  if (!base) {
-    // Tự dựng: database tạm trên máy chủ PostgreSQL (LT_DATABASE_URL), nạp người dùng, chạy src/server.ts riêng
-    const admin = process.env.LT_DATABASE_URL;
-    if (!admin)
-      throw new Error(
-        'Chế độ tự dựng cần LT_DATABASE_URL=postgres://… (máy chủ PostgreSQL; bộ đo tạo một database tạm rồi xoá). Hoặc đo máy chủ có sẵn bằng --base=…'
-      );
-    const { Pool } = require('pg');
-    adminPool = new Pool({ connectionString: admin, max: 1 });
-    tempDb = 'lt_' + crypto.randomBytes(5).toString('hex');
-    await adminPool.query('CREATE DATABASE ' + tempDb);
-    const target = new URL(admin);
-    target.pathname = '/' + tempDb;
-    dbUrl = target.toString();
-    password = crypto.randomBytes(12).toString('hex');
-    process.env.DATABASE_URL = dbUrl;
-    process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
-    const store = require('../../src/platform/db');
-    const auth = require('../../src/platform/auth');
-    await seedLoadUsers(store, { count: userCount, passHash: auth.hashPassword(password), prefix });
-    store.db.close();
-    const port = num('port', 3590);
-    base = `http://127.0.0.1:${port}`;
-    // LT_NODE_ARGS: thêm cờ cho tiến trình máy chủ tự dựng, ví dụ --cpu-prof --cpu-prof-dir=<thư mục> để xem hàm nào tốn CPU
-    const extraNodeArgs = (process.env.LT_NODE_ARGS || '').split(' ').filter(Boolean);
-    child = spawn(
-      process.execPath,
-      ['--no-warnings=ExperimentalWarning', ...extraNodeArgs, '--import', 'tsx', 'src/server.ts'],
-      {
-        cwd: root,
-        env: { ...process.env, PORT: String(port), COOKIE_SECURE: '0', ACCESS_LOG: 'off' },
-        stdio: ['ignore', 'ignore', 'inherit', 'ipc']
-      }
-    );
-  } else if (!password) {
-    throw new Error('Chế độ --base cần mật khẩu của người dùng đo tải trong biến môi trường LT_PASSWORD');
-  }
-
-  const summaries: any[] = [];
-  const state: Record<string, any> = {};
   try {
-    await waitHealthy(base, child);
+    if (!base) {
+      // Tự dựng: database tạm trên máy chủ PostgreSQL (LT_DATABASE_URL), nạp người dùng, chạy src/server.ts riêng
+      const admin = process.env.LT_DATABASE_URL;
+      if (!admin)
+        throw new Error(
+          'Chế độ tự dựng cần LT_DATABASE_URL=postgres://… (máy chủ PostgreSQL; bộ đo tạo một database tạm rồi xoá). Hoặc đo máy chủ có sẵn bằng --base=…'
+        );
+      const { Pool } = require('pg');
+      adminPool = new Pool({ connectionString: admin, max: 1 });
+      tempDb = 'lt_' + crypto.randomBytes(5).toString('hex');
+      await adminPool.query('CREATE DATABASE ' + tempDb);
+      tempDbCreated = true;
+      const target = new URL(admin);
+      target.pathname = '/' + tempDb;
+      dbUrl = target.toString();
+      password = crypto.randomBytes(12).toString('hex');
+      process.env.DATABASE_URL = dbUrl;
+      // URL trên luôn trỏ tới DB vừa tạo. Chặn cả .env nạp lại cấu hình DB cũ ở tiến trình máy chủ con.
+      process.env.DB_PATH = '';
+      process.env.PG_TEST_URL = '';
+      process.env.SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+      seedStore = require('../../src/platform/db');
+      const auth = require('../../src/platform/auth');
+      await seedLoadUsers(seedStore, { count: userCount, passHash: auth.hashPassword(password), prefix });
+      await seedStore.db.close();
+      seedStore = null;
+      const port = num('port', 3590);
+      base = `http://127.0.0.1:${port}`;
+      // LT_NODE_ARGS: thêm cờ cho tiến trình máy chủ tự dựng, ví dụ --cpu-prof --cpu-prof-dir=<thư mục> để xem hàm nào tốn CPU
+      const extraNodeArgs = (process.env.LT_NODE_ARGS || '').split(' ').filter(Boolean);
+      child = spawn(
+        process.execPath,
+        ['--no-warnings=ExperimentalWarning', ...extraNodeArgs, '--import', 'tsx', 'src/server.ts'],
+        {
+          cwd: root,
+          env: { ...process.env, PORT: String(port), COOKIE_SECURE: '0', ACCESS_LOG: 'off' },
+          stdio: ['ignore', 'ignore', 'inherit', 'ipc']
+        }
+      );
+      child.on('error', error => {
+        childError = error;
+      });
+    } else if (!password) {
+      throw new Error('Chế độ --base cần mật khẩu của người dùng đo tải trong biến môi trường LT_PASSWORD');
+    }
+
+    const summaries: any[] = [];
+    const state: Record<string, any> = {};
+    await waitHealthy(base, child, () => childError);
     const ctx = {
       base,
       users: Array.from({ length: userCount }, (_, i) => userName(prefix, i + 1)),
@@ -156,16 +168,24 @@ async function main() {
     const failed = summaries.some(s => s.verdict !== 'ĐẠT') || (reconciled && !reconciled.pass);
     process.exitCode = failed ? 1 : 0;
   } finally {
-    if (child) {
-      // Tắt êm qua IPC (đóng DB, ghi file profile nếu có); quá 15 giây thì giết
-      if (child.exitCode === null) child.send('shutdown');
-      const timer = setTimeout(() => child.kill(), 15000);
-      await new Promise<any>(resolve => (child.exitCode !== null ? resolve(undefined) : child.once('exit', resolve)));
-      clearTimeout(timer);
-    }
-    if (adminPool) {
-      await adminPool.query('DROP DATABASE IF EXISTS ' + tempDb + ' WITH (FORCE)').catch(() => {});
-      await adminPool.end();
+    if (seedStore) await seedStore.db.close().catch(() => {});
+    try {
+      if (child && !childError && child.exitCode === null && child.signalCode == null) {
+        // Tắt êm qua IPC (đóng DB, ghi file profile nếu có); quá 15 giây thì giết
+        if (child.connected) child.send('shutdown', () => {});
+        const timer = setTimeout(() => child.kill(), 15000);
+        await new Promise<any>(resolve => {
+          if (childError || child.exitCode !== null || child.signalCode != null) return resolve(undefined);
+          child.once('exit', resolve);
+          child.once('error', resolve);
+        });
+        clearTimeout(timer);
+      }
+    } finally {
+      if (adminPool) {
+        if (tempDbCreated) await adminPool.query('DROP DATABASE IF EXISTS ' + tempDb + ' WITH (FORCE)').catch(() => {});
+        await adminPool.end();
+      }
     }
   }
 }

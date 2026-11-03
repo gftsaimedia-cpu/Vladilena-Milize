@@ -15,8 +15,7 @@ function status(message, error = false) {
 function setBusy(value) {
   busy = value;
   document.querySelectorAll('.controls button, .controls input, .controls select, #reset-confirm').forEach(control => {
-    const blockedReset = currentState?.resetAllowed === false && ['reset-open', 'reset-confirm'].includes(control.id);
-    control.disabled = value || blockedReset;
+    control.disabled = value;
   });
 }
 async function request(path, data) {
@@ -36,16 +35,6 @@ async function request(path, data) {
 }
 function renderState(state) {
   currentState = state;
-  const connected = state.databaseMode === 'main';
-  document.getElementById('environment-badge').textContent = connected ? 'DB CHÍNH' : 'BẢN TEST';
-  document.getElementById('database-subtitle').textContent = connected
-    ? `Đang nối trực tiếp DB chính · ${state.databaseName}`
-    : 'Dữ liệu riêng · Đặt lại khi khởi động lại bản test';
-  const warning = document.getElementById('main-db-warning');
-  warning.hidden = !connected;
-  warning.textContent = connected
-    ? `CẢNH BÁO: Sandbox đang thao tác trực tiếp trên DB CHÍNH (${state.databaseName}). Thay đổi sẽ được lưu vào ứng dụng; chức năng xóa toàn bộ dữ liệu đã bị tắt.`
-    : '';
   dateInput.value = state.local.slice(0, 10);
   dateInput.min = state.initialLocal.slice(0, 10);
   timeInput.value = state.local.slice(11, 19);
@@ -132,11 +121,7 @@ document.getElementById('reset-confirm').addEventListener('click', async () => {
   try {
     renderState(await request('state'));
     reloadApp();
-    status(
-      currentState.databaseMode === 'main'
-        ? `Đã nối DB CHÍNH (${currentState.databaseName}). Dữ liệu ghi từ sandbox sẽ lưu vào ứng dụng.`
-        : 'Sẵn sàng. Đồng hồ giữ nguyên ở giờ bạn chọn; dữ liệu chỉ dùng cho bản test này.'
-    );
+    status('Sẵn sàng. Đồng hồ giữ nguyên ở giờ bạn chọn; dữ liệu chỉ dùng cho bản test này.');
     setBusy(false);
   } catch (error) {
     document.getElementById('loading').textContent = 'Chưa kết nối được bản test. Tải lại trang để thử lại.';

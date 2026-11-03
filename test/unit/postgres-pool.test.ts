@@ -33,7 +33,7 @@ const addStaff = (username?, name = username) =>
 test('pool: migration đã chạy qua giao thức mạng, dữ liệu gieo sẵn và trigger uuid hoạt động', async () => {
   assert.equal(db.concurrent, true, 'pool: mỗi giao dịch một kết nối, không cần hàng đợi giao dịch');
   assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM settings').get()).n, 12);
-  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).n, 2);
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM schema_migrations').get()).n, 4);
   await addStaff('pool_a');
   assert.match((await db.prepare('SELECT uuid FROM staff WHERE username = ?').get('pool_a')).uuid, /^[0-9a-f-]{36}$/);
 });

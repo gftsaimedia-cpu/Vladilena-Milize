@@ -2,7 +2,7 @@
 // Cờ miễn thuế của khối phụ cấp (none / full / cap) đi vào khoản miễn thuế CHỈ khi Kế toán đã xác nhận (flagsConfirmedBy); chưa xác nhận thì chịu thuế như thường.
 // Hợp đồng dài: thuế = biểu luỹ tiến trên (tổng thu nhập − miễn thuế − bảo hiểm − giảm trừ gia cảnh). Hợp đồng ngắn: khấu trừ 10 % trên tổng thu nhập, cờ không đổi tiền thuế.
 // Khoản thu 20.000.000 ₫ và hạn mức 5.000.000 ₫ là số GIẢ để thử, chỉ nằm trong bộ nhớ. Người mẫu NV bậc 1 có 1 người phụ thuộc (giảm trừ 21.700.000).
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

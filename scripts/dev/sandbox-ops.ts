@@ -1,7 +1,7 @@
 'use strict';
-// Điều khiển thử TẢI và SAO LƯU/KHÔI PHỤC cho sandbox. Chỉ chạy trong tiến trình sandbox, DB trong RAM.
-//   Tải:        nạp N người đo tải vào DB RAM, chạy scripts/loadtest/run.ts (tiến trình con) trỏ vào chính sandbox, đối soát ghi bằng DB RAM.
-//   Sao lưu:    VACUUM INTO một file tạm → kiểm (scripts/ops/verify-backup.js) → diễn tập khôi phục (scripts/ops/restore-drill.js).
+// Điều khiển thử TẢI và SAO LƯU/KHÔI PHỤC cho sandbox. Chỉ chạy với DB PostgreSQL tạm của sandbox.
+//   Tải:        nạp N người đo tải, chạy scripts/loadtest/run.ts trỏ vào sandbox, đối soát ghi bằng DB tạm.
+//   Sao lưu:    ghi một file tạm, kiểm nội dung và diễn tập khôi phục bằng công cụ pg-backup.
 //   Hỏng giả:   chép một bản rồi ghi đè vài byte để thấy bước kiểm BẮT được hỏng.
 // Mọi file tạm nằm trong một thư mục tạm riêng, xoá khi sandbox tắt. Không đụng DB thật, không đường dẫn từ người dùng (chỉ chọn theo tên đã tạo).
 const fs = require('node:fs');
@@ -127,7 +127,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
         /* không có báo cáo: bộ đo lỗi sớm hoặc bị hủy */
       }
       try {
-        // Đối soát bằng DB RAM của sandbox: mọi lượt Check-in đã nhận 200 phải có đúng một dòng
+        // Đối soát bằng DB tạm của sandbox: mọi lượt Check-in đã nhận 200 phải có đúng một dòng
         if (fs.existsSync(idsFile))
           job.reconciled = await reconcile(store.db, JSON.parse(fs.readFileSync(idsFile, 'utf8')));
       } catch (error) {
@@ -175,7 +175,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
   async function backup() {
     const dir = path.join(workDir, `backup-${++counter}`);
     const t0 = performance.now();
-    const made = await pgBackup.backup(store.db, dir); // ảnh chụp nhất quán (giao dịch REPEATABLE READ chỉ đọc) của DB trong RAM
+    const made = await pgBackup.backup(store.db, dir); // ảnh chụp nhất quán của DB sandbox trong giao dịch REPEATABLE READ chỉ đọc
     const item = addBackup(made.file, 'backup');
     item.integrity = await integrityOf(made.file);
     item.ms = Math.round(performance.now() - t0);

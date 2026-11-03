@@ -5,7 +5,7 @@
 //   - ngưỡng giải trình (trễ quá 15 phút mới cắt) và công thức Trừ giờ: công thức tính ra đúng số cắt của dòng, 15 phút không có dòng cắt.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { cellsOf } = require('../../src/domain/payroll/slip-paid');

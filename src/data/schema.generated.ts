@@ -4,6 +4,24 @@ import type { ColumnType } from 'kysely';
 /** Cột có giá trị mặc định / tự sinh: đọc ra T, có thể bỏ khi INSERT. */
 export type Generated<T> = ColumnType<T, T | undefined, T>;
 
+export interface AdvanceApprovalEntriesTable {
+  id: Generated<number>;
+  month: string;
+  username: string;
+  status: Generated<string | null>;
+  rev: number;
+  requested_at: Date;
+  requested_by: string;
+  decided_at: Generated<Date | null>;
+  decided_by: Generated<string | null>;
+  reason: Generated<string | null>;
+}
+
+export interface AdvanceApprovalMonthsTable {
+  month: string;
+  rev: Generated<number>;
+}
+
 export interface AdvanceRequestsTable {
   id: Generated<number>;
   username: string;
@@ -415,6 +433,8 @@ export interface WorkShiftsTable {
 }
 
 export interface Schema {
+  advance_approval_entries: AdvanceApprovalEntriesTable;
+  advance_approval_months: AdvanceApprovalMonthsTable;
   advance_requests: AdvanceRequestsTable;
   ai_finding_actions: AiFindingActionsTable;
   ai_review_runs: AiReviewRunsTable;
