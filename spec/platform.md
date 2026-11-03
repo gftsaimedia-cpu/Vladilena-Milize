@@ -13,7 +13,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | Đường dẫn | Nội dung |
 | --- | --- |
 | `src/server.ts` | Điểm vào TypeScript (chạy bằng `node --import tsx src/server.ts`, không có bước build): `src/preload.ts` đặt `UV_THREADPOOL_SIZE` và nạp `.env` (`src/env.ts`) trước mọi module khác, rồi dựng máy chủ (`src/bootstrap.ts`), gọi `start()` (`src/main.ts`) khi chạy trực tiếp. Xuất `server` kèm `server.limits = { hashGate, writeLimiter, shedder, monitor }`. Test nạp qua `test/helpers/server.ts`. |
-| `scripts/seed.ts` | Script gieo dữ liệu độc lập ở gốc; khác `scripts/seed.ts` (lệnh `npm run seed` chạy bản trong `scripts/`). |
+| `scripts/seed.ts` | Script gieo tài khoản mẫu, chạy bằng `npm run seed`; khác bộ dữ liệu demo ở `scripts/db/seed-demo.ts` (`npm run seed:demo`). |
 | `src/domain/` | Lớp nghiệp vụ và luật theo nhóm (route đã chuyển sang `src/modules/*`): `container.ts`, thư mục `employee`, `position`, `shift`, `leave`, `explanation`, `advance`, `attendance`, `payroll`, `timesheet`, `overtime`, `kpi`, `shared` (`Rule`, `RuleSet`, `Repository`, `DomainError`), và các file lẻ (`pay-entries`, `positions`, `shifts`, `geofence`, `holidays`, `ot`, `sheet*`, `schedule`, `work-hours`, `isat-rule`, `limits`, `ai-review`, `ai-block`, `catalog-params`…). |
 | `src/ops/` | Hạ tầng vận hành trong tiến trình: giới hạn tải, bộ đo vòng lặp, bộ nhớ đệm, nhật ký truy cập. |
 | `src/params/` | Registry tham số, đọc theo tháng (`store.ts`), lưu / xem trước / hoàn tác (`save.ts`), kiểm (`src/params/validate.ts`), thuộc tính mở rộng, chức vụ và khối phụ cấp là dữ liệu, `config-rev.ts`, `keys.lock.json`, `registry.data.json`. |
@@ -26,7 +26,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | `scripts/loadtest/` | Bộ đo tải qua HTTP (`run.ts`, `kit/`). |
 | `scripts/db/` | Công cụ DB của máy phát triển: dữ liệu mẫu, kiểm migration, đo chỉ mục, thư mục `demo/`. |
 | `scripts/seed.ts` | `npm run seed`. |
-| `.env.example` | Mẫu biến môi trường (`PORT`, `DB_PATH`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `SESSION_DAYS`, `COOKIE_SECURE`, `TRUST_PROXY`), không chứa giá trị thật. |
+| `.env.example` | Mẫu biến môi trường (`DATABASE_URL`, `PG_TEST_URL`, các control URL, `PORT`, `ADMIN_PASSWORD`, `SESSION_SECRET`, `SESSION_DAYS`, `COOKIE_SECURE`, `TRUST_PROXY`), không chứa giá trị thật. |
 | `test/` | `unit/`, `api/`, `ui/`, `ops/`, `helpers/`, `fixtures/`, `tools/` (mục 4.14, 7). |
 | `spec/` | Các file đặc tả này. |
 
@@ -64,7 +64,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `src/platform/db.ts` | Chọn và mở PostgreSQL (`DATABASE_URL` / `PG_TEST_URL` / `DB_PATH`), `transaction` (SAVEPOINT lồng được), kho staff / timesheets / settings / KPI / slip_overrides, `auditStore`, `paramsStore` (đọc `param_versions`), `periodsStore` (vòng đời kỳ), `payrollStore` (lần chạy + phiếu), `aiFindingStore`, `aiReviewStore`, `rolesStore`, `assertPeriodOpen`. Cuối file gắn thêm kho của `attendance-sessions.ts`, `approvals.ts`. |
+| `src/platform/db.ts` | Chọn và mở PostgreSQL (`DATABASE_URL`), `transaction` (SAVEPOINT lồng được), kho staff / timesheets / settings / KPI / slip_overrides, `auditStore`, `paramsStore` (đọc `param_versions`), `periodsStore` (vòng đời kỳ), `payrollStore` (lần chạy + phiếu), `aiFindingStore`, `aiReviewStore`, `rolesStore`, `assertPeriodOpen`. Cuối file gắn thêm kho của `attendance-sessions.ts`, `approvals.ts`. |
 | `src/domain/attendance/attendance-sessions.ts` | DDL `attendance_sessions`, `punch_requests` (+ cột, chỉ mục), migration `attendance_sessions_v1`, `purgePunchRequests`. |
 | `src/domain/approvals/approvals.ts` | DDL `sheet_approvals`, migration `sheet_approvals_v1…v4`. |
 
@@ -88,7 +88,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 | File | Vai trò |
 | --- | --- |
 | `scripts/ops/params-mode.ts` | Xem / lùi `params_mode` về `defaults-only` (có sao lưu, audit `param.mode`, tăng `config_rev`). |
-| `scripts/dev/sandbox-server.ts` | Máy chủ thử: DB RAM, đồng hồ giả, chỉ loopback, nạp `src/server.ts` (ứng dụng NestJS). |
+| `scripts/dev/sandbox-server.ts` | Máy chủ thử: database PostgreSQL tạm riêng, đồng hồ giả, chỉ loopback, nạp `src/server.ts` (ứng dụng NestJS). |
 | `scripts/dev/sandbox-ops.ts` | Điều khiển thử tải và sao lưu/khôi phục bên trong sandbox. |
 | `scripts/dev/sandbox.html`, `sandbox.js`, `sandbox-ops.js` | Trang điều khiển sandbox (trình duyệt). |
 | `scripts/dev/scenarios/` | Dựng DB kịch bản gần một năm (`scripts/dev/scenarios/generate.ts`), máy chủ xem (`scripts/dev/scenarios/server.ts`), đối chiếu (`verify.ts`), thư viện `lib/`; file sinh ra nằm trong `out/` (không vào git). |
@@ -100,7 +100,7 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 | File | Vai trò |
 | --- | --- |
-| `test/helpers/api-fixture.ts` | Dựng máy chủ thật trên DB RAM, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
+| `test/helpers/api-fixture.ts` | Dựng máy chủ thật trên PostgreSQL tạm riêng, đồng hồ giả, `call()`, `person()`, `reset()`, `snapshot()`; bật công tắc Agents (`agents.set(true)`). |
 | `test/helpers/sse-client.ts`, `server-source.ts` | Máy khách SSE cho test; gom văn bản mã máy chủ cho test đọc tĩnh. |
 | `test/helpers/red.ts`, `open-bug.ts` | Test đỏ viết trước / lỗi đã biết chạy như `todo`. |
 | `test/helpers/legacy-*.ts`, `payroll-vm.ts`, `golden.ts`, `payroll-cases.ts`, `payroll-differential.ts`, `pay-oracle.ts`, `formula-*.js` | Bộ so sánh bộ máy lương với khối công thức đóng băng (`test/fixtures/legacy-payroll-block.js`, `payroll-golden-v0.json`), sinh ca, đọc công thức phiếu. |
@@ -111,10 +111,10 @@ Phạm vi: cấu trúc thư mục, luồng xử lý một yêu cầu qua NestJS 
 
 ### 2.1 Kết nối và giao dịch
 
-- Chọn DB bằng biến môi trường (không có mặc định; thiếu cả ba thì `src/platform/db.ts` ném lỗi ngay khi `require`): `DATABASE_URL` = máy chủ PostgreSQL thật (`pg.Pool`, tối đa 10 kết nối); `PG_TEST_URL` = test, mỗi tiến trình một database riêng `luong_test_<pid>_<mã>` tạo lúc mở và xoá khi `close()` (`PostgresDatabase({ isolatedFrom })`); `DB_PATH` = `:memory:` hoặc một thư mục → PGlite (PostgreSQL biên dịch WASM chạy trong tiến trình, một kết nối) dùng để thử và dev.
+- Chọn DB bằng biến môi trường, không có mặc định: `DATABASE_URL` = PostgreSQL của ứng dụng (`pg.Pool`, tối đa 10 kết nối); `PG_TEST_URL` = control PostgreSQL riêng cho test, mỗi file test tạo database riêng rồi chỉ xoá database do chính nó tạo. `DB_PATH` không còn được hỗ trợ.
 - Lược đồ do `migrations/postgres/NNNN_*.sql` dựng; `PostgresDatabase` chạy các file chưa chạy lúc mở, mỗi file một giao dịch, tên file ghi ở bảng `schema_migrations`. `db.ready` chờ xong.
 - Truy vấn của ứng dụng là Kysely (`src/data`), biên dịch thẳng ra PostgreSQL qua `PostgresDatabase.native`; chỗ cú pháp riêng (`jsonb #>>`, `ILIKE`, `IS DISTINCT FROM`) nằm ở `src/data/flavor.ts`. `prepare(sql).get/all/run` còn dùng cho test, script và `src/ops`: chỉ đổi `?` thành `$n` và thêm `RETURNING id` cho INSERT (`src/data/postgres-sql.ts`).
-- Giao dịch: `transaction(fn)`. PGlite (một kết nối) xếp hàng giao dịch ngoài cùng; `pg.Pool` mỗi giao dịch một kết nối riêng (`db.concurrent`), bên trong là `SAVEPOINT write_<n>`, lỗi thì `ROLLBACK TO` + `RELEASE` rồi ném tiếp; gọi lồng được (`src/platform/db.ts`).
+- Giao dịch: `transaction(fn)`. PostgreSQL dùng một kết nối riêng cho mỗi giao dịch (`db.concurrent`); giao dịch lồng nhau dùng `SAVEPOINT write_<n>`, lỗi thì `ROLLBACK TO` + `RELEASE` rồi ném tiếp (`src/platform/db.ts`).
 - Ghi đồng thời: mẫu "đọc xem có chưa rồi mới chèn" dùng khoá tư vấn `store.lock(khoá)` = `pg_advisory_xact_lock` (`src/data/locks.ts`) ở đầu giao dịch (Check-in/out theo người, điểm KPI theo người + tháng). Vi phạm ràng buộc duy nhất `23505` còn sót được `ApiExceptionFilter` đổi thành 409 `CONFLICT`.
 - Đồng hồ DB: `now()` = `new Date(Date.now()).toISOString()` để test/sandbox giả giờ được (`src/platform/db.ts`).
 - Lỗi có mã của store: `storeError(code, message, httpStatus=400, details)` → `Error` có `code`, `httpStatus`, `details` (`src/platform/db.ts`).
@@ -373,7 +373,7 @@ Các route nghiệp vụ còn lại (sheet, punch, kpi, approvals, periods, staf
 
 1. `src/server.ts`: đặt `UV_THREADPOOL_SIZE` (mặc định `config.UV_THREADPOOL_SIZE` = 8) — nạp `src/platform/config.ts` trước khi đọc `.env`, nên biến này đặt trong `.env` bị bỏ qua.
 2. `require('./lib/register-ts')`: đăng ký `tsx` để nạp `src/**/*.ts` lúc chạy.
-3. `loadDotEnv(__dirname)` (`src/env.ts`): đọc `.env` cạnh `src/server.ts` nếu có; dòng `KEY=value` (khoá `[A-Z0-9_]+`, bỏ dòng `#`, bỏ một cặp nháy), không ghi đè biến đã có. Phải chạy trước mọi module đọc biến lúc nạp (`DB_PATH`, `SESSION_SECRET`).
+3. `loadDotEnv(__dirname)` (`src/env.ts`): đọc `.env` cạnh `src/server.ts` nếu có; dòng `KEY=value` (khoá `[A-Z0-9_]+`, bỏ dòng `#`, bỏ một cặp nháy), không ghi đè biến đã có. Phải chạy trước mọi module đọc biến lúc nạp (`DATABASE_URL`, `SESSION_SECRET`).
 4. `createServer()` (`src/bootstrap.ts`): `initApp()` (`src/app.init.ts`: `store.setDefaultContractResolver(...)`, `Roles.reconcileStaffRole()`), dựng ứng dụng Nest bất đồng bộ (`NestFactory.create(AppModule.register(), new ExpressAdapter(...), { bodyParser: false })`), trả `http.Server`; đặt `keepAliveTimeout` 65 s, `headersTimeout` 66 s, `requestTimeout` 30 s; gắn `server.limits`. Yêu cầu đến trước khi Nest sẵn sàng thì chờ.
 5. `src/platform/db` mở DB và chạy migration khi được nạp; `hashGate`, `writeLimiter`, `shedder`, `monitor` dựng ở `src/http/load-control.ts` — giới hạn đọc env `PASSWORD_HASH_CONCURRENCY`, `WRITE_RATE_PER_MINUTE`, `SHED_MAX_LAG_MS`, `SHED_MAX_INFLIGHT` nếu là số dương (`limitOf`).
 6. Chỉ khi `require.main === module`, `start(server)` (`src/main.ts`):
@@ -493,10 +493,10 @@ Không cần `pg_dump`; không đọc `.env`; không in dữ liệu hay mật kh
 | --- | --- |
 | `npm run pg:backup` (`pg-backup.js backup [--source=<DB>] [--dir=] [--keep=]`) | `--source` mặc định `DATABASE_URL`, `--dir` mặc định `BACKUP_DIR` hoặc `./backups`, `--keep` mặc định `BACKUP_KEEP` hoặc 30. Xuất mọi bảng trong MỘT giao dịch `REPEATABLE READ` chỉ đọc (ảnh chụp nhất quán dù app đang ghi) ra file `luong-YYYYMMDD-HHMMSS.pgbak.gz` (giờ VN); ghi file `.partial`, tự kiểm lại (`verifyFile`) rồi mới đổi tên và xoá các bản cũ vượt `keep` (chỉ file đúng mẫu tên). |
 | `npm run pg:verify` (`verify --backup=<file>`) | Đọc cả file, tính lại số dòng và dấu vân tay SHA-256 từng bảng, so với header; phát hiện file cắt dở (thiếu dòng kết thúc), sửa một ô, gzip/JSON hỏng. |
-| `npm run pg:drill` (`drill --backup=<file>`) | Khôi phục vào PGlite trong RAM rồi bỏ: chứng minh bản sao lưu dùng được mà không đụng DB nào; đối chiếu từng bảng và tổng tiền từng kỳ lương. |
+| `npm run pg:drill` (`drill --backup=<file>`) | Cần `DRILL_PG_CONTROL_URL` trỏ tới PostgreSQL control riêng có quyền `CREATEDB`; khôi phục vào database `luong_drill_*` do drill tạo, đối chiếu từng bảng và tổng lương, rồi chỉ dọn database đó. |
 | `npm run pg:restore` (`restore --backup=<file> --to=<DB mới> --confirm-new-empty-db`) | Chỉ vào DB MỚI (đã chạy migration, chưa có dữ liệu ngoài các bảng gieo sẵn): thiếu migration hoặc đích không rỗng thì từ chối. Một giao dịch: xoá dòng gieo sẵn, chép theo thứ tự khoá ngoại (`OVERRIDING SYSTEM VALUE`), đặt lại dãy số tự tăng, đối chiếu dấu vân tay từng bảng và tổng tiền kỳ lương TRƯỚC khi COMMIT; lệch là hoàn tác. Thiếu cờ xác nhận thì không làm gì. |
 
-`<DB>` là `postgres://user:pass@host/db`, `pglite:<thư-mục>` hoặc `memory` (chỉ cho restore/drill). Định dạng file: gzip của NDJSON — dòng đầu là header (`format`, `version`, `createdAt`, `migrations`, `order`, `tables[{ name, rows, sha256, identity }]`, `payroll`), tiếp theo `{ t, r }` từng dòng (BYTEA dạng `{ $b64 }`), dòng cuối `{ end, rows }`. Mẫu hẹn giờ hằng ngày: `deploy/systemd/luong-pg-backup.service.example` và `deploy/systemd/luong-pg-backup.timer.example` (sao lưu rồi diễn tập khôi phục bản mới nhất). Test: `test/ops/pg-backup.test.ts` (PGlite trong RAM và qua `pg.Pool` tới máy chủ socket giả).
+`<DB>` là URL PostgreSQL. Drill yêu cầu `DRILL_PG_CONTROL_URL` riêng và không dùng URL ứng dụng làm nơi tạo DB tạm. Định dạng file: gzip của NDJSON — dòng đầu là header (`format`, `version`, `createdAt`, `migrations`, `order`, `tables[{ name, rows, sha256, identity }]`, `payroll`), tiếp theo `{ t, r }` từng dòng (BYTEA dạng `{ $b64 }`), dòng cuối `{ end, rows }`. Mẫu hẹn giờ hằng ngày: `deploy/systemd/luong-pg-backup.service.example` và `deploy/systemd/luong-pg-backup.timer.example` (sao lưu rồi diễn tập khôi phục bản mới nhất). Test: `test/ops/pg-backup.test.ts` chạy trên PostgreSQL riêng.
 
 Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ cho quy mô hiện tại; bảng lớn hơn cần xuất theo lô); chưa có sao lưu liên tục (WAL/PITR) — cần `pg_basebackup`/dịch vụ quản lý nếu yêu cầu RPO thấp hơn một ngày. Sao chép bản sao lưu ra khỏi máy chủ là việc vận hành, ngoài phạm vi script.
 
@@ -504,7 +504,7 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 
 **Sandbox** (`scripts/dev/sandbox-server.ts`, `npm run sandbox`)
 
-- Ghi đè env bất kể shell: `DB_PATH=':memory:'`, `SESSION_SECRET` ngẫu nhiên, cookie `luong_sandbox_sid`, `SESSION_DAYS=14`, `COOKIE_SECURE=0`, `TZ=Asia/Ho_Chi_Minh`. `global.Date` thay bằng đồng hồ đóng băng, thời điểm đầu là hằng `INITIAL_LOCAL` (07:55 sáng, ngày đầu tháng) giờ Việt Nam; `Date.now()` của mọi mô-đun máy chủ đọc đồng hồ này.
+- Cần `SANDBOX_PG_CONTROL_URL` trỏ tới PostgreSQL control riêng có quyền `CREATEDB`; sandbox tạo database tạm riêng với tiền tố `luong_sandbox_` và dọn database do lần chạy này tạo khi thoát hoặc nhận SIGINT/SIGTERM. Không dùng URL ứng dụng kế thừa. `SESSION_SECRET` ngẫu nhiên, cookie `luong_sandbox_sid`, `SESSION_DAYS=14`, `COOKIE_SECURE=0`, `TZ=Asia/Ho_Chi_Minh`. `global.Date` thay bằng đồng hồ đóng băng, thời điểm đầu là hằng `INITIAL_LOCAL` (07:55 sáng, ngày đầu tháng) giờ Việt Nam; `Date.now()` của mọi mô-đun máy chủ đọc đồng hồ này.
 - Là tiến trình Node riêng, nạp `src/server.ts` (ứng dụng NestJS) và chuyển yêu cầu vào `http.Server` của nó (`appServer.emit('request', …)`): mọi đường không bắt đầu bằng `/__sandbox/` (trừ `/`, `/app`, trang có đồng hồ) đi vào ứng dụng thật. Chỉ nhận loopback (socket 127.0.0.1/::1 và `Host` là 127.0.0.1/localhost) → khác 403.
 - Cổng `SANDBOX_PORT` (mặc định 3104; 0 = hệ điều hành chọn), nghe `127.0.0.1`. In `SANDBOX_READY {url, initialLocal}`. Bật `monitor` của `server.limits` (vì `start()` ở `src/main.ts` chỉ tự bật khi `src/server.ts` chạy trực tiếp). SIGINT/SIGTERM đóng gọn.
 - API điều khiển (POST cần header `X-Sandbox-Control: 1` và `Origin` cùng host; thân ≤ 4096 byte):
@@ -520,24 +520,24 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | `GET /`, `/__sandbox/panel.js`, `/__sandbox/ops.js` | Bảng điều khiển. |
 | `GET /app` | 302 tới `/admin` (tài khoản chọn là admin) hoặc `/nhan-vien` kèm `?dong-ho-sandbox=1`; mọi đường dẫn của router Vue (không có đuôi file) khi có tham số đó được trả `index.html` của `web/dist` kèm script đóng băng `Date` chèn vào đầu `<head>` (503 nếu chưa build). |
 
-- Reset (`resetSyntheticData`): trong một giao dịch xoá dữ liệu 13 bảng — `punch_requests, explanations, attendance_sessions, attendance_days, timesheets, slip_overrides, punches, corrections, sheet_approvals, kpi_scores, kpi_score_log, staff, settings` — rồi xoá bảng trạng thái kỳ lương theo thứ tự con trước cha — `payslips, payroll_runs, payroll_periods, ai_finding_actions, ai_review_runs, pay_entries, advance_requests`. Các bảng này có trigger chặn xoá nên sandbox (PGlite trong RAM, chỉ tiến trình này dùng) đặt `SET LOCAL session_replication_role = replica` trong chính giao dịch đặt lại để tắt trigger, xoá dòng, rồi đặt lại `origin`. `audit_log` không bị đụng. Sau đó đồng hồ về `INITIAL_LOCAL`, gieo 7 tài khoản `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (ngày vào làm = ngày của đồng hồ đầu), `holidays = []`, `qa_cb` không nhận lương + vai trò `cb`, người chọn về `qa_nv`.
+- Reset (`resetSyntheticData`): trong một giao dịch PostgreSQL xoá dữ liệu 13 bảng — `punch_requests, explanations, attendance_sessions, attendance_days, timesheets, slip_overrides, punches, corrections, sheet_approvals, kpi_scores, kpi_score_log, staff, settings` — rồi xoá bảng trạng thái kỳ lương theo thứ tự con trước cha — `payslips, payroll_runs, payroll_periods, ai_finding_actions, ai_review_runs, pay_entries, advance_requests`. `audit_log` không bị đụng. Sau đó đồng hồ về `INITIAL_LOCAL`, gieo 7 tài khoản `qa_nv`, `qa_night40`, `qa_night60`, `qa_ctv`, `qa_tts`, `qa_admin`, `qa_cb` (ngày vào làm = ngày của đồng hồ đầu), `holidays = []`, `qa_cb` không nhận lương + vai trò `cb`, người chọn về `qa_nv`.
 - Bộ nhớ trong tiến trình sandbox gồm cả DB: tắt tiến trình là mất hết.
 
 **Máy chủ kịch bản** (`scripts/dev/scenarios/`)
 
-- `scripts/dev/scenarios/generate.ts` dựng DB kịch bản gần một năm vào `out/scenario-year` (kèm `events.jsonl`, `cases.json`; `--smoke`, `--only u1,u2`); `scripts/dev/scenarios/server.ts` mở bản làm việc `out/scenario-year.run` (`--fresh` chép lại từ bản dựng; `--at YYYY-MM-DDTHH:mm`) ở cổng cố định 3300, `127.0.0.1`, đồng hồ đóng băng chỉ cho tiến (lưu ở `out/clock.json`), dùng lại bảng điều khiển của sandbox; `/__scenario` liệt kê dàn nhân vật, `/__scenario/as/<tài khoản>` vào thẳng giao diện; lệnh điều khiển `/__scenario/clock|user|reset|state` là tên khác của `/__sandbox/...`, cần `x-scenario-control: 1` hoặc `x-sandbox-control: 1`. `verify.ts` đối chiếu ra `out/report.md`, `out/report.json`.
+- Cần `SCENARIO_PG_CONTROL_URL` trỏ tới PostgreSQL control riêng (`luong_test_control` hoặc `luong_scenario_control`) có quyền `CREATEDB`; không fallback sang `DATABASE_URL` hay `PG_TEST_URL`. `generate.ts [--smoke] [--out-dir <dir>] [--out <file.pgbak.gz>]` tạo snapshot PostgreSQL cùng `events.jsonl`, `cases.json`, `probes.json`; `verify.ts [--db <snapshot.pgbak.gz>] [--out-dir <dir>]` khôi phục và kiểm tra bản sao; `server.ts [--fresh] [--at <local-date>] [--out-dir <dir>]` chạy bản sao làm việc và dọn database riêng khi thoát. Artifacts mặc định nằm ở `scripts/dev/scenarios/out/`; không chỉnh snapshot nguồn.
 
 ### 4.13 Biến môi trường
 
-- **Biến môi trường mã đọc**: `DB_PATH` (bắt buộc), `PORT`, `NODE_ENV`, `COOKIE_SECURE`, `TRUST_PROXY`, `SESSION_SECRET`, `SESSION_DAYS`, `SESSION_COOKIE_NAME`, `ADMIN_PASSWORD`, `AUDIT_KEY`, `ACCESS_LOG`, `WEB_DIST`, `UV_THREADPOOL_SIZE`, `PASSWORD_HASH_CONCURRENCY`, `WRITE_RATE_PER_MINUTE`, `SHED_MAX_LAG_MS`, `SHED_MAX_INFLIGHT`, `PARAMS_ALLOW_ACTIVATE`, `SCHEDULE_ALLOW_EDIT`, `SHIFT_ALLOW_EDIT`; script: `BACKUP_DIR`, `BACKUP_KEEP`, `VERIFY_TMP`, `SANDBOX_PORT`, `SEED_PASSWORD` (`scripts/seed.ts` ở gốc).
+- **Biến môi trường mã đọc**: `DATABASE_URL`, `PG_TEST_URL`, `DRILL_PG_CONTROL_URL`, `DEMO_PG_CONTROL_URL`, `SANDBOX_PG_CONTROL_URL`, `SCENARIO_PG_CONTROL_URL`, `PORT`, `NODE_ENV`, `COOKIE_SECURE`, `TRUST_PROXY`, `SESSION_SECRET`, `SESSION_DAYS`, `SESSION_COOKIE_NAME`, `ADMIN_PASSWORD`, `AUDIT_KEY`, `ACCESS_LOG`, `WEB_DIST`, `UV_THREADPOOL_SIZE`, `PASSWORD_HASH_CONCURRENCY`, `WRITE_RATE_PER_MINUTE`, `SHED_MAX_LAG_MS`, `SHED_MAX_INFLIGHT`, `PARAMS_ALLOW_ACTIVATE`, `SCHEDULE_ALLOW_EDIT`, `SHIFT_ALLOW_EDIT`; script: `BACKUP_DIR`, `BACKUP_KEEP`, `VERIFY_TMP`, `SANDBOX_PORT`, `SEED_PASSWORD`, `SEED_ALLOW_REAL_DB` (`scripts/seed.ts` ở gốc).
 
 ### 4.14 Lệnh npm và cách chạy test
 
 | Lệnh | Làm gì |
 | --- | --- |
-| `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts` (đọc `.env`). |
+| `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts` (đọc `.env`, cần `DATABASE_URL`). |
 | `npm run sandbox` | `scripts/dev/sandbox-server.ts`. |
-| `npm run seed` | `scripts/seed.ts` (không đọc `.env`). |
+| `npm run seed` | `scripts/seed.ts` (không đọc `.env`; cần `DATABASE_URL` và `SEED_ALLOW_REAL_DB=1`). |
 | `npm run seed:demo` | `scripts/db/seed-demo.ts`. |
 | `npm run backup` | `scripts/ops/pg-backup.ts`. |
 | `npm test` | `node --test "test/**/*.test.ts"` (gồm `test/ops`). |
@@ -545,7 +545,7 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | `npm run format` / `format:check` | `prettier --write .` / `--check .` (cả repo). |
 | `npm run params:extract|lock|check|doc` | `scripts/params/*` (mục 4.10). |
 
-Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test không cần `.env`: `test/helpers/api-fixture.ts` đặt `DB_PATH=':memory:'`, `SESSION_SECRET`, bật công tắc Agents. Test API chạy `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.ts` chạy sandbox ở tiến trình con.
+Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test API cần `PG_TEST_URL` trỏ tới control PostgreSQL riêng; `test/helpers/api-fixture.ts` quản lý database tạm cho từng test, `SESSION_SECRET` và công tắc Agents. Test API chạy `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.ts` chạy sandbox ở tiến trình con.
 
 **Ngân sách cỡ file và todo** (`test/tools`)
 - `size-budget.ts`: đếm dòng file `.js .cjs .mjs .html .css` theo `git ls-files -co --exclude-standard` (không có git thì duyệt thư mục, bỏ `node_modules, .git, data, docs, playwright-report, test-results, GFT OFFICE, .claude, backups, ban-giao`). ≤ 800 không báo; 801..1200 chỉ in; > 1200 phải có trong `exceptions` của fixture với trần = bội trăm kế tiếp; `--write` chỉ hạ trần; `--allow-growth [--headroom=N]` cho nâng. Test: `test/unit/file-size-budget.test.ts` (ba kiểm: không file vượt 1.200 ngoài danh sách, file ngoại lệ không vượt trần, ngoại lệ còn đúng thực tế).
@@ -670,7 +670,7 @@ Mọi dòng có `actor`, `actorRoles` (vai trò lúc làm), `requestId` (một U
 
 ## 7. Test hiện có
 
-Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng máy chủ HTTP), `test/api/` (máy chủ thật trên DB RAM qua `api-fixture`), `test/ui/` (logic giao diện chạy trong Node: nạp mô-đun `public/` và đọc văn bản file giao diện), `test/ops/` (script sao lưu), `test/fixtures/` (dữ liệu vàng, bản chụp lược đồ, bảng điều phối, ngân sách cỡ file, baseline todo), `test/helpers/`, `test/tools/`. Tên file có tiền tố ngày (`YYYY-MM-DD-…`) là test theo từng tính năng, không khác loại.
+Bố cục: `test/unit/` (logic thuần và mô-đun dùng chung, không dựng máy chủ HTTP), `test/api/` (máy chủ thật trên PostgreSQL tạm qua `api-fixture`), `test/ui/` (logic giao diện chạy trong Node: nạp mô-đun `public/` và đọc văn bản file giao diện), `test/ops/` (script sao lưu), `test/fixtures/` (dữ liệu vàng, bản chụp lược đồ, bảng điều phối, ngân sách cỡ file, baseline todo), `test/helpers/`, `test/tools/`. Tên file có tiền tố ngày (`YYYY-MM-DD-…`) là test theo từng tính năng, không khác loại.
 
 **Máy chủ, HTTP, giới hạn tải**: test hạ tầng HTTP + DB, test tải pha 0, `security-headers`, `web-dist-static`, `server-logic-regression` (trong `test/api/`); `limiters`, `route-classes`, `compute-cache`, `require-cycles` (trong `test/unit/`).
 
@@ -721,7 +721,7 @@ Chỉ ghi nhận hành vi của mã; không phải danh sách việc đã lên l
 - `MAX_BODY_BYTES = 1e6` viết cứng ở `src/platform/http.ts` (không trong `config`), registry có `system.http.maxBodyBytes`.
 - Hàm trùng: `realResolve`/`isInside` ở `scripts/ops/pg-backup.ts` và `scripts/ops/pg-backup.ts`; chuỗi tên theo giờ VN ở `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`, `scripts/ops/pg-backup.ts`; `vnDayIso` ở `src/modules/audit/audit.helpers.ts`.
 - `test/session-contract-helper.ts` giống hệt `test/helpers/session-contract-helper.ts`.
-- `scripts/seed.ts` ở gốc khác `scripts/seed.ts` (lệnh `npm run seed` chạy bản trong `scripts/`); bản gốc mặc định mật khẩu `'123456'` (hoặc `SEED_PASSWORD`).
+- `scripts/seed.ts` (`npm run seed`) gieo tài khoản mẫu; `scripts/db/seed-demo.ts` (`npm run seed:demo`) dựng bộ dữ liệu demo. Root seed dùng `SEED_PASSWORD` hoặc mật khẩu mặc định `'123456'` cho tài khoản nhân viên.
 
 ### 8.3 Ba cách khoá kỳ
 
