@@ -276,12 +276,29 @@ const ROUTE_CAPS = Object.freeze({
   'GET /employees/:uuid/trace': readCap('audit.read'),
   // Sổ phép lưu sẵn: chính mình hoặc profile.read (handler kiểm); tính lại ngay cần profile.write
   'GET /leave/ledger': { cap: 'self-or:profile.read' },
-  'POST /leave/refresh': write(readCap('profile.write'))
+  'POST /leave/refresh': write(readCap('profile.write')),
+  // Employee V2
+  'GET /v2/employees': readCap('profile.read'),
+  'GET /v2/employees/:username': readCap('profile.read'),
+  'POST /v2/employees': write(readCap('profile.write')),
+  'PUT /v2/employees/:username': write(readCap('profile.write')),
+  'DELETE /v2/employees/:username': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/profile': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/account': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/contract': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/position': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/shift': write(readCap('profile.write')),
+  'PATCH /v2/employees/:username/leave': write(readCap('profile.write'))
 });
 
 /* ---------- tra cứu ---------- */
 // Khoá chính sách của một yêu cầu: seg = đoạn đường dẫn ['api', ...]
 function routeKey(method?, seg?) {
+  if (seg[1] === 'v2' && seg[2] === 'employees') {
+    if (seg.length === 3) return `${method} /v2/employees`;
+    if (seg.length === 4) return `${method} /v2/employees/:username`;
+    if (seg.length === 5) return `${method} /v2/employees/:username/${seg[4]}`;
+  }
   // Kỳ lương: /api/periods/<tháng>[/<bước>[/<tên đăng nhập | decide>]]; tháng sai dạng cho handler trả 400 BAD_MONTH
   if (seg[1] === 'periods' && seg.length >= 3 && seg.length <= 5) {
     if (seg.length === 3) return `${method} /periods/:month`;

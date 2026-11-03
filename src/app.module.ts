@@ -21,6 +21,7 @@ import { BlocksModule } from './modules/blocks';
 import { PositionsModule } from './modules/positions';
 import { CatalogModule } from './modules/catalog';
 import { EmployeesModule } from './modules/employees';
+import { EmployeeV2Module } from './modules/employee-v2';
 import { LeaveModule } from './modules/leave';
 import { AdvanceModule } from './modules/advance';
 import { ExplanationsModule } from './modules/explanations';
@@ -46,6 +47,7 @@ const FEATURE_MODULES = [
   PositionsModule,
   CatalogModule,
   EmployeesModule,
+  EmployeeV2Module,
   LeaveModule,
   AdvanceModule,
   ExplanationsModule,
