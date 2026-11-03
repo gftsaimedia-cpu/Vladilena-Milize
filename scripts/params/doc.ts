@@ -5,7 +5,6 @@
 //   node scripts/params/doc.ts --check <tệp>    thoát 1 nếu tệp khác bản dựng từ registry
 //   node scripts/params/doc.ts --json           in registry dạng JSON gọn (để xuất .docx)
 const fs = require('node:fs');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const Params = require('../../src/engine/payroll-params');
 const registry = require('../../src/params/registry');
 const { fmt } = require('../../src/params/validate');

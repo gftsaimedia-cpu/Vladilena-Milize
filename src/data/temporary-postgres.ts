@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const { Pool } = require('pg');
 
-const PURPOSES = new Set(['test', 'sandbox', 'drill', 'scenario']);
+const PURPOSES = new Set(['test', 'sandbox', 'drill', 'scenario', 'demo']);
 
 /** Sở hữu một database tạm do chính tiến trình này tạo trên máy chủ PostgreSQL được chỉ định. */
 class TemporaryPostgres {

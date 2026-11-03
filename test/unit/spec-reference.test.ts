@@ -8,6 +8,21 @@ const { spawnSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '../..');
 
+test('spec generator loads route policy without configuring a database', () => {
+  const result = spawnSync(
+    process.execPath,
+    ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/docs/gen-spec.ts'), '--check'],
+    {
+      encoding: 'utf8',
+      cwd: ROOT,
+      env: { ...process.env, DATABASE_URL: undefined, DB_PATH: undefined, PG_TEST_URL: undefined }
+    }
+  );
+  assert.notEqual(result.status, null, result.error?.message);
+  assert.doesNotMatch(result.stderr, /Chưa chọn cơ sở dữ liệu/);
+  assert.match(result.stderr, /spec\/reference lệch so với mã|spec\/reference khớp mã/);
+});
+
 test('spec/reference khớp mã (npm run spec:gen nếu đỏ)', { timeout: 120000 }, () => {
   const result = spawnSync(
     process.execPath,

@@ -39,6 +39,17 @@ test('creates a separate database and removes it after use', async () => {
   await temporary.close();
 });
 
+test('creates an explicitly named demo database and removes only that owned database', async () => {
+  const temporary = await TemporaryPostgres.create(testUrl, 'demo');
+  try {
+    assert.match(temporary.name, /^luong_demo_[0-9a-f]{24}$/);
+    assert.equal(await exists(temporary.name), true);
+  } finally {
+    await temporary.close();
+  }
+  assert.equal(await exists(temporary.name), false);
+});
+
 test('a name collision never removes the previously created database', async () => {
   const originalRandom = crypto.randomBytes;
   const bytes = originalRandom(12);

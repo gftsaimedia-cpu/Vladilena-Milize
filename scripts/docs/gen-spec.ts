@@ -3,7 +3,6 @@
 //   node scripts/docs/gen-spec.ts            ghi lại các file
 //   node scripts/docs/gen-spec.ts --check    thoát 1 nếu file trên đĩa khác bản dựng từ mã (test/unit/spec-reference.test.ts gọi chế độ này)
 // Mỗi mục dẫn tới file thật (đường dẫn#ký hiệu hoặc đường dẫn:dòng — dòng do chính script tính nên luôn đúng lúc sinh).
-process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = process.env.SESSION_SECRET || 'spec-gen';
 const fs = require('node:fs');
 const path = require('node:path');
@@ -234,7 +233,7 @@ function configDoc() {
 /* ---------- 8. tham số lương ---------- */
 function paramsDoc() {
   const { execFileSync } = require('node:child_process');
-  const body = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/params/doc.ts')], { encoding: 'utf8', env: { ...process.env, DB_PATH: ':memory:' } });
+  const body = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', path.join(ROOT, 'scripts/params/doc.ts')], { encoding: 'utf8', env: { ...process.env, DB_PATH: undefined, PG_TEST_URL: undefined } });
   // Khoá đã bỏ (lớp "bỏ") không còn là tham số nên không liệt kê (test/unit/no-month-rules.test.ts cấm tên các công tắc theo tháng cũ trong spec)
   const live = body
     .replace(/\r\n/g, '\n')

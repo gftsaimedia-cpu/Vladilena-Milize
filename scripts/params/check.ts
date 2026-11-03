@@ -11,7 +11,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { readAsJs } = require('../dev/ts-source');
 const { extract, sources, ROOT } = require('./extract-defaults');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/params/store.ts kéo src/platform/db; script này không chạm DB thật
+// Registry/code validation is static; do not configure or load a database for this command.
 
 const Params = require(path.join(ROOT, 'src/engine/payroll-params'));
 const registry = require(path.join(ROOT, 'src/params/registry.ts'));

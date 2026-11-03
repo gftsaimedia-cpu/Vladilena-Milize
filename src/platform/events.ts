@@ -10,11 +10,11 @@
 // Payload chỉ là GỢI Ý NẠP LẠI: không tên, tiền, lý do tự do, giá trị tham số, mã băm. Mọi tin có thể mất hoặc lặp; không phát lại tin lỡ
 // (Last-Event-ID chỉ để biết đây là lần nối lại: gửi hello rồi resync).
 const { AsyncList } = require('../shared/async-list');
-const store = require('./db');
-const auth = require('./auth');
+const getStore = () => require('./db');
+const getAuth = () => require('./auth');
 const authz = require('./authz');
 const config = require('./config');
-const configRev = require('../params/config-rev');
+const getConfigRev = () => require('../params/config-rev');
 const registry = require('../params/registry');
 
 const MS_PER_SEC = 1000; // đơn vị, không phải tham số
@@ -78,7 +78,7 @@ function configure(next: any = {}) {
 
 /* ========================= khung SSE ========================= */
 let seq = 0;
-const nextId = () => `${configRev.EPOCH}-${++seq}`;
+const nextId = () => `${getConfigRev().EPOCH}-${++seq}`;
 const frame = (event?, data?, { id, retry }: any = {}) =>
   (retry ? `retry: ${retry}\n` : '') + (id ? `id: ${id}\n` : '') + `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -210,7 +210,7 @@ async function publish(name?, payload?, audience?) {
       : [...conns];
   for (const conn of targets) {
     try {
-      if (!fresh.has(conn.username)) fresh.set(conn.username, (await store.getStaff(conn.username)) || null);
+      if (!fresh.has(conn.username)) fresh.set(conn.username, (await getStore().getStaff(conn.username)) || null);
       const me = fresh.get(conn.username);
       if (!me || me.locked) {
         drop(conn, { reason: 'session' });
@@ -288,7 +288,7 @@ const emit = Object.freeze({
   approvalsChanged: async (month?) =>
     await publish(
       'approvals.changed',
-      { month, pending: (await store.approvals.list({ status: 'pending' })).length },
+      { month, pending: (await getStore().approvals.list({ status: 'pending' })).length },
       { cap: authz.DECIDE_ALL, scope: 'all' }
     ),
   // kind: 'forgot' | 'ot' | 'punch' (có người Check-in / Check-out hoặc lượt quá hạn được đóng tự động)
@@ -356,8 +356,8 @@ async function handleSse(req?, res?, me?, opts: any = {}) {
     checkSession:
       opts.checkSession ||
       (async () => {
-        const user = await auth.readSession(cookie);
-        return user && user === me.username ? await store.getStaff(user) : null;
+        const user = await getAuth().readSession(cookie);
+        return user && user === me.username ? await getStore().getStaff(user) : null;
       })
   };
   // trần mỗi người: kết nối thứ (maxPerUser + 1) đóng kết nối cũ nhất của người đó
@@ -385,7 +385,7 @@ async function handleSse(req?, res?, me?, opts: any = {}) {
     res.on('close', cleanup);
     res.on('error', cleanup);
   }
-  const info = await configRev.info();
+  const info = await getConfigRev().info();
   write(
     conn,
     frame(

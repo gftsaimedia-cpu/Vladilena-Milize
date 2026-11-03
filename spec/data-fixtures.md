@@ -1,30 +1,29 @@
 # Bộ dữ liệu thử đủ mọi trường hợp (demo)
 
-Một lệnh dựng ra một DB đầy đủ để thử bằng tay hoặc chạy test: nhân sự giả phủ 111 ca, chấm công, lịch khai, khoản chờ duyệt, KPI, rồi các thao tác vận hành đi qua **route thật** của máy chủ (vai trò, tham số, khoản điền thêm, giải trình, tạm ứng, sổ phép, kỳ lương ở mọi trạng thái). Toàn bộ là người giả (`demo_*`), không có dữ liệu thật.
+Seed demo tạo dữ liệu giả trên một database PostgreSQL trống, được chỉ rõ bằng `DATABASE_URL`; dữ liệu gồm nhân sự, chấm công, khoản chờ duyệt, KPI và các thao tác đi qua **route thật** của máy chủ. Các công cụ kiểm kỳ và chạy server đọc snapshot `.pgbak.gz`, khôi phục snapshot vào database tạm riêng rồi tự dọn database đó. Toàn bộ là người giả (`demo_*`), không có dữ liệu thật.
 
 ## Dựng
 
 | Việc | Lệnh |
 | --- | --- |
-| PostgreSQL trong tiến trình (PGlite), lưu thư mục | `npm run seed:demo` → `data/demo` (hoặc `--db=<thư mục>`; `DB_PATH` cũng được) |
-| PostgreSQL trong RAM (PGlite) | `node scripts/dev/ts.cjs scripts/db/seed-demo.ts --db=:memory:` |
-| PostgreSQL máy chủ | `DATABASE_URL=postgres://… node scripts/dev/ts.cjs scripts/db/seed-demo.ts --confirm-demo-db` — chỉ vào DB **mới** (chưa có nhân sự); từ chối DB đã có nhân sự; không bao giờ xoá gì trên máy chủ |
-| Xem CSV | `node scripts/dev/ts.cjs scripts/db/seed-demo.ts --export` → `data/demo/*.csv` |
+| Seed vào database demo mới | Đặt `DATABASE_URL` tới database PostgreSQL mới, trống rồi chạy `npm run seed:demo -- --confirm-demo-db` |
+| Tạo snapshot để chia sẻ hoặc chạy công cụ demo | `npm run pg:backup -- --source="$env:DATABASE_URL" --dir=backups/demo` |
+| Xem CSV | `npm run seed:demo -- --confirm-demo-db --export` → `data/demo/*.csv` |
 
-Cờ: `--today=YYYY-MM-DD` (mặc định 2026-11-26 12:00 giờ VN; chỉ bản mặc định được đòi mọi kỳ vọng AI đạt), `--scale=N` (thêm N nhân sự nền thử hiệu năng), `--no-check` (bỏ tự kiểm AI), `--no-lifecycle` (bỏ lớp vận hành), `--no-coverage` (bỏ đo độ phủ), `--coverage-json=<file>` (ghi kết quả đo độ phủ). Mật khẩu mọi tài khoản demo: `DEMO_PASSWORD` hoặc mặc định ghi đầu `scripts/db/seed-demo.ts`. An toàn: từ chối đường dẫn trông như DB lương thật (`.../luong`); chỉ ghi vào thư mục mới, thư mục rỗng hoặc thư mục demo (khoá `demo_dataset`); với `DATABASE_URL` thì chỉ vào DB mới.
+Cờ seed: `--today=YYYY-MM-DD` (mặc định 2026-11-26), `--scale=N` (thêm N nhân sự nền thử hiệu năng), `--no-lifecycle`, `--no-coverage`, `--coverage-json=<file>`, `--export` và `--out=<dir>`. Mật khẩu tài khoản demo: `DEMO_PASSWORD` hoặc mật khẩu mặc định ghi đầu `scripts/db/seed-demo.ts`. Seed bắt buộc `DATABASE_URL` và `--confirm-demo-db`; kiểm tra database chưa có schema hay quan hệ người dùng trước khi nạp ứng dụng/migration. Không nhận `DB_PATH`/`--db`, không ghi đè hoặc xoá database đã có; để dựng lại, tạo database mới.
 
 Mã thoát: 0 = mọi kỳ vọng đạt; 2 = kỳ vọng AI hoặc đồng hồ lệch; 3 = lớp vận hành có bước lỗi; 4 = độ phủ thiếu.
 
 ## Ba lớp
 
 1. **Persona** (`scripts/db/demo/scenarios.ts` → `scripts/db/demo/generate.ts`): 71 nhân sự + 2 Admin, mỗi persona khai các ca (`CASES`, 111 ca: S hồ sơ, C lịch và duyệt, K KPI, T thuế và BH, A Check-in/out, B bất thường, P kỳ lương) và kỳ vọng (`expect`, `ai.fire/miss`, `unreasonable`). 14 persona "bất thường" cố ý (hồ sơ hỏng, loại ngoài bảng, thiếu ngày vào làm...). Dựng bằng `store` dưới đồng hồ giả từng sự kiện nên `created_at`, `decided_at`… đúng thứ tự.
-3. **Lớp vận hành** (`demo/lifecycle.ts`, gọi route thật trong cùng tiến trình): bật Agents và luật AI "Khai sau hạn"; gán vai trò `hr`/`cb`/`accounting`/`manager`, thu hồi một vai trò, tạo hai vai trò tuỳ chỉnh (một ngưng dùng); khoản điền thêm (chờ, duyệt, từ chối, huỷ, lô, khoản trừ lớn làm thực nhận âm); từ chối khoản chờ duyệt đủ mọi loại; giải trình (yêu cầu của Admin, của AI, trả lời, duyệt, từ chối, Check-out muộn qua `POST /punch` kèm `requestId`); tạm ứng (xin, duyệt, từ chối, huỷ duyệt, rút — ở cửa sổ ngày 16); sổ phép; **kỳ lương ở mọi trạng thái**: 04 `attendance_locked`, 05 `calculated`, 06 chốt rồi mở lại (`open`), 07 `paid`, 08 `approved`, 09 `paid` → mở lại → tính lần hai (`run_no` 2, phiếu lần một thành lịch sử), 10 `reviewed`, 11 chưa có dòng (mở); số sửa phiếu; bỏ qua một phát hiện AI; lịch sử yêu cầu ứng lương cũ (bảng chỉ còn đọc, nạp thẳng đủ bốn trạng thái).
+3. **Lớp vận hành** (`scripts/db/demo/lifecycle.ts`, gọi route thật trong cùng tiến trình): gán vai trò, tạo khoản điền thêm, giải trình, tạm ứng, sổ phép và dựng các trạng thái kỳ lương. Các luồng nghiệp vụ không đổi khi database demo chuyển sang PostgreSQL.
 
 ## Độ phủ và cách giữ
 
-`scripts/db/demo/coverage.ts` đo trên DB vừa dựng và đối chiếu với vũ trụ ca **rút từ mã**: mọi bảng của `migrations/postgres` có dòng (29/29); mọi giá trị của mọi ràng buộc `CHECK (cột IN (...))` xuất hiện (48 giá trị); mọi trạng thái kỳ lương và có kỳ tính lần hai; mọi chức vụ × bậc và mọi ca có người; mọi vai trò mặc định có người và có vai trò bị thu hồi; vai trò tuỳ chỉnh có cả loại ngưng dùng; mọi loại khoản duyệt còn dùng (`isat`, `approved`, `ot`, `makeup_hours`, `leave`, `willmakeup`) × `pending`/`approved`/`rejected`.
+`scripts/db/demo/coverage.ts` đo trên database vừa dựng và đối chiếu với vũ trụ ca **rút từ mã**: mọi bảng, giá trị CHECK, trạng thái kỳ lương, chức vụ × bậc và loại khoản duyệt còn dùng.
 
-Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.ts` thoát 4 và `test/db/demo-coverage.test.ts` đỏ (chạy trên PGlite, hoặc trên máy chủ thật khi đặt `PG_TEST_URL`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED` (hiện 3):
+Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có dữ liệu demo thì `seed-demo.ts` thoát 4 và `test/db/demo-coverage.test.ts` đỏ (test tự tạo database PostgreSQL riêng từ `PG_TEST_URL`). Chỗ cố ý không phủ phải ghi lý do trong `EXCLUDED`:
 
 | Giá trị | Lý do |
 | --- | --- |
@@ -34,6 +33,6 @@ Thêm bảng, trạng thái, chức vụ hay loại khoản mới mà chưa có 
 
 ## Dùng để thử các tình huống
 
-- Mở giao diện Vue (`web/`) trỏ vào máy chủ chạy trên DB demo (`DB_PATH=data/demo npm start`) rồi đăng nhập `demo_admin` hoặc một `demo_*`.
-- Soát nhanh một kỳ: `node scripts/dev/ts.cjs scripts/db/demo/period-check.ts --db=data/demo --month=2026-10 --full` (chạy trên bản sao, không ghi vào DB nguồn).
-- Dựng một DB demo rồi sao lưu/khôi phục thử: `npm run pg:backup` / `pg:drill` (xem `platform.md`).
+- Chạy demo trên snapshot: đặt `DEMO_PG_CONTROL_URL` tới control database dành riêng cho demo, rồi chạy `node scripts/dev/ts.cjs scripts/db/demo/serve-demo.ts --snapshot=backups/demo/<file>.pgbak.gz`. Server chỉ nghe `127.0.0.1`; dừng bằng Ctrl+C để dọn database tạm.
+- Soát một kỳ trên bản sao: `node scripts/dev/ts.cjs scripts/db/demo/period-check.ts --snapshot=backups/demo/<file>.pgbak.gz --month=2026-10 --full --keep=test-results/period-check.pgbak.gz`. `--keep` phải là file `.pgbak.gz` mới; công cụ không ghi đè file đã có.
+- Database nguồn và snapshot không bị thay đổi. Tạo/kiểm snapshot bằng `npm run pg:backup`, `npm run pg:verify` và `npm run pg:drill` (xem `platform.md`).
