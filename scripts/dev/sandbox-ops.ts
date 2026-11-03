@@ -199,7 +199,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
   }
 
   // Chạy một script ops ở tiến trình con và đợi xong (một lần một việc)
-  function runTool(action?, name?, script?, args?) {
+  function runTool(action?, name?, script?, args?, extraEnv: any = {}) {
     if (toolRunning) throw fail(409, 'Đang chạy một việc kiểm/khôi phục; chờ xong');
     toolRunning = true;
     const lines: any[] = [];
@@ -210,7 +210,7 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
         ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts', 'ops', script), ...args],
         {
           cwd: project,
-          env: { ...process.env, VERIFY_TMP: workDir },
+          env: { ...process.env, ...extraEnv, VERIFY_TMP: workDir },
           stdio: ['ignore', 'pipe', 'pipe']
         }
       );
@@ -245,7 +245,9 @@ function createOps({ store, auth, project, getPort, getLocalMonth, limits }: any
   const verify = (data?) =>
     runTool('verify', data.name, 'pg-backup.js', ['verify', `--backup=${findBackup(data.name).file}`]);
   const drill = (data?) =>
-    runTool('drill', data.name, 'pg-backup.js', ['drill', `--backup=${findBackup(data.name).file}`]);
+    runTool('drill', data.name, 'pg-backup.js', ['drill', `--backup=${findBackup(data.name).file}`], {
+      DRILL_PG_CONTROL_URL: process.env.SANDBOX_PG_CONTROL_URL || ''
+    });
 
   /* ---------- đọc trạng thái ---------- */
   function fetchHealth() {

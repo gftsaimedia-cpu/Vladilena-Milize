@@ -4,16 +4,16 @@
  *
  *   node scripts/ops/pg-backup.ts backup  [--source=<DB>] [--dir=<thư-mục>] [--keep=<n>]
  *   node scripts/ops/pg-backup.ts verify  --backup=<file>
- *   node scripts/ops/pg-backup.ts drill   --backup=<file>
+ *   DRILL_PG_CONTROL_URL=postgres://…/luong_drill_control node scripts/ops/pg-backup.ts drill --backup=<file>
  *   node scripts/ops/pg-backup.ts restore --backup=<file> --to=<DB mới> --confirm-new-empty-db
  *
- * <DB>: postgres://user:pass@host/db  |  pglite:<thư-mục>  |  memory (chỉ cho restore/drill).
+ * <DB>: postgres://user:pass@host/db. Drill cần DRILL_PG_CONTROL_URL của control database riêng.
  * Mặc định --source = biến DATABASE_URL; --dir = BACKUP_DIR hoặc ./backups (đã nằm trong .gitignore); --keep = BACKUP_KEEP hoặc 30.
  * Không đọc .env. Không bao giờ in dữ liệu hay mật khẩu (URL được che). Mã thoát: 0 đạt, 1 lỗi hoặc không đạt.
  *
  * backup  : ảnh chụp nhất quán (giao dịch REPEATABLE READ chỉ đọc) → file luong-YYYYMMDD-HHMMSS.pgbak.gz; tự kiểm lại file rồi mới giữ.
  * verify  : đọc cả file, tính lại số dòng và dấu vân tay từng bảng.
- * drill   : khôi phục vào PGlite trong RAM rồi bỏ (không đụng DB nào), đối chiếu từng bảng và tổng tiền từng kỳ lương.
+ * drill   : khôi phục vào PostgreSQL tạm rồi dọn; đối chiếu từng bảng và tổng tiền kỳ lương.
  * restore : chỉ vào DB MỚI (đã chạy migration, chưa có dữ liệu); một giao dịch, lệch là hoàn tác. Cần cờ --confirm-new-empty-db.
  */
 const path = require('node:path');
@@ -58,9 +58,9 @@ async function main() {
       return r.ok ? 0 : 1;
     }
     if (command === 'drill') {
-      const r = await drill(file);
+      const r = await drill(file, process.env.DRILL_PG_CONTROL_URL);
       console.log(
-        `Diễn tập khôi phục vào PGlite trong RAM: ${r.tables} bảng, ${r.rows} dòng, ${r.tookMs} ms; dấu vân tay từng bảng và tổng tiền kỳ lương khớp. KẾT QUẢ: ĐẠT.`
+        `Diễn tập khôi phục PostgreSQL: ${r.tables} bảng, ${r.rows} dòng, ${r.tookMs} ms; dấu vân tay từng bảng và tổng tiền kỳ lương khớp. KẾT QUẢ: ĐẠT.`
       );
       return 0;
     }
