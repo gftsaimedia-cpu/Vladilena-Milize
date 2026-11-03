@@ -29,7 +29,6 @@ const CHIPS = [
   ['ctv', 'Chuyên trách viên', 'ctv'],
   ['nv', 'Nhân viên', 'nv']
 ];
-const MARK_TEXT: Record<string, any> = {};
 const SESSION_LABEL: Record<string, string> = {
   in: 'Có lượt Check-in',
   ok: 'Có lượt Check-out, được duyệt hoặc do Admin chấm',
@@ -93,6 +92,26 @@ function cellCls(cell?: any): string {
   if (cell?.k === 'ok') return 'c-ok';
   return '';
 }
+function hasDot(cell?: any): boolean {
+  return Boolean(cell && (cell.k || cell.declared));
+}
+function dotCls(cell?: any): string {
+  if (!cell) return '';
+  if (cell.k === 'w') return 'w';
+  if (cell.k === 'q') return 'q';
+  if (cell.declared?.code === 'leave') return 'leave';
+  if (cell.declared?.code === 'extra') return 'extra';
+  if (cell.k === 'in') return 'in';
+  if (cell.k === 'ok') return 'ok';
+  return '';
+}
+function cellTooltip(cell?: any): string {
+  if (!cell) return '';
+  const parts: string[] = [];
+  if (cell.declared?.label) parts.push(cell.declared.label);
+  if (cell.k && SESSION_LABEL[cell.k]) parts.push(SESSION_LABEL[cell.k]);
+  return parts.join(' · ');
+}
 const heading = computed(() => `Bảng công tháng ${Number(month.value.slice(5))}`);
 const range = computed(() => {
   const last = days.value.length;
@@ -133,8 +152,17 @@ function onSaved() {
 <template>
   <section class="card">
     <div class="card-h">
-      <h2>{{ heading }}</h2>
-      <span class="cap">{{ range }}</span>
+      <div>
+        <h2>{{ heading }}</h2>
+        <span class="cap">{{ range }}</span>
+      </div>
+      <div class="color-note" aria-label="Chú thích màu trạng thái">
+        <span class="c-item"><span class="c-dot d-ok" />Có mặt</span>
+        <span class="c-item"><span class="c-dot d-leave" />Nghỉ</span>
+        <span class="c-item"><span class="c-dot d-extra" />Làm thêm</span>
+        <span class="c-item"><span class="c-dot d-pending" />Chờ duyệt</span>
+        <span class="c-item"><span class="c-dot d-rejected" />Vắng</span>
+      </div>
     </div>
     <div class="tools">
       <button
@@ -197,21 +225,11 @@ function onSaved() {
               @click="picked = { id: r.id, date: c.date }"
             >
               <span
-                v-if="r.cells[c.date]?.declared"
-                class="declared"
-                :class="'tag-' + (r.cells[c.date]?.declared?.code || 'default')"
-                :title="r.cells[c.date].declared.label"
-                >{{ r.cells[c.date].declared.text }}</span
-              >
-              <span
-                v-if="r.cells[c.date]?.k"
+                v-if="hasDot(r.cells[c.date])"
                 class="m"
-                :class="r.cells[c.date].k"
-                :title="SESSION_LABEL[r.cells[c.date].k] || 'Có lượt chấm công'"
-                >{{
-                r.cells[c.date].t || MARK_TEXT[r.cells[c.date].k]
-              }}</span
-              >
+                :class="dotCls(r.cells[c.date])"
+                :title="cellTooltip(r.cells[c.date])"
+              />
             </button>
           </td>
           <td class="sum" :class="{ z: !r.present }">{{ r.present }}</td>
@@ -232,6 +250,35 @@ function onSaved() {
 </template>
 
 <style scoped>
+.card-h {
+  align-items: center;
+}
+.card-h > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.color-note {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.c-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  color: var(--text);
+}
+.c-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
 .bc {
   table-layout: fixed;
   width: 100%;
@@ -330,9 +377,6 @@ function onSaved() {
 .cell {
   display: grid;
   place-items: center;
-  align-content: center;
-  grid-template-rows: auto auto;
-  gap: 1px;
   width: 100%;
   height: 47px;
   padding: 0;
@@ -350,62 +394,37 @@ function onSaved() {
   outline-offset: -2px;
 }
 .m {
-  display: inline-grid;
-  place-items: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: middle;
-}
-.declared {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-}
-.tag-leave {
-  background: #e0f2fe;
-  color: #0284c7;
-  border: 1px solid #bae6fd;
-}
-.tag-extra {
-  background: #ede9fe;
-  color: #6d28d9;
-  border: 1px solid #ddd6fe;
-}
-.m.ok {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  display: block;
+}
+.d-ok,
+.m.ok {
   background: #10b981;
   box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
+.d-leave,
+.m.leave {
+  background: #0284c7;
+  box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+.d-extra,
+.m.extra {
+  background: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+.d-pending,
 .m.w {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
   background: #f59e0b;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
 }
+.d-rejected,
 .m.q {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
   background: #ef4444;
   box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
 }
 .m.in {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
   background: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
