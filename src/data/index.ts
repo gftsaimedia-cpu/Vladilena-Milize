@@ -53,3 +53,6 @@ export type {
 } from './catalog.repository';
 export { PayEntriesRepository, AdvanceRequestsRepository } from './pay.repository';
 export type { PayEntryRow, AdvanceRequestRow } from './pay.repository';
+export { RequestV2Repository } from './request-v2.repository';
+export type { RequestListFilter } from './request-v2.repository';
+

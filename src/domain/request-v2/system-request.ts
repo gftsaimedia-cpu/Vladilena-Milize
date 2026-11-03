@@ -292,7 +292,7 @@ export class SystemRequest {
     return this;
   }
 
-  cancel(cancellerId: string): SystemRequest {
+  cancel(cancellerId: string, reason?: string): SystemRequest {
     if (this.status !== 'PENDING') {
       throw new Error(`Cannot cancel request with status '${this.status}'; must be 'PENDING'`);
     }
@@ -302,6 +302,9 @@ export class SystemRequest {
     }
 
     this.status = 'CANCELLED';
+    if (reason && reason.trim().length > 0) {
+      this.reviewNote = reason.trim();
+    }
     this.updatedAt = new Date();
     return this;
   }
