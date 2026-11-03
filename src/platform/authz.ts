@@ -288,7 +288,16 @@ const ROUTE_CAPS = Object.freeze({
   'PATCH /v2/employees/:username/contract': write(readCap('profile.write')),
   'PATCH /v2/employees/:username/position': write(readCap('profile.write')),
   'PATCH /v2/employees/:username/shift': write(readCap('profile.write')),
-  'PATCH /v2/employees/:username/leave': write(readCap('profile.write'))
+  'PATCH /v2/employees/:username/leave': write(readCap('profile.write')),
+  // Request V2
+  'GET /v2/requests': A,
+  'GET /v2/requests/:id': A,
+  'POST /v2/requests/leave': write(A),
+  'POST /v2/requests/correction': write(A),
+  'POST /v2/requests/overtime': write(A),
+  'POST /v2/requests/advance': write(A),
+  'PATCH /v2/requests/:id/review': write(readCap(DECIDE_ALL)),
+  'PATCH /v2/requests/:id/cancel': write(A)
 });
 
 /* ---------- tra cứu ---------- */
@@ -298,6 +307,14 @@ function routeKey(method?, seg?) {
     if (seg.length === 3) return `${method} /v2/employees`;
     if (seg.length === 4) return `${method} /v2/employees/:username`;
     if (seg.length === 5) return `${method} /v2/employees/:username/${seg[4]}`;
+  }
+  if (seg[1] === 'v2' && seg[2] === 'requests') {
+    if (seg.length === 3) return `${method} /v2/requests`;
+    if (seg.length === 4) {
+      if (method === 'POST') return `${method} /v2/requests/${seg[3]}`;
+      return `${method} /v2/requests/:id`;
+    }
+    if (seg.length === 5) return `${method} /v2/requests/:id/${seg[4]}`;
   }
   // Kỳ lương: /api/periods/<tháng>[/<bước>[/<tên đăng nhập | decide>]]; tháng sai dạng cho handler trả 400 BAD_MONTH
   if (seg[1] === 'periods' && seg.length >= 3 && seg.length <= 5) {
