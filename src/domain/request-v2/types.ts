@@ -1,4 +1,10 @@
-export type RequestType = 'LEAVE' | 'TIME_CORRECTION' | 'OVERTIME' | 'ADVANCE';
+export type RequestType =
+  | 'LEAVE'
+  | 'TIME_CORRECTION'
+  | 'OVERTIME'
+  | 'ADVANCE'
+  | 'SHIFT_CHANGE'
+  | 'LEAVE_WITH_MAKEUP';
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
@@ -39,6 +45,13 @@ export interface SystemRequestProps {
   // ADVANCE
   advanceAmount?: bigint | number | null;
   advancePeriod?: string | null;
+
+  // SHIFT_CHANGE & MAKEUP
+  newShiftType?: string | null;
+  newStartTime?: string | null;
+  newEndTime?: string | null;
+  makeupStartTime?: string | null;
+  makeupEndTime?: string | null;
 }
 
 export interface CreateLeaveParams {
@@ -49,6 +62,26 @@ export interface CreateLeaveParams {
   startDate: string;
   endDate: string;
   daysCount: number;
+}
+
+export interface CreateShiftChangeParams {
+  employeeId: string;
+  title: string;
+  reason: string;
+  changeDate: string;
+  newShiftType: string;
+  newStartTime: string;
+  newEndTime: string;
+}
+
+export interface CreateLeaveWithMakeupParams {
+  employeeId: string;
+  title: string;
+  reason: string;
+  leaveDate: string;
+  makeupDate: string;
+  makeupStartTime: string;
+  makeupEndTime: string;
 }
 
 export interface CreateCorrectionParams {
@@ -107,6 +140,12 @@ export interface SystemRequestRow {
 
   advance_amount: string | number | null;
   advance_period: string | null;
+
+  new_shift_type?: string | null;
+  new_start_time?: string | null;
+  new_end_time?: string | null;
+  makeup_start_time?: string | null;
+  makeup_end_time?: string | null;
 }
 
 export interface SystemRequestDTO {
@@ -138,4 +177,10 @@ export interface SystemRequestDTO {
 
   advanceAmount: number | string | null;
   advancePeriod: string | null;
+
+  newShiftType?: string | null;
+  newStartTime?: string | null;
+  newEndTime?: string | null;
+  makeupStartTime?: string | null;
+  makeupEndTime?: string | null;
 }

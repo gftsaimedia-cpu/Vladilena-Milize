@@ -2,7 +2,39 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { RequestV2Service } from '../../src/modules/request-v2/request-v2.service';
 import { RequestV2Repository, RequestListFilter } from '../../src/data/request-v2.repository';
+import { AttendanceV2Repository } from '../../src/data/attendance-v2.repository';
+import { WorkSchedule } from '../../src/domain/attendance-v2';
 import { SystemRequest } from '../../src/domain/request-v2';
+
+class InMemoryAttendanceV2Repository extends AttendanceV2Repository {
+  private schedules: Map<string, WorkSchedule> = new Map();
+
+  constructor() {
+    super(null as any);
+  }
+
+  override async saveSchedule(schedule: WorkSchedule): Promise<void> {
+    this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
+  }
+
+  override async findSchedule(employeeId: string, workDate: string): Promise<WorkSchedule | null> {
+    return this.schedules.get(`${employeeId}:${workDate}`) ?? null;
+  }
+
+  override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
+    const existing = await this.findSchedule(employeeId, workDate);
+    if (existing) return existing;
+    const def = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'NORMAL',
+      plannedStartTime: '08:00',
+      plannedEndTime: '17:00'
+    });
+    await this.saveSchedule(def);
+    return def;
+  }
+}
 
 class InMemoryRequestV2Repository extends RequestV2Repository {
   private requests: Map<string, SystemRequest> = new Map();
@@ -507,6 +539,114 @@ describe('RequestV2Service', () => {
       const page = await service.listRequests({ limit: 1, offset: 0 });
       assert.equal(page.items.length, 1);
       assert.equal(page.total, 3);
+    });
+  });
+
+  describe('Schedule Synchronization on Review Approval', () => {
+    test('SHIFT_CHANGE request approval synchronizes new shift hours to work_schedules', async () => {
+      const requestRepo = new InMemoryRequestV2Repository();
+      const attendanceRepo = new InMemoryAttendanceV2Repository();
+      const service = new RequestV2Service(requestRepo, attendanceRepo);
+
+      const req = await service.createShiftChangeRequest({
+        employeeId: EMP_ID,
+        title: 'Đổi sang ca FLEX',
+        reason: 'Có việc gia đình',
+        changeDate: '2026-11-03',
+        newShiftType: 'FLEX',
+        newStartTime: '06:00',
+        newEndTime: '15:00'
+      });
+
+      await service.reviewRequest(req.id, REVIEWER_ID, 'APPROVE');
+
+      const schedule = await attendanceRepo.findSchedule(EMP_ID, '2026-11-03');
+      assert.ok(schedule);
+      assert.equal(schedule.shiftType, 'FLEX');
+      assert.equal(schedule.plannedStartTime, '06:00');
+      assert.equal(schedule.plannedEndTime, '15:00');
+      assert.equal(schedule.scheduleType, 'SHIFT_CHANGE');
+      assert.equal(schedule.sourceRequestId, req.id);
+    });
+
+    test('LEAVE_WITH_MAKEUP request approval marks leave date ON_LEAVE and makeup date MAKE_UP', async () => {
+      const requestRepo = new InMemoryRequestV2Repository();
+      const attendanceRepo = new InMemoryAttendanceV2Repository();
+      const service = new RequestV2Service(requestRepo, attendanceRepo);
+
+      const req = await service.createLeaveWithMakeupRequest({
+        employeeId: EMP_ID,
+        title: 'Nghỉ làm bù',
+        reason: 'Bận việc riêng',
+        leaveDate: '2026-11-03',
+        makeupDate: '2026-11-05',
+        makeupStartTime: '08:00',
+        makeupEndTime: '22:00'
+      });
+
+      await service.reviewRequest(req.id, REVIEWER_ID, 'APPROVE');
+
+      const leaveSched = await attendanceRepo.findSchedule(EMP_ID, '2026-11-03');
+      assert.ok(leaveSched);
+      assert.equal(leaveSched.status, 'ON_LEAVE');
+      assert.equal(leaveSched.sourceRequestId, req.id);
+
+      const makeupSched = await attendanceRepo.findSchedule(EMP_ID, '2026-11-05');
+      assert.ok(makeupSched);
+      assert.equal(makeupSched.scheduleType, 'MAKE_UP');
+      assert.equal(makeupSched.plannedStartTime, '08:00');
+      assert.equal(makeupSched.plannedEndTime, '22:00');
+      assert.equal(makeupSched.sourceRequestId, req.id);
+    });
+
+    test('OVERTIME request approval extends planned_end_time and sets approved_ot_hours', async () => {
+      const requestRepo = new InMemoryRequestV2Repository();
+      const attendanceRepo = new InMemoryAttendanceV2Repository();
+      const service = new RequestV2Service(requestRepo, attendanceRepo);
+
+      const req = await service.createOvertimeRequest({
+        employeeId: EMP_ID,
+        title: 'Làm thêm cuối quý',
+        reason: 'Chạy sprint',
+        otDate: '2026-11-03',
+        startTime: '17:00',
+        endTime: '20:00',
+        hours: 3.0
+      });
+
+      await service.reviewRequest(req.id, REVIEWER_ID, 'APPROVE');
+
+      const schedule = await attendanceRepo.findSchedule(EMP_ID, '2026-11-03');
+      assert.ok(schedule);
+      assert.equal(schedule.plannedEndTime, '20:00');
+      assert.equal(schedule.approvedOtHours, 3.0);
+      assert.equal(schedule.scheduleType, 'OVERTIME');
+    });
+
+    test('LEAVE request approval sets date range to ON_LEAVE', async () => {
+      const requestRepo = new InMemoryRequestV2Repository();
+      const attendanceRepo = new InMemoryAttendanceV2Repository();
+      const service = new RequestV2Service(requestRepo, attendanceRepo);
+
+      const req = await service.createLeaveRequest({
+        employeeId: EMP_ID,
+        title: 'Nghỉ phép',
+        reason: 'Du lịch',
+        leaveType: 'PAID',
+        startDate: '2026-11-10',
+        endDate: '2026-11-11',
+        daysCount: 2
+      });
+
+      await service.reviewRequest(req.id, REVIEWER_ID, 'APPROVE');
+
+      const sched1 = await attendanceRepo.findSchedule(EMP_ID, '2026-11-10');
+      assert.ok(sched1);
+      assert.equal(sched1.status, 'ON_LEAVE');
+
+      const sched2 = await attendanceRepo.findSchedule(EMP_ID, '2026-11-11');
+      assert.ok(sched2);
+      assert.equal(sched2.status, 'ON_LEAVE');
     });
   });
 });

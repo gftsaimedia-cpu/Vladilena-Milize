@@ -44,6 +44,11 @@ export class RequestV2Repository {
           ot_hours: eb.ref('excluded.ot_hours'),
           advance_amount: eb.ref('excluded.advance_amount'),
           advance_period: eb.ref('excluded.advance_period'),
+          new_shift_type: eb.ref('excluded.new_shift_type'),
+          new_start_time: eb.ref('excluded.new_start_time'),
+          new_end_time: eb.ref('excluded.new_end_time'),
+          makeup_start_time: eb.ref('excluded.makeup_start_time'),
+          makeup_end_time: eb.ref('excluded.makeup_end_time'),
           updated_at: eb.ref('excluded.updated_at')
         }))
       )

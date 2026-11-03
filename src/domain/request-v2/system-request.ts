@@ -9,6 +9,8 @@ import {
   CreateCorrectionParams,
   CreateOvertimeParams,
   CreateAdvanceParams,
+  CreateShiftChangeParams,
+  CreateLeaveWithMakeupParams,
   SystemRequestRow,
   SystemRequestDTO
 } from './types';
@@ -71,6 +73,13 @@ export class SystemRequest {
   advanceAmount: bigint | number | null;
   advancePeriod: string | null;
 
+  // SHIFT_CHANGE & MAKEUP
+  newShiftType: string | null;
+  newStartTime: string | null;
+  newEndTime: string | null;
+  makeupStartTime: string | null;
+  makeupEndTime: string | null;
+
   constructor(props: SystemRequestProps) {
     if (!props || typeof props !== 'object') {
       throw new Error('SystemRequest props are required');
@@ -105,6 +114,12 @@ export class SystemRequest {
 
     this.advanceAmount = props.advanceAmount ?? null;
     this.advancePeriod = props.advancePeriod ?? null;
+
+    this.newShiftType = props.newShiftType ?? null;
+    this.newStartTime = props.newStartTime ?? null;
+    this.newEndTime = props.newEndTime ?? null;
+    this.makeupStartTime = props.makeupStartTime ?? null;
+    this.makeupEndTime = props.makeupEndTime ?? null;
   }
 
   static createLeaveRequest(params: CreateLeaveParams): SystemRequest {
@@ -264,6 +279,78 @@ export class SystemRequest {
     });
   }
 
+  static createShiftChangeRequest(params: CreateShiftChangeParams): SystemRequest {
+    const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
+    const title = requireNonEmptyString(params?.title, 'title');
+    const reason = requireNonEmptyString(params?.reason, 'reason');
+    if (!isValidDateString(params?.changeDate)) {
+      throw new Error(`changeDate must be a valid YYYY-MM-DD date string, got: ${params?.changeDate}`);
+    }
+    if (!isValidTimeString(params?.newStartTime)) {
+      throw new Error(`newStartTime must be a valid HH:mm time string, got: ${params?.newStartTime}`);
+    }
+    if (!isValidTimeString(params?.newEndTime)) {
+      throw new Error(`newEndTime must be a valid HH:mm time string, got: ${params?.newEndTime}`);
+    }
+
+    const now = new Date();
+    return new SystemRequest({
+      id: randomUUID(),
+      employeeId,
+      title,
+      type: 'SHIFT_CHANGE',
+      reason,
+      status: 'PENDING',
+      leaveStartDate: params.changeDate,
+      newShiftType: params.newShiftType,
+      newStartTime: params.newStartTime,
+      newEndTime: params.newEndTime,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: null,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
+  static createLeaveWithMakeupRequest(params: CreateLeaveWithMakeupParams): SystemRequest {
+    const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
+    const title = requireNonEmptyString(params?.title, 'title');
+    const reason = requireNonEmptyString(params?.reason, 'reason');
+    if (!isValidDateString(params?.leaveDate)) {
+      throw new Error(`leaveDate must be a valid YYYY-MM-DD date string, got: ${params?.leaveDate}`);
+    }
+    if (!isValidDateString(params?.makeupDate)) {
+      throw new Error(`makeupDate must be a valid YYYY-MM-DD date string, got: ${params?.makeupDate}`);
+    }
+    if (!isValidTimeString(params?.makeupStartTime)) {
+      throw new Error(`makeupStartTime must be a valid HH:mm time string, got: ${params?.makeupStartTime}`);
+    }
+    if (!isValidTimeString(params?.makeupEndTime)) {
+      throw new Error(`makeupEndTime must be a valid HH:mm time string, got: ${params?.makeupEndTime}`);
+    }
+
+    const now = new Date();
+    return new SystemRequest({
+      id: randomUUID(),
+      employeeId,
+      title,
+      type: 'LEAVE_WITH_MAKEUP',
+      reason,
+      status: 'PENDING',
+      leaveStartDate: params.leaveDate,
+      leaveEndDate: params.makeupDate,
+      leaveType: 'UNPAID',
+      makeupStartTime: params.makeupStartTime,
+      makeupEndTime: params.makeupEndTime,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewNote: null,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
   approve(reviewerId: string, note?: string): SystemRequest {
     if (this.status !== 'PENDING') {
       throw new Error(`Cannot approve request with status '${this.status}'; must be 'PENDING'`);
@@ -343,7 +430,13 @@ export class SystemRequest {
             ? this.advanceAmount.toString()
             : this.advanceAmount
           : null,
-      advance_period: this.advancePeriod
+      advance_period: this.advancePeriod,
+
+      new_shift_type: this.newShiftType,
+      new_start_time: this.newStartTime,
+      new_end_time: this.newEndTime,
+      makeup_start_time: this.makeupStartTime,
+      makeup_end_time: this.makeupEndTime
     };
   }
 
@@ -411,7 +504,13 @@ export class SystemRequest {
       otHours,
 
       advanceAmount,
-      advancePeriod: row.advance_period ?? row.advancePeriod ?? null
+      advancePeriod: row.advance_period ?? row.advancePeriod ?? null,
+
+      newShiftType: row.new_shift_type ?? row.newShiftType ?? null,
+      newStartTime: row.new_start_time ?? row.newStartTime ?? null,
+      newEndTime: row.new_end_time ?? row.newEndTime ?? null,
+      makeupStartTime: row.makeup_start_time ?? row.makeupStartTime ?? null,
+      makeupEndTime: row.makeup_end_time ?? row.makeupEndTime ?? null
     });
   }
 
@@ -449,7 +548,13 @@ export class SystemRequest {
             ? Number(this.advanceAmount)
             : this.advanceAmount
           : null,
-      advancePeriod: this.advancePeriod
+      advancePeriod: this.advancePeriod,
+
+      newShiftType: this.newShiftType,
+      newStartTime: this.newStartTime,
+      newEndTime: this.newEndTime,
+      makeupStartTime: this.makeupStartTime,
+      makeupEndTime: this.makeupEndTime
     };
   }
 }

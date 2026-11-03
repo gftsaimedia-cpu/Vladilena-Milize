@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import {
   SystemRequest,
   RequestType,
@@ -8,6 +8,7 @@ import {
   SystemRequestDTO
 } from '../../domain/request-v2';
 import { RequestV2Repository, RequestListFilter } from '../../data/request-v2.repository';
+import { AttendanceV2Repository } from '../../data/attendance-v2.repository';
 
 export interface CreateLeaveInput {
   employeeId: string;
@@ -17,6 +18,26 @@ export interface CreateLeaveInput {
   startDate: string;
   endDate: string;
   daysCount: number;
+}
+
+export interface CreateShiftChangeInput {
+  employeeId: string;
+  title: string;
+  reason: string;
+  changeDate: string;
+  newShiftType: string;
+  newStartTime: string;
+  newEndTime: string;
+}
+
+export interface CreateLeaveWithMakeupInput {
+  employeeId: string;
+  title: string;
+  reason: string;
+  leaveDate: string;
+  makeupDate: string;
+  makeupStartTime: string;
+  makeupEndTime: string;
 }
 
 export interface CreateCorrectionInput {
@@ -75,7 +96,10 @@ function formatTimeToHHmm(val: Date | string): string {
 
 @Injectable()
 export class RequestV2Service {
-  constructor(private readonly repo: RequestV2Repository) {}
+  constructor(
+    private readonly repo: RequestV2Repository,
+    @Optional() private readonly attendanceRepo?: AttendanceV2Repository
+  ) {}
 
   async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
     const req = SystemRequest.createLeaveRequest({
@@ -86,6 +110,36 @@ export class RequestV2Service {
       startDate: input.startDate,
       endDate: input.endDate,
       daysCount: input.daysCount
+    });
+
+    await this.repo.save(req);
+    return req.toJSON();
+  }
+
+  async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<SystemRequestDTO> {
+    const req = SystemRequest.createShiftChangeRequest({
+      employeeId: input.employeeId,
+      title: input.title,
+      reason: input.reason,
+      changeDate: input.changeDate,
+      newShiftType: input.newShiftType,
+      newStartTime: input.newStartTime,
+      newEndTime: input.newEndTime
+    });
+
+    await this.repo.save(req);
+    return req.toJSON();
+  }
+
+  async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<SystemRequestDTO> {
+    const req = SystemRequest.createLeaveWithMakeupRequest({
+      employeeId: input.employeeId,
+      title: input.title,
+      reason: input.reason,
+      leaveDate: input.leaveDate,
+      makeupDate: input.makeupDate,
+      makeupStartTime: input.makeupStartTime,
+      makeupEndTime: input.makeupEndTime
     });
 
     await this.repo.save(req);
@@ -180,6 +234,56 @@ export class RequestV2Service {
 
     if (action === 'APPROVE') {
       req.approve(reviewerId, note);
+
+      if (this.attendanceRepo) {
+        if (req.type === 'SHIFT_CHANGE') {
+          const date = req.leaveStartDate || req.correctionDate || '';
+          if (date) {
+            const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
+            const updated = sched.withShiftChange(
+              req.newShiftType as any,
+              req.newStartTime!,
+              req.newEndTime!,
+              req.id
+            );
+            await this.attendanceRepo.saveSchedule(updated);
+          }
+        } else if (req.type === 'LEAVE_WITH_MAKEUP') {
+          const leaveDate = req.leaveStartDate;
+          const makeupDate = req.leaveEndDate;
+          if (leaveDate) {
+            const leaveSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, leaveDate);
+            await this.attendanceRepo.saveSchedule(leaveSched.withLeave(req.id));
+          }
+          if (makeupDate) {
+            const makeupSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, makeupDate);
+            const updated = makeupSched.withMakeUp(req.makeupStartTime!, req.makeupEndTime!, req.id);
+            await this.attendanceRepo.saveSchedule(updated);
+          }
+        } else if (req.type === 'OVERTIME') {
+          const date = req.otDate;
+          if (date) {
+            const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
+            const extendedEnd = req.otEndTime || sched.plannedEndTime;
+            const hours = req.otHours || 0;
+            const updated = sched.withOvertime(extendedEnd, hours, req.id);
+            await this.attendanceRepo.saveSchedule(updated);
+          }
+        } else if (req.type === 'LEAVE') {
+          const start = req.leaveStartDate;
+          const end = req.leaveEndDate || start;
+          if (start) {
+            let cur = new Date(`${start}T00:00:00.000Z`);
+            const endDate = new Date(`${end}T00:00:00.000Z`);
+            while (cur.getTime() <= endDate.getTime()) {
+              const curStr = cur.toISOString().slice(0, 10);
+              const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, curStr);
+              await this.attendanceRepo.saveSchedule(sched.withLeave(req.id));
+              cur = new Date(cur.getTime() + 86400000);
+            }
+          }
+        }
+      }
     } else if (action === 'REJECT') {
       req.reject(reviewerId, note);
     } else {
