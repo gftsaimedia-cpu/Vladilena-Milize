@@ -4,7 +4,7 @@ Tài liệu sống: Claude cập nhật sau mỗi giai đoạn. Phiên mới đ�
 
 ## Trạng thái sau audit 2026-11-02
 
-**Chưa hoàn tất toàn bộ chương trình.** Đọc [báo cáo audit](AUDIT-2026-11-02.md) và [kế hoạch hoàn thiện mới](plans/2026-11-02-remediation.md) trước khi sửa tiếp. Kế hoạch mới ưu tiên: sửa luồng duyệt kỳ G9 → khôi phục công cụ/spec → hoàn thiện class/service → kiểm chứng tổng thể. Chi tiết hợp đồng ở [thiết kế hoàn thiện](specs/2026-11-02-remediation-design.md).
+**Chưa hoàn tất toàn bộ chương trình.** Đọc [báo cáo audit](AUDIT-2026-11-02.md), [kế hoạch hoàn thiện mới](plans/2026-11-02-remediation.md) và [kế hoạch đồng bộ FE–BE & tinh gọn UI/UX](plans/2026-11-03-fe-be-sync-and-ui-simplification.md) trước khi sửa tiếp. Kế hoạch mới ưu tiên: sửa luồng duyệt kỳ G9 → đồng bộ hợp đồng FE–BE & tinh gọn UI ([thiết kế](specs/2026-11-03-fe-be-sync-and-ui-simplification-design.md)) → khôi phục công cụ/spec → hoàn thiện class/service → kiểm chứng tổng thể. Chi tiết hợp đồng ở [thiết kế hoàn thiện](specs/2026-11-02-remediation-design.md).
 
 Các mục “xong” và số test trong ledger bên dưới là kết quả lịch sử của từng mốc, không xác nhận mã hiện tại đã qua cổng cuối. Lượt lập kế hoạch này chưa thực thi task sửa code; không đánh dấu các checkbox trong kế hoạch mới trước khi có bằng chứng.
 
