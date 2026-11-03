@@ -336,13 +336,47 @@ test('Bỏ màn Phép còn lại, đổi tiêu đề thành Chấm công, xoá t
 
   const cells = out.rows[0].cells;
   assert.equal(cells['2026-10-01']?.declared, undefined, 'ngày làm việc bình thường không gắn tag declared');
-  assert.deepEqual(cells['2026-10-02']?.declared, { text: 'Phép', label: 'Nghỉ phép năm' });
-  assert.deepEqual(cells['2026-10-03']?.declared, { text: 'Nghỉ', label: 'Nghỉ không lương' });
-  assert.deepEqual(cells['2026-10-04']?.declared, { text: 'Phép', label: 'Nghỉ được duyệt' });
-  assert.deepEqual(cells['2026-10-05']?.declared, { text: 'Bù', label: 'Nghỉ, sẽ làm bù' });
-  assert.deepEqual(cells['2026-10-06']?.declared, { text: 'Bù', label: 'Làm bù' });
-  assert.deepEqual(cells['2026-10-07']?.declared, { text: 'iS', label: 'Ngày iSAT' });
+  assert.deepEqual(cells['2026-10-02']?.declared, { text: 'Nghỉ', label: 'Nghỉ phép năm', code: 'leave' });
+  assert.deepEqual(cells['2026-10-03']?.declared, { text: 'Nghỉ', label: 'Nghỉ không lương', code: 'leave' });
+  assert.deepEqual(cells['2026-10-04']?.declared, { text: 'Nghỉ', label: 'Nghỉ được duyệt', code: 'leave' });
+  assert.deepEqual(cells['2026-10-05']?.declared, { text: 'Làm thêm', label: 'Nghỉ, sẽ làm bù', code: 'extra' });
+  assert.deepEqual(cells['2026-10-06']?.declared, { text: 'Làm thêm', label: 'Làm bù', code: 'extra' });
+  assert.deepEqual(cells['2026-10-07']?.declared, { text: 'Nghỉ', label: 'Ngày iSAT', code: 'leave' });
 });
+
+test('TimesheetView tô màu các ô ngày và tag theo đề xuất: có class cellCls, tag-*, màu dot và tinting', () => {
+  const tsView = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/TimesheetView.vue'), 'utf8');
+  assert.ok(tsView.includes('cellCls'), 'phải có helper cellCls');
+  assert.ok(tsView.includes('.tag-leave'), 'phải có CSS .tag-leave');
+  assert.ok(tsView.includes('.tag-extra'), 'phải có CSS .tag-extra');
+  assert.ok(tsView.includes('c-leave'), 'phải có CSS c-leave');
+  assert.ok(tsView.includes('c-extra'), 'phải có CSS c-extra');
+  assert.ok(tsView.includes('c-pending'), 'phải có CSS c-pending');
+  assert.ok(tsView.includes('c-rejected'), 'phải có CSS c-rejected');
+  assert.ok(tsView.includes('c-ok'), 'phải có CSS c-ok');
+
+  const out = buildTimesheet({
+    team: {
+      month: '2026-10',
+      rows: [{
+        staff: { username: 'linh', name: 'Linh', type: 'nv', shiftCode: 'n1' },
+        days: {
+          '2026-10-02': { kind: 'leave' },
+          '2026-10-03': { kind: 'unpaid' },
+          '2026-10-05': { kind: 'willmakeup' }
+        },
+        attendanceSessions: []
+      }]
+    },
+    shifts: { shifts: [{ code: 'n1', name: 'Ca 1', in: '08:00', out: '17:30' }] },
+    today: '2026-10-15',
+    holidays: []
+  });
+  assert.equal(out.rows[0].cells['2026-10-02']?.declared?.code, 'leave');
+  assert.equal(out.rows[0].cells['2026-10-03']?.declared?.code, 'leave');
+  assert.equal(out.rows[0].cells['2026-10-05']?.declared?.code, 'extra');
+});
+
 
 
 
