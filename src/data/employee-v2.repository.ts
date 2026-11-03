@@ -166,6 +166,15 @@ export class EmployeeV2Repository {
       ? employee.contract.leave.remainingDays()
       : employee.contract.leave.totalDays - employee.contract.leave.usedDays;
 
+    let dbContractStatus: string | null = null;
+    if (employee.contract.status === 'thuviec' || (employee.contract.status as string) === 'probation') {
+      dbContractStatus = 'probation';
+    } else if (employee.contract.status === 'nv' || (employee.contract.status as string) === 'official') {
+      dbContractStatus = 'official';
+    } else {
+      dbContractStatus = null;
+    }
+
     return {
       uuid: employee.uuid,
       username: employee.username,
@@ -194,7 +203,7 @@ export class EmployeeV2Repository {
       leave_balance: remLeave,
       leave_balance_on: null,
       session_version: 0,
-      contract_status: employee.contract.status,
+      contract_status: dbContractStatus,
       start_date: employee.contract.effectiveFrom,
       contract: employee.contract.endDate,
       resigned_on: employee.contract.resignedOn,
