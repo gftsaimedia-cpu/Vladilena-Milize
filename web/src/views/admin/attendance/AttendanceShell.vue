@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Khung chung của 4 tab Chấm công & phép: tiêu đề, nút Chốt công ở Bảng lương, thanh tab; nội dung tab ở <RouterView>.
+// Khung chung của 3 tab Chấm công: tiêu đề, nút Chốt công ở Bảng lương, thanh tab; nội dung tab ở <RouterView>.
 import { computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
@@ -18,8 +18,7 @@ const { data: summary } = useLoad(
 const TABS = [
   ['', 'Bảng công'],
   ['hom-nay', 'Hôm nay'],
-  ['gio-ot', 'Giờ OT'],
-  ['phep-con-lai', 'Phép còn lại']
+  ['gio-ot', 'Giờ OT']
 ];
 const tabTo = (key?) => ({
   path: key ? `/admin/cham-cong/${key}` : '/admin/cham-cong',
@@ -30,7 +29,7 @@ const tabTo = (key?) => ({
 <template>
   <div class="title">
     <div>
-      <h1>Chấm công &amp; phép</h1>
+      <h1>Chấm công</h1>
       <p v-if="summary && !summary.empty">
         <b>{{ summary.forgot }} ngày</b> quên Check-in/out phải xử lý · {{ summary.reconcile }} ngày nên đối soát ·
         {{ summary.late }} lượt đi trễ

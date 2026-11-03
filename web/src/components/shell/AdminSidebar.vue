@@ -28,7 +28,7 @@ const GROUPS = [
   [
     'Kỳ lương',
     [
-      ['cham-cong', 'clock', 'Chấm công & phép', '/admin/cham-cong'],
+      ['cham-cong', 'clock', 'Chấm công', '/admin/cham-cong'],
       ['kpi', 'target', 'Đánh giá KPI', '/admin/kpi'],
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]

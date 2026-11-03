@@ -29,12 +29,6 @@ const CHIPS = [
   ['ctv', 'Chuyên trách viên', 'ctv'],
   ['nv', 'Nhân viên', 'nv']
 ];
-const LEGEND = [
-  ['in', '', 'Đang làm'],
-  ['ok', '', 'Đủ công'],
-  ['w', '', 'Chờ xử lý'],
-  ['q', '', 'Từ chối']
-];
 const MARK_TEXT: Record<string, any> = {};
 const SESSION_LABEL: Record<string, string> = {
   in: 'Có lượt Check-in',
@@ -148,14 +142,6 @@ function onSaved() {
       <button v-if="canBulk" type="button" class="btn" @click="bulkOpen = true">
         <Icon name="clock" />Chấm công hàng loạt
       </button>
-    </div>
-    <div class="legend">
-      <span v-for="[k, text, label] in LEGEND" :key="k" class="k">
-        <span class="m" :class="k">{{ text }}</span
-        >{{ label }}
-      </span>
-      <span class="k"><span class="declared">LV</span>Khai báo: LV làm · PN phép năm · KL không lương · NP nghỉ duyệt · iS iSAT · Bù nghỉ sẽ bù · Bù* loại cũ</span>
-      <span class="k">Dấu khai báo và dấu lượt chấm công được hiển thị riêng</span>
     </div>
     <table class="bc">
       <colgroup>
@@ -424,19 +410,5 @@ td.none {
   color: var(--muted);
   font-size: 13px;
   height: 80px;
-}
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-  padding: 0 24px 16px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.legend span.k {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }
 </style>

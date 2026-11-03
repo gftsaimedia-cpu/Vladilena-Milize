@@ -298,4 +298,51 @@ test('OverviewView & overview.ts: buildOverview trả periodCard đầy đủ v�
   assert.ok(viewSrc.includes('reject(r)') && viewSrc.includes('approve(r)'), 'phải có cả nút duyệt và từ chối ở thẻ việc cần duyệt');
 });
 
+test('Bỏ màn Phép còn lại, đổi tiêu đề thành Chấm công, xoá thanh legend và làm gọn tag ô ngày trên Bảng công', () => {
+  const sidebar = fs.readFileSync(path.join(__dirname, '../../web/src/components/shell/AdminSidebar.vue'), 'utf8');
+  assert.ok(sidebar.includes("'Chấm công'"));
+  assert.ok(!sidebar.includes("'Chấm công & phép'"));
+
+  const shell = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/AttendanceShell.vue'), 'utf8');
+  assert.ok(shell.includes('<h1>Chấm công</h1>'));
+  assert.ok(!shell.includes('Chấm công &amp; phép') && !shell.includes('Chấm công & phép'));
+  assert.ok(!shell.includes('phep-con-lai'));
+
+  const tsView = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/TimesheetView.vue'), 'utf8');
+  assert.ok(!tsView.includes('<div class="legend">'));
+  assert.ok(!tsView.includes('LEGEND'));
+
+  const out = buildTimesheet({
+    team: {
+      month: '2026-10',
+      rows: [{
+        staff: { username: 'linh', name: 'Linh', type: 'nv', shiftCode: 'n1' },
+        days: {
+          '2026-10-01': { kind: 'work' },
+          '2026-10-02': { kind: 'leave' },
+          '2026-10-03': { kind: 'unpaid' },
+          '2026-10-04': { kind: 'approved' },
+          '2026-10-05': { kind: 'willmakeup' },
+          '2026-10-06': { kind: 'makeup' },
+          '2026-10-07': { kind: 'isat' }
+        },
+        attendanceSessions: []
+      }]
+    },
+    shifts: { shifts: [{ code: 'n1', name: 'Ca 1', in: '08:00', out: '17:30' }] },
+    today: '2026-10-15',
+    holidays: []
+  });
+
+  const cells = out.rows[0].cells;
+  assert.equal(cells['2026-10-01']?.declared, undefined, 'ngày làm việc bình thường không gắn tag declared');
+  assert.deepEqual(cells['2026-10-02']?.declared, { text: 'Phép', label: 'Nghỉ phép năm' });
+  assert.deepEqual(cells['2026-10-03']?.declared, { text: 'Nghỉ', label: 'Nghỉ không lương' });
+  assert.deepEqual(cells['2026-10-04']?.declared, { text: 'Phép', label: 'Nghỉ được duyệt' });
+  assert.deepEqual(cells['2026-10-05']?.declared, { text: 'Bù', label: 'Nghỉ, sẽ làm bù' });
+  assert.deepEqual(cells['2026-10-06']?.declared, { text: 'Bù', label: 'Làm bù' });
+  assert.deepEqual(cells['2026-10-07']?.declared, { text: 'iS', label: 'Ngày iSAT' });
+});
+
+
 

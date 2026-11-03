@@ -1,9 +1,9 @@
-// Route của nhóm admin-attendance: Chấm công & phép (4 tab), Nhân sự, Đánh giá KPI (2 tab). Layout 'admin'.
+// Route của nhóm admin-attendance: Chấm công (3 tab), Nhân sự, Đánh giá KPI (2 tab). Layout 'admin'.
 export default [
   {
     path: '/admin/cham-cong',
     component: () => import('@/views/admin/attendance/AttendanceShell.vue'),
-    meta: { layout: 'admin', nav: 'cham-cong', title: 'Chấm công & phép' },
+    meta: { layout: 'admin', nav: 'cham-cong', title: 'Chấm công' },
     children: [
       { path: '', component: () => import('@/views/admin/attendance/TimesheetView.vue') },
       { path: 'bang-cong', redirect: (to?) => ({ path: '/admin/cham-cong', query: to.query }) },
@@ -23,8 +23,7 @@ export default [
       },
       {
         path: 'phep-con-lai',
-        component: () => import('@/views/admin/attendance/LeaveView.vue'),
-        meta: { title: 'Chấm công · Phép còn lại' }
+        redirect: (to?: any) => ({ path: '/admin/cham-cong', query: to.query })
       },
       {
         path: 'ca-lam',
