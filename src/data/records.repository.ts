@@ -118,9 +118,7 @@ export class StaffRepository {
     return rows.map(r => r.username);
   }
 
-  async setShift(username: string, shiftCode: string | null): Promise<void> {
-    await this.qb.updateTable('staff').set({ shift_code: shiftCode }).where('username', '=', username).execute();
-  }
+  async setShift(_username: string, _shiftCode: string | null): Promise<void> {}
 
   roleAndLock(username: string): Promise<{ role: string; locked_at: string | null } | undefined> {
     return this.qb.selectFrom('staff').select(['role', 'locked_at']).where('username', '=', username).executeTakeFirst();
@@ -167,13 +165,10 @@ export class StaffRepository {
           role: eb.ref('excluded.role'),
           type: eb.ref('excluded.type'),
           level: eb.ref('excluded.level'),
-          night_pct: eb.ref('excluded.night_pct'),
           idorm: eb.ref('excluded.idorm'),
-          shift_code: eb.ref('excluded.shift_code'),
           pass_hash: eb.ref('excluded.pass_hash'),
           start_date: eb.ref('excluded.start_date'),
           birthday: eb.ref('excluded.birthday'),
-          leave_adjust: eb.ref('excluded.leave_adjust'),
           contract: eb.ref('excluded.contract'),
           insured: eb.ref('excluded.insured'),
           dependants: eb.ref('excluded.dependants'),

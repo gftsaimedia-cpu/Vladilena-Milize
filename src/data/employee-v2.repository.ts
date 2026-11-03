@@ -79,8 +79,6 @@ export class EmployeeV2Repository {
     let shiftType: 'NORMAL' | 'FLEX' | 'NIGHT' = 'NORMAL';
     if (rawShiftType === 'NORMAL' || rawShiftType === 'FLEX' || rawShiftType === 'NIGHT') {
       shiftType = rawShiftType;
-    } else if (row.night_pct && [30, 40, 60].includes(Number(row.night_pct))) {
-      shiftType = 'NIGHT';
     }
 
     const startTime = (row.shift_start_time && TIME_REGEX.test(String(row.shift_start_time).trim()))
@@ -96,7 +94,7 @@ export class EmployeeV2Repository {
     } else if (shiftType === 'FLEX') {
       allowancePct = 10;
     } else {
-      const candidate = Number(row.shift_allowance_pct ?? row.night_pct ?? 30);
+      const candidate = Number(row.shift_allowance_pct ?? 30);
       if ([30, 40, 60].includes(candidate)) {
         allowancePct = candidate;
       } else {
@@ -111,9 +109,7 @@ export class EmployeeV2Repository {
       allowancePct
     });
 
-    const totalDays = row.leave_total_days != null
-      ? Math.max(0, Number(row.leave_total_days))
-      : Math.max(0, Number(row.leave_adjust || 0));
+    const totalDays = Math.max(0, Number(row.leave_total_days || 0));
     const usedDays = Math.max(0, Number(row.leave_used_days || 0));
     const leave = new Leave({
       totalDays,
@@ -195,11 +191,8 @@ export class EmployeeV2Repository {
       shift_start_time: employee.contract.shift.startTime,
       shift_end_time: employee.contract.shift.endTime,
       shift_allowance_pct: employee.contract.shift.allowancePct,
-      night_pct: employee.contract.shift.allowancePct,
-      shift_code: `${employee.contract.shift.type}:${employee.contract.shift.startTime}-${employee.contract.shift.endTime}`,
       leave_total_days: employee.contract.leave.totalDays,
       leave_used_days: employee.contract.leave.usedDays,
-      leave_adjust: employee.contract.leave.totalDays,
       leave_balance: remLeave,
       leave_balance_on: null,
       session_version: 0,
@@ -337,11 +330,8 @@ export class EmployeeV2Repository {
           shift_start_time: eb.ref('excluded.shift_start_time'),
           shift_end_time: eb.ref('excluded.shift_end_time'),
           shift_allowance_pct: eb.ref('excluded.shift_allowance_pct'),
-          night_pct: eb.ref('excluded.night_pct'),
-          shift_code: eb.ref('excluded.shift_code'),
           leave_total_days: eb.ref('excluded.leave_total_days'),
           leave_used_days: eb.ref('excluded.leave_used_days'),
-          leave_adjust: eb.ref('excluded.leave_adjust'),
           leave_balance: eb.ref('excluded.leave_balance'),
           contract_status: eb.ref('excluded.contract_status'),
           start_date: eb.ref('excluded.start_date'),
