@@ -33,17 +33,15 @@ Chạy ứng dụng phát triển trên DB dev bằng URL tường minh dưới 
 DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/luong_dev" npm start
 ```
 
-Với bộ test, dùng máy chủ test, không truyền URL dev. `PG_TEST_URL` là DB điều khiển riêng; test tạo database tạm và chỉ xoá database do chính chúng tạo.
+Với bộ test, dùng máy chủ test, không truyền URL dev. `PG_TEST_URL` là control database riêng. Runner tạo một database tạm cho mỗi file test và chỉ xoá database do chính runner tạo.
 
 ```sh
-DATABASE_URL= DB_PATH= \
-  PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
-  node scripts/dev/ts.cjs --test --test-concurrency=4 'test/**/*.test.ts'
+PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" npm test
 ```
 
 `PG_TEST_URL` phải trỏ tới control database riêng, không phải database dev hoặc ứng dụng. Runner tạo database ngẫu nhiên riêng cho mỗi file test và chỉ xoá các database do chính lần chạy đó tạo.
 
-Có thể chạy test bằng runner PostgreSQL trên WSL/Linux hoặc macOS; runner tạo một DB ngẫu nhiên cho từng file, sau đó đóng và xoá DB đó:
+Để chạy riêng một số file, gọi trực tiếp runner PostgreSQL trên WSL/Linux hoặc macOS. Runner cấp cho mỗi file một DB ngẫu nhiên, rồi đóng và xoá đúng DB đó:
 
 ```sh
 PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \

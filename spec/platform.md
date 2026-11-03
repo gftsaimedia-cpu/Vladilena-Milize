@@ -536,16 +536,16 @@ Giới hạn: đọc cả bảng vào bộ nhớ khi xuất/khôi phục (đủ 
 | Lệnh | Làm gì |
 | --- | --- |
 | `npm start` | `node --no-warnings=ExperimentalWarning src/server.ts` (đọc `.env`, cần `DATABASE_URL`). |
-| `npm run sandbox` | `scripts/dev/sandbox-server.ts`. |
+| `npm run sandbox` | `scripts/dev/sandbox-bootstrap.ts`: tạo DB PostgreSQL tạm từ `SANDBOX_PG_CONTROL_URL`, chạy `sandbox-server.ts` và dọn DB khi kết thúc. |
 | `npm run seed` | `scripts/seed.ts` (không đọc `.env`; cần `DATABASE_URL` và `SEED_ALLOW_REAL_DB=1`). |
 | `npm run seed:demo` | `scripts/db/seed-demo.ts`. |
-| `npm run backup` | `scripts/ops/pg-backup.ts`. |
-| `npm test` | `node --test "test/**/*.test.ts"` (gồm `test/ops`). |
-| `npm run test:unit` / `test:api` / `test:ui` | Chỉ thư mục tương ứng (không gồm `test/ops`). |
+| `npm run pg:backup` | `scripts/ops/pg-backup.ts`. |
+| `npm test` | `scripts/test/postgres-runner.ts "test/**/*.test.ts"` (gồm `test/ops`); cần `PG_TEST_URL` trỏ tới control PostgreSQL riêng. |
+| `npm run test:unit` / `npm run test:api` | Cùng runner, chỉ lấy thư mục tương ứng. |
 | `npm run format` / `format:check` | `prettier --write .` / `--check .` (cả repo). |
 | `npm run params:extract|lock|check|doc` | `scripts/params/*` (mục 4.10). |
 
-Một file test: `node --no-warnings=ExperimentalWarning --test <file>`. Test API cần `PG_TEST_URL` trỏ tới control PostgreSQL riêng; `test/helpers/api-fixture.ts` quản lý database tạm cho từng test, `SESSION_SECRET` và công tắc Agents. Test API chạy `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.ts` chạy sandbox ở tiến trình con.
+Chạy một file test qua `scripts/test/postgres-runner.ts <file.test.ts>` với `PG_TEST_URL` trỏ tới control PostgreSQL riêng. Runner sở hữu một database tạm cho mỗi file và dọn database đó sau khi tiến trình test kết thúc; fixture API chỉ dựng máy chủ, dữ liệu giả, `SESSION_SECRET` và công tắc Agents trong database của file. Test API dùng `server.listen(0, '127.0.0.1')` (cổng do hệ điều hành chọn) và đồng hồ giả bằng ghi đè `Date.now`. `test/api/sandbox.test.ts` chạy sandbox ở tiến trình con.
 
 **Ngân sách cỡ file và todo** (`test/tools`)
 - `size-budget.ts`: đếm dòng file `.js .cjs .mjs .html .css` theo `git ls-files -co --exclude-standard` (không có git thì duyệt thư mục, bỏ `node_modules, .git, data, docs, playwright-report, test-results, GFT OFFICE, .claude, backups, ban-giao`). ≤ 800 không báo; 801..1200 chỉ in; > 1200 phải có trong `exceptions` của fixture với trần = bội trăm kế tiếp; `--write` chỉ hạ trần; `--allow-growth [--headroom=N]` cho nâng. Test: `test/unit/file-size-budget.test.ts` (ba kiểm: không file vượt 1.200 ngoài danh sách, file ngoại lệ không vượt trần, ngoại lệ còn đúng thực tế).

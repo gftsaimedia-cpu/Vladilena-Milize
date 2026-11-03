@@ -182,9 +182,9 @@ Danh sách theo `git ls-files`, rút gọn. Hai thư mục `GFT OFFICE/` và `da
 | `npm run sandbox` | Máy chủ thử (mục 4.2). |
 | `npm run seed` | `scripts/seed.ts`: nạp tài khoản mẫu vào PostgreSQL được chỉ rõ bằng `DATABASE_URL`; yêu cầu `SEED_ALLOW_REAL_DB=1`, từ chối `DB_PATH`/`PG_TEST_URL`, chỉ thêm tài khoản chưa có và không in mật khẩu. |
 | `npm run seed:demo` | `scripts/db/seed-demo.ts`: nạp bộ dữ liệu demo. |
-| `npm run backup` | `scripts/ops/pg-backup.ts`: sao lưu nhất quán, kiểm toàn vẹn, xoay vòng. |
-| `npm test` | `node --test "test/**/*.test.ts"`. |
-| `npm run test:unit`, `test:api`, `test:ui` | Chạy riêng từng thư mục. |
+| `npm run pg:backup` | `scripts/ops/pg-backup.ts`: sao lưu nhất quán, kiểm toàn vẹn, xoay vòng. |
+| `npm test` | `scripts/test/postgres-runner.ts "test/**/*.test.ts"`; cần `PG_TEST_URL` trỏ tới control PostgreSQL riêng. |
+| `npm run test:unit`, `npm run test:api` | Cùng runner, chỉ lấy thư mục tương ứng. |
 | `npm run format`, `format:check` | Prettier. |
 | `npm run params:extract`, `params:lock`, `params:check`, `params:doc` | Công cụ registry tham số (trích mặc định, khoá danh sách khoá, kiểm, sinh tài liệu). |
 
@@ -216,8 +216,8 @@ Mọi `POST /__sandbox/*` đòi header `x-sandbox-control: 1` và `Origin` cùng
 
 ### 4.3 Test
 
-- Dùng `node:test`. Thư mục: `test/unit` (hàm thuần, bộ máy lương, tham số), `test/api` (khởi máy chủ thật trên PostgreSQL tạm bằng `test/helpers/api-fixture.ts`: đồng hồ giả, `call()`, `reset()`, công tắc Agents bật), `test/ui` (logic giao diện chạy trong Node), `test/ops` (sao lưu), `test/tools` (công cụ kiểm tĩnh: ngân sách cỡ file, số test `todo`, tên chưa khai báo, bảng vàng điều phối, lược đồ DB).
-- `npm test` chỉ lấy `test/**/*.test.ts`. DB integration tests dùng `PG_TEST_URL` trỏ tới control PostgreSQL riêng và tạo database tạm do từng test sở hữu. Chạy `node --test` không đối số còn nhặt cả các file `.js` trong `test/tools` và `test/helpers` như test.
+- Dùng `node:test`. Thư mục: `test/unit` (hàm thuần, bộ máy lương, tham số), `test/api` (khởi máy chủ thật bằng `test/helpers/api-fixture.ts`: đồng hồ giả, `call()`, `reset()`, công tắc Agents bật), `test/ui` (logic giao diện chạy trong Node), `test/ops` (sao lưu), `test/tools` (công cụ kiểm tĩnh: ngân sách cỡ file, số test `todo`, tên chưa khai báo, bảng vàng điều phối, lược đồ DB).
+- `npm test` chạy các file `test/**/*.test.ts` qua PostgreSQL runner. `PG_TEST_URL` phải trỏ tới control PostgreSQL riêng; runner tạo và sở hữu một database tạm cho mỗi file, rồi dọn database đó khi file kết thúc. Fixture API dùng database của file để dựng máy chủ và dữ liệu giả; nó không tự tạo database riêng.
 - `test/fixtures/` chứa dữ liệu vàng và bảng đã ghi mà một số test so sánh.
 
 ---
