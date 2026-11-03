@@ -61,10 +61,10 @@ function closeOt() {
       <button
         v-if="summary && !summary.empty"
         type="button"
-        class="btn-sub"
+        class="btn"
         @click="todayOpen = true"
       >
-        <Icon name="calendar" />Hôm nay ({{ summary.inShift }} đang trong ca)
+        <Icon name="cal" />Hôm nay ({{ summary.inShift }} đang trong ca)
       </button>
       <RouterLink
         v-if="summary && !summary.empty"

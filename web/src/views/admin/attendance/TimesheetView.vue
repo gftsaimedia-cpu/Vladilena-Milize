@@ -178,8 +178,8 @@ function onSaved() {
         {{ label }} <small v-if="cnt && data?.counts?.[cnt] != null">{{ data.counts[cnt] }}</small>
       </button>
       <SearchBox v-model="q" style="margin-left: auto" />
-      <button type="button" class="btn-sub" title="Xem chấm công hôm nay" @click="todayOpen = true">
-        <Icon name="calendar" />Hôm nay
+      <button type="button" class="btn" title="Xem chấm công hôm nay" @click="todayOpen = true">
+        <Icon name="cal" />Hôm nay
       </button>
       <button v-if="canBulk" type="button" class="btn" @click="bulkOpen = true">
         <Icon name="clock" />Chấm công hàng loạt
