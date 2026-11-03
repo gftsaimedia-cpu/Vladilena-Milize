@@ -62,6 +62,12 @@ function outputDirectory(value = OUT): string {
   return directory;
 }
 
+function ensureOutputDirectory(value = OUT): string {
+  const directory = outputDirectory(value);
+  fs.mkdirSync(directory, { recursive: true });
+  return directory;
+}
+
 function snapshotPath(value = path.join(OUT, 'scenario-year.pgbak.gz'), directory = OUT): string {
   const root = outputDirectory(directory);
   const file = path.resolve(value);
@@ -156,6 +162,7 @@ module.exports = {
   safeErrorText,
   scenarioControlUrl,
   outputDirectory,
+  ensureOutputDirectory,
   snapshotPath,
   openScenarioDatabase,
   withScenarioDatabase,

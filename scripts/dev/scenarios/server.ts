@@ -8,11 +8,11 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { OUT: OUT_ROOT, outputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, writeSnapshot, copySnapshot, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
+const { OUT: OUT_ROOT, ensureOutputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, writeSnapshot, copySnapshot, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
 assertScenarioRuntimePlatform();
 const SANDBOX_DIR = path.join(__dirname, '..');
 const args = process.argv.slice(2);
-const OUT = outputDirectory(path.resolve(args.includes('--out-dir') ? args[args.indexOf('--out-dir') + 1] : OUT_ROOT));
+const OUT = ensureOutputDirectory(path.resolve(args.includes('--out-dir') ? args[args.indexOf('--out-dir') + 1] : OUT_ROOT));
 const BUILT = snapshotPath(path.join(OUT, 'scenario-year.pgbak.gz'), OUT);
 const RUN = snapshotPath(path.join(OUT, 'scenario-year.run.pgbak.gz'), OUT);
 const CLOCK_FILE = path.join(OUT, 'clock.json');

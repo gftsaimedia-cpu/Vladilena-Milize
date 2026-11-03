@@ -20,6 +20,7 @@ async function namesWithPrefix(admin: any) {
 
 async function testSnapshot() {
   const admin = new Pool({ connectionString: controlUrl, max: 1 });
+  scenarios.ensureOutputDirectory();
   const directory = path.join(scenarios.OUT, `scenario-test-${process.pid}-${crypto.randomBytes(6).toString('hex')}`);
   const snapshot = path.join(directory, 'scenario.pgbak.gz');
   let source: any;
@@ -79,6 +80,7 @@ async function testSnapshot() {
 
 async function testFailedRestore() {
   const admin = new Pool({ connectionString: controlUrl, max: 1 });
+  scenarios.ensureOutputDirectory();
   const directory = path.join(scenarios.OUT, `scenario-test-${process.pid}-${crypto.randomBytes(6).toString('hex')}`);
   const snapshot = path.join(directory, 'invalid.pgbak.gz');
   try {

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
 
-const { OUT: OUT_ROOT, outputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, writeSnapshot, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
+const { OUT: OUT_ROOT, ensureOutputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, writeSnapshot, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
 assertScenarioRuntimePlatform();
 const args = process.argv.slice(2);
 const flag = (name?) => args.includes(`--${name}`);
@@ -20,12 +20,10 @@ const only = smoke ? ['nv2_lan', 'ctv1_binh', 'nv2_kim'] : opt('only', '') ? opt
 const from = opt('from', smoke ? '2027-01' : '2026-01');
 const to = opt('to', smoke ? '2027-02' : '2027-03');
 const early = variant === 'B' ? !flag('no-early') : flag('early');
-const OUT = outputDirectory(path.resolve(opt('out-dir', OUT_ROOT)));
+const OUT = ensureOutputDirectory(path.resolve(opt('out-dir', OUT_ROOT)));
 const controlUrl = scenarioControlUrl();
 const snapshot = snapshotPath(path.resolve(opt('out', path.join(OUT, 'scenario-year.pgbak.gz'))), OUT);
 if (!['A', 'B'].includes(variant)) throw new Error('--variant phải là A hoặc B');
-
-fs.mkdirSync(OUT, { recursive: true });
 
 const { NativeDate } = require('./lib/boot');
 const { createClient } = require('./lib/client');
