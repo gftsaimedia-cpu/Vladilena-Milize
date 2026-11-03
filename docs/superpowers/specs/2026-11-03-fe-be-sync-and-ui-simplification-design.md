@@ -1,6 +1,6 @@
 # Thiết kế đồng bộ FE–BE và tinh gọn UI/UX — 2026-11-03
 
-**Căn cứ:** Khảo sát mã nguồn `web/src/**` và `src/modules/**` tại commit `242f62a`, kết hợp với [AUDIT-2026-11-02.md](../AUDIT-2026-11-02.md) và [2026-11-02-remediation-design.md](2026-11-02-remediation-design.md).
+**Căn cứ:** Khảo sát mã nguồn `web/src/**` và `src/modules/**` (cập nhật vòng 2 tại commit `2d543e4` sau khi gộp `codex/postgres-normalization`), kết hợp với [AUDIT-2026-11-02.md](../AUDIT-2026-11-02.md) và [2026-11-02-remediation-design.md](2026-11-02-remediation-design.md).
 
 ## 1. Mục tiêu (Intent & Goals)
 
@@ -35,22 +35,32 @@
   - Bổ sung `getPeriodApprovalSummary(month)` trong `web/src/services/admin-payroll.ts`: tải `GET /api/periods/:month` và toàn bộ phiếu lỗi qua `GET /api/periods/:month/payslips?status=error&pageSize=200` (lặp đủ các trang) để lấy danh sách `{ username, name, shortProblem }` trên toàn kỳ thay vì chỉ trang đang mở.
   - `approvePeriod(month, { rev, excludeErrors })` gửi `POST /api/periods/:month/approve` với body `{ rev, excludeErrors }` (trong đó `excludeErrors: Array<{ username: string; reason: string }>`).
   - Gỡ bỏ cơ chế chọn từng phiếu và duyệt lô trên bảng lương (`SelectionBanner.vue`, `ApproveBatchDialog.vue`, `approveBatch`, `approveOne` trong luồng bảng lương), thống nhất duyệt theo kỳ như thiết kế G9.
+- **Đồng bộ Ngăn kéo Phiếu lương (`web/src/builders/payslip/drawer.ts` & `PayslipDrawer.vue`):**
+  - Sau G9, phiếu mới tính có `status = 'draft'` và backend `store.payroll.decidePayslips` cho phép duyệt trực tiếp phiếu `'draft'`. Sửa `canApprove` trong `buildDrawer` thành `(kind === 'draft' || kind === 'pending') && slip.status !== 'error' && period.status !== 'approved' && period.status !== 'paid'` để nút *Phê duyệt riêng* hiển thị đúng trên phiếu bản nháp.
+  - Khi `slip.status === 'draft'`, không đẩy trùng 2 pill `"Bản nháp"` và `"Bản nháp · lần tính N"` cạnh nhau; chỉ hiển thị 1 pill `"Bản nháp · lần tính N"` (hoặc `"Bản nháp"` nếu không có `runNo`).
 
-### 3.2. Luồng Chấm công, Sửa giờ & OT
+### 3.2. Luồng Chấm công, Tổng quan, Sửa giờ & OT
 - **Truyền đủ dữ liệu khi sửa giờ trong `DayDetailDialog.vue`:**
   - Khi Admin sửa giờ vào/ra trong `DayDetailDialog.vue`, `saveTimeFix({ personId, date, checkIn, checkOut, shift, reason })` gửi kèm `reason` trong body `PUT /api/sheet` (hoặc ghi chú ngày) theo đúng hợp đồng của `src/modules/sheet/sheet.controller.ts` để nhật ký kiểm toán lưu được lý do sửa giờ.
 - **Nối chức năng duyệt/từ chối cho tab Giờ OT (`OvertimeView.vue`):**
   - Bổ sung `decideOvertime({ sessionId, version, action, reason })` trong `web/src/services/admin-attendance.ts` gọi `PUT /api/ot` (`{ sessionId, version, status: action === 'approve' ? 'approved' : 'rejected', reason }`).
   - `buildOvertime` giữ `sessionId` và `version` trên từng dòng để Admin có thể bấm *Đồng ý* / *Từ chối* ngay trên bảng `OvertimeView.vue` khi `status === 'pending'`.
+- **Đồng bộ liên kết và bộ đếm ở Tổng quan Admin (`web/src/builders/admin-main/overview.ts`):**
+  - Mục `forgot` (*Ngày quên Check-in/out chờ xử lý*) đổi đích từ `/admin/cham-cong/sua-gio` sang `/admin/cham-cong?filter=pending`.
+  - Mục `open` (*Lượt Check-in còn đang mở*) đổi đích sang `/admin/cham-cong/hom-nay`; mục `start` trỏ `/admin/nhan-su?loc=thieu-ngay`; mục `noshift` trỏ `/admin/nhan-su?loc=chua-co-ca`.
+  - Trong `staffFigures(staff)`, chỉ đếm thiếu ngày bắt đầu làm (`noStart`) với nhân sự thuộc chức vụ bắt buộc có ngày bắt đầu (`s.type !== 'tts'`), khớp với `staff.ts` và `periods.ts`.
 - **Dọn các hàm mock không còn dùng:**
   - Xoá `getTimeFixRequests` (dùng `fromMock`) trong `web/src/services/admin-attendance.ts`.
   - Xoá `changePassword` và `logout` giả (dùng `mockSave`) trong `web/src/services/admin-main.ts` (mọi màn đã dùng `web/src/services/session.ts`).
   - Xoá import `mockSave` thừa trong `web/src/services/payslip.ts`.
 
-### 3.3. Đồng bộ Check-in trên máy tính và điện thoại (`staff-desktop.ts`)
-- Trong `web/src/services/staff-desktop.ts`, cập nhật `staffCheck(kind, explanation)`:
-  - Khi `type === 'in'`, kiểm tra `me.geofenceRequired` (từ `GET /api/me`); nếu bật thì lấy vị trí qua `navigator.geolocation` và gửi `body.location = { lat, lng, accuracy }` giống hệt `punch()` trong `web/src/services/staff-phone.ts`.
+### 3.3. Đồng bộ giao diện Nhân viên trên máy tính (`staff-desktop`) và điện thoại (`staff-phone`)
+- **Check-in GPS trên máy tính (`web/src/services/staff-desktop.ts`):**
+  - Trong `staffCheck(kind, explanation)`: khi `type === 'in'`, kiểm tra `me.geofenceRequired` (từ `GET /api/me`); nếu bật thì lấy vị trí qua `navigator.geolocation` và gửi `body.location = { lat, lng, accuracy }` giống hệt `punch()` trong `web/src/services/staff-phone.ts`.
   - Đọc thống nhất `state.open?.id || state.openSession?.id` khi `type === 'out'`.
+- **Sửa tên trường phút đi trễ và phút bị trừ trên điện thoại (`web/src/builders/staff-phone/{home,attendance}.ts`):**
+  - Backend `src/engine/actual-hours.ts` trả số phút đi muộn mỗi ngày ở trường `report[date].late` (không phải `lateMin`). Sửa `home.ts` và `attendance.ts` đọc `r.late ?? r.lateMin` để hiển thị đúng tổng phút đi trễ và giữ đủ 3 cột thống kê trên `AttendanceView.vue`.
+  - Trong `attendance.ts`, trường `m.cut` của `src/engine/payroll-engine.ts` là **số tiền bị trừ (VNĐ)** chứ không phải số phút. Sửa ô thống kê thứ 3 tính tổng số phút bị trừ từ `Math.round((Number(m.short) || 0) * 60)` (hoặc tổng `cutStartMin + cutEndMin + gapCutMin` trong `actualReport.report`) để không hiển thị số tiền VNĐ dưới nhãn `"Phút bị trừ"`.
 
 ## 4. Chi tiết thiết kế Chặng 2: Tinh gọn UI/UX
 
@@ -71,12 +81,19 @@
    - Bỏ dòng `.pun` lặp lại giờ bấm gốc lần thứ 3 ở dưới mỗi thẻ lượt chấm công; gộp trạng thái và giờ vào/ra, số phút trễ, OT, kết quả công trên một bố cục 2 hàng gọn gàng.
    - Bỏ hộp `.note` thuyết minh dài dòng ở cuối form sửa giờ.
 
-### 4.2. Khung Admin chung & các màn KPI, Bảng lương
+### 4.2. Khung Admin chung, Yêu cầu, KPI & Màn Nhân viên trên điện thoại
 1. **Thanh kỳ lương (`PeriodStrip.vue` & `AdminLayout.vue`):**
    - Chỉ hiển thị dải 5 bước kỳ lương (`Chấm công → Chốt công → Tính lương → Phê duyệt → Trả lương`) trên các màn thuộc chu kỳ lương (`meta.nav` thuộc `['tong-quan', 'cham-cong', 'kpi', 'luong']`).
    - Ở các màn `duyet` (Yêu cầu), `ho-so` (Nhân sự), `cai-dat` (Cài đặt), ẩn dải 5 bước (`.steps`), chỉ giữ bộ chọn tháng (`.mpick`) và nút chuông thông báo (`.bell`) để đầu trang thoáng và đúng ngữ cảnh.
-2. **Màn Đánh giá KPI (`KpiShell.vue`):**
+2. **Màn Yêu cầu Admin (`RequestsView.vue` & `GroupClean.vue`):**
+   - Đổi tiêu đề thẻ `"Không có cảnh báo"` (tàn dư từ thời còn nhóm cảnh báo AI) thành `"Yêu cầu chờ xử lý"`.
+   - Thêm nút **"Đồng ý"** lẻ ngay trên từng dòng bên cạnh nút **"Từ chối"** trong `GroupClean.vue` (emit `@approve="approve"`), giúp Admin duyệt nhanh 1 yêu cầu mà không phải bỏ chọn toàn bộ các dòng khác.
+3. **Màn Đánh giá KPI (`KpiShell.vue`):**
    - Xoá tab chết `<span class="tab" aria-disabled="true">OKR <small>Sắp có</small></span>`.
    - Gộp dải công thức trọng số 5 cột khổng lồ (`.wts`) thành một dòng tóm tắt gọn ngay trong phần phụ đề hoặc thanh chip nhỏ, giữ lại 4 thẻ chỉ số `.kpis` để bảng nhập điểm được đẩy lên cao.
-3. **Cập nhật tài liệu sinh tự động (`spec/reference/web-routes.md`):**
+4. **Màn Hôm nay trên điện thoại (`web/src/views/staff-phone/HomeView.vue`):**
+   - Ẩn câu `Phiếu lương chính thức gửi ngày {{ dm(data.payslipDate) }}.` khi `data.payslipDate` là `null` để không hiện câu cụt `"Phiếu lương chính thức gửi ngày ."`.
+   - Hiển thị `Việc cần làm{{ data.requestDeadline ? ' trước ' + dm(data.requestDeadline) : '' }}` thay vì nối cứng `trước ` khi `requestDeadline` là `null`.
+   - Xoá nút chết `<button type="button" class="off" disabled>Sửa giờ <small>Sắp có</small></button>` trong hộp cảnh báo thiếu chấm công.
+5. **Cập nhật tài liệu sinh tự động (`spec/reference/web-routes.md`):**
    - Sau khi chuyển `sua-gio` và `ca-lam` thành redirect trong router, chạy `npm run spec:gen` để cập nhật `spec/reference/web-routes.md` và đảm bảo `npm run spec:check` đạt.
