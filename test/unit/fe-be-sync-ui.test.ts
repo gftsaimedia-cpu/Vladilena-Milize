@@ -5,6 +5,11 @@ const { buildPeriodView, buildRow } = require('../../web/src/builders/admin-payr
 const { buildDrawer } = require('../../web/src/builders/payslip/drawer');
 const { describeScenario } = require('../../web/src/views/admin/payroll/scenarios');
 const { getPeriodApprovalSummary, approvePeriod } = require('../../web/src/services/admin-payroll');
+const { buildSheetBody, buildOvertime } = require('../../web/src/builders/admin-attendance/timesheet');
+const { buildOverview } = require('../../web/src/builders/admin-main/overview');
+const { buildPunchBodyForDesktop } = require('../../web/src/services/staff-desktop');
+const { buildHome: buildPhoneHome } = require('../../web/src/builders/staff-phone/home');
+const { buildAttendance: buildPhoneAttendance } = require('../../web/src/builders/staff-phone/attendance');
 
 test('buildPeriodView: phiếu draft không tính vào facts.pending gây chặn duyệt kỳ', () => {
   const period = {
@@ -123,4 +128,99 @@ test('approvePeriod: gửi rev và excludeErrors tới POST /periods/:month/appr
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('buildSheetBody: truyền reason khi Admin sửa giờ', () => {
+  const detail = { personId: 'linh', rev: 3, days: {} };
+  const body = buildSheetBody(detail, {
+    date: '2026-10-05',
+    checkIn: '08:00',
+    checkOut: '17:30',
+    shift: 'n1',
+    reason: 'Quên bấm ra'
+  });
+  assert.equal(body.reason, 'Quên bấm ra');
+  assert.equal(body.days['2026-10-05'].note, 'Quên bấm ra');
+});
+
+test('buildOvertime: giữ sessionId và version để duyệt/từ chối OT', () => {
+  const res = buildOvertime({
+    ot: { ot: [{ sessionId: 42, version: 2, username: 'linh', name: 'Linh', date: '2026-10-05', shiftCode: 'n1', otHours: '2h' }] },
+    month: '2026-10',
+    status: 'pending'
+  });
+  assert.equal(res.rows[0].sessionId, 42);
+  assert.equal(res.rows[0].version, 2);
+});
+
+test('buildOverview: link quên Check-in/out trỏ về ?filter=pending và không đếm TTS thiếu ngày bắt đầu', () => {
+  const ov = buildOverview({
+    month: '2026-10',
+    serverNow: '2026-10-15T03:00:00Z',
+    requests: [],
+    alerts: { missingPunches: [{ username: 'linh', date: '2026-10-02', kind: 'forgot-out' }], absentNoExplanation: [] },
+    staff: [
+      { username: 'tts1', payrollSubject: true, locked: false, type: 'tts', startDate: null, shiftCode: 'n1' },
+      { username: 'nv1', payrollSubject: true, locked: false, type: 'nv', startDate: null, shiftCode: 'n1' }
+    ],
+    today: { rows: [] },
+    period: null,
+    estimates: null,
+    holidays: []
+  });
+  const forgotRow = ov.blockers.rows.find((r: any) => r.key === 'forgot');
+  const startRow = ov.blockers.rows.find((r: any) => r.key === 'start');
+  assert.equal(forgotRow.action.to, '/admin/cham-cong?filter=pending');
+  assert.equal(startRow.count, 1);
+});
+
+test('buildPunchBodyForDesktop: gửi location khi geofenceRequired bật và lấy sessionId từ state.open', async () => {
+  const inBody = await buildPunchBodyForDesktop({
+    type: 'in',
+    requestId: 'rq-12345678',
+    me: { geofenceRequired: true },
+    getPos: async () => ({ lat: 21.0, lng: 105.8, accuracy: 12 })
+  });
+  assert.deepEqual(inBody.location, { lat: 21.0, lng: 105.8, accuracy: 12 });
+
+  const outBody = await buildPunchBodyForDesktop({
+    type: 'out',
+    requestId: 'rq-87654321',
+    punchState: { open: { id: 99 } }
+  });
+  assert.equal(outBody.sessionId, 99);
+});
+
+test('staff-phone buildHome & buildAttendance: đọc đúng r.late và tính Phút bị trừ từ giờ thiếu (không lấy tiền m.cut)', () => {
+  const sheet = {
+    days: { '2026-10-02': { kind: 'work' } },
+    attendanceSessions: [{ date: '2026-10-02', entry: { presIn: '2026-10-02T01:20:00Z', presOut: '2026-10-02T10:30:00Z' } }],
+    actualReport: {
+      missing: [],
+      report: { '2026-10-02': { state: 'ok', late: 20, cutStartMin: 30, cutEndMin: 0, gapCutMin: 0 } }
+    }
+  };
+  const home = buildPhoneHome({
+    me: { serverNow: '2026-10-02T11:00:00Z', user: { name: 'Linh', username: 'linh' } },
+    punch: { serverNow: '2026-10-02T11:00:00Z', canCheckIn: true },
+    sheet,
+    estimate: { toDate: { count: 1, upTo: '2026-10-02' }, net: { net: 500000 } }
+  });
+  const lateFact = home.facts.find((f: any) => f.label === 'Đi trễ');
+  assert.ok(lateFact);
+  assert.equal(lateFact.value, '20 phút');
+
+  const att = buildPhoneAttendance({
+    month: '2026-10',
+    sheet,
+    estimate: { m: { count: 1, cut: 125000, short: 0.5 } },
+    me: { holidays: [] },
+    today: '2026-10-02',
+    nav: {},
+    shiftLine: 'Ca 1',
+    nowIso: '2026-10-02T11:00:00Z'
+  });
+  assert.equal(att.stats.length, 3);
+  assert.deepEqual(att.stats[1], { value: '20', label: 'Phút đi trễ' });
+  assert.deepEqual(att.stats[2], { value: '30', label: 'Phút bị trừ' });
 });

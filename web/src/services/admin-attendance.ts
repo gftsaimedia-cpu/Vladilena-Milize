@@ -1,9 +1,9 @@
 // Dịch vụ cho Chấm công & phép: bảng công, Hôm nay, OT, ca làm, sổ phép, chấm công thay hàng loạt.
-import { fromMock } from './mock';
 import { ApiError, api } from './http';
 import {
   buildDayDetail,
   buildOvertime,
+  buildSheetBody,
   buildToday,
   buildTimesheet
 } from '@/builders/admin-attendance/timesheet';
@@ -96,16 +96,33 @@ export async function getToday(month?, { filter = 'all', q = '', page = 1 }: any
   return { ...buildToday({ today, shifts }, { filter, q, page }), updatedAt: hhmm(new Date().toISOString()) };
 }
 
-/** Tab Sửa giờ: yêu cầu sửa giờ của nhân viên. status: pending | approved | rejected | all. Chưa có yêu cầu nào. */
-// Nối máy chủ: GET /api/periods/:month/time-fix-requests?status=
-export const getTimeFixRequests = (month?, { status = 'pending' }: any = {}) =>
-  fromMock({ month, status, counts: { pending: 0 }, rows: [] });
+/** Admin sửa giờ Check-in/out cho nhân viên (PUT /sheet qua buildSheetBody). */
+export async function saveTimeFix({ personId, date, checkIn, checkOut, shift, reason }: any) {
+  const month = date.slice(0, 7);
+  const detail = await api('GET', '/sheet?' + qs({ month, user: personId }));
+  const body = buildSheetBody(detail, { date, checkIn, checkOut, shift, reason });
+  return api('PUT', '/sheet', body);
+}
 
-/** Tab Giờ OT: OT khai đối chiếu với Check-in/out. status: pending | approved | rejected. Chưa có lượt nào. */
-// Nối máy chủ: GET /api/periods/:month/overtime?status=
+/** Tab Sửa giờ: yêu cầu sửa giờ của nhân viên. status: pending | approved | rejected | all. Chưa có yêu cầu nào. */
+export const getTimeFixRequests = async (month?, { status = 'pending' }: any = {}) =>
+  ({ month, status, counts: { pending: 0 }, rows: [] });
+
+/** Tab Giờ OT: OT khai đối chiếu với Check-in/out. status: pending | approved | rejected. */
 export async function getOvertimeRequests(month?, { status = 'pending' }: any = {}) {
   const ot = await api('GET', '/ot?' + qs({ status }));
   return buildOvertime({ ot, month, status });
+}
+
+/** Duyệt hoặc từ chối lượt OT (PUT /ot). */
+export function decideOvertime({ sessionId, version, action, reason }: any) {
+  return api('PUT', '/ot', {
+    sessionId: Number(sessionId),
+    version: Number(version),
+    action: action === 'approve' ? 'approve' : 'reject',
+    status: action === 'approve' ? 'approved' : 'rejected',
+    ...(reason ? { reason: String(reason).trim(), note: String(reason).trim() } : {})
+  });
 }
 
 import { loadShiftOverview } from '@/builders/admin-attendance/shifts';

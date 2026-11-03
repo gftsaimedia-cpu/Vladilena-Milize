@@ -11,9 +11,10 @@ defineProps({
   active: { type: String, required: true },
   columns: { type: Array as () => any[], required: true }, // tên cột, kể cả cột đầu (Nhân sự) và cuối (Trạng thái)
   rows: { type: Array as () => any[], default: () => [] },
-  empty: { type: Object as () => any, required: true } // { icon, title, lines: [] }
+  empty: { type: Object as () => any, required: true }, // { icon, title, lines: [] }
+  showActions: { type: Boolean, default: false }
 });
-defineEmits(['select']);
+defineEmits(['select', 'approve', 'reject']);
 </script>
 
 <template>
@@ -38,6 +39,7 @@ defineEmits(['select']);
       <thead>
         <tr>
           <th v-for="c in columns" :key="c">{{ c }}</th>
+          <th v-if="showActions">Thao tác</th>
         </tr>
       </thead>
       <tbody v-if="rows.length">
@@ -54,6 +56,12 @@ defineEmits(['select']);
           <td v-for="(c, i) in r.cols" :key="i">{{ c }}</td>
           <td>
             <span class="pill" :class="r.pill.cls">{{ r.pill.label }}</span>
+          </td>
+          <td v-if="showActions">
+            <div v-if="r.canDecide" class="acts" style="display: flex; gap: 8px;">
+              <button type="button" class="btn sm pri" @click="$emit('approve', r)">Đồng ý</button>
+              <button type="button" class="btn sm" @click="$emit('reject', r)">Từ chối</button>
+            </div>
           </td>
         </tr>
       </tbody>
