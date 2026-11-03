@@ -4,86 +4,6 @@ import type { ColumnType } from 'kysely';
 /** Cột có giá trị mặc định / tự sinh: đọc ra T, có thể bỏ khi INSERT. */
 export type Generated<T> = ColumnType<T, T | undefined, T>;
 
-export interface AdvanceApprovalEntriesTable {
-  id: Generated<number>;
-  month: string;
-  username: string;
-  status: Generated<string | null>;
-  rev: number;
-  requested_at: Date;
-  requested_by: string;
-  decided_at: Generated<Date | null>;
-  decided_by: Generated<string | null>;
-  reason: Generated<string | null>;
-}
-
-export interface AdvanceApprovalMonthsTable {
-  month: string;
-  rev: Generated<number>;
-}
-
-export interface AdvanceRequestsTable {
-  id: Generated<number>;
-  username: string;
-  month: string;
-  amount: number;
-  cap: number;
-  note: Generated<string | null>;
-  status: Generated<string>;
-  granted: Generated<number | null>;
-  rev: Generated<number>;
-  created_at: string;
-  decided_by: Generated<string | null>;
-  decided_at: Generated<string | null>;
-  decision_note: Generated<string | null>;
-  cancelled_by: Generated<string | null>;
-  cancelled_at: Generated<string | null>;
-}
-
-export interface AiFindingActionsTable {
-  id: Generated<number>;
-  finding_id: string;
-  digest: string;
-  month: string;
-  rule_id: string;
-  action: string;
-  by: string;
-  at: string;
-  note: string;
-}
-
-export interface AiReviewRunsTable {
-  id: Generated<number>;
-  month: string;
-  run_id: Generated<number | null>;
-  rules_json: string;
-  thresholds_hash: string;
-  params_hash: string;
-  findings_total: Generated<number | null>;
-  summary_json: Generated<string | null>;
-  by: string;
-  at: string;
-}
-
-export interface AttendanceDaysTable {
-  username: string;
-  date: string;
-  entry_json: string;
-  updated_at: string;
-}
-
-export interface AttendanceSessionsTable {
-  id: Generated<number>;
-  username: string;
-  date: string;
-  state: string;
-  entry_json: string;
-  version: Generated<number>;
-  legacy_key: Generated<string | null>;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface AuditLogTable {
   id: Generated<number>;
   at: string;
@@ -110,42 +30,6 @@ export interface BenefitTypesTable {
   label: Generated<string | null>;
 }
 
-export interface CorrectionsTable {
-  id: Generated<number>;
-  username: string;
-  date: string;
-  req_in: string;
-  req_out: string;
-  reason: string;
-  status: Generated<string>;
-  decided_by: Generated<string | null>;
-  decided_at: Generated<string | null>;
-  note: Generated<string | null>;
-  created_at: string;
-  context_json: Generated<string | null>;
-  session_id: Generated<number | null>;
-  session_version: Generated<number | null>;
-}
-
-export interface ExplanationsTable {
-  id: Generated<number>;
-  username: string;
-  date: string;
-  kind: string;
-  session_id: Generated<number | null>;
-  prompt: Generated<string>;
-  rule_id: Generated<string | null>;
-  requested_by: string;
-  requested_at: string;
-  status: Generated<string>;
-  answer: Generated<string | null>;
-  answered_at: Generated<string | null>;
-  decided_by: Generated<string | null>;
-  decided_at: Generated<string | null>;
-  decision_note: Generated<string | null>;
-  rev: Generated<number>;
-}
-
 export interface KpiScoreLogTable {
   id: Generated<number>;
   username: string;
@@ -169,17 +53,6 @@ export interface KpiScoresTable {
   created_by: string;
   created_at: string;
   updated_by: string;
-  updated_at: string;
-}
-
-export interface LeaveLedgerTable {
-  id: Generated<number>;
-  staff_uuid: string;
-  username: string;
-  kind: string;
-  on_date: string;
-  days: number;
-  created_at: string;
   updated_at: string;
 }
 
@@ -332,42 +205,9 @@ export interface PunchEventsTable {
   created_at: Date;
 }
 
-export interface PunchRequestsTable {
-  username: string;
-  request_id: string;
-  operation: string;
-  session_id: Generated<number | null>;
-  response_json: string;
-  created_at: Generated<string | null>;
-}
-
-export interface PunchesTable {
-  id: Generated<number>;
-  username: string;
-  at: string;
-  type: string;
-  ip: Generated<string | null>;
-  auto: Generated<number>;
-  context_json: Generated<string | null>;
-  session_id: Generated<number | null>;
-}
-
 export interface SettingsTable {
   key: string;
   value_json: string;
-}
-
-export interface SheetApprovalsTable {
-  username: string;
-  date: string;
-  item: string;
-  fingerprint: string;
-  status: Generated<string>;
-  rev: Generated<number>;
-  submitted_at: string;
-  decided_by: Generated<string | null>;
-  decided_at: Generated<string | null>;
-  note: Generated<string | null>;
 }
 
 export interface SlipOverridesTable {
@@ -449,6 +289,11 @@ export interface SystemRequestsTable {
   ot_hours: Generated<number | null>;
   advance_amount: Generated<number | null>;
   advance_period: Generated<string | null>;
+  new_shift_type: Generated<string | null>;
+  new_start_time: Generated<string | null>;
+  new_end_time: Generated<string | null>;
+  makeup_start_time: Generated<string | null>;
+  makeup_end_time: Generated<string | null>;
   created_at: Date;
   updated_at: Date;
 }
@@ -470,20 +315,26 @@ export interface TimesheetEntriesTable {
   early_minutes: Generated<number>;
   status: string;
   is_locked: Generated<boolean>;
+  check_in_status: Generated<string>;
+  check_out_status: Generated<string>;
+  day_status: Generated<string>;
   created_at: Date;
   updated_at: Date;
 }
 
-export interface TimesheetsTable {
-  username: string;
-  month: string;
-  days_json: Generated<string>;
-  kpi_pct: Generated<number | null>;
-  kpi_amt: Generated<number | null>;
-  kpi_adm_pct: Generated<number | null>;
-  kpi_adm_amt: Generated<number | null>;
-  updated_at: string;
-  rev: Generated<number>;
+export interface WorkSchedulesTable {
+  id: Generated<string>;
+  employee_id: string;
+  work_date: string;
+  shift_type: string;
+  planned_start_time: string;
+  planned_end_time: string;
+  approved_ot_hours: Generated<number>;
+  schedule_type: Generated<string>;
+  status: Generated<string>;
+  source_request_id: Generated<string | null>;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
 
 export interface WorkShiftsTable {
@@ -499,20 +350,10 @@ export interface WorkShiftsTable {
 }
 
 export interface Schema {
-  advance_approval_entries: AdvanceApprovalEntriesTable;
-  advance_approval_months: AdvanceApprovalMonthsTable;
-  advance_requests: AdvanceRequestsTable;
-  ai_finding_actions: AiFindingActionsTable;
-  ai_review_runs: AiReviewRunsTable;
-  attendance_days: AttendanceDaysTable;
-  attendance_sessions: AttendanceSessionsTable;
   audit_log: AuditLogTable;
   benefit_types: BenefitTypesTable;
-  corrections: CorrectionsTable;
-  explanations: ExplanationsTable;
   kpi_score_log: KpiScoreLogTable;
   kpi_scores: KpiScoresTable;
-  leave_ledger: LeaveLedgerTable;
   param_versions: ParamVersionsTable;
   pay_entries: PayEntriesTable;
   payroll_periods: PayrollPeriodsTable;
@@ -522,15 +363,12 @@ export interface Schema {
   position_type_benefits: PositionTypeBenefitsTable;
   position_types: PositionTypesTable;
   punch_events: PunchEventsTable;
-  punch_requests: PunchRequestsTable;
-  punches: PunchesTable;
   settings: SettingsTable;
-  sheet_approvals: SheetApprovalsTable;
   slip_overrides: SlipOverridesTable;
   staff: StaffTable;
   staff_roles: StaffRolesTable;
   system_requests: SystemRequestsTable;
   timesheet_entries: TimesheetEntriesTable;
-  timesheets: TimesheetsTable;
+  work_schedules: WorkSchedulesTable;
   work_shifts: WorkShiftsTable;
 }
