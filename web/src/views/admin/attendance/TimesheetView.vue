@@ -84,6 +84,15 @@ function cellAria(row: any, day: any) {
   if (cell?.k) details.push(SESSION_LABEL[cell.k] || 'Có lượt chấm công');
   return `${row.name}, ngày ${day.n}${details.length ? `: ${details.join(' · ')}` : ': Chưa khai ngày hoặc chưa có lượt chấm công'}`;
 }
+function cellCls(cell?: any): string {
+  if (cell?.k === 'w') return 'c-pending';
+  if (cell?.k === 'q') return 'c-rejected';
+  if (cell?.declared?.code === 'leave') return 'c-leave';
+  if (cell?.declared?.code === 'extra') return 'c-extra';
+  if (cell?.k === 'in') return 'c-in';
+  if (cell?.k === 'ok') return 'c-ok';
+  return '';
+}
 const heading = computed(() => `Bảng công tháng ${Number(month.value.slice(5))}`);
 const range = computed(() => {
   const last = days.value.length;
@@ -179,16 +188,18 @@ function onSaved() {
               </div>
             </div>
           </td>
-          <td v-for="c in days" :key="c.date" :class="c.cls">
+          <td v-for="c in days" :key="c.date" :class="[c.cls, cellCls(r.cells[c.date])]">
             <button
               type="button"
               class="cell"
+              :class="cellCls(r.cells[c.date])"
               :aria-label="cellAria(r, c)"
               @click="picked = { id: r.id, date: c.date }"
             >
               <span
                 v-if="r.cells[c.date]?.declared"
                 class="declared"
+                :class="'tag-' + (r.cells[c.date]?.declared?.code || 'default')"
                 :title="r.cells[c.date].declared.label"
                 >{{ r.cells[c.date].declared.text }}</span
               >
@@ -349,61 +360,72 @@ function onSaved() {
   vertical-align: middle;
 }
 .declared {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 13px;
-  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  padding: 0 6px;
   border-radius: 4px;
-  background: #eef1f4;
-  color: #46515c;
-  font-size: 8px;
-  font-weight: 700;
+  font-size: 10px;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
 }
-.m.ok {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #c2c2c2;
+.tag-leave {
+  background: #e0f2fe;
+  color: #0284c7;
+  border: 1px solid #bae6fd;
 }
-.m.hw {
-  width: 7px;
-  height: 7px;
+.tag-extra {
+  background: #ede9fe;
+  color: #6d28d9;
+  border: 1px solid #ddd6fe;
+}
+.m.ok {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 .m.w {
-  background: var(--pend-bg);
-  box-shadow: inset 0 0 0 1px #f0c9a2;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
 }
 .m.q {
-  background: var(--err-bg);
-  color: var(--err-ink);
-  box-shadow: inset 0 0 0 1px #ecc4c4;
-}
-.m.late {
-  width: auto;
-  color: var(--pend-ink);
-  font-size: 11px;
-}
-.m.lv {
-  border: 1.5px dashed #9e9e9e;
-  color: var(--muted);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.25);
 }
 .m.in {
-  background: var(--gold-light);
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  width: 16px;
-  height: 16px;
+  background: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
 }
-.m.in::after {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent);
+td.c-pending, .cell.c-pending {
+  background: rgba(254, 243, 199, 0.5);
+}
+td.c-rejected, .cell.c-rejected {
+  background: rgba(254, 226, 226, 0.5);
+}
+td.c-leave, .cell.c-leave {
+  background: rgba(224, 242, 254, 0.4);
+}
+td.c-extra, .cell.c-extra {
+  background: rgba(237, 233, 254, 0.4);
+}
+td.c-in, .cell.c-in {
+  background: rgba(219, 234, 254, 0.4);
+}
+td.c-ok, .cell.c-ok {
+  /* soft neutral/ok */
 }
 td.none {
   text-align: center !important;

@@ -16,13 +16,13 @@ import {
 const CELL = { pending: 'w', rejected: 'q', 'checked-in': 'in', 'checked-out': 'ok', approved: 'ok', admin: 'ok' };
 const RANK = ['pending', 'rejected', 'checked-in', 'checked-out', 'approved', 'admin'];
 const COUNTED = new Set<any>(['checked-in', 'checked-out', 'approved', 'admin']);
-const DAY_KIND: Record<string, { text: string; label: string }> = {
-  leave: { text: 'Phép', label: 'Nghỉ phép năm' },
-  approved: { text: 'Phép', label: 'Nghỉ được duyệt' },
-  unpaid: { text: 'Nghỉ', label: 'Nghỉ không lương' },
-  willmakeup: { text: 'Bù', label: 'Nghỉ, sẽ làm bù' },
-  makeup: { text: 'Bù', label: 'Làm bù' },
-  isat: { text: 'iS', label: 'Ngày iSAT' }
+const DAY_KIND: Record<string, { text: string; label: string; code: string }> = {
+  leave: { text: 'Nghỉ', label: 'Nghỉ phép năm', code: 'leave' },
+  approved: { text: 'Nghỉ', label: 'Nghỉ được duyệt', code: 'leave' },
+  unpaid: { text: 'Nghỉ', label: 'Nghỉ không lương', code: 'leave' },
+  isat: { text: 'Nghỉ', label: 'Ngày iSAT', code: 'leave' },
+  willmakeup: { text: 'Làm thêm', label: 'Nghỉ, sẽ làm bù', code: 'extra' },
+  makeup: { text: 'Làm thêm', label: 'Làm bù', code: 'extra' }
 };
 
 function daysOf(sessions?) {
