@@ -18,8 +18,6 @@ const {
   TimesheetsRepository,
   KpiScoresRepository
 } = require('../data');
-const fs = require('node:fs');
-const path = require('node:path');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const { AsyncLocalStorage } = require('node:async_hooks');
@@ -28,39 +26,21 @@ const config = require('./config'); // hằng số kỹ thuật có tên (không
 const { AsyncList } = require('../shared/async-list');
 const { PersonName, titleCase } = require('../domain/employee/person-name'); // lớp thuần, không require src/platform/db
 
-// Cơ sở dữ liệu là PostgreSQL. Không có giá trị mặc định: chạy nhầm `npm start` hay `npm run seed` sẽ không âm thầm mở một DB nào.
-//   DATABASE_URL=postgres://…      máy chủ PostgreSQL thật (vận hành)
-//   PG_TEST_URL=postgres://…       test: mỗi tiến trình một database riêng trên máy chủ thật (xoá khi đóng)
-//   DB_PATH=:memory: | <thư mục>   PostgreSQL trong tiến trình (PGlite): RAM, hoặc lưu ở thư mục; dùng để thử và dựng thử
-const DB_PATH = process.env.DB_PATH;
-if (process.env.DATABASE_URL && (DB_PATH || process.env.PG_TEST_URL)) {
-  const conflicting = [DB_PATH && 'DB_PATH', process.env.PG_TEST_URL && 'PG_TEST_URL'].filter(Boolean).join(', ');
-  throw new Error(
-    `Cấu hình database mâu thuẫn: DATABASE_URL được đặt cùng ${conflicting}. Hãy bỏ cấu hình không chủ đích trước khi chạy.`
-  );
-}
-if (!process.env.DATABASE_URL && !process.env.PG_TEST_URL && !DB_PATH)
+// Ứng dụng chỉ nhận URL kết nối tới một database PostgreSQL cụ thể. Test runner tự tạo
+// database riêng và truyền URL đó qua DATABASE_URL; cấu hình legacy không chọn database.
+const legacyDatabaseVariables = ['DB_PATH', 'PG_TEST_URL'].filter(name => process.env[name]);
+if (legacyDatabaseVariables.length)
+  throw new Error(`Cấu hình database cũ không được hỗ trợ: ${legacyDatabaseVariables.join(', ')}. Chỉ dùng DATABASE_URL.`);
+if (!process.env.DATABASE_URL)
   throw new Error(
     [
       'Chưa chọn cơ sở dữ liệu nên ứng dụng không mở DB nào (tránh vô tình dùng nhầm DB).',
-      'Đặt một trong các biến môi trường rồi chạy lại:',
-      '  DATABASE_URL=postgres://user:mật-khẩu@máy-chủ:5432/tên-db   máy chủ PostgreSQL thật',
-      '  DB_PATH=:memory:                                              PostgreSQL trong RAM (thử, mất khi tắt)',
-      '  DB_PATH=./data/dev                                            PostgreSQL trong tiến trình, lưu ở thư mục (dev)',
-      '  npm start còn đọc được các dòng này trong file .env cạnh package.json;',
-      '  npm run seed và npm run sandbox không đọc .env, chỉ nhận biến môi trường (sandbox luôn dùng DB trong RAM).'
+      'Đặt DATABASE_URL trỏ tới database PostgreSQL rồi chạy lại.',
+      '  DATABASE_URL=postgres://user:mật-khẩu@máy-chủ:5432/tên-db'
     ].join('\n')
   );
 
-const db = new PostgresDatabase(
-  process.env.DATABASE_URL
-    ? { url: process.env.DATABASE_URL }
-    : process.env.PG_TEST_URL
-      ? { isolatedFrom: process.env.PG_TEST_URL }
-      : DB_PATH === ':memory:'
-        ? { memory: true }
-        : { dataDir: path.resolve(DB_PATH) }
-);
+const db = new PostgresDatabase({ url: process.env.DATABASE_URL });
 // Trình dựng truy vấn có kiểu (Kysely, src/data) trên chính kết nối này; các kho lần lượt chuyển từ SQL thô sang repository.
 const queryBuilder = createQueryBuilder(db);
 const locks = new AdvisoryLocks(queryBuilder);
@@ -86,26 +66,12 @@ const now = () => new Date(Date.now()).toISOString();
 
 // Gói ghi nhiều bước thành một: lỗi thì hoàn tác cả gói. Dùng SAVEPOINT nên gọi lồng nhau được.
 let transactionId = 0;
-// PGlite (PostgreSQL trong tiến trình) chỉ có MỘT kết nối: hai giao dịch chạy chồng nhau (hai yêu cầu cùng await ở giữa) sẽ lẫn savepoint
-// và đọc dở của nhau. Nên giao dịch ngoài cùng xếp hàng tuần tự (hàng đợi lời hứa); giao dịch lồng trong cùng ngữ cảnh async dùng SAVEPOINT,
-// không xếp hàng lại (tránh tự chặn). Máy chủ PostgreSQL thật (pg.Pool) mỗi giao dịch một kết nối nên không cần hàng đợi này.
+// Giao dịch ngoài cùng có kết nối riêng từ pg.Pool; giao dịch lồng trong cùng ngữ cảnh async dùng SAVEPOINT.
 const insideTransaction = new AsyncLocalStorage();
-let transactionTail = Promise.resolve();
-// PostgreSQL (db.runTransaction): BEGIN … COMMIT trên một kết nối riêng, nên các giao dịch ngoài cùng không phải xếp hàng khi db.concurrent.
-const outermost = (write?) =>
-  insideTransaction.run(true, () => (db.runTransaction ? db.runTransaction(write) : savepoint(write)));
+const outermost = (write?) => insideTransaction.run(true, () => db.runTransaction(write));
 async function transaction(write?) {
   if (insideTransaction.getStore()) return await savepoint(write);
-  if (db.concurrent) return await outermost(write);
-  const previous = transactionTail;
-  let release;
-  transactionTail = new Promise(resolve => (release = resolve));
-  await previous;
-  try {
-    return await outermost(write);
-  } finally {
-    release();
-  }
+  return await outermost(write);
 }
 async function savepoint(write?) {
   const name = `write_${++transactionId}`;

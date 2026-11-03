@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
 const { spawn } = require('node:child_process');
 const { TemporaryPostgres } = require('../dev/temporary-postgres');
 
@@ -10,11 +11,13 @@ if (process.platform === 'win32')
 const argumentsList = process.argv.slice(2);
 const concurrencyArgument = argumentsList.find(argument => argument.startsWith('--concurrency='));
 const concurrency = concurrencyArgument ? Number(concurrencyArgument.slice('--concurrency='.length)) : 4;
-const files = argumentsList.filter(argument => !argument.startsWith('--'));
+const patterns = argumentsList.filter(argument => !argument.startsWith('--'));
 if (!Number.isSafeInteger(concurrency) || concurrency < 1 || concurrency > 16)
   throw new Error('Concurrency phải là số nguyên từ 1 đến 16.');
-if (!files.length || argumentsList.some(argument => argument.startsWith('--') && argument !== concurrencyArgument))
+if (!patterns.length || argumentsList.some(argument => argument.startsWith('--') && argument !== concurrencyArgument))
   throw new Error('Truyền ít nhất một file test và tuỳ chọn --concurrency=1..16.');
+const files = patterns.flatMap(pattern => [...fs.globSync(pattern, { cwd: process.cwd() })].map(file => path.resolve(file)));
+if (!files.length) throw new Error('No test files matched the supplied glob.');
 const adminUrl = process.env.PG_TEST_URL;
 if (!adminUrl) throw new Error('Cần PG_TEST_URL của máy chủ PostgreSQL test riêng.');
 let control: URL;

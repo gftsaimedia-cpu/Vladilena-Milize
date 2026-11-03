@@ -48,7 +48,6 @@ before(async () => {
         ...process.env,
         SANDBOX_PG_CONTROL_URL: testControlUrl,
         SANDBOX_PORT: '0',
-        DB_PATH: ':memory:',
         COOKIE_SECURE: '1'
       },
       stdio: ['ignore', 'pipe', 'pipe'],

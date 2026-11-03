@@ -36,9 +36,11 @@ test('accepts a runner-owned database on the explicitly configured test server',
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('temporarily accepts the existing isolated PostgreSQL test configuration', () => {
+test('rejects a legacy test control URL without an owned database marker', () => {
   const result = check({ DATABASE_URL: '', TEST_PG_CONTROL_URL: '', TEST_PG_DATABASE_NAME: '', PG_TEST_URL: control });
-  assert.equal(result.status, 0, result.stderr);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /database test/i);
+  assert.doesNotMatch(result.stderr, /private-password|postgresql:\/\//);
 });
 
 for (const [label, override] of [

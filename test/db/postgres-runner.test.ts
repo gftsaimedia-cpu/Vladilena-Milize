@@ -98,6 +98,21 @@ test('runs files in parallel with distinct DBs and cleans both after success', a
   }
 });
 
+test('expands a glob to every matching test file', async () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-runner-glob-'));
+  const trace = path.join(directory, 'trace');
+  try {
+    const result = await launch([path.join(fixtures, 'alpha*.cjs')], trace, { PG_RUNNER_PEERS: '2' }).completed;
+    assert.equal(result.code, 0, result.output);
+    const names = namesAt(trace);
+    assert.equal(names.length, 2);
+    assert.equal(new Set(names).size, 2);
+    await assertRemoved(names);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('subprocesses spawned by a test can load project TypeScript modules', async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'pg-runner-loader-'));
   const trace = path.join(directory, 'trace');

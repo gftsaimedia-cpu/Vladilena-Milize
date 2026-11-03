@@ -7,7 +7,7 @@
 //   - nhóm 3 (thêm src/engine/payroll-engine.ts): bộ máy chạy ParamSet của tháng trả đúng từng đồng và đúng dấu vân tay như bộ máy chạy DEFAULTS cộng dòng danh mục trên đầu vào của 300 ca vàng;
 //   - nhóm 4 (route kỳ lương): qua cả DB, API và bản chụp phiếu, bốn người bịa, hai tháng (có và không có giờ thực tế).
 // Nhóm thiếu file chạy như `todo` và đỏ bằng "module missing", không bằng lỗi nạp. RED=1 để xem.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
+const F = require('../helpers/api-fixture'); // xác nhận database test tạm trước khi require src/platform/db
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const flow = require('../helpers/period-flow');

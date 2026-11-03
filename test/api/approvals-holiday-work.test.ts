@@ -1,13 +1,8 @@
 // Khoản thứ sáu "Đi làm ngày lễ" ở phía máy chủ: nhận diện khi lưu lịch, đổi lịch lễ làm khoản xuất hiện hoặc biến mất,
 // hàng chờ, quyền, và di chuyển dữ liệu cũ (dấu sheet_approvals_v2).
-process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-holiday-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
@@ -341,64 +336,3 @@ test('nhân sự không đổi được lịch lễ: 403 và không tạo khoả
   assert.equal((await call('PUT', '/holidays', { dates: [TUE] }, null)).status, 401);
   assert.deepEqual(await rowsOf('worker'), []);
 });
-
-// ================= Di chuyển (sheet_approvals_v2) =================
-
-const LIB_DB = JSON.stringify(path.join(__dirname, '../../src/platform/db'));
-const { wrapScript } = require('../helpers/child-script');
-async function runChild(dbPath?, script?) {
-  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {
-    env: { ...process.env, DB_PATH: dbPath, SESSION_SECRET: 'approvals-holiday-migration' },
-    encoding: 'utf8'
-  });
-  return JSON.parse(await out.trim().split('\n').at(-1));
-}
-const DUMP = `
-  const rows = store.db.prepare('SELECT username, date, item, fingerprint, status, rev, decided_by, note FROM sheet_approvals ORDER BY username, date').all();
-  const markers = store.db.prepare("SELECT key FROM settings WHERE key LIKE 'sheet_approvals_v%' ORDER BY key").all().map(r => r.key);
-  console.log(JSON.stringify({ rows, markers }));
-`;
-const HOLIDAYS = [SEP2, '2026-09-04', TUE, SAT, SUN, NOV2];
-const LEGACY = {
-  '2026-09': {
-    [SEP2]: { ...WORK },
-    '2026-09-04': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' },
-    '2026-09-08': { ...WORK },
-    '2026-09-16': { kind: 'isat' }
-  },
-  '2026-10': {
-    [TUE]: { ...WORK },
-    '2026-10-21': { ...WORK },
-    '2026-10-22': { kind: 'willmakeup' },
-    [SUN]: { ...WORK },
-    [SAT]: { ...WORK },
-    '2026-10-07': { kind: 'work', in: '08:00', out: '17:00', extraKind: 'ot', extraOut: '19:00' }
-  },
-  '2026-11': { [NOV2]: { kind: 'leave' } }
-};
-// DB cũ: đã chạy v1 (có dòng v1 và dấu sheet_approvals_v1) nhưng chưa có dấu v2; có lịch lễ và lịch của một NV và một TTS
-async function buildV1Db({ dropV1 = false }: any = {}) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-holiday-approvals-'));
-  const dbPath = path.join(dir, 'legacy.sqlite');
-  await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    const base = { role: 'staff', level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' };
-    await store.upsertStaff({ ...base, username: 'worker', name: 'worker', type: 'nv' });
-    await store.upsertStaff({ ...base, username: 'intern', name: 'intern', type: 'tts' });
-    await store.setSetting('holidays', ${JSON.stringify(HOLIDAYS)});
-    for (const [month, days] of Object.entries<any>(${JSON.stringify(LEGACY)})) {
-      await store.setSheet('worker', month, days, null, null);
-      await store.setSheet('intern', month, days, null, null);
-    }
-    store.db.exec('DELETE FROM sheet_approvals');
-    store.db.exec("DELETE FROM settings WHERE key LIKE 'sheet_approvals_v%'");
-    ${dropV1 ? '' : 'await store.approvals.migrate();'}
-    console.log('{}');
-  `
-  );
-  return dbPath;
-}
-const summary = (rows?) =>
-  Object.fromEntries(rows.map(r => [`${r.username}:${r.date}`, `${r.item}:${r.status}:${r.decided_by ?? '-'}`]));

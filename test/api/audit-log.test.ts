@@ -4,7 +4,7 @@
 //   - tầng kho dữ liệu (src/platform/db.ts: store.audit, trigger của bảng audit_log);
 //   - tầng nối vào API (src/platform/audit.ts và các route): chạy như `todo` khi chưa có src/platform/audit.ts, RED=1 để chạy như test thường.
 // Tên test: audit-append-only, audit-hash-chain, audit-atomic, audit-no-secrets, audit-permissions.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
+const F = require('../helpers/api-fixture'); // xác nhận database test tạm trước khi require src/platform/db
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { pending } = require('../helpers/red');

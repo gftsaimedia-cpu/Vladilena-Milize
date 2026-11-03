@@ -3,7 +3,7 @@
 //   - tài khoản `admin` hiện có giữ TOÀN BỘ năng lực: mọi route chỉ-Admin cho Admin vào (không 401, không 403);
 //   - nhân sự (role `staff`) bị 403 ở mọi route chỉ-Admin và không đọc được dữ liệu của người khác; chưa đăng nhập bị 401.
 // Nhóm 1 kiểm hợp đồng quyền ở tầng HTTP; nhóm 2 kiểm khung năng lực của src/platform/authz.ts (ROLE_CAPS, ROUTE_CAPS).
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
+const F = require('../helpers/api-fixture'); // xác nhận database test tạm trước khi require src/platform/db
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

@@ -19,7 +19,6 @@ const fs = require('node:fs');
 
 // Môi trường cố định TRƯỚC khi nạp bất cứ file nào của dự án: chuỗi rỗng chặn .env điền vào, và không dựa vào máy đang chạy.
 const PINNED = {
-  DB_PATH: ':memory:',
   SESSION_SECRET: 'qa-route-dispatch-golden',
   SESSION_DAYS: '',
   SESSION_COOKIE_NAME: '',

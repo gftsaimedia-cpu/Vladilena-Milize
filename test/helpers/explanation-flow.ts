@@ -1,7 +1,7 @@
 'use strict';
 // Đồ dùng chung cho test giải trình ngày: dựng lượt quên Check-out, Admin yêu cầu / nhân sự trả lời / Admin quyết định qua API thật,
 // và đọc kết quả tính lương của một người (cùng đường loadInputs → computeFor như bảng lương).
-// Nạp SAU test/helpers/api-fixture.ts (đặt DB_PATH trước khi nạp src/platform/db).
+// Nạp SAU test/helpers/api-fixture.ts (đã xác nhận database test tạm).
 const assert = require('node:assert/strict');
 const F = require('./api-fixture');
 

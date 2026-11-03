@@ -5,7 +5,7 @@
 // điểm KPI và số sửa phiếu còn mở tới hết `reviewed`, khoá từ `approved`.
 // Danh sách route lấy từ mã máy chủ (test tĩnh bên dưới đỏ nếu thêm route ghi mới mà chưa khai báo); test cuối buộc mọi route ghi
 // trong ROUTE_CAPS của src/platform/authz.ts phải khai báo periodScope và nằm trong bảng này.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
+const F = require('../helpers/api-fixture'); // xác nhận database test tạm trước khi require src/platform/db
 F.explainPunches = true; // lượt bấm trễ / ngoài ca ở đây chỉ là đầu vào: kèm giải trình lúc bấm
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

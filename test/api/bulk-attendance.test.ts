@@ -420,9 +420,9 @@ test('trần số người một lần: 200 người ba ngày xong dưới 10 gi
   assert.equal(res.data.results.length, max);
   assert.equal((await auditCount('sheet.onBehalf')) - per, max);
   assert.ok(res.data.results.every(r => r.presence.set.length === 3));
-  // Yêu cầu là 10 giây trên máy chủ PostgreSQL thật (PG_TEST_URL). PGlite (PostgreSQL biên dịch WASM, dùng khi không có máy chủ) chậm hơn nhiều lần.
+  // Mỗi file test chạy trên database PostgreSQL tạm riêng.
   t.diagnostic(`gán ca 200 người × 3 ngày: ${Math.round(ms)} ms`);
   // Bộ test chạy song song nhiều tiến trình nên đo thời gian tường chịu tải: cho dư 3 lần (chạy riêng thì dưới 10 giây).
-  const limit = process.env.TEST_PG_DATABASE_NAME || process.env.PG_TEST_URL ? 30000 : 180000;
+  const limit = 30000;
   assert.ok(ms < limit, `mất ${Math.round(ms)} ms`);
 });

@@ -1,13 +1,8 @@
 // Khoản tự khai "chờ duyệt" trong Lịch ước tính: quyền, tạo/giữ/đặt lại dòng duyệt khi lưu lịch, duyệt theo lô,
 // mốc di chuyển 09/2026 | 10/2026, và hai luồng (Lịch ước tính, Check-in/out) vẫn tách nhau.
-process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const punch = require('../../src/engine/punch');
@@ -681,58 +676,6 @@ test('duyệt với dữ liệu sai dạng: 400 và không lưu gì', async () =
   }
   assert.deepEqual(await snapshot(), before);
 });
-
-// ================= Di chuyển dữ liệu cũ (mốc 10/2026) =================
-
-const LIB_DB = JSON.stringify(path.join(__dirname, '../../src/platform/db'));
-const { wrapScript } = require('../helpers/child-script');
-async function runChild(dbPath?, script?) {
-  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {
-    env: { ...process.env, DB_PATH: dbPath, SESSION_SECRET: 'approvals-migration' },
-    encoding: 'utf8'
-  });
-  return JSON.parse(await out.trim().split('\n').at(-1));
-}
-const DUMP = `
-  const rows = store.db.prepare('SELECT username, date, item, fingerprint, status, rev, decided_by, note FROM sheet_approvals ORDER BY username, date').all();
-  const marker = store.db.prepare("SELECT COUNT(*) AS n FROM settings WHERE key = 'sheet_approvals_v1'").get().n;
-  console.log(JSON.stringify({ rows, marker }));
-`;
-const legacyWork = (more: any = {}) => ({ kind: 'work', in: '08:00', out: '17:00', ...more });
-const LEGACY_DAYS = {
-  '2026-08': { '2026-08-08': { kind: 'isat' } },
-  '2026-09': {
-    '2026-09-12': { kind: 'isat' },
-    '2026-09-14': legacyWork(),
-    '2026-09-16': legacyWork({ extraKind: 'ot', extraOut: '19:00' }),
-    '2026-09-23': legacyWork({ extraOut: '21:00' })
-  },
-  '2026-10': {
-    '2026-10-03': { kind: 'isat' },
-    '2026-10-05': { kind: 'approved' },
-    '2026-10-07': legacyWork({ extraKind: 'ot', extraOut: '19:00' }),
-    '2026-10-10': legacyWork({ extraKind: 'makeup', extraOut: '20:00' })
-  },
-  '2026-11': { '2026-11-07': { kind: 'isat' } }
-};
-// Dựng DB cũ: có lịch nhưng chưa có bảng sheet_approvals và chưa có dấu sheet_approvals_v1
-async function buildLegacyDb() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-approvals-'));
-  const dbPath = path.join(dir, 'legacy.sqlite');
-  await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    await store.upsertStaff({ username: 'worker', name: 'worker', role: 'staff', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' });
-    const months = ${JSON.stringify(LEGACY_DAYS)};
-    for (const [month, days] of Object.entries<any>(months)) store.setSheet('worker', month, days, null, null);
-    store.db.exec('DROP TABLE IF EXISTS sheet_approvals');
-    store.db.prepare("DELETE FROM settings WHERE key = 'sheet_approvals_v1'").run();
-    console.log('{}');
-  `
-  );
-  return dbPath;
-}
 
 // ================= Tài khoản bị khoá =================
 

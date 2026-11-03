@@ -3,7 +3,7 @@
 // mọi khoá ROUTE_CAPS × {chưa đăng nhập, nhân sự, Admin} cùng các đường dẫn lạ phải cho đúng mã HTTP, mã lỗi, thông báo lỗi và hình dạng
 // phản hồi như bảng vàng đã ghi. Hành vi đổi có chủ đích (thêm route, đổi thông báo) thì ghi lại bảng:
 //   node test/tools/record-dispatch.ts --write
-// Kịch bản và cách ghi nằm ở test/tools/record-dispatch.ts (nó đặt DB_PATH=:memory: trước khi nạp mã dự án).
+// Kịch bản và cách ghi nằm ở test/tools/record-dispatch.ts (chạy dưới PostgreSQL runner).
 const { test, before } = require('node:test');
 const assert = require('node:assert/strict');
 const dispatch = require('../tools/record-dispatch');

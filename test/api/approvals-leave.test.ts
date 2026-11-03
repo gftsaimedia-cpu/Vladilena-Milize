@@ -1,14 +1,9 @@
 // Khoản thứ bảy "Nghỉ phép năm" (kind leave) ở phía máy chủ: nhận diện khi lưu lịch, hàng chờ, quyền, số dư phép theo
 // trạng thái duyệt (chờ duyệt giữ chỗ, bị từ chối trả lại phép), đồng bộ khi đổi lịch lễ hoặc loại nhân sự, và di chuyển dữ liệu cũ (dấu sheet_approvals_v3).
 // Mốc di chuyển giữ như v1: tháng ≤ 09/2026 đã duyệt bởi 'system', từ 10/2026 chờ duyệt.
-process.env.DB_PATH = ':memory:';
 process.env.SESSION_SECRET = 'approvals-leave-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const store = require('../../src/platform/db');
 const auth = require('../../src/platform/auth');
 const server = require('../helpers/server');
@@ -325,50 +320,3 @@ test('Phép năm: đổi loại nhân sự (NV sang CTV) đồng bộ dòng leav
     [NOV_LEAVE]: 'leave:pending:null'
   });
 });
-
-// ================= Di chuyển (sheet_approvals_v3) =================
-
-const LIB_DB = JSON.stringify(path.join(__dirname, '../../src/platform/db'));
-const { wrapScript } = require('../helpers/child-script');
-async function runChild(dbPath?, script?) {
-  const out = execFileSync(process.execPath, ['--no-warnings=ExperimentalWarning', '-e', wrapScript(script)], {
-    env: { ...process.env, DB_PATH: dbPath, SESSION_SECRET: 'approvals-leave-migration' },
-    encoding: 'utf8'
-  });
-  return JSON.parse(await out.trim().split('\n').at(-1));
-}
-const DUMP = `
-  const rows = store.db.prepare('SELECT username, date, item, fingerprint, status, rev, decided_by, note FROM sheet_approvals ORDER BY username, date').all();
-  const markers = store.db.prepare("SELECT key FROM settings WHERE key LIKE 'sheet_approvals_v%' ORDER BY key").all().map(r => r.key);
-  console.log(JSON.stringify({ rows, markers }));
-`;
-const summaryOf = (rows?) => Object.fromEntries(rows.map(r => [r.date, `${r.item}:${r.status}:${r.decided_by}`]));
-const LEGACY = {
-  '2026-08': { '2026-08-11': { kind: 'leave' } },
-  '2026-09': { [SEP_LEAVE]: { kind: 'leave' }, '2026-09-16': { kind: 'isat' } },
-  '2026-10': { [LEAVE]: { kind: 'leave' }, [LEAVE2]: { kind: 'leave' }, '2026-10-17': { kind: 'unpaid' } },
-  '2026-11': { [NOV_LEAVE]: { kind: 'leave' } }
-};
-const PERSON_SQL = `store.upsertStaff({ username: 'worker', name: 'worker', role: 'staff', type: 'nv', level: 1, shiftCode: 'n1', startDate: '2026-01-01', passHash: 'x' });`;
-const SHEETS_SQL = `for (const [month, days] of Object.entries(${JSON.stringify(LEGACY)})) store.setSheet('worker', month, days, null, null);`;
-
-// DB đang chạy thật: v1 và v2 đã chạy, các khoản cũ đã có dòng, nhưng chưa có dòng nào cho ngày phép (chưa có khoản thứ bảy)
-async function buildProductionDb() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-leave-'));
-  const dbPath = path.join(dir, 'prod.sqlite');
-  await runChild(
-    dbPath,
-    `
-    const store = require(${LIB_DB});
-    ${PERSON_SQL}
-    ${SHEETS_SQL}
-    // dòng của khoản cũ (iSAT) như v1 đã tạo; riêng ngày phép 6/10 Admin đã duyệt tay (rev 3) trước khi chạy v3
-    store.db.prepare("INSERT INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at, decided_by, decided_at) VALUES ('worker', '2026-09-16', 'isat', 'isat', 'approved', 1, '2026-09-16T00:00:00.000Z', 'system', '2026-10-14T00:00:00.000Z')").run();
-    store.db.prepare("INSERT INTO sheet_approvals (username, date, item, fingerprint, status, rev, submitted_at, decided_by, decided_at) VALUES ('worker', '${LEAVE2}', 'leave', 'leave', 'approved', 3, '2026-10-01T00:00:00.000Z', 'admin', '2026-10-02T00:00:00.000Z')").run();
-    store.db.prepare("DELETE FROM sheet_approvals WHERE item = 'leave' AND date <> '${LEAVE2}'").run();
-    store.db.prepare("DELETE FROM settings WHERE key = 'sheet_approvals_v3'").run();
-    console.log('{}');
-  `
-  );
-  return dbPath;
-}
