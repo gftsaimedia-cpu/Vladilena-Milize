@@ -6,7 +6,7 @@
 // Giải trình do chính nhân viên gửi và cảnh báo ngày vắng cho Admin: test/api/staff-self-explanation.test.ts.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const P = require('../helpers/period-api');

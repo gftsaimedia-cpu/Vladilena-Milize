@@ -1,7 +1,7 @@
 'use strict';
 // Không còn luật AI ot-near-cap, ngưỡng của nó (holidayOtCapHours, otDayCapHours, holidayOtWarnHours) và khoá tham số của nó
 // (ai.rule.otNearCap.enabled, ai.threshold.holidayOtWarnHours) ở bất kỳ đâu trong mã, tệp mô tả tham số, giao diện, script và spec.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

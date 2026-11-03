@@ -10,8 +10,7 @@ const { AdvanceApprovalsRepository } = require('../../src/data');
 const { AdvanceApprovals } = require('../../src/domain/advance/advance-approvals');
 const pgBackup = require('../../src/ops/pg-backup');
 
-const testUrl = process.env.PG_TEST_URL;
-if (!testUrl) throw new Error('PG_TEST_URL is required: use a separate PostgreSQL test server.');
+const { testControlUrl: testUrl } = require('../helpers/postgres-control');
 const originalEnv = {
   DATABASE_URL: process.env.DATABASE_URL,
   PG_TEST_URL: process.env.PG_TEST_URL,

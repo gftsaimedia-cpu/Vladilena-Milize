@@ -1,7 +1,7 @@
 'use strict';
 // Nhãn của lượt khi ngày công có giải trình ngày (Admin yêu cầu / AI đề nghị, không có session_id) đã quyết định:
 // lượt Admin chỉ thắng khi quyết định mới nhất của ngày không phải "không duyệt"; chữ nhỏ theo loại giải trình.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

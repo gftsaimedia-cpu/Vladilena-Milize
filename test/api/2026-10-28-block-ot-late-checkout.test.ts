@@ -1,7 +1,7 @@
 // Chặn cứng Check-out muộn quá 30 phút phải giải trình (giờ ra đó chỉ được tính khi Admin duyệt giải trình).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 
 const MONTH = '2026-10';

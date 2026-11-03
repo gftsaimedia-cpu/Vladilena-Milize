@@ -4,7 +4,7 @@
 //   run(fn) / warn / take / codes   danh sách cảnh báo của MỘT yêu cầu; ngoài yêu cầu thì không có nơi nhận
 //   optionalReason()                lý do không bắt buộc; quá 300 ký tự vẫn 400
 //   src/platform/http.ts → send              gộp warnings vào phản hồi 2xx dạng đối tượng; lỗi thì bỏ
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'warnings-unit-tests';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

@@ -3,7 +3,7 @@
 // (attendance.changed kind 'explanation' tới người có attendance.correct), không chỉ khi giờ của lượt đổi.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const SSE = require('../helpers/sse-client');
 

@@ -42,7 +42,26 @@ DATABASE_URL= DB_PATH= \
   node scripts/dev/ts.cjs --test --test-concurrency=4 'test/**/*.test.ts'
 ```
 
-Bộ test và sandbox đang được chuyển đổi; hướng dẫn `PG_TEST_URL` này mô tả mã hiện tại, chưa phải giao diện cuối cùng của thiết kế PostgreSQL-only. Một số test hiện vẫn dùng PGlite. Chỉ coi việc chuyển đổi hoàn tất sau khi suite mới chạy trên PostgreSQL thật.
+Bộ test và công cụ đang được chuyển đổi; hướng dẫn `PG_TEST_URL` này mô tả mã hiện tại, chưa phải giao diện cuối cùng của thiết kế PostgreSQL-only. Một số test và đường diễn tập sao lưu hiện vẫn dùng PGlite. Chỉ coi việc chuyển đổi hoàn tất sau khi suite mới chạy trên PostgreSQL thật.
+
+Runner PostgreSQL mới đang được áp dụng từng nhóm test. Có thể chạy các file đã chuyển bằng lệnh sau trên WSL/Linux hoặc macOS; runner tạo một DB ngẫu nhiên cho từng file, sau đó đóng và xoá DB đó:
+
+```sh
+PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
+  node --no-warnings=ExperimentalWarning --import tsx scripts/test/postgres-runner.ts --concurrency=2 \
+  test/api/contract-web.test.ts test/unit/db-types.test.ts
+```
+
+Runner hiện từ chối chạy trực tiếp trên Windows vì chưa có cơ chế dọn toàn bộ cây tiến trình tương đương; trên Windows hãy chạy trong WSL. Tên `luong_test_control` giúp phát hiện cấu hình nhầm, nhưng không tự chứng minh máy chủ là máy test: URL vẫn phải trỏ tới dịch vụ test riêng ở trên.
+
+Sandbox dùng PostgreSQL riêng, tạo một DB tạm mới trên dịch vụ test và không dùng URL ứng dụng kế thừa:
+
+```sh
+SANDBOX_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
+  npm run sandbox
+```
+
+Có thể dùng control DB riêng tên `luong_sandbox_control` trên máy chủ sandbox riêng. Tài khoản phải có quyền `CREATEDB`, sở hữu DB tạm do nó tạo và có thể kết nối control DB; reset sandbox không cần siêu người dùng. Trên Windows chạy qua WSL. Sandbox dọn DB của nó khi server thoát hoặc nhận SIGINT/SIGTERM; SIGKILL hoặc máy tắt đột ngột có thể để lại DB tên `luong_sandbox_` theo sau bởi 24 ký tự hex. Việc diễn tập khôi phục trong sandbox hiện vẫn dùng PGlite và sẽ được chuyển riêng.
 
 Dừng hai dịch vụ mà giữ dữ liệu và mật khẩu:
 

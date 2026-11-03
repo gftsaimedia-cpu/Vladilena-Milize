@@ -5,7 +5,7 @@ const fs = require('node:fs'),
   os = require('node:os'),
   path = require('node:path');
 
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const store = require('../../src/platform/db'),
   auth = require('../../src/platform/auth'),
   server = require('../helpers/server');

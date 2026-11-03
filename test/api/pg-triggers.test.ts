@@ -2,7 +2,7 @@
 // Trigger PL/pgSQL của migrations/postgres/0001_baseline.sql phải chặn đúng những gì trigger SQLite chặn, với cùng câu báo lỗi:
 // bảng chỉ-thêm-dòng (UPDATE/DELETE bị từ chối), bản chụp phiếu lương, staff.username/uuid bất biến, uuid tự sinh.
 // Chỉ chạy trên PostgreSQL (trên SQLite các trigger này được test-schema-snapshot và các test riêng từng bảng kiểm).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');

@@ -5,7 +5,7 @@
 const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const { store } = F;
 

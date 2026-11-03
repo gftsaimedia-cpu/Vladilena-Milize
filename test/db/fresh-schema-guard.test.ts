@@ -2,46 +2,23 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const crypto = require('node:crypto');
 const { Pool } = require('pg');
 const { PostgresDatabase } = require('../../src/data/postgres-database');
+const { TemporaryPostgres } = require('../../scripts/dev/temporary-postgres');
 
-const testUrl = process.env.PG_TEST_URL;
-if (!testUrl) throw new Error('PG_TEST_URL is required: use a separate PostgreSQL test server.');
+const { testControlUrl: testUrl } = require('../helpers/postgres-control');
 const MARKER = '@schema:luong-postgres-fresh-v1';
 
 // Each case owns a randomly named DB on the explicitly configured test server.
-// It is dropped only after CREATE succeeded; no application/dev DB is reset.
 async function withDatabase(run: (context: { url: string; pool: any }) => Promise<void>) {
-  const admin = new Pool({ connectionString: testUrl, max: 1 });
-  const name = `schema_guard_${crypto.randomBytes(12).toString('hex')}`;
-  let created = false;
-  let pool: any;
-  try {
-    await admin.query(`CREATE DATABASE ${name}`);
-    created = true;
-    const target = new URL(testUrl);
-    target.pathname = `/${name}`;
-    const url = target.toString();
-    pool = new Pool({ connectionString: url, max: 2 });
-    await run({ url, pool });
-  } finally {
+  await TemporaryPostgres.using(testUrl, 'test', async temporary => {
+    const pool = new Pool({ connectionString: temporary.url, max: 2 });
     try {
-      if (pool) await pool.end();
-      if (created) {
-        // Pool shutdown and PostgreSQL backend exit are asynchronous. Never force-kill
-        // connections: a lingering connection should fail the test rather than be hidden.
-        for (let attempt = 0; attempt < 40; attempt++) {
-          const active = await admin.query('SELECT 1 FROM pg_stat_activity WHERE datname = $1 LIMIT 1', [name]);
-          if (!active.rowCount) break;
-          await new Promise(resolve => setTimeout(resolve, 25));
-        }
-        await admin.query(`DROP DATABASE ${name}`);
-      }
+      await run({ url: temporary.url, pool });
     } finally {
-      await admin.end();
+      await pool.end();
     }
-  }
+  });
 }
 
 async function open(url: string) {

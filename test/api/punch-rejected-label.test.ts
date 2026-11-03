@@ -3,7 +3,7 @@
 // record kèm status, statusNote của lượt (cùng phân loại của phiếu); `pending` (lý do lượt đang chờ) chỉ có khi lượt thật sự chờ xử lý.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const AS = require('../../src/engine/attendance-status');

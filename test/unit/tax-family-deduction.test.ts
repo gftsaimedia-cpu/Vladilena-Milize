@@ -3,7 +3,7 @@
 // Giảm trừ gia cảnh = tax.deduction.personal (15.500.000) + số người phụ thuộc × tax.deduction.dependant (6.200.000).
 // Thuế phát sinh khi (chịu thuế − bảo hiểm) lớn hơn giảm trừ bản thân; dưới hoặc bằng thì 0.
 // Biểu: đến 10 triệu 5 %, đến 30 triệu 10 %, đến 60 triệu 20 %, đến 100 triệu 30 %, trên đó 35 % (tính tay ở đây, không đọc từ tham số).
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

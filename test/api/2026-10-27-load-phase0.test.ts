@@ -1,7 +1,7 @@
 // Chịu tải: /api/health, nén gzip (API và file tĩnh), ETag/304, nhật ký truy cập + X-Request-Id.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 // File tĩnh là giao diện Vue đã build (web/dist): dựng một bản giả đủ lớn để nén gzip có lợi
 const fs = require('node:fs');
 const os = require('node:os');

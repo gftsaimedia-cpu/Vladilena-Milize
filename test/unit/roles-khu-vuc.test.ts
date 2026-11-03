@@ -1,6 +1,6 @@
 'use strict';
 // Vai trò tuỳ chỉnh: bảng khu vực (ma trận Không / Xem / Sửa), mã từ tên và bộ lọc năng lực của src/platform/authz.ts (không cần máy chủ).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const authz = require('../../src/platform/authz');

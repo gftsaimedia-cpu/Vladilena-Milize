@@ -1,6 +1,6 @@
 // Lưu trữ điểm KPI 5 thành phần (src/platform/db.ts): bảng kpi_scores, kpi_score_log (không có công tắc kpi_five_from).
 // Điểm lưu số nguyên điểm × 100 (0..10000).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');

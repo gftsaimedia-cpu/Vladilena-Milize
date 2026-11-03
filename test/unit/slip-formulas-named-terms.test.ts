@@ -3,7 +3,7 @@
 // (6.000.000 đ, 23 ngày công, 28.846,15 đ/giờ), nhóm cộng trừ nằm trong ngoặc. Test này kiểm: mọi số trong mọi công thức của một loạt phiếu
 // sinh có hạt đều có tên, là tỷ lệ (30%) hoặc là hệ số nhân (× 1,5); ngoặc cân; công thức tính ra đúng số của dòng (bộ đọc bỏ tên);
 // các ví dụ chốt in đúng từng chữ. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

@@ -5,8 +5,7 @@ const assert = require('node:assert/strict');
 const { Client, Pool } = require('pg');
 const { PostgresDatabase } = require('../../src/data/postgres-database');
 
-const testUrl = process.env.PG_TEST_URL;
-if (!testUrl) throw new Error('PG_TEST_URL is required: use a separate PostgreSQL test server.');
+const { testControlUrl: testUrl } = require('../helpers/postgres-control');
 
 test('closing a temporary database allows another connection to close cleanly first', async () => {
   const owner = new PostgresDatabase({ isolatedFrom: testUrl });

@@ -1,7 +1,7 @@
 // Băm mật khẩu bất đồng bộ không chặn event loop, dùng ở đường có người thật chờ.
 // Bản đồng bộ (hashPassword/verifyPassword) dùng cho dựng dữ liệu, script và test;
 // bản bất đồng bộ (hashPasswordAsync/verifyPasswordAsync) phải cho CÙNG kết quả băm/kiểm với bản đồng bộ.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'qa-bam-mat-khau-bat-dong-bo';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');

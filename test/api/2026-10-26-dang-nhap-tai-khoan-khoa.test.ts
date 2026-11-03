@@ -1,6 +1,6 @@
 // Mật khẩu đúng của một tài khoản ĐÃ BỊ KHOÁ không được xoá bộ đếm dò mật khẩu.
 // server.js → POST /login kiểm row.locked_at TRƯỚC auth.loginSucceeded; câu lỗi, mã HTTP và hạn mức 429 giữ nguyên.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'qa-dang-nhap-tai-khoan-khoa';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

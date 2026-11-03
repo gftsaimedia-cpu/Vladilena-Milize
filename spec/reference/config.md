@@ -74,20 +74,21 @@
 | `WARN_NAMES_SHORT` | `5` |
 | `WRITE_RATE_PER_MINUTE` | `240` |
 
-## Biến môi trường (18)
+## Biến môi trường (19)
 
 | Biến | Đọc ở |
 | --- | --- |
 | `ACCESS_LOG` | `src/ops/access-log.ts:12` |
-| `AUDIT_KEY` | `src/platform/db.ts:341` |
+| `AUDIT_KEY` | `src/platform/db.ts:349` |
 | `COOKIE_SECURE` | `src/params/save.ts:68` `src/params/save.ts:72` `src/params/save.ts:88` `src/platform/auth.ts:276` (+1) |
-| `DATABASE_URL` | `src/platform/db.ts:35` `src/platform/db.ts:49` `src/platform/db.ts:50` |
-| `DB_DEBUG_SQL` | `src/data/postgres-database.ts:157` |
-| `DB_PATH` | `src/platform/db.ts:34` |
-| `DB_SQL_STATS` | `src/data/postgres-database.ts:147` |
+| `DATABASE_URL` | `src/platform/db.ts:36` `src/platform/db.ts:42` `src/platform/db.ts:56` `src/platform/db.ts:57` |
+| `DB_DEBUG_SQL` | `src/data/postgres-database.ts:219` |
+| `DB_PATH` | `src/platform/db.ts:35` |
+| `DB_SQL_STATS` | `src/data/postgres-database.ts:209` |
 | `NODE_ENV` | `src/params/save.ts:68` `src/params/save.ts:72` `src/params/save.ts:88` |
 | `PARAMS_ALLOW_ACTIVATE` | `src/params/save.ts:87` |
-| `PG_TEST_URL` | `src/platform/db.ts:35` `src/platform/db.ts:51` `src/platform/db.ts:52` |
+| `PGOPTIONS` | `src/data/postgres-database.ts:65` |
+| `PG_TEST_URL` | `src/platform/db.ts:36` `src/platform/db.ts:37` `src/platform/db.ts:42` `src/platform/db.ts:58` (+1) |
 | `PORT` | `src/main.ts:89` |
 | `SCHEDULE_ALLOW_EDIT` | `src/params/save.ts:67` |
 | `SESSION_COOKIE_NAME` | `src/platform/auth.ts:227` |

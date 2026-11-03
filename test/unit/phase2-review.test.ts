@@ -1,6 +1,6 @@
 'use strict';
 // Khối phụ cấp thêm nằm trong ③ của tám thành phần; lịch riêng không để một ngày vừa là ngày làm vừa là ngày làm bù.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runGolden, closeTo } = require('../helpers/pay-oracle');

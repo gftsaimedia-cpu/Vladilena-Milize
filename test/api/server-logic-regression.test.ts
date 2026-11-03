@@ -1,5 +1,5 @@
 // Route HTTP thật và SQLite trong RAM; không bao giờ nạp DB của người dùng.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'server-logic-isolated-tests';
 process.env.COOKIE_SECURE = '0';
 const { test, before, after } = require('node:test');

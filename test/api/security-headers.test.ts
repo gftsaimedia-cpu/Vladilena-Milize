@@ -2,7 +2,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 // Giao diện Vue đã build giả (web/dist): máy chủ chỉ phục vụ thư mục này
 const distFs = require('node:fs');
 const distDir = distFs.mkdtempSync(require('node:path').join(require('node:os').tmpdir(), 'luong-dist-'));

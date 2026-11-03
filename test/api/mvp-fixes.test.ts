@@ -1,6 +1,6 @@
 // Kiểm tra làm bù thiếu extraKind, làm bù cả ngày trong lịch, KPI vượt mức, giới hạn 1 MB theo byte,
 // kiểm tra đầu vào từng ngày và không đọc được file ngoài public/.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'mvp-fixes-tests';
 // Kiểm đường dẫn trên trang trong public/: không để web/dist có sẵn trên máy dev (npm run build) đổi kết quả
 process.env.WEB_DIST = require('node:path').join(require('node:os').tmpdir(), 'luong-no-web-dist');

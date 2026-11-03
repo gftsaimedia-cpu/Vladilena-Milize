@@ -1,6 +1,6 @@
 // Kiểm: ngày làm bù kiểu cũ (thiếu extraKind) không bị chặn khi lưu lại, chống thử mật khẩu hàng loạt
 // theo địa chỉ, cảnh báo TRUST_PROXY, đóng file khi khách ngắt kết nối, extraKind của bản ghi cũ, mật khẩu Admin production.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'verify-fixes-tests';
 // Giao diện Vue đã build giả (web/dist): máy chủ chỉ phục vụ thư mục này
 const distFs = require('node:fs');

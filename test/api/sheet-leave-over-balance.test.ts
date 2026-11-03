@@ -1,7 +1,7 @@
 'use strict';
 // Khai ngày "Nghỉ phép năm" vượt số phép còn lại: lịch được lưu (200), không có cảnh báo nào về số phép,
 // ngày phép vẫn là khoản chờ duyệt và tính vào phép đã dùng (số dư âm), còn bộ máy lương không xét số dư.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'sheet-leave-over-balance-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

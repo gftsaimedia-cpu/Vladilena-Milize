@@ -2,7 +2,7 @@
 // Cơ sở tạm ứng = lương cơ bản thực nhận của các ngày đi làm từ ngày 1 đến ngày advance.untilDay.
 // Ngày lễ đi làm thật là ngày công: lương ngày của ngày lễ vào cơ sở; tiền OT ngày lễ (hệ số lễ) không vào cơ sở.
 // Ngày lễ không đi làm (chỉ hưởng lương lễ) và ngày lễ sau ngày advance.untilDay không vào cơ sở.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const AV = require('../../src/engine/approval-view');

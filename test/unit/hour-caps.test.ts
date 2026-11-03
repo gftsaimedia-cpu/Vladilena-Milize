@@ -2,7 +2,7 @@
 // Trần giờ làm thêm (src/domain/limits.js):
 //   - một ngày: giờ ca + OT + làm thêm + làm bù, không tính giờ nghỉ giữa ca, tối đa DAY_HOURS_CAP (12) giờ;
 //   - một tháng: OT cộng giờ ca chính làm ngày lễ (kể cả giờ OT của ngày lễ), tối đa MONTH_OT_CAP (40) giờ.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');
