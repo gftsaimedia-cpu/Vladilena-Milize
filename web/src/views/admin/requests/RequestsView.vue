@@ -191,6 +191,7 @@ function setScope(next?) {
             :older-count="counts.pendingOlder"
             @all-months="setScope('moi-thang')"
             @approve-selected="bulkOpen = true"
+            @approve="approve"
             @reject="reject"
           />
           <section v-if="!items.length" class="card"><div class="later">Không có yêu cầu nào đang chờ.</div></section>

@@ -5,7 +5,10 @@ import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import { usePeriodStore } from '@/stores/period';
 
-defineProps({ bell: { type: Number, default: 0 } });
+defineProps({
+  bell: { type: Number, default: 0 },
+  showSteps: { type: Boolean, default: true }
+});
 defineEmits(['open-bell']);
 const period = usePeriodStore();
 const route = useRoute();
@@ -24,8 +27,8 @@ const go = (month?) => month && router.replace({ query: { ...route.query, thang:
         <Icon name="chevr" />
       </button>
     </div>
-    <span class="state" :class="period.strip.stateCls">{{ period.strip.state }}</span>
-    <div class="steps" aria-label="Các bước kỳ lương">
+    <span v-if="showSteps" class="state" :class="period.strip.stateCls">{{ period.strip.state }}</span>
+    <div v-if="showSteps" class="steps" aria-label="Các bước kỳ lương">
       <template v-for="([st, label, small], i) in period.strip.steps" :key="label">
         <span v-if="i" class="sep" />
         <span class="step" :class="st">

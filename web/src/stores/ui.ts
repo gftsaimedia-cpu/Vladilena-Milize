@@ -20,7 +20,7 @@ const apply = (s?) => {
 };
 
 export const useUiStore = defineStore('ui', {
-  state: () => ({ side: 'light', ground: '', density: '', ...read() }),
+  state: () => ({ side: 'dark', ground: '', density: 'gon', ...read() }),
   actions: {
     set(patch?) {
       Object.assign(this.$state, patch);

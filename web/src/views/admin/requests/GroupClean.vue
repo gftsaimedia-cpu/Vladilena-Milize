@@ -9,7 +9,7 @@ const props = defineProps({
   selected: { type: Array as () => any[], default: () => [] },
   olderCount: { type: Number, default: 0 }
 });
-const emit = defineEmits(['update:selected', 'approve-selected', 'reject', 'all-months']);
+const emit = defineEmits(['update:selected', 'approve-selected', 'approve', 'reject', 'all-months']);
 const HEADS = ['Nhân sự', 'Loại yêu cầu', 'Chi tiết', 'Ảnh hưởng'];
 const WIDTHS = [64, 270, 170, 230, '', 130];
 
@@ -22,7 +22,7 @@ const toggle = (id?) =>
 <template>
   <section class="card">
     <div class="grp-h">
-      <h2>Không có cảnh báo</h2>
+      <h2>Yêu cầu chờ xử lý</h2>
       <span class="cap">{{ items.length }} yêu cầu · có thể đồng ý cả loạt</span>
       <div class="r">
         <span class="sel-bar">
@@ -74,6 +74,7 @@ const toggle = (id?) =>
       <template #extra="{ r }">{{ r.impact }}</template>
       <template #act="{ r }">
         <button type="button" class="tact" @click="emit('reject', r)">Từ chối</button>
+        <button type="button" class="btn sm pri" style="margin-left: 8px" @click="emit('approve', r)">Đồng ý</button>
       </template>
     </RequestTable>
     <div v-if="olderCount" class="later">

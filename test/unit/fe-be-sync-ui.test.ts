@@ -1,6 +1,8 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { buildPeriodView, buildRow } = require('../../web/src/builders/admin-payroll/payroll');
 const { buildDrawer } = require('../../web/src/builders/payslip/drawer');
 const { describeScenario } = require('../../web/src/views/admin/payroll/scenarios');
@@ -238,3 +240,28 @@ test('buildTimesheet: dòng nhân sự chỉ hiện loại và tên ca ngắn, t
   assert.equal(out.rows[0].sub, 'NV · Ca 1');
   assert.equal(out.rows[0].shiftTooltip, 'Ca 1 08:00–17:30');
 });
+
+test('KpiShell, GroupClean, HomeView: đã xoá các nhãn Sắp có / Không có cảnh báo thừa và nối nút duyệt lẻ', () => {
+  const kpi = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/kpi/KpiShell.vue'), 'utf8');
+  assert.ok(!kpi.includes('OKR <small>Sắp có</small>'));
+
+  const clean = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/requests/GroupClean.vue'), 'utf8');
+  assert.ok(!clean.includes('<h2>Không có cảnh báo</h2>'));
+  assert.ok(clean.includes("emit('approve', r)"));
+
+  const phoneHome = fs.readFileSync(path.join(__dirname, '../../web/src/views/staff-phone/HomeView.vue'), 'utf8');
+  assert.ok(!phoneHome.includes('Sửa giờ <small>Sắp có</small>'));
+});
+
+test('GFT Shell & Dark Gold Theme: ui store mặc định side dark và density gon; AdminSidebar có role switcher HR/Nhân viên', () => {
+  const uiSrc = fs.readFileSync(path.join(__dirname, '../../web/src/stores/ui.ts'), 'utf8');
+  assert.ok(uiSrc.includes("side: 'dark'"));
+  assert.ok(uiSrc.includes("density: 'gon'"));
+
+  const sidebar = fs.readFileSync(path.join(__dirname, '../../web/src/components/shell/AdminSidebar.vue'), 'utf8');
+  assert.ok(!sidebar.includes('Lương, chấm công, phúc lợi · GFT'));
+  assert.ok(sidebar.includes('class="mode-switch"'));
+  assert.ok(sidebar.includes('>HR<'));
+  assert.ok(sidebar.includes('Nhân viên'));
+});
+
