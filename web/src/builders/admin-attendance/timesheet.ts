@@ -17,13 +17,12 @@ const CELL = { pending: 'w', rejected: 'q', 'checked-in': 'in', 'checked-out': '
 const RANK = ['pending', 'rejected', 'checked-in', 'checked-out', 'approved', 'admin'];
 const COUNTED = new Set<any>(['checked-in', 'checked-out', 'approved', 'admin']);
 const DAY_KIND: Record<string, { text: string; label: string }> = {
-  work: { text: 'LV', label: 'Khai ngày làm việc' },
-  leave: { text: 'PN', label: 'Nghỉ phép năm' },
-  unpaid: { text: 'KL', label: 'Nghỉ không lương' },
-  approved: { text: 'NP', label: 'Nghỉ được duyệt' },
-  isat: { text: 'iS', label: 'Ngày iSAT' },
+  leave: { text: 'Phép', label: 'Nghỉ phép năm' },
+  approved: { text: 'Phép', label: 'Nghỉ được duyệt' },
+  unpaid: { text: 'Nghỉ', label: 'Nghỉ không lương' },
   willmakeup: { text: 'Bù', label: 'Nghỉ, sẽ làm bù' },
-  makeup: { text: 'Bù*', label: 'Làm bù (loại khai cũ)' }
+  makeup: { text: 'Bù', label: 'Làm bù' },
+  isat: { text: 'iS', label: 'Ngày iSAT' }
 };
 
 function daysOf(sessions?) {
@@ -45,9 +44,9 @@ export function buildTimesheet({ team, shifts, today, holidays }: any, { filter 
     let present = 0;
     let pending = 0;
     for (const [date, day] of Object.entries(r.days || {})) {
-      // estimateDays giữ lại bản ghi legacy thiếu kind; cleanDays mặc định các record đó thành work.
       const storedKind = (day as any)?.kind;
-      const kind = DAY_KIND[storedKind === undefined ? 'work' : storedKind];
+      if (!storedKind || storedKind === 'work') continue;
+      const kind = DAY_KIND[storedKind];
       if (!kind) continue;
       cells[date] = { ...cells[date], declared: kind };
     }
