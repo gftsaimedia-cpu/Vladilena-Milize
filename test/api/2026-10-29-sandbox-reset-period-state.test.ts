@@ -1,6 +1,6 @@
 'use strict';
 // Đặt lại dữ liệu thử của sandbox (scripts/dev/sandbox-server.ts → resetSyntheticData) xoá luôn trạng thái kỳ lương: kỳ đã chốt công và tính lương
-// quay về chưa có lần chạy, chưa có phiếu chụp, nên sau khi đặt lại có thể tính lại từ đầu. Sandbox chạy ở tiến trình con, cổng 3451.
+// quay về chưa có lần chạy, chưa có phiếu chụp, nên sau khi đặt lại có thể tính lại từ đầu. Sandbox chạy ở tiến trình con.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -8,7 +8,7 @@ const { once } = require('node:events');
 const path = require('node:path');
 
 const project = path.resolve(__dirname, '../..');
-const PORT = 3451;
+const { testControlUrl } = require('../helpers/postgres-control');
 let child,
   base,
   cookie = '',
@@ -41,10 +41,16 @@ const control = (route?, body?) => call('POST', '/__sandbox/' + route, body, tru
 before(async () => {
   child = spawn(
     process.execPath,
-    ['--no-warnings=ExperimentalWarning', path.join(project, 'scripts/dev/sandbox-server.ts')],
+    ['--no-warnings=ExperimentalWarning', '--import', 'tsx', path.join(project, 'scripts/dev/sandbox-bootstrap.ts')],
     {
       cwd: project,
-      env: { ...process.env, SANDBOX_PORT: String(PORT), DB_PATH: ':memory:', COOKIE_SECURE: '1' },
+      env: {
+        ...process.env,
+        SANDBOX_PG_CONTROL_URL: testControlUrl,
+        SANDBOX_PORT: '0',
+        DB_PATH: ':memory:',
+        COOKIE_SECURE: '1'
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true
     }

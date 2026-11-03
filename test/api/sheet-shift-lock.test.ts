@@ -1,7 +1,7 @@
 // Giờ ngày đi làm khác ca cố định Admin gán (ca do Admin gán, nhân sự không tự chọn): vẫn lưu, kèm cảnh báo SHEET_SHIFT_MISMATCH, và ngày tính theo ca được gán.
 // Lý do: phụ cấp Flex / Night suy ra từ giờ vào – ra, nên NV ca n1 tự gõ 22:00–07:00 sẽ được thêm 129.808 đ/ngày
 // (NV L1: Night 40% = 92.308 + giờ nghỉ đêm 37.500).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'sheet-shift-lock-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

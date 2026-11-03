@@ -1,6 +1,6 @@
 // Kiểm tra đăng nhập và tài khoản: giới hạn đoán mật khẩu, đăng xuất thu hồi phiên, khoá thay vì xoá tài khoản,
 // bắt buộc ngày vào làm cho CTV và NV.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'mvp-auth-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

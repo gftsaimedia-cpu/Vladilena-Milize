@@ -1,5 +1,5 @@
 // Đổi loại nhân sự thì dòng duyệt "đi làm ngày lễ" theo kịp; dữ liệu lịch có khoá ngày lạ không làm hỏng việc lưu.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'backend-followup-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

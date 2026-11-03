@@ -7,7 +7,7 @@
 // Tháng 10/2026: Thứ Tư 7/10 là ngày lễ trước ngày advance.untilDay; Chủ nhật 11/10 cũng là ngày lễ. 1/10 là Thứ Năm; từ 1 đến 15/10 NV có 13 ngày Thứ Hai–Thứ Bảy.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const { requestInWindow } = require('../helpers/advance-window');

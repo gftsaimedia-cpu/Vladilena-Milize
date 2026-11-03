@@ -2,7 +2,7 @@
 // Làm ngày lễ là OT: khai giờ OT từ – đến trong ngày lễ (ngày đi làm có giờ vào – ra trên ngày lễ), Admin duyệt như mọi OT.
 // Tiền = giờ được duyệt ∩ giờ có mặt liền mạch (Check-in/out), phút của chính ngày lễ × lương giờ × ot.holidayRate (+ đêm lễ), không trừ
 // giờ nghỉ; giờ có mặt ngoài khung đã duyệt không được trả. Cộng lương ngày lễ 100 %. Chức vụ không có quyền lợi OT (TTS): 0 giờ OT ngày lễ.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

@@ -8,7 +8,7 @@
 //   - item của GET/PUT: { username, scores:{wework,user,peer,manager,self}, complete, total, weworkOk, pass, amtApproved, updatedBy }.
 //   - GET /sheet: kpiParts = { complete:false } khi chưa đủ 5 điểm; khi đủ thì { complete:true, wework, user, peer, manager, self }
 //     (test chấp nhận cả dạng lồng { complete:true, scores:{...} }).
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'kpi-scores-api-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

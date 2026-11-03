@@ -1,6 +1,6 @@
 'use strict';
 // Mọi lựa chọn bảo hiểm và thuế đang available: false bị bộ máy từ chối rõ ràng (PARAM_OPTION_UNAVAILABLE), không rơi âm thầm về một cách tính khác.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const PayTailCalc = require('../../src/engine/pay-tail-calc');

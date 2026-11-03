@@ -8,7 +8,7 @@ fs.mkdirSync(path.join(dist, 'assets'));
 fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>AiCB Vue</title><div id="app"></div>');
 fs.writeFileSync(path.join(dist, 'assets', 'index-abc123.js'), 'export default 1;');
 process.env.WEB_DIST = dist;
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'web-dist-tests';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

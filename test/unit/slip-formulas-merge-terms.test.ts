@@ -1,7 +1,7 @@
 'use strict';
 // Gộp mảnh cùng đơn giá trong công thức phiếu Admin (src/domain/payroll/slip-formulas.ts → netSum): các mảnh giờ × lương giờ × hệ số cùng đơn giá và
 // cùng hệ số cộng trừ thành một mảnh ròng, mảnh ròng bằng 0 không in. Test tự đọc chuỗi công thức rồi tính, so với số trên dòng. Người mẫu: NV bậc 1, lương cơ bản 6.000.000 ₫, ngày công chuẩn 26, lương giờ 28.846,15 ₫.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

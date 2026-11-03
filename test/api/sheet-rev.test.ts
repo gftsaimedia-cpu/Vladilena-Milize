@@ -3,7 +3,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const store = require('../../src/platform/db'),
   auth = require('../../src/platform/auth'),
   server = require('../helpers/server');

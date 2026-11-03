@@ -2,7 +2,7 @@
 // Các khoá phương án đã nối vào bộ máy. Mặc định không đổi tiền (các cổng
 // 5.000 ca, 300 ca vàng, prove-default-graph ở nơi khác); test này kiểm từng phương án đã nối khi bộ tham số đặt nó, bằng cách đổi tham số trong bộ nhớ.
 // Phương án `available: false` ở registry: lưu qua API bị từ chối, nhưng bộ máy thực hiện đúng định nghĩa khi có bộ tham số đặt nó.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { runGolden, closeTo, DEFAULTS } = require('../helpers/pay-oracle');

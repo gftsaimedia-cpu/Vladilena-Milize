@@ -1,7 +1,7 @@
 'use strict';
 // Trễ hoặc về sớm chỉ bị trừ khi số phút thiếu LỚN HƠN attendance.graceMin (15): đúng 15 phút không trừ, 16 phút trừ 30 phút (làm tròn nửa
 // lên theo bậc 30 phút), 40 phút trừ 30 phút. Cờ giải trình của lượt (SessionStatus) dùng cùng ngưỡng nên có cờ khi và chỉ khi có trừ.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

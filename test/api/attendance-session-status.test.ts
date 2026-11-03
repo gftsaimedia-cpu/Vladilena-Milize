@@ -3,7 +3,7 @@
 // (src/domain/attendance/session-status.ts): GET /api/attendance, /api/team, /api/today, /api/sheet, GET / POST /api/punch.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 
 const MONTH = '2026-10';

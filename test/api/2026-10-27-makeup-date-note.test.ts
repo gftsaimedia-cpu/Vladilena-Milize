@@ -1,7 +1,7 @@
 // Ngày làm bù của "Nghỉ, sẽ làm bù", giải trình Check-in/out.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 
 const MONTH = '2026-10';

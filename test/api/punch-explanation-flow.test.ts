@@ -6,7 +6,7 @@
 //   duyệt: ngày được tính, Check-in trễ cắt theo bậc hiện tại; từ chối: ngày không tính công.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const AS = require('../../src/engine/attendance-status');

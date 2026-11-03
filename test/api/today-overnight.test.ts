@@ -1,4 +1,4 @@
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'today-overnight-isolated-tests';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

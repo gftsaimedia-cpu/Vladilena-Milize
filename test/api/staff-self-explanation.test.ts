@@ -6,7 +6,7 @@
 // Người bịa vào làm 26/10 (3 ngày công đã qua: 26, 27, 28); đồng hồ giả 29/10 12:00 (ca 08:00–17:00 của hôm nay chưa kết thúc).
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const P = require('../helpers/period-api');

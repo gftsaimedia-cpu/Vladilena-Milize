@@ -1,7 +1,7 @@
 'use strict';
 // Trạng thái hiển thị của một lượt chấm công (src/domain/attendance/session-status.ts): mỗi mã, các mốc 15 phút trễ / 30 phút Check-out muộn,
 // thứ tự ưu tiên và quyết định mới nhất thắng. Ca n1 08:00–17:00.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const ActualHours = require('../../src/engine/actual-hours');

@@ -2,7 +2,7 @@
 // Giới hạn giờ của OT và làm thêm chỉ gồm DAY_HOURS_CAP (giờ ròng một ngày) và MONTH_OT_CAP (OT cộng giờ ca chính ngày lễ một tháng).
 // Không còn khoá tham số, hằng số hay kiểm tra cho: OT tối đa mỗi ngày, OT cộng giờ lễ tối đa mỗi tháng, OT cộng dồn năm, độ dài mỗi
 // đoạn làm thêm; các khoá cũ truyền vào bộ tham số không đổi kết quả kiểm.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');

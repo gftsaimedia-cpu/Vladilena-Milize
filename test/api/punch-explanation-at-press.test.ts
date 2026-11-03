@@ -5,7 +5,7 @@
 //   Admin duyệt: lượt "Được phê duyệt", hết giữ lương; từ chối: lượt "Bị từ chối", ngày giữ lương ở trạng thái từ chối.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 const explanations = require('../../src/domain/explanation/explanations');

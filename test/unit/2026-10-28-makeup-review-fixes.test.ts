@@ -1,6 +1,6 @@
 'use strict';
 // Ngày ngoài lịch chỉ trả đoạn làm thêm đã duyệt; Check-out muộn chỉ nới theo đoạn làm thêm sau ca đã khai.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // late-checkout nạp lib/work-hours (qua src/platform/db): DB trong RAM, không đụng DB thật
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const P = require('../../src/engine/punch');

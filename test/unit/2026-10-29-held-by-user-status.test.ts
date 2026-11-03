@@ -1,7 +1,7 @@
 'use strict';
 // ExplanationRepository.heldByUser(tháng): Map người → [{ date, status }] theo ngày tăng, chỉ giải trình chưa được duyệt; một ngày có nhiều
 // giải trình lấy trạng thái từ chối trước, rồi đã trả lời, rồi chờ trả lời. forDays: giải trình gắn ngày (không có session_id) của các người.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { container } = require('../../src/domain/container');

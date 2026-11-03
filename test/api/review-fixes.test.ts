@@ -1,5 +1,5 @@
 // Máy chủ: khoản bị xoá rồi khai lại, địa chỉ sau proxy, request hỏng, giới hạn đăng nhập, khoá tài khoản, mật khẩu Admin.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'review-fixes-tests';
 const { test, before, beforeEach, after } = require('node:test');
 const assert = require('node:assert/strict');

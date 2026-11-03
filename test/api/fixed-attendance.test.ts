@@ -1,7 +1,7 @@
 // Từng test dùng nhân sự riêng; DB tạm được đặt trước khi nạp máy chủ.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'fixed-attendance-isolated-tests';
 const iso = (value?) => new Date(value + '+07:00').toISOString();
 const store = require('../../src/platform/db'),

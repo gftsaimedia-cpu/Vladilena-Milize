@@ -4,7 +4,7 @@
 //   - dòng bằng 0 vì số lượng 0 không có công thức "× 0 …";
 //   - số và tên (đơn vị) của nó nối bằng khoảng trắng không ngắt dòng (U+00A0), xuống dòng chỉ ở chỗ có phép tính;
 //   - mọi công thức dạng phép tính vẫn tính ra đúng số của dòng, tổng thu nhập cộng các dòng nguyên đồng khớp từng đồng.
-process.env.DB_PATH = process.env.DB_PATH || ':memory:'; // src/domain/payroll/slip-paid.ts nạp src/platform/db
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const Engine = require('../../src/engine/payroll-engine');

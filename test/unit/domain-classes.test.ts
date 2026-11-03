@@ -1,7 +1,7 @@
 'use strict';
 // Các lớp của src/domain: họ tên, hợp đồng theo thâm niên,
 // danh mục chức vụ/ca trong DB khớp DEFAULTS, giải trình (khoá lạc quan, tự duyệt, không mở lại giải trình đã duyệt), mã ca mới.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');

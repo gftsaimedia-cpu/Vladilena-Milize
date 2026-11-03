@@ -1,7 +1,7 @@
 // Đường ĐỌC không được ghi DB. src/domain/attendance/index.ts → closeStaleFor lọc bằng SQL
 // (state='open' + presIn trước mốc punch.staleBefore) nên chỉ mở một giao dịch cho người THẬT SỰ quá hạn 16 giờ.
 // Test đếm SAVEPOINT/RELEASE: người có lượt mở chưa quá hạn (kể cả vừa Check-in 1 phút) không mở giao dịch nào.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 process.env.SESSION_SECRET = 'qa-doc-cham-cong-khong-ghi';
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');

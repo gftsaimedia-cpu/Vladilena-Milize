@@ -1,7 +1,7 @@
 'use strict';
 // Module timesheet (src/domain/timesheet/*): bộ luật khai Lịch ước tính. Trọng tâm: thứ tự cảnh báo giữ nguyên, thêm luật không phải
 // sửa TimesheetValidator, ca của ngày do ShiftAssignment quyết, và các phép tính ngày giờ thuần.
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const { test, after, before } = require('node:test');
 const assert = require('node:assert/strict');
 const store = require('../../src/platform/db');

@@ -3,7 +3,7 @@
 // bị từ chối giữ giờ vào thật và giờ ra rỗng, ngày đi trễ bị từ chối giữ cả hai giờ bấm. Duyệt thì dòng là ngày công, không còn held.
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-process.env.DB_PATH = ':memory:';
+require('../helpers/require-isolated-database');
 const F = require('../helpers/api-fixture');
 const X = require('../helpers/explanation-flow');
 
