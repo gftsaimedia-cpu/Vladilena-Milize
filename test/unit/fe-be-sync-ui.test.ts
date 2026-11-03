@@ -387,10 +387,14 @@ test('Tinh gọn Chấm công: không còn thanh tab con, mở Hôm nay dạng m
   assert.ok(shell.includes('OvertimeDialog'), 'AttendanceShell có nạp OvertimeDialog');
   assert.ok(shell.includes("hop === 'hom-nay'"), 'AttendanceShell bắt hop=hom-nay');
   assert.ok(shell.includes("hop === 'duyet-ot'"), 'AttendanceShell bắt hop=duyet-ot');
+  assert.ok(shell.includes('<Icon name="cal" />Hôm nay'), 'AttendanceShell dùng icon cal cho nút Hôm nay');
+  assert.ok(!shell.includes('btn-sub'), 'AttendanceShell không dùng class btn-sub');
 
   const tsView = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/TimesheetView.vue'), 'utf8');
   assert.ok(tsView.includes('TodayDialog'), 'TimesheetView có nạp TodayDialog');
   assert.ok(tsView.includes('todayOpen'), 'TimesheetView có cờ mở popup Hôm nay');
+  assert.ok(tsView.includes('<Icon name="cal" />Hôm nay'), 'TimesheetView dùng icon cal cho nút Hôm nay');
+  assert.ok(!tsView.includes('btn-sub'), 'TimesheetView không dùng class btn-sub');
 
   const bell = fs.readFileSync(path.join(__dirname, '../../web/src/components/shell/BellPopover.vue'), 'utf8');
   assert.ok(bell.includes("query: { hop: 'duyet-ot' }"), 'BellPopover có link tới duyet-ot');
@@ -399,6 +403,9 @@ test('Tinh gọn Chấm công: không còn thanh tab con, mở Hôm nay dạng m
   const otDialogPath = path.join(__dirname, '../../web/src/views/admin/attendance/OvertimeDialog.vue');
   assert.ok(fs.existsSync(todayDialogPath), 'TodayDialog.vue tồn tại');
   assert.ok(fs.existsSync(otDialogPath), 'OvertimeDialog.vue tồn tại');
+
+  const icons = fs.readFileSync(path.join(__dirname, '../../web/src/components/ui/icons.ts'), 'utf8');
+  assert.ok(icons.includes('calendar:'), 'icons.ts có alias calendar');
 });
 
 
