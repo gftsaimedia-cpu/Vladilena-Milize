@@ -60,12 +60,12 @@ SANDBOX_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.
   npm run sandbox
 ```
 
-Có thể dùng control DB riêng tên `luong_sandbox_control` trên máy chủ sandbox riêng. Tài khoản phải có quyền `CREATEDB`, sở hữu DB tạm do nó tạo và có thể kết nối control DB; reset sandbox không cần siêu người dùng. Trên Windows chạy qua WSL. Sandbox dọn DB của nó khi server thoát hoặc nhận SIGINT/SIGTERM; SIGKILL hoặc máy tắt đột ngột có thể để lại DB tên `luong_sandbox_` theo sau bởi 24 ký tự hex.
+Với cấu hình Docker cục bộ ở trên, sandbox dùng `luong_test_control`. Nếu tự tạo máy chủ riêng, có thể dùng control DB `luong_sandbox_control`. Tài khoản phải có quyền `CREATEDB`, sở hữu DB tạm do nó tạo và có thể kết nối control DB; reset sandbox không cần siêu người dùng. Trên Windows chạy qua WSL. Sandbox dọn DB của nó khi server thoát hoặc nhận SIGINT/SIGTERM; SIGKILL hoặc máy tắt đột ngột có thể để lại DB tên `luong_sandbox_` theo sau bởi 24 ký tự hex.
 
-Scenario generation, verification và server dùng `SCENARIO_PG_CONTROL_URL`, một PostgreSQL control DB riêng có quyền `CREATEDB`; không dùng `DATABASE_URL` hay `PG_TEST_URL` làm fallback:
+Scenario generation, verification và server dùng `SCENARIO_PG_CONTROL_URL`, một PostgreSQL control DB riêng có quyền `CREATEDB`; không dùng `DATABASE_URL` hay `PG_TEST_URL` làm fallback. Với cấu hình Docker cục bộ ở trên, dùng `luong_test_control`; nếu tự tạo máy chủ riêng, có thể tạo `luong_scenario_control`. Các lệnh scenario hiện hỗ trợ WSL/Linux và macOS, không chạy trực tiếp trên Windows:
 
 ```sh
-SCENARIO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_scenario_control" \
+SCENARIO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
   node --import tsx scripts/dev/scenarios/generate.ts --smoke --out-dir scripts/dev/scenarios/out/local-smoke
 ```
 
@@ -81,9 +81,11 @@ DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/lu
 Backup drill và công cụ demo cũng cần control database riêng có `CREATEDB`; không dùng `DATABASE_URL` của ứng dụng làm control URL:
 
 ```sh
-DRILL_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_drill_control" npm run pg:drill -- --backup=backups/example.pgbak.gz
-DEMO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_demo_control" node scripts/dev/ts.cjs scripts/db/demo/serve-demo.ts --snapshot=backups/demo/example.pgbak.gz
+DRILL_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" npm run pg:drill -- --backup=backups/example.pgbak.gz
+DEMO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" node scripts/dev/ts.cjs scripts/db/demo/serve-demo.ts --snapshot=backups/demo/example.pgbak.gz
 ```
+
+Nếu tự tạo máy chủ riêng, có thể dùng control DB `luong_drill_control` cho backup drill và `luong_demo_control` cho demo. Các lệnh này tạo và dọn database tạm của riêng lần chạy.
 
 Dừng hai dịch vụ mà giữ dữ liệu và mật khẩu:
 
