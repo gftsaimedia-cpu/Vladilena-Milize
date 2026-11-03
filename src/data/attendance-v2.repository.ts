@@ -90,6 +90,9 @@ export class AttendanceV2Repository {
         early_minutes: row.early_minutes,
         status: row.status,
         is_locked: row.is_locked,
+        check_in_status: row.check_in_status,
+        check_out_status: row.check_out_status,
+        day_status: row.day_status,
         created_at: now,
         updated_at: now
       })
@@ -108,6 +111,9 @@ export class AttendanceV2Repository {
           early_minutes: eb.ref('excluded.early_minutes'),
           status: eb.ref('excluded.status'),
           is_locked: eb.ref('excluded.is_locked'),
+          check_in_status: eb.ref('excluded.check_in_status'),
+          check_out_status: eb.ref('excluded.check_out_status'),
+          day_status: eb.ref('excluded.day_status'),
           updated_at: now
         }))
       )
@@ -150,7 +156,10 @@ export class AttendanceV2Repository {
       late_minutes: Number(row.late_minutes ?? 0),
       early_minutes: Number(row.early_minutes ?? 0),
       status: row.status,
-      is_locked: Boolean(row.is_locked)
+      is_locked: Boolean(row.is_locked),
+      check_in_status: row.check_in_status,
+      check_out_status: row.check_out_status,
+      day_status: row.day_status
     });
   }
 
@@ -189,7 +198,10 @@ export class AttendanceV2Repository {
       late_minutes: Number(row.late_minutes ?? 0),
       early_minutes: Number(row.early_minutes ?? 0),
       status: row.status,
-      is_locked: Boolean(row.is_locked)
+      is_locked: Boolean(row.is_locked),
+      check_in_status: row.check_in_status,
+      check_out_status: row.check_out_status,
+      day_status: row.day_status
     });
   }
 
@@ -239,7 +251,10 @@ export class AttendanceV2Repository {
         late_minutes: Number(row.late_minutes ?? 0),
         early_minutes: Number(row.early_minutes ?? 0),
         status: row.status,
-        is_locked: Boolean(row.is_locked)
+        is_locked: Boolean(row.is_locked),
+        check_in_status: row.check_in_status,
+        check_out_status: row.check_out_status,
+        day_status: row.day_status
       })
     );
   }

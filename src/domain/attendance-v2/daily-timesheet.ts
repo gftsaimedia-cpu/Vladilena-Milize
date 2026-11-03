@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { WorkMetrics, WorkMetricsDTO } from './work-metrics';
 import { PunchEvent } from './punch-event';
+import { WorkSchedule, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
 
 export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT';
 export type DailyTimesheetStatus = 'PRESENT' | 'LEAVE_PAID' | 'LEAVE_UNPAID' | 'ABSENT' | 'HOLIDAY';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
 export interface DailyTimesheetProps {
   id: string;
@@ -22,6 +23,9 @@ export interface DailyTimesheetProps {
   metrics?: WorkMetrics;
   status?: DailyTimesheetStatus;
   isLocked?: boolean;
+  checkInStatus?: CheckInStatus;
+  checkOutStatus?: CheckOutStatus;
+  dayStatus?: DayStatus;
 }
 
 export interface CreateDailyTimesheetProps {
@@ -37,6 +41,9 @@ export interface CreateDailyTimesheetProps {
   metrics?: WorkMetrics;
   status?: DailyTimesheetStatus;
   isLocked?: boolean;
+  checkInStatus?: CheckInStatus;
+  checkOutStatus?: CheckOutStatus;
+  dayStatus?: DayStatus;
 }
 
 export interface CalculateOptions {
@@ -60,6 +67,9 @@ export interface DailyTimesheetRow {
   early_minutes: number;
   status: string;
   is_locked: boolean;
+  check_in_status?: string;
+  check_out_status?: string;
+  day_status?: string;
 }
 
 export interface DailyTimesheetDTO {
@@ -75,6 +85,9 @@ export interface DailyTimesheetDTO {
   metrics: WorkMetricsDTO;
   status: DailyTimesheetStatus;
   isLocked: boolean;
+  checkInStatus: CheckInStatus;
+  checkOutStatus: CheckOutStatus;
+  dayStatus: DayStatus;
 }
 
 function buildShiftBoundaries(
@@ -123,6 +136,9 @@ export class DailyTimesheet {
   readonly metrics: WorkMetrics;
   readonly status: DailyTimesheetStatus;
   readonly isLocked: boolean;
+  readonly checkInStatus: CheckInStatus;
+  readonly checkOutStatus: CheckOutStatus;
+  readonly dayStatus: DayStatus;
 
   constructor(props: DailyTimesheetProps) {
     if (!props || typeof props !== 'object') {
@@ -208,6 +224,9 @@ export class DailyTimesheet {
     this.metrics = props.metrics instanceof WorkMetrics ? props.metrics : new WorkMetrics(props.metrics);
     this.status = props.status ?? 'ABSENT';
     this.isLocked = Boolean(props.isLocked);
+    this.checkInStatus = props.checkInStatus ?? 'PENDING';
+    this.checkOutStatus = props.checkOutStatus ?? 'PENDING';
+    this.dayStatus = props.dayStatus ?? 'PLANNED';
   }
 
   static create(props: CreateDailyTimesheetProps): DailyTimesheet {
@@ -231,16 +250,77 @@ export class DailyTimesheet {
       actualCheckOut: props.actualCheckOut ?? null,
       metrics: props.metrics ?? WorkMetrics.zero(),
       status: props.status ?? 'ABSENT',
-      isLocked: props.isLocked ?? false
+      isLocked: props.isLocked ?? false,
+      checkInStatus: props.checkInStatus ?? 'PENDING',
+      checkOutStatus: props.checkOutStatus ?? 'PENDING',
+      dayStatus: props.dayStatus ?? 'PLANNED'
     });
   }
 
   /**
-   * Tính toán công nhật từ danh sách PunchEvent
+   * Tính toán công nhật từ danh sách PunchEvent và WorkSchedule
    */
-  calculate(punches: PunchEvent[], options?: CalculateOptions): DailyTimesheet {
+  calculate(
+    punches: PunchEvent[],
+    scheduleOrOptions?: WorkSchedule | CalculateOptions,
+    nowOrOptions?: Date | CalculateOptions
+  ): DailyTimesheet {
     if (this.isLocked) {
       throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
+    }
+
+    let schedule: WorkSchedule | undefined;
+    let now: Date | undefined;
+    let options: CalculateOptions | undefined;
+
+    if (scheduleOrOptions instanceof WorkSchedule) {
+      schedule = scheduleOrOptions;
+      if (nowOrOptions instanceof Date) {
+        now = nowOrOptions;
+      } else if (nowOrOptions && typeof nowOrOptions === 'object' && 'gracePeriodMinutes' in nowOrOptions) {
+        options = nowOrOptions;
+      }
+    } else if (scheduleOrOptions && typeof scheduleOrOptions === 'object' && 'gracePeriodMinutes' in scheduleOrOptions) {
+      options = scheduleOrOptions;
+      if (nowOrOptions instanceof Date) {
+        now = nowOrOptions;
+      }
+    } else if (nowOrOptions instanceof Date) {
+      now = nowOrOptions;
+    }
+
+    const isExplicitSchedule = Boolean(schedule);
+    if (!schedule) {
+      schedule = WorkSchedule.create({
+        employeeId: this.employeeId,
+        workDate: this.workDate,
+        shiftType: this.shiftType,
+        plannedStartTime: this.shiftStartTime,
+        plannedEndTime: this.shiftEndTime
+      });
+    }
+
+    const plannedStartStr = schedule.plannedStartTime;
+    const plannedEndStr = schedule.plannedEndTime;
+
+    if (schedule.status === 'ON_LEAVE') {
+      return new DailyTimesheet({
+        id: this.id,
+        employeeId: this.employeeId,
+        workDate: this.workDate,
+        shiftType: schedule.shiftType === 'CUSTOM' ? this.shiftType : (schedule.shiftType as ShiftType),
+        shiftStartTime: plannedStartStr,
+        shiftEndTime: plannedEndStr,
+        shiftAllowancePct: this.shiftAllowancePct,
+        actualCheckIn: null,
+        actualCheckOut: null,
+        metrics: WorkMetrics.zero(),
+        status: this.status === 'LEAVE_PAID' || this.status === 'LEAVE_UNPAID' ? this.status : 'LEAVE_PAID',
+        isLocked: this.isLocked,
+        checkInStatus: 'PENDING',
+        checkOutStatus: 'PENDING',
+        dayStatus: 'ON_LEAVE'
+      });
     }
 
     // Lọc punch hợp lệ của nhân viên này
@@ -251,69 +331,130 @@ export class DailyTimesheet {
     const firstIn = validPunches.find(p => p.type === 'IN');
     const lastOut = [...validPunches].reverse().find(p => p.type === 'OUT');
 
-    if (!firstIn || !lastOut || firstIn.punchedAt.getTime() > lastOut.punchedAt.getTime()) {
-      return new DailyTimesheet({
-        id: this.id,
-        employeeId: this.employeeId,
-        workDate: this.workDate,
-        shiftType: this.shiftType,
-        shiftStartTime: this.shiftStartTime,
-        shiftEndTime: this.shiftEndTime,
-        shiftAllowancePct: this.shiftAllowancePct,
-        actualCheckIn: firstIn?.punchedAt ?? null,
-        actualCheckOut: lastOut?.punchedAt ?? null,
-        metrics: WorkMetrics.zero(),
-        status:
-          this.status === 'LEAVE_PAID' || this.status === 'LEAVE_UNPAID' || this.status === 'HOLIDAY'
-            ? this.status
-            : 'ABSENT',
-        isLocked: this.isLocked
-      });
-    }
-
-    const checkIn = firstIn.punchedAt;
-    const checkOut = lastOut.punchedAt;
-
-    // Xử lý ca qua đêm và xác định khung giờ ca
+    const referencePunch = firstIn?.punchedAt ?? lastOut?.punchedAt ?? now ?? null;
     const { plannedStart, plannedEnd } = buildShiftBoundaries(
       this.workDate,
-      this.shiftStartTime,
-      this.shiftEndTime,
-      checkIn
+      plannedStartStr,
+      plannedEndStr,
+      referencePunch
     );
 
-    // Tính thời lượng làm việc thực tế
-    const actualDurationHours = Math.max(0, (checkOut.getTime() - checkIn.getTime()) / (1000 * 3600));
-    const workHours = Math.round(actualDurationHours * 10) / 10;
+    const currentTime = now
+      ? now.getTime()
+      : lastOut
+      ? Math.max(lastOut.punchedAt.getTime(), plannedEnd.getTime() + 31 * 60000)
+      : new Date().getTime();
 
-    // Phút vào muộn (lateMinutes)
+    // 1. Check-in status
+    let checkInStatus: CheckInStatus = 'PENDING';
     let lateMinutes = 0;
-    if (checkIn.getTime() > plannedStart.getTime()) {
-      const rawLate = Math.floor((checkIn.getTime() - plannedStart.getTime()) / 60000);
-      const grace = options?.gracePeriodMinutes ?? 0;
-      if (rawLate > grace) {
-        lateMinutes = rawLate;
+    if (firstIn) {
+      const tin = firstIn.punchedAt.getTime();
+      const diffInMin = (tin - plannedStart.getTime()) / 60000;
+      if (diffInMin < -15) {
+        checkInStatus = 'EARLY';
+      } else if (diffInMin <= 15) {
+        checkInStatus = 'VALID';
+      } else {
+        checkInStatus = 'LATE';
+        const rawLate = Math.floor(diffInMin);
+        const grace = options?.gracePeriodMinutes ?? 0;
+        if (rawLate > grace) {
+          lateMinutes = rawLate;
+        }
+      }
+
+      if (!isExplicitSchedule && tin > plannedStart.getTime()) {
+        const rawLate = Math.floor((tin - plannedStart.getTime()) / 60000);
+        const grace = options?.gracePeriodMinutes ?? 0;
+        if (rawLate > grace) {
+          lateMinutes = rawLate;
+        }
+      }
+    } else {
+      if (currentTime > plannedStart.getTime() + 30 * 60000) {
+        checkInStatus = 'MISSED';
+      } else {
+        checkInStatus = 'PENDING';
       }
     }
 
-    // Phút về sớm (earlyMinutes)
+    // 2. Check-out status & earlyMinutes & otHours
+    let checkOutStatus: CheckOutStatus = 'PENDING';
     let earlyMinutes = 0;
-    if (checkOut.getTime() < plannedEnd.getTime()) {
-      earlyMinutes = Math.floor((plannedEnd.getTime() - checkOut.getTime()) / 60000);
-    }
-
-    // Giờ làm thêm (otHours)
     let otHours = 0;
-    if (checkOut.getTime() > plannedEnd.getTime()) {
-      otHours = Math.round(((checkOut.getTime() - plannedEnd.getTime()) / 3600000) * 10) / 10;
+
+    if (lastOut) {
+      const tout = lastOut.punchedAt.getTime();
+      const diffOutMin = (tout - plannedEnd.getTime()) / 60000;
+      if (diffOutMin < 0) {
+        checkOutStatus = 'EARLY';
+        earlyMinutes = Math.floor((plannedEnd.getTime() - tout) / 60000);
+      } else if (diffOutMin <= 30) {
+        checkOutStatus = 'VALID';
+        if (schedule.approvedOtHours > 0) {
+          otHours = schedule.approvedOtHours;
+        } else if (!isExplicitSchedule && tout > plannedEnd.getTime()) {
+          otHours = Math.round(((tout - plannedEnd.getTime()) / 3600000) * 10) / 10;
+        }
+      } else {
+        // Sau plannedEnd + 30 phút
+        if (schedule.approvedOtHours > 0) {
+          checkOutStatus = 'LATE_WITHOUT_OT';
+          otHours = schedule.approvedOtHours;
+        } else {
+          checkOutStatus = 'LATE_WITHOUT_OT';
+          if (!isExplicitSchedule) {
+            otHours = Math.round(((tout - plannedEnd.getTime()) / 3600000) * 10) / 10;
+          }
+        }
+      }
+    } else {
+      if (currentTime > plannedEnd.getTime() + 30 * 60000) {
+        checkOutStatus = 'MISSED';
+      } else {
+        checkOutStatus = 'PENDING';
+      }
     }
 
-    // Công chuẩn (workUnits: >= 7.0h -> 1.0; >= 3.5h -> 0.5; else 0)
+    // 3. Work hours and units
+    let workHours = 0;
     let workUnits = 0;
-    if (workHours >= 7.0) {
-      workUnits = 1.0;
-    } else if (workHours >= 3.5) {
-      workUnits = 0.5;
+    if (firstIn && lastOut && firstIn.punchedAt.getTime() <= lastOut.punchedAt.getTime()) {
+      const actualDurationHours = Math.max(0, (lastOut.punchedAt.getTime() - firstIn.punchedAt.getTime()) / 3600000);
+      workHours = Math.round(actualDurationHours * 10) / 10;
+      if (workHours >= 7.0) {
+        workUnits = 1.0;
+      } else if (workHours >= 3.5) {
+        workUnits = 0.5;
+      }
+    }
+
+    // 4. Day status
+    let dayStatus: DayStatus = 'PLANNED';
+    if (
+      checkInStatus === 'EARLY' ||
+      checkInStatus === 'LATE' ||
+      checkInStatus === 'MISSED' ||
+      checkOutStatus === 'EARLY' ||
+      checkOutStatus === 'LATE_WITHOUT_OT' ||
+      checkOutStatus === 'MISSED'
+    ) {
+      dayStatus = 'NEEDS_EXPLANATION';
+    } else if (checkInStatus === 'VALID' && checkOutStatus === 'VALID') {
+      dayStatus = 'VALID';
+    } else if (checkInStatus === 'VALID' && checkOutStatus === 'PENDING') {
+      dayStatus = 'IN_PROGRESS';
+    } else if (checkInStatus === 'PENDING' && checkOutStatus === 'PENDING') {
+      dayStatus = 'PLANNED';
+    }
+
+    // 5. DailyTimesheetStatus
+    let status: DailyTimesheetStatus = 'ABSENT';
+    if (firstIn && lastOut && firstIn.punchedAt.getTime() <= lastOut.punchedAt.getTime()) {
+      status = 'PRESENT';
+    } else if (this.status === 'LEAVE_PAID' || this.status === 'LEAVE_UNPAID' || this.status === 'HOLIDAY') {
+      status = this.status;
     }
 
     const metrics = new WorkMetrics({
@@ -328,15 +469,18 @@ export class DailyTimesheet {
       id: this.id,
       employeeId: this.employeeId,
       workDate: this.workDate,
-      shiftType: this.shiftType,
-      shiftStartTime: this.shiftStartTime,
-      shiftEndTime: this.shiftEndTime,
+      shiftType: schedule.shiftType === 'CUSTOM' ? this.shiftType : (schedule.shiftType as ShiftType),
+      shiftStartTime: plannedStartStr,
+      shiftEndTime: plannedEndStr,
       shiftAllowancePct: this.shiftAllowancePct,
-      actualCheckIn: checkIn,
-      actualCheckOut: checkOut,
+      actualCheckIn: firstIn?.punchedAt ?? null,
+      actualCheckOut: lastOut?.punchedAt ?? null,
       metrics,
-      status: 'PRESENT',
-      isLocked: this.isLocked
+      status,
+      isLocked: this.isLocked,
+      checkInStatus,
+      checkOutStatus,
+      dayStatus
     });
   }
 
@@ -371,7 +515,10 @@ export class DailyTimesheet {
       actualCheckOut: this.actualCheckOut,
       metrics: newMetrics,
       status: newStatus,
-      isLocked: this.isLocked
+      isLocked: this.isLocked,
+      checkInStatus: 'PENDING',
+      checkOutStatus: 'PENDING',
+      dayStatus: 'ON_LEAVE'
     });
   }
 
@@ -391,7 +538,10 @@ export class DailyTimesheet {
       actualCheckOut: this.actualCheckOut,
       metrics: this.metrics,
       status: this.status,
-      isLocked: true
+      isLocked: true,
+      checkInStatus: this.checkInStatus,
+      checkOutStatus: this.checkOutStatus,
+      dayStatus: this.dayStatus
     });
   }
 
@@ -412,7 +562,10 @@ export class DailyTimesheet {
       late_minutes: this.metrics.lateMinutes,
       early_minutes: this.metrics.earlyMinutes,
       status: this.status,
-      is_locked: this.isLocked
+      is_locked: this.isLocked,
+      check_in_status: this.checkInStatus,
+      check_out_status: this.checkOutStatus,
+      day_status: this.dayStatus
     };
   }
 
@@ -439,7 +592,10 @@ export class DailyTimesheet {
         earlyMinutes: Number(row.early_minutes ?? 0)
       }),
       status: row.status as DailyTimesheetStatus,
-      isLocked: Boolean(row.is_locked)
+      isLocked: Boolean(row.is_locked),
+      checkInStatus: (row.check_in_status as CheckInStatus) || 'PENDING',
+      checkOutStatus: (row.check_out_status as CheckOutStatus) || 'PENDING',
+      dayStatus: (row.day_status as DayStatus) || 'PLANNED'
     });
   }
 
@@ -456,7 +612,10 @@ export class DailyTimesheet {
       actualCheckOut: this.actualCheckOut ? this.actualCheckOut.toISOString() : null,
       metrics: this.metrics.toJSON(),
       status: this.status,
-      isLocked: this.isLocked
+      isLocked: this.isLocked,
+      checkInStatus: this.checkInStatus,
+      checkOutStatus: this.checkOutStatus,
+      dayStatus: this.dayStatus
     };
   }
 }

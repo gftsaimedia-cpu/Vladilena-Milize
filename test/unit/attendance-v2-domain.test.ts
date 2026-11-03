@@ -1,7 +1,7 @@
 import { test, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { GeoLocation, WorkMetrics, PunchEvent, DailyTimesheet } from '../../src/domain/attendance-v2';
+import { GeoLocation, WorkMetrics, PunchEvent, DailyTimesheet, WorkSchedule } from '../../src/domain/attendance-v2';
 
 describe('Attendance V2 Domain Models', () => {
   const OFFICE_HCM = new GeoLocation({
@@ -560,6 +560,207 @@ describe('Attendance V2 Domain Models', () => {
       assert.equal(json.shiftAllowancePct, 10);
       assert.equal(json.status, 'ABSENT');
       assert.deepEqual(json.metrics, WorkMetrics.zero().toJSON());
+    });
+
+    describe('Window of Validity with WorkSchedule', () => {
+      const defaultSchedule = WorkSchedule.create({
+        employeeId,
+        workDate: '2026-11-03',
+        shiftType: 'NORMAL',
+        plannedStartTime: '08:00',
+        plannedEndTime: '17:00'
+      });
+
+      it('Case 1: Check-in at 07:55 for 08:00 shift -> checkInStatus = VALID', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T07:55:00Z'),
+          makePunch('OUT', '2026-11-03T17:05:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkInStatus, 'VALID');
+        assert.equal(res.checkOutStatus, 'VALID');
+        assert.equal(res.dayStatus, 'VALID');
+      });
+
+      it('Case 2: Check-in at 07:40 for 08:00 shift -> EARLY -> NEEDS_EXPLANATION', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T07:40:00Z'),
+          makePunch('OUT', '2026-11-03T17:05:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkInStatus, 'EARLY');
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
+
+      it('Case 3: Check-in at 08:20 for 08:00 shift -> LATE, lateMinutes = 20 -> NEEDS_EXPLANATION', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:20:00Z'),
+          makePunch('OUT', '2026-11-03T17:05:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkInStatus, 'LATE');
+        assert.equal(res.metrics.lateMinutes, 20);
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
+
+      it('Case 4: Passed 08:30 with no check-in punch -> MISSED -> NEEDS_EXPLANATION', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        // Simulated time is 09:00 (passed 08:30)
+        const now = new Date('2026-11-03T09:00:00Z');
+        const res = timesheet.calculate([], defaultSchedule, now);
+        assert.equal(res.checkInStatus, 'MISSED');
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
+
+      it('Case 5: In-progress shift at 12:00 after valid check-in -> checkOutStatus = PENDING, dayStatus = IN_PROGRESS', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [makePunch('IN', '2026-11-03T08:02:00Z')];
+        const now = new Date('2026-11-03T12:00:00Z');
+        const res = timesheet.calculate(punches, defaultSchedule, now);
+        assert.equal(res.checkInStatus, 'VALID');
+        assert.equal(res.checkOutStatus, 'PENDING');
+        assert.equal(res.dayStatus, 'IN_PROGRESS');
+      });
+
+      it('Case 6: Check-out at 16:50 for 17:00 shift -> EARLY, earlyMinutes = 10 -> NEEDS_EXPLANATION', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:00:00Z'),
+          makePunch('OUT', '2026-11-03T16:50:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkOutStatus, 'EARLY');
+        assert.equal(res.metrics.earlyMinutes, 10);
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
+
+      it('Case 7: Check-out at 17:15 for 17:00 shift -> VALID', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:00:00Z'),
+          makePunch('OUT', '2026-11-03T17:15:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkOutStatus, 'VALID');
+        assert.equal(res.metrics.earlyMinutes, 0);
+        assert.equal(res.dayStatus, 'VALID');
+      });
+
+      it('Case 8: Check-out at 18:00 for 17:00 shift without OT -> LATE_WITHOUT_OT -> NEEDS_EXPLANATION', () => {
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '17:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:00:00Z'),
+          makePunch('OUT', '2026-11-03T18:00:00Z')
+        ];
+        const res = timesheet.calculate(punches, defaultSchedule);
+        assert.equal(res.checkOutStatus, 'LATE_WITHOUT_OT');
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
+
+      it('Case 9: Approved OT until 21:00, check-out at 21:10 -> VALID, otHours = 4.0', () => {
+        const otSchedule = WorkSchedule.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          plannedStartTime: '08:00',
+          plannedEndTime: '21:00',
+          approvedOtHours: 4.0,
+          scheduleType: 'OVERTIME'
+        });
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '21:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:00:00Z'),
+          makePunch('OUT', '2026-11-03T21:10:00Z')
+        ];
+        const res = timesheet.calculate(punches, otSchedule);
+        assert.equal(res.checkInStatus, 'VALID');
+        assert.equal(res.checkOutStatus, 'VALID');
+        assert.equal(res.metrics.otHours, 4.0);
+        assert.equal(res.dayStatus, 'VALID');
+      });
+
+      it('Case 10: Make-up shift 08:00 - 22:00, check-out at 17:00 -> EARLY, earlyMinutes = 300 -> NEEDS_EXPLANATION', () => {
+        const makeupSchedule = WorkSchedule.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          plannedStartTime: '08:00',
+          plannedEndTime: '22:00',
+          scheduleType: 'MAKE_UP'
+        });
+        const timesheet = DailyTimesheet.create({
+          employeeId,
+          workDate: '2026-11-03',
+          shiftType: 'NORMAL',
+          shiftStartTime: '08:00',
+          shiftEndTime: '22:00'
+        });
+        const punches = [
+          makePunch('IN', '2026-11-03T08:00:00Z'),
+          makePunch('OUT', '2026-11-03T17:00:00Z')
+        ];
+        const res = timesheet.calculate(punches, makeupSchedule);
+        assert.equal(res.checkOutStatus, 'EARLY');
+        assert.equal(res.metrics.earlyMinutes, 300);
+        assert.equal(res.dayStatus, 'NEEDS_EXPLANATION');
+      });
     });
   });
 });
