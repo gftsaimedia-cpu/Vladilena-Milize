@@ -11,6 +11,7 @@ import Icon from '@/components/ui/Icon.vue';
 import BulkPunchDialog from './BulkPunchDialog.vue';
 import { dowShort, initials } from '@/utils/format';
 import DayDetailDialog from './DayDetailDialog.vue';
+import TodayDialog from './TodayDialog.vue';
 import PagerBar from './PagerBar.vue';
 import SearchBox from './SearchBox.vue';
 import { useHop } from './useHop';
@@ -21,6 +22,7 @@ const month = computed(() => period.month);
 const session = useSessionStore();
 const canBulk = computed(() => session.caps.includes('request.decide.*'));
 const bulkOpen = ref(false);
+const todayOpen = ref(false);
 
 const CHIPS = [
   ['all', 'Tất cả', 'all'],
@@ -176,6 +178,9 @@ function onSaved() {
         {{ label }} <small v-if="cnt && data?.counts?.[cnt] != null">{{ data.counts[cnt] }}</small>
       </button>
       <SearchBox v-model="q" style="margin-left: auto" />
+      <button type="button" class="btn-sub" title="Xem chấm công hôm nay" @click="todayOpen = true">
+        <Icon name="calendar" />Hôm nay
+      </button>
       <button v-if="canBulk" type="button" class="btn" @click="bulkOpen = true">
         <Icon name="clock" />Chấm công hàng loạt
       </button>
@@ -190,7 +195,14 @@ function onSaved() {
       <thead>
         <tr>
           <th>Nhân sự</th>
-          <th v-for="c in days" :key="c.date" :class="c.thCls">
+          <th
+            v-for="c in days"
+            :key="c.date"
+            :class="c.thCls"
+            :style="c.thCls.includes('today') ? 'cursor: pointer' : undefined"
+            :title="c.thCls.includes('today') ? 'Xem chấm công hôm nay' : undefined"
+            @click="c.thCls.includes('today') ? (todayOpen = true) : undefined"
+          >
             <span class="dn">{{ c.n }}</span
             ><span class="wd">{{ c.wd }}</span>
           </th>
@@ -247,6 +259,7 @@ function onSaved() {
 
   <BulkPunchDialog v-if="bulkOpen" :month="month" @close="bulkOpen = false" @saved="onBulkSaved" />
   <DayDetailDialog v-if="picked" :person-id="picked.id" :date="picked.date" @close="closeDialog" @saved="onSaved" />
+  <TodayDialog v-if="todayOpen" @close="todayOpen = false" />
 </template>
 
 <style scoped>
@@ -324,6 +337,9 @@ function onSaved() {
 .bc th.hol .wd {
   color: var(--accent);
   font-weight: 600;
+}
+.bc th.today {
+  cursor: pointer;
 }
 .bc th.today .dn {
   display: inline-grid;

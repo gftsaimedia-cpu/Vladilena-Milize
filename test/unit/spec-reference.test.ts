@@ -20,7 +20,7 @@ test('spec generator loads route policy without configuring a database', () => {
   );
   assert.notEqual(result.status, null, result.error?.message);
   assert.doesNotMatch(result.stderr, /Chưa chọn cơ sở dữ liệu/);
-  assert.match(result.stderr, /spec\/reference lệch so với mã|spec\/reference khớp mã/);
+  assert.match(result.stdout + result.stderr, /spec\/reference lệch so với mã|spec\/reference khớp mã/);
 });
 
 test('spec/reference khớp mã (npm run spec:gen nếu đỏ)', { timeout: 120000 }, () => {

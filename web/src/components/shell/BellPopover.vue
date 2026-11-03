@@ -1,15 +1,32 @@
 <script setup lang="ts">
 // Bảng việc cần xử lý mở từ chuông trên thanh kỳ lương (pop-chuong.html).
 // Hợp đồng: không props; emit('close') khi đóng (bấm ra ngoài, Esc, hoặc đi tới màn khác).
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getBell } from '@/services/admin-main';
+import { getOvertimeRequests } from '@/services/admin-attendance';
+import { usePeriodStore } from '@/stores/period';
 import { dm, monthShort } from '@/utils/format';
 
 const emit = defineEmits(['close']);
+const period = usePeriodStore();
 const { data } = useLoad(() => getBell());
 const root = ref(null);
+const otCount = ref(0);
+
+watch(
+  () => period.month,
+  async m => {
+    try {
+      const res = await getOvertimeRequests(m, { status: 'pending' });
+      otCount.value = res?.counts?.pending ?? (res?.rows?.length || 0);
+    } catch {
+      otCount.value = 0;
+    }
+  },
+  { immediate: true }
+);
 
 // Bấm lên chính nút chuông thì để nút tự đóng/mở, không đóng ở đây
 const onDown = (e?) => {
@@ -43,6 +60,11 @@ onBeforeUnmount(() => {
         <Icon name="inbox" />
         Giải trình chờ xử lý <small style="color: var(--muted); font-weight: 400">mọi tháng</small>
         <span class="c">{{ data.explanations }}</span>
+      </RouterLink>
+      <RouterLink :to="{ path: '/admin/cham-cong', query: { hop: 'duyet-ot' } }" class="nb" @click="emit('close')">
+        <Icon name="clock" />
+        Giờ OT chờ đối chiếu
+        <span class="c">{{ otCount }}</span>
       </RouterLink>
       <RouterLink :to="{ path: '/admin/cham-cong', query: { filter: 'pending' } }" class="nb" @click="emit('close')">
         <Icon name="clock" />

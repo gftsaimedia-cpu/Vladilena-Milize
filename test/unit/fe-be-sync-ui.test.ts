@@ -379,6 +379,28 @@ test('TimesheetView tô màu các ô ngày và tag theo đề xuất: có chú t
   assert.equal(out.rows[0].cells['2026-10-05']?.declared?.code, 'extra');
 });
 
+test('Tinh gọn Chấm công: không còn thanh tab con, mở Hôm nay dạng modal và Duyệt OT qua BellPopover', () => {
+  const shell = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/AttendanceShell.vue'), 'utf8');
+  assert.ok(!shell.includes('<div class="tabs">'), 'AttendanceShell không còn thanh tab con');
+  assert.ok(!shell.includes('const TABS'), 'AttendanceShell không còn khai báo mảng TABS');
+  assert.ok(shell.includes('TodayDialog'), 'AttendanceShell có nạp TodayDialog');
+  assert.ok(shell.includes('OvertimeDialog'), 'AttendanceShell có nạp OvertimeDialog');
+  assert.ok(shell.includes("hop === 'hom-nay'"), 'AttendanceShell bắt hop=hom-nay');
+  assert.ok(shell.includes("hop === 'duyet-ot'"), 'AttendanceShell bắt hop=duyet-ot');
+
+  const tsView = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/TimesheetView.vue'), 'utf8');
+  assert.ok(tsView.includes('TodayDialog'), 'TimesheetView có nạp TodayDialog');
+  assert.ok(tsView.includes('todayOpen'), 'TimesheetView có cờ mở popup Hôm nay');
+
+  const bell = fs.readFileSync(path.join(__dirname, '../../web/src/components/shell/BellPopover.vue'), 'utf8');
+  assert.ok(bell.includes("query: { hop: 'duyet-ot' }"), 'BellPopover có link tới duyet-ot');
+
+  const todayDialogPath = path.join(__dirname, '../../web/src/views/admin/attendance/TodayDialog.vue');
+  const otDialogPath = path.join(__dirname, '../../web/src/views/admin/attendance/OvertimeDialog.vue');
+  assert.ok(fs.existsSync(todayDialogPath), 'TodayDialog.vue tồn tại');
+  assert.ok(fs.existsSync(otDialogPath), 'OvertimeDialog.vue tồn tại');
+});
+
 
 
 
