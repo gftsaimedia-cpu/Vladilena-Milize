@@ -397,6 +397,12 @@ export interface StaffTable {
   resigned_on: Generated<string | null>;
   leave_balance: Generated<number | null>;
   leave_balance_on: Generated<string | null>;
+  shift_type: Generated<string>;
+  shift_start_time: Generated<string>;
+  shift_end_time: Generated<string>;
+  shift_allowance_pct: Generated<number>;
+  leave_total_days: Generated<number>;
+  leave_used_days: Generated<number>;
 }
 
 export interface StaffRolesTable {
