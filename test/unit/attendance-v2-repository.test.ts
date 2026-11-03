@@ -290,4 +290,90 @@ describe('AttendanceV2Repository', () => {
     assert.ok(query.sql.includes('update "timesheet_entries"'));
     assert.ok(query.sql.includes('"is_locked" ='));
   });
+
+  it('saveSchedule inserts into work_schedules on conflict update', async () => {
+    const mock = new MockDb();
+    const qb = new Kysely<Schema>({ dialect: new AppDialect(mock) });
+    const repo = new AttendanceV2Repository(qb);
+
+    const { WorkSchedule } = await import('../../src/domain/attendance-v2');
+    const schedule = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType: 'NORMAL',
+      plannedStartTime: '08:00',
+      plannedEndTime: '17:00'
+    });
+
+    await repo.saveSchedule(schedule);
+
+    assert.equal(mock.executedQueries.length, 1);
+    const query = mock.executedQueries[0];
+    assert.ok(query.sql.includes('insert into "work_schedules"'));
+    assert.ok(query.params.includes(schedule.id));
+    assert.ok(query.params.includes('NORMAL'));
+    assert.ok(query.params.includes('08:00'));
+  });
+
+  it('findSchedule returns WorkSchedule entity when found', async () => {
+    const mock = new MockDb();
+    const qb = new Kysely<Schema>({ dialect: new AppDialect(mock) });
+    const repo = new AttendanceV2Repository(qb);
+
+    mock.handler = () => ({
+      rows: [
+        {
+          id: randomUUID(),
+          employee_id: employeeId,
+          work_date: workDate,
+          shift_type: 'FLEX',
+          planned_start_time: '06:00:00',
+          planned_end_time: '15:00:00',
+          approved_ot_hours: 0,
+          schedule_type: 'SHIFT_CHANGE',
+          status: 'PLANNED',
+          source_request_id: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ]
+    });
+
+    const found = await repo.findSchedule(employeeId, workDate);
+    assert.ok(found);
+    assert.equal(found.shiftType, 'FLEX');
+    assert.equal(found.plannedStartTime, '06:00');
+    assert.equal(found.scheduleType, 'SHIFT_CHANGE');
+  });
+
+  it('ensureDefaultSchedule creates default schedule from staff profile if none exists', async () => {
+    const mock = new MockDb();
+    const qb = new Kysely<Schema>({ dialect: new AppDialect(mock) });
+    const repo = new AttendanceV2Repository(qb);
+
+    mock.handler = (sql) => {
+      if (sql.includes('from "work_schedules"')) {
+        return { rows: [] };
+      }
+      if (sql.includes('from "staff"')) {
+        return {
+          rows: [
+            {
+              uuid: employeeId,
+              shift_type: 'NIGHT',
+              shift_start_time: '21:00',
+              shift_end_time: '06:00'
+            }
+          ]
+        };
+      }
+      return { rows: [] };
+    };
+
+    const schedule = await repo.ensureDefaultSchedule(employeeId, workDate);
+    assert.ok(schedule);
+    assert.equal(schedule.shiftType, 'NIGHT');
+    assert.equal(schedule.plannedStartTime, '21:00');
+    assert.equal(schedule.plannedEndTime, '06:00');
+  });
 });

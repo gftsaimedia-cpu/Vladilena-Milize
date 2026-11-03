@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { Schema } from './schema.generated';
-import { PunchEvent, DailyTimesheet } from '../domain/attendance-v2';
+import { PunchEvent, DailyTimesheet, WorkSchedule } from '../domain/attendance-v2';
 
 export interface TimesheetFilter {
   employeeId?: string;
@@ -258,5 +258,132 @@ export class AttendanceV2Repository {
       .executeTakeFirst();
 
     return Number(result.numUpdatedRows ?? 0);
+  }
+
+  /**
+   * Lưu hoặc cập nhật lịch làm việc vào bảng work_schedules on conflict (employee_id, work_date)
+   */
+  async saveSchedule(schedule: WorkSchedule): Promise<void> {
+    const row = schedule.toRow();
+    const now = new Date();
+    await this.qb
+      .insertInto('work_schedules')
+      .values({
+        id: row.id,
+        employee_id: row.employee_id,
+        work_date: row.work_date,
+        shift_type: row.shift_type,
+        planned_start_time: row.planned_start_time,
+        planned_end_time: row.planned_end_time,
+        approved_ot_hours: row.approved_ot_hours,
+        schedule_type: row.schedule_type,
+        status: row.status,
+        source_request_id: row.source_request_id,
+        created_at: now,
+        updated_at: now
+      })
+      .onConflict(oc =>
+        oc.columns(['employee_id', 'work_date']).doUpdateSet(eb => ({
+          shift_type: eb.ref('excluded.shift_type'),
+          planned_start_time: eb.ref('excluded.planned_start_time'),
+          planned_end_time: eb.ref('excluded.planned_end_time'),
+          approved_ot_hours: eb.ref('excluded.approved_ot_hours'),
+          schedule_type: eb.ref('excluded.schedule_type'),
+          status: eb.ref('excluded.status'),
+          source_request_id: eb.ref('excluded.source_request_id'),
+          updated_at: now
+        }))
+      )
+      .execute();
+  }
+
+  /**
+   * Tìm lịch làm việc theo nhân viên và ngày công
+   */
+  async findSchedule(employeeId: string, workDate: string): Promise<WorkSchedule | null> {
+    const row = await this.qb
+      .selectFrom('work_schedules')
+      .selectAll()
+      .where('employee_id', '=', employeeId)
+      .where('work_date', '=', workDate)
+      .executeTakeFirst();
+
+    if (!row) return null;
+    return WorkSchedule.fromRow({
+      id: row.id,
+      employee_id: row.employee_id,
+      work_date: row.work_date,
+      shift_type: row.shift_type,
+      planned_start_time: row.planned_start_time,
+      planned_end_time: row.planned_end_time,
+      approved_ot_hours: Number(row.approved_ot_hours ?? 0),
+      schedule_type: row.schedule_type,
+      status: row.status,
+      source_request_id: row.source_request_id,
+      created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+      updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+    });
+  }
+
+  /**
+   * Tìm danh sách lịch làm việc theo khoảng ngày
+   */
+  async findSchedules(employeeId: string, startDate: string, endDate: string): Promise<WorkSchedule[]> {
+    const rows = await this.qb
+      .selectFrom('work_schedules')
+      .selectAll()
+      .where('employee_id', '=', employeeId)
+      .where('work_date', '>=', startDate)
+      .where('work_date', '<=', endDate)
+      .orderBy('work_date', 'asc')
+      .execute();
+
+    return rows.map(row =>
+      WorkSchedule.fromRow({
+        id: row.id,
+        employee_id: row.employee_id,
+        work_date: row.work_date,
+        shift_type: row.shift_type,
+        planned_start_time: row.planned_start_time,
+        planned_end_time: row.planned_end_time,
+        approved_ot_hours: Number(row.approved_ot_hours ?? 0),
+        schedule_type: row.schedule_type,
+        status: row.status,
+        source_request_id: row.source_request_id,
+        created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+        updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at)
+      })
+    );
+  }
+
+  /**
+   * Đảm bảo lịch làm việc tồn tại: nếu chưa có thì nạp từ ca mặc định của nhân viên trong staff
+   */
+  async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
+    const existing = await this.findSchedule(employeeId, workDate);
+    if (existing) return existing;
+
+    const staffRow = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'shift_type', 'shift_start_time', 'shift_end_time'])
+      .where('uuid', '=', employeeId)
+      .executeTakeFirst();
+
+    const shiftType = (staffRow?.shift_type as any) || 'NORMAL';
+    const plannedStartTime = staffRow?.shift_start_time || '08:00';
+    const plannedEndTime = staffRow?.shift_end_time || '17:00';
+
+    const defaultSchedule = WorkSchedule.create({
+      employeeId,
+      workDate,
+      shiftType,
+      plannedStartTime,
+      plannedEndTime,
+      scheduleType: 'REGULAR',
+      status: 'PLANNED'
+    });
+
+    await this.saveSchedule(defaultSchedule);
+    return defaultSchedule;
   }
 }
