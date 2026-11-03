@@ -181,6 +181,28 @@ export function buildOverview({
       note: `Trên ${kept.of} nhân viên (NV)`
     });
 
+  const pStatus = (period && period.status) || 'open';
+  const statusMap: Record<string, [string, string]> = {
+    open: ['Đang chấm công', 'p-pend'],
+    attendance_locked: ['Đã chốt công', 'p-pend'],
+    calculated: ['Chờ duyệt', 'p-pend'],
+    reviewed: ['Chờ duyệt', 'p-pend'],
+    approved: ['Đã duyệt', 'p-done'],
+    paid: ['Đã trả lương', 'p-done']
+  };
+  const [statusLabel, statusCls] = statusMap[pStatus] || ['Đang mở', 'p-draft'];
+  const periodCard = {
+    status: pStatus,
+    statusLabel,
+    statusCls,
+    people: (totals && totals.people) || people.total || 0,
+    approved: (totals && totals.approved) || 0,
+    pending: (totals && totals.pending) || 0,
+    draft: (totals && totals.draft) || 0,
+    error: (totals && totals.error) || 0,
+    paydayExpected: paydayExpected || null
+  };
+
   return {
     month,
     blocking: rows.filter(r => r.blocking && r.count > 0).length,
@@ -191,6 +213,7 @@ export function buildOverview({
     },
     approvals: { total: requests.length, month: inMonth.length, items: inMonth.slice(0, APPROVAL_ROWS) },
     kpis,
-    upcoming: upcoming({ month, today: todayOf(serverNow), paydayExpected, holidays })
+    upcoming: upcoming({ month, today: todayOf(serverNow), paydayExpected, holidays }),
+    periodCard
   };
 }

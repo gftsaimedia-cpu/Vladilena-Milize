@@ -265,3 +265,37 @@ test('GFT Shell & Dark Gold Theme: ui store mặc định side dark và density 
   assert.ok(sidebar.includes('Nhân viên'));
 });
 
+test('OverviewView & overview.ts: buildOverview trả periodCard đầy đủ và OverviewView bố cục Dark & Gold hero + seg-bar + duyệt/từ chối', () => {
+  const ov = buildOverview({
+    month: '2026-10',
+    serverNow: '2026-10-15T08:00:00Z',
+    requests: [],
+    staff: [{ username: 'u1', type: 'nv', payrollSubject: true, locked: false, startDate: '2026-01-01', shiftCode: 's1' }],
+    period: {
+      status: 'calculated',
+      totals: { people: 15, approved: 10, pending: 3, draft: 1, error: 1, gross: 150000000, net: 130000000, advance: 5000000 }
+    },
+    paydayExpected: '2026-11-05',
+    holidays: []
+  });
+  assert.ok(ov.periodCard);
+  assert.equal(ov.periodCard.status, 'calculated');
+  assert.equal(ov.periodCard.statusLabel, 'Chờ duyệt');
+  assert.equal(ov.periodCard.statusCls, 'p-pend');
+  assert.equal(ov.periodCard.people, 15);
+  assert.equal(ov.periodCard.approved, 10);
+  assert.equal(ov.periodCard.pending, 3);
+  assert.equal(ov.periodCard.draft, 1);
+  assert.equal(ov.periodCard.error, 1);
+  assert.equal(ov.periodCard.paydayExpected, '2026-11-05');
+
+  const viewSrc = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/overview/OverviewView.vue'), 'utf8');
+  const kpisIdx = viewSrc.indexOf('class="kpis"');
+  const gridIdx = viewSrc.indexOf('class="ov-grid"');
+  assert.ok(kpisIdx !== -1 && gridIdx !== -1 && kpisIdx < gridIdx, '.kpis phải nằm TRƯỚC .ov-grid');
+  assert.ok(viewSrc.includes('kpi-hero'), 'phải có class kpi-hero cho thẻ KPI đầu tiên');
+  assert.ok(viewSrc.includes('class="seg-bar"'), 'phải có thanh tiến độ segmented bar');
+  assert.ok(viewSrc.includes('reject(r)') && viewSrc.includes('approve(r)'), 'phải có cả nút duyệt và từ chối ở thẻ việc cần duyệt');
+});
+
+
