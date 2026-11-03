@@ -3,7 +3,8 @@ const { pipeline } = require('node:stream');
 const fs = require('node:fs');
 const zlib = require('node:zlib');
 const path = require('node:path');
-const auth = require('./auth');
+let _auth: any;
+const getAuth = () => (_auth ??= require('./auth'));
 const warnings = require('./warnings');
 const config = require('./config');
 
@@ -240,7 +241,7 @@ function serveStatic(req?, res?, url?) {
 // mình thêm; các mục bên trái do máy khách tự gửi nên có thể giả. Mục không phải địa chỉ IP thì bỏ, quay về địa chỉ kết nối.
 function clientIp(req?) {
   const socketAddress = req.socket.remoteAddress || '',
-    hops = auth.trustedHops();
+    hops = getAuth().trustedHops();
   if (!hops) return socketAddress;
   const chain = String(req.headers['x-forwarded-for'] || '')
     .split(',')

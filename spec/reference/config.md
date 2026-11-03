@@ -96,4 +96,4 @@
 | `SESSION_SECRET` | `src/platform/auth.ts:216` |
 | `SHIFT_ALLOW_EDIT` | `src/params/save.ts:72` |
 | `UV_THREADPOOL_SIZE` | `src/preload.ts:7` `src/preload.ts:8` |
-| `WEB_DIST` | `src/platform/http.ts:10` |
+| `WEB_DIST` | `src/platform/http.ts:11` |

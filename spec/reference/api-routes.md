@@ -4,7 +4,7 @@
 
 Mọi route đi qua `ApiGuard` (`src/http/api.guard.ts`): đọc phiên → tra `ROUTE_CAPS` (không có khoá thì 403 `NO_ROUTE_POLICY`) → kiểm năng lực → giới hạn tải → giới hạn tốc độ ghi → dựng ngữ cảnh nhật ký. Cột *khoá kỳ* là `periodScope`: loại ghi mà cổng khoá kỳ (`ctx.guardPeriod`) áp dụng.
 
-Số route: **108**; đường dẫn không module nào nhận trả 404 sau cổng quyền (`src/http/not-found.controller.ts`).
+Số route: **113**; đường dẫn không module nào nhận trả 404 sau cổng quyền (`src/http/not-found.controller.ts`).
 
 | Khoá chính sách | Quyền | Khoá kỳ | Controller (file:dòng, phương thức) | Mô tả (chú thích trong mã) |
 | --- | --- | --- | --- | --- |
@@ -105,6 +105,11 @@ Số route: **108**; đường dẫn không module nào nhận trả 404 sau c�
 | `PUT /staff/shift-bulk` | `profile.write` | — | [`src/modules/sheet/sheet.controller.ts:181`](../../src/modules/sheet/sheet.controller.ts#L181) `putStaffShiftBulk` |  |
 | `GET /team` | `payroll.view` | — | [`src/modules/staff/staff.controller.ts:56`](../../src/modules/staff/staff.controller.ts#L56) `getTeam` |  |
 | `GET /today` | `attendance.read` | — | [`src/modules/attendance/attendance.controller.ts:315`](../../src/modules/attendance/attendance.controller.ts#L315) `getToday` |  |
+| `GET /v2/attendance/punches` | `attendance.read` | — | [`src/modules/attendance-v2/attendance-v2.controller.ts:23`](../../src/modules/attendance-v2/attendance-v2.controller.ts#L23) `getPunches` |  |
+| `POST /v2/attendance/punches` | `attendance.read` | — | [`src/modules/attendance-v2/attendance-v2.controller.ts:12`](../../src/modules/attendance-v2/attendance-v2.controller.ts#L12) `recordPunch` |  |
+| `GET /v2/attendance/timesheets` | `attendance.read` | — | [`src/modules/attendance-v2/attendance-v2.controller.ts:38`](../../src/modules/attendance-v2/attendance-v2.controller.ts#L38) `listTimesheets` |  |
+| `GET /v2/attendance/timesheets/:employeeId/:workDate` | `attendance.read` | — | [`src/modules/attendance-v2/attendance-v2.controller.ts:60`](../../src/modules/attendance-v2/attendance-v2.controller.ts#L60) `getTimesheet` |  |
+| `PATCH /v2/attendance/timesheets/:id/adjust` | `attendance.correct` | — | [`src/modules/attendance-v2/attendance-v2.controller.ts:79`](../../src/modules/attendance-v2/attendance-v2.controller.ts#L79) `adjustTimesheet` |  |
 | `GET /v2/employees` | `profile.read` | — | [`src/modules/employee-v2/employee-v2.controller.ts:18`](../../src/modules/employee-v2/employee-v2.controller.ts#L18) `listEmployees` |  |
 | `POST /v2/employees` | `profile.write` | — | [`src/modules/employee-v2/employee-v2.controller.ts:38`](../../src/modules/employee-v2/employee-v2.controller.ts#L38) `createEmployee` |  |
 | `DELETE /v2/employees/:username` | `profile.write` | — | [`src/modules/employee-v2/employee-v2.controller.ts:253`](../../src/modules/employee-v2/employee-v2.controller.ts#L253) `deleteEmployee` |  |

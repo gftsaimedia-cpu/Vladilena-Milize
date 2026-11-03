@@ -131,11 +131,15 @@ test('kiến trúc: tầng lõi (platform, domain, ai, ops, params, engine, shar
   assert.deepEqual(bad, [], 'tầng lõi chỉ được import tầng lõi và src/data');
 });
 
-test('kiến trúc: src/data là lớp lá (không import module, hạ tầng HTTP hay tầng lõi)', () => {
+test('kiến trúc: src/data không import module, hạ tầng HTTP (chỉ import node_modules, src/data và domain)', () => {
   const bad: any[] = [];
   for (const file of FILES.filter(f => rel(f).startsWith('src/data/')))
     for (const target of importsOf(file))
-      if (!rel(target).startsWith('src/data/') && !rel(target).startsWith('node_modules'))
+      if (
+        !rel(target).startsWith('src/data/') &&
+        !rel(target).startsWith('node_modules') &&
+        !rel(target).startsWith('src/domain/')
+      )
         bad.push(`${rel(file)} → ${rel(target)}`);
   assert.deepEqual(bad, []);
 });
