@@ -344,11 +344,13 @@ test('Bỏ màn Phép còn lại, đổi tiêu đề thành Chấm công, xoá t
   assert.deepEqual(cells['2026-10-07']?.declared, { text: 'Nghỉ', label: 'Ngày iSAT', code: 'leave' });
 });
 
-test('TimesheetView tô màu các ô ngày và tag theo đề xuất: có class cellCls, tag-*, màu dot và tinting', () => {
+test('TimesheetView tô màu các ô ngày và tag theo đề xuất: có chú thích màu color-note, không dùng chữ declared, có dot m.leave/m.extra/m.w/m.q và tinting', () => {
   const tsView = fs.readFileSync(path.join(__dirname, '../../web/src/views/admin/attendance/TimesheetView.vue'), 'utf8');
   assert.ok(tsView.includes('cellCls'), 'phải có helper cellCls');
-  assert.ok(tsView.includes('.tag-leave'), 'phải có CSS .tag-leave');
-  assert.ok(tsView.includes('.tag-extra'), 'phải có CSS .tag-extra');
+  assert.ok(tsView.includes('class="color-note"'), 'phải có chú thích màu color-note ở thanh trên');
+  assert.ok(!tsView.includes('class="declared"'), 'không còn dùng chữ thẻ tag declared trong ô ngày');
+  assert.ok(tsView.includes('d-leave') && tsView.includes('m.leave'), 'phải có màu dot cho nghỉ phép');
+  assert.ok(tsView.includes('d-extra') && tsView.includes('m.extra'), 'phải có màu dot cho làm thêm');
   assert.ok(tsView.includes('c-leave'), 'phải có CSS c-leave');
   assert.ok(tsView.includes('c-extra'), 'phải có CSS c-extra');
   assert.ok(tsView.includes('c-pending'), 'phải có CSS c-pending');
