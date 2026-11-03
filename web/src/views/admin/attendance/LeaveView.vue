@@ -35,7 +35,7 @@ const filter = ref('all');
 const q = ref('');
 const page = ref(1);
 watch([month, filter, q], () => (page.value = 1));
-const { data } = useLoad(
+const { data, reload } = useLoad(
   () => getLeaveBalances(month.value, { filter: filter.value, q: q.value, page: page.value }),
   () => [month.value, filter.value, q.value, page.value].join('|')
 );

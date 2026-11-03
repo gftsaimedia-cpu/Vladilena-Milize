@@ -197,15 +197,6 @@ function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 
             <span>Ngày công</span><b>{{ p.result }}</b>
           </div>
         </div>
-        <div class="pun">
-          <span
-            ><b>{{ p.checkIn }}</b> Check-in</span
-          >
-          <span v-if="p.checkOut"
-            ><b>{{ p.checkOut }}</b> Check-out</span
-          >
-          <span class="raw">giờ bấm gốc, luôn được giữ nguyên</span>
-        </div>
       </div>
       <p v-if="!punches.length" class="none">Ngày này chưa có lượt Check-in nào.</p>
 
@@ -368,33 +359,6 @@ function removeMakeupPlan(index: number) { form.value.makeupPlans.splice(index, 
   font-size: 14px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
-}
-.pun {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-.pun span {
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 8px;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-}
-.pun span b {
-  font-weight: 600;
-}
-.pun span.raw {
-  background: none;
-  border: 0;
-  color: var(--muted);
-  padding: 0;
 }
 .hd2 {
   margin: 20px 0 0;

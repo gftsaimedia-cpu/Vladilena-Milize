@@ -45,7 +45,10 @@ const groups = computed(() => GROUPS);
         <img :src="ui.side === 'dark' ? logoLight : logoDark" alt="GFT" />
         <b>AiCB</b>
       </div>
-      <div class="scope">Lương, chấm công, phúc lợi · GFT</div>
+      <div class="mode-switch" role="navigation" aria-label="Chế độ giao diện">
+        <span class="sw on">HR</span>
+        <RouterLink to="/nhan-vien/hom-nay" class="sw">Nhân viên</RouterLink>
+      </div>
       <nav class="nav" aria-label="Điều hướng">
         <template v-for="([grp, items], gi) in groups" :key="gi">
           <div v-if="grp" class="grp">{{ grp }}</div>
@@ -79,3 +82,36 @@ const groups = computed(() => GROUPS);
     </div>
   </aside>
 </template>
+
+<style scoped>
+.mode-switch {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  padding: 3px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 12px 6px 4px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 26px;
+}
+:root:not([data-side='dark']) .mode-switch {
+  background: rgba(0, 0, 0, 0.06);
+}
+.mode-switch .sw {
+  display: block;
+  border-radius: 999px;
+  color: var(--side-muted);
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+.mode-switch .sw.on {
+  background: var(--gold);
+  color: #181816;
+  font-weight: 600;
+  border-radius: 999px;
+}
+.mode-switch a.sw:hover {
+  color: var(--side-ink);
+}
+</style>

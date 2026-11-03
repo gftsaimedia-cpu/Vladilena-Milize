@@ -60,8 +60,8 @@ export function buildHome({ me, punch, sheet, estimate }: any) {
   const reports = Object.values<any>(actual.report || {});
   const toDate = estimate.toDate || {};
   const facts = [{ label: 'Ngày đủ công', hint: '', value: String(toDate.count ?? 0), tone: '' }];
-  if (reports.some(r => r && r.lateMin != null)) {
-    const late = reports.reduce((s, r) => s + (Number(r && r.lateMin) || 0), 0);
+  if (reports.some(r => r && (r.late != null || r.lateMin != null))) {
+    const late = reports.reduce((s, r) => s + (Number(r && (r.late ?? r.lateMin)) || 0), 0);
     facts.push({ label: 'Đi trễ', hint: '', value: `${late} phút`, tone: '' });
   }
   facts.push({

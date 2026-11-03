@@ -59,13 +59,15 @@ export function buildTimesheet({ team, shifts, today, holidays }: any, { filter 
       else if (COUNTED.has(code)) present += 1;
     }
     const line = shiftLine(idx, st.shiftCode);
+    const shiftName = idx.get(st.shiftCode)?.name || st.shiftCode;
     return {
       id: st.username,
       name: st.name,
       type: st.type,
       sub: st.shiftCode
-        ? [TYPE_SHORT[st.type], line].filter(Boolean).join(' · ')
+        ? [TYPE_SHORT[st.type], shiftName].filter(Boolean).join(' · ')
         : `${TYPE_SHORT[st.type]} · chưa gán ca`,
+      shiftTooltip: line || '',
       noShift: !st.shiftCode,
       cells,
       present,
@@ -172,17 +174,26 @@ export function buildDayDetail({ sheet, shifts }: any, personId?, date?) {
 }
 
 /** Thân PUT /sheet: Admin chấm công thay một người một ngày, giữ nguyên các ngày khác của tháng. */
-export function buildSheetBody(detail, { date, checkIn, checkOut, shift }: any) {
+export function buildSheetBody(detail, { date, checkIn, checkOut, shift, reason }: any) {
   const prev = (detail.days && detail.days[date]) || {};
+  const trimmed = typeof reason === 'string' ? reason.trim() : '';
   const days = {
     ...(detail.days || {}),
-    [date]: { ...prev, kind: 'work', in: checkIn, out: checkOut, ...(shift ? { preset: shift } : {}) }
+    [date]: {
+      ...prev,
+      kind: 'work',
+      in: checkIn,
+      out: checkOut,
+      ...(shift ? { preset: shift } : {}),
+      ...(trimmed ? { note: trimmed } : {})
+    }
   };
   return {
     month: date.slice(0, 7),
     user: detail.personId,
     days,
     confirmDays: [date],
+    ...(trimmed ? { reason: trimmed } : {}),
     ...(Number.isInteger(detail.rev) ? { expectedRev: detail.rev } : {})
   };
 }
@@ -198,6 +209,9 @@ export function buildOvertime({ ot, month, status }: any) {
     counts: { pending: status === 'pending' ? items.length : 0 },
     rows: items.map(o => ({
       id: String(o.sessionId || o.id || `${o.username}|${o.date}`),
+      sessionId: o.sessionId || o.id,
+      version: o.version ?? 1,
+      canDecide: status === 'pending' && Boolean(o.sessionId || o.id),
       name: o.name || o.username,
       sub: o.username,
       cols: [o.date, o.shiftCode || '', o.declared || o.otHours || '', o.present || ''],

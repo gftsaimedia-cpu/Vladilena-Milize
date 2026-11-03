@@ -40,21 +40,18 @@ const query = computed(() => ({ thang: route.query.thang }));
   </div>
 
   <template v-if="summary">
-    <div class="wts" aria-label="Điểm tổng bằng 5 thành phần nhân tỉ lệ">
+    <div class="wts-inline" aria-label="Điểm tổng bằng 5 thành phần nhân tỉ lệ">
+      <span class="lbl">Tỉ lệ điểm:</span>
       <template v-for="(w, i) in summary.weights" :key="w.key">
-        <div v-if="i" class="op">+</div>
-        <div>
-          <div class="l">{{ w.label }}</div>
-          <div class="v">{{ w.pct }}%</div>
-          <div class="n">{{ w.note || ' ' }}</div>
-        </div>
+        <span v-if="i" class="op">+</span>
+        <span class="wi">
+          <b>{{ w.label }}</b> <span class="v">{{ w.pct }}%</span>
+        </span>
       </template>
-      <div class="op">=</div>
-      <div class="lead">
-        <div class="l">Tổng điểm</div>
-        <div class="v">{{ summary.example ? `${summary.example.total}%` : '100%' }}</div>
-        <div class="n">{{ summary.example ? summary.example.text : ' ' }}</div>
-      </div>
+      <span class="op">=</span>
+      <span class="wi lead">
+        <b>Tổng điểm</b> <span class="v">{{ summary.example ? `${summary.example.total}%` : '100%' }}</span>
+      </span>
     </div>
 
     <div v-if="!summary.empty" class="kpis">
@@ -87,7 +84,6 @@ const query = computed(() => ({ thang: route.query.thang }));
       <RouterLink class="tab" :to="{ path: '/admin/kpi/lich-su', query }" exact-active-class="on">
         Lịch sử sửa điểm <small v-if="!summary.empty && summary.tabs.history != null">{{ summary.tabs.history }}</small>
       </RouterLink>
-      <span class="tab" aria-disabled="true">OKR <small>Sắp có</small></span>
     </div>
   </template>
 
@@ -95,38 +91,41 @@ const query = computed(() => ({ thang: route.query.thang }));
 </template>
 
 <style scoped>
-.wts {
-  display: grid;
-  grid-template-columns: 1fr 20px 1fr 20px 1fr 20px 1fr 20px 1fr 20px 1.6fr;
+.wts-inline {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  gap: 8px 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-card);
-  padding: 18px 24px;
+  padding: 10px 16px;
   margin-bottom: var(--gap);
-}
-.wts .op {
-  color: #9e9e9e;
-  font-size: 20px;
-  text-align: center;
-}
-.wts .l {
-  color: var(--muted);
   font-size: 13px;
 }
-.wts .v {
-  font-size: 22px;
-  line-height: 28px;
-  font-weight: 600;
-  margin-top: 4px;
-  font-variant-numeric: tabular-nums;
-}
-.wts .n {
+.wts-inline .lbl {
   color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
+  font-weight: 500;
 }
-.wts .lead .v {
-  font-size: 22px;
+.wts-inline .op {
+  color: #9e9e9e;
+  font-weight: 600;
+}
+.wts-inline .wi {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wts-inline .wi b {
+  font-weight: 500;
+  color: var(--text);
+}
+.wts-inline .wi .v {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold-dark, #b8860b);
+}
+.wts-inline .wi.lead .v {
+  color: var(--text);
 }
 </style>

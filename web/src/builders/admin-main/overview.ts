@@ -48,7 +48,7 @@ function staffFigures(staff?) {
     note: [...parts.map(([label, n]: any) => `${label} ${n}`), unset ? `${unset} chưa xếp loại` : '']
       .filter(Boolean)
       .join(' · '),
-    noStart: active.filter(s => !s.startDate).length,
+    noStart: active.filter(s => !s.startDate && s.type !== 'tts').length,
     noShift: active.filter(s => !s.shiftCode).length
   };
 }
@@ -112,7 +112,7 @@ export function buildOverview({
       count: forgot,
       title: 'Ngày quên Check-in/out chờ xử lý',
       sub: 'Sửa giờ, hoặc tick Bỏ qua khi chốt công',
-      action: { label: 'Sửa giờ', to: '/admin/cham-cong/sua-gio' }
+      action: { label: 'Sửa giờ', to: '/admin/cham-cong?filter=pending' }
     },
     {
       key: 'absent',
@@ -128,7 +128,7 @@ export function buildOverview({
       count: people.noStart,
       title: 'Nhân sự thiếu ngày bắt đầu làm',
       sub: 'Chưa xác định được ngày công chuẩn',
-      action: { label: 'Mở hồ sơ', to: '/admin/nhan-su' }
+      action: { label: 'Mở hồ sơ', to: '/admin/nhan-su?loc=thieu-ngay' }
     },
     {
       key: 'open',
@@ -136,7 +136,7 @@ export function buildOverview({
       count: open,
       title: 'Lượt Check-in còn đang mở',
       sub: 'Tự đóng khi nhân sự Check-out, bạn không cần làm gì',
-      action: { label: 'Xem hôm nay', to: '/admin/cham-cong' }
+      action: { label: 'Xem hôm nay', to: '/admin/cham-cong/hom-nay' }
     },
     {
       key: 'noshift',
@@ -144,7 +144,7 @@ export function buildOverview({
       count: people.noShift,
       title: 'Nhân sự chưa có ca cố định',
       sub: 'Không chặn chốt công, nhưng chưa tính được giờ làm',
-      action: { label: 'Gán ca', to: '/admin/nhan-su' }
+      action: { label: 'Gán ca', to: '/admin/nhan-su?loc=chua-co-ca' }
     }
   ];
 
@@ -181,6 +181,28 @@ export function buildOverview({
       note: `Trên ${kept.of} nhân viên (NV)`
     });
 
+  const pStatus = (period && period.status) || 'open';
+  const statusMap: Record<string, [string, string]> = {
+    open: ['Đang chấm công', 'p-pend'],
+    attendance_locked: ['Đã chốt công', 'p-pend'],
+    calculated: ['Chờ duyệt', 'p-pend'],
+    reviewed: ['Chờ duyệt', 'p-pend'],
+    approved: ['Đã duyệt', 'p-done'],
+    paid: ['Đã trả lương', 'p-done']
+  };
+  const [statusLabel, statusCls] = statusMap[pStatus] || ['Đang mở', 'p-draft'];
+  const periodCard = {
+    status: pStatus,
+    statusLabel,
+    statusCls,
+    people: (totals && totals.people) || people.total || 0,
+    approved: (totals && totals.approved) || 0,
+    pending: (totals && totals.pending) || 0,
+    draft: (totals && totals.draft) || 0,
+    error: (totals && totals.error) || 0,
+    paydayExpected: paydayExpected || null
+  };
+
   return {
     month,
     blocking: rows.filter(r => r.blocking && r.count > 0).length,
@@ -191,6 +213,7 @@ export function buildOverview({
     },
     approvals: { total: requests.length, month: inMonth.length, items: inMonth.slice(0, APPROVAL_ROWS) },
     kpis,
-    upcoming: upcoming({ month, today: todayOf(serverNow), paydayExpected, holidays })
+    upcoming: upcoming({ month, today: todayOf(serverNow), paydayExpected, holidays }),
+    periodCard
   };
 }

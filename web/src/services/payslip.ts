@@ -2,7 +2,6 @@
 import { buildDrawer } from '@/builders/payslip/drawer';
 import { buildSheet } from '@/builders/payslip/sheet';
 import { api } from './http';
-import { mockSave } from './mock';
 
 const enc = encodeURIComponent;
 const slipRev = new Map<any, any>();

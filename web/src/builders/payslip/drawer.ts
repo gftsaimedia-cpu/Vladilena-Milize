@@ -51,11 +51,17 @@ export function buildDrawer(month?, username?, period?, data?, extra: any = {}) 
   const pills: any[] = [];
   if (kind === 'official') pills.push(PILL.approved, { cls: 'p-lock', label: 'Chính thức', icon: 'lock' });
   else if (kind === 'estimate') pills.push({ cls: 'p-draft', label: 'Chưa tính lương' });
-  else
-    pills.push(PILL[slip.status] || PILL.draft, {
+  else {
+    const runPill = {
       cls: 'p-draft',
-      label: `Bản nháp · lần tính ${run ? run.runNo : ''}`.trim()
-    });
+      label: run ? `Bản nháp · lần tính ${run.runNo}`.trim() : 'Bản nháp'
+    };
+    if (slip.status === 'draft' || !PILL[slip.status]) {
+      pills.push(runPill);
+    } else {
+      pills.push(PILL[slip.status], runPill);
+    }
+  }
   const reviewing = kind === 'pending' || kind === 'approved';
   const money = (label?, v?) => L(label, 'money', v);
   const groups = [
@@ -121,7 +127,7 @@ export function buildDrawer(month?, username?, period?, data?, extra: any = {}) 
         )
       : '',
     canReturn: reviewing && period.status !== 'approved' && period.status !== 'paid',
-    canApprove: kind === 'pending',
+    canApprove: (kind === 'draft' || kind === 'pending') && slip.status !== 'error' && period.status !== 'approved' && period.status !== 'paid',
     canEditNumbers: kind !== 'official',
     auto: slip.cells || {},
     warnings: (slip.flags || []).map((f, i) => ({

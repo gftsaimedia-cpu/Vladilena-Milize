@@ -1,6 +1,6 @@
 // Dịch vụ Bảng lương và các bước của kỳ lương (chốt công → tính lương → AI kiểm tra → phê duyệt → trả lương).
 // Kỳ, bảng lương, các bước kỳ, phát hiện của AI, duyệt phiếu và khoản điền thêm gọi máy chủ qua api().
-import { buildCloseChecks, buildPeriodView } from '@/builders/admin-payroll/payroll';
+import { buildCloseChecks, buildPeriodView } from '../builders/admin-payroll/payroll';
 import { api } from './http';
 
 const err = (message?) => Promise.reject(new Error(message));
@@ -136,9 +136,57 @@ export function approveOne(month?, username?, note?) {
   return decide(month, 'approve', [username], { note: note.trim() });
 }
 
-// POST /api/periods/:month/approve  { rev }
-export async function approvePeriod(month?) {
-  return step(month, 'approve', { rev: await currentRev(month) });
+// GET /api/periods/:month, lặp /payslips?status=error lấy toàn bộ phiếu lỗi để người dùng điền lý do loại khỏi kỳ
+export async function getPeriodApprovalSummary(month: string): Promise<{
+  rev: number;
+  draft: number;
+  legacyPending: number;
+  approved: number;
+  errors: Array<{ username: string; name: string; shortProblem: string }>;
+}> {
+  const period = await api('GET', `/periods/${enc(month)}`);
+  periodRev.set(month, period.rev);
+  const t = period.totals || {};
+  const errors: Array<{ username: string; name: string; shortProblem: string }> = [];
+  let page = 1;
+  while (true) {
+    const list = await api(
+      'GET',
+      `/periods/${enc(month)}/payslips` + qs({ status: 'error', pageSize: 200, page })
+    );
+    const rows = list.rows || [];
+    for (const r of rows) {
+      errors.push({
+        username: r.username,
+        name: r.name || r.username,
+        shortProblem: r.errorMessage || r.problem || 'Hồ sơ hoặc công chưa hợp lệ'
+      });
+    }
+    if (!rows.length || errors.length >= (list.total ?? rows.length) || rows.length < 200) {
+      break;
+    }
+    page++;
+  }
+  return {
+    rev: period.rev,
+    draft: t.draft || 0,
+    legacyPending: t.pending || 0,
+    approved: t.approved || 0,
+    errors
+  };
+}
+
+// POST /api/periods/:month/approve  { rev, excludeErrors }
+export async function approvePeriod(
+  month: string,
+  opts?: { rev?: number; excludeErrors?: Array<{ username: string; reason: string }> }
+) {
+  const rev = opts?.rev ?? (await currentRev(month));
+  const excludeErrors = opts?.excludeErrors || [];
+  return step(month, 'approve', {
+    rev,
+    ...(excludeErrors.length ? { excludeErrors } : {})
+  });
 }
 
 // POST /api/periods/:month/mark-paid  { rev, paidAt: 'YYYY-MM-DD', reference }

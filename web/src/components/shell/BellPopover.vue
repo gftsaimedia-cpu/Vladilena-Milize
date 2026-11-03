@@ -44,7 +44,7 @@ onBeforeUnmount(() => {
         Giải trình chờ xử lý <small style="color: var(--muted); font-weight: 400">mọi tháng</small>
         <span class="c">{{ data.explanations }}</span>
       </RouterLink>
-      <RouterLink to="/admin/cham-cong/sua-gio" class="nb" @click="emit('close')">
+      <RouterLink :to="{ path: '/admin/cham-cong', query: { filter: 'pending' } }" class="nb" @click="emit('close')">
         <Icon name="clock" />
         Quên Check-in/out trong tháng
         <span class="c">{{ data.forgotten.count }}</span>

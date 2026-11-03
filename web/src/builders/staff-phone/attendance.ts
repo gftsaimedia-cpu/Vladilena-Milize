@@ -65,9 +65,19 @@ export function buildAttendance({ month, sheet, estimate, me, today, nav, shiftL
   const m = (estimate && estimate.m) || {};
   const stats = [{ value: String(m.count ?? 0), label: 'Ngày đủ công' }];
   const reports = Object.values<any>(actual.report || {});
-  if (reports.some(r => r && r.lateMin != null))
-    stats.push({ value: String(reports.reduce((s, r) => s + (Number(r && r.lateMin) || 0), 0)), label: 'Phút đi trễ' });
-  stats.push({ value: String(m.cut ?? 0), label: 'Phút bị trừ' });
+  stats.push({
+    value: String(reports.reduce((s, r) => s + (Number(r && (r.late ?? r.lateMin)) || 0), 0)),
+    label: 'Phút đi trễ'
+  });
+  const cutMinutes =
+    m.short != null
+      ? Math.round((Number(m.short) || 0) * 60)
+      : reports.reduce(
+          (s, r) =>
+            s + (Number(r?.cutStartMin) || 0) + (Number(r?.cutEndMin) || 0) + (Number(r?.gapCutMin) || 0),
+          0
+        );
+  stats.push({ value: String(cutMinutes), label: 'Phút bị trừ' });
   const byDate = new Map<any, any>();
   for (const s of sessions) byDate.set(s.date, [...(byDate.get(s.date) || []), s]);
   const dates = [...byDate.keys()].sort();

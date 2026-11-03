@@ -6,8 +6,8 @@ import {
   buildMonth,
   buildProfile,
   serverTodayOf
-} from '@/builders/staff-desktop/index';
-import { buildDesktopRequests } from '@/builders/staff-requests/list';
+} from '../builders/staff-desktop/index';
+import { buildDesktopRequests } from '../builders/staff-requests/list';
 import { api } from './http';
 import { changePassword, login as sessionLogin, logout as sessionLogout } from './session';
 import {
@@ -101,22 +101,61 @@ const newId = () =>
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 let attempt: any = null;
 
-// POST /api/punch  (kind: 'in' | 'out', explanation: lý do khi lần bấm không hợp lệ). Lỗi của máy chủ ném ApiError với câu nguyên văn, mã ở .code.
-export async function staffCheck(kind?, explanation?) {
-  const type = kind === 'out' ? 'out' : 'in';
-  let sessionId: any = null;
-  if (type === 'out') {
-    const state = await api('GET', '/punch');
-    sessionId = state.openSession ? state.openSession.id : null;
-  }
-  if (!attempt || attempt.type !== type || attempt.sessionId !== sessionId)
-    attempt = { type, sessionId, requestId: newId() };
-  const body = {
+function defaultGetPos(): Promise<{ lat: number; lng: number; accuracy: number } | null> {
+  return new Promise(resolve => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 5000 }
+    );
+  });
+}
+
+/** Dựng thân yêu cầu POST /punch cho giao diện Desktop: kiểm tra geofence và lấy đúng sessionId khi Check-out. */
+export async function buildPunchBodyForDesktop({ type, requestId, explanation, me, punchState, getPos }: any) {
+  const body: Record<string, any> = {
     type,
-    requestId: attempt.requestId,
-    ...(sessionId ? { sessionId } : {}),
+    requestId,
     ...(explanation ? { explanation } : {})
   };
+  if (type === 'out') {
+    const sessionId = punchState?.open?.id ?? punchState?.openSession?.id ?? null;
+    if (sessionId) body.sessionId = sessionId;
+  }
+  if (type === 'in' && me?.geofenceRequired) {
+    const pos = typeof getPos === 'function' ? await getPos() : await defaultGetPos();
+    if (pos) body.location = pos;
+  }
+  return body;
+}
+
+// POST /api/punch  (kind: 'in' | 'out', explanation: lý do khi lần bấm không hợp lệ). Lỗi của máy chủ ném ApiError với câu nguyên văn, mã ở .code.
+export async function staffCheck(kind?, explanation?, getPos?) {
+  const type = kind === 'out' ? 'out' : 'in';
+  let punchState: any = null;
+  let me: any = null;
+  if (type === 'out') {
+    punchState = await api('GET', '/punch');
+  } else {
+    me = await api('GET', '/me').catch(() => null);
+  }
+  const sessionId = type === 'out' ? (punchState?.open?.id ?? punchState?.openSession?.id ?? null) : null;
+  if (!attempt || attempt.type !== type || attempt.sessionId !== sessionId)
+    attempt = { type, sessionId, requestId: newId() };
+  const body = await buildPunchBodyForDesktop({
+    type,
+    requestId: attempt.requestId,
+    explanation,
+    me,
+    punchState,
+    getPos
+  });
   try {
     const res = await api('POST', '/punch', body);
     attempt = null;

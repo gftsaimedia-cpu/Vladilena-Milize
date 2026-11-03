@@ -69,7 +69,11 @@ function openPassword() {
       @open-menu="menuOpen = !menuOpen"
     />
     <main class="canvas">
-      <PeriodStrip :bell="shell.bell" @open-bell="bellOpen = !bellOpen" />
+      <PeriodStrip
+        :bell="shell.bell"
+        :show-steps="['tong-quan', 'cham-cong', 'kpi', 'luong'].includes(String(route.meta.nav || ''))"
+        @open-bell="bellOpen = !bellOpen"
+      />
       <slot />
     </main>
     <BellPopover v-if="bellOpen" @close="bellOpen = false" />

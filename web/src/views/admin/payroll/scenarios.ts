@@ -1,6 +1,6 @@
 // Chữ và nút của màn Bảng lương theo từng kịch bản (?kb=): tiêu đề phụ, nút bước kỳ, ghi chú, kiểu bảng.
 // Số phiếu lấy từ facts do máy chủ trả; ở đây chỉ ghép câu.
-import { dmy } from '@/utils/format';
+import { dmy } from '../../../utils/format';
 
 const A = {
   formula: { key: 'formula', label: 'Cách tính lương', icon: 'sliders' },
@@ -23,33 +23,6 @@ const monthNo = (month?) => Number(month.slice(5, 7));
  */
 export function describeScenario(month?, kb?, f?): any {
   const n = monthNo(month);
-  if (month === '2026-11') {
-    const wide = kb === 'du-cot';
-    return {
-      variant: 'draft11',
-      sub: [
-        `Tháng ${n} chưa tính lương · `,
-        { b: `${f.calculated} phiếu` },
-        ' đã có số, ',
-        { b: `${f.failed} phiếu` },
-        ' chưa tính được vì hồ sơ thiếu thông tin'
-      ],
-      actions: [
-        A.formula,
-        { ...A.close, pri: false, off: true, small: f.openFrom ? `· mở từ ${f.openFrom}` : undefined }
-      ],
-      note: null,
-      cap: wide
-        ? [
-            EST,
-            ' thành số chính thức sau bước Tính lương · Tiền ngày công đã gồm nghỉ lễ hưởng lương và đã trừ đi muộn, về sớm'
-          ]
-        : [EST, ' thành số chính thức sau bước Tính lương'],
-      selection: false,
-      extras: false,
-      printInTools: false
-    };
-  }
   const base: Record<string, any> = {
     variant: 'draft10',
     note: null,
@@ -66,7 +39,7 @@ export function describeScenario(month?, kb?, f?): any {
           { b: `${f.calculated} phiếu` },
           ' đã có số, ',
           { b: `${f.failed} phiếu` },
-          ` chưa tính được · đã qua hạn chốt công ${f.deadline}`
+          f.deadline ? ` chưa tính được · đã qua hạn chốt công ${f.deadline}` : ' chưa tính được'
         ],
         actions: [A.formula, A.close],
         cap: [EST, ' thành số chính thức sau khi phê duyệt kỳ lương'],
@@ -81,7 +54,7 @@ export function describeScenario(month?, kb?, f?): any {
           cls: 'ok',
           icon: 'lock',
           segs: [
-            `Bảng công tháng ${n} đã khoá lúc ${f.closedAt}/2026. Số dưới đây còn đổi cho tới khi bấm `,
+            `Bảng công tháng ${n} đã khoá lúc ${f.closedAt}. Số dưới đây còn đổi cho tới khi bấm `,
             { b: 'Tính lương' },
             '.'
           ]
@@ -109,7 +82,7 @@ export function describeScenario(month?, kb?, f?): any {
         sub: [{ b: `${f.pending} phiếu` }, ' chờ phê duyệt'],
         actions: [A.formula, A.reopen, A.approvePeriod],
         cap: [`Bản nháp lần tính ${f.run}`],
-        selection: true
+        selection: false
       };
     case 'da-duyet-50':
       return {
@@ -118,7 +91,7 @@ export function describeScenario(month?, kb?, f?): any {
         sub: [{ b: `${f.approved}/${f.total} phiếu` }, ` đã phê duyệt · còn ${f.pending} phiếu chờ phê duyệt`],
         actions: [A.formula, A.reopen, A.approvePeriod],
         cap: [`Bản nháp lần tính ${f.run}`],
-        selection: true,
+        selection: false,
         printInTools: true
       };
     case 'can-tinh-lai':
@@ -136,11 +109,11 @@ export function describeScenario(month?, kb?, f?): any {
           segs: [
             { b: 'Cần tính lại:' },
             ' dữ liệu đầu vào (điểm KPI, số sửa trên phiếu, hồ sơ, ngày lễ) đã đổi sau lần tính 1, ' +
-              'số trên bảng có thể chưa khớp. Tạm ứng của 1 phiếu đã được sửa về 0.'
+              'số trên bảng có thể chưa khớp.'
           ]
         },
         cap: [`Bản nháp lần tính ${f.run}`],
-        selection: true,
+        selection: false,
         printInTools: true
       };
     case 'da-phe-duyet':

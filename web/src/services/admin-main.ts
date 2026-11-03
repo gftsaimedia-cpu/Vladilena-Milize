@@ -17,7 +17,7 @@ import { useSessionStore } from '@/stores/session';
 import { countWaiting } from '@/builders/admin-requests/explanations';
 import { listWaitingExplanations } from './admin-explanations';
 import { ApiError, api, qs } from './http';
-import { mockSave } from './mock';
+import { changePassword as sessionChangePassword, logout as sessionLogout } from './session';
 
 // ---------- Yêu cầu chờ duyệt (GET /approvals, PUT /approvals/decide) ----------
 // Mỗi dòng là một khoản tự khai (nhân sự, ngày); id = 'username|date'. rev và fingerprint của lần tải gần nhất giữ ở
@@ -175,9 +175,6 @@ export async function getBell() {
   return buildBell({ month, alerts, explanations: countWaiting(waiting) });
 }
 
-// Nối máy chủ: POST /api/me/password  { current, next }
-// eslint-disable-next-line no-unused-vars
-export const changePassword = ({ current, next }: any) => mockSave({}, 300);
+export const changePassword = ({ current, next }: any) => sessionChangePassword(current, next);
 
-// Nối máy chủ: POST /api/auth/logout
-export const logout = () => mockSave();
+export const logout = () => sessionLogout();

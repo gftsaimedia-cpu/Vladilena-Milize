@@ -29,7 +29,7 @@ const facts = computed(() => props.data.facts);
     v-if="hop === 'chot-cong'"
     :month="month"
     @close="emit('close')"
-    @done="emit('finish', month === '2026-10' ? 'da-chot-cong' : '')"
+    @done="emit('finish', 'da-chot-cong')"
   />
   <CalcDialog
     v-else-if="hop === 'tinh-luong'"

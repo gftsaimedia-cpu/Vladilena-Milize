@@ -112,7 +112,6 @@ async function onExplained() {
       <div class="h"><Icon name="alert" :size="18" />{{ data.alert.title }}</div>
       <p>{{ data.alert.text }}</p>
       <div class="bs">
-        <button type="button" class="off" disabled>Sửa giờ <small>Sắp có</small></button>
         <RouterLink class="link" to="/nv/cham-cong">Xem ngày</RouterLink>
       </div>
     </div>
@@ -124,8 +123,8 @@ async function onExplained() {
         </div>
         <div class="v est-u">{{ vnd(data.pay.amount) }}<span class="unit">₫</span></div>
         <div class="n">
-          Tính trên {{ data.pay.days }} ngày công đến {{ dm(data.pay.asOf) }} · chưa phải lương chính thức. Phiếu lương
-          chính thức gửi ngày {{ dm(data.payslipDate) }}.
+          Tính trên {{ data.pay.days }} ngày công đến {{ dm(data.pay.asOf) }} · chưa phải lương chính thức.<template v-if="data.payslipDate"> Phiếu lương
+          chính thức gửi ngày {{ dm(data.payslipDate) }}.</template>
         </div>
       </div>
       <div v-for="f in data.facts" :key="f.label" class="kv">
@@ -141,7 +140,7 @@ async function onExplained() {
     </section>
 
     <section class="sec">
-      <div class="h2">Việc cần làm trước {{ dm(data.requestDeadline) }}</div>
+      <div class="h2">Việc cần làm<template v-if="data.requestDeadline"> trước {{ dm(data.requestDeadline) }}</template></div>
       <div class="card">
         <div v-for="t in data.todo" :key="t.title" class="ok">
           <span class="ico" :class="t.tone"><Icon :name="t.icon" :size="14" :stroke="2.5" /></span>
