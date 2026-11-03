@@ -1,5 +1,5 @@
 'use strict';
-// Nạp ứng dụng thật trong cùng tiến trình với đồng hồ đóng băng (chỉ tiến, không lùi) và một file SQLite riêng của kịch bản.
+// Nạp ứng dụng thật trong cùng tiến trình với đồng hồ đóng băng (chỉ tiến, không lùi) và URL PostgreSQL tạm tường minh.
 // Mọi biến môi trường ứng dụng đọc được đặt TRƯỚC khi require: server.js chỉ nạp .env cho biến chưa đặt, nên giá trị ở đây luôn thắng.
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -18,7 +18,15 @@ function parseLocal(local?) {
 }
 const toLocal = (ms?) => new NativeDate(ms + VN_OFFSET_MS).toISOString().slice(0, 19);
 
-function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any) {
+async function boot({ databaseUrl, initialLocal, variant = 'B', quietWarnings = true, beforeAppImport }: any) {
+  let url: URL;
+  try {
+    url = new URL(databaseUrl || '');
+  } catch {
+    throw new Error('Scenario cáº§n DATABASE_URL PostgreSQL Ä‘Æ°á»£c cáº¥p tÆ°á»« database táº¡m do chÃ­nh nÃ³ sá»Ÿ há»¯u.');
+  }
+  if (!['postgres:', 'postgresql:'].includes(url.protocol))
+    throw new Error('Scenario chá»‰ nháº­n URL PostgreSQL cho database táº¡m.');
   let clock = parseLocal(initialLocal);
   function FrozenDate(...args) {
     if (!new.target) return new NativeDate(clock).toString();
@@ -29,8 +37,10 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any
   FrozenDate.now = () => clock;
   (global as any).Date = FrozenDate;
 
+  delete process.env.DB_PATH;
+  delete process.env.PG_TEST_URL;
   Object.assign(process.env, {
-    DB_PATH: dbPath,
+    DATABASE_URL: databaseUrl,
     SESSION_SECRET: crypto.randomBytes(32).toString('hex'),
     SESSION_COOKIE_NAME: 'luong_scenario_sid',
     SESSION_DAYS: '14',
@@ -54,8 +64,25 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any
     console.warn = () => {};
   }
   const store = require(path.join(REPO, 'src', 'platform', 'db'));
+  await store.ready;
+  if (beforeAppImport) await beforeAppImport(store);
   const auth = require(path.join(REPO, 'src', 'platform', 'auth'));
-  const app = require(path.join(REPO, 'src/server'));
+  const roles = require(path.join(REPO, 'src', 'domain', 'roles', 'roles'));
+  const initializers: Promise<unknown>[] = [];
+  const reconcileStaffRole = roles.reconcileStaffRole;
+  roles.reconcileStaffRole = function (...args) {
+    const operation = Promise.resolve(reconcileStaffRole.apply(this, args));
+    operation.catch(() => {});
+    initializers.push(operation);
+    return operation;
+  };
+  let app;
+  try {
+    app = require(path.join(REPO, 'src/server'));
+  } finally {
+    roles.reconcileStaffRole = reconcileStaffRole;
+  }
+  const initialized = Promise.all(initializers);
   const clockApi = {
     now: () => clock,
     local: () => toLocal(clock),
@@ -68,7 +95,7 @@ function boot({ dbPath, initialLocal, variant = 'B', quietWarnings = true }: any
       clockApi.set(parseLocal(local));
     }
   };
-  return { store, auth, app, clock: clockApi, REPO, NativeDate };
+  return { store, auth, app, clock: clockApi, REPO, NativeDate, initialized };
 }
 
 module.exports = { boot, parseLocal, toLocal, REPO, NativeDate };

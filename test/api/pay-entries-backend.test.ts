@@ -2,7 +2,7 @@
 // Khoản điền thêm theo người theo tháng.
 // Lưu trữ src/domain/payroll/pay-entries.ts, route src/domain/pay-entries.ts, nạp vào bộ máy ở src/domain/payroll/payroll-service.ts → loadInputs.
 // Người bịa (qa_*), đồng hồ giả 02/11/2026. pay_entries chỉ thêm dòng (không DELETE) nên mỗi test dùng THÁNG RIÊNG, không dùng lại tháng của test trước.
-const F = require('../helpers/api-fixture'); // đặt DB_PATH trước khi require src/platform/db
+const F = require('../helpers/api-fixture'); // xác nhận database test tạm trước khi require src/platform/db
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { assertPlain } = require('../helpers/plain-text');

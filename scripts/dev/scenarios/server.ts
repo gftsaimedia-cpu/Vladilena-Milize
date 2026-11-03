@@ -3,56 +3,64 @@
 // Chạy trên BẢN LÀM VIỆC out/scenario-year.run (file dựng giữ sạch; --fresh chép lại từ file dựng), đồng hồ đóng băng mặc định
 // 01/03/2027 09:30, chỉ cho tiến (giờ đang đặt lưu ở out/clock.json). Bảng điều khiển của sandbox (scripts/dev/sandbox.html) đổi giờ và tài khoản;
 // /__scenario liệt kê dàn nhân vật (tài khoản, vai trò, cốt truyện) kèm liên kết vào thẳng giao diện của người đó.
-//   node scripts/dev/scenarios/server.ts [--fresh] [--at YYYY-MM-DDTHH:mm]
+//   node --import tsx scripts/dev/scenarios/server.ts [--fresh] [--at YYYY-MM-DDTHH:mm] [--out-dir dir]
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const OUT = path.join(__dirname, 'out');
+const { OUT: OUT_ROOT, ensureOutputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, writeSnapshot, copySnapshot, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
+assertScenarioRuntimePlatform();
 const SANDBOX_DIR = path.join(__dirname, '..');
-const BUILT = path.join(OUT, 'scenario-year');
-const RUN = path.join(OUT, 'scenario-year.run');
+const args = process.argv.slice(2);
+const OUT = ensureOutputDirectory(path.resolve(args.includes('--out-dir') ? args[args.indexOf('--out-dir') + 1] : OUT_ROOT));
+const BUILT = snapshotPath(path.join(OUT, 'scenario-year.pgbak.gz'), OUT);
+const RUN = snapshotPath(path.join(OUT, 'scenario-year.run.pgbak.gz'), OUT);
 const CLOCK_FILE = path.join(OUT, 'clock.json');
 const PORT = 3300;
 const DEFAULT_LOCAL = '2027-03-01T09:30';
-const args = process.argv.slice(2);
 const atArg = args.includes('--at') ? args[args.indexOf('--at') + 1] : null;
 
-if (!fs.existsSync(BUILT) && !fs.existsSync(RUN))
-  throw new Error('Chưa có DB kịch bản. Chạy: node scripts/dev/scenarios/generate.ts');
-// Bản dựng mới hơn bản làm việc (vừa chạy lại generate.cjs): bản làm việc và giờ đã lưu thuộc bản dựng cũ, chép lại như --fresh
-const builtIsNewer =
-  fs.existsSync(BUILT) && fs.existsSync(RUN) && fs.statSync(BUILT).mtimeMs > fs.statSync(RUN).mtimeMs + 1000;
-if (args.includes('--fresh') || !fs.existsSync(RUN) || builtIsNewer) {
-  fs.rmSync(RUN, { recursive: true, force: true });
-  fs.rmSync(CLOCK_FILE, { force: true });
-  fs.cpSync(BUILT, RUN, { recursive: true });
-}
 
-const { boot, parseLocal, toLocal } = require('./lib/boot');
-const savedLocal = (() => {
+const controlUrl = scenarioControlUrl();
+const builtExists = fs.existsSync(BUILT);
+const runExists = fs.existsSync(RUN);
+const builtIsNewer = builtExists && runExists && fs.statSync(BUILT).mtimeMs > fs.statSync(RUN).mtimeMs + 1000;
+const useBuilt = args.includes('--fresh') || !runExists || builtIsNewer;
+if (!builtExists && !runExists) throw new Error('Chưa có snapshot kịch bản. Chạy generate.ts trước.');
+if (useBuilt && !builtExists) throw new Error('Không có snapshot dựng để làm mới scenario.');
+
+async function main() {
+  let scenario: any;
+  let server: any;
+  let shutdownPromise: Promise<void> | null = null;
+  let receivedSignal: NodeJS.Signals | null = null;
   try {
-    return JSON.parse(fs.readFileSync(CLOCK_FILE, 'utf8')).local;
-  } catch {
-    return null;
-  }
-})();
-// Giờ khởi động: lớn nhất trong (mặc định, giờ đã lưu, --at): bản làm việc đã có dữ liệu tới giờ đã lưu nên không lùi
-const startLocal = [DEFAULT_LOCAL, savedLocal, atArg]
-  .filter(Boolean)
-  .map(v => toLocal(parseLocal(v)))
-  .sort()
-  .pop();
-const app = boot({ dbPath: RUN, initialLocal: startLocal, variant: null, quietWarnings: true });
-const { store, auth, clock } = app;
-const appServer = app.app;
-const { byUser } = require('./lib/cast');
-
-let selectedUser = 'admin1';
-const saveClock = () => fs.writeFileSync(CLOCK_FILE, JSON.stringify({ local: clock.local() }));
-saveClock();
-
-const state = async () => ({
+    if (useBuilt) {
+      copySnapshot(BUILT, RUN);
+      fs.rmSync(CLOCK_FILE, { force: true });
+    }
+    const { parseLocal, toLocal } = require('./lib/boot');
+    const savedLocal = (() => {
+      try {
+        return JSON.parse(fs.readFileSync(CLOCK_FILE, 'utf8')).local;
+      } catch {
+        return null;
+      }
+    })();
+    const startLocal = [DEFAULT_LOCAL, savedLocal, atArg]
+      .filter(Boolean)
+      .map(v => toLocal(parseLocal(v)))
+      .sort()
+      .pop();
+    scenario = await openScenarioDatabase({ controlUrl, snapshot: RUN, initialLocal: startLocal, variant: null, quietWarnings: true });
+    const app = scenario.app;
+    const { store, auth, clock } = app;
+    const appServer = app.app;
+    const { byUser } = require('./lib/cast');
+    let selectedUser = 'admin1';
+    const saveClock = () => fs.writeFileSync(CLOCK_FILE, JSON.stringify({ local: clock.local() }));
+    saveClock();
+    const state = async () => ({
   now: new Date(clock.now()).toISOString(),
   local: clock.local(),
   user: selectedUser,
@@ -130,7 +138,7 @@ function panelHtml() {
     .replace(
       /<body([^>]*)>/i,
       m =>
-        `${m}<p style="margin:8px 16px;font:14px system-ui"><a href="/__scenario">Dàn nhân vật kịch bản cả năm</a> · DB: out/scenario-year.run</p>`
+        `${m}<p style="margin:8px 16px;font:14px system-ui"><a href="/__scenario">Dàn nhân vật kịch bản cả năm</a> · Snapshot: out/scenario-year.run.pgbak.gz</p>`
     );
 }
 const esc = (s?) =>
@@ -156,7 +164,7 @@ table{border-collapse:collapse;min-width:720px}td,th{border-bottom:1px solid var
 <p>Bấm tên đăng nhập để vào giao diện của người đó.</p><div class="wrap"><table><thead><tr><th>Mã</th><th>Tài khoản</th><th>Họ tên</th><th>Vai trò</th><th>Ca</th><th></th><th>Cốt truyện</th></tr></thead><tbody>${rows}</tbody></table></div></body></html>`;
 }
 
-const server = http.createServer(async (req, res) => {
+server = http.createServer(async (req, res) => {
   if (!isLoopback(req)) return send(res, 403, { error: 'Chỉ dùng trên máy này' });
   const url = new URL(req.url, `http://${req.headers.host}`);
   if (SCENARIO_ALIASES.has(url.pathname)) url.pathname = url.pathname.replace('/__scenario/', '/__sandbox/');
@@ -228,17 +236,51 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  if (appServer.limits && appServer.limits.monitor) appServer.limits.monitor.start();
-  console.log(`SCENARIO_READY http://127.0.0.1:${PORT}  giờ ${clock.local()}  (dàn nhân vật: /__scenario)`);
-});
-function shutdown() {
-  if (appServer.limits && appServer.limits.monitor) appServer.limits.monitor.stop();
-  server.closeAllConnections();
-  server.close(() => {
-    store.db.close();
-    process.exit(0);
-  });
+    const shutdown = (signal: NodeJS.Signals | null) => {
+      if (shutdownPromise) return shutdownPromise;
+      receivedSignal = signal || receivedSignal;
+      shutdownPromise = (async () => {
+        if (appServer.limits && appServer.limits.monitor) appServer.limits.monitor.stop();
+        if (server.listening) {
+          server.closeAllConnections();
+          await new Promise<void>(resolve => server.close(() => resolve()));
+        }
+        try {
+          await writeSnapshot(store.db, RUN);
+        } finally {
+          await scenario.close();
+        }
+        process.exitCode = receivedSignal === 'SIGINT' ? 130 : receivedSignal === 'SIGTERM' ? 143 : 0;
+      })();
+      return shutdownPromise;
+    };
+    process.once('SIGINT', () => void shutdown('SIGINT').catch(error => {
+      console.error('Shutdown scenario thất bại:', safeErrorText(error));
+      process.exitCode = 1;
+    }));
+    process.once('SIGTERM', () => void shutdown('SIGTERM').catch(error => {
+      console.error('Shutdown scenario thất bại:', safeErrorText(error));
+      process.exitCode = 1;
+    }));
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(PORT, '127.0.0.1', () => {
+        if (appServer.limits && appServer.limits.monitor) appServer.limits.monitor.start();
+        console.log(`SCENARIO_READY http://127.0.0.1:${PORT}  giờ ${clock.local()}  (dàn nhân vật: /__scenario)`);
+        resolve();
+      });
+    });
+  } catch (error) {
+    if (server && server.listening) {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+    if (scenario) await scenario.close();
+    throw error;
+  }
 }
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+
+main().catch(error => {
+  console.error('Khởi động scenario thất bại:', safeErrorText(error));
+  process.exitCode = 1;
+});

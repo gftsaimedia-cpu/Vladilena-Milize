@@ -1,7 +1,8 @@
 # Sao lưu PostgreSQL hằng ngày (đi cùng luong-pg-backup.timer.example). Chưa chạy thử trên máy chủ thật.
 # Cài: sudo cp luong-pg-backup.service.example /etc/systemd/system/luong-pg-backup.service (và timer), rồi:
 #   systemctl daemon-reload && systemctl enable --now luong-pg-backup.timer
-# /etc/luong/luong.env phải có DATABASE_URL (postgres://…), có thể có BACKUP_DIR và BACKUP_KEEP (mặc định ./backups, 30 bản).
+# /etc/luong/luong.env phải có DATABASE_URL (postgres://…) và DRILL_PG_CONTROL_URL trỏ tới control database drill riêng
+# (ví dụ postgres://…/luong_drill_control, cần quyền CREATEDB); có thể có BACKUP_DIR và BACKUP_KEEP (mặc định ./backups, 30 bản).
 # Chép thư mục BACKUP_DIR ra nơi khác máy (rclone/rsync) nằm ngoài phạm vi: bản sao cùng ổ đĩa không cứu được khi ổ hỏng.
 [Unit]
 Description=Luong Nhan Su: sao luu PostgreSQL

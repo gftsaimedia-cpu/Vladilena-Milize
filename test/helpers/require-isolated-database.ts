@@ -17,20 +17,6 @@ function isTestControl(url: URL): boolean {
 
 function requireIsolatedDatabase(): void {
   const name = process.env.TEST_PG_DATABASE_NAME;
-  // Tương thích tạm với runner cũ: adapter tạo một DB riêng từ control URL, không dùng DATABASE_URL/DB_PATH.
-  if (
-    !name &&
-    !process.env.DATABASE_URL &&
-    !process.env.DB_PATH &&
-    !process.env.TEST_PG_CONTROL_URL &&
-    process.env.PG_TEST_URL
-  ) {
-    if (!isTestControl(urlOf(process.env.PG_TEST_URL))) throw invalid();
-    // Ngăn .env nạp lại cấu hình app sau khi DB test đã được chọn.
-    process.env.DATABASE_URL = '';
-    process.env.DB_PATH = '';
-    return;
-  }
   if (!name || !/^luong_test_[0-9a-f]{24}$/.test(name) || process.env.DB_PATH || process.env.PG_TEST_URL)
     throw invalid();
   const target = urlOf(process.env.DATABASE_URL);

@@ -6,29 +6,16 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { PostgresDatabase } = require('../../src/data/postgres-database');
+const { TemporaryPostgres } = require('../../scripts/dev/temporary-postgres');
 const { AdvanceApprovalsRepository } = require('../../src/data');
 const { AdvanceApprovals } = require('../../src/domain/advance/advance-approvals');
 const pgBackup = require('../../src/ops/pg-backup');
 
 const { testControlUrl: testUrl } = require('../helpers/postgres-control');
-const originalEnv = {
-  DATABASE_URL: process.env.DATABASE_URL,
-  PG_TEST_URL: process.env.PG_TEST_URL,
-  DB_PATH: process.env.DB_PATH
-};
-let owner: any;
-let store: any;
+require('../helpers/require-isolated-database');
+const store = require('../../src/platform/db');
 
 before(async () => {
-  owner = new PostgresDatabase({ isolatedFrom: testUrl });
-  await owner.ready;
-  const name = (await owner.prepare('SELECT current_database() AS name').get()).name;
-  const target = new URL(testUrl);
-  target.pathname = `/${name}`;
-  process.env.DATABASE_URL = target.toString();
-  process.env.PG_TEST_URL = '';
-  process.env.DB_PATH = '';
-  store = require('../../src/platform/db');
   await store.ready;
   for (const username of ['race_a', 'race_b', 'race_same', 'race_many_one', 'race_many_two', 'race_rollback'])
     await store.db
@@ -36,17 +23,7 @@ before(async () => {
       .run(username, username, 'fake-hash', '2026-11-02T00:00:00.000Z');
 });
 
-after(async () => {
-  try {
-    if (store) await store.db.close();
-    if (owner) await owner.close();
-  } finally {
-    for (const [key, value] of Object.entries(originalEnv)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
-    }
-  }
-});
+after(async () => store.db.close());
 
 function service(repository: any, lock = (key: string) => store.lock(key)) {
   return new AdvanceApprovals({
@@ -65,7 +42,7 @@ function deferred<T>() {
 
 async function waitForAdvisoryLock(pid: number) {
   for (let attempt = 0; attempt < 150; attempt++) {
-    const row = await owner
+    const row = await store.db
       .prepare(
         "SELECT EXISTS (SELECT 1 FROM pg_locks WHERE pid = ? AND locktype = 'advisory' AND NOT granted) AS waiting"
       )
@@ -281,27 +258,32 @@ test('database constraints reject invalid states and unknown staff', async () =>
 });
 
 test('backup and restore preserve normalized requests, revisions and timestamps on PostgreSQL', async () => {
-  const target = new PostgresDatabase({ isolatedFrom: testUrl });
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'advance-backup-test-'));
   try {
-    await target.ready;
-    const backup = await pgBackup.backup(store.db, directory);
-    const report = await pgBackup.verifyFile(backup.file);
-    assert.equal(report.ok, true, report.problems.join('; '));
-    await pgBackup.restore(backup.file, target);
-    const readRows = db =>
-      db
-        .prepare(
-          'SELECT month, username, status, rev, requested_at, requested_by, decided_at, decided_by, reason FROM advance_approval_entries ORDER BY id'
-        )
-        .all();
-    assert.deepEqual(await readRows(target), await readRows(store.db));
-    assert.deepEqual(
-      await target.prepare('SELECT month, rev FROM advance_approval_months ORDER BY month').all(),
-      await store.db.prepare('SELECT month, rev FROM advance_approval_months ORDER BY month').all()
-    );
+    await TemporaryPostgres.using(testUrl, 'test', async temporary => {
+      const target = new PostgresDatabase({ url: temporary.url, max: 1 });
+      try {
+        await target.ready;
+        const backup = await pgBackup.backup(store.db, directory);
+        const report = await pgBackup.verifyFile(backup.file);
+        assert.equal(report.ok, true, report.problems.join('; '));
+        await pgBackup.restore(backup.file, target);
+        const readRows = db =>
+          db
+            .prepare(
+              'SELECT month, username, status, rev, requested_at, requested_by, decided_at, decided_by, reason FROM advance_approval_entries ORDER BY id'
+            )
+            .all();
+        assert.deepEqual(await readRows(target), await readRows(store.db));
+        assert.deepEqual(
+          await target.prepare('SELECT month, rev FROM advance_approval_months ORDER BY month').all(),
+          await store.db.prepare('SELECT month, rev FROM advance_approval_months ORDER BY month').all()
+        );
+      } finally {
+        await target.close();
+      }
+    });
   } finally {
-    await target.close();
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });

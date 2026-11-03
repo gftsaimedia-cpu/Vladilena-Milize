@@ -1,6 +1,6 @@
 'use strict';
 // Đồ dùng cho test API chức vụ và khối phụ cấp: dựng một tháng người bịa, thêm chức vụ bằng sao chép,
-// đọc tham số hiệu lực của tháng. Dùng chung test/helpers/settings-api.ts (đặt DB_PATH trước khi require src/platform/db).
+// đọc tham số hiệu lực của tháng. Dùng chung test/helpers/settings-api.ts (chạy dưới PostgreSQL runner).
 // Chỗ tên trường chưa cố định, test đọc
 // theo cách hợp lý nhất và chấp nhận vài tên: hàm `pick` và `findKey` dưới đây.
 const assert = require('node:assert/strict');

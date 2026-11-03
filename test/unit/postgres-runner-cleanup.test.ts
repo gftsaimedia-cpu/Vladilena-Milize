@@ -31,6 +31,7 @@ test('runner reports a cleanup failure without printing its connection URL', asy
     setTimeout,
     clearTimeout,
     require(name: string) {
+      if (name === 'node:fs') return { ...require(name), globSync: () => ['fake-test.ts'] };
       if (name === '../dev/temporary-postgres')
         return {
           TemporaryPostgres: {

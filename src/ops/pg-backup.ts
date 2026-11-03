@@ -1,5 +1,5 @@
 'use strict';
-// Sao lưu / kiểm / khôi phục cho PostgreSQL (và PGlite khi thử), không cần pg_dump.
+// Sao lưu / kiểm / khôi phục cho PostgreSQL, không cần pg_dump.
 //
 // Bản sao lưu là MỘT file gzip chứa NDJSON:
 //   dòng 1   header: { format, version, createdAt, migrations[], order[], tables[{ name, rows, sha256, identity }], payroll[] }
@@ -15,6 +15,7 @@ const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 const readline = require('node:readline');
 const { PostgresDatabase } = require('../data/postgres-database');
+const { TemporaryPostgres } = require('../data/temporary-postgres');
 
 const FORMAT = 'luong-pg-backup';
 const VERSION = 1;
@@ -74,16 +75,12 @@ function vnStamp(ms?) {
   return iso.slice(0, 10).replaceAll('-', '') + '-' + iso.slice(11, 19).replaceAll(':', '');
 }
 
-/** 'postgres://…' → pg.Pool; 'pglite:<thư-mục>' → PGlite lưu đĩa; 'memory' → PGlite trong RAM. */
+/** Chỉ mở database PostgreSQL qua URL; in-memory/PGlite không còn là đích sao lưu hoặc khôi phục. */
 function openDatabase(spec?) {
-  if (!spec) throw new PgBackupError('Thiếu nguồn/đích DB: truyền postgres://…, pglite:<thư-mục> hoặc memory.');
+  if (!spec) throw new PgBackupError('Thiếu nguồn/đích PostgreSQL: truyền URL postgres://… hoặc postgresql://….');
   const text = String(spec);
   if (/^postgres(ql)?:\/\//i.test(text)) return new PostgresDatabase({ url: text, max: 1 });
-  if (text === 'memory') return new PostgresDatabase({ memory: true });
-  if (text.startsWith('pglite:')) return new PostgresDatabase({ dataDir: path.resolve(text.slice('pglite:'.length)) });
-  throw new PgBackupError(
-    'Không nhận ra DB "' + text.replace(/\/\/[^@/]*@/, '//***@') + '": dùng postgres://…, pglite:<thư-mục> hoặc memory.'
-  );
+  throw new PgBackupError('Nguồn/đích phải là URL PostgreSQL (postgres://… hoặc postgresql://…).');
 }
 
 async function tablesOf(db?) {
@@ -314,10 +311,12 @@ async function restore(file?, target?, { keepOpen = false }: any = {}) {
   }
 }
 
-/** Diễn tập: khôi phục vào PGlite trong RAM rồi bỏ; chứng minh bản sao lưu dùng được mà không đụng DB nào. */
-async function drill(file?) {
-  const result = await restore(file, 'memory');
-  return result;
+/** Diễn tập: khôi phục vào database PostgreSQL tạm chỉ do lần chạy này tạo rồi dọn. */
+async function drill(file?, controlUrl = process.env.DRILL_PG_CONTROL_URL) {
+  if (!controlUrl) throw new PgBackupError('Drill cần DRILL_PG_CONTROL_URL của một control database PostgreSQL riêng.');
+  return TemporaryPostgres.using(controlUrl, 'drill', temporary => restore(file, temporary.url), {
+    handleSignals: true
+  });
 }
 
 export = {

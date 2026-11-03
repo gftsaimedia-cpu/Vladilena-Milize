@@ -1,18 +1,37 @@
-// Tạo dữ liệu mẫu để xem thử: DB_PATH=./data/dev npm run seed  (an toàn chạy lại; chỉ thêm tài khoản chưa có)
-// Phải kiểm biến môi trường TRƯỚC khi nạp src/platform/db: nạp src/platform/db là mở DB và chạy migrations luôn.
-// Seed chỉ đọc biến môi trường (không đọc .env như npm start). DB_PATH là PostgreSQL trong tiến trình (PGlite) lưu ở một thư mục,
-// dùng để thử. Máy chủ PostgreSQL thật (DATABASE_URL) bị từ chối, trừ khi đặt rõ SEED_ALLOW_REAL_DB=1.
-if (!process.env.DB_PATH && !process.env.DATABASE_URL) {
-  console.error(
-    'Chưa chọn DB. npm run seed không đọc file .env, chỉ nhận biến môi trường.\n' +
-      "  bash: DB_PATH=./data/dev npm run seed   PowerShell: $env:DB_PATH='./data/dev'; npm run seed"
-  );
+// Kiểm cấu hình và cờ xác nhận TRƯỚC khi nạp src/platform/db: import này mở DB và chạy migration.
+// npm run seed không đọc .env; chỉ dùng biến môi trường của tiến trình.
+const databaseUrl = process.env.DATABASE_URL || '';
+if ((process.env.DB_PATH || '').trim()) {
+  console.error('Từ chối chạy: DB_PATH đã bị gỡ; hãy chọn PostgreSQL bằng DATABASE_URL.');
   process.exit(1);
 }
-if (process.env.DATABASE_URL && process.env.SEED_ALLOW_REAL_DB !== '1') {
+if ((process.env.PG_TEST_URL || '').trim()) {
+  console.error('Từ chối chạy: PG_TEST_URL dành riêng cho test; hãy dùng DATABASE_URL cho seed.');
+  process.exit(1);
+}
+if (!databaseUrl.trim()) {
+  console.error('Chưa chọn database. Đặt DATABASE_URL trỏ tới database PostgreSQL dành riêng cho dữ liệu mẫu.');
+  process.exit(1);
+}
+let parsedDatabaseUrl: URL;
+try {
+  parsedDatabaseUrl = new URL(databaseUrl);
+} catch {
+  console.error('DATABASE_URL phải là URL PostgreSQL hợp lệ; giá trị không được hiển thị.');
+  process.exit(1);
+}
+if (
+  (parsedDatabaseUrl.protocol !== 'postgres:' && parsedDatabaseUrl.protocol !== 'postgresql:') ||
+  !parsedDatabaseUrl.hostname ||
+  !parsedDatabaseUrl.pathname ||
+  parsedDatabaseUrl.pathname === '/'
+) {
+  console.error('DATABASE_URL phải là URL PostgreSQL hợp lệ có máy chủ và tên database.');
+  process.exit(1);
+}
+if (process.env.SEED_ALLOW_REAL_DB !== '1') {
   console.error(
-    'Từ chối chạy: DATABASE_URL đang trỏ vào một máy chủ PostgreSQL. Seed thêm tài khoản mật khẩu mẫu, không được chạy trên dữ liệu thật.\n' +
-      'Dùng DB thử, ví dụ DB_PATH=./data/dev npm run seed. Chỉ khi chắc chắn mới đặt thêm SEED_ALLOW_REAL_DB=1.'
+    'Từ chối chạy: seed ghi dữ liệu mẫu vào database PostgreSQL đã chọn. Chỉ chạy trên database thử riêng sau khi đặt SEED_ALLOW_REAL_DB=1.'
   );
   process.exit(1);
 }
@@ -110,9 +129,7 @@ function sampleDays(type?) {
       ...(y >= 2026 ? [`${y}-11-24`] : [])
     ]);
   }
-  console.log(
-    `Đã thêm ${added} tài khoản mẫu cho tháng ${mk}. Mật khẩu nhân sự mẫu: ${PASSWORD}; admin: ${process.env.ADMIN_PASSWORD || 'admin123'}`
-  );
+  console.log(`Đã thêm ${added} tài khoản mẫu cho tháng ${mk}.`);
 })().catch(error => {
   console.error(error);
   process.exit(1);

@@ -1,27 +1,67 @@
 'use strict';
-// Sao lưu / kiểm / khôi phục PostgreSQL (src/ops/pg-backup.ts, scripts/ops/pg-backup.ts) trên PGlite trong RAM.
-// Luôn chạy ở chế độ PostgreSQL bất kể DB_DIALECT của lần chạy test (file này tự đặt), không đụng DB nào ngoài RAM.
-process.env.DB_PATH = ':memory:';
+// Sao lưu / kiểm / khôi phục trên các database PostgreSQL tạm do test này tạo và sở hữu.
 process.env.SESSION_SECRET = 'pg-backup-test';
-delete process.env.DATABASE_URL;
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const zlib = require('node:zlib');
-const { spawnSync } = require('node:child_process');
-const store = require('../../src/platform/db');
+const { spawn, spawnSync } = require('node:child_process');
+const { Pool } = require('pg');
+const { TemporaryPostgres } = require('../../src/data/temporary-postgres');
 const { PostgresDatabase } = require('../../src/data/postgres-database');
 const pgBackup = require('../../src/ops/pg-backup');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'ops', 'pg-backup.js');
+const SIGNAL_SCRIPT = path.join(ROOT, 'test', 'ops', 'pg-backup-signal-child.ts');
 let tmp;
 let file;
+let controlUrl;
+let admin;
+let source;
+let store;
+let originalTemp;
+
+async function withTarget(run) {
+  const temporary = await TemporaryPostgres.create(controlUrl, 'test');
+  const target = new PostgresDatabase({ url: temporary.url, max: 1 });
+  try {
+    await target.ready;
+    return await run(target, temporary.url);
+  } finally {
+    try {
+      await target.close();
+    } finally {
+      await temporary.close();
+    }
+  }
+}
+
+async function namesWithPrefix(prefix) {
+  const { rows } = await admin.query('SELECT datname FROM pg_database WHERE datname LIKE $1 ORDER BY datname', [
+    prefix + '%'
+  ]);
+  return rows.map(row => row.datname);
+}
 
 before(async () => {
-  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'luong-pg-backup-'));
+  controlUrl = process.env.PG_TEST_URL || process.env.TEST_PG_CONTROL_URL;
+  assert.ok(controlUrl, 'cần control PostgreSQL dành riêng cho test');
+  source = await TemporaryPostgres.create(controlUrl, 'test');
+  process.env.DATABASE_URL = source.url;
+  delete process.env.PG_TEST_URL;
+  delete process.env.TEST_PG_CONTROL_URL;
+  delete process.env.DB_PATH;
+  delete process.env.DRILL_PG_CONTROL_URL;
+  store = require('../../src/platform/db');
+  admin = new Pool({ connectionString: controlUrl, max: 1 });
+  const testResults = path.join(ROOT, 'test-results');
+  fs.mkdirSync(testResults, { recursive: true });
+  tmp = fs.mkdtempSync(path.join(testResults, '.test-tmp-pg-backup-'));
+  originalTemp = { TEMP: process.env.TEMP, TMP: process.env.TMP };
+  process.env.TEMP = tmp;
+  process.env.TMP = tmp;
   await store.ready;
   for (const [username, type] of [
     ['bk_a', 'nv'],
@@ -83,8 +123,17 @@ before(async () => {
   await store.payroll.finishRun(run.id, { total: 20345678, errors: 0 });
 });
 after(async () => {
-  await store.db.close();
-  fs.rmSync(tmp, { recursive: true, force: true });
+  try {
+    if (store) await store.db.close();
+    if (source) await source.close();
+    if (admin) await admin.end();
+  } finally {
+    if (originalTemp?.TEMP === undefined) delete process.env.TEMP;
+    else process.env.TEMP = originalTemp.TEMP;
+    if (originalTemp?.TMP === undefined) delete process.env.TMP;
+    else process.env.TMP = originalTemp.TMP;
+    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('sao lưu: ra một file gzip đúng tên, tự kiểm đạt, header đủ bảng và tổng tiền kỳ lương', async () => {
@@ -103,28 +152,28 @@ test('sao lưu: ra một file gzip đúng tên, tự kiểm đạt, header đủ
 });
 
 test('khôi phục: vào DB mới khớp từng bảng, BYTEA giữ nguyên từng byte, dãy số tự tăng chạy tiếp được', async () => {
-  const target = new PostgresDatabase({ memory: true });
-  const r = await pgBackup.restore(file, target);
-  assert.ok(r.rows > 20);
-  const src = await store.db.prepare('SELECT username, uuid FROM staff ORDER BY username').all();
-  const dst = await target.prepare('SELECT username, uuid FROM staff ORDER BY username').all();
-  assert.deepEqual(dst, src, 'cả uuid sinh tự động cũng giữ nguyên');
-  const a = await store.db.prepare('SELECT snapshot_gz FROM payslips ORDER BY id').all();
-  const b = await target.prepare('SELECT snapshot_gz FROM payslips ORDER BY id').all();
-  assert.equal(b.length, 2);
-  assert.ok(Buffer.isBuffer(b[0].snapshot_gz) || b[0].snapshot_gz instanceof Uint8Array);
-  assert.equal(Buffer.compare(Buffer.from(a[0].snapshot_gz), Buffer.from(b[0].snapshot_gz)), 0);
-  assert.deepEqual(await target.prepare("SELECT value_json FROM settings WHERE key = 'holidays'").get(), {
-    value_json: JSON.stringify(['2026-10-10'])
+  await withTarget(async target => {
+    const r = await pgBackup.restore(file, target);
+    assert.ok(r.rows > 20);
+    const src = await store.db.prepare('SELECT username, uuid FROM staff ORDER BY username').all();
+    const dst = await target.prepare('SELECT username, uuid FROM staff ORDER BY username').all();
+    assert.deepEqual(dst, src, 'cả uuid sinh tự động cũng giữ nguyên');
+    const a = await store.db.prepare('SELECT snapshot_gz FROM payslips ORDER BY id').all();
+    const b = await target.prepare('SELECT snapshot_gz FROM payslips ORDER BY id').all();
+    assert.equal(b.length, 2);
+    assert.ok(Buffer.isBuffer(b[0].snapshot_gz) || b[0].snapshot_gz instanceof Uint8Array);
+    assert.equal(Buffer.compare(Buffer.from(a[0].snapshot_gz), Buffer.from(b[0].snapshot_gz)), 0);
+    assert.deepEqual(await target.prepare("SELECT value_json FROM settings WHERE key = 'holidays'").get(), {
+      value_json: JSON.stringify(['2026-10-10'])
+    });
+    const before = await target.prepare('SELECT MAX(id) AS id FROM audit_log').get();
+    const next = await target
+      .prepare(
+        "INSERT INTO audit_log (at, actor, action, entity_kind, entity_id, prev_hash, hash) VALUES ('2026-10-31T00:00:00Z', 'x', 'y', 'k', '1', '', 'h2')"
+      )
+      .run();
+    assert.ok(Number(next.lastInsertRowid) > before.id, 'id mới nối tiếp sau id lớn nhất đã khôi phục');
   });
-  const before = await target.prepare('SELECT MAX(id) AS id FROM audit_log').get();
-  const next = await target
-    .prepare(
-      "INSERT INTO audit_log (at, actor, action, entity_kind, entity_id, prev_hash, hash) VALUES ('2026-10-31T00:00:00Z', 'x', 'y', 'k', '1', '', 'h2')"
-    )
-    .run();
-  assert.ok(Number(next.lastInsertRowid) > before.id, 'id mới nối tiếp sau id lớn nhất đã khôi phục');
-  await target.close();
 });
 
 test('khôi phục từ chối đích không rỗng và không đổi gì ở đích', async () => {
@@ -156,10 +205,10 @@ test('file hỏng bị phát hiện: cắt dở, sửa một ô, sai định d�
   fs.writeFileSync(garbage, Buffer.from('không phải gzip'));
   assert.equal((await pgBackup.verifyFile(garbage)).ok, false);
 
-  const target = new PostgresDatabase({ memory: true });
-  await assert.rejects(() => pgBackup.restore(edited, target), /không toàn vẹn/);
-  assert.equal((await target.prepare('SELECT COUNT(*) AS n FROM staff').get()).n, 0);
-  await target.close();
+  await withTarget(async target => {
+    await assert.rejects(() => pgBackup.restore(edited, target), /không toàn vẹn/);
+    assert.equal((await target.prepare('SELECT COUNT(*) AS n FROM staff').get()).n, 0);
+  });
 });
 
 test('xoay vòng: chỉ giữ keep bản mới nhất đúng mẫu tên, không đụng file khác', async () => {
@@ -175,25 +224,33 @@ test('xoay vòng: chỉ giữ keep bản mới nhất đúng mẫu tên, không 
   await assert.rejects(() => pgBackup.backup(store.db, dir, { keep: 0 }), /keep/);
 });
 
-test('CLI: verify và drill đạt; restore đòi cờ xác nhận, rồi khôi phục vào DB mới trong RAM', () => {
-  const run = (extra?) =>
+test('CLI: verify và drill đạt; restore đòi cờ xác nhận và khôi phục vào PostgreSQL mới', async () => {
+  const run = (extra?, extraEnv: any = {}) =>
     spawnSync(process.execPath, ['--no-warnings=ExperimentalWarning', SCRIPT, ...extra], {
       encoding: 'utf8',
       cwd: ROOT,
-      env: { ...process.env }
+      env: { ...process.env, ...extraEnv }
     });
   const verify = run(['verify', `--backup=${file}`]);
   assert.equal(verify.status, 0, verify.stderr + verify.stdout);
   assert.match(verify.stdout, /KẾT QUẢ: ĐẠT/);
-  const drill = run(['drill', `--backup=${file}`]);
+  const missingControl = run(['drill', `--backup=${file}`], { DRILL_PG_CONTROL_URL: '' });
+  assert.equal(missingControl.status, 1);
+  assert.match(missingControl.stderr, /DRILL_PG_CONTROL_URL|--control-url/);
+  const drill = run(['drill', `--backup=${file}`], { DRILL_PG_CONTROL_URL: controlUrl });
   assert.equal(drill.status, 0, drill.stderr + drill.stdout);
   assert.match(drill.stdout, /KẾT QUẢ: ĐẠT/);
-  const noConfirm = run(['restore', `--backup=${file}`, '--to=memory']);
-  assert.equal(noConfirm.status, 1);
-  assert.match(noConfirm.stderr, /confirm-new-empty-db/);
-  const ok = run(['restore', `--backup=${file}`, '--to=memory', '--confirm-new-empty-db']);
-  assert.equal(ok.status, 0, ok.stderr + ok.stdout);
-  assert.match(ok.stdout, /KHỚP/);
+  const temporary = await TemporaryPostgres.create(controlUrl, 'test');
+  try {
+    const noConfirm = run(['restore', `--backup=${file}`, `--to=${temporary.url}`]);
+    assert.equal(noConfirm.status, 1);
+    assert.match(noConfirm.stderr, /confirm-new-empty-db/);
+    const ok = run(['restore', `--backup=${file}`, `--to=${temporary.url}`, '--confirm-new-empty-db']);
+    assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+    assert.match(ok.stdout, /KHỚP/);
+  } finally {
+    await temporary.close();
+  }
   const bad = run(['restore', `--backup=${file}`, '--to=mysql://x', '--confirm-new-empty-db']);
   assert.equal(bad.status, 1);
   assert.doesNotMatch(bad.stderr + bad.stdout, /Người bk_a/, 'không in dữ liệu');
@@ -205,68 +262,148 @@ test('openDatabase che mật khẩu trong thông báo lỗi và từ chối đí
     err => !/matkhau/.test(err.message) && /postgres/.test(err.message)
   );
   assert.throws(() => pgBackup.openDatabase(''), /Thiếu/);
+  assert.throws(() => pgBackup.openDatabase('memory'), /PostgreSQL|postgres/i);
+  assert.throws(() => pgBackup.openDatabase('pglite:C:\\temp\\db'), /PostgreSQL|postgres/i);
 });
 
 test(
-  'qua mạng thật (pg.Pool → máy chủ PostgreSQL giả bằng PGlite): sao lưu từ URL, khôi phục vào URL khác',
+  'qua PostgreSQL thật: sao lưu từ pool, khôi phục vào database riêng và từ chối ghi đè lần hai',
   { timeout: 120000 },
   async () => {
-    const { PGlite } = require('@electric-sql/pglite');
-    const { PGLiteSocketServer } = require('@electric-sql/pglite-socket');
-    const servers: any[] = [];
-    // Máy chủ socket của PGlite chỉ nhận một kết nối một lúc: chờ nó dọn kết nối cũ trước khi nối lại (chỉ là đặc điểm của đồ giả, không phải của PostgreSQL thật)
-    const settle = () => new Promise<any>(resolve => setTimeout(resolve, 600));
-    const start = async () => {
-      const lite = await PGlite.create();
-      const server = new PGLiteSocketServer({ db: lite, port: 0, host: '127.0.0.1' });
-      await server.start();
-      servers.push({ lite, server });
-      return `postgresql://postgres:matkhau-that@127.0.0.1:${server.port}/postgres?sslmode=disable`;
-    };
-    try {
-      const from = await start();
-      const to = await start();
-      const seed = new PostgresDatabase({ url: from, max: 1 });
-      await seed.ready;
-      await seed
+    await withTarget(async (target, targetUrl) => {
+      await store.db
         .prepare(
           "INSERT INTO staff (username, name, pass_hash, created_at) VALUES ('net_a', 'Mạng A', 'x', '2026-10-31T00:00:00.000Z')"
         )
         .run();
-      await seed
+      await store.db
         .prepare(
           "INSERT INTO settings (key, value_json) VALUES ('net_thu', '{\"v\":1}') ON CONFLICT (key) DO UPDATE SET value_json = excluded.value_json"
         )
         .run();
-      await seed.close();
-      await settle();
 
-      const r = await pgBackup.backup(from, path.join(tmp, 'net'));
+      const r = await pgBackup.backup(source.url, path.join(tmp, 'net'));
       assert.equal((await pgBackup.verifyFile(r.file)).ok, true);
-
-      await settle();
-      const result = await pgBackup.restore(r.file, to);
+      const result = await pgBackup.restore(r.file, targetUrl);
       assert.ok(result.rows >= 2);
-      await settle();
-      const check = new PostgresDatabase({ url: to, max: 1 });
-      await check.ready;
-      assert.equal((await check.prepare("SELECT name FROM staff WHERE username = 'net_a'").get()).name, 'Mạng A');
+      assert.equal((await target.prepare("SELECT name FROM staff WHERE username = 'net_a'").get()).name, 'Mạng A');
       assert.equal(
-        (await check.prepare("SELECT value_json FROM settings WHERE key = 'net_thu'").get()).value_json,
+        (await target.prepare("SELECT value_json FROM settings WHERE key = 'net_thu'").get()).value_json,
         '{"v":1}'
       );
-      await check.close();
-      await settle();
       await assert.rejects(
-        () => pgBackup.restore(r.file, to),
+        () => pgBackup.restore(r.file, targetUrl),
         /không rỗng/,
         'khôi phục lần hai vào đích đã có dữ liệu bị từ chối'
       );
-    } finally {
-      for (const { lite, server } of servers) {
-        await server.stop();
-        await lite.close();
-      }
-    }
+    });
   }
+);
+
+test('drill yêu cầu control PostgreSQL an toàn, tạo database riêng, đối chiếu và dọn kể cả khi khôi phục lỗi', async () => {
+  await assert.rejects(() => pgBackup.drill(file), /DRILL_PG_CONTROL_URL|control/i);
+  const invalid = new URL(controlUrl);
+  invalid.pathname = '/not_a_control_db';
+  await assert.rejects(
+    () => pgBackup.drill(file, invalid.toString()),
+    error => /control database/i.test(error.message) && !error.message.includes(decodeURIComponent(invalid.password))
+  );
+
+  const before = await namesWithPrefix('luong_drill_');
+  const result = await pgBackup.drill(file, controlUrl);
+  assert.ok(result.tables >= 29);
+  assert.ok(result.rows > 20);
+  assert.equal(result.header.payroll[0].gross, 20345678);
+  assert.deepEqual(await namesWithPrefix('luong_drill_'), before, 'database drill được dọn sau khi đạt');
+
+  const damaged = path.join(tmp, 'invalid-drill.pgbak.gz');
+  fs.writeFileSync(damaged, Buffer.from('not a backup'));
+  await assert.rejects(() => pgBackup.drill(damaged, controlUrl), /không toàn vẹn/);
+  assert.deepEqual(await namesWithPrefix('luong_drill_'), before, 'database drill được dọn sau khi restore lỗi');
+});
+
+test('sandbox drill chỉ dùng SANDBOX_PG_CONTROL_URL, không kế thừa DRILL_PG_CONTROL_URL', async () => {
+  const { createOps } = require('../../scripts/dev/sandbox-ops');
+  const ops = createOps({
+    store,
+    auth: {},
+    project: ROOT,
+    getPort: () => 1,
+    getLocalMonth: () => '2026-10',
+    limits: null
+  });
+  const previousSandbox = process.env.SANDBOX_PG_CONTROL_URL;
+  const previousDrill = process.env.DRILL_PG_CONTROL_URL;
+  try {
+    await ops.post('backup');
+    const name = (await ops.snapshot()).backups[0].name;
+    process.env.SANDBOX_PG_CONTROL_URL = '';
+    process.env.DRILL_PG_CONTROL_URL = controlUrl;
+    const withoutSandboxControl = await ops.post('drill', { name });
+    assert.equal(withoutSandboxControl.tool.exitCode, 1);
+
+    process.env.SANDBOX_PG_CONTROL_URL = controlUrl;
+    process.env.DRILL_PG_CONTROL_URL = new URL(controlUrl).origin + '/not_a_control_db';
+    const withSandboxControl = await ops.post('drill', { name });
+    assert.equal(withSandboxControl.tool.exitCode, 0, withSandboxControl.tool.lines.join('\n'));
+  } finally {
+    ops.close();
+    if (previousSandbox === undefined) delete process.env.SANDBOX_PG_CONTROL_URL;
+    else process.env.SANDBOX_PG_CONTROL_URL = previousSandbox;
+    if (previousDrill === undefined) delete process.env.DRILL_PG_CONTROL_URL;
+    else process.env.DRILL_PG_CONTROL_URL = previousDrill;
+  }
+});
+
+async function databaseExists(name) {
+  const { rows } = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [name]);
+  return rows.length > 0;
+}
+
+async function runSignalCase(phase, signal, external = false) {
+  const child = spawn(process.execPath, ['--no-warnings=ExperimentalWarning', SIGNAL_SCRIPT, file], {
+    cwd: ROOT,
+    env: {
+      ...process.env,
+      DRILL_PG_CONTROL_URL: controlUrl,
+      PG_BACKUP_TEST_SIGNAL: signal,
+      PG_BACKUP_TEST_SIGNAL_PHASE: external ? 'external' : phase
+    },
+    stdio: ['ignore', 'pipe', 'ignore']
+  });
+  let output = '';
+  child.stdout.on('data', chunk => (output += String(chunk)));
+  const exited: Promise<{ code: number | null; receivedSignal: NodeJS.Signals | null }> = new Promise(resolve =>
+    child.once('exit', (code, receivedSignal) => resolve({ code, receivedSignal }))
+  );
+  let ownedName;
+  try {
+    for (let attempt = 0; attempt < 400; attempt++) {
+      ownedName = output.match(/DATABASE_NAME=(luong_drill_[0-9a-f]{24})/)?.[1];
+      if (ownedName || child.exitCode !== null || child.signalCode !== null) break;
+      await new Promise(resolve => setTimeout(resolve, 25));
+    }
+    assert.ok(ownedName, 'child drill must report the database name it created');
+    if (external) assert.equal(child.kill(signal), true, 'drill must still run when sent the signal');
+    const exit = await Promise.race([exited, new Promise<null>(resolve => setTimeout(() => resolve(null), 15000))]);
+    assert.ok(exit, 'drill must exit after processing the signal');
+    assert.equal(exit.code, 1, 'an interrupted drill must report failure');
+    assert.equal(exit.receivedSignal, null, 'the handler must run before the process exits');
+    assert.equal(await databaseExists(ownedName), false, 'the interrupted drill database must be removed');
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+    if (ownedName && (await databaseExists(ownedName))) await admin.query(`DROP DATABASE "${ownedName}" WITH (FORCE)`);
+  }
+}
+
+test('drill cleans its database for signals during CREATE, restore, and cleanup', { timeout: 45000 }, async () => {
+  await runSignalCase('create', 'SIGTERM');
+  await runSignalCase('restore', 'SIGINT');
+  await runSignalCase('cleanup', 'SIGTERM');
+});
+
+test(
+  'drill cleans its database when the child receives a real SIGTERM',
+  { timeout: 30000, skip: process.platform === 'win32' ? 'Windows does not deliver POSIX SIGTERM to children' : false },
+  () => runSignalCase('external', 'SIGTERM', true)
 );

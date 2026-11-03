@@ -4,7 +4,6 @@
 // Diff của tệp chỉ có dòng thêm. Tệp khoá không có chỗ trong public/ (ai cũng tải được thư mục đó).
 const fs = require('node:fs');
 const path = require('node:path');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { lockedNames } = require('./check');
 const registry = require('../../src/params/registry');
 

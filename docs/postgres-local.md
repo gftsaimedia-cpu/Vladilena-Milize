@@ -27,24 +27,21 @@ set -a
 set +a
 ```
 
-Với mã hiện tại, chạy ứng dụng phát triển trên DB dev bằng lệnh dưới. Các biến cũ được đặt rỗng để file `.env` của ứng dụng không tự nạp lựa chọn DB khác vào tiến trình này:
+Chạy ứng dụng phát triển trên DB dev bằng URL tường minh dưới đây. Biến đã đặt trong môi trường được `src/env.ts` giữ nguyên khi đọc `.env`:
 
 ```sh
-DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/luong_dev" \
-  DB_PATH= PG_TEST_URL= npm start
+DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/luong_dev" npm start
 ```
 
-Với bộ test hiện tại, dùng máy chủ test, không truyền URL dev. `PG_TEST_URL` là DB điều khiển riêng; bộ kết nối test hiện tại tạo database tạm cho mỗi tiến trình và xoá database do tiến trình đó tạo khi đóng.
+Với bộ test, dùng máy chủ test, không truyền URL dev. `PG_TEST_URL` là control database riêng. Runner tạo một database tạm cho mỗi file test và chỉ xoá database do chính runner tạo.
 
 ```sh
-DATABASE_URL= DB_PATH= \
-  PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
-  node scripts/dev/ts.cjs --test --test-concurrency=4 'test/**/*.test.ts'
+PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" npm test
 ```
 
-Bộ test và công cụ đang được chuyển đổi; hướng dẫn `PG_TEST_URL` này mô tả mã hiện tại, chưa phải giao diện cuối cùng của thiết kế PostgreSQL-only. Một số test và đường diễn tập sao lưu hiện vẫn dùng PGlite. Chỉ coi việc chuyển đổi hoàn tất sau khi suite mới chạy trên PostgreSQL thật.
+`PG_TEST_URL` phải trỏ tới control database riêng, không phải database dev hoặc ứng dụng. Runner tạo database ngẫu nhiên riêng cho mỗi file test và chỉ xoá các database do chính lần chạy đó tạo.
 
-Runner PostgreSQL mới đang được áp dụng từng nhóm test. Có thể chạy các file đã chuyển bằng lệnh sau trên WSL/Linux hoặc macOS; runner tạo một DB ngẫu nhiên cho từng file, sau đó đóng và xoá DB đó:
+Để chạy riêng một số file, gọi trực tiếp runner PostgreSQL trên WSL/Linux hoặc macOS. Runner cấp cho mỗi file một DB ngẫu nhiên, rồi đóng và xoá đúng DB đó:
 
 ```sh
 PG_TEST_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
@@ -61,7 +58,32 @@ SANDBOX_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.
   npm run sandbox
 ```
 
-Có thể dùng control DB riêng tên `luong_sandbox_control` trên máy chủ sandbox riêng. Tài khoản phải có quyền `CREATEDB`, sở hữu DB tạm do nó tạo và có thể kết nối control DB; reset sandbox không cần siêu người dùng. Trên Windows chạy qua WSL. Sandbox dọn DB của nó khi server thoát hoặc nhận SIGINT/SIGTERM; SIGKILL hoặc máy tắt đột ngột có thể để lại DB tên `luong_sandbox_` theo sau bởi 24 ký tự hex. Việc diễn tập khôi phục trong sandbox hiện vẫn dùng PGlite và sẽ được chuyển riêng.
+Với cấu hình Docker cục bộ ở trên, sandbox dùng `luong_test_control`. Nếu tự tạo máy chủ riêng, có thể dùng control DB `luong_sandbox_control`. Tài khoản phải có quyền `CREATEDB`, sở hữu DB tạm do nó tạo và có thể kết nối control DB; reset sandbox không cần siêu người dùng. Trên Windows chạy qua WSL. Sandbox dọn DB của nó khi server thoát hoặc nhận SIGINT/SIGTERM; SIGKILL hoặc máy tắt đột ngột có thể để lại DB tên `luong_sandbox_` theo sau bởi 24 ký tự hex.
+
+Scenario generation, verification và server dùng `SCENARIO_PG_CONTROL_URL`, một PostgreSQL control DB riêng có quyền `CREATEDB`; không dùng `DATABASE_URL` hay `PG_TEST_URL` làm fallback. Với cấu hình Docker cục bộ ở trên, dùng `luong_test_control`; nếu tự tạo máy chủ riêng, có thể tạo `luong_scenario_control`. Các lệnh scenario hiện hỗ trợ WSL/Linux và macOS, không chạy trực tiếp trên Windows:
+
+```sh
+SCENARIO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" \
+  node --import tsx scripts/dev/scenarios/generate.ts --smoke --out-dir scripts/dev/scenarios/out/local-smoke
+```
+
+Các lệnh `scripts/dev/scenarios/verify.ts` và `server.ts` dùng cùng control URL; server có thể mở snapshot hiện tại với `--fresh` và dọn database làm việc do chính lần chạy tạo khi thoát.
+
+Seed mẫu ở gốc yêu cầu database PostgreSQL riêng và guard tường minh; không dùng URL của app hoặc biến chọn DB cũ:
+
+```sh
+DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/luong_dev" \
+  SEED_ALLOW_REAL_DB=1 npm run seed
+```
+
+Backup drill và công cụ demo cũng cần control database riêng có `CREATEDB`; không dùng `DATABASE_URL` của ứng dụng làm control URL:
+
+```sh
+DRILL_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" npm run pg:drill -- --backup=backups/example.pgbak.gz
+DEMO_PG_CONTROL_URL="postgresql://luong_test:${LOCAL_PG_TEST_PASSWORD}@127.0.0.1:55433/luong_test_control" node scripts/dev/ts.cjs scripts/db/demo/serve-demo.ts --snapshot=backups/demo/example.pgbak.gz
+```
+
+Nếu tự tạo máy chủ riêng, có thể dùng control DB `luong_drill_control` cho backup drill và `luong_demo_control` cho demo. Các lệnh này tạo và dọn database tạm của riêng lần chạy.
 
 Dừng hai dịch vụ mà giữ dữ liệu và mật khẩu:
 

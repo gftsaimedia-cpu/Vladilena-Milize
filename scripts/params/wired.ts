@@ -10,7 +10,6 @@
 //   node scripts/params/wired.ts --write    ghi cờ vào src/params/registry.data.json (chỉ đổi trường wired)
 const fs = require('node:fs');
 const path = require('node:path');
-process.env.DB_PATH = process.env.DB_PATH || ':memory:';
 const { extract, ROOT } = require('./extract-defaults');
 const { isKeyWired } = require('../../src/params/wired-flag');
 const registry = require(path.join(ROOT, 'src/params/registry.ts'));

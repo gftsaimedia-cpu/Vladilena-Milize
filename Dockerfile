@@ -11,6 +11,8 @@ WORKDIR /app
 COPY . .
 # NestJS, pg và trình nạp TypeScript (tsx) là phụ thuộc chạy thật; devDependencies (test, kiểm kiểu) không vào image.
 RUN npm ci --omit=dev --ignore-scripts
+# Exercise the actual image context: the CLI is retained by .dockerignore and its runtime adapter must load from src/.
+RUN node --import tsx -e "const {spawnSync}=require('node:child_process');const r=spawnSync(process.execPath,['--import','tsx','scripts/ops/pg-backup.ts','__image_context_check__'],{encoding:'utf8'});if(r.status!==1||!r.stderr.includes('Dùng:'))throw new Error('pg-backup CLI/runtime module missing from image build context');"
 # Máy chủ phục vụ web/dist khi có (src/platform/http.ts); mã nguồn web/ không cần ở image chạy.
 RUN rm -rf /app/web
 COPY --from=web /web/dist /app/web/dist

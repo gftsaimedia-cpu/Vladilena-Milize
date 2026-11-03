@@ -6,12 +6,10 @@ const { PostgresSql } = require('./postgres-sql');
 
 const MIGRATIONS_DIR = path.join(__dirname, '..', '..', 'migrations', 'postgres');
 const SCHEMA_MARKER = '@schema:luong-postgres-fresh-v1';
-const OID = Object.freeze({ BYTEA: 17, INT8: 20, NUMERIC: 1700 });
-const bytea = (value?) => (Buffer.isBuffer(value) ? value : Buffer.from(String(value).slice(2), 'hex'));
+const OID = Object.freeze({ INT8: 20, NUMERIC: 1700 });
 
 // Kết nối PostgreSQL của ứng dụng (src/platform/db.ts dùng): prepare(sql).get / all / run (bất đồng bộ; tham số viết `?`, xem postgres-sql.js),
 // native(sql) cho Kysely (PostgreSQL nguyên văn), exec(sql), close(), runTransaction và ready.
-// Hai kiểu kết nối: PGlite (PostgreSQL chạy trong tiến trình, dùng cho test và thử nghiệm) và pg.Pool (máy chủ PostgreSQL thật).
 class PostgresDatabase {
   declare options: any;
   declare ready: any;
@@ -21,26 +19,18 @@ class PostgresDatabase {
   #cache = new Map();
   #tx = new AsyncLocalStorage();
   #writes = 0;
-  #adminPool: any = null;
-  #isolatedName: any = null;
   concurrent;
 
-  // options: { url } cho pg.Pool, { isolatedFrom: url } cho một database riêng của tiến trình trên máy chủ PostgreSQL thật (test),
-  // hoặc { memory: true } / { dataDir } cho PGlite
   constructor(options: any = {}) {
+    const legacyOptions = ['memory', 'dataDir', 'isolatedFrom'].filter(key => options[key]);
+    if (legacyOptions.length) {
+      throw new Error(`PostgresDatabase không hỗ trợ cấu hình database cũ: ${legacyOptions.join(', ')}.`);
+    }
+    if (!options.url) throw new Error('PostgresDatabase cần URL PostgreSQL tường minh.');
     this.options = options;
     this.#sql = new PostgresSql();
-    if (options.url) {
-      this.#driver = new PoolDriver(PostgresDatabase.#pool(options.url, options.max || 10), this.#tx);
-      this.concurrent = true; // mỗi giao dịch một kết nối riêng
-    } else if (options.isolatedFrom) {
-      this.concurrent = true; // driver dựng ở #open, sau khi tạo xong database riêng
-    } else {
-      const { PGlite } = require('@electric-sql/pglite');
-      const parsers = { [OID.INT8]: (value?) => Number(value), [OID.NUMERIC]: (value?) => Number(value), [OID.BYTEA]: bytea };
-      this.#driver = new LiteDriver(options.dataDir ? new PGlite(options.dataDir, { parsers }) : new PGlite({ parsers }));
-      this.concurrent = false; // MỘT kết nối: src/platform/db.ts xếp hàng giao dịch ngoài cùng
-    }
+    this.#driver = new PoolDriver(PostgresDatabase.#pool(options.url, options.max || 10), this.#tx);
+    this.concurrent = true;
     this.ready = this.#open();
   }
 
@@ -69,22 +59,9 @@ class PostgresDatabase {
     return new Pool({ connectionString: target.toString(), max, options: startupOptions });
   }
 
-  // Mỗi tiến trình test một database riêng trên máy chủ thật (test chạy song song), xoá khi close()
-  async #createIsolated(adminUrl?) {
-    const name = `luong_test_${process.pid}_${Date.now().toString(36)}`;
-    this.#adminPool = PostgresDatabase.#pool(adminUrl, 1);
-    await this.#adminPool.query(`CREATE DATABASE ${name}`);
-    this.#isolatedName = name;
-    const url = new URL(adminUrl);
-    url.pathname = `/${name}`;
-    this.#driver = new PoolDriver(PostgresDatabase.#pool(url.toString(), this.options.max || 4), this.#tx);
-  }
-
   async #open() {
-    if (this.options.isolatedFrom) await this.#createIsolated(this.options.isolatedFrom);
     await this.#driver.open();
     await this.#migrate();
-    if (!this.concurrent) await this.#driver.exec('SET search_path = public, pg_catalog');
     const ids = await this.#driver.query(
       "SELECT table_name FROM information_schema.columns WHERE table_schema = 'public' AND is_identity = 'YES'",
       []
@@ -179,10 +156,7 @@ class PostgresDatabase {
   }
 
   // Một hoặc nhiều câu (DDL); SAVEPOINT/RELEASE/ROLLBACK TO dùng được khi đã trong giao dịch
-  // SAVEPOINT chỉ dùng được trong giao dịch. Với kết nối đơn (PGlite) giả lập khi chưa có giao dịch: SAVEPOINT ngoài cùng → BEGIN
-  // rồi SAVEPOINT; RELEASE điểm ngoài cùng → RELEASE rồi COMMIT. (Giao dịch của src/platform/db.ts đã BEGIN sẵn qua runTransaction.)
-  #savepoints: any = [];
-  #inTransaction = false;
+  // SAVEPOINT chỉ dùng được trong giao dịch; src/platform/db.ts mở giao dịch qua runTransaction trước khi gọi.
   async exec(sql?) {
     await this.ready;
     const text = String(sql);
@@ -190,16 +164,10 @@ class PostgresDatabase {
     const release = /^\s*RELEASE\s+(?:SAVEPOINT\s+)?(\w+)/i.exec(text);
     const back = /^\s*ROLLBACK\s+TO\s+(?:SAVEPOINT\s+)?(\w+)/i.exec(text);
     if (save) {
-      if (!this.concurrent && !this.#inTransaction && !this.#savepoints.length) await this.#run('BEGIN', [], false);
-      this.#savepoints.push(save[1]);
       return this.#run(`SAVEPOINT ${save[1]}`, [], true);
     }
     if (release) {
-      await this.#run(`RELEASE SAVEPOINT ${release[1]}`, [], true);
-      const at = this.#savepoints.lastIndexOf(release[1]);
-      if (at >= 0) this.#savepoints.length = at;
-      if (!this.concurrent && !this.#inTransaction && !this.#savepoints.length) await this.#run('COMMIT', [], false);
-      return;
+      return this.#run(`RELEASE SAVEPOINT ${release[1]}`, [], true);
     }
     if (back) return this.#run(`ROLLBACK TO SAVEPOINT ${back[1]}`, [], true);
     await this.#run(text, [], true);
@@ -234,12 +202,7 @@ class PostgresDatabase {
   // Giao dịch ngoài cùng: BEGIN … COMMIT trên MỘT kết nối; bên trong dùng SAVEPOINT (src/platform/db.ts gọi exec('SAVEPOINT x'))
   async runTransaction(write?) {
     await this.ready;
-    this.#inTransaction = true;
-    try {
-      return await this.#driver.transaction(write);
-    } finally {
-      this.#inTransaction = false;
-    }
+    return this.#driver.transaction(write);
   }
 
   async close() {
@@ -250,29 +213,7 @@ class PostgresDatabase {
       console.error(`[sql-stats] ${total} lệnh trong ${Math.round(this.#statsMs)} ms (chờ DB), ${this.#stats.size} câu khác nhau; nhiều nhất:`);
       for (const [sql, n] of top) console.error(`  ${String(n).padStart(6)}  ${sql.replace(/\s+/g, ' ').slice(0, 150)}`);
     }
-    try {
-      if (this.#driver) await this.#driver.close();
-    } finally {
-      if (this.#adminPool) {
-        try {
-          if (this.#isolatedName) {
-            // Pool.end() kết thúc phía client trước khi backend PostgreSQL biến mất khỏi pg_stat_activity.
-            // Cho các kết nối đang đóng êm một khoảng ngắn trước khi dùng FORCE cho DB do tiến trình này tạo.
-            for (let attempt = 0; attempt < 50; attempt++) {
-              const active = await this.#adminPool.query('SELECT 1 FROM pg_stat_activity WHERE datname = $1 LIMIT 1', [
-                this.#isolatedName
-              ]);
-              if (!active.rowCount) break;
-              await new Promise(resolve => setTimeout(resolve, 25));
-            }
-            await this.#adminPool.query(`DROP DATABASE IF EXISTS ${this.#isolatedName} WITH (FORCE)`);
-          }
-        } finally {
-          await this.#adminPool.end();
-          this.#adminPool = null;
-        }
-      }
-    }
+    if (this.#driver) await this.#driver.close();
   }
 }
 
@@ -317,42 +258,6 @@ class NativeStatement {
   async run(...args) {
     const result = await this.database.executeNative(this.sql, args);
     return { changes: result.affectedRows ?? result.rowCount ?? 0 };
-  }
-}
-
-class LiteDriver {
-  declare lite: any;
-
-  constructor(lite?) {
-    this.lite = lite;
-  }
-
-  async open() {
-    await this.lite.waitReady;
-  }
-
-  query(text?, params?) {
-    return this.lite.query(text, params);
-  }
-
-  exec(text?) {
-    return this.lite.exec(text);
-  }
-
-  async transaction(write?) {
-    await this.lite.exec('BEGIN');
-    try {
-      const value = await write();
-      await this.lite.exec('COMMIT');
-      return value;
-    } catch (error) {
-      await this.lite.exec('ROLLBACK');
-      throw error;
-    }
-  }
-
-  async close() {
-    await this.lite.close();
   }
 }
 

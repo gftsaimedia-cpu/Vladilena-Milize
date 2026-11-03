@@ -2,15 +2,17 @@
 // Đối chiếu từng trường hợp của out/cases.json với hệ thống: mở BẢN SAO của DB đã dựng (file dựng giữ sạch), cùng ứng dụng trong tiến trình,
 // đồng hồ 01/03/2027 09:30. Đọc qua API (nhãn chấm công, dòng ngày và tiền của phiếu, kỳ lương, số phép) và ảnh chụp lúc dựng (out/probes.json),
 // mã trả về của các lời gọi (out/events.jsonl). Ghi out/report.md và out/report.json.
-//   node scripts/dev/scenarios/verify.ts [--db out/scenario-year]
+//   node --import tsx scripts/dev/scenarios/verify.ts [--db out/scenario-year.pgbak.gz] [--out-dir dir]
 const fs = require('node:fs');
 const path = require('node:path');
 
-const OUT = path.join(__dirname, 'out');
+const { OUT: OUT_ROOT, outputDirectory, scenarioControlUrl, snapshotPath, openScenarioDatabase, assertScenarioRuntimePlatform, safeErrorText } = require('./lib/postgres');
+assertScenarioRuntimePlatform();
 const args = process.argv.slice(2);
+const OUT = outputDirectory(path.resolve(args.includes('--out-dir') ? args[args.indexOf('--out-dir') + 1] : OUT_ROOT));
 const dbArg = args.includes('--db') ? args[args.indexOf('--db') + 1] : null;
-const built = path.resolve(dbArg || path.join(OUT, 'scenario-year'));
-const copy = path.join(OUT, 'verify');
+const built = snapshotPath(path.resolve(dbArg || path.join(OUT, 'scenario-year.pgbak.gz')), OUT);
+const controlUrl = scenarioControlUrl();
 if (!fs.existsSync(built)) throw new Error(`Chưa có DB kịch bản: ${built}. Chạy generate.cjs trước.`);
 const { meta, cases } = JSON.parse(fs.readFileSync(path.join(OUT, 'cases.json'), 'utf8'));
 const probes = JSON.parse(fs.readFileSync(path.join(OUT, 'probes.json'), 'utf8'));
@@ -22,21 +24,16 @@ const eventLines = fs
   .filter(Boolean)
   .map(JSON.parse);
 for (const line of eventLines) if (line.ref) refs[line.ref] = line;
-fs.rmSync(copy, { recursive: true, force: true });
-fs.cpSync(built, copy, { recursive: true });
 
-const { boot, toLocal, parseLocal } = require('./lib/boot');
+const { toLocal, parseLocal, REPO } = require('./lib/boot');
 const startLocal =
   meta.lastEvent && parseLocal(meta.lastEvent) >= parseLocal('2027-03-01T09:30')
     ? toLocal(parseLocal(meta.lastEvent) + 60000)
     : '2027-03-01T09:30';
-const app = boot({ dbPath: copy, initialLocal: startLocal, variant: null });
 const { createClient } = require('./lib/client');
-const { compactSlip } = require('./src/ops');
+const { compactSlip } = require('./lib/ops');
 const { dayView, LABEL_TEXT } = require('./lib/view');
 const { byUser, PAYROLL } = require('./lib/cast');
-const { rulesFor } = require(path.join(app.REPO, 'src', 'platform', 'request-rules'));
-const { leaveDates } = require(path.join(app.REPO, 'src', 'domain', 'leave-days'));
 
 const SEVERITY = ['OK', 'SKIP', 'CHECK', 'PENDING-RULE', 'DIFF', 'ERROR'];
 const worst = (list?) => list.reduce((a, b) => (SEVERITY.indexOf(b) > SEVERITY.indexOf(a) ? b : a), 'OK');
@@ -59,7 +56,13 @@ const diffFields = (fields?, actual?) =>
     .map(([k, v]: any) => ({ field: k, expected: v, actual: actual ? (actual[k] ?? null) : null }));
 
 async function main() {
-  const client = createClient(app);
+  const scenario = await openScenarioDatabase({ controlUrl, snapshot: built, initialLocal: startLocal, variant: null });
+  const app = scenario.app;
+  let client: any;
+  try {
+  const { rulesFor } = require(path.join(REPO, 'src', 'platform', 'request-rules'));
+  const { leaveDates } = require(path.join(REPO, 'src', 'domain', 'leave-days'));
+  client = createClient(app);
   await client.ready;
   const slipCache = new Map<any, any>();
   async function slipOf(u?, month?) {
@@ -434,9 +437,6 @@ async function main() {
       checks: [{ check: { type: 'db', what: 'UPDATE payroll_runs SET params_json' }, ...d10 }]
     });
   }
-  await client.close();
-  app.store.db.close();
-
   const tally: Record<string, any> = {};
   for (const r of results) tally[r.outcome] = (tally[r.outcome] || 0) + 1;
   const report = {
@@ -450,14 +450,16 @@ async function main() {
   };
   fs.writeFileSync(path.join(OUT, 'report.json'), JSON.stringify(report, null, 1));
   fs.writeFileSync(path.join(OUT, 'report.md'), renderMarkdown(report));
-  fs.rmSync(copy, { recursive: true, force: true });
   console.log(
     `Đối chiếu ${results.length} trường hợp: ${Object.entries<any>(tally)
       .map(([k, v]: any) => `${k} ${v}`)
       .join(', ')}`
   );
   console.log(`Báo cáo: ${path.relative(process.cwd(), path.join(OUT, 'report.md'))}`);
-  process.exit(0);
+  } finally {
+    if (client) await client.close().catch(() => {});
+    await scenario.close();
+  }
 }
 
 const money = (v?) =>
@@ -604,6 +606,6 @@ function renderMarkdown(r?) {
 }
 
 main().catch(error => {
-  console.error('Đối chiếu thất bại:', error && error.stack ? error.stack : error);
-  process.exit(1);
+  console.error('Đối chiếu thất bại:', safeErrorText(error));
+  process.exitCode = 1;
 });

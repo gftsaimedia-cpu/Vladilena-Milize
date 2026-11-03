@@ -89,7 +89,6 @@ test('sổ phép khớp bộ đếm: tổng các dòng cộng = counted.total �
 });
 
 test('bảng leave_ledger không còn nhận loại dòng year', async () => {
-  process.env.DB_PATH = ':memory:';
   process.env.SESSION_SECRET = 'leave-ledger-test';
   const store = require('../../src/platform/db');
   try {

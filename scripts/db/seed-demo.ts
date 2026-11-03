@@ -1,18 +1,17 @@
 // Dựng bộ dữ liệu DEMO của AiCB: người giả phủ mọi ca có thể xảy ra, kèm các ca bất thường cố ý.
-//   npm run seed:demo                       → ./data/demo (PostgreSQL trong tiến trình, lưu thư mục; hoặc DATABASE_URL / DB_PATH nếu đặt)
+//   DATABASE_URL=postgres://… npm run seed:demo -- --confirm-demo-db → dựng vào một database PostgreSQL mới, rỗng
 //   node scripts/db/seed-demo.ts --export   → thêm CSV (UTF-8 có BOM) vào data/demo/
 //   --today=YYYY-MM-DD   "hôm nay" mà dữ liệu giả định (mặc định 2026-11-26); lượt Check-in/out và quyết định sau ngày này bị bỏ
 //   --scale=1000         thêm 1000 nhân sự nền demo_bulk_0001… để thử hiệu năng
 //   --no-check           bỏ qua bước tự kiểm bằng "Soát dữ liệu" (AI)
-//   --db=thư/mục|:memory:  nơi lưu DB (ưu tiên hơn DB_PATH)   --out=thư/mục   thư mục CSV (mặc định data/demo)
-// AN TOÀN: chỉ ghi vào thư mục chưa có, thư mục rỗng, hoặc thư mục demo do chính script này tạo
-// (nhận ra bằng khoá `demo_dataset` trong bảng settings); mọi thư mục khác bị từ chối. Dựng lại = xoá thư mục demo cũ rồi tạo mới, kết quả luôn giống nhau.
+//   --out=thư/mục   thư mục CSV (mặc định data/demo)
+// AN TOÀN: cần DATABASE_URL đích tường minh và --confirm-demo-db; chỉ nhận PostgreSQL chưa có schema/bảng người dùng.
+// Không ghi đè hay xoá database đã có; để dựng lại, hãy tạo một database mới.
 // Mật khẩu mọi tài khoản demo: biến môi trường DEMO_PASSWORD, nếu bỏ trống dùng mật khẩu mặc định ghi ngay dưới đây (chỉ dùng cho DB demo).
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = path.join(__dirname, '..', '..');
-const DEFAULT_DB = path.join(ROOT, 'data', 'demo');
 const DEMO_PASSWORD = process.env.DEMO_PASSWORD || 'demo1234';
 const MARKER_KEY = 'demo_dataset';
 
@@ -22,92 +21,53 @@ const args = Object.fromEntries(
     return [k, v === undefined ? true : v];
   })
 );
-const fail = (message?, code = 1) => {
+const fail = (message?, code = 1): never => {
   console.error(message);
   process.exit(code);
 };
 
-// Đường dẫn chuẩn tắc: giải về tuyệt đối, kể cả liên kết tượng trưng ở thư mục chứa, so không phân biệt hoa thường trên Windows và macOS
-const canonical = (file?) => {
-  const full = path.resolve(file);
-  let real = full;
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) fail('Cần DATABASE_URL trỏ tới database PostgreSQL mới, rỗng; seed demo không hỗ trợ DB_PATH.');
+if (typeof args.db === 'string' || process.env.DB_PATH)
+  fail('Từ chối chạy: seed demo chỉ nhận DATABASE_URL tường minh, không nhận --db hoặc DB_PATH.');
+if (process.env.PG_TEST_URL)
+  fail('Từ chối chạy: PG_TEST_URL chỉ dành cho công cụ test, không phải DB đích của seed demo.');
+if (args['confirm-demo-db'] !== true)
+  fail('Từ chối chạy: hãy thêm --confirm-demo-db để xác nhận DATABASE_URL là database demo mới và rỗng.');
+const target: URL = (() => {
   try {
-    real = path.join(fs.realpathSync.native(path.dirname(full)), path.basename(full));
-  } catch {}
-  return process.platform === 'win32' || process.platform === 'darwin' ? real.toLowerCase() : real;
-};
-// PostgreSQL thật qua DATABASE_URL: chỉ nạp vào DB MỚI (chưa có nhân sự) hoặc DB demo đã nạp trước đó, và phải có --confirm-demo-db.
-// Kiểm trước khi nạp src/platform/db (nạp src/platform/db là chạy migration lên DB đó) bằng một kết nối riêng chỉ đọc.
-if (process.env.DATABASE_URL) {
-  if (args['confirm-demo-db'] !== true)
-    fail(
-      'Từ chối chạy: DATABASE_URL trỏ vào một máy chủ PostgreSQL. Thêm --confirm-demo-db để xác nhận đó là DB MỚI hoặc DB demo (dữ liệu demo ghi thẳng vào đó).'
-    );
-  const probe = require('node:child_process').spawnSync(
-    process.execPath,
-    [
-      '-e',
-      `const { Client } = require('pg');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();let staff=0,marked=false;try{staff=Number((await c.query('SELECT COUNT(*) AS n FROM staff')).rows[0].n);marked=(await c.query("SELECT 1 FROM settings WHERE key='demo_dataset'")).rowCount>0;}catch{}await c.end();console.log(JSON.stringify({staff,marked}));})().catch(e=>{console.error(e.message);process.exit(1);});`
-    ],
-    { encoding: 'utf8', env: process.env, cwd: ROOT }
-  );
-  if (probe.status !== 0)
-    fail(
-      'Không kiểm được DB PostgreSQL đích: ' +
-        String(probe.stderr)
-          .replace(/\/\/[^@/\s]*@/g, '//***@')
-          .trim()
-    );
-  const { staff, marked } = JSON.parse(probe.stdout);
-  if (staff > 0 && !marked)
-    fail(
-      'Từ chối chạy: DB PostgreSQL đích đã có ' + staff + ' nhân sự và không phải DB demo (thiếu khoá demo_dataset).'
-    );
-  if (marked)
-    fail(
-      'DB PostgreSQL đích đã là DB demo: dựng lại bằng cách tạo DB mới (script không xoá dữ liệu trên máy chủ PostgreSQL).'
-    );
-}
-// Không có DATABASE_URL: PostgreSQL trong tiến trình (PGlite). --db=:memory: (RAM) hoặc --db=<thư mục> (lưu đĩa; mặc định data/demo).
-const dbArg = process.env.DATABASE_URL
-  ? null
-  : typeof args.db === 'string'
-    ? args.db
-    : process.env.DB_PATH || DEFAULT_DB;
-const MEMORY = dbArg === ':memory:';
-if (dbArg && !MEMORY) {
-  const dir = path.resolve(dbArg);
-  const pathParts = dir.split(path.sep).map(p => p.toLowerCase());
-  if (pathParts.includes('luong') || path.basename(dir) === 'luong')
-    fail('Từ chối chạy: đường dẫn trông như DB lương thật. Dữ liệu demo chỉ ghi vào data/demo hoặc thư mục demo khác.');
-  if (fs.existsSync(dir) && fs.readdirSync(dir).length > 0) {
-    // Thư mục có sẵn: chỉ dựng lại nếu là DB demo do chính script này tạo (khoá demo_dataset trong settings)
-    const probe = require('node:child_process').spawnSync(
-      process.execPath,
-      [
-        '--no-warnings=ExperimentalWarning',
-        '-e',
-        "const { PostgresDatabase } = require('./src/data/postgres-database');(async()=>{const db=new PostgresDatabase({dataDir:process.argv[1]});let marked=false;try{await db.ready;marked=!!(await db.prepare('SELECT 1 FROM settings WHERE key = ?').get('demo_dataset'));}catch{}await db.close();console.log(JSON.stringify({marked}));})()",
-        dir
-      ],
-      { encoding: 'utf8', cwd: ROOT }
-    );
-    let marked = false;
-    try {
-      marked = JSON.parse(String(probe.stdout).trim().split('\n').pop() as string).marked;
-    } catch {
-      marked = false;
-    }
-    if (!marked)
-      fail(
-        'Từ chối chạy: thư mục đã có dữ liệu và không phải DB demo do script này tạo (thiếu khoá demo_dataset). Chọn đường dẫn khác hoặc xoá thư mục nếu chắc đó là dữ liệu thử.'
-      );
-    fs.rmSync(dir, { recursive: true, force: true }); // dựng lại từ trống (migration chạy lại trên DB mới)
+    return new URL(databaseUrl!);
+  } catch {
+    return fail('DATABASE_URL không phải URL PostgreSQL hợp lệ.');
   }
+})();
+const controlNames = new Set([
+  '/postgres',
+  '/luong_demo_control',
+  '/luong_test_control',
+  '/luong_sandbox_control',
+  '/luong_drill_control',
+  '/luong_scenario_control'
+]);
+if (!['postgres:', 'postgresql:'].includes(target.protocol) || controlNames.has(target.pathname))
+  fail('DATABASE_URL phải trỏ tới database PostgreSQL đích, không phải database control hoặc database hệ thống.');
+const probe = require('node:child_process').spawnSync(
+  process.execPath,
+  [
+    '-e',
+    `const { Client } = require('pg');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});try{await c.connect();const r=await c.query("SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname NOT IN ('pg_catalog','information_schema','public') AND nspname NOT LIKE 'pg_%') OR EXISTS(SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public') OR EXISTS(SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public') OR EXISTS(SELECT 1 FROM pg_type t JOIN pg_namespace n ON n.oid=t.typnamespace WHERE n.nspname='public' AND t.typrelid=0) AS occupied");console.log(JSON.stringify(r.rows[0]));}finally{await c.end();}})().catch(()=>process.exit(1));`
+  ],
+  { encoding: 'utf8', env: process.env, cwd: ROOT }
+);
+if (probe.status !== 0) fail('Không thể kiểm tra database PostgreSQL đích; thông tin kết nối đã được giữ kín.');
+let targetState;
+try {
+  targetState = JSON.parse(probe.stdout);
+} catch {
+  fail('Không thể xác nhận database PostgreSQL đích đang rỗng.');
 }
-
-// Chỉ nạp src/platform/db SAU khi đường dẫn đã được kiểm: nạp src/platform/db là mở và nâng cấp file DB
-if (dbArg) process.env.DB_PATH = dbArg;
+if (targetState.occupied)
+  fail('Từ chối chạy: database đích không rỗng. Tạo database PostgreSQL mới; script không xoá database có sẵn.');
 const S = require('./demo/scenarios');
 const H = require('./demo/helpers');
 const gen = require('./demo/generate');
@@ -136,7 +96,7 @@ if (!Number.isInteger(scale) || scale < 0 || scale > 5000) fail('--scale phải 
 
   /* ---------- tóm tắt (không có tên hay số tiền) ---------- */
   const line = (label?, value?) => console.log(`${label.padEnd(34)}${value}`);
-  console.log(`DB demo: ${MEMORY ? ':memory:' : path.relative(ROOT, path.resolve(dbArg)) || dbArg}`);
+  console.log('DB demo: PostgreSQL (DATABASE_URL đã được xác nhận là database rỗng)');
   console.log(
     `"Hôm nay" mà dữ liệu giả định: ${today} ${S.NOW_TIME} (giờ Việt Nam). Tháng 07–09 lịch sử, tháng 10 tháng chính, tháng 11 tính theo Check-in/out.`
   );

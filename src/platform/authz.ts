@@ -1,7 +1,7 @@
 'use strict';
 // Quyền theo năng lực. Vai trò mặc định là tập năng lực viết trong mã (chỉ đọc); vai trò tuỳ chỉnh là dữ liệu ở settings (src/domain/roles/roles.ts); vai trò gán cho từng người nằm ở store.roles.
 // Từ chối theo mặc định: route không có trong ROUTE_CAPS bị 403 NO_ROUTE_POLICY (server.js → api()).
-const store = require('./db');
+const getStore = () => require('./db');
 const ApprovalView = require('../engine/approval-view'); // danh sách loại yêu cầu duyệt được (ITEMS) cho vai trò tuỳ chỉnh
 
 /* ---------- năng lực ---------- */
@@ -123,7 +123,7 @@ function customCapsOf(def?) {
 }
 // Bảng vai trò tuỳ chỉnh hiện hành (luôn có hình { rev, roles })
 async function customTable() {
-  const value = await store.getSetting(CUSTOM_ROLES_KEY, null);
+  const value = await getStore().getSetting(CUSTOM_ROLES_KEY, null);
   if (!value || typeof value !== 'object' || !Array.isArray(value.roles)) return { rev: 0, roles: [] };
   return {
     rev: Number.isInteger(value.rev) ? value.rev : 0,
@@ -372,7 +372,7 @@ const policyOf = (key?) => (Object.hasOwn(ROUTE_CAPS, key) ? ROUTE_CAPS[key] : n
 // Vai trò hiệu lực: đã gán (store.roles) + 'admin' từ staff.role cũ + 'staff' nếu là nhân sự được trả lương. Tài khoản khoá không có vai trò.
 async function rolesOf(me?) {
   if (!me || me.locked) return [];
-  const roles = new Set<any>(await store.roles.effectiveRoles(me.username));
+  const roles = new Set<any>(await getStore().roles.effectiveRoles(me.username));
   if (me.payrollSubject) roles.add('staff');
   const custom = await activeCustomRoles();
   return [...roles].filter(r => isBuiltinRole(r) || custom.has(r)).sort();
