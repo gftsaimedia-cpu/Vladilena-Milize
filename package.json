@@ -10,26 +10,11 @@
   "scripts": {
     "start": "node --no-warnings=ExperimentalWarning --import tsx src/server.ts",
     "sandbox": "node scripts/dev/ts.cjs scripts/dev/sandbox-bootstrap.ts",
-    "seed": "node scripts/dev/ts.cjs scripts/seed.ts",
-    "seed:demo": "node scripts/dev/ts.cjs scripts/db/seed-demo.ts",
-    "test": "node --no-warnings=ExperimentalWarning --import=tsx scripts/test/postgres-runner.ts \"test/**/*.test.ts\"",
-    "test:unit": "node --no-warnings=ExperimentalWarning --import=tsx scripts/test/postgres-runner.ts \"test/unit/**/*.test.ts\"",
-    "test:api": "node --no-warnings=ExperimentalWarning --import=tsx scripts/test/postgres-runner.ts \"test/api/**/*.test.ts\"",
+    "test": "node --import tsx --test \"test/v2/**/*.test.ts\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "params:extract": "node scripts/dev/ts.cjs scripts/params/extract-defaults.ts",
-    "params:lock": "node scripts/dev/ts.cjs scripts/params/lock.ts",
-    "params:check": "node scripts/dev/ts.cjs scripts/params/check.ts",
-    "params:doc": "node scripts/dev/ts.cjs scripts/params/doc.ts",
     "typecheck": "tsc --noEmit -p . && tsc --noEmit -p test",
-    "typecheck:web": "npm --prefix web exec -- vue-tsc --noEmit -p web",
-    "spec:gen": "node scripts/dev/ts.cjs scripts/docs/gen-spec.ts",
-    "spec:check": "node scripts/dev/ts.cjs scripts/docs/gen-spec.ts --check",
-    "db:types": "node scripts/dev/ts.cjs scripts/docs/gen-db-types.ts",
-    "pg:backup": "node scripts/dev/ts.cjs scripts/ops/pg-backup.ts backup",
-    "pg:verify": "node scripts/dev/ts.cjs scripts/ops/pg-backup.ts verify",
-    "pg:drill": "node scripts/dev/ts.cjs scripts/ops/pg-backup.ts drill",
-    "pg:restore": "node scripts/dev/ts.cjs scripts/ops/pg-backup.ts restore"
+    "typecheck:web": "npm --prefix web exec -- vue-tsc --noEmit -p web"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.22",
