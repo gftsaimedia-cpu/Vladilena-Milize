@@ -260,6 +260,10 @@ const total = computed(() => ({
   accent-color: var(--surface-dark);
   cursor: pointer;
 }
+.pk:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .pt-av {
   width: 32px;
   height: 32px;
@@ -288,6 +292,10 @@ const total = computed(() => ({
 }
 .nn:hover {
   text-decoration: underline;
+}
+.nn:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 /* Dòng đang mở ở ngăn kéo: nền vàng nhạt trên mọi ô (thắng cả nền ô khấu trừ), tên gạch chân. */
 .tp tbody tr.open > th,

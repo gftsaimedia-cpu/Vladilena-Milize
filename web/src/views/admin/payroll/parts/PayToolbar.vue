@@ -86,6 +86,10 @@ const exportLabel = computed(() =>
 .sc .ct {
   color: var(--muted);
 }
+.sc:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .sc.on {
   background: var(--surface-dark);
   border-color: var(--surface-dark);
@@ -116,6 +120,8 @@ const exportLabel = computed(() =>
 }
 .find:focus-within {
   border-color: var(--text);
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 .find input {
   flex: 1;
@@ -143,6 +149,10 @@ const exportLabel = computed(() =>
   appearance: none;
   cursor: pointer;
 }
+.pick select:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .pick svg {
   position: absolute;
   right: 12px;
@@ -161,6 +171,10 @@ const exportLabel = computed(() =>
 }
 .xp:hover {
   border-color: var(--text);
+}
+.xp:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 @media (max-width: 767px) {
   .tb {

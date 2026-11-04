@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { PayrollLine } from '../src/mock/payroll';
 import { payrollCsv } from '../src/views/admin/payroll/payrollCsv';
 
@@ -686,4 +686,35 @@ test('the table avatar is 32px at the default Gọn density, not shrunk by the g
   const b = (await av.boundingBox())!;
   expect([Math.round(b.width), Math.round(b.height)]).toEqual([32, 32]);
   await expect(av).toHaveCSS('font-size', '11px');
+});
+
+// Mọi ô tương tác mới của Bảng lương và phiếu lương dùng vòng tiêu điểm mực 2px (--text), không phải màu nhấn toàn cục.
+async function expectInkRing(page: Page, target: Locator, ring: Locator = target) {
+  await target.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(target).toBeFocused();
+  await expect(ring).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+  await expect(ring).toHaveCSS('outline-style', 'solid');
+  await expect(ring).toHaveCSS('outline-width', '2px');
+}
+
+test('board controls show the 2px ink focus ring', async ({ page }) => {
+  await page.goto(URL10);
+  await expectInkRing(page, filters(page).getByRole('button', { name: /^Chờ duyệt/ }));
+  await expectInkRing(page, page.getByLabel('Tìm theo tên', { exact: true }), page.locator('label.find'));
+  await expectInkRing(page, page.getByLabel('Phòng ban'));
+  await expectInkRing(page, page.getByRole('button', { name: /^Xuất/ }));
+  await expectInkRing(page, page.getByRole('region', { name: 'Các bước kỳ lương' }));
+  await expectInkRing(page, nameLink(page, 'Lê Hoàng Nam'));
+  await expectInkRing(page, rows(page).first().getByRole('checkbox'));
+});
+
+test('payslip drawer controls show the 2px ink focus ring', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await expectInkRing(page, d.getByRole('button', { name: 'In phiếu' }));
+  await expectInkRing(page, d.getByRole('button', { name: 'Phiếu sau' }));
+  await expectInkRing(page, d.getByRole('button', { name: 'Đóng' }));
+  await expectInkRing(page, d.getByRole('link', { name: /Xem từng ngày/ }));
 });

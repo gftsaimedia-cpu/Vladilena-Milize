@@ -77,6 +77,11 @@ const KIND_CLASS: Record<DayKind, string> = {
   color: var(--text);
   text-decoration: underline;
 }
+.sa-h a:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .sa-days {
   display: flex;
   gap: 3px;

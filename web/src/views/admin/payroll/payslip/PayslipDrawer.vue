@@ -206,6 +206,10 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
 .pd-ib:hover:not(:disabled) {
   background: var(--ground);
 }
+.pd-ib:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .pd-ib:disabled {
   opacity: 0.35;
   cursor: default;

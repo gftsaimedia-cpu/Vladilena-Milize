@@ -84,6 +84,11 @@ const period = usePeriodStore();
   overflow-x: auto;
   scrollbar-width: thin;
 }
+/* Vùng cuộn tự cắt vòng tiêu điểm nên vòng nằm lùi vào trong. */
+.period.card .steps:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
 .period.card .step {
   flex: none;
   gap: 8px;
