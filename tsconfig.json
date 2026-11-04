@@ -10,6 +10,7 @@
     "esModuleInterop": true,
     "moduleDetection": "force",
     "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "allowJs": true,
     "checkJs": false,
     "skipLibCheck": true,

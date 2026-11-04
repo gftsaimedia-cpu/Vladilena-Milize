@@ -1,11 +1,11 @@
-import { Controller, Get, Post, Put, Param, Body, Query, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, CurrentUser, UserSession } from '../../common';
 import { SystemService } from './system.service';
 
 @Controller('api')
 @UseFilters(ApiExceptionFilter)
 export class SystemController {
-  constructor(private readonly service: SystemService) {}
+  constructor(@Inject(SystemService) private readonly service: SystemService) {}
 
   @Get('health')
   async health(): Promise<unknown> {

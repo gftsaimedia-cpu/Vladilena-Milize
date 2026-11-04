@@ -1,11 +1,11 @@
-import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
 import { EmployeesService } from './employees.service';
 
 @Controller('api/v2/employees')
 @UseFilters(ApiExceptionFilter)
 export class EmployeesController {
-  constructor(private readonly service: EmployeesService) {}
+  constructor(@Inject(EmployeesService) private readonly service: EmployeesService) {}
 
   @Get('meta/positions')
   async getPositionsCatalog(): Promise<unknown> {

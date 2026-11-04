@@ -1,11 +1,11 @@
-import { Controller, Get, UseFilters } from '@nestjs/common';
+import { Controller, Get, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter } from '../../common';
 import { RolesService } from './roles.service';
 
 @Controller('api')
 @UseFilters(ApiExceptionFilter)
 export class RolesController {
-  constructor(private readonly service: RolesService) {}
+  constructor(@Inject(RolesService) private readonly service: RolesService) {}
 
   @Get('roles')
   async list(): Promise<unknown> {

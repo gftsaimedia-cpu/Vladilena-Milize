@@ -47,8 +47,8 @@ export interface RecordPunchResult {
 @Injectable()
 export class AttendanceService {
   constructor(
-    private readonly repo: AttendanceRepository,
-    @Optional() private readonly txCoordinator?: TransactionCoordinator,
+    @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
   ) {}
 
   /**

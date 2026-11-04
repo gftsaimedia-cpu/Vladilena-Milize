@@ -1,11 +1,11 @@
-import { Controller, Get, Post, Put, Param, Body, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
 import { PayrollService } from './payroll.service';
 
 @Controller('api/v2/payroll')
 @UseFilters(ApiExceptionFilter)
 export class PayrollController {
-  constructor(private readonly service: PayrollService) {}
+  constructor(@Inject(PayrollService) private readonly service: PayrollService) {}
 
   @Post(':month/calculate')
   async calculatePeriod(

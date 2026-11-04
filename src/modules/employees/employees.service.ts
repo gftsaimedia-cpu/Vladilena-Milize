@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { EmployeesRepository } from './employees.repository';
 import {
@@ -37,7 +37,7 @@ export function verifyPassword(password: string, stored: string): boolean {
 
 @Injectable()
 export class EmployeesService {
-  constructor(private readonly repo: EmployeesRepository) {}
+  constructor(@Inject(EmployeesRepository) private readonly repo: EmployeesRepository) {}
 
   async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();

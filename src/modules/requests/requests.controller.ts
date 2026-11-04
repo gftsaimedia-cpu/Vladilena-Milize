@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
 import { RequestsService } from './requests.service';
 import { RequestType, RequestStatus } from './domain';
@@ -6,7 +6,7 @@ import { RequestType, RequestStatus } from './domain';
 @Controller('api/v2/requests')
 @UseFilters(ApiExceptionFilter)
 export class RequestsController {
-  constructor(private readonly service: RequestsService) {}
+  constructor(@Inject(RequestsService) private readonly service: RequestsService) {}
 
   @Post('leave')
   async createLeave(@Body() body: any, @CurrentUser() user?: UserSession): Promise<unknown> {

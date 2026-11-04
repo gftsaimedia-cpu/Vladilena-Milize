@@ -1,4 +1,4 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
 import { PayrollRepository, EmployeeMonthlyRawData } from './payroll.repository';
 import {
@@ -12,8 +12,8 @@ import {
 @Injectable()
 export class PayrollService {
   constructor(
-    private readonly repo: PayrollRepository,
-    @Optional() private readonly txCoordinator?: TransactionCoordinator
+    @Inject(PayrollRepository) private readonly repo: PayrollRepository,
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator
   ) {}
 
   async calculatePeriodPayslips(

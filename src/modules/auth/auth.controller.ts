@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Body, Req, Res, UseFilters } from '@nestjs/common';
+import { Controller, Post, Get, Put, Body, Req, Res, UseFilters, Inject } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { ApiExceptionFilter, BadRequestError, UnauthorizedError, CurrentUser, UserSession } from '../../common';
 import { AuthService } from './auth.service';
@@ -6,7 +6,7 @@ import { AuthService } from './auth.service';
 @Controller('api')
 @UseFilters(ApiExceptionFilter)
 export class AuthController {
-  constructor(private readonly service: AuthService) {}
+  constructor(@Inject(AuthService) private readonly service: AuthService) {}
 
   @Post('login')
   async login(

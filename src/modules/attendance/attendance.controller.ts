@@ -5,7 +5,7 @@ import { AttendanceService, RecordPunchInput } from './attendance.service';
 @Controller('api/v2/attendance')
 @UseFilters(ApiExceptionFilter)
 export class AttendanceController {
-  constructor(private readonly service: AttendanceService) {}
+  constructor(@Inject(AttendanceService) private readonly service: AttendanceService) {}
 
   @Post('punches')
   async recordPunch(@Body() body: RecordPunchInput): Promise<unknown> {

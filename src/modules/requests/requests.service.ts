@@ -107,9 +107,9 @@ function formatTimeToHHmm(val: Date | string): string {
 @Injectable()
 export class RequestsService {
   constructor(
-    private readonly repo: RequestsRepository,
-    @Optional() private readonly attendanceRepo?: AttendanceRepository,
-    @Optional() private readonly txCoordinator?: TransactionCoordinator,
+    @Inject(RequestsRepository) private readonly repo: RequestsRepository,
+    @Optional() @Inject(AttendanceRepository) private readonly attendanceRepo?: AttendanceRepository,
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
   ) {}
 
   async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
