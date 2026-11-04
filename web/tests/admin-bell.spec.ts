@@ -155,6 +155,78 @@ test('resolving the last item leaves focus on the Cần duyệt tab', async ({ p
   await expect(bell.locator('i')).toHaveCount(0);
 });
 
+test('a row name reads in the ink colour, not the sidebar group grey', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await bellOf(page).click();
+  await expect(rowOf(page, 'Bùi Quốc Huy').locator('b')).toHaveCSS('color', 'rgb(33, 33, 33)');
+  await expect(drawerOf(page).getByRole('heading', { level: 3 }).first()).toHaveCSS('color', 'rgb(97, 97, 97)');
+});
+
+test('the detail avatar is 44px wide under the default compact density', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'gon');
+  await bellOf(page).click();
+  await rowOf(page, 'Trịnh Văn Long').click();
+  const avatar = detailOf(page).locator('[class*="av"]').first();
+  await expect(avatar).toHaveText('VL');
+  const box = await avatar.boundingBox();
+  expect(Math.round(box!.width)).toBe(44);
+});
+
+test('keyboard focus on a bell control draws a 2px ink outline', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await bellOf(page).click();
+  const drawer = drawerOf(page);
+  await rowOf(page, 'Lê Hoàng Nam').click();
+  await page.keyboard.press('Escape');
+  await expect(rowOf(page, 'Lê Hoàng Nam')).toBeFocused();
+  const seen = new Set<string>();
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('Tab');
+    if (!(await drawer.evaluate(el => el.contains(document.activeElement)))) continue;
+    const outline = await page.evaluate(() => {
+      const s = getComputedStyle(document.activeElement!);
+      return [s.outlineColor, s.outlineWidth, s.outlineStyle].join(' ');
+    });
+    expect(outline).toBe('rgb(33, 33, 33) 2px solid');
+    seen.add(await page.evaluate(() => document.activeElement!.className || document.activeElement!.tagName));
+  }
+  expect(seen.size).toBeGreaterThanOrEqual(4);
+});
+
+test('on a narrow screen the covered drawer is inert while a detail is open', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto('/admin/tong-quan');
+  await bellOf(page).click();
+  await rowOf(page, 'Lê Hoàng Nam').click();
+  const drawer = drawerOf(page);
+  for (const part of ['.bd-h', '.bd-tabs', '.bd-body', '.bd-f']) {
+    await expect(drawer.locator(part)).toHaveAttribute('inert', '');
+  }
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.press('Tab');
+    expect(await page.evaluate(() => document.activeElement?.closest('.bd-h, .bd-tabs, .bd-body, .bd-f'))).toBeNull();
+  }
+  await page.keyboard.press('Escape');
+  await expect(drawer.locator('.bd-h')).not.toHaveAttribute('inert', '');
+  await expect(rowOf(page, 'Lê Hoàng Nam')).toBeFocused();
+});
+
+test('Mở hồ sơ chấm công closes the drawer, also when already on that profile', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await bellOf(page).click();
+  await rowOf(page, 'Trịnh Văn Long').click();
+  await detailOf(page).getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long/);
+  await expect(drawerOf(page)).toHaveCount(0);
+
+  await bellOf(page).click();
+  await rowOf(page, 'Trịnh Văn Long').click();
+  await detailOf(page).getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(drawerOf(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long/);
+});
+
 test('system news tab lists three read-only notes', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   await bellOf(page).click();

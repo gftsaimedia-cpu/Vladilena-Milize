@@ -26,6 +26,9 @@ const status = ref(IDLE);
 const selected = shallowRef<InboxItem | null>(null);
 // Thứ tự hiện lúc việc đang chọn còn trong danh sách, để chọn việc kế tiếp kể cả khi danh sách đã đổi.
 let order: InboxItem[] = [];
+// Màn hẹp (dưới 840px): thẻ chi tiết phủ lên ngăn kéo, nên phần ngăn kéo bị che phải `inert` để Tab không chui vào nút ẩn.
+const narrow = ref(false);
+const covered = computed(() => narrow.value && !!selected.value);
 
 const items = computed<InboxItem[]>(() => data.value?.items ?? []);
 const notes = computed(() => data.value?.notes ?? []);
@@ -70,11 +73,19 @@ function closeTop() {
 }
 
 let unregisterFocus = () => {};
+let narrowQuery: MediaQueryList | null = null;
+const onNarrow = (event: MediaQueryListEvent) => {
+  narrow.value = event.matches;
+};
 onMounted(() => {
+  narrowQuery = window.matchMedia('(max-width: 839px)');
+  narrow.value = narrowQuery.matches;
+  narrowQuery.addEventListener('change', onNarrow);
   lockScroll();
   if (root.value) unregisterFocus = registerOverlayFocus(root.value, closeTop, () => true);
 });
 onBeforeUnmount(() => {
+  narrowQuery?.removeEventListener('change', onNarrow);
   unregisterFocus();
   unlockScroll();
 });
@@ -84,12 +95,12 @@ onBeforeUnmount(() => {
   <div class="bd-root">
     <div class="bd-scrim" @click="emit('close')" />
     <aside ref="root" class="bd" role="dialog" aria-modal="true" aria-label="Thông báo" tabindex="-1">
-      <header class="bd-h">
+      <header class="bd-h" :inert="covered">
         <h2>Thông báo</h2>
         <button type="button" class="btn sm" @click="emit('close')">Đóng</button>
       </header>
 
-      <div class="bd-tabs" role="tablist" aria-label="Loại thông báo">
+      <div class="bd-tabs" role="tablist" aria-label="Loại thông báo" :inert="covered">
         <button
           id="bd-tab-need"
           ref="needTab"
@@ -113,10 +124,10 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <div id="bd-panel" class="bd-body" role="tabpanel" :aria-labelledby="`bd-tab-${tab}`">
+      <div id="bd-panel" class="bd-body" role="tabpanel" :aria-labelledby="`bd-tab-${tab}`" :inert="covered">
         <template v-if="tab === 'need'">
           <p v-if="data && !flat.length" class="bd-empty">Không còn yêu cầu nào chờ duyệt.</p>
-          <section v-for="g in groups" :key="g.key" class="grp">
+          <section v-for="g in groups" :key="g.key" class="bd-grp">
             <h3>
               {{ g.label }} <span>{{ g.items.length }}</span>
             </h3>
@@ -150,13 +161,13 @@ onBeforeUnmount(() => {
         </ul>
       </div>
 
-      <footer class="bd-f">
+      <footer class="bd-f" :inert="covered">
         <p class="bd-status" aria-live="polite">{{ status }}</p>
         <RouterLink :to="{ path: '/admin/yeu-cau', query: thang() }" class="link">Mở trang Yêu cầu</RouterLink>
       </footer>
 
       <div v-if="selected" class="bd-detail">
-        <InboxDetail :key="selected.id" :item="selected" @decided="onDecided" @close="closeTop" />
+        <InboxDetail :key="selected.id" :item="selected" @decided="onDecided" @close="closeTop" @profile="emit('close')" />
       </div>
     </aside>
   </div>
@@ -167,7 +178,7 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(28, 28, 28, 0.32);
+  background: color-mix(in srgb, var(--surface-dark) 32%, transparent);
 }
 .bd {
   position: fixed;
@@ -179,7 +190,7 @@ onBeforeUnmount(() => {
   width: 400px;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--surface);
   border-radius: 24px;
   outline: none;
 }
@@ -191,7 +202,7 @@ onBeforeUnmount(() => {
 }
 .bd-h h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 28px;
   font-weight: 600;
 }
@@ -216,6 +227,16 @@ onBeforeUnmount(() => {
   color: var(--muted);
   cursor: pointer;
 }
+.bd-h .btn:focus-visible,
+.bd-tabs button:focus-visible,
+.bd-f .link:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.row:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
 .bd-tabs button[aria-selected='true'] {
   color: var(--text);
   border-bottom-color: var(--text);
@@ -229,7 +250,7 @@ onBeforeUnmount(() => {
   display: inline-grid;
   place-items: center;
   background: var(--gold);
-  color: #1c1c1c;
+  color: var(--text);
   font-size: 12px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -247,7 +268,7 @@ onBeforeUnmount(() => {
   font-size: 14px;
   color: var(--muted);
 }
-.grp h3 {
+.bd-grp h3 {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -293,6 +314,7 @@ ul {
   font-size: 14px;
   line-height: 20px;
   font-weight: 500;
+  color: var(--text);
 }
 .tx small,
 .age {
@@ -328,7 +350,7 @@ ul {
   gap: 12px;
   padding: 12px 24px 16px;
   border-top: 1px solid var(--rule);
-  font-size: 13px;
+  font-size: 12px;
 }
 .bd-status {
   margin: 0;
@@ -344,7 +366,7 @@ ul {
   max-height: calc(100vh - 32px);
   overflow-y: auto;
   padding: 20px 24px 24px;
-  background: #fff;
+  background: var(--surface);
   border-radius: 24px;
 }
 @media (max-width: 839px) {

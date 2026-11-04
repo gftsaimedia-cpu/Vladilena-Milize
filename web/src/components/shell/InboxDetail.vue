@@ -13,7 +13,7 @@ const props = withDefaults(defineProps<{ item: InboxItem; showPerson?: boolean; 
   showPerson: true,
   profileLink: true
 });
-const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: [] }>();
+const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: []; profile: [] }>();
 
 const shell = useShellStore();
 const route = useRoute();
@@ -44,8 +44,8 @@ async function act(verb: DecisionVerb) {
 <template>
   <section class="idetail" role="region" aria-label="Chi tiết yêu cầu" tabindex="-1">
     <button type="button" class="x" aria-label="Đóng chi tiết" @click="emit('close')"><Icon name="x" /></button>
-    <div v-if="showPerson" class="who">
-      <span class="av">{{ item.initials }}</span>
+    <div v-if="showPerson" class="id-who">
+      <span class="id-av">{{ item.initials }}</span>
       <div>
         <h3>{{ item.name }}</h3>
         <p>{{ item.role }}</p>
@@ -87,7 +87,9 @@ async function act(verb: DecisionVerb) {
         </button>
       </template>
     </div>
-    <RouterLink v-if="hasProfile()" :to="profileTo()" class="link prof">Mở hồ sơ chấm công</RouterLink>
+    <RouterLink v-if="hasProfile()" :to="profileTo()" class="link prof" @click="emit('profile')">
+      Mở hồ sơ chấm công
+    </RouterLink>
   </section>
 </template>
 
@@ -96,9 +98,15 @@ async function act(verb: DecisionVerb) {
   position: relative;
   outline: none;
 }
+.idetail:focus-visible,
+.x:focus-visible,
+.acts .btn:focus-visible,
+.prof:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
 .idetail:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 4px;
+  outline-offset: -2px;
   border-radius: 8px;
 }
 .x {
@@ -115,27 +123,34 @@ async function act(verb: DecisionVerb) {
   cursor: pointer;
   color: var(--muted);
 }
-.who {
+.id-who {
   display: flex;
   align-items: center;
   gap: 12px;
   padding-right: 40px;
   margin-bottom: 20px;
 }
-.who .av {
+.id-av {
+  border-radius: 50%;
+  background: var(--draft-bg);
+  color: var(--draft-ink);
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  flex: none;
   width: 44px;
   height: 44px;
   font-size: 14px;
 }
 h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
   line-height: 22px;
   font-weight: 600;
 }
-.who p {
+.id-who p {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 18px;
   color: var(--muted);
 }
