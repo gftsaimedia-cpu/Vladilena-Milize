@@ -194,11 +194,17 @@ const total = computed(() => ({
   height: 28px;
   font-weight: 600;
   color: var(--text);
+  text-align: center;
+  padding: 0;
 }
-/* Chữ nhóm dính trái: cột nhân viên + 14px đệm (310px; 198px dưới 768px). */
+/* Nhãn nằm giữa nhóm; dính trái (cột nhân viên + 14px đệm: 310px, 198px dưới 768px) để mép trái nhóm trôi dưới cột đứng yên thì nhãn bị đẩy sang phải,
+   dính phải 14px để nhóm bị cắt ở mép phải thì nhãn vẫn nằm trong phần nhìn thấy.
+   Ô nhóm không đệm: nhãn dính chỉ trượt trong ô của nó, nên đệm 14px sẽ đẩy nhãn ra khỏi phần nhìn thấy khi ô chỉ ló ra vài chục px. */
 .tp thead .gh > span {
+  display: inline-block;
   position: sticky;
   left: calc(var(--who) + 14px);
+  right: 14px;
 }
 .tp .ded-h {
   background: var(--ground);

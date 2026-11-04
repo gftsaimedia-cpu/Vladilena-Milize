@@ -163,6 +163,57 @@ test('frozen columns stay put and mouse drag scrolls without opening a slip', as
   expect(await clicks()).toBe(1);
 });
 
+// Nhãn nhóm nằm giữa nhóm cột của nó; khi mép trái nhóm trôi dưới cột nhân viên đứng yên, nhãn bị đẩy sang phải và vẫn đọc được.
+const groupLabel = (page: Page, name: string) => table(page).locator('thead .gh > span', { hasText: name });
+const subHeads = (page: Page) => table(page).locator('thead tr:nth-child(2) th');
+async function centreOf(items: Locator[]) {
+  const boxes = await Promise.all(items.map(i => i.boundingBox()));
+  const left = Math.min(...boxes.map(b => b!.x));
+  const right = Math.max(...boxes.map(b => b!.x + b!.width));
+  return (left + right) / 2;
+}
+
+test('group labels sit centred over their columns', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(rows(page)).toHaveCount(10);
+  const heads = await subHeads(page).all();
+  expect(heads).toHaveLength(9);
+  // Ở 1440px hộp cuộn hẹp hơn bảng: Thu nhập nằm trọn ở đầu, Khấu trừ chỉ nằm trọn khi cuộn tới cuối.
+  for (const [name, cols, end] of [
+    ['Thu nhập', heads.slice(0, 6), false],
+    ['Khấu trừ', heads.slice(6, 9), true],
+  ] as const) {
+    await table(page).evaluate((el, toEnd) => (el.scrollLeft = toEnd ? el.scrollWidth : 0), end);
+    const b = (await groupLabel(page, name).boundingBox())!;
+    expect(Math.abs(b.x + b.width / 2 - (await centreOf([...cols]))), name).toBeLessThanOrEqual(2);
+  }
+});
+
+test('group label stays readable beside the frozen column when scrolled', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(rows(page)).toHaveCount(10);
+  await table(page).evaluate(el => (el.scrollLeft = 600));
+  const box = (await table(page).boundingBox())!;
+  const who = (await table(page).locator('thead th.pt-who').boundingBox())!;
+  const b = (await groupLabel(page, 'Thu nhập').boundingBox())!;
+  expect(b.x).toBeGreaterThanOrEqual(who.x + who.width - 1);
+  expect(b.x).toBeGreaterThanOrEqual(box.x);
+  expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+});
+
+test('group label stays inside the visible table at 375px', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.goto(URL10);
+  await expect(rows(page)).toHaveCount(10);
+  const box = (await table(page).boundingBox())!;
+  for (const at of [0, 100, 200]) {
+    await table(page).evaluate((el, x) => (el.scrollLeft = x), at);
+    const b = (await groupLabel(page, 'Thu nhập').boundingBox())!;
+    expect(b.x, `left at ${at}`).toBeGreaterThanOrEqual(box.x);
+    expect(b.x + b.width, `right at ${at}`).toBeLessThanOrEqual(box.x + box.width);
+  }
+});
+
 test('a press released outside the table does not start a drag later', async ({ page }) => {
   await page.goto(URL10);
   const box = (await table(page).boundingBox())!;
