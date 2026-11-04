@@ -288,6 +288,89 @@ test('legend items are flat: no capsule, no border', async ({ page }) => {
   await expect(item).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
 
+test('pill and dot rules apply only under the attendance root', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(rowsOf(page)).toHaveCount(11);
+  const out = await page.evaluate(() => {
+    const probe = (html: string) => {
+      const host = document.createElement('div');
+      host.innerHTML = html;
+      document.body.append(host);
+      const el = host.firstElementChild as HTMLElement;
+      const cs = getComputedStyle(el);
+      const r = { bg: cs.backgroundColor, height: el.getBoundingClientRect().height };
+      host.remove();
+      return r;
+    };
+    return {
+      work: probe('<button class="pill work">Thử</button>'),
+      fu: probe('<button class="pill fu">Thử</button>'),
+      dot: probe('<span class="pill"><span class="dot"></span></span>')
+    };
+  });
+  expect(out.work.bg).not.toBe('rgb(28, 28, 28)');
+  expect(out.work.height).not.toBe(30);
+  expect(out.fu.bg).not.toBe('rgb(255, 255, 255)');
+});
+
+test('the planned-shift legend swatch looks like the planned cell it explains', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  const look = (sel: string) =>
+    page.locator(sel).first().evaluate(el => {
+      const cs = getComputedStyle(el);
+      return [cs.backgroundColor, cs.borderTopStyle, cs.borderTopWidth, cs.borderTopColor].join(' ');
+    });
+  const swatch = await look('.att .b.fu');
+  const cell = await look('td.dc button.pill.fu');
+  expect(swatch).toBe(cell);
+  expect(swatch).toBe('rgb(255, 255, 255) dashed 1px rgb(224, 224, 224)');
+});
+
+test('the legend is a labelled group on the week and on the profile', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(page.getByRole('group', { name: 'Chú giải' })).toHaveCount(1);
+  await page.goto('/admin/cham-cong/nhan-vien/le-hoang-nam');
+  await expect(page.getByRole('group', { name: 'Chú giải' })).toHaveCount(1);
+});
+
+test('comfortable density keeps 48px day cells and an 8px gap between adjacent pills', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  await page.evaluate(() => document.documentElement.removeAttribute('data-density'));
+  const out = await page.evaluate(() => {
+    const cells = Array.from(document.querySelectorAll('tbody tr:first-child td.dc'));
+    const heights = cells.map(td => Math.round(td.getBoundingClientRect().height));
+    let gap = -1;
+    for (let i = 0; i + 1 < cells.length && gap < 0; i++) {
+      const a = cells[i].querySelector('button.pill');
+      const b = cells[i + 1].querySelector('button.pill');
+      if (a && b) gap = Math.round(b.getBoundingClientRect().left - a.getBoundingClientRect().right);
+    }
+    return { heights: Array.from(new Set(heights)), gap };
+  });
+  expect(out.heights).toEqual([48]);
+  expect(out.gap).toBe(8);
+});
+
+test('the name cell shows the name alone and planned cells carry their hours only in the accessible name', async ({
+  page
+}) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  const first = page.locator('tbody th.nm a').first();
+  await expect(first).toHaveText('Nguyễn Thu Hà');
+  expect(await first.evaluate(el => (el as HTMLElement).innerText.includes('\n'))).toBe(false);
+  const names = (await page.locator('tbody th.nm').allInnerTexts()).join(' ');
+  expect(names).not.toMatch(/Kinh doanh|Kỹ thuật|Tài chính|Sản xuất|Marketing|Nhân sự/);
+
+  const planned = page.locator('td.dc button.pill.fu');
+  expect(await planned.count()).toBeGreaterThan(0);
+  const texts = await planned.evaluateAll(els => els.map(el => (el.textContent ?? '').trim()));
+  expect(texts.filter(Boolean)).toEqual([]);
+  await expect(cellOf(page, 'Nguyễn Thu Hà, Thứ Bảy 31/10: ca dự kiến 08:00–17:00')).toHaveText('');
+});
+
 const scrollLeftOf = (page: Page) => gridOf(page).evaluate(el => el.scrollLeft);
 const weekLabel = (page: Page) => page.locator('.wk-label');
 const legendCount = (page: Page, group: string) => page.locator(`.att .gc[data-group="${group}"] .ct`);

@@ -62,8 +62,8 @@ const emit = defineEmits<{ 'open-day': [personId: string, date: string] }>();
   font-weight: 600;
 }
 .dp {
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
 }
 .pd {

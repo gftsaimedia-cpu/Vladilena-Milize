@@ -1,6 +1,8 @@
 /* Phần dùng chung của Chấm công theo tuần và Hồ sơ chấm công: ô trạng thái (.pill), chấm "đang làm", chú giải màu (.legend, .gc).
-   Năm nhóm màu: đi làm #1c1c1c, đi muộn/về sớm vàng, nghỉ có phép #2f5aa8, vắng #b43f3f, cần xử lý trắng viền cam.
-   Các selector chung (.b, .legend, .gc) nằm dưới .att, gốc của hai màn trên: file CSS này ở lại sau khi rời màn, nên không để lọt sang màn khác. */
+   Năm nhóm màu: đi làm (--surface-dark), đi muộn/về sớm (--gold), nghỉ có phép (--status-done), vắng (--status-rejected),
+   cần xử lý (nền trắng, viền --status-pending).
+   Mọi selector chung (.b, .legend, .gc, .pill) nằm dưới .att, gốc của hai màn trên: file CSS này ở lại sau khi rời màn,
+   nên không để lọt sang màn khác (nhánh khác cũng dùng .pill). */
 .att .b {
   display: inline-block;
   flex: none;
@@ -10,24 +12,25 @@
   box-sizing: border-box;
 }
 .att .b.work {
-  background: #1c1c1c;
+  background: var(--surface-dark);
 }
 .att .b.late {
-  background: #e8c372;
+  background: var(--gold);
 }
 .att .b.leave {
-  background: #2f5aa8;
+  background: var(--status-done);
 }
 .att .b.absent {
-  background: #b43f3f;
+  background: var(--status-rejected);
 }
 .att .b.todo {
-  background: #ffffff;
-  border: 2px solid #eb973d;
+  background: var(--surface);
+  border: 2px solid var(--status-pending);
 }
+/* Giống hệt ô .pill.fu mà nó chú giải: nền trắng, viền đứt --status-draft. */
 .att .b.fu {
-  background: #ffffff;
-  border: 1px dashed #9e9e9e;
+  background: var(--surface);
+  border: 1px dashed var(--status-draft);
 }
 
 .att .legend {
@@ -40,7 +43,7 @@
   align-items: center;
   gap: 8px;
   height: 24px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text);
 }
 .att .gc .ct {
@@ -48,7 +51,7 @@
 }
 
 /* Ô trạng thái: một nút (hoặc span khi không có ca) cao 30px. Chỉ áp cho tám kiểu dưới đây, không đụng .pill chung. */
-.pill:is(.work, .late, .leave, .absent, .todo, .off, .fu, .nocheck) {
+.att .pill:is(.work, .late, .leave, .absent, .todo, .off, .fu, .nocheck) {
   width: 100%;
   height: 30px;
   padding: 0 6px;
@@ -66,53 +69,53 @@
   cursor: pointer;
   font-variant-numeric: tabular-nums;
 }
-.pill.work {
-  background: #1c1c1c;
-  color: #ffffff;
+.att .pill.work {
+  background: var(--surface-dark);
+  color: var(--on-primary);
 }
-.pill.late {
-  background: #e8c372;
+.att .pill.late {
+  background: var(--gold);
   color: var(--text);
 }
-.pill.leave {
-  background: #2f5aa8;
-  color: #ffffff;
+.att .pill.leave {
+  background: var(--status-done);
+  color: var(--on-primary);
 }
-.pill.absent {
-  background: #b43f3f;
-  color: #ffffff;
+.att .pill.absent {
+  background: var(--status-rejected);
+  color: var(--on-primary);
 }
-.pill.todo {
-  background: #ffffff;
-  border: 2px solid #eb973d;
+.att .pill.todo {
+  background: var(--surface);
+  border: 2px solid var(--status-pending);
   color: var(--text);
 }
-.pill.off {
+.att .pill.off {
   display: block;
   background: var(--ground);
   cursor: inherit;
 }
-.pill.fu {
-  background: #ffffff;
+.att .pill.fu {
+  background: var(--surface);
   border: 1px dashed var(--status-draft);
-  color: #9e9e9e;
+  color: var(--ink-on-dark-muted);
   font-weight: 400;
 }
-.pill.nocheck {
+.att .pill.nocheck {
   background: var(--status-draft);
-  color: #616161;
+  color: var(--muted);
 }
-.pill:is(.work, .late, .leave, .absent, .todo, .fu, .nocheck):focus-visible {
+.att .pill:is(.work, .late, .leave, .absent, .todo, .fu, .nocheck):focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
-.pill .dot {
+.att .pill .dot {
   width: 6px;
   height: 6px;
   flex: none;
   border-radius: 50px;
-  background: #e8c372;
+  background: var(--gold);
 }
-.pill.late .dot {
-  background: #1c1c1c;
+.att .pill.late .dot {
+  background: var(--surface-dark);
 }

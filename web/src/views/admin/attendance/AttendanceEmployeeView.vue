@@ -150,7 +150,7 @@ function onTabKey(event: KeyboardEvent) {
         <section class="card blk" :aria-label="`Tháng ${monthText}`">
           <div class="bh">
             <h2>Tháng {{ monthText }}</h2>
-            <div class="legend" aria-label="Chú giải">
+            <div class="legend" role="group" aria-label="Chú giải">
               <span v-for="g in GROUPS" :key="g.key" class="gc" :data-group="g.key">
                 <span class="b" :class="g.key" aria-hidden="true" />{{ g.label }}
                 <span class="ct">{{ month.chips[g.key] }}</span>

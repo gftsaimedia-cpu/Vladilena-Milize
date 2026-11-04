@@ -190,9 +190,9 @@ function onTabKey(event: KeyboardEvent) {
   border: 1px solid var(--border);
 }
 .tile.dark {
-  background: #1c1c1c;
-  border-color: #1c1c1c;
-  color: #ffffff;
+  background: var(--surface-dark);
+  border-color: var(--surface-dark);
+  color: var(--on-primary);
 }
 .tile-l {
   display: flex;
@@ -209,7 +209,7 @@ function onTabKey(event: KeyboardEvent) {
   border-radius: 3px;
 }
 .tile.dark .tile-l {
-  color: #ffffff;
+  color: var(--on-primary);
 }
 .tile-v {
   font-size: 28px;
@@ -264,8 +264,8 @@ function onTabKey(event: KeyboardEvent) {
   cursor: pointer;
 }
 .tabs2 button[aria-selected='true'] {
-  background: #1c1c1c;
-  color: #ffffff;
+  background: var(--surface-dark);
+  color: var(--on-primary);
 }
 .tabs2 button:focus-visible {
   outline: 2px solid var(--text);
@@ -278,11 +278,11 @@ function onTabKey(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   border-radius: 50px;
-  border: 2px solid #eb973d;
-  background: #ffffff;
+  border: 2px solid var(--status-pending);
+  background: var(--surface);
   color: var(--text);
-  font-size: 11px;
-  line-height: 14px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

@@ -39,6 +39,8 @@ const counts = computed(() =>
 const thang = computed(() => (route.query.thang ? { thang: route.query.thang } : {}));
 const cellName = (name: string, day: AttendanceDay, aria: string) =>
   `${name}, ${weekdayName(day.iso)} ${day.dm}: ${aria}`;
+// Danh sách chỉ hiện giá trị chính: ca dự kiến (chưa xảy ra) là ô trống, giờ ca nằm ở tên truy cập và hộp chi tiết ngày.
+const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ? '' : cell.text);
 </script>
 
 <template>
@@ -49,7 +51,7 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
       <button ref="nextBtn" type="button" class="btn sm" :disabled="atEnd" @click="nextWeek">Tuần sau</button>
       <button type="button" class="btn sm" @click="thisWeek">Hôm nay</button>
     </div>
-    <div class="legend" aria-label="Chú giải">
+    <div class="legend" role="group" aria-label="Chú giải">
       <span v-for="g in counts" :key="g.key" class="gc" :data-group="g.key">
         <span class="b" :class="g.key" aria-hidden="true" />{{ g.name }} <span class="ct">{{ g.n }}</span>
       </span>
@@ -90,7 +92,6 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
             <span class="av" aria-hidden="true">{{ row.person.initials }}</span>
             <RouterLink :to="{ path: employeePath(row.person.id), query: thang }" class="lk" draggable="false">
               <span class="nn">{{ row.person.name }}</span>
-              <span class="dp">{{ row.person.dept }}</span>
             </RouterLink>
           </th>
           <td v-for="(d, i) in days" :key="d.iso" class="dc" :class="{ now: d.today, mon: d.monday, pb: d.periodStart }">
@@ -108,7 +109,7 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
               :aria-label="cellName(row.person.name, d, row.cells[i].aria)"
               @click="emit('open-day', row.person.id, d.iso)"
             >
-              <span v-if="row.cells[i].live" class="dot" aria-hidden="true" />{{ row.cells[i].text }}
+              <span v-if="row.cells[i].live" class="dot" aria-hidden="true" />{{ cellText(row.cells[i]) }}
             </button>
           </td>
           <td class="sm s1">{{ row.person.period.worked }}</td>
@@ -196,7 +197,7 @@ table.tw td {
 }
 table.tw thead th {
   height: 52px;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 14px;
   font-weight: 500;
   color: var(--muted);
@@ -220,14 +221,14 @@ table.tw th.dc {
   color: var(--text);
 }
 table.tw th.we {
-  color: #9e9e9e;
+  color: var(--ink-on-dark-muted);
 }
 .tw th.we .dn {
   color: inherit;
 }
 .tw th.now .dn {
-  background: #1c1c1c;
-  color: #ffffff;
+  background: var(--surface-dark);
+  color: var(--on-primary);
   font-weight: 600;
 }
 .tw th.now .wd {
@@ -238,11 +239,20 @@ table.tw th.we {
   border-left: 1px solid var(--border);
 }
 .tw .pb {
-  border-left: 2px solid #212121;
+  border-left: 2px solid var(--text);
 }
-:root[data-density] table.tw td.dc {
-  height: 48px !important;
+/* Cao 48px và đệm 4px hai bên ở mọi mật độ (Thoải mái cũng vậy): hai ô liền nhau cách nhau 8px. Bản 'gọn' chỉ ghi đè để thắng
+   luật `td { height: 42px !important }` của base.css. */
+table.tw td.dc {
+  height: 48px;
   padding: 0 4px;
+}
+/* Cột tổng cũng 48px, không thì height: 56px của `td` chung kéo cả hàng cao hơn ô ngày ở mật độ Thoải mái. */
+table.tw td.sm {
+  height: 48px;
+}
+:root[data-density='gon'] table.tw td.dc {
+  height: 48px !important;
 }
 /* Ô ngày cắt phần tràn (giữ cột đúng 96px) nên vòng focus của pill vẽ vào trong, không ra ngoài ô; pill tối thì vòng sáng. */
 table.tw .pill:focus-visible {
@@ -281,7 +291,7 @@ table.tw tbody .nm {
   width: 28px;
   height: 28px;
   margin-right: 10px;
-  font-size: 11px;
+  font-size: 12px;
   background: var(--status-draft);
 }
 .tw .lk {
@@ -290,14 +300,9 @@ table.tw tbody .nm {
   cursor: pointer;
 }
 .tw .nn {
-  font-size: 13px;
-  line-height: 16px;
+  font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
-}
-.tw .dp {
-  font-size: 11px;
-  line-height: 14px;
-  color: var(--muted);
 }
 .tw .lk:hover .nn {
   text-decoration: underline;
@@ -312,7 +317,7 @@ table.tw .sm {
   z-index: 2;
   text-align: right;
   padding-right: 16px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 .tw thead .sm .sh {
@@ -321,7 +326,7 @@ table.tw .sm {
 .tw .mut {
   color: var(--muted);
   font-weight: 400;
-  font-size: 11px;
+  font-size: 12px;
 }
 .tw thead .sm .mut {
   display: block;
