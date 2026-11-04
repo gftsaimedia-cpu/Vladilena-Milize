@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import type { PayrollLine } from '../src/mock/payroll';
+import { payrollCsv } from '../src/views/admin/payroll/payrollCsv';
 
 // Bảng lương và phiếu lương chạy trên dữ liệu giả (mock/payroll.ts): không page.route, không gọi /api.
 // Trạng thái giả nằm trong bộ nhớ trang: sau lần goto đầu, đi tiếp bằng liên kết trong app.
@@ -117,18 +119,32 @@ test('other months show the mockup notice', async ({ page }) => {
 test('frozen columns stay put and mouse drag scrolls without opening a slip', async ({ page }) => {
   await page.goto(URL10);
   const box = (await table(page).boundingBox())!;
-  await table(page).evaluate(el => (el.scrollLeft = el.scrollWidth));
-  for (const cell of [rows(page).first().locator('th.who'), rows(page).first().locator('td.net')]) {
-    const b = (await cell.boundingBox())!;
-    expect(b.x).toBeGreaterThanOrEqual(box.x - 1);
-    expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  // Ba ô đứng yên phải nằm trong hộp cuộn ở cả hai đầu: ở scrollLeft = 0 Thực nhận và Trạng thái vốn nằm ngoài hộp,
+  // nên chỉ position: sticky mới đưa chúng vào; ở cuối thì cột trái là phần bị đẩy ra nếu không đứng yên.
+  const frozen = ['th.who', 'td.net', 'td.st'];
+  for (const at of ['start', 'end']) {
+    await table(page).evaluate((el, end) => (el.scrollLeft = end ? el.scrollWidth : 0), at === 'end');
+    for (const sel of frozen) {
+      const b = (await rows(page).first().locator(sel).boundingBox())!;
+      expect(b.x, `${sel} at ${at}`).toBeGreaterThanOrEqual(box.x - 1);
+      expect(b.x + b.width, `${sel} at ${at}`).toBeLessThanOrEqual(box.x + box.width + 1);
+    }
   }
   await table(page).evaluate(el => (el.scrollLeft = 0));
+  // Chữ nhóm dính trái cách mép cột nhân viên 14px (296 + 14 ở màn rộng).
+  await expect(table(page).locator('thead .gh > span').first()).toHaveCSS('left', '310px');
   await page.mouse.move(box.x + box.width / 2, box.y + 120);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width / 2 - 300, box.y + 120, { steps: 10 });
   await page.mouse.up();
   expect(await table(page).evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+  // Chromium chuyển cú bấm sau khi kéo (đã bắt con trỏ) về chính hộp cuộn, nên liên kết không nhận nó dù có nuốt hay không;
+  // đếm cú bấm tới hộp ở pha nổi bọt: kéo thì 0 (bị nuốt), bấm thường thì 1.
+  await table(page).evaluate(el => {
+    (window as any).__clicks = 0;
+    el.addEventListener('click', () => (window as any).__clicks++);
+  });
+  const clicks = () => page.evaluate(() => (window as any).__clicks as number);
   const name = (await table(page).getByRole('link', { name: 'Lê Hoàng Nam', exact: true }).boundingBox())!;
   await page.mouse.move(name.x + name.width / 2, name.y + name.height / 2);
   await page.mouse.down();
@@ -136,6 +152,22 @@ test('frozen columns stay put and mouse drag scrolls without opening a slip', as
   await page.mouse.up();
   await expect(page).not.toHaveURL(/phieu=/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(await clicks()).toBe(0);
+  await table(page).locator('thead th.who').click();
+  expect(await clicks()).toBe(1);
+});
+
+test('a press released outside the table does not start a drag later', async ({ page }) => {
+  await page.goto(URL10);
+  const box = (await table(page).boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 2, box.y + 120);
+  await page.mouse.move(box.x + box.width / 2, box.y - 40);
+  await page.mouse.up();
+  await page.mouse.move(box.x + box.width / 2, box.y + 120);
+  await page.mouse.move(box.x + box.width / 2 - 200, box.y + 120, { steps: 10 });
+  expect(await table(page).evaluate(el => el.scrollLeft)).toBe(0);
 });
 
 test('export downloads the shown rows, or only the selected ones', async ({ page }) => {
@@ -166,4 +198,27 @@ test('payroll fits 375px and the table scrolls in its own region', async ({ page
   expect(await table(page).evaluate(el => el.scrollWidth > el.clientWidth)).toBeTruthy();
   const who = (await rows(page).first().locator('th.who').boundingBox())!;
   expect(Math.round(who.width)).toBe(184);
+  await expect(table(page).locator('thead .gh > span').first()).toHaveCSS('left', '198px');
+});
+
+test('csv quotes cells holding ; " or a line break', () => {
+  const line = {
+    id: 'GFT-9',
+    name: 'A;B',
+    dept: 'Có "ngoặc"',
+    title: 'Dòng 1\nDòng 2',
+    days: 1,
+    workPay: 0,
+    kpiPay: 0,
+    allowance: 0,
+    ot: 0,
+    lateCut: 0,
+    gross: 0,
+    insurance: 0,
+    tax: 0,
+    advance: 0,
+    net: 0,
+    status: 'draft'
+  } as unknown as PayrollLine;
+  expect(payrollCsv([line]).split('\r\n')[1]).toBe('GFT-9;"A;B";"Có ""ngoặc""";"Dòng 1\nDòng 2";1;0;0;0;0;0;0;0;0;0;0;Nháp');
 });

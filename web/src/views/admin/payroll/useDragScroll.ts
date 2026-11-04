@@ -21,6 +21,13 @@ export function useDragScroll(el: Ref<HTMLElement | null>): void {
   const move = (e: PointerEvent) => {
     const box = el.value;
     if (!box || e.pointerId !== pointer) return;
+    // Nút đã nhả ngoài hộp trước khi vượt ngưỡng (chưa bắt con trỏ nên pointerup không về đây): bỏ lần nhấn đó.
+    if (!(e.buttons & 1)) {
+      pointer = -1;
+      dragging = false;
+      box.classList.remove('dragging');
+      return;
+    }
     const dx = e.clientX - startX;
     if (!dragging) {
       if (Math.abs(dx) <= THRESHOLD) return;
