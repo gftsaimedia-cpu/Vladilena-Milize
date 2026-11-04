@@ -89,3 +89,63 @@ test('blocked storage still opens admin', async ({ page }) => {
   await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
   expect(calls).toEqual([]);
 });
+
+// Như startLoggedOut nhưng chỉ ghi 'none' khi chưa có khoá, để điều hướng/tải lại sau đó không đè phiên vừa đăng nhập.
+async function startLoggedOutOnce(page: Page) {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('aicb.mock.session') === null) localStorage.setItem('aicb.mock.session', 'none');
+  });
+  await page.goto('/dang-nhap');
+}
+
+async function loginAs(page: Page, name: string) {
+  await startLoggedOutOnce(page);
+  await page.getByLabel('Tên đăng nhập').fill(name);
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('x');
+  await page.getByRole('button', { name: 'Đăng nhập' }).click();
+}
+
+test('staff login can sign out back to /dang-nhap', async ({ page }) => {
+  const calls = trackApi(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await loginAs(page, 'nhanvien');
+  await expect(page).toHaveURL(/\/nv-may-tinh/);
+  await page.locator('.top .u').click();
+  await page.getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  expect(calls).toEqual([]);
+});
+
+test('staff login on a phone can sign out from the Tôi tab', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await loginAs(page, 'nhanvien');
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Tôi' }).click();
+  await expect(page).toHaveURL(/\/nv\/toi/);
+  await page.getByRole('button', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+});
+
+test('session survives when only setItem fails', async ({ page }) => {
+  await page.addInitScript(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key.startsWith('aicb.')) throw new Error('storage write blocked');
+      return setItem.call(this, key, value);
+    };
+  });
+  await page.goto('/dang-nhap');
+  // Chưa có khoá thì mặc định là admin và bị chuyển đi; đăng xuất để vào màn đăng nhập.
+  await page.waitForURL(/\/admin\/tong-quan/);
+  await page.locator('#admin-navigation button.me').click();
+  await page.getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  await page.getByLabel('Tên đăng nhập').fill('nhanvien');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('x');
+  await page.getByRole('button', { name: 'Đăng nhập' }).click();
+  await expect(page).toHaveURL(/\/nv-may-tinh/);
+  await page.locator('.top .u').click();
+  await page.getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+});

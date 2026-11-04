@@ -20,10 +20,10 @@ async function signOut() {
 
 <template>
   <LoadFeedback :loading="loading" :error="error" :has-data="!!data" @retry="reload" />
-  <div v-if="data" class="toi">
-    <header class="ph"><h1>Tôi</h1></header>
+  <div class="toi">
+    <header v-if="data" class="ph"><h1>Tôi</h1></header>
 
-    <section class="sec card">
+    <section v-if="data" class="sec card">
       <div class="me">
         <span class="av">{{ data.initials }}</span>
         <div>
@@ -36,10 +36,10 @@ async function signOut() {
         <span class="v">{{ f.value }}</span>
       </div>
     </section>
-    <p class="src">Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.</p>
+    <p v-if="data" class="src">Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.</p>
 
     <section class="sec card">
-      <button type="button" class="more" @click="open('doi-mat-khau')">
+      <button v-if="data" type="button" class="more" @click="open('doi-mat-khau')">
         <span class="l"
           ><span class="ico"><Icon name="lock" :size="18" /></span>Đổi mật khẩu</span
         >
@@ -52,7 +52,7 @@ async function signOut() {
       </button>
     </section>
 
-    <ChangePasswordSheet v-if="hop === 'doi-mat-khau'" :username="data.username" @close="close" />
+    <ChangePasswordSheet v-if="data && hop === 'doi-mat-khau'" :username="data.username" @close="close" />
   </div>
 </template>
 

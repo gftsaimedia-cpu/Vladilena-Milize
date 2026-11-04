@@ -106,3 +106,19 @@ test('overview fits 375px and the table scrolls in its own region', async ({ pag
   await expect(table).toHaveAttribute('tabindex', '0');
   expect(await table.evaluate(el => el.scrollWidth > el.clientWidth)).toBeTruthy();
 });
+
+test('overview links keep the chosen month', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await page.getByRole('button', { name: 'Tháng trước' }).click();
+  await expect(page).toHaveURL(/thang=2026-09/);
+  const links: [string, RegExp][] = [
+    ['Mở bảng lương', /\/admin\/bang-luong\?thang=2026-09/],
+    ['Xem tất cả', /\/admin\/yeu-cau\?thang=2026-09/],
+    ['Mở bảng lương đầy đủ', /\/admin\/bang-luong\?thang=2026-09/]
+  ];
+  for (const [name, url] of links) {
+    await expect(page.getByRole('link', { name, exact: true })).toHaveAttribute('href', url);
+  }
+  await page.getByRole('link', { name: 'Mở bảng lương', exact: true }).click();
+  await expect(page).toHaveURL(/thang=2026-09/);
+});

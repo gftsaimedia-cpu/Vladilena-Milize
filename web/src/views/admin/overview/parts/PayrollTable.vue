@@ -2,8 +2,12 @@
 // Bảng lương của Tổng quan: lọc theo trạng thái và tìm theo tên / phòng ban chạy tại chỗ trên các dòng mẫu.
 // Trạng thái lọc và chữ tìm thuộc về bảng, không ghi lên đường dẫn.
 import { computed, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { OverviewView, PayrollStatus } from '@/mock/overview';
+
+const route = useRoute();
+const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 
 const props = defineProps<{ payroll: OverviewView['payroll']; slips: OverviewView['period']['slips'] }>();
 
@@ -114,7 +118,7 @@ const rows = computed(() => {
 
     <div class="foot">
       <span>Hiển thị {{ rows.length }} trong {{ payroll.total }} phiếu</span>
-      <RouterLink to="/admin/bang-luong" class="link">Mở bảng lương đầy đủ</RouterLink>
+      <RouterLink :to="linkTo('/admin/bang-luong')" class="link">Mở bảng lương đầy đủ</RouterLink>
     </div>
   </div>
 </template>

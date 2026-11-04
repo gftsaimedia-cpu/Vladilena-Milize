@@ -182,3 +182,47 @@ test('light sidebar is chosen in the account menu and persists', async ({ page }
   await page.reload();
   await check();
 });
+
+test('kem ground keeps the active sidebar link colours in both sidebar styles', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/tong-quan');
+  await page.getByRole('button', { name: /Quản trị viên/ }).click();
+  await page
+    .locator('.pop .mr', { hasText: 'Màu nền' })
+    .getByRole('button', { name: 'Kem' })
+    .click();
+  await expect(page.locator('html')).toHaveAttribute('data-ground', 'kem');
+  const current = page.locator('#admin-navigation a[aria-current="page"]');
+  await expect(current).toHaveCSS('background-color', 'rgb(42, 42, 42)');
+  await expect(current).toHaveCSS('color', 'rgb(232, 195, 114)');
+  await page.locator('.pop .mr', { hasText: 'Thanh bên' }).getByRole('button', { name: 'Sáng' }).click();
+  await expect(current).toHaveCSS('background-color', 'rgb(252, 232, 178)');
+  await expect(current).toHaveCSS('color', 'rgb(33, 33, 33)');
+});
+
+test('bell popover opens below the bell on desktop', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/tong-quan');
+  const bell = page.locator('.topbar .bell');
+  await bell.click();
+  const pop = page.getByRole('dialog', { name: 'Việc cần xử lý' });
+  await expect(pop).toBeVisible();
+  const bellBox = (await bell.boundingBox())!;
+  const popBox = (await pop.boundingBox())!;
+  expect(popBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height);
+  expect(popBox.x + popBox.width).toBeLessThanOrEqual(1440);
+});
+
+test('bell popover stays inside a 375px viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/admin/tong-quan');
+  const bell = page.locator('.topbar .bell');
+  await bell.click();
+  const pop = page.getByRole('dialog', { name: 'Việc cần xử lý' });
+  await expect(pop).toBeVisible();
+  const bellBox = (await bell.boundingBox())!;
+  const popBox = (await pop.boundingBox())!;
+  expect(popBox.x).toBeGreaterThanOrEqual(0);
+  expect(popBox.x + popBox.width).toBeLessThanOrEqual(375);
+  expect(popBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height);
+});

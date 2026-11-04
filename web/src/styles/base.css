@@ -986,7 +986,6 @@ tr.sel td {
 :root[data-ground='kem'] {
   --ground: #f4efe4;
   --raised: #fbf8f1;
-  --side-active-bg: #e8e0cd;
   --border: #e6dfcf;
   --rule: #efe9dc;
 }

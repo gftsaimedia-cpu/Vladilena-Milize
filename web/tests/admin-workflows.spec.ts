@@ -189,8 +189,7 @@ test.fixme(
   }
 );
 
-test('staff issue filter is reproducible and a denied list is not presented as an empty result', async ({ page }) => {
-  await mockAdminApi(page);
+test('staff issue filter is reproducible from the URL and switches on click', async ({ page }) => {
   await page.goto('/admin/nhan-su?loc=thieu-ngay&thang=2026-10');
   await expect(page.getByRole('button', { name: /Thiếu ngày bắt đầu/ })).toHaveClass(/on/);
   await expect(page).toHaveURL(/loc=thieu-ngay/);

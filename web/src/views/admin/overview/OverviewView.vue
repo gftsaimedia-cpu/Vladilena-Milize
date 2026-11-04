@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Tổng quan (tong-quan) trên dữ liệu giả: chỉ số chính, chấm công, kỳ lương, việc cần duyệt, bảng lương.
 // Duyệt / từ chối: bỏ yêu cầu khỏi danh sách giả, tải lại màn và số đếm của khung, rồi báo bằng toast.
+import { useRoute } from 'vue-router';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -14,6 +15,8 @@ import KpiRow from './parts/KpiRow.vue';
 import PayrollTable from './parts/PayrollTable.vue';
 import PeriodCard from './parts/PeriodCard.vue';
 
+const route = useRoute();
+const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 const period = usePeriodStore();
 const shell = useShellStore();
 const { data, reload } = useLoad(
@@ -46,7 +49,7 @@ async function decide(id: string, approve: boolean) {
         </p>
       </div>
       <div class="acts">
-        <RouterLink to="/admin/bang-luong" class="btn pri"> <Icon name="cash" />Mở bảng lương </RouterLink>
+        <RouterLink :to="linkTo('/admin/bang-luong')" class="btn pri"> <Icon name="cash" />Mở bảng lương </RouterLink>
       </div>
     </div>
 

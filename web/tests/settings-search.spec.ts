@@ -134,7 +134,6 @@ test.fixme(
 );
 
 test('frame search carries only month context and returns to its source with Back', async ({ page }) => {
-  await mockSettingsApi(page);
   const source = '/admin/cai-dat/lich?thang=2026-11&hop=them-chuc-vu&group=old&setting=old.setting';
   await page.goto(source);
   await page.getByLabel('Tìm cài đặt').fill('thuế');

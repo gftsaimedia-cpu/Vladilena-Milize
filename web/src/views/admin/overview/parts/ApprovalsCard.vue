@@ -1,11 +1,15 @@
 <script setup lang="ts">
 // Thẻ Việc cần duyệt: 3 yêu cầu đầu của danh sách chờ; Từ chối / Duyệt báo lên màn qua emit.
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { PendingRequest } from '@/mock/approvals';
 
 const props = defineProps<{ approvals: PendingRequest[] }>();
 defineEmits<{ approve: [id: string]; reject: [id: string] }>();
+
+const route = useRoute();
+const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 
 const SHOWN = 3;
 const shown = computed(() => props.approvals.slice(0, SHOWN));
@@ -16,7 +20,7 @@ const shown = computed(() => props.approvals.slice(0, SHOWN));
     <div class="head">
       <h2 id="ov-ap-h">Việc cần duyệt</h2>
       <span class="count">{{ approvals.length }}</span>
-      <RouterLink to="/admin/yeu-cau" class="link all">Xem tất cả</RouterLink>
+      <RouterLink :to="linkTo('/admin/yeu-cau')" class="link all">Xem tất cả</RouterLink>
     </div>
 
     <ul v-if="shown.length" class="list" aria-label="Việc cần duyệt">

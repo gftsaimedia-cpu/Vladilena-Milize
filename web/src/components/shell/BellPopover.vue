@@ -10,6 +10,7 @@ import { dm, monthShort } from '@/utils/format';
 const emit = defineEmits(['close']);
 const { data } = useLoad(() => getBell());
 const root = ref(null);
+const top = ref(72);
 
 // Bấm lên chính nút chuông thì để nút tự đóng/mở, không đóng ở đây
 const onDown = (e?) => {
@@ -19,6 +20,8 @@ const onKey = (e?) => {
   if (e.key === 'Escape') emit('close');
 };
 onMounted(() => {
+  const anchor = document.querySelector('.topbar .bell');
+  if (anchor) top.value = Math.round(anchor.getBoundingClientRect().bottom + 8);
   document.addEventListener('pointerdown', onDown);
   document.addEventListener('keydown', onKey);
 });
@@ -29,7 +32,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="pop" role="dialog" aria-label="Việc cần xử lý">
+  <div ref="root" class="pop" role="dialog" aria-label="Việc cần xử lý" :style="{ top: top + 'px' }">
     <template v-if="data">
       <div class="ph">
         Việc cần xử lý <small>tháng {{ monthShort(data.month) }} · {{ data.total }} việc</small>
@@ -70,7 +73,6 @@ onBeforeUnmount(() => {
 <style scoped>
 .pop {
   position: fixed;
-  top: 72px;
   right: 32px;
   width: 380px;
   z-index: 60;
@@ -78,6 +80,13 @@ onBeforeUnmount(() => {
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.16);
+}
+@media (max-width: 767px) {
+  .pop {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
 }
 .ph {
   padding: 14px 16px 8px;

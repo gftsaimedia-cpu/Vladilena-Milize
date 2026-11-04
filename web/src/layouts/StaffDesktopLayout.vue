@@ -7,6 +7,7 @@ import logo from '@/assets/img/gft-logo-light.png';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { logout } from '@/services/session';
+import { useSessionStore } from '@/stores/session';
 import { getStaffMe } from '@/services/staff-desktop';
 import AccountPopover from '@/views/staff-desktop/parts/AccountPopover.vue';
 import ProfileDialog from '@/views/staff-desktop/parts/ProfileDialog.vue';
@@ -14,10 +15,17 @@ import ProfileDialog from '@/views/staff-desktop/parts/ProfileDialog.vue';
 const route = useRoute();
 const router = useRouter();
 const kb = computed(() => (typeof route.query.kb === 'string' && route.query.kb ? route.query.kb : 'linh'));
-const { data: me } = useLoad(
+const { data: loaded } = useLoad(
   () => getStaffMe(),
   () => kb.value
 );
+// Hồ sơ nhân viên chưa có dữ liệu giả: lấy tên và chữ viết tắt từ phiên để vẫn có nút tài khoản và Đăng xuất.
+const session = useSessionStore();
+const me = computed(() => {
+  if (loaded.value) return loaded.value;
+  const s = session.shellMe;
+  return s.username ? { ...s, roleLine: s.roleLabel } : null;
+});
 
 const menuOpen = ref(false);
 const profileOpen = ref(false);

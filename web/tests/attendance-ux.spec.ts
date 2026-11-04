@@ -190,7 +190,6 @@ test.fixme(
 
 test('Today title action remains available when monthly attendance summary is empty', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await mockAttendance(page, true, true);
   await page.goto('/admin/cham-cong?thang=2026-11');
 
   const today = page.getByRole('button', { name: 'Hôm nay', exact: true });

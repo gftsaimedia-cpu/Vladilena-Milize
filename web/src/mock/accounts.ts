@@ -47,11 +47,14 @@ let memoryValue: string | null = null;
 
 // Trả tên đang đăng nhập, hoặc null khi đã đăng xuất.
 export function readSessionName(): string | null {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(SESSION_KEY);
-  } catch {
-    raw = memoryValue;
+  // Đã phải ghi vào biến trong module (setItem lỗi) thì giá trị đó là bản mới nhất, đọc trước.
+  let raw: string | null = memoryValue;
+  if (raw === null) {
+    try {
+      raw = localStorage.getItem(SESSION_KEY);
+    } catch {
+      raw = null;
+    }
   }
   if (raw === null) return DEFAULT_NAME;
   return raw === SIGNED_OUT ? null : raw;
@@ -61,6 +64,7 @@ export function writeSessionName(name: string | null): void {
   const value = name === null ? SIGNED_OUT : name;
   try {
     localStorage.setItem(SESSION_KEY, value);
+    memoryValue = null;
   } catch {
     memoryValue = value;
   }
