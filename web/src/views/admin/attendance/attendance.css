@@ -1,6 +1,7 @@
 /* Phần dùng chung của Chấm công theo tuần và Hồ sơ chấm công: ô trạng thái (.pill), chấm "đang làm", chú giải màu (.legend, .gc).
-   Năm nhóm màu: đi làm #1c1c1c, đi muộn/về sớm vàng, nghỉ có phép #2f5aa8, vắng #b43f3f, cần xử lý trắng viền cam. */
-.b {
+   Năm nhóm màu: đi làm #1c1c1c, đi muộn/về sớm vàng, nghỉ có phép #2f5aa8, vắng #b43f3f, cần xử lý trắng viền cam.
+   Các selector chung (.b, .legend, .gc) nằm dưới .att, gốc của hai màn trên: file CSS này ở lại sau khi rời màn, nên không để lọt sang màn khác. */
+.att .b {
   display: inline-block;
   flex: none;
   width: 12px;
@@ -8,51 +9,42 @@
   border-radius: 4px;
   box-sizing: border-box;
 }
-.b.work {
+.att .b.work {
   background: #1c1c1c;
 }
-.b.late {
+.att .b.late {
   background: #e8c372;
 }
-.b.leave {
+.att .b.leave {
   background: #2f5aa8;
 }
-.b.absent {
+.att .b.absent {
   background: #b43f3f;
 }
-.b.todo {
+.att .b.todo {
   background: #ffffff;
   border: 2px solid #eb973d;
 }
-.b.fu {
+.att .b.fu {
   background: #ffffff;
   border: 1px dashed #9e9e9e;
 }
 
-.legend {
+.att .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 8px 20px;
 }
-.gc {
-  height: 32px;
+.att .gc {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px 0 10px;
-  border-radius: 50px;
-  background: #ffffff;
-  border: 1px solid var(--border);
+  height: 24px;
   font-size: 13px;
   color: var(--text);
 }
-.gc .ct {
-  color: var(--muted);
+.att .gc .ct {
   font-variant-numeric: tabular-nums;
-}
-.gc.fu {
-  border-color: transparent;
-  color: var(--muted);
 }
 
 /* Ô trạng thái: một nút (hoặc span khi không có ca) cao 30px. Chỉ áp cho tám kiểu dưới đây, không đụng .pill chung. */

@@ -80,87 +80,94 @@ function onTabKey(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="title">
-    <div>
-      <h1>Chấm công</h1>
-      <p v-if="data">{{ data.subtitle }}</p>
+  <div class="att">
+    <div class="title">
+      <div>
+        <h1>Chấm công</h1>
+        <p v-if="data">{{ data.subtitle }}</p>
+      </div>
     </div>
-  </div>
 
-  <template v-if="data">
-    <section class="tiles" aria-label="Chỉ số chấm công">
-      <article v-for="t in data.tiles" :key="t.key" class="tile" :class="{ dark: t.key === 'todo' }" :aria-label="t.label">
-        <span class="tile-l">
-          <span v-if="TILE_SWATCH[t.key]" class="b" :class="TILE_SWATCH[t.key]" aria-hidden="true" />{{ t.label }}
-        </span>
-        <span class="tile-v">{{ tileMain(t.value)[0] }}<span v-if="tileMain(t.value)[1]" class="of">{{ tileMain(t.value)[1] }}</span></span>
-        <span class="tile-n">{{ t.note }}</span>
-      </article>
-    </section>
+    <template v-if="data">
+      <section class="tiles" aria-label="Chỉ số chấm công">
+        <article v-for="t in data.tiles" :key="t.key" class="tile" :class="{ dark: t.key === 'todo' }" :aria-label="t.label">
+          <span class="tile-l">
+            <span v-if="TILE_SWATCH[t.key]" class="b" :class="TILE_SWATCH[t.key]" aria-hidden="true" />{{ t.label }}
+          </span>
+          <span class="tile-v">{{ tileMain(t.value)[0] }}<span v-if="tileMain(t.value)[1]" class="of">{{ tileMain(t.value)[1] }}</span></span>
+          <span class="tile-n">{{ t.note }}</span>
+        </article>
+      </section>
 
-    <section class="card board" aria-label="Bảng công theo tuần">
-      <div class="bar">
-        <div class="tabs2" role="tablist" aria-label="Kiểu xem" @keydown="onTabKey">
-          <button
-            id="att-tab-week"
-            type="button"
-            role="tab"
-            :aria-selected="view === 'week'"
-            :tabindex="view === 'week' ? 0 : -1"
-            @click="pickTab('week')"
-          >
-            Tuần
-          </button>
-          <button
-            id="att-tab-pending"
-            type="button"
-            role="tab"
-            :aria-selected="view === 'pending'"
-            :tabindex="view === 'pending' ? 0 : -1"
-            @click="pickTab('pending')"
-          >
-            Cần xử lý<span class="badge">{{ data.pending.length }}</span>
-          </button>
+      <section class="card board" aria-label="Bảng công theo tuần">
+        <div class="bar">
+          <div class="tabs2" role="tablist" aria-label="Kiểu xem" @keydown="onTabKey">
+            <button
+              id="att-tab-week"
+              type="button"
+              role="tab"
+              :aria-selected="view === 'week'"
+              :tabindex="view === 'week' ? 0 : -1"
+              @click="pickTab('week')"
+            >
+              Tuần
+            </button>
+            <button
+              id="att-tab-pending"
+              type="button"
+              role="tab"
+              :aria-selected="view === 'pending'"
+              :tabindex="view === 'pending' ? 0 : -1"
+              @click="pickTab('pending')"
+            >
+              Cần xử lý<span class="badge">{{ data.pending.length }}</span>
+            </button>
+          </div>
+          <label class="fsearch">
+            <Icon name="search" :size="16" />
+            <input
+              type="text"
+              placeholder="Lọc theo tên…"
+              aria-label="Lọc theo tên"
+              :value="q"
+              @input="setQuery({ q: ($event.target as HTMLInputElement).value })"
+            />
+          </label>
+          <label class="fsel">
+            <select
+              aria-label="Phòng ban"
+              :value="dept"
+              @change="setQuery({ pb: ($event.target as HTMLSelectElement).value })"
+            >
+              <option value="">Phòng ban: Tất cả</option>
+              <option v-for="d in DEPARTMENTS" :key="d" :value="d">{{ d }}</option>
+            </select>
+            <Icon name="chev" :size="16" />
+          </label>
         </div>
-        <label class="fsearch">
-          <Icon name="search" :size="16" />
-          <input
-            type="text"
-            placeholder="Lọc theo tên…"
-            aria-label="Lọc theo tên"
-            :value="q"
-            @input="setQuery({ q: ($event.target as HTMLInputElement).value })"
-          />
-        </label>
-        <label class="fsel">
-          <select
-            aria-label="Phòng ban"
-            :value="dept"
-            @change="setQuery({ pb: ($event.target as HTMLSelectElement).value })"
-          >
-            <option value="">Phòng ban: Tất cả</option>
-            <option v-for="d in DEPARTMENTS" :key="d" :value="d">{{ d }}</option>
-          </select>
-          <Icon name="chev" :size="16" />
-        </label>
-      </div>
 
-      <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
-      <template v-else>
-        <p v-if="filtered && !pending.length && data.pending.length" class="none">Không có nhân viên nào khớp.</p>
-        <PendingList v-else :pending="pending" @open-day="openDay" />
-      </template>
+        <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
+        <template v-else>
+          <p v-if="filtered && !pending.length && data.pending.length" class="none">Không có nhân viên nào khớp.</p>
+          <PendingList v-else :pending="pending" @open-day="openDay" />
+        </template>
 
-      <div v-if="view === 'week'" class="foot">
-        <span class="hint">Kéo ngang bảng để xem tuần trước, tuần sau · bấm tên để mở hồ sơ · bấm ô để xem chi tiết ngày</span>
-        <span class="live"><span class="dot" aria-hidden="true" />Đang làm</span>
-        <span class="cnt">Hiển thị {{ rows.length }} trong {{ data.total }} nhân viên</span>
-      </div>
-    </section>
-  </template>
-  <p v-else-if="!loading" class="none">Chưa có dữ liệu chấm công giả cho tháng {{ monthText }}.</p>
+        <div v-if="view === 'week'" class="foot">
+          <span class="live"><span class="dot" aria-hidden="true" />Đang làm</span>
+          <span class="cnt">Hiển thị {{ rows.length }} trong {{ data.total }} nhân viên</span>
+        </div>
+      </section>
+    </template>
+    <p v-else-if="!loading" class="none">Chưa có dữ liệu chấm công giả cho tháng {{ monthText }}.</p>
 
-  <DayDetailDialog v-if="day" :person-id="day.personId" :date="day.date" @close="closeDay" />
+    <DayDetailDialog
+      v-if="day"
+      :key="`${day.personId}|${day.date}`"
+      :person-id="day.personId"
+      :date="day.date"
+      @close="closeDay"
+    />
+  </div>
 </template>
 
 <style scoped>

@@ -243,3 +243,37 @@ test('old attendance links land on the week view', async ({ page }) => {
   await expect(page).toHaveURL(/\/admin\/cham-cong$/);
   await expect(dialogOf(page)).toHaveCount(0);
 });
+
+test('attendance css stays inside the attendance screens after navigating away', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Tổng quan', exact: true }).click();
+  await expect(page).toHaveURL(/tong-quan/);
+  // Phần tử mang class chung (.b của ô chữ ở Nhân sự, .legend ở Tổng quan) không được nhận kiểu của chú giải chấm công.
+  const styles = await page.evaluate(() => {
+    const probe = (cls: string) => {
+      const el = document.createElement('div');
+      el.className = cls;
+      el.textContent = 'Thử nghiệm kiểu dáng';
+      document.body.append(el);
+      const cs = getComputedStyle(el);
+      const out = { width: el.getBoundingClientRect().width, display: cs.display, radius: cs.borderTopLeftRadius };
+      el.remove();
+      return out;
+    };
+    return { b: probe('b'), legend: probe('legend') };
+  });
+  expect(styles.b.display).toBe('block');
+  expect(styles.b.width).toBeGreaterThan(12);
+  expect(styles.b.radius).toBe('0px');
+  expect(styles.legend.display).toBe('block');
+});
+
+test('legend items are flat: no capsule, no border', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  const item = page.locator('[data-group="work"]');
+  await expect(item).toBeVisible();
+  await expect(item).toHaveCSS('border-top-width', '0px');
+  await expect(item).toHaveCSS('border-top-left-radius', '0px');
+  await expect(item).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+});
