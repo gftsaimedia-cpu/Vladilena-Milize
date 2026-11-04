@@ -123,7 +123,7 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
 
     <SlipAttendance :slip="slip" :month="month" />
     <SlipSummary :slip="view" :month="month">
-      <template #kpi><SlipKpi :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
+      <template #kpi><SlipKpi :key="slip.id" :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
       <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>
     </SlipSummary>
   </AppDrawer>

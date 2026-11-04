@@ -430,6 +430,28 @@ test('score inputs drop junk and cap at 100', async ({ page }) => {
   await expect(d.getByText('Thiếu điểm Tự đánh giá')).toBeVisible();
 });
 
+test('typing a decimal key by key stops at the point instead of becoming 725', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
+  for (const typed of ['72,5', '72.5']) {
+    await self.fill('');
+    await self.pressSequentially(typed);
+    await expect(self).toHaveValue('72');
+    await expect(line(d, /^Tổng điểm KPI/)).toContainText('65,96%');
+  }
+  // Xoá một ký tự thì gõ tiếp được: "7" rồi "3" thành 73.
+  await self.press('Backspace');
+  await expect(self).toHaveValue('7');
+  await self.pressSequentially('3');
+  await expect(self).toHaveValue('73');
+  await expect(line(d, /^Tổng điểm KPI/)).toContainText('66,02%');
+  // Dán / điền cả chuỗi vẫn cắt tại dấu; gõ liền "725" không dấu vẫn kẹp 100.
+  await self.fill('');
+  await self.pressSequentially('725');
+  await expect(self).toHaveValue('100');
+});
+
 test('score inputs are 56x32 rectangles with 8px corners and a 2px ink focus ring', async ({ page }) => {
   await page.goto(`${URL10}&phieu=GFT-0142`);
   const d = slip(page, 'Lê Hoàng Nam');

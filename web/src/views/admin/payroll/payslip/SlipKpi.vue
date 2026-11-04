@@ -16,7 +16,20 @@ const SHORT: Record<KpiPart, string> = {
   self: 'Tự đánh giá'
 };
 
-// Dấu thập phân (, hoặc .) cắt bỏ nó và phần sau ("72,5" thành 72); ký tự khác không phải số thì bỏ riêng ("1a5" thành 15).
+// Gõ từng phím: "," hay "." bị chặn và đánh dấu ô là "đã qua dấu thập phân"; khi đó các ký tự gõ tiếp bị chặn, nên "72,5"
+// ra 72 chứ không thành 725. Xoá bất kỳ ký tự nào, rời ô, hay đổi phiếu (SlipKpi gắn khoá theo phiếu) thì bỏ dấu đánh.
+const pastPoint = new Set<KpiPart>();
+function onBeforeInput(part: KpiPart, e: InputEvent) {
+  if (e.inputType.startsWith('delete')) pastPoint.delete(part);
+  else if (e.inputType === 'insertText') {
+    if (e.data === ',' || e.data === '.') {
+      pastPoint.add(part);
+      e.preventDefault();
+    } else if (pastPoint.has(part)) e.preventDefault();
+  }
+}
+
+// Dán hay điền cả chuỗi: dấu thập phân (, hoặc .) cắt bỏ nó và phần sau ("72,5" thành 72); ký tự khác không phải số thì bỏ riêng ("1a5" thành 15).
 // Trên 100 thành 100, trống là null (thiếu điểm). Gán lại el.value để "150" hiện "100", "007" hiện "7".
 function onInput(part: KpiPart, e: Event) {
   const el = e.target as HTMLInputElement;
@@ -40,7 +53,9 @@ function onInput(part: KpiPart, e: Event) {
           :class="{ empty: scores[p] == null }"
           :value="scores[p] ?? ''"
           :aria-label="`Điểm ${KPI_LABELS[p]} của ${name}, phần trăm`"
+          @beforeinput="onBeforeInput(p, $event as InputEvent)"
           @input="onInput(p, $event)"
+          @blur="pastPoint.delete(p)"
           @change="emit('save', p)"
         />
         <span aria-hidden="true">%</span>
