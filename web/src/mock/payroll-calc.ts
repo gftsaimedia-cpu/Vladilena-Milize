@@ -46,6 +46,10 @@ export type SlipCalc = {
   net: number;
 };
 
+/** Điểm KPI là phần trăm nguyên 0-100: kẹp vào khoảng, làm tròn về số nguyên; trống hoặc không phải số là thiếu điểm (null), không phải 0. */
+export const normalizeScore = (v: number | null | undefined): number | null =>
+  v == null || !Number.isFinite(v) ? null : Math.min(100, Math.max(0, Math.round(v)));
+
 /** Điểm trống tính 0 và tên cột vào `missing`. Điểm × trọng số là số nguyên nên tổng không lệch số lẻ. */
 export function kpiScore(scores: KpiScores): { percent: number; missing: KpiPart[] } {
   const points = PARTS.reduce((sum, p) => sum + (scores[p] ?? 0) * MOCK_KPI_WEIGHTS[p], 0);

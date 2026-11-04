@@ -344,3 +344,148 @@ test('KPI group renders no slot rows when the slots are empty', async ({ page })
   await expect(kpiGroup(page)).toHaveCount(3);
   await expect(page.getByText('SLOT-KPI')).toHaveCount(0);
 });
+
+// Chấm điểm KPI trong phiếu (spec 4.4): gõ là tính lại, rời ô là lưu, lịch sử sửa điểm.
+const score = (d: ReturnType<typeof slip>, part: string, name: string) => d.getByLabel(`Điểm ${part} của ${name}, phần trăm`);
+
+test('payslip history lists the past score edits', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const toggle = d.getByRole('button', { name: 'Lịch sử sửa điểm (3)' });
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  const items = d.getByRole('list', { name: 'Lịch sử sửa điểm' }).getByRole('listitem');
+  await expect(items).toHaveCount(3);
+  await expect(items.first()).toContainText('27/10 · Quản lý trực tiếp 60 → 65');
+  await expect(items.first()).toContainText('Trưởng phòng Kinh doanh');
+});
+
+test('typing a score recomputes KPI, tax and net at once', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Võ Đức Thịnh');
+  const d = slip(page, 'Võ Đức Thịnh');
+  await expect(d.getByText('Chưa sửa điểm lần nào')).toBeVisible();
+  await score(d, 'Tự đánh giá', 'Võ Đức Thịnh').fill('100');
+  await expect(line(d, /^Tổng điểm KPI/)).toContainText('84,52%');
+  await expect(line(d, /^Lương KPI \(đề xuất/)).toContainText('3.380.800');
+  await expect(line(d, /^Thuế TNCN/)).toContainText('134.809');
+  await expect(line(d, /^Thực nhận/)).toContainText('24.261.376 ₫');
+  await score(d, 'Tự đánh giá', 'Võ Đức Thịnh').press('Tab');
+  await d.getByRole('button', { name: 'Lịch sử sửa điểm (1)' }).click();
+  await expect(d.getByRole('list', { name: 'Lịch sử sửa điểm' })).toContainText('28/10 · Tự đánh giá 85 → 100');
+  await d.getByRole('button', { name: 'Đóng' }).click();
+  await expect(row(page, 'Võ Đức Thịnh')).toContainText('24.261.376');
+});
+
+test('a missing score counts as zero and is flagged', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0063`);
+  const huy = slip(page, 'Bùi Quốc Huy');
+  const self = score(huy, 'Tự đánh giá', 'Bùi Quốc Huy');
+  await expect(self).toHaveCSS('border-top-color', 'rgb(235, 151, 61)');
+  await expect(huy.getByText('Thiếu điểm Tự đánh giá')).toBeVisible();
+  await self.fill('80');
+  await expect(huy.getByText('Thiếu điểm Tự đánh giá')).toHaveCount(0);
+  await expect(line(huy, /^Tổng điểm KPI/)).toContainText('78,86%');
+  await expect(line(huy, /^Lương KPI \(đề xuất/)).toContainText('1.577.200');
+  await self.press('Tab');
+  await huy.getByRole('button', { name: 'Đóng' }).click();
+  await expect(row(page, 'Bùi Quốc Huy').locator('[title^="Thiếu điểm"]')).toHaveCount(0);
+  await openSlip(page, 'Lê Hoàng Nam');
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await score(nam, 'Base Wework', 'Lê Hoàng Nam').fill('');
+  await expect(nam.getByText('Thiếu điểm Base Wework')).toBeVisible();
+  await expect(line(nam, /^Tổng điểm KPI/)).toContainText('41,34%');
+  await expect(line(nam, /^Thực nhận/)).toContainText('13.782.183 ₫');
+});
+
+test('closing right after typing keeps the score', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0123`);
+  await score(slip(page, 'Võ Đức Thịnh'), 'Tự đánh giá', 'Võ Đức Thịnh').fill('100');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(row(page, 'Võ Đức Thịnh')).toContainText('24.261.376');
+});
+
+test('moving to the next slip right after typing keeps the score', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0123`);
+  const d = slip(page, 'Võ Đức Thịnh');
+  await score(d, 'Tự đánh giá', 'Võ Đức Thịnh').fill('100');
+  await d.getByRole('button', { name: 'Phiếu sau' }).click();
+  await expect(slip(page, 'Đỗ Mai Linh')).toBeVisible();
+  await slip(page, 'Đỗ Mai Linh').getByRole('button', { name: 'Đóng' }).click();
+  await expect(row(page, 'Võ Đức Thịnh')).toContainText('24.261.376');
+});
+
+test('score inputs drop junk and cap at 100', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
+  for (const [typed, shown] of [['abc', ''], ['150', '100'], ['1a5', '15'], ['007', '7']]) {
+    await self.fill(typed);
+    await expect(self).toHaveValue(shown);
+  }
+  await self.fill('abc');
+  await expect(d.getByText('Thiếu điểm Tự đánh giá')).toBeVisible();
+});
+
+test('score inputs are 56x32 rectangles with 8px corners and a 2px ink focus ring', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const wework = score(d, 'Base Wework', 'Lê Hoàng Nam');
+  await expect(wework).toHaveCSS('border-top-left-radius', '8px');
+  const b = (await wework.boundingBox())!;
+  expect([Math.round(b.width), Math.round(b.height)]).toEqual([56, 32]);
+  await expect(d.getByText('Base Wework (40%)')).toBeVisible();
+  await expect(d.getByText('Tự đánh giá (6%)')).toBeVisible();
+  // Mọi ô nằm trong khung 8px của bảng phiếu.
+  const edge = await d.evaluate(el => {
+    const t = el.querySelector('.ss-t')!.getBoundingClientRect();
+    return [...el.querySelectorAll('input')].map(i => i.getBoundingClientRect().left - t.left);
+  });
+  expect(edge).toHaveLength(5);
+  expect(Math.min(...edge)).toBeGreaterThanOrEqual(8);
+  await wework.focus();
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Tab');
+  await expect(wework).toBeFocused();
+  await expect(wework).toHaveCSS('outline-width', '2px');
+  await expect(wework).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+});
+
+test('disabling an arrow at a list end moves focus to the other arrow', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Trần Minh Quân');
+  const quan = slip(page, 'Trần Minh Quân');
+  await quan.getByRole('button', { name: 'Phiếu trước' }).click();
+  const ha = slip(page, 'Nguyễn Thu Hà');
+  await expect(ha.getByRole('button', { name: 'Phiếu trước' })).toBeDisabled();
+  await expect(ha.getByRole('button', { name: 'Phiếu sau' })).toBeFocused();
+  await ha.getByRole('button', { name: 'Đóng' }).click();
+  await openSlip(page, 'Ngô Gia Bảo');
+  await slip(page, 'Ngô Gia Bảo').getByRole('button', { name: 'Phiếu trước' }).click();
+  await slip(page, 'Lý Thanh Tâm').getByRole('button', { name: 'Phiếu sau' }).click();
+  const bao = slip(page, 'Ngô Gia Bảo');
+  await expect(bao.getByRole('button', { name: 'Phiếu sau' })).toBeDisabled();
+  await expect(bao.getByRole('button', { name: 'Phiếu trước' })).toBeFocused();
+});
+
+test('payslip on a 375px phone has no sideways scroll', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await expect(score(d, 'Base Wework', 'Lê Hoàng Nam')).toBeVisible();
+  expect(await d.evaluate(el => el.scrollWidth <= el.clientWidth)).toBeTruthy();
+  await expect(d.getByRole('button', { name: 'Đóng' })).toBeVisible();
+  // Lưới ô điểm 3 cột: ô thứ tư xuống hàng hai.
+  const tops = await d.locator('input').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
+  expect(new Set(tops.slice(0, 3)).size).toBe(1);
+  expect(tops[3]).toBeGreaterThan(tops[0]);
+});
+
+test('KPI group keeps 35px rows around the score cells', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  expect(Math.round((await line(d, /^Tổng điểm KPI/).boundingBox())!.height)).toBe(35);
+  expect(Math.round((await line(d, /^Lương KPI \(đề xuất/).boundingBox())!.height)).toBe(35);
+});

@@ -80,3 +80,20 @@ test('editing scores writes history and deciding changes the counts', () => {
   if (v.empty) throw new Error('tháng 10 phải có dữ liệu');
   expect(v.counts).toEqual({ all: 128, draft: 12, pending: 27, done: 87, rejected: 2 });
 });
+
+test('saved scores are clamped to 0-100 and rounded; empty means missing, not 0', () => {
+  const scores = (v: number | null) => setKpiScore('2026-10', 'GFT-0156', 'self', v)!.kpi.scores.self;
+  expect(scores(150)).toBe(100);
+  expect(scores(-5)).toBe(0);
+  expect(scores(72.6)).toBe(73);
+  expect(scores(Number.NaN)).toBeNull();
+  const empty = setKpiScore('2026-10', 'GFT-0156', 'self', null)!;
+  expect(empty.kpi.scores.self).toBeNull();
+  expect(empty.calc.kpiMissing).toEqual(['self']);
+  // 150 và 100 là cùng một điểm sau khi kẹp: không thêm dòng lịch sử.
+  scores(100);
+  const n = payslipView('2026-10', 'GFT-0156')!.kpi.history.length;
+  expect(scores(150)).toBe(100);
+  expect(payslipView('2026-10', 'GFT-0156')!.kpi.history).toHaveLength(n);
+  expect(payslipView('2026-10', 'GFT-0156')!.kpi.history[0].text).toMatch(/ 100$/);
+});

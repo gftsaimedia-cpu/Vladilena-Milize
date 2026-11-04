@@ -1,33 +1,78 @@
 <script setup lang="ts">
 // Phiếu lương một người (board H): ngăn kéo nổi gồm đầu phiếu, định danh, chấm công tháng và bảng Tổng hợp lương.
-// Đợt này chỉ để xem; chấm điểm KPI và duyệt / từ chối thêm ở các đợt sau (slot kpi, history của SlipSummary).
-import { onMounted, ref } from 'vue';
+// Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ);
+// rời ô thì lưu, đóng hay sang phiếu khác thì lưu hết điểm chưa lưu (flush). Duyệt / từ chối thêm ở đợt sau.
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import type { Payslip } from '@/mock/payroll';
+import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
+import { previewPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { monthShort } from '@/utils/format';
 import StatusPill from '../parts/StatusPill.vue';
 import SlipAttendance from './SlipAttendance.vue';
+import SlipHistory from './SlipHistory.vue';
+import SlipKpi from './SlipKpi.vue';
 import SlipSummary from './SlipSummary.vue';
 
-defineProps<{ slip: Payslip; month: string; hasPrev: boolean; hasNext: boolean }>();
-const emit = defineEmits<{ close: []; prev: []; next: [] }>();
+const props = defineProps<{ slip: Payslip; month: string; hasPrev: boolean; hasNext: boolean }>();
+const emit = defineEmits<{ close: []; prev: []; next: []; changed: [slip: Payslip] }>();
+
+const draft = ref<KpiScores>({ ...props.slip.kpi.scores });
+watch(
+  () => props.slip.id,
+  () => (draft.value = { ...props.slip.kpi.scores })
+);
+const view = computed(() => previewPayslip(props.slip, draft.value));
+const PARTS = Object.keys(draft.value) as KpiPart[];
+
+const update = (part: KpiPart, value: number | null) => (draft.value = { ...draft.value, [part]: value });
+// Lưu các cột `parts`; kết quả cuối đã gồm mọi lần lưu vì mỗi lần ghi vào trạng thái giả ngay khi gọi.
+async function persist(parts: KpiPart[]) {
+  if (!parts.length) return;
+  const id = props.slip.id;
+  const results = await Promise.all(parts.map(p => saveKpiScore(props.month, id, p, draft.value[p])));
+  const last = results[results.length - 1];
+  if (last) emit('changed', last);
+}
+const save = (part: KpiPart) => persist([part]);
+// Điểm vừa gõ chưa rời ô vẫn được lưu khi đóng phiếu hay sang phiếu khác (Review Focus 1).
+const flush = () => persist(PARTS.filter(p => draft.value[p] !== props.slip.kpi.scores[p]));
+const close = () => {
+  flush();
+  emit('close');
+};
+const go = (to: 'prev' | 'next') => {
+  flush();
+  emit(to);
+};
 
 // AppDrawer đặt tiêu điểm vào ô bấm được đầu tiên, ở đây là mũi tên Phiếu trước, mà mũi tên đó có thể bị tắt ở đầu danh sách.
 // Như các ngăn kéo khác, tiêu điểm đầu vào nút Đóng; Tab và Shift+Tab vẫn tới hai mũi tên. Phần tử này mount sau AppDrawer.
 const head = ref<HTMLElement | null>(null);
-onMounted(() => head.value?.closest('.drw')?.querySelector<HTMLElement>('.drw-h .x')?.focus());
+const prevBtn = ref<HTMLButtonElement | null>(null);
+const nextBtn = ref<HTMLButtonElement | null>(null);
+const closeBtn = () => head.value?.closest('.drw')?.querySelector<HTMLElement>('.drw-h .x');
+onMounted(() => closeBtn()?.focus());
+// Mũi tên đang giữ tiêu điểm bị tắt ở đầu hay cuối danh sách: tiêu điểm sang mũi tên kia, cả hai tắt thì sang Đóng.
+// Đọc activeElement trước khi DOM đổi (watch chạy trước lần vẽ lại), rồi đặt tiêu điểm sau nextTick.
+watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
+  const was = document.activeElement;
+  await nextTick();
+  if (was === prevBtn.value && !prev) (next ? nextBtn.value : closeBtn())?.focus();
+  else if (was === nextBtn.value && !next) (prev ? prevBtn.value : closeBtn())?.focus();
+});
 </script>
 
 <template>
-  <AppDrawer :title="`Phiếu lương của ${slip.name}`" floating @close="emit('close')">
+  <AppDrawer :title="`Phiếu lương của ${slip.name}`" floating @close="close">
     <template #head>
       <div ref="head" class="pd-head">
         <h2>Phiếu lương tháng {{ monthShort(month) }}</h2>
-        <button type="button" class="pd-ib" aria-label="Phiếu trước" :disabled="!hasPrev" @click="emit('prev')">
+        <button ref="prevBtn" type="button" class="pd-ib" aria-label="Phiếu trước" :disabled="!hasPrev" @click="go('prev')">
           <Icon name="chevl" />
         </button>
-        <button type="button" class="pd-ib" aria-label="Phiếu sau" :disabled="!hasNext" @click="emit('next')">
+        <button ref="nextBtn" type="button" class="pd-ib" aria-label="Phiếu sau" :disabled="!hasNext" @click="go('next')">
           <Icon name="chevr" />
         </button>
       </div>
@@ -60,7 +105,10 @@ onMounted(() => head.value?.closest('.drw')?.querySelector<HTMLElement>('.drw-h 
     </div>
 
     <SlipAttendance :slip="slip" :month="month" />
-    <SlipSummary :slip="slip" :month="month" />
+    <SlipSummary :slip="view" :month="month">
+      <template #kpi><SlipKpi :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
+      <template #history><SlipHistory :history="view.kpi.history" /></template>
+    </SlipSummary>
   </AppDrawer>
 </template>
 

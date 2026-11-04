@@ -3,7 +3,7 @@
 import { dm, initials } from '../utils/format';
 import { mockAccount, readSessionName } from './accounts';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
-import { recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
+import { normalizeScore, recomputeSlip, type KpiPart, type KpiScores, type SlipCalc, type SlipInput } from './payroll-calc';
 
 export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 export type DayKind = 'work' | 'leave' | 'isat' | 'pending' | 'unpaid' | 'sunday' | 'future';
@@ -351,6 +351,7 @@ export function setKpiScore(month: string, id: string, part: KpiPart, value: num
   const s = month === MOCK_MONTH ? state.get(id) : undefined;
   if (!s) return null;
   const old = s.scores[part];
+  value = normalizeScore(value);
   if (old !== value) {
     const label = KPI_LABELS[part];
     const text =

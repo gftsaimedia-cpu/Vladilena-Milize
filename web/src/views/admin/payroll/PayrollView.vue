@@ -17,7 +17,7 @@ import PayToolbar from './parts/PayToolbar.vue';
 import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
-const { data: loaded } = useLoad(
+const { data: loaded, reload } = useLoad(
   () => getPayroll(period.month),
   () => period.month
 );
@@ -88,6 +88,11 @@ const at = computed(() => navIds.value.indexOf(slipId.value));
 const hasPrev = computed(() => at.value > 0);
 const hasNext = computed(() => at.value >= 0 && at.value < navIds.value.length - 1);
 const go = (id: string) => router.replace(withSlip(id));
+// Phiếu vừa lưu điểm: thay phiếu đang mở (nếu còn mở đúng phiếu đó, ngăn kéo đã đóng thì không mở lại) rồi tải lại bảng.
+const changed = (next: Payslip) => {
+  if (next.id === slipId.value) slip.value = next;
+  reload();
+};
 </script>
 
 <template>
@@ -136,6 +141,7 @@ const go = (id: string) => router.replace(withSlip(id));
       :has-prev="hasPrev"
       :has-next="hasNext"
       @close="go('')"
+      @changed="changed"
       @prev="go(navIds[at - 1])"
       @next="go(navIds[at + 1])"
     />

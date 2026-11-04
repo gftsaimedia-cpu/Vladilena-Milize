@@ -8,7 +8,7 @@ import {
   type Payslip,
   type PayrollScreen
 } from '@/mock/payroll';
-import { recomputeSlip, type KpiPart, type KpiScores } from '@/mock/payroll-calc';
+import { normalizeScore, recomputeSlip, type KpiPart, type KpiScores } from '@/mock/payroll-calc';
 import { respond } from '@/mock/respond';
 
 export const getPayroll = (month: string): Promise<PayrollScreen> => respond(payrollView(month));
@@ -23,5 +23,6 @@ export const decidePayslip = (month: string, id: string, decision: 'approve' | '
 
 // Tính lại phiếu theo điểm đang gõ mà chưa ghi: đồng bộ, trên bản sao, để phiếu đổi số ngay khi gõ.
 export function previewPayslip(slip: Payslip, scores: KpiScores): Payslip {
-  return recomputeSlip({ ...slip, kpi: { ...slip.kpi, scores: { ...scores } } });
+  const clean = Object.fromEntries(Object.entries(scores).map(([p, v]) => [p, normalizeScore(v)])) as KpiScores;
+  return recomputeSlip({ ...slip, kpi: { ...slip.kpi, scores: clean } });
 }
