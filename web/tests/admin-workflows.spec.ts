@@ -47,7 +47,6 @@ staff.push(
 async function mockAdminApi(
   page: Page,
   options: {
-    blockers?: boolean | (() => boolean);
     requests?: unknown[];
     staff?: unknown[];
     caps?: string[];
@@ -98,13 +97,6 @@ async function mockAdminApi(
     else if (path === '/catalog/shifts') body = { shifts: [] };
     else if (path === '/settings/shifts') body = { shifts: [] };
     else if (path === '/explanations') body = { items: [], waitingForYou: 0, toRead: 0 };
-    else if (path === '/alerts')
-      body = (typeof options.blockers === 'function' ? options.blockers() : options.blockers)
-        ? {
-            missingPunches: [{ username: 'linh', name: 'Linh Nguyễn', date: '2026-10-13', kind: 'forgot-in' }],
-            absentNoExplanation: []
-          }
-        : { missingPunches: [], absentNoExplanation: [] };
     else if (path === '/today') body = { rows: [] };
     else if (/^\/periods\/\d{4}-\d{2}$/.test(path))
       body = { status: 'open', totals: { people: 2, gross: 0, net: 0, approved: 0, pending: 0, draft: 2, error: 0 } };
@@ -115,41 +107,6 @@ async function mockAdminApi(
   });
   return requestCalls;
 }
-
-test.fixme(
-  'overview keeps zero-count groups collapsed and retains month and filter in blocker actions',
-  { annotation: { type: 'fixme', description: 'Thay bằng admin-overview.spec.ts ở Task 5' } },
-  async ({ page }, testInfo) => {
-    let blockers = false;
-    await mockAdminApi(page, { blockers: () => blockers, staff: [staff[0]] });
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/admin/tong-quan?thang=2026-10');
-    await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible();
-    await expect(page.getByText('Không có việc cần xử lý trước khi chốt công')).toBeVisible();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
-    await page.screenshot({ path: testInfo.outputPath('overview-zero-375.png'), fullPage: true });
-    await expect(page.getByRole('button', { name: /hiện các nhóm còn lại/i })).toHaveAttribute(
-      'aria-expanded',
-      'false'
-    );
-    await page.getByRole('button', { name: /hiện các nhóm còn lại/i }).click();
-    await expect(page.getByText('Nhân sự chưa có ca cố định')).toBeVisible();
-    for (const width of [768, 1024, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/admin/tong-quan?thang=2026-10');
-      await expect(page.getByRole('heading', { name: 'Tổng quan' })).toBeVisible();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
-    }
-
-    blockers = true;
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/admin/tong-quan?thang=2026-10&showBlocker=1');
-    await expect(page.getByRole('link', { name: /Sửa giờ/ })).toHaveAttribute(
-      'href',
-      '/admin/cham-cong?filter=pending&thang=2026-10'
-    );
-  }
-);
 
 test.fixme(
   'requests show the active period scope, retain unrelated query state, and expose selection actions',

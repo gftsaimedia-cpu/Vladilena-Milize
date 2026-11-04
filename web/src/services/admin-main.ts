@@ -1,7 +1,6 @@
 // Dịch vụ của nhóm admin-main: Tổng quan, Yêu cầu và các lớp nổi của vỏ Admin.
-// Yêu cầu chờ duyệt, Tổng quan và chuông gọi máy chủ qua api().
+// Tổng quan, chuông và duyệt/từ chối chạy trên dữ liệu giả (mock/); danh sách Yêu cầu còn gọi api() (chưa có dữ liệu giả).
 import { toast } from '@/components/shell/toast';
-import { buildOverview } from '@/builders/admin-main/overview';
 import {
   OLDER_PAGE,
   REQUEST_KINDS,
@@ -12,12 +11,11 @@ import {
   sortRaw,
   staffIndex
 } from '@/builders/admin-requests/requests';
+import { decideRequest, type PendingRequest } from '@/mock/approvals';
+import { overviewView, type OverviewView } from '@/mock/overview';
 import { bellView } from '@/mock/shell';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
-import { useSessionStore } from '@/stores/session';
-import { countWaiting } from '@/builders/admin-requests/explanations';
-import { listWaitingExplanations } from './admin-explanations';
 import { ApiError, api, qs } from './http';
 import { changePassword as sessionChangePassword, logout as sessionLogout } from './session';
 
@@ -131,43 +129,18 @@ async function decide(action?, ids?, note?, showError?) {
   }
 }
 
-export const approveRequest = (id?, { reason = '' }: any = {}) => decide('approve', [id], reason, true);
-export const rejectRequest = (id?, { reason = '' }: any = {}) => decide('reject', [id], reason, true);
+// Hai hàm dưới chạy trên dữ liệu giả của Tổng quan (mock/approvals): bỏ yêu cầu khỏi danh sách chờ, bỏ qua `opts`.
+// Tên và tham số thứ hai giữ nguyên để các màn gọi tới (Yêu cầu, Chấm công) vẫn biên dịch được.
+export const approveRequest = (id: string, _opts?: { reason?: string }): Promise<PendingRequest | null> =>
+  respond(decideRequest(id));
+export const rejectRequest = (id: string, _opts?: { reason?: string }): Promise<PendingRequest | null> =>
+  respond(decideRequest(id));
 
 // Đồng ý cả loạt: một lần PUT; quá số khoản tối đa hoặc có khoản vừa đổi thì máy chủ từ chối cả loạt.
 export const approveRequests = (ids?, { note = '' }: any = {}) => decide('approve', ids, note, false);
 
 // ---------- Tổng quan ----------
-export async function getOverview(month?) {
-  const session = useSessionStore();
-  const soft = (p?) => p.catch(() => null);
-  const [pending, waiting, alerts, staff, today, period, periods, estimates, holidays] = await Promise.all([
-    fetchApprovals({ status: 'pending', month: '' }),
-    listWaitingExplanations(),
-    soft(api('GET', '/alerts' + qs({ month }))),
-    soft(api('GET', '/staff')),
-    soft(api('GET', '/today')),
-    soft(api('GET', `/periods/${month}`)),
-    soft(api('GET', '/periods')),
-    soft(api('GET', `/periods/${month}/estimates` + qs({ page: 1, pageSize: 1 }))),
-    soft(api('GET', '/holidays'))
-  ]);
-  remember(pending.items);
-  const by = staffIndex(staff && staff.staff);
-  return buildOverview({
-    month,
-    serverNow: session.serverNow,
-    requests: sortRaw(pending.items, true).map(raw => buildRequestRow(raw, by)),
-    explanations: countWaiting(waiting, month),
-    alerts,
-    staff: staff && staff.staff,
-    today,
-    period,
-    paydayExpected: periods && (periods.periods || []).find(p => p.month === month)?.paydayExpected,
-    estimates,
-    holidays: holidays && holidays.dates
-  });
-}
+export const getOverview = (month: string): Promise<OverviewView> => respond(overviewView(month));
 
 // ---------- Lớp nổi của vỏ Admin ----------
 // Việc cần xử lý trên chuông: số liệu giả của tháng đang xem (mock/shell).
