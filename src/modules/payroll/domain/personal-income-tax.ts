@@ -30,12 +30,23 @@ function addMonths(date: string, months: number): string | null {
   return `${year}-${pad(month)}-${pad(Math.min(Number(m[3]), lastDay))}`;
 }
 
+// The calendar day after a 'YYYY-MM-DD' date, on its numeric parts like addMonths.
+function nextDay(date: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  if (!m) return null;
+  const next = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1));
+  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
+}
+
 // Contract shorter than 3 months -> flat 10%; otherwise (also when a date is missing) progressive.
+// The end date is the last day of the contract (01/10 to 31/12 is three months), so the contract is short only
+// when the day after the end date comes before start + 3 months.
 export function resolveTaxMethod(c: { hasTax: boolean; startDate: string | null; endDate: string | null }): TaxMethod {
   if (!c.hasTax) return 'none';
   if (!c.startDate || !c.endDate) return 'progressive';
   const threshold = addMonths(c.startDate, CONTRACT_MONTHS_FOR_PROGRESSIVE);
-  if (threshold !== null && c.endDate < threshold) return 'flat10';
+  const dayAfterEnd = nextDay(c.endDate);
+  if (threshold !== null && dayAfterEnd !== null && dayAfterEnd < threshold) return 'flat10';
   return 'progressive';
 }
 

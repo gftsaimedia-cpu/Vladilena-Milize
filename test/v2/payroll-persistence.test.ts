@@ -134,7 +134,7 @@ describe('Payroll errors', () => {
 });
 
 // Runs the real repository code against a Kysely whose driver records each statement and answers from a script.
-function recordingDb(respond: (sql: string) => unknown[]) {
+function recordingDb(respond: (sql: string, parameters: readonly unknown[]) => unknown[]) {
   const statements: Array<{ sql: string; parameters: readonly unknown[] }> = [];
   const events: string[] = [];
 
@@ -143,7 +143,7 @@ function recordingDb(respond: (sql: string) => unknown[]) {
       return {
         async executeQuery(query: CompiledQuery) {
           statements.push({ sql: query.sql, parameters: query.parameters });
-          return { rows: respond(query.sql) };
+          return { rows: respond(query.sql, query.parameters) };
         },
         async *streamQuery() {}
       } as unknown as DatabaseConnection;
@@ -242,6 +242,217 @@ describe('PayrollRepository.savePayrollRunAndSlips (statement sequence)', () => 
 
     assert.deepEqual(steps(), ['select payroll_runs']);
     assert.deepEqual(events, ['begin', 'rollback']);
+  });
+});
+
+// The real service and repository code on a recording database. The month 2026-10 already holds its current draft
+// run 5 with the given payslips, and the next run is stored as run 6 with id 42. `months` is what each employee id
+// (uuid) loads when it is calculated; an id that is missing there has no data.
+describe('PayrollService.calculatePeriodPayslips (partial recalculation)', () => {
+  const STAFF = [
+    { uuid: 'ua', username: 'alice' },
+    { uuid: 'ub', username: 'bob' },
+    { uuid: 'uc', username: 'carol' }
+  ];
+
+  class RunRepository extends PayrollRepository {
+    constructor(
+      db: Kysely<DB>,
+      private readonly months: Record<string, EmployeeMonthlyRawData>
+    ) {
+      super(db);
+    }
+
+    override async getMonthlyData(employeeId: string): Promise<EmployeeMonthlyRawData | null> {
+      return this.months[employeeId] ?? null;
+    }
+
+    override async listEligibleEmployees() {
+      return Object.values(this.months).map(({ staff }) => ({
+        uuid: staff.uuid,
+        username: staff.username,
+        name: staff.name
+      }));
+    }
+  }
+
+  const person = (username: string, uuid: string, staff: Partial<EmployeeMonthlyRawData['staff']> = {}) =>
+    nvMonthData({ staff: { username, uuid, ...staff } });
+
+  // A payslip of run 5 as the database returns it; the base salary tells the old rows apart from new ones.
+  const oldRow = async (username: string, uuid: string, baseSalary: number, id: number) =>
+    storedRow(buildPayslipRow(5, await makeSlip({ staff: { username, uuid, baseSalary } })), id);
+
+  async function setup(options: {
+    months: Record<string, EmployeeMonthlyRawData>;
+    previous?: Array<Selectable<DB['payslips']>>;
+    final?: boolean;
+  }) {
+    const previous = options.previous ?? [];
+    const recorded = recordingDb((sql, parameters) => {
+      if (sql.startsWith('select max(')) return [{ max_run_no: 5 }];
+      if (sql.includes('from "payroll_runs"')) {
+        if (parameters.includes('final')) return options.final ? [{ id: 3 }] : [];
+        return [{ id: 5 }];
+      }
+      if (sql.includes('from "staff"')) {
+        return STAFF.filter(s => parameters.includes(s.uuid) || parameters.includes(s.username)).map(s => ({
+          username: s.username
+        }));
+      }
+      if (sql.includes('from "payslips"')) return previous;
+      if (sql.startsWith('insert into "payroll_runs"')) return [{ id: 42 }];
+      return [];
+    });
+    const service = new PayrollService(new RunRepository(recorded.db, options.months));
+    return { ...recorded, previous, service };
+  }
+
+  // The column -> value map of one "insert into payslips" statement.
+  const insertedRow = ({ sql, parameters }: { sql: string; parameters: readonly unknown[] }) => {
+    const columns = /^insert into "payslips" \(([^)]*)\)/.exec(sql)![1].split(', ');
+    return Object.fromEntries(columns.map((column, i) => [column.replace(/"/g, ''), parameters[i]]));
+  };
+  const insertedPayslips = (statements: Array<{ sql: string; parameters: readonly unknown[] }>) =>
+    statements.filter(s => s.sql.startsWith('insert into "payslips"')).map(insertedRow);
+
+  it('copies the payslips of the people who were not recalculated into the new run', async () => {
+    const previous = [await oldRow('alice', 'ua', 5_000_000, 11), await oldRow('bob', 'ub', 7_000_000, 12)];
+    const { service, statements, events, steps } = await setup({
+      months: { ua: person('alice', 'ua'), ub: person('bob', 'ub') },
+      previous
+    });
+
+    const result = await service.calculatePeriodPayslips('2026-10', ['ua'], 'admin');
+
+    assert.equal(result.runId, 42);
+    assert.deepEqual(
+      result.items.map(item => item.employeeId),
+      ['ua']
+    );
+    assert.deepEqual(result.errors, []);
+    assert.deepEqual(steps(), [
+      'select payroll_runs',
+      'select payroll_runs',
+      'select payroll_runs',
+      'select staff',
+      'select payslips',
+      'update payroll_runs',
+      'insert payroll_runs',
+      'insert payslips',
+      'insert payslips'
+    ]);
+    assert.deepEqual(events, ['begin', 'commit']);
+    assert.deepEqual(statements[3].parameters, ['ua', 'ua']);
+    assert.deepEqual(statements[4].parameters, [5]);
+    assert.deepEqual(statements[5].parameters, ['superseded', '2026-10', 'draft']);
+    // month, run_no, status, engine_version, params_hash, params_rev, params_json, switches_json, slips_total,
+    // slips_error
+    assert.deepEqual(statements[6].parameters.slice(0, 2), ['2026-10', 6]);
+    assert.deepEqual(statements[6].parameters.slice(8, 10), [2, 0]);
+
+    const [alice, bob] = insertedPayslips(statements);
+    // Alice was recalculated: a new row for run 42, not her old one.
+    assert.equal(alice.username, 'alice');
+    assert.equal(alice.run_id, 42);
+    assert.equal(alice.gross, 11_007_693);
+    // Bob's row is his old row unchanged, except for the new row id and run.
+    const { id: _bobId, ...bobOld } = previous[1];
+    assert.equal(bob.username, 'bob');
+    assert.deepEqual(bob, { ...bobOld, run_id: 42 });
+  });
+
+  it('leaves out the old payslip of a target that failed and reports its error', async () => {
+    const previous = [
+      await oldRow('alice', 'ua', 5_000_000, 11),
+      await oldRow('bob', 'ub', 7_000_000, 12),
+      await oldRow('carol', 'uc', 8_000_000, 13)
+    ];
+    const { service, statements } = await setup({
+      months: {
+        ua: person('alice', 'ua'),
+        ub: person('bob', 'ub', { baseSalary: null }),
+        uc: person('carol', 'uc')
+      },
+      previous
+    });
+
+    const result = await service.calculatePeriodPayslips('2026-10', ['ua', 'ub'], 'admin');
+
+    assert.equal(result.runId, 42);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].employeeId, 'ub');
+    assert.match(result.errors[0].message, /Thiếu cấu hình/);
+    assert.deepEqual(
+      insertedPayslips(statements).map(row => row.username),
+      ['alice', 'carol']
+    );
+    // month, run_no, status, engine_version, params_hash, params_rev, params_json, switches_json, slips_total,
+    // slips_error
+    assert.deepEqual(statements[6].parameters.slice(8, 10), [2, 1]);
+  });
+
+  it('stores nothing when the only target of a partial run fails', async () => {
+    const previous = [await oldRow('alice', 'ua', 5_000_000, 11), await oldRow('bob', 'ub', 7_000_000, 12)];
+    const { service, statements, steps } = await setup({
+      months: { ua: person('alice', 'ua', { baseSalary: null }) },
+      previous
+    });
+
+    const result = await service.calculatePeriodPayslips('2026-10', ['ua'], 'admin');
+
+    assert.equal(result.runId, null);
+    assert.deepEqual(result.items, []);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].employeeId, 'ua');
+    assert.deepEqual(steps(), ['select payroll_runs']);
+    assert.ok(statements.every(s => s.sql.startsWith('select')));
+  });
+
+  it('stores nothing when a full run has no payslip to compute', async () => {
+    const { service, statements, steps } = await setup({ months: {} });
+
+    const result = await service.calculatePeriodPayslips('2026-10', undefined, 'admin');
+
+    assert.deepEqual(result, { runId: null, items: [], errors: [] });
+    assert.deepEqual(steps(), ['select payroll_runs']);
+    assert.ok(statements.every(s => s.sql.startsWith('select')));
+  });
+
+  it('still refuses a final month when nothing was computed', async () => {
+    const { service, events, steps } = await setup({ months: {}, final: true });
+
+    await assert.rejects(service.calculatePeriodPayslips('2026-10', ['ua'], 'admin'), PayrollFinalizedError);
+
+    assert.deepEqual(steps(), ['select payroll_runs']);
+    assert.deepEqual(events, ['begin', 'rollback']);
+  });
+
+  it('carries nothing forward in a full run, with no list or an empty list', async () => {
+    for (const employeeIds of [undefined, []]) {
+      const previous = [await oldRow('alice', 'ua', 5_000_000, 11), await oldRow('carol', 'uc', 8_000_000, 13)];
+      const { service, statements, steps } = await setup({
+        months: { ua: person('alice', 'ua'), ub: person('bob', 'ub') },
+        previous
+      });
+
+      const result = await service.calculatePeriodPayslips('2026-10', employeeIds, 'admin');
+
+      assert.equal(result.runId, 42);
+      assert.deepEqual(steps(), [
+        'select payroll_runs',
+        'select payroll_runs',
+        'update payroll_runs',
+        'insert payroll_runs',
+        'insert payslips',
+        'insert payslips'
+      ]);
+      assert.deepEqual(
+        insertedPayslips(statements).map(row => row.username),
+        ['alice', 'bob']
+      );
+      assert.equal(statements[3].parameters[8], 2);
+    }
   });
 });
 

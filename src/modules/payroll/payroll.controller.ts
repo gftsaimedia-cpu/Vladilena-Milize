@@ -25,10 +25,19 @@ export class PayrollController {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
+    // The app has no ValidationPipe: a string would otherwise be read one character at a time.
+    const employeeIds = body?.employeeIds;
+    if (
+      employeeIds !== undefined &&
+      !(Array.isArray(employeeIds) && employeeIds.every(id => typeof id === 'string' && id.length > 0))
+    ) {
+      throw new BadRequestError('employeeIds phải là danh sách mã nhân sự', { code: 'INVALID_EMPLOYEE_IDS' });
+    }
+
     try {
       const result = await this.service.calculatePeriodPayslips(
         month,
-        body?.employeeIds,
+        employeeIds,
         user?.username || 'system'
       );
       return {

@@ -61,24 +61,36 @@ describe('resolveTaxMethod', () => {
     assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-15')), 'flat10');
   });
 
-  it('is progressive when the contract ends on or after start + 3 months', () => {
+  it('is progressive when the contract reaches start + 3 months', () => {
     assert.equal(resolveTaxMethod(contract('2026-10-01', '2027-01-01')), 'progressive');
     assert.equal(resolveTaxMethod(contract('2026-10-01', '2027-06-30')), 'progressive');
   });
 
+  it('counts the end date as the last day of the contract', () => {
+    // 01/10 to 31/12 is a three-month contract; one day less is not.
+    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-31')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-30')), 'flat10');
+  });
+
   it('clamps start + 3 months to the last day of a shorter month', () => {
-    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-27')), 'flat10');
-    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-28')), 'progressive');
+    // 30 Nov + 3 months -> 28 Feb; a contract through 27 Feb has its next day on 28 Feb, which is three months.
+    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-27')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-26')), 'flat10');
   });
 
   it('clamps to 29 February in a leap year', () => {
-    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-28')), 'flat10');
-    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-29')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-28')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-27')), 'flat10');
   });
 
   it('carries the year when start + 3 months passes December', () => {
-    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-14')), 'flat10');
-    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-15')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-14')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-13')), 'flat10');
+  });
+
+  it('reaches three months at the end of February for a contract that starts on 1 December', () => {
+    assert.equal(resolveTaxMethod(contract('2026-12-01', '2027-02-28')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-12-01', '2027-02-27')), 'flat10');
   });
 
   it('is progressive when the contract has no end date or no start date', () => {
@@ -87,8 +99,9 @@ describe('resolveTaxMethod', () => {
     assert.equal(resolveTaxMethod(contract(null, null)), 'progressive');
   });
 
-  it('is progressive when the start date cannot be read', () => {
+  it('is progressive when the start or end date cannot be read', () => {
     assert.equal(resolveTaxMethod(contract('not-a-date', '2026-12-15')), 'progressive');
+    assert.equal(resolveTaxMethod(contract('2026-10-01', 'not-a-date')), 'progressive');
   });
 });
 

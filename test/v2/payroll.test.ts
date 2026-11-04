@@ -662,6 +662,45 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.netIncome, 37_058_461);
   });
 
+  it('exempts the OT premium of each rate and the night allowance from tax', () => {
+    const nightLine = {
+      date: '2026-10-01',
+      dayOfWeekText: 'Thứ 5',
+      shiftCode: 'NIGHT',
+      shiftLabel: 'Night +40%',
+      inOutText: '22:00–06:00',
+      workHours: 8,
+      daySalary: 230_769,
+      flexAllowancePay: 0,
+      nightAllowancePay: 92_308,
+      offPaidPay: 0,
+      otHours: 0,
+      otPay: 0,
+      deductionHours: 0,
+      deductionAmount: 0,
+      dailyTotal: 323_077
+    };
+    const slip = new EmployeePayslip({
+      employeeId: 'exempt',
+      fullName: 'Exempt',
+      positionLevelText: 'NV L1',
+      contractStatusText: 'Active',
+      month: '2026-10',
+      standardWorkdays: 26,
+      baseSalaryPolicy: 6_000_000,
+      employeeType: 'nv',
+      nightAllowancePct: 40,
+      dailyLines: [nightLine, { ...nightLine, date: '2026-10-02' }],
+      otHoursByRate: { x15: 4, x20: 3, x30: 2 }
+    });
+
+    // hourly rate = 6,000,000 / 26 / 8 = 28,846.15. Exempt OT = the premium over the normal hour:
+    // 4 h at 150% x 0.5 + 3 h at 200% x 1 + 2 h at 300% x 2 = 9 hourly rates = 259,615.38 -> 259,615.
+    // Night allowance = 2 nights x 92,308 = 184,616.
+    assert.equal(slip.nightAllowanceActual, 184_616);
+    assert.equal(slip.taxExemptIncome, 444_231);
+  });
+
   it('taxes a contract shorter than three months at a flat 10% of the taxable income', async () => {
     const slip = await generate({ staff: { contractStart: '2026-10-01', contractEnd: '2026-12-15' } });
 

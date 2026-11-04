@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
-import type { Insertable, Kysely, Selectable } from 'kysely';
+import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import {
   DEFAULT_INSURANCE_RATES,
@@ -216,6 +216,13 @@ export interface KpiScorePatch {
   kpi_proposed?: number | null;
 }
 
+// What a partial run keeps from the month's current draft run: all its payslips except those of the people the call
+// recalculated. exceptEmployeeIds are the call's targets by uuid or username, including the ones that failed.
+export interface CarryForward {
+  exceptUsernames: string[];
+  exceptEmployeeIds: string[];
+}
+
 const ENGINE_VERSION = 'v2-rules-2026-11';
 
 export function buildPayslipRow(runId: number, slip: EmployeePayslip): Insertable<DB['payslips']> {
@@ -380,14 +387,49 @@ export class PayrollRepository {
     });
   }
 
+  // The payslips of the month's current draft run that a partial run keeps: everyone except the people it recalculated
+  // (exceptUsernames) and every target of the call (exceptEmployeeIds, uuid or username), so a target that failed
+  // does not keep its old payslip.
+  private async carriedPayslips(
+    trx: Transaction<DB>,
+    month: string,
+    carryForward: CarryForward
+  ): Promise<Array<Selectable<DB['payslips']>>> {
+    const previous = await trx
+      .selectFrom('payroll_runs')
+      .select('id')
+      .where('month', '=', month)
+      .where('status', '=', 'draft')
+      .orderBy('run_no', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+    if (!previous) return [];
+
+    const except = new Set(carryForward.exceptUsernames);
+    if (carryForward.exceptEmployeeIds.length > 0) {
+      const ids = carryForward.exceptEmployeeIds;
+      const targets = await trx
+        .selectFrom('staff')
+        .select('username')
+        .where(eb => eb.or([eb('uuid', 'in', ids), eb('username', 'in', ids)]))
+        .execute();
+      for (const target of targets) except.add(target.username);
+    }
+
+    const rows = await trx.selectFrom('payslips').selectAll().where('run_id', '=', previous.id).orderBy('id').execute();
+    return rows.filter(row => !except.has(row.username));
+  }
+
   // Stores a new draft run for the month (run_no + 1) and supersedes the month's earlier drafts. A month with a
-  // final run is closed.
+  // final run is closed. With carryForward (a partial run) the payslips of the previous draft run that the call did
+  // not recalculate are copied unchanged into the new run. Without payslips nothing is stored and the result is null.
   async savePayrollRunAndSlips(
     month: string,
     actor: string,
     payslips: EmployeePayslip[],
-    errorCount = 0
-  ): Promise<number> {
+    errorCount = 0,
+    carryForward?: CarryForward
+  ): Promise<number | null> {
     const now = new Date().toISOString();
 
     return await this.qb.transaction().execute(async trx => {
@@ -399,12 +441,16 @@ export class PayrollRepository {
         .executeTakeFirst();
       if (finalRun) throw new PayrollFinalizedError(`Kỳ lương ${month} đã chốt, không thể tính lại`);
 
+      if (payslips.length === 0) return null;
+
       const latest = await trx
         .selectFrom('payroll_runs')
         .select(eb => eb.fn.max('run_no').as('max_run_no'))
         .where('month', '=', month)
         .executeTakeFirst();
       const runNo = Number(latest?.max_run_no ?? 0) + 1;
+
+      const carried = carryForward ? await this.carriedPayslips(trx, month, carryForward) : [];
 
       await trx
         .updateTable('payroll_runs')
@@ -424,7 +470,7 @@ export class PayrollRepository {
           params_rev: 1,
           params_json: '{}',
           switches_json: '{}',
-          slips_total: payslips.length,
+          slips_total: payslips.length + carried.length,
           slips_error: errorCount,
           created_by: actor,
           created_at: now,
@@ -435,6 +481,9 @@ export class PayrollRepository {
 
       for (const slip of payslips) {
         await trx.insertInto('payslips').values(buildPayslipRow(run.id, slip)).execute();
+      }
+      for (const { id: _oldId, ...copy } of carried) {
+        await trx.insertInto('payslips').values({ ...copy, run_id: run.id }).execute();
       }
 
       return Number(run.id);

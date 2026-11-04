@@ -49,10 +49,13 @@ export class PayrollService {
     employeeIds?: string[],
     actor = 'system'
   ): Promise<{
-    runId: number;
+    runId: number | null;
     items: EmployeePayslipSummaryDTO[];
     errors: Array<{ employeeId: string; message: string }>;
   }> {
+    // A list of employees is a partial run: the other employees keep their payslips. runId is null when no payslip
+    // was computed, in which case nothing is stored.
+    const isPartial = employeeIds !== undefined && employeeIds.length > 0;
     const doCalc = async () => {
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
@@ -78,7 +81,10 @@ export class PayrollService {
         }
       }
 
-      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length);
+      const carryForward = isPartial
+        ? { exceptUsernames: payslips.map(p => p.username), exceptEmployeeIds: targets }
+        : undefined;
+      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward);
       return { runId, items: summaries, errors };
     };
 

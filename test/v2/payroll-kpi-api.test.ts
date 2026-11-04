@@ -273,6 +273,61 @@ describe('PayrollController KPI and calculation errors', () => {
     assert.deepEqual(calls, [['2026-10', ['u1', 'u2'], 'hr']]);
   });
 
+  it('passes a missing list or a list of employee ids on to the service', async () => {
+    const calls: unknown[][] = [];
+    const controller = controllerWith({
+      calculatePeriodPayslips: async (...args: unknown[]) => {
+        calls.push(args);
+        return { runId: 7, items: [], errors: [] };
+      }
+    });
+
+    await controller.calculatePeriod('2026-10', {});
+    await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] });
+    await controller.calculatePeriod('2026-10', { employeeIds: [] });
+
+    assert.deepEqual(calls, [
+      ['2026-10', undefined, 'system'],
+      ['2026-10', ['u1'], 'system'],
+      ['2026-10', [], 'system']
+    ]);
+  });
+
+  it('rejects employeeIds that is not a list of non-empty strings before calculating anything', async () => {
+    const calls: unknown[][] = [];
+    const controller = controllerWith({
+      calculatePeriodPayslips: async (...args: unknown[]) => {
+        calls.push(args);
+        return { runId: 7, items: [], errors: [] };
+      }
+    });
+
+    for (const employeeIds of ['u1', [1], [''], ['u1', null], {}, null, 5]) {
+      await assert.rejects(controller.calculatePeriod('2026-10', { employeeIds } as any), (err: unknown) => {
+        assert.ok(err instanceof BadRequestError);
+        assert.equal(err.status, 400);
+        assert.equal(err.message, 'employeeIds phải là danh sách mã nhân sự');
+        assert.equal(err.details?.code, 'INVALID_EMPLOYEE_IDS');
+        return true;
+      });
+    }
+    assert.deepEqual(calls, []);
+  });
+
+  it('answers a calculation that computed nothing with a null runId', async () => {
+    const errors = [{ employeeId: 'u1', message: 'Thiếu cấu hình chức vụ hoặc bậc lương cho nv (Bậc 9)' }];
+    const controller = controllerWith({ calculatePeriodPayslips: async () => ({ runId: null, items: [], errors }) });
+
+    assert.deepEqual(await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] }), {
+      month: '2026-10',
+      calculated: true,
+      runId: null,
+      count: 0,
+      items: [],
+      errors
+    });
+  });
+
   it('hands the stored payslip records through unchanged', async () => {
     const record = { id: 1, runId: 7, username: 'a', status: 'draft', net: 9_377_693, warnings: [], details: {} };
     const controller = controllerWith({

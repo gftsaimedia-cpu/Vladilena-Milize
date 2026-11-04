@@ -14,6 +14,7 @@ import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors'
 const CONTROL_URL = process.env.PG_TEST_URL;
 const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql'];
 const MONTH = '2026-10';
+const PARTIAL_MONTH = '2026-11';
 
 test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
   if (!CONTROL_URL) {
@@ -128,6 +129,60 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
       [secondRunId, 2, 'final', 1, 1]
     ]);
     assert.equal((await repo.listPayslips(MONTH))[0].runId, secondRunId);
+
+    // A partial recalculation keeps the payslips of the people who were not recalculated. A second month is used
+    // because 2026-10 is final now.
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, start_date, insured, tax_on, uuid)
+       VALUES ('pg-user-2', 'Nhân viên PG 2', 'nv', 1, 'x', $1, '2025-01-05', 1, 1, 'pg-uuid-2')`,
+      [now]
+    );
+    const both = await service.calculatePeriodPayslips(PARTIAL_MONTH, ['pg-uuid-1', 'pg-uuid-2'], 'tester');
+    const onlySecond = await service.calculatePeriodPayslips(PARTIAL_MONTH, ['pg-uuid-2'], 'tester');
+    assert.equal(both.items.length, 2);
+    assert.deepEqual(both.errors, []);
+    assert.equal(onlySecond.items.length, 1);
+    assert.ok(both.runId !== null && onlySecond.runId !== null);
+
+    const partialRuns = async () =>
+      (
+        await client.query(
+          'SELECT id, run_no, status, slips_total, slips_error FROM payroll_runs WHERE month = $1 ORDER BY run_no',
+          [PARTIAL_MONTH]
+        )
+      ).rows.map(r => [Number(r.id), Number(r.run_no), r.status, Number(r.slips_total), Number(r.slips_error)]);
+    assert.deepEqual(await partialRuns(), [
+      [both.runId, 1, 'superseded', 2, 0],
+      [onlySecond.runId, 2, 'draft', 2, 0]
+    ]);
+
+    // Both payslips are in the current run; the first employee's is the copy of the one in the superseded run.
+    const partialListed = await repo.listPayslips(PARTIAL_MONTH);
+    assert.deepEqual(partialListed.map(p => p.username).sort(), ['pg-user', 'pg-user-2']);
+    assert.ok(partialListed.every(p => p.runId === onlySecond.runId));
+    assert.equal((await repo.getPayslip(PARTIAL_MONTH, 'pg-uuid-1'))?.runId, onlySecond.runId);
+    const slipOf = async (runId: number, username: string) =>
+      (
+        await client.query(
+          `SELECT status, rev, gross, insurance, tax, advance, net, staff_terms_json, flags_json, override_json,
+                  decided_by, decided_at, note, encode(snapshot_gz, 'hex') AS snapshot_hex
+           FROM payslips WHERE run_id = $1 AND username = $2`,
+          [runId, username]
+        )
+      ).rows;
+    const carried = await slipOf(onlySecond.runId!, 'pg-user');
+    assert.equal(carried.length, 1);
+    assert.deepEqual(carried, await slipOf(both.runId!, 'pg-user'));
+
+    // When nothing could be calculated no run is stored and the current draft stays.
+    const none = await service.calculatePeriodPayslips(PARTIAL_MONTH, ['nobody'], 'tester');
+    assert.equal(none.runId, null);
+    assert.equal(none.errors.length, 1);
+    assert.deepEqual(await partialRuns(), [
+      [both.runId, 1, 'superseded', 2, 0],
+      [onlySecond.runId, 2, 'draft', 2, 0]
+    ]);
+    assert.equal((await repo.listPayslips(PARTIAL_MONTH)).length, 2);
   } finally {
     await db.destroy();
     if (clientConnected) await client.end();

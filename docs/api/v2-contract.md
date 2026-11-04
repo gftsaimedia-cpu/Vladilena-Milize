@@ -326,16 +326,16 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 - **Request Body**:
   ```json
   {
-    "employeeIds": ["tran-minh-ngoc"]
+    "employeeIds": ["tran-minh-ngoc", "nguyen-van-a"]
   }
   ```
-  *(Để trống `employeeIds` nếu muốn tính cho toàn bộ nhân sự. Mỗi phần tử là `uuid` hoặc `username`; một người được liệt kê hai lần chỉ có một phiếu.)*
+  *(Bỏ `employeeIds` hoặc gửi `[]` để tính cho toàn bộ nhân sự. Nếu gửi, `employeeIds` phải là mảng chuỗi không rỗng, mỗi phần tử là `uuid` hoặc `username`; một người được liệt kê hai lần chỉ có một phiếu. Giá trị khác (chuỗi đơn như `"u1"`, mảng có phần tử không phải chuỗi hoặc chuỗi rỗng, `null`...) bị từ chối bằng `400 INVALID_EMPLOYEE_IDS` trước khi tính.)*
 - **Response 200**:
   ```json
   {
     "month": "2026-11",
     "calculated": true,
-    "runId": 1,
+    "runId": 2,
     "count": 1,
     "items": [
       {
@@ -344,13 +344,13 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
         "positionLevelText": "Nhân viên · Bậc 1",
         "month": "2026-11",
         "actualWorkDays": 22,
-        "baseSalaryActual": 6000000,
-        "totalAllowanceActual": 0,
+        "baseSalaryActual": 5076923,
+        "totalAllowanceActual": 2030769,
         "kpiActualPay": 3000000,
-        "grossIncome": 15000000,
+        "grossIncome": 10107692,
         "insuranceDeduction": 630000,
         "advanceDeduction": 0,
-        "netIncome": 14370000
+        "netIncome": 9477692
       }
     ],
     "errors": [
@@ -360,12 +360,17 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   ```
   - `items`: một dòng tóm tắt cho mỗi nhân sự tính được; `count` là số dòng của `items`.
   - `errors`: nhân sự **không tính được** (thiếu cấu hình chức vụ hoặc bậc lương, không tìm thấy dữ liệu...). Mỗi phần tử gồm `employeeId` (đúng giá trị đã gửi lên, hoặc `uuid` khi tính cả công ty) và `message`. Người trong `errors` không có phiếu; những người còn lại vẫn được tính và lưu. Mảng rỗng khi không ai lỗi.
+  - `runId`: mã lần chạy nháp vừa lưu; là `null` khi không tính được phiếu nào (xem **Lưu trữ**).
+  - Ví dụ trên: `grossIncome` = `baseSalaryActual` + `totalAllowanceActual` + `kpiActualPay` (không có OT, nghỉ phép hay trừ đi muộn) = 5.076.923 + 2.030.769 + 3.000.000 = 10.107.692. `netIncome` = `grossIncome` − `insuranceDeduction` − thuế TNCN − `advanceDeduction`; dòng tóm tắt không có thuế, ở ví dụ này thuế là 0 vì thu nhập tính thuế 10.107.692 − 630.000 − 15.500.000 < 0, nên 10.107.692 − 630.000 − 0 − 0 = 9.477.692.
 - **Lưu trữ**: Mỗi lần gọi tạo một lần chạy nháp (`draft`) mới của tháng (`run_no` + 1) và chuyển các lần nháp trước thành `superseded`; `GET` chỉ trả lần chạy mới nhất chưa bị thay thế. Tháng đã có lần chạy `final` thì không tính lại được.
+  - **Tính lại một phần** (gửi `employeeIds` không rỗng): lần chạy mới chứa phiếu vừa tính của những người trong danh sách, cộng nguyên vẹn phiếu nháp của mọi nhân sự khác trong lần chạy nháp trước (được sao sang lần chạy mới); nhờ đó `GET` vẫn trả đủ phiếu của cả tháng. Người trong danh sách nhưng bị lỗi không có phiếu trong lần chạy mới (lỗi nằm trong `errors`, phiếu cũ của họ không được giữ lại). Lần chạy mới có `slips_total` = số phiếu vừa tính + số phiếu sao sang. Tính cả công ty (không gửi `employeeIds`) không sao chép gì từ lần trước.
+  - **Không tính được phiếu nào** (mọi nhân sự trong danh sách đều lỗi, hoặc không có nhân sự nào để tính): không lưu gì, không có lần chạy mới và không `superseded` lần nháp trước, nên lần nháp trước vẫn là lần hiện hành. Phản hồi vẫn là 200 với `runId: null`, `count: 0`, `items: []` và `errors` mô tả từng lỗi.
 - **Lỗi**:
 
   | HTTP | `code` | Khi nào |
   |------|--------|---------|
   | 400 | `INVALID_MONTH` | `:month` sai định dạng |
+  | 400 | `INVALID_EMPLOYEE_IDS` | `employeeIds` có mặt nhưng không phải mảng chuỗi không rỗng (`error`: `employeeIds phải là danh sách mã nhân sự`) |
   | 400 | `CALCULATE_ERROR` | Lỗi khác khi tính hoặc lưu (`error` mô tả lỗi) |
   | 409 | `PAYROLL_FINALIZED` | Kỳ lương của tháng đã chốt (`final`), không thể tính lại |
 
@@ -398,9 +403,9 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `kpiProposedAmount` | Lương KPI đề xuất của tháng; `null` là chưa nhập |
   | `kpiAppliedAmount` | Mức KPI được áp dụng = nhỏ hơn của `kpiProposedAmount` và mức KPI tối đa của bậc; chưa đề xuất thì 0 |
   | `kpiMaxSalary` | **Đổi nghĩa**: bằng `kpiAppliedAmount` (mức KPI dùng để tính), không còn là mức tối đa của bậc |
-  | `kpiActualPay` | Lương KPI thực nhận = `kpiAppliedAmount` × `kpiTotalScorePct` / 100, làm tròn đồng |
+  | `kpiActualPay` | Lương KPI thực nhận = `round(kpiAppliedAmount × units / 1.000.000)`, với `units` = Σ(điểm × 100 × trọng số) của 5 thành phần (trọng số 40/24/18/12/6; thành phần chưa nhập tính 0). Tính trên `units` chưa làm tròn, không dùng `kpiTotalScorePct` đã làm tròn 2 chữ số thập phân |
   | `insuranceDeduction`, `insuranceBreakdown` | Bảo hiểm khấu trừ và từng phần `{ bhxh, bhyt, bhtn }` (mặc định 8% + 1,5% + 1% = 10,5% lương cơ bản của bậc, tỷ lệ cấu hình được); nhân sự không đóng bảo hiểm thì 0 |
-  | `taxMethod` | Cách tính thuế: `progressive` (hợp đồng từ 3 tháng, lũy tiến), `flat10` (hợp đồng dưới 3 tháng, 10%), `none` (không tính thuế) |
+  | `taxMethod` | Cách tính thuế: `progressive` (hợp đồng từ 3 tháng, lũy tiến), `flat10` (hợp đồng dưới 3 tháng: 10% thu nhập chịu thuế, chỉ khi `grossIncome` ≥ 5.000.000, dưới mức đó thuế là 0), `none` (không tính thuế). Ngày kết thúc hợp đồng tính cả ngày cuối: hợp đồng từ 01/10 đến 31/12 là đủ 3 tháng (`progressive`), đến 30/12 là dưới 3 tháng (`flat10`). Thiếu ngày bắt đầu hoặc ngày kết thúc thì tính `progressive` |
   | `dependants` | Số người phụ thuộc dùng để giảm trừ |
   | `taxExemptIncome`, `taxableIncome`, `taxAssessableIncome` | Phần thu nhập miễn thuế (phần OT vượt đơn giá giờ thường và phụ cấp ca đêm), thu nhập chịu thuế (`grossIncome` − `taxExemptIncome`), thu nhập tính thuế (`progressive`: sau bảo hiểm và giảm trừ bản thân 15.500.000 + 6.200.000 mỗi người phụ thuộc; `flat10`: bằng thu nhập chịu thuế; `none`: 0) |
   | `personalIncomeTax` | Thuế TNCN phải nộp |
