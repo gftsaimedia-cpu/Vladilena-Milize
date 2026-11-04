@@ -32,7 +32,7 @@ Quyết định thiết kế đã được duyệt: lưu nội dung form ở **b
 
 ## 3. Dữ liệu
 
-File mới `migrations/postgres/0003_isat_registrations.sql`:
+File mới `migrations/postgres/0004_isat_registrations.sql` (số `0003` đã thuộc `0003_payroll_rules.sql` trên `feat/pure-v2-backend` 92dca91):
 
 ```sql
 ALTER TABLE system_requests DROP CONSTRAINT system_requests_type_check;
@@ -137,7 +137,7 @@ Phản hồi giống các route tạo đơn: `{ "created": true, "request": <Sys
 
 ## 7. Nối lương
 
-- `PayrollRepository.getMonthlyData` đọc thêm ngày Thứ Bảy của các đơn `ISAT` **APPROVED** của người đó có `saturday` trong tháng (lọc khoảng `>= YYYY-MM-01` và `<= ngày cuối tháng`), trả về dưới dạng `isatDates: string[]` trong `EmployeeMonthlyRawData`.
+- `PayrollRepository.getMonthlyData` đọc thêm ngày Thứ Bảy của các đơn `ISAT` **APPROVED** của người đó có `saturday` trong tháng (lọc khoảng `>= YYYY-MM-01` và `<= ngày cuối tháng`), trả về dưới dạng `isatDates: string[]` trong `EmployeeMonthlyRawData` (qua `mapMonthRows`, như các dòng thô khác trên nền 92dca91).
 - `PayrollService.generateMonthlyPayslip`: với mỗi ngày trong `isatDates`, bỏ dòng chấm công cùng ngày (L10) và thêm một dòng ngày `shiftCode 'ISAT'`, `shiftLabel 'iSAT'`, `inOutText 'Hưởng lương ngày'`, `daySalary = round(lương cơ bản / ngày công chuẩn)`, phụ cấp/OT/khấu trừ = 0, `dailyTotal = daySalary`. Danh sách dòng sắp theo ngày.
 - Domain `EmployeePayslip` đã có sẵn: đếm `isatDays`, `isatPay = round(isatDays × lương ngày)` vào gross; ngày ISAT không vào `actualWorkDays` (không tăng phụ cấp đi lại/chuyên cần) và không vào số ngày nghỉ xét chuyên cần (L11).
 - Ví dụ: nv bậc 1, lương cơ bản 6.000.000, đơn iSAT T7 07/11/2026 đã duyệt → phiếu tháng 2026-11 có dòng 07/11 "iSAT" 230.769 đ, `isatDays = 1`, `isatPay = 230.769`; nếu 07/11 có dòng chấm công NORMAL thì dòng đó bị thay.
@@ -149,7 +149,7 @@ Phản hồi giống các route tạo đơn: `{ "created": true, "request": <Sys
 - Payroll: ngày iSAT đã duyệt → dòng `ISAT`, `isatDays = 1`, `isatPay = round(base/26)`, không phụ cấp; dòng chấm công cùng ngày bị thay.
 - Cổng xác minh: `npm test` xanh. Không chạy typecheck/prettier (theo yêu cầu người dùng).
 
-Chưa kiểm được bằng `npm test` (không có PostgreSQL trong bộ test): câu SQL thật của repository (join, giao dịch hai bảng), migration `0003`. Báo cáo cuối phải ghi rõ.
+Chưa kiểm được bằng `npm test` (không có PostgreSQL trong bộ test): câu SQL thật của repository (join, giao dịch hai bảng), migration `0004`. Báo cáo cuối phải ghi rõ.
 
 ## 9. Tài liệu
 
@@ -158,4 +158,4 @@ Chưa kiểm được bằng `npm test` (không có PostgreSQL trong bộ test):
 ## 10. Ghi nhận ngoài phạm vi (không sửa trong lần này)
 
 - Route tạo đơn và duyệt dùng `user.username` làm `employee_id` / `reviewed_by` khi không gửi id, trong khi hai cột này tham chiếu `staff(uuid)` — có thể vi phạm khoá ngoại trên DB thật. Đơn ISAT tự đổi sang uuid; các route khác giữ nguyên.
-- `PayrollRepository` lọc đơn theo `ot_date LIKE 'YYYY-MM%'` trên cột `DATE` — chưa kiểm trên PostgreSQL thật, có thể lỗi kiểu. Phần iSAT dùng so sánh khoảng ngày.
+- ~~`PayrollRepository` lọc đơn theo `ot_date LIKE 'YYYY-MM%'` trên cột `DATE`~~ — đã sửa trên `feat/pure-v2-backend` 92dca91 (so sánh khoảng ngày, ngày `DATE` đổi sang chuỗi trong `mapMonthRows`).

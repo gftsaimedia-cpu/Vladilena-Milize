@@ -23,18 +23,19 @@
   - `title` = `Đăng ký iSAT Thứ Bảy DD/MM/YYYY`; `reason` = `Tự đánh giá đạt N/T điều kiện`; `reviewNote` khi chưa đạt = `Tự đánh giá chưa đạt T/T (đạt N/T)` (N = số đạt, T = tổng điều kiện, hiện là 4).
   - Lỗi quyền lợi: `iSAT chỉ áp dụng cho nhóm Nhân viên`. Lỗi trùng: `Đã có đơn iSAT cho Thứ Bảy DD/MM/YYYY`. Không thấy hồ sơ: `Không tìm thấy nhân sự: <id>`.
   - Lỗi form: `saturday phải là ngày Thứ Bảy dạng YYYY-MM-DD, nhận: <giá trị>`; `team (Bộ phận / Team) không được để trống`; `conditions phải là object {mã: true|false}`; `Mã điều kiện iSAT không hợp lệ: <mã>`; `Giá trị điều kiện <mã> phải là true, false hoặc null`.
-- Cột `DATE` đọc ra luôn qua `sql<string>\`to_char(${sql.ref('<bảng>.saturday')}, 'YYYY-MM-DD')\`` (pg trả `DATE` thành `Date` theo múi giờ máy, lệch ngày ở UTC+7).
+- Cột `DATE` đọc ra luôn qua `sql<string>\`to_char(${sql.ref('<bảng>.saturday')}, 'YYYY-MM-DD')\`` (pg trả `DATE` thành `Date` theo múi giờ máy, lệch ngày ở UTC+7). Riêng module payroll (Task 4) theo quy ước sẵn có của nó: chọn cột thô rồi đổi bằng `dateText` trong `mapMonthRows`.
 
 ## Rulings (lead, ghi kèm vào ledger PROGRAM.md ở Task 4)
 
 - Ruling: đọc `isat_registrations` bằng truy vấn `request_id IN (…)` riêng thay vì left join như spec §5 — cùng kết quả, không phải viết lại bộ lọc/sắp xếp/phân trang đang có của `list` — rủi ro nếu sai: thêm một truy vấn mỗi trang có đơn ISAT.
 - Ruling: hồ sơ cho đơn iSAT đọc bằng `RequestsRepository.findIsatProfile` (3 truy vấn nhỏ: staff, position_levels, position_types+benefits) — không đụng module employees đang có phiên khác sửa — rủi ro nếu sai: logic tra hồ sơ lặp với employees.
 - Ruling: lỗi của đơn ISAT viết tiếng Việt (các loại đơn cũ dùng tiếng Anh) — người nộp đọc trực tiếp — rủi ro nếu sai: ngôn ngữ lỗi không đồng nhất giữa các loại đơn.
+- Ruling: merge `feat/pure-v2-backend` 92dca91 vào nhánh (a3858fa) trước Task 2; migration đổi số thành `0004` (số `0003` đã là `0003_payroll_rules.sql`); Task 4 viết lại trên payroll mới (`mapMonthRows`/`dateText` thay cho `to_char`) — tránh trùng số migration và xung đột khi tích hợp — rủi ro nếu sai: một merge commit trong lịch sử nhánh.
 
 ## Review Focus
 
 1. Trang danh sách không có đơn ISAT nào → không được chạy `where request_id in ()` (SQL lỗi); đọc như cũ. Test ở Task 2.
-2. pg trả cột `DATE` thành `Date` → `saturday` lệch một ngày, chặn trùng và payroll so khớp sai. Test SQL có `to_char` ở Task 2 và Task 4.
+2. pg trả cột `DATE` thành `Date` → `saturday` lệch một ngày, chặn trùng và payroll so khớp sai. Test SQL có `to_char` ở Task 2; Task 4 test `mapMonthRows` đổi `Date` giờ địa phương thành đúng ngày.
 3. Duyệt đơn gọi `save` lần hai → chèn lại `isat_registrations`/điều kiện không được lỗi khoá chính (`on conflict do nothing`). Test ở Task 2.
 4. Gửi `employeeId` là username → đơn lưu và chặn trùng theo **uuid**. Test ở Task 3.
 5. `conditions` sai kiểu (mảng, chuỗi, số, giá trị `"true"`) → 400 có thông báo, không văng lỗi lạ. Test ở Task 1.
@@ -198,7 +199,7 @@ git commit -m "feat(requests): add iSAT registration domain"
 ### Task 2: Lưu trữ — migration, kiểu DB, repository
 
 **Files:**
-- Create: `migrations/postgres/0003_isat_registrations.sql` (nội dung chép từ spec §3: đổi CHECK `system_requests_type_check`, `isat_registrations` không có cột `conditions`, chỉ mục `idx_isat_registrations_saturday`, `isat_registration_conditions`)
+- Create: `migrations/postgres/0004_isat_registrations.sql` (nội dung chép từ spec §3: đổi CHECK `system_requests_type_check`, `isat_registrations` không có cột `conditions`, chỉ mục `idx_isat_registrations_saturday`, `isat_registration_conditions`)
 - Create: `test/v2/helpers/scripted-kysely.ts`
 - Modify: `src/database/schema.ts`, `src/modules/requests/requests.repository.ts`
 - Test: `test/v2/requests-isat-repository.test.ts`
@@ -300,7 +301,7 @@ Expected: PASS toàn bộ.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add migrations/postgres/0003_isat_registrations.sql src/database/schema.ts src/modules/requests/requests.repository.ts test/v2/helpers/scripted-kysely.ts test/v2/requests-isat-repository.test.ts
+git add migrations/postgres/0004_isat_registrations.sql src/database/schema.ts src/modules/requests/requests.repository.ts test/v2/helpers/scripted-kysely.ts test/v2/requests-isat-repository.test.ts
 git commit -m "feat(requests): persist iSAT registrations and condition snapshots"
 ```
 
@@ -400,78 +401,93 @@ git commit -m "feat(requests): submit, review and document iSAT requests"
 
 ### Task 4: Nối lương
 
+> Viết trên nền payroll của `feat/pure-v2-backend` 92dca91 (đã merge vào nhánh ở `a3858fa`): dữ liệu thô của một tháng đi qua hàm thuần `mapMonthRows(month, rows: MonthRows)`, hàm này đổi mọi cột `DATE` sang `'YYYY-MM-DD'` bằng `dateText` (giờ địa phương).
+
 **Files:**
 - Modify: `src/modules/payroll/payroll.repository.ts`, `src/modules/payroll/payroll.service.ts`, `docs/superpowers/PROGRAM.md` (ledger)
-- Test: `test/v2/payroll.test.ts`
+- Test: `test/v2/payroll-month-rows.test.ts`, `test/v2/payroll.test.ts`
 
 **Interfaces:**
-- Consumes: bảng `isat_registrations` trong `schema.ts` (Task 2); `createScriptedKysely` (Task 2).
-- Produces: `EmployeeMonthlyRawData.isatDates?: string[]` (tuỳ chọn để các dữ liệu giả hiện có vẫn hợp lệ).
+- Consumes: bảng `isat_registrations` trong `schema.ts` (Task 2); `EmployeeMonthlyRawData`, `MonthRows`, `mapMonthRows`, `dateText` (đã có trong `payroll.repository.ts`); `nvMonthData` (`test/v2/payroll-fixtures.ts`).
+- Produces: `EmployeeMonthlyRawData.isatDates?: string[]`; `MonthRows.isatDates?: Array<string | Date>` (cả hai tuỳ chọn để dữ liệu giả hiện có vẫn hợp lệ).
 
-- [ ] **Step 1: Viết test hỏng (describe mới ở cuối `payroll.test.ts`)**
+- [ ] **Step 1: Viết test hỏng**
 
-Dữ liệu: nhân sự `isat-emp`, `employeeType: 'nv'`, `baseSalary: 6_000_000`, `standardWorkdays: 26`, các trường `staff` khác như describe đầu file; một dòng chấm công NORMAL 8 giờ ngày `2026-11-06` và một ngày `2026-11-07`; `requests: []`, `kpiScore: null`, `isatDates: ['2026-11-07']`.
+Trong `test/v2/payroll-month-rows.test.ts`:
 
 ```ts
-it('pays an approved iSAT Saturday as one base day and replaces that date's attendance line', async () => {
-  const slip = await service.generateMonthlyPayslip('isat-emp', '2026-11');
-  assert.deepEqual(slip.dailyLines.map(l => [l.date, l.shiftCode]), [['2026-11-06', 'NORMAL'], ['2026-11-07', 'ISAT']]);
+it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
+  assert.deepEqual(mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates, ['2026-11-07', '2026-11-14']);
+  assert.deepEqual(mapMonthRows('2026-11', rows()).isatDates, []);
+});
+
+// trong describe 'PayrollRepository.getMonthlyData queries'
+it('reads approved iSAT Saturdays of the month for the employee uuid', async () => {
+  const { qb, calls } = recordingQb({ ...tables, isat_registrations: { all: [{ saturday: new Date(2026, 9, 10) }] } });
+  const data = await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+  const isat = calls.find(c => c.table === 'isat_registrations');
+  // where có đủ: employee_id = uuid của staff, type = 'ISAT', status = 'APPROVED', saturday >= '2026-10-01', saturday <= '2026-10-31'
+  // (so từng bộ ba bằng assert.deepEqual trên isat.where, tên cột có tiền tố bảng như code viết)
+  assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
+  assert.deepEqual(data?.isatDates, ['2026-10-10']);
+});
+```
+
+`recordingQb` thêm `innerJoin() { return qb; }`. Fake `qb` viết tay trong test `'loads persisted schedule type by employee and work date for makeup detection'` (`payroll.test.ts`) thêm `innerJoin() { return this; }`.
+
+Cuối `test/v2/payroll.test.ts`, describe mới dùng `FakePayrollRepository` như describe `'Payroll V2 - KPI, insurance and income tax on the payslip'`; dữ liệu `nvMonthData()` (nv, lương cơ bản 6.000.000, công chuẩn 26) với `timesheets` thay bằng: một dòng NORMAL 8 giờ ngày `2026-10-09` và một dòng NORMAL 8 giờ ngày `2026-10-10`; `requests: []`; `isatDates: ['2026-10-10']`.
+
+```ts
+it("pays an approved iSAT Saturday as one base day and replaces that date's attendance line", async () => {
+  const slip = await service.generateMonthlyPayslip('u1', '2026-10');
+  assert.deepEqual(slip.dailyLines.map(l => [l.date, l.shiftCode]), [['2026-10-09', 'NORMAL'], ['2026-10-10', 'ISAT']]);
   const line = slip.dailyLines[1];
-  assert.deepEqual([line.shiftLabel, line.daySalary, line.flexAllowancePay, line.nightAllowancePay, line.offPaidPay, line.deductionAmount, line.dailyTotal],
-    ['iSAT', 230769, 0, 0, 0, 0, 230769]);
+  assert.deepEqual(
+    [line.dayOfWeekText, line.shiftLabel, line.inOutText, line.workHours, line.daySalary, line.flexAllowancePay, line.nightAllowancePay, line.offPaidPay, line.otHours, line.deductionAmount, line.dailyTotal],
+    ['Thứ 7', 'iSAT', 'Hưởng lương ngày', 0, 230769, 0, 0, 0, 0, 0, 230769]
+  );
   assert.equal(slip.isatDays, 1);
   assert.equal(slip.isatPay, 230769);
   assert.equal(slip.actualWorkDays, 1);
 });
 
 it('adds the iSAT line when the Saturday has no attendance row', async () => {
-  // timesheets: [], isatDates: ['2026-11-07'] → 1 dòng ISAT, travelAllowanceActual === 0
+  // timesheets: [], isatDates: ['2026-10-10'] → dailyLines đúng 1 dòng ISAT ngày 2026-10-10, isatPay 230769, actualWorkDays 0
 });
 
-it('loads approved iSAT Saturdays of the month as YYYY-MM-DD text', async () => {
-  const { db, log } = createScriptedKysely(q => {
-    if (q.sql.includes('from "isat_registrations"')) return [{ saturday: '2026-11-07' }];
-    if (q.sql.includes('from "staff"')) return [{ uuid: 'isat-emp', username: 'isat-emp', name: 'A', type: 'nv', level: 1 }];
-    if (q.sql.includes('from "position_levels"')) return [{ base_salary: 6_000_000, kpi_max: 6_000_000, name: 'Nhân viên' }];
-    return [];
-  });
-  const data = await new PayrollRepository(db).getMonthlyData('isat-emp', '2026-11');
-  assert.deepEqual(data!.isatDates, ['2026-11-07']);
-  const q = log.find((e: any) => typeof e !== 'string' && e.sql.includes('from "isat_registrations"')) as any;
-  assert.match(q.sql, /to_char\("isat_registrations"\."saturday", 'YYYY-MM-DD'\)/);
-  for (const p of ['isat-emp', 'ISAT', 'APPROVED', '2026-11-01', '2026-11-30']) assert.ok(q.parameters.includes(p), p);
+it('keeps payslips unchanged when isatDates is absent', async () => {
+  // nvMonthData() nguyên bản (không có isatDates) → isatDays 0, isatPay 0, không dòng ISAT
 });
 ```
 
-Sửa thêm fake `qb` viết tay trong test `'loads persisted schedule type by employee and work date for makeup detection'`: thêm `innerJoin() { return this; }` (truy vấn iSAT mới dùng `innerJoin`; `execute()` của bảng khác trả `[]` nên `isatDates` rỗng).
-
 - [ ] **Step 2: Chạy, thấy hỏng**
 
-Run: `node --import tsx --test test/v2/payroll.test.ts`
-Expected: FAIL ở 3 test mới; các test cũ vẫn chạy (riêng test fake `qb` có thể hỏng tới khi repository dùng `innerJoin` — sau Step 3 phải xanh).
+Run: `node --import tsx --test test/v2/payroll-month-rows.test.ts test/v2/payroll.test.ts`
+Expected: FAIL ở các test mới; test cũ vẫn xanh.
 
 - [ ] **Step 3: Sửa repository và service**
 
-- `getMonthlyData`: sau truy vấn đơn, truy vấn `isat_registrations` inner join `system_requests` (`system_requests.id = isat_registrations.request_id`), chọn `to_char("isat_registrations"."saturday", 'YYYY-MM-DD') as saturday`, lọc `system_requests.employee_id = staffRow.uuid || employeeId`, `type = 'ISAT'`, `status = 'APPROVED'`, `isat_registrations.saturday >= startDate` và `<= endDate` (biến đã có trong hàm), `orderBy` ngày; trả `isatDates`.
+- `MonthRows.isatDates?: Array<string | Date>`; `mapMonthRows` trả `isatDates: (rows.isatDates ?? []).map(dateText)`.
+- `getMonthlyData`: sau truy vấn đơn, `selectFrom('isat_registrations').innerJoin('system_requests', 'system_requests.id', 'isat_registrations.request_id').select('isat_registrations.saturday as saturday')`, lọc `system_requests.employee_id = staffRow.uuid || employeeId`, `system_requests.type = 'ISAT'`, `system_requests.status = 'APPROVED'`, `isat_registrations.saturday >= startDate`, `<= endDate` (biến đã có trong hàm), `orderBy('isat_registrations.saturday', 'asc')`; truyền `isatDates: isatRows.map(r => r.saturday)` vào `mapMonthRows`.
 - `generateMonthlyPayslip`: `const isatDates = new Set(data.isatDates ?? [])`; vòng lặp chấm công bỏ qua ngày thuộc `isatDates`; sau vòng lặp thêm mỗi ngày một dòng `{ date, dayOfWeekText: 'Thứ 7', shiftCode: 'ISAT', shiftLabel: 'iSAT', inOutText: 'Hưởng lương ngày', workHours: 0, daySalary: Math.round(dayRate), flexAllowancePay: 0, nightAllowancePay: 0, offPaidPay: 0, otHours: 0, otPay: 0, deductionHours: 0, deductionAmount: 0, dailyTotal: Math.round(dayRate) }`; sắp `dailyLines` theo `date`.
 
 - [ ] **Step 4: Chạy, thấy qua**
 
-Run: `node --import tsx --test test/v2/payroll.test.ts`
+Run: `node --import tsx --test test/v2/payroll-month-rows.test.ts test/v2/payroll.test.ts`
 Expected: PASS toàn bộ.
 
 - [ ] **Step 5: Ghi ledger**
 
-Thêm một dòng cuối bảng Ledger của `docs/superpowers/PROGRAM.md`: ngày 2026-11-04, "Đơn iSAT (BE v2)": spec/plan, 3 Ruling ở trên, số test của `npm test` cuối, những gì chưa kiểm (SQL thật, migration chưa áp).
+Thêm một dòng cuối bảng Ledger của `docs/superpowers/PROGRAM.md`: ngày 2026-11-04, "Đơn iSAT (BE v2)": spec/plan, 3 Ruling ở trên, số test của `npm test` cuối, những gì chưa kiểm (SQL thật, migration `0004` chưa áp).
 
 - [ ] **Step 6: Chạy toàn bộ**
 
 Run: `npm test`
-Expected: không test đỏ mới so với mốc Task 0.
+Expected: không test đỏ mới so với mốc sau merge (176 test: 175 pass, 1 skip `payroll-repository.pg.test.ts` vì không đặt `PG_TEST_URL`).
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/modules/payroll test/v2/payroll.test.ts docs/superpowers/PROGRAM.md
+git add src/modules/payroll test/v2/payroll-month-rows.test.ts test/v2/payroll.test.ts docs/superpowers/PROGRAM.md
 git commit -m "feat(payroll): pay approved iSAT Saturdays"
 ```
