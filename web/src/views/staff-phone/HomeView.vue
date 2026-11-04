@@ -1,429 +1,332 @@
 <script setup lang="ts">
-// Hôm nay: "Hôm nay tôi chấm công chưa?" và "Tháng này tôi được khoảng bao nhiêu?". Kịch bản theo ?kb= (ca-dem, ctv, quen-checkout, tts).
-import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import { punchExplanationItem } from '@/builders/staff-requests/punch-explanation';
-import logoLight from '@/assets/img/gft-logo-light.png';
-import { toast } from '@/components/shell/toast';
-import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad';
-import { getHome, punch } from '@/services/staff-phone';
-import { dayLong, dm, vnd } from '@/utils/format';
-import ExplanationSheet from './components/ExplanationSheet.vue';
-import LoadFeedback from './components/LoadFeedback.vue';
+// J1 · Hôm nay (spec 4): lời chào, thẻ ca hôm nay có vòng cung và nút Check-out, thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
+// Dữ liệu là bản giả (services/staff-phone); bấm Check-out gọi checkOut() rồi thay cả dữ liệu màn bằng kết quả trả về (R7).
+import { computed, nextTick, ref } from 'vue';
+import type { HomeView } from '@/mock/staff-phone';
+import { checkOut, getHome } from '@/services/staff-phone';
+import PhIcon from './components/PhIcon.vue';
+import RequestRow from './components/RequestRow.vue';
 
-const route = useRoute();
-const kb = computed(() => String(route.query.kb || 'mac-dinh'));
-const { data, loading, error, reload } = useLoad(
-  () => getHome(),
-  () => kb.value
-);
-
-// Trạng thái ca giả: Check-in / Check-out chỉ đổi trên màn, không gọi máy chủ thật.
-const shift = ref(null);
-watch(data, d => (shift.value = d ? { ...d.shift } : null), { immediate: true });
+const data = ref<HomeView | null>(null);
 const busy = ref(false);
-const punchError = ref('');
-const explaining = ref(null); // lần bấm đang chờ giải trình: hộp nhập lý do
+const hero = ref<HTMLElement | null>(null);
+getHome().then(v => (data.value = v));
 
-const dateText = computed(() => `${dayLong(data.value.today)}/${data.value.today.slice(0, 4)}`);
-const monthNo = computed(() => Number(data.value.month.slice(5, 7)));
-const pill = computed(() => {
-  if (shift.value.state === 'working') return { cls: 'on', text: 'Đang trong ca' };
-  if (shift.value.state === 'done') return { cls: 'off', text: 'Đã kết thúc ca' };
-  return { cls: 'off', text: 'Chưa vào ca' };
-});
-const cta = computed(() => {
-  const s = shift.value;
-  if (s.state === 'working') return { cls: '', icon: 'logout', label: 'Check-out', small: `· ${s.now}`, action: 'out' };
-  if (s.state === 'done')
-    return { cls: 'dis', icon: 'logout', label: 'Đã Check-out', small: `· ${s.checkOut}`, action: null };
-  if (s.locked)
-    return {
-      cls: 'dis',
-      icon: 'login',
-      label: 'Check-in',
-      small: s.lockedAt ? `· mở lúc ${s.lockedAt}` : '',
-      action: null
-    };
-  return { cls: 'gold', icon: 'login', label: 'Check-in', small: `· ${s.now}`, action: 'in' };
+// Vòng cung: nửa đường tròn bán kính 100, phần đã làm = phút đã làm / phút ca; núm tròn nằm ở cuối phần đã làm.
+const HALF = Math.PI * 100;
+const arc = computed(() => {
+  const d = data.value;
+  const f = d ? Math.min(1, d.workedMin / d.shiftMin) : 0;
+  const a = Math.PI * (1 - f);
+  return {
+    dash: `${(f * HALF).toFixed(1)} 400`,
+    kx: (120 + 100 * Math.cos(a)).toFixed(1),
+    ky: (120 - 100 * Math.sin(a)).toFixed(1)
+  };
 });
 
-async function onCta() {
-  const action = cta.value.action;
-  if (!action || busy.value) return;
+async function doCheckOut() {
+  if (busy.value) return;
   busy.value = true;
-  punchError.value = '';
   try {
-    await punch(action);
-    await reload();
-  } catch (e) {
-    const item = punchExplanationItem(e, text => punch(action, undefined, text), data.value && data.value.today);
-    if (item) explaining.value = item;
-    else punchError.value = e.message;
+    data.value = await checkOut();
+    // Nút Check-out biến mất (R7): đưa focus về thẻ ca để bàn phím và trình đọc màn hình không rơi xuống <body>.
+    await nextTick();
+    hero.value?.focus();
   } finally {
     busy.value = false;
   }
 }
-async function onExplained() {
-  toast.ok('Đã gửi giải trình');
-  await reload();
-}
 </script>
 
 <template>
-  <LoadFeedback :loading="loading" :error="error" :has-data="!!data" @retry="reload" />
-  <div v-if="data && shift" class="home">
-    <header class="hero">
-      <div class="top">
-        <img :src="logoLight" alt="GFT" />
-        <span class="av">{{ data.user.initials }}</span>
-      </div>
-      <h1>{{ data.greeting }}, {{ data.user.name }}</h1>
-      <div class="sub">{{ dateText }} · {{ data.user.roleLine }}</div>
-      <div class="shift">
-        <div class="h">
-          <span>Ca hôm nay</span>
-          <span class="pill" :class="pill.cls">{{ pill.text }}</span>
+  <div class="ph home">
+    <template v-if="data">
+      <header class="hello">
+        <span class="avatar" aria-hidden="true">{{ data.initials }}</span>
+        <div class="who-col">
+          <div class="mut">{{ data.greeting }}</div>
+          <div class="name">{{ data.name }}</div>
         </div>
-        <div class="name">{{ shift.name }}</div>
-        <div v-if="shift.checkIn" class="meta">
-          Vào {{ shift.checkIn }} <span v-if="shift.checkInNote">· {{ shift.checkInNote }}</span>
-          <template v-if="shift.state === 'done'">
-            <span>· ra {{ shift.checkOut }}</span></template
-          >
-          <br />Đã làm {{ shift.worked }}
-        </div>
-        <div v-for="n in shift.notes" :key="n.text" class="gps">
-          <Icon :name="n.icon" :size="16" />
-          <span
-            ><b v-if="n.lead">{{ n.lead }}</b> {{ n.text }}</span
-          >
-        </div>
-        <div v-if="punchError" class="gps">
-          <Icon name="alert" :size="16" />
-          <span>{{ punchError }}</span>
-        </div>
-        <button
-          type="button"
-          class="cta"
-          :class="cta.cls"
-          :disabled="!cta.action || busy"
-          :aria-busy="busy"
-          @click="onCta"
-        >
-          <Icon :name="cta.icon" :size="18" />{{ busy ? 'Đang xử lý…' : cta.label }}
-          <small v-if="!busy">{{ cta.small }}</small>
-        </button>
-      </div>
-    </header>
+        <span class="mut sm date">{{ data.weekday }}<br />{{ data.date }}</span>
+      </header>
 
-    <div v-if="data.alert" class="alert">
-      <div class="h"><Icon name="alert" :size="18" />{{ data.alert.title }}</div>
-      <p>{{ data.alert.text }}</p>
-      <div class="bs">
-        <RouterLink class="link" to="/nv/cham-cong">Xem ngày</RouterLink>
-      </div>
-    </div>
-
-    <section class="sec card">
-      <div class="pay">
-        <div class="l">
-          <span>Thu nhập tháng {{ monthNo }}</span>
+      <section ref="hero" class="hero on-dark" aria-label="Ca hôm nay" tabindex="-1">
+        <div class="hero-top">
+          <span>{{ data.shiftLabel }}</span>
+          <span class="live" role="status"><i v-if="!data.checkOut" />{{ data.checkOut ? 'Đã check-out' : 'Đang trong ca' }}</span>
         </div>
-        <div class="v est-u">{{ vnd(data.pay.amount) }}<span class="unit">₫</span></div>
-        <div class="n">
-          Tính trên {{ data.pay.days }} ngày công đến {{ dm(data.pay.asOf) }} · chưa phải lương chính thức.<template
-            v-if="data.payslipDate"
-          >
-            Phiếu lương chính thức gửi ngày {{ dm(data.payslipDate) }}.</template
-          >
-        </div>
-      </div>
-      <div v-for="f in data.facts" :key="f.label" class="kv">
-        <span class="k"
-          >{{ f.label }}<small v-if="f.hint">{{ f.hint }}</small></span
-        >
-        <span class="v" :class="f.tone">{{ f.value }}</span>
-      </div>
-      <RouterLink class="more" to="/nv/thu-nhap">
-        <span>Xem cách tính</span>
-        <Icon name="chevr" :size="18" />
-      </RouterLink>
-    </section>
-
-    <section class="sec">
-      <div class="h2">
-        Việc cần làm<template v-if="data.requestDeadline"> trước {{ dm(data.requestDeadline) }}</template>
-      </div>
-      <div class="card">
-        <div v-for="t in data.todo" :key="t.title" class="ok">
-          <span class="ico" :class="t.tone"><Icon :name="t.icon" :size="14" :stroke="2.5" /></span>
-          <div>
-            {{ t.title }}<small>{{ t.hint }}</small>
+        <div class="gauge">
+          <svg aria-hidden="true" width="240" height="132" viewBox="0 0 240 132" focusable="false">
+            <path d="M20 120 A100 100 0 0 1 220 120" fill="none" stroke="#2a2a2a" stroke-width="14" stroke-linecap="round" />
+            <path
+              d="M20 120 A100 100 0 0 1 220 120"
+              fill="none"
+              stroke="#e8c372"
+              stroke-width="14"
+              stroke-linecap="round"
+              :stroke-dasharray="arc.dash"
+            />
+            <circle :cx="arc.kx" :cy="arc.ky" r="9" fill="#e8c372" stroke="#1c1c1c" stroke-width="4" />
+          </svg>
+          <div class="gauge-in">
+            <div class="worked">{{ data.worked }}</div>
+            <div class="since">đã làm · vào {{ data.checkIn }}{{ data.checkOut ? ` · ra ${data.checkOut}` : '' }}</div>
           </div>
         </div>
-      </div>
-    </section>
-    <ExplanationSheet v-if="explaining" :item="explaining" @close="explaining = null" @saved="onExplained" />
+        <div class="ends"><span>{{ data.shiftStart }}</span><span>{{ data.shiftEnd }}</span></div>
+        <template v-if="!data.checkOut">
+          <button type="button" class="cta" :aria-label="`Check-out lúc ${data.now}`" :disabled="busy" @click="doCheckOut">
+            <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ data.now }}</small>
+          </button>
+          <div class="loc"><PhIcon name="pin" :size="16" />{{ data.location }}</div>
+        </template>
+      </section>
+
+      <section class="card week" aria-label="Tuần này">
+        <div class="sh"><h2>Tuần này</h2><span class="mut">{{ data.week.range }}</span></div>
+        <div class="days">
+          <div v-for="c in data.week.cells" :key="c.date">
+            <div class="dw">{{ c.dow }}</div>
+            <RouterLink
+              v-if="c.open"
+              :to="`/nv/cham-cong?ngay=${c.date}`"
+              class="dn"
+              :class="[c.kind, { today: c.today }]"
+              :aria-label="c.label"
+              >{{ c.day }}</RouterLink
+            >
+            <span v-else class="dn" :class="[c.kind, { today: c.today }]" role="img" :aria-label="c.label">{{
+              c.day
+            }}</span>
+          </div>
+        </div>
+        <RouterLink v-if="data.alert" :to="`/nv/cham-cong?ngay=${data.alert.date}`" class="att">
+          <i class="dot todo" /><span class="t">{{ data.alert.text }}</span>
+          <PhIcon name="right" :size="18" :stroke="2" />
+        </RouterLink>
+      </section>
+
+      <RouterLink to="/nv/thu-nhap" class="card pay">
+        <div class="pay-text">
+          <div class="mut">{{ data.income.label }}</div>
+          <div class="amt">{{ data.income.net }} <span>₫</span></div>
+        </div>
+        <PhIcon name="right" :size="20" :stroke="2" />
+      </RouterLink>
+
+      <section class="reqs">
+        <div class="sh">
+          <h2>Yêu cầu của tôi</h2>
+          <RouterLink to="/nv/yeu-cau" class="lk">Xem tất cả</RouterLink>
+        </div>
+        <div class="card ls">
+          <RequestRow v-for="r in data.requests" :key="r.id" :row="r" />
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 
 <style scoped>
-/* Trang chủ nhân viên của thiết kế không nạp nv.css: các luật dưới đây ghi đè phần lây từ styles/phone.css cho khớp thiết kế. */
-.hero {
-  background: #1c1c1c;
-  color: #fff;
-  padding: 16px 16px 20px;
-  border-radius: 0 0 24px 24px;
-}
-.hero .top {
+.hello {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 12px;
 }
-.hero .top img {
-  width: 52px;
-}
-.hero .av {
-  width: 40px;
-  height: 40px;
-  background: var(--gold-light);
-  color: #212121;
-  font-size: 14px;
-}
-.hero h1 {
-  font-family: var(--display);
-  font-weight: 600;
-  font-size: 26px;
-  line-height: 30px;
-  margin: 14px 0 4px;
-  letter-spacing: -0.2px;
-}
-.hero .sub {
-  color: #bdbdbd;
-  font-size: 14px;
-  line-height: 20px;
-}
-.shift {
-  background: #2a2a2a;
-  border-radius: 16px;
-  padding: 16px;
-  margin-top: 16px;
-}
-.shift .h {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #bdbdbd;
-  font-size: 14px;
-}
-.shift .on {
-  background: var(--gold-light);
-  color: #212121;
-}
-.shift .off {
-  background: #3a3a3a;
-  color: #e0e0e0;
-}
-.shift .name {
-  font-size: 20px;
-  line-height: 26px;
-  font-weight: 600;
-  margin-top: 6px;
-}
-.shift .meta {
-  margin-top: 8px;
-  font-size: 15px;
-  line-height: 22px;
-  color: #eeeeee;
-}
-.shift .meta span {
-  color: #bdbdbd;
-}
-.gps {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-  font-size: 14px;
-  line-height: 20px;
-  color: #e0e0e0;
-}
-.gps svg {
-  color: var(--gold);
+.avatar {
+  width: 48px;
+  height: 48px;
   flex: none;
-  margin-top: 2px;
-}
-.gps b {
-  color: #fff;
+  display: grid;
+  place-items: center;
+  border-radius: 50px;
+  background: var(--gold-light);
   font-weight: 600;
+}
+.who-col {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.name {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.date {
+  text-align: right;
+}
+
+/* Thẻ ca hôm nay: nền đen, chữ trắng */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--surface-dark);
+  color: #ffffff;
+}
+.hero-top {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #9e9e9e;
+}
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffffff;
+  font-size: 13px;
+}
+.live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50px;
+  background: var(--gold);
+}
+.gauge {
+  position: relative;
+  width: 240px;
+  height: 132px;
+  margin-top: 8px;
+}
+.gauge-in {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  text-align: center;
+}
+.worked {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+.since {
+  color: #9e9e9e;
+}
+.ends {
+  width: 240px;
+  display: flex;
+  justify-content: space-between;
+  color: #9e9e9e;
+  font-size: 12px;
+  line-height: 16px;
 }
 .cta {
-  width: 100%;
-  margin-top: 16px;
+  align-self: stretch;
   height: 52px;
-  border: 0;
-  border-radius: 12px;
-  background: #fff;
-  color: #111;
+  margin-top: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--gold);
+  color: var(--text);
   font: inherit;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
 }
 .cta small {
+  font-size: 14px;
   font-weight: 400;
-  color: #616161;
-  font-size: 15px;
 }
-.cta.gold {
-  background: var(--gold);
-  color: #212121;
-}
-.cta.gold small {
-  color: #5c4310;
-}
-.cta.dis {
-  background: #3a3a3a;
-  color: #9e9e9e;
-  cursor: default;
-}
-.cta.dis small {
-  color: #9e9e9e;
-}
-.alert {
-  margin: 16px 16px 0;
-  padding: 14px 16px;
-  border-radius: 20px;
-  background: var(--pend-bg);
-  border: 1px solid #f3d3b0;
-}
-.alert .h {
+.loc {
   display: flex;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 22px;
-  color: #5e3407;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: #9e9e9e;
+  font-size: 13px;
 }
-.alert .h svg {
-  color: var(--pend-ink);
-  flex: none;
-  margin-top: 3px;
-}
-.alert p {
-  margin: 6px 0 0 28px;
-  font-size: 14px;
-  line-height: 20px;
-  color: #5e3407;
-}
-.alert .bs {
+
+/* Thẻ "Tuần này" */
+.week {
   display: flex;
+  flex-direction: column;
   gap: 14px;
-  align-items: center;
-  margin: 12px 0 0 28px;
+  padding: 16px;
 }
-.alert .bs .off {
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 10px;
-  border: 1px solid #e7c39c;
-  background: none;
-  font: inherit;
-  font-size: 14px;
-  color: #a0754a;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  justify-items: center;
+  gap: 6px;
 }
-.alert .bs .off small {
-  font-size: 11px;
-  border: 1px solid #e7c39c;
-  border-radius: 999px;
-  padding: 0 6px;
-}
-.pay {
-  padding: 18px 16px 4px;
-}
-.pay .l {
-  color: var(--muted);
-  font-size: 14px;
+.days > div {
+  min-width: 0;
+  width: 100%;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
 }
-.pay .v {
-  font-size: 34px;
-  line-height: 40px;
-  font-weight: 600;
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
+/* Ô ngày co theo cột (tối đa 40px, luôn vuông) để bảy ô vừa thẻ ở mọi bề ngang từ 320px */
+.days .dn {
+  width: 100%;
+  max-width: 40px;
+  height: auto;
+  aspect-ratio: 1;
 }
-.pay .n {
+.dw {
+  margin-bottom: 6px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
-  font-size: 14px;
-  line-height: 20px;
-  margin-top: 6px;
+  text-align: center;
 }
-.ph-app .pay + .kv {
-  margin-top: 12px;
-}
-.ph-app .kv {
-  align-items: stretch;
-  min-height: 0;
-  padding: 13px 16px;
-}
-.kv .k {
+.att {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--page);
   color: var(--text);
+  text-decoration: none;
 }
-.kv .v.bad {
-  color: var(--err-ink);
+.att .t {
+  flex: 1 1 auto;
+  min-width: 0;
 }
-.kv .v.z {
-  color: #a3a3a3;
+
+/* Thẻ thu nhập */
+.pay {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 16px 20px;
+  color: inherit;
+  text-decoration: none;
+}
+.pay-text {
+  flex: 1 1 auto;
+}
+.amt {
+  margin-top: 2px;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+.amt span {
+  font-size: 16px;
+  color: var(--muted);
   font-weight: 500;
 }
-.ph-app .more {
-  padding: 14px 16px;
-  min-height: 0;
-}
-.ph-app .h2 {
-  display: block;
-  margin: 0 0 8px 4px;
-}
-.ok {
+
+.reqs {
   display: flex;
-  gap: 12px;
-  padding: 14px 16px;
-  align-items: flex-start;
-  font-size: 15px;
-  line-height: 22px;
+  flex-direction: column;
+  gap: 10px;
 }
-.ok + .ok {
-  border-top: 1px solid var(--rule);
-}
-.ok .ico {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--done-bg);
-  color: var(--done-ink);
-  display: grid;
-  place-items: center;
-  flex: none;
-  margin-top: -1px;
-}
-.ok .ico.pend {
-  background: var(--pend-bg);
-  color: var(--pend-ink);
-}
-.ok small {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
+.reqs .sh {
+  padding: 0 4px;
 }
 </style>

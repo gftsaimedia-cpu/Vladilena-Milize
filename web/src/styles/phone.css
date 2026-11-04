@@ -1,205 +1,286 @@
-/* Màn nhân viên trên điện thoại (390 × 844): chữ 16px, vùng chạm ≥ 44px (chuyển từ nv.css của bản HTML).
-   Mọi luật đặt dưới .ph-app (gốc của PhoneLayout) để không ảnh hưởng màn Admin. */
-.ph-app {
-  font-size: 16px;
-  line-height: 24px;
+/* App nhân viên trên điện thoại (/nv/*, board J1–J7, spec staff-phone-app 3.3–3.4).
+   Mọi luật đặt dưới .ph-app (gốc của PhoneLayout) hoặc .ph-sheet (hộp trượt teleport ra body) để không đụng màn Admin.
+   Lớp chép từ CSS của gen-mobile.js; màu qua biến của base.css. Không đổ bóng ở đâu cả. */
+.ph-app,
+.ph-sheet {
+  --page: var(--ground); /* nền trang của board (#f5f5f5): ô chưa tới, ô biểu tượng, hộp nhắc việc */
 }
-.ph-app .wrap {
+
+/* Gốc của mỗi màn: đệm đáy 112px để thanh tab nổi (68px, cách đáy 16px) không che dòng cuối. */
+.ph-app .ph {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-}
-.ph-app .wrap > :nth-last-child(2) {
-  margin-bottom: 24px;
-}
-.ph-app .ph {
-  padding: 24px 16px 4px;
+  gap: 16px;
+  padding: 20px 16px calc(112px + env(safe-area-inset-bottom, 0px));
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .ph-app .ph h1 {
   margin: 0;
   font-family: var(--display);
-  font-weight: 600;
-  font-size: 30px;
-  line-height: 34px;
-  letter-spacing: -0.3px;
-}
-.ph-app .ph p {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 15px;
-  line-height: 22px;
-}
-.ph-app .mon {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 16px 16px 0;
-}
-.ph-app .mon .mb {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: #fff;
-  display: grid;
-  place-items: center;
-  color: var(--muted);
-}
-.ph-app .mon .mt {
-  text-align: center;
-}
-.ph-app .mon .mt b {
-  display: block;
-  font-size: 17px;
-  line-height: 22px;
+  font-size: 28px;
+  line-height: 32px;
   font-weight: 600;
 }
-.ph-app .mon .mt span {
-  font-size: 13px;
-  color: var(--est);
-  font-weight: 500;
-}
-.ph-app .sec {
-  margin: 16px 16px 0;
-}
-.ph-app .card {
-  border-radius: 20px;
-}
-.ph-app .h2 {
-  font-size: 17px;
+.ph-app .ph h2 {
+  margin: 0;
+  font-size: 18px;
   line-height: 24px;
   font-weight: 600;
-  margin: 0 0 8px 4px;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
 }
-.ph-app .h2 small {
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 400;
-}
-.ph-app .kv {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  min-height: 48px;
-  border-top: 1px solid var(--rule);
-  font-size: 15px;
-  line-height: 22px;
-}
-.ph-app .kv:first-child {
-  border-top: 0;
-}
-.ph-app .kv .k small {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
-}
-.ph-app .kv .v {
-  font-weight: 600;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.ph-app .kv .v.m {
-  font-weight: 400;
+
+/* Chữ phụ, chữ nhỏ */
+:is(.ph-app, .ph-sheet) .mut {
   color: var(--muted);
 }
-.ph-app .more {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 16px;
-  min-height: 52px;
-  border-top: 1px solid var(--rule);
-  font-weight: 500;
-  font-size: 15px;
-}
-.ph-app .more:first-child {
-  border-top: 0;
-}
-.ph-app .more .l {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.ph-app .more .l small {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
-  font-weight: 400;
-}
-.ph-app .more .chev svg {
-  color: #9e9e9e;
-}
-.ph-app .tabbar {
-  position: static;
-  min-height: 76px;
-  height: auto;
-  background: #fff;
-  border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  padding: 8px 4px max(14px, env(safe-area-inset-bottom));
-  margin-top: auto;
-  flex: none;
-}
-.ph-app .tb {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
+:is(.ph-app, .ph-sheet) .sm {
   font-size: 12px;
   line-height: 16px;
-  color: var(--muted);
-  min-width: 0;
-  min-height: 48px;
-  justify-content: center;
-  text-decoration: none;
 }
-.ph-app .tb .ib {
-  width: 52px;
-  height: 30px;
-  border-radius: 15px;
+
+/* Thẻ trắng bo 24px (bỏ viền của .card bên Admin) */
+:is(.ph-app, .ph-sheet) .card {
+  background: var(--surface);
+  border: 0;
+  border-radius: 24px;
+}
+/* Hàng hai đầu: tiêu đề trái, phụ phải */
+:is(.ph-app, .ph-sheet) .sh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+/* Liên kết chữ gạch chân ("Xem tất cả") */
+:is(.ph-app, .ph-sheet) .lk {
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* Nút tròn 40px (chọn tháng) */
+:is(.ph-app, .ph-sheet) .rb {
+  width: 40px;
+  height: 40px;
+  flex: none;
   display: grid;
   place-items: center;
-}
-.ph-app .tb.on {
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: var(--text);
+  padding: 0;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+:is(.ph-app, .ph-sheet) .rb:disabled,
+:is(.ph-app, .ph-sheet) .rb[aria-disabled='true'] {
+  color: #bdbdbd;
+  cursor: default;
+}
+
+/* Ô ngày 40px theo năm nhóm màu chấm công (như bảng tuần của Admin) + chưa tới, không có ca, hôm nay */
+:is(.ph-app, .ph-sheet) .dn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50px;
+  font-size: 14px;
   font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  border: 0;
+  padding: 0;
+  font-family: inherit;
+  background: none;
 }
-.ph-app .tb.on .ib {
-  background: var(--gold-light);
+:is(.ph-app, .ph-sheet) .dn.work {
+  background: var(--surface-dark);
+  color: #ffffff;
 }
-.ph-app .tb:focus-visible,
-.ph-app button:focus-visible,
-.ph-app a:focus-visible {
-  outline: 3px solid var(--gold);
+:is(.ph-app, .ph-sheet) .dn.late {
+  background: var(--gold);
+}
+:is(.ph-app, .ph-sheet) .dn.leave {
+  background: var(--status-done);
+  color: #ffffff;
+}
+:is(.ph-app, .ph-sheet) .dn.absent {
+  background: var(--status-rejected);
+  color: #ffffff;
+}
+:is(.ph-app, .ph-sheet) .dn.todo {
+  background: var(--surface);
+  border: 2px solid var(--status-pending);
+}
+:is(.ph-app, .ph-sheet) .dn.fu,
+:is(.ph-app, .ph-sheet) .dn.future {
+  background: var(--page);
+  font-weight: 500;
+}
+:is(.ph-app, .ph-sheet) .dn.off {
+  color: #9e9e9e;
+  font-weight: 500;
+}
+/* Vòng hôm nay 2px cách 2px vẽ bằng ::after, để viền focus (cách 6px) vẫn thấy được bên ngoài vòng */
+:is(.ph-app, .ph-sheet) .dn.today::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--surface-dark);
+  border-radius: 50px;
+  pointer-events: none;
+}
+:is(.ph-app, .ph-sheet) .dn.today:focus-visible {
+  outline-offset: 6px;
+}
+
+/* Chấm 8px: nhóm ngày công và trạng thái yêu cầu */
+:is(.ph-app, .ph-sheet) .dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50px;
+  display: inline-block;
+}
+:is(.ph-app, .ph-sheet) .dot.work {
+  background: var(--surface-dark);
+}
+:is(.ph-app, .ph-sheet) .dot.late {
+  background: var(--gold);
+}
+:is(.ph-app, .ph-sheet) .dot.leave {
+  background: var(--status-done);
+}
+:is(.ph-app, .ph-sheet) .dot.absent {
+  background: var(--status-rejected);
+}
+:is(.ph-app, .ph-sheet) .dot.todo {
+  border: 2px solid var(--status-pending);
+}
+:is(.ph-app, .ph-sheet) .dot.pend {
+  background: var(--status-pending);
+}
+:is(.ph-app, .ph-sheet) .dot.done {
+  background: var(--status-done);
+}
+:is(.ph-app, .ph-sheet) .dot.rej {
+  background: var(--status-rejected);
+}
+/* Nhãn trạng thái: chấm + chữ 13px, không viên thuốc */
+:is(.ph-app, .ph-sheet) .st {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Danh sách: mỗi dòng một giá trị chính */
+:is(.ph-app, .ph-sheet) .ls {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 16px;
+}
+:is(.ph-app, .ph-sheet) .ro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  color: inherit;
+  text-decoration: none;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+}
+:is(.ph-app, .ph-sheet) .ro + .ro {
+  border-top: 1px solid var(--border);
+}
+:is(.ph-app, .ph-sheet) .ro .t {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:is(.ph-app, .ph-sheet) .ro .v {
+  font-weight: 600;
+  white-space: nowrap;
+}
+:is(.ph-app, .ph-sheet) button.ro {
+  cursor: pointer;
+}
+/* Ô biểu tượng 40px bo 12px */
+:is(.ph-app, .ph-sheet) .ti {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--page);
+  color: var(--text);
+}
+
+/* Dòng khoá – giá trị */
+:is(.ph-app, .ph-sheet) .kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+:is(.ph-app, .ph-sheet) .kv:first-child {
+  border-top: 0;
+}
+:is(.ph-app, .ph-sheet) .kv .k {
+  color: var(--muted);
+  white-space: nowrap;
+}
+:is(.ph-app, .ph-sheet) .kv .v {
+  font-weight: 500;
+  text-align: right;
+}
+
+/* Nút phụ cao 48px viền --control ("Đóng") */
+:is(.ph-app, .ph-sheet) .b2 {
+  height: 48px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--control);
+  background: var(--surface);
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+/* Focus: 2px --text cách 2px. Phần tử trên nền tối (thẻ đen J1, J6): đặt lớp on-dark lên khối tối để viền thành trắng (R9). */
+:is(.ph-app, .ph-sheet) :focus-visible {
+  outline: 2px solid var(--text);
   outline-offset: 2px;
 }
-.ph-app .note {
-  display: flex;
-  gap: 10px;
-  padding: 14px 16px;
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--text);
+:is(.ph-app, .ph-sheet) .on-dark :focus-visible {
+  outline-color: #ffffff;
 }
-.ph-app .note svg {
-  color: var(--muted);
-  margin-top: 2px;
+
+/* Thông báo nổi (AppToast, dùng chung với Admin) nằm cạnh .ph-app dưới #app: trên app điện thoại đẩy lên trên thanh tab
+   (cao 68px, cách đáy 16px) để không che và không chặn thanh tab, bỏ bóng (hệ thiết kế điện thoại cấm bóng).
+   Thêm "body" để thắng luật scoped của AppToast mà không phải sửa file dùng chung. */
+body .ph-app ~ .toasts {
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 }
-.ph-app .note b {
-  font-weight: 600;
-}
-/* overlay.css (ui.css) có .note dạng hộp có viền; màn điện thoại của thiết kế không có viền, nền: trả về như nv.css */
-.ph-app .note {
-  background: none;
-  border: 0;
-  border-radius: 0;
+body .ph-app ~ .toasts .toast {
+  box-shadow: none;
 }

@@ -1,155 +1,234 @@
 <script setup lang="ts">
-// Thu nhập: "Tháng này tôi được khoảng bao nhiêu, và vì sao?" → một con số, rồi phiếu lương đọc từ trên xuống.
-// ?kb=thang-10: phiếu chính thức tháng 10; ?kb=ca-dem|ctv|quen-checkout|tts: phiếu của người khác.
-import { computed, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
-import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad';
-import { getIncome, getMonthContext } from '@/services/staff-phone';
-import { monthLabel } from '@/utils/format';
-import IncomeSlip from './components/IncomeSlip.vue';
-import KpiSelf from './components/KpiSelf.vue';
+// J6 · Thu nhập (spec 8.1): thẻ đen thực nhận dự kiến, thẻ KPI với bán nguyệt chấm, danh sách các khoản.
+// Dữ liệu giả (getIncome); không có liên kết "Xem phiếu lương đầy đủ" (R6).
+import { computed, ref } from 'vue';
+import type { IncomeView } from '@/mock/staff-phone';
+import { getIncome } from '@/services/staff-phone';
 import MonthSwitch from './components/MonthSwitch.vue';
-import LoadFeedback from './components/LoadFeedback.vue';
+import PhIcon from './components/PhIcon.vue';
 
-const route = useRoute();
-const kbRaw = computed(() => String(route.query.kb || ''));
-const kb = computed(() => (kbRaw.value === 'thang-10' ? 'mac-dinh' : kbRaw.value || 'mac-dinh'));
-const month = ref('');
-const { data, loading, error, reload } = useLoad(async () => {
-  if (!month.value) month.value = (await getMonthContext()).month;
-  return getIncome(month.value);
+const data = ref<IncomeView | null>(null);
+getIncome().then(v => (data.value = v));
+
+// Bán nguyệt chấm như kpiDots của gen-mobile.js: ba vòng bán kính 78/94/110 có 14/17/20 chấm,
+// chấm có vị trí t ≤ tỉ lệ KPI thì tô đậm (lớp on).
+const RINGS: [number, number][] = [
+  [78, 14],
+  [94, 17],
+  [110, 20]
+];
+const dots = computed(() => {
+  const ratio = data.value?.kpi.ratio ?? 0;
+  const out: { cx: string; cy: string; on: boolean }[] = [];
+  for (const [r, n] of RINGS) {
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1);
+      const a = Math.PI * (1 - t);
+      out.push({ cx: (124 + r * Math.cos(a)).toFixed(1), cy: (118 - r * Math.sin(a)).toFixed(1), on: t <= ratio });
+    }
+  }
+  return out;
 });
-watch(kb, () => reload());
-const currentData = computed(() => (data.value?.month === month.value ? data.value : null));
-const monthNo = computed(() => Number(month.value.slice(5, 7)));
-function setMonth(value?) {
-  if (!value || value === month.value) return;
-  month.value = value;
-  reload();
-}
 </script>
 
 <template>
-  <div class="inc">
-    <header class="ph">
-      <h1>Thu nhập</h1>
-      <p v-if="data">{{ data.intro }}</p>
-    </header>
-    <MonthSwitch
-      :title="monthLabel(month)"
-      :state="currentData?.stateLabel || ''"
-      :official="!!currentData?.official"
-      :has-prev="!!currentData?.prevMonth"
-      :has-next="!!currentData?.nextMonth"
-      @prev="setMonth(currentData?.prevMonth)"
-      @next="setMonth(currentData?.nextMonth)"
-    />
-    <LoadFeedback :loading="loading" :error="error" :has-data="!!currentData" @retry="reload" />
-    <button
-      v-if="error && data && data.month !== month"
-      type="button"
-      class="return-month"
-      @click="setMonth(data.month)"
-    >
-      Quay lại {{ monthLabel(data.month) }}
-    </button>
+  <div class="ph">
+    <template v-if="data">
+      <header class="head">
+        <h1>{{ data.title }}</h1>
+        <span class="mut">{{ data.note }}</span>
+      </header>
+      <MonthSwitch :label="data.label" :state="data.state" />
 
-    <template v-if="currentData && !currentData.empty">
-      <IncomeSlip
-        :figure="currentData.figure"
-        :groups="currentData.groups"
-        :total="currentData.total"
-        :official="currentData.official"
-      />
+      <section class="hero on-dark" aria-label="Thực nhận tháng 10">
+        <span class="dim">Thực nhận dự kiến</span>
+        <div class="amt">{{ data.net }} <span>₫</span></div>
+        <span class="st live"><i class="dot pend" />{{ data.review }}</span>
+        <div class="duo">
+          <div>
+            <span class="dim sm">Tổng thu nhập</span><b>{{ data.gross }}</b>
+          </div>
+          <div>
+            <span class="dim sm">Khấu trừ</span><b>{{ data.deduction }}</b>
+          </div>
+        </div>
+      </section>
 
-      <template v-for="(s, i) in currentData.sections" :key="i">
-        <section v-if="s.kind === 'notice'" class="sec">
-          <div class="card">
-            <div class="note notice">
-              <Icon :name="s.icon" :size="16" /><span>{{ s.text }}</span>
-            </div>
+      <section class="card kcard" aria-label="KPI tháng 10">
+        <div class="sh">
+          <h2>{{ data.kpi.title }}</h2>
+          <span class="mut">{{ data.kpi.parts }}</span>
+        </div>
+        <div class="dots">
+          <svg aria-hidden="true" width="248" height="124" viewBox="0 0 248 124">
+            <circle v-for="(d, i) in dots" :key="i" :cx="d.cx" :cy="d.cy" r="4.6" :class="{ on: d.on }" />
+          </svg>
+          <div class="in">
+            <b>{{ data.kpi.percent }}</b
+            ><span class="mut sm">Tổng điểm</span>
           </div>
-        </section>
+        </div>
+        <div class="pr">
+          <span class="mut">Lương KPI</span><b>{{ data.kpi.pay }}</b>
+        </div>
+        <div class="pr nt">
+          <span class="mut">Mức đề xuất</span><span>{{ data.kpi.proposed }}</span>
+        </div>
+        <div class="sc">
+          <div v-for="s in data.kpi.scores" :key="s.label">
+            <b>{{ s.value }}</b
+            ><span class="mut sm">{{ s.label }}</span>
+          </div>
+        </div>
+      </section>
 
-        <section v-else-if="s.kind === 'facts'" class="sec">
-          <div class="h2">
-            {{ s.title }} <small v-if="s.hint">{{ s.hint }}</small>
+      <section class="lines">
+        <h2>Các khoản</h2>
+        <div class="card ls">
+          <div v-for="l in data.lines" :key="l.label" class="ro">
+            <span class="ti"><PhIcon :name="l.icon" /></span>
+            <span class="t">{{ l.label }}</span>
+            <span class="v" :class="{ zero: l.zero }">{{ l.value }}</span>
           </div>
-          <div class="card">
-            <div v-for="r in s.rows" :key="r.label" class="kv">
-              <span class="k"
-                >{{ r.label }}<small v-if="r.hint">{{ r.hint }}</small></span
-              >
-              <span class="v">{{ r.value }}</span>
-            </div>
+          <div class="tot">
+            <span>Thực nhận</span><span>{{ data.total }}</span>
           </div>
-        </section>
-
-        <section v-else class="sec">
-          <div v-if="s.title" class="h2">{{ s.title }}</div>
-          <div class="card">
-            <div class="wait">
-              <span class="ico"><Icon :name="s.icon" :size="18" /></span>
-              <div>
-                <div class="t">{{ s.heading }}</div>
-                <div class="s">{{ s.text }}</div>
-              </div>
-            </div>
-          </div>
-        </section>
-      </template>
-      <KpiSelf :month="month" />
+        </div>
+      </section>
     </template>
-    <p v-else-if="currentData && currentData.empty && !loading && !error" class="none">
-      Chưa có phiếu thu nhập tháng {{ monthNo }}.
-    </p>
   </div>
 </template>
 
 <style scoped>
-.ph-app .notice {
-  background: var(--pend-bg);
-  border-radius: 20px;
-}
-.wait {
+.head {
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
+}
+.dim {
+  color: #9e9e9e;
+}
+/* Thẻ đen thực nhận dự kiến (lớp on-dark: focus trắng) */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--surface-dark);
+  color: #ffffff;
+}
+.amt {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 600;
+}
+.amt span {
+  font-size: 20px;
+  color: #9e9e9e;
+  font-weight: 500;
+}
+.live {
+  color: #ffffff;
+}
+.duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+.duo div {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-dark-raised);
+}
+.duo b {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+/* Thẻ KPI */
+.kcard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   padding: 16px;
 }
-.wait .ico {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #f1f1f1;
-  display: grid;
-  place-items: center;
-  flex: none;
+.kcard .sh {
+  align-self: stretch;
 }
-.wait .t {
+.dots {
+  position: relative;
+  width: 248px;
+  height: 124px;
+}
+.dots circle {
+  fill: #e0e0e0;
+}
+.dots circle.on {
+  fill: var(--surface-dark);
+}
+.dots .in {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+}
+.dots .in b {
+  display: block;
+  font-size: 28px;
+  line-height: 34px;
   font-weight: 600;
-  font-size: 15px;
 }
-.wait .s {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 20px;
-  margin-top: 2px;
+.pr {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
 }
-.none {
-  margin: 24px 16px 0;
-  color: var(--muted);
-  font-size: 14px;
+.pr.nt {
+  margin-top: 0;
 }
-.return-month {
-  min-height: 44px;
-  margin: 4px 16px 0;
-  padding: 0 12px;
-  border: 1px solid var(--control);
-  border-radius: 10px;
-  background: #fff;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+.sc {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+.sc b {
+  display: block;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
+}
+/* Các khoản */
+.lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lines h2 {
+  padding: 0 4px;
+}
+.ro .v.zero {
+  color: #757575;
+  font-weight: 500;
+}
+.tot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 56px;
+  border-top: 1px solid var(--text);
+  font-weight: 600;
+  font-size: 16px;
 }
 </style>

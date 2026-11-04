@@ -1,288 +1,191 @@
 <script setup lang="ts">
-// Yêu cầu: "Tôi muốn xin nghỉ hoặc khai OT, và đơn của tôi tới đâu rồi?" → hành động, đơn của tôi, phép năm.
-// ?hop=xin-nghi | khai-ot | ngay-khac mở sẵn bảng "Khai ngày".
-import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+// J4 · Yêu cầu của tôi (spec 7.1): h1 + nút "Tạo yêu cầu", thanh lọc trạng thái, danh sách nhóm theo tháng gửi.
+// Bấm dòng mở J5 theo ?yc=<id> (router.replace); id lạ thì bỏ khỏi URL, không mở gì (spec 3.8).
+// Tab đang chọn chỉ nằm trong ref của màn, không lên URL: đổi ?yc không tải lại danh sách và không dựng lại dòng.
+import { computed, nextTick, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { toast } from '@/components/shell/toast';
-import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad';
-import { cancelDayRequest, getExplanations, getRequests } from '@/services/staff-phone';
-import { dayLong, dm } from '@/utils/format';
-import AdvanceSheet from './components/AdvanceSheet.vue';
-import DayRequestSheet from './components/DayRequestSheet.vue';
-import ExplanationSheet from './components/ExplanationSheet.vue';
-import LoadFeedback from './components/LoadFeedback.vue';
-import { useHop } from './useHop';
+import type { RequestDetail, RequestsView } from '@/mock/staff-phone';
+import { getRequest, getRequests } from '@/services/staff-phone';
+import PhIcon from './components/PhIcon.vue';
+import RequestRow from './components/RequestRow.vue';
+import RequestSheet from './components/RequestSheet.vue';
 
-const route = useRoute();
-const kb = computed(() => String(route.query.kb || 'mac-dinh'));
-const { data, loading, error, reload } = useLoad(
-  () => getRequests(),
-  () => kb.value
-);
-const { data: explanations, reload: reloadExplanations } = useLoad(() => getExplanations());
-const answering = ref(null); // giải trình đang trả lời
-const { hop, open, close } = useHop();
-
-const ACTIONS = [
-  {
-    hop: 'xin-nghi',
-    icon: 'cal',
-    title: 'Xin nghỉ phép năm',
-    hint: (left?) => (left === null ? '' : `Còn ${left} ngày phép`)
-  },
-  { hop: 'khai-ot', icon: 'clock', title: 'Khai OT hoặc làm bù', hint: () => 'Theo giờ, ngoài giờ ca' },
-  {
-    hop: 'ngay-khac',
-    icon: 'edit',
-    title: 'Khai một ngày khác',
-    hint: () => 'Nghỉ không lương, nghỉ sẽ làm bù, nghỉ được duyệt'
-  },
-  { hop: 'tam-ung', icon: 'cash', title: 'Xin tạm ứng', hint: () => '' }
+type Filter = 'all' | 'pend' | 'done' | 'rej';
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'pend', label: 'Chờ duyệt' },
+  { key: 'done', label: 'Đã duyệt' },
+  { key: 'rej', label: 'Từ chối' }
 ];
 
-const monthNo = computed(() => Number(data.value.month.slice(5, 7)));
-const pending = computed(() => data.value.items.filter(i => i.status === 'pend').length);
-const preset = computed(() => data.value.presets[hop.value] || null);
-const dateText = (item?) =>
-  `${dayLong(item.date)}/${item.date.slice(0, 4)}${item.range ? ` · ${item.range}` : ''}${item.reason ? ` · Lý do: ${item.reason}` : ''}`;
-const onSaved = () => reload();
-// Huỷ yêu cầu đang chờ: bỏ khai báo ngày đó
-async function cancel(item?) {
-  try {
-    await cancelDayRequest(item.date);
-    await reload();
-  } catch (e) {
-    toast.error(e && e.message);
-  }
+const route = useRoute();
+const router = useRouter();
+const data = ref<RequestsView | null>(null);
+getRequests().then(v => (data.value = v));
+
+const root = ref<HTMLElement | null>(null);
+const tab = ref<Filter>('all');
+const tabEls = ref<HTMLElement[]>([]);
+const groups = computed(() =>
+  (data.value?.groups ?? [])
+    .map(g => ({ ...g, rows: g.rows.filter(r => tab.value === 'all' || r.status === tab.value) }))
+    .filter(g => g.rows.length)
+);
+
+function pick(i: number, focus = false) {
+  tab.value = FILTERS[i].key;
+  if (focus) nextTick(() => tabEls.value[i]?.focus());
+}
+function onTabKey(e: KeyboardEvent, i: number) {
+  const n = FILTERS.length;
+  const to = { ArrowRight: (i + 1) % n, ArrowLeft: (i + n - 1) % n, Home: 0, End: n - 1 }[e.key];
+  if (to === undefined) return;
+  e.preventDefault();
+  pick(to, true);
+}
+
+// Hộp J5: mở theo ?yc=. Kết quả của lần đọc cũ bị bỏ nếu ?yc đã đổi trong lúc chờ.
+const detail = ref<RequestDetail | null>(null);
+const dropYc = () => {
+  const { yc: _yc, ...rest } = route.query;
+  router.replace({ query: rest });
+};
+watch(
+  () => route.query.yc,
+  async yc => {
+    if (!yc) {
+      detail.value = null;
+      return;
+    }
+    const id = String(yc);
+    const found = await getRequest(id);
+    if (String(route.query.yc ?? '') !== id) return;
+    if (found) detail.value = found;
+    else {
+      detail.value = null;
+      dropYc();
+    }
+  },
+  { immediate: true }
+);
+// Hộp mở từ màn khác (J1) thì dòng mở hộp đã không còn để trả focus: đóng xong mà focus rơi xuống <body> thì đưa về dòng của yêu cầu đó.
+async function closeSheet() {
+  const id = detail.value?.id;
+  detail.value = null;
+  if (route.query.yc) dropYc();
+  await nextTick();
+  const a = document.activeElement;
+  if (id && (!a || a === document.body)) root.value?.querySelector<HTMLElement>(`a.ro[data-yc="${id}"]`)?.focus();
 }
 </script>
 
 <template>
-  <LoadFeedback :loading="loading" :error="error" :has-data="!!data" @retry="reload" />
-  <div v-if="data" class="req">
-    <header class="ph">
+  <div ref="root" class="ph rq">
+    <header class="sh">
       <h1>Yêu cầu</h1>
-      <p>Xin nghỉ, khai OT hoặc làm bù. Admin đồng ý rồi mới tính vào lương.</p>
-    </header>
-    <section class="sec card">
-      <button v-for="a in ACTIONS" :key="a.hop" type="button" class="more" @click="open(a.hop)">
-        <span class="l">
-          <span class="ico"><Icon :name="a.icon" :size="18" /></span>
-          <span
-            >{{ a.title }}<small v-if="a.hint(data.leaveLeft)">{{ a.hint(data.leaveLeft) }}</small></span
-          >
-        </span>
-        <span class="chev"><Icon name="chevr" :size="18" /></span>
+      <button type="button" class="rq-add" @click="toast.warnings(['Chưa có luồng tạo yêu cầu trong bản mockup.'])">
+        <PhIcon name="plus" :size="18" :stroke="2" />Tạo yêu cầu
       </button>
-    </section>
-
-    <section class="sec">
-      <div v-if="pending" class="note pend-note">
-        <Icon name="info" :size="16" />
-        <span
-          ><b>{{ pending }} yêu cầu chờ xử lý</b> chưa tính vào thu nhập. Khi Admin đồng ý, thu nhập sẽ thay đổi.</span
+    </header>
+    <template v-if="data">
+      <div class="rq-tabs" role="tablist" aria-label="Lọc theo trạng thái">
+        <button
+          v-for="(f, i) in FILTERS"
+          :id="`rq-tab-${f.key}`"
+          :key="f.key"
+          :ref="el => (tabEls[i] = el as HTMLElement)"
+          type="button"
+          role="tab"
+          class="rq-tab"
+          :aria-selected="tab === f.key"
+          aria-controls="rq-panel"
+          :tabindex="tab === f.key ? 0 : -1"
+          @click="pick(i)"
+          @keydown="onTabKey($event, i)"
         >
+          {{ f.label }} {{ data.counts[f.key] }}
+        </button>
       </div>
-      <div class="h2">
-        Yêu cầu của tôi
-        <small
-          >Tháng {{ monthNo }}<template v-if="pending"> · {{ pending }} chờ xử lý</template></small
-        >
-      </div>
-      <div class="card">
-        <div v-if="!data.items.length" class="empty">
-          <span class="ico"><Icon name="inbox" :size="18" /></span>
-          <div>
-            <div class="t">Bạn chưa gửi yêu cầu nào trong tháng {{ monthNo }}</div>
-            <div class="s">
-              Đơn nghỉ, OT, làm bù bạn gửi sẽ hiện ở đây cùng trạng thái: Chờ xử lý, Đã đồng ý hoặc Đã từ chối.
-            </div>
+      <div id="rq-panel" class="rq-panel" role="tabpanel" :aria-labelledby="`rq-tab-${tab}`">
+        <section v-for="g in groups" :key="g.month" class="rq-group">
+          <div class="rq-gh">{{ g.label }}</div>
+          <div class="card ls">
+            <RequestRow v-for="r in g.rows" :key="r.id" :row="r" replace />
           </div>
-        </div>
-        <div v-for="i in data.items" :key="i.id" class="rq">
-          <span class="dt"
-            ><b>{{ i.date.slice(8, 10) }}</b
-            >T{{ Number(i.date.slice(5, 7)) }}</span
-          >
-          <div>
-            <div class="t">{{ i.title }}</div>
-            <div class="s">{{ dateText(i) }}</div>
-            <button v-if="i.canCancel" type="button" class="cancel" @click="cancel(i)">Huỷ yêu cầu</button>
-          </div>
-          <span class="pill" :class="'p-' + i.status">{{ i.statusLabel }}</span>
-        </div>
+        </section>
       </div>
-    </section>
-
-    <section v-if="explanations && (explanations.absent.length || explanations.items.length)" class="sec">
-      <div class="h2">Giải trình</div>
-      <div class="card">
-        <div v-for="x in explanations.absent" :key="x.id" class="rq ex">
-          <span class="dt"
-            ><b>{{ x.date.slice(8, 10) }}</b
-            >T{{ Number(x.date.slice(5, 7)) }}</span
-          >
-          <div>
-            <div class="t">{{ x.prompt }}</div>
-            <button type="button" class="cancel" @click="answering = x">Giải trình</button>
-          </div>
-        </div>
-        <div v-for="x in explanations.items" :key="x.id" class="rq ex">
-          <span class="dt"
-            ><b>{{ x.date.slice(8, 10) }}</b
-            >T{{ Number(x.date.slice(5, 7)) }}</span
-          >
-          <div>
-            <div class="t">{{ x.prompt }}</div>
-            <div v-if="x.decisionNote" class="s">{{ x.decisionNote }}</div>
-            <button v-if="x.canAnswer || x.canResubmit" type="button" class="cancel" @click="answering = x">
-              {{ x.canAnswer ? 'Trả lời' : 'Giải trình lại' }}
-            </button>
-          </div>
-          <span class="pill" :class="'p-' + x.status">{{ x.statusLabel }}</span>
-        </div>
-      </div>
-    </section>
-
-    <section v-if="data.balance" class="sec">
-      <div class="h2">Phép năm</div>
-      <div class="card">
-        <div class="bal">
-          <b>{{ data.balance.left }} <small>ngày còn lại</small></b>
-        </div>
-        <div class="kv">
-          <span class="k">Được cộng</span><span class="v">{{ data.balance.granted }} ngày</span>
-        </div>
-        <div class="kv">
-          <span class="k">Đã dùng</span><span class="v">{{ data.balance.used }} ngày</span>
-        </div>
-        <div class="kv">
-          <span class="k asof">Tính đến {{ dm(data.asOf) }}/{{ data.asOf.slice(0, 4) }}</span>
-        </div>
-      </div>
-    </section>
-
-    <DayRequestSheet v-if="preset" :preset="preset" @close="close" @saved="onSaved" />
-    <AdvanceSheet v-if="hop === 'tam-ung'" @close="close" />
-    <ExplanationSheet v-if="answering" :item="answering" @close="answering = null" @saved="reloadExplanations" />
+    </template>
+    <RequestSheet v-if="detail" :request="detail" @close="closeSheet" />
   </div>
 </template>
 
 <style scoped>
-.ico {
-  width: 40px;
+.rq-add {
   height: 40px;
-  border-radius: 12px;
-  background: #f1f1f1;
-  display: grid;
-  place-items: center;
-  flex: none;
-}
-.ph-app .more {
-  min-height: 64px;
-  width: 100%;
-  background: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 10px;
+  border-radius: 8px;
   border: 0;
-  border-top: 1px solid var(--rule);
-  font-family: inherit;
-  color: inherit;
-  text-align: left;
+  background: var(--surface-dark);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 600;
   cursor: pointer;
 }
-.ph-app .more:first-child {
-  border-top: 0;
-}
-.empty {
+.rq-tabs {
   display: flex;
-  gap: 12px;
-  padding: 16px;
-  align-items: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 50px;
+  background: var(--surface);
 }
-.empty .t {
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 22px;
-}
-.empty .s {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 20px;
-  margin-top: 2px;
-}
-.bal {
-  padding: 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.bal b {
-  font-size: 30px;
-  line-height: 34px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.bal b small {
-  font-size: 16px;
-  font-weight: 500;
-}
-.asof {
-  color: var(--muted);
-  font-size: 14px;
-}
-.rq {
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  padding: 12px 16px;
-}
-.rq + .rq {
-  border-top: 1px solid var(--rule);
-}
-.rq .dt {
-  width: 48px;
-  height: 52px;
-  border-radius: 12px;
-  background: #f1f1f1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 14px;
-}
-.rq .dt b {
-  font-size: 18px;
-  line-height: 22px;
-  color: var(--text);
-}
-.rq .t {
-  font-weight: 600;
-  font-size: 15px;
-}
-.rq .cancel {
-  margin-top: 4px;
-  padding: 0;
+.rq-tab {
+  flex: 1 1 auto;
+  height: 36px;
+  padding: 0 6px;
   border: 0;
-  background: none;
+  border-radius: 50px;
+  background: transparent;
   font: inherit;
   font-size: 13px;
   color: var(--muted);
-  text-decoration: underline;
+  white-space: nowrap;
   cursor: pointer;
 }
-.rq .s {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
-  margin-top: 2px;
+.rq-tab[aria-selected='true'] {
+  background: var(--surface-dark);
+  color: #ffffff;
+  font-weight: 600;
 }
-.ph-app .pend-note {
-  margin: 0 0 10px;
-  background: var(--pend-bg);
-  border-radius: 14px;
-  color: #5e3407;
+/* min-width: 0 cho phép tab co lại dưới độ rộng chữ; màn dưới 360px thu đệm tab để chữ và số đếm vẫn đọc đủ trong thanh. */
+.rq-tab {
+  min-width: 0;
+}
+@media (max-width: 359px) {
+  .rq-tab {
+    padding: 0 3px;
+  }
+}
+.rq-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.rq-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rq-gh {
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 </style>

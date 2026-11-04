@@ -1,43 +1,40 @@
 <script setup lang="ts">
-// Thanh chọn tháng (.mon của thiết kế): nút lùi, "Tháng 11/2026" + trạng thái, nút tới. Nút tắt khi không có tháng đó.
-import Icon from '@/components/ui/Icon.vue';
+// Chọn tháng (spec 3.6): nút tròn "Tháng trước", nhãn tháng ("Tháng 10/2026") + trạng thái, nút tròn "Tháng sau".
+// Dữ liệu giả chỉ có tháng 10/2026 nên cả hai nút luôn tắt (R4).
+//   <MonthSwitch label="Tháng 10/2026" state="Kỳ công đang mở" />
+import PhIcon from './PhIcon.vue';
 
-defineProps({
-  title: { type: String, required: true },
-  state: { type: String, default: '' },
-  official: { type: Boolean, default: false },
-  hasPrev: { type: Boolean, default: false },
-  hasNext: { type: Boolean, default: false }
-});
-defineEmits(['prev', 'next']);
+defineProps<{ label: string; state: string }>();
 </script>
 
 <template>
-  <div class="mon">
-    <button type="button" class="mb" aria-label="Tháng trước" :disabled="!hasPrev" @click="$emit('prev')">
-      <Icon name="chevl" :size="18" />
+  <div class="sh mon">
+    <button type="button" class="rb" aria-label="Tháng trước" disabled>
+      <PhIcon name="left" :size="18" :stroke="2" />
     </button>
     <div class="mt">
-      <b>{{ title }}</b>
-      <span :class="{ official }">{{ state }}</span>
+      <div class="ml">{{ label }}</div>
+      <div class="mut sm">{{ state }}</div>
     </div>
-    <button type="button" class="mb" aria-label="Tháng sau" :disabled="!hasNext" @click="$emit('next')">
-      <Icon name="chevr" :size="18" />
+    <button type="button" class="rb" aria-label="Tháng sau" disabled>
+      <PhIcon name="right" :size="18" :stroke="2" />
     </button>
   </div>
 </template>
 
 <style scoped>
-.mb {
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
+/* .sh.mon: thắng .sh (gap 8px) của phone.css theo độ ưu tiên, không phụ thuộc thứ tự nạp CSS */
+.sh.mon {
+  gap: 12px;
 }
-.mb:disabled {
-  opacity: 0.4;
-  cursor: default;
+.mt {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
 }
-.ph-app .mon .mt span.official {
-  color: var(--done-ink);
+.ml {
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 600;
 }
 </style>

@@ -51,8 +51,25 @@ export async function getStaffMonth(_kb?, month?) {
   return { ...built, requests: buildDesktopRequests({ month: target, today: serverTodayOf(meRes), sheet }) };
 }
 
-// GET /api/sheet + GET /api/me/estimate (điểm Tự đánh giá của tháng); PUT /api/kpi/scores { month, scores: { self } }
-export { getSelfKpi as getStaffSelfKpi, saveSelfKpi as saveStaffSelfKpi } from './staff-phone';
+// GET /sheet (kpiParts.self của chính mình) + GET /me/estimate (có KPI hay không, kỳ đã chốt) → { month, self, locked }; null khi nhân sự không có KPI.
+// (Chuyển nguyên văn từ services/staff-phone khi app điện thoại sang dữ liệu giả; q() ở đây chỉ mã hoá giá trị nên '?month=' viết trong đường dẫn.)
+export async function getStaffSelfKpi(month?) {
+  const [sheet, estimate] = await Promise.all([
+    api('GET', `/sheet?month=${q(month)}`),
+    api('GET', `/me/estimate?month=${q(month)}`).catch(() => null)
+  ]);
+  const m = estimate && estimate.m;
+  if (!m || m.kpiAmt === undefined || m.kpiAmt === null) return null;
+  const parts = sheet.kpiParts || {};
+  return { month, self: typeof parts.self === 'number' ? parts.self : null, locked: !!estimate.official };
+}
+
+// PUT /kpi/scores { month, scores: { self } }: nhân sự chỉ lưu điểm Tự đánh giá của chính mình. Lỗi của máy chủ ném ApiError nguyên văn.
+export async function saveStaffSelfKpi({ month, self }: any) {
+  const res = await api('PUT', '/kpi/scores', { month, scores: { self } });
+  const saved = res && res.kpiParts && typeof res.kpiParts.self === 'number' ? res.kpiParts.self : self;
+  return { month, self: saved };
+}
 
 // GET /api/me + GET /api/punch (ca được gán) + GET /api/sheet (phép còn lại) → ngữ cảnh hộp gửi yêu cầu
 export const getStaffDayFormContext = () => getFormContext();
