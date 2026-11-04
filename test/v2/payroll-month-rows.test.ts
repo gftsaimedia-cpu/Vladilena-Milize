@@ -186,20 +186,7 @@ describe('mapMonthRows KPI scores', () => {
   });
 
   it('returns null when the employee has no kpi row', () => {
-    const data = mapMonthRows('2026-10', rows());
-    assert.equal(data.kpi, null);
-    assert.equal(data.kpiScore, null);
-  });
-
-  it('still fills the legacy kpiScore from the same row, with null counted as 0', () => {
-    const { kpiScore } = mapMonthRows('2026-10', rows({ kpi: kpiRow }));
-    assert.deepEqual(kpiScore, { wework: 9000, user: 0, peer: 7000, manager: 8500, self: 10000 });
-  });
-
-  it('still fills the legacy kpiMaxSalary from kpi_max, else from the base salary', () => {
-    assert.equal(mapMonthRows('2026-10', rows()).staff.kpiMaxSalary, 6_000_000);
-    const noMax = rows({ level: { ...baseLevel, kpi_max: null, base_salary: '7000000' } });
-    assert.equal(mapMonthRows('2026-10', noMax).staff.kpiMaxSalary, 7_000_000);
+    assert.equal(mapMonthRows('2026-10', rows()).kpi, null);
   });
 });
 

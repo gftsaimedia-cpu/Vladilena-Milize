@@ -4,9 +4,13 @@ import { PayrollRepository, EmployeeMonthlyRawData } from './payroll.repository'
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
-  KpiScores,
   EmployeePayslipSummaryDTO,
-  EmployeePayslipDTO
+  EmployeePayslipDTO,
+  PayrollWarning,
+  calculateInsurance,
+  calculateKpiPay,
+  resolveTaxMethod,
+  warning
 } from './domain';
 import { PayrollAllowancePolicy } from './domain/allowance-rates';
 
@@ -21,7 +25,11 @@ export class PayrollService {
     month: string,
     employeeIds?: string[],
     actor = 'system'
-  ): Promise<{ runId: number; items: EmployeePayslipSummaryDTO[] }> {
+  ): Promise<{
+    runId: number;
+    items: EmployeePayslipSummaryDTO[];
+    errors: Array<{ employeeId: string; message: string }>;
+  }> {
     const doCalc = async () => {
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
@@ -31,19 +39,24 @@ export class PayrollService {
 
       const payslips: EmployeePayslip[] = [];
       const summaries: EmployeePayslipSummaryDTO[] = [];
+      const errors: Array<{ employeeId: string; message: string }> = [];
+      const seenUsernames = new Set<string>();
 
       for (const empId of targets) {
         try {
           const payslip = await this.generateMonthlyPayslip(empId, month);
+          // The same person can be listed by uuid and by username; keep one payslip per username.
+          if (seenUsernames.has(payslip.username)) continue;
+          seenUsernames.add(payslip.username);
           payslips.push(payslip);
           summaries.push(payslip.toSummary());
         } catch (err) {
-          // Skip if missing data
+          errors.push({ employeeId: empId, message: err instanceof Error ? err.message : String(err) });
         }
       }
 
       const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips);
-      return { runId, items: summaries };
+      return { runId, items: summaries, errors };
     };
 
     if (this.txCoordinator) {
@@ -70,7 +83,11 @@ export class PayrollService {
       throw new Error(`Data not found for employee ${employeeId} in month ${month}`);
     }
 
-    const { staff, timesheets, requests, kpiScore } = data;
+    const { staff, timesheets, requests } = data;
+    if (staff.baseSalary === null || staff.standardWorkdays === null) {
+      const position = `${staff.employeeType ?? 'không rõ loại'} (${staff.positionLevelText})`;
+      throw new Error(`Thiếu cấu hình chức vụ hoặc bậc lương cho ${position}`);
+    }
     const employeeType = staff.employeeType;
     const nightAllowancePct = staff.nightAllowancePct === 60 ? 60 : 40;
     const allowancePolicy = new PayrollAllowancePolicy(employeeType, nightAllowancePct);
@@ -79,7 +96,7 @@ export class PayrollService {
         .filter(ts => ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0)
         .map(ts => ts.workDate)
     );
-    const standardWorkdays = staff.standardWorkdays || 26;
+    const standardWorkdays = staff.standardWorkdays;
     const baseSalaryPolicy = staff.baseSalary;
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
@@ -168,21 +185,21 @@ export class PayrollService {
       }
     }
 
-    let kpiScoresProps: KpiScores | undefined = undefined;
-    if (kpiScore) {
-      kpiScoresProps = {
-        wework: kpiScore.wework > 1 ? kpiScore.wework / 100 : kpiScore.wework,
-        user: kpiScore.user > 1 ? kpiScore.user / 100 : kpiScore.user,
-        peer: kpiScore.peer > 1 ? kpiScore.peer / 100 : kpiScore.peer,
-        manager: kpiScore.manager > 1 ? kpiScore.manager / 100 : kpiScore.manager,
-        self: kpiScore.self > 1 ? kpiScore.self / 100 : kpiScore.self
-      };
-    }
+    const kpi = calculateKpiPay(data.kpi, staff.kpiCap);
+    const insurance = calculateInsurance(baseSalaryPolicy, staff.insured, data.insuranceRates);
+    const taxMethod = resolveTaxMethod({
+      hasTax: staff.hasTax,
+      startDate: staff.contractStart,
+      endDate: staff.contractEnd
+    });
+    const warnings: PayrollWarning[] = [...kpi.warnings];
+    if (staff.contractStart === null && taxMethod !== 'none') warnings.push(warning('CONTRACT_START_MISSING'));
 
     const roundedLateEarlyHours = Math.round(totalDeductionHours * 100) / 100;
 
     return new EmployeePayslip({
       employeeId: staff.uuid,
+      username: staff.username,
       fullName: staff.name,
       positionLevelText: staff.positionLevelText,
       contractStatusText: staff.contractStatusText,
@@ -200,8 +217,11 @@ export class PayrollService {
       nightAllowancePct,
       isDormResident: staff.isDormResident,
       makeupWorkDates: Array.from(makeupWorkDates),
-      kpiScores: kpiScoresProps,
-      kpiMaxSalary: staff.kpiMaxSalary || baseSalaryPolicy,
+      kpi,
+      insurance,
+      taxMethod,
+      dependants: staff.dependants,
+      warnings,
       advanceDeduction,
       remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays || 22
     });

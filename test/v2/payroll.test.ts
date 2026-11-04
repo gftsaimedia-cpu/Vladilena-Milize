@@ -2,8 +2,19 @@ import assert from 'node:assert/strict';
 import { test, describe, it } from 'node:test';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PayrollRepository, EmployeeMonthlyRawData } from '../../src/modules/payroll/payroll.repository';
-import { EmployeePayslip } from '../../src/modules/payroll/domain';
+import { DEFAULT_INSURANCE_RATES, EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
+import { nvMonthData } from './payroll-fixtures';
+
+// Staff fields the V2 rules added; the older fixtures below do not depend on them.
+const rulesStaff = {
+  insured: true,
+  dependants: 0,
+  hasTax: true,
+  contractStart: '2025-01-05',
+  contractEnd: null,
+  kpiCap: { applicable: false, kpiMax: null }
+};
 
 class FakePayrollRepository extends PayrollRepository {
   data: Map<string, EmployeeMonthlyRawData> = new Map();
@@ -63,8 +74,9 @@ describe('Payroll V2 - Tính lương & Xuất phiếu lương chu kỳ', () => {
       contractStatusText: 'HĐLĐ từ 3 tháng',
       baseSalary: 15600000,
       standardWorkdays: 26,
-      kpiMaxSalary: 15600000,
-      remainingAnnualLeaveDays: 12
+      remainingAnnualLeaveDays: 12,
+      ...rulesStaff,
+      kpiCap: { applicable: true, kpiMax: 15_600_000 }
     },
     timesheets: [
       {
@@ -121,13 +133,11 @@ describe('Payroll V2 - Tính lương & Xuất phiếu lương chu kỳ', () => {
         advanceAmount: 1000000
       }
     ],
-    kpiScore: {
-      wework: 100,
-      user: 95,
-      peer: 90,
-      manager: 95,
-      self: 95
-    }
+    kpi: {
+      scores: { wework: 10000, user: 9500, peer: 9000, manager: 9500, self: 9500 },
+      proposedAmount: 15_600_000
+    },
+    insuranceRates: DEFAULT_INSURANCE_RATES
   });
 
   it('1. Tính lương tháng cho nhân viên từ ngày công, OT, tạm ứng và KPI', async () => {
@@ -211,7 +221,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         standardWorkdays: 26,
         employeeType,
         nightAllowancePct,
-        isDormResident: false
+        isDormResident: false,
+        ...rulesStaff
       },
       timesheets: [
         {
@@ -230,7 +241,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         }
       ],
       requests: [],
-      kpiScore: null
+      kpi: null,
+      insuranceRates: DEFAULT_INSURANCE_RATES
     });
     return payroll.generateMonthlyPayslip('allowance', '2026-10');
   };
@@ -319,7 +331,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         standardWorkdays: 26,
         employeeType: 'nv',
         nightAllowancePct: 60,
-        isDormResident: false
+        isDormResident: false,
+        ...rulesStaff
       },
       timesheets: [
         {
@@ -350,7 +363,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         }
       ],
       requests: [],
-      kpiScore: null
+      kpi: null,
+      insuranceRates: DEFAULT_INSURANCE_RATES
     });
     const slip = await payroll.generateMonthlyPayslip('night', '2026-10');
     assert.equal(slip.dailyLines[0].nightAllowancePay, 138_462);
@@ -455,7 +469,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         standardWorkdays: 26,
         employeeType: 'nv',
         nightAllowancePct: 40,
-        isDormResident: false
+        isDormResident: false,
+        ...rulesStaff
       },
       timesheets: [
         ...ordinaryDays.map(row => ({
@@ -505,7 +520,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         { id: 'request-1', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' },
         { id: 'request-duplicate', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' }
       ],
-      kpiScore: null
+      kpi: null,
+      insuranceRates: DEFAULT_INSURANCE_RATES
     });
 
     const slip = await payroll.generateMonthlyPayslip('makeup', '2026-10');
@@ -531,7 +547,8 @@ describe('Payroll allowance behavior from the reference app', () => {
         standardWorkdays: 26,
         employeeType: 'nv',
         nightAllowancePct: 40,
-        isDormResident: false
+        isDormResident: false,
+        ...rulesStaff
       },
       timesheets: [
         ...Array.from({ length: 20 }, (_, i) => ({
@@ -564,11 +581,190 @@ describe('Payroll allowance behavior from the reference app', () => {
         }))
       ],
       requests: [],
-      kpiScore: null
+      kpi: null,
+      insuranceRates: DEFAULT_INSURANCE_RATES
     });
     const slip = await payroll.generateMonthlyPayslip('planned-makeup', '2026-10');
 
     assert.equal(slip.attendanceAllowanceActual, 0);
     assert.equal(slip.travelAllowanceActual, 692_308);
+  });
+});
+
+describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
+  type Overrides = Parameters<typeof nvMonthData>[0];
+
+  const setup = (overrides?: Overrides) => {
+    const repo = new FakePayrollRepository();
+    repo.data.set('u1:2026-10', nvMonthData(overrides));
+    return { repo, service: new PayrollService(repo) };
+  };
+  const generate = (overrides?: Overrides) => setup(overrides).service.generateMonthlyPayslip('u1', '2026-10');
+  const codes = (slip: EmployeePayslip) => slip.warnings.map(w => w.code);
+
+  it('pays KPI from the monthly proposal, deducts insurance and finds no tax below the allowances', async () => {
+    const slip = await generate();
+
+    assert.equal(slip.baseSalaryActual, 4_615_385);
+    assert.equal(slip.paidLeavePay, 230_769);
+    assert.equal(slip.otPayTotal, 115_385);
+    assert.equal(slip.attendanceAllowanceActual, 1_153_846);
+    assert.equal(slip.travelAllowanceActual, 692_308);
+    assert.equal(slip.kpiActualPay, 4_200_000);
+    assert.equal(slip.kpiTotalScorePct, 84);
+    assert.equal(slip.grossIncome, 11_007_693);
+    assert.equal(slip.taxExemptIncome, 57_692);
+    assert.equal(slip.taxableIncome, 10_950_001);
+    assert.equal(slip.insuranceDeduction, 630_000);
+    assert.equal(slip.personalIncomeTax, 0);
+    assert.equal(slip.advanceDeduction, 1_000_000);
+    assert.equal(slip.netIncome, 9_377_693);
+    assert.equal(slip.taxMethod, 'progressive');
+    assert.deepEqual(slip.warnings, []);
+  });
+
+  it('exposes the KPI, insurance and tax details on the DTO', async () => {
+    const dto = (await generate()).toJSON();
+
+    assert.equal(dto.username, 'a');
+    assert.deepEqual(dto.kpiScores, { wework: 90, user: 80, peer: 70, manager: 85, self: 100 });
+    assert.equal(dto.kpiApplicable, true);
+    assert.equal(dto.kpiProposedAmount, 5_000_000);
+    assert.equal(dto.kpiAppliedAmount, 5_000_000);
+    assert.deepEqual(dto.insuranceBreakdown, { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 });
+    assert.equal(dto.taxMethod, 'progressive');
+    assert.equal(dto.taxAssessableIncome, 0);
+    assert.equal(dto.dependants, 1);
+    assert.deepEqual(dto.warnings, []);
+  });
+
+  it('feeds insurance and dependants into the progressive assessable income', async () => {
+    const slip = await generate({
+      staff: { baseSalary: 30_000_000, kpiCap: { applicable: true, kpiMax: 30_000_000 } },
+      kpi: {
+        scores: { wework: 9000, user: 8000, peer: 7000, manager: 8500, self: 10000 },
+        proposedAmount: 10_000_000
+      }
+    });
+
+    assert.equal(slip.grossIncome, 42_438_461);
+    assert.equal(slip.taxExemptIncome, 288_462);
+    assert.equal(slip.taxableIncome, 42_149_999);
+    assert.equal(slip.insuranceDeduction, 3_150_000);
+    // 42,149,999 - 3,150,000 - 15,500,000 - 6,200,000 x 1 dependant
+    assert.equal(slip.taxAssessableIncome, 17_299_999);
+    assert.equal(slip.personalIncomeTax, 1_230_000);
+    assert.equal(slip.netIncome, 37_058_461);
+  });
+
+  it('taxes a contract shorter than three months at a flat 10% of the taxable income', async () => {
+    const slip = await generate({ staff: { contractStart: '2026-10-01', contractEnd: '2026-12-15' } });
+
+    assert.equal(slip.taxMethod, 'flat10');
+    assert.equal(slip.personalIncomeTax, 1_095_000);
+    assert.equal(slip.netIncome, 8_282_693);
+  });
+
+  it('deducts no insurance and no tax when the employee is not insured or not taxed', async () => {
+    const uninsured = await generate({ staff: { insured: false } });
+    assert.equal(uninsured.insuranceDeduction, 0);
+    assert.deepEqual(uninsured.toJSON().insuranceBreakdown, { bhxh: 0, bhyt: 0, bhtn: 0 });
+    assert.equal(uninsured.netIncome, 10_007_693);
+
+    const untaxed = await generate({ staff: { hasTax: false, contractStart: null } });
+    assert.equal(untaxed.taxMethod, 'none');
+    assert.equal(untaxed.personalIncomeTax, 0);
+    assert.deepEqual(untaxed.warnings, []);
+  });
+
+  it('pays no KPI and warns when the employee has no KPI row', async () => {
+    const slip = await generate({ kpi: null });
+
+    assert.equal(slip.kpiActualPay, 0);
+    assert.equal(slip.grossIncome, 6_807_693);
+    assert.deepEqual(codes(slip), ['KPI_PROPOSAL_MISSING', 'KPI_SCORE_MISSING']);
+  });
+
+  it('caps the proposed KPI amount at the level maximum and warns', async () => {
+    const slip = await generate({ staff: { kpiCap: { applicable: true, kpiMax: 4_000_000 } } });
+
+    assert.equal(slip.kpiActualPay, 3_360_000);
+    assert.equal(slip.toJSON().kpiAppliedAmount, 4_000_000);
+    assert.equal(slip.toJSON().kpiProposedAmount, 5_000_000);
+    assert.deepEqual(codes(slip), ['KPI_PROPOSAL_EXCEEDS_MAX']);
+  });
+
+  it('gives no KPI and no warning to a position without KPI pay', async () => {
+    const slip = await generate({
+      staff: { employeeType: 'tts', kpiCap: { applicable: false, kpiMax: null } },
+      kpi: null
+    });
+
+    assert.equal(slip.kpiActualPay, 0);
+    assert.equal(slip.toJSON().kpiApplicable, false);
+    assert.deepEqual(slip.warnings, []);
+  });
+
+  it('warns when a taxed employee has no contract start date', async () => {
+    const slip = await generate({ staff: { contractStart: null } });
+
+    assert.deepEqual(codes(slip), ['CONTRACT_START_MISSING']);
+    assert.equal(slip.taxMethod, 'progressive');
+  });
+
+  it('rejects an employee whose base salary or standard workdays are not configured', async () => {
+    await assert.rejects(generate({ staff: { baseSalary: null } }), /Thiếu cấu hình chức vụ hoặc bậc lương cho/);
+    await assert.rejects(generate({ staff: { standardWorkdays: null } }), /Thiếu cấu hình chức vụ hoặc bậc lương cho/);
+  });
+
+  it('defaults a hand-built payslip to no KPI, no insurance and no tax', () => {
+    const slip = new EmployeePayslip({
+      employeeId: 'manual',
+      fullName: 'Manual',
+      positionLevelText: 'L1',
+      contractStatusText: 'Active',
+      month: '2026-10',
+      baseSalaryPolicy: 6_000_000,
+      dailyLines: []
+    });
+
+    assert.equal(slip.username, 'manual');
+    assert.equal(slip.kpiActualPay, 0);
+    assert.equal(slip.insuranceDeduction, 0);
+    assert.equal(slip.taxMethod, 'none');
+    assert.equal(slip.personalIncomeTax, 0);
+    assert.equal(slip.dependants, 0);
+    assert.deepEqual(slip.warnings, []);
+  });
+
+  it('reports each employee that fails and still saves the payslips that succeeded', async () => {
+    const { repo, service } = setup();
+    const result = await service.calculatePeriodPayslips('2026-10', ['u1', 'missing'], 'admin');
+
+    assert.equal(result.items.length, 1);
+    assert.deepEqual(result.errors, [
+      { employeeId: 'missing', message: 'Data not found for employee missing in month 2026-10' }
+    ]);
+    assert.equal(repo.runs[0].slipsTotal, 1);
+  });
+
+  it('reports a missing salary configuration as an error for that employee', async () => {
+    const { service } = setup({ staff: { baseSalary: null } });
+    const result = await service.calculatePeriodPayslips('2026-10', ['u1']);
+
+    assert.equal(result.items.length, 0);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].employeeId, 'u1');
+    assert.match(result.errors[0].message, /Thiếu cấu hình/);
+  });
+
+  it('keeps one payslip per username when an employee is listed twice', async () => {
+    const { repo, service } = setup();
+    repo.data.set('a:2026-10', nvMonthData());
+
+    assert.equal((await service.calculatePeriodPayslips('2026-10', ['u1', 'u1'])).items.length, 1);
+    const byUsername = await service.calculatePeriodPayslips('2026-10', ['u1', 'a']);
+    assert.equal(byUsername.items.length, 1);
+    assert.deepEqual(byUsername.errors, []);
   });
 });

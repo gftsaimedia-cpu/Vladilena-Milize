@@ -15,7 +15,6 @@ export interface EmployeeMonthlyRawData {
     employeeType?: string;
     nightAllowancePct?: number;
     isDormResident?: boolean;
-    kpiMaxSalary?: number;
     remainingAnnualLeaveDays?: number;
     insured: boolean;
     dependants: number;
@@ -53,13 +52,6 @@ export interface EmployeeMonthlyRawData {
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
-  kpiScore?: {
-    wework: number;
-    user: number;
-    peer: number;
-    manager: number;
-    self: number;
-  } | null;
   kpi: KpiInput | null;
   insuranceRates: InsuranceRates;
 }
@@ -136,7 +128,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       employeeType: staffRow.type,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
-      kpiMaxSalary: kpiCap.kpiMax || baseSalary || undefined,
       remainingAnnualLeaveDays: 22,
       insured: numberOrNull(staffRow.insured) !== 0,
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
@@ -174,15 +165,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
-    kpiScore: kpiRow
-      ? {
-          wework: Number(kpiRow.wework ?? 0),
-          user: Number(kpiRow.user_score ?? 0),
-          peer: Number(kpiRow.peer ?? 0),
-          manager: Number(kpiRow.manager ?? 0),
-          self: Number(kpiRow.self_score ?? 0)
-        }
-      : null,
     kpi: kpiRow
       ? {
           scores: {

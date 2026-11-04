@@ -1,4 +1,8 @@
 import { PayrollAllowancePolicy } from './allowance-rates';
+import { calculateInsurance, InsuranceDeduction } from './insurance';
+import { calculateKpiPay, KpiComponent, KpiPay } from './kpi-pay';
+import { calculatePersonalIncomeTax, TaxMethod } from './personal-income-tax';
+import { PayrollWarning } from './payroll-warning';
 
 /**
  * Payroll V2 - GFT Payslip Aggregate Root & Daily Attendance Line Item
@@ -24,13 +28,8 @@ export interface DailyAttendanceLineProps {
   dailyTotal: number; // daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount
 }
 
-export interface KpiScores {
-  wework: number; // Weight: 40% (0.0 to 1.0)
-  user: number; // Weight: 24%
-  peer: number; // Weight: 18%
-  manager: number; // Weight: 12%
-  self: number; // Weight: 6%
-}
+// Points 0-100 per component (weights 40/24/18/12/6); null = not entered.
+export type KpiScores = Record<KpiComponent, number | null>;
 
 export interface OtHoursByRate {
   x15?: number; // 150% rate
@@ -40,6 +39,7 @@ export interface OtHoursByRate {
 
 export interface EmployeePayslipProps {
   employeeId: string;
+  username?: string; // staff.username; default = employeeId
   fullName: string;
   positionLevelText: string;
   contractStatusText: string;
@@ -54,10 +54,11 @@ export interface EmployeePayslipProps {
   otHoursByRate?: OtHoursByRate;
   lateEarlyHours?: number;
   lateEarlyDeductionAmount?: number;
-  kpiScores?: KpiScores;
-  kpiMaxSalary?: number;
-  taxExemptIncome?: number;
-  personalIncomeTax?: number;
+  kpi?: KpiPay; // default: no KPI pay
+  insurance?: InsuranceDeduction; // default: nothing deducted
+  taxMethod?: TaxMethod; // default 'none'
+  dependants?: number; // default 0
+  warnings?: PayrollWarning[];
   advanceDeduction?: number;
   remainingAnnualLeaveDays?: number;
 }
@@ -79,6 +80,7 @@ export interface EmployeePayslipSummaryDTO {
 
 export interface EmployeePayslipDTO {
   employeeId: string;
+  username: string;
   fullName: string;
   positionLevelText: string;
   contractStatusText: string;
@@ -114,8 +116,11 @@ export interface EmployeePayslipDTO {
   nightAllowancePolicy: number;
   nightAllowanceActual: number;
   totalAllowanceActual: number;
+  kpiApplicable: boolean;
   kpiScores: KpiScores;
   kpiTotalScorePct: number;
+  kpiProposedAmount: number | null;
+  kpiAppliedAmount: number;
   kpiMaxSalary: number;
   kpiActualPay: number;
   lateEarlyDeductionAmount: number;
@@ -123,10 +128,15 @@ export interface EmployeePayslipDTO {
   taxExemptIncome: number;
   taxableIncome: number;
   insuranceDeduction: number;
+  insuranceBreakdown: { bhxh: number; bhyt: number; bhtn: number };
   incomeAfterInsurance: number;
+  taxMethod: TaxMethod;
+  dependants: number;
+  taxAssessableIncome: number;
   personalIncomeTax: number;
   advanceDeduction: number;
   netIncome: number;
+  warnings: PayrollWarning[];
   remainingAnnualLeaveDays: number;
   dailyLines: DailyAttendanceLineProps[];
 }
@@ -134,6 +144,7 @@ export interface EmployeePayslipDTO {
 export class EmployeePayslip {
   // Identity & Terms
   readonly employeeId: string;
+  readonly username: string;
   readonly fullName: string;
   readonly positionLevelText: string;
   readonly contractStatusText: string;
@@ -185,8 +196,11 @@ export class EmployeePayslip {
   readonly totalAllowanceActual: number;
 
   // Block 5: KPI Pay
+  readonly kpiApplicable: boolean;
   readonly kpiScores: KpiScores;
   readonly kpiTotalScorePct: number;
+  readonly kpiProposedAmount: number | null;
+  readonly kpiAppliedAmount: number;
   readonly kpiMaxSalary: number;
   readonly kpiActualPay: number;
 
@@ -198,13 +212,20 @@ export class EmployeePayslip {
   readonly taxExemptIncome: number;
   readonly taxableIncome: number;
   readonly insuranceDeduction: number;
+  readonly insuranceBreakdown: { bhxh: number; bhyt: number; bhtn: number };
   readonly incomeAfterInsurance: number;
+  readonly taxMethod: TaxMethod;
+  readonly dependants: number;
+  readonly taxAssessableIncome: number;
   readonly personalIncomeTax: number;
   readonly advanceDeduction: number;
   readonly netIncome: number;
 
   // Block 8: Balance
   readonly remainingAnnualLeaveDays: number;
+
+  // Data-quality flags raised while the payslip was computed
+  readonly warnings: PayrollWarning[];
 
   constructor(props: EmployeePayslipProps) {
     if (!props.employeeId) throw new Error('employeeId is required');
@@ -215,6 +236,7 @@ export class EmployeePayslip {
     if (props.baseSalaryPolicy < 0) throw new Error('baseSalaryPolicy cannot be negative');
 
     this.employeeId = props.employeeId;
+    this.username = props.username ?? props.employeeId;
     this.fullName = props.fullName;
     this.positionLevelText = props.positionLevelText;
     this.contractStatusText = props.contractStatusText;
@@ -323,25 +345,15 @@ export class EmployeePayslip {
       this.offPaidNightActual +
       this.nightAllowanceActual;
 
-    // Block 5: KPI Pay (Weights: Wework 40%, User 24%, Peer 18%, Manager 12%, Self 6%)
-    this.kpiScores = props.kpiScores ?? {
-      wework: 0,
-      user: 0,
-      peer: 0,
-      manager: 0,
-      self: 0
-    };
-
-    const weightedScore =
-      this.kpiScores.wework * 0.4 +
-      this.kpiScores.user * 0.24 +
-      this.kpiScores.peer * 0.18 +
-      this.kpiScores.manager * 0.12 +
-      this.kpiScores.self * 0.06;
-
-    this.kpiTotalScorePct = Math.round(weightedScore * 10000) / 10000;
-    this.kpiMaxSalary = props.kpiMaxSalary ?? this.baseSalaryPolicy;
-    this.kpiActualPay = Math.round(this.kpiMaxSalary * this.kpiTotalScorePct);
+    // Block 5: KPI Pay (Weights: Wework 40%, User 24%, Peer 18%, Manager 12%, Self 6%), computed by calculateKpiPay
+    const kpi = props.kpi ?? calculateKpiPay(null, { applicable: false, kpiMax: null });
+    this.kpiApplicable = kpi.applicable;
+    this.kpiScores = kpi.scores;
+    this.kpiTotalScorePct = kpi.weightedPct;
+    this.kpiProposedAmount = kpi.proposedAmount;
+    this.kpiAppliedAmount = kpi.appliedAmount;
+    this.kpiMaxSalary = kpi.appliedAmount;
+    this.kpiActualPay = kpi.amount;
 
     // Block 6: Late / Early deductions
     this.lateEarlyHours = props.lateEarlyHours ?? Math.round(totalDeductionHours * 100) / 100;
@@ -366,20 +378,37 @@ export class EmployeePayslip {
       this.kpiActualPay +
       this.lateEarlyDeductionAmount; // already negative
 
-    this.taxExemptIncome = props.taxExemptIncome ?? this.flexAllowanceActual + this.travelAllowanceActual + 34615;
-    this.taxableIncome = this.grossIncome - this.taxExemptIncome;
+    // Tax-exempt part of the pay: the OT premium over the normal hourly rate (150% -> 50%, 200% -> 100%, 300% -> 200%)
+    // plus the night allowance.
+    this.taxExemptIncome =
+      Math.round(this.ot15Hours * hourRate * 0.5 + this.ot20Hours * hourRate * 1 + this.ot30Hours * hourRate * 2) +
+      this.nightAllowanceActual;
 
-    // 10.5% mandatory social, health, and unemployment insurance
-    this.insuranceDeduction = Math.round(this.baseSalaryPolicy * 0.105);
+    const insurance = props.insurance ?? calculateInsurance(0, false);
+    this.insuranceDeduction = insurance.total;
+    this.insuranceBreakdown = { bhxh: insurance.bhxh, bhyt: insurance.bhyt, bhtn: insurance.bhtn };
     this.incomeAfterInsurance = this.grossIncome - this.insuranceDeduction;
 
-    this.personalIncomeTax = props.personalIncomeTax ?? 0;
+    this.taxMethod = props.taxMethod ?? 'none';
+    this.dependants = props.dependants ?? 0;
+    const tax = calculatePersonalIncomeTax({
+      method: this.taxMethod,
+      grossIncome: this.grossIncome,
+      exemptIncome: this.taxExemptIncome,
+      insurance: this.insuranceDeduction,
+      dependants: this.dependants
+    });
+    this.taxableIncome = tax.taxableIncome;
+    this.taxAssessableIncome = tax.assessableIncome;
+    this.personalIncomeTax = tax.tax;
     this.advanceDeduction = props.advanceDeduction ?? 0;
 
     this.netIncome = this.grossIncome - this.insuranceDeduction - this.personalIncomeTax - this.advanceDeduction;
 
     // Block 8: Balance
     this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? 0;
+
+    this.warnings = [...(props.warnings ?? [])];
   }
 
   toSummary(): EmployeePayslipSummaryDTO {
@@ -402,6 +431,7 @@ export class EmployeePayslip {
   toJSON(): EmployeePayslipDTO {
     return {
       employeeId: this.employeeId,
+      username: this.username,
       fullName: this.fullName,
       positionLevelText: this.positionLevelText,
       contractStatusText: this.contractStatusText,
@@ -437,8 +467,11 @@ export class EmployeePayslip {
       nightAllowancePolicy: this.nightAllowancePolicy,
       nightAllowanceActual: this.nightAllowanceActual,
       totalAllowanceActual: this.totalAllowanceActual,
+      kpiApplicable: this.kpiApplicable,
       kpiScores: this.kpiScores,
       kpiTotalScorePct: this.kpiTotalScorePct,
+      kpiProposedAmount: this.kpiProposedAmount,
+      kpiAppliedAmount: this.kpiAppliedAmount,
       kpiMaxSalary: this.kpiMaxSalary,
       kpiActualPay: this.kpiActualPay,
       lateEarlyDeductionAmount: this.lateEarlyDeductionAmount,
@@ -446,10 +479,15 @@ export class EmployeePayslip {
       taxExemptIncome: this.taxExemptIncome,
       taxableIncome: this.taxableIncome,
       insuranceDeduction: this.insuranceDeduction,
+      insuranceBreakdown: this.insuranceBreakdown,
       incomeAfterInsurance: this.incomeAfterInsurance,
+      taxMethod: this.taxMethod,
+      dependants: this.dependants,
+      taxAssessableIncome: this.taxAssessableIncome,
       personalIncomeTax: this.personalIncomeTax,
       advanceDeduction: this.advanceDeduction,
       netIncome: this.netIncome,
+      warnings: this.warnings,
       remainingAnnualLeaveDays: this.remainingAnnualLeaveDays,
       dailyLines: this.dailyLines
     };
