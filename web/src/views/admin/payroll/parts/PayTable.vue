@@ -281,11 +281,17 @@ const total = computed(() => ({
   vertical-align: 1px;
 }
 .tp tfoot th,
-.tp tfoot td {
+.tp tfoot td,
+.tp tfoot td.ded {
   height: 48px;
   border-bottom: 0;
   background: var(--ground);
   font-weight: 600;
+}
+/* Nền Gọn (base.css) chỉ hạ chiều cao của td; ô tiêu đề dòng theo cùng độ cao. */
+:root[data-density='gon'] .tp tbody th.who,
+:root[data-density='gon'] .tp tfoot th.who {
+  height: 42px;
 }
 .pill {
   display: inline-flex;

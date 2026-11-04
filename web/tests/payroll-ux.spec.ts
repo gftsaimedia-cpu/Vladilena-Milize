@@ -39,6 +39,8 @@ test('October payroll shows the board figures', async ({ page }) => {
   for (const name of ['Tất cả 128', 'Nháp 12', 'Chờ duyệt 29', 'Đã duyệt 86', 'Từ chối 1'])
     await expect(filters(page).getByRole('button', { name, exact: true })).toBeVisible();
   await expect(rows(page)).toHaveCount(10);
+  // Mật độ mặc định là Gọn: dòng 42px, cả ô tên (th) lẫn ô số (td).
+  expect((await rows(page).first().boundingBox())?.height).toBe(42);
   await expect(row(page, 'Lê Hoàng Nam')).toContainText('24 / 26');
   await expect(row(page, 'Lê Hoàng Nam')).toContainText('14.278.183');
   await expect(row(page, 'Đỗ Mai Linh')).toContainText('−125.000');

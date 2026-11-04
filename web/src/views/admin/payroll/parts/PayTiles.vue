@@ -41,7 +41,11 @@ const bar = computed(() => BAR.map(b => ({ ...b, count: props.counts[b.key] })))
       <span class="l">Phiếu đã duyệt</span>
       <span class="v">{{ counts.done }}<span class="u"> / {{ counts.all }}</span></span>
       <span class="bar" aria-hidden="true">
-        <i v-for="b in bar" :key="b.key" :style="{ flex: b.count, background: b.color }" :class="{ min: b.key === 'rejected' }" />
+        <i
+          v-for="b in bar"
+          :key="b.key"
+          :style="{ flex: b.count, background: b.color, minWidth: b.key === 'rejected' && b.count > 0 ? '4px' : undefined }"
+        />
       </span>
     </article>
   </section>
@@ -106,8 +110,5 @@ const bar = computed(() => BAR.map(b => ({ ...b, count: props.counts[b.key] })))
 }
 .bar i {
   border-radius: 3px;
-}
-.bar i.min {
-  min-width: 4px;
 }
 </style>
