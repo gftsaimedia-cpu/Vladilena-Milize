@@ -93,13 +93,6 @@ describe('resolveTaxMethod', () => {
 });
 
 describe('progressiveTax', () => {
-  it('uses the confirmed deductions and flat rate constants', () => {
-    assert.equal(PERSONAL_DEDUCTION, 15_500_000);
-    assert.equal(DEPENDANT_DEDUCTION, 6_200_000);
-    assert.equal(FLAT_RATE, 0.1);
-    assert.equal(FLAT_THRESHOLD, 5_000_000);
-  });
-
   it('is 0 for nothing to assess', () => {
     assert.equal(progressiveTax(0), 0);
     assert.equal(progressiveTax(-1_000_000), 0);
@@ -117,6 +110,13 @@ describe('progressiveTax', () => {
 });
 
 describe('calculatePersonalIncomeTax', () => {
+  it('uses the confirmed deductions and flat rate constants', () => {
+    assert.equal(PERSONAL_DEDUCTION, 15_500_000);
+    assert.equal(DEPENDANT_DEDUCTION, 6_200_000);
+    assert.equal(FLAT_RATE, 0.1);
+    assert.equal(FLAT_THRESHOLD, 5_000_000);
+  });
+
   it('deducts exemptions, insurance, personal and dependant allowances before the brackets', () => {
     const r = calculatePersonalIncomeTax({
       method: 'progressive',
