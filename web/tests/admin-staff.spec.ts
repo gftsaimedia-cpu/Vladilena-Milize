@@ -155,3 +155,87 @@ test('staff screen has one dark card and no shadows', async ({ page }) => {
     .evaluateAll(els => els.map(el => getComputedStyle(el).boxShadow).filter(s => s !== 'none'));
   expect(shadows).toEqual([]);
 });
+
+const searchBox = (page: Page) => page.getByRole('searchbox', { name: 'Tìm theo tên, mã hoặc email' });
+const inactiveSwitch = (page: Page) => page.getByRole('switch', { name: /Chưa kích hoạt tài khoản/ });
+
+test('search matches name, code and email without diacritics or extra spaces', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const box = searchBox(page);
+  await expect(box).toHaveAttribute('placeholder', 'Tìm tên, mã, email…');
+
+  const cases: [string, string[], string?][] = [
+    ['  do mai ', ['Đỗ Mai Linh'], '1 kết quả trên trang này'],
+    ['hoang', ['Lê Hoàng Nam', 'Hoàng Thị Mai'], '2 kết quả trên trang này'],
+    ['GFT-0118', ['Hoàng Thị Mai']],
+    ['phuc.dang', ['Đặng Văn Phúc']],
+    ['dang', ['Đặng Văn Phúc']],
+    ['tai chinh', [], '0 kết quả trên trang này'],
+    ['   ', NAMES, 'Hiển thị 1–10 trong 131 hồ sơ']
+  ];
+  for (const [x, expected, footer] of cases) {
+    await box.fill(x);
+    await expect(names(page)).toHaveText(expected);
+    if (footer) await expect(page.getByText(footer)).toBeVisible();
+    if (x === 'tai chinh') {
+      await expect(table(page).locator('td.empty')).toHaveText('Không có nhân sự nào khớp bộ lọc trên trang này.');
+      await expect(table(page).locator('td.empty')).toHaveAttribute('colspan', '7');
+    }
+  }
+});
+
+test('topbar search opens the list with q and the query survives a reload', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  const top = page.getByLabel('Tìm nhân viên');
+  await top.fill('Quân');
+  await top.press('Enter');
+
+  await expect(page).toHaveURL(/\/admin\/nhan-su\?q=Qu%C3%A2n/);
+  const box = searchBox(page);
+  await expect(box).toHaveValue('Quân');
+  await expect(names(page)).toHaveText(['Trần Minh Quân']);
+
+  await top.fill('linh');
+  await top.press('Enter');
+  await expect(box).toHaveValue('linh');
+  await expect(names(page)).toHaveText(['Đỗ Mai Linh']);
+
+  await box.fill('nam');
+  await expect(page).toHaveURL(/q=nam/);
+  await page.reload();
+  await expect(box).toHaveValue('nam');
+  await expect(names(page)).toHaveText(['Lê Hoàng Nam']);
+
+  await box.fill('');
+  await expect(page).toHaveURL('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+});
+
+test('inactive switch keeps only accounts not yet activated', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const sw = inactiveSwitch(page);
+  const box = searchBox(page);
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(sw).toContainText('2');
+
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(names(page)).toHaveText(['Đỗ Mai Linh', 'Phan Minh Khoa']);
+  await expect(page.getByText('2 kết quả trên trang này')).toBeVisible();
+  await expect(sw).toHaveCSS('border-color', 'rgb(28, 28, 28)');
+
+  await box.fill('khoa');
+  await expect(names(page)).toHaveText(['Phan Minh Khoa']);
+  await expect(sw).toContainText('2');
+
+  await sw.click();
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(names(page)).toHaveText(['Phan Minh Khoa']);
+  await expect(page.getByText('1 kết quả trên trang này')).toBeVisible();
+
+  await box.fill('');
+  await expect(names(page)).toHaveCount(10);
+  await expect(page.getByText('Hiển thị 1–10 trong 131 hồ sơ')).toBeVisible();
+});

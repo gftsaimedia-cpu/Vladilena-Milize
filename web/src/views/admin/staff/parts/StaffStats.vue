@@ -74,7 +74,7 @@ defineProps<{ stats: StaffStat[] }>();
 .kc.dk {
   border-color: var(--surface-dark);
   background: var(--surface-dark);
-  color: #fff;
+  color: var(--on-primary);
 }
 .kc.dk .kc-v {
   color: var(--gold);

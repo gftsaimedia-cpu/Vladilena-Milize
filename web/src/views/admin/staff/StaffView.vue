@@ -1,11 +1,41 @@
 <script setup lang="ts">
 // Màn Nhân sự (nhan-su) trên dữ liệu giả: bốn thẻ chỉ số và thẻ danh sách 10 hồ sơ đầu của 131.
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
 import { getStaffList } from '@/services/admin-hr';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
+import StaffToolbar from './parts/StaffToolbar.vue';
+import { filterStaff, isFiltered } from './staffFilter';
 
+const route = useRoute();
+const router = useRouter();
 const { data } = useLoad(() => getStaffList());
+
+const asText = (v: unknown) => (typeof v === 'string' ? v : '');
+const q = ref(asText(route.query.q));
+const inactiveOnly = ref(false);
+
+// ?q hai chiều: URL đổi (ô tìm trên thanh trên) thì cập nhật ô tìm; gõ thì thay URL, ô trống bỏ q.
+watch(
+  () => route.query.q,
+  v => {
+    if (asText(v) !== q.value) q.value = asText(v);
+  }
+);
+watch(q, v => {
+  if (asText(route.query.q) !== v) router.replace({ query: { ...route.query, q: v || undefined } });
+});
+
+const inactiveCount = computed(() => (data.value?.rows ?? []).filter(r => !r.activated).length);
+const opts = computed(() => ({ q: q.value, inactiveOnly: inactiveOnly.value }));
+const shown = computed(() => filterStaff(data.value?.rows ?? [], opts.value));
+const footer = computed(() =>
+  isFiltered(opts.value)
+    ? `${shown.value.length} kết quả trên trang này`
+    : `Hiển thị 1–${data.value?.rows.length ?? 0} trong ${data.value?.total ?? 0} hồ sơ`
+);
 </script>
 
 <template>
@@ -22,8 +52,9 @@ const { data } = useLoad(() => getStaffList());
           <h2 id="staff-list-h">Danh sách nhân sự</h2>
           <span>{{ data.total }} hồ sơ</span>
         </div>
-        <StaffTable :rows="data.rows" />
-        <div class="lc-f">Hiển thị 1–{{ data.rows.length }} trong {{ data.total }} hồ sơ</div>
+        <StaffToolbar v-model:q="q" v-model:inactive-only="inactiveOnly" :inactive-count="inactiveCount" />
+        <StaffTable :rows="shown" />
+        <div class="lc-f">{{ footer }}</div>
       </section>
     </template>
   </div>
@@ -43,7 +74,7 @@ const { data } = useLoad(() => getStaffList());
   display: flex;
   align-items: baseline;
   gap: 12px;
-  padding: 20px 20px 16px;
+  padding: 20px 20px 0;
 }
 .lc-h h2 {
   margin: 0;

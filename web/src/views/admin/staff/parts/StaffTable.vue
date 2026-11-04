@@ -32,6 +32,9 @@ defineProps<{ rows: StaffRow[] }>();
         </tr>
       </thead>
       <tbody>
+        <tr v-if="!rows.length">
+          <td class="empty" colspan="7">Không có nhân sự nào khớp bộ lọc trên trang này.</td>
+        </tr>
         <tr v-for="r in rows" :key="r.id" :class="{ gone: r.status === 'out' }">
           <td />
           <th scope="row">
@@ -44,13 +47,13 @@ defineProps<{ rows: StaffRow[] }>();
             <span class="em" :title="r.activated ? 'Đã kích hoạt tài khoản' : 'Chưa kích hoạt tài khoản'">
               <svg class="mark" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
                 <template v-if="r.activated">
-                  <circle cx="8" cy="8" r="8" fill="#1c1c1c" />
-                  <path d="M4.6 8.2l2.3 2.3 4.5-4.8" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle class="m-dark" cx="8" cy="8" r="8" />
+                  <path class="m-tick" d="M4.6 8.2l2.3 2.3 4.5-4.8" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
                 </template>
                 <template v-else>
-                  <circle cx="8" cy="8" r="8" fill="#eb973d" />
-                  <path d="M8 4.4v4.2" fill="none" stroke="#212121" stroke-width="1.7" stroke-linecap="round" />
-                  <circle cx="8" cy="11.3" r="1" fill="#212121" />
+                  <circle class="m-warn" cx="8" cy="8" r="8" />
+                  <path class="m-ink" d="M8 4.4v4.2" fill="none" stroke-width="1.7" stroke-linecap="round" />
+                  <circle class="m-dot" cx="8" cy="11.3" r="1" />
                 </template>
               </svg>
               <span class="et">{{ r.email }}</span
@@ -134,6 +137,29 @@ defineProps<{ rows: StaffRow[] }>();
 }
 .mark {
   flex: none;
+}
+.m-dark {
+  fill: var(--surface-dark);
+}
+.m-tick {
+  stroke: var(--on-primary);
+}
+.m-warn {
+  fill: var(--status-pending);
+}
+.m-ink {
+  stroke: var(--text);
+}
+.m-dot {
+  fill: var(--text);
+}
+.stbl tbody td.empty {
+  height: 120px;
+  padding: 0 12px;
+  border-bottom: 0;
+  text-align: center;
+  white-space: normal;
+  color: var(--muted);
 }
 .et {
   min-width: 0;
