@@ -60,7 +60,7 @@ describe('calculateKpiPay', () => {
   });
 
   it('treats an absent key like a null score', () => {
-    const { peer, ...withoutPeer } = fullScores;
+    const withoutPeer = { wework: 9000, user: 8000, manager: 8500, self: 10000 };
     const r = calculateKpiPay({ scores: withoutPeer, proposedAmount: 5_000_000 }, cap);
     assert.equal(r.amount, 3_570_000);
     assert.deepEqual(r.warnings, [warning('KPI_SCORE_MISSING', ['peer'])]);
