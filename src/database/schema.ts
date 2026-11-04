@@ -50,6 +50,7 @@ export interface KpiScoresTable {
   peer: Generated<number | null>;
   manager: Generated<number | null>;
   self_score: Generated<number | null>;
+  kpi_proposed: Generated<number | null>;
   created_by: string;
   created_at: string;
   updated_by: string;

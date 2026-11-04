@@ -383,6 +383,9 @@ describe('Payroll allowance behavior from the reference app', () => {
       orderBy() {
         return this;
       },
+      limit() {
+        return this;
+      },
       leftJoin(_table: string, callback: (join: { onRef: (...args: string[]) => any }) => void) {
         const join = {
           onRef: (...args: string[]) => {
@@ -396,6 +399,7 @@ describe('Payroll allowance behavior from the reference app', () => {
       async executeTakeFirst() {
         if (table === 'staff')
           return { uuid: 'repo-emp', username: 'repo-emp', name: 'Employee', type: 'nv', level: 1 };
+        if (table === 'position_types') return { id: 2, workdays: 26 };
         if (table === 'position_levels') return { base_salary: 6_000_000, kpi_max: 6_000_000, name: 'NV L1' };
         return undefined;
       },
