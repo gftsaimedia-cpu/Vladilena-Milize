@@ -1,30 +1,61 @@
-import { EVENTS, STORE } from '../../core/tokens';
-import { Controller, Get, Res, Inject } from '@nestjs/common';
-import { Ctx, ApiContext } from '../../http/api-context';
-
-const {} = require('../../platform/http'); // tiện ích HTTP: lỗi, gửi JSON, đọc thân, tiêu đề bảo mật, file tĩnh
-// báo cho màn đang mở (SSE), phát SAU KHI giao dịch đã COMMIT
-const { monitor } = require('../../http/load-control'); // giới hạn tải dùng chung với cổng ApiGuard (src/http)
+import { Controller, Get, Post, Put, Param, Body, Query, UseFilters } from '@nestjs/common';
+import { ApiExceptionFilter, CurrentUser, UserSession } from '../../common';
+import { SystemService } from './system.service';
 
 @Controller('api')
+@UseFilters(ApiExceptionFilter)
 export class SystemController {
-  constructor(
-    @Inject(STORE) private readonly store: any,
-    @Inject(EVENTS) private readonly events: any
-  ) {}
+  constructor(private readonly service: SystemService) {}
 
-  // Cho proxy/giám sát: tiến trình còn sống, DB trả lời được, vòng lặp có đang nghẽn không. Không lộ dữ liệu nghiệp vụ.
   @Get('health')
-  async getHealth(@Ctx() c: ApiContext): Promise<unknown> {
-    const { res } = c;
-    await this.store.db.prepare('SELECT 1').get();
-    return { ok: true, ...monitor.snapshot() };
+  async health(): Promise<unknown> {
+    return await this.service.checkHealth();
   }
 
-  @Get('events')
-  async getEvents(@Ctx() c: ApiContext, @Res() _res: unknown): Promise<unknown> {
-    const { req, res, need } = c;
-    const listener = need(); // mọi người đã đăng nhập; luồng này chỉ gợi ý nạp lại, không mang dữ liệu
-    return await this.events.handleSse(req, res, listener);
+  @Get('v2/system/health')
+  async healthV2(): Promise<unknown> {
+    return await this.service.checkHealth();
+  }
+
+  @Get('v2/system/settings')
+  async getSettings(): Promise<unknown> {
+    const settings = await this.service.listSettings();
+    return { settings };
+  }
+
+  @Put('v2/system/settings/:key')
+  async updateSetting(
+    @Param('key') key: string,
+    @Body() body: { value: string },
+    @CurrentUser() user?: UserSession
+  ): Promise<unknown> {
+    await this.service.setSetting(key, body.value, user?.username || 'system');
+    return { ok: true, key, value: body.value };
+  }
+
+  @Get('v2/system/audit')
+  async getAuditLogs(
+    @Query('limit') limitStr?: string,
+    @Query('offset') offsetStr?: string
+  ): Promise<unknown> {
+    const limit = limitStr ? Number(limitStr) : 50;
+    const offset = offsetStr ? Number(offsetStr) : 0;
+    const items = await this.service.listAuditLogs(limit, offset);
+    return { items, count: items.length };
+  }
+
+  @Get('v2/system/periods')
+  async listPeriods(): Promise<unknown> {
+    const periods = await this.service.listPeriods();
+    return { periods };
+  }
+
+  @Post('v2/system/periods/:month/lock')
+  async lockPeriod(
+    @Param('month') month: string,
+    @CurrentUser() user?: UserSession
+  ): Promise<unknown> {
+    await this.service.lockPeriod(month, user?.username || 'system');
+    return { ok: true, month, status: 'LOCKED' };
   }
 }

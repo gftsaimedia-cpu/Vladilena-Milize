@@ -1,2 +1,3 @@
-// Cổng công khai của module: module khác và app.module chỉ được import từ đây.
-export { AuthModule } from './auth.module';
+export * from './auth.service';
+export * from './auth.controller';
+export * from './auth.module';

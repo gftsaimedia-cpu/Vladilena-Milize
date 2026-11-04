@@ -1,2 +1,3 @@
-// Cổng công khai của module: module khác và app.module chỉ được import từ đây.
-export { RolesModule } from './roles.module';
+export * from './roles.service';
+export * from './roles.controller';
+export * from './roles.module';

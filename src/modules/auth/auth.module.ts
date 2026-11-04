@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
+import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
-/** Đăng nhập, đăng xuất, hồ sơ phiên (/me), đổi mật khẩu của chính mình. */
-@Module({ controllers: [AuthController] })
+@Module({
+  controllers: [AuthController],
+  providers: [AuthService],
+  exports: [AuthService],
+})
 export class AuthModule {}

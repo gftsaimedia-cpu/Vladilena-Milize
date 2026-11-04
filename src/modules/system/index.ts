@@ -1,2 +1,3 @@
-// Cổng công khai của module: module khác và app.module chỉ được import từ đây.
-export { SystemModule } from './system.module';
+export * from './system.service';
+export * from './system.controller';
+export * from './system.module';
