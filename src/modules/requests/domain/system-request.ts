@@ -12,9 +12,11 @@ import {
   CreateShiftChangeParams,
   CreateLeaveWithMakeupParams,
   CreateExplanationParams,
+  CreateIsatParams,
   SystemRequestRow,
   SystemRequestDTO
 } from './types';
+import { IsatRegistration } from './isat';
 
 function isValidDateString(dateStr: string): boolean {
   if (typeof dateStr !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
@@ -81,6 +83,9 @@ export class SystemRequest {
   makeupStartTime: string | null;
   makeupEndTime: string | null;
 
+  // ISAT
+  isat: IsatRegistration | null;
+
   constructor(props: SystemRequestProps) {
     if (!props || typeof props !== 'object') {
       throw new Error('SystemRequest props are required');
@@ -121,6 +126,8 @@ export class SystemRequest {
     this.newEndTime = props.newEndTime ?? null;
     this.makeupStartTime = props.makeupStartTime ?? null;
     this.makeupEndTime = props.makeupEndTime ?? null;
+
+    this.isat = props.isat ?? null;
   }
 
   static createLeaveRequest(params: CreateLeaveParams): SystemRequest {
@@ -379,6 +386,36 @@ export class SystemRequest {
     });
   }
 
+  static createIsatRequest(params: CreateIsatParams): SystemRequest {
+    const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
+    const isat = IsatRegistration.assess({
+      saturday: params?.saturday,
+      team: params?.team,
+      conditions: params?.conditions,
+      profile: params?.profile
+    });
+
+    const [year, month, day] = isat.saturday.split('-');
+    const accepted = isat.allPassed;
+    const { passedCount, totalCount } = isat;
+    const rejectNote = `Tự đánh giá chưa đạt ${totalCount}/${totalCount} (đạt ${passedCount}/${totalCount})`;
+    const now = new Date();
+    return new SystemRequest({
+      id: randomUUID(),
+      employeeId,
+      title: `Đăng ký iSAT Thứ Bảy ${day}/${month}/${year}`,
+      type: 'ISAT',
+      reason: `Tự đánh giá đạt ${passedCount}/${totalCount} điều kiện`,
+      status: accepted ? 'PENDING' : 'REJECTED',
+      reviewedBy: null,
+      reviewedAt: accepted ? null : now,
+      reviewNote: accepted ? null : rejectNote,
+      isat,
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+
   approve(reviewerId: string, note?: string): SystemRequest {
     if (this.status !== 'PENDING') {
       throw new Error(`Cannot approve request with status '${this.status}'; must be 'PENDING'`);
@@ -468,7 +505,7 @@ export class SystemRequest {
     };
   }
 
-  static fromRow(row: any): SystemRequest {
+  static fromRow(row: any, isat: IsatRegistration | null = null): SystemRequest {
     if (!row || typeof row !== 'object') {
       throw new Error('row must be an object');
     }
@@ -550,7 +587,9 @@ export class SystemRequest {
       newStartTime: row.new_start_time ?? row.newStartTime ?? null,
       newEndTime: row.new_end_time ?? row.newEndTime ?? null,
       makeupStartTime: row.makeup_start_time ?? row.makeupStartTime ?? null,
-      makeupEndTime: row.makeup_end_time ?? row.makeupEndTime ?? null
+      makeupEndTime: row.makeup_end_time ?? row.makeupEndTime ?? null,
+
+      isat
     });
   }
 
@@ -594,7 +633,9 @@ export class SystemRequest {
       newStartTime: this.newStartTime,
       newEndTime: this.newEndTime,
       makeupStartTime: this.makeupStartTime,
-      makeupEndTime: this.makeupEndTime
+      makeupEndTime: this.makeupEndTime,
+
+      isat: this.isat ? this.isat.toJSON() : null
     };
   }
 }
