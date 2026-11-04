@@ -172,7 +172,7 @@ function onTabKey(event: KeyboardEvent) {
                   type="button"
                   role="tab"
                   :aria-selected="tab === t.key"
-                  :aria-controls="`ep-panel-${t.key}`"
+                  :aria-controls="tab === t.key ? `ep-panel-${t.key}` : undefined"
                   :tabindex="tab === t.key ? 0 : -1"
                   @click="tab = t.key"
                 >
@@ -231,7 +231,7 @@ function onTabKey(event: KeyboardEvent) {
 .crumb a:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 .acts {
   align-items: center;
@@ -387,14 +387,14 @@ function onTabKey(event: KeyboardEvent) {
   display: inline-flex;
   padding: 4px;
   gap: 4px;
-  border-radius: 50px;
+  border-radius: var(--r-pill);
   background: var(--ground);
 }
 .tabs2 button {
   height: 32px;
   padding: 0 14px;
   border: 0;
-  border-radius: 50px;
+  border-radius: var(--r-pill);
   background: transparent;
   font: inherit;
   font-weight: 500;
@@ -402,7 +402,7 @@ function onTabKey(event: KeyboardEvent) {
 }
 .tabs2 button[aria-selected='true'] {
   background: var(--surface-dark);
-  color: #ffffff;
+  color: var(--on-primary);
 }
 .tabs2 button:focus-visible {
   outline: 2px solid var(--text);
@@ -411,7 +411,7 @@ function onTabKey(event: KeyboardEvent) {
 .only[aria-pressed='true'] {
   background: var(--surface-dark);
   border-color: var(--surface-dark);
-  color: #ffffff;
+  color: var(--on-primary);
 }
 .only:focus-visible {
   outline: 2px solid var(--text);

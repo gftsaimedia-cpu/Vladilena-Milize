@@ -113,14 +113,14 @@ button.ms-i:focus-visible {
 }
 .ms-i.off .dw,
 .ms-i.off .dn {
-  color: var(--ink-on-dark-muted);
+  color: var(--muted);
   font-weight: 400;
 }
 .ms-i .dot,
 .ms-i .sp {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 .ms-i .sp {
   display: block;

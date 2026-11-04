@@ -88,6 +88,9 @@ test('history folds plain work days and opens them', async ({ page }) => {
 
 test('exceptions filter and the hours table', async ({ page }) => {
   await page.goto(NAM);
+  await page.getByRole('tab', { name: 'Bảng giờ' }).click();
+  await expect(page.getByRole('table', { name: 'Bảng giờ' }).locator('tbody tr')).toHaveCount(24);
+  await page.getByRole('tab', { name: 'Dòng thời gian' }).click();
   const only = page.getByRole('button', { name: 'Chỉ ngày có ngoại lệ' });
   await expect(only).toHaveAttribute('aria-pressed', 'false');
   await only.click();

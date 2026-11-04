@@ -162,7 +162,7 @@ const partStyle = (p: TrackPart) => ({
 .t {
   position: relative;
   height: 20px;
-  border-radius: 4px;
+  border-radius: 8px;
 }
 .tp {
   position: absolute;
@@ -174,22 +174,22 @@ const partStyle = (p: TrackPart) => ({
   top: 0;
   height: 20px;
   background: var(--ground);
-  border-radius: 4px;
+  border-radius: 8px;
 }
 .tp.bar {
   background: var(--surface-dark);
-  border-radius: 3px;
+  border-radius: var(--r-pill);
 }
 .tp.late {
   background: var(--gold);
-  border-radius: 3px 0 0 3px;
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
 }
 .tp.lunch {
   background: repeating-linear-gradient(135deg, var(--surface) 0 2px, transparent 2px 5px);
 }
 .tp.miss {
   border: 2px dashed var(--status-pending);
-  border-radius: 3px;
+  border-radius: var(--r-pill);
 }
 .tp.tick {
   top: 0;
@@ -209,9 +209,9 @@ const partStyle = (p: TrackPart) => ({
   height: 16px;
   padding: 0 8px;
   overflow: hidden;
-  border-radius: 4px;
+  border-radius: 8px;
   background: var(--status-done);
-  color: #ffffff;
+  color: var(--on-primary);
   font-size: 12px;
   line-height: 16px;
   font-weight: 500;
@@ -269,7 +269,7 @@ const partStyle = (p: TrackPart) => ({
   width: 16px;
   height: 10px;
   box-sizing: border-box;
-  border-radius: 3px;
+  border-radius: var(--r-pill);
 }
 .kb.shift {
   background: var(--ground);
@@ -328,7 +328,6 @@ const partStyle = (p: TrackPart) => ({
   .hl-head {
     display: none;
   }
-  .hl-head,
   .hl-r {
     padding: 0 16px;
   }
