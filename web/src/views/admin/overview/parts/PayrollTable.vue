@@ -5,6 +5,7 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { OverviewView, PayrollStatus } from '@/mock/overview';
+import { foldText } from '@/utils/format';
 
 const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
@@ -30,18 +31,10 @@ const filters = computed<{ key: Filter; label: string; count: number }[]>(() => 
   { key: 'rejected', label: LABEL.rejected, count: props.slips.rejected }
 ]);
 
-// Bỏ dấu: tách dấu kết hợp, đổi đ thành d, viết thường.
-const fold = (s: string) =>
-  s
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/\u0111/gi, 'd')
-    .toLowerCase();
-
 const rows = computed(() => {
-  const q = fold(query.value.trim());
+  const q = foldText(query.value);
   return props.payroll.rows.filter(
-    r => (filter.value === 'all' || r.status === filter.value) && (!q || fold(`${r.name} ${r.dept}`).includes(q))
+    r => (filter.value === 'all' || r.status === filter.value) && (!q || foldText(`${r.name} ${r.dept}`).includes(q))
   );
 });
 </script>

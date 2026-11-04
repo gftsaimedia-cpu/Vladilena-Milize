@@ -24,7 +24,7 @@ onMounted(() => shell.load());
 onMounted(() => period.refresh());
 
 // Dải bước kỳ lương chỉ hiện ở các màn gắn với kỳ lương.
-const STEPS_NAV = ['cham-cong', 'kpi', 'luong'];
+const STEPS_NAV = ['cham-cong', 'kpi'];
 
 const bellOpen = ref(false);
 const menuOpen = ref(false);

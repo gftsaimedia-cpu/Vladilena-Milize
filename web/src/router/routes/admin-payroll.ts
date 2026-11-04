@@ -1,5 +1,5 @@
 // Route của nhóm admin-payroll: Bảng lương và các bước của kỳ lương.
-// ?thang=YYYY-MM tháng · ?kb= trạng thái · ?hop= hộp thoại mở sẵn · ?phieu=<username> ngăn kéo phiếu lương.
+// ?thang=YYYY-MM tháng · ?phieu=<mã nhân viên> ngăn kéo phiếu lương.
 export default [
   {
     path: '/admin/bang-luong',
