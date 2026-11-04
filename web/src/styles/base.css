@@ -70,8 +70,6 @@
   --side-active-bg: var(--gold-light);
   --side-active-ink: var(--text);
   --side-active-icon: var(--text);
-  --side-count-bg: var(--status-draft);
-  --side-count-ink: var(--text);
   --side-rule: var(--border);
   --side-focus: var(--text);
 }
@@ -84,8 +82,6 @@
   --side-active-bg: var(--surface-dark-raised);
   --side-active-ink: var(--gold);
   --side-active-icon: var(--gold);
-  --side-count-bg: var(--surface-dark-raised);
-  --side-count-ink: #ffffff;
   --side-rule: var(--surface-dark-raised);
   --side-focus: var(--gold);
 }
