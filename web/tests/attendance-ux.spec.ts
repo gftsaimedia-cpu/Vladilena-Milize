@@ -188,7 +188,7 @@ test.fixme(
   }
 );
 
-test('Today title action remains available when monthly attendance summary is empty', async ({ page }) => {
+test('Today title action opens the today dialog on the attendance page at 375px', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/admin/cham-cong?thang=2026-11');
 
