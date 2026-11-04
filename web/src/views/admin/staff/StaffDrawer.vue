@@ -3,6 +3,7 @@
 // Bẫy focus, Escape và trả focus nhờ registerOverlayFocus; việc đổi URL là của màn (emit close, prev, next).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
+import { employeePath } from '../attendance/links';
 import Icon from '@/components/ui/Icon.vue';
 import { lockScroll, registerOverlayFocus, unlockScroll } from '@/components/ui/overlay-lock';
 import { useLoad } from '@/composables/useLoad';
@@ -20,7 +21,7 @@ const profile = computed(() => (data.value && data.value.id === props.id ? data.
 const attendanceTo = computed(() => {
   const thang = route.query.thang;
   return {
-    path: `/admin/cham-cong/nhan-vien/${props.id}`,
+    path: employeePath(props.id),
     query: typeof thang === 'string' && thang ? { thang } : {}
   };
 });

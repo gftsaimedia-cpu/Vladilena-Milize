@@ -21,5 +21,5 @@ export default [
     to: `/admin/cham-cong/nhan-vien/le-hoang-nam?${A}`
   },
   { file: 'nhan-su.html', title: 'Nhân sự', to: `/admin/nhan-su?${M}` },
-  { file: 'drw-ns-ho-so.html', title: 'Ngăn kéo Hồ sơ nhân sự · Hoàng Thị Mai', to: '/admin/nhan-su?nv=hoang-thi-mai' },
+  { file: 'drw-ns-ho-so.html', title: 'Ngăn kéo Hồ sơ nhân sự · Hoàng Thị Mai', to: '/admin/nhan-su?nv=hoang-thi-mai' }
 ];
