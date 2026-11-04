@@ -1,6 +1,6 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
-import { PayrollRepository, EmployeeMonthlyRawData } from './payroll.repository';
+import { PayrollRepository, EmployeeMonthlyRawData, PayslipRecord } from './payroll.repository';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
@@ -55,7 +55,7 @@ export class PayrollService {
         }
       }
 
-      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips);
+      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length);
       return { runId, items: summaries, errors };
     };
 
@@ -65,11 +65,11 @@ export class PayrollService {
     return await doCalc();
   }
 
-  async listPayslips(month: string): Promise<any[]> {
+  async listPayslips(month: string): Promise<PayslipRecord[]> {
     return await this.repo.listPayslips(month);
   }
 
-  async getPayslip(month: string, employeeId: string): Promise<any | null> {
+  async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
     return await this.repo.getPayslip(month, employeeId);
   }
 

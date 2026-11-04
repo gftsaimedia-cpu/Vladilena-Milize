@@ -1,7 +1,17 @@
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import type { Insertable, Kysely, Selectable } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
-import { DEFAULT_INSURANCE_RATES, EmployeePayslip, InsuranceRates, KpiCap, KpiInput } from './domain';
+import {
+  DEFAULT_INSURANCE_RATES,
+  EmployeePayslip,
+  EmployeePayslipDTO,
+  InsuranceRates,
+  KpiCap,
+  KpiInput,
+  PayrollWarning
+} from './domain';
+import { PayrollFinalizedError } from './payroll.errors';
 
 export interface EmployeeMonthlyRawData {
   staff: {
@@ -181,6 +191,61 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
   };
 }
 
+// A stored payslip: the amounts as numbers, the warnings raised while it was computed and the full snapshot.
+export interface PayslipRecord {
+  id: number;
+  runId: number;
+  username: string;
+  status: string;
+  gross: number;
+  insurance: number;
+  tax: number;
+  advance: number;
+  net: number;
+  warnings: PayrollWarning[];
+  details: EmployeePayslipDTO;
+}
+
+const ENGINE_VERSION = 'v2-rules-2026-11';
+
+export function buildPayslipRow(runId: number, slip: EmployeePayslip): Insertable<DB['payslips']> {
+  return {
+    run_id: runId,
+    username: slip.username,
+    status: 'draft',
+    gross: slip.grossIncome,
+    insurance: slip.insuranceDeduction,
+    tax: slip.personalIncomeTax,
+    advance: slip.advanceDeduction,
+    net: slip.netIncome,
+    staff_terms_json: JSON.stringify({
+      employeeType: slip.employeeType,
+      baseSalaryPolicy: slip.baseSalaryPolicy,
+      standardWorkdays: slip.standardWorkdays,
+      taxMethod: slip.taxMethod,
+      dependants: slip.dependants
+    }),
+    snapshot_gz: gzipSync(JSON.stringify(slip.toJSON())),
+    flags_json: slip.warnings.length > 0 ? JSON.stringify(slip.warnings) : null
+  };
+}
+
+export function readPayslipRow(row: Selectable<DB['payslips']>): PayslipRecord {
+  return {
+    id: Number(row.id),
+    runId: Number(row.run_id),
+    username: row.username,
+    status: row.status,
+    gross: Number(row.gross),
+    insurance: Number(row.insurance),
+    tax: Number(row.tax),
+    advance: Number(row.advance),
+    net: Number(row.net),
+    warnings: row.flags_json ? JSON.parse(row.flags_json) : [],
+    details: JSON.parse(gunzipSync(row.snapshot_gz).toString('utf8'))
+  };
+}
+
 @Injectable()
 export class PayrollRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
@@ -299,114 +364,105 @@ export class PayrollRepository {
     });
   }
 
-  async savePayrollRunAndSlips(month: string, actor: string, payslips: EmployeePayslip[]): Promise<number> {
+  // Stores a new draft run for the month (run_no + 1) and supersedes the month's earlier drafts. A month with a
+  // final run is closed.
+  async savePayrollRunAndSlips(
+    month: string,
+    actor: string,
+    payslips: EmployeePayslip[],
+    errorCount = 0
+  ): Promise<number> {
     const now = new Date().toISOString();
 
-    // 1. Create payroll_run
-    const run = await this.qb
-      .insertInto('payroll_runs')
-      .values({
-        month,
-        run_no: 1,
-        status: 'OFFICIAL',
-        engine_version: 'v2',
-        params_hash: 'v2_pure',
-        params_rev: 1,
-        params_json: '{}',
-        switches_json: '{}',
-        slips_total: payslips.length,
-        slips_error: 0,
-        created_by: actor,
-        created_at: now,
-        finished_at: now
-      })
-      .returning('id')
-      .executeTakeFirstOrThrow();
+    return await this.qb.transaction().execute(async trx => {
+      const finalRun = await trx
+        .selectFrom('payroll_runs')
+        .select('id')
+        .where('month', '=', month)
+        .where('status', '=', 'final')
+        .executeTakeFirst();
+      if (finalRun) throw new PayrollFinalizedError(`Kỳ lương ${month} đã chốt, không thể tính lại`);
 
-    const runId = run.id;
+      const latest = await trx
+        .selectFrom('payroll_runs')
+        .select(eb => eb.fn.max('run_no').as('max_run_no'))
+        .where('month', '=', month)
+        .executeTakeFirst();
+      const runNo = Number(latest?.max_run_no ?? 0) + 1;
 
-    // 2. Insert payslips
-    for (const slip of payslips) {
-      const summary = slip.toSummary();
-      const jsonStr = JSON.stringify(slip.toJSON());
-
-      await this.qb
-        .insertInto('payslips')
-        .values({
-          run_id: runId,
-          username: summary.employeeId,
-          status: 'OFFICIAL',
-          gross: summary.grossIncome,
-          insurance: summary.insuranceDeduction,
-          tax: slip.personalIncomeTax,
-          advance: summary.advanceDeduction,
-          net: summary.netIncome,
-          staff_terms_json: jsonStr,
-          snapshot_gz: Buffer.from(jsonStr)
-        })
+      await trx
+        .updateTable('payroll_runs')
+        .set({ status: 'superseded' })
+        .where('month', '=', month)
+        .where('status', '=', 'draft')
         .execute();
-    }
 
-    return runId;
+      const run = await trx
+        .insertInto('payroll_runs')
+        .values({
+          month,
+          run_no: runNo,
+          status: 'draft',
+          engine_version: ENGINE_VERSION,
+          params_hash: ENGINE_VERSION,
+          params_rev: 1,
+          params_json: '{}',
+          switches_json: '{}',
+          slips_total: payslips.length,
+          slips_error: errorCount,
+          created_by: actor,
+          created_at: now,
+          finished_at: now
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow();
+
+      for (const slip of payslips) {
+        await trx.insertInto('payslips').values(buildPayslipRow(run.id, slip)).execute();
+      }
+
+      return Number(run.id);
+    });
   }
 
-  async listPayslips(month: string): Promise<any[]> {
+  // The run a reader sees: the newest one that a later calculation has not superseded.
+  private async currentRunId(month: string): Promise<number | null> {
     const run = await this.qb
       .selectFrom('payroll_runs')
-      .select(['id', 'month', 'status', 'created_at'])
+      .select('id')
       .where('month', '=', month)
-      .orderBy('id', 'desc')
+      .where('status', '<>', 'superseded')
+      .orderBy('run_no', 'desc')
       .executeTakeFirst();
-
-    if (!run) return [];
-
-    const slips = await this.qb.selectFrom('payslips').selectAll().where('run_id', '=', run.id).execute();
-
-    return slips.map(s => ({
-      id: s.id,
-      runId: s.run_id,
-      username: s.username,
-      status: s.status,
-      gross: s.gross,
-      insurance: s.insurance,
-      tax: s.tax,
-      advance: s.advance,
-      net: s.net,
-      details: s.staff_terms_json ? JSON.parse(s.staff_terms_json) : null
-    }));
+    return run ? Number(run.id) : null;
   }
 
-  async getPayslip(month: string, employeeId: string): Promise<any | null> {
-    const run = await this.qb
-      .selectFrom('payroll_runs')
-      .select(['id'])
-      .where('month', '=', month)
-      .orderBy('id', 'desc')
+  async listPayslips(month: string): Promise<PayslipRecord[]> {
+    const runId = await this.currentRunId(month);
+    if (runId === null) return [];
+
+    const rows = await this.qb.selectFrom('payslips').selectAll().where('run_id', '=', runId).orderBy('id').execute();
+    return rows.map(readPayslipRow);
+  }
+
+  async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
+    const runId = await this.currentRunId(month);
+    if (runId === null) return null;
+
+    const staff = await this.qb
+      .selectFrom('staff')
+      .select('username')
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
       .executeTakeFirst();
+    if (!staff) return null;
 
-    if (!run) return null;
-
-    const slip = await this.qb
+    const row = await this.qb
       .selectFrom('payslips')
       .selectAll()
-      .where('run_id', '=', run.id)
-      .where(eb => eb.or([eb('username', '=', employeeId)]))
+      .where('run_id', '=', runId)
+      .where('username', '=', staff.username)
       .executeTakeFirst();
-
-    if (!slip) return null;
-
-    return {
-      id: slip.id,
-      runId: slip.run_id,
-      username: slip.username,
-      status: slip.status,
-      gross: slip.gross,
-      insurance: slip.insurance,
-      tax: slip.tax,
-      advance: slip.advance,
-      net: slip.net,
-      details: slip.staff_terms_json ? JSON.parse(slip.staff_terms_json) : null
-    };
+    return row ? readPayslipRow(row) : null;
   }
 
   async saveKpiScore(username: string, month: string, scores: any, actor: string): Promise<void> {

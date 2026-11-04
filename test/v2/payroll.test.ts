@@ -37,9 +37,14 @@ class FakePayrollRepository extends PayrollRepository {
     return this.data.get(`${employeeId}:${month}`) || null;
   }
 
-  override async savePayrollRunAndSlips(month: string, actor: string, payslips: EmployeePayslip[]): Promise<number> {
+  override async savePayrollRunAndSlips(
+    month: string,
+    actor: string,
+    payslips: EmployeePayslip[],
+    errorCount = 0
+  ): Promise<number> {
     const runId = this.runs.length + 1;
-    this.runs.push({ id: runId, month, actor, slipsTotal: payslips.length });
+    this.runs.push({ id: runId, month, actor, slipsTotal: payslips.length, slipsError: errorCount });
     for (const p of payslips) {
       const summary = p.toSummary();
       this.slips.push({
@@ -746,6 +751,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       { employeeId: 'missing', message: 'Data not found for employee missing in month 2026-10' }
     ]);
     assert.equal(repo.runs[0].slipsTotal, 1);
+    assert.equal(repo.runs[0].slipsError, 1);
   });
 
   it('reports a missing salary configuration as an error for that employee', async () => {
