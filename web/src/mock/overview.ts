@@ -1,9 +1,12 @@
 // Dữ liệu Tổng quan giả, đúng dạng màn cần. Cùng bộ số cho mọi tháng; chỉ các nhãn có tên tháng đổi theo `month`.
 // Danh sách "Việc cần duyệt" lấy từ mock/approvals (dùng chung với số đếm của khung).
 import { initials } from '@/utils/format';
+import { billions, vnd } from '@/utils/format';
 import { pendingRequests, type PendingRequest } from './approvals';
+import { MOCK_MONTH } from './clock';
+import { payrollView, type PayrollStatus } from './payroll';
 
-export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
+export type { PayrollStatus } from './payroll';
 
 export type PayrollRow = {
   id: string;
@@ -55,16 +58,6 @@ export type OverviewView = {
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-// [họ tên, chức danh, phòng ban, ngày công, lương cơ bản, phụ cấp, thực nhận, trạng thái]
-const ROWS: [string, string, string, string, string, string, string, PayrollStatus][] = [
-  ['Nguyễn Thu Hà', 'Kế toán tổng hợp', 'Tài chính', '22 / 22', '16.000.000', '1.800.000', '15.932.000', 'done'],
-  ['Trần Minh Quân', 'Kỹ sư phần mềm', 'Kỹ thuật', '22 / 22', '24.000.000', '2.500.000', '22.785.000', 'done'],
-  ['Lê Hoàng Nam', 'Nhân viên kinh doanh', 'Kinh doanh', '20 / 22', '12.000.000', '3.200.000', '12.757.000', 'pending'],
-  ['Phạm Ngọc Anh', 'Chuyên viên nhân sự', 'Nhân sự', '22 / 22', '14.000.000', '1.500.000', '13.878.000', 'pending'],
-  ['Võ Đức Thịnh', 'Trưởng nhóm QA', 'Kỹ thuật', '21 / 22', '20.000.000', '2.000.000', '18.441.000', 'draft'],
-  ['Đỗ Mai Linh', 'Thiết kế đồ hoạ', 'Marketing', '19 / 22', '13.000.000', '1.200.000', '11.059.000', 'rejected']
-];
-
 export function overviewView(month: string): OverviewView {
   const year = Number(month.slice(0, 4));
   const m = Number(month.slice(5, 7));
@@ -72,6 +65,9 @@ export function overviewView(month: string): OverviewView {
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
   const nextYear = m === 12 ? year + 1 : year;
   const approvals = pendingRequests();
+  const board = payrollView(MOCK_MONTH);
+  if (board.empty) throw new Error('Bảng lương giả của tháng hiện tại phải có dữ liệu.');
+  const { counts, totals } = board;
 
   return {
     month,
@@ -80,7 +76,7 @@ export function overviewView(month: string): OverviewView {
       {
         key: 'payroll',
         label: `Quỹ lương tháng ${m}`,
-        value: '2,48',
+        value: billions(totals.gross),
         unit: 'tỷ ₫',
         delta: { dir: 'up', text: '3,2%', good: true },
         note: 'so với tháng trước',
@@ -120,27 +116,33 @@ export function overviewView(month: string): OverviewView {
       statusLabel: 'Chờ duyệt',
       range: `01/${mm} – ${last}/${mm}/${year}`,
       payday: `05/${pad(m === 12 ? 1 : m + 1)}/${nextYear}`,
-      net: '2,11 tỷ ₫',
-      deductions: '0,37 tỷ ₫',
-      netShare: 85,
-      slips: { done: 86, pending: 29, draft: 12, rejected: 1, total: 128 }
+      net: `${billions(totals.net)} tỷ ₫`,
+      deductions: `${billions(totals.deductions)} tỷ ₫`,
+      netShare: totals.netShare,
+      slips: {
+        done: counts.done,
+        pending: counts.pending,
+        draft: counts.draft,
+        rejected: counts.rejected,
+        total: counts.all
+      }
     },
     approvals,
     payroll: {
       title: `Bảng lương tháng ${m}`,
       updatedAt: '09:40',
-      total: 128,
-      rows: ROWS.map(([name, title, dept, days, base, allowance, net, status], i) => ({
-        id: `pr-${pad(i + 1)}`,
-        name,
-        initials: initials(name),
-        title,
-        dept,
-        days,
-        base,
-        allowance,
-        net,
-        status
+      total: counts.all,
+      rows: board.lines.slice(0, 6).map(l => ({
+        id: l.id,
+        name: l.name,
+        initials: l.initials,
+        title: l.title,
+        dept: l.dept,
+        days: `${l.days} / ${l.standard}`,
+        base: vnd(l.base),
+        allowance: vnd(l.allowance),
+        net: vnd(l.net),
+        status: l.status
       }))
     }
   };

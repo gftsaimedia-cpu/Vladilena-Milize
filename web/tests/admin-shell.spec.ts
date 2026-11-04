@@ -15,11 +15,12 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/admin/tong-quan');
   const nav = page.getByRole('navigation', { name: 'Điều hướng' });
-  for (const name of ['Tổng quan', 'Yêu cầu', 'Chấm công', 'Đánh giá KPI', 'Bảng lương', 'Nhân sự']) {
+  for (const name of ['Tổng quan', 'Yêu cầu', 'Chấm công', 'Bảng lương', 'Nhân sự']) {
     // Mục Yêu cầu kèm số đếm (vd. "Yêu cầu 9") nên so tên theo phần đầu
     await nav.getByRole('link', { name: new RegExp(`^${name}`) }).click();
     await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
   }
+  await expect(nav.getByRole('link', { name: 'Đánh giá KPI' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
   expect(calls).toEqual([]);
@@ -49,9 +50,12 @@ test('bell shows the mock count and opens the task list', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toBeVisible();
 });
 
-test('steps strip shows only on attendance, KPI and payroll', async ({ page }) => {
-  await page.goto('/admin/kpi');
+test('steps strip shows on attendance and payroll only', async ({ page }) => {
+  await page.goto('/admin/bang-luong');
   await expect(page.locator('.period .state')).toContainText('Chờ phê duyệt');
+  const labels = ['Chấm công', 'Chốt công', 'Chấm KPI', 'Tính lương', 'Phê duyệt', 'Trả lương'];
+  await expect(page.locator('.period .steps .step')).toHaveCount(6);
+  await expect(page.locator('.period .steps .step')).toContainText(labels);
   const steps = page.locator('.period .steps');
   await expect(steps).toHaveAttribute('role', 'region');
   await expect(steps).toHaveAttribute('tabindex', '0');
@@ -105,9 +109,9 @@ test('mobile admin drawer is keyboard accessible, closes on navigation and prese
   await page.goBack();
   await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10&q=needle&nv=staff&kb=empty');
   await toggle.click();
-  await page.getByRole('link', { name: 'Đánh giá KPI' }).click();
-  await expect(page).toHaveURL('/admin/kpi?thang=2026-10');
-  await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Đánh giá KPI');
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Bảng lương', exact: true }).click();
+  await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
+  await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Bảng lương');
   await expect(sidebar).not.toHaveClass(/mobile-open/);
 
   await toggle.click();
@@ -120,8 +124,8 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toBeVisible();
-  await page.getByRole('link', { name: 'Đánh giá KPI' }).click();
-  await expect(page).toHaveURL('/admin/kpi?thang=2026-10');
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Bảng lương', exact: true }).click();
+  await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toHaveCount(0);
 });
 
@@ -225,4 +229,12 @@ test('bell popover stays inside a 375px viewport', async ({ page }) => {
   expect(popBox.x).toBeGreaterThanOrEqual(0);
   expect(popBox.x + popBox.width).toBeLessThanOrEqual(375);
   expect(popBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height);
+});
+
+test('old KPI links land on Bảng lương with their query', async ({ page }) => {
+  await page.goto('/admin/kpi?thang=2026-10');
+  await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
+  await expect(page.getByRole('heading', { name: 'Bảng lương', exact: true })).toBeVisible();
+  await page.goto('/admin/kpi/lich-su?thang=2026-10');
+  await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
 });

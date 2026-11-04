@@ -18,7 +18,7 @@ const { data } = useLoad(() => getKpiRules());
       <section class="card">
         <div class="card-h">
           <h2>Cách tính tổng điểm KPI</h2>
-          <RouterLink :to="PATHS.danhGiaKpi" class="r link">Mở Đánh giá KPI</RouterLink>
+          <RouterLink :to="PATHS.bangLuong" class="r link">Mở Bảng lương</RouterLink>
         </div>
         <div class="wts">
           <template v-for="(w, i) in data.weights" :key="w.label">

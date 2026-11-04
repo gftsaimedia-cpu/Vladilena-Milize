@@ -1,389 +1,221 @@
 <script setup lang="ts">
-// Bảng lương (luong.html, bl-t10-*.html, bl-t11-du-cot.html): một màn, nhiều trạng thái theo ?kb= và ?thang=.
-//   tháng 2026-10: tam-tinh, da-chot-cong, ban-nhap, cho-phe-duyet, chon-phieu, da-duyet-50, can-tinh-lai,
-//                  da-phe-duyet, da-tra-luong (mặc định)
-//   tháng 2026-11: mặc định, du-cot
-// Nút bước kỳ mở hộp thoại tương ứng (?hop=); xác nhận trong hộp thì chuyển sang kịch bản kế tiếp (router.replace).
-// ?phieu=<username> mở ngăn kéo phiếu lương; ?hop=in-tat-ca mở hộp In tất cả phiếu.
-import { computed, reactive, ref, watch } from 'vue';
+// Bảng lương (board G) trên dữ liệu giả: tiêu đề, dải các bước, bốn ô số, rồi thẻ bảng gồm hàng công cụ, bảng và chân thẻ.
+// Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast';
+import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
-import { getPayroll, returnPayslips } from '@/services/admin-payroll';
+import type { KpiPart } from '@/mock/payroll-calc';
+import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
+import { decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
-import { useSessionStore } from '@/stores/session';
-import { monthLabel } from '@/utils/format';
-import ExtrasCard from './parts/ExtrasCard.vue';
-import PayrollDialogs from './parts/PayrollDialogs.vue';
-import PayrollFormula from './parts/PayrollFormula.vue';
-import PayrollTable from './parts/PayrollTable.vue';
-import PayrollWideTable from './parts/PayrollWideTable.vue';
-import RichText from './parts/RichText.vue';
-import SelectionBanner from './parts/SelectionBanner.vue';
+import { foldText, monthShort } from '@/utils/format';
+import { monthNo } from '@/views/admin/requests/helpers';
+import { downloadCsv, payrollCsv } from './payrollCsv';
+import PayTable from './parts/PayTable.vue';
+import PayTiles from './parts/PayTiles.vue';
+import PayToolbar from './parts/PayToolbar.vue';
 import PayslipDrawer from './payslip/PayslipDrawer.vue';
-import { describeScenario, printLabel } from './scenarios';
 
+const period = usePeriodStore();
+const { data: loaded, reload } = useLoad(
+  () => getPayroll(period.month),
+  () => period.month
+);
+const data = computed(() => loaded.value as PayrollScreen | null);
+const board = computed(() => (data.value && !data.value.empty ? data.value : null));
+
+const filter = ref<'all' | PayrollStatus>('all');
+const query = ref('');
+const dept = ref('');
+
+// Ba bộ lọc chạy cùng lúc; tìm so trên tên đã bỏ dấu.
+const shown = computed<PayrollLine[]>(() => {
+  const q = foldText(query.value);
+  return (board.value?.lines ?? []).filter(
+    l =>
+      (filter.value === 'all' || l.status === filter.value) &&
+      (!dept.value || l.dept === dept.value) &&
+      (!q || foldText(l.name).includes(q))
+  );
+});
+// Ô chọn chỉ để xuất. Dòng đã chọn mà đang bị lọc ẩn không tính và không xuất, nên số trên nút khớp với file.
+const selected = ref<string[]>([]);
+const picked = computed(() => shown.value.filter(l => selected.value.includes(l.id)));
+const exportCsv = () =>
+  downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(picked.value.length ? picked.value : shown.value));
+const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
+
+// Phiếu đang mở nằm trên đường dẫn (?phieu=<mã nhân viên>). Mã không có phiếu thì bỏ khỏi đường dẫn, không báo lỗi.
 const route = useRoute();
 const router = useRouter();
-const period = usePeriodStore();
-
-const month = computed(() => period.month);
-const kbQuery = computed(() => String(route.query.kb || ''));
-const hop = computed(() => String(route.query.hop || ''));
-const phieu = computed(() => String(route.query.phieu || ''));
-
-// ---- Dữ liệu ----
-const filter = ref('all');
-const q = ref('');
-const page = ref(1);
-const wide = ref(false);
-const reloadTick = ref(0);
-const baseKey = computed(() => `${month.value}|${kbQuery.value}`);
-const loadKey = computed(
-  () => `${baseKey.value}|${wide.value}|${filter.value}|${q.value}|${page.value}|${reloadTick.value}`
-);
-const { data, loading, error, reload } = useLoad(
-  () =>
-    getPayroll(month.value, {
-      kb: kbQuery.value,
-      wide: wide.value,
-      filter: filter.value,
-      q: q.value,
-      page: page.value
-    }),
-  loadKey
-);
-
-const facts = computed(() => data.value?.facts);
-const ui = computed(() =>
-  data.value && !data.value.empty ? describeScenario(month.value, data.value.kb, facts.value) : null
-);
-const rows = computed(() => data.value?.rows || []);
-const monthNo = computed(() => Number(month.value.slice(5, 7)));
-const final = computed(() => ui.value?.variant === 'final');
-const canVerify = computed(() => useSessionStore().caps.includes('audit.read'));
-
-// ---- Chọn phiếu (kỳ đang chờ phê duyệt) ----
-const selected = reactive(new Set());
-const others = ref(0);
-const selectable = computed(() => rows.value.filter(r => r.status === 'pending'));
-const selTotal = computed(() => selected.size + others.value);
-let autoSelect = false;
-
-function selectAll() {
-  selected.clear();
-  for (const r of selectable.value) selected.add(r.username);
-  others.value = Math.max(0, (facts.value?.selectable || 0) - selectable.value.length);
-}
-function toggle(row?) {
-  if (selected.has(row.username)) selected.delete(row.username);
-  else selected.add(row.username);
-}
-function clearSelection() {
-  selected.clear();
-  others.value = 0;
-  if (data.value?.kb === 'chon-phieu') go('cho-phe-duyet');
-}
-async function returnSelected() {
-  try {
-    await returnPayslips(month.value, [...selected]);
-  } catch (e) {
-    toast.error(e.message);
-    return;
-  }
-  selected.clear();
-  others.value = 0;
-  refresh();
-}
-const batchNames = computed(() => {
-  const names = rows.value.filter(r => selected.has(r.username)).map(r => r.name);
-  return others.value ? [...names, ...(facts.value?.selectedOtherNames || [])] : names;
-});
-const batchMore = computed(() => (others.value ? facts.value?.selectedOtherMore || 0 : 0));
-
-// ---- Đổi kỳ / kịch bản: về trạng thái đầu ----
+const slipId = computed(() => (typeof route.query.phieu === 'string' ? route.query.phieu : ''));
+const withSlip = (id: string) => {
+  const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'phieu'));
+  return { path: route.path, query: id ? { ...rest, phieu: id } : rest };
+};
+const slip = ref<Payslip | null>(null);
 watch(
-  baseKey,
-  () => {
-    filter.value = 'all';
-    q.value = '';
-    page.value = 1;
-    wide.value = kbQuery.value === 'du-cot';
-    selected.clear();
-    others.value = 0;
-    autoSelect = true;
+  [() => period.month, slipId],
+  async ([month, id]) => {
+    if (!id) {
+      slip.value = null;
+      return;
+    }
+    const found = await getPayslip(month, id);
+    // Đường dẫn đã sang phiếu khác trong lúc chờ: bỏ kết quả cũ. Phiếu cũ vẫn hiện tới khi phiếu mới về, nên ngăn kéo không chớp.
+    if (id !== slipId.value || month !== period.month) return;
+    if (found) slip.value = found;
+    else {
+      slip.value = null;
+      router.replace(withSlip(''));
+    }
   },
   { immediate: true }
 );
-watch(loading, isLoading => {
-  const d = data.value;
-  if (isLoading || !d || d.empty) return;
-  if (d.strip) period.setStrip(d.strip);
-  else period.resetStrip();
-  if (autoSelect) {
-    autoSelect = false;
-    if (d.kb === 'chon-phieu') selectAll();
-  }
-});
-watch([filter, q], () => (page.value = 1));
 
-// ---- Đi tới kịch bản kế tiếp, mở/đóng hộp ----
-function queryWith(patch?) {
-  const next = { ...route.query, ...patch };
-  for (const k of Object.keys(next)) if (next[k] === '' || next[k] == null) delete next[k];
-  return next;
+// Nút Phiếu trước / sau đi trong các dòng đang hiện lúc mở phiếu, theo thứ tự bảng. Chốt một lần: đổi lọc hay đổi trạng
+// thái phiếu sau đó không đổi danh sách này.
+const navIds = ref<string[]>([]);
+watch(
+  [slipId, board],
+  () => {
+    if (!slipId.value) navIds.value = [];
+    else if (board.value && !navIds.value.includes(slipId.value)) navIds.value = shown.value.map(l => l.id);
+  },
+  { immediate: true }
+);
+const at = computed(() => navIds.value.indexOf(slipId.value));
+const hasPrev = computed(() => at.value > 0);
+const hasNext = computed(() => at.value >= 0 && at.value < navIds.value.length - 1);
+const go = (id: string) => router.replace(withSlip(id));
+// Đóng ngăn kéo thì tiêu điểm về chỗ đã mở, nhưng chỗ đó có thể không còn: dòng vừa duyệt đã rời bộ lọc, hay đã bước sang
+// phiếu khác bằng mũi tên. Khi tiêu điểm rơi về body (hay về liên kết của phiếu đã mở lúc đầu), đưa nó tới liên kết tên của phiếu
+// vừa xem nếu dòng còn hiện; không thì dòng hiện kế tiếp theo thứ tự lúc mở, rồi dòng hiện trước nó, rồi vùng bảng.
+// Tiêu điểm đã ở chỗ khác thì giữ nguyên.
+const payTable = ref<InstanceType<typeof PayTable> | null>(null);
+async function closeSlip() {
+  const id = slipId.value;
+  const order = [...navIds.value];
+  await go('');
+  await nextTick();
+  const now = document.activeElement;
+  if (now && now !== document.body && !now.classList.contains('nn')) return;
+  const live = new Set(shown.value.map(l => l.id));
+  const at = order.indexOf(id);
+  const target = live.has(id)
+    ? id
+    : at < 0
+      ? undefined
+      : (order.slice(at + 1).find(x => live.has(x)) ?? order.slice(0, at).reverse().find(x => live.has(x)));
+  if (!target || !payTable.value?.focusLink(target)) payTable.value?.focusRegion();
 }
-const go = (kb?) => router.replace({ query: queryWith({ kb, hop: '' }) });
-const openHop = (name?) => router.replace({ query: queryWith({ hop: name }) });
-const closeHop = () => router.replace({ query: queryWith({ hop: '' }) });
-const refresh = () => {
-  reloadTick.value++;
+// Lưu một điểm KPI do màn giữ, không do ngăn kéo: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
+// Lưu xong thì thay phiếu đang mở bằng phiếu mới nếu đang mở đúng phiếu đó (đã đóng thì không mở lại), rồi tải lại bảng.
+const saveScore = async (id: string, part: KpiPart, value: number | null) => {
+  const next = await saveKpiScore(period.month, id, part, value);
+  if (next && next.id === slipId.value) slip.value = next;
+  await reload();
 };
-function finishHop(kb?) {
-  if (kb && kb !== data.value?.kb) go(kb);
-  else closeHop();
-  refresh();
-}
-const reopenTarget = ref(null);
-function reopen(step?, kb?, label?) {
-  reopenTarget.value = { step, kb, label };
-  openHop('mo-lai');
-}
-
-function onAction(key?) {
-  const map = {
-    formula: () => router.push('/admin/cai-dat'), // Cài đặt › Cách tính lương
-    close: () => openHop('chot-cong'),
-    'reopen-hours': () => reopen('hours', 'tam-tinh', 'Mở lại công'),
-    calc: () => openHop('tinh-luong'),
-    reopen: () => reopen('draft', 'ban-nhap', 'Mở lại'),
-    'approve-period': () => openHop('phe-duyet-ky'),
-    'reopen-period': () => reopen('approval', 'cho-phe-duyet', 'Mở lại kỳ'),
-    paid: () => openHop('da-tra-luong'),
-    print: () => openHop('in-tat-ca')
-  };
-  map[key]?.();
-}
-function toggleWide() {
-  wide.value = !wide.value;
-}
-
-// Phiếu lương một người (ngăn kéo của nhóm phiếu lương)
-const openPayslip = (row?) => router.replace({ query: queryWith({ phieu: row.username }) });
-const closePayslip = () => {
-  router.replace({ query: queryWith({ phieu: '' }) });
-  refresh();
+// Duyệt / từ chối cũng do màn giữ, vì cùng lý do: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
+const decide = async (id: string, decision: 'approve' | 'reject') => {
+  const next = await decidePayslip(period.month, id, decision);
+  if (next && next.id === slipId.value) slip.value = next;
+  await reload();
 };
-const payslipName = computed(() => rows.value.find(r => r.username === phieu.value)?.name || '');
 </script>
 
 <template>
-  <template v-if="data && data.empty">
+  <div v-if="data">
     <div class="title">
       <div>
         <h1>Bảng lương</h1>
-        <p>Chưa có bảng lương cho {{ monthLabel(month) }}</p>
-      </div>
-    </div>
-  </template>
-
-  <template v-else-if="ui">
-    <div class="title">
-      <div>
-        <h1>Bảng lương</h1>
-        <p><RichText :segs="ui.sub" /></p>
-      </div>
-      <div class="acts">
-        <button
-          v-for="a in ui.actions"
-          :key="a.key"
-          type="button"
-          class="btn"
-          :class="{ pri: a.pri, off: a.off }"
-          @click="onAction(a.key)"
-        >
-          <Icon :name="a.icon" />{{ a.label }}
-          <small v-if="a.small">{{ a.small }}</small>
-        </button>
-      </div>
-    </div>
-    <div v-if="ui.note" class="topnote">
-      <div class="note" :class="ui.note.cls">
-        <Icon :name="ui.note.icon" />
-        <div><RichText :segs="ui.note.segs" /></div>
+        <p v-if="board">
+          Kỳ lương tháng {{ monthShort(board.month) }} · công {{ board.range }} · công chuẩn
+          {{ board.lines[0].standard }} ngày · trả lương <b>{{ board.payday }}</b>
+        </p>
       </div>
     </div>
 
-    <section class="card">
-      <div class="card-h">
-        <h2>Bảng lương tháng {{ monthNo }}{{ wide ? ' · đủ cột' : '' }}</h2>
-        <span class="cap"><RichText :segs="ui.cap" /></span>
-      </div>
-      <div class="tools">
-        <button
-          v-for="[key, label, count] in data.chips"
-          :key="key"
-          type="button"
-          class="chip"
-          :class="{ on: filter === key }"
-          @click="filter = key"
-        >
-          {{ label }}
-          <small v-if="count != null">{{ count }}</small>
-        </button>
-        <label class="search">
-          <Icon name="search" :size="14" />
-          <input v-model.trim="q" type="search" placeholder="Tìm nhân sự" aria-label="Tìm nhân sự" />
-        </label>
-        <button type="button" class="btn sm" :class="{ on: wide }" @click="toggleWide">
-          {{ wide ? 'Thu gọn cột' : 'Xem đủ cột' }}
-        </button>
-        <button v-if="final && canVerify" type="button" class="btn sm" @click="openHop('kiem-tra-lai')">
-          <Icon name="check" />Kiểm tra lại
-        </button>
-        <button v-if="ui.printInTools" type="button" class="btn sm" @click="onAction('print')">
-          <Icon name="print" />{{ printLabel(facts) }}
-        </button>
-      </div>
+    <PeriodStrip card />
 
-      <SelectionBanner
-        v-if="ui.selection && !final && !wide"
-        :total="selTotal"
-        :on-page="selected.size"
-        :others="others"
-        @select-all="selectAll"
-        @clear="clearSelection"
-        @return="returnSelected"
-        @approve="openHop('phe-duyet-50')"
-      />
-
-      <div class="table-scroll" role="region" aria-label="Bảng lương, cuộn ngang để xem đủ cột" tabindex="0">
-        <PayrollWideTable v-if="wide" :rows="rows" :estimated="!final" @open="openPayslip" />
-        <PayrollTable
-          v-else
-          :rows="rows"
-          :variant="ui.variant"
-          :selected="selected"
-          @open="openPayslip"
-          @toggle="toggle"
-        />
-      </div>
-      <div v-if="!rows.length && !loading" class="none">Không có phiếu nào khớp.</div>
-
-      <div class="foot">
-        <span v-if="data.paging.to">
-          {{ data.paging.from }}–{{ data.paging.to }} trên {{ data.paging.total }} phiếu
-        </span>
-        <span v-else>0 phiếu</span>
-        <span class="pager">
-          <span>Trang {{ data.paging.page }}/{{ data.paging.pageCount }}</span>
-          <button type="button" class="pb" aria-label="Trang trước" :disabled="page <= 1" @click="page--">
-            <Icon name="chevl" />
-          </button>
-          <button
-            type="button"
-            class="pb"
-            aria-label="Trang sau"
-            :disabled="page >= data.paging.pageCount"
-            @click="page++"
-          >
-            <Icon name="chevr" />
-          </button>
-        </span>
-      </div>
+    <section v-if="!board" class="card soon">
+      <p>Bản mockup chỉ có bảng lương tháng 10/2026.</p>
     </section>
+    <template v-else>
+      <PayTiles :month="board.month" :growth="board.growth" :totals="board.totals" :counts="board.counts" />
 
-    <PayrollFormula :formula="data.formula" />
+      <section class="card board" :aria-label="`Phiếu lương tháng ${monthNo(board.month)}`">
+        <PayToolbar
+          v-model:filter="filter"
+          v-model:query="query"
+          v-model:dept="dept"
+          :counts="board.counts"
+          :depts="board.depts"
+          :selected-count="picked.length"
+          @export="exportCsv"
+        />
+        <PayTable ref="payTable" v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
+        <div class="foot">
+          <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
+          <span v-if="missingKpi" class="pl-legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
+          <span class="count">Hiển thị {{ shown.length }} trong {{ board.counts[filter] }} phiếu</span>
+        </div>
+      </section>
+    </template>
 
-    <ExtrasCard v-if="ui.extras" :month="month" :version="reloadTick" @add="openHop('them-khoan')" />
-  </template>
-
-  <div v-else-if="error" class="state-msg">
-    Không tải được bảng lương. <button type="button" class="link" @click="reload">Thử lại</button>
+    <PayslipDrawer
+      v-if="slip && board"
+      :slip="slip"
+      :month="board.month"
+      :has-prev="hasPrev"
+      :has-next="hasNext"
+      @close="closeSlip"
+      :save="saveScore"
+      :decide="decide"
+      @prev="go(navIds[at - 1])"
+      @next="go(navIds[at + 1])"
+    />
   </div>
-
-  <!-- Hộp thoại các bước kỳ lương -->
-  <PayrollDialogs
-    v-if="data && !data.empty && hop"
-    :hop="hop"
-    :data="data"
-    :selection="{ usernames: [...selected], others, names: batchNames, more: batchMore, total: selTotal }"
-    :reopen-target="reopenTarget"
-    @close="closeHop"
-    @finish="finishHop"
-  />
-
-  <PayslipDrawer
-    v-if="phieu && data && !data.empty"
-    :month="month"
-    :username="phieu"
-    :name="payslipName"
-    :scenario="data.kb"
-    @close="closePayslip"
-  />
 </template>
 
 <style scoped>
-.topnote {
-  margin: -8px 0 20px;
+.title {
+  flex-wrap: wrap;
+  justify-content: space-between;
 }
-.tools .search {
+.title p {
+  margin-top: 8px;
+}
+.soon {
+  padding: 24px;
+  color: var(--muted);
+}
+.soon p {
+  margin: 0;
+}
+.board {
+  overflow: hidden;
+}
+.foot {
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 14px 20px 18px;
+  font-size: 12px;
+  line-height: 16px;
+}
+.pl-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pl-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-pending);
+}
+.count {
   margin-left: auto;
-  width: 190px;
-}
-.tools .search input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  color: var(--text);
-  padding: 0;
-}
-.tools .search input::placeholder {
-  color: var(--faint);
-}
-.tools .search input::-webkit-search-cancel-button {
-  appearance: none;
-}
-.tools .search:focus-within {
-  border-color: var(--text);
-}
-.btn.sm.on {
-  background: var(--text);
-  color: #fff;
-  border-color: var(--text);
-}
-.btn.off {
-  cursor: pointer;
-}
-.btn.off:disabled {
-  cursor: default;
-}
-.pb:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.none {
-  padding: 28px 24px 32px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  border-top: 1px solid var(--rule);
-}
-.state-msg {
-  padding: 40px 0;
-  color: var(--muted);
-}
-.table-scroll {
-  max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-}
-.table-scroll:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
 }
 </style>

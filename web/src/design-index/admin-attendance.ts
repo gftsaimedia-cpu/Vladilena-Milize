@@ -14,6 +14,4 @@ export default [
   },
   { file: 'nhan-su.html', title: 'Nhân sự', to: `/admin/nhan-su?${M}` },
   { file: 'drw-ns-ho-so.html', title: 'Ngăn kéo Hồ sơ nhân sự · Hoàng Thị Mai', to: '/admin/nhan-su?nv=hoang-thi-mai' },
-  { file: 'kpi.html', title: 'Đánh giá KPI · Nhập điểm', to: `/admin/kpi?${M}` },
-  { file: 'kpi-lich-su.html', title: 'Đánh giá KPI · Lịch sử sửa điểm', to: `/admin/kpi/lich-su?${M}` }
 ];

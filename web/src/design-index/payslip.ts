@@ -1,29 +1,14 @@
-// Mục lục thiết kế của nhóm payslip: mỗi file HTML của thiết kế 22/10 một dòng, `to` mở lại đúng màn đó.
+// Mục lục thiết kế của nhóm payslip: phiếu lương mở từ Bảng lương và bản in A4.
 export default [
   {
-    file: 'phieu-t10-chinh-thuc.html',
-    title: 'Phiếu lương · tháng 10 chính thức (ngăn kéo)',
-    to: '/admin/bang-luong?thang=2026-10&kb=da-phe-duyet&phieu=demo_a_broken'
+    file: 'phieu-t10-nam.html',
+    title: 'Phiếu lương · Lê Hoàng Nam',
+    to: '/admin/bang-luong?thang=2026-10&phieu=GFT-0142'
   },
   {
-    file: 'phieu-t10-da-duyet.html',
-    title: 'Phiếu lương · tháng 10 đã duyệt (ngăn kéo)',
-    to: '/admin/bang-luong?thang=2026-10&kb=da-duyet-50&phieu=demo_a_broken'
-  },
-  {
-    file: 'phieu-t11-tam-tinh.html',
-    title: 'Phiếu lương · tháng 11 (ngăn kéo)',
-    to: '/admin/bang-luong?thang=2026-11&phieu=demo_a_broken'
-  },
-  {
-    file: 'dlg-t11-ban-in.html',
-    title: 'Hộp xem trước bản in A4 một phiếu',
-    to: '/admin/bang-luong?thang=2026-11&phieu=demo_a_broken&hop=ban-in'
-  },
-  {
-    file: 'dlg-t10-in-tat-ca.html',
-    title: 'Hộp in tất cả phiếu đã phê duyệt',
-    to: '/admin/bang-luong?thang=2026-10&kb=da-tra-luong&hop=in-tat-ca'
+    file: 'phieu-t10-huy.html',
+    title: 'Phiếu lương · Bùi Quốc Huy, thiếu điểm KPI',
+    to: '/admin/bang-luong?thang=2026-10&phieu=GFT-0063'
   },
   {
     file: 'a4-t10-chinh-thuc.html',

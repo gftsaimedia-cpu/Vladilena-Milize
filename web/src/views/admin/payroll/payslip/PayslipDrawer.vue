@@ -1,160 +1,323 @@
 <script setup lang="ts">
-// Ngăn kéo phiếu lương một người (phieu-t10-chinh-thuc, phieu-t10-da-duyet, phieu-t10-co-canh-bao, phieu-t11-tam-tinh),
-// mở từ màn Bảng lương. Loại phiếu (chính thức, đã duyệt, chờ duyệt có cảnh báo AI, bản nháp, chưa tính lương) do dữ liệu quyết định.
-// Hợp đồng: props { month: 'YYYY-MM', username, name (tên hiển thị, tuỳ chọn), scenario (?kb của Bảng lương, tuỳ chọn) };
-// emit('close'). Tự mở hộp bản in A4 khi ?hop=ban-in.
-import { computed, ref } from 'vue';
-import { useRoute } from 'vue-router';
+// Phiếu lương một người (board H): ngăn kéo nổi gồm đầu phiếu, định danh, chấm công tháng và bảng Tổng hợp lương.
+// Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ).
+// Việc lưu thuộc về màn Bảng lương (prop `save`: lưu, thay phiếu đang mở, tải lại bảng) vì ngăn kéo có thể đã tháo khỏi
+// trang khi lưu xong. Rời ô thì lưu; đóng, sang phiếu khác hay phiếu đổi từ ngoài thì lưu hết điểm chưa lưu (flush).
+// Duyệt / từ chối cũng thuộc về màn (prop `decide`), cùng lý do; chân ngăn kéo chỉ có hai nút khi phiếu là Nháp hay Chờ duyệt,
+// còn lại là một dòng trạng thái. In phiếu gọi hộp thoại in của trình duyệt; CSS in ở khối <style> không scoped cuối file.
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
-import { toast } from '@/components/shell/toast';
-import { useLoad } from '@/composables/useLoad';
-import { approvePayslip, getPayslip, returnPayslip } from '@/services/payslip';
-import { useSessionStore } from '@/stores/session';
+import type { Payslip } from '@/mock/payroll';
+import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
+import { previewPayslip } from '@/services/admin-payroll';
 import { monthShort } from '@/utils/format';
-import PayslipBody from './PayslipBody.vue';
-import PrintPreviewDialog from './PrintPreviewDialog.vue';
-import SlipOverrideDialog from './SlipOverrideDialog.vue';
+import StatusPill from '../parts/StatusPill.vue';
+import SlipAttendance from './SlipAttendance.vue';
+import SlipHistory from './SlipHistory.vue';
+import SlipKpi from './SlipKpi.vue';
+import SlipSummary from './SlipSummary.vue';
 
-const props = defineProps({
-  month: { type: String, required: true },
-  username: { type: String, required: true },
-  name: { type: String, default: '' },
-  scenario: { type: String, default: '' }
-});
-const emit = defineEmits(['close']);
-const route = useRoute();
+const props = defineProps<{
+  slip: Payslip;
+  month: string;
+  hasPrev: boolean;
+  hasNext: boolean;
+  save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
+  decide: (id: string, decision: 'approve' | 'reject') => Promise<void>;
+}>();
+const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
-const {
-  data: slip,
-  loading,
-  error,
-  reload
-} = useLoad(
-  () => getPayslip(props.month, props.username),
-  () => [props.month, props.username, props.scenario].join('|')
-);
+const draft = ref<KpiScores>({ ...props.slip.kpi.scores });
+const PARTS = Object.keys(draft.value) as KpiPart[];
+// `owner`: phiếu mà draft đang giữ điểm và điểm đã lưu của nó (không phản ứng; chỉ để biết cột nào chưa lưu).
+let owner = { id: props.slip.id, saved: { ...props.slip.kpi.scores } };
+const view = computed(() => previewPayslip(props.slip, draft.value));
 
-const showPrint = ref(route.query.hop === 'ban-in');
-const showEdit = ref(false);
-const busy = ref(false);
-
-// Chạy một thao tác ghi; xong thì chạy then (cập nhật phiếu trên màn hoặc đóng ngăn kéo).
-async function act(fn?, then?) {
-  if (busy.value) return;
-  busy.value = true;
-  try {
-    const res = await fn();
-    then(res);
-  } catch (e) {
-    toast.error(e.message);
-  } finally {
-    busy.value = false;
-  }
+const update = (part: KpiPart, value: number | null) => (draft.value = { ...draft.value, [part]: value });
+// Các lần lưu đang bay, để Duyệt / Từ chối chờ chúng xong: lưu trễ trả phiếu cũ (chưa duyệt) sẽ đè phiếu đã duyệt.
+const inflight = new Set<Promise<void>>();
+const save = (part: KpiPart) => {
+  owner.saved[part] = draft.value[part];
+  const p = props.save(owner.id, part, draft.value[part]);
+  inflight.add(p);
+  const done = () => inflight.delete(p);
+  p.then(done, done);
+  return p;
+};
+// Lưu mọi cột có draft khác điểm đã lưu. Gọi lặp là vô hại: lần sau không còn cột nào khác.
+// Trả lời hẹn xong khi mọi lần lưu đang bay (kể cả lần bắt đầu từ trước, lúc rời ô) đã trả về; các nơi gọi khác không cần chờ.
+function flush(): Promise<void> {
+  for (const part of PARTS) if (draft.value[part] !== owner.saved[part]) save(part);
+  return Promise.allSettled([...inflight]).then(() => {});
 }
-const approve = () =>
-  act(
-    () => approvePayslip(props.month, props.username),
-    res => Object.assign(slip.value, res.patch)
-  );
-const giveBack = () =>
-  act(
-    () => returnPayslip(props.month, props.username),
-    () => emit('close')
-  );
+watch(
+  () => props.slip,
+  slip => {
+    if (slip.id === owner.id) {
+      owner.saved = { ...slip.kpi.scores };
+      return;
+    }
+    // Phiếu đổi ngoài nút Đóng và hai mũi tên (Back, sửa địa chỉ): lưu điểm chưa lưu của phiếu cũ trước khi đặt lại draft.
+    flush();
+    owner = { id: slip.id, saved: { ...slip.kpi.scores } };
+    draft.value = { ...slip.kpi.scores };
+  }
+);
+onBeforeUnmount(flush);
+const print = () => window.print();
+const close = () => {
+  flush();
+  emit('close');
+};
+const go = (to: 'prev' | 'next') => {
+  flush();
+  emit(to);
+};
+
+// Đang chờ một quyết định: hai nút tắt để bấm đúp chỉ quyết một lần.
+const deciding = ref(false);
+const status = ref<HTMLElement | null>(null);
+const decided = computed(() =>
+  props.slip.status === 'done'
+    ? `Đã duyệt phiếu lương của ${props.slip.name}.`
+    : props.slip.status === 'rejected'
+      ? `Đã từ chối phiếu lương của ${props.slip.name}.`
+      : ''
+);
+async function decideNow(decision: 'approve' | 'reject') {
+  if (deciding.value) return;
+  deciding.value = true;
+  const id = props.slip.id;
+  try {
+    await flush();
+    await props.decide(id, decision);
+  } finally {
+    deciding.value = false;
+  }
+  // Hai nút vừa biến mất nên tiêu điểm rơi về body: đưa sang dòng trạng thái (để đọc kết quả). Tiêu điểm đã ở chỗ khác
+  // trong ngăn kéo thì giữ nguyên; ngăn kéo đã tháo hay sang phiếu khác thì không làm gì.
+  await nextTick();
+  const now = document.activeElement;
+  if (props.slip.id === id && status.value && (!now || now === document.body)) status.value.focus();
+}
+
+// AppDrawer đặt tiêu điểm vào ô bấm được đầu tiên, ở đây là mũi tên Phiếu trước, mà mũi tên đó có thể bị tắt ở đầu danh sách.
+// Như các ngăn kéo khác, tiêu điểm đầu vào nút Đóng; Tab và Shift+Tab vẫn tới hai mũi tên. Phần tử này mount sau AppDrawer.
+const head = ref<HTMLElement | null>(null);
+const prevBtn = ref<HTMLButtonElement | null>(null);
+const nextBtn = ref<HTMLButtonElement | null>(null);
+const closeBtn = () => head.value?.closest('.drw')?.querySelector<HTMLElement>('.drw-h .x');
+onMounted(() => closeBtn()?.focus());
+// Mũi tên đang giữ tiêu điểm bị tắt ở đầu hay cuối danh sách: tiêu điểm sang mũi tên kia, cả hai tắt thì sang Đóng.
+// Đọc activeElement trước khi DOM đổi (watch chạy trước lần vẽ lại), rồi đặt tiêu điểm sau nextTick.
+watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
+  const was = document.activeElement;
+  await nextTick();
+  if (was === prevBtn.value && !prev) (next ? nextBtn.value : closeBtn())?.focus();
+  else if (was === nextBtn.value && !next) (prev ? prevBtn.value : closeBtn())?.focus();
+});
 </script>
 
 <template>
-  <AppDrawer
-    :title="`Phiếu lương · ${slip ? slip.name : name || username}`"
-    :sub="`${slip ? slip.role + ' · ' : ''}kỳ lương tháng ${monthShort(month)}`"
-    :dismissable="!showPrint"
-    @close="emit('close')"
-  >
-    <div v-if="loading" class="sec"><span class="meta">Đang tải phiếu lương…</span></div>
-    <div v-else-if="error" class="sec">
-      <span class="meta">Không tải được phiếu lương.</span>
-      <button type="button" class="link" @click="reload">Thử lại</button>
-    </div>
-    <template v-else>
-      <div class="pills">
-        <span v-for="p in slip.pills" :key="p.label" class="pill" :class="p.cls">
-          <Icon v-if="p.icon" :name="p.icon" :size="12" />{{ p.label }}
-        </span>
-        <span class="meta">{{ slip.meta }}</span>
+  <AppDrawer :title="`Phiếu lương của ${slip.name}`" floating @close="close">
+    <template #head>
+      <div ref="head" class="pd-head">
+        <h2>Phiếu lương tháng {{ monthShort(month) }}</h2>
+        <button type="button" class="pd-ib" aria-label="In phiếu" @click="print"><Icon name="print" /></button>
+        <button ref="prevBtn" type="button" class="pd-ib" aria-label="Phiếu trước" :disabled="!hasPrev" @click="go('prev')">
+          <Icon name="chevl" />
+        </button>
+        <button ref="nextBtn" type="button" class="pd-ib" aria-label="Phiếu sau" :disabled="!hasNext" @click="go('next')">
+          <Icon name="chevr" />
+        </button>
       </div>
-
-      <PayslipBody :payslip="slip" @edit="showEdit = true" />
     </template>
+
+    <div class="pd-body">
+      <div class="pd-id">
+        <span class="pd-av" aria-hidden="true">{{ slip.initials }}</span>
+        <div class="pd-who">
+          <b>{{ slip.name }}</b>
+          <span>{{ slip.dept }} · {{ slip.title }} · {{ slip.id }}</span>
+        </div>
+        <StatusPill :status="slip.status" />
+      </div>
+      <dl class="pd-info">
+        <div>
+          <dt>Loại · bậc</dt>
+          <dd>{{ slip.kind }} · Bậc {{ slip.level }}</dd>
+        </div>
+        <div>
+          <dt>Tình trạng</dt>
+          <dd>{{ slip.contract }}</dd>
+        </div>
+        <div>
+          <dt>Trả lương</dt>
+          <dd>{{ slip.payday }}</dd>
+        </div>
+      </dl>
+      <p class="pd-note">{{ slip.note }}</p>
+    </div>
+
+    <SlipAttendance :slip="slip" :month="month" />
+    <SlipSummary :slip="view" :month="month">
+      <template #kpi><SlipKpi :key="slip.id" :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
+      <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>
+    </SlipSummary>
 
     <template #footer>
-      <button type="button" class="btn" :disabled="!slip" @click="showPrint = true">
-        <Icon name="print" />In phiếu
-      </button>
-      <span class="sp" />
-      <template v-if="slip">
-        <button v-if="slip.canReturn" type="button" class="btn" :disabled="busy" @click="giveBack">Trả lại</button>
-        <button v-if="slip.canApprove" type="button" class="btn pri" :disabled="busy" @click="approve">
-          <Icon name="check" />Phê duyệt riêng
-        </button>
-        <button v-else type="button" class="btn" @click="emit('close')">Đóng</button>
+      <p v-if="decided" ref="status" class="pd-status" role="status" aria-live="polite" tabindex="-1">{{ decided }}</p>
+      <template v-else>
+        <button type="button" class="btn" :disabled="deciding" @click="decideNow('reject')">Từ chối</button>
+        <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="decideNow('approve')">Duyệt phiếu</button>
       </template>
-      <button v-else type="button" class="btn" @click="emit('close')">Đóng</button>
     </template>
   </AppDrawer>
-
-  <SlipOverrideDialog
-    v-if="showEdit && slip"
-    :month="month"
-    :username="username"
-    :name="slip.name"
-    :auto="slip.auto"
-    @close="showEdit = false"
-    @done="
-      showEdit = false;
-      reload();
-    "
-  />
-  <PrintPreviewDialog
-    v-if="showPrint"
-    :month="month"
-    :username="username"
-    :name="name"
-    :scenario="scenario"
-    @close="showPrint = false"
-  />
 </template>
 
 <style scoped>
-.pills {
+.pd-head {
   display: flex;
-  gap: 8px;
   align-items: center;
-  padding: 6px 28px 0;
-  flex-wrap: wrap;
+  gap: 4px;
 }
-.meta {
-  color: var(--muted);
-  font-size: 12px;
-}
-.sec {
-  padding: 16px 28px 0;
-}
-.aibox {
-  border: 1px solid #f1e4c4;
-  background: var(--gold-pale);
-  border-radius: 14px;
-  padding: 8px 14px;
-}
-.aibox h4 {
-  margin: 4px 0 2px;
-  font-size: 13px;
+.pd-head h2 {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 18px;
+  line-height: 26px;
   font-weight: 600;
 }
-/* Chip "Chính thức" không nạp settings.css trong thiết kế: trả .p-lock về dáng .pill thường */
-.pills .p-lock {
+.pd-ib {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
   background: none;
-  color: inherit;
-  box-shadow: none;
+  color: var(--text);
+  cursor: pointer;
+}
+.pd-ib:hover:not(:disabled) {
+  background: var(--ground);
+}
+.pd-ib:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.pd-ib:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.pd-approve {
+  flex: 1;
+  justify-content: center;
+}
+.pd-status {
+  margin: 0;
+  font-weight: 500;
+}
+.pd-status:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.pd-body {
+  padding: 8px 24px 0;
+}
+.pd-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pd-av {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--gold-light);
+  font-size: 16px;
+  font-weight: 600;
+}
+.pd-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pd-who b {
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.pd-who span {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.pd-info {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 16px 0 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.pd-info > div {
+  padding: 10px 14px;
+  min-width: 0;
+}
+.pd-info > div + div {
+  border-left: 1px solid var(--border);
+}
+.pd-info dt {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.pd-info dd {
+  margin: 2px 0 0;
+  font-weight: 500;
+}
+.pd-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+</style>
+
+<!-- In: chỉ ngăn kéo phiếu lương (có .drw.floating) ra giấy, thành khối tĩnh rộng hết trang. Không scoped vì ngăn kéo teleport ra body. -->
+<style>
+@media print {
+  body:has(.drw.floating) {
+    overflow: visible !important;
+  }
+  body:has(.drw.floating) > :not(.drw-root),
+  .drw-root:has(.drw.floating) > .scrim,
+  .drw.floating > .drw-h button,
+  .drw.floating > .drw-f {
+    display: none !important;
+  }
+  .drw-root:has(.drw.floating) {
+    position: static !important;
+    overflow: visible !important;
+  }
+  .drw-root .drw.floating {
+    position: static;
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .drw-root .drw.floating > .drw-h {
+    position: static;
+  }
 }
 </style>
