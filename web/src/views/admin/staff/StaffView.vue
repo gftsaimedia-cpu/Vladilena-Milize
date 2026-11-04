@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
 import { getStaffList } from '@/services/admin-hr';
+import StaffDrawer from './StaffDrawer.vue';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
 import StaffToolbar from './parts/StaffToolbar.vue';
@@ -46,6 +47,21 @@ function toggleAll() {
 }
 const exportCsv = () => downloadStaffCsv(picked.value.length ? picked.value : shown.value);
 
+// Hồ sơ mở bằng ?nv=<id>. Người trước / sau đi trong các dòng đang hiện lúc mở và không đổi theo tìm hay công tắc.
+const openId = computed(() => (typeof route.query.nv === 'string' ? route.query.nv : ''));
+const navIds = ref<string[]>([]);
+const valid = computed(() => !!openId.value && !!data.value?.rows.some(r => r.id === openId.value));
+const withNv = (id?: string) => ({ query: { ...route.query, nv: id } });
+watch([data, openId], () => {
+  if (!openId.value) navIds.value = [];
+  else if (data.value && !valid.value) router.replace(withNv());
+  else if (valid.value && !navIds.value.includes(openId.value)) navIds.value = shown.value.map(r => r.id);
+});
+const navIdx = computed(() => navIds.value.indexOf(openId.value));
+const hasPrev = computed(() => navIdx.value > 0);
+const hasNext = computed(() => navIdx.value >= 0 && navIdx.value < navIds.value.length - 1);
+const go = (step: number) => router.replace(withNv(navIds.value[navIdx.value + step]));
+
 const footer = computed(() =>
   isFiltered(opts.value)
     ? `${shown.value.length} kết quả trên trang này`
@@ -78,6 +94,16 @@ const footer = computed(() =>
         <div class="lc-f">{{ footer }}</div>
       </section>
     </template>
+
+    <StaffDrawer
+      v-if="valid"
+      :id="openId"
+      :has-prev="hasPrev"
+      :has-next="hasNext"
+      @close="router.replace(withNv())"
+      @prev="go(-1)"
+      @next="go(1)"
+    />
   </div>
 </template>
 

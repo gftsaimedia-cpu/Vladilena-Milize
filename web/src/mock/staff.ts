@@ -55,8 +55,12 @@ export const STATUS_LABEL: Record<StaffStatus, string> = {
 const DAY_MS = 86400000;
 const NONE = '—';
 
-/** Thâm niên từ ngày vào làm tới `to` (ISO): "5 năm 7 tháng", "1 tháng", dưới 1 tháng là "<n> ngày". */
+/**
+ * Thâm niên từ ngày vào làm tới `to` (ISO): "5 năm 7 tháng", "1 tháng", dưới 1 tháng là "<n> ngày" (cùng ngày là "0 ngày").
+ * `to` sớm hơn `from` (chưa tới ngày vào làm) thì chưa có thâm niên: trả chuỗi rỗng, không bao giờ số âm.
+ */
 export function tenure(from: string, to: string): string {
+  if (Date.parse(to) < Date.parse(from)) return '';
   const [y1, m1, d1] = from.split('-').map(Number);
   const [y2, m2, d2] = to.split('-').map(Number);
   const months = (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
@@ -129,7 +133,8 @@ export function staffProfile(id: string): StaffProfile | null {
   const p = ROWS.find(r => r.id === id);
   if (!p) return null;
   const [level, manager, shift, contract, insurance, dependents] = JOB[id] ?? NO_JOB;
-  const since = p.status === 'out' ? dmy(p.joined) : `${dmy(p.joined)} · ${tenure(p.joined, MOCK_TODAY)}`;
+  const span = p.status === 'out' ? '' : tenure(p.joined, MOCK_TODAY);
+  const since = span ? `${dmy(p.joined)} · ${span}` : dmy(p.joined);
   return {
     id: p.id,
     name: p.name,

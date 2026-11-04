@@ -1,6 +1,6 @@
 import fs from 'node:fs';
-import { expect, test, type Page } from '@playwright/test';
-import type { StaffRow } from '../src/mock/staff';
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { tenure, type StaffRow } from '../src/mock/staff';
 import { csvCell, staffCsv } from '../src/views/admin/staff/staffCsv';
 
 function trackApi(page: Page) {
@@ -398,4 +398,232 @@ test('keyboard targets show a 2px ink focus ring and Space toggles a row', async
   await expect(find).toHaveCSS('outline-style', 'solid');
   await expect(find).toHaveCSS('outline-width', '2px');
   await expect(find).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+});
+
+const drawer = (page: Page, name: string) => page.getByRole('dialog', { name: `Hồ sơ của ${name}` });
+const fact = (d: Locator, label: string) =>
+  d.locator('.fr', { has: d.page().getByText(label, { exact: true }) }).locator('dd');
+const nameLink = (page: Page, name: string) => page.getByRole('link', { name, exact: true });
+const prevBtn = (page: Page) => page.getByRole('button', { name: 'Người trước' });
+const nextBtn = (page: Page) => page.getByRole('button', { name: 'Người sau' });
+
+test("a name opens Hoàng Thị Mai's profile as on board I2", async ({ page }) => {
+  const calls = trackApi(page);
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+
+  await nameLink(page, 'Hoàng Thị Mai').click();
+  await expect(page).toHaveURL('/admin/nhan-su?nv=hoang-thi-mai');
+  const d = drawer(page, 'Hoàng Thị Mai');
+  await expect(d.getByRole('heading', { level: 2, name: 'Hồ sơ nhân sự' })).toBeVisible();
+  await expect(d).toContainText('GFT-0118 · Kế toán viên');
+  await expect(d.locator('.stt')).toHaveText('Tạm nghỉ');
+  await expect(d.locator('.nt')).toContainText('Nghỉ thai sản');
+  await expect(d.locator('.nt')).toContainText('15/09/2026 – 15/03/2027 · đi làm lại 16/03/2027');
+  await expect(d.getByRole('heading', { level: 3 })).toHaveText(['Công việc', 'Hợp đồng', 'Tài khoản']);
+
+  const facts: [string, string][] = [
+    ['Phòng ban', 'Tài chính'],
+    ['Chức danh', 'Kế toán viên'],
+    ['Loại · bậc', 'NV · Bậc 2'],
+    ['Quản lý trực tiếp', 'Nguyễn Thu Hà'],
+    ['Ca làm', 'Hành chính · 08:00–17:00'],
+    ['Ngày vào làm', '02/05/2022 · 4 năm 5 tháng'],
+    ['Loại hợp đồng', 'HĐLĐ không xác định thời hạn'],
+    ['Đóng bảo hiểm', 'Có'],
+    ['Người phụ thuộc', '1'],
+    ['Email', 'mai.hoang@gft.vn'],
+    ['Kích hoạt', 'Đã kích hoạt']
+  ];
+  for (const [label, value] of facts) await expect(fact(d, label)).toHaveText(value);
+
+  await expect(d.getByRole('link', { name: 'Xem chấm công' })).toHaveAttribute(
+    'href',
+    '/admin/cham-cong/nhan-vien/hoang-thi-mai'
+  );
+  await expect(page.getByRole('button', { name: 'Sửa hồ sơ' })).toHaveCount(0);
+
+  await expect(d).toHaveCSS('border-radius', '24px');
+  await expect(d).toHaveCSS('box-shadow', 'none');
+  const box = await d.boundingBox();
+  expect(Math.abs(box!.width - 480)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box!.x + box!.width - 1424)).toBeLessThanOrEqual(1);
+
+  await page.keyboard.press('Escape');
+  await expect(d).toHaveCount(0);
+  await expect(page).toHaveURL('/admin/nhan-su');
+  await expect(nameLink(page, 'Hoàng Thị Mai')).toBeFocused();
+  expect(calls).toEqual([]);
+});
+
+test('other profiles show their own values and a dash where no board gives one', async ({ page }) => {
+  await page.goto('/admin/nhan-su?nv=le-hoang-nam');
+  const d = drawer(page, 'Lê Hoàng Nam');
+  await expect(d).toContainText('GFT-0142 · Nhân viên kinh doanh');
+  await expect(d.locator('.nt')).toHaveCount(0);
+  const facts: [string, string][] = [
+    ['Loại · bậc', 'NV · Bậc 2'],
+    ['Quản lý trực tiếp', '—'],
+    ['Ca làm', 'Hành chính · 08:00–17:00'],
+    ['Ngày vào làm', '04/03/2024 · 2 năm 7 tháng'],
+    ['Loại hợp đồng', 'HĐLĐ từ 3 tháng'],
+    ['Người phụ thuộc', '0'],
+    ['Kích hoạt', 'Đã kích hoạt']
+  ];
+  for (const [label, value] of facts) await expect(fact(d, label)).toHaveText(value);
+
+  await page.mouse.click(200, 450);
+  await expect(d).toHaveCount(0);
+
+  await nameLink(page, 'Phan Minh Khoa').click();
+  const k = drawer(page, 'Phan Minh Khoa');
+  await expect(fact(k, 'Ngày vào làm')).toHaveText('26/10/2026 · 2 ngày');
+  await expect(fact(k, 'Loại · bậc')).toHaveText('—');
+  await expect(fact(k, 'Kích hoạt')).toHaveText('Chưa kích hoạt');
+
+  await nextBtn(page).click();
+  const p = drawer(page, 'Đặng Văn Phúc');
+  await expect(fact(p, 'Ngày vào làm')).toHaveText('11/11/2019');
+  await expect(p.locator('.stt')).toHaveText('Đã nghỉ việc');
+
+  await page.goto('/admin/nhan-su?thang=2026-10&nv=le-hoang-nam');
+  await expect(drawer(page, 'Lê Hoàng Nam').getByRole('link', { name: 'Xem chấm công' })).toHaveAttribute(
+    'href',
+    '/admin/cham-cong/nhan-vien/le-hoang-nam?thang=2026-10'
+  );
+});
+
+test('previous and next walk the rows shown when the drawer opened', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+
+  await nameLink(page, 'Lê Hoàng Nam').click();
+  await expect(drawer(page, 'Lê Hoàng Nam')).toBeVisible();
+  await nextBtn(page).click();
+  await expect(page).toHaveURL(/nv=pham-ngoc-anh/);
+  await expect(drawer(page, 'Phạm Ngọc Anh')).toBeVisible();
+  await expect(nextBtn(page)).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await nameLink(page, 'Nguyễn Thu Hà').click();
+  await expect(drawer(page, 'Nguyễn Thu Hà')).toBeVisible();
+  await expect(prevBtn(page)).toBeDisabled();
+  await expect(nextBtn(page)).toBeEnabled();
+
+  await page.keyboard.press('Escape');
+  await nameLink(page, 'Hoàng Thị Mai').click();
+  await expect(drawer(page, 'Hoàng Thị Mai')).toBeVisible();
+  await nextBtn(page).click();
+  await expect(drawer(page, 'Phan Minh Khoa')).toBeVisible();
+  await nextBtn(page).click();
+  await expect(drawer(page, 'Đặng Văn Phúc')).toBeVisible();
+  await expect(nextBtn(page)).toBeDisabled();
+  await expect(prevBtn(page)).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await inactiveSwitch(page).click();
+  await nameLink(page, 'Đỗ Mai Linh').click();
+  await expect(drawer(page, 'Đỗ Mai Linh')).toBeVisible();
+  await expect(prevBtn(page)).toBeDisabled();
+  await nextBtn(page).click();
+  await expect(drawer(page, 'Phan Minh Khoa')).toBeVisible();
+  await expect(nextBtn(page)).toBeDisabled();
+  await expect(prevBtn(page)).toBeFocused();
+});
+
+test('opening the drawer keeps ?q, typing keeps ?nv and the walk list does not follow the search', async ({ page }) => {
+  await page.goto('/admin/nhan-su?q=hoang');
+  await expect(names(page)).toHaveText(['Lê Hoàng Nam', 'Hoàng Thị Mai']);
+
+  await nameLink(page, 'Lê Hoàng Nam').click();
+  await expect(page).toHaveURL(/q=hoang/);
+  await expect(page).toHaveURL(/nv=le-hoang-nam/);
+  await expect(prevBtn(page)).toBeDisabled();
+  await expect(nextBtn(page)).toBeEnabled();
+
+  await searchBox(page).fill('nam');
+  await expect(page).toHaveURL(/q=nam/);
+  await expect(page).toHaveURL(/nv=le-hoang-nam/);
+  await expect(drawer(page, 'Lê Hoàng Nam')).toBeVisible();
+  await expect(nextBtn(page)).toBeEnabled();
+
+  await nextBtn(page).click();
+  await expect(drawer(page, 'Hoàng Thị Mai')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL('/admin/nhan-su?q=nam');
+});
+
+test('drawer links survive a reload and stale ones are dropped', async ({ page }) => {
+  await page.goto('/admin/nhan-su?q=nam&nv=le-hoang-nam');
+  await expect(drawer(page, 'Lê Hoàng Nam')).toBeVisible();
+  await page.reload();
+  await expect(drawer(page, 'Lê Hoàng Nam')).toBeVisible();
+  await expect(names(page)).toHaveText(['Lê Hoàng Nam']);
+  await expect(prevBtn(page)).toBeDisabled();
+  await expect(nextBtn(page)).toBeDisabled();
+
+  await page.goto('/admin/nhan-su?thang=2026-10&nv=khong-co');
+  await expect(page).toHaveURL('/admin/nhan-su?thang=2026-10');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(names(page)).toHaveCount(10);
+
+  await page.goto('/admin/nhan-su?hop=sua-ho-so&nv=linh');
+  await expect(names(page)).toHaveCount(10);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  expect(page.url()).not.toContain('nv=');
+});
+
+test('keyboard opens the drawer from a name and it fits 375px', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+
+  await nameLink(page, 'Lê Hoàng Nam').focus();
+  await page.keyboard.press('Enter');
+  const d = drawer(page, 'Lê Hoàng Nam');
+  await expect(d).toBeVisible();
+  const box = await d.boundingBox();
+  expect(Math.abs(box!.x - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box!.width - 343)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect(d.getByRole('link', { name: 'Xem chấm công' })).toBeInViewport();
+});
+
+test('drawer buttons and links show a 2px ink focus ring', async ({ page }) => {
+  await page.goto('/admin/nhan-su?nv=le-hoang-nam');
+  const d = drawer(page, 'Lê Hoàng Nam');
+  await expect(d).toBeVisible();
+  const targets = [
+    prevBtn(page),
+    nextBtn(page),
+    d.getByRole('button', { name: 'Đóng' }),
+    d.getByRole('link', { name: 'Xem chấm công' }),
+    nameLink(page, 'Lê Hoàng Nam')
+  ];
+  for (const target of targets) {
+    await target.focus();
+    await expect(target).toHaveCSS('outline-style', 'solid');
+    await expect(target).toHaveCSS('outline-width', '2px');
+    await expect(target).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+  }
+});
+
+test('tenure counts months and days and never prints a negative span', () => {
+  expect(tenure('2022-05-02', '2026-10-28')).toBe('4 năm 5 tháng');
+  expect(tenure('2026-10-26', '2026-10-28')).toBe('2 ngày');
+  expect(tenure('2026-09-28', '2026-10-28')).toBe('1 tháng');
+  expect(tenure('2026-10-28', '2026-10-28')).toBe('0 ngày');
+  expect(tenure('2026-11-05', '2026-10-28')).toBe('');
+});
+
+test('design index lists the profile drawer instead of the old staff dialogs', async ({ page }) => {
+  await page.goto('/thiet-ke');
+  await expect(page.getByRole('link', { name: 'Ngăn kéo Hồ sơ nhân sự · Hoàng Thị Mai' })).toHaveAttribute(
+    'href',
+    '/admin/nhan-su?nv=hoang-thi-mai'
+  );
+  for (const gone of ['Hộp Thêm nhân sự', 'Ngăn kéo Sửa hồ sơ', 'Nhân sự · Lọc chưa có ca']) {
+    await expect(page.getByRole('link', { name: gone })).toHaveCount(0);
+  }
 });

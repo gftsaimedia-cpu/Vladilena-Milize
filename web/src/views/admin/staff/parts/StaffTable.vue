@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // Bảng danh sách nhân sự: mỗi ô một giá trị trên một dòng, cuộn ngang trong vùng riêng (có bàn phím).
-// Cột đầu là ô chọn: ô ở đầu cột chọn hoặc bỏ chọn mọi dòng đang hiện; bước sau thêm liên kết mở hồ sơ.
+// Cột đầu là ô chọn: ô ở đầu cột chọn hoặc bỏ chọn mọi dòng đang hiện. Tên là liên kết mở ngăn kéo hồ sơ (?nv=<id>).
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { StaffRow } from '@/mock/staff';
 import { dmy } from '@/utils/format';
 import StatusPill from './StatusPill.vue';
 
 const props = defineProps<{ rows: StaffRow[]; selected: string[] }>();
+const route = useRoute();
 defineEmits<{ toggle: [id: string]; 'toggle-all': [] }>();
 
 const chosen = computed(() => props.rows.filter(r => props.selected.includes(r.id)).length);
@@ -75,7 +77,7 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
           <th scope="row">
             <div class="who">
               <span class="av">{{ r.initials }}</span>
-              <span class="nn">{{ r.name }}</span>
+              <RouterLink class="nn" replace :to="{ query: { ...route.query, nv: r.id } }">{{ r.name }}</RouterLink>
             </div>
           </th>
           <td>
@@ -179,6 +181,13 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
+}
+.nn:hover {
+  text-decoration: underline;
+}
+.nn:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 .em {
   display: inline-flex;
