@@ -275,7 +275,7 @@ describe('mapMonthRows timesheets and requests', () => {
             ot_date: new Date(2026, 9, 7),
             leave_start_date: new Date(2026, 9, 12),
             leave_end_date: new Date(2026, 9, 13),
-            correction_date: new Date(2026, 0, 1)
+            explanation_date: new Date(2026, 0, 1)
           }
         ]
       })
@@ -286,7 +286,7 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.equal(data.requests[0].otDate, '2026-10-07');
     assert.equal(data.requests[0].leaveStartDate, '2026-10-12');
     assert.equal(data.requests[0].leaveEndDate, '2026-10-13');
-    assert.equal(data.requests[0].correctionDate, '2026-01-01');
+    assert.equal(data.requests[0].explanationDate, '2026-01-01');
   });
 
   it('passes date strings through and keeps null dates', () => {
@@ -294,14 +294,14 @@ describe('mapMonthRows timesheets and requests', () => {
       '2026-10',
       rows({
         timesheets: [{ work_date: '2026-10-05' }],
-        requests: [{ ot_date: '2026-10-07', leave_start_date: null, leave_end_date: null, correction_date: null }]
+        requests: [{ ot_date: '2026-10-07', leave_start_date: null, leave_end_date: null, explanation_date: null }]
       })
     );
     assert.equal(timesheets[0].workDate, '2026-10-05');
     assert.equal(requests[0].otDate, '2026-10-07');
     assert.equal(requests[0].leaveStartDate, null);
     assert.equal(requests[0].leaveEndDate, null);
-    assert.equal(requests[0].correctionDate, null);
+    assert.equal(requests[0].explanationDate, null);
   });
 
   it('turns punch timestamps into ISO strings and keeps null punches', () => {
@@ -450,7 +450,7 @@ describe('PayrollRepository.getMonthlyData queries', () => {
       range('ot_date'),
       range('leave_start_date'),
       ['advance_period', '=', '2026-02'],
-      range('correction_date')
+      range('explanation_date')
     ];
     assert.deepEqual(where, [['employee_id', '=', 'u1'], ['status', '=', 'APPROVED'], { or: monthMatch }]);
     assert.equal(JSON.stringify(where).includes('like'), false);

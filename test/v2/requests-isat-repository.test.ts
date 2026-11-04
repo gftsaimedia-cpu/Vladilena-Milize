@@ -176,7 +176,8 @@ describe('RequestsRepository - đơn iSAT', () => {
       await new RequestsRepository(noFilterCount.db).count({ employeeIds: [] });
       for (const q of [sqlOf(noFilter.log)[0], sqlOf(noFilterCount.log)[0]]) {
         assert.ok(!/ in \(/.test(q.sql), q.sql);
-        assert.ok(!q.sql.includes('employee_id'), q.sql);
+        // list chọn rõ cột "employee_id"; chỉ phần sau FROM không được lọc theo nhân sự.
+        assert.ok(!q.sql.slice(q.sql.indexOf(' from ')).includes('employee_id'), q.sql);
         assert.deepEqual(q.parameters, []);
       }
 

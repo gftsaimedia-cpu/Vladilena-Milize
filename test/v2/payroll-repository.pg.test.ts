@@ -12,7 +12,7 @@ import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors'
 // makes its own temporary database, applies the migrations there and drops it at the end. It never touches any
 // other database.
 const CONTROL_URL = process.env.PG_TEST_URL;
-const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql', '0004_isat_registrations.sql'];
+const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql', '0004_isat_registrations.sql', '0005_requests_rules.sql'];
 const MONTH = '2026-10';
 const PARTIAL_MONTH = '2026-11';
 

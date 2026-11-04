@@ -3,10 +3,11 @@ import {
   RequestType,
   RequestStatus,
   LeaveType,
-  CorrectionPunchType,
+  MakeupSlot,
+  MakeupSlotRow,
+  ExplanationCaseRow,
   SystemRequestProps,
   CreateLeaveParams,
-  CreateCorrectionParams,
   CreateOvertimeParams,
   CreateAdvanceParams,
   CreateShiftChangeParams,
@@ -17,6 +18,11 @@ import {
   SystemRequestDTO
 } from './types';
 import { IsatRegistration } from './isat';
+import type { ExplanationCase } from './explanation-cases';
+import { workMinutes } from './time-window';
+
+/** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
+const OWED_MINUTES_PER_LEAVE_DAY = 480;
 
 function isValidDateString(dateStr: string): boolean {
   if (typeof dateStr !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
@@ -55,16 +61,18 @@ export class SystemRequest {
   createdAt: Date;
   updatedAt: Date;
 
-  // LEAVE
+  // LEAVE & LEAVE_WITH_MAKEUP
   leaveType: LeaveType | null;
   leaveStartDate: string | null;
   leaveEndDate: string | null;
   leaveDaysCount: number | null;
+  makeupSlots: MakeupSlot[];
 
-  // TIME_CORRECTION
-  correctionDate: string | null;
-  correctionPunchType: CorrectionPunchType | null;
-  correctionActualTime: string | null;
+  // EXPLANATION
+  explanationDate: string | null;
+  explanationCases: ExplanationCase[];
+  actualCheckIn: string | null;
+  actualCheckOut: string | null;
 
   // OVERTIME
   otDate: string | null;
@@ -76,12 +84,12 @@ export class SystemRequest {
   advanceAmount: bigint | number | null;
   advancePeriod: string | null;
 
-  // SHIFT_CHANGE & MAKEUP
+  // SHIFT_CHANGE
+  changeStartDate: string | null;
+  changeEndDate: string | null;
   newShiftType: string | null;
   newStartTime: string | null;
   newEndTime: string | null;
-  makeupStartTime: string | null;
-  makeupEndTime: string | null;
 
   // ISAT
   isat: IsatRegistration | null;
@@ -108,10 +116,12 @@ export class SystemRequest {
     this.leaveStartDate = props.leaveStartDate ?? null;
     this.leaveEndDate = props.leaveEndDate ?? null;
     this.leaveDaysCount = props.leaveDaysCount ?? null;
+    this.makeupSlots = [...(props.makeupSlots ?? [])];
 
-    this.correctionDate = props.correctionDate ?? null;
-    this.correctionPunchType = props.correctionPunchType ?? null;
-    this.correctionActualTime = props.correctionActualTime ?? null;
+    this.explanationDate = props.explanationDate ?? null;
+    this.explanationCases = [...(props.explanationCases ?? [])];
+    this.actualCheckIn = props.actualCheckIn ?? null;
+    this.actualCheckOut = props.actualCheckOut ?? null;
 
     this.otDate = props.otDate ?? null;
     this.otStartTime = props.otStartTime ?? null;
@@ -121,11 +131,11 @@ export class SystemRequest {
     this.advanceAmount = props.advanceAmount ?? null;
     this.advancePeriod = props.advancePeriod ?? null;
 
+    this.changeStartDate = props.changeStartDate ?? null;
+    this.changeEndDate = props.changeEndDate ?? null;
     this.newShiftType = props.newShiftType ?? null;
     this.newStartTime = props.newStartTime ?? null;
     this.newEndTime = props.newEndTime ?? null;
-    this.makeupStartTime = props.makeupStartTime ?? null;
-    this.makeupEndTime = props.makeupEndTime ?? null;
 
     this.isat = props.isat ?? null;
   }
@@ -167,42 +177,6 @@ export class SystemRequest {
       leaveStartDate: params.startDate,
       leaveEndDate: params.endDate,
       leaveDaysCount: params.daysCount,
-      reviewedBy: null,
-      reviewedAt: null,
-      reviewNote: null,
-      createdAt: now,
-      updatedAt: now
-    });
-  }
-
-  static createCorrectionRequest(params: CreateCorrectionParams): SystemRequest {
-    const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
-    const title = requireNonEmptyString(params?.title, 'title');
-    const reason = requireNonEmptyString(params?.reason, 'reason');
-
-    if (!isValidDateString(params?.correctionDate)) {
-      throw new Error(`correctionDate must be a valid YYYY-MM-DD date string, got: ${params?.correctionDate}`);
-    }
-
-    if (params?.punchType !== 'IN' && params?.punchType !== 'OUT') {
-      throw new Error(`punchType must be 'IN' or 'OUT', got: ${params?.punchType}`);
-    }
-
-    if (!isValidTimeString(params?.actualTime)) {
-      throw new Error(`actualTime must be a valid HH:mm time string, got: ${params?.actualTime}`);
-    }
-
-    const now = new Date();
-    return new SystemRequest({
-      id: randomUUID(),
-      employeeId,
-      title,
-      type: 'TIME_CORRECTION',
-      reason,
-      status: 'PENDING',
-      correctionDate: params.correctionDate,
-      correctionPunchType: params.punchType,
-      correctionActualTime: params.actualTime,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,
@@ -304,8 +278,9 @@ export class SystemRequest {
       type: 'EXPLANATION',
       reason,
       status: 'PENDING',
-      correctionDate: params.workDate,
-      correctionActualTime: params.actualCheckIn || null,
+      explanationDate: params.workDate,
+      actualCheckIn: params.actualCheckIn || null,
+      actualCheckOut: params.actualCheckOut || null,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,
@@ -336,7 +311,8 @@ export class SystemRequest {
       type: 'SHIFT_CHANGE',
       reason,
       status: 'PENDING',
-      leaveStartDate: params.changeDate,
+      changeStartDate: params.changeDate,
+      changeEndDate: params.changeDate,
       newShiftType: params.newShiftType,
       newStartTime: params.newStartTime,
       newEndTime: params.newEndTime,
@@ -374,10 +350,17 @@ export class SystemRequest {
       reason,
       status: 'PENDING',
       leaveStartDate: params.leaveDate,
-      leaveEndDate: params.makeupDate,
-      leaveType: 'UNPAID',
-      makeupStartTime: params.makeupStartTime,
-      makeupEndTime: params.makeupEndTime,
+      leaveEndDate: params.leaveDate,
+      leaveType: null,
+      leaveDaysCount: 1,
+      makeupSlots: [
+        {
+          date: params.makeupDate,
+          startTime: params.makeupStartTime,
+          endTime: params.makeupEndTime,
+          workMinutes: workMinutes(params.makeupStartTime, params.makeupEndTime)
+        }
+      ],
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,
@@ -480,9 +463,9 @@ export class SystemRequest {
       leave_end_date: this.leaveEndDate,
       leave_days_count: this.leaveDaysCount,
 
-      correction_date: this.correctionDate,
-      correction_punch_type: this.correctionPunchType,
-      correction_actual_time: this.correctionActualTime,
+      explanation_date: this.explanationDate,
+      actual_check_in: this.actualCheckIn,
+      actual_check_out: this.actualCheckOut,
 
       ot_date: this.otDate,
       ot_start_time: this.otStartTime,
@@ -497,15 +480,33 @@ export class SystemRequest {
           : null,
       advance_period: this.advancePeriod,
 
+      change_start_date: this.changeStartDate,
+      change_end_date: this.changeEndDate,
       new_shift_type: this.newShiftType,
       new_start_time: this.newStartTime,
-      new_end_time: this.newEndTime,
-      makeup_start_time: this.makeupStartTime,
-      makeup_end_time: this.makeupEndTime
+      new_end_time: this.newEndTime
     };
   }
 
-  static fromRow(row: any, isat: IsatRegistration | null = null): SystemRequest {
+  toMakeupSlotRows(): MakeupSlotRow[] {
+    return this.makeupSlots.map(slot => ({
+      request_id: this.id,
+      work_date: slot.date,
+      start_time: slot.startTime,
+      end_time: slot.endTime,
+      work_minutes: slot.workMinutes
+    }));
+  }
+
+  toExplanationCaseRows(): ExplanationCaseRow[] {
+    return this.explanationCases.map(code => ({ request_id: this.id, case_code: code }));
+  }
+
+  static fromRow(
+    row: any,
+    isat: IsatRegistration | null = null,
+    children: { makeupSlots?: MakeupSlot[]; explanationCases?: ExplanationCase[] } = {}
+  ): SystemRequest {
     if (!row || typeof row !== 'object') {
       throw new Error('row must be an object');
     }
@@ -570,10 +571,12 @@ export class SystemRequest {
       leaveStartDate: formatDateStr(row.leave_start_date ?? row.leaveStartDate),
       leaveEndDate: formatDateStr(row.leave_end_date ?? row.leaveEndDate),
       leaveDaysCount,
+      makeupSlots: children.makeupSlots ?? [],
 
-      correctionDate: formatDateStr(row.correction_date ?? row.correctionDate),
-      correctionPunchType: row.correction_punch_type ?? row.correctionPunchType ?? null,
-      correctionActualTime: row.correction_actual_time ?? row.correctionActualTime ?? null,
+      explanationDate: formatDateStr(row.explanation_date ?? row.explanationDate),
+      explanationCases: children.explanationCases ?? [],
+      actualCheckIn: row.actual_check_in ?? row.actualCheckIn ?? null,
+      actualCheckOut: row.actual_check_out ?? row.actualCheckOut ?? null,
 
       otDate: formatDateStr(row.ot_date ?? row.otDate),
       otStartTime: row.ot_start_time ?? row.otStartTime ?? null,
@@ -583,11 +586,11 @@ export class SystemRequest {
       advanceAmount,
       advancePeriod: row.advance_period ?? row.advancePeriod ?? null,
 
+      changeStartDate: formatDateStr(row.change_start_date ?? row.changeStartDate),
+      changeEndDate: formatDateStr(row.change_end_date ?? row.changeEndDate),
       newShiftType: row.new_shift_type ?? row.newShiftType ?? null,
       newStartTime: row.new_start_time ?? row.newStartTime ?? null,
       newEndTime: row.new_end_time ?? row.newEndTime ?? null,
-      makeupStartTime: row.makeup_start_time ?? row.makeupStartTime ?? null,
-      makeupEndTime: row.makeup_end_time ?? row.makeupEndTime ?? null,
 
       isat
     });
@@ -611,10 +614,16 @@ export class SystemRequest {
       leaveStartDate: this.leaveStartDate,
       leaveEndDate: this.leaveEndDate,
       leaveDaysCount: this.leaveDaysCount,
+      owedMinutes:
+        this.type === 'LEAVE_WITH_MAKEUP' && this.leaveDaysCount !== null
+          ? OWED_MINUTES_PER_LEAVE_DAY * this.leaveDaysCount
+          : null,
+      makeupSlots: this.makeupSlots.map(slot => ({ ...slot })),
 
-      correctionDate: this.correctionDate,
-      correctionPunchType: this.correctionPunchType,
-      correctionActualTime: this.correctionActualTime,
+      explanationDate: this.explanationDate,
+      explanationCases: [...this.explanationCases],
+      actualCheckIn: this.actualCheckIn,
+      actualCheckOut: this.actualCheckOut,
 
       otDate: this.otDate,
       otStartTime: this.otStartTime,
@@ -629,11 +638,11 @@ export class SystemRequest {
           : null,
       advancePeriod: this.advancePeriod,
 
+      changeStartDate: this.changeStartDate,
+      changeEndDate: this.changeEndDate,
       newShiftType: this.newShiftType,
       newStartTime: this.newStartTime,
       newEndTime: this.newEndTime,
-      makeupStartTime: this.makeupStartTime,
-      makeupEndTime: this.makeupEndTime,
 
       isat: this.isat ? this.isat.toJSON() : null
     };

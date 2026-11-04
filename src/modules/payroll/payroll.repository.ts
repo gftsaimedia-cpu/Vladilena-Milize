@@ -55,7 +55,7 @@ export interface EmployeeMonthlyRawData {
     id: string;
     type: string;
     status: string;
-    correctionDate?: string | null;
+    explanationDate?: string | null;
     leaveStartDate?: string | null;
     leaveEndDate?: string | null;
     leaveType?: string | null;
@@ -165,7 +165,7 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       id: r.id,
       type: r.type,
       status: r.status,
-      correctionDate: dateTextOrNull(r.correction_date),
+      explanationDate: dateTextOrNull(r.explanation_date),
       leaveStartDate: dateTextOrNull(r.leave_start_date),
       leaveEndDate: dateTextOrNull(r.leave_end_date),
       leaveType: r.leave_type,
@@ -356,7 +356,7 @@ export class PayrollRepository {
           eb.and([eb('ot_date', '>=', startDate), eb('ot_date', '<=', endDate)]),
           eb.and([eb('leave_start_date', '>=', startDate), eb('leave_start_date', '<=', endDate)]),
           eb('advance_period', '=', month),
-          eb.and([eb('correction_date', '>=', startDate), eb('correction_date', '<=', endDate)])
+          eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)])
         ])
       )
       .execute();

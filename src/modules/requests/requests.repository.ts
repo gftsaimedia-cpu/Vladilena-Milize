@@ -8,8 +8,20 @@ import {
   IsatConditionRow,
   IsatProfileSnapshot,
   RequestType,
-  RequestStatus
+  RequestStatus,
+  MakeupSlot,
+  ExplanationCase,
+  EXPLANATION_CASES
 } from './domain';
+
+/** Cột DATE của system_requests: đọc qua to_char để pg không đổi thành Date theo múi giờ máy. */
+type RequestDateColumn =
+  'leave_start_date' | 'leave_end_date' | 'explanation_date' | 'ot_date' | 'change_start_date' | 'change_end_date';
+
+const dateText = (column: RequestDateColumn) =>
+  sql<string | null>`to_char(${sql.ref(column)}, 'YYYY-MM-DD')`.as(column);
+
+const EXPLANATION_CASE_ORDER = new Map<ExplanationCase, number>(EXPLANATION_CASES.map((c, i) => [c.code, i]));
 
 export interface RequestListFilter {
   employeeId?: string;
@@ -34,27 +46,49 @@ export class RequestsRepository {
   async save(request: SystemRequest): Promise<void> {
     const row = request.toRow();
     const isat = request.isat;
-    if (!isat) {
+    const slotRows = request.toMakeupSlotRows();
+    const caseRows = request.toExplanationCaseRows();
+    if (!isat && slotRows.length === 0 && caseRows.length === 0) {
       await this.upsertRequest(this.qb, row);
       return;
     }
-    // Đơn iSAT ghi ba bảng trong một giao dịch; lưu lần hai (duyệt đơn) chỉ cập nhật system_requests,
-    // phần đăng ký và điều kiện đã chụp lúc nộp nên bỏ qua khi trùng khoá.
+    // Đơn có bảng con ghi mọi bảng trong một giao dịch; lưu lần hai (duyệt đơn) chỉ cập nhật system_requests,
+    // các dòng con đã ghi lúc nộp nên bỏ qua khi trùng khoá.
     await this.qb.transaction().execute(async trx => {
       await this.upsertRequest(trx, row);
-      await trx
-        .insertInto('isat_registrations')
-        .values(isat.toRow(request.id))
-        .onConflict(oc => oc.column('request_id').doNothing())
-        .execute();
-      const conditionRows = isat.toConditionRows(request.id);
-      if (conditionRows.length === 0) return;
-      await trx
-        .insertInto('isat_registration_conditions')
-        .values(conditionRows)
-        .onConflict(oc => oc.columns(['request_id', 'code']).doNothing())
-        .execute();
+      if (isat) {
+        await this.insertIsat(trx, request.id, isat);
+      }
+      if (slotRows.length > 0) {
+        await trx
+          .insertInto('makeup_slots')
+          .values(slotRows)
+          .onConflict(oc => oc.columns(['request_id', 'work_date', 'start_time']).doNothing())
+          .execute();
+      }
+      if (caseRows.length > 0) {
+        await trx
+          .insertInto('explanation_cases')
+          .values(caseRows)
+          .onConflict(oc => oc.columns(['request_id', 'case_code']).doNothing())
+          .execute();
+      }
     });
+  }
+
+  private async insertIsat(trx: Kysely<DB>, requestId: string, isat: IsatRegistration): Promise<void> {
+    await trx
+      .insertInto('isat_registrations')
+      .values(isat.toRow(requestId))
+      .onConflict(oc => oc.column('request_id').doNothing())
+      .execute();
+    const conditionRows = isat.toConditionRows(requestId);
+    if (conditionRows.length === 0) return;
+    await trx
+      .insertInto('isat_registration_conditions')
+      .values(conditionRows)
+      .onConflict(oc => oc.columns(['request_id', 'code']).doNothing())
+      .execute();
   }
 
   private async upsertRequest(db: Kysely<DB>, row: SystemRequestRow): Promise<void> {
@@ -74,39 +108,82 @@ export class RequestsRepository {
           leave_start_date: eb.ref('excluded.leave_start_date'),
           leave_end_date: eb.ref('excluded.leave_end_date'),
           leave_days_count: eb.ref('excluded.leave_days_count'),
-          correction_date: eb.ref('excluded.correction_date'),
-          correction_punch_type: eb.ref('excluded.correction_punch_type'),
-          correction_actual_time: eb.ref('excluded.correction_actual_time'),
+          explanation_date: eb.ref('excluded.explanation_date'),
+          actual_check_in: eb.ref('excluded.actual_check_in'),
+          actual_check_out: eb.ref('excluded.actual_check_out'),
           ot_date: eb.ref('excluded.ot_date'),
           ot_start_time: eb.ref('excluded.ot_start_time'),
           ot_end_time: eb.ref('excluded.ot_end_time'),
           ot_hours: eb.ref('excluded.ot_hours'),
           advance_amount: eb.ref('excluded.advance_amount'),
           advance_period: eb.ref('excluded.advance_period'),
+          change_start_date: eb.ref('excluded.change_start_date'),
+          change_end_date: eb.ref('excluded.change_end_date'),
           new_shift_type: eb.ref('excluded.new_shift_type'),
           new_start_time: eb.ref('excluded.new_start_time'),
           new_end_time: eb.ref('excluded.new_end_time'),
-          makeup_start_time: eb.ref('excluded.makeup_start_time'),
-          makeup_end_time: eb.ref('excluded.makeup_end_time'),
           updated_at: eb.ref('excluded.updated_at')
         }))
       )
       .execute();
   }
 
-  async findById(id: string): Promise<SystemRequest | null> {
-    const row = await this.qb
+  /** Chọn rõ từng cột của system_requests; cột DATE đọc thành chuỗi YYYY-MM-DD, giữ nguyên tên cột. */
+  private selectRequests() {
+    return this.qb
       .selectFrom('system_requests')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+      .select([
+        'id',
+        'employee_id',
+        'title',
+        'type',
+        'reason',
+        'status',
+        'reviewed_by',
+        'reviewed_at',
+        'review_note',
+        'leave_type',
+        dateText('leave_start_date'),
+        dateText('leave_end_date'),
+        'leave_days_count',
+        dateText('explanation_date'),
+        'actual_check_in',
+        'actual_check_out',
+        dateText('ot_date'),
+        'ot_start_time',
+        'ot_end_time',
+        'ot_hours',
+        'advance_amount',
+        'advance_period',
+        dateText('change_start_date'),
+        dateText('change_end_date'),
+        'new_shift_type',
+        'new_start_time',
+        'new_end_time',
+        'created_at',
+        'updated_at'
+      ]);
+  }
+
+  async findById(id: string): Promise<SystemRequest | null> {
+    const row = await this.selectRequests().where('id', '=', id).executeTakeFirst();
     if (!row) return null;
-    const [request] = await this.attachIsat([row]);
+    const [request] = await this.attachChildren([row]);
     return request;
   }
 
+  /** Các đơn đang chờ hoặc đã duyệt của một nhân sự, kèm bảng con. */
+  async listActive(employeeId: string): Promise<SystemRequest[]> {
+    const rows = await this.selectRequests()
+      .where('employee_id', '=', employeeId)
+      .where('status', 'in', ['PENDING', 'APPROVED'])
+      .orderBy('created_at', 'desc')
+      .execute();
+    return this.attachChildren(rows);
+  }
+
   async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
-    let query = this.qb.selectFrom('system_requests').selectAll();
+    let query = this.selectRequests();
 
     if (filter.employeeIds?.length) {
       query = query.where('employee_id', 'in', filter.employeeIds);
@@ -130,7 +207,7 @@ export class RequestsRepository {
     }
 
     const rows = await query.execute();
-    return this.attachIsat(rows);
+    return this.attachChildren(rows);
   }
 
   /** Đổi uuid hoặc username nhân sự thành uuid; không có nhân sự thì trả null. */
@@ -192,12 +269,75 @@ export class RequestsRepository {
     };
   }
 
-  /** Gắn phần đăng ký iSAT cho các dòng ISAT bằng hai truy vấn gộp; trang không có đơn iSAT thì không truy vấn thêm. */
-  private async attachIsat(rows: any[]): Promise<SystemRequest[]> {
-    const ids: string[] = rows.filter(r => r.type === 'ISAT').map(r => r.id);
-    if (ids.length === 0) {
-      return rows.map(r => SystemRequest.fromRow(r));
+  /**
+   * Gắn bảng con cho cả trang: mỗi bảng con đọc bằng một truy vấn `request_id in (…)`, và chỉ chạy
+   * khi trang có đơn thuộc loại tương ứng.
+   */
+  private async attachChildren(rows: any[]): Promise<SystemRequest[]> {
+    const idsOf = (type: RequestType): string[] => rows.filter(r => r.type === type).map(r => r.id);
+    const registrationByRequest = await this.loadIsat(idsOf('ISAT'));
+    const slotsByRequest = await this.loadMakeupSlots(idsOf('LEAVE_WITH_MAKEUP'));
+    const casesByRequest = await this.loadExplanationCases(idsOf('EXPLANATION'));
+
+    return rows.map(r =>
+      SystemRequest.fromRow(r, registrationByRequest.get(r.id) ?? null, {
+        makeupSlots: slotsByRequest.get(r.id),
+        explanationCases: casesByRequest.get(r.id)
+      })
+    );
+  }
+
+  private async loadMakeupSlots(ids: string[]): Promise<Map<string, MakeupSlot[]>> {
+    const slotsByRequest = new Map<string, MakeupSlot[]>();
+    if (ids.length === 0) return slotsByRequest;
+
+    const slotRows = await this.qb
+      .selectFrom('makeup_slots')
+      .select([
+        'request_id',
+        sql<string>`to_char(${sql.ref('work_date')}, 'YYYY-MM-DD')`.as('work_date'),
+        'start_time',
+        'end_time',
+        'work_minutes'
+      ])
+      .where('request_id', 'in', ids)
+      .orderBy('work_date')
+      .orderBy('start_time')
+      .execute();
+
+    for (const s of slotRows) {
+      const list = slotsByRequest.get(s.request_id) ?? [];
+      list.push({ date: s.work_date, startTime: s.start_time, endTime: s.end_time, workMinutes: Number(s.work_minutes) });
+      slotsByRequest.set(s.request_id, list);
     }
+    return slotsByRequest;
+  }
+
+  private async loadExplanationCases(ids: string[]): Promise<Map<string, ExplanationCase[]>> {
+    const casesByRequest = new Map<string, ExplanationCase[]>();
+    if (ids.length === 0) return casesByRequest;
+
+    const caseRows = await this.qb
+      .selectFrom('explanation_cases')
+      .select(['request_id', 'case_code'])
+      .where('request_id', 'in', ids)
+      .execute();
+
+    for (const c of caseRows) {
+      const list = casesByRequest.get(c.request_id) ?? [];
+      list.push(c.case_code as ExplanationCase);
+      casesByRequest.set(c.request_id, list);
+    }
+    for (const list of casesByRequest.values()) {
+      list.sort((a, b) => (EXPLANATION_CASE_ORDER.get(a) ?? 0) - (EXPLANATION_CASE_ORDER.get(b) ?? 0));
+    }
+    return casesByRequest;
+  }
+
+  /** Phần đăng ký iSAT và điều kiện của các đơn ISAT, bằng hai truy vấn gộp. */
+  private async loadIsat(ids: string[]): Promise<Map<string, IsatRegistration>> {
+    const registrationByRequest = new Map<string, IsatRegistration>();
+    if (ids.length === 0) return registrationByRequest;
 
     const registrations = await this.qb
       .selectFrom('isat_registrations')
@@ -230,12 +370,10 @@ export class RequestsRepository {
       list.push(c);
       conditionsByRequest.set(c.request_id, list);
     }
-    const registrationByRequest = new Map<string, IsatRegistration>();
     for (const r of registrations) {
       registrationByRequest.set(r.request_id, IsatRegistration.fromRows(r, conditionsByRequest.get(r.request_id) ?? []));
     }
-
-    return rows.map(r => SystemRequest.fromRow(r, registrationByRequest.get(r.id) ?? null));
+    return registrationByRequest;
   }
 
   async count(filter: Omit<RequestListFilter, 'limit' | 'offset'> = {}): Promise<number> {

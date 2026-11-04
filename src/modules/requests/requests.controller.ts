@@ -19,17 +19,6 @@ export class RequestsController {
     }
   }
 
-  @Post('correction')
-  async createCorrection(@Body() body: any, @CurrentUser() user?: UserSession): Promise<unknown> {
-    try {
-      const employeeId = body.employeeId || user?.username || 'system';
-      const request = await this.service.createCorrectionRequest({ ...body, employeeId });
-      return { created: true, request };
-    } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
-    }
-  }
-
   @Post('overtime')
   async createOvertime(@Body() body: any, @CurrentUser() user?: UserSession): Promise<unknown> {
     try {

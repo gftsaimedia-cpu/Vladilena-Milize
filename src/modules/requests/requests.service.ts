@@ -5,7 +5,6 @@ import {
   RequestType,
   RequestStatus,
   LeaveType,
-  CorrectionPunchType,
   SystemRequestDTO
 } from './domain';
 import { RequestsRepository, RequestListFilter } from './requests.repository';
@@ -39,18 +38,6 @@ export interface CreateLeaveWithMakeupInput {
   makeupDate: string;
   makeupStartTime: string;
   makeupEndTime: string;
-}
-
-export interface CreateCorrectionInput {
-  employeeId: string;
-  title: string;
-  reason: string;
-  targetDate?: string;
-  correctionDate?: string;
-  punchType?: CorrectionPunchType;
-  actualTime?: string;
-  correctedCheckIn?: Date | string | null;
-  correctedCheckOut?: Date | string | null;
 }
 
 export interface CreateOvertimeInput {
@@ -87,28 +74,6 @@ export interface CreateIsatInput {
   saturday?: unknown;
   team?: unknown;
   conditions?: unknown;
-}
-
-function formatTimeToHHmm(val: Date | string): string {
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
-      return trimmed;
-    }
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const hh = String(d.getUTCHours()).padStart(2, '0');
-      const mm = String(d.getUTCMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
-    }
-    return trimmed;
-  }
-  if (val instanceof Date && !isNaN(val.getTime())) {
-    const hh = String(val.getUTCHours()).padStart(2, '0');
-    const mm = String(val.getUTCMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
-  return '';
 }
 
 @Injectable()
@@ -175,32 +140,6 @@ export class RequestsService {
       makeupDate: input.makeupDate,
       makeupStartTime: input.makeupStartTime,
       makeupEndTime: input.makeupEndTime
-    });
-
-    await this.repo.save(req);
-    return req.toJSON();
-  }
-
-  async createCorrectionRequest(input: CreateCorrectionInput): Promise<SystemRequestDTO> {
-    const correctionDate = input.correctionDate || input.targetDate || '';
-    let punchType: CorrectionPunchType = input.punchType as CorrectionPunchType;
-    let actualTime: string = input.actualTime || '';
-
-    if (!punchType && input.correctedCheckIn != null) {
-      punchType = 'IN';
-      actualTime = formatTimeToHHmm(input.correctedCheckIn);
-    } else if (!punchType && input.correctedCheckOut != null) {
-      punchType = 'OUT';
-      actualTime = formatTimeToHHmm(input.correctedCheckOut);
-    }
-
-    const req = SystemRequest.createCorrectionRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      correctionDate,
-      punchType,
-      actualTime
     });
 
     await this.repo.save(req);
@@ -354,35 +293,15 @@ export class RequestsService {
         req.approve(reviewerId, note);
 
         if (this.attendanceRepo) {
+          // Duyệt OT không ghi lịch (§7); khung bù của đơn nghỉ có làm bù cũng không ghi vào lịch.
           if (req.type === 'SHIFT_CHANGE') {
-            const date = req.leaveStartDate || req.correctionDate || '';
+            const date = req.changeStartDate;
             if (date) {
               const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
               const updated = sched.withShiftChange(req.newShiftType as any, req.newStartTime!, req.newEndTime!, req.id);
               await this.attendanceRepo.saveSchedule(updated);
             }
-          } else if (req.type === 'LEAVE_WITH_MAKEUP') {
-            const leaveDate = req.leaveStartDate;
-            const makeupDate = req.leaveEndDate;
-            if (leaveDate) {
-              const leaveSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, leaveDate);
-              await this.attendanceRepo.saveSchedule(leaveSched.withLeave(req.id));
-            }
-            if (makeupDate) {
-              const makeupSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, makeupDate);
-              const updated = makeupSched.withMakeUp(req.makeupStartTime!, req.makeupEndTime!, req.id);
-              await this.attendanceRepo.saveSchedule(updated);
-            }
-          } else if (req.type === 'OVERTIME') {
-            const date = req.otDate;
-            if (date) {
-              const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
-              const extendedEnd = req.otEndTime || sched.plannedEndTime;
-              const hours = req.otHours || 0;
-              const updated = sched.withOvertime(extendedEnd, hours, req.id);
-              await this.attendanceRepo.saveSchedule(updated);
-            }
-          } else if (req.type === 'LEAVE') {
+          } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
             const start = req.leaveStartDate;
             const end = req.leaveEndDate || start;
             if (start) {
@@ -399,7 +318,7 @@ export class RequestsService {
             const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
             await this.attendanceRepo.saveSchedule(sched.withIsat(req.id));
           } else if (req.type === 'EXPLANATION') {
-            const workDate = req.correctionDate;
+            const workDate = req.explanationDate;
             if (workDate) {
               await this.attendanceRepo.updateDayStatus(req.employeeId, workDate, 'VALID');
             }

@@ -30,6 +30,18 @@ export interface BenefitTypesTable {
   label: Generated<string | null>;
 }
 
+export interface CompanyHolidaysTable {
+  holiday_date: string;
+  name: string;
+  created_by: Generated<string | null>;
+  created_at: Generated<Date>;
+}
+
+export interface ExplanationCasesTable {
+  request_id: string;
+  case_code: string;
+}
+
 export interface IsatRegistrationConditionsTable {
   request_id: string;
   sort_order: number;
@@ -76,6 +88,14 @@ export interface KpiScoresTable {
   created_at: string;
   updated_by: string;
   updated_at: string;
+}
+
+export interface MakeupSlotsTable {
+  request_id: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  work_minutes: number;
 }
 
 export interface ParamVersionsTable {
@@ -302,9 +322,8 @@ export interface SystemRequestsTable {
   leave_start_date: Generated<string | null>;
   leave_end_date: Generated<string | null>;
   leave_days_count: Generated<number | null>;
-  correction_date: Generated<string | null>;
-  correction_punch_type: Generated<string | null>;
-  correction_actual_time: Generated<string | null>;
+  explanation_date: Generated<string | null>;
+  actual_check_in: Generated<string | null>;
   ot_date: Generated<string | null>;
   ot_start_time: Generated<string | null>;
   ot_end_time: Generated<string | null>;
@@ -314,10 +333,11 @@ export interface SystemRequestsTable {
   new_shift_type: Generated<string | null>;
   new_start_time: Generated<string | null>;
   new_end_time: Generated<string | null>;
-  makeup_start_time: Generated<string | null>;
-  makeup_end_time: Generated<string | null>;
   created_at: Date;
   updated_at: Date;
+  actual_check_out: Generated<string | null>;
+  change_start_date: Generated<string | null>;
+  change_end_date: Generated<string | null>;
 }
 
 export interface TimesheetEntriesTable {
@@ -374,10 +394,13 @@ export interface WorkShiftsTable {
 export interface Schema {
   audit_log: AuditLogTable;
   benefit_types: BenefitTypesTable;
+  company_holidays: CompanyHolidaysTable;
+  explanation_cases: ExplanationCasesTable;
   isat_registration_conditions: IsatRegistrationConditionsTable;
   isat_registrations: IsatRegistrationsTable;
   kpi_score_log: KpiScoreLogTable;
   kpi_scores: KpiScoresTable;
+  makeup_slots: MakeupSlotsTable;
   param_versions: ParamVersionsTable;
   pay_entries: PayEntriesTable;
   payroll_periods: PayrollPeriodsTable;

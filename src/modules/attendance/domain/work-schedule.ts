@@ -154,23 +154,6 @@ export class WorkSchedule {
     });
   }
 
-  withMakeUp(makeupStartTime: string, makeupEndTime: string, requestId?: string): WorkSchedule {
-    return new WorkSchedule({
-      id: this.id,
-      employeeId: this.employeeId,
-      workDate: this.workDate,
-      shiftType: this.shiftType,
-      plannedStartTime: makeupStartTime,
-      plannedEndTime: makeupEndTime,
-      approvedOtHours: this.approvedOtHours,
-      scheduleType: 'MAKE_UP',
-      status: this.status,
-      sourceRequestId: requestId ?? this.sourceRequestId,
-      createdAt: this.createdAt,
-      updatedAt: new Date()
-    });
-  }
-
   withOvertime(extendedEndTime: string, otHours: number, requestId?: string): WorkSchedule {
     return new WorkSchedule({
       id: this.id,
