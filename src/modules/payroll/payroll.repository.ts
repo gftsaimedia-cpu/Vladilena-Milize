@@ -206,6 +206,16 @@ export interface PayslipRecord {
   details: EmployeePayslipDTO;
 }
 
+// Columns of kpi_scores to write; a key that is absent keeps its stored value, null clears it. Scores are points x 100.
+export interface KpiScorePatch {
+  wework?: number | null;
+  user_score?: number | null;
+  peer?: number | null;
+  manager?: number | null;
+  self_score?: number | null;
+  kpi_proposed?: number | null;
+}
+
 const ENGINE_VERSION = 'v2-rules-2026-11';
 
 export function buildPayslipRow(runId: number, slip: EmployeePayslip): Insertable<DB['payslips']> {
@@ -265,19 +275,8 @@ export class PayrollRepository {
     }));
   }
 
-  async getMonthlyData(employeeId: string, month: string): Promise<EmployeeMonthlyRawData | null> {
-    if (!this.qb) return null;
-
-    // Query staff
-    const staffRow = await this.qb
-      .selectFrom('staff')
-      .selectAll()
-      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
-      .executeTakeFirst();
-
-    if (!staffRow) return null;
-
-    // Position type and level in effect for the month (latest version not after the month)
+  // Position type, level and the type's benefits in effect for the month (latest version not after the month).
+  private async positionInEffect(staffRow: { type: string; level: number }, month: string) {
     const typeCode = staffRow.type || 'nv';
     const typeRow = await this.qb
       .selectFrom('position_types')
@@ -301,6 +300,23 @@ export class PayrollRepository {
     const benefits = typeRow
       ? await this.qb.selectFrom('position_type_benefits').selectAll().where('type_id', '=', typeRow.id).execute()
       : [];
+
+    return { typeRow, levelRow, benefits };
+  }
+
+  async getMonthlyData(employeeId: string, month: string): Promise<EmployeeMonthlyRawData | null> {
+    if (!this.qb) return null;
+
+    // Query staff
+    const staffRow = await this.qb
+      .selectFrom('staff')
+      .selectAll()
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
+      .executeTakeFirst();
+
+    if (!staffRow) return null;
+
+    const { typeRow, levelRow, benefits } = await this.positionInEffect(staffRow, month);
 
     // Timesheet entries
     const [y, m] = month.split('-').map(Number);
@@ -465,18 +481,27 @@ export class PayrollRepository {
     return row ? readPayslipRow(row) : null;
   }
 
-  async saveKpiScore(username: string, month: string, scores: any, actor: string): Promise<void> {
+  // What KPI pay the employee's level allows in the month; null when no staff has the username.
+  async getKpiCap(username: string, month: string): Promise<KpiCap | null> {
+    const staffRow = await this.qb
+      .selectFrom('staff')
+      .select(['type', 'level'])
+      .where('username', '=', username)
+      .executeTakeFirst();
+    if (!staffRow) return null;
+
+    const { levelRow, benefits } = await this.positionInEffect(staffRow, month);
+    return resolveKpiCap(levelRow ?? null, benefits);
+  }
+
+  async saveKpiScore(username: string, month: string, patch: KpiScorePatch, actor: string): Promise<void> {
     const now = new Date().toISOString();
     await this.qb
       .insertInto('kpi_scores')
       .values({
         username,
         month,
-        wework: scores.wework,
-        user_score: scores.user,
-        peer: scores.peer,
-        manager: scores.manager,
-        self_score: scores.self,
+        ...patch,
         created_by: actor,
         created_at: now,
         updated_by: actor,
@@ -484,11 +509,7 @@ export class PayrollRepository {
       })
       .onConflict(oc =>
         oc.columns(['username', 'month']).doUpdateSet({
-          wework: scores.wework,
-          user_score: scores.user,
-          peer: scores.peer,
-          manager: scores.manager,
-          self_score: scores.self,
+          ...patch,
           updated_by: actor,
           updated_at: now
         })

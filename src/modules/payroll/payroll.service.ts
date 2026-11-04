@@ -1,6 +1,7 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
-import { PayrollRepository, EmployeeMonthlyRawData, PayslipRecord } from './payroll.repository';
+import { PayrollRepository, EmployeeMonthlyRawData, KpiScorePatch, PayslipRecord } from './payroll.repository';
+import { KpiValidationError } from './payroll.errors';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
@@ -13,6 +14,28 @@ import {
   warning
 } from './domain';
 import { PayrollAllowancePolicy } from './domain/allowance-rates';
+
+// Scores are points 0-100; userScore / selfScore are other names for user / self.
+export interface KpiScoreBody {
+  wework?: number | null;
+  user?: number | null;
+  userScore?: number | null;
+  peer?: number | null;
+  manager?: number | null;
+  self?: number | null;
+  selfScore?: number | null;
+  proposedAmount?: number | null;
+}
+
+type KpiScoreColumn = 'wework' | 'user_score' | 'peer' | 'manager' | 'self_score';
+
+const KPI_SCORE_FIELDS: Array<{ column: KpiScoreColumn; name: keyof KpiScoreBody; alias?: keyof KpiScoreBody }> = [
+  { column: 'wework', name: 'wework' },
+  { column: 'user_score', name: 'user', alias: 'userScore' },
+  { column: 'peer', name: 'peer' },
+  { column: 'manager', name: 'manager' },
+  { column: 'self_score', name: 'self', alias: 'selfScore' }
+];
 
 @Injectable()
 export class PayrollService {
@@ -73,8 +96,47 @@ export class PayrollService {
     return await this.repo.getPayslip(month, employeeId);
   }
 
-  async setKpiScore(username: string, month: string, scores: any, actor: string): Promise<void> {
-    await this.repo.saveKpiScore(username, month, scores, actor);
+  // Checks the KPI body against the employee's KPI cap and saves it: undefined keeps the stored value, null clears it.
+  async setKpiScore(username: string, month: string, body: KpiScoreBody, actor: string): Promise<void> {
+    const cap = await this.repo.getKpiCap(username, month);
+    if (!cap) throw new KpiValidationError('EMPLOYEE_NOT_FOUND', `Không tìm thấy nhân sự ${username}`);
+
+    const input = body ?? {};
+    const patch: KpiScorePatch = {};
+    for (const { column, name, alias } of KPI_SCORE_FIELDS) {
+      // The short name wins when both names are sent.
+      const value = input[input[name] === undefined && alias ? alias : name];
+      if (value === undefined) continue;
+      if (value === null) {
+        patch[column] = null;
+        continue;
+      }
+      if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+        throw new KpiValidationError('INVALID_KPI_SCORE', 'Điểm KPI phải từ 0 đến 100');
+      }
+      patch[column] = Math.round(value * 100);
+    }
+
+    const proposed = input.proposedAmount;
+    if (proposed !== undefined) {
+      if (proposed !== null) {
+        if (!Number.isSafeInteger(proposed) || proposed < 0) {
+          throw new KpiValidationError('INVALID_KPI_SCORE', 'Lương KPI đề xuất phải là số nguyên từ 0 trở lên');
+        }
+        if (proposed > 0 && !cap.applicable) {
+          throw new KpiValidationError('KPI_NOT_APPLICABLE', 'Chức vụ hoặc bậc của nhân sự không áp dụng lương KPI');
+        }
+        if (cap.kpiMax !== null && proposed > cap.kpiMax) {
+          throw new KpiValidationError(
+            'KPI_PROPOSAL_EXCEEDS_MAX',
+            `Lương KPI đề xuất phải nhỏ hơn hoặc bằng ${cap.kpiMax} đồng`
+          );
+        }
+      }
+      patch.kpi_proposed = proposed;
+    }
+
+    await this.repo.saveKpiScore(username, month, patch, actor);
   }
 
   async generateMonthlyPayslip(employeeId: string, month: string): Promise<EmployeePayslip> {
