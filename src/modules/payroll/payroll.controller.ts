@@ -29,7 +29,7 @@ export class PayrollController {
     const employeeIds = body?.employeeIds;
     if (
       employeeIds !== undefined &&
-      !(Array.isArray(employeeIds) && employeeIds.every(id => typeof id === 'string' && id.length > 0))
+      !(Array.isArray(employeeIds) && employeeIds.every(id => typeof id === 'string' && id.trim().length > 0))
     ) {
       throw new BadRequestError('employeeIds phải là danh sách mã nhân sự', { code: 'INVALID_EMPLOYEE_IDS' });
     }

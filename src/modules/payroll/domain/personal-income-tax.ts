@@ -1,3 +1,5 @@
+import { ContractTerm } from './contract-term';
+
 export type TaxMethod = 'progressive' | 'flat10' | 'none';
 
 export const PERSONAL_DEDUCTION = 15_500_000;
@@ -14,40 +16,9 @@ const BRACKETS: Array<[number, number]> = [
   [Infinity, 0.35]
 ];
 
-const CONTRACT_MONTHS_FOR_PROGRESSIVE = 3;
-
-const pad = (n: number) => String(n).padStart(2, '0');
-
-// Works on the numeric parts of 'YYYY-MM-DD' so the result never depends on the machine time zone.
-// The day is clamped to the last day of the target month (31 Nov + 3 months -> 28 Feb).
-function addMonths(date: string, months: number): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
-  if (!m) return null;
-  const index = Number(m[1]) * 12 + (Number(m[2]) - 1) + months;
-  const year = Math.floor(index / 12);
-  const month = (index % 12) + 1;
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return `${year}-${pad(month)}-${pad(Math.min(Number(m[3]), lastDay))}`;
-}
-
-// The calendar day after a 'YYYY-MM-DD' date, on its numeric parts like addMonths.
-function nextDay(date: string): string | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
-  if (!m) return null;
-  const next = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + 1));
-  return `${next.getUTCFullYear()}-${pad(next.getUTCMonth() + 1)}-${pad(next.getUTCDate())}`;
-}
-
-// Contract shorter than 3 months -> flat 10%; otherwise (also when a date is missing) progressive.
-// The end date is the last day of the contract (01/10 to 31/12 is three months), so the contract is short only
-// when the day after the end date comes before start + 3 months.
-export function resolveTaxMethod(c: { hasTax: boolean; startDate: string | null; endDate: string | null }): TaxMethod {
-  if (!c.hasTax) return 'none';
-  if (!c.startDate || !c.endDate) return 'progressive';
-  const threshold = addMonths(c.startDate, CONTRACT_MONTHS_FOR_PROGRESSIVE);
-  const dayAfterEnd = nextDay(c.endDate);
-  if (threshold !== null && dayAfterEnd !== null && dayAfterEnd < threshold) return 'flat10';
-  return 'progressive';
+// A contract of 3 months or more -> progressive; a shorter one -> flat 10% of gross.
+export function resolveTaxMethod(term: ContractTerm): TaxMethod {
+  return term === 'long' ? 'progressive' : 'flat10';
 }
 
 export function progressiveTax(assessable: number): number {
@@ -82,9 +53,10 @@ export function calculatePersonalIncomeTax(input: TaxInput): TaxResult {
 
   if (method === 'none') return { method, taxableIncome, assessableIncome: 0, tax: 0 };
 
+  // Flat 10% is taken on gross (not gross minus exempt income) once gross reaches the threshold.
   if (method === 'flat10') {
-    const tax = grossIncome >= FLAT_THRESHOLD ? Math.round(taxableIncome * FLAT_RATE) : 0;
-    return { method, taxableIncome, assessableIncome: taxableIncome, tax };
+    if (grossIncome < FLAT_THRESHOLD) return { method, taxableIncome, assessableIncome: 0, tax: 0 };
+    return { method, taxableIncome, assessableIncome: grossIncome, tax: Math.round(grossIncome * FLAT_RATE) };
   }
 
   const deductions = insurance + PERSONAL_DEDUCTION + DEPENDANT_DEDUCTION * dependants;

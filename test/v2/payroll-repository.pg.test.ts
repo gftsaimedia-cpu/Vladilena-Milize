@@ -43,11 +43,12 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
       await client.query(readFileSync(join(__dirname, '..', '..', 'migrations', 'postgres', file), 'utf8'));
     }
 
-    // One nv level-1 employee with one worked day, one approved OT request and a KPI row with a proposal.
+    // One nv level-1 employee on a 'long' contract (always insured, progressive tax) with one worked day, one
+    // approved OT request and a KPI row with a proposal.
     const now = new Date().toISOString();
     await client.query(
-      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, start_date, insured, tax_on, uuid)
-       VALUES ('pg-user', 'Nhân viên PG', 'nv', 1, 'x', $1, '2025-01-05', 1, 1, 'pg-uuid-1')`,
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
+       VALUES ('pg-user', 'Nhân viên PG', 'nv', 1, 'x', $1, 'long', 'pg-uuid-1')`,
       [now]
     );
     await client.query(
@@ -83,6 +84,9 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     assert.equal(data.staff.baseSalary, 6_000_000);
     assert.equal(typeof data.kpi?.proposedAmount, 'number');
     assert.equal(data.kpi?.proposedAmount, 5_000_000);
+    assert.equal(data.staff.contractTerm, 'long');
+    assert.equal(data.staff.insured, true);
+    assert.equal(data.staff.contractStatusText, 'HĐLĐ từ 3 tháng');
 
     // Two calculations of the same month: the second one becomes run 2 and supersedes the first.
     const slip = await service.generateMonthlyPayslip('pg-uuid-1', MONTH);
@@ -131,12 +135,16 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     assert.equal((await repo.listPayslips(MONTH))[0].runId, secondRunId);
 
     // A partial recalculation keeps the payslips of the people who were not recalculated. A second month is used
-    // because 2026-10 is final now.
+    // because 2026-10 is final now. The second employee is on a 'short' contract with no insured flag (NULL).
     await client.query(
-      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, start_date, insured, tax_on, uuid)
-       VALUES ('pg-user-2', 'Nhân viên PG 2', 'nv', 1, 'x', $1, '2025-01-05', 1, 1, 'pg-uuid-2')`,
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
+       VALUES ('pg-user-2', 'Nhân viên PG 2', 'nv', 1, 'x', $1, 'short', 'pg-uuid-2')`,
       [now]
     );
+    const shortTerm = await repo.getMonthlyData('pg-uuid-2', PARTIAL_MONTH);
+    assert.equal(shortTerm?.staff.contractTerm, 'short');
+    assert.equal(shortTerm?.staff.insured, false);
+    assert.equal(shortTerm?.staff.contractStatusText, 'Dưới 3 tháng');
     const both = await service.calculatePeriodPayslips(PARTIAL_MONTH, ['pg-uuid-1', 'pg-uuid-2'], 'tester');
     const onlySecond = await service.calculatePeriodPayslips(PARTIAL_MONTH, ['pg-uuid-2'], 'tester');
     assert.equal(both.items.length, 2);

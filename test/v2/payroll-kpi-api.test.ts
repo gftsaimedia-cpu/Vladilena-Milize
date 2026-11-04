@@ -293,7 +293,7 @@ describe('PayrollController KPI and calculation errors', () => {
     ]);
   });
 
-  it('rejects employeeIds that is not a list of non-empty strings before calculating anything', async () => {
+  it('rejects employeeIds that is not a list of non-blank strings before calculating anything', async () => {
     const calls: unknown[][] = [];
     const controller = controllerWith({
       calculatePeriodPayslips: async (...args: unknown[]) => {
@@ -302,7 +302,7 @@ describe('PayrollController KPI and calculation errors', () => {
       }
     });
 
-    for (const employeeIds of ['u1', [1], [''], ['u1', null], {}, null, 5]) {
+    for (const employeeIds of ['u1', [1], [''], ['  '], ['u1', ' '],['u1', null], {}, null, 5]) {
       await assert.rejects(controller.calculatePeriod('2026-10', { employeeIds } as any), (err: unknown) => {
         assert.ok(err instanceof BadRequestError);
         assert.equal(err.status, 400);

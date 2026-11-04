@@ -3,13 +3,17 @@ import { Injectable, Inject } from '@nestjs/common';
 import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import {
+  CONTRACT_TERM_TEXT,
+  ContractTerm,
   DEFAULT_INSURANCE_RATES,
   EmployeePayslip,
   EmployeePayslipDTO,
   InsuranceRates,
   KpiCap,
   KpiInput,
-  PayrollWarning
+  PayrollWarning,
+  isInsured,
+  resolveContractTerm
 } from './domain';
 import { PayrollFinalizedError } from './payroll.errors';
 
@@ -26,11 +30,9 @@ export interface EmployeeMonthlyRawData {
     nightAllowancePct?: number;
     isDormResident?: boolean;
     remainingAnnualLeaveDays?: number;
-    insured: boolean;
+    contractTerm: ContractTerm; // resolved from staff.contract and the employee type
+    insured: boolean; // resolved from the contract term and staff.insured
     dependants: number;
-    hasTax: boolean;
-    contractStart: string | null;
-    contractEnd: string | null;
     kpiCap: KpiCap;
   };
   timesheets: Array<{
@@ -78,7 +80,6 @@ export interface MonthRows {
   settings: Array<{ key: string; value_json: string }>;
 }
 
-const DATE_TEXT = /^\d{4}-\d{2}-\d{2}$/;
 const pad2 = (n: number) => String(n).padStart(2, '0');
 
 // pg returns DATE columns as local-midnight Date objects; the payroll code works on 'YYYY-MM-DD' strings.
@@ -92,9 +93,6 @@ function dateTextOrNull(value: string | Date | null | undefined): string | null 
 }
 
 const numberOrNull = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
-
-const dateOnlyOrNull = (value: unknown): string | null =>
-  typeof value === 'string' && DATE_TEXT.test(value) ? value : null;
 
 // KPI pay applies when the type's 'kpi' benefit is on and the level defines a kpi_max; kpiMax is null only when
 // the level has none, so an applicable cap always carries a kpiMax.
@@ -125,6 +123,7 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
 
   const baseSalary = numberOrNull(levelRow?.base_salary);
   const kpiCap = resolveKpiCap(levelRow, benefits);
+  const contractTerm = resolveContractTerm(staffRow.contract, staffRow.type);
 
   return {
     staff: {
@@ -132,18 +131,16 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       username: staffRow.username,
       name: staffRow.name,
       positionLevelText: levelRow?.name || `${(staffRow.type || 'NV').toUpperCase()} · Bậc ${staffRow.level || 1}`,
-      contractStatusText: staffRow.contract_status || 'HĐLĐ từ 3 tháng',
+      contractStatusText: CONTRACT_TERM_TEXT[contractTerm],
       baseSalary,
       standardWorkdays: numberOrNull(typeRow?.workdays),
       employeeType: staffRow.type,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
       remainingAnnualLeaveDays: 22,
-      insured: numberOrNull(staffRow.insured) !== 0,
+      contractTerm,
+      insured: isInsured(contractTerm, numberOrNull(staffRow.insured)),
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
-      hasTax: numberOrNull(staffRow.tax_on) !== 0,
-      contractStart: dateOnlyOrNull(staffRow.start_date),
-      contractEnd: dateOnlyOrNull(staffRow.contract),
       kpiCap
     },
     timesheets: rows.timesheets.map(r => ({

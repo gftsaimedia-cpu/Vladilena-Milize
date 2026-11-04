@@ -45,23 +45,56 @@ function rows(overrides: Partial<MonthRows> = {}): MonthRows {
 
 const ratesRow = (value: string) => [{ key: 'insurance_rates', value_json: value }];
 
-describe('mapMonthRows staff flags and contract dates', () => {
-  it('reads flags, dependants and contract dates from the staff row', () => {
+describe('mapMonthRows staff flags and contract label', () => {
+  it('reads dependants and resolves the contract label and the insured flag', () => {
     const { staff } = mapMonthRows('2026-10', rows());
+    assert.equal(staff.contractTerm, 'long');
     assert.equal(staff.insured, true);
-    assert.equal(staff.hasTax, true);
     assert.equal(staff.dependants, 2);
-    assert.equal(staff.contractStart, '2026-01-05');
-    assert.equal(staff.contractEnd, null);
+    assert.equal('hasTax' in staff, false);
+    assert.equal('contractStart' in staff, false);
+    assert.equal('contractEnd' in staff, false);
   });
 
-  it('turns insured and tax off only on an explicit 0', () => {
-    const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, insured: 0, tax_on: 0 } }));
+  it('insures only on the insured flag for a contract under three months', () => {
+    const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract: 'short', insured: null } }));
+    assert.equal(staff.contractTerm, 'short');
     assert.equal(staff.insured, false);
-    assert.equal(staff.hasTax, false);
-    const text = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, insured: '0', tax_on: '0' } })).staff;
-    assert.equal(text.insured, false);
-    assert.equal(text.hasTax, false);
+    assert.equal(staff.contractStatusText, 'Dưới 3 tháng');
+
+    const shortWith = (insured: unknown) =>
+      mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract: 'short', insured } })).staff.insured;
+    assert.equal(shortWith(1), true);
+    assert.equal(shortWith('1'), true);
+    assert.equal(shortWith(0), false);
+    assert.equal(shortWith('0'), false);
+  });
+
+  it('falls back to short for a trainee without a label and honours the insured flag', () => {
+    const { staff } = mapMonthRows(
+      '2026-10',
+      rows({ staff: { ...baseStaff, type: 'tts', contract: null, insured: 1 } })
+    );
+    assert.equal(staff.contractTerm, 'short');
+    assert.equal(staff.insured, true);
+    assert.equal(staff.contractStatusText, 'Dưới 3 tháng');
+  });
+
+  it('always insures a long contract and ignores tax_on', () => {
+    const { staff } = mapMonthRows(
+      '2026-10',
+      rows({ staff: { ...baseStaff, contract: 'long', insured: 0, tax_on: 0 } })
+    );
+    assert.equal(staff.contractTerm, 'long');
+    assert.equal(staff.insured, true);
+    assert.equal(staff.contractStatusText, 'HĐLĐ từ 3 tháng');
+  });
+
+  it('reads a date in the contract column as no label', () => {
+    const nv = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract: '2026-12-31' } })).staff;
+    assert.equal(nv.contractTerm, 'long');
+    const tts = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, type: 'tts', contract: '2026-12-31' } })).staff;
+    assert.equal(tts.contractTerm, 'short');
   });
 
   it('floors dependants and never lets them go negative', () => {
@@ -74,33 +107,25 @@ describe('mapMonthRows staff flags and contract dates', () => {
     assert.equal(dependants('abc'), 0);
   });
 
-  it('keeps contract dates only in YYYY-MM-DD form', () => {
-    const { staff } = mapMonthRows(
-      '2026-10',
-      rows({ staff: { ...baseStaff, start_date: '05/01/2026', contract: '2026-03-31' } })
-    );
-    assert.equal(staff.contractStart, null);
-    assert.equal(staff.contractEnd, '2026-03-31');
-    const empty = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, start_date: null, contract: null } })).staff;
-    assert.equal(empty.contractStart, null);
-    assert.equal(empty.contractEnd, null);
-  });
-
   it('keeps the legacy staff fields', () => {
     const { staff } = mapMonthRows('2026-10', rows());
     assert.equal(staff.uuid, 'u1');
     assert.equal(staff.username, 'a');
     assert.equal(staff.positionLevelText, 'Nhân viên');
-    assert.equal(staff.contractStatusText, 'official');
+    assert.equal(staff.contractStatusText, 'HĐLĐ từ 3 tháng');
     assert.equal(staff.employeeType, 'nv');
     assert.equal(staff.nightAllowancePct, 60);
     assert.equal(staff.isDormResident, false);
     assert.equal(staff.remainingAnnualLeaveDays, 22);
   });
 
-  it('falls back to a generated level text and the default contract text', () => {
-    const { staff } = mapMonthRows('2026-10', rows({ level: null, staff: { ...baseStaff, contract_status: null } }));
+  it('falls back to a generated level text', () => {
+    const { staff } = mapMonthRows('2026-10', rows({ level: null }));
     assert.equal(staff.positionLevelText, 'NV · Bậc 1');
+  });
+
+  it('shows the resolved contract label, not the contract_status column', () => {
+    const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract_status: 'probation' } }));
     assert.equal(staff.contractStatusText, 'HĐLĐ từ 3 tháng');
   });
 });

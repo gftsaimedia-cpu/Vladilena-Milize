@@ -25,8 +25,7 @@ describe('payroll warnings', () => {
     assert.deepEqual(WARNING_MESSAGES, {
       KPI_PROPOSAL_MISSING: 'Chưa nhập lương KPI đề xuất của tháng; lương KPI tạm tính 0.',
       KPI_SCORE_MISSING: 'Thiếu điểm KPI; cột thiếu tính 0 điểm.',
-      KPI_PROPOSAL_EXCEEDS_MAX: 'Lương KPI đề xuất vượt mức KPI của bậc; đã tính theo mức của bậc.',
-      CONTRACT_START_MISSING: 'Thiếu ngày bắt đầu hợp đồng; thuế tạm tính lũy tiến.'
+      KPI_PROPOSAL_EXCEEDS_MAX: 'Lương KPI đề xuất vượt mức KPI của bậc; đã tính theo mức của bậc.'
     });
   });
 });

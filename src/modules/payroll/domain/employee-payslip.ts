@@ -379,10 +379,17 @@ export class EmployeePayslip {
       this.lateEarlyDeductionAmount; // already negative
 
     // Tax-exempt part of the pay: the OT premium over the normal hourly rate (150% -> 50%, 200% -> 100%, 300% -> 200%)
-    // plus the night allowance.
-    this.taxExemptIncome =
-      Math.round(this.ot15Hours * hourRate * 0.5 + this.ot20Hours * hourRate * 1 + this.ot30Hours * hourRate * 2) +
-      this.nightAllowanceActual;
+    // plus, for each night line, the lower of 30% of the hourly pay for the hours worked and the night allowance paid
+    // that day (a night day without allowance, e.g. a makeup day, exempts nothing).
+    const otExempt = Math.round(
+      this.ot15Hours * hourRate * 0.5 + this.ot20Hours * hourRate * 1 + this.ot30Hours * hourRate * 2
+    );
+    const nightExempt = Math.round(
+      this.dailyLines
+        .filter(line => line.shiftCode.toUpperCase() === 'NIGHT')
+        .reduce((sum, line) => sum + Math.min(line.workHours * hourRate * 0.3, line.nightAllowancePay), 0)
+    );
+    this.taxExemptIncome = otExempt + nightExempt;
 
     const insurance = props.insurance ?? calculateInsurance(0, false);
     this.insuranceDeduction = insurance.total;

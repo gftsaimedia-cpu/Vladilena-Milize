@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test, describe, it } from 'node:test';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
-import { PayrollRepository, EmployeeMonthlyRawData } from '../../src/modules/payroll/payroll.repository';
+import {
+  PayrollRepository,
+  EmployeeMonthlyRawData,
+  mapMonthRows
+} from '../../src/modules/payroll/payroll.repository';
 import { DEFAULT_INSURANCE_RATES, EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
 import { nvMonthData } from './payroll-fixtures';
@@ -10,9 +14,7 @@ import { nvMonthData } from './payroll-fixtures';
 const rulesStaff = {
   insured: true,
   dependants: 0,
-  hasTax: true,
-  contractStart: '2025-01-05',
-  contractEnd: null,
+  contractTerm: 'long' as const,
   kpiCap: { applicable: false, kpiMax: null }
 };
 
@@ -662,7 +664,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.netIncome, 37_058_461);
   });
 
-  it('exempts the OT premium of each rate and the night allowance from tax', () => {
+  describe('tax-exempt income', () => {
     const nightLine = {
       date: '2026-10-01',
       dayOfWeekText: 'Thứ 5',
@@ -680,45 +682,131 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       deductionAmount: 0,
       dailyTotal: 323_077
     };
-    const slip = new EmployeePayslip({
-      employeeId: 'exempt',
-      fullName: 'Exempt',
-      positionLevelText: 'NV L1',
-      contractStatusText: 'Active',
-      month: '2026-10',
-      standardWorkdays: 26,
-      baseSalaryPolicy: 6_000_000,
-      employeeType: 'nv',
-      nightAllowancePct: 40,
-      dailyLines: [nightLine, { ...nightLine, date: '2026-10-02' }],
-      otHoursByRate: { x15: 4, x20: 3, x30: 2 }
+    const exemptSlip = (
+      dailyLines: Array<typeof nightLine>,
+      otHoursByRate?: { x15?: number; x20?: number; x30?: number },
+      nightAllowancePct = 40
+    ) =>
+      new EmployeePayslip({
+        employeeId: 'exempt',
+        fullName: 'Exempt',
+        positionLevelText: 'NV L1',
+        contractStatusText: 'Active',
+        month: '2026-10',
+        standardWorkdays: 26,
+        baseSalaryPolicy: 6_000_000,
+        employeeType: 'nv',
+        nightAllowancePct,
+        dailyLines,
+        otHoursByRate
+      });
+
+    it('exempts the OT premium of each rate and, per night line, up to 30% of the hourly pay', () => {
+      const slip = exemptSlip([nightLine, { ...nightLine, date: '2026-10-02' }], { x15: 4, x20: 3, x30: 1 });
+
+      // hourly rate = 6,000,000 / 26 / 8 = 28,846.15. Exempt OT = the premium over the normal hour:
+      // 4 h at 150% x 0.5 + 3 h at 200% x 1 + 1 h at 300% x 2 = 7 hourly rates = 201,923.08 -> 201,923.
+      // Night: per line min(8 h x 28,846.15 x 0.3 = 69,230.77, allowance 92,308) = 69,230.77; 2 lines = 138,461.54
+      // -> 138,462. The 92,308 allowance paid per night is larger, so only the 30% part is exempt.
+      assert.equal(slip.nightAllowanceActual, 184_616);
+      assert.equal(slip.taxExemptIncome, 340_385);
     });
 
-    // hourly rate = 6,000,000 / 26 / 8 = 28,846.15. Exempt OT = the premium over the normal hour:
-    // 4 h at 150% x 0.5 + 3 h at 200% x 1 + 2 h at 300% x 2 = 9 hourly rates = 259,615.38 -> 259,615.
-    // Night allowance = 2 nights x 92,308 = 184,616.
-    assert.equal(slip.nightAllowanceActual, 184_616);
-    assert.equal(slip.taxExemptIncome, 444_231);
+    it('exempts 30% of the hourly pay on each of 20 night shifts', () => {
+      const lines = Array.from({ length: 20 }, (_, i) => ({
+        ...nightLine,
+        date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+        nightAllowancePay: 138_462
+      }));
+      const slip = exemptSlip(lines, undefined, 60);
+
+      // Per line min(8 x 28,846.15 x 0.3 = 69,230.77, 138,462) = 69,230.77; 20 lines = 1,384,615.38 -> 1,384,615.
+      assert.equal(slip.nightAllowanceActual, 2_769_240);
+      assert.equal(slip.taxExemptIncome, 1_384_615);
+    });
+
+    it('exempts nothing for a night shift that paid no allowance', () => {
+      // A makeup night day pays no night allowance, so nothing is exempt.
+      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 0 }]);
+      assert.equal(slip.taxExemptIncome, 0);
+    });
+
+    it('scales the exemption by the hours worked on a short night shift', () => {
+      const slip = exemptSlip([{ ...nightLine, workHours: 4 }]);
+
+      // 4 h x 28,846.15 x 0.3 = 34,615.38 -> 34,615, below the 92,308 allowance.
+      assert.equal(slip.taxExemptIncome, 34_615);
+    });
+
+    it('caps the exemption at the allowance when that is lower than 30% of the hourly pay', () => {
+      const slip = exemptSlip([{ ...nightLine, nightAllowancePay: 50_000 }]);
+      assert.equal(slip.taxExemptIncome, 50_000);
+    });
+
+    it('exempts nothing from lines of other shifts', () => {
+      const flexLine = { ...nightLine, shiftCode: 'FLEX', nightAllowancePay: 0, flexAllowancePay: 46_154 };
+      const normalLine = { ...nightLine, shiftCode: 'NORMAL', nightAllowancePay: 0 };
+      assert.equal(exemptSlip([flexLine, normalLine]).taxExemptIncome, 0);
+    });
   });
 
-  it('taxes a contract shorter than three months at a flat 10% of the taxable income', async () => {
-    const slip = await generate({ staff: { contractStart: '2026-10-01', contractEnd: '2026-12-15' } });
+  it('taxes a contract shorter than three months at a flat 10% of gross', async () => {
+    const slip = await generate({ staff: { contractTerm: 'short' } });
 
     assert.equal(slip.taxMethod, 'flat10');
-    assert.equal(slip.personalIncomeTax, 1_095_000);
-    assert.equal(slip.netIncome, 8_282_693);
+    assert.equal(slip.grossIncome, 11_007_693);
+    assert.equal(slip.taxableIncome, 10_950_001);
+    assert.equal(slip.taxAssessableIncome, 11_007_693);
+    // 10% of gross (11,007,693), not of gross minus the exempt part.
+    assert.equal(slip.personalIncomeTax, 1_100_769);
+    assert.equal(slip.netIncome, 8_276_924);
   });
 
-  it('deducts no insurance and no tax when the employee is not insured or not taxed', async () => {
+  it('deducts no insurance when the employee is not insured', async () => {
     const uninsured = await generate({ staff: { insured: false } });
     assert.equal(uninsured.insuranceDeduction, 0);
     assert.deepEqual(uninsured.toJSON().insuranceBreakdown, { bhxh: 0, bhyt: 0, bhtn: 0 });
     assert.equal(uninsured.netIncome, 10_007_693);
+  });
 
-    const untaxed = await generate({ staff: { hasTax: false, contractStart: null } });
-    assert.equal(untaxed.taxMethod, 'none');
-    assert.equal(untaxed.personalIncomeTax, 0);
-    assert.deepEqual(untaxed.warnings, []);
+  it('takes a trainee with no contract label to flat 10% tax and no insurance', async () => {
+    const repo = new FakePayrollRepository();
+    const level = { name: 'Thực tập sinh · Bậc 6', base_salary: '5000000', kpi_max: null };
+    const workDays = Array.from({ length: 22 }, (_, i) => ({
+      work_date: `2026-10-${String(i + 1).padStart(2, '0')}`,
+      shift_type: 'NORMAL',
+      shift_start_time: '08:00',
+      shift_end_time: '17:00',
+      shift_allowance_pct: 0,
+      work_hours: 8,
+      ot_hours: 0,
+      late_minutes: 0,
+      early_minutes: 0,
+      status: 'PRESENT',
+      day_status: 'VALID'
+    }));
+    repo.data.set(
+      't1:2026-10',
+      mapMonthRows('2026-10', {
+        staff: { uuid: 't1', username: 't', name: 'Thực tập', type: 'tts', level: 6, contract: null, insured: null },
+        type: { id: '1', workdays: '22' },
+        level,
+        benefits: [],
+        timesheets: workDays,
+        requests: [],
+        kpi: null,
+        settings: []
+      })
+    );
+    const slip = await new PayrollService(repo).generateMonthlyPayslip('t1', '2026-10');
+
+    assert.equal(slip.contractStatusText, 'Dưới 3 tháng');
+    assert.equal(slip.grossIncome, 5_000_000);
+    assert.equal(slip.insuranceDeduction, 0);
+    assert.equal(slip.taxMethod, 'flat10');
+    assert.equal(slip.personalIncomeTax, 500_000);
+    assert.equal(slip.netIncome, 4_500_000);
+    assert.deepEqual(slip.warnings, []);
   });
 
   it('pays no KPI and warns when the employee has no KPI row', async () => {
@@ -747,13 +835,6 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.equal(slip.kpiActualPay, 0);
     assert.equal(slip.toJSON().kpiApplicable, false);
     assert.deepEqual(slip.warnings, []);
-  });
-
-  it('warns when a taxed employee has no contract start date', async () => {
-    const slip = await generate({ staff: { contractStart: null } });
-
-    assert.deepEqual(codes(slip), ['CONTRACT_START_MISSING']);
-    assert.equal(slip.taxMethod, 'progressive');
   });
 
   it('rejects an employee whose base salary or standard workdays are not configured', async () => {

@@ -48,9 +48,7 @@ export function nvMonthData(
       remainingAnnualLeaveDays: 12,
       insured: true,
       dependants: 1,
-      hasTax: true,
-      contractStart: '2025-01-05',
-      contractEnd: null,
+      contractTerm: 'long',
       kpiCap: { applicable: true, kpiMax: 6_000_000 },
       ...overrides.staff
     },

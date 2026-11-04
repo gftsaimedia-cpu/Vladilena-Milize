@@ -10,8 +10,7 @@ import {
   PayrollWarning,
   calculateInsurance,
   calculateKpiPay,
-  resolveTaxMethod,
-  warning
+  resolveTaxMethod
 } from './domain';
 import { PayrollAllowancePolicy } from './domain/allowance-rates';
 
@@ -255,13 +254,8 @@ export class PayrollService {
 
     const kpi = calculateKpiPay(data.kpi, staff.kpiCap);
     const insurance = calculateInsurance(baseSalaryPolicy, staff.insured, data.insuranceRates);
-    const taxMethod = resolveTaxMethod({
-      hasTax: staff.hasTax,
-      startDate: staff.contractStart,
-      endDate: staff.contractEnd
-    });
+    const taxMethod = resolveTaxMethod(staff.contractTerm);
     const warnings: PayrollWarning[] = [...kpi.warnings];
-    if (staff.contractStart === null && taxMethod !== 'none') warnings.push(warning('CONTRACT_START_MISSING'));
 
     const roundedLateEarlyHours = Math.round(totalDeductionHours * 100) / 100;
 

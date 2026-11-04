@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { isInsured, resolveContractTerm } from '../../src/modules/payroll/domain/contract-term';
 import { DEFAULT_INSURANCE_RATES, calculateInsurance } from '../../src/modules/payroll/domain/insurance';
 import {
   DEPENDANT_DEDUCTION,
@@ -46,62 +47,52 @@ describe('calculateInsurance', () => {
   });
 });
 
+describe('resolveContractTerm', () => {
+  it('uses the label the web form writes', () => {
+    assert.equal(resolveContractTerm('long', 'tts'), 'long');
+    assert.equal(resolveContractTerm('short', 'nv'), 'short');
+  });
+
+  it('defaults an empty label by employee type: tts short, everyone else long', () => {
+    assert.equal(resolveContractTerm(null, 'nv'), 'long');
+    assert.equal(resolveContractTerm(null, 'CTV'), 'long');
+    assert.equal(resolveContractTerm(null, 'tts'), 'short');
+    assert.equal(resolveContractTerm(null, 'TTS'), 'short');
+    assert.equal(resolveContractTerm('', 'nv'), 'long');
+    assert.equal(resolveContractTerm(undefined, undefined), 'long');
+    assert.equal(resolveContractTerm(null, null), 'long');
+    assert.equal(resolveContractTerm(null, 'unknown'), 'long');
+  });
+
+  it('treats any other value, such as a date text, as no label', () => {
+    assert.equal(resolveContractTerm('2026-12-31', 'tts'), 'short');
+    assert.equal(resolveContractTerm('2026-12-31', 'nv'), 'long');
+    assert.equal(resolveContractTerm('LONG', 'tts'), 'short');
+    assert.equal(resolveContractTerm(3, 'tts'), 'short');
+  });
+});
+
+describe('isInsured', () => {
+  it('always insures a contract of three months or more', () => {
+    assert.equal(isInsured('long', 0), true);
+    assert.equal(isInsured('long', null), true);
+    assert.equal(isInsured('long', 1), true);
+  });
+
+  it('insures a shorter contract only when the insured flag is set and not 0', () => {
+    assert.equal(isInsured('short', 1), true);
+    assert.equal(isInsured('short', 0), false);
+    assert.equal(isInsured('short', null), false);
+  });
+});
+
 describe('resolveTaxMethod', () => {
-  const contract = (startDate: string | null, endDate: string | null, hasTax = true) => ({
-    hasTax,
-    startDate,
-    endDate
+  it('is progressive for a contract of three months or more', () => {
+    assert.equal(resolveTaxMethod('long'), 'progressive');
   });
 
-  it('is none when the employee has no income tax', () => {
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-15', false)), 'none');
-  });
-
-  it('is flat10 when the contract ends before start + 3 months', () => {
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-15')), 'flat10');
-  });
-
-  it('is progressive when the contract reaches start + 3 months', () => {
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2027-01-01')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2027-06-30')), 'progressive');
-  });
-
-  it('counts the end date as the last day of the contract', () => {
-    // 01/10 to 31/12 is a three-month contract; one day less is not.
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-31')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-10-01', '2026-12-30')), 'flat10');
-  });
-
-  it('clamps start + 3 months to the last day of a shorter month', () => {
-    // 30 Nov + 3 months -> 28 Feb; a contract through 27 Feb has its next day on 28 Feb, which is three months.
-    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-27')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-11-30', '2027-02-26')), 'flat10');
-  });
-
-  it('clamps to 29 February in a leap year', () => {
-    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-28')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2027-11-30', '2028-02-27')), 'flat10');
-  });
-
-  it('carries the year when start + 3 months passes December', () => {
-    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-14')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-12-15', '2027-03-13')), 'flat10');
-  });
-
-  it('reaches three months at the end of February for a contract that starts on 1 December', () => {
-    assert.equal(resolveTaxMethod(contract('2026-12-01', '2027-02-28')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-12-01', '2027-02-27')), 'flat10');
-  });
-
-  it('is progressive when the contract has no end date or no start date', () => {
-    assert.equal(resolveTaxMethod(contract('2026-10-01', null)), 'progressive');
-    assert.equal(resolveTaxMethod(contract(null, '2026-12-15')), 'progressive');
-    assert.equal(resolveTaxMethod(contract(null, null)), 'progressive');
-  });
-
-  it('is progressive when the start or end date cannot be read', () => {
-    assert.equal(resolveTaxMethod(contract('not-a-date', '2026-12-15')), 'progressive');
-    assert.equal(resolveTaxMethod(contract('2026-10-01', 'not-a-date')), 'progressive');
+  it('is flat10 for a shorter contract', () => {
+    assert.equal(resolveTaxMethod('short'), 'flat10');
   });
 });
 
@@ -168,7 +159,7 @@ describe('calculatePersonalIncomeTax', () => {
     assert.deepEqual(r, { method: 'progressive', taxableIncome: 0, assessableIncome: 0, tax: 0 });
   });
 
-  it('taxes 10% of taxable income when gross reaches the threshold', () => {
+  it('taxes 10% of gross when gross reaches the threshold', () => {
     const at = calculatePersonalIncomeTax({
       method: 'flat10',
       grossIncome: 5_000_000,
@@ -185,18 +176,18 @@ describe('calculatePersonalIncomeTax', () => {
       insurance: 0,
       dependants: 0
     });
-    assert.equal(below.tax, 0);
+    assert.deepEqual(below, { method: 'flat10', taxableIncome: 4_999_999, assessableIncome: 0, tax: 0 });
   });
 
-  it('applies the 10% rate to gross minus exempt income', () => {
+  it('applies the 10% rate to gross, not to gross minus exempt income', () => {
     const r = calculatePersonalIncomeTax({
       method: 'flat10',
       grossIncome: 8_000_000,
-      exemptIncome: 1_000_000,
+      exemptIncome: 500_000,
       insurance: 0,
       dependants: 0
     });
-    assert.deepEqual(r, { method: 'flat10', taxableIncome: 7_000_000, assessableIncome: 7_000_000, tax: 700_000 });
+    assert.deepEqual(r, { method: 'flat10', taxableIncome: 7_500_000, assessableIncome: 8_000_000, tax: 800_000 });
   });
 
   it('checks the threshold against gross, not taxable income', () => {
@@ -208,7 +199,7 @@ describe('calculatePersonalIncomeTax', () => {
       dependants: 0
     });
     assert.equal(r.taxableIncome, 4_500_000);
-    assert.equal(r.tax, 450_000);
+    assert.equal(r.tax, 550_000);
   });
 
   it('rounds the 10% tax to a whole dong', () => {
