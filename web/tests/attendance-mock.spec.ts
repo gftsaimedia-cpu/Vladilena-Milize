@@ -270,3 +270,117 @@ test('weekdayName names every day', async ({ page }) => {
   );
   expect(out).toEqual(['Thứ Ba', 'Chủ nhật']);
 });
+
+// Hồ sơ chấm công (mock/attendance-employee.ts) dựng từ cùng ô chấm công và cùng nguồn việc chờ.
+const EMP = `const E = await import('/src/mock/attendance-employee.ts');`;
+
+test('employee view for Lê Hoàng Nam matches the board', async ({ page }) => {
+  const out = await inApp<Record<string, any>>(
+    page,
+    `${IMPORTS} ${EMP}
+    const v = E.employeeView('le-hoang-nam', '2026-10');
+    const d = v.data;
+    return {
+      index: v.index,
+      total: v.total,
+      prevId: v.prevId,
+      nextId: v.nextId,
+      values: d.stats.map(s => s.value),
+      notes: d.stats.map(s => s.note),
+      labels: d.stats.map(s => s.label),
+      chips: d.chips,
+      pending: d.pending,
+      stripLength: d.strip.length,
+      off: d.strip.filter(s => s.kind === 'off').length,
+      rest: d.strip.filter(s => s.kind !== 'off').length,
+      todo: d.strip.find(s => s.date === '2026-10-27'),
+      today: d.strip.filter(s => s.today).map(s => s.date),
+      history: d.history.map(h => (h.type === 'row' ? 'row:' + h.row.date : 'fold:' + h.label))
+    };`
+  );
+  expect([out.index, out.total, out.prevId, out.nextId]).toEqual([3, 11, 'tran-minh-quan', 'pham-ngoc-anh']);
+  expect(out.labels).toEqual(['Ngày công', 'Đi muộn', 'Giờ vào trung bình', 'Giờ ra trung bình']);
+  expect(out.values).toEqual(['25 / 26', '1 lần', '07:59', '17:08']);
+  expect(out.notes).toEqual(['cả kỳ 01–31/10', 'tổng 12 phút', 'ca bắt đầu 08:00', 'ca kết thúc 17:00']);
+  expect(out.chips).toEqual({ work: 22, late: 0, leave: 1, absent: 0, todo: 1 });
+  expect(out.pending).toEqual({
+    count: 1,
+    date: '2026-10-27',
+    text: '1 ngày cần xử lý · 27/10 thiếu giờ ra, chờ duyệt giải trình'
+  });
+  expect(out.stripLength).toBe(31);
+  expect(out.off).toBe(4);
+  expect(out.rest).toBe(27);
+  expect(out.todo).toMatchObject({ dow: 'T3', day: '27', kind: 'todo', aria: 'Thứ Ba 27/10: Cần xử lý, Thiếu giờ ra' });
+  expect(out.today).toEqual(['2026-10-28']);
+  expect(out.history).toEqual([
+    'row:2026-10-28',
+    'row:2026-10-27',
+    'row:2026-10-26',
+    'row:2026-10-24',
+    'row:2026-10-23',
+    'fold:9 ngày đi làm · 13/10 – 22/10',
+    'row:2026-10-12',
+    'fold:9 ngày đi làm · 01/10 – 10/10'
+  ]);
+});
+
+test('history rows carry the times and the track', async ({ page }) => {
+  const out = await inApp<Record<string, any>>(
+    page,
+    `${IMPORTS} ${EMP}
+    const rowsOf = v => Object.fromEntries(v.data.history.filter(h => h.type === 'row').map(h => [h.row.date, h.row]));
+    const before = E.employeeView('le-hoang-nam', '2026-10');
+    const rows = rowsOf(before);
+    I.resolveInboxItem('ib-e1');
+    const after = E.employeeView('le-hoang-nam', '2026-10');
+    return {
+      pct: [E.pct('06:00'), E.pct('08:00'), E.pct('08:12'), E.pct('09:40'), E.pct('17:30'), E.pct('20:00')],
+      live: rows['2026-10-28'],
+      late: rows['2026-10-27'],
+      work: rows['2026-10-26'],
+      leave: rows['2026-10-12'],
+      afterLate: rowsOf(after)['2026-10-27'],
+      afterPending: after.data.pending
+    };`
+  );
+  expect(out.pct).toEqual([0, 13.33, 14.67, 24.44, 76.67, 93.33]);
+
+  expect(out.live).toMatchObject({ range: '07:59 – …', sub: 'Đang làm · 1g 41p', status: 'Đi làm', tone: 'work' });
+  expect(out.live.parts).toContainEqual({ type: 'now', from: 24.44 });
+
+  expect(out.late).toMatchObject({
+    range: '08:12 – ?',
+    sub: 'Trễ 12 phút · chưa có giờ ra',
+    status: 'Chờ duyệt giải trình',
+    tone: 'todo'
+  });
+  expect(out.late.parts).toContainEqual({ type: 'late', from: 13.33, to: 14.67 });
+  expect(out.late.parts).toContainEqual({ type: 'miss', from: 14.67, to: 76.67 });
+
+  expect(out.work).toMatchObject({ range: '07:56 – 17:10', sub: 'Có mặt 9g 14p', status: 'Đi làm' });
+  expect(out.work.parts).toContainEqual({ type: 'lunch', from: 40, to: 46.67 });
+
+  expect(out.leave).toMatchObject({ range: 'Cả ngày', sub: 'Phép năm', status: 'Nghỉ có phép', tone: 'leave' });
+
+  expect(out.afterLate.status).toBe('Đi muộn');
+  expect(out.afterLate.parts.some((p: { type: string }) => p.type === 'miss')).toBe(false);
+  expect(out.afterPending).toBeNull();
+});
+
+test('unknown people and other months', async ({ page }) => {
+  const out = await inApp<Record<string, any>>(
+    page,
+    `${IMPORTS} ${EMP}
+    return {
+      nobody: E.employeeView('khong-co', '2026-10'),
+      september: E.employeeView('le-hoang-nam', '2026-09').data,
+      first: E.employeeView('nguyen-thu-ha', '2026-10').prevId,
+      last: E.employeeView('hoang-minh-duc', '2026-10').nextId
+    };`
+  );
+  expect(out.nobody).toBeNull();
+  expect(out.september).toBeNull();
+  expect(out.first).toBeNull();
+  expect(out.last).toBeNull();
+});

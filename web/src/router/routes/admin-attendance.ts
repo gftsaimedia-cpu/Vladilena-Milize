@@ -11,6 +11,11 @@ export default [
     component: () => import('@/views/admin/attendance/AttendanceWeekView.vue'),
     meta: { layout: 'admin', nav: 'cham-cong', title: 'Chấm công' }
   },
+  {
+    path: '/admin/cham-cong/nhan-vien/:id',
+    component: () => import('@/views/admin/attendance/AttendanceEmployeeView.vue'),
+    meta: { layout: 'admin', nav: 'cham-cong', title: 'Hồ sơ chấm công' }
+  },
   { path: '/admin/cham-cong/bang-cong', redirect: toWeek() },
   { path: '/admin/cham-cong/hom-nay', redirect: toWeek() },
   { path: '/admin/cham-cong/phep-con-lai', redirect: toWeek() },
