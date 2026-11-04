@@ -35,13 +35,21 @@ let owner = { id: props.slip.id, saved: { ...props.slip.kpi.scores } };
 const view = computed(() => previewPayslip(props.slip, draft.value));
 
 const update = (part: KpiPart, value: number | null) => (draft.value = { ...draft.value, [part]: value });
+// Các lần lưu đang bay, để Duyệt / Từ chối chờ chúng xong: lưu trễ trả phiếu cũ (chưa duyệt) sẽ đè phiếu đã duyệt.
+const inflight = new Set<Promise<void>>();
 const save = (part: KpiPart) => {
   owner.saved[part] = draft.value[part];
-  return props.save(owner.id, part, draft.value[part]);
+  const p = props.save(owner.id, part, draft.value[part]);
+  inflight.add(p);
+  const done = () => inflight.delete(p);
+  p.then(done, done);
+  return p;
 };
 // Lưu mọi cột có draft khác điểm đã lưu. Gọi lặp là vô hại: lần sau không còn cột nào khác.
-function flush() {
+// Trả lời hẹn xong khi mọi lần lưu đang bay (kể cả lần bắt đầu từ trước, lúc rời ô) đã trả về; các nơi gọi khác không cần chờ.
+function flush(): Promise<void> {
   for (const part of PARTS) if (draft.value[part] !== owner.saved[part]) save(part);
+  return Promise.allSettled([...inflight]).then(() => {});
 }
 watch(
   () => props.slip,
@@ -81,8 +89,8 @@ async function decideNow(decision: 'approve' | 'reject') {
   if (deciding.value) return;
   deciding.value = true;
   const id = props.slip.id;
-  flush();
   try {
+    await flush();
     await props.decide(id, decision);
   } finally {
     deciding.value = false;
@@ -288,7 +296,7 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     overflow: visible !important;
   }
   body:has(.drw.floating) > :not(.drw-root),
-  .drw-root > .scrim,
+  .drw-root:has(.drw.floating) > .scrim,
   .drw.floating > .drw-h button,
   .drw.floating > .drw-f {
     display: none !important;
@@ -297,14 +305,14 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     position: static !important;
     overflow: visible !important;
   }
-  .drw.floating {
+  .drw-root .drw.floating {
     position: static;
     width: auto;
     max-width: none;
     overflow: visible;
     border-radius: 0;
   }
-  .drw.floating > .drw-h {
+  .drw-root .drw.floating > .drw-h {
     position: static;
   }
 }

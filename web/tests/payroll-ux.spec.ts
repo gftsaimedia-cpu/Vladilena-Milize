@@ -624,3 +624,16 @@ test('print calls the browser dialog and prints only the slip', async ({ page })
   await expect(d.getByRole('button', { name: 'In phiếu' })).toBeHidden();
   await expect(d.getByRole('button', { name: 'Duyệt phiếu' })).toBeHidden();
 });
+
+test('while a decision is in flight the buttons are disabled, then focus lands on the status line', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__mockLatencyMs = 300;
+  });
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await nam.getByRole('button', { name: 'Duyệt phiếu' }).click();
+  await expect(nam.getByRole('button', { name: 'Duyệt phiếu' })).toBeDisabled();
+  await expect(nam.getByRole('button', { name: 'Từ chối' })).toBeDisabled();
+  await expect(nam.getByRole('status')).toHaveText('Đã duyệt phiếu lương của Lê Hoàng Nam.');
+  await expect(nam.getByRole('status')).toBeFocused();
+});
