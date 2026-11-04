@@ -72,7 +72,7 @@ const period = usePeriodStore();
 }
 .period.card .state.ok {
   background: var(--status-done);
-  color: #fff;
+  color: var(--on-primary);
 }
 .period.card .steps {
   flex: 1 1 560px;

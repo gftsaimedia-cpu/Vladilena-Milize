@@ -93,7 +93,7 @@ const exportLabel = computed(() =>
 .sc.on {
   background: var(--surface-dark);
   border-color: var(--surface-dark);
-  color: #fff;
+  color: var(--on-primary);
 }
 .sc.on .ct {
   color: var(--gold);
