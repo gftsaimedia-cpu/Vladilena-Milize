@@ -100,8 +100,9 @@ const exportLabel = computed(() =>
   flex: none;
   border-radius: 50%;
 }
+/* 176px (không phải 220px): giữ cả sáu nút lọc trên một hàng ở 1440px. */
 .find {
-  width: 220px;
+  width: 176px;
   max-width: 100%;
   height: 40px;
   display: flex;
