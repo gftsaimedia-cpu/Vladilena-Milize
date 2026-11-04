@@ -577,3 +577,50 @@ test('a typed score survives the slip changing or closing without the buttons', 
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(row(page, 'Phạm Ngọc Anh')).not.toContainText('17.286.462');
 });
+
+test('approving and rejecting update the slip, table, tiles and overview', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await nam.getByRole('button', { name: 'Duyệt phiếu' }).click();
+  await expect(nam.getByText('Đã duyệt', { exact: true })).toBeVisible();
+  await expect(nam.getByRole('status')).toHaveText('Đã duyệt phiếu lương của Lê Hoàng Nam.');
+  await expect(nam.getByRole('button', { name: /^(Duyệt phiếu|Từ chối)$/ })).toHaveCount(0);
+  await nam.getByRole('button', { name: 'Đóng' }).click();
+  await expect(filters(page).getByRole('button', { name: 'Chờ duyệt 28', exact: true })).toBeVisible();
+  await expect(filters(page).getByRole('button', { name: 'Đã duyệt 87', exact: true })).toBeVisible();
+  await expect(tile(page, 'Phiếu đã duyệt')).toContainText('87 / 128');
+  const nav = page.getByRole('navigation', { name: 'Điều hướng' });
+  await nav.getByRole('link', { name: 'Tổng quan' }).click();
+  await expect(page.getByRole('region', { name: 'Kỳ lương tháng 10' })).toContainText('87');
+  await expect(page.getByRole('region', { name: 'Bảng lương tháng 10' }).locator('tbody tr', { hasText: 'Lê Hoàng Nam' })).toContainText('Đã duyệt');
+  await nav.getByRole('link', { name: 'Bảng lương', exact: true }).click();
+  await openSlip(page, 'Trịnh Văn Long');
+  await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Từ chối' }).click();
+  await expect(slip(page, 'Trịnh Văn Long').getByRole('status')).toHaveText('Đã từ chối phiếu lương của Trịnh Văn Long.');
+  await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Đóng' }).click();
+  await expect(filters(page).getByRole('button', { name: 'Từ chối 2', exact: true })).toBeVisible();
+});
+
+test('an already approved slip has no decision buttons', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0101`);
+  const ha = slip(page, 'Nguyễn Thu Hà');
+  await expect(ha.getByRole('status')).toHaveText('Đã duyệt phiếu lương của Nguyễn Thu Hà.');
+  await expect(ha.getByRole('button', { name: 'Duyệt phiếu' })).toHaveCount(0);
+  await expect(ha.getByRole('button', { name: 'Từ chối' })).toHaveCount(0);
+});
+
+test('print calls the browser dialog and prints only the slip', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__prints = 0;
+    window.print = () => { (window as any).__prints += 1; };
+  });
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await d.getByRole('button', { name: 'In phiếu' }).click();
+  expect(await page.evaluate(() => (window as any).__prints)).toBe(1);
+  await page.emulateMedia({ media: 'print' });
+  await expect(table(page)).toBeHidden();
+  await expect(d.getByRole('heading', { name: 'Tổng hợp lương' })).toBeVisible();
+  await expect(d.getByRole('button', { name: 'In phiếu' })).toBeHidden();
+  await expect(d.getByRole('button', { name: 'Duyệt phiếu' })).toBeHidden();
+});

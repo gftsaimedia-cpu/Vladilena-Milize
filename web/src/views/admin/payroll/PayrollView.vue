@@ -7,7 +7,7 @@ import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
-import { getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
+import { decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { foldText, monthShort } from '@/utils/format';
 import { monthNo } from '@/views/admin/requests/helpers';
@@ -96,6 +96,12 @@ const saveScore = async (id: string, part: KpiPart, value: number | null) => {
   if (next && next.id === slipId.value) slip.value = next;
   await reload();
 };
+// Duyệt / từ chối cũng do màn giữ, vì cùng lý do: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
+const decide = async (id: string, decision: 'approve' | 'reject') => {
+  const next = await decidePayslip(period.month, id, decision);
+  if (next && next.id === slipId.value) slip.value = next;
+  await reload();
+};
 </script>
 
 <template>
@@ -145,6 +151,7 @@ const saveScore = async (id: string, part: KpiPart, value: number | null) => {
       :has-next="hasNext"
       @close="go('')"
       :save="saveScore"
+      :decide="decide"
       @prev="go(navIds[at - 1])"
       @next="go(navIds[at + 1])"
     />

@@ -3,7 +3,8 @@
 // Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ).
 // Việc lưu thuộc về màn Bảng lương (prop `save`: lưu, thay phiếu đang mở, tải lại bảng) vì ngăn kéo có thể đã tháo khỏi
 // trang khi lưu xong. Rời ô thì lưu; đóng, sang phiếu khác hay phiếu đổi từ ngoài thì lưu hết điểm chưa lưu (flush).
-// Duyệt / từ chối thêm ở đợt sau.
+// Duyệt / từ chối cũng thuộc về màn (prop `decide`), cùng lý do; chân ngăn kéo chỉ có hai nút khi phiếu là Nháp hay Chờ duyệt,
+// còn lại là một dòng trạng thái. In phiếu gọi hộp thoại in của trình duyệt; CSS in ở khối <style> không scoped cuối file.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
@@ -23,6 +24,7 @@ const props = defineProps<{
   hasPrev: boolean;
   hasNext: boolean;
   save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
+  decide: (id: string, decision: 'approve' | 'reject') => Promise<void>;
 }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
@@ -55,6 +57,7 @@ watch(
   }
 );
 onBeforeUnmount(flush);
+const print = () => window.print();
 const close = () => {
   flush();
   emit('close');
@@ -63,6 +66,33 @@ const go = (to: 'prev' | 'next') => {
   flush();
   emit(to);
 };
+
+// Đang chờ một quyết định: hai nút tắt để bấm đúp chỉ quyết một lần.
+const deciding = ref(false);
+const status = ref<HTMLElement | null>(null);
+const decided = computed(() =>
+  props.slip.status === 'done'
+    ? `Đã duyệt phiếu lương của ${props.slip.name}.`
+    : props.slip.status === 'rejected'
+      ? `Đã từ chối phiếu lương của ${props.slip.name}.`
+      : ''
+);
+async function decideNow(decision: 'approve' | 'reject') {
+  if (deciding.value) return;
+  deciding.value = true;
+  const id = props.slip.id;
+  flush();
+  try {
+    await props.decide(id, decision);
+  } finally {
+    deciding.value = false;
+  }
+  // Hai nút vừa biến mất nên tiêu điểm rơi về body: đưa sang dòng trạng thái (để đọc kết quả). Tiêu điểm đã ở chỗ khác
+  // trong ngăn kéo thì giữ nguyên; ngăn kéo đã tháo hay sang phiếu khác thì không làm gì.
+  await nextTick();
+  const now = document.activeElement;
+  if (props.slip.id === id && status.value && (!now || now === document.body)) status.value.focus();
+}
 
 // AppDrawer đặt tiêu điểm vào ô bấm được đầu tiên, ở đây là mũi tên Phiếu trước, mà mũi tên đó có thể bị tắt ở đầu danh sách.
 // Như các ngăn kéo khác, tiêu điểm đầu vào nút Đóng; Tab và Shift+Tab vẫn tới hai mũi tên. Phần tử này mount sau AppDrawer.
@@ -86,6 +116,7 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     <template #head>
       <div ref="head" class="pd-head">
         <h2>Phiếu lương tháng {{ monthShort(month) }}</h2>
+        <button type="button" class="pd-ib" aria-label="In phiếu" @click="print"><Icon name="print" /></button>
         <button ref="prevBtn" type="button" class="pd-ib" aria-label="Phiếu trước" :disabled="!hasPrev" @click="go('prev')">
           <Icon name="chevl" />
         </button>
@@ -126,6 +157,14 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
       <template #kpi><SlipKpi :key="slip.id" :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
       <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>
     </SlipSummary>
+
+    <template #footer>
+      <p v-if="decided" ref="status" class="pd-status" role="status" aria-live="polite" tabindex="-1">{{ decided }}</p>
+      <template v-else>
+        <button type="button" class="btn" :disabled="deciding" @click="decideNow('reject')">Từ chối</button>
+        <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="decideNow('approve')">Duyệt phiếu</button>
+      </template>
+    </template>
   </AppDrawer>
 </template>
 
@@ -162,6 +201,19 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
 .pd-ib:disabled {
   opacity: 0.35;
   cursor: default;
+}
+.pd-approve {
+  flex: 1;
+  justify-content: center;
+}
+.pd-status {
+  margin: 0;
+  font-weight: 500;
+}
+.pd-status:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .pd-body {
   padding: 8px 24px 0;
@@ -226,5 +278,34 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
+}
+</style>
+
+<!-- In: chỉ ngăn kéo phiếu lương (có .drw.floating) ra giấy, thành khối tĩnh rộng hết trang. Không scoped vì ngăn kéo teleport ra body. -->
+<style>
+@media print {
+  body:has(.drw.floating) {
+    overflow: visible !important;
+  }
+  body:has(.drw.floating) > :not(.drw-root),
+  .drw-root > .scrim,
+  .drw.floating > .drw-h button,
+  .drw.floating > .drw-f {
+    display: none !important;
+  }
+  .drw-root:has(.drw.floating) {
+    position: static !important;
+    overflow: visible !important;
+  }
+  .drw.floating {
+    position: static;
+    width: auto;
+    max-width: none;
+    overflow: visible;
+    border-radius: 0;
+  }
+  .drw.floating > .drw-h {
+    position: static;
+  }
 }
 </style>
