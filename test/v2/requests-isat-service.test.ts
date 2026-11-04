@@ -22,15 +22,23 @@ const ctvProfile: IsatProfile = {
   isatEnabled: false,
   snapshot: { ...profile, fullName: 'Trần Thị C', positionType: 'ctv', levelName: null }
 };
+const otherNvProfile: IsatProfile = {
+  employeeId: 'emp-uuid-2',
+  isatEnabled: true,
+  snapshot: { ...profile, fullName: 'Trần Văn B' }
+};
 
 class FakeRequestsRepository extends RequestsRepository {
   requests: Map<string, SystemRequest> = new Map();
   profiles: Map<string, IsatProfile> = new Map([
     ['emp-uuid-1', nvProfile],
     ['nguyen-van-a', nvProfile],
+    ['emp-uuid-2', otherNvProfile],
+    ['tran-van-b', otherNvProfile],
     ['ctv-user', ctvProfile]
   ]);
   profileMonths: string[] = [];
+  resolveCalls: string[] = [];
 
   constructor() {
     super({} as any);
@@ -46,7 +54,8 @@ class FakeRequestsRepository extends RequestsRepository {
 
   override async list(filter: any = {}): Promise<SystemRequest[]> {
     let result = Array.from(this.requests.values());
-    if (filter.employeeId) result = result.filter((r) => r.employeeId === filter.employeeId);
+    if (filter.employeeIds?.length) result = result.filter((r) => filter.employeeIds.includes(r.employeeId));
+    else if (filter.employeeId) result = result.filter((r) => r.employeeId === filter.employeeId);
     if (filter.type) result = result.filter((r) => r.type === filter.type);
     if (filter.status) result = result.filter((r) => r.status === filter.status);
     return result;
@@ -60,6 +69,11 @@ class FakeRequestsRepository extends RequestsRepository {
   override async findIsatProfile(id: string, month: string): Promise<IsatProfile | null> {
     this.profileMonths.push(month);
     return this.profiles.get(id) ?? null;
+  }
+
+  override async resolveStaffUuid(id: string): Promise<string | null> {
+    this.resolveCalls.push(id);
+    return this.profiles.get(id)?.employeeId ?? null;
   }
 }
 
@@ -267,6 +281,77 @@ describe('Đơn iSAT - service', () => {
     const listed = await service.listRequests({ employeeId: 'emp-uuid-1', type: 'ISAT' });
     assert.equal(listed.total, 1);
     assert.equal(listed.items[0].isat!.saturday, '2026-11-07');
+  });
+
+  describe('author lookups by username', () => {
+    const form = { saturday: '2026-11-07', team: 'T', conditions: allPassed };
+
+    it('cancels from the username session although the request is stored under the uuid', async () => {
+      const created = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+      assert.equal(created.employeeId, 'emp-uuid-1');
+
+      const cancelled = await service.cancelRequest(created.id, 'nguyen-van-a', 'Đổi kế hoạch');
+      assert.equal(cancelled.status, 'CANCELLED');
+      assert.equal(cancelled.reviewNote, 'Đổi kế hoạch');
+      assert.equal(reqRepo.requests.get(created.id)!.status, 'CANCELLED');
+    });
+
+    it('does not resolve the canceller when it already equals the stored author', async () => {
+      const created = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+      const cancelled = await service.cancelRequest(created.id, 'emp-uuid-1');
+      assert.equal(cancelled.status, 'CANCELLED');
+      assert.deepEqual(reqRepo.resolveCalls, []);
+    });
+
+    it('still refuses a stranger whose username resolves to another uuid or to nothing', async () => {
+      const created = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+
+      await assert.rejects(
+        service.cancelRequest(created.id, 'tran-van-b'),
+        /Only the request author \(employee 'emp-uuid-1'\) can cancel this request/
+      );
+      await assert.rejects(
+        service.cancelRequest(created.id, 'ghost'),
+        /Only the request author \(employee 'emp-uuid-1'\) can cancel this request/
+      );
+      assert.deepEqual(reqRepo.resolveCalls, ['tran-van-b', 'ghost']);
+      assert.equal(reqRepo.requests.get(created.id)!.status, 'PENDING');
+    });
+
+    it('lists by username and counts the iSAT request stored under the uuid', async () => {
+      const created = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+      await service.createIsatRequest({ employeeId: 'tran-van-b', ...form });
+
+      const listed = await service.listRequests({ employeeId: 'nguyen-van-a' });
+      assert.equal(listed.total, 1);
+      assert.deepEqual(listed.items.map(i => i.id), [created.id]);
+    });
+
+    it('still lists other request types stored under the username next to the iSAT ones', async () => {
+      const isat = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+      const leave = await service.createLeaveRequest({
+        employeeId: 'nguyen-van-a', title: 'Nghỉ phép', reason: 'Việc nhà',
+        leaveType: 'PAID', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
+      });
+
+      const listed = await service.listRequests({ employeeId: 'nguyen-van-a' });
+      assert.equal(listed.total, 2);
+      assert.deepEqual(listed.items.map(i => i.id).sort(), [isat.id, leave.id].sort());
+
+      const onlyLeave = await service.listRequests({ employeeId: 'nguyen-van-a', type: 'LEAVE' });
+      assert.deepEqual(onlyLeave.items.map(i => i.id), [leave.id]);
+    });
+
+    it('lists an unknown username by that name alone and skips the lookup without an employee filter', async () => {
+      await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
+      const ghost = await service.listRequests({ employeeId: 'ghost' });
+      assert.deepEqual([ghost.total, ghost.items.length], [0, 0]);
+      assert.deepEqual(reqRepo.resolveCalls, ['ghost']);
+
+      const all = await service.listRequests({});
+      assert.equal(all.total, 1);
+      assert.deepEqual(reqRepo.resolveCalls, ['ghost']);
+    });
   });
 });
 

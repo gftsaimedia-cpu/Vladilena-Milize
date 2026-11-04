@@ -427,7 +427,14 @@ export class RequestsService {
       throw new Error(`Request with id '${id}' not found`);
     }
 
-    req.cancel(employeeId, reason);
+    // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
+    let cancellerId = employeeId;
+    if (employeeId !== req.employeeId) {
+      const uuid = await this.repo.resolveStaffUuid(employeeId);
+      if (uuid === req.employeeId) cancellerId = uuid;
+    }
+
+    req.cancel(cancellerId, reason);
     await this.repo.save(req);
     return req.toJSON();
   }
@@ -438,12 +445,17 @@ export class RequestsService {
   }
 
   async listRequests(filter: RequestListFilter = {}): Promise<{ items: SystemRequestDTO[]; total: number }> {
+    // Đơn iSAT lưu theo uuid, các loại khác có thể lưu theo username: lọc theo cả hai khi biết uuid của nhân sự.
+    const { employeeId, ...rest } = filter;
+    const scoped: RequestListFilter = employeeId ? { ...rest, employeeIds: await this.employeeIdsFor(employeeId) } : filter;
+
     const [items, total] = await Promise.all([
-      this.repo.list(filter),
+      this.repo.list(scoped),
       this.repo.count({
-        employeeId: filter.employeeId,
-        type: filter.type,
-        status: filter.status
+        employeeId: scoped.employeeId,
+        employeeIds: scoped.employeeIds,
+        type: scoped.type,
+        status: scoped.status
       })
     ]);
 
@@ -451,5 +463,10 @@ export class RequestsService {
       items: items.map(r => r.toJSON()),
       total
     };
+  }
+
+  private async employeeIdsFor(employeeId: string): Promise<string[]> {
+    const uuid = await this.repo.resolveStaffUuid(employeeId);
+    return [...new Set([employeeId, uuid].filter((id): id is string => !!id))];
   }
 }

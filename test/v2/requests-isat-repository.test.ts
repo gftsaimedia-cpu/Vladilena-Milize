@@ -125,6 +125,73 @@ describe('RequestsRepository - đơn iSAT', () => {
     assert.equal(item.toJSON().isat, null);
   });
 
+  describe('resolveStaffUuid', () => {
+    it('selects the uuid by uuid or username and maps the row', async () => {
+      const { db, log } = createScriptedKysely(q => (q.sql.includes('from "staff"') ? [{ uuid: 'emp-uuid-1' }] as any : []));
+      assert.equal(await new RequestsRepository(db).resolveStaffUuid('nguyen-van-a'), 'emp-uuid-1');
+      const [staffQ] = sqlOf(log);
+      assert.equal(sqlOf(log).length, 1);
+      assert.match(staffQ.sql, /^select "uuid" from "staff" where \("uuid" = \$1 or "username" = \$2\)/);
+      assert.deepEqual(staffQ.parameters, ['nguyen-van-a', 'nguyen-van-a']);
+    });
+
+    it('returns null when no staff row matches or the row has no uuid', async () => {
+      const none = createScriptedKysely();
+      assert.equal(await new RequestsRepository(none.db).resolveStaffUuid('ghost'), null);
+
+      const blank = createScriptedKysely(() => [{ uuid: null }] as any);
+      assert.equal(await new RequestsRepository(blank.db).resolveStaffUuid('ghost'), null);
+    });
+  });
+
+  describe('employeeIds filter', () => {
+    it('list matches any of the given employee ids', async () => {
+      const { db, log } = createScriptedKysely();
+      await new RequestsRepository(db).list({ employeeIds: ['nguyen-van-a', 'emp-uuid-1'], type: 'ISAT' });
+      const [q] = sqlOf(log);
+      assert.match(q.sql, /where "employee_id" in \(\$1, \$2\) and "type" = \$3/);
+      assert.deepEqual(q.parameters, ['nguyen-van-a', 'emp-uuid-1', 'ISAT']);
+    });
+
+    it('count matches any of the given employee ids', async () => {
+      const { db, log } = createScriptedKysely(() => [{ total: '3' }] as any);
+      assert.equal(await new RequestsRepository(db).count({ employeeIds: ['nguyen-van-a', 'emp-uuid-1'], status: 'PENDING' }), 3);
+      const [q] = sqlOf(log);
+      assert.match(q.sql, /where "employee_id" in \(\$1, \$2\) and "status" = \$3/);
+      assert.deepEqual(q.parameters, ['nguyen-van-a', 'emp-uuid-1', 'PENDING']);
+    });
+
+    it('employeeIds wins over employeeId when both are given', async () => {
+      const { db, log } = createScriptedKysely();
+      await new RequestsRepository(db).list({ employeeId: 'single', employeeIds: ['a', 'b'] });
+      const [q] = sqlOf(log);
+      assert.match(q.sql, /"employee_id" in \(\$1, \$2\)/);
+      assert.ok(!q.parameters.includes('single'));
+    });
+
+    it('an empty employeeIds list never emits an empty IN', async () => {
+      const noFilter = createScriptedKysely();
+      await new RequestsRepository(noFilter.db).list({ employeeIds: [] });
+      const noFilterCount = createScriptedKysely();
+      await new RequestsRepository(noFilterCount.db).count({ employeeIds: [] });
+      for (const q of [sqlOf(noFilter.log)[0], sqlOf(noFilterCount.log)[0]]) {
+        assert.ok(!/ in \(/.test(q.sql), q.sql);
+        assert.ok(!q.sql.includes('employee_id'), q.sql);
+        assert.deepEqual(q.parameters, []);
+      }
+
+      const equality = createScriptedKysely();
+      await new RequestsRepository(equality.db).list({ employeeId: 'single', employeeIds: [] });
+      const equalityCount = createScriptedKysely();
+      await new RequestsRepository(equalityCount.db).count({ employeeId: 'single', employeeIds: [] });
+      for (const q of [sqlOf(equality.log)[0], sqlOf(equalityCount.log)[0]]) {
+        assert.match(q.sql, /where "employee_id" = \$1/);
+        assert.ok(!/ in \(/.test(q.sql), q.sql);
+        assert.deepEqual(q.parameters, ['single']);
+      }
+    });
+  });
+
   describe('findIsatProfile', () => {
     const staffRow = {
       uuid: 'emp-uuid-1', name: 'Nguyễn Văn A', type: 'nv', level: 2,

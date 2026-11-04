@@ -13,6 +13,8 @@ import {
 
 export interface RequestListFilter {
   employeeId?: string;
+  /** Khớp bất kỳ id nào trong danh sách (uuid hoặc username); có phần tử thì thay cho `employeeId`. */
+  employeeIds?: string[];
   type?: RequestType;
   status?: RequestStatus;
   limit?: number;
@@ -106,7 +108,9 @@ export class RequestsRepository {
   async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
     let query = this.qb.selectFrom('system_requests').selectAll();
 
-    if (filter.employeeId) {
+    if (filter.employeeIds?.length) {
+      query = query.where('employee_id', 'in', filter.employeeIds);
+    } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
     if (filter.type) {
@@ -127,6 +131,16 @@ export class RequestsRepository {
 
     const rows = await query.execute();
     return this.attachIsat(rows);
+  }
+
+  /** Đổi uuid hoặc username nhân sự thành uuid; không có nhân sự thì trả null. */
+  async resolveStaffUuid(employeeIdOrUsername: string): Promise<string | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select('uuid')
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    return row?.uuid ?? null;
   }
 
   /** Hồ sơ nộp đơn iSAT: uuid, quyền lợi iSAT và bản chụp hồ sơ, theo danh mục hiệu lực tại `month` (YYYY-MM). */
@@ -229,7 +243,9 @@ export class RequestsRepository {
       .selectFrom('system_requests')
       .select(sql<number>`COUNT(*)`.as('total'));
 
-    if (filter.employeeId) {
+    if (filter.employeeIds?.length) {
+      query = query.where('employee_id', 'in', filter.employeeIds);
+    } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
     if (filter.type) {
