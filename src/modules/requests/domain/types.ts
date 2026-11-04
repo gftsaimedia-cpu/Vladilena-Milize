@@ -1,11 +1,12 @@
 import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from './isat';
+import type { LeaveType } from './leave-types';
+
+export type { LeaveType } from './leave-types';
 
 export type RequestType =
   'LEAVE' | 'TIME_CORRECTION' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-export type LeaveType = 'PAID' | 'UNPAID';
 
 export type CorrectionPunchType = 'IN' | 'OUT';
 
