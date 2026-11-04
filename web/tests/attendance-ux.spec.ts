@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import entries from '../src/design-index/admin-attendance';
 import { inApp } from './fixtures/in-app';
 
 // Chấm công theo tuần chạy trên dữ liệu giả (mock/attendance.ts): không page.route, không gọi /api.
@@ -243,6 +244,26 @@ test('a grid cell that turns into a plain span hands focus to the nearest cell i
   await expect(page.getByRole('img', { name: 'Ngô Gia Bảo, Chủ nhật 01/11: không có ca' })).toBeVisible();
   await expect(cellOf(page, /^Ngô Gia Bảo, Thứ Bảy 31\/10:/)).toBeFocused();
   await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+});
+
+test('design index entries for the attendance screens open real mock data', async ({ page }) => {
+  const entry = (file: string) => entries.find(e => e.file === file)!.to;
+  await page.goto(entry('cham-cong.html'));
+  await expect(rowsOf(page)).toHaveCount(11);
+
+  await page.goto(entry('dlg-cc-chi-tiet-ngay.html'));
+  await expect(dialogOf(page)).toHaveAccessibleName('Lê Hoàng Nam · Thứ Ba 27/10/2026');
+
+  await page.goto(entry('drw-thong-bao.html'));
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
+
+  await page.goto(entry('cc-ho-so.html'));
+  await expect(page.getByRole('heading', { name: 'Lê Hoàng Nam', level: 2 })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Các ngày tháng 10' })).toBeVisible();
+
+  for (const e of entries.filter(e => /^(cham-cong|cc-)/.test(e.file) || /(chi-tiet-ngay|thong-bao)/.test(e.file))) {
+    expect(e.to, e.file).toContain('thang=2026-10');
+  }
 });
 
 test('deciding an item already handled elsewhere warns instead of confirming', async ({ page }) => {
