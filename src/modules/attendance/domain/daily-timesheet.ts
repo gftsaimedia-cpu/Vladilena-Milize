@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { toDateText } from '../../../common/date-text';
 import { WorkMetrics, WorkMetricsDTO } from './work-metrics';
 import { PunchEvent } from './punch-event';
 import { WorkSchedule, ShiftType, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
@@ -582,16 +583,7 @@ export class DailyTimesheet {
       throw new Error('Dữ liệu row DailyTimesheet không hợp lệ');
     }
 
-    const rawDate = row.work_date as any;
-    let workDate = String(rawDate || '');
-    if (rawDate instanceof Date) {
-      const y = rawDate.getUTCFullYear();
-      const m = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(rawDate.getUTCDate()).padStart(2, '0');
-      workDate = `${y}-${m}-${d}`;
-    } else if (workDate.length > 10) {
-      workDate = workDate.slice(0, 10);
-    }
+    const workDate = toDateText((row.work_date as string | Date) || '');
 
     return new DailyTimesheet({
       id: row.id,

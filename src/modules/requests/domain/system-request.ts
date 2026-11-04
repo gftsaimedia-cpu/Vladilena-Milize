@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { toDateText } from '../../../common/date-text';
 import {
   RequestType,
   RequestStatus,
@@ -517,17 +518,7 @@ export class SystemRequest {
       return isNaN(d.getTime()) ? null : d;
     };
 
-    const formatDateStr = (val: any): string | null => {
-      if (!val) return null;
-      if (val instanceof Date) {
-        const y = val.getUTCFullYear();
-        const m = String(val.getUTCMonth() + 1).padStart(2, '0');
-        const d = String(val.getUTCDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      }
-      const s = String(val);
-      return s.length > 10 ? s.slice(0, 10) : s;
-    };
+    const formatDateStr = (val: any): string | null => (val ? toDateText(val) : null);
 
     let advanceAmount: bigint | number | null = null;
     const rawAdv = row.advance_amount ?? row.advanceAmount;

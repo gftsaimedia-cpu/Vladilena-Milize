@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { toDateText } from '../../../common/date-text';
 
 export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT' | 'CUSTOM';
 export type ScheduleType = 'REGULAR' | 'SHIFT_CHANGE' | 'MAKE_UP' | 'OVERTIME' | 'ISAT';
@@ -240,16 +241,7 @@ export class WorkSchedule {
   }
 
   static fromRow(row: WorkScheduleRow): WorkSchedule {
-    const rawDate = row.work_date as any;
-    let workDate = String(rawDate || '');
-    if (rawDate instanceof Date) {
-      const y = rawDate.getUTCFullYear();
-      const m = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(rawDate.getUTCDate()).padStart(2, '0');
-      workDate = `${y}-${m}-${d}`;
-    } else if (workDate.length > 10) {
-      workDate = workDate.slice(0, 10);
-    }
+    const workDate = toDateText((row.work_date as string | Date) || '');
 
     return new WorkSchedule({
       id: row.id,
