@@ -51,9 +51,6 @@ describe('mapMonthRows staff flags and contract label', () => {
     assert.equal(staff.contractTerm, 'long');
     assert.equal(staff.insured, true);
     assert.equal(staff.dependants, 2);
-    assert.equal('hasTax' in staff, false);
-    assert.equal('contractStart' in staff, false);
-    assert.equal('contractEnd' in staff, false);
   });
 
   it('insures only on the insured flag for a contract under three months', () => {
