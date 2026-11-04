@@ -156,6 +156,7 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
 }
 .wk-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }

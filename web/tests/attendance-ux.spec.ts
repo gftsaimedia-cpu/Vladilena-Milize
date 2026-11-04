@@ -148,6 +148,16 @@ test('phone keeps the labelled filters inside the viewport', async ({ page }) =>
   await expect(rowsOf(page)).toContainText('Đỗ Mai Linh');
 });
 
+test('phone keeps all four week buttons inside the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/admin/cham-cong');
+  for (const name of ['Tuần trước', 'Tuần sau', 'Hôm nay']) {
+    const box = await page.getByRole('button', { name }).boundingBox();
+    expect(box!.x, name).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width, name).toBeLessThanOrEqual(375);
+  }
+});
+
 test('pending tab lists every day to handle in date order', async ({ page }) => {
   await page.goto('/admin/cham-cong');
   await pendingTab(page).click();
