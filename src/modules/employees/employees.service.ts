@@ -17,7 +17,7 @@ import {
 } from './domain';
 
 const SALT_BYTES = 16;
-const KEY_BYTES = 32;
+const KEY_BYTES = 64;
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(SALT_BYTES).toString('hex');
@@ -30,8 +30,8 @@ export function verifyPassword(password: string, stored: string): boolean {
   const parts = stored.split('$');
   if (parts.length !== 3) return false;
   const [, salt, hash] = parts;
-  const got = crypto.scryptSync(password, salt, KEY_BYTES);
   const want = Buffer.from(hash, 'hex');
+  const got = crypto.scryptSync(password, salt, want.length || KEY_BYTES);
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
