@@ -1,11 +1,12 @@
 <script setup lang="ts">
 // Bảng lương (board G) trên dữ liệu giả: tiêu đề, dải các bước, bốn ô số, rồi thẻ bảng gồm hàng công cụ, bảng và chân thẻ.
 // Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
-import type { PayrollLine, PayrollScreen, PayrollStatus } from '@/mock/payroll';
-import { getPayroll } from '@/services/admin-payroll';
+import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
+import { getPayroll, getPayslip } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { foldText, monthShort } from '@/utils/format';
 import { monthNo } from '@/views/admin/requests/helpers';
@@ -13,6 +14,7 @@ import { downloadCsv, payrollCsv } from './payrollCsv';
 import PayTable from './parts/PayTable.vue';
 import PayTiles from './parts/PayTiles.vue';
 import PayToolbar from './parts/PayToolbar.vue';
+import PayslipDrawer from './payslip/PayslipDrawer.vue';
 
 const period = usePeriodStore();
 const { data: loaded } = useLoad(
@@ -42,6 +44,50 @@ const picked = computed(() => shown.value.filter(l => selected.value.includes(l.
 const exportCsv = () =>
   downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(picked.value.length ? picked.value : shown.value));
 const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
+
+// Phiếu đang mở nằm trên đường dẫn (?phieu=<mã nhân viên>). Mã không có phiếu thì bỏ khỏi đường dẫn, không báo lỗi.
+const route = useRoute();
+const router = useRouter();
+const slipId = computed(() => (typeof route.query.phieu === 'string' ? route.query.phieu : ''));
+const withSlip = (id: string) => {
+  const { phieu: _drop, ...rest } = route.query;
+  return { path: route.path, query: id ? { ...rest, phieu: id } : rest };
+};
+const slip = ref<Payslip | null>(null);
+watch(
+  [() => period.month, slipId],
+  async ([month, id]) => {
+    if (!id) {
+      slip.value = null;
+      return;
+    }
+    const found = await getPayslip(month, id);
+    // Đường dẫn đã sang phiếu khác trong lúc chờ: bỏ kết quả cũ. Phiếu cũ vẫn hiện tới khi phiếu mới về, nên ngăn kéo không chớp.
+    if (id !== slipId.value || month !== period.month) return;
+    if (found) slip.value = found;
+    else {
+      slip.value = null;
+      router.replace(withSlip(''));
+    }
+  },
+  { immediate: true }
+);
+
+// Nút Phiếu trước / sau đi trong các dòng đang hiện lúc mở phiếu, theo thứ tự bảng. Chốt một lần: đổi lọc hay đổi trạng
+// thái phiếu sau đó không đổi danh sách này.
+const navIds = ref<string[]>([]);
+watch(
+  [slipId, board],
+  () => {
+    if (!slipId.value) navIds.value = [];
+    else if (board.value && !navIds.value.includes(slipId.value)) navIds.value = shown.value.map(l => l.id);
+  },
+  { immediate: true }
+);
+const at = computed(() => navIds.value.indexOf(slipId.value));
+const hasPrev = computed(() => at.value > 0);
+const hasNext = computed(() => at.value >= 0 && at.value < navIds.value.length - 1);
+const go = (id: string) => router.replace(withSlip(id));
 </script>
 
 <template>
@@ -74,7 +120,7 @@ const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
           :selected-count="picked.length"
           @export="exportCsv"
         />
-        <PayTable v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" />
+        <PayTable v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
         <div class="foot">
           <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
@@ -82,6 +128,17 @@ const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
         </div>
       </section>
     </template>
+
+    <PayslipDrawer
+      v-if="slip && board"
+      :slip="slip"
+      :month="board.month"
+      :has-prev="hasPrev"
+      :has-next="hasNext"
+      @close="go('')"
+      @prev="go(navIds[at - 1])"
+      @next="go(navIds[at + 1])"
+    />
   </div>
 </template>
 

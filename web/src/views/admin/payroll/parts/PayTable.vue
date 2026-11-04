@@ -5,10 +5,11 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import type { PayrollLine } from '@/mock/payroll';
 import { vnd } from '@/utils/format';
-import { STATUS_LABEL } from '../payrollCsv';
 import { useDragScroll } from '../useDragScroll';
+import StatusPill from './StatusPill.vue';
 
-const props = defineProps<{ lines: PayrollLine[]; month: number }>();
+// openId: mã phiếu đang mở trong ngăn kéo; dòng đó đổi nền và gạch chân tên.
+const props = defineProps<{ lines: PayrollLine[]; month: number; openId: string }>();
 // Mã phiếu đã tích; chỉ dùng cho nút xuất (spec 3.4), dòng được tích không đổi nền.
 const selected = defineModel<string[]>('selected', { required: true });
 
@@ -79,7 +80,7 @@ const total = computed(() => ({
           </tr>
         </thead>
         <tbody>
-          <tr v-for="line in lines" :key="line.id">
+          <tr v-for="line in lines" :key="line.id" :class="{ open: line.id === openId }">
             <th scope="row" class="who">
               <span class="cell">
                 <input v-model="selected" type="checkbox" class="pk" :value="line.id" :aria-label="`Chọn phiếu của ${line.name}`" />
@@ -107,7 +108,7 @@ const total = computed(() => ({
             <td class="m ded">{{ money(line.advance) }}</td>
             <td class="m net">{{ money(line.net) }}</td>
             <td class="st">
-              <span class="pill" :class="`st-${line.status}`">{{ STATUS_LABEL[line.status] }}</span>
+              <StatusPill :status="line.status" />
             </td>
           </tr>
         </tbody>
@@ -279,6 +280,14 @@ const total = computed(() => ({
 .nn:hover {
   text-decoration: underline;
 }
+/* Dòng đang mở ở ngăn kéo: nền vàng nhạt trên mọi ô (thắng cả nền ô khấu trừ), tên gạch chân. */
+.tp tbody tr.open > th,
+.tp tbody tr.open > td {
+  background: var(--gold-pale);
+}
+.tp tr.open .nn {
+  text-decoration: underline;
+}
 .dp {
   font-size: 12px;
   line-height: 16px;
@@ -313,32 +322,6 @@ const total = computed(() => ({
 :root[data-density='gon'] .tp tbody th.who,
 :root[data-density='gon'] .tp tfoot th.who {
   height: 42px;
-}
-.pill {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: var(--r-pill);
-  font-size: 12px;
-  line-height: 16px;
-  font-weight: 500;
-}
-.pill.st-draft {
-  background: var(--status-draft);
-  color: var(--text);
-}
-.pill.st-pending {
-  background: var(--status-pending);
-  color: var(--text);
-}
-.pill.st-done {
-  background: var(--status-done);
-  color: #fff;
-}
-.pill.st-rejected {
-  background: var(--status-rejected);
-  color: #fff;
 }
 .none {
   margin: 0;

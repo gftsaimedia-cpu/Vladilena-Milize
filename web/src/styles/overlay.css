@@ -284,3 +284,45 @@
 .dlg-h .x {
   border: 0;
 }
+
+/* Ngăn kéo nổi (AppDrawer floating): thẻ cách mép trên, phải, dưới 16px, rộng 540, bo 24px, không đổ bóng.
+   Đầu dính trên, chân dính dưới, phần giữa cuộn. Chỉ có luật dưới .drw.floating, các ngăn kéo khác không đổi. */
+.drw.floating {
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: 540px;
+  max-width: calc(100% - 32px);
+  border-radius: 24px;
+  box-shadow: none;
+}
+.drw.floating > .drw-h {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  align-items: center;
+  padding: 16px 16px 12px 24px;
+  background: var(--surface);
+}
+.drw.floating > .drw-h > div {
+  flex: 1;
+  min-width: 0;
+}
+.drw.floating > .drw-h .x {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border: 0;
+  color: var(--muted);
+}
+.drw.floating > .drw-f {
+  background: var(--surface);
+}
+@media (max-width: 767px) {
+  .drw.floating {
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: none;
+  }
+}

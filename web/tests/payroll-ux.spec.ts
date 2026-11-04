@@ -226,3 +226,73 @@ test('csv quotes cells holding ; " or a line break', () => {
   } as unknown as PayrollLine;
   expect(payrollCsv([line]).split('\r\n')[1]).toBe('GFT-9;"A;B";"Có ""ngoặc""";"Dòng 1\nDòng 2";1;0;0;0;0;0;0;0;0;0;0;Nháp');
 });
+
+// Phiếu lương (board H): ngăn kéo nổi mở bằng ?phieu=<mã nhân viên>.
+const slip = (page: Page, name: string) => page.getByRole('dialog', { name: `Phiếu lương của ${name}` });
+const line = (dialog: ReturnType<typeof slip>, label: RegExp) => dialog.getByRole('row', { name: label });
+const openSlip = (page: Page, name: string) => table(page).getByRole('link', { name, exact: true }).click();
+
+test('clicking a name opens that payslip', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Lê Hoàng Nam');
+  await expect(page).toHaveURL(/phieu=GFT-0142/);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await expect(d).toContainText('Phiếu lương tháng 10/2026');
+  await expect(d).toContainText('Kinh doanh · Nhân viên kinh doanh · GFT-0142');
+  await expect(d).toContainText('NV · Bậc 2');
+  await expect(d).toContainText('HĐLĐ từ 3 tháng');
+  await expect(d.getByRole('img', { name: 'Chấm công tháng 10: 24 ngày công, 1 phép, 1 iSAT, 1 chờ giải trình, 0 không lương' })).toBeVisible();
+  await expect(d.getByRole('link', { name: /Xem từng ngày/ })).toHaveAttribute('href', '/admin/cham-cong?thang=2026-10');
+  await expect(line(d, /^Chờ giải trình/)).toContainText('27/10 · tạm tính 0 đ tới khi duyệt');
+  await expect(line(d, /^Tổng điểm KPI/)).toContainText('66,14%');
+  await expect(line(d, /^Lương KPI \(đề xuất/)).toContainText('2.000.000');
+  await expect(line(d, /^Lương KPI \(đề xuất/)).toContainText('1.322.800');
+  await expect(line(d, /^Giờ và tiền bị trừ/)).toContainText('Đi muộn 12 phút, không quá 15 phút nên không trừ');
+  await expect(line(d, /^Thuế TNCN/)).toContainText('Lũy tiến · 0 người phụ thuộc');
+  await expect(line(d, /^Thực nhận/)).toContainText('14.278.183 ₫');
+  await expect(d).toContainText('11 ngày');
+  await expect(row(page, 'Lê Hoàng Nam').locator('th.who')).toHaveCSS('background-color', 'rgb(255, 249, 236)');
+  await page.keyboard.press('Escape');
+  await expect(d).toHaveCount(0);
+  await expect(page).toHaveURL(URL10);
+});
+
+test('previous and next walk the rows shown when the slip opened', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Lê Hoàng Nam');
+  await slip(page, 'Lê Hoàng Nam').getByRole('button', { name: 'Phiếu sau' }).click();
+  await expect(page).toHaveURL(/phieu=GFT-0117/);
+  await slip(page, 'Phạm Ngọc Anh').getByRole('button', { name: 'Đóng' }).click();
+  await openSlip(page, 'Nguyễn Thu Hà');
+  await expect(slip(page, 'Nguyễn Thu Hà').getByRole('button', { name: 'Phiếu trước' })).toBeDisabled();
+  await slip(page, 'Nguyễn Thu Hà').getByRole('button', { name: 'Đóng' }).click();
+  await filters(page).getByRole('button', { name: /^Chờ duyệt/ }).click();
+  await openSlip(page, 'Ngô Gia Bảo');
+  await expect(slip(page, 'Ngô Gia Bảo').getByRole('button', { name: 'Phiếu sau' })).toBeDisabled();
+  await slip(page, 'Ngô Gia Bảo').getByRole('button', { name: 'Phiếu trước' }).click();
+  await expect(slip(page, 'Trịnh Văn Long')).toBeVisible();
+});
+
+test('floating drawer: rounded, no shadow, 540px; 16px margins at 375px', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await expect(d).toHaveCSS('border-radius', '24px');
+  await expect(d).toHaveCSS('box-shadow', 'none');
+  expect(Math.round((await d.boundingBox())!.width)).toBe(540);
+  await page.setViewportSize({ width: 375, height: 812 });
+  const b = (await d.boundingBox())!;
+  expect([Math.round(b.x), Math.round(b.width)]).toEqual([16, 343]);
+});
+
+test('a stale phieu link opens nothing and is dropped', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-9999`);
+  await expect(rows(page)).toHaveCount(10);
+  await expect(page).toHaveURL(URL10);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Tháng trước' }).click();
+  await expect(page.getByText('Bản mockup chỉ có bảng lương tháng 10/2026.')).toBeVisible();
+  await page.goto('/admin/bang-luong?thang=2026-09&phieu=GFT-0142');
+  await expect(page.getByText('Bản mockup chỉ có bảng lương tháng 10/2026.')).toBeVisible();
+  await expect(page).toHaveURL('/admin/bang-luong?thang=2026-09');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});

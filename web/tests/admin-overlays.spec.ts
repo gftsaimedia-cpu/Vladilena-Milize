@@ -23,6 +23,19 @@ test.describe('admin overlays', () => {
     }
   });
 
+  test('a drawer without floating keeps its inline width, full height and shadow', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/tests/fixtures/admin-overlays.html');
+    await page.getByRole('button', { name: 'Open modal' }).click();
+    await page.getByRole('button', { name: 'Open drawer' }).click();
+    const drawer = page.getByRole('dialog', { name: 'Inner drawer' });
+    await expect(drawer).toBeVisible();
+    const b = (await drawer.boundingBox())!;
+    expect([Math.round(b.x + b.width), Math.round(b.y), Math.round(b.width), Math.round(b.height)]).toEqual([1440, 0, 960, 900]);
+    await expect(drawer).toHaveCSS('border-top-left-radius', '0px');
+    await expect(drawer).not.toHaveCSS('box-shadow', 'none');
+  });
+
   test('focuses the top overlay, traps Tab, and restores focus through nested close', async ({ page }) => {
     await page.goto('/tests/fixtures/admin-overlays.html');
     const modalOpener = page.getByRole('button', { name: 'Open modal' });
