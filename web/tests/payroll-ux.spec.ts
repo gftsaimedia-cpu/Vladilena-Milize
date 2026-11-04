@@ -296,3 +296,51 @@ test('a stale phieu link opens nothing and is dropped', async ({ page }) => {
   await expect(page).toHaveURL('/admin/bang-luong?thang=2026-09');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 });
+
+test('payslip opens with focus on Đóng and Tab still reaches the arrows', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  await expect(d.getByRole('button', { name: 'Đóng' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(d.getByRole('button', { name: 'Phiếu sau' })).toBeFocused();
+});
+
+test('summary rows are 35px in both densities, groups 12px apart, labels inset 8px', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const unpaid = line(d, /^Nghỉ không lương/);
+  const heights = async () => [Math.round((await unpaid.boundingBox())!.height), Math.round((await line(d, /^Các khoản miễn thuế/).boundingBox())!.height)];
+  expect(await heights()).toEqual([35, 35]);
+  // Mật độ Rộng (không có data-density): luật chung 56px không được chạm vào bảng phiếu.
+  await page.evaluate(() => delete document.documentElement.dataset.density);
+  expect(await heights()).toEqual([35, 35]);
+  const title = (name: RegExp) => d.getByRole('row', { name }).first().boundingBox();
+  const first = (await title(/^Ngày công và lương cơ bản/))!;
+  const second = (await title(/^Nghỉ phép và ngày lễ/))!;
+  expect(Math.round(second.height - first.height)).toBe(12);
+  await expect(unpaid.locator('th')).toHaveCSS('padding-left', '8px');
+  await expect(d.getByRole('columnheader', { name: 'Nghỉ phép và ngày lễ' })).toHaveCSS('padding-left', '8px');
+});
+
+// SlipSummary gắn riêng (fixtures/slip-summary.html): nội dung Task 5 chưa có, nên thử bằng slot dấu.
+const SUMMARY = '/tests/fixtures/slip-summary.html';
+const kpiGroup = (page: Page) =>
+  page.locator('tbody', { has: page.getByRole('columnheader', { name: 'Lương KPI', exact: true }) }).locator('tr');
+
+test('KPI group order: score cells first, then total, flag, pay, then history', async ({ page }) => {
+  await page.goto(`${SUMMARY}?slots=1&id=GFT-0063`);
+  const texts = await kpiGroup(page).evaluateAll(trs => trs.map(tr => (tr.textContent ?? '').replace(/\s+/g, ' ').trim()));
+  expect(texts).toHaveLength(6);
+  expect(texts[0]).toBe('Lương KPI');
+  expect(texts[1]).toBe('SLOT-KPI');
+  expect(texts[2]).toMatch(/^Tổng điểm KPI/);
+  expect(texts[3]).toMatch(/^Thiếu điểm Tự đánh giá/);
+  expect(texts[4]).toMatch(/^Lương KPI \(đề xuất/);
+  expect(texts[5]).toBe('SLOT-HISTORY');
+});
+
+test('KPI group renders no slot rows when the slots are empty', async ({ page }) => {
+  await page.goto(`${SUMMARY}?id=GFT-0142`);
+  await expect(kpiGroup(page)).toHaveCount(3);
+  await expect(page.getByText('SLOT-KPI')).toHaveCount(0);
+});

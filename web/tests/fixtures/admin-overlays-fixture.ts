@@ -4,13 +4,15 @@ import AppModal from '../../src/components/ui/AppModal.vue';
 import '../../src/styles/base.css';
 import '../../src/styles/overlay.css';
 
+const DRAWER_WIDTH = 960;
+
 const App = defineComponent({
   setup() {
     const modalOpen = ref(false);
     const drawerOpen = ref(false);
     const lockedModalOpen = ref(false);
     return () =>
-      h('main', [
+      h('main', { 'data-drawer-width': DRAWER_WIDTH }, [
         h('button', { id: 'open-modal', onClick: () => (modalOpen.value = true) }, 'Open modal'),
         h('button', { id: 'open-locked-modal', onClick: () => (lockedModalOpen.value = true) }, 'Open locked modal'),
         modalOpen.value
@@ -25,7 +27,7 @@ const App = defineComponent({
                   drawerOpen.value
                     ? h(
                         AppDrawer,
-                        { title: 'Inner drawer', width: 960, onClose: () => (drawerOpen.value = false) },
+                        { title: 'Inner drawer', width: DRAWER_WIDTH, onClose: () => (drawerOpen.value = false) },
                         {
                           default: () => [
                             h('button', { id: 'drawer-action' }, 'Drawer action'),

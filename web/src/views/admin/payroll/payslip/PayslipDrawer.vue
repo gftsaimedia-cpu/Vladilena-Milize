@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Phiếu lương một người (board H): ngăn kéo nổi gồm đầu phiếu, định danh, chấm công tháng và bảng Tổng hợp lương.
 // Đợt này chỉ để xem; chấm điểm KPI và duyệt / từ chối thêm ở các đợt sau (slot kpi, history của SlipSummary).
+import { onMounted, ref } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import type { Payslip } from '@/mock/payroll';
@@ -11,12 +12,17 @@ import SlipSummary from './SlipSummary.vue';
 
 defineProps<{ slip: Payslip; month: string; hasPrev: boolean; hasNext: boolean }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
+
+// AppDrawer đặt tiêu điểm vào ô bấm được đầu tiên, ở đây là mũi tên Phiếu trước, mà mũi tên đó có thể bị tắt ở đầu danh sách.
+// Như các ngăn kéo khác, tiêu điểm đầu vào nút Đóng; Tab và Shift+Tab vẫn tới hai mũi tên. Phần tử này mount sau AppDrawer.
+const head = ref<HTMLElement | null>(null);
+onMounted(() => head.value?.closest('.drw')?.querySelector<HTMLElement>('.drw-h .x')?.focus());
 </script>
 
 <template>
   <AppDrawer :title="`Phiếu lương của ${slip.name}`" floating @close="emit('close')">
     <template #head>
-      <div class="pd-head">
+      <div ref="head" class="pd-head">
         <h2>Phiếu lương tháng {{ monthShort(month) }}</h2>
         <button type="button" class="pd-ib" aria-label="Phiếu trước" :disabled="!hasPrev" @click="emit('prev')">
           <Icon name="chevl" />

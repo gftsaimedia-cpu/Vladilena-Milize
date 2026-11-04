@@ -30,8 +30,12 @@ test.describe('admin overlays', () => {
     await page.getByRole('button', { name: 'Open drawer' }).click();
     const drawer = page.getByRole('dialog', { name: 'Inner drawer' });
     await expect(drawer).toBeVisible();
+    // Bề rộng truyền cho AppDrawer là hằng của fixture, đọc ra từ trang.
+    const drawerWidth = Number(await page.locator('main').getAttribute('data-drawer-width'));
+    expect(drawerWidth).toBeGreaterThan(0);
+    await expect(drawer).not.toHaveClass(/floating/);
     const b = (await drawer.boundingBox())!;
-    expect([Math.round(b.x + b.width), Math.round(b.y), Math.round(b.width), Math.round(b.height)]).toEqual([1440, 0, 960, 900]);
+    expect([Math.round(b.x + b.width), Math.round(b.y), Math.round(b.width), Math.round(b.height)]).toEqual([1440, 0, drawerWidth, 900]);
     await expect(drawer).toHaveCSS('border-top-left-radius', '0px');
     await expect(drawer).not.toHaveCSS('box-shadow', 'none');
   });

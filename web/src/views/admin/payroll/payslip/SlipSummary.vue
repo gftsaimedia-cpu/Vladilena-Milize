@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Bảng Tổng hợp lương của phiếu (spec 4.3): nhóm khoản, phần tổng, dải Thực nhận.
-// Slot `kpi` (5 ô điểm) và `history` (lịch sử sửa điểm) nằm trong nhóm LƯƠNG KPI; Task 5 đổ nội dung vào.
+// Nhóm LƯƠNG KPI đọc từ trên xuống: slot `kpi` (5 ô điểm), Tổng điểm, cờ thiếu điểm, Lương KPI, slot `history`.
+// Hai slot chỉ có dòng khi được đổ nội dung (Task 5).
 import { computed } from 'vue';
 import { KPI_LABELS, type Payslip } from '@/mock/payroll';
 import { num, vnd } from '@/utils/format';
@@ -10,7 +11,8 @@ const props = defineProps<{ slip: Payslip; month: string }>();
 
 // Một dòng: nhãn, dòng phụ, ô "theo quy chế", ô "thực tế". dot: chấm cam; strong: dòng đậm.
 type Row = { label: string; sub?: string; rule?: string; actual?: string; dot?: boolean; strong?: boolean };
-type Group = { id: string; title: string; rows: Row[] };
+// lead / trail: tên slot đặt ngay sau dải tiêu đề nhóm / sau dòng cuối của nhóm.
+type Group = { id: string; title: string; rows: Row[]; lead?: 'kpi'; trail?: 'history' };
 
 const money = (n: number) => vnd(n);
 const cut = (n: number) => (n === 0 ? '0' : `−${vnd(n)}`);
@@ -68,6 +70,8 @@ const groups = computed<Group[]>(() => {
     {
       id: 'kpi',
       title: 'Lương KPI',
+      lead: 'kpi',
+      trail: 'history',
       rows: [
         { label: 'Tổng điểm KPI', actual: `${num(c.kpiPercent)}%` },
         ...(missing.length ? [{ label: `Thiếu điểm ${missing.join(', ')}`, sub: 'Cột thiếu tính 0 điểm', dot: true }] : []),
@@ -121,21 +125,19 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
         <tr>
           <th colspan="3" scope="colgroup" class="gt">{{ g.title }}</th>
         </tr>
-        <template v-for="r in g.rows" :key="r.label">
-          <tr :class="{ strong: r.strong }">
-            <th scope="row" class="lb">
-              <i v-if="r.dot" class="dot" aria-hidden="true" />{{ r.label }}
-              <span v-if="r.sub" class="sub">{{ r.sub }}</span>
-            </th>
-            <td :class="zero(r.rule)">{{ r.rule }}</td>
-            <td :class="zero(r.actual)">{{ r.actual }}</td>
-          </tr>
-          <tr v-if="g.id === 'kpi' && r.label === 'Tổng điểm KPI' && $slots.kpi" class="slot">
-            <td colspan="3"><slot name="kpi" /></td>
-          </tr>
-        </template>
-        <tr v-if="g.id === 'kpi' && $slots.history" class="slot">
-          <td colspan="3"><slot name="history" /></td>
+        <tr v-if="g.lead && $slots[g.lead]" class="slot">
+          <td colspan="3"><slot :name="g.lead" /></td>
+        </tr>
+        <tr v-for="r in g.rows" :key="r.label" :class="{ strong: r.strong }">
+          <th scope="row" class="lb">
+            <i v-if="r.dot" class="dot" aria-hidden="true" />{{ r.label }}
+            <span v-if="r.sub" class="sub">{{ r.sub }}</span>
+          </th>
+          <td :class="zero(r.rule)">{{ r.rule }}</td>
+          <td :class="zero(r.actual)">{{ r.actual }}</td>
+        </tr>
+        <tr v-if="g.trail && $slots[g.trail]" class="slot">
+          <td colspan="3"><slot :name="g.trail" /></td>
         </tr>
       </tbody>
       <tbody class="tot">
@@ -184,7 +186,9 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
 }
 .ss-t {
   table-layout: fixed;
-  border-collapse: collapse;
+  /* separate: mỗi dòng cao đúng 7 + 20 + 7 + 1 = 35px, không chia đôi viền với dòng bên cạnh. */
+  border-collapse: separate;
+  border-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 .ss-t col.c-rule {
@@ -193,10 +197,15 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
 .ss-t col.c-act {
   width: 104px;
 }
-/* Luật chung của bảng (base.css) đệm 24px hai đầu và nền Gọn ép chiều cao ô; ở đây lề 0 và chiều cao theo nội dung. */
+/* Dòng theo phiếu mẫu: đệm 7px, một dòng chữ 20px, viền dưới 1px = 35px. Luật chung của bảng (base.css) đệm 24px hai đầu,
+   ép td cao 42px (nền Gọn, !important) hoặc 56px (Rộng): `.ss .ss-t` đủ nặng để `height: auto !important` thắng luật Gọn. */
+.ss .ss-t th,
+.ss .ss-t td {
+  height: auto !important;
+}
 .ss-t th,
 .ss-t td {
-  padding: 8px 0;
+  padding: 7px 8px;
   border-bottom: 1px solid var(--border);
   border-top: 0;
   font-size: 14px;
@@ -205,10 +214,9 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
 }
 .ss-t td {
   text-align: right;
-  padding-left: 8px;
 }
 .ss-t thead th {
-  padding: 6px 0;
+  padding: 6px 8px;
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
@@ -225,6 +233,10 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+}
+/* Nhóm thứ hai trở đi cách nhóm trước 12px: đường viền nền surface dày 12px thắng viền dưới của dòng trên. */
+.ss-t tbody:not(:first-of-type) .gt {
+  border-top: 12px solid var(--surface);
 }
 .ss-t .lb {
   font-weight: 400;
@@ -255,10 +267,14 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
   vertical-align: 1px;
 }
 .ss-t tr.slot td {
-  padding: 8px 0;
+  padding: 8px;
   text-align: left;
 }
-/* Phần tổng: đường 2px phía trên, rồi dải Thực nhận. */
+/* Phần tổng: đường 2px phía trên, rồi dải Thực nhận; dòng ngay trên mỗi đường bỏ viền dưới để hai đường không chồng nhau. */
+.ss-t tbody:nth-last-of-type(2) tr:last-child > *,
+.ss-t tbody.tot tr:nth-last-child(3) > * {
+  border-bottom: 0;
+}
 .ss-t tbody.tot tr:first-child > * {
   border-top: 2px solid var(--text);
 }

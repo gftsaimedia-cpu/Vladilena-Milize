@@ -50,7 +50,7 @@ const route = useRoute();
 const router = useRouter();
 const slipId = computed(() => (typeof route.query.phieu === 'string' ? route.query.phieu : ''));
 const withSlip = (id: string) => {
-  const { phieu: _drop, ...rest } = route.query;
+  const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'phieu'));
   return { path: route.path, query: id ? { ...rest, phieu: id } : rest };
 };
 const slip = ref<Payslip | null>(null);
