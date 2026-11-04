@@ -713,3 +713,111 @@ test('keyboard focus ring on a day pill is drawn inside its cell, in a colour th
     expect(r.ring, `${kind} ring differs from the pill colour`).not.toBe(r.fill);
   }
 });
+
+// Cột ngày co giãn theo bề rộng vùng cuộn: bề rộng đo được là số thật, không phải hằng 96.
+const dayWidthOf = (page: Page) => page.locator('thead th.dc').first().evaluate(el => el.getBoundingClientRect().width);
+
+test('on a wide screen the day columns stretch so seven days fill the card', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/admin/cham-cong?thang=2026-10');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await page.evaluate(() => document.fonts.ready);
+  const grid = gridOf(page);
+
+  // Vùng cuộn lấp đầy thẻ, không còn dải trắng bên phải.
+  const gap = await grid.evaluate(el => {
+    const card = el.parentElement!.getBoundingClientRect();
+    return card.right - el.getBoundingClientRect().right;
+  });
+  expect(Math.abs(gap)).toBeLessThan(2);
+
+  const colW = await dayWidthOf(page);
+  expect(colW).toBeGreaterThan(96);
+  expect(colW % 1).toBe(0);
+
+  // Đúng 7 ô tiêu đề ngày nằm trọn trong vùng nhìn thấy (giữa cột tên và cột tổng).
+  const visible = () =>
+    page.evaluate(() => {
+      const nm = document.querySelector('thead th.nm')!.getBoundingClientRect();
+      const s1 = document.querySelector('thead th.s1')!.getBoundingClientRect();
+      const scr = document.querySelector('.scr')!.getBoundingClientRect();
+      return [...document.querySelectorAll('thead th.dc')]
+        .map(th => ({ t: th.querySelector('.wd')!.textContent!.trim().slice(0, 2), r: th.getBoundingClientRect() }))
+        .filter(({ r }) => r.left >= nm.right - 0.5 && r.right <= s1.left + 0.5 && r.left >= scr.left && r.right <= scr.right)
+        .map(({ t }) => t);
+    });
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+  expect(await visible()).toEqual(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']);
+
+  // Tuần sau đi đúng 7 ngày; bảng chạm mép phải vùng cuộn khi cuộn hết.
+  await page.getByRole('button', { name: 'Tuần trước' }).click();
+  await expect(weekLabel(page)).toHaveText('19/10 – 25/10/2026');
+  const before = await scrollLeftOf(page);
+  await page.getByRole('button', { name: 'Tuần sau' }).click();
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+  await expect.poll(() => scrollLeftOf(page)).toBe(before + 7 * colW);
+
+  await grid.focus();
+  await page.keyboard.press('End');
+  await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+  const edge = await page.evaluate(() => {
+    const scr = document.querySelector('.scr')!.getBoundingClientRect();
+    return scr.right - document.querySelector('thead th.s3')!.getBoundingClientRect().right;
+  });
+  expect(Math.abs(edge)).toBeLessThan(2);
+});
+
+for (const width of [1024, 375]) {
+  test(`day columns stay 96px at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/admin/cham-cong?thang=2026-10');
+    await expect(rowsOf(page)).toHaveCount(11);
+    await page.evaluate(() => document.fonts.ready);
+    expect(await dayWidthOf(page)).toBe(96);
+    await expect.poll(() => scrollLeftOf(page)).toBe(14 * 96);
+  });
+}
+
+test('resizing keeps the week in view, re-snaps to a column and never writes the URL', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await page.goto('/admin/cham-cong?thang=2026-10');
+  await expect(rowsOf(page)).toHaveCount(11);
+  const wide = await dayWidthOf(page);
+  await expect.poll(() => scrollLeftOf(page)).toBe(14 * wide);
+
+  // Đổi cỡ khi chưa rời tuần hôm nay: không ghi ?tuan.
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect.poll(async () => (await dayWidthOf(page)) !== wide).toBe(true);
+  const mid = await dayWidthOf(page);
+  await expect.poll(() => scrollLeftOf(page)).toBe(14 * mid);
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+  await page.waitForTimeout(300);
+  expect(new URL(page.url()).searchParams.has('tuan')).toBe(false);
+
+  // Về tuần 12/10 rồi đổi cỡ: nhãn vẫn là 12/10 và vẫn nằm đúng cột.
+  await page.setViewportSize({ width: 1600, height: 900 });
+  await expect.poll(async () => await dayWidthOf(page)).toBe(wide);
+  await gridOf(page).focus();
+  await page.keyboard.press('Home');
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await expect.poll(async () => await dayWidthOf(page)).toBe(mid);
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await expect.poll(() => scrollLeftOf(page)).toBe(0);
+});
+
+test('a name opened right after the grid scrolled still reaches the profile while its page is loading', async ({ page }) => {
+  // Trang hồ sơ nạp chậm: lần ghi ?tuan (120ms sau cú cuộn) rơi vào lúc điều hướng còn dở và không được huỷ nó.
+  await page.route('**/AttendanceEmployeeView.vue*', async route => {
+    await new Promise(resolve => setTimeout(resolve, 600));
+    await route.continue();
+  });
+  await page.goto('/admin/cham-cong?thang=2026-10');
+  await settleWeek(page);
+  await gridOf(page).evaluate(async el => {
+    el.scrollLeft -= 3 * 96;
+    await new Promise(resolve => setTimeout(resolve, 40));
+    (el.querySelector('tbody th.nm a') as HTMLElement).click();
+  });
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/nguyen-thu-ha/);
+});

@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Lưới chấm công 28 ngày: nhãn tuần, chú giải màu kèm số ô trong tuần đang xem, bảng cuộn ngang (cột tên và 3 cột tổng dính).
 // Lúc mở cuộn tới tuần hôm nay (26/10); `start` là chỉ số ngày đầu tuần đang xem. Kéo, phím và nút tuần nằm trong useGridScroll.
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { GROUPS, type AttendanceDay, type AttendanceRow } from '@/mock/attendance';
 import { dm, dmy, weekdayName } from '@/utils/format';
 import { employeePath } from '../links';
-import { COL, MAX_START, TODAY_LEFT, useGridScroll } from '../useGridScroll';
+import { MAX_START, TODAY_START, useGridScroll } from '../useGridScroll';
 
 const props = defineProps<{ days: AttendanceDay[]; rows: AttendanceRow[]; monthNo: number }>();
 const emit = defineEmits<{ 'open-day': [personId: string, date: string] }>();
@@ -19,7 +19,6 @@ const scroller = ref<HTMLElement | null>(null);
 // vẫn về đúng tuần. Mở lại thì kẹp vào biên lưới; giá trị hỏng hoặc không có thì mở ở tuần hôm nay.
 const DAY_MS = 86_400_000;
 const ISO = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/;
-const TODAY_START = Math.round(TODAY_LEFT / COL);
 const tuan = () => (typeof route.query.tuan === 'string' ? route.query.tuan : '');
 function startFromUrl() {
   const m = ISO.exec(tuan());
@@ -30,9 +29,25 @@ function startFromUrl() {
   const gap = Math.round((at - Date.UTC(+first[1], +first[2] - 1, +first[3])) / DAY_MS);
   return Math.min(Math.max(gap, 0), MAX_START);
 }
+// Có điều hướng khác đang dở (bấm tên sang hồ sơ khi trang đích còn đang nạp): router.replace của ta sẽ huỷ nó, nên bỏ qua lần ghi.
+// Điều hướng do chính ta gây ra (`writing`) không tính. afterEach chạy cả khi điều hướng bị huỷ hoặc lỗi nên cờ luôn được hạ.
+let navigating = false;
+let writing = false;
+const offBefore = router.beforeEach(() => {
+  if (!writing) navigating = true;
+});
+const offAfter = router.afterEach(() => {
+  navigating = false;
+  writing = false;
+});
+onBeforeUnmount(() => {
+  offBefore();
+  offAfter();
+});
 function remember(at: number) {
   const iso = props.days[at]?.iso;
-  if (!iso || iso === tuan() || (!tuan() && at === TODAY_START)) return;
+  if (navigating || !iso || iso === tuan() || (!tuan() && at === TODAY_START)) return;
+  writing = true;
   router.replace({ query: { ...route.query, tuan: iso } });
 }
 const { start, atStart, atEnd, prevWeek, nextWeek, thisWeek } = useGridScroll(scroller, {
@@ -173,7 +188,9 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
   cursor: grabbing;
 }
 .scr {
-  max-width: 1084px; /* 220 + 7 · 96 + 3 · 64: không bao giờ thấy quá 7 ngày */
+  /* Cột tên và cột tổng cố định; --w-day do useGridScroll đo và ghi vào đây để 7 cột ngày vừa khít vùng nhìn (tối thiểu 96px). */
+  --w-nm: 220px;
+  --w-sm: 64px;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   cursor: grab;
@@ -181,7 +198,7 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
   -webkit-user-select: none;
   scrollbar-width: thin;
   scrollbar-color: var(--status-draft) transparent;
-  scroll-padding-left: 220px;
+  scroll-padding-left: var(--w-nm);
   scroll-padding-right: 192px;
   border-top: 1px solid var(--border);
 }
@@ -190,12 +207,9 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
   outline-offset: -2px;
 }
 .tw {
-  /* Bề rộng cột nằm ở ba biến này; bảng rộng đúng tổng của chúng. Để max-content, nội dung ô nở cột ngày khi phông chữ tải xong
-     (97–98px thay vì 96px) nên lúc bắt cột và vị trí tuần hôm nay bị lệch. */
-  --w-nm: 220px;
-  --w-day: 96px;
-  --w-sm: 64px;
-  width: calc(var(--w-nm) + var(--days) * var(--w-day) + 3 * var(--w-sm));
+  /* Bề rộng cột nằm ở ba biến --w-nm, --w-day, --w-sm; bảng rộng đúng tổng của chúng. Để max-content, nội dung ô nở cột ngày khi
+     phông chữ tải xong (97–98px thay vì 96px) nên lúc bắt cột và vị trí tuần hôm nay bị lệch. */
+  width: calc(var(--w-nm) + var(--days) * var(--w-day, 96px) + 3 * var(--w-sm));
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -205,7 +219,7 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
   width: var(--w-nm);
 }
 .tw col.c-day {
-  width: var(--w-day);
+  width: var(--w-day, 96px);
 }
 .tw col.c-sm {
   width: var(--w-sm);
@@ -377,7 +391,7 @@ table.tw .sm {
     padding-left: 16px;
     padding-right: 16px;
   }
-  .tw {
+  .scr {
     --w-nm: 140px;
   }
   table.tw .nm {
