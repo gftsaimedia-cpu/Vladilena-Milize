@@ -16,6 +16,16 @@ const selected = defineModel<string[]>('selected', { required: true });
 const scr = ref<HTMLElement | null>(null);
 useDragScroll(scr);
 
+// PayrollView đưa tiêu điểm về đây khi đóng phiếu (dòng của phiếu đó có thể đã rời bộ lọc).
+defineExpose({
+  focusLink(id: string) {
+    const link = scr.value?.querySelector<HTMLElement>(`a.nn[data-id="${id}"]`);
+    link?.focus();
+    return !!link;
+  },
+  focusRegion: () => scr.value?.focus()
+});
+
 const route = useRoute();
 const slipLink = (line: PayrollLine) => ({ path: route.path, query: { ...route.query, phieu: line.id } });
 
@@ -86,7 +96,7 @@ const total = computed(() => ({
                 <input v-model="selected" type="checkbox" class="pk" :value="line.id" :aria-label="`Chọn phiếu của ${line.name}`" />
                 <span class="av" aria-hidden="true">{{ line.initials }}</span>
                 <span class="id">
-                  <RouterLink :to="slipLink(line)" replace draggable="false" class="nn">{{ line.name }}</RouterLink>
+                  <RouterLink :to="slipLink(line)" replace draggable="false" class="nn" :data-id="line.id">{{ line.name }}</RouterLink>
                   <span class="dp">{{ line.dept }} · {{ line.title }}</span>
                 </span>
               </span>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Bảng lương (board G) trên dữ liệu giả: tiêu đề, dải các bước, bốn ô số, rồi thẻ bảng gồm hàng công cụ, bảng và chân thẻ.
 // Lọc trạng thái, phòng ban và chữ tìm thuộc về màn, không ghi lên đường dẫn.
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -89,6 +89,27 @@ const at = computed(() => navIds.value.indexOf(slipId.value));
 const hasPrev = computed(() => at.value > 0);
 const hasNext = computed(() => at.value >= 0 && at.value < navIds.value.length - 1);
 const go = (id: string) => router.replace(withSlip(id));
+// Đóng ngăn kéo thì tiêu điểm về chỗ đã mở, nhưng chỗ đó có thể không còn: dòng vừa duyệt đã rời bộ lọc, hay đã bước sang
+// phiếu khác bằng mũi tên. Khi tiêu điểm rơi về body (hay về liên kết của phiếu đã mở lúc đầu), đưa nó tới liên kết tên của phiếu
+// vừa xem nếu dòng còn hiện; không thì dòng hiện kế tiếp theo thứ tự lúc mở, rồi dòng hiện trước nó, rồi vùng bảng.
+// Tiêu điểm đã ở chỗ khác thì giữ nguyên.
+const payTable = ref<InstanceType<typeof PayTable> | null>(null);
+async function closeSlip() {
+  const id = slipId.value;
+  const order = [...navIds.value];
+  await go('');
+  await nextTick();
+  const now = document.activeElement;
+  if (now && now !== document.body && !now.classList.contains('nn')) return;
+  const live = new Set(shown.value.map(l => l.id));
+  const at = order.indexOf(id);
+  const target = live.has(id)
+    ? id
+    : at < 0
+      ? undefined
+      : (order.slice(at + 1).find(x => live.has(x)) ?? order.slice(0, at).reverse().find(x => live.has(x)));
+  if (!target || !payTable.value?.focusLink(target)) payTable.value?.focusRegion();
+}
 // Lưu một điểm KPI do màn giữ, không do ngăn kéo: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
 // Lưu xong thì thay phiếu đang mở bằng phiếu mới nếu đang mở đúng phiếu đó (đã đóng thì không mở lại), rồi tải lại bảng.
 const saveScore = async (id: string, part: KpiPart, value: number | null) => {
@@ -134,7 +155,7 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
           :selected-count="picked.length"
           @export="exportCsv"
         />
-        <PayTable v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
+        <PayTable ref="payTable" v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
         <div class="foot">
           <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
@@ -149,7 +170,7 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
       :month="board.month"
       :has-prev="hasPrev"
       :has-next="hasNext"
-      @close="go('')"
+      @close="closeSlip"
       :save="saveScore"
       :decide="decide"
       @prev="go(navIds[at - 1])"

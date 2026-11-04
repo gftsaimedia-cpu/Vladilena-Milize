@@ -637,3 +637,44 @@ test('while a decision is in flight the buttons are disabled, then focus lands o
   await expect(nam.getByRole('status')).toHaveText('Đã duyệt phiếu lương của Lê Hoàng Nam.');
   await expect(nam.getByRole('status')).toBeFocused();
 });
+
+const nameLink = (page: Page, name: string) => table(page).getByRole('link', { name, exact: true });
+
+test('after approving in a filtered list, closing puts focus on the next pending row', async ({ page }) => {
+  await page.goto(URL10);
+  await filters(page).getByRole('button', { name: /^Chờ duyệt/ }).click();
+  await nameLink(page, 'Lê Hoàng Nam').focus();
+  await page.keyboard.press('Enter');
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await nam.getByRole('button', { name: 'Duyệt phiếu' }).click();
+  await expect(nam.getByRole('status')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(nam).toHaveCount(0);
+  await expect(rows(page)).toHaveCount(3);
+  await expect(nameLink(page, 'Phạm Ngọc Anh')).toBeFocused();
+});
+
+test('after approving the last pending row, closing puts focus on the previous row', async ({ page }) => {
+  await page.goto(URL10);
+  await filters(page).getByRole('button', { name: /^Chờ duyệt/ }).click();
+  await nameLink(page, 'Ngô Gia Bảo').focus();
+  await page.keyboard.press('Enter');
+  const bao = slip(page, 'Ngô Gia Bảo');
+  await bao.getByRole('button', { name: 'Duyệt phiếu' }).click();
+  await expect(bao.getByRole('status')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(bao).toHaveCount(0);
+  await expect(nameLink(page, 'Trịnh Văn Long')).toBeFocused();
+});
+
+test('closing after stepping to the next slip puts focus on that slip\u2019s name link', async ({ page }) => {
+  await page.goto(URL10);
+  await nameLink(page, 'Lê Hoàng Nam').focus();
+  await page.keyboard.press('Enter');
+  await slip(page, 'Lê Hoàng Nam').getByRole('button', { name: 'Phiếu sau' }).click();
+  const anh = slip(page, 'Phạm Ngọc Anh');
+  await expect(anh).toBeVisible();
+  await anh.getByRole('button', { name: 'Đóng' }).click();
+  await expect(anh).toHaveCount(0);
+  await expect(nameLink(page, 'Phạm Ngọc Anh')).toBeFocused();
+});
