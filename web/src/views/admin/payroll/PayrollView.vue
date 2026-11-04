@@ -9,6 +9,7 @@ import { getPayroll } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { foldText, monthShort } from '@/utils/format';
 import { monthNo } from '@/views/admin/requests/helpers';
+import { downloadCsv, payrollCsv } from './payrollCsv';
 import PayTable from './parts/PayTable.vue';
 import PayTiles from './parts/PayTiles.vue';
 import PayToolbar from './parts/PayToolbar.vue';
@@ -35,6 +36,11 @@ const shown = computed<PayrollLine[]>(() => {
       (!q || foldText(l.name).includes(q))
   );
 });
+// Ô chọn chỉ để xuất. Dòng đã chọn mà đang bị lọc ẩn không tính và không xuất, nên số trên nút khớp với file.
+const selected = ref<string[]>([]);
+const picked = computed(() => shown.value.filter(l => selected.value.includes(l.id)));
+const exportCsv = () =>
+  downloadCsv(`bang-luong-${board.value!.month}.csv`, payrollCsv(picked.value.length ? picked.value : shown.value));
 const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
 </script>
 
@@ -59,8 +65,16 @@ const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
       <PayTiles :month="board.month" :growth="board.growth" :totals="board.totals" :counts="board.counts" />
 
       <section class="card board" :aria-label="`Phiếu lương tháng ${monthNo(board.month)}`">
-        <PayToolbar v-model:filter="filter" v-model:query="query" v-model:dept="dept" :counts="board.counts" :depts="board.depts" />
-        <PayTable :lines="shown" :month="monthNo(board.month)" />
+        <PayToolbar
+          v-model:filter="filter"
+          v-model:query="query"
+          v-model:dept="dept"
+          :counts="board.counts"
+          :depts="board.depts"
+          :selected-count="picked.length"
+          @export="exportCsv"
+        />
+        <PayTable v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" />
         <div class="foot">
           <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
           <span v-if="missingKpi" class="legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>

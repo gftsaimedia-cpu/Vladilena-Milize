@@ -1,22 +1,23 @@
 <script setup lang="ts">
 // Bảng lương: cột trái (nhân viên) và hai cột phải (Thực nhận, Trạng thái) đứng yên, phần giữa cuộn ngang.
 // Mỗi ô một giá trị; số 0 hiện "—". Màu nền ô dùng token để chạy đúng ở cả nền Xám và Kem.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import type { PayrollLine, PayrollStatus } from '@/mock/payroll';
+import type { PayrollLine } from '@/mock/payroll';
 import { vnd } from '@/utils/format';
+import { STATUS_LABEL } from '../payrollCsv';
+import { useDragScroll } from '../useDragScroll';
 
 const props = defineProps<{ lines: PayrollLine[]; month: number }>();
+// Mã phiếu đã tích; chỉ dùng cho nút xuất (spec 3.4), dòng được tích không đổi nền.
+const selected = defineModel<string[]>('selected', { required: true });
+
+const scr = ref<HTMLElement | null>(null);
+useDragScroll(scr);
 
 const route = useRoute();
 const slipLink = (line: PayrollLine) => ({ path: route.path, query: { ...route.query, phieu: line.id } });
 
-const STATUS: Record<PayrollStatus, string> = {
-  draft: 'Nháp',
-  pending: 'Chờ duyệt',
-  done: 'Đã duyệt',
-  rejected: 'Từ chối'
-};
 const money = (n: number) => (n === 0 ? '—' : vnd(n));
 const cut = (n: number) => (n === 0 ? '—' : `−${vnd(n)}`);
 const missing = (line: PayrollLine) => (line.kpiMissing.length ? `Thiếu điểm ${line.kpiMissing.join(', ')}, tính 0` : '');
@@ -39,10 +40,10 @@ const total = computed(() => ({
 
 <template>
   <div>
-    <div class="scr" role="region" :aria-label="`Bảng lương tháng ${month}, cuộn ngang để xem các khoản`" tabindex="0">
+    <div ref="scr" class="scr" role="region" :aria-label="`Bảng lương tháng ${month}, cuộn ngang để xem các khoản`" tabindex="0">
       <table class="tp">
         <colgroup>
-          <col style="width: 296px" />
+          <col class="c-who" />
           <col style="width: 96px" />
           <col style="width: 132px" />
           <col style="width: 124px" />
@@ -81,6 +82,7 @@ const total = computed(() => ({
           <tr v-for="line in lines" :key="line.id">
             <th scope="row" class="who">
               <span class="cell">
+                <input v-model="selected" type="checkbox" class="pk" :value="line.id" :aria-label="`Chọn phiếu của ${line.name}`" />
                 <span class="av" aria-hidden="true">{{ line.initials }}</span>
                 <span class="id">
                   <RouterLink :to="slipLink(line)" replace draggable="false" class="nn">{{ line.name }}</RouterLink>
@@ -105,7 +107,7 @@ const total = computed(() => ({
             <td class="m ded">{{ money(line.advance) }}</td>
             <td class="m net">{{ money(line.net) }}</td>
             <td class="st">
-              <span class="pill" :class="`st-${line.status}`">{{ STATUS[line.status] }}</span>
+              <span class="pill" :class="`st-${line.status}`">{{ STATUS_LABEL[line.status] }}</span>
             </td>
           </tr>
         </tbody>
@@ -140,12 +142,20 @@ const total = computed(() => ({
   scrollbar-color: var(--status-draft) transparent;
   border-top: 1px solid var(--border);
 }
+.scr.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
 .scr:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: -2px;
 }
+/* Bề rộng cột nhân viên (--who) là một nguồn: <col>, bề rộng cả bảng và chữ nhóm dính trái đều tính từ nó.
+   Bảng phải rộng đúng tổng các cột (--who + 1416px của 12 cột còn lại): để max-content thì ô tên rộng hơn --who
+   kéo bảng rộng ra và phần dư dồn vào cột đầu. */
 .tp {
-  width: max-content;
+  --who: 296px;
+  width: calc(var(--who) + 1416px);
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -174,10 +184,10 @@ const total = computed(() => ({
   font-weight: 600;
   color: var(--text);
 }
-/* Chữ nhóm dính trái: 296px cột nhân viên + 14px đệm. */
+/* Chữ nhóm dính trái: cột nhân viên + 14px đệm (310px; 198px dưới 768px). */
 .tp thead .gh > span {
   position: sticky;
-  left: 310px;
+  left: calc(var(--who) + 14px);
 }
 .tp .ded-h {
   background: var(--ground);
@@ -198,13 +208,16 @@ const total = computed(() => ({
 .tp td.net {
   font-size: 15px;
 }
+/* Bề rộng đặt ở <col>: với table-layout fixed, <col> thắng width của ô (một style inline trên <col> từng thắng cả @media). */
+.tp col.c-who {
+  width: var(--who);
+}
 /* Cột đứng yên: trái là Nhân viên, phải là Thực nhận và Trạng thái. */
 .tp .who {
   display: table-cell;
   position: sticky;
   left: 0;
   z-index: 2;
-  width: 296px;
   text-align: left;
   border-right: 1px solid var(--border);
   font-size: 14px;
@@ -228,6 +241,14 @@ const total = computed(() => ({
   z-index: 2;
   width: 128px;
   text-align: left;
+}
+.pk {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex: none;
+  accent-color: var(--surface-dark);
+  cursor: pointer;
 }
 .av {
   width: 32px;
@@ -332,11 +353,8 @@ const total = computed(() => ({
   .tp .st {
     position: static;
   }
-  .tp .who {
-    width: 184px;
-  }
-  .tp thead .gh > span {
-    left: 198px;
+  .tp {
+    --who: 184px;
   }
   .av {
     display: none;

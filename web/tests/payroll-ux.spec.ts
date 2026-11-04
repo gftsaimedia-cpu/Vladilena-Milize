@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
 
 // Bảng lương và phiếu lương chạy trên dữ liệu giả (mock/payroll.ts): không page.route, không gọi /api.
@@ -111,4 +112,58 @@ test('other months show the mockup notice', async ({ page }) => {
   await expect(page.getByText('Bản mockup chỉ có bảng lương tháng 10/2026.')).toBeVisible();
   await expect(tiles(page)).toHaveCount(0);
   await expect(table(page)).toHaveCount(0);
+});
+
+test('frozen columns stay put and mouse drag scrolls without opening a slip', async ({ page }) => {
+  await page.goto(URL10);
+  const box = (await table(page).boundingBox())!;
+  await table(page).evaluate(el => (el.scrollLeft = el.scrollWidth));
+  for (const cell of [rows(page).first().locator('th.who'), rows(page).first().locator('td.net')]) {
+    const b = (await cell.boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(box.x - 1);
+    expect(b.x + b.width).toBeLessThanOrEqual(box.x + box.width + 1);
+  }
+  await table(page).evaluate(el => (el.scrollLeft = 0));
+  await page.mouse.move(box.x + box.width / 2, box.y + 120);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 - 300, box.y + 120, { steps: 10 });
+  await page.mouse.up();
+  expect(await table(page).evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+  const name = (await table(page).getByRole('link', { name: 'Lê Hoàng Nam', exact: true }).boundingBox())!;
+  await page.mouse.move(name.x + name.width / 2, name.y + name.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(name.x + name.width / 2 + 200, name.y + name.height / 2, { steps: 10 });
+  await page.mouse.up();
+  await expect(page).not.toHaveURL(/phieu=/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('export downloads the shown rows, or only the selected ones', async ({ page }) => {
+  await page.goto(URL10);
+  const read = async (name: string) => {
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name, exact: true }).click()]);
+    expect(dl.suggestedFilename()).toBe('bang-luong-2026-10.csv');
+    const text = readFileSync(await dl.path(), 'utf8');
+    expect(text.charCodeAt(0)).toBe(0xfeff);
+    return text.slice(1).split('\r\n').filter(Boolean);
+  };
+  const all = await read('Xuất bảng lương ra Excel');
+  expect(all[0]).toBe('Mã;Họ tên;Phòng ban;Chức danh;Ngày công;Tiền ngày công;Lương KPI;Phụ cấp;Làm thêm;Trừ giờ;Tổng thu nhập;Bảo hiểm;Thuế TNCN;Tạm ứng;Thực nhận;Trạng thái');
+  expect(all).toHaveLength(11);
+  expect(all).toContain('GFT-0142;Lê Hoàng Nam;Kinh doanh;Nhân viên kinh doanh;24;11999999;1322800;2215384;0;0;15538183;1260000;0;0;14278183;Chờ duyệt');
+  await page.getByLabel('Chọn phiếu của Lê Hoàng Nam').check();
+  await page.getByLabel('Chọn phiếu của Đỗ Mai Linh').check();
+  const two = await read('Xuất 2 phiếu đã chọn ra Excel');
+  expect(two).toHaveLength(3);
+  expect(two[2]).toBe('GFT-0156;Đỗ Mai Linh;Marketing;Thiết kế đồ hoạ;22;12000000;1443200;1692308;0;-125000;15010508;1365000;0;0;13645508;Từ chối');
+});
+
+test('payroll fits 375px and the table scrolls in its own region', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto(URL10);
+  await expect(rows(page)).toHaveCount(10);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= 375)).toBeTruthy();
+  expect(await table(page).evaluate(el => el.scrollWidth > el.clientWidth)).toBeTruthy();
+  const who = (await rows(page).first().locator('th.who').boundingBox())!;
+  expect(Math.round(who.width)).toBe(184);
 });

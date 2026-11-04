@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// Hàng công cụ của thẻ bảng: nút lọc trạng thái (kèm số đếm cả kỳ), ô tìm theo tên, lọc phòng ban.
+// Hàng công cụ của thẻ bảng: nút lọc trạng thái (kèm số đếm cả kỳ), ô tìm theo tên, lọc phòng ban và nút xuất Excel.
 import { computed } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import type { PayrollStatus, SlipCounts } from '@/mock/payroll';
 
-const props = defineProps<{ counts: SlipCounts; depts: string[] }>();
+const props = defineProps<{ counts: SlipCounts; depts: string[]; selectedCount: number }>();
+defineEmits<{ export: [] }>();
 const filter = defineModel<'all' | PayrollStatus>('filter', { required: true });
 const query = defineModel<string>('query', { required: true });
 const dept = defineModel<string>('dept', { required: true });
@@ -17,6 +18,9 @@ const FILTERS = [
   { key: 'rejected', label: 'Từ chối', dot: 'var(--status-rejected)' }
 ] as const;
 const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.key] })));
+const exportLabel = computed(() =>
+  props.selectedCount ? `Xuất ${props.selectedCount} phiếu đã chọn ra Excel` : 'Xuất bảng lương ra Excel'
+);
 </script>
 
 <template>
@@ -46,6 +50,9 @@ const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.k
       </select>
       <Icon name="chev" :size="16" />
     </span>
+    <button type="button" class="xp" :aria-label="exportLabel" :title="exportLabel" @click="$emit('export')">
+      <Icon name="download" :size="18" />
+    </button>
   </div>
 </template>
 
@@ -61,7 +68,7 @@ const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.k
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-right: auto;
+  flex: 1 1 320px;
 }
 .sc {
   height: 32px;
@@ -94,7 +101,7 @@ const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.k
   border-radius: 50%;
 }
 .find {
-  width: 220px;
+  width: 176px;
   max-width: 100%;
   height: 40px;
   display: flex;
@@ -139,6 +146,20 @@ const buttons = computed(() => FILTERS.map(f => ({ ...f, count: props.counts[f.k
   position: absolute;
   right: 12px;
   pointer-events: none;
+}
+.xp {
+  width: 40px;
+  height: 40px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--control);
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.xp:hover {
+  border-color: var(--text);
 }
 @media (max-width: 767px) {
   .tb {
