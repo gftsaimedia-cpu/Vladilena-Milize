@@ -1,390 +1,143 @@
 <script setup lang="ts">
-// Màn Nhân sự: danh sách hồ sơ, lọc theo loại và theo vấn đề (chưa có ca, thiếu ngày bắt đầu, đã khoá).
-// ?loc=chua-co-ca chọn sẵn bộ lọc "chưa có ca" · ?hop=them | sua-ho-so (&nv=tên đăng nhập) mở sẵn hộp / ngăn kéo.
+// Màn Nhân sự (nhan-su) trên dữ liệu giả: bốn thẻ chỉ số và thẻ danh sách 10 hồ sơ đầu của 131.
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getStaffList } from '@/services/admin-hr';
-import { dmy, initials } from '@/utils/format';
-import PagerBar from '@/views/admin/attendance/PagerBar.vue';
-import SearchBox from '@/views/admin/attendance/SearchBox.vue';
-import { useHop } from '@/views/admin/attendance/useHop';
-import AddStaffDialog from './AddStaffDialog.vue';
-import BulkShiftDialog from './BulkShiftDialog.vue';
-import ProfileDrawer from './ProfileDrawer.vue';
+import StaffDrawer from './StaffDrawer.vue';
+import StaffStats from './parts/StaffStats.vue';
+import StaffTable from './parts/StaffTable.vue';
+import StaffToolbar from './parts/StaffToolbar.vue';
+import { downloadStaffCsv } from './staffCsv';
+import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
+const { data } = useLoad(() => getStaffList());
 
-const TYPE_CHIPS = [
-  ['all', 'Tất cả'],
-  ['tts', 'Thực tập sinh'],
-  ['ctv', 'Chuyên trách viên'],
-  ['nv', 'Nhân viên']
-];
-const ISSUE_CHIPS = [
-  ['chua-co-ca', 'Chưa có ca'],
-  ['thieu-ngay', 'Thiếu ngày bắt đầu'],
-  ['da-khoa', 'Đã khoá']
-];
-const LOCS = [...TYPE_CHIPS, ...ISSUE_CHIPS].map(c => c[0]);
-const loc = computed(() => (LOCS.includes(route.query.loc as string) ? route.query.loc : 'all'));
-const setLoc = (key?) => router.replace({ query: { ...route.query, loc: key === 'all' ? undefined : key } });
-function profileTo(username: string) {
-  return { path: '/admin/nhan-su', query: { ...route.query, hop: 'sua-ho-so', nv: username } };
-}
-function openProfile(username: string) {
-  router.push(profileTo(username));
-}
-function scrollStaffTable(event: KeyboardEvent, direction: number) {
-  const region = event.currentTarget as HTMLElement;
-  region.scrollLeft += direction * Math.max(80, region.clientWidth * 0.35);
-}
+const asText = (v: unknown) => (typeof v === 'string' ? v : '');
+const q = ref(asText(route.query.q));
+const inactiveOnly = ref(false);
 
-// Giá trị đầu lấy từ ?q= (ô tìm trên thanh trên đẩy tới đây); tìm tiếp khi đang ở màn này thì cập nhật theo.
-const q = ref(String(route.query.q ?? ''));
+// ?q hai chiều: URL đổi (ô tìm trên thanh trên) thì cập nhật ô tìm; gõ thì thay URL, ô trống bỏ q.
 watch(
   () => route.query.q,
-  v => (q.value = String(v ?? ''))
+  v => {
+    if (asText(v) !== q.value) q.value = asText(v);
+  }
 );
-const page = ref(1);
-watch([loc, q], () => (page.value = 1));
-const { data, reload, loading, error } = useLoad(
-  () => getStaffList({ loc: loc.value, q: q.value, page: page.value }),
-  () => [loc.value, q.value, page.value].join('|')
-);
-const rows = computed(() => data.value?.rows || []);
-const summary = computed(() => data.value?.summary);
-
-// Chọn nhiều người để gán ca
-const selected = ref([]);
-const allOn = computed(() => rows.value.length > 0 && rows.value.every(r => selected.value.includes(r.username)));
-const toggle = (u?) =>
-  (selected.value = selected.value.includes(u) ? selected.value.filter(x => x !== u) : [...selected.value, u]);
-const toggleAll = () => {
-  const names = rows.value.map(r => r.username);
-  selected.value = allOn.value
-    ? selected.value.filter(u => !names.includes(u))
-    : [...new Set<any>([...selected.value, ...names])];
-};
-
-// Hộp và ngăn kéo
-const { open: addOpen, close: closeAdd } = useHop('them');
-const bulkOpen = ref(false);
-const profileUser = ref(null);
-const { open: profileHop, close: closeProfileHop } = useHop('sua-ho-so');
-watch(
-  profileHop,
-  o => {
-    if (o && route.query.nv) profileUser.value = String(route.query.nv);
-  },
-  { immediate: true }
-);
-function closeProfile() {
-  profileUser.value = null;
-  closeProfileHop();
-}
-function saved(close?) {
-  close();
-  reload();
-}
-function bulkSaved() {
-  bulkOpen.value = false;
-  selected.value = [];
-  reload();
-}
-
-const footText = computed(() => {
-  const d = data.value;
-  if (!d) return '';
-  if (loc.value === 'chua-co-ca') return [`${d.total} nhân sự chưa có ca`, d.lockedNote].filter(Boolean).join(' · ');
-  if (!rows.value.length) return `0 trên ${d.total} nhân sự`;
-  const from = (d.page - 1) * 20 + 1;
-  return `${from}–${from + rows.value.length - 1} trên ${d.total} nhân sự · xếp theo loại rồi theo tên`;
+watch(q, v => {
+  if (asText(route.query.q) !== v) router.replace({ query: { ...route.query, q: v || undefined } });
 });
+
+const inactiveCount = computed(() => (data.value?.rows ?? []).filter(r => !r.activated).length);
+const opts = computed(() => ({ q: q.value, inactiveOnly: inactiveOnly.value }));
+const shown = computed(() => filterStaff(data.value?.rows ?? [], opts.value));
+// Chọn theo id, giữ qua mọi lần đổi tìm hay công tắc; số đếm và CSV chỉ tính các dòng đang hiện.
+const selected = ref<string[]>([]);
+const picked = computed(() => shown.value.filter(r => selected.value.includes(r.id)));
+function toggle(id: string) {
+  selected.value = selected.value.includes(id) ? selected.value.filter(x => x !== id) : [...selected.value, id];
+}
+function toggleAll() {
+  const ids = shown.value.map(r => r.id);
+  selected.value = ids.every(id => selected.value.includes(id))
+    ? selected.value.filter(id => !ids.includes(id))
+    : [...selected.value, ...ids.filter(id => !selected.value.includes(id))];
+}
+const exportCsv = () => downloadStaffCsv(picked.value.length ? picked.value : shown.value);
+
+// Hồ sơ mở bằng ?nv=<id>. Người trước / sau đi trong các dòng đang hiện lúc mở và không đổi theo tìm hay công tắc.
+const openId = computed(() => (typeof route.query.nv === 'string' ? route.query.nv : ''));
+const navIds = ref<string[]>([]);
+const valid = computed(() => !!openId.value && !!data.value?.rows.some(r => r.id === openId.value));
+const withNv = (id?: string) => ({ query: { ...route.query, nv: id } });
+watch([data, openId], () => {
+  if (!openId.value) navIds.value = [];
+  else if (data.value && !valid.value) router.replace(withNv());
+  else if (valid.value && !navIds.value.includes(openId.value)) navIds.value = shown.value.map(r => r.id);
+});
+const navIdx = computed(() => navIds.value.indexOf(openId.value));
+const hasPrev = computed(() => navIdx.value > 0);
+const hasNext = computed(() => navIdx.value >= 0 && navIdx.value < navIds.value.length - 1);
+const go = (step: number) => router.replace(withNv(navIds.value[navIdx.value + step]));
+
+const footer = computed(() =>
+  isFiltered(opts.value)
+    ? `${shown.value.length} kết quả trên trang này`
+    : `Hiển thị 1–${data.value?.rows.length ?? 0} trong ${data.value?.total ?? 0} hồ sơ`
+);
 </script>
 
 <template>
-  <div class="title">
-    <div>
+  <div class="staff">
+    <div class="title">
       <h1>Nhân sự</h1>
-      <p v-if="summary">
-        {{ summary.total }} nhân sự · {{ summary.active }} đang làm việc · <b>{{ summary.noShift }} người</b> chưa có
-        ca, <b>{{ summary.noStart }} người</b> thiếu ngày bắt đầu làm
-      </p>
     </div>
-    <div class="acts">
-      <button type="button" class="btn" @click="bulkOpen = true"><Icon name="clock" />Gán ca cho nhiều người</button>
-      <button type="button" class="btn pri" @click="addOpen = true"><Icon name="plus" />Thêm nhân sự</button>
-    </div>
+
+    <template v-if="data">
+      <StaffStats :stats="data.stats" />
+
+      <section class="lc" aria-labelledby="staff-list-h">
+        <div class="lc-h">
+          <h2 id="staff-list-h">Danh sách nhân sự</h2>
+          <span>{{ data.total }} hồ sơ</span>
+        </div>
+        <StaffToolbar
+          v-model:q="q"
+          v-model:inactive-only="inactiveOnly"
+          :inactive-count="inactiveCount"
+          :selected-count="picked.length"
+          @export="exportCsv"
+        />
+        <StaffTable :rows="shown" :selected="selected" @toggle="toggle" @toggle-all="toggleAll" />
+        <div class="lc-f">{{ footer }}</div>
+      </section>
+    </template>
+
+    <StaffDrawer
+      v-if="valid"
+      :id="openId"
+      :has-prev="hasPrev"
+      :has-next="hasNext"
+      @close="router.replace(withNv())"
+      @prev="go(-1)"
+      @next="go(1)"
+    />
   </div>
-
-  <section class="card">
-    <div class="tools staff-tools" style="padding-top: 20px">
-      <button
-        v-for="[key, label] in TYPE_CHIPS"
-        :key="key"
-        type="button"
-        class="chip"
-        :class="{ on: loc === key }"
-        @click="setLoc(key)"
-      >
-        {{ label }} <small v-if="data">{{ data.counts[key] }}</small>
-      </button>
-      <span class="vr" />
-      <button
-        v-for="[key, label] in ISSUE_CHIPS"
-        :key="key"
-        type="button"
-        class="chip"
-        :class="{ on: loc === key }"
-        @click="setLoc(key)"
-      >
-        {{ label }} <small v-if="data">{{ data.counts[key] }}</small>
-      </button>
-      <SearchBox v-model="q" style="margin-left: auto; width: 200px" />
-    </div>
-    <div v-if="loading && !data" class="list-state" role="status">Đang tải danh sách nhân sự…</div>
-    <div v-else-if="error && !data" class="list-state error-state" role="alert">
-      <span>Không thể tải danh sách nhân sự.</span>
-      <button type="button" class="btn sm" @click="reload">Thử lại</button>
-    </div>
-    <div
-      v-else-if="data"
-      class="staff-table-scroll"
-      role="region"
-      aria-label="Danh sách nhân sự"
-      tabindex="0"
-      @keydown.left.prevent="scrollStaffTable($event, -1)"
-      @keydown.right.prevent="scrollStaffTable($event, 1)"
-    >
-      <table class="tbl ns">
-        <colgroup>
-          <col style="width: 56px" />
-          <col style="width: 236px" />
-          <col style="width: 196px" />
-          <col style="width: 186px" />
-          <col style="width: 112px" />
-          <col style="width: 230px" />
-          <col />
-        </colgroup>
-        <thead>
-          <tr>
-            <th class="cbc">
-              <button
-                type="button"
-                class="cb"
-                :class="{ on: allOn }"
-                role="checkbox"
-                :aria-checked="allOn"
-                aria-label="Chọn tất cả"
-                @click="toggleAll"
-              >
-                <Icon v-if="allOn" name="check" :size="12" :stroke="3" />
-              </button>
-            </th>
-            <th>Nhân sự</th>
-            <th>Loại · bậc</th>
-            <th>Ca cố định</th>
-            <th>Bắt đầu làm</th>
-            <th>Hợp đồng · bảo hiểm</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in rows" :key="r.username" class="open" :class="{ sel: selected.includes(r.username) }">
-            <td class="cbc">
-              <button
-                type="button"
-                class="cb"
-                :class="{ on: selected.includes(r.username) }"
-                role="checkbox"
-                :aria-checked="selected.includes(r.username)"
-                :aria-label="`Chọn ${r.name}`"
-                @click.stop="toggle(r.username)"
-                @keydown.enter.stop
-              >
-                <Icon v-if="selected.includes(r.username)" name="check" :size="12" :stroke="3" />
-              </button>
-            </td>
-            <td>
-              <div class="who">
-                <span class="av">{{ initials(r.name) }}</span>
-                <div>
-                  <RouterLink class="profile-link" :to="profileTo(r.username)" :aria-label="`Mở hồ sơ của ${r.name}`">
-                    {{ r.name }}
-                  </RouterLink>
-                  <div class="u">{{ r.username }}</div>
-                </div>
-              </div>
-            </td>
-            <td>
-              <div class="two">
-                <div class="a" :class="{ bad: r.typeBad }">{{ r.typeLabel }}</div>
-                <div class="b">{{ r.level }}</div>
-              </div>
-            </td>
-            <td>
-              <div class="two">
-                <div class="a" :class="{ bad: !r.shift }">{{ r.shiftName }}</div>
-                <div class="b">{{ r.shiftHours }}</div>
-              </div>
-            </td>
-            <td>
-              <template v-if="r.start">{{ dmy(r.start) }}</template>
-              <span v-else class="soft">Không cần</span>
-            </td>
-            <td>
-              <div class="two">
-                <div class="a">{{ r.contractLabel }}</div>
-                <div class="b">{{ r.insuranceLabel }}</div>
-              </div>
-            </td>
-            <td style="text-align: right">
-              <span class="act">
-                <span v-if="r.locked" class="pill p-draft">Đã khoá</span>
-                <template v-if="r.issue">
-                  <span class="pill p-err">Cần sửa</span>
-                  <button type="button" class="link" style="margin-left: 8px" @click="openProfile(r.username)">
-                    {{ r.issue }}
-                  </button>
-                </template>
-              </span>
-            </td>
-          </tr>
-          <tr v-if="data && !rows.length">
-            <td colspan="7" class="none">Không có nhân sự nào phù hợp</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div v-if="loc === 'chua-co-ca'" class="note" style="margin: 16px 24px 20px">
-      <Icon name="info" />
-      <div>Chọn nhiều người rồi bấm <b>Gán ca cho nhiều người</b> để gán cùng một ca.</div>
-    </div>
-    <PagerBar :text="footText" :page="data?.page || 1" :pages="data?.pages || 1" @page="page = $event" />
-  </section>
-
-  <AddStaffDialog v-if="addOpen" @close="closeAdd" @saved="saved(closeAdd)" />
-  <BulkShiftDialog v-if="bulkOpen" :usernames="selected" @close="bulkOpen = false" @saved="bulkSaved" />
-  <ProfileDrawer v-if="profileUser" :username="profileUser" @close="closeProfile" @saved="saved(closeProfile)" />
 </template>
 
 <style scoped>
-.title {
-  flex-wrap: wrap;
-  align-items: flex-start;
+.staff {
+  min-width: 0;
 }
-.title .acts {
-  margin-left: 0;
-  flex-wrap: wrap;
-  max-width: 100%;
+.lc {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface);
 }
-.staff-tools {
-  flex-wrap: wrap;
-  align-items: center;
-  padding-inline: 24px;
-  gap: 8px;
-}
-.staff-tools :deep(.search) {
-  margin-left: auto;
-  width: min(220px, 100%);
-}
-.staff-table-scroll {
-  max-width: 100%;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-gutter: stable;
-}
-.list-state {
+.lc-h {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 24px;
+  align-items: baseline;
+  gap: 12px;
+  padding: 20px 20px 0;
+}
+.lc-h h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.lc-h span {
+  font-size: 14px;
   color: var(--muted);
 }
-.error-state {
-  color: var(--err-ink);
-}
-.staff-table-scroll:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.staff-table-scroll .tbl {
-  min-width: 1040px;
-}
-.ns td {
-  height: 58px;
-}
-.ns .u {
-  color: var(--muted);
-  font-size: 12px;
-  margin-top: 2px;
-}
-.ns .two .a {
-  white-space: nowrap;
-}
-.ns .two .b {
-  color: var(--muted);
+.lc-f {
+  padding: 14px 20px 18px;
+  text-align: right;
   font-size: 12px;
   line-height: 16px;
-  margin-top: 2px;
-  white-space: nowrap;
-}
-.ns td.cbc,
-.ns th.cbc {
-  padding-right: 0;
-}
-.ns .bad {
-  color: var(--err-ink);
-}
-.ns .soft {
   color: var(--muted);
-}
-.ns tr.open:hover td {
-  background: #fafafa;
-}
-.profile-link {
-  display: inline-block;
-  color: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: 4px;
-}
-.profile-link:hover {
-  color: var(--accent);
-  text-decoration: underline;
-}
-.profile-link:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.act {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.vr {
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-  margin: 0 4px;
-}
-td.none {
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  height: 80px;
-}
-@media (max-width: 700px) {
-  .staff-tools :deep(.search) {
-    width: 100%;
-    margin-left: 0;
-  }
-  .staff-tools .vr {
-    display: none;
-  }
 }
 </style>
