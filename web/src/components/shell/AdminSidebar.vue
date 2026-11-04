@@ -13,8 +13,7 @@ defineProps({
   mobileOpen: { type: Boolean, default: false },
   mobileInert: { type: Boolean, default: false },
   active: { type: String, default: '' },
-  me: { type: Object as () => any, default: () => ({}) },
-  counts: { type: Object as () => any, default: () => ({}) }
+  me: { type: Object as () => any, default: () => ({}) }
 });
 const emit = defineEmits(['open-menu', 'navigate']);
 const ui = useUiStore();
@@ -50,7 +49,6 @@ const groups = computed(() => ADMIN_SIDEBAR_GROUPS);
             >
               <Icon :name="icon" :size="20" />
               <span>{{ label }}</span>
-              <span v-if="key === 'duyet' && counts.requests" class="cnt">{{ counts.requests }}</span>
             </RouterLink>
             <div v-else class="item" aria-disabled="true">
               <Icon :name="icon" :size="20" />

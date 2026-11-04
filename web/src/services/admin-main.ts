@@ -1,5 +1,5 @@
 // Dịch vụ của nhóm admin-main: Tổng quan, Yêu cầu và các lớp nổi của vỏ Admin.
-// Tổng quan, chuông và duyệt/từ chối chạy trên dữ liệu giả (mock/); danh sách Yêu cầu còn gọi api() (chưa có dữ liệu giả).
+// Tổng quan, chuông và xử lý việc chờ chạy trên dữ liệu giả (mock/); danh sách Yêu cầu còn gọi api() (chưa có dữ liệu giả).
 import { toast } from '@/components/shell/toast';
 import {
   OLDER_PAGE,
@@ -11,9 +11,8 @@ import {
   sortRaw,
   staffIndex
 } from '@/builders/admin-requests/requests';
-import { decideRequest, type PendingRequest } from '@/mock/approvals';
+import { SYSTEM_NOTES, pendingInbox, resolveInboxItem, type InboxItem, type SystemNote } from '@/mock/inbox';
 import { overviewView, type OverviewView } from '@/mock/overview';
-import { bellView } from '@/mock/shell';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
 import { ApiError, api, qs } from './http';
@@ -129,12 +128,23 @@ async function decide(action?, ids?, note?, showError?) {
   }
 }
 
-// Hai hàm dưới chạy trên dữ liệu giả của Tổng quan (mock/approvals): bỏ yêu cầu khỏi danh sách chờ, bỏ qua `opts`.
-// Tên và tham số thứ hai giữ nguyên để các màn gọi tới (Yêu cầu, Chấm công) vẫn biên dịch được.
-export const approveRequest = (id: string, _opts?: { reason?: string }): Promise<PendingRequest | null> =>
-  respond(decideRequest(id));
-export const rejectRequest = (id: string, _opts?: { reason?: string }): Promise<PendingRequest | null> =>
-  respond(decideRequest(id));
+// Xử lý một việc chờ trên dữ liệu giả (mock/inbox): bỏ việc khỏi danh sách, trả việc vừa bỏ hoặc null nếu đã bị xử lý.
+// Duyệt, từ chối, nhắc và khai thay giống nhau ở đây; mọi nơi gọi qua useShellStore().decide.
+export const resolveRequest = (id: string): Promise<InboxItem | null> => respond(resolveInboxItem(id));
+// Tên cũ giữ nguyên để các màn gọi tới (Yêu cầu, Chấm công) vẫn chạy; tham số thứ hai bị bỏ qua.
+export const approveRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id);
+export const rejectRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id);
+
+export type DecisionVerb = 'approve' | 'reject' | 'remind' | 'declare';
+export const ALREADY_HANDLED = 'Yêu cầu này đã được xử lý.';
+const DECISION_TEXT: Record<DecisionVerb, (name: string) => string> = {
+  approve: name => `Đã duyệt yêu cầu của ${name}.`,
+  reject: name => `Đã từ chối yêu cầu của ${name}.`,
+  remind: name => `Đã nhắc ${name} giải trình.`,
+  declare: name => `Đã ghi nhận khai thay cho ${name}.`
+};
+/** Câu báo sau khi xử lý một việc (spec mục 1.3). */
+export const decisionText = (verb: DecisionVerb, name: string) => DECISION_TEXT[verb](name);
 
 // Đồng ý cả loạt: một lần PUT; quá số khoản tối đa hoặc có khoản vừa đổi thì máy chủ từ chối cả loạt.
 export const approveRequests = (ids?, { note = '' }: any = {}) => decide('approve', ids, note, false);
@@ -143,8 +153,9 @@ export const approveRequests = (ids?, { note = '' }: any = {}) => decide('approv
 export const getOverview = (month: string): Promise<OverviewView> => respond(overviewView(month));
 
 // ---------- Lớp nổi của vỏ Admin ----------
-// Việc cần xử lý trên chuông: số liệu giả của tháng đang xem (mock/shell).
-export const getBell = () => respond(bellView(monthOfView()));
+// Chuông: mọi việc còn chờ cùng 3 tin hệ thống tĩnh (mock/inbox).
+export const getInbox = (): Promise<{ items: InboxItem[]; notes: SystemNote[] }> =>
+  respond({ items: pendingInbox(), notes: SYSTEM_NOTES });
 
 export const changePassword = ({ current, next }: any) => sessionChangePassword(current, next);
 

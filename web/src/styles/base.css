@@ -220,19 +220,6 @@ button {
   color: var(--side-active-icon);
   opacity: 1;
 }
-.item .cnt {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 26px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: var(--r-pill);
-  background: var(--side-count-bg);
-  color: var(--side-count-ink);
-  display: grid;
-  place-items: center;
-}
 .item .soon {
   margin-left: auto;
   font-size: 11px;

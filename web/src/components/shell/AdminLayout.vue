@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Khung mọi màn Admin: thanh bên + thanh trên + dải bước kỳ lương (3 màn) + nội dung (RouterView ở slot).
-// Chuông (BellPopover), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
+// Chuông (BellDrawer), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -10,7 +10,7 @@ import { useUiStore } from '@/stores/ui';
 import AccountMenu from './AccountMenu.vue';
 import AdminSidebar from './AdminSidebar.vue';
 import AdminTopbar from './AdminTopbar.vue';
-import BellPopover from './BellPopover.vue';
+import BellDrawer from './BellDrawer.vue';
 import ChangePasswordDialog from './ChangePasswordDialog.vue';
 import PeriodStrip from './PeriodStrip.vue';
 
@@ -88,7 +88,7 @@ watch(
     menuOpen.value = false;
     closeMobileNav();
     period.resetStrip();
-    shell.load(); // số đếm trên thanh bên và chuông theo việc vừa xử lý
+    shell.load(); // số chuông theo việc vừa xử lý
   },
   { flush: 'pre' }
 );
@@ -127,7 +127,6 @@ function openPassword() {
       :mobile-inert="mobileViewport && !mobileNavOpen"
       :active="route.meta.nav as string"
       :me="shell.me"
-      :counts="shell.counts"
       @open-menu="menuOpen = !menuOpen"
       @navigate="closeMobileNav()"
     />
@@ -161,7 +160,7 @@ function openPassword() {
       <PeriodStrip v-if="STEPS_NAV.includes(String(route.meta.nav || ''))" />
       <slot />
     </main>
-    <BellPopover v-if="bellOpen" @close="bellOpen = false" />
+    <BellDrawer v-if="bellOpen" @close="bellOpen = false" />
     <AccountMenu v-if="menuOpen" :me="shell.me" @close="menuOpen = false" @change-password="openPassword" />
     <ChangePasswordDialog v-if="pwOpen" @close="pwOpen = false" />
   </div>

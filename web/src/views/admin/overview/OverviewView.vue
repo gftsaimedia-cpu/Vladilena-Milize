@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // Tổng quan (tong-quan) trên dữ liệu giả: chỉ số chính, chấm công, kỳ lương, việc cần duyệt, bảng lương.
-// Duyệt / từ chối: bỏ yêu cầu khỏi danh sách giả, tải lại màn và số đếm của khung, rồi báo bằng toast.
+// Duyệt / từ chối: useShellStore().decide bỏ việc khỏi nguồn chung và tăng version, màn tự tải lại, rồi báo bằng toast.
 import { useRoute } from 'vue-router';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
-import { approveRequest, getOverview, rejectRequest } from '@/services/admin-main';
+import { ALREADY_HANDLED, decisionText, getOverview } from '@/services/admin-main';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { monthNo } from '@/views/admin/requests/helpers';
@@ -19,9 +19,9 @@ const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 const period = usePeriodStore();
 const shell = useShellStore();
-const { data, reload } = useLoad(
+const { data } = useLoad(
   () => getOverview(period.month),
-  () => period.month
+  () => `${period.month}|${shell.version}`
 );
 
 const deciding = new Set<string>();
@@ -29,9 +29,9 @@ async function decide(id: string, approve: boolean) {
   if (deciding.has(id)) return;
   deciding.add(id);
   try {
-    const hit = await (approve ? approveRequest(id) : rejectRequest(id));
-    await Promise.all([reload(), shell.load()]);
-    if (hit) toast.ok(`${approve ? 'Đã duyệt' : 'Đã từ chối'} yêu cầu của ${hit.name}.`);
+    const hit = await shell.decide(id);
+    if (hit) toast.ok(decisionText(approve ? 'approve' : 'reject', hit.name));
+    else toast.error(ALREADY_HANDLED);
   } finally {
     deciding.delete(id);
   }

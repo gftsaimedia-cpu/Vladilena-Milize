@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // Tổng quan chạy trên dữ liệu giả (mock/overview.ts): không page.route, không gọi /api.
-const nav = (page: Page) => page.getByRole('navigation', { name: 'Điều hướng' });
-const requestsLink = (page: Page) => nav(page).getByRole('link', { name: /^Yêu cầu/ });
+const bellOf = (page: Page) => page.locator('.topbar .bell');
 const requestsKpi = (page: Page) =>
   page.getByRole('region', { name: 'Chỉ số chính' }).getByRole('article', { name: 'Yêu cầu chờ duyệt' });
 
@@ -18,7 +17,8 @@ test('overview shows the mock figures', async ({ page }) => {
   ).toBeVisible();
 
   const kpis = page.getByRole('region', { name: 'Chỉ số chính' });
-  for (const text of ['2,48 tỷ', '128', '113', '9']) await expect(kpis).toContainText(text);
+  for (const text of ['2,48 tỷ', '128', '113']) await expect(kpis).toContainText(text);
+  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('11');
 
   await expect(page.getByRole('figure', { name: /hôm nay 28\/10 88%/ })).toBeVisible();
 
@@ -29,22 +29,25 @@ test('overview shows the mock figures', async ({ page }) => {
   const approvals = page.getByRole('list', { name: 'Việc cần duyệt' });
   await expect(approvals.getByRole('listitem')).toHaveCount(3);
   await expect(approvals.getByRole('listitem').first()).toContainText('Nguyễn Thu Hà');
+  await expect(approvals.getByRole('listitem').first()).toContainText('Đơn nghỉ · Phép năm · 29–30/10');
 });
 
-test('approving updates the list, KPI, sidebar badge and toast', async ({ page }) => {
+test('approving updates the list, KPI, bell and toast', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   const approvals = page.getByRole('list', { name: 'Việc cần duyệt' });
   await expect(approvals).toContainText('Nguyễn Thu Hà');
 
   await page.getByRole('button', { name: 'Duyệt yêu cầu của Nguyễn Thu Hà' }).click();
   await expect(approvals).not.toContainText('Nguyễn Thu Hà');
-  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('8');
-  await expect(requestsLink(page)).toContainText('8');
+  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('10');
+  await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
   await expect(page.getByText('Đã duyệt yêu cầu của Nguyễn Thu Hà.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Duyệt yêu cầu của Bùi Quốc Huy' })).toBeFocused();
 
-  await page.getByRole('button', { name: 'Từ chối yêu cầu của Trần Minh Quân' }).click();
-  await expect(page.getByText('Đã từ chối yêu cầu của Trần Minh Quân.')).toBeVisible();
-  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('7');
+  await page.getByRole('button', { name: 'Từ chối yêu cầu của Bùi Quốc Huy' }).click();
+  await expect(page.getByText('Đã từ chối yêu cầu của Bùi Quốc Huy.')).toBeVisible();
+  await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('9');
+  await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 11 việc cần xử lý');
 });
 
 test('approving every request shows the empty state', async ({ page }) => {
@@ -58,7 +61,8 @@ test('approving every request shows the empty state', async ({ page }) => {
   }
   await expect(page.getByText('Không còn yêu cầu nào chờ duyệt.')).toBeVisible();
   await expect(requestsKpi(page).locator('.kpi-v')).toHaveText('0');
-  await expect(requestsLink(page)).toHaveText('Yêu cầu');
+  await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 2 việc cần xử lý');
+  await expect(page.getByRole('link', { name: 'Xem tất cả', exact: true })).toBeFocused();
 });
 
 test('payroll table filters by status and searches without accents', async ({ page }) => {

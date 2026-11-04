@@ -7,3 +7,6 @@ export const LINKS = {
   requests: '/admin/yeu-cau',
   payroll: '/admin/bang-luong'
 };
+
+/** Hồ sơ chấm công của một nhân viên. */
+export const employeePath = (id: string) => `/admin/cham-cong/nhan-vien/${id}`;

@@ -1,22 +1,44 @@
 <script setup lang="ts">
-// Thẻ Việc cần duyệt: 3 yêu cầu đầu của danh sách chờ; Từ chối / Duyệt báo lên màn qua emit.
-import { computed } from 'vue';
+// Thẻ Việc cần duyệt: 3 việc đầu của danh sách chờ; Từ chối / Duyệt báo lên màn qua emit.
+// Sau khi xử lý, focus về nút Duyệt của dòng đang ở cùng vị trí (hoặc dòng cuối); hết dòng thì về "Xem tất cả".
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
-import type { PendingRequest } from '@/mock/approvals';
+import type { InboxItem } from '@/mock/inbox';
 
-const props = defineProps<{ approvals: PendingRequest[] }>();
-defineEmits<{ approve: [id: string]; reject: [id: string] }>();
+const props = defineProps<{ approvals: InboxItem[] }>();
+const emit = defineEmits<{ approve: [id: string]; reject: [id: string] }>();
 
 const route = useRoute();
 const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
 
 const SHOWN = 3;
 const shown = computed(() => props.approvals.slice(0, SHOWN));
+
+const root = ref<HTMLElement | null>(null);
+let clicked: number | null = null; // chỉ số dòng vừa bấm, chờ danh sách đổi
+function act(kind: 'approve' | 'reject', index: number) {
+  clicked = index;
+  emit(kind, shown.value[index].id);
+}
+watch(
+  () => props.approvals,
+  async () => {
+    if (clicked === null) return;
+    const index = Math.min(clicked, shown.value.length - 1);
+    clicked = null;
+    await nextTick();
+    const target =
+      index < 0
+        ? root.value?.querySelector<HTMLElement>('.all')
+        : root.value?.querySelectorAll<HTMLElement>('.ib.yes')[index];
+    target?.focus();
+  }
+);
 </script>
 
 <template>
-  <section class="card ap" aria-labelledby="ov-ap-h">
+  <section ref="root" class="card ap" aria-labelledby="ov-ap-h">
     <div class="head">
       <h2 id="ov-ap-h">Việc cần duyệt</h2>
       <span class="count">{{ approvals.length }}</span>
@@ -24,18 +46,18 @@ const shown = computed(() => props.approvals.slice(0, SHOWN));
     </div>
 
     <ul v-if="shown.length" class="list" aria-label="Việc cần duyệt">
-      <li v-for="r in shown" :key="r.id">
+      <li v-for="(r, i) in shown" :key="r.id">
         <span class="av">{{ r.initials }}</span>
         <div class="wh">
           <div class="t">{{ r.name }}</div>
-          <div class="s">{{ r.kind }} · {{ r.detail }}</div>
+          <div class="s">{{ r.groupLabel }} · {{ r.what }}<template v-if="r.when"> · {{ r.when }}</template></div>
         </div>
         <div class="acts">
           <button
             type="button"
             class="ib no"
             :aria-label="`Từ chối yêu cầu của ${r.name}`"
-            @click="$emit('reject', r.id)"
+            @click="act('reject', i)"
           >
             <Icon name="x" :size="16" />
           </button>
@@ -43,7 +65,7 @@ const shown = computed(() => props.approvals.slice(0, SHOWN));
             type="button"
             class="ib yes"
             :aria-label="`Duyệt yêu cầu của ${r.name}`"
-            @click="$emit('approve', r.id)"
+            @click="act('approve', i)"
           >
             <Icon name="check" :size="16" />
           </button>

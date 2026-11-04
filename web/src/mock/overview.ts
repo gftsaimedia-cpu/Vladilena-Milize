@@ -1,7 +1,7 @@
 // Dữ liệu Tổng quan giả, đúng dạng màn cần. Cùng bộ số cho mọi tháng; chỉ các nhãn có tên tháng đổi theo `month`.
-// Danh sách "Việc cần duyệt" lấy từ mock/approvals (dùng chung với số đếm của khung).
+// Danh sách "Việc cần duyệt" lấy từ mock/inbox (các việc `decide`, dùng chung với chuông).
 import { initials } from '@/utils/format';
-import { pendingRequests, type PendingRequest } from './approvals';
+import { pendingInbox, type InboxItem } from './inbox';
 
 export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 
@@ -49,7 +49,7 @@ export type OverviewView = {
     netShare: number;
     slips: { done: number; pending: number; draft: number; rejected: number; total: number };
   };
-  approvals: PendingRequest[];
+  approvals: InboxItem[];
   payroll: { title: string; updatedAt: string; total: number; rows: PayrollRow[] };
 };
 
@@ -71,7 +71,7 @@ export function overviewView(month: string): OverviewView {
   const mm = pad(m);
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
   const nextYear = m === 12 ? year + 1 : year;
-  const approvals = pendingRequests();
+  const approvals = pendingInbox().filter(item => item.action === 'decide');
 
   return {
     month,

@@ -15,13 +15,16 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/admin/tong-quan');
   const nav = page.getByRole('navigation', { name: 'Điều hướng' });
-  for (const name of ['Tổng quan', 'Yêu cầu', 'Chấm công', 'Đánh giá KPI', 'Bảng lương', 'Nhân sự']) {
-    // Mục Yêu cầu kèm số đếm (vd. "Yêu cầu 9") nên so tên theo phần đầu
-    await nav.getByRole('link', { name: new RegExp(`^${name}`) }).click();
+  for (const name of ['Tổng quan', 'Chấm công', 'Đánh giá KPI', 'Bảng lương', 'Nhân sự']) {
+    await nav.getByRole('link', { name, exact: true }).click();
     await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
   }
+  await expect(nav.getByRole('link', { name: /^Yêu cầu/ })).toHaveCount(0);
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
+  await page.locator('.topbar .bell').click();
+  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
+  await expect(page).toHaveURL(/\/admin\/yeu-cau$/);
   expect(calls).toEqual([]);
 });
 
@@ -41,12 +44,13 @@ test('topbar month picker changes ?thang and label', async ({ page }) => {
   await expect(mpick).toContainText('Tháng 9/2026');
 });
 
-test('bell shows the mock count and opens the task list', async ({ page }) => {
+test('bell shows the pending count and opens the notification drawer', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   const bell = page.locator('.topbar .bell');
   await expect(bell).toContainText('13');
+  await expect(bell).toHaveAccessibleName('Thông báo, 13 việc cần xử lý');
   await bell.click();
-  await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
 });
 
 test('steps strip shows only on attendance, KPI and payroll', async ({ page }) => {
@@ -119,10 +123,10 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
-  await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toBeVisible();
-  await page.getByRole('link', { name: 'Đánh giá KPI' }).click();
-  await expect(page).toHaveURL('/admin/kpi?thang=2026-10');
-  await expect(page.getByRole('dialog', { name: 'Việc cần xử lý' })).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
+  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
+  await expect(page).toHaveURL('/admin/yeu-cau?thang=2026-10');
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 });
 
 test('mobile drawer closes when resized to desktop', async ({ page }) => {
@@ -200,29 +204,31 @@ test('kem ground keeps the active sidebar link colours in both sidebar styles', 
   await expect(current).toHaveCSS('color', 'rgb(33, 33, 33)');
 });
 
-test('bell popover opens below the bell on desktop', async ({ page }) => {
+test('bell drawer docks to the right edge on desktop', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/admin/tong-quan');
-  const bell = page.locator('.topbar .bell');
-  await bell.click();
-  const pop = page.getByRole('dialog', { name: 'Việc cần xử lý' });
-  await expect(pop).toBeVisible();
-  const bellBox = (await bell.boundingBox())!;
-  const popBox = (await pop.boundingBox())!;
-  expect(popBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height);
-  expect(popBox.x + popBox.width).toBeLessThanOrEqual(1440);
+  await page.locator('.topbar .bell').click();
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  await expect(drawer).toBeVisible();
+  const box = (await drawer.boundingBox())!;
+  expect(Math.abs(box.x + box.width - 1424)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box.y - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box.width - 400)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box.height - 868)).toBeLessThanOrEqual(1);
 });
 
-test('bell popover stays inside a 375px viewport', async ({ page }) => {
+test('bell drawer and its detail stay inside a 375px viewport', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/admin/tong-quan');
-  const bell = page.locator('.topbar .bell');
-  await bell.click();
-  const pop = page.getByRole('dialog', { name: 'Việc cần xử lý' });
-  await expect(pop).toBeVisible();
-  const bellBox = (await bell.boundingBox())!;
-  const popBox = (await pop.boundingBox())!;
-  expect(popBox.x).toBeGreaterThanOrEqual(0);
-  expect(popBox.x + popBox.width).toBeLessThanOrEqual(375);
-  expect(popBox.y).toBeGreaterThanOrEqual(bellBox.y + bellBox.height);
+  await page.locator('.topbar .bell').click();
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  await expect(drawer).toBeVisible();
+  await drawer.locator('button[data-id]').first().click();
+  const detail = page.getByRole('region', { name: 'Chi tiết yêu cầu' });
+  await expect(detail).toBeVisible();
+  for (const part of [drawer, detail]) {
+    const box = (await part.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+  }
 });
