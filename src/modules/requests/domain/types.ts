@@ -1,5 +1,7 @@
+import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from './isat';
+
 export type RequestType =
-  'LEAVE' | 'TIME_CORRECTION' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION';
+  'LEAVE' | 'TIME_CORRECTION' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
@@ -47,6 +49,9 @@ export interface SystemRequestProps {
   newEndTime?: string | null;
   makeupStartTime?: string | null;
   makeupEndTime?: string | null;
+
+  // ISAT
+  isat?: IsatRegistration | null;
 }
 
 export interface CreateLeaveParams {
@@ -113,6 +118,14 @@ export interface CreateExplanationParams {
   workDate: string;
   actualCheckIn?: string | null;
   actualCheckOut?: string | null;
+}
+
+export interface CreateIsatParams {
+  employeeId: string;
+  saturday: unknown;
+  team: unknown;
+  conditions: unknown;
+  profile: IsatProfileSnapshot;
 }
 
 export interface SystemRequestRow {
@@ -187,4 +200,6 @@ export interface SystemRequestDTO {
   newEndTime?: string | null;
   makeupStartTime?: string | null;
   makeupEndTime?: string | null;
+
+  isat: IsatRegistrationDTO | null;
 }

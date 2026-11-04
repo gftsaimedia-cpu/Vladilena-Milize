@@ -55,6 +55,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `POST /api/explanations` | `POST /api/v2/requests/explanation` | POST | **Nộp đơn giải trình công (mới)** |
 | | `GET /api/requests` | `GET /api/v2/requests` | GET | Danh sách đơn từ / giải trình |
 | | `PATCH /api/requests/:id/review`| `PATCH /api/v2/requests/:id/review` | PATCH | Duyệt / Từ chối đơn & giải trình |
+| **Đơn iSAT** | — (mới) | `POST /api/v2/requests/isat` | POST | **Nộp đơn iSAT (nghỉ Thứ Bảy có lương, chỉ nhóm Nhân viên)** |
+| | — (mới) | `GET /api/v2/requests/isat/conditions` | GET | **Danh sách điều kiện tự đánh giá iSAT** |
 | **Tính lương** | `POST /api/payroll/run` | `POST /api/v2/payroll/:month/calculate` | POST | Kích hoạt tính lương toàn chu kỳ |
 | | `GET /api/periods/:month/payslips` | `GET /api/v2/payroll/:month` | GET | Danh sách phiếu lương tháng |
 | | `GET /api/payslips/:id` | `GET /api/v2/payroll/:month/:employeeId` | GET | Chi tiết phiếu lương nhân viên |
@@ -305,6 +307,99 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 
+#### `POST /api/v2/requests/isat` (Đơn iSAT — nghỉ Thứ Bảy có lương)
+- **Mục đích**: Nhân sự nhóm Nhân viên tự đánh giá 4 điều kiện và xin nghỉ một ngày Thứ Bảy có lương. Máy chủ tự sinh `title` ("Đăng ký iSAT Thứ Bảy DD/MM/YYYY") và `reason` ("Tự đánh giá đạt N/4 điều kiện"); giá trị client gửi cho hai trường này bị bỏ qua.
+- **Request Body**:
+  ```json
+  {
+    "employeeId": "nguyen-van-a",
+    "saturday": "2026-11-07",
+    "team": "VN Pod — Vận hành",
+    "conditions": {
+      "NO_VIOLATION": true,
+      "REPORTS_DONE": true,
+      "WORK_COMPLETED": true,
+      "OFFICIAL_EMPLOYEE": false
+    }
+  }
+  ```
+  - `employeeId`: tuỳ chọn, là `uuid` hoặc `username`; bỏ trống thì lấy người đăng nhập. Đơn luôn được lưu theo `uuid` của nhân sự, dù gửi `username`.
+    - Vì `employee_id` là `uuid`, `GET /api/v2/requests?employeeId=<username>` và `PATCH /api/v2/requests/:id/cancel` từ phiên đăng nhập (username) đều tự đổi username sang `uuid` của nhân sự: danh sách trả cả đơn iSAT lẫn các loại đơn khác của người đó, và tác giả huỷ được đơn của mình.
+  - `saturday`: ngày `YYYY-MM-DD` hợp lệ và phải là Thứ Bảy.
+  - `team`: chuỗi không rỗng (cắt khoảng trắng hai đầu).
+  - `conditions`: object `{mã: true|false}` theo mã ở `GET /api/v2/requests/isat/conditions`. Không gửi, thiếu mã hoặc giá trị `null` đều tính **Chưa đạt**.
+  - Các trường khác trong body không được chuyển đi.
+- **Response 201**: `{ "created": true, "request": <đơn> }`. Hồ sơ nhân sự (họ tên, loại, bậc, tên bậc, ca) được chụp vào đơn lúc nộp.
+  - Tự đánh giá đạt 4/4: `status` = `PENDING`, chờ duyệt.
+  - Dưới 4/4: đơn vẫn được lưu nhưng `status` = `REJECTED` ngay, `reviewedBy` = `null`, `reviewNote` = "Tự đánh giá chưa đạt 4/4 (đạt N/4)". Không ghi lịch và không có tác dụng lên lương.
+  ```json
+  {
+    "created": true,
+    "request": {
+      "id": "req-uuid",
+      "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
+      "type": "ISAT",
+      "status": "REJECTED",
+      "title": "Đăng ký iSAT Thứ Bảy 07/11/2026",
+      "reason": "Tự đánh giá đạt 3/4 điều kiện",
+      "reviewedBy": null,
+      "reviewNote": "Tự đánh giá chưa đạt 4/4 (đạt 3/4)",
+      "isat": { "saturday": "2026-11-07", "passedCount": 3, "totalCount": 4 }
+    }
+  }
+  ```
+  *(Ví dụ rút gọn; khối `isat` đầy đủ ở mục "Khối `isat`" bên dưới.)*
+- **Lỗi** (mọi lỗi đều là `400` với `code: "BAD_REQUEST"`, `error` là câu tiếng Việt dưới đây; kiểm tra theo đúng thứ tự):
+
+  | Thứ tự | `error` | Khi nào |
+  |--------|---------|---------|
+  | 1 | `Không tìm thấy nhân sự: <id>` | `employeeId` (hoặc người đăng nhập) không khớp `uuid` hay `username` nào |
+  | 2 | `iSAT chỉ áp dụng cho nhóm Nhân viên` | Loại nhân sự không bật quyền lợi `isat` |
+  | 3 | `saturday phải là ngày Thứ Bảy dạng YYYY-MM-DD, nhận: <giá trị>` | Thiếu `saturday`, sai định dạng, ngày không tồn tại hoặc không phải Thứ Bảy |
+  | 4 | `team (Bộ phận / Team) không được để trống` | Thiếu `team` hoặc chỉ gồm khoảng trắng |
+  | 5 | `conditions phải là object {mã: true\|false}` | `conditions` gửi lên nhưng là mảng, chuỗi, số... |
+  | 5 | `Mã điều kiện iSAT không hợp lệ: <mã>` | `conditions` có mã ngoài 4 mã của `GET .../isat/conditions` |
+  | 5 | `Giá trị điều kiện <mã> phải là true, false hoặc null` | Giá trị điều kiện khác `true`/`false`/`null` (ví dụ chuỗi `"true"`) |
+  | 6 | `Đã có đơn iSAT cho Thứ Bảy DD/MM/YYYY` | Người đó đã có đơn iSAT `PENDING` hoặc `APPROVED` cho cùng Thứ Bảy (kể cả khi đơn mới sẽ tự `REJECTED`). Đơn đã `REJECTED`, kể cả tự đánh giá chưa đạt, không chặn |
+
+#### `GET /api/v2/requests/isat/conditions` (Danh sách điều kiện iSAT)
+- **Response 200**: 4 điều kiện theo thứ tự hiển thị trên form.
+  ```json
+  {
+    "conditions": [
+      { "code": "NO_VIOLATION", "label": "Không vi phạm Nội quy lao động hoặc các quy định của Công ty trong kỳ xét duyệt" },
+      { "code": "REPORTS_DONE", "label": "Thực hiện đầy đủ các báo cáo" },
+      { "code": "WORK_COMPLETED", "label": "Hoàn thành công việc được giao theo kế hoạch" },
+      { "code": "OFFICIAL_EMPLOYEE", "label": "Là nhân viên chính thức" }
+    ]
+  }
+  ```
+
+#### `GET /api/v2/requests` & `GET /api/v2/requests/:id` (khối `isat`)
+- Mọi đơn trả về có trường `isat`: `null` với loại đơn khác `ISAT`. `GET /api/v2/requests?type=ISAT` lọc riêng đơn iSAT (cùng các bộ lọc `employeeId`, `status`, `limit`, `offset` như mọi loại đơn).
+- **Khối `isat`** của đơn iSAT (admin đọc lại đủ mọi trường đã nộp):
+  ```json
+  "isat": {
+    "saturday": "2026-11-07",
+    "fullName": "Nguyễn Văn A",
+    "team": "VN Pod — Vận hành",
+    "positionType": "nv",
+    "positionLevel": 2,
+    "levelName": "Chuyên viên",
+    "shift": { "type": "NORMAL", "startTime": "08:00", "endTime": "17:00" },
+    "conditions": [
+      { "code": "NO_VIOLATION", "label": "Không vi phạm Nội quy lao động hoặc các quy định của Công ty trong kỳ xét duyệt", "passed": false },
+      { "code": "REPORTS_DONE", "label": "Thực hiện đầy đủ các báo cáo", "passed": true },
+      { "code": "WORK_COMPLETED", "label": "Hoàn thành công việc được giao theo kế hoạch", "passed": true },
+      { "code": "OFFICIAL_EMPLOYEE", "label": "Là nhân viên chính thức", "passed": true }
+    ],
+    "passedCount": 3,
+    "totalCount": 4
+  }
+  ```
+  - `fullName`, `positionType`, `positionLevel`, `levelName` (có thể `null` nếu danh mục không có tên bậc) và `shift` là bản chụp hồ sơ lúc nộp, không đổi khi hồ sơ nhân sự sửa sau đó.
+  - `conditions` là bản chụp nội dung và kết quả (`passed`) lúc nộp, luôn đủ 4 mục theo thứ tự hiển thị; đơn cũ giữ nội dung cũ nếu danh sách điều kiện đổi sau này.
+
 #### `PATCH /api/v2/requests/:id/review` (Duyệt / Từ chối đơn)
 - **Request Body**:
   ```json
@@ -314,6 +409,12 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 - **Response 200**: Trả về trạng thái đơn đã cập nhật. Hệ thống tự động cập nhật lịch công (`work_schedules`) hoặc trạng thái ngày công (`timesheet_entries`) tương ứng.
+
+##### Duyệt đơn iSAT
+- Chỉ đơn `PENDING` duyệt được, như mọi loại đơn. Tác dụng:
+  - `APPROVE`: lịch làm việc của Thứ Bảy đó được ghi `scheduleType = "ISAT"`, `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (giữ nguyên ca và giờ dự kiến, giờ OT được duyệt về 0). Phiếu lương của tháng chứa Thứ Bảy đó có dòng ngày `shiftCode "ISAT"` / `shiftLabel "iSAT"` / `inOutText "Hưởng lương ngày"` trị giá **một lương ngày** (lương cơ bản ÷ ngày công chuẩn, không phụ cấp, không OT, không khấu trừ) và thay dòng chấm công cùng ngày nếu có (mỗi ngày một dòng, không trả hai lần). `isatDays` đếm số ngày iSAT, `isatPay` cộng vào thu nhập gộp; ngày iSAT không tính vào `actualWorkDays` (không tăng phụ cấp đi lại, chuyên cần) và không bị tính là ngày nghỉ khi xét chuyên cần. Ví dụ: nv bậc 1, lương cơ bản 6.000.000, đơn T7 07/11/2026 đã duyệt → phiếu tháng 2026-11 có dòng 07/11 "iSAT" 230.769 đ, `isatDays = 1`, `isatPay = 230.769`.
+  - `REJECT`: không đổi lịch và không ảnh hưởng lương.
+  - Đơn iSAT mất dòng đăng ký (dữ liệu hỏng) bị từ chối khi `APPROVE` với `400` "Đơn iSAT thiếu dữ liệu đăng ký: <id>" và giữ nguyên `PENDING`; vẫn `REJECT` được.
 
 ---
 

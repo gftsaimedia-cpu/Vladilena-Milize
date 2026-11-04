@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT' | 'CUSTOM';
-export type ScheduleType = 'REGULAR' | 'SHIFT_CHANGE' | 'MAKE_UP' | 'OVERTIME';
+export type ScheduleType = 'REGULAR' | 'SHIFT_CHANGE' | 'MAKE_UP' | 'OVERTIME' | 'ISAT';
 export type ScheduleStatus = 'PLANNED' | 'COMPLETED' | 'ON_LEAVE' | 'CANCELLED';
 
 export type CheckInStatus = 'VALID' | 'EARLY' | 'LATE' | 'MISSED' | 'PENDING';
@@ -198,6 +198,23 @@ export class WorkSchedule {
       plannedEndTime: this.plannedEndTime,
       approvedOtHours: 0,
       scheduleType: this.scheduleType,
+      status: 'ON_LEAVE',
+      sourceRequestId: requestId ?? this.sourceRequestId,
+      createdAt: this.createdAt,
+      updatedAt: new Date()
+    });
+  }
+
+  withIsat(requestId?: string): WorkSchedule {
+    return new WorkSchedule({
+      id: this.id,
+      employeeId: this.employeeId,
+      workDate: this.workDate,
+      shiftType: this.shiftType,
+      plannedStartTime: this.plannedStartTime,
+      plannedEndTime: this.plannedEndTime,
+      approvedOtHours: 0,
+      scheduleType: 'ISAT',
       status: 'ON_LEAVE',
       sourceRequestId: requestId ?? this.sourceRequestId,
       createdAt: this.createdAt,

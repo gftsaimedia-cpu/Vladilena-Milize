@@ -3,16 +3,28 @@ import { Kysely, sql } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import {
   SystemRequest,
+  SystemRequestRow,
+  IsatRegistration,
+  IsatConditionRow,
+  IsatProfileSnapshot,
   RequestType,
   RequestStatus
 } from './domain';
 
 export interface RequestListFilter {
   employeeId?: string;
+  /** Khớp bất kỳ id nào trong danh sách (uuid hoặc username); có phần tử thì thay cho `employeeId`. */
+  employeeIds?: string[];
   type?: RequestType;
   status?: RequestStatus;
   limit?: number;
   offset?: number;
+}
+
+export interface IsatProfile {
+  employeeId: string;
+  isatEnabled: boolean;
+  snapshot: IsatProfileSnapshot;
 }
 
 @Injectable()
@@ -21,7 +33,32 @@ export class RequestsRepository {
 
   async save(request: SystemRequest): Promise<void> {
     const row = request.toRow();
-    await this.qb
+    const isat = request.isat;
+    if (!isat) {
+      await this.upsertRequest(this.qb, row);
+      return;
+    }
+    // Đơn iSAT ghi ba bảng trong một giao dịch; lưu lần hai (duyệt đơn) chỉ cập nhật system_requests,
+    // phần đăng ký và điều kiện đã chụp lúc nộp nên bỏ qua khi trùng khoá.
+    await this.qb.transaction().execute(async trx => {
+      await this.upsertRequest(trx, row);
+      await trx
+        .insertInto('isat_registrations')
+        .values(isat.toRow(request.id))
+        .onConflict(oc => oc.column('request_id').doNothing())
+        .execute();
+      const conditionRows = isat.toConditionRows(request.id);
+      if (conditionRows.length === 0) return;
+      await trx
+        .insertInto('isat_registration_conditions')
+        .values(conditionRows)
+        .onConflict(oc => oc.columns(['request_id', 'code']).doNothing())
+        .execute();
+    });
+  }
+
+  private async upsertRequest(db: Kysely<DB>, row: SystemRequestRow): Promise<void> {
+    await db
       .insertInto('system_requests')
       .values(row as any)
       .onConflict(oc =>
@@ -64,13 +101,16 @@ export class RequestsRepository {
       .where('id', '=', id)
       .executeTakeFirst();
     if (!row) return null;
-    return SystemRequest.fromRow(row);
+    const [request] = await this.attachIsat([row]);
+    return request;
   }
 
   async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
     let query = this.qb.selectFrom('system_requests').selectAll();
 
-    if (filter.employeeId) {
+    if (filter.employeeIds?.length) {
+      query = query.where('employee_id', 'in', filter.employeeIds);
+    } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
     if (filter.type) {
@@ -90,7 +130,112 @@ export class RequestsRepository {
     }
 
     const rows = await query.execute();
-    return rows.map(r => SystemRequest.fromRow(r));
+    return this.attachIsat(rows);
+  }
+
+  /** Đổi uuid hoặc username nhân sự thành uuid; không có nhân sự thì trả null. */
+  async resolveStaffUuid(employeeIdOrUsername: string): Promise<string | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select('uuid')
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    return row?.uuid ?? null;
+  }
+
+  /** Hồ sơ nộp đơn iSAT: uuid, quyền lợi iSAT và bản chụp hồ sơ, theo danh mục hiệu lực tại `month` (YYYY-MM). */
+  async findIsatProfile(employeeIdOrUsername: string, month: string): Promise<IsatProfile | null> {
+    const staff = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'name', 'type', 'level', 'shift_type', 'shift_start_time', 'shift_end_time'])
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    if (!staff || !staff.uuid) return null;
+
+    const level = Number(staff.level);
+    const levelRow = await this.qb
+      .selectFrom('position_levels')
+      .select('name')
+      .where('type_code', '=', staff.type)
+      .where('level_no', '=', level)
+      .where('effective_month', '<=', month)
+      .orderBy('effective_month', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+
+    // Lấy phiên bản chức vụ mới nhất có hiệu lực rồi mới tra quyền lợi (như PayrollRepository.positionInEffect):
+    // phiên bản đó không có dòng isat thì coi là tắt, không lùi về phiên bản cũ hơn.
+    const benefitRow = await this.qb
+      .selectFrom('position_types')
+      .leftJoin('position_type_benefits', join =>
+        join.onRef('position_type_benefits.type_id', '=', 'position_types.id').on('position_type_benefits.benefit', '=', 'isat')
+      )
+      .select('position_type_benefits.enabled')
+      .where('position_types.code', '=', staff.type)
+      .where('position_types.effective_month', '<=', month)
+      .orderBy('position_types.effective_month', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+
+    return {
+      employeeId: staff.uuid,
+      isatEnabled: Number(benefitRow?.enabled) === 1,
+      snapshot: {
+        fullName: staff.name,
+        positionType: staff.type,
+        positionLevel: level,
+        levelName: levelRow?.name ?? null,
+        shiftType: staff.shift_type,
+        shiftStartTime: staff.shift_start_time,
+        shiftEndTime: staff.shift_end_time
+      }
+    };
+  }
+
+  /** Gắn phần đăng ký iSAT cho các dòng ISAT bằng hai truy vấn gộp; trang không có đơn iSAT thì không truy vấn thêm. */
+  private async attachIsat(rows: any[]): Promise<SystemRequest[]> {
+    const ids: string[] = rows.filter(r => r.type === 'ISAT').map(r => r.id);
+    if (ids.length === 0) {
+      return rows.map(r => SystemRequest.fromRow(r));
+    }
+
+    const registrations = await this.qb
+      .selectFrom('isat_registrations')
+      .select([
+        'request_id',
+        // DATE đọc thẳng sẽ thành Date theo múi giờ máy và lệch ngày; ép về YYYY-MM-DD ngay trong SQL.
+        sql<string>`to_char(${sql.ref('isat_registrations.saturday')}, 'YYYY-MM-DD')`.as('saturday'),
+        'full_name',
+        'team',
+        'position_type',
+        'position_level',
+        'level_name',
+        'shift_type',
+        'shift_start_time',
+        'shift_end_time'
+      ])
+      .where('request_id', 'in', ids)
+      .execute();
+
+    const conditionRows = await this.qb
+      .selectFrom('isat_registration_conditions')
+      .select(['request_id', 'sort_order', 'code', 'label', 'passed'])
+      .where('request_id', 'in', ids)
+      .orderBy('sort_order')
+      .execute();
+
+    const conditionsByRequest = new Map<string, IsatConditionRow[]>();
+    for (const c of conditionRows) {
+      const list = conditionsByRequest.get(c.request_id) ?? [];
+      list.push(c);
+      conditionsByRequest.set(c.request_id, list);
+    }
+    const registrationByRequest = new Map<string, IsatRegistration>();
+    for (const r of registrations) {
+      registrationByRequest.set(r.request_id, IsatRegistration.fromRows(r, conditionsByRequest.get(r.request_id) ?? []));
+    }
+
+    return rows.map(r => SystemRequest.fromRow(r, registrationByRequest.get(r.id) ?? null));
   }
 
   async count(filter: Omit<RequestListFilter, 'limit' | 'offset'> = {}): Promise<number> {
@@ -98,7 +243,9 @@ export class RequestsRepository {
       .selectFrom('system_requests')
       .select(sql<number>`COUNT(*)`.as('total'));
 
-    if (filter.employeeId) {
+    if (filter.employeeIds?.length) {
+      query = query.where('employee_id', 'in', filter.employeeIds);
+    } else if (filter.employeeId) {
       query = query.where('employee_id', '=', filter.employeeId);
     }
     if (filter.type) {

@@ -158,9 +158,15 @@ export class PayrollService {
     const employeeType = staff.employeeType;
     const nightAllowancePct = staff.nightAllowancePct === 60 ? 60 : 40;
     const allowancePolicy = new PayrollAllowancePolicy(employeeType, nightAllowancePct);
+    // An approved iSAT Saturday is paid as one base day; the set also drops a date listed twice.
+    const isatDates = new Set(data.isatDates ?? []);
+    // An iSAT Saturday has no attendance line, so a makeup approved on it later must not count as a makeup day.
     const makeupWorkDates = new Set(
       timesheets
-        .filter(ts => ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0)
+        .filter(
+          ts =>
+            ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0 && !isatDates.has(ts.workDate)
+        )
         .map(ts => ts.workDate)
     );
     const standardWorkdays = staff.standardWorkdays;
@@ -172,6 +178,8 @@ export class PayrollService {
     let totalDeductionHours = 0;
 
     for (const ts of timesheets) {
+      if (isatDates.has(ts.workDate)) continue;
+
       const shiftCode = ts.shiftType.toUpperCase();
       let shiftLabel = 'Normal';
       let inOutText = '08:00–17:00';
@@ -237,6 +245,27 @@ export class PayrollService {
         dailyTotal
       });
     }
+
+    for (const date of isatDates) {
+      dailyLines.push({
+        date,
+        dayOfWeekText: 'Thứ 7',
+        shiftCode: 'ISAT',
+        shiftLabel: 'iSAT',
+        inOutText: 'Hưởng lương ngày',
+        workHours: 0,
+        daySalary: Math.round(dayRate),
+        flexAllowancePay: 0,
+        nightAllowancePay: 0,
+        offPaidPay: 0,
+        otHours: 0,
+        otPay: 0,
+        deductionHours: 0,
+        deductionAmount: 0,
+        dailyTotal: Math.round(dayRate)
+      });
+    }
+    dailyLines.sort((a, b) => a.date.localeCompare(b.date));
 
     let totalOtHours = 0;
     for (const req of requests) {
