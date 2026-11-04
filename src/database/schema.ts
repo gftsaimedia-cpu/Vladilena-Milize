@@ -30,6 +30,27 @@ export interface BenefitTypesTable {
   label: Generated<string | null>;
 }
 
+export interface IsatRegistrationConditionsTable {
+  request_id: string;
+  sort_order: number;
+  code: string;
+  label: string;
+  passed: boolean;
+}
+
+export interface IsatRegistrationsTable {
+  request_id: string;
+  saturday: string;
+  full_name: string;
+  team: string;
+  position_type: string;
+  position_level: number;
+  level_name: Generated<string | null>;
+  shift_type: string;
+  shift_start_time: string;
+  shift_end_time: string;
+}
+
 export interface KpiScoreLogTable {
   id: Generated<number>;
   username: string;
@@ -353,6 +374,8 @@ export interface WorkShiftsTable {
 export interface Schema {
   audit_log: AuditLogTable;
   benefit_types: BenefitTypesTable;
+  isat_registration_conditions: IsatRegistrationConditionsTable;
+  isat_registrations: IsatRegistrationsTable;
   kpi_score_log: KpiScoreLogTable;
   kpi_scores: KpiScoresTable;
   param_versions: ParamVersionsTable;
