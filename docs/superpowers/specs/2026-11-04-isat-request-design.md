@@ -20,7 +20,7 @@ Loại: Architectural (loại đơn mới, bảng mới, endpoint mới, nối s
 | L10 | Thứ Bảy đã duyệt iSAT mà vẫn có dòng chấm công → dòng iSAT **thay thế** dòng chấm công (mỗi ngày một dòng, không trả hai lần). |
 | L11 | (Đã chốt trước đó, ngày công) Ngày iSAT trả một lương ngày cơ bản, không phụ cấp; không tính là ngày nghỉ khi xét chuyên cần. |
 
-Quyết định thiết kế đã được duyệt: lưu nội dung form ở **bảng riêng** `isat_registrations`; thêm `GET /api/v2/requests/isat/conditions`.
+Quyết định thiết kế đã được duyệt: lưu nội dung form ở **bảng riêng** `isat_registrations`; bản chụp điều kiện ở **bảng con** `isat_registration_conditions` (không dùng JSONB, theo `skills/backend-design-standards` mục 1.2); thêm `GET /api/v2/requests/isat/conditions`.
 
 ## 2. Ngoài phạm vi
 
@@ -49,16 +49,24 @@ CREATE TABLE isat_registrations (
   level_name       TEXT,              -- chụp: 'Chuyên viên' (NULL nếu danh mục không có)
   shift_type       TEXT NOT NULL,     -- chụp: 'NORMAL'
   shift_start_time TEXT NOT NULL,     -- '08:00'
-  shift_end_time   TEXT NOT NULL,     -- '17:00'
-  conditions       JSONB NOT NULL     -- [{ "code", "label", "passed": true|false }]
+  shift_end_time   TEXT NOT NULL      -- '17:00'
 );
 CREATE INDEX idx_isat_registrations_saturday ON isat_registrations (saturday);
+
+CREATE TABLE isat_registration_conditions (
+  request_id UUID    NOT NULL REFERENCES isat_registrations(request_id),
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 1),  -- thứ tự hiển thị 1..4
+  code       TEXT    NOT NULL CHECK (length(code) > 0),  -- 'NO_VIOLATION'
+  label      TEXT    NOT NULL,                           -- nội dung lúc nộp
+  passed     BOOLEAN NOT NULL,
+  PRIMARY KEY (request_id, code)
+);
 ```
 
 - Ràng buộc CHECK cột `type` của bảng gốc được PostgreSQL tự đặt tên `system_requests_type_check`.
-- Số điều kiện đạt suy ra từ `conditions`, không lưu cột riêng.
-- `src/database/schema.ts` thêm kiểu `IsatRegistrations` và mục `isat_registrations` trong `DB` bằng tay (script sinh kiểu đã được lưu trữ khỏi repo).
-- Lưu đơn ISAT ghi `system_requests` và `isat_registrations` trong **một giao dịch**.
+- Số điều kiện đạt suy ra từ các dòng con (`passed = true`), không lưu cột riêng.
+- `src/database/schema.ts` thêm kiểu `IsatRegistrationsTable`, `IsatRegistrationConditionsTable` và hai mục tương ứng trong `Schema` bằng tay (script sinh kiểu đã được lưu trữ khỏi repo).
+- Lưu đơn ISAT ghi `system_requests`, `isat_registrations` và `isat_registration_conditions` trong **một giao dịch**.
 
 Hằng số điều kiện (`src/modules/requests/domain/isat.ts`):
 
@@ -117,7 +125,7 @@ Phản hồi giống các route tạo đơn: `{ "created": true, "request": <Sys
 }
 ```
 
-`RequestsRepository.findById` và `list` left join `isat_registrations`; `GET /api/v2/requests?type=ISAT` lọc được nhờ bộ lọc `type` sẵn có.
+`RequestsRepository.findById` và `list` left join `isat_registrations`, rồi đọc `isat_registration_conditions` của các đơn ISAT trong kết quả bằng **một** truy vấn `request_id IN (…)` sắp theo `sort_order`; `GET /api/v2/requests?type=ISAT` lọc được nhờ bộ lọc `type` sẵn có.
 
 ## 6. Duyệt — ghi lịch
 
