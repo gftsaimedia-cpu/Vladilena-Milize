@@ -1,7 +1,7 @@
 // Dịch vụ của nhóm admin-main: Tổng quan, Yêu cầu và các lớp nổi của vỏ Admin.
 // Yêu cầu chờ duyệt, Tổng quan và chuông gọi máy chủ qua api().
 import { toast } from '@/components/shell/toast';
-import { buildBell, buildOverview } from '@/builders/admin-main/overview';
+import { buildOverview } from '@/builders/admin-main/overview';
 import {
   OLDER_PAGE,
   REQUEST_KINDS,
@@ -12,6 +12,8 @@ import {
   sortRaw,
   staffIndex
 } from '@/builders/admin-requests/requests';
+import { bellView } from '@/mock/shell';
+import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
 import { useSessionStore } from '@/stores/session';
 import { countWaiting } from '@/builders/admin-requests/explanations';
@@ -168,12 +170,8 @@ export async function getOverview(month?) {
 }
 
 // ---------- Lớp nổi của vỏ Admin ----------
-// Việc cần xử lý trên chuông: yêu cầu chờ duyệt (mọi tháng), giải trình chờ xử lý (mọi tháng) và ngày quên Check-in/out của tháng đang xem (GET /alerts).
-export async function getBell() {
-  const month = monthOfView();
-  const [alerts, waiting] = await Promise.all([api('GET', '/alerts' + qs({ month })), listWaitingExplanations()]);
-  return buildBell({ month, alerts, explanations: countWaiting(waiting) });
-}
+// Việc cần xử lý trên chuông: số liệu giả của tháng đang xem (mock/shell).
+export const getBell = () => respond(bellView(monthOfView()));
 
 export const changePassword = ({ current, next }: any) => sessionChangePassword(current, next);
 

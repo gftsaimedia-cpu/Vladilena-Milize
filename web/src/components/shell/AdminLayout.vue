@@ -1,14 +1,15 @@
 <script setup lang="ts">
-// Khung mọi màn Admin: thanh bên + thanh kỳ lương + nội dung (RouterView ở slot).
+// Khung mọi màn Admin: thanh bên + thanh trên + dải bước kỳ lương (3 màn) + nội dung (RouterView ở slot).
 // Chuông (BellPopover), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { getShell } from '@/services/shell';
 import { usePeriodStore } from '@/stores/period';
+import { useShellStore } from '@/stores/shell';
 import { useUiStore } from '@/stores/ui';
 import AccountMenu from './AccountMenu.vue';
 import AdminSidebar from './AdminSidebar.vue';
+import AdminTopbar from './AdminTopbar.vue';
 import BellPopover from './BellPopover.vue';
 import ChangePasswordDialog from './ChangePasswordDialog.vue';
 import PeriodStrip from './PeriodStrip.vue';
@@ -18,12 +19,12 @@ const period = usePeriodStore();
 const ui = useUiStore();
 ui.init();
 
-const shell = ref({ me: {}, counts: {}, bell: 0 });
-const loadShell = async () => {
-  shell.value = await getShell();
-};
-onMounted(loadShell);
+const shell = useShellStore();
+onMounted(() => shell.load());
 onMounted(() => period.refresh());
+
+// Dải bước kỳ lương chỉ hiện ở các màn gắn với kỳ lương.
+const STEPS_NAV = ['cham-cong', 'kpi', 'luong'];
 
 const bellOpen = ref(false);
 const menuOpen = ref(false);
@@ -87,7 +88,7 @@ watch(
     menuOpen.value = false;
     closeMobileNav();
     period.resetStrip();
-    loadShell(); // số đếm trên thanh bên và chuông theo việc vừa xử lý
+    shell.load(); // số đếm trên thanh bên và chuông theo việc vừa xử lý
   },
   { flush: 'pre' }
 );
@@ -114,28 +115,6 @@ function openPassword() {
 <template>
   <div class="app">
     <button
-      ref="menuButton"
-      class="mobile-nav-toggle"
-      type="button"
-      aria-controls="admin-navigation"
-      :aria-expanded="mobileNavOpen"
-      :aria-label="mobileNavOpen ? 'Đóng điều hướng' : 'Mở điều hướng'"
-      @click="mobileNavOpen = !mobileNavOpen"
-    >
-      <svg
-        aria-hidden="true"
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.8"
-        stroke-linecap="round"
-      >
-        <path d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </button>
-    <button
       v-if="mobileNavOpen"
       class="nav-scrim"
       type="button"
@@ -153,11 +132,33 @@ function openPassword() {
       @navigate="closeMobileNav()"
     />
     <main class="canvas">
-      <PeriodStrip
-        :bell="shell.bell"
-        :show-steps="['tong-quan', 'cham-cong', 'kpi', 'luong'].includes(String(route.meta.nav || ''))"
-        @open-bell="bellOpen = !bellOpen"
-      />
+      <AdminTopbar :bell="shell.bell" @open-bell="bellOpen = !bellOpen">
+        <template #start>
+          <button
+            ref="menuButton"
+            class="mobile-nav-toggle"
+            type="button"
+            aria-controls="admin-navigation"
+            :aria-expanded="mobileNavOpen"
+            :aria-label="mobileNavOpen ? 'Đóng điều hướng' : 'Mở điều hướng'"
+            @click="mobileNavOpen = !mobileNavOpen"
+          >
+            <svg
+              aria-hidden="true"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+            >
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </template>
+      </AdminTopbar>
+      <PeriodStrip v-if="STEPS_NAV.includes(String(route.meta.nav || ''))" />
       <slot />
     </main>
     <BellPopover v-if="bellOpen" @close="bellOpen = false" />

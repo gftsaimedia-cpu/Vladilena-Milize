@@ -1,8 +1,8 @@
 // Kỳ lương đang xem trên mọi màn Admin (tháng + thanh các bước). Màn có kịch bản riêng (Bảng lương) gọi setStrip();
 // đổi màn thì AdminLayout gọi resetStrip() để thanh về trạng thái kỳ máy chủ trả cho tháng đó.
 import { defineStore } from 'pinia';
-import { api } from '@/services/http';
-import { buildStrip, emptyStrip } from '@/builders/period-strip';
+import { emptyStrip } from '@/builders/period-strip';
+import { periodStrip } from '@/mock/period';
 import { useSessionStore } from '@/stores/session';
 import { addMonths } from '@/utils/format';
 
@@ -31,17 +31,10 @@ export const usePeriodStore = defineStore('period', {
       this.strip = emptyStrip(month);
       this.refresh();
     },
-    // Nạp trạng thái kỳ của tháng đang xem; lỗi thì giữ thanh chỉ có tên tháng
-    async refresh() {
-      const month = this.month;
-      try {
-        const period = await api('GET', `/periods/${month}`);
-        if (month !== this.month) return;
-        this.base = buildStrip(month, period);
-        this.strip = JSON.parse(JSON.stringify(this.base));
-      } catch {
-        if (month === this.month) this.base = null;
-      }
+    // Nạp trạng thái kỳ giả của tháng đang xem
+    refresh() {
+      this.base = periodStrip(this.month);
+      this.strip = JSON.parse(JSON.stringify(this.base));
     },
     setStrip(patch?) {
       this.strip = { ...this.strip, ...patch };

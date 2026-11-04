@@ -42,7 +42,12 @@ function scrollStaffTable(event: KeyboardEvent, direction: number) {
   region.scrollLeft += direction * Math.max(80, region.clientWidth * 0.35);
 }
 
-const q = ref('');
+// Giá trị đầu lấy từ ?q= (ô tìm trên thanh trên đẩy tới đây); tìm tiếp khi đang ở màn này thì cập nhật theo.
+const q = ref(String(route.query.q ?? ''));
+watch(
+  () => route.query.q,
+  v => (q.value = String(v ?? ''))
+);
 const page = ref(1);
 watch([loc, q], () => (page.value = 1));
 const { data, reload, loading, error } = useLoad(
