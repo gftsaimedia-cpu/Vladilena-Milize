@@ -82,6 +82,13 @@ export interface CreateExplanationInput {
   actualCheckOut?: string | null;
 }
 
+export interface CreateIsatInput {
+  employeeId: string;
+  saturday?: unknown;
+  team?: unknown;
+  conditions?: unknown;
+}
+
 function formatTimeToHHmm(val: Date | string): string {
   if (typeof val === 'string') {
     const trimmed = val.trim();
@@ -292,6 +299,41 @@ export class RequestsService {
     return req.toJSON();
   }
 
+  async createIsatRequest(input: CreateIsatInput): Promise<SystemRequestDTO> {
+    const profile = await this.repo.findIsatProfile(input.employeeId, new Date().toISOString().slice(0, 7));
+    if (!profile) {
+      throw new Error(`Không tìm thấy nhân sự: ${input.employeeId}`);
+    }
+    if (!profile.isatEnabled) {
+      throw new Error('iSAT chỉ áp dụng cho nhóm Nhân viên');
+    }
+
+    // Đơn lưu theo uuid của nhân sự (input có thể là username); domain kiểm tra form và tự REJECT khi chưa đạt đủ điều kiện
+    const req = SystemRequest.createIsatRequest({
+      employeeId: profile.employeeId,
+      saturday: input.saturday,
+      team: input.team,
+      conditions: input.conditions,
+      profile: profile.snapshot
+    });
+
+    // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
+    const saturday = req.isat!.saturday;
+    const existing = await this.repo.list({
+      employeeId: profile.employeeId,
+      type: 'ISAT'
+    });
+    for (const item of existing) {
+      if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.isat?.saturday === saturday) {
+        const [year, month, day] = saturday.split('-');
+        throw new Error(`Đã có đơn iSAT cho Thứ Bảy ${day}/${month}/${year}`);
+      }
+    }
+
+    await this.repo.save(req);
+    return req.toJSON();
+  }
+
   async reviewRequest(
     id: string,
     reviewerId: string,
@@ -305,6 +347,10 @@ export class RequestsService {
       }
 
       if (action === 'APPROVE') {
+        // Đơn iSAT mất dòng đăng ký thì không biết Thứ Bảy nào để ghi lịch: báo lỗi trước khi đổi trạng thái
+        if (req.type === 'ISAT' && req.isat === null) {
+          throw new Error(`Đơn iSAT thiếu dữ liệu đăng ký: ${req.id}`);
+        }
         req.approve(reviewerId, note);
 
         if (this.attendanceRepo) {
@@ -349,6 +395,9 @@ export class RequestsService {
                 cur = new Date(cur.getTime() + 86400000);
               }
             }
+          } else if (req.type === 'ISAT' && req.isat) {
+            const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
+            await this.attendanceRepo.saveSchedule(sched.withIsat(req.id));
           } else if (req.type === 'EXPLANATION') {
             const workDate = req.correctionDate;
             if (workDate) {
