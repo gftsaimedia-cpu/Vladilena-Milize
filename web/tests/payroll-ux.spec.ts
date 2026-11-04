@@ -125,7 +125,7 @@ test('frozen columns stay put and mouse drag scrolls without opening a slip', as
   const box = (await table(page).boundingBox())!;
   // Ba ô đứng yên phải nằm trong hộp cuộn ở cả hai đầu: ở scrollLeft = 0 Thực nhận và Trạng thái vốn nằm ngoài hộp,
   // nên chỉ position: sticky mới đưa chúng vào; ở cuối thì cột trái là phần bị đẩy ra nếu không đứng yên.
-  const frozen = ['th.who', 'td.net', 'td.st'];
+  const frozen = ['th.pt-who', 'td.net', 'td.st'];
   for (const at of ['start', 'end']) {
     await table(page).evaluate((el, end) => (el.scrollLeft = end ? el.scrollWidth : 0), at === 'end');
     for (const sel of frozen) {
@@ -157,7 +157,7 @@ test('frozen columns stay put and mouse drag scrolls without opening a slip', as
   await expect(page).not.toHaveURL(/phieu=/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await clicks()).toBe(0);
-  await table(page).locator('thead th.who').click();
+  await table(page).locator('thead th.pt-who').click();
   expect(await clicks()).toBe(1);
 });
 
@@ -200,7 +200,7 @@ test('payroll fits 375px and the table scrolls in its own region', async ({ page
   await expect(rows(page)).toHaveCount(10);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= 375)).toBeTruthy();
   expect(await table(page).evaluate(el => el.scrollWidth > el.clientWidth)).toBeTruthy();
-  const who = (await rows(page).first().locator('th.who').boundingBox())!;
+  const who = (await rows(page).first().locator('th.pt-who').boundingBox())!;
   expect(Math.round(who.width)).toBe(184);
   await expect(table(page).locator('thead .gh > span').first()).toHaveCSS('left', '198px');
 });
@@ -251,7 +251,7 @@ test('clicking a name opens that payslip', async ({ page }) => {
   await expect(line(d, /^Thuế TNCN/)).toContainText('Lũy tiến · 0 người phụ thuộc');
   await expect(line(d, /^Thực nhận/)).toContainText('14.278.183 ₫');
   await expect(d).toContainText('11 ngày');
-  await expect(row(page, 'Lê Hoàng Nam').locator('th.who')).toHaveCSS('background-color', 'rgb(255, 249, 236)');
+  await expect(row(page, 'Lê Hoàng Nam').locator('th.pt-who')).toHaveCSS('background-color', 'rgb(255, 249, 236)');
   await page.keyboard.press('Escape');
   await expect(d).toHaveCount(0);
   await expect(page).toHaveURL(URL10);
@@ -677,4 +677,13 @@ test('closing after stepping to the next slip puts focus on that slip\u2019s nam
   await anh.getByRole('button', { name: 'Đóng' }).click();
   await expect(anh).toHaveCount(0);
   await expect(nameLink(page, 'Phạm Ngọc Anh')).toBeFocused();
+});
+
+test('the table avatar is 32px at the default Gọn density, not shrunk by the global .who .av rule', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(page.locator('html')).toHaveAttribute('data-density', 'gon');
+  const av = rows(page).first().locator('[aria-hidden="true"]').filter({ hasText: /^[A-ZĐ]{1,2}$/ }).first();
+  const b = (await av.boundingBox())!;
+  expect([Math.round(b.width), Math.round(b.height)]).toEqual([32, 32]);
+  await expect(av).toHaveCSS('font-size', '11px');
 });

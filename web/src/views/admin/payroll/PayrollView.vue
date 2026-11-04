@@ -158,7 +158,7 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
         <PayTable ref="payTable" v-model:selected="selected" :lines="shown" :month="monthNo(board.month)" :open-id="slipId" />
         <div class="foot">
           <span>Kéo ngang để xem các khoản · bấm tên để mở phiếu lương</span>
-          <span v-if="missingKpi" class="legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
+          <span v-if="missingKpi" class="pl-legend"><i aria-hidden="true" />Thiếu điểm KPI, cột thiếu tính 0 điểm</span>
           <span class="count">Hiển thị {{ shown.length }} trong {{ board.counts[filter] }} phiếu</span>
         </div>
       </section>
@@ -204,12 +204,12 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
   font-size: 12px;
   line-height: 16px;
 }
-.legend {
+.pl-legend {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.legend i {
+.pl-legend i {
   width: 8px;
   height: 8px;
   border-radius: 50%;

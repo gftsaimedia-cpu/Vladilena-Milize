@@ -70,7 +70,7 @@ const total = computed(() => ({
         </colgroup>
         <thead>
           <tr>
-            <th rowspan="2" scope="col" class="who">Nhân viên</th>
+            <th rowspan="2" scope="col" class="pt-who">Nhân viên</th>
             <th rowspan="2" scope="col" class="m">Ngày công</th>
             <th colspan="6" scope="colgroup" class="gh"><span>Thu nhập</span></th>
             <th colspan="3" scope="colgroup" class="gh ded-h"><span>Khấu trừ</span></th>
@@ -91,10 +91,10 @@ const total = computed(() => ({
         </thead>
         <tbody>
           <tr v-for="line in lines" :key="line.id" :class="{ open: line.id === openId }">
-            <th scope="row" class="who">
+            <th scope="row" class="pt-who">
               <span class="cell">
                 <input v-model="selected" type="checkbox" class="pk" :value="line.id" :aria-label="`Chọn phiếu của ${line.name}`" />
-                <span class="av" aria-hidden="true">{{ line.initials }}</span>
+                <span class="pt-av" aria-hidden="true">{{ line.initials }}</span>
                 <span class="id">
                   <RouterLink :to="slipLink(line)" replace draggable="false" class="nn" :data-id="line.id">{{ line.name }}</RouterLink>
                   <span class="dp">{{ line.dept }} · {{ line.title }}</span>
@@ -124,7 +124,7 @@ const total = computed(() => ({
         </tbody>
         <tfoot v-if="lines.length">
           <tr>
-            <th scope="row" class="who">Tổng {{ lines.length }} phiếu đang hiện</th>
+            <th scope="row" class="pt-who">Tổng {{ lines.length }} phiếu đang hiện</th>
             <td class="m"></td>
             <td class="m">{{ money(total.workPay) }}</td>
             <td class="m">{{ money(total.kpiPay) }}</td>
@@ -224,8 +224,7 @@ const total = computed(() => ({
   width: var(--who);
 }
 /* Cột đứng yên: trái là Nhân viên, phải là Thực nhận và Trạng thái. */
-.tp .who {
-  display: table-cell;
+.tp .pt-who {
   position: sticky;
   left: 0;
   z-index: 2;
@@ -261,7 +260,7 @@ const total = computed(() => ({
   accent-color: var(--surface-dark);
   cursor: pointer;
 }
-.av {
+.pt-av {
   width: 32px;
   height: 32px;
   flex: none;
@@ -329,8 +328,8 @@ const total = computed(() => ({
   font-weight: 600;
 }
 /* Nền Gọn (base.css) chỉ hạ chiều cao của td; ô tiêu đề dòng theo cùng độ cao. */
-:root[data-density='gon'] .tp tbody th.who,
-:root[data-density='gon'] .tp tfoot th.who {
+:root[data-density='gon'] .tp tbody th.pt-who,
+:root[data-density='gon'] .tp tfoot th.pt-who {
   height: 42px;
 }
 .none {
@@ -349,7 +348,7 @@ const total = computed(() => ({
   .tp {
     --who: 184px;
   }
-  .av {
+  .pt-av {
     display: none;
   }
 }
