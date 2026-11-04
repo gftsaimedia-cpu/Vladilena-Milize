@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { toDateText } from '../../../common/date-text';
 
 export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT' | 'CUSTOM';
-export type ScheduleType = 'REGULAR' | 'SHIFT_CHANGE' | 'MAKE_UP' | 'OVERTIME';
+export type ScheduleType = 'REGULAR' | 'SHIFT_CHANGE' | 'MAKE_UP' | 'OVERTIME' | 'ISAT';
 export type ScheduleStatus = 'PLANNED' | 'COMPLETED' | 'ON_LEAVE' | 'CANCELLED';
 
 export type CheckInStatus = 'VALID' | 'EARLY' | 'LATE' | 'MISSED' | 'PENDING';
@@ -154,23 +155,6 @@ export class WorkSchedule {
     });
   }
 
-  withMakeUp(makeupStartTime: string, makeupEndTime: string, requestId?: string): WorkSchedule {
-    return new WorkSchedule({
-      id: this.id,
-      employeeId: this.employeeId,
-      workDate: this.workDate,
-      shiftType: this.shiftType,
-      plannedStartTime: makeupStartTime,
-      plannedEndTime: makeupEndTime,
-      approvedOtHours: this.approvedOtHours,
-      scheduleType: 'MAKE_UP',
-      status: this.status,
-      sourceRequestId: requestId ?? this.sourceRequestId,
-      createdAt: this.createdAt,
-      updatedAt: new Date()
-    });
-  }
-
   withOvertime(extendedEndTime: string, otHours: number, requestId?: string): WorkSchedule {
     return new WorkSchedule({
       id: this.id,
@@ -205,6 +189,23 @@ export class WorkSchedule {
     });
   }
 
+  withIsat(requestId?: string): WorkSchedule {
+    return new WorkSchedule({
+      id: this.id,
+      employeeId: this.employeeId,
+      workDate: this.workDate,
+      shiftType: this.shiftType,
+      plannedStartTime: this.plannedStartTime,
+      plannedEndTime: this.plannedEndTime,
+      approvedOtHours: 0,
+      scheduleType: 'ISAT',
+      status: 'ON_LEAVE',
+      sourceRequestId: requestId ?? this.sourceRequestId,
+      createdAt: this.createdAt,
+      updatedAt: new Date()
+    });
+  }
+
   toRow(): WorkScheduleRow {
     return {
       id: this.id,
@@ -223,16 +224,7 @@ export class WorkSchedule {
   }
 
   static fromRow(row: WorkScheduleRow): WorkSchedule {
-    const rawDate = row.work_date as any;
-    let workDate = String(rawDate || '');
-    if (rawDate instanceof Date) {
-      const y = rawDate.getUTCFullYear();
-      const m = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(rawDate.getUTCDate()).padStart(2, '0');
-      workDate = `${y}-${m}-${d}`;
-    } else if (workDate.length > 10) {
-      workDate = workDate.slice(0, 10);
-    }
+    const workDate = toDateText((row.work_date as string | Date) || '');
 
     return new WorkSchedule({
       id: row.id,

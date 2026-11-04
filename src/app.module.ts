@@ -3,6 +3,7 @@ import { DatabaseModule } from './database';
 import { AuthModule } from './modules/auth';
 import { RolesModule } from './modules/roles';
 import { EmployeesModule } from './modules/employees';
+import { HolidaysModule } from './modules/holidays';
 import { RequestsModule } from './modules/requests';
 import { AttendanceModule } from './modules/attendance';
 import { PayrollModule } from './modules/payroll';
@@ -14,6 +15,7 @@ import { SystemModule } from './modules/system';
     AuthModule,
     RolesModule,
     EmployeesModule,
+    HolidaysModule,
     RequestsModule,
     AttendanceModule,
     PayrollModule,

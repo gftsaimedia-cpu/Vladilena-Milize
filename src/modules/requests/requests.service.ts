@@ -5,11 +5,11 @@ import {
   RequestType,
   RequestStatus,
   LeaveType,
-  CorrectionPunchType,
   SystemRequestDTO
 } from './domain';
 import { RequestsRepository, RequestListFilter } from './requests.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { businessMonthText } from '../../common/business-date';
 
 export interface CreateLeaveInput {
   employeeId: string;
@@ -41,18 +41,6 @@ export interface CreateLeaveWithMakeupInput {
   makeupEndTime: string;
 }
 
-export interface CreateCorrectionInput {
-  employeeId: string;
-  title: string;
-  reason: string;
-  targetDate?: string;
-  correctionDate?: string;
-  punchType?: CorrectionPunchType;
-  actualTime?: string;
-  correctedCheckIn?: Date | string | null;
-  correctedCheckOut?: Date | string | null;
-}
-
 export interface CreateOvertimeInput {
   employeeId: string;
   title: string;
@@ -82,26 +70,11 @@ export interface CreateExplanationInput {
   actualCheckOut?: string | null;
 }
 
-function formatTimeToHHmm(val: Date | string): string {
-  if (typeof val === 'string') {
-    const trimmed = val.trim();
-    if (/^([01]\d|2[0-3]):[0-5]\d$/.test(trimmed)) {
-      return trimmed;
-    }
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const hh = String(d.getUTCHours()).padStart(2, '0');
-      const mm = String(d.getUTCMinutes()).padStart(2, '0');
-      return `${hh}:${mm}`;
-    }
-    return trimmed;
-  }
-  if (val instanceof Date && !isNaN(val.getTime())) {
-    const hh = String(val.getUTCHours()).padStart(2, '0');
-    const mm = String(val.getUTCMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  }
-  return '';
+export interface CreateIsatInput {
+  employeeId: string;
+  saturday?: unknown;
+  team?: unknown;
+  conditions?: unknown;
 }
 
 @Injectable()
@@ -174,32 +147,6 @@ export class RequestsService {
     return req.toJSON();
   }
 
-  async createCorrectionRequest(input: CreateCorrectionInput): Promise<SystemRequestDTO> {
-    const correctionDate = input.correctionDate || input.targetDate || '';
-    let punchType: CorrectionPunchType = input.punchType as CorrectionPunchType;
-    let actualTime: string = input.actualTime || '';
-
-    if (!punchType && input.correctedCheckIn != null) {
-      punchType = 'IN';
-      actualTime = formatTimeToHHmm(input.correctedCheckIn);
-    } else if (!punchType && input.correctedCheckOut != null) {
-      punchType = 'OUT';
-      actualTime = formatTimeToHHmm(input.correctedCheckOut);
-    }
-
-    const req = SystemRequest.createCorrectionRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      correctionDate,
-      punchType,
-      actualTime
-    });
-
-    await this.repo.save(req);
-    return req.toJSON();
-  }
-
   async createOvertimeRequest(input: CreateOvertimeInput): Promise<SystemRequestDTO> {
     const otDate = input.otDate || input.targetDate || '';
     const hours = input.hours ?? input.otHours ?? 0;
@@ -265,7 +212,7 @@ export class RequestsService {
   }
 
   async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {
-    const period = input.period || new Date().toISOString().slice(0, 7);
+    const period = input.period || businessMonthText();
     const req = SystemRequest.createAdvanceRequest({
       employeeId: input.employeeId,
       title: input.title,
@@ -292,6 +239,41 @@ export class RequestsService {
     return req.toJSON();
   }
 
+  async createIsatRequest(input: CreateIsatInput): Promise<SystemRequestDTO> {
+    const profile = await this.repo.findIsatProfile(input.employeeId, businessMonthText());
+    if (!profile) {
+      throw new Error(`Không tìm thấy nhân sự: ${input.employeeId}`);
+    }
+    if (!profile.isatEnabled) {
+      throw new Error('iSAT chỉ áp dụng cho nhóm Nhân viên');
+    }
+
+    // Đơn lưu theo uuid của nhân sự (input có thể là username); domain kiểm tra form và tự REJECT khi chưa đạt đủ điều kiện
+    const req = SystemRequest.createIsatRequest({
+      employeeId: profile.employeeId,
+      saturday: input.saturday,
+      team: input.team,
+      conditions: input.conditions,
+      profile: profile.snapshot
+    });
+
+    // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
+    const saturday = req.isat!.saturday;
+    const existing = await this.repo.list({
+      employeeId: profile.employeeId,
+      type: 'ISAT'
+    });
+    for (const item of existing) {
+      if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.isat?.saturday === saturday) {
+        const [year, month, day] = saturday.split('-');
+        throw new Error(`Đã có đơn iSAT cho Thứ Bảy ${day}/${month}/${year}`);
+      }
+    }
+
+    await this.repo.save(req);
+    return req.toJSON();
+  }
+
   async reviewRequest(
     id: string,
     reviewerId: string,
@@ -305,38 +287,22 @@ export class RequestsService {
       }
 
       if (action === 'APPROVE') {
+        // Đơn iSAT mất dòng đăng ký thì không biết Thứ Bảy nào để ghi lịch: báo lỗi trước khi đổi trạng thái
+        if (req.type === 'ISAT' && req.isat === null) {
+          throw new Error(`Đơn iSAT thiếu dữ liệu đăng ký: ${req.id}`);
+        }
         req.approve(reviewerId, note);
 
         if (this.attendanceRepo) {
+          // Duyệt OT không ghi lịch (§7); khung bù của đơn nghỉ có làm bù cũng không ghi vào lịch.
           if (req.type === 'SHIFT_CHANGE') {
-            const date = req.leaveStartDate || req.correctionDate || '';
+            const date = req.changeStartDate;
             if (date) {
               const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
               const updated = sched.withShiftChange(req.newShiftType as any, req.newStartTime!, req.newEndTime!, req.id);
               await this.attendanceRepo.saveSchedule(updated);
             }
-          } else if (req.type === 'LEAVE_WITH_MAKEUP') {
-            const leaveDate = req.leaveStartDate;
-            const makeupDate = req.leaveEndDate;
-            if (leaveDate) {
-              const leaveSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, leaveDate);
-              await this.attendanceRepo.saveSchedule(leaveSched.withLeave(req.id));
-            }
-            if (makeupDate) {
-              const makeupSched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, makeupDate);
-              const updated = makeupSched.withMakeUp(req.makeupStartTime!, req.makeupEndTime!, req.id);
-              await this.attendanceRepo.saveSchedule(updated);
-            }
-          } else if (req.type === 'OVERTIME') {
-            const date = req.otDate;
-            if (date) {
-              const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
-              const extendedEnd = req.otEndTime || sched.plannedEndTime;
-              const hours = req.otHours || 0;
-              const updated = sched.withOvertime(extendedEnd, hours, req.id);
-              await this.attendanceRepo.saveSchedule(updated);
-            }
-          } else if (req.type === 'LEAVE') {
+          } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
             const start = req.leaveStartDate;
             const end = req.leaveEndDate || start;
             if (start) {
@@ -349,8 +315,11 @@ export class RequestsService {
                 cur = new Date(cur.getTime() + 86400000);
               }
             }
+          } else if (req.type === 'ISAT' && req.isat) {
+            const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
+            await this.attendanceRepo.saveSchedule(sched.withIsat(req.id));
           } else if (req.type === 'EXPLANATION') {
-            const workDate = req.correctionDate;
+            const workDate = req.explanationDate;
             if (workDate) {
               await this.attendanceRepo.updateDayStatus(req.employeeId, workDate, 'VALID');
             }
@@ -378,7 +347,14 @@ export class RequestsService {
       throw new Error(`Request with id '${id}' not found`);
     }
 
-    req.cancel(employeeId, reason);
+    // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
+    let cancellerId = employeeId;
+    if (employeeId !== req.employeeId) {
+      const uuid = await this.repo.resolveStaffUuid(employeeId);
+      if (uuid === req.employeeId) cancellerId = uuid;
+    }
+
+    req.cancel(cancellerId, reason);
     await this.repo.save(req);
     return req.toJSON();
   }
@@ -389,12 +365,17 @@ export class RequestsService {
   }
 
   async listRequests(filter: RequestListFilter = {}): Promise<{ items: SystemRequestDTO[]; total: number }> {
+    // Đơn iSAT lưu theo uuid, các loại khác có thể lưu theo username: lọc theo cả hai khi biết uuid của nhân sự.
+    const { employeeId, ...rest } = filter;
+    const scoped: RequestListFilter = employeeId ? { ...rest, employeeIds: await this.employeeIdsFor(employeeId) } : filter;
+
     const [items, total] = await Promise.all([
-      this.repo.list(filter),
+      this.repo.list(scoped),
       this.repo.count({
-        employeeId: filter.employeeId,
-        type: filter.type,
-        status: filter.status
+        employeeId: scoped.employeeId,
+        employeeIds: scoped.employeeIds,
+        type: scoped.type,
+        status: scoped.status
       })
     ]);
 
@@ -402,5 +383,10 @@ export class RequestsService {
       items: items.map(r => r.toJSON()),
       total
     };
+  }
+
+  private async employeeIdsFor(employeeId: string): Promise<string[]> {
+    const uuid = await this.repo.resolveStaffUuid(employeeId);
+    return [...new Set([employeeId, uuid].filter((id): id is string => !!id))];
   }
 }

@@ -1,11 +1,34 @@
+import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from './isat';
+import type { LeaveType } from './leave-types';
+import type { ExplanationCase } from './explanation-cases';
+
+export type { LeaveType } from './leave-types';
+
 export type RequestType =
-  'LEAVE' | 'TIME_CORRECTION' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION';
+  'LEAVE' | 'OVERTIME' | 'ADVANCE' | 'SHIFT_CHANGE' | 'LEAVE_WITH_MAKEUP' | 'EXPLANATION' | 'ISAT';
 
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
-export type LeaveType = 'PAID' | 'UNPAID';
+/** Một khung làm bù của đơn nghỉ có làm bù; `workMinutes` là giờ thực làm (§5.4). */
+export interface MakeupSlot {
+  date: string;
+  startTime: string;
+  endTime: string;
+  workMinutes: number;
+}
 
-export type CorrectionPunchType = 'IN' | 'OUT';
+export interface MakeupSlotRow {
+  request_id: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  work_minutes: number;
+}
+
+export interface ExplanationCaseRow {
+  request_id: string;
+  case_code: ExplanationCase;
+}
 
 export interface SystemRequestProps {
   id: string;
@@ -20,16 +43,18 @@ export interface SystemRequestProps {
   createdAt?: Date;
   updatedAt?: Date;
 
-  // LEAVE
+  // LEAVE & LEAVE_WITH_MAKEUP
   leaveType?: LeaveType | null;
   leaveStartDate?: string | null;
   leaveEndDate?: string | null;
   leaveDaysCount?: number | null;
+  makeupSlots?: MakeupSlot[];
 
-  // TIME_CORRECTION
-  correctionDate?: string | null;
-  correctionPunchType?: CorrectionPunchType | null;
-  correctionActualTime?: string | null;
+  // EXPLANATION
+  explanationDate?: string | null;
+  explanationCases?: ExplanationCase[];
+  actualCheckIn?: string | null;
+  actualCheckOut?: string | null;
 
   // OVERTIME
   otDate?: string | null;
@@ -41,12 +66,15 @@ export interface SystemRequestProps {
   advanceAmount?: bigint | number | null;
   advancePeriod?: string | null;
 
-  // SHIFT_CHANGE & MAKEUP
+  // SHIFT_CHANGE
+  changeStartDate?: string | null;
+  changeEndDate?: string | null;
   newShiftType?: string | null;
   newStartTime?: string | null;
   newEndTime?: string | null;
-  makeupStartTime?: string | null;
-  makeupEndTime?: string | null;
+
+  // ISAT
+  isat?: IsatRegistration | null;
 }
 
 export interface CreateLeaveParams {
@@ -79,15 +107,6 @@ export interface CreateLeaveWithMakeupParams {
   makeupEndTime: string;
 }
 
-export interface CreateCorrectionParams {
-  employeeId: string;
-  title: string;
-  reason: string;
-  correctionDate: string;
-  punchType: CorrectionPunchType;
-  actualTime: string;
-}
-
 export interface CreateOvertimeParams {
   employeeId: string;
   title: string;
@@ -115,6 +134,14 @@ export interface CreateExplanationParams {
   actualCheckOut?: string | null;
 }
 
+export interface CreateIsatParams {
+  employeeId: string;
+  saturday: unknown;
+  team: unknown;
+  conditions: unknown;
+  profile: IsatProfileSnapshot;
+}
+
 export interface SystemRequestRow {
   id: string;
   employee_id: string;
@@ -133,9 +160,9 @@ export interface SystemRequestRow {
   leave_end_date: string | null;
   leave_days_count: number | null;
 
-  correction_date: string | null;
-  correction_punch_type: CorrectionPunchType | null;
-  correction_actual_time: string | null;
+  explanation_date: string | null;
+  actual_check_in: string | null;
+  actual_check_out: string | null;
 
   ot_date: string | null;
   ot_start_time: string | null;
@@ -145,11 +172,11 @@ export interface SystemRequestRow {
   advance_amount: string | number | null;
   advance_period: string | null;
 
-  new_shift_type?: string | null;
-  new_start_time?: string | null;
-  new_end_time?: string | null;
-  makeup_start_time?: string | null;
-  makeup_end_time?: string | null;
+  change_start_date: string | null;
+  change_end_date: string | null;
+  new_shift_type: string | null;
+  new_start_time: string | null;
+  new_end_time: string | null;
 }
 
 export interface SystemRequestDTO {
@@ -169,10 +196,14 @@ export interface SystemRequestDTO {
   leaveStartDate: string | null;
   leaveEndDate: string | null;
   leaveDaysCount: number | null;
+  /** 480 × `leaveDaysCount` với đơn nghỉ có làm bù, null với loại khác. */
+  owedMinutes: number | null;
+  makeupSlots: MakeupSlot[];
 
-  correctionDate: string | null;
-  correctionPunchType: CorrectionPunchType | null;
-  correctionActualTime: string | null;
+  explanationDate: string | null;
+  explanationCases: ExplanationCase[];
+  actualCheckIn: string | null;
+  actualCheckOut: string | null;
 
   otDate: string | null;
   otStartTime: string | null;
@@ -182,9 +213,11 @@ export interface SystemRequestDTO {
   advanceAmount: number | string | null;
   advancePeriod: string | null;
 
-  newShiftType?: string | null;
-  newStartTime?: string | null;
-  newEndTime?: string | null;
-  makeupStartTime?: string | null;
-  makeupEndTime?: string | null;
+  changeStartDate: string | null;
+  changeEndDate: string | null;
+  newShiftType: string | null;
+  newStartTime: string | null;
+  newEndTime: string | null;
+
+  isat: IsatRegistrationDTO | null;
 }

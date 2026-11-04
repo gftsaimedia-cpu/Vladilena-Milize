@@ -1,6 +1,14 @@
 import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
-import { PayrollService } from './payroll.service';
+import {
+  ApiExceptionFilter,
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  CurrentUser,
+  UserSession
+} from '../../common';
+import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
+import { KpiScoreBody, PayrollService } from './payroll.service';
 
 @Controller('api/v2/payroll')
 @UseFilters(ApiExceptionFilter)
@@ -17,10 +25,19 @@ export class PayrollController {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
+    // The app has no ValidationPipe: a string would otherwise be read one character at a time.
+    const employeeIds = body?.employeeIds;
+    if (
+      employeeIds !== undefined &&
+      !(Array.isArray(employeeIds) && employeeIds.every(id => typeof id === 'string' && id.trim().length > 0))
+    ) {
+      throw new BadRequestError('employeeIds phải là danh sách mã nhân sự', { code: 'INVALID_EMPLOYEE_IDS' });
+    }
+
     try {
       const result = await this.service.calculatePeriodPayslips(
         month,
-        body?.employeeIds,
+        employeeIds,
         user?.username || 'system'
       );
       return {
@@ -29,8 +46,10 @@ export class PayrollController {
         runId: result.runId,
         count: result.items.length,
         items: result.items,
+        errors: result.errors,
       };
     } catch (err: any) {
+      if (err instanceof PayrollFinalizedError) throw new ConflictError(err.message, { code: 'PAYROLL_FINALIZED' });
       throw new BadRequestError(err.message, { code: 'CALCULATE_ERROR' });
     }
   }
@@ -65,14 +84,22 @@ export class PayrollController {
   async setKpiScore(
     @Param('month') month: string,
     @Param('username') username: string,
-    @Body() body: any,
+    @Body() body: KpiScoreBody,
     @CurrentUser() user?: UserSession
   ): Promise<unknown> {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
     }
 
-    await this.service.setKpiScore(username, month, body, user?.username || 'system');
+    try {
+      await this.service.setKpiScore(username, month, body, user?.username || 'system');
+    } catch (err) {
+      if (err instanceof KpiValidationError) {
+        if (err.code === 'EMPLOYEE_NOT_FOUND') throw new NotFoundError(err.message, { code: err.code });
+        throw new BadRequestError(err.message, { code: err.code });
+      }
+      throw err;
+    }
     return { updated: true, username, month };
   }
 }

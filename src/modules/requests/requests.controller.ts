@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
 import { RequestsService } from './requests.service';
-import { RequestType, RequestStatus } from './domain';
+import { RequestType, RequestStatus, ISAT_CONDITIONS } from './domain';
 
 @Controller('api/v2/requests')
 @UseFilters(ApiExceptionFilter)
@@ -13,17 +13,6 @@ export class RequestsController {
     try {
       const employeeId = body.employeeId || user?.username || 'system';
       const request = await this.service.createLeaveRequest({ ...body, employeeId });
-      return { created: true, request };
-    } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
-    }
-  }
-
-  @Post('correction')
-  async createCorrection(@Body() body: any, @CurrentUser() user?: UserSession): Promise<unknown> {
-    try {
-      const employeeId = body.employeeId || user?.username || 'system';
-      const request = await this.service.createCorrectionRequest({ ...body, employeeId });
       return { created: true, request };
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
@@ -61,6 +50,28 @@ export class RequestsController {
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
+  }
+
+  @Post('isat')
+  async createIsat(@Body() body: any, @CurrentUser() user?: UserSession): Promise<unknown> {
+    try {
+      const employeeId = body.employeeId || user?.username || 'system';
+      const request = await this.service.createIsatRequest({
+        employeeId,
+        saturday: body.saturday,
+        team: body.team,
+        conditions: body.conditions
+      });
+      return { created: true, request };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  // Phải khai báo trước @Get(':id') để 'isat' không bị bắt làm id
+  @Get('isat/conditions')
+  listIsatConditions(): { conditions: Array<{ code: string; label: string }> } {
+    return { conditions: ISAT_CONDITIONS.map(({ code, label }) => ({ code, label })) };
   }
 
   @Get()
