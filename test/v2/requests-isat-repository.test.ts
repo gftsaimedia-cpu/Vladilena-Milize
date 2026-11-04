@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { SystemRequest } from '../../src/modules/requests/domain';
+import { IsatRegistration, SystemRequest } from '../../src/modules/requests/domain';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { createScriptedKysely, type ScriptedLogEntry, type ScriptedQuery } from './helpers/scripted-kysely';
 
@@ -41,6 +41,31 @@ describe('RequestsRepository - đơn iSAT', () => {
     );
     assert.match(sqlOf(log)[1].sql, /on conflict \("request_id"\) do nothing/);
     assert.match(sqlOf(log)[2].sql, /on conflict \("request_id", "code"\) do nothing/);
+  });
+
+  it('rolls the transaction back when a later insert fails', async () => {
+    const { db, log } = createScriptedKysely(q => {
+      if (q.sql.startsWith('insert into "isat_registration_conditions"')) throw new Error('conditions insert failed');
+      return [];
+    });
+    await assert.rejects(new RequestsRepository(db).save(isatReq()), /conditions insert failed/);
+    assert.deepEqual(
+      log.map(e => (typeof e === 'string' ? e : e.sql.match(/^insert into "(\w+)"/)?.[1])),
+      ['BEGIN', 'system_requests', 'isat_registrations', 'isat_registration_conditions', 'ROLLBACK']
+    );
+    assert.ok(!log.includes('COMMIT'));
+  });
+
+  it('skips the conditions insert when the registration has no conditions', async () => {
+    const req = isatReq();
+    const bare = SystemRequest.fromRow(req.toRow(), IsatRegistration.fromRows(req.isat!.toRow(req.id), []));
+    assert.equal(bare.isat!.conditions.length, 0);
+    const { db, log } = createScriptedKysely();
+    await new RequestsRepository(db).save(bare);
+    assert.deepEqual(
+      log.map(e => (typeof e === 'string' ? e : e.sql.match(/^insert into "(\w+)"/)?.[1])),
+      ['BEGIN', 'system_requests', 'isat_registrations', 'COMMIT']
+    );
   });
 
   it('saves other request types without a transaction', async () => {
@@ -124,8 +149,14 @@ describe('RequestsRepository - đơn iSAT', () => {
       assert.ok(levelQ.parameters.includes('nv') && levelQ.parameters.includes(2));
       assert.match(levelQ.sql, /order by "effective_month" desc/);
       assert.ok(benefitQ.parameters.includes('2026-11') && benefitQ.parameters.includes('isat') && benefitQ.parameters.includes('nv'));
-      assert.match(benefitQ.sql, /"position_type_benefits"\."type_id" = "position_types"\."id"/);
-      assert.match(benefitQ.sql, /order by "position_types"\."effective_month" desc/);
+      // Phiên bản chức vụ mới nhất trước, rồi mới tra quyền lợi: điều kiện isat nằm ở ON của left join, không ở WHERE.
+      assert.match(
+        benefitQ.sql,
+        /from "position_types" left join "position_type_benefits" on "position_type_benefits"\."type_id" = "position_types"\."id" and "position_type_benefits"\."benefit" = \$\d+ where/
+      );
+      assert.ok(!benefitQ.sql.includes('inner join'));
+      assert.ok(!benefitQ.sql.split(' where ')[1].includes('"position_type_benefits"'));
+      assert.match(benefitQ.sql, /order by "position_types"\."effective_month" desc limit/);
     });
 
     it('returns null when there is no staff row', async () => {
@@ -142,6 +173,12 @@ describe('RequestsRepository - đơn iSAT', () => {
 
     it('turns the isat flag off when the benefit row is missing', async () => {
       const { db } = respondWith([staffRow], [{ name: 'Chuyên viên' }], []);
+      const found = await new RequestsRepository(db).findIsatProfile('emp-uuid-1', '2026-11');
+      assert.equal(found!.isatEnabled, false);
+    });
+
+    it('turns the isat flag off when the newest type version has no isat benefit row', async () => {
+      const { db } = respondWith([staffRow], [{ name: 'Chuyên viên' }], [{ enabled: null }]);
       const found = await new RequestsRepository(db).findIsatProfile('emp-uuid-1', '2026-11');
       assert.equal(found!.isatEnabled, false);
     });

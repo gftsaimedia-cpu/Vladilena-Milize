@@ -45,9 +45,11 @@ export class RequestsRepository {
         .values(isat.toRow(request.id))
         .onConflict(oc => oc.column('request_id').doNothing())
         .execute();
+      const conditionRows = isat.toConditionRows(request.id);
+      if (conditionRows.length === 0) return;
       await trx
         .insertInto('isat_registration_conditions')
-        .values(isat.toConditionRows(request.id))
+        .values(conditionRows)
         .onConflict(oc => oc.columns(['request_id', 'code']).doNothing())
         .execute();
     });
@@ -147,13 +149,16 @@ export class RequestsRepository {
       .limit(1)
       .executeTakeFirst();
 
+    // Lấy phiên bản chức vụ mới nhất có hiệu lực rồi mới tra quyền lợi (như PayrollRepository.positionInEffect):
+    // phiên bản đó không có dòng isat thì coi là tắt, không lùi về phiên bản cũ hơn.
     const benefitRow = await this.qb
       .selectFrom('position_types')
-      .innerJoin('position_type_benefits', 'position_type_benefits.type_id', 'position_types.id')
+      .leftJoin('position_type_benefits', join =>
+        join.onRef('position_type_benefits.type_id', '=', 'position_types.id').on('position_type_benefits.benefit', '=', 'isat')
+      )
       .select('position_type_benefits.enabled')
       .where('position_types.code', '=', staff.type)
       .where('position_types.effective_month', '<=', month)
-      .where('position_type_benefits.benefit', '=', 'isat')
       .orderBy('position_types.effective_month', 'desc')
       .limit(1)
       .executeTakeFirst();
