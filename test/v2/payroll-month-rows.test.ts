@@ -322,6 +322,14 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.equal(timesheets[0].actualCheckOut, null);
     assert.equal(timesheets[0].scheduleType, undefined);
   });
+
+  it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
+    assert.deepEqual(
+      mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates,
+      ['2026-11-07', '2026-11-14']
+    );
+    assert.deepEqual(mapMonthRows('2026-11', rows()).isatDates, []);
+  });
 });
 
 type Call = { table: string; where: Array<[unknown, unknown, unknown]>; order: unknown[]; limit?: number };
@@ -340,6 +348,9 @@ function recordingQb(tables: Record<string, { first?: any; all?: any[] }>) {
       return qb;
     },
     leftJoin() {
+      return qb;
+    },
+    innerJoin() {
       return qb;
     },
     selectAll() {
@@ -436,6 +447,24 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     ];
     assert.deepEqual(where, [['employee_id', '=', 'u1'], ['status', '=', 'APPROVED'], { or: monthMatch }]);
     assert.equal(JSON.stringify(where).includes('like'), false);
+  });
+
+  it('reads approved iSAT Saturdays of the month for the employee uuid', async () => {
+    const { qb, calls } = recordingQb({
+      ...tables,
+      isat_registrations: { all: [{ saturday: new Date(2026, 9, 10) }] }
+    });
+    const data = await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+    const isat = calls.find(c => c.table === 'isat_registrations');
+    assert.deepEqual(isat?.where, [
+      ['system_requests.employee_id', '=', 'u1'],
+      ['system_requests.type', '=', 'ISAT'],
+      ['system_requests.status', '=', 'APPROVED'],
+      ['isat_registrations.saturday', '>=', '2026-10-01'],
+      ['isat_registrations.saturday', '<=', '2026-10-31']
+    ]);
+    assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
+    assert.deepEqual(data?.isatDates, ['2026-10-10']);
   });
 
   it('returns null when the employee does not exist', async () => {

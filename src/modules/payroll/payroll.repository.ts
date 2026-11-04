@@ -64,6 +64,7 @@ export interface EmployeeMonthlyRawData {
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
+  isatDates?: string[]; // Saturdays of approved iSAT requests, 'YYYY-MM-DD'
   kpi: KpiInput | null;
   insuranceRates: InsuranceRates;
 }
@@ -76,6 +77,7 @@ export interface MonthRows {
   benefits: any[];
   timesheets: any[];
   requests: any[];
+  isatDates?: Array<string | Date>;
   kpi: any | null;
   settings: Array<{ key: string; value_json: string }>;
 }
@@ -172,6 +174,7 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
+    isatDates: (rows.isatDates ?? []).map(dateText),
     kpi: kpiRow
       ? {
           scores: {
@@ -358,6 +361,19 @@ export class PayrollRepository {
       )
       .execute();
 
+    // Saturdays of approved iSAT requests in the month (the DATE column is converted to text in mapMonthRows)
+    const isatRows = await this.qb
+      .selectFrom('isat_registrations')
+      .innerJoin('system_requests', 'system_requests.id', 'isat_registrations.request_id')
+      .select('isat_registrations.saturday as saturday')
+      .where('system_requests.employee_id', '=', staffRow.uuid || employeeId)
+      .where('system_requests.type', '=', 'ISAT')
+      .where('system_requests.status', '=', 'APPROVED')
+      .where('isat_registrations.saturday', '>=', startDate)
+      .where('isat_registrations.saturday', '<=', endDate)
+      .orderBy('isat_registrations.saturday', 'asc')
+      .execute();
+
     // KPI scores
     const kpiRow = await this.qb
       .selectFrom('kpi_scores')
@@ -379,6 +395,7 @@ export class PayrollRepository {
       benefits,
       timesheets: timesheetRows,
       requests: requestRows,
+      isatDates: isatRows.map(r => r.saturday),
       kpi: kpiRow ?? null,
       settings
     });

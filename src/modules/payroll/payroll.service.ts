@@ -168,10 +168,15 @@ export class PayrollService {
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
 
+    // An approved iSAT Saturday is paid as one base day; the set also drops a date listed twice.
+    const isatDates = new Set(data.isatDates ?? []);
+
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
 
     for (const ts of timesheets) {
+      if (isatDates.has(ts.workDate)) continue;
+
       const shiftCode = ts.shiftType.toUpperCase();
       let shiftLabel = 'Normal';
       let inOutText = '08:00–17:00';
@@ -237,6 +242,27 @@ export class PayrollService {
         dailyTotal
       });
     }
+
+    for (const date of isatDates) {
+      dailyLines.push({
+        date,
+        dayOfWeekText: 'Thứ 7',
+        shiftCode: 'ISAT',
+        shiftLabel: 'iSAT',
+        inOutText: 'Hưởng lương ngày',
+        workHours: 0,
+        daySalary: Math.round(dayRate),
+        flexAllowancePay: 0,
+        nightAllowancePay: 0,
+        offPaidPay: 0,
+        otHours: 0,
+        otPay: 0,
+        deductionHours: 0,
+        deductionAmount: 0,
+        dailyTotal: Math.round(dayRate)
+      });
+    }
+    dailyLines.sort((a, b) => a.date.localeCompare(b.date));
 
     let totalOtHours = 0;
     for (const req of requests) {
