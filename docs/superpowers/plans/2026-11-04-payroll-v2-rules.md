@@ -41,6 +41,8 @@
   3. Áp 5 bậc: đến 10tr 5%, 10–30tr 10%, 30–60tr 20%, 60–100tr 30%, trên 100tr 35%.
 - **Hợp đồng dưới 3 tháng:** khấu trừ 10% thu nhập chịu thuế khi tổng thu nhập ≥ 5.000.000.
 
+> **Đổi ngày 2026-11-04 (người dùng chốt sau review cuối nhánh, theo v1):** cách chọn thuế, cờ BH, nền 10% và phần miễn thuế ca đêm đổi theo Task 8. Task 8 thay luật BH và dòng "dưới 3 tháng" ở trên, và thay quyết định tạm 2 (phần ca đêm) và 4.
+
 ### Quyết định tạm (người dùng xác nhận khi duyệt plan)
 
 Mỗi mục ghi: quyết định — lý do — rủi ro nếu sai.
@@ -601,6 +603,30 @@ setKpiScore(username: string, month: string, body: KpiScoreBody, actor: string):
 - [ ] **Step 3: Viết code** trong service, repository và controller, rồi cập nhật docs.
 - [ ] **Step 4: Chạy lại, thấy pass**: `npm test`.
 - [ ] **Step 5: Commit** `feat(payroll): validate KPI proposals and document payroll API`.
+
+---
+
+### Task 7: Sửa sau review cuối nhánh
+
+Tính lại một phần giữ phiếu nháp của người khác; không tính được phiếu nào thì không lưu. Kiểm `employeeIds`. Thêm test phần miễn thuế. Sửa docs §3.5. Chi tiết trong brief của bộ điều phối. Commit `fix(payroll): keep other payslips on partial recalculation and tighten payroll inputs`.
+
+### Task 8: Thuế và BH theo nhãn hợp đồng (người dùng chốt 2026-11-04)
+
+**Luật:**
+- **Nhãn hợp đồng** nằm ở `staff.contract`:
+  - `'long'` = "HĐLĐ từ 3 tháng".
+  - `'short'` = "Dưới 3 tháng".
+  - Giá trị khác (trống, ngày, …) lấy theo loại: tts → `'short'`, loại khác → `'long'`.
+- **Thuế:** `'long'` → lũy tiến; `'short'` → 10%. Bỏ qua `tax_on`, `deduct_on` và ngày hợp đồng. Bỏ cờ `CONTRACT_START_MISSING`.
+- **BH:** `'long'` → luôn trừ, kể cả khi `insured = 0`. `'short'` → chỉ trừ khi `insured` bật.
+- **Thuế 10%** = `round(gross × 0,1)` khi gross ≥ 5.000.000, ngược lại 0.
+- **Miễn thuế ca đêm** = tổng theo từng ngày NIGHT của `min(giờ làm × lương giờ × 0,3, phụ cấp đêm của ngày đó)`.
+  - Ví dụ: nv bậc 1, mức 60%, 20 ca 8 giờ → 1.384.615.
+- **`contractStatusText`** hiện "HĐLĐ từ 3 tháng" hoặc "Dưới 3 tháng".
+
+**Interfaces:** `resolveContractTerm(label, employeeType)`, `isInsured(term, insuredTag)`, `resolveTaxMethod(term)`. `EmployeeMonthlyRawData.staff` bỏ `hasTax` / `contractStart` / `contractEnd`, thêm `contractTerm`.
+
+Test, docs và các góp ý nhỏ từ review Task 7 nằm trong brief của bộ điều phối. Commit `fix(payroll): choose tax and insurance by contract label and follow v1 exemptions`.
 
 ---
 
