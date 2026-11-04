@@ -405,6 +405,7 @@ test('keyboard scrolls the focused grid by day and by week', async ({ page }) =>
 
   await page.keyboard.press('Home');
   await expect.poll(() => scrollLeftOf(page)).toBe(0);
+  await expect(grid).toBeFocused();
   await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
   await page.keyboard.press('ArrowLeft');
   await page.waitForTimeout(100);
@@ -414,6 +415,7 @@ test('keyboard scrolls the focused grid by day and by week', async ({ page }) =>
   const atMax = () => grid.evaluate(el => el.scrollLeft === el.scrollWidth - el.clientWidth);
   await expect.poll(atMax).toBe(true);
   await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+  await expect(grid).toBeFocused();
   const max = await scrollLeftOf(page);
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('PageDown');
@@ -488,4 +490,41 @@ test('day columns are exactly 96px once fonts have loaded', async ({ page }) => 
   for (const w of m.widths) expect(Math.abs(w - 96)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(m.today - 220 - 1344)).toBeLessThanOrEqual(0.5);
   expect(Math.abs(m.table - 3100)).toBeLessThanOrEqual(0.5);
+});
+
+test('keyboard focus ring on a day pill is drawn inside its cell, in a colour the pill does not swallow', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  await page.keyboard.press('Shift'); // lần focus sau tính là bàn phím nên :focus-visible bật
+
+  for (const kind of ['work', 'late', 'leave', 'absent', 'todo']) {
+    const pill = page.locator(`tbody td.dc button.pill.${kind}`).first();
+    await pill.focus();
+    const r = await pill.evaluate(el => {
+      const cs = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      const cell = el.closest('td')!.getBoundingClientRect();
+      // Mép ngoài của vòng focus: hộp pill nở ra (độ dày + khoảng cách); âm nghĩa là vòng nằm trong pill.
+      const grow = Math.max(0, parseFloat(cs.outlineWidth) + parseFloat(cs.outlineOffset));
+      return {
+        focused: el.matches(':focus-visible'),
+        width: cs.outlineWidth,
+        style: cs.outlineStyle,
+        offset: parseFloat(cs.outlineOffset),
+        ring: cs.outlineColor,
+        fill: cs.backgroundColor,
+        inside:
+          box.left - grow >= cell.left - 0.01 &&
+          box.right + grow <= cell.right + 0.01 &&
+          box.top - grow >= cell.top - 0.01 &&
+          box.bottom + grow <= cell.bottom + 0.01
+      };
+    });
+    expect(r.focused, kind).toBe(true);
+    expect(r.style, kind).toBe('solid');
+    expect(r.width, kind).toBe('2px');
+    expect(r.offset, kind).toBeLessThan(0);
+    expect(r.inside, `${kind} ring stays inside its cell`).toBe(true);
+    expect(r.ring, `${kind} ring differs from the pill colour`).not.toBe(r.fill);
+  }
 });

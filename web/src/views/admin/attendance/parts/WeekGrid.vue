@@ -244,6 +244,13 @@ table.tw th.we {
   height: 48px !important;
   padding: 0 4px;
 }
+/* Ô ngày cắt phần tràn (giữ cột đúng 96px) nên vòng focus của pill vẽ vào trong, không ra ngoài ô; pill tối thì vòng sáng. */
+table.tw .pill:focus-visible {
+  outline-offset: -2px;
+}
+table.tw .pill:is(.work, .leave, .absent):focus-visible {
+  outline-color: var(--surface);
+}
 table.tw td.now,
 table.tw th.now {
   background: var(--gold-pale);
