@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Dải bước kỳ lương: trạng thái kỳ và các bước. AdminLayout đặt dải dưới thanh trên ở Chấm công và KPI;
+// Dải bước kỳ lương: trạng thái kỳ và các bước. AdminLayout đặt dải dưới thanh trên ở Chấm công;
 // Bảng lương tự đặt dải dạng thẻ (card) dưới tiêu đề trang.
 import Icon from '@/components/ui/Icon.vue';
 import { usePeriodStore } from '@/stores/period';

@@ -18,10 +18,13 @@ const SHORT: Record<KpiPart, string> = {
 
 // Gõ từng phím: "," hay "." bị chặn và đánh dấu ô là "đã qua dấu thập phân"; khi đó các ký tự gõ tiếp bị chặn, nên "72,5"
 // ra 72 chứ không thành 725. Xoá bất kỳ ký tự nào, rời ô, hay đổi phiếu (SlipKpi gắn khoá theo phiếu) thì bỏ dấu đánh.
+// Gõ đè vùng đang chọn, hay gõ khi con trỏ chưa ở cuối ô, cũng bỏ dấu đánh: đó là sửa giá trị, không phải gõ tiếp sau dấu.
 const pastPoint = new Set<KpiPart>();
 function onBeforeInput(part: KpiPart, e: InputEvent) {
   if (e.inputType.startsWith('delete')) pastPoint.delete(part);
   else if (e.inputType === 'insertText') {
+    const el = e.target as HTMLInputElement;
+    if (el.selectionStart !== el.selectionEnd || el.selectionEnd !== el.value.length) pastPoint.delete(part);
     if (e.data === ',' || e.data === '.') {
       pastPoint.add(part);
       e.preventDefault();

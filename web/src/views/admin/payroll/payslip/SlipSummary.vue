@@ -123,7 +123,7 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
       </thead>
       <tbody v-for="g in groups" :key="g.id">
         <tr>
-          <th colspan="3" scope="colgroup" class="gt">{{ g.title }}</th>
+          <th colspan="3" scope="rowgroup" class="gt">{{ g.title }}</th>
         </tr>
         <tr v-if="g.lead && $slots[g.lead]" class="slot">
           <td colspan="3"><slot :name="g.lead" /></td>
@@ -255,7 +255,7 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
   color: var(--muted);
 }
 .ss-t .zero {
-  color: var(--faint);
+  color: #757575;
 }
 .dot {
   display: inline-block;

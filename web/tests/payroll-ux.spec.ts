@@ -44,6 +44,8 @@ test('October payroll shows the board figures', async ({ page }) => {
   await expect(rows(page)).toHaveCount(10);
   // Mật độ mặc định là Gọn: dòng 42px, cả ô tên (th) lẫn ô số (td).
   expect((await rows(page).first().boundingBox())?.height).toBe(42);
+  // Chờ phông chữ tải xong rồi mới đo hàng nút lọc, kẻo chữ đổi bề rộng làm nút nhảy hàng.
+  await page.evaluate(() => document.fonts.ready);
   // Năm nút lọc trạng thái cùng một hàng ở 1440px.
   const tops = await filters(page).getByRole('button').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
   expect(tops).toHaveLength(5);
@@ -319,13 +321,13 @@ test('summary rows are 35px in both densities, groups 12px apart, labels inset 8
   const second = (await title(/^Nghỉ phép và ngày lễ/))!;
   expect(Math.round(second.height - first.height)).toBe(12);
   await expect(unpaid.locator('th')).toHaveCSS('padding-left', '8px');
-  await expect(d.getByRole('columnheader', { name: 'Nghỉ phép và ngày lễ' })).toHaveCSS('padding-left', '8px');
+  await expect(d.getByRole('rowheader', { name: 'Nghỉ phép và ngày lễ' })).toHaveCSS('padding-left', '8px');
 });
 
 // SlipSummary gắn riêng (fixtures/slip-summary.html): nội dung Task 5 chưa có, nên thử bằng slot dấu.
 const SUMMARY = '/tests/fixtures/slip-summary.html';
 const kpiGroup = (page: Page) =>
-  page.locator('tbody', { has: page.getByRole('columnheader', { name: 'Lương KPI', exact: true }) }).locator('tr');
+  page.locator('tbody', { has: page.getByRole('rowheader', { name: 'Lương KPI', exact: true }) }).locator('tr');
 
 test('KPI group order: score cells first, then total, flag, pay, then history', async ({ page }) => {
   await page.goto(`${SUMMARY}?slots=1&id=GFT-0063`);
@@ -627,7 +629,7 @@ test('print calls the browser dialog and prints only the slip', async ({ page })
 
 test('while a decision is in flight the buttons are disabled, then focus lands on the status line', async ({ page }) => {
   await page.addInitScript(() => {
-    (window as any).__mockLatencyMs = 300;
+    (window as any).__mockLatencyMs = 1500;
   });
   await page.goto(`${URL10}&phieu=GFT-0142`);
   const nam = slip(page, 'Lê Hoàng Nam');
@@ -717,4 +719,22 @@ test('payslip drawer controls show the 2px ink focus ring', async ({ page }) => 
   await expectInkRing(page, d.getByRole('button', { name: 'Phiếu sau' }));
   await expectInkRing(page, d.getByRole('button', { name: 'Đóng' }));
   await expectInkRing(page, d.getByRole('link', { name: /Xem từng ngày/ }));
+});
+
+test('after a typed decimal point, selecting all and retyping replaces the value', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const d = slip(page, 'Lê Hoàng Nam');
+  const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
+  await self.fill('');
+  await self.pressSequentially('72,');
+  await expect(self).toHaveValue('72');
+  await page.keyboard.press('Control+A');
+  await page.keyboard.type('80');
+  await expect(self).toHaveValue('80');
+  // Con trỏ không ở cuối ô thì gõ cũng thoát khỏi trạng thái "đã qua dấu".
+  await self.fill('');
+  await self.pressSequentially('72,');
+  await page.keyboard.press('Home');
+  await page.keyboard.type('1');
+  await expect(self).toHaveValue('100');
 });
