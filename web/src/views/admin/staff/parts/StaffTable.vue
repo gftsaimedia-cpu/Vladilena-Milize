@@ -1,11 +1,19 @@
 <script setup lang="ts">
 // Bảng danh sách nhân sự: mỗi ô một giá trị trên một dòng, cuộn ngang trong vùng riêng (có bàn phím).
-// Cột đầu (ô chọn) chưa có nội dung; các bước sau thêm chọn dòng và liên kết mở hồ sơ.
+// Cột đầu là ô chọn: ô ở đầu cột chọn hoặc bỏ chọn mọi dòng đang hiện; bước sau thêm liên kết mở hồ sơ.
+import { computed } from 'vue';
+import Icon from '@/components/ui/Icon.vue';
 import type { StaffRow } from '@/mock/staff';
 import { dmy } from '@/utils/format';
 import StatusPill from './StatusPill.vue';
 
-defineProps<{ rows: StaffRow[] }>();
+const props = defineProps<{ rows: StaffRow[]; selected: string[] }>();
+defineEmits<{ toggle: [id: string]; 'toggle-all': [] }>();
+
+const chosen = computed(() => props.rows.filter(r => props.selected.includes(r.id)).length);
+const allState = computed<'true' | 'false' | 'mixed'>(() =>
+  chosen.value === 0 ? 'false' : chosen.value === props.rows.length ? 'true' : 'mixed'
+);
 </script>
 
 <template>
@@ -22,7 +30,22 @@ defineProps<{ rows: StaffRow[] }>();
       </colgroup>
       <thead>
         <tr>
-          <th />
+          <th scope="col" class="ck">
+            <button
+              type="button"
+              class="cb"
+              :class="{ on: allState !== 'false' }"
+              role="checkbox"
+              :aria-checked="allState"
+              aria-label="Chọn tất cả dòng đang hiện"
+              @click="$emit('toggle-all')"
+            >
+              <Icon v-if="allState === 'true'" name="check" :size="12" :stroke="3" />
+              <svg v-else-if="allState === 'mixed'" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                <path d="M1.5 5h7" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </button>
+          </th>
           <th scope="col">Nhân viên</th>
           <th scope="col">Email</th>
           <th scope="col">Phòng ban</th>
@@ -35,8 +58,20 @@ defineProps<{ rows: StaffRow[] }>();
         <tr v-if="!rows.length">
           <td class="empty" colspan="7">Không có nhân sự nào khớp bộ lọc trên trang này.</td>
         </tr>
-        <tr v-for="r in rows" :key="r.id" :class="{ gone: r.status === 'out' }">
-          <td />
+        <tr v-for="r in rows" :key="r.id" :class="{ gone: r.status === 'out', on: selected.includes(r.id) }">
+          <td class="ck">
+            <button
+              type="button"
+              class="cb"
+              :class="{ on: selected.includes(r.id) }"
+              role="checkbox"
+              :aria-checked="selected.includes(r.id)"
+              :aria-label="`Chọn ${r.name}`"
+              @click="$emit('toggle', r.id)"
+            >
+              <Icon v-if="selected.includes(r.id)" name="check" :size="12" :stroke="3" />
+            </button>
+          </td>
           <th scope="row">
             <div class="who">
               <span class="av">{{ r.initials }}</span>
@@ -109,6 +144,22 @@ defineProps<{ rows: StaffRow[] }>();
 }
 .stbl tbody tr:hover > * {
   background: var(--raised);
+}
+.stbl tbody tr.on > * {
+  background: var(--gold-pale);
+}
+.ck {
+  padding: 0 0 0 12px;
+}
+.cb {
+  background: var(--surface);
+  border-color: var(--control);
+  color: var(--on-primary);
+}
+.cb.on {
+  background: var(--surface-dark);
+  border-color: var(--surface-dark);
+  color: var(--on-primary);
 }
 .who {
   gap: 12px;

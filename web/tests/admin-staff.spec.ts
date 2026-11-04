@@ -1,4 +1,7 @@
+import fs from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import type { StaffRow } from '../src/mock/staff';
+import { csvCell, staffCsv } from '../src/views/admin/staff/staffCsv';
 
 function trackApi(page: Page) {
   const calls: string[] = [];
@@ -238,4 +241,133 @@ test('inactive switch keeps only accounts not yet activated', async ({ page }) =
   await box.fill('');
   await expect(names(page)).toHaveCount(10);
   await expect(page.getByText('Hiển thị 1–10 trong 131 hồ sơ')).toBeVisible();
+});
+
+const pick = (page: Page, name: string) => page.getByRole('checkbox', { name: `Chọn ${name}` });
+const all = (page: Page) => page.getByRole('checkbox', { name: 'Chọn tất cả dòng đang hiện' });
+const selb = (page: Page) => page.locator('.selb[aria-live="polite"]');
+
+async function exportCsv(page: Page, name: string) {
+  const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name }).click()]);
+  expect(dl.suggestedFilename()).toBe('danh-sach-nhan-su.csv');
+  return fs.readFileSync(await dl.path(), 'utf8');
+}
+
+test('selecting rows counts them, tints them and labels the export', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
+  await expect(selb(page)).toHaveCount(1);
+  await expect(selb(page)).toBeEmpty();
+  await expect(page.getByRole('columnheader', { name: 'Chọn tất cả dòng đang hiện' })).toHaveAttribute('scope', 'col');
+
+  await pick(page, 'Lê Hoàng Nam').click();
+  await expect(pick(page, 'Lê Hoàng Nam')).toHaveAttribute('aria-checked', 'true');
+  await expect(row(page, 'Lê Hoàng Nam').locator('th')).toHaveCSS('background-color', 'rgb(255, 249, 236)');
+  await expect(row(page, 'Lê Hoàng Nam')).toHaveClass(/\bon\b/);
+  await expect(selb(page)).toHaveText('Đã chọn 1');
+  await expect(all(page)).toHaveAttribute('aria-checked', 'mixed');
+  await expect(page.getByRole('button', { name: 'Xuất 1 người đã chọn ra Excel' })).toBeVisible();
+  for (const name of ['Gán ca', 'Đổi phòng ban']) {
+    await expect(page.getByRole('button', { name })).toHaveCount(0);
+  }
+
+  await pick(page, 'Lê Hoàng Nam').click();
+  await expect(pick(page, 'Lê Hoàng Nam')).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xuất danh sách ra Excel' })).toBeVisible();
+});
+
+test('select all follows the rows on screen and hidden picks are kept but not counted', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const sw = inactiveSwitch(page);
+  const box = searchBox(page);
+
+  await sw.click();
+  await all(page).click();
+  await expect(all(page)).toHaveAttribute('aria-checked', 'true');
+  await expect(selb(page)).toHaveText('Đã chọn 2');
+
+  await sw.click();
+  await expect(names(page)).toHaveCount(10);
+  await expect(all(page)).toHaveAttribute('aria-checked', 'mixed');
+  await expect(selb(page)).toHaveText('Đã chọn 2');
+
+  await box.fill('nam');
+  await expect(names(page)).toHaveText(['Lê Hoàng Nam']);
+  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xuất danh sách ra Excel' })).toBeVisible();
+
+  await box.fill('');
+  await expect(selb(page)).toHaveText('Đã chọn 2');
+  await expect(pick(page, 'Đỗ Mai Linh')).toHaveAttribute('aria-checked', 'true');
+
+  await all(page).click();
+  await expect(all(page)).toHaveAttribute('aria-checked', 'true');
+  await expect(selb(page)).toHaveText('Đã chọn 10');
+  await all(page).click();
+  await expect(all(page)).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByText(/^Đã chọn/)).toHaveCount(0);
+});
+
+test('export downloads the shown or the selected rows as CSV', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+
+  const t = await exportCsv(page, 'Xuất danh sách ra Excel');
+  expect(t.charCodeAt(0)).toBe(0xfeff);
+  const lines = t.slice(1).split('\r\n');
+  expect(lines).toHaveLength(12);
+  expect(lines[0]).toBe('Mã;Họ tên;Email;Phòng ban;Chức danh;Trạng thái;Ngày vào làm;Tài khoản');
+  expect(lines[1]).toBe(
+    'GFT-0108;Nguyễn Thu Hà;thuha.nguyen@gft.vn;Tài chính;Kế toán tổng hợp;Chính thức;12/03/2021;Đã kích hoạt'
+  );
+  expect(lines[6]).toBe(
+    'GFT-0201;Đỗ Mai Linh;linh.do@gft.vn;Marketing;Thiết kế đồ hoạ;Thử việc;01/09/2026;Chưa kích hoạt'
+  );
+
+  await pick(page, 'Lê Hoàng Nam').click();
+  await pick(page, 'Hoàng Thị Mai').click();
+  const two = (await exportCsv(page, 'Xuất 2 người đã chọn ra Excel')).slice(1).split('\r\n');
+  expect(two).toHaveLength(4);
+  expect(two[1].startsWith('GFT-0142;Lê Hoàng Nam;')).toBe(true);
+  expect(two[2].startsWith('GFT-0118;Hoàng Thị Mai;')).toBe(true);
+
+  await pick(page, 'Lê Hoàng Nam').click();
+  await pick(page, 'Hoàng Thị Mai').click();
+  await inactiveSwitch(page).click();
+  const inactive = (await exportCsv(page, 'Xuất danh sách ra Excel')).slice(1).split('\r\n');
+  expect(inactive).toHaveLength(4);
+  expect(inactive[1].startsWith('GFT-0201;Đỗ Mai Linh;')).toBe(true);
+  expect(inactive[2]).toContain(';Phan Minh Khoa;');
+});
+
+test('csv quotes cells holding a semicolon, a quote or a line break', () => {
+  expect(csvCell('Kế toán')).toBe('Kế toán');
+  expect(csvCell('a;b')).toBe('"a;b"');
+  expect(csvCell('nói "có"')).toBe('"nói ""có"""');
+  expect(csvCell('dòng 1\ndòng 2')).toBe('"dòng 1\ndòng 2"');
+  expect(csvCell('dòng 1\r\ndòng 2')).toBe('"dòng 1\r\ndòng 2"');
+
+  const odd: StaffRow = {
+    id: 'x',
+    name: 'Ngô "Béo"; Văn',
+    initials: 'NB',
+    code: 'GFT-9',
+    email: 'x@gft.vn',
+    activated: false,
+    dept: 'Kinh doanh;\nMiền Bắc',
+    title: 'Trưởng nhóm',
+    status: 'ok',
+    statusLabel: 'Chính thức',
+    joined: '2024-03-04'
+  };
+  const out = staffCsv([odd]);
+  expect(out.charCodeAt(0)).toBe(0xfeff);
+  expect(out.endsWith('\r\n')).toBe(true);
+  expect(out.slice(1).split('\r\n')[1]).toBe(
+    'GFT-9;"Ngô ""Béo""; Văn";x@gft.vn;"Kinh doanh;\nMiền Bắc";Trưởng nhóm;Chính thức;04/03/2024;Chưa kích hoạt'
+  );
 });

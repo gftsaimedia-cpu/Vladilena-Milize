@@ -1,10 +1,12 @@
 <script setup lang="ts">
-// Hàng công cụ của thẻ danh sách: ô tìm và công tắc "Chưa kích hoạt tài khoản" (số đếm không đổi theo ô tìm).
+// Hàng công cụ của thẻ danh sách: ô tìm, công tắc "Chưa kích hoạt tài khoản" (số đếm không đổi theo ô tìm),
+// vùng "Đã chọn n" và nút xuất CSV.
 import Icon from '@/components/ui/Icon.vue';
 
 const q = defineModel<string>('q', { required: true });
 const inactiveOnly = defineModel<boolean>('inactiveOnly', { required: true });
-defineProps<{ inactiveCount: number }>();
+defineProps<{ inactiveCount: number; selectedCount: number }>();
+defineEmits<{ export: [] }>();
 </script>
 
 <template>
@@ -24,6 +26,16 @@ defineProps<{ inactiveCount: number }>();
       <span class="sw" aria-hidden="true"><i /></span>
       Chưa kích hoạt tài khoản
       <span class="ct">{{ inactiveCount }}</span>
+    </button>
+    <div class="selb" aria-live="polite">{{ selectedCount > 0 ? `Đã chọn ${selectedCount}` : '' }}</div>
+    <button
+      type="button"
+      class="exp"
+      :aria-label="selectedCount > 0 ? `Xuất ${selectedCount} người đã chọn ra Excel` : 'Xuất danh sách ra Excel'"
+      :title="selectedCount > 0 ? `Xuất ${selectedCount} người đã chọn ra Excel` : 'Xuất danh sách ra Excel'"
+      @click="$emit('export')"
+    >
+      <Icon name="download" :size="16" />
     </button>
   </div>
 </template>
@@ -110,6 +122,24 @@ defineProps<{ inactiveCount: number }>();
 }
 .ct {
   color: var(--muted);
+}
+.selb {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 600;
+}
+.exp {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--control);
+  border-radius: var(--r-ctl);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
 }
 @media (max-width: 767px) {
   .find {

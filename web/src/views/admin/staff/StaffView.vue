@@ -7,6 +7,7 @@ import { getStaffList } from '@/services/admin-hr';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
 import StaffToolbar from './parts/StaffToolbar.vue';
+import { downloadStaffCsv } from './staffCsv';
 import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
@@ -31,6 +32,20 @@ watch(q, v => {
 const inactiveCount = computed(() => (data.value?.rows ?? []).filter(r => !r.activated).length);
 const opts = computed(() => ({ q: q.value, inactiveOnly: inactiveOnly.value }));
 const shown = computed(() => filterStaff(data.value?.rows ?? [], opts.value));
+// Chọn theo id, giữ qua mọi lần đổi tìm hay công tắc; số đếm và CSV chỉ tính các dòng đang hiện.
+const selected = ref<string[]>([]);
+const picked = computed(() => shown.value.filter(r => selected.value.includes(r.id)));
+function toggle(id: string) {
+  selected.value = selected.value.includes(id) ? selected.value.filter(x => x !== id) : [...selected.value, id];
+}
+function toggleAll() {
+  const ids = shown.value.map(r => r.id);
+  selected.value = ids.every(id => selected.value.includes(id))
+    ? selected.value.filter(id => !ids.includes(id))
+    : [...selected.value, ...ids.filter(id => !selected.value.includes(id))];
+}
+const exportCsv = () => downloadStaffCsv(picked.value.length ? picked.value : shown.value);
+
 const footer = computed(() =>
   isFiltered(opts.value)
     ? `${shown.value.length} kết quả trên trang này`
@@ -52,8 +67,14 @@ const footer = computed(() =>
           <h2 id="staff-list-h">Danh sách nhân sự</h2>
           <span>{{ data.total }} hồ sơ</span>
         </div>
-        <StaffToolbar v-model:q="q" v-model:inactive-only="inactiveOnly" :inactive-count="inactiveCount" />
-        <StaffTable :rows="shown" />
+        <StaffToolbar
+          v-model:q="q"
+          v-model:inactive-only="inactiveOnly"
+          :inactive-count="inactiveCount"
+          :selected-count="picked.length"
+          @export="exportCsv"
+        />
+        <StaffTable :rows="shown" :selected="selected" @toggle="toggle" @toggle-all="toggleAll" />
         <div class="lc-f">{{ footer }}</div>
       </section>
     </template>
