@@ -17,11 +17,9 @@ const rowsOf = (page: Page) => page.locator('tbody tr');
 const pendingTab = (page: Page) => page.getByRole('tab', { name: /^Cần xử lý/ });
 const bellOf = (page: Page) => page.locator('.topbar .bell');
 
-// Chờ tuần hôm nay hiện ra và phông chữ tải xong: khi bố cục còn xê dịch, Playwright thử bấm lại và tự cuộn ô vào giữa vùng,
-// làm tuần đang xem đổi dưới chân test.
+// Chờ lưới dựng xong và tuần hôm nay nằm đúng chỗ (mount đặt scrollLeft 1344) rồi mới bấm hay kéo.
 async function settleWeek(page: Page) {
   await expect(rowsOf(page)).toHaveCount(11);
-  await page.evaluate(() => document.fonts.ready);
   await expect.poll(() => gridOf(page).evaluate(el => el.scrollLeft)).toBe(1344);
 }
 
@@ -323,6 +321,7 @@ test('week buttons move by seven days and Hôm nay returns to this week', async 
   await prev.click();
   await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
   await expect(prev).toBeDisabled();
+  await expect(next).toBeFocused();
   await expect(legendCount(page, 'work')).toHaveText('63');
   await expect(legendCount(page, 'absent')).toHaveText('1');
   await expect(legendCount(page, 'leave')).toHaveText('1');
@@ -335,6 +334,7 @@ test('week buttons move by seven days and Hôm nay returns to this week', async 
   await next.click();
   await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
   await expect(next).toBeDisabled();
+  await expect(prev).toBeFocused();
 });
 
 test('dragging scrolls, snaps to a day and opens nothing', async ({ page }) => {
@@ -406,10 +406,19 @@ test('keyboard scrolls the focused grid by day and by week', async ({ page }) =>
   await page.keyboard.press('Home');
   await expect.poll(() => scrollLeftOf(page)).toBe(0);
   await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(100);
+  expect(await scrollLeftOf(page)).toBe(0);
 
   await page.keyboard.press('End');
-  await expect.poll(() => grid.evaluate(el => el.scrollLeft === el.scrollWidth - el.clientWidth)).toBe(true);
+  const atMax = () => grid.evaluate(el => el.scrollLeft === el.scrollWidth - el.clientWidth);
+  await expect.poll(atMax).toBe(true);
   await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+  const max = await scrollLeftOf(page);
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('PageDown');
+  await page.waitForTimeout(100);
+  expect(await scrollLeftOf(page)).toBe(max);
 });
 
 test('keys pressed inside a cell are not taken by the grid', async ({ page }) => {
@@ -461,3 +470,22 @@ for (const width of [375, 768, 1024, 1440]) {
     await expect(page.locator('thead th.s3')).toHaveCSS('position', width === 375 ? 'static' : 'sticky');
   });
 }
+
+test('day columns are exactly 96px once fonts have loaded', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await page.evaluate(() => document.fonts.ready);
+
+  const m = await page.evaluate(() => {
+    const table = document.querySelector('table.tw') as HTMLElement;
+    const base = table.getBoundingClientRect().left;
+    const widths = [...table.querySelectorAll('thead th.dc')].map(th => th.getBoundingClientRect().width);
+    const today = (table.querySelector('th[data-date="2026-10-26"]') as HTMLElement).getBoundingClientRect().left - base;
+    const cols = [...table.querySelectorAll('col')].map(c => c.getBoundingClientRect().width);
+    return { widths, today, table: table.getBoundingClientRect().width, cols };
+  });
+  expect(m.widths).toHaveLength(28);
+  for (const w of m.widths) expect(Math.abs(w - 96)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(m.today - 220 - 1344)).toBeLessThanOrEqual(0.5);
+  expect(Math.abs(m.table - 3100)).toBeLessThanOrEqual(0.5);
+});

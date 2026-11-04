@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Lưới chấm công 28 ngày: nhãn tuần, chú giải màu kèm số ô trong tuần đang xem, bảng cuộn ngang (cột tên và 3 cột tổng dính).
 // Lúc mở cuộn tới tuần hôm nay (26/10); `start` là chỉ số ngày đầu tuần đang xem. Kéo, phím và nút tuần nằm trong useGridScroll.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { GROUPS, type AttendanceDay, type AttendanceRow } from '@/mock/attendance';
 import { dm, dmy, weekdayName } from '@/utils/format';
@@ -14,6 +14,17 @@ const emit = defineEmits<{ 'open-day': [personId: string, date: string] }>();
 const route = useRoute();
 const scroller = ref<HTMLElement | null>(null);
 const { start, atStart, atEnd, prevWeek, nextWeek, thisWeek } = useGridScroll(scroller);
+const prevBtn = ref<HTMLButtonElement | null>(null);
+const nextBtn = ref<HTMLButtonElement | null>(null);
+
+// Nút đang giữ focus mà bị tắt (tới đầu hoặc cuối lưới) làm focus rơi về body: chuyển sang nút tuần còn lại.
+// watch chạy trước lần vẽ lại, lúc nút còn bật và còn giữ focus.
+watch(atStart, now => {
+  if (now && document.activeElement === prevBtn.value && !atEnd.value) nextBtn.value?.focus();
+});
+watch(atEnd, now => {
+  if (now && document.activeElement === nextBtn.value && !atStart.value) prevBtn.value?.focus();
+});
 
 const label = computed(() => `${dm(props.days[start.value].iso)} – ${dmy(props.days[start.value + 6].iso)}`);
 const counts = computed(() =>
@@ -33,9 +44,9 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
 <template>
   <div class="wk">
     <div class="wk-bar">
-      <button type="button" class="btn sm" :disabled="atStart" @click="prevWeek">Tuần trước</button>
+      <button ref="prevBtn" type="button" class="btn sm" :disabled="atStart" @click="prevWeek">Tuần trước</button>
       <span class="wk-label" aria-live="polite">{{ label }}</span>
-      <button type="button" class="btn sm" :disabled="atEnd" @click="nextWeek">Tuần sau</button>
+      <button ref="nextBtn" type="button" class="btn sm" :disabled="atEnd" @click="nextWeek">Tuần sau</button>
       <button type="button" class="btn sm" @click="thisWeek">Hôm nay</button>
     </div>
     <div class="legend" aria-label="Chú giải">
@@ -46,7 +57,7 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
     </div>
   </div>
   <div ref="scroller" class="scr" role="region" aria-label="Lưới chấm công" tabindex="0">
-    <table class="tw">
+    <table class="tw" :style="{ '--days': days.length }">
       <colgroup>
         <col class="c-nm" />
         <col v-for="d in days" :key="d.iso" class="c-day" />
@@ -152,20 +163,29 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
   outline-offset: -2px;
 }
 .tw {
-  width: max-content;
+  /* Bề rộng cột nằm ở ba biến này; bảng rộng đúng tổng của chúng. Để max-content, nội dung ô nở cột ngày khi phông chữ tải xong
+     (97–98px thay vì 96px) nên lúc bắt cột và vị trí tuần hôm nay bị lệch. */
+  --w-nm: 220px;
+  --w-day: 96px;
+  --w-sm: 64px;
+  width: calc(var(--w-nm) + var(--days) * var(--w-day) + 3 * var(--w-sm));
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 .tw col.c-nm {
-  width: 220px;
+  width: var(--w-nm);
 }
 .tw col.c-day {
-  width: 96px;
+  width: var(--w-day);
 }
 .tw col.c-sm {
-  width: 64px;
+  width: var(--w-sm);
+}
+table.tw th.dc,
+table.tw td.dc {
+  overflow: hidden;
 }
 table.tw th,
 table.tw td {
@@ -236,7 +256,7 @@ table.tw .nm {
   position: sticky;
   left: 0;
   z-index: 2;
-  width: 220px;
+  width: var(--w-nm);
   padding: 0 12px 0 20px;
   text-align: left;
   font-weight: 400;
@@ -319,9 +339,8 @@ table.tw .sm {
     padding-left: 16px;
     padding-right: 16px;
   }
-  .tw col.c-nm,
-  table.tw .nm {
-    width: 140px;
+  .tw {
+    --w-nm: 140px;
   }
   table.tw .nm {
     padding-left: 12px;
