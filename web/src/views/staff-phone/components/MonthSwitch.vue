@@ -23,7 +23,8 @@ defineProps<{ label: string; state: string }>();
 </template>
 
 <style scoped>
-.mon {
+/* .sh.mon: thắng .sh (gap 8px) của phone.css theo độ ưu tiên, không phụ thuộc thứ tự nạp CSS */
+.sh.mon {
   gap: 12px;
 }
 .mt {

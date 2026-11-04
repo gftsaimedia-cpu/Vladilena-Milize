@@ -100,3 +100,40 @@ test('Đăng xuất signs out to /dang-nhap', async ({ page }) => {
   await expect(page).toHaveURL(/\/dang-nhap/);
   expect(calls).toEqual([]);
 });
+
+// Ở Task 1 chưa màn nào dựng RequestRow (J1, J4 còn là màn tạm): gắn thẳng thành phần thật vào trang đang mở,
+// dùng chung router của app. Vue phải là cùng bản app đang dùng, nên lấy đường dẫn của nó từ mã Vite đã biên dịch.
+async function mountRequestRow(page, replace: boolean) {
+  await page.evaluate(async replace => {
+    const file = '/src/views/staff-phone/components/RequestRow.vue';
+    const code = await (await fetch(file)).text();
+    const vueUrl = code.match(/from\s+["'](\/node_modules\/\.vite\/deps\/vue\.js[^"']*)["']/)[1];
+    const { createApp, h } = await import(vueUrl);
+    const { default: RequestRow } = await import(file);
+    const router = (document.querySelector('#app') as any).__vue_app__.config.globalProperties.$router;
+    const host = Object.assign(document.createElement('div'), { id: 'rr-host', className: 'ph-app' });
+    document.body.prepend(host); // đầu trang: thanh tab nổi ở đáy không che dòng
+    const row = {
+      id: 'phep-1210',
+      icon: 'leave',
+      title: 'Phép năm 12/10',
+      status: 'done',
+      statusText: 'Đã duyệt',
+      month: '2026-10'
+    };
+    createApp({ render: () => h(RequestRow, { row, replace }) }).use(router).mount(host);
+  }, replace);
+}
+
+test('a request row never claims aria-current, even on /nv/yeu-cau', async ({ page }) => {
+  await openPhone(page, '/nv/yeu-cau');
+  await mountRequestRow(page, true);
+  const row = page.locator('#rr-host').getByRole('link', { name: 'Phép năm 12/10, Đã duyệt' });
+  await expect(row).toHaveAttribute('href', '/nv/yeu-cau?yc=phep-1210');
+  await expect(row).not.toHaveAttribute('aria-current');
+  await expect(row).not.toHaveClass(/router-link/);
+  const before = await page.evaluate(() => history.length);
+  await row.click();
+  await expect(page).toHaveURL(/\/nv\/yeu-cau\?yc=phep-1210$/);
+  expect(await page.evaluate(() => history.length)).toBe(before);
+});
