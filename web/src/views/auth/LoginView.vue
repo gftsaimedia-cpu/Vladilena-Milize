@@ -77,6 +77,7 @@ async function submit() {
           {{ errorText }}
         </div>
         <button type="submit" class="go" :disabled="busy">Đăng nhập</button>
+        <p class="hint">Bản mockup: mật khẩu bất kỳ. Tên admin vào khu quản trị, tên khác vào khu nhân viên.</p>
         <div class="help"><b>Quên mật khẩu?</b> Nhờ Admin đặt lại, bạn sẽ đăng nhập lại bằng mật khẩu mới.</div>
       </form>
     </section>
@@ -240,6 +241,12 @@ async function submit() {
 .go:disabled {
   opacity: 0.7;
   cursor: default;
+}
+.hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
 }
 .help {
   margin-top: 16px;

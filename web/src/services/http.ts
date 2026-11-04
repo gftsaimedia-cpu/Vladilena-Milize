@@ -1,5 +1,5 @@
-// Gọi máy chủ AiCB qua /api (vite proxy tới máy chủ Node; cookie phiên cùng nguồn gốc).
-// Lỗi 4xx/5xx ném ApiError với câu của máy chủ (hiện nguyên văn), mã lỗi ở .code.
+// Mockup chạy không có máy chủ: api() không gọi mạng, luôn từ chối bằng ApiError mã mock_missing.
+// Màn nào có dữ liệu giả thì service của màn đó trả dữ liệu từ src/mock, không đi qua api().
 export class ApiError extends Error {
   status: any;
   code: any;
@@ -48,30 +48,10 @@ export function newRequestId() {
   return 'rq-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
 }
 
-export async function api(method?, path?, body?, { showWarnings = true }: any = {}) {
-  const hasBody = body !== undefined;
-  const res = await fetch('/api' + path, {
-    method,
-    credentials: 'same-origin',
-    headers: hasBody
-      ? { 'Content-Type': 'application/json', Accept: 'application/json' }
-      : { Accept: 'application/json' },
-    body: hasBody ? JSON.stringify(body) : undefined
-  });
-  const text = await res.text();
-  let data: any = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { error: text };
-  }
-  if (!res.ok) {
-    if (res.status === 401 && path !== '/login' && unauthorizedHandler) unauthorizedHandler();
-    throw new ApiError(res.status, (data && data.error) || `Máy chủ trả lỗi ${res.status}`, data);
-  }
-  if (showWarnings && data && Array.isArray(data.warnings) && data.warnings.length && warningsHandler)
-    warningsHandler(data.warnings);
-  return data;
+export function api(method?, path?, _body?, _opts: any = {}): Promise<any> {
+  return Promise.reject(
+    new ApiError(501, `Màn này chưa có dữ liệu giả (${method} ${path}).`, { code: 'mock_missing' })
+  );
 }
 
 api.get = (path?) => api('GET', path);

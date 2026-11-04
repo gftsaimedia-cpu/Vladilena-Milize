@@ -1,6 +1,6 @@
-// Phiên đăng nhập của trình duyệt: người dùng, vai trò, năng lực lấy từ GET /api/me.
+// Phiên đăng nhập giả của trình duyệt: người dùng, vai trò, năng lực lấy từ src/mock/accounts.
 import { defineStore } from 'pinia';
-import { api } from '@/services/http';
+import { mockAccount, readSessionName } from '@/mock/accounts';
 
 // Có một trong các năng lực này (hoặc role === 'admin') thì vào khu Admin; còn lại vào khu nhân viên.
 export const ADMIN_CAPS = Object.freeze([
@@ -68,7 +68,7 @@ export const useSessionStore = defineStore('session', {
     }
   },
   actions: {
-    // Gói GET /api/me hoặc phản hồi POST /api/login vào store; user rỗng = chưa đăng nhập.
+    // Gói tài khoản giả vào store; user rỗng = chưa đăng nhập.
     apply(data?) {
       const user = data && data.user ? data.user : null;
       this.user = user;
@@ -80,7 +80,8 @@ export const useSessionStore = defineStore('session', {
       this.ready = true;
     },
     async load() {
-      this.apply(await api('GET', '/me'));
+      const name = readSessionName();
+      this.apply(name ? mockAccount(name) : null);
     },
     clear() {
       this.apply(null);
