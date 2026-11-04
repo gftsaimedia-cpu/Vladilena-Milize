@@ -421,7 +421,8 @@ test('score inputs drop junk and cap at 100', async ({ page }) => {
   await page.goto(`${URL10}&phieu=GFT-0142`);
   const d = slip(page, 'Lê Hoàng Nam');
   const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
-  for (const [typed, shown] of [['abc', ''], ['150', '100'], ['1a5', '15'], ['007', '7']]) {
+  // Dấu thập phân cắt tại đó: "72,5" thành 72, không thành 725 rồi kẹp 100.
+  for (const [typed, shown] of [['abc', ''], ['150', '100'], ['1a5', '15'], ['007', '7'], ['72,5', '72'], ['72.5', '72'], ['.5', '']]) {
     await self.fill(typed);
     await expect(self).toHaveValue(shown);
   }
@@ -488,4 +489,69 @@ test('KPI group keeps 35px rows around the score cells', async ({ page }) => {
   const d = slip(page, 'Lê Hoàng Nam');
   expect(Math.round((await line(d, /^Tổng điểm KPI/).boundingBox())!.height)).toBe(35);
   expect(Math.round((await line(d, /^Lương KPI \(đề xuất/).boundingBox())!.height)).toBe(35);
+});
+
+test('closing with a slow save still refreshes the board row', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0123`);
+  // Độ trễ đặt trong trang (mock/respond.ts đọc __mockLatencyMs), không dùng page.route.
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 300));
+  await score(slip(page, 'Võ Đức Thịnh'), 'Tự đánh giá', 'Võ Đức Thịnh').fill('100');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(row(page, 'Võ Đức Thịnh')).toContainText('24.261.376');
+});
+
+test('blanking a score and closing puts the orange dot on that board row', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = row(page, 'Lê Hoàng Nam');
+  await expect(nam.locator('.kt')).toHaveCount(0);
+  await score(slip(page, 'Lê Hoàng Nam'), 'Base Wework', 'Lê Hoàng Nam').fill('');
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(nam.locator('.kt')).toHaveCount(1);
+  await expect(nam.getByText('Thiếu điểm Base Wework, tính 0')).toHaveCount(1);
+});
+
+test('the next slip shows its own stored scores after typing in the previous one', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await score(nam, 'Tự đánh giá', 'Lê Hoàng Nam').fill('11');
+  await nam.getByRole('button', { name: 'Phiếu sau' }).click();
+  const anh = slip(page, 'Phạm Ngọc Anh');
+  await expect(anh).toBeVisible();
+  await expect(score(anh, 'Tự đánh giá', 'Phạm Ngọc Anh')).not.toHaveValue('11');
+  await expect(score(anh, 'Tự đánh giá', 'Phạm Ngọc Anh')).not.toHaveValue('');
+  await expect(line(anh, /^Tổng điểm KPI/)).toContainText('80,72%');
+});
+
+test('history starts closed on the next slip', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await nam.getByRole('button', { name: 'Lịch sử sửa điểm (3)' }).click();
+  await expect(nam.getByRole('list', { name: 'Lịch sử sửa điểm' })).toBeVisible();
+  await nam.getByRole('button', { name: 'Phiếu sau' }).click();
+  await expect(slip(page, 'Phạm Ngọc Anh')).toBeVisible();
+  await slip(page, 'Phạm Ngọc Anh').getByRole('button', { name: 'Phiếu trước' }).click();
+  await expect(slip(page, 'Lê Hoàng Nam').getByRole('button', { name: 'Lịch sử sửa điểm (3)' })).toHaveAttribute('aria-expanded', 'false');
+});
+
+const pushRoute = (page: Page, to: string) =>
+  page.evaluate(t => {
+    const app = (document.querySelector('#app') as unknown as { __vue_app__: { config: { globalProperties: { $router: { push: (to: string) => void } } } } }).__vue_app__;
+    app.config.globalProperties.$router.push(t);
+  }, to);
+
+test('a typed score survives the slip changing or closing without the buttons', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Lê Hoàng Nam');
+  await score(slip(page, 'Lê Hoàng Nam'), 'Tự đánh giá', 'Lê Hoàng Nam').fill('11');
+  // Đường dẫn đổi sang phiếu khác ngoài nút Đóng và hai mũi tên (như sửa địa chỉ hay Back).
+  await pushRoute(page, `${URL10}&phieu=GFT-0117`);
+  await expect(slip(page, 'Phạm Ngọc Anh')).toBeVisible();
+  await expect(row(page, 'Lê Hoàng Nam')).not.toContainText('14.278.183');
+  // Ngăn kéo đóng vì đường dẫn bỏ ?phieu (Back về bảng): điểm đang gõ vẫn lưu.
+  await score(slip(page, 'Phạm Ngọc Anh'), 'Tự đánh giá', 'Phạm Ngọc Anh').fill('50');
+  await pushRoute(page, URL10);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(row(page, 'Phạm Ngọc Anh')).not.toContainText('17.286.462');
 });

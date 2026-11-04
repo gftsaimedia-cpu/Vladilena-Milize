@@ -1,13 +1,15 @@
 <script setup lang="ts">
 // Phiếu lương một người (board H): ngăn kéo nổi gồm đầu phiếu, định danh, chấm công tháng và bảng Tổng hợp lương.
-// Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ);
-// rời ô thì lưu, đóng hay sang phiếu khác thì lưu hết điểm chưa lưu (flush). Duyệt / từ chối thêm ở đợt sau.
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+// Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ).
+// Việc lưu thuộc về màn Bảng lương (prop `save`: lưu, thay phiếu đang mở, tải lại bảng) vì ngăn kéo có thể đã tháo khỏi
+// trang khi lưu xong. Rời ô thì lưu; đóng, sang phiếu khác hay phiếu đổi từ ngoài thì lưu hết điểm chưa lưu (flush).
+// Duyệt / từ chối thêm ở đợt sau.
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import type { Payslip } from '@/mock/payroll';
 import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
-import { previewPayslip, saveKpiScore } from '@/services/admin-payroll';
+import { previewPayslip } from '@/services/admin-payroll';
 import { monthShort } from '@/utils/format';
 import StatusPill from '../parts/StatusPill.vue';
 import SlipAttendance from './SlipAttendance.vue';
@@ -15,29 +17,44 @@ import SlipHistory from './SlipHistory.vue';
 import SlipKpi from './SlipKpi.vue';
 import SlipSummary from './SlipSummary.vue';
 
-const props = defineProps<{ slip: Payslip; month: string; hasPrev: boolean; hasNext: boolean }>();
-const emit = defineEmits<{ close: []; prev: []; next: []; changed: [slip: Payslip] }>();
+const props = defineProps<{
+  slip: Payslip;
+  month: string;
+  hasPrev: boolean;
+  hasNext: boolean;
+  save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
+}>();
+const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
 const draft = ref<KpiScores>({ ...props.slip.kpi.scores });
-watch(
-  () => props.slip.id,
-  () => (draft.value = { ...props.slip.kpi.scores })
-);
-const view = computed(() => previewPayslip(props.slip, draft.value));
 const PARTS = Object.keys(draft.value) as KpiPart[];
+// `owner`: phiếu mà draft đang giữ điểm và điểm đã lưu của nó (không phản ứng; chỉ để biết cột nào chưa lưu).
+let owner = { id: props.slip.id, saved: { ...props.slip.kpi.scores } };
+const view = computed(() => previewPayslip(props.slip, draft.value));
 
 const update = (part: KpiPart, value: number | null) => (draft.value = { ...draft.value, [part]: value });
-// Lưu các cột `parts`; kết quả cuối đã gồm mọi lần lưu vì mỗi lần ghi vào trạng thái giả ngay khi gọi.
-async function persist(parts: KpiPart[]) {
-  if (!parts.length) return;
-  const id = props.slip.id;
-  const results = await Promise.all(parts.map(p => saveKpiScore(props.month, id, p, draft.value[p])));
-  const last = results[results.length - 1];
-  if (last) emit('changed', last);
+const save = (part: KpiPart) => {
+  owner.saved[part] = draft.value[part];
+  return props.save(owner.id, part, draft.value[part]);
+};
+// Lưu mọi cột có draft khác điểm đã lưu. Gọi lặp là vô hại: lần sau không còn cột nào khác.
+function flush() {
+  for (const part of PARTS) if (draft.value[part] !== owner.saved[part]) save(part);
 }
-const save = (part: KpiPart) => persist([part]);
-// Điểm vừa gõ chưa rời ô vẫn được lưu khi đóng phiếu hay sang phiếu khác (Review Focus 1).
-const flush = () => persist(PARTS.filter(p => draft.value[p] !== props.slip.kpi.scores[p]));
+watch(
+  () => props.slip,
+  slip => {
+    if (slip.id === owner.id) {
+      owner.saved = { ...slip.kpi.scores };
+      return;
+    }
+    // Phiếu đổi ngoài nút Đóng và hai mũi tên (Back, sửa địa chỉ): lưu điểm chưa lưu của phiếu cũ trước khi đặt lại draft.
+    flush();
+    owner = { id: slip.id, saved: { ...slip.kpi.scores } };
+    draft.value = { ...slip.kpi.scores };
+  }
+);
+onBeforeUnmount(flush);
 const close = () => {
   flush();
   emit('close');
@@ -107,7 +124,7 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     <SlipAttendance :slip="slip" :month="month" />
     <SlipSummary :slip="view" :month="month">
       <template #kpi><SlipKpi :scores="view.kpi.scores" :name="slip.name" @update="update" @save="save" /></template>
-      <template #history><SlipHistory :history="view.kpi.history" /></template>
+      <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>
     </SlipSummary>
   </AppDrawer>
 </template>

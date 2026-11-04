@@ -16,10 +16,11 @@ const SHORT: Record<KpiPart, string> = {
   self: 'Tự đánh giá'
 };
 
-// Bỏ ký tự không phải số, trên 100 thành 100, trống là null (thiếu điểm). Gán lại el.value để "150" hiện "100", "007" hiện "7".
+// Dấu thập phân (, hoặc .) cắt bỏ nó và phần sau ("72,5" thành 72); ký tự khác không phải số thì bỏ riêng ("1a5" thành 15).
+// Trên 100 thành 100, trống là null (thiếu điểm). Gán lại el.value để "150" hiện "100", "007" hiện "7".
 function onInput(part: KpiPart, e: Event) {
   const el = e.target as HTMLInputElement;
-  const digits = el.value.replace(/\D/g, '');
+  const digits = el.value.split(/[.,]/)[0].replace(/\D/g, '');
   const value = digits === '' ? null : Math.min(100, Number(digits));
   el.value = value === null ? '' : String(value);
   emit('update', part, value);

@@ -5,8 +5,9 @@ import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
+import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
-import { getPayroll, getPayslip } from '@/services/admin-payroll';
+import { getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { foldText, monthShort } from '@/utils/format';
 import { monthNo } from '@/views/admin/requests/helpers';
@@ -88,10 +89,12 @@ const at = computed(() => navIds.value.indexOf(slipId.value));
 const hasPrev = computed(() => at.value > 0);
 const hasNext = computed(() => at.value >= 0 && at.value < navIds.value.length - 1);
 const go = (id: string) => router.replace(withSlip(id));
-// Phiếu vừa lưu điểm: thay phiếu đang mở (nếu còn mở đúng phiếu đó, ngăn kéo đã đóng thì không mở lại) rồi tải lại bảng.
-const changed = (next: Payslip) => {
-  if (next.id === slipId.value) slip.value = next;
-  reload();
+// Lưu một điểm KPI do màn giữ, không do ngăn kéo: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
+// Lưu xong thì thay phiếu đang mở bằng phiếu mới nếu đang mở đúng phiếu đó (đã đóng thì không mở lại), rồi tải lại bảng.
+const saveScore = async (id: string, part: KpiPart, value: number | null) => {
+  const next = await saveKpiScore(period.month, id, part, value);
+  if (next && next.id === slipId.value) slip.value = next;
+  await reload();
 };
 </script>
 
@@ -141,7 +144,7 @@ const changed = (next: Payslip) => {
       :has-prev="hasPrev"
       :has-next="hasNext"
       @close="go('')"
-      @changed="changed"
+      :save="saveScore"
       @prev="go(navIds[at - 1])"
       @next="go(navIds[at + 1])"
     />
