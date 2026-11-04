@@ -42,3 +42,6 @@ export function initials(name = '') {
   const two = w.length >= 2 ? [w[w.length - 2], w[w.length - 1]] : [w[0]];
   return two.map(s => s[0].toUpperCase()).join('');
 }
+
+/** "2026-10-27" → "Thứ Ba" ; "2026-11-01" → "Chủ nhật" */
+export const weekdayName = (iso?) => DOW[dowOf(iso)];
