@@ -23,7 +23,7 @@ export function staffCsv(rows: StaffRow[]): string {
       r.activated ? 'Đã kích hoạt' : 'Chưa kích hoạt'
     ])
   );
-  return '﻿' + line(HEADER) + body.join('');
+  return '\ufeff' + line(HEADER) + body.join('');
 }
 
 /** Tải `danh-sach-nhan-su.csv` bằng Blob và thẻ <a download>. */

@@ -371,3 +371,31 @@ test('csv quotes cells holding a semicolon, a quote or a line break', () => {
     'GFT-9;"Ngô ""Béo""; Văn";x@gft.vn;"Kinh doanh;\nMiền Bắc";Trưởng nhóm;Chính thức;04/03/2024;Chưa kích hoạt'
   );
 });
+
+test('keyboard targets show a 2px ink focus ring and Space toggles a row', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+
+  const ring = async (target: ReturnType<typeof pick>) => {
+    await target.focus();
+    await expect(target).toHaveCSS('outline-style', 'solid');
+    await expect(target).toHaveCSS('outline-width', '2px');
+    await expect(target).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+  };
+
+  const nam = pick(page, 'Lê Hoàng Nam');
+  await ring(nam);
+  await page.keyboard.press('Space');
+  await expect(nam).toHaveAttribute('aria-checked', 'true');
+  await expect(selb(page)).toHaveText('Đã chọn 1');
+
+  await ring(all(page));
+  await ring(page.getByRole('button', { name: 'Xuất 1 người đã chọn ra Excel' }));
+  await ring(inactiveSwitch(page));
+
+  await searchBox(page).focus();
+  const find = page.locator('.find');
+  await expect(find).toHaveCSS('outline-style', 'solid');
+  await expect(find).toHaveCSS('outline-width', '2px');
+  await expect(find).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+});

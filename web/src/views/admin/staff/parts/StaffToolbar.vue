@@ -63,6 +63,8 @@ defineEmits<{ export: [] }>();
 }
 .find:focus-within {
   border-color: var(--text);
+  outline: 2px solid var(--text);
+  outline-offset: 0;
 }
 .find input {
   flex: 1;
@@ -92,6 +94,11 @@ defineEmits<{ export: [] }>();
   color: var(--text);
   font-size: 14px;
   cursor: pointer;
+}
+.swb:focus-visible,
+.exp:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 .swb.on {
   border-color: var(--surface-dark);

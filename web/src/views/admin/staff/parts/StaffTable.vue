@@ -148,13 +148,14 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
 .stbl tbody tr.on > * {
   background: var(--gold-pale);
 }
-.ck {
-  padding: 0 0 0 12px;
-}
 .cb {
   background: var(--surface);
   border-color: var(--control);
   color: var(--on-primary);
+}
+.cb:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 .cb.on {
   background: var(--surface-dark);
