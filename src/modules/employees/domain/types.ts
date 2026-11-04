@@ -1,6 +1,8 @@
 export type ShiftType = 'NORMAL' | 'FLEX' | 'NIGHT';
 
 export type ContractStatus = 'tts' | 'ctv' | 'thuviec' | 'nv' | 'nghiviec';
+// Nhãn hợp đồng ở cột staff.contract: 'long' = HĐLĐ từ 3 tháng, 'short' = dưới 3 tháng.
+export type ContractTerm = 'long' | 'short';
 
 export interface PersonNameLike {
   readonly familyName: string;

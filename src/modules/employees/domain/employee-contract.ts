@@ -1,5 +1,6 @@
 import {
   ContractStatus,
+  ContractTerm,
   PositionLike,
   ShiftLike,
   LeaveLike,
@@ -11,16 +12,19 @@ import {
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const VALID_STATUSES: ContractStatus[] = ['tts', 'ctv', 'thuviec', 'nv', 'nghiviec'];
+const VALID_TERMS: ContractTerm[] = ['long', 'short'];
 
+// term null: nhãn theo loại nhân sự (tts → 'short', loại khác → 'long').
+// hasInsurance null: đóng bảo hiểm theo mặc định của hợp đồng.
 export interface EmployeeContractParams {
   position?: any;
   shift?: any;
   leave?: any;
   status?: ContractStatus;
+  term?: ContractTerm | null;
   effectiveFrom?: string | null;
-  endDate?: string | null;
   resignedOn?: string | null;
-  hasInsurance?: boolean;
+  hasInsurance?: boolean | null;
   isUnionMember?: boolean;
   hasTax?: boolean;
   canAdvance?: boolean;
@@ -32,10 +36,10 @@ export class EmployeeContract {
   readonly shift: ShiftLike;
   readonly leave: LeaveLike;
   readonly status: ContractStatus;
+  readonly term: ContractTerm | null;
   readonly effectiveFrom: string | null;
-  readonly endDate: string | null;
   readonly resignedOn: string | null;
-  readonly hasInsurance: boolean;
+  readonly hasInsurance: boolean | null;
   readonly isUnionMember: boolean;
   readonly hasTax: boolean;
   readonly canAdvance: boolean;
@@ -54,6 +58,12 @@ export class EmployeeContract {
     }
     this.status = status;
 
+    const term = params.term ?? null;
+    if (term !== null && !VALID_TERMS.includes(term)) {
+      throw new Error(`Loại hợp đồng không hợp lệ: ${term}`);
+    }
+    this.term = term;
+
     if (params.effectiveFrom !== undefined && params.effectiveFrom !== null) {
       const ef = String(params.effectiveFrom).trim();
       if (!DATE_REGEX.test(ef)) {
@@ -62,16 +72,6 @@ export class EmployeeContract {
       this.effectiveFrom = ef;
     } else {
       this.effectiveFrom = null;
-    }
-
-    if (params.endDate !== undefined && params.endDate !== null) {
-      const ed = String(params.endDate).trim();
-      if (!DATE_REGEX.test(ed)) {
-        throw new Error('Invalid endDate format; expected YYYY-MM-DD');
-      }
-      this.endDate = ed;
-    } else {
-      this.endDate = null;
     }
 
     if (params.resignedOn !== undefined && params.resignedOn !== null) {
@@ -84,7 +84,7 @@ export class EmployeeContract {
       this.resignedOn = null;
     }
 
-    this.hasInsurance = params.hasInsurance !== undefined ? Boolean(params.hasInsurance) : true;
+    this.hasInsurance = params.hasInsurance != null ? Boolean(params.hasInsurance) : null;
     this.isUnionMember = params.isUnionMember !== undefined ? Boolean(params.isUnionMember) : false;
     this.hasTax = params.hasTax !== undefined ? Boolean(params.hasTax) : true;
     this.canAdvance = params.canAdvance !== undefined ? Boolean(params.canAdvance) : true;
@@ -97,8 +97,8 @@ export class EmployeeContract {
       shift: patch.shift !== undefined ? patch.shift : this.shift,
       leave: patch.leave !== undefined ? patch.leave : this.leave,
       status: patch.status !== undefined ? patch.status : this.status,
+      term: patch.term !== undefined ? patch.term : this.term,
       effectiveFrom: patch.effectiveFrom !== undefined ? patch.effectiveFrom : this.effectiveFrom,
-      endDate: patch.endDate !== undefined ? patch.endDate : this.endDate,
       resignedOn: patch.resignedOn !== undefined ? patch.resignedOn : this.resignedOn,
       hasInsurance: patch.hasInsurance !== undefined ? patch.hasInsurance : this.hasInsurance,
       isUnionMember: patch.isUnionMember !== undefined ? patch.isUnionMember : this.isUnionMember,
@@ -145,10 +145,10 @@ export class EmployeeContract {
     shift: ReturnType<NonNullable<ShiftLike['toJSON']>> | ShiftLike;
     leave: ReturnType<NonNullable<LeaveLike['toJSON']>> | LeaveLike;
     status: ContractStatus;
+    term: ContractTerm | null;
     effectiveFrom: string | null;
-    endDate: string | null;
     resignedOn: string | null;
-    hasInsurance: boolean;
+    hasInsurance: boolean | null;
     isUnionMember: boolean;
     hasTax: boolean;
     canAdvance: boolean;
@@ -159,8 +159,8 @@ export class EmployeeContract {
       shift: typeof this.shift.toJSON === 'function' ? this.shift.toJSON() : this.shift,
       leave: typeof this.leave.toJSON === 'function' ? this.leave.toJSON() : this.leave,
       status: this.status,
+      term: this.term,
       effectiveFrom: this.effectiveFrom,
-      endDate: this.endDate,
       resignedOn: this.resignedOn,
       hasInsurance: this.hasInsurance,
       isUnionMember: this.isUnionMember,

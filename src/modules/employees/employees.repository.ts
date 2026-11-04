@@ -131,9 +131,7 @@ export class EmployeesRepository {
     const effectiveFrom = row.start_date && DATE_REGEX.test(String(row.start_date).trim())
       ? String(row.start_date).trim()
       : null;
-    const endDate = row.contract && DATE_REGEX.test(String(row.contract).trim())
-      ? String(row.contract).trim()
-      : null;
+    const term = row.contract === 'long' || row.contract === 'short' ? row.contract : null;
     const resignedOn = row.resigned_on && DATE_REGEX.test(String(row.resigned_on).trim())
       ? String(row.resigned_on).trim()
       : null;
@@ -143,10 +141,10 @@ export class EmployeesRepository {
       shift,
       leave,
       status: contractStatus,
+      term,
       effectiveFrom,
-      endDate,
       resignedOn,
-      hasInsurance: row.insured !== 0,
+      hasInsurance: row.insured == null ? null : row.insured !== 0,
       isUnionMember: row.deduct_on === 1,
       hasTax: row.tax_on !== 0,
       canAdvance: row.advance_on !== 0,
@@ -200,9 +198,9 @@ export class EmployeesRepository {
       session_version: 0,
       contract_status: dbContractStatus,
       start_date: employee.contract.effectiveFrom,
-      contract: employee.contract.endDate,
+      contract: employee.contract.term,
       resigned_on: employee.contract.resignedOn,
-      insured: employee.contract.hasInsurance ? 1 : 0,
+      insured: employee.contract.hasInsurance == null ? null : employee.contract.hasInsurance ? 1 : 0,
       deduct_on: employee.contract.isUnionMember ? 1 : 0,
       tax_on: employee.contract.hasTax ? 1 : 0,
       advance_on: employee.contract.canAdvance ? 1 : 0,
