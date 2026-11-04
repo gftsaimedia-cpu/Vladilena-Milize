@@ -8,6 +8,7 @@ import { IsatProfile, RequestsRepository } from '../../src/modules/requests/requ
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { ISAT_CONDITIONS, SystemRequest } from '../../src/modules/requests/domain';
 import { WorkSchedule } from '../../src/modules/attendance/domain';
+import { businessMonthText } from '../../src/common/business-date';
 
 const profile = {
   fullName: 'Nguyễn Văn A', positionType: 'nv', positionLevel: 2, levelName: 'Chuyên viên',
@@ -126,7 +127,7 @@ describe('Đơn iSAT - service', () => {
     assert.equal(dto.status, 'PENDING');
     assert.equal(dto.isat!.team, 'VN Pod — Vận hành');
     assert.equal(dto.isat!.levelName, 'Chuyên viên');
-    assert.equal(reqRepo.profileMonths.at(-1), new Date().toISOString().slice(0, 7));
+    assert.equal(reqRepo.profileMonths.at(-1), businessMonthText());
     assert.equal(reqRepo.requests.get(dto.id)!.employeeId, 'emp-uuid-1');
   });
 

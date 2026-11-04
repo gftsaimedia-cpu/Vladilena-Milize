@@ -10,6 +10,7 @@ import {
 } from './domain';
 import { RequestsRepository, RequestListFilter } from './requests.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { businessMonthText } from '../../common/business-date';
 
 export interface CreateLeaveInput {
   employeeId: string;
@@ -272,7 +273,7 @@ export class RequestsService {
   }
 
   async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {
-    const period = input.period || new Date().toISOString().slice(0, 7);
+    const period = input.period || businessMonthText();
     const req = SystemRequest.createAdvanceRequest({
       employeeId: input.employeeId,
       title: input.title,
@@ -300,7 +301,7 @@ export class RequestsService {
   }
 
   async createIsatRequest(input: CreateIsatInput): Promise<SystemRequestDTO> {
-    const profile = await this.repo.findIsatProfile(input.employeeId, new Date().toISOString().slice(0, 7));
+    const profile = await this.repo.findIsatProfile(input.employeeId, businessMonthText());
     if (!profile) {
       throw new Error(`Không tìm thấy nhân sự: ${input.employeeId}`);
     }
