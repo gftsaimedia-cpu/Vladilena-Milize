@@ -531,7 +531,7 @@ test('previous and next walk the rows shown when the drawer opened', async ({ pa
   await expect(prevBtn(page)).toBeFocused();
 });
 
-test('opening the drawer keeps ?q, typing keeps ?nv and the walk list does not follow the search', async ({ page }) => {
+test('opening the drawer keeps ?q, and ?nv and the walk list survive even if q changes underneath', async ({ page }) => {
   await page.goto('/admin/nhan-su?q=hoang');
   await expect(names(page)).toHaveText(['Lê Hoàng Nam', 'Hoàng Thị Mai']);
 
@@ -626,4 +626,48 @@ test('design index lists the profile drawer instead of the old staff dialogs', a
   for (const gone of ['Hộp Thêm nhân sự', 'Ngăn kéo Sửa hồ sơ', 'Nhân sự · Lọc chưa có ca']) {
     await expect(page.getByRole('link', { name: gone })).toHaveCount(0);
   }
+});
+
+test('rows are 42px tall in Gọn and 56px in the roomy density, avatar and toolbar keep their spec size', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const heights = async () =>
+    (await rows(page).first().evaluate(tr => [
+      tr.getBoundingClientRect().height,
+      ...Array.from(tr.children).map(c => c.getBoundingClientRect().height)
+    ])) as number[];
+  expect((await heights()).every(h => h === 42)).toBe(true);
+
+  const av = rows(page).first().locator('.stav');
+  await expect(av).toHaveCSS('width', '32px');
+  await expect(av).toHaveCSS('height', '32px');
+  await expect(av).toHaveCSS('font-size', '12px');
+  await expect(page.locator('.stools')).toHaveCSS('padding-bottom', '16px');
+
+  await page.addInitScript(() => localStorage.setItem('aicb.v2.ui', JSON.stringify({ density: '' })));
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  expect((await heights()).every(h => h === 56)).toBe(true);
+});
+
+test('departed rows are muted in every cell, the name and the pill text stay as the spec says', async ({ page }) => {
+  await page.goto('/admin/nhan-su');
+  await expect(names(page)).toHaveCount(10);
+  const gone = row(page, 'Đặng Văn Phúc');
+  const muted = 'rgb(97, 97, 97)';
+  await expect(gone.locator('th')).toHaveCSS('color', muted);
+  await expect(gone.locator('td').nth(1)).toHaveCSS('color', muted);
+  await expect(gone.locator('td').nth(2)).toHaveCSS('color', muted);
+  await expect(gone.locator('.nn')).toHaveCSS('color', muted);
+  await expect(row(page, 'Lê Hoàng Nam').locator('.nn')).toHaveCSS('color', 'rgb(33, 33, 33)');
+  await expect(gone.locator('.stt')).toHaveCSS('color', 'rgb(33, 33, 33)');
+});
+
+test('a person hidden by the filter opens with both arrows disabled and focus kept inside', async ({ page }) => {
+  await page.goto('/admin/nhan-su?q=nam&nv=hoang-thi-mai');
+  await expect(names(page)).toHaveText(['Lê Hoàng Nam']);
+  await expect(drawer(page, 'Hoàng Thị Mai')).toBeVisible();
+  await expect(prevBtn(page)).toBeDisabled();
+  await expect(nextBtn(page)).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Đóng' })).toBeFocused();
 });

@@ -10,7 +10,7 @@ defineEmits<{ export: [] }>();
 </script>
 
 <template>
-  <div class="tools">
+  <div class="stools">
     <label class="find">
       <Icon name="search" :size="16" />
       <input v-model="q" type="search" placeholder="Tìm tên, mã, email…" aria-label="Tìm theo tên, mã hoặc email" />
@@ -41,7 +41,7 @@ defineEmits<{ export: [] }>();
 </template>
 
 <style scoped>
-.tools {
+.stools {
   display: flex;
   flex-wrap: wrap;
   align-items: center;

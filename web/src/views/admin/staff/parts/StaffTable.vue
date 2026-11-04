@@ -75,8 +75,8 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
             </button>
           </td>
           <th scope="row">
-            <div class="who">
-              <span class="av">{{ r.initials }}</span>
+            <div class="stw">
+              <span class="stav">{{ r.initials }}</span>
               <RouterLink class="nn" replace :to="{ query: { ...route.query, nv: r.id } }">{{ r.name }}</RouterLink>
             </div>
           </th>
@@ -144,6 +144,9 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
   text-align: left;
   vertical-align: middle;
 }
+:root[data-density='gon'] .stbl tbody th {
+  height: 42px;
+}
 .stbl tbody tr:hover > * {
   background: var(--raised);
 }
@@ -164,10 +167,16 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
   border-color: var(--surface-dark);
   color: var(--on-primary);
 }
-.who {
+.stw {
+  display: flex;
+  align-items: center;
   gap: 12px;
+  min-width: 0;
 }
-.av {
+.stav {
+  display: grid;
+  flex: none;
+  place-items: center;
   width: 32px;
   height: 32px;
   border-radius: 50%;
@@ -227,10 +236,11 @@ const allState = computed<'true' | 'false' | 'mixed'>(() =>
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.gone > * {
+.stbl tbody tr.gone > *,
+.stbl tbody tr.gone .nn {
   color: var(--muted);
 }
-.gone .av {
+.gone .stav {
   background: var(--status-draft);
 }
 </style>
