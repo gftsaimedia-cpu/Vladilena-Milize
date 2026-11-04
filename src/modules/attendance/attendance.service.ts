@@ -1,5 +1,6 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
+import { businessDateText } from '../../common/business-date';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
   GeoLocation,
@@ -62,7 +63,7 @@ export class AttendanceService {
       throw new Error("Loại chấm công phải là 'IN' hoặc 'OUT'");
     }
 
-    const workDate = input.workDate || new Date().toISOString().slice(0, 10);
+    const workDate = input.workDate || businessDateText();
     const lockKey = `punch_${input.employeeId}_${workDate}`;
 
     const executePunch = async () => {
