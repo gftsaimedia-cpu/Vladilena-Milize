@@ -1,16 +1,37 @@
 <script setup lang="ts">
-// Tôi: "Thông tin công ty đang giữ về tôi có đúng không?" → thông tin hồ sơ trước; đổi mật khẩu và đăng xuất là các dòng.
-import { useRouter } from 'vue-router';
-import Icon from '@/components/ui/Icon.vue';
-import { useLoad } from '@/composables/useLoad';
+// J7 · Tôi (spec 8.2): dải vàng đầu màn, khối định danh của Lê Hoàng Nam, thẻ "Công việc", hai thao tác.
+// Đổi mật khẩu mở hộp trượt theo ?hop=doi-mat-khau (mở bằng router.replace); Đăng xuất về /dang-nhap.
+import { computed, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import type { ProfileView } from '@/mock/staff-phone';
 import { getProfile, logout } from '@/services/staff-phone';
+import { useSessionStore } from '@/stores/session';
 import ChangePasswordSheet from './components/ChangePasswordSheet.vue';
-import LoadFeedback from './components/LoadFeedback.vue';
+import PhIcon from './components/PhIcon.vue';
 import { useHop } from './useHop';
 
+const PASSWORD = 'doi-mat-khau';
+const route = useRoute();
 const router = useRouter();
-const { data, loading, error, reload } = useLoad(() => getProfile());
-const { hop, open, close } = useHop();
+const session = useSessionStore();
+const { hop, close } = useHop();
+const data = ref<ProfileView | null>(null);
+getProfile().then(v => (data.value = v));
+// Dòng phụ của hộp: tên đăng nhập của phiên (hồ sơ trên màn luôn là Nam, R2).
+const username = computed(() => (session.user ? String(session.user.username) : ''));
+
+// ?hop= lạ thì bỏ khỏi URL, không mở gì (spec 3.8).
+watch(
+  hop,
+  name => {
+    if (name && name !== PASSWORD) close();
+  },
+  { immediate: true }
+);
+
+function openPassword() {
+  router.replace({ query: { ...route.query, hop: PASSWORD } });
+}
 
 async function signOut() {
   await logout();
@@ -19,104 +40,123 @@ async function signOut() {
 </script>
 
 <template>
-  <LoadFeedback :loading="loading" :error="error" :has-data="!!data" @retry="reload" />
-  <div class="toi">
-    <header v-if="data" class="ph"><h1>Tôi</h1></header>
-
-    <section v-if="data" class="sec card">
-      <div class="me">
-        <span class="av">{{ data.initials }}</span>
-        <div>
-          <b>{{ data.name }}</b
-          ><span>{{ data.roleLine }}</span>
+  <div class="ph toi">
+    <div class="band"><h1>Tôi</h1></div>
+    <template v-if="data">
+      <div class="ident">
+        <span class="big-av" aria-hidden="true">{{ data.initials }}</span>
+        <div class="nm">{{ data.name }}</div>
+        <div class="mut">{{ data.email }}</div>
+        <span class="st"><i class="dot work" />{{ data.contract }}</span>
+      </div>
+      <section class="job">
+        <h2>Công việc</h2>
+        <div class="card blk">
+          <div v-for="[k, v] in data.facts" :key="k" class="kv">
+            <span class="k">{{ k }}</span><span class="v">{{ v }}</span>
+          </div>
         </div>
-      </div>
-      <div v-for="f in data.facts" :key="f.label" class="kv">
-        <span class="k">{{ f.label }}</span>
-        <span class="v">{{ f.value }}</span>
-      </div>
-    </section>
-    <p v-if="data" class="src">Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.</p>
-
-    <section class="sec card">
-      <button v-if="data" type="button" class="more" @click="open('doi-mat-khau')">
-        <span class="l"
-          ><span class="ico"><Icon name="lock" :size="18" /></span>Đổi mật khẩu</span
-        >
-        <span class="chev"><Icon name="chevr" :size="18" /></span>
-      </button>
-      <button type="button" class="more out" @click="signOut">
-        <span class="l"
-          ><span class="ico"><Icon name="logout" :size="18" /></span>Đăng xuất</span
-        >
-      </button>
-    </section>
-
-    <ChangePasswordSheet v-if="data && hop === 'doi-mat-khau'" :username="data.username" @close="close" />
+        <p class="mut sm">{{ data.note }}</p>
+      </section>
+      <section class="card blk">
+        <button type="button" class="mi" @click="openPassword">
+          <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
+          <PhIcon name="right" :size="18" :stroke="2" />
+        </button>
+        <button type="button" class="mi out" @click="signOut">
+          <span class="ti"><PhIcon name="out" /></span><span class="t">Đăng xuất</span>
+        </button>
+      </section>
+    </template>
+    <ChangePasswordSheet v-if="data && hop === PASSWORD" :username="username" @close="close" />
   </div>
 </template>
 
 <style scoped>
-/* .me của thanh bên Admin (base.css) cùng tên: đặt lại đúng như thiết kế màn Tôi */
-.ph-app .me {
+/* Màn này gốc .ph không có đệm trên: dải vàng chạm mép trên. */
+.ph.toi {
+  padding-top: 0;
+}
+/* Dải vàng 150px tràn hết bề ngang cột, bo dưới 32px; h1 22px/28px (R10) */
+.band {
+  margin: 0 -16px;
+  height: 150px;
   display: flex;
-  gap: 14px;
+  justify-content: center;
+  padding-top: 20px;
+  border-radius: 0 0 32px 32px;
+  background: var(--gold);
+}
+.ph .band h1 {
+  font-size: 22px;
+  line-height: 28px;
+}
+/* Khối định danh chồng lên dải */
+.ident {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 18px 16px;
-  width: auto;
-  cursor: default;
+  gap: 4px;
+  margin-top: -76px;
+  text-align: center;
 }
-.ph-app .me .av {
-  width: 56px;
-  height: 56px;
-  font-size: 18px;
+.big-av {
+  width: 96px;
+  height: 96px;
+  display: grid;
+  place-items: center;
+  border-radius: 50px;
+  border: 4px solid var(--page);
   background: var(--gold-light);
-  color: #212121;
-}
-.ph-app .me b {
-  display: block;
-  font-size: 19px;
-  line-height: 26px;
+  font-size: 28px;
   font-weight: 600;
-  color: var(--text);
 }
-.ph-app .me span {
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 20px;
+.nm {
+  margin-top: 6px;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 600;
 }
-.src {
-  padding: 0 20px;
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 18px;
+.ident .st {
+  margin-top: 2px;
 }
-.ph-app .more {
+.job {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.job h2,
+.job p {
+  margin: 0;
+  padding: 0 4px;
+}
+.blk {
+  padding: 4px 16px;
+}
+/* Hai thao tác: dòng cao 56px */
+.mi {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  background: none;
+  min-height: 56px;
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--rule);
-  font-family: inherit;
+  background: none;
+  font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
-.ph-app .more:first-child {
-  border-top: 0;
+.mi + .mi {
+  border-top: 1px solid var(--border);
 }
-.more .l .ico {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: #f1f1f1;
-  display: grid;
-  place-items: center;
+.mi .t {
+  flex: 1 1 auto;
+  font-weight: 500;
 }
-.more.out {
-  color: var(--err-ink);
-}
-.more.out .ico {
-  background: var(--err-bg);
+.mi.out,
+.mi.out .ti {
+  color: var(--status-rejected);
 }
 </style>

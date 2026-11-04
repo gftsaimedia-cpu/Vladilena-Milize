@@ -77,6 +77,7 @@ async function submit() {
 
 <style scoped>
 .ph-sheet .inp .show {
+  align-items: center; /* .inp .end (overlay.css) là inline-flex: chữ "Hiện" nằm giữa ô */
   border: 0;
   background: none;
   padding: 0 0 0 12px;
