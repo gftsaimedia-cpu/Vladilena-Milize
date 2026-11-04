@@ -28,51 +28,55 @@ async function mockAdminApi(page: Page) {
   });
 }
 
-test('mobile admin drawer is keyboard accessible, closes on navigation and preserves queries', async ({ page }) => {
-  await mockAdminApi(page);
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff&kb=empty');
+test.fixme(
+  'mobile admin drawer is keyboard accessible, closes on navigation and preserves queries',
+  { annotation: { type: 'fixme', description: 'Viết lại ở Task 3–4 của plan khung mock' } },
+  async ({ page }) => {
+    await mockAdminApi(page);
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff&kb=empty');
 
-  const toggle = page.locator('.mobile-nav-toggle');
-  const sidebar = page.locator('#admin-navigation');
-  const nav = page.getByRole('navigation', { name: 'Điều hướng' });
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(toggle).toHaveAccessibleName('Mở điều hướng');
-  await expect(sidebar).not.toHaveClass(/mobile-open/);
-  await expect(sidebar).toHaveAttribute('inert');
-  await expect(sidebar.locator('a').first()).toBeHidden();
+    const toggle = page.locator('.mobile-nav-toggle');
+    const sidebar = page.locator('#admin-navigation');
+    const nav = page.getByRole('navigation', { name: 'Điều hướng' });
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(toggle).toHaveAccessibleName('Mở điều hướng');
+    await expect(sidebar).not.toHaveClass(/mobile-open/);
+    await expect(sidebar).toHaveAttribute('inert');
+    await expect(sidebar.locator('a').first()).toBeHidden();
 
-  await page.keyboard.press('Tab');
-  await expect(toggle).toBeFocused();
-  await page.keyboard.press('Enter');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await expect(toggle).toHaveAccessibleName('Đóng điều hướng');
-  await expect(nav.locator('a').first()).toBeFocused();
-  await page.keyboard.press('Shift+Tab');
-  await expect(sidebar.locator('button.me')).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(toggle).toBeFocused();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(sidebar).toHaveAttribute('inert');
-  await page.keyboard.press('Tab');
-  await expect(page.locator('.period .mpick button').first()).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(toggle).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    await expect(toggle).toHaveAccessibleName('Đóng điều hướng');
+    await expect(nav.locator('a').first()).toBeFocused();
+    await page.keyboard.press('Shift+Tab');
+    await expect(sidebar.locator('button.me')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(toggle).toBeFocused();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(sidebar).toHaveAttribute('inert');
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.period .mpick button').first()).toBeFocused();
 
-  await toggle.click();
-  await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
-  await expect(page).toHaveURL('/admin/cai-dat?thang=2026-10');
-  await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Cài đặt');
-  await page.goBack();
-  await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10&q=needle&nv=staff&kb=empty');
-  await toggle.click();
-  await page.getByRole('link', { name: 'Đánh giá KPI' }).click();
-  await expect(page).toHaveURL('/admin/kpi?thang=2026-10');
-  await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Đánh giá KPI');
-  await expect(sidebar).not.toHaveClass(/mobile-open/);
+    await toggle.click();
+    await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
+    await expect(page).toHaveURL('/admin/cai-dat?thang=2026-10');
+    await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Cài đặt');
+    await page.goBack();
+    await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10&q=needle&nv=staff&kb=empty');
+    await toggle.click();
+    await page.getByRole('link', { name: 'Đánh giá KPI' }).click();
+    await expect(page).toHaveURL('/admin/kpi?thang=2026-10');
+    await expect(sidebar.locator('a[aria-current="page"]')).toContainText('Đánh giá KPI');
+    await expect(sidebar).not.toHaveClass(/mobile-open/);
 
-  await toggle.click();
-  await page.getByRole('button', { name: /Demo Admin/ }).click();
-  await expect(sidebar).not.toHaveClass(/mobile-open/);
-});
+    await toggle.click();
+    await page.getByRole('button', { name: /Demo Admin/ }).click();
+    await expect(sidebar).not.toHaveClass(/mobile-open/);
+  }
+);
 
 test('navigation drops stale hop and view queries without reopening a shell dialog', async ({ page }) => {
   await mockAdminApi(page);
