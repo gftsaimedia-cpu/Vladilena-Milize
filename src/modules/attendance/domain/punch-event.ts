@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { toDateText } from '../../../common/date-text';
 import { GeoLocation, GeoLocationProps, GeoLocationDTO } from './geo-location';
 
 export type PunchType = 'IN' | 'OUT';
@@ -190,16 +191,7 @@ export class PunchEvent {
       throw new Error('Dữ liệu row PunchEvent không hợp lệ');
     }
 
-    const rawDate = row.work_date as any;
-    let workDate = String(rawDate || '');
-    if (rawDate instanceof Date) {
-      const y = rawDate.getUTCFullYear();
-      const m = String(rawDate.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(rawDate.getUTCDate()).padStart(2, '0');
-      workDate = `${y}-${m}-${d}`;
-    } else if (workDate.length > 10) {
-      workDate = workDate.slice(0, 10);
-    }
+    const workDate = toDateText((row.work_date as string | Date) || '');
 
     return new PunchEvent({
       id: row.id,

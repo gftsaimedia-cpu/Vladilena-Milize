@@ -1,5 +1,6 @@
+import { businessDateText } from '../../../common/business-date';
+
 const DAY_MS = 24 * 60 * 60 * 1000;
-const VIETNAM_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 function toUtcMs(date: string): number {
   const [year, month, day] = date.split('-').map(Number);
@@ -52,7 +53,7 @@ export function workingDays(
   return eachDate(from, to).filter(d => regularDows.includes(weekday(d)) && !holidays.has(d));
 }
 
-/** Ngày hiện tại theo giờ Việt Nam (UTC+7), dạng YYYY-MM-DD. */
+/** Ngày hiện tại theo giờ Việt Nam, dạng YYYY-MM-DD. */
 export function vietnamToday(now: Date): string {
-  return fromUtcMs(now.getTime() + VIETNAM_OFFSET_MS);
+  return businessDateText(now);
 }
