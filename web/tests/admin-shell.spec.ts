@@ -149,3 +149,36 @@ for (const width of [375, 768, 1024]) {
     }
   });
 }
+
+test('sidebar defaults to the dark floating card', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/tong-quan');
+  await expect(page.locator('html')).toHaveAttribute('data-side', 'dark');
+  const side = page.locator('#admin-navigation');
+  await expect(side).toHaveCSS('border-radius', '24px');
+  await expect(side).toHaveCSS('background-color', 'rgb(28, 28, 28)');
+  const box = await side.boundingBox();
+  expect(Math.abs(box!.width - 248)).toBeLessThanOrEqual(1);
+  const current = side.locator('a[aria-current="page"]');
+  await expect(current).toHaveCSS('color', 'rgb(232, 195, 114)');
+  await expect(current).toHaveCSS('background-color', 'rgb(42, 42, 42)');
+});
+
+test('light sidebar is chosen in the account menu and persists', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/admin/tong-quan');
+  await page.getByRole('button', { name: /Quản trị viên/ }).click();
+  const row = page.locator('.pop .mr', { hasText: 'Thanh bên' });
+  await row.getByRole('button', { name: 'Sáng' }).click();
+  const check = async () => {
+    const side = page.locator('#admin-navigation');
+    await expect(page.locator('html')).toHaveAttribute('data-side', 'light');
+    await expect(side).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+    const current = side.locator('a[aria-current="page"]');
+    await expect(current).toHaveCSS('background-color', 'rgb(252, 232, 178)');
+    await expect(current).toHaveCSS('color', 'rgb(33, 33, 33)');
+  };
+  await check();
+  await page.reload();
+  await check();
+});

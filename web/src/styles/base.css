@@ -1,5 +1,5 @@
 /* Nền chung của giao diện AiCB (thiết kế 22/10/2026, chuyển từ aicb.css của bản HTML).
-   Khung Admin 1440: thanh bên 240 + vùng nội dung; token màu, chữ, nút, thẻ, bảng, nhãn dùng chung cho mọi màn. */
+   Khung Admin 1440: thanh bên nổi 248 + vùng nội dung; token màu, chữ, nút, thẻ, bảng, nhãn dùng chung cho mọi màn. */
 @font-face {
   font-family: Geist;
   src: url('../assets/fonts/Geist-Variable.woff2') format('woff2');
@@ -52,27 +52,42 @@
   --pad: 32px;
   --font: Geist, system-ui, sans-serif;
   --display: 'League Spartan', Geist, system-ui, sans-serif;
-  /* sidebar (light by default) */
-  --side-bg: var(--ground);
+  /* token design system GFT (thêm mới, không đổi giá trị token cũ) */
+  --surface-dark: #1c1c1c;
+  --surface-dark-raised: #2a2a2a;
+  --ink-on-dark-muted: #9e9e9e;
+  --status-done: #2f5aa8;
+  --status-pending: #eb973d;
+  --status-rejected: #b43f3f;
+  --status-draft: #e0e0e0;
+  --r-md: 16px;
+  /* thanh bên: kiểu sáng là mặc định, kiểu tối ở :root[data-side='dark'] */
+  --side-bg: #ffffff;
   --side-edge: var(--border);
-  --side-ink: #3d3d3d;
-  --side-muted: #6b6b6b;
-  --side-active-bg: #e4e4e4;
-  --side-active-ink: #111;
-  --side-active-icon: #111;
-  --side-count-bg: #e4e4e4;
-  --side-count-ink: #212121;
+  --side-ink: var(--text);
+  --side-strong: var(--text);
+  --side-muted: var(--muted);
+  --side-active-bg: var(--gold-light);
+  --side-active-ink: var(--text);
+  --side-active-icon: var(--text);
+  --side-count-bg: var(--status-draft);
+  --side-count-ink: var(--text);
+  --side-rule: var(--border);
+  --side-focus: var(--text);
 }
 :root[data-side='dark'] {
-  --side-bg: #1c1c1c;
-  --side-edge: #1c1c1c;
-  --side-ink: #cfcfcf;
-  --side-muted: #9e9e9e;
-  --side-active-bg: #2e2e2e;
-  --side-active-ink: #ffffff;
+  --side-bg: var(--surface-dark);
+  --side-edge: var(--surface-dark);
+  --side-ink: #ffffff;
+  --side-strong: #ffffff;
+  --side-muted: var(--ink-on-dark-muted);
+  --side-active-bg: var(--surface-dark-raised);
+  --side-active-ink: var(--gold);
   --side-active-icon: var(--gold);
-  --side-count-bg: #333333;
+  --side-count-bg: var(--surface-dark-raised);
   --side-count-ink: #ffffff;
+  --side-rule: var(--surface-dark-raised);
+  --side-focus: var(--gold);
 }
 * {
   box-sizing: border-box;
@@ -106,9 +121,12 @@ button {
 }
 
 /* ---------- shell ---------- */
+/* Thanh bên là thẻ nổi: lề 16px quanh app, rộng 248px, bo 24px, dính khi cuộn */
 .app {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 248px minmax(0, 1fr);
+  column-gap: 24px;
+  padding: 16px;
   min-height: 100vh;
   min-width: 0;
 }
@@ -117,19 +135,26 @@ button {
   display: none;
 }
 .side {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  height: calc(100vh - 32px);
   background: var(--side-bg);
-  border-right: 1px solid var(--side-edge);
+  border: 1px solid var(--side-edge);
+  border-radius: var(--r-card);
   padding: 20px 12px 16px;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow-y: auto;
 }
 .side-in {
-  position: sticky;
-  top: 20px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 36px);
+  flex: 1;
+  min-height: 0;
+}
+.side :focus-visible {
+  outline-color: var(--side-focus);
 }
 .brand {
   display: flex;
@@ -146,7 +171,7 @@ button {
   font-weight: 600;
   font-size: 22px;
   line-height: 24px;
-  color: var(--side-active-ink);
+  color: var(--side-strong);
   letter-spacing: -0.2px;
   padding-top: 4px;
 }
@@ -165,7 +190,7 @@ button {
   line-height: 16px;
   color: var(--side-muted);
   padding: 0 12px;
-  margin: 22px 0 6px;
+  margin: 20px 0 8px;
 }
 .grp:first-child {
   margin-top: 0;
@@ -175,8 +200,8 @@ button {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 32px;
-  margin-bottom: 2px;
+  height: 40px;
+  margin-bottom: 4px;
   padding: 0 10px 0 12px;
   border-radius: var(--r-ctl);
   color: var(--side-ink);
@@ -214,14 +239,8 @@ button {
   color: var(--side-muted);
 }
 .side-foot {
-  border-top: 1px solid var(--side-edge);
+  border-top: 1px solid var(--side-rule);
   padding-top: 12px;
-}
-:root[data-side='dark'] .side-foot {
-  border-top-color: #2e2e2e;
-}
-:root:not([data-side='dark']) .side-foot {
-  border-top-color: var(--border);
 }
 .me {
   display: flex;
@@ -236,7 +255,7 @@ button {
 .me b {
   display: block;
   font-weight: 500;
-  color: var(--side-active-ink);
+  color: var(--side-strong);
   font-size: 14px;
 }
 .me span {
@@ -296,6 +315,7 @@ button {
 @media (max-width: 767px) {
   .app {
     display: block;
+    padding: 0;
     min-height: 100vh;
   }
   .canvas {
@@ -325,8 +345,10 @@ button {
     z-index: 43;
     inset: 0 auto 0 0;
     width: min(292px, 86vw);
+    height: auto;
     min-height: 100dvh;
     padding: 20px 12px 16px;
+    border-radius: 0;
     overflow-y: auto;
     transform: translateX(-105%);
     transition: transform 180ms ease;
@@ -337,8 +359,7 @@ button {
     visibility: visible;
   }
   .side-in {
-    position: static;
-    height: auto;
+    flex: none;
     min-height: calc(100dvh - 36px);
   }
   .nav-scrim {

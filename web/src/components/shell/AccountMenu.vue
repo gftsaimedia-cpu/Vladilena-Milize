@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Menu tài khoản mở từ tên ở đáy thanh bên (pop-menu-tai-khoan.html).
 // Hợp đồng: props { me: { name, roleLabel, initials, username } }; emit('close'), emit('change-password').
-// Màu nền và mật độ bảng ghi qua useUiStore().set({ ground, density }); bảng nổi nằm trên nút tên tài khoản.
+// Kiểu thanh bên, màu nền và mật độ bảng ghi qua useUiStore().set({ side, ground, density }); bảng nổi nằm trên nút tên tài khoản.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
@@ -50,6 +50,13 @@ async function signOut() {
       </div>
     </div>
     <div class="mr">
+      <span>Thanh bên</span>
+      <span class="seg">
+        <button type="button" :class="{ on: ui.side === 'dark' }" @click="ui.set({ side: 'dark' })">Tối</button>
+        <button type="button" :class="{ on: ui.side === 'light' }" @click="ui.set({ side: 'light' })">Sáng</button>
+      </span>
+    </div>
+    <div class="mr">
       <span>Màu nền</span>
       <span class="seg">
         <button type="button" :class="{ on: !ui.ground }" @click="ui.set({ ground: '' })">Xám</button>
@@ -77,7 +84,7 @@ async function signOut() {
 <style scoped>
 .pop {
   position: fixed;
-  left: 12px;
+  left: 28px;
   width: 300px;
   z-index: 60;
   background: #fff;
@@ -135,5 +142,11 @@ async function signOut() {
 .mi.dz,
 .mi.dz svg {
   color: var(--err-ink);
+}
+/* Ngăn kéo điện thoại không có lề nổi nên bảng lùi về sát mép */
+@media (max-width: 767px) {
+  .pop {
+    left: 12px;
+  }
 }
 </style>

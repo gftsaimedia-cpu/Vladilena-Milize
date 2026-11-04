@@ -48,12 +48,12 @@ const groups = computed(() => ADMIN_SIDEBAR_GROUPS);
               :tabindex="mobileInert ? -1 : undefined"
               @click="emit('navigate')"
             >
-              <Icon :name="icon" />
+              <Icon :name="icon" :size="20" />
               <span>{{ label }}</span>
               <span v-if="key === 'duyet' && counts.requests" class="cnt">{{ counts.requests }}</span>
             </RouterLink>
             <div v-else class="item" aria-disabled="true">
-              <Icon :name="icon" />
+              <Icon :name="icon" :size="20" />
               <span>{{ label }}</span>
               <span class="soon">Sắp có</span>
             </div>
@@ -69,7 +69,7 @@ const groups = computed(() => ADMIN_SIDEBAR_GROUPS);
           :tabindex="mobileInert ? -1 : undefined"
           @click="emit('navigate')"
         >
-          <Icon name="sliders" />
+          <Icon name="sliders" :size="20" />
           <span>Cài đặt</span>
         </RouterLink>
         <button
