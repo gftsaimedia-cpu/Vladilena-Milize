@@ -12,6 +12,9 @@ export interface EmployeeMonthlyRawData {
     contractStatusText: string;
     baseSalary: number;
     standardWorkdays: number;
+    employeeType?: string;
+    nightAllowancePct?: number;
+    isDormResident?: boolean;
     kpiMaxSalary?: number;
     remainingAnnualLeaveDays?: number;
   };
@@ -29,6 +32,7 @@ export interface EmployeeMonthlyRawData {
     earlyMinutes: number;
     status: string;
     dayStatus: string;
+    scheduleType?: string;
   }>;
   requests: Array<{
     id: string;
@@ -64,10 +68,10 @@ export class PayrollRepository {
       .where('locked_at', 'is', null)
       .execute();
 
-    return rows.map((r) => ({
+    return rows.map(r => ({
       uuid: r.uuid || r.username,
       username: r.username,
-      name: r.name,
+      name: r.name
     }));
   }
 
@@ -78,7 +82,7 @@ export class PayrollRepository {
     const staffRow = await this.qb
       .selectFrom('staff')
       .selectAll()
-      .where((eb) => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
       .executeTakeFirst();
 
     if (!staffRow) return null;
@@ -101,11 +105,17 @@ export class PayrollRepository {
     const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
     const timesheetRows = await this.qb
       .selectFrom('timesheet_entries')
-      .selectAll()
-      .where('employee_id', '=', staffRow.uuid || employeeId)
-      .where('work_date', '>=', startDate)
-      .where('work_date', '<=', endDate)
-      .orderBy('work_date', 'asc')
+      .leftJoin('work_schedules', join =>
+        join
+          .onRef('work_schedules.employee_id', '=', 'timesheet_entries.employee_id')
+          .onRef('work_schedules.work_date', '=', 'timesheet_entries.work_date')
+      )
+      .selectAll('timesheet_entries')
+      .select('work_schedules.schedule_type as schedule_type')
+      .where('timesheet_entries.employee_id', '=', staffRow.uuid || employeeId)
+      .where('timesheet_entries.work_date', '>=', startDate)
+      .where('timesheet_entries.work_date', '<=', endDate)
+      .orderBy('timesheet_entries.work_date', 'asc')
       .execute();
 
     // Requests (filtered by target month)
@@ -114,12 +124,12 @@ export class PayrollRepository {
       .selectAll()
       .where('employee_id', '=', staffRow.uuid || employeeId)
       .where('status', '=', 'APPROVED')
-      .where((eb) =>
+      .where(eb =>
         eb.or([
           eb('ot_date', 'like', `${month}%`),
           eb('leave_start_date', 'like', `${month}%`),
           eb('advance_period', '=', month),
-          eb('correction_date', 'like', `${month}%`),
+          eb('correction_date', 'like', `${month}%`)
         ])
       )
       .execute();
@@ -141,10 +151,13 @@ export class PayrollRepository {
         contractStatusText: staffRow.contract_status || 'HĐLĐ từ 3 tháng',
         baseSalary,
         standardWorkdays: 26,
+        employeeType: staffRow.type,
+        nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
+        isDormResident: Number(staffRow.idorm ?? 0) === 1,
         kpiMaxSalary,
-        remainingAnnualLeaveDays: 22,
+        remainingAnnualLeaveDays: 22
       },
-      timesheets: timesheetRows.map((r) => ({
+      timesheets: timesheetRows.map(r => ({
         workDate: r.work_date,
         shiftType: r.shift_type,
         shiftStartTime: r.shift_start_time,
@@ -158,8 +171,9 @@ export class PayrollRepository {
         earlyMinutes: Number(r.early_minutes),
         status: r.status,
         dayStatus: r.day_status,
+        scheduleType: r.schedule_type ?? undefined
       })),
-      requests: requestRows.map((r) => ({
+      requests: requestRows.map(r => ({
         id: r.id,
         type: r.type,
         status: r.status,
@@ -170,7 +184,7 @@ export class PayrollRepository {
         otDate: r.ot_date,
         otHours: r.ot_hours !== null ? Number(r.ot_hours) : null,
         advanceAmount: r.advance_amount,
-        advancePeriod: r.advance_period,
+        advancePeriod: r.advance_period
       })),
       kpiScore: kpiRow
         ? {
@@ -178,9 +192,9 @@ export class PayrollRepository {
             user: Number(kpiRow.user_score ?? 0),
             peer: Number(kpiRow.peer ?? 0),
             manager: Number(kpiRow.manager ?? 0),
-            self: Number(kpiRow.self_score ?? 0),
+            self: Number(kpiRow.self_score ?? 0)
           }
-        : null,
+        : null
     };
   }
 
@@ -203,7 +217,7 @@ export class PayrollRepository {
         slips_error: 0,
         created_by: actor,
         created_at: now,
-        finished_at: now,
+        finished_at: now
       })
       .returning('id')
       .executeTakeFirstOrThrow();
@@ -227,7 +241,7 @@ export class PayrollRepository {
           advance: summary.advanceDeduction,
           net: summary.netIncome,
           staff_terms_json: jsonStr,
-          snapshot_gz: Buffer.from(jsonStr),
+          snapshot_gz: Buffer.from(jsonStr)
         })
         .execute();
     }
@@ -245,13 +259,9 @@ export class PayrollRepository {
 
     if (!run) return [];
 
-    const slips = await this.qb
-      .selectFrom('payslips')
-      .selectAll()
-      .where('run_id', '=', run.id)
-      .execute();
+    const slips = await this.qb.selectFrom('payslips').selectAll().where('run_id', '=', run.id).execute();
 
-    return slips.map((s) => ({
+    return slips.map(s => ({
       id: s.id,
       runId: s.run_id,
       username: s.username,
@@ -261,7 +271,7 @@ export class PayrollRepository {
       tax: s.tax,
       advance: s.advance,
       net: s.net,
-      details: s.staff_terms_json ? JSON.parse(s.staff_terms_json) : null,
+      details: s.staff_terms_json ? JSON.parse(s.staff_terms_json) : null
     }));
   }
 
@@ -279,7 +289,7 @@ export class PayrollRepository {
       .selectFrom('payslips')
       .selectAll()
       .where('run_id', '=', run.id)
-      .where((eb) => eb.or([eb('username', '=', employeeId)]))
+      .where(eb => eb.or([eb('username', '=', employeeId)]))
       .executeTakeFirst();
 
     if (!slip) return null;
@@ -294,7 +304,7 @@ export class PayrollRepository {
       tax: slip.tax,
       advance: slip.advance,
       net: slip.net,
-      details: slip.staff_terms_json ? JSON.parse(slip.staff_terms_json) : null,
+      details: slip.staff_terms_json ? JSON.parse(slip.staff_terms_json) : null
     };
   }
 
@@ -313,9 +323,9 @@ export class PayrollRepository {
         created_by: actor,
         created_at: now,
         updated_by: actor,
-        updated_at: now,
+        updated_at: now
       })
-      .onConflict((oc) =>
+      .onConflict(oc =>
         oc.columns(['username', 'month']).doUpdateSet({
           wework: scores.wework,
           user_score: scores.user,
@@ -323,7 +333,7 @@ export class PayrollRepository {
           manager: scores.manager,
           self_score: scores.self,
           updated_by: actor,
-          updated_at: now,
+          updated_at: now
         })
       )
       .execute();

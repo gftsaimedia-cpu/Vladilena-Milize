@@ -1,3 +1,5 @@
+import { PayrollAllowancePolicy } from './allowance-rates';
+
 /**
  * Payroll V2 - GFT Payslip Aggregate Root & Daily Attendance Line Item
  * Implements canonical 2-page payslip calculations matching October 2026 GFT sample.
@@ -44,6 +46,10 @@ export interface EmployeePayslipProps {
   month: string; // "YYYY-MM"
   standardWorkdays?: number; // default 26
   baseSalaryPolicy: number; // e.g. 6,000,000
+  employeeType?: string;
+  nightAllowancePct?: number;
+  isDormResident?: boolean;
+  makeupWorkDates?: string[];
   dailyLines: DailyAttendanceLineProps[];
   otHoursByRate?: OtHoursByRate;
   lateEarlyHours?: number;
@@ -148,6 +154,9 @@ export class EmployeePayslip {
 
   // Block 1: Base Salary
   readonly baseSalaryPolicy: number;
+  readonly employeeType: string | undefined;
+  readonly nightAllowancePct: number;
+  readonly isDormResident: boolean;
   readonly baseSalaryActual: number;
 
   // Block 2: Leave & Holiday Pay
@@ -212,6 +221,9 @@ export class EmployeePayslip {
     this.month = props.month;
     this.standardWorkdays = props.standardWorkdays ?? 26;
     this.baseSalaryPolicy = props.baseSalaryPolicy;
+    this.employeeType = props.employeeType;
+    this.nightAllowancePct = props.nightAllowancePct ?? (props.employeeType === 'nv' ? 40 : 30);
+    this.isDormResident = props.isDormResident ?? false;
     this.dailyLines = [...props.dailyLines];
 
     // Compute day and hour rates
@@ -278,20 +290,32 @@ export class EmployeePayslip {
 
     // Block 4: Allowances
     // Policy values
-    this.attendanceAllowancePolicy = Math.round(this.baseSalaryPolicy * 0.25); // 25%
-    this.travelAllowancePolicy = Math.round(this.baseSalaryPolicy * 0.15); // 15%
-    this.flexAllowancePolicy = Math.round(this.baseSalaryPolicy * 0.2); // 20%
-    this.offPaidNightPolicy = this.standardWorkdays * 37500; // 37.500/night
-    this.nightAllowancePolicy = Math.round(this.baseSalaryPolicy * 0.4); // 40%
+    const rates = new PayrollAllowancePolicy(this.employeeType, this.nightAllowancePct);
+    this.attendanceAllowancePolicy = rates.isNv ? Math.round(this.baseSalaryPolicy * 0.25) : 0;
+    this.travelAllowancePolicy = rates.isNv ? Math.round(this.baseSalaryPolicy * 0.15) : 0;
+    this.flexAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.flexRate);
+    this.offPaidNightPolicy = rates.isKnownType
+      ? Math.round(this.standardWorkdays * hourRate * (1 + rates.nightRate))
+      : 0;
+    this.nightAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.nightRate);
 
     // Actual values
-    this.attendanceAllowanceActual = Math.round(
-      (this.actualWorkDays / this.standardWorkdays) * this.attendanceAllowancePolicy
-    );
-    this.travelAllowanceActual = Math.round((this.actualWorkDays / this.standardWorkdays) * this.travelAllowancePolicy);
-    this.flexAllowanceActual = Math.round(this.flexShiftCount * 0.2 * dayRate);
-    this.offPaidNightActual = this.nightShiftCount * 37500;
-    this.nightAllowanceActual = Math.round(this.nightShiftCount * 0.4 * dayRate);
+    const makeupDates = new Set(props.makeupWorkDates ?? []);
+    const allowanceWorkDays = Math.max(0, this.actualWorkDays - makeupDates.size);
+    const allowanceRatio = allowanceWorkDays / this.standardWorkdays;
+    const makeupDays = makeupDates.size;
+    const absenceDays = Math.max(0, this.paidLeaveDays + this.unpaidLeaveDays - makeupDays);
+    this.attendanceAllowanceActual =
+      rates.isNv && absenceDays <= 4 ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
+    this.travelAllowanceActual =
+      rates.isNv && !this.isDormResident ? Math.round(allowanceRatio * this.travelAllowancePolicy) : 0;
+    this.flexAllowanceActual = rates.isKnownType
+      ? this.dailyLines.reduce((sum, line) => sum + line.flexAllowancePay, 0)
+      : 0;
+    this.offPaidNightActual = rates.isKnownType ? this.dailyLines.reduce((sum, line) => sum + line.offPaidPay, 0) : 0;
+    this.nightAllowanceActual = rates.isKnownType
+      ? this.dailyLines.reduce((sum, line) => sum + line.nightAllowancePay, 0)
+      : 0;
     this.totalAllowanceActual =
       this.attendanceAllowanceActual +
       this.travelAllowanceActual +

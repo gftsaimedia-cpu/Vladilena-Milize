@@ -6,8 +6,9 @@ import {
   DailyAttendanceLineProps,
   KpiScores,
   EmployeePayslipSummaryDTO,
-  EmployeePayslipDTO,
+  EmployeePayslipDTO
 } from './domain';
+import { PayrollAllowancePolicy } from './domain/allowance-rates';
 
 @Injectable()
 export class PayrollService {
@@ -25,7 +26,7 @@ export class PayrollService {
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
         const staffList = await this.repo.listEligibleEmployees();
-        targets = staffList.map((s) => s.uuid);
+        targets = staffList.map(s => s.uuid);
       }
 
       const payslips: EmployeePayslip[] = [];
@@ -70,6 +71,14 @@ export class PayrollService {
     }
 
     const { staff, timesheets, requests, kpiScore } = data;
+    const employeeType = staff.employeeType;
+    const nightAllowancePct = staff.nightAllowancePct === 60 ? 60 : 40;
+    const allowancePolicy = new PayrollAllowancePolicy(employeeType, nightAllowancePct);
+    const makeupWorkDates = new Set(
+      timesheets
+        .filter(ts => ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0)
+        .map(ts => ts.workDate)
+    );
     const standardWorkdays = staff.standardWorkdays || 26;
     const baseSalaryPolicy = staff.baseSalary;
     const dayRate = baseSalaryPolicy / standardWorkdays;
@@ -88,13 +97,17 @@ export class PayrollService {
       let daySalary = 0;
 
       if (shiftCode === 'FLEX') {
-        shiftLabel = 'Flex +20%';
-        flexAllowancePay = Math.round(0.2 * dayRate);
+        shiftLabel = `Flex +${Math.round(allowancePolicy.flexRate * 100)}%`;
+        flexAllowancePay = makeupWorkDates.has(ts.workDate) ? 0 : allowancePolicy.flexPremium(hourRate, ts.workHours);
         daySalary = Math.round(dayRate);
       } else if (shiftCode === 'NIGHT') {
-        shiftLabel = 'Night +40%';
-        nightAllowancePay = Math.round(0.4 * dayRate);
-        offPaidPay = 37500;
+        const nightPct = allowancePolicy.nightRate;
+        shiftLabel = `Night +${Math.round(nightPct * 100)}%`;
+        nightAllowancePay = makeupWorkDates.has(ts.workDate) ? 0 : allowancePolicy.nightPremium(dayRate);
+        const timeDeduction = Math.round((((ts.lateMinutes || 0) + (ts.earlyMinutes || 0)) * hourRate) / 60);
+        offPaidPay = makeupWorkDates.has(ts.workDate)
+          ? 0
+          : allowancePolicy.nightBreakPay(hourRate, ts.workHours, timeDeduction);
         inOutText = '22:00–06:00';
         daySalary = Math.round(dayRate);
       } else if (shiftCode === 'LEAVE') {
@@ -137,7 +150,7 @@ export class PayrollService {
         otPay: 0,
         deductionHours: Math.round(deductionHours * 100) / 100,
         deductionAmount,
-        dailyTotal,
+        dailyTotal
       });
     }
 
@@ -162,7 +175,7 @@ export class PayrollService {
         user: kpiScore.user > 1 ? kpiScore.user / 100 : kpiScore.user,
         peer: kpiScore.peer > 1 ? kpiScore.peer / 100 : kpiScore.peer,
         manager: kpiScore.manager > 1 ? kpiScore.manager / 100 : kpiScore.manager,
-        self: kpiScore.self > 1 ? kpiScore.self / 100 : kpiScore.self,
+        self: kpiScore.self > 1 ? kpiScore.self / 100 : kpiScore.self
       };
     }
 
@@ -180,13 +193,17 @@ export class PayrollService {
       otHoursByRate: {
         x15: 0,
         x20: totalOtHours,
-        x30: 0,
+        x30: 0
       },
       lateEarlyHours: roundedLateEarlyHours,
+      employeeType,
+      nightAllowancePct,
+      isDormResident: staff.isDormResident,
+      makeupWorkDates: Array.from(makeupWorkDates),
       kpiScores: kpiScoresProps,
       kpiMaxSalary: staff.kpiMaxSalary || baseSalaryPolicy,
       advanceDeduction,
-      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays || 22,
+      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays || 22
     });
   }
 }
