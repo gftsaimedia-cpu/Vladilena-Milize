@@ -15,7 +15,5 @@ export default [
   { file: 'nhan-su.html', title: 'Nhân sự', to: `/admin/nhan-su?${M}` },
   { file: 'ns-chua-co-ca.html', title: 'Nhân sự · Lọc chưa có ca', to: `/admin/nhan-su?${M}&loc=chua-co-ca` },
   { file: 'dlg-ns-them.html', title: 'Hộp Thêm nhân sự', to: `/admin/nhan-su?${M}&hop=them` },
-  { file: 'drw-ns-sua-ho-so.html', title: 'Ngăn kéo Sửa hồ sơ', to: `/admin/nhan-su?${M}&hop=sua-ho-so` },
-  { file: 'kpi.html', title: 'Đánh giá KPI · Nhập điểm', to: `/admin/kpi?${M}` },
-  { file: 'kpi-lich-su.html', title: 'Đánh giá KPI · Lịch sử sửa điểm', to: `/admin/kpi/lich-su?${M}` }
+  { file: 'drw-ns-sua-ho-so.html', title: 'Ngăn kéo Sửa hồ sơ', to: `/admin/nhan-su?${M}&hop=sua-ho-so` }
 ];

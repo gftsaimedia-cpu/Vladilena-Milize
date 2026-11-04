@@ -38,7 +38,6 @@ export const ADMIN_SIDEBAR_GROUPS = [
     'Kỳ lương',
     [
       ['cham-cong', 'clock', 'Chấm công', '/admin/cham-cong'],
-      ['kpi', 'target', 'Đánh giá KPI', '/admin/kpi'],
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]
   ],
@@ -57,5 +56,5 @@ export const PATHS = {
   xuLyYeuCau: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau',
   nhatKy: '/admin/cai-dat/nhat-ky',
   tatCa: '/admin/cai-dat/tat-ca',
-  danhGiaKpi: '/admin/kpi'
+  bangLuong: '/admin/bang-luong'
 };
