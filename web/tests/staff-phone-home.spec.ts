@@ -87,3 +87,38 @@ test('income card and the two latest requests link to their screens', async ({ p
     '/nv/yeu-cau?yc=phep-1210'
   );
 });
+
+// Ô ngày của thẻ "Tuần này" co theo cột (tối đa 40px): không cuộn ngang, không thò ra khỏi thẻ, canh giữa.
+for (const w of [341, 360, 375]) {
+  test(`week cells stay inside the card at ${w}px`, async ({ page }) => {
+    await openPhone(page, '/nv/hom-nay', { width: w, height: 800 });
+    const week = page.getByRole('region', { name: 'Tuần này' });
+    await expect(week.locator('.dn')).toHaveCount(7);
+    const m = await page.evaluate(() => {
+      const card = document.querySelector('section[aria-label="Tuần này"]')!;
+      const cells = [...card.querySelectorAll('.dn')].map(e => e.getBoundingClientRect());
+      const c = card.getBoundingClientRect();
+      const padRight = parseFloat(getComputedStyle(card).paddingRight);
+      const root = document.documentElement;
+      return {
+        scrollWidth: root.scrollWidth,
+        clientWidth: root.clientWidth,
+        lastRight: cells[6].right,
+        limit: c.right - padRight,
+        leftGap: cells[0].left - c.left,
+        rightGap: c.right - cells[6].right
+      };
+    });
+    expect(m.scrollWidth).toBe(m.clientWidth);
+    expect(m.lastRight).toBeLessThanOrEqual(m.limit + 0.5);
+    expect(Math.abs(m.leftGap - m.rightGap)).toBeLessThanOrEqual(1);
+  });
+}
+
+test('week cells are exactly 40px wide at 390px', async ({ page }) => {
+  await openPhone(page, '/nv/hom-nay');
+  const week = page.getByRole('region', { name: 'Tuần này' });
+  const box = await week.locator('.dn').nth(1).boundingBox();
+  expect(box!.width).toBe(40);
+  expect(box!.height).toBe(40);
+});

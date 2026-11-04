@@ -257,26 +257,26 @@ async function doCheckOut() {
   justify-items: center;
   gap: 6px;
 }
+.days > div {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* Ô ngày co theo cột (tối đa 40px, luôn vuông) để bảy ô vừa thẻ ở mọi bề ngang từ 320px */
+.days .dn {
+  width: 100%;
+  max-width: 40px;
+  height: auto;
+  aspect-ratio: 1;
+}
 .dw {
   margin-bottom: 6px;
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
   text-align: center;
-}
-/* Màn 320px: bảy ô 40px không vừa thẻ, thu ô còn 32px để không cuộn ngang */
-@media (max-width: 340px) {
-  .week {
-    padding: 12px;
-  }
-  .days {
-    gap: 4px;
-  }
-  .days .dn {
-    width: 32px;
-    height: 32px;
-    font-size: 13px;
-  }
 }
 .att {
   display: flex;
