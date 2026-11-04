@@ -568,3 +568,63 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 
 #### `POST /api/v2/system/periods/:month/lock`
 - Chốt và khóa bảng chấm công kỳ lương để ngăn chỉnh sửa.
+
+---
+
+### 3.7. Holidays Module (Lịch lễ công ty)
+
+Một lịch lễ chung cho cả công ty, do Admin tick. Mỗi ngày lễ gồm `date` (`YYYY-MM-DD`) và `name`; mỗi ngày chỉ có một dòng. Thêm hay xoá ngày lễ **không** sửa các đơn đã nộp: `leave_days_count` giữ như lúc nộp. Chưa kiểm vai trò ở các route này.
+
+Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`. Ngoài `404 HOLIDAY_NOT_FOUND`, lỗi nào cũng là `400` với `code: "BAD_REQUEST"`.
+
+#### `GET /api/v2/holidays?year=2026`
+- **Mục đích**: Danh sách ngày lễ của một năm, sắp theo ngày tăng dần.
+- **Query**: `year` tuỳ chọn, số nguyên từ 2000 đến 2100. Không gửi thì lấy năm hiện tại theo giờ Việt Nam.
+- **Response 200**:
+  ```json
+  {
+    "items": [
+      { "date": "2026-01-01", "name": "Tết Dương lịch" },
+      { "date": "2026-09-02", "name": "Quốc khánh" }
+    ]
+  }
+  ```
+- **Lỗi**: `400` `Năm không hợp lệ: <giá trị>` khi `year` không phải số nguyên 2000–2100.
+
+#### `POST /api/v2/holidays`
+- **Mục đích**: Thêm một ngày lễ.
+- **Request Body**:
+  ```json
+  { "date": "2026-10-10", "name": "Giỗ Tổ Hùng Vương" }
+  ```
+  - `date`: ngày có thật dạng `YYYY-MM-DD` (`2026-02-30` là sai).
+  - `name`: chuỗi không rỗng; khoảng trắng hai đầu được cắt bỏ.
+- **Response 201**: `{ "created": true, "holiday": { "date": "2026-10-10", "name": "Giỗ Tổ Hùng Vương" } }`. Người thêm (`username` của phiên đăng nhập) được ghi vào `created_by`.
+- **Lỗi** (`400`, kiểm theo thứ tự):
+
+  | Thứ tự | `error` | Khi nào |
+  |--------|---------|---------|
+  | 1 | `Ngày lễ không hợp lệ: <giá trị>` | Thiếu `date`, không phải chuỗi, sai định dạng hoặc ngày không tồn tại |
+  | 2 | `Tên ngày lễ không được trống` | Thiếu `name`, không phải chuỗi hoặc chỉ gồm khoảng trắng |
+  | 3 | `Ngày <dd/mm/yyyy> đã có trong lịch lễ` | Ngày đó đã có trong lịch (ví dụ `Ngày 02/09/2026 đã có trong lịch lễ`) |
+
+#### `POST /api/v2/holidays/quick-add`
+- **Mục đích**: Thêm nhanh bốn ngày lễ cố định của một năm. Ngày đã có trong lịch thì bỏ qua và giữ nguyên tên cũ.
+- **Request Body**: `{ "year": 2026 }`. `year` là số nguyên từ 2000 đến 2100.
+- **Các ngày được thêm**:
+
+  | Ngày | Tên |
+  |------|-----|
+  | 01/01 | Tết Dương lịch |
+  | 30/04 | Ngày Giải phóng miền Nam |
+  | 01/05 | Quốc tế Lao động |
+  | 02/09 | Quốc khánh |
+- **Response 201**: `{ "added": ["2026-01-01", "2026-04-30", "2026-05-01", "2026-09-02"] }`. `added` chỉ gồm các ngày vừa thêm, nên gọi lần hai cho cùng năm trả `{ "added": [] }`.
+- **Lỗi**: `400` `Năm không hợp lệ: <giá trị>` khi thiếu `year` hoặc không phải số nguyên 2000–2100.
+
+#### `DELETE /api/v2/holidays/:date`
+- **Mục đích**: Xoá một ngày lễ. `:date` dạng `YYYY-MM-DD`.
+- **Response 200**: `{ "deleted": true }`
+- **Lỗi**:
+  - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch.
+  - `400` `Ngày lễ không hợp lệ: <date>` khi `:date` sai định dạng hoặc là ngày không tồn tại.
