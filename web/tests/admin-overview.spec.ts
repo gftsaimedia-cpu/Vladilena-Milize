@@ -122,3 +122,11 @@ test('overview links keep the chosen month', async ({ page }) => {
   await page.getByRole('link', { name: 'Mở bảng lương', exact: true }).click();
   await expect(page).toHaveURL(/thang=2026-09/);
 });
+
+test('overview rows and totals follow the payroll mock', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  const nam = page.getByRole('region', { name: 'Bảng lương tháng 10' }).locator('tbody tr', { hasText: 'Lê Hoàng Nam' });
+  for (const text of ['24 / 26', '12.000.000', '2.215.384', '14.278.183', 'Chờ duyệt']) await expect(nam).toContainText(text);
+  const period = page.getByRole('region', { name: 'Kỳ lương tháng 10' });
+  for (const text of ['2,11 tỷ ₫', '0,37 tỷ ₫', '85%', '86']) await expect(period).toContainText(text);
+});

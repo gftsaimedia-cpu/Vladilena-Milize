@@ -2,13 +2,13 @@
 import { monthTitle } from '@/builders/period-strip';
 import { MOCK_MONTH } from './clock';
 
-const LABELS = ['Chấm công', 'Chốt công', 'Tính lương', 'Phê duyệt', 'Trả lương'];
+const LABELS = ['Chấm công', 'Chốt công', 'Chấm KPI', 'Tính lương', 'Phê duyệt', 'Trả lương'];
 
 export type MockStrip = { month: string; state: string; stateCls: string; steps: [string, string][] };
 
 export function periodStrip(month: string): MockStrip {
   if (month === MOCK_MONTH) {
-    const states = ['done', 'done', 'done', 'cur', ''];
+    const states = ['done', 'done', 'done', 'done', 'cur', ''];
     return {
       month: monthTitle(month),
       state: 'Chờ phê duyệt',

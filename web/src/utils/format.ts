@@ -42,3 +42,15 @@ export function initials(name = '') {
   const two = w.length >= 2 ? [w[w.length - 2], w[w.length - 1]] : [w[0]];
   return two.map(s => s[0].toUpperCase()).join('');
 }
+
+/** 2480805872 → "2,48" (tỷ đồng, đúng 2 số lẻ) */
+export const billions = (n: number): string => (n / 1e9).toFixed(2).replace('.', ',');
+/** "Đỗ Mai Linh" → "do mai linh" (bỏ dấu, viết thường, để so khớp khi tìm) */
+export const foldText = (s: string): string =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();

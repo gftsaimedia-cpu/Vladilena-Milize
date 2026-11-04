@@ -52,6 +52,9 @@ test('bell shows the mock count and opens the task list', async ({ page }) => {
 test('steps strip shows only on attendance, KPI and payroll', async ({ page }) => {
   await page.goto('/admin/kpi');
   await expect(page.locator('.period .state')).toContainText('Chờ phê duyệt');
+  const labels = ['Chấm công', 'Chốt công', 'Chấm KPI', 'Tính lương', 'Phê duyệt', 'Trả lương'];
+  await expect(page.locator('.period .steps .step')).toHaveCount(6);
+  await expect(page.locator('.period .steps .step')).toContainText(labels);
   const steps = page.locator('.period .steps');
   await expect(steps).toHaveAttribute('role', 'region');
   await expect(steps).toHaveAttribute('tabindex', '0');
