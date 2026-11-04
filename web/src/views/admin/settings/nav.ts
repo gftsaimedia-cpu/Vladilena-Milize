@@ -29,10 +29,7 @@ export const SETTINGS_NAV: any[] = [
 export const ADMIN_SIDEBAR_GROUPS = [
   [
     null,
-    [
-      ['tong-quan', 'grid', 'Tổng quan', '/admin/tong-quan'],
-      ['duyet', 'inbox', 'Yêu cầu', '/admin/yeu-cau']
-    ]
+    [['tong-quan', 'grid', 'Tổng quan', '/admin/tong-quan']]
   ],
   [
     'Kỳ lương',

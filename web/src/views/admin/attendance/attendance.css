@@ -1,0 +1,121 @@
+/* Phần dùng chung của Chấm công theo tuần và Hồ sơ chấm công: ô trạng thái (.pill), chấm "đang làm", chú giải màu (.legend, .gc).
+   Năm nhóm màu: đi làm (--surface-dark), đi muộn/về sớm (--gold), nghỉ có phép (--status-done), vắng (--status-rejected),
+   cần xử lý (nền trắng, viền --status-pending).
+   Mọi selector chung (.b, .legend, .gc, .pill) nằm dưới .att, gốc của hai màn trên: file CSS này ở lại sau khi rời màn,
+   nên không để lọt sang màn khác (nhánh khác cũng dùng .pill). */
+.att .b {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.att .b.work {
+  background: var(--surface-dark);
+}
+.att .b.late {
+  background: var(--gold);
+}
+.att .b.leave {
+  background: var(--status-done);
+}
+.att .b.absent {
+  background: var(--status-rejected);
+}
+.att .b.todo {
+  background: var(--surface);
+  border: 2px solid var(--status-pending);
+}
+/* Giống hệt ô .pill.fu mà nó chú giải: nền trắng, viền đứt --status-draft. */
+.att .b.fu {
+  background: var(--surface);
+  border: 1px dashed var(--status-draft);
+}
+
+.att .legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.att .gc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  font-size: 12px;
+  color: var(--text);
+}
+.att .gc .ct {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ô trạng thái: một nút (hoặc span khi không có ca) cao 30px. Chỉ áp cho tám kiểu dưới đây, không đụng .pill chung. */
+.att .pill:is(.work, .late, .leave, .absent, .todo, .off, .fu, .nocheck) {
+  width: 100%;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.att .pill.work {
+  background: var(--surface-dark);
+  color: var(--on-primary);
+}
+.att .pill.late {
+  background: var(--gold);
+  color: var(--text);
+}
+.att .pill.leave {
+  background: var(--status-done);
+  color: var(--on-primary);
+}
+.att .pill.absent {
+  background: var(--status-rejected);
+  color: var(--on-primary);
+}
+.att .pill.todo {
+  background: var(--surface);
+  border: 2px solid var(--status-pending);
+  color: var(--text);
+}
+.att .pill.off {
+  display: block;
+  background: var(--ground);
+  cursor: inherit;
+}
+.att .pill.fu {
+  background: var(--surface);
+  border: 1px dashed var(--status-draft);
+  color: var(--ink-on-dark-muted);
+  font-weight: 400;
+}
+.att .pill.nocheck {
+  background: var(--status-draft);
+  color: var(--muted);
+}
+.att .pill:is(.work, .late, .leave, .absent, .todo, .fu, .nocheck):focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.att .pill .dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50px;
+  background: var(--gold);
+}
+.att .pill.late .dot {
+  background: var(--surface-dark);
+}

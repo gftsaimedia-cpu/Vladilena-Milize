@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Thanh trên mọi màn Admin: nút ngăn kéo (điện thoại, slot start), tìm nhân viên, chọn tháng, chuông việc cần xử lý.
+// Thanh trên mọi màn Admin: nút ngăn kéo (điện thoại, slot start), tìm nhân viên, chọn tháng, chuông thông báo.
 // Đổi tháng = đổi ?thang= trên đường dẫn (AdminLayout đọc và cập nhật store kỳ lương).
 // Tìm nhân viên: Enter mở danh sách Nhân sự với ?q=.
 import { ref } from 'vue';
@@ -45,7 +45,7 @@ function search() {
         <Icon name="chevr" />
       </button>
     </div>
-    <button type="button" class="bell" :aria-label="`Việc cần xử lý: ${bell}`" @click="$emit('open-bell')">
+    <button type="button" class="bell" :aria-label="`Thông báo, ${bell} việc cần xử lý`" @click="$emit('open-bell')">
       <Icon name="bell" :size="18" />
       <i v-if="bell">{{ bell }}</i>
     </button>

@@ -54,3 +54,5 @@ export const foldText = (s: string): string =>
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .trim();
+/** "2026-10-27" → "Thứ Ba" ; "2026-11-01" → "Chủ nhật" */
+export const weekdayName = (iso?) => DOW[dowOf(iso)];

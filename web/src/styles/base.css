@@ -70,8 +70,6 @@
   --side-active-bg: var(--gold-light);
   --side-active-ink: var(--text);
   --side-active-icon: var(--text);
-  --side-count-bg: var(--status-draft);
-  --side-count-ink: var(--text);
   --side-rule: var(--border);
   --side-focus: var(--text);
 }
@@ -84,8 +82,6 @@
   --side-active-bg: var(--surface-dark-raised);
   --side-active-ink: var(--gold);
   --side-active-icon: var(--gold);
-  --side-count-bg: var(--surface-dark-raised);
-  --side-count-ink: #ffffff;
   --side-rule: var(--surface-dark-raised);
   --side-focus: var(--gold);
 }
@@ -219,19 +215,6 @@ button {
 .item.on svg {
   color: var(--side-active-icon);
   opacity: 1;
-}
-.item .cnt {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 26px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: var(--r-pill);
-  background: var(--side-count-bg);
-  color: var(--side-count-ink);
-  display: grid;
-  place-items: center;
 }
 .item .soon {
   margin-left: auto;
