@@ -5,7 +5,15 @@ import { inApp } from './fixtures/in-app';
 // Mỗi test mở một trang mới nên module giả luôn bắt đầu từ trạng thái ban đầu (13 việc chờ).
 const IMPORTS = `const A = await import('/src/mock/attendance.ts'); const I = await import('/src/mock/inbox.ts');`;
 
+// Bộ ghi các request /api của trang hiện tại; test đầu tiên khẳng định nó rỗng.
+let calls: string[] = [];
+
 test.beforeEach(async ({ page }) => {
+  calls = [];
+  page.on('request', req => {
+    const url = new URL(req.url());
+    if (url.pathname.startsWith('/api')) calls.push(`${req.method()} ${url.pathname}`);
+  });
   await page.goto('/admin/tong-quan');
 });
 
@@ -16,6 +24,7 @@ test('roster and days follow the board', async ({ page }) => {
     first: string;
     today: { iso: string; today: boolean };
     last: string;
+    subtitle: string;
     start: { iso: string; periodStart: boolean; scheduled: boolean };
     sat: { iso: string; scheduled: boolean };
   }>(
@@ -29,6 +38,7 @@ test('roster and days follow the board', async ({ page }) => {
       first: d[0].iso,
       today: { iso: d[16].iso, today: d[16].today },
       last: d[27].iso,
+      subtitle: v.subtitle,
       start: { iso: d[20].iso, periodStart: d[20].periodStart, scheduled: d[20].scheduled },
       sat: { iso: d[19].iso, scheduled: d[19].scheduled }
     };`
@@ -52,6 +62,8 @@ test('roster and days follow the board', async ({ page }) => {
   expect(out.last).toBe('2026-11-08');
   expect(out.start).toEqual({ iso: '2026-11-01', periodStart: true, scheduled: false });
   expect(out.sat).toEqual({ iso: '2026-10-31', scheduled: true });
+  expect(out.subtitle).toBe('Kỳ công 01–31/10/2026 · hôm nay Thứ Tư 28/10');
+  expect(calls).toEqual([]);
 });
 
 test('everyone works Monday to Saturday and the period adds up to 27', async ({ page }) => {

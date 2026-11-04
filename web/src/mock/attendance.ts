@@ -127,7 +127,10 @@ const addDays = (iso: string, k: number) => new Date(dateOf(iso).getTime() + k *
 const GRID_TO = addDays(GRID_FROM, GRID_DAYS - 1);
 
 /** Nơi duy nhất biết lịch làm việc: Thứ Hai – Thứ Bảy có ca, Chủ nhật nghỉ. */
-export const isScheduled = (date: string): boolean => dateOf(date).getUTCDay() !== 0;
+export const isScheduled = (date: string): boolean => {
+  const day = dateOf(date).getUTCDay();
+  return !Number.isNaN(day) && day !== 0;
+};
 
 /** Số ngày có lịch trong tháng 'YYYY-MM' ('2026-10' → 27). */
 export function scheduledDays(month: string): number {
