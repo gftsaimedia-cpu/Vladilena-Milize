@@ -14,7 +14,7 @@ import DayDetailDialog from './DayDetailDialog.vue';
 import { employeePath } from './links';
 import HistoryList from './parts/HistoryList.vue';
 import MonthStrip from './parts/MonthStrip.vue';
-import { useDayHop } from './useDayHop';
+import { focusLost, untilIdle, useDayHop } from './useDayHop';
 import './attendance.css';
 
 const EXCEPTIONS = new Set(['late', 'leave', 'absent', 'todo', 'nocheck']);
@@ -27,13 +27,26 @@ const route = useRoute();
 const router = useRouter();
 const period = usePeriodStore();
 const shell = useShellStore();
-const { day, openDay, closeDay } = useDayHop();
-
 const personId = computed(() => String(route.params.id));
 const { data: view, loading } = useLoad(
   () => getEmployeeAttendance(personId.value, period.month),
   () => `${personId.value}|${period.month}|${shell.version}`
 );
+const tab = ref<(typeof TABS)[number]['key']>('timeline');
+
+// Trả focus sau hộp chi tiết ngày. Nút mở còn (ngày vẫn trong dải, lời nhắc còn ngày chờ khác) thì focus về nút đó.
+// Xử lý xong ngày chờ cuối cùng thì lời nhắc "Xem ngày" mất: focus sang ô của đúng ngày vừa xử lý trên dải, nếu ô đó không còn
+// là nút (ngày về "không ca") thì sang tab đang chọn của mục lịch sử.
+const { day, openDay, closeDay } = useDayHop({
+  capture: () => undefined,
+  async restore(opener, _ctx, closing) {
+    await untilIdle(loading);
+    if (!focusLost()) return;
+    if (opener.isConnected) return opener.focus();
+    const stripDay = document.querySelector<HTMLElement>(`.ms-i[data-date="${closing.date}"]`);
+    (stripDay ?? document.getElementById(`ep-tab-${tab.value}`))?.focus();
+  }
+});
 
 const monthNo = computed(() => Number(period.month.slice(5, 7)));
 const monthText = computed(() => `${monthNo.value}/${period.month.slice(0, 4)}`);
@@ -41,7 +54,6 @@ const thang = computed(() => (route.query.thang ? { thang: route.query.thang } :
 const listTo = computed(() => ({ path: '/admin/cham-cong', query: thang.value }));
 const month = computed(() => view.value?.data ?? null);
 
-const tab = ref<(typeof TABS)[number]['key']>('timeline');
 const only = ref(false);
 const entries = computed<HistoryEntry[]>(() => {
   const all = month.value?.history ?? [];

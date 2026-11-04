@@ -31,6 +31,7 @@ onMounted(() => {
           type="button"
           class="ms-i"
           :class="{ today: d.today }"
+          :data-date="d.date"
           :aria-label="d.aria"
           :aria-current="d.today ? 'date' : undefined"
           @click="emit('open-day', d.date)"

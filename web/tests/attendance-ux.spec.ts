@@ -210,6 +210,41 @@ test('approving in the day dialog updates the cell, the tile and the bell', asyn
   await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
 });
 
+test('after deciding an item in Cần xử lý, focus lands on the row now at that place, or the one before it', async ({
+  page
+}) => {
+  await page.goto('/admin/cham-cong?xem=can-xu-ly');
+  const list = page.getByRole('list', { name: 'Việc cần xử lý chấm công' });
+  const rows = list.getByRole('button');
+  await expect(rows).toHaveCount(11);
+  const names = await rows.locator('.nn').allInnerTexts();
+  const at = 3;
+  await rows.nth(at).click();
+  await dialogOf(page).locator('.acts .btn').first().click();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(rows).toHaveCount(10);
+  await expect(rows.nth(at)).toBeFocused();
+  await expect(rows.nth(at)).toContainText(names[at + 1]);
+
+  // Dòng cuối: hết dòng ở đúng chỗ đó thì về dòng liền trước.
+  await rows.nth(9).click();
+  await dialogOf(page).locator('.acts .btn').first().click();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(rows).toHaveCount(9);
+  await expect(rows.nth(8)).toBeFocused();
+});
+
+test('a grid cell that turns into a plain span hands focus to the nearest cell in its row', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  await cellOf(page, 'Ngô Gia Bảo, Chủ nhật 01/11: Cần xử lý, Làm bù').click();
+  await dialogOf(page).getByRole('button', { name: 'Duyệt yêu cầu của Ngô Gia Bảo' }).click();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page.getByRole('img', { name: 'Ngô Gia Bảo, Chủ nhật 01/11: không có ca' })).toBeVisible();
+  await expect(cellOf(page, /^Ngô Gia Bảo, Thứ Bảy 31\/10:/)).toBeFocused();
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+});
+
 test('deciding an item already handled elsewhere warns instead of confirming', async ({ page }) => {
   await page.goto('/admin/cham-cong?hop=chi-tiet-ngay&nv=le-hoang-nam&ngay=2026-10-27');
   await expect(dialogOf(page)).toBeVisible();

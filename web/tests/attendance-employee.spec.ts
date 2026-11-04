@@ -150,6 +150,29 @@ test('strip day opens the day dialog without a profile link and deciding clears 
   await expect(strip.getByRole('button', { name: /^Thứ Ba 27\/10: Đi muộn/ })).toBeVisible();
 });
 
+test('clearing the last pending day leaves focus on the strip day just handled', async ({ page }) => {
+  await page.goto(NAM);
+  const strip = page.getByRole('region', { name: 'Các ngày tháng 10' });
+  await page.getByRole('button', { name: 'Xem ngày' }).click();
+  await dialogOf(page).getByRole('button', { name: 'Từ chối yêu cầu của Lê Hoàng Nam' }).click();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Xem ngày' })).toHaveCount(0);
+  await expect(strip.getByRole('button', { name: /^Thứ Ba 27\/10:/ })).toBeFocused();
+});
+
+test('with no strip day left to return to, focus falls back to the history tab', async ({ page }) => {
+  await page.goto(NAM);
+  const call = page.getByRole('button', { name: 'Xem ngày' });
+  await expect(call).toBeVisible();
+  await call.click();
+  // Dữ liệu giả không có ngày tháng 10 nào về ô không ca sau khi xử lý, nên gỡ nút ngày khỏi dải để thử nhánh dự phòng.
+  await page.evaluate(() => document.querySelector('.ms-i[data-date="2026-10-27"]')?.remove());
+  await dialogOf(page).getByRole('button', { name: 'Từ chối yêu cầu của Lê Hoàng Nam' }).click();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(call).toHaveCount(0);
+  await expect(page.getByRole('tab', { name: 'Dòng thời gian' })).toBeFocused();
+});
+
 test('the callout opens the first pending day', async ({ page }) => {
   await page.goto('/admin/cham-cong/nhan-vien/nguyen-thu-ha');
   await expect(page.getByText('2 ngày cần xử lý · 29/10 phép năm, chờ duyệt đơn nghỉ')).toBeVisible();

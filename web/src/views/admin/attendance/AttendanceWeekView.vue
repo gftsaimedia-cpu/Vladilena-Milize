@@ -12,7 +12,7 @@ import { useShellStore } from '@/stores/shell';
 import DayDetailDialog from './DayDetailDialog.vue';
 import PendingList from './parts/PendingList.vue';
 import WeekGrid from './parts/WeekGrid.vue';
-import { useDayHop } from './useDayHop';
+import { focusLost, untilIdle, useDayHop } from './useDayHop';
 import './attendance.css';
 
 const DEPARTMENTS = ['Tài chính', 'Kỹ thuật', 'Kinh doanh', 'Nhân sự', 'Marketing', 'Sản xuất'];
@@ -22,12 +22,44 @@ const route = useRoute();
 const router = useRouter();
 const period = usePeriodStore();
 const shell = useShellStore();
-const { day, openDay, closeDay } = useDayHop();
 
 const { data, loading } = useLoad(
   () => getAttendance(period.month),
   () => `${period.month}|${shell.version}`
 );
+
+// Trả focus sau hộp chi tiết ngày. Nút mở còn thì focus về nút đó (AppModal đã làm). Xử lý xong mà nút biến mất thì:
+//  - dòng trong "Cần xử lý": dòng đang đứng đúng chỗ đó (dòng sau dồn lên), không có thì dòng liền trước, hết dòng thì tab "Cần xử lý";
+//  - ô trong lưới (vd. ngày làm bù về "không ca" thành span): ô bấm được gần nhất cùng hàng, hai bên cách đều thì lấy bên trái
+//    (bên phải dễ nằm ngoài tuần đang xem, focus vào đó làm lưới cuộn đi); không có ô nào thì tab "Cần xử lý".
+type OpenerAt = { kind: 'pending'; index: number } | { kind: 'cell'; row: HTMLTableRowElement; col: number } | null;
+const pendingTabEl = () => document.getElementById('att-tab-pending');
+const { day, openDay, closeDay } = useDayHop<OpenerAt>({
+  capture(opener) {
+    const item = opener.closest('li');
+    if (item?.parentElement?.classList.contains('pend')) {
+      return { kind: 'pending', index: Array.from(item.parentElement.children).indexOf(item) };
+    }
+    const cell = opener.closest('td');
+    return cell?.parentElement instanceof HTMLTableRowElement ? { kind: 'cell', row: cell.parentElement, col: cell.cellIndex } : null;
+  },
+  async restore(opener, at) {
+    await untilIdle(loading);
+    if (!focusLost()) return;
+    if (opener.isConnected) return opener.focus();
+    let target: HTMLElement | null | undefined = null;
+    if (at?.kind === 'pending') {
+      const rows = Array.from(document.querySelectorAll<HTMLElement>('.pend .pr'));
+      target = rows[at.index] ?? rows[at.index - 1];
+    } else if (at?.kind === 'cell' && at.row.isConnected) {
+      const cells = at.row.cells;
+      for (let gap = 1; gap < cells.length && !target; gap++) {
+        target = cells[at.col - gap]?.querySelector<HTMLElement>('button') ?? cells[at.col + gap]?.querySelector<HTMLElement>('button');
+      }
+    }
+    (target ?? pendingTabEl())?.focus();
+  }
+});
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = computed(() => str(route.query.q));
