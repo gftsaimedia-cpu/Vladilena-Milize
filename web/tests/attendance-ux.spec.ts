@@ -388,6 +388,42 @@ async function centerOf(locator: ReturnType<Page['locator']>) {
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }
 
+test('the week place is kept in the URL and survives switching tabs and the profile round trip', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  const prev = page.getByRole('button', { name: 'Tuần trước' });
+  await prev.click();
+  await prev.click();
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await expect(page).toHaveURL(/tuan=2026-10-12/);
+
+  await pendingTab(page).click();
+  await expect(gridOf(page)).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Tuần', exact: true }).click();
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await expect.poll(() => scrollLeftOf(page)).toBe(0);
+
+  await page.getByRole('link', { name: 'Nguyễn Thu Hà' }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/nguyen-thu-ha/);
+  await page.goBack();
+  await expect(rowsOf(page)).toHaveCount(11);
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await expect.poll(() => scrollLeftOf(page)).toBe(0);
+});
+
+test('a bad week value opens at today and one past the grid is clamped to the last week', async ({ page }) => {
+  await page.goto('/admin/cham-cong?tuan=hom-qua');
+  await settleWeek(page);
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+
+  await page.goto('/admin/cham-cong?tuan=2030-01-01');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+  await page.goto('/admin/cham-cong?tuan=2020-01-01');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+});
+
 test('week buttons move by seven days and Hôm nay returns to this week', async ({ page }) => {
   await page.goto('/admin/cham-cong');
   const prev = page.getByRole('button', { name: 'Tuần trước' });

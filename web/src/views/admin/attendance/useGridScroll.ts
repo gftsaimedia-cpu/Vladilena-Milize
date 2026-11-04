@@ -1,5 +1,7 @@
 // Cuộn lưới chấm công theo ngày: kéo chuột, bắt về cột gần nhất, phím và nút tuần. Chạm dùng cuộn gốc của trình duyệt.
 // `start` là chỉ số ngày đầu của tuần đang xem, tính từ scrollLeft; mọi cách cuộn đều đi qua sự kiện `scroll`.
+// Chỗ đứng được giữ ngoài hook: `initial()` cho chỉ số ngày đầu lúc mở (không có thì tuần hôm nay), `settle(start)` được gọi khi
+// cuộn đã yên (không còn sự kiện scroll trong SETTLE_MS) để nơi dùng ghi chỗ đứng lên URL.
 import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from 'vue';
 
 export const COL = 96; // bề rộng một cột ngày
@@ -7,6 +9,7 @@ export const WEEK = 672; // 7 cột
 export const TODAY_LEFT = 1344; // tuần 26/10: cột thứ 15 của lưới
 export const MAX_START = 21; // 28 ngày, tuần cuối bắt đầu ở ngày thứ 22
 const THRESHOLD = 4; // dưới ngưỡng này vẫn là cú bấm, không phải kéo
+const SETTLE_MS = 120; // hết sự kiện scroll chừng này thì coi là đã yên (hoạt ảnh bắt cột phát nhiều sự kiện liên tiếp)
 
 export interface GridScroll {
   start: Ref<number>;
@@ -17,8 +20,15 @@ export interface GridScroll {
   thisWeek(): void;
 }
 
-export function useGridScroll(scroller: Ref<HTMLElement | null>): GridScroll {
-  const start = ref(Math.round(TODAY_LEFT / COL));
+export interface GridScrollOptions {
+  initial?: () => number | undefined;
+  settle?: (start: number) => void;
+}
+
+export function useGridScroll(scroller: Ref<HTMLElement | null>, options: GridScrollOptions = {}): GridScroll {
+  const clampStart = (n: number) => Math.min(Math.max(n, 0), MAX_START);
+  const opening = clampStart(options.initial?.() ?? Math.round(TODAY_LEFT / COL));
+  const start = ref(opening);
   const left = ref(0);
   const max = ref(0);
   const atStart = computed(() => left.value < 1);
@@ -38,12 +48,15 @@ export function useGridScroll(scroller: Ref<HTMLElement | null>): GridScroll {
   // Bước đi tính từ cột gần nhất, nên đang ở điểm cuối lệch cột thì lùi một tuần vẫn rơi đúng vào cột.
   const by = (delta: number) => scroller.value && goTo(Math.round(scroller.value.scrollLeft / COL) * COL + delta);
 
+  let settleTimer: number | undefined;
   function sync() {
     const el = scroller.value;
     if (!el) return;
     left.value = el.scrollLeft;
     max.value = maxLeft(el);
-    start.value = Math.min(Math.max(Math.round(el.scrollLeft / COL), 0), MAX_START);
+    start.value = clampStart(Math.round(el.scrollLeft / COL));
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => options.settle?.(start.value), SETTLE_MS);
   }
 
   // Một lượt nhấn chuột: chưa kéo thì chỉ "giương" (armed); qua ngưỡng mới bắt con trỏ và cuộn.
@@ -135,7 +148,7 @@ export function useGridScroll(scroller: Ref<HTMLElement | null>): GridScroll {
   onMounted(() => {
     const el = scroller.value;
     if (!el) return;
-    el.scrollLeft = TODAY_LEFT;
+    el.scrollLeft = opening * COL;
     sync();
     el.addEventListener('scroll', sync, { passive: true });
     el.addEventListener('pointerdown', onPointerDown);
@@ -150,6 +163,7 @@ export function useGridScroll(scroller: Ref<HTMLElement | null>): GridScroll {
   onBeforeUnmount(() => {
     const el = scroller.value;
     window.clearTimeout(swallowTimer);
+    window.clearTimeout(settleTimer); // rời màn: không ghi URL của màn kế tiếp
     window.removeEventListener('resize', sync);
     if (!el) return;
     el.removeEventListener('scroll', sync);
