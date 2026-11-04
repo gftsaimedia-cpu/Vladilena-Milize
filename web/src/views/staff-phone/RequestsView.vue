@@ -24,6 +24,7 @@ const router = useRouter();
 const data = ref<RequestsView | null>(null);
 getRequests().then(v => (data.value = v));
 
+const root = ref<HTMLElement | null>(null);
 const tab = ref<Filter>('all');
 const tabEls = ref<HTMLElement[]>([]);
 const groups = computed(() =>
@@ -68,14 +69,19 @@ watch(
   },
   { immediate: true }
 );
-function closeSheet() {
+// Hộp mở từ màn khác (J1) thì dòng mở hộp đã không còn để trả focus: đóng xong mà focus rơi xuống <body> thì đưa về dòng của yêu cầu đó.
+async function closeSheet() {
+  const id = detail.value?.id;
   detail.value = null;
   if (route.query.yc) dropYc();
+  await nextTick();
+  const a = document.activeElement;
+  if (id && (!a || a === document.body)) root.value?.querySelector<HTMLElement>(`a.ro[data-yc="${id}"]`)?.focus();
 }
 </script>
 
 <template>
-  <div class="ph rq">
+  <div ref="root" class="ph rq">
     <header class="sh">
       <h1>Yêu cầu</h1>
       <button type="button" class="rq-add" @click="toast.warnings(['Chưa có luồng tạo yêu cầu trong bản mockup.'])">

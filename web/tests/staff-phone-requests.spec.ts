@@ -150,3 +150,25 @@ test('the status tabs fit inside the strip at 320px and 360px', async ({ page })
     }
   }
 });
+
+// Thông báo "Tạo yêu cầu" nổi trên thanh tab, không che và không chặn thanh tab, không bóng (thanh tab của app điện thoại cấm bóng).
+for (const size of [
+  { width: 320, height: 640 },
+  { width: 390, height: 844 }
+]) {
+  test(`the Tạo yêu cầu notice floats above the tab bar at ${size.width}px`, async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau', size);
+    await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
+    const toast = page.getByRole('status').filter({ hasText: 'Chưa có luồng tạo yêu cầu trong bản mockup.' });
+    await expect(toast).toBeVisible();
+    const bar = (await page.getByRole('navigation', { name: 'Điều hướng' }).boundingBox())!;
+    const box = (await toast.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y - 8);
+    const hit = await page.evaluate(
+      ([x, y]) => !!document.elementFromPoint(x, y)?.closest('nav[aria-label="Điều hướng"]'),
+      [bar.x + bar.width / 2, bar.y + bar.height / 2]
+    );
+    expect(hit).toBe(true);
+    await expect(toast).toHaveCSS('box-shadow', 'none');
+  });
+}

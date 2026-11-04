@@ -116,3 +116,51 @@ for (const bad of ['2026-10-29', '2026-10-04', 'abc']) {
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 }
+
+// Ô ngày của lịch tháng co theo cột (tối đa 40px): không cuộn ngang, không thò ra khỏi thẻ, canh giữa, các ô cách nhau ≥ 6px.
+for (const w of [320, 330, 360]) {
+  test(`calendar cells stay inside the card at ${w}px`, async ({ page }) => {
+    await openPhone(page, '/nv/cham-cong', { width: w, height: 800 });
+    await expect(cal(page).locator('.dn')).toHaveCount(31);
+    const m = await page.evaluate(() => {
+      const card = document.querySelector('section[aria-label="Lịch tháng 10"]')!;
+      const cells = [...card.querySelectorAll('.dn')].map(e => e.getBoundingClientRect());
+      const c = card.getBoundingClientRect();
+      const padRight = parseFloat(getComputedStyle(card).paddingRight);
+      const root = document.documentElement;
+      // Hàng 1 của lưới có 3 ô trống rồi 4 ô ngày (01–04), hàng 2 là 05–11 (bảy ô liền nhau).
+      const row = cells.slice(4, 11);
+      const gaps = row.slice(1).map((r, i) => r.left - row[i].right);
+      const sunday = cells[10]; // 11/10 là Chủ nhật, cột cuối
+      return {
+        scrollWidth: root.scrollWidth,
+        clientWidth: root.clientWidth,
+        lastRight: sunday.right,
+        limit: c.right - padRight,
+        leftGap: row[0].left - c.left,
+        rightGap: c.right - sunday.right,
+        minGap: Math.min(...gaps)
+      };
+    });
+    expect(m.scrollWidth).toBe(m.clientWidth);
+    expect(m.lastRight).toBeLessThanOrEqual(m.limit + 0.5);
+    expect(Math.abs(m.leftGap - m.rightGap)).toBeLessThanOrEqual(1);
+    expect(m.minGap).toBeGreaterThanOrEqual(6);
+  });
+}
+
+test('calendar cells are exactly 40px at 390px', async ({ page }) => {
+  await openPhone(page, '/nv/cham-cong');
+  for (const i of [0, 10, 27]) {
+    const box = await cal(page).locator('.dn').nth(i).boundingBox();
+    expect(box!.width).toBe(40);
+    expect(box!.height).toBe(40);
+  }
+});
+
+test('Gần đây rows say the day status in their accessible name, not only by colour', async ({ page }) => {
+  await openPhone(page, '/nv/cham-cong');
+  await expect(recent(page).getByRole('button', { name: /Thứ Ba 27\/10/ })).toHaveAccessibleName(/Cần xử lý/);
+  await expect(recent(page).getByRole('button', { name: /Thứ Tư 28\/10/ })).toHaveAccessibleName(/Đang làm/);
+  await expect(recent(page).getByRole('button', { name: /Thứ Hai 26\/10/ })).toHaveAccessibleName(/Đi làm/);
+});

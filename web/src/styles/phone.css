@@ -274,3 +274,13 @@
 :is(.ph-app, .ph-sheet) .on-dark :focus-visible {
   outline-color: #ffffff;
 }
+
+/* Thông báo nổi (AppToast, dùng chung với Admin) nằm cạnh .ph-app dưới #app: trên app điện thoại đẩy lên trên thanh tab
+   (cao 68px, cách đáy 16px) để không che và không chặn thanh tab, bỏ bóng (hệ thiết kế điện thoại cấm bóng).
+   Thêm "body" để thắng luật scoped của AppToast mà không phải sửa file dùng chung. */
+body .ph-app ~ .toasts {
+  bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+body .ph-app ~ .toasts .toast {
+  box-shadow: none;
+}

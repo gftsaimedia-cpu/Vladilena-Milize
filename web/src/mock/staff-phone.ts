@@ -57,7 +57,7 @@ export type AttendanceView = {
   tiles: { value: string; of: string | null; label: string }[]; // 21 / 26 Ngày công; 1 Lần đi muộn; 2 Ngày nghỉ có lương
   // of là số sau dấu gạch chéo ('26'); màn tự viết ' / ' trước nó
   cells: (CalendarCell | null)[]; // 3 null rồi 31 ô
-  recent: { date: string; kind: CellKind; day: string; times: string }[];
+  recent: { date: string; kind: CellKind; day: string; times: string; statusText: string }[];
   // 5 dòng: { day: 'Thứ Tư 28/10', times: '07:59 – …' }, …
 };
 
@@ -268,7 +268,8 @@ export function attendanceView(): AttendanceView {
       date,
       kind: rec.kind as CellKind,
       day: `${DOW_LONG[dowOf(date)]} ${ddmm(date)}`,
-      times: timesOf(date, rec)
+      times: timesOf(date, rec),
+      statusText: statusOf(date, rec)
     }));
   return {
     label: MONTH_LABEL,
@@ -292,6 +293,9 @@ const DAY_STATUS: Record<DayKind, string> = {
   todo: 'Cần xử lý'
 };
 
+// Chữ trạng thái của một ngày: nhãn ở đầu hộp J3 và tên truy cập của dòng "Gần đây" (J2) dùng chung.
+const statusOf = (date: string, rec: DayRecord) => (working(date, rec) ? 'Đang làm' : DAY_STATUS[rec.kind]);
+
 export function dayDetail(date: string): DayDetail | null {
   const rec = DAYS.get(date);
   if (!rec) return null;
@@ -301,7 +305,7 @@ export function dayDetail(date: string): DayDetail | null {
     shiftLine: `Ca ${SHIFT.code} ${SHIFT.start}–${SHIFT.end}`,
     kind: rec.kind,
     today: date === MOCK_TODAY,
-    statusText: working(date, rec) ? 'Đang làm' : DAY_STATUS[rec.kind],
+    statusText: statusOf(date, rec),
     shiftStart: SHIFT.start,
     shiftEnd: SHIFT.end,
     now: nowTime(),

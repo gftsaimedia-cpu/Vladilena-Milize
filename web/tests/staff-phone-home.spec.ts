@@ -122,3 +122,15 @@ test('week cells are exactly 40px wide at 390px', async ({ page }) => {
   expect(box!.width).toBe(40);
   expect(box!.height).toBe(40);
 });
+
+test('Check-out by keyboard announces the new state and keeps focus on the card', async ({ page }) => {
+  await openPhone(page, '/nv/hom-nay');
+  const card = page.getByRole('region', { name: 'Ca hôm nay' });
+  await expect(card.getByRole('status')).toHaveText('Đang trong ca');
+  await card.getByRole('button', { name: 'Check-out lúc 09:40' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(card.getByRole('status')).toHaveText('Đã check-out');
+  await expect(card.getByRole('button')).toHaveCount(0);
+  await expect(card).toBeFocused();
+  await expect(page.locator('body')).not.toBeFocused();
+});

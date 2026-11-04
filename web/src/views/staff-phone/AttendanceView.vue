@@ -2,7 +2,7 @@
 // J2 · Chấm công (spec 5): đầu trang, chọn tháng, ba ô số, lịch tháng 10 tô theo nhóm, "Gần đây" 5 dòng.
 // Bấm ngày có dữ liệu hoặc một dòng Gần đây mở J3 (DaySheet) bằng ?ngay=YYYY-MM-DD (router.replace); đóng thì bỏ tham số.
 // Ngày lạ (Chủ nhật, chưa tới, ngoài tháng 10, chuỗi sai) thì bỏ ?ngay= khỏi URL và không mở gì (spec 3.8).
-import { ref, watch } from 'vue';
+import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { AttendanceView, DayDetail } from '@/mock/staff-phone';
 import { getAttendance, getDay } from '@/services/staff-phone';
@@ -15,6 +15,7 @@ const router = useRouter();
 const data = ref<AttendanceView | null>(null);
 getAttendance().then(v => (data.value = v));
 
+const root = ref<HTMLElement | null>(null);
 const day = ref<DayDetail | null>(null);
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -45,14 +46,19 @@ watch(
 function openDay(date: string) {
   router.replace({ query: { ...route.query, ngay: date } });
 }
-function closeDay() {
+// Hộp mở từ màn khác (J1) thì ô mở hộp đã không còn để trả focus: đóng xong mà focus rơi xuống <body> thì đưa về ô lịch của ngày đó.
+async function closeDay() {
+  const date = day.value?.date;
   day.value = null;
   dropNgay();
+  await nextTick();
+  const a = document.activeElement;
+  if (date && (!a || a === document.body)) root.value?.querySelector<HTMLElement>(`button.dn[data-date="${date}"]`)?.focus();
 }
 </script>
 
 <template>
-  <div class="ph at">
+  <div ref="root" class="ph at">
     <header class="at-head">
       <h1>Chấm công</h1>
       <span v-if="data" class="mut">{{ data.shiftLine }}</span>
@@ -75,6 +81,7 @@ function closeDay() {
               type="button"
               class="dn"
               :class="[c.kind, { today: c.today }]"
+              :data-date="c.date"
               :aria-label="c.label"
               @click="openDay(c.date)"
             >
@@ -93,7 +100,14 @@ function closeDay() {
       <section class="at-recent">
         <h2>Gần đây</h2>
         <div class="card ls">
-          <button v-for="r in data.recent" :key="r.date" type="button" class="ro" @click="openDay(r.date)">
+          <button
+            v-for="r in data.recent"
+            :key="r.date"
+            type="button"
+            class="ro"
+            :aria-label="`${r.day} ${r.times}, ${r.statusText}`"
+            @click="openDay(r.date)"
+          >
             <i class="dot" :class="r.kind" /><span class="t">{{ r.day }}</span><span class="v">{{ r.times }}</span>
           </button>
         </div>
@@ -142,9 +156,17 @@ function closeDay() {
 }
 .at-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   justify-items: center;
+  column-gap: 6px;
   row-gap: 8px;
+}
+/* Ô ngày co theo cột (tối đa 40px, luôn vuông), cả nút lẫn ô role="img", để bảy ô vừa thẻ ở mọi bề ngang từ 320px */
+.at-grid .dn {
+  width: 100%;
+  max-width: 40px;
+  height: auto;
+  aspect-ratio: 1;
 }
 .at-wd {
   padding-bottom: 4px;

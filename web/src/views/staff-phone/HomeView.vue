@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // J1 · Hôm nay (spec 4): lời chào, thẻ ca hôm nay có vòng cung và nút Check-out, thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
 // Dữ liệu là bản giả (services/staff-phone); bấm Check-out gọi checkOut() rồi thay cả dữ liệu màn bằng kết quả trả về (R7).
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import type { HomeView } from '@/mock/staff-phone';
 import { checkOut, getHome } from '@/services/staff-phone';
 import PhIcon from './components/PhIcon.vue';
@@ -9,6 +9,7 @@ import RequestRow from './components/RequestRow.vue';
 
 const data = ref<HomeView | null>(null);
 const busy = ref(false);
+const hero = ref<HTMLElement | null>(null);
 getHome().then(v => (data.value = v));
 
 // Vòng cung: nửa đường tròn bán kính 100, phần đã làm = phút đã làm / phút ca; núm tròn nằm ở cuối phần đã làm.
@@ -29,6 +30,9 @@ async function doCheckOut() {
   busy.value = true;
   try {
     data.value = await checkOut();
+    // Nút Check-out biến mất (R7): đưa focus về thẻ ca để bàn phím và trình đọc màn hình không rơi xuống <body>.
+    await nextTick();
+    hero.value?.focus();
   } finally {
     busy.value = false;
   }
@@ -47,11 +51,10 @@ async function doCheckOut() {
         <span class="mut sm date">{{ data.weekday }}<br />{{ data.date }}</span>
       </header>
 
-      <section class="hero on-dark" aria-label="Ca hôm nay">
+      <section ref="hero" class="hero on-dark" aria-label="Ca hôm nay" tabindex="-1">
         <div class="hero-top">
           <span>{{ data.shiftLabel }}</span>
-          <span v-if="!data.checkOut" class="live"><i />Đang trong ca</span>
-          <span v-else class="live">Đã check-out</span>
+          <span class="live" role="status"><i v-if="!data.checkOut" />{{ data.checkOut ? 'Đã check-out' : 'Đang trong ca' }}</span>
         </div>
         <div class="gauge">
           <svg aria-hidden="true" width="240" height="132" viewBox="0 0 240 132" focusable="false">

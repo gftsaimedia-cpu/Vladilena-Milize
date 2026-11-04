@@ -20,7 +20,7 @@ const to = computed(() => ({
 
 <template>
   <RouterLink v-slot="{ href, navigate }" :to="to" :replace="replace" custom>
-    <a class="ro" :href="href" :aria-label="`${row.title}, ${row.statusText}`" @click="navigate">
+    <a class="ro" :href="href" :data-yc="row.id" :aria-label="`${row.title}, ${row.statusText}`" @click="navigate">
       <span class="ti"><PhIcon :name="row.icon" /></span>
       <span class="t">{{ row.title }}</span>
       <span class="st"><i class="dot" :class="row.status" />{{ row.statusText }}</span>
