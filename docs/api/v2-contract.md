@@ -144,6 +144,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
         },
         "contract": {
           "status": "ctv",
+          "term": "long",
+          "hasInsurance": null,
           "position": {
             "type": "ctv",
             "level": 1,
@@ -166,6 +168,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     "total": 1
   }
   ```
+- `contract.term`: nhãn hợp đồng lưu ở cột `staff.contract`. `"long"` = HĐLĐ từ 3 tháng, `"short"` = dưới 3 tháng, `null` = theo loại nhân sự.
+- `contract.hasInsurance`: cột `staff.insured`. `true` / `false`; `null` = theo mặc định của hợp đồng.
 
 #### `PUT /api/v2/employees/:id`
 - **Mục đích**: Cập nhật hồ sơ nhân sự (Profile Drawer).
@@ -182,9 +186,14 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     "positionLevel": 2,
     "shiftType": "FLEX",
     "shiftStartTime": "09:00",
-    "shiftEndTime": "18:00"
+    "shiftEndTime": "18:00",
+    "contract": "short",
+    "insured": null
   }
   ```
+- `contract`: `"long"` | `"short"` | `null` (`""` cũng là `null`); giá trị khác → 400 `BAD_EMPLOYEE_INPUT`. Thân dạng DTO có thể gửi `contract.term` thay thế.
+- `insured`: `true` / `false` / `null` (nhận cả `1` / `0`); giá trị khác → 400. Thân dạng DTO có thể gửi `contract.hasInsurance`.
+- Thiếu `contract` / `insured` thì giữ giá trị đang lưu.
 - **Response 200**: Trả về object nhân viên đã cập nhật thành công.
 
 #### `GET /api/v2/employees/meta/positions` & `GET /api/v2/employees/meta/shifts`

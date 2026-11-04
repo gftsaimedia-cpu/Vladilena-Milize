@@ -25,6 +25,14 @@ export function hashPassword(password: string): string {
   return `scrypt$${salt}$${hash}`;
 }
 
+// Cờ bảo hiểm từ thân yêu cầu: null = theo mặc định của hợp đồng; nhận true/false hoặc 1/0.
+function parseInsured(value: unknown): boolean | null {
+  if (value === null) return null;
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0) return false;
+  throw new Error('Đóng bảo hiểm phải là có / không');
+}
+
 export function verifyPassword(password: string, stored: string): boolean {
   if (!stored || !stored.startsWith('scrypt$')) return false;
   const parts = stored.split('$');
@@ -252,12 +260,15 @@ export class EmployeesService {
         : body.effectiveFrom !== undefined
           ? body.effectiveFrom
           : (existing?.contract.effectiveFrom ?? null);
-    const endDate =
-      body.contract?.endDate !== undefined
-        ? body.contract.endDate
-        : body.endDate !== undefined
-          ? body.endDate
-          : (existing?.contract.endDate ?? null);
+    // Form web gửi nhãn ở cấp ngoài (contract: 'long' | 'short' | null); dạng DTO gửi contract.term.
+    const termInput =
+      body.contract !== null && typeof body.contract === 'object' ? body.contract.term : body.contract;
+    const term =
+      termInput !== undefined
+        ? termInput === ''
+          ? null
+          : termInput
+        : (existing?.contract.term ?? null);
     const resignedOn =
       body.contract?.resignedOn !== undefined
         ? body.contract.resignedOn
@@ -265,12 +276,14 @@ export class EmployeesService {
           ? body.resignedOn
           : (existing?.contract.resignedOn ?? null);
 
-    const hasInsurance =
+    const insuredInput =
       body.contract?.hasInsurance !== undefined
-        ? Boolean(body.contract.hasInsurance)
-        : body.hasInsurance !== undefined
-          ? Boolean(body.hasInsurance)
-          : (existing?.contract.hasInsurance ?? true);
+        ? body.contract.hasInsurance
+        : body.insured !== undefined
+          ? body.insured
+          : body.hasInsurance;
+    const hasInsurance =
+      insuredInput !== undefined ? parseInsured(insuredInput) : (existing?.contract.hasInsurance ?? null);
 
     const isUnionMember =
       body.contract?.isUnionMember !== undefined
@@ -321,8 +334,8 @@ export class EmployeesService {
         shift,
         leave,
         status,
+        term,
         effectiveFrom,
-        endDate,
         resignedOn,
         hasInsurance,
         isUnionMember,

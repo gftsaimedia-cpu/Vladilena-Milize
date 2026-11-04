@@ -1,6 +1,7 @@
 export {
   ShiftType,
   ContractStatus,
+  ContractTerm,
   PersonNameLike,
   PositionLike,
   ShiftLike,
