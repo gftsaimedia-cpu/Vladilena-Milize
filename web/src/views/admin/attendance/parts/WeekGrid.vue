@@ -1,24 +1,19 @@
 <script setup lang="ts">
 // Lưới chấm công 28 ngày: nhãn tuần, chú giải màu kèm số ô trong tuần đang xem, bảng cuộn ngang (cột tên và 3 cột tổng dính).
-// Lúc mở cuộn tới tuần hôm nay (26/10); `start` là chỉ số ngày đầu tuần đang xem. Nút tuần, kéo chuột và phím do bước sau thêm.
-import { computed, onMounted, ref } from 'vue';
+// Lúc mở cuộn tới tuần hôm nay (26/10); `start` là chỉ số ngày đầu tuần đang xem. Kéo, phím và nút tuần nằm trong useGridScroll.
+import { computed, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import { GROUPS, type AttendanceDay, type AttendanceRow } from '@/mock/attendance';
 import { dm, dmy, weekdayName } from '@/utils/format';
 import { employeePath } from '../links';
+import { useGridScroll } from '../useGridScroll';
 
 const props = defineProps<{ days: AttendanceDay[]; rows: AttendanceRow[]; monthNo: number }>();
 const emit = defineEmits<{ 'open-day': [personId: string, date: string] }>();
 
-const COL = 96; // bề rộng một cột ngày
-const TODAY_WEEK = 14; // 26/10: ngày thứ 15 của lưới, tuần chứa hôm nay
 const route = useRoute();
 const scroller = ref<HTMLElement | null>(null);
-const start = ref(TODAY_WEEK);
-
-onMounted(() => {
-  if (scroller.value) scroller.value.scrollLeft = TODAY_WEEK * COL;
-});
+const { start, atStart, atEnd, prevWeek, nextWeek, thisWeek } = useGridScroll(scroller);
 
 const label = computed(() => `${dm(props.days[start.value].iso)} – ${dmy(props.days[start.value + 6].iso)}`);
 const counts = computed(() =>
@@ -38,7 +33,10 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
 <template>
   <div class="wk">
     <div class="wk-bar">
+      <button type="button" class="btn sm" :disabled="atStart" @click="prevWeek">Tuần trước</button>
       <span class="wk-label" aria-live="polite">{{ label }}</span>
+      <button type="button" class="btn sm" :disabled="atEnd" @click="nextWeek">Tuần sau</button>
+      <button type="button" class="btn sm" @click="thisWeek">Hôm nay</button>
     </div>
     <div class="legend" aria-label="Chú giải">
       <span v-for="g in counts" :key="g.key" class="gc" :data-group="g.key">
@@ -125,8 +123,16 @@ const cellName = (name: string, day: AttendanceDay, aria: string) =>
   gap: 8px;
 }
 .wk-label {
+  min-width: 150px;
+  text-align: center;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+}
+.wk-bar .btn:disabled {
+  opacity: 0.45;
+}
+.scr.dragging {
+  cursor: grabbing;
 }
 .scr {
   max-width: 1084px; /* 220 + 7 · 96 + 3 · 64: không bao giờ thấy quá 7 ngày */

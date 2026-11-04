@@ -5,6 +5,9 @@ import { inApp } from './fixtures/in-app';
 // Mỗi test mở một trang mới nên module giả luôn bắt đầu từ trạng thái ban đầu (13 việc chờ, 11 việc có ngày).
 let calls: string[] = [];
 
+// Cuộn về cột gần nhất phải xong ngay trong test, không chờ hoạt ảnh.
+test.use({ reducedMotion: 'reduce' });
+
 const gridOf = (page: Page) => page.getByRole('region', { name: 'Lưới chấm công' });
 const tileOf = (page: Page, name: string) =>
   page.getByRole('region', { name: 'Chỉ số chấm công' }).getByRole('article', { name });
@@ -13,6 +16,14 @@ const dialogOf = (page: Page) => page.getByRole('dialog');
 const rowsOf = (page: Page) => page.locator('tbody tr');
 const pendingTab = (page: Page) => page.getByRole('tab', { name: /^Cần xử lý/ });
 const bellOf = (page: Page) => page.locator('.topbar .bell');
+
+// Chờ tuần hôm nay hiện ra và phông chữ tải xong: khi bố cục còn xê dịch, Playwright thử bấm lại và tự cuộn ô vào giữa vùng,
+// làm tuần đang xem đổi dưới chân test.
+async function settleWeek(page: Page) {
+  await expect(rowsOf(page)).toHaveCount(11);
+  await page.evaluate(() => document.fonts.ready);
+  await expect.poll(() => gridOf(page).evaluate(el => el.scrollLeft)).toBe(1344);
+}
 
 test.beforeEach(async ({ page }) => {
   calls = [];
@@ -189,6 +200,7 @@ test('day dialog deep-links, shows the request and closes back to the grid', asy
 
 test('approving in the day dialog updates the cell, the tile and the bell', async ({ page }) => {
   await page.goto('/admin/cham-cong');
+  await settleWeek(page);
   await cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/).click();
   await dialogOf(page).getByRole('button', { name: 'Duyệt yêu cầu của Lê Hoàng Nam' }).click();
 
@@ -277,3 +289,175 @@ test('legend items are flat: no capsule, no border', async ({ page }) => {
   await expect(item).toHaveCSS('border-top-left-radius', '0px');
   await expect(item).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 });
+
+const scrollLeftOf = (page: Page) => gridOf(page).evaluate(el => el.scrollLeft);
+const weekLabel = (page: Page) => page.locator('.wk-label');
+const legendCount = (page: Page, group: string) => page.locator(`.att .gc[data-group="${group}"] .ct`);
+// Đếm click lọt tới vùng cuộn (pha nổi bọt) sau lượt kéo: cú click bị chặn ở pha capture thì không bao giờ tới đây.
+const countClicks = (page: Page) =>
+  gridOf(page).evaluate(el => {
+    const w = window as unknown as { __clicks: number };
+    w.__clicks = 0;
+    el.addEventListener('click', () => (w.__clicks += 1));
+  });
+const clicksSeen = (page: Page) => page.evaluate(() => (window as unknown as { __clicks: number }).__clicks);
+
+async function centerOf(locator: ReturnType<Page['locator']>) {
+  const box = (await locator.boundingBox())!;
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
+test('week buttons move by seven days and Hôm nay returns to this week', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  const prev = page.getByRole('button', { name: 'Tuần trước' });
+  const next = page.getByRole('button', { name: 'Tuần sau' });
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+
+  await prev.click();
+  await expect(weekLabel(page)).toHaveText('19/10 – 25/10/2026');
+  await expect(legendCount(page, 'work')).toHaveText('62');
+  await expect(legendCount(page, 'late')).toHaveText('1');
+  await expect(legendCount(page, 'leave')).toHaveText('1');
+  await expect(legendCount(page, 'todo')).toHaveText('2');
+
+  await prev.click();
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+  await expect(prev).toBeDisabled();
+  await expect(legendCount(page, 'work')).toHaveText('63');
+  await expect(legendCount(page, 'absent')).toHaveText('1');
+  await expect(legendCount(page, 'leave')).toHaveText('1');
+  await expect(legendCount(page, 'todo')).toHaveText('1');
+
+  await page.getByRole('button', { name: 'Hôm nay' }).click();
+  await expect(weekLabel(page)).toHaveText('26/10 – 01/11/2026');
+  await expect(prev).toBeEnabled();
+
+  await next.click();
+  await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+  await expect(next).toBeDisabled();
+});
+
+test('dragging scrolls, snaps to a day and opens nothing', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  await countClicks(page);
+
+  const { x, y } = await centerOf(cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/));
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x - 150, y, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(() => scrollLeftOf(page)).toBe(1536);
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page).not.toHaveURL(/hop=/);
+  expect(await clicksSeen(page)).toBe(0);
+
+  // Bắt đầu kéo ngay trên liên kết tên: không điều hướng sang hồ sơ.
+  const link = await centerOf(page.getByRole('link', { name: 'Lê Hoàng Nam' }));
+  await page.mouse.move(link.x, link.y);
+  await page.mouse.down();
+  await page.mouse.move(link.x + 150, link.y, { steps: 10 });
+  await page.mouse.up();
+  await expect.poll(() => scrollLeftOf(page)).toBe(1344);
+  await expect(page).toHaveURL(/\/admin\/cham-cong$/);
+  expect(await clicksSeen(page)).toBe(0);
+
+  // Cờ chặn tự xoá: một cú bấm thường ngay sau đó vẫn tới nơi và mở hộp.
+  await cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/).click();
+  await expect(dialogOf(page)).toBeVisible();
+  expect(await clicksSeen(page)).toBe(1);
+});
+
+test('a press released outside the grid does not leave a phantom drag behind', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  const box = (await gridOf(page).boundingBox())!;
+  const inside = { x: box.x + box.width / 2, y: box.y + 60 };
+  const outside = { x: box.x + box.width / 2, y: box.y - 120 };
+
+  await page.mouse.move(inside.x, inside.y);
+  await page.mouse.down();
+  await page.mouse.move(inside.x + 2, inside.y);
+  await page.mouse.move(outside.x, outside.y);
+  await page.mouse.up();
+  const before = await scrollLeftOf(page);
+
+  await page.mouse.move(inside.x, inside.y, { steps: 3 });
+  await page.mouse.move(inside.x + 60, inside.y, { steps: 6 });
+  await page.waitForTimeout(100);
+  expect(await scrollLeftOf(page)).toBe(before);
+  await expect(gridOf(page)).not.toHaveClass(/dragging/);
+});
+
+test('keyboard scrolls the focused grid by day and by week', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  const grid = gridOf(page);
+  await settleWeek(page);
+  await grid.focus();
+
+  await page.keyboard.press('ArrowRight');
+  await expect.poll(() => scrollLeftOf(page)).toBe(1440);
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(() => scrollLeftOf(page)).toBe(1248);
+  await page.keyboard.press('PageUp');
+  await expect.poll(() => scrollLeftOf(page)).toBe(576);
+
+  await page.keyboard.press('Home');
+  await expect.poll(() => scrollLeftOf(page)).toBe(0);
+  await expect(weekLabel(page)).toHaveText('12/10 – 18/10/2026');
+
+  await page.keyboard.press('End');
+  await expect.poll(() => grid.evaluate(el => el.scrollLeft === el.scrollWidth - el.clientWidth)).toBe(true);
+  await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+});
+
+test('keys pressed inside a cell are not taken by the grid', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await settleWeek(page);
+  await cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/).focus();
+  await page.keyboard.press('End');
+  await page.waitForTimeout(100);
+  expect(await scrollLeftOf(page)).toBe(1344);
+});
+
+test('end of the grid keeps names and totals in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.goto('/admin/cham-cong');
+  const grid = gridOf(page);
+  await expect(rowsOf(page)).toHaveCount(11);
+  await grid.focus();
+  await page.keyboard.press('End');
+  await expect(weekLabel(page)).toHaveText('02/11 – 08/11/2026');
+
+  const frame = (await grid.boundingBox())!;
+  const inside = async (locator: ReturnType<Page['locator']>) => {
+    const b = (await locator.boundingBox())!;
+    expect(b.x).toBeGreaterThanOrEqual(frame.x - 1);
+    expect(b.x + b.width).toBeLessThanOrEqual(frame.x + frame.width + 1);
+  };
+  await inside(page.getByText('Nguyễn Thu Hà', { exact: true }));
+  await inside(page.locator('thead th.s3'));
+  await inside(page.locator('thead th.dc', { hasText: '08/11' }));
+});
+
+for (const width of [375, 768, 1024, 1440]) {
+  test(`grid scrolls inside its own region at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/admin/cham-cong');
+    const grid = gridOf(page);
+    await expect(rowsOf(page)).toHaveCount(11);
+
+    await expect(grid).toHaveAttribute('tabindex', '0');
+    await grid.focus();
+    await expect(grid).toBeFocused();
+
+    const sizes = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth, inner: window.innerWidth }));
+    expect(sizes.doc).toBeLessThanOrEqual(sizes.inner);
+    expect(await grid.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+
+    const nm = (await page.locator('thead th.nm').boundingBox())!;
+    expect(Math.abs(nm.width - (width === 375 ? 140 : 220))).toBeLessThanOrEqual(1);
+    await expect(page.locator('thead th.s3')).toHaveCSS('position', width === 375 ? 'static' : 'sticky');
+  });
+}
