@@ -19,6 +19,7 @@ test('list groups four requests by month under the Tất cả tab', async ({ pag
   await expect(page.getByRole('tabpanel')).toContainText('Tháng 10');
   await expect(page.getByRole('tabpanel')).toContainText('Tháng 9');
   await expect(rows(page)).toHaveCount(4);
+  await expect(page.locator('a.ro[aria-current]')).toHaveCount(0);
   for (const [i, name] of [
     'Thiếu giờ ra 27/10, Chờ duyệt',
     'Phép năm 12/10, Đã duyệt',
@@ -124,4 +125,28 @@ test('?yc=khong-co opens nothing and is dropped from the URL', async ({ page }) 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Yêu cầu');
   await expect(page).not.toHaveURL(/yc=/);
   await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('the status tabs fit inside the strip at 320px and 360px', async ({ page }) => {
+  for (const w of [320, 360]) {
+    await openPhone(page, '/nv/yeu-cau', { width: w, height: 800 });
+    const strip = tabs(page);
+    await expect(strip.getByRole('tab')).toHaveCount(4);
+    const m = await strip.evaluate(el => {
+      const s = el.getBoundingClientRect();
+      return {
+        overflow: el.scrollWidth - el.clientWidth,
+        tabs: [...el.querySelectorAll('[role="tab"]')].map(t => {
+          const r = t.getBoundingClientRect();
+          return { text: t.textContent, left: r.left - s.left, right: s.right - r.right, clip: t.scrollWidth - t.clientWidth };
+        })
+      };
+    });
+    expect(m.overflow, `strip scrollWidth at ${w}px`).toBeLessThanOrEqual(0);
+    for (const t of m.tabs) {
+      expect(t.left, `${t.text} left edge at ${w}px`).toBeGreaterThanOrEqual(0);
+      expect(t.right, `${t.text} right edge at ${w}px`).toBeGreaterThanOrEqual(0);
+      expect(t.clip, `${t.text} clipped at ${w}px`).toBeLessThanOrEqual(0);
+    }
+  }
 });

@@ -154,6 +154,15 @@ function closeSheet() {
   color: #ffffff;
   font-weight: 600;
 }
+/* min-width: 0 cho phép tab co lại dưới độ rộng chữ; màn dưới 360px thu đệm tab để chữ và số đếm vẫn đọc đủ trong thanh. */
+.rq-tab {
+  min-width: 0;
+}
+@media (max-width: 359px) {
+  .rq-tab {
+    padding: 0 3px;
+  }
+}
 .rq-panel {
   display: flex;
   flex-direction: column;
