@@ -159,7 +159,7 @@ export class EmployeesRepository {
   /**
    * Chuyển đổi đối tượng `Employee` thành bản ghi đầy đủ `Insertable<Schema['staff']>`.
    */
-  static toRow(employee: Employee): Insertable<Schema['staff']> {
+  static toRow(employee: Employee): Insertable<DB['staff']> {
     const remLeave = typeof employee.contract.leave.remainingDays === 'function'
       ? employee.contract.leave.remainingDays()
       : employee.contract.leave.totalDays - employee.contract.leave.usedDays;
@@ -236,7 +236,7 @@ export class EmployeesRepository {
       rolesByUsername.set(r.username, list);
     }
 
-    return rows.map(row => EmployeeV2Repository.fromRow(row, rolesByUsername.get(row.username)));
+    return rows.map(row => EmployeesRepository.fromRow(row, rolesByUsername.get(row.username)));
   }
 
   /**
@@ -258,7 +258,7 @@ export class EmployeesRepository {
       .orderBy('role')
       .execute();
 
-    return EmployeeV2Repository.fromRow(row, roleRows.map(r => r.role));
+    return EmployeesRepository.fromRow(row, roleRows.map(r => r.role));
   }
 
   /**
@@ -280,7 +280,7 @@ export class EmployeesRepository {
       .orderBy('role')
       .execute();
 
-    return EmployeeV2Repository.fromRow(row, roleRows.map(r => r.role));
+    return EmployeesRepository.fromRow(row, roleRows.map(r => r.role));
   }
 
   /**
@@ -302,14 +302,14 @@ export class EmployeesRepository {
       .orderBy('role')
       .execute();
 
-    return EmployeeV2Repository.fromRow(row, roleRows.map(r => r.role));
+    return EmployeesRepository.fromRow(row, roleRows.map(r => r.role));
   }
 
   /**
    * Lưu hoặc ghi đè toàn bộ thông tin nhân viên vào bảng `staff`, đồng bộ vai trò phụ vào `staff_roles`.
    */
   async save(employee: Employee, actor?: string): Promise<Employee> {
-    const row = EmployeeV2Repository.toRow(employee);
+    const row = EmployeesRepository.toRow(employee);
     await this.qb
       .insertInto('staff')
       .values(row)
@@ -409,11 +409,11 @@ export class EmployeesRepository {
    * Danh mục chức vụ (position_types) và các bậc lương (position_levels).
    */
   async listPositionCatalog(): Promise<any[]> {
-    const types = await this.qb.selectFrom('position_types').selectAll().orderBy('sort', 'asc').execute();
+    const types = await this.qb.selectFrom('position_types').selectAll().orderBy('code', 'asc').execute();
     const levels = await this.qb.selectFrom('position_levels').selectAll().execute();
     return types.map(t => ({
       ...t,
-      levels: levels.filter(l => l.type === t.code)
+      levels: levels.filter(l => l.type_code === t.code)
     }));
   }
 

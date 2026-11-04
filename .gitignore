@@ -30,3 +30,4 @@ GFT OFFICE/
 # Notes derived from GFT OFFICE/ (confidential company rules): local only
 docs/private/
 scripts/dev/scenarios/out/
+legacy_archive/

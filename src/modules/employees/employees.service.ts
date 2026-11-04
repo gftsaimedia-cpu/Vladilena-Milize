@@ -8,6 +8,7 @@ import {
   EmployeeAccount,
   EmployeeContract,
   PersonName,
+  PersonNameLike,
   Position,
   Shift,
   ShiftType,
@@ -39,11 +40,22 @@ export class EmployeesService {
   constructor(private readonly repo: EmployeesRepository) {}
 
   async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
-    return await this.repo.findMany(filter as any);
+    const list = await this.repo.findAll();
+    return list.filter((emp) => {
+      if (filter.status && emp.contract.status !== filter.status) return false;
+      if (filter.shiftType && emp.contract.shift.type !== filter.shiftType) return false;
+      if (filter.q) {
+        const q = filter.q.toLowerCase();
+        const matchesUsername = emp.username.toLowerCase().includes(q);
+        const matchesName = emp.profile.name.fullName.toLowerCase().includes(q);
+        if (!matchesUsername && !matchesName) return false;
+      }
+      return true;
+    });
   }
 
   async findByUsernameOrUuid(id: string): Promise<Employee | null> {
-    return await this.repo.findById(id);
+    return await this.repo.findByUsernameOrUuid(id);
   }
 
   async save(employee: Employee, actor?: string): Promise<Employee> {
@@ -51,7 +63,7 @@ export class EmployeesService {
   }
 
   async deactivate(username: string, actor?: string): Promise<boolean> {
-    const existing = await this.repo.findById(username);
+    const existing = await this.repo.findByUsernameOrUuid(username);
     if (!existing) return false;
 
     const updated = this.buildEmployeeFromInput(
@@ -82,7 +94,7 @@ export class EmployeesService {
 
     const uuid = body.profile?.uuid || body.uuid || existing?.profile.uuid || crypto.randomUUID();
 
-    let name: PersonName;
+    let name: PersonName | PersonNameLike;
     if (body.profile?.name) {
       name = new PersonName(body.profile.name);
     } else if (body.name || body.fullName) {

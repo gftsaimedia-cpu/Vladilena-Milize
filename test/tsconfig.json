@@ -1,6 +1,6 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": { "strictNullChecks": false },
+  "compilerOptions": {},
   "include": ["./**/*.ts"],
   "exclude": ["../node_modules"]
 }

@@ -16,7 +16,7 @@ class FakeEmployeesRepository extends EmployeesRepository {
     return employee;
   }
 
-  override async findById(id: string): Promise<Employee | null> {
+  override async findByUsernameOrUuid(id: string): Promise<Employee | null> {
     for (const emp of this.employees.values()) {
       if (emp.username === id || emp.profile.uuid === id) {
         return emp;
@@ -25,15 +25,8 @@ class FakeEmployeesRepository extends EmployeesRepository {
     return null;
   }
 
-  override async findMany(filter: any = {}): Promise<Employee[]> {
-    let result = Array.from(this.employees.values());
-    if (filter.shiftType) {
-      result = result.filter((e) => e.contract.shift.type === filter.shiftType);
-    }
-    if (filter.status) {
-      result = result.filter((e) => e.contract.status === filter.status);
-    }
-    return result;
+  override async findAll(): Promise<Employee[]> {
+    return Array.from(this.employees.values());
   }
 }
 

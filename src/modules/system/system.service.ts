@@ -15,37 +15,33 @@ export class SystemService {
   async getSetting(key: string): Promise<string | null> {
     const row = await this.qb
       .selectFrom('settings')
-      .select(['value'])
+      .select('value_json')
       .where('key', '=', key)
       .executeTakeFirst();
-    return row?.value ?? null;
+    return row?.value_json ?? null;
   }
 
   async setSetting(key: string, value: string, actor = 'system'): Promise<void> {
-    const now = new Date().toISOString();
     await this.qb
       .insertInto('settings')
       .values({
         key,
-        value,
-        updated_at: now,
-        updated_by: actor,
+        value_json: value,
       })
       .onConflict((oc) =>
         oc.column('key').doUpdateSet({
-          value,
-          updated_at: now,
-          updated_by: actor,
+          value_json: value,
         })
       )
       .execute();
   }
 
   async listSettings(): Promise<Array<{ key: string; value: string }>> {
-    return await this.qb
+    const rows = await this.qb
       .selectFrom('settings')
-      .select(['key', 'value'])
+      .select(['key', 'value_json'])
       .execute();
+    return rows.map((r) => ({ key: r.key, value: r.value_json }));
   }
 
   async listAuditLogs(limit = 50, offset = 0): Promise<any[]> {
