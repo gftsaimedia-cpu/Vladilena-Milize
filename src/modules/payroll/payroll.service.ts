@@ -158,18 +158,21 @@ export class PayrollService {
     const employeeType = staff.employeeType;
     const nightAllowancePct = staff.nightAllowancePct === 60 ? 60 : 40;
     const allowancePolicy = new PayrollAllowancePolicy(employeeType, nightAllowancePct);
+    // An approved iSAT Saturday is paid as one base day; the set also drops a date listed twice.
+    const isatDates = new Set(data.isatDates ?? []);
+    // An iSAT Saturday has no attendance line, so a makeup approved on it later must not count as a makeup day.
     const makeupWorkDates = new Set(
       timesheets
-        .filter(ts => ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0)
+        .filter(
+          ts =>
+            ts.scheduleType === 'MAKE_UP' && ts.status === 'PRESENT' && ts.workHours > 0 && !isatDates.has(ts.workDate)
+        )
         .map(ts => ts.workDate)
     );
     const standardWorkdays = staff.standardWorkdays;
     const baseSalaryPolicy = staff.baseSalary;
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
-
-    // An approved iSAT Saturday is paid as one base day; the set also drops a date listed twice.
-    const isatDates = new Set(data.isatDates ?? []);
 
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;

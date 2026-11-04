@@ -962,6 +962,44 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     assert.equal(slip.isatPay, 230769);
   });
 
+  it('sorts the iSAT line between the attendance lines by date', async () => {
+    const slip = await generate({ timesheets: [normalDay('2026-10-09'), normalDay('2026-10-12')] });
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.shiftCode]),
+      [
+        ['2026-10-09', 'NORMAL'],
+        ['2026-10-10', 'ISAT'],
+        ['2026-10-12', 'NORMAL']
+      ]
+    );
+  });
+
+  it('ignores the lateness of the attendance line that the iSAT Saturday replaces', async () => {
+    const slip = await generate({ timesheets: [{ ...normalDay('2026-10-10'), lateMinutes: 30 }] });
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.shiftCode, l.dailyTotal]),
+      [['2026-10-10', 'ISAT', 230769]]
+    );
+    assert.equal(slip.lateEarlyHours, 0);
+  });
+
+  it('does not count an iSAT Saturday as a makeup day when a makeup was approved on it later', async () => {
+    const slip = await generate({
+      timesheets: [normalDay('2026-10-09'), { ...normalDay('2026-10-10'), scheduleType: 'MAKE_UP' }]
+    });
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.shiftCode]),
+      [
+        ['2026-10-09', 'NORMAL'],
+        ['2026-10-10', 'ISAT']
+      ]
+    );
+    assert.equal(slip.actualWorkDays, 1);
+    // One counted work day of 26 earns its share of the 25% attendance and 15% travel allowances.
+    assert.equal(slip.attendanceAllowanceActual, 57_692);
+    assert.equal(slip.travelAllowanceActual, 34_615);
+  });
+
   it('keeps payslips unchanged when isatDates is absent', async () => {
     const repo = new FakePayrollRepository();
     repo.data.set('u1:2026-10', nvMonthData());

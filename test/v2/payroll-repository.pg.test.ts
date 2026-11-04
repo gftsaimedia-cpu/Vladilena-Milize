@@ -12,7 +12,7 @@ import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors'
 // makes its own temporary database, applies the migrations there and drops it at the end. It never touches any
 // other database.
 const CONTROL_URL = process.env.PG_TEST_URL;
-const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql'];
+const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql', '0004_isat_registrations.sql'];
 const MONTH = '2026-10';
 const PARTIAL_MONTH = '2026-11';
 
@@ -70,6 +70,33 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
       [now]
     );
 
+    // iSAT requests: only the APPROVED one of pg-uuid-1 on a Saturday of 2026-10 is paid. The others must not show:
+    // a PENDING one on another Saturday of the month, an APPROVED one in 2026-09 and an APPROVED one of another
+    // employee in 2026-10.
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
+       VALUES ('pg-user-3', 'Nhân viên PG 3', 'nv', 1, 'x', $1, 'long', 'pg-uuid-3')`,
+      [now]
+    );
+    const seedIsat = async (employeeId: string, status: string, saturday: string) => {
+      const request = await client.query(
+        `INSERT INTO system_requests (id, employee_id, title, type, reason, status, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, 'Đăng ký iSAT', 'ISAT', 'Tự đánh giá đạt 4/4 điều kiện', $2, now(), now())
+         RETURNING id`,
+        [employeeId, status]
+      );
+      await client.query(
+        `INSERT INTO isat_registrations (request_id, saturday, full_name, team, position_type, position_level,
+           level_name, shift_type, shift_start_time, shift_end_time)
+         VALUES ($1, $2, 'Nhân viên PG', 'Team PG', 'nv', 1, NULL, 'NORMAL', '08:00', '17:00')`,
+        [request.rows[0].id, saturday]
+      );
+    };
+    await seedIsat('pg-uuid-1', 'APPROVED', '2026-10-10');
+    await seedIsat('pg-uuid-1', 'PENDING', '2026-10-17');
+    await seedIsat('pg-uuid-1', 'APPROVED', '2026-09-26');
+    await seedIsat('pg-uuid-3', 'APPROVED', '2026-10-24');
+
     const repo = new PayrollRepository(db);
     const service = new PayrollService(repo);
 
@@ -87,6 +114,7 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     assert.equal(data.staff.contractTerm, 'long');
     assert.equal(data.staff.insured, true);
     assert.equal(data.staff.contractStatusText, 'HĐLĐ từ 3 tháng');
+    assert.deepEqual(data.isatDates, ['2026-10-10']);
 
     // Two calculations of the same month: the second one becomes run 2 and supersedes the first.
     const slip = await service.generateMonthlyPayslip('pg-uuid-1', MONTH);
