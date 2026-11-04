@@ -1,0 +1,126 @@
+/* Phần dùng chung của Chấm công theo tuần và Hồ sơ chấm công: ô trạng thái (.pill), chấm "đang làm", chú giải màu (.legend, .gc).
+   Năm nhóm màu: đi làm #1c1c1c, đi muộn/về sớm vàng, nghỉ có phép #2f5aa8, vắng #b43f3f, cần xử lý trắng viền cam. */
+.b {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+.b.work {
+  background: #1c1c1c;
+}
+.b.late {
+  background: #e8c372;
+}
+.b.leave {
+  background: #2f5aa8;
+}
+.b.absent {
+  background: #b43f3f;
+}
+.b.todo {
+  background: #ffffff;
+  border: 2px solid #eb973d;
+}
+.b.fu {
+  background: #ffffff;
+  border: 1px dashed #9e9e9e;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gc {
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px 0 10px;
+  border-radius: 50px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text);
+}
+.gc .ct {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.gc.fu {
+  border-color: transparent;
+  color: var(--muted);
+}
+
+/* Ô trạng thái: một nút (hoặc span khi không có ca) cao 30px. Chỉ áp cho tám kiểu dưới đây, không đụng .pill chung. */
+.pill:is(.work, .late, .leave, .absent, .todo, .off, .fu, .nocheck) {
+  width: 100%;
+  height: 30px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.pill.work {
+  background: #1c1c1c;
+  color: #ffffff;
+}
+.pill.late {
+  background: #e8c372;
+  color: var(--text);
+}
+.pill.leave {
+  background: #2f5aa8;
+  color: #ffffff;
+}
+.pill.absent {
+  background: #b43f3f;
+  color: #ffffff;
+}
+.pill.todo {
+  background: #ffffff;
+  border: 2px solid #eb973d;
+  color: var(--text);
+}
+.pill.off {
+  display: block;
+  background: var(--ground);
+  cursor: inherit;
+}
+.pill.fu {
+  background: #ffffff;
+  border: 1px dashed var(--status-draft);
+  color: #9e9e9e;
+  font-weight: 400;
+}
+.pill.nocheck {
+  background: var(--status-draft);
+  color: #616161;
+}
+.pill:is(.work, .late, .leave, .absent, .todo, .fu, .nocheck):focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.pill .dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50px;
+  background: #e8c372;
+}
+.pill.late .dot {
+  background: #1c1c1c;
+}

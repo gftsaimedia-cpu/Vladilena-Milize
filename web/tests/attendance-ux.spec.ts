@@ -1,418 +1,245 @@
 import { expect, test, type Page } from '@playwright/test';
+import { inApp } from './fixtures/in-app';
 
-async function mockAttendance(page: Page, emptySummary = false, emptyToday = false) {
-  const teamRequests: string[] = [];
-  let failNextToday = false;
-  page.on('request', request => {
-    const requestUrl = new URL(request.url());
-    if (requestUrl.pathname === '/api/team') teamRequests.push(requestUrl.href);
+// Chấm công theo tuần chạy trên dữ liệu giả (mock/attendance.ts): không page.route, không gọi /api.
+// Mỗi test mở một trang mới nên module giả luôn bắt đầu từ trạng thái ban đầu (13 việc chờ, 11 việc có ngày).
+let calls: string[] = [];
+
+const gridOf = (page: Page) => page.getByRole('region', { name: 'Lưới chấm công' });
+const tileOf = (page: Page, name: string) =>
+  page.getByRole('region', { name: 'Chỉ số chấm công' }).getByRole('article', { name });
+const cellOf = (page: Page, name: string | RegExp) => page.getByRole('button', { name });
+const dialogOf = (page: Page) => page.getByRole('dialog');
+const rowsOf = (page: Page) => page.locator('tbody tr');
+const pendingTab = (page: Page) => page.getByRole('tab', { name: /^Cần xử lý/ });
+const bellOf = (page: Page) => page.locator('.topbar .bell');
+
+test.beforeEach(async ({ page }) => {
+  calls = [];
+  page.on('request', req => {
+    const url = new URL(req.url());
+    if (url.pathname.startsWith('/api')) calls.push(`${req.method()} ${url.pathname}`);
   });
-  await page.route('**/api/**', async route => {
-    const requestUrl = new URL(route.request().url());
-    const path = requestUrl.pathname.replace('/api', '');
-    const requestedMonth = requestUrl.searchParams.get('month') || '2026-11';
-    let body: unknown = {};
-    if (path === '/today' && failNextToday) {
-      failNextToday = false;
-      await route.fulfill({
-        status: 500,
-        contentType: 'application/json',
-        body: JSON.stringify({ message: 'Mạng tạm thời không khả dụng' })
-      });
-      return;
-    }
-    if (path === '/me') {
-      body = {
-        user: { username: 'demo_admin', name: 'Demo Admin', role: 'admin' },
-        roles: ['admin'],
-        caps: ['attendance.correct', 'attendance.lock', 'request.decide.*'],
-        payrollSubject: true,
-        serverNow: '2026-11-03T12:00:00.000Z'
-      };
-    } else if (/^\/periods\/\d{4}-\d{2}$/.test(path)) body = { status: 'reviewed', needsRecalculate: false };
-    else if (path === '/periods') body = { periods: [] };
-    else if (path.startsWith('/alerts')) body = { missingPunches: [] };
-    else if (path.startsWith('/team'))
-      body = {
-        month: requestedMonth,
-        rows: emptySummary
-          ? []
-          : [
-              {
-                staff: { username: 'employee-1', name: 'Ánh Nguyễn', type: 'nv', shiftCode: 'day' },
-                days: {},
-                attendanceSessions: [{ id: 'punch-1', date: `${requestedMonth}-03`, status: 'pending' }]
-              },
-              {
-                staff: { username: 'employee-2', name: 'Bình Trần Nhân Sự Có Tên Dài', type: 'nv', shiftCode: 'day' },
-                days: {},
-                attendanceSessions: [{ id: 'punch-2', date: `${requestedMonth}-03`, status: 'rejected' }]
-              }
-            ]
-      };
-    else if (path === '/today')
-      body = {
-        today: `${requestedMonth}-03`,
-        empty: emptyToday,
-        rows: emptyToday
-          ? []
-          : [
-              {
-                username: 'employee-1',
-                name: 'Ánh Nguyễn',
-                type: 'nv',
-                shiftCode: 'day',
-                in: '08:00',
-                out: '17:00',
-                status: 'checked-out',
-                sessionCount: 1
-              }
-            ]
-      };
-    else if (path === '/settings/shifts')
-      body = { shifts: [{ code: 'day', name: 'Ca ngày', in: '08:00', out: '17:00' }] };
-    else if (path === '/holidays') body = { dates: [] };
-    else if (path === '/sheet')
-      body = {
-        owner: {
-          name: requestUrl.searchParams.get('user') === 'employee-2' ? 'Bình Trần Nhân Sự Có Tên Dài' : 'Ánh Nguyễn',
-          type: 'nv',
-          shiftCode: 'day'
-        },
-        attendanceSessions: [],
-        days: {},
-        approvals: {},
-        rev: 1
-      };
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-  });
-  return { teamRequests, failNextToday: () => (failNextToday = true) };
-}
-
-for (const width of [375, 768, 1024, 1440]) {
-  test.fixme(
-    `timesheet stays in a keyboard-scrollable region at ${width}px`,
-    { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-    async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await mockAttendance(page);
-      await page.goto('/admin/cham-cong?thang=2026-11&extra=needle');
-      const region = page.getByRole('region', { name: /Bảng công tháng 11/ });
-      await expect(region).toBeVisible();
-      if (width <= 1100) await expect(page.locator('#timesheet-scroll-help')).toBeVisible();
-      const metrics = await region.evaluate(el => ({
-        document: document.documentElement.scrollWidth - document.documentElement.clientWidth,
-        clientWidth: el.clientWidth,
-        scrollWidth: el.scrollWidth,
-        columns: el.querySelectorAll('thead th').length,
-        employees: [...el.querySelectorAll('tbody td:first-child')].map(cell => cell.textContent?.trim()).join(' '),
-        lastColumn: el.querySelector('thead th:last-child')?.textContent?.trim(),
-        overflow: getComputedStyle(el).overflowX,
-        offenders: [...document.querySelectorAll<HTMLElement>('body *')]
-          .filter(node => node.getBoundingClientRect().right > innerWidth + 1)
-          .slice(0, 8)
-          .map(node => ({ tag: node.tagName, class: node.className, right: node.getBoundingClientRect().right }))
-      }));
-      expect(metrics.document).toBe(0);
-      expect(metrics.scrollWidth).toBeGreaterThanOrEqual(metrics.clientWidth);
-      expect(metrics.columns).toBe(33);
-      expect(metrics.employees).toContain('Ánh Nguyễn');
-      expect(metrics.employees).toContain('Bình Trần Nhân Sự Có Tên Dài');
-      expect(metrics.lastColumn).toBe('Chờ xử lý');
-      expect(metrics.overflow).toBe('auto');
-      if (process.env.ATTENDANCE_SCREENSHOT_DIR) {
-        await page.screenshot({
-          path: `${process.env.ATTENDANCE_SCREENSHOT_DIR}/admin-attendance-${width}.png`,
-          fullPage: true
-        });
-      }
-      if (metrics.scrollWidth > metrics.clientWidth) {
-        await region.focus();
-        await page.keyboard.press('End');
-        expect(await region.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
-      }
-      await expect(region.getByRole('columnheader', { name: 'Nhân sự' })).toBeVisible();
-      await expect(region.getByRole('columnheader', { name: 'Chờ xử lý' })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Ngày 3, T3. Mở chấm công hôm nay' })).toBeVisible();
-      const opener = page.getByRole('button', { name: 'Ánh Nguyễn, ngày 3: Lượt chờ xử lý' });
-      await expect(opener).toBeVisible();
-
-      await opener.focus();
-      await page.keyboard.press('Enter');
-      const dialog = page.getByRole('dialog');
-      await expect(dialog).toBeVisible();
-      await expect(dialog).toContainText('Ánh Nguyễn');
-      await expect(dialog.locator('input, button').first()).toBeFocused();
-      await expect(page).toHaveURL(/thang=2026-11.*extra=needle.*hop=chi-tiet-ngay/);
-
-      await page.evaluate(() => {
-        const url = new URL(location.href);
-        url.searchParams.set('nv', 'employee-2');
-        url.searchParams.set('ngay', '2026-11-04');
-        history.pushState({}, '', url);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      });
-      await expect(dialog).toContainText('Bình Trần Nhân Sự Có Tên Dài');
-      await expect(dialog).toContainText('04/11/2026');
-      await page.keyboard.press('Escape');
-      await expect(dialog).toHaveCount(0);
-      await expect(opener).toBeFocused();
-      await expect(page).toHaveURL(/thang=2026-11.*extra=needle/);
-      await expect(page).not.toHaveURL(/hop=|nv=|ngay=/);
-    }
-  );
-}
-
-test.fixme(
-  'phone uses labeled employee filter and retains both Today entry points',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-  async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await mockAttendance(page);
-    await page.goto('/admin/cham-cong?thang=2026-11');
-
-    const filter = page.getByLabel('Lọc nhân sự');
-    await expect(filter).toBeVisible();
-    await filter.selectOption('pending');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toHaveCount(1);
-    await expect(page.getByRole('button', { name: /Ánh Nguyễn, ngày 3: Lượt chờ xử lý/ })).toBeVisible();
-
-    await page.getByRole('button', { name: 'Ngày 3, T3. Mở chấm công hôm nay' }).click();
-    await expect(page.getByRole('dialog', { name: /hôm nay/i })).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-
-    const titleOpener = page.getByRole('button', { name: 'Hôm nay (0 đang trong ca)' });
-    await titleOpener.click();
-    await expect(page.getByRole('dialog', { name: /hôm nay/i })).toBeVisible();
-  }
-);
-
-test('Today title action opens the today dialog on the attendance page at 375px', async ({ page }) => {
-  await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/admin/cham-cong?thang=2026-11');
-
-  const today = page.getByRole('button', { name: 'Hôm nay', exact: true });
-  await expect(today).toBeVisible();
-  await today.click();
-  await expect(page.getByRole('dialog', { name: 'Chấm công hôm nay' })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 900 });
 });
 
-test.fixme(
-  'Today dialog exposes retry after a failed request and renders refreshed rows',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-  async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    const attendance = await mockAttendance(page);
-    await page.goto('/admin/cham-cong?thang=2026-11&filter=pending&q=Ánh&extra=keep');
-    await expect(page.getByRole('button', { name: 'Hôm nay (0 đang trong ca)' })).toBeVisible();
+test('attendance week shows tiles, the current week and today without calling /api', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(page.getByRole('heading', { name: 'Chấm công', level: 1 })).toBeVisible();
+  await expect(page.getByText('Kỳ công 01–31/10/2026 · hôm nay Thứ Tư 28/10')).toBeVisible();
 
-    attendance.failNextToday();
-    await page.getByRole('button', { name: 'Hôm nay (0 đang trong ca)' }).click();
-    const dialog = page.getByRole('dialog');
-    await expect(dialog).toBeVisible();
-    const error = dialog.getByRole('alert');
-    await expect(error).toContainText('Không tải được dữ liệu chấm công hôm nay');
-    await dialog.getByRole('button', { name: 'Thử lại' }).click();
-    await expect(error).toHaveCount(0);
-    await expect(dialog.locator('tbody')).toContainText('Ánh Nguyễn');
+  await expect(page.getByRole('region', { name: 'Chỉ số chấm công' }).getByRole('article')).toHaveCount(6);
+  await expect(tileOf(page, 'Cần xử lý').locator('.tile-v')).toHaveText('11');
+  await expect(tileOf(page, 'Cần xử lý').locator('.tile-n')).toHaveText('2 quên chấm · 9 yêu cầu chờ duyệt');
+  await expect(tileOf(page, 'Nghỉ có phép').locator('.tile-n')).toHaveText('3 đơn chờ duyệt');
 
-    attendance.failNextToday();
-    await dialog.getByRole('button', { name: 'Đang trong ca' }).click();
-    await expect(dialog.getByRole('alert')).toContainText('Dữ liệu đang hiển thị có thể đã cũ');
-    await expect(dialog.locator('tbody')).toContainText('Ánh Nguyễn');
-    await dialog.getByRole('button', { name: 'Thử lại' }).click();
-    await expect(dialog.getByRole('alert')).toHaveCount(0);
-    await expect(dialog.locator('tbody')).toContainText('Không có nhân sự nào phù hợp');
+  await expect(page.getByRole('tab', { name: 'Tuần', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await expect(pendingTab(page)).toContainText('11');
+  await expect(page.getByRole('tab', { name: 'Tháng' })).toHaveCount(0);
+
+  await expect(page.locator('.wk-label')).toHaveText('26/10 – 01/11/2026');
+  await expect.poll(() => gridOf(page).evaluate(el => el.scrollLeft)).toBe(1344);
+  await expect(rowsOf(page)).toHaveCount(11);
+  const count = (group: string) => page.locator(`[data-group="${group}"] .ct`);
+  await expect(count('work')).toHaveText('25');
+  await expect(count('late')).toHaveText('2');
+  await expect(count('leave')).toHaveText('0');
+  await expect(count('absent')).toHaveText('0');
+  await expect(count('todo')).toHaveText('8');
+  await expect(page.getByText('Hiển thị 11 trong 128 nhân viên')).toBeVisible();
+  expect(calls).toEqual([]);
+});
+
+test('cells read their state and off days are not buttons', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await expect(rowsOf(page)).toHaveCount(11);
+
+  const todo = cellOf(page, 'Lê Hoàng Nam, Thứ Ba 27/10: Cần xử lý, Thiếu giờ ra');
+  await expect(todo).toHaveClass(/\btodo\b/);
+  const late = cellOf(page, 'Phạm Ngọc Anh, Thứ Tư 28/10: Đi muộn, 08:21–…, đang làm');
+  await expect(late).toHaveClass(/\blate\b/);
+  await expect(late.locator('.dot')).toHaveCount(1);
+
+  const off = 'Nguyễn Thu Hà, Chủ nhật 01/11: không có ca';
+  await expect(page.getByRole('img', { name: off })).toBeVisible();
+  await expect(cellOf(page, off)).toHaveCount(0);
+  await expect(cellOf(page, 'Nguyễn Thu Hà, Thứ Bảy 31/10: ca dự kiến 08:00–17:00')).toBeVisible();
+  await expect(cellOf(page, 'Ngô Gia Bảo, Chủ nhật 01/11: Cần xử lý, Làm bù')).toHaveClass(/\btodo\b/);
+
+  await expect(page.locator('th[data-date="2026-11-01"]')).toHaveCSS('color', 'rgb(158, 158, 158)');
+  await expect(page.locator('th[data-date="2026-10-31"]')).not.toHaveCSS('color', 'rgb(158, 158, 158)');
+
+  const link = page.getByRole('link', { name: 'Lê Hoàng Nam' });
+  await expect(link).toHaveAttribute('href', '/admin/cham-cong/nhan-vien/le-hoang-nam');
+  await expect(link).toHaveAttribute('draggable', 'false');
+});
+
+test('name and department filters live in the URL and survive dialog, reload, back and forward', async ({ page }) => {
+  await page.goto('/admin/tong-quan');
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Chấm công', exact: true }).click();
+  const name = page.getByRole('textbox', { name: 'Lọc theo tên' });
+  const dept = page.getByRole('combobox', { name: 'Phòng ban' });
+
+  await name.fill('nam');
+  await expect(page).toHaveURL(/q=nam/);
+  await expect(rowsOf(page)).toHaveCount(1);
+  await expect(rowsOf(page)).toContainText('Lê Hoàng Nam');
+
+  await name.fill('');
+  await dept.selectOption('Sản xuất');
+  await expect(page).toHaveURL(/pb=S%E1%BA%A3n/);
+  await expect(rowsOf(page)).toHaveCount(4);
+
+  await cellOf(page, /^Bùi Quốc Huy, Thứ Hai 26\/10:/).click();
+  await expect(dialogOf(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/pb=S%E1%BA%A3n/);
+  await expect(rowsOf(page)).toHaveCount(4);
+
+  await page.reload();
+  await expect(rowsOf(page)).toHaveCount(4);
+  await expect(dept).toHaveValue('Sản xuất');
+
+  await page.goBack();
+  await expect(page).toHaveURL(/\/admin\/tong-quan/);
+  await page.goForward();
+  await expect(page).toHaveURL(/pb=S%E1%BA%A3n/);
+  await expect(rowsOf(page)).toHaveCount(4);
+
+  await page.getByRole('textbox', { name: 'Lọc theo tên' }).fill('xyz');
+  await expect(page.getByText('Không có nhân viên nào khớp.')).toBeVisible();
+  await expect(page.getByText('Hiển thị 0 trong 128 nhân viên')).toBeVisible();
+});
+
+test('unknown department in the URL falls back to all', async ({ page }) => {
+  await page.goto('/admin/cham-cong?pb=Kho');
+  await expect(rowsOf(page)).toHaveCount(11);
+  await expect(page).not.toHaveURL(/pb=/);
+  await expect(page.getByRole('combobox', { name: 'Phòng ban' }).locator('option:checked')).toHaveText(
+    'Phòng ban: Tất cả'
+  );
+});
+
+test('phone keeps the labelled filters inside the viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/admin/cham-cong');
+  for (const control of [
+    page.getByRole('textbox', { name: 'Lọc theo tên' }),
+    page.getByRole('combobox', { name: 'Phòng ban' })
+  ]) {
+    await expect(control).toBeVisible();
+    const box = await control.boundingBox();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(375);
   }
-);
+  await page.getByRole('textbox', { name: 'Lọc theo tên' }).fill('linh');
+  await expect(rowsOf(page)).toHaveCount(1);
+  await expect(rowsOf(page)).toContainText('Đỗ Mai Linh');
+});
 
-test.fixme(
-  'Today openers share the hop URL, deep-link on refresh, and remove only hop on close',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-  async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await mockAttendance(page);
-    await page.goto('/admin/cham-cong?thang=2026-11&filter=pending&q=Ánh&extra=keep');
-    const baseUrl = page.url();
+test('pending tab lists every day to handle in date order', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await pendingTab(page).click();
+  await expect(page).toHaveURL(/xem=can-xu-ly/);
 
-    const titleOpener = page.getByRole('button', { name: 'Hôm nay (0 đang trong ca)' });
-    await titleOpener.click();
-    await expect(page).toHaveURL(/hop=hom-nay/);
-    await expect(page.getByRole('dialog')).toHaveCount(1);
-    await page.goBack();
-    await expect(page).toHaveURL(baseUrl);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(titleOpener).toBeFocused();
-    await page.goForward();
-    await expect(page).toHaveURL(/hop=hom-nay/);
-    await expect(page.getByRole('dialog')).toHaveCount(1);
-    await page.reload();
-    await expect(page.getByRole('dialog')).toHaveCount(1);
+  const list = page.getByRole('list', { name: 'Việc cần xử lý chấm công' });
+  const items = list.getByRole('listitem');
+  await expect(items).toHaveCount(11);
+  await expect(items.nth(0)).toContainText('Trần Minh Quân');
+  await expect(items.nth(0)).toContainText('15/10');
+  await expect(items.nth(3)).toContainText('Lý Thanh Tâm');
+  await expect(items.nth(4)).toContainText('Đỗ Mai Linh');
+  await expect(items.nth(10)).toContainText('Phạm Ngọc Anh');
+  await expect(items.nth(10)).toContainText('03/11');
 
-    const closeButton = page.getByRole('dialog').getByRole('button', { name: 'Đóng' }).last();
-    await closeButton.click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    let current = new URL(page.url());
-    expect(current.searchParams.get('thang')).toBe('2026-11');
-    expect(current.searchParams.get('filter')).toBe('pending');
-    expect(current.searchParams.get('q')).toBe('Ánh');
-    expect(current.searchParams.get('extra')).toBe('keep');
-    expect(current.searchParams.has('hop')).toBe(false);
+  await page.reload();
+  await expect(pendingTab(page)).toHaveAttribute('aria-selected', 'true');
+  await list.getByRole('button', { name: /Lê Hoàng Nam/ }).click();
+  await expect(dialogOf(page)).toHaveAccessibleName('Lê Hoàng Nam · Thứ Ba 27/10/2026');
+});
 
-    const dateOpener = page.getByRole('button', { name: 'Ngày 3, T3. Mở chấm công hôm nay' });
-    await dateOpener.click();
-    await expect(page).toHaveURL(/hop=hom-nay/);
-    await expect(page.getByRole('dialog')).toHaveCount(1);
-    await page.goBack();
-    await expect(page).toHaveURL(baseUrl);
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(dateOpener).toBeFocused();
-    await page.goForward();
-    await expect(page).toHaveURL(/hop=hom-nay/);
-    await expect(page.getByRole('dialog')).toHaveCount(1);
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    current = new URL(page.url());
-    expect(current.searchParams.get('thang')).toBe('2026-11');
-    expect(current.searchParams.get('filter')).toBe('pending');
-    expect(current.searchParams.get('q')).toBe('Ánh');
-    expect(current.searchParams.get('extra')).toBe('keep');
-    expect(current.searchParams.has('hop')).toBe(false);
+test('day dialog deep-links, shows the request and closes back to the grid', async ({ page }) => {
+  await page.goto('/admin/cham-cong?thang=2026-10&q=nam');
+  const cell = cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/);
+  await cell.click();
+  await expect(page).toHaveURL(/hop=chi-tiet-ngay/);
+  await expect(page).toHaveURL(/nv=le-hoang-nam/);
+  await expect(page).toHaveURL(/ngay=2026-10-27/);
 
-    await page.goto(`${baseUrl}&hop=hom-nay`);
-    await expect(page.getByRole('dialog')).toHaveCount(1);
-    await page.getByRole('dialog').getByRole('button', { name: 'Đóng' }).last().click();
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    current = new URL(page.url());
-    expect(current.searchParams.get('thang')).toBe('2026-11');
-    expect(current.searchParams.get('filter')).toBe('pending');
-    expect(current.searchParams.get('q')).toBe('Ánh');
-    expect(current.searchParams.get('extra')).toBe('keep');
-    expect(current.searchParams.has('hop')).toBe(false);
+  const dialog = dialogOf(page);
+  const row = (label: RegExp) => dialog.locator('.dd-r', { hasText: label });
+  await expect(dialog.getByText('Kinh doanh · Nhân viên kinh doanh · Ca HC 08:00–17:00')).toBeVisible();
+  await expect(row(/^Giờ vào/)).toContainText('08:12');
+  await expect(row(/^Giờ ra/)).toContainText('Chưa có');
+  await expect(dialog.getByRole('button', { name: 'Duyệt yêu cầu của Lê Hoàng Nam' })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Mở hồ sơ chấm công' })).toBeVisible();
+
+  await page.reload();
+  await expect(dialogOf(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page).toHaveURL(/\/admin\/cham-cong\?thang=2026-10&q=nam$/);
+
+  await cell.click();
+  await expect(dialogOf(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(cell).toBeFocused();
+});
+
+test('approving in the day dialog updates the cell, the tile and the bell', async ({ page }) => {
+  await page.goto('/admin/cham-cong');
+  await cellOf(page, /^Lê Hoàng Nam, Thứ Ba 27\/10:/).click();
+  await dialogOf(page).getByRole('button', { name: 'Duyệt yêu cầu của Lê Hoàng Nam' }).click();
+
+  await expect(page.getByText('Đã duyệt yêu cầu của Lê Hoàng Nam.')).toBeVisible();
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(cellOf(page, 'Lê Hoàng Nam, Thứ Ba 27/10: Đi muộn, 08:12–?')).toHaveClass(/\blate\b/);
+  await expect(tileOf(page, 'Cần xử lý').locator('.tile-v')).toHaveText('10');
+  await expect(page.locator('[data-group="todo"] .ct')).toHaveText('7');
+  await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
+});
+
+test('deciding an item already handled elsewhere warns instead of confirming', async ({ page }) => {
+  await page.goto('/admin/cham-cong?hop=chi-tiet-ngay&nv=le-hoang-nam&ngay=2026-10-27');
+  await expect(dialogOf(page)).toBeVisible();
+  await inApp(page, `const I = await import('/src/mock/inbox.ts'); return I.resolveInboxItem('ib-e1') !== null;`);
+  await dialogOf(page).getByRole('button', { name: 'Duyệt yêu cầu của Lê Hoàng Nam' }).click();
+
+  await expect(page.getByText('Yêu cầu này đã được xử lý.')).toBeVisible();
+  await expect(page.getByText('Đã duyệt yêu cầu của Lê Hoàng Nam.')).toHaveCount(0);
+});
+
+test('bad day links close quietly', async ({ page }) => {
+  for (const query of [
+    'nv=khong-co&ngay=2026-10-27',
+    'nv=le-hoang-nam&ngay=2026-13-01',
+    'nv=le-hoang-nam&ngay=hom-qua'
+  ]) {
+    await page.goto(`/admin/cham-cong?hop=chi-tiet-ngay&${query}`);
+    await expect(page).toHaveURL(/\/admin\/cham-cong$/);
+    await expect(dialogOf(page)).toHaveCount(0);
+    await expect(gridOf(page)).toBeVisible();
   }
-);
+});
 
-test.fixme(
-  '31-day month keeps every date and both employee identities reachable at the scroll end',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-  async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    await mockAttendance(page);
-    await page.goto('/admin/cham-cong?thang=2026-10');
+test('other months show the empty line', async ({ page }) => {
+  await page.goto('/admin/cham-cong?thang=2026-09');
+  await expect(page.getByText('Chưa có dữ liệu chấm công giả cho tháng 9/2026.')).toBeVisible();
+  await expect(gridOf(page)).toHaveCount(0);
+});
 
-    const region = page.getByRole('region', { name: /Bảng công tháng 10/ });
-    await expect(region).toBeVisible();
-    await expect(region.locator('thead th')).toHaveCount(34);
-    await region.focus();
-    await page.keyboard.press('End');
-    await expect(region.getByRole('columnheader', { name: '31 T7' })).toBeVisible();
-    await expect(region.getByRole('columnheader', { name: 'Chờ xử lý' })).toBeVisible();
-    const fixedEmployee = await region
-      .locator('tbody td:first-child')
-      .first()
-      .evaluate(cell => {
-        const box = cell.getBoundingClientRect();
-        const regionBox = cell.closest('[role="region"]')!.getBoundingClientRect();
-        return { left: box.left, right: box.right, regionLeft: regionBox.left, regionRight: regionBox.right };
-      });
-    expect(fixedEmployee.left).toBeGreaterThanOrEqual(fixedEmployee.regionLeft);
-    expect(fixedEmployee.right).toBeLessThanOrEqual(fixedEmployee.regionRight);
-    await expect(region.locator('tbody td:first-child').first()).toContainText('Ánh Nguyễn');
-    await expect(region.locator('tbody td:first-child').nth(1)).toContainText('Bình Trần Nhân Sự Có Tên Dài');
+test('old attendance links land on the week view', async ({ page }) => {
+  await page.goto('/admin/cham-cong/bang-cong?thang=2026-10');
+  await expect(page).toHaveURL(/\/admin\/cham-cong\?thang=2026-10$/);
+
+  for (const path of ['sua-gio', 'gio-ot']) {
+    await page.goto(`/admin/cham-cong/${path}`);
+    await expect(page).toHaveURL(/xem=can-xu-ly/);
+    await expect(pendingTab(page)).toHaveAttribute('aria-selected', 'true');
   }
-);
 
-test.fixme(
-  'filter and search URL state survives dialog, reload, back and forward',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Chấm công (đợt sau)' } },
-  async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 812 });
-    const { teamRequests } = await mockAttendance(page);
-    await page.goto('/admin/cham-cong?thang=2026-11&filter=pending&q=%C3%81nh&extra=keep');
-
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('pending');
-    const search = page.getByRole('textbox', { name: 'Tìm nhân sự' });
-    await expect(search).toHaveValue('Ánh');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toHaveCount(1);
-
-    const initialTeamRequests = teamRequests.length;
-    await page.getByLabel('Lọc nhân sự').selectOption('all');
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('Ánh');
-    await expect.poll(() => new URL(page.url()).searchParams.get('filter')).toBeNull();
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('all');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toHaveCount(1);
-
-    await search.fill('Bình');
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBe('Bình');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toContainText('Bình Trần Nhân Sự Có Tên Dài');
-    expect(teamRequests.length).toBeGreaterThan(initialTeamRequests);
-    for (const request of teamRequests) {
-      const apiUrl = new URL(request);
-      expect(apiUrl.searchParams.get('month')).toBe('2026-11');
-      expect(apiUrl.searchParams.has('filter')).toBe(false);
-      expect(apiUrl.searchParams.has('q')).toBe(false);
-    }
-
-    const opener = page.getByRole('button', { name: 'Bình Trần Nhân Sự Có Tên Dài, ngày 3: Lượt bị từ chối' });
-    await opener.focus();
-    await page.keyboard.press('Enter');
-    await expect(page).toHaveURL(/hop=chi-tiet-ngay/);
-    const urlWithDialog = new URL(page.url());
-    expect(urlWithDialog.searchParams.get('thang')).toBe('2026-11');
-    expect(urlWithDialog.searchParams.get('q')).toBe('Bình');
-    expect(urlWithDialog.searchParams.get('extra')).toBe('keep');
-    expect(urlWithDialog.searchParams.get('nv')).toBe('employee-2');
-    expect(urlWithDialog.searchParams.get('ngay')).toBe('2026-11-03');
-
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(opener).toBeFocused();
-    const urlAfterClose = new URL(page.url());
-    expect(urlAfterClose.searchParams.get('thang')).toBe('2026-11');
-    expect(urlAfterClose.searchParams.get('q')).toBe('Bình');
-    expect(urlAfterClose.searchParams.get('extra')).toBe('keep');
-    expect(urlAfterClose.searchParams.has('hop')).toBe(false);
-    expect(urlAfterClose.searchParams.has('nv')).toBe(false);
-    expect(urlAfterClose.searchParams.has('ngay')).toBe(false);
-
-    await page.reload();
-    await expect(search).toHaveValue('Bình');
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('all');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toContainText('Bình Trần Nhân Sự Có Tên Dài');
-
-    await page.evaluate(() => {
-      const url = new URL(location.href);
-      url.searchParams.set('filter', 'pending');
-      url.searchParams.set('q', 'Ánh');
-      history.pushState(history.state, '', url);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('pending');
-    await expect(search).toHaveValue('Ánh');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toContainText('Ánh Nguyễn');
-
-    await page.goBack();
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('all');
-    await expect(search).toHaveValue('Bình');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toContainText('Bình Trần Nhân Sự Có Tên Dài');
-    await page.goForward();
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('pending');
-    await expect(search).toHaveValue('Ánh');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toContainText('Ánh Nguyễn');
-
-    await page.evaluate(() => {
-      const url = new URL(location.href);
-      url.searchParams.set('filter', 'not-a-filter');
-      url.searchParams.delete('q');
-      history.pushState(history.state, '', url);
-      window.dispatchEvent(new PopStateEvent('popstate'));
-    });
-    await expect(page.getByLabel('Lọc nhân sự')).toHaveValue('all');
-    await expect(search).toHaveValue('');
-    await expect(page.locator('.timesheet-scroll tbody tr')).toHaveCount(2);
-    await expect.poll(() => new URL(page.url()).searchParams.get('filter')).toBeNull();
-    await expect.poll(() => new URL(page.url()).searchParams.get('q')).toBeNull();
-    await expect.poll(() => new URL(page.url()).searchParams.get('extra')).toBe('keep');
-  }
-);
+  await page.goto('/admin/cham-cong/hom-nay');
+  await expect(page).toHaveURL(/\/admin\/cham-cong$/);
+  await expect(dialogOf(page)).toHaveCount(0);
+});
