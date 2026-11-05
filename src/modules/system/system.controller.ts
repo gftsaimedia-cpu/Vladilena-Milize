@@ -63,6 +63,6 @@ export class SystemController {
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
     await this.service.lockPeriod(month, user.username);
-    return { ok: true, month, status: 'LOCKED' };
+    return { ok: true, month, status: 'attendance_locked' };
   }
 }

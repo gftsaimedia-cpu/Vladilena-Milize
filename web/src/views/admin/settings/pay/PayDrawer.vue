@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // Ngăn kéo sửa một khoản của công thức lương. Cả sáu ngăn (ngày công, làm thêm, phụ cấp, KPI, khấu trừ, tạm ứng)
 // vẽ từ một bản mô tả theo khối (xem mock/admin-settings/pay.js) nên cùng một khung, cùng một thanh lưu.
-import { ref } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -9,7 +8,6 @@ import { getPayDrawer, savePayDrawer } from '@/services/admin-settings';
 import FieldNum from '../fields/FieldNum.vue';
 import FieldText from '../fields/FieldText.vue';
 import SelectBox from '../fields/SelectBox.vue';
-import AddPositionDialog from '../all/AddPositionDialog.vue';
 import { useDraft } from '../lib/useDraft';
 
 const props = defineProps({ name: { type: String, required: true } });
@@ -18,7 +16,6 @@ const emit = defineEmits(['close', 'saved']);
 const { data } = useLoad(() => getPayDrawer(props.name));
 const form = useDraft(() => data.value);
 const { draft } = form;
-const positionOpen = ref(false);
 
 // Thêm một dòng (bậc) vào cuối nhóm, ngay trước nút "Thêm …"
 function addRow(items?, at?) {
@@ -41,14 +38,7 @@ async function submit() {
 </script>
 
 <template>
-  <AppDrawer
-    v-if="draft"
-    :title="draft.title"
-    :sub="draft.sub"
-    :width="560"
-    :dismissable="!positionOpen"
-    @close="emit('close')"
-  >
+  <AppDrawer v-if="draft" :title="draft.title" :sub="draft.sub" :width="560" @close="emit('close')">
     <div class="sec">
       <template v-for="(sec, si) in draft.sections" :key="si">
         <div class="dg">
@@ -105,9 +95,6 @@ async function submit() {
             <span v-if="it.pill" class="pill" :class="it.pill.cls" style="height: 20px">{{ it.pill.text }}</span>
             {{ it.text }}
           </div>
-          <button v-else-if="it.action === 'position'" type="button" class="add" @click="positionOpen = true">
-            <Icon name="plus" />{{ it.text }}
-          </button>
           <button v-else type="button" class="add" @click="addRow(sec.items, ii)">
             <Icon name="plus" />{{ it.text }}
           </button>
@@ -135,8 +122,6 @@ async function submit() {
       </button>
     </template>
   </AppDrawer>
-
-  <AddPositionDialog v-if="positionOpen" @close="positionOpen = false" />
 </template>
 
 <style scoped>
