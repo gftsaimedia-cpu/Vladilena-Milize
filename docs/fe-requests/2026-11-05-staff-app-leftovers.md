@@ -4,6 +4,13 @@ Người gửi: phiên staff-app (nối app nhân viên với `/api/v2/me/*`).
 Nhánh: `claude/wire-staff-app-f5adca`. Nhánh chỉ có ở máy này: chưa merge, chưa push. Code mô tả dưới đây ứng với commit `5201deb`.
 Đọc từ worktree khác: `git show claude/wire-staff-app-f5adca:docs/fe-requests/2026-11-05-staff-app-leftovers.md`.
 
+**Trạng thái: đã sửa cả 5 mục trên nhánh `claude/staff-app-leftovers` (commit `695c96b`, sửa locator test ở `0a3b11d`).** Người dùng đã duyệt cách sửa trong chat ngày 05/11 và chọn giữ bản này. Các mục dưới đây giữ nguyên để tham khảo.
+- Thử lại / Quay về rồi chuyển focus: `web/src/composables/useRetry.ts` (`useRetry`, `backTo`). Dòng "Đang tải…": `components/LoadingLine.vue`. `LoadError` có thêm `back` (chữ trên nút "Quay về tháng …") và `focus()` qua ref.
+- Chấm công: `checkIn()` / `checkOut()` trả `null` khi đã chấm mà tải lại màn lỗi; `ShiftCard` báo "Đã check-in" / "Đã check-out", màn cha tải lại.
+- Test giao diện: `web/tests/staff-parts.spec.ts` (thanh giờ ca đêm, focus sau Thử lại, Quay về tháng); `web/tests/staff-loading.spec.ts` ("Đang tải…" trên 5 màn, dữ liệu giả trả chậm).
+- Test BE thật: `web/tests/api/staff-app.spec.ts` (focus sau Thử lại, Quay về tháng, Đang tải…, check-out khi tải lại lỗi).
+- Đã chạy: `test:ui` 344 pass, 10 skip; `test:api` 16/16 (phiên staff-app chạy trên DB thử, commit `0a3b11d`).
+
 Năm lỗi dưới đây do bước review code tìm ra, sau khi app nhân viên đã nối với BE. Phía BE không cần đổi gì. Cả năm lỗi đều nằm ở `web/`, dùng chung cho điện thoại và máy tính (≥1136px). Phần "Đề xuất" chưa được người dùng duyệt: FE tự thiết kế rồi trình người dùng duyệt trước khi sửa, theo CLAUDE.md §2 (loại Bounded).
 
 ## Bối cảnh cần biết
