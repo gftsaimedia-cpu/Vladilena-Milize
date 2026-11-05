@@ -934,3 +934,10 @@ Ledger thực thi là thư mục nháp và sẽ bị xoá; các quyết định 
 - **F8:** thêm test khởi động app để kiểm các phần phụ thuộc.
 - **Gác lại:** chuông Admin ghi một dòng log mỗi lần tải, vì Admin mặc định không có cấu hình loại nhân sự. Giữ nguyên; việc tiếp theo: bỏ Admin khỏi `listFilingStaff`, hoặc chỉ log lỗi bất thường — cái giá: một dòng log mỗi lần tải chuông.
 - **Ngoài phạm vi (có từ trước):** `src/database/database.module.ts:25` thiếu `@Inject(PG_POOL)`, nên khi app đóng, pool PostgreSQL không được đóng theo.
+
+**Task 11 (nối FE, làm sau khi FE dữ liệu giả vào main a3049c6):**
+- **T11a:** `request-context` chỉ trả giờ ca `{start, end}`; FE tự suy loại ca bằng cách so với `shiftFrames`, không đổi BE — nếu sai: "Ca hiện tại" hiện giờ trơn với ca không khớp khung nào.
+- **T11b:** ngày cần giải trình vào danh sách chuông như mục `att` của mock; số trên chuông vẫn chỉ đếm đơn (R-P8) — nếu sai: Tổng quan và Chấm công cũng liệt kê ngày cần giải trình (demo invariant #49 chỉ đếm đơn).
+- **T11c:** FE xét lỗi theo `code`, không theo mã HTTP (`DAY_CONFLICT` là 400, mock dùng 409) — nếu sai: không có hại gì.
+- **T11d:** chỉ số "Yêu cầu chờ duyệt" ở Tổng quan chỉ đếm việc cần quyết định, như mock; dòng "Còn N việc phải xong trước khi chốt lương" đếm cả ngày cần giải trình; ô "Cần xử lý" ở Chấm công ghi "X chưa giải trình · Y yêu cầu chờ duyệt" (mock ghi "quên chấm", nhưng ngày cần giải trình còn gồm đi muộn, về sớm) — nếu sai: đổi một chữ.
+- **Chưa kiểm:** chưa chạy FE với BE thật (demo e2e ở nhánh `claude/demo-db`); `getInbox` ghép ngày cần giải trình, `remindDue` và việc bỏ cổng `__MOCK__` ở `RequestCancel` không có test node.

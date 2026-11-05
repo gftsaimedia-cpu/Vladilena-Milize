@@ -207,8 +207,14 @@ export function attendanceFromTimesheets(input: AttendanceInput): AttendanceView
   const lateToday = todayCells.filter(c => c.base === 'late');
   const monthTs = input.timesheets.filter(t => t.workDate.startsWith(month));
   const count = (g: InboxItem['group']) => pending.filter(i => i.group === g).length;
+  const toExplain = pendingDays.filter(p => p.item.action === 'remind').length;
   const tiles: Tile[] = [
-    { key: 'todo', label: 'Cần xử lý', value: String(pendingDays.length), note: `${pendingDays.length} yêu cầu chờ duyệt` },
+    {
+      key: 'todo',
+      label: 'Cần xử lý',
+      value: String(pendingDays.length),
+      note: `${toExplain} chưa giải trình · ${pendingDays.length - toExplain} yêu cầu chờ duyệt`
+    },
     { key: 'present', label: 'Có mặt hôm nay', value: `${present} / ${rows.length}`, note: `${rows.length - present} người chưa Check-in` },
     { key: 'late', label: 'Đi muộn hôm nay', value: String(lateToday.length), note: '' },
     { key: 'leave', label: 'Nghỉ có phép', value: String(todayCells.filter(c => c.base === 'leave').length), note: `${count('leave')} đơn chờ duyệt` },
