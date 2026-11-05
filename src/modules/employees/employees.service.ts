@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
+import { DEFAULT_SHIFT, shiftByCode } from '../../common/shift-catalog';
 import { EmployeesRepository } from './employees.repository';
 import {
   Employee,
@@ -91,7 +92,11 @@ export class EmployeesService {
   }
 
   async getShiftsCatalog(): Promise<any[]> {
-    return await this.repo.listShiftCatalog();
+    const rows = await this.repo.listShiftCatalog();
+    return rows.map((row) => {
+      const fixed = shiftByCode(row.code);
+      return { ...row, startTime: fixed?.startTime ?? null, endTime: fixed?.endTime ?? null };
+    });
   }
 
   buildEmployeeFromInput(body: any, existing?: Employee): Employee {
@@ -208,7 +213,7 @@ export class EmployeesService {
         ? existing?.contract.shift.startTime
         : shiftType === 'NIGHT'
           ? '21:00'
-          : '08:00');
+          : DEFAULT_SHIFT.startTime);
 
     const shiftEndTime =
       body.contract?.shift?.endTime ||
@@ -219,7 +224,7 @@ export class EmployeesService {
         ? existing?.contract.shift.endTime
         : shiftType === 'NIGHT'
           ? '06:00'
-          : '17:00');
+          : DEFAULT_SHIFT.endTime);
 
     let shiftAllowance =
       body.contract?.shift?.allowancePct ?? body.shift?.allowancePct ?? body.shiftAllowancePct ?? body.allowancePct;
