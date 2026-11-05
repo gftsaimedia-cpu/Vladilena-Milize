@@ -1,15 +1,13 @@
 <script setup lang="ts">
 // Cài đặt › Phân quyền › Tài khoản: danh sách tài khoản (10 dòng một trang), đổi vai trò, đặt lại mật khẩu, khoá/mở khoá.
-// Mỗi tài khoản là một người trong Nhân sự: "Tạo tài khoản" mở hộp Thêm nhân sự (?hop=them-nhan-su). Dòng của chính
-// mình không đổi được vai trò và không khoá được (tự bỏ quyền Admin thì không còn ai mở được Cài đặt để đổi lại).
+// Dòng của chính mình không đổi được vai trò và không khoá được (tự bỏ quyền Admin thì không còn ai mở được Cài đặt để
+// đổi lại). "Tạo tài khoản" khoá cho tới khi FE có màn tạo tài khoản.
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getAccounts, setAccountLocked, setAccountRole } from '@/services/admin-settings';
 import { initials } from '@/utils/format';
-import AddStaffDialog from '../staff/AddStaffDialog.vue';
 import SettingsFrame from './SettingsFrame.vue';
-import { useHop } from './lib/useHop';
 import PermTabs from './perm/PermTabs.vue';
 import ResetPasswordDialog from './perm/ResetPasswordDialog.vue';
 import SelectBox from './fields/SelectBox.vue';
@@ -27,7 +25,6 @@ const notice = ref('');
 const noticeErr = ref(false);
 const redraw = ref(0); // đổi số này để ô chọn vai trò vẽ lại đúng vai trò chính đang lưu
 const resetting = ref(null); // tài khoản đang mở hộp đặt lại mật khẩu
-const { hop, open: openHop, close: closeHop } = useHop(['them-nhan-su']); // hộp Thêm nhân sự (Tạo tài khoản)
 let noticeTimer = 0;
 function say(text?, isErr = false) {
   notice.value = text;
@@ -46,11 +43,6 @@ async function changeRole(acc?, value?) {
   }
   await reload();
   redraw.value++;
-}
-function created(who: { name: string; username: string }) {
-  closeHop();
-  say(`Đã thêm ${who.name} (${who.username})`);
-  reload();
 }
 async function toggleLock(acc?) {
   const lock = acc.status !== 'locked';
@@ -106,7 +98,9 @@ async function toggleLock(acc?) {
             <th>Vai trò</th>
             <th>Trạng thái</th>
             <th style="text-align: right">
-              <button type="button" class="btn sm" @click="openHop('them-nhan-su')"><Icon name="plus" />Tạo tài khoản</button>
+              <button type="button" class="btn sm off" disabled title="Chưa có màn tạo tài khoản">
+                <Icon name="plus" />Tạo tài khoản
+              </button>
             </th>
           </tr>
         </thead>
@@ -182,7 +176,6 @@ async function toggleLock(acc?) {
     </section>
   </SettingsFrame>
 
-  <AddStaffDialog v-if="hop === 'them-nhan-su'" @close="closeHop" @saved="created" />
   <ResetPasswordDialog
     v-if="resetting"
     :account="resetting"
