@@ -9,6 +9,7 @@ import {
 import { EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
 import type { AttendanceDayRecord } from '../../src/modules/attendance/attendance-days.repository';
+import type { ShiftFacts } from '../../src/modules/attendance/domain/attendance-day';
 import {
   FakeDays,
   type MonthFixture,
@@ -30,7 +31,7 @@ const rulesStaff = {
 };
 
 class FakePayrollRepository extends PayrollRepository {
-  data: Map<string, MonthFixture> = new Map();
+  data: Map<string, any> = new Map();
   runs: any[] = [];
   slips: any[] = [];
 
@@ -91,7 +92,7 @@ const serviceOf = (repo: FakePayrollRepository) =>
 /** A PRESENT row on a shift of that type, punched over its hours. */
 const shiftRow = (
   date: string,
-  type: string,
+  type: ShiftFacts['type'],
   [start, end]: [string, string],
   over: Partial<AttendanceDayRecord> = {}
 ): AttendanceDayRecord =>
@@ -209,7 +210,7 @@ describe('Payroll allowance behavior from the reference app', () => {
   // One PRESENT row of that shift type on 01/10; `row` changes the row (e.g. a day that does not count as a work day).
   const calculateLine = async (
     employeeType: string | undefined,
-    shiftType: string,
+    shiftType: ShiftFacts['type'],
     workHours: number,
     nightAllowancePct = 40,
     allowanceRates: AllowanceRates | null = seedRatesFor(employeeType),
@@ -974,7 +975,7 @@ describe('Payroll V2 - day lines show real check-in and check-out times', () => 
 });
 
 describe('Payroll V2 - overtime paid per day from the approved window and the real presence', () => {
-  const punch = (workDate: string, inHhmm: string, outHhmm: string | null, shiftType = 'NORMAL') =>
+  const punch = (workDate: string, inHhmm: string, outHhmm: string | null, shiftType: ShiftFacts['type'] = 'NORMAL') =>
     dayRow('PRESENT', workDate, {
       shift: { type: shiftType, start: '08:00', end: '17:00', allowancePct: 0 },
       ...punched(workDate, inHhmm, outHhmm)

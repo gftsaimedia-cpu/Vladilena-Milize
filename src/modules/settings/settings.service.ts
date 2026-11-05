@@ -374,7 +374,7 @@ export class SettingsService {
     if (typeof year !== 'string' || !/^\d{4}$/.test(year)) throw new SettingsInputError('Năm phải có 4 chữ số', 'year');
     if (`${year}-01` < SEED_MONTH) throw new SettingsInputError(`Năm phải từ ${SEED_MONTH.slice(0, 4)} trở đi`, 'year');
     const chain = await this.repo.groupChain(this.repo.db, 'pay-calendar');
-    const items = [];
+    const items: Array<{ month: string; payDay: number; payDate: string }> = [];
     for (let m = 1; m <= 12; m++) {
       const month = `${year}-${String(m).padStart(2, '0')}`;
       const version = versionAt(chain, month);

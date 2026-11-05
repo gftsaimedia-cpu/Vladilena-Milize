@@ -391,7 +391,7 @@ export class DailyTimesheet {
       cases: row.cases_json ? (JSON.parse(row.cases_json) as DetectedCase[]) : [],
       explanationStatus: (row.explanation_status as ExplanationStatus | undefined) ?? 'NONE',
       explanationRequestId: row.explanation_request_id ?? null,
-      payUnits: Number(row.pay_units ?? 0),
+      payUnits: Number(row.pay_units ?? 0) as 0 | 1,
       deductionMinutes: Number(row.deduction_minutes ?? 0),
       countsAsWorkday: Boolean(row.counts_as_workday),
       countsAsDayOff: Boolean(row.counts_as_day_off),

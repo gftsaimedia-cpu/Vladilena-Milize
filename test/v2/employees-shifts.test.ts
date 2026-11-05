@@ -18,7 +18,7 @@ class FakeShiftRepository extends EmployeesRepository {
 }
 
 describe('Employees V2 - Danh mục ca trả giờ cố định', () => {
-  const service = new EmployeesService(new FakeShiftRepository());
+  const service = new EmployeesService(new FakeShiftRepository(), undefined as any, undefined as any);
 
   it('mỗi ca trong danh mục kèm startTime/endTime; mã ngoài danh mục là null', async () => {
     const rows = await service.getShiftsCatalog();

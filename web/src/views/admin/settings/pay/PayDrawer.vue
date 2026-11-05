@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Ngăn kéo của một khoản trong công thức lương (rộng 560). Khoản có ô sửa lưu qua kho cài đặt theo tháng (useSettingsDraft):
 // Lưu mở hộp xác nhận liệt kê các ô đổi. Khoản chỉ xem không có ô nào, chân chỉ có "Đóng".
-import { computed, ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import { fieldText } from '@/builders/api/settings';
 import { payDrawerView } from '@/builders/api/settings-screens';
@@ -43,6 +43,8 @@ function retry() {
 
 const maxOf = (field: string) => sd?.state.value?.limits[field]?.max ?? null;
 const saved = (field: string) => sd?.state.value?.values[field] as number;
+// Các ô ở ngăn kéo này đều là số (Values cho phép cả mảng bậc): ép kiểu cho v-model của FieldNum.
+const nums = sd ? (sd.draft as unknown as Ref<Record<string, number>>) : null;
 const edited = (field: string) => !!sd?.state.value && sd.draft.value[field] !== saved(field);
 
 // Trọng số KPI: chân luôn có tổng đang nhập; lỗi "Tổng N/100" đã nằm ở đó nên không lặp lại trong chữ trạng thái.
@@ -92,7 +94,7 @@ function cancel() {
             <small v-if="edited(f.field)">Đang áp dụng {{ fieldText(f.field, saved(f.field)) }}</small>
           </span>
           <FieldNum
-            v-model="sd.draft.value[f.field]"
+            v-model="nums[f.field]"
             :label="f.label"
             :prefix="f.prefix"
             :unit="f.unit"

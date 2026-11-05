@@ -123,7 +123,7 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
     it('skips a person whose days cannot be read (T8a)', async () => {
       ctx.repo.filingStaff = [
         { uuid: '0a7c4e2e-9999-4a6b-9c1d-000000000009', username: 'khong-ho-so', name: 'Không hồ sơ' },
-        ...ctx.repo.filingStaff
+        ...(ctx.repo.filingStaff ?? [])
       ];
       const items = await ctx.explanations.listDue();
       assert.deepEqual(

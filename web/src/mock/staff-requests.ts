@@ -330,7 +330,7 @@ function advanceQuote(month: string): AdvanceInfo {
 
 // Vì sao hôm nay chưa nộp được tạm ứng: ngoài ngày 16–17, tháng đã có đơn, hay chưa có ngày công 01–15.
 type AdvanceBlock = 'not-filing-day' | 'month-filed' | 'no-workdays';
-type AdvanceState = { advance: AdvanceInfo; block: null } | { advance: null; block: AdvanceBlock; reason: string };
+type AdvanceState = { advance: AdvanceInfo; block: null; reason?: undefined } | { advance: null; block: AdvanceBlock; reason: string };
 
 function advanceState(today: string): AdvanceState {
   const month = monthOf(today);
@@ -618,7 +618,7 @@ export function previewRequest<K extends RequestKind>(kind: K, draft: RequestDra
 export function createRequest<K extends RequestKind>(kind: K, draft: RequestDraft[K]): { ok: true; id: string } | Refusal {
   const ctx = requestContext();
   const r = build(ctx, kind, draft);
-  if (!r.ok) return r;
+  if (r.ok === false) return r;
   const id = `yc-moi-${++seq}`;
   ENTRIES.push({ id, ...r.entry });
   const steps: RequestStep[] = [

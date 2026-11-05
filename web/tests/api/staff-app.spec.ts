@@ -268,7 +268,10 @@ test('a request I file shows as waiting, then as cancelled', async ({ page }) =>
 test('income is official once Admin approves my payslip', async ({ page, request }) => {
   const month = addMonth(THIS, -1);
   await asAdmin(request, async () => {
-    const calc = await request.post(`/api/v2/payroll/${month}/calculate`, { headers: json, data: { employeeIds: [STAFF_USER] } });
+    // Chốt công rồi tính cả kỳ (chỉ lần tính cả kỳ mới đưa kỳ sang "calculated" để duyệt phiếu được).
+    const lock = await request.post(`/api/v2/system/periods/${month}/lock`, { headers: json, data: {} });
+    expect([200, 201, 409], await lock.text()).toContain(lock.status());
+    const calc = await request.post(`/api/v2/payroll/${month}/calculate`, { headers: json, data: {} });
     expect(calc.ok(), await calc.text()).toBeTruthy();
     const ok = await request.post(`/api/v2/payroll/${month}/${STAFF_USER}/decision`, { headers: json, data: { decision: 'approve' } });
     expect(ok.ok(), await ok.text()).toBeTruthy();

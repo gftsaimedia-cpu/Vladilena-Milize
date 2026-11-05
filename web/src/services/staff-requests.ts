@@ -37,11 +37,11 @@ export async function previewRequest<K extends RequestKind>(kind: K, draft: Requ
 }
 
 export async function createRequest<K extends RequestKind>(kind: K, draft: RequestDraft[K]): Promise<{ id: string }> {
-  if (__MOCK__) return respond(createMock(kind, draft)).then(r => (r.ok ? { id: r.id } : refused(r)));
+  if (__MOCK__) return respond(createMock(kind, draft)).then(r => (r.ok === false ? refused(r) : { id: r.id }));
   return real.createRequest(kind, draft);
 }
 
 export async function cancelRequest(id: string): Promise<void> {
-  if (__MOCK__) return respond(cancelMock(id)).then(r => (r.ok ? undefined : refused(r)));
+  if (__MOCK__) return respond(cancelMock(id)).then(r => (r.ok === false ? refused(r) : undefined));
   return real.cancelRequest(id);
 }

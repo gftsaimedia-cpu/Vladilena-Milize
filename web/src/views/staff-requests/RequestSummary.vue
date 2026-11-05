@@ -11,7 +11,7 @@ const props = defineProps<{ lines: string[]; preview?: PreviewResult | null }>()
 
 const rows = computed(() => {
   const p = props.preview;
-  const extra = !p ? [] : p.ok ? p.warnings : [p.message];
+  const extra = !p ? [] : p.ok === false ? [p.message] : p.warnings;
   return [...props.lines, ...extra].filter(Boolean);
 });
 // '2 ngày làm việc: 02 và 03/11' → ['2 ngày làm việc:', ' 02 và 03/11']

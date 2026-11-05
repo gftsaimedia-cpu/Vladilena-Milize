@@ -129,9 +129,9 @@ const currentSlips = async (client: Client) =>
 const lockedIn = (month: string, status?: string) => (e: any) => {
   assert.ok(e instanceof PeriodLockedError, String(e?.message ?? e));
   assert.equal(e.status, 409);
-  assert.equal(e.details.code, 'PERIOD_LOCKED');
-  assert.equal(e.details.month, month);
-  if (status) assert.equal(e.details.status, status);
+  assert.equal(e.details?.code, 'PERIOD_LOCKED');
+  assert.equal(e.details?.month, month);
+  if (status) assert.equal(e.details?.status, status);
   return true;
 };
 
@@ -408,8 +408,8 @@ test('a review in a calculated month puts the slip back to draft inside its own 
     ]);
     await assert.rejects(f.periods.approve(MONTH, 'admin'), (e: any) => {
       assert.equal(e.status, 409);
-      assert.equal(e.details.code, 'PERIOD_BLOCKED');
-      assert.equal(e.details.blockers.unapprovedSlips, 1);
+      assert.equal(e.details?.code, 'PERIOD_BLOCKED');
+      assert.equal(e.details?.blockers.unapprovedSlips, 1);
       assert.equal(e.message, 'Còn 1 phiếu chưa duyệt');
       return true;
     });

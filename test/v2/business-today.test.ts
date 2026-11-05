@@ -137,7 +137,7 @@ describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
         undefined,
         undefined,
         undefined,
-        payroll
+        payroll as any
       );
 
       const dto = await service.createAdvanceRequest({ employeeId: 'emp-1' });

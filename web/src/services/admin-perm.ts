@@ -25,7 +25,7 @@ export async function getPermSummary() {
 // Ma trận khu vực, loại yêu cầu, việc khác: BE v2 chỉ có hai vai trò cố định (admin, staff), chưa có API.
 export const getRoles = () => notConnected();
 export const saveRoles = (_roles?) => notConnected();
-export const createRole = (_input: any) => notConnected();
+export const createRole = (_input: any): Promise<{ key: string }> => notConnected();
 export const deprecateRole = (_role?, _reason?) => notConnected();
 
 // ---------- Tài khoản ----------

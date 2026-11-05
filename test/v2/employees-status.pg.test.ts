@@ -25,7 +25,7 @@ test('each of the five statuses is stored and read back as it was saved', async 
     const statuses = ['tts', 'ctv', 'thuviec', 'nv', 'nghiviec'];
     for (const status of statuses) await svc.create(person(`p_${status}`, status), 'admin');
 
-    const readBack = [];
+    const readBack: string[] = [];
     for (const status of statuses) readBack.push((await repo.findByUsername(`p_${status}`))!.contract.status);
     assert.deepEqual(readBack, statuses);
 

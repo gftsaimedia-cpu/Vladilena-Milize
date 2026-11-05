@@ -57,7 +57,7 @@ test('a punch on a day of a locked month is refused and writes nothing', async t
     const service = await fixture(db, client);
     await assert.rejects(
       service.recordPunch({ employeeId: EMPLOYEE, type: 'IN', workDate: '2026-10-20' }),
-      (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details.code === 'PERIOD_LOCKED' && e.details.month === '2026-10'
+      (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details?.code === 'PERIOD_LOCKED' && e.details?.month === '2026-10'
     );
     assert.equal(await count(client, 'punch_events'), 0);
     assert.equal(await count(client, 'work_schedules'), 0);
@@ -86,7 +86,7 @@ test('a malformed workDate cannot slip past the gate of a locked month', async t
 
     // PG đọc '20261020' thành 20/10, còn tháng cắt ra cho cổng kỳ là '2026102' (coi như 'open').
     for (const workDate of ['20261020', ' 2026-10-20']) {
-      await assert.rejects(service.recalculateTimesheet(EMPLOYEE, workDate), (e: any) => e.status === 400 && e.details.code === 'INVALID_DATE');
+      await assert.rejects(service.recalculateTimesheet(EMPLOYEE, workDate), (e: any) => e.status === 400 && e.details?.code === 'INVALID_DATE');
       await assert.rejects(service.recordPunch({ employeeId: EMPLOYEE, type: 'OUT', workDate }), /Ngày công \(workDate\) không hợp lệ/);
     }
     assert.deepEqual(await sheet(), before);
@@ -99,7 +99,7 @@ test('recalculating a day of a locked month is refused', async t => {
     const service = await fixture(db, client);
     await assert.rejects(
       service.recalculateTimesheet(EMPLOYEE, '2026-10-20'),
-      (e: any) => e instanceof PeriodLockedError && e.details.code === 'PERIOD_LOCKED' && e.details.month === '2026-10'
+      (e: any) => e instanceof PeriodLockedError && e.details?.code === 'PERIOD_LOCKED' && e.details?.month === '2026-10'
     );
   });
 });
@@ -109,7 +109,7 @@ test('recalculating a whole month of a locked month is refused and writes nothin
     const service = await fixture(db, client);
     await assert.rejects(
       service.recalculateMonth(EMPLOYEE, '2026-10'),
-      (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details.month === '2026-10'
+      (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details?.month === '2026-10'
     );
     assert.equal(await count(client, 'timesheet_entries'), 0);
     // Tháng còn mở thì vẫn tính lại được.
@@ -133,8 +133,8 @@ test('a night OUT on the 1st of an open month that belongs to a locked previous 
     await assert.rejects(
       service.recordPunch({ employeeId: NIGHT, type: 'OUT', punchedAt: new Date('2026-11-01T05:00:00+07:00') }),
       (e: any) =>
-        e instanceof PeriodLockedError && e.status === 409 && e.details.code === 'PERIOD_LOCKED' &&
-        e.details.month === '2026-10' && e.details.status === 'attendance_locked'
+        e instanceof PeriodLockedError && e.status === 409 && e.details?.code === 'PERIOD_LOCKED' &&
+        e.details?.month === '2026-10' && e.details?.status === 'attendance_locked'
     );
     assert.equal(await count(client, 'punch_events'), 1);
     assert.deepEqual(await sheet(), before);

@@ -317,7 +317,7 @@ test('underEmployeeLock runs directly without a transaction coordinator', async 
     undefined,
     undefined,
     undefined,
-    new FakePayroll()
+    new FakePayroll() as any
   );
   assert.equal(await (service as any).underEmployeeLock(NV_UUID, async () => 42), 42);
   const dto = await service.createAdvanceRequest({ employeeId: 'nv01', period: '2026-11' });

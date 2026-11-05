@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Cài đặt › Lịch, ca & chấm công: lịch năm (ngày lễ, ngày trả lương), 6 ca cố định chỉ xem, ngày trả lương và vùng chấm công.
 // ?hop=them-ngay-le mở hộp thêm ngày lễ.
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { payDatesIn, payDayHint, zoneErrors, zoneLines } from '@/builders/api/settings';
@@ -66,6 +66,8 @@ const { hop, open, close } = useHop(['them-ngay-le']);
 
 // Thẻ "Ngày trả lương": ngày trả 1–28, áp dụng từ một tháng; lưu xong thì tải lại để các chấm ngày trả lương dời theo.
 const pay = useSettingsDraft('payCalendar', ['payDay']);
+// Nhóm payCalendar chỉ có ô số; Values cho phép cả mảng bậc nên ép kiểu cho v-model của FieldNum.
+const payNums = pay.draft as unknown as Ref<Record<string, number>>;
 const payDraftDay = computed(() => pay.draft.value.payDay as number | null);
 const payError = computed(() => pay.errors.value.payDay || '');
 const payHint = computed(() => payError.value || (pay.ready.value ? payDayHint(pay.month.value, payDraftDay.value as number) : ''));
@@ -320,7 +322,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
           <div v-if="pay.ready.value" class="pd-body">
             <div class="pd-row">
               <FieldNum
-                v-model="pay.draft.value.payDay"
+                v-model="payNums.payDay"
                 label="Ngày trả lương hằng tháng"
                 integer
                 :max="28"

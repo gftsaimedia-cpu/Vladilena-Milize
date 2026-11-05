@@ -246,7 +246,7 @@ export interface CreateExplanationInput {
   title?: string;
   reason: string;
   workDate: unknown;
-  cases: unknown;
+  cases?: unknown;
   actualCheckIn?: unknown;
   actualCheckOut?: unknown;
 }

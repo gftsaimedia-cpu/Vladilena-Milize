@@ -13,7 +13,7 @@ import { KPI_LABELS } from '../constants/labels';
 export { KPI_LABELS };
 const PARTS = Object.keys(KPI_LABELS) as KpiPart[];
 
-export type Payslip = SlipInput & {
+export type Payslip = Omit<SlipInput, 'allowances'> & {
   id: string;
   name: string;
   initials: string;
@@ -66,8 +66,20 @@ export type PayrollLine = {
 
 export type SlipCounts = { all: number; draft: number; pending: number; done: number; rejected: number };
 
+// Không bật strictNullChecks nên TS không thu hẹp `empty` theo truthiness: nhánh rỗng khai các trường bảng là
+// `undefined` để truy cập qua `board?.x` / sau `if (empty)` vẫn kiểm được kiểu.
 export type PayrollScreen =
-  | { month: string; empty: true }
+  | {
+      month: string;
+      empty: true;
+      range?: undefined;
+      payday?: undefined;
+      growth?: undefined;
+      lines?: undefined;
+      counts?: undefined;
+      depts?: undefined;
+      totals?: undefined;
+    }
   | {
       month: string;
       empty: false;

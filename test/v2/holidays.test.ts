@@ -161,7 +161,7 @@ describe('HolidaysService', () => {
 });
 
 describe('HolidaysService with the period gate', () => {
-  const locked = (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details.code === 'PERIOD_LOCKED' && e.details.month === '2026-09';
+  const locked = (e: any) => e instanceof PeriodLockedError && e.status === 409 && e.details?.code === 'PERIOD_LOCKED' && e.details?.month === '2026-09';
 
   it('add refuses a day of a locked month, writes nothing and holds the gate on the holiday transaction', async () => {
     const { svc, repo, calls } = makeGatedService();

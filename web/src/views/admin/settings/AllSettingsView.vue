@@ -41,8 +41,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guardUnload));
 
 function selectGroup(next: string) {
   if (next === group.value) return;
-  const query = { ...route.query, group: next };
-  delete query.setting;
+  const { setting: _dropped, ...rest } = route.query;
+  const query = { ...rest, group: next };
   router.push({ query });
 }
 function openResult(r: { groupKey: string; itemKey: string }) {

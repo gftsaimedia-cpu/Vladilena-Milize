@@ -22,7 +22,7 @@ describe('API: warnings và lỗi DAY_CONFLICT của đơn từ', () => {
   beforeEach(() => {
     ctx = makeService();
     admin = new RequestsController(ctx.service);
-    me = new MeController({} as any, ctx.service, {} as any, {} as any);
+    me = new MeController({} as any, ctx.service, {} as any, {} as any, {} as any, {} as any, {} as any);
   });
 
   const leaveBody = (startDate: string, endDate = startDate) => ({

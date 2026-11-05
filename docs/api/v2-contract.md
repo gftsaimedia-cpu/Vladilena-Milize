@@ -9,7 +9,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Base URL**: `http://localhost:3000`
 - **Content-Type**: `application/json; charset=utf-8`
 - **Xác thực**:
-  - Đăng nhập qua `POST /api/login` hoặc `POST /api/v2/auth/login`.
+  - Đăng nhập qua `POST /api/v2/auth/login` (không còn alias `/api/login`).
   - Phản hồi sẽ đính kèm cookie `session=<token>` (`HttpOnly; SameSite=Lax; Path=/`). Mọi request tiếp theo từ trình duyệt sẽ tự động gửi kèm cookie này.
   - Phản hồi cũng trả về object `token` để hỗ trợ kiểm thử hoặc lưu trữ nếu cần.
 - **Quy ước mã lỗi HTTP (JSON Response)**:
@@ -34,7 +34,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 | Nghiệp vụ | Endpoint cũ (V1 Legacy) | Endpoint mới (V2 Chuẩn) | Phương thức | Mô tả |
 | :--- | :--- | :--- | :--- | :--- |
-| **Xác thực** | `POST /api/login` | `POST /api/v2/auth/login` (hoặc `/api/login`) | POST | Đăng nhập tài khoản |
+| **Xác thực** | `POST /api/login` | `POST /api/v2/auth/login` | POST | Đăng nhập tài khoản |
 | | `POST /api/logout` | `POST /api/v2/auth/logout` (hoặc `/api/logout`) | POST | Đăng xuất |
 | | `GET /api/me` | `GET /api/v2/auth/me` (hoặc `/api/me`) | GET | Lấy thông tin tài khoản hiện tại |
 | | `PUT /api/password` | `PUT /api/v2/auth/password` (hoặc `/api/password`) | PUT | Đổi mật khẩu |
@@ -82,7 +82,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 ### 3.1. Auth Module (Xác thực & Phiên làm việc)
 
-#### `POST /api/v2/auth/login` (hoặc `/api/login`)
+#### `POST /api/v2/auth/login`
 - **Mục đích**: Đăng nhập hệ thống.
 - **Request Body**:
   ```json

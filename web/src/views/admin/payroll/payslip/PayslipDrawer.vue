@@ -86,7 +86,8 @@ const close = () => {
 };
 const go = (to: 'prev' | 'next') => {
   flush();
-  emit(to);
+  if (to === 'prev') emit('prev');
+  else emit('next');
 };
 
 // Đang chờ một quyết định: các nút tắt để bấm đúp chỉ quyết một lần.

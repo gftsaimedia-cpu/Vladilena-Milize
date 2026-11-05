@@ -12,8 +12,6 @@ import { SettingsAttendanceSettings } from '../../src/modules/attendance/attenda
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
-import { SettingsReader } from '../../src/modules/settings';
-import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Cần PostgreSQL thật (PG_TEST_URL), xem helpers/pg-temp-db.ts. Giờ trong test là giờ Việt Nam (+07:00).

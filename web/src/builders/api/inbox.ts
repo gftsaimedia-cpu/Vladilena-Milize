@@ -4,7 +4,8 @@
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
 import { INBOX_GROUPS } from '../../constants/labels';
 import { dm, initials, vndc, weekdayName } from '../../utils/format';
-import { caseText, type ExplanationCase, type ExplanationNeeds } from './staff-requests';
+import { caseText, type ExplanationCase } from './staff-requests';
+import type { ExplanationNeeds } from '../../mock/staff-requests-types';
 
 export type RequestDTO = {
   id: string;

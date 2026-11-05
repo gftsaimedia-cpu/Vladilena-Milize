@@ -73,7 +73,11 @@ function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shi
   }
   const cin = hhmm(ts.actualCheckIn);
   const cout = hhmm(ts.actualCheckOut);
-  if (!cin && !cout) return { kind: (date === today ? 'nocheck' : 'absent') as CellKind, text: NONE, ...none };
+  if (!cin && !cout) {
+    // Dòng ngày công có sẵn nhưng ngày này không thuộc tuần làm việc của người đó: ô nghỉ, không phải "chưa Check-in".
+    if (isSunday(date) || !weekdays.includes(dow(date))) return { kind: 'off' as CellKind, text: '', ...none };
+    return { kind: (date === today ? 'nocheck' : 'absent') as CellKind, text: NONE, ...none };
+  }
   const late = ts.checkInStatus === 'LATE' || ts.checkOutStatus === 'EARLY';
   const live = !!cin && !cout && date === today;
   return { kind: (late ? 'late' : 'work') as CellKind, text: `${cin ?? '?'}–${cout ?? (live ? '…' : '?')}`, in: cin, out: cout, live };

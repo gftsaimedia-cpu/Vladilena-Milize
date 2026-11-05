@@ -506,7 +506,7 @@ describe('Tài khoản từ /roles và /employees', () => {
     assert.deepEqual(src.rolesRes.roles.map((r: any) => r.code), ['admin', 'staff']);
     assert.deepEqual(src.rolesRes.staff.map((s: any) => [s.username, s.roles, s.locked]), [['admin', ['admin'], false], ['nam', ['staff'], true]]);
     assert.deepEqual(src.staffRes.staff.find((s: any) => s.username === 'nam'), { username: 'nam', type: 'nv', level: 2, levelName: 'Bậc 2', payrollSubject: true, rev: 0 });
-    assert.equal(src.staffRes.staff.find((s: any) => s.username === 'admin').payrollSubject, false);
+    assert.equal(src.staffRes.staff.find((s: any) => s.username === 'admin')!.payrollSubject, false);
   });
 });
 
