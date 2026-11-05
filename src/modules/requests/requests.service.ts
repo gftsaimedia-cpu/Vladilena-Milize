@@ -22,28 +22,60 @@ import {
   lastDayOfMonth,
   requireMakeupSlots,
   findShiftFrame,
-  requireExplanationCases,
   optionalActualTime,
   vietnamToday,
+  filingWindow,
+  isWholeHour,
+  isClosedPeriod,
+  advanceDayOpen,
   planClaims,
   DayConflictError,
+  requestTitle,
+  annualLeaveLeftOf,
+  dayHourOptions,
+  LEAVE_TYPES,
+  SHIFT_FRAMES,
   type ClaimPlan,
   type ClaimStatus,
   type ClockWindow,
   type DayClaim,
   type DayStatusRow,
+  type FiledBy,
   type NewRequestKind
 } from './domain';
+import type { FilingDayState, FilingKindState, FilingMonthState, RequestContextDTO } from './domain/request-context';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { DayStatusRepository } from './day-status.repository';
+import { ExplanationsService } from './explanations.service';
+import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
-import { HolidaysRepository } from '../holidays/holidays.repository';
+import { HolidaysRepository, type Holiday } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
+import { SystemService } from '../system/system.service';
+import { PayrollService } from '../payroll/payroll.service';
+import type { AdvanceQuote } from '../payroll/domain';
+
+/**
+ * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
+ * Ở mọi loại, tiêu đề do server đặt (`requestTitle`, spec 2.4): `title` client gửi không được đọc.
+ */
+export type FilingKind = 'leave' | 'leave-with-makeup' | 'overtime' | 'shift-change' | 'explanation' | 'advance';
+
+/** Ai nộp: nhân viên tự nộp (`'self'`) hay Admin nộp thay (`'admin'`, mặc định). */
+export interface FilingOptions {
+  filedBy?: FiledBy;
+}
+
+/** Kết quả xem trước (spec 2.2); `code` chỉ có khi là xung đột ngày. */
+export type PreviewResult =
+  | { ok: true; title: string; summary: Record<string, unknown>; warnings: string[] }
+  | { ok: false; message: string; code?: 'DAY_CONFLICT' };
 
 /** Thân đơn nghỉ (§6.1). Số ngày do server đếm: `daysCount` client gửi (nếu có) không được đọc. */
 export interface CreateLeaveInput {
   employeeId: string;
-  title: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
   reason: string;
   leaveType: unknown;
   startDate: unknown;
@@ -121,7 +153,8 @@ const formatDays = (n: number): string => String(Math.round(n * 100) / 100).repl
 /** Thân đơn đổi ca (§6.4): khoảng ngày và khung ca chọn theo `shiftType` + `startTime`; giờ ra lấy từ khung. */
 export interface CreateShiftChangeInput {
   employeeId: string;
-  title: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
   reason: string;
   startDate: unknown;
   endDate: unknown;
@@ -132,7 +165,8 @@ export interface CreateShiftChangeInput {
 /** Thân đơn nghỉ có làm bù (§6.2): khoảng nghỉ và danh sách khung bù; số ngày và giờ bù do server tính. */
 export interface CreateLeaveWithMakeupInput {
   employeeId: string;
-  title: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
   reason: string;
   startDate: unknown;
   endDate: unknown;
@@ -142,7 +176,8 @@ export interface CreateLeaveWithMakeupInput {
 /** Thân đơn OT (§6.3): một khung; `targetDate` nhận thay `otDate`. Giờ OT do server tính, `hours`/`otHours` không đọc. */
 export interface CreateOvertimeInput {
   employeeId: string;
-  title: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
   reason: string;
   otDate?: unknown;
   targetDate?: unknown;
@@ -156,18 +191,48 @@ const MAKEUP_MINUTES_PER_LEAVE_DAY = 480;
 /** Trần OT tháng: 40 giờ (Điều 107 Bộ luật Lao động), giữ như v2. */
 const MONTH_OT_CAP_MINUTES = 40 * 60;
 
+/** Đơn OT đang chờ hoặc đã duyệt có ngày OT trong tháng `month` (YYYY-MM). */
+const otRequestsIn = (requests: readonly SystemRequest[], month: string): SystemRequest[] =>
+  requests.filter(r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month);
+
+/** Tổng phút OT của các đơn OT. */
+const otMinutesOf = (requests: readonly SystemRequest[]): number =>
+  requests.reduce((sum, r) => sum + Math.round((r.otHours ?? 0) * 60), 0);
+
+/** Đơn nghỉ có làm bù đang chờ hoặc đã duyệt có ngày nghỉ đầu trong tháng `month`. */
+const makeupRequestsIn = (requests: readonly SystemRequest[], month: string): SystemRequest[] =>
+  requests.filter(
+    r => r.type === 'LEAVE_WITH_MAKEUP' && isActive(r) && r.leaveStartDate !== null && monthOf(r.leaveStartDate) === month
+  );
+
+/** Tháng `period` đã có đơn tạm ứng đang chờ hoặc đã duyệt. */
+const hasAdvanceFor = (requests: readonly SystemRequest[], period: string): boolean =>
+  requests.some(r => r.type === 'ADVANCE' && r.advancePeriod === period && isActive(r));
+
+const monthNumberOf = (period: string): number => Number(period.slice(5, 7));
+const advanceDuplicateMessage = (period: string): string => `Tháng ${monthNumberOf(period)} đã có đơn tạm ứng`;
+const advanceNoWorkDaysMessage = (period: string): string => `Chưa có ngày công 01–15/${period.slice(5, 7)}`;
+const ADVANCE_QUOTE_FAILED = 'Chưa tính được số tiền tạm ứng';
+const NO_FILING_DAYS = 'Không còn ngày đăng ký được';
+
+/** Số ngày phép năm còn lại của hồ sơ trước các đơn `active`; null = loại nhân sự không có tài khoản phép. */
+const annualLeaveLeftOfStaff = (staff: StaffContext, active: readonly SystemRequest[]): number | null =>
+  annualLeaveLeftOf(
+    { leaveBalance: staff.leaveBalance, leaveBalanceOn: staff.leaveBalanceOn, leaveAccount: staff.benefits.leaveAccount },
+    active
+  );
+
 export interface CreateAdvanceInput {
   employeeId: string;
-  title: string;
-  reason: string;
-  amount: number | bigint;
+  /** Chỉ Admin dùng; nhân viên tự nộp luôn là tháng hiện tại. Mặc định tháng hiện tại. */
   period?: string;
 }
 
 /** Thân đơn giải trình (§6.5): ngày công, các trường hợp và giờ thực tế (không bắt buộc). */
 export interface CreateExplanationInput {
   employeeId: string;
-  title: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
   reason: string;
   workDate: unknown;
   cases: unknown;
@@ -193,6 +258,34 @@ interface RequestStores {
   days?: DayStatusRepository;
 }
 
+/**
+ * Đơn đã lập, chưa lưu: các ngày đơn sẽ giữ trong `day_status` (null = loại đơn không giữ ngày), tóm tắt cho xem trước
+ * (spec 2.2) và các cảnh báo.
+ */
+interface PlannedRequest {
+  request: SystemRequest;
+  claims: { plan: ClaimPlan; status: ClaimStatus } | null;
+  summary: Record<string, unknown>;
+  warnings: string[];
+}
+
+/** Phần ngoài khoá của planner đã xong (dữ liệu vào hợp lệ, đã tìm thấy nhân sự); `plan` lập đơn trong khoá. */
+interface Filing {
+  staff: StaffContext;
+  plan: (stores: RequestStores) => Promise<PlannedRequest>;
+}
+
+/** Tuỳ chọn nộp đã điền mặc định. */
+type FilingContext = Required<FilingOptions>;
+
+const createdOf = (planned: PlannedRequest): CreatedRequestDTO => ({
+  ...planned.request.toJSON(),
+  warnings: planned.warnings
+});
+
+/** Ngày của kế hoạch giữ ngày, theo thứ tự ngày. */
+const takenDates = (plan: ClaimPlan): string[] => plan.take.map(t => t.date);
+
 @Injectable()
 export class RequestsService {
   /** Thời điểm hiện tại; test đặt lại để cố định "hôm nay". */
@@ -204,7 +297,36 @@ export class RequestsService {
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
     @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
+    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
+    @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
+    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
   ) {}
+
+  /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
+  protected async isClosedMonth(month: string): Promise<boolean> {
+    if (!this.periods) return false;
+    return isClosedPeriod(await this.periods.getPeriod(month));
+  }
+
+  /**
+   * Luật chỉ áp khi nhân viên tự nộp (`filedBy === 'self'`; Admin giữ hành vi cũ), theo thứ tự: giờ tròn, mọi ngày
+   * nằm trong `filingWindow(hôm nay)`, tháng của các ngày chưa chốt công. Tháng chốt báo theo ngày nhỏ nhất.
+   */
+  private async assertSelfFiling(opts: FilingContext, dates: readonly string[], times: readonly string[] = []): Promise<void> {
+    if (opts.filedBy !== 'self') return;
+    if (times.some(time => !isWholeHour(time))) {
+      throw new Error('Chỉ chọn giờ tròn');
+    }
+    const { from, to } = filingWindow(vietnamToday(this.now()));
+    if (dates.some(date => date < from || date > to)) {
+      throw new Error(`Chỉ chọn ngày từ ${formatDayMonth(from)} đến ${formatDayMonth(to)}`);
+    }
+    for (const month of [...new Set(dates.map(monthOf))].sort()) {
+      if (await this.isClosedMonth(month)) {
+        throw new Error(`Tháng ${Number(month.slice(5, 7))} đã chốt công`);
+      }
+    }
+  }
 
   /** Repository chạy trên `trx`; không có `trx` thì chạy trên pool. */
   private storesOn(trx?: DatabaseTransaction): RequestStores {
@@ -281,31 +403,8 @@ export class RequestsService {
     from: string,
     to: string,
     stores: RequestStores = this.storesOn()
-  ): Promise<{ days: EmployeeDays; active: SystemRequest[] }> {
-    const holidaysRepo = stores.holidays;
-    if (!holidaysRepo) {
-      throw new Error('Thiếu lịch lễ công ty');
-    }
-    const daysRepo = this.dayRepo(stores);
-    const regularDows = this.requireTypeConfig(staff);
-    const lo = addDays(from, -1);
-    const hi = addDays(to, 1);
-    // Trong giao dịch, các truy vấn chạy lần lượt trên cùng một kết nối dù gửi cùng lúc.
-    const [schedules, holidays, active, claims] = await Promise.all([
-      stores.requests.listScheduleDays(staff.employeeId, lo, hi),
-      holidaysRepo.listBetween(lo, hi),
-      stores.requests.listActive(staff.employeeId),
-      daysRepo.listBetween(staff.employeeId, lo, hi)
-    ]);
-    const days = new EmployeeDays({
-      regularDows,
-      holidays: holidays.map(h => h.date),
-      defaultShift: staff.defaultShift,
-      schedules,
-      activeRequests: active,
-      claims
-    });
-    return { days, active };
+  ): Promise<{ days: EmployeeDays; active: SystemRequest[]; holidays: Holiday[] }> {
+    return await loadEmployeeDays(stores, staff, from, to);
   }
 
   /**
@@ -332,13 +431,213 @@ export class RequestsService {
     return await this.underLock(`requests_${employeeId}`, fn);
   }
 
-  async createLeaveRequest(input: CreateLeaveInput): Promise<CreatedRequestDTO> {
+  /** Số ngày Phép năm còn lại (trước các đơn đang chờ và đã duyệt đã trừ); null nếu loại nhân sự không có tài khoản phép. */
+  async annualLeaveLeft(employeeIdOrUsername: string): Promise<number | null> {
+    const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(vietnamToday(this.now())));
+    return annualLeaveLeftOfStaff(staff, await this.repo.listActive(staff.employeeId));
+  }
+
+  /**
+   * Mọi thứ các form đơn của nhân viên cần (spec 2.1), tính ở server để client không tự suy luật: khoảng nộp, loại đơn
+   * mở hay khoá (kèm lý do), hai tháng nộp được, từng ngày trong khoảng với các lựa chọn giờ OT/bù, ngày cần giải trình
+   * và số tiền tạm ứng. Chỉ đọc. Số tiền tạm ứng không tính được chỉ khoá loại tạm ứng, không làm hỏng cả lời gọi.
+   */
+  async requestContext(employeeIdOrUsername: string): Promise<RequestContextDTO> {
+    const today = vietnamToday(this.now());
+    const currentMonth = monthOf(today);
+    const window = filingWindow(today);
+    const staff = await this.resolveStaff(employeeIdOrUsername, currentMonth);
+    const { days, active, holidays } = await this.loadDays(staff, window.from, window.to);
+
+    const months = await this.filingMonths([currentMonth, monthOf(window.to)], active);
+    const explanationDays = this.explanations ? await this.explanations.dueDays(employeeIdOrUsername) : [];
+    const advance = await this.advanceState(staff, today, active);
+
+    const openMonths = months.filter(m => !m.closed);
+    const lockedUnless = (kind: FilingKindState['kind'], open: boolean): FilingKindState =>
+      open ? { kind, enabled: true } : { kind, enabled: false, reason: NO_FILING_DAYS };
+    const kinds: FilingKindState[] = [{ kind: 'leave', enabled: true }];
+    if (staff.benefits.makeup) {
+      kinds.push(lockedUnless('leave-with-makeup', openMonths.some(m => !m.hasOvertime)));
+    }
+    if (staff.benefits.ot) {
+      kinds.push(lockedUnless('overtime', openMonths.some(m => !m.hasMakeupLeave && m.otMinutes < MONTH_OT_CAP_MINUTES)));
+    }
+    kinds.push(lockedUnless('shift-change', openMonths.length > 0));
+    kinds.push(
+      explanationDays.length > 0
+        ? { kind: 'explanation', enabled: true }
+        : { kind: 'explanation', enabled: false, reason: 'Không có ngày cần giải trình' }
+    );
+    kinds.push(advance.kind);
+
+    const holidayNames = new Map(holidays.map(h => [h.date, h.name]));
+    const dayStates: FilingDayState[] = eachDate(window.from, window.to).map(date => {
+      const shift = days.shiftOf(date);
+      const claim = days.claimOn(date);
+      return {
+        date,
+        workday: days.isWorkingDay(date),
+        shift: shift ? { start: shift.startTime, end: shift.endTime } : null,
+        holiday: holidayNames.get(date) ?? null,
+        claim: claim ? { status: claim.status, pending: claim.requestStatus === 'PENDING' } : null,
+        hours: days.isOnLeave(date) || claim?.status === 'ISAT'
+          ? []
+          : dayHourOptions({ date, shifts: days.shiftsAround(date), hasShift: shift !== null, windows: days.windowsOn(date) })
+      };
+    });
+
+    return {
+      today,
+      window,
+      kinds,
+      months,
+      leaveTypes: LEAVE_TYPES.filter(t => t.code !== 'ANNUAL' || staff.benefits.leaveAccount).map(({ code, label }) => ({
+        code,
+        label
+      })),
+      annualLeaveLeft: annualLeaveLeftOfStaff(staff, active),
+      shiftFrames: SHIFT_FRAMES.map(f => ({ shiftType: f.shiftType, start: f.startTime, end: f.endTime })),
+      days: dayStates,
+      explanationDays,
+      advance: advance.quote
+    };
+  }
+
+  /** Trạng thái từng tháng nộp được: chốt công chưa, số phút OT, đã có OT hay nghỉ có làm bù chưa. */
+  private async filingMonths(months: readonly string[], active: readonly SystemRequest[]): Promise<FilingMonthState[]> {
+    return await Promise.all(
+      months.map(async month => {
+        const ot = otRequestsIn(active, month);
+        return {
+          month,
+          closed: await this.isClosedMonth(month),
+          otMinutes: otMinutesOf(ot),
+          otCapMinutes: MONTH_OT_CAP_MINUTES as 2400,
+          hasOvertime: ot.length > 0,
+          hasMakeupLeave: makeupRequestsIn(active, month).length > 0
+        };
+      })
+    );
+  }
+
+  /**
+   * Loại tạm ứng trên form, xét theo thứ tự (spec 2.1): ngày 16–17, chưa có đơn của tháng, tính được số tiền, có ngày
+   * công. Chỉ tính tiền khi hai điều kiện đầu qua; tính lỗi chỉ khoá loại này.
+   */
+  private async advanceState(
+    staff: StaffContext,
+    today: string,
+    active: readonly SystemRequest[]
+  ): Promise<{ kind: FilingKindState; quote: RequestContextDTO['advance'] }> {
+    const month = monthOf(today);
+    const locked = (reason: string) => ({ kind: { kind: 'advance', enabled: false, reason } as FilingKindState, quote: null });
+    if (!advanceDayOpen(today)) return locked('Chỉ nộp ngày 16 và 17');
+    if (hasAdvanceFor(active, month)) return locked(advanceDuplicateMessage(month));
+    let quote: AdvanceQuote;
+    try {
+      quote = await this.advanceQuoteOf(staff.employeeId, month);
+    } catch {
+      return locked(ADVANCE_QUOTE_FAILED);
+    }
+    if (quote.amount === 0) return locked(advanceNoWorkDaysMessage(month));
+    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote } };
+  }
+
+  async createLeaveRequest(input: CreateLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('leave', input, opts, true));
+  }
+
+  async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('leave-with-makeup', input, opts, true));
+  }
+
+  async createOvertimeRequest(input: CreateOvertimeInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('overtime', input, opts, true));
+  }
+
+  async createShiftChangeRequest(input: CreateShiftChangeInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('shift-change', input, opts, true));
+  }
+
+  async createExplanationRequest(input: CreateExplanationInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('explanation', input, opts, true));
+  }
+
+  async createAdvanceRequest(input: CreateAdvanceInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('advance', input, opts, true));
+  }
+
+  /**
+   * Xem trước (spec 2.2): lập đơn đúng như lúc nộp, trong cùng khoá nhân viên, rồi bỏ; không ghi gì. Lỗi nghiệp vụ
+   * (Error không có `code`) thành `ok: false`, xung đột ngày kèm `code: 'DAY_CONFLICT'`; lỗi có `code` (lỗi DB) ném lại.
+   */
+  async previewRequest(kind: FilingKind, input: any, opts?: FilingOptions): Promise<PreviewResult> {
+    try {
+      const planned = await this.fileRequest(kind, input, opts, false);
+      return { ok: true, title: planned.request.title, summary: planned.summary, warnings: planned.warnings };
+    } catch (error) {
+      if (error instanceof DayConflictError) {
+        return { ok: false, message: error.message, code: 'DAY_CONFLICT' };
+      }
+      if (error instanceof Error && (error as { code?: unknown }).code === undefined) {
+        return { ok: false, message: error.message };
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Nộp (`save`) hoặc xem trước một đơn. Planner của loại đơn kiểm dữ liệu vào và tìm nhân sự, rồi lập đơn trong khoá
+   * `requests_<uuid>` (§5.6). Khi `save`, đơn và các ngày đơn giữ được ghi trong cùng khoá, cùng giao dịch.
+   */
+  private async fileRequest(
+    kind: FilingKind,
+    input: any,
+    opts: FilingOptions | undefined,
+    save: boolean
+  ): Promise<PlannedRequest> {
+    const filing = await this.planFiling(kind, input, { filedBy: opts?.filedBy ?? 'admin' });
+    return this.underEmployeeLock(filing.staff.employeeId, async stores => {
+      const planned = await filing.plan(stores);
+      if (save) {
+        await stores.requests.save(planned.request);
+        if (planned.claims) {
+          await this.claimDays(stores, planned.request, planned.claims.plan, planned.claims.status);
+        }
+      }
+      return planned;
+    });
+  }
+
+  private async planFiling(kind: FilingKind, input: any, opts: FilingContext): Promise<Filing> {
+    switch (kind) {
+      case 'leave':
+        return this.planLeave(input, opts);
+      case 'leave-with-makeup':
+        return this.planMakeup(input, opts);
+      case 'overtime':
+        return this.planOvertime(input, opts);
+      case 'shift-change':
+        return this.planShiftChange(input, opts);
+      case 'explanation':
+        return this.planExplanation(input, opts);
+      case 'advance':
+        return this.planAdvance(input, opts);
+      default:
+        throw new Error(`Loại đơn không hợp lệ: ${String(kind)}`);
+    }
+  }
+
+  /** Đơn nghỉ (§6.1): giữ các ngày làm việc trong khoảng; Phép năm kiểm số dư (spec 2.7). */
+  private async planLeave(input: CreateLeaveInput, opts: FilingContext): Promise<Filing> {
     const leaveType = requireLeaveType(input.leaveType);
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    await this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
       const { days, active } = await this.loadDays(staff, startDate, endDate, stores);
       const leaveDays = days.workingDaysBetween(startDate, endDate);
       if (leaveDays.length === 0) {
@@ -346,35 +645,38 @@ export class RequestsService {
       }
       this.assertLeaveRangeFree(days, active, startDate, endDate);
       const plan = planClaims({ kind: 'LEAVE', dates: leaveDays, days });
+      const daysCount = plan.take.length;
 
+      // Phép năm còn lại trước đơn này; null = loại nhân sự không có tài khoản phép.
+      const annualLeft = annualLeaveLeftOfStaff(staff, active);
       if (leaveType === 'ANNUAL') {
-        if (!staff.benefits.leaveAccount) {
+        if (annualLeft === null) {
           throw new Error('Loại nhân sự này không có Phép năm');
         }
-        // Số dư = leave_balance − ngày của các đơn Phép năm đang chờ/đã duyệt từ mốc leave_balance_on (NULL = mọi đơn).
-        const used = active
-          .filter(r => r.type === 'LEAVE' && r.leaveType === 'ANNUAL' && isActive(r))
-          .filter(r => staff.leaveBalanceOn === null || (r.leaveStartDate ?? '') >= staff.leaveBalanceOn)
-          .reduce((sum, r) => sum + (r.leaveDaysCount ?? 0), 0);
-        const remaining = staff.leaveBalance - used;
-        if (plan.take.length > remaining) {
-          throw new Error(`Phép năm còn ${formatDays(remaining)} ngày, xin ${plan.take.length} ngày`);
+        if (daysCount > annualLeft) {
+          throw new Error(`Phép năm còn ${formatDays(annualLeft)} ngày, xin ${daysCount} ngày`);
         }
       }
 
-      const req = SystemRequest.createLeaveRequest({
+      const request = SystemRequest.createLeaveRequest({
         employeeId: staff.employeeId,
-        title: input.title,
+        title: requestTitle({ kind: 'leave', leaveType, startDate, endDate }),
         reason: input.reason,
         leaveType,
         startDate,
         endDate,
-        daysCount: plan.take.length
+        daysCount
       });
-      await stores.requests.save(req);
-      await this.claimDays(stores, req, plan, 'LEAVE');
-      return { ...req.toJSON(), warnings: plan.warnings };
-    });
+      // Spec 2.2: null khi không phải Phép năm. (Phép năm mà annualLeft null thì đã báo lỗi ở trên.)
+      const annualLeaveLeftAfter = leaveType === 'ANNUAL' && annualLeft !== null ? annualLeft - daysCount : null;
+      return {
+        request,
+        claims: { plan, status: 'LEAVE' },
+        summary: { dates: takenDates(plan), daysCount, annualLeaveLeftAfter },
+        warnings: plan.warnings
+      };
+    };
+    return { staff, plan: planInLock };
   }
 
   /**
@@ -409,16 +711,18 @@ export class RequestsService {
     }
   }
 
-  async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<CreatedRequestDTO> {
+  /** Đơn đổi ca (§6.4): giữ các ngày làm việc trong khoảng, trừ ngày nghỉ và Thứ Bảy có iSAT đã duyệt. */
+  private async planShiftChange(input: CreateShiftChangeInput, opts: FilingContext): Promise<Filing> {
     const frame = findShiftFrame(input.shiftType, input.startTime);
     if (!frame) {
       throw new Error(`Khung ca không hợp lệ: ${String(input.shiftType)} ${String(input.startTime)}`);
     }
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    await this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
       const { days } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
       const changed = days.workingDaysBetween(startDate, endDate);
       if (changed.length === 0) {
@@ -448,18 +752,23 @@ export class RequestsService {
         }
       }
 
-      const req = SystemRequest.createShiftChangeRequest({
+      const request = SystemRequest.createShiftChangeRequest({
         employeeId: staff.employeeId,
-        title: input.title,
+        title: requestTitle({ kind: 'shift-change', frame, startDate, endDate }),
         reason: input.reason,
         startDate,
         endDate,
         frame
       });
-      await stores.requests.save(req);
-      await this.claimDays(stores, req, plan, 'SHIFT_CHANGE');
-      return { ...req.toJSON(), warnings: plan.warnings };
-    });
+      return {
+        request,
+        claims: { plan, status: 'SHIFT_CHANGE' },
+        // Ngày giữ nguyên: ngày nghỉ và Thứ Bảy có iSAT đã duyệt trong khoảng, bị bỏ khỏi đơn.
+        summary: { dates: taken, keptDates: plan.skipped },
+        warnings: plan.warnings
+      };
+    };
+    return { staff, plan: planInLock };
   }
 
   /**
@@ -498,9 +807,15 @@ export class RequestsService {
     }
   }
 
-  async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<CreatedRequestDTO> {
+  /** Đơn nghỉ có làm bù (§6.2): giữ các ngày nghỉ như đơn nghỉ; khung bù chỉ được kiểm, đủ đúng 8 giờ mỗi ngày nghỉ. */
+  private async planMakeup(input: CreateLeaveWithMakeupInput, opts: FilingContext): Promise<Filing> {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     const slots = requireMakeupSlots(input.slots);
+    await this.assertSelfFiling(
+      opts,
+      [startDate, endDate, ...slots.map(slot => slot.date)],
+      slots.flatMap(slot => [slot.startTime, slot.endTime])
+    );
     const month = monthOf(startDate);
     const staff = await this.resolveStaff(input.employeeId, month);
     this.requireTypeConfig(staff);
@@ -511,7 +826,7 @@ export class RequestsService {
       throw new Error('Ngày nghỉ và khung bù phải nằm trong cùng một tháng');
     }
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
       const monthEnd = lastDayOfMonth(month);
       const { days, active } = await this.loadDays(staff, startDate, monthEnd, stores);
       const leaveDays = days.workingDaysBetween(startDate, endDate);
@@ -523,10 +838,7 @@ export class RequestsService {
       if (endDate === monthEnd) {
         throw new Error('Không còn ngày trong tháng để xếp đủ giờ bù');
       }
-      const otInMonth = active.some(
-        r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month
-      );
-      if (otInMonth) {
+      if (otRequestsIn(active, month).length > 0) {
         throw new Error(`Tháng ${month} đã có đơn OT, không nộp đơn nghỉ có làm bù được`);
       }
 
@@ -557,29 +869,43 @@ export class RequestsService {
 
       const owed = MAKEUP_MINUTES_PER_LEAVE_DAY * plan.take.length;
       const total = slots.reduce((sum, slot) => sum + workMinutes(slot.startTime, slot.endTime), 0);
-      if (total !== owed) {
+      if (total < owed) {
+        throw new Error(`Còn thiếu ${formatHours(owed - total)} giờ bù`);
+      }
+      if (total > owed) {
         throw new Error(`Cần đúng ${formatHours(owed)} giờ bù, đang xếp ${formatHours(total)} giờ`);
       }
 
-      const req = SystemRequest.createLeaveWithMakeupRequest({
+      const request = SystemRequest.createLeaveWithMakeupRequest({
         employeeId: staff.employeeId,
-        title: input.title,
+        title: requestTitle({ kind: 'leave-with-makeup', startDate, endDate }),
         reason: input.reason,
         startDate,
         endDate,
         daysCount: plan.take.length,
         makeupSlots: slots.map(slot => ({ ...slot, workMinutes: workMinutes(slot.startTime, slot.endTime) }))
       });
-      await stores.requests.save(req);
-      await this.claimDays(stores, req, plan, 'LEAVE_WITH_MAKEUP');
-      return { ...req.toJSON(), warnings: plan.warnings };
-    });
+      return {
+        request,
+        claims: { plan, status: 'LEAVE_WITH_MAKEUP' },
+        summary: {
+          dates: takenDates(plan),
+          daysCount: plan.take.length,
+          makeupMinutesRequired: owed,
+          makeupMinutesPlanned: total
+        },
+        warnings: plan.warnings
+      };
+    };
+    return { staff, plan: planInLock };
   }
 
-  async createOvertimeRequest(input: CreateOvertimeInput): Promise<CreatedRequestDTO> {
+  /** Đơn OT (§6.3): một khung, không giữ ngày; trần 40 giờ mỗi tháng. */
+  private async planOvertime(input: CreateOvertimeInput, opts: FilingContext): Promise<Filing> {
     const date = requireDateText(input.otDate ?? input.targetDate, 'otDate');
     const startTime = requireTimeText(input.startTime, 'startTime');
     const endTime = requireTimeText(input.endTime, 'endTime');
+    await this.assertSelfFiling(opts, [date], [startTime, endTime]);
     const month = monthOf(date);
     const staff = await this.resolveStaff(input.employeeId, month);
     this.requireTypeConfig(staff);
@@ -587,7 +913,7 @@ export class RequestsService {
       throw new Error('Loại nhân sự này không có OT');
     }
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
       const { days, active } = await this.loadDays(staff, date, date, stores);
       planClaims({ kind: 'OVERTIME', dates: [date], days });
       if (days.isOnLeave(date)) {
@@ -604,9 +930,7 @@ export class RequestsService {
       }
 
       const minutes = workMinutes(startTime, endTime);
-      const monthMinutes = active
-        .filter(r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month)
-        .reduce((sum, r) => sum + Math.round((r.otHours ?? 0) * 60), 0);
+      const monthMinutes = otMinutesOf(otRequestsIn(active, month));
       if (monthMinutes + minutes > MONTH_OT_CAP_MINUTES) {
         throw new Error(
           `Tổng số giờ làm thêm trong tháng ${month} không được vượt quá 40 giờ theo Luật Lao động ` +
@@ -614,62 +938,127 @@ export class RequestsService {
         );
       }
 
-      const makeupInMonth = active.some(
-        r => r.type === 'LEAVE_WITH_MAKEUP' && isActive(r) && r.leaveStartDate !== null && monthOf(r.leaveStartDate) === month
-      );
-      if (makeupInMonth) {
+      if (makeupRequestsIn(active, month).length > 0) {
         throw new Error(`Tháng ${month} đã có đơn nghỉ có làm bù, không đăng ký OT được`);
       }
 
-      const req = SystemRequest.createOvertimeRequest({
+      const request = SystemRequest.createOvertimeRequest({
         employeeId: staff.employeeId,
-        title: input.title,
+        title: requestTitle({ kind: 'overtime', date, startTime, endTime }),
         reason: input.reason,
         otDate: date,
         startTime,
         endTime,
         hours: minutes / 60
       });
-      await stores.requests.save(req);
-      return { ...req.toJSON(), warnings: [] };
-    });
+      return {
+        request,
+        claims: null,
+        summary: { minutes, monthMinutesAfter: monthMinutes + minutes },
+        warnings: []
+      };
+    };
+    return { staff, plan: planInLock };
   }
 
-  async createAdvanceRequest(input: CreateAdvanceInput): Promise<CreatedRequestDTO> {
-    const period = input.period || businessMonthText(this.now());
+  /**
+   * Đơn tạm ứng (spec 2.5): số tiền, tiêu đề và lý do do server đặt, client không gửi được. Nhân viên tự nộp luôn cho
+   * tháng hiện tại và chỉ ngày 16–17; Admin nộp cho kỳ `period` (mặc định tháng hiện tại) vào bất kỳ ngày nào. Mỗi tháng
+   * một đơn đang chờ hoặc đã duyệt (kiểm trong khoá nhân viên). Không giữ ngày.
+   */
+  private async planAdvance(input: CreateAdvanceInput, opts: FilingContext): Promise<Filing> {
+    const today = vietnamToday(this.now());
+    const period = opts.filedBy === 'self' ? today.slice(0, 7) : input.period || today.slice(0, 7);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+      throw new Error(`period must be a valid YYYY-MM period string, got: ${period}`);
+    }
+    if (opts.filedBy === 'self' && !advanceDayOpen(today)) {
+      throw new Error('Chỉ nộp tạm ứng ngày 16 và 17');
+    }
     const staff = await this.resolveStaff(input.employeeId, period);
-    return this.underEmployeeLock(staff.employeeId, async stores => {
-      const req = SystemRequest.createAdvanceRequest({
+
+    // Tính số tiền trước khoá nhân viên: bộ tính lương lấy một kết nối pool riêng, không được xin khi khoá đang giữ một
+    // kết nối (xem cảnh báo ở database/kysely.ts). Giữ cả giá trị lẫn lỗi; trong khoá vẫn kiểm trùng tháng trước rồi
+    // mới báo lỗi tính.
+    let quote: AdvanceQuote | null = null;
+    let quoteError: unknown = null;
+    try {
+      quote = await this.advanceQuoteOf(staff.employeeId, period);
+    } catch (err) {
+      quoteError = err;
+    }
+
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
+      const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'ADVANCE' });
+      if (hasAdvanceFor(existing, period)) {
+        throw new Error(advanceDuplicateMessage(period));
+      }
+      if (!quote) throw quoteError;
+      if (quote.amount === 0) {
+        throw new Error(advanceNoWorkDaysMessage(period));
+      }
+      const title = requestTitle({ kind: 'advance', month: period });
+      const request = SystemRequest.createAdvanceRequest({
         employeeId: staff.employeeId,
-        title: input.title,
-        reason: input.reason,
-        amount: input.amount,
+        title,
+        reason: title,
+        amount: quote.amount,
         period
       });
-
-      await stores.requests.save(req);
-      return { ...req.toJSON(), warnings: [] };
-    });
+      return {
+        request,
+        claims: null,
+        summary: { month: period, amount: quote.amount, workDays: quote.workDays },
+        warnings: []
+      };
+    };
+    return { staff, plan: planInLock };
   }
 
-  async createExplanationRequest(input: CreateExplanationInput): Promise<CreatedRequestDTO> {
-    const workDate = requireDateText(input.workDate, 'workDate');
-    if (workDate > vietnamToday(this.now())) {
-      throw new Error('Không giải trình cho ngày trong tương lai');
+  /** Số tiền được ứng của `period`; không tính được (thiếu bộ tính lương hoặc tính lỗi) thì báo một câu chung. */
+  private async advanceQuoteOf(employeeId: string, period: string): Promise<AdvanceQuote> {
+    const failure = new Error(ADVANCE_QUOTE_FAILED);
+    if (!this.payroll) throw failure;
+    try {
+      return await this.payroll.advanceQuote(employeeId, period);
+    } catch {
+      throw failure;
     }
-    const cases = requireExplanationCases(input.cases);
-    const actualCheckIn = optionalActualTime(input.actualCheckIn);
-    const actualCheckOut = optionalActualTime(input.actualCheckOut);
-    // Giải trình không phụ thuộc lịch làm việc nên không cần cấu hình loại nhân sự.
-    const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
+  }
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
-      // Thứ Bảy có iSAT chỉ xét được khi loại nhân sự có cấu hình; chưa cấu hình thì giải trình như trước, không kiểm iSAT.
-      if (staff.regularDows) {
-        const { days } = await this.loadDays(staff, workDate, workDate, stores);
-        planClaims({ kind: 'EXPLANATION', dates: [workDate], days });
-      }
-      // Một ngày một đơn: đơn đã bị từ chối vẫn chặn, đơn đã huỷ thì không.
+  /**
+   * Đơn giải trình (§6.5, spec 3.3), cả Admin lẫn nhân viên tự nộp: ngày phải đang cần giải trình (`checkStaffDay`, xét
+   * ngoài khoá như tra hồ sơ), trường hợp do server tìm (`cases` client gửi không đọc), giờ thực tế chỉ nhận khi ngày cần
+   * (giờ không cần thì ghi null). Một ngày một đơn, kiểm lại trong khoá. Không giữ ngày.
+   */
+  private async planExplanation(input: CreateExplanationInput, _opts: FilingContext): Promise<Filing> {
+    const workDate = requireDateText(input.workDate, 'workDate');
+    if (!this.explanations) {
+      throw new Error('Chưa cấu hình giải trình');
+    }
+    const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
+    const check = await this.explanations.checkStaffDay(staff, workDate);
+    if (!check.ok) {
+      throw new Error(check.message);
+    }
+    const { cases, needs, shift } = check;
+    const actualCheckIn = needs.checkIn ? optionalActualTime(input.actualCheckIn) : null;
+    const actualCheckOut = needs.checkOut ? optionalActualTime(input.actualCheckOut) : null;
+    if (needs.checkIn && actualCheckIn === null) {
+      throw new Error('Nhập giờ vào thực tế');
+    }
+    if (needs.checkOut && actualCheckOut === null) {
+      throw new Error('Nhập giờ ra thực tế');
+    }
+    // R-P5: ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
+    const overnight = shift.endTime <= shift.startTime;
+    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
+      throw new Error('Giờ ra phải sau giờ vào');
+    }
+
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
+      // Một ngày một đơn, kiểm lại trong khoá: đơn khác có thể vừa được nộp sau lúc xét ngày. Đơn đã bị từ chối vẫn
+      // chặn, đơn đã huỷ thì không.
       const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
       const taken = existing.some(
         r => r.explanationDate === workDate && (isActive(r) || r.status === 'REJECTED')
@@ -678,18 +1067,18 @@ export class RequestsService {
         throw new Error(`Ngày ${formatDayMonth(workDate)} đã có đơn giải trình`);
       }
 
-      const req = SystemRequest.createExplanationRequest({
+      const request = SystemRequest.createExplanationRequest({
         employeeId: staff.employeeId,
-        title: input.title,
+        title: requestTitle({ kind: 'explanation', date: workDate }),
         reason: input.reason,
         workDate,
         cases,
         actualCheckIn,
         actualCheckOut
       });
-      await stores.requests.save(req);
-      return { ...req.toJSON(), warnings: [] };
-    });
+      return { request, claims: null, summary: { cases, needs }, warnings: [] };
+    };
+    return { staff, plan: planInLock };
   }
 
   async createIsatRequest(input: CreateIsatInput): Promise<CreatedRequestDTO> {

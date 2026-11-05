@@ -1,6 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
+import { isValidDateText } from '../../common/date-text';
 import {
   SystemRequest,
   SystemRequestRow,
@@ -50,8 +51,16 @@ export interface StaffContext {
   defaultShift: { startTime: string; endTime: string }; // staff.shift_start_time / shift_end_time
   leaveBalance: number; // staff.leave_balance, NULL → 0
   leaveBalanceOn: string | null; // staff.leave_balance_on
+  startDate: string | null; // staff.start_date (YYYY-MM-DD); trống hoặc sai dạng → null
   benefits: { ot: boolean; makeup: boolean; leaveAccount: boolean };
   regularDows: number[] | null; // null = loại nhân sự chưa cấu hình
+}
+
+/** Nhân sự có thể nộp đơn (Admin xét ngày cần giải trình của từng người). */
+export interface FilingStaff {
+  uuid: string;
+  username: string;
+  name: string;
 }
 
 /** Cờ quyền lợi mà đơn từ cần; thiếu dòng thì coi là tắt. */
@@ -59,6 +68,12 @@ const REQUEST_BENEFITS = ['ot', 'makeup', 'leaveAccount'] as const;
 
 /** Ca mặc định khi hồ sơ không ghi ca (như ensureDefaultSchedule). */
 const FALLBACK_SHIFT = { startTime: '08:00', endTime: '17:00' };
+
+/** `staff.start_date` là cột TEXT: chỉ nhận đúng 'YYYY-MM-DD' (bỏ khoảng trắng hai đầu), còn lại coi như không ghi. */
+function parseStartDate(text: string | null | undefined): string | null {
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  return isValidDateText(trimmed) ? trimmed : null;
+}
 
 /** `regular_dows` lưu dạng chuỗi JSON '[1,2,3,4,5,6]'; sai dạng thì coi như chưa cấu hình. */
 function parseDows(text: string | null | undefined): number[] | null {
@@ -316,7 +331,7 @@ export class RequestsRepository {
   async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
     const staff = await this.qb
       .selectFrom('staff')
-      .select(['uuid', 'type', 'shift_start_time', 'shift_end_time', 'leave_balance', 'leave_balance_on'])
+      .select(['uuid', 'type', 'shift_start_time', 'shift_end_time', 'leave_balance', 'leave_balance_on', 'start_date'])
       .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
       .executeTakeFirst();
     if (!staff || !staff.uuid) return null;
@@ -352,9 +367,22 @@ export class RequestsRepository {
       },
       leaveBalance: Number(staff.leave_balance ?? 0),
       leaveBalanceOn: staff.leave_balance_on ?? null,
+      startDate: parseStartDate(staff.start_date),
       benefits: { ot: enabled.has('ot'), makeup: enabled.has('makeup'), leaveAccount: enabled.has('leaveAccount') },
       regularDows: typeRow ? parseDows(typeRow.regular_dows) : null
     };
+  }
+
+  /** Nhân sự chưa bị khoá (`locked_at IS NULL`) và đã có uuid, theo tên đăng nhập (R-P6). */
+  async listFilingStaff(): Promise<FilingStaff[]> {
+    const rows = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'username', 'name'])
+      .where('locked_at', 'is', null)
+      .where('uuid', 'is not', null)
+      .orderBy('username')
+      .execute();
+    return rows.map(r => ({ uuid: r.uuid as string, username: r.username, name: r.name }));
   }
 
   /** Lịch các ngày trong [from, to] của một nhân sự; DATE và TIME đọc qua to_char để không lệch múi giờ. */

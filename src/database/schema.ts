@@ -47,6 +47,13 @@ export interface DayStatusTable {
   updated_at: Generated<Date>;
 }
 
+export interface ExplanationRemindersTable {
+  employee_id: string;
+  work_date: string;
+  reminded_by: string;
+  reminded_at: Generated<Date>;
+}
+
 export interface ExplanationCasesTable {
   request_id: string;
   case_code: string;
@@ -418,6 +425,7 @@ export interface Schema {
   company_holidays: CompanyHolidaysTable;
   day_status: DayStatusTable;
   explanation_cases: ExplanationCasesTable;
+  explanation_reminders: ExplanationRemindersTable;
   isat_registration_conditions: IsatRegistrationConditionsTable;
   isat_registrations: IsatRegistrationsTable;
   kpi_score_log: KpiScoreLogTable;

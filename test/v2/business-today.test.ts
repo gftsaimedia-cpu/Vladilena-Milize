@@ -85,6 +85,11 @@ class FakeRequestsRepository extends RequestsRepository {
     this.requests.set(request.id, request);
   }
 
+  // Đơn tạm ứng kiểm tháng đã có đơn trước khi lưu.
+  override async list(): Promise<SystemRequest[]> {
+    return [...this.requests.values()];
+  }
+
   override async findIsatProfile(_id: string, month: string): Promise<IsatProfile | null> {
     this.profileMonths.push(month);
     return null;
@@ -118,17 +123,28 @@ describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
     it(`đơn tạm ứng không gửi kỳ lúc 05:00 sáng 01/12 thì lấy kỳ 2026-12 (TZ=${zone})`, async () => {
       runAt(zone, FIRST_OF_MONTH_VN);
       const reqRepo = new FakeRequestsRepository();
-      const service = new RequestsService(reqRepo, new FakeAttendanceRepository());
+      const quoted: string[] = [];
+      const payroll = {
+        advanceQuote: async (_employeeId: string, month: string) => {
+          quoted.push(month);
+          return { amount: 1_000_000, workDays: 5, from: `${month}-01`, to: `${month}-15` };
+        }
+      };
+      const service = new RequestsService(
+        reqRepo,
+        new FakeAttendanceRepository(),
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        payroll
+      );
 
-      const dto = await service.createAdvanceRequest({
-        employeeId: 'emp-1',
-        title: 'Tạm ứng',
-        reason: 'Chi tiêu đột xuất',
-        amount: 1000000
-      });
+      const dto = await service.createAdvanceRequest({ employeeId: 'emp-1' });
 
       assert.equal(dto.advancePeriod, '2026-12');
       assert.deepEqual(reqRepo.profileMonths, ['2026-12']);
+      assert.deepEqual(quoted, ['2026-12']);
     });
 
     it(`đơn iSAT nộp lúc 05:00 sáng 01/12 thì tra hồ sơ tháng 2026-12 (TZ=${zone})`, async () => {
