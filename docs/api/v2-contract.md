@@ -576,7 +576,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | `Ngày dd/mm vượt 12 giờ (ca + OT + làm bù = <n> giờ)` | Vượt trần ngày |
   | `Tổng số giờ làm thêm trong tháng YYYY-MM không được vượt quá 40 giờ theo Luật Lao động (đã có <x>h, đăng ký thêm <y>h)` | Tổng `otHours` các đơn OT đang chờ/đã duyệt trong tháng + đơn này > 40 |
   | `Tháng YYYY-MM đã có đơn nghỉ có làm bù, không đăng ký OT được` | Tháng đó có đơn nghỉ có làm bù đang chờ/đã duyệt |
-- **Duyệt**: không ghi lịch (khung OT chỉ lưu trong đơn). Lương OT vẫn đọc `otHours` của đơn đã duyệt.
+- **Duyệt**: không ghi lịch (khung OT chỉ lưu trong đơn). Lương OT tính theo giờ có mặt thật trong khung của đơn đã duyệt, không theo `otHours` của đơn (xem "Tiền OT" ở mục Payroll). `otHours` của đơn vẫn dùng cho trần 40 giờ/tháng.
 
 #### `POST /api/v2/requests/advance` (Đơn tạm ứng lương)
 - **Request Body**:
@@ -730,7 +730,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Hai tác dụng phụ** còn tồn tại cho tới khi phần chấm công và phần lương được viết lại:
   - Chấm công không còn thấy giờ OT đã duyệt (`approved_ot_hours` luôn là 0), nên ra muộn sau ca vẫn bị gắn cờ.
   - Phần lương không còn ngày `MAKE_UP` trong lịch, nên ngày có khung bù vẫn được phụ cấp ca.
-- Lương OT không đổi: phần lương vẫn đọc `otHours` của đơn OT đã duyệt.
+- Lương OT: phần lương không còn đọc `otHours` của đơn mà trả theo giờ có mặt thật trong khung của đơn đã duyệt (xem "Tiền OT" ở `GET /api/v2/payroll/:month/:employeeId`).
 
 ##### Duyệt đơn iSAT
 - Chỉ đơn `PENDING` duyệt được, như mọi loại đơn. Tác dụng:
@@ -806,10 +806,13 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   |--------|---------|
   | `id`, `runId` | Mã phiếu và mã lần chạy chứa phiếu |
   | `username` | Tài khoản của nhân sự |
-  | `status` | Trạng thái phiếu; phiếu vừa tính là `draft` |
+  | `status` | Trạng thái phiếu: `draft` (vừa tính), `approved` (Admin đã duyệt), `rejected` (Admin đã từ chối). Cột này còn cho phép `pending` và `error` nhưng việc tính lương không tạo ra hai giá trị đó |
   | `gross`, `insurance`, `tax`, `advance`, `net` | Tổng thu nhập, bảo hiểm, thuế TNCN, tạm ứng, thực lĩnh (số nguyên VND) |
   | `warnings` | Danh sách cờ cảnh báo của phiếu (xem bảng mã cờ bên dưới); `[]` nếu không có |
   | `details` | Toàn bộ phiếu chi tiết như lúc tính (mô tả ở mục dưới) |
+  | `note` | Lý do đi kèm quyết định của Admin, đã cắt khoảng trắng hai đầu; `null` khi chưa có quyết định hoặc quyết định không kèm lý do |
+  | `decidedBy` | `username` của người quyết định gần nhất; `null` khi phiếu chưa được quyết định |
+  | `decidedAt` | Thời điểm quyết định gần nhất, chuỗi ISO 8601 (UTC), ví dụ `2026-11-05T03:20:11.000Z`; `null` khi chưa có quyết định |
 
 #### `GET /api/v2/payroll/:month/:employeeId`
 - **Mục đích**: Lấy phiếu lương chi tiết từng dòng (ngày công, giờ làm, ca đêm, phụ cấp, OT, KPI, thuế TNCN, bảo hiểm, thực lĩnh). `:employeeId` là `uuid` hoặc `username`.
@@ -829,6 +832,20 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `kpiActualPay` | Lương KPI thực nhận = `round(kpiAppliedAmount × units / 1.000.000)`, với `units` = Σ(điểm × 100 × trọng số) của 5 thành phần (trọng số 40/24/18/12/6; thành phần chưa nhập tính 0). Tính trên `units` chưa làm tròn, không dùng `kpiTotalScorePct` đã làm tròn 2 chữ số thập phân |
   | `insuranceDeduction`, `insuranceBreakdown` | Bảo hiểm khấu trừ và từng phần `{ bhxh, bhyt, bhtn }` (mặc định 8% + 1,5% + 1% = 10,5% lương cơ bản của bậc, tỷ lệ cấu hình được). Nhãn hợp đồng "HĐLĐ từ 3 tháng" luôn đóng bảo hiểm, bất kể cờ `insured` của nhân sự; nhãn "Dưới 3 tháng" chỉ đóng khi cờ `insured` được đặt và khác 0 (để trống hoặc 0 thì bảo hiểm là 0) |
   | `contractStatusText` | Nhãn hợp đồng đã xác định của nhân sự: "HĐLĐ từ 3 tháng" hoặc "Dưới 3 tháng". Lấy từ cột `staff.contract` (`long` hoặc `short`, viết thường đúng như vậy); nhãn trống hoặc giá trị khác (kể cả một ngày) thì theo loại nhân sự: `tts` là "Dưới 3 tháng", `nv`, `ctv` và loại khác là "HĐLĐ từ 3 tháng" |
+  | `employeeType` | Loại nhân sự (`staff.type`: `nv`, `ctv`, `tts`); `null` khi nhân sự chưa có loại |
+  | `level` | Bậc của nhân sự (`staff.level`), số nguyên; mặc định 1 |
+  | `employmentStatus` | Trạng thái nhân sự (`staff.contract_status`): `probation` (thử việc), `official` (chính thức); `null` khi trống hoặc giá trị khác. Khác với `contractStatusText`, vốn là nhãn hợp đồng |
+  | `remainingAnnualLeaveDays` | **Đổi nghĩa**: Phép năm còn lại tính tới hết tháng của phiếu, hoặc `null` khi loại nhân sự không có tài khoản phép. Xem "Phép năm còn lại" bên dưới. Trước đây luôn là 22 |
+  | `ot15Hours`, `ot20Hours`, `ot30Hours`, `totalOtHours` | **Đổi nghĩa**: giờ OT theo hệ số ×1,5 / ×2 / ×3 và tổng, cộng từ phần giờ của các dòng ngày; không làm tròn nên có thể lẻ (ví dụ 1,3333333333333333). Không còn lấy từ `otHours` của đơn |
+  | `otPayTotal` | **Đổi nghĩa**: tổng `otPay` của các dòng ngày, nên phiếu cộng ra đúng bảng chấm công |
+  | `ot15Pay`, `ot20Pay`, `ot30Pay` | **Mới**: tiền OT theo hệ số ×1,5 / ×2 / ×3, cộng từ các dòng ngày; mỗi dòng làm tròn mỗi hệ số một lần. Ba số cộng lại bằng `otPayTotal`. Đi cùng giờ `ot15Hours`, `ot20Hours`, `ot30Hours` |
+  | `dayRate` | **Mới**: lương một ngày = `round(baseSalaryPolicy ÷ standardWorkdays)`, ví dụ 6.000.000 ÷ 26 = 230.769 |
+  | `dailyLines[].checkIn`, `dailyLines[].checkOut` | Giờ vào và giờ ra thật của dòng ngày, `'HH:MM'` theo giờ Việt Nam (UTC+7); `null` khi thiếu một phía, và luôn `null` ở dòng nghỉ (`LEAVE`, `ISAT`, `UNPAID`). Nguồn: giờ chấm công; phía nào thiếu thì lấy giờ của giải trình đã duyệt cho đúng ngày đó (giải trình chỉ lấp chỗ thiếu, không đè giờ chấm). Giờ ra của giải trình không sau giờ vào được hiểu là giờ ra của hôm sau (ca đêm) |
+  | `dailyLines[].inOutText` | **Đổi nghĩa**: dòng ca `NORMAL`, `FLEX`, `NIGHT` là `${checkIn ?? '—'}–${checkOut ?? '—'}`, ví dụ `08:12–17:05`, `08:12–—`. Trước đây ghi cứng `08:00–17:00` hoặc `22:00–06:00`. Dòng nghỉ giữ chữ cũ: `Hưởng lương ngày` (`LEAVE`, `ISAT`), `Không tính lương` (`UNPAID`) |
+  | `dailyLines[].shiftLabel` | Nhãn ca do BE dựng: `Normal`, `Flex +20%`, `Night +40%` (phần trăm theo cấu hình, hiện đúng số lẻ nếu có), `Nghỉ phép`, `iSAT`, `Không lương`. FE hiển thị nguyên chữ này |
+  | `dailyLines[].otHours`, `dailyLines[].otPay` | **Đổi nghĩa**: giờ OT và tiền OT thật của dòng ngày (trước đây luôn 0). Cách tính ở "Tiền OT" bên dưới |
+  | `dailyLines[].dailyTotal` | **Đổi nghĩa**: `daySalary` + `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` − `deductionAmount` (nay có `otPay`) |
+  | `dailyLines[].dayOfWeekText` | **Đổi nghĩa**: thứ thật của `date` theo lịch Việt Nam, cho mọi loại dòng: `Thứ 2` … `Thứ 7`, `Chủ nhật`. Ví dụ `2026-10-01` là `Thứ 5`, `2026-10-04` là `Chủ nhật`. Trước đây là chuỗi cố định `Thứ 2 - Thứ 6` hoặc `Thứ 7` |
   | `taxMethod` | Cách tính thuế, chỉ theo nhãn hợp đồng: "HĐLĐ từ 3 tháng" → `progressive` (lũy tiến); "Dưới 3 tháng" → `flat10` (10% của `grossIncome`, chỉ khi `grossIncome` ≥ 5.000.000; dưới mức đó thuế là 0). Cờ `tax_on` và `deduct_on` của nhân sự bị bỏ qua (không có công tắc tắt thuế hay giảm trừ gia cảnh) và ngày bắt đầu hợp đồng không ảnh hưởng thuế. `none` chỉ gặp ở phiếu dựng tay không chọn cách tính thuế; việc tính lương không bao giờ cho ra `none` |
   | `dependants` | Số người phụ thuộc dùng để giảm trừ |
   | `taxExemptIncome`, `taxableIncome`, `taxAssessableIncome` | `taxExemptIncome` (phần thu nhập miễn thuế) = phần OT vượt đơn giá giờ thường (giờ OT 150% miễn 0,5, 200% miễn 1, 300% miễn 2 lần đơn giá giờ, làm tròn) + phần ca đêm miễn thuế. Phần ca đêm: với mỗi dòng ngày ca `NIGHT`, lấy số nhỏ hơn giữa `workHours` × đơn giá giờ × 0,3 và phụ cấp ca đêm của dòng đó (ngày ca đêm không được trả phụ cấp, như ngày làm bù, thì 0; dòng ca khác thì 0), cộng các dòng rồi làm tròn. `taxableIncome` (thu nhập chịu thuế) = `grossIncome` − `taxExemptIncome`. `taxAssessableIncome` (thu nhập tính thuế): `progressive` là sau bảo hiểm và giảm trừ bản thân 15.500.000 + 6.200.000 mỗi người phụ thuộc; `flat10` bằng `grossIncome` khi thuế áp dụng và 0 khi `grossIncome` dưới 5.000.000; `none` là 0 |
@@ -836,6 +853,63 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `warnings` | Cờ cảnh báo của phiếu, cùng nội dung với `warnings` của bản ghi |
 
   `netIncome` = `grossIncome` − `insuranceDeduction` − `personalIncomeTax` − `advanceDeduction`.
+
+- **Tiền OT**: OT trả theo giờ có mặt thật bên trong khung của đơn OT đã duyệt, không theo số giờ ghi trên đơn.
+  1. Khung OT của một đơn là `[otStartTime, otEndTime)` của ngày `otDate`, giờ Việt Nam. Đơn có giờ sai định dạng hoặc giờ kết thúc không sau giờ bắt đầu bị bỏ qua.
+  2. Giờ OT của khung = số phút nguyên có mặt nằm trong khung (bỏ phần giây lẻ), rồi chia 60, không làm tròn giờ. Hai khoảng có mặt chồng nhau chỉ tính một lần. Khoảng nghỉ giữa ca và khung OT không được tính vì nằm ngoài khung.
+  3. Khoảng có mặt của một dòng công là `[giờ vào, giờ ra]` ở `checkIn` / `checkOut` (giờ chấm, hoặc giờ của giải trình đã duyệt cho phía còn thiếu). Dòng thiếu một trong hai giờ không có khoảng có mặt, nên OT của nó bằng 0.
+  4. Hệ số theo `otDate`: ngày có trong `company_holidays` ×3 (ngày lễ thắng cuối tuần); thứ Bảy hoặc Chủ nhật ×2; còn lại ×1,5. Mọi loại nhân sự như nhau. Ba số này nằm trong một hằng số duy nhất của phần lương (`OT_MULTIPLIERS`).
+  5. OT gắn vào dòng công có `date = otDate` khi dòng đó có đủ giờ vào và giờ ra. Nếu không, OT gắn vào dòng đầu tiên có khoảng có mặt giao với khung (ví dụ ca đêm kéo sang ngày OT). Nếu cũng không có dòng nào giao thì OT bằng 0 và không tạo dòng mới.
+  6. `otHours` của dòng = tổng giờ OT gắn vào dòng. `otPay` của dòng = với mỗi hệ số có trên dòng đó, `round(giờ × lương giờ × hệ số)`, rồi cộng; mỗi hệ số làm tròn một lần. Lương giờ = lương cơ bản ÷ công chuẩn ÷ 8.
+  7. Cột `ot_hours` của đơn OT và của bảng chấm công không còn dùng để tính tiền. Phần OT miễn thuế vẫn theo công thức ở `taxExemptIncome`, tính trên `ot15Hours`, `ot20Hours`, `ot30Hours`.
+
+  Ví dụ (nv bậc 1, lương cơ bản 6.000.000, công chuẩn 26 nên lương giờ ≈ 28.846; ca 08:00–17:00; đơn OT thứ Tư 07/10/2026 khung 18:00–20:00 đã duyệt):
+
+  | Giờ ra | `otHours` | `otPay` |
+  |--------|-----------|---------|
+  | 19:20 (chấm công) | 1,3333… | 57.692 |
+  | 20:30 (chấm công) | 2 | 86.538 |
+  | thiếu giờ ra; giải trình đã duyệt ghi 19:20 | 1,3333… | 57.692 |
+  | thiếu giờ ra; không có giải trình đã duyệt | 0 | 0 |
+
+  Cùng khung 18:00–20:00, ra 20:30, vào thứ Bảy 10/10/2026: 2 × 28.846 × 2 → `otPay` 115.385. Vào ngày lễ 02/09 thì hệ số 3.
+
+  Dòng ngày của ví dụ đầu (vào 08:00, ra 19:20):
+  ```json
+  {
+    "date": "2026-10-07",
+    "dayOfWeekText": "Thứ 4",
+    "shiftCode": "NORMAL",
+    "shiftLabel": "Normal",
+    "inOutText": "08:00–19:20",
+    "checkIn": "08:00",
+    "checkOut": "19:20",
+    "workHours": 8,
+    "daySalary": 230769,
+    "flexAllowancePay": 0,
+    "nightAllowancePay": 0,
+    "offPaidPay": 0,
+    "otHours": 1.3333333333333333,
+    "otPay": 57692,
+    "deductionHours": 0,
+    "deductionAmount": 0,
+    "dailyTotal": 288461
+  }
+  ```
+
+- **Phép năm còn lại** (`remainingAnnualLeaveDays`):
+  - Loại nhân sự có phúc lợi `leaveAccount` (trong phiên bản chức vụ đang hiệu lực): `staff.leave_balance` (trống tính 0) − số ngày Phép năm đã duyệt.
+  - Số ngày Phép năm đã duyệt = số dòng lịch ngày của nhân sự có trạng thái `LEAVE`, thuộc đơn nghỉ `LEAVE` với `leave_type = 'ANNUAL'` và `status = 'APPROVED'`, tính từ `leave_balance_on` (bỏ mốc này nếu trống) tới ngày cuối của tháng phiếu.
+  - Loại không có `leaveAccount` (ví dụ `tts`): `null`. FE hiển thị "—", không ghi "null ngày".
+  - Ví dụ: số dư 12, mốc 01/10; đã duyệt 20–21/10 và 05/11; đang chờ 27/10. Phiếu tháng 10 → 10; phiếu tháng 11 → 9.
+
+- **Phiếu đã lưu trước khi có các trường này**: ảnh chụp cũ không được sửa. Nó thiếu các trường `employeeType`, `level`, `employmentStatus`, `ot15Pay`, `ot20Pay`, `ot30Pay`, `dayRate` và `dailyLines[].checkIn` / `dailyLines[].checkOut`. Người đọc coi trường thiếu là "chưa có".
+  - Các trường cũ vẫn mang nghĩa cũ trong ảnh chụp đó:
+    - `dayOfWeekText` là `Thứ 2 - Thứ 6` hoặc `Thứ 7`.
+    - `remainingAnnualLeaveDays` luôn là 22.
+    - `otPayTotal` là số giờ ghi trên đơn × lương giờ × 2.
+    - `inOutText` là chuỗi cố định `08:00–17:00` hoặc `22:00–06:00`.
+  - Gọi lại `POST /api/v2/payroll/:month/calculate` ("Tính lương" lại) thì ảnh chụp mới có đủ trường và đúng nghĩa mới.
 
 - **Cờ cảnh báo `warnings`**: mỗi phần tử có dạng `{ "code": "KPI_SCORE_MISSING", "message": "Thiếu điểm KPI; cột thiếu tính 0 điểm.", "fields": ["peer", "self"] }`. `fields` chỉ xuất hiện ở cờ có kèm danh sách (hiện chỉ `KPI_SCORE_MISSING`). Cờ không chặn việc tính, phiếu vẫn được lưu.
 
@@ -846,6 +920,26 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `KPI_PROPOSAL_EXCEEDS_MAX` | Lương KPI đề xuất vượt mức KPI của bậc; đã tính theo mức của bậc. |
 
   Nhập mới qua `PUT .../kpi/:username` luôn bị từ chối khi đề xuất vượt mức tối đa, nên `KPI_PROPOSAL_EXCEEDS_MAX` chỉ còn xuất hiện khi mức tối đa của bậc giảm sau khi đã nhập đề xuất.
+
+#### `POST /api/v2/payroll/:month/:username/decision`
+- **Mục đích**: Admin duyệt hoặc từ chối phiếu lương của một người trong lần chạy hiện tại của tháng (lần chạy mới nhất chưa bị thay thế). `:username` là tài khoản của nhân sự. Quyền: `payroll.approve`.
+- **Request Body**:
+  ```json
+  { "decision": "reject", "note": "Thiếu giờ ra ngày 07/10, nhờ nhân viên giải trình." }
+  ```
+  - `decision`: `"approve"` hoặc `"reject"`.
+  - `note`: tuỳ chọn, lý do đi kèm; không bắt buộc cho cả hai quyết định. Được cắt khoảng trắng hai đầu; để trống, toàn khoảng trắng hoặc không phải chuỗi thì lưu `null`.
+- **Tác dụng**: đặt `status` của phiếu thành `approved` hoặc `rejected`, ghi `note`, `decidedBy` (người đang đăng nhập) và `decidedAt` (giờ hiện tại). Phiếu đã có quyết định vẫn quyết định lại được khi kỳ chưa chốt; lần sau ghi đè cả bốn trường (duyệt không kèm `note` thì xoá lý do cũ). Không đổi số tiền trên phiếu.
+- **Response 200**: `{ "month": "2026-11", "payslip": <bản ghi phiếu lương> }` với `status`, `note`, `decidedBy`, `decidedAt` đã cập nhật.
+- **Lỗi** (kiểm theo thứ tự):
+
+  | HTTP | `code` | Khi nào |
+  |------|--------|---------|
+  | 400 | `INVALID_MONTH` | `:month` sai định dạng |
+  | 400 | `INVALID_DECISION` | `decision` không phải `approve` hoặc `reject` (kể cả thiếu body) |
+  | 404 | `PAYSLIP_NOT_FOUND` | Tháng chưa có lần chạy nào (kiểm trước kỳ đã chốt) |
+  | 409 | `PAYROLL_FINALIZED` | Lần chạy hiện tại của tháng đã chốt (`final`), không đổi quyết định được. Kiểm trước khi tìm phiếu, nên kỳ đã chốt với `:username` không có phiếu vẫn trả 409 |
+  | 404 | `PAYSLIP_NOT_FOUND` | Lần chạy chưa chốt nhưng nhân sự không có phiếu trong đó |
 
 #### `PUT /api/v2/payroll/:month/kpi/:username`
 - **Mục đích**: Nhập điểm đánh giá KPI và lương KPI đề xuất của tháng cho nhân viên. Có thể gửi từng phần: chỉ các trường có trong body được ghi.
