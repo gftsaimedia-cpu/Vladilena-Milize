@@ -183,11 +183,29 @@ test('DayStatusRepository trên PostgreSQL', async t => {
         { employeeId: NV, date: '2026-11-11', status: 'LEAVE', requestId: REQ.leavePending, baseRequestId: null },
         { employeeId: NV2, date: '2026-11-10', status: 'LEAVE', requestId: REQ.otherStaff, baseRequestId: null }
       ]);
-      await repo.remove(NV, ['2026-11-10']);
+      await repo.remove(NV, ['2026-11-10'], REQ.leavePending);
       assert.deepEqual((await repo.listBetween(NV, '2026-11-01', '2026-11-30')).map(r => r.date), ['2026-11-11']);
       assert.deepEqual((await repo.listBetween(NV2, '2026-11-01', '2026-11-30')).map(r => r.date), ['2026-11-10']);
-      await repo.remove(NV, []);
+      await repo.remove(NV, [], REQ.leavePending);
       assert.equal((await repo.listBetween(NV, '2026-11-01', '2026-11-30')).length, 1);
+    });
+
+    await t.test('remove leaves a row of another request on the same staff and day', async () => {
+      await resetDays();
+      await repo.upsert([
+        { employeeId: NV, date: '2026-11-10', status: 'LEAVE', requestId: REQ.leavePending, baseRequestId: null },
+        { employeeId: NV, date: '2026-11-11', status: 'LEAVE', requestId: REQ.leaveApproved, baseRequestId: null },
+        { employeeId: NV, date: '2026-11-14', status: 'ISAT', requestId: REQ.isatPending, baseRequestId: null }
+      ]);
+      // Đơn nghỉ đang chờ chỉ giữ 10/11: xoá 10, 11 và 14 theo đơn này không đụng dòng của hai đơn kia.
+      await repo.remove(NV, ['2026-11-10', '2026-11-11', '2026-11-14'], REQ.leavePending);
+      assert.deepEqual(
+        (await repo.listBetween(NV, '2026-11-01', '2026-11-30')).map(r => [r.date, r.requestId]),
+        [
+          ['2026-11-11', REQ.leaveApproved],
+          ['2026-11-14', REQ.isatPending]
+        ]
+      );
     });
 
     await t.test('withTransaction writes roll back with the transaction', async () => {

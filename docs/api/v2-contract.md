@@ -520,7 +520,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     | `FLEX` | `13:00` | `22:00` |
     | `NIGHT` | `22:00` | `07:00` (sáng hôm sau) |
     | `NIGHT` | `21:00` | `06:00` (sáng hôm sau) |
-  - Đơn đang chờ hoặc đã duyệt đều được tính là ca của các ngày đó khi xét đơn OT, đơn nghỉ có làm bù và đơn đổi ca nộp sau.
+  - Đơn đang chờ hoặc đã duyệt đều được tính là ca của các ngày đơn đang giữ trong `day_status` khi xét đơn OT, đơn nghỉ có làm bù và đơn đổi ca nộp sau. Ngày trong khoảng mà đơn không giữ (bị bỏ lúc nộp, đã bị đơn nghỉ hoặc iSAT thay, hay đã trả về ca thường) theo lịch làm việc hoặc ca mặc định.
 - **Response 201**: `{ "created": true, "request": { "type": "SHIFT_CHANGE", "status": "PENDING", "changeStartDate": "2026-11-13", "changeEndDate": "2026-11-16", "newShiftType": "NORMAL", "newStartTime": "10:00", "newEndTime": "19:00", … } }`
 - **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự):
 
@@ -532,7 +532,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | `Không tìm thấy nhân sự: <id>` / `Thiếu cấu hình loại nhân sự <loại>` | Như đơn nghỉ |
   | `Khoảng đổi ca không có ngày làm việc` | Khoảng chỉ có CN, ngày nghỉ của loại nhân sự hoặc ngày lễ |
   | `Ngày dd/mm đang nghỉ, không đổi ca được` | Một ngày được đổi nằm trong đơn nghỉ/nghỉ có làm bù đang chờ/đã duyệt, hoặc lịch ngày đó `ON_LEAVE` |
-  | `Ngày dd/mm đã có đơn đổi ca khác` | Đơn đổi ca khác đang chờ/đã duyệt có chung một ngày được đổi |
+  | `Ngày dd/mm đã có đơn đổi ca khác` | Một ngày được đổi đang là ngày đổi ca (dòng `day_status`) của đơn đổi ca khác đang chờ/đã duyệt |
   | `dd/mm: khung OT HH:mm–HH:mm chạm ca mới HH:mm–HH:mm` (hoặc `khung bù …`) | Với ca mới, một khung OT/bù đã có của ngày được đổi hoặc của hôm sau không còn đúng luật khung (cách ca ít nhất 1 giờ). Ví dụ đổi 12/11 sang ca đêm 22:00 khi đã có OT 13/11 06:00–07:00 → `13/11: khung OT 06:00–07:00 chạm ca mới 22:00–07:00` |
   | `Ngày dd/mm vượt 12 giờ (ca + OT + làm bù = <n> giờ)` | Với ca mới, ca + khung OT/bù của ngày đó vượt 12 giờ |
 - Nộp dưới khoá `requests_<uuid>` như đơn nghỉ.
@@ -713,10 +713,10 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
   | Loại | Duyệt ghi gì |
   |---|---|
-  | Nghỉ | Mỗi ngày làm việc trong `leaveStartDate`–`leaveEndDate`: lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn. `leaveDaysCount` giữ như lúc nộp. |
+  | Nghỉ | Mỗi ngày đơn đang giữ trong `day_status` (các ngày được tính lúc nộp; ngày bị bỏ như CN, ngày lễ, Thứ Bảy iSAT đã duyệt thì không): lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn. `leaveDaysCount` giữ như lúc nộp. |
   | Nghỉ có làm bù | Các ngày nghỉ ghi như đơn nghỉ. Khung bù **không** ghi vào lịch. |
   | OT | Không ghi lịch. |
-  | Đổi ca | Mỗi ngày làm việc trong `changeStartDate`–`changeEndDate`: lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn. |
+  | Đổi ca | Mỗi ngày đơn còn giữ trong `day_status`: lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn. Ngày bị bỏ lúc nộp (ngày nghỉ, Thứ Bảy iSAT đã duyệt) và ngày đã bị đơn nghỉ, nghỉ có làm bù hoặc iSAT thay thì không ghi. |
   | Giải trình | Trạng thái ngày công `explanationDate` thành `VALID`. |
   | iSAT | Xem "Duyệt đơn iSAT" bên dưới. |
 - `REJECT` và huỷ (`PATCH /api/v2/requests/:id/cancel`) không đổi lịch làm việc, trừ trường hợp trả ngày cho một đơn đổi ca đã duyệt (ghi lại lịch đổi ca của ngày đó); trạng thái ngày được trả như ở "Quy ước chung".
@@ -728,7 +728,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 ##### Duyệt đơn iSAT
 - Chỉ đơn `PENDING` duyệt được, như mọi loại đơn. Tác dụng:
   - `APPROVE`: lịch làm việc của Thứ Bảy đó được ghi `scheduleType = "ISAT"`, `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (giữ nguyên ca và giờ dự kiến, giờ OT được duyệt về 0). Phiếu lương của tháng chứa Thứ Bảy đó có dòng ngày `shiftCode "ISAT"` / `shiftLabel "iSAT"` / `inOutText "Hưởng lương ngày"` trị giá **một lương ngày** (lương cơ bản ÷ ngày công chuẩn, không phụ cấp, không OT, không khấu trừ) và thay dòng chấm công cùng ngày nếu có (mỗi ngày một dòng, không trả hai lần). `isatDays` đếm số ngày iSAT, `isatPay` cộng vào thu nhập gộp; ngày iSAT không tính vào `actualWorkDays` (không tăng phụ cấp đi lại, chuyên cần) và không bị tính là ngày nghỉ khi xét chuyên cần. Ví dụ: nv bậc 1, lương cơ bản 6.000.000, đơn T7 07/11/2026 đã duyệt → phiếu tháng 2026-11 có dòng 07/11 "iSAT" 230.769 đ, `isatDays = 1`, `isatPay = 230.769`.
-  - `REJECT`: không đổi lịch và không ảnh hưởng lương.
+  - `REJECT` và huỷ (`PATCH /api/v2/requests/:id/cancel`, khi đơn còn chờ): không ảnh hưởng lương và không đổi lịch, trừ khi đơn iSAT đã thay Thứ Bảy của một đơn đổi ca còn hiệu lực. Khi đó Thứ Bảy được trả cho đơn đổi ca; nếu đơn đổi ca đã duyệt thì lịch Thứ Bảy đó được ghi lại theo ca đổi (`scheduleType = "SHIFT_CHANGE"`, `sourceRequestId` = mã đơn đổi ca).
   - Đơn iSAT mất dòng đăng ký (dữ liệu hỏng) bị từ chối khi `APPROVE` với `400` "Đơn iSAT thiếu dữ liệu đăng ký: <id>" và giữ nguyên `PENDING`; vẫn `REJECT` được.
 
 ---
