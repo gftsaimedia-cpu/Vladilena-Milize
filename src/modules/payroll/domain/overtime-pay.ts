@@ -120,6 +120,8 @@ export const OT_BUCKET_OF: Record<OtKind, 'x15' | 'x20' | 'x30'> = { weekday: 'x
 export function otLinePayByRate(shares: OtShare[], hourRate: number): { x15: number; x20: number; x30: number } {
   const groups = new Map<OtKind, { hours: number; multiplier: OtMultiplier }>();
   for (const share of shares) {
+    // Kind lạ không có túi trên phiếu lương: ném lỗi thay vì để tiền OT biến mất trong im lặng.
+    if (!Object.hasOwn(OT_BUCKET_OF, share.kind)) throw new Error(`Dòng OT không rõ loại ngày: ${share.kind}`);
     const hours = (groups.get(share.kind)?.hours ?? 0) + share.hours;
     groups.set(share.kind, { hours, multiplier: share.multiplier });
   }

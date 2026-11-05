@@ -8,6 +8,7 @@ import {
   otMultiplierOf,
   otPayOf,
   vnInstant,
+  type OtShare,
   type OtWindow,
   type PresenceSpan
 } from '../../src/modules/payroll/domain';
@@ -184,6 +185,12 @@ describe('OT pay of one day line', () => {
     assert.deepEqual(byRate, { x15: 85_817, x20: 57_692, x30: 173_077 });
     assert.equal(otLinePayOf(mixed, HOUR_RATE), byRate.x15 + byRate.x20 + byRate.x30);
     assert.deepEqual(otLinePayByRate([], HOUR_RATE), { x15: 0, x20: 0, x30: 0 });
+  });
+
+  it('refuses a share of an unknown kind instead of dropping its pay', () => {
+    const odd = { ...share(1, 1.5), kind: 'night' } as unknown as OtShare;
+    assert.throws(() => otLinePayByRate([share(1, 1.5), odd], HOUR_RATE), new Error('Dòng OT không rõ loại ngày: night'));
+    assert.throws(() => otLinePayOf([odd], HOUR_RATE), /Dòng OT không rõ loại ngày: night/);
   });
 });
 
