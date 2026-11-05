@@ -19,6 +19,7 @@ export {
 export {
   getSettingsBadges,
   getBenefits,
+  benefitChangesAt,
   saveBenefits,
   getAllSettings,
   saveAllSettings,

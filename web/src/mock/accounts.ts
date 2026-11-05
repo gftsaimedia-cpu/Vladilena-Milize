@@ -16,6 +16,7 @@ const DEFAULT_NAME = 'admin';
 // Danh sách năng lực Admin viết lại ở đây để không import vòng với stores/session.
 const ADMIN_CAPS = [
   'config.read',
+  'config.write',
   'payroll.calculate',
   'payroll.approve',
   'attendance.correct',

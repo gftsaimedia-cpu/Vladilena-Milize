@@ -3,7 +3,15 @@
 // Hàm lưu so bản nháp với bản vừa đọc và chỉ gửi các khoá đã đổi, kèm tháng áp dụng và số phiên bản (paramsRev) của lần đọc đó.
 import { api, qs } from '@/services/http';
 import { allSettingsWanted, buildAllSettings, searchAllSettings } from '@/builders/admin-config/all-settings';
-import { benefitsWanted, buildBenefits } from '@/builders/admin-config/benefits';
+import {
+  benefitChanges,
+  benefitsViewFromCatalog,
+  headcountFromEmployees,
+  type BenefitsView
+} from '@/builders/api/benefits';
+import { catalogRows, currentDate, currentMonth, writePositions } from '@/services/admin-catalog';
+import { MOCK_HEADCOUNT } from '@/mock/positions';
+import { respond } from '@/mock/respond';
 import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditResponseFromRows } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
@@ -75,41 +83,34 @@ export async function savePayDrawer(key?, draft?) {
 }
 
 // ---------- Chế độ theo loại nhân sự ----------
-async function headcountByType() {
-  const { staff } = await api('GET', '/staff');
-  const counts: Record<string, any> = {};
-  for (const s of staff) if (s.payrollSubject !== false) counts[s.type] = (counts[s.type] || 0) + 1;
-  return counts;
+// Một dòng mỗi loại theo phiên bản chức vụ của tháng này (GET /employees/meta/positions) kèm số người đang làm
+// (GET /employees). Lưu gửi PUT /positions các ô đã sửa, áp dụng từ tháng đã chọn, kèm rev của phiên bản ở tháng đó.
+async function headcount(): Promise<Record<string, number>> {
+  if (__MOCK__) return respond(MOCK_HEADCOUNT);
+  const { employees = [] } = await api('GET', '/employees');
+  return headcountFromEmployees(employees, currentDate());
 }
 
-export async function getBenefits() {
-  const [idx, counts] = await Promise.all([readParams(), headcountByType()]);
-  const view = buildBenefits(idx, counts);
-  state.benefits = { idx, base: plain(view) };
+export async function getBenefits(): Promise<BenefitsView> {
+  const [rows, counts] = await Promise.all([catalogRows(), headcount()]);
+  const view = benefitsViewFromCatalog(rows, currentMonth(), counts);
+  state.benefits = { rows, base: plain(view) };
   return plain(view);
 }
 
-export async function saveBenefits(draft?) {
-  const { idx, base } = state.benefits || {};
-  if (!idx) throw new Error('Chưa tải dữ liệu để lưu');
-  const out = await putParams(idx, benefitsWanted(idx, base, draft));
-  state.benefits.base = plain(draft);
-  return out;
+/** Các mục sẽ gửi và các dòng chữ cho hộp xác nhận khi lưu bản nháp từ tháng month. */
+export function benefitChangesAt(month: string, draft: BenefitsView) {
+  const { rows, base } = state.benefits || {};
+  if (!rows) throw new Error('Chưa tải dữ liệu để lưu');
+  return benefitChanges(rows, month, base, draft);
 }
 
-// Xem trước tác động của bản nháp chế độ: các khoá đã đổi gửi như lúc lưu nhưng không ghi gì. Trả { ok, errors, warnings, totals }.
-export async function previewBenefits(draft?) {
-  const { idx, base } = state.benefits || {};
-  if (!idx) throw new Error('Chưa tải dữ liệu để xem trước');
-  const edits = diffEdits(idx, benefitsWanted(idx, base, draft));
-  if (!edits.length) return { ok: true, errors: [], warnings: [], totals: null };
-  const res = await previewParams({ changes: edits, effectiveMonth: idx.month });
-  return {
-    ok: res.ok,
-    errors: res.errors || [],
-    warnings: res.warnings || [],
-    totals: res.impact ? res.impact.totals : null
-  };
+export async function saveBenefits(month: string, draft: BenefitsView, reason: string): Promise<void> {
+  const { items } = benefitChangesAt(month, draft);
+  if (!items.length) return;
+  const body = { effectiveMonth: month, items, ...(reason && reason.trim() ? { reason } : {}) };
+  await writePositions('PUT', '/positions', body);
+  state.benefits.base = plain(draft);
 }
 
 // ---------- Tất cả cài đặt ----------
