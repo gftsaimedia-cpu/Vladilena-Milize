@@ -140,6 +140,7 @@ test('KPI weights must total 100 before Lưu unlocks', async ({ page }) => {
   await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
   await expect(row(page, 'Lương KPI')).toContainText('Trọng số 40 · 22 · 18 · 12 · 8');
   await expect(row(page, 'Lương KPI')).toContainText('• Đã chỉnh');
+  await expect(page.locator('.foot')).toContainText('Thay đổi gần đây: Lương KPI, Trọng số 40 · 22 · 18 · 12 · 8 từ tháng 10/2026.');
 });
 
 test('KPI drawer shows the total at all times and the max KPI per level as text', async ({ page }) => {

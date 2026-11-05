@@ -181,27 +181,16 @@ async function saveViaDialog(page: Page) {
   await expect(page.getByText('Đã lưu')).toBeVisible();
 }
 
-test('revertValues: one field back to its old number, a KPI save back as one set', () => {
+test('revertValues: one field back to its old number, a KPI weights row back as all five', () => {
   resetSettingsMock();
   saveGroup('insurance', { effectiveMonth: '2026-10', values: { bhxhPct: 8.5 }, reason: null, stamp: 0 });
   const ins = groupHistory('insurance').items;
-  expect(revertValues('insurance', ins[0], settingsAt('2026-10').groups.insurance, ins)).toEqual({ bhxhPct: 8 });
+  expect(revertValues(ins[0])).toEqual({ bhxhPct: 8 });
 
   saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: 0 });
   const kpi = groupHistory('kpi-weights').items;
-  const state = settingsAt('2026-10').groups.kpiWeights;
-  expect(kpi.map(h => h.field).sort()).toEqual(['self', 'user']);
-  expect(revertValues('kpiWeights', kpi[0], state, kpi)).toEqual({ wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
-});
-
-test('revertValues gives null when putting a KPI save back would not total 100', () => {
-  resetSettingsMock();
-  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: 0 });
-  const stamp = groupHistory('kpi-weights').items[0].id;
-  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 20, peer: 18, manager: 14, self: 8 }, reason: null, stamp });
-  const kpi = groupHistory('kpi-weights').items;
-  const first = kpi.find(h => h.field === 'self')!; // dòng của lần lưu đầu: self 6 → 8
-  expect(revertValues('kpiWeights', first, settingsAt('2026-10').groups.kpiWeights, kpi)).toBeNull();
+  expect(kpi.map(h => h.field)).toEqual(['weights']);
+  expect(revertValues(kpi[0])).toEqual({ wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
 });
 
 test('Hoàn tác adds a new history row', async ({ page }) => {
@@ -231,8 +220,15 @@ test('a KPI change reverts as one set', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Người dùng' }).fill('22');
   await page.getByRole('textbox', { name: 'Tự đánh giá' }).fill('8');
   await saveViaDialog(page);
+  // Mỗi mục chỉ có dòng của lần lưu đã đổi trọng số của mục đó, với số cũ → số mới của riêng trọng số ấy.
+  const wework = item(page, 'wework');
+  await wework.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(wework).toContainText('Chưa có lần sửa nào.');
   const user = item(page, 'user');
   await user.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(user.locator('tbody tr')).toHaveCount(1);
+  await expect(user.locator('tbody tr').first()).toContainText('Trọng số Người dùng');
+  await expect(user.locator('tbody tr').first()).toContainText('24% → 22%');
   await user.getByRole('button', { name: 'Hoàn tác' }).click();
   const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
   await expect(dlg).toContainText('Trọng số Người dùng 22% → 24%');

@@ -26,6 +26,8 @@ export type GroupState = {
 export type SettingsResponse = { month: string; minMonth: string; groups: Record<GroupKey, GroupState> };
 export type SaveBody = { effectiveMonth: string; values: Values; reason: string | null; stamp: number };
 export type SaveResult = { ok: true; effectiveMonth: string; changed: string[]; stamp: number };
+// from/to theo field: số; mảng bậc (brackets); { lat, lng, radiusM } (zone); mảng ngày hoặc null (weekdays);
+// cả năm trọng số { wework, user, peer, manager, self } (weights: một dòng cho một lần lưu trọng số KPI, BE §5.1).
 export type HistoryItem = {
   id: number;
   field: string;
@@ -72,6 +74,7 @@ export const FIELD_LABEL: Record<string, string> = {
   peer: 'Trọng số Đồng nghiệp',
   manager: 'Trọng số Quản lý',
   self: 'Trọng số Tự đánh giá',
+  weights: 'Trọng số KPI', // dòng lịch sử của cả năm trọng số
   bhxhPct: 'BHXH',
   bhytPct: 'BHYT',
   bhtnPct: 'BHTN',
@@ -280,8 +283,19 @@ function vnTime(iso: string): string {
   return `${two(d.getUTCDate())}/${two(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${two(d.getUTCHours())}:${two(d.getUTCMinutes())}`;
 }
 
+/** Các ô một dòng lịch sử đã đổi: dòng `weights` là các trọng số có số khác nhau giữa from và to; dòng khác là chính ô của nó. */
+export function historyFields(item: HistoryItem): string[] {
+  if (item.field !== 'weights') return [item.field];
+  return KPI_FIELDS.filter(f => !same(item.from?.[f], item.to?.[f]));
+}
+
 function changeText(item: HistoryItem): string {
   const { field, from, to } = item;
+  if (field === 'weights') {
+    return historyFields(item)
+      .map(f => `${FIELD_LABEL[f]} ${arrow(fieldText(f, from[f]), fieldText(f, to[f]))}`)
+      .join('; ');
+  }
   if (field === 'brackets') return bracketParts(from ?? [], to ?? []).join('; ');
   if (field === 'zone') {
     if (!to) return '—';
@@ -294,7 +308,11 @@ function changeText(item: HistoryItem): string {
   return arrow(fieldText(field, from), fieldText(field, to));
 }
 
-export function historyRow(item: HistoryItem): {
+/** Chữ hiện của một dòng lịch sử. `field` là một trọng số: dòng `weights` hiện như dòng của riêng trọng số đó. */
+export function historyRow(
+  item: HistoryItem,
+  field?: string
+): {
   id: number;
   field: string;
   label: string;
@@ -304,12 +322,16 @@ export function historyRow(item: HistoryItem): {
   by: string;
   at: string;
 } {
+  const shown: HistoryItem =
+    item.field === 'weights' && field && field !== 'weights'
+      ? { ...item, field, from: item.from?.[field], to: item.to?.[field] }
+      : item;
   return {
     id: item.id,
-    field: item.field,
-    label: FIELD_LABEL[item.field] ?? item.field,
+    field: shown.field,
+    label: FIELD_LABEL[shown.field] ?? shown.field,
     month: item.month ? monthLabel(item.month) : '—',
-    change: changeText(item),
+    change: changeText(shown),
     reason: item.reason && item.reason.trim() ? item.reason : '—',
     by: item.by,
     at: vnTime(item.at),

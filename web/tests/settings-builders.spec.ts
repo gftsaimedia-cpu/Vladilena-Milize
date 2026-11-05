@@ -3,6 +3,7 @@ import {
   confirmLines,
   fieldText,
   groupErrors,
+  historyFields,
   historyRow,
   payDatesIn,
   payDayHint,
@@ -58,6 +59,37 @@ test('pay dates of a calendar year and the pay-day hint', () => {
 test('history row', () => {
   expect(historyRow({ id: 3, field: 'bhxhPct', month: '2026-11', from: 8, to: 8.5, by: 'admin', at: '2026-10-28T02:40:00.000Z', reason: null }))
     .toEqual({ id: 3, field: 'bhxhPct', label: 'BHXH', month: 'Tháng 11/2026', change: '8% → 8,5%', reason: '—', by: 'admin', at: '28/10/2026 09:40' });
+});
+
+// Trọng số KPI: một lần lưu là một dòng `weights` mang cả năm trọng số (BE §5.1).
+test('a weights history row reads as the whole save or as one weight', () => {
+  const row = {
+    id: 4,
+    field: 'weights',
+    month: '2026-11',
+    from: { wework: 40, user: 24, peer: 18, manager: 12, self: 6 },
+    to: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 },
+    by: 'admin',
+    at: '2026-10-28T02:40:00.000Z',
+    reason: null,
+  };
+  expect(historyFields(row)).toEqual(['user', 'self']);
+  expect(historyFields({ ...row, field: 'bhxhPct', from: 8, to: 8.5 })).toEqual(['bhxhPct']);
+  expect(historyRow(row)).toMatchObject({
+    field: 'weights',
+    label: 'Trọng số KPI',
+    change: 'Trọng số Người dùng 24% → 22%; Trọng số Tự đánh giá 6% → 8%',
+  });
+  expect(historyRow(row, 'user')).toEqual({
+    id: 4,
+    field: 'user',
+    label: 'Trọng số Người dùng',
+    month: 'Tháng 11/2026',
+    change: '24% → 22%',
+    reason: '—',
+    by: 'admin',
+    at: '28/10/2026 09:40',
+  });
 });
 
 // Các nhánh brief không có ví dụ: ô trống, thuế suất, ô đổi nhiều, dòng lịch sử đặc biệt.

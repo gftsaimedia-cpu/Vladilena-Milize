@@ -6,7 +6,6 @@ import {
   fieldText,
   isEdited,
   type GroupKey,
-  type GroupState,
   type historyRow,
   type HistoryItem,
   type SettingsResponse,
@@ -55,17 +54,25 @@ const KHOAN_OF_FIELD: Record<string, string> = {
   user: 'Lương KPI',
   peer: 'Lương KPI',
   manager: 'Lương KPI',
-  self: 'Lương KPI'
+  self: 'Lương KPI',
+  weights: 'Lương KPI'
 };
 
+// Năm trọng số theo thứ tự hiển thị, ví dụ "40 · 24 · 18 · 12 · 6".
+const weightsText = (v: Record<string, unknown>) => Object.keys(KPI_NAMES).map(k => v[k]).join(' · ');
+
 // Dòng lịch sử có id lớn nhất của ba nhóm (id chạy chung nên dòng lớn nhất là dòng mới nhất).
+// Dòng `weights` (một lần lưu trọng số KPI) hiện cả năm trọng số mới như dòng Lương KPI của bảng.
 function recentChange(history: Partial<Record<GroupKey, HistoryItem[]>>): string {
   const all = [...(history.overtime ?? []), ...(history.attendance ?? []), ...(history.kpiWeights ?? [])];
   if (!all.length) return 'Chưa có thay đổi nào.';
   const last = all.reduce((a, b) => (b.id > a.id ? b : a));
   const from = last.month ? ` từ tháng ${monthShort(last.month)}` : '';
-  const label = FIELD_LABEL[last.field] ?? last.field;
-  return `Thay đổi gần đây: ${KHOAN_OF_FIELD[last.field] ?? last.field}, ${label} ${fieldText(last.field, last.to)}${from}.`;
+  const what =
+    last.field === 'weights'
+      ? `Trọng số ${weightsText(last.to)}`
+      : `${FIELD_LABEL[last.field] ?? last.field} ${fieldText(last.field, last.to)}`;
+  return `Thay đổi gần đây: ${KHOAN_OF_FIELD[last.field] ?? last.field}, ${what}${from}.`;
 }
 
 /** Sáu khoản của công thức lương ở tháng của phản hồi, số khoản đã chỉnh và dòng thay đổi gần đây. */
@@ -109,9 +116,7 @@ export function payFormulaView(
       key: 'luong-kpi',
       op: '+',
       name: 'Lương KPI',
-      value: `Trọng số ${Object.keys(KPI_NAMES)
-        .map(k => kpi[k])
-        .join(' · ')}`,
+      value: `Trọng số ${weightsText(kpi)}`,
       edited: isEdited(g.kpiWeights),
       drawer: 'luong-kpi',
       action: 'Sửa'
@@ -430,15 +435,11 @@ export function searchSettings(q: string): { groupKey: string; itemKey: string; 
 // ---------- Hoàn tác ----------
 
 /**
- * Các số sẽ gửi khi hoàn tác dòng lịch sử `row`: một ô về số cũ; riêng trọng số KPI hoàn tác cả lần lưu
- * (mọi dòng cùng giờ sửa và cùng tháng áp dụng), trả đủ năm ô và null nếu tổng không còn đủ 100.
+ * Các số sẽ gửi khi hoàn tác dòng lịch sử `row`: ô của dòng về số cũ. Dòng `weights` (một lần lưu trọng số KPI)
+ * gửi đủ năm trọng số cũ của lần lưu đó (BE §5.1); năm số này vốn đã cộng đủ 100.
  */
-export function revertValues(group: GroupKey, row: HistoryItem, state: GroupState, items: HistoryItem[]): Values | null {
-  if (group !== 'kpiWeights') return { [row.field]: row.from };
-  const values: Values = { ...state.values };
-  for (const h of items) if (h.at === row.at && h.month === row.month) values[h.field] = h.from;
-  const sum = Object.values(values).reduce<number>((n, v) => n + Number(v), 0);
-  return Math.round(sum * 100) / 100 === (state.sum ?? 100) ? values : null;
+export function revertValues(row: HistoryItem): Values {
+  return row.field === 'weights' ? { ...row.from } : { [row.field]: row.from };
 }
 
 /** Một dòng lịch sử của mục: chữ hiện (historyRow), dòng gốc để hoàn tác, và có hoàn tác được ngay không. */

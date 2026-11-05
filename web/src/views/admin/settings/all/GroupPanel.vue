@@ -3,7 +3,7 @@
 // thanh lưu (Huỷ, Lưu), hộp xác nhận, lịch sử từng mục và Hoàn tác. Mỗi nhóm của máy chủ dùng một useSettingsDraft; đổi nhóm là dựng thẻ mới.
 // Báo lên trang qua `dirty` để trang hỏi trước khi bỏ chỗ sửa dở. `setting` là mục cần cuộn tới và focus.
 import { computed, nextTick, ref, watch } from 'vue';
-import { GROUP_PATH, historyRow, type HistoryItem, type Values } from '@/builders/api/settings';
+import { GROUP_PATH, historyFields, historyRow, type HistoryItem, type Values } from '@/builders/api/settings';
 import { revertValues, type HistoryRowView, type SettingEntry, type SettingGroup } from '@/builders/api/settings-screens';
 import { toast } from '@/components/shell/toast';
 import { getSettingsHistory } from '@/services/settings-store';
@@ -50,17 +50,16 @@ async function loadHistory() {
 }
 loadHistory();
 
-// Hoàn tác tắt khi nhóm còn chỗ sửa dở hoặc khi hoàn tác sẽ làm trọng số KPI không đủ 100.
-function revertOf(row: HistoryItem): Values | null {
-  if (!sd?.state.value || !props.group.group) return null;
-  return revertValues(props.group.group, row, sd.state.value, history.value);
-}
+// Hoàn tác tắt khi nhóm còn chỗ sửa dở.
+// Dòng `weights` (một lần lưu trọng số KPI) hiện ở mục của từng trọng số đã đổi, với số cũ → số mới của trọng số đó.
 function historyOf(entry: SettingEntry): HistoryRowView[] | null {
   if (!sd) return null;
   const own = new Set(entry.brackets ? ['brackets'] : entry.fields.map(f => f.field));
-  return history.value
-    .filter(h => own.has(h.field))
-    .map(h => ({ ...historyRow(h), raw: h, canRevert: changes.value === 0 && revertOf(h) !== null }));
+  return history.value.flatMap(h =>
+    historyFields(h)
+      .filter(f => own.has(f))
+      .map(f => ({ ...historyRow(h, f), raw: h, canRevert: changes.value === 0 }))
+  );
 }
 
 const confirming = ref(false);
@@ -72,7 +71,7 @@ async function confirm() {
 
 const reverting = ref<Values | null>(null);
 function askRevert(row: HistoryItem) {
-  reverting.value = revertOf(row);
+  reverting.value = revertValues(row);
 }
 async function reverted() {
   reverting.value = null;

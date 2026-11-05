@@ -54,6 +54,26 @@ test('each changed field adds one history row and moves the stamp', () => {
   expect(settingsAt('2026-10').groups.overtime.stamp).toBe(r.stamp);
   expect(settingsAt('2026-10').groups.attendance.stamp).toBe(0);
 });
+test('a KPI save writes one weights row holding all five weights before and after (BE §5.1)', () => {
+  const r = saveGroup('kpi-weights', { effectiveMonth: '2026-11', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: 'Điều chỉnh', stamp: 0 });
+  expect(r.changed).toEqual(['user', 'self']);
+  expect(groupHistory('kpi-weights').items).toEqual([
+    {
+      id: r.stamp,
+      field: 'weights',
+      month: '2026-11',
+      from: { wework: 40, user: 24, peer: 18, manager: 12, self: 6 },
+      to: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 },
+      by: 'admin',
+      at: MOCK_NOW,
+      reason: 'Điều chỉnh',
+    },
+  ]);
+  // Lưu lại đúng các số đang hiệu lực thì không có dòng mới.
+  const again = saveGroup('kpi-weights', { effectiveMonth: '2026-11', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: r.stamp });
+  expect(again.stamp).toBe(r.stamp);
+  expect(groupHistory('kpi-weights').items).toHaveLength(1);
+});
 test('an old stamp is refused with SETTINGS_STALE', () => {
   saveGroup('overtime', { effectiveMonth: '2026-10', values: { weekdayRate: 1.6 }, reason: null, stamp: 0 });
   expect(() => saveGroup('overtime', { effectiveMonth: '2026-10', values: { weekdayRate: 1.7 }, reason: null, stamp: 0 }))

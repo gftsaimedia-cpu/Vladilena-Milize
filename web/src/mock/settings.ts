@@ -254,8 +254,14 @@ export function saveGroup(path: string, body: SaveBody): SaveResult {
     if (Math.abs(total - (GROUPS.kpiWeights.sum as number)) > 1e-9) throw bad('kpiWeights');
   }
 
+  const before = clone(versionAt(store.chain, body.effectiveMonth).values);
   const changed = applyChange(store.chain, body.effectiveMonth, changes);
-  if (changed.length) logRows(store.history, changed, body.effectiveMonth, reasonOf(body.reason));
+  if (changed.length) {
+    // Trọng số KPI (BE §5.1): một lần lưu là một dòng field 'weights', from/to là cả năm trọng số ở tháng áp dụng.
+    const pick = (v: Record<string, any>) => Object.fromEntries(fields.map(f => [f, v[f]]));
+    const rows = key === 'kpiWeights' ? [{ field: 'weights', from: pick(before), to: pick({ ...before, ...changes }) }] : changed;
+    logRows(store.history, rows, body.effectiveMonth, reasonOf(body.reason));
+  }
   return { ok: true, effectiveMonth: body.effectiveMonth, changed: changed.map(c => c.field), stamp: stampOf(store.history) };
 }
 
