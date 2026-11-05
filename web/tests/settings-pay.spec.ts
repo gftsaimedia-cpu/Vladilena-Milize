@@ -187,3 +187,21 @@ test('KPI drawer shows the total at all times and the max KPI per level as text'
   await expect(d).toContainText('1.500.000 đ');
   await expect(d.getByRole('link', { name: 'Sửa ở Chức vụ & bậc' })).toBeVisible();
 });
+
+test('the save dialog repeats the changed cells and the reason in quotes (board SettingsPayConfirm)', async ({ page }) => {
+  await page.goto('/admin/cai-dat');
+  await row(page, 'Tiền làm thêm giờ').getByRole('button', { name: 'Sửa' }).click();
+  const d = drawer(page, 'Tiền làm thêm giờ');
+  await d.getByRole('textbox', { name: 'Ngày thường' }).fill('1,6');
+  await d.getByLabel('Áp dụng từ tháng').selectOption({ label: 'Tháng 11/2026' });
+  await d.getByRole('textbox', { name: 'Lý do' }).fill('Tăng hệ số theo quyết định của Ban giám đốc');
+  await expect(d).toContainText('43/300');
+  await d.getByRole('button', { name: 'Lưu', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Lưu thay đổi' });
+  await expect(dlg).toContainText('Các ô sẽ đổi');
+  await expect(dlg.locator('li')).toHaveText(['OT ngày thường ×1.5 → ×1.6, áp dụng từ tháng 11/2026']);
+  await expect(dlg).toContainText('Lý do');
+  await expect(dlg).toContainText('“Tăng hệ số theo quyết định của Ban giám đốc”');
+  await expect(dlg.getByRole('button', { name: 'Huỷ' })).toBeEnabled();
+  await expect(dlg.getByRole('button', { name: 'Lưu', exact: true })).toBeEnabled();
+});

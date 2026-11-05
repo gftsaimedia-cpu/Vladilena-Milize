@@ -48,6 +48,9 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `GET /api/punches` | `GET /api/v2/attendance/punches` | GET | Lịch sử lượt bấm công |
 | | `GET /api/timesheets` | `GET /api/v2/attendance/timesheets` | GET | Bảng công chi tiết theo ngày |
 | | `POST /api/timesheets/recalculate` | `POST /api/v2/attendance/recalculate` | POST | Tính toán lại công theo sự kiện |
+| | (mới) | `GET /api/v2/attendance/week` | GET | Lưới chấm công cả tuần của mọi người (Admin) |
+| | (mới) | `GET /api/v2/attendance/employees/:username` | GET | Công cả tháng và lịch sử thao tác của một người (Admin) |
+| **Tổng quan** | (mới) | `GET /api/v2/overview` | GET | Số liệu gộp cho màn Tổng quan (Admin) |
 | **Đơn từ & Giải trình** | `POST /api/leave-requests` | `POST /api/v2/requests/leave` | POST | Nộp đơn nghỉ phép |
 | | `POST /api/ot-requests` | `POST /api/v2/requests/overtime` | POST | Nộp đơn làm thêm giờ |
 | | `POST /api/advance-requests` | `POST /api/v2/requests/advance` | POST | Nộp đơn tạm ứng lương |
@@ -290,6 +293,48 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Trường mới của dòng ngày**: `leaveType` (6 mã loại nghỉ, `null` khi không phải ngày `LEAVE_*`), `sourceRequestId` (đơn nghỉ / nghỉ có bù / iSAT của ngày), `cases` (các trường hợp cần giải trình `[{ code, minutes, affectsPay }]`, rỗng khi đúng giờ), `explanationStatus` (`NONE` | `PENDING` | `APPROVED` | `REJECTED`), `explanationRequestId`, `payUnits` (0 hoặc 1), `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes`.
 - **Có thể `null`**: `shiftType`, `shiftStartTime`, `shiftEndTime`, `shiftAllowancePct` rỗng trên ngày không có ca (`OUTSIDE`, `REST`, `EXTRA`, ngày lễ...). `metrics.workUnits` bằng `payUnits`; `metrics.otHours` luôn 0 (OT đo ở phiếu lương).
 - `dayStatus`, `checkInStatus`, `checkOutStatus` là cột cũ, ghi cho khớp với `status` để FE cũ vẫn đọc được.
+
+#### `GET /api/v2/attendance/week?from=YYYY-MM-DD&q=&group=`
+- **Mục đích**: Lưới chấm công cả tuần cho Admin. Đọc dòng ngày dùng chung (`timesheet_entries`) như `/me`, không bảng mới.
+- **Quyền**: `attendance.correct`.
+- **Query**: `from` ngày có thật; tuần trả về là tuần thứ Hai → Chủ nhật **chứa** `from` (bỏ trống thì tuần hiện tại theo giờ Việt Nam). `q` lọc theo tên hoặc `username` (không phân biệt hoa thường). `group` lọc theo mã chức vụ (`position.type`) hoặc loại ca (`shift.type`), không phân biệt hoa thường. Chỉ liệt kê người còn làm trong tuần (đã vào làm, chưa nghỉ việc trước thứ Hai).
+- **Response 200**:
+  ```json
+  {
+    "days": ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"],
+    "rows": [{ "username": "nv1", "name": "Nguyễn Văn Một", "days": [ { "date": "2026-10-12", "kind": "absent", "in": null, "out": null, "lateMinutes": 0, "explanationStatus": "none", "cases": [] } ] }],
+    "pending": [{ "username": "nv2", "date": "2026-10-15", "kind": "leave" }]
+  }
+  ```
+  - `days` của mỗi hàng đúng 7 ô, cùng dạng ô ngày của `GET /api/v2/me/attendance` (tuần làm của từng người quyết định `off`).
+  - `pending`: đơn `PENDING` có ngày rơi vào tuần (giải trình, làm thêm, nghỉ phép / nghỉ có làm bù, đổi ca), mỗi đơn một phần tử ở ngày đầu tiên của đơn trong tuần; `kind` là loại đơn viết thường, dấu gạch ngang (`leave`, `leave-with-makeup`, `overtime`, `explanation`, `shift-change`). Ứng lương và iSAT không gắn ngày nên không có. Đọc tối đa 500 đơn chờ.
+- **Lỗi**: `400 INVALID_DATE` khi `from` không phải ngày có thật.
+
+#### `GET /api/v2/attendance/employees/:username?month=YYYY-MM`
+- **Mục đích**: Công cả tháng của một người, cho ngăn kéo chi tiết của Admin. Cùng nguồn và cùng cách tính với `GET /api/v2/me/attendance`.
+- **Quyền**: `attendance.correct`.
+- **Query**: `month` bỏ trống thì tháng hiện tại (giờ Việt Nam).
+- **Response 200**: `{ "person": { "username", "name", "position", "shift" }, "month", "periodState": "open" | "locked", "totals": { "workDays", "standardDays", "lateCount", "paidLeaveDays" }, "days": [ ...ô ngày cả tháng ], "history": [ { "at", "actor", "text" } ] }`.
+  - `history`: tối đa 50 dòng `audit_log` có `subject` = người này và `month` = tháng đang xem, mới nhất trước; `text` là `action` hoặc `action: reason` khi có lý do.
+- **Lỗi**: `404 EMPLOYEE_NOT_FOUND` (không có nhân sự); `400 INVALID_MONTH`.
+
+#### `GET /api/v2/overview?month=YYYY-MM`
+- **Mục đích**: Số liệu gộp cho màn Tổng quan, đọc từ service sẵn có, không bảng mới.
+- **Quyền**: `config.read`.
+- **Query**: `month` bỏ trống thì tháng hiện tại. Chỉ phần `payroll`, `period` và `payrollNet` theo `month`; phần người và công là của **hôm nay**.
+- **Response 200**:
+  ```json
+  {
+    "kpis": { "headcount": 3, "presentToday": 1, "pendingRequests": 1, "payrollNet": 16000000 },
+    "attendance": { "today": { "work": 1, "late": 0, "leave": 0, "absent": 0, "todo": 0, "off": 2, "future": 0, "outside": 0, "extra": 0 } },
+    "payroll": { "status": "calculated", "lines": [ { "username": "nv2", "name": "Trần Thị Hai", "net": 9000000, "status": "draft" } ] },
+    "period": { "month": "2026-10", "state": "calculated" }
+  }
+  ```
+  - `headcount`: người còn làm hôm nay. `attendance.today`: số người theo loại ô ngày (cộng lại bằng `headcount`). `presentToday` = `work` + `late` + `todo` + `extra`.
+  - `pendingRequests`: tổng số đơn `PENDING`. `payrollNet`: tổng `net` các phiếu của lần chạy hiện tại của `month` (0 khi chưa tính).
+  - `payroll.status` và `period.state` đều là trạng thái kỳ (`open`, `attendance_locked`, `calculated`, `approved`, `paid`; chưa có dòng kỳ là `open`). `payroll.lines`: 5 phiếu `net` cao nhất.
+- **Lỗi**: `400 INVALID_MONTH`.
 
 #### `POST /api/v2/attendance/recalculate`
 - **Mục đích**: Admin tính lại dòng ngày từ nguồn sự thật (lần chấm, lịch, đơn, ngày lễ, hồ sơ), một ngày hoặc cả tháng. Dòng đã khoá kỳ lương không bị ghi lại; kết quả trả về là giá trị đang lưu.

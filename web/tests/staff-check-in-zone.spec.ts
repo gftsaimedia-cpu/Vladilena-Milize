@@ -131,3 +131,36 @@ test('a shift with a button and a zone asks for the location once and keeps it w
   await expect(page.getByRole('button', { name: /Check-out/ })).toBeEnabled();
   expect(await geo(page)).toEqual({ started: 1, active: 1 });
 });
+
+// Ba board PhoneCheckinFar / NoLocation / OffDay: nút Check-in (chưa vào ca) bị khoá, lý do nằm ngay dưới nút.
+const checkInCard = (page: Page) => page.getByRole('region', { name: 'Ca hôm nay' });
+const checkInBtn = (page: Page) => checkInCard(page).getByRole('button', { name: /^Check-in lúc/ });
+
+test('board Far: Check-in is locked with the distance, grey button, reason in a status line', async ({ page, context }) => {
+  await context.setGeolocation(FAR);
+  await page.goto(`${PARTS}?part=shift&zone=1&in=0`);
+  await expect(checkInCard(page)).toContainText('Chưa check-in');
+  await expect(checkInCard(page)).toContainText('chưa vào ca');
+  await expect(checkInBtn(page)).toBeDisabled();
+  await expect(checkInCard(page).getByRole('status').filter({ hasText: 'Bạn đang cách văn phòng 600 m' })).toBeVisible();
+  await expect(checkInBtn(page)).toHaveCSS('background-color', 'rgb(51, 51, 51)');
+  await expect(checkInBtn(page)).toHaveAccessibleDescription('Bạn đang cách văn phòng 600 m');
+});
+
+test.describe('board NoLocation', () => {
+  test.use({ permissions: [] });
+  test('Check-in is locked with Không lấy được vị trí', async ({ page }) => {
+    await page.goto(`${PARTS}?part=shift&zone=1&in=0`);
+    await expect(checkInBtn(page)).toBeDisabled();
+    await expect(checkInCard(page).getByRole('status').filter({ hasText: 'Không lấy được vị trí' })).toBeVisible();
+  });
+});
+
+test('board OffDay: not a workday locks Check-in even at the office, before the location', async ({ page, context }) => {
+  await context.setGeolocation(FAR);
+  await page.goto(`${PARTS}?part=shift&zone=1&in=0&workday=0`);
+  await expect(checkInBtn(page)).toBeDisabled();
+  await expect(checkInCard(page)).toContainText('Hôm nay không phải ngày làm của bạn');
+  await expect(checkInCard(page)).not.toContainText('Bạn đang cách văn phòng');
+  await expect(checkInCard(page).getByRole('button', { name: 'Thử lại' })).toHaveCount(0);
+});

@@ -549,7 +549,9 @@ test('dragging scrolls, snaps to a day and opens nothing', async ({ page }) => {
   await page.mouse.move(link.x + 150, link.y, { steps: 10 });
   await page.mouse.up();
   await expect.poll(() => scrollLeftOf(page)).toBe(1344);
-  await expect(page).toHaveURL(/\/admin\/cham-cong$/);
+  // Vẫn ở lưới (không sang hồ sơ); có thể đã có ?tuan= do lưới ghi chỗ đứng sau khi cuộn yên.
+  await expect(page).toHaveURL(/\/admin\/cham-cong(\?|$)/);
+  await expect(page).not.toHaveURL(/hop=/);
   expect(await clicksSeen(page)).toBe(0);
 
   // Cờ chặn tự xoá: một cú bấm thường ngay sau đó vẫn tới nơi và mở hộp.

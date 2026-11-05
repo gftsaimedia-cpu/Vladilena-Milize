@@ -136,7 +136,7 @@ async function doCheckOut() {
       >
         <PhIcon name="clock" :size="20" :stroke="2" />Check-in<small>· {{ home.now }}</small>
       </button>
-      <div v-if="lockReason" class="loc">
+      <div v-if="lockReason" class="loc why" role="status">
         <PhIcon name="pin" :size="16" /><span :id="reasonId">{{ lockReason }}</span>
         <button v-if="canRetry" type="button" class="retry" @click="attempt++">Thử lại</button>
       </div>
@@ -153,7 +153,7 @@ async function doCheckOut() {
       >
         <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ home.now }}</small>
       </button>
-      <div v-if="lockReason" class="loc">
+      <div v-if="lockReason" class="loc why" role="status">
         <PhIcon name="pin" :size="16" /><span :id="reasonId">{{ lockReason }}</span>
         <button v-if="canRetry" type="button" class="retry" @click="attempt++">Thử lại</button>
       </div>
@@ -241,7 +241,8 @@ async function doCheckOut() {
   cursor: pointer;
 }
 .cta:disabled {
-  opacity: 0.5;
+  background: #333333;
+  color: #bdbdbd;
   cursor: not-allowed;
 }
 .cta small {
@@ -264,5 +265,8 @@ async function doCheckOut() {
   margin-top: 8px;
   color: #9e9e9e;
   font-size: 13px;
+}
+.loc.why {
+  color: #ffffff;
 }
 </style>

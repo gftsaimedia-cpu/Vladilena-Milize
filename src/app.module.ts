@@ -13,6 +13,7 @@ import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
 import { SettingsModule } from './modules/settings';
 import { AuditModule } from './modules/audit';
+import { OverviewModule } from './modules/overview';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { AuditModule } from './modules/audit';
     PositionsModule,
     SettingsModule,
     AuditModule,
+    OverviewModule,
   ],
 })
 export class AppModule {}
