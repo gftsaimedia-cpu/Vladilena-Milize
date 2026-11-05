@@ -368,6 +368,24 @@ export class AttendanceDaysRepository {
     return new Set(rows.map(row => row.holiday_date));
   }
 
+  /**
+   * Nhân sự còn hiệu lực trong [from, to]: có uuid, chưa khoá tài khoản, và thời gian làm việc giao với khoảng
+   * (chưa nhận việc sau `to`, chưa nghỉ việc trước `from`). Theo uuid tăng để kết quả ổn định.
+   */
+  async activeEmployeeIds(from: string, to: string): Promise<string[]> {
+    const rows = await this.qb
+      .selectFrom('staff')
+      .select('uuid')
+      .where('uuid', 'is not', null)
+      .where('locked_at', 'is', null)
+      // start_date / resigned_on là TEXT 'YYYY-MM-DD' nên so sánh chuỗi cho đúng thứ tự ngày.
+      .where(eb => eb.or([eb('start_date', 'is', null), eb('start_date', '<=', to)]))
+      .where(eb => eb.or([eb('resigned_on', 'is', null), eb('resigned_on', '>=', from)]))
+      .orderBy('uuid', 'asc')
+      .execute();
+    return rows.flatMap(row => (row.uuid ? [row.uuid] : []));
+  }
+
   /** Các dòng ngày của một nhân sự trong [from, to] (gồm cả hai đầu), theo `work_date` tăng. */
   async listDays(employeeId: string, from: string, to: string): Promise<AttendanceDayRecord[]> {
     const rows = await this.qb
