@@ -24,8 +24,6 @@ export {
   getAllSettings,
   saveAllSettings,
   getCalendar,
-  getCalendarSetup,
-  saveCalendarSetup,
   addHoliday,
   quickAddHolidays,
   removeHoliday,

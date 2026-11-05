@@ -12,6 +12,7 @@ import {
 import { catalogRows, currentDate, currentMonth, writePositions } from '@/services/admin-catalog';
 import { MOCK_HEADCOUNT } from '@/mock/positions';
 import { respond } from '@/mock/respond';
+import { addHolidays, holidaysOf, quickAddFixed, removeHolidays } from '@/mock/settings';
 import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditResponseFromRows } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
@@ -209,43 +210,39 @@ export async function getKpiRules() {
 // ---------- Lịch, ca & chấm công ----------
 // Lịch nghỉ lễ: GET /api/v2/holidays?year= (BE chưa có tham số ngày trả lương: payDay null).
 export async function getCalendar(year?) {
+  if (__MOCK__) return respond(calendarFromHolidays(holidaysOf(Number(year)).items, Number(year)));
   const { items = [] } = await api('GET', `/holidays${qs({ year })}`);
   return calendarFromHolidays(items, Number(year));
 }
 
 /** Thêm các ngày lễ dương lịch cố định của năm (bỏ qua ngày đã có): POST /api/v2/holidays/quick-add. Trả { added }. */
-export const quickAddHolidays = (year?) => api('POST', '/holidays/quick-add', { year: Number(year) });
+export const quickAddHolidays = (year?) =>
+  __MOCK__ ? respond(quickAddFixed(Number(year))) : api('POST', '/holidays/quick-add', { year: Number(year) });
 
 /** Thêm một khoảng nghỉ lễ: POST /api/v2/holidays từng ngày (BE từ chối ngày trùng hoặc tên trống). */
 export async function addHoliday({ from, to, name }: any) {
+  if (__MOCK__) {
+    addHolidays(datesOf(from, to || from), name);
+    return respond({ ok: true });
+  }
   for (const date of datesOf(from, to || from)) await api('POST', '/holidays', { date, name });
   return { ok: true };
 }
 
 /** Xoá cả khoảng có id (id là ngày đầu khoảng): DELETE /api/v2/holidays/:date từng ngày. */
 export async function removeHoliday(id?) {
-  const { items = [] } = await api('GET', `/holidays${qs({ year: String(id).slice(0, 4) })}`);
+  const year = String(id).slice(0, 4);
+  if (__MOCK__) {
+    const range = holidayRangesOf(holidaysOf(Number(year)).items).find(h => h.id === id);
+    if (range) removeHolidays(datesOf(range.from, range.to));
+    return respond({ ok: true });
+  }
+  const { items = [] } = await api('GET', `/holidays${qs({ year })}`);
   const range = holidayRangesOf(items).find(h => h.id === id);
   if (!range) return { ok: true };
   for (const date of datesOf(range.from, range.to)) await api('DELETE', `/holidays/${date}`);
   return { ok: true };
 }
-
-const KIND = { normal: 'Normal', flex: 'Flex', night: 'Night' };
-
-// Ca làm từ GET /api/v2/employees/meta/shifts (bảng work_shifts: mã, tên, loại). BE v2 chưa có giờ vào/ra của ca và
-// tham số vùng chấm công: các ô đó để trống, lưu báo chưa nối.
-export async function getCalendarSetup() {
-  const { shifts = [] } = await api('GET', '/employees/meta/shifts');
-  const view = {
-    shifts: shifts.map(s => ({ code: s.code, name: s.name, start: '', end: '', type: KIND[s.kind] || s.kind, nextDay: false })),
-    zone: { radius: null, lat: null, lng: null }
-  };
-  return plain(view);
-}
-
-// Lưu giờ ca và vùng chấm công: BE v2 chưa có API.
-export const saveCalendarSetup = (_input: any) => notConnected();
 
 // ---------- Nhật ký thay đổi ----------
 const AUDIT_PAGE = 50;

@@ -1,0 +1,91 @@
+// Dịch vụ kho cài đặt (BE v2 §5): nhóm cài đặt theo tháng, ngày trả lương, tuần làm việc từng người, vùng chấm công, 6 ca cố định.
+// Dữ liệu giả (__MOCK__): mock/settings.ts, trả qua respond(); lỗi stale ném ApiError mang code SETTINGS_STALE như máy chủ.
+import { api, qs } from '@/services/http';
+import { respond } from '@/mock/respond';
+import {
+  groupHistory,
+  MOCK_SHIFTS,
+  payDaysOf,
+  saveGroup,
+  saveWorkWeekOf,
+  saveZoneOf,
+  settingsAt,
+  workWeekHistory,
+  workWeekOf,
+  zoneOf
+} from '@/mock/settings';
+import type {
+  GroupPath,
+  HistoryItem,
+  PayDayItem,
+  SaveBody,
+  SaveResult,
+  SettingsResponse,
+  ShiftRow,
+  WorkWeek,
+  WorkWeekBody,
+  Zone
+} from '@/builders/api/settings';
+
+export const STALE_TEXT = 'Có người vừa lưu trước, đã tải lại';
+export const isStale = (e: unknown) => (e as any)?.code === 'SETTINGS_STALE';
+
+// Hàm giả có thể ném (stale, ngoài khoảng): bọc lại để lỗi thành Promise bị từ chối như một lời gọi thật.
+const mocked = async <T>(fn: () => T): Promise<T> => respond(fn());
+
+export async function getSettings(month?: string): Promise<SettingsResponse> {
+  if (__MOCK__) return mocked(() => settingsAt(month));
+  return api('GET', `/settings${qs({ month })}`);
+}
+
+export async function saveSettingsGroup(group: GroupPath, body: SaveBody): Promise<SaveResult> {
+  if (__MOCK__) return mocked(() => saveGroup(group, body));
+  return api('PUT', `/settings/${group}`, body);
+}
+
+export async function getSettingsHistory(group: GroupPath): Promise<{ items: HistoryItem[] }> {
+  if (__MOCK__) return mocked(() => groupHistory(group));
+  return api('GET', `/settings/${group}/history`);
+}
+
+export async function getPayDays(year: number): Promise<{ year: number; items: PayDayItem[] }> {
+  if (__MOCK__) return mocked(() => payDaysOf(year));
+  return api('GET', `/settings/pay-days${qs({ year })}`);
+}
+
+export async function getWorkWeek(username: string, month?: string): Promise<WorkWeek> {
+  if (__MOCK__) return mocked(() => workWeekOf(username, month));
+  return api('GET', `/settings/work-weeks/${encodeURIComponent(username)}${qs({ month })}`);
+}
+
+export async function saveWorkWeek(
+  username: string,
+  body: WorkWeekBody
+): Promise<{ ok: true; weekdays: number[]; source: 'type' | 'own'; standardWorkdays: number; stamp: number }> {
+  if (__MOCK__) return mocked(() => saveWorkWeekOf(username, body));
+  return api('PUT', `/settings/work-weeks/${encodeURIComponent(username)}`, body);
+}
+
+export async function getWorkWeekHistory(username: string): Promise<{ items: HistoryItem[] }> {
+  if (__MOCK__) return mocked(() => workWeekHistory(username));
+  return api('GET', `/settings/work-weeks/${encodeURIComponent(username)}/history`);
+}
+
+export async function getAttendanceZone(): Promise<{ zone: Zone | null; stamp: number }> {
+  if (__MOCK__) return mocked(() => zoneOf());
+  return api('GET', '/settings/attendance-zone');
+}
+
+export async function saveAttendanceZone(
+  body: Zone & { reason: string | null; stamp: number }
+): Promise<{ ok: true; zone: Zone; stamp: number }> {
+  if (__MOCK__) return mocked(() => saveZoneOf(body));
+  return api('PUT', '/settings/attendance-zone', body);
+}
+
+// 6 ca cố định, chỉ đọc: GET /employees/meta/shifts → { shifts: [{ code, name, kind, startTime, endTime }] }.
+export async function getShifts(): Promise<ShiftRow[]> {
+  if (__MOCK__) return respond(MOCK_SHIFTS);
+  const { shifts = [] } = await api('GET', '/employees/meta/shifts');
+  return shifts;
+}
