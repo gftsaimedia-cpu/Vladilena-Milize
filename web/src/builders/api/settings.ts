@@ -260,10 +260,12 @@ export async function orNoWorkWeek<T>(request: Promise<T>): Promise<T | null> {
 /** Công chuẩn theo số ngày làm trong tuần (D5): làm tròn n × 52 / 12. */
 export const standardWorkdays = (n: number): number => Math.round((n * 52) / 12);
 
+// Phần "; từ MM/YYYY: …" chỉ có khi tuần sắp tới khác tuần đang áp dụng (tuần riêng hoặc null = theo loại).
 export function workWeekLine(ww: WorkWeek, upcoming?: { month: string; weekdays: number[] | null } | null): string {
   const base = `${weekdaysText(ww.weekdays)} · công chuẩn ${ww.standardWorkdays}`;
   let line = ww.source === 'own' ? `${base} · riêng từ ${monthShort(ww.from ?? ww.month)}` : `${base} · theo loại nhân sự`;
-  if (upcoming && upcoming.month > ww.month) {
+  const now = ww.source === 'own' ? ww.weekdays : null;
+  if (upcoming && upcoming.month > ww.month && !same(upcoming.weekdays, now)) {
     const next = upcoming.weekdays
       ? `${weekdaysText(upcoming.weekdays)} · công chuẩn ${standardWorkdays(upcoming.weekdays.length)}`
       : 'theo loại nhân sự';

@@ -21,6 +21,9 @@ test('ticking T2–T6 shows Công chuẩn 22 and no tick locks Lưu', async ({ p
   const dlg = page.getByRole('dialog', { name: 'Tuần làm việc' });
   const save = dlg.getByRole('button', { name: 'Lưu', exact: true });
   await expect(save).toBeDisabled();
+  // Ô tháng và ô lý do bo 8px như các màn cài đặt khác; ô lý do có bộ đếm N/300.
+  for (const box of await dlg.locator('.inp').all()) await expect(box).toHaveCSS('border-radius', '8px');
+  await expect(dlg).toContainText('0/300');
   await dlg.getByRole('radio', { name: 'Tuần riêng' }).check();
   await expect(dlg).toContainText('Công chuẩn: 26');
   await dlg.getByRole('checkbox', { name: 'T7' }).uncheck();

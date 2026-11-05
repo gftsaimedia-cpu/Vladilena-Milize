@@ -183,6 +183,17 @@ test('tax brackets refuse a bound below the previous one', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' })).toContainText('Biểu thuế bậc 2, đến 30.000.000 đ → 35.000.000 đ, áp dụng từ tháng 10/2026');
 });
 
+test('a money box drops the keystroke that goes past 1.000.000.000', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const f = page.getByRole('textbox', { name: 'Giảm trừ bản thân' });
+  await f.fill('1.000.000.000');
+  await expect(f).toHaveValue('1.000.000.000');
+  await f.press('End');
+  await f.pressSequentially('0');
+  await expect(f).toHaveValue('1.000.000.000');
+  await expect(item(page, 'personalDeduction')).not.toContainText('Từ 0 đ đến');
+});
+
 test('the bracket table shows five rows, the last one without a limit', async ({ page }) => {
   await page.goto('/admin/cai-dat/tat-ca?group=thue');
   const table = item(page, 'brackets');

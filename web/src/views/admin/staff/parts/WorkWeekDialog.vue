@@ -93,6 +93,7 @@ async function save() {
     <div class="fld">
       <label>Lý do <small>(không bắt buộc)</small></label>
       <TextBox v-model="reason" area :maxlength="REASON_MAX" label="Lý do" />
+      <small class="count">{{ reason.length }}/{{ REASON_MAX }}</small>
     </div>
     <template #footer>
       <span class="sp"></span>
@@ -138,5 +139,15 @@ async function save() {
 }
 .std.bad {
   color: var(--status-rejected);
+}
+.count {
+  display: block;
+  margin-top: 4px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--muted);
+}
+.fld :deep(.inp) {
+  border-radius: 8px;
 }
 </style>

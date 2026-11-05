@@ -119,7 +119,8 @@ test('Lưu is locked until something changes', async ({ page }) => {
   const d = drawer(page, 'Khấu trừ đi muộn, về sớm');
   await expect(d).toContainText('Chưa có thay đổi');
   await expect(d.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
-  await d.getByRole('textbox', { name: 'Đi trễ tới' }).fill('20');
+  await expect(d).not.toContainText('…');
+  await d.getByRole('textbox', { name: 'Đi trễ vẫn hợp lệ tới', exact: true }).fill('20');
   await expect(d.getByRole('button', { name: 'Lưu', exact: true })).toBeEnabled();
   await expect(d).toContainText('Đang áp dụng 15 phút');
 });

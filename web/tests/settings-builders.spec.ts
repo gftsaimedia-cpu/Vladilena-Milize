@@ -53,6 +53,10 @@ test('work week texts and standard workdays (D5)', () => {
   const type = workWeekOf('x', '2026-10');
   expect(workWeekLine(type)).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');
   expect(workWeekLine(type, { month: '2026-12', weekdays: [1, 2, 3, 4, 5] })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự; từ 12/2026: T2–T6 · công chuẩn 22');
+  // Tuần sắp tới giống tuần đang áp dụng (vd. hoàn tác tuần riêng về theo loại) thì không nêu.
+  expect(workWeekLine(type, { month: '2026-12', weekdays: null })).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');
+  const own = { ...type, source: 'own' as const, from: '2026-10', weekdays: [1, 2, 3, 4, 5], standardWorkdays: 22 };
+  expect(workWeekLine(own, { month: '2026-12', weekdays: [1, 2, 3, 4, 5] })).toBe('T2–T6 · công chuẩn 22 · riêng từ 10/2026');
 });
 test('pay dates of a calendar year and the pay-day hint', () => {
   expect(payDatesIn(2026, [...payDaysOf(2025).items, ...payDaysOf(2026).items])[0]).toBe('2026-01-10');

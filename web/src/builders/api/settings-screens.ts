@@ -220,7 +220,7 @@ const DRAWER_DEFS: Record<string, DrawerDef> = {
     sub: 'Ngưỡng đi trễ vẫn tính là đúng giờ',
     group: 'attendance',
     section: 'Khấu trừ',
-    fields: [fld('lateGraceMinutes', 'Đi trễ tới … phút vẫn hợp lệ')]
+    fields: [fld('lateGraceMinutes', FIELD_LABEL.lateGraceMinutes)]
   },
   'tam-ung': { title: 'Tạm ứng', sub: 'Số tiền được ứng giữa tháng', group: null, section: '', fields: [] }
 };
