@@ -6,6 +6,8 @@ import { AttendanceRepository } from '../../src/modules/attendance/attendance.re
 import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/attendance/domain';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
+import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
+import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
 import { SystemRequest } from '../../src/modules/requests/domain';
 
 // pg đọc cột DATE thành Date lúc 0h theo giờ máy. Ghim múi giờ chạy thật (UTC+7) để lỗi lệch ngày
@@ -178,14 +180,40 @@ describe('Duyệt đơn lên ngày đã có lịch (cột DATE đọc về là D
     const friday = { ...scheduleRow(pgDate(2026, 11, 6)), employee_id: employeeId };
 
     const { db, log } = createScriptedKysely(({ sql, parameters }) => {
+      // day_status: đơn nghỉ giữ đúng ngày 06/11 (đọc theo request_id lúc ghi lịch); các truy vấn khác không có dòng nào
+      if (sql.includes('from "day_status"')) {
+        if (!sql.includes('"d"."request_id" =') || !parameters.includes(leave.id)) return [];
+        return [
+          {
+            employee_id: employeeId,
+            work_date: '2026-11-06',
+            status: 'LEAVE',
+            request_id: leave.id,
+            base_request_id: null,
+            request_status: 'PENDING',
+            base_request_status: null
+          }
+        ];
+      }
       // findById chọn rõ từng cột (DATE qua to_char); vẫn trả Date ở đây để kiểm cả mapper khi DATE về dạng Date
       if (sql.startsWith('select') && sql.includes('from "system_requests"')) return [leave];
       if (sql.startsWith('select * from "work_schedules"')) {
         return parameters[0] === employeeId && parameters[1] === '2026-11-06' ? [friday] : [];
       }
+      // Duyệt đơn nghỉ kiểm lại ngày làm việc: hồ sơ nv (T2–T7), không có ngày lễ
+      if (sql.includes('from "staff"')) {
+        return [{ uuid: employeeId, type: 'nv', shift_start_time: '08:00', shift_end_time: '17:00', leave_balance: 12, leave_balance_on: null }];
+      }
+      if (sql.includes('from "position_types"')) return [{ id: 2, regular_dows: '[1,2,3,4,5,6]' }];
       return [];
     });
-    const service = new RequestsService(new RequestsRepository(db), new AttendanceRepository(db));
+    const service = new RequestsService(
+      new RequestsRepository(db),
+      new AttendanceRepository(db),
+      undefined,
+      new HolidaysRepository(db),
+      new DayStatusRepository(db)
+    );
 
     await service.reviewRequest(leave.id, 'admin-1', 'APPROVE');
 

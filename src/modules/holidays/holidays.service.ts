@@ -1,4 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { isValidDateText } from '../../common/date-text';
 import { HolidayNotFoundError } from './holidays.errors';
 import { HolidaysRepository, type Holiday } from './holidays.repository';
 
@@ -12,14 +13,6 @@ export const FIXED_HOLIDAYS: ReadonlyArray<{ monthDay: string; name: string }> =
 
 const MIN_YEAR = 2000;
 const MAX_YEAR = 2100;
-
-/** Ngày có thật trong lịch, dạng YYYY-MM-DD ('2026-02-30' không hợp lệ). */
-function isValidDate(value: unknown): value is string {
-  if (typeof value !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value)) return false;
-  const [y, m, d] = value.split('-').map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-}
 
 /** Số nguyên 2000–2100. Query string gửi năm dạng chuỗi số nên chuỗi toàn chữ số cũng được nhận. */
 function parseYear(value: unknown): number {
@@ -46,7 +39,7 @@ export class HolidaysService {
 
   async add(input: { date: unknown; name: unknown }, createdBy: string | null): Promise<Holiday> {
     const { date, name } = input;
-    if (!isValidDate(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
+    if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (trimmed.length === 0) throw new Error('Tên ngày lễ không được trống');
     const holiday: Holiday = { date, name: trimmed };
@@ -68,7 +61,7 @@ export class HolidaysService {
   }
 
   async remove(date: string): Promise<void> {
-    if (!isValidDate(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
+    if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
     if (!(await this.repo.remove(date))) throw new HolidayNotFoundError(date);
   }
 }

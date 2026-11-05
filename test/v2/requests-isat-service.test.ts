@@ -4,11 +4,12 @@ import { randomUUID } from 'node:crypto';
 import { BadRequestError } from '../../src/common';
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
-import { IsatProfile, RequestsRepository } from '../../src/modules/requests/requests.repository';
+import { IsatProfile, RequestsRepository, ScheduleDay, StaffContext } from '../../src/modules/requests/requests.repository';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { ISAT_CONDITIONS, SystemRequest } from '../../src/modules/requests/domain';
 import { WorkSchedule } from '../../src/modules/attendance/domain';
 import { businessMonthText } from '../../src/common/business-date';
+import { FakeDayStatusRepository, FakeHolidaysRepository, staffContext } from './helpers/requests-fakes';
 
 const profile = {
   fullName: 'Nguyễn Văn A', positionType: 'nv', positionLevel: 2, levelName: 'Chuyên viên',
@@ -29,6 +30,13 @@ const otherNvProfile: IsatProfile = {
   snapshot: { ...profile, fullName: 'Trần Văn B' }
 };
 
+// Người duyệt `admin` có hồ sơ riêng: duyệt ghi uuid của người duyệt.
+const adminProfile: IsatProfile = {
+  employeeId: 'admin-uuid',
+  isatEnabled: false,
+  snapshot: { ...profile, fullName: 'Quản trị' }
+};
+
 class FakeRequestsRepository extends RequestsRepository {
   requests: Map<string, SystemRequest> = new Map();
   profiles: Map<string, IsatProfile> = new Map([
@@ -36,7 +44,8 @@ class FakeRequestsRepository extends RequestsRepository {
     ['nguyen-van-a', nvProfile],
     ['emp-uuid-2', otherNvProfile],
     ['tran-van-b', otherNvProfile],
-    ['ctv-user', ctvProfile]
+    ['ctv-user', ctvProfile],
+    ['admin', adminProfile]
   ]);
   profileMonths: string[] = [];
   resolveCalls: string[] = [];
@@ -76,6 +85,21 @@ class FakeRequestsRepository extends RequestsRepository {
     this.resolveCalls.push(id);
     return this.profiles.get(id)?.employeeId ?? null;
   }
+
+  override async findStaffContext(id: string, _month: string): Promise<StaffContext | null> {
+    const found = this.profiles.get(id);
+    return found ? staffContext({ employeeId: found.employeeId }) : null;
+  }
+
+  override async listScheduleDays(): Promise<ScheduleDay[]> {
+    return [];
+  }
+
+  override async listActive(employeeId: string): Promise<SystemRequest[]> {
+    return [...this.requests.values()].filter(
+      r => r.employeeId === employeeId && (r.status === 'PENDING' || r.status === 'APPROVED')
+    );
+  }
 }
 
 class FakeAttendanceRepository extends AttendanceRepository {
@@ -105,6 +129,11 @@ class FakeAttendanceRepository extends AttendanceRepository {
   }
 }
 
+/** Service với lịch lễ và `day_status` trong bộ nhớ; `day_status` đọc trạng thái đơn từ `requests` của fake đơn. */
+function newService(reqRepo: FakeRequestsRepository, attRepo?: AttendanceRepository): RequestsService {
+  return new RequestsService(reqRepo, attRepo, undefined, new FakeHolidaysRepository(), new FakeDayStatusRepository(reqRepo));
+}
+
 describe('Đơn iSAT - service', () => {
   let reqRepo: FakeRequestsRepository;
   let attRepo: FakeAttendanceRepository;
@@ -113,7 +142,7 @@ describe('Đơn iSAT - service', () => {
   beforeEach(() => {
     reqRepo = new FakeRequestsRepository();
     attRepo = new FakeAttendanceRepository();
-    service = new RequestsService(reqRepo, attRepo);
+    service = newService(reqRepo, attRepo);
   });
 
   it('creates a PENDING request under the uuid with the profile snapshot', async () => {
@@ -235,7 +264,7 @@ describe('Đơn iSAT - service', () => {
   });
 
   it('approves without an attendance repository', async () => {
-    const bare = new RequestsService(reqRepo);
+    const bare = newService(reqRepo, undefined);
     const created = await bare.createIsatRequest({
       employeeId: 'nguyen-van-a',
       saturday: '2026-11-07',
@@ -330,10 +359,12 @@ describe('Đơn iSAT - service', () => {
 
     it('still lists other request types stored under the username next to the iSAT ones', async () => {
       const isat = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
-      const leave = await service.createLeaveRequest({
+      // Đơn cũ lưu theo username (đơn nghỉ mới luôn lưu theo uuid), nên ghi thẳng vào repo
+      const leave = SystemRequest.createLeaveRequest({
         employeeId: 'nguyen-van-a', title: 'Nghỉ phép', reason: 'Việc nhà',
-        leaveType: 'PAID', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
+        leaveType: 'ANNUAL', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
       });
+      await reqRepo.save(leave);
 
       const listed = await service.listRequests({ employeeId: 'nguyen-van-a' });
       assert.equal(listed.total, 2);

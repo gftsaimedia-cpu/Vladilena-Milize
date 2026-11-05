@@ -4,7 +4,8 @@ import { AttendanceService } from '../../src/modules/attendance/attendance.servi
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/attendance/domain';
 import { RequestsService } from '../../src/modules/requests/requests.service';
-import { IsatProfile, RequestsRepository } from '../../src/modules/requests/requests.repository';
+import { IsatProfile, RequestsRepository, type StaffContext } from '../../src/modules/requests/requests.repository';
+import { staffContext } from './helpers/requests-fakes';
 import { SystemRequest } from '../../src/modules/requests/domain';
 import { businessDateText, businessMonthText } from '../../src/common/business-date';
 
@@ -91,6 +92,12 @@ class FakeRequestsRepository extends RequestsRepository {
     this.profileMonths.push(month);
     return null;
   }
+
+  // Đơn tạm ứng tra hồ sơ trước khi lưu (lưu theo uuid); mọi id đều là một nhân viên.
+  override async findStaffContext(id: string, month: string): Promise<StaffContext | null> {
+    this.profileMonths.push(month);
+    return staffContext({ employeeId: id });
+  }
 }
 
 describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
@@ -108,7 +115,8 @@ describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
 
     it(`đơn tạm ứng không gửi kỳ lúc 05:00 sáng 01/12 thì lấy kỳ 2026-12 (TZ=${zone})`, async () => {
       runAt(zone, FIRST_OF_MONTH_VN);
-      const service = new RequestsService(new FakeRequestsRepository(), new FakeAttendanceRepository());
+      const reqRepo = new FakeRequestsRepository();
+      const service = new RequestsService(reqRepo, new FakeAttendanceRepository());
 
       const dto = await service.createAdvanceRequest({
         employeeId: 'emp-1',
@@ -118,6 +126,7 @@ describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
       });
 
       assert.equal(dto.advancePeriod, '2026-12');
+      assert.deepEqual(reqRepo.profileMonths, ['2026-12']);
     });
 
     it(`đơn iSAT nộp lúc 05:00 sáng 01/12 thì tra hồ sơ tháng 2026-12 (TZ=${zone})`, async () => {

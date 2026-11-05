@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { toDateText } from '../../../common/date-text';
+import { isValidDateText, toDateText } from '../../../common/date-text';
 import {
   RequestType,
   RequestStatus,
@@ -19,20 +19,13 @@ import {
   SystemRequestDTO
 } from './types';
 import { IsatRegistration } from './isat';
-import type { ExplanationCase } from './explanation-cases';
+import { EXPLANATION_CASES, isExplanationCase, type ExplanationCase } from './explanation-cases';
+import { isLeaveType } from './leave-types';
 import { workMinutes } from './time-window';
+import { findShiftFrame } from './shift-frames';
 
 /** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
 const OWED_MINUTES_PER_LEAVE_DAY = 480;
-
-function isValidDateString(dateStr: string): boolean {
-  if (typeof dateStr !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
-    return false;
-  }
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-}
 
 function isValidTimeString(timeStr: string): boolean {
   return typeof timeStr === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(timeStr);
@@ -47,6 +40,105 @@ function requireNonEmptyString(val: any, fieldName: string): string {
     throw new Error(`${fieldName} must be a non-empty string`);
   }
   return val.trim();
+}
+
+/** Một trong 6 mã loại nghỉ (§9); mã cũ `PAID`/`UNPAID` của v2 bị từ chối. */
+export function requireLeaveType(value: unknown): LeaveType {
+  if (!isLeaveType(value)) {
+    throw new Error(`Loại nghỉ không hợp lệ: ${String(value)}`);
+  }
+  return value;
+}
+
+/** Ngày 'YYYY-MM-DD' có thật, với câu lỗi sẵn có của domain (`<field> must be a valid YYYY-MM-DD date string, got: …`). */
+export function requireDateText(value: unknown, field: string): string {
+  if (!isValidDateText(value)) {
+    throw new Error(`${field} must be a valid YYYY-MM-DD date string, got: ${String(value)}`);
+  }
+  return value;
+}
+
+/** Giờ 'HH:mm', với câu lỗi sẵn có của domain (`<field> must be a valid HH:mm time string, got: …`). */
+export function requireTimeText(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !isValidTimeString(value)) {
+    throw new Error(`${field} must be a valid HH:mm time string, got: ${String(value)}`);
+  }
+  return value;
+}
+
+/** Hai ngày 'YYYY-MM-DD' có thật và `startDate ≤ endDate`, với câu lỗi sẵn có của domain. */
+export function requireDateRange(startDate: unknown, endDate: unknown): { startDate: string; endDate: string } {
+  const start = requireDateText(startDate, 'startDate');
+  const end = requireDateText(endDate, 'endDate');
+  if (start > end) {
+    throw new Error(`endDate (${end}) cannot be earlier than startDate (${start})`);
+  }
+  return { startDate: start, endDate: end };
+}
+
+/** Khung bù client gửi, đã kiểm dạng nhưng chưa tính giờ. */
+export interface MakeupSlotInput {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+const compareSlots = (a: { date: string; startTime: string }, b: { date: string; startTime: string }): number =>
+  a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date);
+
+/**
+ * Đọc danh sách khung bù của đơn nghỉ có làm bù (§6.2 bước 2), trả về theo ngày rồi theo giờ bắt đầu.
+ * Không phải mảng → `slots phải là danh sách khung bù`; khung thứ i sai dạng → `Khung bù thứ i không hợp lệ`.
+ */
+export function requireMakeupSlots(value: unknown): MakeupSlotInput[] {
+  if (!Array.isArray(value)) {
+    throw new Error('slots phải là danh sách khung bù');
+  }
+  return value
+    .map((slot, i) => {
+      const s = slot as Record<string, unknown> | null;
+      if (
+        typeof s !== 'object' ||
+        s === null ||
+        !isValidDateText(s.date) ||
+        !isValidTimeString(s.startTime as string) ||
+        !isValidTimeString(s.endTime as string)
+      ) {
+        throw new Error(`Khung bù thứ ${i + 1} không hợp lệ`);
+      }
+      return { date: s.date, startTime: s.startTime as string, endTime: s.endTime as string };
+    })
+    .sort(compareSlots);
+}
+
+/**
+ * Các trường hợp giải trình (§6.5 bước 2): mảng không rỗng, mã thuộc danh mục, không lặp.
+ * Trả về theo thứ tự của `EXPLANATION_CASES`.
+ */
+export function requireExplanationCases(value: unknown): ExplanationCase[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('Cần chọn ít nhất 1 trường hợp giải trình');
+  }
+  const seen = new Set<ExplanationCase>();
+  for (const c of value) {
+    if (!isExplanationCase(c)) {
+      throw new Error(`Trường hợp giải trình không hợp lệ: ${String(c)}`);
+    }
+    if (seen.has(c)) {
+      throw new Error(`Trường hợp giải trình bị lặp: ${c}`);
+    }
+    seen.add(c);
+  }
+  return EXPLANATION_CASES.map(c => c.code).filter(code => seen.has(code));
+}
+
+/** Giờ thực tế của đơn giải trình: `undefined`, `null`, `''` → null; khác `HH:mm` → `Giờ thực tế không hợp lệ: …`. */
+export function optionalActualTime(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !isValidTimeString(value)) {
+    throw new Error(`Giờ thực tế không hợp lệ: ${String(value)}`);
+  }
+  return value;
 }
 
 export class SystemRequest {
@@ -146,21 +238,8 @@ export class SystemRequest {
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
 
-    if (params?.leaveType !== 'PAID' && params?.leaveType !== 'UNPAID') {
-      throw new Error(`leaveType must be 'PAID' or 'UNPAID', got: ${params?.leaveType}`);
-    }
-
-    if (!isValidDateString(params?.startDate)) {
-      throw new Error(`startDate must be a valid YYYY-MM-DD date string, got: ${params?.startDate}`);
-    }
-
-    if (!isValidDateString(params?.endDate)) {
-      throw new Error(`endDate must be a valid YYYY-MM-DD date string, got: ${params?.endDate}`);
-    }
-
-    if (params.startDate > params.endDate) {
-      throw new Error(`endDate (${params.endDate}) cannot be earlier than startDate (${params.startDate})`);
-    }
+    const leaveType = requireLeaveType(params?.leaveType);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
 
     if (typeof params?.daysCount !== 'number' || isNaN(params.daysCount) || params.daysCount <= 0) {
       throw new Error(`daysCount must be a positive number, got: ${params?.daysCount}`);
@@ -174,9 +253,9 @@ export class SystemRequest {
       type: 'LEAVE',
       reason,
       status: 'PENDING',
-      leaveType: params.leaveType,
-      leaveStartDate: params.startDate,
-      leaveEndDate: params.endDate,
+      leaveType,
+      leaveStartDate: startDate,
+      leaveEndDate: endDate,
       leaveDaysCount: params.daysCount,
       reviewedBy: null,
       reviewedAt: null,
@@ -191,7 +270,7 @@ export class SystemRequest {
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
 
-    if (!isValidDateString(params?.otDate)) {
+    if (!isValidDateText(params?.otDate)) {
       throw new Error(`otDate must be a valid YYYY-MM-DD date string, got: ${params?.otDate}`);
     }
 
@@ -266,10 +345,10 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-
-    if (!isValidDateString(params?.workDate)) {
-      throw new Error(`workDate must be a valid YYYY-MM-DD date string, got: ${params?.workDate}`);
-    }
+    const workDate = requireDateText(params?.workDate, 'workDate');
+    const explanationCases = requireExplanationCases(params?.cases);
+    const actualCheckIn = optionalActualTime(params?.actualCheckIn);
+    const actualCheckOut = optionalActualTime(params?.actualCheckOut);
 
     const now = new Date();
     return new SystemRequest({
@@ -279,9 +358,10 @@ export class SystemRequest {
       type: 'EXPLANATION',
       reason,
       status: 'PENDING',
-      explanationDate: params.workDate,
-      actualCheckIn: params.actualCheckIn || null,
-      actualCheckOut: params.actualCheckOut || null,
+      explanationDate: workDate,
+      explanationCases,
+      actualCheckIn,
+      actualCheckOut,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,
@@ -294,14 +374,12 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateString(params?.changeDate)) {
-      throw new Error(`changeDate must be a valid YYYY-MM-DD date string, got: ${params?.changeDate}`);
-    }
-    if (!isValidTimeString(params?.newStartTime)) {
-      throw new Error(`newStartTime must be a valid HH:mm time string, got: ${params?.newStartTime}`);
-    }
-    if (!isValidTimeString(params?.newEndTime)) {
-      throw new Error(`newEndTime must be a valid HH:mm time string, got: ${params?.newEndTime}`);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
+    const frame = params?.frame ? findShiftFrame(params.frame.shiftType, params.frame.startTime) : null;
+    if (!frame || frame.endTime !== params.frame.endTime) {
+      throw new Error(
+        `Khung ca không hợp lệ: ${params?.frame?.shiftType} ${params?.frame?.startTime}`
+      );
     }
 
     const now = new Date();
@@ -312,11 +390,11 @@ export class SystemRequest {
       type: 'SHIFT_CHANGE',
       reason,
       status: 'PENDING',
-      changeStartDate: params.changeDate,
-      changeEndDate: params.changeDate,
-      newShiftType: params.newShiftType,
-      newStartTime: params.newStartTime,
-      newEndTime: params.newEndTime,
+      changeStartDate: startDate,
+      changeEndDate: endDate,
+      newShiftType: frame.shiftType,
+      newStartTime: frame.startTime,
+      newEndTime: frame.endTime,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,
@@ -329,18 +407,22 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateString(params?.leaveDate)) {
-      throw new Error(`leaveDate must be a valid YYYY-MM-DD date string, got: ${params?.leaveDate}`);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
+    if (!Number.isInteger(params?.daysCount) || params.daysCount <= 0) {
+      throw new Error(`daysCount must be a positive integer, got: ${params?.daysCount}`);
     }
-    if (!isValidDateString(params?.makeupDate)) {
-      throw new Error(`makeupDate must be a valid YYYY-MM-DD date string, got: ${params?.makeupDate}`);
+    if (!Array.isArray(params?.makeupSlots) || params.makeupSlots.length === 0) {
+      throw new Error('makeupSlots must be a non-empty array');
     }
-    if (!isValidTimeString(params?.makeupStartTime)) {
-      throw new Error(`makeupStartTime must be a valid HH:mm time string, got: ${params?.makeupStartTime}`);
-    }
-    if (!isValidTimeString(params?.makeupEndTime)) {
-      throw new Error(`makeupEndTime must be a valid HH:mm time string, got: ${params?.makeupEndTime}`);
-    }
+    // Khung bù luôn lưu theo ngày rồi theo giờ bắt đầu, để mọi nơi đọc ra cùng một thứ tự.
+    const makeupSlots = params.makeupSlots
+      .map(slot => ({
+        date: requireDateText(slot?.date, 'makeupSlots.date'),
+        startTime: requireTimeText(slot?.startTime, 'makeupSlots.startTime'),
+        endTime: requireTimeText(slot?.endTime, 'makeupSlots.endTime'),
+        workMinutes: workMinutes(slot.startTime, slot.endTime)
+      }))
+      .sort(compareSlots);
 
     const now = new Date();
     return new SystemRequest({
@@ -350,18 +432,11 @@ export class SystemRequest {
       type: 'LEAVE_WITH_MAKEUP',
       reason,
       status: 'PENDING',
-      leaveStartDate: params.leaveDate,
-      leaveEndDate: params.leaveDate,
+      leaveStartDate: startDate,
+      leaveEndDate: endDate,
       leaveType: null,
-      leaveDaysCount: 1,
-      makeupSlots: [
-        {
-          date: params.makeupDate,
-          startTime: params.makeupStartTime,
-          endTime: params.makeupEndTime,
-          workMinutes: workMinutes(params.makeupStartTime, params.makeupEndTime)
-        }
-      ],
+      leaveDaysCount: params.daysCount,
+      makeupSlots,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,

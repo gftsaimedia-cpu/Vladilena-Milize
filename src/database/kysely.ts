@@ -15,6 +15,8 @@ export function createPgPool(connectionString?: string): Pool {
     connectionString: url,
     max: 20,
     idleTimeoutMillis: 30000,
+    // Pool cạn (vd. thao tác giữ kết nối trong khoá rồi xin thêm) thì báo lỗi sau 10 giây thay vì treo cả app.
+    connectionTimeoutMillis: 10000,
   });
   // Máy chủ cắt một kết nối đang rảnh (DB khởi động lại, bị terminate): pool tự bỏ kết nối đó và mở kết nối mới.
   // Không nghe sự kiện này thì Node coi là lỗi không ai bắt và tắt cả tiến trình.

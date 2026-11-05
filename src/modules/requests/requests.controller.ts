@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { RequestsService } from './requests.service';
-import { RequestType, RequestStatus, ISAT_CONDITIONS } from './domain';
+import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES, EXPLANATION_CASES } from './domain';
 
 // Các route này là của Admin làm thay nhân viên: người được thao tác phải ghi rõ, không suy ra từ phiên.
 function requireEmployeeId(body: any): string {
@@ -28,11 +28,61 @@ export class RequestsController {
   }
 
   @RequireCap('requests.review')
+  @Post('leave-with-makeup')
+  async createLeaveWithMakeup(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      // Số ngày nghỉ và giờ bù do server tính: `daysCount`/`leaveType` client gửi không được chuyển xuống.
+      const request = await this.service.createLeaveWithMakeupRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        slots: body.slots
+      });
+      return { created: true, request };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  @RequireCap('requests.review')
+  @Post('shift-change')
+  async createShiftChange(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      // Giờ ra của ca lấy từ khung (§4); `endTime` client gửi không được chuyển xuống.
+      const request = await this.service.createShiftChangeRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        shiftType: body.shiftType,
+        startTime: body.startTime
+      });
+      return { created: true, request };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  @RequireCap('requests.review')
   @Post('overtime')
   async createOvertime(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createOvertimeRequest({ ...body, employeeId });
+      // Giờ OT do server tính từ khung: `hours`/`otHours`/`otRateMultiplier` client gửi không được chuyển xuống.
+      const request = await this.service.createOvertimeRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        otDate: body.otDate,
+        targetDate: body.targetDate,
+        startTime: body.startTime,
+        endTime: body.endTime
+      });
       return { created: true, request };
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
@@ -56,7 +106,16 @@ export class RequestsController {
   async createExplanation(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createExplanationRequest({ ...body, employeeId });
+      // `targetPunchType`/`actualPunchTime` của bản cũ không còn; chỉ chuyển các trường của §6.5.
+      const request = await this.service.createExplanationRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        workDate: body.workDate,
+        cases: body.cases,
+        actualCheckIn: body.actualCheckIn,
+        actualCheckOut: body.actualCheckOut
+      });
       return { created: true, request };
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
@@ -85,6 +144,20 @@ export class RequestsController {
   @Get('isat/conditions')
   listIsatConditions(): { conditions: Array<{ code: string; label: string }> } {
     return { conditions: ISAT_CONDITIONS.map(({ code, label }) => ({ code, label })) };
+  }
+
+  // 6 loại nghỉ (§9) cho form đơn nghỉ; khai báo trước @Get(':id') để 'leave-types' không bị bắt làm id
+  @RequireCap('requests.review')
+  @Get('leave-types')
+  listLeaveTypes(): { leaveTypes: typeof LEAVE_TYPES } {
+    return { leaveTypes: LEAVE_TYPES };
+  }
+
+  // 7 trường hợp giải trình cho form; khai báo trước @Get(':id') để 'explanation-cases' không bị bắt làm id
+  @RequireCap('requests.review')
+  @Get('explanation-cases')
+  listExplanationCases(): { cases: typeof EXPLANATION_CASES } {
+    return { cases: EXPLANATION_CASES };
   }
 
   @RequireCap('requests.review')

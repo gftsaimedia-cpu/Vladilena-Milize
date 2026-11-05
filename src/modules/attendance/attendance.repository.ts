@@ -14,6 +14,11 @@ export interface TimesheetFilter {
 export class AttendanceRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
+  /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */
+  withTransaction(trx: Kysely<DB>): AttendanceRepository {
+    return new AttendanceRepository(trx);
+  }
+
   /**
    * Lưu sự kiện chấm công vào bảng punch_events (100% Flat Schema)
    */

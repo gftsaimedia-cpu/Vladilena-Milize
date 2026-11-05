@@ -11,8 +11,12 @@ import {
   RequestStatus,
   MakeupSlot,
   ExplanationCase,
-  EXPLANATION_CASES
+  EXPLANATION_CASES,
+  type ScheduleDay
 } from './domain';
+
+// ScheduleDay khai báo ở domain (domain không import repository); xuất lại ở đây theo hợp đồng của plan.
+export type { ScheduleDay } from './domain';
 
 /** Cột DATE của system_requests: đọc qua to_char để pg không đổi thành Date theo múi giờ máy. */
 type RequestDateColumn =
@@ -39,9 +43,43 @@ export interface IsatProfile {
   snapshot: IsatProfileSnapshot;
 }
 
+/** Hồ sơ nộp đơn (§5.1): uuid, loại, ca mặc định, số dư phép và cờ quyền lợi của phiên bản loại nhân sự đang hiệu lực. */
+export interface StaffContext {
+  employeeId: string; // staff.uuid
+  employeeType: string;
+  defaultShift: { startTime: string; endTime: string }; // staff.shift_start_time / shift_end_time
+  leaveBalance: number; // staff.leave_balance, NULL → 0
+  leaveBalanceOn: string | null; // staff.leave_balance_on
+  benefits: { ot: boolean; makeup: boolean; leaveAccount: boolean };
+  regularDows: number[] | null; // null = loại nhân sự chưa cấu hình
+}
+
+/** Cờ quyền lợi mà đơn từ cần; thiếu dòng thì coi là tắt. */
+const REQUEST_BENEFITS = ['ot', 'makeup', 'leaveAccount'] as const;
+
+/** Ca mặc định khi hồ sơ không ghi ca (như ensureDefaultSchedule). */
+const FALLBACK_SHIFT = { startTime: '08:00', endTime: '17:00' };
+
+/** `regular_dows` lưu dạng chuỗi JSON '[1,2,3,4,5,6]'; sai dạng thì coi như chưa cấu hình. */
+function parseDows(text: string | null | undefined): number[] | null {
+  if (!text) return null;
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!Array.isArray(parsed) || !parsed.every(d => Number.isInteger(d) && d >= 0 && d <= 6)) return null;
+    return parsed as number[];
+  } catch {
+    return null;
+  }
+}
+
 @Injectable()
 export class RequestsRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
+
+  /** Bản chạy mọi truy vấn trên `trx` (giao dịch của khoá đơn từ) thay vì pool. */
+  withTransaction(trx: Kysely<DB>): RequestsRepository {
+    return new RequestsRepository(trx);
+  }
 
   async save(request: SystemRequest): Promise<void> {
     const row = request.toRow();
@@ -53,8 +91,10 @@ export class RequestsRepository {
       return;
     }
     // Đơn có bảng con ghi mọi bảng trong một giao dịch; lưu lần hai (duyệt đơn) chỉ cập nhật system_requests,
-    // các dòng con đã ghi lúc nộp nên bỏ qua khi trùng khoá.
-    await this.qb.transaction().execute(async trx => {
+    // các dòng con đã ghi lúc nộp nên bỏ qua khi trùng khoá. Đang ở trong giao dịch thì ghi thẳng vào đó.
+    const inTransaction = (write: (trx: Kysely<DB>) => Promise<void>) =>
+      this.qb.isTransaction ? write(this.qb) : this.qb.transaction().execute(write);
+    await inTransaction(async trx => {
       await this.upsertRequest(trx, row);
       if (isat) {
         await this.insertIsat(trx, request.id, isat);
@@ -267,6 +307,77 @@ export class RequestsRepository {
         shiftEndTime: staff.shift_end_time
       }
     };
+  }
+
+  /**
+   * Hồ sơ nộp đơn theo uuid hoặc username, với phiên bản `position_types` mới nhất có `effective_month <= month`
+   * (như findIsatProfile). Không có phiên bản nào thì `regularDows: null` và mọi cờ tắt. Không có nhân sự → null.
+   */
+  async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
+    const staff = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'type', 'shift_start_time', 'shift_end_time', 'leave_balance', 'leave_balance_on'])
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    if (!staff || !staff.uuid) return null;
+
+    const typeRow = await this.qb
+      .selectFrom('position_types')
+      .select(['id', 'regular_dows'])
+      .where('code', '=', staff.type)
+      .where('effective_month', '<=', month)
+      .orderBy('effective_month', 'desc')
+      .limit(1)
+      .executeTakeFirst();
+
+    const enabled = new Set<string>();
+    if (typeRow) {
+      const benefitRows = await this.qb
+        .selectFrom('position_type_benefits')
+        .select(['benefit', 'enabled'])
+        .where('type_id', '=', typeRow.id)
+        .where('benefit', 'in', [...REQUEST_BENEFITS])
+        .execute();
+      for (const b of benefitRows) {
+        if (Number(b.enabled) === 1) enabled.add(b.benefit);
+      }
+    }
+
+    return {
+      employeeId: staff.uuid,
+      employeeType: staff.type,
+      defaultShift: {
+        startTime: staff.shift_start_time || FALLBACK_SHIFT.startTime,
+        endTime: staff.shift_end_time || FALLBACK_SHIFT.endTime
+      },
+      leaveBalance: Number(staff.leave_balance ?? 0),
+      leaveBalanceOn: staff.leave_balance_on ?? null,
+      benefits: { ot: enabled.has('ot'), makeup: enabled.has('makeup'), leaveAccount: enabled.has('leaveAccount') },
+      regularDows: typeRow ? parseDows(typeRow.regular_dows) : null
+    };
+  }
+
+  /** Lịch các ngày trong [from, to] của một nhân sự; DATE và TIME đọc qua to_char để không lệch múi giờ. */
+  async listScheduleDays(employeeId: string, from: string, to: string): Promise<ScheduleDay[]> {
+    const rows = await this.qb
+      .selectFrom('work_schedules')
+      .select([
+        sql<string>`to_char(${sql.ref('work_date')}, 'YYYY-MM-DD')`.as('work_date'),
+        sql<string>`to_char(${sql.ref('planned_start_time')}, 'HH24:MI')`.as('planned_start_time'),
+        sql<string>`to_char(${sql.ref('planned_end_time')}, 'HH24:MI')`.as('planned_end_time'),
+        'status'
+      ])
+      .where('employee_id', '=', employeeId)
+      .where('work_date', '>=', from)
+      .where('work_date', '<=', to)
+      .orderBy('work_date')
+      .execute();
+    return rows.map(r => ({
+      date: r.work_date,
+      startTime: r.planned_start_time,
+      endTime: r.planned_end_time,
+      onLeave: r.status === 'ON_LEAVE'
+    }));
   }
 
   /**

@@ -1,6 +1,7 @@
 import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from './isat';
 import type { LeaveType } from './leave-types';
 import type { ExplanationCase } from './explanation-cases';
+import type { ShiftFrame } from './shift-frames';
 
 export type { LeaveType } from './leave-types';
 
@@ -87,24 +88,25 @@ export interface CreateLeaveParams {
   daysCount: number;
 }
 
+/** Đơn đổi ca (§6.4): một trong 6 khung ca cho mọi ngày làm việc trong khoảng. */
 export interface CreateShiftChangeParams {
   employeeId: string;
   title: string;
   reason: string;
-  changeDate: string;
-  newShiftType: string;
-  newStartTime: string;
-  newEndTime: string;
+  startDate: string;
+  endDate: string;
+  frame: ShiftFrame;
 }
 
+/** Đơn nghỉ có làm bù (§6.2): khoảng nghỉ, số ngày làm việc trong khoảng (server đếm) và các khung bù. */
 export interface CreateLeaveWithMakeupParams {
   employeeId: string;
   title: string;
   reason: string;
-  leaveDate: string;
-  makeupDate: string;
-  makeupStartTime: string;
-  makeupEndTime: string;
+  startDate: string;
+  endDate: string;
+  daysCount: number;
+  makeupSlots: MakeupSlot[];
 }
 
 export interface CreateOvertimeParams {
@@ -125,13 +127,15 @@ export interface CreateAdvanceParams {
   period: string;
 }
 
+/** Đơn giải trình (§6.5): ngày công, các trường hợp chọn (theo thứ tự danh mục) và giờ thực tế (null = không có). */
 export interface CreateExplanationParams {
   employeeId: string;
   title: string;
   reason: string;
   workDate: string;
-  actualCheckIn?: string | null;
-  actualCheckOut?: string | null;
+  cases: ExplanationCase[];
+  actualCheckIn: string | null;
+  actualCheckOut: string | null;
 }
 
 export interface CreateIsatParams {

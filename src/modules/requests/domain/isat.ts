@@ -1,3 +1,6 @@
+import { isValidDateText } from '../../../common/date-text';
+import { weekday } from './working-days';
+
 export type IsatConditionCode = 'NO_VIOLATION' | 'REPORTS_DONE' | 'WORK_COMPLETED' | 'OFFICIAL_EMPLOYEE';
 
 export const ISAT_CONDITIONS: ReadonlyArray<{ readonly code: IsatConditionCode; readonly label: string }> = [
@@ -74,13 +77,8 @@ interface IsatRegistrationProps {
 }
 
 function requireSaturday(value: unknown): string {
-  if (typeof value === 'string' && /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(value)) {
-    const [y, m, d] = value.split('-').map(Number);
-    const date = new Date(Date.UTC(y, m - 1, d));
-    const exists = date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-    if (exists && date.getUTCDay() === 6) {
-      return value;
-    }
+  if (isValidDateText(value) && weekday(value) === 6) {
+    return value;
   }
   throw new Error(`saturday phải là ngày Thứ Bảy dạng YYYY-MM-DD, nhận: ${String(value)}`);
 }

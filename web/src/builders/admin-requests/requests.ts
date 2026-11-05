@@ -88,7 +88,7 @@ export const vnLocal = (iso?) => (iso ? new Date(Date.parse(iso) + 7 * 3600000).
 
 export const idOf = (row?) => `${row.username}|${row.date}`;
 
-/** Một dòng của màn Duyệt. staffBy: Map username → hồ sơ từ GET /staff. */
+/** Một dòng của màn Duyệt. staffBy: Map uuid và tên đăng nhập → hồ sơ (builders/api/staff peopleOf). */
 export function buildRequestRow(row?, staffBy?) {
   const staff = staffBy.get(row.username) || {};
   return {
