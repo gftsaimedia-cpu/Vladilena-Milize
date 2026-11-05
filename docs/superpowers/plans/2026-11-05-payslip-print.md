@@ -422,3 +422,15 @@ Ruling: thêm tiền OT theo từng hệ số, `dayRate` và thứ thật của 
 - `PW_PORT=4253 npm --prefix web run test:ui` → xanh như nền (FE không đổi).
 - `git diff --stat f9e5a32 -- web` → rỗng.
 - `docker stop luong-test-pg-payslip-print`.
+
+## Các quyết định trong lúc chạy (Ruling)
+
+Ghi lại từ sổ theo dõi khi thực thi, theo thứ tự. Mỗi dòng: quyết định — lý do — rủi ro nếu sai.
+
+1. Ruling: test pg đặt ở file mới `test/v2/payroll-print.pg.test.ts` (đã ghi ở Task 1).
+2. Ruling: OT chỉ đo trên dòng có cả giờ vào lẫn giờ ra hợp lệ (không null, không phải ngày giờ hỏng) — giờ giải trình gõ sai không thể làm tiền thành NaN — rủi ro: dòng có giờ giải trình hỏng được OT 0 thay vì báo lỗi.
+3. Ruling: khung OT có giờ sai định dạng hoặc giờ kết thúc ≤ giờ bắt đầu thì bỏ qua (OT 0), giống `requests` (`employee-days.ts`, điều kiện `start < end`) — spec §4.4 coi khung là trong cùng một ngày — rủi ro: khung OT qua đêm (hiện không tạo được) sẽ được 0.
+4. Ruling: tiền OT của một dòng làm tròn một lần cho mỗi hệ số trên dòng đó, `otPay = Σ_m round(giờ_m × lương giờ × m)` — theo spec §4.4 bước 5, thay cho cách làm tròn từng khung ở Task 4 Step 5 — rủi ro: lệch tối đa 1đ mỗi khung.
+5. Ruling: thêm Task 6 (`ot15Pay`/`ot20Pay`/`ot30Pay`, `dayRate`, thứ thật) — đã ghi ở Task 6.
+6. Ruling: dấu vắng/chờ duyệt, giờ làm bù, ghi chú theo ngày trên A4 mới chưa có nguồn BE, in "—" — phụ thuộc luật ngày công mà spec §3 để ngoài phạm vi — rủi ro: các ô đó trống tới khi có việc sau.
+7. Review cuối: OT của một khung đo trên phần hợp của các khoảng có mặt (chồng nhau chỉ tính một lần), để không bao giờ trả quá độ dài khung — sửa lỗi, không đổi luật.
