@@ -58,6 +58,39 @@ test('saving from 11/2026 gives the user example line and the recent-change foot
   await expect(page.locator('.foot')).toContainText('Thay đổi gần đây: Tiền làm thêm giờ, OT ngày thường ×1.6 từ tháng 11/2026.');
 });
 
+// Review Focus 2, hai ô: hai tháng khác nhau ở cả hai ô; ô đã gõ giữ số khi đổi tháng, ô chưa gõ theo tháng đang chọn.
+test('in the OT drawer a typed rate survives a month switch while the untouched rate follows the month', async ({ page }) => {
+  await page.goto('/admin/cai-dat');
+  await row(page, 'Tiền làm thêm giờ').getByRole('button', { name: 'Sửa' }).click();
+  const d = drawer(page, 'Tiền làm thêm giờ');
+  await d.getByRole('textbox', { name: 'Ngày thường' }).fill('1,6');
+  await d.getByRole('textbox', { name: 'Cuối tuần' }).fill('2,5');
+  await d.getByLabel('Áp dụng từ tháng').selectOption({ label: 'Tháng 11/2026' });
+  await d.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lưu thay đổi' }).getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(d).toHaveCount(0); // 10/2026: ×1.5 · ×2; 11/2026: ×1.6 · ×2.5
+
+  await row(page, 'Tiền làm thêm giờ').getByRole('button', { name: 'Sửa' }).click();
+  const weekday = d.getByRole('textbox', { name: 'Ngày thường' });
+  const weekend = d.getByRole('textbox', { name: 'Cuối tuần' });
+  await expect(weekday).toHaveValue('1,5');
+  await expect(weekend).toHaveValue('2');
+  await weekday.fill('1,7');
+  await d.getByLabel('Áp dụng từ tháng').selectOption({ label: 'Tháng 11/2026' });
+  await expect(weekday).toHaveValue('1,7');
+  await expect(weekend).toHaveValue('2,5');
+  await expect(d).toContainText('Đang áp dụng ×1.6');
+  await expect(d).toContainText('Có 1 thay đổi chưa lưu');
+  await d.getByLabel('Áp dụng từ tháng').selectOption({ label: 'Tháng 10/2026' });
+  await expect(weekday).toHaveValue('1,7');
+  await expect(weekend).toHaveValue('2');
+  await d.getByLabel('Áp dụng từ tháng').selectOption({ label: 'Tháng 11/2026' });
+  await d.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' }).locator('li')).toHaveText([
+    'OT ngày thường ×1.6 → ×1.7, áp dụng từ tháng 11/2026'
+  ]);
+});
+
 test('Huỷ discards the edit', async ({ page }) => {
   await page.goto('/admin/cai-dat');
   await row(page, 'Tiền làm thêm giờ').getByRole('button', { name: 'Sửa' }).click();

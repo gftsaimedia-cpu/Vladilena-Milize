@@ -69,11 +69,31 @@ test('saving pay day 15 from 12/2026 moves the dots from that month on', async (
 test('switching the month makes untouched fields follow that month', async ({ page }) => {
   await savePay15From1226(page);
   const card = payCard(page);
-  await fromMonth(page).selectOption({ label: 'Tháng 12/2026' });
+  // Lưu xong thẻ vẫn ở 12/2026, với số vừa lưu.
+  await expect(fromMonth(page)).toHaveValue('2026-12');
   await expect(payField(page)).toHaveValue('15');
   await expect(card).toContainText('Chưa có thay đổi');
   await fromMonth(page).selectOption({ label: 'Tháng 11/2026' });
   await expect(payField(page)).toHaveValue('10');
+  await fromMonth(page).selectOption({ label: 'Tháng 12/2026' });
+  await expect(payField(page)).toHaveValue('15');
+  await expect(card).toContainText('Chưa có thay đổi');
+});
+
+// Review Focus 2: ô đã gõ giữ số khi đổi tháng, còn câu xác nhận so với số của tháng đang chọn.
+test('a typed pay day survives a month switch and the confirm line compares with the chosen month', async ({ page }) => {
+  await savePay15From1226(page);
+  const card = payCard(page);
+  await fromMonth(page).selectOption({ label: 'Tháng 10/2026' });
+  await expect(payField(page)).toHaveValue('10');
+  await payField(page).fill('20');
+  await fromMonth(page).selectOption({ label: 'Tháng 12/2026' });
+  await expect(payField(page)).toHaveValue('20');
+  await expect(card).toContainText('Có 1 thay đổi chưa lưu');
+  await savePay(page).click();
+  await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' }).locator('li')).toHaveText([
+    'Ngày trả lương 15 → 20, áp dụng từ tháng 12/2026'
+  ]);
 });
 
 // Thẻ "Vùng chấm công": lưu là áp dụng ngay, không theo tháng, không có ô lý do.
