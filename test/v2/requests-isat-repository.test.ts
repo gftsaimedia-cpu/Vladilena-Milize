@@ -17,7 +17,7 @@ const isatReq = () =>
 const leaveReq = () =>
   SystemRequest.createLeaveRequest({
     employeeId: 'emp-uuid-1', title: 'Nghỉ phép', reason: 'Việc gia đình',
-    leaveType: 'PAID', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
+    leaveType: 'ANNUAL', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
   });
 const sqlOf = (log: ScriptedLogEntry[]): ScriptedQuery[] =>
   log.filter((e): e is ScriptedQuery => typeof e !== 'string');

@@ -20,6 +20,7 @@ import {
 } from './types';
 import { IsatRegistration } from './isat';
 import type { ExplanationCase } from './explanation-cases';
+import { isLeaveType } from './leave-types';
 import { workMinutes } from './time-window';
 
 /** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
@@ -38,6 +39,28 @@ function requireNonEmptyString(val: any, fieldName: string): string {
     throw new Error(`${fieldName} must be a non-empty string`);
   }
   return val.trim();
+}
+
+/** Một trong 6 mã loại nghỉ (§9); mã cũ `PAID`/`UNPAID` của v2 bị từ chối. */
+export function requireLeaveType(value: unknown): LeaveType {
+  if (!isLeaveType(value)) {
+    throw new Error(`Loại nghỉ không hợp lệ: ${String(value)}`);
+  }
+  return value;
+}
+
+/** Hai ngày 'YYYY-MM-DD' có thật và `startDate ≤ endDate`, với câu lỗi sẵn có của domain. */
+export function requireDateRange(startDate: unknown, endDate: unknown): { startDate: string; endDate: string } {
+  if (!isValidDateText(startDate)) {
+    throw new Error(`startDate must be a valid YYYY-MM-DD date string, got: ${String(startDate)}`);
+  }
+  if (!isValidDateText(endDate)) {
+    throw new Error(`endDate must be a valid YYYY-MM-DD date string, got: ${String(endDate)}`);
+  }
+  if (startDate > endDate) {
+    throw new Error(`endDate (${endDate}) cannot be earlier than startDate (${startDate})`);
+  }
+  return { startDate, endDate };
 }
 
 export class SystemRequest {
@@ -137,21 +160,8 @@ export class SystemRequest {
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
 
-    if (params?.leaveType !== 'PAID' && params?.leaveType !== 'UNPAID') {
-      throw new Error(`leaveType must be 'PAID' or 'UNPAID', got: ${params?.leaveType}`);
-    }
-
-    if (!isValidDateText(params?.startDate)) {
-      throw new Error(`startDate must be a valid YYYY-MM-DD date string, got: ${params?.startDate}`);
-    }
-
-    if (!isValidDateText(params?.endDate)) {
-      throw new Error(`endDate must be a valid YYYY-MM-DD date string, got: ${params?.endDate}`);
-    }
-
-    if (params.startDate > params.endDate) {
-      throw new Error(`endDate (${params.endDate}) cannot be earlier than startDate (${params.startDate})`);
-    }
+    const leaveType = requireLeaveType(params?.leaveType);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
 
     if (typeof params?.daysCount !== 'number' || isNaN(params.daysCount) || params.daysCount <= 0) {
       throw new Error(`daysCount must be a positive number, got: ${params?.daysCount}`);
@@ -165,9 +175,9 @@ export class SystemRequest {
       type: 'LEAVE',
       reason,
       status: 'PENDING',
-      leaveType: params.leaveType,
-      leaveStartDate: params.startDate,
-      leaveEndDate: params.endDate,
+      leaveType,
+      leaveStartDate: startDate,
+      leaveEndDate: endDate,
       leaveDaysCount: params.daysCount,
       reviewedBy: null,
       reviewedAt: null,

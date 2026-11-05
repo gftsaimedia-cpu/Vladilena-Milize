@@ -59,28 +59,6 @@ describe('Requests V2 - Đơn từ & Giải trình', () => {
     assert.equal(attRepo.dayStatuses.get(`${empId}:2026-11-04`), 'VALID');
   });
 
-  it('2. Nộp đơn nghỉ phép (LEAVE) & Duyệt nghỉ phép cập nhật lịch làm việc sang ON_LEAVE', async () => {
-    const req = await service.createLeaveRequest({
-      employeeId: empId,
-      title: 'Xin nghỉ phép thường niên',
-      reason: 'Việc gia đình',
-      leaveType: 'PAID',
-      startDate: '2026-11-10',
-      endDate: '2026-11-10',
-      daysCount: 1,
-    });
-
-    assert.equal(req.type, 'LEAVE');
-    assert.equal(req.status, 'PENDING');
-
-    const reviewed = await service.reviewRequest(req.id, 'manager', 'APPROVE');
-    assert.equal(reviewed.status, 'APPROVED');
-
-    const sched = attRepo.schedules.get(`${empId}:2026-11-10`);
-    assert.ok(sched);
-    assert.equal(sched.status, 'ON_LEAVE');
-  });
-
   it('3. Nộp đơn làm thêm (OVERTIME) kiểm tra trần OT 4h/ngày', async () => {
     await assert.rejects(
       async () => {

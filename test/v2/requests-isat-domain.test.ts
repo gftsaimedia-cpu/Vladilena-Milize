@@ -72,7 +72,7 @@ describe('Đơn iSAT - domain', () => {
       passedCount: 3, totalCount: 4
     });
     const leave = SystemRequest.createLeaveRequest({
-      employeeId: 'e', title: 't', reason: 'r', leaveType: 'PAID', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
+      employeeId: 'e', title: 't', reason: 'r', leaveType: 'ANNUAL', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
     });
     assert.equal(leave.toJSON().isat, null);
   });

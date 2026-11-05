@@ -7,22 +7,32 @@ import {
   LeaveType,
   SystemRequestDTO,
   EmployeeDays,
-  addDays
+  addDays,
+  eachDate,
+  formatDayMonth,
+  monthOf,
+  requireDateRange,
+  requireLeaveType
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
 
+/** Thân đơn nghỉ (§6.1). Số ngày do server đếm: `daysCount` client gửi (nếu có) không được đọc. */
 export interface CreateLeaveInput {
   employeeId: string;
   title: string;
   reason: string;
-  leaveType: LeaveType;
-  startDate: string;
-  endDate: string;
-  daysCount: number;
+  leaveType: unknown;
+  startDate: unknown;
+  endDate: unknown;
 }
+
+const isActive = (r: SystemRequest): boolean => r.status === 'PENDING' || r.status === 'APPROVED';
+
+/** 2 → '2', 2.5 → '2,5' */
+const formatDays = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
 
 export interface CreateShiftChangeInput {
   employeeId: string;
@@ -148,35 +158,78 @@ export class RequestsService {
   }
 
   async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
-    const req = SystemRequest.createLeaveRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      leaveType: input.leaveType,
-      startDate: input.startDate,
-      endDate: input.endDate,
-      daysCount: input.daysCount
-    });
+    const leaveType = requireLeaveType(input.leaveType);
+    const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    this.requireTypeConfig(staff);
 
-    // Chống trùng lặp thời gian nghỉ phép với các đơn đang chờ hoặc đã duyệt
-    const existingLeaves = await this.repo.list({
-      employeeId: input.employeeId,
-      type: 'LEAVE'
-    });
-    const start = req.leaveStartDate!;
-    const end = req.leaveEndDate!;
-    for (const item of existingLeaves) {
-      if (item.status === 'PENDING' || item.status === 'APPROVED') {
-        const itemStart = item.leaveStartDate!;
-        const itemEnd = item.leaveEndDate || itemStart;
-        if (start <= itemEnd && end >= itemStart) {
-          throw new Error(`Đã có đơn nghỉ phép trùng trong khoảng thời gian ${start} đến ${end}`);
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      const { days, active } = await this.loadDays(staff, startDate, endDate);
+      const leaveDays = days.workingDaysBetween(startDate, endDate);
+      if (leaveDays.length === 0) {
+        throw new Error('Khoảng nghỉ không có ngày làm việc');
+      }
+      this.assertLeaveRangeFree(days, active, startDate, endDate);
+
+      if (leaveType === 'ANNUAL') {
+        if (!staff.benefits.leaveAccount) {
+          throw new Error('Loại nhân sự này không có Phép năm');
+        }
+        // Số dư = leave_balance − ngày của các đơn Phép năm đang chờ/đã duyệt từ mốc leave_balance_on (NULL = mọi đơn).
+        const used = active
+          .filter(r => r.type === 'LEAVE' && r.leaveType === 'ANNUAL' && isActive(r))
+          .filter(r => staff.leaveBalanceOn === null || (r.leaveStartDate ?? '') >= staff.leaveBalanceOn)
+          .reduce((sum, r) => sum + (r.leaveDaysCount ?? 0), 0);
+        const remaining = staff.leaveBalance - used;
+        if (leaveDays.length > remaining) {
+          throw new Error(`Phép năm còn ${formatDays(remaining)} ngày, xin ${leaveDays.length} ngày`);
         }
       }
-    }
 
-    await this.repo.save(req);
-    return req.toJSON();
+      const req = SystemRequest.createLeaveRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        leaveType,
+        startDate,
+        endDate,
+        daysCount: leaveDays.length
+      });
+      await this.repo.save(req);
+      return req.toJSON();
+    });
+  }
+
+  /**
+   * Khoảng nghỉ [start, end] không trùng đơn nghỉ/nghỉ có làm bù khác đang chờ hoặc đã duyệt, và không ngày lịch
+   * nào trong khoảng đang có khung OT hoặc khung bù (§6.1 bước 4–5).
+   */
+  protected assertLeaveRangeFree(days: EmployeeDays, active: readonly SystemRequest[], start: string, end: string): void {
+    for (const r of active) {
+      if ((r.type !== 'LEAVE' && r.type !== 'LEAVE_WITH_MAKEUP') || !isActive(r) || !r.leaveStartDate) continue;
+      const otherEnd = r.leaveEndDate ?? r.leaveStartDate;
+      if (r.leaveStartDate <= end && start <= otherEnd) {
+        throw new Error(`Đã có đơn nghỉ trùng ngày (${formatDayMonth(r.leaveStartDate)} – ${formatDayMonth(otherEnd)})`);
+      }
+    }
+    for (const date of eachDate(start, end)) {
+      if (days.windowsOn(date).length > 0) {
+        throw new Error(`Ngày ${formatDayMonth(date)} đã có khung OT hoặc làm bù`);
+      }
+    }
+  }
+
+  /** Duyệt đơn nghỉ: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi lịch ON_LEAVE; CN và ngày lễ không ghi. */
+  protected async markLeaveDays(req: SystemRequest): Promise<void> {
+    if (!this.attendanceRepo || !req.leaveStartDate) return;
+    const start = req.leaveStartDate;
+    const end = req.leaveEndDate ?? start;
+    const staff = await this.resolveStaff(req.employeeId, monthOf(start));
+    const { days } = await this.loadDays(staff, start, end);
+    for (const date of days.workingDaysBetween(start, end)) {
+      const sched = await this.attendanceRepo.ensureDefaultSchedule(staff.employeeId, date);
+      await this.attendanceRepo.saveSchedule(sched.withLeave(req.id));
+    }
   }
 
   async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<SystemRequestDTO> {
@@ -367,7 +420,10 @@ export class RequestsService {
               const updated = sched.withShiftChange(req.newShiftType as any, req.newStartTime!, req.newEndTime!, req.id);
               await this.attendanceRepo.saveSchedule(updated);
             }
-          } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
+          } else if (req.type === 'LEAVE') {
+            await this.markLeaveDays(req);
+          } else if (req.type === 'LEAVE_WITH_MAKEUP') {
+            // Đơn nghỉ có làm bù tạm giữ cách cũ (ghi mọi ngày lịch); plan Task 8 chuyển sang markLeaveDays.
             const start = req.leaveStartDate;
             const end = req.leaveEndDate || start;
             if (start) {

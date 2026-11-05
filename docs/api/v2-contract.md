@@ -277,17 +277,67 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 
-#### `POST /api/v2/requests/leave` (Đơn nghỉ phép)
+#### `POST /api/v2/requests/leave` (Đơn nghỉ)
+- **Mục đích**: Admin nộp đơn nghỉ thay một nhân sự (nhân sự tự nộp qua `POST /api/v2/me/requests/leave`, cùng luật). Chỉ nghỉ nguyên ngày.
 - **Request Body**:
   ```json
   {
-    "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
-    "title": "Nghỉ phép thường niên",
-    "reason": "Giải quyết việc cá nhân gia đình",
-    "leaveType": "PAID",
-    "startDate": "2026-11-10",
-    "endDate": "2026-11-11",
-    "daysCount": 2
+    "employeeId": "nv01",
+    "title": "Nghỉ phép năm",
+    "reason": "Về quê dự đám cưới em gái",
+    "leaveType": "ANNUAL",
+    "startDate": "2026-11-13",
+    "endDate": "2026-11-16"
+  }
+  ```
+  - `employeeId` (bắt buộc ở route admin): uuid hoặc username. Đơn luôn lưu theo **uuid** của nhân sự.
+  - `leaveType`: một trong 6 mã của `GET /api/v2/requests/leave-types`. Mã cũ `PAID`/`UNPAID` bị từ chối. Trường hợp cụ thể (kết hôn, tang, ốm đau, thai sản…) ghi ở `reason`.
+  - `startDate`, `endDate`: `YYYY-MM-DD`, `startDate ≤ endDate`. Không giới hạn số ngày mỗi đơn, không kiểm thời hạn báo trước.
+  - `daysCount` client gửi **bị bỏ qua**. Server đếm `leaveDaysCount` = số **ngày làm việc** trong khoảng: thứ nằm trong `regular_dows` của loại nhân sự (nv/ctv T2–T7, tts T2–T6, không bao giờ tính CN), trừ ngày lễ công ty (§3.7). Ví dụ: nv nghỉ T6 13/11 → T2 16/11 được đếm 3 ngày (13, 14, 16); tts cùng khoảng được 2 ngày (13, 16).
+- **Response 201**:
+  ```json
+  {
+    "created": true,
+    "request": {
+      "id": "req-uuid",
+      "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
+      "type": "LEAVE",
+      "status": "PENDING",
+      "leaveType": "ANNUAL",
+      "leaveStartDate": "2026-11-13",
+      "leaveEndDate": "2026-11-16",
+      "leaveDaysCount": 3
+    }
+  }
+  ```
+- **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự; đơn bị chặn thì không lưu):
+
+  | Bước | `message` | Khi nào |
+  |---|---|---|
+  | 0 | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
+  | 1 | `Loại nghỉ không hợp lệ: <mã>` | `leaveType` không thuộc 6 mã |
+  | 2 | `startDate must be a valid YYYY-MM-DD date string, got: <giá trị>` (tương tự `endDate …`), `endDate (<ngày>) cannot be earlier than startDate (<ngày>)` | Ngày sai dạng, không có thật, hoặc đảo ngược |
+  | 3 | `Không tìm thấy nhân sự: <employeeId>` | Không có hồ sơ theo uuid/username |
+  | 3 | `Thiếu cấu hình loại nhân sự <loại>` | Loại nhân sự chưa có phiên bản `position_types` hiệu lực đến tháng của `startDate` |
+  | 4 | `Khoảng nghỉ không có ngày làm việc` | Khoảng chỉ có CN, ngày nghỉ của loại nhân sự hoặc ngày lễ |
+  | 5 | `Đã có đơn nghỉ trùng ngày (dd/mm – dd/mm)` | Trùng đơn nghỉ hoặc đơn nghỉ có làm bù khác đang chờ/đã duyệt; hai ngày trong ngoặc là khoảng của đơn đã có |
+  | 6 | `Ngày dd/mm đã có khung OT hoặc làm bù` | Một ngày lịch trong khoảng (kể cả CN) có khung OT hoặc khung bù đang chờ/đã duyệt |
+  | 7 | `Loại nhân sự này không có Phép năm` | `ANNUAL` khi cờ quyền lợi `leaveAccount` của loại nhân sự tắt (tts) |
+  | 7 | `Phép năm còn <n> ngày, xin <k> ngày` | `ANNUAL` vượt số dư. Số dư = `leave_balance` (NULL tính 0) − tổng `leaveDaysCount` của các đơn `ANNUAL` đang chờ/đã duyệt có `leaveStartDate ≥ leave_balance_on` (`leave_balance_on` NULL thì tính mọi đơn). Số lẻ viết dấu phẩy, ví dụ `Phép năm còn 2,5 ngày, xin 3 ngày` |
+- Hai đơn của cùng một người nộp cùng lúc được xếp hàng (khoá `requests_<uuid>`), nên không cùng lọt qua kiểm trùng ngày hay số dư.
+
+#### `GET /api/v2/requests/leave-types` (Danh sách loại nghỉ)
+- **Response 200**: 6 loại nghỉ theo thứ tự hiển thị. `payGroup` chỉ để hiển thị; tiền của từng loại do phần lương quyết định.
+  ```json
+  {
+    "leaveTypes": [
+      { "code": "ANNUAL", "label": "Phép năm", "payGroup": "PAID" },
+      { "code": "PERSONAL_PAID", "label": "Việc riêng có lương", "payGroup": "PAID" },
+      { "code": "PERSONAL_UNPAID", "label": "Việc riêng không lương", "payGroup": "UNPAID" },
+      { "code": "SOCIAL_INSURANCE", "label": "Chế độ BHXH", "payGroup": "SOCIAL_INSURANCE" },
+      { "code": "WELFARE", "label": "Phúc lợi nội bộ", "payGroup": "PAID" },
+      { "code": "UNPAID", "label": "Không lương", "payGroup": "UNPAID" }
+    ]
   }
   ```
 
@@ -418,6 +468,10 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 - **Response 200**: Trả về trạng thái đơn đã cập nhật. Hệ thống tự động cập nhật lịch công (`work_schedules`) hoặc trạng thái ngày công (`timesheet_entries`) tương ứng.
+
+##### Duyệt đơn nghỉ
+- `APPROVE`: mỗi **ngày làm việc** trong khoảng `leaveStartDate`–`leaveEndDate` được ghi lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). Ngày làm việc tính lại lúc duyệt theo lịch lễ lúc đó; CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi. `leaveDaysCount` giữ như lúc nộp.
+- `REJECT`: không đổi lịch.
 
 ##### Duyệt đơn iSAT
 - Chỉ đơn `PENDING` duyệt được, như mọi loại đơn. Tác dụng:

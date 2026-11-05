@@ -330,10 +330,12 @@ describe('Đơn iSAT - service', () => {
 
     it('still lists other request types stored under the username next to the iSAT ones', async () => {
       const isat = await service.createIsatRequest({ employeeId: 'nguyen-van-a', ...form });
-      const leave = await service.createLeaveRequest({
+      // Đơn cũ lưu theo username (đơn nghỉ mới luôn lưu theo uuid), nên ghi thẳng vào repo
+      const leave = SystemRequest.createLeaveRequest({
         employeeId: 'nguyen-van-a', title: 'Nghỉ phép', reason: 'Việc nhà',
-        leaveType: 'PAID', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
+        leaveType: 'ANNUAL', startDate: '2026-11-10', endDate: '2026-11-10', daysCount: 1
       });
+      await reqRepo.save(leave);
 
       const listed = await service.listRequests({ employeeId: 'nguyen-van-a' });
       assert.equal(listed.total, 2);

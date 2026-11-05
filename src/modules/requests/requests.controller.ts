@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { RequestsService } from './requests.service';
-import { RequestType, RequestStatus, ISAT_CONDITIONS } from './domain';
+import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES } from './domain';
 
 // Các route này là của Admin làm thay nhân viên: người được thao tác phải ghi rõ, không suy ra từ phiên.
 function requireEmployeeId(body: any): string {
@@ -85,6 +85,13 @@ export class RequestsController {
   @Get('isat/conditions')
   listIsatConditions(): { conditions: Array<{ code: string; label: string }> } {
     return { conditions: ISAT_CONDITIONS.map(({ code, label }) => ({ code, label })) };
+  }
+
+  // 6 loại nghỉ (§9) cho form đơn nghỉ; khai báo trước @Get(':id') để 'leave-types' không bị bắt làm id
+  @RequireCap('requests.review')
+  @Get('leave-types')
+  listLeaveTypes(): { leaveTypes: typeof LEAVE_TYPES } {
+    return { leaveTypes: LEAVE_TYPES };
   }
 
   @RequireCap('requests.review')
