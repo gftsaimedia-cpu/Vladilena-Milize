@@ -30,9 +30,13 @@ import {
 
 // Ngữ cảnh dựng tay (không dùng mock): ca HC 08–17, làm thứ Hai – thứ Bảy, 10/11 → 06/12/2026.
 // 11/11 và 18/11 đang bị đơn nghỉ giữ. 15, 22, 29/11 và 06/12 là Chủ nhật.
+// Giờ trống ngày có ca (spec 2.1): bắt đầu 06 tới 07, và bắt đầu 18, 19, 20, 21, mỗi giờ kết thúc tới 22.
 const SHIFT_HOURS = [
   { start: 6, ends: [{ end: 7, minutes: 60 }] },
-  { start: 18, ends: [19, 20, 21, 22].map(end => ({ end, minutes: (end - 18) * 60 })) }
+  ...[18, 19, 20, 21].map(start => ({
+    start,
+    ends: Array.from({ length: 22 - start }, (_, j) => ({ end: start + j + 1, minutes: (j + 1) * 60 }))
+  }))
 ];
 const SUNDAY_HOURS = Array.from({ length: 16 }, (_, i) => 6 + i).map(start => ({
   start,
@@ -226,7 +230,8 @@ describe('Tạo yêu cầu: giờ chọn được', () => {
 
   it('slots already taken on a shift day use up its hours', () => {
     const day = dayAt(context(), '2026-11-13');
-    assert.deepEqual(startHours(day, { taken: [{ start: 18, end: 20 }] }), [6]);
+    // Trần 12 giờ trừ 8 giờ ca còn 4 giờ: sau 18–20 vẫn còn 06–07 và 20–22 (spec 2.1, như BE).
+    assert.deepEqual(startHours(day, { taken: [{ start: 18, end: 20 }] }), [6, 20, 21]);
     assert.deepEqual(startHours(day, { taken: [{ start: 18, end: 22 }] }), []);
   });
 
