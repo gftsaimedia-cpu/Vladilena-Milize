@@ -3,13 +3,60 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import type { LeaveType } from '../requests/domain/leave-types';
-import type { AttendanceDay, AttendanceDayStatus, ExplanationStatus } from './domain/attendance-day';
+import type {
+  AttendanceDay,
+  AttendanceDayStatus,
+  Benefits,
+  DayFacts,
+  ExplanationFacts,
+  ExplanationStatus,
+  ScheduleFacts,
+  ShiftFacts
+} from './domain/attendance-day';
 import type { DetectedCase } from './domain/explanation-detect';
-import type { CheckInStatus, CheckOutStatus, DayStatus } from './domain/work-schedule';
+import type {
+  CheckInStatus,
+  CheckOutStatus,
+  DayStatus,
+  ScheduleStatus,
+  ScheduleType
+} from './domain/work-schedule';
 
 /** Dòng ngày đọc từ DB: đủ trường của `AttendanceDay` cộng cờ khoá kỳ. */
 export interface AttendanceDayRecord extends AttendanceDay {
   isLocked: boolean;
+}
+
+/** Hồ sơ nhân sự mà `buildDay` cần, đọc một lần cho cả khoảng ngày. */
+export interface EmployeeFacts {
+  employeeId: string;
+  type: string;
+  startDate: string | null;
+  resignedOn: string | null;
+  defaultShift: ShiftFacts;
+}
+
+type Window = { start: string; end: string };
+
+/** Ca mặc định khi hồ sơ không ghi ca (như ensureDefaultSchedule). */
+const FALLBACK_SHIFT = { start: '08:00', end: '17:00' };
+
+/** Mã quyền lợi của loại nhân sự mà chấm công cần. */
+const BENEFIT_CODES = ['paidLeave', 'paidHoliday', 'isat'] as const;
+
+/** Phụ cấp ca mặc định theo loại ca, như recordPunch đang làm. */
+const SHIFT_ALLOWANCE_PCT: Record<ShiftFacts['type'], number> = { NORMAL: 0, FLEX: 10, NIGHT: 30 };
+
+/** CUSTOM (và mọi giá trị lạ) coi như ca thường, giống attendance.service. */
+function shiftTypeOf(raw: string | null): ShiftFacts['type'] {
+  return raw === 'FLEX' || raw === 'NIGHT' ? raw : 'NORMAL';
+}
+
+/** Thêm `item` vào danh sách của khoá `key` trong map. */
+function pushTo<T>(map: Map<string, T[]>, key: string, item: T): void {
+  const list = map.get(key);
+  if (list) list.push(item);
+  else map.set(key, [item]);
 }
 
 /** Số dòng mỗi câu INSERT, để không vượt giới hạn tham số của PostgreSQL. */
@@ -69,6 +116,256 @@ export class AttendanceDaysRepository {
         )
         .execute();
     }
+  }
+
+  /**
+   * Gom mọi nguồn của các ngày `dates` cho một nhân sự: hồ sơ, quyền lợi theo tháng và `DayFacts` mỗi ngày
+   * (theo thứ tự `dates`). Mỗi loại nguồn một truy vấn cho cả khoảng ngày, không truy vấn từng ngày.
+   */
+  async loadSources(
+    employeeId: string,
+    dates: readonly string[]
+  ): Promise<{ employee: EmployeeFacts; benefitsByMonth: Map<string, Benefits>; days: DayFacts[] }> {
+    const staff = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'type', 'start_date', 'resigned_on', 'shift_type', 'shift_start_time', 'shift_end_time'])
+      .where('uuid', '=', employeeId)
+      .executeTakeFirst();
+    if (!staff || !staff.uuid) throw new Error(`Không tìm thấy nhân sự ${employeeId}`);
+
+    const shiftType = shiftTypeOf(staff.shift_type);
+    const employee: EmployeeFacts = {
+      employeeId: staff.uuid,
+      type: staff.type,
+      startDate: staff.start_date ?? null,
+      resignedOn: staff.resigned_on ?? null,
+      defaultShift: {
+        type: shiftType,
+        start: staff.shift_start_time || FALLBACK_SHIFT.start,
+        end: staff.shift_end_time || FALLBACK_SHIFT.end,
+        allowancePct: SHIFT_ALLOWANCE_PCT[shiftType]
+      }
+    };
+
+    const months = [...new Set(dates.map(date => date.slice(0, 7)))].sort();
+    const benefitsByMonth = await this.loadBenefits(staff.type, months);
+    if (dates.length === 0) return { employee, benefitsByMonth, days: [] };
+
+    const sorted = [...dates].sort();
+    const from = sorted[0];
+    const to = sorted[sorted.length - 1];
+
+    const schedules = await this.loadSchedules(employeeId, from, to);
+    const punches = await this.loadPunches(employeeId, from, to);
+    const otWindows = await this.loadOtWindows(employeeId, from, to);
+    const makeupWindows = await this.loadMakeupWindows(employeeId, from, to);
+    const explanations = await this.loadExplanations(employeeId, from, to);
+    const holidays = await this.loadHolidays(from, to);
+
+    const days = dates.map<DayFacts>(date => ({
+      date,
+      schedule: schedules.get(date) ?? null,
+      punches: punches.get(date) ?? [],
+      otWindows: otWindows.get(date) ?? [],
+      makeupWindows: makeupWindows.get(date) ?? [],
+      explanation: explanations.get(date) ?? null,
+      isHoliday: holidays.has(date)
+    }));
+    return { employee, benefitsByMonth, days };
+  }
+
+  /** Quyền lợi của loại nhân sự theo từng tháng: phiên bản mới nhất có `effective_month <= tháng`. Không có phiên bản → tắt hết. */
+  private async loadBenefits(typeCode: string, months: readonly string[]): Promise<Map<string, Benefits>> {
+    const result = new Map<string, Benefits>();
+    if (months.length === 0) return result;
+
+    const versions = await this.qb
+      .selectFrom('position_types')
+      .select(['id', 'effective_month'])
+      .where('code', '=', typeCode)
+      .where('effective_month', '<=', months[months.length - 1])
+      .orderBy('effective_month', 'desc')
+      .execute();
+
+    const enabledByType = new Map<number, Set<string>>();
+    if (versions.length > 0) {
+      const rows = await this.qb
+        .selectFrom('position_type_benefits')
+        .select(['type_id', 'benefit', 'enabled'])
+        .where(
+          'type_id',
+          'in',
+          versions.map(v => v.id)
+        )
+        .where('benefit', 'in', [...BENEFIT_CODES])
+        .execute();
+      for (const row of rows) {
+        if (Number(row.enabled) !== 1) continue;
+        const set = enabledByType.get(Number(row.type_id)) ?? new Set<string>();
+        set.add(row.benefit);
+        enabledByType.set(Number(row.type_id), set);
+      }
+    }
+
+    for (const month of months) {
+      // `versions` sắp mới nhất trước, nên dòng đầu thoả điều kiện là phiên bản đang hiệu lực của tháng.
+      const version = versions.find(v => v.effective_month <= month);
+      const enabled = version ? enabledByType.get(Number(version.id)) : undefined;
+      result.set(month, {
+        paidLeave: enabled?.has('paidLeave') ?? false,
+        paidHoliday: enabled?.has('paidHoliday') ?? false,
+        isat: enabled?.has('isat') ?? false
+      });
+    }
+    return result;
+  }
+
+  private async loadSchedules(employeeId: string, from: string, to: string): Promise<Map<string, ScheduleFacts>> {
+    const rows = await this.qb
+      .selectFrom('work_schedules as ws')
+      .leftJoin('system_requests as sr', 'sr.id', 'ws.source_request_id')
+      .select([
+        sql<string>`to_char(ws.work_date, 'YYYY-MM-DD')`.as('work_date'),
+        sql<string>`to_char(ws.planned_start_time, 'HH24:MI')`.as('planned_start_time'),
+        sql<string>`to_char(ws.planned_end_time, 'HH24:MI')`.as('planned_end_time'),
+        'ws.schedule_type',
+        'ws.status',
+        'ws.shift_type',
+        'ws.source_request_id',
+        'sr.type as request_type',
+        'sr.leave_type'
+      ])
+      .where('ws.employee_id', '=', employeeId)
+      .where('ws.work_date', '>=', from)
+      .where('ws.work_date', '<=', to)
+      .execute();
+
+    const byDate = new Map<string, ScheduleFacts>();
+    for (const row of rows) {
+      byDate.set(row.work_date, {
+        scheduleType: row.schedule_type as ScheduleType,
+        status: row.status as ScheduleStatus,
+        shiftType: row.shift_type,
+        start: row.planned_start_time,
+        end: row.planned_end_time,
+        sourceRequestId: row.source_request_id,
+        requestType: row.request_type ?? null,
+        leaveType: (row.leave_type as LeaveType | null) ?? null
+      });
+    }
+    return byDate;
+  }
+
+  /** Các lần chấm của cả khoảng, theo thời điểm tăng dần. */
+  private async loadPunches(
+    employeeId: string,
+    from: string,
+    to: string
+  ): Promise<Map<string, DayFacts['punches'][number][]>> {
+    const rows = await this.qb
+      .selectFrom('punch_events')
+      .select([sql<string>`to_char(work_date, 'YYYY-MM-DD')`.as('work_date'), 'type', 'punched_at'])
+      .where('employee_id', '=', employeeId)
+      .where('work_date', '>=', from)
+      .where('work_date', '<=', to)
+      .orderBy('punched_at', 'asc')
+      .execute();
+
+    const byDate = new Map<string, DayFacts['punches'][number][]>();
+    for (const row of rows) {
+      pushTo(byDate, row.work_date, { type: row.type as 'IN' | 'OUT', at: row.punched_at });
+    }
+    return byDate;
+  }
+
+  /** Khung OT của đơn đã duyệt; đơn chưa duyệt, bị từ chối hay đã huỷ không tính. */
+  private async loadOtWindows(employeeId: string, from: string, to: string): Promise<Map<string, Window[]>> {
+    const rows = await this.qb
+      .selectFrom('system_requests')
+      .select([sql<string>`to_char(ot_date, 'YYYY-MM-DD')`.as('ot_date'), 'ot_start_time', 'ot_end_time'])
+      .where('employee_id', '=', employeeId)
+      .where('type', '=', 'OVERTIME')
+      .where('status', '=', 'APPROVED')
+      .where('ot_date', '>=', from)
+      .where('ot_date', '<=', to)
+      .where('ot_start_time', 'is not', null)
+      .where('ot_end_time', 'is not', null)
+      .orderBy('ot_start_time', 'asc')
+      .execute();
+
+    const byDate = new Map<string, Window[]>();
+    for (const row of rows) {
+      pushTo(byDate, row.ot_date, { start: row.ot_start_time as string, end: row.ot_end_time as string });
+    }
+    return byDate;
+  }
+
+  /** Khung làm bù của đơn nghỉ-có-bù đã duyệt. */
+  private async loadMakeupWindows(employeeId: string, from: string, to: string): Promise<Map<string, Window[]>> {
+    const rows = await this.qb
+      .selectFrom('makeup_slots as ms')
+      .innerJoin('system_requests as sr', 'sr.id', 'ms.request_id')
+      .select([sql<string>`to_char(ms.work_date, 'YYYY-MM-DD')`.as('work_date'), 'ms.start_time', 'ms.end_time'])
+      .where('sr.employee_id', '=', employeeId)
+      .where('sr.status', '=', 'APPROVED')
+      .where('ms.work_date', '>=', from)
+      .where('ms.work_date', '<=', to)
+      .orderBy('ms.start_time', 'asc')
+      .execute();
+
+    const byDate = new Map<string, Window[]>();
+    for (const row of rows) {
+      pushTo(byDate, row.work_date, { start: row.start_time, end: row.end_time });
+    }
+    return byDate;
+  }
+
+  /** Giải trình của từng ngày: đơn chưa huỷ có `created_at` mới nhất (spec 5). */
+  private async loadExplanations(
+    employeeId: string,
+    from: string,
+    to: string
+  ): Promise<Map<string, ExplanationFacts>> {
+    const rows = await this.qb
+      .selectFrom('system_requests')
+      .select([
+        'id',
+        'status',
+        sql<string>`to_char(explanation_date, 'YYYY-MM-DD')`.as('explanation_date'),
+        'actual_check_in',
+        'actual_check_out'
+      ])
+      .where('employee_id', '=', employeeId)
+      .where('type', '=', 'EXPLANATION')
+      .where('status', '<>', 'CANCELLED')
+      .where('explanation_date', '>=', from)
+      .where('explanation_date', '<=', to)
+      .orderBy('created_at', 'desc')
+      .orderBy('id', 'desc')
+      .execute();
+
+    const byDate = new Map<string, ExplanationFacts>();
+    for (const row of rows) {
+      // Đã sắp mới nhất trước: dòng đầu của mỗi ngày thắng.
+      if (byDate.has(row.explanation_date)) continue;
+      byDate.set(row.explanation_date, {
+        requestId: row.id,
+        status: row.status as ExplanationFacts['status'],
+        checkIn: row.actual_check_in,
+        checkOut: row.actual_check_out
+      });
+    }
+    return byDate;
+  }
+
+  private async loadHolidays(from: string, to: string): Promise<Set<string>> {
+    const rows = await this.qb
+      .selectFrom('company_holidays')
+      .select(sql<string>`to_char(holiday_date, 'YYYY-MM-DD')`.as('holiday_date'))
+      .where('holiday_date', '>=', from)
+      .where('holiday_date', '<=', to)
+      .execute();
+    return new Set(rows.map(row => row.holiday_date));
   }
 
   /** Các dòng ngày của một nhân sự trong [from, to] (gồm cả hai đầu), theo `work_date` tăng. */
