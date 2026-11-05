@@ -1,6 +1,5 @@
 <script setup lang="ts">
 // Trang nhân viên trên máy tính (spec 3): thanh trên + lưới ba cột + ba ngăn kéo phải mở theo URL (ngày, yêu cầu, đổi mật khẩu).
-// Ba cột (Task 4–6) thêm vào sau.
 import { computed, ref } from 'vue';
 import { useSessionStore } from '@/stores/session';
 import DayBody from '@/views/staff-phone/components/DayBody.vue';
@@ -8,6 +7,7 @@ import PasswordForm from '@/views/staff-phone/components/PasswordForm.vue';
 import RequestBody from '@/views/staff-phone/components/RequestBody.vue';
 import AttendanceColumn from './parts/AttendanceColumn.vue';
 import DesktopBar from './parts/DesktopBar.vue';
+import IncomeColumn from './parts/IncomeColumn.vue';
 import SideDrawer from './parts/SideDrawer.vue';
 import TodayColumn from './parts/TodayColumn.vue';
 import { useDesktopDetail } from './useDesktopDetail';
@@ -26,6 +26,7 @@ const stamp = ref(0);
     <main class="sd-pg">
       <TodayColumn @checked-out="stamp++" />
       <AttendanceColumn :stamp="stamp" />
+      <IncomeColumn />
     </main>
     <SideDrawer v-if="day" :title="day.title" :sub="day.shiftLine" @close="closeDetail">
       <template #badge>

@@ -44,11 +44,3 @@ function openDay(date: string) {
     </template>
   </section>
 </template>
-
-<style scoped>
-.sd-head {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-</style>
