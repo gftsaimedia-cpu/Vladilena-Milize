@@ -100,7 +100,7 @@ const STATUS: Record<string, [RequestStatus, string]> = {
   PENDING: ['pend', 'Chờ duyệt'],
   APPROVED: ['done', 'Đã duyệt'],
   REJECTED: ['rej', 'Từ chối'],
-  CANCELLED: ['rej', 'Đã huỷ']
+  CANCELLED: ['cancel', 'Đã huỷ']
 };
 
 function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string; title: string; date: string } {

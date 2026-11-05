@@ -26,7 +26,7 @@ describe('App nhân viên từ /me', () => {
     assert.equal(adv.icon, 'coin');
     assert.equal(adv.status, 'done');
     const cancelled = requestRowOf(req({ type: 'EXPLANATION', status: 'CANCELLED', explanationDate: '2026-10-27' }) as any);
-    assert.deepEqual([cancelled.title, cancelled.status, cancelled.statusText], ['Giải trình 27/10', 'rej', 'Đã huỷ']);
+    assert.deepEqual([cancelled.title, cancelled.status, cancelled.statusText], ['Giải trình 27/10', 'cancel', 'Đã huỷ']);
   });
 
   it('builds the request detail with steps in Vietnam time', () => {
