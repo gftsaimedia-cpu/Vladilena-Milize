@@ -97,9 +97,17 @@
   gap: 16px;
 }
 
-/* Tiêu đề: h1 tên và h2 tiêu đề cột League Spartan 600 28px/32px; h2 tiêu đề khối Geist 600 18px/24px. */
+/* Thẻ cuối cột (Gần đây, spec 4.2) giãn kín đáy cột. */
+.sd-app .sd-grow > .card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tiêu đề: h1 tên và h2 tiêu đề cột League Spartan 600 28px/32px; h2/h3 tiêu đề khối Geist 600 18px/24px. */
 .sd-app h1,
-.sd-app h2 {
+.sd-app h2,
+.sd-app h3 {
   margin: 0;
   font-size: 18px;
   line-height: 24px;

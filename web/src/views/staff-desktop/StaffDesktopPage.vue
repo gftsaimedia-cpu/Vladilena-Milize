@@ -6,6 +6,7 @@ import { useSessionStore } from '@/stores/session';
 import DayBody from '@/views/staff-phone/components/DayBody.vue';
 import PasswordForm from '@/views/staff-phone/components/PasswordForm.vue';
 import RequestBody from '@/views/staff-phone/components/RequestBody.vue';
+import AttendanceColumn from './parts/AttendanceColumn.vue';
 import DesktopBar from './parts/DesktopBar.vue';
 import SideDrawer from './parts/SideDrawer.vue';
 import TodayColumn from './parts/TodayColumn.vue';
@@ -15,7 +16,7 @@ const session = useSessionStore();
 const { day, request, password, closeDetail } = useDesktopDetail();
 // Dòng phụ của ngăn kéo đổi mật khẩu: tên đăng nhập của phiên.
 const username = computed(() => (session.user ? String(session.user.username) : ''));
-// Tăng sau mỗi Check-out ở cột 1; cột 2 (Task 5) nhận làm :stamp để tải lại "Gần đây" (R7, P3).
+// Tăng sau mỗi Check-out ở cột 1; cột 2 nhận làm :stamp để tải lại "Gần đây" (R7, P3).
 const stamp = ref(0);
 </script>
 
@@ -24,6 +25,7 @@ const stamp = ref(0);
     <DesktopBar />
     <main class="sd-pg">
       <TodayColumn @checked-out="stamp++" />
+      <AttendanceColumn :stamp="stamp" />
     </main>
     <SideDrawer v-if="day" :title="day.title" :sub="day.shiftLine" @close="closeDetail">
       <template #badge>
