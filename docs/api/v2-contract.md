@@ -731,7 +731,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `action`: `APPROVE` hoặc `REJECT`; `note` không bắt buộc. Người duyệt lấy từ phiên đăng nhập.
 - **Response 200**: `{ "updated": true, "request": <đơn>, "recalculated": [ ... ] }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
   - `recalculated`: sau khi quyết định đã lưu, với mỗi tháng của đơn (tháng tăng dần, như ở `PERIOD_LOCKED`) mà kỳ lương đang `calculated`, phiếu lương tháng đó của người nộp được tính lại (chỉ người đó; phiếu mới ở `draft`, người khác giữ phiếu và trạng thái). Mỗi tháng một phần tử `{ "month": "2026-10", "ok": true }`. Tháng `open` hay `attendance_locked` không tính lại (lần tính cả kỳ sau Chốt công sẽ lấy dữ liệu mới), nên mảng rỗng `[]` khi không có tháng nào ở `calculated`.
-  - Tính lại lỗi: `{ "month": "2026-10", "ok": false, "error": "<câu lỗi>" }`. Quyết định duyệt đơn vẫn giữ (vẫn `200`); phiếu cũ của người đó về `draft` và mất người duyệt, nên Phê duyệt kỳ còn bị chặn tới khi Admin tính lại và duyệt lại phiếu.
+  - Tính lại lỗi: `{ "month": "2026-10", "ok": false, "error": "<câu lỗi>" }`. Quyết định duyệt đơn vẫn giữ (vẫn `200`); phiếu cũ của người đó về `draft` và mất người duyệt, nên Phê duyệt kỳ còn bị chặn tới khi Admin tính lại và duyệt lại phiếu. Không đọc được trạng thái kỳ của một tháng (lỗi DB) thì tháng đó cũng là `ok: false` kèm `error`, nhưng không tính lại và phiếu giữ nguyên (Admin tự tính lại người đó nếu kỳ đang `calculated`); các tháng sau vẫn được xét.
     ```json
     {
       "updated": true,

@@ -24,6 +24,7 @@ import { RequestsModule } from '../../src/modules/requests/requests.module';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { withTempDb } from './helpers/pg-temp-db';
+import { explanationRequest, leaveRequest, makeService, seed } from './helpers/requests-fakes';
 
 const MONTH = '2026-10';
 // "Hôm nay" là 05/11/2026: các ngày tháng 10 đã qua, nên giải trình được và Chốt công được.
@@ -376,6 +377,104 @@ test('PERIOD_LOCKED passes through the create and review routes unchanged', asyn
 
   await assert.rejects(controller.createLeave(leave('nv01', '2026-10-20'), ADMIN), (e: any) => e === filing && e.status === 409);
   await assert.rejects(controller.reviewRequest('r1', { action: 'APPROVE' }, ADMIN), (e: any) => e === reviewing && e.status === 409);
+});
+
+/**
+ * RequestsService trên các repository giả của `makeService`, với cổng kỳ và PayrollService giả cho bước tự tính lại.
+ * `calls` ghi lại các lời gọi PayrollService theo thứ tự.
+ */
+function withFakeRecalc(gate: Partial<PeriodGate>, payroll: Record<string, (...args: any[]) => Promise<unknown>>) {
+  const base = makeService();
+  const calls: unknown[][] = [];
+  const recorded = Object.fromEntries(
+    Object.entries(payroll).map(([name, fn]) => [
+      name,
+      (...args: any[]) => {
+        calls.push([name, ...args]);
+        return fn(...args);
+      }
+    ])
+  );
+  const service = new RequestsService(
+    base.repo,
+    base.att,
+    base.lock as unknown as TransactionCoordinator,
+    base.holidays,
+    base.days,
+    { hold: async () => {}, ...gate } as PeriodGate,
+    recorded as unknown as PayrollService
+  );
+  service.now = base.service.now;
+  return { ...base, service, calls };
+}
+
+const okRun = async () => ({ runId: 1, items: [], errors: [] });
+
+test('a period status that cannot be read after the review is reported and the payslip is left alone', async () => {
+  const ctx = withFakeRecalc(
+    {
+      statusOf: async () => {
+        throw new Error('mất kết nối');
+      }
+    },
+    { calculatePeriodPayslips: okRun, resetDecision: async () => true }
+  );
+  const req = await seed(ctx, explanationRequest('2026-10-29'));
+
+  const result = await ctx.service.reviewAndRecalculate(req.id, 'admin', 'APPROVE');
+
+  assert.deepEqual(result.recalculated, [{ month: MONTH, ok: false, error: 'mất kết nối' }]);
+  assert.equal(result.request.status, 'APPROVED');
+  assert.equal(ctx.repo.storedStatus.get(req.id), 'APPROVED');
+  // Không biết kỳ ở bước nào thì không tính lại và không đưa phiếu về nháp.
+  assert.deepEqual(ctx.calls, []);
+});
+
+test('a status read that fails for one month does not stop the next month', async () => {
+  const ctx = withFakeRecalc(
+    {
+      statusOf: async (_trx: unknown, month: string) => {
+        if (month === MONTH) throw new Error('mất kết nối');
+        return 'calculated';
+      }
+    },
+    { calculatePeriodPayslips: okRun, resetDecision: async () => true }
+  );
+  const req = await seed(ctx, leaveRequest('2026-10-30', '2026-11-02'));
+
+  const result = await ctx.service.reviewAndRecalculate(req.id, 'admin', 'APPROVE');
+
+  assert.equal(result.request.status, 'APPROVED');
+  assert.deepEqual(result.recalculated, [
+    { month: MONTH, ok: false, error: 'mất kết nối' },
+    { month: '2026-11', ok: true }
+  ]);
+  assert.deepEqual(ctx.calls, [['calculatePeriodPayslips', '2026-11', [req.employeeId], 'admin']]);
+});
+
+test('a reset that fails after a failed recalculation still reports the recalculation error', async () => {
+  const ctx = withFakeRecalc(
+    { statusOf: async () => 'calculated' },
+    {
+      calculatePeriodPayslips: async () => {
+        throw new Error('Thiếu cấu hình bậc 9');
+      },
+      resetDecision: async () => {
+        throw new Error('không ghi được phiếu');
+      }
+    }
+  );
+  const req = await seed(ctx, explanationRequest('2026-10-29'));
+
+  const result = await ctx.service.reviewAndRecalculate(req.id, 'admin', 'APPROVE');
+
+  assert.deepEqual(result.recalculated, [{ month: MONTH, ok: false, error: 'Thiếu cấu hình bậc 9' }]);
+  assert.equal(result.request.status, 'APPROVED');
+  assert.equal(ctx.repo.storedStatus.get(req.id), 'APPROVED');
+  assert.deepEqual(
+    ctx.calls.map(c => c[0]),
+    ['calculatePeriodPayslips', 'resetDecision']
+  );
 });
 
 test('RequestsModule hands the period gate and the payroll service to RequestsService through Nest DI', async () => {

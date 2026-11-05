@@ -39,7 +39,7 @@ import { DayStatusRepository } from './day-status.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { PayrollService } from '../payroll/payroll.service';
-import { requestMonths, type GateUse, type RequestDates } from '../periods/domain';
+import { requestMonths, type GateUse, type PeriodStatus, type RequestDates } from '../periods/domain';
 import { PeriodGate } from '../periods/period-gate';
 import { businessMonthText } from '../../common/business-date';
 
@@ -806,8 +806,9 @@ export class RequestsService {
   /**
    * Duyệt hoặc từ chối như `reviewRequest`; sau khi giao dịch đó đã commit (spec kỳ lương R6), với từng tháng của đơn
    * (tăng dần) đang ở `calculated`, tính lại phiếu lương của người nộp (§6). Tháng khác không tính lại. Tính lại lỗi thì
-   * quyết định duyệt đơn vẫn giữ: lỗi nằm trong `recalculated`, không ném ra. Thiếu cổng kỳ hay PayrollService (test
-   * cũ) thì `recalculated` rỗng.
+   * quyết định duyệt đơn vẫn giữ: lỗi nằm trong `recalculated`, không ném ra. Không đọc được trạng thái kỳ của một tháng
+   * thì tháng đó báo lỗi, không tính lại và không đưa phiếu về nháp (không biết kỳ ở bước nào), rồi xét tháng sau.
+   * Thiếu cổng kỳ hay PayrollService (test cũ) thì `recalculated` rỗng.
    */
   async reviewAndRecalculate(
     id: string,
@@ -819,7 +820,14 @@ export class RequestsService {
     const recalculated: RecalcResult[] = [];
     if (this.periodGate && this.payroll) {
       for (const month of months) {
-        if ((await this.periodGate.statusOf(undefined, month)) !== 'calculated') continue;
+        let status: PeriodStatus;
+        try {
+          status = await this.periodGate.statusOf(undefined, month);
+        } catch (err) {
+          recalculated.push({ month, ok: false, error: err instanceof Error ? err.message : String(err) });
+          continue;
+        }
+        if (status !== 'calculated') continue;
         recalculated.push(await this.recalculate(this.payroll, month, employeeId, reviewer));
       }
     }
