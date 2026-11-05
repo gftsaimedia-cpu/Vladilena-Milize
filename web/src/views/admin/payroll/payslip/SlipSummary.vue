@@ -3,7 +3,8 @@
 // Nhóm LƯƠNG KPI đọc từ trên xuống: slot `kpi` (5 ô điểm), Tổng điểm, cờ thiếu điểm, Lương KPI, slot `history`.
 // Hai slot chỉ có dòng khi được đổ nội dung (Task 5).
 import { computed } from 'vue';
-import { KPI_LABELS, type Payslip } from '@/mock/payroll';
+import { KPI_LABELS } from '@/constants/labels';
+import type { Payslip } from '@/mock/payroll';
 import { num, vnd } from '@/utils/format';
 import { monthNo } from '../../requests/helpers';
 

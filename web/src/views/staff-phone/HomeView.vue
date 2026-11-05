@@ -3,7 +3,8 @@
 // Dữ liệu là bản giả (services/staff-phone); bấm Check-out gọi checkOut() rồi thay cả dữ liệu màn bằng kết quả trả về (R7).
 import { computed, nextTick, ref } from 'vue';
 import type { HomeView } from '@/mock/staff-phone';
-import { checkOut, getHome } from '@/services/staff-phone';
+import { toast } from '@/components/shell/toast';
+import { checkIn, checkOut, getHome } from '@/services/staff-phone';
 import PhIcon from './components/PhIcon.vue';
 import RequestRow from './components/RequestRow.vue';
 
@@ -24,6 +25,19 @@ const arc = computed(() => {
     ky: (120 - 100 * Math.sin(a)).toFixed(1)
   };
 });
+
+// Check-in (máy chủ thật; dữ liệu giả luôn đã vào ca): thay cả màn bằng kết quả, lỗi (ngoài vùng…) hiện thành thông báo.
+async function doCheckIn() {
+  if (busy.value) return;
+  busy.value = true;
+  try {
+    data.value = await checkIn();
+  } catch (e) {
+    toast.error(e.message);
+  } finally {
+    busy.value = false;
+  }
+}
 
 async function doCheckOut() {
   if (busy.value) return;
@@ -54,7 +68,11 @@ async function doCheckOut() {
       <section ref="hero" class="hero on-dark" aria-label="Ca hôm nay" tabindex="-1">
         <div class="hero-top">
           <span>{{ data.shiftLabel }}</span>
-          <span class="live" role="status"><i v-if="!data.checkOut" />{{ data.checkOut ? 'Đã check-out' : 'Đang trong ca' }}</span>
+          <span class="live" role="status"
+            ><i v-if="data.checkIn && !data.checkOut" />{{
+              !data.checkIn ? 'Chưa check-in' : data.checkOut ? 'Đã check-out' : 'Đang trong ca'
+            }}</span
+          >
         </div>
         <div class="gauge">
           <svg aria-hidden="true" width="240" height="132" viewBox="0 0 240 132" focusable="false">
@@ -71,11 +89,18 @@ async function doCheckOut() {
           </svg>
           <div class="gauge-in">
             <div class="worked">{{ data.worked }}</div>
-            <div class="since">đã làm · vào {{ data.checkIn }}{{ data.checkOut ? ` · ra ${data.checkOut}` : '' }}</div>
+            <div v-if="data.checkIn" class="since">đã làm · vào {{ data.checkIn }}{{ data.checkOut ? ` · ra ${data.checkOut}` : '' }}</div>
+            <div v-else class="since">chưa vào ca</div>
           </div>
         </div>
         <div class="ends"><span>{{ data.shiftStart }}</span><span>{{ data.shiftEnd }}</span></div>
-        <template v-if="!data.checkOut">
+        <template v-if="!data.checkIn">
+          <button type="button" class="cta" :aria-label="`Check-in lúc ${data.now}`" :disabled="busy" @click="doCheckIn">
+            <PhIcon name="clock" :size="20" :stroke="2" />Check-in<small>· {{ data.now }}</small>
+          </button>
+          <div class="loc"><PhIcon name="pin" :size="16" />{{ data.location }}</div>
+        </template>
+        <template v-else-if="!data.checkOut">
           <button type="button" class="cta" :aria-label="`Check-out lúc ${data.now}`" :disabled="busy" @click="doCheckOut">
             <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ data.now }}</small>
           </button>

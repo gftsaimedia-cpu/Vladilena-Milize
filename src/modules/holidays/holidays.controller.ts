@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Delete, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession } from '../../common';
+import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { businessDateText } from '../../common/business-date';
 import { HolidayNotFoundError } from './holidays.errors';
 import { HolidaysService } from './holidays.service';
@@ -9,6 +9,7 @@ import { HolidaysService } from './holidays.service';
 export class HolidaysController {
   constructor(@Inject(HolidaysService) private readonly service: HolidaysService) {}
 
+  @RequireCap('config.read')
   @Get()
   async list(@Query('year') year?: string): Promise<unknown> {
     return this.run(async () => ({
@@ -16,19 +17,22 @@ export class HolidaysController {
     }));
   }
 
+  @RequireCap('config.write')
   @Post()
-  async create(@Body() body: { date?: unknown; name?: unknown }, @CurrentUser() user?: UserSession): Promise<unknown> {
+  async create(@Body() body: { date?: unknown; name?: unknown }, @CurrentUser() user: UserSession): Promise<unknown> {
     return this.run(async () => ({
       created: true,
-      holiday: await this.service.add({ date: body?.date, name: body?.name }, user?.username ?? null)
+      holiday: await this.service.add({ date: body?.date, name: body?.name }, user.username)
     }));
   }
 
+  @RequireCap('config.write')
   @Post('quick-add')
-  async quickAdd(@Body() body: { year?: unknown }, @CurrentUser() user?: UserSession): Promise<unknown> {
-    return this.run(async () => ({ added: await this.service.quickAdd(body?.year, user?.username ?? null) }));
+  async quickAdd(@Body() body: { year?: unknown }, @CurrentUser() user: UserSession): Promise<unknown> {
+    return this.run(async () => ({ added: await this.service.quickAdd(body?.year, user.username) }));
   }
 
+  @RequireCap('config.write')
   @Delete(':date')
   async remove(@Param('date') date: string): Promise<unknown> {
     return this.run(async () => {

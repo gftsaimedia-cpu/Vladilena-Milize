@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Năm ô điểm KPI của một phiếu (spec 4.4). Gõ: làm sạch rồi báo `update` (phiếu tính lại ngay); rời ô: báo `save`.
-import { KPI_LABELS } from '@/mock/payroll';
-import { MOCK_KPI_WEIGHTS, type KpiPart, type KpiScores } from '@/mock/payroll-calc';
+import { KPI_LABELS, KPI_WEIGHTS as MOCK_KPI_WEIGHTS } from '@/constants/labels';
+import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
 
 defineProps<{ scores: KpiScores; name: string }>();
 const emit = defineEmits<{ update: [part: KpiPart, value: number | null]; save: [part: KpiPart] }>();

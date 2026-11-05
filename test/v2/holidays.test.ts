@@ -152,6 +152,8 @@ describe('HolidaysRepository', () => {
   });
 });
 
+const ADMIN = { username: 'admin' } as any;
+
 describe('HolidaysController', () => {
   const controller = () => new HolidaysController(makeService());
 
@@ -170,9 +172,9 @@ describe('HolidaysController', () => {
     assert.deepEqual(await ctrl.create({ date: '2026-10-10', name: ' Giỗ Tổ ' }, { username: 'admin' } as any), {
       created: true, holiday: { date: '2026-10-10', name: 'Giỗ Tổ' }
     });
-    assert.deepEqual(await ctrl.quickAdd({ year: 2026 }, undefined), { added: ['2026-01-01', '2026-04-30', '2026-05-01', '2026-09-02'] });
+    assert.deepEqual(await ctrl.quickAdd({ year: 2026 }, { username: 'hr' } as any), { added: ['2026-01-01', '2026-04-30', '2026-05-01', '2026-09-02'] });
     assert.equal(repo.rows.get('2026-10-10')?.createdBy, 'admin');
-    assert.equal(repo.rows.get('2026-01-01')?.createdBy, null);
+    assert.equal(repo.rows.get('2026-01-01')?.createdBy, 'hr');
     assert.deepEqual(await ctrl.remove('2026-10-10'), { deleted: true });
   });
 
@@ -180,16 +182,16 @@ describe('HolidaysController', () => {
     const ctrl = controller();
     await assert.rejects(ctrl.remove('2026-09-02'), (e: any) =>
       e instanceof NotFoundError && e.status === 404 && e.message === 'Không có ngày lễ 2026-09-02' && e.details?.code === 'HOLIDAY_NOT_FOUND');
-    await assert.rejects(ctrl.create({ date: '2026-02-30', name: 'x' }, undefined), (e: any) =>
+    await assert.rejects(ctrl.create({ date: '2026-02-30', name: 'x' }, ADMIN), (e: any) =>
       e instanceof BadRequestError && e.status === 400 && e.details?.code === 'BAD_REQUEST' && e.message === 'Ngày lễ không hợp lệ: 2026-02-30');
-    await assert.rejects(ctrl.quickAdd({ year: 'abc' }, undefined), (e: any) =>
+    await assert.rejects(ctrl.quickAdd({ year: 'abc' }, ADMIN), (e: any) =>
       e instanceof BadRequestError && e.details?.code === 'BAD_REQUEST' && e.message === 'Năm không hợp lệ: abc');
     await assert.rejects(ctrl.list('1999'), (e: any) => e instanceof BadRequestError && e.message === 'Năm không hợp lệ: 1999');
   });
 
   it('a missing request body is a 400, not a crash', async () => {
     const ctrl = controller();
-    await assert.rejects(ctrl.create(undefined as any, undefined), (e: any) => e instanceof BadRequestError);
-    await assert.rejects(ctrl.quickAdd(undefined as any, undefined), (e: any) => e instanceof BadRequestError && /Năm không hợp lệ/.test(e.message));
+    await assert.rejects(ctrl.create(undefined as any, ADMIN), (e: any) => e instanceof BadRequestError);
+    await assert.rejects(ctrl.quickAdd(undefined as any, ADMIN), (e: any) => e instanceof BadRequestError && /Năm không hợp lệ/.test(e.message));
   });
 });

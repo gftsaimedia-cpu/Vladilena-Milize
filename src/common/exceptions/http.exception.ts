@@ -30,7 +30,7 @@ export class ConflictError extends HttpError {
 
 export class UnauthorizedError extends HttpError {
   constructor(message = 'Chưa đăng nhập', details?: Record<string, any>) {
-    super(401, message, { code: 'UNAUTHORIZED', ...details });
+    super(401, message, { code: 'UNAUTHENTICATED', ...details });
   }
 }
 

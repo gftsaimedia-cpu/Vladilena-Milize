@@ -33,6 +33,8 @@ class KpiRepository extends PayrollRepository {
   }
 }
 
+// Người dùng phiên mà AuthGuard gán cho mọi route cần năng lực.
+const ADMIN = { username: 'admin', name: 'Admin', role: 'admin', type: 'ql', level: 0 } as any;
 const CAP: KpiCap = { applicable: true, kpiMax: 6_000_000 };
 const NOT_APPLICABLE: KpiCap = { applicable: false, kpiMax: null };
 
@@ -163,7 +165,7 @@ describe('PayrollController KPI and calculation errors', () => {
       setKpiScore: failWith(new KpiValidationError('KPI_PROPOSAL_EXCEEDS_MAX', 'Lương KPI đề xuất quá lớn'))
     });
 
-    await assert.rejects(controller.setKpiScore('2026-10', 'a', { proposedAmount: 9 }), (err: unknown) => {
+    await assert.rejects(controller.setKpiScore('2026-10', 'a', { proposedAmount: 9 }, ADMIN), (err: unknown) => {
       assert.ok(err instanceof BadRequestError);
       assert.equal(err.status, 400);
       assert.equal(err.message, 'Lương KPI đề xuất quá lớn');
@@ -175,7 +177,7 @@ describe('PayrollController KPI and calculation errors', () => {
   it('keeps the code of every other KPI error on a 400, and maps an unknown employee to 404', async () => {
     for (const code of ['INVALID_KPI_SCORE', 'KPI_NOT_APPLICABLE'] as const) {
       const controller = controllerWith({ setKpiScore: failWith(new KpiValidationError(code, 'x')) });
-      await assert.rejects(controller.setKpiScore('2026-10', 'a', {}), (err: unknown) => {
+      await assert.rejects(controller.setKpiScore('2026-10', 'a', {}, ADMIN), (err: unknown) => {
         assert.ok(err instanceof BadRequestError);
         assert.equal(err.details?.code, code);
         return true;
@@ -185,7 +187,7 @@ describe('PayrollController KPI and calculation errors', () => {
     const notFound = controllerWith({
       setKpiScore: failWith(new KpiValidationError('EMPLOYEE_NOT_FOUND', 'Không tìm thấy nhân sự zz'))
     });
-    await assert.rejects(notFound.setKpiScore('2026-10', 'zz', {}), (err: unknown) => {
+    await assert.rejects(notFound.setKpiScore('2026-10', 'zz', {}, ADMIN), (err: unknown) => {
       assert.ok(err instanceof NotFoundError);
       assert.equal(err.status, 404);
       assert.equal(err.details?.code, 'EMPLOYEE_NOT_FOUND');
@@ -197,7 +199,7 @@ describe('PayrollController KPI and calculation errors', () => {
   it('lets an unexpected error through untouched', async () => {
     const boom = new Error('boom');
     const controller = controllerWith({ setKpiScore: failWith(boom) });
-    await assert.rejects(controller.setKpiScore('2026-10', 'a', {}), err => err === boom);
+    await assert.rejects(controller.setKpiScore('2026-10', 'a', {}, ADMIN), err => err === boom);
   });
 
   it('passes the body and the actor to the service and confirms the update', async () => {
@@ -214,16 +216,16 @@ describe('PayrollController KPI and calculation errors', () => {
       username: 'a',
       month: '2026-10'
     });
-    await controller.setKpiScore('2026-10', 'a', body);
+    await controller.setKpiScore('2026-10', 'a', body, ADMIN);
     assert.deepEqual(calls, [
       ['a', '2026-10', body, 'admin'],
-      ['a', '2026-10', body, 'system']
+      ['a', '2026-10', body, 'admin']
     ]);
   });
 
   it('rejects a malformed month before calling the service', async () => {
     const controller = controllerWith({ setKpiScore: failWith(new Error('must not run')) });
-    await assert.rejects(controller.setKpiScore('2026-1', 'a', {}), (err: unknown) => {
+    await assert.rejects(controller.setKpiScore('2026-1', 'a', {}, ADMIN), (err: unknown) => {
       assert.ok(err instanceof BadRequestError);
       assert.equal(err.details?.code, 'INVALID_MONTH');
       return true;
@@ -235,7 +237,7 @@ describe('PayrollController KPI and calculation errors', () => {
       calculatePeriodPayslips: failWith(new PayrollFinalizedError('Kỳ lương 2026-10 đã chốt, không thể tính lại'))
     });
 
-    await assert.rejects(controller.calculatePeriod('2026-10', {}), (err: unknown) => {
+    await assert.rejects(controller.calculatePeriod('2026-10', {}, ADMIN), (err: unknown) => {
       assert.ok(err instanceof ConflictError);
       assert.equal(err.status, 409);
       assert.equal(err.message, 'Kỳ lương 2026-10 đã chốt, không thể tính lại');
@@ -247,7 +249,7 @@ describe('PayrollController KPI and calculation errors', () => {
   it('keeps answering any other calculation failure with 400 CALCULATE_ERROR', async () => {
     const controller = controllerWith({ calculatePeriodPayslips: failWith(new Error('mất kết nối')) });
 
-    await assert.rejects(controller.calculatePeriod('2026-10', {}), (err: unknown) => {
+    await assert.rejects(controller.calculatePeriod('2026-10', {}, ADMIN), (err: unknown) => {
       assert.ok(err instanceof BadRequestError);
       assert.equal(err.message, 'mất kết nối');
       assert.equal(err.details?.code, 'CALCULATE_ERROR');
@@ -282,14 +284,14 @@ describe('PayrollController KPI and calculation errors', () => {
       }
     });
 
-    await controller.calculatePeriod('2026-10', {});
-    await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] });
-    await controller.calculatePeriod('2026-10', { employeeIds: [] });
+    await controller.calculatePeriod('2026-10', {}, ADMIN);
+    await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] }, ADMIN);
+    await controller.calculatePeriod('2026-10', { employeeIds: [] }, ADMIN);
 
     assert.deepEqual(calls, [
-      ['2026-10', undefined, 'system'],
-      ['2026-10', ['u1'], 'system'],
-      ['2026-10', [], 'system']
+      ['2026-10', undefined, 'admin'],
+      ['2026-10', ['u1'], 'admin'],
+      ['2026-10', [], 'admin']
     ]);
   });
 
@@ -303,7 +305,7 @@ describe('PayrollController KPI and calculation errors', () => {
     });
 
     for (const employeeIds of ['u1', [1], [''], ['  '], ['u1', ' '], ['u1', null], {}, null, 5]) {
-      await assert.rejects(controller.calculatePeriod('2026-10', { employeeIds } as any), (err: unknown) => {
+      await assert.rejects(controller.calculatePeriod('2026-10', { employeeIds } as any, ADMIN), (err: unknown) => {
         assert.ok(err instanceof BadRequestError);
         assert.equal(err.status, 400);
         assert.equal(err.message, 'employeeIds phải là danh sách mã nhân sự');
@@ -318,7 +320,7 @@ describe('PayrollController KPI and calculation errors', () => {
     const errors = [{ employeeId: 'u1', message: 'Thiếu cấu hình chức vụ hoặc bậc lương cho nv (Bậc 9)' }];
     const controller = controllerWith({ calculatePeriodPayslips: async () => ({ runId: null, items: [], errors }) });
 
-    assert.deepEqual(await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] }), {
+    assert.deepEqual(await controller.calculatePeriod('2026-10', { employeeIds: ['u1'] }, ADMIN), {
       month: '2026-10',
       calculated: true,
       runId: null,

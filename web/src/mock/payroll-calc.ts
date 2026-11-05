@@ -2,7 +2,8 @@
 export type KpiPart = 'wework' | 'user' | 'peer' | 'manager' | 'self';
 export type KpiScores = Record<KpiPart, number | null>;
 
-export const MOCK_KPI_WEIGHTS: Record<KpiPart, number> = { wework: 40, user: 24, peer: 18, manager: 12, self: 6 };
+import { KPI_WEIGHTS as MOCK_KPI_WEIGHTS } from '../constants/labels';
+export { MOCK_KPI_WEIGHTS };
 const PARTS: KpiPart[] = ['wework', 'user', 'peer', 'manager', 'self'];
 
 const STANDARD_DAYS = 26;

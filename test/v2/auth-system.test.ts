@@ -17,7 +17,7 @@ describe('Auth & System V2 - Xác thực & Cài đặt hệ thống', () => {
   it('2. Tạo session token HMAC-SHA256 và giải mã an toàn', () => {
     const authService = new AuthService({} as any);
     const username = 'admin';
-    const token = authService.createSessionToken(username);
+    const token = authService.createSessionToken(username, 0);
 
     assert.ok(token.includes('.'), 'Token must contain payload and signature separated by dot');
 

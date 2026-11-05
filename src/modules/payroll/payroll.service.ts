@@ -97,6 +97,16 @@ export class PayrollService {
     return await this.repo.listPayslips(month);
   }
 
+  async decidePayslip(
+    month: string,
+    username: string,
+    status: 'approved' | 'rejected',
+    actor: string,
+    note?: string
+  ): Promise<PayslipRecord | null> {
+    return await this.repo.decidePayslip(month, username, status, actor, note);
+  }
+
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
     return await this.repo.getPayslip(month, employeeId);
   }

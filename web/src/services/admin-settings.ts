@@ -26,6 +26,7 @@ export {
   getCalendarSetup,
   saveCalendarSetup,
   addHoliday,
+  quickAddHolidays,
   removeHoliday,
   getAuditLog,
   verifyAuditLog

@@ -4,7 +4,7 @@
 // Trước/sau theo thứ tự danh sách nhân viên, giữ ?thang. Tab lịch sử và nút "Chỉ ngày có ngoại lệ" là trạng thái cục bộ.
 import { computed, nextTick, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { GROUPS } from '@/mock/attendance';
+import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
 import type { HistoryEntry } from '@/mock/attendance-employee';
 import { useLoad } from '@/composables/useLoad';
 import { getEmployeeAttendance } from '@/services/admin-attendance';

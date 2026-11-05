@@ -524,6 +524,41 @@ export class PayrollRepository {
     return rows.map(readPayslipRow);
   }
 
+  // Ghi quyết định của Admin lên phiếu của người đó trong lần chạy hiện tại; kỳ đã chốt thì không đổi được.
+  // Trả phiếu sau khi ghi, null khi tháng chưa có lần chạy hoặc người đó không có phiếu.
+  async decidePayslip(
+    month: string,
+    username: string,
+    status: 'approved' | 'rejected',
+    actor: string,
+    note?: string
+  ): Promise<PayslipRecord | null> {
+    const run = await this.qb
+      .selectFrom('payroll_runs')
+      .select(['id', 'status'])
+      .where('month', '=', month)
+      .where('status', '<>', 'superseded')
+      .orderBy('run_no', 'desc')
+      .executeTakeFirst();
+    if (!run) return null;
+    if (run.status === 'final') throw new PayrollFinalizedError('Kỳ lương đã chốt, không duyệt lại được phiếu');
+
+    const row = await this.qb
+      .updateTable('payslips')
+      .set(eb => ({
+        status,
+        decided_by: actor,
+        decided_at: new Date().toISOString(),
+        note: note ?? null,
+        rev: eb('rev', '+', 1),
+      }))
+      .where('run_id', '=', Number(run.id))
+      .where('username', '=', username)
+      .returningAll()
+      .executeTakeFirst();
+    return row ? readPayslipRow(row) : null;
+  }
+
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
     const runId = await this.currentRunId(month);
     if (runId === null) return null;

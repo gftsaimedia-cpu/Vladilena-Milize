@@ -5,6 +5,9 @@ import { api, qs } from '@/services/http';
 import { allSettingsWanted, buildAllSettings, searchAllSettings } from '@/builders/admin-config/all-settings';
 import { benefitsWanted, buildBenefits } from '@/builders/admin-config/benefits';
 import { buildAuditPage } from '@/builders/admin-config/audit';
+import { auditResponseFromRows } from '@/builders/api/audit';
+import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
+import { notConnected } from '@/services/data-mode';
 import { buildPayDrawer, buildPayFormula, drawerWanted } from '@/builders/admin-config/pay';
 import { applySaved, diffEdits, indexParams, toPct, valueOf } from '@/builders/admin-config/params';
 
@@ -247,150 +250,65 @@ export const addPosition = ({ name, copyFrom, fromMonth, reason }: any) =>
   api('POST', '/positions', { label: name, copyFrom, effectiveMonth: fromMonth, ...(reason ? { reason } : {}) });
 
 // ---------- Lịch, ca & chấm công ----------
-const addDays = (iso?, n?) => new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10);
-
-/** Dãy ngày liền nhau cùng tên → một khoảng { id, from, to, name }. */
-function holidayRanges(dates?, names?) {
-  const out: any[] = [];
-  for (const date of dates.slice().sort()) {
-    const name = names[date] || '';
-    const last = out[out.length - 1];
-    if (last && addDays(last.to, 1) === date && last.name === name) last.to = date;
-    else out.push({ id: date, from: date, to: date, name });
-  }
-  return out;
-}
-const spanDays = (h?) => Math.round((Date.parse(h.to) - Date.parse(h.from)) / 86400000) + 1;
-
-// GET /api/holidays + tham số period.payDay
+// Lịch nghỉ lễ: GET /api/v2/holidays?year= (BE chưa có tham số ngày trả lương: payDay null).
 export async function getCalendar(year?) {
-  const [list, params] = await Promise.all([api('GET', '/holidays'), readParams(1)]);
-  state.calendar = { dates: list.dates || [], names: list.names || {} };
-  const holidays = holidayRanges(list.dates || [], list.names || {}).filter(h => h.from.startsWith(String(year)));
-  return {
-    year,
-    startDay: 1,
-    payDay: valueOf(params, 'period.payDay'),
-    holidays,
-    holidayDays: holidays.reduce((n, h) => n + spanDays(h), 0)
-  };
+  const { items = [] } = await api('GET', `/holidays${qs({ year })}`);
+  return calendarFromHolidays(items, Number(year));
 }
 
-/** Thay toàn bộ danh sách ngày lễ: PUT /api/holidays { dates, names }. Cảnh báo của máy chủ về qua warnings. */
-const putHolidays = (dates?, names?) => api('PUT', '/holidays', { dates: [...new Set<any>(dates)].sort(), names });
+/** Thêm các ngày lễ dương lịch cố định của năm (bỏ qua ngày đã có): POST /api/v2/holidays/quick-add. Trả { added }. */
+export const quickAddHolidays = (year?) => api('POST', '/holidays/quick-add', { year: Number(year) });
 
+/** Thêm một khoảng nghỉ lễ: POST /api/v2/holidays từng ngày (BE từ chối ngày trùng hoặc tên trống). */
 export async function addHoliday({ from, to, name }: any) {
-  const current = await api('GET', '/holidays');
-  const added: any[] = [];
-  for (let d = from; d <= (to || from); d = addDays(d, 1)) added.push(d);
-  const names = { ...(current.names || {}) };
-  if (name) for (const d of added) names[d] = name;
-  return putHolidays([...(current.dates || []), ...added], names);
+  for (const date of datesOf(from, to || from)) await api('POST', '/holidays', { date, name });
+  return { ok: true };
 }
 
+/** Xoá cả khoảng có id (id là ngày đầu khoảng): DELETE /api/v2/holidays/:date từng ngày. */
 export async function removeHoliday(id?) {
-  const current = await api('GET', '/holidays');
-  const range = holidayRanges(current.dates || [], current.names || {}).find(h => h.id === id);
+  const { items = [] } = await api('GET', `/holidays${qs({ year: String(id).slice(0, 4) })}`);
+  const range = holidayRangesOf(items).find(h => h.id === id);
   if (!range) return { ok: true };
-  const gone = new Set<any>();
-  for (let d = range.from; d <= range.to; d = addDays(d, 1)) gone.add(d);
-  const names = Object.fromEntries(Object.entries(current.names || {}).filter(([d]: any) => !gone.has(d)));
-  return putHolidays(
-    (current.dates || []).filter(d => !gone.has(d)),
-    names
-  );
+  for (const date of datesOf(range.from, range.to)) await api('DELETE', `/holidays/${date}`);
+  return { ok: true };
 }
 
 const KIND = { normal: 'Normal', flex: 'Flex', night: 'Night' };
 
-// GET /api/settings/shifts + vùng chấm công trong tham số geofence.*
+// Ca làm từ GET /api/v2/employees/meta/shifts (bảng work_shifts: mã, tên, loại). BE v2 chưa có giờ vào/ra của ca và
+// tham số vùng chấm công: các ô đó để trống, lưu báo chưa nối.
 export async function getCalendarSetup() {
-  const [shifts, params] = await Promise.all([api('GET', '/settings/shifts'), readParams(6)]);
-  const zone = {
-    radius: valueOf(params, 'geofence.radiusM'),
-    lat: valueOf(params, 'geofence.lat'),
-    lng: valueOf(params, 'geofence.lng')
-  };
+  const { shifts = [] } = await api('GET', '/employees/meta/shifts');
   const view = {
-    shifts: shifts.shifts.map(s => ({
-      code: s.code,
-      name: s.name,
-      start: s.in,
-      end: s.out,
-      type: KIND[s.kind] || s.kind,
-      nextDay: s.out < s.in
-    })),
-    zone
-  };
-  state.setup = {
-    month: shifts.month,
-    rev: shifts.paramsRev,
-    maxAccuracyM: valueOf(params, 'geofence.maxAccuracyM'),
-    base: plain(view)
+    shifts: shifts.map(s => ({ code: s.code, name: s.name, start: '', end: '', type: KIND[s.kind] || s.kind, nextDay: false })),
+    zone: { radius: null, lat: null, lng: null }
   };
   return plain(view);
 }
 
-// PUT /api/settings/shifts (giờ vào/ra đã đổi) và PUT /api/settings/geofence (vùng chấm công)
-export async function saveCalendarSetup({ shifts, zone }: any) {
-  const st = state.setup;
-  if (!st) throw new Error('Chưa tải dữ liệu để lưu');
-  const changed = shifts.filter(s => {
-    const was = st.base.shifts.find(b => b.code === s.code);
-    return was && (was.start !== s.start || was.end !== s.end);
-  });
-  if (changed.length) {
-    const res = await api('PUT', '/settings/shifts', {
-      shifts: changed.map(s => ({ code: s.code, in: s.start, out: s.end })),
-      effectiveMonth: st.month,
-      expectedRev: st.rev
-    });
-    if (res && Number.isInteger(res.paramsRev)) st.rev = res.paramsRev;
-    for (const s of changed) {
-      const was = st.base.shifts.find(b => b.code === s.code);
-      Object.assign(was, { start: s.start, end: s.end });
-    }
-  }
-  const z = st.base.zone;
-  if (z.radius !== zone.radius || z.lat !== zone.lat || z.lng !== zone.lng) {
-    await api('PUT', '/settings/geofence', {
-      lat: zone.lat,
-      lng: zone.lng,
-      radiusM: zone.radius,
-      ...(st.maxAccuracyM == null ? {} : { maxAccuracyM: st.maxAccuracyM })
-    });
-    Object.assign(z, zone);
-  }
-  return { ok: true };
-}
+// Lưu giờ ca và vùng chấm công: BE v2 chưa có API.
+export const saveCalendarSetup = (_input: any) => notConnected();
 
 // ---------- Nhật ký thay đổi ----------
 const AUDIT_PAGE = 50;
 const auditState: any = { cursors: [null], actors: new Map(), actions: new Set() };
 
-// GET /api/audit?limit=&beforeId=&actor=&action=&from=&to=
+// GET /api/v2/system/audit?limit=&offset= (mới nhất trước). BE chưa lọc theo người, thao tác hay ngày: bộ lọc chỉ áp
+// trên các dòng của trang đang xem.
 export async function getAuditLog({ page = 1, who = '', action = '', from = '', to = '' }: any = {}) {
-  const key = JSON.stringify([who, action, from, to]);
-  if (auditState.key !== key) Object.assign(auditState, { key, cursors: [null] });
   const at = Math.max(1, page);
-  // Trang n cần con trỏ beforeId của trang n-1: đi lần lượt từ trang đã biết
-  while (auditState.cursors.length < at) {
-    const prev = auditState.cursors.length;
-    const res = await api(
-      'GET',
-      `/audit${qs({ limit: AUDIT_PAGE, beforeId: auditState.cursors[prev - 1], actor: who, action, from, to })}`
-    );
-    if (res.nextBeforeId == null) break;
-    auditState.cursors[prev] = res.nextBeforeId;
-  }
-  const pageNo = Math.min(at, auditState.cursors.length);
-  const res = await api(
-    'GET',
-    `/audit${qs({ limit: AUDIT_PAGE, beforeId: auditState.cursors[pageNo - 1], actor: who, action, from, to })}`
+  const res = await api('GET', `/system/audit${qs({ limit: AUDIT_PAGE, offset: (at - 1) * AUDIT_PAGE })}`);
+  const out = auditResponseFromRows(res.items || [], { page: at, size: AUDIT_PAGE });
+  const day = (iso?) => new Date(Date.parse(iso) + 7 * 3600000).toISOString().slice(0, 10);
+  const rows = out.rows.filter(
+    r => (!who || r.actor === who) && (!action || r.action === action) && (!from || day(r.at) >= from) && (!to || day(r.at) <= to)
   );
-  if (res.nextBeforeId != null && auditState.cursors.length === pageNo) auditState.cursors[pageNo] = res.nextBeforeId;
-  return buildAuditPage(res, { page: pageNo, size: AUDIT_PAGE, pages: auditState.cursors.length, seen: auditState });
+  return buildAuditPage(
+    { rows, total: out.total },
+    { page: at, size: AUDIT_PAGE, pages: at + (out.hasMore ? 1 : 0), seen: auditState }
+  );
 }
 
-// GET /api/audit/verify → { ok, checked }
-export const verifyAuditLog = () => api('GET', '/audit/verify');
+// Kiểm chuỗi băm của nhật ký: BE v2 chưa có API.
+export const verifyAuditLog = () => notConnected();

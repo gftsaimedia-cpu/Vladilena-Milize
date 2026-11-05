@@ -6,7 +6,8 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch 
 import { useRoute } from 'vue-router';
 import { lockScroll, registerOverlayFocus, unlockScroll } from '@/components/ui/overlay-lock';
 import { useLoad } from '@/composables/useLoad';
-import { INBOX_GROUPS, type InboxItem } from '@/mock/inbox';
+import { INBOX_GROUPS } from '@/constants/labels';
+import type { InboxItem } from '@/mock/inbox';
 import { getInbox } from '@/services/admin-main';
 import { useShellStore } from '@/stores/shell';
 import InboxDetail from './InboxDetail.vue';

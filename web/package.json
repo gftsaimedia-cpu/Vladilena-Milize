@@ -9,9 +9,11 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "build": "vite build",
     "preview": "vite preview",
-    "test:ui": "playwright test --config playwright.config.ts"
+    "test:ui": "playwright test --config playwright.config.ts",
+    "test:api": "playwright test --config playwright.api.config.ts"
   },
   "dependencies": {
     "pinia": "^4.1.0",

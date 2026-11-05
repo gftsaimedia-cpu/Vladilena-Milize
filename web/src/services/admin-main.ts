@@ -1,74 +1,90 @@
 // Dịch vụ của nhóm admin-main: Tổng quan, Yêu cầu và các lớp nổi của vỏ Admin.
-// Tổng quan, chuông và xử lý việc chờ chạy trên dữ liệu giả (mock/); danh sách Yêu cầu còn gọi api() (chưa có dữ liệu giả).
+// Máy chủ thật: Yêu cầu, chuông và việc chờ đọc GET /api/v2/requests, duyệt qua PATCH /requests/:id/review;
+// Tổng quan ghép từ các API đó. Dữ liệu giả: mock/ (Yêu cầu không có dữ liệu giả, api() báo mock_missing).
 import { toast } from '@/components/shell/toast';
 import {
   OLDER_PAGE,
   REQUEST_KINDS,
   buildCounts,
   buildRequestRow,
-  idOf,
   matchRow,
-  sortRaw,
-  staffIndex
+  sortRaw
 } from '@/builders/admin-requests/requests';
+import { inboxFromRequests, type PersonInfo } from '@/builders/api/inbox';
+import { overviewFrom, recentWorkdays } from '@/builders/api/overview';
+import { approvalRowsFromRequests, type FullRequestDTO } from '@/builders/api/requests';
+import type { EmployeeDTO } from '@/builders/api/staff';
 import { SYSTEM_NOTES, pendingInbox, resolveInboxItem, type InboxItem, type SystemNote } from '@/mock/inbox';
 import { overviewView, type OverviewView } from '@/mock/overview';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
+import { getPayroll } from './admin-payroll';
+import { notConnected } from './data-mode';
 import { ApiError, api, qs } from './http';
 import { changePassword as sessionChangePassword, logout as sessionLogout } from './session';
 
-// ---------- Yêu cầu chờ duyệt (GET /approvals, PUT /approvals/decide) ----------
-// Mỗi dòng là một khoản tự khai (nhân sự, ngày); id = 'username|date'. rev và fingerprint của lần tải gần nhất giữ ở
-// versions để gửi kèm khi duyệt (khoá đồng thời): khoản vừa bị đổi thì máy chủ trả 409 và danh sách tải lại.
-const PAGE = 500;
-const MAX_PAGES = 40;
-const versions = new Map<any, any>();
+// ---------- Yêu cầu (GET /requests, PATCH /requests/:id/review) ----------
+// Mỗi dòng là một đơn; id = id của đơn. Đọc một lần mọi đơn (BE chưa lọc theo tháng), đếm và lọc tại đây.
+const ALL_LIMIT = 1000;
 
 const monthOfView = () => usePeriodStore().month;
 
-// Đọc hết các trang của GET /approvals. month rỗng = mọi tháng. Trả { items, counts } (counts theo tháng, không theo status).
-async function fetchApprovals({ status, month }: any) {
-  const items: any[] = [];
-  let counts = { pending: 0, approved: 0, rejected: 0 };
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const data = await api('GET', '/approvals' + qs({ status, month, limit: PAGE, offset: page * PAGE }));
-    const batch = Array.isArray(data.items) ? data.items : [];
-    items.push(...batch);
-    counts = data.counts || counts;
-    if (batch.length < PAGE) break;
-  }
-  return { items, counts };
+/** Mọi đơn (mới nhất trước) của máy chủ. */
+export async function listAllRequests(): Promise<FullRequestDTO[]> {
+  const res = await api('GET', `/requests${qs({ limit: ALL_LIMIT })}`);
+  return Array.isArray(res.items) ? res.items : [];
 }
-const fetchCounts = async (month?) =>
-  (await api('GET', '/approvals' + qs({ status: 'all', month, limit: 1, offset: 0 }))).counts;
-const fetchStaff = () =>
-  api('GET', '/staff').then(
-    r => r.staff || [],
+
+const fetchEmployees = (): Promise<EmployeeDTO[]> =>
+  api('GET', '/employees').then(
+    r => r.employees || [],
     () => []
   );
 
-function remember(items?) {
-  for (const row of items) versions.set(idOf(row), { rev: row.rev, fingerprint: row.fingerprint });
+// Hồ sơ cho cột loại · bậc của bảng (builders/admin-requests/requests đọc type và levelName).
+const staffByOf = (employees: EmployeeDTO[]) =>
+  new Map<any, any>(
+    employees.map(e => [e.account.username, { type: e.contract.position.type, levelName: `Bậc ${e.contract.position.level}` }])
+  );
+
+/** Họ tên và chức danh theo tên đăng nhập và uuid (đơn iSAT lưu theo uuid). */
+export function peopleOf(employees: EmployeeDTO[]): Map<string, PersonInfo> {
+  const map = new Map<string, PersonInfo>();
+  for (const e of employees) {
+    const info = { name: e.profile.fullName || e.account.username, title: e.contract.position.jobTitle || '—' };
+    map.set(e.account.username, info);
+    if (e.profile.uuid) map.set(e.profile.uuid, info);
+  }
+  return map;
 }
+
+async function loadRows() {
+  const [requests, employees] = await Promise.all([listAllRequests(), fetchEmployees()]);
+  return { raws: approvalRowsFromRequests(requests, peopleOf(employees)), staffBy: staffByOf(employees) };
+}
+
+const countOf = (raws: any[]) => ({
+  pending: raws.filter(r => r.status === 'pending').length,
+  approved: raws.filter(r => r.status === 'approved').length,
+  rejected: raws.filter(r => r.status === 'rejected').length
+});
+
+const toRow = (raw: any, staffBy: Map<any, any>) => ({ ...buildRequestRow(raw, staffBy), id: raw.requestId });
 
 // params: { tab: 'cho' | 'dong-y' | 'tu-choi' | 'tat-ca', scope: 'thang' | 'moi-thang', kind, q }
 export async function getRequests({ tab = 'cho', scope = 'thang', kind = '', q = '' }: any = {}) {
   const month = monthOfView();
   const status = { cho: 'pending', 'dong-y': 'approved', 'tu-choi': 'rejected' }[tab] || 'all';
-  const wholeList = tab === 'cho' || scope === 'moi-thang';
-  const [list, all, inMonth, staff] = await Promise.all([
-    fetchApprovals({ status, month: wholeList ? '' : month }),
-    fetchCounts(''),
-    fetchCounts(month),
-    fetchStaff()
-  ]);
-  remember(list.items);
-  const by = staffIndex(staff);
-  const shown = sortRaw(list.items, tab === 'cho')
-    .map(raw => buildRequestRow(raw, by))
+  const { raws, staffBy } = await loadRows();
+  const inMonthRaws = raws.filter(r => r.date.slice(0, 7) === month);
+  const listed = raws.filter(r => status === 'all' || r.status === status);
+  const shown = sortRaw(listed, tab === 'cho')
+    .map(raw => toRow(raw, staffBy))
     .filter(r => matchRow(r, kind, q));
-  const result: Record<string, any> = { counts: buildCounts({ all, inMonth, scope, month }), kinds: REQUEST_KINDS };
+  const result: Record<string, any> = {
+    counts: buildCounts({ all: countOf(raws), inMonth: countOf(inMonthRaws), scope, month }),
+    kinds: REQUEST_KINDS
+  };
   if (tab === 'cho') {
     result.items = shown.filter(r => r.month === month);
     if (scope === 'moi-thang') {
@@ -84,58 +100,62 @@ export async function getRequests({ tab = 'cho', scope = 'thang', kind = '', q =
 // Trang kế tiếp của các yêu cầu tháng trước đang chờ.
 export async function getOlderRequests({ kind = '', q = '', offset = 0 }: any = {}) {
   const month = monthOfView();
-  const [list, staff] = await Promise.all([fetchApprovals({ status: 'pending', month: '' }), fetchStaff()]);
-  remember(list.items);
-  const by = staffIndex(staff);
-  const older = sortRaw(list.items, true)
-    .map(raw => buildRequestRow(raw, by))
+  const { raws, staffBy } = await loadRows();
+  const older = sortRaw(
+    raws.filter(r => r.status === 'pending'),
+    true
+  )
+    .map(raw => toRow(raw, staffBy))
     .filter(r => r.month !== month && matchRow(r, kind, q));
   return { items: older.slice(offset, offset + OLDER_PAGE) };
 }
 
-// Phiên bản (rev, fingerprint) của một yêu cầu: lần tải gần nhất, thiếu thì hỏi lại máy chủ.
-async function versionOf(id?) {
-  if (versions.has(id)) return versions.get(id);
-  const [username, date] = id.split('|');
-  const data = await api(
-    'GET',
-    '/approvals' + qs({ status: 'all', month: date.slice(0, 7), user: username, limit: PAGE })
-  );
-  remember(data.items || []);
-  return versions.get(id) || null;
-}
-
-const ERROR_KEY = { APPROVAL_STALE: 'stale', APPROVAL_NOOP: 'stale', APPROVAL_NOT_FOUND: 'stale' };
-
-// Gửi một quyết định cho nhiều yêu cầu trong một lần PUT (máy chủ lưu cả loạt hoặc không lưu gì).
+// Duyệt / từ chối nhiều đơn: mỗi đơn một PATCH; đơn đã được người khác xử lý thì dừng và báo "stale".
 // Lỗi của máy chủ trả về nguyên văn trong message; showError = true thì hiện thêm thành toast.
 async function decide(action?, ids?, note?, showError?) {
+  let decided = 0;
   try {
-    const items: any[] = [];
     for (const id of ids) {
-      const v = await versionOf(id);
-      if (!v) throw new ApiError(404, 'Có khoản không còn trong danh sách chờ duyệt', { code: 'APPROVAL_NOT_FOUND' });
-      const [username, date] = id.split('|');
-      items.push({ username, date, rev: v.rev, fingerprint: v.fingerprint });
+      await api('PATCH', `/requests/${encodeURIComponent(id)}/review`, {
+        action: action === 'approve' ? 'APPROVE' : 'REJECT',
+        ...(note ? { note } : {})
+      });
+      decided += 1;
     }
-    const res = await api('PUT', '/approvals/decide', { action, ...(note ? { note } : {}), items });
-    for (const id of ids) versions.delete(id);
-    return { ok: true, decided: res.decided };
+    return { ok: true, decided };
   } catch (e) {
     if (!(e instanceof ApiError)) throw e;
     if (showError) toast.error(e.message);
-    return { ok: false, error: ERROR_KEY[e.code] || e.code || 'error', message: e.message };
+    const stale = e.status === 404 || e.status === 400;
+    return { ok: false, error: stale ? 'stale' : e.code || 'error', message: e.message, decided };
   }
 }
 
-// Xử lý một việc chờ trên dữ liệu giả (mock/inbox): bỏ việc khỏi danh sách, trả việc vừa bỏ hoặc null nếu đã bị xử lý.
-// Duyệt, từ chối, nhắc và khai thay giống nhau ở đây; mọi nơi gọi qua useShellStore().decide.
-export const resolveRequest = (id: string): Promise<InboxItem | null> => respond(resolveInboxItem(id));
-// Tên cũ giữ nguyên để các màn gọi tới (Yêu cầu, Chấm công) vẫn chạy; tham số thứ hai bị bỏ qua.
-export const approveRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id);
-export const rejectRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id);
-
 export type DecisionVerb = 'approve' | 'reject' | 'remind' | 'declare';
+
+// Việc chờ của lần đọc chuông gần nhất (máy chủ thật), để trả lại việc vừa xử lý cho câu báo.
+const lastInbox = new Map<string, InboxItem>();
+
+// Xử lý một việc chờ; mọi nơi gọi qua useShellStore().decide. Trả việc vừa xử lý, hoặc null nếu việc đã được xử lý.
+// Dữ liệu giả: bỏ việc khỏi mock/inbox (bốn động từ như nhau). Máy chủ thật: duyệt / từ chối qua
+// PATCH /requests/:id/review; "nhắc" và "khai thay" chưa có API.
+export async function resolveRequest(id: string, verb: DecisionVerb = 'approve'): Promise<InboxItem | null> {
+  if (__MOCK__) return respond(resolveInboxItem(id));
+  if (verb !== 'approve' && verb !== 'reject') return notConnected();
+  try {
+    await api.patch(`/requests/${encodeURIComponent(id)}/review`, { action: verb === 'approve' ? 'APPROVE' : 'REJECT' });
+  } catch (e) {
+    // 404 hoặc 400 "không còn chờ duyệt": người khác vừa xử lý
+    if (e instanceof ApiError && (e.status === 404 || e.status === 400)) return null;
+    throw e;
+  }
+  const hit = lastInbox.get(id) ?? null;
+  lastInbox.delete(id);
+  return hit ?? ({ id, name: 'nhân viên' } as InboxItem);
+}
+// Tên cũ giữ nguyên để các màn gọi tới (Yêu cầu, Chấm công) vẫn chạy.
+export const approveRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id, 'approve');
+export const rejectRequest = (id: string, _opts?: unknown): Promise<InboxItem | null> => resolveRequest(id, 'reject');
 export const ALREADY_HANDLED = 'Yêu cầu này đã được xử lý.';
 const DECISION_TEXT: Record<DecisionVerb, (name: string) => string> = {
   approve: name => `Đã duyệt yêu cầu của ${name}.`,
@@ -150,12 +170,55 @@ export const decisionText = (verb: DecisionVerb, name: string) => DECISION_TEXT[
 export const approveRequests = (ids?, { note = '' }: any = {}) => decide('approve', ids, note, false);
 
 // ---------- Tổng quan ----------
-export const getOverview = (month: string): Promise<OverviewView> => respond(overviewView(month));
+// Máy chủ thật: ghép từ bảng lương tháng, nhân sự, bảng công 6 ngày làm việc gần nhất, đơn đang chờ và trạng thái kỳ.
+export async function getOverview(month: string): Promise<OverviewView> {
+  if (__MOCK__) return respond(overviewView(month));
+  const vn = new Date(Date.now() + 7 * 3600000).toISOString();
+  const today = vn.slice(0, 10);
+  const days = recentWorkdays(today);
+  const [payroll, employees, ts, inbox] = await Promise.all([
+    getPayroll(month),
+    fetchEmployees(),
+    api('GET', `/attendance/timesheets${qs({ startDate: days[0], endDate: today })}`),
+    getInbox()
+  ]);
+  return overviewFrom({
+    month,
+    today,
+    now: vn.slice(11, 16),
+    payroll,
+    employees,
+    timesheets: ts.timesheets || [],
+    approvals: inbox.items,
+    periodState: usePeriodStore().strip.state
+  });
+}
 
 // ---------- Lớp nổi của vỏ Admin ----------
-// Chuông: mọi việc còn chờ cùng 3 tin hệ thống tĩnh (mock/inbox).
-export const getInbox = (): Promise<{ items: InboxItem[]; notes: SystemNote[] }> =>
-  respond({ items: pendingInbox(), notes: SYSTEM_NOTES });
+// Chuông: mọi việc còn chờ. Dữ liệu giả kèm 3 tin hệ thống tĩnh; máy chủ thật chưa có tin hệ thống.
+const INBOX_LIMIT = 200;
+export async function getInbox(): Promise<{ items: InboxItem[]; notes: SystemNote[] }> {
+  if (__MOCK__) return respond({ items: pendingInbox(), notes: SYSTEM_NOTES });
+  const [res, people] = await Promise.all([
+    api.get(`/requests${qs({ status: 'PENDING', limit: INBOX_LIMIT })}`),
+    peopleIndex()
+  ]);
+  const items = inboxFromRequests(res.items || [], people, Date.now());
+  lastInbox.clear();
+  for (const item of items) lastInbox.set(item.id, item);
+  return { items, notes: [] };
+}
+
+/** Số việc đang chờ (số trên chuông). */
+export async function countPending(): Promise<number> {
+  const res = await api.get(`/requests${qs({ status: 'PENDING', limit: 1 })}`);
+  return Number(res.total) || 0;
+}
+
+// Họ tên và chức danh theo tên đăng nhập và uuid (đơn iSAT lưu theo uuid).
+async function peopleIndex(): Promise<Map<string, PersonInfo>> {
+  return peopleOf(await fetchEmployees());
+}
 
 export const changePassword = ({ current, next }: any) => sessionChangePassword(current, next);
 

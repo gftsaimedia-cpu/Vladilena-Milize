@@ -28,13 +28,8 @@ export type InboxItem = {
 
 export type SystemNote = { id: string; text: string; when: string };
 
-export const INBOX_GROUPS: { key: InboxGroup; label: string }[] = [
-  { key: 'att', label: 'Chấm công' },
-  { key: 'leave', label: 'Đơn nghỉ' },
-  { key: 'ot', label: 'Làm thêm, làm bù' },
-  { key: 'exp', label: 'Giải trình' },
-  { key: 'adv', label: 'Tạm ứng' }
-];
+import { INBOX_GROUPS } from '../constants/labels';
+export { INBOX_GROUPS };
 
 export const SYSTEM_NOTES: SystemNote[] = [
   { id: 'sn-1', text: 'Đã nhận dữ liệu máy chấm công lúc 09:30.', when: 'Hôm nay 09:30' },

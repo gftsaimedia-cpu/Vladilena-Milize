@@ -2,7 +2,9 @@
 // đổi màn thì AdminLayout gọi resetStrip() để thanh về trạng thái kỳ máy chủ trả cho tháng đó.
 import { defineStore } from 'pinia';
 import { emptyStrip } from '@/builders/period-strip';
+import { periodStripFromPeriod } from '@/builders/api/period';
 import { periodStrip } from '@/mock/period';
+import { api } from '@/services/http';
 import { useSessionStore } from '@/stores/session';
 import { addMonths } from '@/utils/format';
 
@@ -31,10 +33,26 @@ export const usePeriodStore = defineStore('period', {
       this.strip = emptyStrip(month);
       this.refresh();
     },
-    // Nạp trạng thái kỳ giả của tháng đang xem
-    refresh() {
-      this.base = periodStrip(this.month);
+    // Nạp trạng thái kỳ của tháng đang xem. Máy chủ thật: GET /api/v2/system/periods (lỗi thì giữ thanh rỗng);
+    // tháng đã đổi trong lúc chờ thì bỏ kết quả cũ.
+    async refresh() {
+      const month = this.month;
+      this.base = __MOCK__ ? periodStrip(month) : emptyStrip(month);
       this.strip = JSON.parse(JSON.stringify(this.base));
+      if (__MOCK__) return;
+      try {
+        const { periods = [] } = await api.get('/system/periods');
+        if (this.month !== month) return;
+        this.base = periodStripFromPeriod(periods.find(p => p.month === month) || null, month);
+        this.strip = JSON.parse(JSON.stringify(this.base));
+      } catch {
+        // không đọc được kỳ: thanh chỉ có tên tháng
+      }
+    },
+    // Chốt công tháng đang xem: POST /api/v2/system/periods/:month/lock rồi đọc lại thanh. Lỗi ném ApiError.
+    async lock() {
+      await api.post(`/system/periods/${encodeURIComponent(this.month)}/lock`);
+      await this.refresh();
     },
     setStrip(patch?) {
       this.strip = { ...this.strip, ...patch };

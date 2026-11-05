@@ -2,7 +2,7 @@
 // bỏ việc khỏi nguồn chung, tăng `version` (các màn đọc danh sách tải lại theo nó) rồi tải lại số chuông.
 import { defineStore } from 'pinia';
 import type { InboxItem } from '@/mock/inbox';
-import { resolveRequest } from '@/services/admin-main';
+import { resolveRequest, type DecisionVerb } from '@/services/admin-main';
 import { getShell, type ShellMe } from '@/services/shell';
 
 export const useShellStore = defineStore('shell', {
@@ -13,8 +13,8 @@ export const useShellStore = defineStore('shell', {
       this.me = res.me;
       this.bell = res.bell;
     },
-    async decide(id: string): Promise<InboxItem | null> {
-      const hit = await resolveRequest(id);
+    async decide(id: string, verb: DecisionVerb = 'approve'): Promise<InboxItem | null> {
+      const hit = await resolveRequest(id, verb);
       this.version += 1;
       await this.load();
       return hit;

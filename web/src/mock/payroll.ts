@@ -9,13 +9,8 @@ export type PayrollStatus = 'draft' | 'pending' | 'done' | 'rejected';
 export type DayKind = 'work' | 'leave' | 'isat' | 'pending' | 'unpaid' | 'sunday' | 'future';
 export type KpiEdit = { date: string; text: string; by: string };
 
-export const KPI_LABELS: Record<KpiPart, string> = {
-  wework: 'Base Wework',
-  user: 'Người dùng',
-  peer: 'Đồng nghiệp',
-  manager: 'Quản lý trực tiếp',
-  self: 'Tự đánh giá'
-};
+import { KPI_LABELS } from '../constants/labels';
+export { KPI_LABELS };
 const PARTS = Object.keys(KPI_LABELS) as KpiPart[];
 
 export type Payslip = SlipInput & {

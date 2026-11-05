@@ -56,3 +56,18 @@ export const foldText = (s: string): string =>
     .trim();
 /** "2026-10-27" → "Thứ Ba" ; "2026-11-01" → "Chủ nhật" */
 export const weekdayName = (iso?) => DOW[dowOf(iso)];
+
+/**
+ * Thâm niên từ ngày vào làm tới `to` (ISO): "5 năm 7 tháng", "1 tháng", dưới 1 tháng là "<n> ngày" (cùng ngày là "0 ngày").
+ * `to` sớm hơn `from` (chưa tới ngày vào làm) thì chưa có thâm niên: trả chuỗi rỗng, không bao giờ số âm.
+ */
+export function tenure(from: string, to: string): string {
+  if (Date.parse(to) < Date.parse(from)) return '';
+  const [y1, m1, d1] = from.split('-').map(Number);
+  const [y2, m2, d2] = to.split('-').map(Number);
+  const months = (y2 - y1) * 12 + (m2 - m1) - (d2 < d1 ? 1 : 0);
+  if (months < 1) return `${Math.round((Date.parse(to) - Date.parse(from)) / 86400000)} ngày`;
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  return [years && `${years} năm`, rest && `${rest} tháng`].filter(Boolean).join(' ');
+}

@@ -5,7 +5,7 @@ import { computed, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
-import { getCalendar, getCalendarSetup, removeHoliday, saveCalendarSetup } from '@/services/admin-settings';
+import { getCalendar, getCalendarSetup, quickAddHolidays, removeHoliday, saveCalendarSetup } from '@/services/admin-settings';
 import { usePeriodStore } from '@/stores/period';
 import { dm } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
@@ -32,6 +32,23 @@ const openHoliday = (iso = '') => {
   pickedDay.value = iso;
   open('them-ngay-le');
 };
+
+// Ngày lễ dương lịch cố định (1/1, 30/4, 1/5, 2/9) của năm đang xem; ngày đã có thì máy chủ bỏ qua.
+const quickBusy = ref(false);
+async function quickAdd() {
+  if (quickBusy.value) return;
+  quickBusy.value = true;
+  try {
+    const res = await quickAddHolidays(year.value);
+    const n = (res && res.added && res.added.length) || 0;
+    toast.ok(n ? `Đã thêm ${n} ngày lễ cố định.` : 'Các ngày lễ cố định đã có đủ.');
+  } catch (e) {
+    toast.error(e.message);
+  } finally {
+    quickBusy.value = false;
+  }
+  reload();
+}
 
 const rangeLabel = (h?) => (h.from === h.to ? dm(h.from) : `${dm(h.from)} – ${dm(h.to)}`);
 async function dropHoliday(id?) {
@@ -69,7 +86,7 @@ function useHere() {
   <SettingsFrame active="lich">
     <template #sub>
       <template v-if="data">
-        Năm {{ data.year }} · <b>{{ data.holidayDays }} ngày lễ</b> · trả lương ngày {{ data.payDay }} tháng sau
+        Năm {{ data.year }} · <b>{{ data.holidayDays }} ngày lễ</b> · trả lương ngày {{ data.payDay ?? "—" }} tháng sau
       </template>
     </template>
 
@@ -90,8 +107,8 @@ function useHere() {
             Bắt đầu tính công: <b>ngày {{ data.startDay }}</b> hằng tháng
           </span>
           <span>
-            <span class="paydot">{{ data.payDay }}</span>
-            Trả lương: <b>ngày {{ data.payDay }}</b> tháng sau
+            <span class="paydot">{{ data.payDay ?? "—" }}</span>
+            Trả lương: <b>ngày {{ data.payDay ?? "—" }}</b> tháng sau
           </span>
           <span>
             <i
@@ -125,6 +142,9 @@ function useHere() {
           </button>
         </span>
         <button type="button" class="add" @click="openHoliday()"><Icon name="plus" />Thêm ngày lễ</button>
+        <button type="button" class="add" :disabled="quickBusy" @click="quickAdd">
+          <Icon name="plus" />Thêm các ngày lễ cố định {{ data.year }}
+        </button>
       </div>
     </section>
 

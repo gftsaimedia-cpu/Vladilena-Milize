@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError } from '../../common';
+import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
 @Controller('api/v2/attendance')
@@ -7,6 +7,7 @@ import { AttendanceService, RecordPunchInput } from './attendance.service';
 export class AttendanceController {
   constructor(@Inject(AttendanceService) private readonly service: AttendanceService) {}
 
+  @RequireCap('attendance.correct')
   @Post('punches')
   async recordPunch(@Body() body: RecordPunchInput): Promise<unknown> {
     try {
@@ -17,6 +18,7 @@ export class AttendanceController {
     }
   }
 
+  @RequireCap('attendance.correct')
   @Get('punches')
   async getPunches(
     @Query('employeeId') queryEmp?: string,
@@ -29,6 +31,7 @@ export class AttendanceController {
     return { punches };
   }
 
+  @RequireCap('attendance.correct')
   @Get('timesheets')
   async listTimesheets(
     @Query('employeeId') queryEmp?: string,
@@ -45,6 +48,7 @@ export class AttendanceController {
     return { timesheets };
   }
 
+  @RequireCap('attendance.correct')
   @Get('timesheets/:employeeId/:workDate')
   async getTimesheet(
     @Param('employeeId') employeeId: string,
@@ -61,6 +65,7 @@ export class AttendanceController {
     return { timesheet };
   }
 
+  @RequireCap('attendance.correct')
   @Post('recalculate')
   async recalculateTimesheet(@Body() body: { employeeId: string; workDate: string }): Promise<unknown> {
     if (!body.employeeId || !body.workDate) {

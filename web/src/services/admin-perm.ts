@@ -1,98 +1,59 @@
-// Dịch vụ Phân quyền và Tài khoản (Cài đặt, Admin) gọi máy chủ qua api(). Câu lỗi của máy chủ đi nguyên văn qua ApiError.
-// Vai trò: GET/POST /roles, PUT /roles/:code. Tài khoản: GET /roles, GET /staff, PUT /staff/:u/roles, PUT /staff/:u, POST /staff/:u/password.
-// Xử lý yêu cầu: GET/PUT /settings/params (bảng request.type.<loại>).
+// Dịch vụ Phân quyền và Tài khoản (Cài đặt, Admin). Câu lỗi của máy chủ đi nguyên văn qua ApiError.
+// Máy chủ thật: tóm tắt và Tài khoản đọc GET /api/v2/roles + /employees; đổi vai trò, khoá / mở khoá, đặt lại mật khẩu
+// qua PUT /api/v2/employees/:username. Ma trận vai trò (tạo, sửa, ngừng dùng vai trò) chưa có API: báo chưa nối.
+// Xử lý yêu cầu: GET/PUT /settings/params (bảng request.type.<loại>), chưa có ở BE v2.
 import { buildAccounts, nextRoles, primaryRole } from '@/builders/admin-perm/accounts';
 import { buildRequestRules, toRuleChanges } from '@/builders/admin-perm/rules';
-import { buildPermSummary, buildRoleMatrix, roleSignature, toRolePutBody } from '@/builders/admin-perm/roles';
-import { ApiError, api, qs } from './http';
+import { buildPermSummary } from '@/builders/admin-perm/roles';
+import { accountSourcesFromApi } from '@/builders/api/accounts';
+import { useSessionStore } from '@/stores/session';
+import { notConnected } from './data-mode';
+import { api, qs } from './http';
 
 const enc = encodeURIComponent;
-const reasonOf = (text?) => (typeof text === 'string' && text.trim() ? text.trim() : undefined);
+
+async function sources() {
+  const [rolesRes, empRes] = await Promise.all([api('GET', '/roles'), api('GET', '/employees')]);
+  return accountSourcesFromApi(rolesRes.roles || [], empRes.employees || []);
+}
 
 // ---------- Vai trò ----------
-// GET /api/roles: số vai trò, tài khoản, Admin, tài khoản khoá
+// Số vai trò, tài khoản, Admin, tài khoản khoá
 export async function getPermSummary() {
-  return buildPermSummary(await api('GET', '/roles'));
+  return buildPermSummary((await sources()).rolesRes);
 }
 
-// GET /api/roles: ma trận khu vực, loại yêu cầu, việc khác và các vai trò
-export async function getRoles() {
-  return buildRoleMatrix(await api('GET', '/roles'));
-}
-
-// PUT /api/roles/:code cho từng vai trò tuỳ chỉnh đã đổi (vai trò mặc định chỉ đọc); dừng ở lỗi đầu tiên
-export async function saveRoles(roles?) {
-  const changed = roles.filter(role => !role.locked && roleSignature(role) !== role.sig);
-  const bodies = changed.map(role => [role.key, toRolePutBody(role)]); // dựng hết trước, có lỗi thì chưa gửi gì
-  const saved: any[] = [];
-  for (const [key, body] of bodies) {
-    await api('PUT', `/roles/${enc(key)}`, body);
-    saved.push(key);
-  }
-  return { ok: true, saved };
-}
-
-// POST /api/roles: tạo vai trò mới, sao chép quyền từ vai trò `copyFrom` nếu có. Trả { key } là mã vai trò mới.
-export async function createRole({ name, reason, copyFrom }: any) {
-  const res = await api('POST', '/roles', {
-    label: String(name || '').trim(),
-    copyFrom: copyFrom || undefined,
-    reason: reasonOf(reason)
-  });
-  return { ok: true, key: res.role.code };
-}
-
-// POST /api/roles/:code/deprecate { rev, reason }: ngừng dùng vai trò tuỳ chỉnh (không xoá); tài khoản đang giữ vai trò vẫn giữ dòng gán. rev lấy từ role.ver.rev.
-export async function deprecateRole(role?, reason?) {
-  if (!role || !role.ver || !Number.isInteger(role.ver.rev)) throw new Error('Thiếu số phiên bản (rev) của vai trò');
-  await api('POST', `/roles/${enc(role.key)}/deprecate`, { rev: role.ver.rev, reason: reasonOf(reason) });
-  return { ok: true };
-}
+// Ma trận khu vực, loại yêu cầu, việc khác: BE v2 chỉ có hai vai trò cố định (admin, staff), chưa có API.
+export const getRoles = () => notConnected();
+export const saveRoles = (_roles?) => notConnected();
+export const createRole = (_input: any) => notConnected();
+export const deprecateRole = (_role?, _reason?) => notConnected();
 
 // ---------- Tài khoản ----------
-// GET /api/roles, /staff, /positions, /me ghép thành một trang tài khoản
 export async function getAccounts({ page = 1, role = 'all', q = '' }: any = {}) {
-  const optional = (p?) =>
-    p.catch(e => {
-      if (e instanceof ApiError && e.status === 403) return null;
-      throw e;
-    });
-  const [rolesRes, staffRes, positionsRes, me] = await Promise.all([
-    api('GET', '/roles'),
-    api('GET', '/staff'),
-    optional(api('GET', '/positions')),
-    api('GET', '/me')
-  ]);
-  return buildAccounts(rolesRes, staffRes, positionsRes, me.user.username, { page, role, q });
+  const { rolesRes, staffRes } = await sources();
+  return buildAccounts(rolesRes, staffRes, null, useSessionStore().user?.username, { page, role, q });
 }
 
-const needRev = (row?, field?) => {
-  if (!row || !row.ver || row.ver[field] === undefined || row.ver[field] === null)
-    throw new Error(`Thiếu số phiên bản (${field}) của tài khoản ${row && row.username}`);
-  return row.ver[field];
-};
+const putAccount = (username: string, account: Record<string, unknown>) =>
+  api('PUT', `/employees/${enc(username)}`, { account });
 
-// PUT /api/staff/:u/roles: đổi vai trò chính của dòng `row` thành vai trò có nhãn `roleLabel`
+// Đổi vai trò chính của dòng `row` thành vai trò có nhãn `roleLabel`.
 export async function setAccountRole(row?, roleLabel?) {
-  const rev = needRev(row, 'rev');
   const res = await api('GET', '/roles');
-  const target = res.roles.find(r => r.label === roleLabel);
+  const target = (res.roles || []).find(r => r.label === roleLabel);
   if (!target) throw new Error(`Không có vai trò "${roleLabel}"`);
-  const roles = nextRoles(row.roles, primaryRole(row.roles), target.code);
-  return api('PUT', `/staff/${enc(row.username)}/roles`, { roles, expectedRev: rev });
+  return putAccount(row.username, { roles: nextRoles(row.roles, primaryRole(row.roles), target.code) });
 }
 
-// PUT /api/staff/:u { locked, expectedRev }: khoá hoặc mở khoá, kèm dấu vân tay hồ sơ
+// Khoá hoặc mở khoá. Khoá thì máy chủ ghi thời điểm khoá và mọi phiên của người đó hết hiệu lực.
 export async function setAccountLocked(row?, locked?) {
-  return api('PUT', `/staff/${enc(row.username)}`, { locked: !!locked, expectedRev: needRev(row, 'staffRev') });
+  return putAccount(row.username, { isLocked: !!locked });
 }
 
-// POST /api/staff/:u/password { password, reason }: đặt mật khẩu mới cho tài khoản khác
-export async function resetAccountPassword(row?, { password, reason }: any = {}) {
-  return api('POST', `/staff/${enc(row.username)}/password`, {
-    password: String(password ?? ''),
-    reason: reasonOf(reason)
-  });
+// Đặt mật khẩu mới cho tài khoản khác; máy chủ cho mọi phiên cũ của người đó hết hiệu lực. BE chưa lưu lý do.
+export async function resetAccountPassword(row?, { password }: any = {}) {
+  return putAccount(row.username, { password: String(password ?? '') });
 }
 
 // ---------- Xử lý yêu cầu chưa được đồng ý hoặc bị từ chối ----------

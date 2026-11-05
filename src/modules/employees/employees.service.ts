@@ -152,10 +152,10 @@ export class EmployeesService {
           ? Boolean(body.isLocked)
           : (existing?.account.isLocked ?? false);
 
-    const lockedAt =
-      body.account?.lockedAt !== undefined
-        ? body.account.lockedAt
-        : (existing?.account.lockedAt ?? null);
+    // Đăng nhập và kiểm phiên chỉ đọc cột locked_at: khoá mà không ghi thời điểm thì tài khoản vẫn vào được,
+    // nên khoá luôn có thời điểm (giữ thời điểm cũ nếu đã khoá) và mở khoá luôn xoá thời điểm.
+    const givenLockedAt = body.account?.lockedAt !== undefined ? body.account.lockedAt : (existing?.account.lockedAt ?? null);
+    const lockedAt = isLocked ? givenLockedAt || new Date().toISOString() : null;
 
     const lockedBy =
       body.account?.lockedBy !== undefined

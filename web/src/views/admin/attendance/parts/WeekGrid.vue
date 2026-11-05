@@ -3,7 +3,8 @@
 // Lúc mở cuộn tới tuần hôm nay (26/10); `start` là chỉ số ngày đầu tuần đang xem. Kéo, phím và nút tuần nằm trong useGridScroll.
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
-import { GROUPS, type AttendanceDay, type AttendanceRow } from '@/mock/attendance';
+import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
+import type { AttendanceDay, AttendanceRow } from '@/mock/attendance';
 import { dm, dmy, weekdayName } from '@/utils/format';
 import { employeePath } from '../links';
 import { MAX_START, TODAY_START, useGridScroll } from '../useGridScroll';

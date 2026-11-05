@@ -319,6 +319,13 @@ export class EmployeesRepository {
           birthday: eb.ref('excluded.birthday'),
           dependants: eb.ref('excluded.dependants'),
           pass_hash: eb.ref('excluded.pass_hash'),
+          // Đổi mật khẩu (kể cả Admin đặt lại) làm mọi phiên cũ hết hiệu lực.
+          session_version: eb
+            .case()
+            .when('staff.pass_hash', '<>', eb.ref('excluded.pass_hash'))
+            .then(eb('staff.session_version', '+', 1))
+            .else(eb.ref('staff.session_version'))
+            .end(),
           role: eb.ref('excluded.role'),
           locked_at: eb.ref('excluded.locked_at'),
           locked_by: eb.ref('excluded.locked_by'),

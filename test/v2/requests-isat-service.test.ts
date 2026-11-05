@@ -375,13 +375,13 @@ describe('Đơn iSAT - lịch làm việc', () => {
 });
 
 describe('Đơn iSAT - controller', () => {
-  it('controller forwards only form fields with the session fallback and wraps errors', async () => {
+  it('controller forwards only form fields with the employeeId given by Admin and wraps errors', async () => {
     const calls: any[] = [];
     const ctrl = new RequestsController({
       createIsatRequest: async (i: any) => (calls.push(i), { id: 'r1' })
     } as any);
     assert.deepEqual(
-      await ctrl.createIsat({ saturday: '2026-11-07', team: 'T', conditions: {}, title: 'x' }, { username: 'nguyen-van-a' } as any),
+      await ctrl.createIsat({ employeeId: 'nguyen-van-a', saturday: '2026-11-07', team: 'T', conditions: {}, title: 'x' }, { username: 'admin' } as any),
       { created: true, request: { id: 'r1' } }
     );
     assert.deepEqual(calls[0], { employeeId: 'nguyen-van-a', saturday: '2026-11-07', team: 'T', conditions: {} });
@@ -391,7 +391,7 @@ describe('Đơn iSAT - controller', () => {
         throw new Error('boom');
       }
     } as any);
-    await assert.rejects(failing.createIsat({}, undefined), (e: any) => e instanceof BadRequestError && e.message === 'boom');
+    await assert.rejects(failing.createIsat({ employeeId: 'x' }, { username: 'admin' } as any), (e: any) => e instanceof BadRequestError && e.message === 'boom');
 
     assert.deepEqual(ctrl.listIsatConditions(), {
       conditions: ISAT_CONDITIONS.map(({ code, label }) => ({ code, label }))

@@ -7,7 +7,8 @@ import PeriodStrip from '@/components/shell/PeriodStrip.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
-import { decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
+import { toast } from '@/components/shell/toast';
+import { calculatePayroll, decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
 import { foldText, monthShort } from '@/utils/format';
 import { monthNo } from '@/views/admin/requests/helpers';
@@ -24,6 +25,26 @@ const { data: loaded, reload } = useLoad(
 );
 const data = computed(() => loaded.value as PayrollScreen | null);
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
+
+// Tính (lại) lương cả kỳ trên máy chủ thật; người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
+const canCalculate = !__MOCK__;
+const calculating = ref(false);
+async function calculate() {
+  if (calculating.value) return;
+  calculating.value = true;
+  try {
+    const res = await calculatePayroll(period.month);
+    const errors = (res && res.errors) || [];
+    if (errors.length) toast.error(`Đã tính ${res.count} phiếu, ${errors.length} người lỗi: ${errors.map(e => e.message || e.employeeId).join('; ')}`);
+    else toast.ok(`Đã tính ${res.count} phiếu lương.`);
+    await reload();
+    period.refresh();
+  } catch (e) {
+    toast.error(e.message);
+  } finally {
+    calculating.value = false;
+  }
+}
 
 const filter = ref<'all' | PayrollStatus>('all');
 const query = ref('');
@@ -135,12 +156,16 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
           {{ board.lines[0].standard }} ngày · trả lương <b>{{ board.payday }}</b>
         </p>
       </div>
+      <button v-if="canCalculate" type="button" class="btn pri" :disabled="calculating" @click="calculate">
+        {{ calculating ? 'Đang tính…' : board ? 'Tính lại lương' : 'Tính lương' }}
+      </button>
     </div>
 
     <PeriodStrip card />
 
     <section v-if="!board" class="card soon">
-      <p>Bản mockup chỉ có bảng lương tháng 10/2026.</p>
+      <p v-if="canCalculate">Chưa có phiếu lương của tháng {{ monthShort(data.month) }}. Bấm "Tính lương" để tính.</p>
+      <p v-else>Bản mockup chỉ có bảng lương tháng 10/2026.</p>
     </section>
     <template v-else>
       <PayTiles :month="board.month" :growth="board.growth" :totals="board.totals" :counts="board.counts" />

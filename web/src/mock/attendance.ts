@@ -75,13 +75,8 @@ export const STANDARD_DAYS = 26;
 const DATA_FROM = '2026-10-01';
 const TOTAL_STAFF = 128;
 
-export const GROUPS: { key: GroupKey; label: string }[] = [
-  { key: 'work', label: 'Đi làm' },
-  { key: 'late', label: 'Đi muộn, về sớm' },
-  { key: 'leave', label: 'Nghỉ có phép' },
-  { key: 'absent', label: 'Vắng' },
-  { key: 'todo', label: 'Cần xử lý' }
-];
+import { ATTENDANCE_GROUPS as GROUPS } from '../constants/labels';
+export { GROUPS };
 
 // id, tên, phòng ban, chức danh, mã, vào làm, phép năm còn, số lần muộn, vào TB, ra TB, trễ phút, OT giờ,
 // kỳ 10 [đi làm, nghỉ có phép, cần xử lý, vắng]. Ai cũng là nhân viên chính thức, `isat` luôn 0 (lưới không có loại ô này).

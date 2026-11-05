@@ -18,15 +18,20 @@ const PHONE_MAX = 767; // dưới bề rộng này là điện thoại
 
 const routes = [
   { path: '/', redirect: () => useSessionStore().home },
-  {
-    path: '/thiet-ke',
-    component: () => import('@/views/DesignIndex.vue'),
-    meta: { layout: 'blank', title: 'Mục lục thiết kế' }
-  },
+  // Mục lục thiết kế chạy trên dữ liệu giả: chỉ có ở chế độ mock, không vào bản build thật.
+  ...(__MOCK__
+    ? [
+        {
+          path: '/thiet-ke',
+          component: () => import('@/views/DesignIndex.vue'),
+          meta: { layout: 'blank', title: 'Mục lục thiết kế' }
+        }
+      ]
+    : []),
   { path: '/admin', redirect: '/admin/tong-quan' },
   {
     path: '/nhan-vien',
-    redirect: () => (window.innerWidth <= PHONE_MAX ? '/nv/hom-nay' : '/nv-may-tinh')
+    redirect: () => (!__MOCK__ || window.innerWidth <= PHONE_MAX ? '/nv/hom-nay' : '/nv-may-tinh')
   },
   ...adminMain,
   ...adminAttendance,

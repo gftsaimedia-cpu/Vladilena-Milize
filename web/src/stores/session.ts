@@ -1,6 +1,7 @@
-// Phiên đăng nhập giả của trình duyệt: người dùng, vai trò, năng lực lấy từ src/mock/accounts.
+// Phiên đăng nhập: người dùng, vai trò, năng lực. Máy chủ thật: GET /api/v2/auth/me; dữ liệu giả: src/mock/accounts.
 import { defineStore } from 'pinia';
 import { mockAccount, readSessionName } from '@/mock/accounts';
+import { api } from '@/services/http';
 
 // Có một trong các năng lực này (hoặc role === 'admin') thì vào khu Admin; còn lại vào khu nhân viên.
 export const ADMIN_CAPS = Object.freeze([
@@ -79,9 +80,14 @@ export const useSessionStore = defineStore('session', {
       this.me = user ? data : null;
       this.ready = true;
     },
+    // Máy chủ trả { user: null } khi chưa đăng nhập, hoặc { user, roles, caps, payrollSubject, serverNow }.
     async load() {
-      const name = readSessionName();
-      this.apply(name ? mockAccount(name) : null);
+      if (__MOCK__) {
+        const name = readSessionName();
+        this.apply(name ? mockAccount(name) : null);
+        return;
+      }
+      this.apply(await api.get('/auth/me'));
     },
     clear() {
       this.apply(null);

@@ -29,7 +29,7 @@ async function decide(id: string, approve: boolean) {
   if (deciding.has(id)) return;
   deciding.add(id);
   try {
-    const hit = await shell.decide(id);
+    const hit = await shell.decide(id, approve ? 'approve' : 'reject');
     if (hit) toast.ok(decisionText(approve ? 'approve' : 'reject', hit.name));
     else toast.error(ALREADY_HANDLED);
   } finally {

@@ -1,35 +1,42 @@
-// Giải trình phía Admin.
-//   GET  /explanations                  { items: [{ id, rev, username, name, date, kind, sessionId, prompt, answer, status, requestedBy, requestedAt, answeredAt, decisionNote }], waitingForYou, toRead }
-//   POST /explanations/:id/decide       { approve: boolean, note?, expectedRev? }  → { item, recorded }
+// Giải trình phía Admin: đơn loại EXPLANATION của GET /api/v2/requests?type=EXPLANATION, đổi về dạng phản hồi mà
+// builders/admin-requests/explanations đọc. Duyệt / không duyệt: PATCH /api/v2/requests/:id/review.
 import { buildExplanationRows } from '@/builders/admin-requests/explanations';
+import { explanationsResponseFromRequests } from '@/builders/api/requests';
 import { useSessionStore } from '@/stores/session';
-import { api } from './http';
+import { peopleOf } from './admin-main';
+import { api, qs } from './http';
 
 const q = (v?) => encodeURIComponent(v);
 
+async function explanations() {
+  const [res, emp] = await Promise.all([
+    api('GET', `/requests${qs({ type: 'EXPLANATION', limit: 1000 })}`),
+    api('GET', '/employees').catch(() => ({ employees: [] }))
+  ]);
+  return explanationsResponseFromRequests(res.items || [], peopleOf(emp.employees || []));
+}
+
 /** Giải trình của mọi người trong tháng month ('YYYY-MM'), ngày cũ trước. */
 export async function listExplanations({ month }: any = {}) {
-  return buildExplanationRows(await api('GET', '/explanations'), month);
+  return buildExplanationRows(await explanations(), month);
 }
 
 /**
- * Giải trình đang chờ Admin quyết của mọi tháng (GET /explanations?status=answered), dòng thô của máy chủ.
- * Không có năng lực duyệt giải trình hoặc máy chủ lỗi thì rỗng: số đếm không chặn màn nào.
+ * Giải trình đang chờ Admin quyết của mọi tháng (dòng thô). Không có năng lực duyệt giải trình hoặc máy chủ lỗi thì rỗng:
+ * số đếm không chặn màn nào.
  */
 export async function listWaitingExplanations() {
   if (!useSessionStore().caps.includes('attendance.correct')) return [];
   try {
-    const res = await api('GET', '/explanations?status=answered');
-    return (res && res.items) || [];
+    return (await explanations()).items.filter(x => x.status === 'answered');
   } catch {
     return [];
   }
 }
 
-/** Duyệt (action 'approve') hoặc không duyệt (action 'reject'); rev của dòng đi kèm làm expectedRev. */
-export const decideExplanation = ({ id, action, note, rev }: any) =>
-  api('POST', `/explanations/${q(id)}/decide`, {
-    approve: action === 'approve',
-    ...(note ? { note } : {}),
-    ...(rev !== undefined ? { expectedRev: rev } : {})
+/** Duyệt (action 'approve') hoặc không duyệt (action 'reject'). */
+export const decideExplanation = ({ id, action, note }: any) =>
+  api('PATCH', `/requests/${q(id)}/review`, {
+    action: action === 'approve' ? 'APPROVE' : 'REJECT',
+    ...(note ? { note } : {})
   });

@@ -29,7 +29,7 @@ async function act(verb: DecisionVerb) {
   if (busy.value) return;
   busy.value = true;
   try {
-    const hit = await shell.decide(props.item.id);
+    const hit = await shell.decide(props.item.id, verb);
     emit('decided', {
       id: props.item.id,
       ok: hit !== null,
