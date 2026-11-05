@@ -2,7 +2,10 @@
 
 - Ngày: 2026-11-05
 - Nhánh: `claude/demo-db`, tách từ `main` @ 6dcce9e
-- Trạng thái: **chờ người dùng duyệt**
+- Trạng thái: **đã duyệt** (người dùng, trong chat, 2026-11-05). Lệnh và tên file thật xem `docs/demo-db/README.md`:
+  - lệnh là `npm run demo -- db | serve | test [mảng]`;
+  - spec đặt tên `web/tests/api/demo-<mảng>-*.spec.ts`, để không trùng `staff-app.spec.ts` có sẵn;
+  - người của mỗi mảng nằm ở `scripts/demo/people/<mảng>.ts`.
 - Loại: Architectural (hệ thống con mới: dữ liệu demo và bộ test đầu-cuối)
 
 ## 1. Mục tiêu
