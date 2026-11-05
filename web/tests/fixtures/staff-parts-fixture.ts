@@ -5,6 +5,7 @@
 //   ?part=error                       LoadError với lỗi máy chủ (ApiError); bấm "Thử lại" thì tăng #retries
 //   ?part=error&kind=bug              LoadError với lỗi lập trình (TypeError) thay vì lỗi máy chủ
 //   ?part=shift&location=…            ShiftCard đã vào ca; thiếu location thì location = null
+//   ?part=shift&zone=1&out=17:05      zone=1: có vùng chấm công (văn phòng GFT, 150 m); out: giờ ra (ca đã xong, không còn nút)
 //   ?part=load&fail=1                 khối tải giả (useLoad + useRetry + LoadError): n lần tải đầu lỗi; #loads đếm số lần tải
 //   ?part=load&bad=2026-09            như trên, có chọn tháng (đang ở 10/2026, lùi được tới 09/2026); tháng bad luôn lỗi
 import { createApp, h, ref } from 'vue';
@@ -58,8 +59,9 @@ function shift() {
   return h(ShiftCard, {
     home: {
       greeting: 'Chào buổi sáng', name: 'Lê Hoàng Nam', initials: 'HN', weekday: 'Thứ Năm', date: '05/11/2026',
-      shiftLabel: 'Ca HC · 08:00–17:00', shiftStart: '08:00', shiftEnd: '17:00', now: '09:40', checkIn: '07:59', checkOut: null,
-      workedMin: 101, shiftMin: 540, worked: '1g 41p', location: q.get('location'), zone: null, workday: true,
+      shiftLabel: 'Ca HC · 08:00–17:00', shiftStart: '08:00', shiftEnd: '17:00', now: '09:40', checkIn: '07:59', checkOut: q.get('out'),
+      workedMin: 101, shiftMin: 540, worked: '1g 41p', location: q.get('location'),
+      zone: q.get('zone') ? { lat: 10.7769, lng: 106.7009, radiusM: 150 } : null, workday: true,
       week: { range: '', cells: [] }, alert: null, income: { label: '', net: '' }, requests: []
     }
   });

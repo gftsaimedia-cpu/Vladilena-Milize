@@ -107,10 +107,28 @@ function position(): Promise<{ lat?: number; lng?: number; accuracyM?: number }>
   );
 }
 
-// Toạ độ để ShiftCard khoá nút theo vùng chấm công; null khi không lấy được (từ chối quyền, hết giờ, máy không có định vị).
-export async function locate(): Promise<LatLng | null> {
-  const p = await position();
-  return p.lat === undefined || p.lng === undefined ? null : { lat: p.lat, lng: p.lng };
+// Theo dõi vị trí cho ShiftCard khoá nút theo vùng chấm công: gọi onChange mỗi lần có vị trí mới; null khi không lấy được
+// (từ chối quyền, máy không có định vị, hay hết giờ khi chưa có vị trí nào). Hết giờ sau khi đã có vị trí thì giữ vị trí cũ.
+// Trả hàm dừng theo dõi.
+export function watchLocation(onChange: (at: LatLng | null) => void): () => void {
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    onChange(null);
+    return () => {};
+  }
+  let fixed = false;
+  const id = navigator.geolocation.watchPosition(
+    p => {
+      fixed = true;
+      onChange({ lat: p.coords.latitude, lng: p.coords.longitude });
+    },
+    e => {
+      if (e.code === e.TIMEOUT && fixed) return;
+      fixed = false;
+      onChange(null);
+    },
+    { timeout: 8000, maximumAge: 60000 }
+  );
+  return () => navigator.geolocation.clearWatch(id);
 }
 
 // Chấm công rồi tải lại màn Hôm nay, hai bước tách nhau: máy chủ từ chối lượt chấm thì ném lỗi (ShiftCard báo câu lỗi);
