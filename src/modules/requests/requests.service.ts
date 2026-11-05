@@ -12,7 +12,14 @@ import {
   formatDayMonth,
   monthOf,
   requireDateRange,
-  requireLeaveType
+  requireDateText,
+  requireLeaveType,
+  requireTimeText,
+  windowError,
+  dayCapError,
+  workMinutes,
+  formatHours,
+  type ClockWindow
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
@@ -54,17 +61,19 @@ export interface CreateLeaveWithMakeupInput {
   makeupEndTime: string;
 }
 
+/** Thân đơn OT (§6.3): một khung; `targetDate` nhận thay `otDate`. Giờ OT do server tính, `hours`/`otHours` không đọc. */
 export interface CreateOvertimeInput {
   employeeId: string;
   title: string;
   reason: string;
-  targetDate?: string;
-  otDate?: string;
-  startTime?: string;
-  endTime?: string;
-  otHours?: number;
-  hours?: number;
+  otDate?: unknown;
+  targetDate?: unknown;
+  startTime?: unknown;
+  endTime?: unknown;
 }
+
+/** Trần OT tháng: 40 giờ (Điều 107 Bộ luật Lao động), giữ như v2. */
+const MONTH_OT_CAP_MINUTES = 40 * 60;
 
 export interface CreateAdvanceInput {
   employeeId: string;
@@ -263,67 +272,61 @@ export class RequestsService {
   }
 
   async createOvertimeRequest(input: CreateOvertimeInput): Promise<SystemRequestDTO> {
-    const otDate = input.otDate || input.targetDate || '';
-    const hours = input.hours ?? input.otHours ?? 0;
-
-    // 1. Trần giờ ngày: ca chính (8h) + OT tối đa 12h/ngày -> giờ OT tối đa 4h/ngày
-    if (hours > 4) {
-      throw new Error(`Giờ làm thêm một ngày không được vượt quá 4 giờ (tổng giờ làm việc ngày không quá 12 giờ)`);
+    const date = requireDateText(input.otDate ?? input.targetDate, 'otDate');
+    const startTime = requireTimeText(input.startTime, 'startTime');
+    const endTime = requireTimeText(input.endTime, 'endTime');
+    const month = monthOf(date);
+    const staff = await this.resolveStaff(input.employeeId, month);
+    this.requireTypeConfig(staff);
+    if (!staff.benefits.ot) {
+      throw new Error('Loại nhân sự này không có OT');
     }
 
-    // 2. Chống trùng ngày đăng ký làm thêm
-    const existingOt = await this.repo.list({
-      employeeId: input.employeeId,
-      type: 'OVERTIME'
-    });
-    for (const item of existingOt) {
-      if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.otDate === otDate) {
-        throw new Error(`Đã có đơn làm thêm giờ vào ngày ${otDate}`);
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      const { days, active } = await this.loadDays(staff, date, date);
+      if (days.isOnLeave(date)) {
+        throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không đăng ký OT được`);
       }
-    }
 
-    // 3. Trần OT tháng: tối đa 40 giờ theo Điều 107 Bộ luật Lao động
-    const month = otDate.slice(0, 7);
-    let totalMonthOt = 0;
-    for (const item of existingOt) {
-      if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.otDate?.startsWith(month)) {
-        totalMonthOt += item.otHours || 0;
+      const window: ClockWindow = { date, startTime, endTime, kind: 'OT' };
+      const existing = days.windowsOn(date);
+      const windowProblem =
+        windowError(window, days.shiftsAround(date), existing) ??
+        dayCapError(date, days.shiftOf(date) !== null, [...existing, window]);
+      if (windowProblem) {
+        throw new Error(windowProblem);
       }
-    }
-    if (totalMonthOt + hours > 40) {
-      throw new Error(`Tổng số giờ làm thêm trong tháng ${month} không được vượt quá 40 giờ theo Luật Lao động (đã có ${totalMonthOt}h, đăng ký thêm ${hours}h)`);
-    }
 
-    let startTime = input.startTime;
-    let endTime = input.endTime;
+      const minutes = workMinutes(startTime, endTime);
+      const monthMinutes = active
+        .filter(r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month)
+        .reduce((sum, r) => sum + Math.round((r.otHours ?? 0) * 60), 0);
+      if (monthMinutes + minutes > MONTH_OT_CAP_MINUTES) {
+        throw new Error(
+          `Tổng số giờ làm thêm trong tháng ${month} không được vượt quá 40 giờ theo Luật Lao động ` +
+            `(đã có ${formatHours(monthMinutes)}h, đăng ký thêm ${formatHours(minutes)}h)`
+        );
+      }
 
-    if (!startTime && !endTime) {
-      startTime = '18:00';
-      const startH = 18;
-      const endH = Math.min(23, Math.round(startH + hours));
-      endTime = `${String(endH).padStart(2, '0')}:00`;
-    } else if (startTime && !endTime) {
-      const [h, m] = startTime.split(':').map(Number);
-      const endH = Math.min(23, Math.round(h + hours));
-      endTime = `${String(endH).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
-    } else if (!startTime && endTime) {
-      const [h, m] = endTime.split(':').map(Number);
-      const startH = Math.max(0, Math.round(h - hours));
-      startTime = `${String(startH).padStart(2, '0')}:${String(m || 0).padStart(2, '0')}`;
-    }
+      const makeupInMonth = active.some(
+        r => r.type === 'LEAVE_WITH_MAKEUP' && isActive(r) && r.leaveStartDate !== null && monthOf(r.leaveStartDate) === month
+      );
+      if (makeupInMonth) {
+        throw new Error(`Tháng ${month} đã có đơn nghỉ có làm bù, không đăng ký OT được`);
+      }
 
-    const req = SystemRequest.createOvertimeRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      otDate,
-      startTime: startTime || '',
-      endTime: endTime || '',
-      hours
+      const req = SystemRequest.createOvertimeRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        otDate: date,
+        startTime,
+        endTime,
+        hours: minutes / 60
+      });
+      await this.repo.save(req);
+      return req.toJSON();
     });
-
-    await this.repo.save(req);
-    return req.toJSON();
   }
 
   async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {

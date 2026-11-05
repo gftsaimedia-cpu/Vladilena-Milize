@@ -49,18 +49,30 @@ export function requireLeaveType(value: unknown): LeaveType {
   return value;
 }
 
+/** Ngày 'YYYY-MM-DD' có thật, với câu lỗi sẵn có của domain (`<field> must be a valid YYYY-MM-DD date string, got: …`). */
+export function requireDateText(value: unknown, field: string): string {
+  if (!isValidDateText(value)) {
+    throw new Error(`${field} must be a valid YYYY-MM-DD date string, got: ${String(value)}`);
+  }
+  return value;
+}
+
+/** Giờ 'HH:mm', với câu lỗi sẵn có của domain (`<field> must be a valid HH:mm time string, got: …`). */
+export function requireTimeText(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !isValidTimeString(value)) {
+    throw new Error(`${field} must be a valid HH:mm time string, got: ${String(value)}`);
+  }
+  return value;
+}
+
 /** Hai ngày 'YYYY-MM-DD' có thật và `startDate ≤ endDate`, với câu lỗi sẵn có của domain. */
 export function requireDateRange(startDate: unknown, endDate: unknown): { startDate: string; endDate: string } {
-  if (!isValidDateText(startDate)) {
-    throw new Error(`startDate must be a valid YYYY-MM-DD date string, got: ${String(startDate)}`);
+  const start = requireDateText(startDate, 'startDate');
+  const end = requireDateText(endDate, 'endDate');
+  if (start > end) {
+    throw new Error(`endDate (${end}) cannot be earlier than startDate (${start})`);
   }
-  if (!isValidDateText(endDate)) {
-    throw new Error(`endDate must be a valid YYYY-MM-DD date string, got: ${String(endDate)}`);
-  }
-  if (startDate > endDate) {
-    throw new Error(`endDate (${endDate}) cannot be earlier than startDate (${startDate})`);
-  }
-  return { startDate, endDate };
+  return { startDate: start, endDate: end };
 }
 
 export class SystemRequest {

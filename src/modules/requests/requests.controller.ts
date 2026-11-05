@@ -32,7 +32,16 @@ export class RequestsController {
   async createOvertime(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createOvertimeRequest({ ...body, employeeId });
+      // Giờ OT do server tính từ khung: `hours`/`otHours`/`otRateMultiplier` client gửi không được chuyển xuống.
+      const request = await this.service.createOvertimeRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        otDate: body.otDate,
+        targetDate: body.targetDate,
+        startTime: body.startTime,
+        endTime: body.endTime
+      });
       return { created: true, request };
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });

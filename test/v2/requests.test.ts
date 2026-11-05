@@ -58,34 +58,4 @@ describe('Requests V2 - Đơn từ & Giải trình', () => {
     assert.equal(reviewed.reviewedBy, 'admin');
     assert.equal(attRepo.dayStatuses.get(`${empId}:2026-11-04`), 'VALID');
   });
-
-  it('3. Nộp đơn làm thêm (OVERTIME) kiểm tra trần OT 4h/ngày', async () => {
-    await assert.rejects(
-      async () => {
-        await service.createOvertimeRequest({
-          employeeId: empId,
-          title: 'OT dự án gấp',
-          reason: 'Chạy deadline',
-          otDate: '2026-11-05',
-          hours: 5, // Vượt quá 4h/ngày
-        });
-      },
-      {
-        message: /không được vượt quá 4 giờ/,
-      }
-    );
-
-    const validReq = await service.createOvertimeRequest({
-      employeeId: empId,
-      title: 'OT dự án gấp',
-      reason: 'Chạy deadline',
-      otDate: '2026-11-05',
-      hours: 3,
-    });
-    assert.equal(validReq.type, 'OVERTIME');
-    assert.equal(validReq.status, 'PENDING');
-
-    const reviewed = await service.reviewRequest(validReq.id, 'manager', 'APPROVE');
-    assert.equal(reviewed.status, 'APPROVED');
-  });
 });
