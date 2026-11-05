@@ -342,3 +342,105 @@ describe('Đổi ca, OT, khung bù và giải trình theo day_status (§4.4)', (
     assert.deepEqual(ctx.days.calls, []);
   });
 });
+
+describe('iSAT giữ Thứ Bảy trong day_status (§4.1, V5, V6)', () => {
+  let ctx: ReturnType<typeof makeService>;
+  beforeEach(() => {
+    ctx = makeService();
+  });
+
+  const rowOf = (employeeId: string, date: string) => ctx.days.rows.get(`${employeeId}:${date}`);
+  const isConflict = (message: string) => (err: unknown) => err instanceof DayConflictError && err.message === message;
+
+  const isat = (over: Record<string, unknown> = {}) =>
+    ctx.service.createIsatRequest({
+      employeeId: 'nv01',
+      saturday: '2026-11-14',
+      team: 'Nhóm thử',
+      conditions: { NO_VIOLATION: true, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true },
+      ...over
+    } as any);
+
+  it('a pending ISAT claims its Saturday', async () => {
+    const dto = await isat();
+    assert.deepEqual(dto.warnings, []);
+    const row = rowOf(NV_UUID, '2026-11-14');
+    assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['ISAT', dto.id, null]);
+  });
+
+  it('ISAT on a holiday Saturday is refused with C5', async () => {
+    ctx.holidays.dates = [{ date: '2026-11-14', name: 'Lễ' }];
+    await assert.rejects(isat(), isConflict('Thứ Bảy 14/11 là ngày lễ, không chọn được cho iSAT.'));
+    assert.equal(ctx.repo.requests.size, 0);
+    assert.equal(ctx.days.rows.size, 0);
+  });
+
+  it('ISAT on a Saturday with an approved leave is refused with C6; with a pending leave, C7', async () => {
+    await seed(ctx, leaveRequest('2026-11-14', '2026-11-14', 'APPROVED'));
+    await assert.rejects(isat(), isConflict('Thứ Bảy 14/11 đã nghỉ theo đơn đã duyệt, không chọn được cho iSAT.'));
+
+    ctx = makeService();
+    await seed(ctx, leaveRequest('2026-11-14', '2026-11-14', 'PENDING'));
+    await assert.rejects(
+      isat(),
+      isConflict('Thứ Bảy 14/11 đang có đơn nghỉ chờ duyệt. Huỷ đơn nghỉ hoặc chọn Thứ Bảy khác.')
+    );
+    assert.equal(ctx.repo.requests.size, 1);
+  });
+
+  it('V6 ISAT on a Saturday with a pending OT window is refused with C9', async () => {
+    await seed(ctx, otRequest('2026-11-14', '08:00', '12:00', 'PENDING'));
+    await assert.rejects(
+      isat(),
+      isConflict('Thứ Bảy 14/11 đang có đơn OT chờ duyệt. Huỷ đơn đó hoặc chọn Thứ Bảy khác.')
+    );
+    assert.equal(ctx.repo.requests.size, 1);
+    assert.equal(ctx.days.rows.size, 0);
+  });
+
+  it('ISAT on a Saturday with an approved OT window is refused with C8', async () => {
+    await seed(ctx, otRequest('2026-11-14', '08:00', '12:00', 'APPROVED'));
+    await assert.rejects(
+      isat(),
+      isConflict('Thứ Bảy 14/11 đã có khung OT hoặc làm bù được duyệt, không chọn được cho iSAT.')
+    );
+  });
+
+  it('ISAT on a Saturday with a pending makeup window is refused with C9 naming the leave with makeup', async () => {
+    await seed(ctx, lwmRequest('2026-11-12', '2026-11-12', [{ date: '2026-11-14', startTime: '18:00', endTime: '22:00' }]), [
+      '2026-11-12'
+    ]);
+    await assert.rejects(
+      isat(),
+      isConflict('Thứ Bảy 14/11 đang có đơn nghỉ có làm bù chờ duyệt. Huỷ đơn đó hoặc chọn Thứ Bảy khác.')
+    );
+  });
+
+  it('ISAT on a shift-changed Saturday replaces the day', async () => {
+    const sc = await seed(ctx, shiftChange('2026-11-14', '2026-11-14', 'NORMAL', '10:00', '19:00', 'PENDING'));
+    const dto = await isat();
+    const row = rowOf(NV_UUID, '2026-11-14');
+    assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['ISAT', dto.id, sc.id]);
+  });
+
+  it('ISAT runs under the employee lock', async () => {
+    await isat();
+    assert.deepEqual(ctx.lock.keys, [`requests_${NV_UUID}`]);
+    assert.ok(ctx.days.calls.length > 0);
+    for (const [name, trx] of ctx.days.calls) assert.equal(trx, LOCK_TRX, name);
+    for (const [name, trx] of ctx.repo.calls.filter(([n]) => n === 'save' || n === 'list')) assert.equal(trx, LOCK_TRX, name);
+  });
+
+  it('auto-rejected ISAT writes no day', async () => {
+    const dto = await isat({ conditions: { NO_VIOLATION: false, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true } });
+    assert.equal(dto.status, 'REJECTED');
+    assert.equal(ctx.repo.requests.size, 1);
+    assert.equal(ctx.days.rows.size, 0);
+    assert.deepEqual(ctx.days.calls, []);
+  });
+
+  it('the old duplicate message still wins for the same Saturday', async () => {
+    await isat();
+    await assert.rejects(isat(), /^Error: Đã có đơn iSAT cho Thứ Bảy 14\/11\/2026$/);
+  });
+});

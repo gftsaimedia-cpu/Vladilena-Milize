@@ -623,21 +623,36 @@ export class RequestsService {
       profile: profile.snapshot
     });
 
-    // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
     const saturday = req.isat!.saturday;
-    const existing = await this.repo.list({
-      employeeId: profile.employeeId,
-      type: 'ISAT'
-    });
-    for (const item of existing) {
-      if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.isat?.saturday === saturday) {
-        const [year, month, day] = saturday.split('-');
-        throw new Error(`Đã có đơn iSAT cho Thứ Bảy ${day}/${month}/${year}`);
-      }
-    }
+    const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
 
-    await this.repo.save(req);
-    return { ...req.toJSON(), warnings: [] };
+    return this.underEmployeeLock(staff.employeeId, async stores => {
+      // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
+      const existing = await stores.requests.list({
+        employeeId: profile.employeeId,
+        type: 'ISAT'
+      });
+      for (const item of existing) {
+        if ((item.status === 'PENDING' || item.status === 'APPROVED') && item.isat?.saturday === saturday) {
+          const [year, month, day] = saturday.split('-');
+          throw new Error(`Đã có đơn iSAT cho Thứ Bảy ${day}/${month}/${year}`);
+        }
+      }
+
+      // Đơn bị domain tự từ chối không giữ ngày nào, nên không xét xung đột (§4.1).
+      const pending = req.status === 'PENDING';
+      let plan: ClaimPlan | null = null;
+      if (pending) {
+        const { days } = await this.loadDays(staff, saturday, saturday, stores);
+        plan = planClaims({ kind: 'ISAT', dates: [saturday], days });
+      }
+
+      await stores.requests.save(req);
+      if (plan) {
+        await this.claimDays(stores, req, plan, 'ISAT');
+      }
+      return { ...req.toJSON(), warnings: [] };
+    });
   }
 
   /**
