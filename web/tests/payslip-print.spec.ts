@@ -43,7 +43,7 @@ for (const [status, id, name, level, suffix, state] of [
     await expect(who(page, 'Họ tên')).toHaveText(name);
     await expect(who(page, 'Loại · bậc')).toHaveText(`NV · Bậc ${level}`);
     await expect(who(page, 'Tình trạng')).toHaveText(state);
-    await expect(who(page, 'Trạng thái nhân sự')).toHaveText('HĐLĐ từ 3 tháng');
+    await expect(who(page, 'Trạng thái nhân sự')).toHaveText('Chính thức');
     await expect(p1(page).locator('.sub')).toHaveText(status === 'done' ? SUB_DONE : SUB_EST);
     await expect(page.getByText(DRAFT_LINE, { exact: true })).toHaveCount(status === 'draft' ? 1 : 0);
     expect(await prints(page)).toBe(0);
@@ -79,6 +79,17 @@ test('every person prints the shared sample month: the money is not made up per 
   await page.goto('/in/phieu-luong/2026-10/GFT-0142');
   await expect(page.getByRole('region', { name: 'Trang 2/2' }).locator('.net')).toHaveText(/Thực nhận\s*9\.657\.922 ₫/);
   await expect(p1(page).locator('.sh .lb')).toHaveText('Lương ngày 230.769 · số tiền tính bằng đồng');
+});
+
+// Trạng thái nhân sự và phép còn lại theo phiếu trên đường dẫn: GFT-0172 đang thử việc, không có tài khoản phép (null).
+test('a probation slip with no leave account prints Thử việc and "—" for the remaining leave, never "null"', async ({ page }) => {
+  await page.goto('/in/phieu-luong/2026-10/GFT-0172');
+  await expect(who(page, 'Họ tên')).toHaveText('Lý Thanh Tâm');
+  await expect(who(page, 'Trạng thái nhân sự')).toHaveText('Thử việc');
+  const p2 = page.getByRole('region', { name: 'Trang 2/2' });
+  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*—/);
+  await expect(page.locator('.print-root')).not.toContainText('null');
+  await expect(p2.locator('.end')).not.toContainText('— ngày');
 });
 
 test('the print-all page renders exactly the approved slips, in table order', async ({ page }) => {
