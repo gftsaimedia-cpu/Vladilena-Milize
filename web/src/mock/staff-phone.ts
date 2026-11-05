@@ -27,7 +27,7 @@ export type RequestRowData = {
   statusText: string; // 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
   month: string; // '2026-10'
 };
-export type RequestStep = { label: string; at: string | null; state: RequestStatus };
+export type RequestStep = { label: string; at: string | null; state: RequestStatus; note: { label: string; text: string } | null };
 export type RequestDetail = RequestRowData & {
   kindLabel: string; // 'Giải trình' | 'Đơn nghỉ' | 'Tạm ứng lương'
   facts: [string, string][]; // [khoá, giá trị] theo spec 2.2, lý do đã có ngoặc kép cong
@@ -182,8 +182,8 @@ const REQUESTS: RequestDetail[] = [
     month: '2026-10', kindLabel: 'Giải trình',
     facts: [['Ngày', 'Thứ Ba 27/10/2026'], ['Giờ vào', '08:12'], ['Giờ ra khai', '17:30'], ['Lý do', '“Quên bấm Check-out khi về.”']],
     steps: [
-      { label: 'Đã gửi', at: '27/10 20:14', state: 'done' },
-      { label: 'Chờ Admin duyệt', at: null, state: 'pend' }
+      { label: 'Đã gửi', at: '27/10 20:14', state: 'done', note: null },
+      { label: 'Chờ Admin duyệt', at: null, state: 'pend', note: null }
     ]
   },
   {
@@ -194,8 +194,8 @@ const REQUESTS: RequestDetail[] = [
       ['Lý do', '“Việc gia đình.”'], ['Phép năm còn lại', LEAVE_LEFT]
     ],
     steps: [
-      { label: 'Đã gửi', at: '08/10 09:12', state: 'done' },
-      { label: 'Trưởng phòng Kinh doanh đã duyệt', at: '09/10 10:30', state: 'done' }
+      { label: 'Đã gửi', at: '08/10 09:12', state: 'done', note: null },
+      { label: 'Trưởng phòng Kinh doanh đã duyệt', at: '09/10 10:30', state: 'done', note: null }
     ]
   },
   {
@@ -203,8 +203,8 @@ const REQUESTS: RequestDetail[] = [
     month: '2026-09', kindLabel: 'Tạm ứng lương',
     facts: [['Số tiền', '1.500.000 ₫'], ['Trừ vào lương', 'Tháng 9/2026']],
     steps: [
-      { label: 'Đã gửi', at: '15/09 16:20', state: 'done' },
-      { label: 'Admin đã duyệt', at: '16/09 09:05', state: 'done' }
+      { label: 'Đã gửi', at: '15/09 16:20', state: 'done', note: null },
+      { label: 'Admin đã duyệt', at: '16/09 09:05', state: 'done', note: null }
     ]
   },
   {
@@ -212,8 +212,11 @@ const REQUESTS: RequestDetail[] = [
     month: '2026-09', kindLabel: 'Giải trình',
     facts: [['Ngày', 'Thứ Tư 09/09/2026'], ['Giờ vào khai', '08:00'], ['Lý do', '“Máy chấm công không nhận.”']],
     steps: [
-      { label: 'Đã gửi', at: '09/09 17:45', state: 'done' },
-      { label: 'Admin đã từ chối', at: '10/09 10:15', state: 'rej' }
+      { label: 'Đã gửi', at: '09/09 17:45', state: 'done', note: null },
+      {
+        label: 'Admin đã từ chối', at: '10/09 10:15', state: 'rej',
+        note: { label: 'Lý do từ chối', text: '“Máy chấm công vẫn ghi nhận ngày 09/09, giờ vào 08:47.”' }
+      }
     ]
   }
 ];
@@ -255,15 +258,15 @@ export function homeView(): HomeView {
   };
 }
 
-export function attendanceView(): AttendanceView {
+export function attendanceView(recent = 5): AttendanceView {
   const first = `${MOCK_TODAY.slice(0, 8)}01`;
   const length = new Date(Date.UTC(+first.slice(0, 4), +first.slice(5, 7), 0)).getUTCDate();
   const blanks: null[] = Array.from({ length: (dowOf(first) + 6) % 7 }, () => null);
   const days = Array.from({ length }, (_, i) => cellOf(addDays(first, i), false));
-  const recent = [...DAYS.entries()]
+  const recentDays = [...DAYS.entries()]
     .filter(([, rec]) => rec.in)
     .sort(([a], [b]) => (a < b ? 1 : -1))
-    .slice(0, 5)
+    .slice(0, recent)
     .map(([date, rec]) => ({
       date,
       kind: rec.kind as CellKind,
@@ -281,7 +284,7 @@ export function attendanceView(): AttendanceView {
       { value: '2', of: null, label: 'Ngày nghỉ có lương' }
     ],
     cells: [...blanks, ...days],
-    recent
+    recent: recentDays
   };
 }
 

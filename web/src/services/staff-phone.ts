@@ -21,7 +21,7 @@ import {
 import * as session from './session';
 
 export const getHome = (): Promise<HomeView> => respond(homeView());
-export const getAttendance = (): Promise<AttendanceView> => respond(attendanceView());
+export const getAttendance = (recent = 5): Promise<AttendanceView> => respond(attendanceView(recent));
 // null khi ngày không có dữ liệu (Chủ nhật, chưa tới, ngoài tháng 10, chuỗi sai)
 export const getDay = (date: string): Promise<DayDetail | null> => respond(dayDetail(date));
 export const getRequests = (): Promise<RequestsView> => respond(requestsView());

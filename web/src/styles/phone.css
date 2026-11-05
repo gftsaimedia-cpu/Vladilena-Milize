@@ -1,8 +1,10 @@
 /* App nhân viên trên điện thoại (/nv/*, board J1–J7, spec staff-phone-app 3.3–3.4).
-   Mọi luật đặt dưới .ph-app (gốc của PhoneLayout) hoặc .ph-sheet (hộp trượt teleport ra body) để không đụng màn Admin.
+   Mọi luật đặt dưới .ph-app (gốc của PhoneLayout), .ph-sheet (hộp trượt teleport ra body) hoặc .sd-app / .sd-drawer (trang máy tính) để không đụng màn Admin.
    Lớp chép từ CSS của gen-mobile.js; màu qua biến của base.css. Không đổ bóng ở đâu cả. */
 .ph-app,
-.ph-sheet {
+.ph-sheet,
+.sd-app,
+.sd-drawer {
   --page: var(--ground); /* nền trang của board (#f5f5f5): ô chưa tới, ô biểu tượng, hộp nhắc việc */
 }
 
@@ -32,36 +34,36 @@
 }
 
 /* Chữ phụ, chữ nhỏ */
-:is(.ph-app, .ph-sheet) .mut {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .mut {
   color: var(--muted);
 }
-:is(.ph-app, .ph-sheet) .sm {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .sm {
   font-size: 12px;
   line-height: 16px;
 }
 
 /* Thẻ trắng bo 24px (bỏ viền của .card bên Admin) */
-:is(.ph-app, .ph-sheet) .card {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .card {
   background: var(--surface);
   border: 0;
   border-radius: 24px;
 }
 /* Hàng hai đầu: tiêu đề trái, phụ phải */
-:is(.ph-app, .ph-sheet) .sh {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .sh {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 /* Liên kết chữ gạch chân ("Xem tất cả") */
-:is(.ph-app, .ph-sheet) .lk {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .lk {
   color: var(--text);
   font-size: 14px;
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 /* Nút tròn 40px (chọn tháng) */
-:is(.ph-app, .ph-sheet) .rb {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .rb {
   width: 40px;
   height: 40px;
   flex: none;
@@ -76,14 +78,14 @@
   text-decoration: none;
   cursor: pointer;
 }
-:is(.ph-app, .ph-sheet) .rb:disabled,
-:is(.ph-app, .ph-sheet) .rb[aria-disabled='true'] {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .rb:disabled,
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .rb[aria-disabled='true'] {
   color: #bdbdbd;
   cursor: default;
 }
 
 /* Ô ngày 40px theo năm nhóm màu chấm công (như bảng tuần của Admin) + chưa tới, không có ca, hôm nay */
-:is(.ph-app, .ph-sheet) .dn {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn {
   position: relative;
   width: 40px;
   height: 40px;
@@ -99,36 +101,36 @@
   font-family: inherit;
   background: none;
 }
-:is(.ph-app, .ph-sheet) .dn.work {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.work {
   background: var(--surface-dark);
   color: #ffffff;
 }
-:is(.ph-app, .ph-sheet) .dn.late {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.late {
   background: var(--gold);
 }
-:is(.ph-app, .ph-sheet) .dn.leave {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.leave {
   background: var(--status-done);
   color: #ffffff;
 }
-:is(.ph-app, .ph-sheet) .dn.absent {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.absent {
   background: var(--status-rejected);
   color: #ffffff;
 }
-:is(.ph-app, .ph-sheet) .dn.todo {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.todo {
   background: var(--surface);
   border: 2px solid var(--status-pending);
 }
-:is(.ph-app, .ph-sheet) .dn.fu,
-:is(.ph-app, .ph-sheet) .dn.future {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.fu,
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.future {
   background: var(--page);
   font-weight: 500;
 }
-:is(.ph-app, .ph-sheet) .dn.off {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.off {
   color: #9e9e9e;
   font-weight: 500;
 }
 /* Vòng hôm nay 2px cách 2px vẽ bằng ::after, để viền focus (cách 6px) vẫn thấy được bên ngoài vòng */
-:is(.ph-app, .ph-sheet) .dn.today::after {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.today::after {
   content: '';
   position: absolute;
   inset: -4px;
@@ -136,44 +138,44 @@
   border-radius: 50px;
   pointer-events: none;
 }
-:is(.ph-app, .ph-sheet) .dn.today:focus-visible {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dn.today:focus-visible {
   outline-offset: 6px;
 }
 
 /* Chấm 8px: nhóm ngày công và trạng thái yêu cầu */
-:is(.ph-app, .ph-sheet) .dot {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot {
   width: 8px;
   height: 8px;
   flex: none;
   border-radius: 50px;
   display: inline-block;
 }
-:is(.ph-app, .ph-sheet) .dot.work {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.work {
   background: var(--surface-dark);
 }
-:is(.ph-app, .ph-sheet) .dot.late {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.late {
   background: var(--gold);
 }
-:is(.ph-app, .ph-sheet) .dot.leave {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.leave {
   background: var(--status-done);
 }
-:is(.ph-app, .ph-sheet) .dot.absent {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.absent {
   background: var(--status-rejected);
 }
-:is(.ph-app, .ph-sheet) .dot.todo {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.todo {
   border: 2px solid var(--status-pending);
 }
-:is(.ph-app, .ph-sheet) .dot.pend {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.pend {
   background: var(--status-pending);
 }
-:is(.ph-app, .ph-sheet) .dot.done {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.done {
   background: var(--status-done);
 }
-:is(.ph-app, .ph-sheet) .dot.rej {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.rej {
   background: var(--status-rejected);
 }
 /* Nhãn trạng thái: chấm + chữ 13px, không viên thuốc */
-:is(.ph-app, .ph-sheet) .st {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .st {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -182,12 +184,12 @@
 }
 
 /* Danh sách: mỗi dòng một giá trị chính */
-:is(.ph-app, .ph-sheet) .ls {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ls {
   display: flex;
   flex-direction: column;
   padding: 4px 16px;
 }
-:is(.ph-app, .ph-sheet) .ro {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ro {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -201,25 +203,25 @@
   font: inherit;
   text-align: left;
 }
-:is(.ph-app, .ph-sheet) .ro + .ro {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ro + .ro {
   border-top: 1px solid var(--border);
 }
-:is(.ph-app, .ph-sheet) .ro .t {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ro .t {
   flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-:is(.ph-app, .ph-sheet) .ro .v {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ro .v {
   font-weight: 600;
   white-space: nowrap;
 }
-:is(.ph-app, .ph-sheet) button.ro {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) button.ro {
   cursor: pointer;
 }
 /* Ô biểu tượng 40px bo 12px */
-:is(.ph-app, .ph-sheet) .ti {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .ti {
   width: 40px;
   height: 40px;
   flex: none;
@@ -231,27 +233,27 @@
 }
 
 /* Dòng khoá – giá trị */
-:is(.ph-app, .ph-sheet) .kv {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .kv {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   padding: 12px 0;
   border-top: 1px solid var(--border);
 }
-:is(.ph-app, .ph-sheet) .kv:first-child {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .kv:first-child {
   border-top: 0;
 }
-:is(.ph-app, .ph-sheet) .kv .k {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .kv .k {
   color: var(--muted);
   white-space: nowrap;
 }
-:is(.ph-app, .ph-sheet) .kv .v {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .kv .v {
   font-weight: 500;
   text-align: right;
 }
 
 /* Nút phụ cao 48px viền --control ("Đóng") */
-:is(.ph-app, .ph-sheet) .b2 {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .b2 {
   height: 48px;
   width: 100%;
   border-radius: 8px;
@@ -267,11 +269,11 @@
 }
 
 /* Focus: 2px --text cách 2px. Phần tử trên nền tối (thẻ đen J1, J6): đặt lớp on-dark lên khối tối để viền thành trắng (R9). */
-:is(.ph-app, .ph-sheet) :focus-visible {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) :focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
-:is(.ph-app, .ph-sheet) .on-dark :focus-visible {
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .on-dark :focus-visible {
   outline-color: #ffffff;
 }
 
@@ -283,4 +285,71 @@ body .ph-app ~ .toasts {
 }
 body .ph-app ~ .toasts .toast {
   box-shadow: none;
+}
+
+/* Biểu mẫu trong hộp trượt và ngăn kéo (Đổi mật khẩu): ô nhập bo 8px, focus 2px --text cách 2px, không bóng */
+:is(.ph-sheet, .sd-drawer) form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+:is(.ph-sheet, .sd-drawer) .fld {
+  margin: 0;
+}
+:is(.ph-sheet, .sd-drawer) .fld label {
+  font-size: 14px;
+}
+:is(.ph-sheet, .sd-drawer) .inp {
+  position: relative;
+  min-height: 48px;
+  font-size: 16px;
+  border-radius: 8px;
+}
+:is(.ph-sheet, .sd-drawer) .inp:focus-within {
+  border-color: var(--text);
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+:is(.ph-sheet, .sd-drawer) .inp input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  outline: none;
+  padding: 0;
+}
+:is(.ph-sheet, .sd-drawer) .inp input::placeholder {
+  color: #9e9e9e;
+}
+:is(.ph-sheet, .sd-drawer) .bt {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+:is(.ph-sheet, .sd-drawer) .bt button {
+  height: 48px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--control);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+:is(.ph-sheet, .sd-drawer) .bt .pri {
+  background: var(--surface-dark);
+  color: #ffffff;
+  border-color: var(--surface-dark);
+}
+:is(.ph-sheet, .sd-drawer) .bt button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
