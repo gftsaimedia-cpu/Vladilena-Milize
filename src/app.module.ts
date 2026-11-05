@@ -10,6 +10,7 @@ import { PayrollModule } from './modules/payroll';
 import { SystemModule } from './modules/system';
 import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
+import { SettingsModule } from './modules/settings';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PositionsModule } from './modules/positions';
     SystemModule,
     MeModule,
     PositionsModule,
+    SettingsModule,
   ],
 })
 export class AppModule {}
