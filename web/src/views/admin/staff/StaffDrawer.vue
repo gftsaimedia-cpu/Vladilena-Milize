@@ -7,8 +7,11 @@ import { employeePath } from '../attendance/links';
 import Icon from '@/components/ui/Icon.vue';
 import { lockScroll, registerOverlayFocus, unlockScroll } from '@/components/ui/overlay-lock';
 import { useLoad } from '@/composables/useLoad';
+import { workWeekLine } from '@/builders/api/settings';
 import { getStaffProfile } from '@/services/admin-hr';
+import { getWorkWeek, getWorkWeekHistory } from '@/services/settings-store';
 import StatusPill from './parts/StatusPill.vue';
+import WorkWeekDialog from './parts/WorkWeekDialog.vue';
 
 const props = defineProps<{ id: string; hasPrev: boolean; hasNext: boolean }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
@@ -17,6 +20,23 @@ const route = useRoute();
 const { data } = useLoad(() => getStaffProfile(props.id), () => props.id);
 // Đang đổi người thì thân tạm trống, không hiện hồ sơ của người trước dưới địa chỉ của người sau.
 const profile = computed(() => (data.value && data.value.id === props.id ? data.value : null));
+
+// Tuần làm việc: tuần đang hiệu lực ở tháng đầu và lịch sử để biết có tuần đổi từ tháng sau.
+const { data: weekRaw, reload: reloadWeek } = useLoad(async () => {
+  const id = props.id;
+  const [week, history] = await Promise.all([getWorkWeek(id), getWorkWeekHistory(id)]);
+  return { id, week, history: history.items };
+}, () => props.id);
+const weekData = computed(() => (weekRaw.value && weekRaw.value.id === props.id ? weekRaw.value : null));
+const weekLine = computed(() => {
+  const d = weekData.value;
+  if (!d) return '';
+  // Dòng lịch sử mới nhất (danh sách đã xếp mới trước) đổi tuần từ một tháng sau tháng đang xem.
+  const next = d.history.find(h => h.field === 'weekdays' && h.month && h.month > d.week.month);
+  return workWeekLine(d.week, next ? { month: next.month as string, weekdays: next.to } : null);
+});
+const editingWeek = ref(false);
+watch(() => props.id, () => (editingWeek.value = false));
 
 const attendanceTo = computed(() => {
   const thang = route.query.thang;
@@ -96,10 +116,17 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
           <section v-for="g in profile.groups" :key="g.title" class="pg">
             <h3>{{ g.title }}</h3>
             <dl>
-              <div v-for="f in g.facts" :key="f.label" class="fr">
-                <dt>{{ f.label }}</dt>
-                <dd :class="{ none: f.value === '—' }">{{ f.value }}</dd>
-              </div>
+              <template v-for="f in g.facts" :key="f.label">
+                <div class="fr">
+                  <dt>{{ f.label }}</dt>
+                  <dd :class="{ none: f.value === '—' }">{{ f.value }}</dd>
+                </div>
+                <div v-if="g.title === 'Công việc' && f.label === 'Ca làm' && weekLine" class="fr ww">
+                  <dt>Tuần làm việc</dt>
+                  <dd>{{ weekLine }}</dd>
+                  <button type="button" class="ed" aria-label="Sửa tuần làm việc" @click="editingWeek = true">Sửa</button>
+                </div>
+              </template>
             </dl>
           </section>
         </div>
@@ -110,6 +137,15 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
       </aside>
     </div>
   </Teleport>
+
+  <WorkWeekDialog
+    v-if="editingWeek && profile && weekData"
+    :id="props.id"
+    :name="profile.name"
+    :week="weekData.week"
+    @reload="reloadWeek"
+    @close="editingWeek = false"
+  />
 </template>
 
 <style scoped>
@@ -278,6 +314,25 @@ dd {
 }
 dd.none {
   color: var(--muted);
+}
+.fr.ww {
+  grid-template-columns: 148px 1fr auto;
+  align-items: baseline;
+}
+.ed {
+  padding: 0 8px;
+  height: 24px;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+.ed:hover {
+  background: var(--raised);
 }
 .pf-f {
   padding: 12px 24px 16px;
