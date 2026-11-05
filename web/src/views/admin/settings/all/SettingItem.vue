@@ -29,17 +29,19 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
 <template>
   <div class="it2" :class="{ wide: entry.brackets }" :data-setting-key="entry.key" tabindex="-1">
     <div class="l">
-      <div class="nm">{{ entry.title }}</div>
+      <div class="nm">
+        {{ entry.title }}
+        <button
+          v-if="history"
+          type="button"
+          class="hist"
+          :aria-expanded="showHistory"
+          @click="showHistory = !showHistory"
+        >
+          {{ showHistory ? 'Ẩn lịch sử' : 'Lịch sử' }}
+        </button>
+      </div>
       <div v-if="entry.desc" class="ds">{{ entry.desc }}</div>
-      <button
-        v-if="history"
-        type="button"
-        class="link hist"
-        :aria-expanded="showHistory"
-        @click="showHistory = !showHistory"
-      >
-        {{ showHistory ? 'Ẩn lịch sử' : 'Lịch sử' }}
-      </button>
     </div>
     <div class="c">
       <BracketTable
@@ -102,25 +104,42 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
 <style scoped>
 .it2 {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 12px 24px;
   padding: 18px 24px;
-  border-top: 1px solid var(--rule);
+  border-top: 1px solid var(--border);
 }
 .it2 .nm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   font-size: 14px;
 }
 .it2 .ds {
   font-size: 13px;
   color: var(--muted);
-  margin-top: 6px;
-  line-height: 19px;
+  margin-top: 4px;
+  line-height: 18px;
 }
 .hist {
-  margin-top: 8px;
-  font-size: 12px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.hist:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .hl {
   grid-column: 1 / -1;
@@ -158,31 +177,44 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
   gap: 14px;
 }
 .it2.wide .c {
-  align-items: stretch;
+  align-self: stretch;
 }
 .c {
+  align-self: center;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: flex-end;
+  gap: 8px;
 }
 .fr {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
   gap: 4px 12px;
   width: 100%;
 }
 .fl {
   flex: 1;
-  font-size: 13px;
   color: var(--muted);
 }
+/* Ô số theo board: cao 40px; mục một ô rộng đủ cột 300px, mục nhiều ô thì nhãn và ô 180px. */
 .fr :deep(.fi) {
-  height: 34px;
+  flex: 1 1 100%;
+  box-sizing: border-box;
+  height: 40px;
+  padding: 0 12px;
   border-radius: 8px;
   justify-content: flex-end;
+}
+.fr :deep(.fi > input) {
+  width: 100% !important;
+}
+.fr :deep(.fi > span),
+.fr :deep(.fi > i) {
+  color: var(--muted);
+  font-style: normal;
+}
+.fl + :deep(.fi) {
+  flex: 0 0 180px;
 }
 .was,
 .err {

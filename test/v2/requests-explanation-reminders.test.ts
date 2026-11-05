@@ -106,7 +106,9 @@ describe('Lời nhắc giải trình và route Admin (spec 3.4–3.5)', () => {
         date: '2026-11-02',
         cases: ['MISSING_CHECK_OUT'],
         needs: { checkIn: false, checkOut: true },
-        remindedAt: null
+        remindedAt: null,
+        checkIn: '08:00',
+        checkOut: null
       });
     });
 

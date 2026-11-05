@@ -79,7 +79,7 @@ watch(draft, d => emit('draft', d), { immediate: true });
   <div class="nr-fl nr-range">
     <div class="nr-two">
       <div class="nr-fl">
-        <label :for="`${id}-tu`">Từ</label>
+        <label :for="`${id}-tu`">Giờ bắt đầu</label>
         <div class="nr-box nr-sel">
           <select :id="`${id}-tu`" v-model="startTime" class="nr-in" :disabled="!otDate">
             <option value="" disabled>Chọn giờ</option>
@@ -89,7 +89,7 @@ watch(draft, d => emit('draft', d), { immediate: true });
         </div>
       </div>
       <div class="nr-fl">
-        <label :for="`${id}-den`">Đến</label>
+        <label :for="`${id}-den`">Giờ kết thúc</label>
         <div class="nr-box nr-sel">
           <select :id="`${id}-den`" v-model="endTime" class="nr-in" :disabled="!startTime">
             <option value="" disabled>Chọn giờ</option>

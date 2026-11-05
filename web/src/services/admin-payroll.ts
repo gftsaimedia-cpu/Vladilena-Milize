@@ -13,7 +13,6 @@ import {
 import { normalizeScore, recomputeSlip, type KpiPart, type KpiScores } from '@/mock/payroll-calc';
 import { respond } from '@/mock/respond';
 import { useSessionStore } from '@/stores/session';
-import { notConnected } from './data-mode';
 import { ApiError, api } from './http';
 
 const enc = encodeURIComponent;
@@ -50,8 +49,11 @@ export async function saveKpiScore(month: string, id: string, part: KpiPart, val
 }
 
 /** Tính lương cả kỳ (lần chạy nháp mới cho mọi người): POST /api/v2/payroll/:month/calculate. Trả { runId, calculated, errors }. */
-export const calculatePayroll = (month: string) =>
-  __MOCK__ ? notConnected() : api.post(`/payroll/${enc(month)}/calculate`, {});
+export function calculatePayroll(month: string) {
+  if (!__MOCK__) return api.post(`/payroll/${enc(month)}/calculate`, {});
+  const view = payrollView(month);
+  return respond({ count: view.empty ? 0 : view.lines.length, errors: [] });
+}
 
 // Duyệt / từ chối phiếu của một người rồi đọc lại phiếu. Lý do từ chối (không bắt buộc) chỉ gửi khi có chữ.
 export async function decidePayslip(

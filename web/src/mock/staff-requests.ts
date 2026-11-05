@@ -295,7 +295,7 @@ export function explanationDaysOf(today: string): ExplanationDay[] {
     if (!shift || claim === 'LEAVE' || claim === 'LEAVE_WITH_MAKEUP' || claim === 'ISAT') continue;
     const rec = dayRecord(d);
     const { cases, needs } = casesOf(rec?.in ?? null, rec?.out ?? null, shift, d === today);
-    if (cases.length) out.push({ date: d, cases, needs, remindedAt: REMINDERS[d] ?? null });
+    if (cases.length) out.push({ date: d, cases, needs, remindedAt: REMINDERS[d] ?? null, checkIn: rec?.in ?? null, checkOut: rec?.out ?? null });
   }
   return out;
 }

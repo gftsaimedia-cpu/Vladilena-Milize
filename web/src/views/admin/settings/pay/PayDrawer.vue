@@ -81,7 +81,7 @@ function cancel() {
 </script>
 
 <template>
-  <AppDrawer v-if="shown" :title="head.title" :sub="head.sub" :width="560" @close="emit('close')">
+  <AppDrawer v-if="shown" :title="head.title" :sub="head.sub" :width="560" floating ruled @close="emit('close')">
     <LoadFail v-if="!ready" what="số đang áp dụng" @retry="retry" />
     <div v-else class="sec">
       <template v-if="sd">
@@ -113,7 +113,13 @@ function cancel() {
         </div>
         <div class="fld">
           <label>Lý do <small>(không bắt buộc)</small></label>
-          <TextBox v-model="sd.reason.value" area :maxlength="REASON_MAX" label="Lý do" />
+          <TextBox
+            v-model="sd.reason.value"
+            area
+            :maxlength="REASON_MAX"
+            placeholder="Ví dụ: theo quy chế lương mới"
+            label="Lý do"
+          />
           <small class="count">{{ sd.reason.value.length }}/{{ REASON_MAX }}</small>
         </div>
       </template>
@@ -122,18 +128,18 @@ function cancel() {
         <p class="txt">{{ view.text }}</p>
       </template>
 
-      <section v-for="s in view.readonly" :key="s.title" class="ro">
+      <section v-for="(s, si) in view.readonly" :key="s.title" class="ro">
         <div class="dg">
           <b>{{ s.title }}</b>
+          <RouterLink v-if="view.link && si === view.readonly.length - 1" :to="PATHS.chucVu" class="link lk">
+            Sửa ở Chức vụ &amp; bậc
+          </RouterLink>
         </div>
-        <div v-for="r in s.rows" :key="r.label" class="dr">
+        <div v-for="r in s.rows" :key="r.label" class="dr ro-r">
           <span class="l">{{ r.label }}</span>
           <span class="v">{{ r.value }}</span>
         </div>
       </section>
-      <p v-if="view.link" class="lk">
-        <RouterLink :to="PATHS.chucVu" class="link">Sửa ở Chức vụ &amp; bậc</RouterLink>
-      </p>
       <div style="height: 16px"></div>
     </div>
 
@@ -172,38 +178,58 @@ function cancel() {
 
 <style scoped>
 .sec {
-  padding: 4px 28px 0;
+  padding: 4px 24px 0;
 }
 .dg {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 18px 0 8px;
-  border-top: 1px solid var(--rule);
-  margin-top: 6px;
-}
-.sec > .dg:first-child,
-.sec > .ro:first-child > .dg {
-  border-top: 0;
-  margin-top: 0;
+  padding: 20px 0 4px;
 }
 .dg b {
   font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
 }
 .dr {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 4px 10px;
+  grid-template-columns: minmax(0, 1fr) 160px;
+  gap: 4px 16px;
   align-items: center;
-  min-height: 44px;
+  min-height: 60px;
+  border-bottom: 1px solid var(--border);
   font-size: 14px;
+}
+.dr .l {
+  font-weight: 500;
 }
 .dr .l small {
   display: block;
+  margin-top: 2px;
+  font-weight: 400;
   color: var(--muted);
   font-size: 12px;
   line-height: 16px;
+}
+.dg {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dg .lk {
+  font-size: 12px;
+}
+.rg {
+  padding: 12px 0 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--muted);
+}
+.dr.ro-r {
+  min-height: 36px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.dr.ro-r .l {
+  font-weight: 400;
+  color: var(--muted);
 }
 .dr .v {
   font-variant-numeric: tabular-nums;
@@ -211,26 +237,57 @@ function cancel() {
 }
 .dr .err {
   grid-column: 1 / -1;
+  padding-bottom: 6px;
   color: var(--status-rejected);
   font-size: 12px;
   line-height: 16px;
 }
+/* Ô số theo board: rộng 160px, cao 40px, dấu ×/tiền tố bên trái, số căn phải. */
 .dr :deep(.fi) {
-  height: 34px;
-  justify-content: flex-end;
+  box-sizing: border-box;
+  width: 160px;
+  height: 40px;
+  padding: 0 12px;
+  gap: 6px;
+  border-radius: 8px;
+}
+.dr :deep(.fi > input) {
+  width: 100% !important;
+}
+.dr :deep(.fi > span),
+.dr :deep(.fi > i) {
+  color: var(--muted);
+  font-style: normal;
+}
+.fld {
+  margin-top: 0;
+  padding-top: 24px;
+}
+.fld :deep(label) {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.fld :deep(label small) {
+  font-size: inherit;
 }
 .fld small.hint,
 .fld small.count {
   display: block;
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 12px;
+  line-height: 16px;
   color: var(--muted);
 }
 .fld small.count {
+  margin-top: 6px;
   text-align: right;
 }
 .sec :deep(.inp) {
   border-radius: 8px;
+}
+.sec :deep(.inp.area) {
+  min-height: 88px;
 }
 .txt {
   margin: 14px 0 0;

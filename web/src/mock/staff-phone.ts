@@ -60,7 +60,7 @@ export type HomeView = {
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
   // Ngày Admin đã nhắc giải trình mà chưa gửi, mới nhất trước (spec staff-requests 3.6): một dòng mỗi ngày ở đầu J1 / cột Hôm nay.
   reminders: { date: string; text: string }[]; // [{ date: '2026-10-24', text: 'Admin nhắc giải trình 24/10' }]
-  income: { label: string; net: string; payDate: string | null }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183', '2026-11-10'
+  income: { label: string; net: string; payDate: string | null }; // 'Thu nhập tháng 10 · tạm tính', '14.278.183', '2026-11-10'
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
 
@@ -106,7 +106,7 @@ export type IncomeView = MonthNav & {
     scores: { value: string; label: string }[];
   };
   lines: { icon: PhoneIconName; label: string; value: string; zero: boolean }[];
-  total: string; // '15.538.183 ₫'
+  total: string; // '14.278.183 ₫'
   payDate: string | null; // ngày trả lương của tháng đang xem '2026-11-10'; null khi máy chủ chưa gửi
 };
 
@@ -279,8 +279,8 @@ function claimOf(date: string): DayDetail['claim'] {
 }
 
 // ---------- Thu nhập tháng 10 (spec 2.3; hằng số của board, R8) ----------
-// Tạm tính không trừ bảo hiểm và thuế (luật 05/11/2026): thực nhận = tổng thu nhập − tạm ứng (0).
-const NET = '15.538.183';
+// Board J6 / K1: tổng thu nhập 15.538.183, khấu trừ (bảo hiểm 1.260.000, thuế 0), thực nhận dự kiến 14.278.183.
+const NET = '14.278.183';
 
 // ---------- Hàm dựng cho từng màn ----------
 export function homeView(): HomeView {
@@ -412,7 +412,7 @@ export function incomeView(): IncomeView {
     payDate: payDateOf(MOCK_MONTH),
     review: 'Admin đang duyệt phiếu',
     gross: '15.538.183',
-    deduction: '0',
+    deduction: '1.260.000',
     kpi: {
       title: `KPI tháng ${MONTH_NO}`,
       parts: '5 phần',
@@ -432,7 +432,9 @@ export function incomeView(): IncomeView {
       { icon: 'cal', label: 'Lương ngày công', value: '11.076.923', zero: false },
       { icon: 'leave', label: 'Nghỉ phép, iSAT', value: '923.076', zero: false },
       { icon: 'gift', label: 'Phụ cấp', value: '2.215.384', zero: false },
-      { icon: 'target', label: 'Lương KPI', value: '1.322.800', zero: false }
+      { icon: 'target', label: 'Lương KPI', value: '1.322.800', zero: false },
+      { icon: 'shield', label: 'Bảo hiểm bắt buộc', value: '−1.260.000', zero: false },
+      { icon: 'coin', label: 'Thuế TNCN', value: '0', zero: true }
     ],
     total: `${NET} ₫`
   };

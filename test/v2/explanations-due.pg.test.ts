@@ -94,8 +94,8 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
     requests.now = () => NOW;
     explanations.now = () => NOW;
 
-    const LATE_DAY = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false } };
-    const MISSING_OUT_DAY = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true } };
+    const LATE_DAY = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, checkIn: '08:40', checkOut: '17:05' };
+    const MISSING_OUT_DAY = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, checkIn: '08:00', checkOut: null };
 
     await t.test('dueDays finds LATE_CHECK_IN and MISSING_CHECK_OUT from TIMESTAMPTZ punches, newest first', async () => {
       assert.deepEqual(await explanations.dueDays('nv1'), [

@@ -30,7 +30,8 @@ test.beforeEach(async ({ page }) => {
     const url = new URL(req.url());
     if (url.pathname.startsWith('/api')) calls.push(`${req.method()} ${url.pathname}`);
   });
-  await page.setViewportSize({ width: 1440, height: 900 });
+  // 1392px: vùng nội dung 1072px như lúc căn lưới (thanh bên 248 + lề 16 + khoảng 24 + lề phải 16 sau khi khung Admin theo board).
+  await page.setViewportSize({ width: 1392, height: 900 });
 });
 
 test('attendance week shows tiles, the current week and today without calling /api', async ({ page }) => {

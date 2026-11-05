@@ -57,7 +57,7 @@ test('October payroll shows the board figures', async ({ page }) => {
   await expect(table(page).locator('tfoot')).toContainText('Tổng 10 phiếu đang hiện');
   await expect(table(page).locator('tfoot')).toContainText('171.959.432');
   await expect(page.getByText('Thiếu điểm KPI, cột thiếu tính 0 điểm')).toBeVisible();
-  await expect(page.getByText('Hiển thị 10 trong 128 phiếu')).toBeVisible();
+  await expect(page.getByText('Hiển thị 1–10 trong 128 phiếu')).toBeVisible();
   expect(calls).toEqual([]);
 });
 
@@ -68,7 +68,7 @@ test('status filter, department and accent-free search', async ({ page }) => {
   await expect(rows(page)).toHaveCount(4);
   for (const [i, name] of ['Lê Hoàng Nam', 'Phạm Ngọc Anh', 'Trịnh Văn Long', 'Ngô Gia Bảo'].entries())
     await expect(rows(page).nth(i)).toContainText(name);
-  await expect(page.getByText('Hiển thị 4 trong 29 phiếu')).toBeVisible();
+  await expect(page.getByText('Hiển thị 1–4 trong 29 phiếu')).toBeVisible();
   await filters(page).getByRole('button', { name: /^Tất cả/ }).click();
   await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Sản xuất' });
   await expect(rows(page)).toHaveCount(4);
@@ -90,7 +90,7 @@ test('filters stack and search folds đ and spaces', async ({ page }) => {
   await expect(rows(page)).toHaveCount(2);
   await expect(rows(page).nth(0)).toContainText('Trịnh Văn Long');
   await expect(rows(page).nth(1)).toContainText('Ngô Gia Bảo');
-  await expect(page.getByText('Hiển thị 2 trong 29 phiếu')).toBeVisible();
+  await expect(page.getByText('Hiển thị 1–2 trong 29 phiếu')).toBeVisible();
   await filters(page).getByRole('button', { name: /^Tất cả/ }).click();
   await page.getByLabel('Phòng ban').selectOption({ label: 'Phòng ban: Tất cả' });
   await page.getByLabel('Tìm theo tên', { exact: true }).fill('  do mai ');
@@ -971,4 +971,43 @@ test('after a typed decimal point, selecting all and retyping replaces the value
   await page.keyboard.press('Home');
   await page.keyboard.type('1');
   await expect(self).toHaveValue('100');
+});
+
+// Phân trang phía máy khách: 10 phiếu một trang theo board; ?dong=3 hạ cỡ trang để thử trên 10 phiếu của mockup.
+test('the payroll board pages through the rows, 10 a page by default', async ({ page }) => {
+  await page.goto(URL10);
+  await expect(page.getByText('Hiển thị 1–10 trong 128 phiếu')).toBeVisible();
+  await expect(rows(page)).toHaveCount(10);
+  await expect(page.getByRole('button', { name: 'Trang trước' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
+});
+
+test('paging keeps the filters, resets to page 1 when they change, and totals the page on view', async ({ page }) => {
+  await page.goto(`${URL10}&dong=3`);
+  const next = page.getByRole('button', { name: 'Trang sau' });
+  const prev = page.getByRole('button', { name: 'Trang trước' });
+  await expect(rows(page)).toHaveCount(3);
+  await expect(page.getByText('Hiển thị 1–3 trong 128 phiếu')).toBeVisible();
+  await expect(prev).toBeDisabled();
+  await expect(table(page).locator('tfoot')).toContainText('Tổng 3 phiếu đang hiện');
+  await next.click();
+  await expect(page.getByText('Hiển thị 4–6 trong 128 phiếu')).toBeVisible();
+  await expect(rows(page).first()).toContainText('Phạm Ngọc Anh');
+  await expect(prev).toBeEnabled();
+  await next.click();
+  await next.click();
+  await expect(page.getByText('Hiển thị 10–10 trong 128 phiếu')).toBeVisible();
+  await expect(rows(page)).toHaveCount(1);
+  await expect(next).toBeDisabled();
+  await prev.click();
+  await expect(page.getByText('Hiển thị 7–9 trong 128 phiếu')).toBeVisible();
+  // Đổi bộ lọc: về trang 1, trang chạy trên kết quả đã lọc (4 phiếu Chờ duyệt: 3 + 1).
+  await filters(page).getByRole('button', { name: /^Chờ duyệt/ }).click();
+  await expect(page.getByText('Hiển thị 1–3 trong 29 phiếu')).toBeVisible();
+  await next.click();
+  await expect(page.getByText('Hiển thị 4–4 trong 29 phiếu')).toBeVisible();
+  await expect(next).toBeDisabled();
+  // Gõ tìm cũng về trang 1.
+  await page.getByLabel('Tìm theo tên', { exact: true }).fill('a');
+  await expect(prev).toBeDisabled();
 });

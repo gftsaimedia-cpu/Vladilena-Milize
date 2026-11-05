@@ -7,7 +7,7 @@
 // hai; các trường hợp còn lại chỉ cần lý do. Đổi ngày thì xoá giờ đã nhập.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
 import { computed, ref, useId, watch } from 'vue';
-import { caseText, dateLabel, startDates } from '@/builders/api/staff-requests';
+import { caseDetail, caseText, dateLabel, startDates } from '@/builders/api/staff-requests';
 import type { ExplanationDraft, PreviewResult, RequestContext } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import RequestSummary from './RequestSummary.vue';
@@ -24,6 +24,13 @@ const reason = ref('');
 
 const due = computed(() => props.ctx.explanationDays.find(d => d.date === workDate.value) ?? null);
 const needs = computed(() => due.value?.needs ?? { checkIn: false, checkOut: false });
+// Giờ Admin nhắc theo giờ VN (UTC+7): "Admin nhắc giải trình lúc 09:30 28/10" (board J17).
+const remind = computed(() => {
+  const at = due.value?.remindedAt;
+  if (!at) return '';
+  const vn = new Date(Date.parse(at) + 7 * 3600000).toISOString();
+  return `Admin nhắc giải trình lúc ${vn.slice(11, 16)} ${vn.slice(8, 10)}/${vn.slice(5, 7)}`;
+});
 const hint = computed(() =>
   needs.value.checkIn && needs.value.checkOut
     ? 'Ví dụ: quên chấm công cả ngày'
@@ -76,6 +83,8 @@ watch(draft, d => emit('draft', d), { immediate: true });
       <span :id="`${id}-th`" class="nr-lb">Trường hợp</span>
       <div class="nr-sum nr-case" role="group" :aria-labelledby="`${id}-th`" aria-live="polite">
         <b>{{ caseText(due.cases) }}</b>
+        <div class="mut">{{ caseDetail(due) }}</div>
+        <div v-if="remind" class="nr-remind"><span class="nr-dot" aria-hidden="true" />{{ remind }}</div>
       </div>
     </div>
     <div v-if="needs.checkIn" class="nr-fl">
@@ -94,3 +103,18 @@ watch(draft, d => emit('draft', d), { immediate: true });
     <textarea :id="`${id}-ly`" v-model="reason" class="nr-in" :placeholder="hint" />
   </div>
 </template>
+
+<style scoped>
+.nr-remind {
+  margin-top: 6px;
+}
+.nr-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50px;
+  background: var(--status-pending);
+  vertical-align: 1px;
+}
+</style>

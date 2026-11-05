@@ -69,6 +69,10 @@ function open(row: { kind: RequestKind; enabled: boolean }) {
 }
 
 const form = computed(() => (kind.value ? FORMS[kind.value] : null));
+// Dòng gợi ý dưới nút Gửi khoá do form đặt (hiện chỉ Nghỉ có làm bù); đổi form thì xoá.
+const formHint = ref('');
+const setHint = (t: string) => (formHint.value = t);
+watch(kind, () => (formHint.value = ''));
 
 async function onSend() {
   if (await flow.send()) {
@@ -123,12 +127,13 @@ watch(kind, async (now, before) => {
       </div>
       <template v-else-if="form">
         <div class="nr-form">
-          <component :is="form" :ctx="ctx" :ngay="ngay" :preview="shownPreview" @draft="flow.setDraft" />
+          <component :is="form" :ctx="ctx" :ngay="ngay" :preview="shownPreview" @draft="flow.setDraft" v-bind="kind === 'leave-with-makeup' ? { onHint: setHint } : {}" />
         </div>
         <button type="button" class="nr-send" :disabled="!canSend" :aria-busy="sending || undefined" @click="onSend">
           Gửi yêu cầu
         </button>
         <p v-if="sendError" class="nr-err" role="alert">{{ sendError }}</p>
+        <p v-if="formHint && !canSend" class="mut sm nr-hint">{{ formHint }}</p>
       </template>
     </template>
   </div>
@@ -444,8 +449,13 @@ textarea.nr-in {
   cursor: pointer;
 }
 .nr-send:disabled {
-  opacity: 0.4;
+  background: #e0e0e0;
+  color: var(--muted);
   cursor: default;
+}
+.nr-hint {
+  margin: -10px 0 0;
+  text-align: center;
 }
 .sd-drawer .nr-send {
   margin-top: auto; /* K3: nút Gửi nằm đáy ngăn kéo */

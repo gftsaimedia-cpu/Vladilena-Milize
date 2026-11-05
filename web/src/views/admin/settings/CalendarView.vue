@@ -273,46 +273,6 @@ const nextDay = (s?) => s.endTime < s.startTime;
     </section>
 
     <div class="row2">
-      <section class="card">
-        <div class="card-h">
-          <h2>Ca làm</h2>
-          <span v-if="shifts" class="cap">{{ shifts.length }} ca cố định</span>
-        </div>
-        <LoadFail v-if="shiftsError" what="ca làm" @retry="reloadShifts" />
-        <table v-else-if="shifts" class="tbl ca">
-          <colgroup>
-            <col />
-            <col style="width: 96px" />
-            <col style="width: 150px" />
-            <col style="width: 96px" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Tên ca</th>
-              <th>Giờ vào</th>
-              <th>Giờ ra</th>
-              <th>Loại</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in shifts" :key="s.code">
-              <td>{{ s.name }}</td>
-              <td>{{ s.startTime }}</td>
-              <td>
-                {{ s.endTime }}
-                <span v-if="nextDay(s)" class="ns">hôm sau</span>
-              </td>
-              <td>
-                <span class="tg">
-                  <i :style="{ background: DOT[s.kind] }"></i>
-                  {{ KIND_TEXT[s.kind] || s.kind }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
       <!-- Thẻ "Ngày trả lương". -->
       <div class="slots">
         <section class="card pd">
@@ -356,6 +316,46 @@ const nextDay = (s?) => s.endTime < s.startTime;
           </div>
         </section>
       </div>
+
+      <section class="card">
+        <div class="card-h">
+          <h2>Ca làm</h2>
+          <span v-if="shifts" class="cap">{{ shifts.length }} ca cố định</span>
+        </div>
+        <LoadFail v-if="shiftsError" what="ca làm" @retry="reloadShifts" />
+        <table v-else-if="shifts" class="tbl ca">
+          <colgroup>
+            <col />
+            <col style="width: 96px" />
+            <col style="width: 150px" />
+            <col style="width: 96px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Tên ca</th>
+              <th>Giờ vào</th>
+              <th>Giờ ra</th>
+              <th>Loại</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in shifts" :key="s.code">
+              <td>{{ s.name }}</td>
+              <td>{{ s.startTime }}</td>
+              <td>
+                {{ s.endTime }}
+                <span v-if="nextDay(s)" class="ns">hôm sau</span>
+              </td>
+              <td>
+                <span class="tg">
+                  <i :style="{ background: DOT[s.kind] }"></i>
+                  {{ KIND_TEXT[s.kind] || s.kind }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
 
     <section v-if="zoneReady" class="card zn">
@@ -367,7 +367,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
       </div>
       <div class="zn-body">
         <div class="map">
-          <svg width="100%" height="150" viewBox="0 0 316 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <svg width="100%" height="100%" viewBox="0 0 316 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
             <rect width="316" height="150" fill="#f1efe9" />
             <g stroke="#ffffff" stroke-width="9"><path d="M0 40H316M0 104H316M58 0V150M150 0V150M244 0V150" /></g>
             <g stroke="#ffffff" stroke-width="4"><path d="M0 72H316M104 0V150M198 0V150" /></g>
@@ -536,7 +536,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .row2 {
   display: grid;
-  grid-template-columns: 504px 364px;
+  grid-template-columns: 384px minmax(0, 1fr);
   gap: 24px;
   align-items: stretch;
 }
@@ -594,9 +594,9 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .pd-fld label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 .pd-fld label small,
 .pd-count {
@@ -622,28 +622,46 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .zn-body {
   display: grid;
-  grid-template-columns: 316px 1fr;
+  grid-template-columns: 376px minmax(0, 1fr);
   gap: 24px;
   padding: 0 24px 16px;
   align-items: start;
 }
 .map {
-  height: 150px;
+  height: 310px;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
 }
 .zn-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px 24px;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 12px;
+  align-items: start;
+  align-content: start;
+}
+.zn-fields > .zn-fld:first-child {
+  grid-column: 1 / -1;
+}
+.zn-fields > .zn-fld:first-child :deep(.fi) {
+  width: 160px;
+}
+.zn-fields :deep(.fi) {
+  box-sizing: border-box;
+  height: 40px;
+  border-radius: 8px;
+}
+.zn-fields > .zn-fld:not(:first-child) :deep(.fi) {
+  width: 100%;
+}
+.zn-fields :deep(.fi > input) {
+  width: 100% !important;
 }
 .zn-fld label {
   display: block;
-  font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 .zn-hint {
   display: block;
@@ -656,7 +674,8 @@ const nextDay = (s?) => s.endTime < s.startTime;
   color: var(--status-rejected);
 }
 .zn-here {
-  align-self: flex-end;
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 .zn .foot .btn {
   margin-left: auto;

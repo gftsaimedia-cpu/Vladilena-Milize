@@ -2,41 +2,46 @@
    .sub đổi thành nav.sub và .sel thành .sel:not(tr) để không đụng .sub, tr.sel của màn khác. */
 .set {
   display: grid;
-  grid-template-columns: 220px 892px;
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: var(--gap);
   align-items: start;
 }
 nav.sub {
-  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
 }
 nav.sub .g {
   font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
   color: var(--muted);
-  padding: 0 12px;
-  margin: 16px 0 6px;
+  padding: 16px 12px 4px;
+  margin: 0;
 }
 nav.sub .g:first-child {
-  margin-top: 0;
+  padding-top: 4px;
 }
 nav.sub .it {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 34px;
+  min-height: 40px;
   padding: 0 12px;
   border-radius: var(--r-ctl);
   font-size: 14px;
   white-space: nowrap;
 }
 nav.sub .it.on {
-  background: #ededed;
+  background: var(--gold-light);
   font-weight: 500;
 }
 nav.sub .it svg {
   color: var(--muted);
 }
 .ssearch {
-  width: 320px;
+  width: 360px;
 }
 .p-lock {
   background: #fff;

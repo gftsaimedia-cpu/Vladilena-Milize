@@ -27,6 +27,8 @@ export type ExplanationDay = {
   cases: ExplanationCase[];
   needs: ExplanationNeeds;
   remindedAt: string | null;
+  checkIn: string | null; // giờ vào/ra thực của ngày ('07:52'); null khi chưa có
+  checkOut: string | null;
 };
 export type ContextKind = { kind: RequestKind; enabled: boolean; reason?: string };
 export type ContextMonth = {

@@ -387,8 +387,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     net: vnd(p.netIncome),
     review: official ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
     gross: vnd(p.grossIncome),
-    // Tạm tính chỉ trừ tạm ứng; bảo hiểm và thuế chỉ có ở phiếu chính thức (luật 05/11/2026).
-    deduction: vnd((official ? (p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) : 0) + (p.advanceDeduction || 0)),
+    // BE tạm tính hiện trả bảo hiểm/thuế = 0 (luật 05/11/2026); khi BE trả số thì tính đủ như board.
+    deduction: vnd((p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) + (p.advanceDeduction || 0)),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
       parts: '5 phần',
@@ -406,7 +406,7 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
       ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),
-      ...(official
+      ...(official || p.insuranceDeduction || p.personalIncomeTax
         ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
         : []),
       ...ifAny('wallet', 'Tạm ứng', p.advanceDeduction || 0, true)

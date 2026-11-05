@@ -38,7 +38,7 @@ export const ADMIN_SIDEBAR_GROUPS = [
       ['luong', 'cash', 'Bảng lương', '/admin/bang-luong']
     ]
   ],
-  ['Đội ngũ', [['ho-so', 'file', 'Nhân sự', '/admin/nhan-su']]]
+  ['Đội ngũ', [['ho-so', 'team', 'Nhân sự', '/admin/nhan-su']]]
 ];
 
 // Đường dẫn dùng lại ở nhiều màn (liên kết chéo)

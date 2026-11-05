@@ -16,7 +16,7 @@ const MONTH = addMonth(vnMonth(), -2);
 const base = `/api/v2/system/periods/${MONTH}`;
 
 const strip = (page: Page) => page.locator('.period');
-const approveBtn = (page: Page) => strip(page).getByRole('button', { name: 'Phê duyệt kỳ lương' });
+const approveBtn = (page: Page) => page.getByRole('button', { name: 'Phê duyệt kỳ lương' });
 
 async function view(request: APIRequestContext) {
   const res = await request.get(base);
@@ -63,10 +63,10 @@ test('lock, calculate, approve slips, then approve the period (or see why it is 
   await expect(strip(page).getByRole('button', { name: 'Mở lại công' })).toBeVisible();
 
   // Tính lương cả kỳ: kỳ sang "calculated", nút Phê duyệt hiện nhưng còn khoá vì phiếu chưa duyệt.
-  await page.getByRole('button', { name: /^Tính( lại)? lương$/ }).click();
+  await page.getByRole('button', { name: /^Tính( lại| lương)$/ }).click();
   await expect(strip(page)).toContainText('Chờ phê duyệt');
   await expect(approveBtn(page)).toBeDisabled();
-  await expect(strip(page).locator('.why')).toContainText('phiếu chưa duyệt');
+  await expect(page.locator('.title .why')).toContainText('phiếu chưa duyệt');
   const blocked = await request.post(`${base}/approve`, { headers: json, data: {} });
   expect(blocked.status()).toBe(409);
   expect((await blocked.json()).code).toBe('PERIOD_BLOCKED');
@@ -84,7 +84,7 @@ test('lock, calculate, approve slips, then approve the period (or see why it is 
   if (!now.actions.approve.enabled) {
     // Còn vướng ngoài phiếu (người chưa có phiếu, đơn chờ duyệt): nút khoá và nói đúng lý do của máy chủ.
     await expect(approveBtn(page)).toBeDisabled();
-    await expect(strip(page).locator('.why')).toHaveText(now.actions.approve.reason);
+    await expect(page.locator('.title .why')).toHaveText(now.actions.approve.reason);
     return;
   }
   await approveBtn(page).click();

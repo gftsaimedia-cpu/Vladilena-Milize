@@ -114,14 +114,18 @@ const KIND_CLASS: Record<DayKind, string> = {
 }
 .sa-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
-  gap: 8px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   margin: 0;
-}
-.sa-stats > div {
-  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 12px;
+  overflow: hidden;
+}
+.sa-stats > div {
+  padding: 8px 12px 10px;
+}
+.sa-stats > div + div {
+  border-left: 1px solid var(--border);
 }
 .sa-stats dt {
   font-size: 12px;

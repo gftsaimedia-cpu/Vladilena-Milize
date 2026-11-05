@@ -87,17 +87,17 @@ test.describe('Làm thêm giờ', () => {
     expect(days).toContain('CN 01/11'); // không có ca: cả ngày 06–22
     expect(days).not.toContain('T2 02/11'); // đang nghỉ: không còn giờ
     expect(days).toContain('T3 03/11');
-    await expect(sheet.getByLabel('Từ')).toBeDisabled();
-    await expect(sheet.getByLabel('Đến')).toBeDisabled();
+    await expect(sheet.getByLabel('Giờ bắt đầu')).toBeDisabled();
+    await expect(sheet.getByLabel('Giờ kết thúc')).toBeDisabled();
 
     await day.selectOption({ label: 'T5 29/10' });
-    await expect(choices(sheet.getByLabel('Từ'))).toHaveText(['06:00', '18:00', '19:00', '20:00', '21:00']);
+    await expect(choices(sheet.getByLabel('Giờ bắt đầu'))).toHaveText(['06:00', '18:00', '19:00', '20:00', '21:00']);
     await expect(summaryBox(sheet)).toContainText('Đã đăng ký tháng 10: 9 / 40 giờ');
-    await sheet.getByLabel('Từ').selectOption({ label: '18:00' });
-    await expect(choices(sheet.getByLabel('Đến'))).toHaveText(['19:00', '20:00', '21:00', '22:00']);
-    await sheet.getByLabel('Từ').selectOption({ label: '06:00' });
-    await expect(choices(sheet.getByLabel('Đến'))).toHaveText(['07:00']);
-    await expect(sheet.getByLabel('Đến')).toHaveValue('07:00');
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '18:00' });
+    await expect(choices(sheet.getByLabel('Giờ kết thúc'))).toHaveText(['19:00', '20:00', '21:00', '22:00']);
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '06:00' });
+    await expect(choices(sheet.getByLabel('Giờ kết thúc'))).toHaveText(['07:00']);
+    await expect(sheet.getByLabel('Giờ kết thúc')).toHaveValue('07:00');
     await expect(sendButton(sheet)).toBeDisabled();
     expect(calls).toEqual([]);
   });
@@ -106,8 +106,8 @@ test.describe('Làm thêm giờ', () => {
     const calls = await openPhone(page, '/nv/yeu-cau');
     let sheet = await openKind(page, 'Làm thêm giờ');
     await sheet.getByLabel('Ngày').selectOption({ label: 'T5 29/10' });
-    await sheet.getByLabel('Từ').selectOption({ label: '18:00' });
-    await sheet.getByLabel('Đến').selectOption({ label: '20:00' });
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '18:00' });
+    await sheet.getByLabel('Giờ kết thúc').selectOption({ label: '20:00' });
     await expect(summaryBox(sheet)).toContainText('2 giờ làm thêm, sau ca 08–17');
     await expect(summaryBox(sheet)).toContainText('Đã đăng ký tháng 10: 9 / 40 giờ');
     await expect(sendButton(sheet)).toBeDisabled();
@@ -118,7 +118,7 @@ test.describe('Làm thêm giờ', () => {
 
     sheet = await openKind(page, 'Làm thêm giờ');
     await sheet.getByLabel('Ngày').selectOption({ label: 'T5 29/10' });
-    await expect(choices(sheet.getByLabel('Từ'))).toHaveText(['06:00', '20:00', '21:00']);
+    await expect(choices(sheet.getByLabel('Giờ bắt đầu'))).toHaveText(['06:00', '20:00', '21:00']);
     await expect(summaryBox(sheet)).toContainText('Đã đăng ký tháng 10: 11 / 40 giờ');
     expect(calls).toEqual([]);
   });
@@ -127,8 +127,8 @@ test.describe('Làm thêm giờ', () => {
     await openPhone(page, '/nv/yeu-cau?tao=ot');
     const sheet = sheetOf(page, 'Làm thêm giờ');
     await sheet.getByLabel('Ngày').selectOption({ label: 'T5 29/10' });
-    await sheet.getByLabel('Từ').selectOption({ label: '18:00' });
-    await sheet.getByLabel('Đến').selectOption({ label: '20:00' });
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '18:00' });
+    await sheet.getByLabel('Giờ kết thúc').selectOption({ label: '20:00' });
     await sheet.getByLabel('Lý do').fill('Chạy bảng lương cuối tháng');
     await expect(sendButton(sheet)).toBeEnabled();
     const ot = { otDate: '2026-10-29', startTime: '18:00', endTime: '20:00', reason: 'Máy khác' };
@@ -138,11 +138,11 @@ test.describe('Làm thêm giờ', () => {
     await expect(sentToast(page)).toHaveCount(0);
     // request-context đã tải lại: 18–20 đã bị máy khác lấy nên "Từ" về trống, ngày và lý do giữ nguyên.
     await expect(sheet.getByLabel('Ngày')).toHaveValue('2026-10-29');
-    await expect(sheet.getByLabel('Từ')).toHaveValue('');
-    await expect(choices(sheet.getByLabel('Từ'))).toHaveText(['06:00', '20:00', '21:00']);
+    await expect(sheet.getByLabel('Giờ bắt đầu')).toHaveValue('');
+    await expect(choices(sheet.getByLabel('Giờ bắt đầu'))).toHaveText(['06:00', '20:00', '21:00']);
     await expect(sheet.getByLabel('Lý do')).toHaveValue('Chạy bảng lương cuối tháng');
     await expect(sendErrorLine(sheet)).toHaveText('Giờ làm thêm 29/10 không chọn được');
-    await sheet.getByLabel('Từ').selectOption({ label: '20:00' });
+    await sheet.getByLabel('Giờ bắt đầu').selectOption({ label: '20:00' });
     await expect(sendErrorLine(sheet)).toHaveCount(0);
     await expect(sendButton(sheet)).toBeEnabled();
   });
@@ -189,11 +189,13 @@ test.describe('Nghỉ có làm bù', () => {
     await expect(sheet.getByText('Đã xếp 4 / 8 giờ')).toBeVisible();
     await expect(summaryBox(sheet)).toContainText('Còn thiếu 4 giờ bù');
     await expect(sendButton(sheet)).toBeDisabled();
+    await expect(sheet.getByText('Xếp đủ 8 giờ bù thì mới gửi được')).toBeVisible();
     await expect(sheet.getByRole('button', { name: 'Thêm khung bù' })).toBeEnabled();
 
     await sheet.getByLabel('Đến giờ, khung 1').selectOption({ label: '16:00' });
     await expect(sheet.getByText('Đã xếp 8 / 8 giờ')).toBeVisible();
     await expect(sendButton(sheet)).toBeEnabled();
+    await expect(sheet.getByText('Xếp đủ 8 giờ bù thì mới gửi được')).toHaveCount(0);
     await expect(sheet.getByRole('button', { name: 'Thêm khung bù' })).toBeDisabled();
     await sendButton(sheet).click();
     await expectSent(page, 'Nghỉ có làm bù 02/11');
@@ -301,6 +303,7 @@ test.describe('Giải trình', () => {
     await expect(day.locator('option:checked')).toHaveText('T7 24/10');
     await expect(choices(day)).toHaveText(['T7 24/10', 'T6 09/10']);
     await expect(sheet.getByText('Thiếu giờ ra', { exact: true })).toBeVisible();
+    await expect(sheet).toContainText('Giờ vào 07:52, không có giờ ra');
     await expect(sheet.getByLabel('Giờ ra thực tế')).toHaveAttribute('type', 'time');
     await expect(sheet.getByLabel('Giờ vào thực tế')).toHaveCount(0);
     await expect(sheet.locator('input[type="time"]')).toHaveCount(1);
@@ -309,6 +312,7 @@ test.describe('Giải trình', () => {
 
     await day.selectOption({ label: 'T6 09/10' });
     await expect(sheet.getByText('Vào muộn', { exact: true })).toBeVisible();
+    await expect(sheet).toContainText('Giờ vào 08:25, giờ ra');
     await expect(sheet.locator('input[type="time"]')).toHaveCount(0);
     await expect(sheet).toContainText('Trường hợp này không cần nhập giờ, chỉ cần lý do.');
     await expect(controls(sheet)).toHaveCount(2);
@@ -429,9 +433,9 @@ test.describe('desktop', () => {
     await expect(page.locator('.sd-drawer')).toHaveCount(1);
     await expect(page.locator('.ph-sheet')).toHaveCount(0);
     await form.getByLabel('Ngày').selectOption({ label: 'T5 29/10' });
-    await expect(choices(form.getByLabel('Từ'))).toHaveText(['06:00', '18:00', '19:00', '20:00', '21:00']);
-    await form.getByLabel('Từ').selectOption({ label: '18:00' });
-    await form.getByLabel('Đến').selectOption({ label: '20:00' });
+    await expect(choices(form.getByLabel('Giờ bắt đầu'))).toHaveText(['06:00', '18:00', '19:00', '20:00', '21:00']);
+    await form.getByLabel('Giờ bắt đầu').selectOption({ label: '18:00' });
+    await form.getByLabel('Giờ kết thúc').selectOption({ label: '20:00' });
     await form.getByLabel('Lý do').fill('Chạy bảng lương cuối tháng');
     await sendButton(form).click();
     await expect(sentToast(page)).toBeVisible();

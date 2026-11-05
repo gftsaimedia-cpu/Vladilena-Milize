@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   advanceLines,
+  caseDetail,
   caseText,
   contextFromApi,
   staffRequestsClient,
@@ -164,8 +165,8 @@ describe('Tạo yêu cầu: ngày chọn được', () => {
     const need = { checkIn: false, checkOut: true };
     const ctx = context({
       explanationDays: [
-        { date: '2026-10-24', cases: ['MISSING_CHECK_OUT'], needs: need, remindedAt: null },
-        { date: '2026-10-09', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: null }
+        { date: '2026-10-24', cases: ['MISSING_CHECK_OUT'], needs: need, remindedAt: null, checkIn: '07:52', checkOut: null },
+        { date: '2026-10-09', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: null, checkIn: '08:25', checkOut: '17:03' }
       ]
     });
     assert.deepEqual(startDates(ctx, 'explanation'), ['2026-10-24', '2026-10-09']);
@@ -354,6 +355,10 @@ describe('Tạo yêu cầu: chữ', () => {
   it('case text', () => {
     assert.equal(caseText(['MISSING_CHECK_IN', 'MISSING_CHECK_OUT']), 'Quên chấm công');
     assert.equal(caseText(['MISSING_CHECK_OUT']), 'Thiếu giờ ra');
+    assert.equal(caseDetail({ checkIn: '07:52', checkOut: null }), 'Giờ vào 07:52, không có giờ ra');
+    assert.equal(caseDetail({ checkIn: null, checkOut: '17:30' }), 'Giờ ra 17:30, không có giờ vào');
+    assert.equal(caseDetail({ checkIn: '08:25', checkOut: '17:03' }), 'Giờ vào 08:25, giờ ra 17:03');
+    assert.equal(caseDetail({ checkIn: null, checkOut: null }), 'Không có giờ vào, không có giờ ra');
     assert.equal(caseText(['LATE_CHECK_IN', 'MISSING_CHECK_OUT']), 'Vào muộn · Thiếu giờ ra');
   });
 

@@ -401,10 +401,9 @@ function onTabKey(event: KeyboardEvent) {
   display: inline-grid;
   place-items: center;
   border-radius: 50px;
-  border: 2px solid var(--status-pending);
-  background: var(--surface);
+  background: var(--status-pending);
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
   line-height: 16px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;

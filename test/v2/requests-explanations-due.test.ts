@@ -24,8 +24,8 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
     ctx.att.timesheets.push(timesheet('2026-11-03', '08:40', '17:05'), timesheet('2026-11-02', '08:00', null));
   });
 
-  const DUE_03 = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: null };
-  const DUE_02 = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null };
+  const DUE_03 = { date: '2026-11-03', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: null, checkIn: '08:40', checkOut: '17:05' };
+  const DUE_02 = { date: '2026-11-02', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null, checkIn: '08:00', checkOut: null };
   const dueDates = async () => (await ctx.explanations.dueDays('nv01')).map(d => d.date);
 
   it('due days come from punches, newest first', async () => {
@@ -77,7 +77,9 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
       date: '2026-10-01',
       cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'],
       needs: { checkIn: true, checkOut: true },
-      remindedAt: null
+      remindedAt: null,
+      checkIn: null,
+      checkOut: null
     });
     assert.equal(due.some(d => d.date === '2026-10-04'), false); // Chủ nhật
 
@@ -104,7 +106,9 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
       date: '2026-11-03',
       cases: ['FORGOT_CHECK_OUT'],
       needs: { checkIn: false, checkOut: false },
-      remindedAt: null
+      remindedAt: null,
+      checkIn: '08:00',
+      checkOut: '18:00'
     });
     const ot = await seed(ctx, otRequest('2026-11-03', '17:00', '18:00', 'PENDING'));
     assert.deepEqual(await dueDates(), ['2026-11-02']);

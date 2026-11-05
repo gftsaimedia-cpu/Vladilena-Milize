@@ -33,7 +33,7 @@ const props = defineProps<{
   ngay?: string | null;
   preview?: PreviewResult<'leave-with-makeup'> | null;
 }>();
-const emit = defineEmits<{ draft: [draft: MakeupDraft | null] }>();
+const emit = defineEmits<{ draft: [draft: MakeupDraft | null]; hint: [text: string] }>();
 
 const KIND = 'leave-with-makeup';
 const id = useId();
@@ -135,6 +135,12 @@ const draft = computed<MakeupDraft | null>(() =>
     : null
 );
 watch(draft, d => emit('draft', d), { immediate: true });
+// Dưới nút Gửi khoá (board J14): còn thiếu giờ bù thì nói cần xếp đủ bao nhiêu giờ.
+watch(
+  () => (ranged.value && counter.value.planned < counter.value.required ? `Xếp đủ ${counter.value.required / 60} giờ bù thì mới gửi được` : ''),
+  t => emit('hint', t),
+  { immediate: true }
+);
 </script>
 
 <template>

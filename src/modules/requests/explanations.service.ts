@@ -33,6 +33,9 @@ export interface DueDay {
   cases: ExplanationCase[];
   needs: ExplanationNeeds;
   remindedAt: string | null;
+  /** Giờ vào/ra thực của ngày ('HH:mm' giờ Việt Nam) theo bảng công; null khi ngày chưa có lần chấm đó. */
+  checkIn: string | null;
+  checkOut: string | null;
 }
 
 /** Một ngày cần giải trình của một nhân sự, cho chuông của Admin (spec 3.4). */
@@ -50,9 +53,23 @@ export type DayRefusal = { ok: false; message: string; locked?: { month: string;
 /** Kết quả xét một ngày: cần giải trình thì kèm trường hợp và giờ phải nhập, không thì câu báo vì sao (R-P4). */
 export type DueCheck = { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds } | DayRefusal;
 
+/** Giờ của một lần chấm theo giờ Việt Nam ('HH:mm'); không có thì null. */
+function vnTime(at: Date | string | null | undefined): string | null {
+  if (!at) return null;
+  const d = at instanceof Date ? at : new Date(at);
+  return Number.isNaN(d.getTime()) ? null : new Date(d.getTime() + 7 * 3600000).toISOString().slice(11, 16);
+}
+
 /** Như `DueCheck`; ngày cần giải trình kèm ca của ngày ('HH:MM') để người nộp xét giờ ra sau giờ vào (R-P5). */
 export type StaffDayCheck =
-  | { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds; shift: { startTime: string; endTime: string } }
+  | {
+      ok: true;
+      cases: ExplanationCase[];
+      needs: ExplanationNeeds;
+      shift: { startTime: string; endTime: string };
+      checkIn: string | null;
+      checkOut: string | null;
+    }
   | DayRefusal;
 
 /** Lỗi 409 `PERIOD_LOCKED` của một lần từ chối vì kỳ lương; lần từ chối khác thành lỗi nghiệp vụ thường. */
@@ -152,7 +169,14 @@ export class ExplanationsService {
       if (locked.has(monthOf(date))) continue;
       const check = this.judge(facts, date);
       if (check.ok) {
-        due.push({ date, cases: check.cases, needs: check.needs, remindedAt: reminders.get(date) ?? null });
+        due.push({
+          date,
+          cases: check.cases,
+          needs: check.needs,
+          remindedAt: reminders.get(date) ?? null,
+          checkIn: check.checkIn,
+          checkOut: check.checkOut
+        });
       }
     }
     return due;
@@ -297,7 +321,14 @@ export class ExplanationsService {
     if (cases.length === 0) {
       return refuse(`Ngày ${day} không có gì cần giải trình`);
     }
-    return { ok: true, cases, needs, shift: { startTime, endTime } };
+    return {
+      ok: true,
+      cases,
+      needs,
+      shift: { startTime, endTime },
+      checkIn: vnTime(sheet?.actualCheckIn),
+      checkOut: vnTime(sheet?.actualCheckOut)
+    };
   }
 
   /** Lịch quanh [from, to] (cần cấu hình loại nhân sự), bảng công của khoảng và các ngày đã có đơn giải trình. */

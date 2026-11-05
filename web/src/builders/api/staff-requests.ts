@@ -333,6 +333,15 @@ export function caseText(cases: ExplanationCase[]): string {
   return (both ? ['Quên chấm công', ...words] : words).join(' · ');
 }
 
+/** Dòng chi tiết dưới trường hợp (board J17): giờ chấm thực của ngày, vd. 'Giờ vào 07:52, không có giờ ra'. */
+export function caseDetail(day: { checkIn: string | null; checkOut: string | null }): string {
+  const { checkIn: i, checkOut: o } = day;
+  if (i && o) return `Giờ vào ${i}, giờ ra ${o}`;
+  if (i) return `Giờ vào ${i}, không có giờ ra`;
+  if (o) return `Giờ ra ${o}, không có giờ vào`;
+  return 'Không có giờ vào, không có giờ ra';
+}
+
 /** Hai dòng của form Tạm ứng: số tiền và cách tính. */
 export function advanceLines(advance: AdvanceInfo): [string, string] {
   return [

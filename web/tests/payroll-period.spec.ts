@@ -14,7 +14,8 @@ test('approve is locked while slips are unapproved, with the reason shown', asyn
   await page.goto(URL10);
   await expect(strip(page)).toContainText('Chờ phê duyệt');
   await expect(approveBtn(page)).toBeDisabled();
-  await expect(strip(page).locator('.why')).toContainText(/^Còn \d+ phiếu chưa duyệt$/);
+  // Nút Phê duyệt kỳ lương và lý do khoá nằm ở tiêu đề trang (theo board), không còn trong dải bước.
+  await expect(page.locator('.title .why')).toContainText(/^Còn \d+ phiếu chưa duyệt$/);
   await expect(page.getByRole('button', { name: 'Mở lại công' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Đã trả lương' })).toHaveCount(0);
 });
