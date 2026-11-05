@@ -47,7 +47,8 @@ const { data } = useLoad(getInbox, () => shell.version);
 const root = ref<HTMLElement | null>(null);
 const filter = ref<Filter>('all');
 const status = ref('');
-// Giữ nguyên bản dòng đang chọn: thẻ chi tiết còn đó cho tới khi xử lý xong, dù danh sách đã tải lại.
+// Giữ bản dòng đang chọn: thẻ chi tiết còn đó cho tới khi xử lý xong, dù danh sách đã tải lại và việc đã biến mất.
+// Việc còn trong danh sách mới (vd. vừa nhắc giải trình) thì thay bằng bản mới để thẻ hiện giờ nhắc.
 const selected = shallowRef<Row | null>(null);
 // Thứ tự hiện (theo mục lọc) lúc dòng đang chọn còn trong danh sách, để chọn dòng kế tiếp kể cả khi danh sách đã đổi.
 let order: Row[] = [];
@@ -103,7 +104,10 @@ const counts = computed<Record<Filter, number>>(() => ({
 const isUnread = (r: Row) => r.unread && !shell.seen[r.id];
 
 watch(flat, list => {
-  if (selected.value && list.some(r => r.id === selected.value!.id)) order = list;
+  const fresh = selected.value && list.find(r => r.id === selected.value!.id);
+  if (!fresh) return;
+  order = list;
+  selected.value = fresh;
 });
 
 const focusDetail = () => nextTick(() => root.value?.querySelector<HTMLElement>('.bdd')?.focus());
@@ -135,8 +139,10 @@ function markAllRead() {
   shell.markSeen(...[...itemRows.value, ...noteRows.value].filter(r => r.unread).map(r => r.id));
 }
 // Dòng đứng sau dòng vừa xử lý trong thứ tự hiện; không có thì dòng đầu; hết dòng thì về nút lọc đang chọn.
-function onDecided({ id, text }: { id: string; ok: boolean; text: string }) {
+// Việc vừa nhắc giải trình (`kept`) ở lại danh sách nên vẫn chọn nó; thẻ tự trả focus về nút "Nhắc lại".
+function onDecided({ id, text, kept }: { id: string; ok: boolean; text: string; kept: boolean }) {
   status.value = text;
+  if (kept) return;
   const at = order.findIndex(r => r.id === id);
   const rest = order.filter(r => r.id !== id);
   choose(rest[at] ?? rest[0] ?? null, rest);

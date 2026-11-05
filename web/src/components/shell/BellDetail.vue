@@ -1,10 +1,12 @@
 <script setup lang="ts">
 // Thẻ chi tiết của chuông (bảng thiết kế BellInbox): thẻ riêng bên trái ngăn kéo, nhãn nhóm và nút Đóng chi tiết ở đầu.
 // Một việc chờ (`item`) hoặc một tin hệ thống (`news`), đúng một trong hai.
-// - Quên chấm công: "Nhắc giải trình" và "Khai thay giờ ra/vào".
+// - Quên chấm công: một nút "Nhắc giải trình". Đã nhắc thì có dòng "Đã nhắc: HH:MM DD/MM" (giờ VN) và nút đổi thành
+//   "Nhắc lại"; việc ở lại cho tới khi nhân viên gửi giải trình.
 // - Đơn nghỉ, làm thêm, giải trình, tạm ứng: ô "Ghi chú cho nhân viên" (bắt buộc khi từ chối) và Từ chối / Duyệt.
 // - Tin hệ thống: chỉ đọc, một liên kết sang màn liên quan.
-// Tự gọi useShellStore().decide; xong thì emit('decided') để ngăn kéo báo câu kết quả và chọn việc kế tiếp.
+// Tự gọi useShellStore().decide; xong thì emit('decided') để ngăn kéo báo câu kết quả và chọn việc kế tiếp
+// (`kept`: việc vừa nhắc vẫn ở lại, ngăn kéo giữ nguyên lựa chọn).
 // emit('leave') khi bấm liên kết sang màn khác (liên kết tự đổi địa chỉ).
 import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -15,7 +17,11 @@ import { employeePath } from '@/views/admin/attendance/links';
 import { BELL_ICONS, CHEVRON_ICON, CLOSE_ICON } from './bell-icons';
 
 const props = defineProps<{ item?: InboxItem; news?: SystemNote; group: string }>();
-const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: []; leave: [] }>();
+const emit = defineEmits<{
+  decided: [result: { id: string; ok: boolean; text: string; kept: boolean }];
+  close: [];
+  leave: [];
+}>();
 
 const shell = useShellStore();
 const route = useRoute();
@@ -23,6 +29,7 @@ const busy = ref(false);
 const note = ref('');
 const noteError = ref(false);
 const noteBox = ref<HTMLTextAreaElement | null>(null);
+const remindBtn = ref<HTMLButtonElement | null>(null);
 
 const view = computed(() => {
   const item = props.item;
@@ -43,6 +50,13 @@ const link = computed(() => {
   return { label: news.link.label, to: { path: news.link.to, query: month() } };
 });
 const remind = computed(() => props.item?.action === 'remind');
+// Giờ nhắc gần nhất theo giờ VN (UTC+7), dạng "09:40 28/10".
+const remindedAt = computed(() => {
+  const at = props.item?.remindedAt;
+  if (!at) return '';
+  const vn = new Date(Date.parse(at) + 7 * 3600000).toISOString();
+  return `${vn.slice(11, 16)} ${vn.slice(8, 10)}/${vn.slice(5, 7)}`;
+});
 const decide = computed(() => !!props.item && props.item.action === 'decide');
 
 function onNote() {
@@ -59,16 +73,21 @@ async function act(verb: DecisionVerb) {
     return;
   }
   busy.value = true;
+  let kept = false;
   try {
     const hit = await shell.decide(item.id, verb, text || undefined);
+    kept = verb === 'remind' && hit !== null;
     emit('decided', {
       id: item.id,
       ok: hit !== null,
-      text: hit ? decisionText(verb, hit.name) : ALREADY_HANDLED
+      text: hit ? decisionText(verb, hit.name) : ALREADY_HANDLED,
+      kept
     });
   } finally {
     busy.value = false;
   }
+  // Nút nhắc bị khoá trong lúc gửi nên có thể mất focus; việc ở lại thì trả focus về nút (giờ là "Nhắc lại").
+  if (kept) nextTick(() => remindBtn.value?.focus());
 }
 </script>
 
@@ -142,11 +161,13 @@ async function act(verb: DecisionVerb) {
           v-html="CHEVRON_ICON"
         />
       </RouterLink>
-      <div v-if="remind" class="bdd-acts">
-        <button type="button" class="bdd-b2" :disabled="busy" @click="act('remind')">Nhắc giải trình</button>
-        <button type="button" class="bdd-b1" :disabled="busy" @click="act('declare')">
-          {{ item?.missing === 'in' ? 'Khai thay giờ vào' : 'Khai thay giờ ra' }}
-        </button>
+      <div v-if="remind" class="bdd-remind">
+        <p v-if="remindedAt" class="bdd-mt">Đã nhắc: {{ remindedAt }}</p>
+        <div class="bdd-acts">
+          <button ref="remindBtn" type="button" class="bdd-b1" :disabled="busy" @click="act('remind')">
+            {{ remindedAt ? 'Nhắc lại' : 'Nhắc giải trình' }}
+          </button>
+        </div>
       </div>
     </div>
     <div v-if="decide" class="bdd-note">
@@ -302,6 +323,11 @@ async function act(verb: DecisionVerb) {
   font-weight: 500;
   color: var(--text);
   text-decoration: underline;
+}
+.bdd-remind {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .bdd-acts {
   display: flex;

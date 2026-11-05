@@ -332,33 +332,84 @@ test('approving in the bell updates the bell, the overview and selects the next 
   );
 });
 
-test('forgotten punches offer a reminder and a stand-in entry, without a note', async ({ page }) => {
+test('a forgotten punch offers one primary Nhắc giải trình button, no Khai thay and no note', async ({ page }) => {
   await openBell(page);
-  const bell = bellOf(page);
   await rowOf(page, 'Trịnh Văn Long').click();
   const detail = detailOf(page);
   await expect(detail.locator('.bdd-grp')).toHaveText('Chấm công');
   await expect(fact(page, 'Giờ ra')).toHaveText('Chưa có');
   await expect(detail.getByRole('textbox')).toHaveCount(0);
   await expect(detail.getByRole('button', { name: 'Từ chối', exact: true })).toHaveCount(0);
-  const remind = detail.getByRole('button', { name: 'Nhắc giải trình' });
-  const declareOut = detail.getByRole('button', { name: 'Khai thay giờ ra' });
-  await expect(remind).toHaveCSS('background-color', 'rgb(255, 255, 255)');
-  await expect(declareOut).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(detail.getByRole('button', { name: /Khai thay/ })).toHaveCount(0);
+  await expect(detail.getByText(/Khai thay/)).toHaveCount(0);
+  // Chỉ nút Đóng chi tiết và nút nhắc.
+  await expect(detail.getByRole('button')).toHaveText(['', 'Nhắc giải trình']);
+  const remind = detail.getByRole('button', { name: 'Nhắc giải trình', exact: true });
+  await expect(remind).toHaveClass(/bdd-b1/);
+  await expect(remind).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+  await expect(detail.getByText(/^Đã nhắc/)).toHaveCount(0);
   await expect(detail.getByRole('link', { name: 'Mở hồ sơ chấm công' })).toHaveAttribute(
     'href',
     '/admin/cham-cong/nhan-vien/trinh-van-long'
   );
 
-  await remind.click();
-  await expect(liveOf(page)).toHaveText('Đã nhắc Trịnh Văn Long giải trình.');
-  await expect(bell).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
+  await rowOf(page, 'Lý Thanh Tâm').click();
   await expect(detail.getByRole('heading', { name: 'Lý Thanh Tâm' })).toBeVisible();
+  await expect(fact(page, 'Giờ vào')).toHaveText('Chưa có');
+  await expect(detail.getByRole('button', { name: /Khai thay/ })).toHaveCount(0);
+  await expect(detail.getByRole('button')).toHaveText(['', 'Nhắc giải trình']);
+});
 
-  await detail.getByRole('button', { name: 'Khai thay giờ vào' }).click();
-  await expect(liveOf(page)).toHaveText('Đã ghi nhận khai thay cho Lý Thanh Tâm.');
-  await expect(detail.getByRole('heading', { name: 'Nguyễn Thu Hà' })).toBeVisible();
-  await expect(drawerOf(page).getByRole('heading', { level: 3, name: /^Chấm công/ })).toHaveCount(0);
+test('Nhắc giải trình keeps the item, shows when it was sent and turns into Nhắc lại', async ({ page }) => {
+  const calls = trackApi(page);
+  await openBell(page);
+  const bell = bellOf(page);
+  await rowOf(page, 'Trịnh Văn Long').click();
+  const detail = detailOf(page);
+  await detail.getByRole('button', { name: 'Nhắc giải trình', exact: true }).click();
+
+  await expect(liveOf(page)).toHaveText('Đã nhắc Trịnh Văn Long giải trình.');
+  const sent = detail.getByText('Đã nhắc: 09:40 28/10', { exact: true });
+  await expect(sent).toBeVisible();
+  const again = detail.getByRole('button', { name: 'Nhắc lại', exact: true });
+  await expect(again).toBeVisible();
+  await expect(again).toHaveClass(/bdd-b1/);
+  await expect(again).toBeFocused();
+  await expect(detail.getByRole('button', { name: 'Nhắc giải trình', exact: true })).toHaveCount(0);
+  const line = (await sent.boundingBox())!;
+  const button = (await again.boundingBox())!;
+  expect(line.y + line.height).toBeLessThanOrEqual(button.y);
+
+  // Việc ở lại: vẫn đang chọn, vẫn trong nhóm Chấm công, số chuông và số "Cần duyệt" không đổi.
+  await expect(detail.getByRole('heading', { name: 'Trịnh Văn Long' })).toBeVisible();
+  await expect(rowOf(page, 'Trịnh Văn Long')).toHaveAttribute('aria-current', 'true');
+  await expect(bell).toHaveAccessibleName('Thông báo, 13 việc cần xử lý');
+  await expect(filtersOf(page).getByRole('button')).toHaveText([/^Tất cả\s*16$/, /^Cần duyệt\s*13$/, /^Hệ thống\s*3$/]);
+  await expect(drawerOf(page).getByRole('heading', { level: 3, name: /^Chấm công/ })).toHaveText(/^Chấm công\s*2$/);
+
+  // Nhắc lại: việc vẫn ở lại, câu báo vẫn là câu nhắc.
+  await again.click();
+  await expect(liveOf(page)).toHaveText('Đã nhắc Trịnh Văn Long giải trình.');
+  await expect(detail.getByRole('heading', { name: 'Trịnh Văn Long' })).toBeVisible();
+  await expect(detail.getByText('Đã nhắc: 09:40 28/10', { exact: true })).toBeVisible();
+  await expect(bell).toHaveAccessibleName('Thông báo, 13 việc cần xử lý');
+
+  // Lần nhắc gắn với từng việc: Lý Thanh Tâm chưa được nhắc.
+  await rowOf(page, 'Lý Thanh Tâm').click();
+  await expect(detail.getByRole('heading', { name: 'Lý Thanh Tâm' })).toBeVisible();
+  await expect(detail.getByRole('button', { name: 'Nhắc giải trình', exact: true })).toBeVisible();
+  await expect(detail.getByText(/^Đã nhắc/)).toHaveCount(0);
+
+  // Đóng rồi mở lại chuông: lần nhắc vẫn còn; thẻ Tổng quan vẫn đếm 11 yêu cầu chờ duyệt.
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(drawerOf(page)).toHaveCount(0);
+  await expect(kpiOf(page)).toHaveText('11');
+  await bell.click();
+  await rowOf(page, 'Trịnh Văn Long').click();
+  await expect(detailOf(page).getByText('Đã nhắc: 09:40 28/10', { exact: true })).toBeVisible();
+  await expect(detailOf(page).getByRole('button', { name: 'Nhắc lại', exact: true })).toBeVisible();
+  expect(calls).toEqual([]);
 });
 
 test('a system note opens its own detail with a link and no actions', async ({ page }) => {
