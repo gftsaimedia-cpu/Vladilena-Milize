@@ -303,9 +303,10 @@ describe('MeController', () => {
   });
 
   it('the month view uses my week: off days and standardDays from the settings', async () => {
-    const { ctl, set } = controller({ set: settingsFake({ workWeekOf: () => ({ weekdays: BINH, standardWorkdays: 22 }) }) });
+    // 13 khác số ngày T2–T6 của 10/2026 (22), nên chỉ lấy từ workWeekOf mới ra 13.
+    const { ctl, set } = controller({ set: settingsFake({ workWeekOf: () => ({ weekdays: BINH, standardWorkdays: 13 }) }) });
     const m = (await ctl.attendanceMonth(req(), '2026-10')) as any;
-    assert.equal(m.totals.standardDays, 22);
+    assert.equal(m.totals.standardDays, 13);
     assert.equal(m.days.find((d: any) => d.date === '2026-10-10').kind, 'off'); // thứ Bảy
     assert.equal(m.days.find((d: any) => d.date === '2026-10-09').kind, 'absent'); // thứ Sáu
     assert.deepEqual(set.calls.workWeekOf.slice(0, 2), ['u-nam', '2026-10']);
@@ -319,6 +320,13 @@ describe('MeController', () => {
     assert.equal(((await ctl.attendanceDay(req(), '2026-10-10')) as any).kind, 'off');
     assert.equal(((await ctl.attendanceDay(req(), '2026-10-09')) as any).kind, 'absent');
     assert.equal(set.calls.workWeekOf[1], '2026-10');
+  });
+
+  it('a day before 2000-01 is a 400 INVALID_DATE and never reaches the settings', async () => {
+    const { ctl, set } = controller({ att: fake({ getTimesheet: () => null }) });
+    await assert.rejects(ctl.attendanceDay(req(), '1999-12-31'), (e: any) => e.status === 400 && e.details?.code === 'INVALID_DATE');
+    assert.equal(set.calls.workWeekOf, undefined);
+    assert.equal(((await ctl.attendanceDay(req(), '2000-01-01')) as any).date, '2000-01-01');
   });
 
   it('a type without a work week falls back to Monday to Saturday instead of a 500', async () => {

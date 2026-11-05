@@ -206,6 +206,8 @@ export class MeController {
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
     if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+    // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
+    if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
     const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
     // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
