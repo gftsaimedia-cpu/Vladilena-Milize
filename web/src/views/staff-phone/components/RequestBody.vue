@@ -64,6 +64,9 @@ defineProps<{ request: RequestDetail }>();
 .rq-rail i.rej {
   background: var(--status-rejected);
 }
+.rq-rail i.cancel {
+  background: var(--muted);
+}
 .rq-rail b {
   flex: 1 1 auto;
   width: 2px;

@@ -129,7 +129,7 @@ const STATUS: Record<string, [RequestStatus, string]> = {
   PENDING: ['pend', 'Chờ duyệt'],
   APPROVED: ['done', 'Đã duyệt'],
   REJECTED: ['rej', 'Từ chối'],
-  CANCELLED: ['rej', 'Đã huỷ']
+  CANCELLED: ['cancel', 'Đã huỷ']
 };
 
 function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string; title: string; date: string } {
@@ -277,7 +277,8 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
     out: d.out,
     lateMin: d.lateMinutes,
     leave: kind === 'leave' ? { type: statusOf(d), span: 'Cả ngày' } : null,
-    claim: null
+    claim: null,
+    due: null // spec staff-requests 3.6: /me/attendance/:date chưa nối `due` (để BE)
   };
 }
 
@@ -317,6 +318,7 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     workday: t.workday !== false,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
+    reminders: [], // spec staff-requests 3.6: /me/today chưa nối `reminders` (để BE)
     income: {
       label: `Thu nhập tháng ${Number(t.date.slice(5, 7))} · ${income?.state === 'official' ? 'chính thức' : 'tạm tính'}`,
       net: income?.payslip ? vnd(income.payslip.netIncome) : NONE,
