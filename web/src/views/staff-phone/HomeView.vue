@@ -1,22 +1,40 @@
 <script setup lang="ts">
 // J1 · Hôm nay (spec 4): lời chào, thẻ ca hôm nay có vòng cung và nút Check-out, thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
 // Dữ liệu từ services/staff-phone; bấm Check-in hay Check-out (trong ShiftCard) thay cả dữ liệu màn bằng kết quả trả về (R7).
+// Tải lỗi thì hiện LoadError với nút Thử lại.
 import { ref } from 'vue';
+import { useLoad } from '@/composables/useLoad';
 import type { HomeView } from '@/mock/staff-phone';
 import { getHome } from '@/services/staff-phone';
+import LoadError from './components/LoadError.vue';
+import LoadingLine from './components/LoadingLine.vue';
 import PhIcon from './components/PhIcon.vue';
 import RequestRow from './components/RequestRow.vue';
 import ShiftCard from './components/ShiftCard.vue';
 import WeekCard from './components/WeekCard.vue';
+import { focusAfterLoad } from './focusAfterLoad';
 
-const data = ref<HomeView | null>(null);
-getHome().then(v => (data.value = v));
+const root = ref<HTMLElement | null>(null);
+const { data, loading, error, reload } = useLoad(() => getHome());
+function retry() {
+  reload();
+  focusAfterLoad(root, loading);
+}
+// Lượt chấm đã ghi mà tải lại lỗi (v = null): bỏ thẻ ca cũ (còn nút Check-out) rồi tải lại cả màn.
+function onPunch(v: HomeView | null) {
+  if (v) data.value = v;
+  else {
+    data.value = null;
+    retry();
+  }
+}
 </script>
 
 <template>
-  <div class="ph home">
-    <template v-if="data">
-      <header class="hello">
+  <div ref="root" class="ph home">
+    <LoadError v-if="error" :error="error" @retry="retry" />
+    <template v-else-if="data">
+      <header class="hello" data-load-focus>
         <span class="avatar" aria-hidden="true">{{ data.initials }}</span>
         <div class="who-col">
           <div class="mut">{{ data.greeting }}</div>
@@ -25,7 +43,7 @@ getHome().then(v => (data.value = v));
         <span class="mut sm date">{{ data.weekday }}<br />{{ data.date }}</span>
       </header>
 
-      <ShiftCard :home="data" @checked-in="v => (data = v)" @checked-out="v => (data = v)" />
+      <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />
 
       <WeekCard :week="data.week" :alert="data.alert" />
 
@@ -47,6 +65,7 @@ getHome().then(v => (data.value = v));
         </div>
       </section>
     </template>
+    <LoadingLine v-else />
   </div>
 </template>
 

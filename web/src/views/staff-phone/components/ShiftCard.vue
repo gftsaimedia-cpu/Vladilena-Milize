@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // Thẻ ca hôm nay (J1 mục 4.2, K1 cột 1): vòng cung giờ làm, nút Check-in / Check-out (R7). Dùng ở HomeView (điện thoại) và TodayColumn (máy tính).
 // Tự gọi checkIn() / checkOut(), phát kết quả cho màn cha thay dữ liệu. Check-out xong đưa focus về chính thẻ (nút biến mất).
-// Check-in chỉ hiện với máy chủ thật (dữ liệu giả luôn đã vào ca); lỗi (ngoài vùng…) hiện thành thông báo.
-//   <ShiftCard :home="data" @checked-in="v => (data = v)" @checked-out="v => (data = v)" />
+// Check-in chỉ hiện với máy chủ thật (dữ liệu giả luôn đã vào ca). Check-in hay Check-out bị từ chối (ngoài vùng, ngày đã khoá,
+// ngày nghỉ, mất mạng…) hiện câu lỗi thành thông báo. Lượt chấm đã ghi mà tải lại màn lỗi thì báo "Đã check-in" / "Đã check-out"
+// và phát null: màn cha tự tải lại. Dòng vị trí chỉ có khi máy chủ gửi kết quả vị trí (home.location).
+//   <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />   (onPunch(v): v ? data = v : tải lại)
 import { computed, nextTick, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import type { HomeView } from '@/mock/staff-phone';
@@ -10,7 +12,7 @@ import { checkIn, checkOut } from '@/services/staff-phone';
 import PhIcon from './PhIcon.vue';
 
 const props = defineProps<{ home: HomeView }>();
-const emit = defineEmits<{ checkedIn: [view: HomeView]; checkedOut: [view: HomeView] }>();
+const emit = defineEmits<{ checkedIn: [view: HomeView | null]; checkedOut: [view: HomeView | null] }>();
 
 const busy = ref(false);
 const hero = ref<HTMLElement | null>(null);
@@ -32,7 +34,9 @@ async function doCheckIn() {
   if (busy.value) return;
   busy.value = true;
   try {
-    emit('checkedIn', await checkIn());
+    const view = await checkIn();
+    if (!view) toast.ok('Đã check-in');
+    emit('checkedIn', view);
   } catch (e) {
     toast.error(e.message);
   } finally {
@@ -44,10 +48,14 @@ async function doCheckOut() {
   if (busy.value) return;
   busy.value = true;
   try {
-    emit('checkedOut', await checkOut());
+    const view = await checkOut();
+    if (!view) toast.ok('Đã check-out');
+    emit('checkedOut', view);
     // Nút Check-out biến mất (R7): đưa focus về thẻ ca để bàn phím và trình đọc màn hình không rơi xuống <body>.
     await nextTick();
     hero.value?.focus();
+  } catch (e) {
+    toast.error(e.message);
   } finally {
     busy.value = false;
   }
@@ -88,13 +96,13 @@ async function doCheckOut() {
       <button type="button" class="cta" :aria-label="`Check-in lúc ${home.now}`" :disabled="busy" @click="doCheckIn">
         <PhIcon name="clock" :size="20" :stroke="2" />Check-in<small>· {{ home.now }}</small>
       </button>
-      <div class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
+      <div v-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
     <template v-else-if="!home.checkOut">
       <button type="button" class="cta" :aria-label="`Check-out lúc ${home.now}`" :disabled="busy" @click="doCheckOut">
         <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ home.now }}</small>
       </button>
-      <div class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
+      <div v-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
   </section>
 </template>

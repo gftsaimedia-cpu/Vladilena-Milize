@@ -35,7 +35,6 @@ const VN_MS = 7 * 3600000;
 const vnNow = () => new Date(Date.now() + VN_MS).toISOString();
 const today = () => vnNow().slice(0, 10);
 const nowTime = () => vnNow().slice(11, 16);
-const thisMonth = () => today().slice(0, 7);
 const shiftLineOf = (p: MeProfile) =>
   `${p.shift.type === 'NORMAL' ? 'HC' : p.shift.type} ${p.shift.startTime}–${p.shift.endTime}`;
 
@@ -44,17 +43,18 @@ export async function getHome(): Promise<HomeView> {
   const [t, profile, income, reqs] = await Promise.all([
     api.get('/me/today'),
     api.get('/me/profile'),
-    api.get(`/me/income${qs({ month: thisMonth() })}`).catch(() => null),
+    api.get('/me/income').catch(() => null),
     api.get('/me/requests')
   ]);
   return homeViewOf(t, profile, income, reqs.items || [], nowTime());
 }
 
-// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7).
-export async function getAttendance(recent = 5): Promise<AttendanceView> {
+// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7). month 'YYYY-MM'; không có thì không gửi, máy chủ lấy tháng hiện tại
+// theo giờ của nó (đồng hồ máy có thể lệch sang tháng sau). Dữ liệu giả chỉ có một tháng.
+export async function getAttendance(recent = 5, month?: string | null): Promise<AttendanceView> {
   if (__MOCK__) return respond(attendanceView(recent));
-  const [month, profile] = await Promise.all([api.get(`/me/attendance${qs({ month: thisMonth() })}`), api.get('/me/profile')]);
-  return attendanceViewOf(month, shiftLineOf(profile), today(), recent);
+  const [m, profile] = await Promise.all([api.get(`/me/attendance${qs({ month })}`), api.get('/me/profile')]);
+  return attendanceViewOf(m, shiftLineOf(profile), today(), recent);
 }
 
 // null khi ngày không có ca, chưa tới, hoặc chuỗi ngày sai
@@ -83,9 +83,10 @@ export async function getRequest(id: string): Promise<RequestDetail | null> {
   }
 }
 
-export async function getIncome(): Promise<IncomeView> {
+// month 'YYYY-MM'; không có thì máy chủ lấy tháng hiện tại (như getAttendance). Dữ liệu giả chỉ có một tháng.
+export async function getIncome(month?: string | null): Promise<IncomeView> {
   if (__MOCK__) return respond(incomeView());
-  return incomeViewOf(await api.get(`/me/income${qs({ month: thisMonth() })}`));
+  return incomeViewOf(await api.get(`/me/income${qs({ month })}`));
 }
 
 export async function getProfile(): Promise<ProfileView> {
@@ -106,19 +107,21 @@ function position(): Promise<{ lat?: number; lng?: number; accuracyM?: number }>
 }
 
 // Check-out rồi trả màn Hôm nay mới.
-export async function checkOut(): Promise<HomeView> {
+// Chấm vào / ra rồi tải lại màn Hôm nay. Máy chủ từ chối lượt chấm thì ném lỗi như cũ; lượt chấm đã ghi mà tải lại màn lỗi thì
+// trả null (không ném): ShiftCard báo đã chấm, màn cha tự tải lại.
+export async function checkOut(): Promise<HomeView | null> {
   if (__MOCK__) {
     checkOutNow();
     return respond(homeView());
   }
   await api.post('/me/punches', { kind: 'OUT', ...(await position()) });
-  return getHome();
+  return getHome().catch(() => null);
 }
 
 /** Check-in rồi trả màn Hôm nay mới (máy chủ thật). */
-export async function checkIn(): Promise<HomeView> {
+export async function checkIn(): Promise<HomeView | null> {
   await api.post('/me/punches', { kind: 'IN', ...(await position()) });
-  return getHome();
+  return getHome().catch(() => null);
 }
 
 export const changePassword = ({ current, next }: { current: string; next: string }): Promise<{ ok: true }> =>

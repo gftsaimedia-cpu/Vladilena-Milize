@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   attendanceViewOf,
+  dayDetailOf,
+  homeViewOf,
   incomeViewOf,
   profileViewOf,
   requestDetailOf,
@@ -91,6 +93,7 @@ describe('App nhân viên từ /me', () => {
     } as any);
     assert.equal(p.initials, 'HN');
     assert.equal(p.contract, 'Chính thức');
+    assert.ok(!('email' in p), 'BE không có email: màn Tôi không có dòng email');
     assert.deepEqual(Object.fromEntries(p.facts), {
       'Tên đăng nhập': 'nam', 'Chức danh': 'Nhân viên kinh doanh', 'Loại · bậc': 'NV · Bậc 2',
       'Ca làm': 'HC 08:00–17:00', 'Ngày vào làm': '04/03/2024', 'Phép năm còn lại': '11 ngày'
@@ -108,5 +111,60 @@ describe('App nhân viên từ /me', () => {
     assert.deepEqual(v.tiles[0], { value: '1', of: '25', label: 'Ngày công' });
     assert.equal(v.recent.length, 1);
     assert.equal(v.recent[0].times, '07:55 – 17:05');
+  });
+
+  // Tháng 11/2026: 01/11 là Chủ nhật; ngày 02, 03, 04 là ba loại nghỉ của bảng công.
+  const novDays = () =>
+    Array.from({ length: 30 }, (_, i) => {
+      const date = `2026-11-${String(i + 1).padStart(2, '0')}`;
+      const leave = ({ 1: 'paid', 2: 'unpaid', 3: 'holiday' } as Record<number, string>)[i];
+      return { date, kind: i === 0 ? 'off' : leave ? 'leave' : 'future', ...(leave ? { leave } : {}), in: null, out: null, lateMinutes: 0 };
+    });
+  const nov = (over: Record<string, unknown> = {}) =>
+    ({ month: '2026-11', periodState: 'open', range: { from: '2024-03', to: '2026-11' }, totals: { workDays: 0, standardDays: 25, lateCount: 0, paidLeaveDays: 2 }, days: novDays(), ...over }) as any;
+
+  it('names each kind of leave instead of calling every leave paid', () => {
+    const v = attendanceViewOf(nov(), 'HC 08:00–17:00', '2026-11-05');
+    const label = (date: string) => v.cells.find(c => c && c.date === date)!.label;
+    assert.equal(label('2026-11-02'), 'Thứ Hai 02/11: nghỉ có lương');
+    assert.equal(label('2026-11-03'), 'Thứ Ba 03/11: nghỉ không lương');
+    assert.equal(label('2026-11-04'), 'Thứ Tư 04/11: nghỉ lễ');
+    const unpaid = dayDetailOf({ ...novDays()[2], shift: null } as any, { start: '08:00', end: '17:00' }, '2026-11-05', '10:00')!;
+    assert.deepEqual([unpaid.statusText, unpaid.leave?.type], ['Nghỉ không lương', 'Nghỉ không lương']);
+    const holiday = dayDetailOf({ ...novDays()[3], shift: null } as any, { start: '08:00', end: '17:00' }, '2026-11-05', '10:00')!;
+    assert.deepEqual([holiday.statusText, holiday.leave?.type], ['Nghỉ lễ', 'Nghỉ lễ']);
+  });
+
+  it('shows whether the month is still open', () => {
+    assert.equal(attendanceViewOf(nov(), '', '2026-11-05').state, 'Kỳ công đang mở');
+    assert.equal(attendanceViewOf(nov({ periodState: 'locked' }), '', '2026-11-05').state, 'Kỳ công đã chốt');
+  });
+
+  it('offers only the months inside the range', () => {
+    const at = (month: string) => {
+      const v = attendanceViewOf(nov({ month }), '', '2026-11-05');
+      return [v.month, v.prev, v.next];
+    };
+    assert.deepEqual(at('2026-11'), ['2026-11', '2026-10', null]);
+    assert.deepEqual(at('2024-03'), ['2024-03', null, '2024-04']);
+    assert.deepEqual(at('2025-01'), ['2025-01', '2024-12', '2025-02']);
+    const one = attendanceViewOf(nov({ range: { from: '2026-11', to: '2026-11' } }), '', '2026-11-05');
+    assert.deepEqual([one.prev, one.next], [null, null]);
+
+    const income = incomeViewOf({ month: '2026-10', state: 'unavailable', payslip: null, range: { from: '2024-03', to: '2026-11' } } as any);
+    assert.deepEqual([income.month, income.prev, income.next], ['2026-10', '2026-09', '2026-11']);
+  });
+
+  it('today has no location line while the server sends no location', () => {
+    const week = Array.from({ length: 7 }, (_, i) => ({ date: `2026-11-0${i + 2}`, kind: 'future', in: null, out: null, lateMinutes: 0 }));
+    const h = homeViewOf(
+      { date: '2026-11-05', shift: null, punches: { in: '07:59', out: null }, workedMinutes: 0, week, alert: null } as any,
+      { name: 'Lê Hoàng Nam', shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00' } } as any,
+      null,
+      [],
+      '09:40'
+    );
+    assert.equal(h.location, null);
+    assert.equal(h.checkIn, '07:59');
   });
 });

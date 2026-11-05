@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { daySummaryOf, estimateIncomeOf, monthOf, stepsOf, vnToday, weekOf } from '../../src/modules/me/domain';
+import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from '../../src/modules/me/domain';
 
 const ts = (workDate: string, over: Record<string, unknown> = {}) => ({
   employeeId: 'u-nam', workDate, actualCheckIn: '07:55', actualCheckOut: '17:05', status: 'PRESENT',
@@ -35,6 +35,13 @@ describe('Một ngày công', () => {
     const d = daySummaryOf(ts('2026-11-03', { checkInStatus: 'LATE', actualCheckIn: '08:12', metrics: { lateMinutes: 12 } }) as any, '2026-11-03', T);
     assert.deepEqual(d, { date: '2026-11-03', kind: 'late', in: '08:12', out: '17:05', lateMinutes: 12 });
   });
+
+  it('names the kind of leave from the timesheet status', () => {
+    const off = (status: string) => daySummaryOf(ts('2026-11-03', { status, actualCheckIn: null, actualCheckOut: null }) as any, '2026-11-03', T);
+    assert.deepEqual(off('LEAVE_PAID'), { date: '2026-11-03', kind: 'leave', leave: 'paid', in: null, out: null, lateMinutes: 0 });
+    assert.equal(off('LEAVE_UNPAID').leave, 'unpaid');
+    assert.equal(off('HOLIDAY').leave, 'holiday');
+  });
 });
 
 describe('Công tháng', () => {
@@ -46,6 +53,39 @@ describe('Công tháng', () => {
     );
     assert.equal(m.days.length, 30);
     assert.deepEqual(m.totals, { workDays: 2, standardDays: 25, lateCount: 1, paidLeaveDays: 1 });
+  });
+
+  it('the period is open until a day of the month is locked', () => {
+    assert.equal(monthOf([ts('2026-10-01')] as any, '2026-10', '2026-11-05').periodState, 'open');
+    assert.equal(monthOf([ts('2026-10-01'), ts('2026-10-02', { isLocked: true })] as any, '2026-10', '2026-11-05').periodState, 'locked');
+  });
+
+  it('the period is locked once Admin closes the month (Chốt công)', () => {
+    const days = [ts('2026-10-01')] as any;
+    assert.equal(monthOf(days, '2026-10', '2026-11-05', 'open').periodState, 'open');
+    assert.equal(monthOf(days, '2026-10', '2026-11-05', null).periodState, 'open');
+    for (const status of ['attendance_locked', 'calculated', 'reviewed', 'approved', 'paid']) {
+      assert.equal(monthOf(days, '2026-10', '2026-11-05', status).periodState, 'locked', status);
+    }
+  });
+});
+
+describe('Khoảng tháng được xem', () => {
+  it('runs from the start month to this month', () => {
+    assert.deepEqual(monthRangeOf('2024-03-04', '2026-11-05'), { from: '2024-03', to: '2026-11' });
+  });
+
+  it('without a start date only this month', () => {
+    assert.deepEqual(monthRangeOf(null, '2026-11-05'), { from: '2026-11', to: '2026-11' });
+  });
+
+  it('a start date after today still gives this month', () => {
+    assert.deepEqual(monthRangeOf('2026-12-01', '2026-11-05'), { from: '2026-11', to: '2026-11' });
+  });
+
+  it('a start date with an impossible month counts as missing', () => {
+    assert.deepEqual(monthRangeOf('2024-13-01', '2026-11-05'), { from: '2026-11', to: '2026-11' });
+    assert.deepEqual(monthRangeOf('2024-00-10', '2026-11-05'), { from: '2026-11', to: '2026-11' });
   });
 });
 
