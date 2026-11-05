@@ -162,7 +162,7 @@ test('from the drawer opened by Xem tất cả, Mở hồ sơ chấm công still
   await page.goto('/admin/tong-quan?thang=2026-11');
   await page.getByRole('link', { name: 'Xem tất cả', exact: true }).click();
   const drawer = page.getByRole('dialog', { name: 'Thông báo' });
-  await drawer.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await drawer.getByRole('button', { name: /, Trịnh Văn Long · / }).click();
   await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long\?thang=2026-11$/);
   await expect(drawer).toHaveCount(0);

@@ -25,13 +25,20 @@ export type DecisionVerb = 'approve' | 'reject' | 'remind' | 'declare';
 const lastInbox = new Map<string, InboxItem>();
 
 // Xử lý một việc chờ; mọi nơi gọi qua useShellStore().decide. Trả việc vừa xử lý, hoặc null nếu việc đã được xử lý.
-// Dữ liệu giả: bỏ việc khỏi mock/inbox (bốn động từ như nhau). Máy chủ thật: duyệt / từ chối qua
-// PATCH /requests/:id/review; "nhắc" và "khai thay" chưa có API.
-export async function resolveRequest(id: string, verb: DecisionVerb = 'approve'): Promise<InboxItem | null> {
+// Dữ liệu giả: bỏ việc khỏi mock/inbox (bốn động từ như nhau), ghi chú không lưu. Máy chủ thật: duyệt / từ chối qua
+// PATCH /requests/:id/review, kèm `note` khi Admin có ghi chú cho nhân viên; "nhắc" và "khai thay" chưa có API.
+export async function resolveRequest(
+  id: string,
+  verb: DecisionVerb = 'approve',
+  note?: string
+): Promise<InboxItem | null> {
   if (__MOCK__) return respond(resolveInboxItem(id));
   if (verb !== 'approve' && verb !== 'reject') return notConnected();
+  const body: { action: 'APPROVE' | 'REJECT'; note?: string } = { action: verb === 'approve' ? 'APPROVE' : 'REJECT' };
+  const text = note?.trim();
+  if (text) body.note = text;
   try {
-    await api.patch(`/requests/${encodeURIComponent(id)}/review`, { action: verb === 'approve' ? 'APPROVE' : 'REJECT' });
+    await api.patch(`/requests/${encodeURIComponent(id)}/review`, body);
   } catch (e) {
     // 404 hoặc 400 "không còn chờ duyệt": người khác vừa xử lý
     if (e instanceof ApiError && (e.status === 404 || e.status === 400)) return null;

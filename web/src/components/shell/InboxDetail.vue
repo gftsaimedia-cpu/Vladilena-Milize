@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// Thẻ chi tiết một việc chờ xử lý (chuông, và sau này hồ sơ chấm công): người, đầu thẻ, các dòng nhãn – giá trị và nút xử lý.
+// Thẻ chi tiết một việc chờ xử lý trong hộp chi tiết ngày của màn Chấm công (chuông dùng BellDetail):
+// người, đầu thẻ, các dòng nhãn – giá trị và nút xử lý.
 // Tự gọi useShellStore().decide; xong thì emit('decided') để nơi chứa báo câu kết quả và chọn việc kế tiếp.
 import { ref } from 'vue';
 import { useRoute } from 'vue-router';
