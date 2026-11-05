@@ -378,7 +378,44 @@ export function otPayOf(hours: number, hourRate: number, multiplier: OtMultiplie
 
 ---
 
-## Xác minh (sau Task 5, chạy trong lượt)
+### Task 6: Số còn thiếu cho trang A4 mới (main 19bdf03)
+
+Ruling: thêm tiền OT theo từng hệ số, `dayRate` và thứ thật của từng dòng vào phiếu — trang A4 thiết kế lại (gộp vào main 19bdf03 sau khi spec được duyệt) cần ba số này; người dùng đã chốt Q10 "BE tính sẵn mọi số, FE chỉ trình bày"; không đổi luật lương nào — rủi ro nếu sai: thêm ba trường thừa trong `details`, không đổi số tiền nào.
+
+**Files:**
+- Modify: `src/modules/payroll/domain/overtime-pay.ts` (tiền OT một dòng theo từng hệ số)
+- Modify: `src/modules/payroll/domain/employee-payslip.ts` (props, class, `EmployeePayslipDTO`, `toJSON`)
+- Modify: `src/modules/payroll/payroll.service.ts` (`dayOfWeekText`, cộng tiền OT theo hệ số, truyền `dayRate`)
+- Modify: `docs/api/v2-contract.md`, `docs/fe-yeu-cau/in-phieu-luong-a4--noi-api-v2.md` (bỏ mục "Chưa quyết" về tiền OT; `dayRate` và thứ lấy từ BE)
+- Test: `test/v2/payroll-overtime.test.ts`, `test/v2/payroll.test.ts`, `test/v2/payroll-print.pg.test.ts`
+
+**Interfaces:**
+- Consumes: `OtShare`, `otPayOf`, `otLinePayOf` (Task 4).
+- Produces:
+  - `otLinePayByRate(shares: OtShare[], hourRate: number): { x15: number; x20: number; x30: number }`. Mỗi hệ số làm tròn một lần, như `otLinePayOf`. `otLinePayOf` = tổng ba số này.
+  - `EmployeePayslipProps.otPayByRate?: { x15?: number; x20?: number; x30?: number }`.
+  - `EmployeePayslipDTO` có thêm `ot15Pay`, `ot20Pay`, `ot30Pay: number` (cộng các dòng; tổng ba số = `otPayTotal`) và `dayRate: number` = `Math.round(baseSalaryPolicy / standardWorkdays)`.
+  - `dailyLines[].dayOfWeekText` = thứ của `date`: `'Thứ 2'` … `'Thứ 7'`, `'Chủ nhật'`, cho mọi loại dòng.
+
+- [ ] **Step 1: Viết test đỏ.**
+  - `payroll-overtime.test.ts`: `otLinePayByRate` của hai share ×1,5 (50 và 70 phút) cho `{ x15: 86_538, x20: 0, x30: 0 }`.
+  - `payroll.test.ts`, dùng `nvMonthData`:
+    - OT thứ Tư 07/10 ra 19:20 cùng OT thứ Bảy 10/10 → `ot15Pay 57_692`, `ot20Pay 115_385`, `ot30Pay 0`, tổng bằng `otPayTotal 173_077`;
+    - dòng đêm mang hai hệ số (test ở vòng sửa của Task 4) → `ot15Pay 85_817`, `ot20Pay 57_692`;
+    - `dayRate 230_769`;
+    - `dayOfWeekText`: `2026-10-01` → `'Thứ 5'`, `2026-10-03` → `'Thứ 7'`, `2026-10-04` → `'Chủ nhật'`; dòng LEAVE cũng ghi thứ thật.
+  - pg: ảnh chụp của phiếu có ngày lễ thứ Bảy 10/10 có `details.ot30Pay === 173_077`.
+- [ ] **Step 2: Chạy và thấy đỏ.** `npx tsx --test test/v2/payroll-overtime.test.ts test/v2/payroll.test.ts` → FAIL.
+- [ ] **Step 3: Viết mã.** Service cộng `otLinePayByRate` của từng dòng vào `otPayByRate`; `otPay` của dòng vẫn là tổng ba số. Thay chuỗi ghi cứng `'Thứ 2 - Thứ 6'` bằng thứ thật của `date`.
+- [ ] **Step 4: Chạy lại** `npx tsx --test test/v2/payroll*.test.ts` và test pg → PASS.
+- [ ] **Step 5: Tài liệu.**
+  - Hợp đồng API thêm bốn trường mới và cách ghi `dayOfWeekText`.
+  - File FE A4: ánh xạ ba dòng OT trang 2 sang `ot15Pay`/`ot20Pay`/`ot30Pay`, `dayRate` sang `dayRate`, thứ sang `dayOfWeekText`; bỏ mục "Chưa quyết" về tiền OT và cách lấy `dayRate` tạm.
+- [ ] **Step 6: Commit.** `feat(payroll): payslip carries OT pay per rate, day rate and real weekdays`
+
+---
+
+## Xác minh (sau Task 6, chạy trong lượt)
 
 - Task 0 (dựng một lần trước Task 1): `docker run -d --rm --name luong-test-pg-payslip-print -p 127.0.0.1:55463:5432 -e POSTGRES_HOST_AUTH_METHOD=trust postgres:16`
 - `PG_TEST_URL=postgres://postgres@127.0.0.1:55463/postgres npm test` → không test nào fail. Test pg của file mới chạy, không bị skip.
