@@ -13,7 +13,7 @@ export const ADMIN_CAPS = Object.freeze([
 ]);
 
 export const ADMIN_HOME = '/admin/tong-quan';
-export const STAFF_HOME = '/nhan-vien';
+export const STAFF_HOME = '/nv/hom-nay';
 export const LOGIN_PATH = '/dang-nhap';
 
 // Chữ cái đầu của hai từ cuối trong họ tên.

@@ -10,6 +10,7 @@ import './styles/base.css';
 import './styles/overlay.css';
 import './styles/settings.css';
 import './styles/phone.css';
+import './styles/staff-desktop.css';
 
 const pinia = createPinia();
 const app = createApp(App).use(pinia);

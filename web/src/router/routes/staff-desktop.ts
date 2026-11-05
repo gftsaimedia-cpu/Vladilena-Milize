@@ -1,11 +1,7 @@
-// Route của nhóm staff-desktop: nhân viên trên máy tính (/nv-may-tinh) và đăng nhập (/dang-nhap).
-// ?kb=linh|ca-dem|ctv|tts|quen-checkout|yeu-cau-cho  ?thang=YYYY-MM  ?hop=cach-tinh|chi-tiet-ngay|menu|ho-so
+// Route của nhóm staff-desktop: đăng nhập (/dang-nhap) và liên kết cũ /nv-may-tinh (chuyển về /nv/hom-nay;
+// trang máy tính nay là khung 'staff' của /nv/*, chọn theo bề ngang).
 export default [
-  {
-    path: '/nv-may-tinh',
-    component: () => import('@/views/staff-desktop/StaffHome.vue'),
-    meta: { layout: 'staffDesktop', title: 'Nhân viên' }
-  },
+  { path: '/nv-may-tinh', redirect: '/nv/hom-nay' },
   {
     path: '/dang-nhap',
     component: () => import('@/views/auth/LoginView.vue'),

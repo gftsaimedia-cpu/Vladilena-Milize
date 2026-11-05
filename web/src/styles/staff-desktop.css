@@ -1,0 +1,23 @@
+/* Trang nhân viên trên máy tính (/nv/* từ 1136px, board K1–K3b, spec staff-desktop-one-page 3, 8.2).
+   Luật riêng của máy tính đặt dưới .sd-app (trang) hoặc .sd-drawer (ngăn kéo). Lớp dùng chung nằm ở phone.css. Không đổ bóng. */
+.sd-app {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 16px;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lưới ba cột cao bằng nhau; bề rộng tối thiểu 300 + 400 + 300 + 2×24 + 2×16 + 2×16 = 1112px (D16). */
+.sd-app .sd-pg {
+  display: grid;
+  grid-template-columns: minmax(300px, 3fr) minmax(400px, 5fr) minmax(300px, 3fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 24px;
+  padding: 0 16px 24px;
+}

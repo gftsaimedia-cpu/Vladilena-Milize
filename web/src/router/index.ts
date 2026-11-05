@@ -1,6 +1,6 @@
 // Bảng route của v2. Mỗi nhóm màn có một file route riêng trong ./routes (mỗi người làm một file, không sửa file của nhóm khác).
 // Quy ước chung:
-//   meta.layout: 'admin' | 'phone' | 'staffDesktop' | 'blank'   meta.nav: mục sáng trên thanh bên Admin   meta.title: tiêu đề tab
+//   meta.layout: 'admin' | 'staff' | 'blank'   meta.nav: mục sáng trên thanh bên Admin   meta.title: tiêu đề tab
 //   ?thang=YYYY-MM  tháng của kỳ lương (thanh kỳ lương Admin đọc)
 //   ?kb=<tên>       kịch bản dữ liệu giả (một trạng thái của màn trong bộ thiết kế)
 //   ?hop=<tên>      mở sẵn một hộp thoại, ngăn kéo hay bảng trượt khi vào màn
@@ -14,8 +14,6 @@ import payslip from './routes/payslip';
 import staffDesktop from './routes/staff-desktop';
 import staffPhone from './routes/staff-phone';
 
-const PHONE_MAX = 767; // dưới bề rộng này là điện thoại
-
 const routes = [
   { path: '/', redirect: () => useSessionStore().home },
   {
@@ -24,10 +22,7 @@ const routes = [
     meta: { layout: 'blank', title: 'Mục lục thiết kế' }
   },
   { path: '/admin', redirect: '/admin/tong-quan' },
-  {
-    path: '/nhan-vien',
-    redirect: () => (window.innerWidth <= PHONE_MAX ? '/nv/hom-nay' : '/nv-may-tinh')
-  },
+  { path: '/nhan-vien', redirect: '/nv/hom-nay' },
   ...adminMain,
   ...adminAttendance,
   ...adminSettings,
@@ -59,11 +54,10 @@ router.beforeEach(async to => {
   if (OPEN_PATHS.includes(to.path) || !to.matched.length) return true;
   const layout = to.meta.layout;
   const isPrint = to.path.startsWith('/in/');
-  if (layout !== 'admin' && layout !== 'phone' && layout !== 'staffDesktop' && !isPrint) return true;
+  if (layout !== 'admin' && layout !== 'staff' && !isPrint) return true;
   if (!session.isLoggedIn) return { path: LOGIN_PATH, query: to.fullPath !== '/' ? { tiep: to.fullPath } : {} };
   if (layout === 'admin') return session.isAdminCapable ? true : session.home;
-  if (layout === 'phone' || layout === 'staffDesktop')
-    return session.isAdminCapable && !session.payrollSubject ? session.home : true;
+  if (layout === 'staff') return session.isAdminCapable && !session.payrollSubject ? session.home : true;
   return true;
 });
 
