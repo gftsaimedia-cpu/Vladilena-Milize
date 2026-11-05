@@ -71,7 +71,11 @@ export class EmployeeDays implements DayView {
     return workingDays(from, to, this.input.regularDows, this.holidaySet);
   }
 
-  /** Ca của ngày D theo §5.2; `startDate` luôn là D. */
+  /**
+   * Ca của ngày D theo §5.2; `startDate` luôn là D. Ca đổi chỉ áp khi ngày D đang là dòng `SHIFT_CHANGE` của đơn đó:
+   * ngày bị bỏ khỏi đơn (C2, C4), ngày đơn nghỉ/iSAT đã thay (T3) hay ngày đã trả về ca thường (T4) theo lịch hoặc ca
+   * mặc định, dù nằm trong khoảng của đơn đổi ca.
+   */
   shiftOf(date: string): ShiftSpan | null {
     if (this.isHoliday(date)) return null;
 
@@ -79,7 +83,7 @@ export class EmployeeDays implements DayView {
     if (working) {
       const override = this.overrides.get(date);
       if (override) return { startDate: date, ...override };
-      const change = this.active.find(r => r.type === 'SHIFT_CHANGE' && covers(r.changeStartDate, r.changeEndDate, date));
+      const change = this.shiftChangeOn(date);
       if (change && change.newStartTime && change.newEndTime) {
         return { startDate: date, startTime: change.newStartTime, endTime: change.newEndTime };
       }
@@ -92,6 +96,13 @@ export class EmployeeDays implements DayView {
     }
 
     return working ? { startDate: date, ...this.input.defaultShift } : null;
+  }
+
+  /** Đơn đổi ca (đang chờ hoặc đã duyệt) đang giữ ngày D trong `day_status`, hoặc null. */
+  private shiftChangeOn(date: string): SystemRequest | null {
+    const claim = this.claimOn(date);
+    if (claim?.status !== 'SHIFT_CHANGE') return null;
+    return this.active.find(r => r.id === claim.requestId && r.type === 'SHIFT_CHANGE') ?? null;
   }
 
   /** Ca của D−1, D và D+1 (bỏ ngày không có ca): ca đêm hôm trước có thể kéo sang sáng D. */

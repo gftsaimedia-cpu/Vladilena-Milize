@@ -34,6 +34,7 @@ const sqlOf = (log: ScriptedLogEntry[]): ScriptedQuery[] => log.filter((e): e is
 // ---- EmployeeDays (domain thuần) ----
 
 test('shiftOf: holiday, then shift change, then schedule, then default', () => {
+  const change = shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING');
   const days = new EmployeeDays({
     regularDows: [1, 2, 3, 4, 5, 6],
     holidays: ['2026-09-02'],
@@ -43,8 +44,19 @@ test('shiftOf: holiday, then shift change, then schedule, then default', () => {
       { date: '2026-11-13', startTime: '09:00', endTime: '18:00', onLeave: false },
       { date: '2026-11-17', startTime: '08:00', endTime: '17:00', onLeave: true }
     ],
-    activeRequests: [shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING')],
-    claims: []
+    activeRequests: [change],
+    // Ca đổi đọc từ dòng SHIFT_CHANGE của đơn trên ngày đó (Ruling F1).
+    claims: [
+      {
+        employeeId: NV_UUID,
+        date: '2026-11-12',
+        status: 'SHIFT_CHANGE',
+        requestId: change.id,
+        baseRequestId: null,
+        requestStatus: 'PENDING',
+        baseRequestStatus: null
+      }
+    ]
   });
   assert.equal(days.shiftOf('2026-09-02'), null);
   assert.deepEqual(days.shiftOf('2026-11-12'), { startDate: '2026-11-12', startTime: '10:00', endTime: '19:00' });
@@ -193,6 +205,33 @@ test('windowSourcesOn names the request and status behind each window, with the 
     days.windowsOn('2026-11-12').map(w => w.kind)
   );
   assert.deepEqual(days.windowSourcesOn('2026-11-14'), []);
+});
+
+test('shiftOf ignores an active shift change on a date that has no SHIFT_CHANGE claim', () => {
+  const night = shiftChange('2026-11-09', '2026-11-15', 'NIGHT', '22:00', '07:00', 'APPROVED');
+  const flex = shiftChange('2026-11-13', '2026-11-13', 'FLEX', '06:00', '15:00', 'PENDING');
+  const held = (date: string, requestId: string): DayClaim => ({ ...claim(date, 'SHIFT_CHANGE', 'APPROVED'), requestId });
+  const days = nvDays({
+    activeRequests: [night, flex],
+    claims: [
+      held('2026-11-09', night.id),
+      claim('2026-11-10', 'LEAVE'), // đơn nghỉ đã thay ngày này (T3)
+      // 11/11 không có dòng: ngày bị bỏ rồi được trả (T4)
+      held('2026-11-12', night.id),
+      held('2026-11-13', flex.id), // dòng của đơn đổi ca khác: ca theo đơn giữ dòng
+      claim('2026-11-14', 'ISAT', 'APPROVED'), // Thứ Bảy iSAT đã duyệt bị bỏ khỏi đơn (C2)
+      held('2026-11-15', night.id) // dòng trên CN: ngày không làm việc vẫn không có ca
+    ]
+  });
+  const regular = (date: string) => ({ startDate: date, startTime: '08:00', endTime: '17:00' });
+
+  assert.deepEqual(days.shiftOf('2026-11-09'), { startDate: '2026-11-09', startTime: '22:00', endTime: '07:00' });
+  assert.deepEqual(days.shiftOf('2026-11-10'), regular('2026-11-10'));
+  assert.deepEqual(days.shiftOf('2026-11-11'), regular('2026-11-11'));
+  assert.deepEqual(days.shiftOf('2026-11-12'), { startDate: '2026-11-12', startTime: '22:00', endTime: '07:00' });
+  assert.deepEqual(days.shiftOf('2026-11-13'), { startDate: '2026-11-13', startTime: '06:00', endTime: '15:00' });
+  assert.deepEqual(days.shiftOf('2026-11-14'), regular('2026-11-14'));
+  assert.equal(days.shiftOf('2026-11-15'), null);
 });
 
 test('withShiftOverride changes only the given days', () => {
