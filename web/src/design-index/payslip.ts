@@ -13,7 +13,7 @@ export default [
   {
     file: 'a4-t10-chinh-thuc.html',
     title: 'Bản in A4 · tháng 10 chính thức',
-    to: '/in/phieu-luong/2026-10/demo_a_broken'
+    to: '/in/phieu-luong/2026-10/GFT-0101'
   },
-  { file: 'a4-t11-tam-tinh.html', title: 'Bản in A4 · tháng 11', to: '/in/phieu-luong/2026-11/demo_a_broken' }
+  { file: 'a4-t10-ban-nhap.html', title: 'Bản in A4 · tháng 10 bản nháp', to: '/in/phieu-luong/2026-10/GFT-0123' }
 ];

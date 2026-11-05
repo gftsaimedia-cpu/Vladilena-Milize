@@ -1,4 +1,7 @@
 // Dựng một trang nhật ký từ phản hồi GET /audit: gom theo ngày giờ Việt Nam, mỗi dòng liệt kê trường đổi từ cũ sang mới.
+import { actionLabel, personLabel } from '@/builders/admin-config/audit-labels';
+import type { AuditItemDTO, auditFromResponse } from '@/builders/api/audit';
+
 const VN_OFFSET_MS = 7 * 3600000;
 const vnLocal = (iso?) => new Date(Date.parse(iso) + VN_OFFSET_MS).toISOString().slice(0, 16);
 
@@ -36,41 +39,67 @@ export function changesOf(row?) {
 const withEntity = (lines?, row?) =>
   row.entityId && lines.length ? [{ ...lines[0], code: String(row.entityId) }, ...lines.slice(1)] : lines;
 
-export function buildAuditPage(res, { page, size, pages, seen }: any) {
-  for (const row of res.rows) {
-    if (row.actor) seen.actors.set(row.actor, row.actor);
-    if (row.action) seen.actions.add(row.action);
-  }
-  const days: any[] = [];
-  for (const row of res.rows) {
-    const at = vnLocal(row.at);
-    const day = at.slice(0, 10);
-    if (!days.length || days[days.length - 1].day !== day) days.push({ day, rows: [] });
-    days[days.length - 1].rows.push({
-      id: String(row.id),
-      at,
-      time: at.slice(11, 16),
-      who: row.actor,
-      whoName: row.actor,
-      action: row.action,
-      changes: withEntity(changesOf(row), row),
-      reason: row.reason || '—',
-      count: 1
-    });
+export type AuditLine = {
+  id: string;
+  at: string;
+  time: string;
+  who: string;
+  whoName: string;
+  action: string;
+  changes: { text: string; code?: string }[];
+  reason: string;
+};
+export type AuditGroup = AuditLine & { count: number; rows: AuditLine[] };
+
+const lineOf = (row: AuditItemDTO): AuditLine => {
+  const at = vnLocal(row.at);
+  return {
+    id: String(row.id),
+    at,
+    time: at.slice(11, 16),
+    who: row.actor,
+    whoName: personLabel(row.actor, row.actorName),
+    action: actionLabel(row.action, row.after),
+    changes: withEntity(changesOf(row), row),
+    reason: row.reason || '—'
+  };
+};
+
+// Dòng liền nhau cùng người, cùng việc, cùng requestId (không rỗng) trong một ngày là một thao tác: gộp thành × N.
+// Mục gộp mang giờ và thay đổi của dòng mới nhất (dòng đầu); rows giữ từng dòng theo thứ tự mới → cũ.
+export function buildAuditPage(data: ReturnType<typeof auditFromResponse>, { page, size }: { page: number; size: number }) {
+  const days: { day: string; rows: AuditGroup[] }[] = [];
+  let prev: AuditItemDTO | null = null;
+  for (const row of data.rows) {
+    const line = lineOf(row);
+    const day = line.at.slice(0, 10);
+    if (!days.length || days[days.length - 1].day !== day) {
+      days.push({ day, rows: [] });
+      prev = null;
+    }
+    const groups = days[days.length - 1].rows;
+    const last = groups[groups.length - 1];
+    if (prev && last && row.requestId && prev.requestId === row.requestId && prev.actor === row.actor && prev.action === row.action) {
+      last.rows.push(line);
+      last.count += 1;
+    } else {
+      groups.push({ ...line, count: 1, rows: [line] });
+    }
+    prev = row;
   }
   const before = (page - 1) * size;
-  const total = res.total;
+  const total = data.total;
   return {
     total,
     page,
-    pages: Math.max(1, pages),
+    pages: Math.max(1, Math.ceil(total / size)),
     rangeLabel: !total
       ? 'Không có dòng nào'
       : page === 1
-        ? `${res.rows.length} dòng đầu trên ${total}`
-        : `Dòng ${before + 1}–${before + res.rows.length} trên ${total}`,
+        ? `${data.rows.length} dòng đầu trên ${total}`
+        : `Dòng ${before + 1}–${before + data.rows.length} trên ${total}`,
     days,
-    people: [...seen.actors.keys()].map(value => ({ value, label: seen.actors.get(value) })),
-    actions: [...seen.actions]
+    people: data.people,
+    actions: data.actions
   };
 }
