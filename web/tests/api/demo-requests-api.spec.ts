@@ -2,7 +2,8 @@
 // Chạy qua `npm run demo -- test requests` (spec docs/superpowers/specs/2026-11-05-demo-db-e2e-design.md, bảng tình huống
 // docs/demo-db/requests.md). Chỉ sửa dữ liệu của người 'dt-'. Ngày lấy theo hôm nay (giờ VN) và theo đơn đã seed, không viết cứng.
 // Mỗi test ghi gì thì tự dọn (huỷ đơn, xoá ngày lễ đã thêm), trừ khi việc ghi chính là điều được kiểm.
-// Lỗi đã biết: test.fail(true, 'BUG-requests-<n>: …'); chi tiết ở docs/demo-db/requests.md.
+// Lỗi đã biết: test.fail(true, 'BUG-requests-<n>: …'); chi tiết ở docs/demo-db/requests.md. Luật tự nộp, giải trình,
+// tạm ứng và nhắc giải trình theo docs/superpowers/specs/2026-11-05-staff-requests-design.md (vào main aaa14d9).
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { DayPicker } from '../../../scripts/demo/areas/requests';
 import { ADMIN, addMonths, apiAs, demoMonths, demoReadyFor, weekday } from './fixtures/demo';
@@ -15,6 +16,10 @@ const M = demoMonths();
 const NEXT = addMonths(M.m0, 1);
 const DAY_MS = 86_400_000;
 const shift = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * DAY_MS).toISOString().slice(0, 10);
+/** Ngày cuối của tháng sau: luật 05/11 cho nhân viên tự nộp tới ngày này. */
+const LAST_OF_NEXT = shift(`${addMonths(NEXT, 1)}-01`, -1);
+const dm = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}`;
+const monthNo = (ym: string) => Number(ym.slice(5, 7));
 
 type Req = {
   id: string;
@@ -29,6 +34,9 @@ type Req = {
   leaveEndDate: string | null;
   leaveDaysCount: number | null;
   explanationDate: string | null;
+  explanationCases?: string[];
+  actualCheckIn?: string | null;
+  actualCheckOut?: string | null;
   otDate: string | null;
   advanceAmount: number | string | null;
   changeStartDate: string | null;
@@ -542,30 +550,164 @@ test('interns cannot file OT or iSAT', async ({ request }) => {
   });
 });
 
-// ---------------------------------------------------------------- giải trình
+// ---------------------------------------------------------------- giải trình (main aaa14d9: máy chủ tìm trường hợp từ giờ chấm)
+
+/** Ngày làm việc gần nhất trước hôm nay (người 'dt-' vào làm từ đầu tháng m2 nên ngày này luôn sau ngày vào làm). */
+const lastWorkday = (picker: DayPicker) => {
+  let day = shift(M.today, -1);
+  while (!picker.isWorkday(day)) day = shift(day, -1);
+  return day;
+};
+const explanationBody = (employeeId: string | undefined, workDate: string, times = true) => ({
+  ...(employeeId ? { employeeId } : {}),
+  reason: 'Thử luật',
+  workDate,
+  cases: ['EARLY_CHECK_IN'], // máy chủ bỏ qua trường hợp client gửi
+  ...(times ? { actualCheckIn: '08:00', actualCheckOut: '17:00' } : {})
+});
+const hhmm = (t: string | null | undefined) => (t ? t.slice(0, 5) : null);
+
+test('the server finds the explanation cases of the seeded days from their punches', async ({ request }) => {
+  await as(request, ADMIN, async api => {
+    const items = await listOf(api, 'dt-dung');
+    // Ngày vào muộn (seed chấm hộ 09:00–17:00): chỉ Vào muộn, không lưu giờ thực tế.
+    const late = await getReq(api, one(items, 'EXPLANATION', 'APPROVED').id);
+    expect(late.explanationCases).toEqual(['LATE_CHECK_IN']);
+    expect([late.actualCheckIn ?? null, late.actualCheckOut ?? null]).toEqual([null, null]);
+    // Ngày không có giờ chấm: Quên chấm công, lưu giờ vào và giờ ra thực tế.
+    const forgot = await getReq(api, one(items, 'EXPLANATION', 'PENDING').id);
+    expect(forgot.explanationCases).toEqual(['MISSING_CHECK_IN', 'MISSING_CHECK_OUT']);
+    expect([hhmm(forgot.actualCheckIn), hhmm(forgot.actualCheckOut)]).toEqual(['08:00', '17:00']);
+  });
+});
+
+test('a day without punches needs both actual times, and the cases sent are ignored', async ({ request }) => {
+  const day = lastWorkday(await as(request, ADMIN, pickerOf));
+  await as(request, 'dt-phu', async api => {
+    const bare = await api.post('/me/requests/explanation', explanationBody(undefined, day, false));
+    expect(bare.status, JSON.stringify(bare.body)).toBe(400);
+    expect(bare.body.error).toBe('Nhập giờ vào thực tế');
+    const filed = await api.post('/me/requests/explanation', explanationBody(undefined, day));
+    expect(filed.status, JSON.stringify(filed.body)).toBe(201);
+    expect((await api.patch(`/me/requests/${filed.body.request.id}/cancel`)).status).toBe(200);
+    expect(filed.body.request.explanationCases).toEqual(['MISSING_CHECK_IN', 'MISSING_CHECK_OUT']);
+    expect(filed.body.request.title).toBe(`Giải trình ${dm(day)}`);
+  });
+});
+
+test('a day with nothing to explain is refused', async ({ request }) => {
+  // dt-giang được chấm hộ 08:00–17:00 mọi ngày làm 01–15 (seed tạm ứng).
+  const picker = await as(request, ADMIN, pickerOf);
+  const day = Array.from({ length: 15 }, (_, i) => `${M.m1}-${String(i + 1).padStart(2, '0')}`).find(d => picker.isWorkday(d))!;
+  const r = await as(request, ADMIN, api => api.post('/requests/explanation', explanationBody('dt-giang', day)));
+  expect(r.status, JSON.stringify(r.body)).toBe(400);
+  expect(r.body.error).toBe(`Ngày ${dm(day)} không có gì cần giải trình`);
+});
 
 test('a rejected explanation day cannot be filed again, a cancelled one can', async ({ request }) => {
   const items = await as(request, ADMIN, api => listOf(api, 'dt-dung'));
-  const body = (workDate: string) => ({ employeeId: 'dt-dung', title: 'Giải trình', reason: 'Nộp lại', workDate, cases: ['LATE_CHECK_IN'] });
+  const rejectedDay = one(items, 'EXPLANATION', 'REJECTED').explanationDate!;
   await as(request, ADMIN, async api => {
-    const again = await api.post('/requests/explanation', body(one(items, 'EXPLANATION', 'REJECTED').explanationDate!));
+    const again = await api.post('/requests/explanation', explanationBody('dt-dung', rejectedDay));
     expect(again.status, JSON.stringify(again.body)).toBe(400);
+    expect(again.body.error).toBe(`Ngày ${dm(rejectedDay)} đã có đơn giải trình`);
   });
-  const refiled = await as(request, ADMIN, api => api.post('/requests/explanation', body(one(items, 'EXPLANATION', 'CANCELLED').explanationDate!)));
+  const cancelledDay = one(items, 'EXPLANATION', 'CANCELLED').explanationDate!;
+  const refiled = await as(request, ADMIN, api => api.post('/requests/explanation', explanationBody('dt-dung', cancelledDay)));
   expect(refiled.status, JSON.stringify(refiled.body)).toBe(201);
   await cancelAs(request, 'dt-dung', refiled.body.request.id);
 });
 
 test('an explanation for a future day is refused', async ({ request }) => {
   await as(request, 'dt-phu', async api => {
-    const r = await api.post('/me/requests/explanation', { title: 'Giải trình', reason: 'Thử', workDate: shift(M.today, 1), cases: ['LATE_CHECK_IN'] });
+    const r = await api.post('/me/requests/explanation', explanationBody(undefined, shift(M.today, 1)));
     expect(r.status).toBe(400);
+    expect(r.body.error).toBe('Không giải trình cho ngày trong tương lai');
   });
 });
 
-// ---------------------------------------------------------------- nhân viên tự nộp: luật đã chốt 05/11 (phiên staff-requests đang làm)
+test('Admin sees the days that need an explanation and can remind the employee', async ({ request }) => {
+  const day = lastWorkday(await as(request, ADMIN, pickerOf));
+  await as(request, ADMIN, async api => {
+    const employees: any[] = (await api.get('/employees')).body.employees;
+    const uuidOf = (username: string): string => employees.find(x => x.account.username === username)?.profile.uuid;
+    const isOf = (username: string, id: string) => id === username || id === uuidOf(username);
+    const due = await api.get('/requests/explanations-due');
+    expect(due.status).toBe(200);
+    const items: any[] = due.body.items;
+    const on = (username: string, date: string) => items.find(i => isOf(username, i.employeeId) && String(i.date).slice(0, 10) === date);
+    // dt-phu không có giờ chấm nào: ngày làm gần nhất là Quên chấm công, cần cả hai giờ.
+    expect(on('dt-phu', day)).toMatchObject({ cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'], needs: { checkIn: true, checkOut: true } });
+    // Ngày đã có đơn giải trình (chờ duyệt) không còn trong danh sách; người đã nghỉ việc cũng không.
+    const pendingDay = one(await listOf(api, 'dt-dung'), 'EXPLANATION', 'PENDING').explanationDate!.slice(0, 10);
+    expect(on('dt-dung', pendingDay)).toBeUndefined();
+    expect(items.filter(i => isOf('dt-nam', i.employeeId))).toEqual([]);
 
-/** Nộp như dt-phu; đơn lỡ được nhận thì huỷ ngay, rồi trả mã. */
+    const refused = await api.post('/requests/explanations-due/remind', { employeeId: uuidOf('dt-dung'), date: pendingDay });
+    expect(refused.status, JSON.stringify(refused.body)).toBe(400);
+    expect(refused.body.error).toBe(`Ngày ${dm(pendingDay)} đã có đơn giải trình`);
+    const reminded = await api.post('/requests/explanations-due/remind', { employeeId: uuidOf('dt-phu'), date: day });
+    expect(reminded.status, JSON.stringify(reminded.body)).toBeLessThan(300);
+    expect(reminded.body.reminded).toBe(true);
+  });
+  // Nhân viên thấy lời nhắc ở màn Hôm nay.
+  await as(request, 'dt-phu', async api => {
+    const today = await api.get('/me/today');
+    expect(today.status).toBe(200);
+    expect((today.body.reminders ?? []).map((r: any) => String(r.date).slice(0, 10))).toContain(day);
+  });
+});
+
+// ---------------------------------------------------------------- dữ liệu cho form và xem trước (main aaa14d9)
+
+test('request-context opens today to the end of next month and locks the advance outside the 16th and 17th', async ({ request }) => {
+  const ctx = await as(request, 'dt-phu', api => api.get('/me/request-context'));
+  expect(ctx.status, JSON.stringify(ctx.body)).toBe(200);
+  expect(ctx.body.window).toEqual({ from: M.today, to: LAST_OF_NEXT });
+  const kinds = ctx.body.kinds.map((k: any) => k.kind).sort();
+  expect(kinds).toEqual(['advance', 'explanation', 'leave', 'leave-with-makeup', 'overtime', 'shift-change']);
+  const day = Number(M.today.slice(8, 10));
+  if (day !== 16 && day !== 17) {
+    expect(ctx.body.kinds.find((k: any) => k.kind === 'advance')).toMatchObject({ enabled: false, reason: 'Chỉ nộp ngày 16 và 17' });
+  }
+  // Thực tập sinh không có quyền lợi OT: không có loại Làm thêm giờ.
+  const intern = await as(request, 'dt-oanh', api => api.get('/me/request-context'));
+  expect(intern.status).toBe(200);
+  expect(intern.body.kinds.map((k: any) => k.kind)).not.toContain('overtime');
+});
+
+test('preview answers like create, sets the title and saves nothing', async ({ request }) => {
+  const picker = await as(request, ADMIN, pickerOf);
+  const past = lastWorkday(picker);
+  const day = picker.day(NEXT, 1, 4);
+  await as(request, 'dt-phu', async api => {
+    const before = (await api.get('/me/requests')).body.items.length;
+    // Mã 2xx: hợp đồng ghi 200, BE trả 201 (BUG-requests-13, test riêng ở dưới).
+    const bad = await api.post('/me/requests/leave/preview', leaveBody(undefined, past));
+    expect(bad.status).toBeLessThan(300);
+    expect(bad.body.ok).toBe(false);
+    const refused = await api.post('/me/requests/leave', leaveBody(undefined, past));
+    expect(refused.status).toBe(400);
+    expect(bad.body.message).toBe(refused.body.error);
+    const good = await api.post('/me/requests/leave/preview', leaveBody(undefined, day));
+    expect(good.status).toBeLessThan(300);
+    expect(good.body).toMatchObject({ ok: true, title: `Việc riêng có lương ${dm(day)}`, summary: { daysCount: 1 } });
+    expect((await api.get('/me/requests')).body.items).toHaveLength(before);
+    // iSAT chưa có form nên không có xem trước.
+    expect((await api.post('/me/requests/isat/preview', {})).status).toBe(404);
+  });
+});
+
+test('preview answers 200 as the contract says', async ({ request }) => {
+  test.fail(true, 'BUG-requests-13: POST /me/requests/:kind/preview trả 201, spec 2.2 và v2-contract ghi "Luôn trả 200"');
+  const day = (await as(request, ADMIN, pickerOf)).day(NEXT, 1, 4);
+  const r = await as(request, 'dt-phu', api => api.post('/me/requests/leave/preview', leaveBody(undefined, day)));
+  expect(r.status).toBe(200);
+});
+
+// ---------------------------------------------------------------- nhân viên tự nộp: luật đã chốt 05/11 (sửa ở main aaa14d9)
+
+/** Nộp như dt-phu; đơn lỡ được nhận thì huỷ ngay, rồi trả kết quả. */
 async function selfFile(request: APIRequestContext, kind: string, body: Record<string, unknown>): Promise<Res> {
   return as(request, 'dt-phu', async api => {
     const r = await api.post(`/me/requests/${kind}`, body);
@@ -573,42 +715,59 @@ async function selfFile(request: APIRequestContext, kind: string, body: Record<s
     return r;
   });
 }
+const windowError = `Chỉ chọn ngày từ ${dm(M.today)} đến ${dm(LAST_OF_NEXT)}`;
 
 test('staff cannot file a leave for a day before today', async ({ request }) => {
-  test.fail(true, 'BUG-requests-1: /me nhận đơn nghỉ ngày đã qua (luật 05/11: chỉ từ hôm nay; phiên staff-requests đang làm)');
-  const picker = await as(request, ADMIN, pickerOf);
-  let past = shift(M.today, -1);
-  while (!picker.isWorkday(past)) past = shift(past, -1);
-  expect((await selfFile(request, 'leave', leaveBody(undefined, past))).status).toBe(400);
+  const r = await selfFile(request, 'leave', leaveBody(undefined, lastWorkday(await as(request, ADMIN, pickerOf))));
+  expect(r.status).toBe(400);
+  expect(r.body.error).toBe(windowError);
 });
 
 test('staff cannot file a leave after the end of next month', async ({ request }) => {
-  test.fail(true, 'BUG-requests-2: /me nhận đơn nghỉ sau hết tháng sau (luật 05/11; phiên staff-requests đang làm)');
   const far = (await as(request, ADMIN, pickerOf)).day(addMonths(NEXT, 1), 1, 0);
-  expect((await selfFile(request, 'leave', leaveBody(undefined, far))).status).toBe(400);
+  const r = await selfFile(request, 'leave', leaveBody(undefined, far));
+  expect(r.status).toBe(400);
+  expect(r.body.error).toBe(windowError);
 });
 
 test('staff OT must start and end on the hour', async ({ request }) => {
-  test.fail(true, 'BUG-requests-3: /me nhận OT 18:30–20:30 (luật 05/11: giờ tròn; phiên staff-requests đang làm)');
   const day = (await as(request, ADMIN, pickerOf)).day(NEXT, 1, 3);
-  expect((await selfFile(request, 'overtime', otBody(undefined, day, '18:30', '20:30'))).status).toBe(400);
+  const r = await selfFile(request, 'overtime', otBody(undefined, day, '18:30', '20:30'));
+  expect(r.status).toBe(400);
+  expect(r.body.error).toBe('Chỉ chọn giờ tròn');
 });
 
 test('staff can file an advance only on the 16th and 17th', async ({ request }) => {
   const day = Number(M.today.slice(8, 10));
   test.skip(day === 16 || day === 17, 'Hôm nay là ngày được nộp tạm ứng');
-  test.fail(true, 'BUG-requests-4: /me nhận tạm ứng ngoài ngày 16–17 (luật 05/11; phiên staff-requests đang làm)');
-  expect((await selfFile(request, 'advance', { title: 'Tạm ứng', reason: 'Thử', period: M.m0, amount: 1_000_000 })).status).toBe(400);
+  const r = await selfFile(request, 'advance', { period: M.m0 });
+  expect(r.status).toBe(400);
+  expect(r.body.error).toBe('Chỉ nộp tạm ứng ngày 16 và 17');
 });
 
-test('the advance amount is set by the server, not by the client', async ({ request }) => {
-  test.fail(true, 'BUG-requests-5: số tiền tạm ứng lấy theo client gửi (luật 05/11: 80% lương ngày công 01–15, chỉ đọc; phiên staff-requests đang làm)');
+test('the advance amount, title and reason are set by the server', async ({ request }) => {
+  // dt-giang có ngày công 01–15 tháng trước (seed chấm hộ); đơn tháng đó đã bị từ chối nên nộp lại được.
   const r = await as(request, ADMIN, api =>
-    api.post('/requests/advance', { employeeId: 'dt-phu', title: 'Tạm ứng', reason: 'Thử', period: M.m0, amount: 987_654_321 })
+    api.post('/requests/advance', { employeeId: 'dt-giang', title: 'Tự đặt', reason: 'Tự đặt', period: M.m1, amount: 987_654_321 })
   );
-  if (r.status === 201) await cancelAs(request, 'dt-phu', r.body.request.id);
-  // Được nhận thì số tiền phải do server tính; dt-phu chưa có ngày công 01–15 nên server cũng có thể từ chối (số được ứng 0).
-  expect(r.status === 201 ? Number(r.body.request.advanceAmount) : null).not.toBe(987_654_321);
+  expect(r.status, JSON.stringify(r.body)).toBe(201);
+  await cancelAs(request, 'dt-giang', r.body.request.id);
+  const amount = Number(r.body.request.advanceAmount);
+  expect(amount).toBeGreaterThan(0);
+  expect(amount).not.toBe(987_654_321);
+  const title = `Tạm ứng lương tháng ${monthNo(M.m1)}`;
+  expect([r.body.request.title, r.body.request.reason]).toEqual([title, title]);
+});
+
+test('one advance per month, and none without work days on the 1st–15th', async ({ request }) => {
+  await as(request, ADMIN, async api => {
+    const twice = await api.post('/requests/advance', { employeeId: 'dt-giang', period: M.m0 });
+    expect(twice.status, JSON.stringify(twice.body)).toBe(400);
+    expect(twice.body.error).toBe(`Tháng ${monthNo(M.m0)} đã có đơn tạm ứng`);
+    const empty = await api.post('/requests/advance', { employeeId: 'dt-phu', period: M.m1 });
+    expect(empty.status, JSON.stringify(empty.body)).toBe(400);
+    expect(empty.body.error).toBe(`Chưa có ngày công 01–15/${M.m1.slice(5, 7)}`);
+  });
 });
 
 // ---------------------------------------------------------------- người đã nghỉ việc
@@ -625,7 +784,6 @@ test('a resigned employee keeps readable requests and the pending one stays in t
 });
 
 test('a resigned employee reads back as Đã nghỉ việc', async ({ request }) => {
-  test.fail(true, 'BUG-requests-8: DELETE /employees ghi contract_status = NULL (CHECK chỉ nhận probation/official), đọc lại thành "nv"');
   await as(request, ADMIN, async api => {
     const staff = (await api.get('/employees')).body.employees.find((e: any) => e.account.username === 'dt-nam');
     expect(staff.contract.status).toBe('nghiviec');
@@ -653,29 +811,19 @@ test.describe('a locked month', () => {
     });
   });
 
-  test('an explanation for a day of a locked month can still be filed', async ({ request }) => {
+  test('no explanation can be filed for a day of a locked month, by Admin or by the employee', async ({ request }) => {
     const day = (await as(request, ADMIN, pickerOf)).day(M.m1, 4, 2);
-    await as(request, 'dt-mai', async api => {
-      const r = await api.post('/me/requests/explanation', {
-        title: 'Giải trình',
-        reason: 'Quên chấm công',
-        workDate: day,
-        cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'],
-        actualCheckIn: '08:00',
-        actualCheckOut: '17:00'
-      });
-      expect(r.status, JSON.stringify(r.body)).toBe(201);
-    });
+    const bySelf = await as(request, 'dt-mai', api => api.post('/me/requests/explanation', explanationBody(undefined, day)));
+    const byAdmin = await as(request, ADMIN, api => api.post('/requests/explanation', explanationBody('dt-mai', day)));
+    for (const r of [bySelf, byAdmin]) {
+      expect(r.status, JSON.stringify(r.body)).toBe(400);
+      expect(r.body.error).toBe(`Tháng ${monthNo(M.m1)} đã chốt công`);
+    }
   });
 
-  test('no new leave can be filed for a locked month, by Admin or by the employee', async ({ request }) => {
-    test.fail(true, 'BUG-requests-6: tháng đã chốt công vẫn nhận đơn nghỉ mới (luật 05/11: chỉ còn giải trình; phiên staff-requests và period-lifecycle đang làm)');
-    const [first, second] = (await as(request, ADMIN, pickerOf)).days(M.m1, 4, 2, 3);
-    const byAdmin = await as(request, ADMIN, api => api.post('/requests/leave', leaveBody('dt-mai', first)));
-    if (byAdmin.status === 201) await cancelAs(request, 'dt-mai', byAdmin.body.request.id);
-    const bySelf = await as(request, 'dt-mai', api => api.post('/me/requests/leave', leaveBody(undefined, second)));
-    if (bySelf.status === 201) await cancelAs(request, 'dt-mai', bySelf.body.request.id);
-    expect(byAdmin.status).toBe(400);
-    expect(bySelf.status).toBe(400);
+  test('the days of a locked month leave the explanation queue', async ({ request }) => {
+    const due = await as(request, ADMIN, api => api.get('/requests/explanations-due'));
+    expect(due.status).toBe(200);
+    expect(due.body.items.filter((i: any) => String(i.date).startsWith(M.m1))).toEqual([]);
   });
 });

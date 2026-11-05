@@ -112,7 +112,6 @@ test('Tổng quan staff, attendance and payroll cards agree with each other and 
 });
 
 test('Nhân sự đang làm does not count a resigned employee', async ({ page, request }) => {
-  test.fail(true, 'BUG-requests-8: người đã nghỉ việc (DELETE /employees) đọc lại là "nv" nên vẫn được đếm là đang làm');
   const { employees } = await adminData(request);
   const working = employees.filter(e => !e.contract.resignedOn || e.contract.resignedOn > M.today).length;
   await signIn(page, ADMIN);
