@@ -31,6 +31,17 @@ describe('Một ngày công', () => {
     assert.equal(daySummaryOf(ts(T, { actualCheckOut: null }) as any, T, T).kind, 'work');
   });
 
+  it("a past day without a timesheet outside the person's week is off, inside it is absent", () => {
+    const BINH = [1, 2, 3, 4, 5]; // Bình: thứ Hai – thứ Sáu
+    const later = '2026-12-14';
+    assert.equal(daySummaryOf(undefined, '2026-12-12', later, BINH).kind, 'off'); // thứ Bảy
+    assert.equal(daySummaryOf(undefined, '2026-12-11', later, BINH).kind, 'absent'); // thứ Sáu
+    assert.equal(daySummaryOf(undefined, '2026-12-13', later, BINH).kind, 'off'); // Chủ nhật
+    assert.equal(daySummaryOf(undefined, '2026-12-12', later).kind, 'absent'); // mặc định thứ Hai – thứ Bảy
+    assert.equal(daySummaryOf(undefined, '2026-12-19', later, BINH).kind, 'off'); // ngày nghỉ sắp tới vẫn là off, như Chủ nhật hôm nay
+    assert.equal(daySummaryOf(undefined, '2026-12-18', later, BINH).kind, 'future'); // thứ Sáu sắp tới
+  });
+
   it('carries times and late minutes', () => {
     const d = daySummaryOf(ts('2026-11-03', { checkInStatus: 'LATE', actualCheckIn: '08:12', metrics: { lateMinutes: 12 } }) as any, '2026-11-03', T);
     assert.deepEqual(d, { date: '2026-11-03', kind: 'late', in: '08:12', out: '17:05', lateMinutes: 12 });
@@ -53,6 +64,13 @@ describe('Công tháng', () => {
     );
     assert.equal(m.days.length, 30);
     assert.deepEqual(m.totals, { workDays: 2, standardDays: 25, lateCount: 1, paidLeaveDays: 1 });
+  });
+
+  it('a day outside the given week is off and standardDays counts the week', () => {
+    const m = monthOf([], '2026-12', '2026-12-31', null, [1, 2, 3, 4, 5]);
+    assert.equal(m.days.find(d => d.date === '2026-12-12')!.kind, 'off');
+    assert.equal(m.days.find(d => d.date === '2026-12-11')!.kind, 'absent');
+    assert.equal(m.totals.standardDays, 23);
   });
 
   it('the period is open until a day of the month is locked', () => {

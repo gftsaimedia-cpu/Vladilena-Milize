@@ -11,6 +11,7 @@ import { SystemModule } from './modules/system';
 import { PeriodsModule } from './modules/periods';
 import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
+import { SettingsModule } from './modules/settings';
 import { AuditModule } from './modules/audit';
 
 @Module({
@@ -27,6 +28,7 @@ import { AuditModule } from './modules/audit';
     PeriodsModule,
     MeModule,
     PositionsModule,
+    SettingsModule,
     AuditModule,
   ],
 })

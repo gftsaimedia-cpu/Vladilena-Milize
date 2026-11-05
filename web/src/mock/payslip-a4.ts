@@ -1,6 +1,9 @@
 // Dữ liệu giả của phiếu lương A4: các kiểu của hợp đồng `A4Sheet` và tháng mẫu 10/2026 (mọi người thấy cùng một tháng).
 // Chỉ đọc; không gọi /api. Bốn số tổng được cộng từ các dòng đã làm tròn.
+// personSheet / approvedSheets: tháng mẫu đè người (tên, loại · bậc, trạng thái nhân sự, hợp đồng, phép còn lại) và trạng thái
+// của phiếu giả ở Bảng lương (mock/payroll.ts); tiền và ngày công vẫn là tháng mẫu, không bịa số theo người.
 import { MOCK_MONTH } from './clock';
+import { payrollView, payslipView, type PayrollStatus } from './payroll';
 
 export type DayMark = 'work' | 'paid' | 'unpaid' | 'absent' | 'pending';
 
@@ -41,30 +44,32 @@ export type A4Stats = {
   paidLeave: number;
   isat: number;
   unpaid: number;
-  absent: number;
-  pending: number;
+  absent: number | null; // null: BE v2 chưa có nguồn, in "—"
+  pending: number | null;
   otHours: number;
-  makeupHours: number;
+  makeupHours: number | null;
   lateHours: number;
 };
 
 export type A4Sheet = {
   month: string; // 'YYYY-MM'
   name: string;
-  kind: string; // 'NV'
-  level: number;
+  kind: string; // 'NV', 'CTV', 'TTS'; '—' khi chưa có loại
+  level: number | null; // null: phiếu lưu trước khi BE có trường này
+  employmentStatus: string | null; // trạng thái nhân sự: 'Thử việc' / 'Chính thức'; null thì in "—"
   contract: string; // 'HĐLĐ từ 3 tháng'
   from: string;
   to: string; // 'YYYY-MM-DD'
   periodNote: string; // 'tạm tính cả tháng, số liệu tới 02/11'
   stdDays: number; // 26
-  dayRate: number; // 230769
+  dayRate: number | null; // 230769; null: phiếu lưu trước khi BE có trường này
   days: A4Day[]; // chỉ các ngày cần in, theo thứ tự ngày
   stats: A4Stats;
   groups: A4Group[];
   totals: A4Line[];
   net: number;
-  leaveLeft: number; // ngày phép năm còn lại
+  leaveLeft: number | null; // ngày phép năm còn lại; null: loại nhân sự không có tài khoản phép
+  slipStatus: PayrollStatus; // trạng thái phiếu: tiêu đề "chính thức" / "tạm tính", ô Tình trạng, dòng bản nháp
 };
 
 // Ngày trong mock khai cho cả tháng; cờ hasShift chỉ dùng ở đây, không đưa ra ngoài.
@@ -220,6 +225,7 @@ function buildSheet(): A4Sheet {
     name: 'NV thử nghiệm',
     kind: 'NV',
     level: 1,
+    employmentStatus: 'Chính thức',
     contract: 'HĐLĐ từ 3 tháng',
     from: '2026-10-01',
     to: '2026-10-31',
@@ -243,11 +249,36 @@ function buildSheet(): A4Sheet {
     groups,
     totals,
     net: afterInsurance - tax - advance,
-    leaveLeft: 22
+    leaveLeft: 22,
+    slipStatus: 'draft'
   };
 }
 
 // Chỉ tháng mẫu có phiếu; tháng khác trả null.
 export function payslipSheet(month: string): A4Sheet | null {
   return month === MOCK_MONTH ? buildSheet() : null;
+}
+
+/** Phiếu A4 của một mã ở Bảng lương giả: tháng mẫu với người và trạng thái của phiếu đó; tháng hay mã lạ trả null. */
+export function personSheet(month: string, id: string): A4Sheet | null {
+  const sheet = payslipSheet(month);
+  const slip = payslipView(month, id);
+  if (!sheet || !slip) return null;
+  return {
+    ...sheet,
+    name: slip.name,
+    kind: slip.kind,
+    level: slip.level,
+    employmentStatus: slip.employmentStatus,
+    contract: slip.contract,
+    leaveLeft: slip.leaveLeft,
+    slipStatus: slip.status
+  };
+}
+
+/** Phiếu A4 của các phiếu đã duyệt, theo thứ tự Bảng lương; tháng không có dữ liệu giả trả null. */
+export function approvedSheets(month: string): A4Sheet[] | null {
+  const view = payrollView(month);
+  if (view.empty || !payslipSheet(month)) return null;
+  return view.lines.filter(l => l.status === 'done').flatMap(l => personSheet(month, l.id) ?? []);
 }

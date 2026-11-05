@@ -13,6 +13,7 @@ import type {
   RequestDetail,
   RequestRowData,
   RequestStatus,
+  RequestStep,
   RequestsView
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
@@ -48,7 +49,7 @@ export type MeProfile = {
 };
 export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
-export type MeRequest = RequestDTO & { reviewedAt?: string | null };
+export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
 const NONE = '—';
 const DOW_LONG = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -194,12 +195,21 @@ function factsOf(r: MeRequest): [string, string][] {
   }
 }
 
+/** Ghi chú Admin để lúc duyệt/từ chối (`reviewNote`) gắn vào bước duyệt cuối, như hộp từ chối của Admin đã hứa. */
+function reviewNoteOf(r: MeRequest): RequestStep['note'] {
+  const text = (r.reviewNote || '').trim();
+  if (!text || (r.status !== 'REJECTED' && r.status !== 'APPROVED')) return null;
+  return { label: r.status === 'REJECTED' ? 'Lý do từ chối' : 'Ghi chú', text: quote(text) };
+}
+
 export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
+  const note = reviewNoteOf(r);
+  const last = steps.length - 1;
   return {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
-    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state }))
+    steps: steps.map((s, i) => ({ label: s.label, at: vnStamp(s.at), state: s.state, ...(note && i === last ? { note } : {}) }))
   };
 }
 
@@ -340,13 +350,16 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
   }
   const pct = Number(p.kpiTotalScorePct) || 0;
   const official = inc.state === 'official';
-  const leavePay = (p.paidLeavePay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
+  const leavePay = (p.paidLeavePay || 0) + (p.leaveSettlementPay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
   const line = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) => ({
     icon,
     label,
     value: n ? `${negative ? '−' : ''}${vnd(n)}` : '0',
     zero: !n
   });
+  // Khoản có tháng có, tháng không (OT, trừ giờ, tạm ứng): chỉ hiện khi khác 0. BE trả trừ giờ là số âm.
+  const ifAny = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) =>
+    n ? [line(icon, label, Math.abs(n), negative)] : [];
   return {
     ...base,
     state: official ? 'Chính thức' : 'Tạm tính',
@@ -364,14 +377,18 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       proposed: vnd(p.kpiProposedAmount ?? p.kpiMaxSalary),
       scores: KPI_PARTS.map(([k, label]) => ({ value: p.kpiScores?.[k] == null ? NONE : String(p.kpiScores[k]), label }))
     },
+    // Các dòng cộng lại (dòng có dấu − thì trừ) bằng đúng Thực nhận của BE.
     lines: [
       line('cal', 'Lương ngày công', p.baseSalaryActual),
       line('leave', 'Nghỉ phép, iSAT', leavePay),
+      ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
+      ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),
       ...(official
         ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
-        : [])
+        : []),
+      ...ifAny('wallet', 'Tạm ứng', p.advanceDeduction || 0, true)
     ],
     total: `${vnd(p.netIncome)} ₫`
   };

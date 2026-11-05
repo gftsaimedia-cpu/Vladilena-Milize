@@ -42,6 +42,29 @@ describe('App nhân viên từ /me', () => {
     assert.ok(d.facts.some(([k, v]) => k === 'Lý do' && v === '“Việc nhà”'));
   });
 
+  // BUG-requests-12: hộp từ chối của Admin hứa "Nhân viên xem được ghi chú trong chi tiết yêu cầu"; /me trả reviewNote.
+  it('shows the Admin note on the reviewed step', () => {
+    const sent = { label: 'Đã gửi', at: '2026-11-03T13:14:00Z', state: 'done' as const };
+    const rejected = requestDetailOf(
+      req({ type: 'LEAVE', status: 'REJECTED', leaveType: 'ANNUAL', leaveStartDate: '2026-11-12', reviewNote: ' Tuần này đang chốt dự án ', reviewedAt: '2026-11-04T02:00:00Z' }) as any,
+      [sent, { label: 'Đã từ chối', at: '2026-11-04T02:00:00Z', state: 'rej' }]
+    );
+    assert.deepEqual(rejected.steps[1].note, { label: 'Lý do từ chối', text: '“Tuần này đang chốt dự án”' });
+    assert.equal(rejected.steps[0].note, undefined);
+
+    const approved = requestDetailOf(
+      req({ type: 'OVERTIME', status: 'APPROVED', otDate: '2026-11-12', reviewNote: 'Nhớ chấm công ra', reviewedAt: '2026-11-04T02:00:00Z' }) as any,
+      [sent, { label: 'Đã duyệt', at: '2026-11-04T02:00:00Z', state: 'done' }]
+    );
+    assert.deepEqual(approved.steps[1].note, { label: 'Ghi chú', text: '“Nhớ chấm công ra”' });
+
+    const noNote = requestDetailOf(
+      req({ type: 'LEAVE', status: 'REJECTED', leaveType: 'ANNUAL', leaveStartDate: '2026-11-12', reviewNote: '  ' }) as any,
+      [sent, { label: 'Đã từ chối', at: null, state: 'rej' }]
+    );
+    assert.equal(noNote.steps[1].note, undefined);
+  });
+
   const slip = {
     grossIncome: 15_538_183, baseSalaryActual: 11_076_923, paidLeavePay: 923_076, isatPay: 0, holidayPay: 0, totalAllowanceActual: 2_215_384,
     kpiActualPay: 1_322_800, kpiProposedAmount: 2_000_000, kpiMaxSalary: 3_000_000, kpiTotalScorePct: 66.14,
@@ -62,7 +85,9 @@ describe('App nhân viên từ /me', () => {
     assert.equal(v.deduction, '500.000');
     assert.equal(v.kpi.percent, '66,14%');
     assert.equal(v.kpi.ratio, 0.6614);
-    assert.deepEqual(v.lines.map(l => l.label), ['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI']);
+    // BUG-payroll-13: tạm ứng đã duyệt là một dòng âm, để các khoản cộng lại ra đúng Thực nhận.
+    assert.deepEqual(v.lines.map(l => l.label), ['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI', 'Tạm ứng']);
+    assert.equal(v.lines.find(l => l.label === 'Tạm ứng')?.value, '−500.000');
   });
 
   it('an official payslip keeps the insurance and tax lines', () => {

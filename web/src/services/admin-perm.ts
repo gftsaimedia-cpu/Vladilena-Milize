@@ -2,7 +2,7 @@
 // Máy chủ thật: tóm tắt và Tài khoản đọc GET /api/v2/roles + /employees; đổi vai trò, khoá / mở khoá, đặt lại mật khẩu
 // qua PUT /api/v2/employees/:username. Ma trận vai trò (tạo, sửa, ngừng dùng vai trò) chưa có API: báo chưa nối.
 // Xử lý yêu cầu: GET/PUT /settings/params (bảng request.type.<loại>), chưa có ở BE v2.
-import { buildAccounts, nextRoles, primaryRole } from '@/builders/admin-perm/accounts';
+import { buildAccounts, nextRoles } from '@/builders/admin-perm/accounts';
 import { buildRequestRules, toRuleChanges } from '@/builders/admin-perm/rules';
 import { buildPermSummary } from '@/builders/admin-perm/roles';
 import { accountSourcesFromApi } from '@/builders/api/accounts';
@@ -38,12 +38,13 @@ export async function getAccounts({ page = 1, role = 'all', q = '' }: any = {}) 
 const putAccount = (username: string, account: Record<string, unknown>) =>
   api('PUT', `/employees/${enc(username)}`, { account });
 
-// Đổi vai trò chính của dòng `row` thành vai trò có nhãn `roleLabel`.
+// Đổi vai trò của dòng `row` thành vai trò có nhãn `roleLabel`: gửi đúng một vai trò, BE ghi nó vào staff.role
+// (đăng nhập và quyền đọc cột này) và thu hồi vai trò phụ.
 export async function setAccountRole(row?, roleLabel?) {
   const res = await api('GET', '/roles');
   const target = (res.roles || []).find(r => r.label === roleLabel);
   if (!target) throw new Error(`Không có vai trò "${roleLabel}"`);
-  return putAccount(row.username, { roles: nextRoles(row.roles, primaryRole(row.roles), target.code) });
+  return putAccount(row.username, { roles: nextRoles(target.code) });
 }
 
 // Khoá hoặc mở khoá. Khoá thì máy chủ ghi thời điểm khoá và mọi phiên của người đó hết hiệu lực.

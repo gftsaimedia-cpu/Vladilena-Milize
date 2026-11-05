@@ -10,6 +10,8 @@ import { PayrollRepository } from '../../src/modules/payroll/payroll.repository'
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PeriodsRepository } from '../../src/modules/periods/periods.repository';
 import { PeriodsService } from '../../src/modules/periods/periods.service';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 const MONTH = '2026-10';
@@ -34,7 +36,7 @@ async function ready(db: Kysely<DB>, client: Client): Promise<Fixture> {
     new AuditLog(new AuditRepository(), new TransactionCoordinator(db))
   );
   periods.now = () => new Date('2026-11-01T08:00:00+07:00');
-  const payroll = new PayrollService(new PayrollRepository(db), tx, periods);
+  const payroll = new PayrollService(new PayrollRepository(db), undefined, tx, periods);
   await periods.lock(MONTH, 'admin');
   await payroll.calculatePeriodPayslips(MONTH, undefined, 'admin');
   periods.now = () => new Date('2026-11-05T09:00:00+07:00');
@@ -322,5 +324,44 @@ test('pay only from payday, then nothing more', async t => {
     );
     const audit = await client.query("SELECT actor FROM audit_log WHERE action = 'period.pay'");
     assert.deepEqual(audit.rows, [{ actor: 'boss' }]);
+  });
+});
+
+test('pay follows the payday set in the settings store (Lịch trả lương), read for the month of the period', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    const f = await ready(db, client);
+    await approveAll(f);
+    await f.periods.approve(MONTH, 'admin');
+    // Từ tháng 10: trả lương ngày 15 tháng sau. Tháng 11 trở đi về lại ngày 10, để thấy ngày đọc theo tháng của kỳ.
+    await client.query(
+      `INSERT INTO pay_calendar (effective_month, pay_day, updated_by, updated_at)
+       VALUES ('2026-10', 15, 'admin', now()), ('2026-11', 10, 'admin', now())`
+    );
+    const periods = new PeriodsService(
+      new PeriodsRepository(db),
+      new TransactionCoordinator(db),
+      new AuditLog(new AuditRepository(), new TransactionCoordinator(db)),
+      new SettingsReader(new SettingsRepository(db))
+    );
+
+    periods.now = () => new Date('2026-11-14T12:00:00+07:00');
+    const before = await periods.view(MONTH);
+    assert.equal(before.payday, '2026-11-15');
+    assert.equal(before.actions.pay, undefined);
+    await assert.rejects(periods.pay(MONTH, 'admin'), (e: any) => {
+      assert.equal(e.status, 409);
+      assert.deepEqual(e.details, { code: 'BEFORE_PAYDAY', payday: '2026-11-15' });
+      assert.equal(e.message, 'Chưa tới ngày trả lương 15/11/2026');
+      return true;
+    });
+    assert.equal((await periods.view(MONTH)).status, 'approved');
+    // Tháng 11 đọc phiên bản của chính nó (ngày 10).
+    assert.equal((await periods.view('2026-11')).payday, '2026-12-10');
+
+    periods.now = () => new Date('2026-11-15T00:30:00+07:00');
+    assert.deepEqual((await periods.view(MONTH)).actions.pay, { enabled: true });
+    const view = await periods.pay(MONTH, 'boss');
+    assert.equal(view.status, 'paid');
+    assert.equal(view.payday, '2026-11-15');
   });
 });

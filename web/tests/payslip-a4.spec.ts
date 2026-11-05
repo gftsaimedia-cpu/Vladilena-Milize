@@ -1,7 +1,9 @@
 // Bản in phiếu lương A4 (board P1, P2 của Đợt 8) trên dữ liệu giả: không page.route, không gọi /api.
+// Số tiền và ngày công là tháng mẫu chung; tên, loại · bậc, hợp đồng và trạng thái lấy theo phiếu của mã trên đường dẫn.
+// Phiếu dùng ở đây là phiếu Nháp (GFT-0123), dạng cao nhất của đầu trang 1 (có dòng bản nháp).
 import { expect, test, type Page } from '@playwright/test';
 
-const SLIP = '/in/phieu-luong/2026-10/demo_a_broken';
+const SLIP = '/in/phieu-luong/2026-10/GFT-0123';
 const sheetPage = (page: Page, n: 1 | 2) => page.getByRole('region', { name: `Trang ${n}/2` });
 
 // Bộ ghi request /api, lỗi chạy và console.error của trang hiện tại; test đầu khẳng định nó rỗng.
@@ -26,14 +28,16 @@ test('the A4 slip comes from mock data: two sheets, no /api call', async ({ page
   expect(calls).toEqual([]);
 });
 
-test('page 1 header follows P1, for any username and ?ten=', async ({ page }) => {
-  await page.goto('/in/phieu-luong/2026-10/nhanvien?ten=Nguy%E1%BB%85n%20Thu%20H%C3%A0');
+test('page 1 header follows P1 for the slip on the URL', async ({ page }) => {
+  await page.goto(SLIP);
   const p1 = sheetPage(page, 1);
   await expect(p1.getByRole('img', { name: 'GFT' })).toBeVisible();
-  await expect(p1.getByRole('heading', { level: 1 })).toHaveText('Phiếu lương tháng 10/2026');
+  await expect(p1.getByRole('heading', { level: 1 })).toHaveText('Phiếu lương tháng 10/2026 · tạm tính');
   await expect(p1.locator('.sub')).toHaveText('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
+  await expect(p1.locator('.dr')).toHaveText('Bản nháp, chưa phải lương chính thức');
   await expect(p1.locator('.who > div')).toHaveText([
-    /Họ tên\s*NV thử nghiệm/, /Loại · bậc\s*NV · Bậc 1/, /Tình trạng\s*HĐLĐ từ 3 tháng/, /Kỳ lương\s*Tháng 10\/2026/
+    /Họ tên\s*Võ Đức Thịnh/, /Loại · bậc\s*NV · Bậc 3/, /Tình trạng\s*Nháp/, /Trạng thái nhân sự\s*Chính thức/,
+    /Kỳ lương\s*Tháng 10\/2026/
   ]);
   await expect(p1.getByRole('heading', { level: 2 })).toHaveText('Chấm công tháng 10/2026');
   await expect(p1.locator('.sh .lb')).toHaveText('Lương ngày 230.769 · số tiền tính bằng đồng');
@@ -42,8 +46,8 @@ test('page 1 header follows P1, for any username and ?ten=', async ({ page }) =>
 test('page 2 running head follows P2', async ({ page }) => {
   await page.goto(SLIP);
   const p2 = sheetPage(page, 2);
-  await expect(p2.locator('.rh b')).toHaveText('Phiếu lương tháng 10/2026 · NV thử nghiệm');
-  await expect(p2.locator('.rh .lb')).toHaveText('NV · Bậc 1 · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
+  await expect(p2.locator('.rh b')).toHaveText('Phiếu lương tháng 10/2026 · Võ Đức Thịnh');
+  await expect(p2.locator('.rh .lb')).toHaveText('NV · Bậc 3 · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
   await expect(p2.getByRole('heading', { level: 2 })).toHaveText('Tổng hợp lương');
   await expect(p2.locator('.sh .lb')).toHaveText('Số tiền tính bằng đồng');
 });
@@ -57,10 +61,12 @@ test('each sheet ends with the slogan and its page number', async ({ page }) => 
   }
 });
 
-test('another month shows the load error', async ({ page }) => {
-  await page.goto('/in/phieu-luong/2026-11/demo_a_broken');
-  await expect(page.getByText('Không tải được phiếu lương.')).toBeVisible();
-  await expect(page.locator('.pl-a4')).toHaveCount(0);
+test('another month or an unknown slip shows the load error', async ({ page }) => {
+  for (const url of ['/in/phieu-luong/2026-11/GFT-0123', '/in/phieu-luong/2026-10/demo_a_broken']) {
+    await page.goto(url);
+    await expect(page.getByText('Không tải được phiếu lương.')).toBeVisible();
+    await expect(page.locator('.pl-a4')).toHaveCount(0);
+  }
 });
 
 const att = (page: Page) => sheetPage(page, 1).getByRole('table', { name: 'Chấm công tháng 10/2026' });
@@ -221,7 +227,7 @@ test('totals add up from the rounded lines; the slip ends with Thực nhận and
   const p2 = sheetPage(page, 2);
   await expect(p2.locator('.net')).toHaveText(/Thực nhận\s*9\.657\.922 ₫/);
   expect(await p2.locator('.net').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 249, 236)');
-  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*22 ngày/);
+  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*8 ngày/);
   await expect(p2.locator('.end .sign')).toHaveText(/Người nhận\s*Ký, ghi rõ họ tên/);
 });
 

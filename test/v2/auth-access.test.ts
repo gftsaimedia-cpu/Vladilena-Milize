@@ -16,6 +16,7 @@ import { SystemController } from '../../src/modules/system/system.controller';
 import { PeriodsController } from '../../src/modules/periods/periods.controller';
 import { MeController } from '../../src/modules/me/me.controller';
 import { PositionsController } from '../../src/modules/positions/positions.controller';
+import { SettingsController } from '../../src/modules/settings/settings.controller';
 import { AuditController } from '../../src/modules/audit/audit.controller';
 
 // Mọi controller của các module mà AppModule nạp.
@@ -80,16 +81,24 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'createLeaveWithMakeup',
     'createShiftChange',
     'listExplanationCases',
+    'listExplanationsDue',
+    'remindExplanation',
     'listRequests',
     'getRequest',
     'reviewRequest',
     'cancelRequest'
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
-  ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income'].map(
+  ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
   ),
   ...['savePositions', 'saveLevel', 'addLevel'].map(
     m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
+  ),
+  ...['getAll', 'payDays', 'getZone', 'zoneHistory', 'listWorkWeeks', 'getWorkWeek', 'workWeekHistory', 'groupHistory'].map(
+    m => [SettingsController, m, cap('config.read')] as [any, string, AccessRule]
+  ),
+  ...['saveZone', 'saveWorkWeek', 'saveGroup'].map(
+    m => [SettingsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
   [PayrollController, 'decidePayslip', cap('payroll.approve')],
   ...['calculatePeriod', 'listPayslips', 'getPayslip', 'setKpiScore'].map(

@@ -134,17 +134,21 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
     ]);
   });
 
-  it('an explanation checks the day and saves on the lock transaction', async () => {
+  // Ngày cần giải trình xét trước khi vào khoá (như tra hồ sơ); trong khoá chỉ còn kiểm đơn trùng và lưu (spec 3.3).
+  it('an explanation checks the day on the pool, then re-checks duplicates and saves on the lock transaction', async () => {
     await ctx.service.createExplanationRequest({
-      employeeId: 'nv01', title: 'Giải trình', reason: 'Quên quẹt thẻ', workDate: '2026-11-03', cases: ['MISSING_CHECK_IN']
+      employeeId: 'nv01', title: 'Giải trình', reason: 'Quên quẹt thẻ', workDate: '2026-11-03', cases: ['MISSING_CHECK_IN'],
+      actualCheckIn: '08:00', actualCheckOut: '17:00'
     });
 
     assert.deepEqual(ctx.repo.calls, [
       ['findStaffContext', undefined],
-      ['listScheduleDays', LOCK_TRX],
-      ['listActive', LOCK_TRX],
+      ['listScheduleDays', undefined],
+      ['listActive', undefined],
+      ['list', undefined],
       ['list', LOCK_TRX],
       ['save', LOCK_TRX]
     ]);
+    assert.deepEqual(ctx.att.calls, [['listTimesheets', undefined]]);
   });
 });

@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { businessDateText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { AuditLog } from '../audit';
+import { payDateOf, SettingsReader } from '../settings';
 import {
   approveReason,
   availableActions,
@@ -59,8 +60,20 @@ export class PeriodsService {
   constructor(
     @Inject(PeriodsRepository) private readonly repo: PeriodsRepository,
     @Inject(TransactionCoordinator) private readonly tx: TransactionCoordinator,
-    @Inject(AuditLog) private readonly audit: AuditLog
+    @Inject(AuditLog) private readonly audit: AuditLog,
+    // Ngày trả lương lấy từ kho cài đặt (Lịch trả lương, 1–28 tháng sau). Không có reader (test dựng tay) thì ngày 10.
+    @Optional() @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'settingsFor'>
   ) {}
+
+  /**
+   * Ngày trả lương của kỳ `month` (YYYY-MM-DD, giờ VN): ngày `payCalendar.payDay` đang hiệu lực ở `month` của tháng sau;
+   * không có kho cài đặt thì `paydayOf` (ngày 10). Có `trx` thì đọc cài đặt trên giao dịch đó (không xin thêm kết nối).
+   */
+  async paydayFor(month: string, trx?: DatabaseTransaction): Promise<string> {
+    if (!this.settings) return paydayOf(month);
+    const { payCalendar } = await this.settings.settingsFor(month, trx);
+    return payDateOf(month, payCalendar.payDay);
+  }
 
   /** Mọi kỳ đã có dòng, tháng mới nhất trước. */
   async list(): Promise<PeriodRow[]> {
@@ -82,7 +95,7 @@ export class PeriodsService {
   async view(month: string, trx?: DatabaseTransaction): Promise<PeriodView> {
     const row = await this.repo.find(month, trx);
     const status = (row?.status as PeriodStatus | undefined) ?? 'open';
-    const payday = paydayOf(month);
+    const payday = await this.paydayFor(month, trx);
     // Nút Phê duyệt kỳ cần biết còn vướng gì; các trạng thái khác không có nút này.
     const blockers = status === 'calculated' ? await this.repo.blockers(trx, month) : null;
     return {
@@ -169,10 +182,10 @@ export class PeriodsService {
     );
   }
 
-  /** Đã trả lương: 'approved' sang 'paid', chỉ từ ngày trả lương (giờ Việt Nam) trở đi. */
+  /** Đã trả lương: 'approved' sang 'paid', chỉ từ ngày trả lương (giờ Việt Nam, theo kho cài đặt) trở đi. */
   async pay(month: string, actor: string): Promise<PeriodView> {
-    return this.transition(month, 'pay', actor, null, async () => {
-      const payday = paydayOf(month);
+    return this.transition(month, 'pay', actor, null, async t => {
+      const payday = await this.paydayFor(month, t);
       if (businessDateText(this.now()) < payday) throw new BeforePaydayError(month, payday);
       return { paid_by: actor, paid_at: this.now().toISOString() };
     });

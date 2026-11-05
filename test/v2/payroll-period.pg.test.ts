@@ -37,7 +37,7 @@ async function build(db: Kysely<DB>, client: Client): Promise<Fixture> {
   );
   periods.now = () => new Date('2026-11-01T08:00:00+07:00');
   const repo = new PayrollRepository(db);
-  return { payroll: new PayrollService(repo, tx, periods), periods, repo };
+  return { payroll: new PayrollService(repo, undefined, tx, periods), periods, repo };
 }
 
 test('a full run after Chốt công moves the period to calculated', async t => {

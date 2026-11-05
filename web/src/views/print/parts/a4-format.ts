@@ -1,6 +1,7 @@
 // Hàm thuần đổi số sang chữ cho bản in phiếu lương A4: không tính tiền, chỉ định dạng.
 import type { A4Qty, A4Sheet, A4Stats } from '@/mock/payslip-a4';
-import { dm, dmy, num, vnd, vndSigned } from '@/utils/format';
+import { kindLevelText } from '@/constants/labels';
+import { dm, dmy, monthShort, num, vnd, vndSigned } from '@/utils/format';
 
 /** null hoặc 0 → ô trống; còn lại là số giờ/ngày */
 export const blankNum = (n: number | null | undefined): string => (n == null || n === 0 ? '' : num(n));
@@ -27,24 +28,37 @@ export const actualText = (n: number | null): string | null => (n == null ? null
 /** điểm KPI: chưa có thì "—" */
 export const scoreText = (n: number | null): string => (n == null ? '—' : `${n}%`);
 
-/** dòng phụ của trang 1 */
-export const periodLine = (s: A4Sheet): string =>
-  `Từ ${dm(s.from)} đến ${dmy(s.to)} · ${s.periodNote} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
+/** tiêu đề trang 1: chỉ phiếu đã duyệt là "chính thức", còn lại "tạm tính" */
+export const titleLine = (s: A4Sheet): string =>
+  `Phiếu lương tháng ${monthShort(s.month)} · ${s.slipStatus === 'done' ? 'chính thức' : 'tạm tính'}`;
+
+/** ô Tình trạng của trang 1: trạng thái phiếu */
+export const slipStateText = (st: A4Sheet['slipStatus']): string =>
+  ({ draft: 'Nháp', pending: 'Chờ duyệt', done: 'Đã duyệt', rejected: 'Bị từ chối' })[st];
+
+/** dòng phụ của trang 1; phiếu đã duyệt không còn ghi chú tạm tính (periodNote); ghi chú rỗng thì bỏ cả đoạn */
+export const periodLine = (s: A4Sheet): string => {
+  const note = s.slipStatus === 'done' || !s.periodNote ? '' : ` · ${s.periodNote}`;
+  return `Từ ${dm(s.from)} đến ${dmy(s.to)}${note} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
+};
 
 /** dòng xám ở đầu trang 2 */
 export const staffLine = (s: A4Sheet): string =>
-  `${s.kind} · Bậc ${s.level} · ${s.contract} · từ ${dm(s.from)} đến ${dmy(s.to)}`;
+  `${kindLevelText(s.kind, s.level)} · ${s.contract} · từ ${dm(s.from)} đến ${dmy(s.to)}`;
+
+/** "3 ngày"; số chưa có nguồn (null) → "—" */
+const amount = (n: number | null, unit: string): string => (n == null ? '—' : `${num(n)} ${unit}`);
 
 /** dải tổng hợp của trang 1: 10 cặp nhãn – giá trị */
 export const statCells = (st: A4Stats): [string, string][] => [
-  ['Ngày công', `${num(st.workDays)} ngày`],
+  ['Ngày công', amount(st.workDays, 'ngày')],
   ['Ca Flex · Night', `${num(st.flex)} · ${num(st.night)} ca`],
-  ['Nghỉ có lương', `${num(st.paidLeave)} ngày`],
-  ['iSAT', `${num(st.isat)} ngày`],
-  ['Không lương, BHXH', `${num(st.unpaid)} ngày`],
-  ['Vắng', `${num(st.absent)} ngày`],
-  ['Chờ giải trình', `${num(st.pending)} ngày`],
-  ['OT', `${num(st.otHours)} giờ`],
-  ['Làm bù', `${num(st.makeupHours)} giờ`],
-  ['Trừ giờ đi muộn', `${num(st.lateHours)} giờ`]
+  ['Nghỉ có lương', amount(st.paidLeave, 'ngày')],
+  ['iSAT', amount(st.isat, 'ngày')],
+  ['Không lương, BHXH', amount(st.unpaid, 'ngày')],
+  ['Vắng', amount(st.absent, 'ngày')],
+  ['Chờ giải trình', amount(st.pending, 'ngày')],
+  ['OT', amount(st.otHours, 'giờ')],
+  ['Làm bù', amount(st.makeupHours, 'giờ')],
+  ['Trừ giờ đi muộn', amount(st.lateHours, 'giờ')]
 ];

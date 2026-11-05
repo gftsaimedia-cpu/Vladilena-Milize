@@ -310,6 +310,19 @@ test('clicking a name opens that payslip', async ({ page }) => {
   await expect(page).toHaveURL(URL10);
 });
 
+// Ô Tình trạng: trạng thái nhân sự kèm nhãn hợp đồng; phép còn lại null (không có tài khoản phép) ghi "—", không "null".
+test('the drawer shows the staff status with the contract, and "—" for no leave account', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0101`);
+  const ha = slip(page, 'Nguyễn Thu Hà');
+  await expect(ha.locator('.pd-info > div').nth(1)).toHaveText(/Tình trạng\s*Chính thức · HĐLĐ từ 3 tháng/);
+  await expect(line(ha, /^Ngày phép năm còn lại/)).toContainText('12 ngày');
+  await page.goto(`${URL10}&phieu=GFT-0172`);
+  const tam = slip(page, 'Lý Thanh Tâm');
+  await expect(tam.locator('.pd-info > div').nth(1)).toHaveText(/Tình trạng\s*Thử việc · HĐLĐ từ 3 tháng/);
+  await expect(line(tam, /^Ngày phép năm còn lại/).getByRole('cell').last()).toHaveText('—');
+  await expect(tam).not.toContainText('null');
+});
+
 test('previous and next walk the rows shown when the slip opened', async ({ page }) => {
   await page.goto(URL10);
   await openSlip(page, 'Lê Hoàng Nam');
@@ -390,6 +403,17 @@ test('KPI group order: score cells first, then total, flag, pay, then history', 
   expect(texts[3]).toMatch(/^Thiếu điểm Tự đánh giá/);
   expect(texts[4]).toMatch(/^Lương KPI \(đề xuất/);
   expect(texts[5]).toBe('SLOT-HISTORY');
+});
+
+// BUG-payroll-8: loại nhân sự không có KPI (tts, kpiApplicable false) thì không có nhóm Lương KPI, kể cả 5 ô nhập điểm.
+test('a slip with no KPI has no KPI group and no score inputs', async ({ page }) => {
+  await page.goto(`${SUMMARY}?slots=1&nokpi=1&id=GFT-0142`);
+  await expect(page.getByRole('rowheader', { name: 'Ngày công và lương cơ bản' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'Lương KPI', exact: true })).toHaveCount(0);
+  await expect(page.getByText('SLOT-KPI')).toHaveCount(0);
+  await expect(page.getByText('SLOT-HISTORY')).toHaveCount(0);
+  await expect(page.getByRole('rowheader', { name: /^Tổng điểm KPI/ })).toHaveCount(0);
+  await expect(page.getByRole('rowheader', { name: 'Đi muộn, về sớm, ra ngoài' })).toBeVisible();
 });
 
 test('KPI group renders no slot rows when the slots are empty', async ({ page }) => {
@@ -648,10 +672,121 @@ test('approving and rejecting update the slip, table, tiles and overview', async
   await expect(page.getByRole('region', { name: 'Bảng lương tháng 10' }).locator('tbody tr', { hasText: 'Lê Hoàng Nam' })).toContainText('Đã duyệt');
   await nav.getByRole('link', { name: 'Bảng lương', exact: true }).click();
   await openSlip(page, 'Trịnh Văn Long');
-  await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Từ chối' }).click();
+  await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Từ chối', exact: true }).click();
+  await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Xác nhận từ chối', exact: true }).click();
   await expect(slip(page, 'Trịnh Văn Long').getByRole('status')).toHaveText('Đã từ chối phiếu lương của Trịnh Văn Long.');
   await slip(page, 'Trịnh Văn Long').getByRole('button', { name: 'Đóng' }).click();
   await expect(filters(page).getByRole('button', { name: 'Từ chối 2', exact: true })).toBeVisible();
+});
+
+// Từ chối hai bước (board Payslip): Từ chối mở ô lý do không bắt buộc, Xác nhận từ chối mới quyết; Huỷ quay lại và bỏ chữ đã gõ.
+const reasonBox = (d: ReturnType<typeof slip>) => d.getByLabel('Lý do từ chối (không bắt buộc)');
+const btn = (d: ReturnType<typeof slip>, name: string) => d.getByRole('button', { name, exact: true });
+
+test('Từ chối opens an optional reason box with Huỷ and Xác nhận từ chối', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await btn(nam, 'Từ chối').click();
+  const box = reasonBox(nam);
+  await expect(box).toBeFocused();
+  await expect(box).toHaveJSProperty('tagName', 'TEXTAREA');
+  await expect(box).toHaveAttribute('placeholder', 'Ví dụ: điểm KPI của quản lý chưa đúng, cần chấm lại');
+  await expect(box).toHaveCSS('border-top-left-radius', '8px');
+  await expect(box).toHaveCSS('border-top-color', 'rgb(138, 138, 138)');
+  await expect(box).toHaveCSS('box-shadow', 'none');
+  await expect(box).toHaveCSS('outline-width', '2px');
+  await expect(box).toHaveCSS('outline-color', 'rgb(33, 33, 33)');
+  expect(Math.round((await box.boundingBox())!.height)).toBe(72);
+  await expect(btn(nam, 'Huỷ')).toBeVisible();
+  await expect(btn(nam, 'Xác nhận từ chối')).toBeVisible();
+  await expect(nam.getByRole('button', { name: /^(Từ chối|Duyệt phiếu)$/ })).toHaveCount(0);
+  await expect(nam.getByText('Chờ duyệt', { exact: true })).toBeVisible();
+  await expect(nam.getByRole('status')).toHaveCount(0);
+});
+
+test('Huỷ goes back to the two buttons, keeps the slip pending and drops the typed reason', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await btn(nam, 'Từ chối').click();
+  await reasonBox(nam).fill('Sai điểm quản lý');
+  await btn(nam, 'Huỷ').click();
+  await expect(reasonBox(nam)).toHaveCount(0);
+  await expect(btn(nam, 'Từ chối')).toBeFocused();
+  await expect(btn(nam, 'Duyệt phiếu')).toBeVisible();
+  await expect(btn(nam, 'Xác nhận từ chối')).toHaveCount(0);
+  await expect(nam.getByText('Chờ duyệt', { exact: true })).toBeVisible();
+  await expect(nam.getByRole('status')).toHaveCount(0);
+  await expect(row(page, 'Lê Hoàng Nam')).toContainText('Chờ duyệt');
+  await btn(nam, 'Từ chối').click();
+  await expect(reasonBox(nam)).toHaveValue('');
+});
+
+test('rejecting with a reason shows it under the status line and again on reopening', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Trịnh Văn Long');
+  const long = slip(page, 'Trịnh Văn Long');
+  await btn(long, 'Từ chối').click();
+  await reasonBox(long).fill('  Điểm KPI của quản lý chưa đúng  ');
+  await btn(long, 'Xác nhận từ chối').click();
+  const status = long.getByRole('status');
+  await expect(status).toContainText('Đã từ chối phiếu lương của Trịnh Văn Long.');
+  await expect(status).toContainText('Lý do: Điểm KPI của quản lý chưa đúng');
+  // Lý do lưu đã cắt khoảng trắng hai đầu: so nguyên văn textContent để bắt cả khoảng trắng cuối.
+  expect(await long.getByText(/^Lý do:/).textContent()).toBe('Lý do: Điểm KPI của quản lý chưa đúng');
+  await expect(status).toBeFocused();
+  await expect(reasonBox(long)).toHaveCount(0);
+  await expect(long.getByRole('button', { name: /^(Huỷ|Xác nhận từ chối|Từ chối|Duyệt phiếu)$/ })).toHaveCount(0);
+  await expect(long.getByText('Từ chối', { exact: true })).toBeVisible();
+  await btn(long, 'Đóng').click();
+  await expect(row(page, 'Trịnh Văn Long')).toContainText('Từ chối');
+  await expect(filters(page).getByRole('button', { name: 'Từ chối 2', exact: true })).toBeVisible();
+  await expect(filters(page).getByRole('button', { name: 'Chờ duyệt 28', exact: true })).toBeVisible();
+  await openSlip(page, 'Trịnh Văn Long');
+  await expect(slip(page, 'Trịnh Văn Long').getByRole('status')).toContainText('Lý do: Điểm KPI của quản lý chưa đúng');
+});
+
+test('rejecting with an empty or blank reason rejects without a reason line', async ({ page }) => {
+  await page.goto(URL10);
+  for (const [name, typed] of [['Phạm Ngọc Anh', '   '], ['Ngô Gia Bảo', '']]) {
+    await openSlip(page, name);
+    const d = slip(page, name);
+    await btn(d, 'Từ chối').click();
+    await reasonBox(d).fill(typed);
+    await btn(d, 'Xác nhận từ chối').click();
+    await expect(d.getByRole('status')).toHaveText(`Đã từ chối phiếu lương của ${name}.`);
+    await expect(d.getByText(/^Lý do/)).toHaveCount(0);
+    await btn(d, 'Đóng').click();
+    await expect(row(page, name)).toContainText('Từ chối');
+  }
+  await expect(filters(page).getByRole('button', { name: 'Từ chối 3', exact: true })).toBeVisible();
+});
+
+test('stepping to another slip leaves the reason box behind', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await btn(nam, 'Từ chối').click();
+  await reasonBox(nam).fill('x');
+  await btn(nam, 'Phiếu sau').click();
+  const anh = slip(page, 'Phạm Ngọc Anh');
+  await expect(anh).toBeVisible();
+  await expect(reasonBox(anh)).toHaveCount(0);
+  await expect(btn(anh, 'Từ chối')).toBeVisible();
+  await btn(anh, 'Phiếu trước').click();
+  await expect(nam).toBeVisible();
+  await expect(reasonBox(nam)).toHaveCount(0);
+  await expect(btn(nam, 'Duyệt phiếu')).toBeVisible();
+});
+
+test('while a rejection is in flight Huỷ and Xác nhận từ chối are disabled, then focus lands on the status line', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0142`);
+  const nam = slip(page, 'Lê Hoàng Nam');
+  await btn(nam, 'Từ chối').click();
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 1500));
+  await btn(nam, 'Xác nhận từ chối').click();
+  await expect(btn(nam, 'Xác nhận từ chối')).toBeDisabled();
+  await expect(btn(nam, 'Huỷ')).toBeDisabled();
+  await expect(nam.getByRole('status')).toHaveText('Đã từ chối phiếu lương của Lê Hoàng Nam.');
+  await expect(nam.getByRole('status')).toBeFocused();
 });
 
 test('an already approved slip has no decision buttons', async ({ page }) => {
@@ -662,20 +797,68 @@ test('an already approved slip has no decision buttons', async ({ page }) => {
   await expect(ha.getByRole('button', { name: 'Từ chối' })).toHaveCount(0);
 });
 
-test('print calls the browser dialog and prints only the slip', async ({ page }) => {
-  await page.addInitScript(() => {
+// In mở trang A4 ở tab mới. Thay window.print cho mọi trang của context trước khi mở, để tab in không bật hộp in thật.
+const stubPrint = (page: Page) =>
+  page.context().addInitScript(() => {
     (window as any).__prints = 0;
     window.print = () => { (window as any).__prints += 1; };
   });
+
+test('In phiếu opens that slip’s A4 page in a new tab for every status', async ({ page }) => {
+  await stubPrint(page);
+  await page.goto(URL10);
+  for (const [name, id] of [
+    ['Lê Hoàng Nam', 'GFT-0142'],
+    ['Nguyễn Thu Hà', 'GFT-0101'],
+    ['Võ Đức Thịnh', 'GFT-0123'],
+    ['Đỗ Mai Linh', 'GFT-0156']
+  ]) {
+    await openSlip(page, name);
+    const d = slip(page, name);
+    const [tab] = await Promise.all([page.context().waitForEvent('page'), d.getByRole('button', { name: 'In phiếu' }).click()]);
+    await expect(tab).toHaveURL(`/in/phieu-luong/2026-10/${id}?in=1`);
+    await tab.close();
+    await expect(d).toBeVisible();
+    await d.getByRole('button', { name: 'Đóng' }).click();
+  }
+  // Ngăn kéo không tự in trang Bảng lương nữa, và không còn CSS in riêng cho ngăn kéo.
+  expect(await page.evaluate(() => (window as any).__prints)).toBe(0);
   await page.goto(`${URL10}&phieu=GFT-0142`);
-  const d = slip(page, 'Lê Hoàng Nam');
-  await d.getByRole('button', { name: 'In phiếu' }).click();
-  expect(await page.evaluate(() => (window as any).__prints)).toBe(1);
   await page.emulateMedia({ media: 'print' });
-  await expect(table(page)).toBeHidden();
-  await expect(d.getByRole('heading', { name: 'Tổng hợp lương' })).toBeVisible();
-  await expect(d.getByRole('button', { name: 'In phiếu' })).toBeHidden();
-  await expect(d.getByRole('button', { name: 'Duyệt phiếu' })).toBeHidden();
+  await expect(table(page)).toBeVisible();
+});
+
+test('In tất cả opens the approved slips print page in a new tab', async ({ page }) => {
+  await stubPrint(page);
+  await page.goto(URL10);
+  const all = page.getByRole('button', { name: 'In tất cả', exact: true });
+  await expect(all).toBeEnabled();
+  await expect(all).toHaveAttribute('title', 'In 86 phiếu đã duyệt');
+  await expect(all).toHaveClass(/\bbtn\b/);
+  await expect(all).not.toHaveClass(/\bpri\b/);
+  await expect(all.locator('svg')).toHaveCount(1);
+  await expectInkRing(page, all);
+  const [tab] = await Promise.all([page.context().waitForEvent('page'), all.click()]);
+  await expect(tab).toHaveURL('/in/phieu-luong/2026-10?in=1');
+  await tab.close();
+  // Số trên nút theo số phiếu đã duyệt.
+  await openSlip(page, 'Lê Hoàng Nam');
+  await btn(slip(page, 'Lê Hoàng Nam'), 'Duyệt phiếu').click();
+  await btn(slip(page, 'Lê Hoàng Nam'), 'Đóng').click();
+  await expect(all).toHaveAttribute('title', 'In 87 phiếu đã duyệt');
+  // Đang tải tháng khác thì bảng cũ vẫn hiện: nút in đúng tháng của bảng đang hiện, không phải tháng vừa chọn.
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 3000));
+  await page.getByRole('button', { name: 'Tháng trước' }).click();
+  await expect(page).toHaveURL(/thang=2026-09/);
+  await expect(all).toBeVisible();
+  const [old] = await Promise.all([page.context().waitForEvent('page'), all.click()]);
+  await expect(old).toHaveURL('/in/phieu-luong/2026-10?in=1');
+  await old.close();
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 0));
+  // Tháng không có bảng lương thì không có nút.
+  await page.goto('/admin/bang-luong?thang=2026-09');
+  await expect(page.getByText('Bản mockup chỉ có bảng lương tháng 10/2026.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'In tất cả' })).toHaveCount(0);
 });
 
 test('while a decision is in flight the buttons are disabled, then focus lands on the status line', async ({ page }) => {

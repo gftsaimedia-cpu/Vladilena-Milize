@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Bảng Tổng hợp lương của phiếu (spec 4.3): nhóm khoản, phần tổng, dải Thực nhận.
 // Nhóm LƯƠNG KPI đọc từ trên xuống: slot `kpi` (5 ô điểm), Tổng điểm, cờ thiếu điểm, Lương KPI, slot `history`.
-// Hai slot chỉ có dòng khi được đổ nội dung (Task 5).
+// Hai slot chỉ có dòng khi được đổ nội dung (Task 5). Loại nhân sự không có KPI (tts, kpiApplicable false): bỏ cả nhóm.
 import { computed } from 'vue';
 import { KPI_LABELS } from '@/constants/labels';
 import type { Payslip } from '@/mock/payroll';
@@ -67,17 +67,21 @@ const groups = computed<Group[]>(() => {
         { label: 'Tổng phụ cấp (đ)', actual: money(c.allowanceTotal), strong: true }
       ]
     },
-    {
-      id: 'kpi',
-      title: 'Lương KPI',
-      lead: 'kpi',
-      trail: 'history',
-      rows: [
-        { label: 'Tổng điểm KPI', actual: `${num(c.kpiPercent)}%` },
-        ...(missing.length ? [{ label: `Thiếu điểm ${missing.join(', ')}`, sub: 'Cột thiếu tính 0 điểm', dot: true }] : []),
-        { label: 'Lương KPI (đề xuất → thực tế) (đ)', rule: money(s.kpi.proposal), actual: money(c.kpiPay), strong: true }
-      ]
-    },
+    ...(s.kpiApplicable === false
+      ? []
+      : [
+          {
+            id: 'kpi',
+            title: 'Lương KPI',
+            lead: 'kpi' as const,
+            trail: 'history' as const,
+            rows: [
+              { label: 'Tổng điểm KPI', actual: `${num(c.kpiPercent)}%` },
+              ...(missing.length ? [{ label: `Thiếu điểm ${missing.join(', ')}`, sub: 'Cột thiếu tính 0 điểm', dot: true }] : []),
+              { label: 'Lương KPI (đề xuất → thực tế) (đ)', rule: money(s.kpi.proposal), actual: money(c.kpiPay), strong: true }
+            ]
+          }
+        ]),
     {
       id: 'late',
       title: 'Đi muộn, về sớm, ra ngoài',
@@ -156,7 +160,7 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
         <tr>
           <th scope="row" class="lb">Ngày phép năm còn lại</th>
           <td></td>
-          <td>{{ slip.leaveLeft }} ngày</td>
+          <td>{{ slip.leaveLeft == null ? '—' : `${slip.leaveLeft} ngày` }}</td>
         </tr>
       </tbody>
     </table>

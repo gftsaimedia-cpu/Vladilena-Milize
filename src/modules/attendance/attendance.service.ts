@@ -4,6 +4,8 @@ import { PeriodGate } from '../periods/period-gate';
 import { BadRequestError } from '../../common';
 import { businessDateText } from '../../common/business-date';
 import { isValidDateText } from '../../common/date-text';
+import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
+import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
   GeoLocation,
@@ -23,12 +25,6 @@ export interface ShiftConfigInput {
   shiftAllowancePct?: number;
 }
 
-export interface OfficeLocationInput {
-  latitude: number;
-  longitude: number;
-  maxDistanceMeters?: number;
-}
-
 export interface RecordPunchInput {
   employeeId: string;
   type: 'IN' | 'OUT';
@@ -40,7 +36,6 @@ export interface RecordPunchInput {
   workDate?: string;
   punchedAt?: Date | string;
   shiftConfig?: ShiftConfigInput;
-  officeLocation?: OfficeLocationInput;
 }
 
 /** Cùng câu với kiểm tra `workDate` của domain chấm công. */
@@ -56,13 +51,37 @@ export class AttendanceService {
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
     @Optional() @Inject(PeriodGate) private readonly periodGate?: PeriodGate,
   ) {}
 
   /**
-   * Ghi nhận sự kiện chấm công và tính toán lại bảng công nhật (với lock bảo vệ)
+   * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
+   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE) thì luôn không phải. Không có cài đặt thì coi mọi ngày là ngày làm.
    */
-  async recordPunch(input: RecordPunchInput): Promise<RecordPunchResult> {
+  async workdayOf(employeeId: string, date: string): Promise<boolean> {
+    if (!this.settings) return true;
+    const schedule = await this.repo.findSchedule(employeeId, date);
+    if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
+    return await this.workdayWithoutSchedule(this.settings, employeeId, date);
+  }
+
+  private async workdayWithoutSchedule(settings: Pick<SettingsReader, 'workWeekOf'>, employeeId: string, date: string): Promise<boolean> {
+    // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì coi như tuần T2–T7, cùng mặc định với app nhân viên.
+    let weekdays: readonly number[] = [1, 2, 3, 4, 5, 6];
+    try {
+      weekdays = (await settings.workWeekOf(employeeId, date.slice(0, 7))).weekdays;
+    } catch (err) {
+      if (!(err instanceof TypeWeekMissingError)) throw err;
+    }
+    return isWorkday(weekdays, date) || (await this.repo.hasApprovedWorkOn(employeeId, date));
+  }
+
+  /**
+   * Ghi nhận sự kiện chấm công và tính toán lại bảng công nhật (với lock bảo vệ).
+   * Có cài đặt thì kiểm ngày làm (chỉ chấm vào) rồi vùng chấm công (khi `checkZone`) trước khi ghi bất cứ gì.
+   */
+  async recordPunch(input: RecordPunchInput, options: { checkZone?: boolean } = {}): Promise<RecordPunchResult> {
     if (!input.employeeId) {
       throw new Error('Mã nhân viên (employeeId) không được để trống');
     }
@@ -83,6 +102,32 @@ export class AttendanceService {
 
       // 1. Lấy hoặc tạo lịch làm việc cho ngày công
       let schedule = await this.repo.findSchedule(input.employeeId, workDate);
+
+      // Kiểm ngày làm và vùng trước khi tạo lịch mặc định: repo ghi bằng pool riêng nên kiểm sau thì lần bị từ chối vẫn để lại lịch.
+      let distanceM = 0;
+      if (this.settings) {
+        if (!schedule && !input.shiftConfig && input.type === 'IN') {
+          if (!(await this.workdayWithoutSchedule(this.settings, input.employeeId, workDate))) {
+            throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
+          }
+        }
+        if (options.checkZone) {
+          const zone = await this.settings.zone();
+          const check = checkPunchLocation(zone, {
+            lat: input.latitude ?? input.userLocation?.latitude,
+            lng: input.longitude ?? input.userLocation?.longitude,
+          });
+          if (check.kind === 'no-location') throw new PunchRefusedError('NO_LOCATION', 'Không lấy được vị trí');
+          if (check.kind === 'outside') {
+            throw new PunchRefusedError('OUTSIDE_ZONE', `Bạn đang cách văn phòng ${check.distanceM} m`, {
+              distanceM: check.distanceM,
+              radiusM: zone!.radiusM,
+            });
+          }
+          distanceM = check.distanceM ?? 0;
+        }
+      }
+
       if (!schedule) {
         if (input.shiftConfig) {
           schedule = WorkSchedule.create({
@@ -125,18 +170,9 @@ export class AttendanceService {
         type: input.type,
         userLocation,
         note: input.note,
+        distanceMeters: distanceM,
+        isWithinOffice: true,
       };
-
-      if (input.officeLocation) {
-        punchProps.officeLocation = new GeoLocation({
-          latitude: input.officeLocation.latitude,
-          longitude: input.officeLocation.longitude,
-        });
-        punchProps.allowedRadiusMeters = input.officeLocation.maxDistanceMeters ?? 100;
-      } else {
-        punchProps.distanceMeters = 0;
-        punchProps.isWithinOffice = true;
-      }
 
       const punch = PunchEvent.create(punchProps);
       await this.repo.savePunch(punch);

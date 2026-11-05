@@ -1,14 +1,14 @@
+import { createHash } from 'node:crypto';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { Injectable, Inject } from '@nestjs/common';
 import type { Insertable, Kysely, Selectable, Transaction } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
+import type { SettingsSnapshot } from '../settings';
 import {
   CONTRACT_TERM_TEXT,
   ContractTerm,
-  DEFAULT_INSURANCE_RATES,
   EmployeePayslip,
   EmployeePayslipDTO,
-  InsuranceRates,
   KpiCap,
   KpiInput,
   PayrollWarning,
@@ -28,10 +28,12 @@ export interface EmployeeMonthlyRawData {
     baseSalary: number | null; // position_levels.base_salary in effect; null = not configured
     standardWorkdays: number | null; // position_types.workdays in effect; null = not configured
     employeeType?: string;
+    level: number; // staff.level; the position level row is looked up by it
+    employmentStatus: 'probation' | 'official' | null; // staff.contract_status; any other value reads as null
     nightAllowancePct?: number;
     isDormResident?: boolean;
     allowanceRates: AllowanceRates | null; // % of the position version in force; null = no version for the month
-    remainingAnnualLeaveDays?: number;
+    remainingAnnualLeaveDays: number | null; // null = the type keeps no leave account
     contractTerm: ContractTerm; // resolved from staff.contract and the employee type
     insured: boolean; // resolved from the contract term and staff.insured
     dependants: number;
@@ -58,17 +60,21 @@ export interface EmployeeMonthlyRawData {
     type: string;
     status: string;
     explanationDate?: string | null;
+    actualCheckIn?: string | null; // explained check-in 'HH:MM'
+    actualCheckOut?: string | null;
     leaveStartDate?: string | null;
     leaveEndDate?: string | null;
     leaveType?: string | null;
     otDate?: string | null;
+    otStartTime?: string | null; // approved OT window 'HH:MM'
+    otEndTime?: string | null;
     otHours?: number | null;
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
   isatDates?: string[]; // Saturdays of approved iSAT requests, 'YYYY-MM-DD'
+  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD'
   kpi: KpiInput | null;
-  insuranceRates: InsuranceRates;
 }
 
 // Raw rows of one employee-month as the database returns them (numbers may still be strings).
@@ -80,8 +86,9 @@ export interface MonthRows {
   timesheets: any[];
   requests: any[];
   isatDates?: Array<string | Date>;
+  holidays?: Array<string | Date>;
+  annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
-  settings: Array<{ key: string; value_json: string }>;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -96,6 +103,12 @@ function dateTextOrNull(value: string | Date | null | undefined): string | null 
   return value === null || value === undefined ? null : dateText(value);
 }
 
+// The explained times are TEXT columns ('08:00' or '08:00:00'); keep 'HH:MM', null when empty.
+function clockTextOrNull(value: unknown): string | null {
+  const text = typeof value === 'string' ? value.trim().slice(0, 5) : '';
+  return text === '' ? null : text;
+}
+
 const numberOrNull = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
 
 // KPI pay applies when the type's 'kpi' benefit is on and the level defines a kpi_max; kpiMax is null only when
@@ -106,28 +119,13 @@ export function resolveKpiCap(level: any | null, benefits: any[]): KpiCap {
   return { applicable: enabled && kpiMax !== null, kpiMax };
 }
 
-function parseInsuranceRates(settings: MonthRows['settings']): InsuranceRates {
-  const fallback = { ...DEFAULT_INSURANCE_RATES };
-  const row = settings.find(s => s.key === 'insurance_rates');
-  if (!row) return fallback;
-  let parsed: any;
-  try {
-    parsed = JSON.parse(row.value_json);
-  } catch {
-    return fallback;
-  }
-  if (parsed === null || typeof parsed !== 'object') return fallback;
-  const { bhxh, bhyt, bhtn } = parsed;
-  const valid = [bhxh, bhyt, bhtn].every(rate => typeof rate === 'number' && rate >= 0 && rate <= 1);
-  return valid ? { bhxh, bhyt, bhtn } : fallback;
-}
-
 export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRawData {
   const { staff: staffRow, type: typeRow, level: levelRow, benefits, kpi: kpiRow } = rows;
 
   const baseSalary = numberOrNull(levelRow?.base_salary);
   const kpiCap = resolveKpiCap(levelRow, benefits);
   const contractTerm = resolveContractTerm(staffRow.contract, staffRow.type);
+  const hasLeaveAccount = benefits.some(b => b.benefit === 'leaveAccount' && Number(b.enabled) === 1);
 
   return {
     staff: {
@@ -139,6 +137,11 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       baseSalary,
       standardWorkdays: numberOrNull(typeRow?.workdays),
       employeeType: staffRow.type,
+      level: Number(staffRow.level ?? 1),
+      employmentStatus:
+        staffRow.contract_status === 'probation' || staffRow.contract_status === 'official'
+          ? staffRow.contract_status
+          : null,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
       // Không có loại thì vẫn đọc phiên bản NV để lấy ngày công (positionInEffect), nhưng không trả phụ cấp như trước.
@@ -151,7 +154,9 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
             attendancePct: Number(typeRow.attendance_pct)
           }
         : null,
-      remainingAnnualLeaveDays: 22,
+      remainingAnnualLeaveDays: hasLeaveAccount
+        ? Number(staffRow.leave_balance ?? 0) - Number(rows.annualLeaveUsed ?? 0)
+        : null,
       contractTerm,
       insured: isInsured(contractTerm, numberOrNull(staffRow.insured)),
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
@@ -178,15 +183,20 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       type: r.type,
       status: r.status,
       explanationDate: dateTextOrNull(r.explanation_date),
+      actualCheckIn: clockTextOrNull(r.actual_check_in),
+      actualCheckOut: clockTextOrNull(r.actual_check_out),
       leaveStartDate: dateTextOrNull(r.leave_start_date),
       leaveEndDate: dateTextOrNull(r.leave_end_date),
       leaveType: r.leave_type,
       otDate: dateTextOrNull(r.ot_date),
+      otStartTime: clockTextOrNull(r.ot_start_time),
+      otEndTime: clockTextOrNull(r.ot_end_time),
       otHours: numberOrNull(r.ot_hours),
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
     isatDates: (rows.isatDates ?? []).map(dateText),
+    holidayDates: (rows.holidays ?? []).map(dateText),
     kpi: kpiRow
       ? {
           scores: {
@@ -198,8 +208,7 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
           },
           proposedAmount: numberOrNull(kpiRow.kpi_proposed)
         }
-      : null,
-    insuranceRates: parseInsuranceRates(rows.settings)
+      : null
   };
 }
 
@@ -216,6 +225,10 @@ export interface PayslipRecord {
   net: number;
   warnings: PayrollWarning[];
   details: EmployeePayslipDTO;
+  // The Admin's decision: the reason typed with it, who decided and when (ISO time); null while undecided.
+  note: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
 }
 
 // Columns of kpi_scores to write; a key that is absent keeps its stored value, null clears it. Scores are points x 100.
@@ -236,6 +249,22 @@ export interface CarryForward {
 }
 
 const ENGINE_VERSION = 'v2-rules-2026-11';
+
+/** The settings a run was computed with: the month's snapshot and the id of the last settings change it reflects. */
+export interface RunSettings {
+  snapshot: SettingsSnapshot;
+  rev: number;
+}
+
+/** params_json is the snapshot as JSON and params_hash its sha256 (hex); a run without settings stores '{}' at rev 0. */
+function runParams(settings?: RunSettings | null): { params_hash: string; params_rev: number; params_json: string } {
+  const json = settings ? JSON.stringify(settings.snapshot) : '{}';
+  return {
+    params_hash: createHash('sha256').update(json).digest('hex'),
+    params_rev: settings?.rev ?? 0,
+    params_json: json
+  };
+}
 
 export function buildPayslipRow(runId: number, slip: EmployeePayslip): Insertable<DB['payslips']> {
   return {
@@ -271,7 +300,10 @@ export function readPayslipRow(row: Selectable<DB['payslips']>): PayslipRecord {
     advance: Number(row.advance),
     net: Number(row.net),
     warnings: row.flags_json ? JSON.parse(row.flags_json) : [],
-    details: JSON.parse(gunzipSync(row.snapshot_gz).toString('utf8'))
+    details: JSON.parse(gunzipSync(row.snapshot_gz).toString('utf8')),
+    note: row.note ?? null,
+    decidedBy: row.decided_by ?? null,
+    decidedAt: row.decided_at ?? null
   };
 }
 
@@ -386,6 +418,28 @@ export class PayrollRepository {
       .orderBy('isat_registrations.saturday', 'asc')
       .execute();
 
+    // Company holidays in the month (the DATE column is converted to text in mapMonthRows)
+    const holidayRows = await this.qb
+      .selectFrom('company_holidays')
+      .select('holiday_date')
+      .where('holiday_date', '>=', startDate)
+      .where('holiday_date', '<=', endDate)
+      .execute();
+
+    // Approved annual leave days taken since the balance date, up to the month end
+    let usedQuery = this.qb
+      .selectFrom('day_status')
+      .innerJoin('system_requests', 'system_requests.id', 'day_status.request_id')
+      .select(eb => eb.fn.countAll<string>().as('n'))
+      .where('day_status.employee_id', '=', staffRow.uuid || employeeId)
+      .where('day_status.status', '=', 'LEAVE')
+      .where('system_requests.type', '=', 'LEAVE')
+      .where('system_requests.leave_type', '=', 'ANNUAL')
+      .where('system_requests.status', '=', 'APPROVED')
+      .where('day_status.work_date', '<=', endDate);
+    if (staffRow.leave_balance_on) usedQuery = usedQuery.where('day_status.work_date', '>=', staffRow.leave_balance_on);
+    const annualLeaveUsed = await usedQuery.executeTakeFirst();
+
     // KPI scores
     const kpiRow = await this.qb
       .selectFrom('kpi_scores')
@@ -393,12 +447,6 @@ export class PayrollRepository {
       .where('username', '=', staffRow.username)
       .where('month', '=', month)
       .executeTakeFirst();
-
-    const settings = await this.qb
-      .selectFrom('settings')
-      .select(['key', 'value_json'])
-      .where('key', '=', 'insurance_rates')
-      .execute();
 
     return mapMonthRows(month, {
       staff: staffRow,
@@ -408,8 +456,9 @@ export class PayrollRepository {
       timesheets: timesheetRows,
       requests: requestRows,
       isatDates: isatRows.map(r => r.saturday),
-      kpi: kpiRow ?? null,
-      settings
+      holidays: holidayRows.map(r => r.holiday_date),
+      annualLeaveUsed: annualLeaveUsed?.n ?? 0,
+      kpi: kpiRow ?? null
     });
   }
 
@@ -454,12 +503,14 @@ export class PayrollRepository {
   // Stores a new draft run for the month (run_no + 1) and supersedes the month's earlier drafts. A month with a
   // final run is closed. With carryForward (a partial run) the payslips of the previous draft run that the call did
   // not recalculate are copied unchanged into the new run. Without payslips nothing is stored and the result is null.
+  // `settings` is what the run was computed with (see runParams).
   async savePayrollRunAndSlips(
     month: string,
     actor: string,
     payslips: EmployeePayslip[],
     errorCount = 0,
-    carryForward?: CarryForward
+    carryForward?: CarryForward,
+    settings?: RunSettings | null
   ): Promise<number | null> {
     const now = new Date().toISOString();
 
@@ -497,9 +548,7 @@ export class PayrollRepository {
           run_no: runNo,
           status: 'draft',
           engine_version: ENGINE_VERSION,
-          params_hash: ENGINE_VERSION,
-          params_rev: 1,
-          params_json: '{}',
+          ...runParams(settings),
           switches_json: '{}',
           slips_total: payslips.length + carried.length,
           slips_error: errorCount,
@@ -548,7 +597,7 @@ export class PayrollRepository {
     username: string,
     status: 'approved' | 'rejected',
     actor: string,
-    note?: string
+    note?: string | null
   ): Promise<PayslipRecord | null> {
     const run = await this.qb
       .selectFrom('payroll_runs')

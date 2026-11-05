@@ -19,6 +19,8 @@ import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
 import { PeriodsRepository } from '../../src/modules/periods/periods.repository';
 import { PeriodsService } from '../../src/modules/periods/periods.service';
 import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
+import { ExplanationRemindersRepository } from '../../src/modules/requests/explanation-reminders.repository';
+import { ExplanationsService } from '../../src/modules/requests/explanations.service';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { RequestsModule } from '../../src/modules/requests/requests.module';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
@@ -55,16 +57,28 @@ async function build(db: Kysely<DB>, client: Client): Promise<Fixture> {
   const periods = new PeriodsService(periodsRepo, tx, new AuditLog(new AuditRepository(), new TransactionCoordinator(db)));
   periods.now = NOW;
   const payrollRepo = new PayrollRepository(db);
-  const payroll = new PayrollService(payrollRepo, tx, periods);
+  const payroll = new PayrollService(payrollRepo, undefined, tx, periods);
+  const gate = new PeriodGate(periodsRepo);
   const requestsWith = (p: PayrollService) => {
+    // Đơn giải trình nộp qua ExplanationsService (ngày cần giải trình, trường hợp do server tìm), cùng cổng kỳ.
+    const explanations = new ExplanationsService(
+      new RequestsRepository(db),
+      new AttendanceRepository(db),
+      new HolidaysRepository(db),
+      new DayStatusRepository(db),
+      new ExplanationRemindersRepository(db),
+      gate
+    );
+    explanations.now = NOW;
     const service = new RequestsService(
       new RequestsRepository(db),
       new AttendanceRepository(db),
       tx,
       new HolidaysRepository(db),
       new DayStatusRepository(db),
-      new PeriodGate(periodsRepo),
-      p
+      gate,
+      p,
+      explanations
     );
     service.now = NOW;
     return service;
@@ -118,17 +132,25 @@ const leave = (employeeId: string, startDate: string, endDate = startDate) => ({
   endDate
 });
 
+// Ngày không có dòng chấm công: thiếu cả giờ vào lẫn giờ ra, nên phải nhập cả hai giờ thực tế.
 const explanation = (employeeId: string, workDate: string) => ({
   employeeId,
-  title: 'Giải trình',
   reason: 'Quên chấm công',
   workDate,
-  cases: ['LATE_CHECK_IN']
+  actualCheckIn: '08:00',
+  actualCheckOut: '17:00'
 });
 
 test('filing leave, OT, shift change, makeup or advance into a locked month is refused', async t => {
   await withTempDb(t, 'req_period_file', async (db, client) => {
-    const { service } = await build(db, client);
+    const f = await build(db, client);
+    // Số tiền tạm ứng cố định: tháng 10 không có ngày công nên bộ tính thật trả 0 và đơn bị từ chối trước cổng kỳ.
+    class QuotingPayroll extends PayrollService {
+      override async advanceQuote() {
+        return { amount: 1_000_000, workDays: 12, from: '2026-10-01', to: '2026-10-15' };
+      }
+    }
+    const service = f.requestsWith(new QuotingPayroll(f.payrollRepo, undefined, f.tx, f.periods));
     await setPeriod(client, 'attendance_locked');
     const locked = lockedIn(MONTH, 'attendance_locked');
 
@@ -170,10 +192,15 @@ test('filing leave, OT, shift change, makeup or advance into a locked month is r
       }),
       locked
     );
-    await assert.rejects(
-      service.createAdvanceRequest({ employeeId: 'pg-user', title: 'Tạm ứng', reason: 'Việc nhà', amount: 1_000_000, period: MONTH }),
-      locked
-    );
+    await assert.rejects(service.createAdvanceRequest({ employeeId: 'pg-user', period: MONTH }), locked);
+    // Xem trước đi qua cùng cổng kỳ và báo cùng kết quả, không ghi gì.
+    assert.deepEqual(await service.previewRequest('leave', leave('pg-user', '2026-10-20')), {
+      ok: false,
+      message: 'Tháng 10/2026 đã chốt công',
+      code: 'PERIOD_LOCKED',
+      month: MONTH,
+      status: 'attendance_locked'
+    });
 
     assert.equal(await count(client, 'system_requests'), 0);
     assert.equal(await count(client, 'day_status'), 0);
@@ -215,20 +242,31 @@ test('a leave across 30/10–02/11 is refused when only October is locked', asyn
   });
 });
 
-test('an explanation for a locked month is still accepted, but not once approved', async t => {
+test('an explanation for a locked or calculated month is still accepted, but not once approved or paid', async t => {
   await withTempDb(t, 'req_period_explain', async (db, client) => {
     const { service } = await build(db, client);
+    // Ví dụ của người dùng: tháng 10 chốt công 01/11, Bình nộp giải trình 29/10 ngày 03/11 → được nhận.
     await setPeriod(client, 'attendance_locked');
-    const accepted = await service.createExplanationRequest(explanation('pg-user', '2026-10-28'));
+    const accepted = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'), { filedBy: 'self' });
     assert.equal(accepted.status, 'PENDING');
+    assert.deepEqual(accepted.explanationCases, ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT']);
+    await setPeriod(client, 'calculated');
+    assert.equal((await service.createExplanationRequest(explanation('pg-user', '2026-10-28'))).status, 'PENDING');
 
-    await setPeriod(client, 'approved');
-    await assert.rejects(service.createExplanationRequest(explanation('pg-user', '2026-10-27')), (e: any) => {
-      lockedIn(MONTH, 'approved')(e);
-      assert.equal(e.message, 'Kỳ lương tháng 10/2026 đã phê duyệt');
-      return true;
-    });
-    assert.equal(await count(client, 'system_requests'), 1);
+    for (const [status, message] of [
+      ['approved', 'Kỳ lương tháng 10/2026 đã phê duyệt'],
+      ['paid', 'Kỳ lương tháng 10/2026 đã trả lương']
+    ]) {
+      await setPeriod(client, status);
+      for (const filedBy of ['self', 'admin'] as const) {
+        await assert.rejects(service.createExplanationRequest(explanation('pg-user', '2026-10-27'), { filedBy }), (e: any) => {
+          lockedIn(MONTH, status)(e);
+          assert.equal(e.message, message);
+          return true;
+        });
+      }
+    }
+    assert.equal(await count(client, 'system_requests'), 2);
   });
 });
 
@@ -283,7 +321,7 @@ test('a failed recalculation puts the old payslip back to draft', async t => {
         throw new Error('Thiếu cấu hình bậc 9');
       }
     }
-    const service = f.requestsWith(new FailingPayroll(f.payrollRepo, f.tx, f.periods));
+    const service = f.requestsWith(new FailingPayroll(f.payrollRepo, undefined, f.tx, f.periods));
 
     const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
     const result = await service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
@@ -308,7 +346,7 @@ test('a recalculation that reports errors also puts the old payslip back to draf
         return { runId: null, items: [], errors: (employeeIds ?? []).map(employeeId => ({ employeeId, message: `Thiếu lương cơ bản ${month}` })) };
       }
     }
-    const service = f.requestsWith(new ErroringPayroll(f.payrollRepo, f.tx, f.periods));
+    const service = f.requestsWith(new ErroringPayroll(f.payrollRepo, undefined, f.tx, f.periods));
 
     const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
     const result = await service.reviewAndRecalculate(created.id, 'admin-username', 'REJECT', 'Không hợp lệ');
@@ -337,7 +375,7 @@ test('a review in a calculated month puts the slip back to draft inside its own 
         return super.resetDecision(month, employeeId, trx);
       }
     }
-    const service = f.requestsWith(new CrashingPayroll(f.payrollRepo, f.tx, f.periods));
+    const service = f.requestsWith(new CrashingPayroll(f.payrollRepo, undefined, f.tx, f.periods));
 
     const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
     const result = await service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
@@ -377,7 +415,7 @@ test('Phê duyệt kỳ that waits behind a review sees the slip back in draft',
         return reset;
       }
     }
-    const service = f.requestsWith(new PausingPayroll(f.payrollRepo, f.tx, f.periods));
+    const service = f.requestsWith(new PausingPayroll(f.payrollRepo, undefined, f.tx, f.periods));
     const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
 
     const review = service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
@@ -454,7 +492,7 @@ test('a reset that fails inside the review rolls the review back', async t => {
         throw new Error('không ghi được phiếu');
       }
     }
-    const service = f.requestsWith(new BrokenReset(f.payrollRepo, f.tx, f.periods));
+    const service = f.requestsWith(new BrokenReset(f.payrollRepo, undefined, f.tx, f.periods));
 
     const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
     await assert.rejects(service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE'), /không ghi được phiếu/);

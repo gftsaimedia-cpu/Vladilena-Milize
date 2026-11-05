@@ -1,17 +1,27 @@
 import { randomUUID } from 'node:crypto';
 import { RequestsService } from '../../../src/modules/requests/requests.service';
+import { ExplanationsService } from '../../../src/modules/requests/explanations.service';
+import {
+  ExplanationRemindersRepository,
+  type ReminderRow
+} from '../../../src/modules/requests/explanation-reminders.repository';
 import {
   RequestsRepository,
+  type FilingStaff,
   type IsatProfile,
   type RequestListFilter,
   type ScheduleDay,
   type StaffContext
 } from '../../../src/modules/requests/requests.repository';
-import { AttendanceRepository } from '../../../src/modules/attendance/attendance.repository';
+import { AttendanceRepository, type TimesheetFilter } from '../../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository, type Holiday } from '../../../src/modules/holidays/holidays.repository';
 import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
-import { WorkSchedule } from '../../../src/modules/attendance/domain';
+import { DailyTimesheet, WorkSchedule } from '../../../src/modules/attendance/domain';
 import type { TransactionCoordinator } from '../../../src/database';
+import type { AdvanceQuote } from '../../../src/modules/payroll/domain';
+import type { SettingsReader } from '../../../src/modules/settings';
+import { PeriodGate } from '../../../src/modules/periods/period-gate';
+import type { PeriodsRepository } from '../../../src/modules/periods/periods.repository';
 import {
   SystemRequest,
   eachDate,
@@ -31,7 +41,10 @@ export const TTS_UUID = '0a7c4e2e-2222-4a6b-9c1d-000000000002';
 /** Người duyệt `admin` của các test: uuid khác tên đăng nhập như trên DB thật. */
 export const ADMIN_UUID = '0a7c4e2e-3333-4a6b-9c1d-000000000003';
 
-/** Hồ sơ nộp đơn: mặc định nv, ca 08:00–17:00, 12 ngày phép, mọi cờ bật. `employeeType: 'tts'` đổi sang mặc định tts. */
+/**
+ * Hồ sơ nộp đơn: mặc định nv, ca 08:00–17:00, 12 ngày phép, mọi cờ bật, không ghi ngày vào làm. `employeeType: 'tts'`
+ * đổi sang mặc định tts.
+ */
 export function staffContext(overrides: Partial<StaffContext> = {}): StaffContext {
   const tts = overrides.employeeType === 'tts';
   return {
@@ -40,6 +53,7 @@ export function staffContext(overrides: Partial<StaffContext> = {}): StaffContex
     defaultShift: { startTime: '08:00', endTime: '17:00' },
     leaveBalance: 12,
     leaveBalanceOn: null,
+    startDate: null,
     benefits: tts ? { ot: false, makeup: true, leaveAccount: false } : { ot: true, makeup: true, leaveAccount: true },
     regularDows: tts ? [1, 2, 3, 4, 5] : [1, 2, 3, 4, 5, 6],
     ...overrides
@@ -129,6 +143,17 @@ export class FakeRequestsRepository extends RequestsRepository {
     return this.profiles.get(employeeIdOrUsername)?.employeeId ?? null;
   }
 
+  /** Nhân sự nộp đơn mà `listFilingStaff` trả; mặc định là mọi hồ sơ trừ Admin, tên lấy từ username. */
+  filingStaff: FilingStaff[] | null = null;
+
+  override async listFilingStaff(): Promise<FilingStaff[]> {
+    this.calls.push(['listFilingStaff', this.trx]);
+    if (this.filingStaff) return this.filingStaff;
+    return [...this.profiles.entries()]
+      .filter(([key, ctx]) => key !== ctx.employeeId && ctx.employeeId !== ADMIN_UUID)
+      .map(([username, ctx]) => ({ uuid: ctx.employeeId, username, name: username }));
+  }
+
   override async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
     this.calls.push(['findStaffContext', this.trx]);
     this.staffMonths.push(month);
@@ -172,9 +197,24 @@ export class FakeAttendanceRepository extends AttendanceRepository {
 
   schedules = new Map<string, WorkSchedule>();
   dayStatuses = new Map<string, string>();
+  /** Bảng công các ngày (giờ vào/ra thật); dựng bằng `timesheet(...)`. */
+  timesheets: DailyTimesheet[] = [];
 
   constructor() {
     super({} as any);
+  }
+
+  override async listTimesheets(filter: TimesheetFilter = {}): Promise<DailyTimesheet[]> {
+    this.calls.push(['listTimesheets', this.trx]);
+    return this.timesheets
+      .filter(
+        t =>
+          (!filter.employeeId || t.employeeId === filter.employeeId) &&
+          (!filter.startDate || t.workDate >= filter.startDate) &&
+          (!filter.endDate || t.workDate <= filter.endDate) &&
+          (!filter.status || t.status === filter.status)
+      )
+      .sort((a, b) => a.workDate.localeCompare(b.workDate) || a.employeeId.localeCompare(b.employeeId));
   }
 
   override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
@@ -201,6 +241,55 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   override async updateDayStatus(employeeId: string, workDate: string, status: string): Promise<void> {
     this.calls.push(['updateDayStatus', this.trx]);
     this.dayStatuses.set(`${employeeId}:${workDate}`, status);
+  }
+}
+
+/**
+ * Bảng công ca 08–17 của ngày `date`; `inTime`/`outTime` là giờ Việt Nam 'HH:MM' cùng ngày, null = không chấm. Giờ ra
+ * sáng hôm sau (ca đêm) thì dựng DailyTimesheet trực tiếp.
+ */
+export function timesheet(date: string, inTime: string | null, outTime: string | null, employeeId: string = NV_UUID): DailyTimesheet {
+  const at = (time: string | null) => (time ? new Date(`${date}T${time}:00+07:00`) : null);
+  return DailyTimesheet.create({
+    employeeId,
+    workDate: date,
+    shiftType: 'NORMAL',
+    shiftStartTime: '08:00',
+    shiftEndTime: '17:00',
+    actualCheckIn: at(inTime),
+    actualCheckOut: at(outTime)
+  });
+}
+
+/** Lời nhắc giải trình trong bộ nhớ, khoá `${employeeId}:${date}`; `remindedAt` lưu dạng ISO như bản đọc từ DB. */
+export class FakeRemindersRepository extends ExplanationRemindersRepository {
+  trx: unknown = undefined;
+  calls: Array<[string, unknown]> = [];
+  rows = new Map<string, ReminderRow>();
+
+  constructor() {
+    super({} as any);
+  }
+
+  override withTransaction(trx: any): this {
+    return boundTo(this, trx);
+  }
+
+  override async upsert(row: { employeeId: string; date: string; remindedBy: string; remindedAt: Date }): Promise<void> {
+    this.calls.push(['upsert', this.trx]);
+    this.rows.set(`${row.employeeId}:${row.date}`, {
+      employeeId: row.employeeId,
+      date: row.date,
+      remindedBy: row.remindedBy,
+      remindedAt: row.remindedAt.toISOString()
+    });
+  }
+
+  override async listBetween(from: string, to: string, employeeId?: string): Promise<ReminderRow[]> {
+    this.calls.push(['listBetween', this.trx]);
+    return [...this.rows.values()]
+      .filter(r => r.date >= from && r.date <= to && (employeeId === undefined || r.employeeId === employeeId))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.employeeId.localeCompare(b.employeeId));
   }
 }
 
@@ -331,16 +420,71 @@ export class RecordingLock {
   }
 }
 
-/** Service đủ phụ thuộc; "hôm nay" cố định 2026-11-04 (17:00 giờ Việt Nam). */
-export function makeService() {
+/**
+ * Kỳ lương trong bộ nhớ, cùng hợp đồng với PeriodsRepository ở phần cổng kỳ đọc (`find`, `lockShared`): `statuses` map
+ * tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. `PeriodGate` thật chạy trên repo này, nên
+ * test đi đúng bảng cổng (`gateAllows`) và lỗi `PeriodLockedError`. `sharedLocks` ghi [giao dịch, tháng] mỗi lần khoá
+ * chia sẻ.
+ */
+export class FakePeriods {
+  statuses = new Map<string, string>();
+  sharedLocks: Array<[unknown, string]> = [];
+
+  async find(month: string): Promise<{ month: string; status: string } | null> {
+    const status = this.statuses.get(month);
+    return status === undefined ? null : { month, status };
+  }
+
+  async lockShared(trx: unknown, month: string): Promise<void> {
+    this.sharedLocks.push([trx, month]);
+  }
+}
+
+/** Cổng kỳ thật trên kỳ lương trong bộ nhớ. */
+export const gateOver = (periods: FakePeriods): PeriodGate => new PeriodGate(periods as unknown as PeriodsRepository);
+
+/** Số tiền tạm ứng giả: `quote` trả về, hoặc ném `failWith`; `calls` ghi [uuid, tháng]. */
+export class FakePayroll {
+  quote: AdvanceQuote = { amount: 2_215_385, workDays: 12, from: '2026-11-01', to: '2026-11-15' };
+  failWith: Error | null = null;
+  calls: Array<[string, string]> = [];
+
+  async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
+    this.calls.push([employeeId, month]);
+    if (this.failWith) throw this.failWith;
+    return this.quote;
+  }
+}
+
+/**
+ * Service đủ phụ thuộc; "hôm nay" cố định 2026-11-04 (17:00 giờ Việt Nam). `explanations` dùng chung các fake và đồng hồ
+ * của `service`: đặt lại `service.now` thì đổi cả hai.
+ */
+export function makeService(settings?: Pick<SettingsReader, 'workWeekOf'>) {
   const repo = new FakeRequestsRepository();
   const att = new FakeAttendanceRepository();
   const holidays = new FakeHolidaysRepository();
   const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
-  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days);
+  const periods = new FakePeriods();
+  const gate = gateOver(periods);
+  const payroll = new FakePayroll();
+  const reminders = new FakeRemindersRepository();
+  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, gate, settings);
+  const service = new RequestsService(
+    repo,
+    att,
+    lock as unknown as TransactionCoordinator,
+    holidays,
+    days,
+    gate,
+    payroll as any,
+    explanations,
+    settings
+  );
   service.now = () => new Date('2026-11-04T10:00:00Z');
-  return { service, repo, att, holidays, days, lock };
+  explanations.now = () => service.now();
+  return { service, repo, att, holidays, days, lock, periods, gate, payroll, explanations, reminders };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

@@ -20,7 +20,12 @@ async function fixture(db: Kysely<DB>, client: Client): Promise<AttendanceServic
     [new Date().toISOString(), EMPLOYEE]
   );
   await client.query(`INSERT INTO payroll_periods (month, status) VALUES ('2026-10', 'attendance_locked')`);
-  return new AttendanceService(new AttendanceRepository(db), new TransactionCoordinator(db), new PeriodGate(new PeriodsRepository(db)));
+  return new AttendanceService(
+    new AttendanceRepository(db),
+    new TransactionCoordinator(db),
+    undefined,
+    new PeriodGate(new PeriodsRepository(db))
+  );
 }
 
 const count = async (client: Client, table: string): Promise<number> =>

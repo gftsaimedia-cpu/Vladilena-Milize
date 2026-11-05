@@ -17,6 +17,7 @@ import { PeriodsModule } from '../../src/modules/periods/periods.module';
 import { PeriodsRepository } from '../../src/modules/periods/periods.repository';
 import { PeriodsService } from '../../src/modules/periods/periods.service';
 import { RequestsService } from '../../src/modules/requests/requests.service';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
 
 // Chạy bằng tsx/esbuild nên không có design:paramtypes: mọi phụ thuộc phải có @Inject tường minh.
 // Test này dựng PeriodsModule qua Nest thật; DB, TransactionCoordinator và AuditLog (toàn cục ở app) là giá trị giả.
@@ -80,6 +81,9 @@ test('PeriodsModule wires the gate, the service and the repository through Nest 
     assert.equal(service.repo, repo);
     assert.equal(service.tx, fakeTx);
     assert.equal(service.audit, fakeAudit);
+    // Ngày trả lương đọc từ kho cài đặt: PeriodsModule nhập SettingsModule.
+    assert.ok(service.settings instanceof SettingsReader);
+    assert.equal(service.settings, app.get(SettingsReader, { strict: false }));
   } finally {
     await app.close();
   }
