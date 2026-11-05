@@ -22,7 +22,6 @@ import {
   lastDayOfMonth,
   requireMakeupSlots,
   findShiftFrame,
-  requireExplanationCases,
   optionalActualTime,
   vietnamToday,
   filingWindow,
@@ -43,6 +42,8 @@ import {
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { DayStatusRepository } from './day-status.repository';
+import { ExplanationsService } from './explanations.service';
+import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
@@ -263,6 +264,7 @@ export class RequestsService {
     @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
     @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
+    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
   ) {}
 
   /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
@@ -367,30 +369,7 @@ export class RequestsService {
     to: string,
     stores: RequestStores = this.storesOn()
   ): Promise<{ days: EmployeeDays; active: SystemRequest[] }> {
-    const holidaysRepo = stores.holidays;
-    if (!holidaysRepo) {
-      throw new Error('Thiếu lịch lễ công ty');
-    }
-    const daysRepo = this.dayRepo(stores);
-    const regularDows = this.requireTypeConfig(staff);
-    const lo = addDays(from, -1);
-    const hi = addDays(to, 1);
-    // Trong giao dịch, các truy vấn chạy lần lượt trên cùng một kết nối dù gửi cùng lúc.
-    const [schedules, holidays, active, claims] = await Promise.all([
-      stores.requests.listScheduleDays(staff.employeeId, lo, hi),
-      holidaysRepo.listBetween(lo, hi),
-      stores.requests.listActive(staff.employeeId),
-      daysRepo.listBetween(staff.employeeId, lo, hi)
-    ]);
-    const days = new EmployeeDays({
-      regularDows,
-      holidays: holidays.map(h => h.date),
-      defaultShift: staff.defaultShift,
-      schedules,
-      activeRequests: active,
-      claims
-    });
-    return { days, active };
+    return await loadEmployeeDays(stores, staff, from, to);
   }
 
   /**
@@ -900,25 +879,39 @@ export class RequestsService {
     }
   }
 
-  /** Đơn giải trình (§6.5): một ngày một đơn, không giữ ngày. */
+  /**
+   * Đơn giải trình (§6.5, spec 3.3), cả Admin lẫn nhân viên tự nộp: ngày phải đang cần giải trình (`checkStaffDay`, xét
+   * ngoài khoá như tra hồ sơ), trường hợp do server tìm (`cases` client gửi không đọc), giờ thực tế chỉ nhận khi ngày cần
+   * (giờ không cần thì ghi null). Một ngày một đơn, kiểm lại trong khoá. Không giữ ngày.
+   */
   private async planExplanation(input: CreateExplanationInput, _opts: FilingContext): Promise<Filing> {
     const workDate = requireDateText(input.workDate, 'workDate');
-    if (workDate > vietnamToday(this.now())) {
-      throw new Error('Không giải trình cho ngày trong tương lai');
+    if (!this.explanations) {
+      throw new Error('Chưa cấu hình giải trình');
     }
-    const cases = requireExplanationCases(input.cases);
-    const actualCheckIn = optionalActualTime(input.actualCheckIn);
-    const actualCheckOut = optionalActualTime(input.actualCheckOut);
-    // Giải trình không phụ thuộc lịch làm việc nên không cần cấu hình loại nhân sự.
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
+    const check = await this.explanations.checkStaffDay(staff, workDate);
+    if (!check.ok) {
+      throw new Error(check.message);
+    }
+    const { cases, needs, shift } = check;
+    const actualCheckIn = needs.checkIn ? optionalActualTime(input.actualCheckIn) : null;
+    const actualCheckOut = needs.checkOut ? optionalActualTime(input.actualCheckOut) : null;
+    if (needs.checkIn && actualCheckIn === null) {
+      throw new Error('Nhập giờ vào thực tế');
+    }
+    if (needs.checkOut && actualCheckOut === null) {
+      throw new Error('Nhập giờ ra thực tế');
+    }
+    // R-P5: ca đêm (giờ hết ca không sau giờ vào ca) thì giờ ra rơi vào sáng hôm sau, không so được với giờ vào.
+    const overnight = shift.endTime <= shift.startTime;
+    if (!overnight && actualCheckIn !== null && actualCheckOut !== null && actualCheckOut <= actualCheckIn) {
+      throw new Error('Giờ ra phải sau giờ vào');
+    }
 
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
-      // Thứ Bảy có iSAT chỉ xét được khi loại nhân sự có cấu hình; chưa cấu hình thì giải trình như trước, không kiểm iSAT.
-      if (staff.regularDows) {
-        const { days } = await this.loadDays(staff, workDate, workDate, stores);
-        planClaims({ kind: 'EXPLANATION', dates: [workDate], days });
-      }
-      // Một ngày một đơn: đơn đã bị từ chối vẫn chặn, đơn đã huỷ thì không.
+      // Một ngày một đơn, kiểm lại trong khoá: đơn khác có thể vừa được nộp sau lúc xét ngày. Đơn đã bị từ chối vẫn
+      // chặn, đơn đã huỷ thì không.
       const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
       const taken = existing.some(
         r => r.explanationDate === workDate && (isActive(r) || r.status === 'REJECTED')
@@ -936,7 +929,7 @@ export class RequestsService {
         actualCheckIn,
         actualCheckOut
       });
-      return { request, claims: null, summary: { cases }, warnings: [] };
+      return { request, claims: null, summary: { cases, needs }, warnings: [] };
     };
     return { staff, plan: planInLock };
   }

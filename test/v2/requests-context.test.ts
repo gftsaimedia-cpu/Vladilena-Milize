@@ -329,7 +329,7 @@ test('underEmployeeLock runs directly without a transaction coordinator', async 
 test('findStaffContext reads the type version in effect', async () => {
   const { db, log } = createScriptedKysely(q => {
     if (q.sql.includes('from "staff"')) {
-      return [{ uuid: 'u1', type: 'nv', shift_start_time: '08:00', shift_end_time: '17:00', leave_balance: null, leave_balance_on: null }];
+      return [{ uuid: 'u1', type: 'nv', shift_start_time: '08:00', shift_end_time: '17:00', leave_balance: null, leave_balance_on: null, start_date: ' 2026-10-15 ' }];
     }
     if (q.sql.includes('from "position_types"')) return [{ id: 2, regular_dows: '[1,2,3,4,5,6]' }];
     if (q.sql.includes('from "position_type_benefits"')) {
@@ -348,6 +348,7 @@ test('findStaffContext reads the type version in effect', async () => {
     defaultShift: { startTime: '08:00', endTime: '17:00' },
     leaveBalance: 0,
     leaveBalanceOn: null,
+    startDate: '2026-10-15',
     benefits: { ot: true, makeup: true, leaveAccount: false },
     regularDows: [1, 2, 3, 4, 5, 6]
   });
@@ -359,7 +360,7 @@ test('findStaffContext reads the type version in effect', async () => {
 });
 
 test('findStaffContext without a type version has no days and no benefits; unknown staff is null', async () => {
-  const staffRow = { uuid: 'u1', type: 'nv', shift_start_time: '09:00', shift_end_time: '18:00', leave_balance: 2.5, leave_balance_on: '2026-11-01' };
+  const staffRow = { uuid: 'u1', type: 'nv', shift_start_time: '09:00', shift_end_time: '18:00', leave_balance: 2.5, leave_balance_on: '2026-11-01', start_date: 'không rõ' };
   const { db, log } = createScriptedKysely(q => (q.sql.includes('from "staff"') ? [staffRow] : []));
   const found = await new RequestsRepository(db).findStaffContext('u1', '2026-11');
   assert.deepEqual(found, {
@@ -368,6 +369,7 @@ test('findStaffContext without a type version has no days and no benefits; unkno
     defaultShift: { startTime: '09:00', endTime: '18:00' },
     leaveBalance: 2.5,
     leaveBalanceOn: '2026-11-01',
+    startDate: null, // start_date sai dạng thì coi như không ghi
     benefits: { ot: false, makeup: false, leaveAccount: false },
     regularDows: null
   });
@@ -375,6 +377,24 @@ test('findStaffContext without a type version has no days and no benefits; unkno
 
   const empty = createScriptedKysely(() => []);
   assert.equal(await new RequestsRepository(empty.db).findStaffContext('ghost', '2026-11'), null);
+});
+
+test('listFilingStaff lists people who are not locked and have a uuid', async () => {
+  const { db, log } = createScriptedKysely(q =>
+    q.sql.includes('from "staff"')
+      ? [
+          { uuid: 'u1', username: 'nv01', name: 'Nguyễn Văn A' },
+          { uuid: 'u2', username: 'nv02', name: 'Trần Thị B' }
+        ]
+      : []
+  );
+  assert.deepEqual(await new RequestsRepository(db).listFilingStaff(), [
+    { uuid: 'u1', username: 'nv01', name: 'Nguyễn Văn A' },
+    { uuid: 'u2', username: 'nv02', name: 'Trần Thị B' }
+  ]);
+  const [q] = sqlOf(log);
+  assert.match(q.sql, /"locked_at" is null/);
+  assert.match(q.sql, /"uuid" is not null/);
 });
 
 test('listScheduleDays reads dates and times as text', async () => {

@@ -112,12 +112,22 @@ describe('Xem trước đơn và tiêu đề do server đặt (spec 2.2, 2.4)', 
       summary: { dates: ['2026-11-17', '2026-11-19'], keptDates: ['2026-11-18'] },
       warnings: ['Ngày 18/11 đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.']
     });
-    assert.deepEqual(await ctx.service.previewRequest('explanation', { ...base, workDate: '2026-11-03', cases: ['MISSING_CHECK_IN'] }), {
-      ok: true,
-      title: 'Giải trình 03/11',
-      summary: { cases: ['MISSING_CHECK_IN'] },
-      warnings: []
-    });
+    // 03/11 không có dòng chấm công: máy tự thấy thiếu cả hai giờ (spec 3.3), `cases` client gửi bị bỏ qua.
+    assert.deepEqual(
+      await ctx.service.previewRequest('explanation', {
+        ...base,
+        workDate: '2026-11-03',
+        cases: ['LATE_CHECK_IN'],
+        actualCheckIn: '08:00',
+        actualCheckOut: '17:00'
+      }),
+      {
+        ok: true,
+        title: 'Giải trình 03/11',
+        summary: { cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'], needs: { checkIn: true, checkOut: true } },
+        warnings: []
+      }
+    );
     assert.deepEqual(await ctx.service.previewRequest('advance', { ...base, period: '2026-11' }), {
       ok: true,
       title: 'Tạm ứng lương tháng 11',
