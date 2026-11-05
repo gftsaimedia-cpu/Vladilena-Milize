@@ -69,7 +69,9 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `PUT /api/settings/:key` | `PUT /api/v2/system/settings/:key` | PUT | Cập nhật cấu hình |
 | | `GET /api/audit` | `GET /api/v2/system/audit` | GET | Xem nhật ký kiểm toán |
 | | — (mới) | `GET /api/v2/system/audit/verify` | GET | Kiểm tra chuỗi băm nhật ký |
-| | `POST /api/periods/:month/lock` | `POST /api/v2/system/periods/:month/lock` | POST | Khóa bảng công kỳ lương |
+| **Kỳ lương** | `POST /api/periods/:month/lock` | `POST /api/v2/system/periods/:month/lock` | POST | Chốt công kỳ lương |
+| | — (mới) | `POST /api/v2/system/periods/:month/unlock` | POST | Mở lại công (cần lý do) |
+| | — (mới) | `GET /api/v2/system/periods` & `GET /api/v2/system/periods/:month` | GET | Danh sách kỳ, chi tiết một kỳ |
 
 ---
 
@@ -387,7 +389,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `employeeId` (bắt buộc ở route admin): uuid hoặc username. Đơn luôn lưu theo **uuid** của nhân sự.
   - `leaveType`: một trong 6 mã của `GET /api/v2/requests/leave-types`. Mã cũ `PAID`/`UNPAID` bị từ chối. Trường hợp cụ thể (kết hôn, tang, ốm đau, thai sản…) ghi ở `reason`.
   - `startDate`, `endDate`: `YYYY-MM-DD`, `startDate ≤ endDate`. Không giới hạn số ngày mỗi đơn, không kiểm thời hạn báo trước.
-  - Số ngày client gửi (nếu có) **bị bỏ qua**. Server đếm `leaveDaysCount` = số **ngày làm việc** trong khoảng: thứ nằm trong `regular_dows` của loại nhân sự (nv/ctv T2–T7, tts T2–T6, không bao giờ tính CN), trừ ngày lễ công ty (§3.7). Ví dụ: nv nghỉ T6 13/11 → T2 16/11 được đếm 3 ngày (13, 14, 16); tts cùng khoảng được 2 ngày (13, 16).
+  - Số ngày client gửi (nếu có) **bị bỏ qua**. Server đếm `leaveDaysCount` = số **ngày làm việc** trong khoảng: thứ nằm trong `regular_dows` của loại nhân sự (nv/ctv T2–T7, tts T2–T6, không bao giờ tính CN), trừ ngày lễ công ty (§3.8). Ví dụ: nv nghỉ T6 13/11 → T2 16/11 được đếm 3 ngày (13, 14, 16); tts cùng khoảng được 2 ngày (13, 16).
 - **Response 201**:
   ```json
   {
@@ -890,7 +892,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 - **Response 200**: `{ items, total, limit, offset, people, actions }`. Mỗi `items[]` có `id`, `at` (ISO UTC), `actor`, `actorName` (`staff.name`, `null` khi `'system'` hoặc không còn trong `staff`), `action`, `entityKind`, `entityId`, `subject`, `month`, `before`, `after` (JSON đã parse), `reason`, `sensitivity`, `requestId`. Không trả `hash`, `prev_hash`, `actor_roles`, hai cột uuid. `total` là tổng thật theo bộ lọc. `people` (`{ username, name }`) và `actions` (mã) lấy trên cả bảng, không theo bộ lọc.
 - **Response 400** `BAD_REQUEST` (câu báo tiếng Việt): `limit` không phải số nguyên dương; `offset` không phải số nguyên không âm; `from` hoặc `to` sai dạng hoặc không phải ngày có thật; `from` sau `to`.
 - `/verify` trả `{ ok, checked, firstBadId, reason }`; `reason` là `PREV_HASH`, `ID_GAP` hoặc `HASH` (kiểm theo thứ tự đó), dừng ở dòng sai đầu tiên, `checked` là số dòng đúng trước dòng sai. Bảng rỗng: `{ ok: true, checked: 0, firstBadId: null, reason: null }`.
-- **Ghi nhật ký (nội bộ):** `AuditLog.append(trx, entry)` trả `{ id, hash }`, chạy trong transaction của nơi gọi (thao tác lỗi thì dòng nhật ký cũng bị huỷ) và nên gọi ở cuối thao tác vì khoá advisory `'audit_log'` giữ tới khi transaction kết thúc. `entry`: `actor`, `action`, `entityKind`, `entityId` bắt buộc; `actorUuid`, `actorRoles`, `subject`, `subjectUuid`, `month`, `before`, `after`, `reason`, `sensitivity` (`normal`/`pay`/`pii`), `requestId` tuỳ chọn. Mã `action` (17): `param.set`, `setting.set`, `holiday.add`, `holiday.remove`, `position.save`, `level.save`, `staff.create`, `staff.update`, `staff.delete`, `password.reset`, `request.decide` (`after.status` là `APPROVED` hoặc `REJECTED`), `request.cancel`, `punch.correct`, `period.lock`, `payroll.calculate`, `payroll.decide`, `kpi.score`.
+- **Ghi nhật ký (nội bộ):** `AuditLog.append(trx, entry)` trả `{ id, hash }`, chạy trong transaction của nơi gọi (thao tác lỗi thì dòng nhật ký cũng bị huỷ) và nên gọi ở cuối thao tác vì khoá advisory `'audit_log'` giữ tới khi transaction kết thúc. `entry`: `actor`, `action`, `entityKind`, `entityId` bắt buộc; `actorUuid`, `actorRoles`, `subject`, `subjectUuid`, `month`, `before`, `after`, `reason`, `sensitivity` (`normal`/`pay`/`pii`), `requestId` tuỳ chọn. Mã `action` (18): `param.set`, `setting.set`, `holiday.add`, `holiday.remove`, `position.save`, `level.save`, `staff.create`, `staff.update`, `staff.delete`, `password.reset`, `request.decide` (`after.status` là `APPROVED` hoặc `REJECTED`), `request.cancel`, `punch.correct`, `period.lock`, `period.unlock`, `payroll.calculate`, `payroll.decide`, `kpi.score`.
 - **Kiểm tra trước khi nối:** `append` kiểm `entry` trước khi lấy khoá. Dòng không hợp lệ ném `AuditEntryError`, ra ngoài là 500 và huỷ cả transaction của nơi gọi, nên nơi gọi phải dựng đúng `entry`.
 - **Giới hạn:** các trường chữ (`actor`, `action`, `entityKind`, `entityId`, `actorUuid`, `subject`, `subjectUuid`, `month`, `requestId`) dài tối đa 200 ký tự; `reason` tối đa 1000; `before`/`after` sau khi chuyển JSON tối đa 65536 ký tự; `month` dạng `YYYY-MM`. Trường tuỳ chọn là `''`, `undefined` hoặc `null` thì lưu NULL. Ký tự thay thế lẻ (nửa emoji) được đổi thành U+FFFD trước khi băm, vì PG lưu như vậy; ký tự NUL (`\u0000`) bị từ chối.
 - **Khối nội dung bí mật:** `before`, `after`, `reason`, `entityId` khớp băm mật khẩu (`scrypt$…`, `pass_hash`, `password_hash`), token phiên hoặc khoá `"lat"` / `"lng"` thì bị từ chối. Cần ghi thay đổi toạ độ thì ghi cờ đã đổi, không ghi toạ độ.
@@ -898,12 +900,58 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 - **Chỉ một lối ghi:** chỉ `AuditLog.append` được `INSERT` vào `audit_log`; ghi lối khác thì chuỗi băm hỏng.
 - **Đổi so với bản trước:** response danh sách từng là `{ items, count }`, nay là `{ items, total, limit, offset, people, actions }`.
 
+---
+
+### 3.7. Periods Module (Kỳ lương)
+
+Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công) → `attendance_locked` (Đã chốt công) → `calculated` (Đã tính lương) → `approved` (Đã phê duyệt) → `paid` (Đã trả lương). Tháng chưa có dòng kỳ coi như `open`. Phần này mô tả Chốt công (`lock`) và Mở lại công (`unlock`); các bước còn lại thêm ở các route cùng nhóm. Mọi route nằm dưới `/api/v2/system/periods`. Lỗi có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`.
+
+#### `GET /api/v2/system/periods`
+- Quyền `config.read`. Mọi kỳ đã có dòng, tháng mới nhất trước.
+- **Response 200**: `{ "periods": [ <dòng payroll_periods> ] }`. Dòng có `month`, `status`, `rev`, `current_run_id`, `attendance_locked_by/at`, `calculated_by/at`, `approved_by/at`, `paid_by/at`, `paid_ref`, `reopen_count`.
+
+#### `GET /api/v2/system/periods/:month`
+- Quyền `config.read`. `:month` dạng `YYYY-MM`.
+- **Response 200**:
+  ```json
+  {
+    "month": "2026-10",
+    "status": "attendance_locked",
+    "steps": {
+      "lockedAt": "2026-11-01T01:00:00.000Z", "lockedBy": "admin",
+      "calculatedAt": null, "calculatedBy": null,
+      "approvedAt": null, "approvedBy": null,
+      "paidAt": null, "paidBy": null
+    },
+    "payday": "2026-11-10",
+    "actions": { "unlock": { "enabled": true } }
+  }
+  ```
+  - `payday`: ngày 10 của tháng sau. `actions` chỉ chứa các nút hiện ở trạng thái đó, tính theo trạng thái chứ không theo quyền người gọi: `lock` chỉ có khi tháng đã kết thúc (theo ngày giờ Việt Nam) và kỳ đang `open`; `unlock` có ở `attendance_locked` và `calculated`.
+- Mọi route dưới đây trả cùng dạng này sau khi đổi trạng thái.
+
 #### `POST /api/v2/system/periods/:month/lock`
-- Chốt và khóa bảng chấm công kỳ lương để ngăn chỉnh sửa.
+- Quyền `attendance.lock`. Không có body. Chốt công: kỳ `open` (hoặc chưa có dòng) sang `attendance_locked`, ghi `attendance_locked_by/at`. Ghi nhật ký `period.lock`.
+- **Response 200**: `PeriodView` như trên, `status: "attendance_locked"`.
+
+#### `POST /api/v2/system/periods/:month/unlock`
+- Quyền `attendance.lock`. Mở lại công: kỳ `attendance_locked` hoặc `calculated` về `open`; xoá `attendance_locked_by/at` và `calculated_by/at`, tăng `reopen_count`. Ghi nhật ký `period.unlock` kèm lý do đã cắt khoảng trắng hai đầu.
+- **Request Body**: `{ "reason": "Chấm thay cho Châu 31/10" }`. `reason` là chuỗi, cắt khoảng trắng hai đầu xong không được rỗng.
+- **Response 200**: `PeriodView`, `status: "open"`.
+
+#### Mã lỗi
+| HTTP | `code` | Khi |
+|---|---|---|
+| 400 | `INVALID_MONTH` | `:month` không đúng `YYYY-MM` (tháng 01 đến 12) |
+| 400 | `REASON_REQUIRED` | `unlock` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
+| 409 | `PERIOD_STATE` | Thao tác không hợp lệ ở bước hiện tại, ví dụ chốt công hai lần; kèm `month`, `status`. Câu: `Kỳ lương tháng MM/YYYY đang ở bước "<nhãn>", không làm được thao tác này` |
+| 409 | `MONTH_NOT_ENDED` | `lock` khi tháng chưa kết thúc. Câu: `Tháng MM/YYYY chưa kết thúc, chưa chốt công được` |
+
+**Đổi so với bản trước:** `POST .../lock` từng trả `{ ok, month, status }`, nay trả `PeriodView`; chốt lại tháng đã chốt giờ là `409 PERIOD_STATE` thay vì ghi đè; chốt trước khi hết tháng giờ là `409 MONTH_NOT_ENDED`. `GET /periods` bỏ `reviewed_by`, `reviewed_at`.
 
 ---
 
-### 3.7. Holidays Module (Lịch lễ công ty)
+### 3.8. Holidays Module (Lịch lễ công ty)
 
 Một lịch lễ chung cho cả công ty, do Admin tick. Mỗi ngày lễ gồm `date` (`YYYY-MM-DD`) và `name`; mỗi ngày chỉ có một dòng. Thêm hay xoá ngày lễ **không** sửa ngay các đơn đã nộp. Ngày lễ thêm sau khi nộp được xét khi Admin duyệt đơn nghỉ (`PATCH /api/v2/requests/:id/review`, mục "Ngày lễ thắng đơn nghỉ"); đơn đã duyệt và ngày lễ bị xoá sau khi nộp thì không đổi. Chưa kiểm vai trò ở các route này.
 

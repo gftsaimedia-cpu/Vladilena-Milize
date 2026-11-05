@@ -22,13 +22,13 @@ function fake(impl: Record<string, (...a: any[]) => any> = {}) {
   return { proxy, calls };
 }
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys', ReturnType<typeof fake>>> = {}) {
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'periods', ReturnType<typeof fake>>> = {}) {
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }) });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
-  const sys = over.sys ?? fake({ getPeriod: () => null });
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy), att, reqs, pay, emp, sys };
+  const periods = over.periods ?? fake({ getPeriod: () => null });
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, periods.proxy), att, reqs, pay, emp, periods };
 }
 
 describe('MeController', () => {
@@ -118,11 +118,16 @@ describe('MeController', () => {
   });
 
   it('the month is locked once Admin closed it with Chốt công', async () => {
-    const { ctl, sys } = controller({ sys: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
+    const { ctl, periods } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
     assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'locked');
-    assert.equal(sys.calls.getPeriod[0], '2026-10');
+    assert.equal(periods.calls.getPeriod[0], '2026-10');
     const open = controller();
     assert.equal(((await open.ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
+  });
+
+  it('a month Admin reopened with Mở lại công is open again', async () => {
+    const { ctl } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'open' }) }) });
+    assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
   });
 
   it('without a month the server picks this month, whatever the device clock says', async () => {

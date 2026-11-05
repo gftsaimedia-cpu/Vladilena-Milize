@@ -13,7 +13,7 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
 import { RequestsService, type CreatedRequestDTO } from '../requests/requests.service';
-import { SystemService } from '../system';
+import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
@@ -75,7 +75,7 @@ export class MeController {
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
     @Inject(EmployeesService) private readonly employees: EmployeesService,
-    @Inject(SystemService) private readonly system: SystemService
+    @Inject(PeriodsService) private readonly periods: PeriodsService
   ) {}
 
   // Từ tháng vào làm tới tháng hiện tại (giờ VN).
@@ -152,7 +152,7 @@ export class MeController {
     const m = needMonthIn(month, range);
     const [rows, period] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
-      this.system.getPeriod(m),
+      this.periods.getPeriod(m),
     ]);
     return { ...monthOf(rows as any, m, vnToday(), period?.status ?? null), range };
   }
