@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Cài đặt › Nhật ký thay đổi: ai làm gì, lúc nào, đổi từ gì sang gì (25 dòng một trang, lọc theo người/mục/ngày).
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -18,6 +18,9 @@ const { data } = useLoad(
   () => getAuditLog({ page: page.value, ...applied.value }),
   () => [page.value, applied.value]
 );
+
+// Đã nhập cả hai ngày mà "Từ ngày" sau "Đến ngày": khoá nút Lọc (YYYY-MM-DD so sánh chuỗi được).
+const badRange = computed(() => !!box.from && !!box.to && box.from > box.to);
 
 function apply() {
   applied.value = { ...box };
@@ -44,8 +47,12 @@ async function verify() {
   try {
     const res = await verifyAuditLog();
     if (res.ok) checked.value = res;
-    else toast.error(res.reason || `Dòng ${res.firstBadId} không khớp`);
+    else {
+      checked.value = null;
+      toast.error(res.message);
+    }
   } catch (e) {
+    checked.value = null;
     toast.error(e.message);
   } finally {
     checking.value = false;
@@ -74,14 +81,14 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
           <label>Mục</label>
           <SelectBox
             v-model="box.action"
-            :options="[{ value: '', label: 'Tất cả' }, ...data.actions.map(a => ({ value: a, label: a }))]"
+            :options="[{ value: '', label: 'Tất cả' }, ...data.actions]"
             label="Mục"
           />
         </div>
         <div><label>Từ ngày</label><FieldDate v-model="box.from" label="Từ ngày" /></div>
         <div><label>Đến ngày</label><FieldDate v-model="box.to" label="Đến ngày" /></div>
         <div style="display: flex; gap: 8px">
-          <button type="button" class="btn sm pri" @click="apply"><Icon name="search" />Lọc</button>
+          <button type="button" class="btn sm pri" :disabled="badRange" @click="apply"><Icon name="search" />Lọc</button>
           <button type="button" class="btn sm" @click="clear">Xoá lọc</button>
         </div>
       </div>
@@ -109,7 +116,28 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
               <td colspan="5">{{ dayText(d.day) }}</td>
             </tr>
             <template v-for="e in d.rows" :key="e.id">
-              <tr v-for="n in e.count > 1 && opened.has(e.id) ? e.count : 1" :key="n">
+              <template v-if="e.count > 1 && opened.has(e.id)">
+                <tr v-for="(r, n) in e.rows" :key="r.id">
+                  <td class="tm">{{ r.time }}</td>
+                  <td>
+                    <div class="t">{{ r.whoName }}</div>
+                    <div class="s">{{ r.who }}</div>
+                  </td>
+                  <td class="v">
+                    {{ r.action }}
+                    <div v-if="n === 0" class="s">
+                      <button type="button" class="link" @click="toggle(e.id)">Gộp lại</button>
+                    </div>
+                  </td>
+                  <td class="df">
+                    <div v-for="(c, i) in r.changes" :key="i">
+                      {{ c.text }}<code v-if="c.code">{{ c.code }}</code>
+                    </div>
+                  </td>
+                  <td class="ly">{{ r.reason }}</td>
+                </tr>
+              </template>
+              <tr v-else>
                 <td class="tm">{{ e.time }}</td>
                 <td>
                   <div class="t">{{ e.whoName }}</div>
@@ -117,16 +145,13 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
                 </td>
                 <td class="v">
                   {{ e.action }}
-                  <template v-if="e.count > 1 && !opened.has(e.id)">
+                  <template v-if="e.count > 1">
                     <span class="x">× {{ e.count }}</span>
                     <div class="s">
                       {{ e.count }} dòng giống nhau được gộp ·
                       <button type="button" class="link" @click="toggle(e.id)">Mở ra</button>
                     </div>
                   </template>
-                  <div v-else-if="e.count > 1 && n === 1" class="s">
-                    <button type="button" class="link" @click="toggle(e.id)">Gộp lại</button>
-                  </div>
                 </td>
                 <td class="df">
                   <div v-for="(c, i) in e.changes" :key="i">
