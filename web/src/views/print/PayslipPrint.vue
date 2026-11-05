@@ -45,7 +45,7 @@ watch(sheets, async list => {
       Không tải được phiếu lương. <button type="button" class="link" @click="reload">Thử lại</button>
     </p>
     <p v-else-if="!sheets || !sheets.length" class="msg">Chưa có phiếu đã phê duyệt trong kỳ này.</p>
-    <A4Payslip v-for="s in sheets || []" :key="s.username" :sheet="s" />
+    <A4Payslip v-for="(s, i) in sheets || []" :key="i" :sheet="s" />
   </div>
 </template>
 

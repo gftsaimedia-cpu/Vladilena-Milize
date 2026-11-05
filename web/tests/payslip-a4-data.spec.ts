@@ -1,5 +1,6 @@
 // Tháng mẫu của phiếu A4 (mock/payslip-a4.ts) và các hàm định dạng của bản in: chạy trong Node, không mở trang.
 import { expect, test } from '@playwright/test';
+import { payrollView } from '../src/mock/payroll';
 import { approvedSheets, payslipSheet, personSheet } from '../src/mock/payslip-a4';
 import {
   actualText, blankNum, inOutText, periodLine, qtyText, ruleText, scoreText, signedText, slipStateText, staffLine,
@@ -27,10 +28,12 @@ test('header fields follow the sample month', () => {
 });
 
 // Phiếu của một người: tháng mẫu chung, chỉ đè tên, loại · bậc, hợp đồng và trạng thái từ phiếu giả của Bảng lương.
+// Trạng thái giả dùng chung với các file test Node khác cùng worker; payroll-mock duyệt GFT-0142 và từ chối GFT-0171, nên ở
+// đây chỉ đọc những phiếu không file nào đổi trạng thái (payroll-decide-data trả GFT-0101/GFT-0156 về như cũ).
 test('a person’s sheet is the sample month with that slip’s person and status', () => {
   const base = sheet();
-  const nam = personSheet('2026-10', 'GFT-0142');
-  expect(nam).toEqual({ ...base, name: 'Lê Hoàng Nam', kind: 'NV', level: 2, contract: 'HĐLĐ từ 3 tháng', slipStatus: 'pending' });
+  const anh = personSheet('2026-10', 'GFT-0117');
+  expect(anh).toEqual({ ...base, name: 'Phạm Ngọc Anh', kind: 'NV', level: 2, contract: 'HĐLĐ từ 3 tháng', slipStatus: 'pending' });
   expect(personSheet('2026-10', 'GFT-0101')?.slipStatus).toBe('done');
   expect(personSheet('2026-10', 'GFT-0123')?.slipStatus).toBe('draft');
   expect(personSheet('2026-10', 'GFT-0156')?.slipStatus).toBe('rejected');
@@ -38,9 +41,12 @@ test('a person’s sheet is the sample month with that slip’s person and statu
   expect(personSheet('2026-11', 'GFT-0142')).toBeNull();
 });
 
+// Phiếu đã duyệt so với chính bảng lúc chạy, vì payroll-mock có thể đã duyệt thêm GFT-0142 trong cùng worker.
 test('approved sheets are the done slips in table order; another month has none', () => {
   const list = approvedSheets('2026-10');
-  expect(list?.map(s => [s.name, s.slipStatus])).toEqual([['Nguyễn Thu Hà', 'done'], ['Trần Minh Quân', 'done']]);
+  const done = payrollView('2026-10').lines.filter(l => l.status === 'done').map(l => l.name);
+  expect(done.slice(0, 2)).toEqual(['Nguyễn Thu Hà', 'Trần Minh Quân']);
+  expect(list?.map(s => [s.name, s.slipStatus])).toEqual(done.map(n => [n, 'done']));
   expect(approvedSheets('2026-11')).toBeNull();
 });
 

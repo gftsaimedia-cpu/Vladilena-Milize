@@ -707,8 +707,8 @@ test('rejecting with a reason shows it under the status line and again on reopen
   const status = long.getByRole('status');
   await expect(status).toContainText('Đã từ chối phiếu lương của Trịnh Văn Long.');
   await expect(status).toContainText('Lý do: Điểm KPI của quản lý chưa đúng');
-  // Lý do lưu đã cắt khoảng trắng hai đầu.
-  expect(await status.evaluate(el => el.textContent)).toContain('Lý do: Điểm KPI');
+  // Lý do lưu đã cắt khoảng trắng hai đầu: so nguyên văn textContent để bắt cả khoảng trắng cuối.
+  expect(await long.getByText(/^Lý do:/).textContent()).toBe('Lý do: Điểm KPI của quản lý chưa đúng');
   await expect(status).toBeFocused();
   await expect(reasonBox(long)).toHaveCount(0);
   await expect(long.getByRole('button', { name: /^(Huỷ|Xác nhận từ chối|Từ chối|Duyệt phiếu)$/ })).toHaveCount(0);
@@ -822,6 +822,15 @@ test('In tất cả opens the approved slips print page in a new tab', async ({ 
   await btn(slip(page, 'Lê Hoàng Nam'), 'Duyệt phiếu').click();
   await btn(slip(page, 'Lê Hoàng Nam'), 'Đóng').click();
   await expect(all).toHaveAttribute('title', 'In 87 phiếu đã duyệt');
+  // Đang tải tháng khác thì bảng cũ vẫn hiện: nút in đúng tháng của bảng đang hiện, không phải tháng vừa chọn.
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 3000));
+  await page.getByRole('button', { name: 'Tháng trước' }).click();
+  await expect(page).toHaveURL(/thang=2026-09/);
+  await expect(all).toBeVisible();
+  const [old] = await Promise.all([page.context().waitForEvent('page'), all.click()]);
+  await expect(old).toHaveURL('/in/phieu-luong/2026-10?in=1');
+  await old.close();
+  await page.evaluate(() => ((window as unknown as { __mockLatencyMs: number }).__mockLatencyMs = 0));
   // Tháng không có bảng lương thì không có nút.
   await page.goto('/admin/bang-luong?thang=2026-09');
   await expect(page.getByText('Bản mockup chỉ có bảng lương tháng 10/2026.')).toBeVisible();

@@ -47,10 +47,14 @@ async function calculate() {
 }
 
 // In tất cả: trang A4 của các phiếu đã duyệt, mở ở tab mới và tự bật hộp in (?in=1). Chưa có phiếu đã duyệt thì khoá nút.
+// Tháng và số phiếu lấy theo bảng đang hiện (như xuất CSV): lúc đổi tháng, bảng cũ còn hiện tới khi tháng mới tải xong.
 const router = useRouter();
 const approved = computed(() => board.value?.counts.done ?? 0);
 const printAll = () =>
-  window.open(router.resolve({ path: `/in/phieu-luong/${encodeURIComponent(period.month)}`, query: { in: '1' } }).href, '_blank');
+  window.open(
+    router.resolve({ path: `/in/phieu-luong/${encodeURIComponent(board.value!.month)}`, query: { in: '1' } }).href,
+    '_blank'
+  );
 
 const filter = ref<'all' | PayrollStatus>('all');
 const query = ref('');
