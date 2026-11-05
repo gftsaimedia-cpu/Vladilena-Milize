@@ -36,6 +36,9 @@ const KPI_SCORE_FIELDS: Array<{ column: KpiScoreColumn; name: keyof KpiScoreBody
   { column: 'self_score', name: 'self', alias: 'selfScore' }
 ];
 
+/** Tỉ lệ 0.125 → "12,5": đúng số % đã đặt (tối đa 2 chữ số lẻ, dấu phẩy), không làm tròn về số nguyên. */
+const pctText = (rate: number): string => String(Math.round(rate * 10000) / 100).replace('.', ',');
+
 @Injectable()
 export class PayrollService {
   constructor(
@@ -199,12 +202,12 @@ export class PayrollService {
       let daySalary = 0;
 
       if (shiftCode === 'FLEX') {
-        shiftLabel = `Flex +${Math.round(allowancePolicy.flexRate * 100)}%`;
+        shiftLabel = `Flex +${pctText(allowancePolicy.flexRate)}%`;
         flexAllowancePay = makeupWorkDates.has(ts.workDate) ? 0 : allowancePolicy.flexPremium(hourRate, ts.workHours);
         daySalary = Math.round(dayRate);
       } else if (shiftCode === 'NIGHT') {
         const nightPct = allowancePolicy.nightRate;
-        shiftLabel = `Night +${Math.round(nightPct * 100)}%`;
+        shiftLabel = `Night +${pctText(nightPct)}%`;
         nightAllowancePay = makeupWorkDates.has(ts.workDate) ? 0 : allowancePolicy.nightPremium(dayRate);
         const timeDeduction = Math.round((((ts.lateMinutes || 0) + (ts.earlyMinutes || 0)) * hourRate) / 60);
         offPaidPay = makeupWorkDates.has(ts.workDate)

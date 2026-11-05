@@ -62,6 +62,24 @@ test('the confirm dialog lists the change against the chosen month', async ({ pa
   ]);
 });
 
+test('a % cell holding only a comma is not a number', async ({ page }) => {
+  await page.goto('/admin/cai-dat/che-do/nhan-vien');
+  const flex = page.getByLabel('Phụ cấp Flex · Nhân viên');
+  await flex.fill(',');
+  await expect(saveBar(page)).toBeDisabled();
+  await flex.blur();
+  await expect(flex).toHaveValue('20');
+
+  await page.goto('/admin/cai-dat/chuc-vu-bac');
+  await page.getByRole('button', { name: 'Sửa chức vụ Nhân viên' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Sửa chức vụ' });
+  const dlgFlex = dlg.getByLabel('Phụ cấp Flex');
+  await dlgFlex.fill(',');
+  await expect(dlg.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await dlgFlex.blur();
+  await expect(dlgFlex).not.toHaveValue(/NaN/);
+});
+
 test('Sửa chức vụ starts at this month, shows NV night by person and blocks bad numbers', async ({ page }) => {
   await page.goto('/admin/cai-dat/chuc-vu-bac');
   await page.getByRole('button', { name: 'Sửa chức vụ Nhân viên' }).click();
@@ -108,6 +126,11 @@ test('level dialogs keep a night field for TTS and add the next NV level', async
   await expect(add.getByText('Theo từng người')).toBeVisible();
   const addButton = add.getByRole('button', { name: 'Thêm bậc' });
   await expect(addButton).toBeDisabled();
+  // Ô tiền dừng ở số nguyên an toàn lớn nhất (máy chủ không nhận số lớn hơn): chữ số thứ 16 bị bỏ.
+  const salary = add.getByLabel('Lương cơ bản');
+  await salary.pressSequentially('9999999999999999');
+  await expect(salary).toHaveValue('999.999.999.999.999');
+  await salary.clear();
   await add.getByLabel('Tên bậc').fill('Bậc 5');
   await add.getByLabel('Lương cơ bản').fill('9000000');
   await expect(addButton).toBeEnabled();

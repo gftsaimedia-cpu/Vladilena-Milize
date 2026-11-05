@@ -164,6 +164,10 @@ describe('parseSavePositions / parseSaveLevel / parseAddLevel', () => {
     ['level abc', () => parseSaveLevel('nv', 'abc', levelBody({}), CUR), 'level'],
     ['salary 1.5', () => parseSaveLevel('tts', '1', levelBody({ baseSalary: 1.5 }), CUR), 'changes.baseSalary'],
     ['kpi -1', () => parseSaveLevel('tts', '1', levelBody({ kpiMax: -1 }), CUR), 'changes.kpiMax'],
+    // Quá số nguyên an toàn của JS (cũng tràn BIGINT khi tới 1e20): 400 kèm field, không để PostgreSQL báo 500.
+    ['salary 1e20', () => parseSaveLevel('tts', '1', levelBody({ baseSalary: 1e20 }), CUR), 'changes.baseSalary'],
+    ['kpi above 2^53', () => parseSaveLevel('tts', '1', levelBody({ kpiMax: 2 ** 53 }), CUR), 'changes.kpiMax'],
+    ['add salary 1e20', () => parseAddLevel('tts', addBody({ baseSalary: 1e20 }), CUR), 'values.baseSalary'],
     ['nv level night', () => parseSaveLevel('nv', '1', levelBody({ nightPct: 50 }), CUR), 'changes.nightPct'],
     ['level code', () => parseSaveLevel('ql', '1', levelBody({}), CUR), 'code'],
     ['level rev', () => parseSaveLevel('tts', '1', { effectiveMonth: CUR, changes: {} }, CUR), 'expectedRev'],

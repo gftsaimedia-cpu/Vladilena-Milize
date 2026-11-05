@@ -145,6 +145,13 @@ describe('mapMonthRows allowance rates', () => {
     });
     assert.equal(mapMonthRows('2026-10', rows({ type: null })).staff.allowanceRates, null);
   });
+
+  it('a staff row without a type gets no allowance rates even though the NV version is read for workdays', () => {
+    const typeRow = { ...baseType, flex_pct: 20, night_pct: 40, travel_pct: 15, attendance_pct: 25 };
+    const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, type: '' }, type: typeRow }));
+    assert.equal(staff.allowanceRates, null);
+    assert.equal(staff.standardWorkdays, 26);
+  });
 });
 
 describe('mapMonthRows base pay and workdays', () => {

@@ -79,7 +79,7 @@ Mã lỗi (chỉ gặp khi gọi API trực tiếp, trừ `*_STALE`):
 4. Nếu `cur.effective_month = M` thì sửa thẳng vào `cur`. Nếu khác thì tạo phiên bản mới cho tháng `M`:
    - chép đủ mọi cột của `cur`, rồi áp các ô vừa sửa;
    - với chức vụ: chép thêm đủ 14 dòng `position_type_benefits` của `cur` sang `type_id` mới, rồi áp các ô tick vừa sửa;
-   - phiên bản mới có `rev = 0`.
+   - phiên bản mới có `rev` = `cur.rev + 1` (Ruling review cuối, thay cho `rev = 0`: Admin đã mở màn trước lần lưu này còn cầm `cur.rev`; nếu dòng mới là 0 thì rev cũ đó vẫn khớp và ghi đè được mà không nhận 409).
 5. **Chép tiếp (P7):** xét từng ô vừa sửa, với số cũ `o` (của `cur`) và số mới `n`. Đi qua các phiên bản sau `M` theo thứ tự tăng dần. Phiên bản nào đang giữ đúng `o` cho ô đó thì đổi thành `n`. Gặp phiên bản đầu tiên có số khác `o` thì dừng chép ô đó. Ô tick làm cùng cách, trên dòng `position_type_benefits` của từng phiên bản.
 6. Mỗi dòng bị sửa (gồm cả dòng nhận chép tiếp) được tăng `rev` thêm 1 và ghi lại `updated_by` (tên đăng nhập của Admin) cùng `updated_at` (giờ ISO). `reason` chỉ ghi vào dòng ở tháng `M`; các dòng nhận chép tiếp giữ `reason` cũ.
 7. Thêm bậc: tạo dòng `position_levels` mới cho tháng `M` với `level_no = level`. Các tháng trước `M` không có bậc này.

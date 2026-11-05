@@ -342,6 +342,14 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal(type.dailyLines[0].nightAllowancePay, 69_231);
   });
 
+  it('a decimal % shows on the shift label as set, not rounded', async () => {
+    const flex = await calculateLine('nv', 'FLEX', 8, 40, 'REGULAR', { ...SEED_RATES.nv, flexPct: 12.5 });
+    assert.equal(flex.dailyLines[0].shiftLabel, 'Flex +12,5%');
+    // 0.145 * 100 = 14.499999… trong số thực: làm tròn kiểu cũ ra 14.
+    const night = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: 14.5 });
+    assert.equal(night.dailyLines[0].shiftLabel, 'Night +14,5%');
+  });
+
   it('travel applies to any type with a rate and never to a dorm resident', () => {
     const dailyLines = Array.from({ length: 20 }, () => line('NORMAL'));
     const allowanceRates = { ...SEED_RATES.tts, travelPct: 15 };

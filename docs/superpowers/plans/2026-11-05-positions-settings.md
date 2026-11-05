@@ -42,7 +42,7 @@
 
 ## Review Focus
 
-1. **Lưu mà mọi ô bằng số cũ** (gọi API trực tiếp, hoặc 2 Admin cùng gõ một số): không ghi dòng nào, không tăng `rev`, vẫn trả `ok`. Test ở Task 3.
+1. **Lưu mà mọi ô bằng số cũ** (gọi API trực tiếp với `expectedRev` đúng): không ghi dòng nào, không tăng `rev`, vẫn trả `ok`. Test ở Task 3. Ruling (review cuối): 2 Admin cùng gõ một số thì người lưu sau cầm `rev` cũ nên nhận 409 rồi tải lại, vì spec mục 3.3 kiểm `rev` (bước 2) trước khi bỏ ô không đổi (bước 3).
 2. **Chép tiếp làm tăng `rev` của phiên bản sau**: Admin đang mở phiên bản tháng 12 rồi lưu với rev cũ thì nhận 409, không ghi đè số vừa chép. Test ở Task 3.
 3. **Thêm bậc ở tháng trước một phiên bản đã có của cùng số bậc** (bậc 5 có từ 12/2026, thêm bậc ở 11/2026): số bậc hợp lệ là 5 và được nhận. Test ở Task 3.
 4. **Số thập phân trong ô %**: gõ `12,5` được; gõ `100,5` bị chặn (ô dừng ở `100,`); ô ngày công bỏ dấu phẩy (`2,5` thành `25`). Test ở Task 9.
