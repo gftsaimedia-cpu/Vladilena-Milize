@@ -181,3 +181,164 @@ describe('Đơn nghỉ giữ ngày trong day_status (§4)', () => {
     assert.equal(ctx.days.rows.size, 2);
   });
 });
+
+const C1 = 'Thứ Bảy 14/11 đã có iSAT được duyệt, không chọn được ngày này.';
+const C4 = 'Ngày 11/11 đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.';
+
+describe('Đổi ca, OT, khung bù và giải trình theo day_status (§4.4)', () => {
+  let ctx: ReturnType<typeof makeService>;
+  beforeEach(() => {
+    ctx = makeService();
+  });
+
+  const rowOf = (employeeId: string, date: string) => ctx.days.rows.get(`${employeeId}:${date}`);
+  const isConflict = (message: string) => (err: unknown) => err instanceof DayConflictError && err.message === message;
+
+  const sc = (over: Record<string, unknown> = {}) =>
+    ctx.service.createShiftChangeRequest({
+      employeeId: 'nv01',
+      title: 'Đổi ca',
+      reason: 'Lịch học',
+      startDate: '2026-11-12',
+      endDate: '2026-11-12',
+      shiftType: 'NORMAL',
+      startTime: '10:00',
+      ...over
+    } as any);
+
+  const ot = (over: Record<string, unknown> = {}) =>
+    ctx.service.createOvertimeRequest({
+      employeeId: 'nv01',
+      title: 'OT',
+      reason: 'Gấp tiến độ',
+      otDate: '2026-11-14',
+      startTime: '08:00',
+      endTime: '12:00',
+      ...over
+    } as any);
+
+  const lwm = (over: Record<string, unknown> = {}) =>
+    ctx.service.createLeaveWithMakeupRequest({
+      employeeId: 'nv01',
+      title: 'Nghỉ bù',
+      reason: 'Việc nhà',
+      startDate: '2026-11-12',
+      endDate: '2026-11-12',
+      slots: [
+        { date: '2026-11-14', startTime: '18:00', endTime: '22:00' },
+        { date: '2026-11-16', startTime: '18:00', endTime: '22:00' }
+      ],
+      ...over
+    } as any);
+
+  const expl = (over: Record<string, unknown> = {}) =>
+    ctx.service.createExplanationRequest({
+      employeeId: 'nv01',
+      title: 'Giải trình',
+      reason: 'Kẹt xe',
+      workDate: '2026-10-31',
+      cases: ['LATE_CHECK_IN'],
+      ...over
+    } as any);
+
+  it('V4 shift change 10–13/11 over pending leave 11/11 takes 10, 12, 13 and warns C4', async () => {
+    const leaveReq = await seed(ctx, leaveRequest('2026-11-11', '2026-11-11', 'PENDING'));
+    const dto = await sc({ startDate: '2026-11-10', endDate: '2026-11-13' });
+
+    assert.deepEqual(dto.warnings, [C4]);
+    for (const date of ['2026-11-10', '2026-11-12', '2026-11-13']) {
+      const row = rowOf(NV_UUID, date);
+      assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['SHIFT_CHANGE', dto.id, null], date);
+    }
+    const kept = rowOf(NV_UUID, '2026-11-11');
+    assert.deepEqual([kept?.status, kept?.requestId], ['LEAVE', leaveReq.id]);
+  });
+
+  it('shift change over approved ISAT 14/11 skips it with C2', async () => {
+    const isat = await seed(ctx, isatRequest('2026-11-14', 'APPROVED'));
+    const dto = await sc({ startDate: '2026-11-13', endDate: '2026-11-14' });
+
+    assert.deepEqual(dto.warnings, [C2]);
+    assert.equal(rowOf(NV_UUID, '2026-11-13')?.requestId, dto.id);
+    const saturday = rowOf(NV_UUID, '2026-11-14');
+    assert.deepEqual([saturday?.status, saturday?.requestId], ['ISAT', isat.id]);
+  });
+
+  it('shift change touching pending ISAT is refused with C3', async () => {
+    await seed(ctx, isatRequest('2026-11-14', 'PENDING'));
+    const requestsBefore = ctx.repo.requests.size;
+    const rowsBefore = ctx.days.rows.size;
+    await assert.rejects(sc({ startDate: '2026-11-13', endDate: '2026-11-14' }), isConflict(C3));
+    assert.equal(ctx.repo.requests.size, requestsBefore);
+    assert.equal(ctx.days.rows.size, rowsBefore);
+  });
+
+  it('shift change whose days are all on leave is refused with the old empty-range message', async () => {
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
+    await assert.rejects(sc(), /^Error: Khoảng đổi ca không có ngày làm việc$/);
+  });
+
+  it('OT on approved ISAT 14/11 is refused with C1, and with pending ISAT with C3', async () => {
+    await seed(ctx, isatRequest('2026-11-14', 'APPROVED'));
+    await assert.rejects(ot(), isConflict(C1));
+
+    ctx = makeService();
+    await seed(ctx, isatRequest('2026-11-14', 'PENDING'));
+    await assert.rejects(ot(), isConflict(C3));
+    assert.equal(ctx.repo.requests.size, 1);
+  });
+
+  it('OT on a leave day keeps the old message', async () => {
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
+    await assert.rejects(ot({ otDate: '2026-11-12', startTime: '18:00', endTime: '20:00' }), /^Error: Ngày 12\/11 đang nghỉ, không đăng ký OT được$/);
+  });
+
+  it('OT writes no day_status row', async () => {
+    await ot({ otDate: '2026-11-13', startTime: '18:00', endTime: '20:00' });
+    assert.equal(ctx.days.rows.size, 0);
+    assert.deepEqual(ctx.days.calls.filter(([name]) => name === 'upsert'), []);
+  });
+
+  it('makeup slot on approved ISAT is refused with C1', async () => {
+    await seed(ctx, isatRequest('2026-11-14', 'APPROVED'));
+    await assert.rejects(lwm(), isConflict(C1));
+    assert.equal(ctx.repo.requests.size, 1);
+  });
+
+  it('makeup slots on free days only claim the leave day', async () => {
+    const dto = await lwm();
+    assert.deepEqual(dto.warnings, []);
+    assert.deepEqual([...ctx.days.rows.keys()], [`${NV_UUID}:2026-11-12`]);
+  });
+
+  it('explanation for an approved ISAT Saturday is refused with C1, and a pending one with C3', async () => {
+    await seed(ctx, isatRequest('2026-10-31', 'APPROVED'));
+    await assert.rejects(
+      expl(),
+      isConflict('Thứ Bảy 31/10 đã có iSAT được duyệt, không chọn được ngày này.')
+    );
+
+    ctx = makeService();
+    await seed(ctx, isatRequest('2026-10-31', 'PENDING'));
+    await assert.rejects(
+      expl(),
+      isConflict('Thứ Bảy 31/10 đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.')
+    );
+  });
+
+  it('explanation for a free day writes no row, and runs the read under the employee lock', async () => {
+    const dto = await expl({ workDate: '2026-11-03' });
+    assert.deepEqual(dto.warnings, []);
+    assert.equal(ctx.days.rows.size, 0);
+    assert.ok(ctx.days.calls.length > 0);
+    for (const [name, trx] of ctx.days.calls) assert.equal(trx, LOCK_TRX, name);
+  });
+
+  it('explanation for an unconfigured position type skips the day check', async () => {
+    ctx.repo.putStaff('nv01', staffContext({ regularDows: null }));
+    await seed(ctx, isatRequest('2026-10-31', 'APPROVED'));
+    const dto = await expl();
+    assert.equal(dto.status, 'PENDING');
+    assert.deepEqual(ctx.days.calls, []);
+  });
+});

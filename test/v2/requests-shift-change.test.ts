@@ -99,9 +99,9 @@ describe('Đơn đổi ca (§6.4)', () => {
     assert.equal(dto.changeEndDate, '2026-11-16');
   });
 
-  it('leave days and Sunday-only ranges are refused', async () => {
+  it('a range made only of leave days and a Sunday-only range are refused', async () => {
     await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
-    await assert.rejects(sc(), /Ngày 12\/11 đang nghỉ, không đổi ca được/);
+    await assert.rejects(sc(), /Khoảng đổi ca không có ngày làm việc/);
     await assert.rejects(sc({ startDate: '2026-11-15', endDate: '2026-11-15' }), /Khoảng đổi ca không có ngày làm việc/);
   });
 

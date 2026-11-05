@@ -109,6 +109,8 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
 
     assert.deepEqual(ctx.repo.calls, [
       ['findStaffContext', undefined],
+      ['listScheduleDays', LOCK_TRX],
+      ['listActive', LOCK_TRX],
       ['list', LOCK_TRX],
       ['save', LOCK_TRX]
     ]);

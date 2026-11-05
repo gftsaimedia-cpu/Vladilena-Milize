@@ -344,13 +344,11 @@ export class RequestsService {
       if (changed.length === 0) {
         throw new Error('Khoảng đổi ca không có ngày làm việc');
       }
-      for (const date of changed) {
-        if (days.isOnLeave(date)) {
-          throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không đổi ca được`);
-        }
-      }
+      // Ngày nghỉ và Thứ Bảy có iSAT đã duyệt bị bỏ khỏi đơn (kèm cảnh báo); từ đây chỉ xét các ngày đơn thật sự đổi.
+      const plan = planClaims({ kind: 'SHIFT_CHANGE', dates: changed, days });
+      const taken = plan.take.map(t => t.date);
       // Hai đơn đổi ca trùng nhau khi có chung một ngày được đổi (ngày làm việc trong khoảng của cả hai).
-      for (const date of changed) {
+      for (const date of taken) {
         const clash = active.some(
           r =>
             r.type === 'SHIFT_CHANGE' &&
@@ -365,8 +363,8 @@ export class RequestsService {
       }
 
       // Ca mới phải hợp với mọi khung OT/bù đã có của ngày được đổi và của hôm sau (ca đêm kéo sang sáng hôm sau).
-      const next = days.withShiftOverride(changed, frame);
-      const checkDates = [...new Set([...changed, ...changed.map(d => addDays(d, 1))])].sort();
+      const next = days.withShiftOverride(taken, frame);
+      const checkDates = [...new Set([...taken, ...taken.map(d => addDays(d, 1))])].sort();
       for (const date of checkDates) {
         const windows = next.windowsOn(date);
         for (const w of windows) {
@@ -392,7 +390,8 @@ export class RequestsService {
         frame
       });
       await stores.requests.save(req);
-      return { ...req.toJSON(), warnings: [] };
+      await this.claimDays(stores, req, plan, 'SHIFT_CHANGE');
+      return { ...req.toJSON(), warnings: plan.warnings };
     });
   }
 
@@ -444,6 +443,8 @@ export class RequestsService {
         throw new Error(`Tháng ${month} đã có đơn OT, không nộp đơn nghỉ có làm bù được`);
       }
 
+      // Khung bù không chiếm ngày, chỉ bị chặn ở Thứ Bảy có iSAT (không có dòng nào ghi cho khung).
+      planClaims({ kind: 'MAKEUP_SLOT', dates: slots.map(slot => slot.date), days });
       const windows: ClockWindow[] = slots.map(slot => ({ ...slot, kind: 'MAKEUP' }));
       for (const window of windows) {
         const { date } = window;
@@ -501,6 +502,7 @@ export class RequestsService {
 
     return this.underEmployeeLock(staff.employeeId, async stores => {
       const { days, active } = await this.loadDays(staff, date, date, stores);
+      planClaims({ kind: 'OVERTIME', dates: [date], days });
       if (days.isOnLeave(date)) {
         throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không đăng ký OT được`);
       }
@@ -575,6 +577,11 @@ export class RequestsService {
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
 
     return this.underEmployeeLock(staff.employeeId, async stores => {
+      // Thứ Bảy có iSAT chỉ xét được khi loại nhân sự có cấu hình; chưa cấu hình thì giải trình như trước, không kiểm iSAT.
+      if (staff.regularDows) {
+        const { days } = await this.loadDays(staff, workDate, workDate, stores);
+        planClaims({ kind: 'EXPLANATION', dates: [workDate], days });
+      }
       // Một ngày một đơn: đơn đã bị từ chối vẫn chặn, đơn đã huỷ thì không.
       const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
       const taken = existing.some(
