@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // Trang in phiếu lương A4 (layout 'blank'), hai route cùng dùng:
-//   /in/phieu-luong/:month/:username  một phiếu (a4-t10-chinh-thuc, a4-t11-tam-tinh)
-//   /in/phieu-luong/:month            tất cả phiếu đã phê duyệt của kỳ
-// ?in=1 → mở hộp in của trình duyệt ngay khi phiếu đã dựng xong (các nút In trong hộp thoại mở trang này ở tab mới).
-// ?kb=<kịch bản của Bảng lương> và ?ten=<tên hiển thị> chỉ để chọn dữ liệu giả cho đúng phiếu đang xem.
+//   /in/phieu-luong/:month/:id  một phiếu (In phiếu của ngăn kéo phiếu lương; a4-t10-chinh-thuc, a4-t10-ban-nhap)
+//   /in/phieu-luong/:month      tất cả phiếu đã duyệt của kỳ (In tất cả của Bảng lương)
+// ?in=1 → mở hộp in của trình duyệt ngay khi phiếu đã dựng xong (các nút In mở trang này ở tab mới).
 import { computed, nextTick, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
@@ -13,9 +12,7 @@ import A4Payslip from './A4Payslip.vue';
 
 const route = useRoute();
 const month = computed(() => String(route.params.month || ''));
-const username = computed(() => String(route.params.username || ''));
-const scenario = computed(() => String(route.query.kb || ''));
-const shownName = computed(() => String(route.query.ten || ''));
+const id = computed(() => String(route.params.id || ''));
 
 const {
   data: sheets,
@@ -23,15 +20,14 @@ const {
   error,
   reload
 } = useLoad(
-  async () =>
-    username.value ? [await getPayslipSheet(month.value, username.value)] : await getApprovedSheets(month.value),
-  () => [month.value, username.value, scenario.value, shownName.value].join('|')
+  async () => (id.value ? [await getPayslipSheet(month.value, id.value)] : await getApprovedSheets(month.value)),
+  () => [month.value, id.value].join('|')
 );
 
 let printed = false;
 watch(sheets, async list => {
   if (!list || !list.length) return;
-  document.title = username.value
+  document.title = id.value
     ? `Phiếu lương ${list[0].name} ${monthShort(month.value)}`
     : `Phiếu lương ${monthShort(month.value)} (${list.length} phiếu)`;
   if (route.query.in !== '1' || printed) return;

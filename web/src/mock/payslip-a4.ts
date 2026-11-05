@@ -1,6 +1,9 @@
 // Dữ liệu giả của phiếu lương A4: các kiểu của hợp đồng `A4Sheet` và tháng mẫu 10/2026 (mọi người thấy cùng một tháng).
 // Chỉ đọc; không gọi /api. Bốn số tổng được cộng từ các dòng đã làm tròn.
+// personSheet / approvedSheets: tháng mẫu đè người (tên, loại · bậc, hợp đồng) và trạng thái của phiếu giả ở Bảng lương
+// (mock/payroll.ts); tiền và ngày công vẫn là tháng mẫu, không bịa số theo người.
 import { MOCK_MONTH } from './clock';
+import { payrollView, payslipView, type PayrollStatus } from './payroll';
 
 export type DayMark = 'work' | 'paid' | 'unpaid' | 'absent' | 'pending';
 
@@ -65,6 +68,7 @@ export type A4Sheet = {
   totals: A4Line[];
   net: number;
   leaveLeft: number; // ngày phép năm còn lại
+  slipStatus: PayrollStatus; // trạng thái phiếu: tiêu đề "chính thức" / "tạm tính", ô Tình trạng, dòng bản nháp
 };
 
 // Ngày trong mock khai cho cả tháng; cờ hasShift chỉ dùng ở đây, không đưa ra ngoài.
@@ -243,11 +247,27 @@ function buildSheet(): A4Sheet {
     groups,
     totals,
     net: afterInsurance - tax - advance,
-    leaveLeft: 22
+    leaveLeft: 22,
+    slipStatus: 'draft'
   };
 }
 
 // Chỉ tháng mẫu có phiếu; tháng khác trả null.
 export function payslipSheet(month: string): A4Sheet | null {
   return month === MOCK_MONTH ? buildSheet() : null;
+}
+
+/** Phiếu A4 của một mã ở Bảng lương giả: tháng mẫu với người và trạng thái của phiếu đó; tháng hay mã lạ trả null. */
+export function personSheet(month: string, id: string): A4Sheet | null {
+  const sheet = payslipSheet(month);
+  const slip = payslipView(month, id);
+  if (!sheet || !slip) return null;
+  return { ...sheet, name: slip.name, kind: slip.kind, level: slip.level, contract: slip.contract, slipStatus: slip.status };
+}
+
+/** Phiếu A4 của các phiếu đã duyệt, theo thứ tự Bảng lương; tháng không có dữ liệu giả trả null. */
+export function approvedSheets(month: string): A4Sheet[] | null {
+  const view = payrollView(month);
+  if (view.empty || !payslipSheet(month)) return null;
+  return view.lines.filter(l => l.status === 'done').flatMap(l => personSheet(month, l.id) ?? []);
 }
