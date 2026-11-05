@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { staffListFromEmployees, staffProfileFromEmployee } from '../../web/src/builders/api/staff';
 import { calendarFromHolidays } from '../../web/src/builders/api/calendar';
-import { inboxFromRequests } from '../../web/src/builders/api/inbox';
+import { inboxFromDue, inboxFromRequests } from '../../web/src/builders/api/inbox';
 
 function employee(over: { username: string; name?: string; status?: string; from?: string | null; resigned?: string | null; locked?: boolean; job?: string | null }) {
   return {
@@ -524,5 +524,55 @@ describe('Tổng quan ghép từ các API có sẵn', () => {
     assert.equal(v.period.statusLabel, 'Đang chấm công');
     assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 0, rejected: 0, total: 0 });
     assert.equal(v.payroll.rows.length, 0);
+  });
+});
+
+describe('Việc nhắc giải trình từ /requests/explanations-due', () => {
+  // 28/10/2026 09:40 giờ Việt Nam.
+  const NOW = Date.parse('2026-10-28T02:40:00Z');
+  const people = new Map([['u1', { name: 'Trịnh Văn Long', title: 'Công nhân vận hành' }]]);
+  const due = (over: Record<string, unknown> = {}) => ({
+    employeeId: 'u1', name: 'Long', date: '2026-10-27', cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'],
+    needs: { checkIn: true, checkOut: true }, remindedAt: null, ...over
+  });
+
+  it('maps a day missing both punches to a remind item in the attendance group', () => {
+    const [item] = inboxFromDue([due()] as any, people, NOW);
+    assert.equal(item.id, 'due:u1:2026-10-27');
+    assert.equal(item.group, 'att');
+    assert.equal(item.groupLabel, 'Chấm công');
+    assert.equal(item.action, 'remind');
+    assert.equal(item.personId, 'u1');
+    assert.equal(item.name, 'Trịnh Văn Long');
+    assert.equal(item.initials, 'VL');
+    assert.equal(item.role, 'Công nhân vận hành');
+    assert.equal(item.what, 'Quên chấm công');
+    assert.equal(item.head, 'Quên chấm công');
+    assert.equal(item.when, '27/10');
+    assert.equal(item.sub, 'Thứ Ba 27/10');
+    assert.equal(item.age, '1 ngày');
+    assert.deepEqual(item.days, ['2026-10-27']);
+    assert.deepEqual(item.facts, [['Giờ vào', 'Chưa có'], ['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+    assert.equal(item.remindedAt, undefined);
+  });
+
+  it('keeps remindedAt, names the cases, and falls back to the server name without a profile', () => {
+    const [item] = inboxFromDue(
+      [due({ employeeId: 'u9', name: 'Ngô Gia Bảo', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: '2026-10-27T02:40:00.000Z' })] as any,
+      people,
+      NOW
+    );
+    assert.equal(item.what, 'Thiếu giờ ra');
+    assert.equal(item.name, 'Ngô Gia Bảo');
+    assert.equal(item.role, '—');
+    assert.equal(item.remindedAt, '2026-10-27T02:40:00.000Z');
+    // Giờ đã có thì máy chủ không gửi giá trị: dòng đó không hiện, thay vì ghi sai.
+    assert.deepEqual(item.facts, [['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+  });
+
+  it('keeps the server order and gives two days of the same person two ids', () => {
+    const items = inboxFromDue([due(), due({ date: '2026-10-26' })] as any, people, NOW);
+    assert.deepEqual(items.map(i => i.id), ['due:u1:2026-10-27', 'due:u1:2026-10-26']);
+    assert.equal(items[1].age, '2 ngày');
   });
 });
