@@ -411,13 +411,17 @@ export class EmployeesRepository {
   }
 
   /**
-   * Danh mục chức vụ (position_types) và các bậc lương (position_levels).
+   * Danh mục chức vụ (position_types, kèm ô tick của từng phiên bản) và các bậc lương (position_levels).
    */
   async listPositionCatalog(): Promise<any[]> {
     const types = await this.qb.selectFrom('position_types').selectAll().orderBy('code', 'asc').execute();
     const levels = await this.qb.selectFrom('position_levels').selectAll().execute();
+    const ticks = await this.qb.selectFrom('position_type_benefits').selectAll().execute();
     return types.map(t => ({
       ...t,
+      benefits: Object.fromEntries(
+        ticks.filter(b => Number(b.type_id) === Number(t.id)).map(b => [b.benefit, Number(b.enabled) === 1])
+      ),
       levels: levels.filter(l => l.type_code === t.code)
     }));
   }
