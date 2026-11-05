@@ -13,8 +13,11 @@ const CORE = 'phiên attendance-core đang làm (spec 2026-11-05-attendance-core
 const fullName = (u: string) => `${personNamed(u).familyName} ${personNamed(u).givenName}`;
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const plannedDay = (who: string, c: DayCase) => plan.days.find(d => d.username === who && d.case === c)!.date;
-/** Người có ngày công trong tháng trước (bỏ hai người chỉ chấm hôm nay và người của tháng m3). */
-const M1_PEOPLE = [...new Set(plan.days.filter(d => d.date.startsWith(m1)).map(d => d.username))];
+/**
+ * Người có ngày công trong tháng trước (bỏ hai người chỉ chấm hôm nay và người của tháng m3). Bỏ cả cc-nghi-viec: Admin ẩn
+ * người đã nghỉ việc ở mọi tháng ("Không tìm thấy nhân viên này."), còn có hiện ở tháng họ còn làm hay không là câu hỏi Q3.
+ */
+const M1_PEOPLE = [...new Set(plan.days.filter(d => d.date.startsWith(m1)).map(d => d.username))].filter(u => u !== 'cc-nghi-viec');
 
 /** (b) không lỗi console, không lỗi JS, không route /api trả 5xx trong lúc test. */
 function guard(page: Page) {

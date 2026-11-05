@@ -11,10 +11,11 @@ Mảng **attendance** của [DB demo và test đầu-cuối](README.md): Chấm 
   - [demo-attendance-period.spec.ts](../../web/tests/api/demo-attendance-period.spec.ts): Chốt công và Lịch lễ.
   - [test/v2/demo-attendance-period.pg.test.ts](../../test/v2/demo-attendance-period.pg.test.ts): hai luật chốt công không thử được trên DB dùng chung (chạy trên DB tạm, cần `PG_TEST_URL`).
 - Mỗi trang mở trong test có `guard(page)`: không lỗi JS, không lỗi console, không route `/api` nào trả 5xx (bất biến b).
-- Lần chạy 05/11/2026:
-  - `npm run demo -- test attendance`: 80 test Playwright xanh (`expected: 80, unexpected: 0`). Trong đó 57 test đạt thật; 23 test `test.fail` hỏng đúng ở assert của lỗi, đã đọc lý do từng test trong báo cáo JSON.
+- Lần chạy 05/11/2026, trên `claude/demo-db` 264c19d (trước khi gộp main aaa14d9):
+  - `npm run demo -- test attendance`: 80 test Playwright xanh (`expected: 80, unexpected: 0`). Trong đó 56 test đạt thật; 24 test `test.fail` hỏng đúng ở assert của lỗi, đã đọc lý do từng test trong báo cáo JSON.
   - `PG_TEST_URL=postgres://postgres@127.0.0.1:55480/postgres node --import tsx --test test/v2/demo-attendance-period.pg.test.ts`: 2 todo, 0 fail.
   - Chưa chạy bản `all` (`npm run demo -- test`).
+- Lần chạy lại sau khi gộp main aaa14d9 (0bc17d9): xem mục [Đã sửa ở main aaa14d9](#đã-sửa-ở-main-aaa14d9).
 
 **Nguồn luật (a):** luật ngày công người dùng chốt ngày 04–05/11/2026 (memory "Confirmed ngày công rules", không đọc `spec/` v1):
 - giải trình khi vào trễ hơn 15 phút, về sớm bất kỳ, thiếu giờ vào hoặc giờ ra, vào sớm hơn 15 phút, ra muộn hơn 15 phút không có OT; ra muộn hơn 30 phút là "quên check-out"; trễ tới 15 phút là hợp lệ, không trừ;
@@ -77,7 +78,7 @@ Cột "Loại" là loại assert: (a) luật đã chốt, (b) bất biến, (c) 
 | 37 | Lưới tuần: ô các ngày đã qua (từ thứ Ba tuần trước) cùng trạng thái, cùng giờ như `/me` | cc-dung-gio, cc-tre | lưới tuần: ngày đã qua… | (b) |
 | 38 | Cột "Công kỳ" = số ngày công tháng này ở `/me` | cc-dung-gio, cc-tre, cc-giua-thang, cc-thieu | lưới tuần: cột "Công kỳ"… | (b) |
 | 39 | Hôm nay chưa chấm: Admin và `/me` cùng trạng thái | cc-dem | hôm nay chưa chấm… | (b) — BUG-attendance-8 |
-| 40 | Hồ sơ tháng trước, "Ngày đi làm" = số ngày công ở `/me` (mỗi người có công tháng trước) | 9 người | hồ sơ chấm công tháng trước của … | (b) |
+| 40 | Hồ sơ tháng trước, "Ngày đi làm" = số ngày công ở `/me` (mỗi người có công tháng trước, trừ cc-nghi-viec, xem Q3) | 8 người | hồ sơ chấm công tháng trước của … | (b) |
 | 41 | "Lần đi muộn" = `/me` khi có cả ngày về sớm | cc-tre | "Lần đi muộn"… (người có cả ngày về sớm) | (b) — BUG-attendance-9 |
 | 42 | "Lần đi muộn" = `/me` khi chỉ có ngày vào trễ | cc-dung-gio, cc-giua-thang | "Lần đi muộn"… khi chỉ có ngày vào trễ | (b) |
 | 43 | "Bảng giờ": giờ vào, giờ ra từng ngày = `/me` | cc-tre | "Bảng giờ"… | (b) |
@@ -126,6 +127,16 @@ Cột "Loại" là loại assert: (a) luật đã chốt, (b) bất biến, (c) 
 ## Ghi SQL thẳng (không có route)
 
 - Không có. Seed chỉ gọi `POST /holidays`, `GET /employees/:username`, `POST /attendance/punches` (Admin chấm hộ, có `punchedAt`), `PUT /employees/:username`.
+
+## Đã sửa ở main aaa14d9
+
+Chạy lại sau khi `claude/demo-db` gộp main aaa14d9 (0bc17d9: BE Đơn từ nhân viên, ghi nhật ký ngày lễ, lưu đủ 5 trạng thái nhân sự).
+
+- **Kết quả:** `npm run demo -- test attendance` cho 79 test xanh (`expected: 79, unexpected: 0`): 55 test đạt thật, 24 test `test.fail`. Test node `demo-attendance-period.pg.test.ts` cho 2 todo, 0 fail.
+- **Không BUG-attendance nào được sửa.** Cả 24 test `test.fail` vẫn hỏng, đúng ở assert cũ và với cùng số liệu (đã so lý do hỏng trong báo cáo JSON của lượt trước và lượt sau khi gộp). Theo báo cáo JSON: BUG-1 vẫn ra vào sớm và về sớm 420 phút, BUG-9 vẫn là 4 so với 7, BUG-14 vẫn trả 201. Chấm công BE (attendance-core) và vòng kỳ lương chưa vào main.
+- **Seed:** không phải đổi gì. Ngày lễ, giờ chấm và `PUT` hợp đồng `nghiviec` vẫn qua. Thêm và bỏ ngày lễ giờ ghi nhật ký; test ngày lễ vẫn xanh.
+- **Đổi theo hành vi mới:** từ main aaa14d9, trạng thái `nghiviec` của cc-nghi-viec được lưu thật. Admin vì thế ẩn người này ở tháng 10, nên test so "Ngày đi làm" của cc-nghi-viec hỏng ("Không tìm thấy nhân viên này."). Có hiện người đã nghỉ việc ở các tháng họ còn làm hay không là luật chưa chốt (Q3), nên không ghi BUG; test bỏ cc-nghi-viec ra khỏi vòng so sánh. Tổng số test Playwright còn 79.
+- **Không có BUG mới.**
 
 ## Lỗi
 
@@ -247,8 +258,9 @@ Lỗi 2, 3, 4, 5, 6, 7, 8 nằm trong phạm vi phiên **attendance-core** (spec
 
 ### Q3: người đã nghỉ việc có hiện ở màn Chấm công Admin cho tháng họ còn làm không?
 - Tình huống: cc-nghi-viec làm 01–16/10/2026 rồi nghỉ việc. Admin mở tháng 10 để đối chiếu công.
-- Hiện tại v2: `web/src/builders/api/attendance.ts` dòng 151 bỏ mọi người có hợp đồng `nghiviec`, ở mọi tháng. Hiện chưa thấy được vì trạng thái `nghiviec` chưa lưu (BUG-staff-2).
-- Ví dụ: tháng 10 cc-nghi-viec có 12 ngày công. Khi BUG-staff-2 sửa xong, lưới và hồ sơ tháng 10 sẽ không còn người này. Có cần hiện cho các tháng trước ngày nghỉ việc không?
+- Hiện tại v2: `web/src/builders/api/attendance.ts` dòng 151 bỏ mọi người có hợp đồng `nghiviec`, ở mọi tháng. Từ main aaa14d9 (lưu đủ 5 trạng thái nhân sự), trạng thái `nghiviec` đã được lưu, nên cách làm này đã thấy được trên màn.
+- Ví dụ: tháng 10 cc-nghi-viec có 12 ngày công, nghỉ việc từ 16/10. Mở `/admin/cham-cong/nhan-vien/cc-nghi-viec?thang=2026-10` thì trang ghi "Không tìm thấy nhân viên này."; lưới tuần cũng không còn người này. App nhân viên của người đó vẫn ghi 12 ngày công. Có cần hiện người này ở các tháng trước ngày nghỉ việc không?
+- Test so "Ngày đi làm" giữa Admin và app nhân viên tạm bỏ cc-nghi-viec cho tới khi có câu trả lời.
 
 ### Q4: "Lần đi muộn" có đếm cả ngày về sớm không?
 - Tình huống: ô "Lần đi muộn" ở app nhân viên và thẻ "Lần đi muộn" ở hồ sơ Admin.
@@ -265,7 +277,7 @@ Lỗi 2, 3, 4, 5, 6, 7, 8 nằm trong phạm vi phiên **attendance-core** (spec
 - **OT, nghỉ phép đã duyệt, giải trình, iSAT trên bảng công:** mảng requests. Phiên attendance-core đang làm: nghỉ đã duyệt chưa vào bảng công, lương ngày theo giải trình.
 - **Tab "Cần xử lý" và lớp phủ đơn chờ trên lưới:** tab thuộc mảng requests (BUG-requests-9: builder khoá người theo username, inbox đưa uuid). Lớp phủ trên lưới có thể hỏng cùng nguyên nhân; chưa thử.
 - **Ngày lễ rơi vào Chủ nhật, hoặc thứ Bảy của tts:** luật đã có (không tính). Chưa thử được, vì bảng công chưa có ngày lễ (BUG-attendance-5).
-- **Admin ẩn người nghỉ việc, hồ sơ tts:** trạng thái hợp đồng chưa lưu (BUG-staff-2), xem Q3.
+- **Admin ẩn người nghỉ việc:** chờ Q3. Từ main aaa14d9, trạng thái `nghiviec` và `tts` đã được lưu.
 - **Thẻ "Phép năm còn", "Làm thêm" ở hồ sơ Admin:** số phép thuộc mảng staff và requests, OT thuộc requests. Test chỉ đọc "Ngày đi làm" và "Lần đi muộn".
 - **Màn Lịch, phần giờ ca, ngày trả lương, ngày bắt đầu tính công:** thuộc settings-store, chưa thử.
 - **Bản `all`:** chưa chạy `npm run demo -- test`. Trên `luong_demo_all`, spec requests chốt công m1 (test "tháng trước: nút Chốt công…" đọc `/system/periods` nên vẫn đúng). Test "năm có ngày lễ seed…" có thể lệch nếu spec requests đang thêm tạm một ngày lễ đúng lúc đó.
