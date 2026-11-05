@@ -357,6 +357,22 @@ CREATE TABLE company_holidays (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Trạng thái ngày do đơn chiếm (đang chờ hoặc đã duyệt). Mỗi người mỗi ngày tối đa một dòng.
+-- Ngày làm, nghỉ tuần và nghỉ lễ không có dòng: suy ra từ loại nhân sự và lịch lễ.
+CREATE TABLE day_status (
+  employee_id     TEXT NOT NULL REFERENCES staff(uuid),
+  work_date       DATE NOT NULL,
+  status          TEXT NOT NULL CHECK (status IN ('LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT')),
+  request_id      UUID NOT NULL REFERENCES system_requests(id),
+  base_request_id UUID REFERENCES system_requests(id), -- đơn đổi ca bị đơn này thay đúng ngày này (T3)
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (employee_id, work_date),
+  CHECK (base_request_id IS NULL OR status <> 'SHIFT_CHANGE')
+);
+CREATE INDEX idx_day_status_request ON day_status(request_id);
+CREATE INDEX idx_day_status_base_request ON day_status(base_request_id);
+
 -- Chỉ mục
 CREATE INDEX audit_action_at ON audit_log (action, at);
 CREATE INDEX audit_action_id ON audit_log (action, id);

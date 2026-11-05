@@ -7,3 +7,4 @@ export * from './shift-frames';
 export * from './working-days';
 export * from './time-window';
 export * from './employee-days';
+export * from './day-status';

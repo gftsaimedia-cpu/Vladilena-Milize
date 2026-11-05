@@ -37,6 +37,16 @@ export interface CompanyHolidaysTable {
   created_at: Generated<Date>;
 }
 
+export interface DayStatusTable {
+  employee_id: string;
+  work_date: string;
+  status: string;
+  request_id: string;
+  base_request_id: string | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
+}
+
 export interface ExplanationCasesTable {
   request_id: string;
   case_code: string;
@@ -395,6 +405,7 @@ export interface Schema {
   audit_log: AuditLogTable;
   benefit_types: BenefitTypesTable;
   company_holidays: CompanyHolidaysTable;
+  day_status: DayStatusTable;
   explanation_cases: ExplanationCasesTable;
   isat_registration_conditions: IsatRegistrationConditionsTable;
   isat_registrations: IsatRegistrationsTable;
