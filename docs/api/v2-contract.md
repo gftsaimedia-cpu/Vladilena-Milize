@@ -364,6 +364,14 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
 - **`GET /api/v2/me/attendance/:date`**: thêm hai trường:
   - `explanation`: đơn giải trình mới nhất không bị huỷ của ngày đó, dạng `{ id, status, sentAt, cases, actualCheckIn, actualCheckOut }`, hoặc `null`;
   - `due`: `{ cases, needs, remindedAt }` khi ngày cần giải trình, ngược lại `null`. Lỗi khi lấy thông tin giải trình thì cả hai là `null`, ngày công vẫn mở được.
+- **Ô ngày công của `/me` đọc dòng ngày dùng chung** (spec attendance-core 8.2): `GET /api/v2/me/today` (mảng `week`), `GET /api/v2/me/attendance` (mảng `days`) và `GET /api/v2/me/attendance/:date` cùng trả một ô ngày `{ date, kind, leave?, in, out, lateMinutes, explanationStatus, cases }`. Không còn suy `kind` từ giờ vào / ra:
+  - `kind` (thêm `outside` và `extra`) theo `status` của dòng: `OUTSIDE` → `outside`; `REST` → `off`; `EXTRA` → `extra`; `HOLIDAY`, `ISAT`, `LEAVE_PAID`, `LEAVE_UNPAID`, `LEAVE_MAKEUP` → `leave`; `PENDING` → `work` (hôm nay) hoặc `future` (sau hôm nay); `ABSENT` → `absent`; `PRESENT` → `todo` khi có mã ảnh hưởng tiền mà giải trình chưa được duyệt (chưa có, đang chờ hoặc bị từ chối), `late` khi `deductionMinutes` > 0, còn lại `work`. Ngày chưa có dòng giữ luật cũ: thứ không thuộc tuần làm → `off`, ngày sau hôm nay → `future`, ngày đã qua → `absent`.
+  - `leave` (khi `kind` = `leave`) thêm `isat` và `makeup`: `holiday` | `isat` | `paid` | `unpaid` | `makeup`.
+  - `explanationStatus`: `none` | `pending` | `approved` | `rejected`, chữ thường từ `explanationStatus` của dòng (`none` khi chưa có dòng). Tên này khác `explanation` ở route ngày, vốn là đối tượng đơn giải trình.
+  - `cases`: `[{ code, minutes, affectsPay }]` của dòng, `[]` khi chưa có dòng hoặc đúng giờ.
+  - `in` / `out` là `null` ở ngày `outside` và ngày nghỉ (`leave`); các ngày khác lấy từ lần chấm.
+  - `shift` của `GET /api/v2/me/today` và `GET /api/v2/me/attendance/:date` là `null` khi dòng không có ca (nghỉ, lễ, `OUTSIDE`, `REST`, `EXTRA`) hoặc chưa có dòng, không bao giờ là đối tượng toàn `null`. Có ca thì `{ type, start, end }` (route ngày: `{ start, end }`).
+  - `totals` của `GET /api/v2/me/attendance`: `workDays` = số dòng `countsAsWorkday`; `paidLeaveDays` = số dòng `LEAVE_PAID`, `HOLIDAY`, `ISAT` có `payUnits` = 1 (lễ hoặc iSAT không được trả thì không tính); `lateCount` = số ngày có `kind` = `late`; `standardDays` = số ngày làm của tuần người đó trong tháng (theo cài đặt).
 - **`GET /api/v2/me/profile`**: `leave.remainingDays` do server tính từ đơn (cùng hàm với `annualLeaveLeft`), `0` khi không có quyền lợi phép năm; nếu không tính được thì giữ số trong hợp đồng.
 
 #### Route Admin về giải trình (cần quyền `requests.review`)

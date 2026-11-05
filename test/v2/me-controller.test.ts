@@ -5,6 +5,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
+import { vnToday } from '../../src/modules/me/domain';
 import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
@@ -362,6 +363,78 @@ describe('MeController', () => {
     await assert.rejects(ctl.today(req()), (e: any) => e === boom);
     await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (e: any) => e === boom);
     await assert.rejects(ctl.attendanceDay(req(), '2026-10-10'), (e: any) => e === boom);
+  });
+
+  // ---- Dòng ngày dùng chung (spec attendance-core 8.2) ----
+  const LATE = { code: 'LATE_CHECK_IN', minutes: 40, affectsPay: true };
+  // Dòng ngày công như DailyTimesheetDTO: PRESENT, ca 08:00–17:00, vào 08:40 ra 17:00 (giờ VN), chưa giải trình.
+  const dayRow = (workDate: string, over: Record<string, unknown> = {}) => ({
+    employeeId: 'u-nam', workDate, status: 'PRESENT',
+    shiftType: 'NORMAL', shiftStartTime: '08:00', shiftEndTime: '17:00',
+    actualCheckIn: `${workDate}T01:40:00.000Z`, actualCheckOut: `${workDate}T10:00:00.000Z`,
+    metrics: { workHours: 8.33, lateMinutes: 40 },
+    leaveType: null, cases: [LATE], explanationStatus: 'NONE', explanationRequestId: null,
+    payUnits: 0, deductionMinutes: 0, countsAsWorkday: false, countsAsDayOff: false, makeupMinutes: 0, ...over
+  });
+  const noShift = { shiftType: null, shiftStartTime: null, shiftEndTime: null, actualCheckIn: null, actualCheckOut: null, metrics: { workHours: 0, lateMinutes: 0 }, cases: [] };
+
+  it('the month view reads the day rows: kind, explanationStatus, cases and totals', async () => {
+    const rows = [
+      dayRow('2026-10-05'), // chậm 40 phút, chưa duyệt: todo, chưa tính công
+      dayRow('2026-10-06', { cases: [], metrics: { workHours: 9, lateMinutes: 0 }, actualCheckIn: '2026-10-06T01:00:00.000Z', payUnits: 1, countsAsWorkday: true }),
+      dayRow('2026-10-07', { ...noShift, status: 'HOLIDAY', payUnits: 1 })
+    ];
+    const { ctl } = controller({ att: fake({ listTimesheets: () => rows }) });
+    const m = (await ctl.attendanceMonth(req(), '2026-10')) as any;
+    const d5 = m.days.find((d: any) => d.date === '2026-10-05');
+    assert.deepEqual([d5.kind, d5.explanationStatus, d5.cases, d5.in, d5.out], ['todo', 'none', [LATE], '08:40', '17:00']);
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-06').kind, 'work');
+    const d7 = m.days.find((d: any) => d.date === '2026-10-07');
+    assert.deepEqual([d7.kind, d7.leave], ['leave', 'holiday']);
+    assert.deepEqual([m.totals.workDays, m.totals.paidLeaveDays, m.totals.lateCount], [1, 1, 0]);
+    assert.equal(m.totals.standardDays, 26); // lấy từ cài đặt như trước
+  });
+
+  it('the day view returns the row kind, keeps the explanation object and does not mix the two names', async () => {
+    const view = { explanation: { id: 'e1', status: 'PENDING' }, due: { dueDate: '2026-11-07', overdue: false } };
+    const { ctl } = controller({
+      att: fake({ getTimesheet: () => dayRow('2026-10-05', { explanationStatus: 'PENDING', explanationRequestId: 'e1' }) }),
+      expl: fake({ dayView: () => view })
+    });
+    const d = (await ctl.attendanceDay(req(), '2026-10-05')) as any;
+    assert.equal(d.kind, 'todo');
+    assert.equal(d.explanationStatus, 'pending');
+    assert.deepEqual(d.cases, [LATE]);
+    assert.deepEqual(d.explanation, view.explanation);
+    assert.deepEqual(d.due, view.due);
+    assert.deepEqual(d.shift, { start: '08:00', end: '17:00' });
+  });
+
+  it('a row without a shift gives shift null, never an object of nulls', async () => {
+    const holiday = dayRow('2026-10-05', { ...noShift, status: 'HOLIDAY', payUnits: 1 });
+    const { ctl } = controller({ att: fake({ getTimesheet: () => holiday }) });
+    const d = (await ctl.attendanceDay(req(), '2026-10-05')) as any;
+    assert.equal(d.shift, null);
+    assert.equal(d.kind, 'leave');
+
+    const today = vnToday();
+    const t = controller({ att: fake({ listTimesheets: () => [dayRow(today, { ...noShift, status: 'REST' })], workdayOf: () => false }) });
+    const out = (await t.ctl.today(req())) as any;
+    assert.equal(out.shift, null);
+    assert.equal(out.workedMinutes, 0);
+  });
+
+  it("today returns the row's shift, punches and worked minutes", async () => {
+    const today = vnToday();
+    const row = dayRow(today, { status: 'PENDING', actualCheckOut: null, cases: [], metrics: { workHours: 0, lateMinutes: 0 } });
+    const full = dayRow(today, { cases: [], metrics: { workHours: 7.5, lateMinutes: 0 } });
+    const pending = controller({ att: fake({ listTimesheets: () => [row] }) });
+    const p = (await pending.ctl.today(req())) as any;
+    assert.deepEqual(p.shift, { type: 'NORMAL', start: '08:00', end: '17:00' });
+    assert.deepEqual(p.punches, { in: '08:40', out: null });
+    assert.equal(p.week.find((d: any) => d.date === today).kind, 'work');
+    const done = controller({ att: fake({ listTimesheets: () => [full] }) });
+    assert.equal(((await done.ctl.today(req())) as any).workedMinutes, 450);
   });
 
   it('income carries the pay date of the month in all three states', async () => {

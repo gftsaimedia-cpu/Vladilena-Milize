@@ -152,7 +152,8 @@ export class MeController {
     const alert = days.filter(d => d.kind === 'todo' && d.date < date).pop() ?? null;
     return {
       date,
-      shift: ts ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
+      shift: ts?.shiftType ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       punches: { in: days.find(d => d.date === date)?.in ?? null, out: days.find(d => d.date === date)?.out ?? null },
       workedMinutes: Math.round(((ts?.metrics as any)?.workHours || 0) * 60),
       week: days,
@@ -213,7 +214,7 @@ export class MeController {
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
     return {
       ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
-      shift: ts ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      shift: ts?.shiftType ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       ...explained,
     };
   }
