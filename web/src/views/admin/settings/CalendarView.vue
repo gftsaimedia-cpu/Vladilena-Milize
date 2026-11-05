@@ -22,6 +22,7 @@ import SettingsFrame from './SettingsFrame.vue';
 import HolidayDialog from './calendar/HolidayDialog.vue';
 import YearCalendar from './calendar/YearCalendar.vue';
 import FieldNum from './fields/FieldNum.vue';
+import LoadFail from './fields/LoadFail.vue';
 import SaveConfirmDialog from './fields/SaveConfirmDialog.vue';
 import SelectBox from './fields/SelectBox.vue';
 import TextBox from './fields/TextBox.vue';
@@ -30,14 +31,22 @@ import { useHop } from './lib/useHop';
 import { useSettingsDraft } from './lib/useSettingsDraft';
 
 const year = ref(Number(usePeriodStore().month.slice(0, 4))); // năm của kỳ lương đang xem
-const { data, reload } = useLoad(
+const {
+  data,
+  error: calendarError,
+  reload
+} = useLoad(
   () => getCalendar(year.value),
   () => year.value
 );
-const { data: settings, reload: reloadSettings } = useLoad(() => getSettings());
-const { data: shifts } = useLoad(() => getShifts());
+const { data: settings, error: settingsError, reload: reloadSettings } = useLoad(() => getSettings());
+const { data: shifts, error: shiftsError, reload: reloadShifts } = useLoad(() => getShifts());
 // Ngày trả lương của tháng 12 năm trước rơi vào tháng 1 năm nay, nên tải cả hai năm rồi lọc theo năm đang xem.
-const { data: payDates, reload: reloadPayDates } = useLoad(
+const {
+  data: payDates,
+  error: payDatesError,
+  reload: reloadPayDates
+} = useLoad(
   async () => {
     const [prev, cur] = await Promise.all([getPayDays(year.value - 1), getPayDays(year.value)]);
     return payDatesIn(year.value, [...prev.items, ...cur.items]);
@@ -46,6 +55,13 @@ const { data: payDates, reload: reloadPayDates } = useLoad(
 );
 // Ngày trả lương đang hiệu lực ở tháng của getSettings.
 const payDay = computed(() => (settings.value ? settings.value.groups.payCalendar.values.payDay : null));
+// Thẻ "Lịch năm" cần cả lịch nghỉ lễ, ngày trả lương đang hiệu lực và các ngày trả lương của năm.
+const yearError = computed(() => calendarError.value || settingsError.value || payDatesError.value);
+function retryYear() {
+  if (calendarError.value) reload();
+  if (settingsError.value) reloadSettings();
+  if (payDatesError.value) reloadPayDates();
+}
 const { hop, open, close } = useHop(['them-ngay-le']);
 
 // Thẻ "Ngày trả lương": ngày trả 1–28, áp dụng từ một tháng; lưu xong thì tải lại để các chấm ngày trả lương dời theo.
@@ -70,7 +86,7 @@ async function confirmPay() {
 }
 
 // Thẻ "Vùng chấm công": lưu là áp dụng ngay, không theo tháng, không có ô lý do. Không dùng useSettingsDraft vì vùng không có tháng.
-const { data: zoneData, reload: reloadZone } = useLoad(() => getAttendanceZone());
+const { data: zoneData, error: zoneError, reload: reloadZone } = useLoad(() => getAttendanceZone());
 const zLat = ref<number | null>(null);
 const zLng = ref<number | null>(null);
 const zRadius = ref<number | null>(null);
@@ -192,7 +208,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
       </template>
     </template>
 
-    <section v-if="data && payDay" class="card">
+    <section v-if="data && payDay && payDates" class="card">
       <div class="card-h" style="align-items: center">
         <h2>Lịch năm</h2>
         <span class="yr">
@@ -249,14 +265,19 @@ const nextDay = (s?) => s.endTime < s.startTime;
         </button>
       </div>
     </section>
+    <section v-else-if="yearError" class="card">
+      <div class="card-h"><h2>Lịch năm</h2></div>
+      <LoadFail what="lịch năm" @retry="retryYear" />
+    </section>
 
-    <div v-if="shifts" class="row2">
+    <div class="row2">
       <section class="card">
         <div class="card-h">
           <h2>Ca làm</h2>
-          <span class="cap">{{ shifts.length }} ca cố định</span>
+          <span v-if="shifts" class="cap">{{ shifts.length }} ca cố định</span>
         </div>
-        <table class="tbl ca">
+        <LoadFail v-if="shiftsError" what="ca làm" @retry="reloadShifts" />
+        <table v-else-if="shifts" class="tbl ca">
           <colgroup>
             <col />
             <col style="width: 96px" />
@@ -318,7 +339,8 @@ const nextDay = (s?) => s.endTime < s.startTime;
               <small class="pd-count">{{ pay.reason.value.length }}/{{ REASON_MAX }}</small>
             </div>
           </div>
-          <div class="foot">
+          <LoadFail v-else-if="pay.error.value" what="ngày trả lương" @retry="pay.retry" />
+          <div v-if="!pay.error.value" class="foot">
             <span :class="{ bad: Object.keys(pay.errors.value).length }">{{ payFoot }}</span>
             <button
               type="button"
@@ -384,6 +406,10 @@ const nextDay = (s?) => s.endTime < s.startTime;
           Lưu
         </button>
       </div>
+    </section>
+    <section v-else-if="zoneError" class="card zn">
+      <div class="card-h"><h2>Vùng chấm công</h2></div>
+      <LoadFail what="vùng chấm công" @retry="reloadZone" />
     </section>
   </SettingsFrame>
 

@@ -54,6 +54,12 @@ export function gridFromOf(today: string): string {
   return addDays(back, -((dow(back) + 6) % 7));
 }
 
+/** Các tháng cần tải tuần làm việc: tháng đang xem và các tháng lưới 4 tuần chạm tới (tối đa 3, xếp tăng dần). */
+export function weekMonthsOf(month: string, today: string): string[] {
+  const from = gridFromOf(today);
+  return [...new Set([month, from.slice(0, 7), addDays(from, 27).slice(0, 7)])].sort();
+}
+
 function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, weekdays: number[]) {
   const none = { in: null as string | null, out: null as string | null, live: false };
   if (!ts) {
@@ -129,8 +135,11 @@ export type AttendanceInput = {
   employees: EmployeeDTO[];
   timesheets: TimesheetDTO[];
   pending: InboxItem[];
-  /** Tuần làm việc của từng người theo username (1 = T2 … 6 = T7); người không có mặt ở đây làm T2–T7. */
-  weekdays?: Record<string, number[]>;
+  /**
+   * Tuần làm việc theo tháng (YYYY-MM) rồi theo username (1 = T2 … 6 = T7). Lưới 4 tuần có thể chạm hai tháng,
+   * nên mỗi ngày đọc tuần của tháng chứa ngày đó. Tháng hoặc người không có mặt ở đây làm T2–T7.
+   */
+  weeks?: Record<string, Record<string, number[]>>;
 };
 
 type Index = {
@@ -139,10 +148,10 @@ type Index = {
   /** uuid hoặc tên đăng nhập → tên đăng nhập (khoá của người trên lưới). */
   usernameOf: Map<string, string>;
   overlay: Map<string, InboxItem>;
-  weekOf: (username: string) => number[];
+  weekOf: (username: string, date: string) => number[];
 };
 
-function indexOf({ employees, timesheets, pending, weekdays }: AttendanceInput): Index {
+function indexOf({ employees, timesheets, pending, weeks }: AttendanceInput): Index {
   const uuidOf = new Map(employees.map(e => [e.account.username, e.profile.uuid || e.account.username]));
   const usernameOf = new Map<string, string>();
   for (const e of employees) {
@@ -156,7 +165,7 @@ function indexOf({ employees, timesheets, pending, weekdays }: AttendanceInput):
     const owner = usernameOf.get(item.personId) ?? item.personId;
     for (const d of item.days) overlay.set(`${owner}|${d}`, item);
   }
-  return { byKey, uuidOf, usernameOf, overlay, weekOf: username => weekdays?.[username] ?? WORK_WEEK };
+  return { byKey, uuidOf, usernameOf, overlay, weekOf: (username, date) => weeks?.[date.slice(0, 7)]?.[username] ?? WORK_WEEK };
 }
 
 const tsOf = (ix: Index, username: string, date: string) =>
@@ -184,7 +193,7 @@ export function attendanceFromTimesheets(input: AttendanceInput): AttendanceView
     const shift = person.shift;
     return {
       person,
-      cells: days.map(d => cellOf(tsOf(ix, person.id, d.iso), d.iso, today, shift, ix.overlay.get(`${person.id}|${d.iso}`) ?? null, ix.weekOf(person.id)))
+      cells: days.map(d => cellOf(tsOf(ix, person.id, d.iso), d.iso, today, shift, ix.overlay.get(`${person.id}|${d.iso}`) ?? null, ix.weekOf(person.id, d.iso)))
     };
   });
   const byId = new Map(rows.map(r => [r.person.id, r.person]));
@@ -237,7 +246,7 @@ export function dayDetailFrom(input: AttendanceInput, personId: string, date: st
   if (!e) return null;
   const person = personOf(e, monthTsOf(input, ix, personId));
   const item = ix.overlay.get(`${personId}|${date}`) ?? null;
-  const cell = cellOf(tsOf(ix, personId, date), date, input.today, person.shift, item, ix.weekOf(personId));
+  const cell = cellOf(tsOf(ix, personId, date), date, input.today, person.shift, item, ix.weekOf(personId, date));
   return { person, date, title: `${weekdayName(date)} ${dm(date)}`, sub: person.shift, cell, item };
 }
 
@@ -252,7 +261,7 @@ export function employeeViewFrom(input: AttendanceInput, personId: string): Empl
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const cells = Array.from({ length: last }, (_, k) => {
     const date = `${input.month}-${String(k + 1).padStart(2, '0')}`;
-    return cellOf(tsOf(ix, personId, date), date, input.today, person.shift, ix.overlay.get(`${personId}|${date}`) ?? null, ix.weekOf(personId));
+    return cellOf(tsOf(ix, personId, date), date, input.today, person.shift, ix.overlay.get(`${personId}|${date}`) ?? null, ix.weekOf(personId, date));
   });
   const strip: StripDay[] = cells.map(c => ({ date: c.date, dow: dowShort(c.date), day: String(Number(c.date.slice(8, 10))), kind: c.kind, today: c.date === input.today, aria: c.aria }));
   const chips: Record<GroupKey, number> = { work: 0, late: 0, leave: 0, absent: 0, todo: 0 };

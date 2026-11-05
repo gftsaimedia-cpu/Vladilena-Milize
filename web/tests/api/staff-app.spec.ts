@@ -11,6 +11,9 @@ const STAFF_PASS = 'PwApp@12345';
 const PHONE = { width: 390, height: 844 };
 const json = { 'Content-Type': 'application/json' };
 
+// settings.spec.ts đặt vùng chấm công ở văn phòng này (BE không xoá được vùng), nên Check-in chỉ mở khi có vị trí ở đây.
+test.use({ permissions: ['geolocation'], geolocation: { latitude: 10.7769, longitude: 106.7009 } });
+
 // Tháng theo giờ Việt Nam và nhãn "Tháng 9/2026" như app.
 const vnMonth = () => new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7);
 const addMonth = (ym: string, n: number) => new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1)).toISOString().slice(0, 7);

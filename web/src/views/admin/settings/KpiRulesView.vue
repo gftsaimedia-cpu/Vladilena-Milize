@@ -5,9 +5,10 @@ import { kpiRulesView } from '@/builders/api/settings-screens';
 import { useLoad } from '@/composables/useLoad';
 import { getSettings } from '@/services/settings-store';
 import SettingsFrame from './SettingsFrame.vue';
+import LoadFail from './fields/LoadFail.vue';
 import { PATHS } from './nav';
 
-const { data: settings } = useLoad(() => getSettings());
+const { data: settings, error, reload } = useLoad(() => getSettings());
 const data = computed(() => (settings.value ? kpiRulesView(settings.value) : null));
 </script>
 
@@ -41,6 +42,10 @@ const data = computed(() => (settings.value ? kpiRulesView(settings.value) : nul
         </p>
       </section>
     </template>
+    <section v-else-if="error" class="card">
+      <div class="card-h"><h2>Cách tính tổng điểm KPI</h2></div>
+      <LoadFail what="trọng số KPI" @retry="reload" />
+    </section>
   </SettingsFrame>
 </template>
 

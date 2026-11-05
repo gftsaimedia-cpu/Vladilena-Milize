@@ -1,14 +1,13 @@
 // Dịch vụ Phân quyền và Tài khoản (Cài đặt, Admin). Câu lỗi của máy chủ đi nguyên văn qua ApiError.
 // Máy chủ thật: tóm tắt và Tài khoản đọc GET /api/v2/roles + /employees; đổi vai trò, khoá / mở khoá, đặt lại mật khẩu
 // qua PUT /api/v2/employees/:username. Ma trận vai trò (tạo, sửa, ngừng dùng vai trò) chưa có API: báo chưa nối.
-// Xử lý yêu cầu: GET/PUT /settings/params (bảng request.type.<loại>), chưa có ở BE v2.
+// Xử lý yêu cầu: chưa có API ở BE v2, báo chưa nối.
 import { buildAccounts, nextRoles } from '@/builders/admin-perm/accounts';
-import { buildRequestRules, toRuleChanges } from '@/builders/admin-perm/rules';
 import { buildPermSummary } from '@/builders/admin-perm/roles';
 import { accountSourcesFromApi } from '@/builders/api/accounts';
 import { useSessionStore } from '@/stores/session';
 import { notConnected } from './data-mode';
-import { api, qs } from './http';
+import { api } from './http';
 
 const enc = encodeURIComponent;
 
@@ -58,32 +57,6 @@ export async function resetAccountPassword(row?, { password }: any = {}) {
 }
 
 // ---------- Xử lý yêu cầu chưa được đồng ý hoặc bị từ chối ----------
-let rulesBase: any = null; // bản gốc của lần đọc gần nhất: số phiên bản tham số, tháng áp dụng, giá trị từng dòng
-
-// GET /api/settings/params?group=9: các dòng nghỉ và làm thêm cùng cách xử lý hiện tại
-export async function getRequestRules() {
-  const res = await api('GET', `/settings/params${qs({ group: 9 })}`);
-  const built = buildRequestRules(res);
-  rulesBase = built.base;
-  return built.view;
-}
-
-// PUT /api/settings/params: chỉ gửi các khoá của dòng đã đổi, kèm số phiên bản tham số của lần đọc; không đổi gì thì không gọi
-export async function saveRequestRules(draft?) {
-  if (!rulesBase) throw new Error('Chưa đọc cách xử lý yêu cầu');
-  const changes = toRuleChanges(draft, rulesBase);
-  if (!changes.length) return { ok: true, saved: [] };
-  const res = await api('PUT', '/settings/params', {
-    changes,
-    expectedRev: rulesBase.rev,
-    effectiveMonth: rulesBase.month
-  });
-  rulesBase.rev = res.paramsRev;
-  for (const row of [...draft.leave, ...draft.extra]) {
-    const was = rulesBase.rows[row.key];
-    if (!was) continue;
-    was.value = row.value;
-    if (row.countsAbsent !== undefined) was.countsAbsent = !!row.countsAbsent;
-  }
-  return { ok: true, saved: res.saved || [] };
-}
+// BE v2 chưa có API (bảng v1 request.type.<loại> của /settings/params đã bỏ): tab đã ẩn, địa chỉ cũ đưa về Vai trò.
+export const getRequestRules = () => notConnected();
+export const saveRequestRules = (_draft?) => notConnected();

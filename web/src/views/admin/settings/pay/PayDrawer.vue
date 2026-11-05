@@ -9,6 +9,7 @@ import { useLoad } from '@/composables/useLoad';
 import { catalogRows } from '@/services/admin-catalog';
 import { getSettings } from '@/services/settings-store';
 import FieldNum from '../fields/FieldNum.vue';
+import LoadFail from '../fields/LoadFail.vue';
 import SaveConfirmDialog from '../fields/SaveConfirmDialog.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
@@ -22,12 +23,23 @@ const emit = defineEmits(['close', 'saved']);
 // Nhóm và ô sửa được chỉ phụ thuộc vào tên ngăn kéo; danh mục chức vụ (phần chỉ xem) tải riêng.
 const head = payDrawerView(props.name, [], '');
 const sd = head.group ? useSettingsDraft(head.group, head.fields.map(f => f.field)) : null;
-const { data: extra } = useLoad(async () => {
+const {
+  data: extra,
+  error: extraError,
+  reload: reloadExtra
+} = useLoad(async () => {
   const [rows, settings] = await Promise.all([catalogRows(), getSettings()]);
   return { rows, month: settings.month };
 });
 const view = computed(() => (extra.value ? payDrawerView(props.name, extra.value.rows, extra.value.month) : null));
-const shown = computed(() => !!view.value && (!sd || sd.ready.value));
+const ready = computed(() => !!view.value && (!sd || sd.ready.value));
+// Tải lỗi thì ngăn kéo vẫn mở (tiêu đề lấy từ tên khoản) với dòng "Không tải được" và nút Thử lại, chân chỉ có Đóng.
+const loadError = computed(() => !!extraError.value || !!sd?.error.value);
+const shown = computed(() => ready.value || loadError.value);
+function retry() {
+  if (extraError.value) reloadExtra();
+  if (sd?.error.value) sd.retry();
+}
 
 const maxOf = (field: string) => sd?.state.value?.limits[field]?.max ?? null;
 const saved = (field: string) => sd?.state.value?.values[field] as number;
@@ -67,8 +79,9 @@ function cancel() {
 </script>
 
 <template>
-  <AppDrawer v-if="shown" :title="view.title" :sub="view.sub" :width="560" @close="emit('close')">
-    <div class="sec">
+  <AppDrawer v-if="shown" :title="head.title" :sub="head.sub" :width="560" @close="emit('close')">
+    <LoadFail v-if="!ready" what="số đang áp dụng" @retry="retry" />
+    <div v-else class="sec">
       <template v-if="sd">
         <div class="dg">
           <b>{{ view.section }}</b>
@@ -123,7 +136,7 @@ function cancel() {
     </div>
 
     <template #footer>
-      <template v-if="sd">
+      <template v-if="sd && ready">
         <span class="status" :class="{ bad: statusErrors.length }">{{ foot }}</span>
         <span class="sp"></span>
         <span v-if="isKpi" class="status total" :class="{ bad: kpiTotal !== 100 }">Tổng {{ kpiTotal }}/100</span>

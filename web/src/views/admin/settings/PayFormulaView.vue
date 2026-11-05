@@ -7,10 +7,11 @@ import { useLoad } from '@/composables/useLoad';
 import { getSettings, getSettingsHistory } from '@/services/settings-store';
 import SettingsFrame from './SettingsFrame.vue';
 import PayDrawer from './pay/PayDrawer.vue';
+import LoadFail from './fields/LoadFail.vue';
 import { PATHS } from './nav';
 import { useHop } from './lib/useHop';
 
-const { data, reload } = useLoad(async () => {
+const { data, error, reload } = useLoad(async () => {
   const [settings, overtime, attendance, kpiWeights] = await Promise.all([
     getSettings(),
     getSettingsHistory('overtime'),
@@ -73,6 +74,10 @@ const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', '
         <span>{{ data.recent }} Mỗi lần sửa được ghi vào Nhật ký thay đổi.</span>
         <RouterLink :to="PATHS.nhatKy" class="link" style="margin-left: auto">Mở nhật ký</RouterLink>
       </div>
+    </section>
+    <section v-else-if="error" class="card">
+      <div class="card-h"><h2>Cách tính lương</h2></div>
+      <LoadFail what="cách tính lương" @retry="reload" />
     </section>
   </SettingsFrame>
 
