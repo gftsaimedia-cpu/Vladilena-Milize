@@ -187,6 +187,30 @@ describe('Hồ sơ nhân sự ghi lại dòng ngày công (T4)', () => {
     });
   });
 
+  it('chỉ đổi loại (ngày không đổi): dòng đã ghi được tính lại theo tuần làm việc của loại mới', async t => {
+    await withTempDb(t, 'att_emp_type', async (db, client) => {
+      const { employees } = build(db);
+      // 'nv' làm Thứ Hai–Thứ Bảy, 'tts' làm Thứ Hai–Thứ Sáu; 31/10/2026 là Thứ Bảy đã qua.
+      const created = await employees.create(body({ effectiveFrom: '2026-10-01', type: 'nv' }), 'admin');
+      const uuid = created.profile.uuid;
+      assert.equal(await status(client, uuid, '2026-10-31'), 'ABSENT');
+
+      await employees.update('c', { type: 'tts' }, 'admin');
+      assert.equal(await status(client, uuid, '2026-10-31'), 'REST');
+    });
+  });
+
+  it('deactivate lúc 01:00 giờ Việt Nam ngày 06/11 (còn 05/11 theo UTC): ngày nghỉ việc là 06/11', async t => {
+    await withTempDb(t, 'att_emp_resign_vn', async (db, client) => {
+      const { employees } = build(db);
+      employees.now = () => new Date('2026-11-05T18:00:00Z');
+      await employees.create(body({ effectiveFrom: '2026-11-01' }), 'admin');
+      await employees.deactivate('c', 'admin');
+      const { rows } = await client.query(`SELECT resigned_on FROM staff WHERE username = 'c'`);
+      assert.equal(rows[0].resigned_on, '2026-11-06');
+    });
+  });
+
   it('dòng đã khoá kỳ giữ nguyên khi đổi start_date', async t => {
     await withTempDb(t, 'att_emp_locked', async (db, client) => {
       const { employees } = build(db);

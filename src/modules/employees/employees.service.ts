@@ -52,15 +52,15 @@ export function verifyPassword(password: string, stored: string): boolean {
 }
 
 /**
- * Các tháng cần ghi lại dòng ngày công khi ngày vào làm / nghỉ việc đổi: từ tháng nhỏ nhất trong bốn ngày
- * (cũ và mới x vào làm và nghỉ việc, ngày rỗng bỏ qua) và tháng hiện tại, tới tháng hiện tại. `[]` khi bốn ngày không đổi.
+ * Các tháng cần ghi lại dòng ngày công sau khi lưu hồ sơ: từ tháng nhỏ nhất trong bốn ngày
+ * (cũ và mới x vào làm và nghỉ việc, ngày rỗng bỏ qua) và tháng hiện tại, tới tháng hiện tại.
+ * Luôn tính, kể cả khi hai ngày không đổi: loại, bậc, ca mặc định cũng đổi cách dựng dòng ngày (spec T4).
  */
 export function monthsAffectedByEmployment(
   before: EmploymentDates | null,
   after: EmploymentDates,
   currentMonth: string
 ): string[] {
-  if (before && before.startDate === after.startDate && before.resignedOn === after.resignedOn) return [];
   const dates = [before?.startDate, before?.resignedOn, after.startDate, after.resignedOn];
   const months = dates.flatMap(d => (d ? [monthOfDate(d)] : []));
   const first = [...months, currentMonth].reduce((a, b) => (b < a ? b : a));
@@ -69,8 +69,10 @@ export function monthsAffectedByEmployment(
 
 /**
  * Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu.
- * Sau khi transaction đó đã commit, nếu ngày vào làm / nghỉ việc đổi thì các dòng ngày công của người đó được ghi lại
- * (mỗi tháng một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin; hồ sơ vẫn đã lưu, làm lại thao tác là đủ.
+ * Sau khi transaction đó đã commit, các dòng ngày công của người đó được ghi lại từ tháng sớm nhất bị ảnh hưởng
+ * tới tháng hiện tại (mỗi tháng một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin và hồ sơ vẫn đã lưu
+ * (không làm lại được thao tác tạo); dòng ngày được sửa bằng "Tính lại" của Admin
+ * (POST /api/v2/attendance/recalculate) hoặc tác vụ chạy mỗi giờ (chỉ dòng thiếu hoặc PENDING).
  */
 @Injectable()
 export class EmployeesService {

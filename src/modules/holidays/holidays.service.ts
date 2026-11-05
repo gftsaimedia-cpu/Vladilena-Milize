@@ -42,7 +42,9 @@ const holidayEntry = (holiday: Holiday) => ({
 /**
  * Mỗi lần thêm/xoá chạy trong một transaction; dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả hai.
  * Sau khi transaction đó đã commit, các dòng ngày công của ngày lễ được ghi lại cho mọi người còn hiệu lực
- * (mỗi người một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin; ngày lễ vẫn nằm trong lịch, làm lại thao tác là đủ.
+ * (mỗi người một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin và ngày lễ vẫn nằm trong lịch (thêm/xoá lại sẽ báo
+ * trùng/không có); dòng ngày được sửa bằng "Tính lại" của Admin (POST /api/v2/attendance/recalculate) hoặc tác vụ chạy
+ * mỗi giờ (chỉ dòng thiếu hoặc PENDING).
  */
 @Injectable()
 export class HolidaysService {
