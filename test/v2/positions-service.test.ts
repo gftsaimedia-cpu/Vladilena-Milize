@@ -67,7 +67,8 @@ class MemoryPositions {
 
   private copy(list: Rec[], fromId: number, month: string, set: Values, meta: WriteMeta): number {
     const from = list.find(r => r.id === fromId)!;
-    const rec = { ...from, id: this.nextId++, month, rev: 0, reason: meta.reason ?? null, by: meta.actor, values: { ...from.values, ...set } };
+    // Như PositionsRepository: dòng chép mới có rev = rev dòng gốc + 1.
+    const rec = { ...from, id: this.nextId++, month, rev: from.rev + 1, reason: meta.reason ?? null, by: meta.actor, values: { ...from.values, ...set } };
     list.push(rec);
     return rec.id;
   }
@@ -214,9 +215,10 @@ describe('PositionsService.savePositions', () => {
     assert.equal(repo.type('nv', '2026-11')!.reason, 'Tăng đi lại');
     assert.equal(repo.type('nv', '2026-12')!.reason, 'Tháng 12');
     assert.equal(repo.type('nv', '2026-12')!.values.travelPct, 16);
-    await svc.savePositions(put([nv({ attendancePct: 30 }, 0)], '2026-11'), 'admin', NOW);
+    // Dòng 11/2026 chép từ dòng gốc rev 0 nên có rev 1.
+    await svc.savePositions(put([nv({ attendancePct: 30 }, 1)], '2026-11'), 'admin', NOW);
     assert.equal(repo.type('nv', '2026-11')!.reason, 'Tăng đi lại');
-    assert.equal(repo.type('nv', '2026-11')!.rev, 1);
+    assert.equal(repo.type('nv', '2026-11')!.rev, 2);
   });
 });
 

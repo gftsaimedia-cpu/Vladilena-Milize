@@ -122,7 +122,10 @@ export class PositionsRepository {
     return Number(row?.max ?? 0) || 0;
   }
 
-  /** Chép mọi cột và mọi ô tick của phiên bản fromId sang tháng `month`, áp `set`; trả id mới (rev 0). */
+  /**
+   * Chép mọi cột và mọi ô tick của phiên bản fromId sang tháng `month`, áp `set`; trả id mới. Dòng mới có rev = rev của
+   * dòng gốc + 1, để người đang cầm rev của dòng gốc (đã mở màn trước lần lưu này) nhận 409 thay vì ghi đè.
+   */
   async insertTypeFrom(
     trx: DatabaseTransaction,
     fromId: number,
@@ -139,7 +142,7 @@ export class PositionsRepository {
         ...copy,
         ...cols,
         effective_month: month,
-        rev: 0,
+        rev: Number(from.rev) + 1,
         reason: meta.reason ?? null,
         updated_by: meta.actor,
         updated_at: meta.at
@@ -173,7 +176,7 @@ export class PositionsRepository {
     await this.setTicks(trx, id, ticks);
   }
 
-  /** Chép mọi cột của phiên bản bậc fromId sang tháng `month`, áp `set`; trả id mới (rev 0). */
+  /** Chép mọi cột của phiên bản bậc fromId sang tháng `month`, áp `set`; trả id mới (rev = rev dòng gốc + 1, như chức vụ). */
   async insertLevelFrom(
     trx: DatabaseTransaction,
     fromId: number,
@@ -190,7 +193,7 @@ export class PositionsRepository {
         ...copy,
         ...cols,
         effective_month: month,
-        rev: 0,
+        rev: Number(from.rev) + 1,
         reason: meta.reason ?? null,
         updated_by: meta.actor,
         updated_at: meta.at

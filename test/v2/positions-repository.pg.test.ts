@@ -10,7 +10,7 @@ import { TransactionCoordinator } from '../../src/database/transaction';
 import { EmployeesRepository } from '../../src/modules/employees/employees.repository';
 import { PositionsRepository } from '../../src/modules/positions/positions.repository';
 import { PositionsService } from '../../src/modules/positions/positions.service';
-import { PositionStaleError } from '../../src/modules/positions/positions.errors';
+import { LevelStaleError, PositionStaleError } from '../../src/modules/positions/positions.errors';
 
 // Cần PostgreSQL thật. PG_TEST_URL là kết nối điều khiển (được CREATE/DROP DATABASE): mỗi test tạo DB tạm riêng,
 // nạp schema.sql rồi xoá DB ở cuối, không đụng DB nào khác.
@@ -99,7 +99,7 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
         travel: 15,
         attendance: 25,
         dows: '[1,2,3,4,5,6]',
-        rev: 0,
+        rev: 1, // rev của dòng gốc 2000-01 (0) + 1
         reason: 'Tăng Flex',
         by: 'admin',
         at: META.at
@@ -112,7 +112,7 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
     // Chỉ đổi ô tick vẫn tăng rev của dòng chức vụ và ghi người sửa; không gửi lý do thì giữ lý do cũ.
     await tx.run(trx => repo.updateType(trx, newId, { 'benefit.ot': false }, { actor: 'b', at: '2026-11-06T01:00:00.000Z' }));
     const edited = await typeRow(newId);
-    assert.equal(Number(edited.rev), 1);
+    assert.equal(Number(edited.rev), 2);
     assert.equal(edited.updated_by, 'b');
     assert.equal(edited.updated_at, '2026-11-06T01:00:00.000Z');
     assert.equal(edited.reason, 'Tăng Flex');
@@ -125,7 +125,7 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
       ['2000-01', '2026-11']
     );
     assert.equal(chain[1].id, newId);
-    assert.equal(chain[1].rev, 1);
+    assert.equal(chain[1].rev, 2);
     assert.equal(chain[1].values.flexPct, 25);
     assert.equal(chain[1].values.workdays, 26);
     assert.equal(chain[1].values['benefit.makeup'], false);
@@ -146,12 +146,12 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
     assert.equal(Number(kpiRow.base_salary), 6_500_000);
     assert.equal(Number(kpiRow.kpi_max), 6_800_000);
     assert.equal(kpiRow.name, 'Chuyên viên');
-    assert.equal(Number(kpiRow.rev), 0);
+    assert.equal(Number(kpiRow.rev), 1);
     assert.equal(kpiRow.reason, null);
     await tx.run(trx => repo.updateLevel(trx, kpiId, { nightPct: null, kpiMax: null }, { ...META, reason: 'Bỏ KPI' }));
     const cleared = await levelRow(kpiId);
     assert.equal(cleared.kpi_max, null);
-    assert.equal(Number(cleared.rev), 1);
+    assert.equal(Number(cleared.rev), 2);
     assert.equal(cleared.reason, 'Bỏ KPI');
     const levels = await tx.run(trx => repo.levelChain(trx, 'nv', 2));
     assert.deepEqual(
@@ -206,7 +206,7 @@ test('PositionsService on PostgreSQL carries changes and rolls back', async t =>
     const dec = await nvAt('2026-12');
     assert.equal(dec.flex_pct, 25, 'tháng 12 đã tự đặt Flex nên giữ số của nó');
     assert.equal(dec.travel_pct, 16, 'tháng 12 còn giữ đi lại cũ nên nhận số mới');
-    assert.equal(Number(dec.rev), 1);
+    assert.equal(Number(dec.rev), 2, 'tạo từ dòng gốc rev 0 thành 1, nhận chép tiếp thành 2');
 
     await assert.rejects(
       svc.savePositions(
@@ -224,5 +224,33 @@ test('PositionsService on PostgreSQL carries changes and rolls back', async t =>
     );
     const ctvNov = await client.query(`SELECT 1 FROM position_types WHERE code = 'ctv' AND effective_month = '2026-11'`);
     assert.equal(ctvNov.rowCount, 0);
+  });
+});
+
+test('a save based on the version before another Admin created the month row gets 409 on PostgreSQL', async t => {
+  await withTempDb(t, 'positions_stale', async (db, client) => {
+    const svc = new PositionsService(new PositionsRepository(), new TransactionCoordinator(db));
+    const now = new Date('2026-11-05T03:00:00.000Z');
+    // Hai Admin cùng mở màn ở tháng 11, cùng thấy phiên bản nv 2000-01 (rev 0, Flex 20).
+    const save = (flexPct: number) =>
+      svc.savePositions(
+        { effectiveMonth: '2026-11', items: [{ code: 'nv', expectedRev: 0, changes: { flexPct } }] },
+        'admin',
+        now
+      );
+    await save(22);
+    await assert.rejects(save(25), PositionStaleError);
+    const nov = await client.query(`SELECT flex_pct FROM position_types WHERE code = 'nv' AND effective_month = '2026-11'`);
+    assert.equal(nov.rows[0].flex_pct, 22, 'số của Admin lưu trước còn nguyên');
+
+    // Bậc cũng vậy: bậc 2 Nhân viên 2000-01 rev 0.
+    const saveLevel = (kpiMax: number) =>
+      svc.saveLevel('nv', '2', { effectiveMonth: '2026-11', expectedRev: 0, changes: { kpiMax } }, 'admin', now);
+    await saveLevel(6_800_000);
+    await assert.rejects(saveLevel(7_000_000), LevelStaleError);
+    const lv = await client.query(
+      `SELECT kpi_max FROM position_levels WHERE type_code = 'nv' AND level_no = 2 AND effective_month = '2026-11'`
+    );
+    assert.equal(Number(lv.rows[0].kpi_max), 6_800_000);
   });
 });
