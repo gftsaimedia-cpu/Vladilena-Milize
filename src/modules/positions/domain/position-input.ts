@@ -93,8 +93,9 @@ function pct(v: unknown, field: string): number {
   return v;
 }
 
+/** Số tiền: số nguyên không âm, không quá số nguyên an toàn của JS (cột BIGINT, vượt thì PostgreSQL báo tràn số). */
 function money(v: unknown, field: string): number {
-  if (!Number.isInteger(v) || (v as number) < 0) fail(field, 'Số tiền là số nguyên không âm');
+  if (!Number.isSafeInteger(v) || (v as number) < 0) fail(field, 'Số tiền là số nguyên không âm, tối đa 9.007.199.254.740.991');
   return v as number;
 }
 

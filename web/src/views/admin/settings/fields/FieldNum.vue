@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Ô số của Cài đặt (khung .fi): gõ số thật. money = hàng nghìn ngăn bằng dấu chấm; dim = xám khi bằng 0.
 // integer = chỉ số nguyên (không nhận dấu phẩy); max = lần gõ làm số vượt max bị bỏ, ô giữ chữ trước đó.
+// money luôn dừng ở số nguyên an toàn lớn nhất (9.007.199.254.740.991).
 //   <FieldNum v-model="row.value" unit="%" :max="100" /> · <FieldNum v-model="x" money /> · <FieldNum v-model="d" integer />
 import { computed, ref } from 'vue';
 import { vnd } from '@/utils/format';
@@ -30,6 +31,11 @@ function onInput(e?) {
   if (props.money) {
     const digits = e.target.value.replace(/\D/g, '');
     const n = digits === '' ? null : Number(digits);
+    // Quá số nguyên an toàn thì JS làm tròn sai và máy chủ không nhận: bỏ lần gõ đó, ô giữ số trước.
+    if (n != null && !Number.isSafeInteger(n)) {
+      e.target.value = shown.value;
+      return;
+    }
     e.target.value = n == null ? '' : vnd(n);
     emit('update:modelValue', n);
     return;

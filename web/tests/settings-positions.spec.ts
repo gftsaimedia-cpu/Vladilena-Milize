@@ -126,6 +126,11 @@ test('level dialogs keep a night field for TTS and add the next NV level', async
   await expect(add.getByText('Theo từng người')).toBeVisible();
   const addButton = add.getByRole('button', { name: 'Thêm bậc' });
   await expect(addButton).toBeDisabled();
+  // Ô tiền dừng ở số nguyên an toàn lớn nhất (máy chủ không nhận số lớn hơn): chữ số thứ 16 bị bỏ.
+  const salary = add.getByLabel('Lương cơ bản');
+  await salary.pressSequentially('9999999999999999');
+  await expect(salary).toHaveValue('999.999.999.999.999');
+  await salary.clear();
   await add.getByLabel('Tên bậc').fill('Bậc 5');
   await add.getByLabel('Lương cơ bản').fill('9000000');
   await expect(addButton).toBeEnabled();
