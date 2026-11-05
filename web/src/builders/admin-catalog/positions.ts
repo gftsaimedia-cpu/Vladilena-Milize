@@ -10,7 +10,7 @@ const BENEFIT_LABEL = {
   isat: 'iSAT',
   absenceDeclarable: 'Khai nghỉ',
   approvedLeave: 'Nghỉ được duyệt',
-  leaveAccount: 'Quỹ phép',
+  leaveAccount: 'Nghỉ phép năm',
   makeupHours: 'Làm bù theo giờ',
   idorm: 'iDorm',
   breakPay: 'Off Paid (ca đêm)'

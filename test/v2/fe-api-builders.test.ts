@@ -447,6 +447,113 @@ describe('Chức vụ và bậc từ /employees/meta/positions', () => {
     assert.deepEqual(p.regularDows, [1, 2, 3, 4, 5, 6]);
     assert.deepEqual(p.levels.map((l: any) => [l.level, l.baseSalary]), [[1, 6_000_000], [2, 8_000_000]]);
   });
+
+  it('passes the six benefit keys and the ticks of each type', () => {
+    const res = positionsResponseFromCatalog([type({ benefits: { makeup: true } })], '2026-11');
+    assert.deepEqual(res.benefits, ['kpi', 'idorm', 'leaveAccount', 'isat', 'ot', 'makeup']);
+    assert.equal((res.positions[0].benefits as Record<string, boolean>).makeup, true);
+  });
+});
+
+import {
+  benefitChanges,
+  benefitsViewFromCatalog,
+  headcountFromEmployees,
+  mergeStale,
+  type BenefitsView
+} from '../../web/src/builders/api/benefits';
+
+describe('Chế độ theo loại từ /employees/meta/positions', () => {
+  const row = (code: string, name: string, over: Record<string, unknown> = {}) => ({
+    id: 0, code, effective_month: '2000-01', name, workdays: 26, flex_pct: 10, night_pct: 30, travel_pct: 0, attendance_pct: 0,
+    regular_dows: '[1,2,3,4,5,6]', rev: 0, levels: [], benefits: {}, ...over
+  });
+  const NV = { id: 2, flex_pct: 20, night_pct: 40, travel_pct: 15, attendance_pct: 25, rev: 3, benefits: { makeup: true, idorm: true } };
+  const rows: any[] = [
+    row('tts', 'Thực tập sinh', { id: 3, workdays: 22 }),
+    row('ctv', 'Chuyên trách viên', { id: 1 }),
+    row('nv', 'Nhân viên', NV),
+    row('nv', 'Nhân viên', { ...NV, id: 4, effective_month: '2026-12', flex_pct: 25, rev: 0 })
+  ];
+  const headcount = { tts: 4, ctv: 3, nv: 12 };
+  const nvOf = (v: BenefitsView) => v.types.find(t => t.code === 'nv')!;
+  const withNv = (v: BenefitsView, patch: (t: BenefitsView['types'][number]) => void) => {
+    const copy = structuredClone(v);
+    patch(nvOf(copy));
+    return copy;
+  };
+  const base = () => benefitsViewFromCatalog(rows, '2026-11', headcount);
+
+  it('builds one row per type', () => {
+    const view = base();
+    assert.deepEqual(view.types.map(t => [t.code, t.count]), [['tts', 4], ['ctv', 3], ['nv', 12]]);
+    assert.deepEqual(view.types.map(t => t.key), ['thuc-tap-sinh', 'chuyen-trach', 'nhan-vien']);
+    assert.equal(nvOf(view).name, 'Nhân viên');
+    assert.equal(nvOf(view).values.flexPct, 20);
+    assert.equal(nvOf(view).values.idorm, true);
+    assert.equal(nvOf(view).values.kpi, false);
+    assert.equal(nvOf(view).req.makeup, true);
+    assert.equal(nvOf(view).nightByPerson, true);
+    assert.equal(view.types[0].nightByPerson, false);
+    assert.deepEqual(view.columns.map(c => c.key), ['travelPct', 'attendancePct', 'flexPct', 'nightPct', 'kpi', 'idorm']);
+    assert.deepEqual(view.requests.map(r => r.label), ['Nghỉ phép năm', 'iSAT', 'OT', 'Làm bù']);
+  });
+
+  it('lists a change against the chosen month', () => {
+    const draft = withNv(base(), t => {
+      t.values.flexPct = 25;
+    });
+    assert.deepEqual(benefitChanges(rows, '2026-11', base(), draft), {
+      items: [{ code: 'nv', expectedRev: 3, changes: { flexPct: 25 } }],
+      lines: ['Nhân viên · Phụ cấp Flex: 20% → 25% · 12 người']
+    });
+    assert.deepEqual(benefitChanges(rows, '2026-12', base(), draft), { items: [], lines: [] });
+  });
+
+  it('lists a tick change', () => {
+    const draft = withNv(base(), t => {
+      t.req.makeup = false;
+    });
+    assert.deepEqual(benefitChanges(rows, '2026-11', base(), draft), {
+      items: [{ code: 'nv', expectedRev: 3, changes: { benefits: { makeup: false } } }],
+      lines: ['Nhân viên · Làm bù: Bật → Tắt · 12 người']
+    });
+  });
+
+  it('never sends the NV night cell, which is set per person', () => {
+    const draft = withNv(base(), t => {
+      t.values.nightPct = 60;
+    });
+    assert.deepEqual(benefitChanges(rows, '2026-11', base(), draft), { items: [], lines: [] });
+  });
+
+  it('keeps edited cells when fresh numbers arrive', () => {
+    const oldBase = base();
+    const draft = withNv(oldBase, t => {
+      t.values.flexPct = 25;
+    });
+    const fresh = withNv(oldBase, t => {
+      t.values.flexPct = 22;
+      t.values.travelPct = 16;
+    });
+    const merged = mergeStale(oldBase, draft, fresh);
+    assert.equal(nvOf(merged).values.flexPct, 25);
+    assert.equal(nvOf(merged).values.travelPct, 16);
+  });
+
+  it('counts people still working by type', () => {
+    const asType = (e: ReturnType<typeof employee>, type: string) => ({
+      ...e,
+      contract: { ...e.contract, position: { ...e.contract.position, type } }
+    });
+    const list = [
+      employee({ username: 'a' }),
+      employee({ username: 'b' }),
+      employee({ username: 'c', status: 'nghiviec' }),
+      asType(employee({ username: 'd', from: '2026-12-01' }), 'tts')
+    ];
+    assert.deepEqual(headcountFromEmployees(list as any, '2026-11-05'), { nv: 2 });
+  });
 });
 
 import { accountSourcesFromApi } from '../../web/src/builders/api/accounts';

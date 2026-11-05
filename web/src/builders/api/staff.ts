@@ -33,7 +33,7 @@ function statusOf(e: EmployeeDTO): StaffStatus {
 }
 
 // Đang làm vào ngày `date`: đã vào làm và chưa nghỉ việc (nghỉ việc không ghi ngày thì coi như đã nghỉ).
-function activeOn(e: EmployeeDTO, date: string): boolean {
+export function activeOn(e: EmployeeDTO, date: string): boolean {
   if (joinedOf(e) > date) return false;
   if (e.contract.resignedOn) return e.contract.resignedOn > date;
   return e.contract.status !== 'nghiviec';
