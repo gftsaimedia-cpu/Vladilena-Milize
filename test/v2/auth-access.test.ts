@@ -14,6 +14,7 @@ import { RequestsController } from '../../src/modules/requests/requests.controll
 import { RolesController } from '../../src/modules/roles/roles.controller';
 import { SystemController } from '../../src/modules/system/system.controller';
 import { MeController } from '../../src/modules/me/me.controller';
+import { PositionsController } from '../../src/modules/positions/positions.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -74,6 +75,9 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
   ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'selfKpi'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
+  ),
+  ...['savePositions', 'saveLevel', 'addLevel'].map(
+    m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
   [PayrollController, 'decidePayslip', cap('payroll.approve')],
   ...['calculatePeriod', 'listPayslips', 'getPayslip', 'setKpiScore'].map(

@@ -9,6 +9,8 @@ import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { EmployeesRepository } from '../../src/modules/employees/employees.repository';
 import { PositionsRepository } from '../../src/modules/positions/positions.repository';
+import { PositionsService } from '../../src/modules/positions/positions.service';
+import { PositionStaleError } from '../../src/modules/positions/positions.errors';
 
 // Cần PostgreSQL thật. PG_TEST_URL là kết nối điều khiển (được CREATE/DROP DATABASE): mỗi test tạo DB tạm riêng,
 // nạp schema.sql rồi xoá DB ở cuối, không đụng DB nào khác.
@@ -178,5 +180,49 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
     const nvNov = catalog.find(t => t.code === 'nv' && t.effective_month === '2026-11');
     assert.equal(nvNov.benefits.makeup, false);
     assert.equal(nvNov.benefits.kpi, true);
+  });
+});
+
+test('PositionsService on PostgreSQL carries changes and rolls back', async t => {
+  await withTempDb(t, 'positions_svc', async (db, client) => {
+    const svc = new PositionsService(new PositionsRepository(), new TransactionCoordinator(db));
+    const now = new Date('2026-11-05T03:00:00.000Z');
+    const nvAt = async (month: string) =>
+      (await client.query(`SELECT * FROM position_types WHERE code = 'nv' AND effective_month = $1`, [month])).rows[0];
+
+    await svc.savePositions(
+      { effectiveMonth: '2026-12', items: [{ code: 'nv', expectedRev: 0, changes: { flexPct: 25 } }] },
+      'admin',
+      now
+    );
+    await svc.savePositions(
+      { effectiveMonth: '2026-11', items: [{ code: 'nv', expectedRev: 0, changes: { flexPct: 22, travelPct: 16 } }] },
+      'admin',
+      now
+    );
+    const nov = await nvAt('2026-11');
+    assert.equal(nov.flex_pct, 22);
+    assert.equal(nov.travel_pct, 16);
+    const dec = await nvAt('2026-12');
+    assert.equal(dec.flex_pct, 25, 'tháng 12 đã tự đặt Flex nên giữ số của nó');
+    assert.equal(dec.travel_pct, 16, 'tháng 12 còn giữ đi lại cũ nên nhận số mới');
+    assert.equal(Number(dec.rev), 1);
+
+    await assert.rejects(
+      svc.savePositions(
+        {
+          effectiveMonth: '2026-11',
+          items: [
+            { code: 'ctv', expectedRev: 0, changes: { flexPct: 12 } },
+            { code: 'nv', expectedRev: 99, changes: { flexPct: 30 } }
+          ]
+        },
+        'admin',
+        now
+      ),
+      PositionStaleError
+    );
+    const ctvNov = await client.query(`SELECT 1 FROM position_types WHERE code = 'ctv' AND effective_month = '2026-11'`);
+    assert.equal(ctvNov.rowCount, 0);
   });
 });
