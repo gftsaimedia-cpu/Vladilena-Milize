@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Nhân viên trên máy tính</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+a:focus-visible, button:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+
+.dk { box-sizing: border-box; padding: 16px; background: var(--page); font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums; }
+.ttl { margin: 0; font-family: 'League Spartan', Geist, sans-serif; font-size: 28px; line-height: 32px; font-weight: 600; }
+.h3 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.mut { color: #616161; }
+.sm { font-size: 12px; line-height: 16px; }
+.card { background: #ffffff; border-radius: 24px; }
+.sh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rb { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50px; border: 1px solid var(--border); background: #ffffff; color: #212121; padding: 0; text-decoration: none; }
+.rb[aria-disabled="true"] { color: #bdbdbd; }
+/* Nhóm màu chấm công: giống bảng tuần của Admin và app điện thoại */
+.dn { width: 44px; height: 44px; box-sizing: border-box; display: grid; place-items: center; border-radius: 50px; font-size: 14px; font-weight: 600; text-decoration: none; color: #212121; }
+.dn.work { background: #1c1c1c; color: #ffffff; }
+.dn.late { background: #e8c372; }
+.dn.leave { background: #2f5aa8; color: #ffffff; }
+.dn.absent { background: #b43f3f; color: #ffffff; }
+.dn.todo { background: #ffffff; border: 2px solid #eb973d; }
+.dn.fu { background: var(--page); font-weight: 500; }
+.dn.off { color: #9e9e9e; font-weight: 500; }
+.dn.today { outline: 2px solid #1c1c1c; outline-offset: 2px; }
+.dot { width: 8px; height: 8px; flex: none; border-radius: 50px; display: inline-block; }
+.dot.work { background: #1c1c1c; } .dot.late { background: #e8c372; } .dot.leave { background: #2f5aa8; }
+.dot.todo { box-sizing: border-box; border: 2px solid #eb973d; } .dot.pend { background: #eb973d; } .dot.done { background: #2f5aa8; } .dot.rej { background: #b43f3f; }
+.st { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+/* Danh sách: một dòng, một giá trị */
+.ls { display: flex; flex-direction: column; padding: 4px 16px; }
+.ro { display: flex; align-items: center; gap: 12px; min-height: 56px; color: inherit; text-decoration: none; }
+.ro + .ro { border-top: 1px solid var(--border); }
+.ro .t { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ro .v { font-weight: 600; white-space: nowrap; }
+.ti { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--page); color: #212121; }
+.kv { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid var(--border); }
+.kv .k { color: #616161; white-space: nowrap; }
+.kv .v { font-weight: 500; text-align: right; }
+
+/* Thanh trên: khung tối, logo trắng, menu tài khoản (màn Tôi) */
+.bar { position: relative; z-index: 4; height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 8px 0 24px; border-radius: 24px; background: #1c1c1c; color: #ffffff; }
+.bar img { width: 52px; height: auto; display: block; }
+.bar .app { font-size: 18px; line-height: 24px; font-weight: 600; }
+.acct { margin-left: auto; height: 48px; display: inline-flex; align-items: center; gap: 10px; padding: 0 14px 0 6px; border: 0; border-radius: 50px; background: #2a2a2a; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer; }
+.acct:focus-visible { outline-color: #e8c372; }
+.av { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50px; background: #fce8b2; color: #212121; font-weight: 600; }
+.menu { position: absolute; top: 72px; right: 0; width: 360px; max-width: calc(100vw - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 24px; background: #ffffff; border: 1px solid var(--border); color: #212121; }
+.menu .who { display: flex; align-items: center; gap: 12px; }
+.menu .av { width: 48px; height: 48px; }
+.grp { padding: 0 16px; border-radius: 16px; background: var(--page); }
+.grp .kv:first-child { border-top: 0; }
+.mi { display: flex; align-items: center; gap: 12px; min-height: 52px; color: inherit; text-decoration: none; }
+.mi + .mi { border-top: 1px solid var(--border); }
+.mi .t { flex: 1 1 auto; font-weight: 500; }
+
+/* Ba cột cao bằng nhau: Hôm nay + Yêu cầu | Chấm công | Thu nhập; khối cuối mỗi cột giãn cho kín đáy; dưới 1136px chuyển sang app điện thoại */
+.pg { display: grid; grid-template-columns: minmax(300px, 3fr) minmax(420px, 5fr) minmax(300px, 3fr); gap: 24px; align-items: stretch; margin-top: 24px; padding: 0 16px 24px; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.hd { display: flex; flex-direction: column; min-height: 52px; justify-content: flex-end; }
+.sec { display: flex; flex-direction: column; gap: 16px; margin-top: 16px; }
+.grow { flex: 1 1 auto; display: flex; flex-direction: column; }
+.grow > .card { flex: 1 1 auto; }
+.ph-only { display: none; }
+@media (max-width: 1135px) { .dk { padding: 0; } .bar, .pg { display: none; } .ph-only { display: flex; justify-content: center; } }
+
+/* Hôm nay (J1) */
+.hero { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 20px; border-radius: 24px; background: #1c1c1c; color: #ffffff; }
+.hero .top { align-self: stretch; display: flex; justify-content: space-between; align-items: center; color: #9e9e9e; }
+.live { display: inline-flex; align-items: center; gap: 6px; color: #ffffff; font-size: 13px; }
+.live i { width: 8px; height: 8px; border-radius: 50px; background: #e8c372; }
+.gauge { position: relative; width: 240px; height: 132px; margin-top: 8px; }
+.gauge .in { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; }
+.gauge .big { font-size: 32px; line-height: 40px; font-weight: 600; }
+.ends { width: 240px; display: flex; justify-content: space-between; color: #9e9e9e; font-size: 12px; line-height: 16px; }
+.cta { align-self: stretch; height: 52px; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 8px; background: #e8c372; color: #212121; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; }
+.cta small { font-size: 14px; font-weight: 400; }
+.loc { display: flex; align-items: center; gap: 6px; margin-top: 8px; color: #9e9e9e; font-size: 13px; }
+.days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); justify-items: center; gap: 6px; }
+.days .dw { font-size: 12px; line-height: 16px; color: #616161; margin-bottom: 6px; text-align: center; }
+.days .dn { width: 40px; height: 40px; }
+.att { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 12px; border-radius: 12px; background: var(--page); color: #212121; text-decoration: none; }
+.att .t { flex: 1 1 auto; }
+
+/* Chấm công (J2) */
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tl { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px 12px; border-radius: 16px; background: #ffffff; }
+.tl b { font-size: 24px; line-height: 30px; font-weight: 600; }
+.tl b small { font-size: 16px; color: #616161; font-weight: 500; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); justify-items: center; row-gap: 12px; }
+.cal .wd { font-size: 12px; line-height: 16px; color: #616161; padding-bottom: 4px; }
+.lg { display: flex; flex-wrap: wrap; gap: 6px 16px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 12px; line-height: 16px; color: #616161; }
+.lg span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Thu nhập (J6) */
+.hero2 { display: flex; flex-direction: column; gap: 4px; padding: 20px; border-radius: 24px; background: #1c1c1c; color: #ffffff; }
+.hero2 .amt { font-size: 32px; line-height: 40px; font-weight: 600; }
+.hero2 .amt span { font-size: 20px; color: #9e9e9e; font-weight: 500; }
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.duo div { padding: 12px 14px; border-radius: 16px; background: #2a2a2a; }
+.duo b { display: block; font-size: 16px; line-height: 22px; font-weight: 600; margin-top: 2px; }
+.kpi { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px; }
+.dots { position: relative; width: 248px; height: 124px; }
+.dots .in { position: absolute; left: 0; right: 0; bottom: 0; text-align: center; }
+.dots .in b { display: block; font-size: 28px; line-height: 34px; font-weight: 600; }
+.sc { align-self: stretch; display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); text-align: center; }
+.sc b { display: block; font-size: 16px; line-height: 22px; font-weight: 600; }
+.pr { align-self: stretch; display: flex; justify-content: space-between; margin-top: 8px; }
+.tot { margin-top: auto; display: flex; justify-content: space-between; align-items: center; min-height: 56px; border-top: 1px solid #212121; font-weight: 600; font-size: 16px; }
+
+/* Yêu cầu (J4) */
+.add { height: 40px; box-sizing: border-box; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px 0 10px; border-radius: 8px; border: 0; background: #1c1c1c; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer; }
+.tabs { display: flex; gap: 4px; padding: 4px; border-radius: 50px; background: #ffffff; }
+.tb { flex: 1 1 auto; height: 36px; padding: 0 6px; border: 0; border-radius: 50px; background: transparent; font: inherit; font-size: 13px; color: #616161; white-space: nowrap; cursor: pointer; }
+.tb[aria-selected="true"] { background: #1c1c1c; color: #ffffff; font-weight: 600; }
+.gh { padding: 0 4px; font-size: 12px; line-height: 16px; font-weight: 600; color: #616161; text-transform: uppercase; letter-spacing: 0.04em; }
+/* Danh sách yêu cầu cuộn trong ô: ô không đẩy trang dài thêm, chỉ lấp phần còn lại của cột */
+.rq { flex: 1 1 0; height: 0; min-height: 288px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column; gap: 16px; padding-right: 4px; border-radius: 16px; }
+.rq:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+.rq .gh { position: sticky; top: 0; z-index: 1; padding: 4px; background: var(--page); }
+</style>
+</helmet>
+<div class="dk" style="--page: {{c.page}}; --border: {{c.border}}; min-height: 100vh;">
+
+<header class="bar">
+<img src="/_blob/3568bf81a6ac57ac1877fa1835f3c03e" alt="GFT">
+<span class="app">Nhân viên</span>
+<button type="button" class="acct" aria-expanded="{{menuOpen}}" onClick="{{toggleMenu}}"><span class="av" aria-hidden="true">HN</span><span class="nm">Lê Hoàng Nam</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<section class="menu" role="region" aria-label="Tài khoản của tôi" hidden="{{h.menu}}">
+<div class="who"><span class="av" aria-hidden="true">HN</span><div style="flex: 1 1 auto; min-width: 0;"><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Lê Hoàng Nam</div><div class="mut">nam.le@gft.vn</div></div><span class="st"><i class="dot work"></i>Chính thức</span></div>
+<div class="grp"><div class="kv"><span class="k">Mã nhân viên</span><span class="v">GFT-0142</span></div><div class="kv"><span class="k">Phòng ban</span><span class="v">Kinh doanh</span></div><div class="kv"><span class="k">Chức danh</span><span class="v">Nhân viên kinh doanh</span></div><div class="kv"><span class="k">Ca làm</span><span class="v">HC 08:00–17:00</span></div><div class="kv"><span class="k">Ngày vào làm</span><span class="v">04/03/2024</span></div><div class="kv"><span class="k">Phép năm còn lại</span><span class="v">11 ngày</span></div></div>
+<p class="mut sm" style="margin: 0; padding: 0 4px;">Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.</p>
+<div style="padding: 0 4px;">
+<a class="mi" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg></span><span class="t">Đổi mật khẩu</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+<a class="mi" href="#" style="color: #b43f3f;"><span class="ti" style="color: #b43f3f;"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg></span><span class="t">Đăng xuất</span></a>
+</div>
+</section>
+</header>
+
+<main class="pg">
+
+<div class="col">
+<header class="sh" style="align-items: flex-end; min-height: 52px;">
+<div><div class="mut">Chào buổi sáng</div><h1 class="ttl">Lê Hoàng Nam</h1></div>
+<span class="mut" style="text-align: right;">Thứ Tư<br>28/10/2026</span>
+</header>
+<section class="hero" aria-label="Ca hôm nay">
+<div class="top"><span>Ca HC · 08:00–17:00</span><span class="live"><i></i>Đang trong ca</span></div>
+<div class="gauge"><svg aria-hidden="true" width="240" height="132" viewBox="0 0 240 132">
+<path d="M20 120 A100 100 0 0 1 220 120" fill="none" stroke="#2a2a2a" stroke-width="14" stroke-linecap="round"></path>
+<path d="M20 120 A100 100 0 0 1 220 120" fill="none" stroke="#e8c372" stroke-width="14" stroke-linecap="round" stroke-dasharray="58.8 400"></path>
+<circle cx="36.8" cy="64.6" r="9" fill="#e8c372" stroke="#1c1c1c" stroke-width="4"></circle>
+</svg><div class="in"><div class="big">1g 41p</div><div style="color: #9e9e9e;">đã làm · vào 07:59</div></div></div>
+<div class="ends"><span>08:00</span><span>17:00</span></div>
+<button type="button" class="cta"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Check-out<small>· 09:40</small></button>
+<div class="loc"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>Đúng vị trí văn phòng GFT</div>
+</section>
+<section class="card" style="display: flex; flex-direction: column; gap: 14px; padding: 16px;">
+<div class="sh"><h2 class="h3">Tuần này</h2><span class="mut">26/10 – 01/11</span></div>
+<div class="days"><div><div class="dw">T2</div><a class="dn work" href="#" aria-label="Thứ Hai 26/10: đi làm 07:56–17:10">26</a></div><div><div class="dw">T3</div><a class="dn todo" href="StaffDesktopDay.dc.html" aria-label="Thứ Ba 27/10: cần xử lý, thiếu giờ ra">27</a></div><div><div class="dw">T4</div><a class="dn work today" href="#" aria-label="Hôm nay, thứ Tư 28/10: đang làm">28</a></div><div><div class="dw">T5</div><a class="dn fu" href="#" aria-label="Thứ Năm 29/10: chưa tới">29</a></div><div><div class="dw">T6</div><a class="dn fu" href="#" aria-label="Thứ Sáu 30/10: chưa tới">30</a></div><div><div class="dw">T7</div><a class="dn fu" href="#" aria-label="Thứ Bảy 31/10: chưa tới">31</a></div><div><div class="dw">CN</div><span class="dn off" role="img" aria-label="Chủ nhật 01/11: không có ca">01</span></div></div>
+<a class="att" href="StaffDesktopDay.dc.html"><span class="dot todo"></span><span class="t">27/10 thiếu giờ ra · chờ duyệt giải trình</span><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</section>
+
+<section class="sec grow" aria-label="Yêu cầu">
+<header class="sh"><h2 class="ttl">Yêu cầu</h2><a class="add" href="StaffDesktopNewRequest.dc.html"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>Tạo yêu cầu</a></header>
+<div class="tabs" role="tablist" aria-label="Lọc yêu cầu theo trạng thái"><button type="button" role="tab" class="tb" aria-selected="{{sel.all}}" onClick="{{pick.all}}">Tất cả {{n.all}}</button><button type="button" role="tab" class="tb" aria-selected="{{sel.pend}}" onClick="{{pick.pend}}">Chờ duyệt {{n.pend}}</button><button type="button" role="tab" class="tb" aria-selected="{{sel.done}}" onClick="{{pick.done}}">Đã duyệt {{n.done}}</button><button type="button" role="tab" class="tb" aria-selected="{{sel.rej}}" onClick="{{pick.rej}}">Từ chối {{n.rej}}</button></div>
+<div class="rq" tabindex="0" role="region" aria-label="Danh sách yêu cầu, cuộn để xem thêm">
+<section style="display: flex; flex-direction: column; gap: 8px;" hidden="{{h.g10}}"><div class="gh">Tháng 10</div><div class="card ls"><a class="ro" hidden="{{h.r1}}" href="StaffDesktopDay.dc.html"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span class="t">Thiếu giờ ra 27/10</span><span class="st"><i class="dot pend"></i>Chờ duyệt</span></a><a class="ro" hidden="{{h.r2}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"></path><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="m9 15 2 2 4-4"></path></svg></span><span class="t">Phép năm 12/10</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a></div></section>
+<section style="display: flex; flex-direction: column; gap: 8px;" hidden="{{h.g9}}"><div class="gh">Tháng 9</div><div class="card ls"><a class="ro" hidden="{{h.r3}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 9a3 3 0 0 0-2.8-1.5c-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2A3.2 3.2 0 0 1 9 15M12 6v1.5M12 16.5V18"></path></svg></span><span class="t">Tạm ứng 1.500.000 ₫</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a><a class="ro" hidden="{{h.r5}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0Z"></path></svg></span><span class="t">Nghỉ ốm 18/09</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a><a class="ro" hidden="{{h.r4}}" href="StaffDesktopRequest.dc.html"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span class="t">Khai giờ vào 09/09</span><span class="st"><i class="dot rej"></i>Từ chối</span></a><a class="ro" hidden="{{h.r6}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"></path><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="m9 15 2 2 4-4"></path></svg></span><span class="t">Phép năm 05/09</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a></div></section>
+<section style="display: flex; flex-direction: column; gap: 8px;" hidden="{{h.g8}}"><div class="gh">Tháng 8</div><div class="card ls"><a class="ro" hidden="{{h.r7}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg></span><span class="t">Khai giờ ra 21/08</span><span class="st"><i class="dot rej"></i>Từ chối</span></a><a class="ro" hidden="{{h.r8}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"></path><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="m9 15 2 2 4-4"></path></svg></span><span class="t">Phép năm 14/08</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a><a class="ro" hidden="{{h.r9}}" href="#"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 9a3 3 0 0 0-2.8-1.5c-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2A3.2 3.2 0 0 1 9 15M12 6v1.5M12 16.5V18"></path></svg></span><span class="t">Tạm ứng 1.000.000 ₫</span><span class="st"><i class="dot done"></i>Đã duyệt</span></a></div></section>
+</div>
+</section>
+</div>
+
+<div class="col">
+<header class="hd"><h2 class="ttl">Chấm công</h2><span class="mut">Ca HC 08:00–17:00 · thứ Hai – thứ Bảy</span></header>
+<div class="sh" style="gap: 12px;">
+<a class="rb" href="#" aria-label="Tháng trước"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></a>
+<div style="flex: 1 1 auto; text-align: center;"><div style="font-weight: 600; font-size: 16px; line-height: 22px;">Tháng 10/2026</div><div class="mut sm">Kỳ công đang mở</div></div>
+<a class="rb" href="#" aria-label="Tháng sau" aria-disabled="true"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div class="tiles" role="group" aria-label="Chỉ số tháng 10">
+<div class="tl"><b>21<small> / 26</small></b><span class="mut sm">Ngày công</span></div>
+<div class="tl"><b>1</b><span class="mut sm">Lần đi muộn</span></div>
+<div class="tl"><b>2</b><span class="mut sm">Ngày nghỉ có lương</span></div>
+</div>
+<section class="card" style="display: flex; flex-direction: column; gap: 16px; padding: 20px 16px;" aria-label="Lịch tháng 10">
+<div class="cal"><span class="wd">T2</span><span class="wd">T3</span><span class="wd">T4</span><span class="wd">T5</span><span class="wd">T6</span><span class="wd">T7</span><span class="wd">CN</span><span></span><span></span><span></span><a class="dn work" href="#" aria-label="Thứ Năm 01/10: đi làm">1</a><a class="dn work" href="#" aria-label="Thứ Sáu 02/10: đi làm">2</a><a class="dn work" href="#" aria-label="Thứ Bảy 03/10: đi làm">3</a><span class="dn off" role="img" aria-label="Chủ nhật 04/10: không có ca">4</span><a class="dn work" href="#" aria-label="Thứ Hai 05/10: đi làm">5</a><a class="dn work" href="#" aria-label="Thứ Ba 06/10: đi làm">6</a><a class="dn work" href="#" aria-label="Thứ Tư 07/10: đi làm">7</a><a class="dn work" href="#" aria-label="Thứ Năm 08/10: đi làm">8</a><a class="dn work" href="#" aria-label="Thứ Sáu 09/10: đi làm">9</a><a class="dn work" href="#" aria-label="Thứ Bảy 10/10: đi làm">10</a><span class="dn off" role="img" aria-label="Chủ nhật 11/10: không có ca">11</span><a class="dn leave" href="#" aria-label="Thứ Hai 12/10: nghỉ có phép">12</a><a class="dn work" href="#" aria-label="Thứ Ba 13/10: đi làm">13</a><a class="dn work" href="#" aria-label="Thứ Tư 14/10: đi làm">14</a><a class="dn work" href="#" aria-label="Thứ Năm 15/10: đi làm">15</a><a class="dn work" href="#" aria-label="Thứ Sáu 16/10: đi làm">16</a><a class="dn leave" href="#" aria-label="Thứ Bảy 17/10: nghỉ có phép">17</a><span class="dn off" role="img" aria-label="Chủ nhật 18/10: không có ca">18</span><a class="dn work" href="#" aria-label="Thứ Hai 19/10: đi làm">19</a><a class="dn work" href="#" aria-label="Thứ Ba 20/10: đi làm">20</a><a class="dn work" href="#" aria-label="Thứ Tư 21/10: đi làm">21</a><a class="dn work" href="#" aria-label="Thứ Năm 22/10: đi làm">22</a><a class="dn work" href="#" aria-label="Thứ Sáu 23/10: đi làm">23</a><a class="dn work" href="#" aria-label="Thứ Bảy 24/10: đi làm">24</a><span class="dn off" role="img" aria-label="Chủ nhật 25/10: không có ca">25</span><a class="dn work" href="#" aria-label="Thứ Hai 26/10: đi làm">26</a><a class="dn todo" href="StaffDesktopDay.dc.html" aria-label="Thứ Ba 27/10: cần xử lý">27</a><a class="dn work today" href="#" aria-label="Thứ Tư 28/10: hôm nay, đang làm">28</a><a class="dn fu" href="#" aria-label="Thứ Năm 29/10: chưa tới">29</a><a class="dn fu" href="#" aria-label="Thứ Sáu 30/10: chưa tới">30</a><a class="dn fu" href="#" aria-label="Thứ Bảy 31/10: chưa tới">31</a></div>
+<div class="lg"><span><i class="dot work"></i>Đi làm</span><span><i class="dot late"></i>Đi muộn</span><span><i class="dot leave"></i>Nghỉ có lương</span><span><i class="dot todo"></i>Cần xử lý</span></div>
+</section>
+<section class="grow" style="gap: 10px;">
+<h3 class="h3" style="padding: 0 4px;">Gần đây</h3>
+<div class="card ls"><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Tư 28/10</span><span class="v">07:59 – …</span></a><a class="ro" href="StaffDesktopDay.dc.html"><i class="dot todo"></i><span class="t">Thứ Ba 27/10</span><span class="v">08:12 – ?</span></a><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Hai 26/10</span><span class="v">07:56 – 17:10</span></a><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Bảy 24/10</span><span class="v">07:52 – 17:04</span></a><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Sáu 23/10</span><span class="v">07:58 – 17:02</span></a><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Năm 22/10</span><span class="v">07:55 – 17:06</span></a><a class="ro" href="#"><i class="dot work"></i><span class="t">Thứ Tư 21/10</span><span class="v">07:57 – 17:01</span></a></div>
+</section>
+</div>
+
+<div class="col">
+<header class="hd"><h2 class="ttl">Thu nhập</h2><span class="mut">Tháng 10/2026 · tạm tính</span></header>
+<section class="hero2" aria-label="Thực nhận tháng 10">
+<span style="color: #9e9e9e;">Thực nhận dự kiến</span>
+<div class="amt">14.278.183 <span>₫</span></div>
+<span class="live"><i class="dot pend"></i>Admin đang duyệt phiếu</span>
+<div class="duo"><div><span style="color: #9e9e9e;" class="sm">Tổng thu nhập</span><b>15.538.183</b></div><div><span style="color: #9e9e9e;" class="sm">Khấu trừ</span><b>1.260.000</b></div></div>
+</section>
+<section class="card kpi" aria-label="KPI tháng 10">
+<div class="sh" style="align-self: stretch;"><h3 class="h3">KPI tháng 10</h3><span class="mut">5 phần</span></div>
+<div class="dots"><svg aria-hidden="true" width="248" height="124" viewBox="0 0 248 124"><circle cx="46.0" cy="118.0" r="4.6" fill="#1c1c1c"></circle><circle cx="48.3" cy="99.3" r="4.6" fill="#1c1c1c"></circle><circle cx="54.9" cy="81.8" r="4.6" fill="#1c1c1c"></circle><circle cx="65.6" cy="66.3" r="4.6" fill="#1c1c1c"></circle><circle cx="79.7" cy="53.8" r="4.6" fill="#1c1c1c"></circle><circle cx="96.3" cy="45.1" r="4.6" fill="#1c1c1c"></circle><circle cx="114.6" cy="40.6" r="4.6" fill="#1c1c1c"></circle><circle cx="133.4" cy="40.6" r="4.6" fill="#1c1c1c"></circle><circle cx="151.7" cy="45.1" r="4.6" fill="#1c1c1c"></circle><circle cx="168.3" cy="53.8" r="4.6" fill="#e0e0e0"></circle><circle cx="182.4" cy="66.3" r="4.6" fill="#e0e0e0"></circle><circle cx="193.1" cy="81.8" r="4.6" fill="#e0e0e0"></circle><circle cx="199.7" cy="99.3" r="4.6" fill="#e0e0e0"></circle><circle cx="202.0" cy="118.0" r="4.6" fill="#e0e0e0"></circle><circle cx="30.0" cy="118.0" r="4.6" fill="#1c1c1c"></circle><circle cx="31.8" cy="99.7" r="4.6" fill="#1c1c1c"></circle><circle cx="37.2" cy="82.0" r="4.6" fill="#1c1c1c"></circle><circle cx="45.8" cy="65.8" r="4.6" fill="#1c1c1c"></circle><circle cx="57.5" cy="51.5" r="4.6" fill="#1c1c1c"></circle><circle cx="71.8" cy="39.8" r="4.6" fill="#1c1c1c"></circle><circle cx="88.0" cy="31.2" r="4.6" fill="#1c1c1c"></circle><circle cx="105.7" cy="25.8" r="4.6" fill="#1c1c1c"></circle><circle cx="124.0" cy="24.0" r="4.6" fill="#1c1c1c"></circle><circle cx="142.3" cy="25.8" r="4.6" fill="#1c1c1c"></circle><circle cx="160.0" cy="31.2" r="4.6" fill="#1c1c1c"></circle><circle cx="176.2" cy="39.8" r="4.6" fill="#e0e0e0"></circle><circle cx="190.5" cy="51.5" r="4.6" fill="#e0e0e0"></circle><circle cx="202.2" cy="65.8" r="4.6" fill="#e0e0e0"></circle><circle cx="210.8" cy="82.0" r="4.6" fill="#e0e0e0"></circle><circle cx="216.2" cy="99.7" r="4.6" fill="#e0e0e0"></circle><circle cx="218.0" cy="118.0" r="4.6" fill="#e0e0e0"></circle><circle cx="14.0" cy="118.0" r="4.6" fill="#1c1c1c"></circle><circle cx="15.5" cy="99.9" r="4.6" fill="#1c1c1c"></circle><circle cx="20.0" cy="82.3" r="4.6" fill="#1c1c1c"></circle><circle cx="27.3" cy="65.6" r="4.6" fill="#1c1c1c"></circle><circle cx="37.2" cy="50.4" r="4.6" fill="#1c1c1c"></circle><circle cx="49.5" cy="37.1" r="4.6" fill="#1c1c1c"></circle><circle cx="63.8" cy="25.9" r="4.6" fill="#1c1c1c"></circle><circle cx="79.8" cy="17.3" r="4.6" fill="#1c1c1c"></circle><circle cx="97.0" cy="11.4" r="4.6" fill="#1c1c1c"></circle><circle cx="114.9" cy="8.4" r="4.6" fill="#1c1c1c"></circle><circle cx="133.1" cy="8.4" r="4.6" fill="#1c1c1c"></circle><circle cx="151.0" cy="11.4" r="4.6" fill="#1c1c1c"></circle><circle cx="168.2" cy="17.3" r="4.6" fill="#1c1c1c"></circle><circle cx="184.2" cy="25.9" r="4.6" fill="#e0e0e0"></circle><circle cx="198.5" cy="37.1" r="4.6" fill="#e0e0e0"></circle><circle cx="210.8" cy="50.4" r="4.6" fill="#e0e0e0"></circle><circle cx="220.7" cy="65.6" r="4.6" fill="#e0e0e0"></circle><circle cx="228.0" cy="82.3" r="4.6" fill="#e0e0e0"></circle><circle cx="232.5" cy="99.9" r="4.6" fill="#e0e0e0"></circle><circle cx="234.0" cy="118.0" r="4.6" fill="#e0e0e0"></circle></svg><div class="in"><b>66,14%</b><span class="mut sm">Tổng điểm</span></div></div>
+<div class="pr"><span class="mut">Lương KPI</span><b>1.322.800</b></div>
+<div class="pr" style="margin-top: 0;"><span class="mut">Mức đề xuất</span><span>2.000.000</span></div>
+<div class="sc"><div><b>62</b><span class="mut sm">Wework</span></div><div><b>70</b><span class="mut sm">Người dùng</span></div><div><b>68</b><span class="mut sm">Đồng nghiệp</span></div><div><b>65</b><span class="mut sm">Quản lý</span></div><div><b>75</b><span class="mut sm">Tự đánh giá</span></div></div>
+</section>
+<section class="grow" style="gap: 10px;">
+<h3 class="h3" style="padding: 0 4px;">Các khoản</h3>
+<div class="card ls">
+<div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg></span><span class="t">Lương ngày công</span><span class="v">11.076.923</span></div><div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4M16 2v4"></path><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="m9 15 2 2 4-4"></path></svg></span><span class="t">Nghỉ phép, iSAT</span><span class="v">923.076</span></div><div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"></rect><path d="M12 8v13M5 12v9h14v-9M12 8S10.5 3 8 3a2.5 2.5 0 0 0 0 5M12 8s1.5-5 4-5a2.5 2.5 0 0 1 0 5"></path></svg></span><span class="t">Phụ cấp</span><span class="v">2.215.384</span></div><div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1"></circle></svg></span><span class="t">Lương KPI</span><span class="v">1.322.800</span></div><div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.3 8 9 4.6-.7 8-4.5 8-9V6Z"></path></svg></span><span class="t">Bảo hiểm bắt buộc</span><span class="v">−1.260.000</span></div><div class="ro"><span class="ti"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M14.8 9a3 3 0 0 0-2.8-1.5c-1.7 0-3 .9-3 2.2 0 3 6 1.6 6 4.6 0 1.3-1.3 2.2-3 2.2A3.2 3.2 0 0 1 9 15M12 6v1.5M12 16.5V18"></path></svg></span><span class="t">Thuế TNCN</span><span class="v" style="color: #757575; font-weight: 500;">0</span></div>
+<div class="tot"><span>Thực nhận</span><span>14.278.183 ₫</span></div>
+</div>
+</section>
+
+</div>
+
+</main>
+<div class="ph-only"><dc-import name="PhoneHome" theme="{{theme}}" hint-size="390px,1060px"></dc-import></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"mau":{"editor":"enum","options":["Nhiều (thử cuộn)","4 yêu cầu như app"],"default":"Nhiều (thử cuộn)","section":"Dữ liệu mẫu"},"$preview":{"width":1440,"height":1210}}'>
+class Component extends DCLogic {
+  st() { return { tab: 'all', menu: false, ...(this.state || {}) }; }
+  pickOf = (k) => () => this.setState({ ...this.st(), tab: k });
+  toggleMenu = () => this.setState({ ...this.st(), menu: !this.st().menu });
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem ? { page: '#f2ead8', border: '#e6dcc6' } : { page: '#f5f5f5', border: '#e0e0e0' };
+    const x = this.st();
+    const many = (this.props.mau ?? 'Nhiều (thử cuộn)') === 'Nhiều (thử cuộn)';
+    const all = [["r1","pend",10],["r2","done",10],["r3","done",9],["r5","done",9,1],["r4","rej",9],["r6","done",9,1],["r7","rej",8,1],["r8","done",8,1],["r9","done",8,1]];
+    const rows = all.filter((r) => many || !r[3]);
+    const h = {}, sel = {}, pick = {}, n = { all: rows.length, pend: 0, done: 0, rej: 0 };
+    all.forEach(([id]) => { h[id] = true; });
+    rows.forEach(([id, k]) => { h[id] = !(x.tab === 'all' || x.tab === k); n[k] += 1; });
+    ['all', 'pend', 'done', 'rej'].forEach((k) => { sel[k] = String(x.tab === k); pick[k] = this.pickOf(k); });
+    const g10 = !rows.some(([id, , m]) => m === 10 && !h[id]);
+    const g9 = !rows.some(([id, , m]) => m === 9 && !h[id]);
+    const g8 = !rows.some(([id, , m]) => m === 8 && !h[id]);
+    return {
+      c,
+      theme: this.props.theme ?? 'Nền xám',
+      h: { ...h, g10, g9, g8, menu: !x.menu },
+      n,
+      sel,
+      pick,
+      menuOpen: String(x.menu),
+      toggleMenu: this.toggleMenu
+    };
+  }
+}
+</script>
+</body>
+</html>

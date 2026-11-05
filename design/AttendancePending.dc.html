@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Chấm công, việc cần xử lý</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+a { color: #212121; } a:hover { color: #000000; }
+input::placeholder { color: #616161; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+.b { display: inline-block; flex: none; box-sizing: border-box; width: 18px; height: 18px; border-radius: 5px; }
+.b.work { background: #1c1c1c; }
+.b.late { background: #e8c372; }
+.b.leave { background: #2f5aa8; }
+.b.absent { background: #b43f3f; }
+.b.todo { background: #ffffff; border: 2.5px solid #eb973d; }
+.b.off { background: var(--page); }
+.b.fu { background: #ffffff; border: 1px solid var(--border); }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.mt { font-size: 12px; line-height: 16px; color: #616161; }
+/* Tab Cần xử lý (Đợt 11): danh sách gọn bên trái, chi tiết việc đang chọn bên phải */
+.pv { display: grid; grid-template-columns: 400px minmax(0, 1fr); border-top: 1px solid var(--border); }
+.pl { border-right: 1px solid var(--border); }
+.pls { height: 640px; box-sizing: border-box; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--draft) transparent; padding: 4px 12px 12px; }
+.pd { min-width: 0; padding: 24px 32px 32px; }
+.pdi { max-width: 560px; display: flex; flex-direction: column; gap: 20px; }
+.row { position: relative; width: 100%; min-height: 56px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 0; border-radius: 12px; background: transparent; font: inherit; color: #212121; text-align: left; cursor: pointer; }
+.row:hover { background: var(--page); }
+.row.on { background: #fff9ec; }
+.row.on .nm { text-decoration: underline; text-underline-offset: 3px; }
+.row[hidden], [hidden] { display: none !important; }
+.row .av { width: 32px; height: 32px; flex: none; border-radius: 50px; display: grid; place-items: center; background: var(--draft); font-size: 12px; font-weight: 600; }
+.row .tx { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.row .hd { display: flex; align-items: baseline; gap: 8px; }
+.row .nm { flex: 1 1 auto; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .dt { flex: none; font-size: 12px; line-height: 16px; color: #616161; }
+.dl { margin: 0; display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.dl div { display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.dl dt { width: 160px; flex: none; color: #616161; }
+.dl dd { margin: 0; font-weight: 500; }
+.b1, .b2 { flex: 1 1 0; height: 40px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
+.b1 { background: #000000; border: 1px solid #000000; color: #ffffff; }
+.b2 { background: #ffffff; border: 1px solid var(--control); color: #212121; }
+textarea:focus-visible, [role="region"]:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+.nt { width: 100%; height: 88px; box-sizing: border-box; margin: 0; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; color: #212121; resize: none; }
+.nt::placeholder { color: #757575; }
+.nt.bad { border-color: #b43f3f; }
+.er { font-size: 12px; line-height: 16px; color: #b43f3f; }
+/* Màn hẹp: chỉ còn danh sách; bấm dòng mở hộp chi tiết ngày như hiện nay */
+@media (max-width: 900px) {
+  .pv { grid-template-columns: minmax(0, 1fr); }
+  .pl { border-right: 0; }
+  .pls { height: auto; max-height: 520px; }
+  .pd { display: none; }
+}
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --draft: {{c.draft}}; --control: {{c.control}}; min-height: 1100px; box-sizing: border-box; padding: 16px; display: flex; flex-wrap: wrap; align-items: stretch; gap: 24px; background: {{c.page}}; color: #212121; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; font-variant-numeric: tabular-nums;">
+<aside style="flex: 1 1 248px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; padding: 24px 12px 16px; border-radius: 24px; background: {{s.bg}}; border: 1px solid {{s.edge}}; color: {{s.ink}};">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 12px;">
+<img src="{{s.logo}}" alt="GFT" style="width: 52px; height: auto;">
+<span style="padding-top: 4px; font-family: 'League Spartan', Geist, sans-serif; font-size: 22px; line-height: 24px; font-weight: 600; color: {{s.strong}};">AiCB</span>
+</div>
+<nav aria-label="Điều hướng" style="flex-grow: 1; display: flex; flex-direction: column; gap: 4px;">
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>Tổng quan</a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Kỳ lương</div>
+<a href="#" aria-current="page" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; font-weight: 500; background: {{s.activeBg}}; color: {{s.activeInk}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>Chấm công</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"></rect><circle cx="12" cy="12" r="2.5"></circle><path d="M6 12h.01M18 12h.01"></path></svg>Bảng lương</a>
+<div style="padding: 20px 12px 4px; font-size: 12px; line-height: 16px; font-weight: 500; color: {{s.muted}};">Đội ngũ</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>Nhân sự</a>
+</nav>
+<div style="display: flex; flex-direction: column; gap: 8px; padding-top: 12px; border-top: 1px solid {{s.foot}};">
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; text-decoration: none; color: {{s.ink}};"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>Cài đặt</a>
+<button type="button" aria-haspopup="menu" style="display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 4px 12px; border: 0; border-radius: 8px; background: transparent; font: inherit; text-align: left; cursor: pointer; color: {{s.ink}};">
+<span aria-hidden="true" style="width: 36px; height: 36px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; color: #212121; font-size: 12px; font-weight: 600;">QT</span>
+<span style="display: flex; flex-direction: column;"><span style="font-weight: 500; color: {{s.strong}};">Quản trị viên</span><span style="font-size: 12px; line-height: 16px; color: {{s.muted}};">HR · GFT</span></span>
+</button>
+</div>
+</aside>
+<main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px; padding: 4px 16px 16px 0;">
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<label style="flex: 1 1 280px; max-width: 440px; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Tìm nhân viên" placeholder="Tìm nhân viên…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+<div style="flex-grow: 1;"></div>
+<button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>Kỳ lương tháng 10/2026<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+<button type="button" aria-label="Thông báo, 13 việc cần xử lý" style="position: relative; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span aria-hidden="true" style="position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; box-sizing: border-box; padding: 0 6px; border-radius: 50px; background: #1c1c1c; color: #ffffff; font-size: 12px; line-height: 20px; font-weight: 600;">13</span></button>
+</header>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div>
+<h1 style="margin: 0; font-family: 'League Spartan', Geist, sans-serif; font-size: 28px; line-height: 32px; font-weight: 600; letter-spacing: -0.28px;">Chấm công</h1>
+<p style="margin: 8px 0 0; color: #616161;">Kỳ công 01–31/10/2026 · hôm nay Thứ Tư 28/10 · chốt công hạn <b style="font-weight: 600; color: #212121;">31/10</b>, còn 3 ngày</p>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;"><button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; font-weight: 500; color: #212121; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>Khai thay hàng loạt</button><button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 8px; background: #000000; border: 1px solid #000000; font: inherit; font-weight: 500; color: #ffffff; cursor: pointer;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>Chốt công tháng 10</button></div>
+</div>
+<section aria-label="Chỉ số chấm công" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 16px;">
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #1c1c1c; border: 1px solid #1c1c1c; color: #ffffff;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #ffffff;"><span class="b todo" style="width: 10px; height: 10px; border-radius: 3px;"></span>Cần xử lý</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px; color: #e8c372;">11</span><span style="font-size: 12px; line-height: 16px; color: #9e9e9e;">2 quên chấm · 9 ngày chờ duyệt</span></div>
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;"><span class="b work" style="width: 10px; height: 10px; border-radius: 3px;"></span>Có mặt hôm nay</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">113<span style="font-size: 18px; color: #616161;"> / 128</span></span><span style="font-size: 12px; line-height: 16px; color: #616161;">15 người chưa Check-in</span></div>
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;"><span class="b late" style="width: 10px; height: 10px; border-radius: 3px;"></span>Đi muộn hôm nay</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">7</span><span style="font-size: 12px; line-height: 16px; color: #616161;">trung bình 14 phút</span></div>
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;"><span class="b leave" style="width: 10px; height: 10px; border-radius: 3px;"></span>Nghỉ có phép</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">6</span><span style="font-size: 12px; line-height: 16px; color: #616161;">2 đơn chờ duyệt</span></div>
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;"><span class="b absent" style="width: 10px; height: 10px; border-radius: 3px;"></span>Vắng không phép</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">1</span><span style="font-size: 12px; line-height: 16px; color: #616161;">trong tháng 10</span></div>
+<div style="min-height: 112px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; padding: 16px 20px; border-radius: 16px; background: #ffffff; border: 1px solid {{c.border}}; color: #212121;"><span style="display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; font-weight: 500; color: #616161;">Làm thêm tháng này</span><span style="font-size: 28px; line-height: 32px; font-weight: 500; letter-spacing: -0.56px;">126<span style="font-size: 18px; color: #616161;"> giờ</span></span><span style="font-size: 12px; line-height: 16px; color: #616161;">3 giờ chờ duyệt</span></div>
+</section>
+<section aria-label="Việc cần xử lý chấm công" style="box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; border: 1px solid {{c.border}}; overflow: hidden;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px 20px 16px;">
+<div role="tablist" aria-label="Kiểu xem" style="display: inline-flex; padding: 4px; gap: 4px; border-radius: 50px; background: {{c.page}};"><button type="button" role="tab" aria-selected="false" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 50px; border: 0; background: transparent; color: #212121; font: inherit; cursor: pointer;">Tuần</button><button type="button" role="tab" aria-selected="true" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border-radius: 50px; border: 0; background: #1c1c1c; color: #ffffff; font: inherit; font-weight: 500; cursor: pointer;">Cần xử lý<span style="min-width: 20px; height: 18px; box-sizing: border-box; padding: 0 6px; border-radius: 50px; display: grid; place-items: center; background: #eb973d; color: #212121; font-size: 11px; font-weight: 600;">{{left}}</span></button></div>
+<div style="flex-grow: 1;"></div>
+<label style="width: 200px; max-width: 100%; height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; color: #616161;"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg><input type="search" aria-label="Lọc theo tên" placeholder="Lọc theo tên…" style="flex-grow: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: #212121;"></label>
+<button type="button" style="height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; border-radius: 8px; background: #ffffff; border: 1px solid {{c.control}}; font: inherit; color: #212121; cursor: pointer;">Phòng ban: Tất cả<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></button>
+</div>
+<div class="pv">
+<div class="pl">
+<div class="pls" tabindex="0" role="region" aria-label="Danh sách việc cần xử lý, cuộn để xem thêm">
+<div class="mt" style="padding: 12px 12px 6px;">Xếp theo ngày công, cũ nhất trước</div>
+<button type="button" class="row {{r.e3}}" hidden="{{h.e3}}" onClick="{{pick.e3}}" aria-label="Trần Minh Quân, Giải trình · Đi muộn 9 phút, 15/10">
+<span class="av" aria-hidden="true">MQ</span>
+<span class="tx"><span class="hd"><span class="nm">Trần Minh Quân</span><span class="dt">15/10</span></span><span class="mt">Giải trình · Đi muộn 9 phút</span></span>
+</button>
+<button type="button" class="row {{r.e4}}" hidden="{{h.e4}}" onClick="{{pick.e4}}" aria-label="Hoàng Minh Đức, Giải trình · Về sớm 30 phút, 22/10">
+<span class="av" aria-hidden="true">MĐ</span>
+<span class="tx"><span class="hd"><span class="nm">Hoàng Minh Đức</span><span class="dt">22/10</span></span><span class="mt">Giải trình · Về sớm 30 phút</span></span>
+</button>
+<button type="button" class="row {{r.o1}}" hidden="{{h.o1}}" onClick="{{pick.o1}}" aria-label="Võ Đức Thịnh, Làm thêm, làm bù · Làm thêm 3 giờ, 23/10">
+<span class="av" aria-hidden="true">ĐT</span>
+<span class="tx"><span class="hd"><span class="nm">Võ Đức Thịnh</span><span class="dt">23/10</span></span><span class="mt">Làm thêm, làm bù · Làm thêm 3 giờ</span></span>
+</button>
+<button type="button" class="row {{r.c2}}" hidden="{{h.c2}}" onClick="{{pick.c2}}" aria-label="Lý Thanh Tâm, Chấm công · Quên Check-in, 26/10">
+<span class="av" aria-hidden="true">TT</span>
+<span class="tx"><span class="hd"><span class="nm">Lý Thanh Tâm</span><span class="dt">26/10</span></span><span class="mt">Chấm công · Quên Check-in</span></span>
+</button>
+<button type="button" class="row {{r.e2}}" hidden="{{h.e2}}" onClick="{{pick.e2}}" aria-label="Đỗ Mai Linh, Giải trình · Đi muộn 27 phút, 26/10">
+<span class="av" aria-hidden="true">ML</span>
+<span class="tx"><span class="hd"><span class="nm">Đỗ Mai Linh</span><span class="dt">26/10</span></span><span class="mt">Giải trình · Đi muộn 27 phút</span></span>
+</button>
+<button type="button" class="row {{r.c1}}" hidden="{{h.c1}}" onClick="{{pick.c1}}" aria-label="Trịnh Văn Long, Chấm công · Quên Check-out, 27/10">
+<span class="av" aria-hidden="true">VL</span>
+<span class="tx"><span class="hd"><span class="nm">Trịnh Văn Long</span><span class="dt">27/10</span></span><span class="mt">Chấm công · Quên Check-out</span></span>
+</button>
+<button type="button" class="row {{r.e1}}" hidden="{{h.e1}}" onClick="{{pick.e1}}" aria-label="Lê Hoàng Nam, Giải trình · Thiếu giờ ra, 27/10">
+<span class="av" aria-hidden="true">HN</span>
+<span class="tx"><span class="hd"><span class="nm">Lê Hoàng Nam</span><span class="dt">27/10</span></span><span class="mt">Giải trình · Thiếu giờ ra</span></span>
+</button>
+<button type="button" class="row {{r.l2}}" hidden="{{h.l2}}" onClick="{{pick.l2}}" aria-label="Bùi Quốc Huy, Đơn nghỉ · Nghỉ ốm, 28/10">
+<span class="av" aria-hidden="true">QH</span>
+<span class="tx"><span class="hd"><span class="nm">Bùi Quốc Huy</span><span class="dt">28/10</span></span><span class="mt">Đơn nghỉ · Nghỉ ốm</span></span>
+</button>
+<button type="button" class="row {{r.l1}}" hidden="{{h.l1}}" onClick="{{pick.l1}}" aria-label="Nguyễn Thu Hà, Đơn nghỉ · Phép năm, 29–30/10">
+<span class="av" aria-hidden="true">TH</span>
+<span class="tx"><span class="hd"><span class="nm">Nguyễn Thu Hà</span><span class="dt">29–30/10</span></span><span class="mt">Đơn nghỉ · Phép năm</span></span>
+</button>
+<button type="button" class="row {{r.o2}}" hidden="{{h.o2}}" onClick="{{pick.o2}}" aria-label="Ngô Gia Bảo, Làm thêm, làm bù · Làm bù, 31/10">
+<span class="av" aria-hidden="true">GB</span>
+<span class="tx"><span class="hd"><span class="nm">Ngô Gia Bảo</span><span class="dt">31/10</span></span><span class="mt">Làm thêm, làm bù · Làm bù</span></span>
+</button>
+<button type="button" class="row {{r.l3}}" hidden="{{h.l3}}" onClick="{{pick.l3}}" aria-label="Phạm Ngọc Anh, Đơn nghỉ · Phép năm, 03/11">
+<span class="av" aria-hidden="true">NA</span>
+<span class="tx"><span class="hd"><span class="nm">Phạm Ngọc Anh</span><span class="dt">03/11</span></span><span class="mt">Đơn nghỉ · Phép năm</span></span>
+</button>
+<p hidden="{{h.empty}}" style="margin: 48px 12px; text-align: center; color: #616161;">Không còn việc nào cần xử lý.</p>
+</div>
+</div>
+<div class="pd" role="region" aria-label="Chi tiết việc đang chọn">
+<div class="pdi">
+<div class="mt" hidden="{{noSel}}" style="font-weight: 600;">{{selGroup}}</div>
+<div hidden="{{d.e3}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">MQ</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Trần Minh Quân</div><div class="mt">Kỹ thuật · Kỹ sư phần mềm</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Đi muộn 9 phút</div><div style="margin-top: 2px; color: #616161;">Thứ Năm 15/10</div></div>
+<dl class="dl"><div><dt>Giờ vào</dt><dd>08:09</dd></div><div><dt>Giải trình</dt><dd>“Đưa con đi khám.”</dd></div><div><dt>Gửi lúc</dt><dd>15/10 08:40</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.e4}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">MĐ</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Hoàng Minh Đức</div><div class="mt">Kinh doanh · Trưởng nhóm</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Về sớm 30 phút</div><div style="margin-top: 2px; color: #616161;">Thứ Năm 22/10</div></div>
+<dl class="dl"><div><dt>Giờ ra</dt><dd>16:30</dd></div><div><dt>Giải trình</dt><dd>“Có việc gia đình đột xuất.”</dd></div><div><dt>Gửi lúc</dt><dd>22/10 16:25</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.o1}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">ĐT</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Võ Đức Thịnh</div><div class="mt">Kỹ thuật · Trưởng nhóm QA</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Làm thêm 3 giờ</div><div style="margin-top: 2px; color: #616161;">Thứ Sáu 23/10 · 17:00–20:00</div></div>
+<dl class="dl"><div><dt>Ca</dt><dd>HC 08:00–17:00</dd></div><div><dt>Đã làm thêm tháng 10</dt><dd>9 giờ</dd></div><div><dt>Lý do</dt><dd>“Chạy kiểm thử bản phát hành.”</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.c2}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">TT</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Lý Thanh Tâm</div><div class="mt">Sản xuất · Công nhân vận hành</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Quên Check-in</div><div style="margin-top: 2px; color: #616161;">Thứ Hai 26/10</div></div>
+<dl class="dl"><div><dt>Giờ vào</dt><dd>Chưa có</dd></div><div><dt>Giờ ra</dt><dd>17:06</dd></div><div><dt>Giải trình</dt><dd>Chưa gửi</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+<div style="display: flex; gap: 8px;"><button type="button" class="b2" onClick="{{fix}}">Nhắc giải trình</button><button type="button" class="b1" onClick="{{fix}}">Khai thay giờ vào</button></div>
+</div>
+<div hidden="{{d.e2}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">ML</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Đỗ Mai Linh</div><div class="mt">Marketing · Thiết kế đồ hoạ</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Đi muộn 27 phút</div><div style="margin-top: 2px; color: #616161;">Thứ Hai 26/10</div></div>
+<dl class="dl"><div><dt>Giờ vào</dt><dd>08:27</dd></div><div><dt>Giải trình</dt><dd>“Kẹt xe trên cầu Sài Gòn.”</dd></div><div><dt>Gửi lúc</dt><dd>26/10 09:02</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.c1}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">VL</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Trịnh Văn Long</div><div class="mt">Sản xuất · Công nhân vận hành</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Quên Check-out</div><div style="margin-top: 2px; color: #616161;">Thứ Ba 27/10</div></div>
+<dl class="dl"><div><dt>Giờ vào</dt><dd>07:58</dd></div><div><dt>Giờ ra</dt><dd>Chưa có</dd></div><div><dt>Giải trình</dt><dd>Chưa gửi</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+<div style="display: flex; gap: 8px;"><button type="button" class="b2" onClick="{{fix}}">Nhắc giải trình</button><button type="button" class="b1" onClick="{{fix}}">Khai thay giờ ra</button></div>
+</div>
+<div hidden="{{d.e1}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">HN</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Lê Hoàng Nam</div><div class="mt">Kinh doanh · Nhân viên kinh doanh</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Thiếu giờ ra</div><div style="margin-top: 2px; color: #616161;">Thứ Ba 27/10</div></div>
+<dl class="dl"><div><dt>Giờ vào</dt><dd>08:12 · trễ 12 phút</dd></div><div><dt>Giờ ra khai</dt><dd>17:30</dd></div><div><dt>Giải trình</dt><dd>“Quên bấm ra, về lúc 17:30.”</dd></div><div><dt>Gửi lúc</dt><dd>27/10 20:14</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.l2}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">QH</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Bùi Quốc Huy</div><div class="mt">Sản xuất · Tổ trưởng</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Nghỉ ốm · 1 ngày</div><div style="margin-top: 2px; color: #616161;">Thứ Tư 28/10</div></div>
+<dl class="dl"><div><dt>Hình thức</dt><dd>Nghỉ ốm</dd></div><div><dt>Lý do</dt><dd>“Sốt cao, đã đi khám.”</dd></div><div><dt>Đính kèm</dt><dd>Giấy khám bệnh · 1 tệp</dd></div><div><dt>Gửi lúc</dt><dd>28/10 07:10</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.l1}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">TH</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Nguyễn Thu Hà</div><div class="mt">Tài chính · Kế toán tổng hợp</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Phép năm · 2 ngày</div><div style="margin-top: 2px; color: #616161;">Thứ Năm 29/10 – Thứ Sáu 30/10</div></div>
+<dl class="dl"><div><dt>Hình thức</dt><dd>Phép năm</dd></div><div><dt>Phép năm còn</dt><dd>6 ngày</dd></div><div><dt>Lý do</dt><dd>“Về quê có việc gia đình.”</dd></div><div><dt>Gửi lúc</dt><dd>27/10 16:20</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.o2}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">GB</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Ngô Gia Bảo</div><div class="mt">Sản xuất · Công nhân vận hành</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Làm bù 1 ngày</div><div style="margin-top: 2px; color: #616161;">Thứ Bảy 31/10 · 08:00–17:00</div></div>
+<dl class="dl"><div><dt>Bù cho</dt><dd>Thứ Hai 19/10</dd></div><div><dt>Lý do</dt><dd>“Nghỉ 19/10 vì việc gia đình.”</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{d.l3}}" style="display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: center; gap: 12px;"><span aria-hidden="true" style="width: 44px; height: 44px; flex: none; border-radius: 50px; display: grid; place-items: center; background: {{c.draft}}; font-size: 14px; font-weight: 600;">NA</span><div style="min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Phạm Ngọc Anh</div><div class="mt">Nhân sự · Chuyên viên nhân sự</div></div></div>
+<div><div style="font-size: 18px; line-height: 24px; font-weight: 600;">Phép năm · 1 ngày</div><div style="margin-top: 2px; color: #616161;">Thứ Ba 03/11</div></div>
+<dl class="dl"><div><dt>Hình thức</dt><dd>Phép năm</dd></div><div><dt>Phép năm còn</dt><dd>9 ngày</dd></div><div><dt>Lý do</dt><dd>“Việc cá nhân.”</dd></div><div><dt>Gửi lúc</dt><dd>27/10 11:05</dd></div></dl>
+<a href="AttendanceEmployee.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500;">Mở hồ sơ chấm công<svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></a>
+</div>
+<div hidden="{{noAct}}" style="display: flex; flex-direction: column; gap: 8px;">
+<label for="att-note" style="font-weight: 600;">Ghi chú cho nhân viên</label>
+<textarea id="att-note" class="nt {{ntBad}}" value="{{note}}" onChange="{{onNote}}" aria-describedby="att-note-hint" placeholder="Ví dụ: ngày này máy chấm công vẫn ghi nhận giờ vào 08:47"></textarea>
+<div id="att-note-hint" class="mt" hidden="{{h.noteHint}}">Bắt buộc khi từ chối. Nhân viên xem được ghi chú trong chi tiết yêu cầu.</div>
+<div class="er" role="alert" hidden="{{h.noteErr}}">Ghi lý do từ chối để nhân viên biết vì sao.</div>
+<div style="display: flex; gap: 8px; margin-top: 4px;"><button type="button" class="b2" onClick="{{reject}}">Từ chối</button><button type="button" class="b1" onClick="{{approve}}">Duyệt</button></div>
+</div>
+</div>
+</div>
+</div>
+<div class="sr"><span aria-live="polite">{{toast}}</span></div>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  // Cùng thứ tự với danh sách: theo ngày công, cũ nhất trước
+  items = [{"id":"e3","n":"Trần Minh Quân","g":"exp","gl":"Giải trình"}, {"id":"e4","n":"Hoàng Minh Đức","g":"exp","gl":"Giải trình"}, {"id":"o1","n":"Võ Đức Thịnh","g":"ot","gl":"Làm thêm, làm bù"}, {"id":"c2","n":"Lý Thanh Tâm","g":"att","gl":"Chấm công"}, {"id":"e2","n":"Đỗ Mai Linh","g":"exp","gl":"Giải trình"}, {"id":"c1","n":"Trịnh Văn Long","g":"att","gl":"Chấm công"}, {"id":"e1","n":"Lê Hoàng Nam","g":"exp","gl":"Giải trình"}, {"id":"l2","n":"Bùi Quốc Huy","g":"leave","gl":"Đơn nghỉ"}, {"id":"l1","n":"Nguyễn Thu Hà","g":"leave","gl":"Đơn nghỉ"}, {"id":"o2","n":"Ngô Gia Bảo","g":"ot","gl":"Làm thêm, làm bù"}, {"id":"l3","n":"Phạm Ngọc Anh","g":"leave","gl":"Đơn nghỉ"}];
+  st() { return { sel: 'e3', done: {}, toast: '', note: '', err: false, ...(this.state || {}) }; }
+  pickOf = (id) => () => this.setState({ ...this.st(), sel: id, note: '', err: false });
+  onNote = (e) => this.setState({ ...this.st(), note: e.target.value, err: false });
+  // Xử lý xong: việc rời danh sách, chọn việc liền sau (hết thì việc đầu còn lại)
+  finish = (verb) => () => {
+    const s = this.st();
+    const it = this.items.find((x) => x.id === s.sel);
+    if (!it) return;
+    const done = { ...s.done, [it.id]: true };
+    const rest = this.items.filter((x) => !done[x.id]);
+    const i = this.items.indexOf(it);
+    const next = rest.find((x) => this.items.indexOf(x) > i) || rest[0];
+    this.setState({ ...s, sel: next ? next.id : null, done, toast: verb + ' việc của ' + it.n + '.', note: '', err: false });
+  };
+  approve = this.finish('Đã duyệt');
+  rejectDone = this.finish('Đã từ chối');
+  reject = () => {
+    const s = this.st();
+    if (!String(s.note || '').trim()) { this.setState({ ...s, err: true }); return; }
+    this.rejectDone();
+  };
+  fix = this.finish('Đã ghi nhận');
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const light = (this.props.sidebar ?? 'Tối') === 'Sáng';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    const s = light
+      ? { bg: '#ffffff', edge: c.border, ink: '#212121', strong: '#212121', muted: '#616161', activeBg: '#fce8b2', activeInk: '#212121', foot: c.border, logo: '/_blob/1f9a9f3eba1fb9a94c201cf9d621b234' }
+      : { bg: '#1c1c1c', edge: '#1c1c1c', ink: '#ffffff', strong: '#ffffff', muted: '#9e9e9e', activeBg: '#2a2a2a', activeInk: '#e8c372', foot: '#2a2a2a', logo: '/_blob/3568bf81a6ac57ac1877fa1835f3c03e' };
+    const st = this.st();
+    const r = {}, h = {}, d = {}, pick = {};
+    for (const it of this.items) {
+      r[it.id] = st.sel === it.id ? 'on' : '';
+      h[it.id] = !!st.done[it.id];
+      d[it.id] = st.sel !== it.id;
+      pick[it.id] = this.pickOf(it.id);
+    }
+    const left = this.items.filter((x) => !st.done[x.id]).length;
+    const cur = this.items.find((x) => x.id === st.sel);
+    h.empty = left > 0;
+    h.noteHint = !!st.err;
+    h.noteErr = !st.err;
+    return {
+      c, s, r, h, d, pick, left, noSel: !cur, selGroup: cur ? cur.gl : '', toast: st.toast || '',
+      approve: this.approve, reject: this.reject, fix: this.fix,
+      note: st.note, onNote: this.onNote, ntBad: st.err ? 'bad' : '', noAct: !cur || cur.g === 'att'
+    };
+  }
+}
+</script>
+</body>
+</html>

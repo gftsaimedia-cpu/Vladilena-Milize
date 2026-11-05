@@ -1,0 +1,296 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-04T10:30:00Z"
+  },
+  "title": "Admin Dashboard Concept",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 1400,
+      "title": "A · Thanh bên tối (đen–vàng GFT)", "is_interactive": true,
+      "expand": "fill"
+    },
+    "SidebarLight.dc.html": {
+      "x": 1520,
+      "y": 0,
+      "w": 1440,
+      "h": 1400,
+      "title": "B · Thanh bên sáng (sát ảnh mẫu)",
+      "expand": "fill"
+    },
+    "BellInbox.dc.html": {
+      "x": 0,
+      "y": 1800,
+      "w": 1440,
+      "h": 1400,
+      "title": "C · Chuông theo mẫu: 3 tab Tất cả · Cần duyệt · Hệ thống; trong danh sách các loại tách bằng tiêu đề nhóm; chấm xanh là tin mới; cao tối đa 680px. Từ chối phải ghi lý do cho nhân viên", "is_interactive": true,
+      "expand": "fill"
+    },
+    "BellAdvance.dc.html": { "x": 3040, "y": 1800, "w": 1440, "h": 1400, "title": "C2 · Chuông ở tab Cần duyệt, mở đơn tạm ứng: số tiền được ứng = 80% lương ngày công 01–15, cố định, không ai chỉnh được; Admin chỉ duyệt hoặc từ chối", "expand": "fill", "is_interactive": true },
+    "BellSystem.dc.html": { "x": 4560, "y": 1800, "w": 1440, "h": 1400, "title": "C3 · Chuông ở tab Hệ thống: tin chỉ để đọc, khung chi tiết có link tới đúng chỗ liên quan, không có nút duyệt", "expand": "fill", "is_interactive": true },
+    "AttendanceWeek.dc.html": {
+      "x": 1520,
+      "y": 1800,
+      "w": 1440,
+      "h": 1100,
+      "title": "E · Chấm công · Tuần (kéo ngang; cột tên và Công/Trễ/OT đứng yên)",
+      "expand": "fill"
+    },
+    "AttendanceEmployee.dc.html": {
+      "x": 0,
+      "y": 3600,
+      "w": 1440,
+      "h": 1290,
+      "title": "F · Hồ sơ chấm công một người (bấm tên ở E)",
+      "expand": "fill"
+    },
+    "Payroll.dc.html": {
+      "x": 0,
+      "y": 5450,
+      "w": 1440,
+      "h": 1240,
+      "title": "G · Bảng lương tháng (đã gộp KPI): kéo ngang các khoản, cột tên và Thực nhận/Trạng thái đứng yên",
+      "expand": "fill"
+    },
+    "Payslip.dc.html": {
+      "x": 1520,
+      "y": 5450,
+      "w": 1440,
+      "h": 1400,
+      "title": "H · Phiếu lương một người theo mẫu phiếu GFT: tổng hợp lương, phụ cấp từng loại, nhập điểm KPI ngay trong phiếu",
+      "expand": "fill"
+    },
+    "Staff.dc.html": {
+      "x": 0,
+      "y": 7450,
+      "w": 1440,
+      "h": 1200,
+      "title": "I · Nhân sự theo ảnh mẫu: mỗi ô một giá trị; tìm tên/mã/email, lọc chưa kích hoạt, chọn nhiều người",
+      "expand": "fill"
+    },
+    "StaffDetail.dc.html": {
+      "x": 1520,
+      "y": 7450,
+      "w": 1440,
+      "h": 1200,
+      "title": "I2 · Hồ sơ một người (bấm tên Hoàng Thị Mai ở I): lý do tạm nghỉ, bậc, ca, hợp đồng nằm ở đây",
+      "expand": "fill"
+    },
+    "PhoneHome.dc.html": {
+      "x": 0,
+      "y": 9050,
+      "w": 390,
+      "h": 1060,
+      "title": "J1 · Hôm nay: ca đang làm và nút Check-out, tuần này, thu nhập tạm tính, yêu cầu gần đây",
+      "expand": "fill"
+    },
+    "PhoneAttendance.dc.html": {
+      "x": 470,
+      "y": 9050,
+      "w": 390,
+      "h": 1180,
+      "title": "J2 · Chấm công: lịch tháng tô theo nhóm màu của Admin; bấm một ngày để xem",
+      "expand": "fill"
+    },
+    "PhoneDay.dc.html": {
+      "x": 940,
+      "y": 9050,
+      "w": 390,
+      "h": 844,
+      "title": "J3 · Một ngày (bấm 27/10 ở J2): giờ vào, giờ ra, giải trình đã gửi",
+      "expand": "fill"
+    },
+    "PhoneRequests.dc.html": {
+      "x": 1410,
+      "y": 9050,
+      "w": 390,
+      "h": 844,
+      "title": "J4 · Yêu cầu của tôi: lọc theo trạng thái. Nút Tạo yêu cầu mở J8 (Đợt 9); dòng Khai giờ vào 09/09 (Từ chối) mở J5b",
+      "expand": "fill"
+    },
+    "PhoneRequest.dc.html": {
+      "x": 1880,
+      "y": 9050,
+      "w": 390,
+      "h": 844,
+      "title": "J5 · Một yêu cầu (bấm Phép năm 12/10 ở J4): hình thức, lý do, các bước duyệt",
+      "expand": "fill"
+    },
+    "PhoneIncome.dc.html": {
+      "x": 2350,
+      "y": 9050,
+      "w": 390,
+      "h": 1320,
+      "title": "J6 · Thu nhập: thực nhận dự kiến, KPI 5 phần, các khoản",
+      "expand": "fill"
+    },
+    "PhoneMe.dc.html": {
+      "x": 2820,
+      "y": 9050,
+      "w": 390,
+      "h": 980,
+      "title": "J7 · Tôi: hồ sơ do Admin quản lý, đổi mật khẩu, đăng xuất",
+      "expand": "fill"
+    },
+    "StaffDesktop.dc.html": {
+      "x": 0,
+      "y": 10970,
+      "w": 1440,
+      "h": 1210,
+      "title": "K1 · Nhân viên trên máy tính (từ 1136px): một trang ghép J1–J7, ba cột cao bằng nhau (Hôm nay + Yêu cầu | Chấm công | Thu nhập); Tôi nằm ở menu avatar",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "StaffDesktopDay.dc.html": {
+      "x": 1520,
+      "y": 10970,
+      "w": 1440,
+      "h": 900,
+      "title": "K2 · Bấm ngày 27/10 ở K1: chi tiết ngày mở ngăn kéo bên phải (nội dung giống J3)", "expand": "fill" }, "PhoneNewRequest.dc.html": { "x": 0, "y": 14500, "w": 390, "h": 844, "title": "J8 · Tạo yêu cầu, bước 1 (bấm Tạo yêu cầu ở J4): chọn loại, mỗi dòng mở form của nó (J9, J14–J18). Tạm ứng khoá ngoài ngày 16–17; đổi Hôm nay sang 16/10 trong Tweaks để mở", "expand": "fill", "is_interactive": true }, "PhoneNewLeave.dc.html": { "x": 470, "y": 14500, "w": 390, "h": 844, "title": "J9 · Bước 2 · Đơn nghỉ: hình thức, từ ngày – đến ngày, lý do. Máy tự đếm ngày làm việc; đổi Hình thức để thấy dòng số dư phép", "expand": "fill", "is_interactive": true }, "PhoneRequestSent.dc.html": { "x": 940, "y": 14500, "w": 390, "h": 844, "title": "J10 · Gửi xong: tấm đóng, báo đã gửi, đơn mới Chờ duyệt ở đầu danh sách J4", "expand": "fill" }, "StaffDesktopNewRequest.dc.html": { "x": 1410, "y": 14500, "w": 1440, "h": 900, "is_interactive": true, "title": "K3 · Máy tính: Tạo yêu cầu ở K1 mở ngăn kéo phải, hai bước như J8–J9 (bấm ‹ để xem bước chọn loại)",
+      "expand": "fill"
+    },
+    "OverviewApprove.dc.html": { "x": 0, "y": 17500, "w": 1440, "h": 1400, "title": "L1 · Bấm một dòng ở thẻ Việc cần duyệt (A), ví dụ Bùi Quốc Huy: cửa sổ phê duyệt mở ngay trên Tổng quan, cùng nội dung thẻ chi tiết của chuông. Từ chối phải ghi lý do", "expand": "fill", "is_interactive": true }, "AttendancePending.dc.html": { "x": 1520, "y": 17500, "w": 1440, "h": 1100, "title": "L2 · Chấm công · tab Cần xử lý: danh sách gọn bên trái (xếp theo ngày), chi tiết và nút xử lý bên phải; bấm dòng để đổi, xử lý xong tự sang việc kế", "expand": "fill", "is_interactive": true }, "PhoneRequestRejected.dc.html": { "x": 0, "y": 16000, "w": 390, "h": 844, "title": "J5b · Yêu cầu bị từ chối (bấm Khai giờ vào 09/09 ở J4): lý do từ chối của Admin nằm ngay dưới bước từ chối", "expand": "fill" }, "StaffDesktopRequest.dc.html": { "x": 470, "y": 16000, "w": 1440, "h": 900, "title": "K3b · Máy tính: bấm Khai giờ vào 09/09 ở K1, cùng nội dung J5b trong ngăn kéo phải", "expand": "fill" },
+    "SettingsPay.dc.html": { "x": 0, "y": 19500, "w": 1440, "h": 900, "title": "M1 · Cài đặt › Cách tính lương: 6 khoản, khoản khác mặc định có • Đã chỉnh; ngăn Tiền làm thêm giờ đang sửa ngày thường ×1.6", "expand": "fill" },
+    "SettingsPayConfirm.dc.html": { "x": 1520, "y": 19500, "w": 1440, "h": 900, "title": "M2 · Bấm Lưu ở M1: hộp xác nhận liệt kê thay đổi (OT ngày thường ×1.5 → ×1.6, áp dụng từ tháng 11/2026), thay cho Xem trước", "expand": "fill" },
+    "SettingsPayKpi.dc.html": { "x": 3040, "y": 19500, "w": 1440, "h": 1300, "title": "M3 · Ngăn Lương KPI: 5 trọng số, tổng 98/100 nên Lưu bị khoá", "expand": "fill" },
+    "SettingsAll.dc.html": { "x": 0, "y": 21100, "w": 1440, "h": 1440, "title": "M4 · Tất cả cài đặt: nhóm Thuế có biểu thuế 5 bậc, lịch sử và Hoàn tác từng mục; bỏ dải vàng và lọc Chưa xác nhận", "expand": "fill" },
+    "SettingsCalendar.dc.html": { "x": 1520, "y": 21100, "w": 1440, "h": 2080, "title": "M5 · Lịch, ca & chấm công: ngày trả lương 1–28 theo tháng, 6 ca chỉ xem, vùng chấm công lưu là áp dụng ngay", "expand": "fill" },
+    "StaffWorkWeek.dc.html": { "x": 0, "y": 23500, "w": 1440, "h": 1200, "title": "N1 · Hồ sơ nhân sự: dòng Tuần làm việc; Sửa mở hộp chọn T2…T7 hoặc Theo loại nhân sự, công chuẩn tự tính (bấm thử được)", "expand": "fill", "is_interactive": true },
+    "PhoneCheckinFar.dc.html": { "x": 1520, "y": 23500, "w": 390, "h": 1060, "title": "J11 · Hôm nay: ngoài vùng chấm công, nút Check-in khoá, hiện cách văn phòng 600 m", "expand": "fill" },
+    "PhoneCheckinNoLocation.dc.html": { "x": 1990, "y": 23500, "w": 390, "h": 1060, "title": "J12 · Hôm nay: không lấy được vị trí, nút Check-in khoá", "expand": "fill" },
+    "PhoneCheckinOffDay.dc.html": { "x": 2460, "y": 23500, "w": 390, "h": 1060, "title": "J13 · Hôm nay: thứ Bảy không phải ngày làm (tuần T2–T6), nút Check-in khoá; ngày ngoài tuần hiện nghỉ", "expand": "fill" },
+    "PhoneNewMakeup.dc.html": { "x": 0, "y": 25100, "w": 390, "h": 844, "title": "J14 · Nghỉ có làm bù: nghỉ 02/11, xếp khung bù sau ngày nghỉ cuối và trong tháng 11; đủ 8 / 8 giờ mới gửi được (thêm, bỏ, đổi giờ để thử)", "expand": "fill", "is_interactive": true },
+    "PhoneNewOT.dc.html": { "x": 470, "y": 25100, "w": 390, "h": 844, "title": "J15 · Làm thêm giờ: giờ tròn ngoài ca, cách ca 1 giờ, không qua 22h; dòng Đã đăng ký tháng 10: 9 / 40 giờ", "expand": "fill", "is_interactive": true },
+    "PhoneNewShift.dc.html": { "x": 940, "y": 25100, "w": 390, "h": 844, "title": "J16 · Đổi ca: chọn 1 trong 6 khung; ngày đang nghỉ trong khoảng giữ nguyên là ngày nghỉ", "expand": "fill", "is_interactive": true },
+    "PhoneNewExplain.dc.html": { "x": 1410, "y": 25100, "w": 390, "h": 844, "title": "J17 · Giải trình: chỉ ngày máy báo; trường hợp máy tự điền; ô giờ theo trường hợp (đổi sang 09/10 để thấy Vào muộn, không có ô giờ)", "expand": "fill", "is_interactive": true },
+    "PhoneNewAdvance.dc.html": { "x": 1880, "y": 25100, "w": 390, "h": 844, "title": "J18 · Tạm ứng ngày 16/10: không ô số tiền, không ô lý do; số tiền do máy tính, Admin chỉ duyệt hoặc từ chối", "expand": "fill" },
+    "PhoneRequestCancel.dc.html": { "x": 2350, "y": 25100, "w": 390, "h": 844, "title": "J19 · Huỷ đơn đang chờ duyệt: hỏi lại Huỷ đơn này?, rồi chuyển Đã huỷ và trả lại các ngày (bấm thử)", "expand": "fill", "is_interactive": true },
+    "PayslipA4Page1.dc.html": {
+      "x": 0,
+      "y": 12780,
+      "w": 794,
+      "h": 1123,
+      "title": "P1 · Trang 1 · Chấm công: mỗi ngày một dòng, hiện rõ OT, làm bù, từng loại nghỉ"
+    },
+    "PayslipA4Page2.dc.html": {
+      "x": 874,
+      "y": 12780,
+      "w": 794,
+      "h": 1123,
+      "title": "P2 · Trang 2 · Các khoản: lương cơ bản, nghỉ, OT, phụ cấp, KPI, bảo hiểm, thuế, Thực nhận, chữ ký"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "SidebarLight.dc.html",
+    "BellInbox.dc.html", "BellAdvance.dc.html", "BellSystem.dc.html",
+    "AttendanceWeek.dc.html",
+    "AttendanceEmployee.dc.html",
+    "Payroll.dc.html",
+    "Payslip.dc.html",
+    "Staff.dc.html",
+    "StaffDetail.dc.html",
+    "PhoneHome.dc.html",
+    "PhoneAttendance.dc.html",
+    "PhoneDay.dc.html",
+    "PhoneRequests.dc.html",
+    "PhoneRequest.dc.html",
+    "PhoneIncome.dc.html",
+    "PhoneMe.dc.html",
+    "StaffDesktop.dc.html",
+    "StaffDesktopDay.dc.html", "PhoneNewRequest.dc.html", "PhoneNewLeave.dc.html", "PhoneRequestSent.dc.html", "StaffDesktopNewRequest.dc.html", "PhoneRequestRejected.dc.html", "StaffDesktopRequest.dc.html",
+    "OverviewApprove.dc.html", "AttendancePending.dc.html", "SettingsPay.dc.html", "SettingsPayConfirm.dc.html", "SettingsPayKpi.dc.html", "SettingsAll.dc.html", "SettingsCalendar.dc.html", "StaffWorkWeek.dc.html", "PhoneCheckinFar.dc.html", "PhoneCheckinNoLocation.dc.html", "PhoneCheckinOffDay.dc.html", "PhoneNewMakeup.dc.html", "PhoneNewOT.dc.html", "PhoneNewShift.dc.html", "PhoneNewExplain.dc.html", "PhoneNewAdvance.dc.html", "PhoneRequestCancel.dc.html", "PayslipA4Page1.dc.html",
+    "PayslipA4Page2.dc.html"
+  ],
+  "notes": {
+    "t13": { "x": 0, "y": 24800, "text": "Đợt 13 · Tạo yêu cầu: 5 form còn lại, khoá Tạm ứng, huỷ đơn", "kind": "title1", "maxW": 2740 },
+    "n13": { "x": 2820, "y": 25100, "w": 380, "text": "Vẽ theo yêu cầu FE ngày 05/11. Dữ liệu mẫu giống bản mock trong code: hôm nay 28/10, ca 08–17, làm T2–T7.\n\n• Ô ngày, ô giờ là danh sách chỉ gồm lựa chọn hợp lệ; ngày bị khoá không hiện, không chọn rồi mới báo lỗi.\n• Gửi yêu cầu chỉ bật khi form đủ (J14: xếp đủ 8 / 8 giờ bù).\n• Không có ô tiêu đề; server tự đặt tên đơn.\n• J8: Tạm ứng khoá ngoài ngày 16–17, dòng phụ Chỉ nộp ngày 16 và 17.\n• Huỷ chỉ có ở đơn đang chờ duyệt, không có ô lý do.\n\nChưa vẽ: dòng Admin nhắc giải trình 24/10 ở J1 và K1, nút Giải trình trong J3, chuông C sau khi nhắc (Đã nhắc: 09:40 28/10, nút Nhắc lại), bản máy tính K3 cho 5 form mới.", "fill": "teal" },
+    "t1": {
+      "x": 0,
+      "y": -300,
+      "text": "Tổng quan admin · bố cục theo ảnh mẫu, giữ màu GFT",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "t2": {
+      "x": 0,
+      "y": 1500,
+      "text": "Đợt 2 · Yêu cầu gộp vào chuông",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "t3": {
+      "x": 0,
+      "y": 3300,
+      "text": "Đợt 3 · Chấm công: bảng tuần kéo ngang + hồ sơ từng người",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "t4": {
+      "x": 0,
+      "y": 5150,
+      "text": "Đợt 4 · Bảng lương gộp KPI: danh sách phiếu + phiếu từng người có ô nhập điểm",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "t5": {
+      "x": 0,
+      "y": 7150,
+      "text": "Đợt 5 · Nhân sự: danh sách theo ảnh mẫu",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "t6": {
+      "x": 0,
+      "y": 8750,
+      "text": "Đợt 6 · App nhân viên trên điện thoại (luồng tạo yêu cầu ở Đợt 9)",
+      "kind": "title1",
+      "maxW": 3210
+    },
+    "t9": { "x": 0, "y": 14200, "text": "Đợt 9 · Tạo yêu cầu: chọn loại rồi điền đơn (bản thử, trường theo spec đơn từ của BE)", "kind": "title1", "maxW": 2850 }, "n9": { "x": 2930, "y": 14500, "w": 360, "text": "Bản thử cửa sổ Tạo yêu cầu. Trường lấy theo spec đơn từ của BE (spec 1); bạn thêm hoặc bỏ trường sau.\n\n• Đơn nghỉ: Hình thức nghỉ (6 nhóm), Từ ngày – Đến ngày, Lý do. Chỉ nghỉ nguyên ngày.\n• Máy tự đếm ngày làm việc (T2–T7, bỏ Chủ nhật và ngày lễ): T6 13/11 → T2 16/11 là 3 ngày.\n• Xin Phép năm quá số dư thì bị chặn khi gửi.\n• Trường hợp cụ thể (kết hôn, tang, ốm đau…) ghi ở Lý do.\n\n5 form còn lại vẽ ở Đợt 13 (J14–J18), huỷ đơn ở J19.", "fill": "teal" }, "t10": { "x": 0, "y": 15700, "text": "Đợt 10 · Lý do duyệt / từ chối: Admin ghi trong chuông, nhân viên xem trong chi tiết yêu cầu", "kind": "title1", "maxW": 2350 }, "n10": { "x": 1990, "y": 16000, "w": 360, "text": "Người duyệt ghi chú, nhân viên đọc được.\n\n• Chuông C: chọn một yêu cầu, ô Ghi chú cho nhân viên nằm trên hai nút Từ chối / Duyệt. Từ chối mà để trống thì báo lỗi đỏ, yêu cầu vẫn ở lại. Duyệt thì ghi chú không bắt buộc.\n• J5b, K3b: ghi chú hiện ngay dưới bước Admin đã từ chối. Đơn được duyệt có ghi chú cũng hiện y chỗ đó; không có ghi chú thì như J5.\n• Chuông C giờ cao tối đa 680px, không kéo hết trang; danh sách cuộn bên trong, tiêu đề nhóm dính đầu khung.\n\nCần BE: API đã lưu ghi chú (review_note) nhưng chưa bắt buộc khi từ chối. Muốn chặn thật thì BE thêm kiểm tra.", "fill": "orange" }, "t12": { "x": 0, "y": 19200, "text": "Đợt 12 · Cài đặt: lưu theo tháng, hộp xác nhận thay Xem trước, ngày trả lương 1–28, vùng chấm công, tuần làm việc riêng", "kind": "title1", "maxW": 4480 }, "n12": { "x": 3040, "y": 21100, "w": 380, "text": "Đổi gì:\n\n• Số lương lưu theo tháng: chọn Áp dụng từ tháng (sớm nhất 10/2026, tháng lương đang mở). Lý do không bắt buộc, tối đa 300 ký tự.\n• Lưu mở hộp xác nhận liệt kê từng thay đổi (M2). Bỏ hết nút Xem trước và lưu.\n• Bỏ dải vàng chưa ai xác nhận, lọc Chưa xác nhận, số đếm trên menu và thẻ Chính sách chưa chốt.\n• Ô số chỉ nhận số trong khoảng hợp lệ. Lưu khoá khi chưa đổi gì, hoặc khi KPI chưa đủ 100.\n• Ngày trả lương 1–28. Rơi vào Chủ nhật hay ngày lễ thì vẫn giữ ngày đó.\n• Ngoài vùng, không lấy được vị trí, không phải ngày làm: nút Check-in khoá và nói lý do (J11–J13). Thu nhập ghi trả ngày 10/12.\n• Tuần làm việc riêng từng người (N1). Công chuẩn = số ngày × 52 ÷ 12, làm tròn: T2–T6 là 22, T2–T7 là 26.\n\nChưa vẽ: Quy tắc KPI (chỉ xem 5 trọng số, có link sang M3) và lưới chấm công Admin (ngày ngoài tuần của người đó là nghỉ).", "fill": "teal" }, "t11": { "x": 0, "y": 17200, "text": "Đợt 11 · Hai chỗ duyệt: thẻ Việc cần duyệt ở Tổng quan, tab Cần xử lý ở Chấm công", "kind": "title1", "maxW": 2960 }, "n11": { "x": 3040, "y": 17500, "w": 380, "text": "Đổi gì:\n\n• Thẻ Việc cần duyệt ở bảng A lấy đúng 13 việc ở tab Cần duyệt của chuông, chia nhóm như chuông (Chấm công, Đơn nghỉ, Làm thêm làm bù, Giải trình, Tạm ứng); tiêu đề nhóm dính đầu khung khi cuộn.\n• Ba thẻ Chấm công hôm nay, Kỳ lương, Việc cần duyệt nằm một hàng, rộng bằng nhau, cao bằng nhau; danh sách cuộn xuống bên trong thẻ.\n• Bấm một dòng: cửa sổ phê duyệt mở ngay trên Tổng quan (L1), có Ghi chú cho nhân viên và Từ chối / Duyệt. Từ chối để trống ghi chú thì báo lỗi đỏ.\n• ✓ duyệt ngay. ✕ mở cửa sổ để ghi lý do từ chối.\n• Quên chấm công: chỉ có ›; cửa sổ có Nhắc giải trình, Khai thay.\n• Xử lý xong: việc rời thẻ, cửa sổ đóng, số đếm giảm.\n• Tab Cần xử lý (L2): 11 việc có ngày công (tạm ứng không có ngày nên không vào đây), xếp theo ngày, cũ nhất trước. Trái: danh sách 400px. Phải: chi tiết hiện ngay tại chỗ, không bật hộp nữa.\n• Dưới 900px: chỉ còn danh sách, bấm dòng mở hộp chi tiết ngày như hiện nay.\n• Tab Tuần giữ nguyên.", "fill": "teal" }, "t7": {
+      "x": 0,
+      "y": 10670,
+      "text": "Đợt 7 · Nhân viên trên máy tính: một trang, dùng lại thiết kế mobile",
+      "kind": "title1",
+      "maxW": 2960
+    },
+    "n7": {
+      "x": 3040,
+      "y": 10970,
+      "w": 360,
+      "text": "Đổi giao diện theo bề ngang cửa sổ, một mốc duy nhất 1136px.\n\n• Từ 1136px: trang máy tính 3 cột (K1, K2).\n• Dưới 1136px: app điện thoại (J1–J7). iPad dọc, điện thoại xoay ngang cũng vào đây. Không còn kiểu dồn một cột.\n• Chung đường dẫn /nv/…: /nv/cham-cong?ngay=2026-10-27 mở ngăn kéo ngày trên máy tính, tấm trượt ngày trên điện thoại.\n• Kéo cửa sổ qua mốc thì đổi ngay, không tải lại. Việc của FE, không liên quan BE.",
+      "fill": "teal"
+    },
+    "t8": {
+      "x": 0,
+      "y": 12480,
+      "text": "Đợt 8 · Phiếu lương A4: trang 1 chấm công, trang 2 các khoản",
+      "kind": "title1",
+      "maxW": 1668
+    },
+    "n8p": {
+      "x": 1748,
+      "y": 12780,
+      "w": 380,
+      "text": "Tháng mẫu dựng lại để bảng công trang 1 có đủ loại ngày: OT ngày thường, OT thứ 7, OT Chủ nhật, làm bù, phép năm, việc riêng có lương, iSAT, không lương, chế độ BHXH, vắng, chờ giải trình, đi muộn. Trang 2 tính lại theo đúng các dòng đó.\n\nCần biết:\n• Luật đã chốt không cho OT trong tháng có nghỉ làm bù. Mẫu cố ý gộp cả hai để bạn xem cách in.\n• Ngày nghỉ đã làm bù đủ 8 giờ (20/10): đang tạm trả lương ngày, chưa chốt.\n• Các khoản miễn thuế, thu nhập chịu thuế: chưa có luật nên để BE tính. Thuế TNCN vẫn 0 vì thu nhập dưới mức giảm trừ.\n• Tạm ứng: 80% lương các ngày công 01–15/10, như v1.",
+      "fill": "orange"
+    }
+  },
+  "designSystems": [
+    {
+      "title": "GFT AI C&B",
+      "namespace": "gft-ai-cb",
+      "artifact": "https://claude.ai/code/artifact/02796043-a9d2-4baf-835a-f6262f99bc21",
+      "version": "1793787000-a0e8",
+      "copiedAt": "2026-11-04T10:30:00Z"
+    }
+  ]
+}

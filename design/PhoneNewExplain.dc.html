@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tạo yêu cầu · giải trình</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/cd12623746d6bbfc6da195a4946a6080") format("woff2"); font-weight: 600; unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB; }
+@font-face { font-family: "League Spartan"; src: url("/_blob/fd9de8133057c7ea3e38abcb3bc6c389") format("woff2"); font-weight: 600; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+a:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+
+.mut { color: #616161; }
+.sm { font-size: 12px; line-height: 16px; }
+.sh { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rb { width: 40px; height: 40px; flex: none; display: grid; place-items: center; border-radius: 50px; border: 1px solid var(--border); background: #ffffff; color: #212121; padding: 0; text-decoration: none; }
+.scrim { position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.4); }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 8px 20px 24px; border-radius: 24px 24px 0 0; background: #ffffff; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums; }
+.sheet .grab { width: 40px; height: 4px; border-radius: 50px; background: #e0e0e0; margin: 0 auto -4px; }
+.sheet h2 { margin: 0; font-size: 18px; line-height: 24px; font-weight: 600; }
+.fl { display: flex; flex-direction: column; gap: 8px; }
+.fl label, .lb { font-weight: 600; }
+.in { height: 48px; width: 100%; box-sizing: border-box; margin: 0; padding: 0 12px; border-radius: 8px; border: 1px solid #8a8a8a; background: #ffffff; font: inherit; color: #212121; }
+.in::placeholder { color: #757575; }
+.box { position: relative; }
+.box svg { position: absolute; top: 14px; pointer-events: none; color: #616161; }
+.sel .in { appearance: none; -webkit-appearance: none; padding-right: 44px; }
+.sel svg { right: 14px; }
+textarea.in { height: 96px; padding: 12px; resize: none; }
+.sum { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--page); }
+.b1 { height: 48px; width: 100%; box-sizing: border-box; border-radius: 8px; border: 0; background: #1c1c1c; color: #ffffff; font: inherit; font-weight: 600; display: grid; place-items: center; text-decoration: none; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50px; background: #eb973d; margin-right: 6px; vertical-align: 1px; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; position: relative; width: 390px; height: 844px; overflow: hidden; background: {{c.page}};">
+<dc-import name="PhoneRequests" theme="{{theme}}" hint-size="390px,844px"></dc-import>
+<div aria-hidden="true" class="scrim"></div>
+<section class="sheet" role="dialog" aria-label="Giải trình">
+<div class="grab"></div>
+<div class="sh">
+<a class="rb" href="PhoneNewRequest.dc.html" aria-label="Quay lại chọn loại"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 6-6 6 6 6"></path></svg></a>
+<h2 style="flex: 1 1 auto;">Giải trình</h2>
+<a class="rb" href="PhoneRequests.dc.html" aria-label="Đóng"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></a>
+</div>
+<div class="fl">
+<label for="j17-ngay">Ngày</label>
+<div class="box sel"><select id="j17-ngay" class="in" value="{{x.day}}" onChange="{{onDay}}"><option>T7 24/10</option><option>T6 09/10</option></select><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg></div>
+<span class="mut sm">Chỉ có những ngày máy báo cần giải trình và chưa gửi đơn</span>
+</div>
+<div class="fl">
+<span class="lb">Trường hợp</span>
+<div class="sum" aria-live="polite"><div><b>{{d.kase}}</b></div><div class="mut">{{d.det}}</div><sc-if value="{{d.remind}}" hint-placeholder-val="{{ true }}"><div style="margin-top: 6px;"><span class="dot" aria-hidden="true"></span>{{d.remind}}</div></sc-if></div>
+</div>
+<sc-if value="{{d.needOut}}" hint-placeholder-val="{{ true }}">
+<div class="fl">
+<label for="j17-ra">Giờ ra thực tế</label>
+<input id="j17-ra" class="in" type="time" value="{{x.out}}" onChange="{{onOut}}">
+</div>
+</sc-if>
+<sc-if value="{{d.noHour}}" hint-placeholder-val="{{ false }}">
+<div class="mut">Trường hợp này không cần nhập giờ, chỉ cần lý do.</div>
+</sc-if>
+<div class="fl">
+<label for="j17-ly">Lý do</label>
+<textarea id="j17-ly" class="in" placeholder="{{d.hint}}"></textarea>
+</div>
+<a class="b1" href="PhoneRequestSent.dc.html">Gửi yêu cầu</a>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  st() { return { day: 'T7 24/10', out: '17:30', ...(this.state || {}) }; }
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem ? { page: '#f2ead8', border: '#e6dcc6' } : { page: '#f5f5f5', border: '#e0e0e0' };
+    const x = this.st();
+    // Trường hợp máy tự điền theo dữ liệu chấm công; nhân viên không sửa được.
+    const days = {
+      'T7 24/10': { kase: 'Thiếu giờ ra', det: 'Giờ vào 07:52, không có giờ ra', remind: 'Admin nhắc giải trình lúc 09:30 28/10', needOut: true, noHour: false, hint: 'Ví dụ: quên bấm Check-out khi về' },
+      'T6 09/10': { kase: 'Vào muộn 25 phút', det: 'Giờ vào 08:25, ca bắt đầu 08:00', remind: '', needOut: false, noHour: true, hint: 'Ví dụ: kẹt xe trên đường đi làm' },
+    };
+    return { c, theme: this.props.theme ?? 'Nền xám', x, d: days[x.day] || days['T7 24/10'], onDay: (ev) => this.setState({ ...x, day: ev.target.value }), onOut: (ev) => this.setState({ ...x, out: ev.target.value }) };
+  }
+}
+</script>
+</body>
+</html>

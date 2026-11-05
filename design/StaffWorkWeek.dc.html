@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Tuần làm việc của Hoàng Thị Mai</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face { font-family: Geist; src: url("/_blob/408154e04f313c54998bea9c3f98f182") format("woff2"); font-weight: 100 900; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+a { color: #212121; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #212121; outline-offset: 2px; }
+.stt { display: inline-flex; align-items: center; gap: 6px; height: 24px; box-sizing: border-box; padding: 0 10px; border-radius: 50px; border: 1px solid var(--border); background: #ffffff; font-size: 12px; line-height: 16px; font-weight: 500; white-space: nowrap; }
+.stt i { width: 8px; height: 8px; border-radius: 50%; }
+.d-ok { background: #1c1c1c; }
+.d-try { background: #e8c372; }
+.d-off { background: #2f5aa8; }
+.d-out { background: #9e9e9e; }
+.hb { width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #212121; cursor: pointer; }
+.mut { color: #616161; font-size: 12px; line-height: 16px; }
+.nt { display: flex; gap: 10px; padding: 12px 14px; border-radius: 12px; background: var(--page); }
+.nt i { width: 8px; height: 8px; flex: none; margin-top: 6px; border-radius: 50%; background: #2f5aa8; }
+.sd section h3 { margin: 0 0 4px; font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; color: #616161; }
+.sd .fr { display: grid; grid-template-columns: 148px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.sd .fr > span:first-child { color: #616161; }
+.sd .fr > span:last-child { font-weight: 500; }
+.sd .fr.wk { grid-template-columns: 148px minmax(0, 1fr) auto; align-items: center; padding: 6px 0; }
+.sd .fr.wk > span:nth-child(2) { font-weight: 500; }
+.sb { height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; font-size: 13px; font-weight: 500; color: #212121; cursor: pointer; }
+.d1, .d2 { height: 40px; padding: 0 16px; border-radius: 8px; font: inherit; font-weight: 500; cursor: pointer; }
+.d1 { flex: 1 1 0; background: #000000; border: 1px solid #000000; color: #ffffff; }
+.d2 { background: #ffffff; border: 1px solid var(--control); color: #212121; }
+/* Hộp thoại "Tuần làm việc" */
+.dh { display: flex; align-items: flex-start; gap: 12px; padding: 22px 24px 4px; }
+.dh h2 { margin: 0; font-size: 18px; line-height: 26px; font-weight: 600; }
+.db { display: flex; flex-direction: column; gap: 16px; padding: 12px 24px 4px; }
+.df { display: flex; align-items: center; gap: 10px; padding: 20px 24px 20px; }
+.sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); border: 0; white-space: nowrap; }
+.ch { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; }
+.op { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; cursor: pointer; }
+.op + .op { border-top: 1px solid var(--border); }
+.op input { width: 18px; height: 18px; flex: none; margin: 1px 0 0; accent-color: #1c1c1c; cursor: pointer; }
+.op .ot { display: block; font-weight: 500; }
+.op .mut { display: block; margin-top: 2px; }
+.dks { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 2px 0 4px 28px; }
+.dk { height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--control); border-radius: 8px; background: #ffffff; font-weight: 500; cursor: pointer; }
+.dk.on { border-color: #1c1c1c; background: var(--page); }
+.dk input { width: 16px; height: 16px; margin: 0; accent-color: #1c1c1c; cursor: pointer; }
+.cc { display: flex; align-items: baseline; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--page); }
+.cc b { font-weight: 600; }
+.fld label { display: block; margin-bottom: 6px; font-size: 13px; line-height: 18px; font-weight: 500; }
+.fld label small { font-size: 13px; font-weight: 400; color: #616161; }
+.sel { position: relative; }
+.sel select { width: 100%; height: 40px; box-sizing: border-box; padding: 0 36px 0 12px; border: 1px solid var(--control); border-radius: 8px; background: #ffffff; font: inherit; color: #212121; appearance: none; -webkit-appearance: none; cursor: pointer; }
+.sel svg { position: absolute; right: 12px; top: 12px; pointer-events: none; color: #616161; }
+.ta { display: block; width: 100%; min-height: 76px; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--control); border-radius: 8px; background: #ffffff; font: inherit; color: #212121; resize: vertical; }
+.bt { height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--control); background: #ffffff; font: inherit; font-weight: 500; color: #212121; cursor: pointer; }
+.bt.pri { background: #000000; border-color: #000000; color: #ffffff; }
+.bt.off { background: #ececec; border-color: #ececec; color: #5f5f5f; cursor: default; }
+</style>
+</helmet>
+<div style="--page: {{c.page}}; --border: {{c.border}}; --control: {{c.control}}; position: relative; min-height: 1200px; background: {{c.page}}; font-family: Geist, system-ui, sans-serif; font-size: 14px; line-height: 20px; color: #212121; font-variant-numeric: tabular-nums;">
+<dc-import name="Staff" sidebar="{{sidebar}}" theme="{{theme}}" hint-size="100%,1200px"></dc-import>
+<div aria-hidden="true" style="position: absolute; inset: 0; z-index: 5; background: rgba(28, 28, 28, 0.32);"></div>
+<aside role="dialog" aria-label="Hồ sơ của Hoàng Thị Mai" style="position: absolute; z-index: 6; top: 16px; right: 16px; bottom: 16px; width: 480px; max-width: calc(100% - 32px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 24px; background: #ffffff; overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 4px; padding: 20px 16px 0 24px;">
+<h2 style="margin: 0; flex-grow: 1; font-size: 18px; line-height: 24px; font-weight: 600;">Hồ sơ nhân sự</h2>
+<button type="button" class="hb" aria-label="Người trước"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg></button>
+<button type="button" class="hb" aria-label="Người sau"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></button>
+<a href="Staff.dc.html" class="hb" aria-label="Đóng" style="color: #616161;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></a>
+</div>
+<div class="sd" style="flex: 1 1 0; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 16px 24px 24px;">
+<div style="display: flex; align-items: center; gap: 12px;">
+<span aria-hidden="true" style="width: 48px; height: 48px; flex: none; border-radius: 50px; display: grid; place-items: center; background: #fce8b2; font-weight: 600;">TM</span>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 16px; line-height: 22px; font-weight: 600;">Hoàng Thị Mai</div><div class="mut">GFT-0118 · Kế toán viên</div></div>
+<span class="stt"><i class="d-off" aria-hidden="true"></i>Tạm nghỉ</span>
+</div>
+<div class="nt"><i aria-hidden="true"></i><div><div style="font-weight: 600;">Nghỉ thai sản</div><div class="mut">15/09/2026 – 15/03/2027 · đi làm lại 16/03/2027</div></div></div>
+<section><h3>Công việc</h3><div class="fr"><span>Phòng ban</span><span>Tài chính</span></div><div class="fr"><span>Chức danh</span><span>Kế toán viên</span></div><div class="fr"><span>Loại · bậc</span><span>NV · Bậc 2</span></div><div class="fr"><span>Quản lý trực tiếp</span><span>Nguyễn Thu Hà</span></div><div class="fr"><span>Ca làm</span><span>Hành chính · 08:00–17:00</span></div><div class="fr wk"><span>Tuần làm việc</span><span>{{line}}</span><button type="button" class="sb" aria-label="Sửa tuần làm việc" onClick="{{openDlg}}">Sửa</button></div><div class="fr"><span>Ngày vào làm</span><span>02/05/2022 · 4 năm 5 tháng</span></div></section>
+<section><h3>Hợp đồng</h3><div class="fr"><span>Loại hợp đồng</span><span>HĐLĐ không xác định thời hạn</span></div><div class="fr"><span>Đóng bảo hiểm</span><span>Có</span></div><div class="fr"><span>Người phụ thuộc</span><span>1</span></div></section>
+<section><h3>Tài khoản</h3><div class="fr"><span>Email</span><span>mai.hoang@gft.vn</span></div><div class="fr"><span>Kích hoạt</span><span>Đã kích hoạt</span></div></section>
+</div>
+<div style="display: flex; gap: 8px; padding: 12px 24px 16px; border-top: 1px solid {{c.border}};">
+<a href="AttendanceEmployee.dc.html" class="d2" style="display: inline-flex; align-items: center; text-decoration: none; box-sizing: border-box;">Xem chấm công</a>
+<button type="button" class="d1">Sửa hồ sơ</button>
+</div>
+</aside>
+<sc-if value="{{open}}" hint-placeholder-val="{{true}}">
+<div aria-hidden="true" style="position: absolute; inset: 0; z-index: 7; background: rgba(24, 24, 24, 0.42);"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="ww-title" style="position: absolute; z-index: 8; top: 120px; left: 0; right: 0; margin: 0 auto; width: 520px; max-width: calc(100% - 24px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 20px; background: #ffffff; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);">
+<div class="dh">
+<div style="flex-grow: 1; min-width: 0;"><h2 id="ww-title">Tuần làm việc</h2><div class="mut" style="font-size: 13px; line-height: 18px; margin-top: 2px;">Hoàng Thị Mai · NV · Bậc 2</div></div>
+<button type="button" class="hb" aria-label="Đóng" style="width: 32px; height: 32px; color: #616161;" onClick="{{close}}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+</div>
+<div class="db">
+<fieldset class="ch">
+<legend class="sr">Cách đặt tuần làm việc</legend>
+<label class="op"><input type="radio" name="ww-mode" value="type" checked="{{isType}}" onChange="{{pickType}}"><span><span class="ot">Theo loại nhân sự</span><span class="mut">NV · T2–T7 · công chuẩn 26</span></span></label>
+<label class="op"><input type="radio" name="ww-mode" value="own" checked="{{isOwn}}" onChange="{{pickOwn}}"><span><span class="ot">Tuần riêng</span><span class="mut">Chọn các ngày đi làm trong tuần</span></span></label>
+<sc-if value="{{isOwn}}" hint-placeholder-val="{{true}}">
+<div class="dks" role="group" aria-label="Ngày đi làm">
+<sc-for list="{{days}}" as="d" hint-placeholder-count="6">
+<label class="{{d.cls}}"><input type="checkbox" checked="{{d.on}}" onChange="{{d.toggle}}">{{d.label}}</label>
+</sc-for>
+</div>
+</sc-if>
+</fieldset>
+<div class="cc" role="status"><span>Công chuẩn:</span><b>{{cc}}</b></div>
+<div class="fld">
+<label for="ww-month">Áp dụng từ tháng</label>
+<div class="sel">
+<select id="ww-month" value="{{month}}" onChange="{{pickMonth}}">
+<option value="2026-10">Tháng 10/2026</option>
+<option value="2026-11">Tháng 11/2026</option>
+<option value="2026-12">Tháng 12/2026</option>
+<option value="2027-01">Tháng 01/2027</option>
+<option value="2027-02">Tháng 02/2027</option>
+<option value="2027-03">Tháng 03/2027</option>
+</select>
+<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+</div>
+</div>
+<div class="fld">
+<label for="ww-reason">Lý do <small>(không bắt buộc)</small></label>
+<textarea id="ww-reason" class="ta" maxlength="300" value="{{reason}}" onChange="{{typeReason}}"></textarea>
+</div>
+</div>
+<div class="df">
+<sc-if value="{{zero}}" hint-placeholder-val="{{false}}"><span class="mut" style="font-size: 13px; line-height: 18px;">Chọn ít nhất một ngày</span></sc-if>
+<span style="margin-left: auto;"></span>
+<button type="button" class="bt" onClick="{{close}}">Huỷ</button>
+<button type="button" class="{{saveCls}}" disabled="{{saveOff}}" onClick="{{save}}">Lưu</button>
+</div>
+</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["Nền xám","Nền kem"],"default":"Nền xám","section":"Màu"},"sidebar":{"editor":"enum","options":["Tối","Sáng"],"default":"Tối","section":"Khung"},"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    // Đang lưu: tuần riêng T2–T6 từ tháng 12/2026. Hộp mở sẵn với đúng giá trị đang lưu nên Lưu tắt tới khi đổi gì đó.
+    const saved = { mode: 'own', days: [true, true, true, true, true, false], month: '2026-12' };
+    this.state = { open: true, saved, mode: saved.mode, days: saved.days.slice(), month: saved.month, reason: '' };
+  }
+
+  // Công chuẩn = số ngày làm mỗi tuần × 52 ÷ 12, làm tròn (T2–T6 → 22, T2–T7 → 26).
+  cong(days) {
+    return Math.round((days.filter(Boolean).length * 52) / 12);
+  }
+
+  // [T2..T6] → 'T2–T6'; dải từ 3 ngày viết gạch nối, còn lại liệt kê.
+  fmtDays(days) {
+    const L = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const out = [];
+    let i = 0;
+    while (i < 6) {
+      if (!days[i]) { i += 1; continue; }
+      let j = i;
+      while (j + 1 < 6 && days[j + 1]) j += 1;
+      if (j - i >= 2) out.push(L[i] + '–' + L[j]);
+      else for (let k = i; k <= j; k += 1) out.push(L[k]);
+      i = j + 1;
+    }
+    return out.join(', ');
+  }
+
+  fromSaved(st) {
+    return { mode: st.saved.mode, days: st.saved.days.slice(), month: st.saved.month, reason: '' };
+  }
+
+  renderVals() {
+    const kem = (this.props.theme ?? 'Nền xám') === 'Nền kem';
+    const c = kem
+      ? { page: '#f2ead8', border: '#e6dcc6', control: '#857f74', draft: '#e6dcc6' }
+      : { page: '#f5f5f5', border: '#e0e0e0', control: '#8a8a8a', draft: '#e0e0e0' };
+    const s = this.state;
+    const sv = s.saved;
+    const own = s.mode === 'own';
+    const L = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const days = L.map((label, i) => ({
+      label,
+      on: s.days[i],
+      cls: s.days[i] ? 'dk on' : 'dk',
+      toggle: () => this.setState((st) => {
+        const d = st.days.slice();
+        d[i] = !d[i];
+        return { days: d };
+      })
+    }));
+    const count = s.days.filter(Boolean).length;
+    const zero = own && count === 0;
+    const changed = s.mode !== sv.mode || s.month !== sv.month || (own && s.days.some((v, i) => v !== sv.days[i]));
+    const saveOff = zero || !changed;
+    const mm = sv.month.slice(5, 7) + '/' + sv.month.slice(0, 4);
+    const line = sv.mode === 'own'
+      ? this.fmtDays(sv.days) + ' · công chuẩn ' + this.cong(sv.days) + ' · riêng từ ' + mm
+      : 'T2–T7 · công chuẩn 26 · theo loại nhân sự';
+    return {
+      c,
+      theme: this.props.theme ?? 'Nền xám',
+      sidebar: this.props.sidebar ?? 'Tối',
+      open: s.open,
+      line,
+      isOwn: own,
+      isType: !own,
+      days,
+      cc: own ? this.cong(s.days) : 26,
+      zero,
+      month: s.month,
+      reason: s.reason,
+      saveOff,
+      saveCls: saveOff ? 'bt off' : 'bt pri',
+      openDlg: () => this.setState((st) => ({ open: true, ...this.fromSaved(st) })),
+      close: () => this.setState((st) => ({ open: false, ...this.fromSaved(st) })),
+      pickType: () => this.setState({ mode: 'type' }),
+      pickOwn: () => this.setState({ mode: 'own' }),
+      pickMonth: (e) => this.setState({ month: e.target.value }),
+      typeReason: (e) => this.setState({ reason: e.target.value.slice(0, 300) }),
+      save: () => this.setState((st) => ({
+        open: false,
+        saved: { mode: st.mode, days: st.days.slice(), month: st.month },
+        reason: ''
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
