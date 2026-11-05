@@ -977,12 +977,23 @@ export class RequestsService {
     }
     const staff = await this.resolveStaff(input.employeeId, period);
 
+    // Tính số tiền trước khoá nhân viên: bộ tính lương lấy một kết nối pool riêng, không được xin khi khoá đang giữ một
+    // kết nối (xem cảnh báo ở database/kysely.ts). Giữ cả giá trị lẫn lỗi; trong khoá vẫn kiểm trùng tháng trước rồi
+    // mới báo lỗi tính.
+    let quote: AdvanceQuote | null = null;
+    let quoteError: unknown = null;
+    try {
+      quote = await this.advanceQuoteOf(staff.employeeId, period);
+    } catch (err) {
+      quoteError = err;
+    }
+
     const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
       const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'ADVANCE' });
       if (hasAdvanceFor(existing, period)) {
         throw new Error(advanceDuplicateMessage(period));
       }
-      const quote = await this.advanceQuoteOf(staff.employeeId, period);
+      if (!quote) throw quoteError;
       if (quote.amount === 0) {
         throw new Error(advanceNoWorkDaysMessage(period));
       }

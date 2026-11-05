@@ -85,6 +85,35 @@ describe('Tạm ứng do server tính (spec 2.5)', () => {
     assert.equal(ctx.repo.requests.size, 0);
   });
 
+  it('a duplicate month reports the duplicate even when the quote would fail', async () => {
+    ctx.service.now = () => new Date(ON_16TH);
+    await ctx.service.createAdvanceRequest(BODY as any, SELF);
+    ctx.payroll.failWith = new Error('boom');
+    await assert.rejects(ctx.service.createAdvanceRequest(BODY as any, SELF), { message: 'Tháng 11 đã có đơn tạm ứng' });
+  });
+
+  it('the quote is taken before the employee lock, not while it is held', async () => {
+    ctx.service.now = () => new Date(ON_16TH);
+    let held = false;
+    const withLock = ctx.lock.withLock.bind(ctx.lock);
+    ctx.lock.withLock = async (key: string, fn: (trx: any) => Promise<any>) => {
+      held = true;
+      try {
+        return await withLock(key, fn);
+      } finally {
+        held = false;
+      }
+    };
+    const heldDuringQuote: boolean[] = [];
+    const advanceQuote = ctx.payroll.advanceQuote.bind(ctx.payroll);
+    ctx.payroll.advanceQuote = async (employeeId: string, month: string) => {
+      heldDuringQuote.push(held);
+      return advanceQuote(employeeId, month);
+    };
+    await ctx.service.createAdvanceRequest(BODY as any, SELF);
+    assert.deepEqual(heldDuringQuote, [false]);
+  });
+
   it('missing payroll refused', async () => {
     const bare = new RequestsService(ctx.repo, ctx.att, undefined, ctx.holidays, ctx.days, ctx.periods);
     bare.now = () => new Date(ON_16TH);
