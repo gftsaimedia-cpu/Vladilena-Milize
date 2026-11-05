@@ -199,8 +199,7 @@ export async function seed(ctx: SeedContext): Promise<void> {
   const nam = 'dt-nam';
   await approve(await asAdmin('leave', nam, leave('PERSONAL_PAID', [pick.day(months.m1, 1, 3)], 'Việc gia đình')));
   await bySelf(nam, 'leave', leave('PERSONAL_PAID', [pick.day(next, 3, 0)], 'Về quê'));
-  // DemoSession.del gửi không thân nên BE trả 415 (đòi JSON); gửi thân rỗng như app.
-  await admin.call('DELETE', `/employees/${nam}`, {});
+  await admin.del(`/employees/${nam}`);
 
   // ---- dt-quan: đơn chờ duyệt cho test giao diện Admin ----
   const quan = 'dt-quan';

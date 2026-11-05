@@ -217,4 +217,4 @@ App tham chiếu luong-app không còn ở `Downloads/luong-nhan-su-webapp`, nê
 - **`test/v2/demo-requests-*`:** không viết. Mọi luật đều đi được qua route.
 
 ## Ghi chú cho phần nền
-- `DemoSession.del` (scripts/demo/api.ts) gửi không có thân, nên `DELETE /employees/:username` trả 415. Seed gọi `admin.call('DELETE', …, {})` để tránh. Commit 750e76a đã sửa `del` để gửi thân JSON; seed vẫn để `call` cho chắc.
+- Trước commit 750e76a, `DemoSession.del` gửi không có thân nên `DELETE /employees/:username` trả 415. Phần nền đã sửa; seed giờ gọi `admin.del`.
