@@ -7,7 +7,7 @@ const props = defineProps({
   saving: { type: Boolean, default: false },
   saved: { type: Boolean, default: false },
   error: { type: String, default: '' },
-  saveLabel: { type: String, default: 'Xem trước và lưu' }
+  saveLabel: { type: String, default: 'Lưu' }
 });
 defineEmits(['cancel', 'save']);
 

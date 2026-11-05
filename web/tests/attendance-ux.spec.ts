@@ -233,7 +233,8 @@ test('below 900px, after deciding an item in Cần xử lý, focus lands on the 
   const rows = list.getByRole('button');
   await expect(rows).toHaveCount(11);
   const names = await rows.locator('.nn').allInnerTexts();
-  const at = 3;
+  // Vị trí 4 (Đỗ Mai Linh) là việc cần duyệt. Vị trí 3 là "Quên Check-in" của Lý Thanh Tâm: nhắc giải trình giữ việc lại.
+  const at = 4;
   await rows.nth(at).click();
   await dialogOf(page).locator('.acts .btn').first().click();
   await expect(dialogOf(page)).toHaveCount(0);

@@ -2,7 +2,7 @@
 // gom và đếm. BE chưa có phòng ban, ngày trả lương, so sánh tháng trước: các ô đó để trống.
 import type { DayKind, Payslip, PayrollLine, PayrollScreen, PayrollStatus, SlipCounts } from '../../mock/payroll';
 import type { KpiPart } from '../../mock/payroll-calc';
-import { KPI_LABELS } from '../../constants/labels';
+import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
 import { initials } from '../../utils/format';
 
 export type PayslipRecordDTO = {
@@ -14,9 +14,17 @@ export type PayslipRecordDTO = {
   tax: number;
   advance: number;
   net: number;
+  // Lý do Admin ghi khi duyệt / từ chối (null khi không có), người và lúc quyết định.
+  note?: string | null;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
   details: {
     fullName: string;
     positionLevelText: string;
+    // Ba trường dưới thiếu ở phiếu lưu trước khi BE thêm chúng: hiện "—".
+    employeeType?: string | null;
+    level?: number;
+    employmentStatus?: string | null;
     standardWorkdays: number;
     actualWorkDays: number;
     baseSalaryPolicy: number;
@@ -32,7 +40,7 @@ export type PayslipRecordDTO = {
 
 const NONE = '—';
 // Trạng thái phiếu của BE: nháp → nháp; Admin đã duyệt hoặc kỳ đã chốt → xong; Admin từ chối → bị từ chối.
-const statusOf = (s: string): PayrollStatus =>
+export const statusOf = (s: string): PayrollStatus =>
   s === 'final' || s === 'approved' ? 'done' : s === 'rejected' ? 'rejected' : 'draft';
 
 function lineOf(r: PayslipRecordDTO): PayrollLine {
@@ -55,7 +63,8 @@ function lineOf(r: PayslipRecordDTO): PayrollLine {
     kpiMissing: missing,
     allowance: d.totalAllowanceActual,
     ot: d.otPayTotal,
-    lateCut: d.lateEarlyDeductionAmount,
+    // BE trả tiền trừ giờ là số âm; màn hiện số dương sau dấu "−" (một dấu trừ duy nhất).
+    lateCut: Math.abs(d.lateEarlyDeductionAmount),
     gross: r.gross,
     insurance: r.insurance,
     tax: r.tax,
@@ -130,7 +139,7 @@ export type PayslipDetailDTO = PayslipRecordDTO['details'] & {
   advanceDeduction: number;
   netIncome: number;
   dependants: number;
-  remainingAnnualLeaveDays: number;
+  remainingAnnualLeaveDays: number | null;
   dailyLines: { date: string; shiftCode: string; workHours: number }[];
 };
 
@@ -172,12 +181,14 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     initials: line.initials,
     dept: line.dept,
     title: line.title,
-    kind: 'NV',
-    level: 0,
+    kind: employeeTypeLabel(d.employeeType),
+    level: d.level ?? null,
+    employmentStatus: employmentStatusLabel(d.employmentStatus),
     contract: d.contractStatusText || NONE,
     payday: NONE,
     note: `Công chuẩn: ${d.standardWorkdays} ngày`,
     status: line.status,
+    decisionNote: r.note ?? null,
     base: d.baseSalaryPolicy,
     dependants: d.dependants,
     days: {
@@ -194,10 +205,11 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     isatPay: d.isatPay,
     allowances,
     ot: { hours: [d.ot15Hours, d.ot20Hours, d.ot30Hours], pay: d.otPayTotal },
-    late: { minutes: [], hours: d.lateEarlyHours, cut: d.lateEarlyDeductionAmount },
+    late: { minutes: [], hours: d.lateEarlyHours, cut: line.lateCut },
     exempt: d.taxExemptIncome,
     advance: d.advanceDeduction,
-    leaveLeft: d.remainingAnnualLeaveDays,
+    leaveLeft: d.remainingAnnualLeaveDays ?? null,
+    kpiApplicable: d.kpiApplicable,
     kpi: {
       scores: Object.fromEntries(parts.map(p => [p, d.kpiScores?.[p] ?? null])) as Record<KpiPart, number | null>,
       proposal: d.kpiProposedAmount ?? d.kpiMaxSalary,

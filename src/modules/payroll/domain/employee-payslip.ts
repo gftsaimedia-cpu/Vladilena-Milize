@@ -1,7 +1,8 @@
 import { PayrollAllowancePolicy, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, InsuranceDeduction } from './insurance';
 import { calculateKpiPay, KpiComponent, KpiPay } from './kpi-pay';
-import { calculatePersonalIncomeTax, TaxMethod } from './personal-income-tax';
+import { OT_MULTIPLIERS, type OtRates } from './overtime-pay';
+import { calculatePersonalIncomeTax, TaxMethod, type TaxRules } from './personal-income-tax';
 import { PayrollWarning } from './payroll-warning';
 
 /**
@@ -30,20 +31,30 @@ export interface DailyAttendanceLineProps {
   dailyTotal: number; // daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount
 }
 
-// Points 0-100 per component (weights 40/24/18/12/6); null = not entered.
+// Points 0-100 per component (weighted by the month's KPI weights); null = not entered.
 export type KpiScores = Record<KpiComponent, number | null>;
 
+/** OT hours by kind of day; the keys are named after the default rates x1.5 / x2 / x3. */
 export interface OtHoursByRate {
-  x15?: number; // 150% rate
-  x20?: number; // 200% rate
-  x30?: number; // 300% rate
+  x15?: number; // weekday
+  x20?: number; // Saturday or Sunday
+  x30?: number; // company holiday
 }
 
-/** OT money by multiplier, summed from the day lines (each line rounds each multiplier once). */
+/** OT money by kind of day, summed from the day lines (each line rounds each kind once). */
 export interface OtPayByRate {
   x15?: number;
   x20?: number;
   x30?: number;
+}
+
+/**
+ * A HOLIDAY line is paid only when its date falls on one of the person's working weekdays (numbered as in the settings
+ * store and getUTCDay: 1 = Monday … 6 = Saturday; Sunday, 0, is never in a week). Without a week every holiday line is
+ * paid.
+ */
+export function paysHoliday(date: string, workWeekdays?: readonly number[]): boolean {
+  return !workWeekdays || workWeekdays.includes(new Date(`${date}T00:00:00Z`).getUTCDay());
 }
 
 export interface EmployeePayslipProps {
@@ -63,13 +74,17 @@ export interface EmployeePayslipProps {
   allowanceRates?: AllowanceRates | null; // the position version in force; missing = none, no allowance
   makeupWorkDates?: string[];
   dailyLines: DailyAttendanceLineProps[];
+  workWeekdays?: readonly number[]; // the person's working weekdays (1 = Mon … 6 = Sat); default: every holiday line is paid
   otHoursByRate?: OtHoursByRate;
   otPayByRate?: OtPayByRate;
+  otRates?: OtRates; // the rates the OT was paid at; default OT_MULTIPLIERS
   lateEarlyHours?: number;
   lateEarlyDeductionAmount?: number;
+  diligenceLostFromDays?: number; // the attendance allowance is lost from this many absence days; default 5
   kpi?: KpiPay; // default: no KPI pay
   insurance?: InsuranceDeduction; // default: nothing deducted
   taxMethod?: TaxMethod; // default 'none'
+  taxRules?: TaxRules; // default DEFAULT_TAX_RULES
   dependants?: number; // default 0
   warnings?: PayrollWarning[];
   advanceDeduction?: number;
@@ -303,7 +318,7 @@ export class EmployeePayslip {
         isatCount++;
       } else if (code === 'UNPAID' || code === 'UNPAID_LEAVE') {
         unpaidLeaveCount++;
-      } else if (code === 'HOLIDAY') {
+      } else if (code === 'HOLIDAY' && paysHoliday(line.date, props.workWeekdays)) {
         holidayCount++;
       }
 
@@ -358,8 +373,9 @@ export class EmployeePayslip {
     const allowanceRatio = allowanceWorkDays / this.standardWorkdays;
     const makeupDays = makeupDates.size;
     const absenceDays = Math.max(0, this.paidLeaveDays + this.unpaidLeaveDays - makeupDays);
+    const keepsDiligence = absenceDays < (props.diligenceLostFromDays ?? 5);
     this.attendanceAllowanceActual =
-      rates.attendanceRate > 0 && absenceDays <= 4 ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
+      rates.attendanceRate > 0 && keepsDiligence ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
     this.travelAllowanceActual = !this.isDormResident ? Math.round(allowanceRatio * this.travelAllowancePolicy) : 0;
     this.flexAllowanceActual = rates.isKnownType
       ? this.dailyLines.reduce((sum, line) => sum + line.flexAllowancePay, 0)
@@ -375,7 +391,8 @@ export class EmployeePayslip {
       this.offPaidNightActual +
       this.nightAllowanceActual;
 
-    // Block 5: KPI Pay (Weights: Wework 40%, User 24%, Peer 18%, Manager 12%, Self 6%), computed by calculateKpiPay
+    // Block 5: KPI Pay, computed by calculateKpiPay with the month's weights (default Wework 40%, User 24%, Peer 18%,
+    // Manager 12%, Self 6%)
     const kpi = props.kpi ?? calculateKpiPay(null, { applicable: false, kpiMax: null });
     this.kpiApplicable = kpi.applicable;
     this.kpiScores = kpi.scores;
@@ -408,11 +425,15 @@ export class EmployeePayslip {
       this.kpiActualPay +
       this.lateEarlyDeductionAmount; // already negative
 
-    // Tax-exempt part of the pay: the OT premium over the normal hourly rate (150% -> 50%, 200% -> 100%, 300% -> 200%)
-    // plus, for each night line, the lower of 30% of the hourly pay for the hours worked and the night allowance paid
-    // that day (a night day without allowance, e.g. a makeup day, exempts nothing).
+    // Tax-exempt part of the pay: the OT premium over the normal hourly rate (rate - 1 of each kind of day: by default
+    // 150% -> 50%, 200% -> 100%, 300% -> 200%) plus, for each night line, the lower of 30% of the hourly pay for the
+    // hours worked and the night allowance paid that day (a night day without allowance, e.g. a makeup day, exempts
+    // nothing).
+    const otRates = props.otRates ?? OT_MULTIPLIERS;
     const otExempt = Math.round(
-      this.ot15Hours * hourRate * 0.5 + this.ot20Hours * hourRate * 1 + this.ot30Hours * hourRate * 2
+      this.ot15Hours * hourRate * (otRates.weekday - 1) +
+        this.ot20Hours * hourRate * (otRates.weekend - 1) +
+        this.ot30Hours * hourRate * (otRates.holiday - 1)
     );
     const nightExempt = Math.round(
       this.dailyLines
@@ -428,13 +449,16 @@ export class EmployeePayslip {
 
     this.taxMethod = props.taxMethod ?? 'none';
     this.dependants = props.dependants ?? 0;
-    const tax = calculatePersonalIncomeTax({
-      method: this.taxMethod,
-      grossIncome: this.grossIncome,
-      exemptIncome: this.taxExemptIncome,
-      insurance: this.insuranceDeduction,
-      dependants: this.dependants
-    });
+    const tax = calculatePersonalIncomeTax(
+      {
+        method: this.taxMethod,
+        grossIncome: this.grossIncome,
+        exemptIncome: this.taxExemptIncome,
+        insurance: this.insuranceDeduction,
+        dependants: this.dependants
+      },
+      props.taxRules
+    );
     this.taxableIncome = tax.taxableIncome;
     this.taxAssessableIncome = tax.assessableIncome;
     this.personalIncomeTax = tax.tax;

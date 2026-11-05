@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { staffListFromEmployees, staffProfileFromEmployee } from '../../web/src/builders/api/staff';
 import { calendarFromHolidays } from '../../web/src/builders/api/calendar';
-import { inboxFromRequests } from '../../web/src/builders/api/inbox';
+import { inboxFromDue, inboxFromRequests } from '../../web/src/builders/api/inbox';
 
 function employee(over: { username: string; name?: string; status?: string; from?: string | null; resigned?: string | null; locked?: boolean; job?: string | null }) {
   return {
@@ -315,6 +315,42 @@ describe('Chấm công Admin từ /attendance/timesheets', () => {
     assert.equal(view.total, 1);
     assert.equal(row.person.lateCount, 1);
   });
+
+  // BUG-requests-9: việc chờ duyệt từ /requests mang personId = uuid (employeeId của đơn), còn người trên lưới khoá theo
+  // tên đăng nhập. Hai bên phải khớp, nếu không Cần xử lý luôn trống và lưới không tô ô "cần xử lý".
+  it('matches pending items keyed by the employee uuid', () => {
+    const view: any = attendanceFromTimesheets({
+      month: '2026-11',
+      today: '2026-11-05',
+      employees: [emp] as any,
+      timesheets: [ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } })] as any,
+      pending: [{ id: 'r1', personId: emp.profile.uuid, days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
+    });
+    assert.equal(emp.profile.uuid, 'u-nam');
+    assert.equal(view.pending.length, 1);
+    assert.equal(view.pending[0].person.name, 'Lê Hoàng Nam');
+    assert.equal(view.total, 1);
+    const cell = view.rows[0].cells.find((c: any) => c.date === '2026-11-03');
+    assert.equal(cell.kind, 'todo');
+    assert.equal(cell.itemId, 'r1');
+  });
+
+  // Như mock: ô Cần xử lý đếm mọi ngày có việc, ghi chú tách ngày chưa giải trình (Admin nhắc) khỏi yêu cầu chờ duyệt.
+  it('splits days to explain from requests to decide in the Cần xử lý tile', () => {
+    const view: any = attendanceFromTimesheets({
+      month: '2026-11',
+      today: '2026-11-05',
+      employees: [emp] as any,
+      timesheets: [ts('2026-11-02'), ts('2026-11-03')] as any,
+      pending: [
+        { id: 'r1', personId: 'u-nam', days: ['2026-11-03'], group: 'exp', action: 'decide', what: 'Giải trình' },
+        { id: 'due:u-nam:2026-11-02', personId: 'u-nam', days: ['2026-11-02'], group: 'att', action: 'remind', what: 'Đi muộn' }
+      ] as any
+    });
+    const todo = view.tiles.find((t: any) => t.key === 'todo');
+    assert.equal(todo.value, '2');
+    assert.equal(todo.note, '1 chưa giải trình · 1 yêu cầu chờ duyệt');
+  });
 });
 
 import { positionsResponseFromCatalog } from '../../web/src/builders/api/catalog';
@@ -488,7 +524,7 @@ describe('Tổng quan ghép từ các API có sẵn', () => {
       payroll: board,
       employees: emps as any,
       timesheets: [tsIn('nam', '2026-11-05'), tsIn('nam', '2026-11-04'), tsIn('ha', '2026-11-04')] as any,
-      approvals: [{ id: 'r1' }, { id: 'r2' }] as any,
+      approvals: [{ id: 'r1', action: 'decide' }, { id: 'r2', action: 'decide' }] as any,
       periodState: 'Đang chấm công'
     });
     assert.deepEqual(v.headline, { blocking: 2, closeOn: '30/11', daysLeft: 25 });
@@ -505,5 +541,74 @@ describe('Tổng quan ghép từ các API có sẵn', () => {
     assert.equal(v.period.statusLabel, 'Đang chấm công');
     assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 0, rejected: 0, total: 0 });
     assert.equal(v.payroll.rows.length, 0);
+  });
+
+  // Như mock: thẻ Việc cần duyệt hiện đủ danh sách của chuông, chỉ số "Yêu cầu chờ duyệt" chỉ đếm việc cần quyết định.
+  // Dòng "Còn N việc phải xong trước khi chốt lương" đếm cả ngày chưa giải trình.
+  it('counts only requests to decide in the Yêu cầu chờ duyệt KPI', () => {
+    const v: any = overviewFrom({
+      month: '2026-11',
+      today: '2026-11-05',
+      now: '09:40',
+      payroll: payrollScreenFromPayslips([], '2026-11'),
+      employees: [] as any,
+      timesheets: [] as any,
+      approvals: [{ id: 'r1', action: 'decide' }, { id: 'due:u1:2026-11-02', action: 'remind' }] as any,
+      periodState: 'Đang chấm công'
+    });
+    const k = Object.fromEntries(v.kpis.map((x: any) => [x.key, x]));
+    assert.equal(k.requests.value, '1');
+    assert.equal(v.headline.blocking, 2);
+    assert.equal(v.approvals.length, 2);
+  });
+});
+
+describe('Việc nhắc giải trình từ /requests/explanations-due', () => {
+  // 28/10/2026 09:40 giờ Việt Nam.
+  const NOW = Date.parse('2026-10-28T02:40:00Z');
+  const people = new Map([['u1', { name: 'Trịnh Văn Long', title: 'Công nhân vận hành' }]]);
+  const due = (over: Record<string, unknown> = {}) => ({
+    employeeId: 'u1', name: 'Long', date: '2026-10-27', cases: ['MISSING_CHECK_IN', 'MISSING_CHECK_OUT'],
+    needs: { checkIn: true, checkOut: true }, remindedAt: null, ...over
+  });
+
+  it('maps a day missing both punches to a remind item in the attendance group', () => {
+    const [item] = inboxFromDue([due()] as any, people, NOW);
+    assert.equal(item.id, 'due:u1:2026-10-27');
+    assert.equal(item.group, 'att');
+    assert.equal(item.groupLabel, 'Chấm công');
+    assert.equal(item.action, 'remind');
+    assert.equal(item.personId, 'u1');
+    assert.equal(item.name, 'Trịnh Văn Long');
+    assert.equal(item.initials, 'VL');
+    assert.equal(item.role, 'Công nhân vận hành');
+    assert.equal(item.what, 'Quên chấm công');
+    assert.equal(item.head, 'Quên chấm công');
+    assert.equal(item.when, '27/10');
+    assert.equal(item.sub, 'Thứ Ba 27/10');
+    assert.equal(item.age, '1 ngày');
+    assert.deepEqual(item.days, ['2026-10-27']);
+    assert.deepEqual(item.facts, [['Giờ vào', 'Chưa có'], ['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+    assert.equal(item.remindedAt, undefined);
+  });
+
+  it('keeps remindedAt, names the cases, and falls back to the server name without a profile', () => {
+    const [item] = inboxFromDue(
+      [due({ employeeId: 'u9', name: 'Ngô Gia Bảo', cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: '2026-10-27T02:40:00.000Z' })] as any,
+      people,
+      NOW
+    );
+    assert.equal(item.what, 'Thiếu giờ ra');
+    assert.equal(item.name, 'Ngô Gia Bảo');
+    assert.equal(item.role, '—');
+    assert.equal(item.remindedAt, '2026-10-27T02:40:00.000Z');
+    // Giờ đã có thì máy chủ không gửi giá trị: dòng đó không hiện, thay vì ghi sai.
+    assert.deepEqual(item.facts, [['Giờ ra', 'Chưa có'], ['Giải trình', 'Chưa gửi']]);
+  });
+
+  it('keeps the server order and gives two days of the same person two ids', () => {
+    const items = inboxFromDue([due(), due({ date: '2026-10-26' })] as any, people, NOW);
+    assert.deepEqual(items.map(i => i.id), ['due:u1:2026-10-27', 'due:u1:2026-10-26']);
+    assert.equal(items[1].age, '2 ngày');
   });
 });

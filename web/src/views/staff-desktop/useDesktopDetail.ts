@@ -1,7 +1,10 @@
 // Chi tiết mở theo URL trên trang máy tính (spec 3.3): đọc đúng các cặp đường dẫn–tham số của điện thoại.
 //   /nv/cham-cong?ngay=  →  day        /nv/yeu-cau?yc=  →  request        /nv/toi?hop=doi-mat-khau  →  password
+//   /nv/yeu-cau?tao=  →  tao (luồng Tạo yêu cầu K3; giá trị lạ do NewRequestBody đưa về menu, spec staff-requests 4.1)
 // Giá trị lạ thì bỏ tham số bằng router.replace và không mở gì; tham số đúng tên nhưng sai đường dẫn thì bỏ qua.
-// Đọc chi tiết là bất đồng bộ: kết quả của lần đọc cũ bị bỏ nếu tham số đã đổi trong lúc chờ.
+// Chỉ một ngăn kéo mở một lúc: có ?tao= thì luồng thắng, ?yc= bị bỏ khỏi URL và không mở ngăn kéo yêu cầu.
+// Đọc chi tiết là bất đồng bộ: kết quả của lần đọc cũ bị bỏ nếu tham số đã đổi trong lúc chờ. reloadRequest() đọc lại đơn đang mở
+// (sau khi huỷ đơn).
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { DayDetail, RequestDetail } from '@/mock/staff-phone';
@@ -19,15 +22,18 @@ export function useDesktopDetail() {
   };
   const param = (path: string, name: string) => computed(() => (route.path === path ? first(route.query[name]) : null));
   const ngay = param('/nv/cham-cong', 'ngay');
-  const yc = param('/nv/yeu-cau', 'yc');
   const hop = param('/nv/toi', 'hop');
+  const tao = param('/nv/yeu-cau', 'tao');
+  const ycParam = param('/nv/yeu-cau', 'yc');
+  const yc = computed(() => (tao.value ? null : ycParam.value));
 
   function drop(name: string) {
     const { [name]: _dropped, ...rest } = route.query;
     router.replace({ path: route.path, query: rest });
   }
+  // Đóng mọi ngăn kéo: bỏ cả tao và ngay của luồng Tạo yêu cầu (ngay của Giải trình nằm trên /nv/yeu-cau).
   function closeDetail() {
-    const { ngay: _n, yc: _y, hop: _h, ...rest } = route.query;
+    const { ngay: _n, yc: _y, hop: _h, tao: _t, ...rest } = route.query;
     router.replace({ path: route.path, query: rest });
   }
 
@@ -47,6 +53,13 @@ export function useDesktopDetail() {
     { immediate: true }
   );
 
+  watch(
+    [tao, ycParam],
+    ([t, y]) => {
+      if (t && y) drop('yc');
+    },
+    { immediate: true }
+  );
   const request = ref<RequestDetail | null>(null);
   watch(
     yc,
@@ -62,6 +75,10 @@ export function useDesktopDetail() {
     },
     { immediate: true }
   );
+  async function reloadRequest(id: string) {
+    const found = await getRequest(id);
+    if (found && yc.value === id && request.value?.id === id) request.value = found;
+  }
 
   const password = ref(false);
   watch(
@@ -73,5 +90,5 @@ export function useDesktopDetail() {
     { immediate: true }
   );
 
-  return { day, request, password, closeDetail };
+  return { day, request, password, tao, closeDetail, reloadRequest };
 }

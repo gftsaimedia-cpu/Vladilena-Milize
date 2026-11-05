@@ -14,6 +14,16 @@ async function open(page: Page, query: string): Promise<string[]> {
   return calls;
 }
 
+// BUG-payroll-14: phiếu chính thức (đã duyệt) không ghi "dự kiến"; nhãn của thẻ theo tháng đang xem, không cố định tháng 10.
+test('the net pay card says "dự kiến" only for an estimate, and names the month shown', async ({ page }) => {
+  await open(page, 'part=net&state=Chính thức');
+  const card = page.getByRole('region', { name: 'Thực nhận tháng 9/2026', exact: true });
+  await expect(card).toContainText('Thực nhận');
+  await expect(card).not.toContainText('dự kiến');
+  await open(page, 'part=net&state=Tạm tính');
+  await expect(page.getByRole('region', { name: 'Thực nhận tháng 9/2026', exact: true })).toContainText('Thực nhận dự kiến');
+});
+
 test('the day axis follows the shift of that day', async ({ page }) => {
   const calls = await open(page, 'part=day&start=06:00&end=14:00');
   await expect(page.locator('.ds-axis span')).toHaveText(['06:00', '10:00', '14:00']);

@@ -2,6 +2,7 @@
 // Thanh lọc trạng thái + danh sách yêu cầu nhóm theo tháng gửi (J4 mục 7.1, K1 cột 1). Dùng ở RequestsView và TodayColumn.
 // Tab đang chọn chỉ nằm trong ref của component, không lên URL. Hai gốc (tablist, tabpanel) nên nằm thẳng trong cột flex của màn cha.
 // scrollLabel: máy tính (D15) — tabpanel tự cuộn, có tên riêng và tabindex 0; không có thì tabpanel đặt tên theo tab đang chọn (điện thoại).
+// Đơn đã huỷ (status 'cancel', chấm xám) không có tab riêng: chỉ nằm trong "Tất cả" (spec staff-requests 4.6).
 //   <RequestList :view="data" tablist-label="Lọc theo trạng thái" replace />
 import { computed, nextTick, ref } from 'vue';
 import type { RequestsView } from '@/mock/staff-phone';

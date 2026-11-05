@@ -62,12 +62,7 @@ async function act(verb: DecisionVerb) {
           Duyệt
         </button>
       </template>
-      <template v-else>
-        <button type="button" class="btn pri" :disabled="busy" @click="act('remind')">Nhắc giải trình</button>
-        <button type="button" class="btn" :disabled="busy" @click="act('declare')">
-          {{ item.missing === 'in' ? 'Khai thay giờ vào' : 'Khai thay giờ ra' }}
-        </button>
-      </template>
+      <button v-else type="button" class="btn pri" :disabled="busy" @click="act('remind')">Nhắc giải trình</button>
     </div>
   </section>
 </template>

@@ -1,3 +1,4 @@
+import { DEFAULT_SHIFT } from '../../../common/shift-catalog';
 import {
   ContractStatus,
   ContractTerm,
@@ -48,7 +49,12 @@ export class EmployeeContract {
   constructor(params: EmployeeContractParams = {}) {
     this.position = normalizePosition(params.position ?? { type: 'nv', level: 1 });
     this.shift = normalizeShift(
-      params.shift ?? { type: 'NORMAL', startTime: '08:00', endTime: '17:00', allowancePct: 0 }
+      params.shift ?? {
+        type: 'NORMAL',
+        startTime: DEFAULT_SHIFT.startTime,
+        endTime: DEFAULT_SHIFT.endTime,
+        allowancePct: 0
+      }
     );
     this.leave = normalizeLeave(params.leave ?? { totalDays: 0, usedDays: 0 });
 

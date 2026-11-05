@@ -1,5 +1,6 @@
 // Người dùng và số chuông của khung Admin. `decide` là đường duy nhất xử lý một việc chờ xử lý:
-// bỏ việc khỏi nguồn chung, tăng `version` (các màn đọc danh sách tải lại theo nó) rồi tải lại số chuông.
+// duyệt / từ chối bỏ việc khỏi nguồn chung, nhắc giải trình giữ việc lại; sau đó tăng `version` (các màn đọc danh
+// sách tải lại theo nó) rồi tải lại số chuông.
 // `seen`: id các tin trên chuông đã đọc trong phiên này (chọn tin, hoặc "Đánh dấu đã đọc"); đóng mở chuông vẫn giữ.
 import { defineStore } from 'pinia';
 import type { InboxItem } from '@/mock/inbox';

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
@@ -53,6 +54,9 @@ import { HolidaysRepository, type Holiday } from '../holidays/holidays.repositor
 import { businessMonthText } from '../../common/business-date';
 import { SystemService } from '../system/system.service';
 import { PayrollService } from '../payroll/payroll.service';
+import { SettingsReader } from '../settings';
+import { AuditLog } from '../audit/audit-log';
+import { withPersonWeek } from './staff-week';
 import type { AdvanceQuote } from '../payroll/domain';
 
 /**
@@ -300,6 +304,9 @@ export class RequestsService {
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
     @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
     @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>,
+    // Bắt buộc khi chạy thật (Nest tiêm); test chạy không có giao dịch thì bỏ qua nhật ký.
+    @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>
   ) {}
 
   /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
@@ -383,7 +390,7 @@ export class RequestsService {
     if (!staff) {
       throw new Error(`Không tìm thấy nhân sự: ${employeeIdOrUsername}`);
     }
-    return staff;
+    return withPersonWeek(staff, month, this.settings);
   }
 
   /** `regular_dows` của loại nhân sự; chưa cấu hình thì không xét được ngày làm việc (§5.1). */
@@ -1151,6 +1158,7 @@ export class RequestsService {
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
       }
+      const was = req.status;
       const reviewerId = await stores.requests.resolveStaffUuid(reviewer);
       if (!reviewerId) {
         throw new Error(`Không tìm thấy người duyệt: ${reviewer}`);
@@ -1188,17 +1196,23 @@ export class RequestsService {
       }
 
       await stores.requests.save(req);
+      await this.logRequest(trx, stores, req, 'request.decide', reviewer, was, note);
       return req.toJSON();
     });
   }
 
   /** Huỷ đơn còn chờ duyệt: cùng khoá và cùng giao dịch như duyệt (§4.3); các ngày đơn giữ được trả lại. */
-  async cancelRequest(id: string, employeeId: string, reason?: string): Promise<SystemRequestDTO> {
+  /**
+   * `actor`: người đăng nhập ở route Admin. Admin huỷ thay người nộp thì ghi `request.cancel`; nhân viên tự huỷ
+   * (route /me, hoặc Admin huỷ đơn của chính mình) thì không ghi (spec audit-log mục 6).
+   */
+  async cancelRequest(id: string, employeeId: string, reason?: string, actor?: string): Promise<SystemRequestDTO> {
     return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
       }
+      const was = req.status;
 
       // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
       let cancellerId = employeeId;
@@ -1212,7 +1226,35 @@ export class RequestsService {
       // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
+      if (actor && (await stores.requests.resolveStaffUuid(actor)) !== req.employeeId) {
+        await this.logRequest(trx, stores, req, 'request.cancel', actor, was, reason);
+      }
       return req.toJSON();
+    });
+  }
+
+  /** Một dòng nhật ký cho đơn vừa lưu, ghi cuối giao dịch. Người thao tác và người nộp ghi theo tên đăng nhập. */
+  private async logRequest(
+    trx: DatabaseTransaction | undefined,
+    stores: RequestStores,
+    req: SystemRequest,
+    action: 'request.decide' | 'request.cancel',
+    actor: string,
+    was: string,
+    reason: string | undefined
+  ): Promise<void> {
+    if (!trx || !this.audit) return;
+    await this.audit.append(trx, {
+      actor: (await stores.requests.resolveStaffUsername(actor)) ?? actor,
+      action,
+      entityKind: 'request',
+      entityId: req.id,
+      subject: await stores.requests.resolveStaffUsername(req.employeeId),
+      subjectUuid: req.employeeId,
+      before: { status: was },
+      after: { status: req.status },
+      reason: reason?.trim() || null,
+      requestId: randomUUID()
     });
   }
 

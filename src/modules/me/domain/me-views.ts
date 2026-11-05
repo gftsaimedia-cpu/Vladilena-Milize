@@ -40,11 +40,21 @@ function hhmm(v: string | null): string | null {
   return Number.isNaN(t) ? null : new Date(t + VN_OFFSET_MS).toISOString().slice(11, 16);
 }
 
-/** Một ngày công của chính mình. Thiếu giờ vào hoặc ra ở ngày đã qua là "todo" (cần giải trình). */
-export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today: string): DaySummary {
+/** Tuần làm mặc định khi chưa biết tuần của người đó: thứ Hai – thứ Bảy (Chủ nhật nghỉ). */
+export const DEFAULT_WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5, 6];
+
+/** Một ngày công của chính mình. Thiếu giờ vào hoặc ra ở ngày đã qua là "todo" (cần giải trình).
+ *  `weekdays` là các thứ (0 = Chủ nhật … 6 = thứ Bảy) trong tuần làm của người đó ở tháng của ngày này: ngày không có
+ *  bảng công mà thứ không thuộc tuần là "off", không phải "absent". */
+export function daySummaryOf(
+  ts: TimesheetLike | undefined,
+  date: string,
+  today: string,
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+): DaySummary {
   const empty = { date, in: null, out: null, lateMinutes: 0 };
   if (!ts) {
-    if (dow(date) === 0) return { ...empty, kind: 'off' };
+    if (!weekdays.includes(dow(date))) return { ...empty, kind: 'off' };
     return { ...empty, kind: date > today ? 'future' : 'absent' };
   }
   const leave = LEAVE_OF[ts.status];
@@ -59,16 +69,23 @@ export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today:
   return { date, kind, in: cin, out: cout, lateMinutes };
 }
 
-/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày thứ Hai – thứ Bảy của tháng).
+/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày của tháng có thứ thuộc `weekdays`; controller
+ *  thay bằng số chuẩn của cài đặt).
  *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
  *  công đã khoá (cờ chặn chấm công). */
-export function monthOf(timesheets: TimesheetLike[], month: string, today: string, periodStatus?: string | null) {
+export function monthOf(
+  timesheets: TimesheetLike[],
+  month: string,
+  today: string,
+  periodStatus?: string | null,
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+) {
   const [y, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const by = new Map(timesheets.map(t => [t.workDate, t]));
   const days = Array.from({ length: last }, (_, i) => {
     const date = `${month}-${String(i + 1).padStart(2, '0')}`;
-    return daySummaryOf(by.get(date), date, today);
+    return daySummaryOf(by.get(date), date, today, weekdays);
   });
   const inMonth = timesheets.filter(t => t.workDate.startsWith(month));
   return {
@@ -76,7 +93,7 @@ export function monthOf(timesheets: TimesheetLike[], month: string, today: strin
     periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
       workDays: days.filter(d => d.kind === 'work' || d.kind === 'late').length,
-      standardDays: days.filter(d => dow(d.date) !== 0).length,
+      standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
       paidLeaveDays: inMonth.filter(t => t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY').length
     },

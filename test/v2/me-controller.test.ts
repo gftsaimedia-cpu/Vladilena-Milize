@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import 'reflect-metadata';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
+import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
+import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
 const req = (user: any = NAM) => ({ user }) as any;
@@ -22,14 +24,27 @@ function fake(impl: Record<string, (...a: any[]) => any> = {}) {
   return { proxy, calls };
 }
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys' | 'expl', ReturnType<typeof fake>>> = {}) {
-  const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }) });
+const MON_SAT = [1, 2, 3, 4, 5, 6];
+const BINH = [1, 2, 3, 4, 5];
+const ZONE = { lat: 10.7769, lng: 106.7009, radiusM: 150 };
+// Cài đặt giả: tuần làm (mặc định T2–T7), vùng chấm công và ngày trả lương 10.
+const settingsFake = (over: Record<string, (...a: any[]) => any> = {}) =>
+  fake({
+    workWeekOf: () => ({ weekdays: MON_SAT, standardWorkdays: 26 }),
+    settingsFor: () => ({ payCalendar: { payDay: 10 } }),
+    zone: () => ZONE,
+    ...over
+  });
+
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys' | 'expl' | 'set', ReturnType<typeof fake>>> = {}) {
+  const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }), workdayOf: () => true });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
   const sys = over.sys ?? fake({ getPeriod: () => null });
   const expl = over.expl ?? fake({ reminders: () => [], dayView: () => ({ explanation: null, due: null }) });
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy, expl.proxy), att, reqs, pay, emp, sys, expl };
+  const set = over.set ?? settingsFake();
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, sys, expl, set };
 }
 
 describe('MeController', () => {
@@ -54,6 +69,22 @@ describe('MeController', () => {
     assert.equal(att.calls.recordPunch[0].employeeId, 'u-nam');
     assert.equal(att.calls.recordPunch[0].type, 'IN');
     assert.equal(att.calls.recordPunch[0].latitude, 1);
+    assert.deepEqual(att.calls.recordPunch[1], { checkZone: true });
+  });
+
+  it('a refused punch is a 400 with the refusal code and its details', async () => {
+    const att = fake({
+      recordPunch: () => {
+        throw new PunchRefusedError('OUTSIDE_ZONE', 'Bạn đang cách văn phòng 600 m', { distanceM: 600, radiusM: 150 });
+      }
+    });
+    const { ctl } = controller({ att });
+    await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2 }), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.equal(e.message, 'Bạn đang cách văn phòng 600 m');
+      assert.deepEqual(e.details, { code: 'OUTSIDE_ZONE', distanceM: 600, radiusM: 150 });
+      return true;
+    });
   });
 
   it("reading someone else's request is a 404", async () => {
@@ -74,6 +105,11 @@ describe('MeController', () => {
     const out = await ctl.previewRequest(req(), 'leave', { employeeId: 'mallory', leaveType: 'ANNUAL' } as any);
     assert.deepEqual(out, result);
     assert.deepEqual(reqs.calls.previewRequest, ['leave', { employeeId: 'nam', leaveType: 'ANNUAL' }, { filedBy: 'self' }]);
+  });
+
+  // BUG-requests-13: spec 2.2 và v2-contract ghi xem trước "luôn trả 200"; @Post của Nest mặc định 201.
+  it('preview answers 200, not the POST default 201', () => {
+    assert.equal(Reflect.getMetadata(HTTP_CODE_METADATA, MeController.prototype.previewRequest), 200);
   });
 
   it('preview of isat or unknown kind is 404', async () => {
@@ -224,6 +260,128 @@ describe('MeController', () => {
   it('without a start date only this month can be opened', async () => {
     const { ctl } = controller({ emp: fake({ findByUsernameOrUuid: () => namEmployee(null) }) });
     await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (err: any) => err.details?.code === 'MONTH_OUT_OF_RANGE');
+  });
+
+  it('today carries the zone and whether today is a workday', async () => {
+    const { ctl, att } = controller({ att: fake({ listTimesheets: () => [], workdayOf: () => false }) });
+    const t = (await ctl.today(req())) as any;
+    assert.deepEqual(t.zone, ZONE);
+    assert.equal(t.workday, false);
+    assert.deepEqual(att.calls.workdayOf, ['u-nam', t.date]);
+    const none = controller({ set: settingsFake({ zone: () => null }) });
+    const n = (await none.ctl.today(req())) as any;
+    assert.equal(n.zone, null);
+    assert.equal(n.workday, true);
+  });
+
+  it("today's week strip follows my week", async () => {
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') }); // thứ Tư 09/12/2026
+    try {
+      const { ctl, set } = controller({ set: settingsFake({ workWeekOf: () => ({ weekdays: BINH, standardWorkdays: 22 }) }) });
+      const t = (await ctl.today(req())) as any;
+      assert.equal(t.week[4].kind, 'future'); // thứ Sáu 11/12
+      assert.equal(t.week[5].kind, 'off'); // thứ Bảy 12/12 ngoài tuần của Bình
+      assert.equal(set.calls.workWeekOf[0], 'u-nam');
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it('a week that spans two months asks for each month once', async () => {
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2027-01-01T05:00:00Z') }); // thứ Sáu 01/01/2027
+    const seen: string[] = [];
+    try {
+      const set = settingsFake({
+        workWeekOf: (_u: string, month: string) => {
+          seen.push(month);
+          return { weekdays: month === '2026-12' ? BINH : MON_SAT, standardWorkdays: 22 };
+        }
+      });
+      const { ctl } = controller({ set });
+      const t = (await ctl.today(req())) as any;
+      assert.deepEqual(t.week.map((d: any) => d.date), ['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);
+      assert.equal(t.week[5].kind, 'future'); // thứ Bảy 02/01/2027: tháng 01 làm T2–T7
+      assert.deepEqual([...seen].sort(), ['2026-12', '2027-01']);
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
+  it('the month view uses my week: off days and standardDays from the settings', async () => {
+    // 13 khác số ngày T2–T6 của 10/2026 (22), nên chỉ lấy từ workWeekOf mới ra 13.
+    const { ctl, set } = controller({ set: settingsFake({ workWeekOf: () => ({ weekdays: BINH, standardWorkdays: 13 }) }) });
+    const m = (await ctl.attendanceMonth(req(), '2026-10')) as any;
+    assert.equal(m.totals.standardDays, 13);
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-10').kind, 'off'); // thứ Bảy
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-09').kind, 'absent'); // thứ Sáu
+    assert.deepEqual(set.calls.workWeekOf.slice(0, 2), ['u-nam', '2026-10']);
+  });
+
+  it("the single-day view uses the week of the date's month", async () => {
+    const { ctl, set } = controller({
+      att: fake({ getTimesheet: () => null }),
+      set: settingsFake({ workWeekOf: () => ({ weekdays: BINH, standardWorkdays: 22 }) })
+    });
+    assert.equal(((await ctl.attendanceDay(req(), '2026-10-10')) as any).kind, 'off');
+    assert.equal(((await ctl.attendanceDay(req(), '2026-10-09')) as any).kind, 'absent');
+    assert.equal(set.calls.workWeekOf[1], '2026-10');
+  });
+
+  it('a day before 2000-01 is a 400 INVALID_DATE and never reaches the settings', async () => {
+    const { ctl, set } = controller({ att: fake({ getTimesheet: () => null }) });
+    await assert.rejects(ctl.attendanceDay(req(), '1999-12-31'), (e: any) => e.status === 400 && e.details?.code === 'INVALID_DATE');
+    assert.equal(set.calls.workWeekOf, undefined);
+    assert.equal(((await ctl.attendanceDay(req(), '2000-01-01')) as any).date, '2000-01-01');
+  });
+
+  it('a type without a work week falls back to Monday to Saturday instead of a 500', async () => {
+    const missing = () => {
+      throw new TypeWeekMissingError('ql', '2026-12');
+    };
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') }); // thứ Tư 09/12/2026
+    try {
+      const today = controller({ set: settingsFake({ workWeekOf: missing }) });
+      const t = (await today.ctl.today(req())) as any;
+      assert.equal(t.week.length, 7);
+      assert.equal(t.week[5].kind, 'future'); // thứ Bảy 12/12 vẫn là ngày làm
+      assert.equal(t.week[6].kind, 'off'); // Chủ nhật 13/12
+    } finally {
+      mock.timers.reset();
+    }
+    const month = controller({ set: settingsFake({ workWeekOf: missing }) });
+    const m = (await month.ctl.attendanceMonth(req(), '2026-10')) as any;
+    assert.equal(m.totals.standardDays, 27); // T2–T7 của 10/2026, do chính bảng công tính
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-10').kind, 'absent'); // thứ Bảy
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-11').kind, 'off'); // Chủ nhật
+    const day = controller({ att: fake({ getTimesheet: () => null }), set: settingsFake({ workWeekOf: missing }) });
+    assert.equal(((await day.ctl.attendanceDay(req(), '2026-10-10')) as any).kind, 'absent');
+    assert.equal(((await day.ctl.attendanceDay(req(), '2026-10-11')) as any).kind, 'off');
+  });
+
+  it('any other work week failure still propagates', async () => {
+    const boom = new Error('db');
+    const bad = () => {
+      throw boom;
+    };
+    const { ctl } = controller({ att: fake({ listTimesheets: () => [], getTimesheet: () => null }), set: settingsFake({ workWeekOf: bad }) });
+    await assert.rejects(ctl.today(req()), (e: any) => e === boom);
+    await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (e: any) => e === boom);
+    await assert.rejects(ctl.attendanceDay(req(), '2026-10-10'), (e: any) => e === boom);
+  });
+
+  it('income carries the pay date of the month in all three states', async () => {
+    const full = { grossIncome: 0, insuranceDeduction: 0, insuranceBreakdown: { bhxh: 0, bhyt: 0, bhtn: 0 }, incomeAfterInsurance: 0, personalIncomeTax: 0, advanceDeduction: 0, netIncome: 0 };
+    const official = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }) });
+    assert.equal(((await official.ctl.income(req(), '2026-11')) as any).payDate, '2026-12-10');
+    assert.equal(official.set.calls.settingsFor[0], '2026-11');
+    const est = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => ({ toJSON: () => full }) }) });
+    const e = (await est.ctl.income(req(), '2026-11')) as any;
+    assert.deepEqual([e.state, e.payDate], ['estimate', '2026-12-10']);
+    const none = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => { throw new Error('x'); } }) });
+    const n = (await none.ctl.income(req(), '2026-11')) as any;
+    assert.deepEqual([n.state, n.payDate], ['unavailable', '2026-12-10']);
+    const oct = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }), set: settingsFake({ settingsFor: () => ({ payCalendar: { payDay: 5 } }) }) });
+    assert.equal(((await oct.ctl.income(req(), '2026-10')) as any).payDate, '2026-11-05');
   });
 
   it('there is no route for scoring my own KPI', () => {

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // Cài đặt › Phân quyền › Tài khoản: danh sách tài khoản (10 dòng một trang), đổi vai trò, đặt lại mật khẩu, khoá/mở khoá.
+// Dòng của chính mình không đổi được vai trò và không khoá được (tự bỏ quyền Admin thì không còn ai mở được Cài đặt để
+// đổi lại). "Tạo tài khoản" khoá cho tới khi FE có màn tạo tài khoản.
 import { ref, watch } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -96,7 +98,9 @@ async function toggleLock(acc?) {
             <th>Vai trò</th>
             <th>Trạng thái</th>
             <th style="text-align: right">
-              <button type="button" class="btn sm"><Icon name="plus" />Tạo tài khoản</button>
+              <button type="button" class="btn sm off" disabled title="Chưa có màn tạo tài khoản">
+                <Icon name="plus" />Tạo tài khoản
+              </button>
             </th>
           </tr>
         </thead>
@@ -120,6 +124,7 @@ async function toggleLock(acc?) {
                 :key="redraw"
                 :model-value="a.role"
                 :options="data.roles"
+                :disabled="a.me"
                 style="min-width: 120px"
                 :label="`Vai trò của ${a.name}`"
                 @update:model-value="changeRole(a, $event)"
