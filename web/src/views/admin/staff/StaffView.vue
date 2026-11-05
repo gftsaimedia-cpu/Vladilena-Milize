@@ -1,9 +1,14 @@
 <script setup lang="ts">
-// Màn Nhân sự (nhan-su) trên dữ liệu giả: bốn thẻ chỉ số và thẻ danh sách 10 hồ sơ đầu của 131.
+// Màn Nhân sự (nhan-su): bốn thẻ chỉ số, thẻ danh sách và nút Thêm nhân sự (hộp AddStaffDialog ở ?hop=them-nhan-su,
+// POST /employees).
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { toast } from '@/components/shell/toast';
+import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import { getStaffList } from '@/services/admin-hr';
+import { useHop } from '../settings/lib/useHop';
+import AddStaffDialog from './AddStaffDialog.vue';
 import StaffDrawer from './StaffDrawer.vue';
 import StaffStats from './parts/StaffStats.vue';
 import StaffTable from './parts/StaffTable.vue';
@@ -13,7 +18,15 @@ import { filterStaff, isFiltered } from './staffFilter';
 
 const route = useRoute();
 const router = useRouter();
-const { data } = useLoad(() => getStaffList());
+const { data, reload } = useLoad(() => getStaffList());
+
+// Hộp Thêm nhân sự ở ?hop=them-nhan-su; tạo xong thì đóng, báo và tải lại danh sách.
+const { hop, open: openHop, close: closeHop } = useHop(['them-nhan-su']);
+function added(who: { name: string; username: string }) {
+  closeHop();
+  toast.ok(`Đã thêm ${who.name} (${who.username})`);
+  reload();
+}
 
 const asText = (v: unknown) => (typeof v === 'string' ? v : '');
 const q = ref(asText(route.query.q));
@@ -73,6 +86,9 @@ const footer = computed(() =>
   <div class="staff">
     <div class="title">
       <h1>Nhân sự</h1>
+      <div class="acts">
+        <button type="button" class="btn pri" @click="openHop('them-nhan-su')"><Icon name="plus" />Thêm nhân sự</button>
+      </div>
     </div>
 
     <template v-if="data">
@@ -104,6 +120,7 @@ const footer = computed(() =>
       @prev="go(-1)"
       @next="go(1)"
     />
+    <AddStaffDialog v-if="hop === 'them-nhan-su'" @close="closeHop" @saved="added" />
   </div>
 </template>
 

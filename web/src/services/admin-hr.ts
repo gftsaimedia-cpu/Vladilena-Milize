@@ -1,8 +1,11 @@
-// Dịch vụ màn Nhân sự (chỉ đọc). Máy chủ thật: GET /api/v2/employees và /employees/:username; dữ liệu giả: mock/staff.
+// Dịch vụ màn Nhân sự. Máy chủ thật: GET /api/v2/employees và /employees/:username; thêm nhân sự POST /employees
+// (hộp Thêm nhân sự, mở từ Nhân sự và từ Phân quyền › Tài khoản). Dữ liệu giả: mock/staff, thêm chỉ trả lời "đã tạo".
+import type { TypeRow } from '@/builders/api/catalog';
 import { staffListFromEmployees, staffProfileFromEmployee } from '@/builders/api/staff';
 import { staffListView, staffProfile, type StaffListView, type StaffProfile } from '@/mock/staff';
 import { respond } from '@/mock/respond';
 import { useSessionStore } from '@/stores/session';
+import { catalogRows } from './admin-catalog';
 import { ApiError, api } from './http';
 
 // Hôm nay theo giờ Việt Nam (UTC+7) của đồng hồ máy chủ.
@@ -29,4 +32,21 @@ export async function getStaffProfile(id: string): Promise<StaffProfile | null> 
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
   }
+}
+
+/** Dữ liệu cho hộp Thêm nhân sự: danh mục chức vụ (mọi phiên bản), các tên đăng nhập đã có, hôm nay. */
+export async function getNewStaffOptions(): Promise<{ catalog: TypeRow[]; taken: string[]; today: string }> {
+  const [catalog, taken] = await Promise.all([
+    catalogRows(),
+    __MOCK__
+      ? respond(staffListView().rows.map(r => r.id))
+      : api.get('/employees').then(r => (r.employees || []).map(e => e.account.username))
+  ]);
+  return { catalog, taken, today: today() };
+}
+
+/** Thêm nhân sự (POST /api/v2/employees); thân dựng bằng builders/admin-hr/new-staff. Lỗi máy chủ ném nguyên văn. */
+export async function createEmployee(body: Record<string, unknown>): Promise<unknown> {
+  if (__MOCK__) return respond({ created: true });
+  return api.post('/employees', body);
 }

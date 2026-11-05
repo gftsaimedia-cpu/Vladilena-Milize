@@ -40,9 +40,9 @@ test('staff list follows board I without calling /api', async ({ page }) => {
 
   await expect(page.getByRole('heading', { level: 1, name: 'Nhân sự' })).toBeVisible();
   await expect(page.getByRole('tablist')).toHaveCount(0);
+  // "Thêm nhân sự" đã có lại (nối POST /api/v2/employees): tests/admin-staff-add.spec.ts.
   for (const name of [
     'Nhập từ Excel',
-    'Thêm nhân sự',
     'Bộ lọc',
     'Gán ca',
     'Đổi phòng ban',
