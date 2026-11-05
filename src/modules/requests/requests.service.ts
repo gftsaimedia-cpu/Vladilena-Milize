@@ -183,7 +183,7 @@ export interface CreateIsatInput {
 }
 
 /**
- * Các repository một thao tác dùng. Trong khoá, cả ba chạy trên giao dịch của khoá: thao tác thành một khối
+ * Các repository một thao tác dùng. Trong khoá, cả bốn chạy trên giao dịch của khoá: thao tác thành một khối
  * (lỗi ở đâu thì mọi thứ đã ghi đều huỷ) và chỉ giữ một kết nối của pool.
  */
 interface RequestStores {
@@ -419,28 +419,15 @@ export class RequestsService {
     this.requireTypeConfig(staff);
 
     return this.underEmployeeLock(staff.employeeId, async stores => {
-      const { days, active } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
+      const { days } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
       const changed = days.workingDaysBetween(startDate, endDate);
       if (changed.length === 0) {
         throw new Error('Khoảng đổi ca không có ngày làm việc');
       }
-      // Ngày nghỉ và Thứ Bảy có iSAT đã duyệt bị bỏ khỏi đơn (kèm cảnh báo); từ đây chỉ xét các ngày đơn thật sự đổi.
+      // Ngày nghỉ và Thứ Bảy có iSAT đã duyệt bị bỏ khỏi đơn (kèm cảnh báo); ngày đang là dòng đổi ca của đơn khác bị
+      // chặn ("đã có đơn đổi ca khác"). Từ đây chỉ xét các ngày đơn thật sự đổi.
       const plan = planClaims({ kind: 'SHIFT_CHANGE', dates: changed, days });
       const taken = plan.take.map(t => t.date);
-      // Hai đơn đổi ca trùng nhau khi có chung một ngày được đổi (ngày làm việc trong khoảng của cả hai).
-      for (const date of taken) {
-        const clash = active.some(
-          r =>
-            r.type === 'SHIFT_CHANGE' &&
-            isActive(r) &&
-            r.changeStartDate !== null &&
-            r.changeStartDate <= date &&
-            date <= (r.changeEndDate ?? r.changeStartDate)
-        );
-        if (clash) {
-          throw new Error(`Ngày ${formatDayMonth(date)} đã có đơn đổi ca khác`);
-        }
-      }
 
       // Ca mới phải hợp với mọi khung OT/bù đã có của ngày được đổi và của hôm sau (ca đêm kéo sang sáng hôm sau).
       const next = days.withShiftOverride(taken, frame);
@@ -724,6 +711,10 @@ export class RequestsService {
     });
 
     const saturday = req.isat!.saturday;
+    // Luật người dùng chốt 2026-11-05: iSAT đăng ký trước, nên Thứ Bảy đã qua và chính hôm nay đều bị từ chối.
+    if (saturday <= vietnamToday(this.now())) {
+      throw new Error('Chỉ đăng ký iSAT cho Thứ Bảy sắp tới');
+    }
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
 
     return this.underEmployeeLock(staff.employeeId, async stores => {
@@ -785,6 +776,7 @@ export class RequestsService {
         // Kiểm lại trước khi đổi trạng thái hay ghi gì; đơn không còn chờ duyệt thì để `approve` báo lỗi trạng thái.
         if (req.status === 'PENDING') {
           await this.recheck(req, stores);
+          await this.dropHolidayDays(req, stores);
         }
         req.approve(reviewerId, note);
 
@@ -800,6 +792,7 @@ export class RequestsService {
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
+        // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã từ chối.
         await this.releaseDays(req, stores);
       } else {
         throw new Error(`Invalid review action '${action}'; must be 'APPROVE' or 'REJECT'`);
@@ -827,6 +820,7 @@ export class RequestsService {
       await this.lockEmployee(trx, req.employeeId);
 
       req.cancel(cancellerId, reason);
+      // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
       return req.toJSON();
@@ -874,14 +868,58 @@ export class RequestsService {
     if (!CLAIMING_TYPES.has(req.type)) return;
     const daysRepo = this.dayRepo(stores);
     const [held, replaced] = await Promise.all([daysRepo.listByRequest(req.id), daysRepo.listByBase(req.id)]);
+    await this.giveBack(req.id, held, replaced, stores);
+  }
 
+  /**
+   * Ngày lễ thắng đơn nghỉ (luật người dùng chốt 2026-11-05): ngày đơn nghỉ đang giữ mà đã thành ngày lễ trước lúc duyệt
+   * rời khỏi đơn và được trả như khi từ chối; đơn còn giữ bao nhiêu ngày thì đếm bấy nhiêu. Không duyệt được (Admin chỉ
+   * còn từ chối) khi đơn nghỉ có làm bù có ngày như vậy (giờ bù đã xếp theo số ngày cũ, phải nộp lại) hoặc khi mọi ngày
+   * của đơn đều đã thành ngày lễ.
+   */
+  private async dropHolidayDays(req: SystemRequest, stores: RequestStores): Promise<void> {
+    if (req.type !== 'LEAVE' && req.type !== 'LEAVE_WITH_MAKEUP') return;
+    const held = await this.dayRepo(stores).listByRequest(req.id);
+    if (held.length === 0) return;
+    const holidaysRepo = stores.holidays;
+    if (!holidaysRepo) {
+      throw new Error('Thiếu lịch lễ công ty');
+    }
+    const dates = held.map(day => day.date).sort();
+    const holidays = new Set((await holidaysRepo.listBetween(dates[0], dates[dates.length - 1])).map(h => h.date));
+    const dropped = held.filter(day => holidays.has(day.date)).sort((a, b) => a.date.localeCompare(b.date));
+    if (dropped.length === 0) return;
+
+    const refuse = (message: string) =>
+      new DayConflictError(message, { date: dropped[0].date, requestId: null, requestType: null, requestStatus: null }).forReview();
+    if (req.type === 'LEAVE_WITH_MAKEUP') {
+      throw refuse(`Ngày ${formatDayMonth(dropped[0].date)} đã thành ngày lễ, đơn nghỉ có làm bù cần nộp lại.`);
+    }
+    if (dropped.length === held.length) {
+      throw refuse('Các ngày nghỉ của đơn đều đã thành ngày lễ.');
+    }
+    await this.giveBack(req.id, dropped, [], stores);
+    req.keepLeaveDays(held.length - dropped.length);
+  }
+
+  /**
+   * Trả các ngày `held` của đơn `requestId` (quy tắc như `releaseDays`) và bỏ liên kết của các ngày `replaced` mà đơn
+   * khác đã thay của đơn này.
+   */
+  private async giveBack(
+    requestId: string,
+    held: readonly DayClaim[],
+    replaced: readonly DayClaim[],
+    stores: RequestStores
+  ): Promise<void> {
+    const daysRepo = this.dayRepo(stores);
     const handedBack = held.filter(
       day => day.baseRequestId !== null && (day.baseRequestStatus === 'PENDING' || day.baseRequestStatus === 'APPROVED')
     );
     const freed = held.filter(day => !handedBack.includes(day));
 
     for (const [employeeId, dates] of groupDates(freed)) {
-      await daysRepo.remove(employeeId, dates);
+      await daysRepo.remove(employeeId, dates, requestId);
     }
     // Hai nhóm không chung ngày: dòng của đơn này và dòng của đơn khác không cùng (nhân sự, ngày) (khoá chính).
     await daysRepo.upsert([

@@ -1,7 +1,8 @@
 // Dịch vụ phiếu lương (ngăn kéo, sửa số trên phiếu, hộp bản in, trang in A4): đọc và ghi qua api(); riêng bỏ qua cảnh báo AI vẫn dữ liệu giả.
 import { buildDrawer } from '@/builders/payslip/drawer';
-import { buildSheet } from '@/builders/payslip/sheet';
-import { api } from './http';
+import { payslipSheet, type A4Sheet } from '@/mock/payslip-a4';
+import { respond } from '@/mock/respond';
+import { ApiError, api } from './http';
 
 const enc = encodeURIComponent;
 const slipRev = new Map<any, any>();
@@ -45,11 +46,15 @@ export function saveSlipOverride(month, username, { values, reason = '', expecte
   return api('PUT', '/slip-override', body);
 }
 
-/** Bản in A4 (2 trang) của một người: đầu phiếu, chấm công từng ngày, bảng tổng hợp. */
-// GET /api/periods/:month/payslips/:username (hoặc /estimates/:username), dựng bản in từ phiếu
-export async function getPayslipSheet(month?, username?) {
-  const { data, drawer } = await loadSlip(month, username);
-  return buildSheet(drawer, data);
+/** Bản in A4 (2 trang) của một người, trên dữ liệu giả: mọi username trong tháng mẫu thấy cùng một phiếu, tháng khác từ chối như api(). */
+export async function getPayslipSheet(month = '', username = ''): Promise<A4Sheet> {
+  const sheet = payslipSheet(month);
+  if (!sheet) {
+    throw new ApiError(501, `Màn này chưa có dữ liệu giả (GET /periods/${month}/payslips/${username}).`, {
+      code: 'mock_missing'
+    });
+  }
+  return respond(sheet);
 }
 
 // Các phiếu đã phê duyệt của kỳ: GET /api/periods/:month/payslips?status=approved (tối đa 200 phiếu mỗi trang)

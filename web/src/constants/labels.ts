@@ -30,3 +30,6 @@ export const INBOX_GROUPS: { key: InboxGroup; label: string }[] = [
   { key: 'exp', label: 'Giải trình' },
   { key: 'adv', label: 'Tạm ứng' }
 ];
+
+// Nhóm cuối của chuông: tin hệ thống, đứng sau các nhóm việc chờ duyệt.
+export const SYSTEM_GROUP_LABEL = 'Hệ thống';

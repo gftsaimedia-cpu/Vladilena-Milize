@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
-import { LEAVE_TYPES, SystemRequest } from '../../src/modules/requests/domain';
+import { DayConflictError, LEAVE_TYPES, SystemRequest } from '../../src/modules/requests/domain';
 import {
   NV_UUID,
   TTS_UUID,
@@ -148,19 +148,50 @@ describe('Đơn nghỉ (§6.1)', () => {
     assert.equal(ctx.att.schedules.has(`${NV_UUID}:2026-11-23`), false);
   });
 
-  // Ruling (Task 6): spec day_status §4.2 ghi lịch theo các ngày đơn giữ trong day_status "thay cho việc tính lại
-  // workingDaysBetween"; §6: sửa lịch lễ sau khi nộp không đổi bảng (câu hỏi luật còn mở). Ngày thành ngày lễ sau khi
-  // nộp vẫn được ghi ON_LEAVE lúc duyệt (I4).
-  it('approval writes the days the leave holds, even one made a holiday after filing', async () => {
+  // Luật người dùng chốt 2026-11-05: ngày lễ thắng đơn nghỉ. Ngày đơn giữ mà thành ngày lễ trước lúc duyệt rời khỏi đơn
+  // (như lúc nộp đã bỏ ngày lễ), đơn giảm số ngày và ngày đó không ghi ON_LEAVE.
+  it('approval drops a held day made a holiday after filing and counts one day less', async () => {
     const dto = await leave({ leaveType: 'WELFARE', startDate: '2026-09-01', endDate: '2026-09-03' });
     ctx.holidays.dates = [{ date: '2026-09-02', name: 'Quốc khánh' }];
     const reviewed = await ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE');
-    assert.equal(reviewed.leaveDaysCount, 3); // giữ như lúc nộp (§8)
-    assert.deepEqual([...ctx.att.schedules.keys()].sort(), [
-      `${NV_UUID}:2026-09-01`,
-      `${NV_UUID}:2026-09-02`,
-      `${NV_UUID}:2026-09-03`
-    ]);
+    assert.equal(reviewed.status, 'APPROVED');
+    assert.equal(reviewed.leaveDaysCount, 2);
+    assert.deepEqual([...ctx.att.schedules.keys()].sort(), [`${NV_UUID}:2026-09-01`, `${NV_UUID}:2026-09-03`]);
+    assert.deepEqual([...ctx.days.rows.keys()].sort(), [`${NV_UUID}:2026-09-01`, `${NV_UUID}:2026-09-03`]);
+  });
+
+  it('a leave whose held days all became holidays cannot be approved', async () => {
+    const dto = await leave({ startDate: '2026-11-18', endDate: '2026-11-18' });
+    ctx.holidays.dates = [{ date: '2026-11-18', name: 'Lễ' }];
+    await assert.rejects(
+      ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE'),
+      (err: unknown) =>
+        err instanceof DayConflictError &&
+        err.message === 'Các ngày nghỉ của đơn đều đã thành ngày lễ. Chỉ có thể từ chối đơn này.'
+    );
+    assert.equal((await ctx.service.getById(dto.id))?.status, 'PENDING');
+    assert.equal(ctx.att.schedules.size, 0);
+    assert.deepEqual([...ctx.days.rows.keys()], [`${NV_UUID}:2026-11-18`]);
+  });
+
+  it('a leave with makeup that has a held day made a holiday cannot be approved', async () => {
+    const dto = await ctx.service.createLeaveWithMakeupRequest({
+      employeeId: 'nv01',
+      title: 'Nghỉ bù',
+      reason: 'Việc nhà',
+      startDate: '2026-11-17',
+      endDate: '2026-11-18',
+      slots: ['2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26'].map(date => ({ date, startTime: '18:00', endTime: '22:00' }))
+    } as any);
+    ctx.holidays.dates = [{ date: '2026-11-18', name: 'Lễ' }];
+    await assert.rejects(
+      ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE'),
+      (err: unknown) =>
+        err instanceof DayConflictError &&
+        err.message === 'Ngày 18/11 đã thành ngày lễ, đơn nghỉ có làm bù cần nộp lại. Chỉ có thể từ chối đơn này.'
+    );
+    assert.equal((await ctx.service.getById(dto.id))?.status, 'PENDING');
+    assert.equal(ctx.att.schedules.size, 0);
   });
 
   it('filed under the employee lock and stored under the uuid', async () => {

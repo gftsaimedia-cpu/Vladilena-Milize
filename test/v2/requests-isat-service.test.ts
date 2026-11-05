@@ -129,9 +129,14 @@ class FakeAttendanceRepository extends AttendanceRepository {
   }
 }
 
-/** Service với lịch lễ và `day_status` trong bộ nhớ; `day_status` đọc trạng thái đơn từ `requests` của fake đơn. */
+/**
+ * Service với lịch lễ và `day_status` trong bộ nhớ; `day_status` đọc trạng thái đơn từ `requests` của fake đơn. Đồng hồ
+ * ghim ở T4 04/11/2026 (giờ VN) để Thứ Bảy 07/11 của các test luôn là Thứ Bảy sắp tới.
+ */
 function newService(reqRepo: FakeRequestsRepository, attRepo?: AttendanceRepository): RequestsService {
-  return new RequestsService(reqRepo, attRepo, undefined, new FakeHolidaysRepository(), new FakeDayStatusRepository(reqRepo));
+  const service = new RequestsService(reqRepo, attRepo, undefined, new FakeHolidaysRepository(), new FakeDayStatusRepository(reqRepo));
+  service.now = () => new Date('2026-11-04T10:00:00Z');
+  return service;
 }
 
 describe('Đơn iSAT - service', () => {
@@ -158,6 +163,19 @@ describe('Đơn iSAT - service', () => {
     assert.equal(dto.isat!.levelName, 'Chuyên viên');
     assert.equal(reqRepo.profileMonths.at(-1), businessMonthText());
     assert.equal(reqRepo.requests.get(dto.id)!.employeeId, 'emp-uuid-1');
+  });
+
+  // Luật người dùng chốt 2026-11-05: iSAT chỉ đăng ký cho Thứ Bảy sắp tới; Thứ Bảy đã qua và chính hôm nay đều bị từ chối.
+  it('registers iSAT only for an upcoming Saturday', async () => {
+    service.now = () => new Date('2026-11-07T02:00:00Z'); // T7 07/11/2026, 09:00 giờ VN
+    const file = (saturday: string) =>
+      service.createIsatRequest({ employeeId: 'nguyen-van-a', saturday, team: 'T', conditions: allPassed });
+
+    await assert.rejects(file('2026-10-31'), /^Error: Chỉ đăng ký iSAT cho Thứ Bảy sắp tới$/);
+    await assert.rejects(file('2026-11-07'), /^Error: Chỉ đăng ký iSAT cho Thứ Bảy sắp tới$/);
+    assert.equal(reqRepo.requests.size, 0);
+
+    assert.equal((await file('2026-11-14')).status, 'PENDING');
   });
 
   it('saves a self-assessment below 4/4 as REJECTED', async () => {

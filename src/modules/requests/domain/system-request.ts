@@ -475,6 +475,16 @@ export class SystemRequest {
     });
   }
 
+  /** Đơn nghỉ còn giữ `days` ngày (ngày lễ thắng đơn nghỉ: ngày thành lễ trước lúc duyệt rời khỏi đơn). */
+  keepLeaveDays(days: number): SystemRequest {
+    if (this.type !== 'LEAVE' && this.type !== 'LEAVE_WITH_MAKEUP') {
+      throw new Error(`Đơn ${this.type} không có số ngày nghỉ`);
+    }
+    this.leaveDaysCount = days;
+    this.updatedAt = new Date();
+    return this;
+  }
+
   approve(reviewerId: string, note?: string): SystemRequest {
     if (this.status !== 'PENDING') {
       throw new Error(`Cannot approve request with status '${this.status}'; must be 'PENDING'`);
