@@ -59,7 +59,7 @@ function shift() {
     home: {
       greeting: 'Chào buổi sáng', name: 'Lê Hoàng Nam', initials: 'HN', weekday: 'Thứ Năm', date: '05/11/2026',
       shiftLabel: 'Ca HC · 08:00–17:00', shiftStart: '08:00', shiftEnd: '17:00', now: '09:40', checkIn: '07:59', checkOut: null,
-      workedMin: 101, shiftMin: 540, worked: '1g 41p', location: q.get('location'),
+      workedMin: 101, shiftMin: 540, worked: '1g 41p', location: q.get('location'), zone: null, workday: true,
       week: { range: '', cells: [] }, alert: null, income: { label: '', net: '' }, requests: []
     }
   });

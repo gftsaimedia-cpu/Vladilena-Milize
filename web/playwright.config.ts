@@ -12,7 +12,10 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: `http://127.0.0.1:${port}`,
-    headless: true
+    headless: true,
+    // Mặc định đứng ở văn phòng GFT (vùng chấm công giả) để nút chấm công không bị khoá.
+    geolocation: { latitude: 10.7769, longitude: 106.7009 },
+    permissions: ['geolocation']
   },
   webServer: {
     command: `npm run dev:mock -- --host 127.0.0.1 --port ${port} --strictPort`,

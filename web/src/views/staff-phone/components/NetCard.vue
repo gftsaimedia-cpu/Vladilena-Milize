@@ -1,7 +1,9 @@
 <script setup lang="ts">
-// Thẻ đen thực nhận dự kiến (J6 mục 8.1, K1 cột 3): số tiền, trạng thái duyệt phiếu, tổng thu nhập và khấu trừ.
+// Thẻ đen thực nhận dự kiến (J6 mục 8.1, K1 cột 3): số tiền, ngày trả lương, trạng thái duyệt phiếu, tổng thu nhập và khấu trừ.
+// Dùng ở IncomeView (điện thoại) và IncomeColumn (máy tính), nên dòng "trả ngày" nằm ở đây.
 //   <NetCard :income="data" />
 import type { IncomeView } from '@/mock/staff-phone';
+import { dm } from '@/utils/format';
 
 defineProps<{ income: IncomeView }>();
 </script>
@@ -10,6 +12,7 @@ defineProps<{ income: IncomeView }>();
   <section class="hero on-dark" aria-label="Thực nhận tháng 10">
     <span class="dim">Thực nhận dự kiến</span>
     <div class="amt">{{ income.net }} <span>₫</span></div>
+    <span v-if="income.payDate" class="dim sm">trả ngày {{ dm(income.payDate) }}</span>
     <span class="st live"><i class="dot pend" />{{ income.review }}</span>
     <div class="duo">
       <div>
