@@ -14,7 +14,9 @@ export interface DailyAttendanceLineProps {
   dayOfWeekText: string; // e.g. "Thứ 5, 01/10"
   shiftCode: string; // 'NORMAL' | 'FLEX' | 'NIGHT' | 'LEAVE' | 'ISAT' | 'UNPAID' | ...
   shiftLabel: string; // 'Normal', 'Flex +20%', 'Night +40%', 'Nghỉ phép', 'iSAT', 'Không lương'
-  inOutText: string; // "08:00–17:00", "08:15–17:00", "Hưởng lương ngày", "Không tính lương"
+  inOutText: string; // real times "08:12–17:05", "08:12–—" when a side is missing, "Hưởng lương ngày", "Không tính lương"
+  checkIn?: string | null; // 'HH:MM' Vietnam time, null on LEAVE/ISAT/UNPAID lines
+  checkOut?: string | null;
   workHours: number; // e.g. 8, 7.75, 7.67, 0
   daySalary: number; // Base salary / standardWorkdays
   flexAllowancePay: number; // e.g. 46.154

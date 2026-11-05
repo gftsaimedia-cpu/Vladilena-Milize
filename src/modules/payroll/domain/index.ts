@@ -4,3 +4,4 @@ export * from './kpi-pay';
 export * from './insurance';
 export * from './contract-term';
 export * from './personal-income-tax';
+export * from './presence';

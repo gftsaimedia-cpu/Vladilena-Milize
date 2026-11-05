@@ -60,6 +60,8 @@ export interface EmployeeMonthlyRawData {
     type: string;
     status: string;
     explanationDate?: string | null;
+    actualCheckIn?: string | null; // explained check-in 'HH:MM'
+    actualCheckOut?: string | null;
     leaveStartDate?: string | null;
     leaveEndDate?: string | null;
     leaveType?: string | null;
@@ -97,6 +99,12 @@ function dateText(value: string | Date): string {
 
 function dateTextOrNull(value: string | Date | null | undefined): string | null {
   return value === null || value === undefined ? null : dateText(value);
+}
+
+// The explained times are TEXT columns ('08:00' or '08:00:00'); keep 'HH:MM', null when empty.
+function clockTextOrNull(value: unknown): string | null {
+  const text = typeof value === 'string' ? value.trim().slice(0, 5) : '';
+  return text === '' ? null : text;
 }
 
 const numberOrNull = (value: unknown): number | null => (value === null || value === undefined ? null : Number(value));
@@ -189,6 +197,8 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       type: r.type,
       status: r.status,
       explanationDate: dateTextOrNull(r.explanation_date),
+      actualCheckIn: clockTextOrNull(r.actual_check_in),
+      actualCheckOut: clockTextOrNull(r.actual_check_out),
       leaveStartDate: dateTextOrNull(r.leave_start_date),
       leaveEndDate: dateTextOrNull(r.leave_end_date),
       leaveType: r.leave_type,

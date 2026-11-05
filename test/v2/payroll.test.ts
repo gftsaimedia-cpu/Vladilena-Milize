@@ -1085,3 +1085,88 @@ describe('Payroll V2 - approved iSAT Saturdays', () => {
     );
   });
 });
+
+describe('Payroll V2 - day lines show real check-in and check-out times', () => {
+  const day = (workDate: string, shiftType: string, extra: object = {}) => ({
+    ...nvMonthData().timesheets[0],
+    workDate,
+    shiftType,
+    ...extra
+  });
+  const explanation = (date: string, extra: object = {}) => ({
+    id: `exp-${date}`,
+    type: 'EXPLANATION',
+    status: 'APPROVED',
+    explanationDate: date,
+    ...extra
+  });
+  const generate = async (overrides: Partial<EmployeeMonthlyRawData>) => {
+    const repo = new FakePayrollRepository();
+    repo.data.set('u1:2026-10', { ...nvMonthData(), requests: [], ...overrides });
+    return new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+  };
+  const lineOf = (slip: EmployeePayslip, date: string) => slip.dailyLines.find(l => l.date === date)!;
+
+  it('prints the punched times of a NORMAL day and null times on a LEAVE day', async () => {
+    const slip = await generate({
+      timesheets: [
+        day('2026-10-07', 'NORMAL', {
+          actualCheckIn: '2026-10-07T01:12:00.000Z',
+          actualCheckOut: '2026-10-07T10:05:00.000Z'
+        }),
+        day('2026-10-08', 'LEAVE', { actualCheckIn: '2026-10-08T01:00:00.000Z' })
+      ]
+    });
+    const normal = lineOf(slip, '2026-10-07');
+    assert.deepEqual([normal.checkIn, normal.checkOut, normal.inOutText], ['08:12', '17:05', '08:12–17:05']);
+    const leave = lineOf(slip, '2026-10-08');
+    assert.deepEqual([leave.checkIn, leave.checkOut, leave.inOutText], [null, null, 'Hưởng lương ngày']);
+  });
+
+  it('prints the real times of a NIGHT day crossing midnight', async () => {
+    const slip = await generate({
+      timesheets: [
+        day('2026-10-05', 'NIGHT', {
+          shiftStartTime: '22:00',
+          shiftEndTime: '06:00',
+          actualCheckIn: '2026-10-05T15:03:00.000Z',
+          actualCheckOut: '2026-10-05T23:58:00.000Z'
+        })
+      ]
+    });
+    assert.equal(lineOf(slip, '2026-10-05').inOutText, '22:03–06:58');
+  });
+
+  it('fills a missing check-out from the approved explanation of that day', async () => {
+    const slip = await generate({
+      timesheets: [day('2026-10-07', 'FLEX', { actualCheckIn: '2026-10-07T01:12:00.000Z', actualCheckOut: null })],
+      requests: [explanation('2026-10-07', { actualCheckOut: '19:20' })]
+    });
+    const line = lineOf(slip, '2026-10-07');
+    assert.deepEqual([line.checkIn, line.checkOut, line.inOutText], ['08:12', '19:20', '08:12–19:20']);
+  });
+
+  it('ignores an explanation that is not approved', async () => {
+    const slip = await generate({
+      timesheets: [day('2026-10-07', 'NORMAL', { actualCheckIn: '2026-10-07T01:12:00.000Z' })],
+      requests: [explanation('2026-10-07', { status: 'PENDING', actualCheckOut: '19:20' })]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').inOutText, '08:12–—');
+  });
+
+  it('prints dashes for a day without punches and keeps the iSAT, LEAVE and UNPAID texts', async () => {
+    const slip = await generate({
+      timesheets: [day('2026-10-06', 'NORMAL'), day('2026-10-08', 'UNPAID'), day('2026-10-09', 'LEAVE')],
+      isatDates: ['2026-10-10']
+    });
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.inOutText, l.checkIn ?? null, l.checkOut ?? null]),
+      [
+        ['2026-10-06', '—–—', null, null],
+        ['2026-10-08', 'Không tính lương', null, null],
+        ['2026-10-09', 'Hưởng lương ngày', null, null],
+        ['2026-10-10', 'Hưởng lương ngày', null, null]
+      ]
+    );
+  });
+});

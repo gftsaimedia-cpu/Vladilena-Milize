@@ -5,6 +5,8 @@ import { KpiValidationError } from './payroll.errors';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
+  inOutText as presenceText,
+  presenceOf,
   EmployeePayslipSummaryDTO,
   EmployeePayslipDTO,
   PayrollWarning,
@@ -188,6 +190,17 @@ export class PayrollService {
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
 
+    // Times of the approved explanations, by the day they explain; they fill the punch a day is missing.
+    const explainedByDate = new Map<string, { checkIn: string | null; checkOut: string | null }>();
+    for (const req of requests) {
+      if (req.type === 'EXPLANATION' && req.status === 'APPROVED' && req.explanationDate) {
+        explainedByDate.set(req.explanationDate, {
+          checkIn: req.actualCheckIn ?? null,
+          checkOut: req.actualCheckOut ?? null
+        });
+      }
+    }
+
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
 
@@ -196,7 +209,9 @@ export class PayrollService {
 
       const shiftCode = ts.shiftType.toUpperCase();
       let shiftLabel = 'Normal';
-      let inOutText = '08:00–17:00';
+      let inOutText = '';
+      let checkIn: string | null = null;
+      let checkOut: string | null = null;
       let flexAllowancePay = 0;
       let nightAllowancePay = 0;
       let offPaidPay = 0;
@@ -214,7 +229,6 @@ export class PayrollService {
         offPaidPay = makeupWorkDates.has(ts.workDate)
           ? 0
           : allowancePolicy.nightBreakPay(hourRate, ts.workHours, timeDeduction);
-        inOutText = '22:00–06:00';
         daySalary = Math.round(dayRate);
       } else if (shiftCode === 'LEAVE') {
         shiftLabel = 'Nghỉ phép';
@@ -233,6 +247,13 @@ export class PayrollService {
         daySalary = Math.round(dayRate);
       }
 
+      if (shiftCode !== 'LEAVE' && shiftCode !== 'ISAT' && shiftCode !== 'UNPAID') {
+        const presence = presenceOf(ts.workDate, ts.actualCheckIn, ts.actualCheckOut, explainedByDate.get(ts.workDate));
+        checkIn = presence.checkIn;
+        checkOut = presence.checkOut;
+        inOutText = presenceText(presence);
+      }
+
       const lateMins = ts.lateMinutes || 0;
       const earlyMins = ts.earlyMinutes || 0;
       const deductionHours = (lateMins + earlyMins) / 60;
@@ -247,6 +268,8 @@ export class PayrollService {
         shiftCode,
         shiftLabel,
         inOutText,
+        checkIn,
+        checkOut,
         workHours: ts.workHours,
         daySalary,
         flexAllowancePay,
@@ -267,6 +290,8 @@ export class PayrollService {
         shiftCode: 'ISAT',
         shiftLabel: 'iSAT',
         inOutText: 'Hưởng lương ngày',
+        checkIn: null,
+        checkOut: null,
         workHours: 0,
         daySalary: Math.round(dayRate),
         flexAllowancePay: 0,

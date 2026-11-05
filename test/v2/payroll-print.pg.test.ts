@@ -83,6 +83,22 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       );
     }
 
+    // Giờ thật: ngày 07/10 chỉ có giờ vào 08:12 (giờ Việt Nam), giờ ra thiếu được lấp bằng đơn giải trình đã duyệt 19:20.
+    await client.query(
+      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
+         shift_allowance_pct, work_hours, actual_check_in, actual_check_out, status, day_status, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, '2026-10-07', 'NORMAL', '08:00', '17:00', 0, 8, '2026-10-07 08:12:00+07', NULL,
+         'PRESENT', 'VALID', now(), now())`,
+      [UUID]
+    );
+    await client.query(
+      `INSERT INTO system_requests (id, employee_id, title, type, reason, status, explanation_date, actual_check_in,
+         actual_check_out, created_at, updated_at)
+       VALUES ('00000000-0000-4000-8000-000000000005', $1, 'Giải trình', 'EXPLANATION', 'Quên chấm ra', 'APPROVED',
+         '2026-10-07', NULL, '19:20', now(), now())`,
+      [UUID]
+    );
+
     db = createKysely(createPgPool(tempUrl.toString()));
     const repo = new PayrollRepository(db);
     const service = new PayrollService(repo);
@@ -102,6 +118,14 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       assert.equal(details?.employeeType, 'nv');
       assert.equal(details?.employmentStatus, 'probation');
       assert.equal(details?.remainingAnnualLeaveDays, 10);
+    });
+
+    await t.test('Dòng ngày hiện giờ vào thật và giờ ra lấp từ đơn giải trình đã duyệt', async () => {
+      const line = slip.dailyLines.find(l => l.date === '2026-10-07');
+      assert.equal(line?.checkIn, '08:12');
+      assert.equal(line?.checkOut, '19:20');
+      assert.equal(line?.inOutText, '08:12–19:20');
+      assert.equal(slip.dailyLines.find(l => l.date === '2026-10-01')?.inOutText, '—–—');
     });
 
     await t.test('Từ chối lưu trạng thái rejected cùng lý do, người và lúc quyết định', async () => {

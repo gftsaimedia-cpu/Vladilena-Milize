@@ -378,6 +378,22 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.equal(timesheets[0].scheduleType, undefined);
   });
 
+  it('cuts the explained times of a request to HH:MM and keeps empty ones as null', () => {
+    const { requests } = mapMonthRows(
+      '2026-10',
+      rows({
+        requests: [
+          { type: 'EXPLANATION', actual_check_in: '08:00:00', actual_check_out: '19:20' },
+          { type: 'EXPLANATION', actual_check_in: '', actual_check_out: null },
+          { type: 'OVERTIME' }
+        ]
+      })
+    );
+    assert.deepEqual([requests[0].actualCheckIn, requests[0].actualCheckOut], ['08:00', '19:20']);
+    assert.deepEqual([requests[1].actualCheckIn, requests[1].actualCheckOut], [null, null]);
+    assert.deepEqual([requests[2].actualCheckIn, requests[2].actualCheckOut], [null, null]);
+  });
+
   it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
     assert.deepEqual(
       mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates,
