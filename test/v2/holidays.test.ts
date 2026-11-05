@@ -9,6 +9,7 @@ import {
   HolidaysService,
   type Holiday
 } from '../../src/modules/holidays';
+import { AuditEntryError } from '../../src/modules/audit';
 import { createScriptedKysely, type ScriptedQuery } from './helpers/scripted-kysely';
 
 /** Lịch lễ trong bộ nhớ, cùng hợp đồng với HolidaysRepository. */
@@ -199,6 +200,16 @@ describe('HolidaysController', () => {
     await assert.rejects(ctrl.quickAdd({ year: 'abc' }, ADMIN), (e: any) =>
       e instanceof BadRequestError && e.details?.code === 'BAD_REQUEST' && e.message === 'Năm không hợp lệ: abc');
     await assert.rejects(ctrl.list('1999'), (e: any) => e instanceof BadRequestError && e.message === 'Năm không hợp lệ: 1999');
+  });
+
+  it('an audit entry error stays a server error (500), not a 400', async () => {
+    const boom = async () => {
+      throw new AuditEntryError('Nhật ký holiday.add: entityId dài quá 200 ký tự');
+    };
+    const ctrl = new HolidaysController({ add: boom, quickAdd: boom, remove: boom } as any);
+    await assert.rejects(ctrl.create({ date: '2026-09-02', name: 'x' }, ADMIN), AuditEntryError);
+    await assert.rejects(ctrl.quickAdd({ year: 2026 }, ADMIN), AuditEntryError);
+    await assert.rejects(ctrl.remove('2026-09-02', ADMIN), AuditEntryError);
   });
 
   it('a missing request body is a 400, not a crash', async () => {
