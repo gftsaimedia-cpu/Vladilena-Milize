@@ -244,6 +244,19 @@ export function weekdaysText(days: number[]): string {
   return parts.join(', ');
 }
 
+/**
+ * Tuần làm việc của một người, hoặc null khi loại nhân sự của người đó không có tuần làm (BE §5.3: 404 WORK_WEEK_NOT_FOUND,
+ * vd. tài khoản quản trị đầu tiên, loại ql). Lỗi khác ném lại nguyên văn.
+ */
+export async function orNoWorkWeek<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request;
+  } catch (e) {
+    if ((e as { code?: unknown } | null)?.code === 'WORK_WEEK_NOT_FOUND') return null;
+    throw e;
+  }
+}
+
 /** Công chuẩn theo số ngày làm trong tuần (D5): làm tròn n × 52 / 12. */
 export const standardWorkdays = (n: number): number => Math.round((n * 52) / 12);
 

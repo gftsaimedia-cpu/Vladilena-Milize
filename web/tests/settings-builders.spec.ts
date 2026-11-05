@@ -5,6 +5,7 @@ import {
   groupErrors,
   historyFields,
   historyRow,
+  orNoWorkWeek,
   payDatesIn,
   payDayHint,
   standardWorkdays,
@@ -15,6 +16,7 @@ import {
   type Bracket,
 } from '../src/builders/api/settings';
 import { payDaysOf, resetSettingsMock, settingsAt, workWeekOf } from '../src/mock/settings';
+import { ApiError } from '../src/services/http';
 
 // Chạy phía Node, không mở trang.
 test.beforeEach(() => resetSettingsMock());
@@ -59,6 +61,17 @@ test('pay dates of a calendar year and the pay-day hint', () => {
 test('history row', () => {
   expect(historyRow({ id: 3, field: 'bhxhPct', month: '2026-11', from: 8, to: 8.5, by: 'admin', at: '2026-10-28T02:40:00.000Z', reason: null }))
     .toEqual({ id: 3, field: 'bhxhPct', label: 'BHXH', month: 'Tháng 11/2026', change: '8% → 8,5%', reason: '—', by: 'admin', at: '28/10/2026 09:40' });
+});
+
+// BE §5.3: người có loại nhân sự không có tuần làm (vd. loại ql) → GET /settings/work-weeks/:username trả 404 WORK_WEEK_NOT_FOUND.
+// Dữ liệu giả không có người như vậy, nên chỉ kiểm phép đổi 404 đó thành "không có tuần làm việc" (null).
+test('a WORK_WEEK_NOT_FOUND 404 reads as no work week; other errors still throw', async () => {
+  const week = workWeekOf('x', '2026-10');
+  await expect(orNoWorkWeek(Promise.resolve(week))).resolves.toEqual(week);
+  await expect(orNoWorkWeek(Promise.reject(new ApiError(404, 'Không có tuần làm việc', { code: 'WORK_WEEK_NOT_FOUND' })))).resolves.toBeNull();
+  await expect(orNoWorkWeek(Promise.reject(new ApiError(404, 'Không có nhân sự này', { code: 'STAFF_NOT_FOUND' }))))
+    .rejects.toMatchObject({ status: 404, code: 'STAFF_NOT_FOUND' });
+  await expect(orNoWorkWeek(Promise.reject(new ApiError(500, 'Lỗi máy chủ')))).rejects.toMatchObject({ status: 500 });
 });
 
 // Trọng số KPI: một lần lưu là một dòng `weights` mang cả năm trọng số (BE §5.1).

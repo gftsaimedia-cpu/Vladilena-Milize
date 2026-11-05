@@ -22,6 +22,7 @@ const { data } = useLoad(() => getStaffProfile(props.id), () => props.id);
 const profile = computed(() => (data.value && data.value.id === props.id ? data.value : null));
 
 // Tuần làm việc: tuần đang hiệu lực ở tháng đầu và lịch sử để biết có tuần đổi từ tháng sau.
+// week null: loại nhân sự của người này không có tuần làm (404 WORK_WEEK_NOT_FOUND), cả dòng Tuần làm việc ẩn đi.
 const { data: weekRaw, reload: reloadWeek } = useLoad(async () => {
   const id = props.id;
   const [week, history] = await Promise.all([getWorkWeek(id), getWorkWeekHistory(id)]);
@@ -30,7 +31,7 @@ const { data: weekRaw, reload: reloadWeek } = useLoad(async () => {
 const weekData = computed(() => (weekRaw.value && weekRaw.value.id === props.id ? weekRaw.value : null));
 const weekLine = computed(() => {
   const d = weekData.value;
-  if (!d) return '';
+  if (!d || !d.week) return '';
   // Dòng lịch sử mới nhất (danh sách đã xếp mới trước) đổi tuần từ một tháng sau tháng đang xem.
   const next = d.history.find(h => h.field === 'weekdays' && h.month && h.month > d.week.month);
   return workWeekLine(d.week, next ? { month: next.month as string, weekdays: next.to } : null);
@@ -139,7 +140,7 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
   </Teleport>
 
   <WorkWeekDialog
-    v-if="editingWeek && profile && weekData"
+    v-if="editingWeek && profile && weekData?.week"
     :id="props.id"
     :name="profile.name"
     :week="weekData.week"

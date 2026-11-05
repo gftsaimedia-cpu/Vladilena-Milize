@@ -15,17 +15,18 @@ import {
   workWeeksAt,
   zoneOf
 } from '@/mock/settings';
-import type {
-  GroupPath,
-  HistoryItem,
-  PayDayItem,
-  SaveBody,
-  SaveResult,
-  SettingsResponse,
-  ShiftRow,
-  WorkWeek,
-  WorkWeekBody,
-  Zone
+import {
+  orNoWorkWeek,
+  type GroupPath,
+  type HistoryItem,
+  type PayDayItem,
+  type SaveBody,
+  type SaveResult,
+  type SettingsResponse,
+  type ShiftRow,
+  type WorkWeek,
+  type WorkWeekBody,
+  type Zone
 } from '@/builders/api/settings';
 
 export const STALE_TEXT = 'Có người vừa lưu trước, đã tải lại';
@@ -54,12 +55,16 @@ export async function getPayDays(year: number): Promise<{ year: number; items: P
   return api('GET', `/settings/pay-days${qs({ year })}`);
 }
 
-export async function getWorkWeek(username: string, month?: string): Promise<WorkWeek> {
-  if (__MOCK__) return mocked(() => workWeekOf(username, month));
-  return api('GET', `/settings/work-weeks/${encodeURIComponent(username)}${qs({ month })}`);
+/** Tuần làm việc của một người ở tháng month; null khi loại nhân sự của người đó không có tuần làm (404 WORK_WEEK_NOT_FOUND). */
+export async function getWorkWeek(username: string, month?: string): Promise<WorkWeek | null> {
+  if (__MOCK__) return orNoWorkWeek(mocked(() => workWeekOf(username, month)));
+  return orNoWorkWeek(api('GET', `/settings/work-weeks/${encodeURIComponent(username)}${qs({ month })}`));
 }
 
-/** Tuần riêng của mọi người ở tháng month (người chưa có tuần riêng không có mặt, coi như T2–T7). */
+/**
+ * Tuần làm việc của mọi người ở tháng month (BE §5.3): tuần riêng nếu có, không thì tuần của loại nhân sự; người có loại
+ * không có tuần làm thì không có mặt. Dữ liệu giả không có danh sách nhân sự nên chỉ trả người có tuần riêng; người vắng mặt coi như T2–T7.
+ */
 export async function getWorkWeeks(month: string): Promise<{ month: string; weekdays: Record<string, number[]> }> {
   if (__MOCK__) return mocked(() => workWeeksAt(month));
   return api('GET', `/settings/work-weeks${qs({ month })}`);
