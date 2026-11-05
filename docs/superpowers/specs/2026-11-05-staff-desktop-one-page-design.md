@@ -89,7 +89,7 @@
 
 - Dữ liệu là của spec ĐT mục 1–2: Lê Hoàng Nam, tháng 10/2026, đồng hồ giả 09:40 thứ Tư 28/10/2026. Không có dữ liệu giả mới cho máy tính.
 - `services/staff-phone.ts` là nguồn duy nhất của cả hai giao diện. Hai thay đổi:
-  1. `getAttendance(month, recent = 5)`. `attendanceView(recent)` trả `recent` dòng "Gần đây" mới nhất. Máy tính gọi với 7 (D6). Điện thoại không đổi.
+  1. `getAttendance(recent = 5)` (hàm hiện không nhận tháng). `attendanceView(recent)` trả `recent` dòng "Gần đây" mới nhất. Máy tính gọi với 7 (D6). Điện thoại không đổi.
   2. `RequestStep` có thêm `note: { label: string; text: string } | null` (D9).
      - `gio-vao-0909`, bước "Admin đã từ chối": `{ label: 'Lý do từ chối', text: '“Máy chấm công vẫn ghi nhận ngày 09/09, giờ vào 08:47.”' }`.
      - Mọi bước khác `null`.
@@ -291,6 +291,7 @@ Ba thân hộp tách khỏi hộp trượt của điện thoại, nằm trong `v
 
 - Ba hộp trượt cũ chỉ còn `BottomSheet` + thân. Markup, chữ và tên truy cập trên điện thoại không đổi, nên test điện thoại hiện có phải xanh nguyên văn.
 - Máy tính import thẳng từ `views/staff-phone/components/` các file `PhIcon`, `RequestRow`, `MonthSwitch` và ba thân trên. Không chép sang chỗ khác.
+- Các thẻ mà cột máy tính hiện "như J…" (thẻ ca, Tuần này, lọc yêu cầu, ô số, lịch, Gần đây, thực nhận, KPI, các khoản) cũng tách thành component trong cùng thư mục, để hai giao diện dùng một nguồn. Danh sách ở plan.
 
 ### 8.2 CSS
 
