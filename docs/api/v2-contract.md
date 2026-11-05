@@ -51,8 +51,11 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | **Đơn từ & Giải trình** | `POST /api/leave-requests` | `POST /api/v2/requests/leave` | POST | Nộp đơn nghỉ phép |
 | | `POST /api/ot-requests` | `POST /api/v2/requests/overtime` | POST | Nộp đơn làm thêm giờ |
 | | `POST /api/advance-requests` | `POST /api/v2/requests/advance` | POST | Nộp đơn tạm ứng lương |
-| | `POST /api/corrections` | `POST /api/v2/requests/correction` | POST | Nộp đơn bổ sung giờ chấm công |
 | | `POST /api/explanations` | `POST /api/v2/requests/explanation` | POST | **Nộp đơn giải trình công (mới)** |
+| | — (mới) | `POST /api/v2/requests/leave-with-makeup` | POST | **Nộp đơn nghỉ có làm bù** |
+| | — (mới) | `POST /api/v2/requests/shift-change` | POST | **Nộp đơn đổi ca** |
+| | — (mới) | `GET /api/v2/requests/leave-types` | GET | **Danh sách loại nghỉ** |
+| | — (mới) | `GET /api/v2/requests/explanation-cases` | GET | **Danh sách trường hợp giải trình** |
 | | `GET /api/requests` | `GET /api/v2/requests` | GET | Danh sách đơn từ / giải trình |
 | | `PATCH /api/requests/:id/review`| `PATCH /api/v2/requests/:id/review` | PATCH | Duyệt / Từ chối đơn & giải trình |
 | **Đơn iSAT** | — (mới) | `POST /api/v2/requests/isat` | POST | **Nộp đơn iSAT (nghỉ Thứ Bảy có lương, chỉ nhóm Nhân viên)** |
@@ -333,7 +336,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `employeeId` (bắt buộc ở route admin): uuid hoặc username. Đơn luôn lưu theo **uuid** của nhân sự.
   - `leaveType`: một trong 6 mã của `GET /api/v2/requests/leave-types`. Mã cũ `PAID`/`UNPAID` bị từ chối. Trường hợp cụ thể (kết hôn, tang, ốm đau, thai sản…) ghi ở `reason`.
   - `startDate`, `endDate`: `YYYY-MM-DD`, `startDate ≤ endDate`. Không giới hạn số ngày mỗi đơn, không kiểm thời hạn báo trước.
-  - `daysCount` client gửi **bị bỏ qua**. Server đếm `leaveDaysCount` = số **ngày làm việc** trong khoảng: thứ nằm trong `regular_dows` của loại nhân sự (nv/ctv T2–T7, tts T2–T6, không bao giờ tính CN), trừ ngày lễ công ty (§3.7). Ví dụ: nv nghỉ T6 13/11 → T2 16/11 được đếm 3 ngày (13, 14, 16); tts cùng khoảng được 2 ngày (13, 16).
+  - Số ngày client gửi (nếu có) **bị bỏ qua**. Server đếm `leaveDaysCount` = số **ngày làm việc** trong khoảng: thứ nằm trong `regular_dows` của loại nhân sự (nv/ctv T2–T7, tts T2–T6, không bao giờ tính CN), trừ ngày lễ công ty (§3.7). Ví dụ: nv nghỉ T6 13/11 → T2 16/11 được đếm 3 ngày (13, 14, 16); tts cùng khoảng được 2 ngày (13, 16).
 - **Response 201**:
   ```json
   {
@@ -398,7 +401,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
   - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
-  - `startDate`, `endDate`: như đơn nghỉ. Server đếm `leaveDaysCount` = số ngày làm việc trong khoảng (cùng cách đếm với đơn nghỉ); `daysCount`/`leaveType` client gửi bị bỏ qua.
+  - `startDate`, `endDate`: như đơn nghỉ. Server đếm `leaveDaysCount` = số ngày làm việc trong khoảng (cùng cách đếm với đơn nghỉ); số ngày và `leaveType` client gửi bị bỏ qua.
   - `slots`: danh sách khung bù `{ date, startTime, endTime }` (`YYYY-MM-DD`, `HH:mm`). Giờ bù của mỗi khung = giờ thực làm như khung OT (cứ 4 giờ nghỉ 1 giờ). Tổng giờ bù phải **đúng bằng** 8 × `leaveDaysCount`.
   - Mọi khung theo luật khung của đơn OT (06–22, cách ca ít nhất 1 giờ, không chồng khung OT/bù khác, ca + OT + bù ≤ 12 giờ/ngày), xét cả các khung khác trong cùng đơn. Khung bù được xếp vào CN hoặc ngày không có ca.
 - **Response 201**: `makeupSlots` sắp theo ngày rồi theo giờ bắt đầu; `owedMinutes` = 480 × `leaveDaysCount`.
@@ -499,7 +502,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```
   - `employeeId`: uuid hoặc username; đơn lưu theo uuid. `targetDate` vẫn được nhận thay cho `otDate`.
   - `startTime`, `endTime` (`HH:mm`) **bắt buộc**; không còn mặc định bắt đầu lúc 18:00.
-  - `hours`/`otHours` client gửi **bị bỏ qua**; `otRateMultiplier` không còn. Server tính `otHours` = giờ thực làm của khung: cứ làm 4 giờ thì nghỉ 1 giờ (`240 × ⌊L/300⌋ + min(240, L mod 300)` phút, L = độ dài khung). Ví dụ 18–22 → 4; CN 08–20 → 10; CN 06–20 → 12.
+  - `hours`/`otHours` client gửi **bị bỏ qua**; đơn không còn hệ số OT. Server tính `otHours` = giờ thực làm của khung: cứ làm 4 giờ thì nghỉ 1 giờ (`240 × ⌊L/300⌋ + min(240, L mod 300)` phút, L = độ dài khung). Ví dụ 18–22 → 4; CN 08–20 → 10; CN 06–20 → 12.
 - **Luật khung** (ca của ngày xét theo thứ tự: ngày lễ → không ca; đơn đổi ca đang chờ/đã duyệt; lịch `work_schedules`; ngày làm việc → ca mặc định trên hồ sơ; còn lại → không ca):
   - khung nằm trong 06:00–22:00;
   - cách ca của hôm trước, hôm đó và hôm sau ít nhất 1 giờ, không chạm ca (ca đêm 22–07 hôm trước kéo đến 07:00 sáng nay, nên khung sáng nay phải từ 08:00). Ví dụ ca 08–17 chỉ đăng ký được 06–07 và 18–22;
@@ -604,8 +607,24 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 
-#### `GET /api/v2/requests` & `GET /api/v2/requests/:id` (khối `isat`)
-- Mọi đơn trả về có trường `isat`: `null` với loại đơn khác `ISAT`. `GET /api/v2/requests?type=ISAT` lọc riêng đơn iSAT (cùng các bộ lọc `employeeId`, `status`, `limit`, `offset` như mọi loại đơn).
+#### `GET /api/v2/requests` & `GET /api/v2/requests/:id` (Đọc đơn)
+- `GET /api/v2/requests` nhận các bộ lọc `employeeId` (uuid hoặc username), `type`, `status`, `limit`, `offset`; trả `{ items: [<đơn>], total }`. `GET /api/v2/requests/:id` trả `{ request: <đơn> }`, không có thì `404 REQUEST_NOT_FOUND`.
+- Mỗi đơn có các trường chung (`id`, `employeeId` = uuid, `title`, `type`, `reason`, `status`, `reviewedBy`, `reviewedAt`, `reviewNote`, `createdAt`, `updatedAt`) và các trường theo loại:
+
+  | `type` | Trường riêng |
+  |---|---|
+  | `LEAVE` | `leaveType`, `leaveStartDate`, `leaveEndDate`, `leaveDaysCount` |
+  | `LEAVE_WITH_MAKEUP` | `leaveStartDate`, `leaveEndDate`, `leaveDaysCount` (`leaveType` = `null`); `owedMinutes` = 480 × `leaveDaysCount`; `makeupSlots: [{ date, startTime, endTime, workMinutes }]` sắp theo ngày rồi theo giờ bắt đầu |
+  | `OVERTIME` | `otDate`, `otStartTime`, `otEndTime`, `otHours` |
+  | `SHIFT_CHANGE` | `changeStartDate`, `changeEndDate`, `newShiftType`, `newStartTime`, `newEndTime` |
+  | `EXPLANATION` | `explanationDate`, `explanationCases: [mã]` theo thứ tự của `GET /requests/explanation-cases`, `actualCheckIn`, `actualCheckOut` |
+  | `ISAT` | khối `isat` (bên dưới) |
+  | `ADVANCE` | `advanceAmount`, `advancePeriod` |
+- Trường không thuộc loại đơn là `null`; riêng `makeupSlots` và `explanationCases` là `[]`, `isat` là `null`. Các trường giờ bù đơn lẻ cũ (`makeupStartTime`, `makeupEndTime`) và các trường của đơn sửa giờ chấm công cũ không còn trong đơn.
+- Danh sách đọc mỗi bảng con (`makeup_slots`, `explanation_cases`) bằng một truy vấn cho cả trang kết quả.
+
+##### Khối `isat`
+- `GET /api/v2/requests?type=ISAT` lọc riêng đơn iSAT (cùng các bộ lọc như mọi loại đơn).
 - **Khối `isat`** của đơn iSAT (admin đọc lại đủ mọi trường đã nộp):
   ```json
   "isat": {
@@ -633,19 +652,28 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Request Body**:
   ```json
   {
-    "status": "APPROVED",
-    "reviewNote": "Đã xác nhận đầy đủ lý do hợp lệ"
+    "action": "APPROVE",
+    "note": "Đã xác nhận đầy đủ lý do hợp lệ"
   }
   ```
-- **Response 200**: Trả về trạng thái đơn đã cập nhật. Hệ thống tự động cập nhật lịch công (`work_schedules`) hoặc trạng thái ngày công (`timesheet_entries`) tương ứng.
+  - `action`: `APPROVE` hoặc `REJECT`; `note` không bắt buộc. Người duyệt lấy từ phiên đăng nhập.
+- **Response 200**: `{ "updated": true, "request": <đơn> }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
+- Chỉ đơn `PENDING` duyệt được. Lúc duyệt **không kiểm lại luật**: luật đã kiểm lúc nộp, khi đó đã tính cả các đơn đang chờ. Hai lần duyệt cùng một đơn được xếp hàng (khoá `request_<id>`).
+- Tác dụng của `APPROVE` theo loại (lịch được tạo theo ca mặc định trước nếu ngày đó chưa có; "ngày làm việc" tính lại lúc duyệt theo lịch lễ lúc đó, CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi):
 
-##### Duyệt đơn nghỉ và đơn nghỉ có làm bù
-- `APPROVE`: mỗi **ngày làm việc** trong khoảng `leaveStartDate`–`leaveEndDate` được ghi lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). Ngày làm việc tính lại lúc duyệt theo lịch lễ lúc đó; CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi. `leaveDaysCount` giữ như lúc nộp. Với đơn nghỉ có làm bù, chỉ ngày nghỉ được ghi; khung bù không ghi vào lịch.
-- `REJECT`: không đổi lịch.
-
-##### Duyệt đơn đổi ca
-- `APPROVE`: mỗi **ngày làm việc** trong khoảng `changeStartDate`–`changeEndDate` (tính lại lúc duyệt theo lịch lễ lúc đó) được ghi lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). CN và ngày lễ không được ghi.
-- `REJECT`: không đổi lịch.
+  | Loại | Duyệt ghi gì |
+  |---|---|
+  | Nghỉ | Mỗi ngày làm việc trong `leaveStartDate`–`leaveEndDate`: lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn. `leaveDaysCount` giữ như lúc nộp. |
+  | Nghỉ có làm bù | Các ngày nghỉ ghi như đơn nghỉ. Khung bù **không** ghi vào lịch. |
+  | OT | Không ghi lịch. |
+  | Đổi ca | Mỗi ngày làm việc trong `changeStartDate`–`changeEndDate`: lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn. |
+  | Giải trình | Trạng thái ngày công `explanationDate` thành `VALID`. |
+  | iSAT | Xem "Duyệt đơn iSAT" bên dưới. |
+- `REJECT` và huỷ (`PATCH /api/v2/requests/:id/cancel`) không đổi lịch.
+- **Hai tác dụng phụ** còn tồn tại cho tới khi phần chấm công và phần lương được viết lại:
+  - Chấm công không còn thấy giờ OT đã duyệt (`approved_ot_hours` luôn là 0), nên ra muộn sau ca vẫn bị gắn cờ.
+  - Phần lương không còn ngày `MAKE_UP` trong lịch, nên ngày có khung bù vẫn được phụ cấp ca.
+- Lương OT không đổi: phần lương vẫn đọc `otHours` của đơn OT đã duyệt.
 
 ##### Duyệt đơn iSAT
 - Chỉ đơn `PENDING` duyệt được, như mọi loại đơn. Tác dụng:
