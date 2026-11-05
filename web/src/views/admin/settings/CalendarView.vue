@@ -1,13 +1,21 @@
 <script setup lang="ts">
-// Cài đặt › Lịch, ca & chấm công: lịch năm (ngày lễ, ngày trả lương) và 6 ca cố định chỉ xem.
+// Cài đặt › Lịch, ca & chấm công: lịch năm (ngày lễ, ngày trả lương), 6 ca cố định chỉ xem, ngày trả lương và vùng chấm công.
 // ?hop=them-ngay-le mở hộp thêm ngày lễ.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { payDatesIn, payDayHint } from '@/builders/api/settings';
+import { payDatesIn, payDayHint, zoneErrors, zoneLines } from '@/builders/api/settings';
 import { useLoad } from '@/composables/useLoad';
 import { getCalendar, quickAddHolidays, removeHoliday } from '@/services/admin-settings';
-import { getPayDays, getSettings, getShifts } from '@/services/settings-store';
+import {
+  getAttendanceZone,
+  getPayDays,
+  getSettings,
+  getShifts,
+  isStale,
+  saveAttendanceZone,
+  STALE_TEXT
+} from '@/services/settings-store';
 import { usePeriodStore } from '@/stores/period';
 import { dm } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
@@ -60,6 +68,79 @@ async function confirmPay() {
     reloadSettings();
   }
 }
+
+// Thẻ "Vùng chấm công": lưu là áp dụng ngay, không theo tháng, không có ô lý do. Không dùng useSettingsDraft vì vùng không có tháng.
+const { data: zoneData, reload: reloadZone } = useLoad(() => getAttendanceZone());
+const zLat = ref<number | null>(null);
+const zLng = ref<number | null>(null);
+const zRadius = ref<number | null>(null);
+const zoneReady = computed(() => !!zoneData.value);
+// Mỗi lần đọc xong (lần đầu, sau khi lưu, sau khi tải lại vì 409) thì nháp theo vùng vừa đọc.
+watch(
+  zoneData,
+  v => {
+    const z = v && v.zone;
+    zLat.value = z ? z.lat : null;
+    zLng.value = z ? z.lng : null;
+    zRadius.value = z ? z.radiusM : null;
+  },
+  { immediate: true }
+);
+const zErrors = computed(() => zoneErrors({ lat: zLat.value, lng: zLng.value, radiusM: zRadius.value }));
+const zoneSaved = computed(() => (zoneData.value ? zoneData.value.zone : null));
+const zChanged = computed(() => {
+  const s = zoneSaved.value;
+  if (!s) return true; // chưa có vùng nào: điền đủ là có gì đó để lưu
+  return s.lat !== zLat.value || s.lng !== zLng.value || s.radiusM !== zRadius.value;
+});
+const zConfirming = ref(false);
+const zSaving = ref(false);
+const zCanSave = computed(() => zoneReady.value && zChanged.value && !Object.keys(zErrors.value).length && !zSaving.value);
+const zFoot = computed(() => {
+  const first = Object.values(zErrors.value)[0];
+  if (first) return first;
+  return zChanged.value ? 'Có thay đổi chưa lưu' : 'Chưa có thay đổi';
+});
+const zLines = computed(() =>
+  zConfirming.value ? zoneLines(zoneSaved.value, { lat: zLat.value, lng: zLng.value, radiusM: zRadius.value }) : []
+);
+async function confirmZone() {
+  const stamp = zoneData.value.stamp;
+  zSaving.value = true;
+  try {
+    await saveAttendanceZone({ lat: zLat.value, lng: zLng.value, radiusM: zRadius.value, reason: null, stamp });
+    toast.ok('Đã lưu');
+    zConfirming.value = false;
+    await reloadZone();
+  } catch (e) {
+    zConfirming.value = false;
+    if (isStale(e)) {
+      toast.error(STALE_TEXT);
+      await reloadZone();
+    } else toast.error(e.message);
+  } finally {
+    zSaving.value = false;
+  }
+}
+
+const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
+function useHere() {
+  if (!navigator.geolocation) {
+    toast.error('Không lấy được vị trí');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      zLat.value = round6(p.coords.latitude);
+      zLng.value = round6(p.coords.longitude);
+    },
+    () => toast.error('Không lấy được vị trí')
+  );
+}
+
+// Hình minh hoạ: bán kính vòng tròn vẽ theo bán kính thật (mét), giữ trong 10–72 px.
+const PX_PER_METER = 40 / 150;
+const circleR = computed(() => Math.min(72, Math.max(10, (zRadius.value || 0) * PX_PER_METER)));
 
 const pickedDay = ref(''); // ngày bấm trên lịch → điền sẵn vào hộp Thêm ngày lễ
 const openHoliday = (iso = '') => {
@@ -207,7 +288,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
         </table>
       </section>
 
-      <!-- Thẻ "Ngày trả lương" và chỗ của thẻ "Vùng chấm công" (Task 5). -->
+      <!-- Thẻ "Ngày trả lương". -->
       <div class="slots">
         <section class="card pd">
           <div class="card-h">
@@ -248,9 +329,58 @@ const nextDay = (s?) => s.endTime < s.startTime;
             </button>
           </div>
         </section>
-        <section class="slot-zone"></section>
       </div>
     </div>
+
+    <section v-if="zoneReady" class="card zn">
+      <div class="card-h">
+        <div>
+          <h2>Vùng chấm công</h2>
+          <p class="zn-sub">Nhân viên chấm công được khi ở trong vùng này</p>
+        </div>
+      </div>
+      <div class="zn-body">
+        <div class="map">
+          <svg width="100%" height="150" viewBox="0 0 316 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect width="316" height="150" fill="#f1efe9" />
+            <g stroke="#ffffff" stroke-width="9"><path d="M0 40H316M0 104H316M58 0V150M150 0V150M244 0V150" /></g>
+            <g stroke="#ffffff" stroke-width="4"><path d="M0 72H316M104 0V150M198 0V150" /></g>
+            <circle cx="176" cy="80" :r="circleR" fill="#b5803f" fill-opacity=".14" stroke="#b5803f" stroke-width="1.5" />
+            <circle cx="176" cy="80" r="8" fill="#212121" />
+            <circle cx="176" cy="80" r="3" fill="#fff" />
+            <circle :cx="176 + circleR" cy="80" r="5" fill="#fff" stroke="#b5803f" stroke-width="2" />
+          </svg>
+        </div>
+        <div class="zn-fields">
+          <div class="zn-fld">
+            <label>Bán kính</label>
+            <FieldNum v-model="zRadius" label="Bán kính vùng chấm công" integer :max="5000" unit="m" />
+            <small class="zn-hint" :class="{ bad: zErrors.radiusM }">Từ 20 đến 5.000 m</small>
+          </div>
+          <div class="zn-fld">
+            <label>Vĩ độ</label>
+            <FieldNum v-model="zLat" label="Vĩ độ" :decimals="6" :max="90" />
+          </div>
+          <div class="zn-fld">
+            <label>Kinh độ</label>
+            <FieldNum v-model="zLng" label="Kinh độ" :decimals="6" :max="180" />
+          </div>
+          <button type="button" class="btn sm zn-here" @click="useHere"><Icon name="pin" />Dùng vị trí hiện tại</button>
+        </div>
+      </div>
+      <div class="foot">
+        <span :class="{ bad: Object.keys(zErrors).length }">{{ zFoot }} · lưu là áp dụng ngay, không theo tháng</span>
+        <button
+          type="button"
+          class="btn sm r"
+          :class="zCanSave ? 'pri' : 'off'"
+          :disabled="!zCanSave"
+          @click="zConfirming = true"
+        >
+          Lưu
+        </button>
+      </div>
+    </section>
   </SettingsFrame>
 
   <SaveConfirmDialog
@@ -260,6 +390,15 @@ const nextDay = (s?) => s.endTime < s.startTime;
     :saving="pay.saving.value"
     @confirm="confirmPay"
     @close="confirming = false"
+  />
+
+  <SaveConfirmDialog
+    v-if="zConfirming"
+    :lines="zLines"
+    reason=""
+    :saving="zSaving"
+    @confirm="confirmZone"
+    @close="zConfirming = false"
   />
 
   <HolidayDialog
@@ -443,5 +582,51 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .pd :deep(.inp) {
   border-radius: 8px;
+}
+.zn-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.zn-body {
+  display: grid;
+  grid-template-columns: 316px 1fr;
+  gap: 24px;
+  padding: 0 24px 16px;
+  align-items: start;
+}
+.map {
+  height: 150px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.zn-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  align-items: flex-start;
+}
+.zn-fld label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.zn-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.zn-hint.bad,
+.zn .foot .bad {
+  color: var(--status-rejected);
+}
+.zn-here {
+  align-self: flex-end;
+}
+.zn .foot .btn {
+  margin-left: auto;
 }
 </style>

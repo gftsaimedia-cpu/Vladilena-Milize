@@ -74,3 +74,35 @@ test('switching the month makes untouched fields follow that month', async ({ pa
   await fromMonth(page).selectOption({ label: 'Tháng 11/2026' });
   await expect(payField(page)).toHaveValue('10');
 });
+
+// Thẻ "Vùng chấm công": lưu là áp dụng ngay, không theo tháng, không có ô lý do.
+const zoneCard = (page: Page) => page.locator('section', { has: page.getByRole('heading', { name: 'Vùng chấm công' }) });
+
+test('zone radius takes 20 to 5000 m and saves at once', async ({ page }) => {
+  await page.goto('/admin/cai-dat/lich');
+  const zone = zoneCard(page);
+  const r = zone.getByRole('textbox', { name: 'Bán kính vùng chấm công' });
+  await expect(r).toHaveValue('150');
+  await r.fill('6000');
+  await expect(r).toHaveValue('150');
+  await r.fill('10');
+  await expect(zone.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await r.fill('200');
+  await zone.getByRole('button', { name: 'Lưu', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Lưu thay đổi' });
+  await expect(dlg).toContainText('Bán kính 150 m → 200 m, áp dụng ngay');
+  await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByText('Đã lưu')).toBeVisible();
+  await expect(r).toHaveValue('200');
+  await expect(zone).toContainText('Chưa có thay đổi');
+});
+
+test('Dùng vị trí hiện tại fills the coordinates', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 10.8, longitude: 106.65 });
+  await page.goto('/admin/cai-dat/lich');
+  const zone = zoneCard(page);
+  await zone.getByRole('button', { name: 'Dùng vị trí hiện tại' }).click();
+  await expect(zone.getByRole('textbox', { name: 'Vĩ độ' })).toHaveValue('10,8');
+  await expect(zone.getByRole('textbox', { name: 'Kinh độ' })).toHaveValue('106,65');
+});
