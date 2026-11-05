@@ -106,6 +106,37 @@ describe('OT measured from the approved window and the real presence', () => {
     assert.deepEqual(shares, [{ lineDate: '2026-10-05', otDate: '2026-10-06', hours: 1.5, multiplier: 1.5 }]);
   });
 
+  it('counts the minutes of the union of presence, not span by span, when two spans overlap', () => {
+    // A check-out typed as 07:30 on a day shift moves to the next day: 07/10 08:12 -> 08/10 07:30. The real presence
+    // of 08/10 06:00-17:00 overlaps it. The 1-hour window 06:00-07:00 on 08/10 (a Thursday) pays 1 hour, not 2.
+    const shares = measureOvertime(
+      [window('2026-10-08', '06:00', '07:00')],
+      [span('2026-10-07', '08:12', '07:30', '2026-10-08'), span('2026-10-08', '06:00', '17:00')],
+      NO_HOLIDAYS
+    );
+    assert.deepEqual(shares, [{ lineDate: '2026-10-08', otDate: '2026-10-08', hours: 1, multiplier: 1.5 }]);
+  });
+
+  it('merges two spans that partly overlap inside one window', () => {
+    // 18:00-19:30 and 19:00-20:30 inside the window 18:00-21:00 cover 18:00-20:30 = 2.5 hours, not 3.
+    const shares = measureOvertime(
+      [window('2026-10-07', '18:00', '21:00')],
+      [span('2026-10-07', '18:00', '19:30'), span('2026-10-07', '19:00', '20:30')],
+      NO_HOLIDAYS
+    );
+    assert.equal(shares.length, 1);
+    assert.equal(shares[0].hours, 2.5);
+  });
+
+  it('counts a span that lies inside another span once', () => {
+    const shares = measureOvertime(
+      [window('2026-10-07', '18:00', '21:00')],
+      [span('2026-10-07', '17:00', '20:00'), span('2026-10-07', '18:30', '19:00')],
+      NO_HOLIDAYS
+    );
+    assert.equal(shares[0].hours, 2);
+  });
+
   it('gives nothing when no span overlaps the window', () => {
     assert.deepEqual(measureOvertime([window('2026-10-07')], [span('2026-10-08', '08:00', '20:00')], NO_HOLIDAYS), []);
     assert.deepEqual(measureOvertime([window('2026-10-07')], [], NO_HOLIDAYS), []);

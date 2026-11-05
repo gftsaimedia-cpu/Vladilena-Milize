@@ -57,14 +57,23 @@ export function measureOvertime(
     const to = vnInstant(window.date, window.end).getTime();
     if (!(from < to)) continue; // also false for an Invalid Date (NaN)
 
-    let overlapMs = 0;
+    // Clip every span to the window, then merge the clipped intervals so a minute covered by two spans counts once.
+    const clipped: Array<[number, number]> = [];
     let firstOverlap: PresenceSpan | null = null;
     for (const span of spans) {
-      const overlap = Math.min(to, span.end.getTime()) - Math.max(from, span.start.getTime());
-      if (overlap > 0) {
-        overlapMs += overlap;
+      const start = Math.max(from, span.start.getTime());
+      const end = Math.min(to, span.end.getTime());
+      if (end > start) {
+        clipped.push([start, end]);
         firstOverlap ??= span;
       }
+    }
+    clipped.sort((a, b) => a[0] - b[0]);
+    let overlapMs = 0;
+    let mergedEnd = -Infinity;
+    for (const [start, end] of clipped) {
+      overlapMs += Math.max(0, end - Math.max(start, mergedEnd)); // 0 when this interval lies inside the merged one
+      mergedEnd = Math.max(mergedEnd, end);
     }
 
     const minutes = Math.floor(overlapMs / MINUTE_MS);
