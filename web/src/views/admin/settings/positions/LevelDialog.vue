@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// Hộp thoại "Sửa bậc" (level là số bậc) hoặc "Thêm bậc" (level = 0: bậc kế tiếp, không gửi số phiên bản).
-// Tên bậc, lương cơ bản, lương KPI tối đa, phụ cấp đêm theo bậc; ô trống của KPI và phụ cấp đêm gửi null.
+// Hộp thoại "Sửa bậc" (level là số bậc) hoặc "Thêm bậc" (level = 0: bậc kế tiếp của tháng áp dụng, không gửi số phiên bản).
+// Tên bậc, lương cơ bản, lương KPI tối đa, phụ cấp đêm theo bậc; ô trống của KPI và phụ cấp đêm gửi null. Áp dụng từ
+// tháng này trở đi; nút chỉ bật khi lưu được. Ca đêm của Nhân viên chọn theo từng người, không đặt theo bậc.
 import { computed, reactive, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
@@ -23,9 +24,10 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved', 'stale']);
 
 const adding = props.level === 0;
-const FIELDS = ['name', 'baseSalary', 'kpiMax', 'nightPct'];
+const nightByPerson = props.row.code === 'nv';
+const FIELDS = nightByPerson ? ['name', 'baseSalary', 'kpiMax'] : ['name', 'baseSalary', 'kpiMax', 'nightPct'];
 const period = usePeriodStore();
-const months = monthOptions(period.month);
+const months = monthOptions(period.current);
 const month = ref(months[0].value);
 const reason = ref('');
 const saving = ref(false);
@@ -34,57 +36,66 @@ const start = adding ? null : levelOf(props.row);
 const form = reactive(Object.fromEntries(FIELDS.map(key => [key, start ? start[key] : key === 'name' ? '' : null])));
 const touched = new Set<any>();
 const snaps = useSnapshots(props.row.code, period.month, props.row);
+const cur = ref(null); // dòng chức vụ đang hiệu lực ở tháng áp dụng; null khi đang nạp
 
 const set = (key?, value?) => {
   form[key] = value;
   touched.add(key);
 };
 const fill = (pos?) => {
-  const src = levelOf(pos);
+  const src = adding ? null : levelOf(pos);
   if (!src) return;
   for (const key of FIELDS) if (!touched.has(key)) form[key] = src[key];
 };
-watch(month, async m => {
-  if (adding) return;
+async function load(m?) {
   try {
-    const cur = await snaps.at(m);
-    if (cur && month.value === m) fill(cur);
-  } catch {
-    // lỗi mạng: lúc bấm Lưu sẽ hỏi lại
+    const pos = await snaps.at(m);
+    if (month.value !== m) return;
+    cur.value = pos;
+    if (pos) fill(pos);
+  } catch (e) {
+    if (month.value === m) toast.error(e.message);
   }
-});
+}
+watch(
+  month,
+  m => {
+    cur.value = null;
+    load(m);
+  },
+  { immediate: true }
+);
 
-const valid = computed(() => String(form.name || '').trim() !== '' && form.baseSalary != null);
+const levelAt = computed(() => (cur.value && !adding ? levelOf(cur.value) : null));
+// Thêm bậc: số kế tiếp sau bậc lớn nhất đang có ở tháng áp dụng.
+const levelNo = computed(() =>
+  !adding ? props.level : cur.value ? Math.max(0, ...(cur.value.levels || []).map(l => l.level)) + 1 : null
+);
+const typed = computed(() => ({ ...form, name: String(form.name || '').trim() }));
+const changes = computed(() => {
+  if (!cur.value) return {};
+  if (adding) return nightByPerson ? { ...typed.value, nightPct: null } : { ...typed.value };
+  return levelAt.value ? levelChanges(levelAt.value, typed.value) : {};
+});
+const valid = computed(() => {
+  if (typed.value.name === '' || form.baseSalary == null || !cur.value) return false;
+  return adding || (!!levelAt.value && Object.keys(changes.value).length > 0);
+});
 
 async function submit() {
   if (!valid.value || saving.value) return;
   saving.value = true;
   const m = month.value;
+  const level = levelNo.value;
   try {
-    const cur = await snaps.at(m);
-    if (!cur) {
-      toast.error(`Chức vụ này chưa có ở ${monthLabel(m).toLowerCase()}`);
-      return;
-    }
-    const level = adding ? (cur.levels || []).length + 1 : props.level;
-    const old = adding ? null : levelOf(cur);
-    if (!adding && !old) {
-      toast.error(`Bậc ${level} chưa có ở ${monthLabel(m).toLowerCase()}`);
-      return;
-    }
-    fill(cur);
-    const changes = levelChanges(old, { ...form, name: String(form.name).trim() });
-    if (!Object.keys(changes).length) {
-      toast.error('Chưa có thay đổi');
-      return;
-    }
     await saveLevel({
       type: props.row.code,
       level,
-      changes,
+      adding,
+      changes: { ...changes.value },
       effectiveMonth: m,
       reason: reason.value.trim(),
-      expectedRev: old ? old.rev : undefined
+      expectedRev: levelAt.value ? levelAt.value.rev : undefined
     });
     toast.ok(
       `Đã ${adding ? 'thêm' : 'lưu'} bậc ${level} của ${props.row.name}, áp dụng từ ${monthLabel(m).toLowerCase()}`
@@ -92,17 +103,15 @@ async function submit() {
     emit('saved');
     emit('close');
   } catch (e) {
-    toast.error(e.message);
-    if (isStale(e) || (e && e.code === 'CATALOG_REV_REQUIRED')) {
-      snaps.clear();
-      emit('stale');
-      try {
-        const cur = await snaps.at(m);
-        if (cur) fill(cur);
-      } catch {
-        // lần bấm Lưu sau sẽ hỏi lại
-      }
+    if (!isStale(e)) {
+      toast.error(e.message);
+      return;
     }
+    toast.error('Vừa có người sửa, đã tải số mới, kiểm lại rồi bấm Lưu');
+    snaps.clear();
+    emit('stale');
+    cur.value = null;
+    await load(m);
   } finally {
     saving.value = false;
   }
@@ -120,7 +129,7 @@ async function submit() {
   >
     <div class="fld">
       <label>Tên bậc</label>
-      <TextBox :model-value="form.name" label="Tên bậc" @update:model-value="set('name', $event)" />
+      <TextBox :model-value="form.name" :maxlength="60" label="Tên bậc" @update:model-value="set('name', $event)" />
     </div>
     <div class="g2">
       <div class="fld">
@@ -144,13 +153,20 @@ async function submit() {
         />
       </div>
       <div class="fld">
-        <label>Phụ cấp đêm <small>(%)</small></label>
-        <FieldNum
-          :model-value="form.nightPct"
-          unit="%"
-          label="Phụ cấp đêm"
-          @update:model-value="set('nightPct', $event)"
-        />
+        <template v-if="nightByPerson">
+          <label>Phụ cấp đêm</label>
+          <p class="byp">Theo từng người</p>
+        </template>
+        <template v-else>
+          <label>Phụ cấp đêm <small>(%)</small></label>
+          <FieldNum
+            :model-value="form.nightPct"
+            unit="%"
+            :max="100"
+            label="Phụ cấp đêm"
+            @update:model-value="set('nightPct', $event)"
+          />
+        </template>
       </div>
       <div class="fld">
         <label>Áp dụng từ tháng</label>
@@ -170,3 +186,11 @@ async function submit() {
     </template>
   </AppModal>
 </template>
+
+<style scoped>
+.byp {
+  margin: 0;
+  line-height: 36px;
+  color: var(--muted);
+}
+</style>

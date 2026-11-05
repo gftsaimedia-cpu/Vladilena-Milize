@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Ô số của Cài đặt (khung .fi): gõ số thật. money = hàng nghìn ngăn bằng dấu chấm; dim = xám khi bằng 0.
-//   <FieldNum v-model="row.value" unit="%" /> · <FieldNum v-model="x" money /> · <FieldNum v-model="x" prefix="×" />
+// integer = chỉ số nguyên (không nhận dấu phẩy); max = lần gõ làm số vượt max bị bỏ, ô giữ chữ trước đó.
+//   <FieldNum v-model="row.value" unit="%" :max="100" /> · <FieldNum v-model="x" money /> · <FieldNum v-model="d" integer />
 import { computed, ref } from 'vue';
 import { vnd } from '@/utils/format';
 import '../settings-extra.css';
@@ -12,7 +13,9 @@ const props = defineProps({
   money: { type: Boolean, default: false },
   dim: { type: Boolean, default: false },
   disabled: { type: Boolean, default: false },
-  label: { type: String, default: '' }
+  label: { type: String, default: '' },
+  max: { type: Number, default: null },
+  integer: { type: Boolean, default: false }
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -31,12 +34,18 @@ function onInput(e?) {
     emit('update:modelValue', n);
     return;
   }
-  const raw = e.target.value.replace(/[^\d,]/g, '');
+  const before = shown.value;
+  const raw = e.target.value.replace(props.integer ? /\D/g : /[^\d,]/g, '');
   const cut =
     raw.indexOf(',') < 0 ? raw : raw.slice(0, raw.indexOf(',') + 1) + raw.slice(raw.indexOf(',') + 1).replace(/,/g, '');
+  const n = cut === '' ? null : Number(cut.replace(',', '.'));
+  if (props.max != null && n != null && n > props.max) {
+    e.target.value = before;
+    return;
+  }
   typing.value = cut;
   e.target.value = cut;
-  emit('update:modelValue', cut === '' ? null : Number(cut.replace(',', '.')));
+  emit('update:modelValue', n);
 }
 </script>
 
@@ -45,7 +54,7 @@ function onInput(e?) {
     <span v-if="prefix">{{ prefix }}</span>
     <input
       type="text"
-      inputmode="decimal"
+      :inputmode="integer ? 'numeric' : 'decimal'"
       autocomplete="off"
       :value="shown"
       :disabled="disabled"

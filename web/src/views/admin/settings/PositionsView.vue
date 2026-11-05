@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Cài đặt › Chức vụ và bậc: danh mục chức vụ, bậc lương và phụ cấp theo bậc của tháng đang xem.
-// Sửa chức vụ, sửa bậc, thêm bậc kế tiếp chỉ có khi tài khoản có quyền config.payroll.
+// Sửa chức vụ, sửa bậc, thêm bậc kế tiếp chỉ có khi tài khoản có quyền config.write (như API ghi /positions).
 import { computed, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
@@ -13,7 +13,7 @@ import LevelDialog from './positions/LevelDialog.vue';
 import PositionDialog from './positions/PositionDialog.vue';
 
 const period = usePeriodStore();
-const canEdit = computed(() => useSessionStore().caps.includes('config.payroll'));
+const canEdit = computed(() => useSessionStore().caps.includes('config.write'));
 const { data, loading, error, reload } = useLoad(
   () => getPositions(period.month),
   () => period.month
