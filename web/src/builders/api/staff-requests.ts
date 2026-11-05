@@ -145,6 +145,9 @@ const minutesIn = (day: ContextDay, w: HourWindow) =>
 
 // Số phút còn xếp được trong ngày. Khung dài nhất trong `hours` là phần còn lại của trần 12 giờ một ngày, nên các khung
 // đã chọn ở dòng khác cùng ngày (`taken`) trừ vào đó; `capMinutes` (giờ OT còn lại, giờ bù còn thiếu) chặn thêm.
+// Khung dài nhất có thể bị cách xếp giờ trống trong ngày giới hạn chứ không phải trần 12 giờ (vd. ca 10–19: khung dài nhất
+// 06–09 là 3 giờ, trần còn 4). Khi đó số phút cho dòng thứ hai chặt hơn của BE, nhưng không bao giờ lỏng hơn, nên không đưa
+// ra khung không hợp lệ.
 function budget(day: ContextDay, opts: HourOptions): number {
   let cap = opts.capMinutes ?? Infinity;
   const taken = opts.taken ?? [];
