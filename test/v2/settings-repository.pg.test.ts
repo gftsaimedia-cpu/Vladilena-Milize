@@ -2,9 +2,12 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { sql, type Kysely } from 'kysely';
 import type { DB } from '../../src/database/schema';
+import { TransactionCoordinator } from '../../src/database/transaction';
 import { defaultsOf, encodeValues } from '../../src/modules/settings/domain/setting-groups';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsStaleError } from '../../src/modules/settings/settings.errors';
 import { SettingsRepository, type ChangeRow } from '../../src/modules/settings/settings.repository';
+import { SettingsService } from '../../src/modules/settings/settings.service';
 import { withTempDb } from './helpers/pg-temp-db';
 
 const META = { actor: 'admin', at: '2026-11-05T03:00:00.000Z' };
@@ -176,5 +179,25 @@ test('zone, closed month, change log and stamps', async t => {
     );
     assert.equal(await repo.maxChangeId(db), ids[2]);
     assert.deepEqual(await repo.insertChanges(db, [], META), []);
+  });
+});
+
+test('two concurrent saves with the same stamp: one wins, the other gets stale', async t => {
+  await withTempDb(t, 'settings_service_race', async db => {
+    const repo = new SettingsRepository(db);
+    const svc = new SettingsService(repo, new SettingsReader(repo), new TransactionCoordinator(db));
+    const now = new Date('2026-11-05T03:00:00Z');
+    const results = await Promise.allSettled([
+      svc.saveGroup('overtime', { effectiveMonth: '2026-12', values: { weekdayRate: 1.6 }, stamp: 0 }, 'admin-a', now),
+      svc.saveGroup('overtime', { effectiveMonth: '2027-01', values: { weekdayRate: 1.7 }, stamp: 0 }, 'admin-b', now)
+    ]);
+    const won = results.filter(r => r.status === 'fulfilled');
+    const lost = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    assert.equal(won.length, 1);
+    assert.equal(lost.length, 1);
+    assert.ok(lost[0].reason instanceof SettingsStaleError);
+    assert.equal(lost[0].reason.stamp, 1);
+    assert.equal(await repo.stampOf(db, 'overtime', null), 1);
+    assert.equal((await repo.groupChain(db, 'overtime')).length, 2);
   });
 });
