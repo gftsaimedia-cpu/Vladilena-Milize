@@ -21,6 +21,8 @@ onMounted(() => {
   if (!showError) userInput.value?.focus();
 });
 const passwordType = computed(() => (revealed.value ? 'text' : 'password'));
+// Gợi ý "mật khẩu bất kỳ" chỉ đúng với dữ liệu giả; bản thật kiểm mật khẩu ở BE.
+const isMock = __MOCK__;
 
 async function submit() {
   if (busy.value) return;
@@ -77,7 +79,7 @@ async function submit() {
           {{ errorText }}
         </div>
         <button type="submit" class="go" :disabled="busy">Đăng nhập</button>
-        <p class="hint">Bản mockup: mật khẩu bất kỳ. Tên admin vào khu quản trị, tên khác vào khu nhân viên.</p>
+        <p v-if="isMock" class="hint">Bản mockup: mật khẩu bất kỳ. Tên admin vào khu quản trị, tên khác vào khu nhân viên.</p>
         <div class="help"><b>Quên mật khẩu?</b> Nhờ Admin đặt lại, bạn sẽ đăng nhập lại bằng mật khẩu mới.</div>
       </form>
     </section>
