@@ -105,6 +105,36 @@ export class PeriodsService {
   }
 
   /**
+   * Bảng lương vừa lưu một lần chạy: chạy cả kỳ sau Chốt công thì sang 'calculated'; kỳ đã 'calculated' thì chỉ cập nhật
+   * dấu tính lương và lần chạy hiện tại. Không ghi nhật ký kỳ (tính lương tự động, spec §10).
+   * `expectedRev` là rev đọc lúc bắt đầu tính: đã đổi (vd. Mở lại công xen vào) thì không đổi gì (R4).
+   * Có `trx` thì chạy trên giao dịch đó (người gọi giữ commit), không thì tự mở giao dịch. Trả trạng thái sau cùng.
+   */
+  async markCalculated(
+    trx: DatabaseTransaction | undefined,
+    month: string,
+    o: { runId: number; actor: string; full: boolean; expectedRev: number }
+  ): Promise<PeriodStatus> {
+    const run = async (t: DatabaseTransaction): Promise<PeriodStatus> => {
+      await this.repo.lockExclusive(t, month);
+      const row = await this.repo.find(month, t);
+      const status = (row?.status as PeriodStatus | undefined) ?? 'open';
+      if ((row ? Number(row.rev) : 0) !== o.expectedRev) return status;
+      const stamp = { calculated_by: o.actor, calculated_at: this.now().toISOString(), current_run_id: o.runId };
+      if (status === 'attendance_locked' && o.full) {
+        await this.repo.save(t, month, { status: 'calculated', ...stamp });
+        return 'calculated';
+      }
+      if (status === 'calculated') {
+        await this.repo.save(t, month, stamp);
+        return 'calculated';
+      }
+      return status;
+    };
+    return trx ? run(trx) : this.tx.run(run);
+  }
+
+  /**
    * Một bước chuyển trạng thái: khoá độc quyền của tháng, kiểm bảng chuyển, `apply` cho phần cột đổi,
    * ghi kỳ và nhật ký cùng giao dịch, rồi dựng view trên chính giao dịch đó (thấy phần vừa ghi) và trả sau commit.
    * Có `trx` thì chạy trên `trx` của người gọi (người gọi giữ commit).

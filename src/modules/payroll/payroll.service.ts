@@ -1,7 +1,8 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
-import { TransactionCoordinator } from '../../database';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { PeriodsService, PayslipNotDecidableError } from '../periods';
 import { PayrollRepository, EmployeeMonthlyRawData, KpiScorePatch, PayslipRecord } from './payroll.repository';
-import { KpiValidationError } from './payroll.errors';
+import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
@@ -43,7 +44,8 @@ const pctText = (rate: number): string => String(Math.round(rate * 10000) / 100)
 export class PayrollService {
   constructor(
     @Inject(PayrollRepository) private readonly repo: PayrollRepository,
-    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Optional() @Inject(PeriodsService) private readonly periods?: PeriodsService
   ) {}
 
   async calculatePeriodPayslips(
@@ -58,7 +60,12 @@ export class PayrollService {
     // A list of employees is a partial run: the other employees keep their payslips. runId is null when no payslip
     // was computed, in which case nothing is stored.
     const isPartial = employeeIds !== undefined && employeeIds.length > 0;
-    const doCalc = async () => {
+    const doCalc = async (trx?: DatabaseTransaction) => {
+      // Kỳ đã phê duyệt hoặc đã trả thì không tính lại; rev đọc ở đây là rev mà markCalculated sẽ đối chiếu (R4).
+      const snapshot = this.periods ? await this.periods.snapshot(month) : null;
+      if (snapshot && (snapshot.status === 'approved' || snapshot.status === 'paid')) {
+        throw new PayrollFinalizedError(`Kỳ lương ${month} đã phê duyệt, không thể tính lại`);
+      }
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
         const staffList = await this.repo.listEligibleEmployees();
@@ -87,6 +94,9 @@ export class PayrollService {
         ? { exceptUsernames: payslips.map(p => p.username), exceptEmployeeIds: targets }
         : undefined;
       const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward);
+      if (this.periods && snapshot && runId !== null) {
+        await this.periods.markCalculated(trx, month, { runId, actor, full: !isPartial, expectedRev: snapshot.rev });
+      }
       return { runId, items: summaries, errors };
     };
 
@@ -107,7 +117,19 @@ export class PayrollService {
     actor: string,
     note?: string
   ): Promise<PayslipRecord | null> {
-    return await this.repo.decidePayslip(month, username, status, actor, note);
+    const decide = async (): Promise<PayslipRecord | null> => {
+      if (this.periods) {
+        const { status: periodStatus } = await this.periods.snapshot(month);
+        if (periodStatus !== 'calculated') throw new PayslipNotDecidableError(month, periodStatus);
+      }
+      return await this.repo.decidePayslip(month, username, status, actor, note);
+    };
+    return this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
+  }
+
+  // Đưa phiếu về nháp (xoá quyết định); dùng khi kỳ lương cần duyệt lại phiếu.
+  async resetDecision(month: string, employeeId: string): Promise<boolean> {
+    return await this.repo.resetDecision(month, employeeId);
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
@@ -116,6 +138,12 @@ export class PayrollService {
 
   // Checks the KPI body against the employee's KPI cap and saves it: undefined keeps the stored value, null clears it.
   async setKpiScore(username: string, month: string, body: KpiScoreBody, actor: string): Promise<void> {
+    if (this.periods) {
+      const { status } = await this.periods.snapshot(month);
+      if (status === 'approved' || status === 'paid') {
+        throw new PayrollFinalizedError('Kỳ lương đã phê duyệt, không sửa KPI được');
+      }
+    }
     const cap = await this.repo.getKpiCap(username, month);
     if (!cap) throw new KpiValidationError('EMPLOYEE_NOT_FOUND', `Không tìm thấy nhân sự ${username}`);
 

@@ -571,6 +571,35 @@ export class PayrollRepository {
     return row ? readPayslipRow(row) : null;
   }
 
+  // Đưa phiếu của người đó (uuid hoặc username) trong lần chạy nháp mới nhất về 'draft', xoá quyết định.
+  // Trả false khi không có phiếu nào để đưa về.
+  async resetDecision(month: string, employeeId: string): Promise<boolean> {
+    const run = await this.qb
+      .selectFrom('payroll_runs')
+      .select('id')
+      .where('month', '=', month)
+      .where('status', '=', 'draft')
+      .orderBy('run_no', 'desc')
+      .executeTakeFirst();
+    if (!run) return false;
+    const staff = await this.qb
+      .selectFrom('staff')
+      .select('username')
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
+      .executeTakeFirst();
+    if (!staff) return false;
+
+    const row = await this.qb
+      .updateTable('payslips')
+      .set(eb => ({ status: 'draft', decided_by: null, decided_at: null, note: null, rev: eb('rev', '+', 1) }))
+      .where('run_id', '=', Number(run.id))
+      .where('username', '=', staff.username)
+      .where('status', '<>', 'error')
+      .returning('id')
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
     const runId = await this.currentRunId(month);
     if (runId === null) return null;

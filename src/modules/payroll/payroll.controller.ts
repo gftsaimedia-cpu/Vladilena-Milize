@@ -115,6 +115,7 @@ export class PayrollController {
     try {
       await this.service.setKpiScore(username, month, body, user.username);
     } catch (err) {
+      if (err instanceof PayrollFinalizedError) throw new ConflictError(err.message, { code: 'PAYROLL_FINALIZED' });
       if (err instanceof KpiValidationError) {
         if (err.code === 'EMPLOYEE_NOT_FOUND') throw new NotFoundError(err.message, { code: err.code });
         throw new BadRequestError(err.message, { code: err.code });
