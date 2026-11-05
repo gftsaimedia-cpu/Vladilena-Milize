@@ -2,7 +2,9 @@
 // một ô ngày công, công cả tháng và các bước của một đơn.
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'future';
-export type DaySummary = { date: string; kind: DayKind; in: string | null; out: string | null; lateMinutes: number };
+/** Loại của một ngày nghỉ, lấy thẳng từ trạng thái bảng công. */
+export type LeaveKind = 'paid' | 'unpaid' | 'holiday';
+export type DaySummary = { date: string; kind: DayKind; leave?: LeaveKind; in: string | null; out: string | null; lateMinutes: number };
 
 export type TimesheetLike = {
   workDate: string;
@@ -11,8 +13,11 @@ export type TimesheetLike = {
   status: string;
   checkInStatus: string;
   checkOutStatus: string;
+  isLocked?: boolean;
   metrics?: { lateMinutes?: number };
 };
+
+const LEAVE_OF: Record<string, LeaveKind> = { LEAVE_PAID: 'paid', LEAVE_UNPAID: 'unpaid', HOLIDAY: 'holiday' };
 
 const VN_OFFSET_MS = 7 * 3600000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
@@ -42,7 +47,8 @@ export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today:
     if (dow(date) === 0) return { ...empty, kind: 'off' };
     return { ...empty, kind: date > today ? 'future' : 'absent' };
   }
-  if (ts.status === 'LEAVE_PAID' || ts.status === 'LEAVE_UNPAID' || ts.status === 'HOLIDAY') return { ...empty, kind: 'leave' };
+  const leave = LEAVE_OF[ts.status];
+  if (leave) return { date, kind: 'leave', leave, in: null, out: null, lateMinutes: 0 };
   const cin = hhmm(ts.actualCheckIn);
   const cout = hhmm(ts.actualCheckOut);
   const lateMinutes = ts.metrics?.lateMinutes || 0;
@@ -53,8 +59,10 @@ export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today:
   return { date, kind, in: cin, out: cout, lateMinutes };
 }
 
-/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày thứ Hai – thứ Bảy của tháng). */
-export function monthOf(timesheets: TimesheetLike[], month: string, today: string) {
+/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày thứ Hai – thứ Bảy của tháng).
+ *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
+ *  công đã khoá (cờ chặn chấm công). */
+export function monthOf(timesheets: TimesheetLike[], month: string, today: string, periodStatus?: string | null) {
   const [y, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const by = new Map(timesheets.map(t => [t.workDate, t]));
@@ -62,16 +70,26 @@ export function monthOf(timesheets: TimesheetLike[], month: string, today: strin
     const date = `${month}-${String(i + 1).padStart(2, '0')}`;
     return daySummaryOf(by.get(date), date, today);
   });
+  const inMonth = timesheets.filter(t => t.workDate.startsWith(month));
   return {
     month,
+    periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
       workDays: days.filter(d => d.kind === 'work' || d.kind === 'late').length,
       standardDays: days.filter(d => dow(d.date) !== 0).length,
       lateCount: days.filter(d => d.kind === 'late').length,
-      paidLeaveDays: timesheets.filter(t => t.workDate.startsWith(month) && (t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY')).length
+      paidLeaveDays: inMonth.filter(t => t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY').length
     },
     days
   };
+}
+
+/** Các tháng nhân viên được xem: từ tháng vào làm tới tháng hiện tại. Chưa có ngày vào làm (hoặc vào làm sau hôm nay)
+ *  thì chỉ tháng hiện tại. */
+export function monthRangeOf(startDate: string | null | undefined, today: string): { from: string; to: string } {
+  const to = today.slice(0, 7);
+  const start = startDate && /^\d{4}-(0[1-9]|1[0-2])/.test(startDate) ? startDate.slice(0, 7) : to;
+  return { from: start < to ? start : to, to };
 }
 
 export type RequestStep = { label: string; at: string | null; state: 'done' | 'pend' | 'rej' };
