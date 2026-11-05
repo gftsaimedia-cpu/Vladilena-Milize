@@ -98,7 +98,7 @@ Mục nào chưa chốt thì ghi **chờ**.
 
 - **Một ô lý do chung** cho cả đơn, chỉ ghi một lần dù ngày đó có nhiều trường hợp.
   - Ví dụ vào muộn 40 phút và thiếu giờ ra: nhập giờ ra và một lý do.
-- **Mở từ ngày "Cần xử lý"** (hộp J3 hoặc ngăn kéo K2): form điền sẵn ngày đó. **Chờ** chốt chỗ đặt nút.
+- **Mở từ ngày "Cần xử lý"** (hộp J3 hoặc ngăn kéo K2): nút "Giải trình" trong chi tiết ngày, form điền sẵn ngày đó. Ngày đã có đơn giải trình thì hiện trạng thái đơn thay cho nút.
 
 ## 7. Tạm ứng (cần thiết kế)
 
@@ -109,7 +109,7 @@ Mục nào chưa chốt thì ghi **chờ**.
   - "Số tiền được ứng: 2.215.385 ₫";
   - dòng phụ "80% lương ngày công 01–15/11 · 12 ngày".
 - Số tiền do server tính lúc nộp. Admin chỉ duyệt hoặc từ chối.
-- **Lý do: chờ chốt.** Hiện BE bắt buộc có lý do.
+- **Không có ô lý do** (chốt 05/11). Server tự ghi lý do bằng tiêu đề, ví dụ "Tạm ứng lương tháng 11".
 
 ## 8. Huỷ đơn (J5 và ngăn kéo yêu cầu trên máy tính)
 
