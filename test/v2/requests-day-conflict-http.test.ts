@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import 'reflect-metadata';
+import type { ArgumentsHost } from '@nestjs/common';
+import { ApiExceptionFilter } from '../../src/common';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { MeController } from '../../src/modules/me/me.controller';
 import { isatRequest, makeService, otRequest, seed } from './helpers/requests-fakes';
@@ -49,6 +51,27 @@ describe('API: warnings và lỗi DAY_CONFLICT của đơn từ', () => {
     await assert.rejects(admin.createLeave({ ...leaveBody('2026-11-14'), employeeId: 'nv01' }, ADMIN), (err: any) => {
       assert.equal(err.status, 400);
       assert.equal(err.message, C3);
+      // Dạng trên dây: bộ lọc lỗi trải details ra phẳng, không có khoá message hay details.
+      const sent: { status?: number; body?: unknown } = {};
+      const res = {
+        status(code: number) {
+          sent.status = code;
+          return this;
+        },
+        json(body: unknown) {
+          sent.body = body;
+        }
+      };
+      new ApiExceptionFilter().catch(err, { switchToHttp: () => ({ getResponse: () => res }) } as unknown as ArgumentsHost);
+      assert.equal(sent.status, 400);
+      assert.deepEqual(sent.body, {
+        error: C3,
+        code: 'DAY_CONFLICT',
+        date: '2026-11-14',
+        requestId: isat.id,
+        requestType: 'ISAT',
+        requestStatus: 'PENDING'
+      });
       assert.deepEqual(err.details, {
         code: 'DAY_CONFLICT',
         date: '2026-11-14',

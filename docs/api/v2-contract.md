@@ -269,17 +269,15 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - Hai loại cảnh báo: `Thứ Bảy dd/MM đã có iSAT được duyệt, không tính vào đơn.` (đơn nghỉ, nghỉ có làm bù, đổi ca) và `Ngày dd/MM đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.` (đơn đổi ca).
 - **Lỗi xung đột ngày** `DAY_CONFLICT`: một ngày của đơn đang bị đơn khác (đang chờ hoặc đã duyệt) chiếm theo ma trận dưới đây.
   - Lúc **nộp** đơn: `400`. Lúc **duyệt** (kiểm lại thất bại): `409`, câu báo thêm ` Chỉ có thể từ chối đơn này.`, đơn giữ `PENDING` và không ghi gì; vẫn `REJECT` được.
-  - `message` là câu báo của ô bị chặn; `details` cho client biết đơn nào đang chiếm:
+  - Thân lỗi là JSON phẳng (bộ lọc lỗi trải `details` ra ngang hàng, không có khoá `details`): `error` là câu báo của ô bị chặn; `code`, `date`, `requestId`, `requestType`, `requestStatus` cho client biết đơn nào đang chiếm ngày. Cùng dạng ở `400` lúc nộp và `409` lúc duyệt (chỉ khác `error` có thêm câu ` Chỉ có thể từ chối đơn này.` và `requestStatus` của đơn chiếm):
     ```json
     {
-      "message": "Thứ Bảy 14/11 đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.",
-      "details": {
-        "code": "DAY_CONFLICT",
-        "date": "2026-11-14",
-        "requestId": "isat-req-uuid",
-        "requestType": "ISAT",
-        "requestStatus": "PENDING"
-      }
+      "error": "Thứ Bảy 14/11 đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.",
+      "code": "DAY_CONFLICT",
+      "date": "2026-11-14",
+      "requestId": "isat-req-uuid",
+      "requestType": "ISAT",
+      "requestStatus": "PENDING"
     }
     ```
   - `requestId`, `requestType`, `requestStatus` là đơn đang chiếm ngày `date`; ba trường này là `null` khi ngày bị chặn không do đơn (iSAT trên ngày lễ).
