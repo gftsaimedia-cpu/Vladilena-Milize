@@ -186,4 +186,11 @@ describe('settings service: groups, history, pay days', () => {
     assert.deepEqual(items[11], { month: '2026-12', payDay: 5, payDate: '2027-01-05' });
     await rejectsField(svc.payDays('abc'), 'year');
   });
+
+  it('rejects months before the seed month instead of failing with a 500', async () => {
+    await rejectsField(svc.getAll('1999-12', NOW), 'month');
+    await rejectsField(svc.payDays('1999'), 'year');
+    assert.equal((await svc.getAll('2000-01', NOW)).groups.overtime.from, '2000-01');
+    assert.equal((await svc.payDays('2000')).items.length, 12);
+  });
 });

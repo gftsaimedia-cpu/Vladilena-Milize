@@ -21,7 +21,7 @@ import {
   type GroupValues,
   type NumberLimit
 } from './domain/setting-groups';
-import { parseEffectiveMonth, parseMonth, parseReason, parseStamp } from './domain/settings-input';
+import { parseEffectiveMonth, parseMonth, parseReason, parseStamp, SEED_MONTH } from './domain/settings-input';
 import { SettingsReader } from './settings-reader';
 import { SettingsGroupNotFoundError, SettingsInputError, SettingsStaleError } from './settings.errors';
 import { SettingsRepository, type ChangeRow } from './settings.repository';
@@ -62,16 +62,19 @@ export class SettingsService {
 
   async getAll(month: unknown, now: Date = new Date()): Promise<{ month: string; minMonth: string; groups: Record<string, GroupView> }> {
     const at = month === undefined ? businessMonthText(now) : parseMonth(month, 'month');
+    if (at < SEED_MONTH) throw new SettingsInputError(`Tháng phải từ ${monthText(SEED_MONTH)} trở đi`, 'month');
     const q = this.repo.db;
     const minMonth = minMonthFrom(await this.repo.lastClosedMonth(q), now);
     const groups: Record<string, GroupView> = {};
     for (const g of GROUP_KEYS) {
       const spec = SETTING_GROUPS[g];
+      // Đọc stamp trước chuỗi: nếu có lần lưu xen vào giữa thì stamp cũ đi với số mới, lần lưu kế tiếp vẫn bị từ chối.
+      const stamp = await this.repo.stampOf(q, g, null);
       const version = versionAt(await this.repo.groupChain(q, g), at);
       if (!version) throw new Error(`Không có cài đặt ${g} nào có hiệu lực ở tháng ${at}`);
       const view: GroupView = {
         from: version.month,
-        stamp: await this.repo.stampOf(q, g, null),
+        stamp,
         values: decodeValues(g, version.values),
         defaults: defaultsOf(g),
         limits: limitsOf(g)
@@ -113,7 +116,8 @@ export class SettingsService {
       await this.repo.writeGroupVersion(trx, g, month, { ...cur.values, ...plan.set }, meta);
       for (const c of plan.carry) {
         const target = chain.find(v => v.month === c.month);
-        if (target) await this.repo.writeGroupVersion(trx, g, c.month, { ...target.values, ...c.set }, meta);
+        if (!target) throw new Error(`Thiếu phiên bản ${c.month} của nhóm ${g} để chép tiếp`);
+        await this.repo.writeGroupVersion(trx, g, c.month, { ...target.values, ...c.set }, meta);
       }
 
       const before = decodeValues(g, cur.values);
@@ -152,6 +156,7 @@ export class SettingsService {
 
   async payDays(year: unknown): Promise<{ year: number; items: Array<{ month: string; payDay: number; payDate: string }> }> {
     if (typeof year !== 'string' || !/^\d{4}$/.test(year)) throw new SettingsInputError('Năm phải có 4 chữ số', 'year');
+    if (`${year}-01` < SEED_MONTH) throw new SettingsInputError(`Năm phải từ ${SEED_MONTH.slice(0, 4)} trở đi`, 'year');
     const chain = await this.repo.groupChain(this.repo.db, 'pay-calendar');
     const items = [];
     for (let m = 1; m <= 12; m++) {

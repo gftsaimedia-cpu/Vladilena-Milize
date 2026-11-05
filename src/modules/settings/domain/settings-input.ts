@@ -4,6 +4,9 @@ import { SettingsInputError } from '../settings.errors';
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const REASON_MAX = 300;
 
+/** Tháng đầu của mọi chuỗi phiên bản (dòng seed trong schema.sql); sớm hơn thì chưa có cài đặt nào. */
+export const SEED_MONTH = '2000-01';
+
 function fail(field: string, message: string): never {
   throw new SettingsInputError(message, field);
 }
