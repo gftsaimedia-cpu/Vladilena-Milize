@@ -2,7 +2,12 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Nhân viên tạo 6 loại đơn và huỷ đơn đang chờ từ app (điện thoại và máy tính). Admin nhắc giải trình từ chuông. Nhân viên thấy lời nhắc và gửi giải trình.
+**Goal:** Phần BE cho luồng nhân viên tạo 6 loại đơn và huỷ đơn đang chờ, Admin nhắc giải trình, nhân viên thấy lời nhắc và gửi giải trình. Sau đó nối FE (do phiên khác làm trên dữ liệu giả) với BE.
+
+**Phân việc (05/11/2026):**
+- FE trên dữ liệu giả (spec mục 4) do phiên khác làm, ở nhánh `claude/staff-requests-fe-mock`, plan `docs/superpowers/plans/2026-11-05-staff-requests-fe-mock.md`.
+- Người dùng nói ở phiên đó: "làm phần mock trước, nối API thì để BE".
+- Vì vậy plan này làm BE (Task 0–10) và nối API (Task 11). Không dựng lại giao diện.
 
 **Architecture:**
 - **BE:**
@@ -10,10 +15,7 @@
   - Mỗi hàm `create*` của `RequestsService` tách thành hai bước, lập đơn và lưu, để có `previewRequest`.
   - Dịch vụ mới `ExplanationsService` lo ngày cần giải trình và lời nhắc, lưu vào bảng `explanation_reminders`.
   - `MeController` thêm route `request-context` và `preview`, và thêm trường cho `today`, `attendance/:date`, `profile`.
-- **FE:**
-  - Builder thuần `web/src/builders/api/staff-requests.ts`.
-  - Dịch vụ `web/src/services/staff-requests.ts`, có nhánh mock.
-  - Phần ruột dùng chung đặt ở `web/src/views/staff-requests/`, gắn vào tấm trượt trên điện thoại và ngăn kéo phải trên máy tính.
+- **FE (Task 11):** thay các nhánh `notConnected()` trong `web/src/services/staff-requests.ts` và trong chuông Admin bằng lời gọi route thật. Giao diện và dữ liệu giả giữ nguyên như phiên kia làm.
 
 **Tech Stack:** NestJS 10, Kysely, PostgreSQL 16, `node:test` + tsx; Vue 3, Pinia, Playwright.
 
@@ -48,18 +50,9 @@
   - có dòng trong bảng `test/v2/auth-access.test.ts`.
 - Route `/me` mới: có `@Authenticated()` và có dòng trong cùng bảng đó.
 
-**Giao diện**
-- Chỉ đưa ra lựa chọn hợp lệ (ẩn, khoá hoặc giới hạn); BE vẫn kiểm.
-- Ô nhập bo góc 8px, không làm dạng viên thuốc, không đổ bóng.
-- Lớp CSS trên máy tính có tiền tố `sd-`.
-- Danh sách chỉ hiện phần cốt lõi.
+**BE vẫn kiểm mọi luật** dù UI chỉ đưa ra lựa chọn hợp lệ. Câu báo lỗi của BE là tiếng Việt, đúng như các bảng trong từng task.
 
-**Chữ hiển thị** (chép đúng):
-- Nút và thông báo: "Tạo yêu cầu", "Gửi yêu cầu", "Đã gửi yêu cầu", "Huỷ đơn", "Huỷ đơn này?", "Không", "Đã huỷ đơn".
-- Chuông: "Nhắc giải trình", "Nhắc lại", "Đã nhắc: HH:MM DD/MM".
-- Lời nhắc của nhân viên: "Admin nhắc giải trình DD/MM".
-- Tạm ứng: "Chỉ nộp ngày 16 và 17", "Số tiền được ứng: …".
-- Bộ đếm giờ bù: "Đã xếp x / y giờ", với y = 8 × số ngày nghỉ.
+**Task 11 không sửa giao diện hay dữ liệu giả** của phiên FE; chỉ sửa nhánh máy chủ thật và builder đọc phản hồi.
 
 **Commit:** cuối mỗi task, message tiếng Anh dạng `feat(requests): …`, dòng cuối `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
@@ -81,7 +74,7 @@
 - **R-P6.** `GET /requests/explanations-due` xét lần lượt từng nhân viên chưa bị khoá (`locked_at IS NULL`). Rủi ro nếu sai: chậm khi có nhiều người; đổi sang một truy vấn gộp sau nếu cần.
 - **R-P7.** `today.reminders` lỗi (ví dụ thiếu cấu hình loại nhân sự) thì trả `[]`, để màn Hôm nay không vỡ. Rủi ro nếu sai: lời nhắc bị ẩn trong lúc thiếu cấu hình.
 - **R-P8.** Số trên chuông (máy chủ thật) vẫn chỉ đếm đơn chờ duyệt; việc "Chấm công" chưa cộng vào số. Rủi ro nếu sai: Admin không thấy số tăng khi có ngày thiếu giờ.
-- **R-P9.** Mock cần một ngày cần giải trình. Ngày 24/10 của `nhanvien` đổi thành vào 07:52, không có giờ ra (`todo`), kèm lời nhắc lúc 09:40 27/10. Assertion đếm ngày của các test UI cũ được sửa theo. Rủi ro nếu sai: chỉ là dữ liệu giả.
+- **R-P9.** (Bỏ: dữ liệu giả thuộc phiên FE.)
 - **R-P10.** Câu báo khi xếp thiếu giờ bù đổi thành "Còn thiếu N giờ bù", theo spec mục 2.2. Xếp thừa thì giữ câu cũ "Cần đúng … giờ bù, đang xếp … giờ".
 
 ---
@@ -93,12 +86,17 @@
 - [ ] Kiểm hai phụ thuộc (a) và (b):
 
 ```bash
-git merge-base --is-ancestor claude/wire-staff-app-f5adca main && echo a-ok
+git merge-base --is-ancestor 620e434 main && echo a-ok
 for c in 179aeae 2a16f3c 6001bd5; do git merge-base --is-ancestor $c main && echo $c-ok; done
 ```
 
-  Expected: in ra `a-ok` và ba dòng `…-ok`. Thiếu `a-ok` thì dừng, báo người dùng rằng nhánh staff-app chưa vào `main`, và không viết code.
-- [ ] `git merge main`. Không đi thẳng được thì tạo merge commit; có xung đột thì giải xung đột, giữ thay đổi của cả hai bên.
+  - Expected: in ra `a-ok` và ba dòng `…-ok`.
+  - 620e434 là commit merge nhánh staff-app (`claude/wire-staff-app-f5adca`, d64ee73) cùng admin-cleanup.
+  - Thiếu `a-ok` thì dừng, báo người dùng, không viết code.
+  - Kiểm ngày 05/11: `main` đã có 620e434.
+- [ ] `git merge main`. Không đi thẳng được thì tạo merge commit.
+  - Dự kiến xung đột ở `me.controller.ts`, `staff-phone.ts` (builder và mock), `DayBody.vue`, `TodayColumn.vue`, `useDesktopDetail.ts`.
+  - Có xung đột thì giải, giữ thay đổi của cả hai bên. Nhánh này hiện chỉ có tài liệu nên xung đột, nếu có, chỉ nằm ở `docs/`.
 - [ ] Bật container rồi chạy test nền:
 
 ```bash
@@ -818,369 +816,78 @@ annualLeaveLeft(employeeIdOrUsername: string): Promise<number | null>;
 
 ---
 
-### Task 11: Builder FE cho form
+### Task 11: Nối FE (bản mock của phiên khác) với BE
 
-**Files:**
-- Create: `web/src/builders/api/staff-requests.ts`
-- Test: `test/v2/fe-staff-requests.test.ts`
+FE trên dữ liệu giả do phiên khác làm, ở nhánh `claude/staff-requests-fe-mock` theo plan `docs/superpowers/plans/2026-11-05-staff-requests-fe-mock.md`. Các hàm dịch vụ mới của phiên đó trả `notConnected()` khi không ở chế độ mock. Người dùng nói ở phiên đó: "làm phần mock trước, nối API thì để BE". Task này thay các nhánh `notConnected()` bằng lời gọi route thật.
 
-**Interfaces — Produces:**
+**Phụ thuộc:** nhánh `claude/staff-requests-fe-mock` đã vào `main`.
+- Kiểm bằng `git merge-base --is-ancestor claude/staff-requests-fe-mock main`.
+- Chưa vào thì dừng sau Task 10. Báo người dùng phần BE đã xong và task này còn chờ.
+- Đã vào thì `git merge main` trước khi làm.
 
-```ts
-export type FormKind = 'leave' | 'leave-with-makeup' | 'overtime' | 'shift-change' | 'explanation' | 'advance';
-export const KIND_SLUG: Record<FormKind, string>;   // nghi, nghi-bu, ot, doi-ca, giai-trinh, tam-ung
-export const KIND_LABEL: Record<FormKind, string>;  // Đơn nghỉ, Nghỉ có làm bù, Làm thêm giờ, Đổi ca, Giải trình, Tạm ứng
-export type RequestContext = /* đúng hình dạng RequestContextDTO của Task 9 */;
-export type PreviewResult = /* đúng hình dạng của Task 3 */;
-export type Option = { value: string; label: string };
-export function menuOf(ctx: RequestContext): Array<{ kind: FormKind; label: string; enabled: boolean; note: string | null }>;
-export function dayLabel(date: string): string;                                   // 'T6 13/11', 'CN 08/11'
-export function leaveStartOptions(ctx: RequestContext, kind: 'leave' | 'leave-with-makeup'): Option[];
-export function leaveEndOptions(ctx: RequestContext, kind: 'leave' | 'leave-with-makeup', start: string): Option[];
-export function shiftChangeStartOptions(ctx: RequestContext): Option[];
-export function shiftChangeEndOptions(ctx: RequestContext, start: string): Option[];
-export function otDateOptions(ctx: RequestContext): Option[];
-export function slotDateOptions(ctx: RequestContext, leaveEnd: string): Option[];
-export function explanationDateOptions(ctx: RequestContext): Option[];
-export function startHourOptions(day: RequestContext['days'][number], taken: Array<{ start: number; end: number }>): Option[];
-export function endHourOptions(day: RequestContext['days'][number], start: number,
-                               taken: Array<{ start: number; end: number }>, maxMinutes: number): Option[];
-export function otUsedLine(ctx: RequestContext, month: string): string;          // 'Đã đăng ký tháng 11: 9 / 40 giờ'
-export function makeupCounter(requiredMinutes: number, slotMinutes: number[]): { text: string; full: boolean };
-export function leaveBalanceLine(left: number, after: number): string;
-export function summaryLine(kind: FormKind, summary: Record<string, unknown>): string;
-export function explanationCaseText(cases: string[]): string;
-export function advanceLines(a: { amount: number; workDays: number; from: string; to: string }): { amount: string; sub: string };
-```
-
-**Luật chọn ngày** (spec mục 4.4):
-- Không bao giờ có ngày thuộc tháng đã chốt.
-- Đơn nghỉ:
-  - "Từ ngày" là ngày có `workday` và không bị đơn nghỉ giữ (`claim.status` là LEAVE hoặc LEAVE_WITH_MAKEUP);
-  - "Đến ngày" chạy từ "Từ ngày", dừng trước ngày đầu tiên bị đơn nghỉ giữ.
-- Nghỉ có làm bù, thêm các điều kiện:
-  - tháng chưa có OT (`hasOvertime`);
-  - "Đến ngày" cùng tháng với "Từ ngày";
-  - sau "Đến ngày" phải còn ít nhất một ngày trong tháng có `hours` khác rỗng.
-- Làm thêm giờ: ngày có `hours` khác rỗng, tháng không có Nghỉ có làm bù, `otMinutes < 2400`.
-- Ngày bù: sau `leaveEnd`, cùng tháng, có `hours` khác rỗng.
-
-**Luật chọn giờ:**
-- Giờ bắt đầu lấy từ `hours[].start`, bỏ giờ rơi vào khoảng `taken` (các khung đã chọn ở dòng khác cùng ngày).
-- Giờ kết thúc lấy từ `ends` của giờ bắt đầu, dừng trước khung `taken` kế tiếp, và giữ những giờ có `minutes <= maxMinutes`.
-
-**Nhãn trường hợp giải trình:**
-- `LATE_CHECK_IN` Vào muộn, `EARLY_CHECK_IN` Vào sớm, `EARLY_CHECK_OUT` Ra sớm, `FORGOT_CHECK_OUT` Quên check-out, `MISSING_CHECK_IN` Thiếu giờ vào, `MISSING_CHECK_OUT` Thiếu giờ ra, `LATE_CHECK_OUT` Ra muộn.
-- Có cả hai trường hợp thiếu giờ thì ghi "Quên chấm công".
-- Các nhãn khác nối bằng ` · `.
-
-**Các bước:**
-
-- [ ] **Step 1: Viết test.** Dựng một `RequestContext` mẫu với hôm nay 2026-11-04, cùng ngày và giờ như Task 9.
-  - `menu`:
-    - ngữ cảnh tts không có dòng `overtime`;
-    - dòng `advance` có `{ enabled: false, note: 'Chỉ nộp ngày 16 và 17' }`.
-  - `dayLabel`: `'2026-11-13'` → `'T6 13/11'`; `'2026-11-08'` → `'CN 08/11'`.
-  - `leave dates`:
-    - "Từ ngày" không có 08/11 và 13/11 (ngày 13 có `claim` LEAVE);
-    - tháng 12 bị khoá thì không có ngày nào của tháng 12;
-    - `leaveEndOptions(…, '2026-11-10')` cho `['2026-11-10','2026-11-11','2026-11-12']`.
-  - `makeup end keeps a later day`: `leaveEndOptions(ctx, 'leave-with-makeup', '2026-11-27')` có `'2026-11-29'`, không có `'2026-11-30'`.
-  - `hours`:
-    - ngày 05/11 có giờ bắt đầu `['06:00','18:00','19:00','20:00','21:00']`;
-    - `taken [{start:18,end:20}]` → `['06:00','20:00','21:00']`;
-    - giờ kết thúc với start 18, `maxMinutes 240` → `['19:00','20:00','21:00','22:00']`; với `maxMinutes 120` → `['19:00','20:00']`.
-  - `lines`:
-    - `otUsedLine(ctx, '2026-11')` với 540 phút → `'Đã đăng ký tháng 11: 9 / 40 giờ'`;
-    - `makeupCounter(960, [360])` → `{ text: 'Đã xếp 6 / 16 giờ', full: false }`;
-    - `makeupCounter(960, [480, 480])` → `full: true`;
-    - `leaveBalanceLine(11, 8)` → `'Phép năm còn 11 ngày, sau đơn này còn 8'`;
-    - `summaryLine('leave', { dates: ['2026-11-13','2026-11-14','2026-11-16'], daysCount: 3 })` → `'3 ngày làm việc: 13, 14 và 16/11'`;
-    - `summaryLine('leave', { dates: ['2026-11-30','2026-12-01'], daysCount: 2 })` → `'2 ngày làm việc: 30/11 và 01/12'`;
-    - `summaryLine('shift-change', { dates: ['2026-11-10','2026-11-11','2026-11-12'], keptDates: ['2026-11-13'] })` → `'3 ngày đổi ca: 10, 11 và 12/11 · Giữ nguyên ngày nghỉ 13/11'`;
-    - `explanationCaseText(['MISSING_CHECK_IN','MISSING_CHECK_OUT'])` → `'Quên chấm công'`;
-    - `explanationCaseText(['LATE_CHECK_IN','MISSING_CHECK_OUT'])` → `'Vào muộn · Thiếu giờ ra'`;
-    - `advanceLines({ amount: 2215385, workDays: 12, from: '2026-11-01', to: '2026-11-15' })` → `{ amount: 'Số tiền được ứng: 2.215.385 ₫', sub: '80% lương ngày công 01–15/11 · 12 ngày' }`.
-- [ ] **Step 2:** Chạy `fe-staff-requests.test.ts`. Expected: FAIL.
-- [ ] **Step 3:** Viết builder.
-- [ ] **Step 4:** Chạy lại. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): staff request form builders`.
-
----
-
-### Task 12: Dịch vụ FE và dữ liệu giả
-
-**Files:**
-- Create: `web/src/services/staff-requests.ts`
-- Create: `web/src/mock/staff-requests.ts`
-- Modify: `web/src/mock/staff-phone.ts`:
-  - xuất `addMockRequest(detail: RequestDetail)` và `cancelMockRequest(id: string)`, thao tác trên `REQUESTS`;
-  - đổi ngày 24/10 theo R-P9;
-  - xuất `MOCK_REMINDERS`.
-- Modify: các assertion đếm ngày trong `web/tests/staff-*.spec.ts` bị đổi vì R-P9.
-
-**Interfaces — Produces:**
-
-```ts
-// services/staff-requests.ts
-export function getRequestContext(): Promise<RequestContext>;
-export function previewRequest(kind: FormKind, body: Record<string, unknown>): Promise<PreviewResult>;
-export function createRequest(kind: FormKind, body: Record<string, unknown>): Promise<void>;
-export function cancelRequest(id: string): Promise<void>;
-// mock/staff-requests.ts
-export function mockToday(): string;   // ?homnay=YYYY-MM-DD khi __MOCK__, không có thì MOCK_TODAY
-export function mockContext(today: string): RequestContext;
-export function mockPreview(kind: FormKind, body: Record<string, unknown>): PreviewResult;
-export function mockCreate(kind: FormKind, body: Record<string, unknown>): void;
-export function mockCancel(id: string): void;
-```
-
-**Máy chủ thật:**
-- `GET /me/request-context`;
-- `POST /me/requests/:kind/preview`;
-- `POST /me/requests/:kind`;
-- `PATCH /me/requests/:id/cancel` với body `{}`.
-
-Lỗi `ApiError` được ném lại cho chỗ gọi.
-
-**Mock:**
-- `mockContext`:
-  - ca 08–17, làm Thứ Hai đến Thứ Bảy;
-  - `hours` như Task 1. Chủ nhật: giờ bắt đầu 6..21, `minutes` bằng số giờ × 60, tối đa 720;
-  - `explanationDays` gồm ngày 24/10 (`MISSING_CHECK_OUT`);
-  - `advance` có giá trị khi `today` là ngày 16 hoặc 17: `{ month, amount: 2215385, workDays: 12, from, to }`.
-- `mockPreview`:
-  - trả `summary` như mục 2.2 của spec;
-  - trả `ok: false` khi xếp giờ bù chưa đủ, hoặc xin phép năm quá số còn lại.
-- `mockCreate`: thêm một `RequestDetail` vào đầu danh sách, trạng thái `pend`, `statusText` "Chờ duyệt", tiêu đề theo mẫu của Task 1.
-- `mockCancel`: chuyển đơn sang `status: 'rej'`, `statusText: 'Đã huỷ'`, giống cách builder đổi CANCELLED.
-
-**Các bước:**
-
-- [ ] **Step 1:** Viết dịch vụ và mock theo phần Interfaces. Test nằm ở Task 13–16, vì mock chỉ được kiểm qua UI.
-- [ ] **Step 2:** `PW_PORT=4255 npm --prefix web run test:ui -- staff-phone staff-desktop`. Expected: PASS sau khi sửa assertion đếm ngày theo R-P9.
-- [ ] **Step 3:** Commit `feat(web): staff request service and mock data`.
-
----
-
-### Task 13: Luồng tạo đơn trên điện thoại (J8–J10)
-
-**Files:**
-- Create: `web/src/views/staff-requests/NewRequestBody.vue`
-- Create: 6 form `web/src/views/staff-requests/{LeaveForm,MakeupLeaveForm,OvertimeForm,ShiftChangeForm,ExplanationForm,AdvanceForm}.vue`
-- Create: `web/src/views/staff-requests/usePreview.ts`
-- Create: `web/src/views/staff-phone/components/NewRequestSheet.vue`
-- Modify: `web/src/views/staff-phone/RequestsView.vue`
-- Test: `web/tests/staff-phone-new-request.spec.ts`
-
-**Interfaces — Produces:**
-- `NewRequestBody`:
-  - props `{ slug: string; date: string | null }`;
-  - emits `navigate(slug: string)`, `sent()`, `close()`;
-  - tải `getRequestContext()` một lần;
-  - `slug === 'chon'` thì hiện menu (`menuOf`); slug là loại đơn thì hiện form của loại đó, có nút "‹" để emit `navigate('chon')`.
-- `usePreview(kind, body: Ref<Record<string, unknown> | null>)`:
-  - trả `{ result: Ref<PreviewResult | null>, busy: Ref<boolean> }`;
-  - gọi `previewRequest` sau 300ms kể từ lần sửa cuối, chỉ khi `body` khác null (form đã đủ trường);
-  - bỏ kết quả của lần gọi cũ.
-- Mỗi form:
-  - giữ các ô theo spec mục 4.4, dùng các hàm của Task 11 để dựng lựa chọn;
-  - "Gửi yêu cầu" chỉ bật khi `result.ok === true`;
-  - gửi thành công thì emit `sent`;
-  - `ApiError` thì hiện `e.message` ngay dưới nút Gửi và tải lại context.
-- `RequestsView`:
-  - `?tao=<slug>` mở `NewRequestSheet`;
-  - nút "Tạo yêu cầu" `router.replace` sang `?tao=chon`;
-  - `sent` → đóng sheet, `toast.success('Đã gửi yêu cầu')`, tải lại danh sách.
-
-**Các bước:**
-
-- [ ] **Step 1: Viết test Playwright** dùng `openPhone`, mảng `calls` phải rỗng:
-  - `menu shows six kinds with advance locked`:
-    - `/nv/yeu-cau?tao=chon` có 6 dòng theo thứ tự `KIND_LABEL`;
-    - dòng "Tạm ứng" bị khoá và có chữ "Chỉ nộp ngày 16 và 17".
-  - `leave form sends and lists the new request first`:
-    - chọn Đơn nghỉ, Phép năm, Từ "T5 29/10", Đến "T6 30/10", lý do "Việc nhà";
-    - dòng tóm tắt có "2 ngày làm việc: 29 và 30/10";
-    - bấm "Gửi yêu cầu" → có chữ "Đã gửi yêu cầu";
-    - dòng đầu danh sách có tên "Phép năm 29–30/10, Chờ duyệt".
-  - `send stays off until the form is valid`: Gửi bị tắt khi chưa có lý do.
-  - `overtime offers only valid hours`: ngày "T5 29/10" có giờ bắt đầu `06:00, 18:00, 19:00, 20:00, 21:00`.
-  - `makeup sends only when hours are full`:
-    - ô "Đến ngày" khi nghỉ từ 29/10 có "T6 30/10", không có "T7 31/10" (sau 31/10 không còn ngày trong tháng để bù);
-    - nghỉ 29/10–29/10; dòng bù 30/10 18:00–22:00 → bộ đếm "Đã xếp 4 / 8 giờ", Gửi tắt;
-    - danh sách ngày bù không có 01/11 (khác tháng);
-    - thêm dòng bù 31/10 18:00–22:00 → "Đã xếp 8 / 8 giờ", Gửi bật.
-  - `advance on the 16th shows only the amount`:
-    - `/nv/yeu-cau?tao=tam-ung&homnay=2026-11-16` có chữ "Số tiền được ứng: 2.215.385 ₫" và "80% lương ngày công 01–15/11 · 12 ngày";
-    - không có ô nhập số tiền hay lý do.
-  - `fields have 8px corners`: `getComputedStyle(select).borderRadius === '8px'`.
-- [ ] **Step 2:** `PW_PORT=4255 npm --prefix web run test:ui -- staff-phone-new-request.spec.ts`. Expected: FAIL.
-- [ ] **Step 3:** Viết các component và nối vào `RequestsView`.
-- [ ] **Step 4:** Chạy lại. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): staff request flow on the phone`.
-
----
-
-### Task 14: Luồng tạo đơn trên máy tính (K3)
-
-**Files:**
-- Modify: `web/src/views/staff-desktop/useDesktopDetail.ts`
-- Modify: `web/src/views/staff-desktop/StaffDesktopPage.vue`
-- Modify: `web/src/views/staff-desktop/parts/TodayColumn.vue`
-- Test: `web/tests/staff-desktop-new-request.spec.ts`
-
-**Interfaces — Consumes:** `NewRequestBody` (Task 13).
-
-**Interfaces — Produces:**
-- `useDesktopDetail()` trả thêm `newRequest: Ref<{ slug: string; date: string | null } | null>`, đọc `tao` và `ngay` trên đường `/nv/yeu-cau`.
-- `closeDetail` bỏ cả `tao` và `ngay`.
-- `StaffDesktopPage` hiện `SideDrawer` (tiêu đề "Tạo yêu cầu") chứa `NewRequestBody` khi có `newRequest`.
-- Nút "Tạo yêu cầu" ở `TodayColumn` đi tới `{ path: '/nv/yeu-cau', query: { tao: 'chon' } }`.
-
-**Các bước:**
-
-- [ ] **Step 1: Viết test** dùng fixture `staff-desktop`:
-  - `Tạo yêu cầu opens the drawer menu`;
-  - `back returns to the menu`;
-  - `sending closes the drawer and toasts`;
-  - mảng `calls` rỗng.
-- [ ] **Step 2:** Chạy file test. Expected: FAIL.
-- [ ] **Step 3:** Viết theo phần Interfaces. Lớp CSS mới có tiền tố `sd-`.
-- [ ] **Step 4:** Chạy file test và `staff-desktop-*.spec.ts`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): staff request drawer on desktop`.
-
----
-
-### Task 15: Điểm vào giải trình (lời nhắc ở Hôm nay, nút trong chi tiết ngày)
-
-**Files:**
+**Files** (đọc lại tên thật sau khi merge; dưới đây theo plan của phiên kia):
+- Modify: `web/src/services/staff-requests.ts`: nhánh máy chủ thật của `getRequestContext`, `previewRequest`, `createRequest`, `cancelRequest`.
 - Modify: `web/src/builders/api/staff-phone.ts`:
-  - `homeViewOf` thêm `reminders` từ `t.reminders`;
-  - `dayDetailOf` thêm `explainTo` khi `due` khác null.
-- Modify: `web/src/mock/staff-phone.ts`:
-  - kiểu `HomeView` thêm `reminders: Array<{ date: string; text: string; to: string }>`;
-  - kiểu `DayDetail` thêm `explainTo: string | null`;
-  - mock điền hai trường này từ `MOCK_REMINDERS` và ngày 24/10.
-- Modify: `web/src/views/staff-phone/HomeView.vue`, `web/src/views/staff-desktop/parts/TodayColumn.vue` (dòng nhắc ở đầu)
-- Modify: `web/src/views/staff-phone/components/DayBody.vue` (nút "Giải trình")
-- Modify: `web/src/views/staff-desktop/useDesktopDetail.ts`
-- Test: thêm vào `test/v2/fe-staff-phone-builders.test.ts`; `web/tests/staff-phone-new-request.spec.ts`; `web/tests/staff-desktop-new-request.spec.ts`
+  - `homeViewOf` lấy `reminders` từ `t.reminders` của `/me/today`;
+  - `dayDetailOf` lấy `due` từ `/me/attendance/:date`.
+- Modify: `web/src/builders/api/inbox.ts` (thêm `inboxFromDue`), `web/src/services/admin-main.ts`:
+  - `getInbox` đọc thêm `/requests/explanations-due`;
+  - `resolveRequest(id, 'remind')` gọi route nhắc.
+- Test: `test/v2/fe-staff-phone-builders.test.ts`, `test/v2/fe-api-builders.test.ts`, `test/v2/fe-staff-requests-service.test.ts`.
 
-**Interfaces — Produces:**
-- `reminders[i]` = `{ date, text: 'Admin nhắc giải trình 24/10', to: '/nv/yeu-cau?tao=giai-trinh&ngay=2026-10-24' }`.
-- `explainTo` = `'/nv/yeu-cau?tao=giai-trinh&ngay=<date>'`, hoặc `null`.
-
-**Các bước:**
-
-- [ ] **Step 1: Viết test.**
-  - Builder:
-    - `homeViewOf` với `reminders: [{ date: '2026-10-24', remindedAt: '…' }]` → `reminders[0]` đúng như trên;
-    - `dayDetailOf` với `due` khác null → `explainTo` đúng như trên; với `due: null` → `null`.
-  - Playwright:
-    - `reminder line opens the explanation form for that day`:
-      - `/nv/hom-nay` có liên kết "Admin nhắc giải trình 24/10";
-      - bấm vào → form Giải trình có ngày "T7 24/10" đã chọn, chữ "Thiếu giờ ra", một ô giờ ra kiểu `time`, không có ô giờ vào.
-    - `day detail offers Giải trình`: `/nv/cham-cong?ngay=2026-10-24` có liên kết "Giải trình".
-    - Cùng hai test này trên máy tính.
-- [ ] **Step 2:** Chạy các test trên. Expected: FAIL.
-- [ ] **Step 3:** Viết builder, mock và view.
-- [ ] **Step 4:** Chạy lại. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): explanation entry points from reminders and day detail`.
-
----
-
-### Task 16: Huỷ đơn đang chờ
-
-**Files:**
-- Modify: `web/src/views/staff-phone/components/RequestBody.vue`
-- Modify: `web/src/views/staff-phone/components/RequestSheet.vue`
-- Modify: `web/src/views/staff-phone/RequestsView.vue`
-- Modify: `web/src/views/staff-desktop/StaffDesktopPage.vue`
-- Test: `web/tests/staff-phone-new-request.spec.ts`
-
-**Interfaces — Produces:**
-- `RequestBody` hiện nút "Huỷ đơn" khi `request.status === 'pend'`.
-- Bấm nút thì hiện xác nhận ngay tại chỗ: "Huỷ đơn này?" với hai nút "Huỷ đơn" và "Không".
-- Xác nhận:
-  - gọi `cancelRequest(id)`;
-  - `toast.success('Đã huỷ đơn')`;
-  - emit `changed`.
-- Chỗ cha nghe `changed` thì tải lại danh sách và chi tiết.
-- Lỗi thì hiện `e.message` tại chỗ.
-
-**Các bước:**
-
-- [ ] **Step 1: Viết test.**
-  - `cancel a pending request`:
-    - mở `?yc=giai-trinh-2710`, bấm "Huỷ đơn", rồi "Huỷ đơn" trong xác nhận;
-    - thấy "Đã huỷ đơn";
-    - dòng của đơn đổi thành "Thiếu giờ ra 27/10, Đã huỷ".
-  - `Không keeps the request`.
-  - `approved requests have no cancel button`: `?yc=phep-1210`.
-- [ ] **Step 2:** Chạy file test. Expected: FAIL.
-- [ ] **Step 3:** Viết theo phần Interfaces.
-- [ ] **Step 4:** Chạy file test, `staff-phone-requests.spec.ts` và `staff-desktop-drawers.spec.ts`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): cancel a pending request`.
-
----
-
-### Task 17: Chuông Admin: bỏ "Khai thay", nhắc rồi việc ở lại
-
-**Files:**
-- Modify: `web/src/mock/inbox.ts`:
-  - `InboxItem` thêm `employeeId?: string` và `remindedAt?: string | null`;
-  - thêm `remindInboxItem(id): InboxItem | null`.
-- Modify: `web/src/services/admin-main.ts`:
-  - `DecisionVerb` bỏ `'declare'`;
-  - `resolveRequest` xử lý `'remind'`;
-  - `getInbox` (máy chủ thật) đọc thêm `/requests/explanations-due`.
-- Modify: `web/src/builders/api/inbox.ts` (thêm `inboxFromDue`)
-- Modify: `web/src/components/shell/InboxDetail.vue`
-- Modify: component đang nghe sự kiện `decided` của `InboxDetail` (tìm bằng `grep -rn "@decided" web/src`)
-- Test: `web/tests/admin-bell.spec.ts`; builder test trong `test/v2/fe-api-builders.test.ts`
+**Interfaces — Consumes:**
+- Từ BE (Task 9–10): `GET /me/request-context`, `POST /me/requests/:kind/preview`, `POST /me/requests/:kind`, `PATCH /me/requests/:id/cancel`, `GET /requests/explanations-due`, `POST /requests/explanations-due/remind`.
+- Từ FE mock: hình dạng `RequestContext` và `PreviewResult` (spec mục 2.1, 2.2). Thân đơn dùng đúng tên trường của BE.
 
 **Interfaces — Produces:**
 
 ```ts
+// services/staff-requests.ts, nhánh máy chủ thật
+getRequestContext(): Promise<RequestContext>;                   // api.get('/me/request-context')
+previewRequest(kind, draft): Promise<PreviewResult>;              // api.post(`/me/requests/${kind}/preview`, draft)
+createRequest(kind, draft): Promise<{ id: string }>;              // api.post(`/me/requests/${kind}`, draft)
+cancelRequest(id: string): Promise<void>;                         // api.patch(`/me/requests/${id}/cancel`, {})
+// builders/api/inbox.ts
 export function inboxFromDue(items: Array<{ employeeId: string; name: string; date: string; cases: string[];
   needs: { checkIn: boolean; checkOut: boolean }; remindedAt: string | null }>, people: Map<string, PersonInfo>, now: number): InboxItem[];
-export const remindedText = (iso: string) => string; // 'Đã nhắc: 09:40 28/10' (giờ VN)
 ```
 
-**Việc dựng từ `inboxFromDue`:**
-- `id` = `due:<employeeId>:<date>`, `group: 'att'`, `action: 'remind'`.
-- `what` = `explanationCaseText(cases)`.
-- `facts`: `[['Ngày', 'Thứ Ba 27/10'], ['Trường hợp', what], ['Giải trình', 'Chưa gửi']]`.
-- `days: [date]`.
-
-**Nhắc giải trình:**
-- Mock: đặt `remindedAt = MOCK_NOW`, việc vẫn ở lại.
-- Máy chủ thật: `POST /requests/explanations-due/remind` với `{ employeeId, date }`.
-
-**`InboxDetail`:**
-- Bỏ nút "Khai thay giờ vào/ra".
-- Nút có tên `remindedAt ? 'Nhắc lại' : 'Nhắc giải trình'`.
-- Có `remindedAt` thì hiện dòng `remindedText`.
-- Sau khi nhắc, giữ nguyên việc đang chọn: không chuyển sang việc kế tiếp, vì việc chưa rời chuông.
+- `createRequest` lấy `id` từ thân trả về của `createdBody`. Đọc `request-http.ts` để biết đúng chỗ của `id`.
+- Việc trong chuông do `inboxFromDue` dựng:
+  - `id` = `due:<employeeId>:<date>`, `group: 'att'`, `action: 'remind'`;
+  - mang theo `employeeId` và `remindedAt`;
+  - `what` = `caseText(cases)` của builder phía FE mock.
+- `resolveRequest(id, 'remind')` (máy chủ thật):
+  - gửi `POST /requests/explanations-due/remind` với `{ employeeId, date }` lấy từ việc đã đọc;
+  - trả lại việc đó, có `remindedAt` mới; việc không rời chuông.
+- Số trên chuông không đổi (R-P8).
 
 **Các bước:**
 
 - [ ] **Step 1: Viết test.**
-  - Builder:
-    - `inboxFromDue` cho đúng `id`, `group`, `what` "Quên chấm công" (khi thiếu cả hai giờ), `remindedAt`;
-    - `remindedText('2026-10-28T02:40:00.000Z') === 'Đã nhắc: 09:40 28/10'`.
-  - Playwright: thay test `forgotten punches offer a reminder and a stand-in entry` bằng `forgotten punches offer only a reminder that stays`:
-    - việc `ib-c1` không có nút tên khớp `/Khai thay/`;
-    - bấm "Nhắc giải trình" → câu báo "Đã nhắc … giải trình."; việc vẫn trong danh sách; có dòng "Đã nhắc: 09:40 28/10"; nút đổi thành "Nhắc lại".
-- [ ] **Step 2:** Chạy `admin-bell.spec.ts` và test builder. Expected: FAIL.
-- [ ] **Step 3:** Viết theo phần Interfaces.
-- [ ] **Step 4:** Chạy `admin-*.spec.ts` và `fe-api-builders.test.ts`. Expected: PASS.
-- [ ] **Step 5:** Commit `feat(web): bell reminds without stand-in entry`.
+  - `fe-staff-requests-service.test.ts`: thay `api` bằng bản giả ghi lại lời gọi; chạy với `__MOCK__ = false`.
+    - Bốn hàm gọi đúng phương thức và đường dẫn.
+    - `createRequest('leave', draft)` trả `{ id }` lấy từ thân trả về.
+    - Cách thay `api` theo kiểu các test `fe-*` hiện có. Không thay được thì chuyển phần này sang test builder, và ghi `Ruling:` vào plan.
+  - `homeViewOf` với `reminders: [{ date: '2026-10-24', remindedAt: '2026-10-27T02:40:00.000Z' }]` → `reminders[0].text === 'Admin nhắc giải trình 24/10'`.
+  - `dayDetailOf`:
+    - với `due: { cases: ['MISSING_CHECK_OUT'], needs: { checkIn: false, checkOut: true }, remindedAt: null }` → `due` giữ nguyên;
+    - với `due: null` → `null`.
+  - `inboxFromDue`:
+    - một mục thiếu cả hai giờ → `id === 'due:u1:2026-10-27'`, `group === 'att'`, `action === 'remind'`, `what === 'Quên chấm công'`;
+    - `remindedAt` giữ nguyên.
+- [ ] **Step 2:** Chạy các file test trên. Expected: FAIL.
+- [ ] **Step 3:** Viết các nhánh máy chủ thật và `inboxFromDue`.
+- [ ] **Step 4:** Chạy lại các test node, rồi `PW_PORT=4255 npm --prefix web run test:ui`. Expected: PASS (chế độ mock không đổi).
+- [ ] **Step 5:** Commit `feat(web): wire staff requests and bell reminders to the v2 API`.
+
+**Chưa kiểm được trong task này:** luồng chạy trên BE thật bằng `web/tests/api/`.
+- Bộ test đó cần một BE đang chạy trên DB thử, và mật khẩu admin của chính DB thử đó. Không dùng mật khẩu trong `deploy/secrets/luong.env`.
+- Chỉ chạy khi người dùng cho cách lấy mật khẩu đó. Không chạy được thì ghi vào báo cáo.
 
 ---
 
-### Task 18: Xác minh toàn bộ
+### Task 12: Xác minh toàn bộ
 
 **Files:** không sửa file.
 
@@ -1189,5 +896,7 @@ export const remindedText = (iso: string) => string; // 'Đã nhắc: 09:40 28/1
 - [ ] Tắt container: `docker stop luong-test-pg-staff-requests` (chỉ container của phiên này).
 - [ ] Ghi kết quả vào báo cáo:
   - lệnh đã chạy, số pass/fail;
-  - các Ruling R-P1…R-P10;
-  - những gì chưa kiểm: route `/me` mới chưa có test HTTP trên PostgreSQL thật, ngoài test PG của bảng nhắc.
+  - các Ruling R-P1…R-P10 (trừ R-P9, đã bỏ);
+  - những gì chưa kiểm:
+    - route `/me` mới chưa có test HTTP trên PostgreSQL thật, ngoài test PG của bảng nhắc;
+    - luồng FE trên BE thật (`web/tests/api/`), nếu chưa chạy ở Task 11.
