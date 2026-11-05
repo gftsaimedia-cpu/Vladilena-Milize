@@ -1,5 +1,6 @@
 // Bản nháp của một nhóm cài đặt theo tháng: tải nhóm ở tháng đang chọn, giữ số đã gõ khi đổi tháng, kiểm tra, dựng câu xác nhận và lưu.
 // Ô chưa đụng tới đi theo giá trị hiệu lực ở tháng đang chọn; ô đã gõ giữ số đã gõ.
+// backToMinMonth: lưu xong hoặc Huỷ thì về tháng đang mở (minMonth) và tải lại (Tất cả cài đặt, Ruling R16); không có thì giữ tháng đang chọn.
 //   const d = useSettingsDraft('payCalendar', ['payDay']);  → d.draft.payDay là v-model của ô; d.save() sau khi người dùng xác nhận.
 import { computed, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
@@ -17,7 +18,7 @@ import { monthOptions } from './date';
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
-export function useSettingsDraft(group: GroupKey, fields: string[]) {
+export function useSettingsDraft(group: GroupKey, fields: string[], opts: { backToMinMonth?: boolean } = {}) {
   const ready = ref(false);
   const minMonth = ref('');
   const month = ref('');
@@ -63,7 +64,9 @@ export function useSettingsDraft(group: GroupKey, fields: string[]) {
     }
   }
 
-  watch(month, load);
+  // Đổi tháng là tải ngay (sync), để `loading` luôn là lượt tải của tháng vừa đặt.
+  let loading: Promise<void> = Promise.resolve();
+  watch(month, () => (loading = load()), { flush: 'sync' });
   (async () => {
     try {
       const first = await getSettings();
@@ -102,14 +105,23 @@ export function useSettingsDraft(group: GroupKey, fields: string[]) {
     return confirmLines(group, s.values, after, month.value);
   });
 
+  // Về minMonth nếu backToMinMonth và đang ở tháng khác; true = đã đổi tháng, watcher của month đã bắt đầu tải (`loading`).
+  function backToMin(): boolean {
+    if (!opts.backToMinMonth || !minMonth.value || month.value === minMonth.value) return false;
+    month.value = minMonth.value;
+    return true;
+  }
+
   function reset() {
     touched.clear();
     reason.value = '';
-    if (!state.value) return;
-    syncing = true;
-    draft.value = clone(state.value.values);
-    base = clone(state.value.values);
-    syncing = false;
+    if (state.value) {
+      syncing = true;
+      draft.value = clone(state.value.values);
+      base = clone(state.value.values);
+      syncing = false;
+    }
+    backToMin();
   }
 
   async function save(): Promise<boolean> {
@@ -128,7 +140,8 @@ export function useSettingsDraft(group: GroupKey, fields: string[]) {
       toast.ok('Đã lưu');
       touched.clear();
       reason.value = '';
-      await load();
+      if (!backToMin()) loading = load();
+      await loading;
       return true;
     } catch (e) {
       if (isStale(e)) {
@@ -141,5 +154,5 @@ export function useSettingsDraft(group: GroupKey, fields: string[]) {
     }
   }
 
-  return { ready, month, months, state, draft, reason, changed, errors, canSave, lines, saving, reset, save, reload: load };
+  return { ready, minMonth, month, months, state, draft, reason, changed, errors, canSave, lines, saving, reset, save, reload: load };
 }

@@ -144,6 +144,31 @@ test('saving BHXH 8% → 8,5% from 11/2026 confirms the change line', async ({ p
   await expect(dlg).toContainText('BHXH 8% → 8,5%, áp dụng từ tháng 11/2026');
   await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
   await expect(page.getByText('Đã lưu')).toBeVisible();
+  // Lưu xong thẻ về tháng đang mở (Ruling R16): ô hiện số của 10/2026, không còn ô tháng.
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await expect(page.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveCount(0);
+  await expect(page.getByText('Chưa có thay đổi')).toBeVisible();
+});
+
+test('the month picker stays while another month is chosen, and Huỷ goes back to the open month', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  const bhxh = page.getByRole('textbox', { name: 'BHXH' });
+  const month = page.getByRole('combobox', { name: 'Áp dụng từ tháng' });
+  await bhxh.fill('9');
+  await month.selectOption({ label: 'Tháng 11/2026' });
+  await bhxh.fill('8'); // bằng số của 11/2026: không còn thay đổi, nhưng vẫn đang ở 11/2026
+  await expect(page.getByText('Chưa có thay đổi')).toBeVisible();
+  await expect(month).toHaveValue('2026-11');
+  await month.selectOption({ label: 'Tháng 10/2026' });
+  await expect(month).toHaveCount(0);
+
+  await bhxh.fill('9');
+  await month.selectOption({ label: 'Tháng 12/2026' });
+  await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(bhxh).toHaveValue('8');
+  await expect(month).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'BHYT' }).fill('2');
+  await expect(month).toHaveValue('2026-10');
 });
 
 test('tax brackets refuse a bound below the previous one', async ({ page }) => {

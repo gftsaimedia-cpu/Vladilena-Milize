@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Thẻ của một nhóm trong Tất cả cài đặt: các mục, vùng "Áp dụng từ tháng" + lý do (chỉ hiện khi đã đổi gì đó),
+// Thẻ của một nhóm trong Tất cả cài đặt: các mục, vùng "Áp dụng từ tháng" + lý do (hiện khi đã đổi gì đó hoặc đang chọn tháng khác),
 // thanh lưu (Huỷ, Lưu), hộp xác nhận, lịch sử từng mục và Hoàn tác. Mỗi nhóm của máy chủ dùng một useSettingsDraft; đổi nhóm là dựng thẻ mới.
 // Báo lên trang qua `dirty` để trang hỏi trước khi bỏ chỗ sửa dở. `setting` là mục cần cuộn tới và focus.
 import { computed, nextTick, ref, watch } from 'vue';
@@ -23,9 +23,12 @@ const emit = defineEmits(['dirty']);
 
 // Các ô của nhóm: biểu thuế là một ô `brackets`.
 const fields = props.group.items.flatMap(i => (i.brackets ? ['brackets'] : i.fields.map(f => f.field)));
-const sd = props.group.group ? useSettingsDraft(props.group.group, fields) : null;
+// Lưu xong hoặc Huỷ thì thẻ về tháng đang mở (Ruling R16).
+const sd = props.group.group ? useSettingsDraft(props.group.group, fields, { backToMinMonth: true }) : null;
 const shown = computed(() => !sd || sd.ready.value);
 const changes = computed(() => sd?.changed.value.length ?? 0);
+// Ô tháng hiện khi đã đổi gì đó, và cả khi đang chọn tháng khác tháng đang mở (để còn chọn lại được).
+const showApply = computed(() => !!sd && (changes.value > 0 || sd.month.value !== sd.minMonth.value));
 
 watch(changes, n => emit('dirty', n > 0), { immediate: true });
 
@@ -112,7 +115,7 @@ watch([shown, () => props.setting], focusSetting, { immediate: true });
       />
 
       <template v-if="sd">
-        <div v-if="changes" class="apply">
+        <div v-if="showApply" class="apply">
           <div class="fld">
             <label>Áp dụng từ tháng</label>
             <SelectBox v-model="sd.month.value" variant="inp" :options="sd.months.value" label="Áp dụng từ tháng" />
