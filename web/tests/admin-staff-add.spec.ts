@@ -50,6 +50,17 @@ test('the username is suggested from the name until the Admin types one', async 
   await expect(field(page, 'Tên đăng nhập')).toHaveValue('trang.dt01');
 });
 
+test('clearing the username leaves it empty and Tạo nhân sự off; a new name suggests again', async ({ page }) => {
+  await open(page);
+  await fillValid(page);
+  await field(page, 'Tên đăng nhập').fill('');
+  await expect(field(page, 'Tên đăng nhập')).toHaveValue('');
+  await expect(create(page)).toBeDisabled();
+  await field(page, 'Họ tên').fill('Phan Thị Hà');
+  await expect(field(page, 'Tên đăng nhập')).toHaveValue('phan-thi-ha');
+  await expect(create(page)).toBeEnabled();
+});
+
 test('Tạo nhân sự turns on only when every required field is right', async ({ page }) => {
   await open(page);
   await fillValid(page);

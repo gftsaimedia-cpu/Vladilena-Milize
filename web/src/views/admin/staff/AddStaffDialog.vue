@@ -40,7 +40,8 @@ const isNv = computed(() => form.type === 'nv');
 const nightNv = computed(() => isNv.value && form.shift === 'NIGHT');
 const placeholder = (label: string) => [{ value: '', label }];
 
-// Tên đăng nhập theo họ tên cho tới khi Admin tự gõ (xoá trắng thì lại gợi ý theo họ tên).
+// Tên đăng nhập theo họ tên cho tới khi Admin tự gõ. Xoá trắng thì ô để trống (nút Tạo mờ); sửa họ tên sau đó thì
+// lại gợi ý theo họ tên.
 const typedUsername = ref(false);
 watch(
   () => form.name,
@@ -51,10 +52,9 @@ watch(
 function onUsername(e: Event) {
   const input = e.target as HTMLInputElement;
   const clean = cleanUsername(input.value);
-  input.value = clean;
+  input.value = clean; // Vue không vẽ lại khi giá trị sau khi lọc trùng giá trị cũ
   form.username = clean;
   typedUsername.value = clean !== '';
-  if (!clean) form.username = suggestUsername(form.name);
 }
 
 function onType(code: string) {
