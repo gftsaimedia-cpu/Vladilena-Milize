@@ -75,14 +75,16 @@ const zLat = ref<number | null>(null);
 const zLng = ref<number | null>(null);
 const zRadius = ref<number | null>(null);
 const zoneReady = computed(() => !!zoneData.value);
-// Mỗi lần đọc xong (lần đầu, sau khi lưu, sau khi tải lại vì 409) thì nháp theo vùng vừa đọc.
+// Mỗi lần đọc xong (lần đầu, sau khi lưu, sau khi tải lại vì 409): ô chưa gõ (còn bằng vùng đọc lần trước) theo vùng
+// vừa đọc, ô đã gõ giữ số đã gõ, như các màn cài đặt khác; nhờ vậy 409 chỉ làm mới vùng đã lưu và stamp.
 watch(
   zoneData,
-  v => {
-    const z = v && v.zone;
-    zLat.value = z ? z.lat : null;
-    zLng.value = z ? z.lng : null;
-    zRadius.value = z ? z.radiusM : null;
+  (v, old) => {
+    const z = v ? v.zone : null;
+    const prev = old ? old.zone : null;
+    if (zLat.value === (prev ? prev.lat : null)) zLat.value = z ? z.lat : null;
+    if (zLng.value === (prev ? prev.lng : null)) zLng.value = z ? z.lng : null;
+    if (zRadius.value === (prev ? prev.radiusM : null)) zRadius.value = z ? z.radiusM : null;
   },
   { immediate: true }
 );
@@ -360,10 +362,12 @@ const nextDay = (s?) => s.endTime < s.startTime;
           <div class="zn-fld">
             <label>Vĩ độ</label>
             <FieldNum v-model="zLat" label="Vĩ độ" :decimals="6" :max="90" />
+            <small v-if="zErrors.lat" class="zn-hint bad">{{ zErrors.lat }}</small>
           </div>
           <div class="zn-fld">
             <label>Kinh độ</label>
             <FieldNum v-model="zLng" label="Kinh độ" :decimals="6" :max="180" />
+            <small v-if="zErrors.lng" class="zn-hint bad">{{ zErrors.lng }}</small>
           </div>
           <button type="button" class="btn sm zn-here" @click="useHere"><Icon name="pin" />Dùng vị trí hiện tại</button>
         </div>

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { inApp } from './fixtures/in-app';
 
 // Cài đặt › Lịch, ca & chấm công trên dữ liệu giả (mock/settings.ts): ngày lễ, chấm ngày trả lương, 6 ca cố định. Không page.route.
 const day = (page: Page, d: number, m: number) => page.getByRole('button', { name: `Ngày ${d} tháng ${m}`, exact: true });
@@ -95,6 +96,34 @@ test('zone radius takes 20 to 5000 m and saves at once', async ({ page }) => {
   await expect(page.getByText('Đã lưu')).toBeVisible();
   await expect(r).toHaveValue('200');
   await expect(zone).toContainText('Chưa có thay đổi');
+});
+
+test('a stale zone save keeps the typed radius and says the zone was reloaded', async ({ page }) => {
+  await page.goto('/admin/cai-dat/lich');
+  const zone = zoneCard(page);
+  const r = zone.getByRole('textbox', { name: 'Bán kính vùng chấm công' });
+  await expect(r).toHaveValue('150');
+  await r.fill('200');
+  // Người khác vừa lưu vùng (đổi vĩ độ) nên stamp trên màn đã cũ.
+  await inApp(page, `const S = await import('/src/mock/settings.ts'); const z = S.zoneOf(); S.saveZoneOf({ ...z.zone, lat: 10.8, reason: null, stamp: z.stamp });`);
+  await zone.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lưu thay đổi' }).getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByText('Có người vừa lưu trước, đã tải lại')).toBeVisible();
+  await expect(r).toHaveValue('200');
+  await expect(zone.getByRole('textbox', { name: 'Vĩ độ' })).toHaveValue('10,8'); // ô chưa gõ theo vùng vừa tải
+  await expect(zone).toContainText('Có thay đổi chưa lưu');
+  await zone.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' })).toContainText('Bán kính 150 m → 200 m, áp dụng ngay');
+});
+
+test('an empty latitude or longitude says Nhập một số under its box', async ({ page }) => {
+  await page.goto('/admin/cai-dat/lich');
+  const zone = zoneCard(page);
+  await zone.getByRole('textbox', { name: 'Vĩ độ' }).fill('');
+  await expect(zone.locator('.zn-fld', { hasText: 'Vĩ độ' })).toContainText('Nhập một số');
+  await zone.getByRole('textbox', { name: 'Kinh độ' }).fill('');
+  await expect(zone.locator('.zn-fld', { hasText: 'Kinh độ' })).toContainText('Nhập một số');
+  await expect(zone.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
 });
 
 test('Dùng vị trí hiện tại fills the coordinates', async ({ page, context }) => {
