@@ -175,8 +175,11 @@ test('pending tab lists every day to handle in date order', async ({ page }) => 
 
   await page.reload();
   await expect(pendingTab(page)).toHaveAttribute('aria-selected', 'true');
+  // Từ 900px bấm dòng chỉ chọn việc ở khung chi tiết bên phải; hộp chi tiết ngày chỉ mở ở màn hẹp.
   await list.getByRole('button', { name: /Lê Hoàng Nam/ }).click();
-  await expect(dialogOf(page)).toHaveAccessibleName('Lê Hoàng Nam · Thứ Ba 27/10/2026');
+  await expect(page).toHaveURL(/viec=ib-e1/);
+  await expect(dialogOf(page)).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Chi tiết việc đang chọn' })).toContainText('Lê Hoàng Nam');
 });
 
 test('day dialog deep-links, shows the request and closes back to the grid', async ({ page }) => {
@@ -221,9 +224,10 @@ test('approving in the day dialog updates the cell, the tile and the bell', asyn
   await expect(bellOf(page)).toHaveAccessibleName('Thông báo, 12 việc cần xử lý');
 });
 
-test('after deciding an item in Cần xử lý, focus lands on the row now at that place, or the one before it', async ({
+test('below 900px, after deciding an item in Cần xử lý, focus lands on the row now at that place, or the one before it', async ({
   page
 }) => {
+  await page.setViewportSize({ width: 800, height: 900 });
   await page.goto('/admin/cham-cong?xem=can-xu-ly');
   const list = page.getByRole('list', { name: 'Việc cần xử lý chấm công' });
   const rows = list.getByRole('button');

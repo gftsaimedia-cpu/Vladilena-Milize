@@ -83,7 +83,7 @@ Một lần gọi trả đủ dữ liệu để FE chỉ hiện lựa chọn h�
     {
       "date": "2026-11-05",
       "workday": true,
-      "shift": { "type": "NORMAL", "start": "08:00", "end": "17:00" },
+      "shift": { "start": "08:00", "end": "17:00" },
       "holiday": null,
       "claim": null,
       "hours": [
@@ -188,7 +188,7 @@ Với `'self'`:
 
 | Loại | Ví dụ |
 |---|---|
-| Đơn nghỉ | "Phép năm 13–16/11", "Nghỉ ốm 13/11" (dùng nhãn hình thức nghỉ) |
+| Đơn nghỉ | "Phép năm 13–16/11", "Việc riêng có lương 13/11" (dùng nhãn hình thức nghỉ) |
 | Nghỉ có làm bù | "Nghỉ có làm bù 13–14/11" |
 | Làm thêm giờ | "Làm thêm 10/11 18–20h" |
 | Đổi ca | "Đổi ca Flex 06–15, 10–12/11" |
@@ -470,7 +470,7 @@ Dùng `test/v2/helpers/requests-fakes.ts`. Các test cần có:
 **`hours`:**
 - ca 08–17 cho `start` 6 và 18–21; `ends` của 18 là 19–22;
 - Chủ nhật không có ca thì có 06–22 nhưng tổng không quá 12 giờ làm;
-- ngày đã có OT 18–20 thì chỉ còn trước ca;
+- ngày đã có OT 18–20 thì còn 06–07 và 20–22;
 - ngày nghỉ có `hours: []`.
 
 **Xem trước:**
@@ -539,7 +539,7 @@ Dùng `test/v2/helpers/requests-fakes.ts`. Các test cần có:
 |---|---|
 | Lựa chọn không hợp lệ | FE không đưa ra để chọn (mục 4.4). |
 | Preview không hợp lệ | 200, `ok: false`; Gửi tắt, câu lỗi hiện dưới form. |
-| Create không hợp lệ | 400 `BAD_REQUEST`; xung đột ngày là 409 `DAY_CONFLICT`. FE giữ form, hiện câu lỗi, tải lại `request-context`. |
+| Create không hợp lệ | 400 `BAD_REQUEST`; xung đột ngày là 400 `DAY_CONFLICT`. FE giữ form, hiện câu lỗi, tải lại `request-context`. |
 | Mất mạng | Giữ form, hiện "Không gửi được, thử lại". |
 | Huỷ đơn không còn chờ (Admin vừa duyệt) | 400; FE hiện câu lỗi và tải lại đơn. |
 

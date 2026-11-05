@@ -16,7 +16,10 @@ import { useShellStore } from '@/stores/shell';
 import { employeePath } from '@/views/admin/attendance/links';
 import { BELL_ICONS, CHEVRON_ICON, CLOSE_ICON } from './bell-icons';
 
-const props = defineProps<{ item?: InboxItem; news?: SystemNote; group: string }>();
+// `embedded`: dựng nội dung trong hộp thoại khác (cửa sổ duyệt của Tổng quan): không đặt cố định bên ngăn kéo,
+// không có vai trò hộp thoại và đầu thẻ (nhãn nhóm, nút Đóng) vì hộp thoại chủ tự có.
+// `profileLink`: việc nào cũng có liên kết "Mở hồ sơ chấm công" (khung chi tiết của Chấm công); mặc định chỉ việc chấm công và giải trình.
+const props = defineProps<{ item?: InboxItem; news?: SystemNote; group: string; embedded?: boolean; profileLink?: boolean }>();
 const emit = defineEmits<{
   decided: [result: { id: string; ok: boolean; text: string; kept: boolean }];
   close: [];
@@ -43,7 +46,7 @@ const month = () => (route.query.thang ? { thang: route.query.thang } : {});
 const link = computed(() => {
   const item = props.item;
   if (item) {
-    if (item.group !== 'att' && item.group !== 'exp') return null;
+    if (!props.profileLink && item.group !== 'att' && item.group !== 'exp') return null;
     return { label: 'Mở hồ sơ chấm công', to: { path: employeePath(item.personId), query: month() } };
   }
   const news = props.news!;
@@ -92,8 +95,14 @@ async function act(verb: DecisionVerb) {
 </script>
 
 <template>
-  <section class="bdd" role="dialog" aria-label="Chi tiết yêu cầu" tabindex="-1">
-    <div class="bdd-top">
+  <section
+    class="bdd"
+    :class="{ 'bdd-emb': embedded }"
+    :role="embedded ? undefined : 'dialog'"
+    :aria-label="embedded ? undefined : 'Chi tiết yêu cầu'"
+    :tabindex="embedded ? undefined : -1"
+  >
+    <div v-if="!embedded" class="bdd-top">
       <span class="bdd-grp">{{ group }}</span>
       <button type="button" class="bdd-x" aria-label="Đóng chi tiết" @click="emit('close')">
         <svg
@@ -401,6 +410,17 @@ async function act(verb: DecisionVerb) {
 .bdd-nt:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
+}
+/* Nhúng trong hộp thoại khác: bỏ chỗ đặt cố định, nền và đệm (hộp thoại chủ lo). */
+.bdd.bdd-emb {
+  position: static;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
 }
 /* Màn hẹp: không đủ chỗ đặt thẻ bên trái, thẻ phủ lên ngăn kéo (ngăn kéo `inert` trong lúc đó). */
 @media (max-width: 899px) {

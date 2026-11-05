@@ -1,24 +1,35 @@
 <script setup lang="ts">
 // J1 · Hôm nay (spec 4): lời chào, dòng nhắc giải trình (spec staff-requests 4.3), thẻ ca hôm nay có vòng cung và nút Check-out,
 // thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
-// Dữ liệu từ services/staff-phone; bấm Check-in hay Check-out (trong ShiftCard) thay cả dữ liệu màn bằng kết quả trả về (R7).
+// Dữ liệu từ services/staff-phone; bấm Check-in hay Check-out (trong ShiftCard) thay cả dữ liệu màn bằng kết quả trả về (R7);
+// đã chấm mà chưa tải lại được màn (null) thì tải lại, vẫn lỗi thì hiện LoadError.
+// Tải lỗi thì hiện LoadError với nút Thử lại (tải xong thì focus về khối lời chào, vẫn lỗi thì về nút Thử lại mới);
+// chưa có dữ liệu thì hiện "Đang tải…".
 import { ref } from 'vue';
+import { useLoad } from '@/composables/useLoad';
+import { useRetry } from '@/composables/useRetry';
 import type { HomeView } from '@/mock/staff-phone';
 import { getHome } from '@/services/staff-phone';
+import LoadError from './components/LoadError.vue';
+import LoadingLine from './components/LoadingLine.vue';
 import PhIcon from './components/PhIcon.vue';
 import ReminderLines from './components/ReminderLines.vue';
 import RequestRow from './components/RequestRow.vue';
 import ShiftCard from './components/ShiftCard.vue';
 import WeekCard from './components/WeekCard.vue';
 
-const data = ref<HomeView | null>(null);
-getHome().then(v => (data.value = v));
+const load = useLoad(() => getHome());
+const { data, error, loading } = load;
+const head = ref<HTMLElement | null>(null);
+const { errBox, retry } = useRetry(load, head);
+const onPunch = (v: HomeView | null) => (v ? (data.value = v) : retry());
 </script>
 
 <template>
   <div class="ph home">
-    <template v-if="data">
-      <header class="hello">
+    <LoadError v-if="error" ref="errBox" :error="error" @retry="retry" />
+    <template v-else-if="data">
+      <header ref="head" class="hello" tabindex="-1">
         <span class="avatar" aria-hidden="true">{{ data.initials }}</span>
         <div class="who-col">
           <div class="mut">{{ data.greeting }}</div>
@@ -29,7 +40,7 @@ getHome().then(v => (data.value = v));
 
       <ReminderLines :reminders="data.reminders" />
 
-      <ShiftCard :home="data" @checked-in="v => (data = v)" @checked-out="v => (data = v)" />
+      <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />
 
       <WeekCard :week="data.week" :alert="data.alert" />
 
@@ -51,6 +62,7 @@ getHome().then(v => (data.value = v));
         </div>
       </section>
     </template>
+    <LoadingLine v-else-if="loading" />
   </div>
 </template>
 

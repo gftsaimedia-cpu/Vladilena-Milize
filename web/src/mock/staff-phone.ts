@@ -50,7 +50,7 @@ export type HomeView = {
   checkOut: string | null; // null, hoặc '09:40' sau checkOut()
   workedMin: number; shiftMin: number; // 101, 540
   worked: string; // '1g 41p'
-  location: string; // 'Đúng vị trí văn phòng GFT'
+  location: string | null; // 'Đúng vị trí văn phòng GFT'; null khi máy chủ chưa có dữ liệu vị trí (dòng ẩn)
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
   // Ngày Admin đã nhắc giải trình mà chưa gửi, mới nhất trước (spec staff-requests 3.6): một dòng mỗi ngày ở đầu J1 / cột Hôm nay.
@@ -59,8 +59,11 @@ export type HomeView = {
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
 
-export type AttendanceView = {
-  label: string; state: string; // 'Tháng 10/2026', 'Kỳ công đang mở'
+// month: tháng đang xem 'YYYY-MM'; prev / next: tháng bấm tới được, null ở mép khoảng (nút tắt).
+export type MonthNav = { month: string; prev: string | null; next: string | null };
+
+export type AttendanceView = MonthNav & {
+  label: string; state: string; // 'Tháng 10/2026', 'Kỳ công đang mở' | 'Kỳ công đã chốt'
   shiftLine: string; // 'Ca HC 08:00–17:00 · thứ Hai – thứ Bảy'
   tiles: { value: string; of: string | null; label: string }[]; // 21 / 26 Ngày công; 2 Lần đi muộn; 2 Ngày nghỉ có lương
   // of là số sau dấu gạch chéo ('26'); màn tự viết ' / ' trước nó
@@ -74,7 +77,7 @@ export type DayDetail = {
   title: string; // 'Thứ Ba 27/10/2026'
   shiftLine: string; // 'Ca HC 08:00–17:00'
   kind: DayKind; today: boolean;
-  statusText: string; // 'Cần xử lý' | 'Đi làm' | 'Đang làm' | 'Nghỉ có lương' | 'Đi muộn' | 'Vắng'
+  statusText: string; // 'Cần xử lý' | 'Đi làm' | 'Đang làm' | 'Nghỉ có lương' | 'Nghỉ không lương' | 'Nghỉ lễ' | 'Đi muộn' | 'Vắng'
   shiftStart: string; shiftEnd: string; now: string;
   in: string | null; out: string | null; lateMin: number;
   leave: { type: string; span: string } | null; // { type: 'Phép năm', span: 'Cả ngày' }
@@ -89,7 +92,7 @@ export type RequestsView = {
   groups: { month: string; label: string; rows: RequestRowData[] }[]; // 'Tháng 10', 'Tháng 9'
 };
 
-export type IncomeView = {
+export type IncomeView = MonthNav & {
   title: string; note: string; label: string; state: string; // 'Thu nhập', 'Phiếu chính thức có khi Admin duyệt', 'Tháng 10/2026', 'Tạm tính'
   net: string; review: string; gross: string; deduction: string;
   kpi: {
@@ -102,13 +105,13 @@ export type IncomeView = {
 };
 
 export type ProfileView = {
-  name: string; initials: string; email: string; contract: string;
+  name: string; initials: string; contract: string;
   facts: [string, string][]; // 6 cặp theo spec 8.2
   note: string;
 };
 
 // ---------- Người, ca, đồng hồ (spec mục 1) ----------
-const NAM = { name: 'Lê Hoàng Nam', initials: 'HN', email: 'nam.le@gft.vn' };
+const NAM = { name: 'Lê Hoàng Nam', initials: 'HN' };
 const SHIFT = { code: 'HC', start: '08:00', end: '17:00', days: 'thứ Hai – thứ Bảy' };
 const LEAVE_LEFT = '11 ngày';
 const MONTH_NO = Number(MOCK_TODAY.slice(5, 7)); // 10
@@ -320,6 +323,10 @@ export function attendanceView(recent = 5): AttendanceView {
       statusText: statusOf(date, rec)
     }));
   return {
+    // Dữ liệu giả chỉ có một tháng: hai nút đổi tháng tắt (R4).
+    month: MOCK_TODAY.slice(0, 7),
+    prev: null,
+    next: null,
     label: MONTH_LABEL,
     state: 'Kỳ công đang mở',
     shiftLine: `Ca ${SHIFT.code} ${SHIFT.start}–${SHIFT.end} · ${SHIFT.days}`,
@@ -386,6 +393,9 @@ export function incomeView(): IncomeView {
   return {
     title: 'Thu nhập',
     note: 'Phiếu chính thức có khi Admin duyệt',
+    month: MOCK_TODAY.slice(0, 7),
+    prev: null,
+    next: null,
     label: MONTH_LABEL,
     state: 'Tạm tính',
     net: NET,
@@ -421,7 +431,6 @@ export function profileView(): ProfileView {
   return {
     name: NAM.name,
     initials: NAM.initials,
-    email: NAM.email,
     contract: 'Chính thức',
     facts: [
       ['Mã nhân viên', 'GFT-0142'],

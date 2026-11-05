@@ -1,10 +1,13 @@
 // Lưu chức vụ và bậc theo tháng áp dụng (spec mục 3.3). Mỗi lần lưu chạy trong một transaction, khoá từng mã chức vụ
 // theo thứ tự; kiểm hết mọi mục (404, 409) rồi mới ghi, nên một mục lỗi thì không mục nào được lưu.
+// Dòng nhật ký (mức pay) ghi cuối cùng trong cùng transaction; ghi nhật ký lỗi thì cả lần lưu bị huỷ.
 import { Inject, Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { businessMonthText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
+import { AuditLog } from '../audit/audit-log';
 import { parseAddLevel, parseSaveLevel, parseSavePositions } from './domain/position-input';
-import { planChange, versionAt, type ChainPlan } from './domain/version-chain';
+import { planChange, versionAt, type ChainPlan, type Values } from './domain/version-chain';
 import { LevelNotFoundError, LevelStaleError, PositionNotFoundError, PositionStaleError } from './positions.errors';
 import { PositionsRepository, type StoredVersion, type WriteMeta } from './positions.repository';
 
@@ -13,11 +16,16 @@ type Planned = { chain: StoredVersion[]; cur: StoredVersion; plan: ChainPlan };
 
 const monthText = (ym: string) => `${ym.slice(5)}/${ym.slice(0, 4)}`;
 
+/** Số cũ của đúng các ô đổi, để dòng nhật ký chỉ ghi phần thay đổi. */
+const oldValues = (cur: StoredVersion, set: Values): Values =>
+  Object.fromEntries(Object.keys(set).map(key => [key, cur.values[key] ?? null]));
+
 @Injectable()
 export class PositionsService {
   constructor(
     @Inject(PositionsRepository) private readonly repo: PositionsRepository,
-    @Inject(TransactionCoordinator) private readonly tx: Tx
+    @Inject(TransactionCoordinator) private readonly tx: Tx,
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
   ) {}
 
   async savePositions(body: unknown, actor: string, now: Date = new Date()): Promise<{ ok: true; effectiveMonth: string }> {
@@ -26,19 +34,34 @@ export class PositionsService {
     const at = now.toISOString();
     await this.tx.run(async trx => {
       await this.lock(trx, input.items.map(i => i.code));
-      const planned: Planned[] = [];
+      const planned: Array<Planned & { code: string }> = [];
       for (const item of input.items) {
         const chain = await this.repo.typeChain(trx, item.code);
         const cur = versionAt(chain, month);
         if (!cur) throw new PositionNotFoundError(`Chức vụ ${item.code} chưa có ở tháng ${monthText(month)}`);
         if (cur.rev !== item.expectedRev) throw new PositionStaleError(`Chức vụ ${item.code} vừa được người khác sửa`);
         const plan = planChange(chain, month, item.changes);
-        if (plan) planned.push({ chain, cur, plan });
+        if (plan) planned.push({ code: item.code, chain, cur, plan });
       }
       for (const p of planned) {
         await this.write(p, month, { actor, at }, input.reason, {
           update: (id, set, meta) => this.repo.updateType(trx, id, set, meta),
           insertFrom: (id, set, meta) => this.repo.insertTypeFrom(trx, id, month, set, meta)
+        });
+      }
+      const requestId = randomUUID();
+      for (const { code, cur, plan } of planned) {
+        await this.audit.append(trx, {
+          actor,
+          action: 'position.save',
+          entityKind: 'position',
+          entityId: code,
+          month,
+          before: oldValues(cur, plan.set),
+          after: plan.set,
+          reason: input.reason,
+          sensitivity: 'pay',
+          requestId
         });
       }
     });
@@ -67,6 +90,18 @@ export class PositionsService {
         update: (id, set, meta) => this.repo.updateLevel(trx, id, set, meta),
         insertFrom: (id, set, meta) => this.repo.insertLevelFrom(trx, id, month, set, meta)
       });
+      await this.audit.append(trx, {
+        actor,
+        action: 'level.save',
+        entityKind: 'level',
+        entityId: `${input.code}:${input.level}`,
+        month,
+        before: oldValues(cur, plan.set),
+        after: plan.set,
+        reason: input.reason,
+        sensitivity: 'pay',
+        requestId: randomUUID()
+      });
     });
     return { ok: true, effectiveMonth: month };
   }
@@ -91,6 +126,17 @@ export class PositionsService {
         actor,
         at: now.toISOString(),
         reason: input.reason
+      });
+      await this.audit.append(trx, {
+        actor,
+        action: 'level.save',
+        entityKind: 'level',
+        entityId: `${input.code}:${input.level}`,
+        month,
+        after: input.values,
+        reason: input.reason,
+        sensitivity: 'pay',
+        requestId: randomUUID()
       });
     });
     return { ok: true, effectiveMonth: month, level: input.level };

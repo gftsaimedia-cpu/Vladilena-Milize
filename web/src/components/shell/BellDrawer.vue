@@ -12,6 +12,7 @@ import type { InboxItem, SystemNote } from '@/mock/inbox';
 import { getInbox } from '@/services/admin-main';
 import { useShellStore } from '@/stores/shell';
 import BellDetail from './BellDetail.vue';
+import { bellRowTitle, personLine } from './bell-rows';
 import { BELL_ICONS, CLOSE_ICON, type BellGroup } from './bell-icons';
 
 const emit = defineEmits(['close', 'leave']);
@@ -56,16 +57,11 @@ let order: Row[] = [];
 const narrow = ref(false);
 const covered = computed(() => narrow.value && !!selected.value);
 
-// Dòng 2 là "họ tên · phòng ban" chỉ khi `role` có dạng "Phòng ban · Chức danh" (dữ liệu giả). Máy chủ thật chỉ có
-// chức danh hoặc "—", không có phòng ban, nên chỉ hiện họ tên.
-function personLine(item: InboxItem) {
-  return item.role.includes(' · ') ? `${item.name} · ${item.role.split(' · ')[0]}` : item.name;
-}
 const itemRow = (item: InboxItem): Row => ({
   id: item.id,
   group: item.group,
   groupLabel: item.groupLabel,
-  title: item.group === 'adv' ? item.head : [item.what, item.when].filter(Boolean).join(' · '),
+  title: bellRowTitle(item),
   line2: personLine(item),
   age: item.age,
   unread: !!item.unread,

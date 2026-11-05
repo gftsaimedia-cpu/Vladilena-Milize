@@ -58,7 +58,7 @@ async function decide(id: string, approve: boolean) {
     <div class="trio">
       <AttendanceCard :attendance="data.attendance" />
       <PeriodCard :period="data.period" />
-      <ApprovalsCard :approvals="data.approvals" @approve="decide($event, true)" @reject="decide($event, false)" />
+      <ApprovalsCard :approvals="data.approvals" @approve="decide($event, true)" />
     </div>
 
     <PayrollTable :payroll="data.payroll" :slips="data.period.slips" />
@@ -72,11 +72,18 @@ async function decide(id: string, approve: boolean) {
 .title p {
   font-size: 14px;
 }
+/* Ba thẻ một hàng, ba cột bằng nhau; thẻ Việc cần duyệt cao theo hai thẻ kia (danh sách cuộn bên trong).
+   Mốc 1280px của cửa sổ: thanh bên (248px) + lề + khe chiếm 304px, còn 976px cho ba cột, mỗi cột ≥ 309px (đủ 300px).
+   Dưới mốc đó xếp một cột; ApprovalsCard dùng cùng mốc để giới hạn danh sách cao 420px. */
 .trio {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
-  align-items: start;
   margin-bottom: 24px;
+}
+@media (max-width: 1280px) {
+  .trio {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

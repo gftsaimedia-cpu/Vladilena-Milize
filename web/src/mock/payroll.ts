@@ -19,19 +19,24 @@ export type Payslip = SlipInput & {
   initials: string;
   dept: string;
   title: string;
-  kind: 'NV';
-  level: number;
+  kind: string; // 'NV', 'CTV', 'TTS'; '—' khi BE chưa có loại
+  level: number | null; // null: phiếu lưu trước khi BE có bậc
+  employmentStatus: string | null; // trạng thái nhân sự 'Thử việc' / 'Chính thức'; null thì chỉ hiện nhãn hợp đồng
   contract: string;
   payday: string;
   note: string;
   status: PayrollStatus;
+  // Lý do Admin ghi khi từ chối phiếu (không bắt buộc); null khi không có hay phiếu đã duyệt.
+  decisionNote?: string | null;
   days: { work: number; leave: number; isat: number; pending: number; unpaid: number; standard: number };
   calendar: DayKind[];
   pendingDates: string[];
   allowances: { label: string; rule: number; actual: number }[];
   ot: { hours: [number, number, number]; pay: number };
   late: { minutes: number[]; hours: number; cut: number };
-  leaveLeft: number;
+  leaveLeft: number | null; // null: loại nhân sự không có tài khoản phép, hiện "—"
+  // false: loại nhân sự không có KPI (tts); ngăn kéo không có nhóm KPI. Phiếu giả đều là nv nên luôn có.
+  kpiApplicable?: boolean;
   kpi: { scores: KpiScores; proposal: number; history: KpiEdit[] };
   calc: SlipCalc;
 };
@@ -101,7 +106,8 @@ type Raw = {
   isat: number[];
   pending: number[];
   unpaid: number[];
-  leaveLeft: number;
+  leaveLeft: number | null;
+  probation?: true; // đang thử việc; còn lại là Chính thức
   status: PayrollStatus;
   // Số lưu sẵn (khoản chưa chốt luật)
   leavePay: number;
@@ -194,7 +200,7 @@ const RAW: Raw[] = [
   },
   {
     id: 'GFT-0172', name: 'Lý Thanh Tâm', dept: 'Sản xuất', title: 'Công nhân vận hành', level: 1, dependants: 0, base: 9500000,
-    leave: [], isat: [10], pending: [], unpaid: [], leaveLeft: 12, status: 'draft',
+    leave: [], isat: [10], pending: [], unpaid: [], leaveLeft: null, probation: true, status: 'draft',
     leavePay: 0, isatPay: 365385,
     allowances: [[900000, 900000], [500000, 500000], [1900000, 292308], [975000, 0], [3800000, 0]],
     otHours: [0, 4, 0], otPay: 365385, exempt: 182692, lateMinutes: [], lateHours: 0, lateCut: 0, advance: 0,
@@ -226,6 +232,7 @@ const state = new Map(
     r.id,
     {
       status: r.status,
+      note: null as string | null,
       scores: Object.fromEntries(PARTS.map((p, i) => [p, r.scores[i]])) as KpiScores,
       history: (r.history ?? []).map(h => ({ ...h }))
     }
@@ -256,10 +263,12 @@ function buildSlip(r: Raw): Payslip {
     title: r.title,
     kind: 'NV',
     level: r.level,
+    employmentStatus: r.probation ? 'Thử việc' : 'Chính thức',
     contract: 'HĐLĐ từ 3 tháng',
     payday: '05/11/2026',
     note: NOTE,
     status: s.status,
+    decisionNote: s.note,
     base: r.base,
     dependants: r.dependants,
     days: {
@@ -358,9 +367,11 @@ export function setKpiScore(month: string, id: string, part: KpiPart, value: num
   return payslipView(month, id);
 }
 
-export function decidePayslip(month: string, id: string, decision: 'approve' | 'reject'): Payslip | null {
+// Từ chối giữ lý do đã cắt khoảng trắng (trống thành null); duyệt bỏ lý do cũ.
+export function decidePayslip(month: string, id: string, decision: 'approve' | 'reject', note?: string): Payslip | null {
   const s = month === MOCK_MONTH ? state.get(id) : undefined;
   if (!s) return null;
   s.status = decision === 'approve' ? 'done' : 'rejected';
+  s.note = decision === 'reject' ? note?.trim() || null : null;
   return payslipView(month, id);
 }

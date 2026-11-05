@@ -46,7 +46,7 @@ test('Tôi shows Nam’s profile and work facts', async ({ page }) => {
   await openPhone(page, '/nv/toi');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tôi');
   await expect(page.getByText('Lê Hoàng Nam', { exact: true })).toBeVisible();
-  await expect(page.getByText('nam.le@gft.vn')).toBeVisible();
+  await expect(page.getByText('nam.le@gft.vn')).toHaveCount(0); // BE không có email: màn Tôi không có dòng email (người dùng chốt 05/11)
   await expect(page.getByText('Chính thức', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Công việc' })).toBeVisible();
   const facts = page.locator('.kv');
@@ -59,7 +59,8 @@ test('Tôi shows Nam’s profile and work facts', async ({ page }) => {
   await expect(page.getByText('Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.')).toBeVisible();
 });
 
-test('Đổi mật khẩu opens a sheet that validates, closes, and returns focus', async ({ page }) => {
+// BUG-staff-4: biểu mẫu chưa đủ thì nút Đổi mật khẩu mờ, không bấm rồi mới báo.
+test('Đổi mật khẩu opens a sheet that stays off until valid, closes, and returns focus', async ({ page }) => {
   await openPhone(page, '/nv/toi');
   const open = page.getByRole('button', { name: 'Đổi mật khẩu' });
   await open.click();
@@ -68,14 +69,22 @@ test('Đổi mật khẩu opens a sheet that validates, closes, and returns focu
   await expect(sheet).toBeVisible();
   await expect(sheet.getByText('Tài khoản nhanvien')).toBeVisible();
   await expect(sheet.getByRole('button', { name: '×' })).toHaveCount(0);
+  const submit = sheet.getByRole('button', { name: 'Đổi mật khẩu' });
+  await expect(submit).toBeDisabled();
   await sheet.getByLabel('Mật khẩu hiện tại').fill('cu');
-  await sheet.getByLabel(/^Mật khẩu mới/).fill('123');
-  await sheet.getByLabel('Nhập lại mật khẩu mới').fill('123');
-  await sheet.getByRole('button', { name: 'Đổi mật khẩu' }).click();
-  await expect(sheet.getByRole('alert')).toHaveText('Mật khẩu mới cần ít nhất 6 ký tự.');
+  await sheet.getByLabel(/^Mật khẩu mới/).fill('12345');
+  await sheet.getByLabel('Nhập lại mật khẩu mới').fill('12345');
+  await expect(submit).toBeDisabled();
   await sheet.getByLabel(/^Mật khẩu mới/).fill('123456');
+  await sheet.getByLabel('Nhập lại mật khẩu mới').fill('123457');
+  await expect(submit).toBeDisabled();
+  await sheet.getByLabel('Mật khẩu hiện tại').fill('');
   await sheet.getByLabel('Nhập lại mật khẩu mới').fill('123456');
-  await sheet.getByRole('button', { name: 'Đổi mật khẩu' }).click();
+  await expect(submit).toBeDisabled();
+  await sheet.getByLabel('Mật khẩu hiện tại').fill('cu');
+  await expect(submit).toBeEnabled();
+  await expect(sheet.getByRole('alert')).toHaveCount(0);
+  await submit.click();
   await expect(sheet).toHaveCount(0);
   await expect(page).not.toHaveURL(/hop=/);
   await expect(open).toBeFocused();

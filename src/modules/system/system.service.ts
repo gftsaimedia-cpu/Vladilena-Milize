@@ -44,16 +44,6 @@ export class SystemService {
     return rows.map((r) => ({ key: r.key, value: r.value_json }));
   }
 
-  async listAuditLogs(limit = 50, offset = 0): Promise<any[]> {
-    return await this.qb
-      .selectFrom('audit_log')
-      .selectAll()
-      .orderBy('id', 'desc')
-      .limit(limit)
-      .offset(offset)
-      .execute();
-  }
-
   async listPeriods(): Promise<any[]> {
     return await this.qb
       .selectFrom('payroll_periods')
@@ -71,20 +61,21 @@ export class SystemService {
     return row || null;
   }
 
+  // Chốt công: kỳ sang bước attendance_locked (CHECK của payroll_periods chỉ nhận các trạng thái viết thường).
   async lockPeriod(month: string, actor: string): Promise<void> {
     const now = new Date().toISOString();
     await this.qb
       .insertInto('payroll_periods')
       .values({
         month,
-        status: 'LOCKED',
+        status: 'attendance_locked',
         rev: 1,
         attendance_locked_by: actor,
         attendance_locked_at: now,
       })
       .onConflict((oc) =>
         oc.column('month').doUpdateSet({
-          status: 'LOCKED',
+          status: 'attendance_locked',
           attendance_locked_by: actor,
           attendance_locked_at: now,
         })

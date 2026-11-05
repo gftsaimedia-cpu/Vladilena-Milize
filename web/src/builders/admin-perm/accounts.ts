@@ -1,8 +1,8 @@
-// Danh sách tài khoản (Cài đặt › Phân quyền › Tài khoản): ghép GET /api/roles (vai trò, số phiên bản vai trò) với GET /api/staff (nhãn phụ, khoá, dấu vân tay hồ sơ).
-// Mỗi dòng hiện một vai trò chính; vai trò khác và cờ "nhân viên" (hưởng lương) của tài khoản giữ nguyên khi đổi vai trò chính.
+// Danh sách tài khoản (Cài đặt › Phân quyền › Tài khoản): ghép vai trò (GET /api/v2/roles) với hồ sơ (GET /employees).
+// Quy ước của BE v2: vai trò chính là roles[0] (cột staff.role, nơi đăng nhập và quyền đọc); vai trò khác không cho quyền
+// gì. Mỗi dòng hiện, lọc và đếm theo vai trò chính; đổi vai trò gửi đúng một vai trò mới.
 
 export const ACCOUNT_PAGE_SIZE = 10;
-const STAFF = 'staff';
 
 const fold = (text?) =>
   String(text || '')
@@ -11,16 +11,11 @@ const fold = (text?) =>
     .replace(/đ/gi, 'd')
     .toLowerCase();
 
-// Vai trò chính: vai trò đầu tiên khác "staff"; chỉ có staff thì staff; chưa có gì thì rỗng
-export const primaryRole = (roles?) => roles.find(r => r !== STAFF) || (roles.includes(STAFF) ? STAFF : '');
+// Vai trò chính: phần tử đầu, như BE ghi vào staff.role
+export const primaryRole = (roles?) => (roles && roles[0]) || '';
 
-// Danh sách vai trò sau khi đổi vai trò chính `from` thành `to`: bỏ vai trò chính cũ (trừ staff, cờ hưởng lương), thêm vai trò mới, giữ phần còn lại
-export function nextRoles(current?, from?, to?) {
-  const list = new Set<any>(current);
-  if (from && from !== STAFF) list.delete(from);
-  list.add(to);
-  return [...list];
-}
+// Danh sách vai trò gửi lên khi đổi vai trò chính thành `to`: chỉ một vai trò, BE ghi nó vào staff.role và thu hồi phần còn lại
+export const nextRoles = (to?) => [to];
 
 export function buildAccounts(rolesRes?, staffRes?, positionsRes?, me?, query: any = {}) {
   const labelOf = Object.fromEntries(rolesRes.roles.map(r => [r.code, r.label]));
@@ -49,12 +44,12 @@ export function buildAccounts(rolesRes?, staffRes?, positionsRes?, me?, query: a
     };
   });
 
-  const holds = (a?, label?) => a.roles.includes(codeOfLabel[label]);
+  const holds = (a?, label?) => a.roleCode === codeOfLabel[label];
   const needle = fold(query.q || '').trim();
   const roleKey = query.role || 'all';
   const list = all.filter(a => (roleKey === 'all' || holds(a, roleKey)) && (!needle || fold(a.name).includes(needle)));
 
-  const heldCodes = new Set<any>(all.flatMap(a => a.roles));
+  const heldCodes = new Set<any>(all.map(a => a.roleCode));
   const shownRoles = rolesRes.roles.filter(r => !r.deprecated || heldCodes.has(r.code));
   const pages = Math.max(1, Math.ceil(list.length / ACCOUNT_PAGE_SIZE));
   const page = Math.min(Math.max(1, Number(query.page) || 1), pages);
@@ -63,7 +58,7 @@ export function buildAccounts(rolesRes?, staffRes?, positionsRes?, me?, query: a
   return {
     summary: {
       total: all.length,
-      admins: all.filter(a => a.roles.includes('admin')).length,
+      admins: all.filter(a => a.roleCode === 'admin').length,
       locked: all.filter(a => a.status === 'locked').length
     },
     chips: [
@@ -71,7 +66,7 @@ export function buildAccounts(rolesRes?, staffRes?, positionsRes?, me?, query: a
       ...shownRoles.map(r => ({
         key: r.label,
         label: r.label,
-        count: all.filter(a => a.roles.includes(r.code)).length
+        count: all.filter(a => a.roleCode === r.code).length
       }))
     ],
     roles: shownRoles.map(r => r.label),

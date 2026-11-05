@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Kysely } from 'kysely';
-import { DEFAULT_INSURANCE_RATES } from '../../src/modules/payroll/domain';
 import {
   PayrollRepository,
   mapMonthRows,
@@ -38,12 +37,9 @@ function rows(overrides: Partial<MonthRows> = {}): MonthRows {
     timesheets: [],
     requests: [],
     kpi: null,
-    settings: [],
     ...overrides
   };
 }
-
-const ratesRow = (value: string) => [{ key: 'insurance_rates', value_json: value }];
 
 describe('mapMonthRows staff flags and contract label', () => {
   it('reads dependants and resolves the contract label and the insured flag', () => {
@@ -113,7 +109,17 @@ describe('mapMonthRows staff flags and contract label', () => {
     assert.equal(staff.employeeType, 'nv');
     assert.equal(staff.nightAllowancePct, 60);
     assert.equal(staff.isDormResident, false);
-    assert.equal(staff.remainingAnnualLeaveDays, 22);
+  });
+
+  it('reads the level number and the employment status of the staff row', () => {
+    assert.equal(mapMonthRows('2026-10', rows({ staff: { ...baseStaff, level: 2 } })).staff.level, 2);
+    assert.equal(mapMonthRows('2026-10', rows({ staff: { ...baseStaff, level: null } })).staff.level, 1);
+    const status = (contract_status: unknown) =>
+      mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract_status } })).staff.employmentStatus;
+    assert.equal(status('official'), 'official');
+    assert.equal(status('probation'), 'probation');
+    assert.equal(status(null), null);
+    assert.equal(status('tts'), null);
   });
 
   it('falls back to a generated level text', () => {
@@ -124,6 +130,24 @@ describe('mapMonthRows staff flags and contract label', () => {
   it('shows the resolved contract label, not the contract_status column', () => {
     const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract_status: 'probation' } }));
     assert.equal(staff.contractStatusText, 'HĐLĐ từ 3 tháng');
+  });
+});
+
+describe('mapMonthRows annual leave left', () => {
+  const leaveStaff = { ...baseStaff, leave_balance: 12 };
+  const account = { benefit: 'leaveAccount', enabled: '1' };
+  const left = (staff: object, benefits: unknown[], annualLeaveUsed?: number | string) =>
+    mapMonthRows('2026-10', rows({ staff, benefits, annualLeaveUsed })).staff.remainingAnnualLeaveDays;
+
+  it('is the balance minus the approved annual leave days used when the type keeps a leave account', () => {
+    assert.equal(left(leaveStaff, [kpiBenefit, account], '2'), 10);
+    assert.equal(left({ ...leaveStaff, leave_balance: null }, [account], 0), 0);
+    assert.equal(left(leaveStaff, [account]), 12);
+  });
+
+  it('is null without a leave account or when the benefit is off', () => {
+    assert.equal(left(leaveStaff, [kpiBenefit], 2), null);
+    assert.equal(left(leaveStaff, [{ benefit: 'leaveAccount', enabled: 0 }], 2), null);
   });
 });
 
@@ -239,42 +263,6 @@ describe('mapMonthRows KPI scores', () => {
   });
 });
 
-describe('mapMonthRows insurance rates', () => {
-  const rates = (value: string) => mapMonthRows('2026-10', rows({ settings: ratesRow(value) })).insuranceRates;
-
-  it('uses the defaults when the setting is absent', () => {
-    assert.deepEqual(mapMonthRows('2026-10', rows({ settings: [] })).insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-
-  it('reads the configured rates', () => {
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":0.015,"bhtn":0.005}'), { bhxh: 0.08, bhyt: 0.015, bhtn: 0.005 });
-  });
-
-  it('falls back to the defaults for out-of-range, missing or malformed values', () => {
-    assert.deepEqual(rates('{"bhxh":2,"bhyt":0.015,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":-0.1,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":0.015}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":"0.08","bhyt":0.015,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('not json'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('null'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('[0.08,0.015,0.01]'), DEFAULT_INSURANCE_RATES);
-  });
-
-  it('accepts the boundary values 0 and 1', () => {
-    assert.deepEqual(rates('{"bhxh":0,"bhyt":1,"bhtn":0}'), { bhxh: 0, bhyt: 1, bhtn: 0 });
-  });
-
-  it('ignores other settings keys', () => {
-    const settings = [{ key: 'other', value_json: '{"bhxh":0.5,"bhyt":0.5,"bhtn":0.5}' }];
-    assert.deepEqual(mapMonthRows('2026-10', rows({ settings })).insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-
-  it('does not hand out the shared default object', () => {
-    const data = mapMonthRows('2026-10', rows());
-    assert.notEqual(data.insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-});
-
 describe('mapMonthRows timesheets and requests', () => {
   it('converts advance amounts and numeric columns to numbers', () => {
     const { requests } = mapMonthRows(
@@ -350,6 +338,46 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.equal(timesheets[0].scheduleType, undefined);
   });
 
+  it('cuts the explained times of a request to HH:MM and keeps empty ones as null', () => {
+    const { requests } = mapMonthRows(
+      '2026-10',
+      rows({
+        requests: [
+          { type: 'EXPLANATION', actual_check_in: '08:00:00', actual_check_out: '19:20' },
+          { type: 'EXPLANATION', actual_check_in: '', actual_check_out: null },
+          { type: 'OVERTIME' }
+        ]
+      })
+    );
+    assert.deepEqual([requests[0].actualCheckIn, requests[0].actualCheckOut], ['08:00', '19:20']);
+    assert.deepEqual([requests[1].actualCheckIn, requests[1].actualCheckOut], [null, null]);
+    assert.deepEqual([requests[2].actualCheckIn, requests[2].actualCheckOut], [null, null]);
+  });
+
+  it('cuts the OT window times to HH:MM and keeps missing ones as null', () => {
+    const { requests } = mapMonthRows(
+      '2026-10',
+      rows({
+        requests: [
+          { type: 'OVERTIME', ot_start_time: '18:00:00', ot_end_time: '20:00' },
+          { type: 'OVERTIME', ot_start_time: null, ot_end_time: '' },
+          { type: 'ADVANCE' }
+        ]
+      })
+    );
+    assert.deepEqual([requests[0].otStartTime, requests[0].otEndTime], ['18:00', '20:00']);
+    assert.deepEqual([requests[1].otStartTime, requests[1].otEndTime], [null, null]);
+    assert.deepEqual([requests[2].otStartTime, requests[2].otEndTime], [null, null]);
+  });
+
+  it('maps the company holidays of the month to YYYY-MM-DD text', () => {
+    assert.deepEqual(
+      mapMonthRows('2026-09', rows({ holidays: [new Date(2026, 8, 2), '2026-09-01'] })).holidayDates,
+      ['2026-09-02', '2026-09-01']
+    );
+    assert.deepEqual(mapMonthRows('2026-09', rows()).holidayDates, []);
+  });
+
   it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
     assert.deepEqual(
       mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates,
@@ -421,8 +449,7 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     position_types: { first: baseType },
     position_levels: { first: baseLevel },
     position_type_benefits: { all: [kpiBenefit] },
-    kpi_scores: { first: { username: 'a', wework: '9000', kpi_proposed: '4000000' } },
-    settings: { all: ratesRow('{"bhxh":0.08,"bhyt":0.015,"bhtn":0.005}') }
+    kpi_scores: { first: { username: 'a', wework: '9000', kpi_proposed: '4000000' } }
   };
 
   it('reads the position type and level effective for the month, newest first', async () => {
@@ -444,12 +471,19 @@ describe('PayrollRepository.getMonthlyData queries', () => {
       assert.equal(call?.limit, 1);
     }
     assert.deepEqual(calls.find(c => c.table === 'position_type_benefits')?.where, [['type_id', '=', '2']]);
-    assert.deepEqual(calls.find(c => c.table === 'settings')?.where, [['key', '=', 'insurance_rates']]);
     assert.equal(data?.staff.baseSalary, 6_000_000);
     assert.equal(data?.staff.standardWorkdays, 26);
     assert.deepEqual(data?.staff.kpiCap, { applicable: true, kpiMax: 6_000_000 });
     assert.equal(data?.kpi?.proposedAmount, 4_000_000);
-    assert.equal(data?.insuranceRates.bhtn, 0.005);
+  });
+
+  it('no longer reads the insurance rates from the settings table (they come from the settings store)', async () => {
+    const { qb, calls } = recordingQb(tables);
+    await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+    assert.equal(
+      calls.some(c => c.table === 'settings'),
+      false
+    );
   });
 
   it('skips the benefits query and reports null workdays when no position type exists', async () => {
@@ -500,6 +534,52 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     ]);
     assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
     assert.deepEqual(data?.isatDates, ['2026-10-10']);
+  });
+
+  it('reads the company holidays between the first and the last day of the month', async () => {
+    const { qb, calls } = recordingQb({ ...tables, company_holidays: { all: [{ holiday_date: new Date(2026, 8, 2) }] } });
+    const data = await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+    assert.deepEqual(calls.find(c => c.table === 'company_holidays')?.where, [
+      ['holiday_date', '>=', '2026-10-01'],
+      ['holiday_date', '<=', '2026-10-31']
+    ]);
+    assert.deepEqual(data?.holidayDates, ['2026-09-02']);
+  });
+
+  it('counts approved annual leave days up to the month end and from the balance date', async () => {
+    const withBalanceOn = (leave_balance_on: string | null) =>
+      recordingQb({
+        ...tables,
+        staff: { first: { ...baseStaff, level: 2, leave_balance: 12, leave_balance_on } },
+        position_type_benefits: { all: [{ benefit: 'leaveAccount', enabled: 1 }] },
+        day_status: { first: { n: '2' } }
+      });
+
+    const dated = withBalanceOn('2026-10-01');
+    const data = await new PayrollRepository(dated.qb).getMonthlyData('u1', '2026-10');
+    const used = dated.calls.find(c => c.table === 'day_status');
+    assert.deepEqual(used?.innerJoins, [['system_requests', 'system_requests.id', 'day_status.request_id']]);
+    assert.deepEqual(used?.where, [
+      ['day_status.employee_id', '=', 'u1'],
+      ['day_status.status', '=', 'LEAVE'],
+      ['system_requests.type', '=', 'LEAVE'],
+      ['system_requests.leave_type', '=', 'ANNUAL'],
+      ['system_requests.status', '=', 'APPROVED'],
+      ['day_status.work_date', '<=', '2026-10-31'],
+      ['day_status.work_date', '>=', '2026-10-01']
+    ]);
+    assert.equal(data?.staff.remainingAnnualLeaveDays, 10);
+
+    const undated = withBalanceOn(null);
+    await new PayrollRepository(undated.qb).getMonthlyData('u1', '2026-10');
+    assert.deepEqual(undated.calls.find(c => c.table === 'day_status')?.where, [
+      ['day_status.employee_id', '=', 'u1'],
+      ['day_status.status', '=', 'LEAVE'],
+      ['system_requests.type', '=', 'LEAVE'],
+      ['system_requests.leave_type', '=', 'ANNUAL'],
+      ['system_requests.status', '=', 'APPROVED'],
+      ['day_status.work_date', '<=', '2026-10-31']
+    ]);
   });
 
   it('returns null when the employee does not exist', async () => {

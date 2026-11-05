@@ -2,7 +2,9 @@
 // một ô ngày công, công cả tháng và các bước của một đơn.
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'future';
-export type DaySummary = { date: string; kind: DayKind; in: string | null; out: string | null; lateMinutes: number };
+/** Loại của một ngày nghỉ, lấy thẳng từ trạng thái bảng công. */
+export type LeaveKind = 'paid' | 'unpaid' | 'holiday';
+export type DaySummary = { date: string; kind: DayKind; leave?: LeaveKind; in: string | null; out: string | null; lateMinutes: number };
 
 export type TimesheetLike = {
   workDate: string;
@@ -11,8 +13,11 @@ export type TimesheetLike = {
   status: string;
   checkInStatus: string;
   checkOutStatus: string;
+  isLocked?: boolean;
   metrics?: { lateMinutes?: number };
 };
+
+const LEAVE_OF: Record<string, LeaveKind> = { LEAVE_PAID: 'paid', LEAVE_UNPAID: 'unpaid', HOLIDAY: 'holiday' };
 
 const VN_OFFSET_MS = 7 * 3600000;
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
@@ -35,14 +40,25 @@ function hhmm(v: string | null): string | null {
   return Number.isNaN(t) ? null : new Date(t + VN_OFFSET_MS).toISOString().slice(11, 16);
 }
 
-/** Một ngày công của chính mình. Thiếu giờ vào hoặc ra ở ngày đã qua là "todo" (cần giải trình). */
-export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today: string): DaySummary {
+/** Tuần làm mặc định khi chưa biết tuần của người đó: thứ Hai – thứ Bảy (Chủ nhật nghỉ). */
+export const DEFAULT_WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5, 6];
+
+/** Một ngày công của chính mình. Thiếu giờ vào hoặc ra ở ngày đã qua là "todo" (cần giải trình).
+ *  `weekdays` là các thứ (0 = Chủ nhật … 6 = thứ Bảy) trong tuần làm của người đó ở tháng của ngày này: ngày không có
+ *  bảng công mà thứ không thuộc tuần là "off", không phải "absent". */
+export function daySummaryOf(
+  ts: TimesheetLike | undefined,
+  date: string,
+  today: string,
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+): DaySummary {
   const empty = { date, in: null, out: null, lateMinutes: 0 };
   if (!ts) {
-    if (dow(date) === 0) return { ...empty, kind: 'off' };
+    if (!weekdays.includes(dow(date))) return { ...empty, kind: 'off' };
     return { ...empty, kind: date > today ? 'future' : 'absent' };
   }
-  if (ts.status === 'LEAVE_PAID' || ts.status === 'LEAVE_UNPAID' || ts.status === 'HOLIDAY') return { ...empty, kind: 'leave' };
+  const leave = LEAVE_OF[ts.status];
+  if (leave) return { date, kind: 'leave', leave, in: null, out: null, lateMinutes: 0 };
   const cin = hhmm(ts.actualCheckIn);
   const cout = hhmm(ts.actualCheckOut);
   const lateMinutes = ts.metrics?.lateMinutes || 0;
@@ -53,25 +69,44 @@ export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today:
   return { date, kind, in: cin, out: cout, lateMinutes };
 }
 
-/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày thứ Hai – thứ Bảy của tháng). */
-export function monthOf(timesheets: TimesheetLike[], month: string, today: string) {
+/** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày của tháng có thứ thuộc `weekdays`; controller
+ *  thay bằng số chuẩn của cài đặt).
+ *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
+ *  công đã khoá (cờ chặn chấm công). */
+export function monthOf(
+  timesheets: TimesheetLike[],
+  month: string,
+  today: string,
+  periodStatus?: string | null,
+  weekdays: readonly number[] = DEFAULT_WEEKDAYS
+) {
   const [y, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const by = new Map(timesheets.map(t => [t.workDate, t]));
   const days = Array.from({ length: last }, (_, i) => {
     const date = `${month}-${String(i + 1).padStart(2, '0')}`;
-    return daySummaryOf(by.get(date), date, today);
+    return daySummaryOf(by.get(date), date, today, weekdays);
   });
+  const inMonth = timesheets.filter(t => t.workDate.startsWith(month));
   return {
     month,
+    periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
       workDays: days.filter(d => d.kind === 'work' || d.kind === 'late').length,
-      standardDays: days.filter(d => dow(d.date) !== 0).length,
+      standardDays: days.filter(d => weekdays.includes(dow(d.date))).length,
       lateCount: days.filter(d => d.kind === 'late').length,
-      paidLeaveDays: timesheets.filter(t => t.workDate.startsWith(month) && (t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY')).length
+      paidLeaveDays: inMonth.filter(t => t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY').length
     },
     days
   };
+}
+
+/** Các tháng nhân viên được xem: từ tháng vào làm tới tháng hiện tại. Chưa có ngày vào làm (hoặc vào làm sau hôm nay)
+ *  thì chỉ tháng hiện tại. */
+export function monthRangeOf(startDate: string | null | undefined, today: string): { from: string; to: string } {
+  const to = today.slice(0, 7);
+  const start = startDate && /^\d{4}-(0[1-9]|1[0-2])/.test(startDate) ? startDate.slice(0, 7) : to;
+  return { from: start < to ? start : to, to };
 }
 
 export type RequestStep = { label: string; at: string | null; state: 'done' | 'pend' | 'rej' };

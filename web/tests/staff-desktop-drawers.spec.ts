@@ -69,8 +69,17 @@ test('/nv/toi?hop=doi-mat-khau opens the password drawer; Huỷ brings the menu 
   await openDesktop(page, '/nv/toi?hop=doi-mat-khau');
   const d = page.getByRole('dialog', { name: 'Đổi mật khẩu' });
   await expect(d).toContainText('Tài khoản nhanvien');
-  await d.getByRole('button', { name: 'Đổi mật khẩu' }).click();
-  await expect(d.getByRole('alert')).toContainText('Nhập mật khẩu hiện tại.');
+  // BUG-staff-4 trên máy tính: cùng biểu mẫu, chưa đủ thì nút mờ.
+  const submit = d.getByRole('button', { name: 'Đổi mật khẩu' });
+  await expect(submit).toBeDisabled();
+  await d.getByLabel('Mật khẩu hiện tại').fill('cu');
+  await d.getByLabel(/^Mật khẩu mới/).fill('12345');
+  await d.getByLabel('Nhập lại mật khẩu mới').fill('12345');
+  await expect(submit).toBeDisabled();
+  await d.getByLabel(/^Mật khẩu mới/).fill('123456');
+  await d.getByLabel('Nhập lại mật khẩu mới').fill('123456');
+  await expect(submit).toBeEnabled();
+  await expect(d.getByRole('alert')).toHaveCount(0);
   await d.getByRole('button', { name: 'Huỷ' }).click();
   await expect(page).toHaveURL(/\/nv\/toi$/);
   await expect(page.getByRole('region', { name: 'Tài khoản của tôi' })).toBeVisible();
@@ -118,8 +127,11 @@ test('resizing with a drawer open hands over to the phone sheet', async ({ page 
 });
 
 // F1: mở ngăn kéo là router.replace sang đường dẫn khác của cùng trang một trang, không được cuộn trang về đầu.
+// Chờ font tải xong rồi mới cuộn: font đổi làm hàng nhích 1px, Playwright coi là "chưa đứng yên",
+// bấm lại và tự cuộn trang trước khi bấm, nên test hỏng dù app không cuộn gì.
 const scrollToBottom = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => {
+  page.evaluate(async () => {
+    await document.fonts.ready;
     window.scrollTo(0, document.documentElement.scrollHeight);
     return scrollY;
   });

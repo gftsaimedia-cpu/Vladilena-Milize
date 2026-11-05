@@ -11,20 +11,39 @@ import { REQUESTS_PATH, TAO_SLUG } from '@/views/staff-requests/useNewRequest';
 const props = defineProps<{ day: DayDetail }>();
 
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-// Thanh giờ: trục là ca (08:00–17:00 = 540 phút); mỗi đoạn là [trái, phải] theo phần trăm của trục.
+// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30). Ca qua đêm thì giờ ra thuộc
+// ngày sau (22:00–06:00 → 02:00).
+const axis = computed(() => {
+  const start = toMin(props.day.shiftStart);
+  let end = toMin(props.day.shiftEnd);
+  if (end <= start) end += 1440;
+  return [props.day.shiftStart, hhmm(Math.round((start + end) / 2) % 1440), props.day.shiftEnd];
+});
+
+// Thanh giờ: trục là ca của ngày (vd. 08:00–17:00 = 540 phút); mỗi đoạn là [trái, phải] theo phần trăm của trục.
+// Ca qua đêm (giờ ra ca không sau giờ vào ca, vd. 22:00–06:00): giờ ra ca thuộc ngày sau (+1440 phút); mỗi giờ vào, giờ ra,
+// giờ hiện tại lấy t hay t + 1440, cái nào gần giữa ca hơn (vào 23:00 ở ngày đầu, ra 05:00 ở ngày sau). Ca ban ngày giữ nguyên.
 const track = computed(() => {
   const d = props.day;
   if (!d.in) return null;
   const start = toMin(d.shiftStart);
-  const span = toMin(d.shiftEnd) - start;
-  const pct = (min: number) => Math.min(100, Math.max(0, ((min - start) / span) * 100));
-  const inAt = toMin(d.in);
+  let end = toMin(d.shiftEnd);
+  const night = end <= start;
+  if (night) end += 1440;
+  const mid = (start + end) / 2;
+  const at = (time: string) => {
+    const t = toMin(time);
+    return night && Math.abs(t + 1440 - mid) < Math.abs(t - mid) ? t + 1440 : t;
+  };
+  const pct = (min: number) => Math.min(100, Math.max(0, ((min - start) / (end - start)) * 100));
+  const inAt = at(d.in);
   const from = pct(Math.max(inAt, start));
   const late = inAt > start ? { left: 0, width: pct(inAt) } : null;
   // Chưa có giờ ra: hôm nay thì đoạn đã làm dừng ở giờ đồng hồ giả; ngày đã qua thì sọc tới hết ca.
   const outAt = d.out ?? (d.today ? d.now : null);
-  const worked = outAt ? { left: from, width: Math.max(0, pct(toMin(outAt)) - from) } : null;
+  const worked = outAt ? { left: from, width: Math.max(0, pct(at(outAt)) - from) } : null;
   const missing = outAt ? null : { left: from, width: 100 - from };
   return { late, worked, missing };
 });
@@ -40,7 +59,7 @@ const explain = computed(() => ({ path: REQUESTS_PATH, query: { tao: TAO_SLUG.ex
       <i v-if="track.worked" class="ds-worked" :style="pos(track.worked)" />
       <i v-if="track.missing" class="ds-missing" :style="pos(track.missing)" />
     </div>
-    <div class="sh mut sm ds-axis" aria-hidden="true"><span>08:00</span><span>12:30</span><span>17:00</span></div>
+    <div class="sh mut sm ds-axis" aria-hidden="true"><span v-for="t in axis" :key="t">{{ t }}</span></div>
   </div>
   <div v-if="day.in">
     <div class="kv"><span class="k">Giờ vào</span><span class="v">{{ day.in }}</span></div>

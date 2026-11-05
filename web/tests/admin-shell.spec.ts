@@ -123,7 +123,10 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
-  await page.getByRole('button', { name: /, Trịnh Văn Long · / }).click();
+  await page
+    .getByRole('dialog', { name: 'Thông báo' })
+    .getByRole('button', { name: /, Trịnh Văn Long · / })
+    .click();
   await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL('/admin/cham-cong/nhan-vien/trinh-van-long?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
@@ -271,6 +274,23 @@ test('Huỷ closes the password dialog opened by ?hop and drops hop', async ({ p
   await expect(passwordOf(page)).toHaveCount(0);
   await expect.poll(() => hopOf(page)).toBeNull();
   expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+// Cùng luật với BUG-staff-4: hộp đổi mật khẩu của Admin mờ nút khi biểu mẫu chưa đủ.
+test('the Admin password dialog keeps Đổi mật khẩu off until the form is valid', async ({ page }) => {
+  await page.goto('/admin/tong-quan?hop=doi-mat-khau');
+  const dlg = passwordOf(page);
+  const submit = dlg.getByRole('button', { name: 'Đổi mật khẩu' });
+  await expect(submit).toBeDisabled();
+  await dlg.getByLabel('Mật khẩu hiện tại').fill('cu');
+  await dlg.getByLabel(/^Mật khẩu mới/).fill('12345');
+  await dlg.getByLabel('Nhập lại mật khẩu mới').fill('12345');
+  await expect(submit).toBeDisabled();
+  await dlg.getByLabel(/^Mật khẩu mới/).fill('123456');
+  await dlg.getByLabel('Nhập lại mật khẩu mới').fill('123465');
+  await expect(submit).toBeDisabled();
+  await dlg.getByLabel('Nhập lại mật khẩu mới').fill('123456');
+  await expect(submit).toBeEnabled();
 });
 
 test('Đổi mật khẩu in the menu still opens the dialog, and closing it leaves no hop', async ({ page }) => {
