@@ -325,7 +325,7 @@ function advanceQuote(month: string): AdvanceInfo {
   const to = `${month}-15`;
   let workDays = 0;
   for (let d = from; d <= to; d = addDays(d, 1)) if (dayRecord(d)?.in) workDays++;
-  return { month, amount: Math.round((0.8 * workDays * BASE_SALARY) / STANDARD_DAYS), workDays, from, to };
+  return { month, amount: Math.round((0.8 * workDays * BASE_SALARY) / STANDARD_DAYS), workDays, from, to, windowEnd: `${month}-17`, ordersThisMonth: 1 };
 }
 
 // Vì sao hôm nay chưa nộp được tạm ứng: ngoài ngày 16–17, tháng đã có đơn, hay chưa có ngày công 01–15.
@@ -634,6 +634,7 @@ export function createRequest<K extends RequestKind>(kind: K, draft: RequestDraf
     month: monthOf(ctx.today),
     kindLabel: KIND_LABEL[kind],
     facts: r.facts,
+    dates: [...new Set([...r.entry.claims.map(c => c.date), ...r.entry.windows.map(w => w.date), ...(r.entry.explanationDate ? [r.entry.explanationDate] : [])])].sort(),
     steps
   });
   return { ok: true, id };

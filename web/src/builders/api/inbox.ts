@@ -30,6 +30,7 @@ export type RequestDTO = {
   changeStartDate?: string | null;
   changeEndDate?: string | null;
   isat?: { saturday?: string } | null;
+  dates?: string[];
 };
 
 export type PersonInfo = { name: string; title: string };

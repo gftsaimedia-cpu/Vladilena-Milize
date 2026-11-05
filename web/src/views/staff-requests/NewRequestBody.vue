@@ -9,6 +9,7 @@
 //   <BottomSheet :title="t" bare @close="…"><NewRequestBody @title="t = $event" @close="…" @sent="…" /></BottomSheet>
 import { computed, nextTick, ref, useId, watch, type Component } from 'vue';
 import { toast } from '@/components/shell/toast';
+import { dm } from '@/utils/format';
 import type { PhoneIconName } from '@/mock/staff-phone';
 import type { RequestKind } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
@@ -57,7 +58,8 @@ const menu = computed(() => {
     const k = c.kinds.find(x => x.kind === m.kind);
     if (!k) return [];
     const leaveLeft = m.kind === 'leave' && c.annualLeaveLeft !== null ? `Phép năm còn ${c.annualLeaveLeft} ngày` : '';
-    const hint = !k.enabled ? (k.reason ?? m.hint) : leaveLeft || m.hint;
+    const adv = m.kind === 'advance' && c.advance ? `Tạm ứng lương tháng ${Number(c.advance.month.slice(5, 7))}, nộp đến hết ${dm(c.advance.windowEnd)}` : '';
+    const hint = !k.enabled ? (k.reason ?? m.hint) : leaveLeft || adv || m.hint;
     return [{ ...m, enabled: k.enabled, hint, id: `${uid}-${m.kind}` }];
   });
 });

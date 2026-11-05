@@ -148,6 +148,12 @@ export class PeriodsRepository {
       .selectFrom('staff')
       .select(['username', 'name'])
       .where('locked_at', 'is', null)
+      .where(eb =>
+        eb.or([
+          eb('payroll_subject', '=', 1),
+          eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
+        ])
+      )
       .orderBy('username')
       .execute();
     const missingSlips = staff.filter(s => !have.has(s.username)).map(s => ({ username: s.username, name: s.name }));

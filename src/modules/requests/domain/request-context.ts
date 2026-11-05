@@ -45,5 +45,6 @@ export interface RequestContextDTO {
   shiftFrames: Array<{ shiftType: FrameShiftType; start: string; end: string }>;
   days: FilingDayState[];
   explanationDays: DueDay[];
-  advance: (AdvanceQuote & { month: string }) | null;
+  /** `windowEnd`: ngày cuối nộp tạm ứng của tháng (17); `ordersThisMonth`: số đơn tạm ứng của tháng sau khi nộp (mỗi tháng một đơn). */
+  advance: (AdvanceQuote & { month: string; windowEnd: string; ordersThisMonth: number }) | null;
 }

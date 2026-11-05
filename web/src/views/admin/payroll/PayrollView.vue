@@ -27,7 +27,8 @@ const data = computed(() => loaded.value as PayrollScreen | null);
 const board = computed(() => (data.value && !data.value.empty ? data.value : null));
 
 // Tính (lại) lương cả kỳ trên máy chủ thật; người tính lỗi (thiếu cấu hình bậc…) báo thành một thông báo.
-const canCalculate = !__MOCK__;
+// Kỳ đã phê duyệt hoặc đã trả thì không tính lại được (BE trả PAYROLL_FINALIZED), nên ẩn nút.
+const canCalculate = computed(() => !__MOCK__ && !['approved', 'paid'].includes(period.view?.status ?? ''));
 const calculating = ref(false);
 async function calculate() {
   if (calculating.value) return;
@@ -153,6 +154,7 @@ const decide = async (id: string, decision: 'approve' | 'reject', note?: string)
   const next = await decidePayslip(period.month, id, decision, note);
   if (next && next.id === slipId.value) slip.value = next;
   await reload();
+  period.refresh(); // số phiếu chưa duyệt đổi thì nút Phê duyệt kỳ mở / khoá theo
 };
 </script>
 

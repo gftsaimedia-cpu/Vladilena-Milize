@@ -25,7 +25,7 @@ test('ticking T2–T6 shows Công chuẩn 22 and no tick locks Lưu', async ({ p
   for (const box of await dlg.locator('.inp').all()) await expect(box).toHaveCSS('border-radius', '8px');
   await expect(dlg).toContainText('0/300');
   // Hai lựa chọn nằm trong một nhóm có tên (fieldset + legend).
-  const mode = dlg.getByRole('group', { name: 'Chọn tuần làm việc' });
+  const mode = dlg.getByRole('group', { name: 'Cách đặt tuần làm việc' });
   await expect(mode.getByRole('radio')).toHaveCount(2);
   await mode.getByRole('radio', { name: 'Tuần riêng' }).check();
   await expect(dlg).toContainText('Công chuẩn: 26');

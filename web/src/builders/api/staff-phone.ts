@@ -215,6 +215,7 @@ export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
+    dates: r.dates ?? [],
     steps: steps.map((s, i) => ({ label: s.label, at: vnStamp(s.at), state: s.state, ...(note && i === last ? { note } : {}) }))
   };
 }

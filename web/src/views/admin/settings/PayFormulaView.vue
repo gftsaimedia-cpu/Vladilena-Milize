@@ -48,7 +48,7 @@ const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', '
         </colgroup>
         <thead>
           <tr>
-            <th class="op"></th>
+            <th class="op"><span class="sr-only">Cộng hay trừ</span></th>
             <th>Khoản</th>
             <th>Đang áp dụng</th>
             <th>Trạng thái</th>

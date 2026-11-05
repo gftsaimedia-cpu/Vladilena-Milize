@@ -222,7 +222,10 @@ test.describe('phone', () => {
 
     await page.getByRole('link', { name: 'Phép năm 02–03/11, Chờ duyệt' }).click();
     const sheet = sheetOf(page, 'Phép năm 02–03/11');
-    await cancelIn(page, sheet);
+    await sheet.getByRole('button', { name: 'Huỷ đơn' }).click();
+    await expect(confirmBox(sheet)).toContainText('Ngày 02 và 03/11 được trả lại, bạn nộp đơn khác vào các ngày này được ngay.');
+    await confirmBox(sheet).getByRole('button', { name: 'Huỷ đơn' }).click();
+    await expect(sheet.getByLabel('Các bước')).toContainText('ngày 02 và 03/11 đã được trả lại');
     await sheet.getByRole('button', { name: 'Đóng' }).click();
     await expect(page.getByRole('link', { name: 'Phép năm 02–03/11, Đã huỷ' })).toBeVisible();
 

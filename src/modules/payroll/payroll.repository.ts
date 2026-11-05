@@ -293,6 +293,12 @@ export class PayrollRepository {
       .selectFrom('staff')
       .select(['uuid', 'username', 'name'])
       .where('locked_at', 'is', null)
+      .where(eb =>
+        eb.or([
+          eb('payroll_subject', '=', 1),
+          eb.and([eb('payroll_subject', 'is', null), eb('role', '<>', 'admin')])
+        ])
+      )
       .execute();
 
     return rows.map(r => ({

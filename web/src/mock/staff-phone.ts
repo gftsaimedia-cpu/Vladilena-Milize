@@ -39,6 +39,7 @@ export type RequestStep = { label: string; at: string | null; state: RequestStat
 export type RequestDetail = RequestRowData & {
   kindLabel: string; // 'Giải trình' | 'Đơn nghỉ' | 'Tạm ứng lương'
   facts: [string, string][]; // [khoá, giá trị] theo spec 2.2, lý do đã có ngoặc kép cong
+  dates?: string[]; // ngày đơn đang giữ ('2026-11-02'), tăng dần; tạm ứng và đơn không có ngày thì rỗng hoặc vắng
   steps: RequestStep[];
 };
 
@@ -209,7 +210,7 @@ export const STATUS_TEXT: Readonly<Record<RequestStatus, string>> = { pend: 'Ch�
 const REQUESTS: RequestDetail[] = [
   {
     id: 'giai-trinh-2710', icon: 'clock', title: 'Thiếu giờ ra 27/10', status: 'pend', statusText: STATUS_TEXT.pend,
-    month: '2026-10', kindLabel: 'Giải trình',
+    month: '2026-10', kindLabel: 'Giải trình', dates: ['2026-10-27'],
     facts: [['Ngày', 'Thứ Ba 27/10/2026'], ['Giờ vào', '08:12'], ['Giờ ra khai', '17:30'], ['Lý do', '“Quên bấm Check-out khi về.”']],
     steps: [
       { label: 'Đã gửi', at: '27/10 20:14', state: 'done', note: null },

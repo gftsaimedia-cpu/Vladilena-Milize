@@ -189,11 +189,11 @@ describe('Bảng lương từ /payroll/:month', () => {
   });
 });
 
-import { periodStripFromPeriod } from '../../web/src/builders/api/period';
+import { periodStripFromView } from '../../web/src/builders/api/period';
 
 describe('Thanh kỳ lương từ /system/periods', () => {
   it('a month without a period row is still in attendance', () => {
-    assert.deepEqual(periodStripFromPeriod(null, '2026-11'), {
+    assert.deepEqual(periodStripFromView(null, '2026-11'), {
       month: 'Tháng 11/2026',
       state: 'Đang chấm công',
       stateCls: 'draft',
@@ -202,8 +202,8 @@ describe('Thanh kỳ lương từ /system/periods', () => {
   });
 
   it('marks finished steps from the period timestamps', () => {
-    const strip = periodStripFromPeriod(
-      { month: '2026-10', status: 'calculated', attendance_locked_at: 'a', calculated_at: 'b', approved_at: null, paid_at: null } as any,
+    const strip = periodStripFromView(
+      { month: '2026-10', status: 'calculated', steps: { lockedAt: 'a', calculatedAt: 'b', approvedAt: null, paidAt: null }, payday: '2026-11-05', actions: {} },
       '2026-10'
     );
     assert.equal(strip.state, 'Chờ phê duyệt');
@@ -211,8 +211,8 @@ describe('Thanh kỳ lương từ /system/periods', () => {
   });
 
   it('a paid month is all done', () => {
-    const strip = periodStripFromPeriod(
-      { month: '2026-09', status: 'paid', attendance_locked_at: 'a', calculated_at: 'b', approved_at: 'c', paid_at: 'd' } as any,
+    const strip = periodStripFromView(
+      { month: '2026-09', status: 'paid', steps: { lockedAt: 'a', calculatedAt: 'b', approvedAt: 'c', paidAt: 'd' }, payday: '2026-10-05', actions: {} },
       '2026-09'
     );
     assert.equal(strip.state, 'Đã trả lương');

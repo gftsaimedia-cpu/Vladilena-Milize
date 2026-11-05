@@ -74,6 +74,12 @@ test('approve is blocked by unapproved payslips, pending requests and people wit
               ('pg-user-4', 'Nhân viên PG 4', 'nv', 1, 'x', $1, 'long', 'pg-uuid-4', $1)`,
       [new Date().toISOString()]
     );
+    // Tài khoản admin không thuộc diện tính lương: không bao giờ bị tính là "chưa có phiếu".
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid, locked_at, role)
+       VALUES ('pg-admin', 'Quản trị PG', 'ql', 0, 'x', $1, 'long', 'pg-uuid-admin', NULL, 'admin')`,
+      [new Date().toISOString()]
+    );
 
     const blockers = {
       pendingRequests: 1,

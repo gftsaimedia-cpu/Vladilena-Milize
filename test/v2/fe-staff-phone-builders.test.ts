@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { datesText } from '../../web/src/utils/format';
 import { describe, it } from 'node:test';
 import {
   attendanceViewOf,
@@ -40,6 +41,18 @@ describe('App nhân viên từ /me', () => {
     assert.deepEqual(d.steps[0], { label: 'Đã gửi', at: '03/11 20:14', state: 'done' });
     assert.ok(d.facts.some(([k, v]) => k === 'Giờ ra khai' && v === '17:30'));
     assert.ok(d.facts.some(([k, v]) => k === 'Lý do' && v === '“Việc nhà”'));
+  });
+
+  it('carries the request dates into the detail and words them for the cancel text', () => {
+    const d = requestDetailOf(req({ type: 'LEAVE', leaveStartDate: '2026-11-02', dates: ['2026-11-02', '2026-11-03'] }) as any, []);
+    assert.deepEqual(d.dates, ['2026-11-02', '2026-11-03']);
+    assert.deepEqual(requestDetailOf(req({ type: 'ADVANCE' }) as any, []).dates, []);
+    assert.equal(datesText(['2026-11-02', '2026-11-03']), '02 và 03/11');
+    assert.equal(datesText(['2026-11-02', '2026-11-03', '2026-11-04']), '02, 03 và 04/11');
+    assert.equal(datesText(['2026-11-30', '2026-12-01']), '30/11 và 01/12');
+    assert.equal(datesText(['2026-11-02']), '02/11');
+    assert.equal(datesText(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-13']), 'từ 02/11 đến 13/11');
+    assert.equal(datesText([]), '');
   });
 
   // BUG-requests-12: hộp từ chối của Admin hứa "Nhân viên xem được ghi chú trong chi tiết yêu cầu"; /me trả reviewNote.

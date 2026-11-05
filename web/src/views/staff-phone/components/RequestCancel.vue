@@ -5,15 +5,17 @@
 // "Đã huỷ", khối này mất) và tải lại danh sách. Server từ chối (vd. Admin vừa duyệt): câu lỗi ở đây và vẫn phát `changed` để vỏ
 // đọc lại đơn (spec 6).
 //   <RequestCancel :request="detail" @changed="id => …" />
-import { nextTick, ref, useId, watch } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import type { RequestDetail } from '@/mock/staff-phone';
 import { cancelRequest } from '@/services/staff-requests';
+import { datesText } from '@/utils/format';
 
 const props = defineProps<{ request: RequestDetail }>();
 const emit = defineEmits<{ changed: [id: string] }>();
 
 const id = useId();
+const days = computed(() => datesText(props.request.dates));
 const box = ref<HTMLElement | null>(null);
 const askButton = ref<HTMLButtonElement | null>(null);
 const noButton = ref<HTMLButtonElement | null>(null);
@@ -71,8 +73,9 @@ async function confirm() {
 <template>
   <div v-if="request.status === 'pend' || error" ref="box" class="rc">
     <template v-if="request.status === 'pend'">
-      <div v-if="asking" class="rc-confirm" role="group" :aria-labelledby="`${id}-q`">
+      <div v-if="asking" class="rc-confirm" role="group" :aria-labelledby="`${id}-q`" :aria-describedby="days ? `${id}-d` : undefined">
         <p :id="`${id}-q`" class="rc-q">Huỷ đơn này?</p>
+        <p v-if="days" :id="`${id}-d`" class="mut">Ngày {{ days }} được trả lại, bạn nộp đơn khác vào các ngày này được ngay.</p>
         <div class="rc-two">
           <button ref="noButton" type="button" class="b2" :aria-disabled="busy || undefined" @click="keep">Không</button>
           <button type="button" class="rc-yes" :aria-disabled="busy || undefined" :aria-busy="busy || undefined" @click="confirm">

@@ -64,7 +64,7 @@ async function save() {
 <template>
   <AppModal title="Tuần làm việc" :sub="name" :width="480" :dismissable="!saving" @close="emit('close')">
     <fieldset class="fld mode">
-      <legend class="sr-only">Chọn tuần làm việc</legend>
+      <legend class="sr-only">Cách đặt tuần làm việc</legend>
       <label class="opt">
         <input v-model="mode" type="radio" value="type" name="ww-mode" />
         <span>Theo loại nhân sự</span>
@@ -73,6 +73,7 @@ async function save() {
       <label class="opt">
         <input v-model="mode" type="radio" value="own" name="ww-mode" />
         <span>Tuần riêng</span>
+        <small>Chọn các ngày đi làm trong tuần</small>
       </label>
       <div class="days">
         <label v-for="d in DAYS" :key="d" class="day">

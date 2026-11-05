@@ -37,7 +37,16 @@ export type ContextMonth = {
   hasOvertime: boolean;
   hasMakeupLeave: boolean;
 };
-export type AdvanceInfo = { month: string; amount: number; workDays: number; from: string; to: string };
+// windowEnd: ngày cuối nộp tạm ứng ('2026-10-17'); ordersThisMonth: số đơn tạm ứng của tháng sau khi nộp đơn này (luôn 1).
+export type AdvanceInfo = {
+  month: string;
+  amount: number;
+  workDays: number;
+  from: string;
+  to: string;
+  windowEnd: string;
+  ordersThisMonth: number;
+};
 export type RequestContext = {
   today: string;
   window: { from: string; to: string };

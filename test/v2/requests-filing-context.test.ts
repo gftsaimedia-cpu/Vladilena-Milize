@@ -98,7 +98,9 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
       amount: 2_215_385,
       workDays: 12,
       from: '2026-11-01',
-      to: '2026-11-15'
+      to: '2026-11-15',
+      windowEnd: '2026-11-17',
+      ordersThisMonth: 1
     });
   });
 

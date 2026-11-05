@@ -3,7 +3,7 @@
 import { KPI_LABELS, KPI_WEIGHTS as MOCK_KPI_WEIGHTS } from '@/constants/labels';
 import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
 
-defineProps<{ scores: KpiScores; name: string }>();
+defineProps<{ scores: KpiScores; name: string; readonly?: boolean }>();
 const emit = defineEmits<{ update: [part: KpiPart, value: number | null]; save: [part: KpiPart] }>();
 
 const PARTS = Object.keys(KPI_LABELS) as KpiPart[];
@@ -55,6 +55,7 @@ function onInput(part: KpiPart, e: Event) {
           autocomplete="off"
           :class="{ empty: scores[p] == null }"
           :value="scores[p] ?? ''"
+          :readonly="readonly"
           :aria-label="`Điểm ${KPI_LABELS[p]} của ${name}, phần trăm`"
           @beforeinput="onBeforeInput(p, $event as InputEvent)"
           @input="onInput(p, $event)"

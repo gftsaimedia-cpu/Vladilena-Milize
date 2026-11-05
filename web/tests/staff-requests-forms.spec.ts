@@ -369,6 +369,12 @@ test.describe('Tạm ứng', () => {
     const sheet = sheetOf(page, 'Tạm ứng');
     await expect(sheet).toContainText('Số tiền được ứng: 2.215.385 ₫');
     await expect(sheet).toContainText('80% lương ngày công 01–15/10 · 12 ngày');
+    await expect(sheet).toContainText('Tạm ứng lương tháng 10');
+    await expect(sheet).toContainText('Hạn nộp');
+    await expect(sheet).toContainText('Hôm nay 16/10 và 17/10');
+    await expect(sheet).toContainText('Số đơn trong tháng');
+    await expect(sheet).toContainText('1 đơn');
+    await expect(sheet).toContainText('Admin chỉ duyệt hoặc từ chối, không sửa số tiền.');
     await expect(sheet.locator('input, select, textarea')).toHaveCount(0);
     await expect(sheet.getByLabel('Lý do')).toHaveCount(0);
     await expect(sendButton(sheet)).toBeEnabled();
@@ -381,6 +387,12 @@ test.describe('Tạm ứng', () => {
     await expect(advance).toHaveAttribute('aria-disabled', 'true');
     await expect(advance).toHaveAccessibleDescription('Tháng 10 đã có đơn tạm ứng');
     expect(calls).toEqual([]);
+  });
+
+  test('on 16/10 the menu row says when the advance can be filed until', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau?homnay=2026-10-16');
+    await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
+    await expect(kindRow(sheetOf(page, 'Tạo yêu cầu'), 'Tạm ứng')).toHaveAccessibleDescription('Tạm ứng lương tháng 10, nộp đến hết 17/10');
   });
 });
 

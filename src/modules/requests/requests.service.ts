@@ -601,7 +601,7 @@ export class RequestsService {
       return locked(ADVANCE_QUOTE_FAILED);
     }
     if (quote.amount === 0) return locked(advanceNoWorkDaysMessage(month));
-    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote } };
+    return { kind: { kind: 'advance', enabled: true }, quote: { month, ...quote, windowEnd: `${month}-17`, ordersThisMonth: 1 } };
   }
 
   async createLeaveRequest(input: CreateLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {

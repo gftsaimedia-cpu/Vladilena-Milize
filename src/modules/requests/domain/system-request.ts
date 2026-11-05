@@ -23,6 +23,7 @@ import { EXPLANATION_CASES, isExplanationCase, type ExplanationCase } from './ex
 import { isLeaveType } from './leave-types';
 import { workMinutes } from './time-window';
 import { findShiftFrame } from './shift-frames';
+import { requestDates } from './request-dates';
 
 /** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
 const OWED_MINUTES_PER_LEAVE_DAY = 480;
@@ -685,6 +686,7 @@ export class SystemRequest {
       reviewNote: this.reviewNote,
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
+      dates: requestDates(this),
 
       leaveType: this.leaveType,
       leaveStartDate: this.leaveStartDate,
