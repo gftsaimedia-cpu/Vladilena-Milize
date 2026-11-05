@@ -1,5 +1,17 @@
 import { DEFAULT_INSURANCE_RATES, type KpiInput } from '../../src/modules/payroll/domain';
+import type { AllowanceRates } from '../../src/modules/payroll/domain/allowance-rates';
 import type { EmployeeMonthlyRawData } from '../../src/modules/payroll/payroll.repository';
+
+// The % of each staff type as seeded in migrations/postgres/schema.sql (no level overrides the night rate).
+export const SEED_RATES: Record<'nv' | 'tts' | 'ctv', AllowanceRates> = {
+  nv: { flexPct: 20, typeNightPct: 40, levelNightPct: null, travelPct: 15, attendancePct: 25 },
+  tts: { flexPct: 10, typeNightPct: 30, levelNightPct: null, travelPct: 0, attendancePct: 0 },
+  ctv: { flexPct: 10, typeNightPct: 30, levelNightPct: null, travelPct: 0, attendancePct: 0 }
+};
+
+// The seeded rates of a known staff type; an unknown or missing type has no position version.
+export const seedRatesFor = (employeeType: string | undefined): AllowanceRates | null =>
+  employeeType === 'nv' || employeeType === 'tts' || employeeType === 'ctv' ? SEED_RATES[employeeType] : null;
 
 type Timesheet = EmployeeMonthlyRawData['timesheets'][number];
 
@@ -50,6 +62,7 @@ export function nvMonthData(
       dependants: 1,
       contractTerm: 'long',
       kpiCap: { applicable: true, kpiMax: 6_000_000 },
+      allowanceRates: seedRatesFor(overrides.staff?.employeeType ?? 'nv'),
       ...overrides.staff
     },
     timesheets: [...normalDays.map(date => timesheet(date, 'NORMAL')), timesheet('2026-10-24', 'LEAVE')],

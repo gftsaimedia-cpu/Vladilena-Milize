@@ -15,6 +15,7 @@ import {
   isInsured,
   resolveContractTerm
 } from './domain';
+import type { AllowanceRates } from './domain/allowance-rates';
 import { PayrollFinalizedError } from './payroll.errors';
 
 export interface EmployeeMonthlyRawData {
@@ -29,6 +30,7 @@ export interface EmployeeMonthlyRawData {
     employeeType?: string;
     nightAllowancePct?: number;
     isDormResident?: boolean;
+    allowanceRates: AllowanceRates | null; // % of the position version in force; null = no version for the month
     remainingAnnualLeaveDays?: number;
     contractTerm: ContractTerm; // resolved from staff.contract and the employee type
     insured: boolean; // resolved from the contract term and staff.insured
@@ -139,6 +141,15 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       employeeType: staffRow.type,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
+      allowanceRates: typeRow
+        ? {
+            flexPct: Number(typeRow.flex_pct),
+            typeNightPct: Number(typeRow.night_pct),
+            levelNightPct: numberOrNull(levelRow?.night_pct),
+            travelPct: Number(typeRow.travel_pct),
+            attendancePct: Number(typeRow.attendance_pct)
+          }
+        : null,
       remainingAnnualLeaveDays: 22,
       contractTerm,
       insured: isInsured(contractTerm, numberOrNull(staffRow.insured)),

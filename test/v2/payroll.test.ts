@@ -8,7 +8,8 @@ import {
 } from '../../src/modules/payroll/payroll.repository';
 import { DEFAULT_INSURANCE_RATES, EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
-import { nvMonthData } from './payroll-fixtures';
+import { SEED_RATES, nvMonthData, seedRatesFor } from './payroll-fixtures';
+import type { AllowanceRates } from '../../src/modules/payroll/domain/allowance-rates';
 
 // Staff fields the V2 rules added; the older fixtures below do not depend on them.
 const rulesStaff = {
@@ -187,6 +188,7 @@ describe('Payroll allowance behavior from the reference app', () => {
       standardWorkdays: 26,
       baseSalaryPolicy: 6_000_000,
       dailyLines: [],
+      allowanceRates: seedRatesFor(overrides.employeeType),
       ...overrides
     });
 
@@ -213,7 +215,8 @@ describe('Payroll allowance behavior from the reference app', () => {
     shiftType: string,
     workHours: number,
     nightAllowancePct = 40,
-    scheduleType = 'REGULAR'
+    scheduleType = 'REGULAR',
+    allowanceRates: AllowanceRates | null = seedRatesFor(employeeType)
   ) => {
     const repo = new FakePayrollRepository();
     const payroll = new PayrollService(repo);
@@ -229,6 +232,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         employeeType,
         nightAllowancePct,
         isDormResident: false,
+        allowanceRates,
         ...rulesStaff
       },
       timesheets: [
@@ -324,6 +328,48 @@ describe('Payroll allowance behavior from the reference app', () => {
     assert.equal(unknownNight.dailyLines[0].offPaidPay, 0);
   });
 
+  it('reads Flex from the position version', async () => {
+    const slip = await calculateLine('nv', 'FLEX', 8, 40, 'REGULAR', { ...SEED_RATES.nv, flexPct: 25 });
+    assert.equal(slip.dailyLines[0].flexAllowancePay, 57_692);
+    assert.equal(slip.dailyLines[0].shiftLabel, 'Flex +25%');
+  });
+
+  it('TTS night uses the level rate when it is set', async () => {
+    const level = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: 50 });
+    const type = await calculateLine('tts', 'NIGHT', 8, 40, 'REGULAR', { ...SEED_RATES.tts, levelNightPct: null });
+    assert.equal(level.dailyLines[0].nightAllowancePay, 115_385);
+    assert.equal(level.dailyLines[0].shiftLabel, 'Night +50%');
+    assert.equal(type.dailyLines[0].nightAllowancePay, 69_231);
+  });
+
+  it('travel applies to any type with a rate and never to a dorm resident', () => {
+    const dailyLines = Array.from({ length: 20 }, () => line('NORMAL'));
+    const allowanceRates = { ...SEED_RATES.tts, travelPct: 15 };
+    const tts = makePayslip({ employeeType: 'tts', allowanceRates, dailyLines });
+    const dorm = makePayslip({ employeeType: 'tts', allowanceRates, isDormResident: true, dailyLines });
+    assert.equal(tts.travelAllowanceActual, 692_308);
+    assert.equal(dorm.travelAllowanceActual, 0);
+  });
+
+  it('attendance applies to any type with a rate', () => {
+    const dailyLines = Array.from({ length: 20 }, () => line('NORMAL'));
+    const ctv = makePayslip({ employeeType: 'ctv', allowanceRates: { ...SEED_RATES.ctv, attendancePct: 25 }, dailyLines });
+    assert.equal(ctv.attendanceAllowanceActual, 1_153_846);
+  });
+
+  it('no position version pays no allowance', () => {
+    const slip = makePayslip({
+      employeeType: 'nv',
+      allowanceRates: null,
+      dailyLines: Array.from({ length: 20 }, () => line('NORMAL'))
+    });
+    assert.equal(slip.flexAllowancePolicy, 0);
+    assert.equal(slip.nightAllowancePolicy, 0);
+    assert.equal(slip.travelAllowancePolicy, 0);
+    assert.equal(slip.attendanceAllowancePolicy, 0);
+    assert.equal(slip.offPaidNightPolicy, 0);
+  });
+
   it('applies the selected night rate and fills at most one short hour without a second credit', async () => {
     const repo = new FakePayrollRepository();
     const payroll = new PayrollService(repo);
@@ -339,6 +385,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         employeeType: 'nv',
         nightAllowancePct: 60,
         isDormResident: false,
+        allowanceRates: SEED_RATES.nv,
         ...rulesStaff
       },
       timesheets: [
@@ -480,6 +527,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         employeeType: 'nv',
         nightAllowancePct: 40,
         isDormResident: false,
+        allowanceRates: SEED_RATES.nv,
         ...rulesStaff
       },
       timesheets: [
@@ -558,6 +606,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         employeeType: 'nv',
         nightAllowancePct: 40,
         isDormResident: false,
+        allowanceRates: SEED_RATES.nv,
         ...rulesStaff
       },
       timesheets: [
@@ -700,6 +749,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
         baseSalaryPolicy: 6_000_000,
         employeeType: 'nv',
         nightAllowancePct,
+        allowanceRates: SEED_RATES.nv,
         dailyLines,
         otHoursByRate
       });
@@ -792,7 +842,7 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
       't1:2026-10',
       mapMonthRows('2026-10', {
         staff: { uuid: 't1', username: 't', name: 'Thực tập', type: 'tts', level: 6, contract: null, insured: null },
-        type: { id: '1', workdays: '22' },
+        type: { id: '1', workdays: '22', flex_pct: 10, night_pct: 30, travel_pct: 0, attendance_pct: 0 },
         level,
         benefits: [],
         timesheets: workDays,

@@ -1,15 +1,40 @@
+// The % of the position version in force for the month (position_types, with position_levels.night_pct).
+export interface AllowanceRates {
+  flexPct: number;
+  typeNightPct: number;
+  levelNightPct: number | null; // null = the level keeps the type's night rate
+  travelPct: number;
+  attendancePct: number;
+}
+
 export class PayrollAllowancePolicy {
   readonly isKnownType: boolean;
   readonly isNv: boolean;
   readonly flexRate: number;
   readonly nightRate: number;
+  readonly travelRate: number;
+  readonly attendanceRate: number;
 
-  constructor(employeeType?: string, nightAllowancePct?: number) {
+  // rates null = the staff has no position version for the month: no allowance at all.
+  constructor(employeeType: string | undefined, nightAllowancePct: number | undefined, rates: AllowanceRates | null | undefined) {
     this.isNv = employeeType === 'nv';
-    const isTtsOrCtv = employeeType === 'tts' || employeeType === 'ctv';
-    this.isKnownType = this.isNv || isTtsOrCtv;
-    this.flexRate = this.isNv ? 0.2 : isTtsOrCtv ? 0.1 : 0;
-    this.nightRate = this.isNv ? (nightAllowancePct === 60 ? 0.6 : 0.4) : isTtsOrCtv ? 0.3 : 0;
+    this.isKnownType = rates != null;
+    if (rates == null) {
+      this.flexRate = 0;
+      this.nightRate = 0;
+      this.travelRate = 0;
+      this.attendanceRate = 0;
+      return;
+    }
+    this.flexRate = rates.flexPct / 100;
+    // An NV picks 40% or 60% per person; other types take the level's rate, else the type's.
+    this.nightRate = this.isNv
+      ? nightAllowancePct === 60
+        ? 0.6
+        : 0.4
+      : (rates.levelNightPct ?? rates.typeNightPct) / 100;
+    this.travelRate = rates.travelPct / 100;
+    this.attendanceRate = rates.attendancePct / 100;
   }
 
   flexPremium(hourlyBase: number, workedHours: number): number {

@@ -127,6 +127,26 @@ describe('mapMonthRows staff flags and contract label', () => {
   });
 });
 
+describe('mapMonthRows allowance rates', () => {
+  it('passes the rates of the version in force', () => {
+    const { staff } = mapMonthRows(
+      '2026-10',
+      rows({
+        type: { ...baseType, flex_pct: 25, night_pct: 30, travel_pct: 0, attendance_pct: 0 },
+        level: { ...baseLevel, night_pct: 50 }
+      })
+    );
+    assert.deepEqual(staff.allowanceRates, {
+      flexPct: 25,
+      typeNightPct: 30,
+      levelNightPct: 50,
+      travelPct: 0,
+      attendancePct: 0
+    });
+    assert.equal(mapMonthRows('2026-10', rows({ type: null })).staff.allowanceRates, null);
+  });
+});
+
 describe('mapMonthRows base pay and workdays', () => {
   it('takes base salary and standard workdays from the level and the type', () => {
     const { staff } = mapMonthRows('2026-10', rows());

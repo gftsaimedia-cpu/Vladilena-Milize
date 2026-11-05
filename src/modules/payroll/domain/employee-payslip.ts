@@ -1,4 +1,4 @@
-import { PayrollAllowancePolicy } from './allowance-rates';
+import { PayrollAllowancePolicy, type AllowanceRates } from './allowance-rates';
 import { calculateInsurance, InsuranceDeduction } from './insurance';
 import { calculateKpiPay, KpiComponent, KpiPay } from './kpi-pay';
 import { calculatePersonalIncomeTax, TaxMethod } from './personal-income-tax';
@@ -49,6 +49,7 @@ export interface EmployeePayslipProps {
   employeeType?: string;
   nightAllowancePct?: number;
   isDormResident?: boolean;
+  allowanceRates?: AllowanceRates | null; // the position version in force; missing = none, no allowance
   makeupWorkDates?: string[];
   dailyLines: DailyAttendanceLineProps[];
   otHoursByRate?: OtHoursByRate;
@@ -312,9 +313,9 @@ export class EmployeePayslip {
 
     // Block 4: Allowances
     // Policy values
-    const rates = new PayrollAllowancePolicy(this.employeeType, this.nightAllowancePct);
-    this.attendanceAllowancePolicy = rates.isNv ? Math.round(this.baseSalaryPolicy * 0.25) : 0;
-    this.travelAllowancePolicy = rates.isNv ? Math.round(this.baseSalaryPolicy * 0.15) : 0;
+    const rates = new PayrollAllowancePolicy(this.employeeType, this.nightAllowancePct, props.allowanceRates);
+    this.attendanceAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.attendanceRate);
+    this.travelAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.travelRate);
     this.flexAllowancePolicy = Math.round(this.baseSalaryPolicy * rates.flexRate);
     this.offPaidNightPolicy = rates.isKnownType
       ? Math.round(this.standardWorkdays * hourRate * (1 + rates.nightRate))
@@ -328,9 +329,8 @@ export class EmployeePayslip {
     const makeupDays = makeupDates.size;
     const absenceDays = Math.max(0, this.paidLeaveDays + this.unpaidLeaveDays - makeupDays);
     this.attendanceAllowanceActual =
-      rates.isNv && absenceDays <= 4 ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
-    this.travelAllowanceActual =
-      rates.isNv && !this.isDormResident ? Math.round(allowanceRatio * this.travelAllowancePolicy) : 0;
+      rates.attendanceRate > 0 && absenceDays <= 4 ? Math.round(allowanceRatio * this.attendanceAllowancePolicy) : 0;
+    this.travelAllowanceActual = !this.isDormResident ? Math.round(allowanceRatio * this.travelAllowancePolicy) : 0;
     this.flexAllowanceActual = rates.isKnownType
       ? this.dailyLines.reduce((sum, line) => sum + line.flexAllowancePay, 0)
       : 0;
