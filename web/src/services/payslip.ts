@@ -1,6 +1,6 @@
 // Dịch vụ phiếu lương (ngăn kéo, sửa số trên phiếu, hộp bản in, trang in A4): đọc và ghi qua api(); riêng bỏ qua cảnh báo AI vẫn dữ liệu giả.
 import { buildDrawer } from '@/builders/payslip/drawer';
-import { payslipSheet, type A4Sheet } from '@/mock/payslip-a4';
+import { approvedSheets, payslipSheet, personSheet, type A4Sheet } from '@/mock/payslip-a4';
 import { respond } from '@/mock/respond';
 import { ApiError, api } from './http';
 
@@ -46,14 +46,17 @@ export function saveSlipOverride(month, username, { values, reason = '', expecte
   return api('PUT', '/slip-override', body);
 }
 
-/** Bản in A4 (2 trang) của một người, trên dữ liệu giả: mọi username trong tháng mẫu thấy cùng một phiếu, tháng khác từ chối như api(). */
+// Dữ liệu giả không có thì báo như api() ở chế độ giả (mock_missing), để trang in hiện dòng không tải được.
+const mockMissing = (path: string) =>
+  new ApiError(501, `Màn này chưa có dữ liệu giả (GET ${path}).`, { code: 'mock_missing' });
+
+/**
+ * Bản in A4 (2 trang) của một người, trên dữ liệu giả: tháng mẫu chung, với tên, loại · bậc, hợp đồng và trạng thái của phiếu
+ * mã `username` ở Bảng lương giả (__MOCK__; máy chủ thật vẫn là tháng mẫu cho mọi username). Tháng hay mã lạ từ chối như api().
+ */
 export async function getPayslipSheet(month = '', username = ''): Promise<A4Sheet> {
-  const sheet = payslipSheet(month);
-  if (!sheet) {
-    throw new ApiError(501, `Màn này chưa có dữ liệu giả (GET /periods/${month}/payslips/${username}).`, {
-      code: 'mock_missing'
-    });
-  }
+  const sheet = __MOCK__ ? personSheet(month, username) : payslipSheet(month);
+  if (!sheet) throw mockMissing(`/periods/${month}/payslips/${username}`);
   return respond(sheet);
 }
 
@@ -79,8 +82,13 @@ export async function getPrintBatch(month?) {
   };
 }
 
-/** Toàn bộ bản in A4 của các phiếu đã phê duyệt trong kỳ (trang in tất cả). */
+/** Toàn bộ bản in A4 của các phiếu đã phê duyệt trong kỳ (trang in tất cả). Dữ liệu giả: các phiếu đã duyệt của Bảng lương giả. */
 export async function getApprovedSheets(month?) {
+  if (__MOCK__) {
+    const sheets = approvedSheets(month);
+    if (!sheets) throw mockMissing(`/periods/${month}/payslips?status=approved`);
+    return respond(sheets);
+  }
   const rows = await approvedRows(month);
   const sheets: any[] = [];
   for (let i = 0; i < rows.length; i += 8)
