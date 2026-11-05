@@ -266,7 +266,7 @@ CREATE TABLE staff (
     idorm      BIGINT NOT NULL DEFAULT 0,
     pass_hash  TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    start_date TEXT, birthday TEXT, contract TEXT, insured BIGINT, dependants BIGINT NOT NULL DEFAULT 0, job_title TEXT, tax_on BIGINT, deduct_on BIGINT, advance_on BIGINT, locked_at TEXT, locked_by TEXT, session_version BIGINT NOT NULL DEFAULT 0, payroll_subject BIGINT, uuid TEXT UNIQUE, family_name TEXT, given_name TEXT, contract_status TEXT CHECK (contract_status IS NULL OR contract_status IN ('probation','official')), resigned_on TEXT, leave_balance DOUBLE PRECISION, leave_balance_on TEXT,
+    start_date TEXT, birthday TEXT, contract TEXT, insured BIGINT, dependants BIGINT NOT NULL DEFAULT 0, job_title TEXT, tax_on BIGINT, deduct_on BIGINT, advance_on BIGINT, locked_at TEXT, locked_by TEXT, session_version BIGINT NOT NULL DEFAULT 0, payroll_subject BIGINT, uuid TEXT UNIQUE, family_name TEXT, given_name TEXT, contract_status TEXT CHECK (contract_status IS NULL OR contract_status IN ('probation','official','tts','ctv','nghiviec')), resigned_on TEXT, leave_balance DOUBLE PRECISION, leave_balance_on TEXT,
     shift_type TEXT NOT NULL DEFAULT 'NORMAL',
     shift_start_time TEXT NOT NULL DEFAULT '08:00',
     shift_end_time TEXT NOT NULL DEFAULT '17:00',
@@ -456,6 +456,15 @@ CREATE TABLE day_status (
 );
 CREATE INDEX idx_day_status_request ON day_status(request_id);
 CREATE INDEX idx_day_status_base_request ON day_status(base_request_id);
+
+-- Lần nhắc giải trình gần nhất của quản trị viên cho một người ở một ngày. Nhắc lại thì ghi đè dòng cũ.
+CREATE TABLE explanation_reminders (
+  employee_id TEXT NOT NULL REFERENCES staff(uuid),
+  work_date   DATE NOT NULL,
+  reminded_by TEXT NOT NULL REFERENCES staff(uuid),
+  reminded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (employee_id, work_date)
+);
 
 -- Chỉ mục
 CREATE INDEX audit_action_at ON audit_log (action, at);

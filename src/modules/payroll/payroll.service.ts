@@ -29,7 +29,9 @@ import {
   KPI_WEIGHTS,
   type InsuranceRates,
   type KpiComponent,
-  type TaxRules
+  type TaxRules,
+  advanceQuoteOf,
+  type AdvanceQuote
 } from './domain';
 import { PayrollAllowancePolicy } from './domain/allowance-rates';
 
@@ -219,6 +221,12 @@ export class PayrollService {
     }
 
     await this.repo.saveKpiScore(username, month, patch, actor);
+  }
+
+  /** Số tiền tạm ứng của tháng `month`: 80% lương các ngày công 01–15 theo bảng lương tính ngay lúc này. */
+  async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
+    const payslip = await this.generateMonthlyPayslip(employeeId, month);
+    return advanceQuoteOf(payslip.dailyLines, month);
   }
 
   async generateMonthlyPayslip(employeeId: string, month: string): Promise<EmployeePayslip> {

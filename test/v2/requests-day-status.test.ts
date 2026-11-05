@@ -311,35 +311,38 @@ describe('Đổi ca, OT, khung bù và giải trình theo day_status (§4.4)', (
     assert.deepEqual([...ctx.days.rows.keys()], [`${NV_UUID}:2026-11-12`]);
   });
 
-  it('explanation for an approved ISAT Saturday is refused with C1, and a pending one with C3', async () => {
+  // Spec 3.1: Thứ Bảy có iSAT (chờ hay đã duyệt) không phải ngày làm, nên không có gì để giải trình (R-P4).
+  it('explanation for an ISAT Saturday, approved or pending, is refused as not a workday', async () => {
+    const notWorkday = (err: unknown) =>
+      !(err instanceof DayConflictError) && err instanceof Error && err.message === 'Ngày 31/10 không phải ngày làm';
     await seed(ctx, isatRequest('2026-10-31', 'APPROVED'));
-    await assert.rejects(
-      expl(),
-      isConflict('Thứ Bảy 31/10 đã có iSAT được duyệt, không chọn được ngày này.')
-    );
+    await assert.rejects(expl(), notWorkday);
 
     ctx = makeService();
     await seed(ctx, isatRequest('2026-10-31', 'PENDING'));
-    await assert.rejects(
-      expl(),
-      isConflict('Thứ Bảy 31/10 đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.')
-    );
+    await assert.rejects(expl(), notWorkday);
+    assert.equal(ctx.repo.requests.size, 1);
   });
 
-  it('explanation for a free day writes no row, and runs the read under the employee lock', async () => {
-    const dto = await expl({ workDate: '2026-11-03' });
+  it('explanation for a free day writes no row; the duplicate check and the save run under the employee lock', async () => {
+    // 03/11 không có dòng chấm công: thiếu cả hai giờ, nên phải nhập cả hai.
+    const dto = await expl({ workDate: '2026-11-03', actualCheckIn: '08:00', actualCheckOut: '17:00' });
     assert.deepEqual(dto.warnings, []);
     assert.equal(ctx.days.rows.size, 0);
-    assert.ok(ctx.days.calls.length > 0);
-    for (const [name, trx] of ctx.days.calls) assert.equal(trx, LOCK_TRX, name);
+    assert.deepEqual(ctx.days.calls.filter(([name]) => name === 'upsert'), []);
+    assert.deepEqual(ctx.lock.keys, [`requests_${NV_UUID}`]);
+    assert.deepEqual(ctx.repo.calls.slice(-2), [
+      ['list', LOCK_TRX],
+      ['save', LOCK_TRX]
+    ]);
   });
 
-  it('explanation for an unconfigured position type skips the day check', async () => {
+  it('explanation for an unconfigured position type is refused before reading days', async () => {
     ctx.repo.putStaff('nv01', staffContext({ regularDows: null }));
     await seed(ctx, isatRequest('2026-10-31', 'APPROVED'));
-    const dto = await expl();
-    assert.equal(dto.status, 'PENDING');
+    await assert.rejects(expl(), { message: 'Thiếu cấu hình loại nhân sự nv' });
     assert.deepEqual(ctx.days.calls, []);
+    assert.equal(ctx.repo.requests.size, 1);
   });
 });
 

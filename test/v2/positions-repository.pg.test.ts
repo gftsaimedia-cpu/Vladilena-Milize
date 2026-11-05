@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { EmployeesRepository } from '../../src/modules/employees/employees.repository';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { PositionsRepository } from '../../src/modules/positions/positions.repository';
 import { PositionsService } from '../../src/modules/positions/positions.service';
 import { LevelStaleError, PositionStaleError } from '../../src/modules/positions/positions.errors';
@@ -140,7 +142,8 @@ test('PositionsRepository writes versions with their ticks on PostgreSQL', async
 
 test('PositionsService on PostgreSQL carries changes and rolls back', async t => {
   await withTempDb(t, 'positions_svc', async (db, client) => {
-    const svc = new PositionsService(new PositionsRepository(), new TransactionCoordinator(db));
+    const tx = new TransactionCoordinator(db);
+    const svc = new PositionsService(new PositionsRepository(), tx, new AuditLog(new AuditRepository(), tx));
     const now = new Date('2026-11-05T03:00:00.000Z');
     const nvAt = async (month: string) =>
       (await client.query(`SELECT * FROM position_types WHERE code = 'nv' AND effective_month = $1`, [month])).rows[0];
@@ -184,7 +187,8 @@ test('PositionsService on PostgreSQL carries changes and rolls back', async t =>
 
 test('a save based on the version before another Admin created the month row gets 409 on PostgreSQL', async t => {
   await withTempDb(t, 'positions_stale', async (db, client) => {
-    const svc = new PositionsService(new PositionsRepository(), new TransactionCoordinator(db));
+    const tx = new TransactionCoordinator(db);
+    const svc = new PositionsService(new PositionsRepository(), tx, new AuditLog(new AuditRepository(), tx));
     const now = new Date('2026-11-05T03:00:00.000Z');
     // Hai Admin cùng mở màn ở tháng 11, cùng thấy phiên bản nv 2000-01 (rev 0, Flex 20).
     const save = (flexPct: number) =>
