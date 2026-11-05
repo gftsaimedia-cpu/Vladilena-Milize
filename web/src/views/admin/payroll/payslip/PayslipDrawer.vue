@@ -3,9 +3,11 @@
 // Chấm điểm KPI ngay trong phiếu: điểm đang gõ nằm ở `draft`, `view` là phiếu tính lại theo draft (hiện ngay khi gõ).
 // Việc lưu thuộc về màn Bảng lương (prop `save`: lưu, thay phiếu đang mở, tải lại bảng) vì ngăn kéo có thể đã tháo khỏi
 // trang khi lưu xong. Rời ô thì lưu; đóng, sang phiếu khác hay phiếu đổi từ ngoài thì lưu hết điểm chưa lưu (flush).
-// Duyệt / từ chối cũng thuộc về màn (prop `decide`), cùng lý do; chân ngăn kéo chỉ có hai nút khi phiếu là Nháp hay Chờ duyệt,
-// còn lại là một dòng trạng thái. In phiếu gọi hộp thoại in của trình duyệt; CSS in ở khối <style> không scoped cuối file.
+// Duyệt / từ chối cũng thuộc về màn (prop `decide`), cùng lý do; chân ngăn kéo chỉ có nút khi phiếu là Nháp hay Chờ duyệt,
+// còn lại là dòng trạng thái (và lý do từ chối nếu có). Từ chối hai bước: Từ chối mở ô lý do không bắt buộc, Xác nhận từ chối
+// mới quyết; Huỷ quay lại và bỏ chữ đang gõ. In phiếu mở trang A4 của phiếu ở tab mới, trang đó tự bật hộp in (?in=1).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
 import type { Payslip } from '@/mock/payroll';
@@ -24,7 +26,7 @@ const props = defineProps<{
   hasPrev: boolean;
   hasNext: boolean;
   save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
-  decide: (id: string, decision: 'approve' | 'reject') => Promise<void>;
+  decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<void>;
 }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
@@ -62,10 +64,16 @@ watch(
     flush();
     owner = { id: slip.id, saved: { ...slip.kpi.scores } };
     draft.value = { ...slip.kpi.scores };
+    // Sang phiếu khác thì bỏ ô lý do từ chối đang mở của phiếu cũ.
+    asking.value = false;
+    reason.value = '';
   }
 );
 onBeforeUnmount(flush);
-const print = () => window.print();
+const router = useRouter();
+const enc = encodeURIComponent;
+const print = () =>
+  window.open(router.resolve({ path: `/in/phieu-luong/${enc(props.month)}/${enc(props.slip.id)}`, query: { in: '1' } }).href, '_blank');
 const close = () => {
   flush();
   emit('close');
@@ -75,7 +83,7 @@ const go = (to: 'prev' | 'next') => {
   emit(to);
 };
 
-// Đang chờ một quyết định: hai nút tắt để bấm đúp chỉ quyết một lần.
+// Đang chờ một quyết định: các nút tắt để bấm đúp chỉ quyết một lần.
 const deciding = ref(false);
 const status = ref<HTMLElement | null>(null);
 const decided = computed(() =>
@@ -85,13 +93,37 @@ const decided = computed(() =>
       ? `Đã từ chối phiếu lương của ${props.slip.name}.`
       : ''
 );
-async function decideNow(decision: 'approve' | 'reject') {
+const decidedNote = computed(() => (props.slip.status === 'rejected' ? props.slip.decisionNote || '' : ''));
+
+// Từ chối hai bước. `asking`: đang hỏi lý do; `reason`: chữ đang gõ (bỏ khi Huỷ hay sang phiếu khác).
+const asking = ref(false);
+const reason = ref('');
+const reasonBox = ref<HTMLTextAreaElement | null>(null);
+const rejectBtn = ref<HTMLButtonElement | null>(null);
+async function askReject() {
+  asking.value = true;
+  await nextTick();
+  reasonBox.value?.focus();
+}
+async function cancelReject() {
+  asking.value = false;
+  reason.value = '';
+  await nextTick();
+  rejectBtn.value?.focus();
+}
+const confirmReject = () => decideNow('reject', reason.value.trim() || undefined);
+
+async function decideNow(decision: 'approve' | 'reject', note?: string) {
   if (deciding.value) return;
   deciding.value = true;
   const id = props.slip.id;
   try {
     await flush();
-    await props.decide(id, decision);
+    await props.decide(id, decision, note);
+    if (props.slip.id === id) {
+      asking.value = false;
+      reason.value = '';
+    }
   } finally {
     deciding.value = false;
   }
@@ -167,11 +199,31 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     </SlipSummary>
 
     <template #footer>
-      <p v-if="decided" ref="status" class="pd-status" role="status" aria-live="polite" tabindex="-1">{{ decided }}</p>
-      <template v-else>
-        <button type="button" class="btn" :disabled="deciding" @click="decideNow('reject')">Từ chối</button>
-        <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="decideNow('approve')">Duyệt phiếu</button>
-      </template>
+      <div class="pd-foot">
+        <div v-if="asking && !decided" class="pd-rs">
+          <label for="pd-reason">Lý do từ chối (không bắt buộc)</label>
+          <textarea
+            id="pd-reason"
+            ref="reasonBox"
+            v-model="reason"
+            placeholder="Ví dụ: điểm KPI của quản lý chưa đúng, cần chấm lại"
+          ></textarea>
+        </div>
+        <div class="pd-acts">
+          <div v-if="decided" ref="status" class="pd-status" role="status" aria-live="polite" tabindex="-1">
+            <p>{{ decided }}</p>
+            <p v-if="decidedNote" class="pd-why">Lý do: {{ decidedNote }}</p>
+          </div>
+          <template v-else-if="asking">
+            <button type="button" class="btn" :disabled="deciding" @click="cancelReject">Huỷ</button>
+            <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="confirmReject">Xác nhận từ chối</button>
+          </template>
+          <template v-else>
+            <button ref="rejectBtn" type="button" class="btn" :disabled="deciding" @click="askReject">Từ chối</button>
+            <button type="button" class="btn pri pd-approve" :disabled="deciding" @click="decideNow('approve')">Duyệt phiếu</button>
+          </template>
+        </div>
+      </div>
     </template>
   </AppDrawer>
 </template>
@@ -214,13 +266,66 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
   opacity: 0.35;
   cursor: default;
 }
+.pd-foot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.pd-acts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pd-rs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pd-rs label {
+  font-weight: 500;
+}
+/* Ô lý do theo board: góc 8px, cao 72px, viền --control, chữ của trang, vòng tiêu điểm mực 2px, không bóng. */
+.pd-rs textarea {
+  height: 72px;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: var(--r-ctl, 8px);
+  border: 1px solid var(--control, #8a8a8a);
+  background: var(--surface, #fff);
+  box-shadow: none;
+  font: inherit;
+  color: var(--text, #212121);
+  resize: vertical;
+}
+.pd-rs textarea::placeholder {
+  color: var(--muted, #616161);
+}
+.pd-rs textarea:focus-visible {
+  outline: 2px solid var(--text, #212121);
+  outline-offset: 1px;
+}
 .pd-approve {
   flex: 1;
   justify-content: center;
 }
 .pd-status {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pd-status p {
   margin: 0;
   font-weight: 500;
+}
+.pd-status p.pd-why {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--muted);
 }
 .pd-status:focus-visible {
   outline: 2px solid var(--text);
@@ -290,34 +395,5 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
   font-size: 12px;
   line-height: 16px;
   color: var(--muted);
-}
-</style>
-
-<!-- In: chỉ ngăn kéo phiếu lương (có .drw.floating) ra giấy, thành khối tĩnh rộng hết trang. Không scoped vì ngăn kéo teleport ra body. -->
-<style>
-@media print {
-  body:has(.drw.floating) {
-    overflow: visible !important;
-  }
-  body:has(.drw.floating) > :not(.drw-root),
-  .drw-root:has(.drw.floating) > .scrim,
-  .drw.floating > .drw-h button,
-  .drw.floating > .drw-f {
-    display: none !important;
-  }
-  .drw-root:has(.drw.floating) {
-    position: static !important;
-    overflow: visible !important;
-  }
-  .drw-root .drw.floating {
-    position: static;
-    width: auto;
-    max-width: none;
-    overflow: visible;
-    border-radius: 0;
-  }
-  .drw-root .drw.floating > .drw-h {
-    position: static;
-  }
 }
 </style>

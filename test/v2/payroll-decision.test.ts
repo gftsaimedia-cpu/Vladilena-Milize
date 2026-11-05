@@ -4,7 +4,8 @@ import 'reflect-metadata';
 import { ACCESS_KEY } from '../../src/common';
 import { PayrollController } from '../../src/modules/payroll/payroll.controller';
 import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors';
-import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
+import { PayrollRepository, readPayslipRow } from '../../src/modules/payroll/payroll.repository';
+import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { gzipSync } from 'node:zlib';
 import { createScriptedKysely, type ScriptedQuery } from './helpers/scripted-kysely';
 
@@ -44,6 +45,27 @@ describe('Duyệt / từ chối từng phiếu lương', () => {
     assert.match(update.sql, /where "run_id" = \$\d+ and "username" = \$\d+/);
     assert.deepEqual(update.parameters.slice(0, 2), ['rejected', 'admin']);
     assert.equal(update.parameters[3], 'thiếu công');
+  });
+
+  it('reads the decision note, actor and time from the payslip row', () => {
+    const base: any = { id: 1, run_id: 7, username: 'nam', status: 'rejected', gross: 1, insurance: 0, tax: 0, advance: 0, net: 1, snapshot_gz: gzipSync(Buffer.from('{}')), flags_json: null };
+    const decided = readPayslipRow({ ...base, note: 'x', decided_by: 'admin', decided_at: '2026-11-05T01:00:00.000Z' });
+    assert.equal(decided.note, 'x');
+    assert.equal(decided.decidedBy, 'admin');
+    assert.equal(decided.decidedAt, '2026-11-05T01:00:00.000Z');
+    const open = readPayslipRow({ ...base, note: null, decided_by: null, decided_at: null });
+    assert.equal(open.note, null);
+    assert.equal(open.decidedBy, null);
+    assert.equal(open.decidedAt, null);
+  });
+
+  it('service trims the note and stores null when it is blank', async () => {
+    const notes: unknown[] = [];
+    const service = new PayrollService({ decidePayslip: async (...a: any[]) => (notes.push(a[4]), null) } as any);
+    await service.decidePayslip('2026-10', 'nam', 'rejected', 'admin', '  ');
+    await service.decidePayslip('2026-10', 'nam', 'rejected', 'admin', ' Thiếu KPI ');
+    await service.decidePayslip('2026-10', 'nam', 'approved', 'admin');
+    assert.deepEqual(notes, [null, 'Thiếu KPI', null]);
   });
 
   it('refuses a decision on a final run', async () => {

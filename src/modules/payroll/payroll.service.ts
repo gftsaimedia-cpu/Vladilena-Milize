@@ -5,6 +5,16 @@ import { KpiValidationError } from './payroll.errors';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
+  inOutText as presenceText,
+  presenceOf,
+  type Presence,
+  measureOvertime,
+  OT_MULTIPLIERS,
+  otLinePayByRate,
+  type OtShare,
+  type OtWindow,
+  type PresenceSpan,
+  weekdayTextOf,
   EmployeePayslipSummaryDTO,
   EmployeePayslipDTO,
   PayrollWarning,
@@ -109,7 +119,8 @@ export class PayrollService {
     actor: string,
     note?: string
   ): Promise<PayslipRecord | null> {
-    return await this.repo.decidePayslip(month, username, status, actor, note);
+    // A blank note is stored as null, so a reader never has to tell "" from "no reason".
+    return await this.repo.decidePayslip(month, username, status, actor, typeof note === 'string' ? note.trim() || null : null);
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
@@ -195,15 +206,60 @@ export class PayrollService {
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
 
+    // Times of the approved explanations, by the day they explain; they fill the punch a day is missing.
+    const explainedByDate = new Map<string, { checkIn: string | null; checkOut: string | null }>();
+    for (const req of requests) {
+      if (req.type === 'EXPLANATION' && req.status === 'APPROVED' && req.explanationDate) {
+        explainedByDate.set(req.explanationDate, {
+          checkIn: req.actualCheckIn ?? null,
+          checkOut: req.actualCheckOut ?? null
+        });
+      }
+    }
+
+    // Real presence of every NORMAL, FLEX and NIGHT line, computed once for the day lines and the OT measure.
+    const presenceOfLine = new Map<(typeof timesheets)[number], Presence>();
+    for (const ts of timesheets) {
+      if (isatDates.has(ts.workDate)) continue;
+      const code = ts.shiftType.toUpperCase();
+      if (code === 'LEAVE' || code === 'ISAT' || code === 'UNPAID') continue;
+      const explained = explainedByDate.get(ts.workDate);
+      presenceOfLine.set(ts, presenceOf(ts.workDate, ts.actualCheckIn, ts.actualCheckOut, explained));
+    }
+
+    // OT is the presence inside the approved window x hourly rate x multiplier. A line only counts when both its
+    // check-in and check-out are real instants; one without them (or with a malformed explained time) has no OT.
+    const validInstant = (at: Date | null): at is Date => at !== null && !Number.isNaN(at.getTime());
+    const spans: PresenceSpan[] = [];
+    for (const [ts, presence] of presenceOfLine) {
+      if (validInstant(presence.start) && validInstant(presence.end)) {
+        spans.push({ workDate: ts.workDate, start: presence.start, end: presence.end });
+      }
+    }
+    const otWindows: OtWindow[] = [];
+    for (const req of requests) {
+      if (req.type === 'OVERTIME' && req.status === 'APPROVED' && req.otDate && req.otStartTime && req.otEndTime) {
+        otWindows.push({ date: req.otDate, start: req.otStartTime, end: req.otEndTime });
+      }
+    }
+    const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []));
+    const otSharesByLine = new Map<string, OtShare[]>();
+    for (const share of otShares) {
+      otSharesByLine.set(share.lineDate, [...(otSharesByLine.get(share.lineDate) ?? []), share]);
+    }
+
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
+    const otPayByRate = { x15: 0, x20: 0, x30: 0 };
 
     for (const ts of timesheets) {
       if (isatDates.has(ts.workDate)) continue;
 
       const shiftCode = ts.shiftType.toUpperCase();
       let shiftLabel = 'Normal';
-      let inOutText = '08:00–17:00';
+      let inOutText = '';
+      let checkIn: string | null = null;
+      let checkOut: string | null = null;
       let flexAllowancePay = 0;
       let nightAllowancePay = 0;
       let offPaidPay = 0;
@@ -221,7 +277,6 @@ export class PayrollService {
         offPaidPay = makeupWorkDates.has(ts.workDate)
           ? 0
           : allowancePolicy.nightBreakPay(hourRate, ts.workHours, timeDeduction);
-        inOutText = '22:00–06:00';
         daySalary = Math.round(dayRate);
       } else if (shiftCode === 'LEAVE') {
         shiftLabel = 'Nghỉ phép';
@@ -240,27 +295,44 @@ export class PayrollService {
         daySalary = Math.round(dayRate);
       }
 
+      const presence = presenceOfLine.get(ts);
+      if (presence) {
+        checkIn = presence.checkIn;
+        checkOut = presence.checkOut;
+        inOutText = presenceText(presence);
+      }
+
       const lateMins = ts.lateMinutes || 0;
       const earlyMins = ts.earlyMinutes || 0;
       const deductionHours = (lateMins + earlyMins) / 60;
       totalDeductionHours += deductionHours;
       const deductionAmount = Math.round(deductionHours * hourRate);
 
-      const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay - deductionAmount;
+      const lineShares = otSharesByLine.get(ts.workDate) ?? [];
+      const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
+      const linePayByRate = otLinePayByRate(lineShares, hourRate);
+      otPayByRate.x15 += linePayByRate.x15;
+      otPayByRate.x20 += linePayByRate.x20;
+      otPayByRate.x30 += linePayByRate.x30;
+      const otPay = linePayByRate.x15 + linePayByRate.x20 + linePayByRate.x30;
+
+      const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount;
 
       dailyLines.push({
         date: ts.workDate,
-        dayOfWeekText: 'Thứ 2 - Thứ 6',
+        dayOfWeekText: weekdayTextOf(ts.workDate),
         shiftCode,
         shiftLabel,
         inOutText,
+        checkIn,
+        checkOut,
         workHours: ts.workHours,
         daySalary,
         flexAllowancePay,
         nightAllowancePay,
         offPaidPay,
-        otHours: ts.otHours,
-        otPay: 0,
+        otHours,
+        otPay,
         deductionHours: Math.round(deductionHours * 100) / 100,
         deductionAmount,
         dailyTotal
@@ -270,10 +342,12 @@ export class PayrollService {
     for (const date of isatDates) {
       dailyLines.push({
         date,
-        dayOfWeekText: 'Thứ 7',
+        dayOfWeekText: weekdayTextOf(date),
         shiftCode: 'ISAT',
         shiftLabel: 'iSAT',
         inOutText: 'Hưởng lương ngày',
+        checkIn: null,
+        checkOut: null,
         workHours: 0,
         daySalary: Math.round(dayRate),
         flexAllowancePay: 0,
@@ -288,11 +362,12 @@ export class PayrollService {
     }
     dailyLines.sort((a, b) => a.date.localeCompare(b.date));
 
-    let totalOtHours = 0;
-    for (const req of requests) {
-      if (req.type === 'OVERTIME' && req.status === 'APPROVED') {
-        totalOtHours += req.otHours || 0;
-      }
+    // OT hours by multiplier, from the same shares as the day lines.
+    const otHoursByRate = { x15: 0, x20: 0, x30: 0 };
+    for (const share of otShares) {
+      if (share.multiplier === OT_MULTIPLIERS.weekday) otHoursByRate.x15 += share.hours;
+      else if (share.multiplier === OT_MULTIPLIERS.weekend) otHoursByRate.x20 += share.hours;
+      else otHoursByRate.x30 += share.hours;
     }
 
     let advanceDeduction = 0;
@@ -319,13 +394,12 @@ export class PayrollService {
       standardWorkdays,
       baseSalaryPolicy,
       dailyLines,
-      otHoursByRate: {
-        x15: 0,
-        x20: totalOtHours,
-        x30: 0
-      },
+      otHoursByRate,
+      otPayByRate,
       lateEarlyHours: roundedLateEarlyHours,
       employeeType,
+      level: staff.level,
+      employmentStatus: staff.employmentStatus,
       nightAllowancePct,
       isDormResident: staff.isDormResident,
       allowanceRates: staff.allowanceRates,
@@ -336,7 +410,7 @@ export class PayrollService {
       dependants: staff.dependants,
       warnings,
       advanceDeduction,
-      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays || 22
+      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays
     });
   }
 }
