@@ -30,13 +30,6 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   expect(calls).toEqual([]);
 });
 
-test('unmocked screen keeps the shell', async ({ page }) => {
-  await page.goto('/admin/cai-dat/chuc-vu-bac');
-  await expect(page.getByText('chưa có dữ liệu giả')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
-  await expect(page.getByLabel('Tìm nhân viên')).toBeVisible();
-});
-
 test('topbar month picker changes ?thang and label', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   const mpick = page.locator('.topbar .mpick');

@@ -7,7 +7,7 @@ const col3 = (page: import('@playwright/test').Page) => page.locator('.sd-col').
 test('column 3 makes no /api request and logs no error', async ({ page }) => {
   const calls = await openDesktop(page, '/nv/thu-nhap');
   await expect(col3(page).getByRole('heading', { level: 2, name: 'Thu nhập' })).toBeVisible();
-  await expect(col3(page).locator('.ls .ro')).toHaveCount(6);
+  await expect(col3(page).locator('.ls .ro')).toHaveCount(4);
   expect(calls).toEqual([]);
 });
 
@@ -19,13 +19,16 @@ test('column 3 shows net pay, KPI and the lines', async ({ page }) => {
   await expect(c).not.toContainText('Phiếu chính thức có khi Admin duyệt');
   await expect(c.getByRole('button', { name: 'Tháng trước' })).toHaveCount(0);
   const net = c.getByRole('region', { name: 'Thực nhận tháng 10' });
-  for (const t of ['14.278.183', 'Admin đang duyệt phiếu', '15.538.183', '1.260.000']) await expect(net).toContainText(t);
+  for (const t of ['Admin đang duyệt phiếu', '15.538.183']) await expect(net).toContainText(t);
+  // Tạm tính không trừ bảo hiểm và thuế (luật 2026-11-05), cũng không ghi "chưa trừ".
+  await expect(net).not.toContainText('1.260.000');
+  await expect(c.getByText(/chưa trừ/i)).toHaveCount(0);
   await expect(c.getByRole('heading', { level: 3, name: 'KPI tháng 10' })).toBeVisible();
   await expect(c.getByRole('heading', { level: 3, name: 'Các khoản' })).toBeVisible();
   const kpi = c.getByRole('region', { name: 'KPI tháng 10' });
   for (const t of ['66,14%', '1.322.800', '2.000.000', 'Wework', 'Tự đánh giá']) await expect(kpi).toContainText(t);
-  await expect(c.locator('.ls .ro')).toHaveCount(6);
-  await expect(c.locator('.tot')).toHaveText(/Thực nhận\s*14\.278\.183 ₫/);
+  await expect(c.locator('.ls .ro')).toHaveCount(4);
+  await expect(c.locator('.tot')).toHaveText(/Thực nhận\s*15\.538\.183 ₫/);
 });
 
 // Chờ nội dung của cả ba cột: 7 dòng Gần đây (cột 2), thẻ Các khoản (cột 3) và ô danh sách yêu cầu (cột 1).
@@ -33,7 +36,7 @@ async function waitForColumns(page: import('@playwright/test').Page) {
   await expect(page.locator('.sd-col')).toHaveCount(3);
   await expect(page.locator('.sd-col').nth(0).getByRole('tabpanel')).toBeVisible();
   await expect(page.locator('.sd-col').nth(1).locator('.ls button.ro')).toHaveCount(7);
-  await expect(col3(page).locator('.ls .ro')).toHaveCount(6);
+  await expect(col3(page).locator('.ls .ro')).toHaveCount(4);
 }
 
 for (const size of [

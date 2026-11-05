@@ -174,8 +174,7 @@ export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
-    // Máy chủ chưa trả ghi chú của người duyệt cho từng bước (spec staff desktop §9): để null, khung "Lý do từ chối" không hiện.
-    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state, note: null }))
+    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state }))
   };
 }
 

@@ -27,7 +27,8 @@ export type RequestRowData = {
   statusText: string; // 'Chờ duyệt' | 'Đã duyệt' | 'Từ chối'
   month: string; // '2026-10'
 };
-export type RequestStep = { label: string; at: string | null; state: RequestStatus; note: { label: string; text: string } | null };
+// note: ghi chú của người duyệt (vd. "Lý do từ chối"); máy chủ thật chưa trả nên có thể thiếu.
+export type RequestStep = { label: string; at: string | null; state: RequestStatus; note?: { label: string; text: string } | null };
 export type RequestDetail = RequestRowData & {
   kindLabel: string; // 'Giải trình' | 'Đơn nghỉ' | 'Tạm ứng lương'
   facts: [string, string][]; // [khoá, giá trị] theo spec 2.2, lý do đã có ngoặc kép cong
