@@ -69,14 +69,23 @@ class FakeEmployeesRepository extends EmployeesRepository {
   override async findAll(): Promise<Employee[]> {
     return Array.from(this.employees.values());
   }
+
+  override withTransaction(): EmployeesRepository {
+    return this;
+  }
 }
+
+// Transaction và nhật ký giả: hành vi ghi nhật ký thật ở audit-employees.pg.test.ts.
+const fakeTx = { run: async <T>(cb: (trx: any) => Promise<T>) => cb({}) };
+const fakeAudit = { append: async () => ({ id: 1, hash: '' }) };
+const makeService = (repo: EmployeesRepository) => new EmployeesService(repo, fakeTx as any, fakeAudit as any);
 
 describe('Employees V2 - Quản lý nhân sự & Cập nhật hồ sơ Profile Drawer', () => {
   const repo = new FakeEmployeesRepository();
-  const service = new EmployeesService(repo);
+  const service = makeService(repo);
 
   it('1. Tạo nhân sự mới thành công với đầy đủ hồ sơ, chức vụ và ca', async () => {
-    const employee = service.buildEmployeeFromInput({
+    const saved = await service.create({
       username: 'tran-minh-ngoc',
       name: 'Trần Minh Ngọc',
       birthday: '1996-11-20',
@@ -90,9 +99,7 @@ describe('Employees V2 - Quản lý nhân sự & Cập nhật hồ sơ Profile D
       shiftEndTime: '17:00',
       hasInsurance: true,
       canAdvance: true,
-    });
-
-    const saved = await service.save(employee, 'admin');
+    }, 'admin');
     assert.equal(saved.username, 'tran-minh-ngoc');
     assert.equal(saved.profile.name.fullName, 'Trần Minh Ngọc');
     assert.equal(saved.contract.position.type, 'ql');
@@ -102,21 +109,18 @@ describe('Employees V2 - Quản lý nhân sự & Cập nhật hồ sơ Profile D
   });
 
   it('2. Cập nhật hồ sơ (sửa Profile Drawer) hoàn toàn không phụ thuộc timesheets cũ', async () => {
-    const existing = await service.findByUsernameOrUuid('tran-minh-ngoc');
-    assert.ok(existing);
-
     // Cập nhật đổi bậc sang Fresher (1), đổi tên
-    const updated = service.buildEmployeeFromInput(
+    const saved = await service.update(
+      'tran-minh-ngoc',
       {
         name: 'Trần Minh Tuấn',
         level: 1,
         jobTitle: 'Trưởng ca Vận hành Ngày',
         hasInsurance: false,
       },
-      existing
+      'admin'
     );
-
-    const saved = await service.save(updated, 'admin');
+    assert.ok(saved);
     assert.equal(saved.profile.name.fullName, 'Trần Minh Tuấn');
     assert.equal(saved.contract.position.level, 1);
     assert.equal(saved.contract.position.jobTitle, 'Trưởng ca Vận hành Ngày');
@@ -138,7 +142,7 @@ describe('Employees V2 - Quản lý nhân sự & Cập nhật hồ sơ Profile D
 });
 
 describe('Employees V2 - Nhãn hợp đồng (staff.contract) & cờ bảo hiểm (staff.insured)', () => {
-  const service = new EmployeesService(new FakeEmployeesRepository());
+  const service = makeService(new FakeEmployeesRepository());
 
   it('1. Đọc rồi ghi lại hồ sơ giữ đúng nhãn hợp đồng; giá trị không phải nhãn thành NULL', () => {
     const cases: Array<[string | null, string | null]> = [

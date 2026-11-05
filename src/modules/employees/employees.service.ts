@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
+import { AuditLog } from '../audit/audit-log';
+import { staffDeleteRow, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
 import { EmployeesRepository } from './employees.repository';
 import {
   Employee,
@@ -18,6 +21,8 @@ import {
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
+/** pass_hash của người chưa đặt mật khẩu. */
+const NO_PASSWORD = 'none';
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(SALT_BYTES).toString('hex');
@@ -43,9 +48,14 @@ export function verifyPassword(password: string, stored: string): boolean {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+/** Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu. */
 @Injectable()
 export class EmployeesService {
-  constructor(@Inject(EmployeesRepository) private readonly repo: EmployeesRepository) {}
+  constructor(
+    @Inject(EmployeesRepository) private readonly repo: EmployeesRepository,
+    @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
+  ) {}
 
   async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();
@@ -66,24 +76,65 @@ export class EmployeesService {
     return await this.repo.findByUsernameOrUuid(id);
   }
 
-  async save(employee: Employee, actor?: string): Promise<Employee> {
-    return await this.repo.save(employee, actor);
+  async create(body: any, actor: string): Promise<Employee> {
+    const employee = this.buildEmployeeFromInput(body);
+    return this.tx.run(async trx => {
+      const saved = await this.repo.withTransaction(trx).save(employee, actor);
+      const passwordSet = saved.account.passwordHash !== NO_PASSWORD;
+      await this.log(trx, actor, saved.username, staffSaveRows(null, saved.toDTO(), passwordSet));
+      return saved;
+    });
   }
 
-  async deactivate(username: string, actor?: string): Promise<boolean> {
-    const existing = await this.repo.findByUsernameOrUuid(username);
-    if (!existing) return false;
+  /** null khi không có người `id` (username hoặc uuid). */
+  async update(id: string, body: any, actor: string): Promise<Employee | null> {
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const existing = await repo.findByUsernameOrUuid(id);
+      if (!existing) return null;
+      const saved = await repo.save(this.buildEmployeeFromInput(body, existing), actor);
+      const passwordChanged = saved.account.passwordHash !== existing.account.passwordHash;
+      await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), saved.toDTO(), passwordChanged));
+      return saved;
+    });
+  }
 
-    const updated = this.buildEmployeeFromInput(
-      {
-        contract: { status: 'nghiviec', resignedOn: new Date().toISOString().slice(0, 10) },
-        account: { isLocked: true, lockedBy: actor, lockedAt: new Date().toISOString() },
-      },
-      existing
-    );
+  async deactivate(username: string, actor: string): Promise<boolean> {
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const existing = await repo.findByUsernameOrUuid(username);
+      if (!existing) return false;
 
-    await this.repo.save(updated, actor);
-    return true;
+      const updated = this.buildEmployeeFromInput(
+        {
+          contract: { status: 'nghiviec', resignedOn: new Date().toISOString().slice(0, 10) },
+          account: { isLocked: true, lockedBy: actor, lockedAt: new Date().toISOString() },
+        },
+        existing
+      );
+
+      await repo.save(updated, actor);
+      await this.log(trx, actor, updated.username, [staffDeleteRow(existing.toDTO(), updated.toDTO())]);
+      return true;
+    });
+  }
+
+  /** Mọi dòng của một lần lưu dùng chung requestId để màn Nhật ký gộp thành "× N". */
+  private async log(trx: DatabaseTransaction, actor: string, username: string, rows: StaffAuditRow[]): Promise<void> {
+    const requestId = crypto.randomUUID();
+    for (const row of rows) {
+      await this.audit.append(trx, {
+        actor,
+        action: row.action,
+        entityKind: 'staff',
+        entityId: username,
+        subject: username,
+        before: row.before,
+        after: row.after,
+        sensitivity: row.sensitivity,
+        requestId
+      });
+    }
   }
 
   async getPositionsCatalog(): Promise<any[]> {
@@ -132,7 +183,7 @@ export class EmployeesService {
           ? Number(body.dependants)
           : (existing?.profile.dependants ?? 0);
 
-    let passwordHash = existing?.account.passwordHash || 'none';
+    let passwordHash = existing?.account.passwordHash || NO_PASSWORD;
     if (body.account?.password || body.password) {
       passwordHash = hashPassword(body.account?.password || body.password);
     } else if (body.account?.passwordHash || body.passHash) {

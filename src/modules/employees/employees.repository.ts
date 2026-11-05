@@ -23,6 +23,11 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 export class EmployeesRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
+  /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */
+  withTransaction(trx: Kysely<DB>): EmployeesRepository {
+    return new EmployeesRepository(trx);
+  }
+
   /**
    * Ánh xạ dòng cơ sở dữ liệu `staff` và danh sách vai trò mở rộng sang đối tượng tổng hợp `Employee`.
    */
