@@ -120,6 +120,42 @@ describe('Attendance V2 - Check In / Check Out & Timesheet Calculation', () => {
   });
 });
 
+describe('Attendance V2 - workDate must be a real YYYY-MM-DD date', () => {
+  // work_date là cột DATE: '20261020' hay ' 2026-10-20' vẫn được PG đọc thành 20/10, nhưng `slice(0, 7)` cho cổng kỳ
+  // một tháng rác ('2026102', ' 2026-1') nên lọt qua cổng của tháng đã chốt.
+  const BAD = ['20261020', ' 2026-10-20', '2026-10-20 ', '2026-02-30', '2026-13-01'];
+
+  it('a punch with a malformed workDate is a 400 BAD_PUNCH_INPUT and writes nothing', async () => {
+    const repo = new FakeAttendanceRepository();
+    const ctrl = new AttendanceController(new AttendanceService(repo));
+    for (const workDate of BAD) {
+      await assert.rejects(ctrl.recordPunch({ employeeId: 'e', type: 'IN', workDate }), (e: any) => {
+        assert.equal(e.status, 400, workDate);
+        assert.equal(e.details.code, 'BAD_PUNCH_INPUT');
+        assert.equal(e.message, `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`);
+        return true;
+      });
+    }
+    assert.equal(repo.punches.length, 0);
+    assert.equal(repo.schedules.size, 0);
+    assert.equal(repo.timesheets.size, 0);
+  });
+
+  it('recalculating a malformed workDate is a 400 INVALID_DATE and writes nothing', async () => {
+    const repo = new FakeAttendanceRepository();
+    const ctrl = new AttendanceController(new AttendanceService(repo));
+    for (const workDate of BAD) {
+      await assert.rejects(ctrl.recalculateTimesheet({ employeeId: 'e', workDate }), (e: any) => {
+        assert.equal(e.status, 400, workDate);
+        assert.equal(e.details.code, 'INVALID_DATE');
+        assert.equal(e.message, `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`);
+        return true;
+      });
+    }
+    assert.equal(repo.timesheets.size, 0);
+  });
+});
+
 describe('AttendanceController with a locked month', () => {
   it('lets PERIOD_LOCKED through as a 409 on punch and recalculate', async () => {
     const lock = new PeriodLockedError('2026-10', 'attendance_locked');

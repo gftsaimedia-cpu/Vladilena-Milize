@@ -5,11 +5,18 @@ import { Global, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { KYSELY_DB } from '../../src/database/kysely';
 import { TransactionCoordinator } from '../../src/database/transaction';
+import { AttendanceService } from '../../src/modules/attendance/attendance.service';
 import { AuditLog } from '../../src/modules/audit/audit-log';
+import { HolidaysModule } from '../../src/modules/holidays/holidays.module';
+import { HolidaysService } from '../../src/modules/holidays/holidays.service';
+import { MeController } from '../../src/modules/me/me.controller';
+import { MeModule } from '../../src/modules/me/me.module';
+import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PeriodGate } from '../../src/modules/periods/period-gate';
 import { PeriodsModule } from '../../src/modules/periods/periods.module';
 import { PeriodsRepository } from '../../src/modules/periods/periods.repository';
 import { PeriodsService } from '../../src/modules/periods/periods.service';
+import { RequestsService } from '../../src/modules/requests/requests.service';
 
 // Chạy bằng tsx/esbuild nên không có design:paramtypes: mọi phụ thuộc phải có @Inject tường minh.
 // Test này dựng PeriodsModule qua Nest thật; DB, TransactionCoordinator và AuditLog (toàn cục ở app) là giá trị giả.
@@ -30,6 +37,35 @@ class FakeGlobalsModule {}
 
 @Module({ imports: [FakeGlobalsModule, PeriodsModule] })
 class TestRootModule {}
+
+@Module({ imports: [FakeGlobalsModule, MeModule, HolidaysModule] })
+class ConsumersRootModule {}
+
+test('the modules that use the period gate get the shared PeriodGate and PeriodsService', async () => {
+  // MeModule kéo theo Attendance, Requests, Payroll, Employees và Periods; HolidaysModule thêm cổng ngày lễ.
+  const app = await NestFactory.createApplicationContext(ConsumersRootModule, { logger: false });
+  try {
+    const gate = app.get(PeriodGate, { strict: false });
+    const periods = app.get(PeriodsService, { strict: false });
+    const payroll = app.get(PayrollService, { strict: false });
+    assert.ok(gate instanceof PeriodGate);
+    assert.ok(periods instanceof PeriodsService);
+    assert.ok(payroll instanceof PayrollService);
+
+    const attendance = app.get(AttendanceService, { strict: false }) as any;
+    const holidays = app.get(HolidaysService, { strict: false }) as any;
+    const requests = app.get(RequestsService, { strict: false }) as any;
+    const me = app.get(MeController, { strict: false }) as any;
+    assert.equal(attendance.periodGate, gate);
+    assert.equal(holidays.periodGate, gate);
+    assert.equal((payroll as any).periods, periods);
+    assert.equal(requests.periodGate, gate);
+    assert.equal(requests.payroll, payroll);
+    assert.equal(me.periods, periods);
+  } finally {
+    await app.close();
+  }
+});
 
 test('PeriodsModule wires the gate, the service and the repository through Nest DI', async () => {
   const app = await NestFactory.createApplicationContext(TestRootModule, { logger: false });

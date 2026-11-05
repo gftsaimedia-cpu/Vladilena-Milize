@@ -94,6 +94,28 @@ test('unlock needs a reason, then clears the lock and calculated stamps', async 
   });
 });
 
+test('unlock with a reason over 1000 characters is a 400, a trimmed 1000 is fine', async t => {
+  await withTempDb(t, 'periods_svc', async (db, client) => {
+    const { service } = build(db, '2026-11-01T08:00:00+07:00');
+    await service.lock('2026-10', 'admin');
+
+    await assert.rejects(service.unlock('2026-10', 'admin', 'a'.repeat(1001)), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.equal(e.details.code, 'REASON_TOO_LONG');
+      assert.equal(e.message, 'Lý do tối đa 1000 ký tự');
+      return true;
+    });
+    assert.equal((await service.snapshot('2026-10')).status, 'attendance_locked');
+    assert.equal((await auditRows(client)).length, 1);
+
+    // Độ dài tính sau khi cắt khoảng trắng hai đầu.
+    const view = await service.unlock('2026-10', 'admin', `  ${'b'.repeat(1000)} `);
+    assert.equal(view.status, 'open');
+    const rows = await auditRows(client);
+    assert.equal(rows[1].reason, 'b'.repeat(1000));
+  });
+});
+
 test('view of an open month before its end has no actions and the default payday', async t => {
   await withTempDb(t, 'periods_svc', async db => {
     const { service } = build(db, '2026-11-05T09:00:00+07:00');

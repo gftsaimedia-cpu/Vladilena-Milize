@@ -268,6 +268,30 @@ test('unapprove keeps the approved payslips in a new draft run', async t => {
   });
 });
 
+test('unapprove with a reason over 1000 characters is a 400, a trimmed 1000 is fine', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    const f = await ready(db, client);
+    await approveAll(f);
+    await f.periods.approve(MONTH, 'admin');
+    const runs = () => client.query('SELECT count(*)::int AS n FROM payroll_runs WHERE month = $1', [MONTH]).then(r => r.rows[0].n);
+    const runsBefore = await runs();
+
+    await assert.rejects(f.periods.unapprove(MONTH, 'admin', 'x'.repeat(1001)), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.equal(e.details.code, 'REASON_TOO_LONG');
+      assert.equal(e.message, 'Lý do tối đa 1000 ký tự');
+      return true;
+    });
+    assert.equal((await f.periods.view(MONTH)).status, 'approved');
+    assert.equal(await runs(), runsBefore);
+
+    const view = await f.periods.unapprove(MONTH, 'admin', ` ${'y'.repeat(1000)}  `);
+    assert.equal(view.status, 'calculated');
+    const audit = await client.query("SELECT reason FROM audit_log WHERE action = 'period.unapprove'");
+    assert.deepEqual(audit.rows, [{ reason: 'y'.repeat(1000) }]);
+  });
+});
+
 test('pay only from payday, then nothing more', async t => {
   await withTempDb(t, 'periods_appr', async (db, client) => {
     const f = await ready(db, client);

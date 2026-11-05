@@ -54,6 +54,13 @@ export class ReasonRequiredError extends BadRequestError {
   }
 }
 
+/** Lý do dài hơn `max` ký tự (sau khi cắt khoảng trắng hai đầu); nhật ký không nhận lý do dài hơn 1000 ký tự. */
+export class ReasonTooLongError extends BadRequestError {
+  constructor(max: number) {
+    super(`Lý do tối đa ${max} ký tự`, { code: 'REASON_TOO_LONG' });
+  }
+}
+
 export class PayslipNotDecidableError extends ConflictError {
   constructor(month: string, status: PeriodStatus) {
     super('Chỉ duyệt phiếu khi kỳ lương đã tính sau chốt công', { code: 'PAYSLIP_NOT_DECIDABLE', status });

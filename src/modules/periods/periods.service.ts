@@ -18,8 +18,20 @@ import {
   PeriodBlockedError,
   PeriodStateError,
   ReasonRequiredError,
+  ReasonTooLongError,
 } from './periods.errors';
 import { PeriodsRepository, type PeriodPatch, type PeriodRow } from './periods.repository';
+
+/** Lý do dài nhất nhật ký nhận (REASON_MAX của audit-entry). */
+const REASON_MAX = 1000;
+
+/** Lý do của Mở lại công / Huỷ phê duyệt, đã cắt khoảng trắng hai đầu; kiểm trước khi mở giao dịch nào. */
+function requireReason(reason: unknown): string {
+  const text = typeof reason === 'string' ? reason.trim() : '';
+  if (text === '') throw new ReasonRequiredError();
+  if (text.length > REASON_MAX) throw new ReasonTooLongError(REASON_MAX);
+  return text;
+}
 
 export interface PeriodSteps {
   lockedAt: string | null;
@@ -99,10 +111,9 @@ export class PeriodsService {
     });
   }
 
-  /** Mở lại công: về 'open', xoá dấu chốt công và dấu tính lương, tăng reopen_count. Cần lý do. */
+  /** Mở lại công: về 'open', xoá dấu chốt công và dấu tính lương, tăng reopen_count. Cần lý do, tối đa 1000 ký tự. */
   async unlock(month: string, actor: string, reason: unknown): Promise<PeriodView> {
-    const text = typeof reason === 'string' ? reason.trim() : '';
-    if (text === '') throw new ReasonRequiredError();
+    const text = requireReason(reason);
     return this.transition(month, 'unlock', actor, text, async (_trx, row) => ({
       attendance_locked_by: null,
       attendance_locked_at: null,
@@ -139,11 +150,10 @@ export class PeriodsService {
 
   /**
    * Huỷ phê duyệt: 'approved' về 'calculated'. Lần chạy 'final' thành 'superseded' và được chép cùng các phiếu (giữ nguyên
-   * trạng thái duyệt) sang một lần chạy nháp mới. Cần lý do.
+   * trạng thái duyệt) sang một lần chạy nháp mới. Cần lý do, tối đa 1000 ký tự.
    */
   async unapprove(month: string, actor: string, reason: unknown): Promise<PeriodView> {
-    const text = typeof reason === 'string' ? reason.trim() : '';
-    if (text === '') throw new ReasonRequiredError();
+    const text = requireReason(reason);
     return this.tx.withLock(`payroll_${month}`, trx =>
       this.transition(
         month,

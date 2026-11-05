@@ -18,7 +18,7 @@ export interface CurrentRun {
 const dateText = (value: unknown): string | null =>
   value === null || value === undefined ? null : toDateText(value as Date | string);
 
-const lockKey =(month: string): string => `period:${month}`;
+const lockKey = (month: string): string => `period:${month}`;
 
 @Injectable()
 export class PeriodsRepository {

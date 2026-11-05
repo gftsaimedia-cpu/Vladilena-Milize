@@ -1,7 +1,9 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { PeriodGate } from '../periods/period-gate';
+import { BadRequestError } from '../../common';
 import { businessDateText } from '../../common/business-date';
+import { isValidDateText } from '../../common/date-text';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
   GeoLocation,
@@ -41,6 +43,9 @@ export interface RecordPunchInput {
   officeLocation?: OfficeLocationInput;
 }
 
+/** Cùng câu với kiểm tra `workDate` của domain chấm công. */
+const workDateError = (workDate: unknown): string => `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`;
+
 export interface RecordPunchResult {
   punch: PunchEventDTO;
   timesheet: DailyTimesheetDTO;
@@ -63,6 +68,10 @@ export class AttendanceService {
     }
     if (input.type !== 'IN' && input.type !== 'OUT') {
       throw new Error("Loại chấm công phải là 'IN' hoặc 'OUT'");
+    }
+    // Kiểm trước cổng kỳ: cột DATE vẫn đọc được '20261020' hay ' 2026-10-20', nhưng tháng cắt ra từ đó là rác.
+    if (input.workDate && !isValidDateText(input.workDate)) {
+      throw new Error(workDateError(input.workDate));
     }
 
     const workDate = input.workDate || businessDateText();
@@ -171,6 +180,10 @@ export class AttendanceService {
   }
 
   async recalculateTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheetDTO> {
+    // Như ở recordPunch. Route tính lại không đổi lỗi thường thành 400, nên lỗi ngày là BadRequestError.
+    if (!isValidDateText(workDate)) {
+      throw new BadRequestError(workDateError(workDate), { code: 'INVALID_DATE' });
+    }
     await this.periodGate?.hold(undefined, [workDate.slice(0, 7)], 'recalculate');
     const schedule = await this.repo.findSchedule(employeeId, workDate);
     if (!schedule) {
