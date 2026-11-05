@@ -5,8 +5,23 @@ import type { Kysely } from 'kysely';
 import type { DB } from '../../database/schema';
 import type { DatabaseTransaction } from '../../database/transaction';
 import type { StoredAuditRow } from './domain/audit-chain';
+import type { AuditQuery } from './domain/audit-query';
 
 export type AuditExecutor = Kysely<DB> | DatabaseTransaction;
+
+export interface AuditListRow extends StoredAuditRow {
+  actor_name: string | null;
+}
+
+// Bộ lọc dùng chung cho list và count: actor, action, at >= fromAt, at < toAt.
+function filtered(db: AuditExecutor, q: AuditQuery) {
+  let query = db.selectFrom('audit_log as a').leftJoin('staff as s', 's.username', 'a.actor');
+  if (q.actor !== undefined) query = query.where('a.actor', '=', q.actor);
+  if (q.action !== undefined) query = query.where('a.action', '=', q.action);
+  if (q.fromAt !== undefined) query = query.where('a.at', '>=', q.fromAt);
+  if (q.toAt !== undefined) query = query.where('a.at', '<', q.toAt);
+  return query;
+}
 
 @Injectable()
 export class AuditRepository {
@@ -40,5 +55,51 @@ export class AuditRepository {
         hash: row.hash
       })
       .execute();
+  }
+
+  /** Một trang, id giảm dần, kèm tên người làm (LEFT JOIN staff). */
+  async list(db: AuditExecutor, q: AuditQuery): Promise<AuditListRow[]> {
+    return (await filtered(db, q)
+      .selectAll('a')
+      .select('s.name as actor_name')
+      .orderBy('a.id', 'desc')
+      .limit(q.limit)
+      .offset(q.offset)
+      .execute()) as AuditListRow[];
+  }
+
+  async count(db: AuditExecutor, q: AuditQuery): Promise<number> {
+    const row = await filtered(db, q)
+      .select(eb => eb.fn.countAll<number>().as('n'))
+      .executeTakeFirstOrThrow();
+    return Number(row.n);
+  }
+
+  /** Mọi người từng có dòng nhật ký, xếp theo tên (không tên thì cuối), rồi theo username. */
+  async people(db: AuditExecutor): Promise<Array<{ username: string; name: string | null }>> {
+    return await db
+      .selectFrom('audit_log as a')
+      .leftJoin('staff as s', 's.username', 'a.actor')
+      .select(['a.actor as username', 's.name as name'])
+      .distinct()
+      .orderBy('s.name', ob => ob.asc().nullsLast())
+      .orderBy('a.actor')
+      .execute();
+  }
+
+  async actions(db: AuditExecutor): Promise<string[]> {
+    const rows = await db.selectFrom('audit_log').select('action').distinct().orderBy('action').execute();
+    return rows.map(r => r.action);
+  }
+
+  /** Tối đa `size` dòng có id lớn hơn afterId, id tăng dần, để kiểm chuỗi từng trang. */
+  async pageAfter(db: AuditExecutor, afterId: number, size: number): Promise<StoredAuditRow[]> {
+    return (await db
+      .selectFrom('audit_log')
+      .selectAll()
+      .where('id', '>', afterId)
+      .orderBy('id')
+      .limit(size)
+      .execute()) as StoredAuditRow[];
   }
 }
