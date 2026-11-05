@@ -4,75 +4,9 @@ import { SystemRequest } from '../../src/modules/requests/domain';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
-import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { WorkSchedule } from '../../src/modules/attendance/domain';
 import { createScriptedKysely, type ScriptedLogEntry, type ScriptedQuery } from './helpers/scripted-kysely';
-
-class FakeRequestsRepository extends RequestsRepository {
-  requests: Map<string, SystemRequest> = new Map();
-
-  constructor() {
-    super({} as any);
-  }
-
-  override async save(request: SystemRequest): Promise<void> {
-    this.requests.set(request.id, request);
-  }
-
-  override async findById(id: string): Promise<SystemRequest | null> {
-    return this.requests.get(id) || null;
-  }
-
-  override async list(filter: any = {}): Promise<SystemRequest[]> {
-    let result = Array.from(this.requests.values());
-    if (filter.employeeId) result = result.filter((r) => r.employeeId === filter.employeeId);
-    if (filter.type) result = result.filter((r) => r.type === filter.type);
-    if (filter.status) result = result.filter((r) => r.status === filter.status);
-    return result;
-  }
-
-  override async count(filter: any = {}): Promise<number> {
-    const items = await this.list(filter);
-    return items.length;
-  }
-
-  // Người duyệt `admin` có hồ sơ riêng: duyệt ghi uuid của người duyệt.
-  override async resolveStaffUuid(id: string): Promise<string | null> {
-    return id === 'admin' ? 'admin-uuid' : null;
-  }
-}
-
-class FakeAttendanceRepository extends AttendanceRepository {
-  schedules: Map<string, WorkSchedule> = new Map();
-  dayStatuses: Map<string, string> = new Map();
-
-  constructor() {
-    super({} as any);
-  }
-
-  override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
-    const key = `${employeeId}:${workDate}`;
-    const existing = this.schedules.get(key);
-    if (existing) return existing;
-    const def = WorkSchedule.create({
-      employeeId,
-      workDate,
-      shiftType: 'NORMAL',
-      plannedStartTime: '08:00',
-      plannedEndTime: '17:00',
-    });
-    this.schedules.set(key, def);
-    return def;
-  }
-
-  override async saveSchedule(schedule: WorkSchedule): Promise<void> {
-    this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
-  }
-
-  override async updateDayStatus(employeeId: string, workDate: string, status: string): Promise<void> {
-    this.dayStatuses.set(`${employeeId}:${workDate}`, status);
-  }
-}
+import { makeService, otRequest as nvOtRequest } from './helpers/requests-fakes';
 
 const lwmRequest = () =>
   new SystemRequest({ id: 'r1', employeeId: 'u1', title: 't', type: 'LEAVE_WITH_MAKEUP', reason: 'r',
@@ -243,14 +177,15 @@ test('the correction request is gone', () => {
 
 // Duyệt đơn nghỉ có làm bù (chỉ ghi ngày nghỉ) nằm ở requests-makeup.test.ts.
 test('approving OT writes no schedule', async () => {
-  const repo = new FakeRequestsRepository();
-  const att = new FakeAttendanceRepository();
-  const service = new RequestsService(repo, att);
+  // Duyệt OT kiểm lại ngày (§4.2), nên cần đủ hồ sơ, lịch lễ và day_status: dùng service dựng sẵn.
+  const { service, repo, att } = makeService();
+  const request = nvOtRequest('2026-11-12', '18:00', '22:00');
+  await repo.save(request);
 
-  await repo.save(otRequest());
-  const ot = await service.reviewRequest('r2', 'admin', 'APPROVE');
+  const ot = await service.reviewRequest(request.id, 'admin', 'APPROVE');
   assert.equal(ot.status, 'APPROVED');
   assert.equal(att.schedules.size, 0);
+  assert.equal(att.dayStatuses.size, 0);
 });
 
 // Duyệt đơn đổi ca (ghi mọi ngày làm việc trong khoảng) nằm ở requests-shift-change.test.ts.

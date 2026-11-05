@@ -148,12 +148,19 @@ describe('Đơn nghỉ (§6.1)', () => {
     assert.equal(ctx.att.schedules.has(`${NV_UUID}:2026-11-23`), false);
   });
 
-  it('approval recounts working days with the holidays of that moment', async () => {
+  // Ruling (Task 6): spec day_status §4.2 ghi lịch theo các ngày đơn giữ trong day_status "thay cho việc tính lại
+  // workingDaysBetween"; §6: sửa lịch lễ sau khi nộp không đổi bảng (câu hỏi luật còn mở). Ngày thành ngày lễ sau khi
+  // nộp vẫn được ghi ON_LEAVE lúc duyệt (I4).
+  it('approval writes the days the leave holds, even one made a holiday after filing', async () => {
     const dto = await leave({ leaveType: 'WELFARE', startDate: '2026-09-01', endDate: '2026-09-03' });
     ctx.holidays.dates = [{ date: '2026-09-02', name: 'Quốc khánh' }];
     const reviewed = await ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE');
     assert.equal(reviewed.leaveDaysCount, 3); // giữ như lúc nộp (§8)
-    assert.deepEqual([...ctx.att.schedules.keys()].sort(), [`${NV_UUID}:2026-09-01`, `${NV_UUID}:2026-09-03`]);
+    assert.deepEqual([...ctx.att.schedules.keys()].sort(), [
+      `${NV_UUID}:2026-09-01`,
+      `${NV_UUID}:2026-09-02`,
+      `${NV_UUID}:2026-09-03`
+    ]);
   });
 
   it('filed under the employee lock and stored under the uuid', async () => {

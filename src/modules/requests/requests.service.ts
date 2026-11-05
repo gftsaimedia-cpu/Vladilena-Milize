@@ -26,9 +26,13 @@ import {
   optionalActualTime,
   vietnamToday,
   planClaims,
+  DayConflictError,
   type ClaimPlan,
   type ClaimStatus,
-  type ClockWindow
+  type ClockWindow,
+  type DayClaim,
+  type DayStatusRow,
+  type NewRequestKind
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { DayStatusRepository } from './day-status.repository';
@@ -47,6 +51,66 @@ export interface CreateLeaveInput {
 }
 
 const isActive = (r: SystemRequest): boolean => r.status === 'PENDING' || r.status === 'APPROVED';
+
+/** Các loại đơn chiếm ngày trong `day_status`. */
+const CLAIMING_TYPES: ReadonlySet<string> = new Set(['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT']);
+
+/**
+ * Loại và ngày mà `planClaims` xét lại lúc duyệt, như lúc nộp: đơn theo khoảng xét các ngày làm việc trong khoảng của
+ * đơn, đơn một ngày xét đúng ngày của đơn (Thứ Bảy iSAT, ngày OT, ngày giải trình). Tạm ứng không xét ngày: null.
+ */
+function recheckScope(req: SystemRequest): { kind: NewRequestKind; from: string; to: string; range: boolean } | null {
+  const range = (kind: NewRequestKind, from: string | null, to: string | null) =>
+    from ? { kind, from, to: to ?? from, range: true } : null;
+  const single = (kind: NewRequestKind, date: string | null | undefined) =>
+    date ? { kind, from: date, to: date, range: false } : null;
+  switch (req.type) {
+    case 'LEAVE':
+    case 'LEAVE_WITH_MAKEUP':
+      return range(req.type, req.leaveStartDate, req.leaveEndDate);
+    case 'SHIFT_CHANGE':
+      return range('SHIFT_CHANGE', req.changeStartDate, req.changeEndDate);
+    case 'ISAT':
+      return single('ISAT', req.isat?.saturday);
+    case 'OVERTIME':
+      return single('OVERTIME', req.otDate);
+    case 'EXPLANATION':
+      return single('EXPLANATION', req.explanationDate);
+    default:
+      return null;
+  }
+}
+
+/**
+ * Ngày đang thuộc một đơn khác mà đơn theo khoảng `req` được đứng cạnh theo luật nộp, nên không xét lại lúc duyệt:
+ * Thứ Bảy iSAT đã duyệt (bỏ khỏi đơn, C2); với đơn đổi ca, ngày nghỉ hoặc iSAT (bỏ lúc nộp theo T4, hay thay ngày của
+ * đơn đổi ca theo T3).
+ */
+function standsBeside(req: SystemRequest, claim: DayClaim | null): boolean {
+  if (!claim || claim.requestId === req.id) return false;
+  if (claim.status === 'ISAT' && claim.requestStatus === 'APPROVED') return true;
+  return req.type === 'SHIFT_CHANGE' && claim.status !== 'SHIFT_CHANGE';
+}
+
+/** Dòng ghi lại khi trả ngày: giữ nhân sự và ngày, không còn đơn gốc, ghi đè trạng thái/đơn theo `over`. */
+function releasedRow(day: DayClaim, over: Partial<Pick<DayStatusRow, 'status' | 'requestId'>>): DayStatusRow {
+  return {
+    employeeId: day.employeeId,
+    date: day.date,
+    status: over.status ?? day.status,
+    requestId: over.requestId ?? day.requestId,
+    baseRequestId: null
+  };
+}
+
+/** Gom ngày theo nhân sự để xoá: `remove` xoá theo từng nhân sự. */
+function groupDates(days: readonly DayClaim[]): Map<string, string[]> {
+  const byEmployee = new Map<string, string[]>();
+  for (const day of days) {
+    byEmployee.set(day.employeeId, [...(byEmployee.get(day.employeeId) ?? []), day.date]);
+  }
+  return byEmployee;
+}
 
 /** Đơn vừa tạo kèm các cảnh báo (ngày bị bỏ khỏi đơn, ngày nghỉ giữ nguyên…); không có thì `warnings` rỗng. */
 export type CreatedRequestDTO = SystemRequestDTO & { warnings: string[] };
@@ -155,12 +219,36 @@ export class RequestsService {
     };
   }
 
-  /** Chạy `fn` dưới advisory lock `key`, với repository gắn vào giao dịch của khoá; không có txCoordinator thì chạy thẳng. */
-  private async underLock<T>(key: string, fn: (stores: RequestStores) => Promise<T>): Promise<T> {
+  /**
+   * Chạy `fn` dưới advisory lock `key`, với repository gắn vào giao dịch của khoá; `trx` là giao dịch đó (để lấy thêm
+   * khoá trên cùng giao dịch). Không có txCoordinator thì chạy thẳng, `trx` là undefined.
+   */
+  private async underLock<T>(
+    key: string,
+    fn: (stores: RequestStores, trx?: DatabaseTransaction) => Promise<T>
+  ): Promise<T> {
     if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(key, trx => fn(this.storesOn(trx)));
+      return await this.txCoordinator.withLock(key, trx => fn(this.storesOn(trx), trx));
     }
     return await fn(this.storesOn());
+  }
+
+  /**
+   * Lấy thêm khoá nhân viên `requests_<uuid>` trên giao dịch `trx` đang giữ khoá `request_<id>` (§4: duyệt, từ chối và
+   * huỷ). Cùng giao dịch nên không mở thêm kết nối; nộp đơn chỉ lấy khoá nhân viên nên không thể khoá chéo.
+   */
+  private async lockEmployee(trx: DatabaseTransaction | undefined, employeeId: string): Promise<void> {
+    if (trx && this.txCoordinator) {
+      await this.txCoordinator.acquireAdvisoryLock(trx, `requests_${employeeId}`);
+    }
+  }
+
+  /** Bảng `day_status` của `stores`; thiếu thì báo lỗi (mọi thao tác trên ngày cần bảng này). */
+  private dayRepo(stores: RequestStores): DayStatusRepository {
+    if (!stores.days) {
+      throw new Error('Thiếu bảng trạng thái ngày');
+    }
+    return stores.days;
   }
 
   /** Hồ sơ nộp đơn theo uuid hoặc username, cấu hình loại nhân sự xét đến `month` (YYYY-MM). */
@@ -198,10 +286,7 @@ export class RequestsService {
     if (!holidaysRepo) {
       throw new Error('Thiếu lịch lễ công ty');
     }
-    const daysRepo = stores.days;
-    if (!daysRepo) {
-      throw new Error('Thiếu bảng trạng thái ngày');
-    }
+    const daysRepo = this.dayRepo(stores);
     const regularDows = this.requireTypeConfig(staff);
     const lo = addDays(from, -1);
     const hi = addDays(to, 1);
@@ -228,11 +313,7 @@ export class RequestsService {
    * `system_requests`). Ngày thay một đơn đổi ca ghi đơn đó vào `baseRequestId`.
    */
   private async claimDays(stores: RequestStores, req: SystemRequest, plan: ClaimPlan, status: ClaimStatus): Promise<void> {
-    const daysRepo = stores.days;
-    if (!daysRepo) {
-      throw new Error('Thiếu bảng trạng thái ngày');
-    }
-    await daysRepo.upsert(
+    await this.dayRepo(stores).upsert(
       plan.take.map(({ date, replaces }) => ({
         employeeId: req.employeeId,
         date,
@@ -315,16 +396,15 @@ export class RequestsService {
     }
   }
 
-  /** Duyệt đơn nghỉ: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi lịch ON_LEAVE; CN và ngày lễ không ghi. */
+  /**
+   * Duyệt đơn nghỉ hoặc nghỉ có làm bù: mỗi ngày đơn đang giữ trong `day_status` ghi lịch ON_LEAVE (§4.2). Ngày bị bỏ lúc
+   * nộp (CN, ngày lễ, Thứ Bảy có iSAT đã duyệt) không có dòng nên không ghi; khung bù không ghi vào lịch.
+   */
   protected async markLeaveDays(req: SystemRequest, stores: RequestStores = this.storesOn()): Promise<void> {
     const attendance = stores.attendance;
-    if (!attendance || !req.leaveStartDate) return;
-    const start = req.leaveStartDate;
-    const end = req.leaveEndDate ?? start;
-    const staff = await this.resolveStaff(req.employeeId, monthOf(start), stores);
-    const { days } = await this.loadDays(staff, start, end, stores);
-    for (const date of days.workingDaysBetween(start, end)) {
-      const sched = await attendance.ensureDefaultSchedule(staff.employeeId, date);
+    if (!attendance) return;
+    for (const day of await this.dayRepo(stores).listByRequest(req.id)) {
+      const sched = await attendance.ensureDefaultSchedule(day.employeeId, day.date);
       await attendance.saveSchedule(sched.withLeave(req.id));
     }
   }
@@ -395,19 +475,39 @@ export class RequestsService {
     });
   }
 
-  /** Duyệt đơn đổi ca: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi ca mới; CN và ngày lễ không ghi. */
+  /**
+   * Duyệt đơn đổi ca: ghi ca mới lên các ngày còn là dòng `SHIFT_CHANGE` của đơn (§4.2). Ngày đã bị đơn nghỉ hoặc iSAT
+   * thay (T3) thuộc đơn kia nên không ghi; ngày bị bỏ lúc nộp (ngày nghỉ, iSAT đã duyệt, CN, ngày lễ) cũng không.
+   */
   protected async markShiftChangeDays(req: SystemRequest, stores: RequestStores = this.storesOn()): Promise<void> {
     const attendance = stores.attendance;
-    if (!attendance || !req.changeStartDate || !req.newStartTime || !req.newEndTime) return;
-    const start = req.changeStartDate;
-    const end = req.changeEndDate ?? start;
-    const staff = await this.resolveStaff(req.employeeId, monthOf(start), stores);
-    const { days } = await this.loadDays(staff, start, end, stores);
-    for (const date of days.workingDaysBetween(start, end)) {
-      const sched = await attendance.ensureDefaultSchedule(staff.employeeId, date);
-      await attendance.saveSchedule(
-        sched.withShiftChange(req.newShiftType as any, req.newStartTime, req.newEndTime, req.id)
-      );
+    if (!attendance) return;
+    for (const day of await this.dayRepo(stores).listByRequest(req.id)) {
+      await this.writeShiftChange(attendance, req, day.employeeId, day.date);
+    }
+  }
+
+  /** Ghi ca mới của đơn đổi ca `change` lên lịch ngày `date`; đơn thiếu giờ ca thì không ghi. */
+  private async writeShiftChange(
+    attendance: AttendanceRepository,
+    change: SystemRequest,
+    employeeId: string,
+    date: string
+  ): Promise<void> {
+    if (!change.newStartTime || !change.newEndTime) return;
+    const sched = await attendance.ensureDefaultSchedule(employeeId, date);
+    await attendance.saveSchedule(
+      sched.withShiftChange(change.newShiftType as any, change.newStartTime, change.newEndTime, change.id)
+    );
+  }
+
+  /** Duyệt đơn iSAT: Thứ Bảy đơn đang giữ ghi lịch iSAT (nghỉ có lương). */
+  private async markIsatDay(req: SystemRequest, stores: RequestStores): Promise<void> {
+    const attendance = stores.attendance;
+    if (!attendance) return;
+    for (const day of await this.dayRepo(stores).listByRequest(req.id)) {
+      const sched = await attendance.ensureDefaultSchedule(day.employeeId, day.date);
+      await attendance.saveSchedule(sched.withIsat(req.id));
     }
   }
 
@@ -656,8 +756,9 @@ export class RequestsService {
   }
 
   /**
-   * `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid. Lịch ghi khi duyệt và
-   * trạng thái đơn lưu trong cùng giao dịch của khoá: một bước lỗi thì không gì được ghi, đơn vẫn chờ duyệt.
+   * `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid.
+   * Chạy dưới khoá `request_<id>` rồi khoá nhân viên trên cùng giao dịch (§4). Kiểm lại, lịch, `day_status` và trạng thái
+   * đơn đọc và ghi trên giao dịch đó: một bước lỗi thì không gì được ghi, đơn vẫn chờ duyệt.
    */
   async reviewRequest(
     id: string,
@@ -665,7 +766,7 @@ export class RequestsService {
     action: 'APPROVE' | 'REJECT',
     note?: string
   ): Promise<SystemRequestDTO> {
-    return await this.underLock(`request_${id}`, async stores => {
+    return await this.underLock(`request_${id}`, async (stores, trx) => {
       const req = await stores.requests.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
@@ -674,34 +775,32 @@ export class RequestsService {
       if (!reviewerId) {
         throw new Error(`Không tìm thấy người duyệt: ${reviewer}`);
       }
+      await this.lockEmployee(trx, req.employeeId);
 
       if (action === 'APPROVE') {
         // Đơn iSAT mất dòng đăng ký thì không biết Thứ Bảy nào để ghi lịch: báo lỗi trước khi đổi trạng thái
         if (req.type === 'ISAT' && req.isat === null) {
           throw new Error(`Đơn iSAT thiếu dữ liệu đăng ký: ${req.id}`);
         }
+        // Kiểm lại trước khi đổi trạng thái hay ghi gì; đơn không còn chờ duyệt thì để `approve` báo lỗi trạng thái.
+        if (req.status === 'PENDING') {
+          await this.recheck(req, stores);
+        }
         req.approve(reviewerId, note);
 
-        const attendance = stores.attendance;
-        if (attendance) {
-          // Duyệt OT không ghi lịch (§7); khung bù của đơn nghỉ có làm bù cũng không ghi vào lịch.
-          if (req.type === 'SHIFT_CHANGE') {
-            await this.markShiftChangeDays(req, stores);
-          } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
-            // Chỉ ngày nghỉ được ghi ON_LEAVE; khung bù không ghi vào lịch.
-            await this.markLeaveDays(req, stores);
-          } else if (req.type === 'ISAT' && req.isat) {
-            const sched = await attendance.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
-            await attendance.saveSchedule(sched.withIsat(req.id));
-          } else if (req.type === 'EXPLANATION') {
-            const workDate = req.explanationDate;
-            if (workDate) {
-              await attendance.updateDayStatus(req.employeeId, workDate, 'VALID');
-            }
-          }
+        // Lịch ghi theo các ngày đơn đang giữ trong `day_status` (§4.2). Duyệt OT và tạm ứng không ghi lịch (§7).
+        if (req.type === 'SHIFT_CHANGE') {
+          await this.markShiftChangeDays(req, stores);
+        } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
+          await this.markLeaveDays(req, stores);
+        } else if (req.type === 'ISAT') {
+          await this.markIsatDay(req, stores);
+        } else if (req.type === 'EXPLANATION' && stores.attendance && req.explanationDate) {
+          await stores.attendance.updateDayStatus(req.employeeId, req.explanationDate, 'VALID');
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
+        await this.releaseDays(req, stores);
       } else {
         throw new Error(`Invalid review action '${action}'; must be 'APPROVE' or 'REJECT'`);
       }
@@ -711,22 +810,95 @@ export class RequestsService {
     });
   }
 
+  /** Huỷ đơn còn chờ duyệt: cùng khoá và cùng giao dịch như duyệt (§4.3); các ngày đơn giữ được trả lại. */
   async cancelRequest(id: string, employeeId: string, reason?: string): Promise<SystemRequestDTO> {
-    const req = await this.repo.findById(id);
-    if (!req) {
-      throw new Error(`Request with id '${id}' not found`);
+    return await this.underLock(`request_${id}`, async (stores, trx) => {
+      const req = await stores.requests.findById(id);
+      if (!req) {
+        throw new Error(`Request with id '${id}' not found`);
+      }
+
+      // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
+      let cancellerId = employeeId;
+      if (employeeId !== req.employeeId) {
+        const uuid = await stores.requests.resolveStaffUuid(employeeId);
+        if (uuid === req.employeeId) cancellerId = uuid;
+      }
+      await this.lockEmployee(trx, req.employeeId);
+
+      req.cancel(cancellerId, reason);
+      await this.releaseDays(req, stores);
+      await stores.requests.save(req);
+      return req.toJSON();
+    });
+  }
+
+  /**
+   * Kiểm lại lúc duyệt (§4.2): `planClaims` cùng loại và cùng ngày như lúc nộp, trên trạng thái hiện tại, dòng và khung
+   * của chính đơn coi như trống. Theo luật nộp, chỉ dữ liệu sai mới bị chặn ở đây; lỗi mang thêm câu cho người duyệt.
+   * Ruling (plan): khung bù của đơn nghỉ có làm bù không xét lại.
+   */
+  private async recheck(req: SystemRequest, stores: RequestStores): Promise<void> {
+    const scope = recheckScope(req);
+    if (!scope) return;
+    const staff = await this.resolveStaff(req.employeeId, monthOf(scope.from), stores);
+    // Như lúc nộp: giải trình của loại nhân sự chưa cấu hình không xét ngày.
+    if (scope.kind === 'EXPLANATION' && !staff.regularDows) return;
+    const { days } = await this.loadDays(staff, scope.from, scope.to, stores);
+
+    let dates = [scope.from];
+    if (scope.range) {
+      // Ruling (Task 6): ngày đơn đứng cạnh một đơn khác đúng luật nộp không phải xung đột, và đơn không ghi lịch lên
+      // ngày đó; bỏ ra trước để luật "khoảng không còn ngày" của lúc nộp không chặn việc duyệt.
+      dates = days.workingDaysBetween(scope.from, scope.to).filter(date => !standsBeside(req, days.claimOn(date)));
+      if (dates.length === 0) return;
     }
 
-    // Đơn iSAT lưu theo uuid còn phiên đăng nhập gửi username: đổi sang uuid khi trùng tác giả, người lạ vẫn bị từ chối.
-    let cancellerId = employeeId;
-    if (employeeId !== req.employeeId) {
-      const uuid = await this.repo.resolveStaffUuid(employeeId);
-      if (uuid === req.employeeId) cancellerId = uuid;
+    try {
+      planClaims({ kind: scope.kind, dates, days, ownRequestId: req.id });
+    } catch (error) {
+      if (error instanceof DayConflictError) throw error.forReview();
+      throw error;
     }
+  }
 
-    req.cancel(cancellerId, reason);
-    await this.repo.save(req);
-    return req.toJSON();
+  /**
+   * Trả các ngày đơn `req` đang giữ khi đơn bị từ chối hoặc huỷ (§4.3):
+   * - ngày đơn này đã thay của một đơn đổi ca còn chờ hoặc đã duyệt: trả lại cho đơn đổi ca đó; đơn đó đã duyệt thì ghi
+   *   lại ca mới lên lịch ngày đó;
+   * - ngày khác: xoá dòng, ngày về trạng thái suy ra (với T4 là ca thường);
+   * - ngày đơn khác đã thay của đơn này (đơn này là đơn đổi ca): bỏ liên kết tới đơn này.
+   * Đơn chưa duyệt chưa ghi lịch nào, nên ngày bị xoá không cần sửa lịch.
+   */
+  private async releaseDays(req: SystemRequest, stores: RequestStores): Promise<void> {
+    if (!CLAIMING_TYPES.has(req.type)) return;
+    const daysRepo = this.dayRepo(stores);
+    const [held, replaced] = await Promise.all([daysRepo.listByRequest(req.id), daysRepo.listByBase(req.id)]);
+
+    const handedBack = held.filter(
+      day => day.baseRequestId !== null && (day.baseRequestStatus === 'PENDING' || day.baseRequestStatus === 'APPROVED')
+    );
+    const freed = held.filter(day => !handedBack.includes(day));
+
+    for (const [employeeId, dates] of groupDates(freed)) {
+      await daysRepo.remove(employeeId, dates);
+    }
+    // Hai nhóm không chung ngày: dòng của đơn này và dòng của đơn khác không cùng (nhân sự, ngày) (khoá chính).
+    await daysRepo.upsert([
+      ...handedBack.map(day => releasedRow(day, { status: 'SHIFT_CHANGE', requestId: day.baseRequestId! })),
+      ...replaced.map(day => releasedRow(day, {}))
+    ]);
+
+    const attendance = stores.attendance;
+    if (!attendance) return;
+    const bases = new Map<string, SystemRequest | null>();
+    for (const day of handedBack) {
+      if (day.baseRequestStatus !== 'APPROVED') continue;
+      const baseId = day.baseRequestId!;
+      if (!bases.has(baseId)) bases.set(baseId, await stores.requests.findById(baseId));
+      const base = bases.get(baseId);
+      if (base) await this.writeShiftChange(attendance, base, day.employeeId, day.date);
+    }
   }
 
   async getById(id: string): Promise<SystemRequestDTO | null> {

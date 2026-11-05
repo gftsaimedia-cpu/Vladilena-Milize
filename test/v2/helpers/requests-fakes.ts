@@ -69,6 +69,11 @@ export class FakeRequestsRepository extends RequestsRepository {
   }
 
   requests = new Map<string, SystemRequest>();
+  /**
+   * Trạng thái của mỗi đơn như lần `save` gần nhất, tức như hàng `system_requests` trên DB. Đơn đã đổi trạng thái trong bộ
+   * nhớ (duyệt, từ chối, huỷ) mà chưa lưu vẫn giữ trạng thái cũ ở đây; JOIN của fake `day_status` đọc từ đây.
+   */
+  storedStatus = new Map<string, RequestStatus>();
   profiles = new Map<string, StaffContext>();
   schedules: ScheduleDay[] = [];
   /** Tháng truyền vào findStaffContext, theo thứ tự gọi. */
@@ -92,6 +97,7 @@ export class FakeRequestsRepository extends RequestsRepository {
   override async save(request: SystemRequest): Promise<void> {
     this.calls.push(['save', this.trx]);
     this.requests.set(request.id, request);
+    this.storedStatus.set(request.id, request.status);
   }
 
   override async findById(id: string): Promise<SystemRequest | null> {
@@ -225,6 +231,8 @@ export class FakeHolidaysRepository extends HolidaysRepository {
 /**
  * `day_status` trong bộ nhớ, khoá `${employeeId}:${date}`. Đọc trả `DayClaim` với trạng thái đơn lấy từ `source`, và
  * chỉ trả dòng có đơn đang chờ hoặc đã duyệt, như JOIN thật. `source` là `{ requests }` của fake đơn (chung hay riêng).
+ * Khi `source` có `storedStatus` thì trạng thái đọc từ đó (như đã lưu): giữa lúc đơn đổi trạng thái trong bộ nhớ và lúc
+ * lưu, JOIN thật vẫn thấy trạng thái cũ trên DB.
  */
 export class FakeDayStatusRepository extends DayStatusRepository {
   /** Giao dịch mà bản này chạy trên (undefined = pool) và nhật ký [phương thức, giao dịch] theo thứ tự gọi. */
@@ -239,7 +247,9 @@ export class FakeDayStatusRepository extends DayStatusRepository {
 
   rows = new Map<string, DayStatusRow>();
 
-  constructor(private readonly source: { requests: Map<string, SystemRequest> }) {
+  constructor(
+    private readonly source: { requests: Map<string, SystemRequest>; storedStatus?: Map<string, RequestStatus> }
+  ) {
     super({} as any);
   }
 
@@ -248,17 +258,24 @@ export class FakeDayStatusRepository extends DayStatusRepository {
     this.rows.set(`${row.employeeId}:${row.date}`, row);
   }
 
+  /** Trạng thái đơn như JOIN thấy: như đã lưu nếu biết, không thì trạng thái trong bộ nhớ; không có đơn thì undefined. */
+  private statusOf(requestId: string): RequestStatus | undefined {
+    const req = this.source.requests.get(requestId);
+    if (!req) return undefined;
+    return this.source.storedStatus?.get(requestId) ?? req.status;
+  }
+
   private claims(filter: (row: DayStatusRow) => boolean): DayClaim[] {
     const claims: DayClaim[] = [];
     for (const row of this.rows.values()) {
       if (!filter(row)) continue;
-      const owner = this.source.requests.get(row.requestId);
-      if (!owner || !ACTIVE.includes(owner.status)) continue;
-      const base = row.baseRequestId ? this.source.requests.get(row.baseRequestId) : undefined;
+      const ownerStatus = this.statusOf(row.requestId);
+      if (!ownerStatus || !ACTIVE.includes(ownerStatus)) continue;
+      const baseStatus = row.baseRequestId ? this.statusOf(row.baseRequestId) : undefined;
       claims.push({
         ...row,
-        requestStatus: owner.status as DayClaim['requestStatus'],
-        baseRequestStatus: base ? base.status : null
+        requestStatus: ownerStatus as DayClaim['requestStatus'],
+        baseRequestStatus: baseStatus ?? null
       });
     }
     return claims.sort((a, b) => a.employeeId.localeCompare(b.employeeId) || a.date.localeCompare(b.date));
@@ -303,6 +320,11 @@ export class RecordingLock {
   async withLock<T>(key: string, fn: (trx: any) => Promise<T>): Promise<T> {
     this.keys.push(key);
     return fn(LOCK_TRX);
+  }
+
+  /** Khoá thêm trên giao dịch đang mở (khoá nhân viên lúc duyệt, từ chối, huỷ): chỉ ghi lại khoá. */
+  async acquireAdvisoryLock(_trx: unknown, key: string): Promise<void> {
+    this.keys.push(key);
   }
 }
 

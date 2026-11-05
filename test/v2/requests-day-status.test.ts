@@ -444,3 +444,243 @@ describe('iSAT giữ Thứ Bảy trong day_status (§4.1, V5, V6)', () => {
     await assert.rejects(isat(), /^Error: Đã có đơn iSAT cho Thứ Bảy 14\/11\/2026$/);
   });
 });
+
+describe('Duyệt, từ chối và huỷ giữ day_status và lịch (§4.2, §4.3)', () => {
+  let ctx: ReturnType<typeof makeService>;
+  beforeEach(() => {
+    ctx = makeService();
+  });
+
+  const rowOf = (date: string) => ctx.days.rows.get(`${NV_UUID}:${date}`);
+  const scheduleOf = (date: string) => ctx.att.schedules.get(`${NV_UUID}:${date}`);
+  const scheduledDates = () => [...ctx.att.schedules.keys()].map(key => key.slice(NV_UUID.length + 1)).sort();
+  const shiftOn = (date: string) => {
+    const s = scheduleOf(date);
+    return [s?.scheduleType, s?.shiftType, s?.plannedStartTime, s?.plannedEndTime, s?.sourceRequestId];
+  };
+
+  const approve = (id: string) => ctx.service.reviewRequest(id, 'admin', 'APPROVE');
+  const reject = (id: string) => ctx.service.reviewRequest(id, 'admin', 'REJECT', 'Không đủ người');
+  const cancel = (id: string) => ctx.service.cancelRequest(id, 'nv01', 'Đổi kế hoạch');
+
+  const leave = (startDate: string, endDate = startDate) =>
+    ctx.service.createLeaveRequest({ employeeId: 'nv01', title: 'Nghỉ', reason: 'Việc nhà', leaveType: 'ANNUAL', startDate, endDate });
+  const isat = () =>
+    ctx.service.createIsatRequest({
+      employeeId: 'nv01',
+      saturday: '2026-11-14',
+      team: 'Nhóm thử',
+      conditions: { NO_VIOLATION: true, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true }
+    });
+  const ot = () =>
+    ctx.service.createOvertimeRequest({
+      employeeId: 'nv01',
+      title: 'OT',
+      reason: 'Gấp tiến độ',
+      otDate: '2026-11-14',
+      startTime: '18:00',
+      endTime: '20:00'
+    });
+
+  it('V1 approve writes ON_LEAVE only on the claimed days', async () => {
+    const saturday = await isat();
+    await approve(saturday.id);
+    const dto = await leave('2026-11-12', '2026-11-16');
+    await approve(dto.id);
+
+    for (const date of ['2026-11-12', '2026-11-13', '2026-11-16']) {
+      const s = scheduleOf(date);
+      assert.deepEqual([s?.status, s?.sourceRequestId], ['ON_LEAVE', dto.id], date);
+    }
+    // Thứ Bảy iSAT không bị đơn nghỉ đụng tới.
+    const s14 = scheduleOf('2026-11-14');
+    assert.deepEqual([s14?.scheduleType, s14?.status, s14?.sourceRequestId], ['ISAT', 'ON_LEAVE', saturday.id]);
+    assert.deepEqual(scheduledDates(), ['2026-11-12', '2026-11-13', '2026-11-14', '2026-11-16']);
+  });
+
+  it('V3b rejecting the leave hands 11/11 back to the pending shift change', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-10', '2026-11-12', 'NIGHT', '22:00', '07:00', 'PENDING'));
+    const dto = await leave('2026-11-11');
+    assert.equal(rowOf('2026-11-11')?.baseRequestId, change.id);
+
+    await reject(dto.id);
+
+    const row = rowOf('2026-11-11');
+    assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['SHIFT_CHANGE', change.id, null]);
+    // Đơn đổi ca còn chờ duyệt: chưa có lịch nào.
+    assert.equal(ctx.att.schedules.size, 0);
+  });
+
+  it("rejecting a leave over an approved shift change rewrites that day's schedule", async () => {
+    const change = await seed(ctx, shiftChange('2026-11-10', '2026-11-12', 'NIGHT', '22:00', '07:00', 'APPROVED'));
+    const dto = await leave('2026-11-11');
+
+    await reject(dto.id);
+
+    const row = rowOf('2026-11-11');
+    assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['SHIFT_CHANGE', change.id, null]);
+    assert.deepEqual(shiftOn('2026-11-11'), ['SHIFT_CHANGE', 'NIGHT', '22:00', '07:00', change.id]);
+    assert.deepEqual(scheduledDates(), ['2026-11-11']);
+  });
+
+  it('V4b rejecting the leave frees 11/11 to the regular shift', async () => {
+    const leaveReq = await seed(ctx, leaveRequest('2026-11-11', '2026-11-11', 'PENDING'));
+    const change = await ctx.service.createShiftChangeRequest({
+      employeeId: 'nv01',
+      title: 'Đổi ca',
+      reason: 'Lịch học',
+      startDate: '2026-11-10',
+      endDate: '2026-11-13',
+      shiftType: 'NIGHT',
+      startTime: '22:00'
+    });
+
+    await reject(leaveReq.id);
+    assert.equal(rowOf('2026-11-11'), undefined);
+
+    // Ngày đã về ca thường: duyệt đơn đổi ca không ghi ngày đó.
+    await approve(change.id);
+    assert.deepEqual(scheduledDates(), ['2026-11-10', '2026-11-12', '2026-11-13']);
+    assert.equal(rowOf('2026-11-11'), undefined);
+  });
+
+  it('V5 approving ISAT on a shift-changed Saturday writes withIsat, and approving the shift change later leaves the Saturday alone', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-09', '2026-11-14', 'NIGHT', '22:00', '07:00', 'PENDING'));
+    const saturday = await isat();
+    assert.equal(rowOf('2026-11-14')?.baseRequestId, change.id);
+
+    await approve(saturday.id);
+    const isatDay = scheduleOf('2026-11-14');
+    assert.deepEqual([isatDay?.scheduleType, isatDay?.status, isatDay?.sourceRequestId], ['ISAT', 'ON_LEAVE', saturday.id]);
+
+    await approve(change.id);
+    for (const date of ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13']) {
+      assert.deepEqual(shiftOn(date), ['SHIFT_CHANGE', 'NIGHT', '22:00', '07:00', change.id], date);
+    }
+    const after = scheduleOf('2026-11-14');
+    assert.deepEqual([after?.scheduleType, after?.status, after?.sourceRequestId], ['ISAT', 'ON_LEAVE', saturday.id]);
+  });
+
+  it('cancelling a shift change clears the base on replaced days', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-10', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING'));
+    const dto = await leave('2026-11-11');
+
+    const cancelled = await cancel(change.id);
+
+    assert.equal(cancelled.status, 'CANCELLED');
+    const kept = rowOf('2026-11-11');
+    assert.deepEqual([kept?.status, kept?.requestId, kept?.baseRequestId], ['LEAVE', dto.id, null]);
+    assert.equal(rowOf('2026-11-10'), undefined);
+    assert.equal(rowOf('2026-11-12'), undefined);
+  });
+
+  it('cancelling a pending ISAT frees the Saturday', async () => {
+    const saturday = await isat();
+    await cancel(saturday.id);
+    assert.equal(rowOf('2026-11-14'), undefined);
+    const dto = await leave('2026-11-14');
+    assert.deepEqual([dto.leaveDaysCount, dto.warnings], [1, []]);
+    assert.equal(rowOf('2026-11-14')?.requestId, dto.id);
+
+    ctx = makeService();
+    const again = await isat();
+    await cancel(again.id);
+    const overtime = await ot();
+    assert.deepEqual([overtime.status, overtime.otHours], ['PENDING', 2]);
+  });
+
+  it('approving a shift change after an approved leave took a day keeps ON_LEAVE', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-10', '2026-11-12', 'NIGHT', '22:00', '07:00', 'PENDING'));
+    const dto = await leave('2026-11-11');
+    await approve(dto.id);
+
+    await approve(change.id);
+
+    const s11 = scheduleOf('2026-11-11');
+    assert.deepEqual(
+      [s11?.status, s11?.scheduleType, s11?.plannedStartTime, s11?.plannedEndTime, s11?.sourceRequestId],
+      ['ON_LEAVE', 'REGULAR', '08:00', '17:00', dto.id]
+    );
+    for (const date of ['2026-11-10', '2026-11-12']) {
+      assert.deepEqual(shiftOn(date), ['SHIFT_CHANGE', 'NIGHT', '22:00', '07:00', change.id], date);
+    }
+  });
+
+  it('approval recheck refuses a conflicting request and writes nothing', async () => {
+    // Dữ liệu sai dựng bằng tay: OT 14/11 đang chờ trên Thứ Bảy đã có iSAT được duyệt.
+    const saturday = await seed(ctx, isatRequest('2026-11-14', 'APPROVED'));
+    const overtime = otRequest('2026-11-14', '08:00', '12:00', 'PENDING');
+    await ctx.repo.save(overtime);
+    const rowsBefore = [...ctx.days.rows.entries()];
+
+    await assert.rejects(approve(overtime.id), (err: unknown) => {
+      assert.ok(err instanceof DayConflictError);
+      assert.equal(err.message, `${C1} Chỉ có thể từ chối đơn này.`);
+      assert.deepEqual(err.info, { date: '2026-11-14', requestId: saturday.id, requestType: 'ISAT', requestStatus: 'APPROVED' });
+      return true;
+    });
+    assert.equal(ctx.repo.requests.get(overtime.id)?.status, 'PENDING');
+    assert.equal(ctx.att.schedules.size, 0);
+    assert.equal(ctx.att.dayStatuses.size, 0);
+    assert.deepEqual([...ctx.days.rows.entries()], rowsBefore);
+
+    // Admin vẫn từ chối được.
+    assert.equal((await reject(overtime.id)).status, 'REJECTED');
+  });
+
+  it('review takes the request lock then the employee lock', async () => {
+    const approved = await seed(ctx, leaveRequest('2026-11-12', '2026-11-12'));
+    const rejected = await seed(ctx, leaveRequest('2026-11-13', '2026-11-13'));
+
+    await approve(approved.id);
+    await reject(rejected.id);
+
+    assert.deepEqual(ctx.lock.keys, [
+      `request_${approved.id}`,
+      `requests_${NV_UUID}`,
+      `request_${rejected.id}`,
+      `requests_${NV_UUID}`
+    ]);
+  });
+
+  it('cancel takes the same two locks and writes on the lock transaction', async () => {
+    const req = await seed(ctx, leaveRequest('2026-11-12', '2026-11-13'));
+    ctx.repo.calls.length = 0;
+
+    await cancel(req.id);
+
+    assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
+    assert.deepEqual(ctx.repo.calls, [
+      ['findById', LOCK_TRX],
+      ['resolveStaffUuid', LOCK_TRX],
+      ['save', LOCK_TRX]
+    ]);
+    assert.ok(ctx.days.calls.some(([name]) => name === 'remove'));
+    for (const [name, trx] of ctx.days.calls) assert.equal(trx, LOCK_TRX, name);
+    assert.equal(rowOf('2026-11-12'), undefined);
+    assert.equal(rowOf('2026-11-13'), undefined);
+  });
+
+  // Ruling (Task 6): ngày đơn khác đã thay của đơn đổi ca (T3) hoặc ngày đơn đổi ca đã bỏ không phải xung đột lúc duyệt.
+  it('a pending ISAT that took a Saturday of a pending shift change does not block approving the shift change', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-09', '2026-11-14', 'NIGHT', '22:00', '07:00', 'PENDING'));
+    const saturday = await isat();
+
+    const reviewed = await approve(change.id);
+
+    assert.equal(reviewed.status, 'APPROVED');
+    assert.deepEqual(scheduledDates(), ['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13']);
+    assert.equal(rowOf('2026-11-14')?.requestId, saturday.id);
+  });
+
+  it('a shift change whose only day a leave took can be approved, and gets the day back when the leave is rejected', async () => {
+    const change = await seed(ctx, shiftChange('2026-11-11', '2026-11-11', 'NIGHT', '22:00', '07:00', 'PENDING'));
+    const dto = await leave('2026-11-11');
+
+    assert.equal((await approve(change.id)).status, 'APPROVED');
+    assert.equal(ctx.att.schedules.size, 0);
+
+    await reject(dto.id);
+    assert.deepEqual(shiftOn('2026-11-11'), ['SHIFT_CHANGE', 'NIGHT', '22:00', '07:00', change.id]);
+  });
+});

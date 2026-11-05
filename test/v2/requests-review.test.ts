@@ -57,6 +57,9 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
 
     await ctx.service.reviewRequest(req.id, 'admin', 'APPROVE');
 
+    // Khoá đơn trước, rồi khoá nhân viên trên cùng giao dịch (§4).
+    assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
+    // Kiểm lại (hồ sơ, lịch, đơn đang có, ngày lễ, day_status) rồi ghi lịch theo các ngày đơn giữ.
     assert.deepEqual(ctx.repo.calls, [
       ['findById', LOCK_TRX],
       ['resolveStaffUuid', LOCK_TRX],
@@ -70,7 +73,29 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
       ['saveSchedule', LOCK_TRX]
     ]);
     assert.deepEqual(ctx.holidays.calls, [['listBetween', LOCK_TRX]]);
-    assert.deepEqual(ctx.days.calls, [['listBetween', LOCK_TRX]]);
+    assert.deepEqual(ctx.days.calls, [
+      ['listBetween', LOCK_TRX],
+      ['listByRequest', LOCK_TRX]
+    ]);
+  });
+
+  it('rejecting a leave releases its days on the lock transaction', async () => {
+    const req = leaveRequest('2026-11-12', '2026-11-12');
+    await seed(ctx, req);
+    clearCalls();
+
+    await ctx.service.reviewRequest(req.id, 'admin', 'REJECT');
+
+    assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
+    assert.deepEqual(ctx.repo.calls, [
+      ['findById', LOCK_TRX],
+      ['resolveStaffUuid', LOCK_TRX],
+      ['save', LOCK_TRX]
+    ]);
+    assert.ok(ctx.days.calls.some(([name]) => name === 'remove'));
+    for (const [name, trx] of ctx.days.calls) assert.equal(trx, LOCK_TRX, name);
+    assert.deepEqual(ctx.att.calls, []);
+    assert.equal(ctx.days.rows.size, 0);
   });
 
   it('approving an explanation marks the day on the lock transaction', async () => {
@@ -80,7 +105,9 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
 
     await ctx.service.reviewRequest(req.id, 'admin', 'APPROVE');
 
+    assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
     assert.deepEqual(ctx.att.calls, [['updateDayStatus', LOCK_TRX]]);
+    assert.deepEqual(ctx.days.calls, [['listBetween', LOCK_TRX]]);
     assert.deepEqual(ctx.repo.calls.at(-1), ['save', LOCK_TRX]);
   });
 
