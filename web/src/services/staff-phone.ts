@@ -107,21 +107,19 @@ function position(): Promise<{ lat?: number; lng?: number; accuracyM?: number }>
 }
 
 // Check-out rồi trả màn Hôm nay mới.
-// Chấm vào / ra rồi tải lại màn Hôm nay. Máy chủ từ chối lượt chấm thì ném lỗi như cũ; lượt chấm đã ghi mà tải lại màn lỗi thì
-// trả null (không ném): ShiftCard báo đã chấm, màn cha tự tải lại.
-export async function checkOut(): Promise<HomeView | null> {
+export async function checkOut(): Promise<HomeView> {
   if (__MOCK__) {
     checkOutNow();
     return respond(homeView());
   }
   await api.post('/me/punches', { kind: 'OUT', ...(await position()) });
-  return getHome().catch(() => null);
+  return getHome();
 }
 
 /** Check-in rồi trả màn Hôm nay mới (máy chủ thật). */
-export async function checkIn(): Promise<HomeView | null> {
+export async function checkIn(): Promise<HomeView> {
   await api.post('/me/punches', { kind: 'IN', ...(await position()) });
-  return getHome().catch(() => null);
+  return getHome();
 }
 
 export const changePassword = ({ current, next }: { current: string; next: string }): Promise<{ ok: true }> =>

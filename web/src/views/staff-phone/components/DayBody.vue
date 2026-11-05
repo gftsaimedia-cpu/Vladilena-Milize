@@ -10,27 +10,12 @@ const props = defineProps<{ day: DayDetail }>();
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-// Ca của ngày theo phút. Ca qua đêm (giờ ra ca <= giờ vào ca) thì giờ ra ca thuộc ngày sau: 22:00–06:00 → 1320–1800.
-const shift = computed(() => {
+// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30). Ca qua đêm thì giờ ra thuộc
+// ngày sau (22:00–06:00 → 02:00).
+const axis = computed(() => {
   const start = toMin(props.day.shiftStart);
   let end = toMin(props.day.shiftEnd);
   if (end <= start) end += 1440;
-  return { start, end };
-});
-
-// Một giờ trên trục ca. Ca qua đêm thì giờ sau nửa đêm thuộc ngày sau: lấy t hay t + 1440, cái nào gần giữa ca hơn
-// (ca 22:00–06:00: 21:50 vẫn là trước ca, 05:30 là gần hết ca). Ca ban ngày giữ nguyên giờ.
-function onShift(time: string) {
-  const t = toMin(time);
-  const { start, end } = shift.value;
-  if (end <= 1440) return t;
-  const mid = (start + end) / 2;
-  return Math.abs(t + 1440 - mid) < Math.abs(t - mid) ? t + 1440 : t;
-}
-
-// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30; 22:00–06:00 → 02:00).
-const axis = computed(() => {
-  const { start, end } = shift.value;
   return [props.day.shiftStart, hhmm(Math.round((start + end) / 2) % 1440), props.day.shiftEnd];
 });
 
@@ -38,15 +23,15 @@ const axis = computed(() => {
 const track = computed(() => {
   const d = props.day;
   if (!d.in) return null;
-  const { start, end } = shift.value;
-  const span = end - start;
+  const start = toMin(d.shiftStart);
+  const span = toMin(d.shiftEnd) - start;
   const pct = (min: number) => Math.min(100, Math.max(0, ((min - start) / span) * 100));
-  const inAt = onShift(d.in);
+  const inAt = toMin(d.in);
   const from = pct(Math.max(inAt, start));
   const late = inAt > start ? { left: 0, width: pct(inAt) } : null;
   // Chưa có giờ ra: hôm nay thì đoạn đã làm dừng ở giờ đồng hồ giả; ngày đã qua thì sọc tới hết ca.
   const outAt = d.out ?? (d.today ? d.now : null);
-  const worked = outAt ? { left: from, width: Math.max(0, pct(onShift(outAt)) - from) } : null;
+  const worked = outAt ? { left: from, width: Math.max(0, pct(toMin(outAt)) - from) } : null;
   const missing = outAt ? null : { left: from, width: 100 - from };
   return { late, worked, missing };
 });

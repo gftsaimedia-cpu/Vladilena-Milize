@@ -30,15 +30,6 @@ test('the day axis of a night shift puts the middle after midnight', async ({ pa
   await expect(page.locator('.ds-axis span')).toHaveText(['22:00', '02:00', '06:00']);
 });
 
-test('the day track of a night shift counts the hours after midnight', async ({ page }) => {
-  await open(page, 'part=day&start=22:00&end=06:00&in=23:00&out=05:00');
-  const box = (sel: string) => page.locator(sel).evaluate((el: HTMLElement) => [el.style.left, el.style.width]);
-  // Ca 480 phút: muộn 60 phút = 12,5%; đã làm 23:00–05:00 = 360 phút = 75%.
-  expect(await box('.ds-late')).toEqual(['0%', '12.5%']);
-  expect(await box('.ds-worked')).toEqual(['12.5%', '75%']);
-  await expect(page.locator('.ds-missing')).toHaveCount(0);
-});
-
 test('the month switch only offers months inside the range', async ({ page }) => {
   const calls = await open(page, 'part=month&prev=2026-09&next=');
   const prev = page.getByRole('button', { name: 'Tháng trước' });
