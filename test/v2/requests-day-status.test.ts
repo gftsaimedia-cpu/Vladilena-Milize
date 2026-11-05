@@ -684,3 +684,65 @@ describe('Duyệt, từ chối và huỷ giữ day_status và lịch (§4.2, §4
     assert.deepEqual(shiftOn('2026-11-11'), ['SHIFT_CHANGE', 'NIGHT', '22:00', '07:00', change.id]);
   });
 });
+
+// Ruling F1: ca đổi chỉ áp lên ngày mà đơn đổi ca đang giữ trong day_status, không lên mọi ngày trong khoảng của đơn.
+describe('Ca của ngày theo dòng day_status của đơn đổi ca (T4, C2)', () => {
+  let ctx: ReturnType<typeof makeService>;
+  beforeEach(() => {
+    ctx = makeService();
+  });
+
+  const rowOf = (date: string) => ctx.days.rows.get(`${NV_UUID}:${date}`);
+  const hasMessage = (message: string) => (err: unknown) => err instanceof Error && err.message === message;
+
+  const leave = (date: string) =>
+    ctx.service.createLeaveRequest({ employeeId: 'nv01', title: 'Nghỉ', reason: 'Việc nhà', leaveType: 'ANNUAL', startDate: date, endDate: date });
+  const sc = (startDate: string, endDate: string, shiftType = 'NIGHT', startTime = '22:00') =>
+    ctx.service.createShiftChangeRequest({ employeeId: 'nv01', title: 'Đổi ca', reason: 'Lịch học', startDate, endDate, shiftType, startTime });
+  const ot = (otDate: string, startTime: string, endTime: string) =>
+    ctx.service.createOvertimeRequest({ employeeId: 'nv01', title: 'OT', reason: 'Gấp tiến độ', otDate, startTime, endTime });
+
+  it('probe A: a day freed by rejecting its leave (T4) takes a new shift change', async () => {
+    const leaveReq = await leave('2026-11-11');
+    const night = await sc('2026-11-10', '2026-11-13');
+    assert.deepEqual(night.warnings, [C4]);
+    await ctx.service.reviewRequest(leaveReq.id, 'admin', 'REJECT');
+    assert.equal(rowOf('2026-11-11'), undefined);
+
+    const dto = await sc('2026-11-11', '2026-11-11', 'NORMAL', '10:00');
+
+    assert.deepEqual([dto.status, dto.warnings], ['PENDING', []]);
+    const row = rowOf('2026-11-11');
+    assert.deepEqual([row?.status, row?.requestId, row?.baseRequestId], ['SHIFT_CHANGE', dto.id, null]);
+    assert.equal(rowOf('2026-11-12')?.requestId, night.id);
+  });
+
+  it('probe B: OT on a freed day of an approved night shift change is checked against the regular shift', async () => {
+    const leaveReq = await leave('2026-11-11');
+    const night = await sc('2026-11-10', '2026-11-13');
+    await ctx.service.reviewRequest(night.id, 'admin', 'APPROVE');
+    await ctx.service.reviewRequest(leaveReq.id, 'admin', 'REJECT');
+    assert.equal(ctx.att.schedules.has(`${NV_UUID}:2026-11-11`), false); // ngày 11 giữ ca mặc định 08–17
+
+    // Cùng câu như trên một ngày thường ca 08:00–17:00.
+    await assert.rejects(ot('2026-11-18', '09:00', '11:00'), hasMessage('Khung 09:00–11:00 ngày 18/11 phải cách ca 08:00–17:00 ít nhất 1 giờ'));
+    await assert.rejects(ot('2026-11-11', '09:00', '11:00'), hasMessage('Khung 09:00–11:00 ngày 11/11 phải cách ca 08:00–17:00 ít nhất 1 giờ'));
+    assert.equal([...ctx.repo.requests.values()].filter(r => r.type === 'OVERTIME').length, 0);
+  });
+
+  it('probe F: Sunday OT after a night shift change skipped the approved iSAT Saturday (C2) sees no Saturday night shift', async () => {
+    const isat = await ctx.service.createIsatRequest({
+      employeeId: 'nv01',
+      saturday: '2026-11-14',
+      team: 'Nhóm thử',
+      conditions: { NO_VIOLATION: true, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true }
+    });
+    await ctx.service.reviewRequest(isat.id, 'admin', 'APPROVE');
+    const night = await sc('2026-11-13', '2026-11-14');
+    assert.deepEqual(night.warnings, [C2]);
+
+    const dto = await ot('2026-11-15', '06:00', '09:00');
+
+    assert.deepEqual([dto.status, dto.otDate, dto.otHours], ['PENDING', '2026-11-15', 3]);
+  });
+});

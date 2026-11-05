@@ -307,9 +307,12 @@ export class FakeDayStatusRepository extends DayStatusRepository {
     for (const row of rows) this.put({ ...row });
   }
 
-  override async remove(employeeId: string, dates: readonly string[]): Promise<void> {
+  override async remove(employeeId: string, dates: readonly string[], requestId: string): Promise<void> {
     this.calls.push(['remove', this.trx]);
-    for (const date of dates) this.rows.delete(`${employeeId}:${date}`);
+    for (const date of dates) {
+      const key = `${employeeId}:${date}`;
+      if (this.rows.get(key)?.requestId === requestId) this.rows.delete(key);
+    }
   }
 }
 

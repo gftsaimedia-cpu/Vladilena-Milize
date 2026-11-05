@@ -183,7 +183,7 @@ export interface CreateIsatInput {
 }
 
 /**
- * Các repository một thao tác dùng. Trong khoá, cả ba chạy trên giao dịch của khoá: thao tác thành một khối
+ * Các repository một thao tác dùng. Trong khoá, cả bốn chạy trên giao dịch của khoá: thao tác thành một khối
  * (lỗi ở đâu thì mọi thứ đã ghi đều huỷ) và chỉ giữ một kết nối của pool.
  */
 interface RequestStores {
@@ -419,28 +419,15 @@ export class RequestsService {
     this.requireTypeConfig(staff);
 
     return this.underEmployeeLock(staff.employeeId, async stores => {
-      const { days, active } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
+      const { days } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
       const changed = days.workingDaysBetween(startDate, endDate);
       if (changed.length === 0) {
         throw new Error('Khoảng đổi ca không có ngày làm việc');
       }
-      // Ngày nghỉ và Thứ Bảy có iSAT đã duyệt bị bỏ khỏi đơn (kèm cảnh báo); từ đây chỉ xét các ngày đơn thật sự đổi.
+      // Ngày nghỉ và Thứ Bảy có iSAT đã duyệt bị bỏ khỏi đơn (kèm cảnh báo); ngày đang là dòng đổi ca của đơn khác bị
+      // chặn ("đã có đơn đổi ca khác"). Từ đây chỉ xét các ngày đơn thật sự đổi.
       const plan = planClaims({ kind: 'SHIFT_CHANGE', dates: changed, days });
       const taken = plan.take.map(t => t.date);
-      // Hai đơn đổi ca trùng nhau khi có chung một ngày được đổi (ngày làm việc trong khoảng của cả hai).
-      for (const date of taken) {
-        const clash = active.some(
-          r =>
-            r.type === 'SHIFT_CHANGE' &&
-            isActive(r) &&
-            r.changeStartDate !== null &&
-            r.changeStartDate <= date &&
-            date <= (r.changeEndDate ?? r.changeStartDate)
-        );
-        if (clash) {
-          throw new Error(`Ngày ${formatDayMonth(date)} đã có đơn đổi ca khác`);
-        }
-      }
 
       // Ca mới phải hợp với mọi khung OT/bù đã có của ngày được đổi và của hôm sau (ca đêm kéo sang sáng hôm sau).
       const next = days.withShiftOverride(taken, frame);
@@ -800,6 +787,7 @@ export class RequestsService {
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
+        // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã từ chối.
         await this.releaseDays(req, stores);
       } else {
         throw new Error(`Invalid review action '${action}'; must be 'APPROVE' or 'REJECT'`);
@@ -827,6 +815,7 @@ export class RequestsService {
       await this.lockEmployee(trx, req.employeeId);
 
       req.cancel(cancellerId, reason);
+      // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
       return req.toJSON();
@@ -881,7 +870,7 @@ export class RequestsService {
     const freed = held.filter(day => !handedBack.includes(day));
 
     for (const [employeeId, dates] of groupDates(freed)) {
-      await daysRepo.remove(employeeId, dates);
+      await daysRepo.remove(employeeId, dates, req.id);
     }
     // Hai nhóm không chung ngày: dòng của đơn này và dòng của đơn khác không cùng (nhân sự, ngày) (khoá chính).
     await daysRepo.upsert([
