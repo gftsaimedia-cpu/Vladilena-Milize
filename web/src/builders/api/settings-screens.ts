@@ -169,6 +169,13 @@ const DRAWER_DEFS: Record<string, DrawerDef> = {
     section: 'Chuyên cần',
     fields: [{ field: 'diligenceLostFromDays', label: 'Mất chuyên cần khi nghỉ từ', unit: 'ngày', integer: true }]
   },
+  'luong-kpi': {
+    title: 'Lương KPI',
+    sub: 'Trọng số của 5 điểm KPI, cộng lại đủ 100',
+    group: 'kpiWeights',
+    section: 'Trọng số',
+    fields: Object.entries(KPI_NAMES).map(([field, label]) => ({ field, label, unit: '%', integer: true }))
+  },
   'khau-tru': {
     title: 'Khấu trừ đi muộn, về sớm',
     sub: 'Ngưỡng đi trễ vẫn tính là đúng giờ',
@@ -216,6 +223,16 @@ function readonlySections(key: string, catalog: TypeRow[], month: string): Reado
       ]
     }));
   }
+  if (key === 'luong-kpi') {
+    const rows = types
+      .filter(({ type }) => type.code === 'ctv' || type.code === 'nv')
+      .flatMap(({ type, levels }) =>
+        levels
+          .filter(l => l.kpi_max != null)
+          .map(l => ({ label: `${type.name} · ${l.name}`, value: money(l.kpi_max as number) }))
+      );
+    return [{ title: 'KPI tối đa theo bậc', rows }];
+  }
   return [];
 }
 
@@ -239,7 +256,7 @@ export function payDrawerView(
   return {
     ...def,
     readonly: readonlySections(key, catalog, month),
-    link: key === 'luong-ngay-cong' || key === 'phu-cap',
+    link: key === 'luong-ngay-cong' || key === 'phu-cap' || key === 'luong-kpi',
     text: key === 'tam-ung' ? TAM_UNG_TEXT : null
   };
 }

@@ -124,3 +124,31 @@ test('Lương theo ngày công and Tạm ứng are read-only', async ({ page }) 
   await expect(b.getByRole('button', { name: 'Lưu', exact: true })).toHaveCount(0);
   await expect(b).toContainText('80% lương của ngày công 01–15');
 });
+
+test('KPI weights must total 100 before Lưu unlocks', async ({ page }) => {
+  await page.goto('/admin/cai-dat?hop=luong-kpi');
+  const d = drawer(page, 'Lương KPI');
+  await d.getByRole('textbox', { name: 'Người dùng' }).fill('22');
+  await expect(d).toContainText('Tổng 98/100');
+  await expect(d.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await d.getByRole('textbox', { name: 'Tự đánh giá' }).fill('8');
+  await expect(d).toContainText('Tổng 100/100');
+  await d.getByRole('button', { name: 'Lưu', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Lưu thay đổi' });
+  await expect(dlg).toContainText('Trọng số Người dùng 24% → 22%, áp dụng từ tháng 10/2026');
+  await expect(dlg).toContainText('Trọng số Tự đánh giá 6% → 8%, áp dụng từ tháng 10/2026');
+  await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(row(page, 'Lương KPI')).toContainText('Trọng số 40 · 22 · 18 · 12 · 8');
+  await expect(row(page, 'Lương KPI')).toContainText('• Đã chỉnh');
+});
+
+test('KPI drawer shows the total at all times and the max KPI per level as text', async ({ page }) => {
+  await page.goto('/admin/cai-dat?hop=luong-kpi');
+  const d = drawer(page, 'Lương KPI');
+  await expect(d).toContainText('Trọng số của 5 điểm KPI, cộng lại đủ 100');
+  await expect(d).toContainText('Tổng 100/100');
+  await expect(d).toContainText('KPI tối đa theo bậc');
+  await expect(d).toContainText('Chuyên trách viên · Fresher');
+  await expect(d).toContainText('1.500.000 đ');
+  await expect(d.getByRole('link', { name: 'Sửa ở Chức vụ & bậc' })).toBeVisible();
+});

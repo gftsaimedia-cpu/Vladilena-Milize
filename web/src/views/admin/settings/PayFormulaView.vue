@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Cài đặt › Cách tính lương: công thức thực nhận đọc từ trên xuống như một phiếu lương, chữ dựng từ kho cài đặt.
-// Bấm "Sửa" hoặc "Xem" mở ngăn kéo của từng khoản (?hop=luong-ngay-cong | lam-them | phu-cap | khau-tru | tam-ung).
+// Bấm "Sửa" hoặc "Xem" mở ngăn kéo của từng khoản (?hop=luong-ngay-cong | lam-them | phu-cap | luong-kpi | khau-tru | tam-ung).
 import Icon from '@/components/ui/Icon.vue';
 import { payFormulaView } from '@/builders/api/settings-screens';
 import { useLoad } from '@/composables/useLoad';
@@ -23,7 +23,7 @@ const { data, reload } = useLoad(async () => {
     kpiWeights: kpiWeights.items
   });
 });
-const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', 'khau-tru', 'tam-ung']);
+const { hop, open, close } = useHop(['luong-ngay-cong', 'lam-them', 'phu-cap', 'luong-kpi', 'khau-tru', 'tam-ung']);
 </script>
 
 <template>

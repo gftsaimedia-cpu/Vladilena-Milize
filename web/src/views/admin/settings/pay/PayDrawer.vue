@@ -33,9 +33,19 @@ const maxOf = (field: string) => sd?.state.value?.limits[field]?.max ?? null;
 const saved = (field: string) => sd?.state.value?.values[field] as number;
 const edited = (field: string) => !!sd?.state.value && sd.draft.value[field] !== saved(field);
 
+// Trọng số KPI: chân luôn có tổng đang nhập; lỗi "Tổng N/100" đã nằm ở đó nên không lặp lại trong chữ trạng thái.
+const isKpi = head.group === 'kpiWeights';
+const kpiTotal = computed(() =>
+  sd ? head.fields.reduce((n, f) => n + (Number(sd.draft.value[f.field]) || 0), 0) : 0
+);
+const statusErrors = computed(() =>
+  Object.entries(sd?.errors.value ?? {})
+    .filter(([k]) => k !== '_sum')
+    .map(([, v]) => v)
+);
 const foot = computed(() => {
   if (!sd) return '';
-  const first = Object.values(sd.errors.value)[0];
+  const first = statusErrors.value[0];
   if (first) return first;
   const n = sd.changed.value.length;
   return n ? `Có ${n} thay đổi chưa lưu` : 'Chưa có thay đổi';
@@ -114,8 +124,9 @@ function cancel() {
 
     <template #footer>
       <template v-if="sd">
-        <span class="status" :class="{ bad: Object.keys(sd.errors.value).length }">{{ foot }}</span>
+        <span class="status" :class="{ bad: statusErrors.length }">{{ foot }}</span>
         <span class="sp"></span>
+        <span v-if="isKpi" class="status total" :class="{ bad: kpiTotal !== 100 }">Tổng {{ kpiTotal }}/100</span>
         <button type="button" class="btn" @click="cancel">Huỷ</button>
         <button
           type="button"
@@ -217,6 +228,10 @@ function cancel() {
 .status {
   color: var(--muted);
   font-size: 13px;
+}
+.status.total {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .status.bad {
   color: var(--status-rejected);

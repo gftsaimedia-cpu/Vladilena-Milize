@@ -17,3 +17,10 @@ test('KPI rules show the five weights read-only with a link to edit', async ({ p
     '/admin/cai-dat?hop=luong-kpi'
   );
 });
+
+test('the edit link on the KPI page opens the Lương KPI drawer', async ({ page }) => {
+  await page.goto('/admin/cai-dat/kpi');
+  await page.getByRole('link', { name: 'Sửa trong Cách tính lương › Lương KPI' }).click();
+  await expect(page).toHaveURL(/\/admin\/cai-dat\?hop=luong-kpi/);
+  await expect(page.getByRole('dialog', { name: 'Lương KPI' })).toBeVisible();
+});
