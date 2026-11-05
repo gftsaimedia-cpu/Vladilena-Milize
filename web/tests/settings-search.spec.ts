@@ -144,3 +144,31 @@ test('saving BHXH 8% → 8,5% from 11/2026 confirms the change line', async ({ p
   await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
   await expect(page.getByText('Đã lưu')).toBeVisible();
 });
+
+test('tax brackets refuse a bound below the previous one', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const b2 = page.getByRole('textbox', { name: 'Bậc 2 · đến' });
+  await b2.fill('5.000.000');
+  await expect(page.getByText('Phải lớn hơn 10.000.000 đ')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await b2.fill('35.000.000');
+  await expect(page.locator('tr', { has: page.getByText('3', { exact: true }) })).toContainText('35.000.000 đ');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' })).toContainText('Biểu thuế bậc 2, đến 30.000.000 đ → 35.000.000 đ, áp dụng từ tháng 10/2026');
+});
+
+test('the bracket table shows five rows, the last one without a limit', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const table = item(page, 'brackets');
+  await expect(table.getByRole('columnheader')).toHaveText(['Bậc', 'Thu nhập trên', 'Đến', 'Thuế suất']);
+  await expect(table.locator('tbody tr')).toHaveCount(5);
+  await expect(table.locator('tbody tr').nth(0)).toContainText('0 đ');
+  await expect(table.getByRole('textbox', { name: 'Bậc 1 · đến' })).toHaveValue('10.000.000');
+  await expect(table.getByRole('textbox', { name: 'Bậc 5 · thuế suất' })).toHaveValue('35');
+  await expect(table.getByRole('textbox', { name: 'Bậc 5 · đến' })).toHaveCount(0);
+  await expect(table.locator('tbody tr').nth(4)).toContainText('100.000.000 đ');
+  await expect(table.locator('tbody tr').nth(4)).toContainText('Không giới hạn');
+  await expect(table).toContainText('Mức “thu nhập trên” của mỗi bậc lấy theo mức “đến” của bậc trước.');
+  await table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' }).fill('150');
+  await expect(table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' })).toHaveValue('20');
+});

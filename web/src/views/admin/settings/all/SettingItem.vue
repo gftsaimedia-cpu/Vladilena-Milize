@@ -3,9 +3,10 @@
 // Ô đã đổi hiện "Đang áp dụng <số đã lưu>", ô sai hiện gợi ý ngay dưới ô. Mục chỉ xem (readonly) là một dòng chữ.
 // draft là bản nháp của cả nhóm (v-model ghi thẳng vào draft[ô]); state là nhóm đã lưu ở tháng đang chọn.
 import { computed } from 'vue';
-import { fieldText, type GroupState, type Values } from '@/builders/api/settings';
+import { fieldText, type Bracket, type GroupState, type Values } from '@/builders/api/settings';
 import type { SettingEntry } from '@/builders/api/settings-screens';
 import FieldNum from '../fields/FieldNum.vue';
+import BracketTable from './BracketTable.vue';
 
 const props = defineProps({
   entry: { type: Object as () => SettingEntry, required: true },
@@ -21,12 +22,18 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
 </script>
 
 <template>
-  <div class="it2" :data-setting-key="entry.key" tabindex="-1">
+  <div class="it2" :class="{ wide: entry.brackets }" :data-setting-key="entry.key" tabindex="-1">
     <div class="l">
       <div class="nm">{{ entry.title }}</div>
       <div v-if="entry.desc" class="ds">{{ entry.desc }}</div>
     </div>
     <div class="c">
+      <BracketTable
+        v-if="entry.brackets && Array.isArray(draft.brackets)"
+        :brackets="draft.brackets as Bracket[]"
+        :errors="errors"
+        :limits="state?.limits.brackets ?? null"
+      />
       <p v-if="entry.readonly" class="txt">{{ entry.readonly }}</p>
       <div v-for="f in entry.fields" :key="f.field" class="fr">
         <span v-if="many" class="fl">{{ f.label }}</span>
@@ -65,6 +72,13 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
   color: var(--muted);
   margin-top: 6px;
   line-height: 19px;
+}
+.it2.wide {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.it2.wide .c {
+  align-items: stretch;
 }
 .c {
   display: flex;
