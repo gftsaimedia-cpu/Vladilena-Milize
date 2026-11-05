@@ -25,6 +25,8 @@ export type Payslip = SlipInput & {
   payday: string;
   note: string;
   status: PayrollStatus;
+  // Lý do Admin ghi khi từ chối phiếu (không bắt buộc); null khi không có hay phiếu đã duyệt.
+  decisionNote?: string | null;
   days: { work: number; leave: number; isat: number; pending: number; unpaid: number; standard: number };
   calendar: DayKind[];
   pendingDates: string[];
@@ -226,6 +228,7 @@ const state = new Map(
     r.id,
     {
       status: r.status,
+      note: null as string | null,
       scores: Object.fromEntries(PARTS.map((p, i) => [p, r.scores[i]])) as KpiScores,
       history: (r.history ?? []).map(h => ({ ...h }))
     }
@@ -260,6 +263,7 @@ function buildSlip(r: Raw): Payslip {
     payday: '05/11/2026',
     note: NOTE,
     status: s.status,
+    decisionNote: s.note,
     base: r.base,
     dependants: r.dependants,
     days: {
@@ -358,9 +362,11 @@ export function setKpiScore(month: string, id: string, part: KpiPart, value: num
   return payslipView(month, id);
 }
 
-export function decidePayslip(month: string, id: string, decision: 'approve' | 'reject'): Payslip | null {
+// Từ chối giữ lý do đã cắt khoảng trắng (trống thành null); duyệt bỏ lý do cũ.
+export function decidePayslip(month: string, id: string, decision: 'approve' | 'reject', note?: string): Payslip | null {
   const s = month === MOCK_MONTH ? state.get(id) : undefined;
   if (!s) return null;
   s.status = decision === 'approve' ? 'done' : 'rejected';
+  s.note = decision === 'reject' ? note?.trim() || null : null;
   return payslipView(month, id);
 }

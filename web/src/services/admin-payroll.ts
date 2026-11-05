@@ -53,10 +53,16 @@ export async function saveKpiScore(month: string, id: string, part: KpiPart, val
 export const calculatePayroll = (month: string) =>
   __MOCK__ ? notConnected() : api.post(`/payroll/${enc(month)}/calculate`, {});
 
-// Duyệt / từ chối phiếu của một người rồi đọc lại phiếu.
-export async function decidePayslip(month: string, id: string, decision: 'approve' | 'reject'): Promise<Payslip | null> {
-  if (__MOCK__) return respond(decideMock(month, id, decision));
-  await api.post(`/payroll/${enc(month)}/${enc(id)}/decision`, { decision });
+// Duyệt / từ chối phiếu của một người rồi đọc lại phiếu. Lý do từ chối (không bắt buộc) chỉ gửi khi có chữ.
+export async function decidePayslip(
+  month: string,
+  id: string,
+  decision: 'approve' | 'reject',
+  note?: string
+): Promise<Payslip | null> {
+  if (__MOCK__) return respond(decideMock(month, id, decision, note));
+  const text = note?.trim();
+  await api.post(`/payroll/${enc(month)}/${enc(id)}/decision`, text ? { decision, note: text } : { decision });
   return getPayslip(month, id);
 }
 

@@ -4,6 +4,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import PeriodStrip from '@/components/shell/PeriodStrip.vue';
+import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
 import type { KpiPart } from '@/mock/payroll-calc';
 import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/payroll';
@@ -45,6 +46,12 @@ async function calculate() {
   }
 }
 
+// In tất cả: trang A4 của các phiếu đã duyệt, mở ở tab mới và tự bật hộp in (?in=1). Chưa có phiếu đã duyệt thì khoá nút.
+const router = useRouter();
+const approved = computed(() => board.value?.counts.done ?? 0);
+const printAll = () =>
+  window.open(router.resolve({ path: `/in/phieu-luong/${encodeURIComponent(period.month)}`, query: { in: '1' } }).href, '_blank');
+
 const filter = ref<'all' | PayrollStatus>('all');
 const query = ref('');
 const dept = ref('');
@@ -68,7 +75,6 @@ const missingKpi = computed(() => shown.value.some(l => l.kpiMissing.length));
 
 // Phiếu đang mở nằm trên đường dẫn (?phieu=<mã nhân viên>). Mã không có phiếu thì bỏ khỏi đường dẫn, không báo lỗi.
 const route = useRoute();
-const router = useRouter();
 const slipId = computed(() => (typeof route.query.phieu === 'string' ? route.query.phieu : ''));
 const withSlip = (id: string) => {
   const rest = Object.fromEntries(Object.entries(route.query).filter(([key]) => key !== 'phieu'));
@@ -138,8 +144,9 @@ const saveScore = async (id: string, part: KpiPart, value: number | null) => {
   await reload();
 };
 // Duyệt / từ chối cũng do màn giữ, vì cùng lý do: ngăn kéo có thể đã đóng hay sang phiếu khác khi lời gọi trả về.
-const decide = async (id: string, decision: 'approve' | 'reject') => {
-  const next = await decidePayslip(period.month, id, decision);
+// note: lý do từ chối (không bắt buộc), chỉ có khi từ chối.
+const decide = async (id: string, decision: 'approve' | 'reject', note?: string) => {
+  const next = await decidePayslip(period.month, id, decision, note);
   if (next && next.id === slipId.value) slip.value = next;
   await reload();
 };
@@ -155,9 +162,21 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
           {{ board.lines[0].standard }} ngày · trả lương <b>{{ board.payday }}</b>
         </p>
       </div>
-      <button v-if="canCalculate" type="button" class="btn pri" :disabled="calculating" @click="calculate">
-        {{ calculating ? 'Đang tính…' : board ? 'Tính lại lương' : 'Tính lương' }}
-      </button>
+      <div class="acts">
+        <button
+          v-if="board"
+          type="button"
+          class="btn pl-print"
+          :disabled="approved === 0"
+          :title="approved ? `In ${approved} phiếu đã duyệt` : 'Chưa có phiếu đã duyệt'"
+          @click="printAll"
+        >
+          <Icon name="print" />In tất cả
+        </button>
+        <button v-if="canCalculate" type="button" class="btn pri" :disabled="calculating" @click="calculate">
+          {{ calculating ? 'Đang tính…' : board ? 'Tính lại lương' : 'Tính lương' }}
+        </button>
+      </div>
     </div>
 
     <PeriodStrip card />
@@ -210,6 +229,20 @@ const decide = async (id: string, decision: 'approve' | 'reject') => {
 }
 .title p {
   margin-top: 8px;
+}
+.title .acts {
+  gap: 8px;
+}
+.pl-print:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+/* Chưa có phiếu đã duyệt: nền trang, viền nhạt, chữ xám (theo board Bảng lương). */
+.pl-print:disabled {
+  background: var(--ground);
+  border-color: var(--border);
+  color: #757575;
+  cursor: not-allowed;
 }
 .soon {
   padding: 24px;
