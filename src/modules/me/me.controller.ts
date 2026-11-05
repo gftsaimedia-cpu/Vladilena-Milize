@@ -13,7 +13,8 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
 import { KpiValidationError } from '../payroll/payroll.errors';
-import { RequestsService } from '../requests/requests.service';
+import { RequestsService, type CreatedRequestDTO } from '../requests/requests.service';
+import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import { daySummaryOf, monthOf, stepsOf, vnToday, weekOf } from './domain';
 
@@ -45,7 +46,7 @@ function asBadRequest(err: any, code: string): never {
   throw new BadRequestError(err?.message || 'Dữ liệu không hợp lệ', { code });
 }
 
-const CREATE: Record<string, (s: RequestsService, input: any) => Promise<unknown>> = {
+const CREATE: Record<string, (s: RequestsService, input: any) => Promise<CreatedRequestDTO>> = {
   leave: (s, i) => s.createLeaveRequest(i),
   'leave-with-makeup': (s, i) => s.createLeaveWithMakeupRequest(i),
   overtime: (s, i) => s.createOvertimeRequest(i),
@@ -175,9 +176,11 @@ export class MeController {
     const create = CREATE[kind];
     if (!create) throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
     try {
-      const request = await create(this.requests, { ...(body || {}), employeeId: me.username });
-      return { created: true, request };
+      const created = await create(this.requests, { ...(body || {}), employeeId: me.username });
+      return createdBody(created);
     } catch (err) {
+      const conflict = dayConflictHttp(err, 400);
+      if (conflict) throw conflict;
       asBadRequest(err, 'BAD_REQUEST');
     }
   }

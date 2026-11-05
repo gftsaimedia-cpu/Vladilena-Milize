@@ -254,6 +254,58 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 ### 3.4. Requests Module (Đơn từ & Giải trình)
 
+#### Quy ước chung: `warnings`, lỗi `DAY_CONFLICT`, trạng thái ngày
+Áp dụng cho cả 7 route tạo đơn của Admin (`POST /api/v2/requests/<loại>`) và `POST /api/v2/me/requests/<loại>` (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`.
+
+- **Thân trả về khi tạo đơn** luôn có `warnings`, đứng cạnh `request` (không nằm trong `request`). Ví dụ trong các mục dưới chỉ ghi `created` và `request` cho gọn.
+  ```json
+  {
+    "created": true,
+    "request": { "id": "req-uuid", "type": "LEAVE", "status": "PENDING", "leaveDaysCount": 3 },
+    "warnings": ["Thứ Bảy 14/11 đã có iSAT được duyệt, không tính vào đơn."]
+  }
+  ```
+  - `warnings`: mảng chuỗi, rỗng khi không có gì để báo (đơn OT, tạm ứng, giải trình, iSAT luôn trả `[]`). Đơn vẫn được nhận; ngày bị bỏ không tính vào số ngày, Phép năm và giờ bù của đơn.
+  - Hai loại cảnh báo: `Thứ Bảy dd/MM đã có iSAT được duyệt, không tính vào đơn.` (đơn nghỉ, nghỉ có làm bù, đổi ca) và `Ngày dd/MM đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.` (đơn đổi ca).
+- **Lỗi xung đột ngày** `DAY_CONFLICT`: một ngày của đơn đang bị đơn khác (đang chờ hoặc đã duyệt) chiếm theo ma trận dưới đây.
+  - Lúc **nộp** đơn: `400`. Lúc **duyệt** (kiểm lại thất bại): `409`, câu báo thêm ` Chỉ có thể từ chối đơn này.`, đơn giữ `PENDING` và không ghi gì; vẫn `REJECT` được.
+  - `message` là câu báo của ô bị chặn; `details` cho client biết đơn nào đang chiếm:
+    ```json
+    {
+      "message": "Thứ Bảy 14/11 đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.",
+      "details": {
+        "code": "DAY_CONFLICT",
+        "date": "2026-11-14",
+        "requestId": "isat-req-uuid",
+        "requestType": "ISAT",
+        "requestStatus": "PENDING"
+      }
+    }
+    ```
+  - `requestId`, `requestType`, `requestStatus` là đơn đang chiếm ngày `date`; ba trường này là `null` khi ngày bị chặn không do đơn (iSAT trên ngày lễ).
+  - Huỷ đơn (`PATCH .../cancel`) không bao giờ trả `DAY_CONFLICT`; giữ nguyên mã lỗi cũ.
+  - Các lỗi khác của từng loại đơn giữ `400 BAD_REQUEST` và câu báo như các mục dưới.
+- **Ma trận chỉ các ô mới** (ngày đang ở trạng thái X, nộp thêm đơn loại Y). Ô không ghi ở đây giữ nguyên luật cũ của từng loại đơn.
+
+  | Ngày đang có | Đơn mới | Kết quả |
+  |---|---|---|
+  | Khung OT/bù đã duyệt | iSAT | `400` C8: `Thứ Bảy dd/MM đã có khung OT hoặc làm bù được duyệt, không chọn được cho iSAT.` |
+  | Khung OT/bù đang chờ | iSAT | `400` C9: `Thứ Bảy dd/MM đang có đơn OT chờ duyệt. Huỷ đơn đó hoặc chọn Thứ Bảy khác.` (khung của đơn nghỉ có làm bù: `đơn nghỉ có làm bù`) |
+  | Đổi ca (chờ hoặc đã duyệt) | Nghỉ, nghỉ có làm bù, iSAT | Được, đơn mới thay ca của ngày đó |
+  | Ngày lễ | iSAT | `400` C5: `Thứ Bảy dd/MM là ngày lễ, không chọn được cho iSAT.` |
+  | Nghỉ hoặc nghỉ có làm bù (chờ hoặc đã duyệt) | Đổi ca | Bỏ ngày đó, kèm cảnh báo C4 |
+  | Nghỉ hoặc nghỉ có làm bù đã duyệt | iSAT | `400` C6: `Thứ Bảy dd/MM đã nghỉ theo đơn đã duyệt, không chọn được cho iSAT.` |
+  | Nghỉ hoặc nghỉ có làm bù đang chờ | iSAT | `400` C7: `Thứ Bảy dd/MM đang có đơn nghỉ chờ duyệt. Huỷ đơn nghỉ hoặc chọn Thứ Bảy khác.` |
+  | iSAT đã duyệt | Nghỉ, nghỉ có làm bù, đổi ca | Bỏ ngày đó, kèm cảnh báo C2; nếu mọi ngày đều bị bỏ vì iSAT thì `400` C1 |
+  | iSAT đã duyệt | Khung bù, OT, giải trình | `400` C1: `Thứ Bảy dd/MM đã có iSAT được duyệt, không chọn được ngày này.` |
+  | iSAT đang chờ | Nghỉ, nghỉ có làm bù, khung bù, OT, đổi ca, giải trình | `400` C3: `Thứ Bảy dd/MM đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.` |
+
+  Đơn theo khoảng ngày xét từng ngày làm việc: gặp ô chặn thì từ chối cả đơn (báo theo ngày đầu tiên bị chặn); ô "bỏ ngày" chỉ loại ngày đó. Một ngày vừa đổi ca vừa có khung OT thì ô chặn thắng, đơn nghỉ trên ngày đó vẫn bị chặn như cũ.
+- **Tác động lên trạng thái ngày** (bảng `day_status`, mỗi người mỗi ngày một dòng cho đơn nghỉ, nghỉ có làm bù, đổi ca, iSAT đang chờ hoặc đã duyệt):
+  - Nộp đơn: giữ chỗ các ngày được tính ngay khi đơn còn `PENDING`. Ngày đang là ngày đổi ca bị đơn nghỉ hoặc iSAT thay thì dòng đó chuyển cho đơn mới và nhớ đơn đổi ca cũ.
+  - `APPROVE`: kiểm lại ma trận trên trạng thái hiện tại; qua thì ghi lịch làm việc đúng trên các ngày đơn đang giữ (không tính lại khoảng ngày), bảng `day_status` không đổi. Đơn đổi ca không ghi đè lịch của ngày đã bị đơn nghỉ đã duyệt thay.
+  - `REJECT` và huỷ (`PATCH .../cancel`): trả ngày. Ngày từng là ngày đổi ca của một đơn còn hiệu lực thì trả về đơn đổi ca đó (đã duyệt thì ghi lại lịch đổi ca); còn lại ngày về trạng thái thường (ca mặc định). Thứ Bảy iSAT được trả ngay nên đơn nghỉ hoặc OT nộp sau đó nhận được.
+
 #### `POST /api/v2/requests/explanation` (Đơn giải trình)
 - **Mục đích**: Giải trình một ngày công có giờ chấm bất thường (vào muộn, ra sớm, thiếu giờ vào/ra…). Một ngày chỉ một đơn.
 - **Request Body**:
@@ -658,8 +710,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```
   - `action`: `APPROVE` hoặc `REJECT`; `note` không bắt buộc. Người duyệt lấy từ phiên đăng nhập.
 - **Response 200**: `{ "updated": true, "request": <đơn> }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
-- Chỉ đơn `PENDING` duyệt được. Lúc duyệt **không kiểm lại luật**: luật đã kiểm lúc nộp, khi đó đã tính cả các đơn đang chờ. Hai lần duyệt cùng một đơn được xếp hàng (khoá `request_<id>`).
-- Tác dụng của `APPROVE` theo loại (lịch được tạo theo ca mặc định trước nếu ngày đó chưa có; "ngày làm việc" tính lại lúc duyệt theo lịch lễ lúc đó, CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi):
+- Chỉ đơn `PENDING` duyệt được. Lúc duyệt chỉ kiểm lại **xung đột ngày** (ma trận ở "Quy ước chung"; thất bại thì `409 DAY_CONFLICT`), không kiểm lại các luật khác: chúng đã kiểm lúc nộp, khi đó đã tính cả các đơn đang chờ. Hai lần duyệt cùng một đơn được xếp hàng (khoá `request_<id>`), rồi khoá `requests_<uuid>` của nhân sự.
+- Tác dụng của `APPROVE` theo loại (lịch được tạo theo ca mặc định trước nếu ngày đó chưa có; ngày được ghi là các ngày đơn đã giữ lúc nộp, không tính lại khoảng ngày lúc duyệt):
 
   | Loại | Duyệt ghi gì |
   |---|---|
@@ -669,7 +721,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | Đổi ca | Mỗi ngày làm việc trong `changeStartDate`–`changeEndDate`: lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn. |
   | Giải trình | Trạng thái ngày công `explanationDate` thành `VALID`. |
   | iSAT | Xem "Duyệt đơn iSAT" bên dưới. |
-- `REJECT` và huỷ (`PATCH /api/v2/requests/:id/cancel`) không đổi lịch.
+- `REJECT` và huỷ (`PATCH /api/v2/requests/:id/cancel`) không đổi lịch làm việc, trừ trường hợp trả ngày cho một đơn đổi ca đã duyệt (ghi lại lịch đổi ca của ngày đó); trạng thái ngày được trả như ở "Quy ước chung".
 - **Hai tác dụng phụ** còn tồn tại cho tới khi phần chấm công và phần lương được viết lại:
   - Chấm công không còn thấy giờ OT đã duyệt (`approved_ot_hours` luôn là 0), nên ra muộn sau ca vẫn bị gắn cờ.
   - Phần lương không còn ngày `MAKE_UP` trong lịch, nên ngày có khung bù vẫn được phụ cấp ca.

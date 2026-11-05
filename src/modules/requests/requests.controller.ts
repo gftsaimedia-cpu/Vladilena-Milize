@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { RequestsService } from './requests.service';
+import { createdBody, dayConflictHttp } from './request-http';
 import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES, EXPLANATION_CASES } from './domain';
 
 // Các route này là của Admin làm thay nhân viên: người được thao tác phải ghi rõ, không suy ra từ phiên.
@@ -20,10 +21,10 @@ export class RequestsController {
   async createLeave(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createLeaveRequest({ ...body, employeeId });
-      return { created: true, request };
+      const created = await this.service.createLeaveRequest({ ...body, employeeId });
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -33,7 +34,7 @@ export class RequestsController {
     try {
       const employeeId = requireEmployeeId(body);
       // Số ngày nghỉ và giờ bù do server tính: `daysCount`/`leaveType` client gửi không được chuyển xuống.
-      const request = await this.service.createLeaveWithMakeupRequest({
+      const created = await this.service.createLeaveWithMakeupRequest({
         employeeId,
         title: body.title,
         reason: body.reason,
@@ -41,9 +42,9 @@ export class RequestsController {
         endDate: body.endDate,
         slots: body.slots
       });
-      return { created: true, request };
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -53,7 +54,7 @@ export class RequestsController {
     try {
       const employeeId = requireEmployeeId(body);
       // Giờ ra của ca lấy từ khung (§4); `endTime` client gửi không được chuyển xuống.
-      const request = await this.service.createShiftChangeRequest({
+      const created = await this.service.createShiftChangeRequest({
         employeeId,
         title: body.title,
         reason: body.reason,
@@ -62,9 +63,9 @@ export class RequestsController {
         shiftType: body.shiftType,
         startTime: body.startTime
       });
-      return { created: true, request };
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -74,7 +75,7 @@ export class RequestsController {
     try {
       const employeeId = requireEmployeeId(body);
       // Giờ OT do server tính từ khung: `hours`/`otHours`/`otRateMultiplier` client gửi không được chuyển xuống.
-      const request = await this.service.createOvertimeRequest({
+      const created = await this.service.createOvertimeRequest({
         employeeId,
         title: body.title,
         reason: body.reason,
@@ -83,9 +84,9 @@ export class RequestsController {
         startTime: body.startTime,
         endTime: body.endTime
       });
-      return { created: true, request };
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -94,10 +95,10 @@ export class RequestsController {
   async createAdvance(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createAdvanceRequest({ ...body, employeeId });
-      return { created: true, request };
+      const created = await this.service.createAdvanceRequest({ ...body, employeeId });
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -107,7 +108,7 @@ export class RequestsController {
     try {
       const employeeId = requireEmployeeId(body);
       // `targetPunchType`/`actualPunchTime` của bản cũ không còn; chỉ chuyển các trường của §6.5.
-      const request = await this.service.createExplanationRequest({
+      const created = await this.service.createExplanationRequest({
         employeeId,
         title: body.title,
         reason: body.reason,
@@ -116,9 +117,9 @@ export class RequestsController {
         actualCheckIn: body.actualCheckIn,
         actualCheckOut: body.actualCheckOut
       });
-      return { created: true, request };
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -127,15 +128,15 @@ export class RequestsController {
   async createIsat(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createIsatRequest({
+      const created = await this.service.createIsatRequest({
         employeeId,
         saturday: body.saturday,
         team: body.team,
         conditions: body.conditions
       });
-      return { created: true, request };
+      return createdBody(created);
     } catch (err: any) {
-      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+      throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
     }
   }
 
@@ -200,6 +201,8 @@ export class RequestsController {
       const request = await this.service.reviewRequest(id, reviewerId, body.action, body.note);
       return { updated: true, request };
     } catch (err: any) {
+      const conflict = dayConflictHttp(err, 409);
+      if (conflict) throw conflict;
       if (err.message?.includes('not found')) {
         throw new NotFoundError(err.message, { code: 'REQUEST_NOT_FOUND' });
       }
