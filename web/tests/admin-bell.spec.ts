@@ -327,9 +327,8 @@ test('approving in the bell updates the bell, the overview and selects the next 
   await page.keyboard.press('Escape');
   await expect(drawerOf(page)).toHaveCount(0);
   await expect(kpiOf(page)).toHaveText('9');
-  await expect(page.getByRole('list', { name: 'Việc cần duyệt' }).getByRole('listitem').first()).toContainText(
-    'Phạm Ngọc Anh'
-  );
+  const queue = page.getByRole('region', { name: 'Việc cần duyệt, cuộn để xem thêm' });
+  await expect(queue.getByRole('list', { name: 'Đơn nghỉ' }).getByRole('listitem').first()).toContainText('Phạm Ngọc Anh');
 });
 
 test('forgotten punches offer a reminder and a stand-in entry, without a note', async ({ page }) => {

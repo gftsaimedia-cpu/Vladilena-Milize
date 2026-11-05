@@ -14,7 +14,9 @@ const props = defineProps({
   sub: { type: String, default: '' },
   width: { type: [Number, String], default: 560 },
   top: { type: Number, default: 96 },
-  dismissable: { type: Boolean, default: true }
+  dismissable: { type: Boolean, default: true },
+  /** Lớp thêm cho khung .dlg (chỉnh riêng một hộp: bo góc, đệm…). */
+  panelClass: { type: String, default: '' }
 });
 const emit = defineEmits(['close']);
 const close = () => emit('close');
@@ -37,6 +39,7 @@ onBeforeUnmount(() => {
       <div
         ref="dialog"
         class="dlg"
+        :class="panelClass || undefined"
         role="dialog"
         aria-modal="true"
         tabindex="-1"

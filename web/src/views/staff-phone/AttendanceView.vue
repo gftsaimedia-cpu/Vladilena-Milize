@@ -2,14 +2,18 @@
 // J2 · Chấm công (spec 5): đầu trang, chọn tháng, ba ô số, lịch tháng 10 tô theo nhóm, "Gần đây" 5 dòng.
 // Bấm ngày có dữ liệu hoặc một dòng Gần đây mở J3 (DaySheet) bằng ?ngay=YYYY-MM-DD (router.replace); đóng thì bỏ tham số.
 // Ngày lạ (Chủ nhật, chưa tới, ngoài tháng 10, chuỗi sai) thì bỏ ?ngay= khỏi URL và không mở gì (spec 3.8).
-// Chọn tháng: lùi tới tháng vào làm, tới tháng hiện tại (BE trả khoảng); tải lỗi thì hiện LoadError với nút Thử lại.
-import { nextTick, ref, watch } from 'vue';
+// Chọn tháng: lùi tới tháng vào làm, tới tháng hiện tại (BE trả khoảng); tải lỗi thì hiện LoadError với nút Thử lại, lỗi lúc
+// đổi tháng thì thêm nút "Quay về tháng …" (tháng tải được gần nhất). Tải xong thì focus về h1, vẫn lỗi thì về nút
+// Thử lại mới. Chưa có dữ liệu thì hiện "Đang tải…"; đổi tháng thì giữ nội dung tháng cũ tới khi tháng mới về.
+import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import { backTo, useRetry } from '@/composables/useRetry';
 import type { DayDetail } from '@/mock/staff-phone';
 import { getAttendance, getDay } from '@/services/staff-phone';
 import DaySheet from './components/DaySheet.vue';
 import LoadError from './components/LoadError.vue';
+import LoadingLine from './components/LoadingLine.vue';
 import MonthCalendar from './components/MonthCalendar.vue';
 import MonthSwitch from './components/MonthSwitch.vue';
 import MonthTiles from './components/MonthTiles.vue';
@@ -19,7 +23,12 @@ const route = useRoute();
 const router = useRouter();
 
 const month = ref<string | null>(null); // null = tháng hiện tại
-const { data, error, reload } = useLoad(() => getAttendance(5, month.value), () => month.value);
+const load = useLoad(() => getAttendance(5, month.value), () => month.value);
+const { data, error, loading } = load;
+const head = ref<HTMLElement | null>(null);
+const { errBox, retry, after } = useRetry(load, head);
+const back = computed(() => backTo(data.value, month.value));
+const goBack = () => after(() => (month.value = back.value!.month));
 
 const root = ref<HTMLElement | null>(null);
 const day = ref<DayDetail | null>(null);
@@ -65,10 +74,10 @@ async function closeDay() {
 <template>
   <div ref="root" class="ph at">
     <header class="at-head">
-      <h1>Chấm công</h1>
+      <h1 ref="head" tabindex="-1">Chấm công</h1>
       <span v-if="data" class="mut">{{ data.shiftLine }}</span>
     </header>
-    <LoadError v-if="error" :error="error" @retry="reload" />
+    <LoadError v-if="error" ref="errBox" :error="error" :back="back?.text" @retry="retry" @back="goBack" />
     <template v-else-if="data">
       <MonthSwitch :label="data.label" :state="data.state" :prev="data.prev" :next="data.next" @go="m => (month = m)" />
       <MonthTiles :tiles="data.tiles" />
@@ -78,6 +87,7 @@ async function closeDay() {
         <RecentDays :recent="data.recent" @open="openDay" />
       </section>
     </template>
+    <LoadingLine v-else-if="loading" />
     <DaySheet v-if="day" :day="day" @close="closeDay" />
   </div>
 </template>
