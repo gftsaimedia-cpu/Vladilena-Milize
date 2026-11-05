@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject, HttpCode } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiExceptionFilter,
@@ -257,6 +257,7 @@ export class MeController {
   // Xem trước đơn sắp nộp: luôn 200; lỗi nghiệp vụ nằm trong `ok: false`. iSAT không có xem trước.
   @Authenticated()
   @Post('requests/:kind/preview')
+  @HttpCode(200)
   async previewRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
     const me = who(req);
     if (!kind || kind === 'isat' || !Object.prototype.hasOwnProperty.call(CREATE, kind)) {
