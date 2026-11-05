@@ -4,11 +4,6 @@ Người gửi: phiên staff-app (nối app nhân viên với `/api/v2/me/*`).
 Nhánh: `claude/wire-staff-app-f5adca`. Nhánh chỉ có ở máy này: chưa merge, chưa push. Code mô tả dưới đây ứng với commit `5201deb`.
 Đọc từ worktree khác: `git show claude/wire-staff-app-f5adca:docs/fe-requests/2026-11-05-staff-app-leftovers.md`.
 
-**Trạng thái: đã sửa cả 5 mục trong commit `1d1d84c`.** Người dùng đã duyệt đề xuất trong chat ngày 05/11. FE đọc commit đó để biết đã làm gì; các mục dưới đây giữ nguyên để tham khảo.
-- Hàm chuyển focus dùng chung: `web/src/views/staff-phone/focusAfterLoad.ts`. Dòng "Đang tải…": `components/LoadingLine.vue`. Thuộc tính `back` của `LoadError` dùng cho nút "Quay về tháng…".
-- Test: `web/tests/staff-parts.spec.ts` (thanh giờ ca đêm); `web/tests/api/staff-app.spec.ts` (focus sau Thử lại, Quay về tháng, Đang tải…, check-out khi tải lại lỗi).
-- Đã chạy: `npm test` 784/784; `test:ui` 334 pass, 10 skip; `test:api` 16/16.
-
 Năm lỗi dưới đây do bước review code tìm ra, sau khi app nhân viên đã nối với BE. Phía BE không cần đổi gì. Cả năm lỗi đều nằm ở `web/`, dùng chung cho điện thoại và máy tính (≥1136px). Phần "Đề xuất" chưa được người dùng duyệt: FE tự thiết kế rồi trình người dùng duyệt trước khi sửa, theo CLAUDE.md §2 (loại Bounded).
 
 ## Bối cảnh cần biết
