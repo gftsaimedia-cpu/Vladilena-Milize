@@ -437,6 +437,49 @@ describe('MeController', () => {
     assert.equal(((await done.ctl.today(req())) as any).workedMinutes, 450);
   });
 
+  describe('the home alert', () => {
+    // Thứ Tư 09/12/2026: thứ Hai 07/12 và thứ Ba 08/12 đã qua.
+    const alertFor = async (rows: unknown[]) => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') });
+      try {
+        const { ctl } = controller({ att: fake({ listTimesheets: () => rows }) });
+        return ((await ctl.today(req())) as any).alert;
+      } finally {
+        mock.timers.reset();
+      }
+    };
+
+    it('a past todo day with no explanation prompts', async () => {
+      assert.deepEqual(await alertFor([dayRow('2026-12-08')]), { date: '2026-12-08', kind: 'todo' });
+    });
+
+    it('a rejected explanation prompts again', async () => {
+      assert.deepEqual(await alertFor([dayRow('2026-12-08', { explanationStatus: 'REJECTED' })]), { date: '2026-12-08', kind: 'todo' });
+    });
+
+    it('a pending explanation does not prompt, but the day cell stays todo', async () => {
+      mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') });
+      try {
+        const { ctl } = controller({ att: fake({ listTimesheets: () => [dayRow('2026-12-08', { explanationStatus: 'PENDING' })] }) });
+        const t = (await ctl.today(req())) as any;
+        assert.equal(t.alert, null);
+        assert.equal(t.week.find((d: any) => d.date === '2026-12-08').kind, 'todo');
+      } finally {
+        mock.timers.reset();
+      }
+    });
+
+    it('a pending day is skipped for the latest older day that still needs an explanation', async () => {
+      const rows = [dayRow('2026-12-07'), dayRow('2026-12-08', { explanationStatus: 'PENDING' })];
+      assert.deepEqual(await alertFor(rows), { date: '2026-12-07', kind: 'todo' });
+    });
+
+    it('an approved explanation never prompts', async () => {
+      const approved = dayRow('2026-12-08', { explanationStatus: 'APPROVED', payUnits: 1, countsAsWorkday: true });
+      assert.equal(await alertFor([approved]), null);
+    });
+  });
+
   it('income carries the pay date of the month in all three states', async () => {
     const full = { grossIncome: 0, insuranceDeduction: 0, insuranceBreakdown: { bhxh: 0, bhyt: 0, bhtn: 0 }, incomeAfterInsurance: 0, personalIncomeTax: 0, advanceDeduction: 0, netIncome: 0 };
     const official = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }) });

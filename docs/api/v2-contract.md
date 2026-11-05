@@ -360,7 +360,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   - tạm ứng chỉ nộp ngày 16 và 17 (giờ Việt Nam) cho tháng hiện tại (`Chỉ nộp tạm ứng ngày 16 và 17`);
   - `iSAT` giữ nguyên như trước.
 - **Tiêu đề do server đặt** (cả `/me` lẫn Admin): `title` client gửi bị bỏ qua. Mẫu: `Phép năm 13–16/11`, `Nghỉ có làm bù 13–14/11`, `Làm thêm 10/11 18–20h`, `Đổi ca Flex 06–15, 10–12/11`, `Giải trình 27/10`, `Tạm ứng lương tháng 11`; khoảng ngày khác tháng ghi đủ (`Phép năm 30/11–02/12`).
-- **`GET /api/v2/me/today`**: thêm `reminders: [{ date, remindedAt }]`, những ngày Admin đã nhắc và còn cần giải trình, mới nhất trước. Lỗi khi lấy lời nhắc thì trả `[]`, màn không hỏng. `alert` giữ nguyên.
+- **`GET /api/v2/me/today`**: thêm `reminders: [{ date, remindedAt }]`, những ngày Admin đã nhắc và còn cần giải trình, mới nhất trước. Lỗi khi lấy lời nhắc thì trả `[]`, màn không hỏng. `alert` là ngày `todo` đã qua gần nhất mà giải trình chưa ở trạng thái `pending` (chưa giải trình hoặc bị từ chối vẫn nhắc; ô ngày vẫn là `todo`).
 - **`GET /api/v2/me/attendance/:date`**: thêm hai trường:
   - `explanation`: đơn giải trình mới nhất không bị huỷ của ngày đó, dạng `{ id, status, sentAt, cases, actualCheckIn, actualCheckOut }`, hoặc `null`;
   - `due`: `{ cases, needs, remindedAt }` khi ngày cần giải trình, ngược lại `null`. Lỗi khi lấy thông tin giải trình thì cả hai là `null`, ngày công vẫn mở được.

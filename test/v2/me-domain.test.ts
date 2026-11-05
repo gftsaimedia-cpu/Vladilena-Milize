@@ -131,6 +131,26 @@ describe('Một ngày công', () => {
     assert.equal(kindOf(bare(D, 'ABSENT', { countsAsDayOff: true })).kind, 'absent');
   });
 
+  // Các Ruling của Task 10, ghim lại để đổi thì phải sửa test.
+  it('a PENDING row on a past day (the job has not closed it yet) is work', () => {
+    assert.equal(kindOf(bare(D, 'PENDING')).kind, 'work');
+  });
+
+  it('todo beats late: an unapproved pay-affecting case wins over deducted minutes', () => {
+    const row = ts(D, { cases: [LATE_CASE], explanationStatus: 'NONE', deductionMinutes: 30, payUnits: 0, countsAsWorkday: false });
+    assert.equal(kindOf(row).kind, 'todo');
+  });
+
+  it('ABSENT stays absent even with an unapproved pay-affecting case', () => {
+    const row = bare(D, 'ABSENT', { countsAsDayOff: true, cases: [{ code: 'MISSING_CHECK_IN', minutes: 0, affectsPay: true }] });
+    assert.equal(kindOf(row).kind, 'absent');
+  });
+
+  it('a REST row with punches is off and keeps the punches', () => {
+    const d = kindOf(ts('2026-11-01', { status: 'REST', actualCheckIn: '09:00', actualCheckOut: '11:00', payUnits: 0, countsAsWorkday: false }), '2026-11-01');
+    assert.deepEqual([d.kind, d.in, d.out], ['off', '09:00', '11:00']);
+  });
+
   it('carries times, late minutes, explanationStatus and cases', () => {
     const row = ts(D, { actualCheckIn: '08:12', cases: [LATE_CASE], explanationStatus: 'APPROVED', deductionMinutes: 30, metrics: { lateMinutes: 12 } });
     assert.deepEqual(kindOf(row), {

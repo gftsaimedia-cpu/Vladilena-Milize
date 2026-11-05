@@ -149,7 +149,8 @@ export class MeController {
     const weeks = await this.weeksOf(me, week);
     const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
-    const alert = days.filter(d => d.kind === 'todo' && d.date < date).pop() ?? null;
+    // Ngày đã gửi giải trình (đang chờ duyệt) thì không nhắc nữa; chưa giải trình hoặc bị từ chối vẫn nhắc.
+    const alert = days.filter(d => d.kind === 'todo' && d.date < date && d.explanationStatus !== 'pending').pop() ?? null;
     return {
       date,
       // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
