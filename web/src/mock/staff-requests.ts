@@ -307,6 +307,12 @@ export function remindersOf(): { date: string; remindedAt: string }[] {
     .map(d => ({ date: d.date, remindedAt: d.remindedAt! }));
 }
 
+/** Đơn giải trình mới nhất không bị huỷ của một ngày (spec 3.6 `explanation`): id và trạng thái hiện tại; không có thì null. */
+export function explanationOf(date: string): { id: string; status: RequestDetail['status'] } | null {
+  const e = ENTRIES.filter(x => x.kind === 'explanation' && x.explanationDate === date && statusOf(x) !== 'cancel').pop();
+  return e ? { id: e.id, status: statusOf(e) } : null;
+}
+
 /** Trường hợp, ô giờ phải nhập và lần nhắc của một ngày còn cần giải trình (theo MOCK_TODAY); không thì null. */
 export function dueOf(date: string): { cases: ExplanationCase[]; needs: ExplanationNeeds; remindedAt: string | null } | null {
   const day = explanationDaysOf(MOCK_TODAY).find(d => d.date === date);

@@ -1,7 +1,10 @@
 // Dữ liệu giả của app nhân viên trên điện thoại (spec staff-phone-app mục 1–2): luôn là Lê Hoàng Nam, tháng 10/2026.
 // Mỗi hàm *View() dựng sẵn chuỗi hiển thị cho một màn. Dữ liệu nằm trong bộ nhớ, tải lại trang thì về như cũ. Chỉ ba hàm sửa:
 // checkOutNow() ghi giờ ra hôm nay; addRequest() và updateRequest() (do mock/staff-requests gọi) thêm đơn mới và đổi trạng thái đơn.
+// Dòng nhắc giải trình, ngày cần giải trình và đơn giải trình của một ngày đọc lúc dựng màn từ mock/staff-requests, nên gửi hay
+// huỷ đơn xong thì màn đọc lại là thấy trạng thái mới (không có chữ cũ nằm sẵn trong ngày công).
 import { MOCK_NOW, MOCK_TODAY } from './clock';
+import { dueOf, explanationOf, remindersOf } from './staff-requests';
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo';
 export type CellKind = DayKind | 'future' | 'off';
@@ -50,6 +53,8 @@ export type HomeView = {
   location: string; // 'Đúng vị trí văn phòng GFT'
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
+  // Ngày Admin đã nhắc giải trình mà chưa gửi, mới nhất trước (spec staff-requests 3.6): một dòng mỗi ngày ở đầu J1 / cột Hôm nay.
+  reminders: { date: string; text: string }[]; // [{ date: '2026-10-24', text: 'Admin nhắc giải trình 24/10' }]
   income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183'
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
@@ -73,7 +78,10 @@ export type DayDetail = {
   shiftStart: string; shiftEnd: string; now: string;
   in: string | null; out: string | null; lateMin: number;
   leave: { type: string; span: string } | null; // { type: 'Phép năm', span: 'Cả ngày' }
-  claim: { sentAt: string; outClaim: string } | null; // { sentAt: '20:14', outClaim: '17:30' }
+  // Đơn giải trình chờ duyệt của ngày; outClaim null khi đơn không khai giờ ra (vd. chỉ vào muộn).
+  claim: { sentAt: string; outClaim: string | null } | null; // { sentAt: '20:14', outClaim: '17:30' }
+  // Ngày còn cần giải trình (spec staff-requests 3.6): có thì chi tiết ngày có nút "Giải trình"; đã có đơn thì null.
+  due: { cases: string[]; needs: { checkIn: boolean; checkOut: boolean }; remindedAt: string | null } | null;
 };
 
 export type RequestsView = {
@@ -126,7 +134,6 @@ type DayRecord = {
   in: string | null;
   out: string | null;
   leave: { type: string; span: string } | null;
-  claim: { sentAt: string; outClaim: string } | null;
 };
 // [ngày, giờ vào, giờ ra]; null giờ ra = chưa có. Ngày không có trên board là số giả trong 07:45–08:00 / 17:00–17:15.
 const WORKED: [number, string, string | null][] = [
@@ -145,11 +152,11 @@ const LEAVES: [number, string][] = [
 const monthDate = (d: number) => `${MOCK_TODAY.slice(0, 8)}${pad(d)}`;
 const DAYS = new Map<string, DayRecord>();
 for (const [d, inAt, outAt] of WORKED)
-  DAYS.set(monthDate(d), { kind: 'work', in: inAt, out: outAt, leave: null, claim: null });
+  DAYS.set(monthDate(d), { kind: 'work', in: inAt, out: outAt, leave: null });
 for (const [d, type] of LEAVES)
-  DAYS.set(monthDate(d), { kind: 'leave', in: null, out: null, leave: { type, span: 'Cả ngày' }, claim: null });
-// 27/10: đi muộn 12 phút, thiếu giờ ra; giải trình gửi 20:14, giờ ra khai 17:30, chờ Admin duyệt.
-Object.assign(DAYS.get(monthDate(27))!, { kind: 'todo', claim: { sentAt: '20:14', outClaim: '17:30' } });
+  DAYS.set(monthDate(d), { kind: 'leave', in: null, out: null, leave: { type, span: 'Cả ngày' } });
+// 27/10: đi muộn 12 phút, thiếu giờ ra; giải trình (đơn giai-trinh-2710 bên dưới) gửi 20:14, giờ ra khai 17:30, chờ Admin duyệt.
+DAYS.get(monthDate(27))!.kind = 'todo';
 // 09/10: vào 08:25, muộn 25 phút (quá 15 phút nên cần giải trình). 24/10: thiếu giờ ra, chưa gửi giải trình.
 // Hai ngày này là ngày cần giải trình của mock/staff-requests (spec staff-requests 3.2).
 DAYS.get(monthDate(9))!.kind = 'late';
@@ -246,6 +253,20 @@ const rowOf = ({ id, icon, title, status, statusText, month }: RequestDetail): R
   id, icon, title, status, statusText, month
 });
 
+// Hộp "Đã gửi giải trình" của một ngày: đọc đơn giải trình hiện tại của ngày đó (spec staff-requests 3.6 `explanation`), chỉ
+// khi đơn còn chờ duyệt. Giờ gửi lấy từ bước "Đã gửi": gửi ngay trong ngày đó thì chỉ giờ ('27/10 20:14' → '20:14'), gửi ngày
+// khác thì thêm ngày gửi ('28/10 09:40' cho ngày 24/10 → '09:40 28/10'). Giờ ra khai là dòng "Giờ ra khai" của đơn.
+function claimOf(date: string): DayDetail['claim'] {
+  const found = explanationOf(date);
+  const r = found?.status === 'pend' ? requestDetail(found.id) : null;
+  if (!r) return null;
+  const [sentDay = '', sentTime = ''] = (r.steps[0]?.at ?? '').split(' ');
+  return {
+    sentAt: sentDay === ddmm(date) ? sentTime : `${sentTime} ${sentDay}`,
+    outClaim: r.facts.find(([k]) => k === 'Giờ ra khai')?.[1] ?? null
+  };
+}
+
 // ---------- Thu nhập tháng 10 (spec 2.3; hằng số của board, R8) ----------
 // Tạm tính không trừ bảo hiểm và thuế (luật 05/11/2026): thực nhận = tổng thu nhập − tạm ứng (0).
 const NET = '15.538.183';
@@ -257,7 +278,7 @@ export function homeView(): HomeView {
   const workedMin = toMin(rec.out ?? now) - toMin(rec.in!);
   const monday = addDays(MOCK_TODAY, -((dowOf(MOCK_TODAY) + 6) % 7));
   const cells = Array.from({ length: 7 }, (_, i) => cellOf(addDays(monday, i), true));
-  const todo = cells.find(c => c.kind === 'todo' && DAYS.get(c.date)?.claim && !DAYS.get(c.date)?.out);
+  const todo = cells.find(c => c.kind === 'todo' && claimOf(c.date) && !DAYS.get(c.date)?.out);
   return {
     greeting: 'Chào buổi sáng',
     name: NAM.name,
@@ -276,6 +297,7 @@ export function homeView(): HomeView {
     location: 'Đúng vị trí văn phòng GFT',
     week: { range: `${ddmm(monday)} – ${ddmm(addDays(monday, 6))}`, cells },
     alert: todo ? { date: todo.date, text: `${ddmm(todo.date)} thiếu giờ ra · chờ duyệt giải trình` } : null,
+    reminders: remindersOf().map(r => ({ date: r.date, text: `Admin nhắc giải trình ${ddmm(r.date)}` })),
     income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET },
     requests: REQUESTS.slice(0, 2).map(rowOf)
   };
@@ -339,7 +361,8 @@ export function dayDetail(date: string): DayDetail | null {
     out: rec.out,
     lateMin: rec.in ? Math.max(0, toMin(rec.in) - toMin(SHIFT.start)) : 0,
     leave: rec.leave,
-    claim: rec.claim
+    claim: claimOf(date),
+    due: dueOf(date)
   };
 }
 

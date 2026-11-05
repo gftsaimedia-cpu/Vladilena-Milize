@@ -85,6 +85,8 @@ test.describe('phone', () => {
     for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
     await expect(advance).toBeFocused();
     await page.keyboard.press('Enter');
+    // Bấm "force" bỏ qua chờ ổn định: chờ hộp trượt lên xong (hiệu ứng mở chạy chậm khi máy bận) để dòng nằm trong màn hình.
+    await expect(advance).toBeInViewport();
     await advance.click({ force: true }); // Playwright coi aria-disabled là không bấm được; bấm thẳng để thấy không có gì mở
     await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
     await expect(rowsOf(menuSheet(page))).toHaveCount(6);

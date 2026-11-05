@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   attendanceViewOf,
+  dayDetailOf,
+  homeViewOf,
   incomeViewOf,
   profileViewOf,
   requestDetailOf,
@@ -108,5 +110,22 @@ describe('App nhân viên từ /me', () => {
     assert.deepEqual(v.tiles[0], { value: '1', of: '25', label: 'Ngày công' });
     assert.equal(v.recent.length, 1);
     assert.equal(v.recent[0].times, '07:55 – 17:05');
+  });
+
+  // Nhắc giải trình và ngày cần giải trình của máy chủ thật chưa nối (để BE): màn nhận giá trị rỗng, không có dòng nhắc, không có nút.
+  it('gives no reminders and no due day until the server sends them', () => {
+    const day = (date: string) => ({ date, kind: 'work' as const, in: '07:59', out: null, lateMinutes: 0 });
+    const week = ['26', '27', '28', '29', '30', '31'].map(d => day(`2026-10-${d}`)).concat(day('2026-11-01'));
+    const profile = {
+      name: 'Lê Hoàng Nam', username: 'nam', dependants: 0,
+      contract: { status: 'nv', term: 'long', effectiveFrom: '2024-03-04' },
+      position: { type: 'nv', level: 2, jobTitle: null },
+      shift: { type: 'NORMAL', startTime: '08:00', endTime: '17:00' },
+      leave: { totalDays: 12, usedDays: 1, remainingDays: 11 }
+    };
+    const today = { date: '2026-10-28', shift: null, punches: { in: '07:59', out: null }, workedMinutes: 101, week, alert: null };
+    assert.deepEqual(homeViewOf(today, profile, null, [], '09:40').reminders, []);
+    const d = dayDetailOf({ ...day('2026-10-27'), shift: null }, { start: '08:00', end: '17:00' }, '2026-10-28', '09:40');
+    assert.equal(d?.due, null);
   });
 });

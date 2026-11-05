@@ -1,13 +1,16 @@
 <script setup lang="ts">
-// Cột 1 · Hôm nay + Yêu cầu (spec 4.1): đầu cột có h1 tên, thẻ ca (kể cả Check-out), thẻ "Tuần này", khối "Yêu cầu" với ô danh sách cuộn.
+// Cột 1 · Hôm nay + Yêu cầu (spec 4.1): đầu cột có h1 tên, dòng nhắc giải trình (spec staff-requests 4.3), thẻ ca (kể cả
+// Check-out), thẻ "Tuần này", khối "Yêu cầu" với ô danh sách cuộn.
 // Ô ngày, liên kết nhắc việc và dòng yêu cầu là RouterLink replace tới URL của điện thoại; trang đọc URL rồi mở ngăn kéo (spec 3.3).
 // Check-in / Check-out xong phát checkedOut để trang báo cột 2 tải lại "Gần đây" (R7).
-// "Tạo yêu cầu" mở /nv/yeu-cau?tao=chon (ngăn kéo K3); requestsStamp đổi (gửi yêu cầu xong) thì tải lại danh sách yêu cầu.
+// "Tạo yêu cầu" mở /nv/yeu-cau?tao=chon (ngăn kéo K3); requestsStamp đổi (gửi hay huỷ yêu cầu xong) thì tải lại danh sách yêu cầu
+// và phần Hôm nay (dòng nhắc mất khi đã gửi giải trình cho ngày đó, hiện lại khi đơn đó bị huỷ).
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import type { HomeView, RequestsView } from '@/mock/staff-phone';
 import { getHome, getRequests } from '@/services/staff-phone';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
+import ReminderLines from '@/views/staff-phone/components/ReminderLines.vue';
 import RequestList from '@/views/staff-phone/components/RequestList.vue';
 import ShiftCard from '@/views/staff-phone/components/ShiftCard.vue';
 import WeekCard from '@/views/staff-phone/components/WeekCard.vue';
@@ -19,10 +22,17 @@ const router = useRouter();
 
 const home = ref<HomeView | null>(null);
 const requests = ref<RequestsView | null>(null);
-getHome().then(v => (home.value = v));
+const loadHome = () => getHome().then(v => (home.value = v));
 const loadRequests = () => getRequests().then(v => (requests.value = v));
+loadHome();
 loadRequests();
-watch(() => props.requestsStamp, loadRequests);
+watch(
+  () => props.requestsStamp,
+  () => {
+    loadHome();
+    loadRequests();
+  }
+);
 const openFlow = () => router.push({ path: REQUESTS_PATH, query: { tao: TAO_MENU } });
 
 function onPunch(v: HomeView) {
@@ -41,6 +51,7 @@ function onPunch(v: HomeView) {
         </div>
         <span class="mut sd-date">{{ home.weekday }}<br />{{ home.date }}</span>
       </header>
+      <ReminderLines :reminders="home.reminders" />
       <ShiftCard :home="home" @checked-in="onPunch" @checked-out="onPunch" />
       <WeekCard :week="home.week" :alert="home.alert" replace />
     </template>
