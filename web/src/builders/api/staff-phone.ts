@@ -13,6 +13,7 @@ import type {
   RequestDetail,
   RequestRowData,
   RequestStatus,
+  RequestStep,
   RequestsView
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
@@ -48,7 +49,7 @@ export type MeProfile = {
 };
 export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
-export type MeRequest = RequestDTO & { reviewedAt?: string | null };
+export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
 const NONE = '—';
 const DOW_LONG = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
@@ -194,12 +195,21 @@ function factsOf(r: MeRequest): [string, string][] {
   }
 }
 
+/** Ghi chú Admin để lúc duyệt/từ chối (`reviewNote`) gắn vào bước duyệt cuối, như hộp từ chối của Admin đã hứa. */
+function reviewNoteOf(r: MeRequest): RequestStep['note'] {
+  const text = (r.reviewNote || '').trim();
+  if (!text || (r.status !== 'REJECTED' && r.status !== 'APPROVED')) return null;
+  return { label: r.status === 'REJECTED' ? 'Lý do từ chối' : 'Ghi chú', text: quote(text) };
+}
+
 export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
+  const note = reviewNoteOf(r);
+  const last = steps.length - 1;
   return {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
-    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state }))
+    steps: steps.map((s, i) => ({ label: s.label, at: vnStamp(s.at), state: s.state, ...(note && i === last ? { note } : {}) }))
   };
 }
 

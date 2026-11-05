@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import { gunzipSync } from 'node:zlib';
 import {
@@ -199,14 +200,14 @@ describe('PayrollRepository.savePayrollRunAndSlips (statement sequence)', () => 
     assert.deepEqual(events, ['begin', 'commit']);
     const run = statements[3].parameters;
     // month, run_no, status, engine_version, params_hash, params_rev, params_json, switches_json, slips_total,
-    // slips_error
+    // slips_error. Without the settings of the run, params_json is '{}' (hash = its sha256) at rev 0.
     assert.deepEqual(run.slice(0, 10), [
       '2026-10',
       1,
       'draft',
       'v2-rules-2026-11',
-      'v2-rules-2026-11',
-      1,
+      createHash('sha256').update('{}').digest('hex'),
+      0,
       '{}',
       '{}',
       2,

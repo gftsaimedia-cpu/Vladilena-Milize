@@ -23,6 +23,8 @@ import { AttendanceRepository } from '../attendance/attendance.repository';
 import type { DailyTimesheet } from '../attendance/domain';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { SystemService } from '../system/system.service';
+import { SettingsReader } from '../settings';
+import { withPersonWeek } from './staff-week';
 
 /** Một ngày cần giải trình (spec 3.1): trường hợp máy tìm ra, giờ nhân viên phải nhập và lần nhắc gần nhất (ISO) nếu có. */
 export interface DueDay {
@@ -112,7 +114,8 @@ export class ExplanationsService {
     @Inject(HolidaysRepository) private readonly holidays: HolidaysRepository,
     @Inject(DayStatusRepository) private readonly days: DayStatusRepository,
     @Inject(ExplanationRemindersRepository) private readonly reminderRows: ExplanationRemindersRepository,
-    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>
+    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>
   ) {}
 
   /**
@@ -326,6 +329,6 @@ export class ExplanationsService {
     if (!staff) {
       throw new Error(`Không tìm thấy nhân sự: ${employeeIdOrUsername}`);
     }
-    return staff;
+    return withPersonWeek(staff, month, this.settings);
   }
 }
