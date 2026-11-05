@@ -195,12 +195,16 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
     await assert.rejects(expl({ actualCheckIn: 820, actualCheckOut: '17:00' }), /Giờ thực tế không hợp lệ: 820/);
   });
 
-  it('approval marks the day VALID', async () => {
+  it('approval rewrites the day row instead of marking the day VALID', async () => {
     const dto = await expl({ title: 'Giải trình quên quẹt thẻ vào', reason: 'Bảo vệ mở cửa muộn', cases: ['MISSING_CHECK_IN'], actualCheckIn: '08:05' });
     assert.deepEqual([dto.type, dto.status], ['EXPLANATION', 'PENDING']);
     const reviewed = await ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE', 'Đã xác minh');
     assert.deepEqual([reviewed.status, reviewed.reviewedBy], ['APPROVED', ADMIN_UUID]);
-    assert.equal(ctx.att.dayStatuses.get(`${NV_UUID}:2026-11-03`), 'VALID');
+    // Một lần lúc nộp, một lần lúc duyệt; không còn đánh dấu ngày VALID.
+    assert.deepEqual(ctx.attendanceDays.calls.map(c => [c.employeeId, c.dates]), [
+      [NV_UUID, ['2026-11-03']],
+      [NV_UUID, ['2026-11-03']]
+    ]);
   });
 
   it('the factory takes the cases and both times', () => {

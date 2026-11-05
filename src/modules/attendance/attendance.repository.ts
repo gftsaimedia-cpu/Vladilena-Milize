@@ -115,21 +115,6 @@ export class AttendanceRepository {
   }
 
   /**
-   * Cập nhật trạng thái ngày công (day_status) cho timesheet_entries
-   */
-  async updateDayStatus(employeeId: string, workDate: string, dayStatus: string): Promise<void> {
-    await this.qb
-      .updateTable('timesheet_entries')
-      .set({
-        day_status: dayStatus as any,
-        updated_at: new Date()
-      })
-      .where('employee_id', '=', employeeId)
-      .where('work_date', '=', workDate)
-      .execute();
-  }
-
-  /**
    * Tìm bảng công nhật theo mã nhân viên và ngày công
    */
   async findTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheet | null> {

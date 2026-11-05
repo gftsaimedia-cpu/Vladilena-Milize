@@ -103,7 +103,7 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
     assert.equal(ctx.days.rows.size, 0);
   });
 
-  it('approving an explanation marks the day on the lock transaction', async () => {
+  it('approving an explanation rewrites the day row on the lock transaction', async () => {
     const req = explanationRequest('2026-11-03');
     await ctx.repo.save(req);
     clearCalls();
@@ -111,7 +111,8 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
     await ctx.service.reviewRequest(req.id, 'admin', 'APPROVE');
 
     assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
-    assert.deepEqual(ctx.att.calls, [['updateDayStatus', LOCK_TRX]]);
+    assert.deepEqual(ctx.att.calls, []);
+    assert.deepEqual(ctx.attendanceDays.calls, [{ employeeId: NV_UUID, dates: ['2026-11-03'], trx: LOCK_TRX }]);
     assert.deepEqual(ctx.days.calls, [['listBetween', LOCK_TRX]]);
     assert.deepEqual(ctx.repo.calls.at(-1), ['save', LOCK_TRX]);
   });

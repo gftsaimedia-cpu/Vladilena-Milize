@@ -30,6 +30,7 @@ import {
   advanceDayOpen,
   planClaims,
   DayConflictError,
+  requestDates,
   requestTitle,
   annualLeaveLeftOf,
   dayHourOptions,
@@ -49,6 +50,7 @@ import { DayStatusRepository } from './day-status.repository';
 import { ExplanationsService } from './explanations.service';
 import { loadEmployeeDays } from './load-days';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { HolidaysRepository, type Holiday } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
 import { SystemService } from '../system/system.service';
@@ -300,6 +302,7 @@ export class RequestsService {
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
     @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
     @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService,
   ) {}
 
   /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
@@ -365,6 +368,17 @@ export class RequestsService {
     }
   }
 
+  /**
+   * T2: ghi lại các dòng ngày công mà đơn `req` chạm tới (`requestDates`), trên giao dịch `trx` đang giữ khoá nhân viên.
+   * Gọi sau khi đơn và lịch đã lưu, vì dòng ngày dựng từ chính các bảng đó. Đơn không có ngày (tạm ứng) thì không gọi.
+   */
+  private async rewriteDays(req: SystemRequest, trx?: DatabaseTransaction): Promise<void> {
+    if (!this.attendanceDays) return;
+    const dates = requestDates(req);
+    if (dates.length === 0) return;
+    await this.attendanceDays.refreshDays(req.employeeId, dates, { trx, now: this.now() });
+  }
+
   /** Bảng `day_status` của `stores`; thiếu thì báo lỗi (mọi thao tác trên ngày cần bảng này). */
   private dayRepo(stores: RequestStores): DayStatusRepository {
     if (!stores.days) {
@@ -425,9 +439,12 @@ export class RequestsService {
 
   /**
    * Mỗi lần nộp đơn của một nhân sự chạy dưới khoá `requests_<uuid>` (§5.6); `fn` đọc và ghi qua `stores` (giao dịch
-   * của khoá). Không có txCoordinator thì chạy thẳng trên pool.
+   * của khoá), `trx` là giao dịch đó. Không có txCoordinator thì chạy thẳng trên pool, `trx` là undefined.
    */
-  protected async underEmployeeLock<T>(employeeId: string, fn: (stores: RequestStores) => Promise<T>): Promise<T> {
+  protected async underEmployeeLock<T>(
+    employeeId: string,
+    fn: (stores: RequestStores, trx?: DatabaseTransaction) => Promise<T>
+  ): Promise<T> {
     return await this.underLock(`requests_${employeeId}`, fn);
   }
 
@@ -598,13 +615,14 @@ export class RequestsService {
     save: boolean
   ): Promise<PlannedRequest> {
     const filing = await this.planFiling(kind, input, { filedBy: opts?.filedBy ?? 'admin' });
-    return this.underEmployeeLock(filing.staff.employeeId, async stores => {
+    return this.underEmployeeLock(filing.staff.employeeId, async (stores, trx) => {
       const planned = await filing.plan(stores);
       if (save) {
         await stores.requests.save(planned.request);
         if (planned.claims) {
           await this.claimDays(stores, planned.request, planned.claims.plan, planned.claims.status);
         }
+        await this.rewriteDays(planned.request, trx);
       }
       return planned;
     });
@@ -1106,7 +1124,7 @@ export class RequestsService {
     }
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
 
-    return this.underEmployeeLock(staff.employeeId, async stores => {
+    return this.underEmployeeLock(staff.employeeId, async (stores, trx) => {
       // Chống trùng Thứ Bảy với các đơn đang chờ hoặc đã duyệt (đơn đã bị từ chối không chặn)
       const existing = await stores.requests.list({
         employeeId: profile.employeeId,
@@ -1131,6 +1149,7 @@ export class RequestsService {
       if (plan) {
         await this.claimDays(stores, req, plan, 'ISAT');
       }
+      await this.rewriteDays(req, trx);
       return { ...req.toJSON(), warnings: [] };
     });
   }
@@ -1176,8 +1195,6 @@ export class RequestsService {
           await this.markLeaveDays(req, stores);
         } else if (req.type === 'ISAT') {
           await this.markIsatDay(req, stores);
-        } else if (req.type === 'EXPLANATION' && stores.attendance && req.explanationDate) {
-          await stores.attendance.updateDayStatus(req.employeeId, req.explanationDate, 'VALID');
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
@@ -1188,6 +1205,7 @@ export class RequestsService {
       }
 
       await stores.requests.save(req);
+      await this.rewriteDays(req, trx);
       return req.toJSON();
     });
   }
@@ -1212,6 +1230,7 @@ export class RequestsService {
       // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
+      await this.rewriteDays(req, trx);
       return req.toJSON();
     });
   }

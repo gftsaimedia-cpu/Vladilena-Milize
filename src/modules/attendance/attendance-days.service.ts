@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { AttendanceDaysRepository, type AttendanceDayRecord } from './attendance-days.repository';
 import { AttendanceSettingsPort } from './attendance-settings.port';
@@ -18,10 +18,11 @@ export interface RefreshOptions {
 /** Ghi lại các dòng ngày chấm công (`timesheet_entries`) từ nguồn sự thật, dưới khoá của nhân sự. */
 @Injectable()
 export class AttendanceDaysService {
+  // `@Inject` rõ ràng: tsx không phát metadata kiểu tham số, nên Nest không tự suy ra được.
   constructor(
-    private readonly repo: AttendanceDaysRepository,
-    private readonly settings: AttendanceSettingsPort,
-    private readonly coordinator: TransactionCoordinator
+    @Inject(AttendanceDaysRepository) private readonly repo: AttendanceDaysRepository,
+    @Inject(AttendanceSettingsPort) private readonly settings: AttendanceSettingsPort,
+    @Inject(TransactionCoordinator) private readonly coordinator: TransactionCoordinator
   ) {}
 
   /**

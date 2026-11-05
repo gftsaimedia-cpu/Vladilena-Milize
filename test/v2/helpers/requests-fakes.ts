@@ -13,6 +13,7 @@ import {
   type ScheduleDay,
   type StaffContext
 } from '../../../src/modules/requests/requests.repository';
+import type { AttendanceDaysService } from '../../../src/modules/attendance/attendance-days.service';
 import { AttendanceRepository, type TimesheetFilter } from '../../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository, type Holiday } from '../../../src/modules/holidays/holidays.repository';
 import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
@@ -193,7 +194,6 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   }
 
   schedules = new Map<string, WorkSchedule>();
-  dayStatuses = new Map<string, string>();
   /** Bảng công các ngày (giờ vào/ra thật); dựng bằng `timesheet(...)`. */
   timesheets: DailyTimesheet[] = [];
 
@@ -233,11 +233,6 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   override async saveSchedule(schedule: WorkSchedule): Promise<void> {
     this.calls.push(['saveSchedule', this.trx]);
     this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
-  }
-
-  override async updateDayStatus(employeeId: string, workDate: string, status: string): Promise<void> {
-    this.calls.push(['updateDayStatus', this.trx]);
-    this.dayStatuses.set(`${employeeId}:${workDate}`, status);
   }
 }
 
@@ -417,6 +412,16 @@ export class RecordingLock {
   }
 }
 
+/** Thay AttendanceDaysService: ghi lại mỗi lần ghi lại ngày công (`calls`), không tính gì. */
+export class RecordingDays {
+  calls: Array<{ employeeId: string; dates: string[]; trx: unknown }> = [];
+
+  async refreshDays(employeeId: string, dates: readonly string[], opts: { trx?: unknown } = {}): Promise<[]> {
+    this.calls.push({ employeeId, dates: [...dates], trx: opts.trx });
+    return [];
+  }
+}
+
 /** Kỳ lương trong bộ nhớ: `statuses` map tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. */
 export class FakePeriods {
   statuses = new Map<string, string>();
@@ -454,6 +459,7 @@ export function makeService() {
   const payroll = new FakePayroll();
   const reminders = new FakeRemindersRepository();
   const explanations = new ExplanationsService(repo, att, holidays, days, reminders, periods);
+  const attendanceDays = new RecordingDays();
   const service = new RequestsService(
     repo,
     att,
@@ -462,11 +468,12 @@ export function makeService() {
     days,
     periods,
     payroll,
-    explanations
+    explanations,
+    attendanceDays as unknown as AttendanceDaysService
   );
   service.now = () => new Date('2026-11-04T10:00:00Z');
   explanations.now = () => service.now();
-  return { service, repo, att, holidays, days, lock, periods, payroll, explanations, reminders };
+  return { service, repo, att, holidays, days, lock, periods, payroll, explanations, reminders, attendanceDays };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

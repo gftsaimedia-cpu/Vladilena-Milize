@@ -60,12 +60,26 @@ test('Ngày cần giải trình trên PostgreSQL (spec 5.2)', async t => {
       [NV, ADMIN]
     );
     // Giờ chấm lưu TIMESTAMPTZ (UTC); ca 08:00–17:00 giờ Việt Nam.
-    const punch = (date: string, inUtc: string | null, outUtc: string | null) =>
-      client.query(
+    // Nộp và huỷ đơn giải trình ghi lại dòng ngày từ `punch_events`, nên mỗi lần chấm có cả lần chấm gốc lẫn dòng ngày.
+    const punch = async (date: string, inUtc: string | null, outUtc: string | null) => {
+      await client.query(
         `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time, shift_allowance_pct, actual_check_in, actual_check_out, status, created_at, updated_at)
          VALUES (gen_random_uuid(), $1, $2, 'NORMAL', '08:00', '17:00', 0, $3, $4, 'PRESENT', now(), now())`,
         [NV, date, inUtc, outUtc]
       );
+      for (const [at, type] of [
+        [inUtc, 'IN'],
+        [outUtc, 'OUT']
+      ]) {
+        if (!at) continue;
+        await client.query(
+          `INSERT INTO punch_events (id, employee_id, punched_at, work_date, type, latitude, longitude,
+             accuracy_meters, distance_meters, is_within_office, created_at)
+           VALUES (gen_random_uuid(), $1, $2, $3, $4, 0, 0, 1, 1, true, now())`,
+          [NV, at, date, type]
+        );
+      }
+    };
     await punch('2026-10-27', '2026-10-27T01:00:00Z', null); // tháng 10 đã chốt: thiếu giờ ra nhưng không được tính
     await punch('2026-11-02', '2026-11-02T01:00:00Z', null); // 08:00 vào, thiếu giờ ra
     await punch('2026-11-03', '2026-11-03T01:40:00Z', '2026-11-03T10:05:00Z'); // 08:40 vào: muộn
