@@ -30,4 +30,3 @@ export {
   getAuditLog,
   verifyAuditLog
 } from './admin-config';
-export { getPayFormula, getPayDrawer, savePayDrawer } from './admin-config';

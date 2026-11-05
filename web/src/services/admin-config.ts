@@ -18,7 +18,6 @@ import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditFromResponse, verifyMessage } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
 import { notConnected } from '@/services/data-mode';
-import { buildPayDrawer, buildPayFormula, drawerWanted } from '@/builders/admin-config/pay';
 import { applySaved, diffEdits, indexParams, toPct, valueOf } from '@/builders/admin-config/params';
 
 const plain = (v?) => (v == null ? v : JSON.parse(JSON.stringify(v)));
@@ -52,7 +51,6 @@ export const getSettingsBadges = () => api('GET', '/settings/first-run').then(r 
 
 // ---------- Cách tính lương ----------
 const state: Record<string, any> = {
-  drawer: null,
   benefits: null,
   all: null,
   alerts: null,
@@ -60,26 +58,6 @@ const state: Record<string, any> = {
   setup: null
 };
 let allSettingsRequestId = 0;
-
-// Bảng khoản: trạng thái từng khoản theo tham số đã chỉnh, số mục chờ xác nhận lấy từ GET /settings/first-run
-export async function getPayFormula() {
-  const [idx, firstRun] = await Promise.all([readParams(), api('GET', '/settings/first-run')]);
-  return plain(buildPayFormula(idx, firstRun));
-}
-
-// Ngăn kéo của một khoản (key: luong-ngay-cong, lam-them, phu-cap, luong-kpi, khau-tru, tam-ung)
-export async function getPayDrawer(key?) {
-  const idx = await readParams();
-  const drawer = buildPayDrawer(key, idx);
-  state.drawer = { key, idx };
-  return drawer && plain(drawer);
-}
-
-export async function savePayDrawer(key?, draft?) {
-  const st = state.drawer;
-  if (!st || st.key !== key) throw new Error('Chưa tải dữ liệu để lưu');
-  return putParams(st.idx, drawerWanted(st.idx, draft));
-}
 
 // ---------- Chế độ theo loại nhân sự ----------
 // Một dòng mỗi loại theo phiên bản chức vụ của tháng này (GET /employees/meta/positions) kèm số người đang làm
