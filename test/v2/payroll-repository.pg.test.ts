@@ -1,12 +1,18 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { Client } from 'pg';
 import { createKysely, createPgPool } from '../../src/database/kysely';
+import { TransactionCoordinator } from '../../src/database/transaction';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
 import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
+import { SettingsService } from '../../src/modules/settings/settings.service';
+import { withTempDb } from './helpers/pg-temp-db';
 
 // Needs a real PostgreSQL. PG_TEST_URL is a control connection (a role that may CREATE/DROP DATABASE): the test
 // makes its own temporary database, applies the migrations there and drops it at the end. It never touches any
@@ -225,4 +231,57 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
       await control.end();
     }
   }
+});
+
+// Bình (nv level 2, 6,500,000) works Mon–Fri from 12/2026 and BHXH is 10% from 12/2026, both saved through the
+// settings service. The December run reads them through the real SettingsReader and stores the month's snapshot.
+test('A payroll run reads the settings store and stores the month snapshot on PostgreSQL', async t => {
+  await withTempDb(t, 'payroll_settings', async (db, client) => {
+    const now = new Date('2026-11-05T03:00:00.000Z');
+    await client.query(
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
+       VALUES ('nv-binh', 'Bình', 'nv', 2, 'x', $1, 'long', 'u-binh')`,
+      [now.toISOString()]
+    );
+    const settingsRepo = new SettingsRepository(db);
+    const reader = new SettingsReader(settingsRepo);
+    const settings = new SettingsService(settingsRepo, reader, new TransactionCoordinator(db));
+    await settings.saveWorkWeek('nv-binh', { weekdays: [1, 2, 3, 4, 5], effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
+    await settings.saveGroup('insurance', { values: { bhxhPct: 10 }, effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
+
+    // All 23 Mon–Fri days of December 2026 worked.
+    for (let day = 1; day <= 31; day++) {
+      const date = `2026-12-${String(day).padStart(2, '0')}`;
+      const weekday = new Date(`${date}T00:00:00Z`).getUTCDay();
+      if (weekday === 0 || weekday === 6) continue;
+      await client.query(
+        `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
+           shift_allowance_pct, work_hours, status, day_status, created_at, updated_at)
+         VALUES (gen_random_uuid(), 'u-binh', $1, 'NORMAL', '08:00', '17:00', 0, 8, 'PRESENT', 'VALID', now(), now())`,
+        [date]
+      );
+    }
+
+    const repo = new PayrollRepository(db);
+    const result = await new PayrollService(repo, reader).calculatePeriodPayslips('2026-12', ['u-binh'], 'tester');
+    assert.deepEqual(result.errors, []);
+    assert.ok(result.runId !== null);
+
+    const slip = (await repo.getPayslip('2026-12', 'u-binh'))!.details;
+    assert.equal(slip.standardWorkdays, 22);
+    assert.equal(slip.actualWorkDays, 23);
+    assert.equal(slip.dayRate, 295_455);
+    assert.equal(slip.baseSalaryActual, 6_795_455);
+    assert.equal(slip.insuranceBreakdown.bhxh, 650_000);
+
+    const run = (
+      await client.query('SELECT params_json, params_hash, params_rev FROM payroll_runs WHERE id = $1', [result.runId])
+    ).rows[0];
+    const lastChange = (await client.query('SELECT MAX(id) AS id FROM settings_changes')).rows[0];
+    assert.deepEqual(JSON.parse(run.params_json), await reader.settingsFor('2026-12'));
+    assert.equal(JSON.parse(run.params_json).insurance.bhxhPct, 10);
+    assert.equal(run.params_hash, createHash('sha256').update(run.params_json).digest('hex'));
+    assert.ok(Number(lastChange.id) > 0);
+    assert.equal(Number(run.params_rev), Number(lastChange.id));
+  });
 });

@@ -1,4 +1,4 @@
-import { DEFAULT_INSURANCE_RATES, type KpiInput } from '../../src/modules/payroll/domain';
+import type { KpiInput } from '../../src/modules/payroll/domain';
 import type { AllowanceRates } from '../../src/modules/payroll/domain/allowance-rates';
 import type { EmployeeMonthlyRawData } from '../../src/modules/payroll/payroll.repository';
 
@@ -88,7 +88,6 @@ export function nvMonthData(
       },
       { id: 'req_adv_1', type: 'ADVANCE', status: 'APPROVED', advanceAmount: 1_000_000 }
     ],
-    kpi: overrides.kpi === undefined ? defaultKpi : overrides.kpi,
-    insuranceRates: DEFAULT_INSURANCE_RATES
+    kpi: overrides.kpi === undefined ? defaultKpi : overrides.kpi
   };
 }

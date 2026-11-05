@@ -103,4 +103,9 @@ export class SettingsReader {
   zone(q: Q = this.repo.db): Promise<Zone | null> {
     return this.repo.zone(q);
   }
+
+  /** Id của dòng nhật ký cài đặt mới nhất (mọi cài đặt, kể cả tuần riêng và vùng chấm công); 0 khi chưa có. */
+  maxChangeId(q: Q = this.repo.db): Promise<number> {
+    return this.repo.maxChangeId(q);
+  }
 }

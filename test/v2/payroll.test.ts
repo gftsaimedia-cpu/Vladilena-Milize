@@ -6,7 +6,7 @@ import {
   EmployeeMonthlyRawData,
   mapMonthRows
 } from '../../src/modules/payroll/payroll.repository';
-import { DEFAULT_INSURANCE_RATES, EmployeePayslip } from '../../src/modules/payroll/domain';
+import { EmployeePayslip } from '../../src/modules/payroll/domain';
 import type { Kysely } from 'kysely';
 import { SEED_RATES, nvMonthData, seedRatesFor } from './payroll-fixtures';
 import type { AllowanceRates } from '../../src/modules/payroll/domain/allowance-rates';
@@ -144,8 +144,7 @@ describe('Payroll V2 - Tính lương & Xuất phiếu lương chu kỳ', () => {
     kpi: {
       scores: { wework: 10000, user: 9500, peer: 9000, manager: 9500, self: 9500 },
       proposedAmount: 15_600_000
-    },
-    insuranceRates: DEFAULT_INSURANCE_RATES
+    }
   });
 
   it('1. Tính lương tháng cho nhân viên từ ngày công, OT, tạm ứng và KPI', async () => {
@@ -252,8 +251,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         }
       ],
       requests: [],
-      kpi: null,
-      insuranceRates: DEFAULT_INSURANCE_RATES
+      kpi: null
     });
     return payroll.generateMonthlyPayslip('allowance', '2026-10');
   };
@@ -425,8 +423,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         }
       ],
       requests: [],
-      kpi: null,
-      insuranceRates: DEFAULT_INSURANCE_RATES
+      kpi: null
     });
     const slip = await payroll.generateMonthlyPayslip('night', '2026-10');
     assert.equal(slip.dailyLines[0].nightAllowancePay, 138_462);
@@ -586,8 +583,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         { id: 'request-1', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' },
         { id: 'request-duplicate', type: 'LEAVE_WITH_MAKEUP', status: 'APPROVED', leaveEndDate: '2026-10-20' }
       ],
-      kpi: null,
-      insuranceRates: DEFAULT_INSURANCE_RATES
+      kpi: null
     });
 
     const slip = await payroll.generateMonthlyPayslip('makeup', '2026-10');
@@ -648,8 +644,7 @@ describe('Payroll allowance behavior from the reference app', () => {
         }))
       ],
       requests: [],
-      kpi: null,
-      insuranceRates: DEFAULT_INSURANCE_RATES
+      kpi: null
     });
     const slip = await payroll.generateMonthlyPayslip('planned-makeup', '2026-10');
 

@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Kysely } from 'kysely';
-import { DEFAULT_INSURANCE_RATES } from '../../src/modules/payroll/domain';
 import {
   PayrollRepository,
   mapMonthRows,
@@ -38,12 +37,9 @@ function rows(overrides: Partial<MonthRows> = {}): MonthRows {
     timesheets: [],
     requests: [],
     kpi: null,
-    settings: [],
     ...overrides
   };
 }
-
-const ratesRow = (value: string) => [{ key: 'insurance_rates', value_json: value }];
 
 describe('mapMonthRows staff flags and contract label', () => {
   it('reads dependants and resolves the contract label and the insured flag', () => {
@@ -267,42 +263,6 @@ describe('mapMonthRows KPI scores', () => {
   });
 });
 
-describe('mapMonthRows insurance rates', () => {
-  const rates = (value: string) => mapMonthRows('2026-10', rows({ settings: ratesRow(value) })).insuranceRates;
-
-  it('uses the defaults when the setting is absent', () => {
-    assert.deepEqual(mapMonthRows('2026-10', rows({ settings: [] })).insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-
-  it('reads the configured rates', () => {
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":0.015,"bhtn":0.005}'), { bhxh: 0.08, bhyt: 0.015, bhtn: 0.005 });
-  });
-
-  it('falls back to the defaults for out-of-range, missing or malformed values', () => {
-    assert.deepEqual(rates('{"bhxh":2,"bhyt":0.015,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":-0.1,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":0.08,"bhyt":0.015}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('{"bhxh":"0.08","bhyt":0.015,"bhtn":0.01}'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('not json'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('null'), DEFAULT_INSURANCE_RATES);
-    assert.deepEqual(rates('[0.08,0.015,0.01]'), DEFAULT_INSURANCE_RATES);
-  });
-
-  it('accepts the boundary values 0 and 1', () => {
-    assert.deepEqual(rates('{"bhxh":0,"bhyt":1,"bhtn":0}'), { bhxh: 0, bhyt: 1, bhtn: 0 });
-  });
-
-  it('ignores other settings keys', () => {
-    const settings = [{ key: 'other', value_json: '{"bhxh":0.5,"bhyt":0.5,"bhtn":0.5}' }];
-    assert.deepEqual(mapMonthRows('2026-10', rows({ settings })).insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-
-  it('does not hand out the shared default object', () => {
-    const data = mapMonthRows('2026-10', rows());
-    assert.notEqual(data.insuranceRates, DEFAULT_INSURANCE_RATES);
-  });
-});
-
 describe('mapMonthRows timesheets and requests', () => {
   it('converts advance amounts and numeric columns to numbers', () => {
     const { requests } = mapMonthRows(
@@ -489,8 +449,7 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     position_types: { first: baseType },
     position_levels: { first: baseLevel },
     position_type_benefits: { all: [kpiBenefit] },
-    kpi_scores: { first: { username: 'a', wework: '9000', kpi_proposed: '4000000' } },
-    settings: { all: ratesRow('{"bhxh":0.08,"bhyt":0.015,"bhtn":0.005}') }
+    kpi_scores: { first: { username: 'a', wework: '9000', kpi_proposed: '4000000' } }
   };
 
   it('reads the position type and level effective for the month, newest first', async () => {
@@ -512,12 +471,19 @@ describe('PayrollRepository.getMonthlyData queries', () => {
       assert.equal(call?.limit, 1);
     }
     assert.deepEqual(calls.find(c => c.table === 'position_type_benefits')?.where, [['type_id', '=', '2']]);
-    assert.deepEqual(calls.find(c => c.table === 'settings')?.where, [['key', '=', 'insurance_rates']]);
     assert.equal(data?.staff.baseSalary, 6_000_000);
     assert.equal(data?.staff.standardWorkdays, 26);
     assert.deepEqual(data?.staff.kpiCap, { applicable: true, kpiMax: 6_000_000 });
     assert.equal(data?.kpi?.proposedAmount, 4_000_000);
-    assert.equal(data?.insuranceRates.bhtn, 0.005);
+  });
+
+  it('no longer reads the insurance rates from the settings table (they come from the settings store)', async () => {
+    const { qb, calls } = recordingQb(tables);
+    await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+    assert.equal(
+      calls.some(c => c.table === 'settings'),
+      false
+    );
   });
 
   it('skips the benefits query and reports null workdays when no position type exists', async () => {
