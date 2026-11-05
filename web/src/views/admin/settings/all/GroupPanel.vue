@@ -13,6 +13,7 @@ import {
 } from '@/builders/api/settings-screens';
 import { toast } from '@/components/shell/toast';
 import { getSettings, getSettingsHistory } from '@/services/settings-store';
+import LoadFail from '../fields/LoadFail.vue';
 import SaveConfirmDialog from '../fields/SaveConfirmDialog.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
@@ -128,7 +129,8 @@ watch([shown, () => props.setting], focusSetting, { immediate: true });
       <span class="cap">{{ group.items.length }} mục</span>
     </div>
 
-    <p v-if="!shown" class="load-state" role="status">Đang tải cài đặt…</p>
+    <LoadFail v-if="!shown && sd?.error.value" :what="`nhóm ${group.name}`" @retry="sd.retry" />
+    <p v-else-if="!shown" class="load-state" role="status">Đang tải cài đặt…</p>
     <template v-else>
       <SettingItem
         v-for="entry in group.items"
