@@ -1,9 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import crypto from 'node:crypto';
+import { businessDateText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
+import { AttendanceDaysService } from '../attendance/attendance-days.service';
+import { monthOfDate, monthsBetween } from '../attendance/domain/calendar';
 import { AuditLog } from '../audit/audit-log';
 import { staffDeleteRows, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
-import { EmployeesRepository } from './employees.repository';
+import { EmployeesRepository, type EmploymentDates } from './employees.repository';
 import {
   Employee,
   EmployeeDTO,
@@ -48,14 +51,50 @@ export function verifyPassword(password: string, stored: string): boolean {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
-/** Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu. */
+/**
+ * Các tháng cần ghi lại dòng ngày công khi ngày vào làm / nghỉ việc đổi: từ tháng nhỏ nhất trong bốn ngày
+ * (cũ và mới x vào làm và nghỉ việc, ngày rỗng bỏ qua) và tháng hiện tại, tới tháng hiện tại. `[]` khi bốn ngày không đổi.
+ */
+export function monthsAffectedByEmployment(
+  before: EmploymentDates | null,
+  after: EmploymentDates,
+  currentMonth: string
+): string[] {
+  if (before && before.startDate === after.startDate && before.resignedOn === after.resignedOn) return [];
+  const dates = [before?.startDate, before?.resignedOn, after.startDate, after.resignedOn];
+  const months = dates.flatMap(d => (d ? [monthOfDate(d)] : []));
+  const first = [...months, currentMonth].reduce((a, b) => (b < a ? b : a));
+  return monthsBetween(first, currentMonth);
+}
+
+/**
+ * Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu.
+ * Sau khi transaction đó đã commit, nếu ngày vào làm / nghỉ việc đổi thì các dòng ngày công của người đó được ghi lại
+ * (mỗi tháng một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin; hồ sơ vẫn đã lưu, làm lại thao tác là đủ.
+ */
 @Injectable()
 export class EmployeesService {
+  /** Thời điểm tính dòng ngày công và ngày nghỉ việc của `deactivate`; test đặt cố định. */
+  now: () => Date = () => new Date();
+
+  // `@Inject` rõ ràng: tsx không phát metadata kiểu tham số, thiếu thì Nest cấp `undefined` mà không báo lỗi.
   constructor(
     @Inject(EmployeesRepository) private readonly repo: EmployeesRepository,
     @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
-    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>,
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshMonth'>
   ) {}
+
+  /** Đọc lại ngày vào làm / nghỉ việc sau commit rồi ghi lại các tháng bị ảnh hưởng (P4: ngoài giao dịch lưu hồ sơ). */
+  private async refreshAfterSave(id: string, before: EmploymentDates | null): Promise<void> {
+    if (!this.attendanceDays) return;
+    const after = await this.repo.employmentDates(id);
+    if (!after) return;
+    const currentMonth = businessDateText(this.now()).slice(0, 7);
+    for (const month of monthsAffectedByEmployment(before, after, currentMonth)) {
+      await this.attendanceDays.refreshMonth(after.uuid, month, { now: this.now() });
+    }
+  }
 
   async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();
@@ -78,7 +117,7 @@ export class EmployeesService {
 
   async create(body: any, actor: string): Promise<Employee> {
     const employee = this.buildEmployeeFromInput(body);
-    return this.tx.run(async trx => {
+    const saved = await this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
       const saved = await repo.save(employee, actor, { createOnly: true });
       const stored = await this.reload(repo, saved);
@@ -86,14 +125,17 @@ export class EmployeesService {
       await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
       return saved;
     });
+    await this.refreshAfterSave(saved.username, null);
+    return saved;
   }
 
   /** null khi không có người `id` (username hoặc uuid). */
   async update(id: string, body: any, actor: string): Promise<Employee | null> {
-    return this.tx.run(async trx => {
+    const outcome = await this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
       const existing = await repo.findByUsernameOrUuid(id, { forUpdate: true });
       if (!existing) return null;
+      const before = this.attendanceDays ? await repo.employmentDates(existing.username) : null;
       const built = this.buildEmployeeFromInput(body, existing);
       // username và uuid là khoá của hồ sơ: đổi qua body sẽ sao chép tài khoản sang tên mới hoặc ghi đè người khác.
       if (built.username !== existing.username || built.profile.uuid !== existing.profile.uuid) {
@@ -103,20 +145,24 @@ export class EmployeesService {
       const stored = await this.reload(repo, saved);
       const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
       await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), stored.toDTO(), passwordChanged));
-      return saved;
+      return { saved, before };
     });
+    if (!outcome) return null;
+    await this.refreshAfterSave(outcome.saved.username, outcome.before);
+    return outcome.saved;
   }
 
   async deactivate(username: string, actor: string): Promise<boolean> {
-    return this.tx.run(async trx => {
+    const outcome = await this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
       const existing = await repo.findByUsernameOrUuid(username, { forUpdate: true });
-      if (!existing) return false;
+      if (!existing) return null;
+      const before = this.attendanceDays ? await repo.employmentDates(existing.username) : null;
 
       const updated = this.buildEmployeeFromInput(
         {
-          contract: { status: 'nghiviec', resignedOn: new Date().toISOString().slice(0, 10) },
-          account: { isLocked: true, lockedBy: actor, lockedAt: new Date().toISOString() },
+          contract: { status: 'nghiviec', resignedOn: businessDateText(this.now()) },
+          account: { isLocked: true, lockedBy: actor, lockedAt: this.now().toISOString() },
         },
         existing
       );
@@ -124,8 +170,11 @@ export class EmployeesService {
       await repo.save(updated, actor);
       const stored = await this.reload(repo, updated);
       await this.log(trx, actor, updated.username, staffDeleteRows(existing.toDTO(), stored.toDTO()));
-      return true;
+      return { username: updated.username, before };
     });
+    if (!outcome) return false;
+    await this.refreshAfterSave(outcome.username, outcome.before);
+    return true;
   }
 
   /** Bản vừa lưu đọc lại từ DB (trong cùng transaction): nhật ký so với cái đã lưu, không phải cái được gửi lên. */

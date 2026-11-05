@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../src/app.module';
+import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
+import { EmployeesService } from '../../src/modules/employees/employees.service';
+import { HolidaysService } from '../../src/modules/holidays/holidays.service';
 import { MeController } from '../../src/modules/me/me.controller';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { ExplanationsService } from '../../src/modules/requests/explanations.service';
@@ -28,6 +31,11 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ', async 
     const me = app.get(MeController) as any;
     assert.equal(me.explanations, explanations);
     assert.equal(me.requests, service);
+
+    // Ghi lại dòng ngày công khi đổi ngày lễ / ngày vào làm: thiếu nối dây thì hai service này bỏ qua im lặng.
+    const days = app.get(AttendanceDaysService);
+    assert.equal((app.get(HolidaysService) as any).attendanceDays, days);
+    assert.equal((app.get(EmployeesService) as any).attendanceDays, days);
   } finally {
     await app.close();
   }

@@ -16,6 +16,13 @@ import {
 
 export type StaffRow = Selectable<DB['staff']>;
 
+/** Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của một người, kèm mã `uuid` dòng ngày công dùng làm khoá. */
+export interface EmploymentDates {
+  uuid: string;
+  startDate: string | null;
+  resignedOn: string | null;
+}
+
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -309,6 +316,25 @@ export class EmployeesRepository {
       .execute();
 
     return EmployeesRepository.fromRow(row, roleRows.map(r => r.role));
+  }
+
+  /**
+   * Ngày vào làm / nghỉ việc của người `idOrUsername` (username hoặc uuid), đọc thẳng từ cột `staff`.
+   * null khi không có người đó hoặc hồ sơ chưa có `uuid` (chưa có khoá để ghi dòng ngày công).
+   */
+  async employmentDates(idOrUsername: string): Promise<EmploymentDates | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select(['uuid', 'start_date', 'resigned_on'])
+      .where(eb => eb.or([eb('username', '=', idOrUsername), eb('uuid', '=', idOrUsername)]))
+      .executeTakeFirst();
+    const uuid = row?.uuid?.trim();
+    if (!row || !uuid) return null;
+    const text = (value: string | null): string | null => {
+      const t = value?.trim();
+      return t && DATE_REGEX.test(t) ? t : null;
+    };
+    return { uuid, startDate: text(row.start_date), resignedOn: text(row.resigned_on) };
   }
 
   /**
