@@ -189,24 +189,6 @@ export async function saveAllSettings(group?, draft?) {
   return putParams(idx, allSettingsWanted(draft));
 }
 
-// ---------- Đánh giá KPI ----------
-const KPI_LABEL = {
-  wework: 'Base Wework',
-  user: 'Người dùng',
-  peer: 'Đồng nghiệp',
-  manager: 'Quản lý trực tiếp',
-  self: 'Tự đánh giá'
-};
-
-// Trọng số từng thành phần (kpi.weight, chỉ đọc)
-export async function getKpiRules() {
-  const idx = await readParams(8);
-  const entry = idx.entries.find(e => e.id === 'kpi.weight');
-  const rows = entry && Array.isArray(entry.value) ? entry.value : [];
-  const weights = rows.map(r => ({ label: KPI_LABEL[r.component] || r.component, percent: r.weight, note: '' }));
-  return { weights, total: weights.reduce((n, w) => n + w.percent, 0), related: [] };
-}
-
 // ---------- Lịch, ca & chấm công ----------
 // Lịch nghỉ lễ: GET /api/v2/holidays?year= (BE chưa có tham số ngày trả lương: payDay null).
 export async function getCalendar(year?) {

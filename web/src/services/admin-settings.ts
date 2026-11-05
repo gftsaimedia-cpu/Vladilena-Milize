@@ -31,4 +31,3 @@ export {
   verifyAuditLog
 } from './admin-config';
 export { getPayFormula, getPayDrawer, savePayDrawer } from './admin-config';
-export { getKpiRules } from './admin-config';
