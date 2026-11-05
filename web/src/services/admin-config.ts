@@ -11,10 +11,11 @@ import {
 } from '@/builders/api/benefits';
 import { catalogRows, currentDate, currentMonth, writePositions } from '@/services/admin-catalog';
 import { MOCK_HEADCOUNT } from '@/mock/positions';
+import { mockAuditList, mockAuditVerify } from '@/mock/audit';
 import { respond } from '@/mock/respond';
 import { addHolidays, holidaysOf, quickAddFixed, removeHolidays } from '@/mock/settings';
 import { buildAuditPage } from '@/builders/admin-config/audit';
-import { auditResponseFromRows } from '@/builders/api/audit';
+import { auditFromResponse, verifyMessage } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
 import { notConnected } from '@/services/data-mode';
 import { buildPayDrawer, buildPayFormula, drawerWanted } from '@/builders/admin-config/pay';
@@ -227,24 +228,18 @@ export async function removeHoliday(id?) {
 }
 
 // ---------- Nhật ký thay đổi ----------
-const AUDIT_PAGE = 50;
-const auditState: any = { cursors: [null], actors: new Map(), actions: new Set() };
+const AUDIT_PAGE = 25;
 
-// GET /api/v2/system/audit?limit=&offset= (mới nhất trước). BE chưa lọc theo người, thao tác hay ngày: bộ lọc chỉ áp
-// trên các dòng của trang đang xem.
+// GET /api/v2/system/audit: BE lọc theo người, việc, ngày và phân trang (offset), trả tổng số dòng và hai danh sách dropdown.
 export async function getAuditLog({ page = 1, who = '', action = '', from = '', to = '' }: any = {}) {
   const at = Math.max(1, page);
-  const res = await api('GET', `/system/audit${qs({ limit: AUDIT_PAGE, offset: (at - 1) * AUDIT_PAGE })}`);
-  const out = auditResponseFromRows(res.items || [], { page: at, size: AUDIT_PAGE });
-  const day = (iso?) => new Date(Date.parse(iso) + 7 * 3600000).toISOString().slice(0, 10);
-  const rows = out.rows.filter(
-    r => (!who || r.actor === who) && (!action || r.action === action) && (!from || day(r.at) >= from) && (!to || day(r.at) <= to)
-  );
-  return buildAuditPage(
-    { rows, total: out.total },
-    { page: at, size: AUDIT_PAGE, pages: at + (out.hasMore ? 1 : 0), seen: auditState }
-  );
+  const q = { limit: AUDIT_PAGE, offset: (at - 1) * AUDIT_PAGE, actor: who, action, from, to };
+  const res = __MOCK__ ? await respond(mockAuditList(q)) : await api('GET', `/system/audit${qs(q)}`);
+  return buildAuditPage(auditFromResponse(res), { page: at, size: AUDIT_PAGE });
 }
 
-// Kiểm chuỗi băm của nhật ký: BE v2 chưa có API.
-export const verifyAuditLog = () => notConnected();
+// GET /api/v2/system/audit/verify: kiểm chuỗi băm; message là câu tiếng Việt khi sai, null khi đúng.
+export async function verifyAuditLog() {
+  const res = __MOCK__ ? await respond(mockAuditVerify()) : await api('GET', '/system/audit/verify');
+  return { ...res, message: verifyMessage(res) };
+}
