@@ -19,6 +19,8 @@ import {
   dayCapError,
   workMinutes,
   formatHours,
+  lastDayOfMonth,
+  requireMakeupSlots,
   type ClockWindow
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
@@ -51,14 +53,14 @@ export interface CreateShiftChangeInput {
   newEndTime: string;
 }
 
+/** Thân đơn nghỉ có làm bù (§6.2): khoảng nghỉ và danh sách khung bù; số ngày và giờ bù do server tính. */
 export interface CreateLeaveWithMakeupInput {
   employeeId: string;
   title: string;
   reason: string;
-  leaveDate: string;
-  makeupDate: string;
-  makeupStartTime: string;
-  makeupEndTime: string;
+  startDate: unknown;
+  endDate: unknown;
+  slots: unknown;
 }
 
 /** Thân đơn OT (§6.3): một khung; `targetDate` nhận thay `otDate`. Giờ OT do server tính, `hours`/`otHours` không đọc. */
@@ -71,6 +73,9 @@ export interface CreateOvertimeInput {
   startTime?: unknown;
   endTime?: unknown;
 }
+
+/** Mỗi ngày nghỉ của đơn nghỉ có làm bù cần đúng 480 phút (8 giờ) làm bù (§6.2). */
+const MAKEUP_MINUTES_PER_LEAVE_DAY = 480;
 
 /** Trần OT tháng: 40 giờ (Điều 107 Bộ luật Lao động), giữ như v2. */
 const MONTH_OT_CAP_MINUTES = 40 * 60;
@@ -257,18 +262,77 @@ export class RequestsService {
   }
 
   async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<SystemRequestDTO> {
-    const req = SystemRequest.createLeaveWithMakeupRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      leaveDate: input.leaveDate,
-      makeupDate: input.makeupDate,
-      makeupStartTime: input.makeupStartTime,
-      makeupEndTime: input.makeupEndTime
-    });
+    const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    const slots = requireMakeupSlots(input.slots);
+    const month = monthOf(startDate);
+    const staff = await this.resolveStaff(input.employeeId, month);
+    this.requireTypeConfig(staff);
+    if (!staff.benefits.makeup) {
+      throw new Error('Loại nhân sự này không có làm bù');
+    }
+    if (monthOf(endDate) !== month || slots.some(slot => monthOf(slot.date) !== month)) {
+      throw new Error('Ngày nghỉ và khung bù phải nằm trong cùng một tháng');
+    }
 
-    await this.repo.save(req);
-    return req.toJSON();
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      const monthEnd = lastDayOfMonth(month);
+      const { days, active } = await this.loadDays(staff, startDate, monthEnd);
+      const leaveDays = days.workingDaysBetween(startDate, endDate);
+      if (leaveDays.length === 0) {
+        throw new Error('Khoảng nghỉ không có ngày làm việc');
+      }
+      this.assertLeaveRangeFree(days, active, startDate, endDate);
+      if (endDate === monthEnd) {
+        throw new Error('Không còn ngày trong tháng để xếp đủ giờ bù');
+      }
+      const otInMonth = active.some(
+        r => r.type === 'OVERTIME' && isActive(r) && r.otDate !== null && monthOf(r.otDate) === month
+      );
+      if (otInMonth) {
+        throw new Error(`Tháng ${month} đã có đơn OT, không nộp đơn nghỉ có làm bù được`);
+      }
+
+      const windows: ClockWindow[] = slots.map(slot => ({ ...slot, kind: 'MAKEUP' }));
+      for (const window of windows) {
+        const { date } = window;
+        if (date <= endDate) {
+          throw new Error(`Khung bù ngày ${formatDayMonth(date)} phải sau ngày nghỉ cuối ${formatDayMonth(endDate)}`);
+        }
+        if (days.isOnLeave(date)) {
+          throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không xếp khung bù được`);
+        }
+        const others = windows.filter(w => w !== window && w.date === date);
+        const problem = windowError(window, days.shiftsAround(date), [...days.windowsOn(date), ...others]);
+        if (problem) {
+          throw new Error(problem);
+        }
+      }
+      for (const date of [...new Set(windows.map(w => w.date))]) {
+        const sameDay = windows.filter(w => w.date === date);
+        const problem = dayCapError(date, days.shiftOf(date) !== null, [...days.windowsOn(date), ...sameDay]);
+        if (problem) {
+          throw new Error(problem);
+        }
+      }
+
+      const owed = MAKEUP_MINUTES_PER_LEAVE_DAY * leaveDays.length;
+      const total = slots.reduce((sum, slot) => sum + workMinutes(slot.startTime, slot.endTime), 0);
+      if (total !== owed) {
+        throw new Error(`Cần đúng ${formatHours(owed)} giờ bù, đang xếp ${formatHours(total)} giờ`);
+      }
+
+      const req = SystemRequest.createLeaveWithMakeupRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        startDate,
+        endDate,
+        daysCount: leaveDays.length,
+        makeupSlots: slots.map(slot => ({ ...slot, workMinutes: workMinutes(slot.startTime, slot.endTime) }))
+      });
+      await this.repo.save(req);
+      return req.toJSON();
+    });
   }
 
   async createOvertimeRequest(input: CreateOvertimeInput): Promise<SystemRequestDTO> {
@@ -423,22 +487,9 @@ export class RequestsService {
               const updated = sched.withShiftChange(req.newShiftType as any, req.newStartTime!, req.newEndTime!, req.id);
               await this.attendanceRepo.saveSchedule(updated);
             }
-          } else if (req.type === 'LEAVE') {
+          } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
+            // Chỉ ngày nghỉ được ghi ON_LEAVE; khung bù không ghi vào lịch.
             await this.markLeaveDays(req);
-          } else if (req.type === 'LEAVE_WITH_MAKEUP') {
-            // Đơn nghỉ có làm bù tạm giữ cách cũ (ghi mọi ngày lịch); plan Task 8 chuyển sang markLeaveDays.
-            const start = req.leaveStartDate;
-            const end = req.leaveEndDate || start;
-            if (start) {
-              let cur = new Date(`${start}T00:00:00.000Z`);
-              const endDate = new Date(`${end}T00:00:00.000Z`);
-              while (cur.getTime() <= endDate.getTime()) {
-                const curStr = cur.toISOString().slice(0, 10);
-                const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, curStr);
-                await this.attendanceRepo.saveSchedule(sched.withLeave(req.id));
-                cur = new Date(cur.getTime() + 86400000);
-              }
-            }
           } else if (req.type === 'ISAT' && req.isat) {
             const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
             await this.attendanceRepo.saveSchedule(sched.withIsat(req.id));

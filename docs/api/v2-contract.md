@@ -341,6 +341,67 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
 
+#### `POST /api/v2/requests/leave-with-makeup` (Đơn nghỉ có làm bù)
+- **Mục đích**: Nghỉ nguyên ngày rồi làm bù đủ giờ sau ngày nghỉ, trong cùng tháng. Mỗi ngày nghỉ nợ đúng **8 giờ** làm bù. Không có loại nghỉ (`leaveType` = `null`).
+- **Request Body**:
+  ```json
+  {
+    "employeeId": "nv01",
+    "title": "Nghỉ có làm bù",
+    "reason": "Việc gia đình",
+    "startDate": "2026-11-10",
+    "endDate": "2026-11-10",
+    "slots": [
+      { "date": "2026-11-12", "startTime": "18:00", "endTime": "22:00" },
+      { "date": "2026-11-16", "startTime": "18:00", "endTime": "22:00" }
+    ]
+  }
+  ```
+  - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
+  - `startDate`, `endDate`: như đơn nghỉ. Server đếm `leaveDaysCount` = số ngày làm việc trong khoảng (cùng cách đếm với đơn nghỉ); `daysCount`/`leaveType` client gửi bị bỏ qua.
+  - `slots`: danh sách khung bù `{ date, startTime, endTime }` (`YYYY-MM-DD`, `HH:mm`). Giờ bù của mỗi khung = giờ thực làm như khung OT (cứ 4 giờ nghỉ 1 giờ). Tổng giờ bù phải **đúng bằng** 8 × `leaveDaysCount`.
+  - Mọi khung theo luật khung của đơn OT (06–22, cách ca ít nhất 1 giờ, không chồng khung OT/bù khác, ca + OT + bù ≤ 12 giờ/ngày), xét cả các khung khác trong cùng đơn. Khung bù được xếp vào CN hoặc ngày không có ca.
+- **Response 201**: `makeupSlots` sắp theo ngày rồi theo giờ bắt đầu; `owedMinutes` = 480 × `leaveDaysCount`.
+  ```json
+  {
+    "created": true,
+    "request": {
+      "type": "LEAVE_WITH_MAKEUP",
+      "status": "PENDING",
+      "leaveType": null,
+      "leaveStartDate": "2026-11-10",
+      "leaveEndDate": "2026-11-10",
+      "leaveDaysCount": 1,
+      "owedMinutes": 480,
+      "makeupSlots": [
+        { "date": "2026-11-12", "startTime": "18:00", "endTime": "22:00", "workMinutes": 240 },
+        { "date": "2026-11-16", "startTime": "18:00", "endTime": "22:00", "workMinutes": 240 }
+      ]
+    }
+  }
+  ```
+- **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự; đơn bị chặn thì không lưu):
+
+  | Bước | `message` | Khi nào |
+  |---|---|---|
+  | 0 | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
+  | 1 | `startDate must be a valid YYYY-MM-DD date string, got: <giá trị>` (tương tự `endDate …`), `endDate (<ngày>) cannot be earlier than startDate (<ngày>)` | Ngày nghỉ sai dạng, không có thật, hoặc đảo ngược |
+  | 2 | `slots phải là danh sách khung bù` | `slots` không phải mảng |
+  | 2 | `Khung bù thứ <i> không hợp lệ` | Khung thứ i (đếm từ 1) không phải object, hoặc thiếu/sai `date`, `startTime`, `endTime` |
+  | 3 | `Không tìm thấy nhân sự: <id>` / `Thiếu cấu hình loại nhân sự <loại>` | Như đơn nghỉ |
+  | 3 | `Loại nhân sự này không có làm bù` | Cờ quyền lợi `makeup` của loại nhân sự tắt |
+  | 4 | `Ngày nghỉ và khung bù phải nằm trong cùng một tháng` | Hai ngày nghỉ, hoặc ngày của một khung, khác tháng với `startDate` |
+  | 6 | `Khoảng nghỉ không có ngày làm việc` | Như đơn nghỉ |
+  | 6 | `Đã có đơn nghỉ trùng ngày (dd/mm – dd/mm)` / `Ngày dd/mm đã có khung OT hoặc làm bù` | Như đơn nghỉ |
+  | 7 | `Không còn ngày trong tháng để xếp đủ giờ bù` | `endDate` là ngày cuối tháng |
+  | 8 | `Tháng YYYY-MM đã có đơn OT, không nộp đơn nghỉ có làm bù được` | Tháng đó có đơn OT đang chờ/đã duyệt |
+  | 9 | `Khung bù ngày dd/mm phải sau ngày nghỉ cuối dd/mm` | Khung rơi vào ngày nghỉ hoặc trước đó |
+  | 9 | `Ngày dd/mm đang nghỉ, không xếp khung bù được` | Ngày của khung nằm trong đơn nghỉ khác hoặc lịch `ON_LEAVE` |
+  | 9 | Các câu `Giờ khung không hợp lệ…`, `Khung … phải nằm trong 06:00–22:00`, `… phải cách ca … ít nhất 1 giờ`, `… chồng lên khung …` | Như đơn OT; khung được xét theo ngày rồi theo giờ bắt đầu |
+  | 10 | `Ngày dd/mm vượt 12 giờ (ca + OT + làm bù = <n> giờ)` | Ca + khung đã có + các khung mới của ngày đó > 12 giờ |
+  | 11 | `Cần đúng <n> giờ bù, đang xếp <m> giờ` | Tổng giờ bù khác 8 × `leaveDaysCount`, ví dụ `Cần đúng 8 giờ bù, đang xếp 4 giờ` |
+- Nộp dưới khoá `requests_<uuid>` như đơn nghỉ. Đơn và các khung bù (bảng `makeup_slots`) được ghi trong cùng một giao dịch.
+
 #### `POST /api/v2/requests/overtime` (Đơn làm thêm OT)
 - **Mục đích**: Đăng ký **một khung** OT trong một ngày. Một ngày được nhiều đơn OT, miễn các khung không chồng nhau và đúng luật bên dưới.
 - **Request Body**:
@@ -496,8 +557,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```
 - **Response 200**: Trả về trạng thái đơn đã cập nhật. Hệ thống tự động cập nhật lịch công (`work_schedules`) hoặc trạng thái ngày công (`timesheet_entries`) tương ứng.
 
-##### Duyệt đơn nghỉ
-- `APPROVE`: mỗi **ngày làm việc** trong khoảng `leaveStartDate`–`leaveEndDate` được ghi lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). Ngày làm việc tính lại lúc duyệt theo lịch lễ lúc đó; CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi. `leaveDaysCount` giữ như lúc nộp.
+##### Duyệt đơn nghỉ và đơn nghỉ có làm bù
+- `APPROVE`: mỗi **ngày làm việc** trong khoảng `leaveStartDate`–`leaveEndDate` được ghi lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). Ngày làm việc tính lại lúc duyệt theo lịch lễ lúc đó; CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi. `leaveDaysCount` giữ như lúc nộp. Với đơn nghỉ có làm bù, chỉ ngày nghỉ được ghi; khung bù không ghi vào lịch.
 - `REJECT`: không đổi lịch.
 
 ##### Duyệt đơn iSAT

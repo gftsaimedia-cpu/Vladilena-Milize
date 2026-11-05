@@ -122,12 +122,12 @@ test('DTO of an OT request has empty child lists and null owedMinutes', () => {
 
 test('temporary factories fill the new fields', () => {
   const lwm = SystemRequest.createLeaveWithMakeupRequest({ employeeId: 'u1', title: 't', reason: 'r',
-    leaveDate: '2026-11-10', makeupDate: '2026-11-12', makeupStartTime: '18:00', makeupEndTime: '22:00' }).toJSON();
+    startDate: '2026-11-10', endDate: '2026-11-11', daysCount: 2, makeupSlots: lwmRequest().makeupSlots }).toJSON();
   assert.deepEqual(
     [lwm.leaveStartDate, lwm.leaveEndDate, lwm.leaveType, lwm.leaveDaysCount, lwm.owedMinutes],
-    ['2026-11-10', '2026-11-10', null, 1, 480]
+    ['2026-11-10', '2026-11-11', null, 2, 960]
   );
-  assert.deepEqual(lwm.makeupSlots, [{ date: '2026-11-12', startTime: '18:00', endTime: '22:00', workMinutes: 240 }]);
+  assert.deepEqual(lwm.makeupSlots, lwmRequest().makeupSlots);
 
   const shift = SystemRequest.createShiftChangeRequest({ employeeId: 'u1', title: 't', reason: 'r',
     changeDate: '2026-11-13', newShiftType: 'NIGHT', newStartTime: '22:00', newEndTime: '07:00' }).toJSON();
@@ -236,7 +236,8 @@ test('the correction request is gone', () => {
   assert.equal((WorkSchedule.prototype as any).withMakeUp, undefined);
 });
 
-test('approving OT writes no schedule; approving leave-with-makeup marks the leave day only', async () => {
+// Duyệt đơn nghỉ có làm bù (chỉ ghi ngày nghỉ) nằm ở requests-makeup.test.ts.
+test('approving OT writes no schedule', async () => {
   const repo = new FakeRequestsRepository();
   const att = new FakeAttendanceRepository();
   const service = new RequestsService(repo, att);
@@ -245,12 +246,6 @@ test('approving OT writes no schedule; approving leave-with-makeup marks the lea
   const ot = await service.reviewRequest('r2', 'admin', 'APPROVE');
   assert.equal(ot.status, 'APPROVED');
   assert.equal(att.schedules.size, 0);
-
-  const lwm = await service.createLeaveWithMakeupRequest({ employeeId: 'u1', title: 't', reason: 'r',
-    leaveDate: '2026-11-10', makeupDate: '2026-11-12', makeupStartTime: '18:00', makeupEndTime: '22:00' });
-  await service.reviewRequest(lwm.id, 'admin', 'APPROVE');
-  assert.deepEqual([...att.schedules.keys()], ['u1:2026-11-10']);
-  assert.equal(att.schedules.get('u1:2026-11-10')!.status, 'ON_LEAVE');
 });
 
 test('approving a shift change writes the schedule on changeStartDate', async () => {

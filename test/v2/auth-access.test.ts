@@ -68,6 +68,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'createIsat',
     'listIsatConditions',
     'listLeaveTypes',
+    'createLeaveWithMakeup',
     'listRequests',
     'getRequest',
     'reviewRequest',

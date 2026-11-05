@@ -97,14 +97,15 @@ export interface CreateShiftChangeParams {
   newEndTime: string;
 }
 
+/** Đơn nghỉ có làm bù (§6.2): khoảng nghỉ, số ngày làm việc trong khoảng (server đếm) và các khung bù. */
 export interface CreateLeaveWithMakeupParams {
   employeeId: string;
   title: string;
   reason: string;
-  leaveDate: string;
-  makeupDate: string;
-  makeupStartTime: string;
-  makeupEndTime: string;
+  startDate: string;
+  endDate: string;
+  daysCount: number;
+  makeupSlots: MakeupSlot[];
 }
 
 export interface CreateOvertimeParams {

@@ -75,6 +75,41 @@ export function requireDateRange(startDate: unknown, endDate: unknown): { startD
   return { startDate: start, endDate: end };
 }
 
+/** Khung bù client gửi, đã kiểm dạng nhưng chưa tính giờ. */
+export interface MakeupSlotInput {
+  date: string;
+  startTime: string;
+  endTime: string;
+}
+
+const compareSlots = (a: { date: string; startTime: string }, b: { date: string; startTime: string }): number =>
+  a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date);
+
+/**
+ * Đọc danh sách khung bù của đơn nghỉ có làm bù (§6.2 bước 2), trả về theo ngày rồi theo giờ bắt đầu.
+ * Không phải mảng → `slots phải là danh sách khung bù`; khung thứ i sai dạng → `Khung bù thứ i không hợp lệ`.
+ */
+export function requireMakeupSlots(value: unknown): MakeupSlotInput[] {
+  if (!Array.isArray(value)) {
+    throw new Error('slots phải là danh sách khung bù');
+  }
+  return value
+    .map((slot, i) => {
+      const s = slot as Record<string, unknown> | null;
+      if (
+        typeof s !== 'object' ||
+        s === null ||
+        !isValidDateText(s.date) ||
+        !isValidTimeString(s.startTime as string) ||
+        !isValidTimeString(s.endTime as string)
+      ) {
+        throw new Error(`Khung bù thứ ${i + 1} không hợp lệ`);
+      }
+      return { date: s.date, startTime: s.startTime as string, endTime: s.endTime as string };
+    })
+    .sort(compareSlots);
+}
+
 export class SystemRequest {
   id: string;
   employeeId: string;
@@ -342,18 +377,22 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateText(params?.leaveDate)) {
-      throw new Error(`leaveDate must be a valid YYYY-MM-DD date string, got: ${params?.leaveDate}`);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
+    if (!Number.isInteger(params?.daysCount) || params.daysCount <= 0) {
+      throw new Error(`daysCount must be a positive integer, got: ${params?.daysCount}`);
     }
-    if (!isValidDateText(params?.makeupDate)) {
-      throw new Error(`makeupDate must be a valid YYYY-MM-DD date string, got: ${params?.makeupDate}`);
+    if (!Array.isArray(params?.makeupSlots) || params.makeupSlots.length === 0) {
+      throw new Error('makeupSlots must be a non-empty array');
     }
-    if (!isValidTimeString(params?.makeupStartTime)) {
-      throw new Error(`makeupStartTime must be a valid HH:mm time string, got: ${params?.makeupStartTime}`);
-    }
-    if (!isValidTimeString(params?.makeupEndTime)) {
-      throw new Error(`makeupEndTime must be a valid HH:mm time string, got: ${params?.makeupEndTime}`);
-    }
+    // Khung bù luôn lưu theo ngày rồi theo giờ bắt đầu, để mọi nơi đọc ra cùng một thứ tự.
+    const makeupSlots = params.makeupSlots
+      .map(slot => ({
+        date: requireDateText(slot?.date, 'makeupSlots.date'),
+        startTime: requireTimeText(slot?.startTime, 'makeupSlots.startTime'),
+        endTime: requireTimeText(slot?.endTime, 'makeupSlots.endTime'),
+        workMinutes: workMinutes(slot.startTime, slot.endTime)
+      }))
+      .sort(compareSlots);
 
     const now = new Date();
     return new SystemRequest({
@@ -363,18 +402,11 @@ export class SystemRequest {
       type: 'LEAVE_WITH_MAKEUP',
       reason,
       status: 'PENDING',
-      leaveStartDate: params.leaveDate,
-      leaveEndDate: params.leaveDate,
+      leaveStartDate: startDate,
+      leaveEndDate: endDate,
       leaveType: null,
-      leaveDaysCount: 1,
-      makeupSlots: [
-        {
-          date: params.makeupDate,
-          startTime: params.makeupStartTime,
-          endTime: params.makeupEndTime,
-          workMinutes: workMinutes(params.makeupStartTime, params.makeupEndTime)
-        }
-      ],
+      leaveDaysCount: params.daysCount,
+      makeupSlots,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,

@@ -28,6 +28,26 @@ export class RequestsController {
   }
 
   @RequireCap('requests.review')
+  @Post('leave-with-makeup')
+  async createLeaveWithMakeup(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      // Số ngày nghỉ và giờ bù do server tính: `daysCount`/`leaveType` client gửi không được chuyển xuống.
+      const request = await this.service.createLeaveWithMakeupRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        slots: body.slots
+      });
+      return { created: true, request };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  @RequireCap('requests.review')
   @Post('overtime')
   async createOvertime(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
