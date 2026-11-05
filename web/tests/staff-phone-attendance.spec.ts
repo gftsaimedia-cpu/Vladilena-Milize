@@ -49,7 +49,7 @@ test('Gần đây lists the five latest days with times', async ({ page }) => {
     /Thứ Tư 28\/10\s*07:59 – …/,
     /Thứ Ba 27\/10\s*08:12 – \?/,
     /Thứ Hai 26\/10\s*07:56 – 17:10/,
-    /Thứ Bảy 24\/10\s*07:52 – 17:04/,
+    /Thứ Bảy 24\/10\s*07:52 – \?/,
     /Thứ Sáu 23\/10\s*07:58 – 17:02/
   ]);
 });

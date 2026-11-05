@@ -1,9 +1,10 @@
 // Việc chờ duyệt (chuông, thẻ Việc cần duyệt) từ GET /api/v2/requests?status=PENDING. Mỗi đơn đang chờ là một việc
-// "decide"; duyệt / từ chối qua PATCH /api/v2/requests/:id/review. BE chưa có việc "nhắc giải trình" (quên chấm công
-// mà chưa gửi đơn) nên nhóm Chấm công trống.
+// "decide"; duyệt / từ chối qua PATCH /api/v2/requests/:id/review. Việc "nhắc giải trình" (ngày chấm công thiếu hoặc
+// lệch mà nhân viên chưa gửi giải trình) đến từ GET /requests/explanations-due (inboxFromDue), nhóm Chấm công.
 import type { InboxGroup, InboxItem } from '../../mock/inbox';
 import { INBOX_GROUPS } from '../../constants/labels';
 import { dm, initials, vndc, weekdayName } from '../../utils/format';
+import { caseText, type ExplanationCase, type ExplanationNeeds } from './staff-requests';
 
 export type RequestDTO = {
   id: string;
@@ -168,4 +169,47 @@ export function inboxFromRequests(requests: RequestDTO[], people: Map<string, Pe
         ...bodyOf(r)
       };
     });
+}
+
+export type DueDTO = {
+  employeeId: string;
+  name: string;
+  date: string;
+  cases: ExplanationCase[];
+  needs: ExplanationNeeds;
+  remindedAt: string | null;
+};
+
+/**
+ * Ngày cần giải trình (GET /requests/explanations-due) thành việc "nhắc" của nhóm Chấm công, giữ thứ tự máy chủ.
+ * `id` = `due:<employeeId>:<date>`, `personId` = uuid nhân sự. Máy chủ không gửi giờ chấm: chỉ ghi "Chưa có" cho giờ còn
+ * thiếu (needs), giờ đã có không hiện dòng. Tuổi tính từ 00:00 (giờ Việt Nam) của ngày cần giải trình.
+ */
+export function inboxFromDue(items: DueDTO[], people: Map<string, PersonInfo>, now: number): InboxItem[] {
+  return items.map(d => {
+    const name = people.get(d.employeeId)?.name || d.name;
+    const what = caseText(d.cases);
+    const facts: InboxItem['facts'] = [];
+    if (d.needs.checkIn) facts.push(['Giờ vào', 'Chưa có']);
+    if (d.needs.checkOut) facts.push(['Giờ ra', 'Chưa có']);
+    facts.push(['Giải trình', 'Chưa gửi']);
+    return {
+      id: `due:${d.employeeId}:${d.date}`,
+      group: 'att' as const,
+      groupLabel: LABELS.att,
+      action: 'remind' as const,
+      personId: d.employeeId,
+      name,
+      initials: initials(name),
+      role: people.get(d.employeeId)?.title || '—',
+      what,
+      when: dm(d.date),
+      age: ageText(`${d.date}T00:00:00+07:00`, now),
+      head: what,
+      sub: longDay(d.date),
+      facts,
+      days: [d.date],
+      ...(d.remindedAt ? { remindedAt: d.remindedAt } : {})
+    };
+  });
 }

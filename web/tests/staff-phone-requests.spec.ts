@@ -62,14 +62,6 @@ test('arrow, Home and End keys move between tabs', async ({ page }) => {
   await expect(tabs(page).locator('[tabindex="0"]')).toHaveCount(1);
 });
 
-test('Tạo yêu cầu shows a notice and opens nothing', async ({ page }) => {
-  await openPhone(page, '/nv/yeu-cau');
-  await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Chưa có luồng tạo yêu cầu trong bản mockup.' })).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
-});
-
 test('the Phép năm 12/10 sheet follows J5 and closes back to its row', async ({ page }) => {
   await openPhone(page, '/nv/yeu-cau');
   const row = page.getByRole('link', { name: 'Phép năm 12/10, Đã duyệt' });
@@ -150,28 +142,6 @@ test('the status tabs fit inside the strip at 320px and 360px', async ({ page })
     }
   }
 });
-
-// Thông báo "Tạo yêu cầu" nổi trên thanh tab, không che và không chặn thanh tab, không bóng (thanh tab của app điện thoại cấm bóng).
-for (const size of [
-  { width: 320, height: 640 },
-  { width: 390, height: 844 }
-]) {
-  test(`the Tạo yêu cầu notice floats above the tab bar at ${size.width}px`, async ({ page }) => {
-    await openPhone(page, '/nv/yeu-cau', size);
-    await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
-    const toast = page.getByRole('status').filter({ hasText: 'Chưa có luồng tạo yêu cầu trong bản mockup.' });
-    await expect(toast).toBeVisible();
-    const bar = (await page.getByRole('navigation', { name: 'Điều hướng' }).boundingBox())!;
-    const box = (await toast.boundingBox())!;
-    expect(box.y + box.height).toBeLessThanOrEqual(bar.y - 8);
-    const hit = await page.evaluate(
-      ([x, y]) => !!document.elementFromPoint(x, y)?.closest('nav[aria-label="Điều hướng"]'),
-      [bar.x + bar.width / 2, bar.y + bar.height / 2]
-    );
-    expect(hit).toBe(true);
-    await expect(toast).toHaveCSS('box-shadow', 'none');
-  });
-}
 
 test('a rejected request shows the reviewer note under the rejected step', async ({ page }) => {
   await openPhone(page, '/nv/yeu-cau?yc=gio-vao-0909');

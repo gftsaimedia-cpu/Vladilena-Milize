@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
 import 'reflect-metadata';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
@@ -118,6 +118,11 @@ describe('MeController', () => {
     const out = await ctl.previewRequest(req(), 'leave', { employeeId: 'mallory', leaveType: 'ANNUAL' } as any);
     assert.deepEqual(out, result);
     assert.deepEqual(reqs.calls.previewRequest, ['leave', { employeeId: 'nam', leaveType: 'ANNUAL' }, { filedBy: 'self' }]);
+  });
+
+  // BUG-requests-13: spec 2.2 và v2-contract ghi xem trước "luôn trả 200"; @Post của Nest mặc định 201.
+  it('preview answers 200, not the POST default 201', () => {
+    assert.equal(Reflect.getMetadata(HTTP_CODE_METADATA, MeController.prototype.previewRequest), 200);
   });
 
   it('preview of isat or unknown kind is 404', async () => {

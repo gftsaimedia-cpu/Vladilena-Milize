@@ -174,6 +174,10 @@
 :is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.rej {
   background: var(--status-rejected);
 }
+/* Đã huỷ: chấm xám (dòng yêu cầu, nhãn trạng thái của J5 và ngăn kéo yêu cầu) */
+:is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .dot.cancel {
+  background: var(--muted);
+}
 /* Nhãn trạng thái: chấm + chữ 13px, không viên thuốc */
 :is(.ph-app, .ph-sheet, .sd-app, .sd-drawer) .st {
   display: inline-flex;
@@ -286,6 +290,15 @@ body .ph-app ~ .toasts {
 body .ph-app ~ .toasts .toast,
 body .sd-app ~ .toasts .toast {
   box-shadow: none;
+}
+/* Hộp trượt hay ngăn kéo còn mở khi có thông báo (vd. "Đã huỷ đơn" trong J5 / ngăn kéo yêu cầu): không che thân hộp.
+   Điện thoại: lên đầu màn, trên nền mờ (như board J19). Máy tính: góc dưới, ngay bên trái ngăn kéo (rộng 440px, cách phải 16px). */
+body:has(> .ph-sheet-root) .ph-app ~ .toasts {
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  bottom: auto;
+}
+body:has(> .sd-drawer-root) .sd-app ~ .toasts {
+  right: calc(16px + 440px + 16px);
 }
 
 /* Biểu mẫu trong hộp trượt và ngăn kéo (Đổi mật khẩu): ô nhập bo 8px, focus 2px --text cách 2px, không bóng */
