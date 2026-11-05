@@ -84,6 +84,13 @@ describe('MeController', () => {
     assert.equal(reqs.calls.previewRequest, undefined);
   });
 
+  it('create of an inherited property name is 404', async () => {
+    const { ctl } = controller();
+    for (const kind of ['constructor', 'toString', '__proto__', 'nonsense']) {
+      await assert.rejects(ctl.createRequest(req(), kind, {}), (e: any) => e.status === 404 && e.details?.code === 'REQUEST_KIND_NOT_FOUND', kind);
+    }
+  });
+
   it('request-context comes from the session user and a failure is a 400', async () => {
     const ctx = { today: '2026-11-05' };
     const { ctl, reqs } = controller({ reqs: fake({ requestContext: () => ctx }) });

@@ -237,8 +237,8 @@ export class MeController {
   @Post('requests/:kind')
   async createRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
     const me = who(req);
+    if (!Object.prototype.hasOwnProperty.call(CREATE, kind)) throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
     const create = CREATE[kind];
-    if (!create) throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
     try {
       const created = await create(this.requests, { ...(body || {}), employeeId: me.username });
       return createdBody(created);
