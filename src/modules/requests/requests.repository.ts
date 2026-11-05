@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import { Kysely, sql } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import { isValidDateText } from '../../common/date-text';
+import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import {
   SystemRequest,
   SystemRequestRow,
@@ -67,7 +68,7 @@ export interface FilingStaff {
 const REQUEST_BENEFITS = ['ot', 'makeup', 'leaveAccount'] as const;
 
 /** Ca mặc định khi hồ sơ không ghi ca (như ensureDefaultSchedule). */
-const FALLBACK_SHIFT = { startTime: '08:00', endTime: '17:00' };
+const FALLBACK_SHIFT = { startTime: DEFAULT_SHIFT.startTime, endTime: DEFAULT_SHIFT.endTime };
 
 /** `staff.start_date` là cột TEXT: chỉ nhận đúng 'YYYY-MM-DD' (bỏ khoảng trắng hai đầu), còn lại coi như không ghi. */
 function parseStartDate(text: string | null | undefined): string | null {
