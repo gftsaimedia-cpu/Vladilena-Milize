@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import 'reflect-metadata';
-import { METHOD_METADATA } from '@nestjs/common/constants';
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { MeController } from '../../src/modules/me/me.controller';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
 const req = (user: any = NAM) => ({ user }) as any;
+// Hồ sơ của Nam: vào làm 04/03/2024, nên xem được từ tháng 03/2024 tới tháng hiện tại.
+const namEmployee = (effectiveFrom: string | null = '2024-03-04') => ({ toDTO: () => ({ contract: { effectiveFrom } }) });
 
 // Service giả ghi lại tham số theo tên hàm; `impl` thay hành vi của từng hàm.
 function fake(impl: Record<string, (...a: any[]) => any> = {}) {
@@ -24,7 +26,7 @@ function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp', ReturnT
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }) });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
-  const emp = over.emp ?? fake();
+  const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
   return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy), att, reqs, pay, emp };
 }
 
@@ -64,13 +66,26 @@ describe('MeController', () => {
     await assert.rejects(other.ctl.cancelRequest(req(), 'x', {}), (e: any) => e.status === 409 && e.details?.code === 'REQUEST_NOT_CANCELLABLE');
   });
 
-  it('income: official, estimate, unavailable', async () => {
-    const official = controller({ pay: fake({ getPayslip: () => ({ status: 'final', details: { netIncome: 1 } }) }) });
-    assert.equal((await official.ctl.income(req(), '2026-10') as any).state, 'official');
+  it('income is official once my payslip is approved', async () => {
+    const official = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: { netIncome: 1 } }) }) });
+    const o = (await official.ctl.income(req(), '2026-10')) as any;
+    assert.equal(o.state, 'official');
+    assert.deepEqual(o.payslip, { netIncome: 1 });
+    assert.equal(official.pay.calls.generateMonthlyPayslip, undefined);
+  });
 
+  it('a stored payslip that is not approved yet is still an estimate', async () => {
+    const full = { grossIncome: 0, insuranceDeduction: 630_000, insuranceBreakdown: { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 }, incomeAfterInsurance: -630_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: -630_000 };
+    for (const status of ['draft', 'pending', 'error']) {
+      const c = controller({ pay: fake({ getPayslip: () => ({ status, details: { netIncome: 1 } }), generateMonthlyPayslip: () => ({ toJSON: () => full }) }) });
+      assert.equal(((await c.ctl.income(req(), '2026-10')) as any).state, 'estimate', status);
+    }
+  });
+
+  it('income: estimate, unavailable', async () => {
     const full = { grossIncome: 0, insuranceDeduction: 630_000, insuranceBreakdown: { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 }, incomeAfterInsurance: -630_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: -630_000 };
     const est = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => ({ toJSON: () => full }) }) });
-    const e = (await est.ctl.income(req(), '2026-11')) as any;
+    const e = (await est.ctl.income(req(), '2026-10')) as any;
     assert.equal(e.state, 'estimate');
     assert.equal(e.payslip.netIncome, 0); // tạm tính không trừ bảo hiểm, thuế
     assert.equal(e.payslip.insuranceDeduction, 0);
@@ -78,14 +93,40 @@ describe('MeController', () => {
     assert.equal(est.pay.calls.calculatePeriodPayslips, undefined);
 
     const none = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => { throw new Error('Thiếu cấu hình'); } }) });
-    assert.deepEqual(await none.ctl.income(req(), '2026-11'), { month: '2026-11', state: 'unavailable', payslip: null, reason: 'Thiếu cấu hình' });
+    const n = (await none.ctl.income(req(), '2026-10')) as any;
+    assert.deepEqual([n.month, n.state, n.payslip, n.reason], ['2026-10', 'unavailable', null, 'Thiếu cấu hình']);
 
-    await assert.rejects(official.ctl.income(req(), '2026-1'), (err: any) => err.status === 400);
+    await assert.rejects(est.ctl.income(req(), '2026-1'), (err: any) => err.status === 400);
   });
 
-  it('kpi: only the self part is written', async () => {
-    const { ctl, pay } = controller();
-    await ctl.selfKpi(req(), '2026-11', { score: 80, wework: 100 } as any);
-    assert.deepEqual(pay.calls.setKpiScore, ['nam', '2026-11', { self: 80 }, 'nam']);
+  it('income and attendance carry the months I may open', async () => {
+    const { ctl } = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }) });
+    const thisMonth = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7);
+    assert.deepEqual(((await ctl.income(req(), '2026-10')) as any).range, { from: '2024-03', to: thisMonth });
+    assert.deepEqual(((await ctl.attendanceMonth(req(), '2026-10')) as any).range, { from: '2024-03', to: thisMonth });
+  });
+
+  it('a month before I started or after this month is refused', async () => {
+    const { ctl } = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }) });
+    const outOfRange = (err: any) => err.status === 400 && err.details?.code === 'MONTH_OUT_OF_RANGE';
+    await assert.rejects(ctl.income(req(), '2024-02'), outOfRange);
+    await assert.rejects(ctl.income(req(), '2999-01'), outOfRange);
+    await assert.rejects(ctl.attendanceMonth(req(), '2024-02'), outOfRange);
+    await assert.rejects(ctl.attendanceMonth(req(), '2999-01'), outOfRange);
+    assert.equal(((await ctl.attendanceMonth(req(), '2024-03')) as any).month, '2024-03');
+  });
+
+  it('without a start date only this month can be opened', async () => {
+    const { ctl } = controller({ emp: fake({ findByUsernameOrUuid: () => namEmployee(null) }) });
+    await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (err: any) => err.details?.code === 'MONTH_OUT_OF_RANGE');
+  });
+
+  it('there is no route for scoring my own KPI', () => {
+    const proto = MeController.prototype as any;
+    const paths = Object.getOwnPropertyNames(proto)
+      .filter(n => n !== 'constructor' && Reflect.getMetadata(METHOD_METADATA, proto[n]) !== undefined)
+      .map(n => Reflect.getMetadata(PATH_METADATA, proto[n]));
+    assert.ok(paths.includes('income'), paths.join(','));
+    assert.ok(!paths.some(p => String(p).includes('kpi')), paths.join(','));
   });
 });
