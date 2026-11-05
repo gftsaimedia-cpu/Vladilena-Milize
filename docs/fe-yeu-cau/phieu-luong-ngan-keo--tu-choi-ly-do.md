@@ -7,10 +7,14 @@ Hiện bấm "Từ chối" là từ chối ngay, không có chỗ ghi lý do. Vi
 ## 1. Người dùng đã chốt (2026-11-05)
 
 - Có ô lý do khi Từ chối, không bắt buộc. Để trống vẫn từ chối được.
+- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày. Branch BE này không sửa mã FE; tài liệu này giao cho agent FE.
+
+### Gợi ý thiết kế (agent thiết kế tự quyết)
+
 - Bấm "Từ chối" thì hiện ô "Lý do từ chối (không bắt buộc)", nút "Xác nhận từ chối" và nút "Huỷ". Chưa gửi gì cho tới khi bấm "Xác nhận từ chối".
 - "Huỷ" đóng ô lý do, xoá chữ đã gõ, ngăn kéo trở lại như trước.
 - Sau khi từ chối, dòng trạng thái ghi "Đã từ chối phiếu lương của <tên>." và, nếu có lý do, thêm lý do.
-- Ô nhập có góc 8px, không dạng viên thuốc. Chỉ cho thao tác hợp lệ: sau khi phiếu đã Duyệt hoặc Từ chối thì không còn hai nút (đã đúng như hiện nay).
+- Theo luật chung của dự án: ô nhập góc 8px, không dạng viên thuốc; chỉ cho thao tác hợp lệ (sau khi phiếu đã Duyệt hoặc Từ chối thì không còn hai nút, đã đúng như hiện nay).
 
 ## 2. Dữ liệu BE
 

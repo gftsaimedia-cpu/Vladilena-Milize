@@ -928,8 +928,9 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   |------|--------|---------|
   | 400 | `INVALID_MONTH` | `:month` sai định dạng |
   | 400 | `INVALID_DECISION` | `decision` không phải `approve` hoặc `reject` (kể cả thiếu body) |
-  | 404 | `PAYSLIP_NOT_FOUND` | Tháng chưa tính, hoặc nhân sự không có phiếu trong lần chạy hiện tại |
-  | 409 | `PAYROLL_FINALIZED` | Kỳ lương của tháng đã chốt (`final`), không đổi quyết định được |
+  | 404 | `PAYSLIP_NOT_FOUND` | Tháng chưa có lần chạy nào (kiểm trước kỳ đã chốt) |
+  | 409 | `PAYROLL_FINALIZED` | Lần chạy hiện tại của tháng đã chốt (`final`), không đổi quyết định được. Kiểm trước khi tìm phiếu, nên kỳ đã chốt với `:username` không có phiếu vẫn trả 409 |
+  | 404 | `PAYSLIP_NOT_FOUND` | Lần chạy chưa chốt nhưng nhân sự không có phiếu trong đó |
 
 #### `PUT /api/v2/payroll/:month/kpi/:username`
 - **Mục đích**: Nhập điểm đánh giá KPI và lương KPI đề xuất của tháng cho nhân viên. Có thể gửi từng phần: chỉ các trường có trong body được ghi.

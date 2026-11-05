@@ -6,10 +6,14 @@ Nút In trong ngăn kéo phiếu lương hiện gọi hộp in của trình duy�
 
 ## 1. Người dùng đã chốt (2026-11-05)
 
-- Bấm vào dòng trong Bảng lương mở ngăn kéo; bấm nút In trong ngăn kéo ra bản A4 hai trang.
-- Nút In in được phiếu ở mọi trạng thái (Nháp, Chờ duyệt, Đã duyệt, Từ chối). Không khoá nút theo trạng thái.
-- Nút mở một tab mới tới `/in/phieu-luong/:month/:id?in=1`. Trang đó tự mở hộp in khi phiếu dựng xong (đã có sẵn, `?in=1`).
-- Ô Tình trạng trên bản in ghi đúng trạng thái của phiếu (xem `in-phieu-luong-a4--noi-api-v2.md`).
+- Bấm vào dòng trong Bảng lương mở ngăn kéo; bấm nút In ra bản A4 hai trang.
+- Nút In in được phiếu ở mọi trạng thái (Nháp, Chờ duyệt, Đã duyệt, Từ chối). Ô Tình trạng trên bản in ghi đúng trạng thái (xem `in-phieu-luong-a4--noi-api-v2.md`).
+- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày. Branch BE này không sửa mã FE; tài liệu này giao cho agent FE.
+
+### Gợi ý thiết kế (agent thiết kế tự quyết)
+
+- Nút mở một tab mới tới `/in/phieu-luong/:month/:id?in=1`; trang đó tự mở hộp in khi phiếu dựng xong (`?in=1` đã có sẵn).
+- Không khoá nút theo trạng thái phiếu (hệ quả của "in mọi trạng thái").
 - Bỏ CSS in của ngăn kéo, vì ngăn kéo không còn được in.
 
 ## 2. Dữ liệu BE

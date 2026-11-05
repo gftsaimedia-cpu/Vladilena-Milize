@@ -8,13 +8,25 @@ Tài liệu này đứng một mình. Hợp đồng đầy đủ của BE: `docs
 
 ## 1. Người dùng đã chốt (2026-11-05)
 
-- Bản in là A4 hai trang: trang 1 chấm công, trang 2 các khoản (đã có trong thiết kế mới).
-- Cột Vào – ra ghi giờ chấm thật, không phải giờ ca.
+- Bấm vào dòng trong Bảng lương mở ngăn kéo; bấm nút In ra bản A4 hai trang.
 - Nút In in được phiếu ở mọi trạng thái. Ô Tình trạng ghi đúng trạng thái của phiếu: Nháp / Đã duyệt / Bị từ chối (hiện ô này đang ghi nhãn hợp đồng, `A4Attendance.vue:27-29`).
-- Phiếu là "Chính thức" khi chính phiếu đó có `status = 'approved'`, dù kỳ lương chưa chốt. Phiếu `draft`, `pending`, `error` hoặc `rejected` là "Tạm tính". Không dùng trạng thái của kỳ lương để quyết định. Ví dụ: ngày 03/11 Admin duyệt phiếu tháng 10 của Nam khi tháng 10 chưa chốt, thì Nam thấy "Chính thức".
-- Trên bản in: "Chính thức" là ô Tình trạng "Đã duyệt" và không có dòng "bản nháp…"; "Tạm tính" là ô Tình trạng "Nháp" hoặc "Bị từ chối" và có dòng "bản nháp, chưa phải lương chính thức".
-- Bỏ tham số `?kb` và `?ten` (chỉ phục vụ dữ liệu giả cũ). Giữ `?in=1` (tự mở hộp in).
-- Hiển thị theo luật chung: không thêm ô hay nhãn dạng viên thuốc, góc 8px, chấm + chữ.
+- Cột Vào – ra ghi giờ chấm thật, không phải giờ ca.
+- OT theo luật ngày 04/11, tính đúng theo phút (BE tính; xem hợp đồng API).
+- Ngày phép năm còn lại tính tới hết tháng của phiếu.
+- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày.
+- Branch BE này không sửa mã FE; tài liệu này giao cho agent FE.
+- Phiếu là "Chính thức" khi chính phiếu đó có `status = 'approved'`, dù kỳ lương chưa chốt (không dùng `payroll_runs.status = 'final'`). Phiếu `draft`, `pending`, `error` là "Tạm tính". Phiếu không phải `approved` thì không phải "Chính thức". Ví dụ: ngày 03/11 Admin duyệt phiếu tháng 10 của Nam khi tháng 10 chưa chốt, thì Nam thấy "Chính thức".
+- Phiếu nháp có dòng "bản nháp, chưa phải lương chính thức"; phiếu Chính thức không có dòng này.
+
+### Chưa quyết (hỏi người dùng)
+
+- Phiếu `rejected` (Bị từ chối) có tính là "Tạm tính" và có dòng "bản nháp, chưa phải lương chính thức" không? Người dùng chưa trả lời, nên chưa quyết; mock và test không dựa vào điều này. Ô Tình trạng của phiếu bị từ chối vẫn ghi "Bị từ chối" (đã chốt).
+
+### Gợi ý thiết kế (agent thiết kế tự quyết)
+
+- Bỏ tham số `?kb` và `?ten` (chỉ phục vụ dữ liệu giả cũ); giữ `?in=1` (tự mở hộp in).
+- Đặt dòng "bản nháp…" ở dòng phụ dưới tiêu đề (`periodNote`).
+- Theo luật chung của dự án: ô và nhãn mới góc 8px, chấm + chữ, không dạng viên thuốc.
 
 ## 2. Dữ liệu BE
 
@@ -56,11 +68,11 @@ Bản ghi phiếu: `username`, `status` (`draft` | `approved` | `rejected`), `ne
 | `username` (thêm mới, xem mục 3) | `username` của bản ghi |
 | `month`, `name` | `details.month`, `details.fullName` |
 | `kind`, `level` | `employeeType` (`nv` → NV, `ctv` → CTV, `tts` → TTS; `null` → "—") và `level` |
-| `status` (thêm mới) | `status` của bản ghi; `approved` → "Đã duyệt", `rejected` → "Bị từ chối", còn lại → "Nháp"; cùng giá trị cho biết có in dòng "bản nháp…" hay không |
+| `status` (thêm mới) | `status` của bản ghi; `approved` → "Đã duyệt", `rejected` → "Bị từ chối", còn lại → "Nháp"; cũng quyết định có dòng "bản nháp…" hay không |
 | `employmentStatus` (thêm mới) | `employmentStatus`: `probation` → "Thử việc", `official` → "Chính thức"; `null` thì không hiện. Đây là trạng thái nhân sự, khác với "Chính thức" của phiếu ở mục 1 |
 | `contract` | `contractStatusText` (còn dùng ở dòng xám đầu trang 2, `a4-format.ts:35-36`) |
 | `from`, `to` | ngày đầu và ngày cuối của `month` |
-| `periodNote` | "bản nháp, chưa phải lương chính thức" cho phiếu Tạm tính; rỗng cho phiếu Chính thức |
+| `periodNote` | "bản nháp, chưa phải lương chính thức" cho phiếu `draft`, `pending`, `error`; rỗng cho phiếu `approved`; phiếu `rejected`: chưa quyết (mục 1) |
 | `stdDays` | `standardWorkdays` |
 | `dayRate` | BE không trả riêng. Lấy `daySalary` của dòng ngày đầu tiên có `daySalary > 0` (mọi dòng có lương đều bằng nhau). Không có dòng nào thì bỏ cụm "Lương ngày …" khỏi tiêu đề bảng |
 | `days[]` (mỗi `dailyLines[]`) | `date`; `label` ← `shiftLabel`; `in` ← `checkIn`; `out` ← `checkOut`; `hours` ← `workHours`; `ot` ← `otHours`; `adjust` ← `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` − `deductionAmount`; `total` ← `dailyTotal`; `makeup`, `note` ← `null` (BE chưa có). `mark`: `NORMAL`, `FLEX`, `NIGHT` → `work`; `LEAVE`, `ISAT` → `paid`; `UNPAID` → `unpaid`. `absent` và `pending` chưa có nguồn trong BE v2 |
@@ -118,7 +130,7 @@ Phiếu tính trước khi BE thêm trường mới thiếu `employeeType`, `lev
 
 Thấy được (trên BE thật và trên dữ liệu giả):
 
-- Phiếu đã duyệt: ô Tình trạng "Đã duyệt", dòng phụ không có "bản nháp…". Phiếu nháp: "Nháp" và có dòng "bản nháp, chưa phải lương chính thức". Phiếu bị từ chối: "Bị từ chối" và có dòng "bản nháp…".
+- Phiếu đã duyệt: ô Tình trạng "Đã duyệt", dòng phụ không có "bản nháp…". Phiếu nháp: "Nháp" và có dòng "bản nháp, chưa phải lương chính thức". Phiếu bị từ chối: ô Tình trạng "Bị từ chối"; dòng "bản nháp…" chưa quyết nên chưa kiểm.
 - Cột Vào – ra khớp giờ chấm; ngày thiếu giờ ra hiện đúng đầu còn lại (`a4-format.ts:12`).
 - Ngày có OT: cột OT có giờ, "Cộng / trừ" gồm tiền OT, "Thành tiền" bằng `dailyTotal`.
 - Phiếu `tts`: "Ngày phép năm còn lại" ghi "—", không có chữ "null".
@@ -127,6 +139,6 @@ Thấy được (trên BE thật và trên dữ liệu giả):
 
 Test nên có (chạy `PW_PORT=<cổng> npm --prefix web run test:ui`):
 
-- Kiểm hàm dựng `A4Sheet` từ bản ghi v2, không cần trình duyệt, cùng kiểu `web/tests/payslip-a4-data.spec.ts`: bản ghi nhỏ có hai dòng ngày (một ngày OT, một ngày nghỉ phép) cho đúng `adjust`, `mark`, `in`/`out`; `employeeType: null`; `remainingAnnualLeaveDays: null`; `status` `approved` / `draft` / `rejected` cho `status` và `periodNote`.
+- Kiểm hàm dựng `A4Sheet` từ bản ghi v2, không cần trình duyệt, cùng kiểu `web/tests/payslip-a4-data.spec.ts`: bản ghi nhỏ có hai dòng ngày (một ngày OT, một ngày nghỉ phép) cho đúng `adjust`, `mark`, `in`/`out`; `employeeType: null`; `remainingAnnualLeaveDays: null`; `status` `approved` / `draft` cho `status` và `periodNote`; `rejected` chỉ kiểm `status`.
 - Giao diện: ô Tình trạng và dòng "bản nháp…" theo trạng thái (thêm vào `payslip-a4.spec.ts`; test `:29` "header follows P1" cần sửa vì ô Tình trạng đổi); `leaveLeft: null` không chứa chữ "null"; `?ten=` không còn ảnh hưởng.
 - Giữ xanh: các test hiện có của `payslip-a4.spec.ts`, kể cả `:60` (tháng khác tháng mẫu báo lỗi tải) nếu mock vẫn chỉ có tháng 10.

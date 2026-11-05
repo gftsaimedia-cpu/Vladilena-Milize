@@ -7,10 +7,14 @@ Bảng lương chưa có cách in cả kỳ. Việc cần làm: một nút "In t
 ## 1. Người dùng đã chốt (2026-11-05)
 
 - Có "In tất cả" ở Bảng lương.
-- Chỉ in các phiếu đã duyệt (`status = 'approved'`). Phiếu Nháp, Chờ duyệt và Từ chối không vào lô in.
+- Chỉ in các phiếu đã duyệt (`status = 'approved'`).
+- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày. Branch BE này không sửa mã FE; tài liệu này giao cho agent FE.
+
+### Gợi ý thiết kế (agent thiết kế tự quyết)
+
 - Nút mở một tab mới tới `/in/phieu-luong/:month?in=1`; trang đó tự mở hộp in khi các phiếu dựng xong.
-- Nút bị khoá khi số phiếu đã duyệt của kỳ bằng 0 (ngăn thay vì báo lỗi). Khi khoá có chữ ngắn nói lý do, ví dụ "Chưa có phiếu đã duyệt".
-- Nút không phụ thuộc bộ lọc hay ô tìm đang chọn: luôn là mọi phiếu đã duyệt của cả kỳ.
+- Nút bị khoá khi số phiếu đã duyệt của kỳ bằng 0 (luật chung của dự án: ngăn thay vì báo lỗi); chữ giải thích khi khoá do agent thiết kế viết.
+- Nút lấy mọi phiếu đã duyệt của cả kỳ, không đổi theo bộ lọc hay ô tìm đang chọn (đề xuất; người dùng chưa nói).
 - Nút mới theo luật chung: góc 8px, chấm + chữ, không viên thuốc.
 
 ## 2. Dữ liệu BE
@@ -31,8 +35,8 @@ Số phiếu đã duyệt để bật hoặc khoá nút đã có trên màn: `bo
 Thấy được:
 
 - Kỳ có phiếu đã duyệt: nút "In tất cả" bấm được. Bấm thì tab mới mở, hiện lần lượt các phiếu đã duyệt (hai tờ mỗi phiếu, không có phiếu Nháp hay Từ chối), rồi mở hộp in. Tab Bảng lương không đổi.
-- Kỳ không có phiếu đã duyệt (hoặc chưa tính): nút khoá, có chữ nói lý do; không mở được tab.
-- Đổi bộ lọc sang "Nháp" hay gõ ô tìm: nút vẫn bấm được nếu cả kỳ có phiếu đã duyệt, và lô in không đổi.
+- Kỳ không có phiếu đã duyệt (hoặc chưa tính): nút khoá; không mở được tab.
+- Đổi bộ lọc sang "Nháp" hay gõ ô tìm (theo gợi ý trên): nút vẫn bấm được nếu cả kỳ có phiếu đã duyệt, và lô in không đổi.
 - Không có tờ trắng thừa ở cuối lô.
 
 Test UI nên có (`PW_PORT=<cổng> npm --prefix web run test:ui`):

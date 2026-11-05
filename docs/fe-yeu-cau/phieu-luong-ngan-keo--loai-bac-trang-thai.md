@@ -6,9 +6,13 @@ Trên BE thật, ngăn kéo luôn ghi "NV · Bậc 0" cho mọi người, và ô
 
 ## 1. Người dùng đã chốt (2026-11-05)
 
-- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày.
-- Đầu phiếu ghi loại, bậc và trạng thái nhân sự thật của người đó.
-- Ngày phép năm còn lại tính tới hết tháng của phiếu. Người thuộc loại không có tài khoản phép (ví dụ `tts`) không có số này: hiện "—", không ghi "null ngày".
+- Ngày phép năm còn lại tính tới hết tháng của phiếu.
+- BE tính sẵn mọi số vào phiếu; FE chỉ trình bày. Branch BE này không sửa mã FE; tài liệu này giao cho agent FE.
+
+### Gợi ý thiết kế (agent thiết kế tự quyết)
+
+- Đầu phiếu ghi loại, bậc và trạng thái nhân sự thật của người đó (BE nay trả các trường này).
+- Người thuộc loại không có tài khoản phép (ví dụ `tts`) có `remainingAnnualLeaveDays` là `null`: hiện "—", không ghi "null ngày".
 - Phiếu đã lưu trước khi BE thêm trường mới thiếu các trường này: hiện "—".
 
 ## 2. Dữ liệu BE
