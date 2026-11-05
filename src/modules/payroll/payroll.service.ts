@@ -7,6 +7,13 @@ import {
   DailyAttendanceLineProps,
   inOutText as presenceText,
   presenceOf,
+  type Presence,
+  measureOvertime,
+  OT_MULTIPLIERS,
+  otPayOf,
+  type OtShare,
+  type OtWindow,
+  type PresenceSpan,
   EmployeePayslipSummaryDTO,
   EmployeePayslipDTO,
   PayrollWarning,
@@ -201,6 +208,37 @@ export class PayrollService {
       }
     }
 
+    // Real presence of every NORMAL, FLEX and NIGHT line, computed once for the day lines and the OT measure.
+    const presenceOfLine = new Map<(typeof timesheets)[number], Presence>();
+    for (const ts of timesheets) {
+      if (isatDates.has(ts.workDate)) continue;
+      const code = ts.shiftType.toUpperCase();
+      if (code === 'LEAVE' || code === 'ISAT' || code === 'UNPAID') continue;
+      const explained = explainedByDate.get(ts.workDate);
+      presenceOfLine.set(ts, presenceOf(ts.workDate, ts.actualCheckIn, ts.actualCheckOut, explained));
+    }
+
+    // OT is the presence inside the approved window x hourly rate x multiplier. A line only counts when both its
+    // check-in and check-out are real instants; one without them (or with a malformed explained time) has no OT.
+    const validInstant = (at: Date | null): at is Date => at !== null && !Number.isNaN(at.getTime());
+    const spans: PresenceSpan[] = [];
+    for (const [ts, presence] of presenceOfLine) {
+      if (validInstant(presence.start) && validInstant(presence.end)) {
+        spans.push({ workDate: ts.workDate, start: presence.start, end: presence.end });
+      }
+    }
+    const otWindows: OtWindow[] = [];
+    for (const req of requests) {
+      if (req.type === 'OVERTIME' && req.status === 'APPROVED' && req.otDate && req.otStartTime && req.otEndTime) {
+        otWindows.push({ date: req.otDate, start: req.otStartTime, end: req.otEndTime });
+      }
+    }
+    const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []));
+    const otSharesByLine = new Map<string, OtShare[]>();
+    for (const share of otShares) {
+      otSharesByLine.set(share.lineDate, [...(otSharesByLine.get(share.lineDate) ?? []), share]);
+    }
+
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
 
@@ -247,8 +285,8 @@ export class PayrollService {
         daySalary = Math.round(dayRate);
       }
 
-      if (shiftCode !== 'LEAVE' && shiftCode !== 'ISAT' && shiftCode !== 'UNPAID') {
-        const presence = presenceOf(ts.workDate, ts.actualCheckIn, ts.actualCheckOut, explainedByDate.get(ts.workDate));
+      const presence = presenceOfLine.get(ts);
+      if (presence) {
         checkIn = presence.checkIn;
         checkOut = presence.checkOut;
         inOutText = presenceText(presence);
@@ -260,7 +298,11 @@ export class PayrollService {
       totalDeductionHours += deductionHours;
       const deductionAmount = Math.round(deductionHours * hourRate);
 
-      const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay - deductionAmount;
+      const lineShares = otSharesByLine.get(ts.workDate) ?? [];
+      const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
+      const otPay = lineShares.reduce((sum, share) => sum + otPayOf(share.hours, hourRate, share.multiplier), 0);
+
+      const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount;
 
       dailyLines.push({
         date: ts.workDate,
@@ -275,8 +317,8 @@ export class PayrollService {
         flexAllowancePay,
         nightAllowancePay,
         offPaidPay,
-        otHours: ts.otHours,
-        otPay: 0,
+        otHours,
+        otPay,
         deductionHours: Math.round(deductionHours * 100) / 100,
         deductionAmount,
         dailyTotal
@@ -306,11 +348,12 @@ export class PayrollService {
     }
     dailyLines.sort((a, b) => a.date.localeCompare(b.date));
 
-    let totalOtHours = 0;
-    for (const req of requests) {
-      if (req.type === 'OVERTIME' && req.status === 'APPROVED') {
-        totalOtHours += req.otHours || 0;
-      }
+    // OT hours by multiplier, from the same shares as the day lines.
+    const otHoursByRate = { x15: 0, x20: 0, x30: 0 };
+    for (const share of otShares) {
+      if (share.multiplier === OT_MULTIPLIERS.weekday) otHoursByRate.x15 += share.hours;
+      else if (share.multiplier === OT_MULTIPLIERS.weekend) otHoursByRate.x20 += share.hours;
+      else otHoursByRate.x30 += share.hours;
     }
 
     let advanceDeduction = 0;
@@ -337,11 +380,7 @@ export class PayrollService {
       standardWorkdays,
       baseSalaryPolicy,
       dailyLines,
-      otHoursByRate: {
-        x15: 0,
-        x20: totalOtHours,
-        x30: 0
-      },
+      otHoursByRate,
       lateEarlyHours: roundedLateEarlyHours,
       employeeType,
       level: staff.level,

@@ -66,11 +66,14 @@ export interface EmployeeMonthlyRawData {
     leaveEndDate?: string | null;
     leaveType?: string | null;
     otDate?: string | null;
+    otStartTime?: string | null; // approved OT window 'HH:MM'
+    otEndTime?: string | null;
     otHours?: number | null;
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
   isatDates?: string[]; // Saturdays of approved iSAT requests, 'YYYY-MM-DD'
+  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD'
   kpi: KpiInput | null;
   insuranceRates: InsuranceRates;
 }
@@ -84,6 +87,7 @@ export interface MonthRows {
   timesheets: any[];
   requests: any[];
   isatDates?: Array<string | Date>;
+  holidays?: Array<string | Date>;
   annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
   settings: Array<{ key: string; value_json: string }>;
@@ -203,11 +207,14 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       leaveEndDate: dateTextOrNull(r.leave_end_date),
       leaveType: r.leave_type,
       otDate: dateTextOrNull(r.ot_date),
+      otStartTime: clockTextOrNull(r.ot_start_time),
+      otEndTime: clockTextOrNull(r.ot_end_time),
       otHours: numberOrNull(r.ot_hours),
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
     isatDates: (rows.isatDates ?? []).map(dateText),
+    holidayDates: (rows.holidays ?? []).map(dateText),
     kpi: kpiRow
       ? {
           scores: {
@@ -414,6 +421,14 @@ export class PayrollRepository {
       .orderBy('isat_registrations.saturday', 'asc')
       .execute();
 
+    // Company holidays in the month (the DATE column is converted to text in mapMonthRows)
+    const holidayRows = await this.qb
+      .selectFrom('company_holidays')
+      .select('holiday_date')
+      .where('holiday_date', '>=', startDate)
+      .where('holiday_date', '<=', endDate)
+      .execute();
+
     // Approved annual leave days taken since the balance date, up to the month end
     let usedQuery = this.qb
       .selectFrom('day_status')
@@ -450,6 +465,7 @@ export class PayrollRepository {
       timesheets: timesheetRows,
       requests: requestRows,
       isatDates: isatRows.map(r => r.saturday),
+      holidays: holidayRows.map(r => r.holiday_date),
       annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null,
       settings

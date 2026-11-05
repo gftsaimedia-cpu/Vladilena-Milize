@@ -1170,3 +1170,165 @@ describe('Payroll V2 - day lines show real check-in and check-out times', () => 
     );
   });
 });
+
+describe('Payroll V2 - overtime paid per day from the approved window and the real presence', () => {
+  const punch = (workDate: string, inHhmm: string, outHhmm: string | null, shiftType = 'NORMAL') => ({
+    ...nvMonthData().timesheets[0],
+    workDate,
+    shiftType,
+    actualCheckIn: `${workDate}T${inHhmm}:00+07:00`,
+    actualCheckOut: outHhmm ? `${workDate}T${outHhmm}:00+07:00` : null
+  });
+  const overtime = (id: string, otDate: string | null, extra: object = {}) => ({
+    id,
+    type: 'OVERTIME',
+    status: 'APPROVED',
+    otDate,
+    otStartTime: '18:00',
+    otEndTime: '20:00',
+    otHours: 2,
+    ...extra
+  });
+  const explanation = (date: string, extra: object = {}) => ({
+    id: `exp-${date}`,
+    type: 'EXPLANATION',
+    status: 'APPROVED',
+    explanationDate: date,
+    ...extra
+  });
+  const generate = async (overrides: Partial<EmployeeMonthlyRawData>) => {
+    const repo = new FakePayrollRepository();
+    repo.data.set('u1:2026-10', { ...nvMonthData(), requests: [], ...overrides });
+    return new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+  };
+  const lineOf = (slip: EmployeePayslip, date: string) => slip.dailyLines.find(l => l.date === date)!;
+
+  it('pays the minutes worked inside the window and puts them on the day line', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', '19:20')],
+      requests: [overtime('ot-1', '2026-10-07')]
+    });
+    const line = lineOf(slip, '2026-10-07');
+    assert.equal(line.otPay, 57_692);
+    assert.ok(Math.abs(line.otHours - 4 / 3) < 1e-9);
+    assert.equal(line.dailyTotal, line.daySalary + 57_692);
+    assert.equal(slip.otPayTotal, 57_692);
+    assert.ok(Math.abs(slip.ot15Hours - 4 / 3) < 1e-9);
+    assert.equal(slip.ot20Hours, 0);
+    assert.equal(slip.ot30Hours, 0);
+    assert.ok(Math.abs(slip.totalOtHours - 4 / 3) < 1e-9);
+  });
+
+  it('takes the missing check-out from the approved explanation', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', null)],
+      requests: [overtime('ot-1', '2026-10-07'), explanation('2026-10-07', { actualCheckOut: '19:20' })]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').otPay, 57_692);
+    assert.equal(slip.otPayTotal, 57_692);
+  });
+
+  it('pays nothing for a missing check-out without an explanation', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', null)],
+      requests: [overtime('ot-1', '2026-10-07')]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
+    assert.equal(lineOf(slip, '2026-10-07').otHours, 0);
+    assert.equal(slip.otPayTotal, 0);
+  });
+
+  it('pays nothing and does not throw when the request has no start time', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', '20:30')],
+      requests: [overtime('ot-1', '2026-10-07', { otStartTime: undefined })]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
+    assert.equal(slip.otPayTotal, 0);
+  });
+
+  it('ignores a window whose end is not after its start', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', '21:00')],
+      requests: [overtime('ot-1', '2026-10-07', { otStartTime: '20:00', otEndTime: '18:00' })]
+    });
+    assert.equal(slip.otPayTotal, 0);
+  });
+
+  it('ignores an OT request that is not approved', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', '20:30')],
+      requests: [overtime('ot-1', '2026-10-07', { status: 'PENDING' })]
+    });
+    assert.equal(slip.otPayTotal, 0);
+  });
+
+  it('adds the weekday and the Saturday OT: the total is the sum of the line pay', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', '19:20'), punch('2026-10-10', '08:00', '20:30')],
+      requests: [overtime('ot-1', '2026-10-07'), overtime('ot-2', '2026-10-10')]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').otPay, 57_692);
+    assert.equal(lineOf(slip, '2026-10-10').otPay, 115_385);
+    assert.equal(slip.otPayTotal, 173_077);
+    assert.equal(
+      slip.otPayTotal,
+      slip.dailyLines.reduce((sum, l) => sum + l.otPay, 0)
+    );
+    assert.ok(Math.abs(slip.ot15Hours - 4 / 3) < 1e-9);
+    assert.equal(slip.ot20Hours, 2);
+    assert.ok(Math.abs(slip.totalOtHours - (4 / 3 + 2)) < 1e-9);
+    assert.ok(
+      Math.abs(
+        slip.totalOtHours - slip.dailyLines.reduce((sum, l) => sum + l.otHours, 0)
+      ) < 1e-9
+    );
+  });
+
+  it('pays x3 on a company holiday, which wins over Saturday', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-10', '08:00', '20:30')],
+      requests: [overtime('ot-1', '2026-10-10')],
+      holidayDates: ['2026-10-10']
+    });
+    assert.equal(lineOf(slip, '2026-10-10').otPay, 173_077);
+    assert.equal(slip.otPayTotal, 173_077);
+    assert.equal(slip.ot30Hours, 2);
+    assert.equal(slip.ot20Hours, 0);
+  });
+
+  it('keeps the day lines and pays nothing for an OT date without an attendance line', async () => {
+    const timesheets = [punch('2026-10-07', '08:12', '20:30')];
+    const slip = await generate({ timesheets, requests: [overtime('ot-1', '2026-10-09')] });
+    assert.equal(slip.dailyLines.length, 1);
+    assert.equal(slip.otPayTotal, 0);
+  });
+
+  it('gives a line with a malformed explained time no presence, so no OT and no NaN', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '08:12', null)],
+      requests: [overtime('ot-1', '2026-10-07'), explanation('2026-10-07', { actualCheckOut: 'xx:yy' })]
+    });
+    assert.equal(lineOf(slip, '2026-10-07').otPay, 0);
+    assert.equal(slip.otPayTotal, 0);
+    assert.ok(Number.isFinite(slip.otPayTotal));
+    assert.ok(Number.isFinite(slip.grossIncome));
+  });
+
+  it('takes the hours of a night shift that run into the window of the next date', async () => {
+    const night = {
+      ...punch('2026-10-05', '22:00', null, 'NIGHT'),
+      shiftStartTime: '22:00',
+      shiftEndTime: '06:00',
+      actualCheckOut: '2026-10-06T06:30:00+07:00'
+    };
+    const slip = await generate({
+      timesheets: [night],
+      requests: [overtime('ot-1', '2026-10-06', { otStartTime: '05:00', otEndTime: '07:00' })]
+    });
+    const line = lineOf(slip, '2026-10-05');
+    assert.equal(line.otHours, 1.5);
+    assert.equal(line.otPay, 64_904);
+    assert.equal(slip.otPayTotal, 64_904);
+  });
+});

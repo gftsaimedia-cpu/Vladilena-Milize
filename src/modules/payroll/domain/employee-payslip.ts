@@ -318,9 +318,8 @@ export class EmployeePayslip {
     this.ot30Hours = props.otHoursByRate?.x30 ?? 0;
     this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours || totalLineOtHours;
 
-    this.otPayTotal = Math.round(
-      this.ot15Hours * hourRate * 1.5 + this.ot20Hours * hourRate * 2.0 + this.ot30Hours * hourRate * 3.0
-    );
+    // The pay is measured per day (see overtime-pay.ts); the total is the sum of the day lines.
+    this.otPayTotal = this.dailyLines.reduce((sum, line) => sum + line.otPay, 0);
 
     // Block 4: Allowances
     // Policy values

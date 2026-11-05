@@ -99,6 +99,23 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       [UUID]
     );
 
+    // OT theo luật 04/11: thứ Bảy 10/10 là ngày lễ công ty (x3); vào 08:00, ra 20:30 (giờ Việt Nam), khung OT đã duyệt 18:00-20:00.
+    await client.query(`INSERT INTO company_holidays (holiday_date, name) VALUES ('2026-10-10', 'Lễ thử')`);
+    await client.query(
+      `INSERT INTO timesheet_entries (id, employee_id, work_date, shift_type, shift_start_time, shift_end_time,
+         shift_allowance_pct, work_hours, actual_check_in, actual_check_out, status, day_status, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, '2026-10-10', 'NORMAL', '08:00', '17:00', 0, 8, '2026-10-10 08:00:00+07',
+         '2026-10-10 20:30:00+07', 'PRESENT', 'VALID', now(), now())`,
+      [UUID]
+    );
+    await client.query(
+      `INSERT INTO system_requests (id, employee_id, title, type, reason, status, ot_date, ot_start_time, ot_end_time,
+         ot_hours, created_at, updated_at)
+       VALUES ('00000000-0000-4000-8000-000000000006', $1, 'Làm thêm giờ', 'OVERTIME', 'Chốt việc', 'APPROVED',
+         '2026-10-10', '18:00', '20:00', 2, now(), now())`,
+      [UUID]
+    );
+
     db = createKysely(createPgPool(tempUrl.toString()));
     const repo = new PayrollRepository(db);
     const service = new PayrollService(repo);
@@ -126,6 +143,18 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       assert.equal(line?.checkOut, '19:20');
       assert.equal(line?.inOutText, '08:12–19:20');
       assert.equal(slip.dailyLines.find(l => l.date === '2026-10-01')?.inOutText, '—–—');
+    });
+
+    await t.test('OT ngày lễ tính x3 trên dòng ngày từ khung đã duyệt và giờ có mặt thật', async () => {
+      const line = slip.dailyLines.find(l => l.date === '2026-10-10');
+      assert.equal(line?.otHours, 2);
+      assert.equal(line?.otPay, 173_077);
+      assert.equal(slip.ot30Hours, 2);
+      assert.equal(slip.ot20Hours, 0);
+      assert.equal(slip.otPayTotal, 173_077);
+      const details = (await repo.getPayslip(MONTH, UUID))?.details;
+      assert.equal(details?.otPayTotal, 173_077);
+      assert.equal(details?.dailyLines.find(l => l.date === '2026-10-10')?.otPay, 173_077);
     });
 
     await t.test('Từ chối lưu trạng thái rejected cùng lý do, người và lúc quyết định', async () => {

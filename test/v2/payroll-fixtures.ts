@@ -33,7 +33,7 @@ const timesheet = (workDate: string, shiftType: string): Timesheet => ({
 });
 
 // One NV level-1 employee in 2026-10: 20 NORMAL days (1-23 Oct without the Sundays 4, 11, 18) and one LEAVE day
-// (24 Oct), an approved 2h OT request and a 1,000,000 advance. KPI is entered with a 5,000,000 proposal.
+// (24 Oct), an approved OT request on Saturday 03/10 (18:00-20:00, fully worked) and a 1,000,000 advance. KPI is entered with a 5,000,000 proposal.
 export function nvMonthData(
   overrides: { staff?: Partial<EmployeeMonthlyRawData['staff']>; kpi?: KpiInput | null } = {}
 ): EmployeeMonthlyRawData {
@@ -67,9 +67,25 @@ export function nvMonthData(
       allowanceRates: seedRatesFor(overrides.staff?.employeeType ?? 'nv'),
       ...overrides.staff
     },
-    timesheets: [...normalDays.map(date => timesheet(date, 'NORMAL')), timesheet('2026-10-24', 'LEAVE')],
+    timesheets: [
+      ...normalDays.map(date => timesheet(date, 'NORMAL')).map(ts =>
+        // Saturday 03/10: present 08:00-20:00 on the Vietnam clock, so the 18:00-20:00 OT window is fully worked.
+        ts.workDate === '2026-10-03'
+          ? { ...ts, actualCheckIn: '2026-10-03T01:00:00.000Z', actualCheckOut: '2026-10-03T13:00:00.000Z' }
+          : ts
+      ),
+      timesheet('2026-10-24', 'LEAVE')
+    ],
     requests: [
-      { id: 'req_ot_1', type: 'OVERTIME', status: 'APPROVED', otHours: 2 },
+      {
+        id: 'req_ot_1',
+        type: 'OVERTIME',
+        status: 'APPROVED',
+        otDate: '2026-10-03',
+        otStartTime: '18:00',
+        otEndTime: '20:00',
+        otHours: 2
+      },
       { id: 'req_adv_1', type: 'ADVANCE', status: 'APPROVED', advanceAmount: 1_000_000 }
     ],
     kpi: overrides.kpi === undefined ? defaultKpi : overrides.kpi,

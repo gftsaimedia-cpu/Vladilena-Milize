@@ -394,6 +394,30 @@ describe('mapMonthRows timesheets and requests', () => {
     assert.deepEqual([requests[2].actualCheckIn, requests[2].actualCheckOut], [null, null]);
   });
 
+  it('cuts the OT window times to HH:MM and keeps missing ones as null', () => {
+    const { requests } = mapMonthRows(
+      '2026-10',
+      rows({
+        requests: [
+          { type: 'OVERTIME', ot_start_time: '18:00:00', ot_end_time: '20:00' },
+          { type: 'OVERTIME', ot_start_time: null, ot_end_time: '' },
+          { type: 'ADVANCE' }
+        ]
+      })
+    );
+    assert.deepEqual([requests[0].otStartTime, requests[0].otEndTime], ['18:00', '20:00']);
+    assert.deepEqual([requests[1].otStartTime, requests[1].otEndTime], [null, null]);
+    assert.deepEqual([requests[2].otStartTime, requests[2].otEndTime], [null, null]);
+  });
+
+  it('maps the company holidays of the month to YYYY-MM-DD text', () => {
+    assert.deepEqual(
+      mapMonthRows('2026-09', rows({ holidays: [new Date(2026, 8, 2), '2026-09-01'] })).holidayDates,
+      ['2026-09-02', '2026-09-01']
+    );
+    assert.deepEqual(mapMonthRows('2026-09', rows()).holidayDates, []);
+  });
+
   it('maps approved iSAT Saturdays to YYYY-MM-DD text', () => {
     assert.deepEqual(
       mapMonthRows('2026-11', rows({ isatDates: [new Date(2026, 10, 7), '2026-11-14'] })).isatDates,
@@ -544,6 +568,16 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     ]);
     assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
     assert.deepEqual(data?.isatDates, ['2026-10-10']);
+  });
+
+  it('reads the company holidays between the first and the last day of the month', async () => {
+    const { qb, calls } = recordingQb({ ...tables, company_holidays: { all: [{ holiday_date: new Date(2026, 8, 2) }] } });
+    const data = await new PayrollRepository(qb).getMonthlyData('u1', '2026-10');
+    assert.deepEqual(calls.find(c => c.table === 'company_holidays')?.where, [
+      ['holiday_date', '>=', '2026-10-01'],
+      ['holiday_date', '<=', '2026-10-31']
+    ]);
+    assert.deepEqual(data?.holidayDates, ['2026-09-02']);
   });
 
   it('counts approved annual leave days up to the month end and from the balance date', async () => {
