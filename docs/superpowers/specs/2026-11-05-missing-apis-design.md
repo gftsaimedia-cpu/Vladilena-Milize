@@ -26,7 +26,7 @@
 | Cài đặt › Phân quyền: ma trận vai trò, tạo / ngừng vai trò | — | Chưa có API (mục 3.7; trái quyết định chỉ 2 vai trò) |
 | Tổng quan | — | Chưa có API (mục 3.5) |
 | Cài đặt: tham số, chế độ, công thức lương, KPI, xử lý yêu cầu | đang gọi `/settings/params` (V1) | Chưa có API (mục 3.7) |
-| App nhân viên `/nv/*` (Hôm nay + Check-in/out, Chấm công tháng, chi tiết ngày, Yêu cầu, Thu nhập chính thức/tạm tính, Tôi) | **mới:** `/api/v2/me/{profile,today,punches,attendance,attendance/:date,requests,requests/:id,requests/:kind,requests/:id/cancel,income,kpi/self}` | **Đã nối** (mục 3.1 đã làm) |
+| App nhân viên `/nv/*` (Hôm nay + Check-in/out, Chấm công tháng, chi tiết ngày, Yêu cầu, Thu nhập chính thức/tạm tính, Tôi) | **mới:** `/api/v2/me/{profile,today,punches,attendance,attendance/:date,requests,requests/:id,requests/:kind,requests/:id/cancel,income}` | **Đã nối** (mục 3.1 đã làm) |
 | `/nv-may-tinh` (màn nhân viên trên máy tính) | còn dựng trên V1 (`/sheet`, `/punch`, `PUT /sheet`) | Chế độ `api` chuyển sang `/nv/hom-nay`; dựng lại màn máy tính trên `/me` là việc riêng |
 
 Nút mới thêm cho API có sẵn: **"Thêm các ngày lễ cố định"** (Lịch → `POST /holidays/quick-add`), **"Tính lương / Tính lại lương"** (Bảng lương → `POST /payroll/:month/calculate`), **"Chốt công"** (thanh kỳ lương, cần `attendance.lock` → `POST /system/periods/:month/lock`).
@@ -53,17 +53,18 @@ Không route nào trong nhóm nhận `employeeId` / `username` từ client. Modu
 |---|---|---|
 | `GET /api/v2/me/today` | `{ date, shift: { type, start, end }, punches: { in, out }, workedMinutes, geofence: { required, ok }, week: DaySummary[7], alert: { date, kind } \| null }` | J1 Hôm nay, `/nv-may-tinh` |
 | `POST /api/v2/me/punches` | body `{ kind: 'IN'\|'OUT', lat, lng, accuracyM }` → `{ punch, today }` | Check-in / Check-out |
-| `GET /api/v2/me/attendance?month=` | `{ month, periodState, shift, totals: { workDays, standardDays, lateCount, paidLeaveDays }, days: DaySummary[] }` | J2 Chấm công |
+| `GET /api/v2/me/attendance?month=` | `{ month, periodState: 'open'\|'locked', totals: { workDays, standardDays, lateCount, paidLeaveDays }, days: DaySummary[], range: { from, to } }`. `locked` khi Admin đã Chốt công tháng đó (`payroll_periods.status` khác `'open'`) hoặc tháng có dòng công đã khoá (`is_locked`). Không gửi `month` → máy chủ lấy tháng hiện tại theo giờ Việt Nam của nó. Tháng ngoài `range` (từ tháng vào làm tới tháng hiện tại; chưa có ngày vào làm thì chỉ tháng hiện tại) → 400 `MONTH_OUT_OF_RANGE` | J2 Chấm công |
 | `GET /api/v2/me/attendance/:date` | `{ date, kind, in, out, lateMinutes, leave, claim }` | J3 chi tiết ngày |
 | `GET /api/v2/me/requests?status=` | `{ counts, items: RequestDTO[] }` | J4 Yêu cầu |
 | `GET /api/v2/me/requests/:id` | `{ request: RequestDTO, steps: { label, at, state }[] }` | J5 chi tiết |
 | `POST /api/v2/me/requests/{leave,overtime,advance,explanation,isat,shift-change}` | như route admin hiện có nhưng `employeeId = req.user.username` | Nộp đơn |
 | `PATCH /api/v2/me/requests/:id/cancel` | chỉ huỷ đơn của mình, còn `PENDING` | Huỷ đơn |
-| `GET /api/v2/me/income?month=` | `{ month, state: 'estimate'\|'official', payslip: EmployeePayslipDTO }` — phiếu đã chốt nếu có, không thì tính tạm (không lưu) | J6 Thu nhập |
-| `PUT /api/v2/me/kpi/self?month=` | body `{ score }` → điểm tự đánh giá | KPI tự chấm (`/nv-may-tinh`) |
+| `GET /api/v2/me/income?month=` | `{ month, state: 'estimate'\|'official'\|'unavailable', payslip: EmployeePayslipDTO \| null, reason?, range: { from, to } }` — `official` khi phiếu của chính người đó ở lần chạy hiện tại đã được Admin duyệt (`payslips.status = 'approved'`, người dùng chốt 05/11/2026), không thì tính tạm (không lưu). Cùng khoảng tháng và cùng mặc định khi không gửi `month` như `/me/attendance` | J6 Thu nhập |
 | `GET /api/v2/me/profile` | `{ name, username, contract, position, shift, leave: { total, used, remaining }, dependants }` | J7 Tôi |
 
-`DaySummary = { date, kind: 'work'\|'late'\|'leave'\|'absent'\|'todo'\|'off'\|'future', in, out, lateMinutes }`.
+`DaySummary = { date, kind: 'work'\|'late'\|'leave'\|'absent'\|'todo'\|'off'\|'future', leave?: 'paid'\|'unpaid'\|'holiday', in, out, lateMinutes }` (`leave` chỉ có ở ngày nghỉ, lấy từ trạng thái bảng công).
+
+Không có route tự chấm KPI: người dùng chốt 05/11/2026 bỏ `PUT /me/kpi/self`; điểm "Tự đánh giá" do Admin nhập.
 
 Cần thêm ở BE: `PayrollService.estimate(username, month)` (tính phiếu tạm không ghi `payroll_runs`); `AttendanceService.monthSummary(username, month)`; lịch sử các bước duyệt của đơn (đọc `reviewed_by/at` sẵn có, thêm `created_at` làm bước "Đã gửi").
 

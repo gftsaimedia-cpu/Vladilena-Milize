@@ -8,6 +8,7 @@ import type {
   DayKind,
   HomeView,
   IncomeView,
+  MonthNav,
   ProfileView,
   RequestDetail,
   RequestRowData,
@@ -17,8 +18,17 @@ import type {
 import { dmy, initials, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
 
-export type MeDay = { date: string; kind: CellKind; in: string | null; out: string | null; lateMinutes: number };
-export type MeMonth = { month: string; totals: { workDays: number; standardDays: number; lateCount: number; paidLeaveDays: number }; days: MeDay[] };
+export type MeLeave = 'paid' | 'unpaid' | 'holiday';
+export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
+// Các tháng được xem: từ tháng vào làm tới tháng hiện tại (BE quyết).
+export type MeRange = { from: string; to: string };
+export type MeMonth = {
+  month: string;
+  periodState?: 'open' | 'locked';
+  range?: MeRange;
+  totals: { workDays: number; standardDays: number; lateCount: number; paidLeaveDays: number };
+  days: MeDay[];
+};
 export type MeToday = {
   date: string;
   shift: { type: string; start: string; end: string } | null;
@@ -36,7 +46,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null };
 
@@ -62,12 +72,27 @@ const KIND_TEXT: Record<CellKind, string> = {
   off: 'không có ca'
 };
 const DAY_STATUS: Record<DayKind, string> = { work: 'Đi làm', late: 'Đi muộn', leave: 'Nghỉ có lương', absent: 'Vắng', todo: 'Cần xử lý' };
+// Ngày nghỉ gọi đúng loại theo bảng công; thiếu loại thì giữ nhãn chung.
+const LEAVE_KIND: Record<MeLeave, string> = { paid: 'Nghỉ có lương', unpaid: 'Nghỉ không lương', holiday: 'Nghỉ lễ' };
+const statusOf = (d: MeDay) => (d.kind === 'leave' && d.leave ? LEAVE_KIND[d.leave] : DAY_STATUS[d.kind as DayKind]);
 
 const dowOf = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const monthLabelOf = (ym: string) => `Tháng ${Number(ym.slice(5, 7))}/${ym.slice(0, 4)}`;
+const addMonth = (ym: string, n: number) => {
+  const d = new Date(Date.UTC(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1 + n, 1));
+  return d.toISOString().slice(0, 7);
+};
+// Tháng trước / sau chỉ khi còn trong khoảng; không có khoảng thì cả hai tắt.
+function monthNavOf(month: string, range: MeRange | undefined): MonthNav {
+  return {
+    month,
+    prev: range && month > range.from ? addMonth(month, -1) : null,
+    next: range && month < range.to ? addMonth(month, 1) : null
+  };
+}
 // Thời điểm ISO → 'dd/mm HH:mm' giờ Việt Nam.
 const vnStamp = (iso: string | null) => {
   if (!iso) return null;
@@ -82,7 +107,7 @@ export const workedText = (min: number) => `${Math.floor(min / 60)}g ${min % 60}
 function cellOf(d: MeDay, today: string, padDay: boolean): CalendarCell {
   const isToday = d.date === today;
   const live = isToday && !!d.in && !d.out;
-  const text = live ? 'đang làm' : KIND_TEXT[d.kind];
+  const text = live ? 'đang làm' : d.kind === 'leave' && d.leave ? lower(LEAVE_KIND[d.leave]) : KIND_TEXT[d.kind];
   const dow = dowOf(d.date);
   return {
     date: d.date,
@@ -203,11 +228,12 @@ export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, r
       kind: d.kind,
       day: `${DOW_LONG[dowOf(d.date)]} ${ddmm(d.date)}`,
       times: `${d.in} – ${d.out ?? (d.date === today ? '…' : '?')}`,
-      statusText: d.date === today && !d.out ? 'Đang làm' : DAY_STATUS[d.kind as DayKind] ?? NONE
+      statusText: d.date === today && !d.out ? 'Đang làm' : statusOf(d) ?? NONE
     }));
   return {
+    ...monthNavOf(m.month, m.range),
     label: monthLabelOf(m.month),
-    state: 'Kỳ công đang mở',
+    state: m.periodState === 'locked' ? 'Kỳ công đã chốt' : 'Kỳ công đang mở',
     shiftLine: `Ca ${shiftLine} · thứ Hai – thứ Bảy`,
     tiles: [
       { value: String(m.totals.workDays), of: String(m.totals.standardDays), label: 'Ngày công' },
@@ -230,14 +256,14 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
     shiftLine: `Ca ${shift.start}–${shift.end}`,
     kind,
     today: d.date === today,
-    statusText: d.date === today && d.in && !d.out ? 'Đang làm' : DAY_STATUS[kind],
+    statusText: d.date === today && d.in && !d.out ? 'Đang làm' : statusOf(d),
     shiftStart: shift.start,
     shiftEnd: shift.end,
     now,
     in: d.in,
     out: d.out,
     lateMin: d.lateMinutes,
-    leave: kind === 'leave' ? { type: 'Nghỉ có lương', span: 'Cả ngày' } : null,
+    leave: kind === 'leave' ? { type: statusOf(d), span: 'Cả ngày' } : null,
     claim: null
   };
 }
@@ -272,7 +298,8 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     workedMin,
     shiftMin: toMin(end) - toMin(start),
     worked: workedText(workedMin),
-    location: checkIn ? 'Đã chấm công' : 'Chưa chấm công hôm nay',
+    // Máy chủ chưa gửi kết quả vị trí (vùng chấm công): không có dòng vị trí.
+    location: null,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
     income: {
@@ -297,7 +324,7 @@ const KPI_PARTS: [string, string][] = [
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
-  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month) };
+  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), ...monthNavOf(inc.month, inc.range) };
   if (!p) {
     return {
       ...base,
@@ -356,7 +383,6 @@ export function profileViewOf(p: MeProfile): ProfileView {
   return {
     name: p.name,
     initials: initials(p.name),
-    email: NONE,
     contract: CONTRACT_LABEL[p.contract.status] || NONE,
     facts: [
       ['Tên đăng nhập', p.username],

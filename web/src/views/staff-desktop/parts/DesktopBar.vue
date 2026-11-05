@@ -1,18 +1,25 @@
 <script setup lang="ts">
 // Thanh trên của trang nhân viên máy tính + menu tài khoản (spec 3.2). Menu mở khi và chỉ khi đường dẫn là /nv/toi không có ?hop (D3):
 // bấm nút khi đóng → replace('/nv/toi'); bấm lại, bấm ra ngoài hay Esc → replace('/nv/hom-nay'), Esc trả focus về nút.
+// Tải hồ sơ lỗi thì menu hiện LoadError với nút Thử lại thay khối định danh (tải xong thì focus về khung menu, vẫn lỗi thì về
+// nút Thử lại mới); chưa có hồ sơ thì hiện "Đang tải…". Đổi mật khẩu và Đăng xuất vẫn dùng được.
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/img/gft-logo-light.png';
-import type { ProfileView } from '@/mock/staff-phone';
+import { useLoad } from '@/composables/useLoad';
+import { useRetry } from '@/composables/useRetry';
 import { getProfile, logout } from '@/services/staff-phone';
+import LoadError from '@/views/staff-phone/components/LoadError.vue';
+import LoadingLine from '@/views/staff-phone/components/LoadingLine.vue';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 
 const HOME = '/nv/hom-nay';
 const route = useRoute();
 const router = useRouter();
-const data = ref<ProfileView | null>(null);
-getProfile().then(v => (data.value = v));
+const load = useLoad(() => getProfile());
+const { data, error, loading } = load;
+const head = ref<HTMLElement | null>(null);
+const { errBox, retry } = useRetry(load, head);
 
 const menuOpen = computed(() => route.path === '/nv/toi' && !route.query.hop);
 
@@ -75,22 +82,25 @@ onBeforeUnmount(() => listen(false));
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <section v-if="data" v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
-      <div class="sd-ident">
-        <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
-        <div class="sd-who">
-          <div class="sd-nm2">{{ data.name }}</div>
-          <div class="mut">{{ data.email }}</div>
+    <section v-show="menuOpen" id="sd-menu" ref="head" class="sd-menu" role="region" aria-label="Tài khoản của tôi" tabindex="-1">
+      <LoadError v-if="error" ref="errBox" :error="error" @retry="retry" />
+      <template v-else-if="data">
+        <div class="sd-ident">
+          <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
+          <div class="sd-who">
+            <div class="sd-nm2">{{ data.name }}</div>
+          </div>
+          <span class="st"><i class="dot work" />{{ data.contract }}</span>
         </div>
-        <span class="st"><i class="dot work" />{{ data.contract }}</span>
-      </div>
-      <div class="sd-facts">
-        <div v-for="[k, v] in data.facts" :key="k" class="kv">
-          <span class="k">{{ k }}</span
-          ><span class="v">{{ v }}</span>
+        <div class="sd-facts">
+          <div v-for="[k, v] in data.facts" :key="k" class="kv">
+            <span class="k">{{ k }}</span
+            ><span class="v">{{ v }}</span>
+          </div>
         </div>
-      </div>
-      <p class="mut sm sd-note">{{ data.note }}</p>
+        <p class="mut sm sd-note">{{ data.note }}</p>
+      </template>
+      <LoadingLine v-else-if="loading" />
       <button type="button" class="sd-mi" @click="openPassword">
         <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
         <PhIcon name="right" :size="18" :stroke="2" />

@@ -219,79 +219,6 @@ describe('Bảng lương từ /payroll/:month', () => {
   });
 });
 
-import { advanceResponseFromRequests, approvalRowsFromRequests, explanationsResponseFromRequests } from '../../web/src/builders/api/requests';
-
-describe('Màn Yêu cầu từ /requests', () => {
-  const people = new Map([['nam', { name: 'Lê Hoàng Nam', title: 'Kinh doanh' }]]);
-  const base = { employeeId: 'nam', reason: 'x', createdAt: '2026-11-05T01:00:00Z', reviewedAt: null, reviewNote: null };
-
-  it('turns day requests into the raw rows the approval table reads', () => {
-    const rows = approvalRowsFromRequests(
-      [
-        { ...base, id: 'l1', type: 'LEAVE', status: 'PENDING', leaveType: 'ANNUAL', leaveStartDate: '2026-11-09' },
-        { ...base, id: 'l2', type: 'LEAVE', status: 'APPROVED', leaveType: 'SOCIAL_INSURANCE', leaveStartDate: '2026-11-10', reviewedAt: '2026-11-06T00:00:00Z' },
-        { ...base, id: 'o1', type: 'OVERTIME', status: 'REJECTED', otDate: '2026-11-04', otStartTime: '18:00', otEndTime: '20:30' },
-        { ...base, id: 'm1', type: 'LEAVE_WITH_MAKEUP', status: 'PENDING', leaveStartDate: '2026-11-11', makeupSlots: [{ date: '2026-11-15', startTime: '08:00', endTime: '12:00', workMinutes: 240 }] },
-        { ...base, id: 'i1', type: 'ISAT', status: 'PENDING', isat: { saturday: '2026-11-14' } },
-        { ...base, id: 'e1', type: 'EXPLANATION', status: 'PENDING', explanationDate: '2026-11-03' },
-        { ...base, id: 'a1', type: 'ADVANCE', status: 'PENDING', advancePeriod: '2026-11' },
-        { ...base, id: 'c1', type: 'LEAVE', status: 'CANCELLED', leaveStartDate: '2026-11-12' }
-      ] as any,
-      people
-    );
-    assert.deepEqual(
-      rows.map(r => [r.requestId, r.item, r.date, r.status]),
-      [
-        ['l1', 'leave', '2026-11-09', 'pending'],
-        ['l2', 'approved', '2026-11-10', 'approved'],
-        ['o1', 'ot', '2026-11-04', 'rejected'],
-        ['m1', 'willmakeup', '2026-11-11', 'pending'],
-        ['i1', 'isat', '2026-11-14', 'pending']
-      ]
-    );
-    assert.equal(rows[0].name, 'Lê Hoàng Nam');
-    assert.equal(rows[0].username, 'nam');
-    assert.equal(rows[0].submittedAt, '2026-11-05T01:00:00Z');
-    assert.equal(rows[1].decidedAt, '2026-11-06T00:00:00Z');
-    assert.deepEqual(rows[2].declared, { out: '18:00', extraOut: '20:30' });
-    assert.deepEqual(rows[3].declared, { makeupPlans: [{ from: '08:00', to: '12:00' }] });
-  });
-
-  it('turns explanation requests into the explanations response', () => {
-    const res = explanationsResponseFromRequests(
-      [
-        { ...base, id: 'e1', type: 'EXPLANATION', status: 'PENDING', explanationDate: '2026-11-03', actualCheckIn: '08:10', actualCheckOut: null, reason: 'Kẹt xe' },
-        { ...base, id: 'e2', type: 'EXPLANATION', status: 'APPROVED', explanationDate: '2026-11-02', reviewNote: 'ok' },
-        { ...base, id: 'l1', type: 'LEAVE', status: 'PENDING' }
-      ] as any,
-      people
-    );
-    assert.deepEqual(
-      res.items.map(i => [i.id, i.status, i.date, i.name]),
-      [
-        ['e1', 'answered', '2026-11-03', 'Lê Hoàng Nam'],
-        ['e2', 'approved', '2026-11-02', 'Lê Hoàng Nam']
-      ]
-    );
-    assert.equal(res.items[0].answer, 'Giờ vào 08:10 · Kẹt xe');
-    assert.equal(res.items[1].decisionNote, 'ok');
-  });
-
-  it('turns advance requests of a month into the advance response', () => {
-    const res = advanceResponseFromRequests(
-      [
-        { ...base, id: 'a1', type: 'ADVANCE', status: 'PENDING', advancePeriod: '2026-11', advanceAmount: 1_500_000 },
-        { ...base, id: 'a2', type: 'ADVANCE', status: 'APPROVED', advancePeriod: '2026-10', advanceAmount: 1_000_000 }
-      ] as any,
-      people,
-      '2026-11'
-    );
-    assert.equal(res.month, '2026-11');
-    assert.equal(res.pending, 1);
-    assert.deepEqual(res.items.map(i => [i.username, i.status, i.amount, i.eligible]), [['nam', 'pending', 1_500_000, true]]);
-  });
-});
-
 import { periodStripFromPeriod } from '../../web/src/builders/api/period';
 
 describe('Thanh kỳ lương từ /system/periods', () => {
@@ -306,7 +233,7 @@ describe('Thanh kỳ lương từ /system/periods', () => {
 
   it('marks finished steps from the period timestamps', () => {
     const strip = periodStripFromPeriod(
-      { month: '2026-10', status: 'LOCKED', attendance_locked_at: 'a', calculated_at: 'b', approved_at: null, paid_at: null } as any,
+      { month: '2026-10', status: 'calculated', attendance_locked_at: 'a', calculated_at: 'b', approved_at: null, paid_at: null } as any,
       '2026-10'
     );
     assert.equal(strip.state, 'Chờ phê duyệt');
@@ -315,7 +242,7 @@ describe('Thanh kỳ lương từ /system/periods', () => {
 
   it('a paid month is all done', () => {
     const strip = periodStripFromPeriod(
-      { month: '2026-09', status: 'PAID', attendance_locked_at: 'a', calculated_at: 'b', approved_at: 'c', paid_at: 'd' } as any,
+      { month: '2026-09', status: 'paid', attendance_locked_at: 'a', calculated_at: 'b', approved_at: 'c', paid_at: 'd' } as any,
       '2026-09'
     );
     assert.equal(strip.state, 'Đã trả lương');

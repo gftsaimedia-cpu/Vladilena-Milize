@@ -63,7 +63,9 @@ export function overviewView(month: string): OverviewView {
   const mm = pad(m);
   const last = new Date(Date.UTC(year, m, 0)).getUTCDate();
   const nextYear = m === 12 ? year + 1 : year;
-  const approvals = pendingInbox().filter(item => item.action === 'decide');
+  // Thẻ Việc cần duyệt hiện đủ danh sách "Cần duyệt" của chuông; chỉ số "Yêu cầu chờ duyệt" chỉ đếm việc cần quyết định.
+  const approvals = pendingInbox();
+  const toDecide = approvals.filter(item => item.action === 'decide');
   const board = payrollView(MOCK_MONTH);
   if (board.empty) throw new Error('Bảng lương giả của tháng hiện tại phải có dữ liệu.');
   const { counts, totals } = board;
@@ -92,7 +94,7 @@ export function overviewView(month: string): OverviewView {
       {
         key: 'requests',
         label: 'Yêu cầu chờ duyệt',
-        value: String(approvals.length),
+        value: String(toDecide.length),
         delta: { dir: 'down', text: '3', good: true },
         note: 'so với tháng trước'
       }

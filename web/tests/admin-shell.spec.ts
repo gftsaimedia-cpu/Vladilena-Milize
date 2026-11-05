@@ -123,7 +123,10 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
-  await page.getByRole('button', { name: /, Trịnh Văn Long · / }).click();
+  await page
+    .getByRole('dialog', { name: 'Thông báo' })
+    .getByRole('button', { name: /, Trịnh Văn Long · / })
+    .click();
   await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL('/admin/cham-cong/nhan-vien/trinh-van-long?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);

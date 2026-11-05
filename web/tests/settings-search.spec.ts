@@ -134,13 +134,13 @@ test.fixme(
 );
 
 test('frame search carries only month context and returns to its source with Back', async ({ page }) => {
-  const source = '/admin/cai-dat/lich?thang=2026-11&hop=them-chuc-vu&group=old&setting=old.setting';
+  const source = '/admin/cai-dat/lich?thang=2026-11&hop=old&group=old&setting=old.setting';
   await page.goto(source);
   await page.getByLabel('Tìm cài đặt').fill('thuế');
   await page.getByLabel('Tìm cài đặt').press('Enter');
 
   await expect(page).toHaveURL(/\/admin\/cai-dat\/tat-ca\?thang=2026-11&q=thu%E1%BA%BF$/);
-  await expect(page.getByRole('heading', { name: 'Thêm chức vụ' })).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(source);
 });
@@ -309,29 +309,17 @@ test.fixme(
   }
 );
 
-test.fixme(
-  'adding a position asks before discarding an in-progress settings draft',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca?q=ph%C6%B0%C6%A1ng%20th%E1%BB%A9c&group=ngay-cong');
-    const option = page.locator('[data-setting-key="pay.method"] .c button').filter({ hasText: 'Theo ngày' });
-    await option.click();
-    const beforeCancel = page.url();
-
-    page.once('dialog', dialog => dialog.dismiss());
-    await page.getByRole('button', { name: 'Thêm chức vụ' }).click();
-    await expect(page).toHaveURL(beforeCancel);
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Theo ngày');
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-
-    page.once('dialog', dialog => dialog.accept());
-    await page.getByRole('button', { name: 'Thêm chức vụ' }).click();
-    await expect(page).toHaveURL(/q=ph%C6%B0%C6%A1ng(?:\+|%20)th%E1%BB%A9c.*group=ngay-cong.*hop=them-chuc-vu/);
-    await expect(page.getByRole('dialog', { name: 'Thêm chức vụ' })).toBeVisible();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Hàng tháng');
-  }
-);
+// P6 (docs/superpowers/specs/2026-11-05-positions-settings-design.md): không thêm chức vụ mới, BE cũng không có
+// POST /positions, nên Tất cả cài đặt không có nút "Thêm chức vụ" và địa chỉ cũ ?hop=them-chuc-vu không mở hộp nào.
+// Chế độ giả chưa có dữ liệu cho màn này (thẻ chứa nút chỉ hiện khi tải được cài đặt), nên chờ màn tải xong, hiện
+// tiêu đề hoặc báo lỗi, rồi kiểm.
+test('the old ?hop=them-chuc-vu address opens no add-position dialog', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?hop=them-chuc-vu');
+  await expect(page.getByRole('heading', { name: 'Tất cả cài đặt' }).or(page.getByRole('alert'))).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Thêm chức vụ' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Thêm chức vụ' })).toHaveCount(0);
+});
 
 test.fixme(
   'same-group item focus and chip keep drafts; reset/save leave no stale dirty prompt',
@@ -364,7 +352,7 @@ test.fixme(
 );
 
 test.fixme(
-  'add position guards dirty drafts; same-group navigation, reset, and save do not prompt later',
+  'same-group navigation, reset, and save do not prompt later',
   { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
   async ({ page }) => {
     await mockSettingsApi(page);
