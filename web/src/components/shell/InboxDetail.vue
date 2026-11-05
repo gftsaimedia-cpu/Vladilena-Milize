@@ -1,30 +1,18 @@
 <script setup lang="ts">
-// Thẻ chi tiết một việc chờ xử lý trong hộp chi tiết ngày của màn Chấm công (chuông dùng BellDetail):
-// người, đầu thẻ, các dòng nhãn – giá trị và nút xử lý.
-// Tự gọi useShellStore().decide; xong thì emit('decided') để nơi chứa báo câu kết quả và chọn việc kế tiếp.
+// Thẻ việc chờ xử lý của một ngày, chỉ dùng trong hộp chi tiết ngày của màn Chấm công (DayDetailDialog; chuông dùng
+// BellDetail): đầu thẻ, các dòng nhãn – giá trị và nút xử lý. Người và liên kết hồ sơ do hộp chứa tự hiện.
+// Tự gọi useShellStore().decide; xong thì emit('decided') để hộp chứa báo câu kết quả rồi đóng.
 import { ref } from 'vue';
-import { useRoute } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import type { InboxItem } from '@/mock/inbox';
 import { ALREADY_HANDLED, decisionText, type DecisionVerb } from '@/services/admin-main';
 import { useShellStore } from '@/stores/shell';
-import { employeePath } from '@/views/admin/attendance/links';
 
-const props = withDefaults(defineProps<{ item: InboxItem; showPerson?: boolean; profileLink?: boolean }>(), {
-  showPerson: true,
-  profileLink: true
-});
-const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: []; profile: [] }>();
+const props = defineProps<{ item: InboxItem }>();
+const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: [] }>();
 
 const shell = useShellStore();
-const route = useRoute();
 const busy = ref(false);
-
-const profileTo = () => ({
-  path: employeePath(props.item.personId),
-  query: route.query.thang ? { thang: route.query.thang } : {}
-});
-const hasProfile = () => props.profileLink && (props.item.group === 'att' || props.item.group === 'exp');
 
 async function act(verb: DecisionVerb) {
   if (busy.value) return;
@@ -45,13 +33,6 @@ async function act(verb: DecisionVerb) {
 <template>
   <section class="idetail" role="region" aria-label="Chi tiết yêu cầu" tabindex="-1">
     <button type="button" class="x" aria-label="Đóng chi tiết" @click="emit('close')"><Icon name="x" /></button>
-    <div v-if="showPerson" class="id-who">
-      <span class="id-av">{{ item.initials }}</span>
-      <div>
-        <h3>{{ item.name }}</h3>
-        <p>{{ item.role }}</p>
-      </div>
-    </div>
     <h4>{{ item.head }}</h4>
     <p class="sub">{{ item.sub }}</p>
     <dl>
@@ -88,9 +69,6 @@ async function act(verb: DecisionVerb) {
         </button>
       </template>
     </div>
-    <RouterLink v-if="hasProfile()" :to="profileTo()" class="link prof" @click="emit('profile')">
-      Mở hồ sơ chấm công
-    </RouterLink>
   </section>
 </template>
 
@@ -101,8 +79,7 @@ async function act(verb: DecisionVerb) {
 }
 .idetail:focus-visible,
 .x:focus-visible,
-.acts .btn:focus-visible,
-.prof:focus-visible {
+.acts .btn:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }
@@ -122,37 +99,6 @@ async function act(verb: DecisionVerb) {
   display: grid;
   place-items: center;
   cursor: pointer;
-  color: var(--muted);
-}
-.id-who {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-right: 40px;
-  margin-bottom: 20px;
-}
-.id-av {
-  border-radius: 50%;
-  background: var(--draft-bg);
-  color: var(--draft-ink);
-  font-weight: 600;
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  font-size: 14px;
-}
-h3 {
-  margin: 0;
-  font-size: 14px;
-  line-height: 22px;
-  font-weight: 600;
-}
-.id-who p {
-  margin: 0;
-  font-size: 12px;
-  line-height: 18px;
   color: var(--muted);
 }
 h4 {
@@ -201,10 +147,5 @@ dd {
 .acts .btn:disabled {
   opacity: 0.5;
   cursor: default;
-}
-.prof {
-  display: inline-block;
-  margin-top: 16px;
-  font-size: 14px;
 }
 </style>

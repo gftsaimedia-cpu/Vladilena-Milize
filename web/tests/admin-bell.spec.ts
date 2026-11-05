@@ -87,6 +87,18 @@ test('the drawer opens on Tất cả with the design header, three filters and s
   expect(calls).toEqual([]);
 });
 
+test('opening the bell puts focus on the pressed filter, not on Đánh dấu đã đọc', async ({ page }) => {
+  await openBell(page);
+  await expect(filterOf(page, 'Tất cả')).toHaveAttribute('aria-pressed', 'true');
+  await expect(filterOf(page, 'Tất cả')).toBeFocused();
+  await expect(drawerOf(page).getByRole('button', { name: 'Đánh dấu đã đọc' })).not.toBeFocused();
+  await expect(dots(page)).toHaveCount(3);
+
+  await page.keyboard.press('Escape');
+  await expect(drawerOf(page)).toHaveCount(0);
+  await expect(bellOf(page)).toBeFocused();
+});
+
 test('Cần duyệt and Hệ thống filter the list; the pressed filter reads black with a gold count', async ({ page }) => {
   await openBell(page);
   const drawer = drawerOf(page);

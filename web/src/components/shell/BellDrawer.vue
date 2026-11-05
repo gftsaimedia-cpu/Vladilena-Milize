@@ -55,10 +55,10 @@ let order: Row[] = [];
 const narrow = ref(false);
 const covered = computed(() => narrow.value && !!selected.value);
 
-// Phòng ban là phần đầu của "Phòng ban · Chức danh"; máy chủ thật chỉ có chức danh hoặc "—".
+// Dòng 2 là "họ tên · phòng ban" chỉ khi `role` có dạng "Phòng ban · Chức danh" (dữ liệu giả). Máy chủ thật chỉ có
+// chức danh hoặc "—", không có phòng ban, nên chỉ hiện họ tên.
 function personLine(item: InboxItem) {
-  const dept = item.role.split(' · ')[0];
-  return dept && dept !== '—' ? `${item.name} · ${dept}` : item.name;
+  return item.role.includes(' · ') ? `${item.name} · ${item.role.split(' · ')[0]}` : item.name;
 }
 const itemRow = (item: InboxItem): Row => ({
   id: item.id,
@@ -161,7 +161,11 @@ onMounted(() => {
   narrow.value = narrowQuery.matches;
   narrowQuery.addEventListener('change', onNarrow);
   lockScroll();
-  if (root.value) unregisterFocus = registerOverlayFocus(root.value, closeTop, () => true);
+  if (!root.value) return;
+  // registerOverlayFocus nhớ nút đã mở chuông (để trả focus khi đóng) rồi đưa focus vào phần tử đầu tiên, là nút
+  // "Đánh dấu đã đọc"; Enter thêm một lần sẽ xoá mọi chấm chưa đọc. Nên focus đầu tiên đặt ở nút lọc đang chọn.
+  unregisterFocus = registerOverlayFocus(root.value, closeTop, () => true);
+  root.value.querySelector<HTMLElement>(`[data-filter="${filter.value}"]`)?.focus();
 });
 onBeforeUnmount(() => {
   narrowQuery?.removeEventListener('change', onNarrow);

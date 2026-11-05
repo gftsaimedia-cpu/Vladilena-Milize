@@ -86,8 +86,6 @@ function onDecided({ ok, text }: { id: string; ok: boolean; text: string }) {
       v-if="item"
       class="dd-item"
       :item="item"
-      :show-person="false"
-      :profile-link="false"
       @decided="onDecided"
       @close="emit('close')"
     />
