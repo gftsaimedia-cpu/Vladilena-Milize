@@ -42,8 +42,26 @@ export function staffContext(overrides: Partial<StaffContext> = {}): StaffContex
 
 const ACTIVE: ReadonlyArray<RequestStatus> = ['PENDING', 'APPROVED'];
 
+/** Giao dịch giả mà RecordingLock đưa vào khoá: các fake ghi lại mỗi lệnh chạy trên giao dịch nào. */
+export const LOCK_TRX = { name: 'giao dịch của khoá' };
+
+/** Bản fake gắn với `trx`: dùng chung dữ liệu với bản gốc, chỉ khác giao dịch ghi vào `calls`. */
+function boundTo<T extends object>(repo: T, trx: unknown): T {
+  const view = Object.create(repo);
+  view.trx = trx;
+  return view;
+}
+
 /** Đơn trong bộ nhớ; hồ sơ tra theo cả uuid lẫn username; `schedules` là lịch của mọi nhân sự. */
 export class FakeRequestsRepository extends RequestsRepository {
+  /** Giao dịch mà bản này chạy trên (undefined = pool) và nhật ký [phương thức, giao dịch] theo thứ tự gọi. */
+  trx: unknown = undefined;
+  calls: Array<[string, unknown]> = [];
+
+  override withTransaction(trx: any): this {
+    return boundTo(this, trx);
+  }
+
   requests = new Map<string, SystemRequest>();
   profiles = new Map<string, StaffContext>();
   schedules: ScheduleDay[] = [];
@@ -66,18 +84,22 @@ export class FakeRequestsRepository extends RequestsRepository {
   }
 
   override async save(request: SystemRequest): Promise<void> {
+    this.calls.push(['save', this.trx]);
     this.requests.set(request.id, request);
   }
 
   override async findById(id: string): Promise<SystemRequest | null> {
+    this.calls.push(['findById', this.trx]);
     return this.requests.get(id) ?? null;
   }
 
   override async listActive(employeeId: string): Promise<SystemRequest[]> {
+    this.calls.push(['listActive', this.trx]);
     return [...this.requests.values()].filter(r => r.employeeId === employeeId && ACTIVE.includes(r.status));
   }
 
   override async list(filter: RequestListFilter = {}): Promise<SystemRequest[]> {
+    this.calls.push(['list', this.trx]);
     let result = [...this.requests.values()];
     if (filter.employeeIds?.length) result = result.filter(r => filter.employeeIds!.includes(r.employeeId));
     else if (filter.employeeId) result = result.filter(r => r.employeeId === filter.employeeId);
@@ -91,15 +113,18 @@ export class FakeRequestsRepository extends RequestsRepository {
   }
 
   override async resolveStaffUuid(employeeIdOrUsername: string): Promise<string | null> {
+    this.calls.push(['resolveStaffUuid', this.trx]);
     return this.profiles.get(employeeIdOrUsername)?.employeeId ?? null;
   }
 
   override async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
+    this.calls.push(['findStaffContext', this.trx]);
     this.staffMonths.push(month);
     return this.profiles.get(employeeIdOrUsername) ?? null;
   }
 
   override async listScheduleDays(_employeeId: string, from: string, to: string): Promise<ScheduleDay[]> {
+    this.calls.push(['listScheduleDays', this.trx]);
     this.scheduleRanges.push([from, to]);
     return this.schedules.filter(s => s.date >= from && s.date <= to);
   }
@@ -125,6 +150,14 @@ export class FakeRequestsRepository extends RequestsRepository {
 
 /** Lịch làm việc trong bộ nhớ, khoá `${employeeId}:${workDate}`. */
 export class FakeAttendanceRepository extends AttendanceRepository {
+  /** Giao dịch mà bản này chạy trên (undefined = pool) và nhật ký [phương thức, giao dịch] theo thứ tự gọi. */
+  trx: unknown = undefined;
+  calls: Array<[string, unknown]> = [];
+
+  override withTransaction(trx: any): this {
+    return boundTo(this, trx);
+  }
+
   schedules = new Map<string, WorkSchedule>();
   dayStatuses = new Map<string, string>();
 
@@ -133,6 +166,7 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   }
 
   override async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
+    this.calls.push(['ensureDefaultSchedule', this.trx]);
     const key = `${employeeId}:${workDate}`;
     const existing = this.schedules.get(key);
     if (existing) return existing;
@@ -148,16 +182,26 @@ export class FakeAttendanceRepository extends AttendanceRepository {
   }
 
   override async saveSchedule(schedule: WorkSchedule): Promise<void> {
+    this.calls.push(['saveSchedule', this.trx]);
     this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
   }
 
   override async updateDayStatus(employeeId: string, workDate: string, status: string): Promise<void> {
+    this.calls.push(['updateDayStatus', this.trx]);
     this.dayStatuses.set(`${employeeId}:${workDate}`, status);
   }
 }
 
 /** Lịch lễ trong bộ nhớ; `ranges` ghi các khoảng đã đọc. */
 export class FakeHolidaysRepository extends HolidaysRepository {
+  /** Giao dịch mà bản này chạy trên (undefined = pool) và nhật ký [phương thức, giao dịch] theo thứ tự gọi. */
+  trx: unknown = undefined;
+  calls: Array<[string, unknown]> = [];
+
+  override withTransaction(trx: any): this {
+    return boundTo(this, trx);
+  }
+
   dates: Holiday[] = [];
   ranges: Array<[string, string]> = [];
 
@@ -166,18 +210,19 @@ export class FakeHolidaysRepository extends HolidaysRepository {
   }
 
   override async listBetween(from: string, to: string): Promise<Holiday[]> {
+    this.calls.push(['listBetween', this.trx]);
     this.ranges.push([from, to]);
     return this.dates.filter(h => h.date >= from && h.date <= to).sort((a, b) => a.date.localeCompare(b.date));
   }
 }
 
-/** Thay TransactionCoordinator: ghi khoá rồi chạy thẳng. */
+/** Thay TransactionCoordinator: ghi khoá rồi chạy thẳng, đưa LOCK_TRX làm giao dịch của khoá. */
 export class RecordingLock {
   keys: string[] = [];
 
   async withLock<T>(key: string, fn: (trx: any) => Promise<T>): Promise<T> {
     this.keys.push(key);
-    return fn(undefined);
+    return fn(LOCK_TRX);
   }
 }
 

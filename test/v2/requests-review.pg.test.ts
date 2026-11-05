@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { Client } from 'pg';
+import { Client, Pool } from 'pg';
 import type { Kysely } from 'kysely';
 import { createKysely, createPgPool } from '../../src/database/kysely';
 import { TransactionCoordinator } from '../../src/database/transaction';
@@ -93,6 +93,72 @@ test('Duyệt đơn trên PostgreSQL', async t => {
       await service.reviewRequest(created.id, 'pg-admin', 'REJECT', 'Không đủ người');
       const row = await client.query(`SELECT status, reviewed_by FROM system_requests WHERE id = $1`, [created.id]);
       assert.deepEqual(row.rows, [{ status: 'REJECTED', reviewed_by: 'pg-admin-uuid' }]);
+    });
+
+    await t.test('leave with makeup saves its slots inside the lock transaction, on submit and on approval', async () => {
+      const created = await service.createLeaveWithMakeupRequest({
+        employeeId: 'pg-user',
+        title: 'Nghỉ bù',
+        reason: 'Việc nhà',
+        startDate: '2026-11-19',
+        endDate: '2026-11-19',
+        slots: [
+          { date: '2026-11-20', startTime: '18:00', endTime: '22:00' },
+          { date: '2026-11-23', startTime: '18:00', endTime: '22:00' }
+        ]
+      });
+      const reviewed = await service.reviewRequest(created.id, 'pg-admin', 'APPROVE');
+      assert.deepEqual([reviewed.status, reviewed.makeupSlots.length], ['APPROVED', 2]);
+      const slots = await client.query(`SELECT count(*)::int AS n FROM makeup_slots WHERE request_id = $1`, [created.id]);
+      assert.equal(slots.rows[0].n, 2);
+    });
+
+    await t.test('a failing save rolls back the leave days written by the approval', async () => {
+      // Trigger chỉ chặn việc chuyển đơn có tiêu đề "Lưu lỗi" sang APPROVED: lịch đã ghi trước đó phải huỷ theo.
+      await client.query(`
+        CREATE FUNCTION fail_review() RETURNS trigger AS $$
+        BEGIN
+          IF NEW.title = 'Lưu lỗi' AND NEW.status = 'APPROVED' THEN RAISE EXCEPTION 'lưu đơn lỗi (test)'; END IF;
+          RETURN NEW;
+        END $$ LANGUAGE plpgsql;
+        CREATE TRIGGER fail_review BEFORE UPDATE ON system_requests FOR EACH ROW EXECUTE FUNCTION fail_review();
+      `);
+      const created = await service.createLeaveRequest({
+        ...leaveInput('pg-user', '2026-11-16'),
+        endDate: '2026-11-17',
+        title: 'Lưu lỗi'
+      });
+
+      await assert.rejects(service.reviewRequest(created.id, 'pg-admin', 'APPROVE'), /lưu đơn lỗi \(test\)/);
+
+      const row = await client.query(`SELECT status, reviewed_by FROM system_requests WHERE id = $1`, [created.id]);
+      assert.deepEqual(row.rows, [{ status: 'PENDING', reviewed_by: null }]);
+      const days = await client.query(
+        `SELECT work_date FROM work_schedules WHERE employee_id = 'pg-uuid-1' AND work_date BETWEEN '2026-11-16' AND '2026-11-17'`
+      );
+      assert.deepEqual(days.rows, []);
+    });
+
+    await t.test('a two-connection pool serves four employees at once without running dry', async () => {
+      const ids = ['pg-c1', 'pg-c2', 'pg-c3', 'pg-c4'];
+      for (const id of ids) {
+        await client.query(
+          `INSERT INTO staff (username, name, type, level, pass_hash, created_at, uuid) VALUES ($1, $1, 'nv', 1, 'x', $2, $3)`,
+          [id, new Date().toISOString(), `${id}-uuid`]
+        );
+      }
+      // Pool nhỏ, chờ kết nối tối đa 3 giây: nếu truy vấn trong khoá xin thêm kết nối thì cạn pool và báo timeout.
+      const small = createKysely(new Pool({ connectionString: tempUrl.toString(), max: 2, connectionTimeoutMillis: 3000 }));
+      try {
+        const smallService = serviceOn(small);
+        const results = await Promise.allSettled(ids.map(id => smallService.createLeaveRequest(leaveInput(id, '2026-11-18'))));
+        assert.deepEqual(
+          results.map(r => (r.status === 'fulfilled' ? r.value.status : String(r.reason?.message ?? r.reason))),
+          ['PENDING', 'PENDING', 'PENDING', 'PENDING']
+        );
+      } finally {
+        await small.destroy();
+      }
     });
   } finally {
     if (db) await db.destroy();

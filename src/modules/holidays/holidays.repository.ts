@@ -12,6 +12,11 @@ export interface Holiday {
 export class HolidaysRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
+  /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */
+  withTransaction(trx: Kysely<DB>): HolidaysRepository {
+    return new HolidaysRepository(trx);
+  }
+
   /** Các ngày lễ trong [from, to], gồm cả hai đầu, sắp theo ngày. Cột DATE đọc qua to_char để pg không đổi thành Date theo múi giờ máy. */
   async listBetween(from: string, to: string): Promise<Holiday[]> {
     return this.qb

@@ -1,5 +1,5 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
-import { TransactionCoordinator } from '../../database';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
   RequestType,
@@ -111,6 +111,16 @@ export interface CreateIsatInput {
   conditions?: unknown;
 }
 
+/**
+ * Các repository một thao tác dùng. Trong khoá, cả ba chạy trên giao dịch của khoá: thao tác thành một khối
+ * (lỗi ở đâu thì mọi thứ đã ghi đều huỷ) và chỉ giữ một kết nối của pool.
+ */
+interface RequestStores {
+  requests: RequestsRepository;
+  attendance?: AttendanceRepository;
+  holidays?: HolidaysRepository;
+}
+
 @Injectable()
 export class RequestsService {
   /** Thời điểm hiện tại; test đặt lại để cố định "hôm nay". */
@@ -123,9 +133,33 @@ export class RequestsService {
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
   ) {}
 
+  /** Repository chạy trên `trx`; không có `trx` thì chạy trên pool. */
+  private storesOn(trx?: DatabaseTransaction): RequestStores {
+    if (!trx) {
+      return { requests: this.repo, attendance: this.attendanceRepo, holidays: this.holidaysRepo };
+    }
+    return {
+      requests: this.repo.withTransaction(trx),
+      attendance: this.attendanceRepo?.withTransaction(trx),
+      holidays: this.holidaysRepo?.withTransaction(trx)
+    };
+  }
+
+  /** Chạy `fn` dưới advisory lock `key`, với repository gắn vào giao dịch của khoá; không có txCoordinator thì chạy thẳng. */
+  private async underLock<T>(key: string, fn: (stores: RequestStores) => Promise<T>): Promise<T> {
+    if (this.txCoordinator) {
+      return await this.txCoordinator.withLock(key, trx => fn(this.storesOn(trx)));
+    }
+    return await fn(this.storesOn());
+  }
+
   /** Hồ sơ nộp đơn theo uuid hoặc username, cấu hình loại nhân sự xét đến `month` (YYYY-MM). */
-  protected async resolveStaff(employeeIdOrUsername: string, month: string): Promise<StaffContext> {
-    const staff = await this.repo.findStaffContext(employeeIdOrUsername, month);
+  protected async resolveStaff(
+    employeeIdOrUsername: string,
+    month: string,
+    stores: RequestStores = this.storesOn()
+  ): Promise<StaffContext> {
+    const staff = await stores.requests.findStaffContext(employeeIdOrUsername, month);
     if (!staff) {
       throw new Error(`Không tìm thấy nhân sự: ${employeeIdOrUsername}`);
     }
@@ -147,18 +181,21 @@ export class RequestsService {
   protected async loadDays(
     staff: StaffContext,
     from: string,
-    to: string
+    to: string,
+    stores: RequestStores = this.storesOn()
   ): Promise<{ days: EmployeeDays; active: SystemRequest[] }> {
-    if (!this.holidaysRepo) {
+    const holidaysRepo = stores.holidays;
+    if (!holidaysRepo) {
       throw new Error('Thiếu lịch lễ công ty');
     }
     const regularDows = this.requireTypeConfig(staff);
     const lo = addDays(from, -1);
     const hi = addDays(to, 1);
+    // Trong giao dịch, các truy vấn chạy lần lượt trên cùng một kết nối dù gửi cùng lúc.
     const [schedules, holidays, active] = await Promise.all([
-      this.repo.listScheduleDays(staff.employeeId, lo, hi),
-      this.holidaysRepo.listBetween(lo, hi),
-      this.repo.listActive(staff.employeeId)
+      stores.requests.listScheduleDays(staff.employeeId, lo, hi),
+      holidaysRepo.listBetween(lo, hi),
+      stores.requests.listActive(staff.employeeId)
     ]);
     const days = new EmployeeDays({
       regularDows,
@@ -170,12 +207,12 @@ export class RequestsService {
     return { days, active };
   }
 
-  /** Mỗi lần nộp đơn của một nhân sự chạy dưới khoá `requests_<uuid>` (§5.6); không có txCoordinator thì chạy thẳng. */
-  protected async underEmployeeLock<T>(employeeId: string, fn: () => Promise<T>): Promise<T> {
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(`requests_${employeeId}`, () => fn());
-    }
-    return await fn();
+  /**
+   * Mỗi lần nộp đơn của một nhân sự chạy dưới khoá `requests_<uuid>` (§5.6); `fn` đọc và ghi qua `stores` (giao dịch
+   * của khoá). Không có txCoordinator thì chạy thẳng trên pool.
+   */
+  protected async underEmployeeLock<T>(employeeId: string, fn: (stores: RequestStores) => Promise<T>): Promise<T> {
+    return await this.underLock(`requests_${employeeId}`, fn);
   }
 
   async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
@@ -184,8 +221,8 @@ export class RequestsService {
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
-    return this.underEmployeeLock(staff.employeeId, async () => {
-      const { days, active } = await this.loadDays(staff, startDate, endDate);
+    return this.underEmployeeLock(staff.employeeId, async stores => {
+      const { days, active } = await this.loadDays(staff, startDate, endDate, stores);
       const leaveDays = days.workingDaysBetween(startDate, endDate);
       if (leaveDays.length === 0) {
         throw new Error('Khoảng nghỉ không có ngày làm việc');
@@ -216,7 +253,7 @@ export class RequestsService {
         endDate,
         daysCount: leaveDays.length
       });
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
@@ -241,15 +278,16 @@ export class RequestsService {
   }
 
   /** Duyệt đơn nghỉ: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi lịch ON_LEAVE; CN và ngày lễ không ghi. */
-  protected async markLeaveDays(req: SystemRequest): Promise<void> {
-    if (!this.attendanceRepo || !req.leaveStartDate) return;
+  protected async markLeaveDays(req: SystemRequest, stores: RequestStores = this.storesOn()): Promise<void> {
+    const attendance = stores.attendance;
+    if (!attendance || !req.leaveStartDate) return;
     const start = req.leaveStartDate;
     const end = req.leaveEndDate ?? start;
-    const staff = await this.resolveStaff(req.employeeId, monthOf(start));
-    const { days } = await this.loadDays(staff, start, end);
+    const staff = await this.resolveStaff(req.employeeId, monthOf(start), stores);
+    const { days } = await this.loadDays(staff, start, end, stores);
     for (const date of days.workingDaysBetween(start, end)) {
-      const sched = await this.attendanceRepo.ensureDefaultSchedule(staff.employeeId, date);
-      await this.attendanceRepo.saveSchedule(sched.withLeave(req.id));
+      const sched = await attendance.ensureDefaultSchedule(staff.employeeId, date);
+      await attendance.saveSchedule(sched.withLeave(req.id));
     }
   }
 
@@ -262,8 +300,8 @@ export class RequestsService {
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
-    return this.underEmployeeLock(staff.employeeId, async () => {
-      const { days, active } = await this.loadDays(staff, startDate, addDays(endDate, 1));
+    return this.underEmployeeLock(staff.employeeId, async stores => {
+      const { days, active } = await this.loadDays(staff, startDate, addDays(endDate, 1), stores);
       const changed = days.workingDaysBetween(startDate, endDate);
       if (changed.length === 0) {
         throw new Error('Khoảng đổi ca không có ngày làm việc');
@@ -315,21 +353,22 @@ export class RequestsService {
         endDate,
         frame
       });
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
 
   /** Duyệt đơn đổi ca: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi ca mới; CN và ngày lễ không ghi. */
-  protected async markShiftChangeDays(req: SystemRequest): Promise<void> {
-    if (!this.attendanceRepo || !req.changeStartDate || !req.newStartTime || !req.newEndTime) return;
+  protected async markShiftChangeDays(req: SystemRequest, stores: RequestStores = this.storesOn()): Promise<void> {
+    const attendance = stores.attendance;
+    if (!attendance || !req.changeStartDate || !req.newStartTime || !req.newEndTime) return;
     const start = req.changeStartDate;
     const end = req.changeEndDate ?? start;
-    const staff = await this.resolveStaff(req.employeeId, monthOf(start));
-    const { days } = await this.loadDays(staff, start, end);
+    const staff = await this.resolveStaff(req.employeeId, monthOf(start), stores);
+    const { days } = await this.loadDays(staff, start, end, stores);
     for (const date of days.workingDaysBetween(start, end)) {
-      const sched = await this.attendanceRepo.ensureDefaultSchedule(staff.employeeId, date);
-      await this.attendanceRepo.saveSchedule(
+      const sched = await attendance.ensureDefaultSchedule(staff.employeeId, date);
+      await attendance.saveSchedule(
         sched.withShiftChange(req.newShiftType as any, req.newStartTime, req.newEndTime, req.id)
       );
     }
@@ -348,9 +387,9 @@ export class RequestsService {
       throw new Error('Ngày nghỉ và khung bù phải nằm trong cùng một tháng');
     }
 
-    return this.underEmployeeLock(staff.employeeId, async () => {
+    return this.underEmployeeLock(staff.employeeId, async stores => {
       const monthEnd = lastDayOfMonth(month);
-      const { days, active } = await this.loadDays(staff, startDate, monthEnd);
+      const { days, active } = await this.loadDays(staff, startDate, monthEnd, stores);
       const leaveDays = days.workingDaysBetween(startDate, endDate);
       if (leaveDays.length === 0) {
         throw new Error('Khoảng nghỉ không có ngày làm việc');
@@ -404,7 +443,7 @@ export class RequestsService {
         daysCount: leaveDays.length,
         makeupSlots: slots.map(slot => ({ ...slot, workMinutes: workMinutes(slot.startTime, slot.endTime) }))
       });
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
@@ -420,8 +459,8 @@ export class RequestsService {
       throw new Error('Loại nhân sự này không có OT');
     }
 
-    return this.underEmployeeLock(staff.employeeId, async () => {
-      const { days, active } = await this.loadDays(staff, date, date);
+    return this.underEmployeeLock(staff.employeeId, async stores => {
+      const { days, active } = await this.loadDays(staff, date, date, stores);
       if (days.isOnLeave(date)) {
         throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không đăng ký OT được`);
       }
@@ -462,7 +501,7 @@ export class RequestsService {
         endTime,
         hours: minutes / 60
       });
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
@@ -470,7 +509,7 @@ export class RequestsService {
   async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {
     const period = input.period || businessMonthText(this.now());
     const staff = await this.resolveStaff(input.employeeId, period);
-    return this.underEmployeeLock(staff.employeeId, async () => {
+    return this.underEmployeeLock(staff.employeeId, async stores => {
       const req = SystemRequest.createAdvanceRequest({
         employeeId: staff.employeeId,
         title: input.title,
@@ -479,7 +518,7 @@ export class RequestsService {
         period
       });
 
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
@@ -495,9 +534,9 @@ export class RequestsService {
     // Giải trình không phụ thuộc lịch làm việc nên không cần cấu hình loại nhân sự.
     const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
 
-    return this.underEmployeeLock(staff.employeeId, async () => {
+    return this.underEmployeeLock(staff.employeeId, async stores => {
       // Một ngày một đơn: đơn đã bị từ chối vẫn chặn, đơn đã huỷ thì không.
-      const existing = await this.repo.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
+      const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
       const taken = existing.some(
         r => r.explanationDate === workDate && (isActive(r) || r.status === 'REJECTED')
       );
@@ -514,7 +553,7 @@ export class RequestsService {
         actualCheckIn,
         actualCheckOut
       });
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
     });
   }
@@ -554,19 +593,22 @@ export class RequestsService {
     return req.toJSON();
   }
 
-  /** `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid. */
+  /**
+   * `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid. Lịch ghi khi duyệt và
+   * trạng thái đơn lưu trong cùng giao dịch của khoá: một bước lỗi thì không gì được ghi, đơn vẫn chờ duyệt.
+   */
   async reviewRequest(
     id: string,
     reviewer: string,
     action: 'APPROVE' | 'REJECT',
     note?: string
   ): Promise<SystemRequestDTO> {
-    const doReview = async () => {
-      const req = await this.repo.findById(id);
+    return await this.underLock(`request_${id}`, async stores => {
+      const req = await stores.requests.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
       }
-      const reviewerId = await this.repo.resolveStaffUuid(reviewer);
+      const reviewerId = await stores.requests.resolveStaffUuid(reviewer);
       if (!reviewerId) {
         throw new Error(`Không tìm thấy người duyệt: ${reviewer}`);
       }
@@ -578,20 +620,21 @@ export class RequestsService {
         }
         req.approve(reviewerId, note);
 
-        if (this.attendanceRepo) {
+        const attendance = stores.attendance;
+        if (attendance) {
           // Duyệt OT không ghi lịch (§7); khung bù của đơn nghỉ có làm bù cũng không ghi vào lịch.
           if (req.type === 'SHIFT_CHANGE') {
-            await this.markShiftChangeDays(req);
+            await this.markShiftChangeDays(req, stores);
           } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
             // Chỉ ngày nghỉ được ghi ON_LEAVE; khung bù không ghi vào lịch.
-            await this.markLeaveDays(req);
+            await this.markLeaveDays(req, stores);
           } else if (req.type === 'ISAT' && req.isat) {
-            const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
-            await this.attendanceRepo.saveSchedule(sched.withIsat(req.id));
+            const sched = await attendance.ensureDefaultSchedule(req.employeeId, req.isat.saturday);
+            await attendance.saveSchedule(sched.withIsat(req.id));
           } else if (req.type === 'EXPLANATION') {
             const workDate = req.explanationDate;
             if (workDate) {
-              await this.attendanceRepo.updateDayStatus(req.employeeId, workDate, 'VALID');
+              await attendance.updateDayStatus(req.employeeId, workDate, 'VALID');
             }
           }
         }
@@ -601,14 +644,9 @@ export class RequestsService {
         throw new Error(`Invalid review action '${action}'; must be 'APPROVE' or 'REJECT'`);
       }
 
-      await this.repo.save(req);
+      await stores.requests.save(req);
       return req.toJSON();
-    };
-
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(`request_${id}`, doReview);
-    }
-    return await doReview();
+    });
   }
 
   async cancelRequest(id: string, employeeId: string, reason?: string): Promise<SystemRequestDTO> {

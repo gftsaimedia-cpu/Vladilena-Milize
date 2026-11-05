@@ -76,6 +76,11 @@ function parseDows(text: string | null | undefined): number[] | null {
 export class RequestsRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
+  /** Bản chạy mọi truy vấn trên `trx` (giao dịch của khoá đơn từ) thay vì pool. */
+  withTransaction(trx: Kysely<DB>): RequestsRepository {
+    return new RequestsRepository(trx);
+  }
+
   async save(request: SystemRequest): Promise<void> {
     const row = request.toRow();
     const isat = request.isat;
@@ -86,8 +91,10 @@ export class RequestsRepository {
       return;
     }
     // Đơn có bảng con ghi mọi bảng trong một giao dịch; lưu lần hai (duyệt đơn) chỉ cập nhật system_requests,
-    // các dòng con đã ghi lúc nộp nên bỏ qua khi trùng khoá.
-    await this.qb.transaction().execute(async trx => {
+    // các dòng con đã ghi lúc nộp nên bỏ qua khi trùng khoá. Đang ở trong giao dịch thì ghi thẳng vào đó.
+    const inTransaction = (write: (trx: Kysely<DB>) => Promise<void>) =>
+      this.qb.isTransaction ? write(this.qb) : this.qb.transaction().execute(write);
+    await inTransaction(async trx => {
       await this.upsertRequest(trx, row);
       if (isat) {
         await this.insertIsat(trx, request.id, isat);
