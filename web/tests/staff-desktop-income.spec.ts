@@ -28,23 +28,52 @@ test('column 3 shows net pay, KPI and the lines', async ({ page }) => {
   await expect(c.locator('.tot')).toHaveText(/Thực nhận\s*14\.278\.183 ₫/);
 });
 
+// Chờ nội dung của cả ba cột: 7 dòng Gần đây (cột 2), thẻ Các khoản (cột 3) và ô danh sách yêu cầu (cột 1).
+async function waitForColumns(page: import('@playwright/test').Page) {
+  await expect(page.locator('.sd-col')).toHaveCount(3);
+  await expect(page.locator('.sd-col').nth(0).getByRole('tabpanel')).toBeVisible();
+  await expect(page.locator('.sd-col').nth(1).locator('.ls button.ro')).toHaveCount(7);
+  await expect(col3(page).locator('.ls .ro')).toHaveCount(6);
+}
+
 for (const size of [
   { width: 1440, height: 900 },
   { width: 1136, height: 800 }
 ]) {
   test(`the three columns end at the same height at ${size.width}px`, async ({ page }) => {
     await openDesktop(page, '/nv/hom-nay', size);
-    await expect(page.locator('.sd-col')).toHaveCount(3);
-    await expect(col3(page).locator('.ls .ro')).toHaveCount(6);
+    await waitForColumns(page);
     const bottoms = await page.locator('.sd-col').evaluateAll(cs => cs.map(c => c.getBoundingClientRect().bottom));
     expect(Math.max(...bottoms) - Math.min(...bottoms)).toBeLessThanOrEqual(1);
+  });
+
+  // Các ô cột luôn chạm nhau vì lưới stretch; ở đây đo khối cuối thật sự kín đáy cột.
+  test(`the last block of every column fills down to the column bottom at ${size.width}px`, async ({ page }) => {
+    await openDesktop(page, '/nv/hom-nay', size);
+    await waitForColumns(page);
+    const lastCard = ['[role="tabpanel"]', '.sd-grow > .card', '.sd-grow > .card'];
+    const gaps = await page.locator('.sd-col').evaluateAll(
+      (cs, sels) =>
+        cs.map((c, i) => {
+          const col = c.getBoundingClientRect().bottom;
+          const grow = c.lastElementChild!;
+          const card = grow.querySelector(sels[i])!;
+          return { grow: col - grow.getBoundingClientRect().bottom, card: col - card.getBoundingClientRect().bottom, isGrow: grow.classList.contains('sd-grow') };
+        }),
+      lastCard
+    );
+    for (const g of gaps) {
+      expect(g.isGrow).toBe(true);
+      expect(Math.abs(g.grow)).toBeLessThanOrEqual(1);
+      expect(Math.abs(g.card)).toBeLessThanOrEqual(1);
+    }
   });
 }
 
 test('no horizontal scroll at 1136px and 1280px', async ({ page }) => {
   for (const width of [1136, 1280]) {
     await openDesktop(page, '/nv/hom-nay', { width, height: 800 });
-    await expect(page.locator('.sd-col')).toHaveCount(3);
+    await waitForColumns(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   }
 });
@@ -56,6 +85,24 @@ test('the Thực nhận row sits at the bottom of its card', async ({ page }) =>
     .locator('.tot')
     .evaluate(t => t.closest('.card')!.getBoundingClientRect().bottom - t.getBoundingClientRect().bottom);
   expect(gap).toBeLessThanOrEqual(8);
+});
+
+test('the Thực nhận row stays at the bottom when the columns are taller than their content', async ({ page }) => {
+  await openDesktop(page, '/nv/hom-nay');
+  await waitForColumns(page);
+  await page.addStyleTag({ content: '.sd-pg { min-height: 1600px }' });
+  const m = await col3(page).evaluate(c => {
+    const card = c.querySelector('.sd-grow > .card')!;
+    const tot = card.querySelector('.tot')!;
+    return {
+      col: c.getBoundingClientRect().height,
+      card: c.getBoundingClientRect().bottom - card.getBoundingClientRect().bottom,
+      tot: card.getBoundingClientRect().bottom - tot.getBoundingClientRect().bottom
+    };
+  });
+  expect(m.col).toBeGreaterThanOrEqual(1500);
+  expect(Math.abs(m.card)).toBeLessThanOrEqual(1);
+  expect(m.tot).toBeLessThanOrEqual(8);
 });
 
 test('a short window keeps the request box and scrolls the drawer', async ({ page }) => {
