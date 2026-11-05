@@ -1,6 +1,13 @@
 // Dịch vụ Chấm công Admin. Máy chủ thật: GET /api/v2/attendance/timesheets (cả lưới 4 tuần và tháng đang xem),
 // /employees và các đơn đang chờ (chuông); dữ liệu giả: mock/attendance.ts.
-import { attendanceFromTimesheets, dayDetailFrom, employeeViewFrom, gridFromOf, type AttendanceInput } from '@/builders/api/attendance';
+import {
+  attendanceFromTimesheets,
+  dayDetailFrom,
+  employeeViewFrom,
+  gridFromOf,
+  weekMonthsOf,
+  type AttendanceInput
+} from '@/builders/api/attendance';
 import { attendanceView, dayDetail, type AttendanceView, type DayDetail } from '@/mock/attendance';
 import { employeeView, type EmployeeView } from '@/mock/attendance-employee';
 import { respond } from '@/mock/respond';
@@ -25,20 +32,23 @@ async function load(month: string): Promise<AttendanceInput> {
   const gridFrom = gridFromOf(t);
   const startDate = [gridFrom, `${month}-01`].sort()[0];
   const endDate = [addDays(gridFrom, 27), monthEnd].sort()[1];
-  const [ts, emp, inbox, weeks] = await Promise.all([
+  // Tuần của từng người (khoá là username) cho tháng đang xem và các tháng lưới chạm tới;
+  // tháng nào tải lỗi thì ngày của tháng đó coi mọi người làm T2–T7.
+  const months = weekMonthsOf(month, t);
+  const [ts, emp, inbox, ...weekList] = await Promise.all([
     api.get(`/attendance/timesheets${qs({ startDate, endDate })}`),
     api.get('/employees'),
     getInbox(),
-    // Tuần riêng của từng người (khoá là username); lỗi thì lưới coi mọi người làm T2–T7.
-    getWorkWeeks(month).catch(() => null)
+    ...months.map(m => getWorkWeeks(m).catch(() => null))
   ]);
+  const weeks = Object.fromEntries(months.flatMap((m, i) => (weekList[i] ? [[m, weekList[i].weekdays]] : [])));
   return {
     month,
     today: t,
     employees: emp.employees || [],
     timesheets: ts.timesheets || [],
     pending: inbox.items,
-    ...(weeks ? { weekdays: weeks.weekdays } : {})
+    weeks
   };
 }
 
