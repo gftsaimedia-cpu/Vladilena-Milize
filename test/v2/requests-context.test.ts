@@ -121,6 +121,21 @@ test('isOnLeave ignores an ON_LEAVE schedule and the active request list when no
   assert.equal(days.shiftOf('2026-11-17'), null); // lịch ON_LEAVE vẫn là ngày không có ca
 });
 
+test('isOnLeave keeps non-working days inside an active leave range on leave', () => {
+  const claims = [claim('2026-11-12', 'LEAVE'), claim('2026-11-13', 'LEAVE'), claim('2026-11-14', 'ISAT', 'APPROVED'), claim('2026-11-16', 'LEAVE')];
+  const active = nvDays({ claims, activeRequests: [leaveRequest('2026-11-12', '2026-11-16', 'PENDING')], holidays: ['2026-11-17'] });
+  assert.equal(active.isOnLeave('2026-11-15'), true); // Chủ nhật trong khoảng
+  assert.equal(active.isOnLeave('2026-11-14'), false); // ngày làm việc mang dòng ISAT
+  assert.equal(active.isOnLeave('2026-11-17'), false); // ngoài khoảng
+
+  const holiday = nvDays({ activeRequests: [leaveRequest('2026-11-16', '2026-11-18', 'APPROVED')], holidays: ['2026-11-17'] });
+  assert.equal(holiday.isOnLeave('2026-11-17'), true); // ngày lễ trong khoảng
+  assert.equal(holiday.isOnLeave('2026-11-18'), false); // ngày làm việc không có dòng
+
+  const rejected = nvDays({ claims, activeRequests: [leaveRequest('2026-11-12', '2026-11-16', 'REJECTED')] });
+  assert.equal(rejected.isOnLeave('2026-11-15'), false);
+});
+
 test('windowsOn lists OT and makeup slots of the day', () => {
   const days = nvDays({
     activeRequests: [

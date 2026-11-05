@@ -101,10 +101,18 @@ export class EmployeeDays implements DayView {
       .filter((s): s is ShiftSpan => s !== null);
   }
 
-  /** Ngày đang nghỉ (§5.3): `day_status` của ngày là nghỉ hoặc nghỉ có làm bù. Không đọc lịch ON_LEAVE hay danh sách đơn. */
+  /**
+   * Ngày đang nghỉ (§5.3). Ngày làm việc chỉ nghỉ khi `day_status` của ngày là nghỉ hoặc nghỉ có làm bù (lịch ON_LEAVE
+   * không tính). Ngày không làm việc (CN, ngày nghỉ tuần của loại nhân sự, ngày lễ) không có dòng nào, nên tính là
+   * nghỉ khi nằm trong khoảng một đơn nghỉ hoặc nghỉ có làm bù đang chờ hoặc đã duyệt.
+   */
   isOnLeave(date: string): boolean {
     const status = this.claimByDate.get(date)?.status;
-    return status === 'LEAVE' || status === 'LEAVE_WITH_MAKEUP';
+    if (status === 'LEAVE' || status === 'LEAVE_WITH_MAKEUP') return true;
+    if (this.isWorkingDay(date)) return false;
+    return this.active.some(
+      r => (r.type === 'LEAVE' || r.type === 'LEAVE_WITH_MAKEUP') && covers(r.leaveStartDate, r.leaveEndDate, date)
+    );
   }
 
   /** Khung OT và khung bù của các đơn đang chờ/đã duyệt trên ngày D, sắp theo giờ bắt đầu. */

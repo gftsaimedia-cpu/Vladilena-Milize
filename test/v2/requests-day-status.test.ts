@@ -6,6 +6,7 @@ import {
   LOCK_TRX,
   NV_UUID,
   isatRequest,
+  leaveRequest,
   lwmRequest,
   makeService,
   otRequest,
@@ -161,6 +162,14 @@ describe('Đơn nghỉ giữ ngày trong day_status (§4)', () => {
     await assert.rejects(
       ctx.service.createOvertimeRequest({ employeeId: 'nv01', title: 'OT', reason: 'r', otDate: '2026-11-13', startTime: '18:00', endTime: '20:00' }),
       /Ngày 13\/11 đang nghỉ, không đăng ký OT được/
+    );
+  });
+
+  it('OT on a Sunday inside an active leave range is refused as before', async () => {
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-16', 'PENDING'));
+    await assert.rejects(
+      ctx.service.createOvertimeRequest({ employeeId: 'nv01', title: 'OT', reason: 'r', otDate: '2026-11-15', startTime: '08:00', endTime: '12:00' }),
+      /^Error: Ngày 15\/11 đang nghỉ, không đăng ký OT được$/
     );
   });
 
