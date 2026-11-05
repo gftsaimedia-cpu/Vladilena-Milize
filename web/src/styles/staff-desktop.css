@@ -1,0 +1,148 @@
+/* Trang nhân viên trên máy tính (/nv/* từ 1136px, board K1–K3b, spec staff-desktop-one-page 3, 8.2).
+   Luật riêng của máy tính đặt dưới .sd-app (trang) hoặc .sd-drawer (ngăn kéo). Lớp dùng chung nằm ở phone.css. Không đổ bóng. */
+.sd-app {
+  box-sizing: border-box;
+  min-height: 100vh;
+  padding: 16px;
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Lưới ba cột cao bằng nhau; bề rộng tối thiểu 300 + 400 + 300 + 2×24 + 2×16 + 2×16 = 1112px (D16). */
+.sd-app .sd-pg {
+  display: grid;
+  grid-template-columns: minmax(300px, 3fr) minmax(400px, 5fr) minmax(300px, 3fr);
+  gap: 24px;
+  align-items: stretch;
+  margin-top: 24px;
+  padding: 0 16px 24px;
+}
+
+/* Ngăn kéo phải (K2, K3b, đổi mật khẩu; spec 5.1): nền mờ phủ cả cửa sổ, ngăn kéo cách trên, phải, dưới 16px, thân cuộn dọc. Không bóng. */
+.sd-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+}
+.sd-drawer-root .sd-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 28, 28, 0.4);
+}
+.sd-drawer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  box-sizing: border-box;
+  width: 440px;
+  max-width: calc(100% - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  border-radius: 24px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 20px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.sd-drawer > .b2:last-child {
+  margin-top: auto;
+}
+.sd-drawer .sd-dh {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.sd-drawer .sd-dt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sd-drawer h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+}
+.sd-drawer .sd-db {
+  display: flex;
+}
+
+/* Cột (spec 3.1): cột dọc, khoảng cách 16px; khối cuối .sd-grow giãn cho kín đáy nên ba cột luôn cao bằng nhau. */
+.sd-app .sd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.sd-app .sd-grow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Thẻ cuối cột (Gần đây, spec 4.2) giãn kín đáy cột. */
+.sd-app .sd-grow > .card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Đầu cột (tiêu đề cột + dòng phụ --muted) dùng chung cho cột 2 và cột 3. */
+.sd-app .sd-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Dòng Thực nhận dính đáy thẻ "Các khoản" (spec 4.3); .ls > .tot đủ nặng để thắng luật scoped của IncomeLines. */
+.sd-app .ls > .tot {
+  margin-top: auto;
+}
+
+/* Tiêu đề: h1 tên và h2 tiêu đề cột League Spartan 600 28px/32px; h2/h3 tiêu đề khối Geist 600 18px/24px. */
+.sd-app h1,
+.sd-app h2,
+.sd-app h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.sd-app .sd-title {
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+/* Ô danh sách yêu cầu (D15, spec 4.1): lấp phần còn lại của cột, không làm trang dài thêm, cuộn bên trong; nhãn tháng dính đầu ô. */
+.sd-app .rq-scroll {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 288px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sd-app .rq-scroll .rq-gh {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--page);
+}

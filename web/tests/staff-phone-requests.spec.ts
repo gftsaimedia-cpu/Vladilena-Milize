@@ -172,3 +172,17 @@ for (const size of [
     await expect(toast).toHaveCSS('box-shadow', 'none');
   });
 }
+
+test('a rejected request shows the reviewer note under the rejected step', async ({ page }) => {
+  await openPhone(page, '/nv/yeu-cau?yc=gio-vao-0909');
+  const steps = page.getByRole('dialog', { name: 'Khai giờ vào 09/09' }).getByLabel('Các bước');
+  await expect(steps).toContainText('Lý do từ chối');
+  await expect(steps).toContainText('“Máy chấm công vẫn ghi nhận ngày 09/09, giờ vào 08:47.”');
+});
+
+test('requests without a reviewer note show no note box', async ({ page }) => {
+  await openPhone(page, '/nv/yeu-cau?yc=phep-1210');
+  const sheet = page.getByRole('dialog', { name: 'Phép năm 12/10' });
+  await expect(sheet.getByLabel('Các bước')).toContainText('Trưởng phòng Kinh doanh đã duyệt');
+  await expect(sheet.locator('.rq-note')).toHaveCount(0);
+});

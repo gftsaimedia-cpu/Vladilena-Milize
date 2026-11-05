@@ -174,7 +174,8 @@ export function requestDetailOf(r: MeRequest, steps: MeStep[]): RequestDetail {
     ...requestRowOf(r),
     kindLabel: kindOf(r).kindLabel,
     facts: factsOf(r),
-    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state }))
+    // Máy chủ chưa trả ghi chú của người duyệt cho từng bước (spec staff desktop §9): để null, khung "Lý do từ chối" không hiện.
+    steps: steps.map(s => ({ label: s.label, at: vnStamp(s.at), state: s.state, note: null }))
   };
 }
 
@@ -191,13 +192,13 @@ export function requestsViewOf(items: MeRequest[]): RequestsView {
 }
 
 // ---------- Chấm công ----------
-export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string): AttendanceView {
+export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, recentCount = 5): AttendanceView {
   const first = `${m.month}-01`;
   const blanks: null[] = Array.from({ length: (dowOf(first) + 6) % 7 }, () => null);
   const recent = m.days
     .filter(d => d.in)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5)
+    .slice(0, recentCount)
     .map(d => ({
       date: d.date,
       kind: d.kind,
