@@ -141,7 +141,8 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       employeeType: staffRow.type,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
-      allowanceRates: typeRow
+      // Không có loại thì vẫn đọc phiên bản NV để lấy ngày công (positionInEffect), nhưng không trả phụ cấp như trước.
+      allowanceRates: typeRow && staffRow.type
         ? {
             flexPct: Number(typeRow.flex_pct),
             typeNightPct: Number(typeRow.night_pct),
