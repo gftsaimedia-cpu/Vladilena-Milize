@@ -11,6 +11,7 @@ import {
 } from '@/builders/api/benefits';
 import { catalogRows, currentDate, currentMonth, writePositions } from '@/services/admin-catalog';
 import { MOCK_HEADCOUNT } from '@/mock/positions';
+import { mockAuditList, mockAuditVerify } from '@/mock/audit';
 import { respond } from '@/mock/respond';
 import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditFromResponse, verifyMessage } from '@/builders/api/audit';
@@ -272,12 +273,12 @@ const AUDIT_PAGE = 25;
 export async function getAuditLog({ page = 1, who = '', action = '', from = '', to = '' }: any = {}) {
   const at = Math.max(1, page);
   const q = { limit: AUDIT_PAGE, offset: (at - 1) * AUDIT_PAGE, actor: who, action, from, to };
-  const res = await api('GET', `/system/audit${qs(q)}`);
+  const res = __MOCK__ ? await respond(mockAuditList(q)) : await api('GET', `/system/audit${qs(q)}`);
   return buildAuditPage(auditFromResponse(res), { page: at, size: AUDIT_PAGE });
 }
 
 // GET /api/v2/system/audit/verify: kiểm chuỗi băm; message là câu tiếng Việt khi sai, null khi đúng.
 export async function verifyAuditLog() {
-  const res = await api('GET', '/system/audit/verify');
+  const res = __MOCK__ ? await respond(mockAuditVerify()) : await api('GET', '/system/audit/verify');
   return { ...res, message: verifyMessage(res) };
 }
