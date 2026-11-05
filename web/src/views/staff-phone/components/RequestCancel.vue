@@ -13,6 +13,11 @@ import { cancelRequest } from '@/services/staff-requests';
 const props = defineProps<{ request: RequestDetail }>();
 const emit = defineEmits<{ changed: [id: string] }>();
 
+// Ruling (progress.md): chỉ hiện khi chạy dữ liệu giả, vì ngoài mock cancelRequest chưa nối PATCH /me/requests/:id/cancel
+// (như reminders [] và due null ở chế độ thật). Task nối BE gỡ cổng này khi nối cancelRequest.
+// Template không đọc được biến toàn cục nên đi qua một hằng.
+const enabled = __MOCK__;
+
 const id = useId();
 const box = ref<HTMLElement | null>(null);
 const askButton = ref<HTMLButtonElement | null>(null);
@@ -69,7 +74,7 @@ async function confirm() {
 </script>
 
 <template>
-  <div v-if="request.status === 'pend' || error" ref="box" class="rc">
+  <div v-if="enabled && (request.status === 'pend' || error)" ref="box" class="rc">
     <template v-if="request.status === 'pend'">
       <div v-if="asking" class="rc-confirm" role="group" :aria-labelledby="`${id}-q`">
         <p :id="`${id}-q`" class="rc-q">Huỷ đơn này?</p>
