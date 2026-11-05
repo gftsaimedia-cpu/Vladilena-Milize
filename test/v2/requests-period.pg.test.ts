@@ -6,7 +6,7 @@ import { NestFactory } from '@nestjs/core';
 import type { Kysely } from 'kysely';
 import type { Client } from 'pg';
 import { KYSELY_DB } from '../../src/database/kysely';
-import { TransactionCoordinator } from '../../src/database/transaction';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../src/database/transaction';
 import type { DB } from '../../src/database/schema';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { AuditLog } from '../../src/modules/audit/audit-log';
@@ -23,8 +23,8 @@ import { RequestsController } from '../../src/modules/requests/requests.controll
 import { RequestsModule } from '../../src/modules/requests/requests.module';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
-import { withTempDb } from './helpers/pg-temp-db';
-import { explanationRequest, leaveRequest, makeService, seed } from './helpers/requests-fakes';
+import { waitForLockWait, withTempDb } from './helpers/pg-temp-db';
+import { LOCK_TRX, explanationRequest, leaveRequest, makeService, seed } from './helpers/requests-fakes';
 
 const MONTH = '2026-10';
 // "Hôm nay" là 05/11/2026: các ngày tháng 10 đã qua, nên giải trình được và Chốt công được.
@@ -322,6 +322,152 @@ test('a recalculation that reports errors also puts the old payslip back to draf
   });
 });
 
+test('a review in a calculated month puts the slip back to draft inside its own transaction', async t => {
+  await withTempDb(t, 'req_period_intrx', async (db, client) => {
+    const f = await build(db, client);
+    await calculatedAndApproved(f);
+    // Như tiến trình dừng ngay sau khi lưu quyết định: tính lại sau commit lỗi, và bước đưa về nháp sau commit cũng
+    // không chạy được. Chỉ phần làm trong giao dịch duyệt còn tác dụng.
+    class CrashingPayroll extends PayrollService {
+      override async calculatePeriodPayslips(): Promise<never> {
+        throw new Error('Tiến trình dừng');
+      }
+      override async resetDecision(month: string, employeeId: string, trx?: DatabaseTransaction): Promise<boolean> {
+        if (!trx) throw new Error('Tiến trình dừng');
+        return super.resetDecision(month, employeeId, trx);
+      }
+    }
+    const service = f.requestsWith(new CrashingPayroll(f.payrollRepo, f.tx, f.periods));
+
+    const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
+    const result = await service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
+
+    assert.equal(result.request.status, 'APPROVED');
+    assert.deepEqual(result.recalculated, [{ month: MONTH, ok: false, error: 'Tiến trình dừng' }]);
+    assert.deepEqual(await currentSlips(client), [
+      { username: 'pg-user', status: 'draft', decided_by: null },
+      { username: 'pg-user-2', status: 'approved', decided_by: 'checker' }
+    ]);
+    await assert.rejects(f.periods.approve(MONTH, 'admin'), (e: any) => {
+      assert.equal(e.status, 409);
+      assert.equal(e.details.code, 'PERIOD_BLOCKED');
+      assert.equal(e.details.blockers.unapprovedSlips, 1);
+      assert.equal(e.message, 'Còn 1 phiếu chưa duyệt');
+      return true;
+    });
+  });
+});
+
+test('Phê duyệt kỳ that waits behind a review sees the slip back in draft', async t => {
+  await withTempDb(t, 'req_period_race', async (db, client) => {
+    const f = await build(db, client);
+    await calculatedAndApproved(f);
+    let paused!: () => void;
+    const pausedP = new Promise<void>(resolve => (paused = resolve));
+    let release!: () => void;
+    const releaseP = new Promise<void>(resolve => (release = resolve));
+    // Dừng giao dịch duyệt ngay sau khi phiếu về nháp, trước commit; lúc đó nó đang giữ khoá chia sẻ của tháng 10.
+    class PausingPayroll extends PayrollService {
+      override async resetDecision(month: string, employeeId: string, trx?: DatabaseTransaction): Promise<boolean> {
+        const reset = await super.resetDecision(month, employeeId, trx);
+        if (trx) {
+          paused();
+          await releaseP;
+        }
+        return reset;
+      }
+    }
+    const service = f.requestsWith(new PausingPayroll(f.payrollRepo, f.tx, f.periods));
+    const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
+
+    const review = service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
+    let approve!: Promise<string>;
+    try {
+      await Promise.race([
+        pausedP,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Giao dịch duyệt không đưa phiếu về nháp')), 5000))
+      ]);
+      // Phê duyệt kỳ lấy khoá payroll_ rồi đợi khoá độc quyền của tháng tới khi giao dịch duyệt commit.
+      approve = f.periods.approve(MONTH, 'admin').then(
+        () => 'approved',
+        (e: any) => e?.details?.code ?? String(e)
+      );
+      await waitForLockWait(client);
+    } finally {
+      release();
+    }
+
+    assert.equal(await approve, 'PERIOD_BLOCKED');
+    const result = await review;
+    assert.equal(result.request.status, 'APPROVED');
+    assert.deepEqual(result.recalculated, [{ month: MONTH, ok: true }]);
+    assert.equal((await f.periods.snapshot(MONTH)).status, 'calculated');
+  });
+});
+
+test('the review transaction alone, without any recalculation, already blocks Phê duyệt kỳ', async t => {
+  await withTempDb(t, 'req_period_nocalc', async (db, client) => {
+    const f = await build(db, client);
+    await calculatedAndApproved(f);
+    const runsBefore = await count(client, 'payroll_runs');
+    const slipBefore = (await client.query("SELECT rev FROM payslips WHERE username = 'pg-user'")).rows[0];
+
+    // `reviewRequest` chỉ chạy giao dịch duyệt: giống tiến trình chết giữa commit và bước tính lại.
+    const created = await f.service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
+    await f.service.reviewRequest(created.id, 'admin-username', 'REJECT', 'Không hợp lệ');
+
+    assert.equal(await count(client, 'payroll_runs'), runsBefore);
+    const slip = (await client.query("SELECT status, decided_by, decided_at, note, rev FROM payslips WHERE username = 'pg-user'")).rows[0];
+    assert.deepEqual(
+      { ...slip, rev: Number(slip.rev) },
+      { status: 'draft', decided_by: null, decided_at: null, note: null, rev: Number(slipBefore.rev) + 1 }
+    );
+    await assert.rejects(f.periods.approve(MONTH, 'admin'), (e: any) => e.details?.code === 'PERIOD_BLOCKED');
+  });
+});
+
+test('a review in an attendance_locked month leaves every payslip as it was', async t => {
+  await withTempDb(t, 'req_period_keepslips', async (db, client) => {
+    const f = await build(db, client);
+    await calculatedAndApproved(f);
+    // Mở lại công rồi Chốt công lại: kỳ ở `attendance_locked`, lần chạy nháp còn hai phiếu đã duyệt.
+    await f.periods.unlock(MONTH, 'admin', 'Chấm thay cho Châu 31/10');
+    await f.periods.lock(MONTH, 'admin');
+    const slips = () => client.query('SELECT id, status, decided_by, note, rev FROM payslips ORDER BY id').then(r => r.rows);
+    const before = await slips();
+
+    const created = await f.service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
+    const result = await f.service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE');
+
+    assert.equal(result.request.status, 'APPROVED');
+    assert.deepEqual(result.recalculated, []);
+    assert.deepEqual(await slips(), before);
+  });
+});
+
+test('a reset that fails inside the review rolls the review back', async t => {
+  await withTempDb(t, 'req_period_rollback', async (db, client) => {
+    const f = await build(db, client);
+    await calculatedAndApproved(f);
+    class BrokenReset extends PayrollService {
+      override async resetDecision(): Promise<boolean> {
+        throw new Error('không ghi được phiếu');
+      }
+    }
+    const service = f.requestsWith(new BrokenReset(f.payrollRepo, f.tx, f.periods));
+
+    const created = await service.createExplanationRequest(explanation('pg-user', '2026-10-29'));
+    await assert.rejects(service.reviewAndRecalculate(created.id, 'admin-username', 'APPROVE'), /không ghi được phiếu/);
+
+    const row = await client.query('SELECT status, reviewed_by FROM system_requests WHERE id = $1', [created.id]);
+    assert.deepEqual(row.rows, [{ status: 'PENDING', reviewed_by: null }]);
+    assert.deepEqual(await currentSlips(client), [
+      { username: 'pg-user', status: 'approved', decided_by: 'checker' },
+      { username: 'pg-user-2', status: 'approved', decided_by: 'checker' }
+    ]);
+  });
+});
+
 test('reviewing a request of an approved month is refused', async t => {
   await withTempDb(t, 'req_period_review', async (db, client) => {
     const { service } = await build(db, client);
@@ -410,11 +556,39 @@ function withFakeRecalc(gate: Partial<PeriodGate>, payroll: Record<string, (...a
 
 const okRun = async () => ({ runId: 1, items: [], errors: [] });
 
-test('a period status that cannot be read after the review is reported and the payslip is left alone', async () => {
+// Trong giao dịch duyệt, cổng kỳ được gọi với giao dịch của khoá (LOCK_TRX); sau commit thì không có giao dịch.
+const afterCommit = (trx: unknown) => trx === undefined;
+
+test('a review in a calculated month resets the slip on the review transaction, before the recalculation', async () => {
+  const ctx = withFakeRecalc({ statusOf: async () => 'calculated' }, { calculatePeriodPayslips: okRun, resetDecision: async () => true });
+  const req = await seed(ctx, explanationRequest('2026-10-29'));
+
+  const result = await ctx.service.reviewAndRecalculate(req.id, 'admin', 'REJECT', 'Không hợp lệ');
+
+  assert.equal(result.request.status, 'REJECTED');
+  assert.deepEqual(result.recalculated, [{ month: MONTH, ok: true }]);
+  assert.deepEqual(ctx.calls, [
+    ['resetDecision', MONTH, req.employeeId, LOCK_TRX],
+    ['calculatePeriodPayslips', MONTH, [req.employeeId], 'admin']
+  ]);
+});
+
+test('a review in an attendance_locked month resets nothing and recalculates nothing', async () => {
+  const ctx = withFakeRecalc({ statusOf: async () => 'attendance_locked' }, { calculatePeriodPayslips: okRun, resetDecision: async () => true });
+  const req = await seed(ctx, explanationRequest('2026-10-29'));
+
+  const result = await ctx.service.reviewAndRecalculate(req.id, 'admin', 'APPROVE');
+
+  assert.deepEqual(result.recalculated, []);
+  assert.deepEqual(ctx.calls, []);
+});
+
+test('a period status that cannot be read after the review is reported and not recalculated', async () => {
   const ctx = withFakeRecalc(
     {
-      statusOf: async () => {
-        throw new Error('mất kết nối');
+      statusOf: async (trx: unknown) => {
+        if (afterCommit(trx)) throw new Error('mất kết nối');
+        return 'calculated';
       }
     },
     { calculatePeriodPayslips: okRun, resetDecision: async () => true }
@@ -426,15 +600,15 @@ test('a period status that cannot be read after the review is reported and the p
   assert.deepEqual(result.recalculated, [{ month: MONTH, ok: false, error: 'mất kết nối' }]);
   assert.equal(result.request.status, 'APPROVED');
   assert.equal(ctx.repo.storedStatus.get(req.id), 'APPROVED');
-  // Không biết kỳ ở bước nào thì không tính lại và không đưa phiếu về nháp.
-  assert.deepEqual(ctx.calls, []);
+  // Phiếu đã về nháp trong giao dịch duyệt; sau commit không biết kỳ ở bước nào thì không tính lại, không đụng phiếu.
+  assert.deepEqual(ctx.calls, [['resetDecision', MONTH, req.employeeId, LOCK_TRX]]);
 });
 
 test('a status read that fails for one month does not stop the next month', async () => {
   const ctx = withFakeRecalc(
     {
-      statusOf: async (_trx: unknown, month: string) => {
-        if (month === MONTH) throw new Error('mất kết nối');
+      statusOf: async (trx: unknown, month: string) => {
+        if (afterCommit(trx) && month === MONTH) throw new Error('mất kết nối');
         return 'calculated';
       }
     },
@@ -449,7 +623,11 @@ test('a status read that fails for one month does not stop the next month', asyn
     { month: MONTH, ok: false, error: 'mất kết nối' },
     { month: '2026-11', ok: true }
   ]);
-  assert.deepEqual(ctx.calls, [['calculatePeriodPayslips', '2026-11', [req.employeeId], 'admin']]);
+  assert.deepEqual(ctx.calls, [
+    ['resetDecision', MONTH, req.employeeId, LOCK_TRX],
+    ['resetDecision', '2026-11', req.employeeId, LOCK_TRX],
+    ['calculatePeriodPayslips', '2026-11', [req.employeeId], 'admin']
+  ]);
 });
 
 test('a reset that fails after a failed recalculation still reports the recalculation error', async () => {
@@ -459,8 +637,9 @@ test('a reset that fails after a failed recalculation still reports the recalcul
       calculatePeriodPayslips: async () => {
         throw new Error('Thiếu cấu hình bậc 9');
       },
-      resetDecision: async () => {
-        throw new Error('không ghi được phiếu');
+      resetDecision: async (_month: string, _employeeId: string, trx?: unknown) => {
+        if (afterCommit(trx)) throw new Error('không ghi được phiếu');
+        return true;
       }
     }
   );
@@ -471,9 +650,14 @@ test('a reset that fails after a failed recalculation still reports the recalcul
   assert.deepEqual(result.recalculated, [{ month: MONTH, ok: false, error: 'Thiếu cấu hình bậc 9' }]);
   assert.equal(result.request.status, 'APPROVED');
   assert.equal(ctx.repo.storedStatus.get(req.id), 'APPROVED');
+  // Lần đưa về nháp sau commit lỗi cũng vô hại: phiếu đã về nháp trong giao dịch duyệt.
   assert.deepEqual(
-    ctx.calls.map(c => c[0]),
-    ['calculatePeriodPayslips', 'resetDecision']
+    ctx.calls.map(c => [c[0], c[3]]),
+    [
+      ['resetDecision', LOCK_TRX],
+      ['calculatePeriodPayslips', 'admin'],
+      ['resetDecision', undefined]
+    ]
   );
 });
 

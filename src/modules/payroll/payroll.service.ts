@@ -127,9 +127,10 @@ export class PayrollService {
     return this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
   }
 
-  // Đưa phiếu về nháp (xoá quyết định); dùng khi kỳ lương cần duyệt lại phiếu.
-  async resetDecision(month: string, employeeId: string): Promise<boolean> {
-    return await this.repo.resetDecision(month, employeeId);
+  // Đưa phiếu về nháp (xoá quyết định); dùng khi kỳ lương cần duyệt lại phiếu. Có `trx` thì chạy trên giao dịch đó
+  // (giao dịch duyệt đơn) và giữ lần chạy nháp tới hết giao dịch (xem PayrollRepository.resetDecision).
+  async resetDecision(month: string, employeeId: string, trx?: DatabaseTransaction): Promise<boolean> {
+    return await this.repo.resetDecision(month, employeeId, trx);
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {

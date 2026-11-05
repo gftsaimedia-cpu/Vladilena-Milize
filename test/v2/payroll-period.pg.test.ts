@@ -11,7 +11,7 @@ import { PayrollRepository } from '../../src/modules/payroll/payroll.repository'
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PeriodsRepository } from '../../src/modules/periods/periods.repository';
 import { PeriodsService } from '../../src/modules/periods/periods.service';
-import { withTempDb } from './helpers/pg-temp-db';
+import { waitForLockWait, withTempDb } from './helpers/pg-temp-db';
 
 const MONTH = '2026-10';
 
@@ -165,8 +165,77 @@ test('resetDecision puts an approved payslip back to draft', async t => {
     assert.equal(Number(row.rev), 3);
 
     // Tìm theo username cũng được; người không có phiếu thì trả false.
+    await payroll.decidePayslip(MONTH, 'pg-user-2', 'approved', 'admin', 'ok');
     assert.equal(await payroll.resetDecision(MONTH, 'pg-user-2'), true);
     assert.equal(await payroll.resetDecision(MONTH, 'nobody'), false);
     assert.equal(await payroll.resetDecision('2026-09', 'pg-uuid-1'), false);
+
+    // Phiếu đã ở nháp thì không đổi gì (không tăng rev) và trả false.
+    assert.equal(await payroll.resetDecision(MONTH, 'pg-uuid-1'), false);
+    const again = (await client.query("SELECT status, rev FROM payslips WHERE username = 'pg-user'")).rows[0];
+    assert.deepEqual({ ...again, rev: Number(again.rev) }, { status: 'draft', rev: 3 });
+  });
+});
+
+test('a partial run waits for a reset in progress and copies the slip as reset', async t => {
+  await withTempDb(t, 'payroll_period', async (db, client) => {
+    const { payroll, periods } = await build(db, client);
+    await periods.lock(MONTH, 'admin');
+    await payroll.calculatePeriodPayslips(MONTH, undefined, 'admin');
+    await payroll.decidePayslip(MONTH, 'pg-user', 'approved', 'admin', 'ok');
+    const tx = new TransactionCoordinator(db);
+
+    let resetDone!: () => void;
+    const resetDoneP = new Promise<void>(resolve => (resetDone = resolve));
+    let release!: () => void;
+    const releaseP = new Promise<void>(resolve => (release = resolve));
+    // Một giao dịch duyệt đơn đang dở: đã đưa phiếu của pg-user về nháp, chưa commit.
+    const review = tx.run(async trx => {
+      assert.equal(await payroll.resetDecision(MONTH, 'pg-uuid-1', trx), true);
+      resetDone();
+      await releaseP;
+    });
+    await resetDoneP;
+
+    // Trong lúc đó tính lại pg-user-2: lần lưu phải đợi giao dịch trên rồi mới đọc phiếu để chép sang lần chạy mới.
+    const calc = payroll.calculatePeriodPayslips(MONTH, ['pg-uuid-2'], 'admin');
+    try {
+      await waitForLockWait(client);
+    } finally {
+      release();
+    }
+    await review;
+    const { runId } = await calc;
+
+    const slips = await client.query('SELECT username, status, decided_by FROM payslips WHERE run_id = $1 ORDER BY username', [runId]);
+    assert.deepEqual(slips.rows, [
+      { username: 'pg-user', status: 'draft', decided_by: null },
+      { username: 'pg-user-2', status: 'draft', decided_by: null }
+    ]);
+  });
+});
+
+test('resetDecision on a transaction writes on that transaction', async t => {
+  await withTempDb(t, 'payroll_period', async (db, client) => {
+    const { payroll, periods } = await build(db, client);
+    await periods.lock(MONTH, 'admin');
+    await payroll.calculatePeriodPayslips(MONTH, undefined, 'admin');
+    await payroll.decidePayslip(MONTH, 'pg-user', 'approved', 'admin', 'ok');
+    const tx = new TransactionCoordinator(db);
+    const status = () => client.query("SELECT status FROM payslips WHERE username = 'pg-user'").then(r => r.rows[0].status);
+
+    // Giao dịch huỷ thì phiếu giữ nguyên: lần đưa về nháp chạy trên giao dịch đó, không chạy trên pool.
+    await assert.rejects(
+      tx.run(async trx => {
+        assert.equal(await payroll.resetDecision(MONTH, 'pg-uuid-1', trx), true);
+        throw new Error('huỷ');
+      }),
+      /huỷ/
+    );
+    assert.equal(await status(), 'approved');
+
+    assert.equal(await tx.run(trx => payroll.resetDecision(MONTH, 'pg-uuid-1', trx)), true);
+    assert.equal(await status(), 'draft');
+    assert.equal(await tx.run(trx => payroll.resetDecision('2026-09', 'pg-uuid-1', trx)), false);
   });
 });

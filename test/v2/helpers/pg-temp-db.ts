@@ -11,6 +11,18 @@ import type { DB } from '../../../src/database/schema';
 const CONTROL_URL = process.env.PG_TEST_URL;
 const SCHEMA = join(__dirname, '..', '..', '..', 'migrations', 'postgres', 'schema.sql');
 
+/** Đợi tới khi có một kết nối tới DB của `client` đang chờ khoá (khoá advisory hay khoá dòng), tối đa 5 giây. */
+export async function waitForLockWait(client: Client): Promise<void> {
+  for (let i = 0; i < 250; i++) {
+    const { rows } = await client.query(
+      "SELECT count(*) AS n FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'"
+    );
+    if (Number(rows[0].n) > 0) return;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error('Không có kết nối nào đang chờ khoá');
+}
+
 export async function withTempDb(
   t: TestContext,
   prefix: string,

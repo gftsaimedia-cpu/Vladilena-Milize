@@ -793,6 +793,8 @@ export class RequestsService {
    * `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid.
    * Chạy dưới khoá `request_<id>` rồi khoá nhân viên trên cùng giao dịch (§4). Kiểm lại, lịch, `day_status` và trạng thái
    * đơn đọc và ghi trên giao dịch đó: một bước lỗi thì không gì được ghi, đơn vẫn chờ duyệt.
+   * Chỉ chạy giao dịch duyệt, không tính lại phiếu lương sau commit: nơi gọi trong sản phẩm phải dùng
+   * `reviewAndRecalculate` (spec kỳ lương D6). Còn public cho test của phần duyệt đơn.
    */
   async reviewRequest(
     id: string,
@@ -804,11 +806,12 @@ export class RequestsService {
   }
 
   /**
-   * Duyệt hoặc từ chối như `reviewRequest`; sau khi giao dịch đó đã commit (spec kỳ lương R6), với từng tháng của đơn
-   * (tăng dần) đang ở `calculated`, tính lại phiếu lương của người nộp (§6). Tháng khác không tính lại. Tính lại lỗi thì
-   * quyết định duyệt đơn vẫn giữ: lỗi nằm trong `recalculated`, không ném ra. Không đọc được trạng thái kỳ của một tháng
-   * thì tháng đó báo lỗi, không tính lại và không đưa phiếu về nháp (không biết kỳ ở bước nào), rồi xét tháng sau.
-   * Thiếu cổng kỳ hay PayrollService (test cũ) thì `recalculated` rỗng.
+   * Duyệt hoặc từ chối như `reviewRequest` (trong giao dịch đó, phiếu của người nộp ở mỗi tháng `calculated` đã về
+   * nháp: `resetCalculatedSlips`); sau khi giao dịch đã commit (spec kỳ lương R6), với từng tháng của đơn (tăng dần)
+   * đang ở `calculated`, tính lại phiếu lương của người nộp (§6). Tháng khác không tính lại. Tính lại lỗi thì quyết
+   * định duyệt đơn vẫn giữ: lỗi nằm trong `recalculated`, không ném ra. Không đọc được trạng thái kỳ của một tháng sau
+   * commit thì tháng đó báo lỗi và không tính lại (phiếu đã về nháp trong giao dịch duyệt nếu kỳ đang `calculated`),
+   * rồi xét tháng sau. Thiếu cổng kỳ hay PayrollService (test cũ) thì `recalculated` rỗng.
    */
   async reviewAndRecalculate(
     id: string,
@@ -835,9 +838,10 @@ export class RequestsService {
   }
 
   /**
-   * Tính lại phiếu tháng `month` của một người. Lỗi (ném ra, hoặc trả trong `errors`) thì phiếu cũ của người đó trong
-   * lần chạy nháp về nháp, xoá quyết định, để Phê duyệt kỳ còn bị chặn; lỗi được trả về chứ không ném. Không đưa được
-   * phiếu về nháp thì vẫn trả lỗi tính lại (rủi ro R6: Admin tự tính lại người này).
+   * Tính lại phiếu tháng `month` của một người. Lỗi (ném ra, hoặc trả trong `errors`) thì đưa phiếu cũ của người đó
+   * trong lần chạy nháp về nháp thêm một lần (lưới an toàn, vd. Admin đã duyệt lại phiếu đó sau commit); lỗi được trả về
+   * chứ không ném. Lần này lỗi hay không tìm thấy phiếu cũng vô hại: phiếu đã về nháp trong giao dịch duyệt, nên Phê
+   * duyệt kỳ vẫn bị chặn tới khi phiếu người này được duyệt lại (Admin nên tính lại người đó trước).
    */
   private async recalculate(
     payroll: PayrollService,
@@ -863,7 +867,8 @@ export class RequestsService {
 
   /**
    * Thân của duyệt/từ chối: chạy trong khoá và giao dịch của `reviewRequest`, qua cổng kỳ (`review`) ngay sau khoá nhân
-   * viên. Trả đơn đã lưu, các tháng đơn chạm tới (tăng dần) và người nộp, để tính lại sau commit.
+   * viên; lưu đơn xong thì đưa phiếu của người nộp về nháp ở các tháng `calculated`, cùng giao dịch. Trả đơn đã lưu, các
+   * tháng đơn chạm tới (tăng dần) và người nộp, để tính lại sau commit.
    */
   private async decide(
     id: string,
@@ -914,8 +919,31 @@ export class RequestsService {
       }
 
       await stores.requests.save(req);
-      return { dto: req.toJSON(), months: requestMonths(this.datesOf(req)), employeeId: req.employeeId };
+      const months = requestMonths(this.datesOf(req));
+      await this.resetCalculatedSlips(trx, months, req.employeeId);
+      return { dto: req.toJSON(), months, employeeId: req.employeeId };
     });
+  }
+
+  /**
+   * D6, trong giao dịch duyệt hoặc từ chối (đang giữ khoá chia sẻ `period:<tháng>` của các tháng của đơn, lấy ở
+   * `guardPeriods`): với mỗi tháng (tăng dần) đọc được là `calculated` trên giao dịch đó, phiếu của người nộp trong lần
+   * chạy nháp về nháp và mất quyết định, ngay trên giao dịch đó. Phê duyệt kỳ cần khoá độc quyền của tháng nên chỉ chạy
+   * sau commit, và khi đó thấy phiếu chưa duyệt; vậy kỳ không thể được duyệt với số cũ của người này, kể cả khi bước
+   * tính lại sau commit lỗi hay tiến trình dừng trước bước đó (R6). Đưa về nháp lỗi thì cả lần duyệt bị huỷ, đơn vẫn chờ.
+   * Thiếu cổng kỳ hay PayrollService (test cũ) thì không làm gì.
+   */
+  private async resetCalculatedSlips(
+    trx: DatabaseTransaction | undefined,
+    months: readonly string[],
+    employeeId: string
+  ): Promise<void> {
+    const { periodGate, payroll } = this;
+    if (!periodGate || !payroll) return;
+    for (const month of months) {
+      if ((await periodGate.statusOf(trx, month)) !== 'calculated') continue;
+      await payroll.resetDecision(month, employeeId, trx);
+    }
   }
 
   /** Huỷ đơn còn chờ duyệt: cùng khoá và cùng giao dịch như duyệt (§4.3); các ngày đơn giữ được trả lại. */
