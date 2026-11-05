@@ -334,6 +334,23 @@ describe('Chấm công Admin từ /attendance/timesheets', () => {
     assert.equal(cell.kind, 'todo');
     assert.equal(cell.itemId, 'r1');
   });
+
+  // Như mock: ô Cần xử lý đếm mọi ngày có việc, ghi chú tách ngày chưa giải trình (Admin nhắc) khỏi yêu cầu chờ duyệt.
+  it('splits days to explain from requests to decide in the Cần xử lý tile', () => {
+    const view: any = attendanceFromTimesheets({
+      month: '2026-11',
+      today: '2026-11-05',
+      employees: [emp] as any,
+      timesheets: [ts('2026-11-02'), ts('2026-11-03')] as any,
+      pending: [
+        { id: 'r1', personId: 'u-nam', days: ['2026-11-03'], group: 'exp', action: 'decide', what: 'Giải trình' },
+        { id: 'due:u-nam:2026-11-02', personId: 'u-nam', days: ['2026-11-02'], group: 'att', action: 'remind', what: 'Đi muộn' }
+      ] as any
+    });
+    const todo = view.tiles.find((t: any) => t.key === 'todo');
+    assert.equal(todo.value, '2');
+    assert.equal(todo.note, '1 chưa giải trình · 1 yêu cầu chờ duyệt');
+  });
 });
 
 import { positionsResponseFromCatalog } from '../../web/src/builders/api/catalog';
@@ -507,7 +524,7 @@ describe('Tổng quan ghép từ các API có sẵn', () => {
       payroll: board,
       employees: emps as any,
       timesheets: [tsIn('nam', '2026-11-05'), tsIn('nam', '2026-11-04'), tsIn('ha', '2026-11-04')] as any,
-      approvals: [{ id: 'r1' }, { id: 'r2' }] as any,
+      approvals: [{ id: 'r1', action: 'decide' }, { id: 'r2', action: 'decide' }] as any,
       periodState: 'Đang chấm công'
     });
     assert.deepEqual(v.headline, { blocking: 2, closeOn: '30/11', daysLeft: 25 });
@@ -524,6 +541,25 @@ describe('Tổng quan ghép từ các API có sẵn', () => {
     assert.equal(v.period.statusLabel, 'Đang chấm công');
     assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 0, rejected: 0, total: 0 });
     assert.equal(v.payroll.rows.length, 0);
+  });
+
+  // Như mock: thẻ Việc cần duyệt hiện đủ danh sách của chuông, chỉ số "Yêu cầu chờ duyệt" chỉ đếm việc cần quyết định.
+  // Dòng "Còn N việc phải xong trước khi chốt lương" đếm cả ngày chưa giải trình.
+  it('counts only requests to decide in the Yêu cầu chờ duyệt KPI', () => {
+    const v: any = overviewFrom({
+      month: '2026-11',
+      today: '2026-11-05',
+      now: '09:40',
+      payroll: payrollScreenFromPayslips([], '2026-11'),
+      employees: [] as any,
+      timesheets: [] as any,
+      approvals: [{ id: 'r1', action: 'decide' }, { id: 'due:u1:2026-11-02', action: 'remind' }] as any,
+      periodState: 'Đang chấm công'
+    });
+    const k = Object.fromEntries(v.kpis.map((x: any) => [x.key, x]));
+    assert.equal(k.requests.value, '1');
+    assert.equal(v.headline.blocking, 2);
+    assert.equal(v.approvals.length, 2);
   });
 });
 

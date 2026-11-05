@@ -73,7 +73,8 @@ export function overviewFrom(input: OverviewInput): OverviewView {
         of: String(active.length),
         note: `${active.length - presentToday} người chưa chấm công vào`
       },
-      { key: 'requests', label: 'Yêu cầu chờ duyệt', value: String(approvals.length), note: 'đang chờ bạn' }
+      // Như mock: chỉ đếm việc cần quyết định, ngày chưa giải trình (nhắc) không phải yêu cầu.
+      { key: 'requests', label: 'Yêu cầu chờ duyệt', value: String(approvals.filter(i => i.action === 'decide').length), note: 'đang chờ bạn' }
     ],
     attendance: {
       todayRate: rate(presentToday),
