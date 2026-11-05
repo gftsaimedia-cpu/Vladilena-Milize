@@ -1,18 +1,19 @@
 <script setup lang="ts">
 // Thanh trên của trang nhân viên máy tính + menu tài khoản (spec 3.2). Menu mở khi và chỉ khi đường dẫn là /nv/toi không có ?hop (D3):
 // bấm nút khi đóng → replace('/nv/toi'); bấm lại, bấm ra ngoài hay Esc → replace('/nv/hom-nay'), Esc trả focus về nút.
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+// Tải hồ sơ lỗi thì menu hiện LoadError với nút Thử lại thay khối định danh; Đổi mật khẩu và Đăng xuất vẫn dùng được.
+import { computed, onBeforeUnmount, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/img/gft-logo-light.png';
-import type { ProfileView } from '@/mock/staff-phone';
+import { useLoad } from '@/composables/useLoad';
 import { getProfile, logout } from '@/services/staff-phone';
+import LoadError from '@/views/staff-phone/components/LoadError.vue';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 
 const HOME = '/nv/hom-nay';
 const route = useRoute();
 const router = useRouter();
-const data = ref<ProfileView | null>(null);
-getProfile().then(v => (data.value = v));
+const { data, error, reload } = useLoad(() => getProfile());
 
 const menuOpen = computed(() => route.path === '/nv/toi' && !route.query.hop);
 
@@ -75,22 +76,24 @@ onBeforeUnmount(() => listen(false));
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <section v-if="data" v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
-      <div class="sd-ident">
-        <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
-        <div class="sd-who">
-          <div class="sd-nm2">{{ data.name }}</div>
-          <div class="mut">{{ data.email }}</div>
+    <section v-if="data || error" v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
+      <LoadError v-if="error" :error="error" @retry="reload" />
+      <template v-else-if="data">
+        <div class="sd-ident">
+          <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
+          <div class="sd-who">
+            <div class="sd-nm2">{{ data.name }}</div>
+          </div>
+          <span class="st"><i class="dot work" />{{ data.contract }}</span>
         </div>
-        <span class="st"><i class="dot work" />{{ data.contract }}</span>
-      </div>
-      <div class="sd-facts">
-        <div v-for="[k, v] in data.facts" :key="k" class="kv">
-          <span class="k">{{ k }}</span
-          ><span class="v">{{ v }}</span>
+        <div class="sd-facts">
+          <div v-for="[k, v] in data.facts" :key="k" class="kv">
+            <span class="k">{{ k }}</span
+            ><span class="v">{{ v }}</span>
+          </div>
         </div>
-      </div>
-      <p class="mut sm sd-note">{{ data.note }}</p>
+        <p class="mut sm sd-note">{{ data.note }}</p>
+      </template>
       <button type="button" class="sd-mi" @click="openPassword">
         <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
         <PhIcon name="right" :size="18" :stroke="2" />

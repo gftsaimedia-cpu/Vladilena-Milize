@@ -1,12 +1,14 @@
 <script setup lang="ts">
 // J7 · Tôi (spec 8.2): dải vàng đầu màn, khối định danh của Lê Hoàng Nam, thẻ "Công việc", hai thao tác.
 // Đổi mật khẩu mở hộp trượt theo ?hop=doi-mat-khau (mở bằng router.replace); Đăng xuất về /dang-nhap.
-import { computed, ref, watch } from 'vue';
+// Tải hồ sơ lỗi thì hiện LoadError với nút Thử lại; hai thao tác vẫn dùng được (đăng xuất không cần hồ sơ).
+import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { ProfileView } from '@/mock/staff-phone';
+import { useLoad } from '@/composables/useLoad';
 import { getProfile, logout } from '@/services/staff-phone';
 import { useSessionStore } from '@/stores/session';
 import ChangePasswordSheet from './components/ChangePasswordSheet.vue';
+import LoadError from './components/LoadError.vue';
 import PhIcon from './components/PhIcon.vue';
 import { useHop } from './useHop';
 
@@ -15,8 +17,7 @@ const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const { hop, close } = useHop();
-const data = ref<ProfileView | null>(null);
-getProfile().then(v => (data.value = v));
+const { data, error, reload } = useLoad(() => getProfile());
 // Dòng phụ của hộp: tên đăng nhập của phiên (hồ sơ trên màn luôn là Nam, R2).
 const username = computed(() => (session.user ? String(session.user.username) : ''));
 
@@ -42,11 +43,11 @@ async function signOut() {
 <template>
   <div class="ph toi">
     <div class="band"><h1>Tôi</h1></div>
-    <template v-if="data">
+    <LoadError v-if="error" :error="error" @retry="reload" />
+    <template v-else-if="data">
       <div class="ident">
         <span class="big-av" aria-hidden="true">{{ data.initials }}</span>
         <div class="nm">{{ data.name }}</div>
-        <div class="mut">{{ data.email }}</div>
         <span class="st"><i class="dot work" />{{ data.contract }}</span>
       </div>
       <section class="job">
@@ -58,6 +59,8 @@ async function signOut() {
         </div>
         <p class="mut sm">{{ data.note }}</p>
       </section>
+    </template>
+    <template v-if="data || error">
       <section class="card blk">
         <button type="button" class="mi" @click="openPassword">
           <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
@@ -68,7 +71,7 @@ async function signOut() {
         </button>
       </section>
     </template>
-    <ChangePasswordSheet v-if="data && hop === PASSWORD" :username="username" @close="close" />
+    <ChangePasswordSheet v-if="(data || error) && hop === PASSWORD" :username="username" @close="close" />
   </div>
 </template>
 

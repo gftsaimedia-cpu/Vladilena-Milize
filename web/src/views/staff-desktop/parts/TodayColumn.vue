@@ -2,10 +2,12 @@
 // Cột 1 · Hôm nay + Yêu cầu (spec 4.1): đầu cột có h1 tên, thẻ ca (kể cả Check-out), thẻ "Tuần này", khối "Yêu cầu" với ô danh sách cuộn.
 // Ô ngày, liên kết nhắc việc và dòng yêu cầu là RouterLink replace tới URL của điện thoại; trang đọc URL rồi mở ngăn kéo (spec 3.3).
 // Check-in / Check-out xong phát checkedOut để trang báo cột 2 tải lại "Gần đây" (R7).
-import { ref } from 'vue';
+// Thẻ ca và danh sách yêu cầu tải riêng; phần nào tải lỗi thì hiện LoadError với nút Thử lại ở chỗ của phần đó.
 import { toast } from '@/components/shell/toast';
-import type { HomeView, RequestsView } from '@/mock/staff-phone';
+import { useLoad } from '@/composables/useLoad';
+import type { HomeView } from '@/mock/staff-phone';
 import { getHome, getRequests } from '@/services/staff-phone';
+import LoadError from '@/views/staff-phone/components/LoadError.vue';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import RequestList from '@/views/staff-phone/components/RequestList.vue';
 import ShiftCard from '@/views/staff-phone/components/ShiftCard.vue';
@@ -13,10 +15,8 @@ import WeekCard from '@/views/staff-phone/components/WeekCard.vue';
 
 const emit = defineEmits<{ checkedOut: [] }>();
 
-const home = ref<HomeView | null>(null);
-const requests = ref<RequestsView | null>(null);
-getHome().then(v => (home.value = v));
-getRequests().then(v => (requests.value = v));
+const { data: home, error: homeError, reload: reloadHome } = useLoad(() => getHome());
+const { data: requests, error: requestsError, reload: reloadRequests } = useLoad(() => getRequests());
 
 function onPunch(v: HomeView) {
   home.value = v;
@@ -26,7 +26,8 @@ function onPunch(v: HomeView) {
 
 <template>
   <section class="sd-col">
-    <template v-if="home">
+    <LoadError v-if="homeError" :error="homeError" @retry="reloadHome" />
+    <template v-else-if="home">
       <header class="sd-hello">
         <div>
           <div class="mut">{{ home.greeting }}</div>
@@ -44,8 +45,9 @@ function onPunch(v: HomeView) {
           <PhIcon name="plus" :size="18" :stroke="2" />Tạo yêu cầu
         </button>
       </div>
+      <LoadError v-if="requestsError" :error="requestsError" @retry="reloadRequests" />
       <RequestList
-        v-if="requests"
+        v-else-if="requests"
         :view="requests"
         tablist-label="Lọc yêu cầu theo trạng thái"
         scroll-label="Danh sách yêu cầu, cuộn để xem thêm"

@@ -50,11 +50,11 @@ export async function getHome(): Promise<HomeView> {
   return homeViewOf(t, profile, income, reqs.items || [], nowTime());
 }
 
-// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7).
-export async function getAttendance(recent = 5): Promise<AttendanceView> {
+// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7). month 'YYYY-MM' (mặc định tháng hiện tại); dữ liệu giả chỉ có một tháng.
+export async function getAttendance(recent = 5, month?: string | null): Promise<AttendanceView> {
   if (__MOCK__) return respond(attendanceView(recent));
-  const [month, profile] = await Promise.all([api.get(`/me/attendance${qs({ month: thisMonth() })}`), api.get('/me/profile')]);
-  return attendanceViewOf(month, shiftLineOf(profile), today(), recent);
+  const [m, profile] = await Promise.all([api.get(`/me/attendance${qs({ month: month || thisMonth() })}`), api.get('/me/profile')]);
+  return attendanceViewOf(m, shiftLineOf(profile), today(), recent);
 }
 
 // null khi ngày không có ca, chưa tới, hoặc chuỗi ngày sai
@@ -83,9 +83,10 @@ export async function getRequest(id: string): Promise<RequestDetail | null> {
   }
 }
 
-export async function getIncome(): Promise<IncomeView> {
+// month 'YYYY-MM' (mặc định tháng hiện tại); dữ liệu giả chỉ có một tháng.
+export async function getIncome(month?: string | null): Promise<IncomeView> {
   if (__MOCK__) return respond(incomeView());
-  return incomeViewOf(await api.get(`/me/income${qs({ month: thisMonth() })}`));
+  return incomeViewOf(await api.get(`/me/income${qs({ month: month || thisMonth() })}`));
 }
 
 export async function getProfile(): Promise<ProfileView> {

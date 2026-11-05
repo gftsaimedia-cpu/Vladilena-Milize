@@ -8,8 +8,16 @@ import type { DayDetail } from '@/mock/staff-phone';
 const props = defineProps<{ day: DayDetail }>();
 
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-// Thanh giờ: trục là ca (08:00–17:00 = 540 phút); mỗi đoạn là [trái, phải] theo phần trăm của trục.
+// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30).
+const axis = computed(() => {
+  const start = toMin(props.day.shiftStart);
+  const end = toMin(props.day.shiftEnd);
+  return [props.day.shiftStart, hhmm(Math.round((start + end) / 2)), props.day.shiftEnd];
+});
+
+// Thanh giờ: trục là ca của ngày (vd. 08:00–17:00 = 540 phút); mỗi đoạn là [trái, phải] theo phần trăm của trục.
 const track = computed(() => {
   const d = props.day;
   if (!d.in) return null;
@@ -36,7 +44,7 @@ const pos = (s: { left: number; width: number }) => ({ left: `${s.left}%`, width
       <i v-if="track.worked" class="ds-worked" :style="pos(track.worked)" />
       <i v-if="track.missing" class="ds-missing" :style="pos(track.missing)" />
     </div>
-    <div class="sh mut sm ds-axis" aria-hidden="true"><span>08:00</span><span>12:30</span><span>17:00</span></div>
+    <div class="sh mut sm ds-axis" aria-hidden="true"><span v-for="t in axis" :key="t">{{ t }}</span></div>
   </div>
   <div v-if="day.in">
     <div class="kv"><span class="k">Giờ vào</span><span class="v">{{ day.in }}</span></div>
