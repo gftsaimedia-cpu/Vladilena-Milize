@@ -136,6 +136,8 @@ export async function resolveRequest(id: string, verb: DecisionVerb = 'approve')
   } catch (e) {
     // 404 hoặc 400 "không còn chờ duyệt": người khác vừa xử lý
     if (e instanceof ApiError && (e.status === 404 || e.status === 400)) return null;
+    // Duyệt bị chặn (409 DAY_CONFLICT) hoặc lỗi khác của máy chủ: hiện nguyên văn câu báo rồi ném lại
+    if (e instanceof ApiError) toast.error(e.message);
     throw e;
   }
   const hit = lastInbox.get(id) ?? null;
