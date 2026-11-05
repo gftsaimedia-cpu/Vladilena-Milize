@@ -435,6 +435,12 @@ Expected: PASS.
 Ruling của plan:
 
 - `recalculateTimesheet` và holidays gọi `hold` không kèm `trx`, tức chỉ kiểm, không giữ khoá. Hai service này không có giao dịch, và chỉ Admin dùng. Rủi ro: một lần sửa đúng vào giây đang Chốt công có thể lọt qua.
+- Gộp với nhánh `claude/audit-wiring` (6f9dadc, chưa vào `main`). Nhánh đó đổi `HolidaysService`:
+  - chữ ký mới: `add(input, actor)`, `quickAdd(year, actor)`, `remove(date, actor)`;
+  - ctor thêm `TransactionCoordinator`, `AuditLog`; ghi trong `this.tx.run(trx => …)`;
+  - `HolidaysRepository.remove` trả `{ date, name } | null`.
+
+  Dòng kiểm kỳ đặt **trước** `tx.run`, sau khi kiểm ngày hợp lệ, để hai phần sửa nằm ở hai chỗ khác nhau. Tham số `PeriodGate` thêm vào cuối ctor. Nhánh nào vào `main` trước thì nhánh sau gộp theo.
 - `quickAdd` bỏ qua ngày của tháng đã chốt thay vì báo lỗi cả năm. Spec §5 chỉ ghi `quickAdd` qua cổng `holiday`. Ví dụ: tháng 11/2026, tháng 1–10 đã chốt, Admin bấm "Thêm lễ cố định 2026" → chỉ thêm 01/01, 30/04, 01/05, 02/09 nếu tháng đó còn mở. Nếu báo lỗi thì cả năm không thêm được. Rủi ro nếu sai: Admin không biết vì sao thiếu ngày; FE hiện danh sách ngày đã thêm.
 
 - [ ] **Step 1: Viết test thất bại.**
