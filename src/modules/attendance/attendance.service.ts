@@ -1,7 +1,7 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
 import { businessDateText } from '../../common/business-date';
-import { SettingsReader } from '../settings';
+import { SettingsReader, TypeWeekMissingError } from '../settings';
 import { checkPunchLocation } from '../settings/domain/attendance-zone';
 import { isWorkday } from '../settings/domain/work-week';
 import { PunchRefusedError } from './attendance.errors';
@@ -61,8 +61,14 @@ export class AttendanceService {
   }
 
   private async workdayWithoutSchedule(settings: Pick<SettingsReader, 'workWeekOf'>, employeeId: string, date: string): Promise<boolean> {
-    const week = await settings.workWeekOf(employeeId, date.slice(0, 7));
-    return isWorkday(week.weekdays, date) || (await this.repo.hasApprovedWorkOn(employeeId, date));
+    // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì coi như tuần T2–T7, cùng mặc định với app nhân viên.
+    let weekdays: readonly number[] = [1, 2, 3, 4, 5, 6];
+    try {
+      weekdays = (await settings.workWeekOf(employeeId, date.slice(0, 7))).weekdays;
+    } catch (err) {
+      if (!(err instanceof TypeWeekMissingError)) throw err;
+    }
+    return isWorkday(weekdays, date) || (await this.repo.hasApprovedWorkOn(employeeId, date));
   }
 
   /**

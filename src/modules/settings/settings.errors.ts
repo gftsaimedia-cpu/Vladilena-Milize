@@ -35,3 +35,14 @@ export class SettingsStaleError extends Error {
     this.name = 'SettingsStaleError';
   }
 }
+
+/** Loại nhân sự chưa có tuần làm việc ở tháng đó, vd. tài khoản quản trị đầu tiên (loại ql) không có dòng position_types. */
+export class TypeWeekMissingError extends Error {
+  constructor(
+    readonly typeCode: string,
+    readonly month: string
+  ) {
+    super(`Loại nhân sự ${typeCode} chưa có tuần làm việc ở tháng ${month}`);
+    this.name = 'TypeWeekMissingError';
+  }
+}

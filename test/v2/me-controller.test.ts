@@ -5,6 +5,7 @@ import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
+import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
 const req = (user: any = NAM) => ({ user }) as any;
@@ -318,6 +319,41 @@ describe('MeController', () => {
     assert.equal(((await ctl.attendanceDay(req(), '2026-10-10')) as any).kind, 'off');
     assert.equal(((await ctl.attendanceDay(req(), '2026-10-09')) as any).kind, 'absent');
     assert.equal(set.calls.workWeekOf[1], '2026-10');
+  });
+
+  it('a type without a work week falls back to Monday to Saturday instead of a 500', async () => {
+    const missing = () => {
+      throw new TypeWeekMissingError('ql', '2026-12');
+    };
+    mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-12-09T05:00:00Z') }); // thứ Tư 09/12/2026
+    try {
+      const today = controller({ set: settingsFake({ workWeekOf: missing }) });
+      const t = (await today.ctl.today(req())) as any;
+      assert.equal(t.week.length, 7);
+      assert.equal(t.week[5].kind, 'future'); // thứ Bảy 12/12 vẫn là ngày làm
+      assert.equal(t.week[6].kind, 'off'); // Chủ nhật 13/12
+    } finally {
+      mock.timers.reset();
+    }
+    const month = controller({ set: settingsFake({ workWeekOf: missing }) });
+    const m = (await month.ctl.attendanceMonth(req(), '2026-10')) as any;
+    assert.equal(m.totals.standardDays, 27); // T2–T7 của 10/2026, do chính bảng công tính
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-10').kind, 'absent'); // thứ Bảy
+    assert.equal(m.days.find((d: any) => d.date === '2026-10-11').kind, 'off'); // Chủ nhật
+    const day = controller({ att: fake({ getTimesheet: () => null }), set: settingsFake({ workWeekOf: missing }) });
+    assert.equal(((await day.ctl.attendanceDay(req(), '2026-10-10')) as any).kind, 'absent');
+    assert.equal(((await day.ctl.attendanceDay(req(), '2026-10-11')) as any).kind, 'off');
+  });
+
+  it('any other work week failure still propagates', async () => {
+    const boom = new Error('db');
+    const bad = () => {
+      throw boom;
+    };
+    const { ctl } = controller({ att: fake({ listTimesheets: () => [], getTimesheet: () => null }), set: settingsFake({ workWeekOf: bad }) });
+    await assert.rejects(ctl.today(req()), (e: any) => e === boom);
+    await assert.rejects(ctl.attendanceMonth(req(), '2026-10'), (e: any) => e === boom);
+    await assert.rejects(ctl.attendanceDay(req(), '2026-10-10'), (e: any) => e === boom);
   });
 
   it('income carries the pay date of the month in all three states', async () => {

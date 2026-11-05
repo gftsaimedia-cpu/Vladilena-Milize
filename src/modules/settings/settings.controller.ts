@@ -12,7 +12,8 @@ import {
   SettingsEmployeeNotFoundError,
   SettingsGroupNotFoundError,
   SettingsInputError,
-  SettingsStaleError
+  SettingsStaleError,
+  TypeWeekMissingError
 } from './settings.errors';
 import { SettingsService } from './settings.service';
 
@@ -103,6 +104,7 @@ export class SettingsController {
       if (err instanceof SettingsInputError) throw new BadRequestError(err.message, { code: 'BAD_SETTINGS_INPUT', field: err.field });
       if (err instanceof SettingsGroupNotFoundError) throw new NotFoundError(err.message, { code: 'SETTINGS_GROUP_NOT_FOUND' });
       if (err instanceof SettingsEmployeeNotFoundError) throw new NotFoundError(err.message, { code: 'EMPLOYEE_NOT_FOUND' });
+      if (err instanceof TypeWeekMissingError) throw new NotFoundError(err.message, { code: 'WORK_WEEK_NOT_FOUND' });
       if (err instanceof SettingsStaleError) throw new ConflictError(err.message, { code: 'SETTINGS_STALE', stamp: err.stamp });
       throw err;
     }

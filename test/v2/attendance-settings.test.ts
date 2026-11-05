@@ -6,6 +6,7 @@ import { AttendanceService } from '../../src/modules/attendance/attendance.servi
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/attendance/domain';
 import type { Zone } from '../../src/modules/settings/domain/attendance-zone';
+import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 class FakeRepo extends AttendanceRepository {
   punches: PunchEvent[] = [];
@@ -130,6 +131,29 @@ describe('Attendance punches against settings', () => {
     weekdays = [1, 2, 3, 4, 5];
     zone = null;
     await svc.recordPunch({ employeeId: u('dem'), type: 'OUT', workDate: '2026-12-12', punchedAt: new Date('2026-12-12T06:30:00Z') }, { checkZone: true });
+  });
+
+  it('a type without a work week counts Monday to Saturday', async () => {
+    const missing = new AttendanceService(
+      repo,
+      undefined,
+      {
+        workWeekOf: async () => {
+          throw new TypeWeekMissingError('ql', '2026-12');
+        },
+        zone: async () => null
+      } as any
+    );
+    assert.equal(await missing.workdayOf(u('ql'), '2026-12-13'), false); // Chủ nhật
+    assert.equal(await missing.workdayOf(u('ql'), '2026-12-14'), true); // thứ Hai
+    await refused(missing.recordPunch({ employeeId: u('ql'), type: 'IN', workDate: '2026-12-13' }), 'NOT_A_WORKDAY');
+    await missing.recordPunch({ employeeId: u('ql'), type: 'IN', workDate: '2026-12-14' });
+  });
+
+  it('any other work week failure is not swallowed', async () => {
+    const boom = new Error('db');
+    const broken = new AttendanceService(repo, undefined, { workWeekOf: async () => Promise.reject(boom), zone: async () => null } as any);
+    await assert.rejects(broken.workdayOf(u('x'), '2026-12-14'), (e: any) => e === boom);
   });
 
   it('without settings the service keeps the old behaviour', async () => {

@@ -6,6 +6,7 @@ import type { DB } from '../../database/schema';
 import type { Zone } from './domain/attendance-zone';
 import { decodeValues, GROUP_KEYS, SETTING_GROUPS, type Bracket } from './domain/setting-groups';
 import { standardWorkdaysForWeek } from './domain/work-week';
+import { TypeWeekMissingError } from './settings.errors';
 import { SettingsRepository } from './settings.repository';
 
 type Q = Kysely<DB>;
@@ -58,7 +59,7 @@ export class SettingsReader {
     const staff = await this.repo.staffByUuid(q, employeeUuid);
     if (!staff) throw new Error(`Không có nhân viên ${employeeUuid}`);
     const type = await this.repo.typeWeekAt(q, staff.type, month);
-    if (!type) throw new Error(`Loại nhân sự ${staff.type} chưa có ở tháng ${month}`);
+    if (!type) throw new TypeWeekMissingError(staff.type, month);
 
     const own = versionAt(await this.repo.workWeekChain(q, employeeUuid), month);
     const ownWeekdays = own ? parseWeekdays(own.values.weekdays as string | null) : null;

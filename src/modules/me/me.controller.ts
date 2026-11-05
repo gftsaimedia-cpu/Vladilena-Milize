@@ -16,7 +16,7 @@ import { PayrollService } from '../payroll/payroll.service';
 import { RequestsService, type CreatedRequestDTO, type FilingKind } from '../requests/requests.service';
 import { ExplanationsService } from '../requests/explanations.service';
 import { payDateOf } from '../settings/domain/pay-days';
-import { SettingsReader, type WorkWeek } from '../settings';
+import { SettingsReader, TypeWeekMissingError, type WorkWeek } from '../settings';
 import { SystemService } from '../system';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
@@ -87,9 +87,19 @@ export class MeController {
   ) {}
 
   // Tuần làm của tôi ở từng tháng mà các ngày thuộc về: mỗi tháng hỏi một lần (một tuần trải tối đa hai tháng).
-  private async weeksOf(me: Who, dates: string[]): Promise<Map<string, WorkWeek>> {
+  // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì trả null: các hàm dựng màn hình dùng tuần T2–T7 mặc định.
+  private async weekOrNull(uuid: string, month: string): Promise<WorkWeek | null> {
+    try {
+      return await this.settings.workWeekOf(uuid, month);
+    } catch (err) {
+      if (err instanceof TypeWeekMissingError) return null;
+      throw err;
+    }
+  }
+
+  private async weeksOf(me: Who, dates: string[]): Promise<Map<string, WorkWeek | null>> {
     const months = [...new Set(dates.map(d => d.slice(0, 7)))];
-    const weeks = await Promise.all(months.map(m => this.settings.workWeekOf(me.uuid, m)));
+    const weeks = await Promise.all(months.map(m => this.weekOrNull(me.uuid, m)));
     return new Map(months.map((m, i) => [m, weeks[i]]));
   }
 
@@ -138,7 +148,7 @@ export class MeController {
     const by = new Map(rows.map(r => [r.workDate, r]));
     const ts = by.get(date);
     const weeks = await this.weeksOf(me, week);
-    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))!.weekdays));
+    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
     const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
     const alert = days.filter(d => d.kind === 'todo' && d.date < date).pop() ?? null;
     return {
@@ -186,10 +196,10 @@ export class MeController {
     const [rows, period, workWeek] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
       this.system.getPeriod(m),
-      this.settings.workWeekOf(me.uuid, m),
+      this.weekOrNull(me.uuid, m),
     ]);
-    const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek.weekdays);
-    return { ...view, totals: { ...view.totals, standardDays: workWeek.standardWorkdays }, range };
+    const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
+    return { ...view, totals: workWeek ? { ...view.totals, standardDays: workWeek.standardWorkdays } : view.totals, range };
   }
 
   @Authenticated()
@@ -197,11 +207,11 @@ export class MeController {
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
     if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
-    const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.settings.workWeekOf(me.uuid, date.slice(0, 7))]);
+    const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
     // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
     return {
-      ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek.weekdays),
+      ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
       shift: ts ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       ...explained,
     };

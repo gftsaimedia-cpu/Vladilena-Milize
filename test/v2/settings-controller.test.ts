@@ -9,7 +9,8 @@ import {
   SettingsEmployeeNotFoundError,
   SettingsGroupNotFoundError,
   SettingsInputError,
-  SettingsStaleError
+  SettingsStaleError,
+  TypeWeekMissingError
 } from '../../src/modules/settings/settings.errors';
 
 const user = { username: 'admin' } as any;
@@ -134,6 +135,18 @@ describe('SettingsController', () => {
       }
     });
   }
+
+  it('maps TypeWeekMissingError to 404 WORK_WEEK_NOT_FOUND on the per-person work week routes', async () => {
+    const ctrl = failing(new TypeWeekMissingError('ql', '2026-12'));
+    for (const call of [() => ctrl.getWorkWeek('admin', '2026-12'), () => ctrl.saveWorkWeek('admin', {}, user)]) {
+      await assert.rejects(call(), (e: any) => {
+        assert.equal(e.status, 404);
+        assert.equal(e.details?.code, 'WORK_WEEK_NOT_FOUND');
+        assert.equal(e.message, 'Loại nhân sự ql chưa có tuần làm việc ở tháng 2026-12');
+        return true;
+      });
+    }
+  });
 
   it('passes other errors through', async () => {
     const boom = new Error('db');

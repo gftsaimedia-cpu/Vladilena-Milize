@@ -5,7 +5,7 @@ import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { defaultsOf, encodeValues } from '../../src/modules/settings/domain/setting-groups';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
-import { SettingsStaleError } from '../../src/modules/settings/settings.errors';
+import { SettingsStaleError, TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 import { SettingsRepository, type ChangeRow } from '../../src/modules/settings/settings.repository';
 import { SettingsService } from '../../src/modules/settings/settings.service';
 import { withTempDb } from './helpers/pg-temp-db';
@@ -123,6 +123,14 @@ test('work week falls back to the type and follows own versions', async t => {
     assert.equal((await reader.workWeekOf('u-ha', '2026-12')).standardWorkdays, 22);
 
     await assert.rejects(reader.workWeekOf('no-such-uuid', '2026-12'));
+    // Loại nhân sự không có dòng position_types (tài khoản quản trị đầu tiên, loại ql).
+    await db.insertInto('staff').values({ username: 'admin', name: 'admin', type: 'ql', uuid: 'u-admin', pass_hash: 'x', created_at: '2026-11-05' }).execute();
+    await assert.rejects(reader.workWeekOf('u-admin', '2026-12'), (e: unknown) => {
+      assert.ok(e instanceof TypeWeekMissingError);
+      assert.equal(e.typeCode, 'ql');
+      assert.equal(e.month, '2026-12');
+      return true;
+    });
     // Loại chưa có phiên bản nào ở tháng đó (seed bắt đầu từ 2000-01).
     await assert.rejects(reader.workWeekOf('u-binh', '1999-12'));
 

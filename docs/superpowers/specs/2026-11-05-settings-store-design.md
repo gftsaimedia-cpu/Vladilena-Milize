@@ -381,6 +381,7 @@ Tên nhóm trong đường dẫn và tên khoá trong phản hồi:
   ```json
   { "ok": true, "weekdays": [1,2,3,4,5], "source": "own", "standardWorkdays": 22, "stamp": 22 }
   ```
+- Người thuộc loại nhân sự chưa có tuần làm ở tháng đó (vd. tài khoản quản trị đầu tiên, loại `ql`): `GET` và `PUT` trả `404` mã `WORK_WEEK_NOT_FOUND`; route hàng loạt bỏ qua người đó; app nhân viên và chấm công coi như tuần Thứ 2–Thứ 7.
 
 **`GET /settings/work-weeks/:username/history`**: dạng giống mục 5.1; `field` luôn là `"weekdays"`, còn `from` và `to` là mảng hoặc `null`.
 
