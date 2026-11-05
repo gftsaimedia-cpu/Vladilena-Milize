@@ -115,11 +115,16 @@ function closeOverlay(hop: keyof typeof overlayFlag) {
   overlayFlag[hop].value = false;
   if (route.query.hop === hop) router.replace({ query: { ...route.query, hop: undefined } });
 }
+// Nút chuông và nút tên tài khoản: đang mở thì đóng như mọi cách đóng khác (bỏ hop), chưa mở thì chỉ bật cờ, không ghi hop.
+function toggleOverlay(hop: keyof typeof overlayFlag) {
+  if (overlayFlag[hop].value) closeOverlay(hop);
+  else overlayFlag[hop].value = true;
+}
 // Từ menu sang hộp đổi mật khẩu: chuyển ?hop sang doi-mat-khau, để đóng hộp xong địa chỉ không còn hop.
 function openPassword() {
   menuOpen.value = false;
   pwOpen.value = true;
-  if (route.query.hop) router.replace({ query: { ...route.query, hop: 'doi-mat-khau' } });
+  if (route.query.hop === 'menu-tai-khoan') router.replace({ query: { ...route.query, hop: 'doi-mat-khau' } });
 }
 </script>
 
@@ -138,11 +143,11 @@ function openPassword() {
       :mobile-inert="mobileViewport && !mobileNavOpen"
       :active="route.meta.nav as string"
       :me="shell.me"
-      @open-menu="menuOpen = !menuOpen"
+      @open-menu="toggleOverlay('menu-tai-khoan')"
       @navigate="closeMobileNav()"
     />
     <main class="canvas">
-      <AdminTopbar :bell="shell.bell" @open-bell="bellOpen = !bellOpen">
+      <AdminTopbar :bell="shell.bell" @open-bell="toggleOverlay('chuong')">
         <template #start>
           <button
             ref="menuButton"
