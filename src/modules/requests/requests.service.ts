@@ -772,6 +772,7 @@ export class RequestsService {
         // Kiểm lại trước khi đổi trạng thái hay ghi gì; đơn không còn chờ duyệt thì để `approve` báo lỗi trạng thái.
         if (req.status === 'PENDING') {
           await this.recheck(req, stores);
+          await this.dropHolidayDays(req, stores);
         }
         req.approve(reviewerId, note);
 
@@ -863,14 +864,58 @@ export class RequestsService {
     if (!CLAIMING_TYPES.has(req.type)) return;
     const daysRepo = this.dayRepo(stores);
     const [held, replaced] = await Promise.all([daysRepo.listByRequest(req.id), daysRepo.listByBase(req.id)]);
+    await this.giveBack(req.id, held, replaced, stores);
+  }
 
+  /**
+   * Ngày lễ thắng đơn nghỉ (luật người dùng chốt 2026-11-05): ngày đơn nghỉ đang giữ mà đã thành ngày lễ trước lúc duyệt
+   * rời khỏi đơn và được trả như khi từ chối; đơn còn giữ bao nhiêu ngày thì đếm bấy nhiêu. Không duyệt được (Admin chỉ
+   * còn từ chối) khi đơn nghỉ có làm bù có ngày như vậy (giờ bù đã xếp theo số ngày cũ, phải nộp lại) hoặc khi mọi ngày
+   * của đơn đều đã thành ngày lễ.
+   */
+  private async dropHolidayDays(req: SystemRequest, stores: RequestStores): Promise<void> {
+    if (req.type !== 'LEAVE' && req.type !== 'LEAVE_WITH_MAKEUP') return;
+    const held = await this.dayRepo(stores).listByRequest(req.id);
+    if (held.length === 0) return;
+    const holidaysRepo = stores.holidays;
+    if (!holidaysRepo) {
+      throw new Error('Thiếu lịch lễ công ty');
+    }
+    const dates = held.map(day => day.date).sort();
+    const holidays = new Set((await holidaysRepo.listBetween(dates[0], dates[dates.length - 1])).map(h => h.date));
+    const dropped = held.filter(day => holidays.has(day.date)).sort((a, b) => a.date.localeCompare(b.date));
+    if (dropped.length === 0) return;
+
+    const refuse = (message: string) =>
+      new DayConflictError(message, { date: dropped[0].date, requestId: null, requestType: null, requestStatus: null }).forReview();
+    if (req.type === 'LEAVE_WITH_MAKEUP') {
+      throw refuse(`Ngày ${formatDayMonth(dropped[0].date)} đã thành ngày lễ, đơn nghỉ có làm bù cần nộp lại.`);
+    }
+    if (dropped.length === held.length) {
+      throw refuse('Các ngày nghỉ của đơn đều đã thành ngày lễ.');
+    }
+    await this.giveBack(req.id, dropped, [], stores);
+    req.keepLeaveDays(held.length - dropped.length);
+  }
+
+  /**
+   * Trả các ngày `held` của đơn `requestId` (quy tắc như `releaseDays`) và bỏ liên kết của các ngày `replaced` mà đơn
+   * khác đã thay của đơn này.
+   */
+  private async giveBack(
+    requestId: string,
+    held: readonly DayClaim[],
+    replaced: readonly DayClaim[],
+    stores: RequestStores
+  ): Promise<void> {
+    const daysRepo = this.dayRepo(stores);
     const handedBack = held.filter(
       day => day.baseRequestId !== null && (day.baseRequestStatus === 'PENDING' || day.baseRequestStatus === 'APPROVED')
     );
     const freed = held.filter(day => !handedBack.includes(day));
 
     for (const [employeeId, dates] of groupDates(freed)) {
-      await daysRepo.remove(employeeId, dates, req.id);
+      await daysRepo.remove(employeeId, dates, requestId);
     }
     // Hai nhóm không chung ngày: dòng của đơn này và dòng của đơn khác không cùng (nhân sự, ngày) (khoá chính).
     await daysRepo.upsert([

@@ -394,6 +394,28 @@ test('day_status trên PostgreSQL', async t => {
       await assertInvariants(client, NAM);
     });
 
+    await t.test('a day of a pending leave 17–19/11 made a holiday leaves the leave at approval', async () => {
+      await reset();
+      const leave = await annual(NAM, '2026-11-17', '2026-11-19');
+      await client.query(`INSERT INTO company_holidays (holiday_date, name) VALUES ('2026-11-18', 'Lễ sau khi nộp')`);
+      try {
+        await approve(leave.id);
+        const row = await client.query(`SELECT status, leave_days_count FROM system_requests WHERE id = $1`, [leave.id]);
+        assert.deepEqual(row.rows[0], { status: 'APPROVED', leave_days_count: 2 });
+        assert.deepEqual(await daysOf(NAM), [
+          ['2026-11-17', 'LEAVE', leave.id, null],
+          ['2026-11-19', 'LEAVE', leave.id, null]
+        ]);
+        assert.deepEqual(await schedulesOf(NAM), [
+          ['2026-11-17', 'REGULAR', 'ON_LEAVE', '08:00', leave.id],
+          ['2026-11-19', 'REGULAR', 'ON_LEAVE', '08:00', leave.id]
+        ]);
+        await assertInvariants(client, NAM);
+      } finally {
+        await client.query(`DELETE FROM company_holidays WHERE holiday_date = '2026-11-18'`);
+      }
+    });
+
     await t.test("Lan's leave is not blocked by Nam's ISAT on the same Saturday", async () => {
       await reset();
       // iSAT của Nam đang chờ: Lan vẫn nghỉ được đúng Thứ Bảy đó, không lỗi C3.
