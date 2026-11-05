@@ -11,10 +11,12 @@ import { PayrollWarning } from './payroll-warning';
 
 export interface DailyAttendanceLineProps {
   date: string; // YYYY-MM-DD
-  dayOfWeekText: string; // e.g. "Thứ 5, 01/10"
+  dayOfWeekText: string; // weekday of `date`: 'Thứ 2' ... 'Thứ 7', 'Chủ nhật'
   shiftCode: string; // 'NORMAL' | 'FLEX' | 'NIGHT' | 'LEAVE' | 'ISAT' | 'UNPAID' | ...
   shiftLabel: string; // 'Normal', 'Flex +20%', 'Night +40%', 'Nghỉ phép', 'iSAT', 'Không lương'
-  inOutText: string; // "08:00–17:00", "08:15–17:00", "Hưởng lương ngày", "Không tính lương"
+  inOutText: string; // real times "08:12–17:05", "08:12–—" when a side is missing, "Hưởng lương ngày", "Không tính lương"
+  checkIn?: string | null; // 'HH:MM' Vietnam time, null on LEAVE/ISAT/UNPAID lines
+  checkOut?: string | null;
   workHours: number; // e.g. 8, 7.75, 7.67, 0
   daySalary: number; // Base salary / standardWorkdays
   flexAllowancePay: number; // e.g. 46.154
@@ -37,6 +39,13 @@ export interface OtHoursByRate {
   x30?: number; // 300% rate
 }
 
+/** OT money by multiplier, summed from the day lines (each line rounds each multiplier once). */
+export interface OtPayByRate {
+  x15?: number;
+  x20?: number;
+  x30?: number;
+}
+
 export interface EmployeePayslipProps {
   employeeId: string;
   username?: string; // staff.username; default = employeeId
@@ -47,12 +56,15 @@ export interface EmployeePayslipProps {
   standardWorkdays?: number; // default 26
   baseSalaryPolicy: number; // e.g. 6,000,000
   employeeType?: string;
+  level?: number; // staff.level; default 1
+  employmentStatus?: 'probation' | 'official' | null; // default null
   nightAllowancePct?: number;
   isDormResident?: boolean;
   allowanceRates?: AllowanceRates | null; // the position version in force; missing = none, no allowance
   makeupWorkDates?: string[];
   dailyLines: DailyAttendanceLineProps[];
   otHoursByRate?: OtHoursByRate;
+  otPayByRate?: OtPayByRate;
   lateEarlyHours?: number;
   lateEarlyDeductionAmount?: number;
   kpi?: KpiPay; // default: no KPI pay
@@ -61,7 +73,7 @@ export interface EmployeePayslipProps {
   dependants?: number; // default 0
   warnings?: PayrollWarning[];
   advanceDeduction?: number;
-  remainingAnnualLeaveDays?: number;
+  remainingAnnualLeaveDays?: number | null; // null = no leave account; default null
 }
 
 export interface EmployeePayslipSummaryDTO {
@@ -85,6 +97,9 @@ export interface EmployeePayslipDTO {
   fullName: string;
   positionLevelText: string;
   contractStatusText: string;
+  employeeType: string | null;
+  level: number;
+  employmentStatus: 'probation' | 'official' | null;
   month: string;
   standardWorkdays: number;
   actualWorkDays: number;
@@ -105,7 +120,11 @@ export interface EmployeePayslipDTO {
   ot15Hours: number;
   ot20Hours: number;
   ot30Hours: number;
+  ot15Pay: number;
+  ot20Pay: number;
+  ot30Pay: number;
   otPayTotal: number;
+  dayRate: number;
   attendanceAllowancePolicy: number;
   attendanceAllowanceActual: number;
   travelAllowancePolicy: number;
@@ -138,7 +157,7 @@ export interface EmployeePayslipDTO {
   advanceDeduction: number;
   netIncome: number;
   warnings: PayrollWarning[];
-  remainingAnnualLeaveDays: number;
+  remainingAnnualLeaveDays: number | null;
   dailyLines: DailyAttendanceLineProps[];
 }
 
@@ -167,6 +186,8 @@ export class EmployeePayslip {
   // Block 1: Base Salary
   readonly baseSalaryPolicy: number;
   readonly employeeType: string | undefined;
+  readonly level: number;
+  readonly employmentStatus: 'probation' | 'official' | null;
   readonly nightAllowancePct: number;
   readonly isDormResident: boolean;
   readonly baseSalaryActual: number;
@@ -181,7 +202,11 @@ export class EmployeePayslip {
   readonly ot15Hours: number;
   readonly ot20Hours: number;
   readonly ot30Hours: number;
+  readonly ot15Pay: number;
+  readonly ot20Pay: number;
+  readonly ot30Pay: number;
   readonly otPayTotal: number;
+  readonly dayRate: number;
 
   // Block 4: Allowances (Policy vs Actual)
   readonly attendanceAllowancePolicy: number;
@@ -223,7 +248,7 @@ export class EmployeePayslip {
   readonly netIncome: number;
 
   // Block 8: Balance
-  readonly remainingAnnualLeaveDays: number;
+  readonly remainingAnnualLeaveDays: number | null;
 
   // Data-quality flags raised while the payslip was computed
   readonly warnings: PayrollWarning[];
@@ -245,6 +270,8 @@ export class EmployeePayslip {
     this.standardWorkdays = props.standardWorkdays ?? 26;
     this.baseSalaryPolicy = props.baseSalaryPolicy;
     this.employeeType = props.employeeType;
+    this.level = props.level ?? 1;
+    this.employmentStatus = props.employmentStatus ?? null;
     this.nightAllowancePct = props.nightAllowancePct ?? (props.employeeType === 'nv' ? 40 : 30);
     this.isDormResident = props.isDormResident ?? false;
     this.dailyLines = [...props.dailyLines];
@@ -307,9 +334,12 @@ export class EmployeePayslip {
     this.ot30Hours = props.otHoursByRate?.x30 ?? 0;
     this.totalOtHours = this.ot15Hours + this.ot20Hours + this.ot30Hours || totalLineOtHours;
 
-    this.otPayTotal = Math.round(
-      this.ot15Hours * hourRate * 1.5 + this.ot20Hours * hourRate * 2.0 + this.ot30Hours * hourRate * 3.0
-    );
+    // The pay is measured per day (see overtime-pay.ts); the total is the sum of the day lines.
+    this.otPayTotal = this.dailyLines.reduce((sum, line) => sum + line.otPay, 0);
+    this.ot15Pay = props.otPayByRate?.x15 ?? 0;
+    this.ot20Pay = props.otPayByRate?.x20 ?? 0;
+    this.ot30Pay = props.otPayByRate?.x30 ?? 0;
+    this.dayRate = Math.round(dayRate);
 
     // Block 4: Allowances
     // Policy values
@@ -413,7 +443,7 @@ export class EmployeePayslip {
     this.netIncome = this.grossIncome - this.insuranceDeduction - this.personalIncomeTax - this.advanceDeduction;
 
     // Block 8: Balance
-    this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? 0;
+    this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? null;
 
     this.warnings = [...(props.warnings ?? [])];
   }
@@ -442,6 +472,9 @@ export class EmployeePayslip {
       fullName: this.fullName,
       positionLevelText: this.positionLevelText,
       contractStatusText: this.contractStatusText,
+      employeeType: this.employeeType ?? null,
+      level: this.level,
+      employmentStatus: this.employmentStatus,
       month: this.month,
       standardWorkdays: this.standardWorkdays,
       actualWorkDays: this.actualWorkDays,
@@ -462,7 +495,11 @@ export class EmployeePayslip {
       ot15Hours: this.ot15Hours,
       ot20Hours: this.ot20Hours,
       ot30Hours: this.ot30Hours,
+      ot15Pay: this.ot15Pay,
+      ot20Pay: this.ot20Pay,
+      ot30Pay: this.ot30Pay,
       otPayTotal: this.otPayTotal,
+      dayRate: this.dayRate,
       attendanceAllowancePolicy: this.attendanceAllowancePolicy,
       attendanceAllowanceActual: this.attendanceAllowanceActual,
       travelAllowancePolicy: this.travelAllowancePolicy,
