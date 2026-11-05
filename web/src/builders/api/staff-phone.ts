@@ -18,6 +18,7 @@ import type {
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
+import type { Zone } from './settings';
 
 export type MeLeave = 'paid' | 'unpaid' | 'holiday';
 export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
@@ -37,6 +38,8 @@ export type MeToday = {
   workedMinutes: number;
   week: MeDay[];
   alert: { date: string; kind: string } | null;
+  zone?: Zone | null; // vùng chấm công của máy chủ; thiếu hoặc null = không giới hạn
+  workday?: boolean; // hôm nay có phải ngày làm; thiếu = có
 };
 export type MeProfile = {
   name: string;
@@ -47,7 +50,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange; payDate?: string | null };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
@@ -126,7 +129,7 @@ const STATUS: Record<string, [RequestStatus, string]> = {
   PENDING: ['pend', 'Chờ duyệt'],
   APPROVED: ['done', 'Đã duyệt'],
   REJECTED: ['rej', 'Từ chối'],
-  CANCELLED: ['rej', 'Đã huỷ']
+  CANCELLED: ['cancel', 'Đã huỷ']
 };
 
 function kindOf(r: MeRequest): { icon: RequestRowData['icon']; kindLabel: string; title: string; date: string } {
@@ -274,7 +277,8 @@ export function dayDetailOf(d: MeDay & { shift: { start: string; end: string } |
     out: d.out,
     lateMin: d.lateMinutes,
     leave: kind === 'leave' ? { type: statusOf(d), span: 'Cả ngày' } : null,
-    claim: null
+    claim: null,
+    due: null // spec staff-requests 3.6: /me/attendance/:date chưa nối `due` (để BE)
   };
 }
 
@@ -310,11 +314,15 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     worked: workedText(workedMin),
     // Máy chủ chưa gửi kết quả vị trí (vùng chấm công): không có dòng vị trí.
     location: null,
+    zone: t.zone ?? null,
+    workday: t.workday !== false,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
+    reminders: [], // spec staff-requests 3.6: /me/today chưa nối `reminders` (để BE)
     income: {
       label: `Thu nhập tháng ${Number(t.date.slice(5, 7))} · ${income?.state === 'official' ? 'chính thức' : 'tạm tính'}`,
-      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE
+      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE,
+      payDate: income?.payDate ?? null
     },
     requests: [...requests]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -334,7 +342,7 @@ const KPI_PARTS: [string, string][] = [
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
-  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), ...monthNavOf(inc.month, inc.range) };
+  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), payDate: inc.payDate ?? null, ...monthNavOf(inc.month, inc.range) };
   if (!p) {
     return {
       ...base,
@@ -350,13 +358,16 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
   }
   const pct = Number(p.kpiTotalScorePct) || 0;
   const official = inc.state === 'official';
-  const leavePay = (p.paidLeavePay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
+  const leavePay = (p.paidLeavePay || 0) + (p.leaveSettlementPay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
   const line = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) => ({
     icon,
     label,
     value: n ? `${negative ? '−' : ''}${vnd(n)}` : '0',
     zero: !n
   });
+  // Khoản có tháng có, tháng không (OT, trừ giờ, tạm ứng): chỉ hiện khi khác 0. BE trả trừ giờ là số âm.
+  const ifAny = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) =>
+    n ? [line(icon, label, Math.abs(n), negative)] : [];
   return {
     ...base,
     state: official ? 'Chính thức' : 'Tạm tính',
@@ -374,14 +385,18 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       proposed: vnd(p.kpiProposedAmount ?? p.kpiMaxSalary),
       scores: KPI_PARTS.map(([k, label]) => ({ value: p.kpiScores?.[k] == null ? NONE : String(p.kpiScores[k]), label }))
     },
+    // Các dòng cộng lại (dòng có dấu − thì trừ) bằng đúng Thực nhận của BE.
     lines: [
       line('cal', 'Lương ngày công', p.baseSalaryActual),
       line('leave', 'Nghỉ phép, iSAT', leavePay),
+      ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
+      ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),
       ...(official
         ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
-        : [])
+        : []),
+      ...ifAny('wallet', 'Tạm ứng', p.advanceDeduction || 0, true)
     ],
     total: `${vnd(p.netIncome)} ₫`
   };

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// J1 · Hôm nay (spec 4): lời chào, thẻ ca hôm nay có vòng cung và nút Check-out, thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
+// J1 · Hôm nay (spec 4): lời chào, dòng nhắc giải trình (spec staff-requests 4.3), thẻ ca hôm nay có vòng cung và nút Check-out,
+// thẻ "Tuần này", thu nhập, hai yêu cầu mới nhất.
 // Dữ liệu từ services/staff-phone; bấm Check-in hay Check-out (trong ShiftCard) thay cả dữ liệu màn bằng kết quả trả về (R7);
 // đã chấm mà chưa tải lại được màn (null) thì tải lại, vẫn lỗi thì hiện LoadError.
 // Tải lỗi thì hiện LoadError với nút Thử lại (tải xong thì focus về khối lời chào, vẫn lỗi thì về nút Thử lại mới);
@@ -8,10 +9,12 @@ import { ref } from 'vue';
 import { useLoad } from '@/composables/useLoad';
 import { useRetry } from '@/composables/useRetry';
 import type { HomeView } from '@/mock/staff-phone';
+import { dm } from '@/utils/format';
 import { getHome } from '@/services/staff-phone';
 import LoadError from './components/LoadError.vue';
 import LoadingLine from './components/LoadingLine.vue';
 import PhIcon from './components/PhIcon.vue';
+import ReminderLines from './components/ReminderLines.vue';
 import RequestRow from './components/RequestRow.vue';
 import ShiftCard from './components/ShiftCard.vue';
 import WeekCard from './components/WeekCard.vue';
@@ -36,6 +39,8 @@ const onPunch = (v: HomeView | null) => (v ? (data.value = v) : retry());
         <span class="mut sm date">{{ data.weekday }}<br />{{ data.date }}</span>
       </header>
 
+      <ReminderLines :reminders="data.reminders" />
+
       <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />
 
       <WeekCard :week="data.week" :alert="data.alert" />
@@ -44,6 +49,7 @@ const onPunch = (v: HomeView | null) => (v ? (data.value = v) : retry());
         <div class="pay-text">
           <div class="mut">{{ data.income.label }}</div>
           <div class="amt">{{ data.income.net }} <span>₫</span></div>
+          <div v-if="data.income.payDate" class="mut sm">trả ngày {{ dm(data.income.payDate) }}</div>
         </div>
         <PhIcon name="right" :size="20" :stroke="2" />
       </RouterLink>

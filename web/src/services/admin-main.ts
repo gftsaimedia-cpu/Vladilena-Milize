@@ -5,7 +5,14 @@ import { inboxFromRequests, type PersonInfo } from '@/builders/api/inbox';
 import { toast } from '@/components/shell/toast';
 import { overviewFrom, recentWorkdays } from '@/builders/api/overview';
 import { peopleOf, type EmployeeDTO } from '@/builders/api/staff';
-import { SYSTEM_NOTES, pendingInbox, resolveInboxItem, type InboxItem, type SystemNote } from '@/mock/inbox';
+import {
+  SYSTEM_NOTES,
+  pendingInbox,
+  remindInboxItem,
+  resolveInboxItem,
+  type InboxItem,
+  type SystemNote
+} from '@/mock/inbox';
 import { overviewView, type OverviewView } from '@/mock/overview';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
@@ -20,20 +27,21 @@ const fetchEmployees = (): Promise<EmployeeDTO[]> =>
     () => []
   );
 
-export type DecisionVerb = 'approve' | 'reject' | 'remind' | 'declare';
+export type DecisionVerb = 'approve' | 'reject' | 'remind';
 
 // Việc chờ của lần đọc chuông gần nhất (máy chủ thật), để trả lại việc vừa xử lý cho câu báo.
 const lastInbox = new Map<string, InboxItem>();
 
 // Xử lý một việc chờ; mọi nơi gọi qua useShellStore().decide. Trả việc vừa xử lý, hoặc null nếu việc đã được xử lý.
-// Dữ liệu giả: bỏ việc khỏi mock/inbox (bốn động từ như nhau), ghi chú không lưu. Máy chủ thật: duyệt / từ chối qua
-// PATCH /requests/:id/review, kèm `note` khi Admin có ghi chú cho nhân viên; "nhắc" và "khai thay" chưa có API.
+// Dữ liệu giả: duyệt / từ chối bỏ việc khỏi mock/inbox, ghi chú không lưu; "nhắc" ghi giờ nhắc lên việc và việc ở lại.
+// Máy chủ thật: duyệt / từ chối qua PATCH /requests/:id/review, kèm `note` khi Admin có ghi chú cho nhân viên;
+// "nhắc" chưa nối API.
 export async function resolveRequest(
   id: string,
   verb: DecisionVerb = 'approve',
   note?: string
 ): Promise<InboxItem | null> {
-  if (__MOCK__) return respond(resolveInboxItem(id));
+  if (__MOCK__) return respond(verb === 'remind' ? remindInboxItem(id) : resolveInboxItem(id));
   if (verb !== 'approve' && verb !== 'reject') return notConnected();
   const body: { action: 'APPROVE' | 'REJECT'; note?: string } = { action: verb === 'approve' ? 'APPROVE' : 'REJECT' };
   const text = note?.trim();
@@ -55,8 +63,7 @@ export const ALREADY_HANDLED = 'Yêu cầu này đã được xử lý.';
 const DECISION_TEXT: Record<DecisionVerb, (name: string) => string> = {
   approve: name => `Đã duyệt yêu cầu của ${name}.`,
   reject: name => `Đã từ chối yêu cầu của ${name}.`,
-  remind: name => `Đã nhắc ${name} giải trình.`,
-  declare: name => `Đã ghi nhận khai thay cho ${name}.`
+  remind: name => `Đã nhắc ${name} giải trình.`
 };
 /** Câu báo sau khi xử lý một việc (spec mục 1.3). */
 export const decisionText = (verb: DecisionVerb, name: string) => DECISION_TEXT[verb](name);

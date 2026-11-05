@@ -3,6 +3,7 @@
 // Trạng thái phiếu (sheet.slipStatus) quyết định tiêu đề "chính thức" / "tạm tính" và ô Tình trạng; riêng Nháp có dòng bản nháp.
 import { useId } from 'vue';
 import logo from '@/assets/img/gft-logo.png';
+import { kindLevelText } from '@/constants/labels';
 import type { A4Sheet } from '@/mock/payslip-a4';
 import { dm, dowShort, monthLabel, monthShort, vnd } from '@/utils/format';
 import { blankNum, inOutText, periodLine, signedText, slipStateText, statCells, titleLine } from './a4-format';
@@ -26,13 +27,13 @@ const headingId = useId();
         <span class="lb">Họ tên</span><b>{{ sheet.name }}</b>
       </div>
       <div>
-        <span class="lb">Loại · bậc</span><b>{{ sheet.kind }} · Bậc {{ sheet.level }}</b>
+        <span class="lb">Loại · bậc</span><b>{{ kindLevelText(sheet.kind, sheet.level) }}</b>
       </div>
       <div>
         <span class="lb">Tình trạng</span><b>{{ slipStateText(sheet.slipStatus) }}</b>
       </div>
       <div>
-        <span class="lb">Trạng thái nhân sự</span><b>{{ sheet.contract }}</b>
+        <span class="lb">Trạng thái nhân sự</span><b>{{ sheet.employmentStatus ?? '—' }}</b>
       </div>
       <div>
         <span class="lb">Kỳ lương</span><b>{{ monthLabel(sheet.month) }}</b>

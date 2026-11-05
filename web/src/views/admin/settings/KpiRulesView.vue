@@ -1,11 +1,14 @@
 <script setup lang="ts">
-// Cài đặt › Đánh giá KPI: cách tính tổng điểm KPI (tỉ lệ các thành phần) và những chỗ khác đang dùng điểm KPI.
+// Cài đặt › Quy tắc KPI: cách tính tổng điểm KPI (tỉ lệ năm thành phần), chỉ xem; sửa ở Cách tính lương › Lương KPI.
+import { computed } from 'vue';
+import { kpiRulesView } from '@/builders/api/settings-screens';
 import { useLoad } from '@/composables/useLoad';
-import { getKpiRules } from '@/services/admin-settings';
+import { getSettings } from '@/services/settings-store';
 import SettingsFrame from './SettingsFrame.vue';
 import { PATHS } from './nav';
 
-const { data } = useLoad(() => getKpiRules());
+const { data: settings } = useLoad(() => getSettings());
+const data = computed(() => (settings.value ? kpiRulesView(settings.value) : null));
 </script>
 
 <template>
@@ -25,30 +28,17 @@ const { data } = useLoad(() => getKpiRules());
             <div>
               <div class="l">{{ w.label }}</div>
               <div class="v">{{ w.percent }}%</div>
-              <div class="n">{{ w.note }}</div>
             </div>
             <div class="op">{{ (i as number) < data.weights.length - 1 ? '+' : '=' }}</div>
           </template>
           <div>
             <div class="l">Tổng điểm</div>
             <div class="v">{{ data.total }}%</div>
-            <div class="n"></div>
           </div>
         </div>
-        <div style="height: 20px"></div>
-      </section>
-
-      <section v-if="data.related.length" class="card">
-        <div class="card-h">
-          <h2>Liên quan</h2>
-          <span class="cap">Những chỗ khác dùng điểm KPI</span>
-        </div>
-        <div v-for="r in data.related" :key="r.key" class="rel">
-          <span class="k">{{ r.key }}</span>
-          <span class="d">{{ r.desc }}</span>
-          <RouterLink :to="r.to" class="link">{{ r.link }}</RouterLink>
-        </div>
-        <div style="height: 6px"></div>
+        <p class="edit">
+          <RouterLink :to="`${PATHS.congThuc}?hop=luong-kpi`" class="link">Sửa trong Cách tính lương › Lương KPI</RouterLink>
+        </p>
       </section>
     </template>
   </SettingsFrame>
@@ -81,27 +71,8 @@ const { data } = useLoad(() => getKpiRules());
   margin-top: 2px;
   font-variant-numeric: tabular-nums;
 }
-.wts .n {
-  color: var(--muted);
-  font-size: 11px;
-  margin-top: 2px;
-  min-height: 14px;
-}
-.rel {
-  display: grid;
-  grid-template-columns: 160px 1fr auto;
-  gap: 16px;
-  align-items: center;
-  min-height: 56px;
-  padding: 10px 24px;
-  border-top: 1px solid var(--rule);
+.edit {
+  margin: 14px 24px 20px;
   font-size: 13px;
-  line-height: 18px;
-}
-.rel .k {
-  font-weight: 600;
-}
-.rel .d {
-  color: var(--muted);
 }
 </style>

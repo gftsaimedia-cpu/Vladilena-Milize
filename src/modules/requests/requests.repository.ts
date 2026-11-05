@@ -276,6 +276,16 @@ export class RequestsRepository {
     return row?.uuid ?? null;
   }
 
+  /** Đổi uuid hoặc username nhân sự thành tên đăng nhập (nhật ký ghi theo tên đăng nhập); không có thì trả null. */
+  async resolveStaffUsername(employeeIdOrUsername: string): Promise<string | null> {
+    const row = await this.qb
+      .selectFrom('staff')
+      .select('username')
+      .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
+      .executeTakeFirst();
+    return row?.username ?? null;
+  }
+
   /** Hồ sơ nộp đơn iSAT: uuid, quyền lợi iSAT và bản chụp hồ sơ, theo danh mục hiệu lực tại `month` (YYYY-MM). */
   async findIsatProfile(employeeIdOrUsername: string, month: string): Promise<IsatProfile | null> {
     const staff = await this.qb

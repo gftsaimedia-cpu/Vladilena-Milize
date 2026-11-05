@@ -7,7 +7,7 @@ const props = defineProps({
   year: { type: Number, required: true },
   holidays: { type: Array as () => any[], default: () => [] }, // [{ from, to }] 'YYYY-MM-DD'
   startDay: { type: Number, default: 1 },
-  payDay: { type: Number, default: 10 }
+  payDates: { type: Array as () => string[], default: () => [] } // ngày trả lương 'YYYY-MM-DD'
 });
 defineEmits(['pick']);
 
@@ -15,6 +15,8 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 const pad = (n?) => String(n).padStart(2, '0');
 const isoOf = (y?, m?, d?) => `${y}-${pad(m)}-${pad(d)}`;
 const isHoliday = (iso?) => props.holidays.some(h => iso >= h.from && iso <= h.to);
+
+const paySet = computed(() => new Set(props.payDates));
 
 const months = computed(() =>
   Array.from({ length: 12 }, (_, i) => {
@@ -35,7 +37,7 @@ const months = computed(() =>
           ho,
           s: ho && (!prev || dow === 0),
           e: ho && (!next || dow === 6),
-          pay: d === props.payDay,
+          pay: paySet.value.has(isoOf(props.year, m, d)),
           st: d === props.startDay && !ho
         }
       };

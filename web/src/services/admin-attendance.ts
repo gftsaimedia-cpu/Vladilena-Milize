@@ -7,6 +7,7 @@ import { respond } from '@/mock/respond';
 import { useSessionStore } from '@/stores/session';
 import { getInbox } from './admin-main';
 import { api, qs } from './http';
+import { getWorkWeeks } from './settings-store';
 
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
@@ -24,12 +25,21 @@ async function load(month: string): Promise<AttendanceInput> {
   const gridFrom = gridFromOf(t);
   const startDate = [gridFrom, `${month}-01`].sort()[0];
   const endDate = [addDays(gridFrom, 27), monthEnd].sort()[1];
-  const [ts, emp, inbox] = await Promise.all([
+  const [ts, emp, inbox, weeks] = await Promise.all([
     api.get(`/attendance/timesheets${qs({ startDate, endDate })}`),
     api.get('/employees'),
-    getInbox()
+    getInbox(),
+    // Tuần riêng của từng người (khoá là username); lỗi thì lưới coi mọi người làm T2–T7.
+    getWorkWeeks(month).catch(() => null)
   ]);
-  return { month, today: t, employees: emp.employees || [], timesheets: ts.timesheets || [], pending: inbox.items };
+  return {
+    month,
+    today: t,
+    employees: emp.employees || [],
+    timesheets: ts.timesheets || [],
+    pending: inbox.items,
+    ...(weeks ? { weekdays: weeks.weekdays } : {})
+  };
 }
 
 /** Màn Chấm công của một tháng 'YYYY-MM'; null khi tháng đó không có dữ liệu giả (chế độ dữ liệu giả). */

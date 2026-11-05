@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { RequestsService } from './requests.service';
 import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
@@ -236,6 +237,8 @@ export class RequestsController {
       const request = await this.service.reviewRequest(id, reviewerId, body.action, body.note);
       return { updated: true, request };
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       const conflict = dayConflictHttp(err, 409);
       if (conflict) throw conflict;
       if (err.message?.includes('not found')) {
@@ -254,9 +257,10 @@ export class RequestsController {
   ): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.cancelRequest(id, employeeId, body.reason);
+      const request = await this.service.cancelRequest(id, employeeId, body.reason, user.username);
       return { updated: true, request };
     } catch (err: any) {
+      if (err instanceof AuditEntryError) throw err;
       if (err.message?.includes('not found')) {
         throw new NotFoundError(err.message, { code: 'REQUEST_NOT_FOUND' });
       }

@@ -23,9 +23,11 @@ onMounted(() => {
 const passwordType = computed(() => (revealed.value ? 'text' : 'password'));
 // Gợi ý "mật khẩu bất kỳ" chỉ đúng với dữ liệu giả; bản thật kiểm mật khẩu ở BE.
 const isMock = __MOCK__;
+// Ô trống (tên chỉ có khoảng trắng cũng là trống) thì nút mờ: không cho bấm rồi mới báo.
+const ready = computed(() => username.value.trim() !== '' && password.value !== '');
 
 async function submit() {
-  if (busy.value) return;
+  if (busy.value || !ready.value) return;
   busy.value = true;
   try {
     const session = await login({ username: username.value, password: password.value });
@@ -78,7 +80,7 @@ async function submit() {
         <div v-if="failed" class="msg" role="alert">
           {{ errorText }}
         </div>
-        <button type="submit" class="go" :disabled="busy">Đăng nhập</button>
+        <button type="submit" class="go" :disabled="busy || !ready">Đăng nhập</button>
         <p v-if="isMock" class="hint">Bản mockup: mật khẩu bất kỳ. Tên admin vào khu quản trị, tên khác vào khu nhân viên.</p>
         <div class="help"><b>Quên mật khẩu?</b> Nhờ Admin đặt lại, bạn sẽ đăng nhập lại bằng mật khẩu mới.</div>
       </form>
