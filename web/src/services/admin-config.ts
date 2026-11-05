@@ -37,13 +37,6 @@ async function putParams(idx?, wanted?) {
   return { ok: true, saved: res.saved || [], paramsRev: res.paramsRev };
 }
 
-// POST /api/settings/params/preview { changes, effectiveMonth } -> { ok, errors, warnings, impact: { people, totals } }; không ghi gì.
-export const previewParams = (body?) => api('POST', '/settings/params/preview', body);
-
-// POST /api/settings/params/revert { key, toVersion, effectiveMonth, reason, expectedRev }: thêm một dòng mới mang giá trị của phiên bản cũ (0 = mặc định).
-export const revertParam = ({ key, toVersion, effectiveMonth, reason, expectedRev }: any) =>
-  api('POST', '/settings/params/revert', { key, toVersion, effectiveMonth, reason, expectedRev });
-
 // ---------- Khung Cài đặt ----------
 // GET /api/settings/first-run: số mục còn dùng mặc định, chờ xác nhận
 export const getSettingsBadges = () => api('GET', '/settings/first-run').then(r => ({ 'tat-ca': r.total }));
@@ -51,7 +44,6 @@ export const getSettingsBadges = () => api('GET', '/settings/first-run').then(r 
 // ---------- Cách tính lương ----------
 const state: Record<string, any> = {
   benefits: null,
-  all: null,
   alerts: null,
   calendar: null,
   setup: null
@@ -86,15 +78,6 @@ export async function saveBenefits(month: string, draft: BenefitsView, reason: s
   const body = { effectiveMonth: month, items, ...(reason && reason.trim() ? { reason } : {}) };
   await writePositions('PUT', '/positions', body);
   state.benefits.base = plain(draft);
-}
-
-/** Hoàn tác một ô về phiên bản cũ rồi nhớ số phiên bản mới cho các lần lưu sau. */
-export async function revertSetting({ key, toVersion, effectiveMonth, reason }: any) {
-  const st = state.all;
-  if (!st) throw new Error('Chưa tải dữ liệu để hoàn tác');
-  const res = await revertParam({ key, toVersion, effectiveMonth, reason, expectedRev: st.idx.rev });
-  if (Number.isInteger(res.paramsRev)) st.idx.rev = res.paramsRev;
-  return res;
 }
 
 // ---------- Lịch, ca & chấm công ----------

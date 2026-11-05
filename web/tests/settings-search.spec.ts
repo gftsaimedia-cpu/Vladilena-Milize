@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ALL_GROUPS, normalizeSearch, searchSettings } from '../src/builders/api/settings-screens';
+import { ALL_GROUPS, normalizeSearch, revertValues, searchSettings } from '../src/builders/api/settings-screens';
+import { groupHistory, resetSettingsMock, saveGroup, settingsAt } from '../src/mock/settings';
 
 // Cài đặt › Tất cả cài đặt trên dữ liệu giả (mock/settings.ts): tám nhóm, tìm kiếm, lưu. Không page.route.
 // Dữ liệu giả nằm trong bộ nhớ và về lại ban đầu sau mỗi lần tải trang, nên test lưu rồi kiểm không được goto lại.
@@ -171,4 +172,101 @@ test('the bracket table shows five rows, the last one without a limit', async ({
   await expect(table).toContainText('Mức “thu nhập trên” của mỗi bậc lấy theo mức “đến” của bậc trước.');
   await table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' }).fill('150');
   await expect(table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' })).toHaveValue('20');
+});
+
+// Lưu qua hộp "Lưu thay đổi" rồi chờ thông báo, để các test dưới đây có sẵn dòng lịch sử.
+async function saveViaDialog(page: Page) {
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lưu thay đổi' }).getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByText('Đã lưu')).toBeVisible();
+}
+
+test('revertValues: one field back to its old number, a KPI save back as one set', () => {
+  resetSettingsMock();
+  saveGroup('insurance', { effectiveMonth: '2026-10', values: { bhxhPct: 8.5 }, reason: null, stamp: 0 });
+  const ins = groupHistory('insurance').items;
+  expect(revertValues('insurance', ins[0], settingsAt('2026-10').groups.insurance, ins)).toEqual({ bhxhPct: 8 });
+
+  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: 0 });
+  const kpi = groupHistory('kpi-weights').items;
+  const state = settingsAt('2026-10').groups.kpiWeights;
+  expect(kpi.map(h => h.field).sort()).toEqual(['self', 'user']);
+  expect(revertValues('kpiWeights', kpi[0], state, kpi)).toEqual({ wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
+});
+
+test('revertValues gives null when putting a KPI save back would not total 100', () => {
+  resetSettingsMock();
+  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: 0 });
+  const stamp = groupHistory('kpi-weights').items[0].id;
+  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 20, peer: 18, manager: 14, self: 8 }, reason: null, stamp });
+  const kpi = groupHistory('kpi-weights').items;
+  const first = kpi.find(h => h.field === 'self')!; // dòng của lần lưu đầu: self 6 → 8
+  expect(revertValues('kpiWeights', first, settingsAt('2026-10').groups.kpiWeights, kpi)).toBeNull();
+});
+
+test('Hoàn tác adds a new history row', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(bhxh).toContainText('Lịch sử · 1 lần sửa');
+  await expect(bhxh.locator('tbody tr')).toHaveCount(1);
+  await expect(bhxh.locator('tbody tr').first()).toContainText('8% → 8,5%');
+  await expect(bhxh.locator('tbody tr').first()).toContainText('admin');
+  await bhxh.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg).toContainText('BHXH 8,5% → 8%');
+  await dlg.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+  await expect(page.getByText('Đã hoàn tác')).toBeVisible();
+  await expect(bhxh.locator('tbody tr')).toHaveCount(2);
+  await expect(bhxh.locator('tbody tr').first()).toContainText('8,5% → 8%');
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await bhxh.getByRole('button', { name: 'Ẩn lịch sử' }).click();
+  await expect(bhxh.locator('tbody tr')).toHaveCount(0);
+});
+
+test('a KPI change reverts as one set', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=luong-kpi');
+  await page.getByRole('textbox', { name: 'Người dùng' }).fill('22');
+  await page.getByRole('textbox', { name: 'Tự đánh giá' }).fill('8');
+  await saveViaDialog(page);
+  const user = item(page, 'user');
+  await user.getByRole('button', { name: 'Lịch sử' }).click();
+  await user.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg).toContainText('Trọng số Người dùng 22% → 24%');
+  await expect(dlg).toContainText('Trọng số Tự đánh giá 8% → 6%');
+  await dlg.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+  await expect(page.getByText('Đã hoàn tác')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Người dùng' })).toHaveValue('24');
+  await expect(page.getByRole('textbox', { name: 'Tự đánh giá' })).toHaveValue('6');
+});
+
+test('Hoàn tác is off while the group has unsaved edits', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeEnabled();
+  await page.getByRole('textbox', { name: 'BHYT' }).fill('2');
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeEnabled();
+});
+
+test('the reason of a revert is optional and the month list starts at the open month', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await bhxh.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg.getByRole('combobox', { name: 'Áp dụng từ tháng' }).locator('option')).toHaveCount(6);
+  await expect(dlg.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveValue('2026-10');
+  await expect(dlg.getByRole('button', { name: 'Hoàn tác', exact: true })).toBeEnabled();
+  await dlg.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(dlg).toHaveCount(0);
 });

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 // Thẻ của một nhóm trong Tất cả cài đặt: các mục, vùng "Áp dụng từ tháng" + lý do (chỉ hiện khi đã đổi gì đó),
-// thanh lưu (Huỷ, Lưu) và hộp xác nhận. Mỗi nhóm của máy chủ dùng một useSettingsDraft; đổi nhóm là dựng thẻ mới.
+// thanh lưu (Huỷ, Lưu), hộp xác nhận, lịch sử từng mục và Hoàn tác. Mỗi nhóm của máy chủ dùng một useSettingsDraft; đổi nhóm là dựng thẻ mới.
 // Báo lên trang qua `dirty` để trang hỏi trước khi bỏ chỗ sửa dở. `setting` là mục cần cuộn tới và focus.
 import { computed, nextTick, ref, watch } from 'vue';
-import type { SettingGroup } from '@/builders/api/settings-screens';
+import { GROUP_PATH, historyRow, type HistoryItem, type Values } from '@/builders/api/settings';
+import { revertValues, type HistoryRowView, type SettingEntry, type SettingGroup } from '@/builders/api/settings-screens';
+import { toast } from '@/components/shell/toast';
+import { getSettingsHistory } from '@/services/settings-store';
 import SaveConfirmDialog from '../fields/SaveConfirmDialog.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
 import { REASON_MAX } from '../lib/rules';
 import { useSettingsDraft } from '../lib/useSettingsDraft';
+import RevertDialog from './RevertDialog.vue';
 import SettingItem from './SettingItem.vue';
 
 const props = defineProps({
@@ -34,10 +38,46 @@ const status = computed(() => {
 });
 const bad = computed(() => Object.keys(sd?.errors.value ?? {}).length > 0);
 
+// Lịch sử của cả nhóm máy chủ (mới nhất trước); mỗi mục lọc ra các dòng thuộc ô của mình.
+const history = ref<HistoryItem[]>([]);
+async function loadHistory() {
+  if (!props.group.group) return;
+  try {
+    history.value = (await getSettingsHistory(GROUP_PATH[props.group.group])).items;
+  } catch (e) {
+    toast.error(e.message);
+  }
+}
+loadHistory();
+
+// Hoàn tác tắt khi nhóm còn chỗ sửa dở hoặc khi hoàn tác sẽ làm trọng số KPI không đủ 100.
+function revertOf(row: HistoryItem): Values | null {
+  if (!sd?.state.value || !props.group.group) return null;
+  return revertValues(props.group.group, row, sd.state.value, history.value);
+}
+function historyOf(entry: SettingEntry): HistoryRowView[] | null {
+  if (!sd) return null;
+  const own = new Set(entry.brackets ? ['brackets'] : entry.fields.map(f => f.field));
+  return history.value
+    .filter(h => own.has(h.field))
+    .map(h => ({ ...historyRow(h), raw: h, canRevert: changes.value === 0 && revertOf(h) !== null }));
+}
+
 const confirming = ref(false);
 async function confirm() {
-  await sd!.save();
+  const ok = await sd!.save();
   confirming.value = false;
+  if (ok) await loadHistory();
+}
+
+const reverting = ref<Values | null>(null);
+function askRevert(row: HistoryItem) {
+  reverting.value = revertOf(row);
+}
+async function reverted() {
+  reverting.value = null;
+  sd!.reset();
+  await Promise.all([sd!.reload(), loadHistory()]);
 }
 
 const card = ref<HTMLElement | null>(null);
@@ -47,7 +87,7 @@ async function focusSetting() {
   const el = card.value?.querySelector<HTMLElement>(`[data-setting-key="${CSS.escape(props.setting)}"]`);
   if (!el) return;
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  (el.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)') ?? el).focus({ preventScroll: true });
+  (el.querySelector<HTMLElement>('input:not(:disabled)') ?? el).focus({ preventScroll: true });
 }
 watch([shown, () => props.setting], focusSetting, { immediate: true });
 </script>
@@ -68,6 +108,8 @@ watch([shown, () => props.setting], focusSetting, { immediate: true });
         :draft="sd?.draft.value"
         :errors="sd?.errors.value"
         :state="sd?.state.value"
+        :history="historyOf(entry)"
+        @revert="askRevert"
       />
 
       <template v-if="sd">
@@ -117,6 +159,17 @@ watch([shown, () => props.setting], focusSetting, { immediate: true });
     :saving="sd.saving.value"
     @confirm="confirm"
     @close="confirming = false"
+  />
+  <RevertDialog
+    v-if="sd?.state.value && group.group && reverting"
+    :group="group.group"
+    :values="reverting"
+    :current="sd.state.value.values"
+    :stamp="sd.state.value.stamp"
+    :months="sd.months.value"
+    :month="sd.month.value"
+    @close="reverting = null"
+    @done="reverted"
   />
 </template>
 

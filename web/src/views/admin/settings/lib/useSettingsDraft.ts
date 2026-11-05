@@ -141,5 +141,5 @@ export function useSettingsDraft(group: GroupKey, fields: string[]) {
     }
   }
 
-  return { ready, month, months, state, draft, reason, changed, errors, canSave, lines, saving, reset, save };
+  return { ready, month, months, state, draft, reason, changed, errors, canSave, lines, saving, reset, save, reload: load };
 }

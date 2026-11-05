@@ -1,7 +1,17 @@
 // Dựng dữ liệu hiển thị cho các màn Cài đặt từ phản hồi của kho cài đặt và danh mục chức vụ. Thuần: chỉ import tương đối.
 import { monthShort, num, vnd } from '../../utils/format';
 import { inForce, type LevelRow, type TypeRow } from './catalog';
-import { FIELD_LABEL, fieldText, isEdited, type GroupKey, type HistoryItem, type SettingsResponse } from './settings';
+import {
+  FIELD_LABEL,
+  fieldText,
+  isEdited,
+  type GroupKey,
+  type GroupState,
+  type historyRow,
+  type HistoryItem,
+  type SettingsResponse,
+  type Values
+} from './settings';
 
 /** Tên năm thành phần KPI theo thứ tự hiển thị. */
 export const KPI_NAMES: Record<string, string> = {
@@ -416,3 +426,20 @@ export function searchSettings(q: string): { groupKey: string; itemKey: string; 
       .map(i => ({ groupKey: g.key, itemKey: i.key, title: i.title, groupName: g.name }))
   );
 }
+
+// ---------- Hoàn tác ----------
+
+/**
+ * Các số sẽ gửi khi hoàn tác dòng lịch sử `row`: một ô về số cũ; riêng trọng số KPI hoàn tác cả lần lưu
+ * (mọi dòng cùng giờ sửa và cùng tháng áp dụng), trả đủ năm ô và null nếu tổng không còn đủ 100.
+ */
+export function revertValues(group: GroupKey, row: HistoryItem, state: GroupState, items: HistoryItem[]): Values | null {
+  if (group !== 'kpiWeights') return { [row.field]: row.from };
+  const values: Values = { ...state.values };
+  for (const h of items) if (h.at === row.at && h.month === row.month) values[h.field] = h.from;
+  const sum = Object.values(values).reduce<number>((n, v) => n + Number(v), 0);
+  return Math.round(sum * 100) / 100 === (state.sum ?? 100) ? values : null;
+}
+
+/** Một dòng lịch sử của mục: chữ hiện (historyRow), dòng gốc để hoàn tác, và có hoàn tác được ngay không. */
+export type HistoryRowView = ReturnType<typeof historyRow> & { raw: HistoryItem; canRevert: boolean };
