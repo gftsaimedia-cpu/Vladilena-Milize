@@ -50,7 +50,7 @@ onBeforeUnmount(() => listen(false));
 <template>
   <header class="bar">
     <img class="logo" :src="logo" alt="GFT" />
-    <span class="app">Nhân viên</span>
+    <span class="bar-app">Nhân viên</span>
     <button
       id="sd-account"
       type="button"
@@ -118,7 +118,7 @@ onBeforeUnmount(() => listen(false));
   width: 52px;
   height: auto;
 }
-.app {
+.bar-app {
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;

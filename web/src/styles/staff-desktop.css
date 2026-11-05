@@ -81,3 +81,48 @@
 .sd-drawer .sd-db {
   display: flex;
 }
+
+/* Cột (spec 3.1): cột dọc, khoảng cách 16px; khối cuối .sd-grow giãn cho kín đáy nên ba cột luôn cao bằng nhau. */
+.sd-app .sd-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.sd-app .sd-grow {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Tiêu đề: h1 tên và h2 tiêu đề cột League Spartan 600 28px/32px; h2 tiêu đề khối Geist 600 18px/24px. */
+.sd-app h1,
+.sd-app h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+}
+.sd-app .sd-title {
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+/* Ô danh sách yêu cầu (D15, spec 4.1): lấp phần còn lại của cột, không làm trang dài thêm, cuộn bên trong; nhãn tháng dính đầu ô. */
+.sd-app .rq-scroll {
+  flex: 1 1 0;
+  height: 0;
+  min-height: 288px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.sd-app .rq-scroll .rq-gh {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--page);
+}
