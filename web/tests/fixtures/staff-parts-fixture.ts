@@ -1,13 +1,15 @@
 // Gắn riêng một phần dùng chung của app nhân viên với dữ liệu tự dựng (không qua services, không gọi /api).
 //   ?part=day&start=06:00&end=14:00   DayBody của một ngày đã ra ca, ca 06:00–14:00
 //   ?part=month&prev=2026-09&next=    MonthSwitch; bấm nút thì ghi tháng nhận được vào #went
-//   ?part=error                       LoadError; bấm "Thử lại" thì tăng #retries
+//   ?part=error                       LoadError với lỗi máy chủ (ApiError); bấm "Thử lại" thì tăng #retries
+//   ?part=error&kind=bug              LoadError với lỗi lập trình (TypeError) thay vì lỗi máy chủ
 //   ?part=shift&location=…            ShiftCard đã vào ca; thiếu location thì location = null
 import { createApp, h, ref } from 'vue';
 import LoadError from '../../src/views/staff-phone/components/LoadError.vue';
 import DayBody from '../../src/views/staff-phone/components/DayBody.vue';
 import MonthSwitch from '../../src/views/staff-phone/components/MonthSwitch.vue';
 import ShiftCard from '../../src/views/staff-phone/components/ShiftCard.vue';
+import { ApiError } from '../../src/services/http';
 import '../../src/styles/base.css';
 import '../../src/styles/phone.css';
 
@@ -33,10 +35,15 @@ function month() {
   ];
 }
 
+const failure = () =>
+  q.get('kind') === 'bug'
+    ? new TypeError("Cannot read properties of undefined (reading 'net')")
+    : new ApiError(0, 'Không kết nối được máy chủ.', { code: 'network' });
+
 function error() {
   const retries = ref(0);
   return () => [
-    h(LoadError, { error: new Error('Mất kết nối tới máy chủ'), onRetry: () => retries.value++ }),
+    h(LoadError, { error: failure(), onRetry: () => retries.value++ }),
     h('output', { id: 'retries' }, String(retries.value))
   ];
 }

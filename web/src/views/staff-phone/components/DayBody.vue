@@ -10,11 +10,13 @@ const props = defineProps<{ day: DayDetail }>();
 const toMin = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 
-// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30).
+// Ba mốc dưới thanh: giờ vào ca, giữa ca, giờ ra ca của chính ngày đó (08:00–17:00 → 12:30). Ca qua đêm thì giờ ra thuộc
+// ngày sau (22:00–06:00 → 02:00).
 const axis = computed(() => {
   const start = toMin(props.day.shiftStart);
-  const end = toMin(props.day.shiftEnd);
-  return [props.day.shiftStart, hhmm(Math.round((start + end) / 2)), props.day.shiftEnd];
+  let end = toMin(props.day.shiftEnd);
+  if (end <= start) end += 1440;
+  return [props.day.shiftStart, hhmm(Math.round((start + end) / 2) % 1440), props.day.shiftEnd];
 });
 
 // Thanh giờ: trục là ca của ngày (vd. 08:00–17:00 = 540 phút); mỗi đoạn là [trái, phải] theo phần trăm của trục.

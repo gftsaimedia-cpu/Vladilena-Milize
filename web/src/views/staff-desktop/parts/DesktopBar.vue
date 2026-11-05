@@ -76,7 +76,7 @@ onBeforeUnmount(() => listen(false));
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <section v-if="data || error" v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
+    <section v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
       <LoadError v-if="error" :error="error" @retry="reload" />
       <template v-else-if="data">
         <div class="sd-ident">

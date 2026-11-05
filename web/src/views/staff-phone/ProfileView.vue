@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // J7 · Tôi (spec 8.2): dải vàng đầu màn, khối định danh của Lê Hoàng Nam, thẻ "Công việc", hai thao tác.
 // Đổi mật khẩu mở hộp trượt theo ?hop=doi-mat-khau (mở bằng router.replace); Đăng xuất về /dang-nhap.
-// Tải hồ sơ lỗi thì hiện LoadError với nút Thử lại; hai thao tác vẫn dùng được (đăng xuất không cần hồ sơ).
+// Tải hồ sơ lỗi thì hiện LoadError với nút Thử lại; hai thao tác luôn có, kể cả khi hồ sơ đang tải lại (không cần hồ sơ).
 import { computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
@@ -60,18 +60,16 @@ async function signOut() {
         <p class="mut sm">{{ data.note }}</p>
       </section>
     </template>
-    <template v-if="data || error">
-      <section class="card blk">
-        <button type="button" class="mi" @click="openPassword">
-          <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
-          <PhIcon name="right" :size="18" :stroke="2" />
-        </button>
-        <button type="button" class="mi out" @click="signOut">
-          <span class="ti"><PhIcon name="out" /></span><span class="t">Đăng xuất</span>
-        </button>
-      </section>
-    </template>
-    <ChangePasswordSheet v-if="(data || error) && hop === PASSWORD" :username="username" @close="close" />
+    <section class="card blk">
+      <button type="button" class="mi" @click="openPassword">
+        <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
+        <PhIcon name="right" :size="18" :stroke="2" />
+      </button>
+      <button type="button" class="mi out" @click="signOut">
+        <span class="ti"><PhIcon name="out" /></span><span class="t">Đăng xuất</span>
+      </button>
+    </section>
+    <ChangePasswordSheet v-if="hop === PASSWORD" :username="username" @close="close" />
   </div>
 </template>
 

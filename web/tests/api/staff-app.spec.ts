@@ -27,6 +27,24 @@ async function asAdmin<T>(request: APIRequestContext, fn: () => Promise<T>): Pro
   }
 }
 
+// Ba chế độ cho /me/profile: lỗi mạng, treo tới khi release(), chạy thật. Trả về hàm đổi chế độ.
+async function profileRoute(page: Page) {
+  let mode: 'fail' | 'hold' | 'pass' = 'fail';
+  let release!: () => void;
+  const held = new Promise<void>(r => (release = r));
+  await page.route('**/api/v2/me/profile', async route => {
+    if (mode === 'fail') return route.abort();
+    if (mode === 'hold') await held;
+    return route.continue();
+  });
+  return {
+    hold: () => (mode = 'hold'),
+    release: () => ((mode = 'pass'), release())
+  };
+}
+
+const firstRequest = (page: Page, path: string) => page.waitForRequest(r => new URL(r.url()).pathname === `/api/v2${path}`);
+
 async function signIn(page: Page) {
   await page.goto('/dang-nhap');
   await page.locator('#lg-user').fill(STAFF_USER);
@@ -98,10 +116,45 @@ test('a failed load says so and Thử lại loads again', async ({ page }) => {
   await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
+test('Đổi mật khẩu and Đăng xuất stay on the phone while my profile fails or reloads', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await signIn(page);
+  const profile = await profileRoute(page);
+  await page.goto('/nv/toi');
+  await expect(page.getByRole('alert')).toContainText('Không tải được dữ liệu');
+  await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
+  profile.hold();
+  await page.getByRole('alert').getByRole('button', { name: 'Thử lại' }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Đổi mật khẩu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
+  profile.release();
+  await expect(page.locator('.ident .nm')).not.toBeEmpty();
+});
+
+test('Đổi mật khẩu and Đăng xuất stay in the desktop menu while my profile fails or reloads', async ({ page }) => {
+  await signIn(page);
+  const profile = await profileRoute(page);
+  await page.goto('/nv/toi');
+  const menu = page.getByRole('region', { name: 'Tài khoản của tôi' });
+  await expect(menu.getByRole('alert')).toContainText('Không tải được dữ liệu');
+  await expect(menu.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
+  profile.hold();
+  await menu.getByRole('button', { name: 'Thử lại' }).click();
+  await expect(menu.getByRole('alert')).toHaveCount(0);
+  await expect(menu.getByRole('button', { name: 'Đổi mật khẩu' })).toBeVisible();
+  await expect(menu.getByRole('button', { name: 'Đăng xuất' })).toBeVisible();
+  profile.release();
+  await expect(menu.locator('.sd-nm2')).not.toBeEmpty();
+});
+
 test('the attendance month goes back to my start month and never past this month', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await signIn(page);
+  const first = firstRequest(page, '/me/attendance');
   await page.goto('/nv/cham-cong');
+  // Lần đầu không gửi tháng: máy chủ tự lấy tháng hiện tại (đồng hồ máy có thể lệch sang tháng sau).
+  expect(new URL((await first).url()).searchParams.has('month')).toBe(false);
   const prev = page.getByRole('button', { name: 'Tháng trước' });
   const next = page.getByRole('button', { name: 'Tháng sau' });
   await expect(page.getByText(label(THIS), { exact: true })).toBeVisible();
@@ -120,7 +173,9 @@ test('the attendance month goes back to my start month and never past this month
 test('income switches month on the phone; the desktop attendance column too', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await signIn(page);
+  const first = firstRequest(page, '/me/income');
   await page.goto('/nv/thu-nhap');
+  expect(new URL((await first).url()).searchParams.has('month')).toBe(false);
   await expect(page.getByText(label(THIS), { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tháng sau' })).toBeDisabled();
   await page.getByRole('button', { name: 'Tháng trước' }).click();

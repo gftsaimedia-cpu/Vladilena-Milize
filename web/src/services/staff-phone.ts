@@ -35,7 +35,6 @@ const VN_MS = 7 * 3600000;
 const vnNow = () => new Date(Date.now() + VN_MS).toISOString();
 const today = () => vnNow().slice(0, 10);
 const nowTime = () => vnNow().slice(11, 16);
-const thisMonth = () => today().slice(0, 7);
 const shiftLineOf = (p: MeProfile) =>
   `${p.shift.type === 'NORMAL' ? 'HC' : p.shift.type} ${p.shift.startTime}–${p.shift.endTime}`;
 
@@ -44,16 +43,17 @@ export async function getHome(): Promise<HomeView> {
   const [t, profile, income, reqs] = await Promise.all([
     api.get('/me/today'),
     api.get('/me/profile'),
-    api.get(`/me/income${qs({ month: thisMonth() })}`).catch(() => null),
+    api.get('/me/income').catch(() => null),
     api.get('/me/requests')
   ]);
   return homeViewOf(t, profile, income, reqs.items || [], nowTime());
 }
 
-// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7). month 'YYYY-MM' (mặc định tháng hiện tại); dữ liệu giả chỉ có một tháng.
+// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7). month 'YYYY-MM'; không có thì không gửi, máy chủ lấy tháng hiện tại
+// theo giờ của nó (đồng hồ máy có thể lệch sang tháng sau). Dữ liệu giả chỉ có một tháng.
 export async function getAttendance(recent = 5, month?: string | null): Promise<AttendanceView> {
   if (__MOCK__) return respond(attendanceView(recent));
-  const [m, profile] = await Promise.all([api.get(`/me/attendance${qs({ month: month || thisMonth() })}`), api.get('/me/profile')]);
+  const [m, profile] = await Promise.all([api.get(`/me/attendance${qs({ month })}`), api.get('/me/profile')]);
   return attendanceViewOf(m, shiftLineOf(profile), today(), recent);
 }
 
@@ -83,10 +83,10 @@ export async function getRequest(id: string): Promise<RequestDetail | null> {
   }
 }
 
-// month 'YYYY-MM' (mặc định tháng hiện tại); dữ liệu giả chỉ có một tháng.
+// month 'YYYY-MM'; không có thì máy chủ lấy tháng hiện tại (như getAttendance). Dữ liệu giả chỉ có một tháng.
 export async function getIncome(month?: string | null): Promise<IncomeView> {
   if (__MOCK__) return respond(incomeView());
-  return incomeViewOf(await api.get(`/me/income${qs({ month: month || thisMonth() })}`));
+  return incomeViewOf(await api.get(`/me/income${qs({ month })}`));
 }
 
 export async function getProfile(): Promise<ProfileView> {

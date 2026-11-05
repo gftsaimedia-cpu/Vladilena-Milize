@@ -25,6 +25,11 @@ test('the day axis keeps 12:30 in the middle of an 08:00–17:00 shift', async (
   await expect(page.locator('.ds-axis span')).toHaveText(['08:00', '12:30', '17:00']);
 });
 
+test('the day axis of a night shift puts the middle after midnight', async ({ page }) => {
+  await open(page, 'part=day&start=22:00&end=06:00');
+  await expect(page.locator('.ds-axis span')).toHaveText(['22:00', '02:00', '06:00']);
+});
+
 test('the month switch only offers months inside the range', async ({ page }) => {
   const calls = await open(page, 'part=month&prev=2026-09&next=');
   const prev = page.getByRole('button', { name: 'Tháng trước' });
@@ -46,10 +51,17 @@ test('a load error says what failed and offers a retry', async ({ page }) => {
   const calls = await open(page, 'part=error');
   const alert = page.getByRole('alert');
   await expect(alert).toContainText('Không tải được dữ liệu');
-  await expect(alert).toContainText('Mất kết nối tới máy chủ');
+  await expect(alert).toContainText('Không kết nối được máy chủ.');
   await alert.getByRole('button', { name: 'Thử lại' }).click();
   await expect(page.locator('#retries')).toHaveText('1');
   expect(calls).toEqual([]);
+});
+
+test('a load error from a bug shows the plain message, not the code error', async ({ page }) => {
+  await open(page, 'part=error&kind=bug');
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('Máy chủ không trả lời, thử lại sau ít phút.');
+  await expect(alert).not.toContainText('Cannot read');
 });
 
 test('the shift card has no location line while the server sends none', async ({ page }) => {
