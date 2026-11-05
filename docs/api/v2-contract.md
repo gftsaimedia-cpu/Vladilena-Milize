@@ -251,6 +251,26 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     }
   }
   ```
+- **Lỗi**:
+
+  | HTTP | `code` | Khi nào |
+  |------|--------|---------|
+  | 400 | `BAD_PUNCH_INPUT` | Dữ liệu chấm không hợp lệ (`error` là câu lỗi), ví dụ thiếu `employeeId`, `type` không phải `IN`/`OUT`, ngày nghỉ đã duyệt. `workDate` có gửi mà không phải ngày có thật dạng `YYYY-MM-DD` (như `20261020`, ` 2026-10-20`, `2026-02-30`): `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): <giá trị>`, kiểm trước mọi bước khác |
+  | 409 | `PERIOD_LOCKED` | Tháng của ngày công (`workDate`; không gửi thì hôm nay theo giờ Việt Nam) không còn `open`. Kèm `month`, `status`. Câu: `Tháng MM/YYYY đã chốt công` (`attendance_locked`, `calculated`), `Kỳ lương tháng MM/YYYY đã phê duyệt` (`approved`), `Kỳ lương tháng MM/YYYY đã trả lương` (`paid`). Không ghi gì |
+
+- `POST /api/v2/me/punches` (nhân viên tự chấm; body `{ "kind": "IN" | "OUT", "lat", "lng", "accuracyM" }`, ngày công luôn là hôm nay theo giờ Việt Nam): cùng hai lỗi `400 BAD_PUNCH_INPUT` và `409 PERIOD_LOCKED` như trên.
+
+#### `POST /api/v2/attendance/recalculate`
+- **Mục đích**: Tính lại bảng công một ngày từ các lượt chấm đã có. Quyền `attendance.correct`.
+- **Request Body**: `{ "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891", "workDate": "2026-10-20" }`.
+- **Response 200**: `{ "timesheet": <bảng công của ngày> }`.
+- **Lỗi**:
+
+  | HTTP | `code` | Khi nào |
+  |------|--------|---------|
+  | 400 | `MISSING_PARAMS` | Thiếu `employeeId` hoặc `workDate` |
+  | 400 | `INVALID_DATE` | `workDate` không phải ngày có thật dạng `YYYY-MM-DD`. Câu: `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): <giá trị>` |
+  | 409 | `PERIOD_LOCKED` | Tháng của `workDate` không còn `open` (như ở `POST .../punches`). Không ghi gì |
 
 #### `GET /api/v2/attendance/timesheets`
 - **Query Params**: `employeeId`, `month` (`YYYY-MM`), `status`.
@@ -730,8 +750,9 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```
   - `action`: `APPROVE` hoặc `REJECT`; `note` không bắt buộc. Người duyệt lấy từ phiên đăng nhập.
 - **Response 200**: `{ "updated": true, "request": <đơn>, "recalculated": [ ... ] }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
+  - **Phiếu về nháp ngay khi lưu quyết định.** Với mỗi tháng của đơn mà kỳ lương đang `calculated`, trong cùng giao dịch lưu quyết định (cả `APPROVE` lẫn `REJECT`), phiếu của người nộp trong lần chạy nháp hiện tại về `draft` và mất `decidedBy`, `decidedAt`, `note` (phiếu đã ở `draft` thì giữ nguyên). Vì vậy, từ lúc quyết định được lưu, `POST /api/v2/system/periods/:month/approve` bị chặn `409 PERIOD_BLOCKED` (phiếu chưa duyệt) cho tới khi phiếu người đó được duyệt lại, kể cả khi bước tính lại dưới đây lỗi hay không chạy được (ví dụ máy chủ dừng ngay sau khi lưu). Phê duyệt kỳ gọi trong lúc đang duyệt đơn thì đợi lần duyệt đơn commit rồi mới xét, nên cũng thấy phiếu đã về nháp. Không đưa được phiếu về nháp (lỗi DB) thì cả lần duyệt đơn bị huỷ, đơn giữ `PENDING`. Tháng `open` hay `attendance_locked` không đụng tới phiếu nào.
   - `recalculated`: sau khi quyết định đã lưu, với mỗi tháng của đơn (tháng tăng dần, như ở `PERIOD_LOCKED`) mà kỳ lương đang `calculated`, phiếu lương tháng đó của người nộp được tính lại (chỉ người đó; phiếu mới ở `draft`, người khác giữ phiếu và trạng thái). Mỗi tháng một phần tử `{ "month": "2026-10", "ok": true }`. Tháng `open` hay `attendance_locked` không tính lại (lần tính cả kỳ sau Chốt công sẽ lấy dữ liệu mới), nên mảng rỗng `[]` khi không có tháng nào ở `calculated`.
-  - Tính lại lỗi: `{ "month": "2026-10", "ok": false, "error": "<câu lỗi>" }`. Quyết định duyệt đơn vẫn giữ (vẫn `200`); phiếu cũ của người đó về `draft` và mất người duyệt, nên Phê duyệt kỳ còn bị chặn tới khi Admin tính lại và duyệt lại phiếu. Không đọc được trạng thái kỳ của một tháng (lỗi DB) thì tháng đó cũng là `ok: false` kèm `error`, nhưng không tính lại và phiếu giữ nguyên (Admin tự tính lại người đó nếu kỳ đang `calculated`); các tháng sau vẫn được xét.
+  - Tính lại lỗi: `{ "month": "2026-10", "ok": false, "error": "<câu lỗi>" }`. Quyết định duyệt đơn vẫn giữ (vẫn `200`); phiếu cũ của người đó đã về `draft` lúc lưu quyết định (ở trên), nên Phê duyệt kỳ còn bị chặn tới khi phiếu được duyệt lại (Admin nên tính lại người đó trước khi duyệt). Không đọc được trạng thái kỳ của một tháng sau khi lưu (lỗi DB) thì tháng đó cũng là `ok: false` kèm `error` và không tính lại (Admin tự tính lại người đó nếu kỳ đang `calculated`; phiếu đã về `draft` lúc lưu quyết định); các tháng sau vẫn được xét.
     ```json
     {
       "updated": true,
@@ -773,6 +794,19 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 ### 3.5. Payroll Module (Tính lương & Phiếu lương)
 
 Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạng trả `400` với `code: "INVALID_MONTH"`. Tiền là số nguyên VND. Điểm KPI nhận và trả theo thang 0–100.
+
+**Theo bước của kỳ lương** (§3.7; nguồn luật `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §4):
+
+| Kỳ của tháng | Tính lương (`POST .../calculate`) | Duyệt / từ chối phiếu (`POST .../:username/decision`) | Lưu KPI (`PUT .../kpi/:username`) |
+|---|---|---|---|
+| `open` | Được, chỉ là nháp; kỳ giữ `open` | `409 PAYSLIP_NOT_DECIDABLE` | Được |
+| `attendance_locked` | Tính cả công ty (không gửi `employeeIds`) đưa kỳ sang `calculated`, ghi `calculated_by/at` và `current_run_id`. Tính một phần chỉ là nháp, kỳ giữ `attendance_locked` | `409 PAYSLIP_NOT_DECIDABLE` | Được |
+| `calculated` | Được (cả công ty hay một phần); ghi lại `calculated_by/at` và `current_run_id` theo lần chạy mới | Được | Được |
+| `approved` / `paid` | `409 PAYROLL_FINALIZED`, không lưu gì | `409 PAYSLIP_NOT_DECIDABLE` | `409 PAYROLL_FINALIZED`, không lưu gì |
+
+- Kỳ chỉ sang `calculated` khi không ai đổi bước của kỳ trong lúc tính (ví dụ Mở lại công rồi Chốt công lại xen vào): khi đó lần chạy vẫn lưu dưới dạng nháp và Admin tính lại cả kỳ.
+- `PAYSLIP_NOT_DECIDABLE` (`409`) kèm `status` (bước hiện tại của kỳ), câu `Chỉ duyệt phiếu khi kỳ lương đã tính sau chốt công`. Kiểm trước khi tìm lần chạy hay phiếu.
+- `PAYROLL_FINALIZED` (`409`) khi tính lương: câu `Kỳ lương <YYYY-MM> đã phê duyệt, không thể tính lại`; khi lưu KPI: câu `Kỳ lương đã phê duyệt, không sửa KPI được`.
 
 #### `POST /api/v2/payroll/:month/calculate`
 - **Mục đích**: Kích hoạt tiến trình tính toán lương cho toàn bộ công ty hoặc danh sách nhân sự trong tháng.
@@ -825,7 +859,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | 400 | `INVALID_MONTH` | `:month` sai định dạng |
   | 400 | `INVALID_EMPLOYEE_IDS` | `employeeIds` có mặt nhưng không phải mảng các chuỗi không rỗng và không chỉ gồm khoảng trắng (`error`: `employeeIds phải là danh sách mã nhân sự`) |
   | 400 | `CALCULATE_ERROR` | Lỗi khác khi tính hoặc lưu (`error` mô tả lỗi) |
-  | 409 | `PAYROLL_FINALIZED` | Kỳ lương của tháng đã chốt (`final`), không thể tính lại |
+  | 409 | `PAYROLL_FINALIZED` | Kỳ lương của tháng đã `approved` hoặc `paid` (câu `Kỳ lương <YYYY-MM> đã phê duyệt, không thể tính lại`, kiểm trước khi tính), hoặc tháng đã có lần chạy `final` |
 
 #### `GET /api/v2/payroll/:month`
 - **Mục đích**: Lấy danh sách phiếu lương của kỳ, thuộc lần chạy mới nhất chưa bị thay thế. Tháng chưa tính trả `items: []`.
@@ -895,11 +929,12 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   - `proposedAmount`: lương KPI đề xuất của tháng, số nguyên ≥ 0, không được vượt mức KPI tối đa của bậc nhân sự trong tháng đó. Nhân sự không áp dụng KPI chỉ được nhận `0` hoặc `null`.
   - Trường bỏ trống (không có trong body) giữ nguyên giá trị đang lưu; trường gửi `null` thì xóa giá trị (về "chưa nhập").
 - **Response 200**: `{ "updated": true, "username": "a", "month": "2026-11" }`.
-- **Lỗi**: kiểm tra `username` trước, rồi đến các điểm, rồi đến `proposedAmount`; có lỗi thì không ghi gì.
+- **Lỗi**: kiểm tra kỳ lương trước, rồi `username`, rồi đến các điểm, rồi đến `proposedAmount`; có lỗi thì không ghi gì.
 
   | HTTP | `code` | Khi nào |
   |------|--------|---------|
   | 400 | `INVALID_MONTH` | `:month` sai định dạng |
+  | 409 | `PAYROLL_FINALIZED` | Kỳ lương của tháng đã `approved` hoặc `paid`. Câu: `Kỳ lương đã phê duyệt, không sửa KPI được` |
   | 400 | `INVALID_KPI_SCORE` | Một điểm không phải số từ 0 đến 100, hoặc `proposedAmount` không phải số nguyên ≥ 0 |
   | 400 | `KPI_NOT_APPLICABLE` | `proposedAmount` > 0 nhưng chức vụ hoặc bậc của nhân sự không áp dụng lương KPI |
   | 400 | `KPI_PROPOSAL_EXCEEDS_MAX` | `proposedAmount` lớn hơn mức KPI tối đa của bậc; `error` ghi mức tối đa, ví dụ `Lương KPI đề xuất phải nhỏ hơn hoặc bằng 6000000 đồng` |
@@ -983,6 +1018,7 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 #### `POST /api/v2/system/periods/:month/approve`
 - Quyền `payroll.approve`. Không có body. Phê duyệt kỳ: kỳ `calculated` sang `approved`; lần chạy lương hiện tại thành `final` (phiếu của lần chạy đó không sửa được nữa); ghi `approved_by/at`, `current_run_id`. Ghi nhật ký `period.approve`.
 - Chạy dưới khoá `payroll_<tháng>` nên không xen vào một lần tính lương hay một quyết định duyệt phiếu. Hai lần gọi cùng lúc thì một lần thành công, lần kia nhận `409 PERIOD_STATE`.
+- Đợi các lần duyệt đơn đang dở của tháng commit rồi mới xét vướng; lần duyệt đơn đó đã đưa phiếu của người nộp về `draft` (mục `PATCH /api/v2/requests/:id/review`), nên kỳ không được duyệt với phiếu cũ của người đó.
 - Còn vướng (đơn chờ duyệt, phiếu chưa duyệt, người chưa có phiếu) thì `409 PERIOD_BLOCKED`, câu lỗi là `reason` ở trên, kèm `blockers`.
 - **Response 200**: `PeriodView`, `status: "approved"`.
 
@@ -1000,6 +1036,7 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 |---|---|---|
 | 400 | `INVALID_MONTH` | `:month` không đúng `YYYY-MM` (tháng 01 đến 12) |
 | 400 | `REASON_REQUIRED` | `unlock` hoặc `unapprove` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
+| 400 | `REASON_TOO_LONG` | `unlock` hoặc `unapprove` có `reason` dài hơn 1000 ký tự sau khi cắt khoảng trắng hai đầu (độ dài như nhật ký đếm). Kiểm ngay sau `REASON_REQUIRED`, trước khi đọc kỳ; không ghi gì. Câu: `Lý do tối đa 1000 ký tự` |
 | 409 | `PERIOD_STATE` | Thao tác không hợp lệ ở bước hiện tại, ví dụ chốt công hai lần; kèm `month`, `status`. Câu: `Kỳ lương tháng MM/YYYY đang ở bước "<nhãn>", không làm được thao tác này` |
 | 409 | `MONTH_NOT_ENDED` | `lock` khi tháng chưa kết thúc. Câu: `Tháng MM/YYYY chưa kết thúc, chưa chốt công được` |
 | 409 | `PERIOD_BLOCKED` | `approve` còn vướng; kèm `blockers` (dạng như ở `GET .../:month`). Câu: `Còn <n> người chưa có phiếu · <n> phiếu chưa duyệt · <n> đơn chờ duyệt` (chỉ phần có số lớn hơn 0) |
@@ -1013,7 +1050,9 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 
 Một lịch lễ chung cho cả công ty, do Admin tick. Mỗi ngày lễ gồm `date` (`YYYY-MM-DD`) và `name`; mỗi ngày chỉ có một dòng. Thêm hay xoá ngày lễ **không** sửa ngay các đơn đã nộp. Ngày lễ thêm sau khi nộp được xét khi Admin duyệt đơn nghỉ (`PATCH /api/v2/requests/:id/review`, mục "Ngày lễ thắng đơn nghỉ"); đơn đã duyệt và ngày lễ bị xoá sau khi nộp thì không đổi. Chưa kiểm vai trò ở các route này.
 
-Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`. Ngoài `404 HOLIDAY_NOT_FOUND`, lỗi nào cũng là `400` với `code: "BAD_REQUEST"`.
+Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`. Ngoài `404 HOLIDAY_NOT_FOUND` và `409 PERIOD_LOCKED`, lỗi nào cũng là `400` với `code: "BAD_REQUEST"`.
+
+**Tháng đã chốt công** (nguồn luật `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5): ngày lễ của một tháng mà kỳ lương không còn `open` thì không thêm, không xoá được. `POST /api/v2/holidays` và `DELETE /api/v2/holidays/:date` trả `409 PERIOD_LOCKED` kèm `month`, `status`, câu như ở chấm công (`Tháng MM/YYYY đã chốt công`, `Kỳ lương tháng MM/YYYY đã phê duyệt`, `Kỳ lương tháng MM/YYYY đã trả lương`), và không ghi gì. `POST /api/v2/holidays/quick-add` không báo lỗi: ngày của tháng như vậy bị bỏ qua, không có trong `added`.
 
 #### `GET /api/v2/holidays?year=2026`
 - **Mục đích**: Danh sách ngày lễ của một năm, sắp theo ngày tăng dần.
@@ -1046,8 +1085,10 @@ Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code"
   | 2 | `Tên ngày lễ không được trống` | Thiếu `name`, không phải chuỗi hoặc chỉ gồm khoảng trắng |
   | 3 | `Ngày <dd/mm/yyyy> đã có trong lịch lễ` | Ngày đó đã có trong lịch (ví dụ `Ngày 02/09/2026 đã có trong lịch lễ`) |
 
+  Giữa bước 2 và bước 3: tháng của `date` không còn `open` thì `409 PERIOD_LOCKED` (xem đầu mục).
+
 #### `POST /api/v2/holidays/quick-add`
-- **Mục đích**: Thêm nhanh bốn ngày lễ cố định của một năm. Ngày đã có trong lịch thì bỏ qua và giữ nguyên tên cũ.
+- **Mục đích**: Thêm nhanh bốn ngày lễ cố định của một năm. Ngày đã có trong lịch thì bỏ qua và giữ nguyên tên cũ. Ngày thuộc tháng mà kỳ lương không còn `open` cũng bị bỏ qua, không báo lỗi.
 - **Request Body**: `{ "year": 2026 }`. `year` là số nguyên từ 2000 đến 2100.
 - **Các ngày được thêm**:
 
@@ -1057,12 +1098,14 @@ Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code"
   | 30/04 | Ngày Giải phóng miền Nam |
   | 01/05 | Quốc tế Lao động |
   | 02/09 | Quốc khánh |
-- **Response 201**: `{ "added": ["2026-01-01", "2026-04-30", "2026-05-01", "2026-09-02"] }`. `added` chỉ gồm các ngày vừa thêm, nên gọi lần hai cho cùng năm trả `{ "added": [] }`.
+- **Response 201**: `{ "added": ["2026-01-01", "2026-04-30", "2026-05-01", "2026-09-02"] }`. `added` chỉ gồm các ngày vừa thêm, nên gọi lần hai cho cùng năm trả `{ "added": [] }`. Ví dụ: kỳ tháng 2026-05 đã chốt công thì 01/05/2026 không được thêm và không có trong `added`.
 - **Lỗi**: `400` `Năm không hợp lệ: <giá trị>` khi thiếu `year` hoặc không phải số nguyên 2000–2100.
 
 #### `DELETE /api/v2/holidays/:date`
 - **Mục đích**: Xoá một ngày lễ. `:date` dạng `YYYY-MM-DD`.
 - **Response 200**: `{ "deleted": true }`
 - **Lỗi**:
+  - `400` `Ngày lễ không hợp lệ: <giá trị>` khi `:date` sai định dạng hoặc ngày không tồn tại.
+  - `409 PERIOD_LOCKED` khi tháng của `:date` không còn `open` (xem đầu mục), kiểm trước khi tìm ngày lễ.
   - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch.
   - `400` `Ngày lễ không hợp lệ: <date>` khi `:date` sai định dạng hoặc là ngày không tồn tại.
