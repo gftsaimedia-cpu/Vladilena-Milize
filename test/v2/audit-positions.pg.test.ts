@@ -168,3 +168,31 @@ test('when the audit write fails, the position and level changes are rolled back
     assert.equal((await rows()).length, 0);
   });
 });
+
+test('a failed audit write also rolls back an in-place edit of an existing month version', async t => {
+  await withTempDb(t, 'audit_positions', async db => {
+    const { svc, failing, rows } = setup(db);
+    // Tạo sẵn phiên bản tháng 12, để lần lưu sau sửa tại chỗ (mode 'update') thay vì chép dòng mới.
+    await svc.savePositions({ effectiveMonth: '2026-12', items: [{ code: 'nv', expectedRev: 0, changes: { flexPct: 22 } }] }, 'admin', NOW);
+    await svc.saveLevel('nv', '2', { effectiveMonth: '2026-12', expectedRev: 0, changes: { kpiMax: 6_800_000 } }, 'admin', NOW);
+    const nvDec = async () =>
+      (await db.selectFrom('position_types').select(['flex_pct', 'rev']).where('code', '=', 'nv').where('effective_month', '=', '2026-12').executeTakeFirstOrThrow());
+    const lvDec = async () =>
+      (await db.selectFrom('position_levels').select(['kpi_max', 'rev']).where('type_code', '=', 'nv').where('level_no', '=', 2).where('effective_month', '=', '2026-12').executeTakeFirstOrThrow());
+    const typeBefore = await nvDec();
+    const levelBefore = await lvDec();
+
+    await assert.rejects(
+      failing.savePositions({ effectiveMonth: '2026-12', items: [{ code: 'nv', expectedRev: Number(typeBefore.rev), changes: { flexPct: 25 } }] }, 'admin', NOW),
+      /audit boom/
+    );
+    await assert.rejects(
+      failing.saveLevel('nv', '2', { effectiveMonth: '2026-12', expectedRev: Number(levelBefore.rev), changes: { kpiMax: 7_000_000 } }, 'admin', NOW),
+      /audit boom/
+    );
+
+    assert.deepEqual(await nvDec(), typeBefore);
+    assert.deepEqual(await lvDec(), levelBefore);
+    assert.equal((await rows()).length, 2);
+  });
+});
