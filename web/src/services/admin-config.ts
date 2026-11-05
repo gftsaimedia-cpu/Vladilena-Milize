@@ -44,9 +44,6 @@ export const previewParams = (body?) => api('POST', '/settings/params/preview', 
 export const revertParam = ({ key, toVersion, effectiveMonth, reason, expectedRev }: any) =>
   api('POST', '/settings/params/revert', { key, toVersion, effectiveMonth, reason, expectedRev });
 
-// PUT /api/blocks/:mã/confirm { basis, effectiveMonth? }: Kế toán xác nhận cờ thuế, nền bảo hiểm của khối.
-export const confirmBlock = (code?, body: any = {}) => api('PUT', `/blocks/${encodeURIComponent(code)}/confirm`, body);
-
 // ---------- Khung Cài đặt ----------
 // GET /api/settings/first-run: số mục còn dùng mặc định, chờ xác nhận
 export const getSettingsBadges = () => api('GET', '/settings/first-run').then(r => ({ 'tat-ca': r.total }));
@@ -208,21 +205,6 @@ export async function getKpiRules() {
   const weights = rows.map(r => ({ label: KPI_LABEL[r.component] || r.component, percent: r.weight, note: '' }));
   return { weights, total: weights.reduce((n, w) => n + w.percent, 0), related: [] };
 }
-
-// ---------- Chế độ phụ cấp mới ----------
-// Khoản phụ cấp mới đi qua khối phụ cấp (POST /api/blocks) và bước xác nhận cờ thuế, bảo hiểm của kế toán: chưa nối.
-export const addAllowance = (_payload?: any) => Promise.reject(new Error('Chưa nối máy chủ'));
-
-// ---------- Chức vụ ----------
-// GET /api/positions: chức vụ có sẵn để sao chép
-export async function getPositionTypes() {
-  const res = await api('GET', '/positions');
-  return res.positions.map(p => ({ value: p.code, label: p.label }));
-}
-
-// POST /api/positions { label, copyFrom, effectiveMonth, reason }
-export const addPosition = ({ name, copyFrom, fromMonth, reason }: any) =>
-  api('POST', '/positions', { label: name, copyFrom, effectiveMonth: fromMonth, ...(reason ? { reason } : {}) });
 
 // ---------- Lịch, ca & chấm công ----------
 // Lịch nghỉ lễ: GET /api/v2/holidays?year= (BE chưa có tham số ngày trả lương: payDay null).

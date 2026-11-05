@@ -44,7 +44,8 @@ test('the account menu follows /nv/toi', async ({ page }) => {
   await account.click();
   await expect(page).toHaveURL(/\/nv\/toi$/);
   await expect(account).toHaveAttribute('aria-expanded', 'true');
-  for (const t of ['nam.le@gft.vn', 'Chính thức', 'GFT-0142', 'Kinh doanh', 'HC 08:00–17:00', '04/03/2024', '11 ngày',
+  await expect(menu).not.toContainText('nam.le@gft.vn'); // không có dòng email (người dùng chốt 05/11)
+  for (const t of ['Chính thức', 'GFT-0142', 'Kinh doanh', 'HC 08:00–17:00', '04/03/2024', '11 ngày',
     'Thông tin do Admin quản lý. Thấy sai thì báo Admin để sửa.']) await expect(menu).toContainText(t);
   await page.keyboard.press('Escape');
   await expect(page).toHaveURL(/\/nv\/hom-nay$/);
@@ -97,22 +98,22 @@ test('on the phone, switching tabs still scrolls to the top', async ({ page }) =
 });
 
 // F2: lớp CSS toàn cục (.who, .note, .big…) không được làm vỡ bố cục menu tài khoản.
-test('the account menu keeps the name above the email and the note without a border', async ({ page }) => {
+test('the account menu keeps the name above the facts and the note without a border', async ({ page }) => {
   await openDesktop(page, '/nv/toi');
   const menu = page.getByRole('region', { name: 'Tài khoản của tôi' });
   await expect(menu).toBeVisible();
   const m = await menu.evaluate(el => {
     const name = [...el.querySelectorAll('div')].find(d => d.textContent === 'Lê Hoàng Nam')!.getBoundingClientRect();
-    const email = [...el.querySelectorAll('div')].find(d => d.textContent === 'nam.le@gft.vn')!.getBoundingClientRect();
+    const facts = el.querySelector('.sd-facts')!.getBoundingClientRect();
     const note = [...el.querySelectorAll('p')].find(p => p.textContent!.startsWith('Thông tin do Admin'))!;
     return {
       nameBottom: name.bottom,
       nameHeight: name.height,
-      emailTop: email.top,
+      factsTop: facts.top,
       border: getComputedStyle(note).borderTopWidth
     };
   });
-  expect(m.emailTop).toBeGreaterThanOrEqual(m.nameBottom);
+  expect(m.factsTop).toBeGreaterThanOrEqual(m.nameBottom);
   expect(m.nameHeight).toBeLessThanOrEqual(24);
   expect(m.border).toBe('0px');
 });

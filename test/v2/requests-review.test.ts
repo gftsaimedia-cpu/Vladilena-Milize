@@ -59,7 +59,8 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
 
     // Khoá đơn trước, rồi khoá nhân viên trên cùng giao dịch (§4).
     assert.deepEqual(ctx.lock.keys, [`request_${req.id}`, `requests_${NV_UUID}`]);
-    // Kiểm lại (hồ sơ, lịch, đơn đang có, ngày lễ, day_status) rồi ghi lịch theo các ngày đơn giữ.
+    // Kiểm lại (hồ sơ, lịch, đơn đang có, ngày lễ, day_status), xem ngày đơn giữ có thành ngày lễ không, rồi ghi lịch
+    // theo các ngày đơn giữ.
     assert.deepEqual(ctx.repo.calls, [
       ['findById', LOCK_TRX],
       ['resolveStaffUuid', LOCK_TRX],
@@ -72,9 +73,13 @@ describe('Duyệt và nộp đơn chạy trên giao dịch của khoá', () => {
       ['ensureDefaultSchedule', LOCK_TRX],
       ['saveSchedule', LOCK_TRX]
     ]);
-    assert.deepEqual(ctx.holidays.calls, [['listBetween', LOCK_TRX]]);
+    assert.deepEqual(ctx.holidays.calls, [
+      ['listBetween', LOCK_TRX],
+      ['listBetween', LOCK_TRX]
+    ]);
     assert.deepEqual(ctx.days.calls, [
       ['listBetween', LOCK_TRX],
+      ['listByRequest', LOCK_TRX],
       ['listByRequest', LOCK_TRX]
     ]);
   });

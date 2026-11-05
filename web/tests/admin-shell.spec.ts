@@ -24,7 +24,7 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
   await page.locator('.topbar .bell').click();
-  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('button', { name: /, Trịnh Văn Long · / }).click();
   await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long/);
   expect(calls).toEqual([]);
@@ -123,7 +123,10 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
-  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page
+    .getByRole('dialog', { name: 'Thông báo' })
+    .getByRole('button', { name: /, Trịnh Văn Long · / })
+    .click();
   await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL('/admin/cham-cong/nhan-vien/trinh-van-long?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
@@ -213,7 +216,7 @@ test('bell drawer docks to the right edge on desktop', async ({ page }) => {
   const box = (await drawer.boundingBox())!;
   expect(Math.abs(box.x + box.width - 1424)).toBeLessThanOrEqual(1);
   expect(Math.abs(box.y - 16)).toBeLessThanOrEqual(1);
-  expect(Math.abs(box.width - 400)).toBeLessThanOrEqual(1);
+  expect(Math.abs(box.width - 440)).toBeLessThanOrEqual(1);
   expect(Math.abs(box.height - 868)).toBeLessThanOrEqual(1);
 });
 
@@ -224,7 +227,7 @@ test('bell drawer and its detail stay inside a 375px viewport', async ({ page })
   const drawer = page.getByRole('dialog', { name: 'Thông báo' });
   await expect(drawer).toBeVisible();
   await drawer.locator('button[data-id]').first().click();
-  const detail = page.getByRole('region', { name: 'Chi tiết yêu cầu' });
+  const detail = page.getByRole('dialog', { name: 'Chi tiết yêu cầu' });
   await expect(detail).toBeVisible();
   for (const part of [drawer, detail]) {
     const box = (await part.boundingBox())!;

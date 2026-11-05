@@ -122,8 +122,8 @@ test('week names, the bell and the day dialog open the profile', async ({ page }
   await page.goto('/admin/tong-quan');
   await bellOf(page).click();
   const drawer = page.getByRole('dialog', { name: 'Thông báo' });
-  await drawer.getByRole('button', { name: /^Lê Hoàng Nam, / }).click();
-  await page.getByRole('region', { name: 'Chi tiết yêu cầu' }).getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await drawer.getByRole('button', { name: /, Lê Hoàng Nam · / }).click();
+  await page.getByRole('dialog', { name: 'Chi tiết yêu cầu' }).getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
   await expect(page).toHaveURL(new RegExp(`${NAM}$`));
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 

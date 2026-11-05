@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Param, Body, Query, Req, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiExceptionFilter,
@@ -12,11 +12,11 @@ import {
 import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
-import { KpiValidationError } from '../payroll/payroll.errors';
 import { RequestsService, type CreatedRequestDTO } from '../requests/requests.service';
+import { SystemService } from '../system';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
-import { daySummaryOf, estimateIncomeOf, monthOf, stepsOf, vnToday, weekOf } from './domain';
+import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -34,6 +34,17 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 function needMonth(month?: string): string {
   if (!month || !MONTH.test(month)) throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
   return month;
+}
+type MonthRange = { from: string; to: string };
+// Lưới an toàn: app chỉ cho bấm tới các tháng trong khoảng; gọi thẳng tháng ngoài khoảng thì 400.
+// Không gửi tháng thì lấy tháng hiện tại theo giờ máy chủ (đồng hồ điện thoại có thể lệch sang tháng sau).
+function needMonthIn(month: string | undefined, range: MonthRange): string {
+  const m = needMonth(month || range.to);
+  if (m < range.from || m > range.to) {
+    const mmyyyy = (ym: string) => `${ym.slice(5, 7)}/${ym.slice(0, 4)}`;
+    throw new BadRequestError(`Chỉ xem được từ tháng ${mmyyyy(range.from)} tới tháng ${mmyyyy(range.to)}`, { code: 'MONTH_OUT_OF_RANGE', range });
+  }
+  return m;
 }
 const monthEnd = (month: string) => {
   const [y, m] = month.split('-').map(Number);
@@ -63,8 +74,15 @@ export class MeController {
     @Inject(AttendanceService) private readonly attendance: AttendanceService,
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
-    @Inject(EmployeesService) private readonly employees: EmployeesService
+    @Inject(EmployeesService) private readonly employees: EmployeesService,
+    @Inject(SystemService) private readonly system: SystemService
   ) {}
+
+  // Từ tháng vào làm tới tháng hiện tại (giờ VN).
+  private async monthRange(me: Who): Promise<MonthRange> {
+    const employee = await this.employees.findByUsernameOrUuid(me.username);
+    return monthRangeOf(employee ? employee.toDTO().contract.effectiveFrom : null, vnToday());
+  }
 
   // ---------- Hồ sơ ----------
   @Authenticated()
@@ -130,9 +148,13 @@ export class MeController {
   @Get('attendance')
   async attendanceMonth(@Req() req: Request, @Query('month') month?: string): Promise<unknown> {
     const me = who(req);
-    const m = needMonth(month);
-    const rows = await this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) });
-    return monthOf(rows as any, m, vnToday());
+    const range = await this.monthRange(me);
+    const m = needMonthIn(month, range);
+    const [rows, period] = await Promise.all([
+      this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
+      this.system.getPeriod(m),
+    ]);
+    return { ...monthOf(rows as any, m, vnToday(), period?.status ?? null), range };
   }
 
   @Authenticated()
@@ -199,33 +221,22 @@ export class MeController {
     }
   }
 
-  // ---------- Thu nhập & KPI ----------
+  // ---------- Thu nhập ----------
+  // Chính thức khi phiếu của chính người đó ở lần chạy hiện tại đã được Admin duyệt (người dùng chốt 05/11/2026),
+  // kể cả khi kỳ chưa chốt; còn lại là số tạm tính, không ghi DB.
   @Authenticated()
   @Get('income')
   async income(@Req() req: Request, @Query('month') month?: string): Promise<unknown> {
     const me = who(req);
-    const m = needMonth(month);
+    const range = await this.monthRange(me);
+    const m = needMonthIn(month, range);
     const stored = await this.payroll.getPayslip(m, me.username);
-    if (stored && stored.status === 'final') return { month: m, state: 'official', payslip: stored.details };
+    if (stored && stored.status === 'approved') return { month: m, state: 'official', payslip: stored.details, range };
     try {
       const slip = await this.payroll.generateMonthlyPayslip(me.uuid, m);
-      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()) };
+      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()), range };
     } catch (err: any) {
-      return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được' };
+      return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được', range };
     }
-  }
-
-  @Authenticated()
-  @Put('kpi/self')
-  async selfKpi(@Req() req: Request, @Query('month') month: string, @Body() body: { score?: number | null }): Promise<unknown> {
-    const me = who(req);
-    const m = needMonth(month);
-    try {
-      await this.payroll.setKpiScore(me.username, m, { self: body?.score ?? null }, me.username);
-    } catch (err) {
-      if (err instanceof KpiValidationError) throw new BadRequestError(err.message, { code: err.code });
-      throw err;
-    }
-    return { ok: true, month: m };
   }
 }

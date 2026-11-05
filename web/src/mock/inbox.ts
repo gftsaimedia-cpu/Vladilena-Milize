@@ -1,5 +1,6 @@
-// Việc chờ xử lý giả: nguồn chung của chuông, thẻ Việc cần duyệt ở Tổng quan và (sau này) màn Chấm công.
+// Việc chờ xử lý giả: nguồn chung của chuông, thẻ Việc cần duyệt ở Tổng quan và màn Chấm công.
 // Một mảng trong bộ nhớ; xử lý một việc chỉ bỏ nó khỏi mảng, không đổi công, giờ hay lương (spec mục 1).
+// Chữ trên dòng, tuổi và các dòng chi tiết theo bảng thiết kế BellInbox.
 import { initials } from '@/utils/format';
 
 export type InboxGroup = 'att' | 'leave' | 'ot' | 'exp' | 'adv';
@@ -18,23 +19,90 @@ export type InboxItem = {
   age: string;
   head: string;
   sub: string;
-  facts: [string, string][];
+  facts: Fact[];
   days: string[];
   cellLabel?: string;
   leave?: { type: 'Phép năm' | 'Nghỉ ốm'; reason: string };
   declared?: { from: string; to: string };
   missing?: 'in' | 'out';
+  /** Tin mới chưa đọc (chấm xanh trên chuông). Máy chủ thật chưa có trạng thái đọc nên không đặt. */
+  unread?: boolean;
 };
 
-export type SystemNote = { id: string; text: string; when: string };
+/** Một dòng nhãn – giá trị của thẻ chi tiết; `note` là dòng phụ xám dưới giá trị. */
+export type Fact = [label: string, value: string, note?: string];
+
+/** Tin hệ thống trên chuông: chỉ đọc, mở thẻ chi tiết có một liên kết sang màn liên quan. */
+export type SystemNote = {
+  id: string;
+  /** Dòng 1 của dòng tin. */
+  text: string;
+  /** Dòng 2: nơi gửi tin. */
+  area: string;
+  age: string;
+  /** Tên ở đầu thẻ chi tiết. */
+  source: string;
+  /** Thời điểm sau "Tin hệ thống · ". */
+  when: string;
+  head: string;
+  sub: string;
+  facts: Fact[];
+  /** `to`: đường dẫn màn Admin; chuông giữ ?thang khi mở. */
+  link: { label: string; to: string };
+  unread?: boolean;
+};
 
 import { INBOX_GROUPS } from '../constants/labels';
 export { INBOX_GROUPS };
 
 export const SYSTEM_NOTES: SystemNote[] = [
-  { id: 'sn-1', text: 'Đã nhận dữ liệu máy chấm công lúc 09:30.', when: 'Hôm nay 09:30' },
-  { id: 'sn-2', text: 'Kỳ công tháng 10 kết thúc ngày 31/10.', when: 'Hôm qua' },
-  { id: 'sn-3', text: 'Đã thêm 2 nhân viên mới vào danh sách Nhân sự.', when: '26/10' }
+  {
+    id: 'sn-1',
+    text: 'Máy chấm công đã đồng bộ ngày 27/10',
+    area: 'Chấm công',
+    age: '06:00',
+    source: 'Máy chấm công',
+    when: 'hôm nay 06:00',
+    head: 'Đã đồng bộ dữ liệu ngày 27/10',
+    sub: 'Thứ Ba 27/10',
+    facts: [
+      ['Đồng bộ lúc', '28/10 06:00'],
+      ['Thiếu giờ ra', '2 người'],
+      ['Đi muộn', '1 người']
+    ],
+    link: { label: 'Mở chấm công tuần', to: '/admin/cham-cong' },
+    unread: true
+  },
+  {
+    id: 'sn-2',
+    text: 'Phiếu lương tháng 9 đã gửi',
+    area: 'Bảng lương',
+    age: '3 ngày',
+    source: 'Bảng lương',
+    when: '25/10 17:00',
+    head: 'Đã gửi phiếu lương tháng 9',
+    sub: 'Nhân viên xem trong mục Thu nhập',
+    facts: [
+      ['Gửi lúc', '25/10 17:00'],
+      ['Gửi tới', 'Tất cả nhân viên đang làm']
+    ],
+    link: { label: 'Mở bảng lương', to: '/admin/bang-luong' }
+  },
+  {
+    id: 'sn-3',
+    text: '3 nhân viên chưa kích hoạt tài khoản',
+    area: 'Nhân sự',
+    age: '1 tuần',
+    source: 'Nhân sự',
+    when: '21/10',
+    head: '3 nhân viên chưa kích hoạt tài khoản',
+    sub: 'Đã tạo tài khoản nhưng chưa đăng nhập lần nào',
+    facts: [
+      ['Gửi lời mời', '21/10 09:00'],
+      ['Còn chờ', '3 người']
+    ],
+    link: { label: 'Mở Nhân sự', to: '/admin/nhan-su' }
+  }
 ];
 
 // personId → [họ tên, "Phòng ban · Chức danh"]
@@ -55,13 +123,15 @@ const PEOPLE: Record<string, [string, string]> = {
 };
 
 const quote = (text: string) => `“${text}”`;
+// Tạm ứng cố định 80% lương ngày công 01–15; Admin chỉ duyệt hoặc từ chối.
+const ADVANCE_NOTE = '80% lương ngày công 01–15, cố định';
 
 // Đơn nghỉ: "Hình thức" và "Lý do" luôn dựng từ `leave`, các dòng khác chen trước hoặc sau lý do.
 function leaveFacts(
   leave: NonNullable<InboxItem['leave']>,
   before: [string, string][],
   after: [string, string][]
-): [string, string][] {
+): Fact[] {
   return [['Hình thức', leave.type], ...before, ['Lý do', quote(leave.reason)], ...after];
 }
 
@@ -139,7 +209,8 @@ const SEED: Seed[] = [
     ]),
     days: ['2026-10-28'],
     cellLabel: 'Nghỉ ốm',
-    leave: { ...L2 }
+    leave: { ...L2 },
+    unread: true
   },
   {
     id: 'ib-l3',
@@ -207,7 +278,8 @@ const SEED: Seed[] = [
       ['Gửi lúc', '27/10 20:14']
     ],
     days: ['2026-10-27'],
-    declared: { from: '08:12', to: '17:30' }
+    declared: { from: '08:12', to: '17:30' },
+    unread: true
   },
   {
     id: 'ib-e2',
@@ -265,12 +337,14 @@ const SEED: Seed[] = [
     group: 'adv',
     action: 'decide',
     personId: 'mai-phuong-thao',
-    what: '3.000.000 ₫',
+    what: '3.900.000 ₫',
     when: '',
     age: 'hôm qua',
-    head: 'Tạm ứng 3.000.000 ₫',
+    head: 'Tạm ứng 3.900.000 ₫',
     sub: 'Trừ vào lương tháng 10',
     facts: [
+      ['Lương ngày công 01–15/10', '4.875.000 ₫ · 13 ngày'],
+      ['Số tiền được ứng', '3.900.000 ₫', ADVANCE_NOTE],
       ['Lý do', quote('Đóng học phí cho con.')],
       ['Gửi lúc', '27/10 09:30']
     ],
@@ -281,12 +355,14 @@ const SEED: Seed[] = [
     group: 'adv',
     action: 'decide',
     personId: 'truong-quoc-viet',
-    what: '2.000.000 ₫',
+    what: '5.200.000 ₫',
     when: '',
     age: '3 ngày',
-    head: 'Tạm ứng 2.000.000 ₫',
+    head: 'Tạm ứng 5.200.000 ₫',
     sub: 'Trừ vào lương tháng 10',
     facts: [
+      ['Lương ngày công 01–15/10', '6.500.000 ₫ · 13 ngày'],
+      ['Số tiền được ứng', '5.200.000 ₫', ADVANCE_NOTE],
       ['Lý do', quote('Sửa xe.')],
       ['Gửi lúc', '25/10 18:12']
     ],
