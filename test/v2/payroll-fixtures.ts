@@ -55,6 +55,8 @@ export function nvMonthData(
       baseSalary: 6_000_000,
       standardWorkdays: 26,
       employeeType: 'nv',
+      level: 1,
+      employmentStatus: 'official',
       nightAllowancePct: 40,
       isDormResident: false,
       remainingAnnualLeaveDays: 12,

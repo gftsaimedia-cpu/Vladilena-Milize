@@ -113,7 +113,17 @@ describe('mapMonthRows staff flags and contract label', () => {
     assert.equal(staff.employeeType, 'nv');
     assert.equal(staff.nightAllowancePct, 60);
     assert.equal(staff.isDormResident, false);
-    assert.equal(staff.remainingAnnualLeaveDays, 22);
+  });
+
+  it('reads the level number and the employment status of the staff row', () => {
+    assert.equal(mapMonthRows('2026-10', rows({ staff: { ...baseStaff, level: 2 } })).staff.level, 2);
+    assert.equal(mapMonthRows('2026-10', rows({ staff: { ...baseStaff, level: null } })).staff.level, 1);
+    const status = (contract_status: unknown) =>
+      mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract_status } })).staff.employmentStatus;
+    assert.equal(status('official'), 'official');
+    assert.equal(status('probation'), 'probation');
+    assert.equal(status(null), null);
+    assert.equal(status('tts'), null);
   });
 
   it('falls back to a generated level text', () => {
@@ -124,6 +134,24 @@ describe('mapMonthRows staff flags and contract label', () => {
   it('shows the resolved contract label, not the contract_status column', () => {
     const { staff } = mapMonthRows('2026-10', rows({ staff: { ...baseStaff, contract_status: 'probation' } }));
     assert.equal(staff.contractStatusText, 'HĐLĐ từ 3 tháng');
+  });
+});
+
+describe('mapMonthRows annual leave left', () => {
+  const leaveStaff = { ...baseStaff, leave_balance: 12 };
+  const account = { benefit: 'leaveAccount', enabled: '1' };
+  const left = (staff: object, benefits: unknown[], annualLeaveUsed?: number | string) =>
+    mapMonthRows('2026-10', rows({ staff, benefits, annualLeaveUsed })).staff.remainingAnnualLeaveDays;
+
+  it('is the balance minus the approved annual leave days used when the type keeps a leave account', () => {
+    assert.equal(left(leaveStaff, [kpiBenefit, account], '2'), 10);
+    assert.equal(left({ ...leaveStaff, leave_balance: null }, [account], 0), 0);
+    assert.equal(left(leaveStaff, [account]), 12);
+  });
+
+  it('is null without a leave account or when the benefit is off', () => {
+    assert.equal(left(leaveStaff, [kpiBenefit], 2), null);
+    assert.equal(left(leaveStaff, [{ benefit: 'leaveAccount', enabled: 0 }], 2), null);
   });
 });
 
@@ -500,6 +528,42 @@ describe('PayrollRepository.getMonthlyData queries', () => {
     ]);
     assert.deepEqual(isat?.order, [['isat_registrations.saturday', 'asc']]);
     assert.deepEqual(data?.isatDates, ['2026-10-10']);
+  });
+
+  it('counts approved annual leave days up to the month end and from the balance date', async () => {
+    const withBalanceOn = (leave_balance_on: string | null) =>
+      recordingQb({
+        ...tables,
+        staff: { first: { ...baseStaff, level: 2, leave_balance: 12, leave_balance_on } },
+        position_type_benefits: { all: [{ benefit: 'leaveAccount', enabled: 1 }] },
+        day_status: { first: { n: '2' } }
+      });
+
+    const dated = withBalanceOn('2026-10-01');
+    const data = await new PayrollRepository(dated.qb).getMonthlyData('u1', '2026-10');
+    const used = dated.calls.find(c => c.table === 'day_status');
+    assert.deepEqual(used?.innerJoins, [['system_requests', 'system_requests.id', 'day_status.request_id']]);
+    assert.deepEqual(used?.where, [
+      ['day_status.employee_id', '=', 'u1'],
+      ['day_status.status', '=', 'LEAVE'],
+      ['system_requests.type', '=', 'LEAVE'],
+      ['system_requests.leave_type', '=', 'ANNUAL'],
+      ['system_requests.status', '=', 'APPROVED'],
+      ['day_status.work_date', '<=', '2026-10-31'],
+      ['day_status.work_date', '>=', '2026-10-01']
+    ]);
+    assert.equal(data?.staff.remainingAnnualLeaveDays, 10);
+
+    const undated = withBalanceOn(null);
+    await new PayrollRepository(undated.qb).getMonthlyData('u1', '2026-10');
+    assert.deepEqual(undated.calls.find(c => c.table === 'day_status')?.where, [
+      ['day_status.employee_id', '=', 'u1'],
+      ['day_status.status', '=', 'LEAVE'],
+      ['system_requests.type', '=', 'LEAVE'],
+      ['system_requests.leave_type', '=', 'ANNUAL'],
+      ['system_requests.status', '=', 'APPROVED'],
+      ['day_status.work_date', '<=', '2026-10-31']
+    ]);
   });
 
   it('returns null when the employee does not exist', async () => {

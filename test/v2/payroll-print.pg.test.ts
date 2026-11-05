@@ -52,8 +52,9 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
     // Một nhân sự nv bậc 1, hợp đồng dài hạn, một ngày công NORMAL. Các task sau thêm seed vào đây.
     const now = new Date().toISOString();
     await client.query(
-      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid)
-       VALUES ($1, 'Nhân viên in phiếu', 'nv', 1, 'x', $2, 'long', $3)`,
+      `INSERT INTO staff (username, name, type, level, pass_hash, created_at, contract, uuid,
+         leave_balance, leave_balance_on, contract_status)
+       VALUES ($1, 'Nhân viên in phiếu', 'nv', 1, 'x', $2, 'long', $3, 12, '2026-10-01', 'probation')`,
       [USERNAME, now, UUID]
     );
     await client.query(
@@ -62,6 +63,25 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
        VALUES (gen_random_uuid(), $1, '2026-10-01', 'NORMAL', '08:00', '17:00', 0, 8, 'PRESENT', 'VALID', now(), now())`,
       [UUID]
     );
+    // Phép năm: số dư 12 tính từ 2026-10-01; ba ngày phép năm đã duyệt (20/10, 21/10, 05/11) và một đơn đang chờ (27/10).
+    const leaveRequests: Array<[string, string, string]> = [
+      ['00000000-0000-4000-8000-000000000001', 'APPROVED', '2026-10-20'],
+      ['00000000-0000-4000-8000-000000000002', 'APPROVED', '2026-10-21'],
+      ['00000000-0000-4000-8000-000000000003', 'APPROVED', '2026-11-05'],
+      ['00000000-0000-4000-8000-000000000004', 'PENDING', '2026-10-27']
+    ];
+    for (const [id, status, day] of leaveRequests) {
+      await client.query(
+        `INSERT INTO system_requests (id, employee_id, title, type, reason, status, leave_type, leave_start_date,
+           leave_end_date, leave_days_count, created_at, updated_at)
+         VALUES ($1, $2, 'Nghỉ phép năm', 'LEAVE', 'Việc riêng', $3, 'ANNUAL', $4, $4, 1, now(), now())`,
+        [id, UUID, status, day]
+      );
+      await client.query(
+        `INSERT INTO day_status (employee_id, work_date, status, request_id) VALUES ($1, $2, 'LEAVE', $3)`,
+        [UUID, day, id]
+      );
+    }
 
     db = createKysely(createPgPool(tempUrl.toString()));
     const repo = new PayrollRepository(db);
@@ -72,6 +92,18 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
 
     // ===== Assert =====
     // Các task sau thêm assert vào đây.
+    await t.test('Loại, bậc, trạng thái nhân sự và phép năm còn lại tính từ day_status', async () => {
+      const october = await repo.getMonthlyData(UUID, '2026-10');
+      assert.equal(october?.staff.remainingAnnualLeaveDays, 10);
+      assert.equal(october?.staff.employmentStatus, 'probation');
+      assert.equal(october?.staff.level, 1);
+      assert.equal((await repo.getMonthlyData(UUID, '2026-11'))?.staff.remainingAnnualLeaveDays, 9);
+      const details = (await repo.getPayslip(MONTH, UUID))?.details;
+      assert.equal(details?.employeeType, 'nv');
+      assert.equal(details?.employmentStatus, 'probation');
+      assert.equal(details?.remainingAnnualLeaveDays, 10);
+    });
+
     await t.test('Từ chối lưu trạng thái rejected cùng lý do, người và lúc quyết định', async () => {
       const rejected = await repo.decidePayslip(MONTH, USERNAME, 'rejected', 'admin', 'Thiếu điểm KPI Quản lý');
       assert.equal(rejected?.status, 'rejected');

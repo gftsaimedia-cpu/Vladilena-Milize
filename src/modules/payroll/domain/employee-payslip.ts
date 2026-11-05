@@ -47,6 +47,8 @@ export interface EmployeePayslipProps {
   standardWorkdays?: number; // default 26
   baseSalaryPolicy: number; // e.g. 6,000,000
   employeeType?: string;
+  level?: number; // staff.level; default 1
+  employmentStatus?: 'probation' | 'official' | null; // default null
   nightAllowancePct?: number;
   isDormResident?: boolean;
   allowanceRates?: AllowanceRates | null; // the position version in force; missing = none, no allowance
@@ -61,7 +63,7 @@ export interface EmployeePayslipProps {
   dependants?: number; // default 0
   warnings?: PayrollWarning[];
   advanceDeduction?: number;
-  remainingAnnualLeaveDays?: number;
+  remainingAnnualLeaveDays?: number | null; // null = no leave account; default null
 }
 
 export interface EmployeePayslipSummaryDTO {
@@ -85,6 +87,9 @@ export interface EmployeePayslipDTO {
   fullName: string;
   positionLevelText: string;
   contractStatusText: string;
+  employeeType: string | null;
+  level: number;
+  employmentStatus: 'probation' | 'official' | null;
   month: string;
   standardWorkdays: number;
   actualWorkDays: number;
@@ -138,7 +143,7 @@ export interface EmployeePayslipDTO {
   advanceDeduction: number;
   netIncome: number;
   warnings: PayrollWarning[];
-  remainingAnnualLeaveDays: number;
+  remainingAnnualLeaveDays: number | null;
   dailyLines: DailyAttendanceLineProps[];
 }
 
@@ -167,6 +172,8 @@ export class EmployeePayslip {
   // Block 1: Base Salary
   readonly baseSalaryPolicy: number;
   readonly employeeType: string | undefined;
+  readonly level: number;
+  readonly employmentStatus: 'probation' | 'official' | null;
   readonly nightAllowancePct: number;
   readonly isDormResident: boolean;
   readonly baseSalaryActual: number;
@@ -223,7 +230,7 @@ export class EmployeePayslip {
   readonly netIncome: number;
 
   // Block 8: Balance
-  readonly remainingAnnualLeaveDays: number;
+  readonly remainingAnnualLeaveDays: number | null;
 
   // Data-quality flags raised while the payslip was computed
   readonly warnings: PayrollWarning[];
@@ -245,6 +252,8 @@ export class EmployeePayslip {
     this.standardWorkdays = props.standardWorkdays ?? 26;
     this.baseSalaryPolicy = props.baseSalaryPolicy;
     this.employeeType = props.employeeType;
+    this.level = props.level ?? 1;
+    this.employmentStatus = props.employmentStatus ?? null;
     this.nightAllowancePct = props.nightAllowancePct ?? (props.employeeType === 'nv' ? 40 : 30);
     this.isDormResident = props.isDormResident ?? false;
     this.dailyLines = [...props.dailyLines];
@@ -413,7 +422,7 @@ export class EmployeePayslip {
     this.netIncome = this.grossIncome - this.insuranceDeduction - this.personalIncomeTax - this.advanceDeduction;
 
     // Block 8: Balance
-    this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? 0;
+    this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? null;
 
     this.warnings = [...(props.warnings ?? [])];
   }
@@ -442,6 +451,9 @@ export class EmployeePayslip {
       fullName: this.fullName,
       positionLevelText: this.positionLevelText,
       contractStatusText: this.contractStatusText,
+      employeeType: this.employeeType ?? null,
+      level: this.level,
+      employmentStatus: this.employmentStatus,
       month: this.month,
       standardWorkdays: this.standardWorkdays,
       actualWorkDays: this.actualWorkDays,

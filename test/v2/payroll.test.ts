@@ -705,6 +705,21 @@ describe('Payroll V2 - KPI, insurance and income tax on the payslip', () => {
     assert.deepEqual(dto.warnings, []);
   });
 
+  it('carries the type, level, employment status and annual leave left on the DTO', async () => {
+    const dto = (
+      await generate({ staff: { level: 2, employmentStatus: 'probation', remainingAnnualLeaveDays: 10 } })
+    ).toJSON();
+    assert.equal(dto.employeeType, 'nv');
+    assert.equal(dto.level, 2);
+    assert.equal(dto.employmentStatus, 'probation');
+    assert.equal(dto.remainingAnnualLeaveDays, 10);
+
+    const noAccount = (await generate({ staff: { remainingAnnualLeaveDays: null } })).toJSON();
+    assert.equal(noAccount.remainingAnnualLeaveDays, null);
+    const spent = (await generate({ staff: { remainingAnnualLeaveDays: 0 } })).toJSON();
+    assert.equal(spent.remainingAnnualLeaveDays, 0);
+  });
+
   it('feeds insurance and dependants into the progressive assessable income', async () => {
     const slip = await generate({
       staff: { baseSalary: 30_000_000, kpiCap: { applicable: true, kpiMax: 30_000_000 } },

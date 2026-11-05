@@ -28,10 +28,12 @@ export interface EmployeeMonthlyRawData {
     baseSalary: number | null; // position_levels.base_salary in effect; null = not configured
     standardWorkdays: number | null; // position_types.workdays in effect; null = not configured
     employeeType?: string;
+    level: number; // staff.level; the position level row is looked up by it
+    employmentStatus: 'probation' | 'official' | null; // staff.contract_status; any other value reads as null
     nightAllowancePct?: number;
     isDormResident?: boolean;
     allowanceRates: AllowanceRates | null; // % of the position version in force; null = no version for the month
-    remainingAnnualLeaveDays?: number;
+    remainingAnnualLeaveDays: number | null; // null = the type keeps no leave account
     contractTerm: ContractTerm; // resolved from staff.contract and the employee type
     insured: boolean; // resolved from the contract term and staff.insured
     dependants: number;
@@ -80,6 +82,7 @@ export interface MonthRows {
   timesheets: any[];
   requests: any[];
   isatDates?: Array<string | Date>;
+  annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
   settings: Array<{ key: string; value_json: string }>;
 }
@@ -128,6 +131,7 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
   const baseSalary = numberOrNull(levelRow?.base_salary);
   const kpiCap = resolveKpiCap(levelRow, benefits);
   const contractTerm = resolveContractTerm(staffRow.contract, staffRow.type);
+  const hasLeaveAccount = benefits.some(b => b.benefit === 'leaveAccount' && Number(b.enabled) === 1);
 
   return {
     staff: {
@@ -139,6 +143,11 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       baseSalary,
       standardWorkdays: numberOrNull(typeRow?.workdays),
       employeeType: staffRow.type,
+      level: Number(staffRow.level ?? 1),
+      employmentStatus:
+        staffRow.contract_status === 'probation' || staffRow.contract_status === 'official'
+          ? staffRow.contract_status
+          : null,
       nightAllowancePct: Number(staffRow.shift_allowance_pct ?? 30),
       isDormResident: Number(staffRow.idorm ?? 0) === 1,
       // Không có loại thì vẫn đọc phiên bản NV để lấy ngày công (positionInEffect), nhưng không trả phụ cấp như trước.
@@ -151,7 +160,9 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
             attendancePct: Number(typeRow.attendance_pct)
           }
         : null,
-      remainingAnnualLeaveDays: 22,
+      remainingAnnualLeaveDays: hasLeaveAccount
+        ? Number(staffRow.leave_balance ?? 0) - Number(rows.annualLeaveUsed ?? 0)
+        : null,
       contractTerm,
       insured: isInsured(contractTerm, numberOrNull(staffRow.insured)),
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
@@ -393,6 +404,20 @@ export class PayrollRepository {
       .orderBy('isat_registrations.saturday', 'asc')
       .execute();
 
+    // Approved annual leave days taken since the balance date, up to the month end
+    let usedQuery = this.qb
+      .selectFrom('day_status')
+      .innerJoin('system_requests', 'system_requests.id', 'day_status.request_id')
+      .select(eb => eb.fn.countAll<string>().as('n'))
+      .where('day_status.employee_id', '=', staffRow.uuid || employeeId)
+      .where('day_status.status', '=', 'LEAVE')
+      .where('system_requests.type', '=', 'LEAVE')
+      .where('system_requests.leave_type', '=', 'ANNUAL')
+      .where('system_requests.status', '=', 'APPROVED')
+      .where('day_status.work_date', '<=', endDate);
+    if (staffRow.leave_balance_on) usedQuery = usedQuery.where('day_status.work_date', '>=', staffRow.leave_balance_on);
+    const annualLeaveUsed = await usedQuery.executeTakeFirst();
+
     // KPI scores
     const kpiRow = await this.qb
       .selectFrom('kpi_scores')
@@ -415,6 +440,7 @@ export class PayrollRepository {
       timesheets: timesheetRows,
       requests: requestRows,
       isatDates: isatRows.map(r => r.saturday),
+      annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null,
       settings
     });

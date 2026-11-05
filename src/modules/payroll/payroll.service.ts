@@ -319,6 +319,8 @@ export class PayrollService {
       },
       lateEarlyHours: roundedLateEarlyHours,
       employeeType,
+      level: staff.level,
+      employmentStatus: staff.employmentStatus,
       nightAllowancePct,
       isDormResident: staff.isDormResident,
       allowanceRates: staff.allowanceRates,
@@ -329,7 +331,7 @@ export class PayrollService {
       dependants: staff.dependants,
       warnings,
       advanceDeduction,
-      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays || 22
+      remainingAnnualLeaveDays: staff.remainingAnnualLeaveDays
     });
   }
 }
