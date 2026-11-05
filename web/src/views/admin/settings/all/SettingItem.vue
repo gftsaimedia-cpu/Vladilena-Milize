@@ -31,7 +31,13 @@ const edited = (field: string) => !!props.state && props.draft[field] !== saved(
     <div class="l">
       <div class="nm">{{ entry.title }}</div>
       <div v-if="entry.desc" class="ds">{{ entry.desc }}</div>
-      <button v-if="history" type="button" class="link hist" @click="showHistory = !showHistory">
+      <button
+        v-if="history"
+        type="button"
+        class="link hist"
+        :aria-expanded="showHistory"
+        @click="showHistory = !showHistory"
+      >
         {{ showHistory ? 'Ẩn lịch sử' : 'Lịch sử' }}
       </button>
     </div>

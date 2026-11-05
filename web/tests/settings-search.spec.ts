@@ -234,7 +234,9 @@ test('Hoàn tác adds a new history row', async ({ page }) => {
   await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
   await saveViaDialog(page);
   const bhxh = item(page, 'bhxhPct');
+  await expect(bhxh.getByRole('button', { name: 'Lịch sử' })).toHaveAttribute('aria-expanded', 'false');
   await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(bhxh.getByRole('button', { name: 'Ẩn lịch sử' })).toHaveAttribute('aria-expanded', 'true');
   await expect(bhxh).toContainText('Lịch sử · 1 lần sửa');
   await expect(bhxh.locator('tbody tr')).toHaveCount(1);
   await expect(bhxh.locator('tbody tr').first()).toContainText('8% → 8,5%');

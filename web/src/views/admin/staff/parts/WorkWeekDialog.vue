@@ -63,7 +63,8 @@ async function save() {
 
 <template>
   <AppModal title="Tuần làm việc" :sub="name" :width="480" :dismissable="!saving" @close="emit('close')">
-    <div class="fld">
+    <fieldset class="fld mode">
+      <legend class="sr-only">Chọn tuần làm việc</legend>
       <label class="opt">
         <input v-model="mode" type="radio" value="type" name="ww-mode" />
         <span>Theo loại nhân sự</span>
@@ -85,7 +86,7 @@ async function save() {
         </label>
       </div>
       <p class="std" :class="{ bad: noDay }">{{ noDay ? 'Chọn ít nhất một ngày' : `Công chuẩn: ${workdays}` }}</p>
-    </div>
+    </fieldset>
     <div class="fld">
       <label>Áp dụng từ tháng</label>
       <SelectBox v-model="month" variant="inp" :options="months" label="Áp dụng từ tháng" />
@@ -104,6 +105,15 @@ async function save() {
 </template>
 
 <style scoped>
+/* fieldset chỉ để nhóm hai lựa chọn cho trình đọc màn hình; trông như khối .fld thường. */
+.mode {
+  min-width: 0;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 0;
+  padding: 0;
+  border: 0;
+}
 .opt {
   display: flex;
   align-items: baseline;
