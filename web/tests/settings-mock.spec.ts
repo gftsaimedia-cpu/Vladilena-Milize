@@ -15,6 +15,7 @@ import {
   settingsAt,
   workWeekHistory,
   workWeekOf,
+  zoneHistory,
   zoneOf,
 } from '../src/mock/settings';
 
@@ -90,4 +91,39 @@ test('holidays 2026 count 11 days and quick-add skips existing ones', () => {
   expect(holidaysOf(2026).items).toHaveLength(11);
   expect(quickAddFixed(2026).added).toEqual([]);
   expect(quickAddFixed(2027).added).toEqual(['2027-01-01', '2027-04-30', '2027-05-01', '2027-09-02']);
+});
+test('zone logs one row with field zone even when lat, lng and radius all change', () => {
+  const r = saveZoneOf({ lat: 10.8, lng: 106.8, radiusM: 300, reason: 'Dời văn phòng', stamp: 0 });
+  const { items } = zoneHistory();
+  expect(items).toHaveLength(1);
+  expect(items[0]).toMatchObject({
+    id: r.stamp,
+    field: 'zone',
+    month: null,
+    from: { lat: 10.7769, lng: 106.7009, radiusM: 150 },
+    to: { lat: 10.8, lng: 106.8, radiusM: 300 },
+    reason: 'Dời văn phòng',
+  });
+  expect(zoneOf().stamp).toBe(items[0].id);
+  const again = saveZoneOf({ lat: 10.8, lng: 106.8, radiusM: 300, reason: null, stamp: r.stamp });
+  expect(again.stamp).toBe(r.stamp);
+  expect(zoneHistory().items).toHaveLength(1);
+});
+test('a work week with Sunday or no day is refused', () => {
+  expect(() => saveWorkWeekOf('hoang-thi-mai', { effectiveMonth: '2026-12', weekdays: [1, 2, 3, 4, 5, 6, 7], reason: null, stamp: 0 }))
+    .toThrow(expect.objectContaining({ status: 400, code: 'BAD_SETTINGS_INPUT' }));
+  expect(() => saveWorkWeekOf('hoang-thi-mai', { effectiveMonth: '2026-12', weekdays: [], reason: null, stamp: 0 }))
+    .toThrow(expect.objectContaining({ code: 'BAD_SETTINGS_INPUT' }));
+});
+test('history lists are capped at 200 items, newest first', () => {
+  let stamp = 0;
+  for (let i = 0; i < 205; i++) stamp = saveGroup('attendance', { effectiveMonth: '2026-10', values: { lateGraceMinutes: i % 2 ? 10 : 20 }, reason: null, stamp }).stamp;
+  const { items } = groupHistory('attendance');
+  expect(items).toHaveLength(200);
+  expect(items[0].id).toBe(stamp);
+  for (let i = 0; i < 205; i++) stamp = saveZoneOf({ lat: 10.7769, lng: 106.7009, radiusM: 100 + i, reason: null, stamp: zoneOf().stamp }).stamp;
+  expect(zoneHistory().items).toHaveLength(200);
+  let ws = 0;
+  for (let i = 0; i < 205; i++) ws = saveWorkWeekOf('hoang-thi-mai', { effectiveMonth: '2026-10', weekdays: i % 2 ? [1, 2, 3, 4, 5] : [1, 2, 3], reason: null, stamp: ws }).stamp;
+  expect(workWeekHistory('hoang-thi-mai').items).toHaveLength(200);
 });

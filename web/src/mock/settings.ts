@@ -123,6 +123,10 @@ function versionAt(chain: Version[], month: string): Version {
   return best;
 }
 
+const HISTORY_CAP = 200;
+// Lịch sử trả về mới nhất trước, tối đa 200 dòng (như BE).
+const newestFirst = (history: HistoryItem[]) => clone([...history].reverse().slice(0, HISTORY_CAP));
+
 const stampOf = (history: HistoryItem[]) => (history.length ? history[history.length - 1].id : 0);
 
 // Áp thay đổi từ tháng M: sửa thẳng phiên bản M hoặc chép phiên bản đang hiệu lực sang M, rồi chép số mới sang từng
@@ -159,7 +163,7 @@ let saveCount = 0;
 let groups: Record<GroupKey, Store>;
 let weeks: Map<string, Store>;
 let zone: Zone;
-let zoneHistory: HistoryItem[];
+let zoneLog: HistoryItem[];
 let holidays: Map<string, string>;
 
 export function resetSettingsMock(): void {
@@ -171,7 +175,7 @@ export function resetSettingsMock(): void {
   }
   weeks = new Map();
   zone = clone(INITIAL_ZONE);
-  zoneHistory = [];
+  zoneLog = [];
   holidays = new Map(HOLIDAYS_2026);
 }
 resetSettingsMock();
@@ -256,7 +260,7 @@ export function saveGroup(path: string, body: SaveBody): SaveResult {
 }
 
 export function groupHistory(path: string): { items: HistoryItem[] } {
-  return { items: clone([...groups[groupKeyOf(path)].history].reverse()) };
+  return { items: newestFirst(groups[groupKeyOf(path)].history) };
 }
 
 // ---------- Ngày trả lương ----------
@@ -314,7 +318,7 @@ export function saveWorkWeekOf(username: string, body: WorkWeekBody) {
   let weekdays: number[] | null = null;
   if (body.weekdays !== null) {
     weekdays = [...new Set(body.weekdays)].sort((a, b) => a - b);
-    if (!weekdays.length || weekdays.some(d => !Number.isInteger(d) || d < 1 || d > 7)) throw bad('weekdays');
+    if (!weekdays.length || weekdays.some(d => !Number.isInteger(d) || d < 1 || d > 6)) throw bad('weekdays');
   }
 
   const changed = applyChange(store.chain, body.effectiveMonth, { weekdays });
@@ -327,26 +331,28 @@ export function saveWorkWeekOf(username: string, body: WorkWeekBody) {
 }
 
 export function workWeekHistory(username: string): { items: HistoryItem[] } {
-  return { items: clone([...weekStore(username).history].reverse()) };
+  return { items: newestFirst(weekStore(username).history) };
 }
 
-// ---------- Vùng chấm công (có hiệu lực ngay, không theo tháng) ----------
+// ---------- Vùng chấm công (có hiệu lực ngay, không theo tháng; mỗi lần lưu một dòng lịch sử field 'zone') ----------
 
 export function zoneOf(): { zone: Zone | null; stamp: number } {
-  return { zone: clone(zone), stamp: stampOf(zoneHistory) };
+  return { zone: clone(zone), stamp: stampOf(zoneLog) };
 }
 
 export function saveZoneOf(body: Zone & { reason: string | null; stamp: number }) {
-  checkStamp(zoneHistory, body.stamp);
+  checkStamp(zoneLog, body.stamp);
   const next: Zone = { lat: body.lat, lng: body.lng, radiusM: body.radiusM };
-  const changed = (Object.keys(next) as (keyof Zone)[])
-    .filter(f => zone[f] !== next[f])
-    .map(f => ({ field: f, from: zone[f], to: next[f] }));
-  if (changed.length) {
-    logRows(zoneHistory, changed, null, reasonOf(body.reason));
+  if (!same(zone, next)) {
+    // Một lần lưu = một dòng lịch sử, field 'zone', from/to là cả vùng.
+    logRows(zoneLog, [{ field: 'zone', from: zone, to: next }], null, reasonOf(body.reason));
     zone = next;
   }
-  return { ok: true as const, zone: clone(zone), stamp: stampOf(zoneHistory) };
+  return { ok: true as const, zone: clone(zone), stamp: stampOf(zoneLog) };
+}
+
+export function zoneHistory(): { items: HistoryItem[] } {
+  return { items: newestFirst(zoneLog) };
 }
 
 // ---------- Ngày lễ ----------
