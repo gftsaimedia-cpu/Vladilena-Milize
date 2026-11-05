@@ -111,11 +111,47 @@ describe('Tạo yêu cầu: ngày chọn được', () => {
     assert.equal(leaveSummary(isat(), '2026-11-13', '2026-11-16'), '2 ngày làm việc: 13 và 16/11');
   });
 
-  it('shift-change ends are every day from the start', () => {
+  it('shift-change ends start where the range first holds a changeable workday', () => {
+    // [29..29] chỉ có Chủ nhật: chưa có ngày đổi ca nào, nên "Đến ngày" bắt đầu từ 30/11.
     assert.deepEqual(endDates(context(), 'shift-change', '2026-11-29'), [
-      '2026-11-29', '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05', '2026-12-06'
+      '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05', '2026-12-06'
     ]);
     assert.deepEqual(endDates(context(), 'shift-change', ''), []);
+  });
+
+  it('a shift-change start needs a changeable workday before the next blocking day', () => {
+    const starts = startDates(context(), 'shift-change');
+    assert.ok(!starts.includes('2026-12-06'), 'Sunday at the end of the window');
+    assert.ok(starts.includes('2026-11-29'), 'a Sunday followed by workdays');
+    assert.ok(starts.includes('2026-11-11'), 'a kept leave day followed by workdays');
+  });
+
+  it('shift-change ends stop before a day held by another shift change, which is no start', () => {
+    for (const pending of [true, false]) {
+      const ctx = context({ claims: { '2026-11-23': { status: 'SHIFT_CHANGE', pending } } });
+      const starts = startDates(ctx, 'shift-change');
+      assert.ok(!starts.includes('2026-11-23'), `held day, pending ${pending}`);
+      assert.ok(!starts.includes('2026-11-22'), `Sunday right before it, pending ${pending}`);
+      // Ngày nghỉ 18/11 là "Từ ngày" được; [18..18] chưa có ngày đổi ca nên "Đến ngày" bắt đầu từ 19/11.
+      assert.deepEqual(
+        endDates(ctx, 'shift-change', '2026-11-18'),
+        ['2026-11-19', '2026-11-20', '2026-11-21', '2026-11-22'],
+        `pending ${pending}`
+      );
+    }
+  });
+
+  it('shift-change ends stop before a pending-iSAT Saturday and keep an approved one inside', () => {
+    const starts = startDates(isat(), 'shift-change');
+    assert.ok(!starts.includes('2026-11-21'), 'pending iSAT');
+    assert.ok(starts.includes('2026-11-14'), 'approved iSAT followed by workdays');
+    assert.deepEqual(endDates(isat(), 'shift-change', '2026-11-16'), [
+      '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'
+    ]);
+    // [14..15] chỉ có iSAT được duyệt và Chủ nhật: "Đến ngày" bắt đầu từ 16/11.
+    assert.deepEqual(endDates(isat(), 'shift-change', '2026-11-14'), [
+      '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20'
+    ]);
   });
 
   it('explanation dates come from explanationDays, in their order', () => {

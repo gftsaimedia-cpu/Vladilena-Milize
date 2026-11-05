@@ -266,6 +266,30 @@ test.describe('Đổi ca', () => {
     await expectSent(page, 'Đổi ca Flex 06–15, 02–07/11');
     expect(calls).toEqual([]);
   });
+
+  test('days of a filed shift change are not offered again, and ends stop before them', async ({ page }) => {
+    const calls = await openPhone(page, '/nv/yeu-cau');
+    let sheet = await openKind(page, 'Đổi ca');
+    await sheet.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
+    await sheet.getByLabel('Đến ngày').selectOption({ label: 'T7 07/11' });
+    await sheet.getByRole('radio', { name: 'Flex 06–15' }).check();
+    await sheet.getByLabel('Lý do').fill('Đưa đón con tuần này');
+    await expect(sendButton(sheet)).toBeEnabled();
+    await sendButton(sheet).click();
+    await expectSent(page, 'Đổi ca Flex 06–15, 02–07/11');
+
+    sheet = await openKind(page, 'Đổi ca');
+    const from = sheet.getByLabel('Từ ngày');
+    const starts = await choices(from).allTextContents();
+    for (const day of ['T2 02/11', 'T3 03/11', 'T4 04/11', 'T5 05/11', 'T6 06/11', 'T7 07/11'])
+      expect(starts).not.toContain(day);
+    expect(starts).not.toContain('CN 01/11'); // từ đó tới ngày đã đổi ca chỉ có Chủ nhật
+    expect(starts).toContain('T7 31/10');
+    expect(starts).toContain('CN 08/11'); // sau đó còn ngày làm để đổi
+    await from.selectOption({ label: 'T4 28/10' });
+    await expect(choices(sheet.getByLabel('Đến ngày'))).toHaveText(['T4 28/10', 'T5 29/10', 'T6 30/10', 'T7 31/10', 'CN 01/11']);
+    expect(calls).toEqual([]);
+  });
 });
 
 test.describe('Giải trình', () => {

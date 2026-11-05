@@ -54,6 +54,26 @@ const openDays = (ctx: RequestContext) => ctx.days.filter(d => monthInfo(ctx, mo
 const roomAfter = (ctx: RequestContext, date: string) =>
   openDays(ctx).some(d => d.date > date && monthOf(d.date) === monthOf(date) && d.hours.length > 0);
 
+// Ruling (progress.md): ngày Đổi ca bỏ ngày đã có đơn đổi ca khác hay iSAT chờ duyệt, và khoảng phải có ít nhất một ngày đổi
+// được: hẹp hơn "mọi ngày trong window" của spec 4.4, theo brief FE và luật chỉ đưa lựa chọn hợp lệ. Nếu sai, form đưa ít ngày
+// hơn BE nhận (hôm nay BE từ chối đúng các khoảng này, day-status.ts:110).
+// Ngày chặn khoảng Đổi ca: đã có đơn đổi ca (chờ duyệt hay đã duyệt) hoặc Thứ Bảy có iSAT chờ duyệt.
+const blocksShiftChange = (d: ContextDay) => d.claim?.status === 'SHIFT_CHANGE' || pendingIsat(d);
+// Ngày đổi được ca: ngày làm chưa bị đơn nào giữ (như summary.dates của xem trước). Ngày nghỉ, iSAT được duyệt nằm trong
+// khoảng thì giữ nguyên.
+const changeable = (d: ContextDay) => d.workday && !d.claim;
+// "Đến ngày" của Đổi ca khi `from[0]` là "Từ ngày": dừng trước ngày chặn kế tiếp; `[from[0]..e]` phải có một ngày đổi được.
+function shiftChangeEnds(from: ContextDay[]): string[] {
+  const out: string[] = [];
+  let changes = false;
+  for (const d of from) {
+    if (blocksShiftChange(d)) break;
+    changes ||= changeable(d);
+    if (changes) out.push(d.date);
+  }
+  return out;
+}
+
 /** Phút OT còn đăng ký được trong tháng (40 giờ trừ phần đã có); tháng không có trong months là 0. */
 export function otLeftMinutes(ctx: RequestContext, month: string): number {
   const m = monthInfo(ctx, month);
@@ -76,7 +96,7 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
         .filter(d => startHours(d, { capMinutes: otLeftMinutes(ctx, monthOf(d.date)) }).length > 0)
         .map(d => d.date);
     case 'shift-change':
-      return days.map(d => d.date);
+      return days.filter((_, i) => shiftChangeEnds(days.slice(i)).length > 0).map(d => d.date);
     case 'explanation':
       return ctx.explanationDays.map(d => d.date);
     default:
@@ -88,12 +108,13 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
  * "Đến ngày" chọn được khi "Từ ngày" là `start` (rỗng khi `start` không chọn được hoặc loại chỉ có một ngày).
  * Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ hoặc có iSAT chờ duyệt; Thứ Bảy có iSAT được
  * duyệt nằm giữa khoảng thì được, nhưng không là "Đến ngày". Nghỉ có làm bù: thêm cùng tháng và sau đó còn ngày để bù.
- * Đổi ca: mọi ngày từ `start`.
+ * Đổi ca: các ngày từ `start`, dừng trước ngày kế tiếp đã có đơn đổi ca khác hay iSAT chờ duyệt; ngày `e` được khi
+ * `[start..e]` có ít nhất một ngày làm chưa bị đơn nào giữ (Chủ nhật, ngày nghỉ, iSAT được duyệt nằm trong khoảng thì được).
  */
 export function endDates(ctx: RequestContext, kind: RequestKind, start: string): string[] {
   if (!start || !startDates(ctx, kind).includes(start)) return [];
   const days = openDays(ctx).filter(d => d.date >= start);
-  if (kind === 'shift-change') return days.map(d => d.date);
+  if (kind === 'shift-change') return shiftChangeEnds(days);
   if (kind !== 'leave' && kind !== 'leave-with-makeup') return [];
   const out: string[] = [];
   for (const d of days) {

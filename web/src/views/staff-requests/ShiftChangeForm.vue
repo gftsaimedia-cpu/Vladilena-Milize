@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // J16 · Đổi ca (spec staff-requests 4.4, brief FE mục 5): Từ ngày – Đến ngày, một trong 6 khung ca, lý do.
-// Ngày là mọi ngày trong window (builder startDates / endDates); đổi "Từ ngày" thì "Đến ngày" giữ nguyên nếu còn hợp lệ (fitEnd).
+// Ngày do builder startDates / endDates đưa ra: bỏ ngày đã có đơn đổi ca khác hay iSAT chờ duyệt, và khoảng phải có ít nhất
+// một ngày đổi được; đổi "Từ ngày" thì "Đến ngày" giữ nguyên nếu còn hợp lệ (fitEnd).
 // Khung ca là nhóm radio "Ca mới", hai cột như board, lấy từ ctx.shiftFrames. Tóm tắt (sau khung ca, như board) do builder đếm:
 // "5 ngày đổi sang Flex 06–15: …"; ngày nghỉ trong khoảng giữ nguyên, câu cảnh báo đến từ lần xem trước.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
