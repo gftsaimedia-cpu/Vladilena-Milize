@@ -373,6 +373,15 @@ CREATE TABLE day_status (
 CREATE INDEX idx_day_status_request ON day_status(request_id);
 CREATE INDEX idx_day_status_base_request ON day_status(base_request_id);
 
+-- Lần nhắc giải trình gần nhất của quản trị viên cho một người ở một ngày. Nhắc lại thì ghi đè dòng cũ.
+CREATE TABLE explanation_reminders (
+  employee_id TEXT NOT NULL REFERENCES staff(uuid),
+  work_date   DATE NOT NULL,
+  reminded_by TEXT NOT NULL REFERENCES staff(uuid),
+  reminded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (employee_id, work_date)
+);
+
 -- Chỉ mục
 CREATE INDEX audit_action_at ON audit_log (action, at);
 CREATE INDEX audit_action_id ON audit_log (action, id);
