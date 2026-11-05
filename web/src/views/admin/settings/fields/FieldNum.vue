@@ -38,7 +38,8 @@ function onInput(e?) {
   const raw = e.target.value.replace(props.integer ? /\D/g : /[^\d,]/g, '');
   const cut =
     raw.indexOf(',') < 0 ? raw : raw.slice(0, raw.indexOf(',') + 1) + raw.slice(raw.indexOf(',') + 1).replace(/,/g, '');
-  const n = cut === '' ? null : Number(cut.replace(',', '.'));
+  // Chưa có chữ số nào (ô trống hoặc chỉ gõ dấu phẩy) thì chưa phải một số: coi như ô trống.
+  const n = /\d/.test(cut) ? Number(cut.replace(',', '.')) : null;
   if (props.max != null && n != null && n > props.max) {
     e.target.value = before;
     return;
