@@ -1,5 +1,8 @@
 import { Injectable, Inject } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { isValidDateText } from '../../common/date-text';
+import { TransactionCoordinator } from '../../database/transaction';
+import { AuditLog } from '../audit/audit-log';
 import { HolidayNotFoundError } from './holidays.errors';
 import { HolidaysRepository, type Holiday } from './holidays.repository';
 
@@ -28,40 +31,78 @@ function formatFullDate(date: string): string {
   return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 }
 
+/** Dòng nhật ký của một ngày lễ: mã là ngày, tháng là tháng của ngày đó. */
+const holidayEntry = (holiday: Holiday) => ({
+  entityKind: 'holiday',
+  entityId: holiday.date,
+  month: holiday.date.slice(0, 7)
+});
+
+/** Mỗi lần thêm/xoá chạy trong một transaction; dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả hai. */
 @Injectable()
 export class HolidaysService {
-  constructor(@Inject(HolidaysRepository) private readonly repo: HolidaysRepository) {}
+  constructor(
+    @Inject(HolidaysRepository) private readonly repo: HolidaysRepository,
+    @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
+  ) {}
 
   async list(year: unknown): Promise<Holiday[]> {
     const y = parseYear(year);
     return this.repo.listBetween(`${y}-01-01`, `${y}-12-31`);
   }
 
-  async add(input: { date: unknown; name: unknown }, createdBy: string | null): Promise<Holiday> {
+  async add(input: { date: unknown; name: unknown }, actor: string): Promise<Holiday> {
     const { date, name } = input;
     if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (trimmed.length === 0) throw new Error('Tên ngày lễ không được trống');
     const holiday: Holiday = { date, name: trimmed };
-    if (!(await this.repo.insert(holiday, createdBy))) {
-      throw new Error(`Ngày ${formatFullDate(date)} đã có trong lịch lễ`);
-    }
-    return holiday;
+    return this.tx.run(async trx => {
+      if (!(await this.repo.withTransaction(trx).insert(holiday, actor))) {
+        throw new Error(`Ngày ${formatFullDate(date)} đã có trong lịch lễ`);
+      }
+      await this.audit.append(trx, {
+        actor,
+        action: 'holiday.add',
+        ...holidayEntry(holiday),
+        after: holiday,
+        requestId: randomUUID()
+      });
+      return holiday;
+    });
   }
 
   /** Thêm bốn ngày lễ cố định của năm `year`; ngày đã có thì bỏ qua. Trả các ngày vừa thêm. */
-  async quickAdd(year: unknown, createdBy: string | null): Promise<string[]> {
+  async quickAdd(year: unknown, actor: string): Promise<string[]> {
     const y = parseYear(year);
-    const added: string[] = [];
-    for (const { monthDay, name } of FIXED_HOLIDAYS) {
-      const date = `${y}-${monthDay}`;
-      if (await this.repo.insert({ date, name }, createdBy)) added.push(date);
-    }
-    return added;
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const added: Holiday[] = [];
+      for (const { monthDay, name } of FIXED_HOLIDAYS) {
+        const holiday = { date: `${y}-${monthDay}`, name };
+        if (await repo.insert(holiday, actor)) added.push(holiday);
+      }
+      const requestId = randomUUID();
+      for (const holiday of added) {
+        await this.audit.append(trx, { actor, action: 'holiday.add', ...holidayEntry(holiday), after: holiday, requestId });
+      }
+      return added.map(h => h.date);
+    });
   }
 
-  async remove(date: string): Promise<void> {
+  async remove(date: string, actor: string): Promise<void> {
     if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
-    if (!(await this.repo.remove(date))) throw new HolidayNotFoundError(date);
+    await this.tx.run(async trx => {
+      const removed = await this.repo.withTransaction(trx).remove(date);
+      if (!removed) throw new HolidayNotFoundError(date);
+      await this.audit.append(trx, {
+        actor,
+        action: 'holiday.remove',
+        ...holidayEntry(removed),
+        before: removed,
+        requestId: randomUUID()
+      });
+    });
   }
 }

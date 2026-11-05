@@ -1,6 +1,7 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
-import { PayrollRepository, EmployeeMonthlyRawData, KpiScorePatch, PayslipRecord } from './payroll.repository';
+import { SettingsReader, type SettingsSnapshot } from '../settings';
+import { PayrollRepository, KpiScorePatch, PayslipRecord, type RunSettings } from './payroll.repository';
 import { KpiValidationError } from './payroll.errors';
 import {
   EmployeePayslip,
@@ -9,20 +10,60 @@ import {
   presenceOf,
   type Presence,
   measureOvertime,
+  OT_BUCKET_OF,
   OT_MULTIPLIERS,
   otLinePayByRate,
+  type OtRates,
   type OtShare,
   type OtWindow,
   type PresenceSpan,
   weekdayTextOf,
   EmployeePayslipSummaryDTO,
-  EmployeePayslipDTO,
   PayrollWarning,
   calculateInsurance,
   calculateKpiPay,
-  resolveTaxMethod
+  resolveTaxMethod,
+  paysHoliday,
+  DEFAULT_INSURANCE_RATES,
+  DEFAULT_TAX_RULES,
+  KPI_WEIGHTS,
+  type InsuranceRates,
+  type KpiComponent,
+  type TaxRules,
+  advanceQuoteOf,
+  type AdvanceQuote
 } from './domain';
 import { PayrollAllowancePolicy } from './domain/allowance-rates';
+
+/** The numbers a payslip is computed with. */
+interface PayRules {
+  kpiWeights: Record<KpiComponent, number>;
+  insuranceRates: InsuranceRates;
+  taxRules: TaxRules;
+  otRates: OtRates;
+  diligenceLostFromDays?: number; // undefined = the domain default (lost from 5 absence days)
+}
+
+/** Without a settings reader (a service built by hand in a test): the domain defaults, the rules before the store. */
+const DEFAULT_PAY_RULES: PayRules = {
+  kpiWeights: KPI_WEIGHTS,
+  insuranceRates: DEFAULT_INSURANCE_RATES,
+  taxRules: DEFAULT_TAX_RULES,
+  otRates: OT_MULTIPLIERS
+};
+
+/** The payslip numbers of a month's settings; insurance % (8 means 8%) become rates (0.08). */
+function payRulesOf(s: SettingsSnapshot): PayRules {
+  return {
+    kpiWeights: s.kpiWeights,
+    insuranceRates: { bhxh: s.insurance.bhxhPct / 100, bhyt: s.insurance.bhytPct / 100, bhtn: s.insurance.bhtnPct / 100 },
+    taxRules: s.tax,
+    otRates: { weekday: s.overtime.weekdayRate, weekend: s.overtime.weekendRate, holiday: s.overtime.holidayRate },
+    diligenceLostFromDays: s.attendance.diligenceLostFromDays
+  };
+}
+
+type PayrollSettings = Pick<SettingsReader, 'settingsFor' | 'workWeekOf' | 'maxChangeId'>;
 
 // Scores are points 0-100; userScore / selfScore are other names for user / self.
 export interface KpiScoreBody {
@@ -53,6 +94,9 @@ const pctText = (rate: number): string => String(Math.round(rate * 10000) / 100)
 export class PayrollService {
   constructor(
     @Inject(PayrollRepository) private readonly repo: PayrollRepository,
+    // Nest always injects the reader (PayrollModule imports SettingsModule; no @Optional, so a missing import fails at
+    // boot). A service built by hand without it computes with DEFAULT_PAY_RULES and the position type's workdays.
+    @Inject(SettingsReader) private readonly settings?: PayrollSettings,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator
   ) {}
 
@@ -69,6 +113,8 @@ export class PayrollService {
     // was computed, in which case nothing is stored.
     const isPartial = employeeIds !== undefined && employeeIds.length > 0;
     const doCalc = async () => {
+      // One read of the month's settings for the whole run; the run stores what its payslips were computed with.
+      const settings = await this.runSettings(month);
       let targets = employeeIds;
       if (!targets || targets.length === 0) {
         const staffList = await this.repo.listEligibleEmployees();
@@ -82,7 +128,7 @@ export class PayrollService {
 
       for (const empId of targets) {
         try {
-          const payslip = await this.generateMonthlyPayslip(empId, month);
+          const payslip = await this.payslipOf(empId, month, settings?.snapshot ?? null);
           // The same person can be listed by uuid and by username; keep one payslip per username.
           if (seenUsernames.has(payslip.username)) continue;
           seenUsernames.add(payslip.username);
@@ -96,7 +142,7 @@ export class PayrollService {
       const carryForward = isPartial
         ? { exceptUsernames: payslips.map(p => p.username), exceptEmployeeIds: targets }
         : undefined;
-      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward);
+      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward, settings);
       return { runId, items: summaries, errors };
     };
 
@@ -104,6 +150,15 @@ export class PayrollService {
       return await this.txCoordinator.withLock(`payroll_${month}`, doCalc);
     }
     return await doCalc();
+  }
+
+  // The month's settings for a run; null without a reader. The change id is read before the snapshot: a change saved
+  // in between then leaves the stored rev older than the snapshot (the run looks stale), never newer.
+  private async runSettings(month: string): Promise<RunSettings | null> {
+    if (!this.settings) return null;
+    const rev = await this.settings.maxChangeId();
+    const snapshot = await this.settings.settingsFor(month);
+    return { snapshot, rev };
   }
 
   async listPayslips(month: string): Promise<PayslipRecord[]> {
@@ -168,7 +223,18 @@ export class PayrollService {
     await this.repo.saveKpiScore(username, month, patch, actor);
   }
 
+  /** Số tiền tạm ứng của tháng `month`: 80% lương các ngày công 01–15 theo bảng lương tính ngay lúc này. */
+  async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
+    const payslip = await this.generateMonthlyPayslip(employeeId, month);
+    return advanceQuoteOf(payslip.dailyLines, month);
+  }
+
   async generateMonthlyPayslip(employeeId: string, month: string): Promise<EmployeePayslip> {
+    return await this.payslipOf(employeeId, month, this.settings ? await this.settings.settingsFor(month) : null);
+  }
+
+  // `snapshot` is the month's settings (null without a reader); the person's week comes from the reader too.
+  private async payslipOf(employeeId: string, month: string, snapshot: SettingsSnapshot | null): Promise<EmployeePayslip> {
     const data = await this.repo.getMonthlyData(employeeId, month);
     if (!data) {
       throw new Error(`Data not found for employee ${employeeId} in month ${month}`);
@@ -179,6 +245,9 @@ export class PayrollService {
       const position = `${staff.employeeType ?? 'không rõ loại'} (${staff.positionLevelText})`;
       throw new Error(`Thiếu cấu hình chức vụ hoặc bậc lương cho ${position}`);
     }
+    const rules = snapshot ? payRulesOf(snapshot) : DEFAULT_PAY_RULES;
+    // The standard days follow the person's own week when there is one (D3/D5), else the position type's workdays.
+    const week = this.settings ? await this.settings.workWeekOf(staff.uuid, month) : null;
     const employeeType = staff.employeeType;
     const nightAllowancePct = staff.nightAllowancePct === 60 ? 60 : 40;
     const allowancePolicy = new PayrollAllowancePolicy(employeeType, nightAllowancePct, staff.allowanceRates);
@@ -193,7 +262,7 @@ export class PayrollService {
         )
         .map(ts => ts.workDate)
     );
-    const standardWorkdays = staff.standardWorkdays;
+    const standardWorkdays = week ? week.standardWorkdays : staff.standardWorkdays;
     const baseSalaryPolicy = staff.baseSalary;
     const dayRate = baseSalaryPolicy / standardWorkdays;
     const hourRate = dayRate / 8;
@@ -234,7 +303,7 @@ export class PayrollService {
         otWindows.push({ date: req.otDate, start: req.otStartTime, end: req.otEndTime });
       }
     }
-    const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []));
+    const otShares = measureOvertime(otWindows, spans, new Set(data.holidayDates ?? []), rules.otRates);
     const otSharesByLine = new Map<string, OtShare[]>();
     for (const share of otShares) {
       otSharesByLine.set(share.lineDate, [...(otSharesByLine.get(share.lineDate) ?? []), share]);
@@ -284,7 +353,8 @@ export class PayrollService {
         daySalary = 0;
       } else {
         shiftLabel = 'Normal';
-        daySalary = Math.round(dayRate);
+        // A holiday off the person's week is not paid (paysHoliday; the payslip does not count it either).
+        daySalary = shiftCode === 'HOLIDAY' && !paysHoliday(ts.workDate, week?.weekdays) ? 0 : Math.round(dayRate);
       }
 
       const presence = presenceOfLine.get(ts);
@@ -354,13 +424,9 @@ export class PayrollService {
     }
     dailyLines.sort((a, b) => a.date.localeCompare(b.date));
 
-    // OT hours by multiplier, from the same shares as the day lines.
+    // OT hours by kind of day, from the same shares as the day lines.
     const otHoursByRate = { x15: 0, x20: 0, x30: 0 };
-    for (const share of otShares) {
-      if (share.multiplier === OT_MULTIPLIERS.weekday) otHoursByRate.x15 += share.hours;
-      else if (share.multiplier === OT_MULTIPLIERS.weekend) otHoursByRate.x20 += share.hours;
-      else otHoursByRate.x30 += share.hours;
-    }
+    for (const share of otShares) otHoursByRate[OT_BUCKET_OF[share.kind]] += share.hours;
 
     let advanceDeduction = 0;
     for (const req of requests) {
@@ -369,8 +435,8 @@ export class PayrollService {
       }
     }
 
-    const kpi = calculateKpiPay(data.kpi, staff.kpiCap);
-    const insurance = calculateInsurance(baseSalaryPolicy, staff.insured, data.insuranceRates);
+    const kpi = calculateKpiPay(data.kpi, staff.kpiCap, rules.kpiWeights);
+    const insurance = calculateInsurance(baseSalaryPolicy, staff.insured, rules.insuranceRates);
     const taxMethod = resolveTaxMethod(staff.contractTerm);
     const warnings: PayrollWarning[] = [...kpi.warnings];
 
@@ -386,9 +452,12 @@ export class PayrollService {
       standardWorkdays,
       baseSalaryPolicy,
       dailyLines,
+      workWeekdays: week?.weekdays,
       otHoursByRate,
       otPayByRate,
+      otRates: rules.otRates,
       lateEarlyHours: roundedLateEarlyHours,
+      diligenceLostFromDays: rules.diligenceLostFromDays,
       employeeType,
       level: staff.level,
       employmentStatus: staff.employmentStatus,
@@ -399,6 +468,7 @@ export class PayrollService {
       kpi,
       insurance,
       taxMethod,
+      taxRules: rules.taxRules,
       dependants: staff.dependants,
       warnings,
       advanceDeduction,

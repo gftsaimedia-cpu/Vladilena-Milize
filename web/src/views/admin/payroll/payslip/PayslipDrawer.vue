@@ -10,6 +10,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router';
 import AppDrawer from '@/components/ui/AppDrawer.vue';
 import Icon from '@/components/ui/Icon.vue';
+import { kindLevelText } from '@/constants/labels';
 import type { Payslip } from '@/mock/payroll';
 import type { KpiPart, KpiScores } from '@/mock/payroll-calc';
 import { previewPayslip } from '@/services/admin-payroll';
@@ -35,6 +36,11 @@ const PARTS = Object.keys(draft.value) as KpiPart[];
 // `owner`: phiếu mà draft đang giữ điểm và điểm đã lưu của nó (không phản ứng; chỉ để biết cột nào chưa lưu).
 let owner = { id: props.slip.id, saved: { ...props.slip.kpi.scores } };
 const view = computed(() => previewPayslip(props.slip, draft.value));
+
+// Ô Tình trạng: trạng thái nhân sự (Thử việc / Chính thức) rồi nhãn hợp đồng; thiếu phần nào thì bỏ phần đó.
+const standing = computed(
+  () => [props.slip.employmentStatus, props.slip.contract].filter(t => t && t !== '—').join(' · ') || '—'
+);
 
 const update = (part: KpiPart, value: number | null) => (draft.value = { ...draft.value, [part]: value });
 // Các lần lưu đang bay, để Duyệt / Từ chối chờ chúng xong: lưu trễ trả phiếu cũ (chưa duyệt) sẽ đè phiếu đã duyệt.
@@ -178,11 +184,11 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
       <dl class="pd-info">
         <div>
           <dt>Loại · bậc</dt>
-          <dd>{{ slip.kind }} · Bậc {{ slip.level }}</dd>
+          <dd>{{ kindLevelText(slip.kind, slip.level) }}</dd>
         </div>
         <div>
           <dt>Tình trạng</dt>
-          <dd>{{ slip.contract }}</dd>
+          <dd>{{ standing }}</dd>
         </div>
         <div>
           <dt>Trả lương</dt>

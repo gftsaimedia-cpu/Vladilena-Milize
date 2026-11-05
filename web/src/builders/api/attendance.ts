@@ -136,16 +136,27 @@ export type AttendanceInput = {
 type Index = {
   byKey: Map<string, TimesheetDTO>;
   uuidOf: Map<string, string>;
+  /** uuid hoặc tên đăng nhập → tên đăng nhập (khoá của người trên lưới). */
+  usernameOf: Map<string, string>;
   overlay: Map<string, InboxItem>;
   weekOf: (username: string) => number[];
 };
 
 function indexOf({ employees, timesheets, pending, weekdays }: AttendanceInput): Index {
   const uuidOf = new Map(employees.map(e => [e.account.username, e.profile.uuid || e.account.username]));
+  const usernameOf = new Map<string, string>();
+  for (const e of employees) {
+    usernameOf.set(e.account.username, e.account.username);
+    if (e.profile.uuid) usernameOf.set(e.profile.uuid, e.account.username);
+  }
   const byKey = new Map(timesheets.map(t => [`${t.employeeId}|${t.workDate}`, t]));
+  // Việc chờ duyệt từ /requests mang personId = uuid của nhân sự; người trên lưới khoá theo tên đăng nhập.
   const overlay = new Map<string, InboxItem>();
-  for (const item of pending) for (const d of item.days) overlay.set(`${item.personId}|${d}`, item);
-  return { byKey, uuidOf, overlay, weekOf: username => weekdays?.[username] ?? WORK_WEEK };
+  for (const item of pending) {
+    const owner = usernameOf.get(item.personId) ?? item.personId;
+    for (const d of item.days) overlay.set(`${owner}|${d}`, item);
+  }
+  return { byKey, uuidOf, usernameOf, overlay, weekOf: username => weekdays?.[username] ?? WORK_WEEK };
 }
 
 const tsOf = (ix: Index, username: string, date: string) =>
@@ -178,8 +189,8 @@ export function attendanceFromTimesheets(input: AttendanceInput): AttendanceView
   });
   const byId = new Map(rows.map(r => [r.person.id, r.person]));
   const pendingDays: PendingDay[] = pending
-    .filter(i => i.days.length > 0 && byId.has(i.personId))
-    .map(item => ({ item, person: byId.get(item.personId) as Person, date: item.days[0] }))
+    .map(item => ({ item, person: byId.get(ix.usernameOf.get(item.personId) ?? item.personId), date: item.days[0] }))
+    .filter((p): p is PendingDay => p.item.days.length > 0 && p.person !== undefined)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const todayCells = rows.map(r => r.cells.find(c => c.date === today)).filter(Boolean) as Cell[];

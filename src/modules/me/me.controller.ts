@@ -9,10 +9,13 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
-import { RequestsService, type CreatedRequestDTO } from '../requests/requests.service';
+import { RequestsService, type CreatedRequestDTO, type FilingKind } from '../requests/requests.service';
+import { ExplanationsService } from '../requests/explanations.service';
+import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '../settings';
 import { SystemService } from '../system';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
@@ -57,13 +60,15 @@ function asBadRequest(err: any, code: string): never {
   throw new BadRequestError(err?.message || 'Dữ liệu không hợp lệ', { code });
 }
 
+// Nhân viên tự nộp: 6 loại truyền `filedBy: 'self'` (áp luật tự nộp); iSAT giữ nguyên.
+const SELF = { filedBy: 'self' } as const;
 const CREATE: Record<string, (s: RequestsService, input: any) => Promise<CreatedRequestDTO>> = {
-  leave: (s, i) => s.createLeaveRequest(i),
-  'leave-with-makeup': (s, i) => s.createLeaveWithMakeupRequest(i),
-  overtime: (s, i) => s.createOvertimeRequest(i),
-  advance: (s, i) => s.createAdvanceRequest(i),
-  explanation: (s, i) => s.createExplanationRequest(i),
-  'shift-change': (s, i) => s.createShiftChangeRequest(i),
+  leave: (s, i) => s.createLeaveRequest(i, SELF),
+  'leave-with-makeup': (s, i) => s.createLeaveWithMakeupRequest(i, SELF),
+  overtime: (s, i) => s.createOvertimeRequest(i, SELF),
+  advance: (s, i) => s.createAdvanceRequest(i, SELF),
+  explanation: (s, i) => s.createExplanationRequest(i, SELF),
+  'shift-change': (s, i) => s.createShiftChangeRequest(i, SELF),
   isat: (s, i) => s.createIsatRequest({ employeeId: i.employeeId, saturday: i.saturday, team: i.team, conditions: i.conditions }),
 };
 
@@ -75,13 +80,41 @@ export class MeController {
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
     @Inject(EmployeesService) private readonly employees: EmployeesService,
-    @Inject(SystemService) private readonly system: SystemService
+    @Inject(SystemService) private readonly system: SystemService,
+    @Inject(ExplanationsService) private readonly explanations: ExplanationsService,
+    @Inject(SettingsReader) private readonly settings: SettingsReader
   ) {}
+
+  // Tuần làm của tôi ở từng tháng mà các ngày thuộc về: mỗi tháng hỏi một lần (một tuần trải tối đa hai tháng).
+  // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì trả null: các hàm dựng màn hình dùng tuần T2–T7 mặc định.
+  private async weekOrNull(uuid: string, month: string): Promise<WorkWeek | null> {
+    try {
+      return await this.settings.workWeekOf(uuid, month);
+    } catch (err) {
+      if (err instanceof TypeWeekMissingError) return null;
+      throw err;
+    }
+  }
+
+  private async weeksOf(me: Who, dates: string[]): Promise<Map<string, WorkWeek | null>> {
+    const months = [...new Set(dates.map(d => d.slice(0, 7)))];
+    const weeks = await Promise.all(months.map(m => this.weekOrNull(me.uuid, m)));
+    return new Map(months.map((m, i) => [m, weeks[i]]));
+  }
 
   // Từ tháng vào làm tới tháng hiện tại (giờ VN).
   private async monthRange(me: Who): Promise<MonthRange> {
     const employee = await this.employees.findByUsernameOrUuid(me.username);
     return monthRangeOf(employee ? employee.toDTO().contract.effectiveFrom : null, vnToday());
+  }
+
+  // Số ngày phép còn lại do server tính từ đơn; lỗi thì giữ nguyên số trong hợp đồng để hồ sơ vẫn mở được.
+  private async leaveOf(me: Who, leave: any): Promise<unknown> {
+    try {
+      return { ...leave, remainingDays: (await this.requests.annualLeaveLeft(me.username)) ?? 0 };
+    } catch {
+      return leave;
+    }
   }
 
   // ---------- Hồ sơ ----------
@@ -99,7 +132,7 @@ export class MeController {
       contract: { status: contract.status, term: contract.term, effectiveFrom: contract.effectiveFrom },
       position: contract.position,
       shift: contract.shift,
-      leave: contract.leave,
+      leave: await this.leaveOf(me, contract.leave),
     };
   }
 
@@ -113,7 +146,9 @@ export class MeController {
     const rows = await this.attendance.listTimesheets({ employeeId: me.uuid, startDate: week[0], endDate: week[6] });
     const by = new Map(rows.map(r => [r.workDate, r]));
     const ts = by.get(date);
-    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date));
+    const weeks = await this.weeksOf(me, week);
+    const days = week.map(d => daySummaryOf(by.get(d) as any, d, date, weeks.get(d.slice(0, 7))?.weekdays));
+    const [zone, workday] = await Promise.all([this.settings.zone(), this.attendance.workdayOf(me.uuid, date)]);
     const alert = days.filter(d => d.kind === 'todo' && d.date < date).pop() ?? null;
     return {
       date,
@@ -122,6 +157,9 @@ export class MeController {
       workedMinutes: Math.round(((ts?.metrics as any)?.workHours || 0) * 60),
       week: days,
       alert: alert ? { date: alert.date, kind: 'todo' } : null,
+      zone,
+      workday,
+      reminders: await this.explanations.reminders(me.username).catch(() => []),
     };
   }
 
@@ -132,14 +170,18 @@ export class MeController {
     const type = body?.kind === 'OUT' ? 'OUT' : body?.kind === 'IN' ? 'IN' : null;
     if (!type) throw new BadRequestError('Thiếu loại chấm công (IN hoặc OUT)', { code: 'BAD_PUNCH_INPUT' });
     try {
-      return await this.attendance.recordPunch({
-        employeeId: me.uuid,
-        type,
-        latitude: body.lat,
-        longitude: body.lng,
-        accuracyMeters: body.accuracyM,
-      });
+      return await this.attendance.recordPunch(
+        {
+          employeeId: me.uuid,
+          type,
+          latitude: body.lat,
+          longitude: body.lng,
+          accuracyMeters: body.accuracyM,
+        },
+        { checkZone: true },
+      );
     } catch (err) {
+      if (err instanceof PunchRefusedError) throw new BadRequestError(err.message, { code: err.code, ...err.details });
       asBadRequest(err, 'BAD_PUNCH_INPUT');
     }
   }
@@ -150,11 +192,13 @@ export class MeController {
     const me = who(req);
     const range = await this.monthRange(me);
     const m = needMonthIn(month, range);
-    const [rows, period] = await Promise.all([
+    const [rows, period, workWeek] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
       this.system.getPeriod(m),
+      this.weekOrNull(me.uuid, m),
     ]);
-    return { ...monthOf(rows as any, m, vnToday(), period?.status ?? null), range };
+    const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
+    return { ...view, totals: workWeek ? { ...view.totals, standardDays: workWeek.standardWorkdays } : view.totals, range };
   }
 
   @Authenticated()
@@ -162,8 +206,16 @@ export class MeController {
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
     if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
-    const ts = await this.attendance.getTimesheet(me.uuid, date);
-    return { ...daySummaryOf((ts ?? undefined) as any, date, vnToday()), shift: ts ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null };
+    // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
+    if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
+    const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
+    // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
+    const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
+    return {
+      ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
+      shift: ts ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
+      ...explained,
+    };
   }
 
   // ---------- Đơn từ ----------
@@ -192,11 +244,33 @@ export class MeController {
   }
 
   @Authenticated()
+  @Get('request-context')
+  async requestContext(@Req() req: Request): Promise<unknown> {
+    const me = who(req);
+    try {
+      return await this.requests.requestContext(me.username);
+    } catch (err) {
+      asBadRequest(err, 'BAD_REQUEST');
+    }
+  }
+
+  // Xem trước đơn sắp nộp: luôn 200; lỗi nghiệp vụ nằm trong `ok: false`. iSAT không có xem trước.
+  @Authenticated()
+  @Post('requests/:kind/preview')
+  async previewRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
+    const me = who(req);
+    if (!kind || kind === 'isat' || !Object.prototype.hasOwnProperty.call(CREATE, kind)) {
+      throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
+    }
+    return this.requests.previewRequest(kind as FilingKind, { ...(body || {}), employeeId: me.username }, SELF);
+  }
+
+  @Authenticated()
   @Post('requests/:kind')
   async createRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
     const me = who(req);
+    if (!Object.prototype.hasOwnProperty.call(CREATE, kind)) throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
     const create = CREATE[kind];
-    if (!create) throw new NotFoundError('Không có loại đơn này', { code: 'REQUEST_KIND_NOT_FOUND' });
     try {
       const created = await create(this.requests, { ...(body || {}), employeeId: me.username });
       return createdBody(created);
@@ -230,13 +304,14 @@ export class MeController {
     const me = who(req);
     const range = await this.monthRange(me);
     const m = needMonthIn(month, range);
+    const payDate = payDateOf(m, (await this.settings.settingsFor(m)).payCalendar.payDay);
     const stored = await this.payroll.getPayslip(m, me.username);
-    if (stored && stored.status === 'approved') return { month: m, state: 'official', payslip: stored.details, range };
+    if (stored && stored.status === 'approved') return { month: m, state: 'official', payslip: stored.details, payDate, range };
     try {
       const slip = await this.payroll.generateMonthlyPayslip(me.uuid, m);
-      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()), range };
+      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()), payDate, range };
     } catch (err: any) {
-      return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được', range };
+      return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được', payDate, range };
     }
   }
 }

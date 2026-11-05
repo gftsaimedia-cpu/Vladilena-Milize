@@ -315,6 +315,25 @@ describe('Chấm công Admin từ /attendance/timesheets', () => {
     assert.equal(view.total, 1);
     assert.equal(row.person.lateCount, 1);
   });
+
+  // BUG-requests-9: việc chờ duyệt từ /requests mang personId = uuid (employeeId của đơn), còn người trên lưới khoá theo
+  // tên đăng nhập. Hai bên phải khớp, nếu không Cần xử lý luôn trống và lưới không tô ô "cần xử lý".
+  it('matches pending items keyed by the employee uuid', () => {
+    const view: any = attendanceFromTimesheets({
+      month: '2026-11',
+      today: '2026-11-05',
+      employees: [emp] as any,
+      timesheets: [ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } })] as any,
+      pending: [{ id: 'r1', personId: emp.profile.uuid, days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
+    });
+    assert.equal(emp.profile.uuid, 'u-nam');
+    assert.equal(view.pending.length, 1);
+    assert.equal(view.pending[0].person.name, 'Lê Hoàng Nam');
+    assert.equal(view.total, 1);
+    const cell = view.rows[0].cells.find((c: any) => c.date === '2026-11-03');
+    assert.equal(cell.kind, 'todo');
+    assert.equal(cell.itemId, 'r1');
+  });
 });
 
 import { positionsResponseFromCatalog } from '../../web/src/builders/api/catalog';

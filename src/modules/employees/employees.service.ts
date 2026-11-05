@@ -1,5 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
+import { DEFAULT_SHIFT, shiftByCode } from '../../common/shift-catalog';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
+import { AuditLog } from '../audit/audit-log';
+import { staffDeleteRows, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
 import { EmployeesRepository } from './employees.repository';
 import {
   Employee,
@@ -18,6 +22,8 @@ import {
 
 const SALT_BYTES = 16;
 const KEY_BYTES = 64;
+/** pass_hash của người chưa đặt mật khẩu. */
+const NO_PASSWORD = 'none';
 
 export function hashPassword(password: string): string {
   const salt = crypto.randomBytes(SALT_BYTES).toString('hex');
@@ -43,9 +49,14 @@ export function verifyPassword(password: string, stored: string): boolean {
   return got.length === want.length && crypto.timingSafeEqual(got, want);
 }
 
+/** Tạo, sửa, xoá hồ sơ chạy trong một transaction; các dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả lần lưu. */
 @Injectable()
 export class EmployeesService {
-  constructor(@Inject(EmployeesRepository) private readonly repo: EmployeesRepository) {}
+  constructor(
+    @Inject(EmployeesRepository) private readonly repo: EmployeesRepository,
+    @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
+  ) {}
 
   async list(filter: { shiftType?: string; status?: string; q?: string } = {}): Promise<Employee[]> {
     const list = await this.repo.findAll();
@@ -66,24 +77,81 @@ export class EmployeesService {
     return await this.repo.findByUsernameOrUuid(id);
   }
 
-  async save(employee: Employee, actor?: string): Promise<Employee> {
-    return await this.repo.save(employee, actor);
+  async create(body: any, actor: string): Promise<Employee> {
+    const employee = this.buildEmployeeFromInput(body);
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const saved = await repo.save(employee, actor, { createOnly: true });
+      const stored = await this.reload(repo, saved);
+      const passwordSet = stored.account.passwordHash !== NO_PASSWORD;
+      await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
+      return saved;
+    });
   }
 
-  async deactivate(username: string, actor?: string): Promise<boolean> {
-    const existing = await this.repo.findByUsernameOrUuid(username);
-    if (!existing) return false;
+  /** null khi không có người `id` (username hoặc uuid). */
+  async update(id: string, body: any, actor: string): Promise<Employee | null> {
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const existing = await repo.findByUsernameOrUuid(id, { forUpdate: true });
+      if (!existing) return null;
+      const built = this.buildEmployeeFromInput(body, existing);
+      // username và uuid là khoá của hồ sơ: đổi qua body sẽ sao chép tài khoản sang tên mới hoặc ghi đè người khác.
+      if (built.username !== existing.username || built.profile.uuid !== existing.profile.uuid) {
+        throw new Error('Không đổi được tên đăng nhập hoặc mã nhân sự');
+      }
+      const saved = await repo.save(built, actor);
+      const stored = await this.reload(repo, saved);
+      const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
+      await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), stored.toDTO(), passwordChanged));
+      return saved;
+    });
+  }
 
-    const updated = this.buildEmployeeFromInput(
-      {
-        contract: { status: 'nghiviec', resignedOn: new Date().toISOString().slice(0, 10) },
-        account: { isLocked: true, lockedBy: actor, lockedAt: new Date().toISOString() },
-      },
-      existing
-    );
+  async deactivate(username: string, actor: string): Promise<boolean> {
+    return this.tx.run(async trx => {
+      const repo = this.repo.withTransaction(trx);
+      const existing = await repo.findByUsernameOrUuid(username, { forUpdate: true });
+      if (!existing) return false;
 
-    await this.repo.save(updated, actor);
-    return true;
+      const updated = this.buildEmployeeFromInput(
+        {
+          contract: { status: 'nghiviec', resignedOn: new Date().toISOString().slice(0, 10) },
+          account: { isLocked: true, lockedBy: actor, lockedAt: new Date().toISOString() },
+        },
+        existing
+      );
+
+      await repo.save(updated, actor);
+      const stored = await this.reload(repo, updated);
+      await this.log(trx, actor, updated.username, staffDeleteRows(existing.toDTO(), stored.toDTO()));
+      return true;
+    });
+  }
+
+  /** Bản vừa lưu đọc lại từ DB (trong cùng transaction): nhật ký so với cái đã lưu, không phải cái được gửi lên. */
+  private async reload(repo: EmployeesRepository, saved: Employee): Promise<Employee> {
+    const stored = await repo.findByUsername(saved.username);
+    if (!stored) throw new Error(`Không đọc lại được hồ sơ ${saved.username} vừa lưu`);
+    return stored;
+  }
+
+  /** Mọi dòng của một lần lưu dùng chung requestId để màn Nhật ký gộp thành "× N". */
+  private async log(trx: DatabaseTransaction, actor: string, username: string, rows: StaffAuditRow[]): Promise<void> {
+    const requestId = crypto.randomUUID();
+    for (const row of rows) {
+      await this.audit.append(trx, {
+        actor,
+        action: row.action,
+        entityKind: 'staff',
+        entityId: username,
+        subject: username,
+        before: row.before,
+        after: row.after,
+        sensitivity: row.sensitivity,
+        requestId
+      });
+    }
   }
 
   async getPositionsCatalog(): Promise<any[]> {
@@ -91,7 +159,11 @@ export class EmployeesService {
   }
 
   async getShiftsCatalog(): Promise<any[]> {
-    return await this.repo.listShiftCatalog();
+    const rows = await this.repo.listShiftCatalog();
+    return rows.map((row) => {
+      const fixed = shiftByCode(row.code);
+      return { ...row, startTime: fixed?.startTime ?? null, endTime: fixed?.endTime ?? null };
+    });
   }
 
   buildEmployeeFromInput(body: any, existing?: Employee): Employee {
@@ -132,7 +204,7 @@ export class EmployeesService {
           ? Number(body.dependants)
           : (existing?.profile.dependants ?? 0);
 
-    let passwordHash = existing?.account.passwordHash || 'none';
+    let passwordHash = existing?.account.passwordHash || NO_PASSWORD;
     if (body.account?.password || body.password) {
       passwordHash = hashPassword(body.account?.password || body.password);
     } else if (body.account?.passwordHash || body.passHash) {
@@ -208,7 +280,7 @@ export class EmployeesService {
         ? existing?.contract.shift.startTime
         : shiftType === 'NIGHT'
           ? '21:00'
-          : '08:00');
+          : DEFAULT_SHIFT.startTime);
 
     const shiftEndTime =
       body.contract?.shift?.endTime ||
@@ -219,7 +291,7 @@ export class EmployeesService {
         ? existing?.contract.shift.endTime
         : shiftType === 'NIGHT'
           ? '06:00'
-          : '17:00');
+          : DEFAULT_SHIFT.endTime);
 
     let shiftAllowance =
       body.contract?.shift?.allowancePct ?? body.shift?.allowancePct ?? body.shiftAllowancePct ?? body.allowancePct;

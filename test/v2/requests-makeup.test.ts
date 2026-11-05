@@ -46,7 +46,7 @@ describe('Đơn nghỉ có làm bù (§6.2)', () => {
   });
 
   it('too few or too many hours', async () => {
-    await assert.rejects(lwm({ slots: [s('2026-11-12', '18:00', '22:00')] }), /Cần đúng 8 giờ bù, đang xếp 4 giờ/);
+    await assert.rejects(lwm({ slots: [s('2026-11-12', '18:00', '22:00')] }), /Còn thiếu 4 giờ bù/);
     await assert.rejects(
       lwm({ slots: [s('2026-11-12', '18:00', '22:00'), s('2026-11-13', '18:00', '22:00'), s('2026-11-16', '06:00', '07:00')] }),
       /đang xếp 9 giờ/

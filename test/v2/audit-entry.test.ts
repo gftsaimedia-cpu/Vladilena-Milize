@@ -64,6 +64,27 @@ describe('toAuditFields', () => {
     }
   });
 
+  // Người dùng chốt 2026-11-05: Nhật ký ghi toạ độ khi Admin đổi vùng chấm công; toạ độ ở mọi chỗ khác vẫn bị chặn.
+  it('lets only the attendance zone setting carry coordinates', () => {
+    const zone = { actor: 'admin', action: 'setting.set', entityKind: 'setting', entityId: 'attendance-zone' };
+    const fields = toAuditFields({
+      ...zone,
+      before: { lat: 10.7769, lng: 106.7009, radiusM: 150 },
+      after: { lat: 10.8, lng: 106.65, radiusM: 200 }
+    });
+    assert.equal(fields.after_json, '{"lat":10.8,"lng":106.65,"radiusM":200}');
+
+    const stillBlocked: unknown[] = [
+      { ...zone, after: { pass_hash: 'x' } },
+      { ...zone, action: 'punch.correct', after: { lat: 10.8, lng: 106.65 } },
+      { ...zone, entityKind: 'punch', after: { lat: 10.8, lng: 106.65 } },
+      { ...zone, entityId: 'work-week', after: { lat: 10.8, lng: 106.65 } }
+    ];
+    for (const entry of stillBlocked) {
+      assert.throws(() => toAuditFields(entry as AuditEntry), AuditEntryError);
+    }
+  });
+
   it('starts the message with the action', () => {
     assert.throws(
       () => toAuditFields({ ...base, month: 'x' }),

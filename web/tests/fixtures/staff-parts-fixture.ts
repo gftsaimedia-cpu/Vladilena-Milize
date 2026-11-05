@@ -8,12 +8,14 @@
 //   ?part=shift&zone=1&out=17:05      zone=1: có vùng chấm công (văn phòng GFT, 150 m); out: giờ ra (ca đã xong, không còn nút)
 //   ?part=load&fail=1                 khối tải giả (useLoad + useRetry + LoadError): n lần tải đầu lỗi; #loads đếm số lần tải
 //   ?part=load&bad=2026-09            như trên, có chọn tháng (đang ở 10/2026, lùi được tới 09/2026); tháng bad luôn lỗi
+//   ?part=net&state=Chính thức        NetCard của Tháng 9/2026 với trạng thái đó (mặc định Tạm tính)
 import { createApp, h, ref } from 'vue';
 import { useLoad } from '../../src/composables/useLoad';
 import { backTo, useRetry } from '../../src/composables/useRetry';
 import LoadError from '../../src/views/staff-phone/components/LoadError.vue';
 import DayBody from '../../src/views/staff-phone/components/DayBody.vue';
 import MonthSwitch from '../../src/views/staff-phone/components/MonthSwitch.vue';
+import NetCard from '../../src/views/staff-phone/components/NetCard.vue';
 import ShiftCard from '../../src/views/staff-phone/components/ShiftCard.vue';
 import { ApiError } from '../../src/services/http';
 import '../../src/styles/base.css';
@@ -30,6 +32,17 @@ function day() {
       date: '2026-11-03', title: 'Thứ Ba 03/11/2026', shiftLine: `Ca ${start}–${end}`, kind: 'work', today: false,
       statusText: 'Đi làm', shiftStart: start, shiftEnd: end, now: '20:00', in: q.get('in') ?? start, out: q.get('out') ?? end,
       lateMin: 0, leave: null, claim: null
+    }
+  });
+}
+
+function net() {
+  return h(NetCard, {
+    income: {
+      title: 'Thu nhập', note: '', label: 'Tháng 9/2026', state: q.get('state') ?? 'Tạm tính', month: '2026-09', prev: null, next: null,
+      net: '12.957.270', review: 'Admin đã duyệt phiếu', gross: '15.010.154', deduction: '2.052.884',
+      kpi: { title: 'KPI tháng 9', parts: '5 phần', percent: '80%', ratio: 0.8, pay: '0', proposed: '0', scores: [] },
+      lines: [], total: '12.957.270 ₫'
     }
   });
 }
@@ -109,6 +122,7 @@ const parts: Record<string, () => any> = {
   month,
   error,
   shift: () => shift,
+  net: () => net,
   load
 };
 
