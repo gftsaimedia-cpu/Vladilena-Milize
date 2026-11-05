@@ -49,6 +49,26 @@ describe('Đơn nghỉ theo tuần làm của từng người', () => {
     assert.deepEqual(calls, [[NV_UUID, '2026-12']]);
   });
 
+  it('approving the leave rechecks on the same person week and still counts 5 days', async () => {
+    const { settings, calls } = fakeSettings({ [NV_UUID]: BINH_WEEK });
+    const ctx = makeService(settings);
+    const filed = await leave(ctx.service);
+    assert.equal(filed.leaveDaysCount, 5);
+    ctx.repo.staffMonths.length = 0;
+    calls.length = 0;
+
+    const approved = await ctx.service.reviewRequest(filed.id, 'admin', 'APPROVE');
+
+    assert.equal(approved.status, 'APPROVED');
+    assert.equal(approved.leaveDaysCount, 5);
+    // Kiểm lại hỏi hồ sơ ở tháng đầu của đơn rồi lấy tuần riêng của người đó cho đúng tháng ấy.
+    assert.deepEqual(ctx.repo.staffMonths.slice(0, 1), ['2026-12']);
+    assert.deepEqual(calls[0], [NV_UUID, '2026-12']);
+    // Lịch nghỉ chỉ ghi cho 5 ngày T2–T6, không có thứ Bảy 12/12.
+    assert.equal(ctx.att.schedules.has(`${NV_UUID}:2026-12-11`), true);
+    assert.equal(ctx.att.schedules.has(`${NV_UUID}:2026-12-12`), false);
+  });
+
   it('counts 6 days when the person has no own week (type week Monday to Saturday)', async () => {
     const { settings } = fakeSettings();
     const ctx = makeService(settings);
@@ -127,6 +147,7 @@ describe('Khung ca của đơn đổi ca', () => {
   });
 
   it('the default shift is the first catalog shift', () => {
+    assert.equal(DEFAULT_SHIFT, SHIFT_CATALOG[0]);
     assert.deepEqual({ startTime: DEFAULT_SHIFT.startTime, endTime: DEFAULT_SHIFT.endTime }, { startTime: '08:00', endTime: '17:00' });
   });
 });
