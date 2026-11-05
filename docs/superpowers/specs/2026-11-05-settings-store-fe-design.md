@@ -61,7 +61,8 @@ Tên trường lấy đúng theo mục 5 của spec BE. Nếu người dùng đ�
    - 6 dòng, dòng nào khác mặc định có "• Đã chỉnh"; bỏ khối và dòng "chính sách chưa chốt".
    - 6 ngăn kéo theo bảng ở phần 4, phần chỉ xem là chữ thường kèm link "Sửa ở Chức vụ & bậc".
    - Lương KPI: tổng khác 100 thì Lưu khoá, cạnh đó hiện "Tổng 98/100".
-   - Lưu mở hộp xác nhận (theo mẫu `benefits/ConfirmDialog.vue`): tháng áp dụng từ `minMonth`, danh sách thay đổi, lý do không bắt buộc tối đa 300 ký tự, Huỷ / Lưu.
+   - Tháng áp dụng (từ `minMonth`) và lý do (không bắt buộc, tối đa 300 ký tự) nhập ngay trong ngăn kéo.
+   - Lưu mở hộp xác nhận "Lưu thay đổi": danh sách thay đổi, lý do đã nhập, Huỷ / Lưu. Theo artboard M1 và M2.
    - Bỏ mọi nút "Xem trước và lưu".
 2. **Tất cả cài đặt:**
    - Chỉ các nhóm có mục: OT, Phụ cấp, KPI, Khấu trừ, Tạm ứng (chỉ xem), Bảo hiểm, Thuế, Kỳ lương.
@@ -73,7 +74,16 @@ Tên trường lấy đúng theo mục 5 của spec BE. Nếu người dùng đ�
 4. **Lịch, ca & chấm công:**
    - Ngày trả lương: ô số 1–28 + "Áp dụng từ tháng". Chấm trên lịch năm theo `getPayDays`.
    - "Bắt đầu tính công: ngày 1" là chữ cố định.
-   - Bảng 6 ca chỉ xem, giờ bằng chữ.
+   - Bảng 6 ca chỉ xem, giờ bằng chữ. Giờ theo quyết định D7 bên BE:
+
+     | Ca | Giờ |
+     |---|---|
+     | Normal 1 | 08:00–17:00 |
+     | Normal 2 | 10:00–19:00 |
+     | Flex 1 | 06:00–15:00 |
+     | Flex 2 | 13:00–22:00 |
+     | Night 1 | 22:00–07:00 |
+     | Night 2 | 21:00–06:00 |
    - Vùng chấm công: bán kính, vĩ độ, kinh độ, nút "Dùng vị trí hiện tại". Lưu xong có hiệu lực ngay, không có ô tháng.
 5. **Hồ sơ nhân sự:**
    - Dòng "Tuần làm việc: … · công chuẩn N · riêng từ MM/YYYY" kèm nút Sửa.
@@ -89,7 +99,8 @@ Tên trường lấy đúng theo mục 5 của spec BE. Nếu người dùng đ�
      - "Bạn đang cách văn phòng 600 m";
      - "Không lấy được vị trí";
      - "Hôm nay không phải ngày làm của bạn".
-   - Ngày ngoài tuần hiện "nghỉ". Thu nhập hiện "trả ngày 10/12".
+   - Ngày ngoài tuần hiện "nghỉ".
+   - Thu nhập hiện ngày trả lương, ví dụ "trả ngày 10/12" cho lương tháng 11. Mock đang ở tháng 10/2026 nên hiện "trả ngày 10/11".
    - Khoảng cách tính ở máy, theo mục 5.6 của spec BE:
      - dùng vùng trong `/me/today` và vị trí trình duyệt, công thức haversine với R = 6.371.000 m;
      - làm tròn tới mét; lớn hơn `radiusM` là ngoài vùng;
@@ -110,7 +121,7 @@ Ba đợt giữ nguyên thứ tự làm. Cả ba đã làm được ngay, không
 |---|---|
 | 1 | Lớp dữ liệu (§2), Lịch ca & chấm công, Quy tắc KPI, hồ sơ tuần làm việc |
 | 2 | Cách tính lương, Tất cả cài đặt, bỏ số chưa xác nhận và Xem trước, viết lại `settings-search.spec.ts` |
-| 3 | App nhân viên khoá check-in, "trả ngày 10/12", lưới chấm công Admin theo tuần từng người |
+| 3 | App nhân viên khoá check-in, ngày trả lương ở thu nhập, lưới chấm công Admin theo tuần từng người |
 
 Trước khi sửa một file mà nhánh khác cũng sửa, gộp main mới nhất vào nhánh này trước.
 
@@ -143,7 +154,7 @@ Playwright trên dữ liệu giả (`cd web && PW_PORT=<cổng> npx playwright t
 - **App nhân viên:**
   - ngoài vùng (giả lập vị trí cách 600 m) thì nút khoá và hiện "Bạn đang cách văn phòng 600 m";
   - từ chối quyền vị trí thì hiện "Không lấy được vị trí".
-  - Trường hợp "Hôm nay không phải ngày làm của bạn" kiểm bằng test thuần trên hàm quyết định khoá nút `checkInLock(...)`. Lý do: mock không có tuần riêng và ngày mock cố định là thứ Năm 05/11.
+  - Trường hợp "Hôm nay không phải ngày làm của bạn" kiểm bằng test thuần trên hàm quyết định khoá nút `checkInLock(...)`. Lý do: mock không có tuần riêng và ngày mock cố định là thứ Tư 28/10/2026.
 
 ## 6. Ngoài phạm vi
 
