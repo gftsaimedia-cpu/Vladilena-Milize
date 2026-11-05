@@ -539,7 +539,7 @@ Dùng `test/v2/helpers/requests-fakes.ts`. Các test cần có:
 |---|---|
 | Lựa chọn không hợp lệ | FE không đưa ra để chọn (mục 4.4). |
 | Preview không hợp lệ | 200, `ok: false`; Gửi tắt, câu lỗi hiện dưới form. |
-| Create không hợp lệ | 400 `BAD_REQUEST`; xung đột ngày là 409 `DAY_CONFLICT`. FE giữ form, hiện câu lỗi, tải lại `request-context`. |
+| Create không hợp lệ | 400 `BAD_REQUEST`; xung đột ngày là 400 `DAY_CONFLICT`. FE giữ form, hiện câu lỗi, tải lại `request-context`. |
 | Mất mạng | Giữ form, hiện "Không gửi được, thử lại". |
 | Huỷ đơn không còn chờ (Admin vừa duyệt) | 400; FE hiện câu lỗi và tải lại đơn. |
 

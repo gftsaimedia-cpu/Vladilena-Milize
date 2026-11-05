@@ -327,7 +327,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
 
 #### Route Admin về giải trình (cần quyền `requests.review`)
 - **`GET /api/v2/requests/explanations-due`**: mọi ngày cần giải trình của mọi nhân sự đang làm, mới nhất trước. Trả `{ "items": [{ "employeeId", "name", "date", "cases", "needs", "remindedAt" }] }`.
-- **`POST /api/v2/requests/explanations-due/remind`**: body `{ "employeeId", "date" }`; người nhắc lấy từ phiên Admin. Trả `{ "reminded": true, "remindedAt": "<ISO>" }`. Nhắc lại thì ghi đè lần trước. Ngày không còn cần giải trình thì `400 BAD_REQUEST` (ví dụ `Ngày này đã được giải trình`).
+- **`POST /api/v2/requests/explanations-due/remind`**: body `{ "employeeId", "date" }`; người nhắc lấy từ phiên Admin. Trả `{ "reminded": true, "remindedAt": "<ISO>" }`. Nhắc lại thì ghi đè lần trước. Ngày không còn cần giải trình thì `400 BAD_REQUEST` với lý do cụ thể, ví dụ `Ngày 02/11 đã có đơn giải trình`, `Ngày 02/11 không có gì cần giải trình`, `Ngày 02/11 không phải ngày làm`, `Tháng 10 đã chốt công`.
 - Cả hai khai báo trước `GET /api/v2/requests/:id`.
 
 #### `POST /api/v2/requests/explanation` (Đơn giải trình)
@@ -336,18 +336,14 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   ```json
   {
     "employeeId": "nv01",
-    "title": "Giải trình đi muộn do tắc đường",
     "reason": "Sự cố giao thông nghẽn làn kéo dài hơn 45 phút",
-    "workDate": "2026-11-04",
-    "cases": ["LATE_CHECK_IN"],
-    "actualCheckIn": "09:05",
-    "actualCheckOut": "17:30"
+    "workDate": "2026-11-04"
   }
   ```
   - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
   - `workDate` (`YYYY-MM-DD`): không được sau hôm nay (giờ Việt Nam).
-  - `cases`: ít nhất một mã ở `GET /api/v2/requests/explanation-cases`, không lặp. Server lưu theo thứ tự của danh mục.
-  - `actualCheckIn`, `actualCheckOut` (`HH:mm`, không bắt buộc): giờ vào/ra thực tế. Không gửi, `null` hoặc `""` thì lưu `null`.
+  - Tiêu đề do server đặt (`Giải trình dd/MM`). Các trường hợp (`cases`) do server tự tìm từ ca và bảng công của ngày đó; nếu client có gửi `cases` thì bị bỏ qua. Danh mục mã ở `GET /api/v2/requests/explanation-cases`, đơn lưu theo thứ tự của danh mục.
+  - `actualCheckIn`, `actualCheckOut` (`HH:mm`): chỉ nhận khi ngày có trường hợp `MISSING_CHECK_IN` (cần giờ vào) hoặc `MISSING_CHECK_OUT` (cần giờ ra); ngày đó bắt buộc nhập. Các trường hợp khác (ví dụ `LATE_CHECK_IN`) không cần giờ, giá trị gửi lên được ghi là `null`. `needs` ở `explanationDays`/`explanations-due` cho biết ngày nào cần giờ nào.
   - Các trường khác trong body (kể cả trường giờ chấm của bản cũ) không được chuyển đi.
 - **Response 201**:
   ```json
@@ -359,24 +355,29 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
       "status": "PENDING",
       "explanationDate": "2026-11-04",
       "explanationCases": ["LATE_CHECK_IN"],
-      "actualCheckIn": "09:05",
-      "actualCheckOut": "17:30"
+      "actualCheckIn": null,
+      "actualCheckOut": null
     }
   }
   ```
+  Ví dụ trên là ngày vào muộn: `LATE_CHECK_IN` không cần giờ nên `actualCheckIn`/`actualCheckOut` là `null`. Giờ chỉ được lưu cho ngày `MISSING_*`.
 - **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự):
 
   | `message` | Khi nào |
   |---|---|
   | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
   | `workDate must be a valid YYYY-MM-DD date string, got: <giá trị>` | Thiếu hoặc sai ngày |
+  | `Không tìm thấy nhân sự: <id>` | Không có hồ sơ theo uuid/username |
   | `Không giải trình cho ngày trong tương lai` | `workDate` sau hôm nay |
-  | `Cần chọn ít nhất 1 trường hợp giải trình` | `cases` không phải mảng hoặc rỗng |
-  | `Trường hợp giải trình không hợp lệ: <mã>` | Mã ngoài danh mục |
-  | `Trường hợp giải trình bị lặp: <mã>` | Một mã xuất hiện hai lần |
+  | `Tháng M đã chốt công` | Tháng của `workDate` đã chốt công |
+  | `Thiếu cấu hình loại nhân sự <loại>` | Loại nhân sự chưa có cấu hình ca/lịch (cần để biết ngày làm và ca) |
+  | `Ngày dd/MM không phải ngày làm` | Không có ca, trước ngày vào làm, ngày lễ, nghỉ phép hoặc Thứ Bảy iSAT |
+  | `Ngày dd/MM đã có đơn giải trình` | Người đó đã có đơn giải trình cùng ngày đang chờ, đã duyệt hoặc **đã bị từ chối**. Đơn đã huỷ không chặn. Kiểm lại trong khoá khi ghi |
+  | `Ngày dd/MM không có gì cần giải trình` | Giờ chấm của ngày không rơi vào trường hợp nào |
   | `Giờ thực tế không hợp lệ: <giá trị>` | `actualCheckIn`/`actualCheckOut` có giá trị nhưng không phải `HH:mm` |
-  | `Không tìm thấy nhân sự: <id>` | Không có hồ sơ theo uuid/username (không cần cấu hình loại nhân sự) |
-  | `Ngày dd/mm đã có đơn giải trình` | Người đó đã có đơn giải trình cùng ngày đang chờ, đã duyệt hoặc **đã bị từ chối**. Đơn đã huỷ không chặn |
+  | `Nhập giờ vào thực tế` | Ngày `MISSING_CHECK_IN` mà không có `actualCheckIn` |
+  | `Nhập giờ ra thực tế` | Ngày `MISSING_CHECK_OUT` mà không có `actualCheckOut` |
+  | `Giờ ra phải sau giờ vào` | Cả hai giờ cùng nhập, giờ ra không sau giờ vào (ca đêm không xét) |
 - Nộp dưới khoá `requests_<uuid>`. Đơn và các trường hợp (bảng `explanation_cases`) được ghi trong cùng một giao dịch.
 - **Duyệt**: `APPROVE` đặt trạng thái ngày công `workDate` của người đó thành `VALID`; `REJECT` không đổi gì.
 
@@ -609,12 +610,20 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   ```json
   {
     "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
-    "title": "Tạm ứng lương đầu tháng",
-    "reason": "Chi tiêu gia đình đầu kỳ",
-    "amount": 3000000,
-    "month": "2026-11"
+    "period": "2026-11"
   }
   ```
+  - `employeeId`: uuid hoặc username. `period` (`YYYY-MM`, không bắt buộc): kỳ ứng, mặc định tháng hiện tại (giờ Việt Nam); Admin nộp được vào bất kỳ ngày nào.
+  - Chỉ hai trường này được đọc. Số tiền, tiêu đề và lý do do server đặt: số tiền là phần được ứng của ngày công 01–15 do bộ tính lương báo, tiêu đề `Tạm ứng lương tháng M` và `reason` bằng tiêu đề. Client gửi `amount`, `title`, `reason` hay `month` thì bị bỏ qua.
+- **Lỗi `400 BAD_REQUEST`**:
+
+  | `message` | Khi nào |
+  |---|---|
+  | `Thiếu employeeId của nhân viên` | Không gửi `employeeId` |
+  | `period must be a valid YYYY-MM period string, got: <giá trị>` | `period` sai định dạng |
+  | `Tháng M đã có đơn tạm ứng` | Mỗi tháng một đơn: đã có đơn tạm ứng đang chờ hoặc đã duyệt của kỳ đó (đơn bị từ chối hoặc đã huỷ không chặn). Kiểm trong khoá nhân viên |
+  | `Chưa tính được số tiền tạm ứng` | Không có bộ tính lương hoặc tính lỗi (kiểm sau lỗi trùng tháng) |
+  | `Chưa có ngày công 01–15/MM` | Số tiền được ứng bằng 0 |
 
 #### `POST /api/v2/requests/isat` (Đơn iSAT — nghỉ Thứ Bảy có lương)
 - **Mục đích**: Nhân sự nhóm Nhân viên tự đánh giá 4 điều kiện và xin nghỉ một ngày Thứ Bảy có lương. Máy chủ tự sinh `title` ("Đăng ký iSAT Thứ Bảy DD/MM/YYYY") và `reason` ("Tự đánh giá đạt N/4 điều kiện"); giá trị client gửi cho hai trường này bị bỏ qua.

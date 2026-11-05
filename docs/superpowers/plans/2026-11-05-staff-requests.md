@@ -60,7 +60,7 @@
 
 1. **Giờ Việt Nam lúc nộp tạm ứng.** Nộp lúc 00:30 ngày 16 (giờ UTC vẫn là ngày 15) thì mở; 23:30 ngày 17 vẫn mở; 00:30 ngày 18 thì khoá. Test: Task 5, `advance window follows VN date`.
 2. **Ca đêm 22–07.** Giờ OT gợi ý phải tránh cả ca đêm hôm trước lẫn ca tối nay. Giải trình phải đọc được giờ ra sáng hôm sau cho đúng ngày công. Test: Task 1 `night shift hours`, Task 2 `night shift out next morning`.
-3. **Xem trước đã cũ.** Xem trước báo hợp lệ, rồi một thiết bị khác giữ mất ngày trước khi bấm Gửi. Khi đó create ném `DayConflictError` (route trả 409), và preview lần sau trả `ok:false, code:'DAY_CONFLICT'`. Test: Task 3, `stale preview then conflict`.
+3. **Xem trước đã cũ.** Xem trước báo hợp lệ, rồi một thiết bị khác giữ mất ngày trước khi bấm Gửi. Khi đó create ném `DayConflictError` (route trả 400 `DAY_CONFLICT`), và preview lần sau trả `ok:false, code:'DAY_CONFLICT'`. Test: Task 3, `stale preview then conflict`.
 4. **Huỷ đơn giải trình.** Đơn bị huỷ thì ngày đó lại cần giải trình, và lời nhắc cũ hiện lại. Test: Task 8, `cancelled explanation brings the reminder back`.
 5. **Không tính được phiếu lương ngày 16.** `request-context` vẫn trả về; chỉ loại `advance` bị khoá, lý do "Chưa tính được số tiền tạm ứng". Test: Task 9, `advance quote failure only locks advance`.
 

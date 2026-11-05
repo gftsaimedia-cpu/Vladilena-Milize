@@ -153,7 +153,8 @@ export class ExplanationsService {
       let due: DueDay[];
       try {
         due = await this.dueDays(person.uuid);
-      } catch {
+      } catch (err: any) {
+        console.error(`listDue: bỏ qua ${person.uuid}:`, err?.message ?? err);
         continue;
       }
       for (const day of due) items.push({ ...day, employeeId: person.uuid, name: person.name });

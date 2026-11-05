@@ -21,7 +21,8 @@ Mục nào chưa chốt thì ghi **chờ**.
 - **Ô chọn ngày** (trừ Giải trình, xem mục 6):
   - chỉ chọn được từ **hôm nay** tới **hết tháng sau**. Ví dụ hôm nay 05/11 thì chọn được 05/11 – 31/12;
   - ngày ngoài khoảng đó bị khoá hẳn, không chọn rồi mới báo lỗi;
-  - tháng đã chốt công không chọn được.
+  - tháng đã chốt công không chọn được;
+  - Thứ Bảy đã có đơn iSAT (đang chờ hoặc đã duyệt) không chọn được cho Nghỉ có làm bù, Làm thêm giờ hay Đổi ca: `request-context` trả `hours: []` cho ngày đó và `claim.status = 'ISAT'`.
 - **Kiểu ô chọn ngày.** Lịch gốc của trình duyệt (`input type=date`) không khoá được từng ngày lẻ, nên bản code dùng danh sách thả xuống, chỉ gồm những ngày chọn được (ví dụ "T6 13/11").
   - Nếu thiết kế muốn giữ kiểu lịch như J9, cần một lịch tự dựng: ngày bị khoá phải mờ đi và không bấm được.
 - **Ô chọn giờ** (OT, khung bù):
