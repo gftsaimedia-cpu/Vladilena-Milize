@@ -2,8 +2,7 @@
 // Chấm công tháng trong phiếu: dải một ô mỗi ngày, năm ô số và liên kết sang hồ sơ chấm công (spec 4.2).
 import { computed } from 'vue';
 import type { DayKind, Payslip } from '@/mock/payroll';
-import { num } from '@/utils/format';
-import { monthNo } from '../../requests/helpers';
+import { monthNo, num } from '@/utils/format';
 
 const props = defineProps<{ slip: Payslip; month: string }>();
 

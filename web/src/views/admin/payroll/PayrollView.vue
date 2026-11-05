@@ -10,8 +10,7 @@ import type { PayrollLine, PayrollScreen, PayrollStatus, Payslip } from '@/mock/
 import { toast } from '@/components/shell/toast';
 import { calculatePayroll, decidePayslip, getPayroll, getPayslip, saveKpiScore } from '@/services/admin-payroll';
 import { usePeriodStore } from '@/stores/period';
-import { foldText, monthShort } from '@/utils/format';
-import { monthNo } from '@/views/admin/requests/helpers';
+import { foldText, monthNo, monthShort } from '@/utils/format';
 import { downloadCsv, payrollCsv } from './payrollCsv';
 import PayTable from './parts/PayTable.vue';
 import PayTiles from './parts/PayTiles.vue';

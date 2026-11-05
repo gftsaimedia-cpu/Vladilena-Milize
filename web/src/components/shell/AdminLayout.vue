@@ -3,7 +3,7 @@
 // Chuông (BellDrawer), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { useUiStore } from '@/stores/ui';
@@ -15,6 +15,7 @@ import ChangePasswordDialog from './ChangePasswordDialog.vue';
 import PeriodStrip from './PeriodStrip.vue';
 
 const route = useRoute();
+const router = useRouter();
 const period = usePeriodStore();
 const ui = useUiStore();
 ui.init();
@@ -106,6 +107,11 @@ watch(
   },
   { immediate: true }
 );
+// Đóng chuông bằng nền, nút Đóng hoặc Esc: bỏ ?hop=chuong khỏi địa chỉ, để "Xem tất cả" mở lại được lần sau.
+function closeBell() {
+  bellOpen.value = false;
+  if (route.query.hop === 'chuong') router.replace({ query: { ...route.query, hop: undefined } });
+}
 function openPassword() {
   menuOpen.value = false;
   pwOpen.value = true;
@@ -160,7 +166,7 @@ function openPassword() {
       <PeriodStrip v-if="STEPS_NAV.includes(String(route.meta.nav || ''))" />
       <slot />
     </main>
-    <BellDrawer v-if="bellOpen" @close="bellOpen = false" />
+    <BellDrawer v-if="bellOpen" @close="closeBell" @leave="bellOpen = false" />
     <AccountMenu v-if="menuOpen" :me="shell.me" @close="menuOpen = false" @change-password="openPassword" />
     <ChangePasswordDialog v-if="pwOpen" @close="pwOpen = false" />
   </div>

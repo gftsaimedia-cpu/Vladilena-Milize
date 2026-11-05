@@ -8,7 +8,7 @@ import { useLoad } from '@/composables/useLoad';
 import { ALREADY_HANDLED, decisionText, getOverview } from '@/services/admin-main';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
-import { monthNo } from '@/views/admin/requests/helpers';
+import { monthNo } from '@/utils/format';
 import ApprovalsCard from './parts/ApprovalsCard.vue';
 import AttendanceCard from './parts/AttendanceCard.vue';
 import KpiRow from './parts/KpiRow.vue';

@@ -117,7 +117,7 @@ test('overview links keep the chosen month', async ({ page }) => {
   await expect(page).toHaveURL(/thang=2026-09/);
   const links: [string, RegExp][] = [
     ['Mở bảng lương', /\/admin\/bang-luong\?thang=2026-09/],
-    ['Xem tất cả', /\/admin\/yeu-cau\?thang=2026-09/],
+    ['Xem tất cả', /\/admin\/tong-quan\?thang=2026-09&hop=chuong$/],
     ['Mở bảng lương đầy đủ', /\/admin\/bang-luong\?thang=2026-09/]
   ];
   for (const [name, url] of links) {
@@ -133,4 +133,37 @@ test('overview rows and totals follow the payroll mock', async ({ page }) => {
   for (const text of ['24 / 26', '12.000.000', '2.215.384', '14.278.183', 'Chờ duyệt']) await expect(nam).toContainText(text);
   const period = page.getByRole('region', { name: 'Kỳ lương tháng 10' });
   for (const text of ['2,11 tỷ ₫', '0,37 tỷ ₫', '85%', '86']) await expect(period).toContainText(text);
+});
+
+test('Xem tất cả opens the bell drawer on the overview and keeps the month', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-11');
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Xem tất cả', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Thông báo' })).toBeVisible();
+  const url = new URL(page.url());
+  expect(url.pathname).toBe('/admin/tong-quan');
+  expect(url.searchParams.get('thang')).toBe('2026-11');
+});
+
+test('Xem tất cả opens the bell drawer again after it was closed', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-11');
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  const all = page.getByRole('link', { name: 'Xem tất cả', exact: true });
+  await all.click();
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole('button', { name: 'Đóng', exact: true }).click();
+  await expect(drawer).toHaveCount(0);
+  await all.click();
+  await expect(drawer).toBeVisible();
+});
+
+test('from the drawer opened by Xem tất cả, Mở hồ sơ chấm công still reaches the profile', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-11');
+  await page.getByRole('link', { name: 'Xem tất cả', exact: true }).click();
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  await drawer.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long\?thang=2026-11$/);
+  await expect(drawer).toHaveCount(0);
 });

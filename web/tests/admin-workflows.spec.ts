@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 const staff = [
   {
@@ -97,46 +97,3 @@ async function mockAdminApi(
   });
   return requestCalls;
 }
-
-test.fixme(
-  'requests show the active period scope, retain unrelated query state, and expose selection actions',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Yêu cầu (đợt sau)' } },
-  async ({ page }, testInfo) => {
-    const calls = await mockAdminApi(page, {
-      requests: [
-        { username: 'linh', date: '2026-11-02', kind: 'Đổi công', detail: 'Bổ sung giờ công', rev: 1, fingerprint: 'a' }
-      ]
-    });
-    for (const width of [375, 768, 1024, 1440]) {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/admin/yeu-cau?thang=2026-11&nv=linh&q=needle');
-      await expect(page.getByRole('heading', { name: 'Yêu cầu', exact: true })).toBeVisible();
-      await expect(page.getByRole('button', { name: /Tháng 11/ })).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Chọn tất cả' })).toHaveAttribute('aria-pressed', 'true');
-      await expect(page.locator('.grp-h').getByRole('button', { name: 'Đồng ý 1 yêu cầu' })).toBeEnabled();
-      if (width === 375) await page.screenshot({ path: testInfo.outputPath('requests-375.png'), fullPage: true });
-      const rowSelection = page.locator('.request-table-scroll tbody button.cb');
-      await expect(rowSelection).toHaveCount(1);
-      await rowSelection.click();
-      await expect(page.locator('.grp-h').getByRole('button', { name: 'Đồng ý cả loạt' })).toBeDisabled();
-      await rowSelection.click();
-      await expect(page.locator('.grp-h').getByRole('button', { name: 'Đồng ý 1 yêu cầu' })).toBeEnabled();
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy();
-      await page.getByRole('button', { name: /Mọi tháng/ }).click();
-      await expect(page).toHaveURL(/\/admin\/yeu-cau\/moi-thang\?thang=2026-11&nv=linh&q=needle$/);
-    }
-    expect(calls.some(query => query.includes('month=2026-11'))).toBeTruthy();
-  }
-);
-
-test.fixme(
-  'request task groups remain limited to capabilities in the active session',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Yêu cầu (đợt sau)' } },
-  async ({ page }) => {
-    await mockAdminApi(page, { caps: ['request.decide.advance'] });
-    await page.goto('/admin/yeu-cau?thang=2026-11');
-    await expect(page.getByRole('heading', { name: 'Yêu cầu', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Tạm ứng' })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Giải trình/ })).toHaveCount(0);
-  }
-);

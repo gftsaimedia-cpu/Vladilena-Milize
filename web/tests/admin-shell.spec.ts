@@ -24,13 +24,15 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
   await page.locator('.topbar .bell').click();
-  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
-  await expect(page).toHaveURL(/\/admin\/yeu-cau$/);
+  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long/);
   expect(calls).toEqual([]);
 });
 
 test('unmocked screen keeps the shell', async ({ page }) => {
-  await page.goto('/admin/yeu-cau');
+  await page.goto('/admin/cai-dat/chuc-vu-bac');
+  await expect(page.getByText('chưa có dữ liệu giả')).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
   await expect(page.getByLabel('Tìm nhân viên')).toBeVisible();
 });
@@ -128,8 +130,9 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
-  await expect(page).toHaveURL('/admin/yeu-cau?thang=2026-10');
+  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL('/admin/cham-cong/nhan-vien/trinh-van-long?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 });
 
@@ -243,4 +246,13 @@ test('old KPI links land on Bảng lương with their query', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Bảng lương', exact: true })).toBeVisible();
   await page.goto('/admin/kpi/lich-su?thang=2026-10');
   await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
+});
+
+test('the old Yêu cầu addresses redirect to the overview and keep only the month', async ({ page }) => {
+  await page.goto('/admin/yeu-cau?thang=2026-10&nv=linh&q=needle&hop=chuong');
+  await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10');
+  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  await page.goto('/admin/yeu-cau/moi-thang');
+  await expect(page).toHaveURL('/admin/tong-quan');
+  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
 });

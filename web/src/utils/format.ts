@@ -18,6 +18,8 @@ export const dmy = (iso?) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${is
 export const dm = (iso?) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
 /** "2026-10" → "Tháng 10/2026" */
 export const monthLabel = (ym?) => (ym ? `Tháng ${ym.slice(5, 7)}/${ym.slice(0, 4)}` : '');
+/** '2026-11' → 11 */
+export const monthNo = (ym?) => Number(String(ym || '').slice(5, 7));
 /** "2026-10" → "10/2026" */
 export const monthShort = (ym?) => (ym ? `${ym.slice(5, 7)}/${ym.slice(0, 4)}` : '');
 /** "2026-10" , +1 → "2026-11" */

@@ -5,8 +5,7 @@
 import { computed } from 'vue';
 import { KPI_LABELS } from '@/constants/labels';
 import type { Payslip } from '@/mock/payroll';
-import { num, vnd } from '@/utils/format';
-import { monthNo } from '../../requests/helpers';
+import { monthNo, num, vnd } from '@/utils/format';
 
 const props = defineProps<{ slip: Payslip; month: string }>();
 

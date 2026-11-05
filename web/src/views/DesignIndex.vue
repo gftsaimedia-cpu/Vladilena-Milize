@@ -12,7 +12,7 @@ import staffPhone from '@/design-index/staff-phone';
 
 const TOTAL = 112; // số màn của bộ thiết kế 22/10
 const GROUPS: any[] = [
-  ['Admin · Tổng quan, Yêu cầu, vỏ', adminMain],
+  ['Admin · Tổng quan, vỏ', adminMain],
   ['Admin · Chấm công, Nhân sự', adminAttendance],
   ['Admin · Cài đặt', adminSettings],
   ['Admin · Bảng lương và các bước kỳ lương', adminPayroll],

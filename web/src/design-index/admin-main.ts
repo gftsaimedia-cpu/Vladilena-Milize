@@ -3,9 +3,6 @@ const T = '?thang=2026-11';
 
 export default [
   { file: 'tong-quan.html', title: 'Tổng quan', to: `/admin/tong-quan${T}` },
-  { file: 'duyet.html', title: 'Yêu cầu · tháng 11', to: `/admin/yeu-cau${T}` },
-  { file: 'yc-moi-thang.html', title: 'Yêu cầu · mọi tháng', to: `/admin/yeu-cau/moi-thang${T}` },
-  { file: 'dlg-yc-dong-y-5.html', title: 'Hộp thoại · Đồng ý 5 yêu cầu', to: `/admin/yeu-cau${T}&hop=dong-y-5` },
   { file: 'pop-chuong.html', title: 'Bảng nổi · Chuông việc cần xử lý', to: `/admin/tong-quan${T}&hop=chuong` },
   {
     file: 'pop-menu-tai-khoan.html',
