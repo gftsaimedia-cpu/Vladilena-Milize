@@ -1,8 +1,8 @@
 // Luồng "Tạo yêu cầu" của nhân viên (spec staff-requests 4.1, 4.5), dùng chung cho điện thoại và máy tính.
 // URL: trên /nv/yeu-cau, ?tao=chon là menu J8, ?tao=<slug> là một form (TAO_SLUG); Giải trình thêm &ngay=YYYY-MM-DD.
 // Vỏ (BottomSheet / SideDrawer) mở khi có ?tao= (useTaoParam), đóng thì bỏ tao và ngay (withoutFlow).
-// useNewRequest (trong NewRequestBody): tải request-context, giữ loại đang mở, đưa giá trị lạ, loại ẩn, khoá hay chưa có form
-// về menu, xem trước 300ms sau lần sửa cuối, gửi. Nút Gửi chỉ bật khi lần xem trước gần nhất trả ok (spec 4.5).
+// useNewRequest (trong NewRequestBody): tải request-context, giữ loại đang mở, đưa giá trị lạ, loại ẩn hay khoá về menu, xem
+// trước 300ms sau lần sửa cuối, gửi. Nút Gửi chỉ bật khi lần xem trước gần nhất trả ok (spec 4.5).
 import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter, type LocationQuery } from 'vue-router';
 import type { PreviewResult, RequestContext, RequestDraft, RequestKind } from '@/mock/staff-requests-types';
@@ -41,8 +41,7 @@ export function withoutFlow(query: LocationQuery): LocationQuery {
   return rest;
 }
 
-/** hasForm: loại đã có form trong NewRequestBody. Loại chưa có form không mở được, kể cả khi server cho phép. */
-export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
+export function useNewRequest() {
   const route = useRoute();
   const router = useRouter();
   const tao = useTaoParam();
@@ -61,8 +60,8 @@ export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
   }
   loadContext();
 
-  /** Loại mở được: có trong kinds (quyền lợi), đang bật (không khoá) và đã có form. */
-  const openable = (kind: RequestKind) => !!ctx.value?.kinds.find(k => k.kind === kind)?.enabled && hasForm(kind);
+  /** Loại mở được: có trong kinds (quyền lợi) và đang bật (không khoá). */
+  const openable = (kind: RequestKind) => !!ctx.value?.kinds.find(k => k.kind === kind)?.enabled;
   const wanted = computed(() => (tao.value ? (KIND_OF[tao.value] ?? null) : null));
   /** Loại đang mở; null là menu J8 (cả khi chưa tải xong request-context). */
   const kind = computed(() => (ctx.value && wanted.value && openable(wanted.value) ? wanted.value : null));
@@ -72,7 +71,7 @@ export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
   const pick = (k: RequestKind) => go(TAO_SLUG[k]);
   const toMenu = () => go(TAO_MENU);
 
-  // Giá trị lạ về menu ngay; loại ẩn, khoá hoặc chưa có form về menu khi đã có request-context (Review Focus 1).
+  // Giá trị lạ về menu ngay; loại ẩn hoặc khoá về menu khi đã có request-context (Review Focus 1).
   watch(
     [tao, ctx],
     () => {

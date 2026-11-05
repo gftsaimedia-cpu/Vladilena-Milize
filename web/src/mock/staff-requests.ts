@@ -202,35 +202,33 @@ const shiftOn = (date: string) => {
   return change?.frame ?? SHIFT;
 };
 
-// Giờ trống cho một khung OT / bù mới (spec 2.1 `hours`): trong 06–22, cách ca 1 giờ, khung trước ca kết thúc ở giờ
-// trước ca một tiếng, khung sau ca bắt đầu sau ca một tiếng; ngày không ca thì mọi khung trong 06–22. Trần 12 giờ một ngày
-// tính cả 8 giờ làm của ca; khung đã có không được chồng và trừ vào trần. Số phút = số giờ đồng hồ × 60.
+// Giờ trống cho một khung OT / bù mới (spec 2.1 `hours`): mọi cặp giờ tròn (bắt đầu, kết thúc) nằm trong 06–22, cách ca ít
+// nhất 1 giờ, không chồng khung đã có. Ca trong ngày cho hai đoạn: trước ca (06 tới 1 giờ trước giờ vào) và sau ca (1 giờ sau
+// giờ ra tới 22); ca qua đêm (Night) cho một đoạn giữa giờ ra buổi sáng và giờ vào buổi tối; ngày không ca là cả 06–22.
+// Ca 08–17 vì vậy có giờ bắt đầu 06 và 18–21 (spec 5.1). Trần 12 giờ một ngày tính cả 8 giờ làm của ca; khung đã có trừ vào
+// trần. Số phút = số giờ đồng hồ × 60.
+const OPEN_HOUR = 6;
+const CLOSE_HOUR = 22;
 function hoursOf(shift: ContextDay['shift'], windows: Window[]): HourSlot[] {
   const used = windows.reduce((sum, w) => sum + (w.end - w.start) * 60, 0);
   const capMinutes = (shift ? DAY_CAP_HOURS - SHIFT_WORK_HOURS : DAY_CAP_HOURS) * 60 - used;
-  const span = (start: number, end: number): HourEnd => ({ end, minutes: (end - start) * 60 });
-  const base: HourSlot[] = [];
-  if (!shift) {
-    for (let s = 6; s < 22; s++)
-      base.push({ start: s, ends: Array.from({ length: Math.min(22, s + DAY_CAP_HOURS) - s }, (_, i) => span(s, s + i + 1)) });
-  } else {
-    const capHours = DAY_CAP_HOURS - SHIFT_WORK_HOURS;
-    const beforeEnd = hourOf(shift.start) - 1;
-    for (let s = Math.max(6, beforeEnd - capHours); s < beforeEnd; s++) base.push({ start: s, ends: [span(s, beforeEnd)] });
-    const afterStart = hourOf(shift.end) + 1;
-    if (afterStart >= 6 && afterStart < 22)
-      base.push({
-        start: afterStart,
-        ends: Array.from({ length: Math.min(22, afterStart + capHours) - afterStart }, (_, i) => span(afterStart, afterStart + i + 1))
-      });
-    base.sort((a, b) => a.start - b.start);
-  }
-  return base
-    .map(h => ({
-      start: h.start,
-      ends: h.ends.filter(e => e.minutes <= capMinutes && !windows.some(w => h.start < w.end && e.end > w.start))
-    }))
-    .filter(h => h.ends.length > 0);
+  const shiftIn = hourOf(shift?.start ?? '00:00');
+  const shiftOut = hourOf(shift?.end ?? '00:00');
+  const segments: [number, number][] = !shift
+    ? [[OPEN_HOUR, CLOSE_HOUR]]
+    : shiftOut > shiftIn
+      ? [[OPEN_HOUR, shiftIn - 1], [shiftOut + 1, CLOSE_HOUR]]
+      : [[Math.max(OPEN_HOUR, shiftOut + 1), Math.min(CLOSE_HOUR, shiftIn - 1)]];
+  const slots: HourSlot[] = [];
+  for (const [from, to] of segments)
+    for (let s = from; s < to; s++) {
+      const ends: HourEnd[] = [];
+      // Khung dài hơn chỉ chồng thêm hoặc vượt trần thêm, nên dừng ở khung đầu tiên không đặt được.
+      for (let e = s + 1; e <= to && (e - s) * 60 <= capMinutes && !windows.some(w => s < w.end && e > w.start); e++)
+        ends.push({ end: e, minutes: (e - s) * 60 });
+      if (ends.length) slots.push({ start: s, ends });
+    }
+  return slots;
 }
 
 function contextDay(date: string): ContextDay {

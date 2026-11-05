@@ -7,12 +7,21 @@ import {
   endDates,
   endHours,
   fitEnd,
+  fitSlots,
+  frameLabel,
   leaveBalance,
   leaveDates,
   leaveSummary,
   makeupCounter,
+  makeupCountLine,
+  makeupNeedLine,
+  otHoursLine,
   otLeftMinutes,
+  otMonthLine,
+  shiftChangeDates,
+  shiftChangeSummary,
   slotDates,
+  slotHourOptions,
   startDates,
   startHours,
   type ContextDay,
@@ -197,6 +206,87 @@ describe('Tạo yêu cầu: giờ chọn được', () => {
       { date: '', startTime: '', endTime: '' }
     ];
     assert.deepEqual(makeupCounter(context(), '2026-11-13', '2026-11-14', slots), { planned: 240, required: 960 });
+  });
+
+  it('slot hour options: other rows on the same day keep their hours, and no more than still needed is offered', () => {
+    const ctx = context();
+    const slots = [
+      { date: '2026-11-22', startTime: '08:00', endTime: '12:00' },
+      { date: '2026-11-22', startTime: '', endTime: '' }
+    ];
+    const opts = slotHourOptions(ctx, '2026-11-13', '2026-11-13', slots, 1);
+    assert.deepEqual(opts, { taken: [{ start: 8, end: 12 }], capMinutes: 240 });
+    const sunday = dayAt(ctx, '2026-11-22');
+    for (const h of [8, 9, 10, 11]) assert.ok(!startHours(sunday, opts).includes(h), String(h));
+    assert.deepEqual(endHours(sunday, 12, opts).map(e => e.end), [13, 14, 15, 16]);
+    // Dòng ở ngày khác không giữ giờ của ngày này, nhưng vẫn trừ vào số giờ còn thiếu.
+    const other = slotHourOptions(ctx, '2026-11-13', '2026-11-13', [slots[0], { date: '2026-11-29', startTime: '', endTime: '' }], 1);
+    assert.deepEqual(other, { taken: [], capMinutes: 240 });
+  });
+
+  it('fitSlots drops values that are no longer valid, later rows first', () => {
+    // Nghỉ 13–14/11: cần 16 giờ bù.
+    const fitted = fitSlots(context(), '2026-11-13', '2026-11-14', [
+      { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
+      { date: '2026-11-29', startTime: '08:00', endTime: '20:00' }, // 12 giờ, chỉ còn thiếu 8: bỏ giờ kết thúc
+      { date: '2026-11-12', startTime: '18:00', endTime: '19:00' }, // trước ngày nghỉ cuối: bỏ cả dòng
+      { date: '2026-11-22', startTime: '18:00', endTime: '23:00' } // giờ kết thúc không có trong hours
+    ]);
+    assert.deepEqual(fitted, [
+      { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
+      { date: '2026-11-29', startTime: '08:00', endTime: '' },
+      { date: '', startTime: '', endTime: '' },
+      { date: '2026-11-22', startTime: '18:00', endTime: '' }
+    ]);
+    // Nghỉ 13/11: 8 giờ đã đủ ở dòng đầu, dòng sau không còn giờ bắt đầu nào.
+    assert.deepEqual(
+      fitSlots(context(), '2026-11-13', '2026-11-13', [
+        { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
+        { date: '2026-11-29', startTime: '08:00', endTime: '12:00' }
+      ])[1],
+      { date: '2026-11-29', startTime: '', endTime: '' }
+    );
+    const ok = [{ date: '2026-11-22', startTime: '08:00', endTime: '12:00' }];
+    assert.deepEqual(fitSlots(context(), '2026-11-13', '2026-11-13', ok), ok);
+  });
+});
+
+describe('Tạo yêu cầu: chữ của Nghỉ có làm bù, Làm thêm giờ, Đổi ca', () => {
+  it('frame label', () => {
+    assert.equal(frameLabel('FLEX', '06:00', '15:00'), 'Flex 06–15');
+    assert.equal(frameLabel('NIGHT', '22:00', '07:00'), 'Night 22–07');
+    assert.equal(frameLabel('NORMAL', '10:00', '19:00'), 'Normal 10–19');
+  });
+
+  it('shift change days skip Sundays and held days; the summary names the frame', () => {
+    assert.deepEqual(shiftChangeDates(context(), '2026-11-10', '2026-11-16'), [
+      '2026-11-10', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-16'
+    ]);
+    assert.equal(
+      shiftChangeSummary(context(), '2026-11-10', '2026-11-14', 'Flex 06–15'),
+      '4 ngày đổi sang Flex 06–15: 10, 12, 13 và 14/11'
+    );
+    assert.equal(shiftChangeSummary(context(), '2026-11-15', '2026-11-15', 'Flex 06–15'), '');
+  });
+
+  it('OT lines: registered hours of the month, and the hours of this request', () => {
+    assert.equal(otMonthLine(context(), '2026-11'), 'Đã đăng ký tháng 11: 9 / 40 giờ');
+    assert.equal(otMonthLine(context(), '2027-01'), '');
+    const day = dayAt(context(), '2026-11-13');
+    assert.equal(otHoursLine(day, 18, 20), '2 giờ làm thêm, sau ca 08–17');
+    assert.equal(otHoursLine(day, 6, 7), '1 giờ làm thêm, trước ca 08–17');
+    assert.equal(otHoursLine(dayAt(context(), '2026-11-15'), 8, 12), '4 giờ làm thêm');
+    // Số phút lấy từ hours (BE đã trừ giờ nghỉ), không tự cộng giờ đồng hồ.
+    const rest = { ...dayAt(context(), '2026-11-15'), hours: [{ start: 6, ends: [{ end: 11, minutes: 270 }] }] };
+    assert.equal(otHoursLine(rest, 6, 11), '4,5 giờ làm thêm');
+  });
+
+  it('makeup lines: hours to make up, and the counter', () => {
+    assert.equal(makeupNeedLine(context(), '2026-11-13', '2026-11-14'), 'Cần bù 16 giờ, sau ngày nghỉ cuối và trong tháng 11');
+    assert.equal(makeupNeedLine(context(), '2026-11-13', ''), '');
+    const slots = [{ date: '2026-11-22', startTime: '08:00', endTime: '12:00' }];
+    assert.equal(makeupCountLine(context(), '2026-11-13', '2026-11-14', slots), 'Đã xếp 4 / 16 giờ');
+    assert.equal(makeupCountLine(context(), '2026-11-13', '2026-11-13', []), 'Đã xếp 0 / 8 giờ');
   });
 });
 

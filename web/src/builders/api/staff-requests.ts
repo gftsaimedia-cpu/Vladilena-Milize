@@ -173,6 +173,97 @@ export function makeupCounter(
   return { planned, required };
 }
 
+/**
+ * Giờ chọn được của dòng khung bù thứ `index` (spec 4.4): khung của các dòng khác cùng ngày đã chiếm giờ của chúng, và không
+ * xếp quá số giờ còn thiếu sau các dòng khác. Dùng với startHours / endHours của ngày bù đã chọn.
+ */
+export function slotHourOptions(
+  ctx: RequestContext,
+  startDate: string,
+  endDate: string,
+  slots: MakeupSlot[],
+  index: number
+): Required<HourOptions> {
+  const others = slots.filter((_, j) => j !== index);
+  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
+  const date = slots[index]?.date;
+  const taken = others
+    .filter(o => date && o.date === date && o.startTime && o.endTime)
+    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
+  return { taken, capMinutes: Math.max(0, required - planned) };
+}
+
+/**
+ * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
+ * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
+ * mỗi dòng so với các dòng trước nó, nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
+ */
+export function fitSlots(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
+  const dates = slotDates(ctx, endDate);
+  const out: MakeupSlot[] = [];
+  for (const s of slots) {
+    const date = dates.includes(s.date) ? s.date : '';
+    const day = ctx.days.find(d => d.date === date);
+    const opts = slotHourOptions(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
+    const startOk = !!day && !!s.startTime && startHours(day, opts).includes(hourOf(s.startTime));
+    const endOk =
+      startOk && !!s.endTime && endHours(day!, hourOf(s.startTime), opts).some(e => e.end === hourOf(s.endTime));
+    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
+  }
+  return out;
+}
+
+// 120 → '2', 270 → '4,5' (giờ, dấu phẩy thập phân).
+const hoursText = (minutes: number) => String(Math.round((minutes / 60) * 10) / 10).replace('.', ',');
+
+/** Bộ đếm của Nghỉ có làm bù: 'Đã xếp 4 / 8 giờ'. */
+export function makeupCountLine(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): string {
+  const { planned, required } = makeupCounter(ctx, startDate, endDate, slots);
+  return `Đã xếp ${hoursText(planned)} / ${hoursText(required)} giờ`;
+}
+
+/** Dòng phụ của tóm tắt Nghỉ có làm bù (board J14): 'Cần bù 8 giờ, sau ngày nghỉ cuối và trong tháng 11'. */
+export function makeupNeedLine(ctx: RequestContext, startDate: string, endDate: string): string {
+  const { required } = makeupCounter(ctx, startDate, endDate, []);
+  return required ? `Cần bù ${hoursText(required)} giờ, sau ngày nghỉ cuối và trong tháng ${Number(endDate.slice(5, 7))}` : '';
+}
+
+/** Giờ OT đã đăng ký của tháng (đơn chờ duyệt và đã duyệt) trên trần: 'Đã đăng ký tháng 10: 9 / 40 giờ'. */
+export function otMonthLine(ctx: RequestContext, month: string): string {
+  const m = monthInfo(ctx, month);
+  return m ? `Đã đăng ký tháng ${Number(month.slice(5, 7))}: ${hoursText(m.otMinutes)} / ${hoursText(m.otCapMinutes)} giờ` : '';
+}
+
+/**
+ * Số giờ của khung OT đang chọn (board J15): '2 giờ làm thêm, sau ca 08–17'. Số phút lấy từ `hours` (BE đã trừ giờ nghỉ).
+ * Ngày không có ca chỉ ghi số giờ.
+ */
+export function otHoursLine(day: ContextDay, start: number, end: number): string {
+  const text = `${hoursText(minutesIn(day, { start, end }))} giờ làm thêm`;
+  if (!day.shift) return text;
+  const from = hourOf(day.shift.start);
+  const to = hourOf(day.shift.end);
+  const before = to > from && end <= from;
+  return `${text}, ${before ? 'trước' : 'sau'} ca ${day.shift.start.slice(0, 2)}–${day.shift.end.slice(0, 2)}`;
+}
+
+const FRAME_NAME: Record<string, string> = { NORMAL: 'Normal', FLEX: 'Flex', NIGHT: 'Night' };
+/** Tên khung ca (spec 2.4): 'FLEX', '06:00', '15:00' → 'Flex 06–15'. */
+export const frameLabel = (type: string, start: string, end: string) =>
+  `${FRAME_NAME[type] ?? type} ${start.slice(0, 2)}–${end.slice(0, 2)}`;
+
+/** Ngày sẽ đổi ca của một khoảng: ngày làm không bị đơn nào giữ; ngày nghỉ, iSAT trong khoảng giữ nguyên (spec 2.2). */
+export function shiftChangeDates(ctx: RequestContext, start: string, end: string): string[] {
+  if (!start || !end) return [];
+  return ctx.days.filter(d => d.date >= start && d.date <= end && d.workday && !d.claim).map(d => d.date);
+}
+
+/** Tóm tắt Đổi ca (board J16): '5 ngày đổi sang Flex 06–15: 02, 03, 05, 06 và 07/11'. Rỗng khi khoảng không có ngày đổi. */
+export function shiftChangeSummary(ctx: RequestContext, start: string, end: string, frame: string): string {
+  const dates = shiftChangeDates(ctx, start, end);
+  return dates.length ? `${dates.length} ngày đổi sang ${frame}: ${dayList(dates)}` : '';
+}
+
 // ['2026-11-13', '2026-11-14', '2026-11-16'] → '13, 14 và 16/11'; khác tháng ghi tháng sau ngày cuối của tháng đó.
 export function dayList(dates: string[]): string {
   const parts = dates.map((d, i) => (dates[i + 1] && monthOf(dates[i + 1]) === monthOf(d) ? d.slice(8, 10) : ddmm(d)));

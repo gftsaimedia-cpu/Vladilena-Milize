@@ -12,16 +12,26 @@ import { toast } from '@/components/shell/toast';
 import type { PhoneIconName } from '@/mock/staff-phone';
 import type { RequestKind } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
+import AdvanceForm from './AdvanceForm.vue';
+import ExplanationForm from './ExplanationForm.vue';
 import LeaveForm from './LeaveForm.vue';
+import MakeupLeaveForm from './MakeupLeaveForm.vue';
+import OvertimeForm from './OvertimeForm.vue';
+import ShiftChangeForm from './ShiftChangeForm.vue';
 import { useNewRequest } from './useNewRequest';
 
 const emit = defineEmits<{ title: [title: string]; close: []; sent: [] }>();
 
-// Form đã có, theo loại. Mỗi form tự khai props (ctx, ngay, preview: PreviewResult<loại đó>) và emit `draft`
+// Form của từng loại. Mỗi form tự khai props (ctx, ngay, preview: PreviewResult<loại đó>) và emit `draft`
 // (RequestDraft[loại đó] | null), nên kiểu của bản nháp và tóm tắt nằm trong form, không ép kiểu ở đây.
-// Loại chưa có form hiện khoá trong menu, URL của nó về menu.
-const FORMS: { [K in RequestKind]?: Component } = { leave: LeaveForm };
-const NO_FORM = 'Chưa có trong bản mockup';
+const FORMS: Record<RequestKind, Component> = {
+  leave: LeaveForm,
+  'leave-with-makeup': MakeupLeaveForm,
+  overtime: OvertimeForm,
+  'shift-change': ShiftChangeForm,
+  explanation: ExplanationForm,
+  advance: AdvanceForm
+};
 
 const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: string }[] = [
   { kind: 'leave', label: 'Đơn nghỉ', icon: 'leave', hint: 'Nghỉ cả ngày' },
@@ -33,7 +43,7 @@ const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: strin
 ];
 const LABEL = Object.fromEntries(MENU.map(m => [m.kind, m.label])) as Record<RequestKind, string>;
 
-const flow = useNewRequest(k => !!FORMS[k]);
+const flow = useNewRequest();
 const { ctx, loadError, kind, ngay, shownPreview, canSend, sending, sendError } = flow;
 
 const title = computed(() => (kind.value ? LABEL[kind.value] : 'Tạo yêu cầu'));
@@ -46,10 +56,9 @@ const menu = computed(() => {
   return MENU.flatMap(m => {
     const k = c.kinds.find(x => x.kind === m.kind);
     if (!k) return [];
-    const hasForm = !!FORMS[m.kind];
     const leaveLeft = m.kind === 'leave' && c.annualLeaveLeft !== null ? `Phép năm còn ${c.annualLeaveLeft} ngày` : '';
-    const hint = !k.enabled ? (k.reason ?? m.hint) : !hasForm ? NO_FORM : leaveLeft || m.hint;
-    return [{ ...m, enabled: k.enabled && hasForm, hint, id: `${uid}-${m.kind}` }];
+    const hint = !k.enabled ? (k.reason ?? m.hint) : leaveLeft || m.hint;
+    return [{ ...m, enabled: k.enabled, hint, id: `${uid}-${m.kind}` }];
   });
 });
 // Dòng khoá không mở gì, kể cả khi bấm Enter hay Space.
@@ -57,7 +66,7 @@ function open(row: { kind: RequestKind; enabled: boolean }) {
   if (row.enabled) flow.pick(row.kind);
 }
 
-const form = computed(() => (kind.value ? (FORMS[kind.value] ?? null) : null));
+const form = computed(() => (kind.value ? FORMS[kind.value] : null));
 
 async function onSend() {
   if (await flow.send()) {
@@ -281,6 +290,144 @@ textarea.nr-in {
 }
 .nr-sum b {
   font-weight: 600;
+}
+/* Nhãn của một nhóm không phải ô nhập (Khung bù, Ca mới, Trường hợp) và hàng nhãn + chữ phụ ở hai đầu. */
+.nr-lb {
+  font-weight: 600;
+}
+.nr-sh {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nr-cnt {
+  font-weight: 600;
+}
+.nr-note {
+  margin: 0;
+}
+/* J14 · một dòng khung bù: ngày, từ giờ, đến giờ, nút bỏ. */
+.nr-slot {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr) 40px;
+  gap: 8px;
+  align-items: center;
+}
+.nr-slot select.nr-in {
+  padding: 0 26px 0 10px;
+}
+.nr-slot .nr-box > svg {
+  top: 16px;
+  right: 8px;
+}
+.nr-xb,
+.nr-b2 {
+  box-sizing: border-box;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  box-shadow: none;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.nr-xb {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.nr-b2 {
+  align-self: flex-start;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  font-weight: 500;
+}
+.nr-b2:disabled {
+  color: var(--muted);
+  border-color: var(--border);
+  cursor: default;
+}
+/* J16 · 6 khung ca, hai cột; khung đang chọn nền vàng nhạt, viền đậm. */
+.nr-frames {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.nr-op {
+  height: 48px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  box-shadow: none;
+  background: var(--surface);
+  cursor: pointer;
+}
+.nr-op:has(input:checked) {
+  border-color: var(--text);
+  background: var(--gold-light);
+}
+.nr-op input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--text);
+}
+.nr-op b {
+  font-weight: 600;
+}
+/* Điện thoại hẹp: ba ô của dòng khung bù bỏ mũi tên, đệm hẹp, để "CN 08/11" và "18:00" không bị cắt; khung ca bớt đệm để
+   "Normal 08–17" nằm trên một dòng. Máy tính (≥ 1136px) không bị ảnh hưởng. */
+@media (max-width: 379px) {
+  .nr-slot {
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr) minmax(0, 1fr) 40px;
+    gap: 6px;
+  }
+  .nr-slot select.nr-in {
+    padding: 0 8px;
+  }
+  .nr-slot .nr-box > svg {
+    display: none;
+  }
+  .nr-op {
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .nr-op input {
+    width: 16px;
+    height: 16px;
+  }
+}
+/* J18 · số tiền tạm ứng: chỉ là chữ, không có ô nhập. */
+.nr-amt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--page);
+}
+.nr-amt-l {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.nr-amt-v {
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 500;
+  letter-spacing: -0.64px;
 }
 .nr-send {
   flex: none;
