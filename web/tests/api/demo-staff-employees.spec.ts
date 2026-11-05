@@ -141,7 +141,7 @@ test('a probation employee shows Thử việc in the Admin list and in their own
 });
 
 test('a resigned employee reads back as nghỉ việc and the list says Đã nghỉ việc', async ({ page, request }) => {
-  test.fail(true, 'BUG-staff-2: staff.contract_status chỉ lưu probation/official, nghiviec đọc lại thành nv');
+  // (a) lưu đủ 5 trạng thái nhân sự (người dùng chốt 05/11; BUG-staff-2 đã sửa ở main aaa14d9).
   const giang = await employee(request, 'ns-giang');
   expect(giang.account.isLocked).toBe(true);
   expect(giang.contract.resignedOn).toBeTruthy();
@@ -152,7 +152,7 @@ test('a resigned employee reads back as nghỉ việc and the list says Đã ngh
 });
 
 test('TTS and CTV contracts read back as saved and the staff app labels them', async ({ page, request }) => {
-  test.fail(true, 'BUG-staff-2: staff.contract_status chỉ lưu probation/official, tts/ctv đọc lại thành nv');
+  // (a) lưu đủ 5 trạng thái nhân sự (BUG-staff-2 đã sửa ở main aaa14d9).
   expect((await employee(request, 'ns-binh')).contract.status).toBe('tts');
   expect((await employee(request, 'ns-chau')).contract.status).toBe('ctv');
   await page.setViewportSize(PHONE);
@@ -237,26 +237,42 @@ test('POST /employees with the profile shape that GET returns keeps the name', a
   expect((await employee(request, 'ns-moi-b')).profile.fullName).toBe('Phan Thị Hai');
 });
 
-test('POST /employees with an existing username does not overwrite that person', async ({ request }) => {
+test('POST with an existing username, or PUT that changes username or uuid, is refused and changes nothing', async ({ request }) => {
+  // main aaa14d9: POST trùng username và PUT đổi username/uuid trả 400 BAD_EMPLOYEE_INPUT.
   const before = await employee(request, 'ns-trung');
-  const status = await apiAs(request, ADMIN, async () => {
-    const r = await request.post('/api/v2/employees', {
-      headers: json,
-      data: {
-        username: 'ns-trung',
-        password: 'KhacHan@999',
-        profile: { name: { familyName: 'Người', givenName: 'Khác' } },
-        account: { username: 'ns-trung', roles: ['staff'] },
-        contract: { status: 'nv', position: { type: 'nv', level: 1 } }
-      }
-    });
-    return r.status();
+  const answers = await apiAs(request, ADMIN, async () => {
+    const out: Array<[string, number, string]> = [];
+    const keep = async (what: string, r: Promise<{ status: () => number; json: () => Promise<any> }>) => {
+      const res = await r;
+      out.push([what, res.status(), (await res.json()).code]);
+    };
+    await keep(
+      'POST trùng username',
+      request.post('/api/v2/employees', {
+        headers: json,
+        data: {
+          username: 'ns-trung',
+          password: 'KhacHan@999',
+          profile: { name: { familyName: 'Người', givenName: 'Khác' } },
+          account: { username: 'ns-trung', roles: ['staff'] },
+          contract: { status: 'nv', position: { type: 'nv', level: 1 } }
+        }
+      })
+    );
+    await keep('PUT đổi username', request.put('/api/v2/employees/ns-trung', { headers: json, data: { account: { username: 'ns-trung-moi' } } }));
+    await keep('PUT đổi uuid', request.put('/api/v2/employees/ns-trung', { headers: json, data: { profile: { uuid: '00000000-0000-4000-8000-000000000000' } } }));
+    out.push(['GET tên mới', (await request.get('/api/v2/employees/ns-trung-moi')).status(), '']);
+    return out;
   });
+  expect(answers).toEqual([
+    ['POST trùng username', 400, 'BAD_EMPLOYEE_INPUT'],
+    ['PUT đổi username', 400, 'BAD_EMPLOYEE_INPUT'],
+    ['PUT đổi uuid', 400, 'BAD_EMPLOYEE_INPUT'],
+    ['GET tên mới', 404, '']
+  ]);
   const after = await employee(request, 'ns-trung');
   expect(after.profile.uuid, 'uuid của người đã có không đổi').toBe(before.profile.uuid);
   expect(after.profile.fullName).toBe(before.profile.fullName);
-  expect(status, 'tạo trùng tên đăng nhập bị từ chối').toBeGreaterThanOrEqual(400);
-  expect(status).toBeLessThan(500);
   // Mật khẩu cũng không bị ghi đè.
   const anon = await anonymous();
   expect((await tryLogin(anon, 'ns-trung', 'KhacHan@999')).status).toBe(401);

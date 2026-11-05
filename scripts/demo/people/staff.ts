@@ -136,5 +136,14 @@ export const STAFF: DemoPerson[] = [
     start: since,
     contract: { status: 'nv', position: { type: 'nv', level: 1 } },
     note: 'Test gọi DELETE /employees/ns-xoa trong lúc người này đang có phiên.'
+  },
+  {
+    username: 'ns-nhatky',
+    familyName: 'Trần Văn',
+    givenName: 'Ký',
+    area: 'staff',
+    start: since,
+    contract: { status: 'nv', position: { type: 'nv', level: 1 } },
+    note: 'Test Nhật ký: Admin khoá tài khoản và sửa số người phụ thuộc trong một lần lưu (gộp × 2), đặt lại mật khẩu rồi trả về như cũ.'
   }
 ];

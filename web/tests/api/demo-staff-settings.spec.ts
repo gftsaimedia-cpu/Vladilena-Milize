@@ -100,6 +100,9 @@ test('Chế độ: Lưu stays off until a value changes; saving from a later mon
   const after = await catalog(request);
   expect(inEffect(after, 'nv', FAR).flex_pct).toBe(next);
   expect(inEffect(after, 'nv', m0)).toMatchObject({ flex_pct: now.flex_pct, effective_month: now.effective_month }); // (a) P1
+  // (a) spec audit-log mục 6: lưu chế độ ghi một dòng Sửa chức vụ của Admin, đúng tháng áp dụng, chỉ ô đã đổi.
+  const logged = (await auditList(request, '&action=position.save', 1)).items[0];
+  expect(logged).toMatchObject({ actor: ADMIN, entityId: 'nv', month: FAR, before: { flexPct: now.flex_pct }, after: { flexPct: next } });
   w.check();
 });
 
@@ -133,6 +136,9 @@ test('Chức vụ và bậc: months start this month, NV night is by person, Lư
   await expect(add).toHaveCount(0);
   expect(maxLevel(await catalog(request), 'nv', FAR)).toBe(level);
   expect(maxLevel(await catalog(request), 'nv', m0)).toBe(maxLevel(before, 'nv', m0)); // (a) 3.3 bước 7
+  // (a) spec audit-log mục 6: thêm bậc ghi một dòng Sửa bậc, mã là loại:bậc.
+  const logged = (await auditList(request, '&action=level.save', 1)).items[0];
+  expect(logged).toMatchObject({ actor: ADMIN, entityId: `nv:${level}`, month: FAR, after: { name: `Bậc ${level}`, baseSalary: 9000000 } });
   w.check();
 });
 
@@ -317,6 +323,10 @@ test('Nhật ký: the check button reports the same count as the API, and Lọc 
   await expect(page.locator('.foot, .ft').first()).toContainText(list.total ? `trên ${list.total}` : 'Không có dòng nào');
   await page.getByRole('button', { name: 'Kiểm tra nhật ký không bị sửa' }).click();
   await expect(page.getByRole('button', { name: `Nhật ký nguyên vẹn · đã kiểm tra ${verify.checked} dòng` })).toBeVisible();
+  // (a) spec audit-log 5.2: chuỗi băm đúng và kiểm đủ mọi dòng; (b) cùng số với tổng của danh sách không lọc.
+  expect(verify).toMatchObject({ ok: true, firstBadId: null, reason: null });
+  expect(verify.checked, 'kiểm tra đủ mọi dòng').toBe(list.total);
+  expect(list.total, 'nhật ký đã có dòng thật (main aaa14d9 nối ghi nhật ký)').toBeGreaterThan(0);
 
   // (c) spec audit-log mục 7: Từ ngày sau Đến ngày thì nút Lọc bị khoá.
   const d = (offset: number) => {
@@ -332,6 +342,147 @@ test('Nhật ký: the check button reports the same count as the API, and Lọc 
   await page.getByLabel('Đến ngày').blur();
   await expect(page.getByRole('button', { name: 'Lọc', exact: true })).toBeEnabled();
   w.check();
+});
+
+type AuditItem = {
+  id: number;
+  actor: string;
+  action: string;
+  entityKind: string | null;
+  entityId: string | null;
+  subject: string | null;
+  month: string | null;
+  before: any;
+  after: any;
+  sensitivity: string;
+  requestId: string | null;
+};
+type AuditList = { items: AuditItem[]; total: number; people: Array<{ username: string; name: string | null }>; actions: string[] };
+
+/** GET /system/audit như Admin; `q` là phần lọc thêm, ví dụ '&action=staff.update'. Mới nhất trước. */
+async function auditList(request: APIRequestContext, q = '', limit = 200): Promise<AuditList> {
+  return apiAs(request, ADMIN, async () => (await request.get(`/api/v2/system/audit?limit=${limit}${q}`)).json());
+}
+/** Mọi dòng nhật ký, đọc từng trang 200 dòng. */
+async function allAudit(request: APIRequestContext): Promise<AuditItem[]> {
+  const out: AuditItem[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const page = await auditList(request, `&offset=${offset}`);
+    out.push(...page.items);
+    if (!page.items.length || out.length >= page.total) return out;
+  }
+}
+/** Ngày cách hôm nay (giờ Việt Nam) `offset` ngày, dạng dd/mm/yyyy như ô ngày của app. */
+const vnDay = (offset: number) => {
+  const t = new Date(Date.parse(`${todayVN()}T00:00:00Z`) + offset * 86400000).toISOString().slice(0, 10);
+  return `${t.slice(8, 10)}/${t.slice(5, 7)}/${t.slice(0, 4)}`;
+};
+
+test('Nhật ký has the seed’s create, resign and lock as Thêm, Xoá and Sửa nhân sự, by the Admin who did them', async ({ request }) => {
+  // (a) spec audit-log mục 6: staff.create khi tạo hồ sơ, staff.delete khi xoá, staff.update khi lưu hồ sơ.
+  const created = (await auditList(request, '&action=staff.create')).items;
+  for (const u of ['ns-an', 'ns-binh', 'ns-chau', 'ns-giang', 'ns-khoa', 'ns-nhatky']) {
+    const rows = created.filter(i => i.entityId === u && i.sensitivity === 'normal');
+    expect(rows, `${u}: một dòng Thêm nhân sự`).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ actor: ADMIN, entityKind: 'staff', subject: u, before: null });
+    // (a) mục 6: chỉ ghi cờ passwordSet, không ghi mật khẩu hay mã băm.
+    expect(rows[0].after.passwordSet, u).toBe(true);
+    expect(Object.keys(rows[0].after).filter(k => /pass/i.test(k)), u).toEqual(['passwordSet']);
+  }
+
+  const resigned = (await auditList(request, '&action=staff.delete')).items.filter(i => i.entityId === 'ns-giang');
+  expect(resigned).toHaveLength(1);
+  expect(resigned[0]).toMatchObject({ actor: ADMIN, before: { status: 'nv', isLocked: false, resignedOn: null } });
+  expect(resigned[0].after).toMatchObject({ status: 'nghiviec', isLocked: true });
+  expect(resigned[0].after.resignedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+  const locked = (await auditList(request, '&action=staff.update')).items.filter(i => i.entityId === 'ns-khoa');
+  expect(locked.map(i => [i.actor, i.sensitivity, i.before, i.after])).toEqual([[ADMIN, 'normal', { isLocked: false }, { isLocked: true }]]);
+
+  // (a) mục 5.1: dropdown Người và Mục lấy trên cả bảng.
+  const { people, actions } = await auditList(request, '', 1);
+  expect(people.map(p => p.username)).toContain(ADMIN);
+  for (const code of ['staff.create', 'staff.update', 'staff.delete']) expect(actions).toContain(code);
+});
+
+test('Nhật ký: one Admin save shows as Sửa nhân sự × 2 with both changes, and the Người, Mục and date filters narrow to it', async ({ page, request }) => {
+  const before = await apiAs(request, ADMIN, async () => (await (await request.get('/api/v2/employees/ns-nhatky')).json()).employee);
+  const deps = before.profile.dependants as number;
+  await apiAs(request, ADMIN, async () => {
+    const r = await request.put('/api/v2/employees/ns-nhatky', { headers: json, data: { account: { isLocked: true }, profile: { dependants: deps + 2 } } });
+    expect(r.status(), await r.text()).toBe(200);
+  });
+
+  // API: một lần lưu = hai dòng (thông tin chung, ô ảnh hưởng lương) chung một requestId (spec audit-log mục 6).
+  const filter = `&actor=${encodeURIComponent(ADMIN)}&action=staff.update`;
+  const { items, total } = await auditList(request, filter);
+  const mine = items.slice(0, 2);
+  expect(mine.map(i => i.entityId)).toEqual(['ns-nhatky', 'ns-nhatky']);
+  expect(mine[0].requestId).toBeTruthy();
+  expect(mine[1].requestId).toBe(mine[0].requestId);
+  const by = Object.fromEntries(mine.map(i => [i.sensitivity, i]));
+  expect([by.normal?.before, by.normal?.after]).toEqual([{ isLocked: false }, { isLocked: true }]);
+  expect([by.pay?.before, by.pay?.after]).toEqual([{ dependants: deps }, { dependants: deps + 2 }]);
+
+  const w = watchPage(page);
+  await admin(page, '/admin/cai-dat/nhat-ky');
+  await page.getByLabel('Người', { exact: true }).selectOption(ADMIN);
+  await page.getByLabel('Mục', { exact: true }).selectOption({ label: 'Sửa nhân sự' }); // (a) A1: nhãn tiếng Việt
+  await page.getByRole('button', { name: 'Lọc', exact: true }).click();
+  await expect(page.locator('.foot').first()).toContainText(`trên ${total}`); // (a) A3: tổng thật của API
+
+  // (a) A2: hai dòng liền nhau cùng người, cùng việc, cùng requestId gộp thành × 2; "Mở ra" hiện đủ từng dòng.
+  const first = page.locator('table.tbl tbody tr:not(.day)').first();
+  await expect(first.locator('td.v')).toContainText('Sửa nhân sự');
+  await expect(first.locator('td.v .x')).toHaveText('× 2');
+  await expect(first.locator('td.df code')).toHaveText('ns-nhatky');
+  await first.getByRole('button', { name: 'Mở ra' }).click();
+  const nk = page.locator('table.tbl tbody tr').filter({ has: page.locator('td.df code', { hasText: /^ns-nhatky$/ }) });
+  await expect(nk).toHaveCount(2);
+  await expect(nk.filter({ hasText: 'isLocked: false → true' })).toHaveCount(1);
+  await expect(nk.filter({ hasText: `dependants: ${deps} → ${deps + 2}` })).toHaveCount(1);
+  // (a) A1: cột Việc không hiện mã.
+  for (const text of await page.locator('table.tbl td.v').allInnerTexts()) expect(text).not.toMatch(/\b[a-z]+\.[a-z]+\b/);
+
+  // Lọc theo ngày giờ Việt Nam (mục 5.1): hôm nay có dòng đó; ngày mai thì không có dòng nào.
+  const from = page.getByLabel('Từ ngày');
+  const to = page.getByLabel('Đến ngày');
+  await from.fill(vnDay(0));
+  await from.blur();
+  await to.fill(vnDay(0));
+  await to.blur();
+  await page.getByRole('button', { name: 'Lọc', exact: true }).click();
+  await expect(page.locator('table.tbl tbody tr:not(.day)').first().locator('td.df code').first()).toHaveText('ns-nhatky');
+  await from.fill(vnDay(1));
+  await from.blur();
+  await to.fill(vnDay(1));
+  await to.blur();
+  await page.getByRole('button', { name: 'Lọc', exact: true }).click();
+  await expect(page.getByText('Không có dòng nào khớp bộ lọc')).toBeVisible();
+  await expect(page.locator('.foot').first()).toContainText('Không có dòng nào');
+  w.check();
+});
+
+test('Nhật ký: an Admin password reset is one Đặt lại mật khẩu row with only passwordSet, never the password or a hash', async ({ request }) => {
+  const secret = 'NhatKy@Moi2026';
+  await apiAs(request, ADMIN, async () => {
+    const r = await request.put('/api/v2/employees/ns-nhatky', { headers: json, data: { account: { password: secret } } });
+    expect(r.status()).toBe(200);
+  });
+  try {
+    // (a) spec audit-log mục 6: password.reset chỉ ghi passwordSet: true.
+    const rows = (await auditList(request, '&action=password.reset')).items.filter(i => i.entityId === 'ns-nhatky');
+    expect(rows.map(i => [i.actor, i.before, i.after])).toEqual([[ADMIN, null, { passwordSet: true }]]);
+    const all = JSON.stringify(await allAudit(request));
+    // So bằng true/false để lỗi không in mật khẩu ra log.
+    expect(all.includes(secret), 'mật khẩu vừa đặt không nằm trong nhật ký').toBe(false);
+    expect(all.includes(passwordOf('ns-an')), 'mật khẩu demo không nằm trong nhật ký').toBe(false);
+    expect(/pass_?hash/i.test(all), 'không có ô mã băm mật khẩu').toBe(false);
+  } finally {
+    await apiAs(request, ADMIN, () =>
+      request.put('/api/v2/employees/ns-nhatky', { headers: json, data: { account: { password: passwordOf('ns-nhatky') } } })
+    );
+  }
 });
 
 test('/system/audit answers with the spec’s shape and refuses bad filters with 400, never a 500', async ({ request }) => {
