@@ -20,6 +20,7 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v));
 
 export function useSettingsDraft(group: GroupKey, fields: string[], opts: { backToMinMonth?: boolean } = {}) {
   const ready = ref(false);
+  const error = ref<unknown>(null); // lỗi của lần tải đầu (chưa có số nào để hiện); null khi tải được
   const minMonth = ref('');
   const month = ref('');
   const state = ref<GroupState | null>(null);
@@ -58,24 +59,36 @@ export function useSettingsDraft(group: GroupKey, fields: string[], opts: { back
       base = clone(next.values);
       syncing = false;
       ready.value = true;
+      error.value = null;
     } catch (e) {
       syncing = false;
-      if (mine === seq) toast.error(e.message);
+      if (mine !== seq) return;
+      // Chưa có gì để hiện: thẻ hiện dòng "Không tải được" (error); đã có số rồi thì chỉ báo nhanh, số cũ vẫn đứng.
+      if (ready.value) toast.error(e.message);
+      else error.value = e;
     }
   }
 
   // Đổi tháng là tải ngay (sync), để `loading` luôn là lượt tải của tháng vừa đặt.
   let loading: Promise<void> = Promise.resolve();
   watch(month, () => (loading = load()), { flush: 'sync' });
-  (async () => {
+  async function init() {
+    error.value = null;
     try {
       const first = await getSettings();
       minMonth.value = first.minMonth;
       month.value = first.minMonth; // watcher của month tải nhóm
     } catch (e) {
-      toast.error(e.message);
+      error.value = e;
     }
-  })();
+  }
+  init();
+
+  // Nút Thử lại của dòng "Không tải được": chưa biết tháng thì đọc lại từ đầu, biết rồi thì tải lại nhóm ở tháng đang chọn.
+  function retry() {
+    if (!minMonth.value) return init();
+    return (loading = load());
+  }
 
   const changed = computed(() => {
     const s = state.value;
@@ -154,5 +167,23 @@ export function useSettingsDraft(group: GroupKey, fields: string[], opts: { back
     }
   }
 
-  return { ready, minMonth, month, months, state, draft, reason, changed, errors, canSave, lines, saving, reset, save, reload: load };
+  return {
+    ready,
+    error,
+    minMonth,
+    month,
+    months,
+    state,
+    draft,
+    reason,
+    changed,
+    errors,
+    canSave,
+    lines,
+    saving,
+    reset,
+    save,
+    retry,
+    reload: load
+  };
 }
