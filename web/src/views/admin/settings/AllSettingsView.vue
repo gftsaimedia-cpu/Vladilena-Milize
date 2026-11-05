@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Cài đặt › Tất cả cài đặt: tìm trong mọi nhóm, mở đúng mục để xem hoặc sửa.
-// ?q=<từ khoá> điền sẵn ô tìm (từ ô "Tìm cài đặt" ở đầu trang) · ?hop=them-chuc-vu mở hộp thêm chức vụ.
+// ?q=<từ khoá> điền sẵn ô tìm (từ ô "Tìm cài đặt" ở đầu trang).
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
@@ -11,12 +11,10 @@ import { useSessionStore } from '@/stores/session';
 import { monthShort } from '@/utils/format';
 import { filterAllSettings, normalizeSettingsSearch, searchAllSettings } from '@/builders/admin-config/all-settings';
 import SettingsFrame from './SettingsFrame.vue';
-import AddPositionDialog from './all/AddPositionDialog.vue';
 import RevertDialog from './all/RevertDialog.vue';
 import SettingItem from './all/SettingItem.vue';
 import SaveBar from './fields/SaveBar.vue';
 import { useDraft } from './lib/useDraft';
-import { useHop } from './lib/useHop';
 
 const route = useRoute();
 const router = useRouter();
@@ -47,7 +45,6 @@ const { data, loading, error, reload } = useLoad(
 );
 const form = useDraft(() => data.value && data.value.detail);
 const { draft } = form;
-const { hop, open, close } = useHop(['them-chuc-vu']);
 
 const q = ref(String(route.query.q || ''));
 watch(
@@ -138,9 +135,6 @@ function guardUnload(event) {
 }
 window.addEventListener('beforeunload', guardUnload);
 onBeforeUnmount(() => window.removeEventListener('beforeunload', guardUnload));
-function addPosition() {
-  if (confirmDiscardDraft()) open('them-chuc-vu');
-}
 const items = computed(() => {
   if (!draft.value) return [];
   return filterAllSettings(draft.value, needle.value, filter.value, String(route.query.setting || '')).items;
@@ -208,7 +202,6 @@ function showUnconfirmed() {
       <div class="card-h">
         <h2>Tất cả cài đặt</h2>
         <span class="cap">Chọn một nhóm để xem và sửa từng mục</span>
-        <button type="button" class="r btn sm" @click="addPosition"><Icon name="plus" />Thêm chức vụ</button>
       </div>
       <label class="srch">
         <Icon name="search" />
@@ -332,7 +325,6 @@ function showUnconfirmed() {
     </section>
   </SettingsFrame>
 
-  <AddPositionDialog v-if="hop === 'them-chuc-vu'" @close="close" @saved="reload" />
   <RevertDialog
     v-if="reverting"
     :name="reverting.item.name"

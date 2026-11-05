@@ -46,7 +46,7 @@ test('Tôi shows Nam’s profile and work facts', async ({ page }) => {
   await openPhone(page, '/nv/toi');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tôi');
   await expect(page.getByText('Lê Hoàng Nam', { exact: true })).toBeVisible();
-  await expect(page.getByText('nam.le@gft.vn')).toBeVisible();
+  await expect(page.getByText('nam.le@gft.vn')).toHaveCount(0); // BE không có email: màn Tôi không có dòng email (người dùng chốt 05/11)
   await expect(page.getByText('Chính thức', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Công việc' })).toBeVisible();
   const facts = page.locator('.kv');
