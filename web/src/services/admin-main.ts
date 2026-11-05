@@ -2,6 +2,7 @@
 // Máy chủ thật: chuông và việc chờ đọc GET /api/v2/requests, duyệt qua PATCH /requests/:id/review;
 // Tổng quan ghép từ các API đó. Dữ liệu giả: mock/.
 import { inboxFromRequests, type PersonInfo } from '@/builders/api/inbox';
+import { toast } from '@/components/shell/toast';
 import { overviewFrom, recentWorkdays } from '@/builders/api/overview';
 import { peopleOf, type EmployeeDTO } from '@/builders/api/staff';
 import { SYSTEM_NOTES, pendingInbox, resolveInboxItem, type InboxItem, type SystemNote } from '@/mock/inbox';
