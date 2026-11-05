@@ -7,3 +7,4 @@ export * from './personal-income-tax';
 export * from './advance-quote';
 export * from './presence';
 export * from './overtime-pay';
+export * from './makeup-shortfall';

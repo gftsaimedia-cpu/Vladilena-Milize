@@ -71,6 +71,13 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ', async 
     assert.equal(changes.size, 1, 'AttendanceSettingsListener phải đã đăng ký với SettingsChanges');
     assert.equal((app.get(SettingsService) as any).changes, changes);
 
+    // Lương ghi lại và đọc dòng ngày (T6): đủ cả bốn tham số, đúng chỗ, không cái nào rơi thành undefined.
+    const payroll = app.get(PayrollService) as any;
+    assert.equal(service.payroll, payroll);
+    assert.equal(payroll.days, days, 'PayrollService.days phải là AttendanceDaysService');
+    assert.equal(payroll.settings, settings, 'PayrollService.settings phải là SettingsReader');
+    assert.equal(payroll.txCoordinator, app.get(TransactionCoordinator));
+
     // Job mỗi giờ: tsx không phát metadata tham số, thiếu @Inject thì phụ thuộc rơi thành undefined.
     const job = app.get(AttendanceDaysJob) as any;
     assert.equal(job.repo, app.get(AttendanceDaysRepository));

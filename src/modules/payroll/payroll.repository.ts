@@ -39,22 +39,7 @@ export interface EmployeeMonthlyRawData {
     dependants: number;
     kpiCap: KpiCap;
   };
-  timesheets: Array<{
-    workDate: string;
-    shiftType: string;
-    shiftStartTime: string;
-    shiftEndTime: string;
-    shiftAllowancePct: number;
-    actualCheckIn?: string | null;
-    actualCheckOut?: string | null;
-    workHours: number;
-    otHours: number;
-    lateMinutes: number;
-    earlyMinutes: number;
-    status: string;
-    dayStatus: string;
-    scheduleType?: string;
-  }>;
+  // The day rows are not here: the payslip reads them from AttendanceDaysService (spec 8.1).
   requests: Array<{
     id: string;
     type: string;
@@ -72,8 +57,7 @@ export interface EmployeeMonthlyRawData {
     advanceAmount?: number | bigint | null;
     advancePeriod?: string | null;
   }>;
-  isatDates?: string[]; // Saturdays of approved iSAT requests, 'YYYY-MM-DD'
-  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD'
+  holidayDates?: string[]; // company holidays of the month, 'YYYY-MM-DD' (the holiday OT rate)
   kpi: KpiInput | null;
 }
 
@@ -83,9 +67,7 @@ export interface MonthRows {
   type: any | null;
   level: any | null;
   benefits: any[];
-  timesheets: any[];
   requests: any[];
-  isatDates?: Array<string | Date>;
   holidays?: Array<string | Date>;
   annualLeaveUsed?: number | string; // approved annual leave days in day_status since the balance date, up to the month end
   kpi: any | null;
@@ -162,22 +144,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       dependants: Math.max(0, Math.floor(Number(staffRow.dependants) || 0)),
       kpiCap
     },
-    timesheets: rows.timesheets.map(r => ({
-      workDate: dateText(r.work_date),
-      shiftType: r.shift_type,
-      shiftStartTime: r.shift_start_time,
-      shiftEndTime: r.shift_end_time,
-      shiftAllowancePct: Number(r.shift_allowance_pct),
-      actualCheckIn: r.actual_check_in instanceof Date ? r.actual_check_in.toISOString() : r.actual_check_in,
-      actualCheckOut: r.actual_check_out instanceof Date ? r.actual_check_out.toISOString() : r.actual_check_out,
-      workHours: Number(r.work_hours),
-      otHours: Number(r.ot_hours),
-      lateMinutes: Number(r.late_minutes),
-      earlyMinutes: Number(r.early_minutes),
-      status: r.status,
-      dayStatus: r.day_status,
-      scheduleType: r.schedule_type ?? undefined
-    })),
     requests: rows.requests.map(r => ({
       id: r.id,
       type: r.type,
@@ -195,7 +161,6 @@ export function mapMonthRows(month: string, rows: MonthRows): EmployeeMonthlyRaw
       advanceAmount: numberOrNull(r.advance_amount),
       advancePeriod: r.advance_period
     })),
-    isatDates: (rows.isatDates ?? []).map(dateText),
     holidayDates: (rows.holidays ?? []).map(dateText),
     kpi: kpiRow
       ? {
@@ -369,25 +334,11 @@ export class PayrollRepository {
 
     const { typeRow, levelRow, benefits } = await this.positionInEffect(staffRow, month);
 
-    // Timesheet entries
+    // The day rows (timesheet_entries, iSAT included) are read by the service through AttendanceDaysService.
     const [y, m] = month.split('-').map(Number);
     const lastDay = new Date(y, m, 0).getDate();
     const startDate = `${month}-01`;
     const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
-    const timesheetRows = await this.qb
-      .selectFrom('timesheet_entries')
-      .leftJoin('work_schedules', join =>
-        join
-          .onRef('work_schedules.employee_id', '=', 'timesheet_entries.employee_id')
-          .onRef('work_schedules.work_date', '=', 'timesheet_entries.work_date')
-      )
-      .selectAll('timesheet_entries')
-      .select('work_schedules.schedule_type as schedule_type')
-      .where('timesheet_entries.employee_id', '=', staffRow.uuid || employeeId)
-      .where('timesheet_entries.work_date', '>=', startDate)
-      .where('timesheet_entries.work_date', '<=', endDate)
-      .orderBy('timesheet_entries.work_date', 'asc')
-      .execute();
 
     // Requests (filtered by target month; DATE columns are compared against the month's first and last day)
     const requestRows = await this.qb
@@ -403,19 +354,6 @@ export class PayrollRepository {
           eb.and([eb('explanation_date', '>=', startDate), eb('explanation_date', '<=', endDate)])
         ])
       )
-      .execute();
-
-    // Saturdays of approved iSAT requests in the month (the DATE column is converted to text in mapMonthRows)
-    const isatRows = await this.qb
-      .selectFrom('isat_registrations')
-      .innerJoin('system_requests', 'system_requests.id', 'isat_registrations.request_id')
-      .select('isat_registrations.saturday as saturday')
-      .where('system_requests.employee_id', '=', staffRow.uuid || employeeId)
-      .where('system_requests.type', '=', 'ISAT')
-      .where('system_requests.status', '=', 'APPROVED')
-      .where('isat_registrations.saturday', '>=', startDate)
-      .where('isat_registrations.saturday', '<=', endDate)
-      .orderBy('isat_registrations.saturday', 'asc')
       .execute();
 
     // Company holidays in the month (the DATE column is converted to text in mapMonthRows)
@@ -453,9 +391,7 @@ export class PayrollRepository {
       type: typeRow ?? null,
       level: levelRow ?? null,
       benefits,
-      timesheets: timesheetRows,
       requests: requestRows,
-      isatDates: isatRows.map(r => r.saturday),
       holidays: holidayRows.map(r => r.holiday_date),
       annualLeaveUsed: annualLeaveUsed?.n ?? 0,
       kpi: kpiRow ?? null

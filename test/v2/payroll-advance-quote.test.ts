@@ -21,6 +21,12 @@ function line(date: string, over: Partial<DailyAttendanceLineProps> = {}): Daily
     deductionHours: 0,
     deductionAmount: 0,
     dailyTotal: DAY_SALARY,
+    kind: 'PRESENT',
+    payUnits: 1,
+    countsAsWorkday: true,
+    countsAsDayOff: false,
+    makeupMinutes: 0,
+    makeupPay: 0,
     ...over
   };
 }
@@ -35,9 +41,15 @@ function lines(firstOver: Partial<DailyAttendanceLineProps> = {}): DailyAttendan
   }
   return [
     ...worked,
-    line('2026-11-09', { shiftCode: 'LEAVE', shiftLabel: 'Nghỉ phép' }),
+    line('2026-11-09', {
+      shiftCode: 'LEAVE',
+      shiftLabel: 'Nghỉ phép',
+      kind: 'LEAVE_PAID',
+      countsAsWorkday: false,
+      countsAsDayOff: true
+    }),
     line('2026-11-16'),
-    line('2026-11-10', { daySalary: 0 })
+    line('2026-11-10', { daySalary: 0, payUnits: 0, countsAsWorkday: false })
   ];
 }
 

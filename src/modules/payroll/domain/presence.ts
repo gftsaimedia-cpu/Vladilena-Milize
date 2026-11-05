@@ -23,7 +23,7 @@ export function vnInstant(date: string, hhmm: string): Date {
   return new Date(`${date}T${hhmm}:00+07:00`);
 }
 
-function punchInstant(punch: string | null | undefined): Date | null {
+function punchInstant(punch: string | Date | null | undefined): Date | null {
   if (!punch) return null;
   const at = new Date(punch);
   return Number.isNaN(at.getTime()) ? null : at;
@@ -35,8 +35,8 @@ function punchInstant(punch: string | null | undefined): Date | null {
  */
 export function presenceOf(
   workDate: string,
-  punchIn: string | null | undefined,
-  punchOut: string | null | undefined,
+  punchIn: string | Date | null | undefined,
+  punchOut: string | Date | null | undefined,
   explained?: { checkIn?: string | null; checkOut?: string | null }
 ): Presence {
   const start = punchInstant(punchIn) ?? (explained?.checkIn ? vnInstant(workDate, explained.checkIn) : null);
