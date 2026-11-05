@@ -422,6 +422,8 @@ Ca có giờ ra nhỏ hơn giờ vào là ca qua đêm (ra vào hôm sau). Khôn
   - có đơn đã duyệt cho hôm nay (OT, khung làm bù, đổi ca);
   - hôm nay đã có lịch làm việc.
 
+  Ngày đã có lịch nghỉ được duyệt (`ON_LEAVE`) luôn là `false`, kể cả khi thoả các điều kiện trên; chấm công ngày đó vẫn bị từ chối như trước.
+
   Không thoả điều kiện nào thì `workday` là `false`: app khoá nút và hiện "Hôm nay không phải ngày làm của bạn".
 - **Khoảng cách:** app tự tính bằng haversine với bán kính Trái Đất 6.371.000 m, làm tròn tới mét. Khoảng cách lớn hơn `radiusM` là ngoài vùng: app khoá nút và hiện "Bạn đang cách văn phòng {distanceM} m". BE dùng đúng công thức này.
 - **Không có vị trí:** `zone` khác `null` mà máy không lấy được vị trí thì app khoá nút và hiện "Không lấy được vị trí".

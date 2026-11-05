@@ -127,6 +127,16 @@ describe('Attendance punches against settings', () => {
     });
   });
 
+  it('a day with approved leave (ON_LEAVE schedule) is not a workday', async () => {
+    weekdays = [1, 2, 3, 4, 5];
+    await repo.saveSchedule(
+      WorkSchedule.create({ employeeId: u('nghi'), workDate: '2026-12-09', shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00', status: 'ON_LEAVE' })
+    );
+    assert.equal(await svc.workdayOf(u('nghi'), '2026-12-09'), false); // thứ Tư trong tuần làm
+    await repo.saveSchedule(WorkSchedule.create({ employeeId: u('nghi'), workDate: '2026-12-10', shiftType: 'NORMAL', plannedStartTime: '08:00', plannedEndTime: '17:00' }));
+    assert.equal(await svc.workdayOf(u('nghi'), '2026-12-10'), true);
+  });
+
   it('a night-shift check-out on an off day is not refused (Review Focus 2)', async () => {
     weekdays = [1, 2, 3, 4, 5];
     zone = null;

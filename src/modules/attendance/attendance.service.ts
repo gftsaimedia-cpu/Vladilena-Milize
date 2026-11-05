@@ -52,11 +52,12 @@ export class AttendanceService {
 
   /**
    * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
-   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù). Không có cài đặt thì coi mọi ngày là ngày làm.
+   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE) thì luôn không phải. Không có cài đặt thì coi mọi ngày là ngày làm.
    */
   async workdayOf(employeeId: string, date: string): Promise<boolean> {
     if (!this.settings) return true;
-    if (await this.repo.findSchedule(employeeId, date)) return true;
+    const schedule = await this.repo.findSchedule(employeeId, date);
+    if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
     return await this.workdayWithoutSchedule(this.settings, employeeId, date);
   }
 
