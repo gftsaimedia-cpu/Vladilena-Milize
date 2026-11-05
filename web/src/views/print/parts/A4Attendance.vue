@@ -120,6 +120,7 @@ const headingId = useId();
 .who {
   margin-top: 12px;
   display: grid;
+  gap: 0;
   grid-template-columns: 1.3fr 1fr 1fr 1fr;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
@@ -184,10 +185,10 @@ const headingId = useId();
   background: #f5f5f5;
 }
 .c-date {
-  width: 66px;
+  width: 70px;
 }
 .c-kind {
-  width: 146px;
+  width: 142px;
 }
 .c-io {
   width: 84px;

@@ -42,6 +42,10 @@ defineProps<{ page: 1 | 2 }>();
 .pl-a4 > :deep(:not(.wm)) {
   position: relative;
 }
+/* base.css đặt td cao 42px khi giao diện ở mật độ Gọn (:root[data-density='gon'] td, !important): bản in luôn cao tự nhiên */
+.pl-a4 :deep(td) {
+  height: auto !important;
+}
 .wm {
   position: absolute;
   left: 50%;

@@ -224,3 +224,38 @@ test('totals add up from the rounded lines; the slip ends with Thực nhận and
   await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*22 ngày/);
   await expect(p2.locator('.end .sign')).toHaveText(/Người nhận\s*Ký, ghi rõ họ tên/);
 });
+
+test('print tables stay compact under the Gọn density', async ({ page }) => {
+  await page.goto(SLIP);
+  await expect(att(page).locator('tbody tr')).toHaveCount(29);
+  await expect(pay(page).locator('tr.ln').first()).toBeVisible();
+  await page.evaluate(() => {
+    document.documentElement.dataset.density = 'gon';
+  });
+  await page.emulateMedia({ media: 'print' });
+  // hai dòng cố ý cao hơn: dòng điểm KPI (hai dòng chữ) và dòng đầu khối tổng (đệm trên 12px); mọi ô khác ≤ 22px, còn Gọn sẽ ép 42px
+  const tall = await page.locator('.pl-a4 td').evaluateAll(cs =>
+    cs
+      .filter(c => !c.closest('tr.kpi') && !c.closest('tbody.sum tr:first-child'))
+      .filter(c => c.getBoundingClientRect().height > 22)
+      .map(c => `${(c.textContent || '').trim()} (${c.getBoundingClientRect().height}px)`)
+  );
+  const kpi = await page.locator('.pl-a4 tr.kpi td').first().evaluate(c => c.getBoundingClientRect().height);
+  const sum = await page.locator('.pl-a4 tbody.sum tr:first-child td').first().evaluate(c => c.getBoundingClientRect().height);
+  expect(kpi).toBeLessThan(48);
+  expect(sum).toBeLessThan(36);
+  expect(tall).toEqual([]);
+  const sheets = page.locator('.pl-a4');
+  expect(await sheets.evaluateAll(ss => ss.map(s => s.scrollHeight <= s.clientHeight))).toEqual([true, true]);
+});
+
+test('no print cell is cut off', async ({ page }) => {
+  await page.goto(SLIP);
+  await page.emulateMedia({ media: 'print' });
+  await expect(att(page).locator('tbody tr')).toHaveCount(29);
+  await expect(pay(page).locator('tr.ln').first()).toBeVisible();
+  const cut = await page.locator('.pl-a4 td').evaluateAll(cs =>
+    cs.filter(c => c.scrollWidth > c.clientWidth).map(c => (c.textContent || '').trim())
+  );
+  expect(cut).toEqual([]);
+});

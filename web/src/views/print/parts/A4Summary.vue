@@ -145,11 +145,11 @@ const headingId = useId();
   color: #616161;
 }
 .c-qty {
-  width: 84px;
+  width: 96px;
 }
 .c-rule,
 .c-act {
-  width: 100px;
+  width: 112px;
 }
 .ts td {
   border-bottom: 1px solid #e0e0e0;
@@ -210,7 +210,6 @@ const headingId = useId();
   background: linear-gradient(#212121, #212121) 0 8px / 100% 2px no-repeat;
 }
 .net {
-  margin-top: 8px;
   display: flex;
   justify-content: space-between;
   padding: 7px 6px;
