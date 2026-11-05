@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import 'reflect-metadata';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
+import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
@@ -53,6 +54,22 @@ describe('MeController', () => {
     assert.equal(att.calls.recordPunch[0].employeeId, 'u-nam');
     assert.equal(att.calls.recordPunch[0].type, 'IN');
     assert.equal(att.calls.recordPunch[0].latitude, 1);
+    assert.deepEqual(att.calls.recordPunch[1], { checkZone: true });
+  });
+
+  it('a refused punch is a 400 with the refusal code and its details', async () => {
+    const att = fake({
+      recordPunch: () => {
+        throw new PunchRefusedError('OUTSIDE_ZONE', 'Bạn đang cách văn phòng 600 m', { distanceM: 600, radiusM: 150 });
+      }
+    });
+    const { ctl } = controller({ att });
+    await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2 }), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.equal(e.message, 'Bạn đang cách văn phòng 600 m');
+      assert.deepEqual(e.details, { code: 'OUTSIDE_ZONE', distanceM: 600, radiusM: 150 });
+      return true;
+    });
   });
 
   it("reading someone else's request is a 404", async () => {

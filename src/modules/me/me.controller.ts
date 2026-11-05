@@ -9,6 +9,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
@@ -132,14 +133,18 @@ export class MeController {
     const type = body?.kind === 'OUT' ? 'OUT' : body?.kind === 'IN' ? 'IN' : null;
     if (!type) throw new BadRequestError('Thiếu loại chấm công (IN hoặc OUT)', { code: 'BAD_PUNCH_INPUT' });
     try {
-      return await this.attendance.recordPunch({
-        employeeId: me.uuid,
-        type,
-        latitude: body.lat,
-        longitude: body.lng,
-        accuracyMeters: body.accuracyM,
-      });
+      return await this.attendance.recordPunch(
+        {
+          employeeId: me.uuid,
+          type,
+          latitude: body.lat,
+          longitude: body.lng,
+          accuracyMeters: body.accuracyM,
+        },
+        { checkZone: true },
+      );
     } catch (err) {
+      if (err instanceof PunchRefusedError) throw new BadRequestError(err.message, { code: err.code, ...err.details });
       asBadRequest(err, 'BAD_PUNCH_INPUT');
     }
   }

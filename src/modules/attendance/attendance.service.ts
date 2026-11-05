@@ -1,6 +1,10 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
 import { businessDateText } from '../../common/business-date';
+import { SettingsReader } from '../settings';
+import { checkPunchLocation } from '../settings/domain/attendance-zone';
+import { isWorkday } from '../settings/domain/work-week';
+import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
   GeoLocation,
@@ -20,12 +24,6 @@ export interface ShiftConfigInput {
   shiftAllowancePct?: number;
 }
 
-export interface OfficeLocationInput {
-  latitude: number;
-  longitude: number;
-  maxDistanceMeters?: number;
-}
-
 export interface RecordPunchInput {
   employeeId: string;
   type: 'IN' | 'OUT';
@@ -37,7 +35,6 @@ export interface RecordPunchInput {
   workDate?: string;
   punchedAt?: Date | string;
   shiftConfig?: ShiftConfigInput;
-  officeLocation?: OfficeLocationInput;
 }
 
 export interface RecordPunchResult {
@@ -50,12 +47,29 @@ export class AttendanceService {
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Optional() @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
   ) {}
 
   /**
-   * Ghi nhận sự kiện chấm công và tính toán lại bảng công nhật (với lock bảo vệ)
+   * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
+   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù). Không có cài đặt thì coi mọi ngày là ngày làm.
    */
-  async recordPunch(input: RecordPunchInput): Promise<RecordPunchResult> {
+  async workdayOf(employeeId: string, date: string): Promise<boolean> {
+    if (!this.settings) return true;
+    if (await this.repo.findSchedule(employeeId, date)) return true;
+    return await this.workdayWithoutSchedule(this.settings, employeeId, date);
+  }
+
+  private async workdayWithoutSchedule(settings: Pick<SettingsReader, 'workWeekOf'>, employeeId: string, date: string): Promise<boolean> {
+    const week = await settings.workWeekOf(employeeId, date.slice(0, 7));
+    return isWorkday(week.weekdays, date) || (await this.repo.hasApprovedWorkOn(employeeId, date));
+  }
+
+  /**
+   * Ghi nhận sự kiện chấm công và tính toán lại bảng công nhật (với lock bảo vệ).
+   * Có cài đặt thì kiểm ngày làm (chỉ chấm vào) rồi vùng chấm công (khi `checkZone`) trước khi ghi bất cứ gì.
+   */
+  async recordPunch(input: RecordPunchInput, options: { checkZone?: boolean } = {}): Promise<RecordPunchResult> {
     if (!input.employeeId) {
       throw new Error('Mã nhân viên (employeeId) không được để trống');
     }
@@ -69,6 +83,32 @@ export class AttendanceService {
     const executePunch = async () => {
       // 1. Lấy hoặc tạo lịch làm việc cho ngày công
       let schedule = await this.repo.findSchedule(input.employeeId, workDate);
+
+      // Kiểm ngày làm và vùng trước khi tạo lịch mặc định: repo ghi bằng pool riêng nên kiểm sau thì lần bị từ chối vẫn để lại lịch.
+      let distanceM = 0;
+      if (this.settings) {
+        if (!schedule && !input.shiftConfig && input.type === 'IN') {
+          if (!(await this.workdayWithoutSchedule(this.settings, input.employeeId, workDate))) {
+            throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
+          }
+        }
+        if (options.checkZone) {
+          const zone = await this.settings.zone();
+          const check = checkPunchLocation(zone, {
+            lat: input.latitude ?? input.userLocation?.latitude,
+            lng: input.longitude ?? input.userLocation?.longitude,
+          });
+          if (check.kind === 'no-location') throw new PunchRefusedError('NO_LOCATION', 'Không lấy được vị trí');
+          if (check.kind === 'outside') {
+            throw new PunchRefusedError('OUTSIDE_ZONE', `Bạn đang cách văn phòng ${check.distanceM} m`, {
+              distanceM: check.distanceM,
+              radiusM: zone!.radiusM,
+            });
+          }
+          distanceM = check.distanceM ?? 0;
+        }
+      }
+
       if (!schedule) {
         if (input.shiftConfig) {
           schedule = WorkSchedule.create({
@@ -111,18 +151,9 @@ export class AttendanceService {
         type: input.type,
         userLocation,
         note: input.note,
+        distanceMeters: distanceM,
+        isWithinOffice: true,
       };
-
-      if (input.officeLocation) {
-        punchProps.officeLocation = new GeoLocation({
-          latitude: input.officeLocation.latitude,
-          longitude: input.officeLocation.longitude,
-        });
-        punchProps.allowedRadiusMeters = input.officeLocation.maxDistanceMeters ?? 100;
-      } else {
-        punchProps.distanceMeters = 0;
-        punchProps.isWithinOffice = true;
-      }
 
       const punch = PunchEvent.create(punchProps);
       await this.repo.savePunch(punch);

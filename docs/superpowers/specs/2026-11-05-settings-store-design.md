@@ -432,6 +432,8 @@ Ca có giờ ra nhỏ hơn giờ vào là ca qua đêm (ra vào hôm sau). Khôn
 | 2 | Có vùng, thiếu `lat` hoặc `lng` | `NO_LOCATION` | `{ "error": "Không lấy được vị trí", "code": "NO_LOCATION" }` |
 | 3 | Có vùng, khoảng cách > `radiusM` | `OUTSIDE_ZONE` | `{ "error": "Bạn đang cách văn phòng 600 m", "code": "OUTSIDE_ZONE", "distanceM": 600, "radiusM": 150 }` |
 
+`NOT_A_WORKDAY` chỉ áp cho chấm vào (`kind: IN`); chấm ra không bị chặn vì lý do này.
+
 `POST /attendance/punches` (Admin chấm thay) không kiểm tra hai điều kiện về vị trí (Ruling R4), nhưng vẫn kiểm tra `NOT_A_WORKDAY`.
 
 **`GET /me/income?month=2026-11`** (có sẵn) thêm `"payDate": "2026-12-10"`, lấy từ ngày trả lương của tháng đó.
