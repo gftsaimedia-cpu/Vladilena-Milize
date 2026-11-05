@@ -1,13 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Kysely } from 'kysely';
 import type { Client } from 'pg';
-import type { DB } from '../../src/database/schema';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
-import {
-  DEFAULT_LATE_GRACE_MINUTES,
-  PositionTypeAttendanceSettings
-} from '../../src/modules/attendance/attendance-settings.port';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Cần PostgreSQL thật (PG_TEST_URL), xem helpers/pg-temp-db.ts.
@@ -68,52 +62,6 @@ async function request(
     vals
   );
 }
-
-describe('PositionTypeAttendanceSettings trên PostgreSQL', () => {
-  it('workWeek follows the position-type version in force for the month', async t => {
-    await withTempDb(t, 'att_src_week', async (db, client) => {
-      await seed(client);
-      const port = new PositionTypeAttendanceSettings(db);
-      assert.deepEqual(await port.workWeek(NV, '2026-10'), [1, 2, 3, 4, 5, 6]);
-      assert.deepEqual(await port.workWeek(NV, '2026-11'), [1, 2, 3, 4, 5]);
-    });
-  });
-
-  it('workWeek keeps 1..6 only, dedups and sorts; bad JSON gives empty', async t => {
-    await withTempDb(t, 'att_src_bad', async (db, client) => {
-      await seed(client);
-      const port = new PositionTypeAttendanceSettings(db);
-      await client.query(`UPDATE position_types SET regular_dows = '[0,"x",7]' WHERE effective_month = '2026-11'`);
-      assert.deepEqual(await port.workWeek(NV, '2026-11'), []);
-      await client.query(`UPDATE position_types SET regular_dows = '[6,0,2,2,3.5,1]' WHERE effective_month = '2026-11'`);
-      assert.deepEqual(await port.workWeek(NV, '2026-11'), [1, 2, 6]);
-      await client.query(`UPDATE position_types SET regular_dows = '{"a":1}' WHERE effective_month = '2026-11'`);
-      assert.deepEqual(await port.workWeek(NV, '2026-11'), []);
-      // Nhân sự không có phiên bản loại nào.
-      await client.query(`UPDATE staff SET type = 'khong-co-loai'`);
-      assert.deepEqual(await port.workWeek(NV, '2026-11'), []);
-    });
-  });
-
-  it('graceMinutes returns the default constant', async t => {
-    await withTempDb(t, 'att_src_grace', async db => {
-      const port = new PositionTypeAttendanceSettings(db);
-      assert.equal(DEFAULT_LATE_GRACE_MINUTES, 15);
-      assert.equal(await port.graceMinutes('2026-11'), 15);
-    });
-  });
-
-  it('reads inside the given transaction', async t => {
-    await withTempDb(t, 'att_src_trx', async (db, client) => {
-      await seed(client);
-      const port = new PositionTypeAttendanceSettings(db);
-      await db.transaction().execute(async trx => {
-        await trx.updateTable('position_types').set({ regular_dows: '[2]' }).where('effective_month', '=', '2026-11').execute();
-        assert.deepEqual(await port.workWeek(NV, '2026-11', trx), [2]);
-      });
-    });
-  });
-});
 
 describe('AttendanceDaysRepository.loadSources trên PostgreSQL', () => {
   it('returns employee facts, benefits per month and defaults', async t => {

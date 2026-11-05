@@ -3,6 +3,7 @@ import { beforeEach, describe, it } from 'node:test';
 import 'reflect-metadata';
 import type { ChainVersion, Values } from '../../src/common/version-chain';
 import { defaultsOf, encodeValues, GROUP_KEYS, type GroupKey } from '../../src/modules/settings/domain/setting-groups';
+import { SettingsChanges } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import type { ChangeRow, SettingsRepository, StaffRef, StoredChange, WriteMeta } from '../../src/modules/settings/settings.repository';
 import type { Zone } from '../../src/modules/settings/domain/attendance-zone';
@@ -140,7 +141,7 @@ beforeEach(() => {
       locks.push(key);
     }
   };
-  svc = new SettingsService(repo, new SettingsReader(repo), tx as never);
+  svc = new SettingsService(repo, new SettingsReader(repo), tx as never, new SettingsChanges());
 });
 
 const save = (g: string, month: string, values: Record<string, unknown>, stamp: number) =>

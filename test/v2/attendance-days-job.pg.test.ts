@@ -7,7 +7,9 @@ import { TransactionCoordinator } from '../../src/database/transaction';
 import { AttendanceDaysJob } from '../../src/modules/attendance/attendance-days.job';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService, type RefreshOptions } from '../../src/modules/attendance/attendance-days.service';
-import { PositionTypeAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Cần PostgreSQL thật (PG_TEST_URL), xem helpers/pg-temp-db.ts.
@@ -28,7 +30,7 @@ async function addStaff(client: Client, username: string, uuid: string, startDat
 function build(db: Kysely<DB>, service?: AttendanceDaysService) {
   const repo = new AttendanceDaysRepository(db);
   const coordinator = new TransactionCoordinator(db);
-  const real = new AttendanceDaysService(repo, new PositionTypeAttendanceSettings(db), coordinator);
+  const real = new AttendanceDaysService(repo, new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))), coordinator);
   return { repo, coordinator, job: new AttendanceDaysJob(repo, service ?? real, coordinator) };
 }
 
@@ -118,7 +120,7 @@ describe('AttendanceDaysJob.runOnce trên PostgreSQL', () => {
           return await super.refreshDays(employeeId, dates, opts);
         }
       }
-      const service = new FailingFirst(repo, new PositionTypeAttendanceSettings(db), coordinator);
+      const service = new FailingFirst(repo, new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))), coordinator);
       const errors = t.mock.method(console, 'error', () => undefined);
       const { job } = build(db, service);
 

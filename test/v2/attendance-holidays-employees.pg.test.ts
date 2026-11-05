@@ -6,7 +6,9 @@ import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
-import { PositionTypeAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { EmployeesRepository } from '../../src/modules/employees/employees.repository';
 import { EmployeesService } from '../../src/modules/employees/employees.service';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
@@ -35,7 +37,7 @@ function build(db: Kysely<DB>) {
   const kit = auditKit(db);
   const days = new AttendanceDaysService(
     new AttendanceDaysRepository(db),
-    new PositionTypeAttendanceSettings(db),
+    new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))),
     new TransactionCoordinator(db)
   );
   const holidays = new HolidaysService(new HolidaysRepository(db), kit.tx, kit.log, days);

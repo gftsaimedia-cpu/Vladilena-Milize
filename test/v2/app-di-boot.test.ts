@@ -7,9 +7,12 @@ import { TransactionCoordinator } from '../../src/database';
 import { AttendanceDaysJob } from '../../src/modules/attendance/attendance-days.job';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
+import { AttendanceSettingsListener } from '../../src/modules/attendance/attendance-settings.listener';
+import { AttendanceSettingsPort, SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { AttendanceService } from '../../src/modules/attendance/attendance.service';
-import { SettingsReader } from '../../src/modules/settings';
+import { SettingsChanges, SettingsReader } from '../../src/modules/settings';
+import { SettingsService } from '../../src/modules/settings/settings.service';
 import { EmployeesService } from '../../src/modules/employees/employees.service';
 import { HolidaysService } from '../../src/modules/holidays/holidays.service';
 import { MeController } from '../../src/modules/me/me.controller';
@@ -54,6 +57,19 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ', async 
     assert.equal(attendance.settings, settings);
     assert.equal(attendance.txCoordinator, app.get(TransactionCoordinator));
     assert.equal(me.settings, settings);
+
+    // Cổng cài đặt của chấm công đọc kho cài đặt; người nghe thay đổi cài đặt đã đăng ký (đúng một, dùng chung SettingsChanges).
+    const port = app.get(AttendanceSettingsPort);
+    assert.ok(port instanceof SettingsAttendanceSettings, 'cổng cài đặt phải là SettingsAttendanceSettings');
+    assert.equal((port as any).reader, settings);
+    assert.equal((days as any).settings, port);
+    const changes = app.get(SettingsChanges);
+    const listener = app.get(AttendanceSettingsListener) as any;
+    assert.equal(listener.changes, changes);
+    assert.equal(listener.days, days);
+    assert.equal(listener.repo, app.get(AttendanceDaysRepository));
+    assert.equal(changes.size, 1, 'AttendanceSettingsListener phải đã đăng ký với SettingsChanges');
+    assert.equal((app.get(SettingsService) as any).changes, changes);
 
     // Job mỗi giờ: tsx không phát metadata tham số, thiếu @Inject thì phụ thuộc rơi thành undefined.
     const job = app.get(AttendanceDaysJob) as any;

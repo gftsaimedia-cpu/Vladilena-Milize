@@ -9,6 +9,7 @@ import { TransactionCoordinator } from '../../src/database/transaction';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
 import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors';
+import { SettingsChanges } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { SettingsService } from '../../src/modules/settings/settings.service';
@@ -245,7 +246,7 @@ test('A payroll run reads the settings store and stores the month snapshot on Po
     );
     const settingsRepo = new SettingsRepository(db);
     const reader = new SettingsReader(settingsRepo);
-    const settings = new SettingsService(settingsRepo, reader, new TransactionCoordinator(db));
+    const settings = new SettingsService(settingsRepo, reader, new TransactionCoordinator(db), new SettingsChanges());
     await settings.saveWorkWeek('nv-binh', { weekdays: [1, 2, 3, 4, 5], effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
     await settings.saveGroup('insurance', { values: { bhxhPct: 10 }, effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
 

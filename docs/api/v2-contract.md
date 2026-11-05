@@ -1054,6 +1054,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 
 #### `GET /api/v2/system/settings` & `PUT /api/v2/system/settings/:key`
 - Lấy và cập nhật cài đặt hệ thống.
+- Lưu tuần làm việc của một người (`work-week`) hoặc nhóm cài đặt chấm công (`attendance`, ân hạn) có thay đổi thì dòng ngày công (`timesheet_entries`) được dựng lại từ tháng áp dụng tới tháng hiện tại: tuần làm chỉ cho người đó, nhóm chấm công cho mọi người đang làm. Việc này chạy sau khi lưu đã commit; nếu dựng lại lỗi thì request trả lỗi nhưng cài đặt vẫn đã lưu (Admin dùng `POST /api/v2/attendance/recalculate`).
 
 #### `GET /api/v2/system/audit` & `GET /api/v2/system/audit/verify`
 - Quyền `audit.read`. Danh sách: `?limit=&offset=&actor=&action=&from=&to=`. Tham số bỏ trống hoặc chuỗi rỗng thì không lọc; `actor` đúng username, `action` đúng mã; `from`, `to` dạng `YYYY-MM-DD` tính theo ngày giờ Việt Nam (+07:00). Sắp xếp `id` giảm dần; `limit` mặc định 25, lớn hơn 200 thì hạ về 200; `offset` mặc định 0.

@@ -24,6 +24,7 @@ import {
   type NumberLimit
 } from './domain/setting-groups';
 import { parseEffectiveMonth, parseMonth, parseReason, parseStamp, SEED_MONTH } from './domain/settings-input';
+import { SettingsChanges } from './settings-changes';
 import { SettingsReader, type WorkWeek } from './settings-reader';
 import { SettingsEmployeeNotFoundError, SettingsGroupNotFoundError, SettingsInputError, SettingsStaleError } from './settings.errors';
 import { SettingsRepository, type ChangeRow, type StaffRef, type StoredChange } from './settings.repository';
@@ -75,7 +76,8 @@ export class SettingsService {
   constructor(
     @Inject(SettingsRepository) private readonly repo: SettingsRepository,
     @Inject(SettingsReader) readonly reader: SettingsReader,
-    @Inject(TransactionCoordinator) private readonly tx: Tx
+    @Inject(TransactionCoordinator) private readonly tx: Tx,
+    @Inject(SettingsChanges) private readonly changes: SettingsChanges
   ) {}
 
   async getAll(month: unknown, now: Date = new Date()): Promise<{ month: string; minMonth: string; groups: Record<string, GroupView> }> {
@@ -117,7 +119,7 @@ export class SettingsService {
     const stamp = parseStamp(input.stamp);
     const meta = { actor, at: now.toISOString() };
 
-    return this.tx.run(async trx => {
+    const saved = await this.tx.run(async trx => {
       await this.tx.acquireAdvisoryLock(trx, `settings:${g}`);
       const minMonth = minMonthFrom(await this.repo.lastClosedMonth(trx), now);
       const month = parseEffectiveMonth(input.effectiveMonth, minMonth);
@@ -167,6 +169,11 @@ export class SettingsService {
       const ids = await this.repo.insertChanges(trx, rows, meta);
       return { ok: true as const, effectiveMonth: month, changed: keys, stamp: Math.max(...ids) };
     });
+    // Báo sau khi giao dịch đã commit (không bao giờ trong giao dịch): ân hạn đi muộn/về sớm đổi thì ngày công đã ghi phải dựng lại.
+    if (g === 'attendance' && saved.changed.length > 0) {
+      await this.changes.notify({ kind: 'attendance', fromMonth: saved.effectiveMonth, now });
+    }
+    return saved;
   }
 
   async groupHistory(group: unknown): Promise<{ items: HistoryItem[] }> {
@@ -209,7 +216,7 @@ export class SettingsService {
     const stamp = parseStamp(input.stamp);
     const meta = { actor, at: now.toISOString() };
 
-    return this.tx.run(async trx => {
+    const saved = await this.tx.run(async trx => {
       const staff = await this.staffOf(trx, username);
       await this.tx.acquireAdvisoryLock(trx, `settings:${WORK_WEEK}:${staff.uuid}`);
       const minMonth = minMonthFrom(await this.repo.lastClosedMonth(trx), now);
@@ -245,8 +252,15 @@ export class SettingsService {
           )
         : [current];
       const week = await this.reader.workWeekOf(staff.uuid, month, trx);
-      return { ok: true as const, weekdays: week.weekdays, source: week.source, standardWorkdays: week.standardWorkdays, stamp: id };
+      return {
+        employeeUuid: staff.uuid,
+        month,
+        result: { ok: true as const, weekdays: week.weekdays, source: week.source, standardWorkdays: week.standardWorkdays, stamp: id }
+      };
     });
+    // Báo sau khi giao dịch đã commit: các ngày công từ tháng áp dụng tới tháng hiện tại phải dựng lại (lưu lại tuần cũ cũng sửa được dòng lệch).
+    await this.changes.notify({ kind: 'workWeek', employeeUuid: saved.employeeUuid, fromMonth: saved.month, now });
+    return saved.result;
   }
 
   async workWeekHistory(username: unknown): Promise<{ items: HistoryItem[] }> {

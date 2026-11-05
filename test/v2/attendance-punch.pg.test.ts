@@ -8,7 +8,9 @@ import { AttendanceRepository } from '../../src/modules/attendance/attendance.re
 import { AttendanceService } from '../../src/modules/attendance/attendance.service';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
-import { PositionTypeAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { SettingsReader } from '../../src/modules/settings';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
@@ -49,7 +51,7 @@ function build(db: Kysely<DB>, withSettings = false) {
   const coordinator = new TransactionCoordinator(db);
   const days = new AttendanceDaysService(
     new AttendanceDaysRepository(db),
-    new PositionTypeAttendanceSettings(db),
+    new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))),
     coordinator
   );
   const settings = withSettings ? new SettingsReader(new SettingsRepository(db)) : undefined;

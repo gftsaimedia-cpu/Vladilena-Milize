@@ -6,7 +6,8 @@ import { AttendanceController } from './attendance.controller';
 import { AttendanceDaysJob } from './attendance-days.job';
 import { AttendanceDaysRepository } from './attendance-days.repository';
 import { AttendanceDaysService } from './attendance-days.service';
-import { AttendanceSettingsPort, PositionTypeAttendanceSettings } from './attendance-settings.port';
+import { AttendanceSettingsListener } from './attendance-settings.listener';
+import { AttendanceSettingsPort, SettingsAttendanceSettings } from './attendance-settings.port';
 
 @Module({
   imports: [SettingsModule],
@@ -17,8 +18,9 @@ import { AttendanceSettingsPort, PositionTypeAttendanceSettings } from './attend
     AttendanceDaysRepository,
     AttendanceDaysService,
     AttendanceDaysJob,
-    // Bản tạm (spec 9.1); khi module settings vào main chỉ cần đổi useClass.
-    { provide: AttendanceSettingsPort, useClass: PositionTypeAttendanceSettings }
+    { provide: AttendanceSettingsPort, useClass: SettingsAttendanceSettings },
+    // Ghi lại dòng ngày công khi tuần làm riêng hoặc ân hạn đổi (spec 9.2).
+    AttendanceSettingsListener
   ],
   exports: [AttendanceService, AttendanceRepository, AttendanceDaysRepository, AttendanceDaysService, AttendanceDaysJob, AttendanceSettingsPort]
 })

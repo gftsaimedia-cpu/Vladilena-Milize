@@ -6,7 +6,9 @@ import type { DB } from '../../src/database/schema';
 import { TransactionCoordinator } from '../../src/database/transaction';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
-import { PositionTypeAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { SettingsReader } from '../../src/modules/settings/settings-reader';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
 import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
@@ -35,7 +37,7 @@ function build(db: Kysely<DB>) {
   const coordinator = new TransactionCoordinator(db);
   const days = new AttendanceDaysService(
     new AttendanceDaysRepository(db),
-    new PositionTypeAttendanceSettings(db),
+    new SettingsAttendanceSettings(new SettingsReader(new SettingsRepository(db))),
     coordinator
   );
   const requests = new RequestsRepository(db);
