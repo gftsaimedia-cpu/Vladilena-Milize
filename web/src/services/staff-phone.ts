@@ -106,21 +106,24 @@ function position(): Promise<{ lat?: number; lng?: number; accuracyM?: number }>
   );
 }
 
-// Check-out rồi trả màn Hôm nay mới.
-export async function checkOut(): Promise<HomeView> {
+// Chấm công rồi tải lại màn Hôm nay, hai bước tách nhau: máy chủ từ chối lượt chấm thì ném lỗi (ShiftCard báo câu lỗi);
+// lượt chấm đã ghi nhận mà tải lại màn lỗi thì trả null thay cho màn mới (ShiftCard vẫn báo đã chấm, màn cha tự tải lại).
+async function punch(kind: 'IN' | 'OUT'): Promise<HomeView | null> {
+  await api.post('/me/punches', { kind, ...(await position()) });
+  return getHome().catch(() => null);
+}
+
+// Check-out rồi trả màn Hôm nay mới (null: đã check-out nhưng chưa tải lại được màn).
+export async function checkOut(): Promise<HomeView | null> {
   if (__MOCK__) {
     checkOutNow();
     return respond(homeView());
   }
-  await api.post('/me/punches', { kind: 'OUT', ...(await position()) });
-  return getHome();
+  return punch('OUT');
 }
 
-/** Check-in rồi trả màn Hôm nay mới (máy chủ thật). */
-export async function checkIn(): Promise<HomeView> {
-  await api.post('/me/punches', { kind: 'IN', ...(await position()) });
-  return getHome();
-}
+/** Check-in rồi trả màn Hôm nay mới (máy chủ thật; null: đã check-in nhưng chưa tải lại được màn). */
+export const checkIn = (): Promise<HomeView | null> => punch('IN');
 
 export const changePassword = ({ current, next }: { current: string; next: string }): Promise<{ ok: true }> =>
   session.changePassword(current, next) as Promise<{ ok: true }>;

@@ -1,14 +1,17 @@
 <script setup lang="ts">
 // J7 · Tôi (spec 8.2): dải vàng đầu màn, khối định danh của Lê Hoàng Nam, thẻ "Công việc", hai thao tác.
 // Đổi mật khẩu mở hộp trượt theo ?hop=doi-mat-khau (mở bằng router.replace); Đăng xuất về /dang-nhap.
-// Tải hồ sơ lỗi thì hiện LoadError với nút Thử lại; hai thao tác luôn có, kể cả khi hồ sơ đang tải lại (không cần hồ sơ).
-import { computed, watch } from 'vue';
+// Tải hồ sơ lỗi thì hiện LoadError với nút Thử lại (tải xong thì focus về h1, vẫn lỗi thì về nút Thử lại mới); chưa có hồ sơ
+// thì hiện "Đang tải…". Hai thao tác luôn có, kể cả khi hồ sơ đang tải lại (không cần hồ sơ).
+import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useLoad } from '@/composables/useLoad';
+import { useRetry } from '@/composables/useRetry';
 import { getProfile, logout } from '@/services/staff-phone';
 import { useSessionStore } from '@/stores/session';
 import ChangePasswordSheet from './components/ChangePasswordSheet.vue';
 import LoadError from './components/LoadError.vue';
+import LoadingLine from './components/LoadingLine.vue';
 import PhIcon from './components/PhIcon.vue';
 import { useHop } from './useHop';
 
@@ -17,7 +20,10 @@ const route = useRoute();
 const router = useRouter();
 const session = useSessionStore();
 const { hop, close } = useHop();
-const { data, error, reload } = useLoad(() => getProfile());
+const load = useLoad(() => getProfile());
+const { data, error, loading } = load;
+const head = ref<HTMLElement | null>(null);
+const { errBox, retry } = useRetry(load, head);
 // Dòng phụ của hộp: tên đăng nhập của phiên (hồ sơ trên màn luôn là Nam, R2).
 const username = computed(() => (session.user ? String(session.user.username) : ''));
 
@@ -42,8 +48,8 @@ async function signOut() {
 
 <template>
   <div class="ph toi">
-    <div class="band"><h1>Tôi</h1></div>
-    <LoadError v-if="error" :error="error" @retry="reload" />
+    <div class="band"><h1 ref="head" tabindex="-1">Tôi</h1></div>
+    <LoadError v-if="error" ref="errBox" :error="error" @retry="retry" />
     <template v-else-if="data">
       <div class="ident">
         <span class="big-av" aria-hidden="true">{{ data.initials }}</span>
@@ -60,6 +66,7 @@ async function signOut() {
         <p class="mut sm">{{ data.note }}</p>
       </section>
     </template>
+    <LoadingLine v-else-if="loading" />
     <section class="card blk">
       <button type="button" class="mi" @click="openPassword">
         <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
