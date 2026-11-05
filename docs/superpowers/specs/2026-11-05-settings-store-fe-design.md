@@ -99,20 +99,20 @@ Tên trường lấy đúng theo mục 5 của spec BE. Nếu người dùng đ�
 
 ## 4. Thứ tự làm và phụ thuộc
 
-Ba nhánh khác chưa vào main nhưng sửa đúng file của việc này:
-- **admin-cleanup** (`claude/admin-cleanup-c7afa2`): `AllSettingsView.vue`, `pay/PayDrawer.vue`, `services/admin-config.ts`, `services/admin-settings.ts`, `tests/settings-search.spec.ts`.
-- **audit-log** (`claude/audit-log-718abd`): `services/admin-config.ts`.
-- **wire-staff-app** (`claude/wire-staff-app-f5adca`): `ShiftCard.vue`, `HomeView.vue`, `TodayColumn.vue`, `services/staff-phone.ts`, `mock/staff-phone.ts`.
+Ba nhánh khác sửa đúng file của việc này:
+- **admin-cleanup** (`claude/admin-cleanup-c7afa2`): `AllSettingsView.vue`, `pay/PayDrawer.vue`, `services/admin-config.ts`, `services/admin-settings.ts`, `tests/settings-search.spec.ts`. Đã vào main (7935f20) và đã gộp vào nhánh này (759068d).
+- **wire-staff-app** (`claude/wire-staff-app-f5adca`): `ShiftCard.vue`, `HomeView.vue`, `TodayColumn.vue`, `services/staff-phone.ts`, `mock/staff-phone.ts`. Đã vào main và đã gộp vào nhánh này.
+- **audit-log** (`claude/audit-log-718abd`): `services/admin-config.ts`. Chưa vào main. Lớp dữ liệu mới nằm ở file riêng `services/settings-store.ts`. Ở `admin-config.ts` chỉ bỏ những hàm cài đặt cũ không còn dùng, để khi gộp audit-log thì chỗ đụng nhau ít nhất.
 
-Vì vậy chia ba đợt:
+Ba đợt giữ nguyên thứ tự làm. Cả ba đã làm được ngay, không còn phải chờ nhánh nào:
 
-| Đợt | Việc | Điều kiện |
-|---|---|---|
-| 1 | Lớp dữ liệu (§2), Lịch ca & chấm công, Quy tắc KPI, hồ sơ tuần làm việc | Làm ngay, chỉ đụng file mới và các màn không nhánh nào sửa |
-| 2 | Cách tính lương, Tất cả cài đặt, bỏ số chưa xác nhận và Xem trước, viết lại `settings-search.spec.ts` | Sau khi admin-cleanup vào main |
-| 3 | App nhân viên khoá check-in, "trả ngày 10/12", lưới chấm công Admin theo tuần từng người | Sau khi wire-staff-app vào main |
+| Đợt | Việc |
+|---|---|
+| 1 | Lớp dữ liệu (§2), Lịch ca & chấm công, Quy tắc KPI, hồ sơ tuần làm việc |
+| 2 | Cách tính lương, Tất cả cài đặt, bỏ số chưa xác nhận và Xem trước, viết lại `settings-search.spec.ts` |
+| 3 | App nhân viên khoá check-in, "trả ngày 10/12", lưới chấm công Admin theo tuần từng người |
 
-Trước mỗi đợt, kiểm bằng `git merge-base --is-ancestor <nhánh> main`.
+Trước khi sửa một file mà nhánh khác cũng sửa, gộp main mới nhất vào nhánh này trước.
 
 ## 5. Kiểm thử
 
