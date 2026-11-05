@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { EmployeesService } from './employees.service';
 
 @Controller('api/v2/employees')
@@ -52,6 +53,8 @@ export class EmployeesController {
       const saved = await this.service.create(body, user.username);
       return { created: true, employee: saved.toDTO() };
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_EMPLOYEE_INPUT' });
     }
   }
@@ -67,6 +70,8 @@ export class EmployeesController {
     try {
       saved = await this.service.update(username, body, user.username);
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_EMPLOYEE_INPUT' });
     }
     if (!saved) {

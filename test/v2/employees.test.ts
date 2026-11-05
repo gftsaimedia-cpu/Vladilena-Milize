@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { test, describe, it } from 'node:test';
+import { BadRequestError, NotFoundError } from '../../src/common';
+import { AuditEntryError } from '../../src/modules/audit';
+import { EmployeesController } from '../../src/modules/employees/employees.controller';
 import { EmployeesService } from '../../src/modules/employees/employees.service';
 import { EmployeesRepository, type StaffRow } from '../../src/modules/employees/employees.repository';
 import { Employee } from '../../src/modules/employees/domain';
@@ -64,6 +67,10 @@ class FakeEmployeesRepository extends EmployeesRepository {
       }
     }
     return null;
+  }
+
+  override async findByUsername(username: string): Promise<Employee | null> {
+    return this.employees.get(username) ?? null;
   }
 
   override async findAll(): Promise<Employee[]> {
@@ -214,5 +221,28 @@ describe('Employees V2 - Nhãn hợp đồng (staff.contract) & cờ bảo hiể
     const dto = EmployeesRepository.fromRow(staffRow({ contract: 'short', insured: null })).toDTO();
     assert.equal(dto.contract.term, 'short');
     assert.equal(dto.contract.hasInsurance, null);
+  });
+});
+
+describe('EmployeesController: lỗi nào ra mã nào', () => {
+  const ADMIN = { username: 'admin' } as any;
+  const auditError = () => new AuditEntryError('Nhật ký staff.create: entityId dài quá 200 ký tự');
+
+  it('an audit entry error stays a server error (500), not a 400', async () => {
+    const ctrl = new EmployeesController({
+      create: async () => { throw auditError(); },
+      update: async () => { throw auditError(); }
+    } as any);
+    await assert.rejects(ctrl.createEmployee({ username: 'binh' }, ADMIN), AuditEntryError);
+    await assert.rejects(ctrl.putEmployee('binh', { level: 3 }, ADMIN), AuditEntryError);
+  });
+
+  it('PUT on a missing person is 404, bad input is 400', async () => {
+    const missing = new EmployeesController({ update: async () => null } as any);
+    await assert.rejects(missing.putEmployee('khong-co', {}, ADMIN), (e: any) =>
+      e instanceof NotFoundError && e.details?.code === 'EMPLOYEE_NOT_FOUND');
+    const bad = new EmployeesController({ update: async () => { throw new Error('Họ tên nhân viên không được để trống'); } } as any);
+    await assert.rejects(bad.putEmployee('binh', {}, ADMIN), (e: any) =>
+      e instanceof BadRequestError && e.details?.code === 'BAD_EMPLOYEE_INPUT' && e.message === 'Họ tên nhân viên không được để trống');
   });
 });

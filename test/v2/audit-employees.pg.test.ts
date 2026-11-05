@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import type { Kysely } from 'kysely';
 import type { DB } from '../../src/database/schema';
 import type { AuditLog } from '../../src/modules/audit/audit-log';
+import type { Employee } from '../../src/modules/employees/domain';
 import { EmployeesRepository } from '../../src/modules/employees/employees.repository';
 import { EmployeesService } from '../../src/modules/employees/employees.service';
 import { auditKit } from './helpers/audit-pg';
@@ -130,22 +131,61 @@ test('an update that changes nothing, or of a missing person, writes no row', as
   });
 });
 
-test('staff.delete records the resignation and the lock', async t => {
+test('staff.delete records the resignation and the lock as the database stored them', async t => {
   await withTempDb(t, 'audit_staff', async db => {
     const { svc, rows } = setup(db);
+    const repo = new EmployeesRepository(db);
+    const resign = (e: Employee) => ({ status: e.contract.status, isLocked: e.account.isLocked, resignedOn: e.contract.resignedOn });
     await svc.create(BINH, 'admin');
+    const was = resign((await repo.findByUsername('binh'))!);
     assert.equal(await svc.deactivate('binh', 'hr'), true);
+    const now = resign((await repo.findByUsername('binh'))!);
 
     const [row, ...rest] = (await rows()).slice(3);
     assert.equal(rest.length, 0);
     assert.deepEqual([row.actor, row.action, row.entityId, row.subject, row.sensitivity], ['hr', 'staff.delete', 'binh', 'binh', 'normal']);
-    assert.deepEqual(row.before, { status: 'nv', isLocked: false, resignedOn: null });
-    const after = row.after as { status: string; isLocked: boolean; resignedOn: string };
-    assert.deepEqual({ ...after, resignedOn: undefined }, { status: 'nghiviec', isLocked: true, resignedOn: undefined });
-    assert.match(after.resignedOn, /^\d{4}-\d{2}-\d{2}$/);
+    const changed = (Object.keys(now) as Array<keyof typeof now>).filter(k => JSON.stringify(was[k]) !== JSON.stringify(now[k]));
+    assert.ok(changed.includes('isLocked') && changed.includes('resignedOn'));
+    assert.deepEqual(row.before, Object.fromEntries(changed.map(k => [k, was[k]])));
+    assert.deepEqual(row.after, Object.fromEntries(changed.map(k => [k, now[k]])));
+    assert.match(String(now.resignedOn), /^\d{4}-\d{2}-\d{2}$/);
 
+    assert.equal(await svc.deactivate('binh', 'hr'), true, 'xoá lại người đã nghỉ cùng ngày: không đổi gì');
     assert.equal(await svc.deactivate('khong-co', 'hr'), false);
     assert.equal((await rows()).length, 4);
+  });
+});
+
+test('an update logs what the database stored, not what the request sent', async t => {
+  await withTempDb(t, 'audit_staff', async db => {
+    const { svc, rows } = setup(db);
+    await svc.create(BINH, 'admin');
+    await svc.update('binh', { account: { roles: ['staff', 'staff'] }, status: 'tts' }, 'admin');
+
+    const stored = (await new EmployeesRepository(db).findByUsername('binh'))!;
+    const updates = (await rows()).slice(3);
+    assert.equal(updates.some(r => 'roles' in (r.after as object)), false, 'vai trò lưu vẫn là ["staff"]');
+    for (const r of updates) {
+      const after = r.after as Record<string, unknown>;
+      if ('status' in after) assert.equal(after.status, stored.contract.status);
+    }
+  });
+});
+
+test('an update waits for a concurrent change and logs against the committed values', async t => {
+  await withTempDb(t, 'audit_staff', async (db, client) => {
+    const { svc, rows } = setup(db);
+    await svc.create(BINH, 'admin');
+
+    // Một Admin khác đang sửa bậc 2 → 3 và chưa commit.
+    await client.query('BEGIN');
+    await client.query(`UPDATE staff SET level = 3 WHERE username = 'binh'`);
+    const saving = svc.update('binh', { level: 4 }, 'hr');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await client.query('COMMIT');
+    await saving;
+
+    assert.deepEqual((await rows()).slice(3).map(shape), [['staff.update', 'pay', { level: 3 }, { level: 4 }]]);
   });
 });
 

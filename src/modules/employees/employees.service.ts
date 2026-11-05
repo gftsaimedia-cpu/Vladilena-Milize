@@ -2,7 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database/transaction';
 import { AuditLog } from '../audit/audit-log';
-import { staffDeleteRow, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
+import { staffDeleteRows, staffSaveRows, type StaffAuditRow } from './domain/staff-audit';
 import { EmployeesRepository } from './employees.repository';
 import {
   Employee,
@@ -79,9 +79,11 @@ export class EmployeesService {
   async create(body: any, actor: string): Promise<Employee> {
     const employee = this.buildEmployeeFromInput(body);
     return this.tx.run(async trx => {
-      const saved = await this.repo.withTransaction(trx).save(employee, actor);
-      const passwordSet = saved.account.passwordHash !== NO_PASSWORD;
-      await this.log(trx, actor, saved.username, staffSaveRows(null, saved.toDTO(), passwordSet));
+      const repo = this.repo.withTransaction(trx);
+      const saved = await repo.save(employee, actor);
+      const stored = await this.reload(repo, saved);
+      const passwordSet = stored.account.passwordHash !== NO_PASSWORD;
+      await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
       return saved;
     });
   }
@@ -90,11 +92,12 @@ export class EmployeesService {
   async update(id: string, body: any, actor: string): Promise<Employee | null> {
     return this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
-      const existing = await repo.findByUsernameOrUuid(id);
+      const existing = await repo.findByUsernameOrUuid(id, { forUpdate: true });
       if (!existing) return null;
       const saved = await repo.save(this.buildEmployeeFromInput(body, existing), actor);
-      const passwordChanged = saved.account.passwordHash !== existing.account.passwordHash;
-      await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), saved.toDTO(), passwordChanged));
+      const stored = await this.reload(repo, saved);
+      const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
+      await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), stored.toDTO(), passwordChanged));
       return saved;
     });
   }
@@ -102,7 +105,7 @@ export class EmployeesService {
   async deactivate(username: string, actor: string): Promise<boolean> {
     return this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
-      const existing = await repo.findByUsernameOrUuid(username);
+      const existing = await repo.findByUsernameOrUuid(username, { forUpdate: true });
       if (!existing) return false;
 
       const updated = this.buildEmployeeFromInput(
@@ -114,9 +117,17 @@ export class EmployeesService {
       );
 
       await repo.save(updated, actor);
-      await this.log(trx, actor, updated.username, [staffDeleteRow(existing.toDTO(), updated.toDTO())]);
+      const stored = await this.reload(repo, updated);
+      await this.log(trx, actor, updated.username, staffDeleteRows(existing.toDTO(), stored.toDTO()));
       return true;
     });
+  }
+
+  /** Bản vừa lưu đọc lại từ DB (trong cùng transaction): nhật ký so với cái đã lưu, không phải cái được gửi lên. */
+  private async reload(repo: EmployeesRepository, saved: Employee): Promise<Employee> {
+    const stored = await repo.findByUsername(saved.username);
+    if (!stored) throw new Error(`Không đọc lại được hồ sơ ${saved.username} vừa lưu`);
+    return stored;
   }
 
   /** Mọi dòng của một lần lưu dùng chung requestId để màn Nhật ký gộp thành "× N". */

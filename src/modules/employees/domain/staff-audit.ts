@@ -2,6 +2,7 @@
 // (253c52a^:src/platform/audit.ts): normal = thông tin chung, pay = các ô ảnh hưởng lương,
 // pii = ngày sinh (chỉ ghi tên ô, không ghi giá trị). Mật khẩu chỉ ghi cờ passwordSet, không bao giờ ghi hash.
 // Ô suy ra từ ô khác (fullName, primaryRole, isOvernight, remainingDays) và ô máy tự đặt (uuid, lockedAt...) không ghi.
+// Người gọi truyền bản đọc lại từ DB sau khi lưu, nên dòng nhật ký ghi đúng cái đã lưu chứ không phải cái được gửi lên.
 import type { AuditSensitivity } from '../../audit/domain/audit-entry';
 import type { EmployeeDTO } from './employee';
 
@@ -89,8 +90,9 @@ export function staffSaveRows(prev: EmployeeDTO | null, next: EmployeeDTO, passw
   return rows;
 }
 
-/** Dòng của "Xoá nhân sự": trạng thái, khoá và ngày nghỉ việc trước và sau. */
-export function staffDeleteRow(prev: EmployeeDTO, next: EmployeeDTO): StaffAuditRow {
-  const pick = (e: EmployeeDTO) => Object.fromEntries(RESIGN.map(key => [key, NORMAL[key](e) ?? null]));
-  return { action: 'staff.delete', sensitivity: 'normal', before: pick(prev), after: pick(next) };
+/** Dòng của "Xoá nhân sự": những ô trạng thái, khoá, ngày nghỉ việc đã đổi; không ô nào đổi thì không có dòng. */
+export function staffDeleteRows(prev: EmployeeDTO, next: EmployeeDTO): StaffAuditRow[] {
+  const resign = Object.fromEntries(RESIGN.map(key => [key, NORMAL[key]]));
+  const changed = changes(resign, prev, next);
+  return changed ? [{ action: 'staff.delete', sensitivity: 'normal', before: changed.before, after: changed.after }] : [];
 }

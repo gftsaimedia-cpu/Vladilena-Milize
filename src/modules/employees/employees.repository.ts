@@ -287,13 +287,15 @@ export class EmployeesRepository {
   }
 
   /**
-   * Tìm nhân viên theo `username` hoặc `uuid`.
+   * Tìm nhân viên theo `username` hoặc `uuid`. `forUpdate`: khoá dòng `staff` tới hết transaction của người gọi,
+   * để lần lưu chồng lên bản vừa commit chứ không lên bản cũ (và nhật ký so với đúng bản đó).
    */
-  async findByUsernameOrUuid(id: string): Promise<Employee | null> {
+  async findByUsernameOrUuid(id: string, opts: { forUpdate?: boolean } = {}): Promise<Employee | null> {
     const row = await this.qb
       .selectFrom('staff')
       .selectAll()
       .where(eb => eb.or([eb('username', '=', id), eb('uuid', '=', id)]))
+      .$if(Boolean(opts.forUpdate), qb => qb.forUpdate())
       .executeTakeFirst();
     if (!row) return null;
 
