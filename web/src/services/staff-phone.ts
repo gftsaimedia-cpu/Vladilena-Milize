@@ -28,6 +28,7 @@ import {
   type RequestDetail,
   type RequestsView
 } from '@/mock/staff-phone';
+import type { LatLng } from '@/builders/api/check-in';
 import { ApiError, api, qs } from './http';
 import * as session from './session';
 
@@ -104,6 +105,12 @@ function position(): Promise<{ lat?: number; lng?: number; accuracyM?: number }>
       { timeout: 8000, maximumAge: 60000 }
     )
   );
+}
+
+// Toạ độ để ShiftCard khoá nút theo vùng chấm công; null khi không lấy được (từ chối quyền, hết giờ, máy không có định vị).
+export async function locate(): Promise<LatLng | null> {
+  const p = await position();
+  return p.lat === undefined || p.lng === undefined ? null : { lat: p.lat, lng: p.lng };
 }
 
 // Chấm công rồi tải lại màn Hôm nay, hai bước tách nhau: máy chủ từ chối lượt chấm thì ném lỗi (ShiftCard báo câu lỗi);

@@ -4,11 +4,14 @@
 // Check-in chỉ hiện với máy chủ thật (dữ liệu giả luôn đã vào ca). Check-in hay Check-out bị từ chối (ngoài vùng, ngày đã khoá,
 // ngày nghỉ, mất mạng…) hiện câu lỗi thành thông báo. Đã chấm mà chưa tải lại được màn thì báo "Đã check-in" / "Đã check-out"
 // và phát null: màn cha tự tải lại. Dòng vị trí chỉ có khi máy chủ gửi kết quả vị trí (home.location).
+// Có vùng chấm công (home.zone) thì lấy vị trí máy mỗi lần home đổi; ngoài vùng, không lấy được vị trí, hay (Check-in) ngày không
+// phải ngày làm thì nút đang hiện bị khoá và dòng lý do thay dòng vị trí (checkInLock). Check-out không bị chặn vì ngày nghỉ.
 //   <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />   onPunch(v) { v ? (data = v) : reload() }
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, useId, watch } from 'vue';
+import { checkInLock, type LatLng } from '@/builders/api/check-in';
 import { toast } from '@/components/shell/toast';
 import type { HomeView } from '@/mock/staff-phone';
-import { checkIn, checkOut } from '@/services/staff-phone';
+import { checkIn, checkOut, locate } from '@/services/staff-phone';
 import PhIcon from './PhIcon.vue';
 
 const props = defineProps<{ home: HomeView }>();
@@ -16,6 +19,31 @@ const emit = defineEmits<{ checkedIn: [view: HomeView | null]; checkedOut: [view
 
 const busy = ref(false);
 const hero = ref<HTMLElement | null>(null);
+const reasonId = useId();
+
+// undefined: đang lấy vị trí; null: không lấy được. Kết quả của lần gọi cũ bị bỏ khi home đã đổi.
+const position = ref<LatLng | null | undefined>(undefined);
+watch(
+  () => props.home,
+  async home => {
+    position.value = undefined;
+    if (!home.zone) return;
+    const found = await locate();
+    if (props.home === home) position.value = found;
+  },
+  { immediate: true }
+);
+
+// Khoá nút đang hiện: Check-in khi chưa vào ca, Check-out khi đang trong ca.
+const lock = computed(() =>
+  checkInLock({
+    kind: props.home.checkIn ? 'out' : 'in',
+    workday: props.home.workday,
+    zone: props.home.zone,
+    position: position.value
+  })
+);
+const lockReason = computed(() => (lock.value.locked ? lock.value.reason : null));
 
 // Vòng cung: nửa đường tròn bán kính 100, phần đã làm = phút đã làm / phút ca; núm tròn nằm ở cuối phần đã làm.
 const HALF = Math.PI * 100;
@@ -31,7 +59,7 @@ const arc = computed(() => {
 });
 
 async function doCheckIn() {
-  if (busy.value) return;
+  if (busy.value || lock.value.locked) return;
   busy.value = true;
   try {
     const view = await checkIn();
@@ -45,7 +73,7 @@ async function doCheckIn() {
 }
 
 async function doCheckOut() {
-  if (busy.value) return;
+  if (busy.value || lock.value.locked) return;
   busy.value = true;
   try {
     const view = await checkOut();
@@ -93,16 +121,32 @@ async function doCheckOut() {
     </div>
     <div class="ends"><span>{{ home.shiftStart }}</span><span>{{ home.shiftEnd }}</span></div>
     <template v-if="!home.checkIn">
-      <button type="button" class="cta" :aria-label="`Check-in lúc ${home.now}`" :disabled="busy" @click="doCheckIn">
+      <button
+        type="button"
+        class="cta"
+        :aria-label="`Check-in lúc ${home.now}`"
+        :disabled="busy || lock.locked"
+        :aria-describedby="lockReason ? reasonId : undefined"
+        @click="doCheckIn"
+      >
         <PhIcon name="clock" :size="20" :stroke="2" />Check-in<small>· {{ home.now }}</small>
       </button>
-      <div v-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
+      <div v-if="lockReason" :id="reasonId" class="loc"><PhIcon name="pin" :size="16" />{{ lockReason }}</div>
+      <div v-else-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
     <template v-else-if="!home.checkOut">
-      <button type="button" class="cta" :aria-label="`Check-out lúc ${home.now}`" :disabled="busy" @click="doCheckOut">
+      <button
+        type="button"
+        class="cta"
+        :aria-label="`Check-out lúc ${home.now}`"
+        :disabled="busy || lock.locked"
+        :aria-describedby="lockReason ? reasonId : undefined"
+        @click="doCheckOut"
+      >
         <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ home.now }}</small>
       </button>
-      <div v-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
+      <div v-if="lockReason" :id="reasonId" class="loc"><PhIcon name="pin" :size="16" />{{ lockReason }}</div>
+      <div v-else-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
   </section>
 </template>
@@ -184,6 +228,10 @@ async function doCheckOut() {
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+}
+.cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .cta small {
   font-size: 14px;

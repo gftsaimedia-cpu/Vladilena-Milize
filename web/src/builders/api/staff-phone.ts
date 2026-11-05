@@ -17,6 +17,7 @@ import type {
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
+import type { Zone } from './settings';
 
 export type MeLeave = 'paid' | 'unpaid' | 'holiday';
 export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
@@ -36,6 +37,8 @@ export type MeToday = {
   workedMinutes: number;
   week: MeDay[];
   alert: { date: string; kind: string } | null;
+  zone?: Zone | null; // vùng chấm công của máy chủ; thiếu hoặc null = không giới hạn
+  workday?: boolean; // hôm nay có phải ngày làm; thiếu = có
 };
 export type MeProfile = {
   name: string;
@@ -300,6 +303,8 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     worked: workedText(workedMin),
     // Máy chủ chưa gửi kết quả vị trí (vùng chấm công): không có dòng vị trí.
     location: null,
+    zone: t.zone ?? null,
+    workday: t.workday !== false,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
     income: {

@@ -1,6 +1,8 @@
 // Dữ liệu giả của app nhân viên trên điện thoại (spec staff-phone-app mục 1–2): luôn là Lê Hoàng Nam, tháng 10/2026.
 // Mỗi hàm *View() dựng sẵn chuỗi hiển thị cho một màn. Dữ liệu nằm trong bộ nhớ: chỉ checkOutNow() sửa được, tải lại trang thì về như cũ.
+import type { Zone } from '../builders/api/settings';
 import { MOCK_NOW, MOCK_TODAY } from './clock';
+import { zoneOf } from './settings';
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo';
 export type CellKind = DayKind | 'future' | 'off';
@@ -46,6 +48,8 @@ export type HomeView = {
   workedMin: number; shiftMin: number; // 101, 540
   worked: string; // '1g 41p'
   location: string | null; // 'Đúng vị trí văn phòng GFT'; null khi máy chủ chưa có dữ liệu vị trí (dòng ẩn)
+  zone: Zone | null; // vùng chấm công; null = không giới hạn vị trí
+  workday: boolean; // hôm nay có phải ngày làm của mình (chỉ chặn Check-in)
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
   income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183'
@@ -256,6 +260,8 @@ export function homeView(): HomeView {
     shiftMin: toMin(SHIFT.end) - toMin(SHIFT.start),
     worked: workedText(workedMin),
     location: 'Đúng vị trí văn phòng GFT',
+    zone: zoneOf().zone,
+    workday: true,
     week: { range: `${ddmm(monday)} – ${ddmm(addDays(monday, 6))}`, cells },
     alert: todo ? { date: todo.date, text: `${ddmm(todo.date)} thiếu giờ ra · chờ duyệt giải trình` } : null,
     income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET },
