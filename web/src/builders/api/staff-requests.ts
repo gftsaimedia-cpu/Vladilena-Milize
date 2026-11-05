@@ -185,6 +185,11 @@ export function leaveSummary(ctx: RequestContext, start: string, end: string): s
   return dates.length ? `${dates.length} ngày làm việc: ${dayList(dates)}` : '';
 }
 
+/** Dòng số dư dưới tóm tắt Đơn nghỉ: 'Phép năm còn 11 ngày, sau đơn này còn 9'. Rỗng khi đơn không trừ phép năm. */
+export function leaveBalance(left: number | null, after: number | null): string {
+  return left === null || after === null ? '' : `Phép năm còn ${left} ngày, sau đơn này còn ${after}`;
+}
+
 const CASE_TEXT: Record<ExplanationCase, string> = {
   LATE_CHECK_IN: 'Vào muộn',
   EARLY_CHECK_IN: 'Vào sớm',

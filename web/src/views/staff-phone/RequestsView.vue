@@ -2,11 +2,15 @@
 // J4 · Yêu cầu của tôi (spec 7.1): h1 + nút "Tạo yêu cầu", thanh lọc trạng thái, danh sách nhóm theo tháng gửi (RequestList).
 // Bấm dòng mở J5 theo ?yc=<id> (router.replace); id lạ thì bỏ khỏi URL, không mở gì (spec 3.8).
 // Tab đang chọn chỉ nằm trong RequestList, không lên URL: đổi ?yc không tải lại danh sách và không dựng lại dòng.
+// "Tạo yêu cầu" mở ?tao=chon (spec staff-requests 4.1): hộp trượt chứa NewRequestBody khi có ?tao=; đóng thì bỏ tao và ngay.
+// Gửi xong thì tải lại danh sách: đơn mới ở đầu, Chờ duyệt.
 import { nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { toast } from '@/components/shell/toast';
 import type { RequestDetail, RequestsView } from '@/mock/staff-phone';
 import { getRequest, getRequests } from '@/services/staff-phone';
+import NewRequestBody from '@/views/staff-requests/NewRequestBody.vue';
+import { TAO_MENU, useTaoParam, withoutFlow } from '@/views/staff-requests/useNewRequest';
+import BottomSheet from './components/BottomSheet.vue';
 import PhIcon from './components/PhIcon.vue';
 import RequestList from './components/RequestList.vue';
 import RequestSheet from './components/RequestSheet.vue';
@@ -14,7 +18,8 @@ import RequestSheet from './components/RequestSheet.vue';
 const route = useRoute();
 const router = useRouter();
 const data = ref<RequestsView | null>(null);
-getRequests().then(v => (data.value = v));
+const load = () => getRequests().then(v => (data.value = v));
+load();
 
 const root = ref<HTMLElement | null>(null);
 
@@ -51,13 +56,23 @@ async function closeSheet() {
   const a = document.activeElement;
   if (id && (!a || a === document.body)) root.value?.querySelector<HTMLElement>(`a.ro[data-yc="${id}"]`)?.focus();
 }
+
+// Luồng Tạo yêu cầu: mở bằng push (nút Quay lại của máy đóng hộp), đóng bằng replace.
+const tao = useTaoParam();
+const flowTitle = ref('Tạo yêu cầu');
+const openFlow = () => router.push({ query: { ...withoutFlow(route.query), tao: TAO_MENU } });
+const closeFlow = () => router.replace({ query: withoutFlow(route.query) });
+function onSent() {
+  load();
+  closeFlow();
+}
 </script>
 
 <template>
   <div ref="root" class="ph rq">
     <header class="sh">
       <h1>Yêu cầu</h1>
-      <button type="button" class="rq-add" @click="toast.warnings(['Chưa có luồng tạo yêu cầu trong bản mockup.'])">
+      <button type="button" class="rq-add" @click="openFlow">
         <PhIcon name="plus" :size="18" :stroke="2" />Tạo yêu cầu
       </button>
     </header>
@@ -65,6 +80,9 @@ async function closeSheet() {
       <RequestList :view="data" tablist-label="Lọc theo trạng thái" replace />
     </template>
     <RequestSheet v-if="detail" :request="detail" @close="closeSheet" />
+    <BottomSheet v-if="tao" :title="flowTitle" bare @close="closeFlow">
+      <NewRequestBody @title="flowTitle = $event" @close="closeFlow" @sent="onSent" />
+    </BottomSheet>
   </div>
 </template>
 

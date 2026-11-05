@@ -7,6 +7,7 @@ import {
   endDates,
   endHours,
   fitEnd,
+  leaveBalance,
   leaveDates,
   leaveSummary,
   makeupCounter,
@@ -204,6 +205,12 @@ describe('Tạo yêu cầu: chữ', () => {
     assert.equal(leaveSummary(context(), '2026-11-13', '2026-11-16'), '3 ngày làm việc: 13, 14 và 16/11');
     assert.equal(leaveSummary(context(), '2026-11-13', '2026-11-13'), '1 ngày làm việc: 13/11');
     assert.equal(leaveSummary(context(), '2026-11-30', '2026-12-02'), '3 ngày làm việc: 30/11, 01 và 02/12');
+  });
+
+  it('annual leave balance line, empty when the leave is not Phép năm or there is no balance', () => {
+    assert.equal(leaveBalance(11, 9), 'Phép năm còn 11 ngày, sau đơn này còn 9');
+    assert.equal(leaveBalance(11, null), '');
+    assert.equal(leaveBalance(null, null), '');
   });
 
   it('case text', () => {

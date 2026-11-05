@@ -8,7 +8,8 @@ export type CellKind = DayKind | 'future' | 'off';
 export type RequestStatus = 'pend' | 'done' | 'rej' | 'cancel';
 export type PhoneIconName =
   | 'home' | 'cal' | 'doc' | 'wallet' | 'user' | 'left' | 'right' | 'plus' | 'pin'
-  | 'out' | 'clock' | 'leave' | 'coin' | 'lock' | 'target' | 'shield' | 'gift' | 'x';
+  | 'out' | 'clock' | 'leave' | 'coin' | 'lock' | 'target' | 'shield' | 'gift' | 'x'
+  | 'down' | 'redo' | 'clockPlus' | 'swap' | 'chat';
 
 export type CalendarCell = {
   date: string; // 'YYYY-MM-DD'
