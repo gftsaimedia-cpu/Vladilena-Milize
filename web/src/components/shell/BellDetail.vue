@@ -16,7 +16,8 @@ import { BELL_ICONS, CHEVRON_ICON, CLOSE_ICON } from './bell-icons';
 
 // `embedded`: dựng nội dung trong hộp thoại khác (cửa sổ duyệt của Tổng quan): không đặt cố định bên ngăn kéo,
 // không có vai trò hộp thoại và đầu thẻ (nhãn nhóm, nút Đóng) vì hộp thoại chủ tự có.
-const props = defineProps<{ item?: InboxItem; news?: SystemNote; group: string; embedded?: boolean }>();
+// `profileLink`: việc nào cũng có liên kết "Mở hồ sơ chấm công" (khung chi tiết của Chấm công); mặc định chỉ việc chấm công và giải trình.
+const props = defineProps<{ item?: InboxItem; news?: SystemNote; group: string; embedded?: boolean; profileLink?: boolean }>();
 const emit = defineEmits<{ decided: [result: { id: string; ok: boolean; text: string }]; close: []; leave: [] }>();
 
 const shell = useShellStore();
@@ -38,7 +39,7 @@ const month = () => (route.query.thang ? { thang: route.query.thang } : {});
 const link = computed(() => {
   const item = props.item;
   if (item) {
-    if (item.group !== 'att' && item.group !== 'exp') return null;
+    if (!props.profileLink && item.group !== 'att' && item.group !== 'exp') return null;
     return { label: 'Mở hồ sơ chấm công', to: { path: employeePath(item.personId), query: month() } };
   }
   const news = props.news!;

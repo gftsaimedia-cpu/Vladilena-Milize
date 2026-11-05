@@ -1,11 +1,16 @@
 <script setup lang="ts">
 // Chấm công theo tuần trên dữ liệu giả: 6 chỉ số, lưới 28 ngày (tab Tuần) và danh sách việc cần xử lý (tab Cần xử lý).
-// Tab, lọc tên, lọc phòng ban và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb, ?hop) và đổi bằng router.replace.
-import { computed, watch } from 'vue';
+// Tab, lọc tên, lọc phòng ban, việc đang chọn và hộp chi tiết ngày đều nằm trên URL (?xem, ?q, ?pb, ?viec, ?hop) và đổi bằng router.replace.
+// Tab "Cần xử lý" từ 900px: danh sách bên trái, chi tiết việc đang chọn (BellDetail) bên phải; hẹp hơn thì chỉ có danh sách và
+// bấm dòng mở hộp chi tiết ngày như trước.
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { fold } from '@/builders/admin-attendance/common';
+import BellDetail from '@/components/shell/BellDetail.vue';
+import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { useLoad } from '@/composables/useLoad';
+import type { InboxItem } from '@/mock/inbox';
 import { getAttendance } from '@/services/admin-attendance';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
@@ -90,6 +95,59 @@ const keep = (person: { name: string; dept: string }) =>
 const rows = computed(() => (data.value?.rows ?? []).filter(r => keep(r.person)));
 const pending = computed(() => (data.value?.pending ?? []).filter(p => keep(p.person)));
 const filtered = computed(() => !!dept.value || !!q.value.trim());
+
+// ---- Tab "Cần xử lý": việc đang chọn ----
+// Từ 900px có khung chi tiết bên phải; hẹp hơn chỉ còn danh sách.
+const narrowQuery = typeof window !== 'undefined' ? window.matchMedia('(max-width: 899px)') : null;
+const wide = ref(!narrowQuery?.matches);
+const onNarrow = (event: MediaQueryListEvent) => {
+  wide.value = !event.matches;
+};
+onMounted(() => narrowQuery?.addEventListener('change', onNarrow));
+onBeforeUnmount(() => narrowQuery?.removeEventListener('change', onNarrow));
+
+const viecKey = computed(() => str(route.query.viec));
+const visibleIds = computed(() => pending.value.map(p => p.item.id));
+const sourceIds = computed(() => (data.value?.pending ?? []).map(p => p.item.id));
+
+// Việc đang hiện ở khung phải là bản chụp: BellDetail tự gọi decide, decide tải lại danh sách và việc vừa xử lý biến mất khỏi nguồn
+// trước khi thẻ kịp báo 'decided'; thẻ bị gỡ giữa chừng thì emit bị bỏ. Nên việc đã biến mất khỏi nguồn được giữ lại cho tới khi
+// onDecided chuyển sang việc khác. ?viec thiếu, sai hoặc bị lọc mất thì hiện dòng đầu đang thấy.
+const shown = shallowRef<InboxItem | null>(null);
+watch(
+  [pending, viecKey],
+  () => {
+    const list = pending.value;
+    const hit = list.find(p => p.item.id === viecKey.value);
+    const target = hit ?? list[0];
+    const current = shown.value;
+    if (current && !hit && !sourceIds.value.includes(current.id)) return;
+    if (current && target && current.id === target.item.id) return;
+    shown.value = target?.item ?? null;
+  },
+  { immediate: true }
+);
+
+// Thứ tự danh sách ngay trước lần đổi gần nhất: để tìm việc liền sau việc vừa rời danh sách.
+let previousIds: string[] = [];
+watch(visibleIds, (_, before) => (previousIds = before ?? []), { flush: 'sync' });
+
+function pickItem(id: string) {
+  setQuery({ viec: id });
+}
+async function onDecided({ id, ok, text }: { id: string; ok: boolean; text: string }) {
+  if (ok) toast.ok(text);
+  else toast.error(text);
+  const base = visibleIds.value.includes(id) ? visibleIds.value : previousIds.includes(id) ? previousIds : visibleIds.value;
+  const at = base.indexOf(id);
+  const rest = base.filter(x => x !== id && visibleIds.value.includes(x));
+  const next = rest[at] ?? rest[0] ?? null;
+  shown.value = pending.value.find(p => p.item.id === next)?.item ?? null;
+  setQuery({ viec: next ?? '' });
+  await nextTick();
+  const row = next ? document.querySelector<HTMLElement>(`.pend .pr[data-id="${next}"]`) : null;
+  (row ?? pendingTabEl())?.focus();
+}
 
 /** '113 / 128' → ['113', ' / 128'], '126 giờ' → ['126', ' giờ'], '11' → ['11', '']. */
 function tileMain(value: string) {
@@ -181,7 +239,34 @@ function onTabKey(event: KeyboardEvent) {
         <WeekGrid v-if="view === 'week'" :days="data.days" :rows="rows" :month-no="monthNo" @open-day="openDay" />
         <template v-else>
           <p v-if="filtered && !pending.length && data.pending.length" class="none">Không có nhân viên nào khớp.</p>
-          <PendingList v-else :pending="pending" @open-day="openDay" />
+          <div v-else class="pv" :class="{ one: !wide }">
+            <PendingList
+              :pending="pending"
+              :wide="wide"
+              :selected-id="shown?.id ?? null"
+              @open-day="openDay"
+              @pick="pickItem"
+            />
+            <div
+              v-if="wide"
+              class="pd"
+              role="region"
+              aria-label="Chi tiết việc đang chọn"
+              :tabindex="shown ? 0 : undefined"
+            >
+              <div v-if="shown" class="pdi">
+                <div class="pd-grp">{{ shown.groupLabel }}</div>
+                <BellDetail
+                  :key="shown.id"
+                  embedded
+                  profile-link
+                  :item="shown"
+                  :group="shown.groupLabel"
+                  @decided="onDecided"
+                />
+              </div>
+            </div>
+          </div>
         </template>
 
         <div v-if="view === 'week'" class="foot">
@@ -392,6 +477,39 @@ function onTabKey(event: KeyboardEvent) {
 .none {
   margin: 0;
   padding: 20px;
+  color: var(--muted);
+}
+/* Tab "Cần xử lý": danh sách 400px bên trái (PendingList), chi tiết bên phải cùng chiều cao với danh sách và tự cuộn khi dài hơn. */
+.pv {
+  display: grid;
+  grid-template-columns: 400px minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+}
+.pv.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+.pd {
+  min-width: 0;
+  max-height: 640px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 32px 32px;
+}
+.pd:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+.pdi {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pd-grp {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
   color: var(--muted);
 }
 </style>
