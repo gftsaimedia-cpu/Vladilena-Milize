@@ -1,10 +1,12 @@
 // Lưu và đọc kho cài đặt (spec mục 5.1): 6 nhóm con số tính lương theo tháng, lịch sử đổi và ngày trả lương.
 // Mỗi lần lưu chạy trong một transaction, khoá theo nhóm, so `stamp` rồi mới ghi, nên hai Admin lưu cùng lúc thì
 // đúng một người thành công và người kia nhận 409.
+import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { businessMonthText } from '../../common/business-date';
 import { planChange, versionAt, type ChainVersion, type Values } from '../../common/version-chain';
 import { TransactionCoordinator } from '../../database/transaction';
+import { AuditLog } from '../audit/audit-log';
 import { validateZone, type Zone } from './domain/attendance-zone';
 import { payDateOf } from './domain/pay-days';
 import { validateWeekdays } from './domain/work-week';
@@ -54,6 +56,8 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 const monthText = (ym: string) => `${ym.slice(5)}/${ym.slice(0, 4)}`;
 
+const pick = (values: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.map(k => [k, values[k]]));
+
 const WORK_WEEK = 'work-week';
 const ATTENDANCE_ZONE = 'attendance-zone';
 // Tháng của bản gốc ảo trong chuỗi tuần riêng, sớm hơn mọi tháng thật.
@@ -75,7 +79,10 @@ export class SettingsService {
   constructor(
     @Inject(SettingsRepository) private readonly repo: SettingsRepository,
     @Inject(SettingsReader) readonly reader: SettingsReader,
-    @Inject(TransactionCoordinator) private readonly tx: Tx
+    @Inject(TransactionCoordinator) private readonly tx: Tx,
+    // Nhật ký (spec audit-log mục 6): param.set cho 6 nhóm tính lương, setting.set cho tuần riêng và vùng chấm công.
+    // Ghi cuối transaction, sau mọi lệnh ghi khác; lưu không đổi gì thì không ghi.
+    @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>
   ) {}
 
   async getAll(month: unknown, now: Date = new Date()): Promise<{ month: string; minMonth: string; groups: Record<string, GroupView> }> {
@@ -165,6 +172,19 @@ export class SettingsService {
               reason
             }));
       const ids = await this.repo.insertChanges(trx, rows, meta);
+      const changed = keys.filter(k => JSON.stringify(before[k]) !== JSON.stringify(after[k]));
+      await this.audit.append(trx, {
+        actor,
+        action: 'param.set',
+        entityKind: 'param',
+        entityId: g,
+        month,
+        before: pick(before, changed),
+        after: pick(after, changed),
+        reason,
+        sensitivity: 'pay',
+        requestId: randomUUID()
+      });
       return { ok: true as const, effectiveMonth: month, changed: keys, stamp: Math.max(...ids) };
     });
   }
@@ -222,6 +242,7 @@ export class SettingsService {
       const chain: ChainVersion[] = [{ month: VIRTUAL_BASE, values: { weekdays: null } }, ...(await this.repo.workWeekChain(trx, staff.uuid))];
       const cur = versionAt(chain, month) as ChainVersion;
       const plan = planChange(chain, month, { weekdays });
+      const was = plan ? await this.reader.workWeekOf(staff.uuid, month, trx) : null;
       if (plan) {
         await this.repo.writeWorkWeek(trx, staff.uuid, month, weekdays, meta);
         for (const c of plan.carry) await this.repo.writeWorkWeek(trx, staff.uuid, c.month, c.set.weekdays as string | null, meta);
@@ -245,6 +266,23 @@ export class SettingsService {
           )
         : [current];
       const week = await this.reader.workWeekOf(staff.uuid, month, trx);
+      if (was) {
+        // Ghi tuần có hiệu lực trước và sau (kể cả nguồn), không ghi null mơ hồ của "theo loại nhân sự".
+        await this.audit.append(trx, {
+          actor,
+          action: 'setting.set',
+          entityKind: WORK_WEEK,
+          entityId: staff.username,
+          subject: staff.username,
+          subjectUuid: staff.uuid,
+          month,
+          before: { weekdays: was.weekdays, source: was.source },
+          after: { weekdays: week.weekdays, source: week.source },
+          reason,
+          sensitivity: 'pay',
+          requestId: randomUUID()
+        });
+      }
       return { ok: true as const, weekdays: week.weekdays, source: week.source, standardWorkdays: week.standardWorkdays, stamp: id };
     });
   }
@@ -291,6 +329,18 @@ export class SettingsService {
         ],
         meta
       );
+      const place = (z: Zone) => ({ lat: z.lat, lng: z.lng, radiusM: z.radiusM });
+      await this.audit.append(trx, {
+        actor,
+        action: 'setting.set',
+        entityKind: 'setting',
+        entityId: ATTENDANCE_ZONE,
+        before: old ? place(old) : null,
+        after: place(zone),
+        reason,
+        sensitivity: 'normal',
+        requestId: randomUUID()
+      });
       return { ok: true as const, zone, stamp: Math.max(...ids) };
     });
   }
