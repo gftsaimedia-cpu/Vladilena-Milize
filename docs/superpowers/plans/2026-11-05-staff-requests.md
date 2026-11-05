@@ -900,3 +900,37 @@ export function inboxFromDue(items: Array<{ employeeId: string; name: string; da
   - những gì chưa kiểm:
     - route `/me` mới chưa có test HTTP trên PostgreSQL thật, ngoài test PG của bảng nhắc;
     - luồng FE trên BE thật (`web/tests/api/`), nếu chưa chạy ở Task 11.
+
+---
+
+## Phụ lục: các quyết định đã đưa ra khi thực thi (05/11/2026)
+
+Ledger thực thi là thư mục nháp và sẽ bị xoá; các quyết định ở đây là bản giữ lại. Mỗi dòng gồm: quyết định, lý do, cái giá nếu sai.
+
+**Trước khi chạy:**
+- **P1:** giờ OT/bù ca đêm tính theo phút làm (4 giờ làm thì nghỉ 1 giờ), nên 08–13 được tính là 4 giờ — theo spec 2.1, `dayCapError` đếm phút làm — nếu người dùng muốn đếm giờ đồng hồ, nhân viên ca đêm sẽ được mời chọn 08–13.
+- **P2:** khi Admin nhắc giải trình, máy tìm Admin bằng `resolveStaffUuid` như lúc duyệt đơn, vì Admin có thể không có cấu hình loại nhân sự — nếu sai: không có hại gì.
+- **P3:** `makeService()` dựng `ExplanationsService` trên cùng bộ dữ liệu giả và cùng đồng hồ — nếu sai: chỉ đổi cách nối trong test.
+- **P4:** bỏ qua Task 11 (nối FE), vì nhánh FE trên dữ liệu giả chưa vào main — nếu sai: làm Task 11 sau khi nhánh đó vào main.
+
+**Trong lúc chạy:**
+- **T3a** (đã thay): `annualLeaveLeftAfter` bằng null với loại nghỉ không phải phép năm, theo spec 2.2.
+- **T3b:** ngày trong phần tóm tắt xếp tăng dần; cảnh báo dùng lại các câu đã có — nếu sai: FE đổi cách hiển thị.
+- **T4a:** khi nhân viên tự nộp, máy kiểm ngày đầu và ngày cuối của đơn nghỉ, đơn nghỉ có làm bù và đơn đổi ca, từng ngày bù, và ngày OT; thứ tự kiểm: giờ tròn → khoảng ngày → tháng đã chốt — nếu sai: chỉ thừa một bước kiểm.
+- **T5a:** gọi tính tiền ứng bằng uuid; "một đơn mỗi tháng" đếm đơn chờ và đơn đã duyệt, kiểm trong khoá; tạm ứng không xét tháng đã chốt — nếu sai: chỉ đổi câu báo hoặc thêm một bước kiểm.
+- **T7a:** cách nối `ExplanationsService`; câu báo khi chưa nối là "Chưa cấu hình giải trình" — nếu sai: chỉ đổi cách nối.
+- **Task 7 (gác lại):** giờ ra của ca đêm đang được ghi vào ngày D+1, nên ca 22–07 bị báo nhầm là cần giải trình. Đây là luật chấm công (L21), đã sửa ở nhánh chấm công — cho tới khi bản sửa đó vào main, nhân viên ca đêm sẽ thấy ngày cần giải trình nhầm.
+- **X1:** tạm giữ `explanationCasesOf`; đổi sang `detectCases` khi hàm đó vào main — cho tới lúc đó, máy chưa báo trường hợp ra muộn.
+- **T8a:** chuông Admin bỏ qua người có hồ sơ lỗi, ví dụ thiếu cấu hình loại nhân sự — nếu sai: người đó vắng khỏi chuông mà không ai biết.
+- **T9a:** `request-context` xét hai tháng: tháng này và tháng sau; một loại đơn mở khi ít nhất một trong hai tháng còn hợp lệ; dùng cấu hình loại nhân sự của tháng này — nếu sai: một loại đơn bật/tắt khác đi trong một tháng.
+- **T10a, T10b:** nếu phần giải trình hoặc phần phép năm lỗi, màn ngày và màn hồ sơ vẫn hiện, với giá trị dự phòng — nếu sai: màn hiện giá trị cũ cho tới khi sửa cấu hình.
+- **M1:** không gộp vào main theo lời nhắn chuyển qua từ phiên khác; hỏi thẳng người dùng ở phiên này.
+
+**Sau review toàn nhánh:**
+- **F1:** Thứ Bảy đã có iSAT (chờ duyệt hoặc đã duyệt) không còn hiện giờ OT/bù, vì nộp vào ngày đó sẽ bị từ chối.
+- **F5:** xung đột ngày khi nộp trả 400 `DAY_CONFLICT`, khớp contract hiện có; đã sửa chữ "409" trong spec và plan.
+- **F4 (chờ người dùng):** số tiền ứng hiện cộng tiền ngày đã làm tròn trên phiếu lương, nên lệch ví dụ trong spec khoảng 2–6 ₫ — luật tiền, nên chưa đổi code.
+- **F7:** tính tiền ứng trước khi vào khoá; các câu lỗi vẫn ra theo thứ tự cũ.
+- **F8:** thêm test khởi động app để kiểm các phần phụ thuộc.
+- **Gác lại:** chuông Admin ghi một dòng log mỗi lần tải, vì Admin mặc định không có cấu hình loại nhân sự. Giữ nguyên; việc tiếp theo: bỏ Admin khỏi `listFilingStaff`, hoặc chỉ log lỗi bất thường — cái giá: một dòng log mỗi lần tải chuông.
+- **Ngoài phạm vi (có từ trước):** `src/database/database.module.ts:25` thiếu `@Inject(PG_POOL)`, nên khi app đóng, pool PostgreSQL không được đóng theo.
