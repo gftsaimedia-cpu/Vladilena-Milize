@@ -280,15 +280,9 @@ const nextDay = (s?) => s.endTime < s.startTime;
             <h2>Ngày trả lương</h2>
           </div>
           <div v-if="pay.ready.value" class="pd-body">
-            <div class="pd-row">
-              <FieldNum
-                v-model="payNums.payDay"
-                label="Ngày trả lương hằng tháng"
-                integer
-                :max="28"
-                unit="hằng tháng"
-              />
-              <span class="pd-fix">Bắt đầu tính công: ngày 1</span>
+            <div class="pd-fld pd-first">
+              <label>Ngày trả lương hằng tháng</label>
+              <FieldNum v-model="payNums.payDay" label="Ngày trả lương hằng tháng" integer :max="28" />
             </div>
             <p class="pd-hint" :class="{ bad: payError }">{{ payHint }}</p>
             <div class="pd-fld">
@@ -300,6 +294,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
               <TextBox v-model="pay.reason.value" area :maxlength="REASON_MAX" label="Lý do" />
               <small class="pd-count">{{ pay.reason.value.length }}/{{ REASON_MAX }}</small>
             </div>
+            <p class="pd-fix">Bắt đầu tính công: <b>ngày 1</b></p>
           </div>
           <LoadFail v-else-if="pay.error.value" what="ngày trả lương" @retry="pay.retry" />
           <div v-if="!pay.error.value" class="foot">
@@ -340,7 +335,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
           </thead>
           <tbody>
             <tr v-for="s in shifts" :key="s.code">
-              <td>{{ s.name }}</td>
+              <td class="nm">{{ s.name }}</td>
               <td>{{ s.startTime }}</td>
               <td>
                 {{ s.endTime }}
@@ -360,10 +355,8 @@ const nextDay = (s?) => s.endTime < s.startTime;
 
     <section v-if="zoneReady" class="card zn">
       <div class="card-h">
-        <div>
-          <h2>Vùng chấm công</h2>
-          <p class="zn-sub">Nhân viên chấm công được khi ở trong vùng này</p>
-        </div>
+        <h2>Vùng chấm công</h2>
+        <span class="cap">Nhân viên chấm công được khi ở trong vùng này</span>
       </div>
       <div class="zn-body">
         <div class="map">
@@ -394,19 +387,19 @@ const nextDay = (s?) => s.endTime < s.startTime;
             <small v-if="zErrors.lng" class="zn-hint bad">{{ zErrors.lng }}</small>
           </div>
           <button type="button" class="btn sm zn-here" @click="useHere"><Icon name="pin" />Dùng vị trí hiện tại</button>
+        <div class="foot zn-foot">
+          <span :class="{ bad: Object.keys(zErrors).length }">{{ zFoot }} · lưu là áp dụng ngay, không theo tháng</span>
+          <button
+            type="button"
+            class="btn sm r"
+            :class="zCanSave ? 'pri' : 'off'"
+            :disabled="!zCanSave"
+            @click="zConfirming = true"
+          >
+            Lưu
+          </button>
         </div>
-      </div>
-      <div class="foot">
-        <span :class="{ bad: Object.keys(zErrors).length }">{{ zFoot }} · lưu là áp dụng ngay, không theo tháng</span>
-        <button
-          type="button"
-          class="btn sm r"
-          :class="zCanSave ? 'pri' : 'off'"
-          :disabled="!zCanSave"
-          @click="zConfirming = true"
-        >
-          Lưu
-        </button>
+        </div>
       </div>
     </section>
     <section v-else-if="zoneError" class="card zn">
@@ -575,9 +568,22 @@ const nextDay = (s?) => s.endTime < s.startTime;
   gap: 12px;
   flex-wrap: wrap;
 }
+.pd-fld.pd-first {
+  margin-top: 0;
+}
+.pd-first :deep(.fi) {
+  width: 116px;
+  box-sizing: border-box;
+}
 .pd-fix {
-  color: var(--muted);
-  font-size: 13px;
+  margin: 20px 0 0;
+  font-size: 14px;
+}
+.pd-fix b {
+  font-weight: 600;
+}
+.ca td.nm {
+  font-weight: 600;
 }
 .pd-hint {
   margin: 8px 0 0;
@@ -592,13 +598,13 @@ const nextDay = (s?) => s.endTime < s.startTime;
 .pd-fld {
   margin-top: 14px;
 }
-.pd-fld label {
+.pd-fld > label:not(.fi) {
   display: block;
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 8px;
 }
-.pd-fld label small,
+.pd-fld > label:not(.fi) small,
 .pd-count {
   font-weight: 400;
   color: var(--muted);
@@ -614,11 +620,6 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .pd :deep(.inp) {
   border-radius: 8px;
-}
-.zn-sub {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--muted);
 }
 .zn-body {
   display: grid;
@@ -644,7 +645,19 @@ const nextDay = (s?) => s.endTime < s.startTime;
   grid-column: 1 / -1;
 }
 .zn-fields > .zn-fld:first-child :deep(.fi) {
-  width: 160px;
+  width: 154px;
+}
+.zn-fields > .zn-fld:first-child :deep(.fi > input) {
+  width: auto !important;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.zn-foot {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 14px 0 0;
 }
 .zn-fields :deep(.fi) {
   box-sizing: border-box;
@@ -657,7 +670,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
 .zn-fields :deep(.fi > input) {
   width: 100% !important;
 }
-.zn-fld label {
+.zn-fld > label:not(.fi) {
   display: block;
   font-size: 14px;
   font-weight: 600;
@@ -678,6 +691,6 @@ const nextDay = (s?) => s.endTime < s.startTime;
   justify-self: start;
 }
 .zn .foot .btn {
-  margin-left: auto;
+  margin-left: 0;
 }
 </style>

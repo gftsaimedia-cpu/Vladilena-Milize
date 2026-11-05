@@ -463,6 +463,18 @@ function onTabKey(event: KeyboardEvent) {
   gap: 12px;
   padding: 20px 24px 12px;
 }
+/* Chú giải tháng theo bảng: mỗi nhóm là một viên thuốc viền xám cao 32px. */
+.bh .legend {
+  gap: 8px;
+}
+.bh .gc {
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 13px;
+}
 .bh h2 {
   margin: 0;
   flex-grow: 1;

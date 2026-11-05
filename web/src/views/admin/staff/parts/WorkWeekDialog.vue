@@ -11,7 +11,7 @@ import TextBox from '../../settings/fields/TextBox.vue';
 import { monthOptions } from '../../settings/lib/date';
 import { REASON_MAX } from '../../settings/lib/rules';
 
-const props = defineProps<{ id: string; name: string; week: WorkWeek }>();
+const props = defineProps<{ id: string; name: string; level?: string; week: WorkWeek }>();
 // reload: tuần đã đổi hoặc đã cũ, màn gọi tải lại; close: đóng hộp.
 const emit = defineEmits<{ close: []; reload: [] }>();
 
@@ -62,7 +62,15 @@ async function save() {
 </script>
 
 <template>
-  <AppModal title="Tuần làm việc" :sub="name" :width="480" :dismissable="!saving" @close="emit('close')">
+  <AppModal
+    title="Tuần làm việc"
+    :sub="level ? `${name} · ${level}` : name"
+    :width="520"
+    :top="120"
+    panel-class="ww-dlg"
+    :dismissable="!saving"
+    @close="emit('close')"
+  >
     <fieldset class="fld mode">
       <legend class="sr-only">Cách đặt tuần làm việc</legend>
       <label class="opt">
@@ -75,19 +83,14 @@ async function save() {
         <span>Tuần riêng</span>
         <small>Chọn các ngày đi làm trong tuần</small>
       </label>
-      <div class="days">
-        <label v-for="d in DAYS" :key="d" class="day">
-          <input
-            type="checkbox"
-            :checked="ticked.includes(d)"
-            :disabled="mode !== 'own'"
-            @change="toggle(d, ($event.target as HTMLInputElement).checked)"
-          />
+      <div v-if="mode === 'own'" class="days" role="group" aria-label="Ngày đi làm">
+        <label v-for="d in DAYS" :key="d" class="day" :class="{ on: ticked.includes(d) }">
+          <input type="checkbox" :checked="ticked.includes(d)" @change="toggle(d, ($event.target as HTMLInputElement).checked)" />
           T{{ d + 1 }}
         </label>
       </div>
-      <p class="std" :class="{ bad: noDay }">{{ noDay ? 'Chọn ít nhất một ngày' : `Công chuẩn: ${workdays}` }}</p>
     </fieldset>
+    <p class="std" role="status">Công chuẩn: <b>{{ workdays }}</b></p>
     <div class="fld">
       <label>Áp dụng từ tháng</label>
       <SelectBox v-model="month" variant="inp" :options="months" label="Áp dụng từ tháng" />
@@ -98,6 +101,7 @@ async function save() {
       <small class="count">{{ reason.length }}/{{ REASON_MAX }}</small>
     </div>
     <template #footer>
+      <span v-if="noDay" class="hint">Chọn ít nhất một ngày</span>
       <span class="sp"></span>
       <button type="button" class="btn" :disabled="saving" @click="emit('close')">Huỷ</button>
       <button type="button" class="btn pri" :disabled="!canSave" @click="save">Lưu</button>
@@ -109,47 +113,88 @@ async function save() {
 /* fieldset chỉ để nhóm hai lựa chọn cho trình đọc màn hình; trông như khối .fld thường. */
 .mode {
   min-width: 0;
-  margin-left: 0;
-  margin-right: 0;
-  margin-bottom: 0;
+  margin: 0;
   padding: 0;
   border: 0;
 }
 .opt {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 6px 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: start;
+  padding: 10px 0;
+  cursor: pointer;
+}
+.opt + .opt {
+  border-top: 1px solid var(--border);
+}
+.opt input {
+  grid-row: 1 / span 2;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #1c1c1c;
+  cursor: pointer;
+}
+.opt span {
   font-size: 14px;
   font-weight: 500;
 }
 .opt small {
+  margin-top: 2px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 16px;
   font-weight: 400;
 }
 .days {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  margin: 4px 0 0 24px;
+  margin: 2px 0 4px 28px;
 }
 .day {
-  display: inline-flex;
+  height: 40px;
+  box-sizing: border-box;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  border: 1px solid var(--border);
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--control);
   border-radius: 8px;
-  font-size: 13px;
+  background: var(--surface);
+  font-size: 14px;
   font-weight: 500;
+  cursor: pointer;
+}
+.day.on {
+  border-color: #1c1c1c;
+  background: var(--ground);
+}
+.day input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #1c1c1c;
+  cursor: pointer;
 }
 .std {
-  margin: 8px 0 0 24px;
-  font-size: 13px;
-  color: var(--muted);
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ground);
+  font-size: 14px;
 }
-.std.bad {
-  color: var(--status-rejected);
+.std b {
+  font-weight: 600;
+}
+.hint {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--muted);
 }
 .count {
   display: block;
@@ -160,5 +205,20 @@ async function save() {
 }
 .fld :deep(.inp) {
   border-radius: 8px;
+}
+</style>
+
+<!-- Hộp thoại được Teleport ra <body>, nên luật nằm ngoài phạm vi của thành phần. Theo bảng StaffWorkWeek: các khối cách nhau 16px. -->
+<style>
+.ww-dlg .dlg-b {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ww-dlg .dlg-b .fld {
+  margin: 0;
+}
+.ww-dlg .dlg-f {
+  padding: 20px 24px;
 }
 </style>

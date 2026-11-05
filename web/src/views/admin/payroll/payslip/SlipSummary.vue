@@ -31,7 +31,7 @@ const groups = computed<Group[]>(() => {
       title: 'Ngày công và lương cơ bản',
       rows: [
         { label: `Ngày công tháng ${monthNo(props.month)}`, rule: String(s.days.standard), actual: String(s.days.work) },
-        { label: 'Lương cơ bản (đ)', rule: money(s.base), actual: money(c.baseActual) },
+        { label: 'Lương cơ bản (đ)', rule: money(s.base), actual: money(c.baseActual), strong: true },
         {
           label: 'Chờ giải trình (ngày)',
           actual: String(s.days.pending),
@@ -233,8 +233,8 @@ const zero = (v?: string) => (v === '0' ? 'zero' : undefined);
   background: var(--ground);
   font-size: 11px;
   line-height: 16px;
-  font-weight: 500;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.4px;
   text-transform: uppercase;
   color: var(--muted);
 }

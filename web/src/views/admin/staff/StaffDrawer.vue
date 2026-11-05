@@ -20,6 +20,8 @@ const route = useRoute();
 const { data } = useLoad(() => getStaffProfile(props.id), () => props.id);
 // Đang đổi người thì thân tạm trống, không hiện hồ sơ của người trước dưới địa chỉ của người sau.
 const profile = computed(() => (data.value && data.value.id === props.id ? data.value : null));
+// "NV · Bậc 2" lấy từ dòng Loại · bậc của hồ sơ, để hộp Tuần làm việc ghi dưới tên.
+const levelText = computed(() => profile.value?.groups.flatMap(g => g.facts).find(f => f.label === 'Loại · bậc')?.value ?? '');
 
 // Tuần làm việc: tuần đang hiệu lực ở tháng đầu và lịch sử để biết có tuần đổi từ tháng sau.
 // week null: loại nhân sự của người này không có tuần làm (404 WORK_WEEK_NOT_FOUND), cả dòng Tuần làm việc ẩn đi.
@@ -143,6 +145,7 @@ watch([() => props.hasPrev, () => props.hasNext], async () => {
     v-if="editingWeek && profile && weekData?.week"
     :id="props.id"
     :name="profile.name"
+    :level="levelText"
     :week="weekData.week"
     @reload="reloadWeek"
     @close="editingWeek = false"

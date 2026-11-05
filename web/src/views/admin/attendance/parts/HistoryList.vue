@@ -148,11 +148,20 @@ const partStyle = (p: TrackPart) => ({
   line-height: 16px;
   color: var(--muted);
 }
+/* Trạng thái là viên thuốc viền xám, căn phải cột (bảng AttendanceEmployee). */
 .hl-r .s {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 0;
+  justify-self: end;
+  max-width: 100%;
+  height: 28px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 .b.nocheck {
   background: var(--status-draft);

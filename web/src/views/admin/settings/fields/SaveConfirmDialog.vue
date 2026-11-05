@@ -12,7 +12,7 @@ const emit = defineEmits(['confirm', 'close']);
 </script>
 
 <template>
-  <AppModal title="Lưu thay đổi" :width="560" :top="120" :dismissable="!saving" @close="emit('close')">
+  <AppModal title="Lưu thay đổi" :width="480" :top="200" panel-class="cfm-dlg" :dismissable="!saving" @close="emit('close')">
     <div class="fld">
       <label>Các ô sẽ đổi</label>
       <ul class="chg">
@@ -24,7 +24,6 @@ const emit = defineEmits(['confirm', 'close']);
       <p class="why">“{{ reason }}”</p>
     </div>
     <template #footer>
-      <span class="sp"></span>
       <button type="button" class="btn" :disabled="saving" @click="emit('close')">Huỷ</button>
       <button type="button" class="btn pri" :disabled="saving" @click="emit('confirm')">Lưu</button>
     </template>
@@ -35,11 +34,45 @@ const emit = defineEmits(['confirm', 'close']);
 .chg {
   margin: 0;
   padding-left: 18px;
-  line-height: 1.7;
+  line-height: 24px;
 }
 .why {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+</style>
+
+<!-- Hộp thoại được Teleport ra <body>, nên luật nằm ngoài phạm vi của thành phần. Theo bảng SettingsPayConfirm:
+     rộng 480, bo 24, đầu 20/24, nút Huỷ và Lưu chia đôi hàng. -->
+<style>
+.dlg.cfm-dlg {
+  border-radius: 24px;
+  box-shadow: none;
+}
+.cfm-dlg .dlg-h {
+  align-items: center;
+  padding: 20px 24px 0;
+}
+.cfm-dlg .dlg-b {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px 0;
+}
+.cfm-dlg .dlg-b .fld {
+  margin: 0;
+}
+.cfm-dlg .dlg-b .fld label {
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+.cfm-dlg .dlg-f {
+  padding: 24px 24px 24px;
+}
+.cfm-dlg .dlg-f .btn {
+  flex: 1 1 0;
+  justify-content: center;
+  height: 40px;
 }
 </style>

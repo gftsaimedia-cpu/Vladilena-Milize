@@ -69,10 +69,8 @@ const KIND_CLASS: Record<DayKind, string> = {
   font-weight: 600;
 }
 .sa-h a {
-  font-size: 12px;
-  color: var(--muted);
-}
-.sa-h a:hover {
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text);
   text-decoration: underline;
 }
