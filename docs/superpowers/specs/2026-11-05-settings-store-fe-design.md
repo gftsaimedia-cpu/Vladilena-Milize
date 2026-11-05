@@ -4,6 +4,7 @@ Ngày 05/11/2026.
 
 **Nguồn:**
 - Thiết kế BE của phiên "Cài đặt chung: lịch, giờ ca, tham số lương", phần 1–4. Người dùng đã duyệt từng phần ngày 05/11: bảng, API, nơi dùng, giao diện.
+- Spec BE `docs/superpowers/specs/2026-11-05-settings-store-design.md`, nhánh `claude/settings-store-7d80cb`, commit 4efb6d3. Mục 5 là hợp đồng API, mục 7 là phần giao diện. Spec BE chưa được người dùng duyệt; nếu hợp đồng đổi, phiên BE sẽ báo commit mới.
 - Artboard Đợt 12 trên bảng "Admin Dashboard Concept".
 
 Người dùng đã chọn tách phần FE sang phiên này ("Tách FE sang đây"). BE làm ở nhánh `claude/settings-store-7d80cb`; FE làm ở nhánh `claude/settings-mock-fe`.
@@ -22,20 +23,22 @@ Bốn thay đổi người dùng nêu đầu tiên đều nằm trong phạm vi:
 
 Ba file mới. Không sửa file dịch vụ cũ ngoài phần nối vào, để tránh đụng các nhánh khác.
 
-**`web/src/mock/settings.ts`: kho giả trong bộ nhớ**
-- Mỗi nhóm (`overtime`, `attendance`, `kpiWeights`, `insurance`, `tax`, `payCalendar`) là một danh sách phiên bản `{ month, rev, values }`. Phiên bản đầu ở tháng 2026-01, mang số mặc định đã chốt.
+**`web/src/mock/settings.ts`: kho giả trong bộ nhớ, trả đúng dạng phản hồi ở mục 5 của spec BE**
+- Mỗi nhóm (`overtime`, `attendance`, `kpiWeights`, `insurance`, `tax`, `payCalendar`) là một danh sách phiên bản `{ month, values }`. Phiên bản đầu ở tháng 2000-01, mang số mặc định đã chốt.
+- **`stamp`** của nhóm là `id` lớn nhất trong lịch sử của nhóm đó, bằng 0 khi chưa có lịch sử. Lưu với `stamp` cũ thì trả lỗi `SETTINGS_STALE`, giống BE.
 - **Lưu từ tháng M**, đúng luật phần 1:
   - M đã có phiên bản thì sửa thẳng phiên bản đó; chưa có thì chép phiên bản đang hiệu lực sang M rồi sửa;
   - phiên bản sau M còn mang số cũ thì nhận số mới; phiên bản sau M mang số khác thì giữ nguyên.
 - Mỗi ô đổi thêm một dòng lịch sử `{ group, field, month, from, to, reason, by, at }`.
 - **Tuần riêng:** không có tuần riêng nào lúc đầu. Mọi người làm T2–T7 theo quy ước mock. Lưu trong hộp chỉ đổi dòng ở hồ sơ.
-- **Vùng chấm công:** một bản ghi `{ lat, lng, radiusM }`, giá trị mẫu bán kính 200 m.
+- **Vùng chấm công:** một bản ghi `{ lat, lng, radiusM }`, giá trị mẫu lấy theo ví dụ của spec BE: 10.7769, 106.7009, 150 m.
+- **Ngày trả lương theo năm:** `payDate` là ngày `payDay` của tháng sau, không dời khi rơi vào Chủ nhật hay ngày lễ.
 - **`minMonth` của mock:** `2026-10`, tức kỳ đang mở.
 
 **`web/src/services/settings-store.ts`: các hàm FE gọi**
 - Danh sách hàm:
   - `getSettings(month)`;
-  - `saveSettingsGroup(group, { effectiveMonth, values, reason, expectedRev })`;
+  - `saveSettingsGroup(group, { effectiveMonth, values, reason, stamp })`. Tên nhóm trên đường dẫn là `overtime`, `attendance`, `kpi-weights`, `insurance`, `tax`, `pay-calendar`;
   - `getSettingsHistory(group)`;
   - `getPayDays(year)`;
   - `getWorkWeek(username, month)`;
@@ -43,14 +46,14 @@ Ba file mới. Không sửa file dịch vụ cũ ngoài phần nối vào, để
   - `getAttendanceZone()`;
   - `saveAttendanceZone({ lat, lng, radiusM, reason })`.
 - Mỗi hàm: `if (__MOCK__)` gọi kho giả; còn lại gọi đúng route ở phần 2 (`/settings…`, `PUT …`).
-- Lỗi `409 SETTINGS_STALE` thì tải lại và báo ngắn.
+- Lỗi `409 SETTINGS_STALE` thì tải lại và báo "Có người vừa lưu trước, đã tải lại".
 
 **`web/src/builders/api/settings.ts`: dựng mọi thứ hiển thị từ dữ liệu nghiệp vụ**
 - Nhãn từng ô, nhóm ngăn kéo, dòng tóm tắt, đánh dấu "Đã chỉnh" (giá trị ≠ mặc định).
 - Câu trong hộp xác nhận, ví dụ "OT ngày thường ×1.5 → ×1.6, áp dụng từ tháng 11/2026".
 - Dòng lịch sử, giới hạn ô nhập.
 
-Ruling: tên trường của phản hồi trong mock theo phần 2 (`minMonth`, `rev`, giá trị, mặc định, giới hạn min/max/bước). Spec BE viết xong mà tên khác thì chỉ sửa mock và builder, không sửa màn. Rủi ro nếu sai: sửa lại hai file.
+Tên trường lấy đúng theo mục 5 của spec BE. Nếu người dùng đổi hợp đồng khi duyệt spec BE, chỉ phải sửa mock và builder, không sửa màn.
 
 ## 3. Màn hình (theo artboard)
 
@@ -87,8 +90,12 @@ Ruling: tên trường của phản hồi trong mock theo phần 2 (`minMonth`, 
      - "Không lấy được vị trí";
      - "Hôm nay không phải ngày làm của bạn".
    - Ngày ngoài tuần hiện "nghỉ". Thu nhập hiện "trả ngày 10/12".
-   - Ruling: khoảng cách tính ở máy từ vùng trong `/me/today` và vị trí trình duyệt, theo công thức haversine. Dưới 1000 m làm tròn tới 10 m; từ 1000 m hiện "1,2 km". Không đặt vùng thì không kiểm tra vị trí.
-7. **Lưới chấm công Admin:** builder đọc tuần của từng người nếu API trả về. Mock không có tuần riêng nên lưới không đổi.
+   - Khoảng cách tính ở máy, theo mục 5.6 của spec BE:
+     - dùng vùng trong `/me/today` và vị trí trình duyệt, công thức haversine với R = 6.371.000 m;
+     - làm tròn tới mét; lớn hơn `radiusM` là ngoài vùng;
+     - `zone` là `null` thì không kiểm tra vị trí;
+     - `workday: false` thì hiện câu "không phải ngày làm".
+7. **Lưới chấm công Admin:** ngày ngoài tuần của từng người hiện là nghỉ. Mock không có tuần riêng nên lưới không đổi.
 
 ## 4. Thứ tự làm và phụ thuộc
 
@@ -103,7 +110,7 @@ Vì vậy chia ba đợt:
 |---|---|---|
 | 1 | Lớp dữ liệu (§2), Lịch ca & chấm công, Quy tắc KPI, hồ sơ tuần làm việc | Làm ngay, chỉ đụng file mới và các màn không nhánh nào sửa |
 | 2 | Cách tính lương, Tất cả cài đặt, bỏ số chưa xác nhận và Xem trước, viết lại `settings-search.spec.ts` | Sau khi admin-cleanup vào main |
-| 3 | App nhân viên khoá check-in, "trả ngày 10/12" | Sau khi wire-staff-app vào main |
+| 3 | App nhân viên khoá check-in, "trả ngày 10/12", lưới chấm công Admin theo tuần từng người | Sau khi wire-staff-app vào main |
 
 Trước mỗi đợt, kiểm bằng `git merge-base --is-ancestor <nhánh> main`.
 
