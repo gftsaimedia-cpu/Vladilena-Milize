@@ -13,6 +13,7 @@ import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
 import { PayrollService } from '../payroll/payroll.service';
 import { RequestsService, type CreatedRequestDTO } from '../requests/requests.service';
+import { SystemService } from '../system';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
@@ -36,8 +37,9 @@ function needMonth(month?: string): string {
 }
 type MonthRange = { from: string; to: string };
 // Lưới an toàn: app chỉ cho bấm tới các tháng trong khoảng; gọi thẳng tháng ngoài khoảng thì 400.
+// Không gửi tháng thì lấy tháng hiện tại theo giờ máy chủ (đồng hồ điện thoại có thể lệch sang tháng sau).
 function needMonthIn(month: string | undefined, range: MonthRange): string {
-  const m = needMonth(month);
+  const m = needMonth(month || range.to);
   if (m < range.from || m > range.to) {
     const mmyyyy = (ym: string) => `${ym.slice(5, 7)}/${ym.slice(0, 4)}`;
     throw new BadRequestError(`Chỉ xem được từ tháng ${mmyyyy(range.from)} tới tháng ${mmyyyy(range.to)}`, { code: 'MONTH_OUT_OF_RANGE', range });
@@ -72,7 +74,8 @@ export class MeController {
     @Inject(AttendanceService) private readonly attendance: AttendanceService,
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
-    @Inject(EmployeesService) private readonly employees: EmployeesService
+    @Inject(EmployeesService) private readonly employees: EmployeesService,
+    @Inject(SystemService) private readonly system: SystemService
   ) {}
 
   // Từ tháng vào làm tới tháng hiện tại (giờ VN).
@@ -147,8 +150,11 @@ export class MeController {
     const me = who(req);
     const range = await this.monthRange(me);
     const m = needMonthIn(month, range);
-    const rows = await this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) });
-    return { ...monthOf(rows as any, m, vnToday()), range };
+    const [rows, period] = await Promise.all([
+      this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
+      this.system.getPeriod(m),
+    ]);
+    return { ...monthOf(rows as any, m, vnToday(), period?.status ?? null), range };
   }
 
   @Authenticated()

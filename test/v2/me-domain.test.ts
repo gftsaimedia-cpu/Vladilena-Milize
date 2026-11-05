@@ -59,6 +59,15 @@ describe('Công tháng', () => {
     assert.equal(monthOf([ts('2026-10-01')] as any, '2026-10', '2026-11-05').periodState, 'open');
     assert.equal(monthOf([ts('2026-10-01'), ts('2026-10-02', { isLocked: true })] as any, '2026-10', '2026-11-05').periodState, 'locked');
   });
+
+  it('the period is locked once Admin closes the month (Chốt công)', () => {
+    const days = [ts('2026-10-01')] as any;
+    assert.equal(monthOf(days, '2026-10', '2026-11-05', 'open').periodState, 'open');
+    assert.equal(monthOf(days, '2026-10', '2026-11-05', null).periodState, 'open');
+    for (const status of ['attendance_locked', 'calculated', 'reviewed', 'approved', 'paid']) {
+      assert.equal(monthOf(days, '2026-10', '2026-11-05', status).periodState, 'locked', status);
+    }
+  });
 });
 
 describe('Khoảng tháng được xem', () => {
@@ -72,6 +81,11 @@ describe('Khoảng tháng được xem', () => {
 
   it('a start date after today still gives this month', () => {
     assert.deepEqual(monthRangeOf('2026-12-01', '2026-11-05'), { from: '2026-11', to: '2026-11' });
+  });
+
+  it('a start date with an impossible month counts as missing', () => {
+    assert.deepEqual(monthRangeOf('2024-13-01', '2026-11-05'), { from: '2026-11', to: '2026-11' });
+    assert.deepEqual(monthRangeOf('2024-00-10', '2026-11-05'), { from: '2026-11', to: '2026-11' });
   });
 });
 

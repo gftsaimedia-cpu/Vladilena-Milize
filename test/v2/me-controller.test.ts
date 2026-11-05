@@ -22,12 +22,13 @@ function fake(impl: Record<string, (...a: any[]) => any> = {}) {
   return { proxy, calls };
 }
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp', ReturnType<typeof fake>>> = {}) {
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys', ReturnType<typeof fake>>> = {}) {
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }) });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy), att, reqs, pay, emp };
+  const sys = over.sys ?? fake({ getPeriod: () => null });
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy), att, reqs, pay, emp, sys };
 }
 
 describe('MeController', () => {
@@ -114,6 +115,22 @@ describe('MeController', () => {
     await assert.rejects(ctl.attendanceMonth(req(), '2024-02'), outOfRange);
     await assert.rejects(ctl.attendanceMonth(req(), '2999-01'), outOfRange);
     assert.equal(((await ctl.attendanceMonth(req(), '2024-03')) as any).month, '2024-03');
+  });
+
+  it('the month is locked once Admin closed it with Chốt công', async () => {
+    const { ctl, sys } = controller({ sys: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
+    assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'locked');
+    assert.equal(sys.calls.getPeriod[0], '2026-10');
+    const open = controller();
+    assert.equal(((await open.ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
+  });
+
+  it('without a month the server picks this month, whatever the device clock says', async () => {
+    const thisMonth = new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 7);
+    const { ctl, att } = controller({ pay: fake({ getPayslip: () => ({ status: 'approved', details: {} }) }) });
+    assert.equal(((await ctl.income(req(), undefined)) as any).month, thisMonth);
+    assert.equal(((await ctl.attendanceMonth(req(), undefined)) as any).month, thisMonth);
+    assert.equal(att.calls.listTimesheets[0].startDate, `${thisMonth}-01`);
   });
 
   it('without a start date only this month can be opened', async () => {

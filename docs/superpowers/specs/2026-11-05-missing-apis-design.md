@@ -53,13 +53,13 @@ Không route nào trong nhóm nhận `employeeId` / `username` từ client. Modu
 |---|---|---|
 | `GET /api/v2/me/today` | `{ date, shift: { type, start, end }, punches: { in, out }, workedMinutes, geofence: { required, ok }, week: DaySummary[7], alert: { date, kind } \| null }` | J1 Hôm nay, `/nv-may-tinh` |
 | `POST /api/v2/me/punches` | body `{ kind: 'IN'\|'OUT', lat, lng, accuracyM }` → `{ punch, today }` | Check-in / Check-out |
-| `GET /api/v2/me/attendance?month=` | `{ month, periodState: 'open'\|'locked', totals: { workDays, standardDays, lateCount, paidLeaveDays }, days: DaySummary[], range: { from, to } }`. `locked` khi tháng có dòng công đã khoá (`is_locked`). Tháng ngoài `range` (từ tháng vào làm tới tháng hiện tại; chưa có ngày vào làm thì chỉ tháng hiện tại) → 400 `MONTH_OUT_OF_RANGE` | J2 Chấm công |
+| `GET /api/v2/me/attendance?month=` | `{ month, periodState: 'open'\|'locked', totals: { workDays, standardDays, lateCount, paidLeaveDays }, days: DaySummary[], range: { from, to } }`. `locked` khi Admin đã Chốt công tháng đó (`payroll_periods.status` khác `'open'`) hoặc tháng có dòng công đã khoá (`is_locked`). Không gửi `month` → máy chủ lấy tháng hiện tại theo giờ Việt Nam của nó. Tháng ngoài `range` (từ tháng vào làm tới tháng hiện tại; chưa có ngày vào làm thì chỉ tháng hiện tại) → 400 `MONTH_OUT_OF_RANGE` | J2 Chấm công |
 | `GET /api/v2/me/attendance/:date` | `{ date, kind, in, out, lateMinutes, leave, claim }` | J3 chi tiết ngày |
 | `GET /api/v2/me/requests?status=` | `{ counts, items: RequestDTO[] }` | J4 Yêu cầu |
 | `GET /api/v2/me/requests/:id` | `{ request: RequestDTO, steps: { label, at, state }[] }` | J5 chi tiết |
 | `POST /api/v2/me/requests/{leave,overtime,advance,explanation,isat,shift-change}` | như route admin hiện có nhưng `employeeId = req.user.username` | Nộp đơn |
 | `PATCH /api/v2/me/requests/:id/cancel` | chỉ huỷ đơn của mình, còn `PENDING` | Huỷ đơn |
-| `GET /api/v2/me/income?month=` | `{ month, state: 'estimate'\|'official'\|'unavailable', payslip: EmployeePayslipDTO \| null, reason?, range: { from, to } }` — `official` khi phiếu của chính người đó ở lần chạy hiện tại đã được Admin duyệt (`payslips.status = 'approved'`, người dùng chốt 05/11/2026), không thì tính tạm (không lưu). Cùng khoảng tháng như `/me/attendance` | J6 Thu nhập |
+| `GET /api/v2/me/income?month=` | `{ month, state: 'estimate'\|'official'\|'unavailable', payslip: EmployeePayslipDTO \| null, reason?, range: { from, to } }` — `official` khi phiếu của chính người đó ở lần chạy hiện tại đã được Admin duyệt (`payslips.status = 'approved'`, người dùng chốt 05/11/2026), không thì tính tạm (không lưu). Cùng khoảng tháng và cùng mặc định khi không gửi `month` như `/me/attendance` | J6 Thu nhập |
 | `GET /api/v2/me/profile` | `{ name, username, contract, position, shift, leave: { total, used, remaining }, dependants }` | J7 Tôi |
 
 `DaySummary = { date, kind: 'work'\|'late'\|'leave'\|'absent'\|'todo'\|'off'\|'future', leave?: 'paid'\|'unpaid'\|'holiday', in, out, lateMinutes }` (`leave` chỉ có ở ngày nghỉ, lấy từ trạng thái bảng công).

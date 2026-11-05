@@ -60,8 +60,9 @@ export function daySummaryOf(ts: TimesheetLike | undefined, date: string, today:
 }
 
 /** Công cả tháng: một ô mỗi ngày và số đếm (ngày công chuẩn = các ngày thứ Hai – thứ Bảy của tháng).
- *  Kỳ công "locked" khi tháng có dòng công đã khoá (cùng cờ chặn chấm công). */
-export function monthOf(timesheets: TimesheetLike[], month: string, today: string) {
+ *  Kỳ công "locked" khi Admin đã Chốt công tháng đó (periodStatus của payroll_periods khác 'open') hoặc tháng có dòng
+ *  công đã khoá (cờ chặn chấm công). */
+export function monthOf(timesheets: TimesheetLike[], month: string, today: string, periodStatus?: string | null) {
   const [y, m] = month.split('-').map(Number);
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const by = new Map(timesheets.map(t => [t.workDate, t]));
@@ -72,7 +73,7 @@ export function monthOf(timesheets: TimesheetLike[], month: string, today: strin
   const inMonth = timesheets.filter(t => t.workDate.startsWith(month));
   return {
     month,
-    periodState: inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
+    periodState: (periodStatus && periodStatus !== 'open') || inMonth.some(t => t.isLocked) ? ('locked' as const) : ('open' as const),
     totals: {
       workDays: days.filter(d => d.kind === 'work' || d.kind === 'late').length,
       standardDays: days.filter(d => dow(d.date) !== 0).length,
@@ -87,7 +88,7 @@ export function monthOf(timesheets: TimesheetLike[], month: string, today: strin
  *  thì chỉ tháng hiện tại. */
 export function monthRangeOf(startDate: string | null | undefined, today: string): { from: string; to: string } {
   const to = today.slice(0, 7);
-  const start = startDate && /^\d{4}-\d{2}/.test(startDate) ? startDate.slice(0, 7) : to;
+  const start = startDate && /^\d{4}-(0[1-9]|1[0-2])/.test(startDate) ? startDate.slice(0, 7) : to;
   return { from: start < to ? start : to, to };
 }
 
