@@ -15,6 +15,7 @@ import {
   settingsAt,
   workWeekHistory,
   workWeekOf,
+  workWeeksAt,
   zoneHistory,
   zoneOf,
 } from '../src/mock/settings';
@@ -126,4 +127,12 @@ test('history lists are capped at 200 items, newest first', () => {
   let ws = 0;
   for (let i = 0; i < 205; i++) ws = saveWorkWeekOf('hoang-thi-mai', { effectiveMonth: '2026-10', weekdays: i % 2 ? [1, 2, 3, 4, 5] : [1, 2, 3], reason: null, stamp: ws }).stamp;
   expect(workWeekHistory('hoang-thi-mai').items).toHaveLength(200);
+});
+test('workWeeksAt lists only people whose own week is in force at that month', () => {
+  saveWorkWeekOf('nv-a', { effectiveMonth: '2026-11', weekdays: [1, 2, 3, 4, 5], reason: null, stamp: 0 });
+  const oct = workWeeksAt('2026-10');
+  expect(oct.month).toBe('2026-10');
+  expect(oct.weekdays['nv-a']).toBeUndefined();
+  expect(workWeeksAt('2026-11').weekdays['nv-a']).toEqual([1, 2, 3, 4, 5]);
+  expect(Object.keys(workWeeksAt('2026-11').weekdays)).toEqual(['nv-a']);
 });

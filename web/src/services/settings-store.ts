@@ -12,6 +12,7 @@ import {
   settingsAt,
   workWeekHistory,
   workWeekOf,
+  workWeeksAt,
   zoneOf
 } from '@/mock/settings';
 import type {
@@ -56,6 +57,12 @@ export async function getPayDays(year: number): Promise<{ year: number; items: P
 export async function getWorkWeek(username: string, month?: string): Promise<WorkWeek> {
   if (__MOCK__) return mocked(() => workWeekOf(username, month));
   return api('GET', `/settings/work-weeks/${encodeURIComponent(username)}${qs({ month })}`);
+}
+
+/** Tuần riêng của mọi người ở tháng month (người chưa có tuần riêng không có mặt, coi như T2–T7). */
+export async function getWorkWeeks(month: string): Promise<{ month: string; weekdays: Record<string, number[]> }> {
+  if (__MOCK__) return mocked(() => workWeeksAt(month));
+  return api('GET', `/settings/work-weeks${qs({ month })}`);
 }
 
 export async function saveWorkWeek(

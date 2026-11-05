@@ -38,6 +38,7 @@ const STATUS_TEXT: Record<string, string> = { tts: 'Thực tập sinh', ctv: 'C�
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 const dow = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 const isSunday = (iso: string) => dow(iso) === 0;
+const WORK_WEEK = [1, 2, 3, 4, 5, 6];
 
 // Giờ "HH:mm" từ "HH:mm[:ss]" hoặc thời điểm ISO (đổi sang giờ Việt Nam).
 function hhmm(v: string | null): string | null {
@@ -53,10 +54,10 @@ export function gridFromOf(today: string): string {
   return addDays(back, -((dow(back) + 6) % 7));
 }
 
-function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shift: string) {
+function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, weekdays: number[]) {
   const none = { in: null as string | null, out: null as string | null, live: false };
   if (!ts) {
-    if (isSunday(date)) return { kind: 'off' as CellKind, text: '', ...none };
+    if (isSunday(date) || !weekdays.includes(dow(date))) return { kind: 'off' as CellKind, text: '', ...none };
     if (date > today) return { kind: 'fu' as CellKind, text: shift, ...none };
     if (date === today) return { kind: 'nocheck' as CellKind, text: shift, ...none };
     return { kind: 'absent' as CellKind, text: NONE, ...none };
@@ -72,8 +73,8 @@ function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shi
   return { kind: (late ? 'late' : 'work') as CellKind, text: `${cin ?? '?'}–${cout ?? (live ? '…' : '?')}`, in: cin, out: cout, live };
 }
 
-function cellOf(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, item: InboxItem | null): Cell {
-  const base = baseCell(ts, date, today, shift);
+function cellOf(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, item: InboxItem | null, weekdays: number[]): Cell {
+  const base = baseCell(ts, date, today, shift, weekdays);
   const kind: CellKind = item ? 'todo' : base.kind;
   return {
     date,
@@ -128,16 +129,23 @@ export type AttendanceInput = {
   employees: EmployeeDTO[];
   timesheets: TimesheetDTO[];
   pending: InboxItem[];
+  /** Tuần làm việc của từng người theo username (1 = T2 … 6 = T7); người không có mặt ở đây làm T2–T7. */
+  weekdays?: Record<string, number[]>;
 };
 
-type Index = { byKey: Map<string, TimesheetDTO>; uuidOf: Map<string, string>; overlay: Map<string, InboxItem> };
+type Index = {
+  byKey: Map<string, TimesheetDTO>;
+  uuidOf: Map<string, string>;
+  overlay: Map<string, InboxItem>;
+  weekOf: (username: string) => number[];
+};
 
-function indexOf({ employees, timesheets, pending }: AttendanceInput): Index {
+function indexOf({ employees, timesheets, pending, weekdays }: AttendanceInput): Index {
   const uuidOf = new Map(employees.map(e => [e.account.username, e.profile.uuid || e.account.username]));
   const byKey = new Map(timesheets.map(t => [`${t.employeeId}|${t.workDate}`, t]));
   const overlay = new Map<string, InboxItem>();
   for (const item of pending) for (const d of item.days) overlay.set(`${item.personId}|${d}`, item);
-  return { byKey, uuidOf, overlay };
+  return { byKey, uuidOf, overlay, weekOf: username => weekdays?.[username] ?? WORK_WEEK };
 }
 
 const tsOf = (ix: Index, username: string, date: string) =>
@@ -165,7 +173,7 @@ export function attendanceFromTimesheets(input: AttendanceInput): AttendanceView
     const shift = person.shift;
     return {
       person,
-      cells: days.map(d => cellOf(tsOf(ix, person.id, d.iso), d.iso, today, shift, ix.overlay.get(`${person.id}|${d.iso}`) ?? null))
+      cells: days.map(d => cellOf(tsOf(ix, person.id, d.iso), d.iso, today, shift, ix.overlay.get(`${person.id}|${d.iso}`) ?? null, ix.weekOf(person.id)))
     };
   });
   const byId = new Map(rows.map(r => [r.person.id, r.person]));
@@ -212,7 +220,7 @@ export function dayDetailFrom(input: AttendanceInput, personId: string, date: st
   if (!e) return null;
   const person = personOf(e, monthTsOf(input, ix, personId));
   const item = ix.overlay.get(`${personId}|${date}`) ?? null;
-  const cell = cellOf(tsOf(ix, personId, date), date, input.today, person.shift, item);
+  const cell = cellOf(tsOf(ix, personId, date), date, input.today, person.shift, item, ix.weekOf(personId));
   return { person, date, title: `${weekdayName(date)} ${dm(date)}`, sub: person.shift, cell, item };
 }
 
@@ -227,7 +235,7 @@ export function employeeViewFrom(input: AttendanceInput, personId: string): Empl
   const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
   const cells = Array.from({ length: last }, (_, k) => {
     const date = `${input.month}-${String(k + 1).padStart(2, '0')}`;
-    return cellOf(tsOf(ix, personId, date), date, input.today, person.shift, ix.overlay.get(`${personId}|${date}`) ?? null);
+    return cellOf(tsOf(ix, personId, date), date, input.today, person.shift, ix.overlay.get(`${personId}|${date}`) ?? null, ix.weekOf(personId));
   });
   const strip: StripDay[] = cells.map(c => ({ date: c.date, dow: dowShort(c.date), day: String(Number(c.date.slice(8, 10))), kind: c.kind, today: c.date === input.today, aria: c.aria }));
   const chips: Record<GroupKey, number> = { work: 0, late: 0, leave: 0, absent: 0, todo: 0 };

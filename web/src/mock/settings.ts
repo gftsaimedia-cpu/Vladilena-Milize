@@ -311,6 +311,16 @@ export function workWeekOf(username: string, month: string = MOCK_MONTH): WorkWe
   };
 }
 
+// Tuần riêng đang hiệu lực ở tháng month của mọi người (GET /settings/work-weeks?month=); người theo tuần của loại không có mặt.
+export function workWeeksAt(month: string): { month: string; weekdays: Record<string, number[]> } {
+  const weekdays: Record<string, number[]> = {};
+  for (const [username, store] of weeks) {
+    const own: number[] | null = versionAt(store.chain, month).values.weekdays;
+    if (own) weekdays[username] = [...own];
+  }
+  return { month, weekdays };
+}
+
 export function saveWorkWeekOf(username: string, body: WorkWeekBody) {
   const store = weekStore(username);
   checkStamp(store.history, body.stamp);
