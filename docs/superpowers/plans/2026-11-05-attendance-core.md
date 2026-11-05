@@ -544,6 +544,7 @@ Năm tình huống spec ngầm đòi hỏi nhưng dễ lọt test. Mỗi dòng �
 - [ ] **Bước 2: Chạy test, phải fail.** Kỳ vọng FAIL.
 
 - [ ] **Bước 3: Viết code.**
+  - Nếu lúc này `claude/settings-store-7d80cb` đã vào `main`: đưa `main` vào nhánh trước (như Task 12 bước 2). Giữ nguyên các chặn của họ trong `recordPunch` (`NOT_A_WORKDAY`, `OUTSIDE_ZONE`, `NO_LOCATION`, `hasApprovedWorkOn`, `workdayOf`, `DEFAULT_SHIFT`), đặt chúng bên trong khoá mới, trước bước lưu lần chấm.
   - `recordPunch` chạy trong `withLock(employeeLockKey(employeeId), trx => …)`.
   - Mọi truy vấn chạy trên `repo.withTransaction(trx)`.
   - Thứ tự trong khoá:
@@ -893,6 +894,7 @@ Năm tình huống spec ngầm đòi hỏi nhưng dễ lọt test. Mỗi dòng �
   - Chạy `npm test`, rồi commit merge.
 - [ ] **Bước 3: Viết test fail.** Cài `lateGraceMinutes` 10 từ tháng `2026-12` và tuần riêng `[1,2,3,4,5]` cho một người qua kho cài đặt. Cổng phải trả 10, và tuần đó cho đúng người đó và tháng đó.
 - [ ] **Bước 4: Viết `SettingsAttendanceSettings`** gọi `SettingsReader.settingsFor(month).attendance.lateGraceMinutes` và `workWeekOf(uuid, month).weekdays`. Đổi `useClass` trong module. Xoá `PositionTypeAttendanceSettings` cùng hằng `DEFAULT_LATE_GRACE_MINUTES` nếu không còn ai dùng.
+  - Gắn ghi lại ngày công vào kho cài đặt (spec §9.2, settings-store xác nhận 05/11): sau khi `SettingsService.saveWorkWeek` và `saveGroup('attendance')` ghi xong, gọi `refreshMonth` cho các tháng từ `effectiveMonth` tới tháng hiện tại. `saveWorkWeek` chỉ ghi lại người đó; `saveGroup('attendance')` ghi lại mọi người đang làm (P6). Test: đổi ân hạn thành 10 từ tháng hiện tại → dòng vào 08:12 thành `LATE_CHECK_IN`.
 - [ ] **Bước 5: Chạy lại test.** Lệnh: file test, rồi `npm test`. Kỳ vọng PASS.
 - [ ] **Bước 6: Commit.**
 
