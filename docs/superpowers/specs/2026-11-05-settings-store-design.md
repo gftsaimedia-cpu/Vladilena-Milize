@@ -453,7 +453,11 @@ Ca có giờ ra nhỏ hơn giờ vào là ca qua đêm (ra vào hôm sau). Khôn
 - Mọi lỗi 400 chỉ là lưới an toàn: UI đã khoá trước, theo nguyên tắc "không cho làm điều không hợp lệ".
 - **Các route v1 phía FE thôi gọi:** `/settings/params*`, `/settings/first-run`, `/blocks/:code/confirm`.
 
-**Nhật ký:** khi API ghi Nhật ký của phiên audit-log có trên `main`, mỗi lần lưu ghi thêm một dòng `audit_log` (`action: 'settings.save'`). Trước lúc đó, lịch sử chỉ lấy từ `settings_changes`.
+**Nhật ký:** mỗi lần lưu ghi một dòng `audit_log` theo hai mã người dùng chốt ngày 05/11 (qua phiên audit-wiring); không dùng `settings.save`.
+- `param.set` ("Sửa tham số lương"): 6 nhóm `overtime`, `attendance`, `kpi-weights`, `insurance`, `tax`, `pay-calendar`.
+- `setting.set` ("Sửa cài đặt chung"): vùng chấm công và tuần làm việc riêng (giờ ca không sửa được, D7).
+- Mỗi lần lưu một nhóm ghi một dòng: chỉ các ô đổi, kèm tháng áp dụng và lý do (giống `position.save`). Dòng của vùng chấm công ghi tâm cũ/mới (`lat`, `lng`) và bán kính.
+- Phiên audit-wiring gắn hai mã này sau khi nhánh settings-store vào `main`. Trước lúc đó, lịch sử chỉ lấy từ `settings_changes`.
 
 ## 6. Nơi dùng
 
