@@ -102,6 +102,7 @@ test('the Thực nhận row stays at the bottom when the columns are taller than
   });
   expect(m.col).toBeGreaterThanOrEqual(1500);
   expect(Math.abs(m.card)).toBeLessThanOrEqual(1);
+  expect(m.tot).toBeGreaterThanOrEqual(0);
   expect(m.tot).toBeLessThanOrEqual(8);
 });
 

@@ -116,3 +116,41 @@ test('resizing with a drawer open hands over to the phone sheet', async ({ page 
   await expect(page.locator('.sd-drawer')).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(1);
 });
+
+// F1: mở ngăn kéo là router.replace sang đường dẫn khác của cùng trang một trang, không được cuộn trang về đầu.
+const scrollToBottom = (page: import('@playwright/test').Page) =>
+  page.evaluate(() => {
+    window.scrollTo(0, document.documentElement.scrollHeight);
+    return scrollY;
+  });
+
+test('opening a drawer from Gần đây keeps the page scroll position', async ({ page }) => {
+  await openDesktop(page, '/nv/hom-nay');
+  const row = page.locator('.sd-app button.ro', { hasText: 'Thứ Hai 26/10' });
+  await expect(row).toBeVisible();
+  const before = await scrollToBottom(page);
+  expect(before).toBeGreaterThan(100);
+  await row.click({ delay: 80 });
+  await expect(page.getByRole('dialog', { name: 'Thứ Hai 26/10/2026' })).toBeVisible();
+  expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThanOrEqual(2); // bỏ thanh cuộn khi khoá cuộn làm lệch ~1px; trước khi sửa là nhảy về 0
+});
+
+test('with the menu open, a click on a row below the fold still opens its drawer', async ({ page }) => {
+  await openDesktop(page, '/nv/toi');
+  const row = page.locator('.sd-app button.ro', { hasText: 'Thứ Hai 26/10' });
+  await expect(row).toBeVisible();
+  const before = await scrollToBottom(page);
+  expect(before).toBeGreaterThan(100);
+  await row.click({ delay: 80 });
+  await expect(page).toHaveURL(/\?ngay=2026-10-26$/);
+  await expect(page.getByRole('dialog')).toHaveCount(1);
+  await expect(page.getByRole('region', { name: 'Tài khoản của tôi' })).toBeHidden();
+  expect(Math.abs((await page.evaluate(() => scrollY)) - before)).toBeLessThanOrEqual(2); // bỏ thanh cuộn khi khoá cuộn làm lệch ~1px; trước khi sửa là nhảy về 0
+});
+
+// F4: ngăn kéo đổi mật khẩu đưa focus vào ô đầu của biểu mẫu như hộp trượt điện thoại, không vào nút ×.
+test('the password drawer focuses the first field', async ({ page }) => {
+  await openDesktop(page, '/nv/toi?hop=doi-mat-khau');
+  await expect(page.getByRole('dialog', { name: 'Đổi mật khẩu' })).toBeVisible();
+  await expect(page.getByLabel('Mật khẩu hiện tại')).toBeFocused();
+});

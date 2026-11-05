@@ -5,6 +5,7 @@
 //   ?kb=<tên>       kịch bản dữ liệu giả (một trạng thái của màn trong bộ thiết kế)
 //   ?hop=<tên>      mở sẵn một hộp thoại, ngăn kéo hay bảng trượt khi vào màn
 import { createRouter, createWebHistory } from 'vue-router';
+import { useStaffDesktop } from '@/composables/useStaffDesktop';
 import { LOGIN_PATH, useSessionStore } from '@/stores/session';
 import adminAttendance from './routes/admin-attendance';
 import adminMain from './routes/admin-main';
@@ -40,7 +41,13 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes: routes as any,
-  scrollBehavior: (to?, from?, saved?) => saved || (to.path === from.path ? false : { top: 0 })
+  // Trang nhân viên trên máy tính là một trang cho mọi /nv/*: ngăn kéo mở bằng replace sang đường dẫn khác, không được cuộn về đầu.
+  scrollBehavior: (to?, from?, saved?) => {
+    if (saved) return saved;
+    if (to.path === from.path) return false;
+    if (to.meta.layout === 'staff' && from.meta.layout === 'staff' && useStaffDesktop().value) return false;
+    return { top: 0 };
+  }
 });
 
 // Cổng vào theo phiên: chưa đăng nhập → đăng nhập; khu Admin chỉ cho người có năng lực quản trị;

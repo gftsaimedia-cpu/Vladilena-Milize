@@ -84,3 +84,35 @@ test('the design index lists the desktop boards', async ({ page }) => {
     .toHaveAttribute('href', '/nv/yeu-cau?yc=gio-vao-0909');
   await expect(page.locator('a[href^="/nv-may-tinh"]')).toHaveCount(0);
 });
+
+// F1: trên điện thoại đổi tab vẫn cuộn về đầu (chỉ trang máy tính giữ vị trí cuộn).
+test('on the phone, switching tabs still scrolls to the top', async ({ page }) => {
+  await openDesktop(page, '/nv/thu-nhap', { width: 390, height: 500 });
+  await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(50);
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Hôm nay' }).click();
+  await expect(page).toHaveURL(/\/nv\/hom-nay$/);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+});
+
+// F2: lớp CSS toàn cục (.who, .note, .big…) không được làm vỡ bố cục menu tài khoản.
+test('the account menu keeps the name above the email and the note without a border', async ({ page }) => {
+  await openDesktop(page, '/nv/toi');
+  const menu = page.getByRole('region', { name: 'Tài khoản của tôi' });
+  await expect(menu).toBeVisible();
+  const m = await menu.evaluate(el => {
+    const name = [...el.querySelectorAll('div')].find(d => d.textContent === 'Lê Hoàng Nam')!.getBoundingClientRect();
+    const email = [...el.querySelectorAll('div')].find(d => d.textContent === 'nam.le@gft.vn')!.getBoundingClientRect();
+    const note = [...el.querySelectorAll('p')].find(p => p.textContent!.startsWith('Thông tin do Admin'))!;
+    return {
+      nameBottom: name.bottom,
+      nameHeight: name.height,
+      emailTop: email.top,
+      border: getComputedStyle(note).borderTopWidth
+    };
+  });
+  expect(m.emailTop).toBeGreaterThanOrEqual(m.nameBottom);
+  expect(m.nameHeight).toBeLessThanOrEqual(24);
+  expect(m.border).toBe('0px');
+});

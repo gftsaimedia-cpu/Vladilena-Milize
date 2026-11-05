@@ -16,11 +16,14 @@ let release: (() => void) | null = null;
 onMounted(() => {
   lockScroll();
   if (panel.value) release = registerOverlayFocus(panel.value, () => emit('close'), () => true);
+  // Như hộp trượt điện thoại: có ô nhập trong thân thì focus vào ô đầu, không vào nút ×.
+  panel.value?.querySelector<HTMLElement>('input:not([type="hidden"]):not([disabled]), select, textarea')?.focus();
 });
 onBeforeUnmount(() => {
+  // Mở khoá cuộn trước khi trả focus, để trình duyệt cuộn phần tử đã mở vào tầm nhìn (cùng thứ tự với BottomSheet).
+  unlockScroll();
   release?.();
   release = null;
-  unlockScroll();
   nextTick(() => {
     if (document.activeElement === document.body) document.getElementById('sd-account')?.focus();
   });
@@ -31,7 +34,7 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <div class="sd-drawer-root">
       <div class="sd-scrim" @click="emit('close')" />
-      <aside ref="panel" class="sd-drawer" role="dialog" aria-modal="true" tabindex="-1" :aria-label="title">
+      <div ref="panel" class="sd-drawer" role="dialog" aria-modal="true" tabindex="-1" :aria-label="title">
         <div class="sd-dh">
           <div class="sd-dt">
             <h2>{{ title }}</h2>
@@ -41,7 +44,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-if="$slots.badge" class="sd-db"><slot name="badge" /></div>
         <slot />
-      </aside>
+      </div>
     </div>
   </Teleport>
 </template>

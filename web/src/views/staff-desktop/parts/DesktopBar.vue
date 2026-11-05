@@ -48,19 +48,19 @@ onBeforeUnmount(() => listen(false));
 </script>
 
 <template>
-  <header class="bar">
-    <img class="logo" :src="logo" alt="GFT" />
-    <span class="bar-app">Nhân viên</span>
+  <header class="sd-bar">
+    <img class="sd-logo" :src="logo" alt="GFT" />
+    <span class="sd-bar-app">Nhân viên</span>
     <button
       id="sd-account"
       type="button"
-      class="acc"
+      class="sd-acc"
       aria-controls="sd-menu"
       :aria-expanded="menuOpen"
       @click="toggle"
     >
-      <span class="av" aria-hidden="true">{{ data?.initials }}</span>
-      <span class="nm">{{ data?.name }}</span>
+      <span class="sd-av" aria-hidden="true">{{ data?.initials }}</span>
+      <span class="sd-nm">{{ data?.name }}</span>
       <svg
         width="16"
         height="16"
@@ -75,27 +75,27 @@ onBeforeUnmount(() => listen(false));
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <section v-if="data" v-show="menuOpen" id="sd-menu" class="menu" role="region" aria-label="Tài khoản của tôi">
-      <div class="ident">
-        <span class="av big" aria-hidden="true">{{ data.initials }}</span>
-        <div class="who">
-          <div class="nm2">{{ data.name }}</div>
+    <section v-if="data" v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
+      <div class="sd-ident">
+        <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
+        <div class="sd-who">
+          <div class="sd-nm2">{{ data.name }}</div>
           <div class="mut">{{ data.email }}</div>
         </div>
         <span class="st"><i class="dot work" />{{ data.contract }}</span>
       </div>
-      <div class="facts">
+      <div class="sd-facts">
         <div v-for="[k, v] in data.facts" :key="k" class="kv">
           <span class="k">{{ k }}</span
           ><span class="v">{{ v }}</span>
         </div>
       </div>
-      <p class="mut sm note">{{ data.note }}</p>
-      <button type="button" class="mi" @click="openPassword">
+      <p class="mut sm sd-note">{{ data.note }}</p>
+      <button type="button" class="sd-mi" @click="openPassword">
         <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
         <PhIcon name="right" :size="18" :stroke="2" />
       </button>
-      <button type="button" class="mi out" @click="signOut">
+      <button type="button" class="sd-mi sd-out" @click="signOut">
         <span class="ti"><PhIcon name="out" /></span><span class="t">Đăng xuất</span>
       </button>
     </section>
@@ -103,7 +103,7 @@ onBeforeUnmount(() => listen(false));
 </template>
 
 <style scoped>
-.bar {
+.sd-bar {
   position: relative;
   display: flex;
   align-items: center;
@@ -114,16 +114,16 @@ onBeforeUnmount(() => listen(false));
   background: var(--surface-dark);
   color: #fff;
 }
-.logo {
+.sd-logo {
   width: 52px;
   height: auto;
 }
-.bar-app {
+.sd-bar-app {
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
 }
-.acc {
+.sd-acc {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -137,11 +137,12 @@ onBeforeUnmount(() => listen(false));
   font: inherit;
   cursor: pointer;
 }
-.acc:focus-visible {
+.sd-acc:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
 }
-.av {
+.sd-av {
+  flex: none;
   width: 36px;
   height: 36px;
   display: grid;
@@ -152,10 +153,10 @@ onBeforeUnmount(() => listen(false));
   font-size: 13px;
   font-weight: 600;
 }
-.nm {
+.sd-nm {
   font-weight: 600;
 }
-.menu {
+.sd-menu {
   position: absolute;
   z-index: 30;
   top: 72px;
@@ -171,35 +172,35 @@ onBeforeUnmount(() => listen(false));
   background: #fff;
   color: var(--text);
 }
-.ident {
+.sd-ident {
   display: flex;
   align-items: center;
   gap: 12px;
 }
-.av.big {
+.sd-av.sd-big {
   width: 48px;
   height: 48px;
   flex: none;
   font-size: 16px;
 }
-.who {
+.sd-who {
   flex: 1 1 auto;
   min-width: 0;
 }
-.nm2 {
+.sd-nm2 {
   font-size: 18px;
   line-height: 24px;
   font-weight: 600;
 }
-.facts {
+.sd-facts {
   padding: 4px 16px;
   border-radius: 16px;
   background: var(--page);
 }
-.note {
+.sd-note {
   margin: 0;
 }
-.mi {
+.sd-mi {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -213,12 +214,12 @@ onBeforeUnmount(() => listen(false));
   text-align: left;
   cursor: pointer;
 }
-.mi .t {
+.sd-mi .t {
   flex: 1 1 auto;
   font-weight: 500;
 }
-.mi.out,
-.mi.out .ti {
+.sd-mi.sd-out,
+.sd-mi.sd-out .ti {
   color: #b43f3f;
 }
 </style>
