@@ -317,7 +317,9 @@ export function workWeekOf(username: string, month: string = MOCK_MONTH): WorkWe
   };
 }
 
-// Tuần riêng đang hiệu lực ở tháng month của mọi người (GET /settings/work-weeks?month=); người theo tuần của loại không có mặt.
+// GET /settings/work-weeks?month=. BE §5.3 trả mọi người (tuần riêng nếu có, không thì tuần của loại), trừ người có loại không
+// có tuần làm. Mock không có danh sách nhân sự nên chỉ trả người có tuần riêng đang hiệu lực ở tháng đó; người vắng mặt coi như
+// tuần của loại (T2–T7), nên kết quả trên màn như nhau.
 export function workWeeksAt(month: string): { month: string; weekdays: Record<string, number[]> } {
   const weekdays: Record<string, number[]> = {};
   for (const [username, store] of weeks) {

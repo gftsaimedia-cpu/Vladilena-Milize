@@ -19,12 +19,9 @@ import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/c
 
 const plain = (v?) => (v == null ? v : JSON.parse(JSON.stringify(v)));
 
-// ---------- Cách tính lương ----------
+// Bản đã tải của màn Chế độ theo loại (để biết ô nào đã sửa khi lưu).
 const state: Record<string, any> = {
-  benefits: null,
-  alerts: null,
-  calendar: null,
-  setup: null
+  benefits: null
 };
 
 // ---------- Chế độ theo loại nhân sự ----------
