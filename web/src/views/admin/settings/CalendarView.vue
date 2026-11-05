@@ -4,7 +4,7 @@
 import { computed, ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
-import { payDatesIn } from '@/builders/api/settings';
+import { payDatesIn, payDayHint } from '@/builders/api/settings';
 import { useLoad } from '@/composables/useLoad';
 import { getCalendar, quickAddHolidays, removeHoliday } from '@/services/admin-settings';
 import { getPayDays, getSettings, getShifts } from '@/services/settings-store';
@@ -13,17 +13,23 @@ import { dm } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import HolidayDialog from './calendar/HolidayDialog.vue';
 import YearCalendar from './calendar/YearCalendar.vue';
+import FieldNum from './fields/FieldNum.vue';
+import SaveConfirmDialog from './fields/SaveConfirmDialog.vue';
+import SelectBox from './fields/SelectBox.vue';
+import TextBox from './fields/TextBox.vue';
+import { REASON_MAX } from './lib/rules';
 import { useHop } from './lib/useHop';
+import { useSettingsDraft } from './lib/useSettingsDraft';
 
 const year = ref(Number(usePeriodStore().month.slice(0, 4))); // năm của kỳ lương đang xem
 const { data, reload } = useLoad(
   () => getCalendar(year.value),
   () => year.value
 );
-const { data: settings } = useLoad(() => getSettings());
+const { data: settings, reload: reloadSettings } = useLoad(() => getSettings());
 const { data: shifts } = useLoad(() => getShifts());
 // Ngày trả lương của tháng 12 năm trước rơi vào tháng 1 năm nay, nên tải cả hai năm rồi lọc theo năm đang xem.
-const { data: payDates } = useLoad(
+const { data: payDates, reload: reloadPayDates } = useLoad(
   async () => {
     const [prev, cur] = await Promise.all([getPayDays(year.value - 1), getPayDays(year.value)]);
     return payDatesIn(year.value, [...prev.items, ...cur.items]);
@@ -33,6 +39,27 @@ const { data: payDates } = useLoad(
 // Ngày trả lương đang hiệu lực ở tháng của getSettings.
 const payDay = computed(() => (settings.value ? settings.value.groups.payCalendar.values.payDay : null));
 const { hop, open, close } = useHop(['them-ngay-le']);
+
+// Thẻ "Ngày trả lương": ngày trả 1–28, áp dụng từ một tháng; lưu xong thì tải lại để các chấm ngày trả lương dời theo.
+const pay = useSettingsDraft('payCalendar', ['payDay']);
+const payDraftDay = computed(() => pay.draft.value.payDay as number | null);
+const payError = computed(() => pay.errors.value.payDay || '');
+const payHint = computed(() => payError.value || (pay.ready.value ? payDayHint(pay.month.value, payDraftDay.value as number) : ''));
+const payFoot = computed(() => {
+  const first = Object.values(pay.errors.value)[0];
+  if (first) return first;
+  const n = pay.changed.value.length;
+  return n ? `Có ${n} thay đổi chưa lưu` : 'Chưa có thay đổi';
+});
+const confirming = ref(false);
+async function confirmPay() {
+  const ok = await pay.save();
+  confirming.value = false;
+  if (ok) {
+    reloadPayDates();
+    reloadSettings();
+  }
+}
 
 const pickedDay = ref(''); // ngày bấm trên lịch → điền sẵn vào hộp Thêm ngày lễ
 const openHoliday = (iso = '') => {
@@ -180,13 +207,60 @@ const nextDay = (s?) => s.endTime < s.startTime;
         </table>
       </section>
 
-      <!-- Chỗ của thẻ "Ngày trả lương" (Task 4) và "Vùng chấm công" (Task 5). -->
+      <!-- Thẻ "Ngày trả lương" và chỗ của thẻ "Vùng chấm công" (Task 5). -->
       <div class="slots">
-        <section class="slot-pay-day"></section>
+        <section class="card pd">
+          <div class="card-h">
+            <h2>Ngày trả lương</h2>
+          </div>
+          <div v-if="pay.ready.value" class="pd-body">
+            <div class="pd-row">
+              <FieldNum
+                v-model="pay.draft.value.payDay"
+                label="Ngày trả lương hằng tháng"
+                integer
+                :max="28"
+                unit="hằng tháng"
+              />
+              <span class="pd-fix">Bắt đầu tính công: ngày 1</span>
+            </div>
+            <p class="pd-hint" :class="{ bad: payError }">{{ payHint }}</p>
+            <div class="pd-fld">
+              <label>Áp dụng từ tháng</label>
+              <SelectBox v-model="pay.month.value" variant="inp" :options="pay.months.value" label="Áp dụng từ tháng" />
+            </div>
+            <div class="pd-fld">
+              <label>Lý do <small>(không bắt buộc)</small></label>
+              <TextBox v-model="pay.reason.value" area :maxlength="REASON_MAX" label="Lý do" />
+              <small class="pd-count">{{ pay.reason.value.length }}/{{ REASON_MAX }}</small>
+            </div>
+          </div>
+          <div class="foot">
+            <span :class="{ bad: Object.keys(pay.errors.value).length }">{{ payFoot }}</span>
+            <button
+              type="button"
+              class="btn sm r"
+              :class="pay.canSave.value ? 'pri' : 'off'"
+              :disabled="!pay.canSave.value"
+              @click="confirming = true"
+            >
+              Lưu
+            </button>
+          </div>
+        </section>
         <section class="slot-zone"></section>
       </div>
     </div>
   </SettingsFrame>
+
+  <SaveConfirmDialog
+    v-if="confirming"
+    :lines="pay.lines.value"
+    :reason="pay.reason.value.trim()"
+    :saving="pay.saving.value"
+    @confirm="confirmPay"
+    @close="confirming = false"
+  />
 
   <HolidayDialog
     v-if="hop === 'them-ngay-le' && data"
@@ -320,5 +394,54 @@ const nextDay = (s?) => s.endTime < s.startTime;
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+.pd-body {
+  padding: 0 24px 16px;
+}
+.pd-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pd-fix {
+  color: var(--muted);
+  font-size: 13px;
+}
+.pd-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
+}
+.pd-hint.bad,
+.foot .bad {
+  color: var(--status-rejected);
+}
+.pd-fld {
+  margin-top: 14px;
+}
+.pd-fld label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.pd-fld label small,
+.pd-count {
+  font-weight: 400;
+  color: var(--muted);
+}
+.pd-count {
+  display: block;
+  text-align: right;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.pd .foot .btn {
+  margin-left: auto;
+}
+.pd :deep(.inp) {
+  border-radius: 8px;
 }
 </style>
