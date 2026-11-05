@@ -288,6 +288,16 @@ describe('settings service: per-person work week and attendance zone', () => {
     await rejectsField(svc.workWeeks('2026-13', NOW), 'month');
   });
 
+  it('skips a person whose type has no week in the month, even with an own week', async () => {
+    (mem as unknown as { staff: StaffRef[] }).staff.push({ uuid: 'u-x', username: 'zzz-x', type: 'zzz' });
+    await mem.writeWorkWeek({}, 'u-x', '2026-12', '[1,2,3]', { actor: 'admin', at: NOW.toISOString() });
+    const { weekdays } = await svc.workWeeks('2026-12', NOW);
+    assert.equal('zzz-x' in weekdays, false);
+    assert.deepEqual(Object.keys(weekdays), ['ctv-chau', 'nv-binh', 'tts-ha']);
+    // workWeekOf cũng không trả lời cho người này.
+    await assert.rejects(svc.reader.workWeekOf('u-x', '2026-12'));
+  });
+
   it('own week from a month, then back to the type week (Review Focus 4)', async () => {
     const before = await svc.getWorkWeek('nv-binh', '2026-12', NOW);
     assert.deepEqual(before, {

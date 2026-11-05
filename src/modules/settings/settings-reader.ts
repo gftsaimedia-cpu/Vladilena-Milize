@@ -92,9 +92,10 @@ export class SettingsReader {
     }
     const out: Record<string, number[]> = {};
     for (const s of staff) {
-      const ownWeekdays = parseWeekdays(own.get(s.uuid) ?? null);
-      const weekdays = ownWeekdays ?? typeWeeks.get(s.type) ?? null;
-      if (weekdays) out[s.username] = weekdays;
+      // Loại không có tuần ở tháng này thì bỏ qua, kể cả khi có tuần riêng (workWeekOf cũng không trả lời cho người đó).
+      const typeWeekdays = typeWeeks.get(s.type);
+      if (!typeWeekdays) continue;
+      out[s.username] = parseWeekdays(own.get(s.uuid) ?? null) ?? typeWeekdays;
     }
     return out;
   }
