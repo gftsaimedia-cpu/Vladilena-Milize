@@ -202,7 +202,8 @@ export class RequestsService {
       holidays: holidays.map(h => h.date),
       defaultShift: staff.defaultShift,
       schedules,
-      activeRequests: active
+      activeRequests: active,
+      claims: []
     });
     return { days, active };
   }

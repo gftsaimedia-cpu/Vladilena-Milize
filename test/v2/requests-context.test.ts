@@ -23,6 +23,7 @@ const nvDays = (input: Partial<EmployeeDaysInput> = {}) =>
     defaultShift: { startTime: '08:00', endTime: '17:00' },
     schedules: [],
     activeRequests: [],
+    claims: [],
     ...input
   });
 
@@ -40,7 +41,8 @@ test('shiftOf: holiday, then shift change, then schedule, then default', () => {
       { date: '2026-11-13', startTime: '09:00', endTime: '18:00', onLeave: false },
       { date: '2026-11-17', startTime: '08:00', endTime: '17:00', onLeave: true }
     ],
-    activeRequests: [shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING')]
+    activeRequests: [shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING')],
+    claims: []
   });
   assert.equal(days.shiftOf('2026-09-02'), null);
   assert.deepEqual(days.shiftOf('2026-11-12'), { startDate: '2026-11-12', startTime: '10:00', endTime: '19:00' });
@@ -115,6 +117,45 @@ test('windowsOn lists OT and makeup slots of the day', () => {
     { date: '2026-11-12', startTime: '18:00', endTime: '22:00', kind: 'OT' }
   ]);
   assert.deepEqual(days.windowsOn('2026-11-14'), []);
+});
+
+test('claimOn returns the day_status row of the date, or null', () => {
+  const row = {
+    employeeId: NV_UUID,
+    date: '2026-11-14',
+    status: 'ISAT',
+    requestId: 'isat-1',
+    baseRequestId: null,
+    requestStatus: 'APPROVED',
+    baseRequestStatus: null
+  } as const;
+  const days = nvDays({ claims: [row] });
+  assert.deepEqual(days.claimOn('2026-11-14'), row);
+  assert.equal(days.claimOn('2026-11-13'), null);
+  assert.equal(nvDays().claimOn('2026-11-14'), null);
+});
+
+test('windowSourcesOn names the request and status behind each window, with the same filter as windowsOn', () => {
+  const ot = otRequest('2026-11-12', '18:00', '22:00', 'APPROVED');
+  const lwm = lwmRequest('2026-11-10', '2026-11-10', [{ date: '2026-11-12', startTime: '06:00', endTime: '07:00' }]);
+  const days = nvDays({
+    activeRequests: [
+      ot,
+      lwm,
+      otRequest('2026-11-12', '20:00', '22:00', 'REJECTED'),
+      otRequest('2026-11-13', '18:00', '22:00', 'PENDING'),
+      otRequest('2026-11-12', '18:00', '22:00', 'PENDING', { otStartTime: null, otEndTime: null })
+    ]
+  });
+  assert.deepEqual(days.windowSourcesOn('2026-11-12'), [
+    { kind: 'MAKEUP', requestId: lwm.id, requestStatus: 'PENDING' },
+    { kind: 'OT', requestId: ot.id, requestStatus: 'APPROVED' }
+  ]);
+  assert.deepEqual(
+    days.windowSourcesOn('2026-11-12').map(s => s.kind),
+    days.windowsOn('2026-11-12').map(w => w.kind)
+  );
+  assert.deepEqual(days.windowSourcesOn('2026-11-14'), []);
 });
 
 test('withShiftOverride changes only the given days', () => {
