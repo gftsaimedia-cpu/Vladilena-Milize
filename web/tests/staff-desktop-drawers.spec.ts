@@ -118,8 +118,11 @@ test('resizing with a drawer open hands over to the phone sheet', async ({ page 
 });
 
 // F1: mở ngăn kéo là router.replace sang đường dẫn khác của cùng trang một trang, không được cuộn trang về đầu.
+// Chờ font tải xong rồi mới cuộn: font đổi làm hàng nhích 1px, Playwright coi là "chưa đứng yên",
+// bấm lại và tự cuộn trang trước khi bấm, nên test hỏng dù app không cuộn gì.
 const scrollToBottom = (page: import('@playwright/test').Page) =>
-  page.evaluate(() => {
+  page.evaluate(async () => {
+    await document.fonts.ready;
     window.scrollTo(0, document.documentElement.scrollHeight);
     return scrollY;
   });

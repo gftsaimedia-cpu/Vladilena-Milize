@@ -6,7 +6,7 @@ import { hashPassword } from '../../src/modules/employees/employees.service';
 import { createScriptedKysely, type ScriptedQuery } from './helpers/scripted-kysely';
 
 // Hồ sơ đang có, dựng qua chính service để đủ mọi phần.
-const service = new EmployeesService({} as any);
+const service = new EmployeesService({} as any, {} as any, {} as any);
 const existing = service.buildEmployeeFromInput({
   username: 'nam',
   password: 'Cu@123456',

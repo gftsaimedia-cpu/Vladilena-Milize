@@ -1,6 +1,6 @@
 // Hàm thuần đổi số sang chữ cho bản in phiếu lương A4: không tính tiền, chỉ định dạng.
 import type { A4Qty, A4Sheet, A4Stats } from '@/mock/payslip-a4';
-import { dm, dmy, num, vnd, vndSigned } from '@/utils/format';
+import { dm, dmy, monthShort, num, vnd, vndSigned } from '@/utils/format';
 
 /** null hoặc 0 → ô trống; còn lại là số giờ/ngày */
 export const blankNum = (n: number | null | undefined): string => (n == null || n === 0 ? '' : num(n));
@@ -27,9 +27,19 @@ export const actualText = (n: number | null): string | null => (n == null ? null
 /** điểm KPI: chưa có thì "—" */
 export const scoreText = (n: number | null): string => (n == null ? '—' : `${n}%`);
 
-/** dòng phụ của trang 1 */
+/** tiêu đề trang 1: chỉ phiếu đã duyệt là "chính thức", còn lại "tạm tính" */
+export const titleLine = (s: A4Sheet): string =>
+  `Phiếu lương tháng ${monthShort(s.month)} · ${s.slipStatus === 'done' ? 'chính thức' : 'tạm tính'}`;
+
+/** ô Tình trạng của trang 1: trạng thái phiếu */
+export const slipStateText = (st: A4Sheet['slipStatus']): string =>
+  ({ draft: 'Nháp', pending: 'Chờ duyệt', done: 'Đã duyệt', rejected: 'Bị từ chối' })[st];
+
+/** dòng phụ của trang 1; phiếu đã duyệt không còn ghi chú tạm tính (periodNote) */
 export const periodLine = (s: A4Sheet): string =>
-  `Từ ${dm(s.from)} đến ${dmy(s.to)} · ${s.periodNote} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
+  s.slipStatus === 'done'
+    ? `Từ ${dm(s.from)} đến ${dmy(s.to)} · công chuẩn theo quy chế: ${s.stdDays} ngày`
+    : `Từ ${dm(s.from)} đến ${dmy(s.to)} · ${s.periodNote} · công chuẩn theo quy chế: ${s.stdDays} ngày`;
 
 /** dòng xám ở đầu trang 2 */
 export const staffLine = (s: A4Sheet): string =>
