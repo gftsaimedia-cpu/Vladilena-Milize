@@ -192,7 +192,7 @@ CREATE TABLE staff (
     idorm      BIGINT NOT NULL DEFAULT 0,
     pass_hash  TEXT NOT NULL,
     created_at TEXT NOT NULL,
-    start_date TEXT, birthday TEXT, contract TEXT, insured BIGINT, dependants BIGINT NOT NULL DEFAULT 0, job_title TEXT, tax_on BIGINT, deduct_on BIGINT, advance_on BIGINT, locked_at TEXT, locked_by TEXT, session_version BIGINT NOT NULL DEFAULT 0, payroll_subject BIGINT, uuid TEXT UNIQUE, family_name TEXT, given_name TEXT, contract_status TEXT CHECK (contract_status IS NULL OR contract_status IN ('probation','official')), resigned_on TEXT, leave_balance DOUBLE PRECISION, leave_balance_on TEXT,
+    start_date TEXT, birthday TEXT, contract TEXT, insured BIGINT, dependants BIGINT NOT NULL DEFAULT 0, job_title TEXT, tax_on BIGINT, deduct_on BIGINT, advance_on BIGINT, locked_at TEXT, locked_by TEXT, session_version BIGINT NOT NULL DEFAULT 0, payroll_subject BIGINT, uuid TEXT UNIQUE, family_name TEXT, given_name TEXT, contract_status TEXT CHECK (contract_status IS NULL OR contract_status IN ('probation','official','tts','ctv','nghiviec')), resigned_on TEXT, leave_balance DOUBLE PRECISION, leave_balance_on TEXT,
     shift_type TEXT NOT NULL DEFAULT 'NORMAL',
     shift_start_time TEXT NOT NULL DEFAULT '08:00',
     shift_end_time TEXT NOT NULL DEFAULT '17:00',

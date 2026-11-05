@@ -167,13 +167,14 @@ export class EmployeesRepository {
       ? employee.contract.leave.remainingDays()
       : employee.contract.leave.totalDays - employee.contract.leave.usedDays;
 
+    // Thử việc/Chính thức lưu probation/official (phần lương đọc hai giá trị này); TTS, CTV, Nghỉ việc lưu nguyên mã.
     let dbContractStatus: string | null = null;
     if (employee.contract.status === 'thuviec' || (employee.contract.status as string) === 'probation') {
       dbContractStatus = 'probation';
     } else if (employee.contract.status === 'nv' || (employee.contract.status as string) === 'official') {
       dbContractStatus = 'official';
-    } else {
-      dbContractStatus = null;
+    } else if (['tts', 'ctv', 'nghiviec'].includes(employee.contract.status)) {
+      dbContractStatus = employee.contract.status;
     }
 
     return {
