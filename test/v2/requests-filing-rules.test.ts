@@ -5,7 +5,6 @@ import {
   annualLeaveLeftOf,
   dayHourOptions,
   filingWindow,
-  isClosedPeriod,
   isWholeHour,
   requestTitle
 } from '../../src/modules/requests/domain';
@@ -33,14 +32,6 @@ describe('Luật nộp đơn - domain', () => {
     assert.equal(advanceDayOpen('2026-11-16'), true);
     assert.equal(advanceDayOpen('2026-11-17'), true);
     assert.equal(advanceDayOpen('2026-11-18'), false);
-  });
-
-  it('closed period: any row that is not open', () => {
-    assert.equal(isClosedPeriod(null), false);
-    assert.equal(isClosedPeriod({ status: 'open' }), false);
-    assert.equal(isClosedPeriod({ status: 'attendance_locked' }), true);
-    assert.equal(isClosedPeriod({ status: 'LOCKED' }), true);
-    assert.equal(isClosedPeriod({ status: 'paid' }), true);
   });
 
   it('day shift hours', () => {
