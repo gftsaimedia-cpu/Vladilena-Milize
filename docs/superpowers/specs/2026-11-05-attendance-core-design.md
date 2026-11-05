@@ -49,6 +49,7 @@ Ví dụ dùng chung: Bình, nv bậc 1, lương cơ bản 6.000.000, công chu�
 | L18 | Thu nhập tạm tính của nhân viên chỉ tính ngày đã qua. | 05/11 | |
 | L19 | Loại nghỉ theo 6 nhóm. Nhóm trả lương (`payGroup`): PAID = Phép năm, Việc riêng có lương, Phúc lợi nội bộ; UNPAID = Việc riêng không lương, Không lương; SOCIAL_INSURANCE = Chế độ BHXH. | 04/11 (spec 1) | |
 | L20 | Làm lệch giờ so với lịch mà không có đơn đổi ca: không quyết ở đây (để AI agent sau này). Ngày đó vẫn đo theo lịch như bình thường. | 04/11 | |
+| L21 | Ca đêm: lần ra sáng hôm sau thuộc ngày bắt đầu ca. Lần **ra** không ghi ngày công, chấm trước 12:00 ngày D, thuộc ngày D−1 khi ca của ngày D−1 qua nửa đêm và ngày D−1 có lần vào mà chưa có lần ra. | 05/11 | Ca 22:00–07:00: vào 03/11 21:55, ra 04/11 07:05 → cả hai thuộc ngày 03/11, đúng giờ |
 
 ## 3. Các loại ngày
 
@@ -218,7 +219,7 @@ Mỗi lần gọi:
 
 | # | Thao tác | Ngày được ghi lại | Chỗ sửa |
 |---|---|---|---|
-| T1 | Chấm công (`recordPunch`) | ngày công đó | `attendance.service.ts`: bỏ `timesheet.calculate`, gọi `refreshDays` trong transaction có khoá |
+| T1 | Chấm công (`recordPunch`) | ngày công đó (ngày công của lần ra ca đêm theo L21) | `attendance.service.ts`: bỏ `timesheet.calculate`, gọi `refreshDays` trong transaction có khoá |
 | T2 | Nộp, duyệt, từ chối, huỷ đơn | ngày đơn giữ trong `day_status`; ngày OT (`ot_date`); ngày của khung bù; khoảng đổi ca; Thứ Bảy iSAT; ngày giải trình | `requests.service.ts`, trên cùng `trx`. Bỏ `updateDayStatus(..., 'VALID')` của giải trình. |
 | T3 | Thêm, thêm nhanh, xoá ngày lễ | ngày đó, cho mọi người còn làm việc ngày đó | `holidays.service.ts` |
 | T4 | Lưu hồ sơ nhân sự (ngày vào làm, nghỉ việc, loại, bậc, ca mặc định) | các tháng từ tháng nhỏ nhất của ngày vào làm hay nghỉ việc (cũ và mới) tới hết tháng hiện tại; các tháng đã khoá giữ nguyên nhờ `is_locked` | `employees.service.ts` |

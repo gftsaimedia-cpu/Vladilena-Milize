@@ -523,6 +523,7 @@ Năm tình huống spec ngầm đòi hỏi nhưng dễ lọt test. Mỗi dòng �
 - Dùng: `AttendanceDaysService`, `employeeLockKey` (Task 5).
 - Tạo ra:
   - `AttendanceService` nhận thêm `@Inject(AttendanceDaysService) days`.
+  - `workDateOfPunch(input: { at: Date; type: 'IN'|'OUT'; previousDay: { crossesMidnight: boolean; hasInWithoutOut: boolean } }): string` trong `src/modules/attendance/domain/punch-work-date.ts` (L21, người dùng chốt 05/11). Ngày D = `businessDateText(at)`. Trả D−1 khi `type === 'OUT'`, giờ VN của `at` trước 12:00, `previousDay.crossesMidnight` và `previousDay.hasInWithoutOut`; ngược lại trả D.
   - `recalculateMonth(employeeId: string, month: string): Promise<DailyTimesheetDTO[]>`.
   - `RecordPunchInput` bỏ `shiftConfig` (P5).
 
@@ -530,6 +531,15 @@ Năm tình huống spec ngầm đòi hỏi nhưng dễ lọt test. Mỗi dòng �
   - **Chấm ngày làm:** IN 08:40 và OUT 17:00 ngày 03/11 → kết quả có `timesheet.payUnits` 0 và `timesheet.dayStatus` `NEEDS_EXPLANATION`. Dòng trong DB là `PRESENT`.
   - **Chấm Chủ nhật:** IN ngày `2026-11-15` không có OT → dòng `REST`. `work_schedules` không có dòng nào của ngày đó (P5).
   - **Ngày nghỉ:** lịch `ON_LEAVE` → ném lỗi, không lưu lần chấm.
+  - **Ca đêm (L21):**
+    - pure `workDateOfPunch`:
+      - OUT 04/11 07:05, ngày trước qua nửa đêm và có vào chưa ra → `'2026-11-03'`;
+      - OUT 04/11 12:00 → `'2026-11-04'`;
+      - IN 04/11 07:05 → `'2026-11-04'`;
+      - ngày trước không qua nửa đêm → `'2026-11-04'`;
+      - ngày trước đã có lần ra → `'2026-11-04'`;
+    - real-PG: nhân sự ca NIGHT 22:00–07:00, chấm IN 03/11 21:55 rồi OUT 04/11 07:05, cả hai không truyền `workDate` → cả hai `punch_events.work_date` là `2026-11-03`; dòng 03/11 là `PRESENT`, `payUnits` 1, `cases` rỗng;
+    - có truyền `workDate` thì giữ nguyên ngày đó.
   - **Ngày đã khoá:** ném lỗi, không lưu lần chấm, dòng giữ nguyên.
   - **Tính lại:**
     - `recalculateTimesheet(uuid,'2026-11-03')` trả DTO của ngày;
@@ -547,6 +557,7 @@ Năm tình huống spec ngầm đòi hỏi nhưng dễ lọt test. Mỗi dòng �
   - Nếu lúc này `claude/settings-store-7d80cb` đã vào `main`: đưa `main` vào nhánh trước (như Task 12 bước 2). Giữ nguyên các chặn của họ trong `recordPunch` (`NOT_A_WORKDAY`, `OUTSIDE_ZONE`, `NO_LOCATION`, `hasApprovedWorkOn`, `workdayOf`, `DEFAULT_SHIFT`), đặt chúng bên trong khoá mới, trước bước lưu lần chấm.
   - `recordPunch` chạy trong `withLock(employeeLockKey(employeeId), trx => …)`.
   - Mọi truy vấn chạy trên `repo.withTransaction(trx)`.
+  - Ngày công khi không có `input.workDate` (L21): đọc dòng ngày D−1 bằng `findTimesheet` trên `trx`. `crossesMidnight` = giờ hết ca ≤ giờ vào ca của dòng đó; `hasInWithoutOut` = dòng có `actualCheckIn` mà không có `actualCheckOut`. Không có dòng thì cả hai là false. Rồi gọi `workDateOfPunch`. Khoá của nhân viên lấy trước bước này.
   - Thứ tự trong khoá:
     1. đọc lịch để chặn ngày `ON_LEAVE`;
     2. chặn ngày đã khoá;
