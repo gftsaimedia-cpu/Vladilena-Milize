@@ -12,7 +12,7 @@ import { PayrollFinalizedError } from '../../src/modules/payroll/payroll.errors'
 // makes its own temporary database, applies the migrations there and drops it at the end. It never touches any
 // other database.
 const CONTROL_URL = process.env.PG_TEST_URL;
-const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql', '0004_isat_registrations.sql', '0005_requests_rules.sql'];
+const SCHEMA = join(__dirname, '..', '..', 'migrations', 'postgres', 'schema.sql');
 const MONTH = '2026-10';
 const PARTIAL_MONTH = '2026-11';
 
@@ -39,9 +39,7 @@ test('PayrollRepository stores versioned draft runs on PostgreSQL', async t => {
     await client.connect();
     clientConnected = true;
 
-    for (const file of MIGRATIONS) {
-      await client.query(readFileSync(join(__dirname, '..', '..', 'migrations', 'postgres', file), 'utf8'));
-    }
+    await client.query(readFileSync(SCHEMA, 'utf8'));
 
     // One nv level-1 employee on a 'long' contract (always insured, progressive tax) with one worked day, one
     // approved OT request and a KPI row with a proposal.

@@ -2,62 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "sandbox",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/dev/sandbox-server.ts"],
-      "port": 3104
-    },
-    {
-      "name": "admin-demo",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3160"],
-      "port": 3160
-    },
-    {
-      "name": "sandbox-kiem-ui",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--no-warnings=ExperimentalWarning",
-        "-e",
-        "process.env.SANDBOX_PORT='3192';require('./scripts/dev/sandbox-server.ts')"
-      ],
-      "port": 3192
-    },
-    {
-      "name": "server-that",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "--env-file=data/test-that.env", "server.js"],
-      "port": 3000
-    },
-    {
-      "name": "server-that-demo",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "--env-file=data/test-that-demo.env", "server.js"],
-      "port": 3000
-    },
-    {
-      "name": "sandbox-moi",
-      "runtimeExecutable": "node",
-      "runtimeArgs": [
-        "--no-warnings=ExperimentalWarning",
-        "-e",
-        "process.env.SANDBOX_PORT='3200';require('./scripts/dev/sandbox-server.ts')"
-      ],
-      "port": 3200
-    },
-    {
-      "name": "demo-moi",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3205"],
-      "port": 3205,
-      "url": "http://127.0.0.1:3205"
-    },
-    {
-      "name": "demo-kiem-ui",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["--no-warnings=ExperimentalWarning", "scripts/db/demo/serve-demo.ts", "--port=3195"],
-      "port": 3195,
-      "url": "http://127.0.0.1:3195"
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "web", "run", "dev"],
+      "port": 5173
     }
   ]
 }

@@ -9,7 +9,7 @@ import { hashPassword } from '../../src/modules/employees/employees.service';
 // Cần PostgreSQL thật. PG_TEST_URL là kết nối điều khiển (vai trò được CREATE/DROP DATABASE): test tạo DB tạm,
 // chạy migration, dựng máy chủ HTTP thật trên cổng ngẫu nhiên, và xoá DB khi xong.
 const CONTROL_URL = process.env.PG_TEST_URL;
-const MIGRATIONS = ['0001_baseline.sql', '0002_seed.sql', '0003_payroll_rules.sql', '0004_isat_registrations.sql', '0005_requests_rules.sql'];
+const SCHEMA = join(__dirname, '..', '..', 'migrations', 'postgres', 'schema.sql');
 const PASS = 'Matkhau@123';
 
 test('xác thực qua HTTP trên PostgreSQL', async t => {
@@ -29,9 +29,7 @@ test('xác thực qua HTTP trên PostgreSQL', async t => {
   try {
     const client = new Client({ connectionString: tempUrl.toString() });
     await client.connect();
-    for (const file of MIGRATIONS) {
-      await client.query(readFileSync(join(__dirname, '..', '..', 'migrations', 'postgres', file), 'utf8'));
-    }
+    await client.query(readFileSync(SCHEMA, 'utf8'));
     const now = new Date().toISOString();
     for (const [username, role] of [['admin', 'admin'], ['nv1', 'staff']]) {
       await client.query(

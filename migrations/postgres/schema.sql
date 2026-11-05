@@ -1,5 +1,5 @@
--- Lược đồ chuẩn PostgreSQL cho hệ thống Lương Nhân Sự.
--- Gồm 20 bảng chuẩn nghiệp vụ (10 danh mục & cấu hình + 7 tính lương + 3 chấm công & yêu cầu V2).
+-- Lược đồ PostgreSQL của hệ thống Lương Nhân Sự: toàn bộ bảng, chỉ mục, trigger và dữ liệu gieo sẵn, trong một file.
+-- Chạy một lần trên DB trống. Đổi lược đồ thì sửa thẳng file này rồi dựng lại DB; không thêm file đánh số.
 -- Số liệu tiền dùng BIGINT; id tự tăng dùng IDENTITY; UUID dùng UUID hoặc TEXT; các ràng buộc toàn vẹn bảo vệ qua PL/pgSQL triggers.
 
 CREATE TABLE audit_log (
@@ -48,6 +48,7 @@ CREATE TABLE kpi_scores (           -- điểm 5 thành phần KPI, mỗi ngư�
     created_at  TEXT NOT NULL,
     updated_by  TEXT NOT NULL,
     updated_at  TEXT NOT NULL,
+    kpi_proposed BIGINT CHECK (kpi_proposed IS NULL OR kpi_proposed >= 0), -- lương KPI đề xuất của tháng (VND); NULL = chưa nhập
     PRIMARY KEY (username, month)
 );
 
@@ -222,30 +223,31 @@ CREATE TABLE system_requests (
     id UUID PRIMARY KEY,
     employee_id TEXT NOT NULL REFERENCES staff(uuid),
     title TEXT NOT NULL,
-    type TEXT NOT NULL CHECK (type IN ('LEAVE', 'TIME_CORRECTION', 'OVERTIME', 'ADVANCE', 'SHIFT_CHANGE', 'LEAVE_WITH_MAKEUP', 'EXPLANATION')),
+    type TEXT NOT NULL CHECK (type IN ('LEAVE', 'OVERTIME', 'ADVANCE', 'SHIFT_CHANGE', 'LEAVE_WITH_MAKEUP', 'EXPLANATION', 'ISAT')),
     reason TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')),
     reviewed_by TEXT REFERENCES staff(uuid),
     reviewed_at TIMESTAMPTZ,
     review_note TEXT,
-    leave_type TEXT CHECK (leave_type IS NULL OR leave_type IN ('PAID', 'UNPAID')),
+    leave_type TEXT CHECK (leave_type IS NULL OR leave_type IN
+      ('ANNUAL', 'PERSONAL_PAID', 'PERSONAL_UNPAID', 'SOCIAL_INSURANCE', 'WELFARE', 'UNPAID')),
     leave_start_date DATE,
     leave_end_date DATE,
     leave_days_count REAL,
-    correction_date DATE,
-    correction_punch_type TEXT CHECK (correction_punch_type IS NULL OR correction_punch_type IN ('IN', 'OUT')),
-    correction_actual_time TEXT,
+    explanation_date DATE,                  -- giải trình: ngày giải trình, giờ vào/ra thực tế
+    actual_check_in TEXT,
+    actual_check_out TEXT,
     ot_date DATE,
     ot_start_time TEXT,
     ot_end_time TEXT,
     ot_hours REAL,
     advance_amount BIGINT,
     advance_period TEXT,
-    new_shift_type TEXT,
+    new_shift_type TEXT CHECK (new_shift_type IS NULL OR new_shift_type IN ('NORMAL', 'FLEX', 'NIGHT')),
     new_start_time TEXT,
     new_end_time TEXT,
-    makeup_start_time TEXT,
-    makeup_end_time TEXT,
+    change_start_date DATE,                 -- đổi ca: khoảng ngày áp dụng
+    change_end_date DATE,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL
 );
@@ -306,6 +308,55 @@ CREATE TABLE timesheet_entries (
     CONSTRAINT uq_timesheet_emp_date UNIQUE(employee_id, work_date)
 );
 
+-- Đơn đăng ký iSAT (nghỉ Thứ Bảy) và điều kiện tự đánh giá chụp lúc nộp
+CREATE TABLE isat_registrations (
+  request_id       UUID PRIMARY KEY REFERENCES system_requests(id),
+  saturday         DATE NOT NULL,     -- Thứ Bảy đăng ký
+  full_name        TEXT NOT NULL,     -- chụp từ hồ sơ lúc nộp
+  team             TEXT NOT NULL,     -- người nộp gõ
+  position_type    TEXT NOT NULL,     -- chụp: 'nv'
+  position_level   BIGINT NOT NULL,   -- chụp: 2
+  level_name       TEXT,              -- chụp: 'Chuyên viên' (NULL nếu danh mục không có)
+  shift_type       TEXT NOT NULL,     -- chụp: 'NORMAL'
+  shift_start_time TEXT NOT NULL,     -- '08:00'
+  shift_end_time   TEXT NOT NULL      -- '17:00'
+);
+
+CREATE TABLE isat_registration_conditions (
+  request_id UUID    NOT NULL REFERENCES isat_registrations(request_id),
+  sort_order INTEGER NOT NULL CHECK (sort_order >= 1),  -- thứ tự hiển thị 1..4
+  code       TEXT    NOT NULL CHECK (length(code) > 0),  -- 'NO_VIOLATION'
+  label      TEXT    NOT NULL,                           -- nội dung lúc nộp
+  passed     BOOLEAN NOT NULL,
+  PRIMARY KEY (request_id, code)
+);
+
+-- Khung làm bù của đơn nghỉ có làm bù
+CREATE TABLE makeup_slots (
+  request_id   UUID    NOT NULL REFERENCES system_requests(id),
+  work_date    DATE    NOT NULL,
+  start_time   TEXT    NOT NULL,                          -- 'HH:mm', từ '06:00'
+  end_time     TEXT    NOT NULL,                          -- 'HH:mm', đến '22:00', sau start_time
+  work_minutes INTEGER NOT NULL CHECK (work_minutes > 0), -- giờ thực làm (§5.4)
+  PRIMARY KEY (request_id, work_date, start_time)
+);
+
+-- Trường hợp giải trình của đơn giải trình
+CREATE TABLE explanation_cases (
+  request_id UUID NOT NULL REFERENCES system_requests(id),
+  case_code  TEXT NOT NULL CHECK (case_code IN ('LATE_CHECK_IN','EARLY_CHECK_OUT','MISSING_CHECK_IN',
+               'MISSING_CHECK_OUT','EARLY_CHECK_IN','LATE_CHECK_OUT','FORGOT_CHECK_OUT')),
+  PRIMARY KEY (request_id, case_code)
+);
+
+-- Lịch lễ công ty
+CREATE TABLE company_holidays (
+  holiday_date DATE PRIMARY KEY,
+  name         TEXT NOT NULL CHECK (length(name) > 0),
+  created_by   TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Chỉ mục
 CREATE INDEX audit_action_at ON audit_log (action, at);
 CREATE INDEX audit_action_id ON audit_log (action, id);
@@ -331,6 +382,8 @@ CREATE INDEX idx_punch_events_emp_date ON punch_events(employee_id, work_date);
 CREATE INDEX idx_timesheet_entries_emp_date ON timesheet_entries(employee_id, work_date);
 CREATE INDEX idx_system_requests_emp ON system_requests(employee_id, status);
 CREATE INDEX idx_work_schedules_emp_date ON work_schedules(employee_id, work_date);
+CREATE INDEX idx_isat_registrations_saturday ON isat_registrations (saturday);
+CREATE INDEX idx_makeup_slots_work_date ON makeup_slots (work_date);
 
 -- Triggers & Functions
 CREATE FUNCTION audit_log_no_delete_fn() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -485,3 +538,113 @@ BEGIN
   RETURN NEW;
 END $$;
 CREATE TRIGGER staff_uuid_fixed BEFORE UPDATE OF uuid ON staff FOR EACH ROW EXECUTE FUNCTION staff_uuid_fixed_fn();
+
+-- ===== Dữ liệu gieo sẵn =====
+-- Danh mục quyền lợi/chức vụ/ca và các mốc đã chạy, chụp từ DB SQLite mới tinh ở G2.
+-- Mốc trong settings báo "không còn gì để nâng cấp": PostgreSQL bắt đầu từ lược đồ cuối cùng, không chạy các bước nâng cấp SQLite cũ.
+
+-- benefit_types: 14 dòng
+INSERT INTO benefit_types (code, label) VALUES ('ot', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('makeup', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('kpi', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('paidHoliday', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('paidLeave', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('isat', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('absenceDeclarable', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('approvedLeave', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('leaveAccount', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('makeupHours', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('makeupDay', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('holidayWork', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('idorm', NULL);
+INSERT INTO benefit_types (code, label) VALUES ('breakPay', NULL);
+
+-- position_types: 3 dòng
+INSERT INTO position_types (id, code, effective_month, name, workdays, flex_pct, night_pct, travel_pct, attendance_pct, regular_dows, makeup_dows, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (1, 'ctv', '2000-01', 'Chuyên trách viên', 26, 10, 30, 0, 0, '[1,2,3,4,5,6]', '[]', 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_types (id, code, effective_month, name, workdays, flex_pct, night_pct, travel_pct, attendance_pct, regular_dows, makeup_dows, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (2, 'nv', '2000-01', 'Nhân viên', 26, 20, 40, 15, 25, '[1,2,3,4,5,6]', '[]', 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_types (id, code, effective_month, name, workdays, flex_pct, night_pct, travel_pct, attendance_pct, regular_dows, makeup_dows, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (3, 'tts', '2000-01', 'Thực tập sinh', 22, 10, 30, 0, 0, '[1,2,3,4,5]', '[]', 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+SELECT setval(pg_get_serial_sequence('position_types', 'id'), (SELECT MAX(id) FROM position_types));
+
+-- position_type_benefits: 42 dòng
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'ot', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'makeup', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'kpi', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'paidHoliday', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'paidLeave', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'isat', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'absenceDeclarable', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'approvedLeave', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'leaveAccount', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'makeupHours', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'makeupDay', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'holidayWork', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'idorm', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (1, 'breakPay', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'ot', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'makeup', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'kpi', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'paidHoliday', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'paidLeave', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'isat', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'absenceDeclarable', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'approvedLeave', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'leaveAccount', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'makeupHours', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'makeupDay', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'holidayWork', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'idorm', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (2, 'breakPay', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'ot', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'makeup', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'kpi', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'paidHoliday', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'paidLeave', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'isat', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'absenceDeclarable', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'approvedLeave', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'leaveAccount', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'makeupHours', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'makeupDay', 1);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'holidayWork', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'idorm', 0);
+INSERT INTO position_type_benefits (type_id, benefit, enabled) VALUES (3, 'breakPay', 0);
+
+-- position_levels: 14 dòng
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (1, 'ctv', 1, '2000-01', 'Fresher', 6000000, 1500000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (2, 'ctv', 2, '2000-01', 'Practitioner', 6000000, 3000000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (3, 'ctv', 3, '2000-01', 'Advanced Practitioner', 6000000, 4500000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (4, 'ctv', 4, '2000-01', 'Senior Practitioner', 6000000, 6000000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (5, 'nv', 1, '2000-01', 'Nhân viên', 6000000, 6000000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (6, 'nv', 2, '2000-01', 'Chuyên viên', 6500000, 6500000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (7, 'nv', 3, '2000-01', 'Lead', 7000000, 7000000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (8, 'nv', 4, '2000-01', 'Advisor', 7500000, 7500000, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (9, 'tts', 1, '2000-01', 'Explorer', 1000000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (10, 'tts', 2, '2000-01', 'Learner', 1500000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (11, 'tts', 3, '2000-01', 'Trainee', 2000000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (12, 'tts', 4, '2000-01', 'Advanced Trainee', 3000000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (13, 'tts', 5, '2000-01', 'Senior Trainee', 4000000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO position_levels (id, type_code, level_no, effective_month, name, base_salary, kpi_max, night_pct, reason, updated_by, updated_at, rev) OVERRIDING SYSTEM VALUE VALUES (14, 'tts', 6, '2000-01', 'Practitioner in Training', 5000000, NULL, NULL, 'Nạp từ mặc định', 'system', '2026-10-31T08:38:56.093Z', 0);
+SELECT setval(pg_get_serial_sequence('position_levels', 'id'), (SELECT MAX(id) FROM position_levels));
+
+-- work_shifts: 6 dòng
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Normal1', 'n1', 'Normal 1', 'normal', 1, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Normal2', 'n2', 'Normal 2', 'normal', 2, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Flex1', 'f1', 'Flex 1', 'flex', 3, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Flex2', 'f2', 'Flex 2', 'flex', 4, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Night1', 'g1', 'Night 1', 'night', 5, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+INSERT INTO work_shifts (code, preset, name, kind, sort, deprecated, updated_by, updated_at, rev) VALUES ('Night2', 'g2', 'Night 2', 'night', 6, 0, 'system', '2026-10-31T08:38:56.093Z', 0);
+
+-- settings: 12 dòng
+INSERT INTO settings (key, value_json) VALUES ('attendance_split_v1', '{"at":"2026-10-31T08:38:56.077Z"}');
+INSERT INTO settings (key, value_json) VALUES ('params_mode', '"defaults-only"');
+INSERT INTO settings (key, value_json) VALUES ('backend_v4_v1a_v1', '{"at":"2026-10-31T08:38:56.081Z"}');
+INSERT INTO settings (key, value_json) VALUES ('staff_payroll_subject_v1', '{"at":"2026-10-31T08:38:56.081Z"}');
+INSERT INTO settings (key, value_json) VALUES ('staff_identity_v1', '{"at":"2026-10-31T08:38:56.086Z"}');
+INSERT INTO settings (key, value_json) VALUES ('position_catalog_v1', '{"at":"2026-10-31T08:38:56.094Z"}');
+INSERT INTO settings (key, value_json) VALUES ('staff_shift_codes_v1', '{"at":"2026-10-31T08:38:56.096Z"}');
+INSERT INTO settings (key, value_json) VALUES ('attendance_sessions_v1', '{"at":"2026-10-31T08:38:56.105Z"}');
+INSERT INTO settings (key, value_json) VALUES ('sheet_approvals_v1', '{"at":"2026-10-31T08:38:56.105Z","cutoffMonth":"2026-10","approved":0,"pending":0}');
+INSERT INTO settings (key, value_json) VALUES ('sheet_approvals_v2', '{"at":"2026-10-31T08:38:56.106Z","cutoffMonth":"2026-10","approved":0,"pending":0}');
+INSERT INTO settings (key, value_json) VALUES ('sheet_approvals_v3', '{"at":"2026-10-31T08:38:56.106Z","cutoffMonth":"2026-10","approved":0,"pending":0}');
+INSERT INTO settings (key, value_json) VALUES ('sheet_approvals_v4', '{"at":"2026-10-31T08:38:56.106Z","cutoffMonth":"2026-10","approved":0,"pending":0}');
+INSERT INTO settings (key, value_json) VALUES ('insurance_rates', '{"bhxh":0.08,"bhyt":0.015,"bhtn":0.01}'); -- tỷ lệ bảo hiểm người lao động đóng: BHXH 8% + BHYT 1,5% + BHTN 1%
