@@ -154,6 +154,7 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       assert.equal(slip.otPayTotal, 173_077);
       const details = (await repo.getPayslip(MONTH, UUID))?.details;
       assert.equal(details?.otPayTotal, 173_077);
+      assert.equal(details?.ot30Pay, 173_077);
       assert.equal(details?.dailyLines.find(l => l.date === '2026-10-10')?.otPay, 173_077);
     });
 

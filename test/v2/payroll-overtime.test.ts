@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   OT_MULTIPLIERS,
   measureOvertime,
+  otLinePayByRate,
   otLinePayOf,
   otMultiplierOf,
   otPayOf,
@@ -130,6 +131,19 @@ describe('OT pay of one day line', () => {
   it('rounds each multiplier separately and gives 0 without shares', () => {
     assert.equal(otLinePayOf([share(119 / 60, 1.5), share(1, 2)], HOUR_RATE), 85_817 + 57_692);
     assert.equal(otLinePayOf([], HOUR_RATE), 0);
+  });
+
+  it('splits the line pay by multiplier, each rounded once, and the line pay is their sum', () => {
+    assert.deepEqual(otLinePayByRate([share(50 / 60, 1.5), share(70 / 60, 1.5)], HOUR_RATE), {
+      x15: 86_538,
+      x20: 0,
+      x30: 0
+    });
+    const mixed = [share(119 / 60, 1.5), share(1, 2), share(2, 3)];
+    const byRate = otLinePayByRate(mixed, HOUR_RATE);
+    assert.deepEqual(byRate, { x15: 85_817, x20: 57_692, x30: 173_077 });
+    assert.equal(otLinePayOf(mixed, HOUR_RATE), byRate.x15 + byRate.x20 + byRate.x30);
+    assert.deepEqual(otLinePayByRate([], HOUR_RATE), { x15: 0, x20: 0, x30: 0 });
   });
 });
 

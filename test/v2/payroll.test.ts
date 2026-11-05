@@ -1271,6 +1271,10 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     assert.equal(lineOf(slip, '2026-10-07').otPay, 57_692);
     assert.equal(lineOf(slip, '2026-10-10').otPay, 115_385);
     assert.equal(slip.otPayTotal, 173_077);
+    assert.equal(slip.ot15Pay, 57_692);
+    assert.equal(slip.ot20Pay, 115_385);
+    assert.equal(slip.ot30Pay, 0);
+    assert.equal(slip.ot15Pay + slip.ot20Pay + slip.ot30Pay, slip.otPayTotal);
     assert.equal(
       slip.otPayTotal,
       slip.dailyLines.reduce((sum, l) => sum + l.otPay, 0)
@@ -1370,5 +1374,61 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     assert.equal(slip.otPayTotal, 143_509);
     assert.ok(Math.abs(slip.ot15Hours - 119 / 60) < 1e-9);
     assert.equal(slip.ot20Hours, 1);
+    assert.equal(slip.ot15Pay, 85_817);
+    assert.equal(slip.ot20Pay, 57_692);
+    assert.equal(slip.ot30Pay, 0);
+    assert.equal(slip.ot15Pay + slip.ot20Pay + slip.ot30Pay, slip.otPayTotal);
+  });
+
+  it('puts a holiday OT on the x3 pay', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-10', '08:00', '20:30')],
+      requests: [overtime('ot-1', '2026-10-10')],
+      holidayDates: ['2026-10-10']
+    });
+    assert.equal(slip.ot30Pay, 173_077);
+    assert.equal(slip.ot15Pay, 0);
+    assert.equal(slip.ot20Pay, 0);
+  });
+});
+
+describe('Payroll V2 - day rate and the real weekday of every day line', () => {
+  it('carries the day rate rounded from the base salary and the standard workdays', async () => {
+    const repo = new FakePayrollRepository();
+    repo.data.set('u1:2026-10', nvMonthData());
+    const slip = await new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    assert.equal(slip.dayRate, 230_769);
+    assert.equal(slip.toJSON().dayRate, 230_769);
+    assert.equal(slip.toJSON().ot15Pay, 0);
+  });
+
+  it('writes the weekday of the date on attendance, leave and iSAT lines', async () => {
+    const base = nvMonthData().timesheets[0];
+    const line = (workDate: string, shiftType = 'NORMAL') => ({ ...base, workDate, shiftType });
+    const repo = new FakePayrollRepository();
+    repo.data.set('u1:2026-10', {
+      ...nvMonthData(),
+      timesheets: [
+        line('2026-10-01'),
+        line('2026-10-02', 'LEAVE'),
+        line('2026-10-03'),
+        line('2026-10-04'),
+        line('2026-10-05')
+      ],
+      requests: [],
+      isatDates: ['2026-10-10']
+    });
+    const slip = await new PayrollService(repo).generateMonthlyPayslip('u1', '2026-10');
+    assert.deepEqual(
+      slip.dailyLines.map(l => [l.date, l.dayOfWeekText]),
+      [
+        ['2026-10-01', 'Thứ 5'],
+        ['2026-10-02', 'Thứ 6'],
+        ['2026-10-03', 'Thứ 7'],
+        ['2026-10-04', 'Chủ nhật'],
+        ['2026-10-05', 'Thứ 2'],
+        ['2026-10-10', 'Thứ 7']
+      ]
+    );
   });
 });

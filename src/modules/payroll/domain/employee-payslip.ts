@@ -11,7 +11,7 @@ import { PayrollWarning } from './payroll-warning';
 
 export interface DailyAttendanceLineProps {
   date: string; // YYYY-MM-DD
-  dayOfWeekText: string; // e.g. "Thứ 5, 01/10"
+  dayOfWeekText: string; // weekday of `date`: 'Thứ 2' ... 'Thứ 7', 'Chủ nhật'
   shiftCode: string; // 'NORMAL' | 'FLEX' | 'NIGHT' | 'LEAVE' | 'ISAT' | 'UNPAID' | ...
   shiftLabel: string; // 'Normal', 'Flex +20%', 'Night +40%', 'Nghỉ phép', 'iSAT', 'Không lương'
   inOutText: string; // real times "08:12–17:05", "08:12–—" when a side is missing, "Hưởng lương ngày", "Không tính lương"
@@ -39,6 +39,13 @@ export interface OtHoursByRate {
   x30?: number; // 300% rate
 }
 
+/** OT money by multiplier, summed from the day lines (each line rounds each multiplier once). */
+export interface OtPayByRate {
+  x15?: number;
+  x20?: number;
+  x30?: number;
+}
+
 export interface EmployeePayslipProps {
   employeeId: string;
   username?: string; // staff.username; default = employeeId
@@ -57,6 +64,7 @@ export interface EmployeePayslipProps {
   makeupWorkDates?: string[];
   dailyLines: DailyAttendanceLineProps[];
   otHoursByRate?: OtHoursByRate;
+  otPayByRate?: OtPayByRate;
   lateEarlyHours?: number;
   lateEarlyDeductionAmount?: number;
   kpi?: KpiPay; // default: no KPI pay
@@ -112,7 +120,11 @@ export interface EmployeePayslipDTO {
   ot15Hours: number;
   ot20Hours: number;
   ot30Hours: number;
+  ot15Pay: number;
+  ot20Pay: number;
+  ot30Pay: number;
   otPayTotal: number;
+  dayRate: number;
   attendanceAllowancePolicy: number;
   attendanceAllowanceActual: number;
   travelAllowancePolicy: number;
@@ -190,7 +202,11 @@ export class EmployeePayslip {
   readonly ot15Hours: number;
   readonly ot20Hours: number;
   readonly ot30Hours: number;
+  readonly ot15Pay: number;
+  readonly ot20Pay: number;
+  readonly ot30Pay: number;
   readonly otPayTotal: number;
+  readonly dayRate: number;
 
   // Block 4: Allowances (Policy vs Actual)
   readonly attendanceAllowancePolicy: number;
@@ -320,6 +336,10 @@ export class EmployeePayslip {
 
     // The pay is measured per day (see overtime-pay.ts); the total is the sum of the day lines.
     this.otPayTotal = this.dailyLines.reduce((sum, line) => sum + line.otPay, 0);
+    this.ot15Pay = props.otPayByRate?.x15 ?? 0;
+    this.ot20Pay = props.otPayByRate?.x20 ?? 0;
+    this.ot30Pay = props.otPayByRate?.x30 ?? 0;
+    this.dayRate = Math.round(dayRate);
 
     // Block 4: Allowances
     // Policy values
@@ -475,7 +495,11 @@ export class EmployeePayslip {
       ot15Hours: this.ot15Hours,
       ot20Hours: this.ot20Hours,
       ot30Hours: this.ot30Hours,
+      ot15Pay: this.ot15Pay,
+      ot20Pay: this.ot20Pay,
+      ot30Pay: this.ot30Pay,
       otPayTotal: this.otPayTotal,
+      dayRate: this.dayRate,
       attendanceAllowancePolicy: this.attendanceAllowancePolicy,
       attendanceAllowanceActual: this.attendanceAllowanceActual,
       travelAllowancePolicy: this.travelAllowancePolicy,

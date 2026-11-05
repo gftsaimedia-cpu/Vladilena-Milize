@@ -83,13 +83,28 @@ export function otPayOf(hours: number, hourRate: number, multiplier: OtMultiplie
   return Math.round(hours * hourRate * multiplier);
 }
 
-/** The OT pay of one day line: its shares are grouped by multiplier, and each group is rounded once. */
-export function otLinePayOf(shares: OtShare[], hourRate: number): number {
+/** The OT pay of one day line by multiplier (x1.5, x2, x3): the shares are grouped by multiplier, each group rounded once. */
+export function otLinePayByRate(shares: OtShare[], hourRate: number): { x15: number; x20: number; x30: number } {
   const hoursByMultiplier = new Map<OtMultiplier, number>();
   for (const share of shares) {
     hoursByMultiplier.set(share.multiplier, (hoursByMultiplier.get(share.multiplier) ?? 0) + share.hours);
   }
-  let pay = 0;
-  for (const [multiplier, hours] of hoursByMultiplier) pay += otPayOf(hours, hourRate, multiplier);
-  return pay;
+  const payOf = (multiplier: OtMultiplier) => otPayOf(hoursByMultiplier.get(multiplier) ?? 0, hourRate, multiplier);
+  return {
+    x15: payOf(OT_MULTIPLIERS.weekday),
+    x20: payOf(OT_MULTIPLIERS.weekend),
+    x30: payOf(OT_MULTIPLIERS.holiday)
+  };
+}
+
+/** The OT pay of one day line: the sum of its pay by multiplier. */
+export function otLinePayOf(shares: OtShare[], hourRate: number): number {
+  const byRate = otLinePayByRate(shares, hourRate);
+  return byRate.x15 + byRate.x20 + byRate.x30;
+}
+
+/** The Vietnam calendar weekday of a 'YYYY-MM-DD' date, as the payslip prints it: 'Thứ 2' ... 'Thứ 7', 'Chủ nhật'. */
+export function weekdayTextOf(date: string): string {
+  const weekday = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  return weekday === 0 ? 'Chủ nhật' : `Thứ ${weekday + 1}`;
 }

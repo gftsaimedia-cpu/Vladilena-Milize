@@ -74,8 +74,8 @@ Bản ghi phiếu: `username`, `status` (`draft` | `approved` | `rejected`), `ne
 | `from`, `to` | ngày đầu và ngày cuối của `month` |
 | `periodNote` | "bản nháp, chưa phải lương chính thức" cho phiếu `draft`, `pending`, `error`; rỗng cho phiếu `approved`; phiếu `rejected`: chưa quyết (mục 1) |
 | `stdDays` | `standardWorkdays` |
-| `dayRate` | BE không trả riêng. Lấy `daySalary` của dòng ngày đầu tiên có `daySalary > 0` (mọi dòng có lương đều bằng nhau). Không có dòng nào thì bỏ cụm "Lương ngày …" khỏi tiêu đề bảng |
-| `days[]` (mỗi `dailyLines[]`) | `date`; `label` ← `shiftLabel`; `in` ← `checkIn`; `out` ← `checkOut`; `hours` ← `workHours`; `ot` ← `otHours`; `adjust` ← `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` − `deductionAmount`; `total` ← `dailyTotal`; `makeup`, `note` ← `null` (BE chưa có). `mark`: `NORMAL`, `FLEX`, `NIGHT` → `work`; `LEAVE`, `ISAT` → `paid`; `UNPAID` → `unpaid`. `absent` và `pending` chưa có nguồn trong BE v2 |
+| `dayRate` | `dayRate` (BE tính sẵn = `round(baseSalaryPolicy ÷ standardWorkdays)`) |
+| `days[]` (mỗi `dailyLines[]`) | `date`; thứ trong ngày ← `dayOfWeekText` (BE ghi thứ thật: `Thứ 2` … `Thứ 7`, `Chủ nhật`; FE in nguyên chữ, không tự đổi `date` ra thứ); `label` ← `shiftLabel`; `in` ← `checkIn`; `out` ← `checkOut`; `hours` ← `workHours`; `ot` ← `otHours`; `adjust` ← `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` − `deductionAmount`; `total` ← `dailyTotal`; `makeup`, `note` ← `null` (BE chưa có). `mark`: `NORMAL`, `FLEX`, `NIGHT` → `work`; `LEAVE`, `ISAT` → `paid`; `UNPAID` → `unpaid`. `absent` và `pending` chưa có nguồn trong BE v2 |
 | `stats` | `workDays` ← `actualWorkDays`; `flex` ← `flexShiftCount`; `night` ← `nightShiftCount`; `paidLeave` ← `paidLeaveDays`; `isat` ← `isatDays`; `unpaid` ← `unpaidLeaveDays`; `otHours` ← `totalOtHours`; `lateHours` ← `lateEarlyHours`. `absent`, `pending`, `makeupHours`: chưa có nguồn, nên ẩn ba ô đó hoặc in "—" (agent thiết kế chọn) |
 | `groups`, `totals`, `net` | bảng dưới |
 | `leaveLeft` | `remainingAnnualLeaveDays`; có thể `null` |
@@ -91,7 +91,7 @@ Trang 2 (`groups`, `totals`):
 | Quyết toán phép dư | | | `leaveSettlementPay` |
 | iSAT | `isatDays` ngày | | `isatPay` |
 | Nghỉ lễ | `holidayPaidDays` ngày | | `holidayPay` |
-| OT ngày thường (×1,5) / cuối tuần (×2) / ngày lễ (×3) | `ot15Hours` / `ot20Hours` / `ot30Hours` giờ | | xem "Chưa quyết" |
+| OT ngày thường (×1,5) / cuối tuần (×2) / ngày lễ (×3) | `ot15Hours` / `ot20Hours` / `ot30Hours` giờ | | `ot15Pay` / `ot20Pay` / `ot30Pay` (ba số cộng lại bằng `otPayTotal`) |
 | Chuyên cần, Đi lại, Linh hoạt, Off Paid, Thưởng ca đêm | Đi lại: `actualWorkDays` ngày; Linh hoạt: `flexShiftCount` ca; Off Paid và Thưởng ca đêm: `nightShiftCount` ca | `attendanceAllowancePolicy`, `travelAllowancePolicy`, `flexAllowancePolicy`, `offPaidNightPolicy`, `nightAllowancePolicy` | `attendanceAllowanceActual`, `travelAllowanceActual`, `flexAllowanceActual`, `offPaidNightActual`, `nightAllowanceActual` |
 | Tổng phụ cấp | | | `totalAllowanceActual` |
 | Lương KPI | `kpiTotalScorePct` % | `kpiAppliedAmount` | `kpiActualPay` |
@@ -108,8 +108,6 @@ Trang 2 (`groups`, `totals`):
 - Lưới KPI (`A4KpiPart`): `kpiScores.wework` (40%), `.user` (24%), `.peer` (18%), `.manager` (12%), `.self` (6%); `null` in "—". Chỉ hiện nhóm KPI khi `kpiApplicable` là `true`.
 - Số lượng và tiền ở các dòng đều là số BE đã tính; FE chỉ ghép ô. Hàm `actualText` vẫn in "BE tính" khi một ô `null`.
 - Không có nguồn trong BE v2 nên bỏ khỏi bản in thật: các dòng "Chờ giải trình", "Không tính lương" và "Làm bù cho ngày nghỉ" của nhóm đầu và nhóm OT, cột Làm bù và Ghi chú của trang 1.
-
-Chưa quyết (hỏi người dùng trước khi làm phần này): trang 2 thiết kế mỗi hệ số OT một dòng có tiền (`A4Line.actual`), nhưng BE chỉ trả tiền OT gộp `otPayTotal` và giờ theo từng hệ số. Chưa có tiền theo từng hệ số. Hướng một: BE thêm ba trường tiền OT theo hệ số. Hướng hai: trang 2 giữ ba dòng chỉ có giờ và một dòng tổng tiền OT bằng `otPayTotal`.
 
 Phiếu tính trước khi BE thêm trường mới thiếu `employeeType`, `level`, `employmentStatus`, `checkIn`, `checkOut`: hiện "—" ở các ô tương ứng, không báo lỗi. Tính lương lại thì phiếu có đủ.
 

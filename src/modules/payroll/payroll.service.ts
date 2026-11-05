@@ -10,10 +10,11 @@ import {
   type Presence,
   measureOvertime,
   OT_MULTIPLIERS,
-  otLinePayOf,
+  otLinePayByRate,
   type OtShare,
   type OtWindow,
   type PresenceSpan,
+  weekdayTextOf,
   EmployeePayslipSummaryDTO,
   EmployeePayslipDTO,
   PayrollWarning,
@@ -241,6 +242,7 @@ export class PayrollService {
 
     const dailyLines: DailyAttendanceLineProps[] = [];
     let totalDeductionHours = 0;
+    const otPayByRate = { x15: 0, x20: 0, x30: 0 };
 
     for (const ts of timesheets) {
       if (isatDates.has(ts.workDate)) continue;
@@ -300,13 +302,17 @@ export class PayrollService {
 
       const lineShares = otSharesByLine.get(ts.workDate) ?? [];
       const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
-      const otPay = otLinePayOf(lineShares, hourRate);
+      const linePayByRate = otLinePayByRate(lineShares, hourRate);
+      otPayByRate.x15 += linePayByRate.x15;
+      otPayByRate.x20 += linePayByRate.x20;
+      otPayByRate.x30 += linePayByRate.x30;
+      const otPay = linePayByRate.x15 + linePayByRate.x20 + linePayByRate.x30;
 
       const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount;
 
       dailyLines.push({
         date: ts.workDate,
-        dayOfWeekText: 'Thứ 2 - Thứ 6',
+        dayOfWeekText: weekdayTextOf(ts.workDate),
         shiftCode,
         shiftLabel,
         inOutText,
@@ -328,7 +334,7 @@ export class PayrollService {
     for (const date of isatDates) {
       dailyLines.push({
         date,
-        dayOfWeekText: 'Thứ 7',
+        dayOfWeekText: weekdayTextOf(date),
         shiftCode: 'ISAT',
         shiftLabel: 'iSAT',
         inOutText: 'Hưởng lương ngày',
@@ -381,6 +387,7 @@ export class PayrollService {
       baseSalaryPolicy,
       dailyLines,
       otHoursByRate,
+      otPayByRate,
       lateEarlyHours: roundedLateEarlyHours,
       employeeType,
       level: staff.level,
