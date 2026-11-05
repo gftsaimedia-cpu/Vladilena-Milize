@@ -22,6 +22,9 @@ import {
   lastDayOfMonth,
   requireMakeupSlots,
   findShiftFrame,
+  requireExplanationCases,
+  optionalActualTime,
+  vietnamToday,
   type ClockWindow
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
@@ -90,13 +93,15 @@ export interface CreateAdvanceInput {
   period?: string;
 }
 
+/** Thân đơn giải trình (§6.5): ngày công, các trường hợp và giờ thực tế (không bắt buộc). */
 export interface CreateExplanationInput {
   employeeId: string;
   title: string;
   reason: string;
-  workDate: string;
-  actualCheckIn?: string | null;
-  actualCheckOut?: string | null;
+  workDate: unknown;
+  cases: unknown;
+  actualCheckIn?: unknown;
+  actualCheckOut?: unknown;
 }
 
 export interface CreateIsatInput {
@@ -480,17 +485,38 @@ export class RequestsService {
   }
 
   async createExplanationRequest(input: CreateExplanationInput): Promise<SystemRequestDTO> {
-    const req = SystemRequest.createExplanationRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      workDate: input.workDate,
-      actualCheckIn: input.actualCheckIn,
-      actualCheckOut: input.actualCheckOut
-    });
+    const workDate = requireDateText(input.workDate, 'workDate');
+    if (workDate > vietnamToday(this.now())) {
+      throw new Error('Không giải trình cho ngày trong tương lai');
+    }
+    const cases = requireExplanationCases(input.cases);
+    const actualCheckIn = optionalActualTime(input.actualCheckIn);
+    const actualCheckOut = optionalActualTime(input.actualCheckOut);
+    // Giải trình không phụ thuộc lịch làm việc nên không cần cấu hình loại nhân sự.
+    const staff = await this.resolveStaff(input.employeeId, monthOf(workDate));
 
-    await this.repo.save(req);
-    return req.toJSON();
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      // Một ngày một đơn: đơn đã bị từ chối vẫn chặn, đơn đã huỷ thì không.
+      const existing = await this.repo.list({ employeeId: staff.employeeId, type: 'EXPLANATION' });
+      const taken = existing.some(
+        r => r.explanationDate === workDate && (isActive(r) || r.status === 'REJECTED')
+      );
+      if (taken) {
+        throw new Error(`Ngày ${formatDayMonth(workDate)} đã có đơn giải trình`);
+      }
+
+      const req = SystemRequest.createExplanationRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        workDate,
+        cases,
+        actualCheckIn,
+        actualCheckOut
+      });
+      await this.repo.save(req);
+      return req.toJSON();
+    });
   }
 
   async createIsatRequest(input: CreateIsatInput): Promise<SystemRequestDTO> {

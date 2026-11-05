@@ -127,13 +127,15 @@ export interface CreateAdvanceParams {
   period: string;
 }
 
+/** Đơn giải trình (§6.5): ngày công, các trường hợp chọn (theo thứ tự danh mục) và giờ thực tế (null = không có). */
 export interface CreateExplanationParams {
   employeeId: string;
   title: string;
   reason: string;
   workDate: string;
-  actualCheckIn?: string | null;
-  actualCheckOut?: string | null;
+  cases: ExplanationCase[];
+  actualCheckIn: string | null;
+  actualCheckOut: string | null;
 }
 
 export interface CreateIsatParams {

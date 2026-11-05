@@ -19,7 +19,7 @@ import {
   SystemRequestDTO
 } from './types';
 import { IsatRegistration } from './isat';
-import type { ExplanationCase } from './explanation-cases';
+import { EXPLANATION_CASES, isExplanationCase, type ExplanationCase } from './explanation-cases';
 import { isLeaveType } from './leave-types';
 import { workMinutes } from './time-window';
 import { findShiftFrame } from './shift-frames';
@@ -109,6 +109,36 @@ export function requireMakeupSlots(value: unknown): MakeupSlotInput[] {
       return { date: s.date, startTime: s.startTime as string, endTime: s.endTime as string };
     })
     .sort(compareSlots);
+}
+
+/**
+ * Các trường hợp giải trình (§6.5 bước 2): mảng không rỗng, mã thuộc danh mục, không lặp.
+ * Trả về theo thứ tự của `EXPLANATION_CASES`.
+ */
+export function requireExplanationCases(value: unknown): ExplanationCase[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error('Cần chọn ít nhất 1 trường hợp giải trình');
+  }
+  const seen = new Set<ExplanationCase>();
+  for (const c of value) {
+    if (!isExplanationCase(c)) {
+      throw new Error(`Trường hợp giải trình không hợp lệ: ${String(c)}`);
+    }
+    if (seen.has(c)) {
+      throw new Error(`Trường hợp giải trình bị lặp: ${c}`);
+    }
+    seen.add(c);
+  }
+  return EXPLANATION_CASES.map(c => c.code).filter(code => seen.has(code));
+}
+
+/** Giờ thực tế của đơn giải trình: `undefined`, `null`, `''` → null; khác `HH:mm` → `Giờ thực tế không hợp lệ: …`. */
+export function optionalActualTime(value: unknown): string | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string' || !isValidTimeString(value)) {
+    throw new Error(`Giờ thực tế không hợp lệ: ${String(value)}`);
+  }
+  return value;
 }
 
 export class SystemRequest {
@@ -315,10 +345,10 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-
-    if (!isValidDateText(params?.workDate)) {
-      throw new Error(`workDate must be a valid YYYY-MM-DD date string, got: ${params?.workDate}`);
-    }
+    const workDate = requireDateText(params?.workDate, 'workDate');
+    const explanationCases = requireExplanationCases(params?.cases);
+    const actualCheckIn = optionalActualTime(params?.actualCheckIn);
+    const actualCheckOut = optionalActualTime(params?.actualCheckOut);
 
     const now = new Date();
     return new SystemRequest({
@@ -328,9 +358,10 @@ export class SystemRequest {
       type: 'EXPLANATION',
       reason,
       status: 'PENDING',
-      explanationDate: params.workDate,
-      actualCheckIn: params.actualCheckIn || null,
-      actualCheckOut: params.actualCheckOut || null,
+      explanationDate: workDate,
+      explanationCases,
+      actualCheckIn,
+      actualCheckOut,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,

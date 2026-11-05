@@ -70,6 +70,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'listLeaveTypes',
     'createLeaveWithMakeup',
     'createShiftChange',
+    'listExplanationCases',
     'listRequests',
     'getRequest',
     'reviewRequest',

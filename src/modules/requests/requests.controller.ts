@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { RequestsService } from './requests.service';
-import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES } from './domain';
+import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES, EXPLANATION_CASES } from './domain';
 
 // Các route này là của Admin làm thay nhân viên: người được thao tác phải ghi rõ, không suy ra từ phiên.
 function requireEmployeeId(body: any): string {
@@ -106,7 +106,16 @@ export class RequestsController {
   async createExplanation(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const request = await this.service.createExplanationRequest({ ...body, employeeId });
+      // `targetPunchType`/`actualPunchTime` của bản cũ không còn; chỉ chuyển các trường của §6.5.
+      const request = await this.service.createExplanationRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        workDate: body.workDate,
+        cases: body.cases,
+        actualCheckIn: body.actualCheckIn,
+        actualCheckOut: body.actualCheckOut
+      });
       return { created: true, request };
     } catch (err: any) {
       throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
@@ -142,6 +151,13 @@ export class RequestsController {
   @Get('leave-types')
   listLeaveTypes(): { leaveTypes: typeof LEAVE_TYPES } {
     return { leaveTypes: LEAVE_TYPES };
+  }
+
+  // 7 trường hợp giải trình cho form; khai báo trước @Get(':id') để 'explanation-cases' không bị bắt làm id
+  @RequireCap('requests.review')
+  @Get('explanation-cases')
+  listExplanationCases(): { cases: typeof EXPLANATION_CASES } {
+    return { cases: EXPLANATION_CASES };
   }
 
   @RequireCap('requests.review')

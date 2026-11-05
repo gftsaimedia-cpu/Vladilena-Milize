@@ -251,19 +251,25 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 ### 3.4. Requests Module (Đơn từ & Giải trình)
 
-#### `POST /api/v2/requests/explanation` (Tính năng Giải trình)
-- **Mục đích**: Nộp đơn giải trình khi đi muộn, về sớm hoặc quên chấm công.
+#### `POST /api/v2/requests/explanation` (Đơn giải trình)
+- **Mục đích**: Giải trình một ngày công có giờ chấm bất thường (vào muộn, ra sớm, thiếu giờ vào/ra…). Một ngày chỉ một đơn.
 - **Request Body**:
   ```json
   {
-    "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
-    "title": "Giải trình đi muộn do tắc đường cầu vượt",
+    "employeeId": "nv01",
+    "title": "Giải trình đi muộn do tắc đường",
     "reason": "Sự cố giao thông nghẽn làn kéo dài hơn 45 phút",
-    "targetDate": "2026-11-04",
-    "targetPunchType": "IN",
-    "actualPunchTime": "2026-11-04T09:05:00.000Z"
+    "workDate": "2026-11-04",
+    "cases": ["LATE_CHECK_IN"],
+    "actualCheckIn": "09:05",
+    "actualCheckOut": "17:30"
   }
   ```
+  - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
+  - `workDate` (`YYYY-MM-DD`): không được sau hôm nay (giờ Việt Nam).
+  - `cases`: ít nhất một mã ở `GET /api/v2/requests/explanation-cases`, không lặp. Server lưu theo thứ tự của danh mục.
+  - `actualCheckIn`, `actualCheckOut` (`HH:mm`, không bắt buộc): giờ vào/ra thực tế. Không gửi, `null` hoặc `""` thì lưu `null`.
+  - Các trường khác trong body (kể cả trường giờ chấm của bản cũ) không được chuyển đi.
 - **Response 201**:
   ```json
   {
@@ -272,8 +278,42 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
       "id": "req-uuid",
       "type": "EXPLANATION",
       "status": "PENDING",
-      "title": "Giải trình đi muộn do tắc đường cầu vượt"
+      "explanationDate": "2026-11-04",
+      "explanationCases": ["LATE_CHECK_IN"],
+      "actualCheckIn": "09:05",
+      "actualCheckOut": "17:30"
     }
+  }
+  ```
+- **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự):
+
+  | `message` | Khi nào |
+  |---|---|
+  | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
+  | `workDate must be a valid YYYY-MM-DD date string, got: <giá trị>` | Thiếu hoặc sai ngày |
+  | `Không giải trình cho ngày trong tương lai` | `workDate` sau hôm nay |
+  | `Cần chọn ít nhất 1 trường hợp giải trình` | `cases` không phải mảng hoặc rỗng |
+  | `Trường hợp giải trình không hợp lệ: <mã>` | Mã ngoài danh mục |
+  | `Trường hợp giải trình bị lặp: <mã>` | Một mã xuất hiện hai lần |
+  | `Giờ thực tế không hợp lệ: <giá trị>` | `actualCheckIn`/`actualCheckOut` có giá trị nhưng không phải `HH:mm` |
+  | `Không tìm thấy nhân sự: <id>` | Không có hồ sơ theo uuid/username (không cần cấu hình loại nhân sự) |
+  | `Ngày dd/mm đã có đơn giải trình` | Người đó đã có đơn giải trình cùng ngày đang chờ, đã duyệt hoặc **đã bị từ chối**. Đơn đã huỷ không chặn |
+- Nộp dưới khoá `requests_<uuid>`. Đơn và các trường hợp (bảng `explanation_cases`) được ghi trong cùng một giao dịch.
+- **Duyệt**: `APPROVE` đặt trạng thái ngày công `workDate` của người đó thành `VALID`; `REJECT` không đổi gì.
+
+#### `GET /api/v2/requests/explanation-cases` (Danh sách trường hợp giải trình)
+- **Response 200**: 7 trường hợp theo thứ tự hiển thị.
+  ```json
+  {
+    "cases": [
+      { "code": "LATE_CHECK_IN", "label": "Vào muộn quá 15 phút" },
+      { "code": "EARLY_CHECK_OUT", "label": "Ra sớm" },
+      { "code": "MISSING_CHECK_IN", "label": "Thiếu giờ vào" },
+      { "code": "MISSING_CHECK_OUT", "label": "Thiếu giờ ra" },
+      { "code": "EARLY_CHECK_IN", "label": "Vào sớm quá 15 phút" },
+      { "code": "LATE_CHECK_OUT", "label": "Ra muộn quá 15 phút khi không có OT" },
+      { "code": "FORGOT_CHECK_OUT", "label": "Quên check-out (ra muộn quá 30 phút)" }
+    ]
   }
   ```
 

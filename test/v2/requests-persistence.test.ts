@@ -134,9 +134,9 @@ test('temporary factories fill the new fields', () => {
   assert.deepEqual([shift.changeStartDate, shift.changeEndDate, shift.leaveStartDate], ['2026-11-13', '2026-11-13', null]);
 
   const explanation = SystemRequest.createExplanationRequest({ employeeId: 'u1', title: 't', reason: 'r',
-    workDate: '2026-11-04', actualCheckIn: '08:20', actualCheckOut: '17:40' }).toJSON();
-  assert.deepEqual([explanation.explanationDate, explanation.actualCheckIn, explanation.actualCheckOut],
-    ['2026-11-04', '08:20', '17:40']);
+    workDate: '2026-11-04', cases: ['LATE_CHECK_IN'], actualCheckIn: '08:20', actualCheckOut: '17:40' }).toJSON();
+  assert.deepEqual([explanation.explanationDate, explanation.explanationCases, explanation.actualCheckIn, explanation.actualCheckOut],
+    ['2026-11-04', ['LATE_CHECK_IN'], '08:20', '17:40']);
 });
 
 test('save writes a leave-with-makeup request and its slots in one transaction', async () => {
