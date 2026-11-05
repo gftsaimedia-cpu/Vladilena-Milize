@@ -35,7 +35,11 @@ const JSON_MAX = 65536;
 const SENSITIVITIES: readonly string[] = ['normal', 'pay', 'pii'];
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 // Lưới an toàn: băm mật khẩu, token phiên, toạ độ không được vào nhật ký.
-const SECRET = /scrypt\$|pass(word)?_?hash|session_?(token|secret)|"(lat|lng)"\s*:/i;
+const SECRET = /scrypt\$|pass(word)?_?hash|session_?(token|secret)/i;
+const COORDINATES = /"(lat|lng)"\s*:/i;
+// Ngoại lệ duy nhất (người dùng chốt 2026-11-05): đổi vùng chấm công ghi tâm cũ/mới. Toạ độ chấm công của nhân viên vẫn bị chặn.
+const mayCarryCoordinates = (f: Pick<AuditFields, 'action' | 'entity_kind' | 'entity_id'>) =>
+  f.action === 'setting.set' && f.entity_kind === 'setting' && f.entity_id === 'attendance-zone';
 
 export function toAuditFields(entry: AuditEntry): AuditFields {
   const fail = (why: string): never => {
@@ -96,7 +100,9 @@ export function toAuditFields(entry: AuditEntry): AuditFields {
 
   // Quét chuỗi gốc đã lưu, không quét mảng đã stringify (dấu ngoặc kép sẽ bị thoát).
   const scanned = [fields.before_json, fields.after_json, fields.reason, fields.entity_id].join('\n');
-  if (SECRET.test(scanned)) fail('nội dung chứa dữ liệu bí mật hoặc toạ độ, không được ghi');
+  if (SECRET.test(scanned) || (COORDINATES.test(scanned) && !mayCarryCoordinates(fields))) {
+    fail('nội dung chứa dữ liệu bí mật hoặc toạ độ, không được ghi');
+  }
   return fields;
 }
 

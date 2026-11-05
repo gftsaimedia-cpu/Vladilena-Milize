@@ -72,7 +72,7 @@ const headingId = useId();
     </div>
     <div class="end">
       <div>
-        <span class="lb">Ngày phép năm còn lại</span> <b>{{ sheet.leaveLeft }} ngày</b>
+        <span class="lb">Ngày phép năm còn lại</span> <b>{{ sheet.leaveLeft == null ? '—' : `${sheet.leaveLeft} ngày` }}</b>
       </div>
       <div class="sign">
         <b>Người nhận</b><span class="lb">Ký, ghi rõ họ tên</span>

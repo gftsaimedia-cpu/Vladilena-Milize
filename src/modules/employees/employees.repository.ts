@@ -2,6 +2,7 @@ import { Injectable, Inject } from '@nestjs/common';
 import crypto from 'node:crypto';
 import type { Insertable, Kysely, Selectable } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
+import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import {
   Employee,
   EmployeeProfile,
@@ -90,10 +91,10 @@ export class EmployeesRepository {
 
     const startTime = (row.shift_start_time && TIME_REGEX.test(String(row.shift_start_time).trim()))
       ? String(row.shift_start_time).trim()
-      : '08:00';
+      : DEFAULT_SHIFT.startTime;
     const endTime = (row.shift_end_time && TIME_REGEX.test(String(row.shift_end_time).trim()))
       ? String(row.shift_end_time).trim()
-      : '17:00';
+      : DEFAULT_SHIFT.endTime;
 
     let allowancePct = 0;
     if (shiftType === 'NORMAL') {

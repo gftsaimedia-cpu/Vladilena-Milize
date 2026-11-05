@@ -310,6 +310,19 @@ test('clicking a name opens that payslip', async ({ page }) => {
   await expect(page).toHaveURL(URL10);
 });
 
+// Ô Tình trạng: trạng thái nhân sự kèm nhãn hợp đồng; phép còn lại null (không có tài khoản phép) ghi "—", không "null".
+test('the drawer shows the staff status with the contract, and "—" for no leave account', async ({ page }) => {
+  await page.goto(`${URL10}&phieu=GFT-0101`);
+  const ha = slip(page, 'Nguyễn Thu Hà');
+  await expect(ha.locator('.pd-info > div').nth(1)).toHaveText(/Tình trạng\s*Chính thức · HĐLĐ từ 3 tháng/);
+  await expect(line(ha, /^Ngày phép năm còn lại/)).toContainText('12 ngày');
+  await page.goto(`${URL10}&phieu=GFT-0172`);
+  const tam = slip(page, 'Lý Thanh Tâm');
+  await expect(tam.locator('.pd-info > div').nth(1)).toHaveText(/Tình trạng\s*Thử việc · HĐLĐ từ 3 tháng/);
+  await expect(line(tam, /^Ngày phép năm còn lại/).getByRole('cell').last()).toHaveText('—');
+  await expect(tam).not.toContainText('null');
+});
+
 test('previous and next walk the rows shown when the slip opened', async ({ page }) => {
   await page.goto(URL10);
   await openSlip(page, 'Lê Hoàng Nam');
@@ -390,6 +403,17 @@ test('KPI group order: score cells first, then total, flag, pay, then history', 
   expect(texts[3]).toMatch(/^Thiếu điểm Tự đánh giá/);
   expect(texts[4]).toMatch(/^Lương KPI \(đề xuất/);
   expect(texts[5]).toBe('SLOT-HISTORY');
+});
+
+// BUG-payroll-8: loại nhân sự không có KPI (tts, kpiApplicable false) thì không có nhóm Lương KPI, kể cả 5 ô nhập điểm.
+test('a slip with no KPI has no KPI group and no score inputs', async ({ page }) => {
+  await page.goto(`${SUMMARY}?slots=1&nokpi=1&id=GFT-0142`);
+  await expect(page.getByRole('rowheader', { name: 'Ngày công và lương cơ bản' })).toBeVisible();
+  await expect(page.getByRole('rowheader', { name: 'Lương KPI', exact: true })).toHaveCount(0);
+  await expect(page.getByText('SLOT-KPI')).toHaveCount(0);
+  await expect(page.getByText('SLOT-HISTORY')).toHaveCount(0);
+  await expect(page.getByRole('rowheader', { name: /^Tổng điểm KPI/ })).toHaveCount(0);
+  await expect(page.getByRole('rowheader', { name: 'Đi muộn, về sớm, ra ngoài' })).toBeVisible();
 });
 
 test('KPI group renders no slot rows when the slots are empty', async ({ page }) => {

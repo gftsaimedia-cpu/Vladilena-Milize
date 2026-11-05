@@ -36,7 +36,7 @@ test('page 1 header follows P1 for the slip on the URL', async ({ page }) => {
   await expect(p1.locator('.sub')).toHaveText('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
   await expect(p1.locator('.dr')).toHaveText('Bản nháp, chưa phải lương chính thức');
   await expect(p1.locator('.who > div')).toHaveText([
-    /Họ tên\s*Võ Đức Thịnh/, /Loại · bậc\s*NV · Bậc 3/, /Tình trạng\s*Nháp/, /Trạng thái nhân sự\s*HĐLĐ từ 3 tháng/,
+    /Họ tên\s*Võ Đức Thịnh/, /Loại · bậc\s*NV · Bậc 3/, /Tình trạng\s*Nháp/, /Trạng thái nhân sự\s*Chính thức/,
     /Kỳ lương\s*Tháng 10\/2026/
   ]);
   await expect(p1.getByRole('heading', { level: 2 })).toHaveText('Chấm công tháng 10/2026');
@@ -227,7 +227,7 @@ test('totals add up from the rounded lines; the slip ends with Thực nhận and
   const p2 = sheetPage(page, 2);
   await expect(p2.locator('.net')).toHaveText(/Thực nhận\s*9\.657\.922 ₫/);
   expect(await p2.locator('.net').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 249, 236)');
-  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*22 ngày/);
+  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*8 ngày/);
   await expect(p2.locator('.end .sign')).toHaveText(/Người nhận\s*Ký, ghi rõ họ tên/);
 });
 

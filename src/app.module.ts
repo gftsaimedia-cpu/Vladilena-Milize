@@ -10,6 +10,7 @@ import { PayrollModule } from './modules/payroll';
 import { SystemModule } from './modules/system';
 import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
+import { SettingsModule } from './modules/settings';
 import { AuditModule } from './modules/audit';
 
 @Module({
@@ -25,6 +26,7 @@ import { AuditModule } from './modules/audit';
     SystemModule,
     MeModule,
     PositionsModule,
+    SettingsModule,
     AuditModule,
   ],
 })
