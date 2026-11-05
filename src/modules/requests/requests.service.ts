@@ -711,6 +711,10 @@ export class RequestsService {
     });
 
     const saturday = req.isat!.saturday;
+    // Luật người dùng chốt 2026-11-05: iSAT đăng ký trước, nên Thứ Bảy đã qua và chính hôm nay đều bị từ chối.
+    if (saturday <= vietnamToday(this.now())) {
+      throw new Error('Chỉ đăng ký iSAT cho Thứ Bảy sắp tới');
+    }
     const staff = await this.resolveStaff(profile.employeeId, monthOf(saturday));
 
     return this.underEmployeeLock(staff.employeeId, async stores => {

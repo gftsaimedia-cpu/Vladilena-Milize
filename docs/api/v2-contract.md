@@ -607,7 +607,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```
   - `employeeId`: tuỳ chọn, là `uuid` hoặc `username`; bỏ trống thì lấy người đăng nhập. Đơn luôn được lưu theo `uuid` của nhân sự, dù gửi `username`.
     - Vì `employee_id` là `uuid`, `GET /api/v2/requests?employeeId=<username>` và `PATCH /api/v2/requests/:id/cancel` từ phiên đăng nhập (username) đều tự đổi username sang `uuid` của nhân sự: danh sách trả cả đơn iSAT lẫn các loại đơn khác của người đó, và tác giả huỷ được đơn của mình.
-  - `saturday`: ngày `YYYY-MM-DD` hợp lệ và phải là Thứ Bảy.
+  - `saturday`: ngày `YYYY-MM-DD` hợp lệ và phải là Thứ Bảy **sắp tới**: sau hôm nay theo giờ Việt Nam. Thứ Bảy đã qua và chính hôm nay đều bị từ chối, vì iSAT phải đăng ký trước. Màn nộp đơn chỉ nên cho chọn các Thứ Bảy sắp tới.
   - `team`: chuỗi không rỗng (cắt khoảng trắng hai đầu).
   - `conditions`: object `{mã: true|false}` theo mã ở `GET /api/v2/requests/isat/conditions`. Không gửi, thiếu mã hoặc giá trị `null` đều tính **Chưa đạt**.
   - Các trường khác trong body không được chuyển đi.
@@ -642,7 +642,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | 5 | `conditions phải là object {mã: true\|false}` | `conditions` gửi lên nhưng là mảng, chuỗi, số... |
   | 5 | `Mã điều kiện iSAT không hợp lệ: <mã>` | `conditions` có mã ngoài 4 mã của `GET .../isat/conditions` |
   | 5 | `Giá trị điều kiện <mã> phải là true, false hoặc null` | Giá trị điều kiện khác `true`/`false`/`null` (ví dụ chuỗi `"true"`) |
-  | 6 | `Đã có đơn iSAT cho Thứ Bảy DD/MM/YYYY` | Người đó đã có đơn iSAT `PENDING` hoặc `APPROVED` cho cùng Thứ Bảy (kể cả khi đơn mới sẽ tự `REJECTED`). Đơn đã `REJECTED`, kể cả tự đánh giá chưa đạt, không chặn |
+  | 6 | `Chỉ đăng ký iSAT cho Thứ Bảy sắp tới` | `saturday` là hôm nay hoặc trước hôm nay (giờ Việt Nam), kể cả khi đơn sẽ tự `REJECTED`. Ví dụ: T7 07/11 lúc 09:00 thì 31/10 và 07/11 bị từ chối, 14/11 được nhận |
+  | 7 | `Đã có đơn iSAT cho Thứ Bảy DD/MM/YYYY` | Người đó đã có đơn iSAT `PENDING` hoặc `APPROVED` cho cùng Thứ Bảy (kể cả khi đơn mới sẽ tự `REJECTED`). Đơn đã `REJECTED`, kể cả tự đánh giá chưa đạt, không chặn |
 
 #### `GET /api/v2/requests/isat/conditions` (Danh sách điều kiện iSAT)
 - **Response 200**: 4 điều kiện theo thứ tự hiển thị trên form.
