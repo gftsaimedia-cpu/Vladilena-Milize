@@ -1,30 +1,46 @@
 <script setup lang="ts">
-// Hộp "Hoàn tác": đưa một hay nhiều ô về số cũ bằng một lần lưu thường (máy chủ thêm dòng lịch sử mới).
-// Liệt kê các ô sẽ đổi theo hướng số hiện tại → số cũ; chọn tháng áp dụng (từ tháng đang mở), lý do không bắt buộc.
+// Hộp "Hoàn tác": đưa ô của một dòng lịch sử về số cũ bằng một lần lưu thường (máy chủ thêm dòng lịch sử mới).
+// Tháng áp dụng mặc định là tháng của dòng, không trước minMonth. Các câu so số sẽ gửi với số của nhóm ở tháng đang chọn
+// trong hộp (đổi tháng thì tải nhóm ở tháng đó); dòng trọng số KPI gửi đủ năm số cũ nên mọi trọng số sẽ đổi đều có câu.
 // Lưu xong hoặc gặp lỗi stale (đã tải lại ở màn) thì báo `done` để màn tải lại nhóm và lịch sử.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import AppModal from '@/components/ui/AppModal.vue';
-import { confirmLines, GROUP_PATH, type GroupKey, type Values } from '@/builders/api/settings';
-import { isStale, saveSettingsGroup, STALE_TEXT } from '@/services/settings-store';
+import { GROUP_PATH, type GroupKey, type HistoryItem, type Values } from '@/builders/api/settings';
+import { revertLines, revertMonth, revertValues } from '@/builders/api/settings-screens';
+import { getSettings, isStale, saveSettingsGroup, STALE_TEXT } from '@/services/settings-store';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
 import { REASON_MAX } from '../lib/rules';
 
 const props = defineProps({
   group: { type: String as () => GroupKey, required: true },
-  values: { type: Object as () => Values, required: true }, // các số sẽ gửi
-  current: { type: Object as () => Values, required: true }, // các số đang hiện ở màn
+  row: { type: Object as () => HistoryItem, required: true }, // dòng lịch sử cần hoàn tác
+  values: { type: Object as () => Values, required: true }, // số của nhóm ở tháng mặc định (màn đã tải sẵn)
   stamp: { type: Number, required: true },
   months: { type: Array as () => { value: string; label: string }[], required: true },
-  month: { type: String, required: true }
+  minMonth: { type: String, required: true }
 });
 const emit = defineEmits(['close', 'done']);
 
-const month = ref(props.month);
+const month = ref(revertMonth(props.row, props.minMonth));
 const reason = ref('');
 const saving = ref(false);
-const lines = computed(() => confirmLines(props.group, props.current, props.values, month.value));
+
+// Số của nhóm ở `month`; null trong lúc tải tháng vừa chọn (khi đó chưa có câu nào, nút Hoàn tác tắt).
+const at = ref<Values | null>(props.values);
+let seq = 0;
+watch(month, async m => {
+  const mine = ++seq;
+  at.value = null;
+  try {
+    const s = await getSettings(m);
+    if (mine === seq) at.value = s.groups[props.group].values;
+  } catch (e) {
+    if (mine === seq) toast.error(e.message);
+  }
+});
+const lines = computed(() => (at.value ? revertLines(props.group, props.row, at.value, month.value) : []));
 
 async function submit() {
   if (saving.value || !lines.value.length) return;
@@ -32,7 +48,7 @@ async function submit() {
   try {
     await saveSettingsGroup(GROUP_PATH[props.group], {
       effectiveMonth: month.value,
-      values: props.values,
+      values: revertValues(props.row),
       reason: reason.value.trim() || null,
       stamp: props.stamp
     });

@@ -2,6 +2,7 @@
 import { monthShort, num, vnd } from '../../utils/format';
 import { inForce, type LevelRow, type TypeRow } from './catalog';
 import {
+  confirmLines,
   FIELD_LABEL,
   fieldText,
   isEdited,
@@ -440,6 +441,18 @@ export function searchSettings(q: string): { groupKey: string; itemKey: string; 
  */
 export function revertValues(row: HistoryItem): Values {
   return row.field === 'weights' ? { ...row.from } : { [row.field]: row.from };
+}
+
+/** Tháng áp dụng mặc định khi hoàn tác `row`: tháng áp dụng của dòng, nhưng không trước `minMonth`. */
+export const revertMonth = (row: HistoryItem, minMonth: string): string =>
+  row.month && row.month > minMonth ? row.month : minMonth;
+
+/**
+ * Các câu của hộp Hoàn tác khi áp dụng từ `month`: mỗi ô mà số sẽ gửi khác số của nhóm ở tháng đó (`values`) là một câu,
+ * số cũ là số của tháng đó. Trọng số KPI gửi đủ năm ô nên mọi trọng số sẽ đổi đều có câu. Trống = không có gì để hoàn tác.
+ */
+export function revertLines(group: GroupKey, row: HistoryItem, values: Values, month: string): string[] {
+  return confirmLines(group, values, revertValues(row), month);
 }
 
 /** Một dòng lịch sử của mục: chữ hiện (historyRow), dòng gốc để hoàn tác, và có hoàn tác được ngay không. */

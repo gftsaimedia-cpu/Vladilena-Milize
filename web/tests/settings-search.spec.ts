@@ -235,6 +235,8 @@ test('Hoàn tác adds a new history row', async ({ page }) => {
   await expect(page.getByText('Đã hoàn tác')).toBeVisible();
   await expect(bhxh.locator('tbody tr')).toHaveCount(2);
   await expect(bhxh.locator('tbody tr').first()).toContainText('8,5% → 8%');
+  // Dòng đầu đưa về 8, mà 10/2026 đang là 8: không còn gì để hoàn tác nên nút tắt.
+  await expect(bhxh.locator('tbody tr').nth(1).getByRole('button', { name: 'Hoàn tác' })).toBeDisabled();
   await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
   await bhxh.getByRole('button', { name: 'Ẩn lịch sử' }).click();
   await expect(bhxh.locator('tbody tr')).toHaveCount(0);

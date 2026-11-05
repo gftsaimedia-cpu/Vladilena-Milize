@@ -4,9 +4,15 @@
 // Báo lên trang qua `dirty` để trang hỏi trước khi bỏ chỗ sửa dở. `setting` là mục cần cuộn tới và focus.
 import { computed, nextTick, ref, watch } from 'vue';
 import { GROUP_PATH, historyFields, historyRow, type HistoryItem, type Values } from '@/builders/api/settings';
-import { revertValues, type HistoryRowView, type SettingEntry, type SettingGroup } from '@/builders/api/settings-screens';
+import {
+  revertLines,
+  revertMonth,
+  type HistoryRowView,
+  type SettingEntry,
+  type SettingGroup
+} from '@/builders/api/settings-screens';
 import { toast } from '@/components/shell/toast';
-import { getSettingsHistory } from '@/services/settings-store';
+import { getSettings, getSettingsHistory } from '@/services/settings-store';
 import SaveConfirmDialog from '../fields/SaveConfirmDialog.vue';
 import SelectBox from '../fields/SelectBox.vue';
 import TextBox from '../fields/TextBox.vue';
@@ -42,18 +48,38 @@ const status = computed(() => {
 const bad = computed(() => Object.keys(sd?.errors.value ?? {}).length > 0);
 
 // Lịch sử của cả nhóm máy chủ (mới nhất trước); mỗi mục lọc ra các dòng thuộc ô của mình.
+// Kèm số của nhóm ở tháng hoàn tác mặc định của từng dòng (revertMonth), để chỉ bật Hoàn tác ở dòng còn gì để đổi.
+// Cần minMonth nên tải sau khi useSettingsDraft tải xong lần đầu; lượt tải cũ về muộn bị bỏ.
 const history = ref<HistoryItem[]>([]);
+const valuesAt = ref<Record<string, Values>>({});
+let historySeq = 0;
 async function loadHistory() {
-  if (!props.group.group) return;
+  const g = props.group.group;
+  if (!g || !sd?.minMonth.value) return;
+  const mine = ++historySeq;
   try {
-    history.value = (await getSettingsHistory(GROUP_PATH[props.group.group])).items;
+    const items = (await getSettingsHistory(GROUP_PATH[g])).items;
+    const months = [...new Set(items.map(h => revertMonth(h, sd.minMonth.value)))];
+    const at = await Promise.all(months.map(m => getSettings(m)));
+    if (mine !== historySeq) return;
+    valuesAt.value = Object.fromEntries(months.map((m, i) => [m, at[i].groups[g].values]));
+    history.value = items;
   } catch (e) {
-    toast.error(e.message);
+    if (mine === historySeq) toast.error(e.message);
   }
 }
-loadHistory();
+watch(() => sd?.ready.value, ready => ready && loadHistory(), { immediate: true });
 
-// Hoàn tác tắt khi nhóm còn chỗ sửa dở.
+// Các câu của Hoàn tác ở tháng mặc định của dòng; trống = số cũ đã đang áp dụng ở tháng đó.
+function revertLinesOf(row: HistoryItem): string[] {
+  const g = props.group.group;
+  if (!g || !sd) return [];
+  const month = revertMonth(row, sd.minMonth.value);
+  const values = valuesAt.value[month];
+  return values ? revertLines(g, row, values, month) : [];
+}
+
+// Hoàn tác chỉ bật khi nhóm không còn chỗ sửa dở và ở tháng mặc định có ít nhất một ô sẽ đổi.
 // Dòng `weights` (một lần lưu trọng số KPI) hiện ở mục của từng trọng số đã đổi, với số cũ → số mới của trọng số đó.
 function historyOf(entry: SettingEntry): HistoryRowView[] | null {
   if (!sd) return null;
@@ -61,20 +87,21 @@ function historyOf(entry: SettingEntry): HistoryRowView[] | null {
   return history.value.flatMap(h =>
     historyFields(h)
       .filter(f => own.has(f))
-      .map(f => ({ ...historyRow(h, f), raw: h, canRevert: changes.value === 0 }))
+      .map(f => ({ ...historyRow(h, f), raw: h, canRevert: changes.value === 0 && revertLinesOf(h).length > 0 }))
   );
 }
 
+// Tải lại lịch sử sau mọi lần lưu, kể cả khi gặp 409 (stamp đã mới thì lịch sử cũng phải mới).
 const confirming = ref(false);
 async function confirm() {
-  const ok = await sd!.save();
+  await sd!.save();
   confirming.value = false;
-  if (ok) await loadHistory();
+  await loadHistory();
 }
 
-const reverting = ref<Values | null>(null);
+const reverting = ref<HistoryItem | null>(null);
 function askRevert(row: HistoryItem) {
-  reverting.value = revertValues(row);
+  reverting.value = row;
 }
 async function reverted() {
   reverting.value = null;
@@ -165,11 +192,11 @@ watch([shown, () => props.setting], focusSetting, { immediate: true });
   <RevertDialog
     v-if="sd?.state.value && group.group && reverting"
     :group="group.group"
-    :values="reverting"
-    :current="sd.state.value.values"
+    :row="reverting"
+    :values="valuesAt[revertMonth(reverting, sd.minMonth.value)]"
     :stamp="sd.state.value.stamp"
     :months="sd.months.value"
-    :month="sd.month.value"
+    :min-month="sd.minMonth.value"
     @close="reverting = null"
     @done="reverted"
   />
