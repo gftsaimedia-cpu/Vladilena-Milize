@@ -49,7 +49,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange; payDate?: string | null };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null };
 
@@ -309,7 +309,8 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
     income: {
       label: `Thu nhập tháng ${Number(t.date.slice(5, 7))} · ${income?.state === 'official' ? 'chính thức' : 'tạm tính'}`,
-      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE
+      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE,
+      payDate: income?.payDate ?? null
     },
     requests: [...requests]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -329,7 +330,7 @@ const KPI_PARTS: [string, string][] = [
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
-  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), ...monthNavOf(inc.month, inc.range) };
+  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), payDate: inc.payDate ?? null, ...monthNavOf(inc.month, inc.range) };
   if (!p) {
     return {
       ...base,

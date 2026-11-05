@@ -1,8 +1,8 @@
 // Dữ liệu giả của app nhân viên trên điện thoại (spec staff-phone-app mục 1–2): luôn là Lê Hoàng Nam, tháng 10/2026.
 // Mỗi hàm *View() dựng sẵn chuỗi hiển thị cho một màn. Dữ liệu nằm trong bộ nhớ: chỉ checkOutNow() sửa được, tải lại trang thì về như cũ.
 import type { Zone } from '../builders/api/settings';
-import { MOCK_NOW, MOCK_TODAY } from './clock';
-import { zoneOf } from './settings';
+import { MOCK_MONTH, MOCK_NOW, MOCK_TODAY } from './clock';
+import { payDateOf, zoneOf } from './settings';
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo';
 export type CellKind = DayKind | 'future' | 'off';
@@ -52,7 +52,7 @@ export type HomeView = {
   workday: boolean; // hôm nay có phải ngày làm của mình (chỉ chặn Check-in)
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
-  income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183'
+  income: { label: string; net: string; payDate: string | null }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183', '2026-11-10'
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
 
@@ -96,6 +96,7 @@ export type IncomeView = MonthNav & {
   };
   lines: { icon: PhoneIconName; label: string; value: string; zero: boolean }[];
   total: string; // '15.538.183 ₫'
+  payDate: string | null; // ngày trả lương của tháng đang xem '2026-11-10'; null khi máy chủ chưa gửi
 };
 
 export type ProfileView = {
@@ -264,7 +265,7 @@ export function homeView(): HomeView {
     workday: true,
     week: { range: `${ddmm(monday)} – ${ddmm(addDays(monday, 6))}`, cells },
     alert: todo ? { date: todo.date, text: `${ddmm(todo.date)} thiếu giờ ra · chờ duyệt giải trình` } : null,
-    income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET },
+    income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET, payDate: payDateOf(MOCK_MONTH) },
     requests: REQUESTS.slice(0, 2).map(rowOf)
   };
 }
@@ -361,6 +362,7 @@ export function incomeView(): IncomeView {
     label: MONTH_LABEL,
     state: 'Tạm tính',
     net: NET,
+    payDate: payDateOf(MOCK_MONTH),
     review: 'Admin đang duyệt phiếu',
     gross: '15.538.183',
     deduction: '0',
