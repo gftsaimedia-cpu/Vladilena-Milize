@@ -39,9 +39,9 @@ export class HolidaysRepository {
     return rows.length > 0;
   }
 
-  /** false nếu không có ngày đó. */
-  async remove(date: string): Promise<boolean> {
-    const rows = await this.qb.deleteFrom('company_holidays').where('holiday_date', '=', date).returning('holiday_date').execute();
-    return rows.length > 0;
+  /** Ngày vừa xoá (để ghi nhật ký), hoặc null nếu không có ngày đó. */
+  async remove(date: string): Promise<Holiday | null> {
+    const row = await this.qb.deleteFrom('company_holidays').where('holiday_date', '=', date).returning('name').executeTakeFirst();
+    return row ? { date, name: row.name } : null;
   }
 }

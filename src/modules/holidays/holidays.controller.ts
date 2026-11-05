@@ -34,9 +34,9 @@ export class HolidaysController {
 
   @RequireCap('config.write')
   @Delete(':date')
-  async remove(@Param('date') date: string): Promise<unknown> {
+  async remove(@Param('date') date: string, @CurrentUser() user: UserSession): Promise<unknown> {
     return this.run(async () => {
-      await this.service.remove(date);
+      await this.service.remove(date, user.username);
       return { deleted: true };
     });
   }
