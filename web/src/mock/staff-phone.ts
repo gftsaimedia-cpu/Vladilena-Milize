@@ -3,7 +3,9 @@
 // checkOutNow() ghi giờ ra hôm nay; addRequest() và updateRequest() (do mock/staff-requests gọi) thêm đơn mới và đổi trạng thái đơn.
 // Dòng nhắc giải trình, ngày cần giải trình và đơn giải trình của một ngày đọc lúc dựng màn từ mock/staff-requests, nên gửi hay
 // huỷ đơn xong thì màn đọc lại là thấy trạng thái mới (không có chữ cũ nằm sẵn trong ngày công).
-import { MOCK_NOW, MOCK_TODAY } from './clock';
+import type { Zone } from '../builders/api/settings';
+import { MOCK_MONTH, MOCK_NOW, MOCK_TODAY } from './clock';
+import { payDateOf, zoneOf } from './settings';
 import { dueOf, explanationOf, remindersOf } from './staff-requests';
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo';
@@ -51,11 +53,13 @@ export type HomeView = {
   workedMin: number; shiftMin: number; // 101, 540
   worked: string; // '1g 41p'
   location: string | null; // 'Đúng vị trí văn phòng GFT'; null khi máy chủ chưa có dữ liệu vị trí (dòng ẩn)
+  zone: Zone | null; // vùng chấm công; null = không giới hạn vị trí
+  workday: boolean; // hôm nay có phải ngày làm của mình (chỉ chặn Check-in); false khi hôm nay có đơn nghỉ đã duyệt
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
   // Ngày Admin đã nhắc giải trình mà chưa gửi, mới nhất trước (spec staff-requests 3.6): một dòng mỗi ngày ở đầu J1 / cột Hôm nay.
   reminders: { date: string; text: string }[]; // [{ date: '2026-10-24', text: 'Admin nhắc giải trình 24/10' }]
-  income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183'
+  income: { label: string; net: string; payDate: string | null }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183', '2026-11-10'
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
 
@@ -102,6 +106,7 @@ export type IncomeView = MonthNav & {
   };
   lines: { icon: PhoneIconName; label: string; value: string; zero: boolean }[];
   total: string; // '15.538.183 ₫'
+  payDate: string | null; // ngày trả lương của tháng đang xem '2026-11-10'; null khi máy chủ chưa gửi
 };
 
 export type ProfileView = {
@@ -153,6 +158,8 @@ const LEAVES: [number, string][] = [
   [17, 'iSAT']
 ];
 const monthDate = (d: number) => `${MOCK_TODAY.slice(0, 8)}${pad(d)}`;
+// BE §5.6: ngày có đơn nghỉ đã duyệt (kể cả iSAT) không phải ngày làm; /me/today trả workday = false.
+export const workdayOn = (date: string): boolean => !LEAVES.some(([d]) => monthDate(d) === date);
 const DAYS = new Map<string, DayRecord>();
 for (const [d, inAt, outAt] of WORKED)
   DAYS.set(monthDate(d), { kind: 'work', in: inAt, out: outAt, leave: null });
@@ -298,10 +305,12 @@ export function homeView(): HomeView {
     shiftMin: toMin(SHIFT.end) - toMin(SHIFT.start),
     worked: workedText(workedMin),
     location: 'Đúng vị trí văn phòng GFT',
+    zone: zoneOf().zone,
+    workday: workdayOn(MOCK_TODAY),
     week: { range: `${ddmm(monday)} – ${ddmm(addDays(monday, 6))}`, cells },
     alert: todo ? { date: todo.date, text: `${ddmm(todo.date)} thiếu giờ ra · chờ duyệt giải trình` } : null,
     reminders: remindersOf().map(r => ({ date: r.date, text: `Admin nhắc giải trình ${ddmm(r.date)}` })),
-    income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET },
+    income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET, payDate: payDateOf(MOCK_MONTH) },
     requests: REQUESTS.slice(0, 2).map(rowOf)
   };
 }
@@ -399,6 +408,7 @@ export function incomeView(): IncomeView {
     label: MONTH_LABEL,
     state: 'Tạm tính',
     net: NET,
+    payDate: payDateOf(MOCK_MONTH),
     review: 'Admin đang duyệt phiếu',
     gross: '15.538.183',
     deduction: '0',

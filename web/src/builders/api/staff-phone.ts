@@ -18,6 +18,7 @@ import type {
 } from '../../mock/staff-phone';
 import { dmy, initials, vnd } from '../../utils/format';
 import type { RequestDTO } from './inbox';
+import type { Zone } from './settings';
 
 export type MeLeave = 'paid' | 'unpaid' | 'holiday';
 export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string | null; out: string | null; lateMinutes: number };
@@ -37,6 +38,8 @@ export type MeToday = {
   workedMinutes: number;
   week: MeDay[];
   alert: { date: string; kind: string } | null;
+  zone?: Zone | null; // vùng chấm công của máy chủ; thiếu hoặc null = không giới hạn
+  workday?: boolean; // hôm nay có phải ngày làm; thiếu = có
 };
 export type MeProfile = {
   name: string;
@@ -47,7 +50,7 @@ export type MeProfile = {
   shift: { type: string; startTime: string; endTime: string };
   leave: { totalDays: number; usedDays: number; remainingDays: number };
 };
-export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange };
+export type MeIncome = { month: string; state: 'official' | 'estimate' | 'unavailable'; payslip: any | null; reason?: string; range?: MeRange; payDate?: string | null };
 export type MeStep = { label: string; at: string | null; state: RequestStatus };
 export type MeRequest = RequestDTO & { reviewedAt?: string | null; reviewNote?: string | null };
 
@@ -311,12 +314,15 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
     worked: workedText(workedMin),
     // Máy chủ chưa gửi kết quả vị trí (vùng chấm công): không có dòng vị trí.
     location: null,
+    zone: t.zone ?? null,
+    workday: t.workday !== false,
     week: { range: `${ddmm(days[0].date)} – ${ddmm(days[6].date)}`, cells: days.map(d => cellOf(d, t.date, true)) },
     alert: t.alert ? { date: t.alert.date, text: `${ddmm(t.alert.date)} thiếu giờ vào/ra · cần giải trình` } : null,
     reminders: [], // spec staff-requests 3.6: /me/today chưa nối `reminders` (để BE)
     income: {
       label: `Thu nhập tháng ${Number(t.date.slice(5, 7))} · ${income?.state === 'official' ? 'chính thức' : 'tạm tính'}`,
-      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE
+      net: income?.payslip ? vnd(income.payslip.netIncome) : NONE,
+      payDate: income?.payDate ?? null
     },
     requests: [...requests]
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -336,7 +342,7 @@ const KPI_PARTS: [string, string][] = [
 
 export function incomeViewOf(inc: MeIncome): IncomeView {
   const p = inc.payslip;
-  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), ...monthNavOf(inc.month, inc.range) };
+  const base = { title: 'Thu nhập', note: 'Phiếu chính thức có khi Admin duyệt', label: monthLabelOf(inc.month), payDate: inc.payDate ?? null, ...monthNavOf(inc.month, inc.range) };
   if (!p) {
     return {
       ...base,

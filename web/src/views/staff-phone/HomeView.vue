@@ -9,6 +9,7 @@ import { ref } from 'vue';
 import { useLoad } from '@/composables/useLoad';
 import { useRetry } from '@/composables/useRetry';
 import type { HomeView } from '@/mock/staff-phone';
+import { dm } from '@/utils/format';
 import { getHome } from '@/services/staff-phone';
 import LoadError from './components/LoadError.vue';
 import LoadingLine from './components/LoadingLine.vue';
@@ -48,6 +49,7 @@ const onPunch = (v: HomeView | null) => (v ? (data.value = v) : retry());
         <div class="pay-text">
           <div class="mut">{{ data.income.label }}</div>
           <div class="amt">{{ data.income.net }} <span>₫</span></div>
+          <div v-if="data.income.payDate" class="mut sm">trả ngày {{ dm(data.income.payDate) }}</div>
         </div>
         <PhIcon name="right" :size="20" :stroke="2" />
       </RouterLink>

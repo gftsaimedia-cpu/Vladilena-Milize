@@ -47,10 +47,6 @@ nav.sub .it svg {
   width: 12px;
   height: 12px;
 }
-.p-gold {
-  background: var(--gold-light);
-  color: #5c4310;
-}
 .set > .main > * + * {
   margin-top: var(--gap);
 }
@@ -121,14 +117,4 @@ nav.sub .it svg {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-nav.sub .it .cnt2 {
-  margin-left: auto;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--pend-bg);
-  color: var(--pend-ink);
-  border-radius: 999px;
-  padding: 0 7px;
-  line-height: 18px;
 }

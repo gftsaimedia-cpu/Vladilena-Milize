@@ -26,6 +26,10 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
         >
           {{ c.day }}
         </button>
+        <div v-else-if="c.kind === 'off'" class="at-off">
+          <span role="img" class="dn" :class="[c.kind, { today: c.today }]" :aria-label="c.label">{{ c.day }}</span>
+          <small class="off-cap" aria-hidden="true">nghỉ</small>
+        </div>
         <span v-else role="img" class="dn" :class="[c.kind, { today: c.today }]" :aria-label="c.label">{{ c.day }}</span>
       </template>
     </div>
@@ -59,6 +63,19 @@ const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
   max-width: 40px;
   height: auto;
   aspect-ratio: 1;
+}
+.at-off {
+  width: 100%;
+  max-width: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.off-cap {
+  margin-top: 2px;
+  font-size: 10px;
+  line-height: 12px;
+  color: var(--muted);
 }
 .at-wd {
   padding-bottom: 4px;
