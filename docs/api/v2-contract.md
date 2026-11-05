@@ -402,6 +402,48 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | 11 | `Cần đúng <n> giờ bù, đang xếp <m> giờ` | Tổng giờ bù khác 8 × `leaveDaysCount`, ví dụ `Cần đúng 8 giờ bù, đang xếp 4 giờ` |
 - Nộp dưới khoá `requests_<uuid>` như đơn nghỉ. Đơn và các khung bù (bảng `makeup_slots`) được ghi trong cùng một giao dịch.
 
+#### `POST /api/v2/requests/shift-change` (Đơn đổi ca)
+- **Mục đích**: Đổi sang một trong 6 khung ca cho mọi **ngày làm việc** trong khoảng `startDate`–`endDate` (CN, ngày nghỉ của loại nhân sự và ngày lễ trong khoảng giữ nguyên).
+- **Request Body**:
+  ```json
+  {
+    "employeeId": "nv01",
+    "title": "Đổi ca tuần sau",
+    "reason": "Lịch học buổi sáng",
+    "startDate": "2026-11-13",
+    "endDate": "2026-11-16",
+    "shiftType": "NORMAL",
+    "startTime": "10:00"
+  }
+  ```
+  - `employeeId`: uuid hoặc username; đơn lưu theo uuid.
+  - `shiftType` + `startTime` chọn một khung; giờ ra lấy từ khung (`endTime` client gửi bị bỏ qua). 6 khung ca:
+
+    | `shiftType` | `startTime` | Giờ ra |
+    |---|---|---|
+    | `NORMAL` | `08:00` | `17:00` |
+    | `NORMAL` | `10:00` | `19:00` |
+    | `FLEX` | `06:00` | `15:00` |
+    | `FLEX` | `13:00` | `22:00` |
+    | `NIGHT` | `22:00` | `07:00` (sáng hôm sau) |
+    | `NIGHT` | `21:00` | `06:00` (sáng hôm sau) |
+  - Đơn đang chờ hoặc đã duyệt đều được tính là ca của các ngày đó khi xét đơn OT, đơn nghỉ có làm bù và đơn đổi ca nộp sau.
+- **Response 201**: `{ "created": true, "request": { "type": "SHIFT_CHANGE", "status": "PENDING", "changeStartDate": "2026-11-13", "changeEndDate": "2026-11-16", "newShiftType": "NORMAL", "newStartTime": "10:00", "newEndTime": "19:00", … } }`
+- **Lỗi `400 BAD_REQUEST`** (kiểm theo thứ tự):
+
+  | `message` | Khi nào |
+  |---|---|
+  | `Thiếu employeeId của nhân viên` | Route admin không gửi `employeeId` |
+  | `Khung ca không hợp lệ: <shiftType> <startTime>` | Cặp `shiftType` + `startTime` không thuộc 6 khung (ví dụ `NORMAL 09:00`, `CUSTOM 08:00`) |
+  | `startDate must be a valid YYYY-MM-DD date string, got: <giá trị>` (tương tự `endDate …`), `endDate (<ngày>) cannot be earlier than startDate (<ngày>)` | Ngày sai dạng, không có thật, hoặc đảo ngược |
+  | `Không tìm thấy nhân sự: <id>` / `Thiếu cấu hình loại nhân sự <loại>` | Như đơn nghỉ |
+  | `Khoảng đổi ca không có ngày làm việc` | Khoảng chỉ có CN, ngày nghỉ của loại nhân sự hoặc ngày lễ |
+  | `Ngày dd/mm đang nghỉ, không đổi ca được` | Một ngày được đổi nằm trong đơn nghỉ/nghỉ có làm bù đang chờ/đã duyệt, hoặc lịch ngày đó `ON_LEAVE` |
+  | `Ngày dd/mm đã có đơn đổi ca khác` | Đơn đổi ca khác đang chờ/đã duyệt có chung một ngày được đổi |
+  | `dd/mm: khung OT HH:mm–HH:mm chạm ca mới HH:mm–HH:mm` (hoặc `khung bù …`) | Với ca mới, một khung OT/bù đã có của ngày được đổi hoặc của hôm sau không còn đúng luật khung (cách ca ít nhất 1 giờ). Ví dụ đổi 12/11 sang ca đêm 22:00 khi đã có OT 13/11 06:00–07:00 → `13/11: khung OT 06:00–07:00 chạm ca mới 22:00–07:00` |
+  | `Ngày dd/mm vượt 12 giờ (ca + OT + làm bù = <n> giờ)` | Với ca mới, ca + khung OT/bù của ngày đó vượt 12 giờ |
+- Nộp dưới khoá `requests_<uuid>` như đơn nghỉ.
+
 #### `POST /api/v2/requests/overtime` (Đơn làm thêm OT)
 - **Mục đích**: Đăng ký **một khung** OT trong một ngày. Một ngày được nhiều đơn OT, miễn các khung không chồng nhau và đúng luật bên dưới.
 - **Request Body**:
@@ -559,6 +601,10 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 ##### Duyệt đơn nghỉ và đơn nghỉ có làm bù
 - `APPROVE`: mỗi **ngày làm việc** trong khoảng `leaveStartDate`–`leaveEndDate` được ghi lịch `status = "ON_LEAVE"`, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). Ngày làm việc tính lại lúc duyệt theo lịch lễ lúc đó; CN, ngày nghỉ của loại nhân sự và ngày lễ không được ghi. `leaveDaysCount` giữ như lúc nộp. Với đơn nghỉ có làm bù, chỉ ngày nghỉ được ghi; khung bù không ghi vào lịch.
+- `REJECT`: không đổi lịch.
+
+##### Duyệt đơn đổi ca
+- `APPROVE`: mỗi **ngày làm việc** trong khoảng `changeStartDate`–`changeEndDate` (tính lại lúc duyệt theo lịch lễ lúc đó) được ghi lịch `scheduleType = "SHIFT_CHANGE"`, `shiftType`/`plannedStartTime`/`plannedEndTime` theo khung mới, `sourceRequestId` = mã đơn (tạo lịch ca mặc định trước nếu ngày đó chưa có). CN và ngày lễ không được ghi.
 - `REJECT`: không đổi lịch.
 
 ##### Duyệt đơn iSAT

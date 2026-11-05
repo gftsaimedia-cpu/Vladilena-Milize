@@ -1,6 +1,7 @@
 import type { IsatProfileSnapshot, IsatRegistration, IsatRegistrationDTO } from './isat';
 import type { LeaveType } from './leave-types';
 import type { ExplanationCase } from './explanation-cases';
+import type { ShiftFrame } from './shift-frames';
 
 export type { LeaveType } from './leave-types';
 
@@ -87,14 +88,14 @@ export interface CreateLeaveParams {
   daysCount: number;
 }
 
+/** Đơn đổi ca (§6.4): một trong 6 khung ca cho mọi ngày làm việc trong khoảng. */
 export interface CreateShiftChangeParams {
   employeeId: string;
   title: string;
   reason: string;
-  changeDate: string;
-  newShiftType: string;
-  newStartTime: string;
-  newEndTime: string;
+  startDate: string;
+  endDate: string;
+  frame: ShiftFrame;
 }
 
 /** Đơn nghỉ có làm bù (§6.2): khoảng nghỉ, số ngày làm việc trong khoảng (server đếm) và các khung bù. */

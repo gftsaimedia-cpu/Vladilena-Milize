@@ -22,6 +22,7 @@ import { IsatRegistration } from './isat';
 import type { ExplanationCase } from './explanation-cases';
 import { isLeaveType } from './leave-types';
 import { workMinutes } from './time-window';
+import { findShiftFrame } from './shift-frames';
 
 /** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
 const OWED_MINUTES_PER_LEAVE_DAY = 480;
@@ -342,14 +343,12 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateText(params?.changeDate)) {
-      throw new Error(`changeDate must be a valid YYYY-MM-DD date string, got: ${params?.changeDate}`);
-    }
-    if (!isValidTimeString(params?.newStartTime)) {
-      throw new Error(`newStartTime must be a valid HH:mm time string, got: ${params?.newStartTime}`);
-    }
-    if (!isValidTimeString(params?.newEndTime)) {
-      throw new Error(`newEndTime must be a valid HH:mm time string, got: ${params?.newEndTime}`);
+    const { startDate, endDate } = requireDateRange(params?.startDate, params?.endDate);
+    const frame = params?.frame ? findShiftFrame(params.frame.shiftType, params.frame.startTime) : null;
+    if (!frame || frame.endTime !== params.frame.endTime) {
+      throw new Error(
+        `Khung ca không hợp lệ: ${params?.frame?.shiftType} ${params?.frame?.startTime}`
+      );
     }
 
     const now = new Date();
@@ -360,11 +359,11 @@ export class SystemRequest {
       type: 'SHIFT_CHANGE',
       reason,
       status: 'PENDING',
-      changeStartDate: params.changeDate,
-      changeEndDate: params.changeDate,
-      newShiftType: params.newShiftType,
-      newStartTime: params.newStartTime,
-      newEndTime: params.newEndTime,
+      changeStartDate: startDate,
+      changeEndDate: endDate,
+      newShiftType: frame.shiftType,
+      newStartTime: frame.startTime,
+      newEndTime: frame.endTime,
       reviewedBy: null,
       reviewedAt: null,
       reviewNote: null,

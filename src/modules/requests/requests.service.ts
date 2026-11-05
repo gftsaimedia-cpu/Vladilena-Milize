@@ -21,6 +21,7 @@ import {
   formatHours,
   lastDayOfMonth,
   requireMakeupSlots,
+  findShiftFrame,
   type ClockWindow
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
@@ -43,14 +44,15 @@ const isActive = (r: SystemRequest): boolean => r.status === 'PENDING' || r.stat
 /** 2 → '2', 2.5 → '2,5' */
 const formatDays = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
 
+/** Thân đơn đổi ca (§6.4): khoảng ngày và khung ca chọn theo `shiftType` + `startTime`; giờ ra lấy từ khung. */
 export interface CreateShiftChangeInput {
   employeeId: string;
   title: string;
   reason: string;
-  changeDate: string;
-  newShiftType: string;
-  newStartTime: string;
-  newEndTime: string;
+  startDate: unknown;
+  endDate: unknown;
+  shiftType: unknown;
+  startTime: unknown;
 }
 
 /** Thân đơn nghỉ có làm bù (§6.2): khoảng nghỉ và danh sách khung bù; số ngày và giờ bù do server tính. */
@@ -247,18 +249,85 @@ export class RequestsService {
   }
 
   async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<SystemRequestDTO> {
-    const req = SystemRequest.createShiftChangeRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      changeDate: input.changeDate,
-      newShiftType: input.newShiftType,
-      newStartTime: input.newStartTime,
-      newEndTime: input.newEndTime
-    });
+    const frame = findShiftFrame(input.shiftType, input.startTime);
+    if (!frame) {
+      throw new Error(`Khung ca không hợp lệ: ${String(input.shiftType)} ${String(input.startTime)}`);
+    }
+    const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
+    this.requireTypeConfig(staff);
 
-    await this.repo.save(req);
-    return req.toJSON();
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      const { days, active } = await this.loadDays(staff, startDate, addDays(endDate, 1));
+      const changed = days.workingDaysBetween(startDate, endDate);
+      if (changed.length === 0) {
+        throw new Error('Khoảng đổi ca không có ngày làm việc');
+      }
+      for (const date of changed) {
+        if (days.isOnLeave(date)) {
+          throw new Error(`Ngày ${formatDayMonth(date)} đang nghỉ, không đổi ca được`);
+        }
+      }
+      // Hai đơn đổi ca trùng nhau khi có chung một ngày được đổi (ngày làm việc trong khoảng của cả hai).
+      for (const date of changed) {
+        const clash = active.some(
+          r =>
+            r.type === 'SHIFT_CHANGE' &&
+            isActive(r) &&
+            r.changeStartDate !== null &&
+            r.changeStartDate <= date &&
+            date <= (r.changeEndDate ?? r.changeStartDate)
+        );
+        if (clash) {
+          throw new Error(`Ngày ${formatDayMonth(date)} đã có đơn đổi ca khác`);
+        }
+      }
+
+      // Ca mới phải hợp với mọi khung OT/bù đã có của ngày được đổi và của hôm sau (ca đêm kéo sang sáng hôm sau).
+      const next = days.withShiftOverride(changed, frame);
+      const checkDates = [...new Set([...changed, ...changed.map(d => addDays(d, 1))])].sort();
+      for (const date of checkDates) {
+        const windows = next.windowsOn(date);
+        for (const w of windows) {
+          if (windowError(w, next.shiftsAround(date), []) !== null) {
+            throw new Error(
+              `${formatDayMonth(date)}: khung ${w.kind === 'OT' ? 'OT' : 'bù'} ${w.startTime}–${w.endTime} ` +
+                `chạm ca mới ${frame.startTime}–${frame.endTime}`
+            );
+          }
+        }
+        const capProblem = dayCapError(date, next.shiftOf(date) !== null, windows);
+        if (capProblem) {
+          throw new Error(capProblem);
+        }
+      }
+
+      const req = SystemRequest.createShiftChangeRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        startDate,
+        endDate,
+        frame
+      });
+      await this.repo.save(req);
+      return req.toJSON();
+    });
+  }
+
+  /** Duyệt đơn đổi ca: mỗi ngày làm việc trong khoảng (tính lại lúc duyệt) ghi ca mới; CN và ngày lễ không ghi. */
+  protected async markShiftChangeDays(req: SystemRequest): Promise<void> {
+    if (!this.attendanceRepo || !req.changeStartDate || !req.newStartTime || !req.newEndTime) return;
+    const start = req.changeStartDate;
+    const end = req.changeEndDate ?? start;
+    const staff = await this.resolveStaff(req.employeeId, monthOf(start));
+    const { days } = await this.loadDays(staff, start, end);
+    for (const date of days.workingDaysBetween(start, end)) {
+      const sched = await this.attendanceRepo.ensureDefaultSchedule(staff.employeeId, date);
+      await this.attendanceRepo.saveSchedule(
+        sched.withShiftChange(req.newShiftType as any, req.newStartTime, req.newEndTime, req.id)
+      );
+    }
   }
 
   async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<SystemRequestDTO> {
@@ -481,12 +550,7 @@ export class RequestsService {
         if (this.attendanceRepo) {
           // Duyệt OT không ghi lịch (§7); khung bù của đơn nghỉ có làm bù cũng không ghi vào lịch.
           if (req.type === 'SHIFT_CHANGE') {
-            const date = req.changeStartDate;
-            if (date) {
-              const sched = await this.attendanceRepo.ensureDefaultSchedule(req.employeeId, date);
-              const updated = sched.withShiftChange(req.newShiftType as any, req.newStartTime!, req.newEndTime!, req.id);
-              await this.attendanceRepo.saveSchedule(updated);
-            }
+            await this.markShiftChangeDays(req);
           } else if (req.type === 'LEAVE' || req.type === 'LEAVE_WITH_MAKEUP') {
             // Chỉ ngày nghỉ được ghi ON_LEAVE; khung bù không ghi vào lịch.
             await this.markLeaveDays(req);

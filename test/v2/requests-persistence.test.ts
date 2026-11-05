@@ -130,7 +130,7 @@ test('temporary factories fill the new fields', () => {
   assert.deepEqual(lwm.makeupSlots, lwmRequest().makeupSlots);
 
   const shift = SystemRequest.createShiftChangeRequest({ employeeId: 'u1', title: 't', reason: 'r',
-    changeDate: '2026-11-13', newShiftType: 'NIGHT', newStartTime: '22:00', newEndTime: '07:00' }).toJSON();
+    startDate: '2026-11-13', endDate: '2026-11-13', frame: { shiftType: 'NIGHT', startTime: '22:00', endTime: '07:00' } }).toJSON();
   assert.deepEqual([shift.changeStartDate, shift.changeEndDate, shift.leaveStartDate], ['2026-11-13', '2026-11-13', null]);
 
   const explanation = SystemRequest.createExplanationRequest({ employeeId: 'u1', title: 't', reason: 'r',
@@ -248,16 +248,4 @@ test('approving OT writes no schedule', async () => {
   assert.equal(att.schedules.size, 0);
 });
 
-test('approving a shift change writes the schedule on changeStartDate', async () => {
-  const repo = new FakeRequestsRepository();
-  const att = new FakeAttendanceRepository();
-  const service = new RequestsService(repo, att);
-
-  const shift = await service.createShiftChangeRequest({ employeeId: 'u1', title: 't', reason: 'r',
-    changeDate: '2026-11-13', newShiftType: 'FLEX', newStartTime: '10:00', newEndTime: '19:00' });
-  await service.reviewRequest(shift.id, 'admin', 'APPROVE');
-  const sched = att.schedules.get('u1:2026-11-13');
-  assert.deepEqual([sched?.shiftType, sched?.plannedStartTime, sched?.plannedEndTime, sched?.scheduleType],
-    ['FLEX', '10:00', '19:00', 'SHIFT_CHANGE']);
-  assert.equal(att.schedules.size, 1);
-});
+// Duyệt đơn đổi ca (ghi mọi ngày làm việc trong khoảng) nằm ở requests-shift-change.test.ts.

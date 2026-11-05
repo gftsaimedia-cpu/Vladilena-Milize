@@ -48,6 +48,27 @@ export class RequestsController {
   }
 
   @RequireCap('requests.review')
+  @Post('shift-change')
+  async createShiftChange(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      // Giờ ra của ca lấy từ khung (§4); `endTime` client gửi không được chuyển xuống.
+      const request = await this.service.createShiftChangeRequest({
+        employeeId,
+        title: body.title,
+        reason: body.reason,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        shiftType: body.shiftType,
+        startTime: body.startTime
+      });
+      return { created: true, request };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  @RequireCap('requests.review')
   @Post('overtime')
   async createOvertime(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
