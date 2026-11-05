@@ -41,9 +41,16 @@ export function toAuditFields(entry: AuditEntry): AuditFields {
   const fail = (why: string): never => {
     throw new AuditEntryError(`Nhật ký ${String(entry?.action)}: ${why}`);
   };
+  // PG đổi ký tự thay thế lẻ thành U+FFFD và từ chối NUL; băm đúng chuỗi PG sẽ lưu.
+  const clean = (label: string, text: string): string => {
+    const wellFormed = text.toWellFormed();
+    if (wellFormed.includes('\u0000')) return fail(`${label} chứa ký tự NUL`);
+    return wellFormed;
+  };
   const required = (label: string, value: unknown): string => {
-    const text = typeof value === 'number' ? String(value) : value;
-    if (typeof text !== 'string' || text === '') return fail(`${label} không được để trống`);
+    const raw = typeof value === 'number' ? String(value) : value;
+    if (typeof raw !== 'string' || raw === '') return fail(`${label} không được để trống`);
+    const text = clean(label, raw);
     if (text.length > TEXT_MAX) return fail(`${label} dài quá ${TEXT_MAX} ký tự`);
     return text;
   };
@@ -63,9 +70,11 @@ export function toAuditFields(entry: AuditEntry): AuditFields {
   const sensitivity = entry.sensitivity ?? 'normal';
   if (!SENSITIVITIES.includes(sensitivity)) fail('sensitivity phải là normal, pay hoặc pii');
 
-  const reason = entry.reason === undefined || entry.reason === null || entry.reason === '' ? null : entry.reason;
-  if (reason !== null && (typeof reason !== 'string' || reason.length > REASON_MAX)) {
-    fail(`reason phải là chữ không quá ${REASON_MAX} ký tự`);
+  let reason: string | null = null;
+  if (entry.reason !== undefined && entry.reason !== null && entry.reason !== '') {
+    if (typeof entry.reason !== 'string') return fail(`reason phải là chữ không quá ${REASON_MAX} ký tự`);
+    reason = clean('reason', entry.reason);
+    if (reason.length > REASON_MAX) fail(`reason phải là chữ không quá ${REASON_MAX} ký tự`);
   }
 
   const fields: AuditFields = {

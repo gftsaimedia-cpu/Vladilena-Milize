@@ -71,6 +71,19 @@ describe('toAuditFields', () => {
     );
   });
 
+  it('replaces a lone surrogate the way PG would store it', () => {
+    const half = 'Lý do 😀'.slice(0, 7);
+    assert.equal(toAuditFields({ ...base, reason: half }).reason, 'Lý do �');
+    assert.equal(toAuditFields({ ...base, entityId: half }).entity_id, 'Lý do �');
+    assert.equal(toAuditFields({ ...base, subject: half }).subject, 'Lý do �');
+  });
+
+  it('rejects NUL in a text field or the reason', () => {
+    assert.throws(() => toAuditFields({ ...base, subject: 'a\u0000b' }), AuditEntryError);
+    assert.throws(() => toAuditFields({ ...base, reason: 'a\u0000' }), AuditEntryError);
+    assert.throws(() => toAuditFields({ ...base, actor: '\u0000' }), AuditEntryError);
+  });
+
   it('allows a passwordSet flag', () => {
     assert.doesNotThrow(() => toAuditFields({ ...base, after: { passwordSet: true } }));
   });

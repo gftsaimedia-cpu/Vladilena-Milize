@@ -107,3 +107,16 @@ test('the chain check reports a forged row', async ({ page }) => {
   await page.getByRole('button', { name: 'Kiểm tra nhật ký không bị sửa' }).click();
   await expect(page.getByRole('alert')).toContainText('Dòng 42 đã bị sửa nội dung');
 });
+
+test('the chain check forgets a clean result after a failed one', async ({ page }) => {
+  await page.goto('/admin/cai-dat/nhat-ky');
+  await page.getByRole('button', { name: 'Kiểm tra nhật ký không bị sửa' }).click();
+  await expect(page.getByRole('button', { name: 'Nhật ký nguyên vẹn · đã kiểm tra 45 dòng' })).toBeVisible();
+  await page.evaluate(() => {
+    (globalThis as any).__mockAuditBadId = 42;
+  });
+  await page.getByRole('button', { name: 'Nhật ký nguyên vẹn · đã kiểm tra 45 dòng' }).click();
+  await expect(page.getByRole('alert')).toContainText('Dòng 42 đã bị sửa nội dung');
+  await expect(page.getByRole('button', { name: 'Kiểm tra nhật ký không bị sửa' })).toBeVisible();
+  await expect(page.getByText('Nhật ký nguyên vẹn')).toHaveCount(0);
+});

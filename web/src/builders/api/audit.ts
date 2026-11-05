@@ -42,7 +42,9 @@ export function auditFromResponse(res: AuditListDTO): {
     rows: res.items,
     total: res.total,
     people: res.people.map(p => ({ value: p.username, label: personLabel(p.username, p.name) })),
-    actions: res.actions.map(code => ({ value: code, label: ACTION_LABELS[code] ?? code }))
+    actions: res.actions
+      .map(code => ({ value: code, label: ACTION_LABELS[code] ?? code }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'vi'))
   };
 }
 

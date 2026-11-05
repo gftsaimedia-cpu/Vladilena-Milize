@@ -54,6 +54,89 @@ test('keeps Vietnamese text and odd key order intact', async t => {
   });
 });
 
+test('hashes what PG stores for a half emoji', async t => {
+  await withTempDb(t, 'audit_log', async (db, client) => {
+    const tx = new TransactionCoordinator(db);
+    const log = new AuditLog(new AuditRepository(), tx);
+    await tx.run(trx => log.append(trx, ENTRY));
+    await tx.run(trx => log.append(trx, { ...ENTRY, reason: 'Lý do 😀'.slice(0, 7) }));
+    await tx.run(trx => log.append(trx, ENTRY));
+    const row = (await client.query('SELECT * FROM audit_log WHERE id = 2')).rows[0] as StoredAuditRow;
+    assert.equal(row.reason, 'Lý do �');
+    assert.equal(row.hash, hashOf(row));
+    const service = new AuditService(db, new AuditRepository());
+    assert.deepEqual(await service.verify(), { ok: true, checked: 3, firstBadId: null, reason: null });
+  });
+});
+
+test('refuses NUL and stores nothing', async t => {
+  await withTempDb(t, 'audit_log', async (db, client) => {
+    const tx = new TransactionCoordinator(db);
+    const log = new AuditLog(new AuditRepository(), tx);
+    await assert.rejects(
+      tx.run(trx => log.append(trx, { ...ENTRY, reason: 'a\u0000b' })),
+      AuditEntryError
+    );
+    assert.equal((await client.query('SELECT count(*)::int AS n FROM audit_log')).rows[0].n, 0);
+  });
+});
+
+test('stores every column across several appends in one transaction', async t => {
+  await withTempDb(t, 'audit_log', async (db, client) => {
+    const tx = new TransactionCoordinator(db);
+    const log = new AuditLog(new AuditRepository(), tx);
+    const times = ['2026-11-05T01:00:00.000Z', '2026-11-05T02:00:00.000Z', '2026-11-05T03:00:00.000Z'];
+    let n = 0;
+    log.now = () => new Date(times[n++]);
+    const entry = (i: number) => ({
+      actor: 'admin',
+      actorUuid: `00000000-0000-4000-8000-00000000000${i}`,
+      actorRoles: ['payroll', 'admin'],
+      action: 'payslip.adjust',
+      entityKind: 'payslip',
+      entityId: `ps-${i}`,
+      subject: `nv${i}`,
+      subjectUuid: `11111111-1111-4111-8111-11111111111${i}`,
+      month: '2026-11',
+      before: { v: i },
+      after: { v: i + 1 },
+      reason: `Lý do số ${i}`,
+      sensitivity: 'pay' as const,
+      requestId: 'rq-quick-add'
+    });
+    await tx.run(async trx => {
+      for (let i = 1; i <= 3; i += 1) await log.append(trx, entry(i));
+    });
+
+    const rows = (await client.query('SELECT * FROM audit_log ORDER BY id')).rows as StoredAuditRow[];
+    assert.equal(rows.length, 3);
+    rows.forEach((row, k) => {
+      const i = k + 1;
+      const want = entry(i);
+      assert.equal(row.id, i);
+      assert.equal(row.at, times[k]);
+      assert.equal(row.actor, want.actor);
+      assert.equal(row.actor_uuid, want.actorUuid);
+      assert.equal(row.actor_roles, '["admin","payroll"]');
+      assert.equal(row.action, want.action);
+      assert.equal(row.entity_kind, want.entityKind);
+      assert.equal(row.entity_id, want.entityId);
+      assert.equal(row.subject, want.subject);
+      assert.equal(row.subject_uuid, want.subjectUuid);
+      assert.equal(row.month, '2026-11');
+      assert.equal(row.before_json, JSON.stringify(want.before));
+      assert.equal(row.after_json, JSON.stringify(want.after));
+      assert.equal(row.reason, want.reason);
+      assert.equal(row.sensitivity, 'pay');
+      assert.equal(row.request_id, 'rq-quick-add');
+      assert.equal(row.prev_hash, k === 0 ? '' : rows[k - 1].hash);
+      assert.equal(row.hash, hashOf(row));
+    });
+    const service = new AuditService(db, new AuditRepository());
+    assert.deepEqual(await service.verify(), { ok: true, checked: 3, firstBadId: null, reason: null });
+  });
+});
+
 test('rolls back with the caller', async t => {
   await withTempDb(t, 'audit_log', async (db, client) => {
     const tx = new TransactionCoordinator(db);
@@ -95,7 +178,7 @@ test('serialises two writers with the advisory lock', async t => {
       return out;
     });
     try {
-      await aReady;
+      await Promise.race([aReady, a]);
       const b = tx.run(trx => log.append(trx, { ...ENTRY, entityId: 'ot.cap' })).then(out => {
         bDone = true;
         return out;

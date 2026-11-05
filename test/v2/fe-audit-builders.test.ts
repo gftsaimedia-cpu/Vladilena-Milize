@@ -53,11 +53,13 @@ describe('Nhật ký: đổi phản hồi và dựng trang', () => {
       limit: 25,
       offset: 0,
       people: [{ username: 'system', name: null }],
-      actions: ['param.set', 'x.y']
+      actions: ['param.set', 'x.y', 'period.lock', 'holiday.add']
     });
     assert.deepEqual(out.people, [{ value: 'system', label: 'Hệ thống' }]);
     assert.deepEqual(out.actions, [
+      { value: 'period.lock', label: 'Chốt công' },
       { value: 'param.set', label: 'Sửa tham số lương' },
+      { value: 'holiday.add', label: 'Thêm ngày lễ' },
       { value: 'x.y', label: 'x.y' }
     ]);
   });

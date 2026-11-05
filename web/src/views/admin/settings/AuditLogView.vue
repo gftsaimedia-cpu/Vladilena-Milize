@@ -47,8 +47,12 @@ async function verify() {
   try {
     const res = await verifyAuditLog();
     if (res.ok) checked.value = res;
-    else toast.error(res.message);
+    else {
+      checked.value = null;
+      toast.error(res.message);
+    }
   } catch (e) {
+    checked.value = null;
     toast.error(e.message);
   } finally {
     checking.value = false;
