@@ -62,6 +62,12 @@ describe('MeController', () => {
     await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2, accuracyM: 10 } as any), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
   });
 
+  it('filing a request into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ reqs: fake({ createLeaveRequest: () => { throw lock; } }) });
+    await assert.rejects(ctl.createRequest(req(), 'leave', { leaveType: 'ANNUAL' }), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
+  });
+
   it("reading someone else's request is a 404", async () => {
     const { ctl } = controller({ reqs: fake({ getById: () => ({ id: 'r1', employeeId: 'ha', status: 'PENDING', createdAt: 'x', reviewedAt: null }) }) });
     await assert.rejects(ctl.getRequest(req(), 'r1'), (e: any) => e.status === 404);

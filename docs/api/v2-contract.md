@@ -260,8 +260,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 
 ### 3.4. Requests Module (Đơn từ & Giải trình)
 
-#### Quy ước chung: `warnings`, lỗi `DAY_CONFLICT`, trạng thái ngày
-Áp dụng cho cả 7 route tạo đơn của Admin (`POST /api/v2/requests/<loại>`) và `POST /api/v2/me/requests/<loại>` (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`.
+#### Quy ước chung: `warnings`, lỗi `DAY_CONFLICT`, lỗi `PERIOD_LOCKED`, trạng thái ngày
+Áp dụng cho cả 7 route tạo đơn của Admin (`POST /api/v2/requests/<loại>`) và `POST /api/v2/me/requests/<loại>` (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`; riêng `PERIOD_LOCKED`: `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5.
 
 - **Thân trả về khi tạo đơn** luôn có `warnings`, đứng cạnh `request` (không nằm trong `request`). Ví dụ trong các mục dưới chỉ ghi `created` và `request` cho gọn.
   ```json
@@ -309,6 +309,21 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - Nộp đơn: giữ chỗ các ngày được tính ngay khi đơn còn `PENDING`. Ngày đang là ngày đổi ca bị đơn nghỉ hoặc iSAT thay thì dòng đó chuyển cho đơn mới và nhớ đơn đổi ca cũ.
   - `APPROVE`: kiểm lại ma trận trên trạng thái hiện tại; qua thì ghi lịch làm việc đúng trên các ngày đơn đang giữ (không tính lại khoảng ngày), bảng `day_status` không đổi. Đơn đổi ca không ghi đè lịch của ngày đã bị đơn nghỉ đã duyệt thay.
   - `REJECT` và huỷ (`PATCH .../cancel`): trả ngày. Ngày từng là ngày đổi ca của một đơn còn hiệu lực thì trả về đơn đổi ca đó (đã duyệt thì ghi lại lịch đổi ca); còn lại ngày về trạng thái thường (ca mặc định). Thứ Bảy iSAT được trả ngay nên đơn nghỉ hoặc OT nộp sau đó nhận được.
+- **Lỗi kỳ lương đã chốt** `PERIOD_LOCKED` (`409`): ở các route tạo đơn trên và ở `PATCH /api/v2/requests/:id/review`. Đơn chạm tới các tháng của: khoảng nghỉ (cả các tháng ở giữa), các ngày khung bù, ngày OT, khoảng đổi ca, ngày giải trình, Thứ Bảy iSAT, kỳ tạm ứng (`period`). Một tháng trong đó không cho thao tác thì cả đơn bị chặn, kể cả đơn vắt qua hai tháng (ví dụ nghỉ 30/10–02/11 khi tháng 10 đã chốt công).
+
+  | Kỳ lương của tháng | Nộp đơn (trừ giải trình) | Nộp giải trình | Duyệt / Từ chối |
+  |---|---|---|---|
+  | `open` (hoặc chưa có kỳ) | Được | Được | Được |
+  | `attendance_locked`, `calculated` | `409` | Được | Được (ở `calculated` thì tự tính lại phiếu, xem `PATCH .../review`) |
+  | `approved`, `paid` | `409` | `409` | `409` |
+
+  - Thân lỗi phẳng như `DAY_CONFLICT`; `month` là tháng bị chặn đầu tiên (tháng tăng dần), `status` là trạng thái kỳ của tháng đó:
+    ```json
+    { "error": "Tháng 10/2026 đã chốt công", "code": "PERIOD_LOCKED", "month": "2026-10", "status": "attendance_locked" }
+    ```
+  - Câu báo: `Tháng MM/YYYY đã chốt công` (`attendance_locked`, `calculated`), `Kỳ lương tháng MM/YYYY đã phê duyệt` (`approved`), `Kỳ lương tháng MM/YYYY đã trả lương` (`paid`).
+  - Không ghi gì: đơn bị chặn lúc nộp không được lưu; lúc duyệt thì đơn giữ `PENDING`. Cổng chỉ xét sau các luật riêng của từng loại đơn, nên đơn vừa sai luật vừa rơi vào tháng đã chốt nhận lỗi của luật (`400`).
+  - Huỷ đơn (`PATCH .../cancel`) không qua cổng kỳ.
 
 #### `POST /api/v2/requests/explanation` (Đơn giải trình)
 - **Mục đích**: Giải trình một ngày công có giờ chấm bất thường (vào muộn, ra sớm, thiếu giờ vào/ra…). Một ngày chỉ một đơn.
@@ -714,8 +729,18 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   }
   ```
   - `action`: `APPROVE` hoặc `REJECT`; `note` không bắt buộc. Người duyệt lấy từ phiên đăng nhập.
-- **Response 200**: `{ "updated": true, "request": <đơn> }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
-- Chỉ đơn `PENDING` duyệt được. Lúc duyệt chỉ kiểm lại **xung đột ngày** (ma trận ở "Quy ước chung"; thất bại thì `409 DAY_CONFLICT`) và **ngày lễ thêm sau khi nộp** (dưới đây); không kiểm lại các luật khác: chúng đã kiểm lúc nộp, khi đó đã tính cả các đơn đang chờ. Hai lần duyệt cùng một đơn được xếp hàng (khoá `request_<id>`), rồi khoá `requests_<uuid>` của nhân sự.
+- **Response 200**: `{ "updated": true, "request": <đơn>, "recalculated": [ ... ] }`. Không có đơn → `404 REQUEST_NOT_FOUND`.
+  - `recalculated`: sau khi quyết định đã lưu, với mỗi tháng của đơn (tháng tăng dần, như ở `PERIOD_LOCKED`) mà kỳ lương đang `calculated`, phiếu lương tháng đó của người nộp được tính lại (chỉ người đó; phiếu mới ở `draft`, người khác giữ phiếu và trạng thái). Mỗi tháng một phần tử `{ "month": "2026-10", "ok": true }`. Tháng `open` hay `attendance_locked` không tính lại (lần tính cả kỳ sau Chốt công sẽ lấy dữ liệu mới), nên mảng rỗng `[]` khi không có tháng nào ở `calculated`.
+  - Tính lại lỗi: `{ "month": "2026-10", "ok": false, "error": "<câu lỗi>" }`. Quyết định duyệt đơn vẫn giữ (vẫn `200`); phiếu cũ của người đó về `draft` và mất người duyệt, nên Phê duyệt kỳ còn bị chặn tới khi Admin tính lại và duyệt lại phiếu.
+    ```json
+    {
+      "updated": true,
+      "request": { "id": "req-uuid", "type": "EXPLANATION", "status": "APPROVED" },
+      "recalculated": [{ "month": "2026-10", "ok": false, "error": "Thiếu cấu hình bậc 9" }]
+    }
+    ```
+- Tháng của đơn đã `approved` hoặc `paid`: `409 PERIOD_LOCKED` (xem "Quy ước chung"), đơn giữ `PENDING`.
+- Chỉ đơn `PENDING` duyệt được. Lúc duyệt chỉ kiểm lại **kỳ lương** của các tháng của đơn (`409 PERIOD_LOCKED` ở trên, xét trước), **xung đột ngày** (ma trận ở "Quy ước chung"; thất bại thì `409 DAY_CONFLICT`) và **ngày lễ thêm sau khi nộp** (dưới đây); không kiểm lại các luật khác: chúng đã kiểm lúc nộp, khi đó đã tính cả các đơn đang chờ. Hai lần duyệt cùng một đơn được xếp hàng (khoá `request_<id>`), rồi khoá `requests_<uuid>` của nhân sự.
 - **Ngày lễ thắng đơn nghỉ.** Ngày mà đơn nghỉ hoặc đơn nghỉ có làm bù đang giữ, nếu Admin đặt thành ngày lễ sau khi nộp:
   - Đơn nghỉ: ngày đó rời khỏi đơn lúc duyệt và được trả như khi từ chối. `leaveDaysCount` giảm theo, nên số dư Phép năm cũng tự đúng. Ví dụ: nghỉ T2 09/11–T4 11/11, Admin đặt T3 10/11 là lễ rồi duyệt → đơn còn 2 ngày, chỉ T2 và T4 ghi `ON_LEAVE`.
   - Mọi ngày của đơn nghỉ đều đã thành lễ: `409 DAY_CONFLICT` `Các ngày nghỉ của đơn đều đã thành ngày lễ. Chỉ có thể từ chối đơn này.`

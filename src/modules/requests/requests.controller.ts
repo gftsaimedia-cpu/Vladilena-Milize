@@ -198,8 +198,9 @@ export class RequestsController {
   ): Promise<unknown> {
     try {
       const reviewerId = user.username;
-      const request = await this.service.reviewRequest(id, reviewerId, body.action, body.note);
-      return { updated: true, request };
+      // Duyệt đơn của tháng đã tính lương thì phiếu của người nộp được tính lại sau khi lưu; kết quả nằm ở `recalculated`.
+      const { request, recalculated } = await this.service.reviewAndRecalculate(id, reviewerId, body.action, body.note);
+      return { updated: true, request, recalculated };
     } catch (err: any) {
       const conflict = dayConflictHttp(err, 409);
       if (conflict) throw conflict;
