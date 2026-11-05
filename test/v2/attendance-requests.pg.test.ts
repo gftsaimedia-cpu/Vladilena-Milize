@@ -58,6 +58,7 @@ function build(db: Kysely<DB>) {
     undefined,
     undefined,
     explanations,
+    undefined,
     days
   );
   service.now = () => NOW;

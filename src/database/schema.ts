@@ -115,19 +115,6 @@ export interface MakeupSlotsTable {
   work_minutes: number;
 }
 
-export interface ParamVersionsTable {
-  id: Generated<number>;
-  key: string;
-  effective_month: string;
-  value_json: string;
-  reason: string;
-  basis: Generated<string | null>;
-  ack_json: Generated<string | null>;
-  created_by: string;
-  created_at: string;
-  batch_id: Generated<string | null>;
-}
-
 export interface PayEntriesTable {
   id: Generated<number>;
   username: string;
@@ -267,6 +254,97 @@ export interface PunchEventsTable {
 export interface SettingsTable {
   key: string;
   value_json: string;
+}
+
+export interface OvertimeRulesTable {
+  effective_month: string;
+  weekday_rate: number;
+  weekend_rate: number;
+  holiday_rate: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface AttendanceRulesTable {
+  effective_month: string;
+  late_grace_minutes: number;
+  diligence_lost_from_days: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface KpiWeightsTable {
+  effective_month: string;
+  wework: number;
+  user_score: number;
+  peer: number;
+  manager: number;
+  self_score: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface InsuranceRatesTable {
+  effective_month: string;
+  bhxh_pct: number;
+  bhyt_pct: number;
+  bhtn_pct: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface TaxRulesTable {
+  effective_month: string;
+  personal_deduction: number;
+  dependant_deduction: number;
+  short_contract_pct: number;
+  short_contract_threshold: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface TaxBracketsTable {
+  effective_month: string;
+  sort: number;
+  upper_bound: number | null;
+  rate_pct: number;
+}
+
+export interface PayCalendarTable {
+  effective_month: string;
+  pay_day: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface StaffWorkWeeksTable {
+  employee_id: string;
+  effective_month: string;
+  weekdays: string | null;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface AttendanceZoneTable {
+  id: number;
+  lat: number;
+  lng: number;
+  radius_m: number;
+  updated_by: string;
+  updated_at: Date;
+}
+
+export interface SettingsChangesTable {
+  id: Generated<number>;
+  setting: string;
+  field: string;
+  subject: string | null;
+  effective_month: string | null;
+  old_json: string | null;
+  new_json: string;
+  reason: string | null;
+  changed_by: string;
+  changed_at: Date;
 }
 
 export interface SlipOverridesTable {
@@ -420,18 +498,23 @@ export interface WorkShiftsTable {
 }
 
 export interface Schema {
+  attendance_rules: AttendanceRulesTable;
+  attendance_zone: AttendanceZoneTable;
   audit_log: AuditLogTable;
   benefit_types: BenefitTypesTable;
   company_holidays: CompanyHolidaysTable;
   day_status: DayStatusTable;
   explanation_cases: ExplanationCasesTable;
   explanation_reminders: ExplanationRemindersTable;
+  insurance_rates: InsuranceRatesTable;
   isat_registration_conditions: IsatRegistrationConditionsTable;
   isat_registrations: IsatRegistrationsTable;
   kpi_score_log: KpiScoreLogTable;
   kpi_scores: KpiScoresTable;
+  kpi_weights: KpiWeightsTable;
   makeup_slots: MakeupSlotsTable;
-  param_versions: ParamVersionsTable;
+  overtime_rules: OvertimeRulesTable;
+  pay_calendar: PayCalendarTable;
   pay_entries: PayEntriesTable;
   payroll_periods: PayrollPeriodsTable;
   payroll_runs: PayrollRunsTable;
@@ -441,10 +524,14 @@ export interface Schema {
   position_types: PositionTypesTable;
   punch_events: PunchEventsTable;
   settings: SettingsTable;
+  settings_changes: SettingsChangesTable;
   slip_overrides: SlipOverridesTable;
   staff: StaffTable;
   staff_roles: StaffRolesTable;
+  staff_work_weeks: StaffWorkWeeksTable;
   system_requests: SystemRequestsTable;
+  tax_brackets: TaxBracketsTable;
+  tax_rules: TaxRulesTable;
   timesheet_entries: TimesheetEntriesTable;
   work_schedules: WorkSchedulesTable;
   work_shifts: WorkShiftsTable;

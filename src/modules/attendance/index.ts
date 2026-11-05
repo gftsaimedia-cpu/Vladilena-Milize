@@ -1,4 +1,5 @@
 export * from './domain';
+export * from './attendance.errors';
 export * from './attendance.repository';
 export * from './attendance.service';
 export * from './attendance-days.repository';

@@ -55,6 +55,8 @@ import { HolidaysRepository, type Holiday } from '../holidays/holidays.repositor
 import { businessMonthText } from '../../common/business-date';
 import { SystemService } from '../system/system.service';
 import { PayrollService } from '../payroll/payroll.service';
+import { SettingsReader } from '../settings';
+import { withPersonWeek } from './staff-week';
 import type { AdvanceQuote } from '../payroll/domain';
 
 /**
@@ -302,7 +304,10 @@ export class RequestsService {
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
     @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
     @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService,
-    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService,
+    // Ruling: `settings` giữ chỗ thứ 9 như main (bắt buộc trong DI, không @Optional; kiểu TS tuỳ chọn cho test dựng tay),
+    // `attendanceDays` (@Optional) đứng cuối để không tham số bắt buộc nào đứng sau nó.
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf'>,
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: AttendanceDaysService
   ) {}
 
   /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
@@ -397,7 +402,7 @@ export class RequestsService {
     if (!staff) {
       throw new Error(`Không tìm thấy nhân sự: ${employeeIdOrUsername}`);
     }
-    return staff;
+    return withPersonWeek(staff, month, this.settings);
   }
 
   /** `regular_dows` của loại nhân sự; chưa cấu hình thì không xét được ngày làm việc (§5.1). */

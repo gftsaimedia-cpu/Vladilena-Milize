@@ -9,6 +9,9 @@ import { AttendanceService } from '../../src/modules/attendance/attendance.servi
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
 import { PositionTypeAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
+import { SettingsReader } from '../../src/modules/settings';
+import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Cần PostgreSQL thật (PG_TEST_URL), xem helpers/pg-temp-db.ts. Giờ trong test là giờ Việt Nam (+07:00).
@@ -41,14 +44,16 @@ async function seed(client: Client): Promise<void> {
   );
 }
 
-function build(db: Kysely<DB>) {
+/** `withSettings`: dùng SettingsReader thật (như DI) để có các chặn theo cài đặt; mặc định không có, chỉ đo dòng ngày. */
+function build(db: Kysely<DB>, withSettings = false) {
   const coordinator = new TransactionCoordinator(db);
   const days = new AttendanceDaysService(
     new AttendanceDaysRepository(db),
     new PositionTypeAttendanceSettings(db),
     coordinator
   );
-  const service = new AttendanceService(new AttendanceRepository(db), days, coordinator);
+  const settings = withSettings ? new SettingsReader(new SettingsRepository(db)) : undefined;
+  const service = new AttendanceService(new AttendanceRepository(db), days, settings, coordinator);
   return { service, days };
 }
 
@@ -207,6 +212,65 @@ describe('AttendanceService.recordPunch trên PostgreSQL (T1)', () => {
         [NIGHT]
       );
       assert.deepEqual(rows, [{ work_date: '2026-11-04' }]);
+    });
+  });
+});
+
+describe('AttendanceService.recordPunch với SettingsReader thật trên PostgreSQL', () => {
+  it('chấm vào Chủ nhật 15/11 không có đơn: NOT_A_WORKDAY, không lưu lần chấm, không có dòng ngày', async t => {
+    await withTempDb(t, 'att_punch_set_sun', async (db, client) => {
+      await seed(client);
+      const { service } = build(db, true);
+      await assert.rejects(
+        service.recordPunch({ employeeId: NV, type: 'IN', punchedAt: new Date('2026-11-15T09:00:00+07:00') }),
+        (e: any) => e instanceof PunchRefusedError && e.code === 'NOT_A_WORKDAY'
+      );
+      assert.equal(await punchCount(client, NV), 0);
+      assert.equal(await dayRow(client, NV, '2026-11-15'), undefined);
+    });
+  });
+
+  it('lần ra Chủ nhật không bị chặn và không tạo lịch, nên lần vào sau vẫn bị chặn (P5)', async t => {
+    await withTempDb(t, 'att_punch_set_out', async (db, client) => {
+      await seed(client);
+      const { service } = build(db, true);
+      const out = await service.recordPunch({ employeeId: NV, type: 'OUT', punchedAt: new Date('2026-11-15T17:00:00+07:00') });
+      assert.equal(out.timesheet.status, 'REST');
+      const schedules = await client.query(`SELECT 1 FROM work_schedules WHERE employee_id = $1`, [NV]);
+      assert.equal(schedules.rows.length, 0);
+      await assert.rejects(
+        service.recordPunch({ employeeId: NV, type: 'IN', punchedAt: new Date('2026-11-15T18:00:00+07:00') }),
+        (e: any) => e instanceof PunchRefusedError && e.code === 'NOT_A_WORKDAY'
+      );
+      assert.equal(await punchCount(client, NV), 1);
+    });
+  });
+
+  it('Chủ nhật có tăng ca đã duyệt: lần vào qua được (hasApprovedWorkOn) và dòng ngày là EXTRA', async t => {
+    await withTempDb(t, 'att_punch_set_ot', async (db, client) => {
+      await seed(client);
+      await client.query(
+        `INSERT INTO system_requests (id, employee_id, title, type, reason, status, created_at, updated_at,
+           ot_date, ot_start_time, ot_end_time)
+         VALUES (gen_random_uuid(), $1, 't', 'OVERTIME', 'r', 'APPROVED', now(), now(), '2026-11-15', '08:00', '12:00')`,
+        [NV]
+      );
+      const { service } = build(db, true);
+      const result = await service.recordPunch({ employeeId: NV, type: 'IN', punchedAt: new Date('2026-11-15T08:00:00+07:00') });
+      assert.equal(result.timesheet.workDate, '2026-11-15');
+      assert.equal((await dayRow(client, NV, '2026-11-15')).status, 'EXTRA');
+      assert.equal(await punchCount(client, NV), 1);
+    });
+  });
+
+  it('ngày làm trong tuần: chấm như thường, dòng PRESENT', async t => {
+    await withTempDb(t, 'att_punch_set_ok', async (db, client) => {
+      await seed(client);
+      const { service } = build(db, true);
+      await service.recordPunch({ employeeId: NV, type: 'IN', punchedAt: new Date('2026-11-03T08:00:00+07:00') });
+      const out = await service.recordPunch({ employeeId: NV, type: 'OUT', punchedAt: new Date('2026-11-03T17:00:00+07:00') });
+      assert.equal(out.timesheet.status, 'PRESENT');
+      assert.equal(out.timesheet.payUnits, 1);
     });
   });
 });

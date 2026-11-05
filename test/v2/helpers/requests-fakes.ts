@@ -20,6 +20,7 @@ import { DayStatusRepository } from '../../../src/modules/requests/day-status.re
 import { DailyTimesheet, WorkSchedule } from '../../../src/modules/attendance/domain';
 import type { TransactionCoordinator } from '../../../src/database';
 import type { AdvanceQuote } from '../../../src/modules/payroll/domain';
+import type { SettingsReader } from '../../../src/modules/settings';
 import {
   SystemRequest,
   eachDate,
@@ -449,7 +450,7 @@ export class FakePayroll {
  * Service đủ phụ thuộc; "hôm nay" cố định 2026-11-04 (17:00 giờ Việt Nam). `explanations` dùng chung các fake và đồng hồ
  * của `service`: đặt lại `service.now` thì đổi cả hai.
  */
-export function makeService() {
+export function makeService(settings?: Pick<SettingsReader, 'workWeekOf'>) {
   const repo = new FakeRequestsRepository();
   const att = new FakeAttendanceRepository();
   const holidays = new FakeHolidaysRepository();
@@ -458,7 +459,7 @@ export function makeService() {
   const periods = new FakePeriods();
   const payroll = new FakePayroll();
   const reminders = new FakeRemindersRepository();
-  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, periods);
+  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, periods, settings);
   const attendanceDays = new RecordingDays();
   const service = new RequestsService(
     repo,
@@ -469,6 +470,7 @@ export function makeService() {
     periods,
     payroll,
     explanations,
+    settings,
     attendanceDays as unknown as AttendanceDaysService
   );
   service.now = () => new Date('2026-11-04T10:00:00Z');

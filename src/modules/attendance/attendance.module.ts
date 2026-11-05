@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SettingsModule } from '../settings';
 import { AttendanceRepository } from './attendance.repository';
 import { AttendanceService } from './attendance.service';
 import { AttendanceController } from './attendance.controller';
@@ -8,6 +9,7 @@ import { AttendanceDaysService } from './attendance-days.service';
 import { AttendanceSettingsPort, PositionTypeAttendanceSettings } from './attendance-settings.port';
 
 @Module({
+  imports: [SettingsModule],
   controllers: [AttendanceController],
   providers: [
     AttendanceRepository,

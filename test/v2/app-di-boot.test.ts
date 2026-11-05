@@ -7,6 +7,9 @@ import { TransactionCoordinator } from '../../src/database';
 import { AttendanceDaysJob } from '../../src/modules/attendance/attendance-days.job';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
+import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
+import { AttendanceService } from '../../src/modules/attendance/attendance.service';
+import { SettingsReader } from '../../src/modules/settings';
 import { EmployeesService } from '../../src/modules/employees/employees.service';
 import { HolidaysService } from '../../src/modules/holidays/holidays.service';
 import { MeController } from '../../src/modules/me/me.controller';
@@ -39,6 +42,18 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ', async 
     const days = app.get(AttendanceDaysService);
     assert.equal((app.get(HolidaysService) as any).attendanceDays, days);
     assert.equal((app.get(EmployeesService) as any).attendanceDays, days);
+
+    // Sau khi gộp settings-store: tham số cài đặt và tham số ghi dòng ngày nằm đúng chỗ trong hàm dựng.
+    const settings = app.get(SettingsReader);
+    assert.equal(service.attendanceDays, days, 'RequestsService.attendanceDays phải là AttendanceDaysService');
+    assert.equal(service.settings, settings, 'RequestsService.settings phải là SettingsReader');
+    assert.equal((explanations as any).settings, settings);
+    const attendance = app.get(AttendanceService) as any;
+    assert.equal(attendance.repo, app.get(AttendanceRepository));
+    assert.equal(attendance.days, days);
+    assert.equal(attendance.settings, settings);
+    assert.equal(attendance.txCoordinator, app.get(TransactionCoordinator));
+    assert.equal(me.settings, settings);
 
     // Job mỗi giờ: tsx không phát metadata tham số, thiếu @Inject thì phụ thuộc rơi thành undefined.
     const job = app.get(AttendanceDaysJob) as any;

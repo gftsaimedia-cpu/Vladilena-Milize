@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import type { Kysely, Selectable } from 'kysely';
+import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import { KYSELY_DB, type DB } from '../../database';
 import { PunchEvent, DailyTimesheet, WorkSchedule } from './domain';
 
@@ -280,6 +281,37 @@ export class AttendanceRepository {
   }
 
   /**
+   * Người này có đơn đã duyệt bắt họ đi làm vào `date` không: tăng ca, đổi ca phủ ngày đó,
+   * hoặc khung làm bù của đơn nghỉ có làm bù.
+   */
+  async hasApprovedWorkOn(employeeId: string, date: string): Promise<boolean> {
+    const row = await this.qb
+      .selectFrom('system_requests')
+      .select('id')
+      .where('employee_id', '=', employeeId)
+      .where('status', '=', 'APPROVED')
+      .where(eb =>
+        eb.or([
+          eb.and([eb('type', '=', 'OVERTIME'), eb('ot_date', '=', date)]),
+          eb.and([eb('type', '=', 'SHIFT_CHANGE'), eb('change_start_date', '<=', date), eb('change_end_date', '>=', date)]),
+          eb.and([
+            eb('type', '=', 'LEAVE_WITH_MAKEUP'),
+            eb.exists(
+              eb
+                .selectFrom('makeup_slots')
+                .select('makeup_slots.request_id')
+                .whereRef('makeup_slots.request_id', '=', 'system_requests.id')
+                .where('makeup_slots.work_date', '=', date)
+            )
+          ])
+        ])
+      )
+      .limit(1)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  /**
    * Đảm bảo lịch làm việc tồn tại: nếu chưa có thì nạp từ ca mặc định của nhân viên trong staff
    */
   async ensureDefaultSchedule(employeeId: string, workDate: string): Promise<WorkSchedule> {
@@ -293,8 +325,8 @@ export class AttendanceRepository {
       .executeTakeFirst();
 
     const shiftType = (staffRow?.shift_type as any) || 'NORMAL';
-    const plannedStartTime = staffRow?.shift_start_time || '08:00';
-    const plannedEndTime = staffRow?.shift_end_time || '17:00';
+    const plannedStartTime = staffRow?.shift_start_time || DEFAULT_SHIFT.startTime;
+    const plannedEndTime = staffRow?.shift_end_time || DEFAULT_SHIFT.endTime;
 
     const defaultSchedule = WorkSchedule.create({
       employeeId,

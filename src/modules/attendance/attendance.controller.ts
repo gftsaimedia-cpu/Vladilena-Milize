@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
+import { PunchRefusedError } from './attendance.errors';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -23,6 +24,7 @@ export class AttendanceController {
       const result = await this.service.recordPunch(body);
       return result;
     } catch (err: any) {
+      if (err instanceof PunchRefusedError) throw new BadRequestError(err.message, { code: err.code, ...err.details });
       throw new BadRequestError(err.message, { code: 'BAD_PUNCH_INPUT' });
     }
   }

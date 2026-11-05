@@ -1,6 +1,8 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { businessDateText } from '../../common/business-date';
+import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
+import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import { AttendanceDaysService, employeeLockKey } from './attendance-days.service';
 import {
@@ -14,12 +16,6 @@ import {
   workDateOfPunch,
 } from './domain';
 
-export interface OfficeLocationInput {
-  latitude: number;
-  longitude: number;
-  maxDistanceMeters?: number;
-}
-
 export interface RecordPunchInput {
   employeeId: string;
   type: 'IN' | 'OUT';
@@ -30,7 +26,6 @@ export interface RecordPunchInput {
   note?: string;
   workDate?: string;
   punchedAt?: Date | string;
-  officeLocation?: OfficeLocationInput;
 }
 
 export interface RecordPunchResult {
@@ -42,19 +37,51 @@ const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 @Injectable()
 export class AttendanceService {
-  // Ruling: `days` đứng trước `txCoordinator` vì tham số bắt buộc không được đứng sau tham số @Optional();
-  // test đơn vị không có coordinator gọi `new AttendanceService(repo, days)`.
+  // Ruling: tham số bắt buộc trước, @Optional() cuối. `settings` bắt buộc trong DI (không @Optional, thiếu import thì Nest
+  // báo lỗi lúc khởi động) nên đứng thứ ba; `txCoordinator` đứng cuối. Kiểu TS của `settings` vẫn tuỳ chọn để test dựng tay
+  // gọi `new AttendanceService(repo, days)` hoặc `new AttendanceService(repo, days, settings, coordinator)`.
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
     @Inject(AttendanceDaysService) private readonly days: AttendanceDaysService,
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
   ) {}
 
   /**
+   * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
+   * hoặc có đơn đã duyệt (tăng ca, đổi ca, làm bù); lịch nghỉ đã duyệt (ON_LEAVE) thì luôn không phải. Không có cài đặt thì coi mọi ngày là ngày làm.
+   */
+  async workdayOf(employeeId: string, date: string): Promise<boolean> {
+    if (!this.settings) return true;
+    const schedule = await this.repo.findSchedule(employeeId, date);
+    if (schedule) return schedule.status !== 'ON_LEAVE'; // lịch nghỉ phép đã duyệt không phải ngày làm
+    return await this.workdayWithoutSchedule(this.settings, this.repo, employeeId, date);
+  }
+
+  /** `repo` và `trx`: trong khoá chấm công thì đọc trên giao dịch đang giữ khoá; ngoài khoá thì đọc thẳng. */
+  private async workdayWithoutSchedule(
+    settings: Pick<SettingsReader, 'workWeekOf'>,
+    repo: AttendanceRepository,
+    employeeId: string,
+    date: string,
+    trx?: DatabaseTransaction,
+  ): Promise<boolean> {
+    // Loại nhân sự chưa có tuần làm (vd. tài khoản quản trị đầu tiên) thì coi như tuần T2–T7, cùng mặc định với app nhân viên.
+    let weekdays: readonly number[] = [1, 2, 3, 4, 5, 6];
+    try {
+      weekdays = (await settings.workWeekOf(employeeId, date.slice(0, 7), trx)).weekdays;
+    } catch (err) {
+      if (!(err instanceof TypeWeekMissingError)) throw err;
+    }
+    return isWorkday(weekdays, date) || (await repo.hasApprovedWorkOn(employeeId, date));
+  }
+
+  /**
    * Ghi nhận sự kiện chấm công rồi để AttendanceDaysService dựng lại dòng ngày (T1).
    * Mọi bước chạy trong một giao dịch, dưới khoá của nhân sự (cùng khoá với Đơn từ).
+   * Có cài đặt thì kiểm ngày làm (chỉ lần vào) rồi vùng chấm công (khi `checkZone`) trước khi lưu lần chấm.
    */
-  async recordPunch(input: RecordPunchInput): Promise<RecordPunchResult> {
+  async recordPunch(input: RecordPunchInput, options: { checkZone?: boolean } = {}): Promise<RecordPunchResult> {
     if (!input.employeeId) {
       throw new Error('Mã nhân viên (employeeId) không được để trống');
     }
@@ -100,7 +127,32 @@ export class AttendanceService {
         throw new Error('Bảng công ngày đã bị khóa cho kỳ lương, không thể tính toán lại');
       }
 
-      // 3. Lưu lần chấm
+      // 3. Kiểm theo cài đặt: ngày làm (chỉ lần vào vào ngày chưa có lịch), rồi vùng chấm công (khi `checkZone`).
+      let distanceM = 0;
+      if (this.settings) {
+        if (!schedule && input.type === 'IN') {
+          if (!(await this.workdayWithoutSchedule(this.settings, repo, input.employeeId, workDate, trx))) {
+            throw new PunchRefusedError('NOT_A_WORKDAY', 'Hôm nay không phải ngày làm của bạn');
+          }
+        }
+        if (options.checkZone) {
+          const zone = await this.settings.zone(trx);
+          const check = checkPunchLocation(zone, {
+            lat: input.latitude ?? input.userLocation?.latitude,
+            lng: input.longitude ?? input.userLocation?.longitude,
+          });
+          if (check.kind === 'no-location') throw new PunchRefusedError('NO_LOCATION', 'Không lấy được vị trí');
+          if (check.kind === 'outside') {
+            throw new PunchRefusedError('OUTSIDE_ZONE', `Bạn đang cách văn phòng ${check.distanceM} m`, {
+              distanceM: check.distanceM,
+              radiusM: zone!.radiusM,
+            });
+          }
+          distanceM = check.distanceM ?? 0;
+        }
+      }
+
+      // 4. Lưu lần chấm
       const lat = input.latitude ?? input.userLocation?.latitude ?? 0;
       const lng = input.longitude ?? input.userLocation?.longitude ?? 0;
       const accuracy = input.accuracyMeters ?? input.userLocation?.accuracyMeters ?? 0;
@@ -117,23 +169,14 @@ export class AttendanceService {
         type: input.type,
         userLocation,
         note: input.note,
+        distanceMeters: distanceM,
+        isWithinOffice: true,
       };
-
-      if (input.officeLocation) {
-        punchProps.officeLocation = new GeoLocation({
-          latitude: input.officeLocation.latitude,
-          longitude: input.officeLocation.longitude,
-        });
-        punchProps.allowedRadiusMeters = input.officeLocation.maxDistanceMeters ?? 100;
-      } else {
-        punchProps.distanceMeters = 0;
-        punchProps.isWithinOffice = true;
-      }
 
       const punch = PunchEvent.create(punchProps);
       await repo.savePunch(punch);
 
-      // 4. Dựng lại dòng ngày từ nguồn sự thật, 5. rồi đọc lại để trả về
+      // 5. Dựng lại dòng ngày từ nguồn sự thật, 6. rồi đọc lại để trả về
       await this.days.refreshDays(input.employeeId, [workDate], trx ? { trx } : undefined);
       const timesheet = await repo.findTimesheet(input.employeeId, workDate);
       if (!timesheet) {

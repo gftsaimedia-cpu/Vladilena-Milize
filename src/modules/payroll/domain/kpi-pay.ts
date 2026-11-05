@@ -4,6 +4,7 @@ export type KpiComponent = 'wework' | 'user' | 'peer' | 'manager' | 'self';
 
 const KPI_COMPONENTS: KpiComponent[] = ['wework', 'user', 'peer', 'manager', 'self'];
 
+/** The default weights (% of the KPI pay); the month's weights come from the settings store and also sum to 100. */
 export const KPI_WEIGHTS: Record<KpiComponent, number> = { wework: 40, user: 24, peer: 18, manager: 12, self: 6 };
 
 // Scores are stored as points x 100 (0..10000); the weights sum to 100, so units are in 1/1_000_000 of the proposal.
@@ -27,13 +28,17 @@ export interface KpiPay {
   warnings: PayrollWarning[];
 }
 
-export function calculateKpiPay(input: KpiInput | null, cap: KpiCap): KpiPay {
+export function calculateKpiPay(
+  input: KpiInput | null,
+  cap: KpiCap,
+  weights: Record<KpiComponent, number> = KPI_WEIGHTS
+): KpiPay {
   const scores = {} as Record<KpiComponent, number | null>;
   let units = 0;
   for (const component of KPI_COMPONENTS) {
     const value = input?.scores[component] ?? null;
     scores[component] = value === null ? null : value / 100;
-    units += (value ?? 0) * KPI_WEIGHTS[component];
+    units += (value ?? 0) * weights[component];
   }
   const weightedPct = Math.round(units / 100) / 100;
   const proposedAmount = input?.proposedAmount ?? null;
