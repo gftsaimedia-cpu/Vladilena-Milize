@@ -216,6 +216,10 @@ export interface PayslipRecord {
   net: number;
   warnings: PayrollWarning[];
   details: EmployeePayslipDTO;
+  // The Admin's decision: the reason typed with it, who decided and when (ISO time); null while undecided.
+  note: string | null;
+  decidedBy: string | null;
+  decidedAt: string | null;
 }
 
 // Columns of kpi_scores to write; a key that is absent keeps its stored value, null clears it. Scores are points x 100.
@@ -271,7 +275,10 @@ export function readPayslipRow(row: Selectable<DB['payslips']>): PayslipRecord {
     advance: Number(row.advance),
     net: Number(row.net),
     warnings: row.flags_json ? JSON.parse(row.flags_json) : [],
-    details: JSON.parse(gunzipSync(row.snapshot_gz).toString('utf8'))
+    details: JSON.parse(gunzipSync(row.snapshot_gz).toString('utf8')),
+    note: row.note ?? null,
+    decidedBy: row.decided_by ?? null,
+    decidedAt: row.decided_at ?? null
   };
 }
 
@@ -543,7 +550,7 @@ export class PayrollRepository {
     username: string,
     status: 'approved' | 'rejected',
     actor: string,
-    note?: string
+    note?: string | null
   ): Promise<PayslipRecord | null> {
     const run = await this.qb
       .selectFrom('payroll_runs')

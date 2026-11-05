@@ -107,7 +107,8 @@ export class PayrollService {
     actor: string,
     note?: string
   ): Promise<PayslipRecord | null> {
-    return await this.repo.decidePayslip(month, username, status, actor, note);
+    // A blank note is stored as null, so a reader never has to tell "" from "no reason".
+    return await this.repo.decidePayslip(month, username, status, actor, typeof note === 'string' ? note.trim() || null : null);
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
