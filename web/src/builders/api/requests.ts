@@ -16,7 +16,14 @@ const DAY_STATUS: Record<string, 'pending' | 'approved' | 'rejected'> = {
   REJECTED: 'rejected'
 };
 
-const nameOf = (r: FullRequestDTO, people: Map<string, PersonInfo>) => people.get(r.employeeId)?.name || r.employeeId;
+// Hồ sơ tra theo uuid và tên đăng nhập (builders/api/staff peopleOf); loại và bậc cho cột dưới họ tên.
+type People = Map<string, PersonInfo & { type?: string; levelName?: string }>;
+
+const nameOf = (r: FullRequestDTO, people: People) => people.get(r.employeeId)?.name || r.employeeId;
+const roleOf = (r: FullRequestDTO, people: People) => {
+  const person = people.get(r.employeeId);
+  return { type: person?.type || '', levelName: person?.levelName || '' };
+};
 
 // Loại khoản theo mã của màn Duyệt (builders/admin-requests/requests.ts KIND_OF); null = không thuộc màn này.
 function itemOf(r: FullRequestDTO): string | null {
@@ -70,7 +77,7 @@ export function approvalRowsFromRequests(list: FullRequestDTO[], people: Map<str
 }
 
 /** Phản hồi dạng GET /explanations: đơn chờ duyệt là "answered" (nhân viên đã gửi, chờ Admin). */
-export function explanationsResponseFromRequests(list: FullRequestDTO[], people: Map<string, PersonInfo>) {
+export function explanationsResponseFromRequests(list: FullRequestDTO[], people: People) {
   const STATUS: Record<string, string> = { PENDING: 'answered', APPROVED: 'approved', REJECTED: 'rejected' };
   const items = list
     .filter(r => r.type === 'EXPLANATION' && STATUS[r.status])
@@ -81,6 +88,7 @@ export function explanationsResponseFromRequests(list: FullRequestDTO[], people:
         rev: undefined,
         username: r.employeeId,
         name: nameOf(r, people),
+        ...roleOf(r, people),
         date: r.explanationDate || r.createdAt.slice(0, 10),
         kind: 'admin',
         prompt: '',
@@ -95,13 +103,14 @@ export function explanationsResponseFromRequests(list: FullRequestDTO[], people:
 }
 
 /** Phản hồi dạng GET /advance-approvals?month=: đơn tạm ứng trừ vào lương tháng `month`. */
-export function advanceResponseFromRequests(list: FullRequestDTO[], people: Map<string, PersonInfo>, month: string) {
+export function advanceResponseFromRequests(list: FullRequestDTO[], people: People, month: string) {
   const items = list
     .filter(r => r.type === 'ADVANCE' && r.advancePeriod === month && DAY_STATUS[r.status])
     .map(r => ({
       requestId: r.id,
       username: r.employeeId,
       name: nameOf(r, people),
+      ...roleOf(r, people),
       eligible: true,
       amount: r.advanceAmount ?? 0,
       status: DAY_STATUS[r.status],

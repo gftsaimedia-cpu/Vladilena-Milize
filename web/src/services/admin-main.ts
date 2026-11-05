@@ -13,7 +13,7 @@ import {
 import { inboxFromRequests, type PersonInfo } from '@/builders/api/inbox';
 import { overviewFrom, recentWorkdays } from '@/builders/api/overview';
 import { approvalRowsFromRequests, type FullRequestDTO } from '@/builders/api/requests';
-import type { EmployeeDTO } from '@/builders/api/staff';
+import { peopleOf, type EmployeeDTO } from '@/builders/api/staff';
 import { SYSTEM_NOTES, pendingInbox, resolveInboxItem, type InboxItem, type SystemNote } from '@/mock/inbox';
 import { overviewView, type OverviewView } from '@/mock/overview';
 import { respond } from '@/mock/respond';
@@ -41,26 +41,15 @@ const fetchEmployees = (): Promise<EmployeeDTO[]> =>
     () => []
   );
 
-// Hồ sơ cho cột loại · bậc của bảng (builders/admin-requests/requests đọc type và levelName).
-const staffByOf = (employees: EmployeeDTO[]) =>
-  new Map<any, any>(
-    employees.map(e => [e.account.username, { type: e.contract.position.type, levelName: `Bậc ${e.contract.position.level}` }])
-  );
+// Họ tên, chức danh, loại và bậc theo tên đăng nhập và uuid (builders/api/staff); admin-advance và admin-explanations
+// dùng lại qua đây.
+export { peopleOf };
 
-/** Họ tên và chức danh theo tên đăng nhập và uuid (đơn iSAT lưu theo uuid). */
-export function peopleOf(employees: EmployeeDTO[]): Map<string, PersonInfo> {
-  const map = new Map<string, PersonInfo>();
-  for (const e of employees) {
-    const info = { name: e.profile.fullName || e.account.username, title: e.contract.position.jobTitle || '—' };
-    map.set(e.account.username, info);
-    if (e.profile.uuid) map.set(e.profile.uuid, info);
-  }
-  return map;
-}
-
+// Cùng một bảng tra cho họ tên và cột loại · bậc (builders/admin-requests/requests đọc type và levelName).
 async function loadRows() {
   const [requests, employees] = await Promise.all([listAllRequests(), fetchEmployees()]);
-  return { raws: approvalRowsFromRequests(requests, peopleOf(employees)), staffBy: staffByOf(employees) };
+  const people = peopleOf(employees);
+  return { raws: approvalRowsFromRequests(requests, people), staffBy: people };
 }
 
 const countOf = (raws: any[]) => ({

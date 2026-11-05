@@ -19,6 +19,26 @@ export type EmployeeDTO = {
 };
 
 const NONE = '—';
+
+/** Tóm tắt một nhân sự cho màn Yêu cầu và chuông: họ tên, chức danh, loại (mã thường) và bậc. */
+export type PersonCard = { name: string; title: string; type: string; levelName: string };
+
+/** Tra hồ sơ theo cả tên đăng nhập lẫn uuid: đơn mới lưu theo uuid, đơn cũ có thể còn lưu theo tên đăng nhập. */
+export function peopleOf(employees: EmployeeDTO[]): Map<string, PersonCard> {
+  const map = new Map<string, PersonCard>();
+  for (const e of employees) {
+    const card: PersonCard = {
+      name: e.profile.fullName || e.account.username,
+      title: e.contract.position.jobTitle || NONE,
+      type: e.contract.position.type,
+      levelName: `Bậc ${e.contract.position.level}`
+    };
+    map.set(e.account.username, card);
+    if (e.profile.uuid) map.set(e.profile.uuid, card);
+  }
+  return map;
+}
+
 const STATUS_LABEL: Record<StaffStatus, string> = { ok: 'Chính thức', try: 'Thử việc', off: 'Tạm nghỉ', out: 'Đã nghỉ việc' };
 const TYPE_LABEL: Record<string, string> = { tts: 'TTS', ctv: 'CTV', nv: 'NV', ql: 'QL' };
 const TERM_LABEL: Record<string, string> = { long: 'HĐLĐ từ 3 tháng', short: 'HĐLĐ dưới 3 tháng' };
