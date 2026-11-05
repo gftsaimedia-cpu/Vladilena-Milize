@@ -481,7 +481,7 @@ export class RequestsService {
         shift: shift ? { start: shift.startTime, end: shift.endTime } : null,
         holiday: holidayNames.get(date) ?? null,
         claim: claim ? { status: claim.status, pending: claim.requestStatus === 'PENDING' } : null,
-        hours: days.isOnLeave(date)
+        hours: days.isOnLeave(date) || claim?.status === 'ISAT'
           ? []
           : dayHourOptions({ date, shifts: days.shiftsAround(date), hasShift: shift !== null, windows: days.windowsOn(date) })
       };

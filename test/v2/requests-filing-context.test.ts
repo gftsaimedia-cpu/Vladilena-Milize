@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { SystemRequest } from '../../src/modules/requests/domain';
-import { leaveRequest, lwmRequest, makeService, otRequest, seed, staffContext, timesheet } from './helpers/requests-fakes';
+import { isatRequest, leaveRequest, lwmRequest, makeService, otRequest, seed, staffContext, timesheet } from './helpers/requests-fakes';
 
 // Hôm nay 04/11/2026 (Thứ Tư). nv01 vào làm 04/11, làm T2–T7 ca 08–17.
 describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
@@ -222,6 +222,21 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     const context = await ctx.service.requestContext('nv01');
     assert.equal(context.months[0].otMinutes, 0);
     assert.equal(context.months[0].hasOvertime, false);
+  });
+
+  it('a Saturday with an iSAT request offers no hours, pending or approved', async () => {
+    await seed(ctx, isatRequest('2026-11-14', 'PENDING'));
+    await seed(ctx, isatRequest('2026-11-21', 'APPROVED'));
+    const context = await ctx.service.requestContext('nv01');
+    const pending = context.days.find(d => d.date === '2026-11-14')!;
+    assert.deepEqual(pending.claim, { status: 'ISAT', pending: true });
+    assert.deepEqual(pending.hours, []);
+    const approved = context.days.find(d => d.date === '2026-11-21')!;
+    assert.deepEqual(approved.claim, { status: 'ISAT', pending: false });
+    assert.deepEqual(approved.hours, []);
+    const ordinary = context.days.find(d => d.date === '2026-11-28')!;
+    assert.equal(ordinary.claim, null);
+    assert.equal(ordinary.hours.length > 0, true);
   });
 
   it('unknown staff is reported', async () => {
