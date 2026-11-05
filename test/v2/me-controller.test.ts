@@ -22,13 +22,14 @@ function fake(impl: Record<string, (...a: any[]) => any> = {}) {
   return { proxy, calls };
 }
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys', ReturnType<typeof fake>>> = {}) {
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys' | 'expl', ReturnType<typeof fake>>> = {}) {
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }) });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
   const sys = over.sys ?? fake({ getPeriod: () => null });
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy), att, reqs, pay, emp, sys };
+  const expl = over.expl ?? fake({ reminders: () => [], dayView: () => ({ explanation: null, due: null }) });
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy, expl.proxy), att, reqs, pay, emp, sys, expl };
 }
 
 describe('MeController', () => {
@@ -65,6 +66,93 @@ describe('MeController', () => {
     await assert.rejects(ctl.cancelRequest(req(), 'x', {}), (e: any) => e.status === 404);
     const other = controller({ reqs: fake({ cancelRequest: () => { throw new Error('Không thể huỷ đơn đã duyệt'); } }) });
     await assert.rejects(other.ctl.cancelRequest(req(), 'x', {}), (e: any) => e.status === 409 && e.details?.code === 'REQUEST_NOT_CANCELLABLE');
+  });
+
+  it('preview uses the session user and self filing', async () => {
+    const result = { ok: true, title: 'Nghỉ phép năm', summary: 's', warnings: [] };
+    const { ctl, reqs } = controller({ reqs: fake({ previewRequest: () => result }) });
+    const out = await ctl.previewRequest(req(), 'leave', { employeeId: 'mallory', leaveType: 'ANNUAL' } as any);
+    assert.deepEqual(out, result);
+    assert.deepEqual(reqs.calls.previewRequest, ['leave', { employeeId: 'nam', leaveType: 'ANNUAL' }, { filedBy: 'self' }]);
+  });
+
+  it('preview of isat or unknown kind is 404', async () => {
+    const { ctl, reqs } = controller();
+    for (const kind of ['isat', 'nonsense']) {
+      await assert.rejects(ctl.previewRequest(req(), kind, {}), (e: any) => e.status === 404 && e.details?.code === 'REQUEST_KIND_NOT_FOUND', kind);
+    }
+    assert.equal(reqs.calls.previewRequest, undefined);
+  });
+
+  it('create of an inherited property name is 404', async () => {
+    const { ctl } = controller();
+    for (const kind of ['constructor', 'toString', '__proto__', 'nonsense']) {
+      await assert.rejects(ctl.createRequest(req(), kind, {}), (e: any) => e.status === 404 && e.details?.code === 'REQUEST_KIND_NOT_FOUND', kind);
+    }
+  });
+
+  it('request-context comes from the session user and a failure is a 400', async () => {
+    const ctx = { today: '2026-11-05' };
+    const { ctl, reqs } = controller({ reqs: fake({ requestContext: () => ctx }) });
+    assert.deepEqual(await ctl.requestContext(req()), ctx);
+    assert.equal(reqs.calls.requestContext[0], 'nam');
+    const bad = controller({ reqs: fake({ requestContext: () => { throw new Error('Không có hồ sơ'); } }) });
+    await assert.rejects(bad.ctl.requestContext(req()), (e: any) => e.status === 400 && e.details?.code === 'BAD_REQUEST');
+  });
+
+  it('create passes self filing', async () => {
+    const methods: Record<string, string> = {
+      leave: 'createLeaveRequest',
+      'leave-with-makeup': 'createLeaveWithMakeupRequest',
+      overtime: 'createOvertimeRequest',
+      'shift-change': 'createShiftChangeRequest',
+      explanation: 'createExplanationRequest',
+      advance: 'createAdvanceRequest'
+    };
+    for (const [kind, method] of Object.entries(methods)) {
+      const { ctl, reqs } = controller();
+      await ctl.createRequest(req(), kind, { employeeId: 'mallory' });
+      assert.equal(reqs.calls[method][0].employeeId, 'nam', kind);
+      assert.deepEqual(reqs.calls[method][1], { filedBy: 'self' }, kind);
+    }
+  });
+
+  it('today lists reminders', async () => {
+    const reminders = [{ date: '2026-10-27', remindedAt: '2026-11-04T01:00:00.000Z' }];
+    const ok = controller({ expl: fake({ reminders: () => reminders }) });
+    const t = (await ok.ctl.today(req())) as any;
+    assert.deepEqual(t.reminders, reminders);
+    assert.equal(ok.expl.calls.reminders[0], 'nam');
+    const broken = controller({ expl: fake({ reminders: () => { throw new Error('boom'); } }) });
+    assert.deepEqual(((await broken.ctl.today(req())) as any).reminders, []);
+  });
+
+  it('attendance day adds explanation and due', async () => {
+    const view = { explanation: { id: 'e1', status: 'PENDING' }, due: { dueDate: '2026-11-07', overdue: false } };
+    const { ctl, expl } = controller({ expl: fake({ dayView: () => view }) });
+    const d = (await ctl.attendanceDay(req(), '2026-11-03')) as any;
+    assert.deepEqual(d.explanation, view.explanation);
+    assert.deepEqual(d.due, view.due);
+    assert.deepEqual(expl.calls.dayView, ['nam', '2026-11-03']);
+  });
+
+  it('attendance day still works when the explanation view fails', async () => {
+    const { ctl } = controller({ expl: fake({ dayView: () => { throw new Error('thiếu cấu hình'); } }) });
+    const d = (await ctl.attendanceDay(req(), '2026-11-03')) as any;
+    assert.equal(d.explanation, null);
+    assert.equal(d.due, null);
+    assert.equal(d.date, '2026-11-03');
+  });
+
+  it('profile leave left comes from annualLeaveLeft', async () => {
+    const withContract = (leave: any) => fake({ findByUsernameOrUuid: () => ({ toDTO: () => ({ profile: { fullName: 'Nam', dependants: 0 }, account: { username: 'nam' }, contract: { status: 'ACTIVE', term: 'x', effectiveFrom: '2024-03-04', position: 'p', shift: 's', leave } }) }) });
+    const eight = controller({ emp: withContract({ annualDays: 12, remainingDays: 3 }), reqs: fake({ annualLeaveLeft: () => 8 }) });
+    assert.deepEqual(((await eight.ctl.profile(req())) as any).leave, { annualDays: 12, remainingDays: 8 });
+    assert.equal(eight.reqs.calls.annualLeaveLeft[0], 'nam');
+    const none = controller({ emp: withContract({ annualDays: 12, remainingDays: 3 }), reqs: fake({ annualLeaveLeft: () => null }) });
+    assert.equal(((await none.ctl.profile(req())) as any).leave.remainingDays, 0);
+    const broken = controller({ emp: withContract({ annualDays: 12, remainingDays: 3 }), reqs: fake({ annualLeaveLeft: () => { throw new Error('boom'); } }) });
+    assert.deepEqual(((await broken.ctl.profile(req())) as any).leave, { annualDays: 12, remainingDays: 3 });
   });
 
   it('income is official once my payslip is approved', async () => {

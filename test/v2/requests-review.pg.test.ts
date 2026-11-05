@@ -116,11 +116,12 @@ test('Duyệt đơn trên PostgreSQL', async t => {
     });
 
     await t.test('a failing save rolls back the leave days written by the approval', async () => {
-      // Trigger chỉ chặn việc chuyển đơn có tiêu đề "Lưu lỗi" sang APPROVED: lịch đã ghi trước đó phải huỷ theo.
+      // Trigger chỉ chặn việc chuyển đơn có lý do "Lưu lỗi" sang APPROVED: lịch đã ghi trước đó phải huỷ theo.
+      // (Đánh dấu bằng lý do vì tiêu đề do server đặt.)
       await client.query(`
         CREATE FUNCTION fail_review() RETURNS trigger AS $$
         BEGIN
-          IF NEW.title = 'Lưu lỗi' AND NEW.status = 'APPROVED' THEN RAISE EXCEPTION 'lưu đơn lỗi (test)'; END IF;
+          IF NEW.reason = 'Lưu lỗi' AND NEW.status = 'APPROVED' THEN RAISE EXCEPTION 'lưu đơn lỗi (test)'; END IF;
           RETURN NEW;
         END $$ LANGUAGE plpgsql;
         CREATE TRIGGER fail_review BEFORE UPDATE ON system_requests FOR EACH ROW EXECUTE FUNCTION fail_review();
@@ -128,7 +129,7 @@ test('Duyệt đơn trên PostgreSQL', async t => {
       const created = await service.createLeaveRequest({
         ...leaveInput('pg-user', '2026-11-16'),
         endDate: '2026-11-17',
-        title: 'Lưu lỗi'
+        reason: 'Lưu lỗi'
       });
 
       await assert.rejects(service.reviewRequest(created.id, 'pg-admin', 'APPROVE'), /lưu đơn lỗi \(test\)/);

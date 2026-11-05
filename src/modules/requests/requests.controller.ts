@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { RequestsService } from './requests.service';
+import { ExplanationsService, type DueItem } from './explanations.service';
 import { createdBody, dayConflictHttp } from './request-http';
-import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES, EXPLANATION_CASES } from './domain';
+import { RequestType, RequestStatus, ISAT_CONDITIONS, LEAVE_TYPES, EXPLANATION_CASES, requireDateText } from './domain';
 
 // Các route này là của Admin làm thay nhân viên: người được thao tác phải ghi rõ, không suy ra từ phiên.
 function requireEmployeeId(body: any): string {
@@ -14,7 +15,15 @@ function requireEmployeeId(body: any): string {
 @Controller('api/v2/requests')
 @UseFilters(ApiExceptionFilter)
 export class RequestsController {
-  constructor(@Inject(RequestsService) private readonly service: RequestsService) {}
+  constructor(
+    @Inject(RequestsService) private readonly service: RequestsService,
+    @Optional() @Inject(ExplanationsService) private readonly explanations?: ExplanationsService
+  ) {}
+
+  private explanationsService(): ExplanationsService {
+    if (!this.explanations) throw new Error('ExplanationsService chưa được cấu hình');
+    return this.explanations;
+  }
 
   @RequireCap('requests.review')
   @Post('leave')
@@ -95,7 +104,8 @@ export class RequestsController {
   async createAdvance(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const created = await this.service.createAdvanceRequest({ ...body, employeeId });
+      // Số tiền, tiêu đề và lý do do server đặt (spec 2.5): chỉ nhận nhân sự và kỳ.
+      const created = await this.service.createAdvanceRequest({ employeeId, period: body.period });
       return createdBody(created);
     } catch (err: any) {
       throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });
@@ -159,6 +169,31 @@ export class RequestsController {
   @Get('explanation-cases')
   listExplanationCases(): { cases: typeof EXPLANATION_CASES } {
     return { cases: EXPLANATION_CASES };
+  }
+
+  // Ngày cần giải trình của mọi nhân sự (chuông của Admin); khai báo trước @Get(':id') để 'explanations-due' không bị bắt làm id
+  @RequireCap('requests.review')
+  @Get('explanations-due')
+  async listExplanationsDue(): Promise<{ items: DueItem[] }> {
+    try {
+      return { items: await this.explanationsService().listDue() };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
+  }
+
+  // Admin nhắc nhân viên giải trình một ngày; người nhắc là Admin đang đăng nhập
+  @RequireCap('requests.review')
+  @Post('explanations-due/remind')
+  async remindExplanation(@Body() body: any, @CurrentUser() user: UserSession): Promise<{ reminded: true; remindedAt: string }> {
+    try {
+      const employeeId = requireEmployeeId(body);
+      const date = requireDateText(body?.date, 'date');
+      const { remindedAt } = await this.explanationsService().remind(employeeId, date, user.username);
+      return { reminded: true, remindedAt };
+    } catch (err: any) {
+      throw new BadRequestError(err.message, { code: 'BAD_REQUEST' });
+    }
   }
 
   @RequireCap('requests.review')

@@ -123,8 +123,8 @@ test('RequestsRepository and HolidaysRepository on PostgreSQL', async t => {
     assert.equal(await holidays.insert({ date: '2026-09-02', name: 'Quốc khánh' }, 'admin'), false);
     assert.deepEqual(await holidays.listBetween('2026-01-01', '2026-12-31'), [{ date: '2026-09-02', name: 'Quốc khánh' }]);
     assert.deepEqual(await holidays.listBetween('2026-09-03', '2026-12-31'), []);
-    assert.equal(await holidays.remove('2026-09-02'), true);
-    assert.equal(await holidays.remove('2026-09-02'), false);
+    assert.deepEqual(await holidays.remove('2026-09-02'), { date: '2026-09-02', name: 'Quốc khánh' });
+    assert.equal(await holidays.remove('2026-09-02'), null);
 
     // Lịch làm việc: DATE/TIME đọc thành chuỗi, ON_LEAVE thành onLeave.
     await client.query(

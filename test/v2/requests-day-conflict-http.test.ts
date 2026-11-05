@@ -136,7 +136,7 @@ describe('API: warnings và lỗi DAY_CONFLICT của đơn từ', () => {
   });
 
   it('POST advance returns warnings []', async () => {
-    const body = (await admin.createAdvance({ employeeId: 'nv01', title: 'Tạm ứng', reason: 'Việc nhà', amount: 1000000 }, ADMIN)) as any;
+    const body = (await admin.createAdvance({ employeeId: 'nv01' }, ADMIN)) as any;
     assert.equal(body.created, true);
     assert.deepEqual(body.warnings, []);
     assert.equal('warnings' in body.request, false);
