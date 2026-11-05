@@ -94,7 +94,7 @@ describe('Xem trước đơn và tiêu đề do server đặt (spec 2.2, 2.4)', 
     assert.deepEqual(await ctx.service.previewRequest('leave', { ...base, leaveType: 'PERSONAL_PAID', startDate: '2026-11-12', endDate: '2026-11-12' }), {
       ok: true,
       title: 'Việc riêng có lương 12/11',
-      summary: { dates: ['2026-11-12'], daysCount: 1, annualLeaveLeftAfter: 11 },
+      summary: { dates: ['2026-11-12'], daysCount: 1, annualLeaveLeftAfter: null },
       warnings: []
     });
     const ttsLeave = await ctx.service.previewRequest('leave', { ...base, employeeId: 'tts01', leaveType: 'UNPAID', startDate: '2026-11-12', endDate: '2026-11-12' });

@@ -510,9 +510,8 @@ export class RequestsService {
         endDate,
         daysCount
       });
-      // Ruling (Task 3): đơn không phải Phép năm không đổi số dư; không có tài khoản phép thì null.
-      const annualLeaveLeftAfter =
-        annualLeft === null ? null : leaveType === 'ANNUAL' ? annualLeft - daysCount : annualLeft;
+      // Spec 2.2: null khi không phải Phép năm. (Phép năm mà annualLeft null thì đã báo lỗi ở trên.)
+      const annualLeaveLeftAfter = leaveType === 'ANNUAL' && annualLeft !== null ? annualLeft - daysCount : null;
       return {
         request,
         claims: { plan, status: 'LEAVE' },
