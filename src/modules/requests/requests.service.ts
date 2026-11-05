@@ -554,9 +554,10 @@ export class RequestsService {
     return req.toJSON();
   }
 
+  /** `reviewer` là uuid hoặc tên đăng nhập; reviewed_by tham chiếu staff(uuid) nên luôn ghi uuid. */
   async reviewRequest(
     id: string,
-    reviewerId: string,
+    reviewer: string,
     action: 'APPROVE' | 'REJECT',
     note?: string
   ): Promise<SystemRequestDTO> {
@@ -564,6 +565,10 @@ export class RequestsService {
       const req = await this.repo.findById(id);
       if (!req) {
         throw new Error(`Request with id '${id}' not found`);
+      }
+      const reviewerId = await this.repo.resolveStaffUuid(reviewer);
+      if (!reviewerId) {
+        throw new Error(`Không tìm thấy người duyệt: ${reviewer}`);
       }
 
       if (action === 'APPROVE') {

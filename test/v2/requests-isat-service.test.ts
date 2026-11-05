@@ -29,6 +29,13 @@ const otherNvProfile: IsatProfile = {
   snapshot: { ...profile, fullName: 'Trần Văn B' }
 };
 
+// Người duyệt `admin` có hồ sơ riêng: duyệt ghi uuid của người duyệt.
+const adminProfile: IsatProfile = {
+  employeeId: 'admin-uuid',
+  isatEnabled: false,
+  snapshot: { ...profile, fullName: 'Quản trị' }
+};
+
 class FakeRequestsRepository extends RequestsRepository {
   requests: Map<string, SystemRequest> = new Map();
   profiles: Map<string, IsatProfile> = new Map([
@@ -36,7 +43,8 @@ class FakeRequestsRepository extends RequestsRepository {
     ['nguyen-van-a', nvProfile],
     ['emp-uuid-2', otherNvProfile],
     ['tran-van-b', otherNvProfile],
-    ['ctv-user', ctvProfile]
+    ['ctv-user', ctvProfile],
+    ['admin', adminProfile]
   ]);
   profileMonths: string[] = [];
   resolveCalls: string[] = [];

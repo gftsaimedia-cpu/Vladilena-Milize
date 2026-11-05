@@ -35,6 +35,11 @@ class FakeRequestsRepository extends RequestsRepository {
     const items = await this.list(filter);
     return items.length;
   }
+
+  // Người duyệt `admin` có hồ sơ riêng: duyệt ghi uuid của người duyệt.
+  override async resolveStaffUuid(id: string): Promise<string | null> {
+    return id === 'admin' ? 'admin-uuid' : null;
+  }
 }
 
 class FakeAttendanceRepository extends AttendanceRepository {

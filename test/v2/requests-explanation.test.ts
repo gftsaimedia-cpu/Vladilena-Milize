@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { EXPLANATION_CASES, SystemRequest } from '../../src/modules/requests/domain';
-import { NV_UUID, explanationRequest, makeService, staffContext } from './helpers/requests-fakes';
+import { ADMIN_UUID, NV_UUID, explanationRequest, makeService, staffContext } from './helpers/requests-fakes';
 
 describe('Đơn giải trình (§6.5)', () => {
   let ctx: ReturnType<typeof makeService>;
@@ -91,7 +91,7 @@ describe('Đơn giải trình (§6.5)', () => {
     const dto = await expl({ title: 'Giải trình quên quẹt thẻ vào', reason: 'Bảo vệ mở cửa muộn', cases: ['MISSING_CHECK_IN'], actualCheckIn: '08:05' });
     assert.deepEqual([dto.type, dto.status], ['EXPLANATION', 'PENDING']);
     const reviewed = await ctx.service.reviewRequest(dto.id, 'admin', 'APPROVE', 'Đã xác minh');
-    assert.deepEqual([reviewed.status, reviewed.reviewedBy], ['APPROVED', 'admin']);
+    assert.deepEqual([reviewed.status, reviewed.reviewedBy], ['APPROVED', ADMIN_UUID]);
     assert.equal(ctx.att.dayStatuses.get(`${NV_UUID}:2026-11-04`), 'VALID');
   });
 

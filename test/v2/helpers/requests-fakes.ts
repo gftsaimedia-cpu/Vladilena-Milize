@@ -22,6 +22,8 @@ import {
 /** Nhân viên `nv01` (T2–T7) và thực tập sinh `tts01` (T2–T6) của các test đơn từ. */
 export const NV_UUID = '0a7c4e2e-1111-4a6b-9c1d-000000000001';
 export const TTS_UUID = '0a7c4e2e-2222-4a6b-9c1d-000000000002';
+/** Người duyệt `admin` của các test: uuid khác tên đăng nhập như trên DB thật. */
+export const ADMIN_UUID = '0a7c4e2e-3333-4a6b-9c1d-000000000003';
 
 /** Hồ sơ nộp đơn: mặc định nv, ca 08:00–17:00, 12 ngày phép, mọi cờ bật. `employeeType: 'tts'` đổi sang mặc định tts. */
 export function staffContext(overrides: Partial<StaffContext> = {}): StaffContext {
@@ -54,6 +56,7 @@ export class FakeRequestsRepository extends RequestsRepository {
     super({} as any);
     this.putStaff('nv01', staffContext());
     this.putStaff('tts01', staffContext({ employeeType: 'tts' }));
+    this.putStaff('admin', staffContext({ employeeId: ADMIN_UUID }));
   }
 
   /** Đặt hồ sơ cho cả uuid lẫn username. */
