@@ -44,16 +44,6 @@ export class SystemService {
     return rows.map((r) => ({ key: r.key, value: r.value_json }));
   }
 
-  async listAuditLogs(limit = 50, offset = 0): Promise<any[]> {
-    return await this.qb
-      .selectFrom('audit_log')
-      .selectAll()
-      .orderBy('id', 'desc')
-      .limit(limit)
-      .offset(offset)
-      .execute();
-  }
-
   async listPeriods(): Promise<any[]> {
     return await this.qb
       .selectFrom('payroll_periods')

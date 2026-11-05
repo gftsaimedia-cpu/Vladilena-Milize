@@ -15,6 +15,7 @@ import { RolesController } from '../../src/modules/roles/roles.controller';
 import { SystemController } from '../../src/modules/system/system.controller';
 import { MeController } from '../../src/modules/me/me.controller';
 import { PositionsController } from '../../src/modules/positions/positions.controller';
+import { AuditController } from '../../src/modules/audit/audit.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -47,8 +48,9 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [SystemController, 'getSettings', cap('config.read')],
   [SystemController, 'listPeriods', cap('config.read')],
   [SystemController, 'updateSetting', cap('config.write')],
-  [SystemController, 'getAuditLogs', cap('audit.read')],
   [SystemController, 'lockPeriod', cap('attendance.lock')],
+  [AuditController, 'list', cap('audit.read')],
+  [AuditController, 'verify', cap('audit.read')],
   [RolesController, 'list', cap('staff.manage')],
   [RolesController, 'listV2', cap('staff.manage')],
   [HolidaysController, 'list', cap('config.read')],

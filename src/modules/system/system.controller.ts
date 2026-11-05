@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, Query, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, CurrentUser, UserSession, Public, RequireCap } from '../../common';
 import { SystemService } from './system.service';
 
@@ -35,18 +35,6 @@ export class SystemController {
   ): Promise<unknown> {
     await this.service.setSetting(key, body.value, user.username);
     return { ok: true, key, value: body.value };
-  }
-
-  @RequireCap('audit.read')
-  @Get('v2/system/audit')
-  async getAuditLogs(
-    @Query('limit') limitStr?: string,
-    @Query('offset') offsetStr?: string
-  ): Promise<unknown> {
-    const limit = limitStr ? Number(limitStr) : 50;
-    const offset = offsetStr ? Number(offsetStr) : 0;
-    const items = await this.service.listAuditLogs(limit, offset);
-    return { items, count: items.length };
   }
 
   @RequireCap('config.read')

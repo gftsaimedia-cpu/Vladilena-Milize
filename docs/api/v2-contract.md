@@ -68,6 +68,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `GET /api/settings` | `GET /api/v2/system/settings` | GET | Danh sách cấu hình hệ thống |
 | | `PUT /api/settings/:key` | `PUT /api/v2/system/settings/:key` | PUT | Cập nhật cấu hình |
 | | `GET /api/audit` | `GET /api/v2/system/audit` | GET | Xem nhật ký kiểm toán |
+| | — (mới) | `GET /api/v2/system/audit/verify` | GET | Kiểm tra chuỗi băm nhật ký |
 | | `POST /api/periods/:month/lock` | `POST /api/v2/system/periods/:month/lock` | POST | Khóa bảng công kỳ lương |
 
 ---
@@ -878,8 +879,12 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 #### `GET /api/v2/system/settings` & `PUT /api/v2/system/settings/:key`
 - Lấy và cập nhật cài đặt hệ thống.
 
-#### `GET /api/v2/system/audit`
-- Lấy nhật ký kiểm toán hệ thống.
+#### `GET /api/v2/system/audit` & `GET /api/v2/system/audit/verify`
+- Quyền `audit.read`. Danh sách: `?limit=&offset=&actor=&action=&from=&to=`. Tham số bỏ trống hoặc chuỗi rỗng thì không lọc; `actor` đúng username, `action` đúng mã; `from`, `to` dạng `YYYY-MM-DD` tính theo ngày giờ Việt Nam (+07:00). Sắp xếp `id` giảm dần; `limit` mặc định 25, lớn hơn 200 thì hạ về 200; `offset` mặc định 0.
+- **Response 200**: `{ items, total, limit, offset, people, actions }`. Mỗi `items[]` có `id`, `at` (ISO UTC), `actor`, `actorName` (`staff.name`, `null` khi `'system'` hoặc không còn trong `staff`), `action`, `entityKind`, `entityId`, `subject`, `month`, `before`, `after` (JSON đã parse), `reason`, `sensitivity`, `requestId`. Không trả `hash`, `prev_hash`, `actor_roles`, hai cột uuid. `total` là tổng thật theo bộ lọc. `people` (`{ username, name }`) và `actions` (mã) lấy trên cả bảng, không theo bộ lọc.
+- **Response 400** `BAD_REQUEST` (câu báo tiếng Việt): `limit` không phải số nguyên dương; `offset` không phải số nguyên không âm; `from` hoặc `to` sai dạng hoặc không phải ngày có thật; `from` sau `to`.
+- `/verify` trả `{ ok, checked, firstBadId, reason }`; `reason` là `PREV_HASH`, `ID_GAP` hoặc `HASH` (kiểm theo thứ tự đó), dừng ở dòng sai đầu tiên, `checked` là số dòng đúng trước dòng sai. Bảng rỗng: `{ ok: true, checked: 0, firstBadId: null, reason: null }`.
+- **Ghi nhật ký (nội bộ):** `AuditLog.append(trx, entry)` trả `{ id, hash }`, chạy trong transaction của nơi gọi (thao tác lỗi thì dòng nhật ký cũng bị huỷ) và nên gọi ở cuối thao tác vì khoá advisory `'audit_log'` giữ tới khi transaction kết thúc. `entry`: `actor`, `action`, `entityKind`, `entityId` bắt buộc; `actorUuid`, `actorRoles`, `subject`, `subjectUuid`, `month`, `before`, `after`, `reason`, `sensitivity` (`normal`/`pay`/`pii`), `requestId` tuỳ chọn. Mã `action` (17): `param.set`, `setting.set`, `holiday.add`, `holiday.remove`, `position.save`, `level.save`, `staff.create`, `staff.update`, `staff.delete`, `password.reset`, `request.decide` (`after.status` là `APPROVED` hoặc `REJECTED`), `request.cancel`, `punch.correct`, `period.lock`, `payroll.calculate`, `payroll.decide`, `kpi.score`.
 
 #### `POST /api/v2/system/periods/:month/lock`
 - Chốt và khóa bảng chấm công kỳ lương để ngăn chỉnh sửa.
