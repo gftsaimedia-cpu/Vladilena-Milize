@@ -7,6 +7,7 @@ import {
 } from '../../../src/modules/requests/explanation-reminders.repository';
 import {
   RequestsRepository,
+  type FilingStaff,
   type IsatProfile,
   type RequestListFilter,
   type ScheduleDay,
@@ -137,6 +138,17 @@ export class FakeRequestsRepository extends RequestsRepository {
   override async resolveStaffUuid(employeeIdOrUsername: string): Promise<string | null> {
     this.calls.push(['resolveStaffUuid', this.trx]);
     return this.profiles.get(employeeIdOrUsername)?.employeeId ?? null;
+  }
+
+  /** Nhân sự nộp đơn mà `listFilingStaff` trả; mặc định là mọi hồ sơ trừ Admin, tên lấy từ username. */
+  filingStaff: FilingStaff[] | null = null;
+
+  override async listFilingStaff(): Promise<FilingStaff[]> {
+    this.calls.push(['listFilingStaff', this.trx]);
+    if (this.filingStaff) return this.filingStaff;
+    return [...this.profiles.entries()]
+      .filter(([key, ctx]) => key !== ctx.employeeId && ctx.employeeId !== ADMIN_UUID)
+      .map(([username, ctx]) => ({ uuid: ctx.employeeId, username, name: username }));
   }
 
   override async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {

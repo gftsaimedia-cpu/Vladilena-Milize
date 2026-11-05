@@ -32,6 +32,12 @@ export interface DueDay {
   remindedAt: string | null;
 }
 
+/** Một ngày cần giải trình của một nhân sự, cho chuông của Admin (spec 3.4). */
+export interface DueItem extends DueDay {
+  employeeId: string;
+  name: string;
+}
+
 /** Kết quả xét một ngày: cần giải trình thì kèm trường hợp và giờ phải nhập, không thì câu báo vì sao (R-P4). */
 export type DueCheck =
   | { ok: true; cases: ExplanationCase[]; needs: ExplanationNeeds }
@@ -105,7 +111,7 @@ export class ExplanationsService {
     @Inject(AttendanceRepository) private readonly attendance: AttendanceRepository,
     @Inject(HolidaysRepository) private readonly holidays: HolidaysRepository,
     @Inject(DayStatusRepository) private readonly days: DayStatusRepository,
-    @Inject(ExplanationRemindersRepository) private readonly reminders: ExplanationRemindersRepository,
+    @Inject(ExplanationRemindersRepository) private readonly reminderRows: ExplanationRemindersRepository,
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>
   ) {}
 
@@ -134,6 +140,50 @@ export class ExplanationsService {
       }
     }
     return due;
+  }
+
+  /**
+   * Ngày cần giải trình của mọi nhân sự đang nộp đơn, ngày mới trước rồi theo tên. Hồ sơ không đọc được (thiếu cấu hình
+   * loại nhân sự, dòng Admin không có loại...) bị bỏ qua để một hồ sơ hỏng không làm hỏng chuông của Admin.
+   */
+  async listDue(): Promise<DueItem[]> {
+    const people = await this.requests.listFilingStaff();
+    const items: DueItem[] = [];
+    for (const person of people) {
+      let due: DueDay[];
+      try {
+        due = await this.dueDays(person.uuid);
+      } catch {
+        continue;
+      }
+      for (const day of due) items.push({ ...day, employeeId: person.uuid, name: person.name });
+    }
+    return items.sort((a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name, 'vi'));
+  }
+
+  /**
+   * Admin nhắc nhân sự giải trình ngày `date` (spec 3.5): ngày phải còn cần giải trình; nhắc lại thì ghi đè giờ và người
+   * nhắc. `reminded_by` là uuid của Admin, tra như lúc duyệt đơn.
+   */
+  async remind(employeeIdOrUsername: string, date: string, adminIdOrUsername: string): Promise<{ remindedAt: string }> {
+    const check = await this.checkDay(employeeIdOrUsername, date);
+    if (!check.ok) {
+      throw new Error(check.message);
+    }
+    const staff = await this.resolveStaff(employeeIdOrUsername, monthOf(date));
+    const adminId = await this.requests.resolveStaffUuid(adminIdOrUsername);
+    if (!adminId) {
+      throw new Error('Không tìm thấy tài khoản Admin');
+    }
+    const remindedAt = this.now();
+    await this.reminderRows.upsert({ employeeId: staff.employeeId, date, remindedBy: adminId, remindedAt });
+    return { remindedAt: remindedAt.toISOString() };
+  }
+
+  /** Lời nhắc còn hiệu lực của nhân sự, ngày mới trước: chỉ ngày còn cần giải trình (giải trình rồi thì mất, huỷ thì hiện lại). */
+  async reminders(employeeIdOrUsername: string): Promise<Array<{ date: string; remindedAt: string }>> {
+    const due = await this.dueDays(employeeIdOrUsername);
+    return due.flatMap(d => (d.remindedAt === null ? [] : [{ date: d.date, remindedAt: d.remindedAt }]));
   }
 
   /** Xét ngày `date` của nhân sự theo thứ tự R-P4; nhân sự không có thì báo lỗi. */
@@ -265,7 +315,7 @@ export class ExplanationsService {
 
   /** Lần nhắc theo ngày trong [from, to] của nhân sự: ngày → `remindedAt` (ISO). */
   private async remindersOf(employeeId: string, from: string, to: string): Promise<Map<string, string>> {
-    const rows = await this.reminders.listBetween(from, to, employeeId);
+    const rows = await this.reminderRows.listBetween(from, to, employeeId);
     return new Map(rows.map(r => [r.date, r.remindedAt]));
   }
 

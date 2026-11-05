@@ -72,6 +72,8 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'createLeaveWithMakeup',
     'createShiftChange',
     'listExplanationCases',
+    'listExplanationsDue',
+    'remindExplanation',
     'listRequests',
     'getRequest',
     'reviewRequest',
