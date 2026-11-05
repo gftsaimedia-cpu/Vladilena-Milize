@@ -1,6 +1,9 @@
 // Tháng mẫu của phiếu A4 (mock/payslip-a4.ts) và các hàm định dạng của bản in: chạy trong Node, không mở trang.
 import { expect, test } from '@playwright/test';
 import { payslipSheet } from '../src/mock/payslip-a4';
+import {
+  actualText, blankNum, inOutText, periodLine, qtyText, ruleText, scoreText, signedText, staffLine, statCells
+} from '../src/views/print/parts/a4-format';
 
 const sheet = () => {
   const s = payslipSheet('2026-10');
@@ -96,5 +99,34 @@ test('pay lines follow P2 and the totals add up from the rounded lines', () => {
     { label: 'Thu nhập sau bảo hiểm', actual: 11504076, bold: true },
     { label: 'Thuế TNCN', actual: 0 },
     { label: 'Tạm ứng', hint: '80% lương ngày công 01–15/10', qty: { n: 10, unit: 'ngày' }, actual: 1846154 }
+  ]);
+});
+
+test('format helpers: blanks, signs, check-in/out and quantities', () => {
+  expect([blankNum(null), blankNum(0), blankNum(8), blankNum(7.75), blankNum(7.33), blankNum(0.5)])
+    .toEqual(['', '', '8', '7,75', '7,33', '0,5']);
+  expect([signedText(null), signedText(0), signedText(46154), signedText(-14423)])
+    .toEqual(['', '', '+46.154', '−14.423']);
+  expect([inOutText('08:00', '17:00'), inOutText('08:02', null), inOutText(null, '17:00'), inOutText(null, null)])
+    .toEqual(['08:00–17:00', '08:02', '17:00', '']);
+  expect([
+    qtyText(undefined), qtyText({ n: 19, of: 26, unit: 'ngày' }), qtyText({ n: 85.6, unit: '%' }),
+    qtyText({ n: 10.5, unit: '%' }), qtyText({ n: 4, unit: 'giờ' }), qtyText({ n: 0, unit: 'giờ' }),
+    qtyText({ n: 3, unit: 'ca' }), qtyText({ n: 0.5, unit: 'giờ' })
+  ]).toEqual(['', '19/26 ngày', '85,6%', '10,5%', '4 giờ', '0 giờ', '3 ca', '0,5 giờ']);
+  expect([ruleText(undefined), ruleText(6000000)]).toEqual(['', '6.000.000']);
+  expect([actualText(null), actualText(0), actualText(230769), actualText(-14423)])
+    .toEqual([null, '0', '230.769', '−14.423']);
+  expect([scoreText(null), scoreText(85)]).toEqual(['—', '85%']);
+});
+
+test('format helpers: header lines and the summary strip of the sample month', () => {
+  const s = sheet();
+  expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
+  expect(staffLine(s)).toBe('NV · Bậc 1 · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
+  expect(statCells(s.stats)).toEqual([
+    ['Ngày công', '19 ngày'], ['Ca Flex · Night', '3 · 3 ca'], ['Nghỉ có lương', '3 ngày'], ['iSAT', '1 ngày'],
+    ['Không lương, BHXH', '2 ngày'], ['Vắng', '1 ngày'], ['Chờ giải trình', '1 ngày'], ['OT', '10 giờ'],
+    ['Làm bù', '8 giờ'], ['Trừ giờ đi muộn', '0,5 giờ']
   ]);
 });
