@@ -68,9 +68,12 @@ describe('MeController', () => {
     const official = controller({ pay: fake({ getPayslip: () => ({ status: 'final', details: { netIncome: 1 } }) }) });
     assert.equal((await official.ctl.income(req(), '2026-10') as any).state, 'official');
 
-    const est = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => ({ toJSON: () => ({ netIncome: 2 }) }) }) });
+    const full = { grossIncome: 0, insuranceDeduction: 630_000, insuranceBreakdown: { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 }, incomeAfterInsurance: -630_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: -630_000 };
+    const est = controller({ pay: fake({ getPayslip: () => null, generateMonthlyPayslip: () => ({ toJSON: () => full }) }) });
     const e = (await est.ctl.income(req(), '2026-11')) as any;
     assert.equal(e.state, 'estimate');
+    assert.equal(e.payslip.netIncome, 0); // tạm tính không trừ bảo hiểm, thuế
+    assert.equal(e.payslip.insuranceDeduction, 0);
     assert.equal(est.pay.calls.generateMonthlyPayslip[0], 'u-nam');
     assert.equal(est.pay.calls.calculatePeriodPayslips, undefined);
 

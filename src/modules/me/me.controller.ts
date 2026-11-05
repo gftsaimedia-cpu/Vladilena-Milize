@@ -15,7 +15,7 @@ import { PayrollService } from '../payroll/payroll.service';
 import { KpiValidationError } from '../payroll/payroll.errors';
 import { RequestsService } from '../requests/requests.service';
 import type { RequestStatus } from '../requests/domain';
-import { daySummaryOf, monthOf, stepsOf, vnToday, weekOf } from './domain';
+import { daySummaryOf, estimateIncomeOf, monthOf, stepsOf, vnToday, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -206,7 +206,7 @@ export class MeController {
     if (stored && stored.status === 'final') return { month: m, state: 'official', payslip: stored.details };
     try {
       const slip = await this.payroll.generateMonthlyPayslip(me.uuid, m);
-      return { month: m, state: 'estimate', payslip: slip.toJSON() };
+      return { month: m, state: 'estimate', payslip: estimateIncomeOf(slip.toJSON()) };
     } catch (err: any) {
       return { month: m, state: 'unavailable', payslip: null, reason: err?.message || 'Chưa tính được' };
     }

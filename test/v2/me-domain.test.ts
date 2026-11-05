@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { daySummaryOf, monthOf, stepsOf, vnToday, weekOf } from '../../src/modules/me/domain';
+import { daySummaryOf, estimateIncomeOf, monthOf, stepsOf, vnToday, weekOf } from '../../src/modules/me/domain';
 
 const ts = (workDate: string, over: Record<string, unknown> = {}) => ({
   employeeId: 'u-nam', workDate, actualCheckIn: '07:55', actualCheckOut: '17:05', status: 'PRESENT',
@@ -59,5 +59,33 @@ describe('Các bước của đơn', () => {
     assert.deepEqual(stepsOf({ ...base, status: 'APPROVED' } as any)[1], { label: 'Đã duyệt', at: '2026-11-05T03:00:00Z', state: 'done' });
     assert.deepEqual(stepsOf({ ...base, status: 'REJECTED' } as any)[1], { label: 'Đã từ chối', at: '2026-11-05T03:00:00Z', state: 'rej' });
     assert.deepEqual(stepsOf({ ...base, status: 'CANCELLED', updatedAt: '2026-11-05T04:00:00Z' } as any)[1], { label: 'Đã huỷ', at: '2026-11-05T04:00:00Z', state: 'rej' });
+  });
+});
+
+describe('Thu nhập tạm tính', () => {
+  // pw-staff vào làm 05/11, chưa có ngày công: phiếu đầy đủ trừ bảo hiểm cả tháng 630.000 trên tổng thu nhập 0.
+  const newHire = {
+    grossIncome: 0, baseSalaryActual: 0, insuranceDeduction: 630_000, insuranceBreakdown: { bhxh: 480_000, bhyt: 90_000, bhtn: 60_000 },
+    incomeAfterInsurance: -630_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: -630_000
+  };
+
+  it('a new hire with no work days yet sees 0, not minus the insurance', () => {
+    const e = estimateIncomeOf(newHire as any);
+    assert.equal(e.netIncome, 0);
+    assert.equal(e.insuranceDeduction, 0);
+    assert.deepEqual(e.insuranceBreakdown, { bhxh: 0, bhyt: 0, bhtn: 0 });
+    assert.equal(e.incomeAfterInsurance, 0);
+  });
+
+  it('takes off neither insurance nor tax, only the approved advance', () => {
+    const e = estimateIncomeOf({
+      ...newHire, grossIncome: 15_538_183, baseSalaryActual: 11_076_923, insuranceDeduction: 1_260_000,
+      incomeAfterInsurance: 14_278_183, personalIncomeTax: 120_000, advanceDeduction: 2_000_000, netIncome: 12_158_183
+    } as any);
+    assert.equal(e.personalIncomeTax, 0);
+    assert.equal(e.incomeAfterInsurance, 15_538_183);
+    assert.equal(e.advanceDeduction, 2_000_000);
+    assert.equal(e.netIncome, 13_538_183);
+    assert.equal(e.baseSalaryActual, 11_076_923);
   });
 });

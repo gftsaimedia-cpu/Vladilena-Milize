@@ -47,7 +47,7 @@ export type HomeView = {
   location: string; // 'Đúng vị trí văn phòng GFT'
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
-  income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '14.278.183'
+  income: { label: string; net: string }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183'
   requests: RequestRowData[]; // 2 dòng mới nhất
 };
 
@@ -87,7 +87,7 @@ export type IncomeView = {
     scores: { value: string; label: string }[];
   };
   lines: { icon: PhoneIconName; label: string; value: string; zero: boolean }[];
-  total: string; // '14.278.183 ₫'
+  total: string; // '15.538.183 ₫'
 };
 
 export type ProfileView = {
@@ -222,7 +222,8 @@ const rowOf = ({ id, icon, title, status, statusText, month }: RequestDetail): R
 });
 
 // ---------- Thu nhập tháng 10 (spec 2.3; hằng số của board, R8) ----------
-const NET = '14.278.183';
+// Tạm tính không trừ bảo hiểm và thuế (luật 05/11/2026): thực nhận = tổng thu nhập − tạm ứng (0).
+const NET = '15.538.183';
 
 // ---------- Hàm dựng cho từng màn ----------
 export function homeView(): HomeView {
@@ -342,7 +343,7 @@ export function incomeView(): IncomeView {
     net: NET,
     review: 'Admin đang duyệt phiếu',
     gross: '15.538.183',
-    deduction: '1.260.000',
+    deduction: '0',
     kpi: {
       title: `KPI tháng ${MONTH_NO}`,
       parts: '5 phần',
@@ -362,9 +363,7 @@ export function incomeView(): IncomeView {
       { icon: 'cal', label: 'Lương ngày công', value: '11.076.923', zero: false },
       { icon: 'leave', label: 'Nghỉ phép, iSAT', value: '923.076', zero: false },
       { icon: 'gift', label: 'Phụ cấp', value: '2.215.384', zero: false },
-      { icon: 'target', label: 'Lương KPI', value: '1.322.800', zero: false },
-      { icon: 'shield', label: 'Bảo hiểm bắt buộc', value: '−1.260.000', zero: false },
-      { icon: 'coin', label: 'Thuế TNCN', value: '0', zero: true }
+      { icon: 'target', label: 'Lương KPI', value: '1.322.800', zero: false }
     ],
     total: `${NET} ₫`
   };

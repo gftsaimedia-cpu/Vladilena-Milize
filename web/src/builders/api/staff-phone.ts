@@ -312,6 +312,7 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     };
   }
   const pct = Number(p.kpiTotalScorePct) || 0;
+  const official = inc.state === 'official';
   const leavePay = (p.paidLeavePay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
   const line = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) => ({
     icon,
@@ -321,11 +322,12 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
   });
   return {
     ...base,
-    state: inc.state === 'official' ? 'Chính thức' : 'Tạm tính',
+    state: official ? 'Chính thức' : 'Tạm tính',
     net: vnd(p.netIncome),
-    review: inc.state === 'official' ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
+    review: official ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
     gross: vnd(p.grossIncome),
-    deduction: vnd((p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) + (p.advanceDeduction || 0)),
+    // Tạm tính chỉ trừ tạm ứng; bảo hiểm và thuế chỉ có ở phiếu chính thức (luật 05/11/2026).
+    deduction: vnd((official ? (p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) : 0) + (p.advanceDeduction || 0)),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
       parts: '5 phần',
@@ -340,8 +342,9 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       line('leave', 'Nghỉ phép, iSAT', leavePay),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
-      line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true),
-      line('coin', 'Thuế TNCN', p.personalIncomeTax, true)
+      ...(official
+        ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
+        : [])
     ],
     total: `${vnd(p.netIncome)} ₫`
   };

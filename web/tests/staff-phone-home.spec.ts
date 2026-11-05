@@ -74,7 +74,7 @@ test('this week links days with data and marks the rest as images', async ({ pag
 test('income card and the two latest requests link to their screens', async ({ page }) => {
   await openPhone(page, '/nv/hom-nay');
   const income = page.getByRole('link', { name: /Thu nhập tháng 10 · tạm tính/ });
-  await expect(income).toContainText('14.278.183');
+  await expect(income).toContainText('15.538.183'); // tạm tính: chưa trừ bảo hiểm, thuế
   await expect(income).toHaveAttribute('href', '/nv/thu-nhap');
   await expect(page.getByRole('heading', { name: 'Yêu cầu của tôi' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Xem tất cả' })).toHaveAttribute('href', '/nv/yeu-cau');

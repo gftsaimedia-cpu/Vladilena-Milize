@@ -40,24 +40,37 @@ describe('App nhân viên từ /me', () => {
     assert.ok(d.facts.some(([k, v]) => k === 'Lý do' && v === '“Việc nhà”'));
   });
 
-  it('builds the income view from an estimate', () => {
+  const slip = {
+    grossIncome: 15_538_183, baseSalaryActual: 11_076_923, paidLeavePay: 923_076, isatPay: 0, holidayPay: 0, totalAllowanceActual: 2_215_384,
+    kpiActualPay: 1_322_800, kpiProposedAmount: 2_000_000, kpiMaxSalary: 3_000_000, kpiTotalScorePct: 66.14,
+    kpiScores: { wework: 62, user: 70, peer: 68, manager: 65, self: 75 }
+  };
+
+  it('builds the income view from an estimate without insurance or tax lines', () => {
+    // /me/income tạm tính: BE đã bỏ bảo hiểm và thuế, chỉ trừ tạm ứng đã duyệt.
     const v = incomeViewOf({
       month: '2026-11',
       state: 'estimate',
-      payslip: {
-        netIncome: 14_278_183, grossIncome: 15_538_183, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0,
-        baseSalaryActual: 11_076_923, paidLeavePay: 923_076, isatPay: 0, holidayPay: 0, totalAllowanceActual: 2_215_384,
-        kpiActualPay: 1_322_800, kpiProposedAmount: 2_000_000, kpiMaxSalary: 3_000_000, kpiTotalScorePct: 66.14,
-        kpiScores: { wework: 62, user: 70, peer: 68, manager: 65, self: 75 }
-      }
+      payslip: { ...slip, insuranceDeduction: 0, personalIncomeTax: 0, advanceDeduction: 500_000, netIncome: 15_038_183 }
     } as any);
     assert.equal(v.state, 'Tạm tính');
     assert.equal(v.label, 'Tháng 11/2026');
-    assert.equal(v.net, '14.278.183');
-    assert.equal(v.total, '14.278.183 ₫');
-    assert.equal(v.deduction, '1.260.000');
+    assert.equal(v.net, '15.038.183');
+    assert.equal(v.total, '15.038.183 ₫');
+    assert.equal(v.deduction, '500.000');
     assert.equal(v.kpi.percent, '66,14%');
     assert.equal(v.kpi.ratio, 0.6614);
+    assert.deepEqual(v.lines.map(l => l.label), ['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI']);
+  });
+
+  it('an official payslip keeps the insurance and tax lines', () => {
+    const v = incomeViewOf({
+      month: '2026-10',
+      state: 'official',
+      payslip: { ...slip, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: 14_278_183 }
+    } as any);
+    assert.equal(v.state, 'Chính thức');
+    assert.equal(v.deduction, '1.260.000');
     assert.deepEqual(v.lines.find(l => l.label === 'Bảo hiểm bắt buộc'), { icon: 'shield', label: 'Bảo hiểm bắt buộc', value: '−1.260.000', zero: false });
     assert.deepEqual(v.lines.find(l => l.label === 'Thuế TNCN'), { icon: 'coin', label: 'Thuế TNCN', value: '0', zero: true });
   });
