@@ -23,6 +23,18 @@ const leaveSheet = (page: Page) => page.getByRole('dialog', { name: 'Đơn ngh�
 const sendButton = (dialog: Locator) => dialog.getByRole('button', { name: 'Gửi yêu cầu' });
 const phoneRows = (page: Page) => page.getByRole('tabpanel').getByRole('link');
 const sentToast = (page: Page) => page.getByRole('status').filter({ hasText: 'Đã gửi yêu cầu' });
+const summaryBox = (dialog: Locator) => dialog.locator('.nr-sum');
+const sendErrorLine = (dialog: Locator) => dialog.locator('.nr-send + [role="alert"]');
+
+// "Máy khác" gửi Việc riêng có lương 03/11 vào cùng kho dữ liệu giả: trang tải lại đúng module mock mà app đang dùng
+// (cùng URL của Vite), nên lần gửi sau của form đụng ngày đã bị giữ, như hai thiết bị gửi cùng lúc (spec 4.5).
+const otherDeviceTakes0311 = (page: Page) =>
+  page.evaluate(`import('/src/mock/staff-requests.ts').then(m => m.createRequest('leave', {
+    leaveType: 'PERSONAL_PAID', startDate: '2026-11-03', endDate: '2026-11-03', reason: 'Máy khác'
+  }).ok)`);
+// Móc của dịch vụ khi chạy dữ liệu giả: request-context bị từ chối với câu này, như mất mạng.
+const failContext = (page: Page, message: string) =>
+  page.evaluate(m => ((window as unknown as { __mockRequestContextError: string }).__mockRequestContextError = m), message);
 
 // Điền Phép năm 02/11–03/11 kèm lý do và chờ lần xem trước bật nút Gửi.
 async function fillLeave(dialog: Locator, from = 'T2 02/11', to = 'T3 03/11') {
@@ -56,6 +68,26 @@ test.describe('phone', () => {
     await expect(kindRow(sheet, 'Đơn nghỉ')).toContainText('Phép năm còn 11 ngày');
     await expect(page.locator('.ph-sheet')).toHaveCount(1);
     expect(calls).toEqual([]);
+  });
+
+  test('locked rows stay reachable by keyboard, read their reason and open nothing', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau?tao=chon');
+    const sheet = menuSheet(page);
+    const advance = kindRow(sheet, 'Tạm ứng');
+    await expect(advance).toHaveAttribute('aria-disabled', 'true');
+    await expect(advance).not.toHaveAttribute('disabled', /.*/);
+    await expect(advance).toHaveAccessibleName('Tạm ứng');
+    await expect(advance).toHaveAccessibleDescription('Chỉ nộp ngày 16 và 17');
+    await expect(kindRow(sheet, 'Đơn nghỉ')).toHaveAccessibleDescription('Phép năm còn 11 ngày');
+    await kindRow(sheet, 'Đơn nghỉ').focus();
+    await page.keyboard.press('Tab', { delay: 0 });
+    await expect(kindRow(sheet, 'Nghỉ có làm bù')).toBeFocused();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('Tab');
+    await expect(advance).toBeFocused();
+    await page.keyboard.press('Enter');
+    await advance.click({ force: true }); // Playwright coi aria-disabled là không bấm được; bấm thẳng để thấy không có gì mở
+    await expect(page).toHaveURL(/\/nv\/yeu-cau\?tao=chon$/);
+    await expect(rowsOf(menuSheet(page))).toHaveCount(6);
   });
 
   for (const tao of ['tam-ung', 'xyz']) {
@@ -110,6 +142,103 @@ test.describe('phone', () => {
     await expect(phoneRows(page).first()).toContainText('Chờ duyệt');
     await expect(page.getByRole('tab', { name: 'Tất cả 5' })).toBeVisible();
     expect(calls).toEqual([]);
+  });
+
+  test('the summary sits between the dates and Lý do and stays while typing (J9)', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau?tao=nghi');
+    const sheet = leaveSheet(page);
+    await sheet.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
+    await sheet.getByLabel('Đến ngày').selectOption({ label: 'T3 03/11' });
+    // Chưa có lý do: dòng tóm tắt do máy đếm đã hiện, như board J9.
+    await expect(summaryBox(sheet)).toHaveText(/2 ngày làm việc: 02 và 03\/11\s*Phép năm còn 11 ngày, sau đơn này còn 9/);
+    const order = await sheet.evaluate(el => {
+      const to = el.querySelectorAll('select')[2];
+      const sum = el.querySelector('.nr-sum')!;
+      const reason = el.querySelector('textarea')!;
+      const follows = (a: Node, b: Node) => !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return { summaryAfterDates: follows(to, sum), reasonAfterSummary: follows(sum, reason) };
+    });
+    expect(order).toEqual({ summaryAfterDates: true, reasonAfterSummary: true });
+    const box = summaryBox(sheet);
+    for (const text of ['V', 'Vi', 'Việc', 'Việc gia', 'Việc gia đình']) {
+      await sheet.getByLabel('Lý do').fill(text);
+      await expect(box).toBeVisible({ timeout: 50 });
+      await expect(box).toContainText('Phép năm còn 11 ngày, sau đơn này còn 9', { timeout: 50 });
+    }
+    await expect(sendButton(sheet)).toBeEnabled();
+  });
+
+  test('too many Phép năm days: the summary says why and Gửi stays off; the reason stays while editing', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau?tao=nghi');
+    const sheet = leaveSheet(page);
+    await sheet.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
+    await sheet.getByLabel('Đến ngày').selectOption({ label: 'T7 14/11' });
+    await sheet.getByLabel('Lý do').fill('Du lịch');
+    await expect(summaryBox(sheet)).toContainText('12 ngày làm việc');
+    await expect(summaryBox(sheet)).toContainText('Phép năm chỉ còn 11 ngày');
+    await expect(summaryBox(sheet)).not.toContainText('sau đơn này');
+    await expect(sendButton(sheet)).toBeDisabled();
+    await sheet.getByLabel('Lý do').fill('Du lịch xa');
+    await expect(summaryBox(sheet)).toContainText('Phép năm chỉ còn 11 ngày', { timeout: 50 });
+    await sheet.getByLabel('Hình thức nghỉ').selectOption({ label: 'Không lương' });
+    await expect(sendButton(sheet)).toBeEnabled();
+    await expect(summaryBox(sheet)).not.toContainText('Phép năm');
+  });
+
+  test('a refused send keeps the form, shows the error under Gửi and reloads the choices', async ({ page }) => {
+    const calls = await openPhone(page, '/nv/yeu-cau?tao=nghi');
+    const sheet = leaveSheet(page);
+    await fillLeave(sheet);
+    expect(await otherDeviceTakes0311(page)).toBe(true);
+    await sendButton(sheet).click();
+    await expect(sendErrorLine(sheet)).toHaveText('Ngày 03/11 đã có đơn nghỉ');
+    await expect(page.getByRole('dialog', { name: 'Đơn nghỉ' })).toBeVisible();
+    await expect(sentToast(page)).toHaveCount(0);
+    // Form giữ nguyên; request-context đã tải lại nên 03/11 không còn chọn được và "Đến ngày" về 02/11.
+    await expect(sheet.getByLabel('Hình thức nghỉ')).toHaveValue('ANNUAL');
+    await expect(sheet.getByLabel('Từ ngày')).toHaveValue('2026-11-02');
+    await expect(sheet.getByLabel('Lý do')).toHaveValue('Việc gia đình');
+    await expect(dayOptions(sheet.getByLabel('Đến ngày'))).toHaveText(['T2 02/11']);
+    await expect(sheet.getByLabel('Đến ngày')).toHaveValue('2026-11-02');
+    await expect(summaryBox(sheet)).toContainText('1 ngày làm việc: 02/11');
+    await expect(sendButton(sheet)).toBeEnabled();
+    await expect(sendErrorLine(sheet)).toHaveText('Ngày 03/11 đã có đơn nghỉ');
+    // Người dùng sửa form thì câu lỗi cũ mất.
+    await sheet.getByLabel('Lý do').fill('Việc gia đình gấp');
+    await expect(sendErrorLine(sheet)).toHaveCount(0);
+    expect(calls).toEqual([]);
+  });
+
+  test('a refused send whose context reload also fails keeps the form, the input and the error line', async ({ page }) => {
+    await openPhone(page, '/nv/yeu-cau?tao=nghi');
+    const sheet = leaveSheet(page);
+    await fillLeave(sheet);
+    expect(await otherDeviceTakes0311(page)).toBe(true);
+    await failContext(page, 'Mất kết nối, chưa tải lại được.');
+    await sendButton(sheet).click();
+    await expect(sendErrorLine(sheet)).toHaveText('Ngày 03/11 đã có đơn nghỉ');
+    await expect(sheet).not.toContainText('Mất kết nối, chưa tải lại được.');
+    await expect(sheet.getByLabel('Hình thức nghỉ')).toHaveValue('ANNUAL');
+    await expect(sheet.getByLabel('Từ ngày')).toHaveValue('2026-11-02');
+    await expect(sheet.getByLabel('Đến ngày')).toHaveValue('2026-11-03');
+    await expect(sheet.getByLabel('Lý do')).toHaveValue('Việc gia đình');
+    // Xem trước chạy lại trên máy chủ: ngày 03/11 đã bị giữ nên Gửi tắt và hộp tóm tắt nói vì sao.
+    await expect(summaryBox(sheet)).toContainText('Ngày 03/11 đã có đơn nghỉ');
+    await expect(sendButton(sheet)).toBeDisabled();
+    await expect(sendErrorLine(sheet)).toHaveText('Ngày 03/11 đã có đơn nghỉ');
+  });
+
+  test('a first context load that fails shows its message and still closes', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __mockRequestContextError: string }).__mockRequestContextError = 'Mất kết nối.';
+    });
+    await openPhone(page, '/nv/yeu-cau?tao=chon');
+    const sheet = menuSheet(page);
+    await expect(sheet.getByRole('alert')).toHaveText('Mất kết nối.');
+    await expect(rowsOf(sheet)).toHaveCount(0);
+    await sheet.getByRole('button', { name: 'Đóng' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
   });
 
   test('held days are no longer offered and Đến ngày stops before them', async ({ page }) => {
@@ -262,11 +391,23 @@ test.describe('desktop', () => {
     await expect(list.getByRole('link').first()).toHaveAccessibleName('Phép năm 02–03/11, Chờ duyệt');
   });
 
-  test('the scrim closes K3 and drops tao and ngay', async ({ page }) => {
-    await openDesktop(page, '/nv/yeu-cau?tao=chon&ngay=2026-10-24');
-    await expect(rowsOf(menuSheet(page))).toHaveCount(6);
-    await page.locator('.sd-scrim').click({ position: { x: 10, y: 10 } });
-    await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
-  });
+  for (const how of ['Esc', '✕', 'scrim'] as const) {
+    test(`${how} closes K3, drops tao and ngay, and reopening starts empty`, async ({ page }) => {
+      await openDesktop(page, '/nv/yeu-cau?tao=nghi&ngay=2026-10-24');
+      const form = leaveSheet(page);
+      await form.getByLabel('Từ ngày').selectOption({ label: 'T2 02/11' });
+      await form.getByLabel('Lý do').fill('Việc gia đình');
+      if (how === 'Esc') await page.keyboard.press('Escape');
+      if (how === '✕') await form.getByRole('button', { name: 'Đóng' }).click();
+      if (how === 'scrim') await page.locator('.sd-scrim').click({ position: { x: 10, y: 10 } });
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page).toHaveURL(/\/nv\/yeu-cau$/);
+
+      await page.getByRole('button', { name: 'Tạo yêu cầu' }).click();
+      await expect(rowsOf(menuSheet(page))).toHaveCount(6);
+      await kindRow(menuSheet(page), 'Đơn nghỉ').click();
+      await expect(leaveSheet(page).getByLabel('Từ ngày')).toHaveValue('');
+      await expect(leaveSheet(page).getByLabel('Lý do')).toHaveValue('');
+    });
+  }
 });

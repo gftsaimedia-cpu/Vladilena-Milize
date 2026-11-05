@@ -2,14 +2,18 @@
 // J9 · Đơn nghỉ (spec staff-requests 4.4, brief FE mục 2): hình thức nghỉ, Từ ngày – Đến ngày, lý do. Chỉ nghỉ cả ngày.
 // Ô ngày là danh sách chỉ gồm ngày chọn được (builder startDates / endDates): ngày làm trong window, không bị đơn nghỉ giữ;
 // "Đến ngày" dừng trước ngày bị giữ kế tiếp. Đổi "Từ ngày" thì "Đến ngày" giữ nguyên nếu còn hợp lệ, không thì đặt lại (fitEnd).
-// Hợp đồng form: phát `draft` là đơn đủ trường hoặc null; NewRequestBody lo xem trước, dòng tóm tắt, nút Gửi.
-//   <LeaveForm :ctx="ctx" @draft="…" />
+// Hộp tóm tắt (RequestSummary) nằm giữa hai ô ngày và Lý do như board J9. Dòng đếm ngày và số dư phép năm do builder đếm nên
+// hiện ngay khi đủ hai ngày, trước cả khi có lý do; cảnh báo và câu từ chối lấy từ lần xem trước gần nhất đã về.
+// Hợp đồng form: nhận ctx, ngay, preview (useNewRequest.shownPreview); phát `draft` là đơn đủ trường hoặc null.
+// NewRequestBody lo xem trước, nút Gửi, câu lỗi dưới nút và gửi xong.
+//   <LeaveForm :ctx="ctx" :preview="shownPreview" @draft="…" />
 import { computed, ref, useId, watch } from 'vue';
-import { dateLabel, endDates, fitEnd, startDates } from '@/builders/api/staff-requests';
-import type { LeaveDraft, RequestContext } from '@/mock/staff-requests-types';
+import { dateLabel, endDates, fitEnd, leaveBalance, leaveSummary, startDates } from '@/builders/api/staff-requests';
+import type { LeaveDraft, PreviewResult, RequestContext } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
+import RequestSummary from './RequestSummary.vue';
 
-const props = defineProps<{ ctx: RequestContext; ngay?: string | null }>();
+const props = defineProps<{ ctx: RequestContext; ngay?: string | null; preview?: PreviewResult<'leave'> | null }>();
 const emit = defineEmits<{ draft: [draft: LeaveDraft | null] }>();
 
 const id = useId();
@@ -20,6 +24,14 @@ const reason = ref('');
 
 const starts = computed(() => startDates(props.ctx, 'leave'));
 const ends = computed(() => endDates(props.ctx, 'leave', startDate.value));
+const lines = computed(() =>
+  startDate.value && endDate.value
+    ? [
+        leaveSummary(props.ctx, startDate.value, endDate.value),
+        leaveBalance(props.ctx, leaveType.value, startDate.value, endDate.value)
+      ]
+    : []
+);
 
 watch(startDate, start => {
   endDate.value = start ? fitEnd(props.ctx, 'leave', start, endDate.value) : '';
@@ -52,27 +64,30 @@ watch(draft, d => emit('draft', d), { immediate: true });
       <PhIcon name="down" />
     </div>
   </div>
-  <div class="nr-two">
-    <div class="nr-fl">
-      <label :for="`${id}-tu`">Từ ngày</label>
-      <div class="nr-box nr-dt">
-        <select :id="`${id}-tu`" v-model="startDate" class="nr-in">
-          <option value="" disabled>Chọn ngày</option>
-          <option v-for="d in starts" :key="d" :value="d">{{ dateLabel(d) }}</option>
-        </select>
-        <PhIcon name="cal" />
+  <div class="nr-fl nr-range">
+    <div class="nr-two">
+      <div class="nr-fl">
+        <label :for="`${id}-tu`">Từ ngày</label>
+        <div class="nr-box nr-dt">
+          <select :id="`${id}-tu`" v-model="startDate" class="nr-in">
+            <option value="" disabled>Chọn ngày</option>
+            <option v-for="d in starts" :key="d" :value="d">{{ dateLabel(d) }}</option>
+          </select>
+          <PhIcon name="cal" />
+        </div>
+      </div>
+      <div class="nr-fl">
+        <label :for="`${id}-den`">Đến ngày</label>
+        <div class="nr-box nr-dt">
+          <select :id="`${id}-den`" v-model="endDate" class="nr-in" :disabled="!startDate">
+            <option value="" disabled>Chọn ngày</option>
+            <option v-for="d in ends" :key="d" :value="d">{{ dateLabel(d) }}</option>
+          </select>
+          <PhIcon name="cal" />
+        </div>
       </div>
     </div>
-    <div class="nr-fl">
-      <label :for="`${id}-den`">Đến ngày</label>
-      <div class="nr-box nr-dt">
-        <select :id="`${id}-den`" v-model="endDate" class="nr-in" :disabled="!startDate">
-          <option value="" disabled>Chọn ngày</option>
-          <option v-for="d in ends" :key="d" :value="d">{{ dateLabel(d) }}</option>
-        </select>
-        <PhIcon name="cal" />
-      </div>
-    </div>
+    <RequestSummary :lines="lines" :preview="preview" />
   </div>
   <div class="nr-fl">
     <label :for="`${id}-ly`">Lý do</label>

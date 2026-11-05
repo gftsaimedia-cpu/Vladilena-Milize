@@ -1,36 +1,26 @@
 <script setup lang="ts">
 // Thân luồng "Tạo yêu cầu" (board J8, J9, K3; spec staff-requests 4.2–4.5), dùng chung cho hộp trượt điện thoại và ngăn kéo K3.
 // Tự vẽ đầu hộp: menu là "Tạo yêu cầu" + dòng phụ + ✕; form là ‹ (quay lại menu) + tên loại + ✕. Vỏ mở với `bare` và đặt tên
-// dialog theo sự kiện `title`. Menu: 6 loại theo thứ tự board; loại không có trong kinds (quyền lợi) bị ẩn, loại khoá hiện mờ
-// kèm lý do của server. Form đủ trường thì xem trước (useNewRequest), vẽ dòng tóm tắt, bật "Gửi yêu cầu"; server từ chối thì
-// câu lỗi nằm dưới nút. Gửi xong: thông báo nổi "Đã gửi yêu cầu" rồi phát `sent` (vỏ tải lại danh sách và đóng luồng).
+// dialog theo sự kiện `title`. Menu: 6 loại theo thứ tự board; loại không có trong kinds (quyền lợi) bị ẩn; loại khoá vẫn
+// focus được bằng bàn phím (aria-disabled, bấm không làm gì), lý do của server là mô tả của dòng.
+// Form: nhận ctx, ngay và kết quả xem trước gần nhất đã về (tự đặt hộp tóm tắt ở chỗ board vẽ), phát bản nháp. Bản nháp đủ thì
+// xem trước (useNewRequest) rồi mới bật "Gửi yêu cầu"; server từ chối thì câu lỗi nằm dưới nút. Gửi xong: thông báo nổi
+// "Đã gửi yêu cầu" rồi phát `sent` (vỏ tải lại danh sách và đóng luồng).
 //   <BottomSheet :title="t" bare @close="…"><NewRequestBody @title="t = $event" @close="…" @sent="…" /></BottomSheet>
-import { computed, nextTick, ref, watch, type Component } from 'vue';
+import { computed, nextTick, ref, useId, watch, type Component } from 'vue';
 import { toast } from '@/components/shell/toast';
-import { leaveBalance, leaveSummary } from '@/builders/api/staff-requests';
 import type { PhoneIconName } from '@/mock/staff-phone';
-import type { LeaveDraft, PreviewSummary, RequestContext, RequestKind } from '@/mock/staff-requests-types';
+import type { RequestKind } from '@/mock/staff-requests-types';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import LeaveForm from './LeaveForm.vue';
 import { useNewRequest } from './useNewRequest';
 
 const emit = defineEmits<{ title: [title: string]; close: []; sent: [] }>();
 
-type FormEntry = {
-  form: Component;
-  /** Dòng tóm tắt dưới form, từ lần xem trước gần nhất trả ok. */
-  lines: (ctx: RequestContext, draft: never, summary: never) => string[];
-};
-// Form đã có. Loại chưa có form hiện khoá trong menu và không mở được bằng URL.
-const FORMS: Partial<Record<RequestKind, FormEntry>> = {
-  leave: {
-    form: LeaveForm,
-    lines: (ctx, d: LeaveDraft, s: PreviewSummary['leave']) => [
-      leaveSummary(ctx, d.startDate, d.endDate),
-      leaveBalance(ctx.annualLeaveLeft, s.annualLeaveLeftAfter)
-    ]
-  }
-};
+// Form đã có, theo loại. Mỗi form tự khai props (ctx, ngay, preview: PreviewResult<loại đó>) và emit `draft`
+// (RequestDraft[loại đó] | null), nên kiểu của bản nháp và tóm tắt nằm trong form, không ép kiểu ở đây.
+// Loại chưa có form hiện khoá trong menu, URL của nó về menu.
+const FORMS: { [K in RequestKind]?: Component } = { leave: LeaveForm };
 const NO_FORM = 'Chưa có trong bản mockup';
 
 const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: string }[] = [
@@ -44,11 +34,12 @@ const MENU: { kind: RequestKind; label: string; icon: PhoneIconName; hint: strin
 const LABEL = Object.fromEntries(MENU.map(m => [m.kind, m.label])) as Record<RequestKind, string>;
 
 const flow = useNewRequest(k => !!FORMS[k]);
-const { ctx, loadError, kind, ngay, draft, preview, canSend, sending, sendError } = flow;
+const { ctx, loadError, kind, ngay, shownPreview, canSend, sending, sendError } = flow;
 
 const title = computed(() => (kind.value ? LABEL[kind.value] : 'Tạo yêu cầu'));
 watch(title, t => emit('title', t), { immediate: true });
 
+const uid = useId();
 const menu = computed(() => {
   const c = ctx.value;
   if (!c) return [];
@@ -58,26 +49,15 @@ const menu = computed(() => {
     const hasForm = !!FORMS[m.kind];
     const leaveLeft = m.kind === 'leave' && c.annualLeaveLeft !== null ? `Phép năm còn ${c.annualLeaveLeft} ngày` : '';
     const hint = !k.enabled ? (k.reason ?? m.hint) : !hasForm ? NO_FORM : leaveLeft || m.hint;
-    return [{ ...m, enabled: k.enabled && hasForm, hint }];
+    return [{ ...m, enabled: k.enabled && hasForm, hint, id: `${uid}-${m.kind}` }];
   });
 });
+// Dòng khoá không mở gì, kể cả khi bấm Enter hay Space.
+function open(row: { kind: RequestKind; enabled: boolean }) {
+  if (row.enabled) flow.pick(row.kind);
+}
 
-const entry = computed(() => (kind.value ? FORMS[kind.value]! : null));
-// Dòng tóm tắt và cảnh báo của lần xem trước ok; xem trước không ok thì một dòng nói vì sao chưa gửi được.
-const summary = computed(() => {
-  const p = preview.value;
-  const c = ctx.value;
-  const e = entry.value;
-  const d = draft.value;
-  if (!p || !c || !e || !d) return { lines: [] as string[], refusal: '' };
-  if (!p.ok) return { lines: [], refusal: p.message };
-  return { lines: [...e.lines(c, d as never, p.summary as never), ...p.warnings].filter(Boolean), refusal: '' };
-});
-// "3 ngày làm việc: 13, 14 và 16/11" → phần trước dấu hai chấm đậm (board J9).
-const split = (line: string) => {
-  const i = line.indexOf(': ');
-  return i > 0 ? [line.slice(0, i + 1), line.slice(i + 1)] : ['', line];
-};
+const form = computed(() => (kind.value ? (FORMS[kind.value] ?? null) : null));
 
 async function onSend() {
   if (await flow.send()) {
@@ -117,24 +97,22 @@ watch(kind, async (now, before) => {
           type="button"
           class="nr-row"
           :data-kind="row.kind"
-          :disabled="!row.enabled"
-          @click="flow.pick(row.kind)"
+          :aria-disabled="row.enabled ? undefined : 'true'"
+          :aria-labelledby="`${row.id}-t`"
+          :aria-describedby="`${row.id}-d`"
+          @click="open(row)"
         >
           <span class="ti"><PhIcon :name="row.icon" /></span>
-          <span class="nr-rt"><b>{{ row.label }}</b><span class="mut sm">{{ row.hint }}</span></span>
+          <span class="nr-rt">
+            <b :id="`${row.id}-t`">{{ row.label }}</b>
+            <span :id="`${row.id}-d`" class="mut sm">{{ row.hint }}</span>
+          </span>
           <PhIcon :name="row.enabled ? 'right' : 'lock'" class="nr-chev" />
         </button>
       </div>
-      <template v-else-if="entry">
+      <template v-else-if="form">
         <div class="nr-form">
-          <component :is="entry.form" :ctx="ctx" :ngay="ngay" @draft="flow.setDraft" />
-        </div>
-        <div v-if="summary.lines.length || summary.refusal" class="nr-sum" aria-live="polite">
-          <div v-for="(line, i) in summary.lines" :key="i" :class="{ mut: i > 0 }">
-            <template v-if="i === 0"><b>{{ split(line)[0] }}</b>{{ split(line)[1] }}</template>
-            <template v-else>{{ line }}</template>
-          </div>
-          <div v-if="summary.refusal" class="mut">{{ summary.refusal }}</div>
+          <component :is="form" :ctx="ctx" :ngay="ngay" :preview="shownPreview" @draft="flow.setDraft" />
         </div>
         <button type="button" class="nr-send" :disabled="!canSend" :aria-busy="sending || undefined" @click="onSend">
           Gửi yêu cầu
@@ -191,11 +169,11 @@ watch(kind, async (now, before) => {
 .nr-row + .nr-row {
   border-top: 1px solid var(--border);
 }
-.nr-row:disabled {
+.nr-row[aria-disabled='true'] {
   cursor: default;
 }
-.nr-row:disabled b,
-.nr-row:disabled .ti {
+.nr-row[aria-disabled='true'] b,
+.nr-row[aria-disabled='true'] .ti {
   color: var(--muted);
 }
 .nr-rt {
@@ -225,6 +203,9 @@ watch(kind, async (now, before) => {
 }
 .nr-fl > label {
   font-weight: 600;
+}
+.nr-fl.nr-range {
+  gap: 12px; /* hai ô ngày và hộp tóm tắt (board J9) */
 }
 .nr-two {
   display: grid;

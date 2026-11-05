@@ -3,7 +3,7 @@
 // Vỏ (BottomSheet / SideDrawer) mở khi có ?tao= (useTaoParam), đóng thì bỏ tao và ngay (withoutFlow).
 // useNewRequest (trong NewRequestBody): tải request-context, giữ loại đang mở, đưa giá trị lạ, loại ẩn, khoá hay chưa có form
 // về menu, xem trước 300ms sau lần sửa cuối, gửi. Nút Gửi chỉ bật khi lần xem trước gần nhất trả ok (spec 4.5).
-import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
 import { useRoute, useRouter, type LocationQuery } from 'vue-router';
 import type { PreviewResult, RequestContext, RequestDraft, RequestKind } from '@/mock/staff-requests-types';
 import { createRequest, getRequestContext, previewRequest } from '@/services/staff-requests';
@@ -49,13 +49,14 @@ export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
   const ngay = computed(() => first(route.query.ngay));
 
   const ctx = shallowRef<RequestContext | null>(null);
+  /** Câu lỗi khi chưa có request-context nào; tải lại hỏng khi đã có thì giữ request-context cũ, không đụng form. */
   const loadError = ref('');
   async function loadContext() {
     try {
       ctx.value = await getRequestContext();
       loadError.value = '';
     } catch (e) {
-      loadError.value = messageOf(e, 'Chưa tải được dữ liệu tạo yêu cầu.');
+      if (!ctx.value) loadError.value = messageOf(e, 'Chưa tải được dữ liệu tạo yêu cầu.');
     }
   }
   loadContext();
@@ -83,45 +84,66 @@ export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
 
   // ---------- Xem trước và gửi ----------
   const draft = shallowRef<RequestDraft[RequestKind] | null>(null);
+  /** Kết quả xem trước của bản nháp hiện tại; null khi đang chờ. Chỉ cái này bật nút Gửi. */
   const preview = shallowRef<PreviewResult | null>(null);
+  /**
+   * Kết quả xem trước gần nhất đã về, giữ trên màn trong lúc chờ lần sau (form vẽ cảnh báo hoặc câu từ chối từ đây, không
+   * nhấp nháy mỗi lần gõ). Bỏ khi form chưa đủ trường hoặc đổi loại.
+   */
+  const shownPreview = shallowRef<PreviewResult | null>(null);
   const sending = ref(false);
   const sendError = ref('');
   let timer: ReturnType<typeof setTimeout> | undefined;
   let seq = 0; // kết quả xem trước của bản nháp cũ bị bỏ
+  let reloading = false; // đang tải lại request-context sau khi server từ chối
 
   function runPreview() {
     const k = kind.value;
     const d = draft.value;
     const n = ++seq;
+    clearTimeout(timer);
     if (!k || !d) return;
-    previewRequest(k, d).then(
-      r => {
-        if (n === seq) preview.value = r;
-      },
-      e => {
-        if (n === seq) preview.value = { ok: false, message: messageOf(e, 'Chưa kiểm tra được đơn.') };
-      }
-    );
+    previewRequest(k, d)
+      .catch((e): PreviewResult => ({ ok: false, message: messageOf(e, 'Chưa kiểm tra được đơn.') }))
+      .then(r => {
+        if (n !== seq) return;
+        preview.value = r;
+        shownPreview.value = r;
+      });
   }
 
   /**
-   * Form phát bản nháp đủ trường hoặc null. Bản nháp như cũ (form vẽ lại) thì bỏ qua. Câu lỗi của lần gửi trước chỉ mất khi
-   * có bản nháp đủ trường mới: form tự bỏ ngày không còn chọn được sau khi tải lại request-context thì câu lỗi vẫn ở đó.
+   * Form phát bản nháp đủ trường hoặc null. Bản nháp như cũ (form vẽ lại) thì bỏ qua. Người dùng sửa form thì câu lỗi của lần
+   * gửi trước mất; form tự sửa vì request-context vừa tải lại (ngày không còn chọn được) thì câu lỗi vẫn ở đó.
    */
   function setDraft(next: RequestDraft[RequestKind] | null) {
     if (JSON.stringify(next) === JSON.stringify(draft.value)) return;
     draft.value = next;
     preview.value = null;
-    if (next) sendError.value = '';
+    if (!next) shownPreview.value = null;
+    if (!reloading) sendError.value = '';
     seq++;
     clearTimeout(timer);
     if (next) timer = setTimeout(runPreview, PREVIEW_DELAY_MS);
   }
   watch(kind, () => {
     setDraft(null);
+    shownPreview.value = null;
     sendError.value = '';
   });
   onBeforeUnmount(() => clearTimeout(timer));
+
+  // Tải lại request-context sau khi server từ chối. Form nhận request-context mới và tự bỏ lựa chọn không còn hợp lệ trong
+  // lần vẽ kế tiếp; nextTick chờ lần vẽ đó xong rồi mới coi mọi thay đổi bản nháp là của người dùng.
+  async function reloadAfterRefusal() {
+    reloading = true;
+    try {
+      await loadContext();
+      await nextTick();
+    } finally {
+      reloading = false;
+    }
+  }
 
   const canSend = computed(() => !!kind.value && !!draft.value && preview.value?.ok === true && !sending.value);
 
@@ -136,15 +158,31 @@ export function useNewRequest(hasForm: (kind: RequestKind) => boolean) {
       await createRequest(k, d);
       return true;
     } catch (e) {
-      // Server từ chối (đua giữa hai thiết bị, mất mạng): giữ form, câu lỗi dưới nút Gửi, tải lại request-context (spec 4.5).
+      // Server từ chối (đua giữa hai thiết bị, mất mạng): giữ form, câu lỗi dưới nút Gửi, tải lại request-context (spec 4.5),
+      // rồi xem trước lại bản nháp (form có thể đã tự sửa theo request-context mới). Tải lại hỏng thì giữ request-context cũ.
       sendError.value = messageOf(e, 'Chưa gửi được yêu cầu. Bạn thử lại sau ít phút.');
       preview.value = null;
       sending.value = false;
-      await loadContext();
+      await reloadAfterRefusal();
       runPreview();
       return false;
     }
   }
 
-  return { ctx, loadError, kind, ngay, pick, toMenu, draft, setDraft, preview, canSend, sending, sendError, send };
+  return {
+    ctx,
+    loadError,
+    kind,
+    ngay,
+    pick,
+    toMenu,
+    draft,
+    setDraft,
+    preview,
+    shownPreview,
+    canSend,
+    sending,
+    sendError,
+    send
+  };
 }

@@ -15,8 +15,15 @@ import { ApiError } from './http';
 const refused = (r: Refusal) =>
   Promise.reject(new ApiError(r.code ? 409 : 400, r.message, { code: r.code ?? 'BAD_REQUEST' }));
 
+// Móc cho test, chỉ khi chạy dữ liệu giả (như __mockLatencyMs của mock/respond): đặt trong trang
+// window.__mockRequestContextError = '<câu>' thì request-context bị từ chối với câu đó, như khi mất mạng.
+const mockContextError = () => (globalThis as { __mockRequestContextError?: string }).__mockRequestContextError || '';
+
 export async function getRequestContext(): Promise<RequestContext> {
-  if (__MOCK__) return respond(requestContext());
+  if (__MOCK__) {
+    const error = mockContextError();
+    return error ? Promise.reject(new ApiError(503, error, { code: 'UNAVAILABLE' })) : respond(requestContext());
+  }
   return notConnected();
 }
 

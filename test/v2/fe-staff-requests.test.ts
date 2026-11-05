@@ -207,10 +207,15 @@ describe('Tạo yêu cầu: chữ', () => {
     assert.equal(leaveSummary(context(), '2026-11-30', '2026-12-02'), '3 ngày làm việc: 30/11, 01 và 02/12');
   });
 
-  it('annual leave balance line, empty when the leave is not Phép năm or there is no balance', () => {
-    assert.equal(leaveBalance(11, 9), 'Phép năm còn 11 ngày, sau đơn này còn 9');
-    assert.equal(leaveBalance(11, null), '');
-    assert.equal(leaveBalance(null, null), '');
+  it('annual leave balance line counts working days; empty for other types or without a balance', () => {
+    assert.equal(leaveBalance(context(), 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 11 ngày, sau đơn này còn 8');
+    const isatSat = context({ claims: { '2026-11-14': { status: 'ISAT', pending: false } } });
+    assert.equal(leaveBalance(isatSat, 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 11 ngày, sau đơn này còn 9');
+    assert.equal(leaveBalance(context(), 'UNPAID', '2026-11-13', '2026-11-16'), '');
+    assert.equal(leaveBalance({ ...context(), annualLeaveLeft: null }, 'ANNUAL', '2026-11-13', '2026-11-16'), '');
+    assert.equal(leaveBalance(context(), 'ANNUAL', '2026-11-13', ''), '');
+    // Xin quá số còn lại: không ghi số âm; xem trước từ chối và nói vì sao.
+    assert.equal(leaveBalance({ ...context(), annualLeaveLeft: 2 }, 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 2 ngày');
   });
 
   it('case text', () => {

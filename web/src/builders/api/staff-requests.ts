@@ -185,9 +185,19 @@ export function leaveSummary(ctx: RequestContext, start: string, end: string): s
   return dates.length ? `${dates.length} ngày làm việc: ${dayList(dates)}` : '';
 }
 
-/** Dòng số dư dưới tóm tắt Đơn nghỉ: 'Phép năm còn 11 ngày, sau đơn này còn 9'. Rỗng khi đơn không trừ phép năm. */
-export function leaveBalance(left: number | null, after: number | null): string {
-  return left === null || after === null ? '' : `Phép năm còn ${left} ngày, sau đơn này còn ${after}`;
+/** Mã hình thức nghỉ trừ vào số ngày phép năm còn lại (spec 2.1 leaveTypes). */
+export const ANNUAL_LEAVE = 'ANNUAL';
+
+/**
+ * Dòng số dư dưới tóm tắt Đơn nghỉ, do máy đếm như leaveSummary: 'Phép năm còn 11 ngày, sau đơn này còn 9' (board J9).
+ * Rỗng khi không phải Phép năm, nhân viên không có phép năm, hay chưa đủ hai ngày. Xin quá số còn lại thì chỉ ghi số còn
+ * lại; xem trước từ chối và nói vì sao (brief FE mục 2).
+ */
+export function leaveBalance(ctx: RequestContext, leaveType: string, start: string, end: string): string {
+  const left = ctx.annualLeaveLeft;
+  if (leaveType !== ANNUAL_LEAVE || left === null || !start || !end) return '';
+  const after = left - leaveDates(ctx, start, end).length;
+  return after < 0 ? `Phép năm còn ${left} ngày` : `Phép năm còn ${left} ngày, sau đơn này còn ${after}`;
 }
 
 const CASE_TEXT: Record<ExplanationCase, string> = {
