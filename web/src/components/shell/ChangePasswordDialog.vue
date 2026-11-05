@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Hộp đổi mật khẩu của người đang đăng nhập (dlg-doi-mat-khau.html). Hợp đồng: emit('close').
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import AppModal from '@/components/ui/AppModal.vue';
 import Icon from '@/components/ui/Icon.vue';
 import { changePassword } from '@/services/session';
@@ -18,15 +18,11 @@ const busy = ref(false);
 const first = ref(null);
 onMounted(() => first.value?.focus());
 
-function validate() {
-  if (!form.current) return 'Nhập mật khẩu hiện tại.';
-  if (form.next.length < MIN_LENGTH) return `Mật khẩu mới cần ít nhất ${MIN_LENGTH} ký tự.`;
-  if (form.next !== form.again) return 'Hai mật khẩu mới chưa khớp.';
-  return '';
-}
+// Chưa đủ (thiếu mật khẩu hiện tại, mật khẩu mới ngắn, nhập lại lệch) thì nút mờ; chỉ lỗi của máy chủ mới hiện ra.
+const valid = computed(() => form.current !== '' && form.next.length >= MIN_LENGTH && form.next === form.again);
 async function submit() {
-  error.value = validate();
-  if (error.value || busy.value) return;
+  if (!valid.value || busy.value) return;
+  error.value = '';
   busy.value = true;
   try {
     await changePassword(form.current, form.next);
@@ -111,7 +107,7 @@ async function submit() {
       </template>
       <template v-else>
         <button type="button" class="btn" @click="emit('close')">Huỷ</button>
-        <button type="submit" form="pw-form" class="btn pri" :disabled="busy">
+        <button type="submit" form="pw-form" class="btn pri" :disabled="busy || !valid">
           <Icon name="key" />
           Đổi mật khẩu
         </button>
