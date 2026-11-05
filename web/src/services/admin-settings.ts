@@ -17,7 +17,6 @@ export {
 
 // ---------- Bản nối máy chủ thật (services/admin-config.js) ----------
 export {
-  getSettingsBadges,
   getBenefits,
   benefitChangesAt,
   saveBenefits,

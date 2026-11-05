@@ -1,6 +1,6 @@
-// Dịch vụ dữ liệu thật của nhóm Cài đặt (Admin): tham số tính lương, ca, ngày lễ, vùng chấm công, công tắc Agents, nhật ký.
+// Dịch vụ dữ liệu thật của nhóm Cài đặt (Admin): chế độ theo loại, ngày lễ, nhật ký.
 // Mỗi hàm đọc máy chủ rồi đổi phản hồi về đúng hình dạng màn đang dùng (builders/admin-config).
-// Hàm lưu so bản nháp với bản vừa đọc và chỉ gửi các khoá đã đổi, kèm tháng áp dụng và số phiên bản (paramsRev) của lần đọc đó.
+// Lưu chế độ theo loại gửi các ô đã sửa, kèm tháng áp dụng.
 import { api, qs } from '@/services/http';
 import {
   benefitChanges,
@@ -16,30 +16,8 @@ import { addHolidays, holidaysOf, quickAddFixed, removeHolidays } from '@/mock/s
 import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditFromResponse, verifyMessage } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
-import { notConnected } from '@/services/data-mode';
-import { applySaved, diffEdits, indexParams, valueOf } from '@/builders/admin-config/params';
 
 const plain = (v?) => (v == null ? v : JSON.parse(JSON.stringify(v)));
-
-// ---------- Đọc và lưu tham số ----------
-const readParams = (group?) => api('GET', `/settings/params${qs({ group })}`).then(indexParams);
-
-/** Gửi các khoá đã đổi; không có gì đổi thì không gọi máy chủ. Lỗi máy chủ (PARAMS_STALE...) ném nguyên văn. */
-async function putParams(idx?, wanted?) {
-  const edits = diffEdits(idx, wanted);
-  if (!edits.length) return { ok: true, saved: [] };
-  const res = await api('PUT', '/settings/params', {
-    changes: edits,
-    effectiveMonth: idx.month,
-    expectedRev: idx.rev
-  });
-  applySaved(idx, edits, res.paramsRev);
-  return { ok: true, saved: res.saved || [], paramsRev: res.paramsRev };
-}
-
-// ---------- Khung Cài đặt ----------
-// GET /api/settings/first-run: số mục còn dùng mặc định, chờ xác nhận
-export const getSettingsBadges = () => api('GET', '/settings/first-run').then(r => ({ 'tat-ca': r.total }));
 
 // ---------- Cách tính lương ----------
 const state: Record<string, any> = {
