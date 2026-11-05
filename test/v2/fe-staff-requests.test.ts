@@ -7,6 +7,7 @@ import {
   endDates,
   endHours,
   fitEnd,
+  leaveDates,
   leaveSummary,
   makeupCounter,
   otLeftMinutes,
@@ -41,10 +42,17 @@ function dayOf(date: string): ContextDay {
   };
 }
 
-function context(over: { months?: Partial<RequestContext['months'][number]>[] } = {}): RequestContext {
+type Over = {
+  months?: Partial<RequestContext['months'][number]>[];
+  claims?: Record<string, ContextDay['claim']>;
+  explanationDays?: RequestContext['explanationDays'];
+};
+
+function context(over: Over = {}): RequestContext {
   const days = Array.from({ length: 27 }, (_, i) => dayOf(isoAdd('2026-11-10', i)));
   for (const d of days)
     if (d.date === '2026-11-11' || d.date === '2026-11-18') Object.assign(d, { claim: { status: 'LEAVE', pending: true }, hours: [] });
+  for (const d of days) if (over.claims && d.date in over.claims) d.claim = over.claims[d.date];
   const base = [
     { month: '2026-11', closed: false, otMinutes: 540, otCapMinutes: 2400, hasOvertime: false, hasMakeupLeave: false },
     { month: '2026-12', closed: false, otMinutes: 0, otCapMinutes: 2400, hasOvertime: false, hasMakeupLeave: false }
@@ -58,7 +66,7 @@ function context(over: { months?: Partial<RequestContext['months'][number]>[] } 
     annualLeaveLeft: 11,
     shiftFrames: [],
     days,
-    explanationDays: [],
+    explanationDays: over.explanationDays ?? [],
     advance: null
   };
 }
@@ -69,6 +77,47 @@ describe('Tạo yêu cầu: ngày chọn được', () => {
     const starts = startDates(context(), 'leave');
     assert.deepEqual(starts.slice(0, 7), ['2026-11-10', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-16', '2026-11-17', '2026-11-19']);
     for (const d of ['2026-11-11', '2026-11-15', '2026-11-18', '2026-11-22']) assert.ok(!starts.includes(d), d);
+  });
+
+  // Thứ Bảy 14/11 đã có iSAT được duyệt, Thứ Bảy 21/11 có iSAT chờ duyệt.
+  const isat = () =>
+    context({ claims: { '2026-11-14': { status: 'ISAT', pending: false }, '2026-11-21': { status: 'ISAT', pending: true } } });
+
+  it('an iSAT Saturday is never offered as a leave start', () => {
+    for (const kind of ['leave', 'leave-with-makeup'] as const) {
+      const starts = startDates(isat(), kind);
+      assert.ok(starts.includes('2026-11-13'), kind);
+      assert.ok(!starts.includes('2026-11-14') && !starts.includes('2026-11-21'), kind);
+    }
+  });
+
+  it('leave ends skip an approved iSAT and stop before a pending one', () => {
+    assert.deepEqual(endDates(isat(), 'leave', '2026-11-13'), ['2026-11-13', '2026-11-16', '2026-11-17']);
+    assert.deepEqual(endDates(isat(), 'leave', '2026-11-19'), ['2026-11-19', '2026-11-20']);
+  });
+
+  it('leave days drop an approved iSAT Saturday', () => {
+    assert.deepEqual(leaveDates(isat(), '2026-11-13', '2026-11-16'), ['2026-11-13', '2026-11-16']);
+    assert.equal(leaveSummary(isat(), '2026-11-13', '2026-11-16'), '2 ngày làm việc: 13 và 16/11');
+  });
+
+  it('shift-change ends are every day from the start', () => {
+    assert.deepEqual(endDates(context(), 'shift-change', '2026-11-29'), [
+      '2026-11-29', '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05', '2026-12-06'
+    ]);
+    assert.deepEqual(endDates(context(), 'shift-change', ''), []);
+  });
+
+  it('explanation dates come from explanationDays, in their order', () => {
+    const need = { checkIn: false, checkOut: true };
+    const ctx = context({
+      explanationDays: [
+        { date: '2026-10-24', cases: ['MISSING_CHECK_OUT'], needs: need, remindedAt: null },
+        { date: '2026-10-09', cases: ['LATE_CHECK_IN'], needs: { checkIn: false, checkOut: false }, remindedAt: null }
+      ]
+    });
+    assert.deepEqual(startDates(ctx, 'explanation'), ['2026-10-24', '2026-10-09']);
+    assert.deepEqual(startDates(context(), 'explanation'), []);
   });
 
   it('a closed month never offers a date', () => {

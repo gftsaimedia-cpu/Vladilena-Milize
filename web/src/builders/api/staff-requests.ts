@@ -8,7 +8,7 @@ import type {
   MakeupSlot,
   RequestContext,
   RequestKind
-} from '../../mock/staff-requests';
+} from '../../mock/staff-requests-types';
 import { vnd } from '../../utils/format';
 
 export type {
@@ -23,7 +23,7 @@ export type {
   RequestContext,
   RequestDraft,
   RequestKind
-} from '../../mock/staff-requests';
+} from '../../mock/staff-requests-types';
 
 /** Khung giờ tròn [start, end), tính bằng giờ: { start: 18, end: 20 } là 18–20h. */
 export type HourWindow = { start: number; end: number };
@@ -41,10 +41,15 @@ const hourOf = (hhmm: string) => Number(hhmm.slice(0, 2));
 export const dateLabel = (iso: string) => `${DOW_SHORT[new Date(`${iso}T00:00:00Z`).getUTCDay()]} ${ddmm(iso)}`;
 
 const held = (d: ContextDay) => d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP';
+/** Thứ Bảy có iSAT được duyệt: đơn nghỉ theo khoảng bỏ ngày này kèm cảnh báo (BE planClaims). */
+export const approvedIsat = (d: ContextDay) => d.claim?.status === 'ISAT' && !d.claim.pending;
+/** Thứ Bảy có iSAT chờ duyệt: BE chặn cả đơn (DAY_CONFLICT). */
+export const pendingIsat = (d: ContextDay) => d.claim?.status === 'ISAT' && d.claim.pending;
+/** Ngày chọn được làm ngày nghỉ: ngày làm, không bị đơn nghỉ giữ, không có iSAT. */
+export const countsAsLeave = (d: ContextDay) => d.workday && !held(d) && d.claim?.status !== 'ISAT';
 const monthInfo = (ctx: RequestContext, month: string) => ctx.months.find(m => m.month === month);
 // Ngày thuộc tháng đã chốt (hoặc tháng không có trong months) không bao giờ là lựa chọn.
 const openDays = (ctx: RequestContext) => ctx.days.filter(d => monthInfo(ctx, monthOf(d.date))?.closed === false);
-const leaveDay = (d: ContextDay) => d.workday && !held(d);
 // Sau ngày `date` còn ít nhất một ngày cùng tháng có giờ trống để bù.
 const roomAfter = (ctx: RequestContext, date: string) =>
   openDays(ctx).some(d => d.date > date && monthOf(d.date) === monthOf(date) && d.hours.length > 0);
@@ -60,10 +65,10 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
   const days = openDays(ctx);
   switch (kind) {
     case 'leave':
-      return days.filter(leaveDay).map(d => d.date);
+      return days.filter(countsAsLeave).map(d => d.date);
     case 'leave-with-makeup':
       return days
-        .filter(d => leaveDay(d) && !monthInfo(ctx, monthOf(d.date))!.hasOvertime && roomAfter(ctx, d.date))
+        .filter(d => countsAsLeave(d) && !monthInfo(ctx, monthOf(d.date))!.hasOvertime && roomAfter(ctx, d.date))
         .map(d => d.date);
     case 'overtime':
       return days
@@ -81,8 +86,9 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
 
 /**
  * "Đến ngày" chọn được khi "Từ ngày" là `start` (rỗng khi `start` không chọn được hoặc loại chỉ có một ngày).
- * Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ. Nghỉ có làm bù: thêm cùng tháng và sau đó
- * còn ngày để bù. Đổi ca: mọi ngày từ `start`.
+ * Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ hoặc có iSAT chờ duyệt; Thứ Bảy có iSAT được
+ * duyệt nằm giữa khoảng thì được, nhưng không là "Đến ngày". Nghỉ có làm bù: thêm cùng tháng và sau đó còn ngày để bù.
+ * Đổi ca: mọi ngày từ `start`.
  */
 export function endDates(ctx: RequestContext, kind: RequestKind, start: string): string[] {
   if (!start || !startDates(ctx, kind).includes(start)) return [];
@@ -91,9 +97,9 @@ export function endDates(ctx: RequestContext, kind: RequestKind, start: string):
   if (kind !== 'leave' && kind !== 'leave-with-makeup') return [];
   const out: string[] = [];
   for (const d of days) {
-    if (held(d)) break;
+    if (held(d) || pendingIsat(d)) break;
     if (kind === 'leave-with-makeup' && (monthOf(d.date) !== monthOf(start) || !roomAfter(ctx, d.date))) break;
-    if (d.workday) out.push(d.date);
+    if (countsAsLeave(d)) out.push(d.date);
   }
   return out;
 }
@@ -146,7 +152,7 @@ export function startHours(day: ContextDay, opts: HourOptions = {}): number[] {
 export function leaveDates(ctx: RequestContext, start: string, end: string): string[] {
   if (!start || !end) return [];
   return ctx.days
-    .filter(d => d.date >= start && d.date <= end && d.workday && !(d.claim?.status === 'ISAT' && !d.claim.pending))
+    .filter(d => d.date >= start && d.date <= end && d.workday && !approvedIsat(d))
     .map(d => d.date);
 }
 

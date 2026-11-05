@@ -4,6 +4,7 @@
 // Ngày công tháng 10 đọc từ mock/staff-phone. Đơn tạo trong phiên nằm trong bộ nhớ, tải lại trang thì về như cũ;
 // ngày đơn giữ, khung OT, khung bù đều suy ra từ các đơn chưa huỷ, nên huỷ đơn là trả lại hết.
 import {
+  approvedIsat,
   caseText,
   dayList,
   endDates,
@@ -11,6 +12,7 @@ import {
   leaveDates,
   makeupCounter,
   otLeftMinutes,
+  pendingIsat,
   slotDates,
   startDates
 } from '@/builders/api/staff-requests';
@@ -25,88 +27,55 @@ import {
   type RequestDetail,
   type RequestStep
 } from './staff-phone';
+import type {
+  RequestKind,
+  ClaimStatus,
+  ExplanationCase,
+  ExplanationNeeds,
+  HourEnd,
+  HourSlot,
+  ContextDay,
+  ExplanationDay,
+  ContextMonth,
+  AdvanceInfo,
+  RequestContext,
+  LeaveDraft,
+  MakeupDraft,
+  OvertimeDraft,
+  ShiftChangeDraft,
+  ExplanationDraft,
+  RequestDraft,
+  PreviewSummary,
+  PreviewResult,
+  Refusal
+} from './staff-requests-types';
 
-// ---------- Kiểu dữ liệu (spec 2.1, 2.2) ----------
-export type RequestKind = 'leave' | 'leave-with-makeup' | 'overtime' | 'shift-change' | 'explanation' | 'advance';
-export type ClaimStatus = 'LEAVE' | 'LEAVE_WITH_MAKEUP' | 'SHIFT_CHANGE' | 'ISAT';
-export type ExplanationCase =
-  | 'LATE_CHECK_IN'
-  | 'EARLY_CHECK_IN'
-  | 'EARLY_CHECK_OUT'
-  | 'FORGOT_CHECK_OUT'
-  | 'MISSING_CHECK_IN'
-  | 'MISSING_CHECK_OUT';
-export type ExplanationNeeds = { checkIn: boolean; checkOut: boolean };
-
-/** Một giờ kết thúc hợp lệ của một giờ bắt đầu, kèm số phút làm việc. */
-export type HourEnd = { end: number; minutes: number };
-export type HourSlot = { start: number; ends: HourEnd[] };
-export type ContextDay = {
-  date: string;
-  workday: boolean;
-  shift: { type: string; start: string; end: string } | null;
-  holiday: string | null;
-  claim: { status: ClaimStatus; pending: boolean } | null;
-  hours: HourSlot[];
-};
-export type ExplanationDay = {
-  date: string;
-  cases: ExplanationCase[];
-  needs: ExplanationNeeds;
-  remindedAt: string | null;
-};
-export type ContextKind = { kind: RequestKind; enabled: boolean; reason?: string };
-export type ContextMonth = {
-  month: string;
-  closed: boolean;
-  otMinutes: number;
-  otCapMinutes: number;
-  hasOvertime: boolean;
-  hasMakeupLeave: boolean;
-};
-export type AdvanceInfo = { month: string; amount: number; workDays: number; from: string; to: string };
-export type RequestContext = {
-  today: string;
-  window: { from: string; to: string };
-  kinds: ContextKind[];
-  months: ContextMonth[];
-  leaveTypes: { code: string; label: string }[];
-  annualLeaveLeft: number | null;
-  shiftFrames: { shiftType: string; start: string; end: string }[];
-  days: ContextDay[];
-  explanationDays: ExplanationDay[];
-  advance: AdvanceInfo | null;
-};
-
-// Thân đơn, dùng đúng tên trường của BE.
-export type LeaveDraft = { leaveType: string; startDate: string; endDate: string; reason: string };
-export type MakeupSlot = { date: string; startTime: string; endTime: string };
-export type MakeupDraft = { startDate: string; endDate: string; slots: MakeupSlot[]; reason: string };
-export type OvertimeDraft = { otDate: string; startTime: string; endTime: string; reason: string };
-export type ShiftChangeDraft = { startDate: string; endDate: string; shiftType: string; startTime: string; reason: string };
-export type ExplanationDraft = { workDate: string; actualCheckIn?: string; actualCheckOut?: string; reason: string };
-export type AdvanceDraft = Record<string, never>;
-export type RequestDraft = {
-  leave: LeaveDraft;
-  'leave-with-makeup': MakeupDraft;
-  overtime: OvertimeDraft;
-  'shift-change': ShiftChangeDraft;
-  explanation: ExplanationDraft;
-  advance: AdvanceDraft;
-};
-
-export type PreviewSummary = {
-  leave: { dates: string[]; daysCount: number; annualLeaveLeftAfter: number | null };
-  'leave-with-makeup': { dates: string[]; daysCount: number; makeupMinutesRequired: number; makeupMinutesPlanned: number };
-  overtime: { minutes: number; monthMinutesAfter: number };
-  'shift-change': { dates: string[]; keptDates: string[] };
-  explanation: { cases: ExplanationCase[]; needs: ExplanationNeeds };
-  advance: { month: string; amount: number; workDays: number };
-};
-export type PreviewResult<K extends RequestKind = RequestKind> =
-  | { ok: true; title: string; summary: PreviewSummary[K]; warnings: string[] }
-  | { ok: false; message: string; code?: 'DAY_CONFLICT' };
-type Refusal = Extract<PreviewResult, { ok: false }>;
+// Kiểu nằm ở mock/staff-requests-types; xuất lại để màn import được từ đây.
+export type {
+  RequestKind,
+  ClaimStatus,
+  ExplanationCase,
+  ExplanationNeeds,
+  HourEnd,
+  HourSlot,
+  ContextDay,
+  ExplanationDay,
+  ContextKind,
+  ContextMonth,
+  AdvanceInfo,
+  RequestContext,
+  LeaveDraft,
+  MakeupSlot,
+  MakeupDraft,
+  OvertimeDraft,
+  ShiftChangeDraft,
+  ExplanationDraft,
+  AdvanceDraft,
+  RequestDraft,
+  PreviewSummary,
+  PreviewResult,
+  Refusal
+} from './staff-requests-types';
 
 // ---------- Hằng số của người và công ty ----------
 const SHIFT = { type: 'NORMAL', start: '08:00', end: '17:00' };
@@ -355,15 +324,20 @@ function advanceQuote(month: string): AdvanceInfo {
   return { month, amount: Math.round((0.8 * workDays * BASE_SALARY) / STANDARD_DAYS), workDays, from, to };
 }
 
-function advanceState(today: string): { gate: Omit<ContextKind, 'kind'>; advance: AdvanceInfo | null } {
+// Vì sao hôm nay chưa nộp được tạm ứng: ngoài ngày 16–17, tháng đã có đơn, hay chưa có ngày công 01–15.
+type AdvanceBlock = 'not-filing-day' | 'month-filed' | 'no-workdays';
+type AdvanceState = { advance: AdvanceInfo; block: null } | { advance: null; block: AdvanceBlock; reason: string };
+
+function advanceState(today: string): AdvanceState {
   const month = monthOf(today);
   const day = Number(today.slice(8, 10));
-  if (day !== 16 && day !== 17) return { gate: { enabled: false, reason: 'Chỉ nộp ngày 16 và 17' }, advance: null };
+  if (day !== 16 && day !== 17) return { advance: null, block: 'not-filing-day', reason: 'Chỉ nộp ngày 16 và 17' };
   if (live().some(e => e.kind === 'advance' && e.month === month))
-    return { gate: { enabled: false, reason: `Tháng ${monthNo(today)} đã có đơn tạm ứng` }, advance: null };
+    return { advance: null, block: 'month-filed', reason: `Tháng ${monthNo(today)} đã có đơn tạm ứng` };
   const quote = advanceQuote(month);
-  if (!quote.amount) return { gate: { enabled: false, reason: `Chưa có ngày công 01–15/${pad(monthNo(today))}` }, advance: null };
-  return { gate: { enabled: true }, advance: quote };
+  if (!quote.amount)
+    return { advance: null, block: 'no-workdays', reason: `Chưa có ngày công 01–15/${pad(monthNo(today))}` };
+  return { advance: quote, block: null };
 }
 
 // ---------- request-context ----------
@@ -373,7 +347,7 @@ export function requestContext(): RequestContext {
   const days: ContextDay[] = [];
   for (let d = today; d <= to; d = addDays(d, 1)) days.push(contextDay(d));
   const explanationDays = explanationDaysOf(today);
-  const { gate, advance } = advanceState(today);
+  const adv = advanceState(today);
   const ctx: RequestContext = {
     today,
     window: { from: today, to },
@@ -384,7 +358,7 @@ export function requestContext(): RequestContext {
     shiftFrames: SHIFT_FRAMES,
     days,
     explanationDays,
-    advance
+    advance: adv.advance
   };
   const open = (kind: RequestKind, reason: string) =>
     startDates(ctx, kind).length > 0 ? { enabled: true } : { enabled: false, reason };
@@ -394,7 +368,7 @@ export function requestContext(): RequestContext {
     { kind: 'overtime', ...open('overtime', 'Không còn ngày đăng ký được') },
     { kind: 'shift-change', enabled: true },
     { kind: 'explanation', ...open('explanation', 'Không có ngày cần giải trình') },
-    { kind: 'advance', ...gate }
+    { kind: 'advance', ...(adv.block ? { enabled: false, reason: adv.reason } : { enabled: true }) }
   ];
   return ctx;
 }
@@ -403,7 +377,6 @@ export function requestContext(): RequestContext {
 const MISSING: Refusal = { ok: false, message: 'Chưa điền đủ thông tin' };
 const filled = (...values: (string | undefined)[]) => values.every(v => !!v && !!v.trim());
 const windowText = (ctx: RequestContext) => `Chỉ chọn ngày từ ${ddmm(ctx.window.from)} đến ${ddmm(ctx.window.to)}`;
-const heldBy = (ctx: RequestContext, date: string) => ctx.days.find(d => d.date === date)?.claim ?? null;
 
 // Một khoảng ngày ngoài lựa chọn của form: ngoài window, tháng đã chốt, hay bị đơn khác giữ.
 function rangeRefusal(ctx: RequestContext, kind: RequestKind, start: string, end: string): Refusal | null {
@@ -413,19 +386,33 @@ function rangeRefusal(ctx: RequestContext, kind: RequestKind, start: string, end
   if (closed) return { ok: false, message: `Tháng ${monthNo(`${closed.month}-01`)} đã chốt công` };
   if (kind === 'leave-with-makeup' && ctx.months.find(m => m.month === monthOf(start))?.hasOvertime)
     return { ok: false, message: `Tháng ${monthNo(start)} đã có đơn OT, không nộp đơn nghỉ có làm bù được` };
-  for (let d = start; d <= end; d = addDays(d, 1)) {
-    const claim = heldBy(ctx, d);
-    if (claim?.status === 'LEAVE' || claim?.status === 'LEAVE_WITH_MAKEUP')
-      return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(d)} đã có đơn nghỉ` };
+  for (const day of ctx.days.filter(x => x.date >= start && x.date <= end)) {
+    if (day.claim?.status === 'LEAVE' || day.claim?.status === 'LEAVE_WITH_MAKEUP')
+      return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(day.date)} đã có đơn nghỉ` };
+    if (pendingIsat(day)) return isatPendingConflict(day.date);
   }
+  const first = ctx.days.find(x => x.date === start);
+  if (first && approvedIsat(first)) return isatApprovedConflict(start);
   return { ok: false, message: 'Khoảng ngày không chọn được' };
 }
 
+// Câu của BE (day-status planDay / planClaims) cho Thứ Bảy có iSAT.
+const satText = (date: string) => `Thứ Bảy ${ddmm(date)}`;
+const isatPendingConflict = (date: string): Refusal => ({
+  ok: false,
+  code: 'DAY_CONFLICT',
+  message: `${satText(date)} đang có đơn iSAT chờ duyệt. Huỷ đơn iSAT hoặc chọn ngày khác.`
+});
+const isatApprovedConflict = (date: string): Refusal => ({
+  ok: false,
+  code: 'DAY_CONFLICT',
+  message: `${satText(date)} đã có iSAT được duyệt, không chọn được ngày này.`
+});
+const isatSkipped = (date: string) => `${satText(date)} đã có iSAT được duyệt, không tính vào đơn.`;
+
 // Thứ Bảy đã có iSAT được duyệt bị bỏ khỏi đơn nghỉ, kèm cảnh báo (spec 2.2).
 const isatWarnings = (ctx: RequestContext, start: string, end: string) =>
-  ctx.days
-    .filter(d => d.date >= start && d.date <= end && d.claim?.status === 'ISAT' && !d.claim.pending)
-    .map(d => `Thứ Bảy ${ddmm(d.date)} đã có iSAT được duyệt, không tính vào đơn.`);
+  ctx.days.filter(d => d.date >= start && d.date <= end && approvedIsat(d)).map(d => isatSkipped(d.date));
 
 type Built = { ok: true; title: string; summary: PreviewSummary[RequestKind]; warnings: string[]; entry: Omit<Entry, 'id'>; facts: [string, string][] };
 
@@ -527,18 +514,29 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
       if (!frame) return MISSING;
       const bad = rangeRefusal(ctx, kind, d.startDate, d.endDate);
       if (bad) return bad;
+      // Rút gọn của mock: không kiểm lại khung OT, khung bù đã lưu trên các ngày đổi ca với ca mới; BE kiểm việc đó.
       const work = ctx.days.filter(x => x.date >= d.startDate && x.date <= d.endDate && x.workday);
-      const taken = work.find(x => x.claim?.status === 'SHIFT_CHANGE');
-      if (taken) return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(taken.date)} đã có đơn đổi ca khác` };
-      const kept = work.filter(x => x.claim).map(x => x.date); // ngày nghỉ, iSAT: giữ nguyên
+      for (const x of work) {
+        if (x.claim?.status === 'SHIFT_CHANGE')
+          return { ok: false, code: 'DAY_CONFLICT', message: `Ngày ${ddmm(x.date)} đã có đơn đổi ca khác` };
+        if (pendingIsat(x)) return isatPendingConflict(x.date);
+      }
+      // Ngày nghỉ và Thứ Bảy có iSAT được duyệt giữ nguyên, kèm cảnh báo; các ngày còn lại đổi ca.
+      const keptDays = work.filter(x => x.claim);
+      const kept = keptDays.map(x => x.date);
       const dates = work.filter(x => !x.claim).map(x => x.date);
-      if (!dates.length) return { ok: false, message: 'Khoảng đổi ca không có ngày làm việc' };
+      if (!dates.length)
+        return keptDays.length && keptDays.every(approvedIsat)
+          ? isatApprovedConflict(kept[0])
+          : { ok: false, message: 'Khoảng đổi ca không có ngày làm việc' };
       const label = `${FRAME_LABEL[frame.shiftType] ?? frame.shiftType} ${frame.start.slice(0, 2)}–${frame.end.slice(0, 2)}`;
       return {
         ok: true,
         title: `Đổi ca ${label}, ${rangeText(d.startDate, d.endDate)}`,
         summary: { dates, keptDates: kept },
-        warnings: kept.map(date => `Ngày ${ddmm(date)} đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.`),
+        warnings: keptDays.map(x =>
+          approvedIsat(x) ? isatSkipped(x.date) : `Ngày ${ddmm(x.date)} đang nghỉ, giữ nguyên ngày nghỉ, không đổi ca.`
+        ),
         entry: {
           kind,
           claims: dates.map(date => ({ date, status: 'SHIFT_CHANGE' })),
@@ -589,8 +587,9 @@ function build(ctx: RequestContext, kind: RequestKind, draft: RequestDraft[Reque
       };
     }
     case 'advance': {
-      const { gate, advance } = advanceState(ctx.today);
-      if (!advance) return { ok: false, message: gate.reason === 'Chỉ nộp ngày 16 và 17' ? 'Chỉ nộp tạm ứng ngày 16 và 17' : gate.reason! };
+      const adv = advanceState(ctx.today);
+      if (!adv.advance) return { ok: false, message: adv.block === 'not-filing-day' ? 'Chỉ nộp tạm ứng ngày 16 và 17' : adv.reason };
+      const advance = adv.advance;
       return {
         ok: true,
         title: `Tạm ứng lương tháng ${monthNo(advance.from)}`,

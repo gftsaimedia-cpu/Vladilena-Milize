@@ -6,16 +6,12 @@ import {
   cancelRequest as cancelMock,
   createRequest as createMock,
   previewRequest as previewMock,
-  requestContext,
-  type PreviewResult,
-  type RequestContext,
-  type RequestDraft,
-  type RequestKind
+  requestContext
 } from '@/mock/staff-requests';
+import type { PreviewResult, Refusal, RequestContext, RequestDraft, RequestKind } from '@/mock/staff-requests-types';
 import { notConnected } from './data-mode';
 import { ApiError } from './http';
 
-type Refusal = { ok: false; message: string; code?: 'DAY_CONFLICT' };
 const refused = (r: Refusal) =>
   Promise.reject(new ApiError(r.code ? 409 : 400, r.message, { code: r.code ?? 'BAD_REQUEST' }));
 

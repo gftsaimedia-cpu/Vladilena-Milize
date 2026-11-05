@@ -1,5 +1,6 @@
 // Dữ liệu giả của app nhân viên trên điện thoại (spec staff-phone-app mục 1–2): luôn là Lê Hoàng Nam, tháng 10/2026.
-// Mỗi hàm *View() dựng sẵn chuỗi hiển thị cho một màn. Dữ liệu nằm trong bộ nhớ: chỉ checkOutNow() sửa được, tải lại trang thì về như cũ.
+// Mỗi hàm *View() dựng sẵn chuỗi hiển thị cho một màn. Dữ liệu nằm trong bộ nhớ, tải lại trang thì về như cũ. Chỉ ba hàm sửa:
+// checkOutNow() ghi giờ ra hôm nay; addRequest() và updateRequest() (do mock/staff-requests gọi) thêm đơn mới và đổi trạng thái đơn.
 import { MOCK_NOW, MOCK_TODAY } from './clock';
 
 export type DayKind = 'work' | 'late' | 'leave' | 'absent' | 'todo';
