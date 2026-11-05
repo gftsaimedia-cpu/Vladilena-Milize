@@ -326,8 +326,9 @@ Tên nhóm trong đường dẫn và tên khoá trong phản hồi:
 
 - `field` là tên ô như trong `values`.
 - Với `brackets`, `from` và `to` là nguyên mảng.
+- Với `kpi-weights`, mỗi lần lưu sinh đúng một dòng `field: "weights"`; `from` và `to` là cả bộ 5 trọng số `{ wework, user, peer, manager, self }`.
 
-**Hoàn tác:** không có API riêng. FE gửi `PUT /settings/:group` với `values: { <field>: <from của dòng lịch sử> }` và `effectiveMonth` do Admin chọn (≥ `minMonth`). Lần lưu này sinh một dòng lịch sử mới.
+**Hoàn tác:** không có API riêng. FE gửi `PUT /settings/:group` với `values: { <field>: <from của dòng lịch sử> }` và `effectiveMonth` do Admin chọn (≥ `minMonth`). Lần lưu này sinh một dòng lịch sử mới. Riêng dòng `weights` của `kpi-weights` thì gửi `values: <from của dòng đó>` (đủ 5 ô).
 
 ### 5.2 Ngày trả lương theo năm
 

@@ -241,6 +241,24 @@ describe('settings service: groups, history, pay days', () => {
     assert.deepEqual(item.to, b);
   });
 
+  it('kpi-weights history is one row per save and the row can be undone', async () => {
+    const next = { wework: 45, user: 19, peer: 18, manager: 12, self: 6 };
+    const saved = await save('kpi-weights', '2026-12', next, 0);
+    assert.deepEqual(saved.changed, ['wework', 'user']);
+    const { items } = await svc.groupHistory('kpi-weights');
+    assert.equal(items.length, 1);
+    const [item] = items;
+    assert.equal(item.field, 'weights');
+    assert.deepEqual(item.from, { wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
+    assert.deepEqual(item.to, next);
+    assert.equal(saved.stamp, item.id);
+
+    const undo = await svc.saveGroup('kpi-weights', { effectiveMonth: '2026-12', values: item.from, stamp: saved.stamp }, 'admin', NOW);
+    assert.equal(undo.ok, true);
+    assert.deepEqual((await svc.getAll('2026-12', NOW)).groups.kpiWeights.values, { wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
+    assert.equal((await svc.groupHistory('kpi-weights')).items.length, 2);
+  });
+
   it('pay days for a year', async () => {
     await save('pay-calendar', '2026-11', { payDay: 5 }, 0);
     const { year, items } = await svc.payDays('2026');

@@ -141,15 +141,29 @@ export class SettingsService {
       const before = decodeValues(g, cur.values);
       const after = decodeValues(g, plan.set as Values);
       const keys = Object.keys(plan.set);
-      const rows: ChangeRow[] = keys.map(field => ({
-        setting: g,
-        field,
-        subject: null,
-        effectiveMonth: month,
-        oldJson: JSON.stringify(before[field]),
-        newJson: JSON.stringify(after[field]),
-        reason
-      }));
+      // Nhóm có tổng cố định (kpi-weights) gửi và hoàn tác cả bộ ô, nên lịch sử là một dòng cho cả bộ.
+      const rows: ChangeRow[] =
+        SETTING_GROUPS[g].sum !== undefined
+          ? [
+              {
+                setting: g,
+                field: 'weights',
+                subject: null,
+                effectiveMonth: month,
+                oldJson: JSON.stringify(decodeValues(g, cur.values)),
+                newJson: JSON.stringify(decodeValues(g, { ...cur.values, ...plan.set })),
+                reason
+              }
+            ]
+          : keys.map(field => ({
+              setting: g,
+              field,
+              subject: null,
+              effectiveMonth: month,
+              oldJson: JSON.stringify(before[field]),
+              newJson: JSON.stringify(after[field]),
+              reason
+            }));
       const ids = await this.repo.insertChanges(trx, rows, meta);
       return { ok: true as const, effectiveMonth: month, changed: keys, stamp: Math.max(...ids) };
     });
