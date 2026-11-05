@@ -68,3 +68,19 @@ test('signing out from the menu returns to /dang-nhap', async ({ page }) => {
   await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/dang-nhap/);
 });
+
+test('the design index lists the desktop boards', async ({ page }) => {
+  await openDesktop(page, '/thiet-ke');
+  const group = page.locator('section', { has: page.getByRole('heading', { name: /Nhân viên · máy tính/ }) });
+  await expect(group.getByRole('link')).toHaveText([
+    'Nhân viên trên máy tính · một trang ba cột',
+    'Máy tính · ngăn kéo một ngày (27/10)',
+    'Máy tính · ngăn kéo yêu cầu bị từ chối',
+    'Máy tính · menu tài khoản',
+    'Đăng nhập',
+    'Đăng nhập · sai mật khẩu'
+  ]);
+  await expect(group.getByRole('link', { name: 'Máy tính · ngăn kéo yêu cầu bị từ chối' }))
+    .toHaveAttribute('href', '/nv/yeu-cau?yc=gio-vao-0909');
+  await expect(page.locator('a[href^="/nv-may-tinh"]')).toHaveCount(0);
+});
