@@ -92,13 +92,8 @@ async function seedPerson(admin: DemoSession, username: string, plan: PersonPlan
   if (plan.advance) {
     await approve(
       admin,
-      await admin.post('/requests/advance', {
-        employeeId: username,
-        title: 'Tạm ứng',
-        reason: 'Tạm ứng (seed demo lương)',
-        amount: plan.advance.amount,
-        period: plan.advance.month
-      })
+      // Số tiền, tiêu đề và lý do do server đặt: chỉ gửi nhân sự và kỳ.
+      await admin.post('/requests/advance', { employeeId: username, period: plan.advance.month })
     );
   }
 

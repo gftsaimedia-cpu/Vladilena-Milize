@@ -349,10 +349,23 @@ test('remaining annual leave on the payslip is not more than the leave days the 
   });
 });
 
-test('an approved salary advance is deducted on the payslip of its month (lg-chi)', async ({ request }) => {
+test('the advance is 80% of the day pay for the workdays 01–15, and the payslip deducts the approved amount in its month (lg-chi)', async ({
+  request
+}) => {
   await as(request, ADMIN, async api => {
-    const { advance } = (await planOf(api))['lg-chi'];
-    expect((await slipOf(api, advance!.month, 'lg-chi')).advance, 'tạm ứng đã duyệt').toBe(advance!.amount);
+    const plan = (await planOf(api))['lg-chi'];
+    const month = plan.advance!.month;
+    const r = await api.get('/requests?employeeId=lg-chi&limit=500');
+    expect(r.status, 'GET /requests của lg-chi').toBe(200);
+    const req = (r.body.items as { type: string; status: string; advancePeriod: string | null; advanceAmount: number | string | null }[]).find(
+      x => x.type === 'ADVANCE' && x.status === 'APPROVED' && x.advancePeriod === month
+    );
+    expect(req, `đơn tạm ứng ${month} đã duyệt`).toBeTruthy();
+    const amount = Number(req!.advanceAmount);
+    // lg-chi không đi trễ hay về sớm trong 01–15: lương của ngày là lương ngày (làm tròn từng ngày, lệch tối đa 1 đ mỗi ngày).
+    const days = plan.days.filter(d => d.date.startsWith(month) && d.date <= `${month}-15`).length;
+    near(amount, 0.8 * (baseOf('lg-chi') / 26) * days, `số tiền được ứng (${days} ngày công 01–15)`, days);
+    expect((await slipOf(api, month, 'lg-chi')).advance, 'phiếu trừ đúng số của đơn đã duyệt').toBe(amount);
     expect((await slipOf(api, M.m0, 'lg-chi')).advance, 'tháng khác không trừ').toBe(0);
   });
 });

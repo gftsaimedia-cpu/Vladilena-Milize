@@ -19,7 +19,11 @@ Mảng `payroll` của DB demo (spec [2026-11-05-demo-db-e2e-design.md](../super
 - Số tiền trong test được tính từ kế hoạch và từ bậc lương trong `schema.sql`, không viết cứng.
 - Ví dụ dưới đây lấy ngày 05/11/2026, nên m1 là tháng 10/2026: 27 ngày từ thứ Hai tới thứ Bảy, 22 ngày từ thứ Hai tới thứ Sáu.
 
-**Nhánh đang chạy:** `claude/demo-db`, đã nhập main 7794025 (payslip-print) ở e951458. Vì vậy ba việc đã đúng: Từ chối phiếu, OT ngày thường ×1,5, và số phép còn lại lấy từ hồ sơ.
+**Nhánh đang chạy:** `claude/demo-db`, đã nhập hai lần main:
+- main 7794025 (payslip-print) ở e951458;
+- main aaa14d9 (đơn từ nhân viên, nhật ký, 5 trạng thái nhân sự) ở 0bc17d9.
+
+Lỗi nào đã được sửa nhờ các lần nhập này: xem mục "Đã sửa".
 
 ## Người
 
@@ -58,7 +62,7 @@ Loại assert theo spec mục 3: (a) luật đã chốt, (b) bất biến, (c) t
 | 13 | OT thứ Bảy ×2 lương giờ trên số giờ đã duyệt. | `lg-giang` | api › Saturday OT pays ×2… | a |
 | 14 | OT ngày thường ×1,5. | `lg-chi` | api › weekday OT pays ×1.5… | a |
 | 15 | Số phép còn lại trên phiếu không lớn hơn số ngày phép của người đó (12). | `lg-chi` | api › remaining annual leave… | b |
-| 16 | Tạm ứng đã duyệt được trừ đúng ở tháng của nó. | `lg-chi` | api › an approved salary advance… | b |
+| 16 | Tạm ứng = 80% lương ngày công 01–15, do server tính. Phiếu trừ đúng số của đơn đã duyệt, ở đúng tháng của đơn. | `lg-chi` | api › the advance is 80% of the day pay… | a, b |
 | 17 | Tính lại một người hai lần cho cùng một phiếu. Phiếu của người khác giữ trạng thái. | `lg-hoa` | api › recalculating one person twice… | b |
 | 18 | Tính lại cả kỳ tháng này hai lần cho cùng số với lần seed. | mọi `lg-`, m0 | api › recalculating the whole current month… | b |
 | 19 | Tính cả kỳ không ai lỗi. | — | api › a full calculation reports no error… | b · **BUG-1** |
@@ -96,11 +100,22 @@ Loại assert theo spec mục 3: (a) luật đã chốt, (b) bất biến, (c) t
 ## Ghi SQL thẳng (không có route)
 
 - Không có. Mọi dữ liệu đi qua API như Admin.
-- Tạm ứng: seed tự tính số tiền rồi gửi lên, vì BE nhánh này nhận số do client gửi. Số đó là 80% lương ngày công của những ngày đi làm từ 01 tới 15. Test chỉ so phiếu với số của đơn đã duyệt, không assert luật 80%, vì luật chưa chốt "lương" gồm những khoản nào.
+- Tạm ứng: seed chỉ gửi nhân sự và kỳ. Từ main aaa14d9, server tự tính số tiền.
+- Test #16 chỉ assert phần luật đã chốt: 80% của lương ngày, tính trên các ngày công 01–15. lg-chi không đi trễ hay về sớm trong 01–15. Luật chưa chốt "lương" có gồm phụ cấp hay không, nên test không kiểm phần đó.
+
+## Đã sửa
+
+- **Ở main 7794025** (nhập vào nhánh ở e951458). Ba việc dưới đây đã đúng. Chúng chưa được ghi thành BUG lúc nhập, nên số BUG được dùng lại cho lỗi khác. Các test của chúng nay là test thường (#14, #15, #24, #36).
+  - Từ chối phiếu không còn trả 500.
+  - OT ngày thường tính ×1,5.
+  - Phép còn lại lấy từ hồ sơ, không còn cố định 22.
+- **Ở main aaa14d9** (nhập vào nhánh ở 0bc17d9):
+  - Không sửa BUG-payroll nào. Đã chạy lại với `test.fail` tắt: cả 15 test lỗi vẫn hỏng đúng chỗ ghi dưới đây.
+  - Có một đổi hợp đồng API: tạm ứng do server tính. Seed và test #16 đã sửa theo.
 
 ## Lỗi
 
-Mỗi lỗi có một test giữ nguyên, đánh dấu `test.fail(true, 'BUG-payroll-<n>: …')`. Mọi test lỗi đã được chạy thử với `test.fail` tắt: đều hỏng đúng ở chỗ ghi dưới đây. Số BUG-payroll-2 cũ (Từ chối trả 500), OT ×2 và "phép còn lại luôn 22" đã đúng sau khi nhánh nhập main 7794025. Các số đó được dùng lại cho lỗi khác.
+Mỗi lỗi có một test giữ nguyên, đánh dấu `test.fail(true, 'BUG-payroll-<n>: …')`. Mọi test lỗi đã được chạy thử với `test.fail` tắt, lần cuối trên main aaa14d9. Tất cả đều hỏng đúng ở chỗ ghi dưới đây.
 
 ### BUG-payroll-1: Tài khoản admin nằm trong danh sách tính lương
 - Tái hiện: `POST /api/v2/payroll/<tháng>/calculate {}` trả `errors: [{ employeeId: <uuid admin>, message: "Thiếu cấu hình chức vụ hoặc bậc lương cho ql…" }]`. Bảng lương báo "Đã tính 12 phiếu, 1 người lỗi".
@@ -187,7 +202,7 @@ Mỗi lỗi có một test giữ nguyên, đánh dấu `test.fail(true, 'BUG-pay
 - Test: `demo-payroll-board.spec.ts` › "the KPI rules settings page…".
 
 ### BUG-payroll-13: App nhân viên: các khoản không cộng ra Thực nhận
-- Tái hiện: `lg-chi` xem tháng 10 trên điện thoại. Cộng các dòng Lương ngày công, Nghỉ phép, Phụ cấp và Lương KPI được 15.010.154, nhưng Thực nhận ghi 12.957.270.
+- Tái hiện: `lg-chi` xem tháng 10 trên điện thoại. Cộng các dòng Lương ngày công, Nghỉ phép, Phụ cấp và Lương KPI được 15.010.154, nhưng Thực nhận ghi 12.957.268.
 - Đúng phải là: các dòng cộng lại bằng Thực nhận (bất biến). App thiếu dòng OT, dòng trừ giờ và dòng tạm ứng.
 - File nghi ngờ: `web/src/builders/api/staff-phone.ts` `incomeViewOf`.
 - Test: `demo-payroll-staff.spec.ts` › "phone: the income lines add up to Thực nhận when the month has OT and an advance (lg-chi m1)".
@@ -229,7 +244,7 @@ Mỗi lỗi có một test giữ nguyên, đánh dấu `test.fail(true, 'BUG-pay
 
 ### Q4: Tạm tính của nhân viên có trừ tạm ứng không?
 - Tình huống: luật 05/11 nói tạm tính không trừ BH và thuế, nhưng chưa nói về tạm ứng. Trong ghi chú, đây là cách đọc chưa được xác nhận.
-- Hiện tại v2: tạm tính có trừ tạm ứng đã duyệt. Ví dụ `lg-chi` tháng 10 (phiếu Nháp): Thực nhận tạm tính = tổng thu nhập − 2.153.846 tiền tạm ứng.
+- Hiện tại v2: tạm tính có trừ tạm ứng đã duyệt. Ví dụ `lg-chi` tháng 10 (phiếu Nháp): Thực nhận tạm tính = tổng thu nhập − 2.153.848 tiền tạm ứng.
 - Hỏi: giữ việc trừ tạm ứng trong tạm tính?
 
 ### Q5: Có duyệt được phiếu còn thiếu điểm KPI, và phiếu bị từ chối đi tiếp thế nào?
@@ -249,7 +264,7 @@ Mỗi lỗi có một test giữ nguyên, đánh dấu `test.fail(true, 'BUG-pay
 - **BH:** luật ≥ 14 ngày không lương (xem Q1) và trần đóng BH (20 × lương cơ sở) chưa có ở v2. Bậc lương demo đều dưới trần.
 - **Vòng đời kỳ lương** (Chốt công, Phê duyệt kỳ, Đã trả, mở lại): nhánh này chưa có code, chỉ có spec của phiên payroll-period. Dải bước của Bảng lương luôn ghi "Đang chấm công".
 - **Tham số theo tháng** (settings-store): không test việc đổi bậc hay tham số giữa các tháng.
-- **Luật tạm ứng 80%:** BE nhận số tiền client gửi. Thuộc mảng requests.
+- **Nhân viên tự nộp tạm ứng** (chỉ ngày 16–17, mỗi tháng một đơn): thuộc mảng requests. Seed ở đây là Admin nộp thay.
 - **Giao diện chưa test:**
   - nút Xuất CSV;
   - nút "Phiếu trước / Phiếu sau" trong ngăn kéo;

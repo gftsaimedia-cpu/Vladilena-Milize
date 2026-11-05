@@ -138,8 +138,8 @@ export interface PersonPlan {
   leaves: LeavePlan[];
   overtime: OvertimePlan[];
   explanations: ExplanationPlan[];
-  /** Tạm ứng đã duyệt (số tiền seed gửi lên; BE nhánh này nhận số do client gửi). */
-  advance?: { month: string; amount: number };
+  /** Tạm ứng đã duyệt của tháng `month`. Số tiền do server tính (80% lương các ngày công 01–15), seed không gửi. */
+  advance?: { month: string };
   /** Điểm và mức đề xuất KPI theo tháng. */
   kpi: Record<string, KpiPlan>;
   /** Các tháng có phiếu được Admin duyệt trong seed. */
@@ -261,12 +261,7 @@ export function payrollPlan(m: PlanMonths, holidays: ReadonlySet<string> = new S
       }
     }
 
-    if (p.username === 'lg-chi') {
-      // 80% lương ngày công 01–15, đọc là lương cơ bản của ngày đi làm. Luật chưa chốt "lương" gồm những gì, nên test
-      // không assert số này; chỉ assert phiếu trừ đúng số của đơn đã duyệt.
-      const worked = plan.days.filter(d => d.date.startsWith(m.m1) && d.date <= `${m.m1}-15` && d.in && d.out).length;
-      plan.advance = { month: m.m1, amount: Math.round(0.8 * (7_000_000 / 26) * worked) };
-    }
+    if (p.username === 'lg-chi') plan.advance = { month: m.m1 };
     out[p.username] = plan;
   }
   return out;
