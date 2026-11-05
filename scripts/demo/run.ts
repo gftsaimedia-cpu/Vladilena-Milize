@@ -9,6 +9,7 @@
 // Sau `test <mảng>` có thể thêm đối số cho Playwright, ví dụ: npm run demo -- test payroll -g "phiếu".
 // Tài khoản nằm ở deploy/demo/accounts.local (git bỏ qua). Lệnh không bao giờ in mật khẩu.
 import { spawn, spawnSync } from 'node:child_process';
+import path from 'node:path';
 import { ensureAccounts } from './accounts';
 import { ACCOUNTS_FILE, PG, ROOT, TARGETS, type TargetName } from './config';
 import { demoMonths } from './dates';
@@ -16,7 +17,7 @@ import { dbExists, ensureContainer, recreateDb } from './db';
 import { DemoApi } from './api';
 import { AREAS, type Area } from './people/index';
 import { seed } from './seed';
-import { shellArg, startBackend, stop, type Running } from './processes';
+import { LOG_DIR, shellArg, startBackend, stop, type Running } from './processes';
 import type { DemoAccounts } from './accounts-format';
 
 const log = (m: string) => console.log(`[demo] ${m}`);
@@ -86,6 +87,7 @@ async function cmdTest(which: string | undefined, extra: string[], accounts: Dem
     be = await startBackend(name, t, accounts);
     await seed({ api: apiFor(t.be, accounts), adminUser: accounts.adminUser, staffPassword: accounts.staffPassword, areas, months: demoMonths(), log, keepGoing: false });
     const filter = name === 'all' ? [] : [`demo-${name}`];
+    const outputDir = path.join(LOG_DIR, `pw-${name}`);
     const args = ['--prefix', 'web', 'run', 'test:api', '--', ...filter, ...extra].map(shellArg);
     log(`chạy Playwright (${filter[0] ?? 'mọi spec trong web/tests/api'}) với BE ${t.be}, vite ${t.web}`);
     const r = spawnSync('npm', args, {
@@ -99,10 +101,11 @@ async function cmdTest(which: string | undefined, extra: string[], accounts: Dem
         PW_ADMIN_USER: accounts.adminUser,
         PW_ADMIN_PASS: accounts.adminPassword,
         DEMO_ACCOUNTS_FILE: ACCOUNTS_FILE,
-        DEMO_AREAS: ['smoke', ...areas].join(',')
+        DEMO_AREAS: ['smoke', ...areas].join(','),
+        PW_OUTPUT_DIR: outputDir
       }
     });
-    log(`log BE: ${be.logFile}`);
+    log(`log BE: ${be.logFile}; ảnh chụp và trace của test lỗi: ${outputDir}`);
     return r.status ?? 1;
   } finally {
     stop(be?.child);
