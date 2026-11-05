@@ -29,3 +29,15 @@ PW_ADMIN_PASS=<admin password of that test database> VITE_API_TARGET=http://127.
 ```
 
 `staff-app.spec.ts` covers the staff app on `/api/v2/me/*`: today, check-in/out (a refused check-out is faked once with `page.route`), month switching inside the allowed range, the load-error retry, a request shown as waiting then cancelled, and an approved payslip shown as official.
+
+Run these specs on a fresh database each time: settings versions, payroll periods and slips accumulate per month, so a database used by earlier runs can make the viewed month differ from the current one. From the repo root, with the local dev PostgreSQL from `docs/postgres-local.md`:
+
+```sh
+set -a; . ./.env.postgres-local; set +a
+export DATABASE_URL="postgresql://luong_dev:${LOCAL_PG_DEV_PASSWORD}@127.0.0.1:55432/luong_dev"
+npm run db:reset-dev                       # refuses anything but a local *_dev database
+ADMIN_PASSWORD=<pass> npm start            # creates the admin account on an empty database
+cd web && PW_ADMIN_USER=admin PW_ADMIN_PASS=<pass> npm run test:api
+```
+
+On Linux without root, Chromium may miss system libraries: download the `libnspr4`, `libnss3` and `libasound2` packages, unpack them with `dpkg -x` into a folder and set `LD_LIBRARY_PATH` to its `usr/lib/<arch>-linux-gnu` before running Playwright.
