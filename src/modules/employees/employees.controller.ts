@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Delete, Param, Query, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { EmployeesService } from './employees.service';
 
 @Controller('api/v2/employees')
@@ -49,10 +50,11 @@ export class EmployeesController {
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
     try {
-      const employee = this.service.buildEmployeeFromInput(body);
-      const saved = await this.service.save(employee, user.username);
+      const saved = await this.service.create(body, user.username);
       return { created: true, employee: saved.toDTO() };
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_EMPLOYEE_INPUT' });
     }
   }
@@ -64,18 +66,18 @@ export class EmployeesController {
     @Body() body: any,
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
-    const existing = await this.service.findByUsernameOrUuid(username);
-    if (!existing) {
-      throw new NotFoundError('Không tìm thấy nhân viên', { code: 'EMPLOYEE_NOT_FOUND' });
-    }
-
+    let saved;
     try {
-      const updated = this.service.buildEmployeeFromInput(body, existing);
-      const saved = await this.service.save(updated, user.username);
-      return { updated: true, employee: saved.toDTO() };
+      saved = await this.service.update(username, body, user.username);
     } catch (err: any) {
+      // Lỗi ghi nhật ký là lỗi lập trình (spec audit-log mục 4): để filter trả 500.
+      if (err instanceof AuditEntryError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_EMPLOYEE_INPUT' });
     }
+    if (!saved) {
+      throw new NotFoundError('Không tìm thấy nhân viên', { code: 'EMPLOYEE_NOT_FOUND' });
+    }
+    return { updated: true, employee: saved.toDTO() };
   }
 
   @RequireCap('staff.manage')

@@ -126,7 +126,9 @@ function setup(seed = true) {
       tx.locks.push(key);
     }
   };
-  const svc = new PositionsService(repo as any, tx as any);
+  // Nhật ký giả: hành vi ghi nhật ký thật ở audit-positions.pg.test.ts.
+  const audit = { append: async () => ({ id: 1, hash: '' }) };
+  const svc = new PositionsService(repo as any, tx as any, audit as any);
   return { repo, tx, svc };
 }
 
