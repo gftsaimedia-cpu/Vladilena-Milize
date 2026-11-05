@@ -43,4 +43,26 @@ export class PeriodsController {
   ): Promise<PeriodView> {
     return this.service.unlock(needMonth(month), user.username, body?.reason);
   }
+
+  @RequireCap('payroll.approve')
+  @Post(':month/approve')
+  async approvePeriod(@Param('month') month: string, @CurrentUser() user: UserSession): Promise<PeriodView> {
+    return this.service.approve(needMonth(month), user.username);
+  }
+
+  @RequireCap('payroll.approve')
+  @Post(':month/unapprove')
+  async unapprovePeriod(
+    @Param('month') month: string,
+    @Body() body: { reason?: unknown } | undefined,
+    @CurrentUser() user: UserSession
+  ): Promise<PeriodView> {
+    return this.service.unapprove(needMonth(month), user.username, body?.reason);
+  }
+
+  @RequireCap('payroll.approve')
+  @Post(':month/pay')
+  async payPeriod(@Param('month') month: string, @CurrentUser() user: UserSession): Promise<PeriodView> {
+    return this.service.pay(needMonth(month), user.username);
+  }
 }

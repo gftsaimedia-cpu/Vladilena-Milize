@@ -3,6 +3,7 @@ import { businessDateText } from '../../common/business-date';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { AuditLog } from '../audit';
 import {
+  approveReason,
   availableActions,
   monthEnded,
   nextStatus,
@@ -11,7 +12,13 @@ import {
   type PeriodAction,
   type PeriodStatus,
 } from './domain';
-import { MonthNotEndedError, PeriodStateError, ReasonRequiredError } from './periods.errors';
+import {
+  BeforePaydayError,
+  MonthNotEndedError,
+  PeriodBlockedError,
+  PeriodStateError,
+  ReasonRequiredError,
+} from './periods.errors';
 import { PeriodsRepository, type PeriodPatch, type PeriodRow } from './periods.repository';
 
 export interface PeriodSteps {
@@ -64,6 +71,8 @@ export class PeriodsService {
     const row = await this.repo.find(month, trx);
     const status = (row?.status as PeriodStatus | undefined) ?? 'open';
     const payday = paydayOf(month);
+    // Nút Phê duyệt kỳ cần biết còn vướng gì; các trạng thái khác không có nút này.
+    const blockers = status === 'calculated' ? await this.repo.blockers(trx, month) : null;
     return {
       month,
       status,
@@ -78,8 +87,7 @@ export class PeriodsService {
         paidBy: row?.paid_by ?? null,
       },
       payday,
-      // Task 5 nối blockers của bước Phê duyệt kỳ.
-      actions: availableActions({ month, status, today: businessDateText(this.now()), payday, blockers: null }),
+      actions: availableActions({ month, status, today: businessDateText(this.now()), payday, blockers }),
     };
   }
 
@@ -102,6 +110,62 @@ export class PeriodsService {
       calculated_at: null,
       reopen_count: Number(row?.reopen_count ?? 0) + 1,
     }));
+  }
+
+  /**
+   * Phê duyệt kỳ: 'calculated' sang 'approved', lần chạy hiện tại thành 'final'. Giữ khoá `payroll_<tháng>` trước rồi mới
+   * tới khoá kỳ (cùng thứ tự với tính lương), nên không xen vào giữa một lần tính hay một quyết định duyệt phiếu.
+   * Còn đơn chờ duyệt, phiếu chưa duyệt hoặc người chưa có phiếu thì `PERIOD_BLOCKED`.
+   */
+  async approve(month: string, actor: string): Promise<PeriodView> {
+    return this.tx.withLock(`payroll_${month}`, trx =>
+      this.transition(
+        month,
+        'approve',
+        actor,
+        null,
+        async t => {
+          const blockers = await this.repo.blockers(t, month);
+          if (approveReason(blockers) !== undefined) throw new PeriodBlockedError(month, blockers);
+          const run = await this.repo.currentRun(t, month);
+          if (!run) throw new Error(`Kỳ lương ${month} đã tính nhưng không có lần chạy lương hiện tại`);
+          await this.repo.finalizeRun(t, run.id);
+          return { approved_by: actor, approved_at: this.now().toISOString(), current_run_id: run.id };
+        },
+        trx
+      )
+    );
+  }
+
+  /**
+   * Huỷ phê duyệt: 'approved' về 'calculated'. Lần chạy 'final' thành 'superseded' và được chép cùng các phiếu (giữ nguyên
+   * trạng thái duyệt) sang một lần chạy nháp mới. Cần lý do.
+   */
+  async unapprove(month: string, actor: string, reason: unknown): Promise<PeriodView> {
+    const text = typeof reason === 'string' ? reason.trim() : '';
+    if (text === '') throw new ReasonRequiredError();
+    return this.tx.withLock(`payroll_${month}`, trx =>
+      this.transition(
+        month,
+        'unapprove',
+        actor,
+        text,
+        async t => {
+          const runId = await this.repo.reopenRun(t, month, actor, this.now().toISOString());
+          return { approved_by: null, approved_at: null, current_run_id: runId };
+        },
+        trx
+      )
+    );
+  }
+
+  /** Đã trả lương: 'approved' sang 'paid', chỉ từ ngày trả lương (giờ Việt Nam) trở đi. */
+  async pay(month: string, actor: string): Promise<PeriodView> {
+    return this.transition(month, 'pay', actor, null, async () => {
+      const payday = paydayOf(month);
+      if (businessDateText(this.now()) < payday) throw new BeforePaydayError(month, payday);
+      return { paid_by: actor, paid_at: this.now().toISOString() };
+    });
   }
 
   /**

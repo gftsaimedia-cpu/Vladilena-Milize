@@ -71,6 +71,9 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | — (mới) | `GET /api/v2/system/audit/verify` | GET | Kiểm tra chuỗi băm nhật ký |
 | **Kỳ lương** | `POST /api/periods/:month/lock` | `POST /api/v2/system/periods/:month/lock` | POST | Chốt công kỳ lương |
 | | — (mới) | `POST /api/v2/system/periods/:month/unlock` | POST | Mở lại công (cần lý do) |
+| | — (mới) | `POST /api/v2/system/periods/:month/approve` | POST | Phê duyệt kỳ |
+| | — (mới) | `POST /api/v2/system/periods/:month/unapprove` | POST | Huỷ phê duyệt (cần lý do) |
+| | — (mới) | `POST /api/v2/system/periods/:month/pay` | POST | Đã trả lương |
 | | — (mới) | `GET /api/v2/system/periods` & `GET /api/v2/system/periods/:month` | GET | Danh sách kỳ, chi tiết một kỳ |
 
 ---
@@ -892,7 +895,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 - **Response 200**: `{ items, total, limit, offset, people, actions }`. Mỗi `items[]` có `id`, `at` (ISO UTC), `actor`, `actorName` (`staff.name`, `null` khi `'system'` hoặc không còn trong `staff`), `action`, `entityKind`, `entityId`, `subject`, `month`, `before`, `after` (JSON đã parse), `reason`, `sensitivity`, `requestId`. Không trả `hash`, `prev_hash`, `actor_roles`, hai cột uuid. `total` là tổng thật theo bộ lọc. `people` (`{ username, name }`) và `actions` (mã) lấy trên cả bảng, không theo bộ lọc.
 - **Response 400** `BAD_REQUEST` (câu báo tiếng Việt): `limit` không phải số nguyên dương; `offset` không phải số nguyên không âm; `from` hoặc `to` sai dạng hoặc không phải ngày có thật; `from` sau `to`.
 - `/verify` trả `{ ok, checked, firstBadId, reason }`; `reason` là `PREV_HASH`, `ID_GAP` hoặc `HASH` (kiểm theo thứ tự đó), dừng ở dòng sai đầu tiên, `checked` là số dòng đúng trước dòng sai. Bảng rỗng: `{ ok: true, checked: 0, firstBadId: null, reason: null }`.
-- **Ghi nhật ký (nội bộ):** `AuditLog.append(trx, entry)` trả `{ id, hash }`, chạy trong transaction của nơi gọi (thao tác lỗi thì dòng nhật ký cũng bị huỷ) và nên gọi ở cuối thao tác vì khoá advisory `'audit_log'` giữ tới khi transaction kết thúc. `entry`: `actor`, `action`, `entityKind`, `entityId` bắt buộc; `actorUuid`, `actorRoles`, `subject`, `subjectUuid`, `month`, `before`, `after`, `reason`, `sensitivity` (`normal`/`pay`/`pii`), `requestId` tuỳ chọn. Mã `action` (18): `param.set`, `setting.set`, `holiday.add`, `holiday.remove`, `position.save`, `level.save`, `staff.create`, `staff.update`, `staff.delete`, `password.reset`, `request.decide` (`after.status` là `APPROVED` hoặc `REJECTED`), `request.cancel`, `punch.correct`, `period.lock`, `period.unlock`, `payroll.calculate`, `payroll.decide`, `kpi.score`.
+- **Ghi nhật ký (nội bộ):** `AuditLog.append(trx, entry)` trả `{ id, hash }`, chạy trong transaction của nơi gọi (thao tác lỗi thì dòng nhật ký cũng bị huỷ) và nên gọi ở cuối thao tác vì khoá advisory `'audit_log'` giữ tới khi transaction kết thúc. `entry`: `actor`, `action`, `entityKind`, `entityId` bắt buộc; `actorUuid`, `actorRoles`, `subject`, `subjectUuid`, `month`, `before`, `after`, `reason`, `sensitivity` (`normal`/`pay`/`pii`), `requestId` tuỳ chọn. Mã `action` (21): `param.set`, `setting.set`, `holiday.add`, `holiday.remove`, `position.save`, `level.save`, `staff.create`, `staff.update`, `staff.delete`, `password.reset`, `request.decide` (`after.status` là `APPROVED` hoặc `REJECTED`), `request.cancel`, `punch.correct`, `period.lock`, `period.unlock`, `period.approve`, `period.unapprove`, `period.pay`, `payroll.calculate`, `payroll.decide`, `kpi.score`.
 - **Kiểm tra trước khi nối:** `append` kiểm `entry` trước khi lấy khoá. Dòng không hợp lệ ném `AuditEntryError`, ra ngoài là 500 và huỷ cả transaction của nơi gọi, nên nơi gọi phải dựng đúng `entry`.
 - **Giới hạn:** các trường chữ (`actor`, `action`, `entityKind`, `entityId`, `actorUuid`, `subject`, `subjectUuid`, `month`, `requestId`) dài tối đa 200 ký tự; `reason` tối đa 1000; `before`/`after` sau khi chuyển JSON tối đa 65536 ký tự; `month` dạng `YYYY-MM`. Trường tuỳ chọn là `''`, `undefined` hoặc `null` thì lưu NULL. Ký tự thay thế lẻ (nửa emoji) được đổi thành U+FFFD trước khi băm, vì PG lưu như vậy; ký tự NUL (`\u0000`) bị từ chối.
 - **Khối nội dung bí mật:** `before`, `after`, `reason`, `entityId` khớp băm mật khẩu (`scrypt$…`, `pass_hash`, `password_hash`), token phiên hoặc khoá `"lat"` / `"lng"` thì bị từ chối. Cần ghi thay đổi toạ độ thì ghi cờ đã đổi, không ghi toạ độ.
@@ -904,7 +907,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 
 ### 3.7. Periods Module (Kỳ lương)
 
-Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công) → `attendance_locked` (Đã chốt công) → `calculated` (Đã tính lương) → `approved` (Đã phê duyệt) → `paid` (Đã trả lương). Tháng chưa có dòng kỳ coi như `open`. Phần này mô tả Chốt công (`lock`) và Mở lại công (`unlock`); các bước còn lại thêm ở các route cùng nhóm. Mọi route nằm dưới `/api/v2/system/periods`. Lỗi có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`.
+Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công) → `attendance_locked` (Đã chốt công) → `calculated` (Đã tính lương) → `approved` (Đã phê duyệt) → `paid` (Đã trả lương). Tháng chưa có dòng kỳ coi như `open`. Phần này mô tả Chốt công (`lock`), Mở lại công (`unlock`), Phê duyệt kỳ (`approve`), Huỷ phê duyệt (`unapprove`) và Đã trả lương (`pay`); bước `calculated` do tính lương cả kỳ tự đặt (xem mục Payroll). Mọi route nằm dưới `/api/v2/system/periods`. Lỗi có dạng `{ "error": "<câu tiếng Việt>", "code": "<mã>" }`.
 
 #### `GET /api/v2/system/periods`
 - Quyền `config.read`. Mọi kỳ đã có dòng, tháng mới nhất trước.
@@ -927,7 +930,20 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
     "actions": { "unlock": { "enabled": true } }
   }
   ```
-  - `payday`: ngày 10 của tháng sau. `actions` chỉ chứa các nút hiện ở trạng thái đó, tính theo trạng thái chứ không theo quyền người gọi: `lock` chỉ có khi tháng đã kết thúc (theo ngày giờ Việt Nam) và kỳ đang `open`; `unlock` có ở `attendance_locked` và `calculated`.
+  - `payday`: ngày 10 của tháng sau. `actions` chỉ chứa các nút hiện ở trạng thái đó, tính theo trạng thái chứ không theo quyền người gọi: `lock` chỉ có khi tháng đã kết thúc (theo ngày giờ Việt Nam) và kỳ đang `open`; `unlock` có ở `attendance_locked` và `calculated`; `approve` có ở `calculated`; `unapprove` có ở `approved`; `pay` có ở `approved` từ ngày trả lương (theo giờ Việt Nam). Kỳ `paid` có `actions: {}`.
+  - Ở `calculated`, `actions.approve` luôn kèm `blockers`; còn vướng thì `enabled: false` kèm `reason`:
+    ```json
+    "approve": {
+      "enabled": false,
+      "reason": "Còn 1 người chưa có phiếu · 2 phiếu chưa duyệt · 1 đơn chờ duyệt",
+      "blockers": {
+        "pendingRequests": 1,
+        "unapprovedSlips": 2,
+        "missingSlips": [{ "username": "nv.an", "name": "Nguyễn An" }]
+      }
+    }
+    ```
+    `reason` nối các phần theo thứ tự: người chưa có phiếu, phiếu chưa duyệt, đơn chờ duyệt (chỉ phần có số lớn hơn 0). `pendingRequests` là số đơn `PENDING` có ngày (nghỉ, làm bù, tăng ca, giải trình, đổi ca, kỳ ứng, Thứ Bảy iSAT) rơi vào tháng; đơn của tháng khác không tính. `unapprovedSlips` là số phiếu của lần chạy hiện tại có trạng thái khác `approved`. `missingSlips` là nhân sự chưa bị khoá (`locked_at` rỗng) mà không có phiếu trong lần chạy hiện tại, sắp theo `username`.
 - Mọi route dưới đây trả cùng dạng này sau khi đổi trạng thái.
 
 #### `POST /api/v2/system/periods/:month/lock`
@@ -939,13 +955,30 @@ Kỳ lương của một tháng đi qua năm bước: `open` (Đang chấm công
 - **Request Body**: `{ "reason": "Chấm thay cho Châu 31/10" }`. `reason` là chuỗi, cắt khoảng trắng hai đầu xong không được rỗng.
 - **Response 200**: `PeriodView`, `status: "open"`.
 
+#### `POST /api/v2/system/periods/:month/approve`
+- Quyền `payroll.approve`. Không có body. Phê duyệt kỳ: kỳ `calculated` sang `approved`; lần chạy lương hiện tại thành `final` (phiếu của lần chạy đó không sửa được nữa); ghi `approved_by/at`, `current_run_id`. Ghi nhật ký `period.approve`.
+- Chạy dưới khoá `payroll_<tháng>` nên không xen vào một lần tính lương hay một quyết định duyệt phiếu. Hai lần gọi cùng lúc thì một lần thành công, lần kia nhận `409 PERIOD_STATE`.
+- Còn vướng (đơn chờ duyệt, phiếu chưa duyệt, người chưa có phiếu) thì `409 PERIOD_BLOCKED`, câu lỗi là `reason` ở trên, kèm `blockers`.
+- **Response 200**: `PeriodView`, `status: "approved"`.
+
+#### `POST /api/v2/system/periods/:month/unapprove`
+- Quyền `payroll.approve`. Huỷ phê duyệt: kỳ `approved` về `calculated`; xoá `approved_by/at`. Lần chạy `final` thành `superseded`, rồi tạo lần chạy `draft` mới (`run_no` + 1) và chép mọi phiếu sang đó, giữ nguyên `status`, `decided_by/at`, `note`, `rev`; `current_run_id` trỏ tới lần chạy mới. Ghi nhật ký `period.unapprove` kèm lý do đã cắt khoảng trắng hai đầu.
+- **Request Body**: `{ "reason": "Sai KPI Bình" }`. `reason` là chuỗi, cắt khoảng trắng hai đầu xong không được rỗng.
+- **Response 200**: `PeriodView`, `status: "calculated"`. Kỳ `paid` không huỷ được (`409 PERIOD_STATE`).
+
+#### `POST /api/v2/system/periods/:month/pay`
+- Quyền `payroll.approve`. Không có body. Đã trả lương: kỳ `approved` sang `paid`, ghi `paid_by/at`. Chỉ từ ngày trả lương (theo ngày giờ Việt Nam) trở đi. Ghi nhật ký `period.pay`.
+- **Response 200**: `PeriodView`, `status: "paid"`, `actions: {}`.
+
 #### Mã lỗi
 | HTTP | `code` | Khi |
 |---|---|---|
 | 400 | `INVALID_MONTH` | `:month` không đúng `YYYY-MM` (tháng 01 đến 12) |
-| 400 | `REASON_REQUIRED` | `unlock` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
+| 400 | `REASON_REQUIRED` | `unlock` hoặc `unapprove` thiếu `reason`, không phải chuỗi, hoặc toàn khoảng trắng. Câu: `Cần ghi lý do` |
 | 409 | `PERIOD_STATE` | Thao tác không hợp lệ ở bước hiện tại, ví dụ chốt công hai lần; kèm `month`, `status`. Câu: `Kỳ lương tháng MM/YYYY đang ở bước "<nhãn>", không làm được thao tác này` |
 | 409 | `MONTH_NOT_ENDED` | `lock` khi tháng chưa kết thúc. Câu: `Tháng MM/YYYY chưa kết thúc, chưa chốt công được` |
+| 409 | `PERIOD_BLOCKED` | `approve` còn vướng; kèm `blockers` (dạng như ở `GET .../:month`). Câu: `Còn <n> người chưa có phiếu · <n> phiếu chưa duyệt · <n> đơn chờ duyệt` (chỉ phần có số lớn hơn 0) |
+| 409 | `BEFORE_PAYDAY` | `pay` trước ngày trả lương; kèm `payday` (`YYYY-MM-DD`). Câu: `Chưa tới ngày trả lương DD/MM/YYYY` |
 
 **Đổi so với bản trước:** `POST .../lock` từng trả `{ ok, month, status }`, nay trả `PeriodView`; chốt lại tháng đã chốt giờ là `409 PERIOD_STATE` thay vì ghi đè; chốt trước khi hết tháng giờ là `409 MONTH_NOT_ENDED`. `GET /periods` bỏ `reviewed_by`, `reviewed_at`.
 
