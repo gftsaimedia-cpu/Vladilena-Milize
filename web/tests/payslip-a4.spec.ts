@@ -149,3 +149,78 @@ test('prints as two A4 sheets that do not overflow, with no text under 12px', as
   );
   expect(gap).toBeGreaterThanOrEqual(42);
 });
+
+const pay = (page: Page) => sheetPage(page, 2).getByRole('table', { name: 'Tổng hợp lương' });
+const line = (page: Page, label: string) =>
+  pay(page).locator('tr.ln').filter({ has: page.locator('td:first-child', { hasText: label }) });
+const money = (t: string) => Number(t.trim().replace('−', '-').replace(/\./g, ''));
+
+test('page 2 lists the pay lines of P2 in groups', async ({ page }) => {
+  await page.goto(SLIP);
+  await expect(pay(page).locator('thead th')).toHaveText(['Khoản', 'Số lượng', 'Theo quy chế', 'Thực tế']);
+  await expect(pay(page).locator('tr.grp')).toHaveText([
+    'Ngày công và lương cơ bản', 'Nghỉ phép và ngày lễ', 'Làm thêm và làm bù',
+    'Phụ cấp', 'Lương KPI', 'Đi muộn, về sớm, ra ngoài'
+  ]);
+  const cells = (label: string) => line(page, label).getByRole('cell');
+  await expect(cells('Lương cơ bản')).toHaveText(['Lương cơ bản', '19/26 ngày', '6.000.000', '4.384.615']);
+  await expect(line(page, 'Lương cơ bản')).toHaveClass(/\bbb\b/);
+  await expect(cells('Chờ giải trình')).toHaveText(['Chờ giải trình · 28/10, tạm tính 0 đ tới khi duyệt', '1 ngày', '', '0']);
+  await expect(line(page, 'Chờ giải trình').locator('.dt')).toHaveCount(1);
+  await expect(cells('Không tính lương')).toHaveText(['Không tính lương · vắng, không lương, chế độ BHXH', '3 ngày', '', '0']);
+  await expect(cells('Nghỉ có lương')).toHaveText(['Nghỉ có lương · phép năm, việc riêng', '2 ngày', '', '461.538']);
+  await expect(cells('Chuyên cần')).toHaveText(['Chuyên cần 25% · nghỉ từ 3 ngày nên không hưởng', '', '1.500.000', '0']);
+  await expect(cells('Đi lại')).toHaveText(['Đi lại 15%', '19 ngày', '900.000', '657.692']);
+  await expect(cells('Tổng phụ cấp')).toHaveText(['Tổng phụ cấp', '', '', '1.185.577']);
+  await expect(pay(page).locator('tr.kpi > td > div')).toHaveText([
+    /Base Wework 40%\s*85%/, /Người dùng 24%\s*90%/, /Đồng nghiệp 18%\s*80%/, /Quản lý trực tiếp 12%\s*85%/, /Tự đánh giá 6%\s*90%/
+  ]);
+  await expect(cells('Lương KPI')).toHaveText(['Lương KPI · theo tổng điểm', '85,6%', '6.000.000', '5.136.000']);
+  await expect(cells('Đi muộn 26/10')).toHaveText(['Đi muộn 26/10 · muộn 40 phút, tính 30 phút', '0,5 giờ', '', '−14.423']);
+});
+
+test('page 2 splits OT into three rows and pays make-up hours as money', async ({ page }) => {
+  await page.goto(SLIP);
+  const cells = (label: string) => line(page, label).getByRole('cell');
+  await expect(cells('OT ngày thường')).toHaveText(['OT ngày thường (×1,5)', '4 giờ', '', '173.077']);
+  await expect(cells('OT ngày cuối tuần')).toHaveText(['OT ngày cuối tuần (×2)', '6 giờ', '', '346.154']);
+  await expect(cells('OT ngày lễ')).toHaveText(['OT ngày lễ (×3)', '0 giờ', '', '0']);
+  await expect(cells('Làm bù cho ngày nghỉ 20/10')).toHaveText(['Làm bù cho ngày nghỉ 20/10', '8 giờ', '', '230.769']);
+});
+
+test('the rule column holds only money and the actual column always money', async ({ page }) => {
+  await page.goto(SLIP);
+  await expect(pay(page).locator('tr.ln')).toHaveCount(26);
+  const col = async (i: number) => (await pay(page).locator(`tr.ln > td:nth-child(${i})`).allTextContents()).map(t => t.trim());
+  for (const t of await col(3)) expect(t).toMatch(/^(\d{1,3}(\.\d{3})*)?$/);
+  const acts = await col(4);
+  for (const t of acts) expect(t).toMatch(/^(−?\d{1,3}(\.\d{3})*|BE tính)$/);
+  expect(acts.filter(t => t === 'BE tính')).toHaveLength(2);
+});
+
+test('totals add up from the rounded lines; the slip ends with Thực nhận and the signature', async ({ page }) => {
+  await page.goto(SLIP);
+  await expect(pay(page).locator('tbody.lines tr.ln')).toHaveCount(19); // evaluateAll không tự chờ trang tải xong
+  const rows = await pay(page).locator('tbody.lines tr.ln').evaluateAll(rs =>
+    rs.map(r => [(r as HTMLTableRowElement).cells[0].textContent!.trim(), (r as HTMLTableRowElement).cells[3].textContent!.trim()])
+  );
+  expect(rows).toHaveLength(19);
+  expect(rows.filter(([k]) => k !== 'Tổng phụ cấp').reduce((sum, [, v]) => sum + money(v), 0)).toBe(12134076);
+  const sum = pay(page).locator('tbody.sum tr.ln');
+  const expected = [
+    ['Tổng thu nhập', '', '', '12.134.076'],
+    ['Các khoản miễn thuế', '', '', 'BE tính'],
+    ['Thu nhập chịu thuế', '', '', 'BE tính'],
+    ['Bảo hiểm bắt buộc · BHXH 8%, BHTN 1%, BHYT 1,5%', '10,5%', '', '630.000'],
+    ['Thu nhập sau bảo hiểm', '', '', '11.504.076'],
+    ['Thuế TNCN', '', '', '0'],
+    ['Tạm ứng · 80% lương ngày công 01–15/10', '10 ngày', '', '1.846.154']
+  ];
+  await expect(sum).toHaveCount(expected.length);
+  for (const [i, cells] of expected.entries()) await expect(sum.nth(i).getByRole('cell')).toHaveText(cells);
+  const p2 = sheetPage(page, 2);
+  await expect(p2.locator('.net')).toHaveText(/Thực nhận\s*9\.657\.922 ₫/);
+  expect(await p2.locator('.net').evaluate(e => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 249, 236)');
+  await expect(p2.locator('.end')).toContainText(/Ngày phép năm còn lại\s*22 ngày/);
+  await expect(p2.locator('.end .sign')).toHaveText(/Người nhận\s*Ký, ghi rõ họ tên/);
+});
