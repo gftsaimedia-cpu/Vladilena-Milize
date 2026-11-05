@@ -9,6 +9,7 @@ import {
   lwmRequest,
   makeService,
   otRequest,
+  seed,
   staffContext
 } from './helpers/requests-fakes';
 
@@ -79,14 +80,14 @@ describe('Đơn nghỉ (§6.1)', () => {
   });
 
   it('overlap with a pending leave is refused; a rejected one does not block', async () => {
-    await ctx.repo.save(leaveRequest('2026-11-12', '2026-11-12', 'PENDING'));
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'PENDING'));
     await assert.rejects(leave({ startDate: '2026-11-11', endDate: '2026-11-13' }), /Đã có đơn nghỉ trùng ngày \(12\/11 – 12\/11\)/);
 
-    await ctx.repo.save(lwmRequest('2026-11-17', '2026-11-18', [{ date: '2026-11-20', startTime: '18:00', endTime: '22:00' }], 'APPROVED'));
+    await seed(ctx, lwmRequest('2026-11-17', '2026-11-18', [{ date: '2026-11-20', startTime: '18:00', endTime: '22:00' }], 'APPROVED'));
     await assert.rejects(leave({ startDate: '2026-11-18', endDate: '2026-11-19' }), /Đã có đơn nghỉ trùng ngày \(17\/11 – 18\/11\)/);
 
     await ctx.repo.save(leaveRequest('2026-11-23', '2026-11-23', 'REJECTED'));
-    await ctx.repo.save(leaveRequest('2026-11-24', '2026-11-24', 'PENDING', { employeeId: TTS_UUID }));
+    await seed(ctx, leaveRequest('2026-11-24', '2026-11-24', 'PENDING', { employeeId: TTS_UUID }));
     const dto = await leave({ startDate: '2026-11-23', endDate: '2026-11-24' });
     assert.equal(dto.leaveDaysCount, 2);
   });
@@ -112,13 +113,13 @@ describe('Đơn nghỉ (§6.1)', () => {
 
     ctx = makeService();
     ctx.repo.putStaff('nv01', staffContext({ leaveBalance: 3 }));
-    await ctx.repo.save(leaveRequest('2026-11-20', '2026-11-20', 'PENDING', { leaveDaysCount: 1 }));
-    await ctx.repo.save(leaveRequest('2026-11-25', '2026-11-27', 'PENDING', { leaveType: 'PERSONAL_PAID', leaveDaysCount: 3 }));
+    await seed(ctx, leaveRequest('2026-11-20', '2026-11-20', 'PENDING', { leaveDaysCount: 1 }));
+    await seed(ctx, leaveRequest('2026-11-25', '2026-11-27', 'PENDING', { leaveType: 'PERSONAL_PAID', leaveDaysCount: 3 }));
     await assert.rejects(leave({ startDate: '2026-11-13', endDate: '2026-11-16' }), /Phép năm còn 2 ngày, xin 3 ngày/);
 
     ctx = makeService();
     ctx.repo.putStaff('nv01', staffContext({ leaveBalance: 3, leaveBalanceOn: '2026-11-01' }));
-    await ctx.repo.save(leaveRequest('2026-10-05', '2026-10-09', 'APPROVED', { leaveDaysCount: 5 }));
+    await seed(ctx, leaveRequest('2026-10-05', '2026-10-09', 'APPROVED', { leaveDaysCount: 5 }));
     assert.equal((await leave({ startDate: '2026-11-13', endDate: '2026-11-16' })).leaveDaysCount, 3);
 
     ctx = makeService();

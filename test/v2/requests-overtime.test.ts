@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
-import { NV_UUID, leaveRequest, lwmRequest, makeService, otRequest, shiftChange } from './helpers/requests-fakes';
+import { NV_UUID, leaveRequest, lwmRequest, makeService, otRequest, seed, shiftChange } from './helpers/requests-fakes';
 
 describe('Đơn OT (§6.3)', () => {
   let ctx: ReturnType<typeof makeService>;
@@ -74,9 +74,9 @@ describe('Đơn OT (§6.3)', () => {
   });
 
   it('no OT on a leave day', async () => {
-    await ctx.repo.save(leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
     await assert.rejects(ot(), /Ngày 12\/11 đang nghỉ, không đăng ký OT được/);
-    ctx.repo.schedules = [{ date: '2026-11-14', startTime: '08:00', endTime: '17:00', onLeave: true }];
+    await seed(ctx, leaveRequest('2026-11-14', '2026-11-14', 'APPROVED'));
     await assert.rejects(ot({ otDate: '2026-11-14' }), /Ngày 14\/11 đang nghỉ/);
   });
 
@@ -92,7 +92,8 @@ describe('Đơn OT (§6.3)', () => {
   });
 
   it('a month with leave-with-makeup refuses OT', async () => {
-    await ctx.repo.save(
+    await seed(
+      ctx,
       lwmRequest('2026-11-10', '2026-11-10', [
         { date: '2026-11-12', startTime: '18:00', endTime: '22:00' },
         { date: '2026-11-16', startTime: '18:00', endTime: '22:00' }
@@ -103,7 +104,7 @@ describe('Đơn OT (§6.3)', () => {
   });
 
   it('a pending shift change moves the shift used for checks', async () => {
-    await ctx.repo.save(shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING'));
+    await seed(ctx, shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING'));
     await assert.rejects(ot({ startTime: '18:00', endTime: '22:00' }), /cách ca 10:00–19:00 ít nhất 1 giờ/);
     assert.equal((await ot({ startTime: '20:00', endTime: '22:00' })).otHours, 2);
   });

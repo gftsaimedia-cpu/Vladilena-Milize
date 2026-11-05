@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { SystemRequest } from '../../src/modules/requests/domain';
-import { NV_UUID, leaveRequest, makeService, otRequest, staffContext } from './helpers/requests-fakes';
+import { NV_UUID, leaveRequest, makeService, otRequest, seed, staffContext } from './helpers/requests-fakes';
 
 const s = (date: string, startTime: string, endTime: string) => ({ date, startTime, endTime });
 
@@ -102,7 +102,7 @@ describe('Đơn nghỉ có làm bù (§6.2)', () => {
     assert.rejects(lwm({ startDate: '2026-11-15', endDate: '2026-11-15' }), /Khoảng nghỉ không có ngày làm việc/));
 
   it('the leave days must be free', async () => {
-    await ctx.repo.save(leaveRequest('2026-11-10', '2026-11-10', 'APPROVED'));
+    await seed(ctx, leaveRequest('2026-11-10', '2026-11-10', 'APPROVED'));
     await assert.rejects(lwm(), /Đã có đơn nghỉ trùng ngày/);
   });
 
@@ -140,7 +140,7 @@ describe('Đơn nghỉ có làm bù (§6.2)', () => {
   });
 
   it('no slot on a leave day', async () => {
-    await ctx.repo.save(leaveRequest('2026-11-13', '2026-11-13', 'APPROVED'));
+    await seed(ctx, leaveRequest('2026-11-13', '2026-11-13', 'APPROVED'));
     await assert.rejects(
       lwm({ slots: [s('2026-11-12', '18:00', '22:00'), s('2026-11-13', '18:00', '22:00')] }),
       /Ngày 13\/11 đang nghỉ, không xếp khung bù được/

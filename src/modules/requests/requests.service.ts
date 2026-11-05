@@ -25,9 +25,13 @@ import {
   requireExplanationCases,
   optionalActualTime,
   vietnamToday,
+  planClaims,
+  type ClaimPlan,
+  type ClaimStatus,
   type ClockWindow
 } from './domain';
 import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
+import { DayStatusRepository } from './day-status.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
@@ -43,6 +47,9 @@ export interface CreateLeaveInput {
 }
 
 const isActive = (r: SystemRequest): boolean => r.status === 'PENDING' || r.status === 'APPROVED';
+
+/** Đơn vừa tạo kèm các cảnh báo (ngày bị bỏ khỏi đơn, ngày nghỉ giữ nguyên…); không có thì `warnings` rỗng. */
+export type CreatedRequestDTO = SystemRequestDTO & { warnings: string[] };
 
 /** 2 → '2', 2.5 → '2,5' */
 const formatDays = (n: number): string => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -119,6 +126,7 @@ interface RequestStores {
   requests: RequestsRepository;
   attendance?: AttendanceRepository;
   holidays?: HolidaysRepository;
+  days?: DayStatusRepository;
 }
 
 @Injectable()
@@ -131,17 +139,19 @@ export class RequestsService {
     @Optional() @Inject(AttendanceRepository) private readonly attendanceRepo?: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
+    @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
   ) {}
 
   /** Repository chạy trên `trx`; không có `trx` thì chạy trên pool. */
   private storesOn(trx?: DatabaseTransaction): RequestStores {
     if (!trx) {
-      return { requests: this.repo, attendance: this.attendanceRepo, holidays: this.holidaysRepo };
+      return { requests: this.repo, attendance: this.attendanceRepo, holidays: this.holidaysRepo, days: this.dayStatusRepo };
     }
     return {
       requests: this.repo.withTransaction(trx),
       attendance: this.attendanceRepo?.withTransaction(trx),
-      holidays: this.holidaysRepo?.withTransaction(trx)
+      holidays: this.holidaysRepo?.withTransaction(trx),
+      days: this.dayStatusRepo?.withTransaction(trx)
     };
   }
 
@@ -175,7 +185,7 @@ export class RequestsService {
   }
 
   /**
-   * Lịch, ngày lễ và đơn đang chờ/đã duyệt của nhân sự quanh [from, to]. Đọc rộng thêm một ngày mỗi phía
+   * Lịch, ngày lễ, đơn đang chờ/đã duyệt và trạng thái ngày (`day_status`) của nhân sự quanh [from, to]. Đọc rộng thêm một ngày mỗi phía
    * để thấy ca đêm hôm trước và ca hôm sau (§5.5 bước 2).
    */
   protected async loadDays(
@@ -188,14 +198,19 @@ export class RequestsService {
     if (!holidaysRepo) {
       throw new Error('Thiếu lịch lễ công ty');
     }
+    const daysRepo = stores.days;
+    if (!daysRepo) {
+      throw new Error('Thiếu bảng trạng thái ngày');
+    }
     const regularDows = this.requireTypeConfig(staff);
     const lo = addDays(from, -1);
     const hi = addDays(to, 1);
     // Trong giao dịch, các truy vấn chạy lần lượt trên cùng một kết nối dù gửi cùng lúc.
-    const [schedules, holidays, active] = await Promise.all([
+    const [schedules, holidays, active, claims] = await Promise.all([
       stores.requests.listScheduleDays(staff.employeeId, lo, hi),
       holidaysRepo.listBetween(lo, hi),
-      stores.requests.listActive(staff.employeeId)
+      stores.requests.listActive(staff.employeeId),
+      daysRepo.listBetween(staff.employeeId, lo, hi)
     ]);
     const days = new EmployeeDays({
       regularDows,
@@ -203,9 +218,29 @@ export class RequestsService {
       defaultShift: staff.defaultShift,
       schedules,
       activeRequests: active,
-      claims: []
+      claims
     });
     return { days, active };
+  }
+
+  /**
+   * Ghi các ngày của kế hoạch `plan` vào `day_status` cho đơn `req`, sau khi đơn đã được lưu (khoá ngoại tới
+   * `system_requests`). Ngày thay một đơn đổi ca ghi đơn đó vào `baseRequestId`.
+   */
+  private async claimDays(stores: RequestStores, req: SystemRequest, plan: ClaimPlan, status: ClaimStatus): Promise<void> {
+    const daysRepo = stores.days;
+    if (!daysRepo) {
+      throw new Error('Thiếu bảng trạng thái ngày');
+    }
+    await daysRepo.upsert(
+      plan.take.map(({ date, replaces }) => ({
+        employeeId: req.employeeId,
+        date,
+        status,
+        requestId: req.id,
+        baseRequestId: replaces?.requestId ?? null
+      }))
+    );
   }
 
   /**
@@ -216,7 +251,7 @@ export class RequestsService {
     return await this.underLock(`requests_${employeeId}`, fn);
   }
 
-  async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
+  async createLeaveRequest(input: CreateLeaveInput): Promise<CreatedRequestDTO> {
     const leaveType = requireLeaveType(input.leaveType);
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
@@ -229,6 +264,7 @@ export class RequestsService {
         throw new Error('Khoảng nghỉ không có ngày làm việc');
       }
       this.assertLeaveRangeFree(days, active, startDate, endDate);
+      const plan = planClaims({ kind: 'LEAVE', dates: leaveDays, days });
 
       if (leaveType === 'ANNUAL') {
         if (!staff.benefits.leaveAccount) {
@@ -240,8 +276,8 @@ export class RequestsService {
           .filter(r => staff.leaveBalanceOn === null || (r.leaveStartDate ?? '') >= staff.leaveBalanceOn)
           .reduce((sum, r) => sum + (r.leaveDaysCount ?? 0), 0);
         const remaining = staff.leaveBalance - used;
-        if (leaveDays.length > remaining) {
-          throw new Error(`Phép năm còn ${formatDays(remaining)} ngày, xin ${leaveDays.length} ngày`);
+        if (plan.take.length > remaining) {
+          throw new Error(`Phép năm còn ${formatDays(remaining)} ngày, xin ${plan.take.length} ngày`);
         }
       }
 
@@ -252,10 +288,11 @@ export class RequestsService {
         leaveType,
         startDate,
         endDate,
-        daysCount: leaveDays.length
+        daysCount: plan.take.length
       });
       await stores.requests.save(req);
-      return req.toJSON();
+      await this.claimDays(stores, req, plan, 'LEAVE');
+      return { ...req.toJSON(), warnings: plan.warnings };
     });
   }
 
@@ -292,7 +329,7 @@ export class RequestsService {
     }
   }
 
-  async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<SystemRequestDTO> {
+  async createShiftChangeRequest(input: CreateShiftChangeInput): Promise<CreatedRequestDTO> {
     const frame = findShiftFrame(input.shiftType, input.startTime);
     if (!frame) {
       throw new Error(`Khung ca không hợp lệ: ${String(input.shiftType)} ${String(input.startTime)}`);
@@ -355,7 +392,7 @@ export class RequestsService {
         frame
       });
       await stores.requests.save(req);
-      return req.toJSON();
+      return { ...req.toJSON(), warnings: [] };
     });
   }
 
@@ -375,7 +412,7 @@ export class RequestsService {
     }
   }
 
-  async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<SystemRequestDTO> {
+  async createLeaveWithMakeupRequest(input: CreateLeaveWithMakeupInput): Promise<CreatedRequestDTO> {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     const slots = requireMakeupSlots(input.slots);
     const month = monthOf(startDate);
@@ -396,6 +433,7 @@ export class RequestsService {
         throw new Error('Khoảng nghỉ không có ngày làm việc');
       }
       this.assertLeaveRangeFree(days, active, startDate, endDate);
+      const plan = planClaims({ kind: 'LEAVE_WITH_MAKEUP', dates: leaveDays, days });
       if (endDate === monthEnd) {
         throw new Error('Không còn ngày trong tháng để xếp đủ giờ bù');
       }
@@ -429,7 +467,7 @@ export class RequestsService {
         }
       }
 
-      const owed = MAKEUP_MINUTES_PER_LEAVE_DAY * leaveDays.length;
+      const owed = MAKEUP_MINUTES_PER_LEAVE_DAY * plan.take.length;
       const total = slots.reduce((sum, slot) => sum + workMinutes(slot.startTime, slot.endTime), 0);
       if (total !== owed) {
         throw new Error(`Cần đúng ${formatHours(owed)} giờ bù, đang xếp ${formatHours(total)} giờ`);
@@ -441,15 +479,16 @@ export class RequestsService {
         reason: input.reason,
         startDate,
         endDate,
-        daysCount: leaveDays.length,
+        daysCount: plan.take.length,
         makeupSlots: slots.map(slot => ({ ...slot, workMinutes: workMinutes(slot.startTime, slot.endTime) }))
       });
       await stores.requests.save(req);
-      return req.toJSON();
+      await this.claimDays(stores, req, plan, 'LEAVE_WITH_MAKEUP');
+      return { ...req.toJSON(), warnings: plan.warnings };
     });
   }
 
-  async createOvertimeRequest(input: CreateOvertimeInput): Promise<SystemRequestDTO> {
+  async createOvertimeRequest(input: CreateOvertimeInput): Promise<CreatedRequestDTO> {
     const date = requireDateText(input.otDate ?? input.targetDate, 'otDate');
     const startTime = requireTimeText(input.startTime, 'startTime');
     const endTime = requireTimeText(input.endTime, 'endTime');
@@ -503,11 +542,11 @@ export class RequestsService {
         hours: minutes / 60
       });
       await stores.requests.save(req);
-      return req.toJSON();
+      return { ...req.toJSON(), warnings: [] };
     });
   }
 
-  async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {
+  async createAdvanceRequest(input: CreateAdvanceInput): Promise<CreatedRequestDTO> {
     const period = input.period || businessMonthText(this.now());
     const staff = await this.resolveStaff(input.employeeId, period);
     return this.underEmployeeLock(staff.employeeId, async stores => {
@@ -520,11 +559,11 @@ export class RequestsService {
       });
 
       await stores.requests.save(req);
-      return req.toJSON();
+      return { ...req.toJSON(), warnings: [] };
     });
   }
 
-  async createExplanationRequest(input: CreateExplanationInput): Promise<SystemRequestDTO> {
+  async createExplanationRequest(input: CreateExplanationInput): Promise<CreatedRequestDTO> {
     const workDate = requireDateText(input.workDate, 'workDate');
     if (workDate > vietnamToday(this.now())) {
       throw new Error('Không giải trình cho ngày trong tương lai');
@@ -555,11 +594,11 @@ export class RequestsService {
         actualCheckOut
       });
       await stores.requests.save(req);
-      return req.toJSON();
+      return { ...req.toJSON(), warnings: [] };
     });
   }
 
-  async createIsatRequest(input: CreateIsatInput): Promise<SystemRequestDTO> {
+  async createIsatRequest(input: CreateIsatInput): Promise<CreatedRequestDTO> {
     const profile = await this.repo.findIsatProfile(input.employeeId, businessMonthText());
     if (!profile) {
       throw new Error(`Không tìm thấy nhân sự: ${input.employeeId}`);
@@ -591,7 +630,7 @@ export class RequestsService {
     }
 
     await this.repo.save(req);
-    return req.toJSON();
+    return { ...req.toJSON(), warnings: [] };
   }
 
   /**

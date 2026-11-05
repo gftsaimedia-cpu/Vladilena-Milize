@@ -9,11 +9,17 @@ import {
 } from '../../../src/modules/requests/requests.repository';
 import { AttendanceRepository } from '../../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository, type Holiday } from '../../../src/modules/holidays/holidays.repository';
+import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
 import { WorkSchedule } from '../../../src/modules/attendance/domain';
 import type { TransactionCoordinator } from '../../../src/database';
 import {
   SystemRequest,
+  eachDate,
+  weekday,
   workMinutes,
+  type ClaimStatus,
+  type DayClaim,
+  type DayStatusRow,
   type ExplanationCase,
   type RequestStatus,
   type SystemRequestProps
@@ -216,6 +222,80 @@ export class FakeHolidaysRepository extends HolidaysRepository {
   }
 }
 
+/**
+ * `day_status` trong bộ nhớ, khoá `${employeeId}:${date}`. Đọc trả `DayClaim` với trạng thái đơn lấy từ `source`, và
+ * chỉ trả dòng có đơn đang chờ hoặc đã duyệt, như JOIN thật. `source` là `{ requests }` của fake đơn (chung hay riêng).
+ */
+export class FakeDayStatusRepository extends DayStatusRepository {
+  /** Giao dịch mà bản này chạy trên (undefined = pool) và nhật ký [phương thức, giao dịch] theo thứ tự gọi. */
+  trx: unknown = undefined;
+  calls: Array<[string, unknown]> = [];
+  /** Khoảng [from, to] truyền vào listBetween, theo thứ tự gọi. */
+  ranges: Array<[string, string]> = [];
+
+  override withTransaction(trx: any): this {
+    return boundTo(this, trx);
+  }
+
+  rows = new Map<string, DayStatusRow>();
+
+  constructor(private readonly source: { requests: Map<string, SystemRequest> }) {
+    super({} as any);
+  }
+
+  /** Đặt dòng thẳng vào bảng, không ghi vào `calls` (dùng để gieo dữ liệu). */
+  put(row: DayStatusRow): void {
+    this.rows.set(`${row.employeeId}:${row.date}`, row);
+  }
+
+  private claims(filter: (row: DayStatusRow) => boolean): DayClaim[] {
+    const claims: DayClaim[] = [];
+    for (const row of this.rows.values()) {
+      if (!filter(row)) continue;
+      const owner = this.source.requests.get(row.requestId);
+      if (!owner || !ACTIVE.includes(owner.status)) continue;
+      const base = row.baseRequestId ? this.source.requests.get(row.baseRequestId) : undefined;
+      claims.push({
+        ...row,
+        requestStatus: owner.status as DayClaim['requestStatus'],
+        baseRequestStatus: base ? base.status : null
+      });
+    }
+    return claims.sort((a, b) => a.employeeId.localeCompare(b.employeeId) || a.date.localeCompare(b.date));
+  }
+
+  override async listBetween(employeeId: string, from: string, to: string): Promise<DayClaim[]> {
+    this.calls.push(['listBetween', this.trx]);
+    this.ranges.push([from, to]);
+    return this.claims(r => r.employeeId === employeeId && r.date >= from && r.date <= to);
+  }
+
+  override async listByRequest(requestId: string): Promise<DayClaim[]> {
+    this.calls.push(['listByRequest', this.trx]);
+    return this.claims(r => r.requestId === requestId);
+  }
+
+  override async listByBase(requestId: string): Promise<DayClaim[]> {
+    this.calls.push(['listByBase', this.trx]);
+    return this.claims(r => r.baseRequestId === requestId);
+  }
+
+  override async upsert(rows: readonly DayStatusRow[]): Promise<void> {
+    this.calls.push(['upsert', this.trx]);
+    if (rows.length === 0) return;
+    const keys = rows.map(r => `${r.employeeId}:${r.date}`);
+    if (new Set(keys).size !== keys.length) {
+      throw new Error('ON CONFLICT DO UPDATE command cannot affect row a second time');
+    }
+    for (const row of rows) this.put({ ...row });
+  }
+
+  override async remove(employeeId: string, dates: readonly string[]): Promise<void> {
+    this.calls.push(['remove', this.trx]);
+    for (const date of dates) this.rows.delete(`${employeeId}:${date}`);
+  }
+}
+
 /** Thay TransactionCoordinator: ghi khoá rồi chạy thẳng, đưa LOCK_TRX làm giao dịch của khoá. */
 export class RecordingLock {
   keys: string[] = [];
@@ -231,10 +311,11 @@ export function makeService() {
   const repo = new FakeRequestsRepository();
   const att = new FakeAttendanceRepository();
   const holidays = new FakeHolidaysRepository();
+  const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
-  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays);
+  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days);
   service.now = () => new Date('2026-11-04T10:00:00Z');
-  return { service, repo, att, holidays, lock };
+  return { service, repo, att, holidays, days, lock };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----
@@ -323,4 +404,70 @@ export function explanationRequest(
   extra: Extra = {}
 ): SystemRequest {
   return request('EXPLANATION', status, { explanationDate: date, explanationCases: cases, ...extra });
+}
+
+const NV_ISAT_PROFILE = {
+  fullName: 'Nhân viên',
+  positionType: 'nv',
+  positionLevel: 1,
+  levelName: null,
+  shiftType: 'NORMAL',
+  shiftStartTime: '08:00',
+  shiftEndTime: '17:00'
+};
+
+/** Đơn iSAT đủ 4 điều kiện cho `saturday`; đã duyệt thì `approve(ADMIN_UUID)`. */
+export function isatRequest(
+  saturday: string,
+  status: 'PENDING' | 'APPROVED' = 'PENDING',
+  extra: { employeeId?: string } = {}
+): SystemRequest {
+  const req = SystemRequest.createIsatRequest({
+    employeeId: extra.employeeId ?? NV_UUID,
+    saturday,
+    team: 'Nhóm thử',
+    conditions: { NO_VIOLATION: true, REPORTS_DONE: true, WORK_COMPLETED: true, OFFICIAL_EMPLOYEE: true },
+    profile: NV_ISAT_PROFILE
+  });
+  if (status === 'APPROVED') req.approve(ADMIN_UUID);
+  return req;
+}
+
+const CLAIM_OF: Partial<Record<SystemRequestProps['type'], ClaimStatus>> = {
+  LEAVE: 'LEAVE',
+  LEAVE_WITH_MAKEUP: 'LEAVE_WITH_MAKEUP',
+  SHIFT_CHANGE: 'SHIFT_CHANGE',
+  ISAT: 'ISAT'
+};
+
+/**
+ * Lưu đơn, và nếu là nghỉ, nghỉ có làm bù, đổi ca hoặc iSAT đang chờ hoặc đã duyệt thì ghi luôn các dòng `day_status`
+ * như lúc nộp: `dates` nếu có; không thì các ngày trong khoảng thuộc `regularDows` của người đó và không là ngày lễ
+ * của `ctx.holidays`; iSAT thì đúng Thứ Bảy.
+ */
+export async function seed(
+  ctx: { repo: FakeRequestsRepository; days: FakeDayStatusRepository; holidays: FakeHolidaysRepository },
+  req: SystemRequest,
+  dates?: string[]
+): Promise<SystemRequest> {
+  await ctx.repo.save(req);
+  const status = CLAIM_OF[req.type];
+  if (!status || !ACTIVE.includes(req.status)) return req;
+
+  let days = dates;
+  if (!days) {
+    if (req.type === 'ISAT') {
+      days = req.isat ? [req.isat.saturday] : [];
+    } else {
+      const start = req.type === 'SHIFT_CHANGE' ? req.changeStartDate : req.leaveStartDate;
+      const end = req.type === 'SHIFT_CHANGE' ? req.changeEndDate : req.leaveEndDate;
+      const regularDows = ctx.repo.profiles.get(req.employeeId)?.regularDows ?? [1, 2, 3, 4, 5, 6];
+      const holidays = new Set(ctx.holidays.dates.map(h => h.date));
+      days = start ? eachDate(start, end ?? start).filter(d => regularDows.includes(weekday(d)) && !holidays.has(d)) : [];
+    }
+  }
+  for (const date of days) {
+    ctx.days.put({ employeeId: req.employeeId, date, status, requestId: req.id, baseRequestId: null });
+  }
+  return req;
 }

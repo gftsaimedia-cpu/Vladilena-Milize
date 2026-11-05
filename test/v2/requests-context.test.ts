@@ -1,17 +1,19 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { EmployeeDays, type EmployeeDaysInput } from '../../src/modules/requests/domain';
+import { EmployeeDays, type ClaimStatus, type DayClaim, type EmployeeDaysInput } from '../../src/modules/requests/domain';
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { createScriptedKysely, type ScriptedLogEntry, type ScriptedQuery } from './helpers/scripted-kysely';
 import {
   NV_UUID,
   FakeAttendanceRepository,
+  FakeHolidaysRepository,
   FakeRequestsRepository,
   leaveRequest,
   lwmRequest,
   makeService,
   otRequest,
+  seed,
   shiftChange,
   staffContext
 } from './helpers/requests-fakes';
@@ -81,22 +83,42 @@ test('shiftsAround lists the shifts of the day before, the day and the day after
   ]);
 });
 
-test('isOnLeave counts pending and approved leave, not rejected', () => {
+const claim = (date: string, status: ClaimStatus, requestStatus: DayClaim['requestStatus'] = 'PENDING'): DayClaim => ({
+  employeeId: NV_UUID,
+  date,
+  status,
+  requestId: `req-${date}`,
+  baseRequestId: null,
+  requestStatus,
+  baseRequestStatus: null
+});
+
+test('isOnLeave reads only the LEAVE and LEAVE_WITH_MAKEUP day_status rows', () => {
   const days = nvDays({
-    schedules: [{ date: '2026-11-17', startTime: '08:00', endTime: '17:00', onLeave: true }],
-    activeRequests: [
-      leaveRequest('2026-11-10', '2026-11-11', 'PENDING'),
-      leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'),
-      leaveRequest('2026-11-13', '2026-11-13', 'REJECTED'),
-      lwmRequest('2026-11-19', '2026-11-19', [{ date: '2026-11-20', startTime: '18:00', endTime: '22:00' }], 'PENDING')
+    claims: [
+      claim('2026-11-10', 'LEAVE'),
+      claim('2026-11-12', 'LEAVE', 'APPROVED'),
+      claim('2026-11-19', 'LEAVE_WITH_MAKEUP'),
+      claim('2026-11-13', 'SHIFT_CHANGE'),
+      claim('2026-11-14', 'ISAT', 'APPROVED')
     ]
   });
-  for (const d of ['2026-11-10', '2026-11-11', '2026-11-12', '2026-11-17', '2026-11-19']) {
+  for (const d of ['2026-11-10', '2026-11-12', '2026-11-19']) {
     assert.equal(days.isOnLeave(d), true, d);
   }
-  for (const d of ['2026-11-09', '2026-11-13', '2026-11-18', '2026-11-20']) {
+  for (const d of ['2026-11-09', '2026-11-11', '2026-11-13', '2026-11-14', '2026-11-20']) {
     assert.equal(days.isOnLeave(d), false, d);
   }
+});
+
+test('isOnLeave ignores an ON_LEAVE schedule and the active request list when no row holds the day', () => {
+  const days = nvDays({
+    schedules: [{ date: '2026-11-17', startTime: '08:00', endTime: '17:00', onLeave: true }],
+    activeRequests: [leaveRequest('2026-11-10', '2026-11-11', 'PENDING')]
+  });
+  assert.equal(days.isOnLeave('2026-11-17'), false);
+  assert.equal(days.isOnLeave('2026-11-10'), false);
+  assert.equal(days.shiftOf('2026-11-17'), null); // lịch ON_LEAVE vẫn là ngày không có ca
 });
 
 test('windowsOn lists OT and makeup slots of the day', () => {
@@ -200,17 +222,29 @@ test('loadDays without the holiday repository fails loudly', async () => {
   await assert.rejects((service as any).loadDays(staffContext(), '2026-11-12', '2026-11-12'), /Thiếu lịch lễ công ty/);
 });
 
-test('loadDays reads one day either side and knows holidays, schedules and active requests', async () => {
-  const { service, repo, holidays } = makeService();
+test('loadDays without the day status repository fails loudly', async () => {
+  const service = new RequestsService(
+    new FakeRequestsRepository(),
+    new FakeAttendanceRepository(),
+    undefined,
+    new FakeHolidaysRepository()
+  );
+  await assert.rejects((service as any).loadDays(staffContext(), '2026-11-12', '2026-11-12'), /Thiếu bảng trạng thái ngày/);
+});
+
+test('loadDays reads one day either side and knows holidays, schedules, active requests and day_status', async () => {
+  const ctx = makeService();
+  const { service, repo, holidays, days: dayRows } = ctx;
   holidays.dates = [{ date: '2026-11-11', name: 'Lễ' }, { date: '2026-11-20', name: 'Ngoài khoảng' }];
   repo.schedules = [{ date: '2026-11-14', startTime: '22:00', endTime: '07:00', onLeave: false }];
   const pending = leaveRequest('2026-11-13', '2026-11-13', 'PENDING');
-  await repo.save(pending);
-  await repo.save(leaveRequest('2026-11-12', '2026-11-12', 'REJECTED'));
+  await seed(ctx, pending);
+  await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'REJECTED'));
 
   const { days, active } = await (service as any).loadDays(staffContext(), '2026-11-12', '2026-11-13');
   assert.deepEqual(holidays.ranges, [['2026-11-11', '2026-11-14']]);
   assert.deepEqual(repo.scheduleRanges, [['2026-11-11', '2026-11-14']]);
+  assert.deepEqual(dayRows.ranges, [['2026-11-11', '2026-11-14']]);
   assert.deepEqual(active.map((r: { id: string }) => r.id), [pending.id]);
   assert.equal(days.isHoliday('2026-11-11'), true);
   assert.equal(days.isOnLeave('2026-11-13'), true);

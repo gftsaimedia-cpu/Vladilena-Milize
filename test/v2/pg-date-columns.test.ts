@@ -7,6 +7,7 @@ import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/atte
 import { RequestsRepository } from '../../src/modules/requests/requests.repository';
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
+import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
 import { SystemRequest } from '../../src/modules/requests/domain';
 
 // pg đọc cột DATE thành Date lúc 0h theo giờ máy. Ghim múi giờ chạy thật (UTC+7) để lỗi lệch ngày
@@ -195,7 +196,8 @@ describe('Duyệt đơn lên ngày đã có lịch (cột DATE đọc về là D
       new RequestsRepository(db),
       new AttendanceRepository(db),
       undefined,
-      new HolidaysRepository(db)
+      new HolidaysRepository(db),
+      new DayStatusRepository(db)
     );
 
     await service.reviewRequest(leave.id, 'admin-1', 'APPROVE');

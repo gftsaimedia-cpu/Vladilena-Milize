@@ -11,6 +11,7 @@ import { RequestsRepository } from '../../src/modules/requests/requests.reposito
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { HolidaysRepository } from '../../src/modules/holidays/holidays.repository';
+import { DayStatusRepository } from '../../src/modules/requests/day-status.repository';
 
 // Cần PostgreSQL thật. PG_TEST_URL là kết nối điều khiển (vai trò được CREATE/DROP DATABASE): test tự tạo một DB tạm,
 // chạy migration trong đó rồi xoá ở cuối. Không đụng DB nào khác.
@@ -27,7 +28,8 @@ function serviceOn(db: Kysely<DB>): RequestsService {
     new RequestsRepository(db),
     new AttendanceRepository(db),
     new TransactionCoordinator(db),
-    new HolidaysRepository(db)
+    new HolidaysRepository(db),
+    new DayStatusRepository(db)
   );
 }
 

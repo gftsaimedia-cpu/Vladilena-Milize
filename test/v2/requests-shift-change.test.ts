@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { beforeEach, describe, it } from 'node:test';
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { SystemRequest } from '../../src/modules/requests/domain';
-import { NV_UUID, leaveRequest, lwmRequest, makeService, otRequest, shiftChange } from './helpers/requests-fakes';
+import { NV_UUID, leaveRequest, lwmRequest, makeService, otRequest, seed, shiftChange } from './helpers/requests-fakes';
 
 describe('Đơn đổi ca (§6.4)', () => {
   let ctx: ReturnType<typeof makeService>;
@@ -62,7 +62,8 @@ describe('Đơn đổi ca (§6.4)', () => {
   });
 
   it('a makeup slot that the new shift touches blocks the change', async () => {
-    await ctx.repo.save(
+    await seed(
+      ctx,
       lwmRequest('2026-11-10', '2026-11-10', [
         { date: '2026-11-12', startTime: '18:00', endTime: '22:00' },
         { date: '2026-11-16', startTime: '18:00', endTime: '22:00' }
@@ -87,19 +88,19 @@ describe('Đơn đổi ca (§6.4)', () => {
   });
 
   it('another shift change on the same day is refused', async () => {
-    await ctx.repo.save(shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING'));
+    await seed(ctx, shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'PENDING'));
     await assert.rejects(sc({ startDate: '2026-11-11', endDate: '2026-11-13' }), /Ngày 12\/11 đã có đơn đổi ca khác/);
   });
 
   it('only changed working days count as the same day', async () => {
-    await ctx.repo.save(shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'REJECTED'));
-    await ctx.repo.save(shiftChange('2026-11-15', '2026-11-15', 'NORMAL', '10:00', '19:00', 'APPROVED'));
+    await seed(ctx, shiftChange('2026-11-12', '2026-11-12', 'NORMAL', '10:00', '19:00', 'REJECTED'));
+    await seed(ctx, shiftChange('2026-11-15', '2026-11-15', 'NORMAL', '10:00', '19:00', 'APPROVED'));
     const dto = await sc({ startDate: '2026-11-12', endDate: '2026-11-16' });
     assert.equal(dto.changeEndDate, '2026-11-16');
   });
 
   it('leave days and Sunday-only ranges are refused', async () => {
-    await ctx.repo.save(leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
+    await seed(ctx, leaveRequest('2026-11-12', '2026-11-12', 'APPROVED'));
     await assert.rejects(sc(), /Ngày 12\/11 đang nghỉ, không đổi ca được/);
     await assert.rejects(sc({ startDate: '2026-11-15', endDate: '2026-11-15' }), /Khoảng đổi ca không có ngày làm việc/);
   });
