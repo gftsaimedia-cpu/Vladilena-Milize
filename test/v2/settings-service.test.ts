@@ -4,8 +4,14 @@ import 'reflect-metadata';
 import type { ChainVersion, Values } from '../../src/common/version-chain';
 import { defaultsOf, encodeValues, GROUP_KEYS, type GroupKey } from '../../src/modules/settings/domain/setting-groups';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
-import type { ChangeRow, SettingsRepository, StoredChange, WriteMeta } from '../../src/modules/settings/settings.repository';
-import { SettingsGroupNotFoundError, SettingsInputError, SettingsStaleError } from '../../src/modules/settings/settings.errors';
+import type { ChangeRow, SettingsRepository, StaffRef, StoredChange, WriteMeta } from '../../src/modules/settings/settings.repository';
+import type { Zone } from '../../src/modules/settings/domain/attendance-zone';
+import {
+  SettingsEmployeeNotFoundError,
+  SettingsGroupNotFoundError,
+  SettingsInputError,
+  SettingsStaleError
+} from '../../src/modules/settings/settings.errors';
 import { SettingsService } from '../../src/modules/settings/settings.service';
 
 const NOW = new Date('2026-11-05T03:00:00Z');
@@ -16,7 +22,20 @@ class MemorySettings {
   db = {} as never;
   lastClosed: string | null = null;
   changes: StoredChange[] = [];
+  zoneRow: Zone | null = null;
   private chains = new Map<GroupKey, ChainVersion[]>();
+  private weekChains = new Map<string, ChainVersion[]>();
+  private staff: StaffRef[] = [
+    { uuid: 'u-binh', username: 'nv-binh', type: 'nv' },
+    { uuid: 'u-ha', username: 'tts-ha', type: 'tts' },
+    { uuid: 'u-chau', username: 'ctv-chau', type: 'ctv' }
+  ];
+  // Tuần của loại như seed: nv/ctv T2–T7 (26 ngày), tts T2–T6 (22 ngày).
+  private typeWeeks: Record<string, { weekdays: number[]; workdays: number }> = {
+    nv: { weekdays: [1, 2, 3, 4, 5, 6], workdays: 26 },
+    ctv: { weekdays: [1, 2, 3, 4, 5, 6], workdays: 26 },
+    tts: { weekdays: [1, 2, 3, 4, 5], workdays: 22 }
+  };
 
   constructor() {
     for (const g of GROUP_KEYS) this.chains.set(g, [{ month: '2000-01', values: encodeValues(defaultsOf(g)) }]);
@@ -58,6 +77,38 @@ class MemorySettings {
 
   async lastClosedMonth(): Promise<string | null> {
     return this.lastClosed;
+  }
+
+  async staffByUsername(_q: unknown, username: string): Promise<StaffRef | null> {
+    return this.staff.find(s => s.username === username) ?? null;
+  }
+
+  async staffByUuid(_q: unknown, uuid: string): Promise<StaffRef | null> {
+    return this.staff.find(s => s.uuid === uuid) ?? null;
+  }
+
+  async typeWeekAt(_q: unknown, typeCode: string, _month: string): Promise<{ weekdays: number[]; workdays: number } | null> {
+    return this.typeWeeks[typeCode] ?? null;
+  }
+
+  async workWeekChain(_q: unknown, uuid: string): Promise<ChainVersion[]> {
+    return (this.weekChains.get(uuid) ?? []).map(v => ({ month: v.month, values: { ...v.values } })).sort((a, b) => a.month.localeCompare(b.month));
+  }
+
+  async writeWorkWeek(_q: unknown, uuid: string, month: string, weekdays: string | null, _meta: WriteMeta): Promise<void> {
+    const chain = this.weekChains.get(uuid) ?? [];
+    const at = chain.find(v => v.month === month);
+    if (at) at.values = { weekdays };
+    else chain.push({ month, values: { weekdays } });
+    this.weekChains.set(uuid, chain);
+  }
+
+  async zone(): Promise<Zone | null> {
+    return this.zoneRow ? { ...this.zoneRow } : null;
+  }
+
+  async saveZone(_q: unknown, zone: Zone, _meta: WriteMeta): Promise<void> {
+    this.zoneRow = { ...zone };
   }
 }
 
@@ -192,5 +243,110 @@ describe('settings service: groups, history, pay days', () => {
     await rejectsField(svc.payDays('1999'), 'year');
     assert.equal((await svc.getAll('2000-01', NOW)).groups.overtime.from, '2000-01');
     assert.equal((await svc.payDays('2000')).items.length, 12);
+  });
+});
+
+describe('settings service: per-person work week and attendance zone', () => {
+  it('rejects a work week month before the seed month instead of failing with a 500', async () => {
+    await rejectsField(svc.getWorkWeek('nv-binh', '1999-12', NOW), 'month');
+    assert.equal((await svc.getWorkWeek('nv-binh', '2000-01', NOW)).source, 'type');
+  });
+
+  it('own week from a month, then back to the type week (Review Focus 4)', async () => {
+    const before = await svc.getWorkWeek('nv-binh', '2026-12', NOW);
+    assert.deepEqual(before, {
+      username: 'nv-binh',
+      month: '2026-12',
+      minMonth: '2026-11',
+      weekdays: [1, 2, 3, 4, 5, 6],
+      source: 'type',
+      standardWorkdays: 26,
+      from: null,
+      typeWeekdays: [1, 2, 3, 4, 5, 6],
+      typeStandardWorkdays: 26,
+      stamp: 0
+    });
+    assert.deepEqual(await svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: [5, 4, 3, 2, 1], reason: null, stamp: 0 }, 'admin', NOW), {
+      ok: true,
+      weekdays: [1, 2, 3, 4, 5],
+      source: 'own',
+      standardWorkdays: 22,
+      stamp: 1
+    });
+    assert.deepEqual(pick(mem.changes[0]), {
+      setting: 'work-week',
+      field: 'weekdays',
+      subject: 'u-binh',
+      effectiveMonth: '2026-12',
+      oldJson: null,
+      newJson: '[1,2,3,4,5]',
+      reason: null
+    });
+    assert.deepEqual(locks, ['settings:work-week:u-binh']);
+    await svc.saveWorkWeek('nv-binh', { effectiveMonth: '2027-03', weekdays: null, stamp: 1 }, 'admin', NOW);
+    assert.equal((await svc.getWorkWeek('nv-binh', '2027-02', NOW)).standardWorkdays, 22);
+    assert.equal((await svc.getWorkWeek('nv-binh', '2027-03', NOW)).source, 'type');
+    const { items } = await svc.workWeekHistory('nv-binh');
+    assert.deepEqual(
+      items.map(i => [i.from, i.to]),
+      [
+        [[1, 2, 3, 4, 5], null],
+        [null, [1, 2, 3, 4, 5]]
+      ]
+    );
+  });
+
+  it('Châu on Mon/Wed/Fri gets 13 standard days', async () => {
+    const r = await svc.saveWorkWeek('ctv-chau', { effectiveMonth: '2026-12', weekdays: [1, 3, 5], stamp: 0 }, 'admin', NOW);
+    assert.equal(r.standardWorkdays, 13);
+  });
+
+  it('work week refusals and per-person stamps', async () => {
+    assert.equal((await svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: null, stamp: 0 }, 'admin', NOW)).stamp, 0);
+    assert.equal(mem.changes.length, 0);
+    for (const w of [[], [0], [7]]) {
+      await rejectsField(svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: w, stamp: 0 }, 'admin', NOW), 'weekdays');
+    }
+    await assert.rejects(svc.getWorkWeek('nobody', '2026-12', NOW), SettingsEmployeeNotFoundError);
+    await assert.rejects(svc.saveWorkWeek('nobody', { effectiveMonth: '2026-12', weekdays: [1], stamp: 0 }, 'admin', NOW), SettingsEmployeeNotFoundError);
+    await assert.rejects(svc.workWeekHistory('nobody'), SettingsEmployeeNotFoundError);
+    await svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: [1, 2, 3, 4, 5], stamp: 0 }, 'admin', NOW);
+    assert.equal((await svc.getWorkWeek('tts-ha', '2026-12', NOW)).stamp, 0);
+    await assert.rejects(
+      svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-12', weekdays: [1, 2, 3], stamp: 0 }, 'admin', NOW),
+      (e: unknown) => e instanceof SettingsStaleError && e.stamp === 1
+    );
+    await rejectsField(svc.saveWorkWeek('nv-binh', { effectiveMonth: '2026-10', weekdays: [1, 2, 3], stamp: 1 }, 'admin', NOW), 'effectiveMonth');
+  });
+
+  it('attendance zone', async () => {
+    assert.deepEqual(await svc.getZone(), { zone: null, stamp: 0 });
+    const zone = { lat: 10.7769, lng: 106.7009, radiusM: 150 };
+    assert.deepEqual(await svc.saveZone({ ...zone, reason: null, stamp: 0 }, 'admin', NOW), { ok: true, zone, stamp: 1 });
+    assert.deepEqual(pick(mem.changes[0]), {
+      setting: 'attendance-zone',
+      field: 'zone',
+      subject: null,
+      effectiveMonth: null,
+      oldJson: null,
+      newJson: '{"lat":10.7769,"lng":106.7009,"radiusM":150}',
+      reason: null
+    });
+    assert.deepEqual(locks, ['settings:attendance-zone']);
+    assert.equal((await svc.saveZone({ ...zone, stamp: 1 }, 'admin', NOW)).stamp, 1);
+    assert.equal(mem.changes.length, 1);
+    await rejectsField(svc.saveZone({ ...zone, radiusM: 19, stamp: 1 }, 'admin', NOW), 'radiusM');
+    await assert.rejects(svc.saveZone({ ...zone, radiusM: 200, stamp: 0 }, 'admin', NOW), SettingsStaleError);
+    assert.deepEqual((await svc.zoneHistory()).items[0].to, zone);
+  });
+
+  it('a changed zone records the old zone', async () => {
+    const zone = { lat: 10.7769, lng: 106.7009, radiusM: 150 };
+    await svc.saveZone({ ...zone, stamp: 0 }, 'admin', NOW);
+    await svc.saveZone({ ...zone, radiusM: 200, reason: 'Mở rộng', stamp: 1 }, 'admin', NOW);
+    assert.equal(mem.changes[1].oldJson, '{"lat":10.7769,"lng":106.7009,"radiusM":150}');
+    assert.deepEqual((await svc.getZone()), { zone: { ...zone, radiusM: 200 }, stamp: 2 });
+    const [latest] = (await svc.zoneHistory()).items;
+    assert.deepEqual([latest.field, latest.month, latest.from, latest.reason], ['zone', null, zone, 'Mở rộng']);
   });
 });

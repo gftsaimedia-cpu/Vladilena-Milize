@@ -3,9 +3,11 @@
 // đúng một người thành công và người kia nhận 409.
 import { Inject, Injectable } from '@nestjs/common';
 import { businessMonthText } from '../../common/business-date';
-import { planChange, versionAt, type Values } from '../../common/version-chain';
+import { planChange, versionAt, type ChainVersion, type Values } from '../../common/version-chain';
 import { TransactionCoordinator } from '../../database/transaction';
+import { validateZone, type Zone } from './domain/attendance-zone';
 import { payDateOf } from './domain/pay-days';
+import { validateWeekdays } from './domain/work-week';
 import { minMonthFrom } from './domain/min-month';
 import {
   decodeValues,
@@ -22,9 +24,9 @@ import {
   type NumberLimit
 } from './domain/setting-groups';
 import { parseEffectiveMonth, parseMonth, parseReason, parseStamp, SEED_MONTH } from './domain/settings-input';
-import { SettingsReader } from './settings-reader';
-import { SettingsGroupNotFoundError, SettingsInputError, SettingsStaleError } from './settings.errors';
-import { SettingsRepository, type ChangeRow } from './settings.repository';
+import { SettingsReader, type WorkWeek } from './settings-reader';
+import { SettingsEmployeeNotFoundError, SettingsGroupNotFoundError, SettingsInputError, SettingsStaleError } from './settings.errors';
+import { SettingsRepository, type ChangeRow, type StaffRef, type StoredChange } from './settings.repository';
 
 type Tx = Pick<TransactionCoordinator, 'run' | 'acquireAdvisoryLock'>;
 
@@ -51,6 +53,22 @@ export interface HistoryItem {
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const monthText = (ym: string) => `${ym.slice(5)}/${ym.slice(0, 4)}`;
+
+const WORK_WEEK = 'work-week';
+const ATTENDANCE_ZONE = 'attendance-zone';
+// Tháng của bản gốc ảo trong chuỗi tuần riêng, sớm hơn mọi tháng thật.
+const VIRTUAL_BASE = '0000-00';
+
+const toHistoryItem = (r: StoredChange): HistoryItem => ({
+  id: r.id,
+  field: r.field,
+  month: r.effectiveMonth,
+  from: r.oldJson === null ? null : JSON.parse(r.oldJson),
+  to: JSON.parse(r.newJson),
+  by: r.changedBy,
+  at: r.changedAt,
+  reason: r.reason
+});
 
 @Injectable()
 export class SettingsService {
@@ -139,19 +157,132 @@ export class SettingsService {
 
   async groupHistory(group: unknown): Promise<{ items: HistoryItem[] }> {
     if (!isGroupKey(group)) throw new SettingsGroupNotFoundError(`Không có nhóm cài đặt "${String(group)}"`);
-    const rows = await this.repo.history(this.repo.db, group, null);
-    return {
-      items: rows.map(r => ({
-        id: r.id,
-        field: r.field,
-        month: r.effectiveMonth,
-        from: r.oldJson === null ? null : JSON.parse(r.oldJson),
-        to: JSON.parse(r.newJson),
-        by: r.changedBy,
-        at: r.changedAt,
-        reason: r.reason
-      }))
-    };
+    return { items: (await this.repo.history(this.repo.db, group, null)).map(toHistoryItem) };
+  }
+
+  async getWorkWeek(
+    username: unknown,
+    month: unknown,
+    now: Date = new Date()
+  ): Promise<{ username: string; month: string; minMonth: string } & WorkWeek & { stamp: number }> {
+    const at = month === undefined ? businessMonthText(now) : parseMonth(month, 'month');
+    if (at < SEED_MONTH) throw new SettingsInputError(`Tháng phải từ ${monthText(SEED_MONTH)} trở đi`, 'month');
+    const q = this.repo.db;
+    const staff = await this.staffOf(q, username);
+    const minMonth = minMonthFrom(await this.repo.lastClosedMonth(q), now);
+    // Đọc stamp trước chuỗi, cùng lý do như getAll.
+    const stamp = await this.repo.stampOf(q, WORK_WEEK, staff.uuid);
+    const week = await this.reader.workWeekOf(staff.uuid, at, q);
+    return { username: staff.username, month: at, minMonth, ...week, stamp };
+  }
+
+  async saveWorkWeek(
+    username: unknown,
+    body: unknown,
+    actor: string,
+    now: Date = new Date()
+  ): Promise<{ ok: true; weekdays: number[]; source: 'type' | 'own'; standardWorkdays: number; stamp: number }> {
+    const input = isRecord(body) ? body : {};
+    // weekdays null = quay về tuần của loại nhân sự; trong chuỗi phiên bản là chuỗi JSON của mảng tăng dần hoặc null.
+    const weekdays = input.weekdays === null ? null : JSON.stringify(validateWeekdays(input.weekdays));
+    const reason = parseReason(input.reason);
+    const stamp = parseStamp(input.stamp);
+    const meta = { actor, at: now.toISOString() };
+
+    return this.tx.run(async trx => {
+      const staff = await this.staffOf(trx, username);
+      await this.tx.acquireAdvisoryLock(trx, `settings:${WORK_WEEK}:${staff.uuid}`);
+      const minMonth = minMonthFrom(await this.repo.lastClosedMonth(trx), now);
+      const month = parseEffectiveMonth(input.effectiveMonth, minMonth);
+
+      const current = await this.repo.stampOf(trx, WORK_WEEK, staff.uuid);
+      if (current !== stamp) throw new SettingsStaleError('Tuần làm việc của người này vừa được người khác lưu, hãy tải lại', current);
+
+      // Bản gốc ảo (chưa có dòng riêng = theo loại) chỉ để planChange chạy được; không bao giờ ghi xuống DB.
+      const chain: ChainVersion[] = [{ month: VIRTUAL_BASE, values: { weekdays: null } }, ...(await this.repo.workWeekChain(trx, staff.uuid))];
+      const cur = versionAt(chain, month) as ChainVersion;
+      const plan = planChange(chain, month, { weekdays });
+      if (plan) {
+        await this.repo.writeWorkWeek(trx, staff.uuid, month, weekdays, meta);
+        for (const c of plan.carry) await this.repo.writeWorkWeek(trx, staff.uuid, c.month, c.set.weekdays as string | null, meta);
+      }
+
+      const [id] = plan
+        ? await this.repo.insertChanges(
+            trx,
+            [
+              {
+                setting: WORK_WEEK,
+                field: 'weekdays',
+                subject: staff.uuid,
+                effectiveMonth: month,
+                oldJson: cur.values.weekdays as string | null,
+                newJson: weekdays ?? 'null',
+                reason
+              }
+            ],
+            meta
+          )
+        : [current];
+      const week = await this.reader.workWeekOf(staff.uuid, month, trx);
+      return { ok: true as const, weekdays: week.weekdays, source: week.source, standardWorkdays: week.standardWorkdays, stamp: id };
+    });
+  }
+
+  async workWeekHistory(username: unknown): Promise<{ items: HistoryItem[] }> {
+    const staff = await this.staffOf(this.repo.db, username);
+    return { items: (await this.repo.history(this.repo.db, WORK_WEEK, staff.uuid)).map(toHistoryItem) };
+  }
+
+  async getZone(): Promise<{ zone: Zone | null; stamp: number }> {
+    const q = this.repo.db;
+    const stamp = await this.repo.stampOf(q, ATTENDANCE_ZONE, null);
+    return { zone: await this.repo.zone(q), stamp };
+  }
+
+  async saveZone(body: unknown, actor: string, now: Date = new Date()): Promise<{ ok: true; zone: Zone; stamp: number }> {
+    const input = isRecord(body) ? body : {};
+    const zone = validateZone(input);
+    const reason = parseReason(input.reason);
+    const stamp = parseStamp(input.stamp);
+    const meta = { actor, at: now.toISOString() };
+
+    return this.tx.run(async trx => {
+      await this.tx.acquireAdvisoryLock(trx, `settings:${ATTENDANCE_ZONE}`);
+      const current = await this.repo.stampOf(trx, ATTENDANCE_ZONE, null);
+      if (current !== stamp) throw new SettingsStaleError('Vùng chấm công vừa được người khác lưu, hãy tải lại', current);
+
+      const old = await this.repo.zone(trx);
+      if (old && old.lat === zone.lat && old.lng === zone.lng && old.radiusM === zone.radiusM) return { ok: true as const, zone, stamp: current };
+
+      await this.repo.saveZone(trx, zone, meta);
+      const ids = await this.repo.insertChanges(
+        trx,
+        [
+          {
+            setting: ATTENDANCE_ZONE,
+            field: 'zone',
+            subject: null,
+            effectiveMonth: null,
+            oldJson: old ? JSON.stringify(old) : null,
+            newJson: JSON.stringify(zone),
+            reason
+          }
+        ],
+        meta
+      );
+      return { ok: true as const, zone, stamp: Math.max(...ids) };
+    });
+  }
+
+  async zoneHistory(): Promise<{ items: HistoryItem[] }> {
+    return { items: (await this.repo.history(this.repo.db, ATTENDANCE_ZONE, null)).map(toHistoryItem) };
+  }
+
+  private async staffOf(q: Parameters<SettingsRepository['staffByUsername']>[0], username: unknown): Promise<StaffRef> {
+    const staff = typeof username === 'string' ? await this.repo.staffByUsername(q, username) : null;
+    if (!staff) throw new SettingsEmployeeNotFoundError(`Không có nhân viên "${String(username)}"`);
+    return staff;
   }
 
   async payDays(year: unknown): Promise<{ year: number; items: Array<{ month: string; payDay: number; payDate: string }> }> {
