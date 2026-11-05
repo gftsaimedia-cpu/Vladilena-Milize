@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, ConflictError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
+import { AuditEntryError } from '../audit';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import { KpiScoreBody, PayrollService } from './payroll.service';
 
@@ -43,6 +44,8 @@ export class PayrollController {
         errors: result.errors,
       };
     } catch (err: any) {
+      // Lỗi dựng dòng nhật ký là lỗi lập trình: để bộ lọc trả 500, không đổi thành 400.
+      if (err instanceof AuditEntryError) throw err;
       if (err instanceof PayrollFinalizedError) throw new ConflictError(err.message, { code: 'PAYROLL_FINALIZED' });
       throw new BadRequestError(err.message, { code: 'CALCULATE_ERROR' });
     }
