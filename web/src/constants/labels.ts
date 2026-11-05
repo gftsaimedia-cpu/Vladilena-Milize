@@ -12,6 +12,18 @@ export const KPI_LABELS: Record<KpiPart, string> = {
   self: 'Tự đánh giá'
 };
 
+// Loại nhân sự (staff.type) như BE gửi: nv / ctv / tts; loại lạ in chữ hoa, chưa có loại in "—".
+const EMPLOYEE_TYPES: Record<string, string> = { nv: 'NV', ctv: 'CTV', tts: 'TTS' };
+export const employeeTypeLabel = (t?: string | null): string => (t ? (EMPLOYEE_TYPES[t] ?? t.toUpperCase()) : '—');
+
+// Trạng thái nhân sự (staff.contract_status) như BE gửi trên phiếu; khác nhãn hợp đồng ("HĐLĐ từ 3 tháng").
+const EMPLOYMENT_STATUSES: Record<string, string> = { probation: 'Thử việc', official: 'Chính thức' };
+export const employmentStatusLabel = (s?: string | null): string | null => (s ? (EMPLOYMENT_STATUSES[s] ?? null) : null);
+
+/** "NV · Bậc 2"; chưa có cả loại lẫn bậc (phiếu lưu trước khi BE có hai trường này) → "—". */
+export const kindLevelText = (kind: string, level: number | null): string =>
+  kind === '—' && level == null ? '—' : `${kind} · Bậc ${level ?? '—'}`;
+
 // Trọng số % của 5 phần KPI.
 export const KPI_WEIGHTS: Record<KpiPart, number> = { wework: 40, user: 24, peer: 18, manager: 12, self: 6 };
 

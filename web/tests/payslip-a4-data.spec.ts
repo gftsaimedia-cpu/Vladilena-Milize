@@ -21,19 +21,24 @@ test('only the sample month has a sheet', () => {
 test('header fields follow the sample month', () => {
   const { days, stats, groups, totals, ...head } = sheet();
   expect(head).toEqual({
-    month: '2026-10', name: 'NV thử nghiệm', kind: 'NV', level: 1, contract: 'HĐLĐ từ 3 tháng',
+    month: '2026-10', name: 'NV thử nghiệm', kind: 'NV', level: 1, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
     from: '2026-10-01', to: '2026-10-31', periodNote: 'tạm tính cả tháng, số liệu tới 02/11',
     stdDays: 26, dayRate: 230769, net: 9657922, leaveLeft: 22, slipStatus: 'draft'
   });
 });
 
-// Phiếu của một người: tháng mẫu chung, chỉ đè tên, loại · bậc, hợp đồng và trạng thái từ phiếu giả của Bảng lương.
+// Phiếu của một người: tháng mẫu chung, chỉ đè tên, loại · bậc, trạng thái nhân sự, hợp đồng, phép còn lại và trạng thái
+// từ phiếu giả của Bảng lương.
 // Trạng thái giả dùng chung với các file test Node khác cùng worker; payroll-mock duyệt GFT-0142 và từ chối GFT-0171, nên ở
 // đây chỉ đọc những phiếu không file nào đổi trạng thái (payroll-decide-data trả GFT-0101/GFT-0156 về như cũ).
 test('a person’s sheet is the sample month with that slip’s person and status', () => {
   const base = sheet();
   const anh = personSheet('2026-10', 'GFT-0117');
-  expect(anh).toEqual({ ...base, name: 'Phạm Ngọc Anh', kind: 'NV', level: 2, contract: 'HĐLĐ từ 3 tháng', slipStatus: 'pending' });
+  expect(anh).toEqual({
+    ...base, name: 'Phạm Ngọc Anh', kind: 'NV', level: 2, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
+    leaveLeft: 12, slipStatus: 'pending'
+  });
+  expect(personSheet('2026-10', 'GFT-0172')).toMatchObject({ employmentStatus: 'Thử việc', leaveLeft: null });
   expect(personSheet('2026-10', 'GFT-0101')?.slipStatus).toBe('done');
   expect(personSheet('2026-10', 'GFT-0123')?.slipStatus).toBe('draft');
   expect(personSheet('2026-10', 'GFT-0156')?.slipStatus).toBe('rejected');

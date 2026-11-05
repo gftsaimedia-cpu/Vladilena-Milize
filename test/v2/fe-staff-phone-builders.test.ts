@@ -85,7 +85,9 @@ describe('App nhân viên từ /me', () => {
     assert.equal(v.deduction, '500.000');
     assert.equal(v.kpi.percent, '66,14%');
     assert.equal(v.kpi.ratio, 0.6614);
-    assert.deepEqual(v.lines.map(l => l.label), ['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI']);
+    // BUG-payroll-13: tạm ứng đã duyệt là một dòng âm, để các khoản cộng lại ra đúng Thực nhận.
+    assert.deepEqual(v.lines.map(l => l.label), ['Lương ngày công', 'Nghỉ phép, iSAT', 'Phụ cấp', 'Lương KPI', 'Tạm ứng']);
+    assert.equal(v.lines.find(l => l.label === 'Tạm ứng')?.value, '−500.000');
   });
 
   it('an official payslip keeps the insurance and tax lines', () => {

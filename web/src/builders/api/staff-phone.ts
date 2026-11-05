@@ -350,13 +350,16 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
   }
   const pct = Number(p.kpiTotalScorePct) || 0;
   const official = inc.state === 'official';
-  const leavePay = (p.paidLeavePay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
+  const leavePay = (p.paidLeavePay || 0) + (p.leaveSettlementPay || 0) + (p.isatPay || 0) + (p.holidayPay || 0);
   const line = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) => ({
     icon,
     label,
     value: n ? `${negative ? '−' : ''}${vnd(n)}` : '0',
     zero: !n
   });
+  // Khoản có tháng có, tháng không (OT, trừ giờ, tạm ứng): chỉ hiện khi khác 0. BE trả trừ giờ là số âm.
+  const ifAny = (icon: IncomeView['lines'][number]['icon'], label: string, n: number, negative = false) =>
+    n ? [line(icon, label, Math.abs(n), negative)] : [];
   return {
     ...base,
     state: official ? 'Chính thức' : 'Tạm tính',
@@ -374,14 +377,18 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
       proposed: vnd(p.kpiProposedAmount ?? p.kpiMaxSalary),
       scores: KPI_PARTS.map(([k, label]) => ({ value: p.kpiScores?.[k] == null ? NONE : String(p.kpiScores[k]), label }))
     },
+    // Các dòng cộng lại (dòng có dấu − thì trừ) bằng đúng Thực nhận của BE.
     lines: [
       line('cal', 'Lương ngày công', p.baseSalaryActual),
       line('leave', 'Nghỉ phép, iSAT', leavePay),
+      ...ifAny('clock', 'Làm thêm giờ', p.otPayTotal || 0),
       line('gift', 'Phụ cấp', p.totalAllowanceActual),
       line('target', 'Lương KPI', p.kpiActualPay),
+      ...ifAny('out', 'Trừ đi muộn, về sớm', p.lateEarlyDeductionAmount || 0, true),
       ...(official
         ? [line('shield', 'Bảo hiểm bắt buộc', p.insuranceDeduction, true), line('coin', 'Thuế TNCN', p.personalIncomeTax, true)]
-        : [])
+        : []),
+      ...ifAny('wallet', 'Tạm ứng', p.advanceDeduction || 0, true)
     ],
     total: `${vnd(p.netIncome)} ₫`
   };
