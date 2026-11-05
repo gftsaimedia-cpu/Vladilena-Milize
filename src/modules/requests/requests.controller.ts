@@ -95,7 +95,8 @@ export class RequestsController {
   async createAdvance(@Body() body: any, @CurrentUser() user: UserSession): Promise<unknown> {
     try {
       const employeeId = requireEmployeeId(body);
-      const created = await this.service.createAdvanceRequest({ ...body, employeeId });
+      // Số tiền, tiêu đề và lý do do server đặt (spec 2.5): chỉ nhận nhân sự và kỳ.
+      const created = await this.service.createAdvanceRequest({ employeeId, period: body.period });
       return createdBody(created);
     } catch (err: any) {
       throw dayConflictHttp(err, 400) ?? new BadRequestError(err.message, { code: 'BAD_REQUEST' });

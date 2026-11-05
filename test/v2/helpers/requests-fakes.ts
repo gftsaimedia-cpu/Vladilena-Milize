@@ -12,6 +12,7 @@ import { HolidaysRepository, type Holiday } from '../../../src/modules/holidays/
 import { DayStatusRepository } from '../../../src/modules/requests/day-status.repository';
 import { WorkSchedule } from '../../../src/modules/attendance/domain';
 import type { TransactionCoordinator } from '../../../src/database';
+import type { AdvanceQuote } from '../../../src/modules/payroll/domain';
 import {
   SystemRequest,
   eachDate,
@@ -341,6 +342,19 @@ export class FakePeriods {
   }
 }
 
+/** Số tiền tạm ứng giả: `quote` trả về, hoặc ném `failWith`; `calls` ghi [uuid, tháng]. */
+export class FakePayroll {
+  quote: AdvanceQuote = { amount: 2_215_385, workDays: 12, from: '2026-11-01', to: '2026-11-15' };
+  failWith: Error | null = null;
+  calls: Array<[string, string]> = [];
+
+  async advanceQuote(employeeId: string, month: string): Promise<AdvanceQuote> {
+    this.calls.push([employeeId, month]);
+    if (this.failWith) throw this.failWith;
+    return this.quote;
+  }
+}
+
 /** Service đủ phụ thuộc; "hôm nay" cố định 2026-11-04 (17:00 giờ Việt Nam). */
 export function makeService() {
   const repo = new FakeRequestsRepository();
@@ -349,9 +363,10 @@ export function makeService() {
   const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
   const periods = new FakePeriods();
-  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days, periods);
+  const payroll = new FakePayroll();
+  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days, periods, payroll);
   service.now = () => new Date('2026-11-04T10:00:00Z');
-  return { service, repo, att, holidays, days, lock, periods };
+  return { service, repo, att, holidays, days, lock, periods, payroll };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

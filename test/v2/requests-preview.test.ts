@@ -118,10 +118,10 @@ describe('Xem trước đơn và tiêu đề do server đặt (spec 2.2, 2.4)', 
       summary: { cases: ['MISSING_CHECK_IN'] },
       warnings: []
     });
-    assert.deepEqual(await ctx.service.previewRequest('advance', { ...base, amount: 1_000_000, period: '2026-11' }), {
+    assert.deepEqual(await ctx.service.previewRequest('advance', { ...base, period: '2026-11' }), {
       ok: true,
       title: 'Tạm ứng lương tháng 11',
-      summary: { month: '2026-11', amount: 1_000_000 },
+      summary: { month: '2026-11', amount: 2_215_385, workDays: 12 },
       warnings: []
     });
     assert.equal(ctx.repo.requests.size, requestsBefore);

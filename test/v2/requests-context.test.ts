@@ -8,6 +8,7 @@ import {
   NV_UUID,
   FakeAttendanceRepository,
   FakeHolidaysRepository,
+  FakePayroll,
   FakeRequestsRepository,
   leaveRequest,
   lwmRequest,
@@ -246,25 +247,20 @@ test('withShiftOverride changes only the given days', () => {
 
 test('advance request is stored under the uuid and filed under the lock', async () => {
   const { service, lock } = makeService();
-  const dto = await service.createAdvanceRequest({ employeeId: 'nv01', title: 't', reason: 'r', amount: 1_000_000, period: '2026-11' });
+  const dto = await service.createAdvanceRequest({ employeeId: 'nv01', period: '2026-11' });
   assert.equal(dto.employeeId, NV_UUID);
   assert.deepEqual(lock.keys, [`requests_${NV_UUID}`]);
   await assert.rejects(
-    service.createAdvanceRequest({ employeeId: 'ghost', title: 't', reason: 'r', amount: 1, period: '2026-11' }),
+    service.createAdvanceRequest({ employeeId: 'ghost', period: '2026-11' }),
     /Không tìm thấy nhân sự: ghost/
   );
 });
 
 test('advance request can be approved (chuyển từ requests.test.ts "4. … tạm ứng")', async () => {
   const { service, repo } = makeService();
-  const req = await service.createAdvanceRequest({
-    employeeId: 'nv01',
-    title: 'Tạm ứng lương giữa tháng',
-    reason: 'Chi tiêu đột xuất',
-    amount: 2000000,
-    period: '2026-11'
-  });
-  assert.deepEqual([req.type, req.status, req.advanceAmount, req.advancePeriod], ['ADVANCE', 'PENDING', 2000000, '2026-11']);
+  const req = await service.createAdvanceRequest({ employeeId: 'nv01', period: '2026-11' });
+  // Số tiền do server tính (FakePayroll), không nhận từ client.
+  assert.deepEqual([req.type, req.status, req.advanceAmount, req.advancePeriod], ['ADVANCE', 'PENDING', 2_215_385, '2026-11']);
   assert.deepEqual(repo.staffMonths, ['2026-11']);
 
   const reviewed = await service.reviewRequest(req.id, 'admin', 'APPROVE');
@@ -314,9 +310,17 @@ test('requireTypeConfig refuses a staff type without configuration', async () =>
 });
 
 test('underEmployeeLock runs directly without a transaction coordinator', async () => {
-  const service = new RequestsService(new FakeRequestsRepository(), new FakeAttendanceRepository());
+  const service = new RequestsService(
+    new FakeRequestsRepository(),
+    new FakeAttendanceRepository(),
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    new FakePayroll()
+  );
   assert.equal(await (service as any).underEmployeeLock(NV_UUID, async () => 42), 42);
-  const dto = await service.createAdvanceRequest({ employeeId: 'nv01', title: 't', reason: 'r', amount: 1, period: '2026-11' });
+  const dto = await service.createAdvanceRequest({ employeeId: 'nv01', period: '2026-11' });
   assert.equal(dto.employeeId, NV_UUID);
 });
 

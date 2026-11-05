@@ -28,6 +28,7 @@ import {
   filingWindow,
   isWholeHour,
   isClosedPeriod,
+  advanceDayOpen,
   planClaims,
   DayConflictError,
   requestTitle,
@@ -46,6 +47,8 @@ import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
 import { SystemService } from '../system/system.service';
+import { PayrollService } from '../payroll/payroll.service';
+import type { AdvanceQuote } from '../payroll/domain';
 
 /**
  * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
@@ -185,10 +188,7 @@ const MONTH_OT_CAP_MINUTES = 40 * 60;
 
 export interface CreateAdvanceInput {
   employeeId: string;
-  /** Không đọc: tiêu đề do server đặt. */
-  title?: string;
-  reason: string;
-  amount: number | bigint;
+  /** Chỉ Admin dùng; nhân viên tự nộp luôn là tháng hiện tại. Mặc định tháng hiện tại. */
   period?: string;
 }
 
@@ -262,6 +262,7 @@ export class RequestsService {
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
     @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
     @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
+    @Optional() @Inject(PayrollService) private readonly payroll?: Pick<PayrollService, 'advanceQuote'>,
   ) {}
 
   /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
@@ -844,26 +845,59 @@ export class RequestsService {
     return { staff, plan: planInLock };
   }
 
-  /** Đơn tạm ứng: kỳ mặc định là tháng hiện tại; không giữ ngày. */
-  private async planAdvance(input: CreateAdvanceInput, _opts: FilingContext): Promise<Filing> {
-    const period = input.period || businessMonthText(this.now());
+  /**
+   * Đơn tạm ứng (spec 2.5): số tiền, tiêu đề và lý do do server đặt, client không gửi được. Nhân viên tự nộp luôn cho
+   * tháng hiện tại và chỉ ngày 16–17; Admin nộp cho kỳ `period` (mặc định tháng hiện tại) vào bất kỳ ngày nào. Mỗi tháng
+   * một đơn đang chờ hoặc đã duyệt (kiểm trong khoá nhân viên). Không giữ ngày.
+   */
+  private async planAdvance(input: CreateAdvanceInput, opts: FilingContext): Promise<Filing> {
+    const today = vietnamToday(this.now());
+    const period = opts.filedBy === 'self' ? today.slice(0, 7) : input.period || today.slice(0, 7);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
+      throw new Error(`period must be a valid YYYY-MM period string, got: ${period}`);
+    }
+    if (opts.filedBy === 'self' && !advanceDayOpen(today)) {
+      throw new Error('Chỉ nộp tạm ứng ngày 16 và 17');
+    }
     const staff = await this.resolveStaff(input.employeeId, period);
-    const planInLock = async (_stores: RequestStores): Promise<PlannedRequest> => {
+    const monthNumber = Number(period.slice(5, 7));
+
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
+      const existing = await stores.requests.list({ employeeId: staff.employeeId, type: 'ADVANCE' });
+      if (existing.some(r => r.advancePeriod === period && isActive(r))) {
+        throw new Error(`Tháng ${monthNumber} đã có đơn tạm ứng`);
+      }
+      const quote = await this.advanceQuoteOf(staff.employeeId, period);
+      if (quote.amount === 0) {
+        throw new Error(`Chưa có ngày công 01–15/${period.slice(5, 7)}`);
+      }
+      const title = requestTitle({ kind: 'advance', month: period });
       const request = SystemRequest.createAdvanceRequest({
         employeeId: staff.employeeId,
-        title: requestTitle({ kind: 'advance', month: period }),
-        reason: input.reason,
-        amount: input.amount,
+        title,
+        reason: title,
+        amount: quote.amount,
         period
       });
       return {
         request,
         claims: null,
-        summary: { month: period, amount: Number(request.advanceAmount) },
+        summary: { month: period, amount: quote.amount, workDays: quote.workDays },
         warnings: []
       };
     };
     return { staff, plan: planInLock };
+  }
+
+  /** Số tiền được ứng của `period`; không tính được (thiếu bộ tính lương hoặc tính lỗi) thì báo một câu chung. */
+  private async advanceQuoteOf(employeeId: string, period: string): Promise<AdvanceQuote> {
+    const failure = new Error('Chưa tính được số tiền tạm ứng');
+    if (!this.payroll) throw failure;
+    try {
+      return await this.payroll.advanceQuote(employeeId, period);
+    } catch {
+      throw failure;
+    }
   }
 
   /** Đơn giải trình (§6.5): một ngày một đơn, không giữ ngày. */
