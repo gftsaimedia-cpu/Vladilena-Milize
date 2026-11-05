@@ -83,6 +83,25 @@ test.describe('phone', () => {
     expect(calls).toEqual([]);
   });
 
+  // Spec 3.4 / 4.3: dòng nhắc mất khi đã gửi giải trình cho ngày đó, hiện lại khi đơn đó bị huỷ.
+  test('cancelling the 24/10 explanation brings the J1 reminder back', async ({ page }) => {
+    const calls = await openPhone(page, '/nv/hom-nay');
+    await page.getByRole('link', { name: REMINDER }).click();
+    await send24(page);
+    await nav(page).getByRole('link', { name: 'Hôm nay' }).click();
+    await expect(page.getByRole('region', { name: 'Ca hôm nay' })).toBeVisible();
+    await expect(page.getByRole('link', { name: REMINDER })).toHaveCount(0);
+
+    await nav(page).getByRole('link', { name: 'Yêu cầu' }).click();
+    await page.getByRole('link', { name: 'Giải trình 24/10, Chờ duyệt' }).click();
+    const sheet = sheetOf(page, 'Giải trình 24/10');
+    await cancelIn(page, sheet);
+    await sheet.getByRole('button', { name: 'Đóng' }).click();
+    await nav(page).getByRole('link', { name: 'Hôm nay' }).click();
+    await expect(page.getByRole('link', { name: REMINDER })).toHaveAttribute('href', FORM_24);
+    expect(calls).toEqual([]);
+  });
+
   test('J3 of 24/10 has a Giải trình button that opens the form prefilled; J3 of 27/10 has none', async ({ page }) => {
     const calls = await openPhone(page, '/nv/cham-cong?ngay=2026-10-27');
     const day27 = sheetOf(page, 'Thứ Ba 27/10/2026');
@@ -249,6 +268,21 @@ test.describe('desktop', () => {
     await expect(col1(page).getByRole('link', { name: REMINDER })).not.toHaveAttribute('aria-current');
     await send24(page);
     await expect(col1(page).getByRole('link', { name: REMINDER })).toHaveCount(0);
+    expect(calls).toEqual([]);
+  });
+
+  test('cancelling the 24/10 explanation brings the reminder back to the Today column', async ({ page }) => {
+    const calls = await openDesktop(page, '/nv/hom-nay');
+    await col1(page).getByRole('link', { name: REMINDER }).click();
+    await send24(page);
+    await expect(col1(page).getByRole('link', { name: REMINDER })).toHaveCount(0);
+
+    await col1(page).getByRole('link', { name: 'Giải trình 24/10, Chờ duyệt' }).click();
+    const drawer = sheetOf(page, 'Giải trình 24/10');
+    await cancelIn(page, drawer);
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(col1(page).getByRole('link', { name: REMINDER })).toHaveAttribute('href', FORM_24);
     expect(calls).toEqual([]);
   });
 
