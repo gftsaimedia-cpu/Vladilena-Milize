@@ -153,8 +153,6 @@ export interface PayrollPeriodsTable {
   attendance_locked_at: Generated<string | null>;
   calculated_by: Generated<string | null>;
   calculated_at: Generated<string | null>;
-  reviewed_by: Generated<string | null>;
-  reviewed_at: Generated<string | null>;
   approved_by: Generated<string | null>;
   approved_at: Generated<string | null>;
   paid_by: Generated<string | null>;

@@ -86,12 +86,11 @@ CREATE TABLE pay_entries (
 
 CREATE TABLE payroll_periods (
     month TEXT PRIMARY KEY,
-    status TEXT NOT NULL CHECK (status IN ('open','attendance_locked','calculated','reviewed','approved','paid')),
+    status TEXT NOT NULL CHECK (status IN ('open','attendance_locked','calculated','approved','paid')),
     rev BIGINT NOT NULL DEFAULT 1,
     current_run_id BIGINT,
     attendance_locked_by TEXT, attendance_locked_at TEXT,
     calculated_by TEXT, calculated_at TEXT,
-    reviewed_by TEXT, reviewed_at TEXT,
     approved_by TEXT, approved_at TEXT,
     paid_by TEXT, paid_at TEXT, paid_ref TEXT,
     reopen_count BIGINT NOT NULL DEFAULT 0
