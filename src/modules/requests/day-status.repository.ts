@@ -68,10 +68,15 @@ export class DayStatusRepository {
       .execute();
   }
 
-  /** Xoá dòng của đúng nhân sự `employeeId` ở các ngày `dates`. */
-  async remove(employeeId: string, dates: readonly string[]): Promise<void> {
+  /** Xoá dòng của nhân sự `employeeId` ở các ngày `dates`, chỉ dòng còn thuộc đơn `requestId`. */
+  async remove(employeeId: string, dates: readonly string[], requestId: string): Promise<void> {
     if (dates.length === 0) return;
-    await this.qb.deleteFrom('day_status').where('employee_id', '=', employeeId).where('work_date', 'in', dates).execute();
+    await this.qb
+      .deleteFrom('day_status')
+      .where('employee_id', '=', employeeId)
+      .where('work_date', 'in', dates)
+      .where('request_id', '=', requestId)
+      .execute();
   }
 
   /**

@@ -787,6 +787,7 @@ export class RequestsService {
         }
       } else if (action === 'REJECT') {
         req.reject(reviewerId, note);
+        // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã từ chối.
         await this.releaseDays(req, stores);
       } else {
         throw new Error(`Invalid review action '${action}'; must be 'APPROVE' or 'REJECT'`);
@@ -814,6 +815,7 @@ export class RequestsService {
       await this.lockEmployee(trx, req.employeeId);
 
       req.cancel(cancellerId, reason);
+      // Trả ngày trước khi lưu: sau khi lưu, JOIN của `day_status` không còn thấy dòng của đơn đã huỷ.
       await this.releaseDays(req, stores);
       await stores.requests.save(req);
       return req.toJSON();
@@ -868,7 +870,7 @@ export class RequestsService {
     const freed = held.filter(day => !handedBack.includes(day));
 
     for (const [employeeId, dates] of groupDates(freed)) {
-      await daysRepo.remove(employeeId, dates);
+      await daysRepo.remove(employeeId, dates, req.id);
     }
     // Hai nhóm không chung ngày: dòng của đơn này và dòng của đơn khác không cùng (nhân sự, ngày) (khoá chính).
     await daysRepo.upsert([
