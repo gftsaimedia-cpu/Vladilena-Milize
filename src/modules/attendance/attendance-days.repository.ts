@@ -13,6 +13,7 @@ import type {
   ScheduleFacts,
   ShiftFacts
 } from './domain/attendance-day';
+import { addDaysText } from './domain/calendar';
 import type { DetectedCase } from './domain/explanation-detect';
 import type {
   CheckInStatus,
@@ -384,6 +385,28 @@ export class AttendanceDaysRepository {
       .orderBy('uuid', 'asc')
       .execute();
     return rows.flatMap(row => (row.uuid ? [row.uuid] : []));
+  }
+
+  /**
+   * Các ngày trong [from, to] cần ghi lại cho job giờ: ngày chưa có dòng, cộng ngày đang `PENDING` mà
+   * `work_date` ≤ `today`. Một truy vấn đọc dòng đang có; kết quả khử trùng, ngày tăng dần.
+   */
+  async datesNeedingRefresh(employeeId: string, from: string, to: string, today: string): Promise<string[]> {
+    const rows = await this.qb
+      .selectFrom('timesheet_entries')
+      .select([sql<string>`to_char(work_date, 'YYYY-MM-DD')`.as('work_date_text'), 'status'])
+      .where('employee_id', '=', employeeId)
+      .where('work_date', '>=', from)
+      .where('work_date', '<=', to)
+      .execute();
+    const existing = new Map(rows.map(row => [row.work_date_text, row.status]));
+
+    const needed: string[] = [];
+    for (let date = from; date <= to; date = addDaysText(date, 1)) {
+      const status = existing.get(date);
+      if (status === undefined || (status === 'PENDING' && date <= today)) needed.push(date);
+    }
+    return needed;
   }
 
   /** Các dòng ngày của một nhân sự trong [from, to] (gồm cả hai đầu), theo `work_date` tăng. */

@@ -53,8 +53,9 @@ export class AttendanceDaysService {
   }
 
   /**
-   * Tính lại một ngày cho mọi nhân sự còn hiệu lực trong ngày đó. Mỗi người một giao dịch riêng,
-   * nên một người lỗi không kéo theo người khác. Trả về số người đã ghi.
+   * Tính lại một ngày cho mọi nhân sự còn hiệu lực trong ngày đó. Mỗi người một giao dịch riêng: người đã
+   * ghi xong vẫn được giữ, nhưng gặp lỗi ở ai thì dừng và ném lỗi ngay, không chạy tiếp những người sau
+   * (hành động của Admin cần thấy lỗi). Trả về số người đã ghi.
    */
   async refreshDateForAll(date: string, opts: { now?: Date } = {}): Promise<number> {
     const ids = await this.repo.activeEmployeeIds(date, date);

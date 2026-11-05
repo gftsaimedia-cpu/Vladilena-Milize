@@ -4,7 +4,7 @@ import './preload'; // đặt luồng libuv và nạp .env: phải đứng đầ
 import { createServer } from './bootstrap';
 import { start } from './main';
 
-const server = createServer();
+const server = createServer({ startJobs: require.main === module });
 if (require.main === module)
   start(server).catch(error => {
     console.error(error);
