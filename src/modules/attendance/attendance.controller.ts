@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, RequireCap } from '../../common';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
 @Controller('api/v2/attendance')
@@ -14,6 +14,7 @@ export class AttendanceController {
       const result = await this.service.recordPunch(body);
       return result;
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       throw new BadRequestError(err.message, { code: 'BAD_PUNCH_INPUT' });
     }
   }

@@ -1,5 +1,6 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
-import { TransactionCoordinator } from '../../database';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { PeriodGate } from '../periods/period-gate';
 import { businessDateText } from '../../common/business-date';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
@@ -50,6 +51,7 @@ export class AttendanceService {
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: PeriodGate,
   ) {}
 
   /**
@@ -66,7 +68,10 @@ export class AttendanceService {
     const workDate = input.workDate || businessDateText();
     const lockKey = `punch_${input.employeeId}_${workDate}`;
 
-    const executePunch = async () => {
+    const executePunch = async (trx?: DatabaseTransaction) => {
+      // 0. Tháng đã chốt thì không ghi gì; giữ khoá chia sẻ của tháng trên chính giao dịch của khoá chấm công, để Chốt công chờ lượt chấm đang chạy.
+      await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'punch');
+
       // 1. Lấy hoặc tạo lịch làm việc cho ngày công
       let schedule = await this.repo.findSchedule(input.employeeId, workDate);
       if (!schedule) {
@@ -160,12 +165,13 @@ export class AttendanceService {
     };
 
     if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(lockKey, executePunch);
+      return await this.txCoordinator.withLock(lockKey, trx => executePunch(trx));
     }
     return await executePunch();
   }
 
   async recalculateTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheetDTO> {
+    await this.periodGate?.hold(undefined, [workDate.slice(0, 7)], 'recalculate');
     const schedule = await this.repo.findSchedule(employeeId, workDate);
     if (!schedule) {
       throw new Error(`Không tìm thấy lịch làm việc cho ngày ${workDate}`);

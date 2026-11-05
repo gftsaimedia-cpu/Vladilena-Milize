@@ -1,5 +1,7 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Optional } from '@nestjs/common';
 import { isValidDateText } from '../../common/date-text';
+import { gateAllows } from '../periods/domain';
+import { PeriodGate } from '../periods/period-gate';
 import { HolidayNotFoundError } from './holidays.errors';
 import { HolidaysRepository, type Holiday } from './holidays.repository';
 
@@ -30,7 +32,10 @@ function formatFullDate(date: string): string {
 
 @Injectable()
 export class HolidaysService {
-  constructor(@Inject(HolidaysRepository) private readonly repo: HolidaysRepository) {}
+  constructor(
+    @Inject(HolidaysRepository) private readonly repo: HolidaysRepository,
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: PeriodGate
+  ) {}
 
   async list(year: unknown): Promise<Holiday[]> {
     const y = parseYear(year);
@@ -43,6 +48,7 @@ export class HolidaysService {
     const trimmed = typeof name === 'string' ? name.trim() : '';
     if (trimmed.length === 0) throw new Error('Tên ngày lễ không được trống');
     const holiday: Holiday = { date, name: trimmed };
+    await this.periodGate?.hold(undefined, [date.slice(0, 7)], 'holiday');
     if (!(await this.repo.insert(holiday, createdBy))) {
       throw new Error(`Ngày ${formatFullDate(date)} đã có trong lịch lễ`);
     }
@@ -55,6 +61,7 @@ export class HolidaysService {
     const added: string[] = [];
     for (const { monthDay, name } of FIXED_HOLIDAYS) {
       const date = `${y}-${monthDay}`;
+      if (this.periodGate && !gateAllows(await this.periodGate.statusOf(undefined, date.slice(0, 7)), 'holiday')) continue;
       if (await this.repo.insert({ date, name }, createdBy)) added.push(date);
     }
     return added;
@@ -62,6 +69,7 @@ export class HolidaysService {
 
   async remove(date: string): Promise<void> {
     if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
+    await this.periodGate?.hold(undefined, [date.slice(0, 7)], 'holiday');
     if (!(await this.repo.remove(date))) throw new HolidayNotFoundError(date);
   }
 }

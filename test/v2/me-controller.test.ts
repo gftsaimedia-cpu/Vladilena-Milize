@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { MeController } from '../../src/modules/me/me.controller';
+import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
 const req = (user: any = NAM) => ({ user }) as any;
@@ -53,6 +54,12 @@ describe('MeController', () => {
     assert.equal(att.calls.recordPunch[0].employeeId, 'u-nam');
     assert.equal(att.calls.recordPunch[0].type, 'IN');
     assert.equal(att.calls.recordPunch[0].latitude, 1);
+  });
+
+  it('a punch into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ att: fake({ recordPunch: () => { throw lock; } }) });
+    await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2, accuracyM: 10 } as any), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
   });
 
   it("reading someone else's request is a 404", async () => {

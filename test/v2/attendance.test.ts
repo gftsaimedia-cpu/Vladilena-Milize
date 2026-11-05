@@ -3,6 +3,8 @@ import { test, describe, it } from 'node:test';
 import { randomUUID } from 'node:crypto';
 import { AttendanceService } from '../../src/modules/attendance/attendance.service';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
+import { AttendanceController } from '../../src/modules/attendance/attendance.controller';
+import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
 import { PunchEvent, DailyTimesheet, WorkSchedule } from '../../src/modules/attendance/domain';
 
 class FakeAttendanceRepository extends AttendanceRepository {
@@ -115,5 +117,18 @@ describe('Attendance V2 - Check In / Check Out & Timesheet Calculation', () => {
     const recalculated = await service.recalculateTimesheet(emp1, '2026-11-04');
     assert.equal(recalculated.metrics.workHours, 9);
     assert.equal(recalculated.status, 'PRESENT');
+  });
+});
+
+describe('AttendanceController with a locked month', () => {
+  it('lets PERIOD_LOCKED through as a 409 on punch and recalculate', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const ctrl = new AttendanceController({
+      recordPunch: async () => { throw lock; },
+      recalculateTimesheet: async () => { throw lock; }
+    } as any);
+    const isLock = (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED';
+    await assert.rejects(ctrl.recordPunch({ employeeId: 'e', type: 'IN', workDate: '2026-10-20' }), isLock);
+    await assert.rejects(ctrl.recalculateTimesheet({ employeeId: 'e', workDate: '2026-10-20' }), isLock);
   });
 });
