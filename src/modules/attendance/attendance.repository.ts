@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common';
-import type { Kysely } from 'kysely';
+import type { Kysely, Selectable } from 'kysely';
 import { KYSELY_DB, type DB } from '../../database';
 import { PunchEvent, DailyTimesheet, WorkSchedule } from './domain';
 
@@ -8,6 +8,48 @@ export interface TimesheetFilter {
   startDate?: string;
   endDate?: string;
   status?: string;
+}
+
+type TimesheetEntry = Selectable<DB['timesheet_entries']>;
+
+function instantText(value: Date | string | null): string | null {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString() : String(value);
+}
+
+/** Dòng timesheet_entries thành DailyTimesheet (đọc đủ cột dòng ngày). */
+function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
+  return DailyTimesheet.fromRow({
+    id: row.id,
+    employee_id: row.employee_id,
+    work_date: row.work_date,
+    shift_type: row.shift_type,
+    shift_start_time: row.shift_start_time,
+    shift_end_time: row.shift_end_time,
+    shift_allowance_pct: row.shift_allowance_pct,
+    actual_check_in: instantText(row.actual_check_in),
+    actual_check_out: instantText(row.actual_check_out),
+    work_hours: Number(row.work_hours ?? 0),
+    work_units: Number(row.work_units ?? 0),
+    ot_hours: Number(row.ot_hours ?? 0),
+    late_minutes: Number(row.late_minutes ?? 0),
+    early_minutes: Number(row.early_minutes ?? 0),
+    status: row.status,
+    is_locked: Boolean(row.is_locked),
+    check_in_status: row.check_in_status,
+    check_out_status: row.check_out_status,
+    day_status: row.day_status,
+    leave_type: row.leave_type,
+    source_request_id: row.source_request_id,
+    cases_json: row.cases_json,
+    explanation_status: row.explanation_status,
+    explanation_request_id: row.explanation_request_id,
+    pay_units: row.pay_units,
+    deduction_minutes: row.deduction_minutes,
+    counts_as_workday: row.counts_as_workday,
+    counts_as_day_off: row.counts_as_day_off,
+    makeup_minutes: row.makeup_minutes
+  });
 }
 
 @Injectable()
@@ -100,6 +142,16 @@ export class AttendanceRepository {
         check_in_status: row.check_in_status,
         check_out_status: row.check_out_status,
         day_status: row.day_status,
+        leave_type: row.leave_type,
+        source_request_id: row.source_request_id,
+        cases_json: row.cases_json,
+        explanation_status: row.explanation_status,
+        explanation_request_id: row.explanation_request_id,
+        pay_units: row.pay_units,
+        deduction_minutes: row.deduction_minutes,
+        counts_as_workday: row.counts_as_workday,
+        counts_as_day_off: row.counts_as_day_off,
+        makeup_minutes: row.makeup_minutes,
         created_at: now,
         updated_at: now
       })
@@ -121,6 +173,16 @@ export class AttendanceRepository {
           check_in_status: eb.ref('excluded.check_in_status'),
           check_out_status: eb.ref('excluded.check_out_status'),
           day_status: eb.ref('excluded.day_status'),
+          leave_type: eb.ref('excluded.leave_type'),
+          source_request_id: eb.ref('excluded.source_request_id'),
+          cases_json: eb.ref('excluded.cases_json'),
+          explanation_status: eb.ref('excluded.explanation_status'),
+          explanation_request_id: eb.ref('excluded.explanation_request_id'),
+          pay_units: eb.ref('excluded.pay_units'),
+          deduction_minutes: eb.ref('excluded.deduction_minutes'),
+          counts_as_workday: eb.ref('excluded.counts_as_workday'),
+          counts_as_day_off: eb.ref('excluded.counts_as_day_off'),
+          makeup_minutes: eb.ref('excluded.makeup_minutes'),
           updated_at: now
         }))
       )
@@ -154,35 +216,7 @@ export class AttendanceRepository {
       .executeTakeFirst();
 
     if (!row) return null;
-    return DailyTimesheet.fromRow({
-      id: row.id,
-      employee_id: row.employee_id,
-      work_date: row.work_date,
-      shift_type: row.shift_type,
-      shift_start_time: row.shift_start_time,
-      shift_end_time: row.shift_end_time,
-      shift_allowance_pct: Number(row.shift_allowance_pct),
-      actual_check_in: row.actual_check_in
-        ? row.actual_check_in instanceof Date
-          ? row.actual_check_in.toISOString()
-          : String(row.actual_check_in)
-        : null,
-      actual_check_out: row.actual_check_out
-        ? row.actual_check_out instanceof Date
-          ? row.actual_check_out.toISOString()
-          : String(row.actual_check_out)
-        : null,
-      work_hours: Number(row.work_hours ?? 0),
-      work_units: Number(row.work_units ?? 0),
-      ot_hours: Number(row.ot_hours ?? 0),
-      late_minutes: Number(row.late_minutes ?? 0),
-      early_minutes: Number(row.early_minutes ?? 0),
-      status: row.status,
-      is_locked: Boolean(row.is_locked),
-      check_in_status: row.check_in_status,
-      check_out_status: row.check_out_status,
-      day_status: row.day_status
-    });
+    return timesheetFromEntry(row);
   }
 
   /**
@@ -196,35 +230,7 @@ export class AttendanceRepository {
       .executeTakeFirst();
 
     if (!row) return null;
-    return DailyTimesheet.fromRow({
-      id: row.id,
-      employee_id: row.employee_id,
-      work_date: row.work_date,
-      shift_type: row.shift_type,
-      shift_start_time: row.shift_start_time,
-      shift_end_time: row.shift_end_time,
-      shift_allowance_pct: Number(row.shift_allowance_pct),
-      actual_check_in: row.actual_check_in
-        ? row.actual_check_in instanceof Date
-          ? row.actual_check_in.toISOString()
-          : String(row.actual_check_in)
-        : null,
-      actual_check_out: row.actual_check_out
-        ? row.actual_check_out instanceof Date
-          ? row.actual_check_out.toISOString()
-          : String(row.actual_check_out)
-        : null,
-      work_hours: Number(row.work_hours ?? 0),
-      work_units: Number(row.work_units ?? 0),
-      ot_hours: Number(row.ot_hours ?? 0),
-      late_minutes: Number(row.late_minutes ?? 0),
-      early_minutes: Number(row.early_minutes ?? 0),
-      status: row.status,
-      is_locked: Boolean(row.is_locked),
-      check_in_status: row.check_in_status,
-      check_out_status: row.check_out_status,
-      day_status: row.day_status
-    });
+    return timesheetFromEntry(row);
   }
 
   /**
@@ -248,37 +254,7 @@ export class AttendanceRepository {
 
     const rows = await query.orderBy('work_date', 'asc').orderBy('employee_id', 'asc').execute();
 
-    return rows.map(row =>
-      DailyTimesheet.fromRow({
-        id: row.id,
-        employee_id: row.employee_id,
-        work_date: row.work_date,
-        shift_type: row.shift_type,
-        shift_start_time: row.shift_start_time,
-        shift_end_time: row.shift_end_time,
-        shift_allowance_pct: Number(row.shift_allowance_pct),
-        actual_check_in: row.actual_check_in
-          ? row.actual_check_in instanceof Date
-            ? row.actual_check_in.toISOString()
-            : String(row.actual_check_in)
-          : null,
-        actual_check_out: row.actual_check_out
-          ? row.actual_check_out instanceof Date
-            ? row.actual_check_out.toISOString()
-            : String(row.actual_check_out)
-          : null,
-        work_hours: Number(row.work_hours ?? 0),
-        work_units: Number(row.work_units ?? 0),
-        ot_hours: Number(row.ot_hours ?? 0),
-        late_minutes: Number(row.late_minutes ?? 0),
-        early_minutes: Number(row.early_minutes ?? 0),
-        status: row.status,
-        is_locked: Boolean(row.is_locked),
-        check_in_status: row.check_in_status,
-        check_out_status: row.check_out_status,
-        day_status: row.day_status
-      })
-    );
+    return rows.map(timesheetFromEntry);
   }
 
   /**

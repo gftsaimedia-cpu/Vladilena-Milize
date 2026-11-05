@@ -170,7 +170,7 @@ test('day_status trên PostgreSQL', async t => {
     const reset = () =>
       client.query(
         `TRUNCATE day_status, work_schedules, makeup_slots, isat_registration_conditions, isat_registrations,
-                  explanation_cases, system_requests`
+                  explanation_cases, timesheet_entries, system_requests`
       );
 
     /** Các dòng `day_status` của một người: [ngày, trạng thái, đơn, đơn gốc]. */

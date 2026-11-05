@@ -3,21 +3,39 @@ import { toDateText } from '../../../common/date-text';
 import { WorkMetrics, WorkMetricsDTO } from './work-metrics';
 import { PunchEvent } from './punch-event';
 import { WorkSchedule, ShiftType, CheckInStatus, CheckOutStatus, DayStatus } from './work-schedule';
+import type { AttendanceDayStatus, ExplanationStatus } from './attendance-day';
+import type { DetectedCase } from './explanation-detect';
+import type { LeaveType } from '../../requests/domain/leave-types';
 
-export type DailyTimesheetStatus = 'PRESENT' | 'LEAVE_PAID' | 'LEAVE_UNPAID' | 'ABSENT' | 'HOLIDAY';
+export type DailyTimesheetStatus = AttendanceDayStatus;
+
+/** Các trường dòng ngày đầy đủ (spec attendance-core 6); thiếu thì lấy mặc định của cột. */
+export interface DayRowProps {
+  leaveType?: LeaveType | null;
+  sourceRequestId?: string | null;
+  cases?: DetectedCase[];
+  explanationStatus?: ExplanationStatus;
+  explanationRequestId?: string | null;
+  payUnits?: 0 | 1;
+  deductionMinutes?: number;
+  countsAsWorkday?: boolean;
+  countsAsDayOff?: boolean;
+  makeupMinutes?: number;
+}
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/;
 
-export interface DailyTimesheetProps {
+export interface DailyTimesheetProps extends DayRowProps {
   id: string;
   employeeId: string;
   workDate: string;
-  shiftType: ShiftType;
-  shiftStartTime: string;
-  shiftEndTime: string;
-  shiftAllowancePct: number;
+  /** Ca rỗng (null) trên ngày không có ca. */
+  shiftType: ShiftType | null;
+  shiftStartTime: string | null;
+  shiftEndTime: string | null;
+  shiftAllowancePct: number | null;
   actualCheckIn?: Date | null;
   actualCheckOut?: Date | null;
   metrics?: WorkMetrics;
@@ -54,10 +72,10 @@ export interface DailyTimesheetRow {
   id: string;
   employee_id: string;
   work_date: string;
-  shift_type: string;
-  shift_start_time: string;
-  shift_end_time: string;
-  shift_allowance_pct: number;
+  shift_type: string | null;
+  shift_start_time: string | null;
+  shift_end_time: string | null;
+  shift_allowance_pct: number | null;
   actual_check_in: string | null;
   actual_check_out: string | null;
   work_hours: number;
@@ -70,16 +88,26 @@ export interface DailyTimesheetRow {
   check_in_status?: string;
   check_out_status?: string;
   day_status?: string;
+  leave_type?: string | null;
+  source_request_id?: string | null;
+  cases_json?: string;
+  explanation_status?: string;
+  explanation_request_id?: string | null;
+  pay_units?: number;
+  deduction_minutes?: number;
+  counts_as_workday?: boolean;
+  counts_as_day_off?: boolean;
+  makeup_minutes?: number;
 }
 
 export interface DailyTimesheetDTO {
   id: string;
   employeeId: string;
   workDate: string;
-  shiftType: ShiftType;
-  shiftStartTime: string;
-  shiftEndTime: string;
-  shiftAllowancePct: number;
+  shiftType: ShiftType | null;
+  shiftStartTime: string | null;
+  shiftEndTime: string | null;
+  shiftAllowancePct: number | null;
   actualCheckIn: string | null;
   actualCheckOut: string | null;
   metrics: WorkMetricsDTO;
@@ -88,6 +116,16 @@ export interface DailyTimesheetDTO {
   checkInStatus: CheckInStatus;
   checkOutStatus: CheckOutStatus;
   dayStatus: DayStatus;
+  leaveType: LeaveType | null;
+  sourceRequestId: string | null;
+  cases: DetectedCase[];
+  explanationStatus: ExplanationStatus;
+  explanationRequestId: string | null;
+  payUnits: number;
+  deductionMinutes: number;
+  countsAsWorkday: boolean;
+  countsAsDayOff: boolean;
+  makeupMinutes: number;
 }
 
 function buildShiftBoundaries(
@@ -127,10 +165,10 @@ export class DailyTimesheet {
   readonly id: string;
   readonly employeeId: string;
   readonly workDate: string;
-  readonly shiftType: ShiftType;
-  readonly shiftStartTime: string;
-  readonly shiftEndTime: string;
-  readonly shiftAllowancePct: number;
+  readonly shiftType: ShiftType | null;
+  readonly shiftStartTime: string | null;
+  readonly shiftEndTime: string | null;
+  readonly shiftAllowancePct: number | null;
   readonly actualCheckIn: Date | null;
   readonly actualCheckOut: Date | null;
   readonly metrics: WorkMetrics;
@@ -139,6 +177,16 @@ export class DailyTimesheet {
   readonly checkInStatus: CheckInStatus;
   readonly checkOutStatus: CheckOutStatus;
   readonly dayStatus: DayStatus;
+  readonly leaveType: LeaveType | null;
+  readonly sourceRequestId: string | null;
+  readonly cases: DetectedCase[];
+  readonly explanationStatus: ExplanationStatus;
+  readonly explanationRequestId: string | null;
+  readonly payUnits: number;
+  readonly deductionMinutes: number;
+  readonly countsAsWorkday: boolean;
+  readonly countsAsDayOff: boolean;
+  readonly makeupMinutes: number;
 
   constructor(props: DailyTimesheetProps) {
     if (!props || typeof props !== 'object') {
@@ -157,26 +205,33 @@ export class DailyTimesheet {
       throw new Error(`Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${props.workDate}`);
     }
 
-    if (
-      props.shiftType !== 'NORMAL' &&
-      props.shiftType !== 'FLEX' &&
-      props.shiftType !== 'NIGHT' &&
-      props.shiftType !== 'CUSTOM'
-    ) {
-      throw new Error(`Loại ca không hợp lệ (NORMAL, FLEX, NIGHT, CUSTOM): ${props.shiftType}`);
-    }
+    const hasShift = props.shiftType !== null;
+    if (hasShift) {
+      if (
+        props.shiftType !== 'NORMAL' &&
+        props.shiftType !== 'FLEX' &&
+        props.shiftType !== 'NIGHT' &&
+        props.shiftType !== 'CUSTOM'
+      ) {
+        throw new Error(`Loại ca không hợp lệ (NORMAL, FLEX, NIGHT, CUSTOM): ${props.shiftType}`);
+      }
 
-    if (
-      typeof props.shiftStartTime !== 'string' ||
-      !TIME_REGEX.test(props.shiftStartTime) ||
-      typeof props.shiftEndTime !== 'string' ||
-      !TIME_REGEX.test(props.shiftEndTime)
-    ) {
-      throw new Error('Định dạng giờ ca không hợp lệ (HH:mm)');
+      if (
+        typeof props.shiftStartTime !== 'string' ||
+        !TIME_REGEX.test(props.shiftStartTime) ||
+        typeof props.shiftEndTime !== 'string' ||
+        !TIME_REGEX.test(props.shiftEndTime)
+      ) {
+        throw new Error('Định dạng giờ ca không hợp lệ (HH:mm)');
+      }
+    } else if (props.shiftStartTime !== null || props.shiftEndTime !== null || props.shiftAllowancePct !== null) {
+      throw new Error('Ngày không có ca thì giờ ca và phụ cấp ca cũng phải rỗng');
     }
 
     // Kiểm tra tính toàn vẹn phụ cấp ca
-    if (props.shiftType === 'NORMAL') {
+    if (!hasShift) {
+      // không có ca: không có gì để kiểm
+    } else if (props.shiftType === 'NORMAL') {
       if (props.shiftAllowancePct !== undefined && props.shiftAllowancePct !== 0) {
         throw new Error('Ca NORMAL không có phụ cấp ca (0%)');
       }
@@ -222,8 +277,9 @@ export class DailyTimesheet {
     this.shiftType = props.shiftType;
     this.shiftStartTime = props.shiftStartTime;
     this.shiftEndTime = props.shiftEndTime;
-    this.shiftAllowancePct =
-      props.shiftAllowancePct ?? (props.shiftType === 'FLEX' ? 10 : props.shiftType === 'NIGHT' ? 30 : 0);
+    this.shiftAllowancePct = !hasShift
+      ? null
+      : (props.shiftAllowancePct ?? (props.shiftType === 'FLEX' ? 10 : props.shiftType === 'NIGHT' ? 30 : 0));
     this.actualCheckIn = checkIn;
     this.actualCheckOut = checkOut;
     this.metrics = props.metrics instanceof WorkMetrics ? props.metrics : new WorkMetrics(props.metrics);
@@ -232,6 +288,16 @@ export class DailyTimesheet {
     this.checkInStatus = props.checkInStatus ?? 'PENDING';
     this.checkOutStatus = props.checkOutStatus ?? 'PENDING';
     this.dayStatus = props.dayStatus ?? 'PLANNED';
+    this.leaveType = props.leaveType ?? null;
+    this.sourceRequestId = props.sourceRequestId ?? null;
+    this.cases = props.cases ?? [];
+    this.explanationStatus = props.explanationStatus ?? 'NONE';
+    this.explanationRequestId = props.explanationRequestId ?? null;
+    this.payUnits = props.payUnits ?? 0;
+    this.deductionMinutes = props.deductionMinutes ?? 0;
+    this.countsAsWorkday = props.countsAsWorkday ?? false;
+    this.countsAsDayOff = props.countsAsDayOff ?? false;
+    this.makeupMinutes = props.makeupMinutes ?? 0;
   }
 
   static create(props: CreateDailyTimesheetProps): DailyTimesheet {
@@ -300,6 +366,9 @@ export class DailyTimesheet {
 
     const isExplicitSchedule = Boolean(schedule);
     if (!schedule) {
+      if (this.shiftType === null || this.shiftStartTime === null || this.shiftEndTime === null) {
+        throw new Error('Ngày không có ca, không thể tính công khi thiếu lịch làm việc');
+      }
       schedule = WorkSchedule.create({
         employeeId: this.employeeId,
         workDate: this.workDate,
@@ -550,7 +619,17 @@ export class DailyTimesheet {
       isLocked: true,
       checkInStatus: this.checkInStatus,
       checkOutStatus: this.checkOutStatus,
-      dayStatus: this.dayStatus
+      dayStatus: this.dayStatus,
+      leaveType: this.leaveType,
+      sourceRequestId: this.sourceRequestId,
+      cases: this.cases,
+      explanationStatus: this.explanationStatus,
+      explanationRequestId: this.explanationRequestId,
+      payUnits: this.payUnits as 0 | 1,
+      deductionMinutes: this.deductionMinutes,
+      countsAsWorkday: this.countsAsWorkday,
+      countsAsDayOff: this.countsAsDayOff,
+      makeupMinutes: this.makeupMinutes
     });
   }
 
@@ -574,7 +653,17 @@ export class DailyTimesheet {
       is_locked: this.isLocked,
       check_in_status: this.checkInStatus,
       check_out_status: this.checkOutStatus,
-      day_status: this.dayStatus
+      day_status: this.dayStatus,
+      leave_type: this.leaveType,
+      source_request_id: this.sourceRequestId,
+      cases_json: JSON.stringify(this.cases),
+      explanation_status: this.explanationStatus,
+      explanation_request_id: this.explanationRequestId,
+      pay_units: this.payUnits,
+      deduction_minutes: this.deductionMinutes,
+      counts_as_workday: this.countsAsWorkday,
+      counts_as_day_off: this.countsAsDayOff,
+      makeup_minutes: this.makeupMinutes
     };
   }
 
@@ -589,10 +678,10 @@ export class DailyTimesheet {
       id: row.id,
       employeeId: row.employee_id,
       workDate,
-      shiftType: row.shift_type as ShiftType,
-      shiftStartTime: row.shift_start_time,
-      shiftEndTime: row.shift_end_time,
-      shiftAllowancePct: Number(row.shift_allowance_pct),
+      shiftType: (row.shift_type as ShiftType | null) ?? null,
+      shiftStartTime: row.shift_start_time ?? null,
+      shiftEndTime: row.shift_end_time ?? null,
+      shiftAllowancePct: row.shift_allowance_pct == null ? null : Number(row.shift_allowance_pct),
       actualCheckIn: row.actual_check_in ? new Date(row.actual_check_in) : null,
       actualCheckOut: row.actual_check_out ? new Date(row.actual_check_out) : null,
       metrics: new WorkMetrics({
@@ -606,7 +695,17 @@ export class DailyTimesheet {
       isLocked: Boolean(row.is_locked),
       checkInStatus: (row.check_in_status as CheckInStatus) || 'PENDING',
       checkOutStatus: (row.check_out_status as CheckOutStatus) || 'PENDING',
-      dayStatus: (row.day_status as DayStatus) || 'PLANNED'
+      dayStatus: (row.day_status as DayStatus) || 'PLANNED',
+      leaveType: (row.leave_type as LeaveType | null | undefined) ?? null,
+      sourceRequestId: row.source_request_id ?? null,
+      cases: row.cases_json ? (JSON.parse(row.cases_json) as DetectedCase[]) : [],
+      explanationStatus: (row.explanation_status as ExplanationStatus | undefined) ?? 'NONE',
+      explanationRequestId: row.explanation_request_id ?? null,
+      payUnits: Number(row.pay_units ?? 0),
+      deductionMinutes: Number(row.deduction_minutes ?? 0),
+      countsAsWorkday: Boolean(row.counts_as_workday),
+      countsAsDayOff: Boolean(row.counts_as_day_off),
+      makeupMinutes: Number(row.makeup_minutes ?? 0)
     });
   }
 
@@ -626,7 +725,17 @@ export class DailyTimesheet {
       isLocked: this.isLocked,
       checkInStatus: this.checkInStatus,
       checkOutStatus: this.checkOutStatus,
-      dayStatus: this.dayStatus
+      dayStatus: this.dayStatus,
+      leaveType: this.leaveType,
+      sourceRequestId: this.sourceRequestId,
+      cases: this.cases,
+      explanationStatus: this.explanationStatus,
+      explanationRequestId: this.explanationRequestId,
+      payUnits: this.payUnits,
+      deductionMinutes: this.deductionMinutes,
+      countsAsWorkday: this.countsAsWorkday,
+      countsAsDayOff: this.countsAsDayOff,
+      makeupMinutes: this.makeupMinutes
     };
   }
 }
