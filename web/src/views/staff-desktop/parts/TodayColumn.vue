@@ -3,49 +3,68 @@
 // Ô ngày, liên kết nhắc việc và dòng yêu cầu là RouterLink replace tới URL của điện thoại; trang đọc URL rồi mở ngăn kéo (spec 3.3).
 // Check-in / Check-out xong phát checkedOut để trang báo cột 2 tải lại "Gần đây" (R7).
 // Thẻ ca và danh sách yêu cầu tải riêng; phần nào tải lỗi thì hiện LoadError với nút Thử lại ở chỗ của phần đó.
+import { ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
 import type { HomeView } from '@/mock/staff-phone';
 import { getHome, getRequests } from '@/services/staff-phone';
 import LoadError from '@/views/staff-phone/components/LoadError.vue';
+import LoadingLine from '@/views/staff-phone/components/LoadingLine.vue';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import RequestList from '@/views/staff-phone/components/RequestList.vue';
 import ShiftCard from '@/views/staff-phone/components/ShiftCard.vue';
 import WeekCard from '@/views/staff-phone/components/WeekCard.vue';
+import { focusAfterLoad } from '@/views/staff-phone/focusAfterLoad';
 
 const emit = defineEmits<{ checkedOut: [] }>();
 
-const { data: home, error: homeError, reload: reloadHome } = useLoad(() => getHome());
-const { data: requests, error: requestsError, reload: reloadRequests } = useLoad(() => getRequests());
+const col = ref<HTMLElement | null>(null);
+const reqBox = ref<HTMLElement | null>(null);
+const { data: home, loading: homeLoading, error: homeError, reload: reloadHome } = useLoad(() => getHome());
+const { data: requests, loading: requestsLoading, error: requestsError, reload: reloadRequests } = useLoad(() => getRequests());
+function retryHome() {
+  reloadHome();
+  focusAfterLoad(col, homeLoading);
+}
+function retryRequests() {
+  reloadRequests();
+  focusAfterLoad(reqBox, requestsLoading);
+}
 
-function onPunch(v: HomeView) {
-  home.value = v;
+// Lượt chấm đã ghi mà tải lại lỗi (v = null): bỏ thẻ ca cũ (còn nút Check-out) rồi tải lại phần Hôm nay.
+function onPunch(v: HomeView | null) {
+  if (v) home.value = v;
+  else {
+    home.value = null;
+    retryHome();
+  }
   emit('checkedOut');
 }
 </script>
 
 <template>
-  <section class="sd-col">
-    <LoadError v-if="homeError" :error="homeError" @retry="reloadHome" />
+  <section ref="col" class="sd-col">
+    <LoadError v-if="homeError" :error="homeError" @retry="retryHome" />
     <template v-else-if="home">
       <header class="sd-hello">
         <div>
           <div class="mut">{{ home.greeting }}</div>
-          <h1 class="sd-title">{{ home.name }}</h1>
+          <h1 class="sd-title" data-load-focus>{{ home.name }}</h1>
         </div>
         <span class="mut sd-date">{{ home.weekday }}<br />{{ home.date }}</span>
       </header>
       <ShiftCard :home="home" @checked-in="onPunch" @checked-out="onPunch" />
       <WeekCard :week="home.week" :alert="home.alert" replace />
     </template>
-    <section class="sd-grow" aria-label="Yêu cầu">
+    <LoadingLine v-else />
+    <section ref="reqBox" class="sd-grow" aria-label="Yêu cầu">
       <div class="sh">
-        <h2 class="sd-title">Yêu cầu</h2>
+        <h2 class="sd-title" data-load-focus>Yêu cầu</h2>
         <button type="button" class="sd-add" @click="toast.warnings(['Chưa có luồng tạo yêu cầu trong bản mockup.'])">
           <PhIcon name="plus" :size="18" :stroke="2" />Tạo yêu cầu
         </button>
       </div>
-      <LoadError v-if="requestsError" :error="requestsError" @retry="reloadRequests" />
+      <LoadError v-if="requestsError" :error="requestsError" @retry="retryRequests" />
       <RequestList
         v-else-if="requests"
         :view="requests"
@@ -53,6 +72,7 @@ function onPunch(v: HomeView) {
         scroll-label="Danh sách yêu cầu, cuộn để xem thêm"
         replace
       />
+      <LoadingLine v-else />
     </section>
   </section>
 </template>

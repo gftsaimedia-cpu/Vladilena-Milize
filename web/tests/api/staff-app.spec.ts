@@ -99,21 +99,68 @@ test('a refused check-out shows the server message, then check-out works', async
   await expect(card.getByRole('button', { name: /Check-out/ })).toBeEnabled();
 
   await page.unroute('**/api/v2/me/punches');
+  // Lượt chấm được ghi nhưng tải lại màn lỗi một lần: không báo lỗi chấm công, báo đã check-out, màn tự tải lại.
+  let failToday = true;
+  await page.route('**/api/v2/me/today', route => (failToday ? ((failToday = false), route.abort()) : route.continue()));
   await card.getByRole('button', { name: /Check-out/ }).click();
+  await expect(page.locator('.toast').filter({ hasText: 'Đã check-out' })).toBeVisible();
   await expect(card).toContainText('Đã check-out');
+  await expect(page.getByText('Không kết nối được máy chủ.')).toHaveCount(0);
 });
 
-test('a failed load says so and Thử lại loads again', async ({ page }) => {
+test('a failed load says so; Thử lại keeps the focus and loads again', async ({ page }) => {
   await page.setViewportSize(PHONE);
   await signIn(page);
-  let fail = true;
-  await page.route('**/api/v2/me/income**', route => (fail ? ((fail = false), route.abort()) : route.continue()));
+  let fails = 2; // chỉ đếm lượt gọi của màn Thu nhập (màn Hôm nay cũng gọi /me/income)
+  await page.route('**/api/v2/me/income**', route =>
+    fails > 0 && page.url().includes('/nv/thu-nhap') ? (fails--, route.abort()) : route.continue()
+  );
   await page.goto('/nv/thu-nhap');
   const alert = page.getByRole('alert');
   await expect(alert).toContainText('Không tải được dữ liệu');
   await alert.getByRole('button', { name: 'Thử lại' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Thu nhập' })).toBeVisible();
+  // Lỗi thêm lần nữa: focus nằm ở nút Thử lại mới, không rơi xuống <body>.
+  await expect(page.getByRole('button', { name: 'Thử lại' })).toBeFocused();
+  await page.getByRole('button', { name: 'Thử lại' }).click();
+  const title = page.getByRole('heading', { level: 1, name: 'Thu nhập' });
+  await expect(title).toBeVisible();
+  await expect(title).toBeFocused();
   await expect(page.getByRole('alert')).toHaveCount(0);
+});
+
+test('a screen says Đang tải… until its data comes', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await signIn(page);
+  let release!: () => void;
+  const held = new Promise<void>(r => (release = r));
+  await page.route('**/api/v2/me/income**', async route => {
+    await held;
+    await route.continue();
+  });
+  await page.goto('/nv/thu-nhap');
+  await expect(page.getByText('Đang tải…')).toBeVisible();
+  release();
+  await expect(page.getByRole('heading', { level: 1, name: 'Thu nhập' })).toBeVisible();
+  await expect(page.getByText('Đang tải…')).toHaveCount(0);
+});
+
+test('a month that fails to load offers the way back to the month I had', async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await signIn(page);
+  await page.goto('/nv/cham-cong');
+  await expect(page.getByText(label(THIS), { exact: true })).toBeVisible();
+  const before = addMonth(THIS, -1);
+  await page.route(
+    url => url.pathname === '/api/v2/me/attendance' && url.searchParams.get('month') === before,
+    route => route.abort()
+  );
+  await page.getByRole('button', { name: 'Tháng trước' }).click();
+  const alert = page.getByRole('alert');
+  await expect(alert).toContainText('Không tải được dữ liệu');
+  await alert.getByRole('button', { name: `Quay về ${label(THIS).toLowerCase()}` }).click();
+  await expect(page.getByText(label(THIS), { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1, name: 'Chấm công' })).toBeFocused();
 });
 
 test('Đổi mật khẩu and Đăng xuất stay on the phone while my profile fails or reloads', async ({ page }) => {

@@ -2,18 +2,26 @@
 // Thanh trên của trang nhân viên máy tính + menu tài khoản (spec 3.2). Menu mở khi và chỉ khi đường dẫn là /nv/toi không có ?hop (D3):
 // bấm nút khi đóng → replace('/nv/toi'); bấm lại, bấm ra ngoài hay Esc → replace('/nv/hom-nay'), Esc trả focus về nút.
 // Tải hồ sơ lỗi thì menu hiện LoadError với nút Thử lại thay khối định danh; Đổi mật khẩu và Đăng xuất vẫn dùng được.
-import { computed, onBeforeUnmount, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import logo from '@/assets/img/gft-logo-light.png';
 import { useLoad } from '@/composables/useLoad';
 import { getProfile, logout } from '@/services/staff-phone';
 import LoadError from '@/views/staff-phone/components/LoadError.vue';
+import LoadingLine from '@/views/staff-phone/components/LoadingLine.vue';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
+import { focusAfterLoad } from '@/views/staff-phone/focusAfterLoad';
 
 const HOME = '/nv/hom-nay';
 const route = useRoute();
 const router = useRouter();
-const { data, error, reload } = useLoad(() => getProfile());
+const menu = ref<HTMLElement | null>(null);
+const { data, loading, error, reload } = useLoad(() => getProfile());
+// Thử lại xong thì focus về nút Thử lại mới (còn lỗi) hay chính menu (tải được).
+function retry() {
+  reload();
+  focusAfterLoad(menu, loading);
+}
 
 const menuOpen = computed(() => route.path === '/nv/toi' && !route.query.hop);
 
@@ -76,8 +84,8 @@ onBeforeUnmount(() => listen(false));
         <path d="m6 9 6 6 6-6" />
       </svg>
     </button>
-    <section v-show="menuOpen" id="sd-menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
-      <LoadError v-if="error" :error="error" @retry="reload" />
+    <section v-show="menuOpen" id="sd-menu" ref="menu" class="sd-menu" role="region" aria-label="Tài khoản của tôi">
+      <LoadError v-if="error" :error="error" @retry="retry" />
       <template v-else-if="data">
         <div class="sd-ident">
           <span class="sd-av sd-big" aria-hidden="true">{{ data.initials }}</span>
@@ -94,6 +102,7 @@ onBeforeUnmount(() => listen(false));
         </div>
         <p class="mut sm sd-note">{{ data.note }}</p>
       </template>
+      <LoadingLine v-else />
       <button type="button" class="sd-mi" @click="openPassword">
         <span class="ti"><PhIcon name="lock" /></span><span class="t">Đổi mật khẩu</span>
         <PhIcon name="right" :size="18" :stroke="2" />
