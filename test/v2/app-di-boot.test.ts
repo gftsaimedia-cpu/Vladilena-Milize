@@ -95,8 +95,8 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ và kỳ
     assert.equal(settingsService.changes, changes);
     assert.ok(settingsService.audit instanceof AuditLog, 'SettingsService.audit phải là AuditLog');
 
-    // Lương ghi lại và đọc dòng ngày (T6) và đi theo vòng đời kỳ lương: đủ cả năm tham số, đúng chỗ, không cái nào rơi
-    // thành undefined.
+    // Lương ghi lại và đọc dòng ngày (T6), đi theo vòng đời kỳ lương và ghi nhật ký: đủ cả sáu tham số, đúng chỗ, không
+    // cái nào rơi thành undefined.
     assert.ok((periods as any).settings instanceof SettingsReader, 'PeriodsService đọc ngày trả lương từ kho cài đặt');
     assert.equal(service.payroll, payroll);
     assert.equal((payroll as any).repo, app.get(PayrollRepository), 'PayrollService.repo phải là PayrollRepository');
@@ -104,6 +104,7 @@ test('AppModule nối đủ phụ thuộc tuỳ chọn của đơn từ và kỳ
     assert.equal((payroll as any).settings, settings, 'PayrollService.settings phải là SettingsReader');
     assert.equal((payroll as any).txCoordinator, app.get(TransactionCoordinator));
     assert.equal((payroll as any).periods, periods, 'PayrollService.periods phải là PeriodsService');
+    assert.ok((payroll as any).audit instanceof AuditLog, 'PayrollService.audit phải là AuditLog');
 
     // Job mỗi giờ: tsx không phát metadata tham số, thiếu @Inject thì phụ thuộc rơi thành undefined.
     const job = app.get(AttendanceDaysJob) as any;

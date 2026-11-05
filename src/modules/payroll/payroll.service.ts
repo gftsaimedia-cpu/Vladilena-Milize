@@ -1,11 +1,20 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import type { AttendanceDayRecord } from '../attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import type { AttendanceDayStatus } from '../attendance/domain/attendance-day';
+import { AuditLog } from '../audit/audit-log';
 import { PeriodsService, PayslipNotDecidableError } from '../periods';
 import { SettingsReader, type SettingsSnapshot } from '../settings';
-import { PayrollRepository, KpiScorePatch, PayslipRecord, type RunSettings } from './payroll.repository';
+import {
+  PayrollRepository,
+  KpiScorePatch,
+  PayslipRecord,
+  type KpiScoreRow,
+  type RunSettings,
+  type SavedRun
+} from './payroll.repository';
 import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import {
   EmployeePayslip,
@@ -126,6 +135,29 @@ const KPI_SCORE_FIELDS: Array<{ column: KpiScoreColumn; name: keyof KpiScoreBody
   { column: 'self_score', name: 'self', alias: 'selfScore' }
 ];
 
+const NO_KPI: KpiScoreRow = { wework: null, user_score: null, peer: null, manager: null, self_score: null, kpi_proposed: null };
+
+/**
+ * Phần KPI đổi của một lần lưu, theo tên ở API (điểm, không nhân 100; lương đề xuất bằng đồng). Cột không gửi hoặc
+ * gửi đúng giá trị cũ thì không có mặt; không đổi gì thì cả hai rỗng.
+ */
+function kpiChanges(was: KpiScoreRow, patch: KpiScorePatch) {
+  const before: Record<string, number | null> = {};
+  const after: Record<string, number | null> = {};
+  const points = (v: number | null) => (v === null ? null : v / 100);
+  for (const { column, name } of KPI_SCORE_FIELDS) {
+    const next = patch[column];
+    if (next === undefined || next === was[column]) continue;
+    before[name] = points(was[column]);
+    after[name] = points(next);
+  }
+  if (patch.kpi_proposed !== undefined && patch.kpi_proposed !== was.kpi_proposed) {
+    before.proposedAmount = was.kpi_proposed;
+    after.proposedAmount = patch.kpi_proposed;
+  }
+  return { before, after, changed: Object.keys(after).length > 0 };
+}
+
 /** Tỉ lệ 0.125 → "12,5": đúng số % đã đặt (tối đa 2 chữ số lẻ, dấu phẩy), không làm tròn về số nguyên. */
 const pctText = (rate: number): string => String(Math.round(rate * 10000) / 100).replace('.', ',');
 
@@ -146,7 +178,9 @@ export class PayrollService {
     // The period lifecycle (PayrollModule imports PeriodsModule): a full run after Chốt công marks the period calculated,
     // approved/paid refuse a run or a KPI change, and payslips are decided only while calculated. Without it (hand-built
     // in tests) none of those checks run.
-    @Optional() @Inject(PeriodsService) private readonly periods?: PeriodsService
+    @Optional() @Inject(PeriodsService) private readonly periods?: PeriodsService,
+    // Nest luôn tiêm (AuditModule toàn cục). Service dựng tay trong test không có thì không ghi nhật ký.
+    @Optional() @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>
   ) {}
 
   async calculatePeriodPayslips(
@@ -196,7 +230,37 @@ export class PayrollService {
       const carryForward = isPartial
         ? { exceptUsernames: payslips.map(p => p.username), exceptEmployeeIds: targets }
         : undefined;
-      const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward, settings);
+      // Nhật ký payroll.calculate là câu ghi cuối trong giao dịch lưu lần chạy: ghi lỗi thì lần chạy không được lưu.
+      const audit = this.audit;
+      const logRun = audit
+        ? async (t: DatabaseTransaction, run: SavedRun) => {
+            await audit.append(t, {
+              actor,
+              action: 'payroll.calculate',
+              entityKind: 'period',
+              entityId: month,
+              month,
+              before: run.previousRunNo === null ? null : { run: run.previousRunNo },
+              after: {
+                run: run.runNo,
+                slips: run.slips,
+                errors: errors.length,
+                ...(isPartial ? { people: payslips.map(p => p.username) } : {})
+              },
+              sensitivity: 'normal',
+              requestId: randomUUID()
+            });
+          }
+        : undefined;
+      const runId = await this.repo.savePayrollRunAndSlips(
+        month,
+        actor,
+        payslips,
+        errors.length,
+        carryForward,
+        settings,
+        logRun
+      );
       if (this.periods && snapshot && runId !== null) {
         await this.periods.markCalculated(trx, month, { runId, actor, full: !isPartial, expectedRev: snapshot.rev });
       }
@@ -231,12 +295,30 @@ export class PayrollService {
   ): Promise<PayslipRecord | null> {
     // A blank note is stored as null, so a reader never has to tell "" from "no reason".
     const cleanNote = typeof note === 'string' ? note.trim() || null : null;
-    const decide = async (): Promise<PayslipRecord | null> => {
+    const decide = async (trx?: DatabaseTransaction): Promise<PayslipRecord | null> => {
       if (this.periods) {
         const { status: periodStatus } = await this.periods.snapshot(month);
         if (periodStatus !== 'calculated') throw new PayslipNotDecidableError(month, periodStatus);
       }
-      return await this.repo.decidePayslip(month, username, status, actor, cleanNote);
+      // Có giao dịch và nhật ký: đọc quyết định cũ (khoá dòng phiếu), ghi quyết định mới, rồi ghi nhật ký cuối cùng.
+      const was = trx && this.audit ? await this.repo.decisionOf(trx, month, username) : null;
+      const slip = await this.repo.decidePayslip(month, username, status, actor, cleanNote, trx);
+      if (trx && this.audit && was && slip && (was.status !== slip.status || was.note !== slip.note)) {
+        await this.audit.append(trx, {
+          actor,
+          action: 'payroll.decide',
+          entityKind: 'payslip',
+          entityId: username,
+          subject: username,
+          month,
+          before: { status: was.status },
+          after: { status: slip.status },
+          reason: cleanNote,
+          sensitivity: 'normal',
+          requestId: randomUUID()
+        });
+      }
+      return slip;
     };
     return this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
   }
@@ -297,7 +379,30 @@ export class PayrollService {
       patch.kpi_proposed = proposed;
     }
 
-    await this.repo.saveKpiScore(username, month, patch, actor);
+    const { audit, txCoordinator } = this;
+    if (!audit || !txCoordinator) {
+      await this.repo.saveKpiScore(username, month, patch, actor);
+      return;
+    }
+    // Khoá theo người và tháng để `before` đúng cả khi hai lần lưu đầu tiên chạy cùng lúc; nhật ký là câu ghi cuối.
+    await txCoordinator.withLock(`kpi_${month}_${username}`, async trx => {
+      const was = (await this.repo.kpiScoreOf(trx, username, month)) ?? NO_KPI;
+      await this.repo.saveKpiScore(username, month, patch, actor, trx);
+      const { before, after, changed } = kpiChanges(was, patch);
+      if (!changed) return;
+      await audit.append(trx, {
+        actor,
+        action: 'kpi.score',
+        entityKind: 'kpi',
+        entityId: username,
+        subject: username,
+        month,
+        before,
+        after,
+        sensitivity: 'pay',
+        requestId: randomUUID()
+      });
+    });
   }
 
   /** Số tiền tạm ứng của tháng `month`: 80% lương các ngày công 01–15 theo bảng lương tính ngay lúc này. */

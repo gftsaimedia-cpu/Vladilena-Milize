@@ -213,6 +213,17 @@ export interface CarryForward {
   exceptEmployeeIds: string[];
 }
 
+/** A run just stored: what `beforeCommit` gets to write the audit row in the run's own transaction. */
+export interface SavedRun {
+  id: number;
+  runNo: number;
+  previousRunNo: number | null; // the month's highest run number before this one; null for the first run
+  slips: number; // payslips in the run, carried ones included
+}
+
+/** The stored KPI of a person and month (points x 100, kpi_proposed in đồng); null columns are not entered yet. */
+export type KpiScoreRow = Required<KpiScorePatch>;
+
 const ENGINE_VERSION = 'v2-rules-2026-11';
 
 /** The settings a run was computed with: the month's snapshot and the id of the last settings change it reflects. */
@@ -439,14 +450,16 @@ export class PayrollRepository {
   // Stores a new draft run for the month (run_no + 1) and supersedes the month's earlier drafts. A month with a
   // final run is closed. With carryForward (a partial run) the payslips of the previous draft run that the call did
   // not recalculate are copied unchanged into the new run. Without payslips nothing is stored and the result is null.
-  // `settings` is what the run was computed with (see runParams).
+  // `settings` is what the run was computed with (see runParams). `beforeCommit` runs last in the run's transaction
+  // (the audit row): when it throws, the run is not stored.
   async savePayrollRunAndSlips(
     month: string,
     actor: string,
     payslips: EmployeePayslip[],
     errorCount = 0,
     carryForward?: CarryForward,
-    settings?: RunSettings | null
+    settings?: RunSettings | null,
+    beforeCommit?: (trx: Transaction<DB>, run: SavedRun) => Promise<void>
   ): Promise<number | null> {
     const now = new Date().toISOString();
 
@@ -466,7 +479,8 @@ export class PayrollRepository {
         .select(eb => eb.fn.max('run_no').as('max_run_no'))
         .where('month', '=', month)
         .executeTakeFirst();
-      const runNo = Number(latest?.max_run_no ?? 0) + 1;
+      const previousRunNo = Number(latest?.max_run_no ?? 0);
+      const runNo = previousRunNo + 1;
 
       const carried = carryForward ? await this.carriedPayslips(trx, month, carryForward) : [];
 
@@ -502,7 +516,14 @@ export class PayrollRepository {
         await trx.insertInto('payslips').values({ ...copy, run_id: run.id }).execute();
       }
 
-      return Number(run.id);
+      const saved: SavedRun = {
+        id: Number(run.id),
+        runNo,
+        previousRunNo: previousRunNo > 0 ? previousRunNo : null,
+        slips: payslips.length + carried.length
+      };
+      if (beforeCommit) await beforeCommit(trx, saved);
+      return saved.id;
     });
   }
 
@@ -527,15 +548,17 @@ export class PayrollRepository {
   }
 
   // Ghi quyết định của Admin lên phiếu của người đó trong lần chạy hiện tại; kỳ đã chốt thì không đổi được.
-  // Trả phiếu sau khi ghi, null khi tháng chưa có lần chạy hoặc người đó không có phiếu.
+  // Trả phiếu sau khi ghi, null khi tháng chưa có lần chạy hoặc người đó không có phiếu. Có `trx` thì chạy trên đó.
   async decidePayslip(
     month: string,
     username: string,
     status: 'approved' | 'rejected',
     actor: string,
-    note?: string | null
+    note?: string | null,
+    trx?: Transaction<DB>
   ): Promise<PayslipRecord | null> {
-    const run = await this.qb
+    const q = trx ?? this.qb;
+    const run = await q
       .selectFrom('payroll_runs')
       .select(['id', 'status'])
       .where('month', '=', month)
@@ -545,7 +568,7 @@ export class PayrollRepository {
     if (!run) return null;
     if (run.status === 'final') throw new PayrollFinalizedError('Kỳ lương đã chốt, không duyệt lại được phiếu');
 
-    const row = await this.qb
+    const row = await q
       .updateTable('payslips')
       .set(eb => ({
         status,
@@ -559,6 +582,27 @@ export class PayrollRepository {
       .returningAll()
       .executeTakeFirst();
     return row ? readPayslipRow(row) : null;
+  }
+
+  // Quyết định đang có trên phiếu của người đó trong lần chạy hiện tại (để ghi nhật ký `before`), khoá dòng phiếu tới
+  // hết `trx`; null khi tháng chưa có lần chạy hoặc người đó không có phiếu.
+  async decisionOf(
+    trx: Transaction<DB>,
+    month: string,
+    username: string
+  ): Promise<{ status: string; note: string | null } | null> {
+    const row = await trx
+      .selectFrom('payslips as p')
+      .innerJoin('payroll_runs as r', 'r.id', 'p.run_id')
+      .select(['p.status', 'p.note'])
+      .where('r.month', '=', month)
+      .where('r.status', '<>', 'superseded')
+      .where('p.username', '=', username)
+      .orderBy('r.run_no', 'desc')
+      .limit(1)
+      .forUpdate('p')
+      .executeTakeFirst();
+    return row ? { status: row.status, note: row.note ?? null } : null;
   }
 
   // Đưa phiếu của người đó (uuid hoặc username) trong lần chạy nháp mới nhất về 'draft', xoá quyết định. Phiếu đã ở
@@ -654,9 +698,36 @@ export class PayrollRepository {
     return resolveKpiCap(levelRow ?? null, benefits);
   }
 
-  async saveKpiScore(username: string, month: string, patch: KpiScorePatch, actor: string): Promise<void> {
+  // KPI đã lưu của người đó trong tháng, khoá dòng tới hết `trx`; null khi chưa có dòng.
+  async kpiScoreOf(trx: Transaction<DB>, username: string, month: string): Promise<KpiScoreRow | null> {
+    const row = await trx
+      .selectFrom('kpi_scores')
+      .select(['wework', 'user_score', 'peer', 'manager', 'self_score', 'kpi_proposed'])
+      .where('username', '=', username)
+      .where('month', '=', month)
+      .forUpdate()
+      .executeTakeFirst();
+    if (!row) return null;
+    const num = (v: unknown): number | null => (v === null || v === undefined ? null : Number(v));
+    return {
+      wework: num(row.wework),
+      user_score: num(row.user_score),
+      peer: num(row.peer),
+      manager: num(row.manager),
+      self_score: num(row.self_score),
+      kpi_proposed: num(row.kpi_proposed)
+    };
+  }
+
+  async saveKpiScore(
+    username: string,
+    month: string,
+    patch: KpiScorePatch,
+    actor: string,
+    trx?: Transaction<DB>
+  ): Promise<void> {
     const now = new Date().toISOString();
-    await this.qb
+    await (trx ?? this.qb)
       .insertInto('kpi_scores')
       .values({
         username,
