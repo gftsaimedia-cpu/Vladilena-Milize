@@ -1,7 +1,9 @@
 // Việc chờ xử lý giả: nguồn chung của chuông, thẻ Việc cần duyệt ở Tổng quan và màn Chấm công.
-// Một mảng trong bộ nhớ; xử lý một việc chỉ bỏ nó khỏi mảng, không đổi công, giờ hay lương (spec mục 1).
+// Một mảng trong bộ nhớ; duyệt hoặc từ chối chỉ bỏ việc khỏi mảng, không đổi công, giờ hay lương (spec mục 1).
+// Nhắc giải trình chỉ ghi giờ nhắc lên việc, việc ở lại cho tới khi nhân viên gửi giải trình.
 // Chữ trên dòng, tuổi và các dòng chi tiết theo bảng thiết kế BellInbox.
 import { initials } from '@/utils/format';
+import { MOCK_NOW } from './clock';
 
 export type InboxGroup = 'att' | 'leave' | 'ot' | 'exp' | 'adv';
 
@@ -24,7 +26,8 @@ export type InboxItem = {
   cellLabel?: string;
   leave?: { type: 'Phép năm' | 'Nghỉ ốm'; reason: string };
   declared?: { from: string; to: string };
-  missing?: 'in' | 'out';
+  /** Lần nhắc giải trình gần nhất (ISO, UTC) của việc "Quên chấm công"; chưa nhắc thì không có. */
+  remindedAt?: string;
   /** Tin mới chưa đọc (chấm xanh trên chuông). Máy chủ thật chưa có trạng thái đọc nên không đặt. */
   unread?: boolean;
 };
@@ -157,8 +160,7 @@ const SEED: Seed[] = [
       ['Giờ ra', 'Chưa có'],
       ['Giải trình', 'Chưa gửi']
     ],
-    days: ['2026-10-27'],
-    missing: 'out'
+    days: ['2026-10-27']
   },
   {
     id: 'ib-c2',
@@ -175,8 +177,7 @@ const SEED: Seed[] = [
       ['Giờ ra', '17:06'],
       ['Giải trình', 'Chưa gửi']
     ],
-    days: ['2026-10-26'],
-    missing: 'in'
+    days: ['2026-10-26']
   },
   {
     id: 'ib-l1',
@@ -387,5 +388,16 @@ export function resolveInboxItem(id: string): InboxItem | null {
   const hit = list.find(item => item.id === id);
   if (!hit) return null;
   list = list.filter(item => item.id !== id);
+  return structuredClone(hit);
+}
+
+/**
+ * Ghi lần nhắc giải trình (giờ của đồng hồ giả) lên một việc; việc ở lại danh sách chờ.
+ * Trả bản sao, hoặc null khi không còn id đó.
+ */
+export function remindInboxItem(id: string): InboxItem | null {
+  const hit = list.find(item => item.id === id);
+  if (!hit) return null;
+  hit.remindedAt = MOCK_NOW;
   return structuredClone(hit);
 }
