@@ -59,8 +59,9 @@ export class DemoSession {
   patch<T = any>(path: string, body: unknown = {}) {
     return this.call<T>('PATCH', path, body);
   }
-  del<T = any>(path: string) {
-    return this.call<T>('DELETE', path);
+  /** DELETE gửi thân `{}` như api.del của FE: BE từ chối DELETE không có Content-Type JSON (415). */
+  del<T = any>(path: string, body: unknown = {}) {
+    return this.call<T>('DELETE', path, body);
   }
 }
 

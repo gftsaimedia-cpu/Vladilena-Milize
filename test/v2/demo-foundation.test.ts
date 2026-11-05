@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { addMonths, datesOf, demoMonths, todayVN, weekday } from '../../scripts/demo/dates';
 import { checkPeople, PEOPLE } from '../../scripts/demo/people';
 import { formatAccounts, parseAccounts } from '../../scripts/demo/accounts-format';
+import { DemoSession } from '../../scripts/demo/api';
 
 test('todayVN rolls over to the next day at 17:00 UTC', () => {
   assert.equal(todayVN(new Date('2026-11-05T16:59:00Z')), '2026-11-05');
@@ -34,4 +35,18 @@ test('the accounts file round-trips and rejects a file with a missing key', () =
   const accounts = { adminUser: 'admin', adminPassword: 'A1', staffPassword: 'S1', sessionSecret: 'K1' };
   assert.deepEqual(parseAccounts(formatAccounts(accounts)), accounts);
   assert.throws(() => parseAccounts('DEMO_ADMIN_USER=admin\n'), /DEMO_ADMIN_PASSWORD/);
+});
+
+test('DemoSession.del sends a JSON body like the FE, so BE does not answer 415', async t => {
+  const sent: Array<{ url: string; init: RequestInit }> = [];
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => {
+    sent.push({ url, init });
+    return new Response('{"ok":true}', { status: 200 });
+  });
+  await new DemoSession('http://127.0.0.1:1', 'admin', 'sid=1').del('/holidays/2026-11-20');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].url, 'http://127.0.0.1:1/api/v2/holidays/2026-11-20');
+  assert.equal(sent[0].init.method, 'DELETE');
+  assert.equal((sent[0].init.headers as Record<string, string>)['content-type'], 'application/json');
+  assert.equal(sent[0].init.body, '{}');
 });
