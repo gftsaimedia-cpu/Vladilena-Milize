@@ -1331,4 +1331,44 @@ describe('Payroll V2 - overtime paid per day from the approved window and the re
     assert.equal(line.otPay, 64_904);
     assert.equal(slip.otPayTotal, 64_904);
   });
+
+  it('rounds the pay of two windows on one line once: 50 + 70 minutes at x1.5 is 86,538, not 86,539', async () => {
+    const slip = await generate({
+      timesheets: [punch('2026-10-07', '06:10', '19:10')],
+      requests: [
+        overtime('ot-1', '2026-10-07', { otStartTime: '06:00', otEndTime: '07:00' }),
+        overtime('ot-2', '2026-10-07', { otStartTime: '18:00', otEndTime: '20:00' })
+      ]
+    });
+    const line = lineOf(slip, '2026-10-07');
+    assert.equal(line.otHours, 2);
+    assert.equal(line.otPay, 86_538);
+    assert.equal(line.dailyTotal, line.daySalary + 86_538);
+    assert.equal(slip.otPayTotal, 86_538);
+  });
+
+  it('rounds each multiplier of one line separately', async () => {
+    // Night shift Fri 09/10 22:00 to Sat 10/10 06:00. Two weekday windows (50 and 69 minutes, x1.5) and a Saturday
+    // window (60 minutes, x2) all belong to the 09/10 line: round(119/60 h x1.5) + round(1 h x2) = 85,817 + 57,692.
+    const night = {
+      ...punch('2026-10-09', '22:00', null, 'NIGHT'),
+      shiftStartTime: '22:00',
+      shiftEndTime: '06:00',
+      actualCheckOut: '2026-10-10T06:00:00+07:00'
+    };
+    const slip = await generate({
+      timesheets: [night],
+      requests: [
+        overtime('ot-1', '2026-10-09', { otStartTime: '22:00', otEndTime: '22:50' }),
+        overtime('ot-2', '2026-10-09', { otStartTime: '22:50', otEndTime: '23:59' }),
+        overtime('ot-3', '2026-10-10', { otStartTime: '05:00', otEndTime: '06:00' })
+      ]
+    });
+    const line = lineOf(slip, '2026-10-09');
+    assert.ok(Math.abs(line.otHours - (119 / 60 + 1)) < 1e-9);
+    assert.equal(line.otPay, 85_817 + 57_692);
+    assert.equal(slip.otPayTotal, 143_509);
+    assert.ok(Math.abs(slip.ot15Hours - 119 / 60) < 1e-9);
+    assert.equal(slip.ot20Hours, 1);
+  });
 });

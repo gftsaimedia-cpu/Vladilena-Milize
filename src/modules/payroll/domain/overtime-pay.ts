@@ -2,7 +2,8 @@ import { vnInstant } from './presence';
 
 /**
  * Overtime as settled on 04/11: the pay is the real presence inside the approved OT window x the hourly rate x a
- * multiplier. The hours are counted in whole minutes and are not rounded; the money is rounded once per share.
+ * multiplier. The hours are counted in whole minutes and are not rounded; the money is rounded once per day line and
+ * multiplier, from the summed hours of that group.
  */
 
 /** Multiplier of the hourly rate: a weekday, Saturday or Sunday, a company holiday (a holiday wins over the weekend). */
@@ -80,4 +81,15 @@ export function measureOvertime(
 
 export function otPayOf(hours: number, hourRate: number, multiplier: OtMultiplier): number {
   return Math.round(hours * hourRate * multiplier);
+}
+
+/** The OT pay of one day line: its shares are grouped by multiplier, and each group is rounded once. */
+export function otLinePayOf(shares: OtShare[], hourRate: number): number {
+  const hoursByMultiplier = new Map<OtMultiplier, number>();
+  for (const share of shares) {
+    hoursByMultiplier.set(share.multiplier, (hoursByMultiplier.get(share.multiplier) ?? 0) + share.hours);
+  }
+  let pay = 0;
+  for (const [multiplier, hours] of hoursByMultiplier) pay += otPayOf(hours, hourRate, multiplier);
+  return pay;
 }

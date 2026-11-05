@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import {
   OT_MULTIPLIERS,
   measureOvertime,
+  otLinePayOf,
   otMultiplierOf,
   otPayOf,
   vnInstant,
@@ -115,6 +116,20 @@ describe('OT measured from the approved window and the real presence', () => {
     assert.deepEqual(measureOvertime([window('2026-10-07', '18:00', '18:00')], spans, NO_HOLIDAYS), []);
     assert.deepEqual(measureOvertime([window('2026-10-07', 'xx:yy', '20:00')], spans, NO_HOLIDAYS), []);
     assert.deepEqual(measureOvertime([window('2026-10-07', '18:00', '25:00')], spans, NO_HOLIDAYS), []);
+  });
+});
+
+describe('OT pay of one day line', () => {
+  const share = (hours: number, multiplier: 1.5 | 2 | 3) => ({ lineDate: 'd', otDate: 'd', hours, multiplier });
+
+  it('rounds the summed hours of one multiplier once', () => {
+    assert.equal(otPayOf(50 / 60, HOUR_RATE, 1.5) + otPayOf(70 / 60, HOUR_RATE, 1.5), 86_539);
+    assert.equal(otLinePayOf([share(50 / 60, 1.5), share(70 / 60, 1.5)], HOUR_RATE), 86_538);
+  });
+
+  it('rounds each multiplier separately and gives 0 without shares', () => {
+    assert.equal(otLinePayOf([share(119 / 60, 1.5), share(1, 2)], HOUR_RATE), 85_817 + 57_692);
+    assert.equal(otLinePayOf([], HOUR_RATE), 0);
   });
 });
 

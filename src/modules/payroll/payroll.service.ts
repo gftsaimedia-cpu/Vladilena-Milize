@@ -10,7 +10,7 @@ import {
   type Presence,
   measureOvertime,
   OT_MULTIPLIERS,
-  otPayOf,
+  otLinePayOf,
   type OtShare,
   type OtWindow,
   type PresenceSpan,
@@ -300,7 +300,7 @@ export class PayrollService {
 
       const lineShares = otSharesByLine.get(ts.workDate) ?? [];
       const otHours = lineShares.reduce((sum, share) => sum + share.hours, 0);
-      const otPay = lineShares.reduce((sum, share) => sum + otPayOf(share.hours, hourRate, share.multiplier), 0);
+      const otPay = otLinePayOf(lineShares, hourRate);
 
       const dailyTotal = daySalary + flexAllowancePay + nightAllowancePay + offPaidPay + otPay - deductionAmount;
 
