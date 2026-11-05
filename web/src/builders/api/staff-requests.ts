@@ -6,7 +6,9 @@ import type {
   ExplanationCase,
   HourEnd,
   MakeupSlot,
+  PreviewResult,
   RequestContext,
+  RequestDraft,
   RequestKind
 } from '../../mock/staff-requests-types';
 import { vnd } from '../../utils/format';
@@ -272,9 +274,9 @@ export function otHoursLine(day: ContextDay, start: number, end: number): string
 }
 
 const FRAME_NAME: Record<string, string> = { NORMAL: 'Normal', FLEX: 'Flex', NIGHT: 'Night' };
-/** Tên khung ca (spec 2.4): 'FLEX', '06:00', '15:00' → 'Flex 06–15'. */
+/** Tên khung ca (spec 2.4): 'FLEX', '06:00', '15:00' → 'Flex 06–15'. Không rõ loại (type rỗng) thì chỉ ghi giờ: '10–19'. */
 export const frameLabel = (type: string, start: string, end: string) =>
-  `${FRAME_NAME[type] ?? type} ${start.slice(0, 2)}–${end.slice(0, 2)}`;
+  [FRAME_NAME[type] ?? type, `${start.slice(0, 2)}–${end.slice(0, 2)}`].filter(Boolean).join(' ');
 
 /** Ngày sẽ đổi ca của một khoảng: ngày làm không bị đơn nào giữ; ngày nghỉ, iSAT trong khoảng giữ nguyên (spec 2.2). */
 export function shiftChangeDates(ctx: RequestContext, start: string, end: string): string[] {
@@ -337,4 +339,47 @@ export function advanceLines(advance: AdvanceInfo): [string, string] {
     `Số tiền được ứng: ${vnd(advance.amount)} ₫`,
     `80% lương ngày công ${advance.from.slice(8, 10)}–${ddmm(advance.to)} · ${advance.workDays} ngày`
   ];
+}
+
+// ---------- Nối máy chủ thật (Task 11) ----------
+
+/** Phần của `api` (services/http) mà luồng yêu cầu dùng; test thay bằng bản ghi lại lời gọi. */
+export type RequestsApi = {
+  get(path: string): Promise<any>;
+  post(path: string, body: unknown): Promise<any>;
+  patch(path: string, body: unknown): Promise<any>;
+};
+
+/**
+ * request-context của máy chủ thật → `RequestContext` của form. Khác biệt duy nhất: ngày làm của máy chủ chỉ có
+ * `shift: { start, end }`, còn form đọc `shift.type`. `type` lấy từ khung ca (`shiftFrames`) cùng giờ; không khung nào khớp
+ * (vd. ca 10–19) thì `type` rỗng và `frameLabel` chỉ ghi giờ. Không đổi đầu vào.
+ */
+export function contextFromApi(ctx: Omit<RequestContext, 'days'> & { days: Array<Omit<ContextDay, 'shift'> & { shift: { start: string; end: string; type?: string } | null }> }): RequestContext {
+  const typeOf = (start: string, end: string) => ctx.shiftFrames.find(f => f.start === start && f.end === end)?.shiftType ?? '';
+  return {
+    ...ctx,
+    days: ctx.days.map(d => ({
+      ...d,
+      shift: d.shift && { type: d.shift.type ?? typeOf(d.shift.start, d.shift.end), start: d.shift.start, end: d.shift.end }
+    }))
+  };
+}
+
+/** Bốn lời gọi của luồng yêu cầu trên máy chủ thật (me.controller). Server từ chối thì `api` ném ApiError mang câu lỗi của server. */
+export function staffRequestsClient(api: RequestsApi) {
+  return {
+    getRequestContext: async (): Promise<RequestContext> => contextFromApi(await api.get('/me/request-context')),
+    /** Luôn 200: `ok: false` kèm câu lỗi khi đơn chưa gửi được. */
+    previewRequest: <K extends RequestKind>(kind: K, draft: RequestDraft[K]): Promise<PreviewResult<K>> =>
+      api.post(`/me/requests/${kind}/preview`, draft),
+    /** 201 `{ created, request, warnings }`: id đơn ở `request.id`. */
+    createRequest: async <K extends RequestKind>(kind: K, draft: RequestDraft[K]): Promise<{ id: string }> => {
+      const body = await api.post(`/me/requests/${kind}`, draft);
+      return { id: body.request.id };
+    },
+    cancelRequest: async (id: string): Promise<void> => {
+      await api.patch(`/me/requests/${encodeURIComponent(id)}/cancel`, {});
+    }
+  };
 }

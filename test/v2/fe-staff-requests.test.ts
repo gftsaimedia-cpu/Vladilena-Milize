@@ -3,6 +3,8 @@ import { describe, it } from 'node:test';
 import {
   advanceLines,
   caseText,
+  contextFromApi,
+  staffRequestsClient,
   dateLabel,
   endDates,
   endHours,
@@ -365,5 +367,96 @@ describe('Tạo yêu cầu: chữ', () => {
       'Số tiền được ứng: 2.215.385 ₫',
       '80% lương ngày công 01–15/10 · 12 ngày'
     ]);
+  });
+});
+
+// ---------- Nối máy chủ thật (Task 11) ----------
+describe('request-context của máy chủ thật', () => {
+  const frames = [
+    { shiftType: 'NORMAL', start: '08:00', end: '17:00' },
+    { shiftType: 'FLEX', start: '06:00', end: '15:00' },
+    { shiftType: 'NIGHT', start: '22:00', end: '07:00' }
+  ];
+  const serverContext = (shift: { start: string; end: string } | null) => {
+    const ctx = context() as any;
+    ctx.shiftFrames = frames;
+    ctx.days = ctx.days.slice(0, 3).map((d: any) => ({ ...d, shift }));
+    return ctx as RequestContext;
+  };
+
+  it('fills the day shift type from the frame with the same hours', () => {
+    const adapted = contextFromApi(serverContext({ start: '06:00', end: '15:00' }));
+    assert.deepEqual(adapted.days[0].shift, { type: 'FLEX', start: '06:00', end: '15:00' });
+    assert.equal(frameLabel(adapted.days[0].shift!.type, adapted.days[0].shift!.start, adapted.days[0].shift!.end), 'Flex 06–15');
+  });
+
+  it('keeps the hours with an empty type when no frame matches, so the label shows plain hours', () => {
+    const adapted = contextFromApi(serverContext({ start: '10:00', end: '19:00' }));
+    assert.deepEqual(adapted.days[0].shift, { type: '', start: '10:00', end: '19:00' });
+    assert.equal(frameLabel('', '10:00', '19:00'), '10–19');
+  });
+
+  it('leaves days without a shift, and everything else, as the server sent it', () => {
+    const raw = serverContext(null);
+    const adapted = contextFromApi(raw);
+    assert.equal(adapted.days[0].shift, null);
+    assert.deepEqual({ ...adapted, days: [] }, { ...raw, days: [] });
+    assert.equal(raw.days[0].shift, null, 'does not change the input');
+  });
+});
+
+describe('gọi máy chủ thật của luồng yêu cầu', () => {
+  type Call = [method: string, path: string, body?: unknown];
+  const fake = (reply: Record<string, unknown> = {}) => {
+    const calls: Call[] = [];
+    const rec = (method: string) => async (path: string, body?: unknown) => {
+      calls.push([method, path, body]);
+      return reply;
+    };
+    return { calls, api: { get: rec('GET'), post: rec('POST'), patch: rec('PATCH') } };
+  };
+
+  it('reads the context from GET /me/request-context and adapts the day shifts', async () => {
+    const raw = context() as any;
+    raw.shiftFrames = [{ shiftType: 'NORMAL', start: '08:00', end: '17:00' }];
+    raw.days = raw.days.slice(0, 1).map((d: any) => ({ ...d, shift: { start: '08:00', end: '17:00' } }));
+    const { calls, api } = fake(raw);
+    const ctx = await staffRequestsClient(api).getRequestContext();
+    assert.deepEqual(calls, [['GET', '/me/request-context', undefined]]);
+    assert.equal(ctx.days[0].shift?.type, 'NORMAL');
+  });
+
+  it('previews through POST /me/requests/:kind/preview and returns the body as it is', async () => {
+    const reply = { ok: true, title: 'Đơn nghỉ', summary: { dates: [], daysCount: 0, annualLeaveLeftAfter: null }, warnings: [] };
+    const { calls, api } = fake(reply);
+    const draft = { leaveType: 'ANNUAL', startDate: '2026-11-13', endDate: '2026-11-13', reason: 'Việc nhà' };
+    assert.deepEqual(await staffRequestsClient(api).previewRequest('leave', draft), reply);
+    assert.deepEqual(calls, [['POST', '/me/requests/leave/preview', draft]]);
+    const refused = fake({ ok: false, message: 'Ngày này đã có đơn', code: 'DAY_CONFLICT' });
+    assert.deepEqual(await staffRequestsClient(refused.api).previewRequest('leave-with-makeup', draft as any), {
+      ok: false,
+      message: 'Ngày này đã có đơn',
+      code: 'DAY_CONFLICT'
+    });
+    assert.equal(refused.calls[0][1], '/me/requests/leave-with-makeup/preview');
+  });
+
+  it('creates through POST /me/requests/:kind and takes the id from body.request.id', async () => {
+    const { calls, api } = fake({ created: true, request: { id: 'req-123', status: 'PENDING' }, warnings: [] });
+    const draft = { workDate: '2026-10-27', actualCheckOut: '17:30', reason: 'Quên' };
+    assert.deepEqual(await staffRequestsClient(api).createRequest('explanation', draft), { id: 'req-123' });
+    assert.deepEqual(calls, [['POST', '/me/requests/explanation', draft]]);
+  });
+
+  it('lets a refusal of the server reach the caller untouched', async () => {
+    const boom = new Error('Ngày này đã có đơn nghỉ');
+    const api = { get: async () => ({}), post: async () => Promise.reject(boom), patch: async () => ({}) };
+    await assert.rejects(staffRequestsClient(api).createRequest('leave', {} as any), boom);
+  });
+
+  it('cancels through PATCH /me/requests/:id/cancel with an empty body and returns nothing', async () => {
+    const { calls, api } = fake({ updated: true, request: {} });
+    assert.equal(await staffRequestsClient(api).cancelRequest('a/b c'), undefined);
+    assert.deepEqual(calls, [['PATCH', '/me/requests/a%2Fb%20c/cancel', {}]]);
   });
 });
