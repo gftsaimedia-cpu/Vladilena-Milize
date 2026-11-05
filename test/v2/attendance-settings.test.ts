@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import 'reflect-metadata';
 import { beforeEach, describe, it } from 'node:test';
 import { AttendanceRepository } from '../../src/modules/attendance/attendance.repository';
 import { AttendanceService } from '../../src/modules/attendance/attendance.service';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/attendance/domain';
 import type { Zone } from '../../src/modules/settings/domain/attendance-zone';
+import { checkPunchLocation, isWorkday, payDateOf, SettingsReader } from '../../src/modules/settings';
 import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 class FakeRepo extends AttendanceRepository {
@@ -164,6 +166,20 @@ describe('Attendance punches against settings', () => {
     const boom = new Error('db');
     const broken = new AttendanceService(repo, undefined, { workWeekOf: async () => Promise.reject(boom), zone: async () => null } as any);
     await assert.rejects(broken.workdayOf(u('x'), '2026-12-14'), (e: any) => e === boom);
+  });
+
+  it('the settings reader is a required dependency: Nest fails at boot instead of skipping the checks', () => {
+    const optional: number[] = Reflect.getMetadata('optional:paramtypes', AttendanceService) ?? [];
+    const injected: Array<{ index: number; param: unknown }> = Reflect.getMetadata('self:paramtypes', AttendanceService);
+    assert.equal(injected.find(i => i.index === 2)?.param, SettingsReader);
+    assert.equal(optional.includes(2), false);
+  });
+
+  it('the settings module index exports the pure helpers other modules use', () => {
+    assert.equal(typeof payDateOf, 'function');
+    assert.equal(typeof checkPunchLocation, 'function');
+    assert.equal(typeof isWorkday, 'function');
+    assert.equal(typeof SettingsReader, 'function');
   });
 
   it('without settings the service keeps the old behaviour', async () => {

@@ -1,9 +1,7 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator } from '../../database';
 import { businessDateText } from '../../common/business-date';
-import { SettingsReader, TypeWeekMissingError } from '../settings';
-import { checkPunchLocation } from '../settings/domain/attendance-zone';
-import { isWorkday } from '../settings/domain/work-week';
+import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import {
@@ -47,7 +45,7 @@ export class AttendanceService {
   constructor(
     @Inject(AttendanceRepository) private readonly repo: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
-    @Optional() @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
+    @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
   ) {}
 
   /**
