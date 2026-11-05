@@ -104,7 +104,7 @@ test('a refused check-out shows the server message, then a check-out that cannot
   let failToday = true;
   await page.route('**/api/v2/me/today**', route => (failToday ? ((failToday = false), route.abort()) : route.continue()));
   await card.getByRole('button', { name: /Check-out/ }).click();
-  await expect(page.getByRole('status').filter({ hasText: 'Đã check-out' })).toBeVisible();
+  await expect(page.locator('.toast.ok').filter({ hasText: 'Đã check-out' })).toBeVisible(); // thông báo, không phải dòng trạng thái của thẻ ca
   await expect(card).toContainText('Đã check-out');
   await expect(page.getByText('Không kết nối được máy chủ.')).toHaveCount(0);
   await expect(page.getByText('Không tải được dữ liệu')).toHaveCount(0);
