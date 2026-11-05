@@ -79,7 +79,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
     'reviewRequest',
     'cancelRequest'
   ].map(m => [RequestsController, m, cap('requests.review')] as [any, string, AccessRule]),
-  ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income'].map(
+  ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
   ),
   ...['savePositions', 'saveLevel', 'addLevel'].map(

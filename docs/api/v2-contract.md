@@ -304,6 +304,31 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   - `APPROVE`: kiểm lại ma trận trên trạng thái hiện tại; qua thì ghi lịch làm việc đúng trên các ngày đơn đang giữ (không tính lại khoảng ngày), bảng `day_status` không đổi. Đơn đổi ca không ghi đè lịch của ngày đã bị đơn nghỉ đã duyệt thay.
   - `REJECT` và huỷ (`PATCH .../cancel`): trả ngày. Ngày từng là ngày đổi ca của một đơn còn hiệu lực thì trả về đơn đổi ca đó (đã duyệt thì ghi lại lịch đổi ca); còn lại ngày về trạng thái thường (ca mặc định). Thứ Bảy iSAT được trả ngay nên đơn nghỉ hoặc OT nộp sau đó nhận được.
 
+#### Các route `/api/v2/me` cho nhân viên tự nộp đơn
+Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đang đăng nhập, `employeeId` hay `username` trong body bị bỏ qua. Nguồn luật: `docs/superpowers/specs/2026-11-05-staff-requests-design.md` (mục 2 và 3).
+
+- **`GET /api/v2/me/request-context`**: một lần gọi trả đủ dữ liệu cho form: `today`, `window` (từ hôm nay tới ngày cuối tháng sau, giờ Việt Nam), `kinds` (loại đơn dùng được, `enabled: false` kèm `reason` là loại bị khoá), `months` (`closed`, `otMinutes`, `otCapMinutes`, `hasOvertime`, `hasMakeupLeave`), `leaveTypes`, `annualLeaveLeft` (`null` khi không có quyền lợi phép năm), `shiftFrames`, `days` (`workday`, `shift`, `holiday`, `claim`, `hours`), `explanationDays` và `advance`. Lỗi: `400 BAD_REQUEST`.
+- **`POST /api/v2/me/requests/:kind/preview`**: body giống `POST /api/v2/me/requests/:kind`, không ghi gì. `:kind` là một trong `leave`, `leave-with-makeup`, `overtime`, `shift-change`, `explanation`, `advance`; loại khác (kể cả `isat`, không có xem trước) trả `404` mã `REQUEST_KIND_NOT_FOUND`. Luôn trả `200`:
+  - hợp lệ: `{ "ok": true, "title": "Phép năm 13–16/11", "summary": { … }, "warnings": [] }`; `summary` theo loại: leave `{ dates, daysCount, annualLeaveLeftAfter }`, leave-with-makeup `{ dates, daysCount, makeupMinutesRequired, makeupMinutesPlanned }`, overtime `{ minutes, monthMinutesAfter }`, shift-change `{ dates, keptDates }`, explanation `{ cases, needs }`, advance `{ month, amount, workDays }`;
+  - không hợp lệ: `{ "ok": false, "message": "<câu lỗi của server>", "code": "DAY_CONFLICT" }`; `code` chỉ có khi là xung đột ngày. Xếp chưa đủ giờ bù thì `ok: false` với câu `Còn thiếu N giờ bù`.
+- **`POST /api/v2/me/requests/:kind`** (tạo đơn): cùng thân trả về và lỗi như route Admin, nhưng áp luật tự nộp (`filedBy: 'self'`):
+  - ngày phải nằm trong `window` (`Chỉ chọn ngày từ 05/11 đến 31/12`), áp cho đơn nghỉ, nghỉ có làm bù (cả ngày nghỉ lẫn ngày bù), làm thêm giờ, đổi ca;
+  - tháng đã chốt công thì từ chối (`Tháng 10 đã chốt công`);
+  - giờ OT và giờ bù phải là giờ tròn (`Chỉ chọn giờ tròn`);
+  - tạm ứng chỉ nộp ngày 16 và 17 (giờ Việt Nam) cho tháng hiện tại (`Chỉ nộp tạm ứng ngày 16 và 17`);
+  - `iSAT` giữ nguyên như trước.
+- **Tiêu đề do server đặt** (cả `/me` lẫn Admin): `title` client gửi bị bỏ qua. Mẫu: `Phép năm 13–16/11`, `Nghỉ có làm bù 13–14/11`, `Làm thêm 10/11 18–20h`, `Đổi ca Flex 06–15, 10–12/11`, `Giải trình 27/10`, `Tạm ứng lương tháng 11`; khoảng ngày khác tháng ghi đủ (`Phép năm 30/11–02/12`).
+- **`GET /api/v2/me/today`**: thêm `reminders: [{ date, remindedAt }]`, những ngày Admin đã nhắc và còn cần giải trình, mới nhất trước. Lỗi khi lấy lời nhắc thì trả `[]`, màn không hỏng. `alert` giữ nguyên.
+- **`GET /api/v2/me/attendance/:date`**: thêm hai trường:
+  - `explanation`: đơn giải trình mới nhất không bị huỷ của ngày đó, dạng `{ id, status, sentAt, cases, actualCheckIn, actualCheckOut }`, hoặc `null`;
+  - `due`: `{ cases, needs, remindedAt }` khi ngày cần giải trình, ngược lại `null`. Lỗi khi lấy thông tin giải trình thì cả hai là `null`, ngày công vẫn mở được.
+- **`GET /api/v2/me/profile`**: `leave.remainingDays` do server tính từ đơn (cùng hàm với `annualLeaveLeft`), `0` khi không có quyền lợi phép năm; nếu không tính được thì giữ số trong hợp đồng.
+
+#### Route Admin về giải trình (cần quyền `requests.review`)
+- **`GET /api/v2/requests/explanations-due`**: mọi ngày cần giải trình của mọi nhân sự đang làm, mới nhất trước. Trả `{ "items": [{ "employeeId", "name", "date", "cases", "needs", "remindedAt" }] }`.
+- **`POST /api/v2/requests/explanations-due/remind`**: body `{ "employeeId", "date" }`; người nhắc lấy từ phiên Admin. Trả `{ "reminded": true, "remindedAt": "<ISO>" }`. Nhắc lại thì ghi đè lần trước. Ngày không còn cần giải trình thì `400 BAD_REQUEST` (ví dụ `Ngày này đã được giải trình`).
+- Cả hai khai báo trước `GET /api/v2/requests/:id`.
+
 #### `POST /api/v2/requests/explanation` (Đơn giải trình)
 - **Mục đích**: Giải trình một ngày công có giờ chấm bất thường (vào muộn, ra sớm, thiếu giờ vào/ra…). Một ngày chỉ một đơn.
 - **Request Body**:
@@ -492,7 +517,8 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   | 9 | `Ngày dd/mm đang nghỉ, không xếp khung bù được` | Ngày của khung nằm trong đơn nghỉ khác hoặc lịch `ON_LEAVE` |
   | 9 | Các câu `Giờ khung không hợp lệ…`, `Khung … phải nằm trong 06:00–22:00`, `… phải cách ca … ít nhất 1 giờ`, `… chồng lên khung …` | Như đơn OT; khung được xét theo ngày rồi theo giờ bắt đầu |
   | 10 | `Ngày dd/mm vượt 12 giờ (ca + OT + làm bù = <n> giờ)` | Ca + khung đã có + các khung mới của ngày đó > 12 giờ |
-  | 11 | `Cần đúng <n> giờ bù, đang xếp <m> giờ` | Tổng giờ bù khác 8 × `leaveDaysCount`, ví dụ `Cần đúng 8 giờ bù, đang xếp 4 giờ` |
+  | 11 | `Còn thiếu <n> giờ bù` | Tổng giờ bù ít hơn 8 × `leaveDaysCount`, ví dụ `Còn thiếu 4 giờ bù` |
+  | 11 | `Cần đúng <n> giờ bù, đang xếp <m> giờ` | Tổng giờ bù nhiều hơn 8 × `leaveDaysCount`, ví dụ `Cần đúng 8 giờ bù, đang xếp 12 giờ` |
 - Nộp dưới khoá `requests_<uuid>` như đơn nghỉ. Đơn và các khung bù (bảng `makeup_slots`) được ghi trong cùng một giao dịch.
 
 #### `POST /api/v2/requests/shift-change` (Đơn đổi ca)
