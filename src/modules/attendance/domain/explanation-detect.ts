@@ -42,16 +42,16 @@ const CASE_ORDER: readonly ExplanationCase[] = [
   'MISSING_CHECK_OUT'
 ];
 
-interface Span { start: Date; end: Date }
+export interface Span { start: Date; end: Date }
 
 /** Giờ bắt đầu/hết dạng 'HH:mm' thành hai thời điểm; giờ hết ≤ giờ bắt đầu thì ở ngày hôm sau. */
-function spanOf(date: string, start: string, end: string): Span {
+export function spanOf(date: string, start: string, end: string): Span {
   const endDate = end <= start ? addDaysText(date, 1) : date;
   return { start: vnInstant(date, start), end: vnInstant(endDate, end) };
 }
 
 /** Khung theo thời điểm. Với ca đêm, khung bắt đầu từ giờ hết ca trở xuống (trước giờ vào ca) nằm ở ngày hôm sau. */
-function windowSpans(date: string, shift: DetectInput['shift'], windows: readonly TimeWindow[]): Span[] {
+export function windowSpans(date: string, shift: DetectInput['shift'], windows: readonly TimeWindow[]): Span[] {
   const overnight = shift !== null && shift.end <= shift.start;
   return windows.map(w => {
     const afterMidnight = overnight && w.start < shift.start && w.start <= shift.end;
