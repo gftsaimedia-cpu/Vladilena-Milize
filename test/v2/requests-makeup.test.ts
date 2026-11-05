@@ -182,7 +182,7 @@ describe('Đơn nghỉ có làm bù (§6.2)', () => {
       { employeeId: 'nv01', title: 't', reason: 'r', startDate: '2026-11-10', endDate: '2026-11-10', slots, daysCount: 9, leaveType: 'ANNUAL' },
       { username: 'admin' } as any
     );
-    assert.deepEqual(res, { created: true, request: { id: 'x' } });
+    assert.deepEqual(res, { created: true, request: { id: 'x' }, warnings: [] });
     assert.deepEqual(seen, [{ employeeId: 'nv01', title: 't', reason: 'r', startDate: '2026-11-10', endDate: '2026-11-10', slots }]);
   });
 });

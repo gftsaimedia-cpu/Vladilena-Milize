@@ -129,7 +129,7 @@ describe('Đơn đổi ca (§6.4)', () => {
       { employeeId: 'nv01', title: 't', reason: 'r', startDate: '2026-11-12', endDate: '2026-11-13', shiftType: 'NORMAL', startTime: '10:00', endTime: '23:00', changeDate: '2026-11-20' },
       { username: 'admin' } as any
     );
-    assert.deepEqual(res, { created: true, request: { id: 'x' } });
+    assert.deepEqual(res, { created: true, request: { id: 'x' }, warnings: [] });
     assert.deepEqual(seen, [
       { employeeId: 'nv01', title: 't', reason: 'r', startDate: '2026-11-12', endDate: '2026-11-13', shiftType: 'NORMAL', startTime: '10:00' }
     ]);

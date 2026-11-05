@@ -413,7 +413,7 @@ describe('Đơn iSAT - controller', () => {
     } as any);
     assert.deepEqual(
       await ctrl.createIsat({ employeeId: 'nguyen-van-a', saturday: '2026-11-07', team: 'T', conditions: {}, title: 'x' }, { username: 'admin' } as any),
-      { created: true, request: { id: 'r1' } }
+      { created: true, request: { id: 'r1' }, warnings: [] }
     );
     assert.deepEqual(calls[0], { employeeId: 'nguyen-van-a', saturday: '2026-11-07', team: 'T', conditions: {} });
 
