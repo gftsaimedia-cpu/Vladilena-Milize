@@ -30,6 +30,5 @@ export default [
   },
   { file: 'dlg-cd-them-ngay-le.html', title: 'Hộp thoại · Thêm ngày lễ', to: `${B}/lich?hop=them-ngay-le` },
   { file: 'dlg-cd-tao-vai-tro.html', title: 'Hộp thoại · Tạo vai trò', to: `${B}/phan-quyen?hop=tao-vai-tro` },
-  { file: 'dlg-cd-them-che-do.html', title: 'Hộp thoại · Thêm chế độ phụ cấp', to: `${B}/che-do?hop=them-che-do` },
   { file: 'dlg-cd-them-chuc-vu.html', title: 'Hộp thoại · Thêm chức vụ', to: `${B}/tat-ca?hop=them-chuc-vu` }
 ];

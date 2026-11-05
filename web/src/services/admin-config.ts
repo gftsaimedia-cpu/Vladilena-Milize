@@ -213,32 +213,6 @@ export async function getKpiRules() {
 // Khoản phụ cấp mới đi qua khối phụ cấp (POST /api/blocks) và bước xác nhận cờ thuế, bảo hiểm của kế toán: chưa nối.
 export const addAllowance = (_payload?: any) => Promise.reject(new Error('Chưa nối máy chủ'));
 
-// GET /api/entitlements: các khoản phụ cấp thêm có cờ miễn thuế hoặc tính vào bảo hiểm, kèm dấu xác nhận của kế toán.
-export async function getAllowanceFlags() {
-  const res = await api('GET', '/entitlements');
-  const rows = (res.blocks || [])
-    .filter(b => b.added && ((b.tax && b.tax !== 'none') || b.insuranceBase))
-    .map(b => ({
-      code: b.code,
-      label: b.label,
-      tax: b.tax,
-      taxCap: b.taxCap,
-      insuranceBase: !!b.insuranceBase,
-      confirmedBy: b.flagsConfirmedBy,
-      confirmedAt: b.flagsConfirmedAt
-    }));
-  return { month: res.month, rev: res.paramsRev, rows };
-}
-
-// Kế toán xác nhận đúng cờ đã xem: máy chủ trả 409 khi cờ hoặc cấu hình vừa đổi.
-export const confirmAllowanceFlags = (row, { basis, month, rev }: any) =>
-  confirmBlock(row.code, {
-    basis,
-    effectiveMonth: month,
-    rev,
-    expectedFlags: { tax: row.tax, taxCap: row.taxCap, insuranceBase: row.insuranceBase }
-  });
-
 // ---------- Chức vụ ----------
 // GET /api/positions: chức vụ có sẵn để sao chép
 export async function getPositionTypes() {

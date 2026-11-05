@@ -1,60 +1,31 @@
 <script setup lang="ts">
-// Cài đặt › Chế độ theo loại nhân sự: ba thẻ Thực tập sinh / Chuyên trách viên / Nhân viên, mỗi thẻ hai bảng theo bậc
-// (phụ cấp, lương KPI, iDorm và loại yêu cầu được gửi). Gõ hoặc tick ngay trong ô, "Xem trước và lưu" để áp dụng.
-// Địa chỉ: /admin/cai-dat/che-do[/chuyen-trach | /nhan-vien] · ?hop=them-che-do mở hộp thêm khoản phụ cấp.
-import { computed, ref } from 'vue';
+// Cài đặt › Chế độ theo loại nhân sự: ba thẻ Thực tập sinh / Chuyên trách viên / Nhân viên, mỗi thẻ một dòng mức của
+// loại đó ở tháng này (phụ cấp, lương KPI, iDorm) và một dòng loại yêu cầu được gửi. Gõ hoặc tick ngay trong ô, bấm
+// Lưu để chọn tháng áp dụng và xem lại các ô sẽ đổi. Ca đêm của Nhân viên chọn theo từng người, không sửa ở đây.
+// Địa chỉ: /admin/cai-dat/che-do[/chuyen-trach | /nhan-vien].
+import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'vue-router';
-import Icon from '@/components/ui/Icon.vue';
+import { toast } from '@/components/shell/toast';
 import { useLoad } from '@/composables/useLoad';
+import { mergeStale } from '@/builders/api/benefits';
 import { getBenefits, saveBenefits } from '@/services/admin-settings';
-import { getAllowanceFlags, previewBenefits } from '@/services/admin-config';
-import { useSessionStore } from '@/stores/session';
-import { dmy, vndc } from '@/utils/format';
+import { monthLabel } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
-import AddAllowanceDialog from './benefits/AddAllowanceDialog.vue';
-import ConfirmFlagsDialog from './benefits/ConfirmFlagsDialog.vue';
-import PreviewDialog from './benefits/PreviewDialog.vue';
+import ConfirmDialog from './benefits/ConfirmDialog.vue';
 import CheckBox from './fields/CheckBox.vue';
 import FieldNum from './fields/FieldNum.vue';
 import SaveBar from './fields/SaveBar.vue';
 import { PATHS } from './nav';
 import { useDraft } from './lib/useDraft';
-import { useHop } from './lib/useHop';
+import { isStale } from './positions/useSnapshots';
 
 const route = useRoute();
-const { data, reload } = useLoad(() => getBenefits());
+const { data } = useLoad(() => getBenefits());
 const form = useDraft(() => data.value);
 const { draft } = form;
-const { hop, open, close } = useHop(['them-che-do']);
-
-// Cờ miễn thuế, bảo hiểm của các khoản phụ cấp thêm và dấu xác nhận của Kế toán
-const session = useSessionStore();
-const { data: flags, reload: reloadFlags } = useLoad(() => getAllowanceFlags());
-const canConfirm = computed(() => session.caps.includes('config.legal'));
-const confirming = ref(null);
-const taxText = (r?) => (r.tax === 'full' ? 'Miễn toàn bộ' : r.tax === 'cap' ? `Miễn đến ${vndc(r.taxCap)}` : 'Không');
-const flagsText = (r?) => `Thuế: ${taxText(r)} · BH: ${r.insuranceBase ? 'Có' : 'Không'}`;
-
-// Bấm lưu: hỏi máy chủ tác động trước, hộp xem trước hiện lỗi và cảnh báo nguyên văn; bấm Lưu trong hộp mới ghi.
-const preview = ref(null);
-const previewing = ref(false);
-async function onPreview() {
-  if (previewing.value || form.saving.value) return;
-  previewing.value = true;
-  form.error.value = '';
-  try {
-    preview.value = await previewBenefits(JSON.parse(JSON.stringify(draft.value)));
-  } catch (e) {
-    form.error.value = e && e.message ? e.message : 'Không xem trước được.';
-  } finally {
-    previewing.value = false;
-  }
-}
-async function onConfirm() {
-  if (form.saving.value) return;
-  await form.save(d => saveBenefits(d));
-  preview.value = null;
-}
+const confirming = ref(false);
+const saving = ref(false);
+const plain = (v?) => JSON.parse(JSON.stringify(v));
 
 const tabPath = (key?) => (key === 'thuc-tap-sinh' ? PATHS.cheDo : `${PATHS.cheDo}/${key}`);
 const current = computed(() => {
@@ -62,14 +33,52 @@ const current = computed(() => {
   const key = route.params.loai || 'thuc-tap-sinh';
   return draft.value.types.find(t => t.key === key) || draft.value.types[0];
 });
+
+// Ô % để trống không phải một mức: trả về số đã tải, như thể chưa sửa ô đó.
+function setPct(key?, value?) {
+  const loaded = data.value && data.value.types.find(t => t.code === current.value.code);
+  current.value.values[key] = value == null && loaded ? loaded.values[key] : value;
+}
+
+async function onConfirm(month?, reason?) {
+  if (saving.value) return;
+  saving.value = true;
+  form.error.value = '';
+  const mine = plain(draft.value);
+  try {
+    await saveBenefits(month, mine, reason);
+    confirming.value = false;
+    toast.ok(`Đã lưu chế độ, áp dụng từ ${monthLabel(month).toLowerCase()}`);
+    // Đọc lại để có số phiên bản mới; đọc không được thì coi bản nháp là bản đã lưu.
+    data.value = await getBenefits().catch(() => mine);
+    await nextTick();
+    form.saved.value = true;
+  } catch (e) {
+    if (!isStale(e)) {
+      form.error.value = e && e.message ? e.message : 'Không lưu được, thử lại sau.';
+      return;
+    }
+    const oldBase = plain(data.value);
+    try {
+      const fresh = await getBenefits();
+      data.value = fresh;
+      await nextTick(); // watch của useDraft đặt lại bản nháp theo số mới ở lượt này
+      draft.value = mergeStale(oldBase, mine, fresh);
+      toast.error('Vừa có người sửa, đã tải số mới, kiểm lại rồi bấm Lưu');
+    } catch (e2) {
+      form.error.value = e2 && e2.message ? e2.message : 'Không tải được số mới, thử lại sau.';
+    }
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 
 <template>
   <SettingsFrame active="quyen-loi">
     <template #sub>
       <template v-if="current">
-        {{ current.name }} · {{ current.count }} người, {{ current.levels.length }} bậc · tick hoặc gõ mức ngay trong ô,
-        bấm Xem trước và lưu để áp dụng
+        {{ current.name }} · {{ current.count }} người · tick hoặc gõ mức ngay trong ô, bấm Lưu để áp dụng
       </template>
     </template>
 
@@ -86,37 +95,36 @@ const current = computed(() => {
         </RouterLink>
         <span class="r">
           <RouterLink :to="PATHS.nhatKy" class="link">Nhật ký</RouterLink>
-          <button type="button" class="btn sm" @click="open('them-che-do')"><Icon name="plus" />Thêm chế độ</button>
         </span>
       </div>
 
       <div class="sh">
         <h3>Phụ cấp và lương KPI</h3>
-        <span>Mức theo từng bậc của {{ current.name }}</span>
+        <span>Mức của {{ current.name }}</span>
       </div>
       <table class="tbl ql">
-        <colgroup>
-          <col style="width: 120px" />
-          <col v-for="c in draft.columns" :key="c.key" />
-        </colgroup>
         <thead>
           <tr>
-            <th>Bậc</th>
             <th v-for="c in draft.columns" :key="c.key" class="c">{{ c.label }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="lv in current.levels" :key="lv.name">
-            <td class="b">{{ lv.name }}</td>
+          <tr>
             <td v-for="c in draft.columns" :key="c.key" class="c">
-              <CheckBox v-if="c.kind === 'check'" v-model="lv.values[c.key]" :label="`${c.label} · ${lv.name}`" />
+              <span v-if="c.key === 'nightPct' && current.nightByPerson" class="byp">Theo từng người</span>
+              <CheckBox
+                v-else-if="c.kind === 'check'"
+                v-model="current.values[c.key]"
+                :label="`${c.label} · ${current.name}`"
+              />
               <FieldNum
                 v-else
-                v-model="lv.values[c.key]"
-                :unit="c.kind === 'pct' ? '%' : '₫'"
-                :money="c.kind === 'money'"
+                :model-value="current.values[c.key]"
+                unit="%"
+                :max="100"
                 dim
-                :label="`${c.label} · ${lv.name}`"
+                :label="`${c.label} · ${current.name}`"
+                @update:model-value="setPct(c.key, $event)"
               />
             </td>
           </tr>
@@ -125,89 +133,41 @@ const current = computed(() => {
 
       <div class="sh" style="padding-top: 24px">
         <h3>Được gửi yêu cầu</h3>
-        <span>Bậc nào được gửi loại yêu cầu nào trên app nhân viên</span>
+        <span>Loại yêu cầu {{ current.name }} được gửi trên app nhân viên</span>
       </div>
       <table class="tbl ql">
-        <colgroup>
-          <col style="width: 120px" />
-          <col v-for="r in draft.requests" :key="r.key" />
-        </colgroup>
         <thead>
           <tr>
-            <th>Bậc</th>
             <th v-for="r in draft.requests" :key="r.key" class="c">{{ r.label }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="lv in current.levels" :key="lv.name">
-            <td class="b">{{ lv.name }}</td>
+          <tr>
             <td v-for="r in draft.requests" :key="r.key" class="c">
-              <CheckBox v-model="lv.req[r.key]" :label="`${r.label} · ${lv.name}`" />
+              <CheckBox v-model="current.req[r.key]" :label="`${r.label} · ${current.name}`" />
             </td>
           </tr>
         </tbody>
       </table>
 
-      <template v-if="flags && flags.rows.length">
-        <div class="sh" style="padding-top: 24px">
-          <h3>Cờ thuế và bảo hiểm của khoản thêm</h3>
-        </div>
-        <table class="tbl ql">
-          <thead>
-            <tr>
-              <th>Khoản</th>
-              <th class="c">Miễn thuế</th>
-              <th class="c">Tính vào bảo hiểm</th>
-              <th class="c">Xác nhận</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in flags.rows" :key="r.code">
-              <td class="b">{{ r.label }}</td>
-              <td class="c">{{ taxText(r) }}</td>
-              <td class="c">{{ r.insuranceBase ? 'Có' : 'Không' }}</td>
-              <td class="c">
-                <template v-if="r.confirmedBy">{{ r.confirmedBy }} · {{ dmy(r.confirmedAt) }}</template>
-                <button v-else-if="canConfirm" type="button" class="btn sm" @click="confirming = r">Xác nhận</button>
-                <template v-else>Chưa xác nhận</template>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </template>
-
       <SaveBar
+        save-label="Lưu"
         :changes="form.changes.value"
-        :saving="form.saving.value"
+        :saving="saving"
         :saved="form.saved.value"
         :error="form.error.value"
         @cancel="form.reset"
-        @save="onPreview"
+        @save="confirming = true"
       />
     </section>
   </SettingsFrame>
 
-  <PreviewDialog
-    v-if="preview"
-    :preview="preview"
-    :saving="form.saving.value"
-    @close="preview = null"
+  <ConfirmDialog
+    v-if="confirming && draft"
+    :draft="draft"
+    :saving="saving"
+    @close="confirming = false"
     @confirm="onConfirm"
-  />
-  <ConfirmFlagsDialog
-    v-if="confirming"
-    :row="confirming"
-    :flags-text="flagsText(confirming)"
-    :month="flags.month"
-    :rev="flags.rev"
-    @close="confirming = null"
-    @saved="reloadFlags"
-  />
-  <AddAllowanceDialog
-    v-if="hop === 'them-che-do' && data"
-    :types="data.types.map(t => ({ key: t.key, name: t.name }))"
-    @close="close"
-    @saved="reload"
   />
 </template>
 
@@ -219,8 +179,8 @@ const current = computed(() => {
 .ql td.c {
   text-align: center;
 }
-.ql td.b {
-  font-weight: 500;
+.byp {
+  color: var(--muted);
 }
 .sh {
   display: flex;

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-// Thanh lưu (.savebar): bật khi có thay đổi. "Xem trước và lưu" gọi hàm lưu của màn (mockSave).
+// Thanh lưu (.savebar): bật khi có thay đổi. Nút lưu (chữ theo saveLabel) gọi hàm lưu của màn.
 import { computed } from 'vue';
 
 const props = defineProps({
   changes: { type: Number, default: 0 },
   saving: { type: Boolean, default: false },
   saved: { type: Boolean, default: false },
-  error: { type: String, default: '' }
+  error: { type: String, default: '' },
+  saveLabel: { type: String, default: 'Xem trước và lưu' }
 });
 defineEmits(['cancel', 'save']);
 
@@ -37,7 +38,7 @@ const text = computed(() => {
         :disabled="!changes || saving"
         @click="$emit('save')"
       >
-        Xem trước và lưu
+        {{ saveLabel }}
       </button>
     </span>
   </div>
