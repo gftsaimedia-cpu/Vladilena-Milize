@@ -56,6 +56,12 @@ export class SettingsController {
   }
 
   @RequireCap('config.read')
+  @Get('work-weeks')
+  async listWorkWeeks(@Query('month') month: unknown): Promise<unknown> {
+    return this.run(() => this.service.workWeeks(month));
+  }
+
+  @RequireCap('config.read')
   @Get('work-weeks/:username')
   async getWorkWeek(@Param('username') username: string, @Query('month') month: unknown): Promise<unknown> {
     return this.run(() => this.service.getWorkWeek(username, month));

@@ -179,6 +179,12 @@ export class SettingsRepository {
     return { uuid: row.uuid, username: row.username, type: row.type };
   }
 
+  /** Mọi nhân sự đã có tài khoản (uuid khác NULL), theo username tăng dần. */
+  async staffList(q: Q): Promise<StaffRef[]> {
+    const rows = await q.selectFrom('staff').select(['uuid', 'username', 'type']).where('uuid', 'is not', null).orderBy('username').execute();
+    return rows.flatMap(r => (r.uuid === null ? [] : [{ uuid: r.uuid, username: r.username, type: r.type }]));
+  }
+
   /** Tuần làm và ngày công chuẩn của loại nhân sự, theo phiên bản mới nhất có tháng không sau `month`. */
   async typeWeekAt(q: Q, typeCode: string, month: string): Promise<{ weekdays: number[]; workdays: number } | null> {
     const row = await q
@@ -204,6 +210,19 @@ export class SettingsRepository {
       .orderBy('effective_month')
       .execute();
     return rows.map(r => ({ month: r.effective_month, values: { weekdays: r.weekdays } }));
+  }
+
+  /** Với mỗi người có tuần riêng: weekdays (chuỗi JSON hoặc null = theo loại) của phiên bản mới nhất có tháng không sau `month`. */
+  async ownWeeksAt(q: Q, month: string): Promise<Map<string, string | null>> {
+    const rows = await q
+      .selectFrom('staff_work_weeks')
+      .select(['employee_id', 'weekdays'])
+      .distinctOn('employee_id')
+      .where('effective_month', '<=', month)
+      .orderBy('employee_id')
+      .orderBy('effective_month', 'desc')
+      .execute();
+    return new Map(rows.map(r => [r.employee_id, r.weekdays]));
   }
 
   async writeWorkWeek(q: Q, uuid: string, month: string, weekdays: string | null, meta: WriteMeta): Promise<void> {

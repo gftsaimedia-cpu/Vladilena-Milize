@@ -87,6 +87,20 @@ class MemorySettings {
     return this.staff.find(s => s.uuid === uuid) ?? null;
   }
 
+  async staffList(_q: unknown): Promise<StaffRef[]> {
+    return [...this.staff].sort((a, b) => (a.username < b.username ? -1 : a.username > b.username ? 1 : 0));
+  }
+
+  /** uuid → weekdays (chuỗi JSON hoặc null) của phiên bản mới nhất có tháng không sau `month`. */
+  async ownWeeksAt(_q: unknown, month: string): Promise<Map<string, string | null>> {
+    const out = new Map<string, string | null>();
+    for (const [uuid, chain] of this.weekChains) {
+      const latest = chain.filter(v => v.month <= month).sort((a, b) => a.month.localeCompare(b.month)).pop();
+      if (latest) out.set(uuid, latest.values.weekdays as string | null);
+    }
+    return out;
+  }
+
   async typeWeekAt(_q: unknown, typeCode: string, _month: string): Promise<{ weekdays: number[]; workdays: number } | null> {
     return this.typeWeeks[typeCode] ?? null;
   }
@@ -250,6 +264,28 @@ describe('settings service: per-person work week and attendance zone', () => {
   it('rejects a work week month before the seed month instead of failing with a 500', async () => {
     await rejectsField(svc.getWorkWeek('nv-binh', '1999-12', NOW), 'month');
     assert.equal((await svc.getWorkWeek('nv-binh', '2000-01', NOW)).source, 'type');
+  });
+
+  it('lists the work week of everyone for a month', async () => {
+    const now = await svc.workWeeks(undefined, NOW);
+    assert.equal(now.month, '2026-11');
+    assert.deepEqual(now.weekdays, {
+      'ctv-chau': [1, 2, 3, 4, 5, 6],
+      'nv-binh': [1, 2, 3, 4, 5, 6],
+      'tts-ha': [1, 2, 3, 4, 5]
+    });
+    assert.deepEqual(Object.keys(now.weekdays), ['ctv-chau', 'nv-binh', 'tts-ha']);
+
+    await svc.saveWorkWeek('ctv-chau', { effectiveMonth: '2026-12', weekdays: [1, 3, 5], stamp: 0 }, 'admin', NOW);
+    assert.deepEqual((await svc.workWeeks('2026-12', NOW)).weekdays['ctv-chau'], [1, 3, 5]);
+    assert.deepEqual((await svc.workWeeks('2026-11', NOW)).weekdays['ctv-chau'], [1, 2, 3, 4, 5, 6]);
+
+    // Người có loại không có tuần thì bị bỏ qua.
+    (mem as unknown as { staff: StaffRef[] }).staff.push({ uuid: 'u-x', username: 'zzz-x', type: 'zzz' });
+    assert.equal('zzz-x' in (await svc.workWeeks('2026-12', NOW)).weekdays, false);
+
+    await rejectsField(svc.workWeeks('1999-12', NOW), 'month');
+    await rejectsField(svc.workWeeks('2026-13', NOW), 'month');
   });
 
   it('own week from a month, then back to the type week (Review Focus 4)', async () => {

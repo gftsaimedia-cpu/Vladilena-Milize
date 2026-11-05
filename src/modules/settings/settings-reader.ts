@@ -34,6 +34,9 @@ export interface WorkWeek {
   typeStandardWorkdays: number;
 }
 
+/** Tuần riêng lưu dạng chuỗi JSON của mảng thứ; null = theo loại nhân sự. */
+const parseWeekdays = (stored: string | null): number[] | null => (stored === null ? null : (JSON.parse(String(stored)) as number[]));
+
 @Injectable()
 export class SettingsReader {
   constructor(@Inject(SettingsRepository) private readonly repo: SettingsRepository) {}
@@ -58,7 +61,7 @@ export class SettingsReader {
     if (!type) throw new Error(`Loại nhân sự ${staff.type} chưa có ở tháng ${month}`);
 
     const own = versionAt(await this.repo.workWeekChain(q, employeeUuid), month);
-    const ownWeekdays = own && own.values.weekdays !== null ? (JSON.parse(String(own.values.weekdays)) as number[]) : null;
+    const ownWeekdays = own ? parseWeekdays(own.values.weekdays as string | null) : null;
     if (own && ownWeekdays) {
       return {
         weekdays: ownWeekdays,
@@ -77,6 +80,23 @@ export class SettingsReader {
       typeWeekdays: type.weekdays,
       typeStandardWorkdays: type.workdays
     };
+  }
+
+  /** Tuần làm của mọi người đã có tài khoản ở `month`, khoá theo username tăng dần; cùng quyết định với `workWeekOf`. */
+  async workWeeksAt(month: string, q: Q = this.repo.db): Promise<Record<string, number[]>> {
+    const staff = await this.repo.staffList(q);
+    const own = await this.repo.ownWeeksAt(q, month);
+    const typeWeeks = new Map<string, number[] | null>();
+    for (const type of new Set(staff.map(s => s.type))) {
+      typeWeeks.set(type, (await this.repo.typeWeekAt(q, type, month))?.weekdays ?? null);
+    }
+    const out: Record<string, number[]> = {};
+    for (const s of staff) {
+      const ownWeekdays = parseWeekdays(own.get(s.uuid) ?? null);
+      const weekdays = ownWeekdays ?? typeWeeks.get(s.type) ?? null;
+      if (weekdays) out[s.username] = weekdays;
+    }
+    return out;
   }
 
   zone(q: Q = this.repo.db): Promise<Zone | null> {

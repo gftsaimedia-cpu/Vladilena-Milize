@@ -160,6 +160,12 @@ export class SettingsService {
     return { items: (await this.repo.history(this.repo.db, group, null)).map(toHistoryItem) };
   }
 
+  async workWeeks(month: unknown, now: Date = new Date()): Promise<{ month: string; weekdays: Record<string, number[]> }> {
+    const at = parseMonth(month ?? businessMonthText(now), 'month');
+    if (at < SEED_MONTH) throw new SettingsInputError(`Tháng phải từ ${monthText(SEED_MONTH)} trở đi`, 'month');
+    return { month: at, weekdays: await this.reader.workWeeksAt(at, this.repo.db) };
+  }
+
   async getWorkWeek(
     username: unknown,
     month: unknown,

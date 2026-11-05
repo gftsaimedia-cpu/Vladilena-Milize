@@ -135,6 +135,44 @@ test('work week falls back to the type and follows own versions', async t => {
   });
 });
 
+test('work weeks of everyone for a month', async t => {
+  await withTempDb(t, 'settings_repo_weeks', async db => {
+    const repo = new SettingsRepository(db);
+    const reader = new SettingsReader(repo);
+    await seedStaff(db);
+    await repo.writeWorkWeek(db, 'u-binh', '2026-12', '[1,2,3,4,5]', META);
+
+    assert.deepEqual(await repo.staffList(db), [
+      { uuid: 'u-binh', username: 'nv-binh', type: 'nv' },
+      { uuid: 'u-ha', username: 'tts-ha', type: 'tts' }
+    ]);
+    assert.deepEqual([...(await repo.ownWeeksAt(db, '2026-11'))], []);
+    assert.deepEqual([...(await repo.ownWeeksAt(db, '2027-01'))], [['u-binh', '[1,2,3,4,5]']]);
+
+    assert.deepEqual(await reader.workWeeksAt('2026-11'), { 'nv-binh': [1, 2, 3, 4, 5, 6], 'tts-ha': [1, 2, 3, 4, 5] });
+    assert.deepEqual(await reader.workWeeksAt('2026-12'), { 'nv-binh': [1, 2, 3, 4, 5], 'tts-ha': [1, 2, 3, 4, 5] });
+    assert.deepEqual(Object.keys(await reader.workWeeksAt('2026-12')), ['nv-binh', 'tts-ha']);
+
+    // Quay về tuần của loại từ 2027-03: bản mới nhất là null nên theo loại; tháng 2027-02 vẫn là tuần riêng.
+    await repo.writeWorkWeek(db, 'u-binh', '2027-03', null, META);
+    assert.deepEqual((await reader.workWeeksAt('2027-02'))['nv-binh'], [1, 2, 3, 4, 5]);
+    assert.deepEqual((await reader.workWeeksAt('2027-03'))['nv-binh'], [1, 2, 3, 4, 5, 6]);
+    assert.equal((await repo.ownWeeksAt(db, '2027-03')).get('u-binh'), null);
+
+    // Cùng kết quả với route từng người.
+    for (const month of ['2026-11', '2026-12', '2027-02', '2027-03']) {
+      const all = await reader.workWeeksAt(month);
+      assert.deepEqual(all['nv-binh'], (await reader.workWeekOf('u-binh', month)).weekdays);
+      assert.deepEqual(all['tts-ha'], (await reader.workWeekOf('u-ha', month)).weekdays);
+    }
+
+    // Người thêm sau nhưng username đứng trước vẫn đứng đầu (ORDER BY username). Trigger tự cấp uuid nên không dựng được staff uuid NULL.
+    await db.insertInto('staff').values({ username: 'ctv-chau', name: 'x', type: 'ctv', pass_hash: 'x', created_at: '2026-11-05' }).execute();
+    assert.deepEqual((await repo.staffList(db)).map(s => s.username), ['ctv-chau', 'nv-binh', 'tts-ha']);
+    assert.deepEqual(Object.keys(await reader.workWeeksAt('2026-12')), ['ctv-chau', 'nv-binh', 'tts-ha']);
+  });
+});
+
 test('zone, closed month, change log and stamps', async t => {
   await withTempDb(t, 'settings_repo_log', async db => {
     const repo = new SettingsRepository(db);

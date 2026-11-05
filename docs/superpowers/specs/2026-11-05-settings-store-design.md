@@ -346,6 +346,17 @@ Tên nhóm trong đường dẫn và tên khoá trong phản hồi:
 
 ### 5.3 Tuần làm việc riêng
 
+**`GET /settings/work-weeks?month=2026-12`** (`config.read`; bỏ `month` thì lấy tháng hiện tại theo giờ Việt Nam)
+
+```json
+{ "month": "2026-12", "weekdays": { "ctv-chau": [1,3,5], "nv-binh": [1,2,3,4,5], "tts-ha": [1,2,3,4,5] } }
+```
+
+- Có mọi nhân sự đã có tài khoản (`staff.uuid` khác NULL), khoá theo `username` tăng dần.
+- Giá trị là tuần đang áp dụng ở tháng đó: tuần riêng nếu có, không thì tuần của loại nhân sự (giống `weekdays` của route từng người).
+- Người có loại không có tuần ở tháng đó thì bỏ qua.
+- `month` sai dạng hoặc trước `2000-01` → `400 BAD_SETTINGS_INPUT`, `field: "month"`.
+
 **`GET /settings/work-weeks/:username?month=2026-12`** (`config.read`; bỏ `month` thì lấy tháng hiện tại theo giờ Việt Nam)
 
 ```json

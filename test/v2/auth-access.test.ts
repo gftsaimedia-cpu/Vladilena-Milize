@@ -84,7 +84,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ...['savePositions', 'saveLevel', 'addLevel'].map(
     m => [PositionsController, m, cap('config.write')] as [any, string, AccessRule]
   ),
-  ...['getAll', 'payDays', 'getZone', 'zoneHistory', 'getWorkWeek', 'workWeekHistory', 'groupHistory'].map(
+  ...['getAll', 'payDays', 'getZone', 'zoneHistory', 'listWorkWeeks', 'getWorkWeek', 'workWeekHistory', 'groupHistory'].map(
     m => [SettingsController, m, cap('config.read')] as [any, string, AccessRule]
   ),
   ...['saveZone', 'saveWorkWeek', 'saveGroup'].map(

@@ -20,6 +20,7 @@ const METHODS = [
   'getZone',
   'saveZone',
   'zoneHistory',
+  'listWorkWeeks',
   'getWorkWeek',
   'saveWorkWeek',
   'workWeekHistory',
@@ -27,11 +28,14 @@ const METHODS = [
   'groupHistory'
 ] as const;
 
+/** Tên method của service mà các handler gọi; `listWorkWeeks` gọi `workWeeks`, còn lại cùng tên. */
+const SERVICE_METHODS = METHODS.map(m => (m === 'listWorkWeeks' ? 'workWeeks' : m));
+
 /** Mỗi method của service ném `err`. */
 const failing = (err: Error) =>
   new SettingsController(
     Object.fromEntries(
-      METHODS.map(m => [
+      SERVICE_METHODS.map(m => [
         m,
         async () => {
           throw err;
@@ -47,6 +51,7 @@ const callAll = (ctrl: SettingsController) => [
   () => ctrl.getZone(),
   () => ctrl.saveZone({}, user),
   () => ctrl.zoneHistory(),
+  () => ctrl.listWorkWeeks('2026-11'),
   () => ctrl.getWorkWeek('binh', '2026-11'),
   () => ctrl.saveWorkWeek('binh', {}, user),
   () => ctrl.workWeekHistory('binh'),
@@ -63,6 +68,7 @@ describe('SettingsController', () => {
     ['getZone', READ],
     ['saveZone', WRITE],
     ['zoneHistory', READ],
+    ['listWorkWeeks', READ],
     ['getWorkWeek', READ],
     ['saveWorkWeek', WRITE],
     ['workWeekHistory', READ],
@@ -83,6 +89,7 @@ describe('SettingsController', () => {
       ['getZone', RequestMethod.GET, 'attendance-zone'],
       ['saveZone', RequestMethod.PUT, 'attendance-zone'],
       ['zoneHistory', RequestMethod.GET, 'attendance-zone/history'],
+      ['listWorkWeeks', RequestMethod.GET, 'work-weeks'],
       ['getWorkWeek', RequestMethod.GET, 'work-weeks/:username'],
       ['saveWorkWeek', RequestMethod.PUT, 'work-weeks/:username'],
       ['workWeekHistory', RequestMethod.GET, 'work-weeks/:username/history'],
@@ -101,6 +108,8 @@ describe('SettingsController', () => {
     const names = Object.getOwnPropertyNames(SettingsController.prototype);
     assert.ok(names.indexOf('saveZone') < names.indexOf('saveGroup'));
     assert.ok(names.indexOf('zoneHistory') < names.indexOf('groupHistory'));
+    assert.ok(names.indexOf('listWorkWeeks') < names.indexOf('getWorkWeek'));
+    assert.ok(names.indexOf('listWorkWeeks') < names.indexOf('saveGroup'));
     assert.ok(names.indexOf('saveWorkWeek') < names.indexOf('saveGroup'));
     assert.ok(names.indexOf('workWeekHistory') < names.indexOf('groupHistory'));
   });
@@ -139,7 +148,7 @@ describe('SettingsController', () => {
         seen.push([name, ...args]);
         return { ok: true };
       };
-    const ctrl = new SettingsController(Object.fromEntries(METHODS.map(m => [m, rec(m)])) as any);
+    const ctrl = new SettingsController(Object.fromEntries(SERVICE_METHODS.map(m => [m, rec(m)])) as any);
     const body = { values: { weekdayRate: 1.5 } };
 
     await ctrl.getAll('2026-11');
@@ -148,6 +157,8 @@ describe('SettingsController', () => {
     await ctrl.getZone();
     await ctrl.saveZone(body, user);
     await ctrl.zoneHistory();
+    await ctrl.listWorkWeeks('2026-12');
+    await ctrl.listWorkWeeks(undefined as any);
     await ctrl.getWorkWeek('binh', '2026-11');
     await ctrl.saveWorkWeek('binh', body, user);
     await ctrl.workWeekHistory('binh');
@@ -161,6 +172,8 @@ describe('SettingsController', () => {
       ['getZone'],
       ['saveZone', body, 'admin'],
       ['zoneHistory'],
+      ['workWeeks', '2026-12'],
+      ['workWeeks', undefined],
       ['getWorkWeek', 'binh', '2026-11'],
       ['saveWorkWeek', 'binh', body, 'admin'],
       ['workWeekHistory', 'binh'],
