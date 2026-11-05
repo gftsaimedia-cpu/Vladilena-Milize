@@ -107,14 +107,19 @@ watch(
   },
   { immediate: true }
 );
-// Đóng chuông bằng nền, nút Đóng hoặc Esc: bỏ ?hop=chuong khỏi địa chỉ, để "Xem tất cả" mở lại được lần sau.
-function closeBell() {
-  bellOpen.value = false;
-  if (route.query.hop === 'chuong') router.replace({ query: { ...route.query, hop: undefined } });
+// Đóng một lớp nổi bằng nền, nút Đóng/Huỷ hoặc Esc: tắt cờ, và nếu ?hop đang là giá trị của lớp đó thì bỏ hop khỏi địa chỉ,
+// để liên kết mở lớp đó dùng lại được. Việc đi tới màn khác thì dùng @leave (chỉ tắt cờ): liên kết tự đổi địa chỉ,
+// một router.replace chen vào sẽ huỷ lần đi đó.
+const overlayFlag = { chuong: bellOpen, 'menu-tai-khoan': menuOpen, 'doi-mat-khau': pwOpen };
+function closeOverlay(hop: keyof typeof overlayFlag) {
+  overlayFlag[hop].value = false;
+  if (route.query.hop === hop) router.replace({ query: { ...route.query, hop: undefined } });
 }
+// Từ menu sang hộp đổi mật khẩu: chuyển ?hop sang doi-mat-khau, để đóng hộp xong địa chỉ không còn hop.
 function openPassword() {
   menuOpen.value = false;
   pwOpen.value = true;
+  if (route.query.hop) router.replace({ query: { ...route.query, hop: 'doi-mat-khau' } });
 }
 </script>
 
@@ -166,8 +171,14 @@ function openPassword() {
       <PeriodStrip v-if="STEPS_NAV.includes(String(route.meta.nav || ''))" />
       <slot />
     </main>
-    <BellDrawer v-if="bellOpen" @close="closeBell" @leave="bellOpen = false" />
-    <AccountMenu v-if="menuOpen" :me="shell.me" @close="menuOpen = false" @change-password="openPassword" />
-    <ChangePasswordDialog v-if="pwOpen" @close="pwOpen = false" />
+    <BellDrawer v-if="bellOpen" @close="closeOverlay('chuong')" @leave="bellOpen = false" />
+    <AccountMenu
+      v-if="menuOpen"
+      :me="shell.me"
+      @close="closeOverlay('menu-tai-khoan')"
+      @leave="menuOpen = false"
+      @change-password="openPassword"
+    />
+    <ChangePasswordDialog v-if="pwOpen" @close="closeOverlay('doi-mat-khau')" />
   </div>
 </template>

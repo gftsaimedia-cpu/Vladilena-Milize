@@ -256,3 +256,54 @@ test('the old Yêu cầu addresses redirect to the overview and keep only the mo
   await expect(page).toHaveURL('/admin/tong-quan');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
 });
+
+// Đóng lớp nổi mở bằng ?hop= thì bỏ hop khỏi địa chỉ, để liên kết đó mở lại được lần sau.
+const hopOf = (page: Page) => new URL(page.url()).searchParams.get('hop');
+const menuOf = (page: Page) => page.getByRole('menu');
+const passwordOf = (page: Page) => page.getByRole('dialog', { name: 'Đổi mật khẩu' });
+
+test('Escape closes the account menu opened by ?hop and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=menu-tai-khoan');
+  await expect(menuOf(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menuOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+test('Huỷ closes the password dialog opened by ?hop and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=doi-mat-khau');
+  await expect(passwordOf(page)).toBeVisible();
+  await passwordOf(page).getByRole('button', { name: 'Huỷ' }).click();
+  await expect(passwordOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+test('Đổi mật khẩu in the menu still opens the dialog, and closing it leaves no hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?hop=menu-tai-khoan');
+  await menuOf(page).getByRole('menuitem', { name: 'Đổi mật khẩu' }).click();
+  await expect(passwordOf(page)).toBeVisible();
+  await expect(menuOf(page)).toHaveCount(0);
+  await passwordOf(page).getByRole('button', { name: 'Huỷ' }).click();
+  await expect(passwordOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+});
+
+test('Đăng xuất from a menu opened by ?hop still lands on /dang-nhap', async ({ page }) => {
+  await page.goto('/admin/tong-quan?hop=menu-tai-khoan');
+  await menuOf(page).getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  await page.waitForTimeout(300);
+  await expect(page).toHaveURL(/\/dang-nhap/);
+});
+
+test('Escape closes the bell opened by ?hop=chuong and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=chuong');
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  await expect(drawer).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
