@@ -21,8 +21,6 @@ export {
   getBenefits,
   benefitChangesAt,
   saveBenefits,
-  getAllSettings,
-  saveAllSettings,
   getCalendar,
   addHoliday,
   quickAddHolidays,

@@ -141,6 +141,29 @@ export type ReadonlySection = { title: string; rows: { label: string; value: str
 
 type DrawerDef = { title: string; sub: string; group: GroupKey | null; section: string; fields: DrawerField[] };
 
+// Dạng nhập của từng ô (tiền tố, đơn vị, số nguyên, số lẻ tối đa, tiền): dùng chung cho ngăn kéo và trang Tất cả cài đặt.
+const FORMAT: Record<string, Omit<DrawerField, 'field' | 'label'>> = {
+  weekdayRate: { prefix: '×', decimals: 2 },
+  weekendRate: { prefix: '×', decimals: 2 },
+  holidayRate: { prefix: '×', decimals: 2 },
+  diligenceLostFromDays: { unit: 'ngày', integer: true },
+  lateGraceMinutes: { unit: 'phút', integer: true },
+  wework: { unit: '%', integer: true },
+  user: { unit: '%', integer: true },
+  peer: { unit: '%', integer: true },
+  manager: { unit: '%', integer: true },
+  self: { unit: '%', integer: true },
+  bhxhPct: { unit: '%', decimals: 2 },
+  bhytPct: { unit: '%', decimals: 2 },
+  bhtnPct: { unit: '%', decimals: 2 },
+  personalDeduction: { money: true },
+  dependantDeduction: { money: true },
+  shortContractPct: { unit: '%', decimals: 2 },
+  shortContractThreshold: { money: true },
+  payDay: { integer: true }
+};
+const fld = (field: string, label: string): DrawerField => ({ field, label, ...FORMAT[field] });
+
 const TAM_UNG_TEXT = '80% lương của ngày công 01–15';
 
 const DRAWER_DEFS: Record<string, DrawerDef> = {
@@ -157,9 +180,9 @@ const DRAWER_DEFS: Record<string, DrawerDef> = {
     group: 'overtime',
     section: 'Hệ số',
     fields: [
-      { field: 'weekdayRate', label: 'Ngày thường', prefix: '×', decimals: 2 },
-      { field: 'weekendRate', label: 'Cuối tuần', prefix: '×', decimals: 2 },
-      { field: 'holidayRate', label: 'Ngày lễ', prefix: '×', decimals: 2 }
+      fld('weekdayRate', 'Ngày thường'),
+      fld('weekendRate', 'Cuối tuần'),
+      fld('holidayRate', 'Ngày lễ')
     ]
   },
   'phu-cap': {
@@ -167,21 +190,21 @@ const DRAWER_DEFS: Record<string, DrawerDef> = {
     sub: 'Phụ cấp theo loại nhân sự và luật chuyên cần',
     group: 'attendance',
     section: 'Chuyên cần',
-    fields: [{ field: 'diligenceLostFromDays', label: 'Mất chuyên cần khi nghỉ từ', unit: 'ngày', integer: true }]
+    fields: [fld('diligenceLostFromDays', 'Mất chuyên cần khi nghỉ từ')]
   },
   'luong-kpi': {
     title: 'Lương KPI',
     sub: 'Trọng số của 5 điểm KPI, cộng lại đủ 100',
     group: 'kpiWeights',
     section: 'Trọng số',
-    fields: Object.entries(KPI_NAMES).map(([field, label]) => ({ field, label, unit: '%', integer: true }))
+    fields: Object.entries(KPI_NAMES).map(([field, label]) => fld(field, label))
   },
   'khau-tru': {
     title: 'Khấu trừ đi muộn, về sớm',
     sub: 'Ngưỡng đi trễ vẫn tính là đúng giờ',
     group: 'attendance',
     section: 'Khấu trừ',
-    fields: [{ field: 'lateGraceMinutes', label: 'Đi trễ tới … phút vẫn hợp lệ', unit: 'phút', integer: true }]
+    fields: [fld('lateGraceMinutes', 'Đi trễ tới … phút vẫn hợp lệ')]
   },
   'tam-ung': { title: 'Tạm ứng', sub: 'Số tiền được ứng giữa tháng', group: null, section: '', fields: [] }
 };
@@ -259,4 +282,137 @@ export function payDrawerView(
     link: key === 'luong-ngay-cong' || key === 'phu-cap' || key === 'luong-kpi',
     text: key === 'tam-ung' ? TAM_UNG_TEXT : null
   };
+}
+
+// ---------- Tất cả cài đặt ----------
+
+/** Một mục của trang Tất cả cài đặt: các ô nhập, hoặc một dòng chữ chỉ xem, hoặc bảng biểu thuế. */
+export type SettingEntry = {
+  key: string;
+  title: string;
+  desc: string;
+  fields: DrawerField[];
+  readonly?: string;
+  brackets?: boolean;
+};
+/** Một nhóm của trang; `group` là nhóm của máy chủ, null khi nhóm chỉ có chữ. */
+export type SettingGroup = { key: string; name: string; group: GroupKey | null; items: SettingEntry[] };
+
+// Mục một ô: nhãn của ô trùng tên mục.
+const single = (field: string, title: string, desc: string): SettingEntry => ({
+  key: field,
+  title,
+  desc,
+  fields: [fld(field, title)]
+});
+
+const OT_DESC = 'Nhân với lương giờ khi làm thêm';
+const INSURANCE_DESC = 'Phần người lao động đóng, tính trên lương đóng bảo hiểm';
+
+/** Tám nhóm của trang Tất cả cài đặt, theo thứ tự hiển thị. */
+export const ALL_GROUPS: SettingGroup[] = [
+  {
+    key: 'lam-them',
+    name: 'OT',
+    group: 'overtime',
+    items: [
+      single('weekdayRate', 'Hệ số OT ngày thường', `${OT_DESC} ngày thường`),
+      single('weekendRate', 'Hệ số OT cuối tuần', `${OT_DESC} cuối tuần`),
+      single('holidayRate', 'Hệ số OT ngày lễ', `${OT_DESC} ngày lễ, Tết`)
+    ]
+  },
+  {
+    key: 'phu-cap',
+    name: 'Phụ cấp',
+    group: 'attendance',
+    items: [
+      single(
+        'diligenceLostFromDays',
+        'Mất chuyên cần',
+        'Nghỉ từ số ngày này trong tháng thì mất phụ cấp chuyên cần'
+      )
+    ]
+  },
+  {
+    key: 'luong-kpi',
+    name: 'KPI',
+    group: 'kpiWeights',
+    items: Object.entries(KPI_NAMES).map(([field, name]) =>
+      single(field, name, 'Trọng số trong tổng điểm KPI, 5 trọng số cộng lại đủ 100')
+    )
+  },
+  {
+    key: 'khau-tru',
+    name: 'Khấu trừ',
+    group: 'attendance',
+    items: [single('lateGraceMinutes', 'Đi trễ vẫn hợp lệ', 'Đi trễ tới số phút này vẫn tính là đúng giờ')]
+  },
+  {
+    key: 'tam-ung',
+    name: 'Tạm ứng',
+    group: null,
+    items: [
+      { key: 'advance', title: 'Số tiền được ứng', desc: '', fields: [], readonly: TAM_UNG_TEXT }
+    ]
+  },
+  {
+    key: 'bao-hiem',
+    name: 'Bảo hiểm',
+    group: 'insurance',
+    items: [
+      single('bhxhPct', 'BHXH', INSURANCE_DESC),
+      single('bhytPct', 'BHYT', INSURANCE_DESC),
+      single('bhtnPct', 'BHTN', INSURANCE_DESC)
+    ]
+  },
+  {
+    key: 'thue',
+    name: 'Thuế',
+    group: 'tax',
+    items: [
+      single('personalDeduction', 'Giảm trừ bản thân', 'Trừ vào thu nhập trước khi tính thuế, mỗi tháng'),
+      single('dependantDeduction', 'Giảm trừ người phụ thuộc', 'Cho mỗi người phụ thuộc, mỗi tháng'),
+      {
+        key: 'shortContract',
+        title: 'Hợp đồng ngắn hạn',
+        desc: 'Khấu trừ thẳng trên thu nhập của hợp đồng ngắn hạn',
+        fields: [fld('shortContractPct', 'Tỉ lệ khấu trừ'), fld('shortContractThreshold', 'Khi thu nhập từ')]
+      },
+      {
+        key: 'brackets',
+        title: 'Biểu thuế',
+        desc: 'Lũy tiến từng phần, 5 bậc, theo thu nhập tính thuế mỗi tháng',
+        fields: [],
+        brackets: true
+      }
+    ]
+  },
+  {
+    key: 'ky-luong',
+    name: 'Kỳ lương',
+    group: 'payCalendar',
+    items: [single('payDay', 'Ngày trả lương', 'Ngày trong tháng sau, từ 1 đến 28')]
+  }
+];
+
+/** Chữ thường, bỏ dấu, đ → d, gọn khoảng trắng: để so khớp khi tìm không cần gõ dấu. */
+export function normalizeSearch(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Các mục có tiêu đề, tên nhóm hoặc mô tả chứa `q` (sau khi chuẩn hoá), theo thứ tự nhóm; `q` trống thì không có kết quả. */
+export function searchSettings(q: string): { groupKey: string; itemKey: string; title: string; groupName: string }[] {
+  const needle = normalizeSearch(q);
+  if (!needle) return [];
+  return ALL_GROUPS.flatMap(g =>
+    g.items
+      .filter(i => normalizeSearch(`${i.title} ${g.name} ${i.desc}`).includes(needle))
+      .map(i => ({ groupKey: g.key, itemKey: i.key, title: i.title, groupName: g.name }))
+  );
 }

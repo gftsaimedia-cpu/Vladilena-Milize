@@ -2,7 +2,6 @@
 // Mỗi hàm đọc máy chủ rồi đổi phản hồi về đúng hình dạng màn đang dùng (builders/admin-config).
 // Hàm lưu so bản nháp với bản vừa đọc và chỉ gửi các khoá đã đổi, kèm tháng áp dụng và số phiên bản (paramsRev) của lần đọc đó.
 import { api, qs } from '@/services/http';
-import { allSettingsWanted, buildAllSettings, searchAllSettings } from '@/builders/admin-config/all-settings';
 import {
   benefitChanges,
   benefitsViewFromCatalog,
@@ -18,7 +17,7 @@ import { buildAuditPage } from '@/builders/admin-config/audit';
 import { auditFromResponse, verifyMessage } from '@/builders/api/audit';
 import { calendarFromHolidays, datesOf, holidayRangesOf } from '@/builders/api/calendar';
 import { notConnected } from '@/services/data-mode';
-import { applySaved, diffEdits, indexParams, toPct, valueOf } from '@/builders/admin-config/params';
+import { applySaved, diffEdits, indexParams, valueOf } from '@/builders/admin-config/params';
 
 const plain = (v?) => (v == null ? v : JSON.parse(JSON.stringify(v)));
 
@@ -57,7 +56,6 @@ const state: Record<string, any> = {
   calendar: null,
   setup: null
 };
-let allSettingsRequestId = 0;
 
 // ---------- Chế độ theo loại nhân sự ----------
 // Một dòng mỗi loại theo phiên bản chức vụ của tháng này (GET /employees/meta/positions) kèm số người đang làm
@@ -90,69 +88,6 @@ export async function saveBenefits(month: string, draft: BenefitsView, reason: s
   state.benefits.base = plain(draft);
 }
 
-// ---------- Tất cả cài đặt ----------
-export async function getAllSettings(group = 'ngay-cong') {
-  const requestId = ++allSettingsRequestId;
-  const [idx, firstRun] = await Promise.all([readParams(), api('GET', '/settings/first-run')]);
-  const view: any = buildAllSettings(idx, firstRun, group);
-  view.searchResults = searchAllSettings(idx, '');
-  for (const item of view.detail.items) item.history = historyOf(idx, item);
-  if (requestId === allSettingsRequestId) state.all = { idx, group };
-  return plain(view);
-}
-
-// Lịch sử các phiên bản của từng ô trong một mục, kèm dòng giá trị mặc định (phiên bản 0) khi ô đã từng được sửa.
-// Mỗi dòng: { key, label, version, value (chữ hiện), current, by, at, month, reason }; cap là quyền ghi của mục.
-function historyOf(idx?, item?) {
-  const entry = idx.entries.find(e => e.id === item.key);
-  if (!entry) return null;
-  const cells = (
-    item.kind === 'options'
-      ? [{ pk: item.pk, label: '', show: (v?) => (item.options.find(o => o.key === v) || {}).label }]
-      : item.rows.map(r => ({
-          pk: r.field.pk,
-          label: r.label,
-          show:
-            r.field.type === 'seg' ? v => r.field.options[r.field.vals.indexOf(v)] : v => (r.field.ratio ? toPct(v) : v)
-        }))
-  ).filter(c => c.pk);
-  const rows: any[] = [];
-  for (const cell of cells) {
-    const inst = (entry.instances || []).find(i => i.key === cell.pk);
-    if (!inst) continue;
-    const text = (v?) => {
-      const shown = cell.show(v);
-      return shown == null ? '' : String(shown);
-    };
-    const own = (entry.history || []).filter(h => h.key === cell.pk);
-    for (const h of own)
-      rows.push({
-        key: cell.pk,
-        label: cell.label,
-        version: h.id,
-        value: text(h.value),
-        current: h.id === inst.version,
-        by: h.createdBy,
-        at: h.createdAt,
-        month: h.effectiveMonth,
-        reason: h.reason
-      });
-    if (own.length && inst.default !== undefined)
-      rows.push({
-        key: cell.pk,
-        label: cell.label,
-        version: 0,
-        value: text(inst.default),
-        current: inst.version === 0,
-        by: null,
-        at: null,
-        month: null,
-        reason: null
-      });
-  }
-  return rows.length ? { cap: entry.writeCapability, rows } : null;
-}
-
 /** Hoàn tác một ô về phiên bản cũ rồi nhớ số phiên bản mới cho các lần lưu sau. */
 export async function revertSetting({ key, toVersion, effectiveMonth, reason }: any) {
   const st = state.all;
@@ -160,12 +95,6 @@ export async function revertSetting({ key, toVersion, effectiveMonth, reason }: 
   const res = await revertParam({ key, toVersion, effectiveMonth, reason, expectedRev: st.idx.rev });
   if (Number.isInteger(res.paramsRev)) st.idx.rev = res.paramsRev;
   return res;
-}
-
-export async function saveAllSettings(group?, draft?) {
-  const { idx } = state.all || {};
-  if (!idx) throw new Error('Chưa tải dữ liệu để lưu');
-  return putParams(idx, allSettingsWanted(draft));
 }
 
 // ---------- Lịch, ca & chấm công ----------
