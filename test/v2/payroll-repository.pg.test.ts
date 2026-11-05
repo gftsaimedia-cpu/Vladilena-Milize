@@ -18,6 +18,8 @@ import { SettingsChanges } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
 import { SettingsRepository } from '../../src/modules/settings/settings.repository';
 import { SettingsService } from '../../src/modules/settings/settings.service';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { withTempDb } from './helpers/pg-temp-db';
 
 // Needs a real PostgreSQL. PG_TEST_URL is a control connection (a role that may CREATE/DROP DATABASE): the test
@@ -301,7 +303,8 @@ test('A payroll run reads the settings store and stores the month snapshot on Po
     );
     const settingsRepo = new SettingsRepository(db);
     const reader = new SettingsReader(settingsRepo);
-    const settings = new SettingsService(settingsRepo, reader, new TransactionCoordinator(db), new SettingsChanges());
+    const tx = new TransactionCoordinator(db);
+    const settings = new SettingsService(settingsRepo, reader, tx, new SettingsChanges(), new AuditLog(new AuditRepository(), tx));
     await settings.saveWorkWeek('nv-binh', { weekdays: [1, 2, 3, 4, 5], effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
     await settings.saveGroup('insurance', { values: { bhxhPct: 10 }, effectiveMonth: '2026-12', stamp: 0 }, 'admin', now);
 

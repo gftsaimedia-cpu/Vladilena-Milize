@@ -4,6 +4,8 @@ import { isValidDateText } from '../../common/date-text';
 import { TransactionCoordinator } from '../../database/transaction';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import { AuditLog } from '../audit/audit-log';
+import { gateAllows } from '../periods/domain';
+import { PeriodGate } from '../periods/period-gate';
 import { HolidayNotFoundError } from './holidays.errors';
 import { HolidaysRepository, type Holiday } from './holidays.repository';
 
@@ -40,9 +42,11 @@ const holidayEntry = (holiday: Holiday) => ({
 });
 
 /**
- * Mỗi lần thêm/xoá chạy trong một transaction; dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả hai.
+ * Mỗi lần thêm/xoá chạy trong một transaction; dòng nhật ký ghi cuối cùng, lỗi thì huỷ cả hai. Cổng kỳ (`holiday`) chạy
+ * đầu transaction đó, nên khoá chia sẻ của tháng giữ tới commit: Chốt công đợi lần ghi đang dở xong.
  * Sau khi transaction đó đã commit, các dòng ngày công của ngày lễ được ghi lại cho mọi người còn hiệu lực
- * (mỗi người một giao dịch riêng). Ghi lại lỗi thì lỗi trả về cho Admin và ngày lễ vẫn nằm trong lịch (thêm/xoá lại sẽ báo
+ * (mỗi người một giao dịch riêng). Tháng đã chốt bị cổng kỳ từ chối (hoặc bị "thêm nhanh" bỏ qua) thì không ghi lại gì.
+ * Ghi lại lỗi thì lỗi trả về cho Admin và ngày lễ vẫn nằm trong lịch (thêm/xoá lại sẽ báo
  * trùng/không có); dòng ngày được sửa bằng "Tính lại" của Admin (POST /api/v2/attendance/recalculate) hoặc tác vụ chạy
  * mỗi giờ (chỉ dòng thiếu hoặc PENDING).
  */
@@ -56,7 +60,8 @@ export class HolidaysService {
     @Inject(HolidaysRepository) private readonly repo: HolidaysRepository,
     @Inject(TransactionCoordinator) private readonly tx: Pick<TransactionCoordinator, 'run'>,
     @Inject(AuditLog) private readonly audit: Pick<AuditLog, 'append'>,
-    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshDateForAll'>
+    @Optional() @Inject(AttendanceDaysService) private readonly attendanceDays?: Pick<AttendanceDaysService, 'refreshDateForAll'>,
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'hold' | 'statusOf'>
   ) {}
 
   /** Ghi lại dòng ngày công của `date` cho mọi người còn hiệu lực. Gọi sau khi giao dịch ghi lịch lễ đã commit (P4). */
@@ -76,6 +81,7 @@ export class HolidaysService {
     if (trimmed.length === 0) throw new Error('Tên ngày lễ không được trống');
     const holiday: Holiday = { date, name: trimmed };
     const saved = await this.tx.run(async trx => {
+      await this.periodGate?.hold(trx, [date.slice(0, 7)], 'holiday');
       if (!(await this.repo.withTransaction(trx).insert(holiday, actor))) {
         throw new Error(`Ngày ${formatFullDate(date)} đã có trong lịch lễ`);
       }
@@ -100,6 +106,8 @@ export class HolidaysService {
       const added: Holiday[] = [];
       for (const { monthDay, name } of FIXED_HOLIDAYS) {
         const holiday = { date: `${y}-${monthDay}`, name };
+        // Ngày của tháng đã chốt thì bỏ qua, không làm hỏng cả năm.
+        if (this.periodGate && !gateAllows(await this.periodGate.statusOf(trx, holiday.date.slice(0, 7)), 'holiday')) continue;
         if (await repo.insert(holiday, actor)) added.push(holiday);
       }
       const requestId = randomUUID();
@@ -115,6 +123,7 @@ export class HolidaysService {
   async remove(date: string, actor: string): Promise<void> {
     if (!isValidDateText(date)) throw new Error(`Ngày lễ không hợp lệ: ${date}`);
     await this.tx.run(async trx => {
+      await this.periodGate?.hold(trx, [date.slice(0, 7)], 'holiday');
       const removed = await this.repo.withTransaction(trx).remove(date);
       if (!removed) throw new HolidayNotFoundError(date);
       await this.audit.append(trx, {

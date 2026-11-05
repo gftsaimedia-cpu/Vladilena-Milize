@@ -8,6 +8,7 @@ import { RequestsModule } from './modules/requests';
 import { AttendanceModule } from './modules/attendance';
 import { PayrollModule } from './modules/payroll';
 import { SystemModule } from './modules/system';
+import { PeriodsModule } from './modules/periods';
 import { MeModule } from './modules/me';
 import { PositionsModule } from './modules/positions';
 import { SettingsModule } from './modules/settings';
@@ -24,6 +25,7 @@ import { AuditModule } from './modules/audit';
     AttendanceModule,
     PayrollModule,
     SystemModule,
+    PeriodsModule,
     MeModule,
     PositionsModule,
     SettingsModule,

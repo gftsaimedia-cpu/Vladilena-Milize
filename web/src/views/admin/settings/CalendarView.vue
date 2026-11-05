@@ -1,31 +1,164 @@
 <script setup lang="ts">
-// Cài đặt › Lịch, ca & chấm công: lịch năm và ngày lễ, ca làm và vùng chấm công.
+// Cài đặt › Lịch, ca & chấm công: lịch năm (ngày lễ, ngày trả lương), 6 ca cố định chỉ xem, ngày trả lương và vùng chấm công.
 // ?hop=them-ngay-le mở hộp thêm ngày lễ.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
+import { payDatesIn, payDayHint, zoneErrors, zoneLines } from '@/builders/api/settings';
 import { useLoad } from '@/composables/useLoad';
-import { getCalendar, getCalendarSetup, quickAddHolidays, removeHoliday, saveCalendarSetup } from '@/services/admin-settings';
+import { getCalendar, quickAddHolidays, removeHoliday } from '@/services/admin-settings';
+import {
+  getAttendanceZone,
+  getPayDays,
+  getSettings,
+  getShifts,
+  isStale,
+  saveAttendanceZone,
+  STALE_TEXT
+} from '@/services/settings-store';
 import { usePeriodStore } from '@/stores/period';
 import { dm } from '@/utils/format';
 import SettingsFrame from './SettingsFrame.vue';
 import HolidayDialog from './calendar/HolidayDialog.vue';
 import YearCalendar from './calendar/YearCalendar.vue';
 import FieldNum from './fields/FieldNum.vue';
-import FieldText from './fields/FieldText.vue';
-import SaveBar from './fields/SaveBar.vue';
-import { useDraft } from './lib/useDraft';
+import LoadFail from './fields/LoadFail.vue';
+import SaveConfirmDialog from './fields/SaveConfirmDialog.vue';
+import SelectBox from './fields/SelectBox.vue';
+import TextBox from './fields/TextBox.vue';
+import { REASON_MAX } from './lib/rules';
 import { useHop } from './lib/useHop';
+import { useSettingsDraft } from './lib/useSettingsDraft';
 
 const year = ref(Number(usePeriodStore().month.slice(0, 4))); // năm của kỳ lương đang xem
-const { data, reload } = useLoad(
+const {
+  data,
+  error: calendarError,
+  reload
+} = useLoad(
   () => getCalendar(year.value),
   () => year.value
 );
-const { data: setup } = useLoad(() => getCalendarSetup());
-const form = useDraft(() => setup.value);
-const { draft } = form;
+const { data: settings, error: settingsError, reload: reloadSettings } = useLoad(() => getSettings());
+const { data: shifts, error: shiftsError, reload: reloadShifts } = useLoad(() => getShifts());
+// Ngày trả lương của tháng 12 năm trước rơi vào tháng 1 năm nay, nên tải cả hai năm rồi lọc theo năm đang xem.
+const {
+  data: payDates,
+  error: payDatesError,
+  reload: reloadPayDates
+} = useLoad(
+  async () => {
+    const [prev, cur] = await Promise.all([getPayDays(year.value - 1), getPayDays(year.value)]);
+    return payDatesIn(year.value, [...prev.items, ...cur.items]);
+  },
+  () => year.value
+);
+// Ngày trả lương đang hiệu lực ở tháng của getSettings.
+const payDay = computed(() => (settings.value ? settings.value.groups.payCalendar.values.payDay : null));
+// Thẻ "Lịch năm" cần cả lịch nghỉ lễ, ngày trả lương đang hiệu lực và các ngày trả lương của năm.
+const yearError = computed(() => calendarError.value || settingsError.value || payDatesError.value);
+function retryYear() {
+  if (calendarError.value) reload();
+  if (settingsError.value) reloadSettings();
+  if (payDatesError.value) reloadPayDates();
+}
 const { hop, open, close } = useHop(['them-ngay-le']);
+
+// Thẻ "Ngày trả lương": ngày trả 1–28, áp dụng từ một tháng; lưu xong thì tải lại để các chấm ngày trả lương dời theo.
+const pay = useSettingsDraft('payCalendar', ['payDay']);
+const payDraftDay = computed(() => pay.draft.value.payDay as number | null);
+const payError = computed(() => pay.errors.value.payDay || '');
+const payHint = computed(() => payError.value || (pay.ready.value ? payDayHint(pay.month.value, payDraftDay.value as number) : ''));
+const payFoot = computed(() => {
+  const first = Object.values(pay.errors.value)[0];
+  if (first) return first;
+  const n = pay.changed.value.length;
+  return n ? `Có ${n} thay đổi chưa lưu` : 'Chưa có thay đổi';
+});
+const confirming = ref(false);
+async function confirmPay() {
+  const ok = await pay.save();
+  confirming.value = false;
+  if (ok) {
+    reloadPayDates();
+    reloadSettings();
+  }
+}
+
+// Thẻ "Vùng chấm công": lưu là áp dụng ngay, không theo tháng, không có ô lý do. Không dùng useSettingsDraft vì vùng không có tháng.
+const { data: zoneData, error: zoneError, reload: reloadZone } = useLoad(() => getAttendanceZone());
+const zLat = ref<number | null>(null);
+const zLng = ref<number | null>(null);
+const zRadius = ref<number | null>(null);
+const zoneReady = computed(() => !!zoneData.value);
+// Mỗi lần đọc xong (lần đầu, sau khi lưu, sau khi tải lại vì 409): ô chưa gõ (còn bằng vùng đọc lần trước) theo vùng
+// vừa đọc, ô đã gõ giữ số đã gõ, như các màn cài đặt khác; nhờ vậy 409 chỉ làm mới vùng đã lưu và stamp.
+watch(
+  zoneData,
+  (v, old) => {
+    const z = v ? v.zone : null;
+    const prev = old ? old.zone : null;
+    if (zLat.value === (prev ? prev.lat : null)) zLat.value = z ? z.lat : null;
+    if (zLng.value === (prev ? prev.lng : null)) zLng.value = z ? z.lng : null;
+    if (zRadius.value === (prev ? prev.radiusM : null)) zRadius.value = z ? z.radiusM : null;
+  },
+  { immediate: true }
+);
+const zErrors = computed(() => zoneErrors({ lat: zLat.value, lng: zLng.value, radiusM: zRadius.value }));
+const zoneSaved = computed(() => (zoneData.value ? zoneData.value.zone : null));
+const zChanged = computed(() => {
+  const s = zoneSaved.value;
+  if (!s) return true; // chưa có vùng nào: điền đủ là có gì đó để lưu
+  return s.lat !== zLat.value || s.lng !== zLng.value || s.radiusM !== zRadius.value;
+});
+const zConfirming = ref(false);
+const zSaving = ref(false);
+const zCanSave = computed(() => zoneReady.value && zChanged.value && !Object.keys(zErrors.value).length && !zSaving.value);
+const zFoot = computed(() => {
+  const first = Object.values(zErrors.value)[0];
+  if (first) return first;
+  return zChanged.value ? 'Có thay đổi chưa lưu' : 'Chưa có thay đổi';
+});
+const zLines = computed(() =>
+  zConfirming.value ? zoneLines(zoneSaved.value, { lat: zLat.value, lng: zLng.value, radiusM: zRadius.value }) : []
+);
+async function confirmZone() {
+  const stamp = zoneData.value.stamp;
+  zSaving.value = true;
+  try {
+    await saveAttendanceZone({ lat: zLat.value, lng: zLng.value, radiusM: zRadius.value, reason: null, stamp });
+    toast.ok('Đã lưu');
+    zConfirming.value = false;
+    await reloadZone();
+  } catch (e) {
+    zConfirming.value = false;
+    if (isStale(e)) {
+      toast.error(STALE_TEXT);
+      await reloadZone();
+    } else toast.error(e.message);
+  } finally {
+    zSaving.value = false;
+  }
+}
+
+const round6 = (n: number) => Math.round(n * 1e6) / 1e6;
+function useHere() {
+  if (!navigator.geolocation) {
+    toast.error('Không lấy được vị trí');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      zLat.value = round6(p.coords.latitude);
+      zLng.value = round6(p.coords.longitude);
+    },
+    () => toast.error('Không lấy được vị trí')
+  );
+}
+
+// Hình minh hoạ: bán kính vòng tròn vẽ theo bán kính thật (mét), giữ trong 10–72 px.
+const PX_PER_METER = 40 / 150;
+const circleR = computed(() => Math.min(72, Math.max(10, (zRadius.value || 0) * PX_PER_METER)));
 
 const pickedDay = ref(''); // ngày bấm trên lịch → điền sẵn vào hộp Thêm ngày lễ
 const openHoliday = (iso = '') => {
@@ -61,36 +194,21 @@ async function dropHoliday(id?) {
 }
 
 // Loại ca: chấm màu như thiết kế
-const SHIFT_TYPES = ['Normal', 'Flex', 'Night'];
-const DOT = { Normal: '#1f3d73', Flex: '#b5803f', Night: '#212121' };
-
-// Hình minh hoạ vùng chấm công: bán kính vòng tròn vẽ theo bán kính thật (mét)
-const PX_PER_METER = 40 / 150;
-const circleR = computed(() =>
-  Math.min(72, Math.max(10, (draft.value ? draft.value.zone.radius || 0 : 0) * PX_PER_METER))
-);
-
-function useHere() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.getCurrentPosition(
-    p => {
-      draft.value.zone.lat = p.coords.latitude;
-      draft.value.zone.lng = p.coords.longitude;
-    },
-    () => {}
-  );
-}
+const KIND_TEXT = { normal: 'Normal', flex: 'Flex', night: 'Night' };
+const DOT = { normal: '#1f3d73', flex: '#b5803f', night: '#212121' };
+// Giờ ra nhỏ hơn giờ vào: ca qua nửa đêm, kết thúc vào hôm sau.
+const nextDay = (s?) => s.endTime < s.startTime;
 </script>
 
 <template>
   <SettingsFrame active="lich">
     <template #sub>
-      <template v-if="data">
-        Năm {{ data.year }} · <b>{{ data.holidayDays }} ngày lễ</b> · trả lương ngày {{ data.payDay ?? "—" }} tháng sau
+      <template v-if="data && payDay">
+        Năm {{ data.year }} · <b>{{ data.holidayDays }} ngày lễ</b> · trả lương ngày {{ payDay }} tháng sau
       </template>
     </template>
 
-    <section v-if="data" class="card">
+    <section v-if="data && payDay && payDates" class="card">
       <div class="card-h" style="align-items: center">
         <h2>Lịch năm</h2>
         <span class="yr">
@@ -107,8 +225,8 @@ function useHere() {
             Bắt đầu tính công: <b>ngày {{ data.startDay }}</b> hằng tháng
           </span>
           <span>
-            <span class="paydot">{{ data.payDay ?? "—" }}</span>
-            Trả lương: <b>ngày {{ data.payDay ?? "—" }}</b> tháng sau
+            <span class="paydot">{{ payDay }}</span>
+            Trả lương: <b>ngày {{ payDay }}</b> tháng sau
           </span>
           <span>
             <i
@@ -131,7 +249,7 @@ function useHere() {
         :year="data.year"
         :holidays="data.holidays"
         :start-day="data.startDay"
-        :pay-day="data.payDay"
+        :pay-dates="payDates || []"
         @pick="openHoliday"
       />
       <div class="hol">
@@ -147,14 +265,19 @@ function useHere() {
         </button>
       </div>
     </section>
+    <section v-else-if="yearError" class="card">
+      <div class="card-h"><h2>Lịch năm</h2></div>
+      <LoadFail what="lịch năm" @retry="retryYear" />
+    </section>
 
-    <div v-if="draft && data" class="row2">
+    <div class="row2">
       <section class="card">
         <div class="card-h">
           <h2>Ca làm</h2>
-          <span class="cap">{{ draft.shifts.length }} ca</span>
+          <span v-if="shifts" class="cap">{{ shifts.length }} ca cố định</span>
         </div>
-        <table class="tbl ca">
+        <LoadFail v-if="shiftsError" what="ca làm" @retry="reloadShifts" />
+        <table v-else-if="shifts" class="tbl ca">
           <colgroup>
             <col />
             <col style="width: 96px" />
@@ -170,21 +293,17 @@ function useHere() {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(s, i) in draft.shifts" :key="i">
+            <tr v-for="s in shifts" :key="s.code">
+              <td>{{ s.name }}</td>
+              <td>{{ s.startTime }}</td>
               <td>
-                <FieldText v-model="s.name" placeholder="Tên ca" label="Tên ca" disabled style="min-width: 150px" />
-              </td>
-              <td><FieldText v-model="s.start" label="Giờ vào" /></td>
-              <td>
-                <FieldText v-model="s.end" label="Giờ ra" />
-                <span v-if="s.nextDay" class="ns">hôm sau</span>
+                {{ s.endTime }}
+                <span v-if="nextDay(s)" class="ns">hôm sau</span>
               </td>
               <td>
                 <span class="tg">
-                  <i :style="{ background: DOT[s.type] }"></i>
-                  <select v-model="s.type" disabled :aria-label="`Loại ca ${s.name}`">
-                    <option v-for="t in SHIFT_TYPES" :key="t" :value="t">{{ t }}</option>
-                  </select>
+                  <i :style="{ background: DOT[s.kind] }"></i>
+                  {{ KIND_TEXT[s.kind] || s.kind }}
                 </span>
               </td>
             </tr>
@@ -192,57 +311,125 @@ function useHere() {
         </table>
       </section>
 
-      <section class="card">
-        <div class="card-h"><h2>Chấm công</h2></div>
-        <div class="cc">
-          <div style="font-weight: 600; font-size: 14px; margin-top: 18px">Vùng chấm công</div>
-          <div class="map">
-            <svg
-              width="100%"
-              height="150"
-              viewBox="0 0 316 150"
-              preserveAspectRatio="xMidYMid slice"
-              aria-hidden="true"
-            >
-              <rect width="316" height="150" fill="#f1efe9" />
-              <g stroke="#ffffff" stroke-width="9"><path d="M0 40H316M0 104H316M58 0V150M150 0V150M244 0V150" /></g>
-              <g stroke="#ffffff" stroke-width="4"><path d="M0 72H316M104 0V150M198 0V150" /></g>
-              <circle
-                cx="176"
-                cy="80"
-                :r="circleR"
-                fill="#b5803f"
-                fill-opacity=".14"
-                stroke="#b5803f"
-                stroke-width="1.5"
-              />
-              <circle cx="176" cy="80" r="8" fill="#212121" />
-              <circle cx="176" cy="80" r="3" fill="#fff" />
-              <circle :cx="176 + circleR" cy="80" r="5" fill="#fff" stroke="#b5803f" stroke-width="2" />
-            </svg>
+      <!-- Thẻ "Ngày trả lương". -->
+      <div class="slots">
+        <section class="card pd">
+          <div class="card-h">
+            <h2>Ngày trả lương</h2>
           </div>
-          <div class="rad">
-            Bán kính
-            <FieldNum v-model="draft.zone.radius" unit="m" style="min-width: 84px" label="Bán kính vùng chấm công" />
-            <button type="button" class="btn sm" style="margin-left: auto" @click="useHere">
-              <Icon name="pin" />Dùng vị trí hiện tại
+          <div v-if="pay.ready.value" class="pd-body">
+            <div class="pd-row">
+              <FieldNum
+                v-model="pay.draft.value.payDay"
+                label="Ngày trả lương hằng tháng"
+                integer
+                :max="28"
+                unit="hằng tháng"
+              />
+              <span class="pd-fix">Bắt đầu tính công: ngày 1</span>
+            </div>
+            <p class="pd-hint" :class="{ bad: payError }">{{ payHint }}</p>
+            <div class="pd-fld">
+              <label>Áp dụng từ tháng</label>
+              <SelectBox v-model="pay.month.value" variant="inp" :options="pay.months.value" label="Áp dụng từ tháng" />
+            </div>
+            <div class="pd-fld">
+              <label>Lý do <small>(không bắt buộc)</small></label>
+              <TextBox v-model="pay.reason.value" area :maxlength="REASON_MAX" label="Lý do" />
+              <small class="pd-count">{{ pay.reason.value.length }}/{{ REASON_MAX }}</small>
+            </div>
+          </div>
+          <LoadFail v-else-if="pay.error.value" what="ngày trả lương" @retry="pay.retry" />
+          <div v-if="!pay.error.value" class="foot">
+            <span :class="{ bad: Object.keys(pay.errors.value).length }">{{ payFoot }}</span>
+            <button
+              type="button"
+              class="btn sm r"
+              :class="pay.canSave.value ? 'pri' : 'off'"
+              :disabled="!pay.canSave.value"
+              @click="confirming = true"
+            >
+              Lưu
             </button>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
 
-    <section v-if="form.changes.value || form.saved.value" class="card">
-      <SaveBar
-        :changes="form.changes.value"
-        :saving="form.saving.value"
-        :saved="form.saved.value"
-        :error="form.error.value"
-        @cancel="form.reset"
-        @save="form.save(d => saveCalendarSetup(d))"
-      />
+    <section v-if="zoneReady" class="card zn">
+      <div class="card-h">
+        <div>
+          <h2>Vùng chấm công</h2>
+          <p class="zn-sub">Nhân viên chấm công được khi ở trong vùng này</p>
+        </div>
+      </div>
+      <div class="zn-body">
+        <div class="map">
+          <svg width="100%" height="150" viewBox="0 0 316 150" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect width="316" height="150" fill="#f1efe9" />
+            <g stroke="#ffffff" stroke-width="9"><path d="M0 40H316M0 104H316M58 0V150M150 0V150M244 0V150" /></g>
+            <g stroke="#ffffff" stroke-width="4"><path d="M0 72H316M104 0V150M198 0V150" /></g>
+            <circle cx="176" cy="80" :r="circleR" fill="#b5803f" fill-opacity=".14" stroke="#b5803f" stroke-width="1.5" />
+            <circle cx="176" cy="80" r="8" fill="#212121" />
+            <circle cx="176" cy="80" r="3" fill="#fff" />
+            <circle :cx="176 + circleR" cy="80" r="5" fill="#fff" stroke="#b5803f" stroke-width="2" />
+          </svg>
+        </div>
+        <div class="zn-fields">
+          <div class="zn-fld">
+            <label>Bán kính</label>
+            <FieldNum v-model="zRadius" label="Bán kính vùng chấm công" integer :max="5000" unit="m" />
+            <small class="zn-hint" :class="{ bad: zErrors.radiusM }">Từ 20 đến 5.000 m</small>
+          </div>
+          <div class="zn-fld">
+            <label>Vĩ độ</label>
+            <FieldNum v-model="zLat" label="Vĩ độ" :decimals="6" :max="90" />
+            <small v-if="zErrors.lat" class="zn-hint bad">{{ zErrors.lat }}</small>
+          </div>
+          <div class="zn-fld">
+            <label>Kinh độ</label>
+            <FieldNum v-model="zLng" label="Kinh độ" :decimals="6" :max="180" />
+            <small v-if="zErrors.lng" class="zn-hint bad">{{ zErrors.lng }}</small>
+          </div>
+          <button type="button" class="btn sm zn-here" @click="useHere"><Icon name="pin" />Dùng vị trí hiện tại</button>
+        </div>
+      </div>
+      <div class="foot">
+        <span :class="{ bad: Object.keys(zErrors).length }">{{ zFoot }} · lưu là áp dụng ngay, không theo tháng</span>
+        <button
+          type="button"
+          class="btn sm r"
+          :class="zCanSave ? 'pri' : 'off'"
+          :disabled="!zCanSave"
+          @click="zConfirming = true"
+        >
+          Lưu
+        </button>
+      </div>
+    </section>
+    <section v-else-if="zoneError" class="card zn">
+      <div class="card-h"><h2>Vùng chấm công</h2></div>
+      <LoadFail what="vùng chấm công" @retry="reloadZone" />
     </section>
   </SettingsFrame>
+
+  <SaveConfirmDialog
+    v-if="confirming"
+    :lines="pay.lines.value"
+    :reason="pay.reason.value.trim()"
+    :saving="pay.saving.value"
+    @confirm="confirmPay"
+    @close="confirming = false"
+  />
+
+  <SaveConfirmDialog
+    v-if="zConfirming"
+    :lines="zLines"
+    reason=""
+    :saving="zSaving"
+    @confirm="confirmZone"
+    @close="zConfirming = false"
+  />
 
   <HolidayDialog
     v-if="hop === 'them-ngay-le' && data"
@@ -367,58 +554,109 @@ function useHere() {
   display: inline-block;
   flex: none;
 }
-.ca .tg select {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  padding: 0;
-  cursor: pointer;
-  outline: 0;
-}
 .ca .ns {
   color: var(--muted);
   font-size: 12px;
   margin-left: 6px;
 }
-.cc {
-  padding: 0 24px 20px;
+.slots {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
-.cc .dt {
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--raised);
-  border: 1px solid var(--border);
+.pd-body {
+  padding: 0 24px 16px;
+}
+.pd-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pd-fix {
+  color: var(--muted);
   font-size: 13px;
-  line-height: 20px;
 }
-.cc .dt b {
-  font-weight: 600;
+.pd-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--muted);
 }
-.cc .dt .link {
-  display: inline-block;
+.pd-hint.bad,
+.foot .bad {
+  color: var(--status-rejected);
+}
+.pd-fld {
+  margin-top: 14px;
+}
+.pd-fld label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.pd-fld label small,
+.pd-count {
+  font-weight: 400;
+  color: var(--muted);
+}
+.pd-count {
+  display: block;
+  text-align: right;
   margin-top: 4px;
+  font-size: 12px;
+}
+.pd .foot .btn {
+  margin-left: auto;
+}
+.pd :deep(.inp) {
+  border-radius: 8px;
+}
+.zn-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.zn-body {
+  display: grid;
+  grid-template-columns: 316px 1fr;
+  gap: 24px;
+  padding: 0 24px 16px;
+  align-items: start;
 }
 .map {
-  margin-top: 14px;
   height: 150px;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.rad {
+.zn-fields {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  font-size: 13px;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  align-items: flex-start;
 }
-.cc .hint {
-  color: var(--muted);
+.zn-fld label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.zn-hint {
+  display: block;
+  margin-top: 4px;
   font-size: 12px;
-  line-height: 18px;
-  margin-top: 10px;
+  color: var(--muted);
+}
+.zn-hint.bad,
+.zn .foot .bad {
+  color: var(--status-rejected);
+}
+.zn-here {
+  align-self: flex-end;
+}
+.zn .foot .btn {
+  margin-left: auto;
 }
 </style>

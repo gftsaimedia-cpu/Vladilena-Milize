@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
 import 'reflect-metadata';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { HTTP_CODE_METADATA, METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants';
 import { ACCESS_KEY } from '../../src/common';
 import { PunchRefusedError } from '../../src/modules/attendance/attendance.errors';
 import { MeController } from '../../src/modules/me/me.controller';
 import { vnToday } from '../../src/modules/me/domain';
+import { PeriodLockedError } from '../../src/modules/periods/periods.errors';
 import { TypeWeekMissingError } from '../../src/modules/settings/settings.errors';
 
 const NAM: any = { uuid: 'u-nam', username: 'nam', name: 'Nam', role: 'staff', type: 'nv', level: 1, payrollSubject: true };
@@ -37,15 +38,15 @@ const settingsFake = (over: Record<string, (...a: any[]) => any> = {}) =>
     ...over
   });
 
-function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'sys' | 'expl' | 'set', ReturnType<typeof fake>>> = {}) {
+function controller(over: Partial<Record<'att' | 'reqs' | 'pay' | 'emp' | 'periods' | 'expl' | 'set', ReturnType<typeof fake>>> = {}) {
   const att = over.att ?? fake({ listTimesheets: () => [], recordPunch: () => ({ punch: {} }), workdayOf: () => true });
   const reqs = over.reqs ?? fake({ listRequests: () => ({ items: [], total: 0 }) });
   const pay = over.pay ?? fake();
   const emp = over.emp ?? fake({ findByUsernameOrUuid: () => namEmployee() });
-  const sys = over.sys ?? fake({ getPeriod: () => null });
+  const periods = over.periods ?? fake({ getPeriod: () => null });
   const expl = over.expl ?? fake({ reminders: () => [], dayView: () => ({ explanation: null, due: null }) });
   const set = over.set ?? settingsFake();
-  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, sys.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, sys, expl, set };
+  return { ctl: new MeController(att.proxy, reqs.proxy, pay.proxy, emp.proxy, periods.proxy, expl.proxy, set.proxy), att, reqs, pay, emp, periods, expl, set };
 }
 
 describe('MeController', () => {
@@ -88,6 +89,18 @@ describe('MeController', () => {
     });
   });
 
+  it('a punch into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ att: fake({ recordPunch: () => { throw lock; } }) });
+    await assert.rejects(ctl.punch(req(), { kind: 'IN', lat: 1, lng: 2, accuracyM: 10 } as any), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
+  });
+
+  it('filing a request into a locked month is a 409 PERIOD_LOCKED, not a 400', async () => {
+    const lock = new PeriodLockedError('2026-10', 'attendance_locked');
+    const { ctl } = controller({ reqs: fake({ createLeaveRequest: () => { throw lock; } }) });
+    await assert.rejects(ctl.createRequest(req(), 'leave', { leaveType: 'ANNUAL' }), (e: any) => e === lock && e.status === 409 && e.details.code === 'PERIOD_LOCKED');
+  });
+
   it("reading someone else's request is a 404", async () => {
     const { ctl } = controller({ reqs: fake({ getById: () => ({ id: 'r1', employeeId: 'ha', status: 'PENDING', createdAt: 'x', reviewedAt: null }) }) });
     await assert.rejects(ctl.getRequest(req(), 'r1'), (e: any) => e.status === 404);
@@ -106,6 +119,11 @@ describe('MeController', () => {
     const out = await ctl.previewRequest(req(), 'leave', { employeeId: 'mallory', leaveType: 'ANNUAL' } as any);
     assert.deepEqual(out, result);
     assert.deepEqual(reqs.calls.previewRequest, ['leave', { employeeId: 'nam', leaveType: 'ANNUAL' }, { filedBy: 'self' }]);
+  });
+
+  // BUG-requests-13: spec 2.2 và v2-contract ghi xem trước "luôn trả 200"; @Post của Nest mặc định 201.
+  it('preview answers 200, not the POST default 201', () => {
+    assert.equal(Reflect.getMetadata(HTTP_CODE_METADATA, MeController.prototype.previewRequest), 200);
   });
 
   it('preview of isat or unknown kind is 404', async () => {
@@ -238,11 +256,16 @@ describe('MeController', () => {
   });
 
   it('the month is locked once Admin closed it with Chốt công', async () => {
-    const { ctl, sys } = controller({ sys: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
+    const { ctl, periods } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'attendance_locked' }) }) });
     assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'locked');
-    assert.equal(sys.calls.getPeriod[0], '2026-10');
+    assert.equal(periods.calls.getPeriod[0], '2026-10');
     const open = controller();
     assert.equal(((await open.ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
+  });
+
+  it('a month Admin reopened with Mở lại công is open again', async () => {
+    const { ctl } = controller({ periods: fake({ getPeriod: () => ({ month: '2026-10', status: 'open' }) }) });
+    assert.equal(((await ctl.attendanceMonth(req(), '2026-10')) as any).periodState, 'open');
   });
 
   it('without a month the server picks this month, whatever the device clock says', async () => {

@@ -1,12 +1,20 @@
 // Dịch vụ Chấm công Admin. Máy chủ thật: GET /api/v2/attendance/timesheets (cả lưới 4 tuần và tháng đang xem),
 // /employees và các đơn đang chờ (chuông); dữ liệu giả: mock/attendance.ts.
-import { attendanceFromTimesheets, dayDetailFrom, employeeViewFrom, gridFromOf, type AttendanceInput } from '@/builders/api/attendance';
+import {
+  attendanceFromTimesheets,
+  dayDetailFrom,
+  employeeViewFrom,
+  gridFromOf,
+  weekMonthsOf,
+  type AttendanceInput
+} from '@/builders/api/attendance';
 import { attendanceView, dayDetail, type AttendanceView, type DayDetail } from '@/mock/attendance';
 import { employeeView, type EmployeeView } from '@/mock/attendance-employee';
 import { respond } from '@/mock/respond';
 import { useSessionStore } from '@/stores/session';
 import { getInbox } from './admin-main';
 import { api, qs } from './http';
+import { getWorkWeeks } from './settings-store';
 
 const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
@@ -24,12 +32,24 @@ async function load(month: string): Promise<AttendanceInput> {
   const gridFrom = gridFromOf(t);
   const startDate = [gridFrom, `${month}-01`].sort()[0];
   const endDate = [addDays(gridFrom, 27), monthEnd].sort()[1];
-  const [ts, emp, inbox] = await Promise.all([
+  // Tuần của từng người (khoá là username) cho tháng đang xem và các tháng lưới chạm tới;
+  // tháng nào tải lỗi thì ngày của tháng đó coi mọi người làm T2–T7.
+  const months = weekMonthsOf(month, t);
+  const [ts, emp, inbox, ...weekList] = await Promise.all([
     api.get(`/attendance/timesheets${qs({ startDate, endDate })}`),
     api.get('/employees'),
-    getInbox()
+    getInbox(),
+    ...months.map(m => getWorkWeeks(m).catch(() => null))
   ]);
-  return { month, today: t, employees: emp.employees || [], timesheets: ts.timesheets || [], pending: inbox.items };
+  const weeks = Object.fromEntries(months.flatMap((m, i) => (weekList[i] ? [[m, weekList[i].weekdays]] : [])));
+  return {
+    month,
+    today: t,
+    employees: emp.employees || [],
+    timesheets: ts.timesheets || [],
+    pending: inbox.items,
+    weeks
+  };
 }
 
 /** Màn Chấm công của một tháng 'YYYY-MM'; null khi tháng đó không có dữ liệu giả (chế độ dữ liệu giả). */

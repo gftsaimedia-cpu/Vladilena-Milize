@@ -27,7 +27,7 @@ describe('Người thao tác lấy từ phiên', () => {
   it('review uses the session user and ignores reviewerId in the body', async () => {
     const svc = recorder();
     await new RequestsController(svc).reviewRequest('r1', { action: 'APPROVE', reviewerId: 'mallory' } as any, ADMIN);
-    assert.equal(svc.calls.reviewRequest[1], 'admin');
+    assert.equal(svc.calls.reviewAndRecalculate[1], 'admin');
   });
 
   it('deactivate records the session user', async () => {

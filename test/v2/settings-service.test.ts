@@ -141,7 +141,8 @@ beforeEach(() => {
       locks.push(key);
     }
   };
-  svc = new SettingsService(repo, new SettingsReader(repo), tx as never, new SettingsChanges());
+  // Nhật ký giả: hành vi ghi nhật ký thật ở audit-settings.pg.test.ts.
+  svc = new SettingsService(repo, new SettingsReader(repo), tx as never, new SettingsChanges(), { append: async () => ({ id: 1, hash: '' }) });
 });
 
 const save = (g: string, month: string, values: Record<string, unknown>, stamp: number) =>

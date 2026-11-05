@@ -8,6 +8,8 @@ import { TransactionCoordinator } from '../../src/database/transaction';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
 import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { PayrollRepository } from '../../src/modules/payroll/payroll.repository';
 import { PayrollService } from '../../src/modules/payroll/payroll.service';
 import { SettingsChanges } from '../../src/modules/settings/settings-changes';
@@ -79,7 +81,7 @@ function build(db: Kysely<DB>, now: Date) {
   const repo = new PayrollRepository(db);
   const payroll = new PayrollService(repo, reader, days, coordinator);
   payroll.now = () => now;
-  const settings = new SettingsService(settingsRepo, reader, coordinator, new SettingsChanges());
+  const settings = new SettingsService(settingsRepo, reader, coordinator, new SettingsChanges(), new AuditLog(new AuditRepository(), coordinator));
   return { payroll, repo, settings };
 }
 

@@ -8,9 +8,10 @@ import { AttendanceDaysRepository } from './attendance-days.repository';
 import { AttendanceDaysService } from './attendance-days.service';
 import { AttendanceSettingsListener } from './attendance-settings.listener';
 import { AttendanceSettingsPort, SettingsAttendanceSettings } from './attendance-settings.port';
+import { PeriodsModule } from '../periods/periods.module';
 
 @Module({
-  imports: [SettingsModule],
+  imports: [SettingsModule, PeriodsModule],
   controllers: [AttendanceController],
   providers: [
     AttendanceRepository,

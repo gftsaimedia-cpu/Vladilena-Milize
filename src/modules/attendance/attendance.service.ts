@@ -1,6 +1,9 @@
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { PeriodGate } from '../periods/period-gate';
+import { BadRequestError } from '../../common';
 import { businessDateText } from '../../common/business-date';
+import { isValidDateText } from '../../common/date-text';
 import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
@@ -28,6 +31,9 @@ export interface RecordPunchInput {
   punchedAt?: Date | string;
 }
 
+/** Cùng câu với kiểm tra `workDate` của domain chấm công. */
+const workDateError = (workDate: unknown): string => `Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`;
+
 export interface RecordPunchResult {
   punch: PunchEventDTO;
   timesheet: DailyTimesheetDTO;
@@ -45,6 +51,8 @@ export class AttendanceService {
     @Inject(AttendanceDaysService) private readonly days: AttendanceDaysService,
     @Inject(SettingsReader) private readonly settings?: Pick<SettingsReader, 'workWeekOf' | 'zone'>,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    // Cổng kỳ (spec kỳ lương §5): tháng của ngày công đã chốt thì không chấm, không tính lại.
+    @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'hold'>,
   ) {}
 
   /**
@@ -88,6 +96,10 @@ export class AttendanceService {
     if (input.type !== 'IN' && input.type !== 'OUT') {
       throw new Error("Loại chấm công phải là 'IN' hoặc 'OUT'");
     }
+    // Kiểm trước cổng kỳ: cột DATE vẫn đọc được '20261020' hay ' 2026-10-20', nhưng tháng cắt ra từ đó là rác.
+    if (input.workDate && !isValidDateText(input.workDate)) {
+      throw new Error(workDateError(input.workDate));
+    }
 
     const punchedAt = input.punchedAt ? new Date(input.punchedAt) : new Date();
     if (isNaN(punchedAt.getTime())) {
@@ -114,6 +126,11 @@ export class AttendanceService {
           },
         });
       }
+
+      // 0. Tháng của NGÀY CÔNG (không phải ngày của lần chấm: lần ra 05:00 ngày 01/12 của ca đêm 30/11 thuộc tháng 11) đã
+      // chốt thì không ghi gì. Giữ khoá chia sẻ của tháng trên chính giao dịch của khoá nhân sự, để Chốt công chờ lượt chấm
+      // đang chạy.
+      await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'punch');
 
       // 1. Chặn chấm công nếu nhân viên đang trong ngày nghỉ phép
       const schedule = await repo.findSchedule(input.employeeId, workDate);
@@ -197,7 +214,13 @@ export class AttendanceService {
 
   /** Admin tính lại một ngày (T7): dựng lại dòng ngày từ nguồn rồi trả dòng đó. */
   async recalculateTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheetDTO> {
+    // Như ở recordPunch. Route tính lại không đổi lỗi thường thành 400, nên lỗi ngày là BadRequestError.
+    if (!isValidDateText(workDate)) {
+      throw new BadRequestError(workDateError(workDate), { code: 'INVALID_DATE' });
+    }
     const execute = async (trx?: DatabaseTransaction): Promise<DailyTimesheetDTO> => {
+      // Tháng đã chốt thì 409 PERIOD_LOCKED, không dựng lại gì; khoá chia sẻ của tháng giữ tới commit, như lúc chấm công.
+      await this.periodGate?.hold(trx, [workDate.slice(0, 7)], 'recalculate');
       await this.days.refreshDays(employeeId, [workDate], trx ? { trx } : undefined);
       const repo = trx ? this.repo.withTransaction(trx) : this.repo;
       const timesheet = await repo.findTimesheet(employeeId, workDate);
@@ -221,6 +244,8 @@ export class AttendanceService {
     const dates = datesOfMonth(month);
 
     const execute = async (trx?: DatabaseTransaction): Promise<DailyTimesheetDTO[]> => {
+      // Cùng cổng kỳ với tính lại một ngày, theo tháng được tính lại.
+      await this.periodGate?.hold(trx, [month], 'recalculate');
       await this.days.refreshMonth(employeeId, month, trx ? { trx } : undefined);
       const repo = trx ? this.repo.withTransaction(trx) : this.repo;
       const timesheets = await repo.listTimesheets({

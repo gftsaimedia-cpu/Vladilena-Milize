@@ -7,6 +7,8 @@ import { TransactionCoordinator } from '../../src/database/transaction';
 import { AttendanceDaysRepository } from '../../src/modules/attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../../src/modules/attendance/attendance-days.service';
 import { AttendanceSettingsListener } from '../../src/modules/attendance/attendance-settings.listener';
+import { AuditLog } from '../../src/modules/audit/audit-log';
+import { AuditRepository } from '../../src/modules/audit/audit.repository';
 import { SettingsAttendanceSettings } from '../../src/modules/attendance/attendance-settings.port';
 import { SettingsChanges, type SettingsChange } from '../../src/modules/settings/settings-changes';
 import { SettingsReader } from '../../src/modules/settings/settings-reader';
@@ -51,7 +53,7 @@ function wire(db: Kysely<DB>) {
   const reader = new SettingsReader(repo);
   const changes = new SettingsChanges();
   const coordinator = new TransactionCoordinator(db);
-  const settings = new SettingsService(repo, reader, coordinator, changes);
+  const settings = new SettingsService(repo, reader, coordinator, changes, new AuditLog(new AuditRepository(), coordinator));
   const port = new SettingsAttendanceSettings(reader);
   const daysRepo = new AttendanceDaysRepository(db);
   const days = new AttendanceDaysService(daysRepo, port, coordinator);

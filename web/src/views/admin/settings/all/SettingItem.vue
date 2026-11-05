@@ -1,96 +1,100 @@
 <script setup lang="ts">
-// Một mục cài đặt sửa được trong Tất cả cài đặt: tên + nhãn trạng thái + mô tả bên trái, ô sửa bên phải
-// (mỗi loại nhân sự một ô, hoặc chọn một trong các phương án).
-import { ref } from 'vue';
-import { dmy, monthShort } from '@/utils/format';
+// Một mục trong Tất cả cài đặt: tên và mô tả bên trái, ô nhập bên phải (mục nhiều ô thì mỗi ô một dòng có nhãn).
+// Ô đã đổi hiện "Đang áp dụng <số đã lưu>", ô sai hiện gợi ý ngay dưới ô. Mục chỉ xem (readonly) là một dòng chữ.
+// draft là bản nháp của cả nhóm (v-model ghi thẳng vào draft[ô]); state là nhóm đã lưu ở tháng đang chọn.
+// history (null: mục không có lịch sử) là các dòng của riêng mục; nút Hoàn tác của dòng báo `revert` kèm dòng gốc.
+import { computed, ref } from 'vue';
+import { fieldText, type Bracket, type GroupState, type Values } from '@/builders/api/settings';
+import type { HistoryRowView, SettingEntry } from '@/builders/api/settings-screens';
 import FieldNum from '../fields/FieldNum.vue';
+import BracketTable from './BracketTable.vue';
 
-defineProps({
-  item: { type: Object as () => any, required: true },
-  changed: { type: Boolean, default: false },
-  canRevert: { type: Boolean, default: false }
+const props = defineProps({
+  entry: { type: Object as () => SettingEntry, required: true },
+  draft: { type: Object as () => Values, default: () => ({}) },
+  errors: { type: Object as () => Record<string, string>, default: () => ({}) },
+  state: { type: Object as () => GroupState | null, default: null },
+  history: { type: Array as () => HistoryRowView[] | null, default: null }
 });
-defineEmits(['undo', 'revert']);
+defineEmits(['revert']);
 
 const showHistory = ref(false);
 
-const BADGE = { adjusted: ['p-gold', 'Admin đã sửa'], unconfirmed: ['p-pend', 'Chưa xác nhận'] };
-const pickOption = (item?, o?) => {
-  if (!o.disabled) item.value = o.key;
-};
+const many = computed(() => props.entry.fields.length > 1);
+const maxOf = (field: string): number | null => props.state?.limits[field]?.max ?? null;
+const saved = (field: string) => props.state?.values[field] as number | undefined;
+const edited = (field: string) => !!props.state && props.draft[field] !== saved(field);
 </script>
 
 <template>
-  <div class="it2" :data-setting-key="item.key" tabindex="-1">
+  <div class="it2" :class="{ wide: entry.brackets }" :data-setting-key="entry.key" tabindex="-1">
     <div class="l">
-      <div class="nm">
-        {{ item.name }}
-        <span v-if="BADGE[item.badge]" class="pill" :class="BADGE[item.badge][0]">{{ BADGE[item.badge][1] }}</span>
-        <button v-if="item.history" type="button" class="link hist" @click="showHistory = !showHistory">Lịch sử</button>
-        <button type="button" class="link undo" :disabled="!changed" @click="$emit('undo')">Hoàn tác</button>
-      </div>
-      <div v-if="item.history && showHistory" class="hl">
-        <div v-for="h in item.history.rows" :key="h.key + h.version" class="hr">
-          <div>
-            <b>{{ h.label ? h.label + ': ' : '' }}{{ h.value }}</b>
-            <span v-if="h.version === 0">Mặc định</span>
-            <span v-else>
-              {{ monthShort(h.month) }} · {{ h.by }} · {{ dmy(h.at)
-              }}<template v-if="h.reason"> · {{ h.reason }}</template>
-            </span>
-          </div>
-          <span v-if="h.current" class="pill p-gold">Đang áp dụng</span>
-          <button v-else-if="canRevert" type="button" class="link" @click="$emit('revert', h)">
-            Hoàn tác về mức này
-          </button>
-        </div>
-      </div>
-      <div v-if="item.desc" class="ds">{{ item.desc }}</div>
-      <div v-if="item.base" class="bs">{{ item.base }}</div>
+      <div class="nm">{{ entry.title }}</div>
+      <div v-if="entry.desc" class="ds">{{ entry.desc }}</div>
+      <button
+        v-if="history"
+        type="button"
+        class="link hist"
+        :aria-expanded="showHistory"
+        @click="showHistory = !showHistory"
+      >
+        {{ showHistory ? 'Ẩn lịch sử' : 'Lịch sử' }}
+      </button>
     </div>
     <div class="c">
-      <div v-if="item.kind === 'per'" class="per">
-        <div v-for="p in item.rows" :key="p.label" class="pr">
-          <span>{{ p.label }}</span>
-          <FieldNum
-            v-if="p.field.type === 'num'"
-            v-model="p.field.value"
-            :unit="p.field.unit"
-            style="width: 110px"
-            :label="`${item.name} · ${p.label}`"
-          />
-          <span v-else class="seg">
-            <button
-              v-for="o in p.field.options"
-              :key="o"
-              type="button"
-              :class="{ on: p.field.value === o }"
-              @click="p.field.value = o"
-            >
-              {{ o }}
-            </button>
-          </span>
-        </div>
+      <BracketTable
+        v-if="entry.brackets && Array.isArray(draft.brackets)"
+        :brackets="draft.brackets as Bracket[]"
+        :errors="errors"
+        :limits="state?.limits.brackets ?? null"
+      />
+      <p v-if="entry.readonly" class="txt">{{ entry.readonly }}</p>
+      <div v-for="f in entry.fields" :key="f.field" class="fr">
+        <span v-if="many" class="fl">{{ f.label }}</span>
+        <FieldNum
+          :model-value="draft[f.field] as number"
+          :label="f.label"
+          :prefix="f.prefix"
+          :unit="f.unit"
+          :integer="f.integer"
+          :decimals="f.decimals"
+          :money="f.money"
+          :max="maxOf(f.field)"
+          @update:model-value="draft[f.field] = $event"
+        />
+        <small v-if="edited(f.field)" class="was">Đang áp dụng {{ fieldText(f.field, saved(f.field) as number) }}</small>
+        <small v-if="errors[f.field]" class="err">{{ errors[f.field] }}</small>
       </div>
-      <template v-else>
-        <button
-          v-for="o in item.options"
-          :key="o.key"
-          type="button"
-          class="opt"
-          :class="{ on: item.value === o.key, dis: o.disabled }"
-          role="radio"
-          :aria-checked="item.value === o.key"
-          :disabled="o.disabled"
-          @click="pickOption(item, o)"
-        >
-          <span class="rd"></span>
-          <div>
-            {{ o.label }}
-            <small v-if="o.note">{{ o.note }}</small>
-          </div>
-        </button>
-      </template>
+    </div>
+    <div v-if="history && showHistory" class="hl">
+      <div class="hh">Lịch sử · {{ history.length }} lần sửa</div>
+      <table v-if="history.length">
+        <thead>
+          <tr>
+            <th>Ô</th>
+            <th>Áp dụng từ</th>
+            <th>Số cũ → số mới</th>
+            <th>Lý do</th>
+            <th>Người sửa</th>
+            <th>Lúc sửa</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="h in history" :key="h.id">
+            <td>{{ h.label }}</td>
+            <td>{{ h.month }}</td>
+            <td>{{ h.change }}</td>
+            <td>{{ h.reason }}</td>
+            <td>{{ h.by }}</td>
+            <td>{{ h.at }}</td>
+            <td>
+              <button type="button" class="link" :disabled="!h.canRevert" @click="$emit('revert', h.raw)">Hoàn tác</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p v-else class="none">Chưa có lần sửa nào.</p>
     </div>
   </div>
 </template>
@@ -106,113 +110,96 @@ const pickOption = (item?, o?) => {
 .it2 .nm {
   font-weight: 600;
   font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.it2 .nm .hist {
-  margin-left: auto;
-  font-size: 12px;
-  font-weight: 500;
-}
-.it2 .nm .undo {
-  font-size: 12px;
-  font-weight: 500;
-}
-.it2 .nm .undo:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-.hl {
-  margin-top: 10px;
-  border-top: 1px solid var(--rule);
-}
-.hr {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 12px;
-}
-.hr > div {
-  flex: 1;
-  min-width: 0;
-}
-.hr b {
-  display: block;
-  font-size: 13px;
-  font-weight: 600;
-}
-.hr > div > span {
-  color: var(--muted);
 }
 .it2 .ds {
   font-size: 13px;
-  color: var(--text);
+  color: var(--muted);
   margin-top: 6px;
   line-height: 19px;
 }
-.it2 .bs {
-  font-size: 12px;
-  color: var(--muted);
+.hist {
   margin-top: 8px;
-  line-height: 17px;
-}
-.per {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.pr {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-  color: var(--muted);
-}
-.opt {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  width: 100%;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font: inherit;
-  font-size: 13px;
-  text-align: left;
-  color: inherit;
-  background: #fff;
-  margin-bottom: 6px;
-  cursor: pointer;
-}
-.opt.on {
-  border-color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--text);
+  font-size: 12px;
   font-weight: 500;
 }
-.opt.dis {
-  color: #767676;
-  background: var(--raised);
+.hl {
+  grid-column: 1 / -1;
+  font-size: 12px;
+}
+.hh {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.hl table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.hl th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 0 10px 6px 0;
+}
+.hl td {
+  padding: 6px 10px 6px 0;
+  border-top: 1px solid var(--rule);
+  vertical-align: top;
+}
+.hl .link:disabled {
+  opacity: 0.4;
   cursor: default;
 }
-.opt small {
-  display: block;
-  font-size: 11px;
-  font-weight: 400;
+.hl .none {
+  margin: 0;
+  color: var(--muted);
 }
-.opt .rd {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 1.5px solid #9e9e9e;
-  flex: none;
-  margin-top: 1px;
+.it2.wide {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
 }
-.opt.on .rd {
-  border: 5px solid var(--text);
+.it2.wide .c {
+  align-items: stretch;
+}
+.c {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
+}
+.fr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 12px;
+  width: 100%;
+}
+.fl {
+  flex: 1;
+  font-size: 13px;
+  color: var(--muted);
+}
+.fr :deep(.fi) {
+  height: 34px;
+  border-radius: 8px;
+  justify-content: flex-end;
+}
+.was,
+.err {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 12px;
+  line-height: 16px;
+}
+.was {
+  color: var(--muted);
+}
+.err {
+  color: var(--status-rejected);
+}
+.txt {
+  margin: 0;
+  font-size: 14px;
 }
 @media (max-width: 1200px) {
   .it2 {
@@ -220,12 +207,8 @@ const pickOption = (item?, o?) => {
     gap: 12px;
     padding: 14px;
   }
-  .it2 .c {
-    min-width: 0;
-  }
-  .pr {
-    gap: 12px;
-    flex-wrap: wrap;
+  .c {
+    align-items: stretch;
   }
 }
 </style>

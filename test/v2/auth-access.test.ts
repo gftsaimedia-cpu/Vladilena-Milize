@@ -13,6 +13,7 @@ import { PayrollController } from '../../src/modules/payroll/payroll.controller'
 import { RequestsController } from '../../src/modules/requests/requests.controller';
 import { RolesController } from '../../src/modules/roles/roles.controller';
 import { SystemController } from '../../src/modules/system/system.controller';
+import { PeriodsController } from '../../src/modules/periods/periods.controller';
 import { MeController } from '../../src/modules/me/me.controller';
 import { PositionsController } from '../../src/modules/positions/positions.controller';
 import { SettingsController } from '../../src/modules/settings/settings.controller';
@@ -47,9 +48,14 @@ const TABLE: Array<[any, string, AccessRule]> = [
   [SystemController, 'health', pub],
   [SystemController, 'healthV2', pub],
   [SystemController, 'getSettings', cap('config.read')],
-  [SystemController, 'listPeriods', cap('config.read')],
   [SystemController, 'updateSetting', cap('config.write')],
-  [SystemController, 'lockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'listPeriods', cap('config.read')],
+  [PeriodsController, 'getPeriod', cap('config.read')],
+  [PeriodsController, 'lockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'unlockPeriod', cap('attendance.lock')],
+  [PeriodsController, 'approvePeriod', cap('payroll.approve')],
+  [PeriodsController, 'unapprovePeriod', cap('payroll.approve')],
+  [PeriodsController, 'payPeriod', cap('payroll.approve')],
   [AuditController, 'list', cap('audit.read')],
   [AuditController, 'verify', cap('audit.read')],
   [RolesController, 'list', cap('staff.manage')],

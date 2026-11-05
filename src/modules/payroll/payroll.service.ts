@@ -1,11 +1,12 @@
 import { Injectable, Optional, Inject } from '@nestjs/common';
-import { TransactionCoordinator } from '../../database';
+import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import type { AttendanceDayRecord } from '../attendance/attendance-days.repository';
 import { AttendanceDaysService } from '../attendance/attendance-days.service';
 import type { AttendanceDayStatus } from '../attendance/domain/attendance-day';
+import { PeriodsService, PayslipNotDecidableError } from '../periods';
 import { SettingsReader, type SettingsSnapshot } from '../settings';
 import { PayrollRepository, KpiScorePatch, PayslipRecord, type RunSettings } from './payroll.repository';
-import { KpiValidationError } from './payroll.errors';
+import { KpiValidationError, PayrollFinalizedError } from './payroll.errors';
 import {
   EmployeePayslip,
   DailyAttendanceLineProps,
@@ -141,7 +142,11 @@ export class PayrollService {
     // Nest always injects it too (PayrollModule imports AttendanceModule; no @Optional). A service built by hand
     // without it can list, decide and score payslips but not compute one.
     @Inject(AttendanceDaysService) private readonly days?: PayrollDays,
-    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator
+    @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    // The period lifecycle (PayrollModule imports PeriodsModule): a full run after Chốt công marks the period calculated,
+    // approved/paid refuse a run or a KPI change, and payslips are decided only while calculated. Without it (hand-built
+    // in tests) none of those checks run.
+    @Optional() @Inject(PeriodsService) private readonly periods?: PeriodsService
   ) {}
 
   async calculatePeriodPayslips(
@@ -156,7 +161,12 @@ export class PayrollService {
     // A list of employees is a partial run: the other employees keep their payslips. runId is null when no payslip
     // was computed, in which case nothing is stored.
     const isPartial = employeeIds !== undefined && employeeIds.length > 0;
-    const doCalc = async () => {
+    const doCalc = async (trx?: DatabaseTransaction) => {
+      // Kỳ đã phê duyệt hoặc đã trả thì không tính lại; rev đọc ở đây là rev mà markCalculated sẽ đối chiếu (R4).
+      const snapshot = this.periods ? await this.periods.snapshot(month) : null;
+      if (snapshot && (snapshot.status === 'approved' || snapshot.status === 'paid')) {
+        throw new PayrollFinalizedError(`Kỳ lương ${month} đã phê duyệt, không thể tính lại`);
+      }
       // One read of the month's settings for the whole run; the run stores what its payslips were computed with.
       const settings = await this.runSettings(month);
       let targets = employeeIds;
@@ -187,6 +197,9 @@ export class PayrollService {
         ? { exceptUsernames: payslips.map(p => p.username), exceptEmployeeIds: targets }
         : undefined;
       const runId = await this.repo.savePayrollRunAndSlips(month, actor, payslips, errors.length, carryForward, settings);
+      if (this.periods && snapshot && runId !== null) {
+        await this.periods.markCalculated(trx, month, { runId, actor, full: !isPartial, expectedRev: snapshot.rev });
+      }
       return { runId, items: summaries, errors };
     };
 
@@ -217,7 +230,21 @@ export class PayrollService {
     note?: string
   ): Promise<PayslipRecord | null> {
     // A blank note is stored as null, so a reader never has to tell "" from "no reason".
-    return await this.repo.decidePayslip(month, username, status, actor, typeof note === 'string' ? note.trim() || null : null);
+    const cleanNote = typeof note === 'string' ? note.trim() || null : null;
+    const decide = async (): Promise<PayslipRecord | null> => {
+      if (this.periods) {
+        const { status: periodStatus } = await this.periods.snapshot(month);
+        if (periodStatus !== 'calculated') throw new PayslipNotDecidableError(month, periodStatus);
+      }
+      return await this.repo.decidePayslip(month, username, status, actor, cleanNote);
+    };
+    return this.txCoordinator ? await this.txCoordinator.withLock(`payroll_${month}`, decide) : await decide();
+  }
+
+  // Đưa phiếu về nháp (xoá quyết định); dùng khi kỳ lương cần duyệt lại phiếu. Có `trx` thì chạy trên giao dịch đó
+  // (giao dịch duyệt đơn) và giữ lần chạy nháp tới hết giao dịch (xem PayrollRepository.resetDecision).
+  async resetDecision(month: string, employeeId: string, trx?: DatabaseTransaction): Promise<boolean> {
+    return await this.repo.resetDecision(month, employeeId, trx);
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {
@@ -226,6 +253,12 @@ export class PayrollService {
 
   // Checks the KPI body against the employee's KPI cap and saves it: undefined keeps the stored value, null clears it.
   async setKpiScore(username: string, month: string, body: KpiScoreBody, actor: string): Promise<void> {
+    if (this.periods) {
+      const { status } = await this.periods.snapshot(month);
+      if (status === 'approved' || status === 'paid') {
+        throw new PayrollFinalizedError('Kỳ lương đã phê duyệt, không sửa KPI được');
+      }
+    }
     const cap = await this.repo.getKpiCap(username, month);
     if (!cap) throw new KpiValidationError('EMPLOYEE_NOT_FOUND', `Không tìm thấy nhân sự ${username}`);
 

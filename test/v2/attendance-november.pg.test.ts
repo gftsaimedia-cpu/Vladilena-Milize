@@ -69,6 +69,7 @@ function build(db: Kysely<DB>) {
     undefined,
     explanations,
     reader,
+    undefined,
     days
   );
   const attendance = new AttendanceService(attendanceRepo, days, reader, coordinator);

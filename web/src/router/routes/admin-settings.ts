@@ -38,11 +38,8 @@ export default [
     component: () => import('@/views/admin/settings/PermAccountsView.vue'),
     meta: meta('Phân quyền · Tài khoản')
   },
-  {
-    path: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau',
-    component: () => import('@/views/admin/settings/PermRulesView.vue'),
-    meta: meta('Phân quyền · Xử lý yêu cầu')
-  },
+  // Xử lý yêu cầu chưa có API ở BE v2 (bảng v1 /settings/params đã bỏ): địa chỉ cũ đưa về Vai trò.
+  { path: '/admin/cai-dat/phan-quyen/xu-ly-yeu-cau', redirect: '/admin/cai-dat/phan-quyen' },
   {
     path: '/admin/cai-dat/nhat-ky',
     component: () => import('@/views/admin/settings/AuditLogView.vue'),

@@ -113,6 +113,7 @@ const sourceIds = computed(() => (data.value?.pending ?? []).map(p => p.item.id)
 // Việc đang hiện ở khung phải là bản chụp: BellDetail tự gọi decide, decide tải lại danh sách và việc vừa xử lý biến mất khỏi nguồn
 // trước khi thẻ kịp báo 'decided'; thẻ bị gỡ giữa chừng thì emit bị bỏ. Nên việc đã biến mất khỏi nguồn được giữ lại cho tới khi
 // onDecided chuyển sang việc khác. ?viec thiếu, sai hoặc bị lọc mất thì hiện dòng đầu đang thấy.
+// Việc vẫn còn trong nguồn (vừa nhắc giải trình) thì lấy bản mới để thẻ hiện "Đã nhắc" và nút "Nhắc lại".
 const shown = shallowRef<InboxItem | null>(null);
 watch(
   [pending, viecKey],
@@ -122,7 +123,10 @@ watch(
     const target = hit ?? list[0];
     const current = shown.value;
     if (current && !hit && !sourceIds.value.includes(current.id)) return;
-    if (current && target && current.id === target.item.id) return;
+    if (current && target && current.id === target.item.id) {
+      if (current !== target.item) shown.value = target.item;
+      return;
+    }
     shown.value = target?.item ?? null;
   },
   { immediate: true }
@@ -135,9 +139,11 @@ watch(visibleIds, (_, before) => (previousIds = before ?? []), { flush: 'sync' }
 function pickItem(id: string) {
   setQuery({ viec: id });
 }
-async function onDecided({ id, ok, text }: { id: string; ok: boolean; text: string }) {
+// Việc vừa nhắc giải trình (`kept`) ở lại danh sách nên vẫn chọn nó, như ở chuông; thẻ tự trả focus về nút "Nhắc lại".
+async function onDecided({ id, ok, text, kept }: { id: string; ok: boolean; text: string; kept: boolean }) {
   if (ok) toast.ok(text);
   else toast.error(text);
+  if (kept) return;
   const base = visibleIds.value.includes(id) ? visibleIds.value : previousIds.includes(id) ? previousIds : visibleIds.value;
   const at = base.indexOf(id);
   const rest = base.filter(x => x !== id && visibleIds.value.includes(x));

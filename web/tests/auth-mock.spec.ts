@@ -45,14 +45,30 @@ test('any other name lands in the staff area', async ({ page }) => {
   expect(calls).toEqual([]);
 });
 
-test('empty password shows the validation message', async ({ page }) => {
+// BUG-staff-3: ô trống thì nút Đăng nhập mờ, không để người dùng bấm rồi mới báo.
+test('the login button stays off until both fields are filled', async ({ page }) => {
   const calls = trackApi(page);
   await startLoggedOut(page);
+  const go = page.getByRole('button', { name: 'Đăng nhập' });
+  await expect(go).toBeDisabled();
   await page.getByLabel('Tên đăng nhập').fill('admin');
-  await page.getByRole('button', { name: 'Đăng nhập' }).click();
-  await expect(page.getByText('Nhập tên đăng nhập và mật khẩu.')).toBeVisible();
-  await expect(page).toHaveURL(/\/dang-nhap/);
+  await expect(go).toBeDisabled();
+  await page.getByLabel('Tên đăng nhập').fill('   ');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill('x');
+  await expect(go).toBeDisabled();
+  await page.getByLabel('Tên đăng nhập').fill('admin');
+  await expect(go).toBeEnabled();
+  await page.getByLabel('Mật khẩu', { exact: true }).press('Enter');
+  await expect(page).toHaveURL(/\/admin\/tong-quan/);
   expect(calls).toEqual([]);
+});
+
+test('Enter on an empty login form does nothing', async ({ page }) => {
+  await startLoggedOut(page);
+  await page.getByLabel('Tên đăng nhập').fill('admin');
+  await page.getByLabel('Tên đăng nhập').press('Enter');
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  await expect(page.getByRole('alert')).toHaveCount(0);
 });
 
 test('logout survives a reload', async ({ page }) => {

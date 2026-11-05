@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseFilters, Inject, HttpCode } from '@nestjs/common';
 import type { Request } from 'express';
 import {
   ApiExceptionFilter,
@@ -16,7 +16,7 @@ import { PayrollService } from '../payroll/payroll.service';
 import { RequestsService, type CreatedRequestDTO, type FilingKind } from '../requests/requests.service';
 import { ExplanationsService } from '../requests/explanations.service';
 import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '../settings';
-import { SystemService } from '../system';
+import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
 import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
@@ -80,7 +80,7 @@ export class MeController {
     @Inject(RequestsService) private readonly requests: RequestsService,
     @Inject(PayrollService) private readonly payroll: PayrollService,
     @Inject(EmployeesService) private readonly employees: EmployeesService,
-    @Inject(SystemService) private readonly system: SystemService,
+    @Inject(PeriodsService) private readonly periods: PeriodsService,
     @Inject(ExplanationsService) private readonly explanations: ExplanationsService,
     @Inject(SettingsReader) private readonly settings: SettingsReader
   ) {}
@@ -196,7 +196,7 @@ export class MeController {
     const m = needMonthIn(month, range);
     const [rows, period, workWeek] = await Promise.all([
       this.attendance.listTimesheets({ employeeId: me.uuid, startDate: `${m}-01`, endDate: monthEnd(m) }),
-      this.system.getPeriod(m),
+      this.periods.getPeriod(m),
       this.weekOrNull(me.uuid, m),
     ]);
     const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
@@ -259,6 +259,7 @@ export class MeController {
   // Xem trước đơn sắp nộp: luôn 200; lỗi nghiệp vụ nằm trong `ok: false`. iSAT không có xem trước.
   @Authenticated()
   @Post('requests/:kind/preview')
+  @HttpCode(200)
   async previewRequest(@Req() req: Request, @Param('kind') kind: string, @Body() body: any): Promise<unknown> {
     const me = who(req);
     if (!kind || kind === 'isat' || !Object.prototype.hasOwnProperty.call(CREATE, kind)) {

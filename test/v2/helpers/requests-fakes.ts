@@ -21,6 +21,8 @@ import { DailyTimesheet, WorkSchedule } from '../../../src/modules/attendance/do
 import type { TransactionCoordinator } from '../../../src/database';
 import type { AdvanceQuote } from '../../../src/modules/payroll/domain';
 import type { SettingsReader } from '../../../src/modules/settings';
+import { PeriodGate } from '../../../src/modules/periods/period-gate';
+import type { PeriodsRepository } from '../../../src/modules/periods/periods.repository';
 import {
   SystemRequest,
   eachDate,
@@ -423,15 +425,28 @@ export class RecordingDays {
   }
 }
 
-/** Kỳ lương trong bộ nhớ: `statuses` map tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. */
+/**
+ * Kỳ lương trong bộ nhớ, cùng hợp đồng với PeriodsRepository ở phần cổng kỳ đọc (`find`, `lockShared`): `statuses` map
+ * tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. `PeriodGate` thật chạy trên repo này, nên
+ * test đi đúng bảng cổng (`gateAllows`) và lỗi `PeriodLockedError`. `sharedLocks` ghi [giao dịch, tháng] mỗi lần khoá
+ * chia sẻ.
+ */
 export class FakePeriods {
   statuses = new Map<string, string>();
+  sharedLocks: Array<[unknown, string]> = [];
 
-  async getPeriod(month: string): Promise<{ month: string; status: string } | null> {
+  async find(month: string): Promise<{ month: string; status: string } | null> {
     const status = this.statuses.get(month);
     return status === undefined ? null : { month, status };
   }
+
+  async lockShared(trx: unknown, month: string): Promise<void> {
+    this.sharedLocks.push([trx, month]);
+  }
 }
+
+/** Cổng kỳ thật trên kỳ lương trong bộ nhớ. */
+export const gateOver = (periods: FakePeriods): PeriodGate => new PeriodGate(periods as unknown as PeriodsRepository);
 
 /** Số tiền tạm ứng giả: `quote` trả về, hoặc ném `failWith`; `calls` ghi [uuid, tháng]. */
 export class FakePayroll {
@@ -457,9 +472,10 @@ export function makeService(settings?: Pick<SettingsReader, 'workWeekOf'>) {
   const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
   const periods = new FakePeriods();
+  const gate = gateOver(periods);
   const payroll = new FakePayroll();
   const reminders = new FakeRemindersRepository();
-  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, periods, settings);
+  const explanations = new ExplanationsService(repo, att, holidays, days, reminders, gate, settings);
   const attendanceDays = new RecordingDays();
   const service = new RequestsService(
     repo,
@@ -467,15 +483,16 @@ export function makeService(settings?: Pick<SettingsReader, 'workWeekOf'>) {
     lock as unknown as TransactionCoordinator,
     holidays,
     days,
-    periods,
-    payroll,
+    gate,
+    payroll as any,
     explanations,
     settings,
+    undefined,
     attendanceDays as unknown as AttendanceDaysService
   );
   service.now = () => new Date('2026-11-04T10:00:00Z');
   explanations.now = () => service.now();
-  return { service, repo, att, holidays, days, lock, periods, payroll, explanations, reminders, attendanceDays };
+  return { service, repo, att, holidays, days, lock, periods, gate, payroll, explanations, reminders, attendanceDays };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

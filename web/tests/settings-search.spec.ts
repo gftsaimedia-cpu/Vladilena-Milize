@@ -1,137 +1,76 @@
 import { expect, test, type Page } from '@playwright/test';
+import { ALL_GROUPS, normalizeSearch, revertValues, searchSettings } from '../src/builders/api/settings-screens';
+import { groupHistory, resetSettingsMock, saveGroup, settingsAt } from '../src/mock/settings';
 
-async function mockSettingsApi(
-  page: Page,
-  delayParams = false,
-  reverseParams = false,
-  concurrentEdit = false,
-  firstRunTotal = 0
-) {
-  let paramsReads = 0;
-  let putRevision: number | null = null;
-  let putChanges: { key: string; value: unknown }[] = [];
-  const paramCompletions: number[] = [];
-  await page.route('**/api/**', async route => {
-    const path = new URL(route.request().url()).pathname.replace('/api', '');
-    let body: Record<string, unknown> = {};
-    if (path === '/me') {
-      body = {
-        user: { username: 'demo_admin', name: 'Demo Admin', role: 'admin' },
-        roles: ['admin'],
-        caps: [
-          'config.read',
-          'payroll.calculate',
-          'payroll.approve',
-          'attendance.correct',
-          'attendance.lock',
-          'audit.read'
-        ],
-        payrollSubject: true,
-        serverNow: '2026-11-03T12:00:00.000Z'
-      };
-    } else if (path === '/settings/first-run') body = { total: firstRunTotal, items: [] };
-    else if (path === '/positions') body = { positions: [] };
-    else if (path === '/settings/params' && route.request().method() === 'GET') {
-      const readNumber = ++paramsReads;
-      if (reverseParams && readNumber === 2) await new Promise(resolve => setTimeout(resolve, 450));
-      else if (reverseParams && readNumber === 3) await new Promise(resolve => setTimeout(resolve, 20));
-      else if (delayParams && readNumber > 1) await new Promise(resolve => setTimeout(resolve, 180));
-      paramCompletions.push(readNumber);
-      body = {
-        month: '2026-11',
-        paramsRev: reverseParams ? readNumber : concurrentEdit && readNumber > 1 ? 2 : 1,
-        groups: [
-          {
-            entries: [
-              {
-                id: 'pay.method',
-                group: 2,
-                label: 'Phương thức trả lương',
-                class: 'choice',
-                wired: true,
-                instances: [{ key: 'pay.method', value: 'monthly', status: 'unset' }],
-                rules: {
-                  options: [
-                    { value: 'monthly', label: 'Hàng tháng' },
-                    { value: 'daily', label: 'Theo ngày' }
-                  ]
-                }
-              },
-              {
-                id: 'type.<type>.workdays',
-                group: 2,
-                label: 'Số ngày công',
-                class: 'number',
-                wired: true,
-                ui: { unit: 'day' },
-                instances: [
-                  {
-                    key: 'type.nv.workdays',
-                    value: 22,
-                    status: 'unset',
-                    label: 'Số ngày công (Nhân viên)'
-                  },
-                  {
-                    key: 'type.ctv.workdays',
-                    value: concurrentEdit && readNumber > 1 ? 24 : 30,
-                    status: 'unset',
-                    label: 'Số ngày công (Chuyên trách viên)'
-                  }
-                ]
-              },
-              {
-                id: 'system.tax-code',
-                group: 10,
-                label: 'Mã thuế tham chiếu',
-                class: 'fixed',
-                readOnly: true,
-                instances: [{ key: 'system.tax-code', value: 'TX-1' }]
-              }
-            ]
-          }
-        ]
-      };
-    } else if (path === '/settings/params' && route.request().method() === 'PUT') {
-      const payload = route.request().postDataJSON();
-      putRevision = payload.expectedRev;
-      putChanges = payload.changes;
-      body = { ok: true, paramsRev: putRevision, saved: ['pay.method'] };
-    }
-    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
-  });
-  return {
-    putRevision: () => putRevision,
-    putChanges: () => putChanges,
-    paramsReads: () => paramsReads,
-    paramCompletions: () => [...paramCompletions]
-  };
-}
+// Cài đặt › Tất cả cài đặt trên dữ liệu giả (mock/settings.ts): tám nhóm, tìm kiếm, lưu. Không page.route.
+// Dữ liệu giả nằm trong bộ nhớ và về lại ban đầu sau mỗi lần tải trang, nên test lưu rồi kiểm không được goto lại.
+const item = (page: Page, key: string) => page.locator(`[data-setting-key="${key}"]`);
 
-async function clickGroup(page: Page, label: string) {
-  if (!(await page.locator('#settings-group-browser').isVisible())) {
-    await page.getByRole('button', { name: 'Duyệt nhóm cài đặt' }).click();
-  }
-  await page.locator('#settings-group-browser .chip').filter({ hasText: label }).click();
-}
+test.beforeEach(async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+});
 
-test.fixme(
-  'search opens a matching setting in another group by mouse and keyboard',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca');
-    await page.getByLabel('Tìm theo tên cài đặt').fill('phương thức');
-    const result = page.locator('.result').filter({ hasText: 'Phương thức trả lương' });
-    await expect(result).toBeVisible();
-    await result.focus();
-    await page.keyboard.press('Enter');
+test('the group table has eight groups with 3 · 1 · 5 · 1 · 1 · 3 · 4 · 1 items', () => {
+  expect(ALL_GROUPS.map(g => [g.name, g.items.length])).toEqual([
+    ['OT', 3],
+    ['Phụ cấp', 1],
+    ['KPI', 5],
+    ['Khấu trừ', 1],
+    ['Tạm ứng', 1],
+    ['Bảo hiểm', 3],
+    ['Thuế', 4],
+    ['Kỳ lương', 1]
+  ]);
+  expect(ALL_GROUPS.find(g => g.key === 'thue')?.items.find(i => i.key === 'brackets')?.brackets).toBe(true);
+  expect(ALL_GROUPS.find(g => g.key === 'tam-ung')?.group).toBeNull();
+});
 
-    await expect(page).toHaveURL(/q=ph%C6%B0%C6%A1ng\+th%E1%BB%A9c.*group=ngay-cong.*setting=pay.method/);
-    await expect(page.getByRole('heading', { name: /Lương theo ngày công/ })).toBeVisible();
-    await expect(page.locator('[data-setting-key="pay.method"]')).toBeVisible();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Hàng tháng');
-  }
-);
+test('search text drops diacritics, đ and extra spaces', () => {
+  expect(normalizeSearch('  Giảm   TRỪ Đồng  ')).toBe('giam tru dong');
+  expect(searchSettings('   ')).toEqual([]);
+  expect(searchSettings('giam tru').map(r => [r.groupKey, r.itemKey, r.title, r.groupName])).toEqual([
+    ['thue', 'personalDeduction', 'Giảm trừ bản thân', 'Thuế'],
+    ['thue', 'dependantDeduction', 'Giảm trừ người phụ thuộc', 'Thuế']
+  ]);
+  expect(searchSettings('bao hiem').map(r => r.itemKey)).toEqual(['bhxhPct', 'bhytPct', 'bhtnPct']);
+});
+
+test('groups list only the eight groups with their item counts', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca');
+  for (const [name, n] of [['OT', 3], ['Phụ cấp', 1], ['KPI', 5], ['Khấu trừ', 1], ['Tạm ứng', 1], ['Bảo hiểm', 3], ['Thuế', 4], ['Kỳ lương', 1]])
+    await expect(page.getByRole('button', { name: `${name} ${n}`, exact: true })).toBeVisible();
+  await expect(page.locator('[data-setting-key]')).toHaveCount(3);
+  await expect(item(page, 'weekdayRate')).toContainText('Hệ số OT ngày thường');
+});
+
+test('no gold strip, no Chưa xác nhận filter, no menu count', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca');
+  for (const t of ['chưa ai xác nhận', 'Chưa xác nhận', 'Xem trước']) await expect(page.locator('body')).not.toContainText(t);
+  await expect(page.getByRole('link', { name: 'Tất cả cài đặt' })).toHaveText(/^\s*Tất cả cài đặt\s*$/);
+});
+
+test('search finds items across groups without diacritics', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca');
+  await page.getByRole('textbox', { name: 'Tìm theo tên cài đặt' }).fill('giam tru');
+  await page.getByRole('button', { name: /Giảm trừ bản thân/ }).click();
+  await expect(page).toHaveURL(/group=thue/);
+  await expect(page).toHaveURL(/setting=personalDeduction/);
+  await expect(page.getByRole('textbox', { name: 'Giảm trừ bản thân' })).toBeFocused();
+});
+
+test('?q= fills the search box and lists the matching items', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?q=b%E1%BA%A3o%20hi%E1%BB%83m');
+  await expect(page.getByRole('textbox', { name: 'Tìm theo tên cài đặt' })).toHaveValue('bảo hiểm');
+  await expect(page.locator('.result')).toHaveCount(3);
+  await expect(page.locator('.result').filter({ hasText: 'BHYT' })).toContainText('Mở mục');
+});
+
+test('Tạm ứng is text only', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=tam-ung');
+  await expect(item(page, 'advance')).toContainText('80% lương của ngày công 01–15');
+  await expect(item(page, 'advance').getByRole('textbox')).toHaveCount(0);
+  await expect(page.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveCount(0);
+});
 
 test('frame search carries only month context and returns to its source with Back', async ({ page }) => {
   const source = '/admin/cai-dat/lich?thang=2026-11&hop=old&group=old&setting=old.setting';
@@ -145,174 +84,49 @@ test('frame search carries only month context and returns to its source with Bac
   await expect(page).toHaveURL(source);
 });
 
-test.fixme(
-  'zero setup count hides the notice and active search progressively discloses group browsing',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.setViewportSize({ width: 375, height: 812 });
-    await page.goto('/admin/cai-dat/tat-ca');
-    await expect(page.getByRole('heading', { name: 'Tất cả cài đặt' })).toBeVisible();
+test('month and reason appear only once something changed; Lưu is locked until then', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  const save = page.getByRole('button', { name: 'Lưu', exact: true });
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await expect(save).toBeDisabled();
+  await expect(page.getByText('Chưa có thay đổi')).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('9');
+  await expect(item(page, 'bhxhPct')).toContainText('Đang áp dụng 8%');
+  await expect(page.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Lý do' })).toBeVisible();
+  await expect(save).toBeEnabled();
+  await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await expect(save).toBeDisabled();
+});
 
-    await expect(page.getByText(/mục cài đặt lần đầu/)).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Xem 0 mục', exact: true })).toHaveCount(0);
-    await expect(page.locator('#settings-group-browser')).toBeVisible();
+test('KPI keeps Lưu locked while the five weights do not total 100', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=luong-kpi');
+  await expect(page.locator('[data-setting-key]')).toHaveCount(5);
+  await page.getByRole('textbox', { name: 'Người dùng' }).fill('22');
+  await expect(page.getByText('Tổng 98/100')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await page.getByRole('textbox', { name: 'Tự đánh giá' }).fill('8');
+  await expect(page.getByText('Tổng 98/100')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeEnabled();
+});
 
-    await page.getByLabel('Tìm theo tên cài đặt').fill('phương thức');
-    await expect(page.locator('.result').filter({ hasText: 'Phương thức trả lương' })).toBeVisible();
-    await expect(page.locator('#settings-group-browser')).toHaveCount(1);
-    await expect(page.locator('#settings-group-browser')).toBeHidden();
-    const browse = page.getByRole('button', { name: 'Duyệt nhóm cài đặt' });
-    await expect(browse).toHaveAttribute('aria-controls', 'settings-group-browser');
-    await expect(browse).toHaveAttribute('aria-expanded', 'false');
-    await page.locator('.result').filter({ hasText: 'Phương thức trả lương' }).click();
-    await expect(page).toHaveURL(/q=ph%C6%B0%C6%A1ng(?:\+|%20)th%E1%BB%A9c.*group=ngay-cong.*setting=pay.method/);
-    await expect(page.locator('[data-setting-key="pay.method"]')).toBeVisible();
-    await expect(page.locator('#settings-group-browser')).toBeHidden();
-
-    await browse.click();
-    await expect(browse).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.locator('#settings-group-browser')).toBeVisible();
-    await page.locator('#settings-group-browser .chip').filter({ hasText: 'Chấm công' }).click();
-    await expect(page).toHaveURL(/q=ph%C6%B0%C6%A1ng(?:\+|%20)th%E1%BB%A9c.*group=cham-cong/);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(375);
-  }
-);
-
-test.fixme(
-  'nonzero setup count keeps the notice and review action visible',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page, false, false, false, 3);
-    await page.goto('/admin/cai-dat/tat-ca');
-    await expect(page.getByText(/3 mục cài đặt lần đầu/)).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Xem 3 mục', exact: true })).toBeVisible();
-  }
-);
-
-test.fixme(
-  'group-only search keeps a read-only deep-link target visible and resets restrictive filters',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca?q=k%E1%BA%BF%20to%C3%A1n');
-    const result = page.locator('.result').filter({ hasText: 'Mã thuế tham chiếu' });
-    await expect(result).toBeVisible();
-    await result.click();
-    await expect(page).toHaveURL(/q=k%E1%BA%BF(?:\+|%20)to%C3%A1n.*group=thue.*setting=system.tax-code/);
-    const target = page.locator('[data-setting-key="system.tax-code"]');
-    await expect(target).toBeVisible();
-    await expect(target).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Chỉ đọc', exact: true })).toHaveClass(/on/);
-
-    await page.getByRole('button', { name: 'Chưa xác nhận' }).click();
-    await expect(target).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Chưa xác nhận', exact: true })).toHaveClass(/on/);
-
-    await clickGroup(page, 'Chấm công');
-    await expect(page).not.toHaveURL(/setting=/);
-    await expect(page).toHaveURL(/q=k%E1%BA%BF(?:\+|%20)to%C3%A1n/);
-    await page.goBack();
-    await expect(page).toHaveURL(/setting=system.tax-code/);
-    await expect(target).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Chỉ đọc', exact: true })).toHaveClass(/on/);
-
-    const directUrl = page.url();
-    await page.goto(directUrl);
-    await expect(target).toBeVisible();
-    await expect(target).toBeFocused();
-    await expect(page.getByRole('button', { name: 'Chỉ đọc', exact: true })).toHaveClass(/on/);
-  }
-);
-
-test.fixme(
-  'out-of-order group reads cannot replace the active settings revision used by save',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    const api = await mockSettingsApi(page, false, true);
-    await page.goto('/admin/cai-dat/tat-ca?group=ngay-cong');
-    await page.locator('.gl .chip').filter({ hasText: 'Chấm công' }).click();
-    await expect.poll(api.paramsReads).toBe(2);
-    await page.locator('.gl .chip').filter({ hasText: 'Lương theo ngày công' }).click();
-    await expect.poll(api.paramsReads).toBe(3);
-    await expect(page).toHaveURL(/group=ngay-cong/);
-    await expect.poll(api.paramCompletions).toEqual([1, 3, 2]);
-    await page.locator('[data-setting-key="pay.method"] .c button').filter({ hasText: 'Theo ngày' }).click();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Theo ngày');
-    await page.getByRole('button', { name: 'Xem trước và lưu' }).click();
-    await expect.poll(api.putRevision).toBe(3);
-  }
-);
-
-test.fixme(
-  'dirty group change cancel preserves query and values; confirmed discard uses fresh revision without overwriting another edit',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    const api = await mockSettingsApi(page, false, false, true);
-    await page.goto('/admin/cai-dat/tat-ca?q=ng%C3%A0y%20c%C3%B4ng&group=ngay-cong&setting=type.%3Ctype%3E.workdays');
-    const x = page.getByLabel('Số ngày công · Nhân viên');
-    const y = page.getByLabel('Số ngày công · Chuyên trách viên');
-    await page.getByRole('button', { name: 'Sửa được', exact: true }).click();
-    await x.fill('23');
-    await y.fill('31');
-
-    const beforeCancel = page.url();
-    const attendance = page.locator('#settings-group-browser .chip').filter({ hasText: 'Chấm công' });
-    await page.getByRole('button', { name: 'Duyệt nhóm cài đặt' }).click();
-    page.once('dialog', dialog => dialog.dismiss());
-    await attendance.click();
-    await expect(page).toHaveURL(beforeCancel);
-    await expect(x).toHaveValue('23');
-    await expect(y).toHaveValue('31');
-    await expect(page.getByRole('button', { name: 'Sửa được', exact: true })).toHaveClass(/on/);
-    await expect(attendance).toBeFocused();
-
-    page.once('dialog', dialog => dialog.accept());
-    await attendance.click();
-    await expect(page).toHaveURL(/q=ng%C3%A0y(?:\+|%20)c%C3%B4ng.*group=cham-cong/);
-    await clickGroup(page, 'Lương theo ngày công');
-    await expect(page).toHaveURL(/q=ng%C3%A0y(?:\+|%20)c%C3%B4ng.*group=ngay-cong/);
-    await expect(page.getByLabel('Số ngày công · Nhân viên')).toHaveValue('22');
-    await expect(y).toHaveValue('24');
-
-    await x.fill('23');
-    await page.getByRole('button', { name: 'Xem trước và lưu' }).click();
-    await expect.poll(api.putRevision).toBe(2);
-    await expect.poll(api.putChanges).toEqual([{ key: 'type.nv.workdays', value: 23 }]);
-  }
-);
-
-test.fixme(
-  'browser back and forward guard dirty query-driven group changes',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca?q=ng%C3%A0y%20c%C3%B4ng&group=ngay-cong');
-    const workdays = page.getByLabel('Số ngày công · Nhân viên');
-    await clickGroup(page, 'Chấm công');
-    await expect(page).toHaveURL(/group=cham-cong/);
-    await clickGroup(page, 'Lương theo ngày công');
-    await expect(page).toHaveURL(/group=ngay-cong/);
-    await workdays.fill('23');
-
-    page.once('dialog', dialog => dialog.dismiss());
-    await page.goBack();
-    await expect(page).toHaveURL(/group=ngay-cong/);
-    await expect(workdays).toHaveValue('23');
-
-    page.once('dialog', dialog => dialog.accept());
-    await page.goBack();
-    await expect(page).toHaveURL(/group=cham-cong/);
-    await page.goForward();
-    await expect(page).toHaveURL(/group=ngay-cong/);
-    await expect(page.getByLabel('Số ngày công · Nhân viên')).toHaveValue('22');
-  }
-);
+test('switching group with unsaved edits asks first and keeps the edit when declined', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('9');
+  page.once('dialog', d => d.dismiss());
+  await page.getByRole('button', { name: 'Thuế 4', exact: true }).click();
+  await expect(page).toHaveURL(/group=bao-hiem/);
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('9');
+  page.once('dialog', d => d.accept());
+  await page.getByRole('button', { name: 'Thuế 4', exact: true }).click();
+  await expect(page).toHaveURL(/group=thue/);
+  await expect(item(page, 'personalDeduction')).toBeVisible();
+});
 
 // P6 (docs/superpowers/specs/2026-11-05-positions-settings-design.md): không thêm chức vụ mới, BE cũng không có
 // POST /positions, nên Tất cả cài đặt không có nút "Thêm chức vụ" và địa chỉ cũ ?hop=them-chuc-vu không mở hộp nào.
-// Chế độ giả chưa có dữ liệu cho màn này (thẻ chứa nút chỉ hiện khi tải được cài đặt), nên chờ màn tải xong, hiện
-// tiêu đề hoặc báo lỗi, rồi kiểm.
 test('the old ?hop=them-chuc-vu address opens no add-position dialog', async ({ page }) => {
   await page.goto('/admin/cai-dat/tat-ca?hop=them-chuc-vu');
   await expect(page.getByRole('heading', { name: 'Tất cả cài đặt' }).or(page.getByRole('alert'))).toBeVisible();
@@ -321,63 +135,174 @@ test('the old ?hop=them-chuc-vu address opens no add-position dialog', async ({ 
   await expect(page.getByRole('button', { name: 'Thêm chức vụ' })).toHaveCount(0);
 });
 
-test.fixme(
-  'same-group item focus and chip keep drafts; reset/save leave no stale dirty prompt',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    const api = await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca?q=ph%C6%B0%C6%A1ng%20th%E1%BB%A9c&group=ngay-cong');
-    const option = page.locator('[data-setting-key="pay.method"] .c button').filter({ hasText: 'Theo ngày' });
-    await option.click();
-    let prompts = 0;
-    page.on('dialog', dialog => {
-      prompts += 1;
-      void dialog.dismiss();
-    });
+test('saving BHXH 8% → 8,5% from 11/2026 confirms the change line', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await page.getByRole('combobox', { name: 'Áp dụng từ tháng' }).selectOption({ label: 'Tháng 11/2026' });
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  const dlg = page.getByRole('dialog', { name: 'Lưu thay đổi' });
+  await expect(dlg).toContainText('BHXH 8% → 8,5%, áp dụng từ tháng 11/2026');
+  await dlg.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByText('Đã lưu')).toBeVisible();
+  // Lưu xong thẻ về tháng đang mở (Ruling R16): ô hiện số của 10/2026, không còn ô tháng.
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await expect(page.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveCount(0);
+  await expect(page.getByText('Chưa có thay đổi')).toBeVisible();
+});
 
-    await clickGroup(page, 'Lương theo ngày công');
-    await page.locator('.result').filter({ hasText: 'Phương thức trả lương' }).click();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Theo ngày');
-    await expect.poll(() => prompts).toBe(0);
+test('the month picker stays while another month is chosen, and Huỷ goes back to the open month', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  const bhxh = page.getByRole('textbox', { name: 'BHXH' });
+  const month = page.getByRole('combobox', { name: 'Áp dụng từ tháng' });
+  await bhxh.fill('9');
+  await month.selectOption({ label: 'Tháng 11/2026' });
+  await bhxh.fill('8'); // bằng số của 11/2026: không còn thay đổi, nhưng vẫn đang ở 11/2026
+  await expect(page.getByText('Chưa có thay đổi')).toBeVisible();
+  await expect(month).toHaveValue('2026-11');
+  await month.selectOption({ label: 'Tháng 10/2026' });
+  await expect(month).toHaveCount(0);
 
-    await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Hàng tháng');
-    await option.click();
-    await page.getByRole('button', { name: 'Xem trước và lưu' }).click();
-    await expect.poll(api.putRevision).toBe(1);
-    await clickGroup(page, 'Chấm công');
-    await expect(page).toHaveURL(/group=cham-cong/);
-    await expect.poll(() => prompts).toBe(0);
-  }
-);
+  await bhxh.fill('9');
+  await month.selectOption({ label: 'Tháng 12/2026' });
+  await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(bhxh).toHaveValue('8');
+  await expect(month).toHaveCount(0);
+  await page.getByRole('textbox', { name: 'BHYT' }).fill('2');
+  await expect(month).toHaveValue('2026-10');
+});
 
-test.fixme(
-  'same-group navigation, reset, and save do not prompt later',
-  { annotation: { type: 'fixme', description: 'Chờ dữ liệu giả cho màn Cài đặt (đợt sau)' } },
-  async ({ page }) => {
-    await mockSettingsApi(page);
-    await page.goto('/admin/cai-dat/tat-ca?q=ph%C6%B0%C6%A1ng%20th%E1%BB%A9c&group=ngay-cong');
-    const option = page.locator('[data-setting-key="pay.method"] .c button').filter({ hasText: 'Theo ngày' });
-    await option.click();
-    let prompts = 0;
-    page.on('dialog', dialog => {
-      prompts += 1;
-      void dialog.dismiss();
-    });
+test('tax brackets refuse a bound below the previous one', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const b2 = page.getByRole('textbox', { name: 'Bậc 2 · đến' });
+  await b2.fill('5.000.000');
+  await expect(page.getByText('Phải lớn hơn 10.000.000 đ')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Lưu', exact: true })).toBeDisabled();
+  await b2.fill('35.000.000');
+  await expect(page.locator('tr', { has: page.getByText('3', { exact: true }) })).toContainText('35.000.000 đ');
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Lưu thay đổi' })).toContainText('Biểu thuế bậc 2, đến 30.000.000 đ → 35.000.000 đ, áp dụng từ tháng 10/2026');
+});
 
-    await clickGroup(page, 'Lương theo ngày công');
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Theo ngày');
-    await page.locator('.result').filter({ hasText: 'Phương thức trả lương' }).click();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Theo ngày');
-    await expect.poll(() => prompts).toBe(0);
+test('a money box drops the keystroke that goes past 1.000.000.000', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const f = page.getByRole('textbox', { name: 'Giảm trừ bản thân' });
+  await f.fill('1.000.000.000');
+  await expect(f).toHaveValue('1.000.000.000');
+  await f.press('End');
+  await f.pressSequentially('0');
+  await expect(f).toHaveValue('1.000.000.000');
+  await expect(item(page, 'personalDeduction')).not.toContainText('Từ 0 đ đến');
+});
 
-    await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
-    await expect(page.locator('[data-setting-key="pay.method"] .c button.on')).toContainText('Hàng tháng');
-    await page.locator('[data-setting-key="pay.method"] .c button').filter({ hasText: 'Theo ngày' }).click();
-    await page.getByRole('button', { name: 'Xem trước và lưu' }).click();
-    await expect.poll(() => prompts).toBe(0);
-    await clickGroup(page, 'Chấm công');
-    await expect(page).toHaveURL(/group=cham-cong/);
-    await expect.poll(() => prompts).toBe(0);
-  }
-);
+test('the bracket table shows five rows, the last one without a limit', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=thue');
+  const table = item(page, 'brackets');
+  await expect(table.getByRole('columnheader')).toHaveText(['Bậc', 'Thu nhập trên', 'Đến', 'Thuế suất']);
+  await expect(table.locator('tbody tr')).toHaveCount(5);
+  await expect(table.locator('tbody tr').nth(0)).toContainText('0 đ');
+  await expect(table.getByRole('textbox', { name: 'Bậc 1 · đến' })).toHaveValue('10.000.000');
+  await expect(table.getByRole('textbox', { name: 'Bậc 5 · thuế suất' })).toHaveValue('35');
+  await expect(table.getByRole('textbox', { name: 'Bậc 5 · đến' })).toHaveCount(0);
+  await expect(table.locator('tbody tr').nth(4)).toContainText('100.000.000 đ');
+  await expect(table.locator('tbody tr').nth(4)).toContainText('Không giới hạn');
+  await expect(table).toContainText('Mức “thu nhập trên” của mỗi bậc lấy theo mức “đến” của bậc trước.');
+  await table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' }).fill('150');
+  await expect(table.getByRole('textbox', { name: 'Bậc 3 · thuế suất' })).toHaveValue('20');
+});
+
+// Lưu qua hộp "Lưu thay đổi" rồi chờ thông báo, để các test dưới đây có sẵn dòng lịch sử.
+async function saveViaDialog(page: Page) {
+  await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Lưu thay đổi' }).getByRole('button', { name: 'Lưu', exact: true }).click();
+  await expect(page.getByText('Đã lưu')).toBeVisible();
+}
+
+test('revertValues: one field back to its old number, a KPI weights row back as all five', () => {
+  resetSettingsMock();
+  saveGroup('insurance', { effectiveMonth: '2026-10', values: { bhxhPct: 8.5 }, reason: null, stamp: 0 });
+  const ins = groupHistory('insurance').items;
+  expect(revertValues(ins[0])).toEqual({ bhxhPct: 8 });
+
+  saveGroup('kpi-weights', { effectiveMonth: '2026-10', values: { wework: 40, user: 22, peer: 18, manager: 12, self: 8 }, reason: null, stamp: 0 });
+  const kpi = groupHistory('kpi-weights').items;
+  expect(kpi.map(h => h.field)).toEqual(['weights']);
+  expect(revertValues(kpi[0])).toEqual({ wework: 40, user: 24, peer: 18, manager: 12, self: 6 });
+});
+
+test('Hoàn tác adds a new history row', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await expect(bhxh.getByRole('button', { name: 'Lịch sử' })).toHaveAttribute('aria-expanded', 'false');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(bhxh.getByRole('button', { name: 'Ẩn lịch sử' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(bhxh).toContainText('Lịch sử · 1 lần sửa');
+  await expect(bhxh.locator('tbody tr')).toHaveCount(1);
+  await expect(bhxh.locator('tbody tr').first()).toContainText('8% → 8,5%');
+  await expect(bhxh.locator('tbody tr').first()).toContainText('admin');
+  await bhxh.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg).toContainText('BHXH 8,5% → 8%');
+  await dlg.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+  await expect(page.getByText('Đã hoàn tác')).toBeVisible();
+  await expect(bhxh.locator('tbody tr')).toHaveCount(2);
+  await expect(bhxh.locator('tbody tr').first()).toContainText('8,5% → 8%');
+  // Dòng đầu đưa về 8, mà 10/2026 đang là 8: không còn gì để hoàn tác nên nút tắt.
+  await expect(bhxh.locator('tbody tr').nth(1).getByRole('button', { name: 'Hoàn tác' })).toBeDisabled();
+  await expect(page.getByRole('textbox', { name: 'BHXH' })).toHaveValue('8');
+  await bhxh.getByRole('button', { name: 'Ẩn lịch sử' }).click();
+  await expect(bhxh.locator('tbody tr')).toHaveCount(0);
+});
+
+test('a KPI change reverts as one set', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=luong-kpi');
+  await page.getByRole('textbox', { name: 'Người dùng' }).fill('22');
+  await page.getByRole('textbox', { name: 'Tự đánh giá' }).fill('8');
+  await saveViaDialog(page);
+  // Mỗi mục chỉ có dòng của lần lưu đã đổi trọng số của mục đó, với số cũ → số mới của riêng trọng số ấy.
+  const wework = item(page, 'wework');
+  await wework.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(wework).toContainText('Chưa có lần sửa nào.');
+  const user = item(page, 'user');
+  await user.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(user.locator('tbody tr')).toHaveCount(1);
+  await expect(user.locator('tbody tr').first()).toContainText('Trọng số Người dùng');
+  await expect(user.locator('tbody tr').first()).toContainText('24% → 22%');
+  await user.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg).toContainText('Trọng số Người dùng 22% → 24%');
+  await expect(dlg).toContainText('Trọng số Tự đánh giá 8% → 6%');
+  await dlg.getByRole('button', { name: 'Hoàn tác', exact: true }).click();
+  await expect(page.getByText('Đã hoàn tác')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Người dùng' })).toHaveValue('24');
+  await expect(page.getByRole('textbox', { name: 'Tự đánh giá' })).toHaveValue('6');
+});
+
+test('Hoàn tác is off while the group has unsaved edits', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeEnabled();
+  await page.getByRole('textbox', { name: 'BHYT' }).fill('2');
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(bhxh.getByRole('button', { name: 'Hoàn tác' })).toBeEnabled();
+});
+
+test('the reason of a revert is optional and the month list starts at the open month', async ({ page }) => {
+  await page.goto('/admin/cai-dat/tat-ca?group=bao-hiem');
+  await page.getByRole('textbox', { name: 'BHXH' }).fill('8,5');
+  await saveViaDialog(page);
+  const bhxh = item(page, 'bhxhPct');
+  await bhxh.getByRole('button', { name: 'Lịch sử' }).click();
+  await bhxh.getByRole('button', { name: 'Hoàn tác' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Hoàn tác' });
+  await expect(dlg.getByRole('combobox', { name: 'Áp dụng từ tháng' }).locator('option')).toHaveCount(6);
+  await expect(dlg.getByRole('combobox', { name: 'Áp dụng từ tháng' })).toHaveValue('2026-10');
+  await expect(dlg.getByRole('button', { name: 'Hoàn tác', exact: true })).toBeEnabled();
+  await dlg.getByRole('button', { name: 'Huỷ', exact: true }).click();
+  await expect(dlg).toHaveCount(0);
+});

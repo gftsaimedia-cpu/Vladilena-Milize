@@ -401,6 +401,10 @@ export class PayrollRepository {
   // The payslips of the month's current draft run that a partial run keeps: everyone except the people it recalculated
   // (exceptUsernames) and every target of the call (exceptEmployeeIds, uuid or username), so a target that failed
   // does not keep its old payslip.
+  // Lần chạy nháp trước bị khoá FOR NO KEY UPDATE (đúng mức khoá mà câu 'superseded' sau đó vẫn lấy, chỉ lấy sớm hơn)
+  // trước khi đọc phiếu để chép: một giao dịch duyệt đơn đang giữ lần chạy đó FOR SHARE (đã đưa phiếu về nháp, chưa
+  // commit, xem resetDecision) thì câu này đợi nó xong; các câu sau đọc dữ liệu đã commit mới nhất, nên phiếu được chép
+  // là phiếu đã về nháp, không phải bản đã duyệt cũ.
   private async carriedPayslips(
     trx: Transaction<DB>,
     month: string,
@@ -413,6 +417,7 @@ export class PayrollRepository {
       .where('status', '=', 'draft')
       .orderBy('run_no', 'desc')
       .limit(1)
+      .forNoKeyUpdate()
       .executeTakeFirst();
     if (!previous) return [];
 
@@ -554,6 +559,66 @@ export class PayrollRepository {
       .returningAll()
       .executeTakeFirst();
     return row ? readPayslipRow(row) : null;
+  }
+
+  // Đưa phiếu của người đó (uuid hoặc username) trong lần chạy nháp mới nhất về 'draft', xoá quyết định. Phiếu đã ở
+  // 'draft' (hay 'error', trigger không cho đổi) thì không ghi gì, rev giữ nguyên. Trả true khi có phiếu được đưa về;
+  // false khi không có lần chạy nháp, không có phiếu, hoặc phiếu đã ở nháp.
+  // Có `trx` (giao dịch duyệt đơn, đang giữ khoá chia sẻ `period:<tháng>`) thì mọi câu chạy trên `trx`, và lần chạy
+  // nháp được giữ FOR SHARE tới hết giao dịch: lần lưu của một lần tính lương (savePayrollRunAndSlips) phải đợi giao
+  // dịch này xong mới thay được lần chạy đó, nên câu sửa phiếu không vấp trigger payslips_frozen_update, và phiếu được
+  // chép sang lần chạy mới là phiếu đã về nháp.
+  async resetDecision(month: string, employeeId: string, trx?: Transaction<DB>): Promise<boolean> {
+    const q = trx ?? this.qb;
+    const runId = trx ? await this.holdDraftRun(trx, month) : await this.newestDraftRunId(q, month);
+    if (runId === null) return false;
+    const staff = await q
+      .selectFrom('staff')
+      .select('username')
+      .where(eb => eb.or([eb('uuid', '=', employeeId), eb('username', '=', employeeId)]))
+      .executeTakeFirst();
+    if (!staff) return false;
+
+    const row = await q
+      .updateTable('payslips')
+      .set(eb => ({ status: 'draft', decided_by: null, decided_at: null, note: null, rev: eb('rev', '+', 1) }))
+      .where('run_id', '=', runId)
+      .where('username', '=', staff.username)
+      .where('status', 'not in', ['draft', 'error'])
+      .returning('id')
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
+  private async newestDraftRunId(q: Kysely<DB>, month: string): Promise<number | null> {
+    const run = await q
+      .selectFrom('payroll_runs')
+      .select('id')
+      .where('month', '=', month)
+      .where('status', '=', 'draft')
+      .orderBy('run_no', 'desc')
+      .executeTakeFirst();
+    return run ? Number(run.id) : null;
+  }
+
+  // Lần chạy nháp mới nhất của tháng, khoá FOR SHARE trên `trx`. Đang chờ khoá mà một lần tính lương vừa thay lần chạy
+  // đó (đã 'superseded') thì câu khoá không trả dòng nào; đọc lại lần nháp mới (READ COMMITTED: mỗi câu thấy dữ liệu đã
+  // commit mới nhất) rồi khoá lại. Mỗi lần thử hụt cần một lần tính lương commit xen vào (tính lương xếp hàng theo khoá
+  // `payroll_<tháng>`), nên ba lần là đủ; hụt cả ba thì coi như không có lần chạy nháp.
+  private async holdDraftRun(trx: Transaction<DB>, month: string): Promise<number | null> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const newest = await this.newestDraftRunId(trx, month);
+      if (newest === null) return null;
+      const held = await trx
+        .selectFrom('payroll_runs')
+        .select('id')
+        .where('id', '=', newest)
+        .where('status', '=', 'draft')
+        .forShare()
+        .executeTakeFirst();
+      if (held) return Number(held.id);
+    }
+    return null;
   }
 
   async getPayslip(month: string, employeeId: string): Promise<PayslipRecord | null> {

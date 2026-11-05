@@ -47,7 +47,7 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
     assert.deepEqual(await dueDates(), ['2026-11-03', '2026-11-02']);
   });
 
-  it('holiday, leave and closed months are skipped', async () => {
+  it('holiday, leave and approved or paid months are skipped; locked or calculated months are not', async () => {
     ctx.holidays.dates.push({ date: '2026-11-02', name: 'Lễ thử' });
     assert.deepEqual(await dueDates(), ['2026-11-03']);
     ctx.holidays.dates.length = 0;
@@ -55,8 +55,15 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
     await seed(ctx, leaveRequest('2026-11-03', '2026-11-03', 'APPROVED'));
     assert.deepEqual(await dueDates(), ['2026-11-02']);
 
-    ctx.periods.statuses.set('2026-11', 'attendance_locked');
-    assert.deepEqual(await ctx.explanations.dueDays('nv01'), []);
+    // Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11).
+    for (const status of ['attendance_locked', 'calculated']) {
+      ctx.periods.statuses.set('2026-11', status);
+      assert.deepEqual(await dueDates(), ['2026-11-02'], status);
+    }
+    for (const status of ['approved', 'paid']) {
+      ctx.periods.statuses.set('2026-11', status);
+      assert.deepEqual(await ctx.explanations.dueDays('nv01'), [], status);
+    }
   });
 
   it('range starts the first day of last month', async () => {
@@ -74,8 +81,10 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
     });
     assert.equal(due.some(d => d.date === '2026-10-04'), false); // Chủ nhật
 
-    // Tháng trước đã chốt: chỉ còn tháng này.
+    // Tháng trước mới tính lương: vẫn còn đủ 29 ngày. Kỳ tháng trước đã phê duyệt: chỉ còn tháng này.
     ctx.periods.statuses.set('2026-10', 'calculated');
+    assert.equal((await ctx.explanations.dueDays('nv01')).length, 29);
+    ctx.periods.statuses.set('2026-10', 'approved');
     assert.deepEqual((await ctx.explanations.dueDays('nv01')).map(d => d.date), ['2026-11-03', '2026-11-02']);
   });
 
@@ -162,7 +171,16 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
       assert.equal(await message('2026-11-03'), 'Ngày 03/11 đã có đơn giải trình');
 
       ctx.periods.statuses.set('2026-11', 'attendance_locked');
-      assert.equal(await message('2026-11-02'), 'Tháng 11 đã chốt công');
+      assert.equal(await message('2026-11-02'), null);
+      ctx.periods.statuses.set('2026-11', 'approved');
+      assert.equal(await message('2026-11-02'), 'Kỳ lương tháng 11/2026 đã phê duyệt');
+      ctx.periods.statuses.set('2026-11', 'paid');
+      assert.equal(await message('2026-11-02'), 'Kỳ lương tháng 11/2026 đã trả lương');
+      assert.deepEqual(await ctx.explanations.checkDay('nv01', '2026-11-02'), {
+        ok: false,
+        message: 'Kỳ lương tháng 11/2026 đã trả lương',
+        locked: { month: '2026-11', status: 'paid' }
+      });
 
       ctx.repo.putStaff('nv01', staffContext({ startDate: '2026-11-01' }));
       ctx.periods.statuses.clear();
@@ -177,10 +195,12 @@ describe('Ngày cần giải trình (spec 3.1–3.2)', () => {
       });
     });
 
-    it('checks run in order: future, closed month, not a workday, explained, no case (R-P4)', async () => {
-      ctx.periods.statuses.set('2026-11', 'attendance_locked');
+    it('checks run in order: future, approved or paid period, not a workday, explained, no case (R-P4)', async () => {
+      ctx.periods.statuses.set('2026-11', 'approved');
       assert.equal(await message('2026-11-05'), 'Không giải trình cho ngày trong tương lai');
-      assert.equal(await message('2026-11-01'), 'Tháng 11 đã chốt công');
+      assert.equal(await message('2026-11-01'), 'Kỳ lương tháng 11/2026 đã phê duyệt');
+      ctx.periods.statuses.set('2026-11', 'attendance_locked');
+      assert.equal(await message('2026-11-01'), 'Ngày 01/11 không phải ngày làm');
       ctx.periods.statuses.clear();
 
       ctx.holidays.dates.push({ date: '2026-11-03', name: 'Lễ thử' });

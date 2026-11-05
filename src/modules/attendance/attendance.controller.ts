@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@nestjs/common';
-import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, RequireCap } from '../../common';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
@@ -24,6 +24,7 @@ export class AttendanceController {
       const result = await this.service.recordPunch(body);
       return result;
     } catch (err: any) {
+      if (err instanceof HttpError) throw err;
       if (err instanceof PunchRefusedError) throw new BadRequestError(err.message, { code: err.code, ...err.details });
       throw new BadRequestError(err.message, { code: 'BAD_PUNCH_INPUT' });
     }
@@ -97,7 +98,8 @@ export class AttendanceController {
     }
     const workDate = body.workDate as string;
     if (!isCalendarDate(workDate)) {
-      throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+      // Cùng câu với kiểm tra workDate của AttendanceService (lúc chấm và lúc tính lại).
+      throw new BadRequestError(`Ngày công (workDate) không hợp lệ (YYYY-MM-DD): ${workDate}`, { code: 'INVALID_DATE' });
     }
     const timesheet = await this.service.recalculateTimesheet(body.employeeId, workDate);
     return { timesheet };

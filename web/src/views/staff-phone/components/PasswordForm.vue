@@ -2,7 +2,7 @@
 // Biểu mẫu đổi mật khẩu dùng chung cho hộp trượt (điện thoại) và ngăn kéo (máy tính): mật khẩu hiện tại, mật khẩu mới
 // (≥ 6 ký tự), nhập lại. Đổi xong phát `done`, bấm Huỷ phát `cancel`; vỏ quyết định đóng thế nào.
 //   <PasswordForm @done="…" @cancel="…" />
-import { reactive, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import Icon from '@/components/ui/Icon.vue';
 import { changePassword } from '@/services/staff-phone';
 
@@ -19,16 +19,12 @@ const shown = reactive({ current: false, next: false, again: false });
 const error = ref('');
 const busy = ref(false);
 
-function validate() {
-  if (!form.current) return 'Nhập mật khẩu hiện tại.';
-  if (form.next.length < MIN_LENGTH) return `Mật khẩu mới cần ít nhất ${MIN_LENGTH} ký tự.`;
-  if (form.next !== form.again) return 'Hai lần nhập mật khẩu mới chưa giống nhau.';
-  return '';
-}
+// Chưa đủ (thiếu mật khẩu hiện tại, mật khẩu mới ngắn, nhập lại lệch) thì nút mờ; chỉ lỗi của máy chủ mới hiện ra.
+const valid = computed(() => form.current !== '' && form.next.length >= MIN_LENGTH && form.next === form.again);
 
 async function submit() {
-  error.value = validate();
-  if (error.value || busy.value) return;
+  if (!valid.value || busy.value) return;
+  error.value = '';
   busy.value = true;
   try {
     await changePassword({ current: form.current, next: form.next });
@@ -67,7 +63,7 @@ async function submit() {
 
     <div class="bt">
       <button type="button" @click="emit('cancel')">Huỷ</button>
-      <button type="submit" class="pri" :disabled="busy">Đổi mật khẩu</button>
+      <button type="submit" class="pri" :disabled="busy || !valid">Đổi mật khẩu</button>
     </div>
   </form>
 </template>
