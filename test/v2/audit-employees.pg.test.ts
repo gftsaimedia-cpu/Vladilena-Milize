@@ -207,3 +207,65 @@ test('when the audit write fails, the staff change is rolled back with it', asyn
     assert.equal((await rows()).length, 3);
   });
 });
+
+const person = async (db: Kysely<DB>, username: string) =>
+  db.selectFrom('staff').select(['username', 'uuid', 'name', 'level', 'pass_hash']).where('username', '=', username).executeTakeFirst();
+
+test('creating a username that already exists is rejected and overwrites nothing', async t => {
+  await withTempDb(t, 'audit_staff', async db => {
+    const { svc, rows } = setup(db);
+    await svc.create(BINH, 'admin');
+    const before = await person(db, 'binh');
+
+    // Gửi đúng uuid cũ: trước đây upsert ghi đè trọn hồ sơ.
+    await assert.rejects(svc.create({ ...BINH, uuid: before!.uuid, name: 'Người Khác', level: 4, password: undefined }, 'admin'), /Tên đăng nhập binh đã có/);
+    await assert.rejects(svc.create({ ...BINH, name: 'Người Khác' }, 'admin'), /Tên đăng nhập binh đã có/);
+
+    assert.deepEqual(await person(db, 'binh'), before);
+    assert.equal((await rows()).length, 3);
+  });
+});
+
+test('a create racing an uncommitted insert of the same username is rejected, not merged into it', async t => {
+  await withTempDb(t, 'audit_staff', async (db, client) => {
+    const { svc, rows } = setup(db);
+
+    await client.query('BEGIN');
+    await client.query(`INSERT INTO staff (username, name, pass_hash, created_at) VALUES ('binh', 'Bình Khác', 'none', '2026-11-05')`);
+    const creating = svc.create(BINH, 'admin');
+    await new Promise(resolve => setTimeout(resolve, 300));
+    await client.query('COMMIT');
+
+    await assert.rejects(creating, /Tên đăng nhập binh đã có/);
+    assert.equal((await person(db, 'binh'))?.name, 'Bình Khác');
+    assert.equal((await rows()).length, 0);
+  });
+});
+
+test('an update cannot change the username or uuid through the body', async t => {
+  await withTempDb(t, 'audit_staff', async db => {
+    const { svc, rows } = setup(db);
+    await svc.create(BINH, 'admin');
+    await svc.create({ ...BINH, username: 'an', name: 'Trần Thị An', level: 1 }, 'admin');
+    const binh = await person(db, 'binh');
+    const an = await person(db, 'an');
+    const NOT_CHANGEABLE = /Không đổi được tên đăng nhập hoặc mã nhân sự/;
+
+    // Sao chép tài khoản sang tên mới.
+    await assert.rejects(svc.update('binh', { username: 'ghost', uuid: '6f0c9a52-1f7e-4a77-9f59-0d3c2b6e1a01' }, 'admin'), NOT_CHANGEABLE);
+    await assert.rejects(svc.update('binh', { account: { username: 'ghost' } }, 'admin'), NOT_CHANGEABLE);
+    // Ghi đè người khác bằng username và uuid của họ.
+    await assert.rejects(svc.update('binh', { username: 'an', uuid: an!.uuid, level: 5 }, 'admin'), NOT_CHANGEABLE);
+    // Đổi uuid của chính mình.
+    await assert.rejects(svc.update(binh!.uuid!, { profile: { uuid: '6f0c9a52-1f7e-4a77-9f59-0d3c2b6e1a02' } }, 'admin'), NOT_CHANGEABLE);
+
+    assert.equal(await person(db, 'ghost'), undefined);
+    assert.deepEqual(await person(db, 'binh'), binh);
+    assert.deepEqual(await person(db, 'an'), an);
+    assert.equal((await rows()).length, 6);
+
+    // Gửi lại đúng username và uuid đang có thì vẫn sửa được.
+    await svc.update(binh!.uuid!, { username: 'binh', uuid: binh!.uuid, level: 3 }, 'admin');
+    assert.equal(Number((await person(db, 'binh'))?.level), 3);
+  });
+});

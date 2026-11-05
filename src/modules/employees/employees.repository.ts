@@ -312,55 +312,67 @@ export class EmployeesRepository {
 
   /**
    * Lưu hoặc ghi đè toàn bộ thông tin nhân viên vào bảng `staff`, đồng bộ vai trò phụ vào `staff_roles`.
+   * `createOnly`: chỉ thêm mới; username đã có (kể cả do một lần thêm khác vừa commit) thì báo lỗi, không ghi đè.
    */
-  async save(employee: Employee, actor?: string): Promise<Employee> {
+  async save(employee: Employee, actor?: string, opts: { createOnly?: boolean } = {}): Promise<Employee> {
     const row = EmployeesRepository.toRow(employee);
-    await this.qb
-      .insertInto('staff')
-      .values(row)
-      .onConflict(oc =>
-        oc.column('username').doUpdateSet(eb => ({
-          name: eb.ref('excluded.name'),
-          family_name: eb.ref('excluded.family_name'),
-          given_name: eb.ref('excluded.given_name'),
-          birthday: eb.ref('excluded.birthday'),
-          dependants: eb.ref('excluded.dependants'),
-          pass_hash: eb.ref('excluded.pass_hash'),
-          // Đổi mật khẩu (kể cả Admin đặt lại) làm mọi phiên cũ hết hiệu lực.
-          session_version: eb
-            .case()
-            .when('staff.pass_hash', '<>', eb.ref('excluded.pass_hash'))
-            .then(eb('staff.session_version', '+', 1))
-            .else(eb.ref('staff.session_version'))
-            .end(),
-          role: eb.ref('excluded.role'),
-          locked_at: eb.ref('excluded.locked_at'),
-          locked_by: eb.ref('excluded.locked_by'),
-          created_at: eb.ref('excluded.created_at'),
-          type: eb.ref('excluded.type'),
-          level: eb.ref('excluded.level'),
-          job_title: eb.ref('excluded.job_title'),
-          shift_type: eb.ref('excluded.shift_type'),
-          shift_start_time: eb.ref('excluded.shift_start_time'),
-          shift_end_time: eb.ref('excluded.shift_end_time'),
-          shift_allowance_pct: eb.ref('excluded.shift_allowance_pct'),
-          leave_total_days: eb.ref('excluded.leave_total_days'),
-          leave_used_days: eb.ref('excluded.leave_used_days'),
-          leave_balance: eb.ref('excluded.leave_balance'),
-          contract_status: eb.ref('excluded.contract_status'),
-          start_date: eb.ref('excluded.start_date'),
-          contract: eb.ref('excluded.contract'),
-          resigned_on: eb.ref('excluded.resigned_on'),
-          insured: eb.ref('excluded.insured'),
-          deduct_on: eb.ref('excluded.deduct_on'),
-          tax_on: eb.ref('excluded.tax_on'),
-          advance_on: eb.ref('excluded.advance_on'),
-          idorm: eb.ref('excluded.idorm'),
-          payroll_subject: eb.ref('excluded.payroll_subject'),
-          uuid: eb.ref('excluded.uuid')
-        }))
-      )
-      .execute();
+    if (opts.createOnly) {
+      try {
+        await this.qb.insertInto('staff').values(row).execute();
+      } catch (err: any) {
+        if (err?.code === '23505' && err?.constraint === 'staff_pkey') {
+          throw new Error(`Tên đăng nhập ${employee.username} đã có`);
+        }
+        throw err;
+      }
+    } else {
+      await this.qb
+        .insertInto('staff')
+        .values(row)
+        .onConflict(oc =>
+          oc.column('username').doUpdateSet(eb => ({
+            name: eb.ref('excluded.name'),
+            family_name: eb.ref('excluded.family_name'),
+            given_name: eb.ref('excluded.given_name'),
+            birthday: eb.ref('excluded.birthday'),
+            dependants: eb.ref('excluded.dependants'),
+            pass_hash: eb.ref('excluded.pass_hash'),
+            // Đổi mật khẩu (kể cả Admin đặt lại) làm mọi phiên cũ hết hiệu lực.
+            session_version: eb
+              .case()
+              .when('staff.pass_hash', '<>', eb.ref('excluded.pass_hash'))
+              .then(eb('staff.session_version', '+', 1))
+              .else(eb.ref('staff.session_version'))
+              .end(),
+            role: eb.ref('excluded.role'),
+            locked_at: eb.ref('excluded.locked_at'),
+            locked_by: eb.ref('excluded.locked_by'),
+            created_at: eb.ref('excluded.created_at'),
+            type: eb.ref('excluded.type'),
+            level: eb.ref('excluded.level'),
+            job_title: eb.ref('excluded.job_title'),
+            shift_type: eb.ref('excluded.shift_type'),
+            shift_start_time: eb.ref('excluded.shift_start_time'),
+            shift_end_time: eb.ref('excluded.shift_end_time'),
+            shift_allowance_pct: eb.ref('excluded.shift_allowance_pct'),
+            leave_total_days: eb.ref('excluded.leave_total_days'),
+            leave_used_days: eb.ref('excluded.leave_used_days'),
+            leave_balance: eb.ref('excluded.leave_balance'),
+            contract_status: eb.ref('excluded.contract_status'),
+            start_date: eb.ref('excluded.start_date'),
+            contract: eb.ref('excluded.contract'),
+            resigned_on: eb.ref('excluded.resigned_on'),
+            insured: eb.ref('excluded.insured'),
+            deduct_on: eb.ref('excluded.deduct_on'),
+            tax_on: eb.ref('excluded.tax_on'),
+            advance_on: eb.ref('excluded.advance_on'),
+            idorm: eb.ref('excluded.idorm'),
+            payroll_subject: eb.ref('excluded.payroll_subject'),
+            uuid: eb.ref('excluded.uuid')
+          }))
+        )
+        .execute();
+    }
 
     // Đồng bộ vai trò phụ (các vai trò ngoài vai trò chính)
     const primaryRole = employee.account.roles[0] || 'staff';

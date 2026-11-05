@@ -80,7 +80,7 @@ export class EmployeesService {
     const employee = this.buildEmployeeFromInput(body);
     return this.tx.run(async trx => {
       const repo = this.repo.withTransaction(trx);
-      const saved = await repo.save(employee, actor);
+      const saved = await repo.save(employee, actor, { createOnly: true });
       const stored = await this.reload(repo, saved);
       const passwordSet = stored.account.passwordHash !== NO_PASSWORD;
       await this.log(trx, actor, saved.username, staffSaveRows(null, stored.toDTO(), passwordSet));
@@ -94,7 +94,12 @@ export class EmployeesService {
       const repo = this.repo.withTransaction(trx);
       const existing = await repo.findByUsernameOrUuid(id, { forUpdate: true });
       if (!existing) return null;
-      const saved = await repo.save(this.buildEmployeeFromInput(body, existing), actor);
+      const built = this.buildEmployeeFromInput(body, existing);
+      // username và uuid là khoá của hồ sơ: đổi qua body sẽ sao chép tài khoản sang tên mới hoặc ghi đè người khác.
+      if (built.username !== existing.username || built.profile.uuid !== existing.profile.uuid) {
+        throw new Error('Không đổi được tên đăng nhập hoặc mã nhân sự');
+      }
+      const saved = await repo.save(built, actor);
       const stored = await this.reload(repo, saved);
       const passwordChanged = stored.account.passwordHash !== existing.account.passwordHash;
       await this.log(trx, actor, saved.username, staffSaveRows(existing.toDTO(), stored.toDTO(), passwordChanged));
