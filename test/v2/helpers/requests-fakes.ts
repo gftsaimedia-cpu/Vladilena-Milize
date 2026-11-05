@@ -331,6 +331,16 @@ export class RecordingLock {
   }
 }
 
+/** Kỳ lương trong bộ nhớ: `statuses` map tháng (YYYY-MM) → trạng thái; tháng không có trong map là chưa có dòng kỳ. */
+export class FakePeriods {
+  statuses = new Map<string, string>();
+
+  async getPeriod(month: string): Promise<{ month: string; status: string } | null> {
+    const status = this.statuses.get(month);
+    return status === undefined ? null : { month, status };
+  }
+}
+
 /** Service đủ phụ thuộc; "hôm nay" cố định 2026-11-04 (17:00 giờ Việt Nam). */
 export function makeService() {
   const repo = new FakeRequestsRepository();
@@ -338,9 +348,10 @@ export function makeService() {
   const holidays = new FakeHolidaysRepository();
   const days = new FakeDayStatusRepository(repo);
   const lock = new RecordingLock();
-  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days);
+  const periods = new FakePeriods();
+  const service = new RequestsService(repo, att, lock as unknown as TransactionCoordinator, holidays, days, periods);
   service.now = () => new Date('2026-11-04T10:00:00Z');
-  return { service, repo, att, holidays, days, lock };
+  return { service, repo, att, holidays, days, lock, periods };
 }
 
 // ---- Đơn dựng sẵn cho test (mặc định của nv01, đang chờ) ----

@@ -25,6 +25,9 @@ import {
   requireExplanationCases,
   optionalActualTime,
   vietnamToday,
+  filingWindow,
+  isWholeHour,
+  isClosedPeriod,
   planClaims,
   DayConflictError,
   requestTitle,
@@ -42,6 +45,7 @@ import { DayStatusRepository } from './day-status.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
 import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
+import { SystemService } from '../system/system.service';
 
 /**
  * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
@@ -257,7 +261,34 @@ export class RequestsService {
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
     @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
     @Optional() @Inject(DayStatusRepository) private readonly dayStatusRepo?: DayStatusRepository,
+    @Optional() @Inject(SystemService) private readonly periods?: Pick<SystemService, 'getPeriod'>,
   ) {}
+
+  /** Tháng `month` (YYYY-MM) đã chốt công: kỳ lương có dòng và không còn 'open'. Không có `periods` thì chưa chốt. */
+  protected async isClosedMonth(month: string): Promise<boolean> {
+    if (!this.periods) return false;
+    return isClosedPeriod(await this.periods.getPeriod(month));
+  }
+
+  /**
+   * Luật chỉ áp khi nhân viên tự nộp (`filedBy === 'self'`; Admin giữ hành vi cũ), theo thứ tự: giờ tròn, mọi ngày
+   * nằm trong `filingWindow(hôm nay)`, tháng của các ngày chưa chốt công. Tháng chốt báo theo ngày nhỏ nhất.
+   */
+  private async assertSelfFiling(opts: FilingContext, dates: readonly string[], times: readonly string[] = []): Promise<void> {
+    if (opts.filedBy !== 'self') return;
+    if (times.some(time => !isWholeHour(time))) {
+      throw new Error('Chỉ chọn giờ tròn');
+    }
+    const { from, to } = filingWindow(vietnamToday(this.now()));
+    if (dates.some(date => date < from || date > to)) {
+      throw new Error(`Chỉ chọn ngày từ ${formatDayMonth(from)} đến ${formatDayMonth(to)}`);
+    }
+    for (const month of [...new Set(dates.map(monthOf))].sort()) {
+      if (await this.isClosedMonth(month)) {
+        throw new Error(`Tháng ${Number(month.slice(5, 7))} đã chốt công`);
+      }
+    }
+  }
 
   /** Repository chạy trên `trx`; không có `trx` thì chạy trên pool. */
   private storesOn(trx?: DatabaseTransaction): RequestStores {
@@ -471,9 +502,10 @@ export class RequestsService {
   }
 
   /** Đơn nghỉ (§6.1): giữ các ngày làm việc trong khoảng; Phép năm kiểm số dư (spec 2.7). */
-  private async planLeave(input: CreateLeaveInput, _opts: FilingContext): Promise<Filing> {
+  private async planLeave(input: CreateLeaveInput, opts: FilingContext): Promise<Filing> {
     const leaveType = requireLeaveType(input.leaveType);
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    await this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
@@ -555,12 +587,13 @@ export class RequestsService {
   }
 
   /** Đơn đổi ca (§6.4): giữ các ngày làm việc trong khoảng, trừ ngày nghỉ và Thứ Bảy có iSAT đã duyệt. */
-  private async planShiftChange(input: CreateShiftChangeInput, _opts: FilingContext): Promise<Filing> {
+  private async planShiftChange(input: CreateShiftChangeInput, opts: FilingContext): Promise<Filing> {
     const frame = findShiftFrame(input.shiftType, input.startTime);
     if (!frame) {
       throw new Error(`Khung ca không hợp lệ: ${String(input.shiftType)} ${String(input.startTime)}`);
     }
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
+    await this.assertSelfFiling(opts, [startDate, endDate]);
     const staff = await this.resolveStaff(input.employeeId, monthOf(startDate));
     this.requireTypeConfig(staff);
 
@@ -650,9 +683,14 @@ export class RequestsService {
   }
 
   /** Đơn nghỉ có làm bù (§6.2): giữ các ngày nghỉ như đơn nghỉ; khung bù chỉ được kiểm, đủ đúng 8 giờ mỗi ngày nghỉ. */
-  private async planMakeup(input: CreateLeaveWithMakeupInput, _opts: FilingContext): Promise<Filing> {
+  private async planMakeup(input: CreateLeaveWithMakeupInput, opts: FilingContext): Promise<Filing> {
     const { startDate, endDate } = requireDateRange(input.startDate, input.endDate);
     const slots = requireMakeupSlots(input.slots);
+    await this.assertSelfFiling(
+      opts,
+      [startDate, endDate, ...slots.map(slot => slot.date)],
+      slots.flatMap(slot => [slot.startTime, slot.endTime])
+    );
     const month = monthOf(startDate);
     const staff = await this.resolveStaff(input.employeeId, month);
     this.requireTypeConfig(staff);
@@ -741,10 +779,11 @@ export class RequestsService {
   }
 
   /** Đơn OT (§6.3): một khung, không giữ ngày; trần 40 giờ mỗi tháng. */
-  private async planOvertime(input: CreateOvertimeInput, _opts: FilingContext): Promise<Filing> {
+  private async planOvertime(input: CreateOvertimeInput, opts: FilingContext): Promise<Filing> {
     const date = requireDateText(input.otDate ?? input.targetDate, 'otDate');
     const startTime = requireTimeText(input.startTime, 'startTime');
     const endTime = requireTimeText(input.endTime, 'endTime');
+    await this.assertSelfFiling(opts, [date], [startTime, endTime]);
     const month = monthOf(date);
     const staff = await this.resolveStaff(input.employeeId, month);
     this.requireTypeConfig(staff);
