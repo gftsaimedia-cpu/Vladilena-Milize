@@ -6,3 +6,4 @@ export * from './work-schedule';
 export * from './calendar';
 export * from './explanation-detect';
 export * from './attendance-day';
+export * from './punch-work-date';

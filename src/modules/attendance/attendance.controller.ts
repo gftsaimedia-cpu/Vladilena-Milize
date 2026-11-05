@@ -2,6 +2,15 @@ import { Controller, Get, Post, Inject, Param, Query, Body, UseFilters } from '@
 import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
 import { AttendanceService, RecordPunchInput } from './attendance.service';
 
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+/** 'YYYY-MM-DD' là một ngày có thật trên lịch (không nhận 2026-02-30). */
+function isCalendarDate(text: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+  const at = new Date(`${text}T00:00:00Z`);
+  return !isNaN(at.getTime()) && at.toISOString().slice(0, 10) === text;
+}
+
 @Controller('api/v2/attendance')
 @UseFilters(ApiExceptionFilter)
 export class AttendanceController {
@@ -65,13 +74,30 @@ export class AttendanceController {
     return { timesheet };
   }
 
+  /** Admin bấm tính lại (T7): một ngày (`workDate`) hoặc cả tháng (`month`) của một nhân sự. */
   @RequireCap('attendance.correct')
   @Post('recalculate')
-  async recalculateTimesheet(@Body() body: { employeeId: string; workDate: string }): Promise<unknown> {
-    if (!body.employeeId || !body.workDate) {
-      throw new BadRequestError('Thiếu thông số employeeId hoặc workDate', { code: 'MISSING_PARAMS' });
+  async recalculateTimesheet(
+    @Body() body: { employeeId?: string; workDate?: string; month?: string }
+  ): Promise<unknown> {
+    if (!body?.employeeId || (!body.workDate && !body.month)) {
+      throw new BadRequestError('Thiếu thông số employeeId và workDate hoặc month', { code: 'MISSING_PARAMS' });
     }
-    const timesheet = await this.service.recalculateTimesheet(body.employeeId, body.workDate);
+    if (body.workDate && body.month) {
+      throw new BadRequestError('Chỉ gửi workDate hoặc month, không gửi cả hai', { code: 'AMBIGUOUS_PARAMS' });
+    }
+    if (body.month) {
+      if (!MONTH_PATTERN.test(body.month)) {
+        throw new BadRequestError('Tháng không hợp lệ (định dạng YYYY-MM)', { code: 'INVALID_MONTH' });
+      }
+      const timesheets = await this.service.recalculateMonth(body.employeeId, body.month);
+      return { timesheets };
+    }
+    const workDate = body.workDate as string;
+    if (!isCalendarDate(workDate)) {
+      throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+    }
+    const timesheet = await this.service.recalculateTimesheet(body.employeeId, workDate);
     return { timesheet };
   }
 }

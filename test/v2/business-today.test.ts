@@ -6,6 +6,7 @@ import { DailyTimesheet, PunchEvent, WorkSchedule } from '../../src/modules/atte
 import { RequestsService } from '../../src/modules/requests/requests.service';
 import { IsatProfile, RequestsRepository, type StaffContext } from '../../src/modules/requests/requests.repository';
 import { staffContext } from './helpers/requests-fakes';
+import { FakeAttendanceDays } from './helpers/attendance-days-fake';
 import { SystemRequest } from '../../src/modules/requests/domain';
 import { businessDateText, businessMonthText } from '../../src/common/business-date';
 
@@ -67,10 +68,6 @@ class FakeAttendanceRepository extends AttendanceRepository {
     return this.punches.filter((p) => p.employeeId === employeeId && p.workDate === workDate);
   }
 
-  override async saveTimesheet(timesheet: DailyTimesheet): Promise<void> {
-    this.timesheets.set(`${timesheet.employeeId}:${timesheet.workDate}`, timesheet);
-  }
-
   override async findTimesheet(employeeId: string, workDate: string): Promise<DailyTimesheet | null> {
     return this.timesheets.get(`${employeeId}:${workDate}`) ?? null;
   }
@@ -105,12 +102,17 @@ describe('Hôm nay / tháng này theo giờ Việt Nam', () => {
     it(`chấm công không gửi workDate lúc 06:30 sáng 07/11 thì ghi vào 07/11 (TZ=${zone})`, async () => {
       runAt(zone, EARLY_MORNING_VN);
       const repo = new FakeAttendanceRepository();
-      const service = new AttendanceService(repo);
+      const days = new FakeAttendanceDays(repo.timesheets);
+      const service = new AttendanceService(repo, days.asService());
 
       const result = await service.recordPunch({ employeeId: EMPLOYEE_ID, type: 'IN' });
 
       assert.equal(result.punch.workDate, '2026-11-07');
       assert.equal(result.timesheet.workDate, '2026-11-07');
+      assert.deepEqual(
+        days.calls.map(c => c.dates),
+        [['2026-11-07']]
+      );
     });
 
     it(`đơn tạm ứng không gửi kỳ lúc 05:00 sáng 01/12 thì lấy kỳ 2026-12 (TZ=${zone})`, async () => {

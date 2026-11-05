@@ -234,22 +234,63 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
       "punchedAt": "2026-11-04T08:30:00.000Z",
       "isWithinOffice": true
     },
-    "timesheet": {
-      "status": "ABSENT",
-      "checkIn": "2026-11-04T08:30:00.000Z",
-      "checkOut": null,
-      "metrics": {
-        "workHours": 0,
-        "lateMinutes": 0,
-        "earlyMinutes": 0
-      }
-    }
+    "timesheet": { "workDate": "2026-11-04", "status": "PRESENT", "payUnits": 0, "dayStatus": "NEEDS_EXPLANATION" }
   }
   ```
+  - `timesheet` là dòng ngày (cùng dạng với phần tử của `GET /api/v2/attendance/timesheets` bên dưới) đọc lại sau khi tính, rút gọn ở ví dụ.
+  - Lần chấm chạy dưới khoá của nhân sự (cùng khoá với Đơn từ) và không còn tạo dòng lịch `REGULAR` trong `work_schedules`. Body không còn nhận `shiftConfig`: ca của ngày lấy từ lịch đổi ca đã duyệt, không thì từ ca mặc định của hồ sơ.
+  - `workDate` không bắt buộc. Không gửi thì ngày công là ngày (giờ Việt Nam) của `punchedAt` (mặc định bây giờ); riêng lần `OUT` chấm trước 12:00 thuộc ngày hôm trước khi ca hôm trước qua nửa đêm và hôm trước có lần vào mà chưa có lần ra (ca đêm). Có gửi `workDate` thì giữ nguyên ngày đó.
+  - Lỗi `400 BAD_PUNCH_INPUT`: ngày có lịch nghỉ phép / làm bù đã duyệt, hoặc ngày đã khoá kỳ lương. Lần chấm không được lưu.
 
 #### `GET /api/v2/attendance/timesheets`
-- **Query Params**: `employeeId`, `month` (`YYYY-MM`), `status`.
-- **Response 200**: Danh sách bảng công chi tiết theo từng ngày trong tháng.
+- **Query Params**: `employeeId`, `startDate` (`YYYY-MM-DD`), `endDate` (`YYYY-MM-DD`), `status` (một trong 11 giá trị `status` bên dưới).
+- **Response 200**: `{ "timesheets": [...] }`, mỗi phần tử là một dòng ngày, sắp theo `workDate` rồi `employeeId`:
+  ```json
+  {
+    "id": "row-uuid",
+    "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891",
+    "workDate": "2026-11-03",
+    "shiftType": "NORMAL",
+    "shiftStartTime": "08:00",
+    "shiftEndTime": "17:00",
+    "shiftAllowancePct": 0,
+    "actualCheckIn": "2026-11-03T01:40:00.000Z",
+    "actualCheckOut": "2026-11-03T10:00:00.000Z",
+    "metrics": { "workHours": 8.3, "workUnits": 0, "otHours": 0, "lateMinutes": 40, "earlyMinutes": 0 },
+    "status": "PRESENT",
+    "isLocked": false,
+    "checkInStatus": "LATE",
+    "checkOutStatus": "VALID",
+    "dayStatus": "NEEDS_EXPLANATION",
+    "leaveType": null,
+    "sourceRequestId": null,
+    "cases": [{ "code": "LATE_CHECK_IN", "minutes": 40, "affectsPay": true }],
+    "explanationStatus": "NONE",
+    "explanationRequestId": null,
+    "payUnits": 0,
+    "deductionMinutes": 0,
+    "countsAsWorkday": false,
+    "countsAsDayOff": false,
+    "makeupMinutes": 0
+  }
+  ```
+- **`status`** (loại ngày) có 11 giá trị: `OUTSIDE` (ngoài thời gian làm việc), `HOLIDAY` (lễ trên ngày làm), `ISAT` (iSAT đã duyệt), `LEAVE_PAID` (nghỉ có lương), `LEAVE_UNPAID` (nghỉ không lương hoặc BHXH), `LEAVE_MAKEUP` (nghỉ có làm bù), `REST` (ngoài tuần làm việc, không OT/bù), `EXTRA` (ngoài tuần làm việc, có khung OT hoặc bù đã duyệt), `PENDING` (ngày làm chưa tới mốc xét), `PRESENT` (có chấm công, hoặc có giải trình được duyệt), `ABSENT` (ngày làm đã xét, không có lần chấm).
+- **Trường mới của dòng ngày**: `leaveType` (6 mã loại nghỉ, `null` khi không phải ngày `LEAVE_*`), `sourceRequestId` (đơn nghỉ / nghỉ có bù / iSAT của ngày), `cases` (các trường hợp cần giải trình `[{ code, minutes, affectsPay }]`, rỗng khi đúng giờ), `explanationStatus` (`NONE` | `PENDING` | `APPROVED` | `REJECTED`), `explanationRequestId`, `payUnits` (0 hoặc 1), `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes`.
+- **Có thể `null`**: `shiftType`, `shiftStartTime`, `shiftEndTime`, `shiftAllowancePct` rỗng trên ngày không có ca (`OUTSIDE`, `REST`, `EXTRA`, ngày lễ...). `metrics.workUnits` bằng `payUnits`; `metrics.otHours` luôn 0 (OT đo ở phiếu lương).
+- `dayStatus`, `checkInStatus`, `checkOutStatus` là cột cũ, ghi cho khớp với `status` để FE cũ vẫn đọc được.
+
+#### `POST /api/v2/attendance/recalculate`
+- **Mục đích**: Admin tính lại dòng ngày từ nguồn sự thật (lần chấm, lịch, đơn, ngày lễ, hồ sơ), một ngày hoặc cả tháng. Dòng đã khoá kỳ lương không bị ghi lại; kết quả trả về là giá trị đang lưu.
+- **Quyền**: `attendance.correct`.
+- **Request Body**: `employeeId` (bắt buộc) cùng đúng một trong hai: `workDate` hoặc `month`.
+  ```json
+  { "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891", "workDate": "2026-11-03" }
+  ```
+  ```json
+  { "employeeId": "4391e6b3-8fa4-4ee9-b4be-5b232c943891", "month": "2026-11" }
+  ```
+- **Response 200**: gửi `workDate` → `{ "timesheet": { ...dòng ngày } }`; gửi `month` → `{ "timesheets": [ ...mọi dòng ngày của tháng, theo ngày tăng ] }`.
+- **Lỗi 400**: `MISSING_PARAMS` (thiếu `employeeId`, hoặc thiếu cả `workDate` lẫn `month`), `AMBIGUOUS_PARAMS` (gửi cả hai), `INVALID_MONTH` (không đúng `YYYY-MM`, ví dụ `2026-13`), `INVALID_DATE` (`workDate` không phải ngày thật dạng `YYYY-MM-DD`).
 
 ---
 
