@@ -46,12 +46,14 @@ Bản ghi phiếu: `username`, `status` (`draft` | `approved` | `rejected`), `ne
   "contractStatusText": "HĐLĐ từ 3 tháng",
   "month": "2026-10",
   "standardWorkdays": 26,
+  "dayRate": 230769,
   "remainingAnnualLeaveDays": 10,
   "totalOtHours": 1.3333333333333333,
+  "ot15Pay": 57692,
   "otPayTotal": 57692,
   "dailyLines": [
     {
-      "date": "2026-10-07", "shiftCode": "NORMAL", "shiftLabel": "Normal",
+      "date": "2026-10-07", "dayOfWeekText": "Thứ 4", "shiftCode": "NORMAL", "shiftLabel": "Normal",
       "inOutText": "08:00–19:20", "checkIn": "08:00", "checkOut": "19:20",
       "workHours": 8, "daySalary": 230769, "flexAllowancePay": 0, "nightAllowancePay": 0, "offPaidPay": 0,
       "otHours": 1.3333333333333333, "otPay": 57692,
@@ -109,7 +111,7 @@ Trang 2 (`groups`, `totals`):
 - Số lượng và tiền ở các dòng đều là số BE đã tính; FE chỉ ghép ô. Hàm `actualText` vẫn in "BE tính" khi một ô `null`.
 - Không có nguồn trong BE v2 nên bỏ khỏi bản in thật: các dòng "Chờ giải trình", "Không tính lương" và "Làm bù cho ngày nghỉ" của nhóm đầu và nhóm OT, cột Làm bù và Ghi chú của trang 1.
 
-Phiếu tính trước khi BE thêm trường mới thiếu `employeeType`, `level`, `employmentStatus`, `checkIn`, `checkOut`: hiện "—" ở các ô tương ứng, không báo lỗi. Tính lương lại thì phiếu có đủ.
+Phiếu tính trước khi BE thêm trường mới (ảnh chụp cũ) thiếu `employeeType`, `level`, `employmentStatus`, `checkIn`, `checkOut`, `ot15Pay`, `ot20Pay`, `ot30Pay`, `dayRate`: hiện "—" ở các ô tương ứng, không báo lỗi. Các trường cũ vẫn mang nghĩa cũ trong ảnh chụp đó: `dayOfWeekText` là `Thứ 2 - Thứ 6` / `Thứ 7`; `remainingAnnualLeaveDays` luôn là 22; `otPayTotal` là số giờ trên đơn × lương giờ × 2; `inOutText` là chuỗi cố định `08:00–17:00` / `22:00–06:00`. Bấm "Tính lương" lại thì phiếu có đủ trường và đúng nghĩa mới.
 
 ## 3. Mã cần đổi / xoá
 

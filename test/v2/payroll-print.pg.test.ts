@@ -64,18 +64,21 @@ test('Phiếu lương A4 trên PostgreSQL', async t => {
       [UUID]
     );
     // Phép năm: số dư 12 tính từ 2026-10-01; ba ngày phép năm đã duyệt (20/10, 21/10, 05/11) và một đơn đang chờ (27/10).
-    const leaveRequests: Array<[string, string, string]> = [
-      ['00000000-0000-4000-8000-000000000001', 'APPROVED', '2026-10-20'],
-      ['00000000-0000-4000-8000-000000000002', 'APPROVED', '2026-10-21'],
-      ['00000000-0000-4000-8000-000000000003', 'APPROVED', '2026-11-05'],
-      ['00000000-0000-4000-8000-000000000004', 'PENDING', '2026-10-27']
+    // Hai đơn đã duyệt không được trừ vào số dư: phép năm ngày 30/09 (trước ngày chốt số dư) và nghỉ có lương việc riêng 15/10 (không phải phép năm).
+    const leaveRequests: Array<[string, string, string, string]> = [
+      ['00000000-0000-4000-8000-000000000001', 'APPROVED', '2026-10-20', 'ANNUAL'],
+      ['00000000-0000-4000-8000-000000000002', 'APPROVED', '2026-10-21', 'ANNUAL'],
+      ['00000000-0000-4000-8000-000000000003', 'APPROVED', '2026-11-05', 'ANNUAL'],
+      ['00000000-0000-4000-8000-000000000004', 'PENDING', '2026-10-27', 'ANNUAL'],
+      ['00000000-0000-4000-8000-000000000007', 'APPROVED', '2026-09-30', 'ANNUAL'],
+      ['00000000-0000-4000-8000-000000000008', 'APPROVED', '2026-10-15', 'PERSONAL_PAID']
     ];
-    for (const [id, status, day] of leaveRequests) {
+    for (const [id, status, day, leaveType] of leaveRequests) {
       await client.query(
         `INSERT INTO system_requests (id, employee_id, title, type, reason, status, leave_type, leave_start_date,
            leave_end_date, leave_days_count, created_at, updated_at)
-         VALUES ($1, $2, 'Nghỉ phép năm', 'LEAVE', 'Việc riêng', $3, 'ANNUAL', $4, $4, 1, now(), now())`,
-        [id, UUID, status, day]
+         VALUES ($1, $2, 'Nghỉ phép', 'LEAVE', 'Việc riêng', $3, $5, $4, $4, 1, now(), now())`,
+        [id, UUID, status, day, leaveType]
       );
       await client.query(
         `INSERT INTO day_status (employee_id, work_date, status, request_id) VALUES ($1, $2, 'LEAVE', $3)`,

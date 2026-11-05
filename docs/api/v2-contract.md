@@ -855,10 +855,10 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
 
 - **Tiền OT**: OT trả theo giờ có mặt thật bên trong khung của đơn OT đã duyệt, không theo số giờ ghi trên đơn.
   1. Khung OT của một đơn là `[otStartTime, otEndTime)` của ngày `otDate`, giờ Việt Nam. Đơn có giờ sai định dạng hoặc giờ kết thúc không sau giờ bắt đầu bị bỏ qua.
-  2. Giờ OT của khung = số phút có mặt nằm trong khung, chia 60, không làm tròn. Khoảng nghỉ giữa ca và khung OT không được tính vì nằm ngoài khung.
+  2. Giờ OT của khung = số phút nguyên có mặt nằm trong khung (bỏ phần giây lẻ), rồi chia 60, không làm tròn giờ. Hai khoảng có mặt chồng nhau chỉ tính một lần. Khoảng nghỉ giữa ca và khung OT không được tính vì nằm ngoài khung.
   3. Khoảng có mặt của một dòng công là `[giờ vào, giờ ra]` ở `checkIn` / `checkOut` (giờ chấm, hoặc giờ của giải trình đã duyệt cho phía còn thiếu). Dòng thiếu một trong hai giờ không có khoảng có mặt, nên OT của nó bằng 0.
   4. Hệ số theo `otDate`: ngày có trong `company_holidays` ×3 (ngày lễ thắng cuối tuần); thứ Bảy hoặc Chủ nhật ×2; còn lại ×1,5. Mọi loại nhân sự như nhau. Ba số này nằm trong một hằng số duy nhất của phần lương (`OT_MULTIPLIERS`).
-  5. OT gắn vào dòng công có `date = otDate`; không có dòng đó thì gắn vào dòng đầu tiên có khoảng có mặt giao với khung (ví dụ ca đêm kéo sang ngày OT). Không dòng nào giao thì OT bằng 0 và không tạo dòng mới.
+  5. OT gắn vào dòng công có `date = otDate` khi dòng đó có đủ giờ vào và giờ ra. Nếu không, OT gắn vào dòng đầu tiên có khoảng có mặt giao với khung (ví dụ ca đêm kéo sang ngày OT). Nếu cũng không có dòng nào giao thì OT bằng 0 và không tạo dòng mới.
   6. `otHours` của dòng = tổng giờ OT gắn vào dòng. `otPay` của dòng = với mỗi hệ số có trên dòng đó, `round(giờ × lương giờ × hệ số)`, rồi cộng; mỗi hệ số làm tròn một lần. Lương giờ = lương cơ bản ÷ công chuẩn ÷ 8.
   7. Cột `ot_hours` của đơn OT và của bảng chấm công không còn dùng để tính tiền. Phần OT miễn thuế vẫn theo công thức ở `taxExemptIncome`, tính trên `ot15Hours`, `ot20Hours`, `ot30Hours`.
 
@@ -902,7 +902,13 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   - Loại không có `leaveAccount` (ví dụ `tts`): `null`. FE hiển thị "—", không ghi "null ngày".
   - Ví dụ: số dư 12, mốc 01/10; đã duyệt 20–21/10 và 05/11; đang chờ 27/10. Phiếu tháng 10 → 10; phiếu tháng 11 → 9.
 
-- **Phiếu đã lưu trước khi có các trường này**: ảnh chụp cũ thiếu `employeeType`, `level`, `employmentStatus` và `checkIn` / `checkOut`, còn `inOutText`, `otHours`, `otPay` mang nghĩa cũ. Không sửa dữ liệu cũ; gọi lại `POST /api/v2/payroll/:month/calculate` thì ảnh chụp mới có đủ. Người đọc coi trường thiếu là "chưa có".
+- **Phiếu đã lưu trước khi có các trường này**: ảnh chụp cũ không được sửa. Nó thiếu các trường `employeeType`, `level`, `employmentStatus`, `ot15Pay`, `ot20Pay`, `ot30Pay`, `dayRate` và `dailyLines[].checkIn` / `dailyLines[].checkOut`. Người đọc coi trường thiếu là "chưa có".
+  - Các trường cũ vẫn mang nghĩa cũ trong ảnh chụp đó:
+    - `dayOfWeekText` là `Thứ 2 - Thứ 6` hoặc `Thứ 7`.
+    - `remainingAnnualLeaveDays` luôn là 22.
+    - `otPayTotal` là số giờ ghi trên đơn × lương giờ × 2.
+    - `inOutText` là chuỗi cố định `08:00–17:00` hoặc `22:00–06:00`.
+  - Gọi lại `POST /api/v2/payroll/:month/calculate` ("Tính lương" lại) thì ảnh chụp mới có đủ trường và đúng nghĩa mới.
 
 - **Cờ cảnh báo `warnings`**: mỗi phần tử có dạng `{ "code": "KPI_SCORE_MISSING", "message": "Thiếu điểm KPI; cột thiếu tính 0 điểm.", "fields": ["peer", "self"] }`. `fields` chỉ xuất hiện ở cờ có kèm danh sách (hiện chỉ `KPI_SCORE_MISSING`). Cờ không chặn việc tính, phiếu vẫn được lưu.
 
