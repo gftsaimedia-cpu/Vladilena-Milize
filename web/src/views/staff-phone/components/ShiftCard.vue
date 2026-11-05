@@ -4,14 +4,16 @@
 // Check-in chỉ hiện với máy chủ thật (dữ liệu giả luôn đã vào ca). Check-in hay Check-out bị từ chối (ngoài vùng, ngày đã khoá,
 // ngày nghỉ, mất mạng…) hiện câu lỗi thành thông báo. Đã chấm mà chưa tải lại được màn thì báo "Đã check-in" / "Đã check-out"
 // và phát null: màn cha tự tải lại. Dòng vị trí chỉ có khi máy chủ gửi kết quả vị trí (home.location).
-// Có vùng chấm công (home.zone) thì lấy vị trí máy mỗi lần home đổi; ngoài vùng, không lấy được vị trí, hay (Check-in) ngày không
-// phải ngày làm thì nút đang hiện bị khoá và dòng lý do thay dòng vị trí (checkInLock). Check-out không bị chặn vì ngày nghỉ.
+// Có vùng chấm công (home.zone) và còn nút chấm công thì theo dõi vị trí máy (watchLocation) cho tới khi thẻ đóng hoặc nút biến mất:
+// vào vùng thì nút mở khoá, không cần tải lại. Ca đã xong (không còn nút) thì không xin vị trí. Ngoài vùng, không lấy được vị trí
+// (kèm nút "Thử lại"), hay (Check-in) ngày không phải ngày làm thì nút đang hiện bị khoá và dòng lý do thay dòng vị trí
+// (checkInLock). Check-out không bị chặn vì ngày nghỉ.
 //   <ShiftCard :home="data" @checked-in="onPunch" @checked-out="onPunch" />   onPunch(v) { v ? (data = v) : reload() }
 import { computed, nextTick, ref, useId, watch } from 'vue';
 import { checkInLock, type LatLng } from '@/builders/api/check-in';
 import { toast } from '@/components/shell/toast';
 import type { HomeView } from '@/mock/staff-phone';
-import { checkIn, checkOut, locate } from '@/services/staff-phone';
+import { checkIn, checkOut, watchLocation } from '@/services/staff-phone';
 import PhIcon from './PhIcon.vue';
 
 const props = defineProps<{ home: HomeView }>();
@@ -21,15 +23,16 @@ const busy = ref(false);
 const hero = ref<HTMLElement | null>(null);
 const reasonId = useId();
 
-// undefined: đang lấy vị trí; null: không lấy được. Kết quả của lần gọi cũ bị bỏ khi home đã đổi.
+// undefined: đang lấy vị trí; null: không lấy được. Theo dõi chạy khi có vùng và còn nút; bấm "Thử lại" (attempt) thì theo dõi lại.
 const position = ref<LatLng | null | undefined>(undefined);
+const tracking = computed(() => !!props.home.zone && !props.home.checkOut);
+const attempt = ref(0);
 watch(
-  () => props.home,
-  async home => {
+  [tracking, attempt],
+  ([on], _old, onCleanup) => {
     position.value = undefined;
-    if (!home.zone) return;
-    const found = await locate();
-    if (props.home === home) position.value = found;
+    if (!on) return;
+    onCleanup(watchLocation(at => (position.value = at)));
   },
   { immediate: true }
 );
@@ -44,6 +47,8 @@ const lock = computed(() =>
   })
 );
 const lockReason = computed(() => (lock.value.locked ? lock.value.reason : null));
+// "Thử lại" chỉ khi lý do khoá là không lấy được vị trí (ngày không phải ngày làm của Check-in được xét trước vị trí).
+const canRetry = computed(() => !!props.home.zone && position.value === null && (!!props.home.checkIn || props.home.workday));
 
 // Vòng cung: nửa đường tròn bán kính 100, phần đã làm = phút đã làm / phút ca; núm tròn nằm ở cuối phần đã làm.
 const HALF = Math.PI * 100;
@@ -131,7 +136,10 @@ async function doCheckOut() {
       >
         <PhIcon name="clock" :size="20" :stroke="2" />Check-in<small>· {{ home.now }}</small>
       </button>
-      <div v-if="lockReason" :id="reasonId" class="loc"><PhIcon name="pin" :size="16" />{{ lockReason }}</div>
+      <div v-if="lockReason" class="loc">
+        <PhIcon name="pin" :size="16" /><span :id="reasonId">{{ lockReason }}</span>
+        <button v-if="canRetry" type="button" class="retry" @click="attempt++">Thử lại</button>
+      </div>
       <div v-else-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
     <template v-else-if="!home.checkOut">
@@ -145,7 +153,10 @@ async function doCheckOut() {
       >
         <PhIcon name="out" :size="20" :stroke="2" />Check-out<small>· {{ home.now }}</small>
       </button>
-      <div v-if="lockReason" :id="reasonId" class="loc"><PhIcon name="pin" :size="16" />{{ lockReason }}</div>
+      <div v-if="lockReason" class="loc">
+        <PhIcon name="pin" :size="16" /><span :id="reasonId">{{ lockReason }}</span>
+        <button v-if="canRetry" type="button" class="retry" @click="attempt++">Thử lại</button>
+      </div>
       <div v-else-if="home.location" class="loc"><PhIcon name="pin" :size="16" />{{ home.location }}</div>
     </template>
   </section>
@@ -236,6 +247,15 @@ async function doCheckOut() {
 .cta small {
   font-size: 14px;
   font-weight: 400;
+}
+.retry {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--gold);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .loc {
   display: flex;

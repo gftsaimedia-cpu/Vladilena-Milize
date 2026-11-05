@@ -49,7 +49,7 @@ export type HomeView = {
   worked: string; // '1g 41p'
   location: string | null; // 'Đúng vị trí văn phòng GFT'; null khi máy chủ chưa có dữ liệu vị trí (dòng ẩn)
   zone: Zone | null; // vùng chấm công; null = không giới hạn vị trí
-  workday: boolean; // hôm nay có phải ngày làm của mình (chỉ chặn Check-in)
+  workday: boolean; // hôm nay có phải ngày làm của mình (chỉ chặn Check-in); false khi hôm nay có đơn nghỉ đã duyệt
   week: { range: string; cells: CalendarCell[] }; // '26/10 – 01/11', 7 ô
   alert: { date: string; text: string } | null; // '2026-10-27', '27/10 thiếu giờ ra · chờ duyệt giải trình'
   income: { label: string; net: string; payDate: string | null }; // 'Thu nhập tháng 10 · tạm tính', '15.538.183', '2026-11-10'
@@ -149,6 +149,8 @@ const LEAVES: [number, string][] = [
   [17, 'iSAT']
 ];
 const monthDate = (d: number) => `${MOCK_TODAY.slice(0, 8)}${pad(d)}`;
+// BE §5.6: ngày có đơn nghỉ đã duyệt (kể cả iSAT) không phải ngày làm; /me/today trả workday = false.
+export const workdayOn = (date: string): boolean => !LEAVES.some(([d]) => monthDate(d) === date);
 const DAYS = new Map<string, DayRecord>();
 for (const [d, inAt, outAt] of WORKED)
   DAYS.set(monthDate(d), { kind: 'work', in: inAt, out: outAt, leave: null, claim: null });
@@ -262,7 +264,7 @@ export function homeView(): HomeView {
     worked: workedText(workedMin),
     location: 'Đúng vị trí văn phòng GFT',
     zone: zoneOf().zone,
-    workday: true,
+    workday: workdayOn(MOCK_TODAY),
     week: { range: `${ddmm(monday)} – ${ddmm(addDays(monday, 6))}`, cells },
     alert: todo ? { date: todo.date, text: `${ddmm(todo.date)} thiếu giờ ra · chờ duyệt giải trình` } : null,
     income: { label: `Thu nhập tháng ${MONTH_NO} · tạm tính`, net: NET, payDate: payDateOf(MOCK_MONTH) },
