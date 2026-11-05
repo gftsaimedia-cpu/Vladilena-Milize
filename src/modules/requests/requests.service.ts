@@ -5,10 +5,13 @@ import {
   RequestType,
   RequestStatus,
   LeaveType,
-  SystemRequestDTO
+  SystemRequestDTO,
+  EmployeeDays,
+  addDays
 } from './domain';
-import { RequestsRepository, RequestListFilter } from './requests.repository';
+import { RequestsRepository, RequestListFilter, StaffContext } from './requests.repository';
 import { AttendanceRepository } from '../attendance/attendance.repository';
+import { HolidaysRepository } from '../holidays/holidays.repository';
 import { businessMonthText } from '../../common/business-date';
 
 export interface CreateLeaveInput {
@@ -79,11 +82,70 @@ export interface CreateIsatInput {
 
 @Injectable()
 export class RequestsService {
+  /** Thời điểm hiện tại; test đặt lại để cố định "hôm nay". */
+  now: () => Date = () => new Date();
+
   constructor(
     @Inject(RequestsRepository) private readonly repo: RequestsRepository,
     @Optional() @Inject(AttendanceRepository) private readonly attendanceRepo?: AttendanceRepository,
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
+    @Optional() @Inject(HolidaysRepository) private readonly holidaysRepo?: HolidaysRepository,
   ) {}
+
+  /** Hồ sơ nộp đơn theo uuid hoặc username, cấu hình loại nhân sự xét đến `month` (YYYY-MM). */
+  protected async resolveStaff(employeeIdOrUsername: string, month: string): Promise<StaffContext> {
+    const staff = await this.repo.findStaffContext(employeeIdOrUsername, month);
+    if (!staff) {
+      throw new Error(`Không tìm thấy nhân sự: ${employeeIdOrUsername}`);
+    }
+    return staff;
+  }
+
+  /** `regular_dows` của loại nhân sự; chưa cấu hình thì không xét được ngày làm việc (§5.1). */
+  protected requireTypeConfig(staff: StaffContext): number[] {
+    if (!staff.regularDows) {
+      throw new Error(`Thiếu cấu hình loại nhân sự ${staff.employeeType}`);
+    }
+    return staff.regularDows;
+  }
+
+  /**
+   * Lịch, ngày lễ và đơn đang chờ/đã duyệt của nhân sự quanh [from, to]. Đọc rộng thêm một ngày mỗi phía
+   * để thấy ca đêm hôm trước và ca hôm sau (§5.5 bước 2).
+   */
+  protected async loadDays(
+    staff: StaffContext,
+    from: string,
+    to: string
+  ): Promise<{ days: EmployeeDays; active: SystemRequest[] }> {
+    if (!this.holidaysRepo) {
+      throw new Error('Thiếu lịch lễ công ty');
+    }
+    const regularDows = this.requireTypeConfig(staff);
+    const lo = addDays(from, -1);
+    const hi = addDays(to, 1);
+    const [schedules, holidays, active] = await Promise.all([
+      this.repo.listScheduleDays(staff.employeeId, lo, hi),
+      this.holidaysRepo.listBetween(lo, hi),
+      this.repo.listActive(staff.employeeId)
+    ]);
+    const days = new EmployeeDays({
+      regularDows,
+      holidays: holidays.map(h => h.date),
+      defaultShift: staff.defaultShift,
+      schedules,
+      activeRequests: active
+    });
+    return { days, active };
+  }
+
+  /** Mỗi lần nộp đơn của một nhân sự chạy dưới khoá `requests_<uuid>` (§5.6); không có txCoordinator thì chạy thẳng. */
+  protected async underEmployeeLock<T>(employeeId: string, fn: () => Promise<T>): Promise<T> {
+    if (this.txCoordinator) {
+      return await this.txCoordinator.withLock(`requests_${employeeId}`, () => fn());
+    }
+    return await fn();
+  }
 
   async createLeaveRequest(input: CreateLeaveInput): Promise<SystemRequestDTO> {
     const req = SystemRequest.createLeaveRequest({
@@ -212,17 +274,20 @@ export class RequestsService {
   }
 
   async createAdvanceRequest(input: CreateAdvanceInput): Promise<SystemRequestDTO> {
-    const period = input.period || businessMonthText();
-    const req = SystemRequest.createAdvanceRequest({
-      employeeId: input.employeeId,
-      title: input.title,
-      reason: input.reason,
-      amount: input.amount,
-      period
-    });
+    const period = input.period || businessMonthText(this.now());
+    const staff = await this.resolveStaff(input.employeeId, period);
+    return this.underEmployeeLock(staff.employeeId, async () => {
+      const req = SystemRequest.createAdvanceRequest({
+        employeeId: staff.employeeId,
+        title: input.title,
+        reason: input.reason,
+        amount: input.amount,
+        period
+      });
 
-    await this.repo.save(req);
-    return req.toJSON();
+      await this.repo.save(req);
+      return req.toJSON();
+    });
   }
 
   async createExplanationRequest(input: CreateExplanationInput): Promise<SystemRequestDTO> {

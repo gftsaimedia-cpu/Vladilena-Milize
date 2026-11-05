@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { toDateText } from '../../../common/date-text';
+import { isValidDateText, toDateText } from '../../../common/date-text';
 import {
   RequestType,
   RequestStatus,
@@ -24,15 +24,6 @@ import { workMinutes } from './time-window';
 
 /** Mỗi ngày nghỉ của đơn nghỉ có làm bù nợ 480 phút làm bù. */
 const OWED_MINUTES_PER_LEAVE_DAY = 480;
-
-function isValidDateString(dateStr: string): boolean {
-  if (typeof dateStr !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(dateStr)) {
-    return false;
-  }
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-}
 
 function isValidTimeString(timeStr: string): boolean {
   return typeof timeStr === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(timeStr);
@@ -150,11 +141,11 @@ export class SystemRequest {
       throw new Error(`leaveType must be 'PAID' or 'UNPAID', got: ${params?.leaveType}`);
     }
 
-    if (!isValidDateString(params?.startDate)) {
+    if (!isValidDateText(params?.startDate)) {
       throw new Error(`startDate must be a valid YYYY-MM-DD date string, got: ${params?.startDate}`);
     }
 
-    if (!isValidDateString(params?.endDate)) {
+    if (!isValidDateText(params?.endDate)) {
       throw new Error(`endDate must be a valid YYYY-MM-DD date string, got: ${params?.endDate}`);
     }
 
@@ -191,7 +182,7 @@ export class SystemRequest {
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
 
-    if (!isValidDateString(params?.otDate)) {
+    if (!isValidDateText(params?.otDate)) {
       throw new Error(`otDate must be a valid YYYY-MM-DD date string, got: ${params?.otDate}`);
     }
 
@@ -267,7 +258,7 @@ export class SystemRequest {
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
 
-    if (!isValidDateString(params?.workDate)) {
+    if (!isValidDateText(params?.workDate)) {
       throw new Error(`workDate must be a valid YYYY-MM-DD date string, got: ${params?.workDate}`);
     }
 
@@ -294,7 +285,7 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateString(params?.changeDate)) {
+    if (!isValidDateText(params?.changeDate)) {
       throw new Error(`changeDate must be a valid YYYY-MM-DD date string, got: ${params?.changeDate}`);
     }
     if (!isValidTimeString(params?.newStartTime)) {
@@ -329,10 +320,10 @@ export class SystemRequest {
     const employeeId = requireNonEmptyString(params?.employeeId, 'employeeId');
     const title = requireNonEmptyString(params?.title, 'title');
     const reason = requireNonEmptyString(params?.reason, 'reason');
-    if (!isValidDateString(params?.leaveDate)) {
+    if (!isValidDateText(params?.leaveDate)) {
       throw new Error(`leaveDate must be a valid YYYY-MM-DD date string, got: ${params?.leaveDate}`);
     }
-    if (!isValidDateString(params?.makeupDate)) {
+    if (!isValidDateText(params?.makeupDate)) {
       throw new Error(`makeupDate must be a valid YYYY-MM-DD date string, got: ${params?.makeupDate}`);
     }
     if (!isValidTimeString(params?.makeupStartTime)) {
