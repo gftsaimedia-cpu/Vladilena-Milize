@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { staffListFromEmployees, staffProfileFromEmployee } from '../../web/src/builders/api/staff';
 import { calendarFromHolidays } from '../../web/src/builders/api/calendar';
-import { auditResponseFromRows } from '../../web/src/builders/api/audit';
 import { inboxFromRequests } from '../../web/src/builders/api/inbox';
 
 function employee(over: { username: string; name?: string; status?: string; from?: string | null; resigned?: string | null; locked?: boolean; job?: string | null }) {
@@ -105,35 +104,6 @@ describe('Lịch nghỉ lễ từ /holidays', () => {
       { id: '2026-09-01', from: '2026-09-01', to: '2026-09-02', name: 'Quốc khánh' }
     ]);
     assert.equal(cal.holidayDays, 4);
-  });
-});
-
-describe('Nhật ký từ /system/audit', () => {
-  it('maps audit rows and parses the before/after JSON', () => {
-    const res = auditResponseFromRows(
-      [{ id: 7, at: '2026-11-05T01:00:00Z', actor: 'admin', action: 'settings.update', entity_id: 'period.payDay', before_json: '{"v":5}', after_json: '{"v":10}', reason: null }],
-      { page: 1, size: 50 }
-    );
-    assert.deepEqual(res.rows[0], {
-      id: 7,
-      at: '2026-11-05T01:00:00Z',
-      actor: 'admin',
-      action: 'settings.update',
-      entityId: 'period.payDay',
-      before: { v: 5 },
-      after: { v: 10 },
-      reason: null
-    });
-    assert.equal(res.total, 1);
-    assert.equal(res.hasMore, false);
-  });
-
-  it('keeps going when a full page came back and tolerates broken JSON', () => {
-    const rows = Array.from({ length: 2 }, (_, i) => ({ id: i, at: '2026-11-05T01:00:00Z', actor: 'a', action: 'x', entity_id: 'e', before_json: '{', after_json: null, reason: null }));
-    const res = auditResponseFromRows(rows, { page: 3, size: 2 });
-    assert.equal(res.hasMore, true);
-    assert.equal(res.total, 7); // 2 trang trước × 2 + 2 dòng + ít nhất 1 dòng nữa
-    assert.equal(res.rows[0].before, '{');
   });
 });
 

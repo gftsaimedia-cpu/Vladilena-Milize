@@ -74,7 +74,7 @@ const dayText = (iso?) => `${dayLong(iso)}/${iso.slice(0, 4)}`;
           <label>Mục</label>
           <SelectBox
             v-model="box.action"
-            :options="[{ value: '', label: 'Tất cả' }, ...data.actions.map(a => ({ value: a, label: a }))]"
+            :options="[{ value: '', label: 'Tất cả' }, ...data.actions]"
             label="Mục"
           />
         </div>
