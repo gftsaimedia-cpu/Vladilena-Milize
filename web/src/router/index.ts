@@ -1,10 +1,11 @@
 // Bảng route của v2. Mỗi nhóm màn có một file route riêng trong ./routes (mỗi người làm một file, không sửa file của nhóm khác).
 // Quy ước chung:
-//   meta.layout: 'admin' | 'phone' | 'staffDesktop' | 'blank'   meta.nav: mục sáng trên thanh bên Admin   meta.title: tiêu đề tab
+//   meta.layout: 'admin' | 'staff' | 'blank'   meta.nav: mục sáng trên thanh bên Admin   meta.title: tiêu đề tab
 //   ?thang=YYYY-MM  tháng của kỳ lương (thanh kỳ lương Admin đọc)
 //   ?kb=<tên>       kịch bản dữ liệu giả (một trạng thái của màn trong bộ thiết kế)
 //   ?hop=<tên>      mở sẵn một hộp thoại, ngăn kéo hay bảng trượt khi vào màn
 import { createRouter, createWebHistory } from 'vue-router';
+import { useStaffDesktop } from '@/composables/useStaffDesktop';
 import { LOGIN_PATH, useSessionStore } from '@/stores/session';
 import adminAttendance from './routes/admin-attendance';
 import adminMain from './routes/admin-main';
@@ -13,8 +14,6 @@ import adminSettings from './routes/admin-settings';
 import payslip from './routes/payslip';
 import staffDesktop from './routes/staff-desktop';
 import staffPhone from './routes/staff-phone';
-
-const PHONE_MAX = 767; // dưới bề rộng này là điện thoại
 
 const routes = [
   { path: '/', redirect: () => useSessionStore().home },
@@ -29,10 +28,7 @@ const routes = [
       ]
     : []),
   { path: '/admin', redirect: '/admin/tong-quan' },
-  {
-    path: '/nhan-vien',
-    redirect: () => (!__MOCK__ || window.innerWidth <= PHONE_MAX ? '/nv/hom-nay' : '/nv-may-tinh')
-  },
+  { path: '/nhan-vien', redirect: '/nv/hom-nay' },
   ...adminMain,
   ...adminAttendance,
   ...adminSettings,
@@ -50,7 +46,13 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes: routes as any,
-  scrollBehavior: (to?, from?, saved?) => saved || (to.path === from.path ? false : { top: 0 })
+  // Trang nhân viên trên máy tính là một trang cho mọi /nv/*: ngăn kéo mở bằng replace sang đường dẫn khác, không được cuộn về đầu.
+  scrollBehavior: (to?, from?, saved?) => {
+    if (saved) return saved;
+    if (to.path === from.path) return false;
+    if (to.meta.layout === 'staff' && from.meta.layout === 'staff' && useStaffDesktop().value) return false;
+    return { top: 0 };
+  }
 });
 
 // Cổng vào theo phiên: chưa đăng nhập → đăng nhập; khu Admin chỉ cho người có năng lực quản trị;
@@ -64,11 +66,10 @@ router.beforeEach(async to => {
   if (OPEN_PATHS.includes(to.path) || !to.matched.length) return true;
   const layout = to.meta.layout;
   const isPrint = to.path.startsWith('/in/');
-  if (layout !== 'admin' && layout !== 'phone' && layout !== 'staffDesktop' && !isPrint) return true;
+  if (layout !== 'admin' && layout !== 'staff' && !isPrint) return true;
   if (!session.isLoggedIn) return { path: LOGIN_PATH, query: to.fullPath !== '/' ? { tiep: to.fullPath } : {} };
   if (layout === 'admin') return session.isAdminCapable ? true : session.home;
-  if (layout === 'phone' || layout === 'staffDesktop')
-    return session.isAdminCapable && !session.payrollSubject ? session.home : true;
+  if (layout === 'staff') return session.isAdminCapable && !session.payrollSubject ? session.home : true;
   return true;
 });
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Ngăn kéo "Thông báo" mở từ chuông trên thanh trên: mỗi việc chờ xử lý một dòng, bấm mới mở thẻ chi tiết (InboxDetail).
-// Hợp đồng: không props; emit('close') khi đóng (bấm nền, nút Đóng, Esc, hoặc đi tới màn khác).
+// Hợp đồng: không props; emit('close') khi đóng (bấm nền, nút Đóng, Esc); emit('leave') khi đóng để đi tới hồ sơ chấm công
+// (liên kết tự đổi địa chỉ, nên khung không được đổi địa chỉ chen vào).
 // Danh sách đọc từ nguồn việc chung và tải lại mỗi khi useShellStore().version đổi.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
-import { useRoute } from 'vue-router';
 import { lockScroll, registerOverlayFocus, unlockScroll } from '@/components/ui/overlay-lock';
 import { useLoad } from '@/composables/useLoad';
 import { INBOX_GROUPS } from '@/constants/labels';
@@ -12,11 +12,10 @@ import { getInbox } from '@/services/admin-main';
 import { useShellStore } from '@/stores/shell';
 import InboxDetail from './InboxDetail.vue';
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'leave']);
 const IDLE = 'Bấm một yêu cầu để xem chi tiết.';
 
 const shell = useShellStore();
-const route = useRoute();
 const { data } = useLoad(getInbox, () => shell.version);
 
 const root = ref<HTMLElement | null>(null);
@@ -43,7 +42,6 @@ watch(flat, list => {
 });
 
 const rowLabel = (i: InboxItem) => `${i.name}, ${i.groupLabel}: ${i.what}${i.when ? ' ' + i.when : ''}`;
-const thang = () => (route.query.thang ? { thang: route.query.thang } : {});
 
 const focusDetail = () => nextTick(() => root.value?.querySelector<HTMLElement>('.idetail')?.focus());
 
@@ -164,11 +162,10 @@ onBeforeUnmount(() => {
 
       <footer class="bd-f" :inert="covered">
         <p class="bd-status" aria-live="polite">{{ status }}</p>
-        <RouterLink :to="{ path: '/admin/yeu-cau', query: thang() }" class="link">Mở trang Yêu cầu</RouterLink>
       </footer>
 
       <div v-if="selected" class="bd-detail">
-        <InboxDetail :key="selected.id" :item="selected" @decided="onDecided" @close="closeTop" @profile="emit('close')" />
+        <InboxDetail :key="selected.id" :item="selected" @decided="onDecided" @close="closeTop" @profile="emit('leave')" />
       </div>
     </aside>
   </div>
@@ -229,8 +226,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .bd-h .btn:focus-visible,
-.bd-tabs button:focus-visible,
-.bd-f .link:focus-visible {
+.bd-tabs button:focus-visible {
   outline: 2px solid var(--text);
   outline-offset: 2px;
 }

@@ -50,10 +50,11 @@ export async function getHome(): Promise<HomeView> {
   return homeViewOf(t, profile, income, reqs.items || [], nowTime());
 }
 
-export async function getAttendance(): Promise<AttendanceView> {
-  if (__MOCK__) return respond(attendanceView());
+// recent: số dòng "Gần đây" (điện thoại 5, máy tính 7).
+export async function getAttendance(recent = 5): Promise<AttendanceView> {
+  if (__MOCK__) return respond(attendanceView(recent));
   const [month, profile] = await Promise.all([api.get(`/me/attendance${qs({ month: thisMonth() })}`), api.get('/me/profile')]);
-  return attendanceViewOf(month, shiftLineOf(profile), today());
+  return attendanceViewOf(month, shiftLineOf(profile), today(), recent);
 }
 
 // null khi ngày không có ca, chưa tới, hoặc chuỗi ngày sai

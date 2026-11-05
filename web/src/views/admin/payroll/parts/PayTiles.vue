@@ -2,8 +2,7 @@
 // Bốn ô số của Bảng lương. Ô đầu (nền vàng) là ô vàng duy nhất của màn; ô cuối có thanh chia đoạn theo số đếm phiếu.
 import { computed } from 'vue';
 import type { PayrollScreen, SlipCounts } from '@/mock/payroll';
-import { billions } from '@/utils/format';
-import { monthNo } from '@/views/admin/requests/helpers';
+import { billions, monthNo } from '@/utils/format';
 
 type Board = Extract<PayrollScreen, { empty: false }>;
 const props = defineProps<{ month: string; growth: string; totals: Board['totals']; counts: SlipCounts }>();

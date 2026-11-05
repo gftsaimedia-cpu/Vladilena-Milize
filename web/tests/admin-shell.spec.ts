@@ -24,15 +24,10 @@ test('admin shell makes no /api requests while navigating', async ({ page }) => 
   await page.getByRole('link', { name: 'Cài đặt', exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/cai-dat/);
   await page.locator('.topbar .bell').click();
-  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
-  await expect(page).toHaveURL(/\/admin\/yeu-cau$/);
+  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong\/nhan-vien\/trinh-van-long/);
   expect(calls).toEqual([]);
-});
-
-test('unmocked screen keeps the shell', async ({ page }) => {
-  await page.goto('/admin/yeu-cau');
-  await expect(page.getByRole('navigation', { name: 'Điều hướng' })).toBeVisible();
-  await expect(page.getByLabel('Tìm nhân viên')).toBeVisible();
 });
 
 test('topbar month picker changes ?thang and label', async ({ page }) => {
@@ -128,8 +123,9 @@ test('navigation drops stale view queries without reopening a shell dialog', asy
   await page.goto('/admin/tong-quan?thang=2026-10&q=needle&nv=staff');
   await page.locator('.topbar .bell').click();
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
-  await page.getByRole('link', { name: 'Mở trang Yêu cầu' }).click();
-  await expect(page).toHaveURL('/admin/yeu-cau?thang=2026-10');
+  await page.getByRole('button', { name: /^Trịnh Văn Long, / }).click();
+  await page.getByRole('link', { name: 'Mở hồ sơ chấm công' }).click();
+  await expect(page).toHaveURL('/admin/cham-cong/nhan-vien/trinh-van-long?thang=2026-10');
   await expect(page.getByRole('dialog', { name: 'Thông báo' })).toHaveCount(0);
 });
 
@@ -243,4 +239,112 @@ test('old KPI links land on Bảng lương with their query', async ({ page }) =
   await expect(page.getByRole('heading', { name: 'Bảng lương', exact: true })).toBeVisible();
   await page.goto('/admin/kpi/lich-su?thang=2026-10');
   await expect(page).toHaveURL('/admin/bang-luong?thang=2026-10');
+});
+
+test('the old Yêu cầu addresses redirect to the overview and keep only the month', async ({ page }) => {
+  await page.goto('/admin/yeu-cau?thang=2026-10&nv=linh&q=needle&hop=chuong');
+  await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10');
+  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  await page.goto('/admin/yeu-cau/moi-thang');
+  await expect(page).toHaveURL('/admin/tong-quan');
+  await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+});
+
+// Đóng lớp nổi mở bằng ?hop= thì bỏ hop khỏi địa chỉ, để liên kết đó mở lại được lần sau.
+const hopOf = (page: Page) => new URL(page.url()).searchParams.get('hop');
+const menuOf = (page: Page) => page.getByRole('menu');
+const passwordOf = (page: Page) => page.getByRole('dialog', { name: 'Đổi mật khẩu' });
+
+test('Escape closes the account menu opened by ?hop and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=menu-tai-khoan');
+  await expect(menuOf(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(menuOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+test('Huỷ closes the password dialog opened by ?hop and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=doi-mat-khau');
+  await expect(passwordOf(page)).toBeVisible();
+  await passwordOf(page).getByRole('button', { name: 'Huỷ' }).click();
+  await expect(passwordOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+test('Đổi mật khẩu in the menu still opens the dialog, and closing it leaves no hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?hop=menu-tai-khoan');
+  await menuOf(page).getByRole('menuitem', { name: 'Đổi mật khẩu' }).click();
+  await expect(passwordOf(page)).toBeVisible();
+  await expect(menuOf(page)).toHaveCount(0);
+  await passwordOf(page).getByRole('button', { name: 'Huỷ' }).click();
+  await expect(passwordOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+});
+
+test('Đăng xuất from a menu opened by ?hop still lands on /dang-nhap', async ({ page }) => {
+  await page.goto('/admin/tong-quan?hop=menu-tai-khoan');
+  await menuOf(page).getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/dang-nhap/);
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/dang-nhap');
+});
+
+test('Escape closes the bell opened by ?hop=chuong and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=chuong');
+  const drawer = page.getByRole('dialog', { name: 'Thông báo' });
+  await expect(drawer).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(drawer).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+  expect(new URL(page.url()).searchParams.get('thang')).toBe('2026-10');
+});
+
+test('a sidebar link clicked while the ?hop menu is open still navigates, with no hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=menu-tai-khoan');
+  await expect(menuOf(page)).toBeVisible();
+  await page.getByRole('navigation', { name: 'Điều hướng' }).getByRole('link', { name: 'Chấm công', exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/cham-cong/);
+  await expect(menuOf(page)).toHaveCount(0);
+  expect(hopOf(page)).toBeNull();
+});
+
+test('clicking blank page content closes the ?hop menu and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=menu-tai-khoan');
+  await expect(menuOf(page)).toBeVisible();
+  await page.getByRole('heading', { name: 'Tổng quan', exact: true }).click();
+  await expect(menuOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+});
+
+test('the account button closes the ?hop menu and drops hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=menu-tai-khoan');
+  await expect(menuOf(page)).toBeVisible();
+  await page.locator('#admin-navigation button.me').click();
+  await expect(menuOf(page)).toHaveCount(0);
+  await expect.poll(() => hopOf(page)).toBeNull();
+});
+
+test('opening the menu and the password dialog by click never writes hop', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10');
+  await page.locator('#admin-navigation button.me').click();
+  await expect(menuOf(page)).toBeVisible();
+  expect(hopOf(page)).toBeNull();
+  await menuOf(page).getByRole('menuitem', { name: 'Đổi mật khẩu' }).click();
+  await expect(passwordOf(page)).toBeVisible();
+  expect(hopOf(page)).toBeNull();
+  await passwordOf(page).getByRole('button', { name: 'Huỷ' }).click();
+  await expect(passwordOf(page)).toHaveCount(0);
+  expect(hopOf(page)).toBeNull();
+});
+
+test('the bell button is covered by the scrim while the drawer is open', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-10&hop=chuong');
+  await expect(page.getByRole('dialog', { name: 'Thông báo' })).toBeVisible();
+  const covered = await page.locator('.topbar .bell').evaluate(el => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return top !== el && !el.contains(top);
+  });
+  expect(covered).toBe(true);
 });

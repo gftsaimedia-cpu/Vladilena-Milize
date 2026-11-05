@@ -41,7 +41,7 @@ test('any other name lands in the staff area', async ({ page }) => {
   await page.getByLabel('Tên đăng nhập').fill('NhanVien ');
   await page.getByLabel('Mật khẩu', { exact: true }).fill('x');
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
-  await expect(page).toHaveURL(/\/nv-may-tinh/);
+  await expect(page).toHaveURL(/\/nv\/hom-nay/);
   expect(calls).toEqual([]);
 });
 
@@ -109,9 +109,9 @@ test('staff login can sign out back to /dang-nhap', async ({ page }) => {
   const calls = trackApi(page);
   await page.setViewportSize({ width: 1280, height: 800 });
   await loginAs(page, 'nhanvien');
-  await expect(page).toHaveURL(/\/nv-may-tinh/);
-  await page.locator('.top .u').click();
-  await page.getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/nv\/hom-nay/);
+  await page.getByRole('button', { name: 'Lê Hoàng Nam' }).click();
+  await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/dang-nhap/);
   await page.reload();
   await expect(page).toHaveURL(/\/dang-nhap/);
@@ -144,8 +144,8 @@ test('session survives when only setItem fails', async ({ page }) => {
   await page.getByLabel('Tên đăng nhập').fill('nhanvien');
   await page.getByLabel('Mật khẩu', { exact: true }).fill('x');
   await page.getByRole('button', { name: 'Đăng nhập' }).click();
-  await expect(page).toHaveURL(/\/nv-may-tinh/);
-  await page.locator('.top .u').click();
-  await page.getByRole('menuitem', { name: 'Đăng xuất' }).click();
+  await expect(page).toHaveURL(/\/nv\/hom-nay/);
+  await page.getByRole('button', { name: 'Lê Hoàng Nam' }).click();
+  await page.getByRole('button', { name: 'Đăng xuất' }).click();
   await expect(page).toHaveURL(/\/dang-nhap/);
 });

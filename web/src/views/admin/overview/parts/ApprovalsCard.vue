@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Thẻ Việc cần duyệt: 3 việc đầu của danh sách chờ; Từ chối / Duyệt báo lên màn qua emit.
+// "Xem tất cả" mở ngăn kéo chuông ngay trên Tổng quan (?hop=chuong, giữ ?thang).
 // Sau khi xử lý, focus về nút Duyệt của dòng đang ở cùng vị trí (hoặc dòng cuối); hết dòng thì về "Xem tất cả".
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -10,7 +11,10 @@ const props = defineProps<{ approvals: InboxItem[] }>();
 const emit = defineEmits<{ approve: [id: string]; reject: [id: string] }>();
 
 const route = useRoute();
-const linkTo = (path: string) => ({ path, query: route.query.thang ? { thang: route.query.thang } : {} });
+const bellLink = () => ({
+  path: '/admin/tong-quan',
+  query: { ...(route.query.thang ? { thang: route.query.thang } : {}), hop: 'chuong' }
+});
 
 const SHOWN = 3;
 const shown = computed(() => props.approvals.slice(0, SHOWN));
@@ -42,7 +46,7 @@ watch(
     <div class="head">
       <h2 id="ov-ap-h">Việc cần duyệt</h2>
       <span class="count">{{ approvals.length }}</span>
-      <RouterLink :to="linkTo('/admin/yeu-cau')" class="link all">Xem tất cả</RouterLink>
+      <RouterLink :to="bellLink()" class="link all">Xem tất cả</RouterLink>
     </div>
 
     <ul v-if="shown.length" class="list" aria-label="Việc cần duyệt">

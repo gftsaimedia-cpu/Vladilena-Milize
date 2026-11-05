@@ -191,13 +191,13 @@ export function requestsViewOf(items: MeRequest[]): RequestsView {
 }
 
 // ---------- Chấm công ----------
-export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string): AttendanceView {
+export function attendanceViewOf(m: MeMonth, shiftLine: string, today: string, recentCount = 5): AttendanceView {
   const first = `${m.month}-01`;
   const blanks: null[] = Array.from({ length: (dowOf(first) + 6) % 7 }, () => null);
   const recent = m.days
     .filter(d => d.in)
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5)
+    .slice(0, recentCount)
     .map(d => ({
       date: d.date,
       kind: d.kind,

@@ -191,7 +191,7 @@ test('keyboard focus on a bell control draws a 2px ink outline', async ({ page }
     expect(outline).toBe('rgb(33, 33, 33) 2px solid');
     seen.add(await page.evaluate(() => document.activeElement!.className || document.activeElement!.tagName));
   }
-  expect(seen.size).toBeGreaterThanOrEqual(4);
+  expect(seen.size).toBeGreaterThanOrEqual(3); // tab, dòng việc, nút Đóng; chân ngăn kéo không còn liên kết
 });
 
 test('on a narrow screen the covered drawer is inert while a detail is open', async ({ page }) => {
@@ -236,4 +236,13 @@ test('system news tab lists three read-only notes', async ({ page }) => {
   await expect(panel.getByRole('listitem')).toHaveCount(3);
   await expect(panel).toContainText('Đã nhận dữ liệu máy chấm công lúc 09:30.');
   await expect(panel.getByRole('button')).toHaveCount(0);
+});
+
+test('the drawer footer has no link to the old Yêu cầu page', async ({ page }) => {
+  await page.goto('/admin/tong-quan?thang=2026-11');
+  await bellOf(page).click();
+  await expect(drawerOf(page)).toBeVisible();
+  await expect(drawerOf(page).getByRole('link', { name: 'Mở trang Yêu cầu' })).toHaveCount(0);
+  await expect(drawerOf(page).locator('a[href^="/admin/yeu-cau"]')).toHaveCount(0);
+  await expect(drawerOf(page).getByText('Bấm một yêu cầu để xem chi tiết.')).toBeVisible();
 });

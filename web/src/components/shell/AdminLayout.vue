@@ -3,7 +3,7 @@
 // Chuông (BellDrawer), menu tài khoản (AccountMenu), đổi mật khẩu (ChangePasswordDialog) mở từ đây;
 // ?hop=chuong | menu-tai-khoan | doi-mat-khau mở sẵn (mục lục thiết kế).
 import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import { useUiStore } from '@/stores/ui';
@@ -15,6 +15,7 @@ import ChangePasswordDialog from './ChangePasswordDialog.vue';
 import PeriodStrip from './PeriodStrip.vue';
 
 const route = useRoute();
+const router = useRouter();
 const period = usePeriodStore();
 const ui = useUiStore();
 ui.init();
@@ -106,9 +107,24 @@ watch(
   },
   { immediate: true }
 );
+// Đóng một lớp nổi bằng nền, nút Đóng/Huỷ hoặc Esc: tắt cờ, và nếu ?hop đang là giá trị của lớp đó thì bỏ hop khỏi địa chỉ,
+// để liên kết mở lớp đó dùng lại được. Việc đi tới màn khác thì dùng @leave (chỉ tắt cờ): liên kết tự đổi địa chỉ,
+// một router.replace chen vào sẽ huỷ lần đi đó.
+const overlayFlag = { chuong: bellOpen, 'menu-tai-khoan': menuOpen, 'doi-mat-khau': pwOpen };
+function closeOverlay(hop: keyof typeof overlayFlag) {
+  overlayFlag[hop].value = false;
+  if (route.query.hop === hop) router.replace({ query: { ...route.query, hop: undefined } });
+}
+// Nút chuông và nút tên tài khoản: đang mở thì đóng như mọi cách đóng khác (bỏ hop), chưa mở thì chỉ bật cờ, không ghi hop.
+function toggleOverlay(hop: keyof typeof overlayFlag) {
+  if (overlayFlag[hop].value) closeOverlay(hop);
+  else overlayFlag[hop].value = true;
+}
+// Từ menu sang hộp đổi mật khẩu: chuyển ?hop sang doi-mat-khau, để đóng hộp xong địa chỉ không còn hop.
 function openPassword() {
   menuOpen.value = false;
   pwOpen.value = true;
+  if (route.query.hop === 'menu-tai-khoan') router.replace({ query: { ...route.query, hop: 'doi-mat-khau' } });
 }
 </script>
 
@@ -127,11 +143,11 @@ function openPassword() {
       :mobile-inert="mobileViewport && !mobileNavOpen"
       :active="route.meta.nav as string"
       :me="shell.me"
-      @open-menu="menuOpen = !menuOpen"
+      @open-menu="toggleOverlay('menu-tai-khoan')"
       @navigate="closeMobileNav()"
     />
     <main class="canvas">
-      <AdminTopbar :bell="shell.bell" @open-bell="bellOpen = !bellOpen">
+      <AdminTopbar :bell="shell.bell" @open-bell="toggleOverlay('chuong')">
         <template #start>
           <button
             ref="menuButton"
@@ -160,8 +176,14 @@ function openPassword() {
       <PeriodStrip v-if="STEPS_NAV.includes(String(route.meta.nav || ''))" />
       <slot />
     </main>
-    <BellDrawer v-if="bellOpen" @close="bellOpen = false" />
-    <AccountMenu v-if="menuOpen" :me="shell.me" @close="menuOpen = false" @change-password="openPassword" />
-    <ChangePasswordDialog v-if="pwOpen" @close="pwOpen = false" />
+    <BellDrawer v-if="bellOpen" @close="closeOverlay('chuong')" @leave="bellOpen = false" />
+    <AccountMenu
+      v-if="menuOpen"
+      :me="shell.me"
+      @close="closeOverlay('menu-tai-khoan')"
+      @leave="menuOpen = false"
+      @change-password="openPassword"
+    />
+    <ChangePasswordDialog v-if="pwOpen" @close="closeOverlay('doi-mat-khau')" />
   </div>
 </template>

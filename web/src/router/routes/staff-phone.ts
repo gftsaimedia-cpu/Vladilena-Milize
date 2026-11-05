@@ -1,7 +1,7 @@
-// Route của nhóm staff-phone: app nhân viên trên điện thoại (khung 'phone', thanh tab nổi), chạy trên dữ liệu giả.
+// Route của nhóm staff-phone: app nhân viên (khung 'staff': điện thoại dưới 1136px với thanh tab nổi, trang máy tính từ 1136px), chạy trên dữ liệu giả.
 // Hộp trượt mở theo tham số: /nv/cham-cong?ngay=YYYY-MM-DD (một ngày), /nv/yeu-cau?yc=<id> (một yêu cầu),
 // /nv/toi?hop=doi-mat-khau (đổi mật khẩu). Tham số lạ bị bỏ khỏi URL bằng replace; đóng hộp cũng bỏ tham số bằng replace.
-const meta = (title?) => ({ layout: 'phone', nav: 'nv', title });
+const meta = (title?) => ({ layout: 'staff', nav: 'nv', title });
 
 export default [
   {

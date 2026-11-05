@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Menu tài khoản mở từ tên ở đáy thanh bên (pop-menu-tai-khoan.html).
-// Hợp đồng: props { me: { name, roleLabel, initials, username } }; emit('close'), emit('change-password').
+// Hợp đồng: props { me: { name, roleLabel, initials, username } }; emit('close') khi đóng (Esc, bấm ra ngoài);
+// emit('leave') khi đóng để đăng xuất (router.push tự đổi địa chỉ); emit('change-password').
 // Kiểu thanh bên, màu nền và mật độ bảng ghi qua useUiStore().set({ side, ground, density }); bảng nổi nằm trên nút tên tài khoản.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
@@ -9,7 +10,7 @@ import { logout } from '@/services/session';
 import { useUiStore } from '@/stores/ui';
 
 defineProps({ me: { type: Object as () => any, default: () => ({}) } });
-const emit = defineEmits(['close', 'change-password']);
+const emit = defineEmits(['close', 'leave', 'change-password']);
 const ui = useUiStore();
 const router = useRouter();
 const root = ref(null);
@@ -35,7 +36,7 @@ onBeforeUnmount(() => {
 
 async function signOut() {
   await logout();
-  emit('close');
+  emit('leave');
   router.push('/dang-nhap');
 }
 </script>

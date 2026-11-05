@@ -1,6 +1,6 @@
-// Route của nhóm admin-main: Tổng quan, Yêu cầu (khung Admin).
-// Yêu cầu có hai chế độ xem theo meta.scope: 'thang' (tháng hiện tại) và 'moi-thang' (cả các tháng trước).
-const requests = () => import('@/views/admin/requests/RequestsView.vue');
+// Route của nhóm admin-main: Tổng quan (khung Admin).
+// Màn Yêu cầu cũ đã bỏ: hai địa chỉ cũ chuyển về Tổng quan, chỉ giữ ?thang; việc chờ duyệt xem ở chuông.
+const toOverview = (to?: any) => ({ path: '/admin/tong-quan', query: to.query.thang ? { thang: to.query.thang } : {} });
 
 export default [
   {
@@ -8,14 +8,6 @@ export default [
     component: () => import('@/views/admin/overview/OverviewView.vue'),
     meta: { layout: 'admin', nav: 'tong-quan', title: 'Tổng quan' }
   },
-  {
-    path: '/admin/yeu-cau',
-    component: requests,
-    meta: { layout: 'admin', nav: 'duyet', title: 'Yêu cầu', scope: 'thang' }
-  },
-  {
-    path: '/admin/yeu-cau/moi-thang',
-    component: requests,
-    meta: { layout: 'admin', nav: 'duyet', title: 'Yêu cầu · Mọi tháng', scope: 'moi-thang' }
-  }
+  { path: '/admin/yeu-cau', redirect: toOverview },
+  { path: '/admin/yeu-cau/moi-thang', redirect: toOverview }
 ];
