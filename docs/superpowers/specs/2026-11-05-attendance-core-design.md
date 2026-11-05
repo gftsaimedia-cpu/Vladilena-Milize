@@ -2,7 +2,7 @@
 
 - Ngày: 2026-11-05
 - Nhánh: `claude/interesting-maxwell-4c6da0`, worktree `.claude/worktrees/vigilant-feynman-dbb291`, tách từ `main` 6dcce9e (đã chứa 620e434).
-- Trạng thái: các phần thiết kế 1–5 đã được người dùng duyệt trong chat ("Ổn"). File này chờ người dùng duyệt.
+- Trạng thái: người dùng đã duyệt spec trong chat ngày 2026-11-05 ("Duyệt spec"). Plan: `docs/superpowers/plans/2026-11-05-attendance-core.md`.
 
 ## 1. Mục tiêu và phạm vi
 
@@ -231,7 +231,7 @@ Mỗi lần gọi:
 - `AttendanceDaysJob.runOnce(now)` duyệt mọi người còn làm việc trong tháng. Với mỗi người, dưới khoá của người đó:
   1. ghi mọi ngày của tháng hiện tại và tháng trước còn thiếu dòng;
   2. ghi lại các dòng `PENDING` có `work_date` ≤ hôm nay mà đã tới mốc xét.
-- `main.ts` khởi động job sau khi app chạy: chạy một lần ngay, rồi chạy mỗi giờ (`setInterval(...).unref()`). Test dựng app không chạy job (R5); test gọi thẳng `runOnce`.
+- Điểm vào thật (`server.ts` gọi `createServer({ startJobs: true })` trong `bootstrap.ts`) khởi động job sau khi app Nest `init`: chạy một lần ngay, rồi chạy mỗi giờ (`setInterval(...).unref()`). Test dựng app bằng `createServer()` nên không chạy job (R5); test gọi thẳng `runOnce`.
 - Một lần chạy giữ khoá tư vấn `attendance_days_job`, nên hai lần chạy không bao giờ chồng nhau.
 
 ## 8. Đọc
@@ -364,7 +364,7 @@ Chỉ chạy test. Không chạy typecheck hay prettier, theo quy định của 
 | R2 | Chấm công, Đơn từ, job, Lương dùng chung khoá `requests_<uuid>`. Chấm công trước đây khoá `punch_<uuid>_<ngày>` và ghi ngoài transaction. | Một người chỉ có một luồng ghi ngày công tại một thời điểm. | Chấm công chờ khi Admin đang duyệt đơn của chính người đó (vài mili giây). |
 | R3 | Ca của ngày làm = dòng lịch SHIFT_CHANGE, nếu không có thì ca mặc định trong hồ sơ. Dòng REGULAR không được dùng. | Dòng REGULAR là bản sao ca hồ sơ lúc chấm, có thể đã cũ, và chính nó đang biến Chủ nhật thành ngày công. | Nếu có nơi khác ghi REGULAR với giờ khác hồ sơ thì giờ đó bị bỏ qua. |
 | R4 | Dòng đã khoá không bao giờ bị ghi lại; thao tác gây ra lần ghi (duyệt đơn…) vẫn chạy bình thường. | Khoá là để giữ kỳ đã chốt. | Một đơn được duyệt sau khi khoá không đổi được ngày công. Việc chặn duyệt khi đã khoá là của phiên chốt kỳ. |
-| R5 | Job chỉ khởi động từ `main.ts`, không khởi động khi test dựng app. | Test `auth-http.pg` dựng app; job chạy trên DB tạm có thể vướng lúc xoá DB. | Không có. |
+| R5 | Job chỉ khởi động từ điểm vào thật (`server.ts` → `createServer({ startJobs: true })`), không khởi động khi test dựng app. | Test `auth-http.pg` dựng app; job chạy trên DB tạm có thể vướng lúc xoá DB. | Không có. |
 | R6 | Ngày `ABSENT` có giải trình đang chờ vẫn tính là ngày nghỉ cho chuyên cần, cho tới khi được duyệt. | Theo đúng nghĩa "đang chờ thì 0 đ" (L6). | Phiếu nháp giữa tháng có thể hiện mất chuyên cần trong lúc chờ. |
 | R7 | Phút bị trừ một ngày không quá 480, nên tiền ngày không bao giờ âm. | Ra sớm ngay sau khi vào có thể cho ra hơn 8h trừ. | Không có. |
 | R8 | Ngày làm được xét ngay khi có đủ vào và ra, hoặc tại mốc cuối + 30 phút. | Cho `/me` thấy kết quả ngay sau khi check-out. | Không có (L7 giữ lần ra sớm đầu tiên). |
