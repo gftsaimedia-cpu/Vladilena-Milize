@@ -130,8 +130,9 @@ function defaultAllowancePct(type: ShiftFacts['type']): number {
 }
 
 function shiftTypeOf(raw: string): ShiftFacts['type'] {
-  if (raw === 'NORMAL' || raw === 'NIGHT') return raw;
-  return 'FLEX';
+  // Giống attendance.service: CUSTOM (và mọi giá trị lạ) coi như ca thường.
+  if (raw === 'FLEX' || raw === 'NIGHT') return raw;
+  return 'NORMAL';
 }
 
 /** Ca của ngày làm: lịch SHIFT_CHANGE chưa huỷ, nếu không thì ca mặc định trong hồ sơ (R3). */

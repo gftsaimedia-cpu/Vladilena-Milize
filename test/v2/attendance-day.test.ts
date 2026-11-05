@@ -415,6 +415,42 @@ describe('buildDay: ca của ngày làm (R3)', () => {
     assert.equal(d.shift?.start, '08:00');
   });
 
+  it('phụ cấp: FLEX trên ca mặc định NORMAL → 10', () => {
+    const d = day({ schedule: flexChange, punches: punches('10:00', '19:00') });
+    assert.equal(d.shift?.type, 'FLEX');
+    assert.equal(d.shift?.allowancePct, 10);
+  });
+
+  it('phụ cấp: đổi loại khỏi ca mặc định NIGHT (sang NORMAL) → 0', () => {
+    const d = day({
+      defaultShift: { type: 'NIGHT', start: '22:00', end: '06:00', allowancePct: 30 },
+      schedule: { ...flexChange, shiftType: 'NORMAL', start: '08:00', end: '17:00' },
+      punches: punches('08:00', '17:00')
+    });
+    assert.equal(d.shift?.type, 'NORMAL');
+    assert.equal(d.shift?.allowancePct, 0);
+  });
+
+  it('phụ cấp: cùng loại với ca mặc định → giữ phụ cấp của ca mặc định', () => {
+    const d = day({
+      defaultShift: { type: 'FLEX', start: '09:00', end: '18:00', allowancePct: 15 },
+      schedule: flexChange,
+      punches: punches('10:00', '19:00')
+    });
+    assert.equal(d.shift?.type, 'FLEX');
+    assert.equal(d.shift?.allowancePct, 15);
+  });
+
+  it('shiftType CUSTOM → NORMAL, phụ cấp 0 (giống attendance.service)', () => {
+    const d = day({
+      schedule: { ...flexChange, shiftType: 'CUSTOM' },
+      punches: punches('10:00', '19:00')
+    });
+    assert.equal(d.shift?.type, 'NORMAL');
+    assert.equal(d.shift?.allowancePct, 0);
+    assert.equal(d.shift?.start, '10:00');
+  });
+
   it('lịch SHIFT_CHANGE đã huỷ bị bỏ qua', () => {
     const d = day({ schedule: { ...flexChange, status: 'CANCELLED' }, punches: punches('08:00', '17:00') });
     assert.deepEqual(d.cases, []);
