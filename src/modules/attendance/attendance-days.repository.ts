@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
+import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import { KYSELY_DB, type DB } from '../../database';
 import type { LeaveType } from '../requests/domain/leave-types';
 import type {
@@ -39,8 +40,8 @@ export interface EmployeeFacts {
 
 type Window = { start: string; end: string };
 
-/** Ca mặc định khi hồ sơ không ghi ca (như ensureDefaultSchedule). */
-const FALLBACK_SHIFT = { start: '08:00', end: '17:00' };
+/** Ca mặc định khi hồ sơ không ghi ca: ca đầu của danh mục (như ensureDefaultSchedule). */
+const FALLBACK_SHIFT = { start: DEFAULT_SHIFT.startTime, end: DEFAULT_SHIFT.endTime };
 
 /** Mã quyền lợi của loại nhân sự mà chấm công cần. */
 const BENEFIT_CODES = ['paidLeave', 'paidHoliday', 'isat'] as const;
