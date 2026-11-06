@@ -161,9 +161,14 @@ test('API Admin: chấm công tuần, chi tiết nhân sự, tổng quan', async
     assert.equal(ov.body.kpis.headcount, 3);
     assert.equal(ov.body.kpis.pendingRequests, 1);
     assert.equal(ov.body.kpis.payrollNet, 16000000);
+    // Hôm nay chưa ai chấm công vào: không ai "có mặt"; người đang là ngày làm mà chưa chấm vào nằm ở notCheckedIn,
+    // không lẫn vào work (ô work trong ngày công chỉ nói "dòng ngày chưa có bất thường").
     const counts = ov.body.attendance.today;
-    assert.equal(Object.values<number>(counts).reduce((a, b) => a + b, 0), 3);
-    assert.ok(ov.body.kpis.presentToday >= 0);
+    const notCheckedIn = ov.body.attendance.notCheckedIn;
+    assert.equal(Object.values<number>(counts).reduce((a, b) => a + b, 0) + notCheckedIn, 3);
+    assert.equal(ov.body.kpis.presentToday, 0);
+    assert.equal(counts.work, 0);
+    assert.ok(notCheckedIn >= 1);
     assert.equal(ov.body.payroll.status, 'calculated');
     assert.deepEqual(ov.body.payroll.lines.map((l: any) => [l.username, l.name, l.net]), [
       ['nv2', 'Trần Thị Hai', 9000000],

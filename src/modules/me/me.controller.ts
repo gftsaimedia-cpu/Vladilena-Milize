@@ -9,6 +9,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
 import { EmployeesService } from '../employees/employees.service';
@@ -236,7 +237,7 @@ export class MeController {
 
   @Authenticated()
   @Get('requests/:id')
-  async getRequest(@Req() req: Request, @Param('id') id: string): Promise<unknown> {
+  async getRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string): Promise<unknown> {
     const me = who(req);
     const request = await this.requests.getById(id);
     if (!request || (request.employeeId !== me.username && request.employeeId !== me.uuid)) {
@@ -286,7 +287,7 @@ export class MeController {
 
   @Authenticated()
   @Patch('requests/:id/cancel')
-  async cancelRequest(@Req() req: Request, @Param('id') id: string, @Body() body: { reason?: string }): Promise<unknown> {
+  async cancelRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string, @Body() body: { reason?: string }): Promise<unknown> {
     const me = who(req);
     try {
       const request = await this.requests.cancelRequest(id, me.username, body?.reason);

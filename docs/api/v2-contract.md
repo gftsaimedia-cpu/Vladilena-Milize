@@ -213,6 +213,27 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 #### `GET /api/v2/employees/meta/positions` & `GET /api/v2/employees/meta/shifts`
 - **Mục đích**: Lấy danh mục chức vụ, bậc lương và các ca làm việc phục vụ dropdown trên form.
 
+#### `GET /api/v2/employees/:username`
+- **Mục đích**: Hồ sơ đầy đủ của một nhân sự (mở ngăn kéo hồ sơ). `:username` nhận cả `username` lẫn `uuid`.
+- **Quyền**: `staff.manage`.
+- **Response 200**: `{ "employee": { ... } }`, `employee` cùng cấu trúc một phần tử của `GET /api/v2/employees` (`profile`, `account`, `contract`):
+  ```json
+  {
+    "employee": {
+      "profile": { "uuid": "2a223e27-5247-4cc5-be40-d0ebb42dc8b3", "familyName": "", "givenName": "Pw-staff", "fullName": "Pw-staff", "birthday": null, "dependants": 0 },
+      "account": { "username": "pw-staff", "roles": ["staff"], "primaryRole": "staff", "isLocked": false, "lockedAt": null, "lockedBy": null, "createdAt": "2026-11-05T21:51:26.122Z" },
+      "contract": {
+        "position": { "type": "nv", "level": 1, "jobTitle": null },
+        "shift": { "type": "NORMAL", "startTime": "08:00", "endTime": "17:00", "allowancePct": 0, "isOvernight": false },
+        "leave": { "totalDays": 0, "usedDays": 0, "remainingDays": 0 },
+        "status": "nv", "term": null, "effectiveFrom": null, "resignedOn": null,
+        "hasInsurance": null, "isUnionMember": false, "hasTax": true, "canAdvance": true, "isDormResident": false
+      }
+    }
+  }
+  ```
+- **Lỗi**: `404 EMPLOYEE_NOT_FOUND` (`Không tìm thấy nhân viên`); `403` thiếu quyền.
+
 ---
 
 ### 3.3. Attendance Module (Chấm công Check-in / Check-out)
@@ -294,6 +315,13 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Có thể `null`**: `shiftType`, `shiftStartTime`, `shiftEndTime`, `shiftAllowancePct` rỗng trên ngày không có ca (`OUTSIDE`, `REST`, `EXTRA`, ngày lễ...). `metrics.workUnits` bằng `payUnits`; `metrics.otHours` luôn 0 (OT đo ở phiếu lương).
 - `dayStatus`, `checkInStatus`, `checkOutStatus` là cột cũ, ghi cho khớp với `status` để FE cũ vẫn đọc được.
 
+#### `GET /api/v2/attendance/timesheets/:employeeId/:workDate`
+- **Mục đích**: Một dòng ngày của một nhân sự ở một ngày công (mở chi tiết ngày trong bảng công Admin).
+- **Quyền**: `attendance.correct`.
+- **Path**: `:employeeId` là `uuid` của nhân sự; `:workDate` dạng `YYYY-MM-DD`.
+- **Response 200**: `{ "timesheet": { ... } }`, `timesheet` là đúng một phần tử như của `GET /api/v2/attendance/timesheets` (cùng các trường ở trên).
+- **Lỗi**: `404 TIMESHEET_NOT_FOUND` (`Không tìm thấy bảng công`) khi chưa có dòng ngày đó (kể cả `employeeId` không tồn tại); `403` thiếu quyền.
+
 #### `GET /api/v2/attendance/week?from=YYYY-MM-DD&q=&group=`
 - **Mục đích**: Lưới chấm công cả tuần cho Admin. Đọc dòng ngày dùng chung (`timesheet_entries`) như `/me`, không bảng mới.
 - **Quyền**: `attendance.correct`.
@@ -326,12 +354,12 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
   ```json
   {
     "kpis": { "headcount": 3, "presentToday": 1, "pendingRequests": 1, "payrollNet": 16000000 },
-    "attendance": { "today": { "work": 1, "late": 0, "leave": 0, "absent": 0, "todo": 0, "off": 2, "future": 0, "outside": 0, "extra": 0 } },
+    "attendance": { "today": { "work": 1, "late": 0, "leave": 0, "absent": 0, "todo": 0, "off": 1, "future": 0, "outside": 0, "extra": 0 }, "notCheckedIn": 1 },
     "payroll": { "status": "calculated", "lines": [ { "username": "nv2", "name": "Trần Thị Hai", "net": 9000000, "status": "draft" } ] },
     "period": { "month": "2026-10", "state": "calculated" }
   }
   ```
-  - `headcount`: người còn làm hôm nay. `attendance.today`: số người theo loại ô ngày (cộng lại bằng `headcount`). `presentToday` = `work` + `late` + `todo` + `extra`.
+  - `headcount`: người còn làm hôm nay. `attendance.today`: số người theo loại ô ngày, **không gồm** người đang là ngày làm hôm nay mà chưa chấm vào (ô `work` hoặc `absent` nhưng chưa có giờ vào); số đó nằm riêng ở `attendance.notCheckedIn`, nên tổng các giá trị của `today` + `notCheckedIn` = `headcount`. `kpis.presentToday` = số người đã có giờ vào và ô ngày là `work`, `late`, `todo` hoặc `extra` (người chưa chấm vào không tính là có mặt).
   - `pendingRequests`: tổng số đơn `PENDING`. `payrollNet`: tổng `net` các phiếu của lần chạy hiện tại của `month` (0 khi chưa tính).
   - `payroll.status` và `period.state` đều là trạng thái kỳ (`open`, `attendance_locked`, `calculated`, `approved`, `paid`; chưa có dòng kỳ là `open`). `payroll.lines`: 5 phiếu `net` cao nhất.
 - **Lỗi**: `400 INVALID_MONTH`.
@@ -362,7 +390,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 ### 3.4. Requests Module (Đơn từ & Giải trình)
 
 #### Quy ước chung: `warnings`, lỗi `DAY_CONFLICT`, lỗi `PERIOD_LOCKED`, trạng thái ngày
-Áp dụng cho cả 7 route tạo đơn của Admin (`POST /api/v2/requests/<loại>`) và `POST /api/v2/me/requests/<loại>` (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`; riêng `PERIOD_LOCKED`: `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5.
+Áp dụng cho 7 route tạo đơn của Admin (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`) và `POST /api/v2/me/requests/:kind` với `:kind` là một trong cùng 7 tên đó (cùng thân trả về, cùng lỗi). Nguồn luật: `docs/superpowers/specs/2026-11-05-day-status-design.md`; riêng `PERIOD_LOCKED`: `docs/superpowers/specs/2026-11-05-payroll-period-lifecycle-design.md` §5.
 
 - **Thân trả về khi tạo đơn** luôn có `warnings`, đứng cạnh `request` (không nằm trong `request`). Ví dụ trong các mục dưới chỉ ghi `created` và `request` cho gọn.
   ```json
@@ -424,7 +452,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     ```
   - Câu báo: `Tháng MM/YYYY đã chốt công` (`attendance_locked`, `calculated`), `Kỳ lương tháng MM/YYYY đã phê duyệt` (`approved`), `Kỳ lương tháng MM/YYYY đã trả lương` (`paid`).
   - Không ghi gì: đơn bị chặn lúc nộp không được lưu; lúc duyệt thì đơn giữ `PENDING`. Cổng chỉ xét sau các luật riêng của từng loại đơn, nên đơn vừa sai luật vừa rơi vào tháng đã chốt nhận lỗi của luật (`400`).
-  - Áp như nhau cho nhân viên tự nộp (`/api/v2/me/requests/<loại>`) và Admin nộp thay (`/api/v2/requests/<loại>`). Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11/2026). Ví dụ: tháng 10 chốt công ngày 01/11, ngày 03/11 Bình nộp giải trình cho 29/10 → được nhận; sau khi Phê duyệt kỳ tháng 10 thì `409` `Kỳ lương tháng 10/2026 đã phê duyệt`.
+  - Áp như nhau cho nhân viên tự nộp (`POST /api/v2/me/requests/:kind`) và Admin nộp thay (`POST /api/v2/requests/leave`, `.../leave-with-makeup`, `.../overtime`, `.../shift-change`, `.../explanation`, `.../advance`, `.../isat`). Giải trình nộp được tới khi kỳ được phê duyệt (người dùng chốt 05/11/2026). Ví dụ: tháng 10 chốt công ngày 01/11, ngày 03/11 Bình nộp giải trình cho 29/10 → được nhận; sau khi Phê duyệt kỳ tháng 10 thì `409` `Kỳ lương tháng 10/2026 đã phê duyệt`.
   - Xem trước (`POST /api/v2/me/requests/:kind/preview`) qua cùng cổng, cùng chỗ, nhưng vẫn trả `200`: `{ "ok": false, "message": "Tháng 10/2026 đã chốt công", "code": "PERIOD_LOCKED", "month": "2026-10", "status": "attendance_locked" }`.
   - Huỷ đơn (`PATCH .../cancel`) không qua cổng kỳ.
 
@@ -455,6 +483,12 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   - `in` / `out` là `null` ở ngày `outside` và ngày nghỉ (`leave`); các ngày khác lấy từ lần chấm.
   - `shift` của `GET /api/v2/me/today` và `GET /api/v2/me/attendance/:date` là `null` khi dòng không có ca (nghỉ, lễ, `OUTSIDE`, `REST`, `EXTRA`) hoặc chưa có dòng, không bao giờ là đối tượng toàn `null`. Có ca thì `{ type, start, end }` (route ngày: `{ start, end }`).
   - `totals` của `GET /api/v2/me/attendance`: `workDays` = số dòng `countsAsWorkday`; `paidLeaveDays` = số dòng `LEAVE_PAID`, `HOLIDAY`, `ISAT` có `payUnits` = 1 (lễ hoặc iSAT không được trả thì không tính); `lateCount` = số ngày có `kind` = `late`; `standardDays` = số ngày làm của tuần người đó trong tháng (theo cài đặt).
+- **`PATCH /api/v2/me/requests/:id/cancel`**: nhân viên huỷ đơn của chính mình (chỉ khi đơn còn `PENDING`). Body tuỳ chọn `{ "reason": "..." }`. Response 200: `{ "updated": true, "request": { ... } }` (đơn đã `CANCELLED`, cùng dạng `request` của `GET /api/v2/me/requests/:id`). Không qua cổng kỳ lương. Lỗi: `404 REQUEST_NOT_FOUND` khi không có đơn hoặc đơn là của người khác; `409 REQUEST_NOT_CANCELLABLE` khi đơn không huỷ được (đã duyệt, đã từ chối hay đã huỷ; `error` là câu lý do). Trả ngày cho đơn đổi ca như ở "Quy ước chung".
+- **`GET /api/v2/me/income?month=YYYY-MM`**: thu nhập tháng của chính người đăng nhập (màn Thu nhập và thẻ trên trang chủ). `month` bỏ trống thì tháng hiện tại; chỉ xem được trong `range` (từ tháng vào làm tới tháng hiện tại). Response 200 luôn có `month`, `state`, `payslip`, `payDate` (ngày trả lương `YYYY-MM-DD` theo cài đặt `payCalendar.payDay`), `range: { from, to }` (`YYYY-MM`):
+  - `state: "official"`: phiếu của người này ở lần chạy hiện tại đã được Admin duyệt (kể cả khi kỳ chưa chốt); `payslip` là chi tiết phiếu lương (cùng các trường như `details` của phiếu ở mục 3.5: `grossIncome`, `incomeAfterInsurance`, `netIncome`...).
+  - `state: "estimate"`: tạm tính, không ghi DB; chỉ cộng tiền những ngày đã qua, `insuranceDeduction`, `personalIncomeTax` bằng 0 (hai khoản này chỉ tính khi chốt kỳ), `netIncome = grossIncome - advanceDeduction`.
+  - `state: "unavailable"`: chưa tính được, `payslip: null` kèm `reason`, ví dụ `{ "month": "2026-11", "state": "unavailable", "payslip": null, "reason": "Thiếu cấu hình chức vụ hoặc bậc lương cho ql (QL · Bậc 1)", "payDate": "2026-12-12", "range": { "from": "2026-11", "to": "2026-11" } }`.
+  - Lỗi: `400 MONTH_OUT_OF_RANGE` (kèm `range`, câu `Chỉ xem được từ tháng 11/2026 tới tháng 11/2026`) hoặc `400 INVALID_MONTH` (`Tháng không hợp lệ (định dạng YYYY-MM)`) khi `month` sai dạng.
 - **`GET /api/v2/me/profile`**: `leave.remainingDays` do server tính từ đơn (cùng hàm với `annualLeaveLeft`), `0` khi không có quyền lợi phép năm; nếu không tính được thì giữ số trong hợp đồng.
 
 #### Route Admin về giải trình (cần quyền `requests.review`)
@@ -530,7 +564,7 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
   ```
 
 #### `POST /api/v2/requests/leave` (Đơn nghỉ)
-- **Mục đích**: Admin nộp đơn nghỉ thay một nhân sự (nhân sự tự nộp qua `POST /api/v2/me/requests/leave`, cùng luật). Chỉ nghỉ nguyên ngày.
+- **Mục đích**: Admin nộp đơn nghỉ thay một nhân sự (nhân sự tự nộp qua `POST /api/v2/me/requests/:kind` với `:kind` = `leave`, cùng luật). Chỉ nghỉ nguyên ngày.
 - **Request Body**:
   ```json
   {
@@ -1332,3 +1366,155 @@ Mọi lỗi dưới đây có dạng `{ "error": "<câu tiếng Việt>", "code"
   - `409 PERIOD_LOCKED` khi tháng của `:date` không còn `open` (xem đầu mục), kiểm trước khi tìm ngày lễ.
   - `404` `Không có ngày lễ <date>` với `code: "HOLIDAY_NOT_FOUND"` khi ngày đó không có trong lịch.
   - `400` `Ngày lễ không hợp lệ: <date>` khi `:date` sai định dạng hoặc là ngày không tồn tại.
+
+---
+
+### 3.9. Settings Module (Cài đặt theo tháng áp dụng)
+
+Mọi số tính lương/chấm công đổi theo **tháng áp dụng** (`effectiveMonth`, `YYYY-MM`, từ `minMonth` trở đi; `minMonth` là tháng sau tháng đã chốt công gần nhất, không sớm hơn tháng hiện tại). Mỗi nhóm có một số phiên bản `stamp` (số nguyên không âm): ghi phải gửi lại đúng `stamp` đã đọc, sai thì `409 SETTINGS_STALE` kèm `stamp` mới, FE tải lại rồi lưu lại. Lý do `reason` tuỳ chọn, tối đa 300 ký tự (rỗng thành `null`). Quyền đọc `config.read`, ghi `config.write`.
+
+Lỗi chung của cả mục:
+
+  | HTTP | `code` | Ý nghĩa |
+  |---|---|---|
+  | 400 | `BAD_SETTINGS_INPUT` | Đầu vào sai; kèm `field` là ô sai (`month`, `year`, `radiusM`, `weekdays`, `effectiveMonth`, `stamp`...) |
+  | 404 | `SETTINGS_GROUP_NOT_FOUND` | `:group` không phải một trong 6 nhóm |
+  | 404 | `EMPLOYEE_NOT_FOUND` | `:username` không có nhân sự |
+  | 404 | `WORK_WEEK_NOT_FOUND` | Loại nhân sự của người đó không có tuần làm việc |
+  | 409 | `SETTINGS_STALE` | `stamp` cũ, kèm `stamp` hiện tại |
+  | 403 | (không có) | Thiếu quyền |
+
+6 nhóm `:group` (đường dẫn) và khoá tương ứng trong response `GET /api/v2/settings`: `overtime` → `overtime`, `attendance` → `attendance`, `kpi-weights` → `kpiWeights`, `insurance` → `insurance`, `tax` → `tax`, `pay-calendar` → `payCalendar`.
+
+#### `GET /api/v2/settings?month=YYYY-MM`
+- **Mục đích**: Toàn bộ 6 nhóm cài đặt có hiệu lực ở một tháng, kèm mặc định và biên của từng ô để FE dựng form.
+- **Quyền**: `config.read`.
+- **Query**: `month` bỏ trống thì tháng hiện tại.
+- **Response 200** (rút gọn; mỗi nhóm cùng dạng `{ from, stamp, values, defaults, limits }`):
+  ```json
+  {
+    "month": "2026-11",
+    "minMonth": "2026-11",
+    "groups": {
+      "overtime": {
+        "from": "2026-11", "stamp": 10,
+        "values": { "weekdayRate": 1.6, "weekendRate": 2.5, "holidayRate": 3 },
+        "defaults": { "weekdayRate": 1.5, "weekendRate": 2, "holidayRate": 3 },
+        "limits": { "weekdayRate": { "min": 1.5, "max": 5, "step": 0.01 } }
+      },
+      "attendance": { "values": { "lateGraceMinutes": 10, "diligenceLostFromDays": 4 } },
+      "kpiWeights": { "values": { "wework": 40, "user": 24, "peer": 18, "manager": 12, "self": 6 }, "sum": 100 },
+      "insurance": { "values": { "bhxhPct": 8.5, "bhytPct": 1.5, "bhtnPct": 1 } },
+      "tax": { "values": { "personalDeduction": 15500000, "dependantDeduction": 6200000, "shortContractPct": 12, "shortContractThreshold": 5000000,
+                           "brackets": [ { "upTo": 10000000, "ratePct": 6 }, { "upTo": null, "ratePct": 35 } ] },
+               "limits": { "brackets": { "minRows": 1, "maxRows": 10, "upTo": { "min": 1, "max": 1000000000, "step": 1 }, "ratePct": { "min": 0, "max": 100, "step": 0.01 } } } },
+      "payCalendar": { "values": { "payDay": 12 }, "limits": { "payDay": { "min": 1, "max": 28, "step": 1 } } }
+    }
+  }
+  ```
+  - `from`: tháng bắt đầu của phiên bản đang hiệu lực. `limits.<ô>`: `{ min, max, step }`; riêng `tax.limits.brackets` là `{ minRows, maxRows, upTo, ratePct }`. `kpiWeights.sum` là tổng bắt buộc (100).
+- **Lỗi**: `400 BAD_SETTINGS_INPUT` (`field: "month"`, `Tháng phải có dạng YYYY-MM`).
+
+#### `PUT /api/v2/settings/:group`
+- **Mục đích**: Lưu các ô của một nhóm, áp dụng từ một tháng.
+- **Quyền**: `config.write`.
+- **Body**: `{ "values": { <ô>: <số> }, "effectiveMonth": "2026-12", "reason": "tuỳ chọn", "stamp": 10 }`. `values` chỉ cần các ô đổi (nhóm `tax` gửi `brackets` nguyên mảng). Số ngoài `limits` thì `400`. Nhóm `kpi-weights` phải cộng đúng 100.
+- **Response 200**: `{ "ok": true, "effectiveMonth": "2026-12", "changed": ["weekdayRate"], "stamp": 13 }`. Không có gì đổi thì `changed: []` và `stamp` giữ nguyên.
+- **Lỗi**: `400 BAD_SETTINGS_INPUT`, `404 SETTINGS_GROUP_NOT_FOUND`, `409 SETTINGS_STALE`.
+
+#### `GET /api/v2/settings/:group/history`
+- **Mục đích**: Lịch sử đổi của một nhóm, mới nhất trước.
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "items": [ { "id": 10, "field": "weekendRate", "month": "2026-11", "from": 2, "to": 2.5, "by": "admin", "at": "2026-11-05T21:51:49.646Z", "reason": null } ] }`. `month` là tháng áp dụng (`null` với vùng chấm công); `from` / `to` là giá trị trước / sau.
+- **Lỗi**: `404 SETTINGS_GROUP_NOT_FOUND`.
+
+#### `GET /api/v2/settings/pay-days?year=YYYY`
+- **Mục đích**: Ngày trả lương của 12 tháng trong năm (lịch trả lương).
+- **Quyền**: `config.read`.
+- **Query**: `year` bắt buộc, 4 chữ số.
+- **Response 200**: `{ "year": 2026, "items": [ { "month": "2026-01", "payDay": 10, "payDate": "2026-02-10" } ] }` (`payDate` là ngày trả của lương tháng `month`, rơi vào tháng sau).
+- **Lỗi**: `400 BAD_SETTINGS_INPUT` (`field: "year"`, `Năm phải có 4 chữ số`).
+
+#### `GET /api/v2/settings/attendance-zone`
+- **Mục đích**: Vùng chấm công (toạ độ và bán kính được phép chấm).
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "zone": { "lat": 10.7769, "lng": 106.7009, "radiusM": 150 }, "stamp": 12 }`. Chưa cấu hình thì `zone: null`.
+
+#### `PUT /api/v2/settings/attendance-zone`
+- **Mục đích**: Lưu vùng chấm công (hiệu lực ngay, không theo tháng).
+- **Quyền**: `config.write`.
+- **Body**: `{ "lat": 10.7769, "lng": 106.7009, "radiusM": 150, "reason": null, "stamp": 12 }`. `lat` -90..90, `lng` -180..180, `radiusM` số nguyên 20..5000.
+- **Response 200**: `{ "ok": true, "zone": { "lat": 10.7769, "lng": 106.7009, "radiusM": 150 }, "stamp": 13 }`.
+- **Lỗi**: `400 BAD_SETTINGS_INPUT` (`field`: `lat`, `lng`, `radiusM`, `stamp`), `409 SETTINGS_STALE` (kèm `stamp`).
+
+#### `GET /api/v2/settings/attendance-zone/history`
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "items": [ { "id": 12, "field": "zone", "month": null, "from": null, "to": { "lat": 10.7769, "lng": 106.7009, "radiusM": 150 }, "by": "admin", "at": "2026-11-05T21:51:53.404Z", "reason": null } ] }`.
+
+#### `GET /api/v2/settings/work-weeks?month=YYYY-MM`
+- **Mục đích**: Tuần làm việc của mọi người ở một tháng (tuần riêng nếu có, không thì tuần của loại nhân sự), cho bảng công. Người có loại không có tuần làm thì không có mặt.
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "month": "2026-11", "weekdays": { "pw-staff": [1, 2, 3, 4, 5, 6] } }`; khoá là `username`, giá trị là các thứ làm việc (1 = Thứ Hai ... 6 = Thứ Bảy).
+- **Lỗi**: `400 BAD_SETTINGS_INPUT` (`field: "month"`).
+
+#### `GET /api/v2/settings/work-weeks/:username?month=YYYY-MM`
+- **Mục đích**: Tuần làm việc của một người ở một tháng.
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "username": "pw-staff", "month": "2026-11", "minMonth": "2026-11", "weekdays": [1,2,3,4,5,6], "source": "type", "standardWorkdays": 26, "from": null, "typeWeekdays": [1,2,3,4,5,6], "typeStandardWorkdays": 26, "stamp": 0 }`. `source`: `"own"` (tuần riêng) hoặc `"type"` (theo loại nhân sự); `from` là tháng bắt đầu tuần riêng (`null` khi theo loại).
+- **Lỗi**: `404 EMPLOYEE_NOT_FOUND`, `404 WORK_WEEK_NOT_FOUND`, `400 BAD_SETTINGS_INPUT`.
+
+#### `PUT /api/v2/settings/work-weeks/:username`
+- **Mục đích**: Đặt tuần làm việc riêng cho một người từ một tháng, hoặc quay về tuần của loại nhân sự.
+- **Quyền**: `config.write`.
+- **Body**: `{ "weekdays": [1,2,3,4,6], "effectiveMonth": "2026-12", "reason": null, "stamp": 0 }`. `weekdays` là danh sách thứ 1..6, không trùng, ít nhất một; `weekdays: null` = quay về tuần của loại.
+- **Response 200**: `{ "ok": true, "weekdays": [1,2,3,4,6], "source": "own", "standardWorkdays": 22, "stamp": 14 }`.
+- **Lỗi**: `400 BAD_SETTINGS_INPUT` (`field: "weekdays"`...), `404 EMPLOYEE_NOT_FOUND`, `404 WORK_WEEK_NOT_FOUND`, `409 SETTINGS_STALE`.
+
+#### `GET /api/v2/settings/work-weeks/:username/history`
+- **Quyền**: `config.read`.
+- **Response 200**: `{ "items": [ ... ] }` cùng dạng phần tử như `GET /api/v2/settings/:group/history` (`items` rỗng khi chưa có lần đổi).
+- **Lỗi**: `404 EMPLOYEE_NOT_FOUND`.
+
+---
+
+### 3.10. Positions Module (Chức vụ và bậc lương theo tháng)
+
+Đọc danh mục bằng `GET /api/v2/employees/meta/positions` (mỗi chức vụ có `rev`, mỗi bậc cũng có `rev`). Ba route ghi dưới đây đều cần `config.write`, áp dụng từ `effectiveMonth` (`YYYY-MM`, không sớm hơn tháng hiện tại), có `reason` tuỳ chọn (tối đa 300 ký tự), và dùng `expectedRev` (số `rev` đã đọc) để chống ghi đè. Mã chức vụ `code` là `tts`, `ctv` hoặc `nv`. Kiểm hết mọi mục rồi mới ghi, một mục lỗi thì không mục nào được lưu.
+
+Lỗi chung:
+
+  | HTTP | `code` | Ý nghĩa |
+  |---|---|---|
+  | 400 | `BAD_REQUEST` | Đầu vào sai; kèm `field` là đường dẫn ô sai (ví dụ `items[0].changes.flexPct`) |
+  | 404 | `POSITION_NOT_FOUND` | Chức vụ chưa có ở tháng áp dụng |
+  | 404 | `LEVEL_NOT_FOUND` | Bậc chưa có ở tháng áp dụng |
+  | 409 | `POSITION_STALE` | `expectedRev` của chức vụ đã cũ |
+  | 409 | `LEVEL_STALE` | `expectedRev` của bậc đã cũ, hoặc `level` thêm mới không phải bậc kế tiếp |
+  | 403 | (không có) | Thiếu quyền |
+
+#### `PUT /api/v2/positions`
+- **Mục đích**: Sửa một hay nhiều chức vụ (màn Chức vụ và bậc, Chế độ theo loại).
+- **Body**: `{ "effectiveMonth": "2026-12", "reason": "tuỳ chọn", "items": [ { "code": "nv", "expectedRev": 0, "changes": { "workdays": 26, "flexPct": 10, "benefits": { "ot": true } } } ] }`. `changes` nhận: `name` (1..60 ký tự), `workdays` (1..31), `flexPct`, `travelPct`, `attendancePct`, `nightPct` (0..100; `nv` không nhận `nightPct`), `benefits` (các ô `kpi`, `idorm`, `leaveAccount`, `isat`, `ot`, `makeup`, mỗi ô boolean). Ô khác thì `400`. `items` ít nhất một, không trùng `code`.
+- **Response 200**: `{ "ok": true, "effectiveMonth": "2026-12" }`.
+- **Lỗi**: `400 BAD_REQUEST`, `404 POSITION_NOT_FOUND`, `409 POSITION_STALE`.
+
+#### `PUT /api/v2/positions/:code/levels/:level`
+- **Mục đích**: Sửa một bậc đã có.
+- **Body**: `{ "effectiveMonth": "2026-12", "expectedRev": 0, "reason": null, "changes": { "baseSalary": 8000000, "kpiMax": 2000000, "nightPct": null, "name": "Fresher" } }`. `baseSalary`, `kpiMax` là số nguyên không âm (`kpiMax` nhận `null`); `nightPct` 0..100 hoặc `null` (theo chức vụ; riêng `nv` chỉ nhận `null`).
+- **Response 200**: `{ "ok": true, "effectiveMonth": "2026-12" }`.
+- **Lỗi**: `400 BAD_REQUEST`, `404 LEVEL_NOT_FOUND`, `409 LEVEL_STALE`.
+
+#### `POST /api/v2/positions/:code/levels`
+- **Mục đích**: Thêm bậc kế tiếp (bậc cao nhất đang có ở tháng áp dụng cộng 1).
+- **Body**: `{ "effectiveMonth": "2026-12", "level": 5, "reason": null, "values": { "name": "Senior", "baseSalary": 12000000, "kpiMax": null, "nightPct": null } }`. Cả bốn ô của `values` bắt buộc.
+- **Response 200**: `{ "ok": true, "effectiveMonth": "2026-12", "level": 5 }`.
+- **Lỗi**: `400 BAD_REQUEST`, `404 POSITION_NOT_FOUND`, `409 LEVEL_STALE` (`Bậc kế tiếp ở tháng 11/2026 là bậc 5`).
+
+---
+
+### 3.11. Roles Module (Vai trò)
+
+#### `GET /api/v2/roles`
+- **Mục đích**: Danh sách vai trò cho dropdown phân quyền và form nhân sự (alias cũ `GET /api/roles` trả y hệt).
+- **Quyền**: `staff.manage`.
+- **Response 200**: `{ "roles": [ { "code": "admin", "label": "Quản trị viên (Admin)", "isDefault": true }, { "code": "manager", "label": "Quản lý (Manager)", "isDefault": true }, { "code": "staff", "label": "Nhân viên (Staff)", "isDefault": true } ] }`.

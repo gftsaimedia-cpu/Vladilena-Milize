@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Patch, Param, Body, Query, UseFilters, Inject, Optional } from '@nestjs/common';
+import { RequestIdPipe } from './request-id.pipe';
 import { ApiExceptionFilter, BadRequestError, HttpError, NotFoundError, CurrentUser, UserSession, RequireCap } from '../../common';
 import { AuditEntryError } from '../audit';
 import { RequestsService } from './requests.service';
@@ -219,7 +220,7 @@ export class RequestsController {
 
   @RequireCap('requests.review')
   @Get(':id')
-  async getRequest(@Param('id') id: string): Promise<unknown> {
+  async getRequest(@Param('id', RequestIdPipe) id: string): Promise<unknown> {
     const request = await this.service.getById(id);
     if (!request) {
       throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
@@ -230,7 +231,7 @@ export class RequestsController {
   @RequireCap('requests.review')
   @Patch(':id/review')
   async reviewRequest(
-    @Param('id') id: string,
+    @Param('id', RequestIdPipe) id: string,
     @Body() body: { action: 'APPROVE' | 'REJECT'; note?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
@@ -254,7 +255,7 @@ export class RequestsController {
   @RequireCap('requests.review')
   @Patch(':id/cancel')
   async cancelRequest(
-    @Param('id') id: string,
+    @Param('id', RequestIdPipe) id: string,
     @Body() body: { reason?: string; employeeId?: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {

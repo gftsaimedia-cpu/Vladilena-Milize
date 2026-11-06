@@ -177,9 +177,19 @@ export class OverviewService {
     const counts: Record<DayKind, number> = {
       work: 0, late: 0, leave: 0, absent: 0, todo: 0, off: 0, future: 0, outside: 0, extra: 0
     };
+    // `work` của dòng ngày hôm nay có thể là dòng đã lập sẵn nhưng chưa ai chấm: người đó chưa có mặt. Đếm riêng ở
+    // notCheckedIn để "có mặt hôm nay" và biểu đồ Tổng quan khớp với màn Chấm công (người chưa chấm vào = chưa có mặt).
+    let notCheckedIn = 0;
+    let present = 0;
     for (const emp of people) {
       const day: DaySummary = daySummaryOf(byPerson.get(emp.uuid) as any, today, today, weeks[emp.username]);
+      // Hôm nay chưa hết ngày: chưa có dòng, hoặc dòng chờ chấm, chưa chấm vào thì chưa thể là vắng.
+      if ((day.kind === 'work' || day.kind === 'absent') && !day.in) {
+        notCheckedIn += 1;
+        continue;
+      }
       counts[day.kind] += 1;
+      if (day.in && (day.kind === 'work' || day.kind === 'late' || day.kind === 'todo' || day.kind === 'extra')) present += 1;
     }
 
     const nameOf = new Map(people.map(e => [e.username, e.fullName]));
@@ -191,11 +201,11 @@ export class OverviewService {
     return {
       kpis: {
         headcount: people.length,
-        presentToday: counts.work + counts.late + counts.todo + counts.extra,
+        presentToday: present,
         pendingRequests: pending.total,
         payrollNet: slips.reduce((sum, s) => sum + s.net, 0)
       },
-      attendance: { today: counts },
+      attendance: { today: counts, notCheckedIn },
       payroll: { status: period.status, lines },
       period: { month: m, state: period.status }
     };
