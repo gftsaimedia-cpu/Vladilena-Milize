@@ -341,6 +341,13 @@ test('unapprove with a reason over 1000 characters is a 400, a trimmed 1000 is f
     });
     assert.equal((await f.periods.view(MONTH)).status, 'approved');
     assert.equal(await runs(), runsBefore);
+    await assert.rejects(f.periods.unapprove(MONTH, 'admin', 'Sửa KPI\u0000'), (e: any) => {
+      assert.equal(e.status, 400);
+      assert.deepEqual(e.details, { code: 'REASON_INVALID' });
+      return true;
+    });
+    assert.equal((await f.periods.view(MONTH)).status, 'approved');
+    assert.equal(await runs(), runsBefore);
 
     const view = await f.periods.unapprove(MONTH, 'admin', ` ${'y'.repeat(1000)}  `);
     assert.equal(view.status, 'calculated');
@@ -379,6 +386,29 @@ test('pay only from payday, then nothing more', async t => {
     );
     const audit = await client.query("SELECT actor FROM audit_log WHERE action = 'period.pay'");
     assert.deepEqual(audit.rows, [{ actor: 'boss' }]);
+  });
+});
+
+// Kho cài đặt bắt đầu từ 2000-01 (dữ liệu nạp sẵn): tháng trước đó không có ngày trả lương, nên không có kỳ lương.
+test('a month before the first settings version is a 400 NO_SETTINGS, not a 500, and locking it saves nothing', async t => {
+  await withTempDb(t, 'periods_appr', async (db, client) => {
+    const periods = new PeriodsService(
+      new PeriodsRepository(db),
+      new TransactionCoordinator(db),
+      new AuditLog(new AuditRepository(), new TransactionCoordinator(db)),
+      new SettingsReader(new SettingsRepository(db))
+    );
+    periods.now = () => new Date('2026-11-05T09:00:00+07:00');
+    const noSettings = (e: any) => {
+      assert.equal(e.status, 400);
+      assert.deepEqual(e.details, { code: 'NO_SETTINGS', month: '1999-12' });
+      assert.equal(e.message, 'Tháng 12/1999 chưa có cài đặt lương');
+      return true;
+    };
+    await assert.rejects(periods.view('1999-12'), noSettings);
+    await assert.rejects(periods.lock('1999-12', 'admin'), noSettings);
+    assert.equal(Number((await client.query('SELECT count(*) AS n FROM payroll_periods')).rows[0].n), 0);
+    assert.equal((await periods.view('2000-01')).payday, '2000-02-10');
   });
 });
 

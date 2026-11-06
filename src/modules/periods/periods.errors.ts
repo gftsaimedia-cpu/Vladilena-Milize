@@ -20,6 +20,13 @@ export class PeriodLockedError extends ConflictError {
   }
 }
 
+/** Tháng trước phiên bản cài đặt đầu tiên: không có ngày trả lương, nên không có kỳ lương (400 thay vì 500). */
+export class NoSettingsError extends BadRequestError {
+  constructor(month: string) {
+    super(`Tháng ${monthLabel(month)} chưa có cài đặt lương`, { code: 'NO_SETTINGS', month });
+  }
+}
+
 export class PeriodStateError extends ConflictError {
   constructor(month: string, status: PeriodStatus) {
     super(`Kỳ lương tháng ${monthLabel(month)} đang ở bước "${STATUS_LABEL[status]}", không làm được thao tác này`, {
@@ -58,6 +65,13 @@ export class ReasonRequiredError extends BadRequestError {
 export class ReasonTooLongError extends BadRequestError {
   constructor(max: number) {
     super(`Lý do tối đa ${max} ký tự`, { code: 'REASON_TOO_LONG' });
+  }
+}
+
+/** Lý do có ký tự nhật ký không lưu được (NUL). */
+export class ReasonInvalidError extends BadRequestError {
+  constructor() {
+    super('Lý do chứa ký tự không hợp lệ', { code: 'REASON_INVALID' });
   }
 }
 
