@@ -19,6 +19,7 @@ import { PositionsController } from '../../src/modules/positions/positions.contr
 import { SettingsController } from '../../src/modules/settings/settings.controller';
 import { AuditController } from '../../src/modules/audit/audit.controller';
 import { OverviewController } from '../../src/modules/overview/overview.controller';
+import { RealtimeController } from '../../src/modules/realtime/realtime.controller';
 
 // Mọi controller của các module mà AppModule nạp.
 function allControllers(): any[] {
@@ -92,6 +93,7 @@ const TABLE: Array<[any, string, AccessRule]> = [
   ...['profile', 'today', 'punch', 'attendanceMonth', 'attendanceDay', 'listRequests', 'getRequest', 'createRequest', 'cancelRequest', 'income', 'requestContext', 'previewRequest'].map(
     m => [MeController, m, authed] as [any, string, AccessRule]
   ),
+  [RealtimeController, 'stream', cap('attendance.correct')],
   [OverviewController, 'week', cap('attendance.correct')],
   [OverviewController, 'employee', cap('attendance.correct')],
   [OverviewController, 'overview', cap('config.read')],

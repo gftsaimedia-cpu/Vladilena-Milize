@@ -6,9 +6,10 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
-import type { HistoryEntry } from '@/mock/attendance-employee';
+import type { HistoryRow } from '@/builders/api/attendance';
 import { useLoad } from '@/composables/useLoad';
 import { getEmployeeAttendance } from '@/services/admin-attendance';
+import { useRealtimeReload } from '@/composables/useRealtimeReload';
 import { usePeriodStore } from '@/stores/period';
 import { useShellStore } from '@/stores/shell';
 import DayDetailDialog from './DayDetailDialog.vue';
@@ -29,10 +30,11 @@ const router = useRouter();
 const period = usePeriodStore();
 const shell = useShellStore();
 const personId = computed(() => String(route.params.id));
-const { data: view, loading } = useLoad(
+const { data: view, loading, reload } = useLoad(
   () => getEmployeeAttendance(personId.value, period.month),
   () => `${personId.value}|${period.month}|${shell.version}`
 );
+useRealtimeReload(reload, { filter: e => e.username === personId.value });
 const tab = ref<(typeof TABS)[number]['key']>('timeline');
 
 // Trả focus sau hộp chi tiết ngày. Nút mở còn (ngày vẫn trong dải, lời nhắc còn ngày chờ khác) thì focus về nút đó.
@@ -53,12 +55,13 @@ const monthNo = computed(() => Number(period.month.slice(5, 7)));
 const monthText = computed(() => `${monthNo.value}/${period.month.slice(0, 4)}`);
 const thang = computed(() => (route.query.thang ? { thang: route.query.thang } : {}));
 const listTo = computed(() => ({ path: '/admin/cham-cong', query: thang.value }));
-const month = computed(() => view.value?.data ?? null);
+// Tháng không có ngày nào (ngoài dữ liệu giả) thì không dựng chỉ số và lịch sử.
+const month = computed(() => (view.value?.data.strip.length ? view.value.data : null));
 
 const only = ref(false);
-const entries = computed<HistoryEntry[]>(() => {
+const entries = computed<HistoryRow[]>(() => {
   const all = month.value?.history ?? [];
-  return only.value ? all.filter(e => e.type === 'row' && EXCEPTIONS.has(e.row.kind)) : all;
+  return only.value ? all.filter(row => EXCEPTIONS.has(row.kind)) : all;
 });
 
 const prevBtn = ref<HTMLButtonElement | null>(null);
@@ -145,8 +148,8 @@ function onTabKey(event: KeyboardEvent) {
           <div v-if="month?.pending" class="call">
             <span class="b todo" aria-hidden="true" />
             <p>
-              <b>{{ month.pending.text.split(' · ')[0] }}</b
-              ><span class="mut"> · {{ month.pending.text.split(' · ').slice(1).join(' · ') }}</span>
+              <b>{{ month.pending.count }} ngày cần xử lý</b
+              ><span class="mut"> · {{ month.pending.text }}</span>
             </p>
             <button type="button" class="see" @click="openDay(view.person.id, month.pending.date)">
               Xem ngày<Icon name="chevr" :size="14" />
@@ -158,8 +161,8 @@ function onTabKey(event: KeyboardEvent) {
               <dd>{{ view.person.title }}</dd>
             </div>
             <div>
-              <dt>Phòng ban</dt>
-              <dd>{{ view.person.dept }}</dd>
+              <dt>Nhóm</dt>
+              <dd>{{ view.person.group }}</dd>
             </div>
             <div>
               <dt>Ca làm việc</dt>
@@ -194,7 +197,7 @@ function onTabKey(event: KeyboardEvent) {
               </span>
             </div>
           </div>
-          <MonthStrip :days="month.strip" :month-no="monthNo" @open-day="date => openDay(view!.person.id, date)" />
+          <MonthStrip :person-id="view!.person.id" :days="month.strip" :month-no="monthNo" @open-day="date => openDay(view!.person.id, date)" />
         </section>
 
         <section class="card blk" aria-label="Lịch sử chấm công">

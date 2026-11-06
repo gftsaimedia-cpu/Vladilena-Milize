@@ -1,312 +1,314 @@
-// Màn Chấm công Admin từ GET /api/v2/attendance/timesheets (bảng công theo ngày, employeeId là uuid), hồ sơ nhân sự
-// (GET /employees) và việc chờ duyệt (builders/api/inbox). Ô có việc đang chờ thành "cần xử lý".
-// BE chưa có phòng ban, giờ vào/ra trung bình, lịch sử sửa giờ: các ô đó là "—" hoặc rỗng.
-import type { AttendanceDay, AttendanceView, Cell, CellKind, DayDetail, GroupKey, PendingDay, Person, Tile } from '../../mock/attendance';
-import type { EmployeeView, HistoryEntry, StripDay } from '../../mock/attendance-employee';
-import type { InboxItem } from '../../mock/inbox';
-import { dm, dowShort, initials, weekdayName } from '../../utils/format';
-import type { EmployeeDTO } from './staff';
+// Màn Chấm công Admin từ GET /api/v2/attendance/week (lưới) và GET /api/v2/attendance/employees/:username (hồ sơ).
+// BE tính hết (ô ngày, tổng, thẻ số, chip, người trước/sau, việc cần xử lý, lịch sử ngày); builder chỉ ÁNH XẠ DTO sang dữ liệu
+// view, không cộng trừ, không suy ô, không lọc hay sắp xếp. Chữ đầu/phụ/dòng chi tiết của việc lấy từ /requests (inbox) theo id.
+import type { InboxGroup, InboxItem } from '../../mock/inbox';
+import { dm, dmy, weekdayName } from '../../utils/format';
 
-export type TimesheetDTO = {
-  employeeId: string;
-  workDate: string;
-  shiftType: string;
-  shiftStartTime: string;
-  shiftEndTime: string;
-  actualCheckIn: string | null;
-  actualCheckOut: string | null;
-  status: 'PRESENT' | 'LEAVE_PAID' | 'LEAVE_UNPAID' | 'ABSENT' | 'HOLIDAY';
-  checkInStatus: string;
-  checkOutStatus: string;
-  metrics: { lateMinutes?: number; earlyLeaveMinutes?: number; otHours?: number; workHours?: number };
+export type CellKind = 'work' | 'late' | 'leave' | 'absent' | 'todo' | 'off' | 'fu' | 'nocheck';
+export type GroupKey = 'work' | 'late' | 'leave' | 'absent' | 'todo';
+
+// ---- DTO của máy chủ ----
+
+export type DayCellDTO = {
+  date: string;
+  dow: string;
+  day: string;
+  today: boolean;
+  kind: CellKind;
+  base: CellKind;
+  text: string;
+  in: string | null;
+  out: string | null;
+  live: boolean;
+  lateMinutes: number;
+  explanationStatus: string;
+  cases: { code: string; minutes: number; affectsPay: boolean }[];
+  itemId: string | null;
+  label: string;
+  aria: string;
+};
+
+export type PersonDTO = {
+  username: string;
+  name: string;
+  initials: string;
+  group: string;
+  title: string | null;
+  code: string;
+  startDate: string | null;
+  contract: string;
+  position: { type: string; level: number | null; jobTitle: string | null };
+  shift: { type: string; startTime: string; endTime: string; allowancePct: number; isOvernight: boolean };
+  shiftText: string;
+  leaveLeftDays: number;
+  joinedMonth?: string;
+};
+
+export type TileDTO = { key: 'todo' | 'present' | 'late' | 'leave' | 'absent' | 'ot'; label: string; value: number; of?: number; unit?: string; note: string };
+export type PendingDTO = {
+  id: string;
+  kind: string;
+  group: InboxGroup;
+  groupLabel: string;
+  action: 'decide' | 'remind';
+  username: string;
+  name: string;
+  initials: string;
+  title: string | null;
+  what: string;
+  when: string;
+  days: string[];
+  age: string;
+  date: string;
+};
+export type DayHeadDTO = { iso: string; dow: string; dm: string; scheduled: boolean; today: boolean; monday: boolean; periodStart: boolean };
+export type WeekDTO = {
+  today: string;
+  month: string;
+  periodState: string;
+  subtitle: string;
+  tiles: TileDTO[];
+  days: DayHeadDTO[];
+  groups: { key: string; count: number }[];
+  rows: (PersonDTO & { days: DayCellDTO[]; totals: { workDays: number; lateMinutes: number; otHours: number }; needsAction: number })[];
+  pending: PendingDTO[];
+  total: number;
+  matched: number;
+};
+export type StatDTO = { key: string; label: string; value: number; unit?: string; note: string };
+export type DayHistoryDTO = {
+  date: string;
+  dayLabel: string;
+  kind: CellKind;
+  tone: string;
+  text: string;
+  status: string;
+  shift: string;
+  in: string | null;
+  out: string | null;
+  itemId: string | null;
+};
+export type EmployeeMonthDTO = {
+  person: PersonDTO;
+  month: string;
+  periodState: string;
+  locked: boolean;
+  index: number;
+  total: number;
+  prev: string | null;
+  next: string | null;
+  pending: { count: number; date: string; itemId: string | null; group: string; text: string } | null;
+  stats: StatDTO[];
+  totals: { workDays: number; standardDays: number; lateCount: number; paidLeaveDays: number; lateMinutes: number; otHours: number; absentDays: number };
+  chips: Record<GroupKey, number>;
+  days: DayCellDTO[];
+  dayHistory: DayHistoryDTO[];
+  history: { at: string; actor: string; text: string }[];
+};
+
+// ---- Dữ liệu view ----
+
+export type Cell = {
+  date: string;
+  kind: CellKind; // sau lớp "cần xử lý"
+  base: CellKind; // ghi nhận gốc
+  text: string;
+  in: string | null;
+  out: string | null;
+  live: boolean;
+  itemId: string | null;
+  label: string;
+  aria: string;
+};
+export type PersonRef = { id: string; name: string; initials: string };
+export type Person = PersonRef & {
+  group: string;
+  title: string;
+  code: string;
+  joined: string;
+  contract: string;
+  shift: string;
+  leaveLeft: string;
+};
+export type AttendanceDay = DayHeadDTO;
+export type AttendanceRow = { person: PersonRef; cells: Cell[]; totals: { workDays: number; lateMinutes: number; otHours: number }; needsAction: number };
+export type Tile = { key: TileDTO['key']; label: string; value: string; note: string };
+export type PendingDay = { item: InboxItem; person: PersonRef; date: string };
+export type AttendanceView = {
+  month: string;
+  today: string;
+  subtitle: string;
+  tiles: Tile[];
+  days: AttendanceDay[];
+  groups: { key: string; count: number }[];
+  rows: AttendanceRow[];
+  pending: PendingDay[];
+  total: number;
+  matched: number;
+};
+export type DayDetail = { person: PersonRef; date: string; title: string; sub: string; cell: Cell; item: InboxItem | null };
+
+export type StatTile = { label: string; value: string; note: string };
+export type StripDay = { date: string; dow: string; day: string; kind: CellKind; today: boolean; aria: string };
+export type HistoryRow = {
+  date: string;
+  dayLabel: string;
+  kind: CellKind;
+  range: string;
+  sub: string;
+  status: string;
+  tone: GroupKey | 'nocheck';
+  inText: string;
+  outText: string;
+  inTime: string | null;
+  outTime: string | null;
+};
+export type EmployeeMonth = {
+  pending: { count: number; date: string; text: string } | null;
+  stats: StatTile[];
+  chips: Record<GroupKey, number>;
+  strip: StripDay[];
+  history: HistoryRow[];
+  audit: { at: string; actor: string; text: string }[];
+};
+export type EmployeeView = {
+  person: Person;
+  month: string;
+  locked: boolean;
+  index: number;
+  total: number;
+  prevId: string | null;
+  nextId: string | null;
+  data: EmployeeMonth;
 };
 
 const NONE = '—';
-const GRID_DAYS = 28;
-const LABELS: Record<CellKind, string> = {
-  work: 'Đi làm',
-  late: 'Đi muộn',
-  leave: 'Nghỉ có phép',
-  absent: 'Vắng',
-  todo: 'Cần xử lý',
-  off: 'Không có ca',
-  fu: 'Ca dự kiến',
-  nocheck: 'Chưa Check-in'
-};
-const STATUS_TEXT: Record<string, string> = { tts: 'Thực tập sinh', ctv: 'Cộng tác viên', thuviec: 'Thử việc', nv: 'Nhân viên chính thức', nghiviec: 'Đã nghỉ việc' };
 
-const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
-const dow = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
-const isSunday = (iso: string) => dow(iso) === 0;
-const WORK_WEEK = [1, 2, 3, 4, 5, 6];
+// ---- Ánh xạ ----
 
-// Giờ "HH:mm" từ "HH:mm[:ss]" hoặc thời điểm ISO (đổi sang giờ Việt Nam).
-function hhmm(v: string | null): string | null {
-  if (!v) return null;
-  if (/^\d{2}:\d{2}/.test(v)) return v.slice(0, 5);
-  const t = Date.parse(v);
-  return Number.isNaN(t) ? null : new Date(t + 7 * 3600000).toISOString().slice(11, 16);
-}
+/** "12 ngày" / "26 ngày" ... chữ đơn vị đi sau số của thẻ. */
+const numText = (value: number, of?: number, unit?: string) => (of !== undefined ? `${value} / ${of}` : unit ? `${value} ${unit}` : String(value));
 
-/** Ngày đầu lưới: thứ Hai của tuần cách hôm nay 14 ngày (lưới 4 tuần, hôm nay ở tuần thứ ba). */
-export function gridFromOf(today: string): string {
-  const back = addDays(today, -14);
-  return addDays(back, -((dow(back) + 6) % 7));
-}
+const cellFrom = (c: DayCellDTO): Cell => ({
+  date: c.date,
+  kind: c.kind,
+  base: c.base,
+  text: c.text,
+  in: c.in,
+  out: c.out,
+  live: c.live,
+  itemId: c.itemId,
+  label: c.label,
+  aria: c.aria
+});
 
-/** Các tháng cần tải tuần làm việc: tháng đang xem và các tháng lưới 4 tuần chạm tới (tối đa 3, xếp tăng dần). */
-export function weekMonthsOf(month: string, today: string): string[] {
-  const from = gridFromOf(today);
-  return [...new Set([month, from.slice(0, 7), addDays(from, 27).slice(0, 7)])].sort();
-}
+const personRef = (p: { username: string; name: string; initials: string }): PersonRef => ({ id: p.username, name: p.name, initials: p.initials });
 
-function baseCell(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, weekdays: number[]) {
-  const none = { in: null as string | null, out: null as string | null, live: false };
-  if (!ts) {
-    if (isSunday(date) || !weekdays.includes(dow(date))) return { kind: 'off' as CellKind, text: '', ...none };
-    if (date > today) return { kind: 'fu' as CellKind, text: shift, ...none };
-    if (date === today) return { kind: 'nocheck' as CellKind, text: shift, ...none };
-    return { kind: 'absent' as CellKind, text: NONE, ...none };
-  }
-  if (ts.status === 'LEAVE_PAID' || ts.status === 'LEAVE_UNPAID' || ts.status === 'HOLIDAY') {
-    return { kind: 'leave' as CellKind, text: ts.status === 'HOLIDAY' ? 'Nghỉ lễ' : 'Nghỉ', ...none };
-  }
-  const cin = hhmm(ts.actualCheckIn);
-  const cout = hhmm(ts.actualCheckOut);
-  if (!cin && !cout) {
-    // Dòng ngày công có sẵn nhưng ngày này không thuộc tuần làm việc của người đó: ô nghỉ, không phải "chưa Check-in".
-    if (isSunday(date) || !weekdays.includes(dow(date))) return { kind: 'off' as CellKind, text: '', ...none };
-    return { kind: (date === today ? 'nocheck' : 'absent') as CellKind, text: NONE, ...none };
-  }
-  const late = ts.checkInStatus === 'LATE' || ts.checkOutStatus === 'EARLY';
-  const live = !!cin && !cout && date === today;
-  return { kind: (late ? 'late' : 'work') as CellKind, text: `${cin ?? '?'}–${cout ?? (live ? '…' : '?')}`, in: cin, out: cout, live };
-}
-
-function cellOf(ts: TimesheetDTO | undefined, date: string, today: string, shift: string, item: InboxItem | null, weekdays: number[]): Cell {
-  const base = baseCell(ts, date, today, shift, weekdays);
-  const kind: CellKind = item ? 'todo' : base.kind;
+function personFrom(p: PersonDTO): Person {
   return {
-    date,
-    kind,
-    base: base.kind,
-    text: base.text,
-    in: base.in,
-    out: base.out,
-    live: base.live,
-    itemId: item?.id ?? null,
-    label: LABELS[kind],
-    aria: item ? `Cần xử lý, ${item.what}` : `${LABELS[base.kind]}${base.text ? `, ${base.text}` : ''}${base.live ? ', đang làm' : ''}`
+    ...personRef(p),
+    group: p.group,
+    title: p.title || NONE,
+    code: p.code,
+    joined: p.joinedMonth ? `${p.joinedMonth.slice(5, 7)}/${p.joinedMonth.slice(0, 4)}` : NONE,
+    contract: p.contract,
+    shift: p.shiftText,
+    leaveLeft: `${p.leaveLeftDays} ngày`
   };
 }
 
-function personOf(e: EmployeeDTO, monthTs: TimesheetDTO[]): Person {
-  const name = e.profile.fullName || e.account.username;
-  const { shift, leave, position, status, effectiveFrom } = e.contract as any;
-  const present = monthTs.filter(t => t.status === 'PRESENT');
-  const lateRows = monthTs.filter(t => t.checkInStatus === 'LATE');
+/** Việc chờ: chữ đầu, phụ, dòng chi tiết lấy từ /requests khớp theo id; không có thì dựng tối thiểu từ DTO. */
+function itemFrom(p: PendingDTO, inbox: InboxItem[]): InboxItem {
+  const hit = inbox.find(i => i.id === p.id);
+  if (hit) return hit;
   return {
-    id: e.account.username,
-    name,
-    initials: initials(name),
-    dept: NONE,
-    title: position.jobTitle || NONE,
-    code: e.account.username,
-    joined: effectiveFrom ? `${effectiveFrom.slice(5, 7)}/${effectiveFrom.slice(0, 4)}` : NONE,
-    contract: STATUS_TEXT[status] || NONE,
-    shift: `${shift.type === 'NORMAL' ? 'HC' : shift.type} ${shift.startTime}–${shift.endTime}`,
-    leaveLeft: `${leave?.remainingDays ?? 0} ngày`,
-    lateCount: lateRows.length,
-    avgIn: NONE,
-    avgOut: NONE,
-    sums: {
-      late: monthTs.reduce((n, t) => n + (t.metrics?.lateMinutes || 0), 0),
-      ot: monthTs.reduce((n, t) => n + (t.metrics?.otHours || 0), 0)
-    },
-    period: {
-      worked: present.length,
-      leave: monthTs.filter(t => t.status === 'LEAVE_PAID' || t.status === 'HOLIDAY').length,
-      isat: 0,
-      pending: 0,
-      unpaid: monthTs.filter(t => t.status === 'LEAVE_UNPAID' || t.status === 'ABSENT').length
-    }
+    id: p.id,
+    group: p.group,
+    groupLabel: p.groupLabel,
+    action: p.action,
+    personId: p.username,
+    name: p.name,
+    initials: p.initials,
+    role: p.title || '',
+    what: p.what,
+    when: p.when,
+    age: p.age,
+    head: p.what,
+    sub: p.when,
+    facts: [],
+    days: p.days
   };
 }
 
-export type AttendanceInput = {
-  month: string;
-  today: string;
-  employees: EmployeeDTO[];
-  timesheets: TimesheetDTO[];
-  pending: InboxItem[];
-  /**
-   * Tuần làm việc theo tháng (YYYY-MM) rồi theo username (1 = T2 … 6 = T7). Lưới 4 tuần có thể chạm hai tháng,
-   * nên mỗi ngày đọc tuần của tháng chứa ngày đó. Tháng hoặc người không có mặt ở đây làm T2–T7.
-   */
-  weeks?: Record<string, Record<string, number[]>>;
-};
-
-type Index = {
-  byKey: Map<string, TimesheetDTO>;
-  uuidOf: Map<string, string>;
-  /** uuid hoặc tên đăng nhập → tên đăng nhập (khoá của người trên lưới). */
-  usernameOf: Map<string, string>;
-  overlay: Map<string, InboxItem>;
-  weekOf: (username: string, date: string) => number[];
-};
-
-function indexOf({ employees, timesheets, pending, weeks }: AttendanceInput): Index {
-  const uuidOf = new Map(employees.map(e => [e.account.username, e.profile.uuid || e.account.username]));
-  const usernameOf = new Map<string, string>();
-  for (const e of employees) {
-    usernameOf.set(e.account.username, e.account.username);
-    if (e.profile.uuid) usernameOf.set(e.profile.uuid, e.account.username);
-  }
-  const byKey = new Map(timesheets.map(t => [`${t.employeeId}|${t.workDate}`, t]));
-  // Việc chờ duyệt từ /requests mang personId = uuid của nhân sự; người trên lưới khoá theo tên đăng nhập.
-  const overlay = new Map<string, InboxItem>();
-  for (const item of pending) {
-    const owner = usernameOf.get(item.personId) ?? item.personId;
-    for (const d of item.days) overlay.set(`${owner}|${d}`, item);
-  }
-  return { byKey, uuidOf, usernameOf, overlay, weekOf: (username, date) => weeks?.[date.slice(0, 7)]?.[username] ?? WORK_WEEK };
-}
-
-const tsOf = (ix: Index, username: string, date: string) =>
-  ix.byKey.get(`${ix.uuidOf.get(username)}|${date}`) ?? ix.byKey.get(`${username}|${date}`);
-
-const monthTsOf = (input: AttendanceInput, ix: Index, username: string) =>
-  input.timesheets.filter(
-    t => (t.employeeId === ix.uuidOf.get(username) || t.employeeId === username) && t.workDate.startsWith(input.month)
-  );
-
-const activeEmployees = (list: EmployeeDTO[]) => list.filter(e => e.contract.status !== 'nghiviec');
-
-/** Màn tuần (lưới 4 tuần, thẻ số, danh sách cần xử lý). */
-export function attendanceFromTimesheets(input: AttendanceInput): AttendanceView {
-  const { month, today, pending } = input;
-  const ix = indexOf(input);
-  const from = gridFromOf(today);
-  const days: AttendanceDay[] = Array.from({ length: GRID_DAYS }, (_, k) => {
-    const iso = addDays(from, k);
-    return { iso, dow: dowShort(iso), dm: dm(iso), scheduled: !isSunday(iso), today: iso === today, monday: dow(iso) === 1, periodStart: iso.endsWith('-01') };
-  });
-  const people = activeEmployees(input.employees).sort((a, b) => (a.profile.fullName || '').localeCompare(b.profile.fullName || '', 'vi'));
-  const rows = people.map(e => {
-    const person = personOf(e, monthTsOf(input, ix, e.account.username));
-    const shift = person.shift;
-    return {
-      person,
-      cells: days.map(d => cellOf(tsOf(ix, person.id, d.iso), d.iso, today, shift, ix.overlay.get(`${person.id}|${d.iso}`) ?? null, ix.weekOf(person.id, d.iso)))
-    };
-  });
-  const byId = new Map(rows.map(r => [r.person.id, r.person]));
-  const pendingDays: PendingDay[] = pending
-    .map(item => ({ item, person: byId.get(ix.usernameOf.get(item.personId) ?? item.personId), date: item.days[0] }))
-    .filter((p): p is PendingDay => p.item.days.length > 0 && p.person !== undefined)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const todayCells = rows.map(r => r.cells.find(c => c.date === today)).filter(Boolean) as Cell[];
-  const present = todayCells.filter(c => c.base === 'work' || c.base === 'late').length;
-  const lateToday = todayCells.filter(c => c.base === 'late');
-  const monthTs = input.timesheets.filter(t => t.workDate.startsWith(month));
-  const count = (g: InboxItem['group']) => pending.filter(i => i.group === g).length;
-  const toExplain = pendingDays.filter(p => p.item.action === 'remind').length;
-  const tiles: Tile[] = [
-    {
-      key: 'todo',
-      label: 'Cần xử lý',
-      value: String(pendingDays.length),
-      note: `${toExplain} chưa giải trình · ${pendingDays.length - toExplain} yêu cầu chờ duyệt`
-    },
-    { key: 'present', label: 'Có mặt hôm nay', value: `${present} / ${rows.length}`, note: `${rows.length - present} người chưa Check-in` },
-    { key: 'late', label: 'Đi muộn hôm nay', value: String(lateToday.length), note: '' },
-    { key: 'leave', label: 'Nghỉ có phép', value: String(todayCells.filter(c => c.base === 'leave').length), note: `${count('leave')} đơn chờ duyệt` },
-    { key: 'absent', label: 'Vắng không phép', value: String(monthTs.filter(t => t.status === 'ABSENT').length), note: `trong tháng ${Number(month.slice(5, 7))}` },
-    {
-      key: 'ot',
-      label: 'Làm thêm tháng này',
-      value: `${Math.round(monthTs.reduce((n, t) => n + (t.metrics?.otHours || 0), 0) * 10) / 10} giờ`,
-      note: `${count('ot')} yêu cầu chờ duyệt`
-    }
-  ];
-  const [y, m] = month.split('-');
-  const last = new Date(Date.UTC(Number(y), Number(m), 0)).getUTCDate();
+/** Lưới tuần: ánh xạ GET /attendance/week. `inbox` là việc chờ từ /requests. */
+export function attendanceFromWeek(dto: WeekDTO, inbox: InboxItem[]): AttendanceView {
   return {
-    month,
-    subtitle: `Kỳ công 01–${last}/${m}/${y} · hôm nay ${weekdayName(today)} ${dm(today)}`,
-    tiles,
-    days,
-    rows,
-    pending: pendingDays,
-    total: rows.length
+    month: dto.month,
+    today: dto.today,
+    subtitle: dto.subtitle,
+    tiles: dto.tiles.map(t => ({ key: t.key, label: t.label, value: numText(t.value, t.of, t.unit), note: t.note })),
+    days: dto.days,
+    groups: dto.groups,
+    rows: dto.rows.map(r => ({ person: personRef(r), cells: r.days.map(cellFrom), totals: r.totals, needsAction: r.needsAction })),
+    pending: dto.pending.map(p => ({ item: itemFrom(p, inbox), person: personRef(p), date: p.date })),
+    total: dto.total,
+    matched: dto.matched
   };
 }
 
-/** Hộp chi tiết một ngày của một người; null khi không có người này. */
-export function dayDetailFrom(input: AttendanceInput, personId: string, date: string): DayDetail | null {
-  const ix = indexOf(input);
-  const e = input.employees.find(x => x.account.username === personId);
-  if (!e) return null;
-  const person = personOf(e, monthTsOf(input, ix, personId));
-  const item = ix.overlay.get(`${personId}|${date}`) ?? null;
-  const cell = cellOf(tsOf(ix, personId, date), date, input.today, person.shift, item, ix.weekOf(personId, date));
-  return { person, date, title: `${weekdayName(date)} ${dm(date)}`, sub: person.shift, cell, item };
-}
-
-/** Hồ sơ chấm công một người trong tháng: thẻ số, đếm theo nhóm, dải ngày và lịch sử từng ngày (mới nhất trước). */
-export function employeeViewFrom(input: AttendanceInput, personId: string): EmployeeView | null {
-  const people = activeEmployees(input.employees).sort((a, b) => (a.profile.fullName || '').localeCompare(b.profile.fullName || '', 'vi'));
-  const index = people.findIndex(e => e.account.username === personId);
-  if (index < 0) return null;
-  const ix = indexOf(input);
-  const person = personOf(people[index], monthTsOf(input, ix, personId));
-  const [y, m] = input.month.split('-').map(Number);
-  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
-  const cells = Array.from({ length: last }, (_, k) => {
-    const date = `${input.month}-${String(k + 1).padStart(2, '0')}`;
-    return cellOf(tsOf(ix, personId, date), date, input.today, person.shift, ix.overlay.get(`${personId}|${date}`) ?? null, ix.weekOf(personId, date));
-  });
-  const strip: StripDay[] = cells.map(c => ({ date: c.date, dow: dowShort(c.date), day: String(Number(c.date.slice(8, 10))), kind: c.kind, today: c.date === input.today, aria: c.aria }));
-  const chips: Record<GroupKey, number> = { work: 0, late: 0, leave: 0, absent: 0, todo: 0 };
-  for (const c of cells) if (c.kind in chips) chips[c.kind as GroupKey] += 1;
-  const history: HistoryEntry[] = cells
-    .filter(c => c.date <= input.today && c.kind !== 'off')
-    .reverse()
-    .map(c => ({
-      type: 'row' as const,
-      row: {
-        date: c.date,
-        dayLabel: `${weekdayName(c.date)} ${dm(c.date)}`,
-        kind: c.kind,
-        range: c.text,
-        sub: person.shift,
-        status: c.label,
-        tone: (c.kind === 'nocheck' || c.kind === 'fu' ? 'nocheck' : c.kind) as GroupKey | 'nocheck',
-        inText: c.in ?? NONE,
-        outText: c.out ?? NONE,
-        parts: []
-      }
-    }));
-  const waiting = input.pending.filter(i => i.personId === personId && i.days.length);
+/** Hồ sơ chấm công một người: ánh xạ GET /attendance/employees/:username. */
+export function employeeFromDto(dto: EmployeeMonthDTO): EmployeeView {
+  const strip: StripDay[] = dto.days.map(c => ({
+    date: c.date,
+    dow: c.dow,
+    day: c.day,
+    kind: c.kind,
+    today: c.today,
+    aria: `${weekdayName(c.date)} ${dm(c.date)}: ${c.aria}`
+  }));
+  const history: HistoryRow[] = dto.dayHistory.map(h => ({
+    date: h.date,
+    dayLabel: h.dayLabel,
+    kind: h.kind,
+    range: h.text,
+    sub: h.shift,
+    status: h.status,
+    tone: h.tone as HistoryRow['tone'],
+    inText: h.in ?? NONE,
+    outText: h.out ?? NONE,
+    inTime: h.in,
+    outTime: h.out
+  }));
   return {
-    person,
-    month: input.month,
-    index: index + 1,
-    total: people.length,
-    prevId: index > 0 ? people[index - 1].account.username : null,
-    nextId: index < people.length - 1 ? people[index + 1].account.username : null,
+    person: personFrom(dto.person),
+    month: dto.month,
+    locked: dto.locked,
+    index: dto.index,
+    total: dto.total,
+    prevId: dto.prev,
+    nextId: dto.next,
     data: {
-      pending: waiting.length ? { count: waiting.length, date: waiting[0].days[0], text: waiting[0].what } : null,
-      stats: [
-        { label: 'Ngày đi làm', value: String(person.period.worked), note: `trong tháng ${m}` },
-        { label: 'Lần đi muộn', value: String(person.lateCount), note: `${person.sums.late} phút` },
-        { label: 'Làm thêm', value: `${person.sums.ot} giờ`, note: '' },
-        { label: 'Phép năm còn', value: person.leaveLeft, note: '' }
-      ],
-      chips,
+      pending: dto.pending ? { count: dto.pending.count, date: dto.pending.date, text: dto.pending.text } : null,
+      stats: dto.stats.map(s => ({ label: s.label, value: s.unit ? `${s.value} ${s.unit}` : String(s.value), note: s.note })),
+      chips: dto.chips,
       strip,
-      history
+      history,
+      audit: dto.history
     }
+  };
+}
+
+/** Hộp chi tiết một ngày: ô lấy nguyên từ hồ sơ tháng của BE; null khi ngày không nằm trong tháng đó. */
+export function dayDetailFromDto(dto: EmployeeMonthDTO, date: string, inbox: InboxItem[]): DayDetail | null {
+  const cell = dto.days.find(c => c.date === date);
+  if (!cell) return null;
+  const hist = dto.dayHistory.find(h => h.date === date);
+  return {
+    person: personRef(dto.person),
+    date,
+    title: `${dto.person.name} · ${weekdayName(date)} ${dmy(date)}`,
+    sub: `${dto.person.group} · ${dto.person.title || NONE} · Ca ${hist?.shift ?? dto.person.shiftText}`,
+    cell: cellFrom(cell),
+    item: (cell.itemId && inbox.find(i => i.id === cell.itemId)) || null
   };
 }

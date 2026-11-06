@@ -1,6 +1,6 @@
 import { Controller, Get, Inject, Param, Query, UseFilters } from '@nestjs/common';
 import { ApiExceptionFilter, BadRequestError, NotFoundError, RequireCap } from '../../common';
-import { OverviewService } from './overview.service';
+import { MAX_RECENT_DAYS, MAX_WINDOW_DAYS, OverviewService } from './overview.service';
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -16,6 +16,15 @@ function optionalMonth(month?: string): string | undefined {
   return month;
 }
 
+function optionalInt(text: string | undefined, min: number, max: number, name: string): number | undefined {
+  if (text === undefined || text === '') return undefined;
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    throw new BadRequestError(`${name} phải là số nguyên từ ${min} đến ${max}`, { code: 'INVALID_DAYS' });
+  }
+  return n;
+}
+
 @UseFilters(ApiExceptionFilter)
 @Controller('api/v2')
 export class OverviewController {
@@ -23,11 +32,23 @@ export class OverviewController {
 
   @RequireCap('attendance.correct')
   @Get('attendance/week')
-  async week(@Query('from') from?: string, @Query('q') q?: string, @Query('group') group?: string): Promise<unknown> {
+  async week(
+    @Query('from') from?: string,
+    @Query('days') days?: string,
+    @Query('q') q?: string,
+    @Query('group') group?: string,
+    @Query('month') month?: string
+  ): Promise<unknown> {
     if (from !== undefined && from !== '' && !isCalendarDate(from)) {
       throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
     }
-    return await this.service.week(from || undefined, q, group);
+    return await this.service.week({
+      from: from || undefined,
+      days: optionalInt(days, 1, MAX_WINDOW_DAYS, 'Số ngày'),
+      q,
+      group,
+      month: optionalMonth(month)
+    });
   }
 
   @RequireCap('attendance.correct')
@@ -40,7 +61,7 @@ export class OverviewController {
 
   @RequireCap('config.read')
   @Get('overview')
-  async overview(@Query('month') month?: string): Promise<unknown> {
-    return await this.service.overview(optionalMonth(month));
+  async overview(@Query('month') month?: string, @Query('days') days?: string): Promise<unknown> {
+    return await this.service.overview({ month: optionalMonth(month), days: optionalInt(days, 1, MAX_RECENT_DAYS, 'Số ngày') });
   }
 }

@@ -268,88 +268,52 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
   });
 });
 
-import { attendanceFromTimesheets, gridFromOf } from '../../web/src/builders/api/attendance';
+import { readFileSync } from 'node:fs';
+import { attendanceFromWeek, dayDetailFromDto, employeeFromDto } from '../../web/src/builders/api/attendance';
 
-describe('Chấm công Admin từ /attendance/timesheets', () => {
-  const emp = employee({ username: 'nam', name: 'Lê Hoàng Nam', job: 'Kinh doanh' });
-  const ts = (workDate: string, over: Record<string, unknown> = {}) => ({
-    employeeId: 'u-nam', workDate, shiftType: 'NORMAL', shiftStartTime: '08:00', shiftEndTime: '17:00',
-    actualCheckIn: '07:55', actualCheckOut: '17:05', status: 'PRESENT', checkInStatus: 'ON_TIME', checkOutStatus: 'ON_TIME',
-    metrics: { lateMinutes: 0, earlyLeaveMinutes: 0, otHours: 0, workHours: 8 }, ...over
-  });
+// Builder Chấm công chỉ ánh xạ DTO của BE (đã tính hết); chạy trên hai file phản hồi thật làm hợp đồng.
+const fixture = (name: string) => JSON.parse(readFileSync(new URL(`../../web/tests/fixtures/api/${name}.json`, import.meta.url), 'utf8'));
 
-  it('starts the grid on the Monday two weeks before today', () => {
-    assert.equal(gridFromOf('2026-11-05'), '2026-10-19');
-  });
+describe('Chấm công Admin từ /attendance/week và /attendance/employees/:username', () => {
+  const week = fixture('attendance-week');
+  const emp = fixture('attendance-employee');
 
-  it('builds cells from timesheets and marks pending items as todo', () => {
-    const view: any = attendanceFromTimesheets({
-      month: '2026-11',
-      today: '2026-11-05',
-      employees: [emp] as any,
-      timesheets: [
-        ts('2026-11-02'),
-        ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } }),
-        ts('2026-11-04', { status: 'LEAVE_PAID', actualCheckIn: null, actualCheckOut: null }),
-        ts('2026-11-05', { actualCheckOut: null, status: 'ABSENT' })
-      ] as any,
-      pending: [{ id: 'r1', personId: 'nam', days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
-    });
-    assert.equal(view.days.length, 28);
-    assert.equal(view.days[0].iso, '2026-10-19');
+  it('maps the week DTO without recomputing anything', () => {
+    const view: any = attendanceFromWeek(week, []);
+    assert.equal(view.days.length, week.days.length);
+    assert.equal(view.rows.length, week.rows.length);
+    assert.equal(view.total, week.total);
+    assert.equal(view.matched, week.matched);
+    assert.deepEqual(view.groups, week.groups);
     const row = view.rows[0];
-    assert.equal(row.person.name, 'Lê Hoàng Nam');
-    const at = (d: string) => row.cells.find((c: any) => c.date === d);
-    assert.equal(at('2026-11-02').kind, 'work');
-    assert.equal(at('2026-11-02').text, '07:55–17:05');
-    assert.equal(at('2026-11-03').base, 'late');
-    assert.equal(at('2026-11-03').kind, 'todo');
-    assert.equal(at('2026-11-03').itemId, 'r1');
-    assert.equal(at('2026-11-04').kind, 'leave');
-    assert.equal(at('2026-11-05').kind, 'work');
-    assert.equal(at('2026-11-05').live, true);
-    assert.equal(at('2026-11-06').kind, 'fu');
-    assert.equal(at('2026-11-01').kind, 'off'); // Chủ nhật
-    assert.equal(at('2026-10-30').kind, 'absent');
-    assert.equal(view.pending.length, 1);
-    assert.equal(view.total, 1);
-    assert.equal(row.person.lateCount, 1);
+    assert.deepEqual(row.totals, week.rows[0].totals);
+    assert.equal(row.needsAction, week.rows[0].needsAction);
+    assert.deepEqual(row.cells.map((c: any) => [c.date, c.kind, c.base, c.text]), week.rows[0].days.map((c: any) => [c.date, c.kind, c.base, c.text]));
+    assert.equal(view.tiles.length, 6);
+    assert.equal(view.tiles[1].value, '1 / 3');
+    assert.equal(view.tiles[5].value, '0 giờ');
+    assert.equal(view.pending.length, week.pending.length);
+    assert.equal(view.pending[0].item.what, 'Quên chấm công'); // không có trong /requests: dựng tối thiểu từ DTO
   });
 
-  // BUG-requests-9: việc chờ duyệt từ /requests mang personId = uuid (employeeId của đơn), còn người trên lưới khoá theo
-  // tên đăng nhập. Hai bên phải khớp, nếu không Cần xử lý luôn trống và lưới không tô ô "cần xử lý".
-  it('matches pending items keyed by the employee uuid', () => {
-    const view: any = attendanceFromTimesheets({
-      month: '2026-11',
-      today: '2026-11-05',
-      employees: [emp] as any,
-      timesheets: [ts('2026-11-03', { actualCheckIn: '08:20', checkInStatus: 'LATE', metrics: { lateMinutes: 20, otHours: 0 } })] as any,
-      pending: [{ id: 'r1', personId: emp.profile.uuid, days: ['2026-11-03'], group: 'exp', what: 'Giải trình' }] as any
-    });
-    assert.equal(emp.profile.uuid, 'u-nam');
-    assert.equal(view.pending.length, 1);
-    assert.equal(view.pending[0].person.name, 'Lê Hoàng Nam');
-    assert.equal(view.total, 1);
-    const cell = view.rows[0].cells.find((c: any) => c.date === '2026-11-03');
-    assert.equal(cell.kind, 'todo');
-    assert.equal(cell.itemId, 'r1');
+  it('takes head, sub and facts of a pending item from /requests by id', () => {
+    const inbox: any[] = [{ id: week.pending[0].id, head: 'Đầu thật', sub: 'Phụ thật', facts: [['A', 'B']], personId: 'u1' }];
+    const view: any = attendanceFromWeek(week, inbox);
+    assert.equal(view.pending[0].item.head, 'Đầu thật');
   });
 
-  // Như mock: ô Cần xử lý đếm mọi ngày có việc, ghi chú tách ngày chưa giải trình (Admin nhắc) khỏi yêu cầu chờ duyệt.
-  it('splits days to explain from requests to decide in the Cần xử lý tile', () => {
-    const view: any = attendanceFromTimesheets({
-      month: '2026-11',
-      today: '2026-11-05',
-      employees: [emp] as any,
-      timesheets: [ts('2026-11-02'), ts('2026-11-03')] as any,
-      pending: [
-        { id: 'r1', personId: 'u-nam', days: ['2026-11-03'], group: 'exp', action: 'decide', what: 'Giải trình' },
-        { id: 'due:u-nam:2026-11-02', personId: 'u-nam', days: ['2026-11-02'], group: 'att', action: 'remind', what: 'Đi muộn' }
-      ] as any
-    });
-    const todo = view.tiles.find((t: any) => t.key === 'todo');
-    assert.equal(todo.value, '2');
-    assert.equal(todo.note, '1 chưa giải trình · 1 yêu cầu chờ duyệt');
+  it('maps the employee DTO and picks a day cell for the detail box', () => {
+    const view: any = employeeFromDto(emp);
+    assert.equal(view.index, emp.index);
+    assert.equal(view.prevId, emp.prev);
+    assert.equal(view.nextId, emp.next);
+    assert.deepEqual(view.data.chips, emp.chips);
+    assert.equal(view.data.strip.length, emp.days.length);
+    assert.equal(view.data.history.length, emp.dayHistory.length);
+    assert.equal(view.data.stats[0].value, String(emp.stats[0].value));
+    const detail: any = dayDetailFromDto(emp, emp.days[0].date, []);
+    assert.equal(detail.cell.kind, emp.days[0].kind);
+    assert.equal(dayDetailFromDto(emp, '2000-01-01', []), null);
   });
 });
 
@@ -511,55 +475,32 @@ describe('Tài khoản từ /roles và /employees', () => {
 });
 
 import { overviewFrom } from '../../web/src/builders/api/overview';
+import { overviewDto } from '../../web/src/mock/overview';
+import { readFileSync } from 'node:fs';
 
-describe('Tổng quan ghép từ các API có sẵn', () => {
-  it('builds kpis, attendance rate, period and payroll rows', () => {
-    const emps = [employee({ username: 'nam', name: 'Lê Hoàng Nam' }), employee({ username: 'ha', name: 'Nguyễn Thu Hà' }), employee({ username: 'quan', status: 'nghiviec', resigned: '2026-10-01' })];
-    const tsIn = (u: string, d: string) => ({ employeeId: `u-${u}`, workDate: d, actualCheckIn: '07:55', actualCheckOut: null, status: 'PRESENT' });
-    const board = payrollScreenFromPayslips([], '2026-11');
-    const v: any = overviewFrom({
-      month: '2026-11',
-      today: '2026-11-05',
-      now: '09:40',
-      payroll: board,
-      employees: emps as any,
-      timesheets: [tsIn('nam', '2026-11-05'), tsIn('nam', '2026-11-04'), tsIn('ha', '2026-11-04')] as any,
-      approvals: [{ id: 'r1', action: 'decide' }, { id: 'r2', action: 'decide' }] as any,
-      periodState: 'Đang chấm công'
-    });
-    assert.deepEqual(v.headline, { blocking: 2, closeOn: '30/11', daysLeft: 25 });
+describe('Tổng quan ánh xạ từ GET /overview (BE tính hết)', () => {
+  const fixture = JSON.parse(readFileSync(new URL('../../web/tests/fixtures/api/overview.json', import.meta.url), 'utf8'));
+
+  it('maps the real response to the view without computing', () => {
+    const v: any = overviewFrom(fixture);
+    assert.deepEqual(v.headline, { blocking: 93, closeOn: '31/10', daysLeft: 11 });
     const k = Object.fromEntries(v.kpis.map((x: any) => [x.key, x]));
-    assert.equal(k.staff.value, '2');
+    assert.equal(k.staff.value, '3');
     assert.equal(k.present.value, '1');
-    assert.equal(k.present.of, '2');
-    assert.equal(k.requests.value, '2');
-    assert.equal(k.payroll.value, '0,00');
-    assert.equal(v.attendance.todayRate, 50);
-    assert.deepEqual(v.attendance.days.at(-1), { dow: 'Hôm nay', date: '05/11', rate: 50, today: true });
-    assert.deepEqual(v.attendance.days.at(-2), { dow: 'T4', date: '04/11', rate: 100, today: false });
-    assert.equal(v.attendance.days.length, 6);
-    assert.equal(v.period.statusLabel, 'Đang chấm công');
-    assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 0, rejected: 0, total: 0 });
-    assert.equal(v.payroll.rows.length, 0);
+    assert.equal(k.present.of, '3');
+    assert.equal(k.requests.value, '1');
+    assert.equal(v.attendance.todayRate, 33);
+    assert.deepEqual(v.attendance.days.at(-1), { dow: 'Hôm nay', date: '20/10', rate: 33, today: true });
+    assert.equal(v.period.statusLabel, 'Chờ duyệt');
+    assert.equal(v.period.payday, '10/11/2026');
+    assert.deepEqual(v.period.slips, { done: 0, pending: 0, draft: 2, rejected: 0, total: 2 });
+    assert.equal(v.approvals.total, 93);
+    assert.equal(v.approvals.items.length, 8);
   });
 
-  // Như mock: thẻ Việc cần duyệt hiện đủ danh sách của chuông, chỉ số "Yêu cầu chờ duyệt" chỉ đếm việc cần quyết định.
-  // Dòng "Còn N việc phải xong trước khi chốt lương" đếm cả ngày chưa giải trình.
-  it('counts only requests to decide in the Yêu cầu chờ duyệt KPI', () => {
-    const v: any = overviewFrom({
-      month: '2026-11',
-      today: '2026-11-05',
-      now: '09:40',
-      payroll: payrollScreenFromPayslips([], '2026-11'),
-      employees: [] as any,
-      timesheets: [] as any,
-      approvals: [{ id: 'r1', action: 'decide' }, { id: 'due:u1:2026-11-02', action: 'remind' }] as any,
-      periodState: 'Đang chấm công'
-    });
-    const k = Object.fromEntries(v.kpis.map((x: any) => [x.key, x]));
-    assert.equal(k.requests.value, '1');
-    assert.equal(v.headline.blocking, 2);
-    assert.equal(v.approvals.length, 2);
+  it('mock DTO is built by the same builder', () => {
+    const v: any = overviewFrom(overviewDto('2026-10'));
+    assert.equal(v.approvals.total, v.headline.blocking);
   });
 });
 

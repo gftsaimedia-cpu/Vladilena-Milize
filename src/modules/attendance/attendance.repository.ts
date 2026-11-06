@@ -57,6 +57,12 @@ function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
 export class AttendanceRepository {
   constructor(@Inject(KYSELY_DB) private readonly qb: Kysely<DB>) {}
 
+  /** Tên đăng nhập và tên hiển thị của nhân sự theo uuid (cho sự kiện realtime); không có thì null. */
+  async findIdentity(employeeId: string): Promise<{ username: string; name: string } | null> {
+    const row = await this.qb.selectFrom('staff').select(['username', 'name']).where('uuid', '=', employeeId).executeTakeFirst();
+    return row ? { username: row.username, name: row.name } : null;
+  }
+
   /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */
   withTransaction(trx: Kysely<DB>): AttendanceRepository {
     return new AttendanceRepository(trx);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Bảng lương của Tổng quan: lọc theo trạng thái và tìm theo tên / phòng ban chạy tại chỗ trên các dòng mẫu.
+// Bảng lương của Tổng quan: lọc theo trạng thái và tìm theo tên chạy tại chỗ trên các dòng máy chủ trả (tối đa 6; máy chủ không trả phòng ban).
 // Trạng thái lọc và chữ tìm thuộc về bảng, không ghi lên đường dẫn.
 import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -34,7 +34,7 @@ const filters = computed<{ key: Filter; label: string; count: number }[]>(() => 
 const rows = computed(() => {
   const q = foldText(query.value);
   return props.payroll.rows.filter(
-    r => (filter.value === 'all' || r.status === filter.value) && (!q || foldText(`${r.name} ${r.dept}`).includes(q))
+    r => (filter.value === 'all' || r.status === filter.value) && (!q || foldText(r.name).includes(q))
   );
 });
 </script>
@@ -51,8 +51,8 @@ const rows = computed(() => {
         <input
           v-model="query"
           type="text"
-          placeholder="Tìm theo tên hoặc phòng ban"
-          aria-label="Tìm theo tên hoặc phòng ban"
+          placeholder="Tìm theo tên"
+          aria-label="Tìm theo tên"
         />
       </label>
     </div>
@@ -76,7 +76,6 @@ const rows = computed(() => {
         <thead>
           <tr>
             <th>Nhân viên</th>
-            <th>Phòng ban</th>
             <th class="n">Ngày công</th>
             <th class="n">Lương cơ bản</th>
             <th class="n">Phụ cấp</th>
@@ -95,7 +94,6 @@ const rows = computed(() => {
                 </div>
               </div>
             </td>
-            <td>{{ r.dept }}</td>
             <td class="n">{{ r.days }}</td>
             <td class="n">{{ r.base }}</td>
             <td class="n">{{ r.allowance }}</td>

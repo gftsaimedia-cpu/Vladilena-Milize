@@ -2,9 +2,11 @@ import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import { PeriodGate } from '../periods/period-gate';
 import { BadRequestError } from '../../common';
-import { businessDateText } from '../../common/business-date';
+import { businessDateText, businessTimeText } from '../../common/business-date';
 import { isValidDateText } from '../../common/date-text';
 import { checkPunchLocation, isWorkday, SettingsReader, TypeWeekMissingError } from '../settings';
+import { RealtimeBus } from '../realtime/realtime-bus';
+import type { RealtimeEvent } from '../realtime/realtime-event';
 import { PunchRefusedError } from './attendance.errors';
 import { AttendanceRepository, TimesheetFilter } from './attendance.repository';
 import { AttendanceDaysService, employeeLockKey } from './attendance-days.service';
@@ -53,7 +55,20 @@ export class AttendanceService {
     @Optional() @Inject(TransactionCoordinator) private readonly txCoordinator?: TransactionCoordinator,
     // Cổng kỳ (spec kỳ lương §5): tháng của ngày công đã chốt thì không chấm, không tính lại.
     @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'hold'>,
+    // Phát sự kiện realtime sau khi commit; thiếu thì không phát.
+    @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus,
   ) {}
+
+  /** Phát sự kiện sau commit. Lỗi ở đây (tra tên, bus) chỉ ghi log, không làm hỏng request chấm công/tính lại. */
+  private async announce(employeeId: string, build: (who: { username: string; name: string }) => RealtimeEvent): Promise<void> {
+    if (!this.bus) return;
+    try {
+      const who = await this.repo.findIdentity(employeeId);
+      if (who) this.bus.publish(build(who));
+    } catch (err) {
+      console.error('Không phát được sự kiện realtime:', err);
+    }
+  }
 
   /**
    * Ngày `date` có phải ngày làm của người này không: đã có lịch, thứ thuộc tuần làm của tháng đó,
@@ -206,10 +221,21 @@ export class AttendanceService {
       };
     };
 
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(employeeLockKey(input.employeeId), trx => execute(trx));
-    }
-    return await execute();
+    const result = this.txCoordinator
+      ? await this.txCoordinator.withLock(employeeLockKey(input.employeeId), trx => execute(trx))
+      : await execute();
+    const { punch } = result;
+    await this.announce(input.employeeId, who => ({
+      type: 'attendance.punched',
+      username: who.username,
+      name: who.name,
+      workDate: punch.workDate,
+      direction: input.type,
+      at: punchedAt.toISOString(),
+      time: businessTimeText(punchedAt),
+      source: options.checkZone ? 'self' : 'admin',
+    }));
+    return result;
   }
 
   /** Admin tính lại một ngày (T7): dựng lại dòng ngày từ nguồn rồi trả dòng đó. */
@@ -230,10 +256,11 @@ export class AttendanceService {
       return timesheet.toJSON();
     };
 
-    if (this.txCoordinator) {
-      return await this.txCoordinator.withLock(employeeLockKey(employeeId), trx => execute(trx));
-    }
-    return await execute();
+    const result = this.txCoordinator
+      ? await this.txCoordinator.withLock(employeeLockKey(employeeId), trx => execute(trx))
+      : await execute();
+    await this.announce(employeeId, who => ({ type: 'attendance.changed', username: who.username, workDate }));
+    return result;
   }
 
   /** Admin tính lại cả tháng 'YYYY-MM' (T7): trả mọi dòng ngày của tháng theo ngày tăng. */

@@ -6,10 +6,17 @@ import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import Icon from '@/components/ui/Icon.vue';
 import { usePeriodStore } from '@/stores/period';
+import { useRealtimeStore } from '@/stores/realtime';
 
 defineProps({ bell: { type: Number, default: 0 } });
 defineEmits(['open-bell']);
 const period = usePeriodStore();
+const realtime = useRealtimeStore();
+const LIVE_TEXT = {
+  live: 'Cập nhật trực tiếp: đang bật',
+  connecting: 'Cập nhật trực tiếp: đang kết nối',
+  offline: 'Cập nhật trực tiếp: mất kết nối'
+};
 const route = useRoute();
 const router = useRouter();
 const go = (month?) => month && router.replace({ query: { ...route.query, thang: month } });
@@ -45,6 +52,7 @@ function search() {
         <Icon name="chevr" />
       </button>
     </div>
+    <span class="rt" :class="realtime.status" role="img" :aria-label="LIVE_TEXT[realtime.status]" :title="LIVE_TEXT[realtime.status]" />
     <button type="button" class="bell" :aria-label="`Thông báo, ${bell} việc cần xử lý`" @click="$emit('open-bell')">
       <Icon name="bell" :size="18" />
       <i v-if="bell">{{ bell }}</i>
@@ -53,6 +61,29 @@ function search() {
 </template>
 
 <style scoped>
+.rt {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--err-ink);
+}
+.rt.live {
+  background: var(--done-ink);
+}
+.rt.connecting {
+  background: var(--pend-ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rt.live {
+    animation: rt-pulse 2.4s ease-in-out infinite;
+  }
+}
+@keyframes rt-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
 .mpick button:disabled {
   opacity: 0.35;
   cursor: default;

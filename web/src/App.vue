@@ -7,8 +7,10 @@ import AdminLayout from '@/components/shell/AdminLayout.vue';
 import AppToast from '@/components/shell/AppToast.vue';
 import BlankLayout from '@/layouts/BlankLayout.vue';
 import StaffLayout from '@/layouts/StaffLayout.vue';
+import { useRealtimeStore } from '@/stores/realtime';
 
 const LAYOUTS = { admin: AdminLayout, staff: StaffLayout, blank: BlankLayout };
+useRealtimeStore().bind(); // mở/đóng luồng realtime theo phiên admin
 const route = useRoute();
 const layout = computed(() => LAYOUTS[route.meta.layout as string] || BlankLayout);
 </script>

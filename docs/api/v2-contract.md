@@ -48,7 +48,7 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 | | `GET /api/punches` | `GET /api/v2/attendance/punches` | GET | Lịch sử lượt bấm công |
 | | `GET /api/timesheets` | `GET /api/v2/attendance/timesheets` | GET | Bảng công chi tiết theo ngày |
 | | `POST /api/timesheets/recalculate` | `POST /api/v2/attendance/recalculate` | POST | Tính toán lại công theo sự kiện |
-| | (mới) | `GET /api/v2/attendance/week` | GET | Lưới chấm công cả tuần của mọi người (Admin) |
+| | (mới) | `GET /api/v2/attendance/week` | GET | Lưới chấm công `days` ngày (tuần hoặc 4 tuần) của mọi người, BE tính ô ngày và tổng (Admin) |
 | | (mới) | `GET /api/v2/attendance/employees/:username` | GET | Công cả tháng và lịch sử thao tác của một người (Admin) |
 | **Tổng quan** | (mới) | `GET /api/v2/overview` | GET | Số liệu gộp cho màn Tổng quan (Admin) |
 | **Đơn từ & Giải trình** | `POST /api/leave-requests` | `POST /api/v2/requests/leave` | POST | Nộp đơn nghỉ phép |
@@ -322,47 +322,503 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
 - **Response 200**: `{ "timesheet": { ... } }`, `timesheet` là đúng một phần tử như của `GET /api/v2/attendance/timesheets` (cùng các trường ở trên).
 - **Lỗi**: `404 TIMESHEET_NOT_FOUND` (`Không tìm thấy bảng công`) khi chưa có dòng ngày đó (kể cả `employeeId` không tồn tại); `403` thiếu quyền.
 
-#### `GET /api/v2/attendance/week?from=YYYY-MM-DD&q=&group=`
-- **Mục đích**: Lưới chấm công cả tuần cho Admin. Đọc dòng ngày dùng chung (`timesheet_entries`) như `/me`, không bảng mới.
+#### `GET /api/v2/attendance/week?from=YYYY-MM-DD&days=&q=&group=&month=YYYY-MM`
+- **Mục đích**: Lưới chấm công Admin do BE tính hết (ô ngày, tổng Công / Trễ / OT, cờ cần xử lý, thẻ số, danh sách việc cần xử lý); FE chỉ định dạng và hiển thị. Đọc dòng ngày dùng chung (`timesheet_entries`) như `/me`, không bảng mới.
 - **Quyền**: `attendance.correct`.
-- **Query**: `from` ngày có thật; tuần trả về là tuần thứ Hai → Chủ nhật **chứa** `from` (bỏ trống thì tuần hiện tại theo giờ Việt Nam). `q` lọc theo tên hoặc `username` (không phân biệt hoa thường). `group` lọc theo mã chức vụ (`position.type`) hoặc loại ca (`shift.type`), không phân biệt hoa thường. Chỉ liệt kê người còn làm trong tuần (đã vào làm, chưa nghỉ việc trước thứ Hai).
-- **Response 200**:
+- **Query**: `from` ngày có thật; cửa sổ bắt đầu từ **thứ Hai của tuần chứa `from`**. Không có `from`: `days` ≤ 7 thì tuần hôm nay (giờ Việt Nam), `days` > 7 thì tuần cách hôm nay 14 ngày (lưới 4 tuần: hôm nay ở tuần thứ ba). `days` số ngày liên tiếp, mặc định 7, tối đa 35 (`400 INVALID_DAYS` ngoài khoảng). `q` lọc theo tên hoặc `username`, không phân biệt hoa thường và dấu. `group` lọc theo mã chức vụ (`position.type`) hoặc loại ca (`shift.type`). `month` (mặc định tháng hôm nay) là tháng của cột Công / Trễ / OT và các thẻ số. Chỉ liệt kê người còn làm trong cửa sổ (đã vào làm, chưa nghỉ việc trước ngày đầu). Chưa phân trang (trả hết, `total` / `matched` để FE hiện số).
+- **Response 200** (đã rút gọn; file đầy đủ: `web/tests/fixtures/api/attendance-week.json`):
   ```json
   {
-    "days": ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15", "2026-10-16", "2026-10-17", "2026-10-18"],
-    "rows": [{ "username": "nv1", "name": "Nguyễn Văn Một", "days": [ { "date": "2026-10-12", "kind": "absent", "in": null, "out": null, "lateMinutes": 0, "explanationStatus": "none", "cases": [] } ] }],
-    "pending": [{ "username": "nv2", "date": "2026-10-15", "kind": "leave" }]
+    "today": "2026-10-20",
+    "month": "2026-10",
+    "periodState": "locked",
+    "subtitle": "Kỳ công 01–31/10/2026 · hôm nay Thứ Ba 20/10",
+    "tiles": [
+      {
+        "key": "todo",
+        "label": "Cần xử lý",
+        "value": 6,
+        "note": "5 chưa giải trình · 1 yêu cầu chờ duyệt"
+      },
+      {
+        "key": "present",
+        "label": "Có mặt hôm nay",
+        "value": 1,
+        "of": 3,
+        "note": "2 người chưa Check-in"
+      },
+      {
+        "key": "late",
+        "label": "Đi muộn hôm nay",
+        "value": 0,
+        "note": ""
+      },
+      {
+        "key": "leave",
+        "label": "Nghỉ có phép",
+        "value": 0,
+        "note": "1 đơn chờ duyệt"
+      },
+      {
+        "key": "absent",
+        "label": "Vắng không phép",
+        "value": 4,
+        "note": "trong tháng 10"
+      },
+      {
+        "key": "ot",
+        "label": "Làm thêm tháng này",
+        "value": 0,
+        "unit": "giờ",
+        "note": "0 yêu cầu chờ duyệt"
+      }
+    ],
+    "days": [
+      {
+        "iso": "2026-10-05",
+        "dow": "T2",
+        "dm": "05/10",
+        "scheduled": true,
+        "today": false,
+        "monday": true,
+        "periodStart": false
+      },
+      {
+        "iso": "2026-10-20",
+        "dow": "T3",
+        "dm": "20/10",
+        "scheduled": true,
+        "today": true,
+        "monday": false,
+        "periodStart": false
+      }
+    ],
+    "groups": [
+      {
+        "key": "nv",
+        "count": 3
+      }
+    ],
+    "rows": [
+      {
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "group": "nv",
+        "title": null,
+        "code": "nv2",
+        "startDate": "2026-01-05",
+        "contract": "Nhân viên chính thức",
+        "position": {
+          "type": "nv",
+          "level": 1,
+          "jobTitle": null
+        },
+        "shift": {
+          "type": "NORMAL",
+          "startTime": "08:00",
+          "endTime": "17:00",
+          "allowancePct": 0,
+          "isOvernight": false
+        },
+        "shiftText": "HC 08:00–17:00",
+        "leaveLeftDays": 0,
+        "days": [
+          {
+            "date": "2026-10-08",
+            "dow": "T5",
+            "day": "8",
+            "today": false,
+            "kind": "work",
+            "base": "work",
+            "text": "08:00–17:00",
+            "in": "08:00",
+            "out": "17:00",
+            "live": false,
+            "lateMinutes": 0,
+            "explanationStatus": "none",
+            "cases": [],
+            "itemId": null,
+            "label": "Đi làm",
+            "aria": "Đi làm, 08:00–17:00"
+          },
+          {
+            "date": "2026-10-20",
+            "dow": "T3",
+            "day": "20",
+            "today": true,
+            "kind": "nocheck",
+            "base": "nocheck",
+            "text": "HC 08:00–17:00",
+            "in": null,
+            "out": null,
+            "live": false,
+            "lateMinutes": 0,
+            "explanationStatus": "none",
+            "cases": [],
+            "itemId": null,
+            "label": "Chưa Check-in",
+            "aria": "Chưa Check-in, HC 08:00–17:00"
+          }
+        ],
+        "totals": {
+          "workDays": 10,
+          "lateMinutes": 40,
+          "otHours": 0
+        },
+        "needsAction": 3
+      }
+    ],
+    "pending": [
+      {
+        "id": "00000000-0000-4000-8000-0000000000aa",
+        "kind": "leave",
+        "group": "leave",
+        "groupLabel": "Đơn nghỉ",
+        "action": "decide",
+        "username": "nv2",
+        "name": "Trần Thị Hai",
+        "initials": "TH",
+        "title": null,
+        "what": "Nghỉ phép",
+        "when": "15/10–16/10",
+        "days": [
+          "2026-10-15",
+          "2026-10-16"
+        ],
+        "age": "7 ngày",
+        "date": "2026-10-15"
+      }
+    ],
+    "total": 3,
+    "matched": 3
   }
   ```
-  - `days` của mỗi hàng đúng 7 ô, cùng dạng ô ngày của `GET /api/v2/me/attendance` (tuần làm của từng người quyết định `off`).
-  - `pending`: đơn `PENDING` có ngày rơi vào tuần (giải trình, làm thêm, nghỉ phép / nghỉ có làm bù, đổi ca), mỗi đơn một phần tử ở ngày đầu tiên của đơn trong tuần; `kind` là loại đơn viết thường, dấu gạch ngang (`leave`, `leave-with-makeup`, `overtime`, `explanation`, `shift-change`). Ứng lương và iSAT không gắn ngày nên không có. Đọc tối đa 500 đơn chờ.
-- **Lỗi**: `400 INVALID_DATE` khi `from` không phải ngày có thật.
+  - `rows[]`: một người, xếp theo họ tên (tiếng Việt). `group` = mã chức vụ (BE chưa có phòng ban). `days` đúng `days` ô, **một định nghĩa ô ngày duy nhất** (xem dưới). `totals` là của tháng `month`: `workDays` = số dòng ngày có `countsAsWorkday`, `lateMinutes` = tổng phút trễ, `otHours` = tổng giờ OT của đơn làm thêm **đã duyệt** có `otDate` trong tháng (giờ OT của bảng công luôn 0). `needsAction` = số ô `todo` trong cửa sổ.
+  - **Ô ngày** (`rows[].days[]`, `GET /attendance/employees/:username` `days[]`): `kind` ∈ `work | late | leave | absent | todo | off | fu | nocheck`; `base` là loại trước lớp "cần xử lý". Quy tắc: ngày chưa có dòng, thuộc tuần làm: tương lai → `fu`, hôm nay → `nocheck`, quá khứ → `absent`; ngày không thuộc tuần làm (hoặc Chủ nhật) → `off`; hôm nay chưa chấm vào (kể cả dòng đã lập sẵn) → `nocheck`, **không phải** `absent`; nghỉ phép / nghỉ lễ → `leave` (`text` "Nghỉ" / "Nghỉ lễ"); có tiền phạt giờ (`deductionMinutes` > 0) → `late`; ngày có trường hợp ảnh hưởng tiền chưa giải trình duyệt → `todo`. Một đơn chờ duyệt hoặc ngày cần giải trình rơi vào ô thì `kind` = `todo` (và `itemId` = id đơn hoặc `due:<uuid>:<ngày>`), `base` giữ loại gốc. `text`: giờ "08:05–…" (đang làm), "08:00–17:00", "—" (vắng), chữ ca của `fu` / `nocheck`, rỗng khi `off`. `live`: hôm nay có giờ vào chưa có giờ ra. `label` / `aria` là chữ hiển thị / đọc màn hình.
+  - `tiles[]` (6 thẻ, tính trên mọi người trong cửa sổ, không theo `q` / `group`): `todo` (số việc trong `pending`), `present` (`value` / `of`, có giờ vào hôm nay), `late`, `leave`, `absent` (số dòng `ABSENT` của tháng), `ot` (`unit` "giờ"). `note` là chữ phụ sẵn.
+  - `pending[]`: việc cần xử lý có ngày rơi vào cửa sổ, một phần tử mỗi việc ở ngày đầu tiên trong cửa sổ (`date`), xếp theo ngày rồi `username`. `action` `decide` (đơn `PENDING`: giải trình, làm thêm, nghỉ phép / có làm bù, iSAT, đổi ca; ứng lương không có ngày nên không xuất hiện) hoặc `remind` (ngày cần nhắc giải trình, `kind` `explanation-due`). `group`: `att | leave | ot | exp | adv`. Đọc tối đa 500 đơn chờ.
+- **Lỗi**: `400 INVALID_DATE` khi `from` không phải ngày có thật; `400 INVALID_DAYS`; `400 INVALID_MONTH`.
 
 #### `GET /api/v2/attendance/employees/:username?month=YYYY-MM`
-- **Mục đích**: Công cả tháng của một người, cho ngăn kéo chi tiết của Admin. Cùng nguồn và cùng cách tính với `GET /api/v2/me/attendance`.
+- **Mục đích**: Hồ sơ công cả tháng của một người cho màn / ngăn kéo chi tiết của Admin. Cùng nguồn và ô ngày với lưới tuần.
 - **Quyền**: `attendance.correct`.
 - **Query**: `month` bỏ trống thì tháng hiện tại (giờ Việt Nam).
-- **Response 200**: `{ "person": { "username", "name", "position", "shift" }, "month", "periodState": "open" | "locked", "totals": { "workDays", "standardDays", "lateCount", "paidLeaveDays" }, "days": [ ...ô ngày cả tháng ], "history": [ { "at", "actor", "text" } ] }`.
-  - `history`: tối đa 50 dòng `audit_log` có `subject` = người này và `month` = tháng đang xem, mới nhất trước; `text` là `action` hoặc `action: reason` khi có lý do.
-- **Lỗi**: `404 EMPLOYEE_NOT_FOUND` (không có nhân sự); `400 INVALID_MONTH`.
-
-#### `GET /api/v2/overview?month=YYYY-MM`
-- **Mục đích**: Số liệu gộp cho màn Tổng quan, đọc từ service sẵn có, không bảng mới.
-- **Quyền**: `config.read`.
-- **Query**: `month` bỏ trống thì tháng hiện tại. Chỉ phần `payroll`, `period` và `payrollNet` theo `month`; phần người và công là của **hôm nay**.
-- **Response 200**:
+- **Response 200** (rút gọn; đầy đủ: `web/tests/fixtures/api/attendance-employee.json`):
   ```json
   {
-    "kpis": { "headcount": 3, "presentToday": 1, "pendingRequests": 1, "payrollNet": 16000000 },
-    "attendance": { "today": { "work": 1, "late": 0, "leave": 0, "absent": 0, "todo": 0, "off": 1, "future": 0, "outside": 0, "extra": 0 }, "notCheckedIn": 1 },
-    "payroll": { "status": "calculated", "lines": [ { "username": "nv2", "name": "Trần Thị Hai", "net": 9000000, "status": "draft" } ] },
-    "period": { "month": "2026-10", "state": "calculated" }
+    "person": {
+      "username": "nv1",
+      "name": "Nguyễn Văn Một",
+      "initials": "VM",
+      "group": "nv",
+      "title": null,
+      "code": "nv1",
+      "startDate": "2026-01-05",
+      "contract": "Nhân viên chính thức",
+      "position": {
+        "type": "nv",
+        "level": 1,
+        "jobTitle": null
+      },
+      "shift": {
+        "type": "NORMAL",
+        "startTime": "08:00",
+        "endTime": "17:00",
+        "allowancePct": 0,
+        "isOvernight": false
+      },
+      "shiftText": "HC 08:00–17:00",
+      "leaveLeftDays": 0,
+      "joinedMonth": "2026-01"
+    },
+    "month": "2026-10",
+    "periodState": "locked",
+    "locked": true,
+    "index": 1,
+    "total": 3,
+    "prev": null,
+    "next": "admin",
+    "pending": {
+      "count": 5,
+      "date": "2026-10-01",
+      "itemId": "due:00000000-0000-4000-8000-0000000000aa:2026-10-01",
+      "group": "att",
+      "text": "Quên chấm công · 01/10"
+    },
+    "stats": [
+      {
+        "key": "workDays",
+        "label": "Ngày đi làm",
+        "value": 11,
+        "note": "trong tháng 10"
+      },
+      {
+        "key": "late",
+        "label": "Lần đi muộn",
+        "value": 0,
+        "note": "0 phút"
+      },
+      {
+        "key": "ot",
+        "label": "Làm thêm",
+        "value": 0,
+        "unit": "giờ",
+        "note": ""
+      },
+      {
+        "key": "leave",
+        "label": "Phép năm còn",
+        "value": 0,
+        "unit": "ngày",
+        "note": ""
+      }
+    ],
+    "totals": {
+      "workDays": 11,
+      "standardDays": 26,
+      "lateCount": 0,
+      "paidLeaveDays": 0,
+      "lateMinutes": 0,
+      "otHours": 0,
+      "absentDays": 0
+    },
+    "chips": {
+      "work": 12,
+      "late": 0,
+      "leave": 0,
+      "absent": 0,
+      "todo": 5
+    },
+    "days": [
+      {
+        "date": "2026-10-14",
+        "dow": "T4",
+        "day": "14",
+        "today": false,
+        "kind": "work",
+        "base": "work",
+        "text": "08:00–17:00",
+        "in": "08:00",
+        "out": "17:00",
+        "live": false,
+        "lateMinutes": 0,
+        "explanationStatus": "none",
+        "cases": [],
+        "itemId": null,
+        "label": "Đi làm",
+        "aria": "Đi làm, 08:00–17:00"
+      },
+      {
+        "date": "2026-10-20",
+        "dow": "T3",
+        "day": "20",
+        "today": true,
+        "kind": "work",
+        "base": "work",
+        "text": "08:05–…",
+        "in": "08:05",
+        "out": null,
+        "live": true,
+        "lateMinutes": 0,
+        "explanationStatus": "none",
+        "cases": [],
+        "itemId": null,
+        "label": "Đi làm",
+        "aria": "Đi làm, 08:05–…, đang làm"
+      }
+    ],
+    "dayHistory": [
+      {
+        "date": "2026-10-20",
+        "dayLabel": "Thứ Ba 20/10",
+        "kind": "work",
+        "tone": "work",
+        "text": "08:05–…",
+        "status": "Đi làm",
+        "shift": "HC 08:00–17:00",
+        "in": "08:05",
+        "out": null,
+        "itemId": null
+      }
+    ],
+    "history": [
+      {
+        "at": "2026-10-20T01:00:00.000Z",
+        "actor": "admin",
+        "text": "attendance.recalculate: sửa giờ"
+      }
+    ]
   }
   ```
-  - `headcount`: người còn làm hôm nay. `attendance.today`: số người theo loại ô ngày, **không gồm** người đang là ngày làm hôm nay mà chưa chấm vào (ô `work` hoặc `absent` nhưng chưa có giờ vào); số đó nằm riêng ở `attendance.notCheckedIn`, nên tổng các giá trị của `today` + `notCheckedIn` = `headcount`. `kpis.presentToday` = số người đã có giờ vào và ô ngày là `work`, `late`, `todo` hoặc `extra` (người chưa chấm vào không tính là có mặt).
-  - `pendingRequests`: tổng số đơn `PENDING`. `payrollNet`: tổng `net` các phiếu của lần chạy hiện tại của `month` (0 khi chưa tính).
-  - `payroll.status` và `period.state` đều là trạng thái kỳ (`open`, `attendance_locked`, `calculated`, `approved`, `paid`; chưa có dòng kỳ là `open`). `payroll.lines`: 5 phiếu `net` cao nhất.
-- **Lỗi**: `400 INVALID_MONTH`.
+  - `person`: thông tin hồ sơ (`group`, `title`, `contract` chữ trạng thái hợp đồng, `startDate` ngày vào làm, `shiftText`, `leaveLeftDays`...). `days`: một ô mỗi ngày của tháng (cùng dạng ô như lưới tuần, kèm `dow`, `day`, `today`). `chips`: đếm ô theo `work | late | leave | absent | todo`. `totals`: `workDays`, `standardDays` (ngày công chuẩn theo tuần làm), `lateCount`, `paidLeaveDays`, `lateMinutes`, `otHours` (OT đã duyệt), `absentDays`. `stats[]`: 4 thẻ số (`value` số, `unit`, `note`). `locked` / `periodState`: kỳ công khoá (đã Chốt công hoặc có dòng ngày bị khoá).
+  - `index` / `total` / `prev` / `next`: vị trí trong danh sách người còn làm trong tháng (xếp theo họ tên), `prev` / `next` là `username` người trước / sau, `null` ở đầu / cuối. `pending`: việc cần xử lý có ngày trong tháng (đếm, ngày đầu, chữ, `itemId`) hoặc `null`.
+  - `dayHistory`: lịch sử từng ngày (mới nhất trước, đến hôm nay, bỏ ngày `off`). `history`: tối đa 50 dòng `audit_log` có `subject` = người này và `month` = tháng đang xem, mới nhất trước; `text` là `action` hoặc `action: reason`.
+- **Lỗi**: `404 EMPLOYEE_NOT_FOUND` (không có nhân sự); `400 INVALID_MONTH`.
+
+#### `GET /api/v2/overview?month=YYYY-MM&days=`
+- **Mục đích**: Mọi con số của màn Tổng quan do BE tính; FE chỉ định dạng (tiền, tỷ ₫, ngày) và hiển thị.
+- **Quyền**: `config.read`.
+- **Query**: `month` bỏ trống thì tháng hiện tại. `days` số ngày làm gần nhất cho biểu đồ chấm công (mặc định 6, 1–14, `400 INVALID_DAYS` ngoài khoảng; bỏ Chủ nhật). Phần `payroll`, `period`, `kpis.payrollNet` theo `month`; phần người và công là của **hôm nay**.
+- **Response 200** (rút gọn; đầy đủ: `web/tests/fixtures/api/overview.json`):
+  ```json
+  {
+    "today": "2026-10-20",
+    "month": "2026-10",
+    "kpis": {
+      "headcount": 3,
+      "presentToday": 1,
+      "notCheckedIn": 2,
+      "pendingRequests": 1,
+      "payrollNet": 16000000,
+      "payrollGross": 16000000
+    },
+    "headline": {
+      "blocking": 93,
+      "closeOn": "2026-10-31",
+      "daysLeft": 11
+    },
+    "attendance": {
+      "today": {
+        "work": 1,
+        "late": 0,
+        "leave": 0,
+        "absent": 0,
+        "todo": 0,
+        "off": 0,
+        "future": 0,
+        "outside": 0,
+        "extra": 0
+      },
+      "notCheckedIn": 2,
+      "present": 1,
+      "total": 3,
+      "todayRate": 33,
+      "days": [
+        {
+          "date": "2026-10-19",
+          "dow": "T2",
+          "dm": "19/10",
+          "today": false,
+          "present": 3,
+          "total": 3,
+          "rate": 100
+        },
+        {
+          "date": "2026-10-20",
+          "dow": "Hôm nay",
+          "dm": "20/10",
+          "today": true,
+          "present": 1,
+          "total": 3,
+          "rate": 33
+        }
+      ]
+    },
+    "payroll": {
+      "status": "calculated",
+      "lines": [
+        {
+          "username": "nv2",
+          "name": "Trần Thị Hai",
+          "net": 9000000,
+          "status": "draft"
+        },
+        {
+          "username": "nv1",
+          "name": "Nguyễn Văn Một",
+          "net": 7000000,
+          "status": "draft"
+        }
+      ],
+      "rows": [
+        {
+          "username": "nv1",
+          "name": "Nguyễn Văn Một",
+          "initials": "VM",
+          "title": null,
+          "actualDays": 0,
+          "standardDays": 0,
+          "base": 0,
+          "allowance": 0,
+          "net": 7000000,
+          "status": "draft"
+        }
+      ],
+      "total": 2,
+      "updatedAt": "12:00",
+      "gross": 16000000,
+      "insurance": 0,
+      "tax": 0,
+      "advance": 0,
+      "deductions": 0,
+      "net": 16000000,
+      "netShare": 100,
+      "counts": {
+        "all": 2,
+        "done": 0,
+        "pending": 0,
+        "draft": 2,
+        "rejected": 0
+      },
+      "previous": null
+    },
+    "period": {
+      "month": "2026-10",
+      "state": "calculated",
+      "label": "Chờ duyệt",
+      "from": "2026-10-01",
+      "to": "2026-10-31",
+      "closeOn": "2026-10-31",
+      "payday": "2026-11-10",
+      "daysLeft": 11
+    },
+    "approvals": {
+      "total": 93,
+      "decide": 1,
+      "remind": 92,
+      "groups": [
+        {
+          "key": "leave",
+          "label": "Đơn nghỉ",
+          "count": 1
+        },
+        {
+          "key": "att",
+          "label": "Chấm công",
+          "count": 92
+        }
+      ],
+      "items": [
+        {
+          "id": "00000000-0000-4000-8000-0000000000aa",
+          "kind": "leave",
+          "group": "leave",
+          "groupLabel": "Đơn nghỉ",
+          "action": "decide",
+          "username": "nv2",
+          "name": "Trần Thị Hai",
+          "initials": "TH",
+          "title": null,
+          "what": "Nghỉ phép",
+          "when": "15/10–16/10",
+          "days": [
+            "2026-10-15",
+            "2026-10-16"
+          ],
+          "age": "7 ngày"
+        }
+      ]
+    }
+  }
+  ```
+  - `kpis`: `headcount` người còn làm hôm nay; `presentToday` người đã có giờ vào (ô `work`, `late`, `todo`); `notCheckedIn` người hôm nay là ngày làm mà chưa chấm vào (không tính vắng); `pendingRequests` số đơn `PENDING` (= `approvals.decide`); `payrollNet` / `payrollGross` tổng các phiếu của lần chạy hiện tại (0 khi chưa tính).
+  - `headline`: `blocking` = `approvals.total` (câu "Còn N việc phải xong trước khi chốt…"), `closeOn` ngày cuối tháng, `daysLeft` số ngày còn (≥ 0).
+  - `attendance`: `today` đếm theo loại ô (`work late leave absent todo off future outside extra`; người `nocheck` nằm ở `notCheckedIn`, nên tổng các giá trị + `notCheckedIn` = `headcount`), `present`, `total`, `todayRate` (%), `days[]`: các ngày làm gần nhất cũ trước (`date`, `dow` "Hôm nay" hoặc T2…, `dm`, `today`, `present`, `total`, `rate` %).
+  - `payroll`: `status`, `lines` (5 phiếu `net` cao nhất), `rows` (tối đa 6 phiếu theo tên: `title`, `actualDays` / `standardDays`, `base`, `allowance`, `net`, `status` `done | pending | draft | rejected`), `total` số phiếu, `gross`, `insurance`, `tax`, `advance`, `deductions` (= bảo hiểm + thuế + tạm ứng), `net`, `netShare` (% thực nhận / tổng thu nhập), `counts` (đếm phiếu theo trạng thái), `updatedAt` (HH:mm giờ VN), `previous` (tháng trước: `gross`, `net`, `grossDeltaPct`; `null` khi tháng trước chưa có phiếu).
+  - `period`: `state` / `label` (chữ trạng thái kỳ), `from` / `to` kỳ công, `closeOn` hạn chốt (= cuối tháng), `payday` ngày trả lương (theo Lịch trả lương), `daysLeft`.
+  - `approvals`: `total` = `decide` (đơn chờ duyệt) + `remind` (ngày cần nhắc giải trình), `groups[]` đếm theo nhóm, `items` 8 việc đầu (đơn chờ duyệt trước, mới nhất trước; cùng dạng `pending[]` của lưới tuần, không có `date`).
+- **Lỗi**: `400 INVALID_MONTH`; `400 INVALID_DAYS`.
 
 #### `POST /api/v2/attendance/recalculate`
 - **Mục đích**: Admin tính lại dòng ngày từ nguồn sự thật (lần chấm, lịch, đơn, ngày lễ, hồ sơ), một ngày hoặc cả tháng. Dòng đã khoá kỳ lương không bị ghi lại; kết quả trả về là giá trị đang lưu.
@@ -1518,3 +1974,30 @@ Lỗi chung:
 - **Mục đích**: Danh sách vai trò cho dropdown phân quyền và form nhân sự (alias cũ `GET /api/roles` trả y hệt).
 - **Quyền**: `staff.manage`.
 - **Response 200**: `{ "roles": [ { "code": "admin", "label": "Quản trị viên (Admin)", "isDefault": true }, { "code": "manager", "label": "Quản lý (Manager)", "isDefault": true }, { "code": "staff", "label": "Nhân viên (Staff)", "isDefault": true } ] }`.
+
+---
+
+### 3.12. Realtime Module (Sự kiện trực tiếp, SSE)
+
+#### `GET /api/v2/realtime/stream`
+- **Mục đích**: Luồng Server-Sent Events một chiều server→client; Admin thấy ngay khi nhân viên chấm công. Dùng cookie phiên như mọi route khác (với `EventSource` thì thêm `withCredentials: true` nếu khác origin).
+- **Quyền**: `attendance.correct`. Chưa đăng nhập `401`, nhân viên thường `403`. Mỗi người tối đa 5 luồng cùng lúc, quá thì `429` (`code: TOO_MANY_STREAMS`).
+- **Response 200**: `Content-Type: text/event-stream`, kèm `Cache-Control: no-cache, no-transform`, `Connection: keep-alive`, `X-Accel-Buffering: no`. Mỗi khung có dạng `event: <type>` rồi `data: <JSON>`, kết thúc bằng một dòng trống:
+
+  ```
+  retry: 3000
+  event: ready
+  data: {}
+
+  event: attendance.punched
+  data: {"type":"attendance.punched","username":"nv1","name":"Nguyễn Văn A","workDate":"2026-11-03","direction":"IN","at":"2026-11-03T01:40:12.000Z","time":"08:40","source":"self"}
+
+  : ping
+  ```
+- **Loại khung**:
+  - `ready`: gửi ngay khi nối xong, `data` là `{}`.
+  - Dòng chú thích `: ping` mỗi 25 giây để proxy không cắt kết nối; `EventSource` bỏ qua dòng này.
+  - `attendance.punched`: có lần chấm công mới được lưu. `direction` là `IN` hoặc `OUT`; `at` là ISO 8601 UTC; `time` là `HH:mm` giờ Việt Nam; `workDate` là ngày công (`YYYY-MM-DD`, có thể khác ngày của `at` với ca đêm); `source` là `self` (nhân viên tự chấm) hoặc `admin` (quản trị chấm hộ). Chỉ phát sau khi đã lưu thành công; chấm bị từ chối thì không có sự kiện.
+  - `attendance.changed`: Admin tính lại một ngày công (`POST /api/v2/attendance/recalculate` với `workDate`). `data` là `{"type":"attendance.changed","username":"nv1","workDate":"2026-11-03"}`. Tính lại cả tháng (`month`) không phát sự kiện.
+- **Kết nối lại**: SSE không phát lại sự kiện đã lỡ. Mỗi lần nối (hoặc nối lại sau khi rớt, `EventSource` tự thử lại sau `retry` = 3 giây) client phải tải lại dữ liệu đang hiển thị (bảng chấm công hôm nay) rồi mới áp sự kiện mới. Nên coi `ready` là tín hiệu "tải lại". Phiên hết hạn thì nối lại trả `401`: dừng thử và đưa về màn đăng nhập.
+- **Mở rộng**: sự kiện đi qua `RealtimeBus` nên sau này đổi sang WebSocket hay PostgreSQL LISTEN/NOTIFY (nhiều instance) không đổi định dạng khung ở trên. Loại sự kiện mới chỉ được thêm, FE phải bỏ qua loại chưa biết.

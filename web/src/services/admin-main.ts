@@ -1,10 +1,10 @@
 // Dịch vụ của nhóm admin-main: Tổng quan và các lớp nổi của vỏ Admin (chuông, xử lý việc chờ).
 // Máy chủ thật: chuông và việc chờ đọc GET /api/v2/requests và GET /requests/explanations-due (việc "nhắc giải trình"),
 // duyệt qua PATCH /requests/:id/review, nhắc qua POST /requests/explanations-due/remind;
-// Tổng quan ghép từ các API đó. Dữ liệu giả: mock/.
-import { inboxFromDue, inboxFromRequests, type DueDTO, type PersonInfo } from '@/builders/api/inbox';
+// Tổng quan đọc GET /overview. Dữ liệu giả: mock/.
+import { inboxFromDue, inboxFromRequests, type DueDTO, type PersonInfo, type RequestDTO } from '@/builders/api/inbox';
 import { toast } from '@/components/shell/toast';
-import { overviewFrom, recentWorkdays } from '@/builders/api/overview';
+import { overviewFrom } from '@/builders/api/overview';
 import { peopleOf, type EmployeeDTO } from '@/builders/api/staff';
 import {
   SYSTEM_NOTES,
@@ -14,10 +14,9 @@ import {
   type InboxItem,
   type SystemNote
 } from '@/mock/inbox';
-import { overviewView, type OverviewView } from '@/mock/overview';
+import { overviewDto, type OverviewDTO, type OverviewView } from '@/mock/overview';
 import { respond } from '@/mock/respond';
 import { usePeriodStore } from '@/stores/period';
-import { getPayroll } from './admin-payroll';
 import { ApiError, api, qs } from './http';
 import { changePassword as sessionChangePassword, logout as sessionLogout } from './session';
 
@@ -85,28 +84,31 @@ const DECISION_TEXT: Record<DecisionVerb, (name: string) => string> = {
 export const decisionText = (verb: DecisionVerb, name: string) => DECISION_TEXT[verb](name);
 
 // ---------- Tổng quan ----------
-// Máy chủ thật: ghép từ bảng lương tháng, nhân sự, bảng công 6 ngày làm việc gần nhất, đơn đang chờ và trạng thái kỳ.
+// Máy chủ thật: GET /overview?month=&days= (BE tính hết số liệu, danh sách và số đếm việc cần duyệt); builder chỉ ánh xạ.
+// Chi tiết cửa sổ duyệt (head / sub / facts) của đơn chờ lấy từ GET /requests khớp id; việc nhắc giải trình chỉ cần id
+// `due:<employeeId>:<date>` để nhắc (ghi vào lastInbox như chuông). Lỗi của phần chi tiết không làm mất màn.
+const OVERVIEW_DAYS = 6;
 export async function getOverview(month: string): Promise<OverviewView> {
-  if (__MOCK__) return respond(overviewView(month));
-  const vn = new Date(Date.now() + 7 * 3600000).toISOString();
-  const today = vn.slice(0, 10);
-  const days = recentWorkdays(today);
-  const [payroll, employees, ts, inbox] = await Promise.all([
-    getPayroll(month),
-    fetchEmployees(),
-    api('GET', `/attendance/timesheets${qs({ startDate: days[0], endDate: today })}`),
-    getInbox()
+  if (__MOCK__) {
+    const details = new Map(pendingInbox().map(i => [i.id, i]));
+    return respond(overviewFrom(overviewDto(month), details));
+  }
+  const now = Date.now();
+  const [dto, pending] = await Promise.all([
+    api.get(`/overview${qs({ month, days: OVERVIEW_DAYS })}`) as Promise<OverviewDTO>,
+    api.get(`/requests${qs({ status: 'PENDING', limit: INBOX_LIMIT })}`).then(
+      r => (r.items || []) as RequestDTO[],
+      () => [] as RequestDTO[]
+    )
   ]);
-  return overviewFrom({
-    month,
-    today,
-    now: vn.slice(11, 16),
-    payroll,
-    employees,
-    timesheets: ts.timesheets || [],
-    approvals: inbox.items,
-    periodState: usePeriodStore().strip.state
-  });
+  const details = new Map(inboxFromRequests(pending, new Map(), now).map(i => [i.id, i]));
+  const view = overviewFrom(dto, details);
+  for (const item of view.approvals.items) {
+    if (item.action !== 'remind') continue;
+    // id việc nhắc: due:<employeeId>:<date>; nhắc giải trình cần employeeId (uuid) và ngày.
+    lastInbox.set(item.id, { ...item, personId: item.id.split(':')[1] ?? item.personId });
+  }
+  return view;
 }
 
 // ---------- Lớp nổi của vỏ Admin ----------

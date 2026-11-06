@@ -14,6 +14,7 @@ import { PositionsModule } from './modules/positions';
 import { SettingsModule } from './modules/settings';
 import { AuditModule } from './modules/audit';
 import { OverviewModule } from './modules/overview';
+import { RealtimeModule } from './modules/realtime';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OverviewModule } from './modules/overview';
     SettingsModule,
     AuditModule,
     OverviewModule,
+    RealtimeModule,
   ],
 })
 export class AppModule {}

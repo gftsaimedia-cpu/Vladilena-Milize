@@ -1,6 +1,6 @@
 // Nhãn hiển thị dùng chung cho dữ liệu giả và dữ liệu thật. Đặt ngoài src/mock để màn hình import mà không kéo
 // dữ liệu giả vào bản build thật.
-import type { GroupKey } from '@/mock/attendance';
+import type { GroupKey } from '@/builders/api/attendance';
 import type { InboxGroup } from '@/mock/inbox';
 import type { KpiPart } from '@/mock/payroll-calc';
 

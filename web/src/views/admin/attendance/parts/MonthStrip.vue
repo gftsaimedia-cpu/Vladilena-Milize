@@ -2,9 +2,11 @@
 // Dải các ngày của tháng trong vùng cuộn riêng: thứ viết tắt, số ngày và một ô màu theo nhóm. Ngày không có ca là span,
 // ngày khác là nút mở hộp chi tiết ngày. Lúc mở dải cuộn tới ngày hôm nay.
 import { onMounted, ref } from 'vue';
-import type { StripDay } from '@/mock/attendance-employee';
+import type { StripDay } from '@/builders/api/attendance';
+import { useRealtimeStore } from '@/stores/realtime';
 
-const props = defineProps<{ days: StripDay[]; monthNo: number }>();
+const props = defineProps<{ days: StripDay[]; monthNo: number; personId?: string }>();
+const realtime = useRealtimeStore();
 const emit = defineEmits<{ 'open-day': [date: string] }>();
 
 const STEP = 48; // 44px mỗi ngày + 4px khoảng cách; giữ cố định để bề rộng không phụ thuộc phông chữ
@@ -30,7 +32,7 @@ onMounted(() => {
           v-else
           type="button"
           class="ms-i"
-          :class="{ today: d.today }"
+          :class="{ today: d.today, flash: !!personId && realtime.isFlash(personId, d.date) }"
           :data-date="d.date"
           :aria-label="d.aria"
           :aria-current="d.today ? 'date' : undefined"
@@ -46,6 +48,20 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@media (prefers-reduced-motion: no-preference) {
+  .ms-i.flash {
+    animation: rt-flash 1.5s ease-out;
+  }
+}
+@keyframes rt-flash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
 .ms {
   overflow-x: auto;
   overscroll-behavior-x: contain;

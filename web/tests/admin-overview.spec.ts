@@ -17,8 +17,9 @@ test.beforeEach(async ({ page }) => {
 test('overview shows the mock figures', async ({ page }) => {
   await page.goto('/admin/tong-quan');
   await expect(page.getByRole('heading', { name: 'Tổng quan', exact: true })).toBeVisible();
+  // BE: headline.blocking = approvals.total (đơn chờ duyệt + ngày cần nhắc giải trình), không còn số giả 4.
   await expect(
-    page.getByText('Còn 4 việc phải xong trước khi chốt lương tháng 10 · hạn 31/10, còn 3 ngày')
+    page.getByText('Còn 13 việc phải xong trước khi chốt lương tháng 10 · hạn 31/10, còn 3 ngày')
   ).toBeVisible();
 
   const kpis = page.getByRole('region', { name: 'Chỉ số chính' });
@@ -239,7 +240,7 @@ test('payroll table filters by status and searches without accents', async ({ pa
   const table = page.getByRole('region', { name: 'Bảng lương tháng 10' });
   const rows = table.locator('tbody tr');
   const filters = page.getByRole('group', { name: 'Lọc theo trạng thái' });
-  const search = page.getByLabel('Tìm theo tên hoặc phòng ban');
+  const search = page.getByLabel('Tìm theo tên');
 
   await filters.getByRole('button', { name: /^Chờ duyệt/ }).click();
   await expect(filters.getByRole('button', { name: /^Chờ duyệt/ })).toHaveAttribute('aria-pressed', 'true');

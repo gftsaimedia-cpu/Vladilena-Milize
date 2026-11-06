@@ -13,9 +13,10 @@ import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
 import { INBOX_GROUPS } from '@/constants/labels';
 import type { InboxItem } from '@/mock/inbox';
+import type { OverviewView } from '@/mock/overview';
 import ApprovalDialog from './ApprovalDialog.vue';
 
-const props = defineProps<{ approvals: InboxItem[] }>();
+const props = defineProps<{ approvals: OverviewView['approvals'] }>();
 const emit = defineEmits<{ approve: [id: string] }>();
 
 const route = useRoute();
@@ -26,9 +27,13 @@ const bellLink = () => ({
 
 // Thứ tự và nhãn nhóm lấy từ INBOX_GROUPS, như ngăn kéo chuông; nhóm rỗng thì ẩn.
 const groups = computed(() =>
-  INBOX_GROUPS.map(g => ({ key: g.key, label: g.label, rows: props.approvals.filter(r => r.group === g.key) })).filter(
-    g => g.rows.length
-  )
+  INBOX_GROUPS.map(g => ({
+    key: g.key,
+    label: g.label,
+    // Số đếm của nhóm do máy chủ tính (danh sách chỉ có vài việc đầu).
+    count: props.approvals.groups.find(x => x.key === g.key)?.count ?? 0,
+    rows: props.approvals.items.filter(r => r.group === g.key)
+  })).filter(g => g.rows.length)
 );
 const flat = computed(() => groups.value.flatMap(g => g.rows));
 
@@ -38,7 +43,7 @@ const root = ref<HTMLElement | null>(null);
 let pending: { index: number; id: string; kind: 'yes' | 'open' } | null = null;
 async function settleFocus() {
   const wait = pending;
-  if (!wait || props.approvals.some(r => r.id === wait.id)) return;
+  if (!wait || props.approvals.items.some(r => r.id === wait.id)) return;
   pending = null;
   const index = Math.min(wait.index, flat.value.length - 1);
   await nextTick();
@@ -50,7 +55,7 @@ async function settleFocus() {
   const target = (wait.kind === 'yes' && row?.querySelector<HTMLElement>('.ib.yes')) || row?.querySelector<HTMLElement>('.apo');
   target?.focus();
 }
-watch(() => props.approvals, settleFocus);
+watch(() => props.approvals.items, settleFocus);
 
 function approve(id: string) {
   pending = { index: flat.value.findIndex(r => r.id === id), id, kind: 'yes' };
@@ -78,14 +83,14 @@ async function onDecided({ id, ok, text }: { id: string; ok: boolean; text: stri
   <section ref="root" class="card ap" aria-labelledby="ov-ap-h">
     <div class="head">
       <h2 id="ov-ap-h">Việc cần duyệt</h2>
-      <span class="count">{{ approvals.length }}</span>
+      <span class="count">{{ approvals.total }}</span>
       <RouterLink :to="bellLink()" class="link all">Xem tất cả</RouterLink>
     </div>
 
     <div v-if="flat.length" class="queue" tabindex="0" role="region" aria-label="Việc cần duyệt, cuộn để xem thêm">
       <template v-for="g in groups" :key="g.key">
         <h3 class="apg">
-          {{ g.label }} <span class="gn">{{ g.rows.length }}</span>
+          {{ g.label }} <span class="gn">{{ g.count }}</span>
         </h3>
         <ul :aria-label="g.label">
           <li v-for="r in g.rows" :key="r.id" class="ap-row">

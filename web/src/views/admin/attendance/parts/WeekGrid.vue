@@ -4,7 +4,8 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ATTENDANCE_GROUPS as GROUPS } from '@/constants/labels';
-import type { AttendanceDay, AttendanceRow } from '@/mock/attendance';
+import type { AttendanceDay, AttendanceRow } from '@/builders/api/attendance';
+import { useRealtimeStore } from '@/stores/realtime';
 import { dm, dmy, weekdayName } from '@/utils/format';
 import { employeePath } from '../links';
 import { MAX_START, TODAY_START, useGridScroll } from '../useGridScroll';
@@ -15,6 +16,7 @@ const emit = defineEmits<{ 'open-day': [personId: string, date: string] }>();
 const route = useRoute();
 const router = useRouter();
 const scroller = ref<HTMLElement | null>(null);
+const realtime = useRealtimeStore();
 
 // Chỗ đứng của lưới nằm trên URL (?tuan=YYYY-MM-DD, ngày ở cột trái nhất, thường là thứ Hai) để đổi tab hay vào hồ sơ rồi Back
 // vẫn về đúng tuần. Mở lại thì kẹp vào biên lưới; giá trị hỏng hoặc không có thì mở ở tuần hôm nay.
@@ -68,15 +70,6 @@ watch(atEnd, now => {
 });
 
 const label = computed(() => `${dm(props.days[start.value].iso)} – ${dmy(props.days[start.value + 6].iso)}`);
-const counts = computed(() =>
-  GROUPS.map(({ key, label: name }) => {
-    let n = 0;
-    for (const row of props.rows) {
-      for (let i = start.value; i < start.value + 7; i++) if (row.cells[i].kind === key) n++;
-    }
-    return { key, name, n };
-  })
-);
 const thang = computed(() => (route.query.thang ? { thang: route.query.thang } : {}));
 const cellName = (name: string, day: AttendanceDay, aria: string) =>
   `${name}, ${weekdayName(day.iso)} ${day.dm}: ${aria}`;
@@ -93,8 +86,8 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
       <button type="button" class="btn sm" @click="thisWeek">Hôm nay</button>
     </div>
     <div class="legend" role="group" aria-label="Chú giải">
-      <span v-for="g in counts" :key="g.key" class="gc" :data-group="g.key">
-        <span class="b" :class="g.key" aria-hidden="true" />{{ g.name }} <span class="ct">{{ g.n }}</span>
+      <span v-for="g in GROUPS" :key="g.key" class="gc" :data-group="g.key">
+        <span class="b" :class="g.key" aria-hidden="true" />{{ g.label }}
       </span>
       <span class="gc fu"><span class="b fu" aria-hidden="true" />Ca dự kiến</span>
     </div>
@@ -119,7 +112,7 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
             :data-date="d.iso"
             scope="col"
           >
-            <span class="wd">{{ d.dow }}{{ d.periodStart ? ` · kỳ ${monthNo + 1}` : '' }}</span>
+            <span class="wd">{{ d.dow }}{{ d.periodStart ? ` · kỳ ${Number(d.iso.slice(5, 7))}` : '' }}</span>
             <span class="dn">{{ d.dm }}</span>
           </th>
           <th class="sm s1" scope="col"><span class="sh">Công</span> <span class="mut">kỳ {{ monthNo }}</span></th>
@@ -146,16 +139,16 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
               v-else
               type="button"
               class="pill"
-              :class="[row.cells[i].kind, { live: row.cells[i].live }]"
+              :class="[row.cells[i].kind, { live: row.cells[i].live, flash: realtime.isFlash(row.person.id, d.iso) }]"
               :aria-label="cellName(row.person.name, d, row.cells[i].aria)"
               @click="emit('open-day', row.person.id, d.iso)"
             >
               <span v-if="row.cells[i].live" class="dot" aria-hidden="true" />{{ cellText(row.cells[i]) }}
             </button>
           </td>
-          <td class="sm s1">{{ row.person.period.worked }}</td>
-          <td class="sm s2">{{ row.person.sums.late }}</td>
-          <td class="sm s3">{{ row.person.sums.ot }}</td>
+          <td class="sm s1">{{ row.totals.workDays }}</td>
+          <td class="sm s2">{{ row.totals.lateMinutes }}</td>
+          <td class="sm s3">{{ row.totals.otHours }}</td>
         </tr>
       </tbody>
     </table>
@@ -164,6 +157,20 @@ const cellText = (cell: { kind: string; text: string }) => (cell.kind === 'fu' ?
 </template>
 
 <style scoped>
+@media (prefers-reduced-motion: no-preference) {
+  .pill.flash {
+    animation: rt-flash 1.5s ease-out;
+  }
+}
+@keyframes rt-flash {
+  0%,
+  60% {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
 .wk {
   padding: 0 20px 12px;
   display: flex;
