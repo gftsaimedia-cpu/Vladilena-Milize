@@ -34,7 +34,7 @@ export type DecisionVerb = 'approve' | 'reject' | 'remind';
 const lastInbox = new Map<string, InboxItem>();
 
 // Xử lý một việc chờ; mọi nơi gọi qua useShellStore().decide. Trả việc vừa xử lý, hoặc null nếu việc đã được xử lý.
-// Dữ liệu giả: duyệt / từ chối bỏ việc khỏi mock/inbox, ghi chú không lưu; "nhắc" ghi giờ nhắc lên việc và việc ở lại.
+// Dữ liệu giả: duyệt / từ chối bỏ việc khỏi mock/inbox và ghi lại cách xử lý kèm ghi chú (tab Yêu cầu đọc lại); "nhắc" ghi giờ nhắc lên việc và việc ở lại.
 // Máy chủ thật: duyệt / từ chối qua PATCH /requests/:id/review, kèm `note` khi Admin có ghi chú cho nhân viên;
 // "nhắc": POST /requests/explanations-due/remind với { employeeId, date } của việc đã đọc, việc ở lại kèm giờ nhắc mới.
 export async function resolveRequest(
@@ -42,7 +42,7 @@ export async function resolveRequest(
   verb: DecisionVerb = 'approve',
   note?: string
 ): Promise<InboxItem | null> {
-  if (__MOCK__) return respond(verb === 'remind' ? remindInboxItem(id) : resolveInboxItem(id));
+  if (__MOCK__) return respond(verb === 'remind' ? remindInboxItem(id) : resolveInboxItem(id, verb, note));
   if (verb === 'remind') return remindDue(id);
   const body: { action: 'APPROVE' | 'REJECT'; note?: string } = { action: verb === 'approve' ? 'APPROVE' : 'REJECT' };
   const text = note?.trim();
@@ -146,7 +146,7 @@ export async function countPending(): Promise<number> {
 }
 
 // Họ tên và chức danh theo tên đăng nhập và uuid (đơn iSAT lưu theo uuid).
-async function peopleIndex(): Promise<Map<string, PersonInfo>> {
+export async function peopleIndex(): Promise<Map<string, PersonInfo>> {
   return peopleOf(await fetchEmployees());
 }
 

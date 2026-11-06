@@ -383,12 +383,26 @@ export function pendingInbox(): InboxItem[] {
   return structuredClone(list);
 }
 
-/** Bỏ một việc khỏi danh sách chờ; trả việc vừa bỏ, hoặc null khi không còn id đó. */
-export function resolveInboxItem(id: string): InboxItem | null {
+/** Một việc "duyệt" đã được Admin duyệt / từ chối trong phiên (tab Yêu cầu hiện nó ở nhóm đã xử lý). */
+export type DecidedItem = { item: InboxItem; verb: 'approve' | 'reject'; note?: string; at: string };
+let decided: DecidedItem[] = [];
+
+/**
+ * Bỏ một việc khỏi danh sách chờ; trả việc vừa bỏ, hoặc null khi không còn id đó.
+ * Ghi lại cách xử lý và ghi chú; giờ xử lý là đồng hồ giả, mỗi việc sau cộng thêm 1 giây để việc mới xử lý đứng trước.
+ */
+export function resolveInboxItem(id: string, verb: 'approve' | 'reject' = 'approve', note?: string): InboxItem | null {
   const hit = list.find(item => item.id === id);
   if (!hit) return null;
   list = list.filter(item => item.id !== id);
+  const at = new Date(Date.parse(MOCK_NOW) + (decided.length + 1) * 1000).toISOString();
+  decided.push({ item: structuredClone(hit), verb, note: note?.trim() || undefined, at });
   return structuredClone(hit);
+}
+
+/** Bản sao các việc đã duyệt / từ chối trong phiên, theo thứ tự xử lý. */
+export function decidedInbox(): DecidedItem[] {
+  return structuredClone(decided);
 }
 
 /**

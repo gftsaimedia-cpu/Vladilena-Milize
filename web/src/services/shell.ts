@@ -7,8 +7,11 @@ import { countPending } from './admin-main';
 
 export type ShellMe = { username?: string; name?: string; roleLabel?: string; initials?: string };
 
-export async function getShell(): Promise<{ me: ShellMe; bell: number }> {
+/** `requests`: số đơn đang chờ duyệt, hiện cạnh mục Yêu cầu của menu (chuông dữ liệu giả còn đếm cả việc nhắc giải trình). */
+export async function getShell(): Promise<{ me: ShellMe; bell: number; requests: number }> {
   const me = useSessionStore().shellMe as ShellMe;
-  if (__MOCK__) return respond({ me, bell: shellCounts().bell });
-  return { me, bell: await countPending().catch(() => 0) };
+  if (__MOCK__) return respond({ me, ...shellCounts() });
+  // Máy chủ thật: số chuông là số đơn đang chờ duyệt, cũng là số của mục Yêu cầu.
+  const bell = await countPending().catch(() => 0);
+  return { me, bell, requests: bell };
 }
