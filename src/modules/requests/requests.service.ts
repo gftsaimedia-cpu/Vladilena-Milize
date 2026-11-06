@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Injectable, Optional, Inject } from '@nestjs/common';
 import { BadRequestError, NotEmployedError, assertEmployed } from '../../common';
 import { isValidDateText } from '../../common/date-text';
+import { halvesOf, type HalfShift } from '../../common/half-shift';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
 import {
   SystemRequest,
@@ -73,7 +74,7 @@ import { ADVANCE_RATE_PCT, type AdvanceQuote } from '../payroll/domain';
  * Loại đơn nộp qua `fileRequest` (nộp và xem trước). iSAT nộp riêng bằng `createIsatRequest`.
  * Ở mọi loại, tiêu đề do server đặt (`requestTitle`, spec 2.4): `title` client gửi không được đọc.
  */
-export type FilingKind = 'leave' | 'leave-with-makeup' | 'overtime' | 'shift-change' | 'explanation' | 'advance';
+export type FilingKind = 'leave' | 'leave-with-makeup' | 'overtime' | 'shift-change' | 'explanation' | 'advance' | 'half-shift-leave';
 
 /** Ai nộp: nhân viên tự nộp (`'self'`) hay Admin nộp thay (`'admin'`, mặc định). */
 export interface FilingOptions {
@@ -100,10 +101,19 @@ export interface CreateLeaveInput {
   endDate: unknown;
 }
 
+export interface CreateHalfShiftLeaveInput {
+  employeeId: string;
+  /** Không đọc: tiêu đề do server đặt. */
+  title?: string;
+  reason: string;
+  date: unknown;
+  half: unknown;
+}
+
 const isActive = (r: SystemRequest): boolean => r.status === 'PENDING' || r.status === 'APPROVED';
 
 /** Các loại đơn chiếm ngày trong `day_status`. */
-const CLAIMING_TYPES: ReadonlySet<string> = new Set(['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT']);
+const CLAIMING_TYPES: ReadonlySet<string> = new Set(['LEAVE', 'LEAVE_WITH_MAKEUP', 'SHIFT_CHANGE', 'ISAT', 'HALF_SHIFT_LEAVE']);
 
 /**
  * Loại và ngày mà `planClaims` xét lại lúc duyệt, như lúc nộp: đơn theo khoảng xét các ngày làm việc trong khoảng của
@@ -122,6 +132,8 @@ function recheckScope(req: SystemRequest): { kind: NewRequestKind; from: string;
       return range('SHIFT_CHANGE', req.changeStartDate, req.changeEndDate);
     case 'ISAT':
       return single('ISAT', req.isat?.saturday);
+    case 'HALF_SHIFT_LEAVE':
+      return single('HALF_SHIFT_LEAVE', req.halfShiftDate);
     case 'OVERTIME':
       return single('OVERTIME', req.otDate);
     case 'EXPLANATION':
@@ -504,7 +516,8 @@ export class RequestsService {
       changeEndDate: req.changeEndDate,
       advancePeriod: req.advancePeriod,
       makeupDates: req.makeupSlots.map(s => s.date),
-      isatSaturday: req.isat?.saturday ?? null
+      isatSaturday: req.isat?.saturday ?? null,
+      halfShiftDate: req.halfShiftDate
     };
   }
 
@@ -540,6 +553,8 @@ export class RequestsService {
         return { changeStartDate: date(input?.startDate), changeEndDate: date(input?.endDate) };
       case 'explanation':
         return { explanationDate: date(input?.workDate) };
+      case 'half-shift-leave':
+        return { halfShiftDate: date(input?.date) };
       case 'advance': {
         const period = advancePeriodOf(input ?? {}, opts, vietnamToday(this.now()));
         return { advancePeriod: ADVANCE_PERIOD_TEXT.test(period) ? period : null };
@@ -685,6 +700,10 @@ export class RequestsService {
     return createdOf(await this.fileRequest('leave-with-makeup', input, opts, true));
   }
 
+  async createHalfShiftLeaveRequest(input: CreateHalfShiftLeaveInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
+    return createdOf(await this.fileRequest('half-shift-leave', input, opts, true));
+  }
+
   async createOvertimeRequest(input: CreateOvertimeInput, opts?: FilingOptions): Promise<CreatedRequestDTO> {
     return createdOf(await this.fileRequest('overtime', input, opts, true));
   }
@@ -777,9 +796,76 @@ export class RequestsService {
         return this.planExplanation(input, opts);
       case 'advance':
         return this.planAdvance(input, opts);
+      case 'half-shift-leave':
+        return this.planHalfShift(input, opts);
       default:
         throw new Error(`Loại đơn không hợp lệ: ${String(kind)}`);
     }
+  }
+
+  /** Đơn nghỉ giữa ca (spec §7.1): làm nửa ca rồi về, nợ 240 phút. */
+  private async planHalfShift(input: CreateHalfShiftLeaveInput, opts: FilingContext): Promise<Filing> {
+    const date = requireDateText(input?.date, 'date');
+    if (input?.half !== 'FIRST' && input?.half !== 'SECOND') {
+      throw new Error(`Nửa ca không hợp lệ: ${String(input?.half)}`);
+    }
+    const half = input.half as HalfShift;
+    if (typeof input?.reason !== 'string' || input.reason.trim().length === 0) {
+      throw new Error('reason must be a non-empty string');
+    }
+    this.assertSelfFiling(opts, [date]);
+    const staff = await this.resolveStaff(input.employeeId, monthOf(date));
+    assertEmployed(staff, [date]);
+    this.requireTypeConfig(staff);
+
+    if (!staff.benefits.ot || !staff.benefits.makeup) {
+      throw new Error('Loại nhân sự này không dùng được nghỉ giữa ca');
+    }
+
+    const planInLock = async (stores: RequestStores): Promise<PlannedRequest> => {
+      const { days } = await this.loadDays(staff, date, date, stores);
+      if (!days.isWorkingDay(date)) {
+        throw new Error(`Ngày ${formatDayMonth(date)} không phải ngày làm việc`);
+      }
+      const shift = days.shiftOf(date);
+      if (!shift) {
+        throw new Error(`Ngày ${formatDayMonth(date)} không phải ngày làm việc`);
+      }
+      const halves = halvesOf({ start: shift.startTime, end: shift.endTime });
+      if (!halves) {
+        throw new Error(`Ca của ngày ${formatDayMonth(date)} không chia được thành hai nửa 4 giờ`);
+      }
+      const work = halves[half].work;
+      const leave = halves[half].leave;
+
+      const plan = planClaims({ kind: 'HALF_SHIFT_LEAVE', dates: [date], days });
+      const title = requestTitle({ kind: 'half-shift-leave', date, work });
+
+      const request = SystemRequest.createHalfShiftLeave({
+        employeeId: staff.employeeId,
+        title,
+        reason: input.reason,
+        halfShiftDate: date,
+        halfShift: half,
+        halfStart: work.start,
+        halfEnd: work.end,
+      });
+
+      return {
+        request,
+        claims: { plan, status: 'HALF_SHIFT' },
+        summary: {
+          date,
+          half,
+          work,
+          leave,
+          owedMinutes: 240,
+        },
+        warnings: plan.warnings,
+      };
+    };
+
+    return { staff, plan: planInLock };
   }
 
   /** Đơn nghỉ (§6.1): giữ các ngày làm việc trong khoảng; Phép năm kiểm số dư (spec 2.7). */

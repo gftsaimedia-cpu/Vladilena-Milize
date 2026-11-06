@@ -614,7 +614,8 @@ const CLAIM_OF: Partial<Record<SystemRequestProps['type'], ClaimStatus>> = {
   LEAVE: 'LEAVE',
   LEAVE_WITH_MAKEUP: 'LEAVE_WITH_MAKEUP',
   SHIFT_CHANGE: 'SHIFT_CHANGE',
-  ISAT: 'ISAT'
+  ISAT: 'ISAT',
+  HALF_SHIFT_LEAVE: 'HALF_SHIFT',
 };
 
 /**
@@ -635,6 +636,8 @@ export async function seed(
   if (!days) {
     if (req.type === 'ISAT') {
       days = req.isat ? [req.isat.saturday] : [];
+    } else if (req.type === 'HALF_SHIFT_LEAVE') {
+      days = req.halfShiftDate ? [req.halfShiftDate] : [];
     } else {
       const start = req.type === 'SHIFT_CHANGE' ? req.changeStartDate : req.leaveStartDate;
       const end = req.type === 'SHIFT_CHANGE' ? req.changeEndDate : req.leaveEndDate;
