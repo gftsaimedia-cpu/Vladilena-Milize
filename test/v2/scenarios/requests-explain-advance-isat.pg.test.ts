@@ -84,14 +84,15 @@ describe('giải trình', { skip: !enabled }, () => {
     assert.equal((await env.q(`SELECT 1 FROM system_requests WHERE type='EXPLANATION'`)).length, 1);
   });
 
-  it('quên check-out: bắt buộc nhập giờ ra, giờ ra phải sau giờ vào; duyệt thì ngày PRESENT payUnits 1', async () => {
+  it('quên check-out: bắt buộc nhập giờ ra, giờ khai không so với giờ vào thật; duyệt thì ngày PRESENT payUnits 1', async () => {
     await admin.post('/api/v2/attendance/punches', { employeeId: uuid, type: 'IN', punchedAt: '2026-11-03T08:00:00+07:00' });
     const noOut = await nv.post('/api/v2/me/requests/explanation', { reason: 'Quên', workDate: '2026-11-03' });
     assert.equal(noOut.status, 400, msg(noOut));
     assert.match(noOut.body.error, /Nhập giờ ra/);
-    const early = await nv.post('/api/v2/me/requests/explanation', { reason: 'Quên', workDate: '2026-11-03', actualCheckOut: '07:00' });
-    assert.equal(early.status, 400, msg(early)); // giờ ra khai báo trước giờ vào thật 08:00
-    assert.match(early.body.error, /Giờ ra phải sau giờ vào/);
+    // D7 (06/11): giờ ra khai trước giờ vào thật 08:00 vẫn qua xem trước; Admin xét khi duyệt.
+    const early = await nv.post('/api/v2/me/requests/explanation/preview', { reason: 'Quên', workDate: '2026-11-03', actualCheckOut: '07:00' });
+    assert.equal(early.status, 200, msg(early));
+    assert.equal(early.body.ok, true, msg(early));
     const bad = await nv.post('/api/v2/me/requests/explanation', { reason: 'Quên', workDate: '2026-11-03', actualCheckOut: '25:99' });
     assert.equal(bad.status, 400, msg(bad));
     const ok = await nv.post('/api/v2/me/requests/explanation', { reason: 'Quên', workDate: '2026-11-03', actualCheckOut: '17:00' });

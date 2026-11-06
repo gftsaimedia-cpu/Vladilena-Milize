@@ -54,6 +54,8 @@ export interface StaffContext {
   leaveBalanceOn: string | null; // staff.leave_balance_on
   startDate: string | null; // staff.start_date (YYYY-MM-DD); trống hoặc sai dạng → null
   resignedOn?: string | null; // staff.resigned_on (YYYY-MM-DD); trống hoặc sai dạng → null
+  /** staff.advance_on: 0 → không được tạm ứng (D8); NULL hay khác 0 → được, như hồ sơ nhân sự đọc. Thiếu → được. */
+  canAdvance?: boolean;
   benefits: { ot: boolean; makeup: boolean; leaveAccount: boolean };
   regularDows: number[] | null; // null = loại nhân sự chưa cấu hình
 }
@@ -343,7 +345,17 @@ export class RequestsRepository {
   async findStaffContext(employeeIdOrUsername: string, month: string): Promise<StaffContext | null> {
     const staff = await this.qb
       .selectFrom('staff')
-      .select(['uuid', 'type', 'shift_start_time', 'shift_end_time', 'leave_balance', 'leave_balance_on', 'start_date', 'resigned_on'])
+      .select([
+        'uuid',
+        'type',
+        'shift_start_time',
+        'shift_end_time',
+        'leave_balance',
+        'leave_balance_on',
+        'start_date',
+        'resigned_on',
+        'advance_on'
+      ])
       .where(eb => eb.or([eb('uuid', '=', employeeIdOrUsername), eb('username', '=', employeeIdOrUsername)]))
       .executeTakeFirst();
     if (!staff || !staff.uuid) return null;
@@ -381,6 +393,7 @@ export class RequestsRepository {
       leaveBalanceOn: staff.leave_balance_on ?? null,
       startDate: parseStartDate(staff.start_date),
       resignedOn: parseStartDate(staff.resigned_on),
+      canAdvance: Number(staff.advance_on ?? 1) !== 0,
       benefits: { ot: enabled.has('ot'), makeup: enabled.has('makeup'), leaveAccount: enabled.has('leaveAccount') },
       regularDows: typeRow ? parseDows(typeRow.regular_dows) : null
     };

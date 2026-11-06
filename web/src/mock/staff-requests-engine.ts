@@ -187,46 +187,8 @@ export function makeupCounter(
   return { planned, required };
 }
 
-/**
- * Giờ chọn được của dòng khung bù thứ `index` (spec 4.4): khung của các dòng khác cùng ngày đã chiếm giờ của chúng, và không
- * xếp quá số giờ còn thiếu sau các dòng khác. Dùng với startHours / endHours của ngày bù đã chọn.
- */
-export function slotHourOptions(
-  ctx: EngineCtx,
-  startDate: string,
-  endDate: string,
-  slots: MakeupSlot[],
-  index: number
-): Required<HourOptions> {
-  const others = slots.filter((_, j) => j !== index);
-  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
-  const date = slots[index]?.date;
-  const taken = others
-    .filter(o => date && o.date === date && o.startTime && o.endTime)
-    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
-  return { taken, capMinutes: Math.max(0, required - planned) };
-}
-
-/**
- * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
- * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
- * mỗi dòng so với các dòng trước nó, nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
- */
-export function fitSlots(ctx: EngineCtx, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
-  const dates = slotDates(ctx, endDate);
-  const out: MakeupSlot[] = [];
-  for (const s of slots) {
-    const date = dates.includes(s.date) ? s.date : '';
-    const day = ctx.days.find(d => d.date === date);
-    const opts = slotHourOptions(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
-    const startOk = !!day && !!s.startTime && startHours(day, opts).includes(hourOf(s.startTime));
-    const endOk =
-      startOk && !!s.endTime && endHours(day!, hourOf(s.startTime), opts).some(e => e.end === hourOf(s.endTime));
-    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
-  }
-  return out;
-}
-
+// Giờ của các dòng khung bù đang điền (dòng khác đã chiếm, số giờ còn thiếu) do builders/api/staff-requests.ts (slotHours,
+// fitSlots) lọc trên bảng giờ của request-context, cả ở mock lẫn máy chủ thật.
 
 // ---------- Dựng phần request-context mà BE tính ----------
 const daysIn = (ctx: EngineCtx, start: string, end: string) => ctx.days.filter(d => d.date >= start && d.date <= end);

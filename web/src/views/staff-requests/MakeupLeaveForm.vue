@@ -2,9 +2,9 @@
 // J14 · Nghỉ có làm bù (spec staff-requests 4.4, brief FE mục 3): Từ ngày – Đến ngày, các dòng khung bù, lý do.
 // Ngày nghỉ do BE đưa (request-context choices: tháng chưa có OT, "Đến ngày" cùng tháng, sau đó còn ngày để bù).
 // Chọn xong ngày nghỉ thì hiện "Khung bù": mỗi dòng là ngày bù (BE: slotDates), giờ bắt đầu và giờ kết thúc lấy từ bảng giờ
-// `hours` của BE. Form không tự chặn khung chồng nhau hay quá số giờ phải bù: BE kiểm khi xem trước, câu từ chối hiện ở hộp
-// tóm tắt và nút Gửi chờ xem trước ok. Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn trong bảng giờ, không thì lấy giờ xa
-// nhất (board J14). Đổi ngày nghỉ hay tải lại request-context thì bỏ giá trị không còn trong bảng (fitSlots).
+// `hours` của BE, bỏ giờ mà dòng khác cùng ngày đã chiếm và không quá số giờ còn thiếu (slotHours: form chỉ đưa lựa chọn hợp
+// lệ, BE vẫn kiểm khi xem trước). Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn trong bảng giờ, không thì lấy giờ xa
+// nhất (board J14). Đổi ngày nghỉ hay tải lại request-context thì bỏ giá trị không còn hợp lệ (fitSlots).
 // Bộ đếm "Đã xếp x / y giờ" ở đầu khung bù (y do BE đòi); hộp tóm tắt giữa hai ô ngày và khung bù như board.
 // Bản nháp chỉ gồm các dòng đủ ba ô.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
@@ -20,6 +20,7 @@ import {
   makeupCounter,
   makeupNeedLine,
   slotDates,
+  slotHours,
   startDates,
   startHours
 } from '@/builders/api/staff-requests';
@@ -46,13 +47,14 @@ const empty = (): MakeupSlot => ({ date: '', startTime: '', endTime: '' });
 
 const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
 const hourOf = (t: string) => Number(t.slice(0, 2));
-const dayOf = (date: string) => props.ctx.days.find(d => d.date === date);
 
 const starts = computed(() => startDates(props.ctx, KIND));
 const ends = computed(() => endDates(props.ctx, KIND, startDate.value));
 const ranged = computed(() => !!startDate.value && !!endDate.value);
 const slotDays = computed(() => slotDates(props.ctx, endDate.value));
 const counter = computed(() => makeupCounter(props.ctx, startDate.value, endDate.value, slots.value));
+// Thêm dòng chỉ khi còn thiếu giờ bù (form chỉ đưa thao tác hợp lệ).
+const canAdd = computed(() => ranged.value && counter.value.planned < counter.value.required);
 const countLine = computed(() => makeupCountLine(props.ctx, startDate.value, endDate.value, slots.value));
 const lines = computed(() =>
   ranged.value
@@ -60,10 +62,10 @@ const lines = computed(() =>
     : []
 );
 
-// Lựa chọn giờ của từng dòng: các dòng khác giữ giờ của chúng.
+// Lựa chọn giờ của từng dòng: các dòng khác giữ giờ của chúng, và không quá số giờ còn thiếu.
 function hoursFor(list: MakeupSlot[], i: number) {
   const s = list[i];
-  const hours = dayOf(s.date)?.hours ?? [];
+  const hours = slotHours(props.ctx, startDate.value, endDate.value, list, i);
   return {
     starts: startHours(hours).map(hh),
     ends: s.startTime ? endHours(hours, hourOf(s.startTime)).map(e => hh(e.end)) : []
@@ -84,7 +86,7 @@ function fitAll() {
     slots.value = [empty()];
     keys.value = [nextKey++];
   }
-  slots.value = fitSlots(props.ctx, endDate.value, slots.value);
+  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, slots.value);
 }
 watch([startDate, endDate, () => props.ctx], fitAll);
 
@@ -95,12 +97,12 @@ function setRow(i: number, patch: Partial<MakeupSlot>) {
     const ends = hoursFor(next, i).ends;
     if (!ends.includes(next[i].endTime)) next[i] = { ...next[i], endTime: ends[ends.length - 1] ?? '' };
   }
-  slots.value = fitSlots(props.ctx, endDate.value, next);
+  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, next);
 }
 
 const root = ref<HTMLElement | null>(null);
 async function addRow() {
-  if (!ranged.value) return;
+  if (!canAdd.value) return;
   slots.value = [...slots.value, empty()];
   keys.value = [...keys.value, nextKey++];
   await nextTick();
@@ -111,6 +113,7 @@ async function removeRow(i: number) {
   keys.value = keys.value.filter((_, j) => j !== i);
   slots.value = fitSlots(
     props.ctx,
+    startDate.value,
     endDate.value,
     slots.value.filter((_, j) => j !== i)
   );
@@ -216,7 +219,7 @@ watch(
         <PhIcon name="x" :size="16" :stroke="2" />
       </button>
     </div>
-    <button type="button" class="nr-b2" @click="addRow">
+    <button type="button" class="nr-b2" :disabled="!canAdd" @click="addRow">
       <PhIcon name="plus" :size="16" :stroke="2" />Thêm khung bù
     </button>
   </div>
