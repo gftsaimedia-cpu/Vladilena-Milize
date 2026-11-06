@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // Nội dung trang 1 của phiếu lương A4: đầu trang, ô người nhận, bảng chấm công mỗi ngày một dòng, dải tổng hợp và chú thích.
-// Trạng thái phiếu (sheet.slipStatus) quyết định tiêu đề "chính thức" / "tạm tính" và ô Tình trạng; riêng Nháp có dòng bản nháp.
+// Không in trạng thái phiếu (D11, 06/11): tiêu đề, dòng phụ và ô người nhận giống nhau cho mọi phiếu.
 import { useId } from 'vue';
 import logo from '@/assets/img/gft-logo.png';
 import { kindLevelText } from '@/constants/labels';
 import type { A4Sheet } from '@/mock/payslip-a4';
 import { dm, dowShort, monthLabel, monthShort, num, vnd } from '@/utils/format';
-import { blankNum, inOutText, periodLine, signedText, slipStateText, statCells, titleLine } from './a4-format';
+import { blankNum, inOutText, periodLine, signedText, statCells, titleLine } from './a4-format';
 
 defineProps<{ sheet: A4Sheet }>();
 const headingId = useId();
@@ -15,13 +15,10 @@ const mult = (n: number) => `×${num(n)}`;
 
 <template>
   <div class="att">
-    <header class="hd" :class="{ draft: sheet.slipStatus === 'draft' }">
+    <header class="hd">
       <img :src="logo" width="60" height="42" alt="GFT" />
       <h1>{{ titleLine(sheet) }}</h1>
       <p class="sub">{{ periodLine(sheet) }}</p>
-      <p v-if="sheet.slipStatus === 'draft'" class="dr">
-        <i class="dot m-pending" aria-hidden="true"></i>Bản nháp, chưa phải lương chính thức
-      </p>
     </header>
     <div class="who">
       <div>
@@ -29,9 +26,6 @@ const mult = (n: number) => `×${num(n)}`;
       </div>
       <div>
         <span class="lb">Loại · bậc</span><b>{{ kindLevelText(sheet.kind, sheet.level) }}</b>
-      </div>
-      <div>
-        <span class="lb">Tình trạng</span><b>{{ slipStateText(sheet.slipStatus) }}</b>
       </div>
       <div>
         <span class="lb">Trạng thái nhân sự</span><b>{{ sheet.employmentStatus ?? '—' }}</b>
@@ -117,10 +111,6 @@ const mult = (n: number) => `×${num(n)}`;
   grid-row: 1 / span 2;
   display: block;
 }
-/* Nháp: logo căn giữa theo cả ba dòng (tiêu đề, dòng phụ, dòng bản nháp) như board. */
-.hd.draft img {
-  grid-row: 1 / span 3;
-}
 .hd h1 {
   margin: 0;
   font-family: 'League Spartan', Geist, sans-serif;
@@ -134,19 +124,11 @@ const mult = (n: number) => `×${num(n)}`;
   align-self: start;
   color: #616161;
 }
-/* Dòng bản nháp: chữ đậm sau chấm viền cam, không phải viên thuốc. */
-.hd .dr {
-  grid-column: 2;
-  margin: 6px 0 0;
-  display: flex;
-  align-items: center;
-  font-weight: 600;
-}
 .who {
   margin-top: 12px;
   display: grid;
   gap: 0;
-  grid-template-columns: 1.3fr 0.9fr 0.9fr 1.2fr 1fr;
+  grid-template-columns: 1.3fr 0.9fr 1.2fr 1fr;
   border: 1px solid #e0e0e0;
   border-radius: 8px;
 }

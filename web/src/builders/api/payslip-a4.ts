@@ -7,7 +7,6 @@ import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../cons
 import { num } from '../../utils/format';
 import type { SlipRates } from '../../mock/payroll';
 import type { KpiPart } from '../../mock/payroll-calc';
-import { statusOf } from './payroll';
 
 type DailyLineDTO = {
   date: string;
@@ -227,7 +226,6 @@ export function sheetFromRecord(r: A4RecordDTO): A4Sheet {
     contract: d.contractStatusText || '—',
     from: `${d.month}-01`,
     to: `${d.month}-${String(last).padStart(2, '0')}`,
-    periodNote: '',
     stdDays: d.standardWorkdays,
     dayRate: d.dayRate ?? null,
     days: (d.dailyLines ?? []).map(dayOf),
@@ -248,8 +246,7 @@ export function sheetFromRecord(r: A4RecordDTO): A4Sheet {
     totals: totalsOf(d),
     net: d.netIncome ?? r.net,
     leaveLeft: d.remainingAnnualLeaveDays ?? null,
-    otRates: d.rates?.otMultipliers ?? null,
-    slipStatus: statusOf(r.status)
+    otRates: d.rates?.otMultipliers ?? null
   };
 }
 

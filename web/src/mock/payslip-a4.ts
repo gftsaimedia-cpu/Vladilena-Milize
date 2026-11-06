@@ -1,9 +1,10 @@
 // Dữ liệu giả của phiếu lương A4: các kiểu của hợp đồng `A4Sheet` và tháng mẫu 10/2026 (mọi người thấy cùng một tháng).
 // Chỉ đọc; không gọi /api. Bốn số tổng được cộng từ các dòng đã làm tròn.
-// personSheet / approvedSheets: tháng mẫu đè người (tên, loại · bậc, trạng thái nhân sự, hợp đồng, phép còn lại) và trạng thái
-// của phiếu giả ở Bảng lương (mock/payroll.ts); tiền và ngày công vẫn là tháng mẫu, không bịa số theo người.
+// personSheet / approvedSheets: tháng mẫu đè người (tên, loại · bậc, trạng thái nhân sự, hợp đồng, phép còn lại) của phiếu
+// giả ở Bảng lương (mock/payroll.ts); tiền và ngày công vẫn là tháng mẫu, không bịa số theo người. Bản in không mang trạng
+// thái phiếu (D11, 06/11).
 import { MOCK_MONTH } from './clock';
-import { payrollView, payslipView, type PayrollStatus } from './payroll';
+import { payrollView, payslipView } from './payroll';
 
 export type DayMark = 'work' | 'paid' | 'unpaid' | 'absent' | 'pending';
 
@@ -60,7 +61,6 @@ export type A4Sheet = {
   contract: string; // 'HĐLĐ từ 3 tháng'
   from: string;
   to: string; // 'YYYY-MM-DD'
-  periodNote: string; // 'tạm tính cả tháng, số liệu tới 02/11'
   stdDays: number; // 26
   dayRate: number | null; // 230769; null: phiếu lưu trước khi BE có trường này
   days: A4Day[]; // chỉ các ngày cần in, theo thứ tự ngày
@@ -70,7 +70,6 @@ export type A4Sheet = {
   net: number;
   leaveLeft: number | null; // ngày phép năm còn lại; null: loại nhân sự không có tài khoản phép
   otRates: { weekday: number; weekend: number; holiday: number } | null; // hệ số OT BE áp cho kỳ; null: phiếu BE cũ, không in hệ số
-  slipStatus: PayrollStatus; // trạng thái phiếu: tiêu đề "chính thức" / "tạm tính", ô Tình trạng, dòng bản nháp
 };
 
 // Ngày trong mock khai cho cả tháng; cờ hasShift chỉ dùng ở đây, không đưa ra ngoài.
@@ -230,7 +229,6 @@ function buildSheet(): A4Sheet {
     contract: 'HĐLĐ từ 3 tháng',
     from: '2026-10-01',
     to: '2026-10-31',
-    periodNote: 'tạm tính cả tháng, số liệu tới 02/11',
     stdDays: 26,
     dayRate: 230769,
     days,
@@ -251,8 +249,7 @@ function buildSheet(): A4Sheet {
     totals,
     net: afterInsurance - tax - advance,
     leaveLeft: 22,
-    otRates: { weekday: 1.5, weekend: 2, holiday: 3 },
-    slipStatus: 'draft'
+    otRates: { weekday: 1.5, weekend: 2, holiday: 3 }
   };
 }
 
@@ -261,7 +258,7 @@ export function payslipSheet(month: string): A4Sheet | null {
   return month === MOCK_MONTH ? buildSheet() : null;
 }
 
-/** Phiếu A4 của một mã ở Bảng lương giả: tháng mẫu với người và trạng thái của phiếu đó; tháng hay mã lạ trả null. */
+/** Phiếu A4 của một mã ở Bảng lương giả: tháng mẫu với người của phiếu đó; tháng hay mã lạ trả null. */
 export function personSheet(month: string, id: string): A4Sheet | null {
   const sheet = payslipSheet(month);
   const slip = payslipView(month, id);
@@ -273,8 +270,7 @@ export function personSheet(month: string, id: string): A4Sheet | null {
     level: slip.level,
     employmentStatus: slip.employmentStatus,
     contract: slip.contract,
-    leaveLeft: slip.leaveLeft,
-    slipStatus: slip.status
+    leaveLeft: slip.leaveLeft
   };
 }
 

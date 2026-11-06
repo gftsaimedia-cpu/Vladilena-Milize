@@ -3,8 +3,7 @@ import { expect, test } from '@playwright/test';
 import { payrollView } from '../src/mock/payroll';
 import { approvedSheets, payslipSheet, personSheet } from '../src/mock/payslip-a4';
 import {
-  actualText, blankNum, inOutText, periodLine, qtyText, ruleText, scoreText, signedText, slipStateText, staffLine,
-  statCells, titleLine
+  actualText, blankNum, inOutText, periodLine, qtyText, ruleText, scoreText, signedText, staffLine, statCells, titleLine
 } from '../src/views/print/parts/a4-format';
 
 const sheet = () => {
@@ -22,27 +21,21 @@ test('header fields follow the sample month', () => {
   const { days, stats, groups, totals, ...head } = sheet();
   expect(head).toEqual({
     month: '2026-10', name: 'NV thử nghiệm', kind: 'NV', level: 1, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
-    from: '2026-10-01', to: '2026-10-31', periodNote: 'tạm tính cả tháng, số liệu tới 02/11',
-    stdDays: 26, dayRate: 230769, net: 9657922, leaveLeft: 22, slipStatus: 'draft',
+    from: '2026-10-01', to: '2026-10-31', stdDays: 26, dayRate: 230769, net: 9657922, leaveLeft: 22,
     otRates: { weekday: 1.5, weekend: 2, holiday: 3 }
   });
 });
 
-// Phiếu của một người: tháng mẫu chung, chỉ đè tên, loại · bậc, trạng thái nhân sự, hợp đồng, phép còn lại và trạng thái
-// từ phiếu giả của Bảng lương.
-// Trạng thái giả dùng chung với các file test Node khác cùng worker; payroll-mock duyệt GFT-0142 và từ chối GFT-0171, nên ở
-// đây chỉ đọc những phiếu không file nào đổi trạng thái (payroll-decide-data trả GFT-0101/GFT-0156 về như cũ).
-test('a person’s sheet is the sample month with that slip’s person and status', () => {
+// Phiếu của một người: tháng mẫu chung, chỉ đè tên, loại · bậc, trạng thái nhân sự, hợp đồng và phép còn lại từ phiếu giả
+// của Bảng lương. Trạng thái phiếu không đi vào bản in (D11, 06/11).
+test('a person’s sheet is the sample month with that slip’s person', () => {
   const base = sheet();
   const anh = personSheet('2026-10', 'GFT-0117');
   expect(anh).toEqual({
     ...base, name: 'Phạm Ngọc Anh', kind: 'NV', level: 2, employmentStatus: 'Chính thức', contract: 'HĐLĐ từ 3 tháng',
-    leaveLeft: 12, slipStatus: 'pending'
+    leaveLeft: 12
   });
   expect(personSheet('2026-10', 'GFT-0172')).toMatchObject({ employmentStatus: 'Thử việc', leaveLeft: null });
-  expect(personSheet('2026-10', 'GFT-0101')?.slipStatus).toBe('done');
-  expect(personSheet('2026-10', 'GFT-0123')?.slipStatus).toBe('draft');
-  expect(personSheet('2026-10', 'GFT-0156')?.slipStatus).toBe('rejected');
   expect(personSheet('2026-10', 'demo_a_broken')).toBeNull();
   expect(personSheet('2026-11', 'GFT-0142')).toBeNull();
 });
@@ -52,19 +45,21 @@ test('approved sheets are the done slips in table order; another month has none'
   const list = approvedSheets('2026-10');
   const done = payrollView('2026-10').lines.filter(l => l.status === 'done').map(l => l.name);
   expect(done.slice(0, 2)).toEqual(['Nguyễn Thu Hà', 'Trần Minh Quân']);
-  expect(list?.map(s => [s.name, s.slipStatus])).toEqual(done.map(n => [n, 'done']));
+  expect(list?.map(s => s.name)).toEqual(done);
   expect(approvedSheets('2026-11')).toBeNull();
 });
 
-test('title, status and period line follow the slip status', () => {
+// D11 (06/11): phiếu in không ghi trạng thái phiếu nào (nháp, chờ duyệt, đã duyệt, từ chối, đã trả), kể cả "chính thức" /
+// "tạm tính" ở tiêu đề và ghi chú tạm tính ở dòng phụ. Phiếu một người không còn mang trạng thái phiếu.
+test('D11: the title and period line carry no slip status, and a sheet has none to print', () => {
   const s = sheet();
-  const as = (slipStatus: 'draft' | 'pending' | 'done' | 'rejected') => ({ ...s, slipStatus });
-  expect(titleLine(as('done'))).toBe('Phiếu lương tháng 10/2026 · chính thức');
-  for (const st of ['draft', 'pending', 'rejected'] as const) expect(titleLine(as(st))).toBe('Phiếu lương tháng 10/2026 · tạm tính');
-  expect((['draft', 'pending', 'done', 'rejected'] as const).map(slipStateText)).toEqual(['Nháp', 'Chờ duyệt', 'Đã duyệt', 'Bị từ chối']);
-  expect(periodLine(as('done'))).toBe('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
-  for (const st of ['draft', 'pending', 'rejected'] as const)
-    expect(periodLine(as(st))).toBe('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
+  expect(titleLine(s)).toBe('Phiếu lương tháng 10/2026');
+  expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
+  for (const id of ['GFT-0101', 'GFT-0117', 'GFT-0123', 'GFT-0156']) {
+    const p = personSheet('2026-10', id)!;
+    expect(['slipStatus' in p, 'periodNote' in p]).toEqual([false, false]);
+    expect(titleLine(p)).toBe('Phiếu lương tháng 10/2026');
+  }
 });
 
 test('days: one row per day that needs one, plain Sundays skipped', () => {
@@ -164,7 +159,7 @@ test('format helpers: blanks, signs, check-in/out and quantities', () => {
 
 test('format helpers: header lines and the summary strip of the sample month', () => {
   const s = sheet();
-  expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · tạm tính cả tháng, số liệu tới 02/11 · công chuẩn theo quy chế: 26 ngày');
+  expect(periodLine(s)).toBe('Từ 01/10 đến 31/10/2026 · công chuẩn theo quy chế: 26 ngày');
   expect(staffLine(s)).toBe('NV · Bậc 1 · HĐLĐ từ 3 tháng · từ 01/10 đến 31/10/2026');
   expect(statCells(s.stats)).toEqual([
     ['Ngày công', '19 ngày'], ['Ca Flex · Night', '3 · 3 ca'], ['Nghỉ có lương', '3 ngày'], ['iSAT', '1 ngày'],
