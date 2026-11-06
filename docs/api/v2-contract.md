@@ -2038,7 +2038,7 @@ Lỗi chung:
 - **Mở rộng**: sự kiện đi qua `RealtimeBus` nên sau này đổi sang WebSocket hay PostgreSQL LISTEN/NOTIFY (nhiều instance) không đổi định dạng khung ở trên. Loại sự kiện mới chỉ được thêm, FE phải bỏ qua loại chưa biết.
 
 ### 3.13. Departments Module (Phòng ban)
-- **`GET /api/v2/departments`** (quyền `config.read`): `{ "items": [{ "id", "name", "sort", "staffCount" }] }`.
+- **`GET /api/v2/departments`** (quyền `config.read`): `{ "departments": [{ "id", "name", "sort", "staffCount" }] }`.
 - **`POST /api/v2/departments`** (quyền `config.write`): body `{ "name" }`; tên trùng thì `409 DEPARTMENT_NAME_TAKEN`.
 - **`PUT /api/v2/departments/:id`** (quyền `config.write`): đổi tên; không có phòng thì `404`.
 - **`DELETE /api/v2/departments/:id`** (quyền `config.write`): còn nhân sự đang làm thì `409 DEPARTMENT_NOT_EMPTY`; nhân sự đã thôi việc được bỏ phòng.
