@@ -1,6 +1,7 @@
 // Chấm công giả: lưới 28 ngày của 11 nhân viên, dựng mỗi lần gọi từ ghi nhận gốc + các việc còn chờ trong mock/inbox.ts.
 // Xử lý một việc chỉ làm ô trở về ghi nhận gốc; không đổi công, trễ, OT hay lương (spec mục 1.3 và 4.2).
 import { dm, dowShort, initials, weekdayName } from '@/utils/format';
+import { personStatusOf } from './people-status';
 import { MOCK_MONTH, MOCK_TODAY } from './clock';
 import { pendingInbox, type InboxItem } from './inbox';
 
@@ -267,6 +268,10 @@ export function personDto(p: Person): PersonDTO {
 }
 
 /** Lưới 28 ngày của mọi người, đã lọc theo tên (`q`) và nhóm (`group`); null khi tháng không có dữ liệu giả. */
+// Phòng ban và trạng thái nhân sự như BE trả (dữ liệu giả chưa có bảng phòng ban nên mã là null).
+const BE_STATUS = { ok: 'working', try: 'probation', off: 'on_leave', out: 'resigned' } as const;
+const placeOf = (p: Person) => ({ departmentId: null, departmentName: p.dept, staffStatus: BE_STATUS[personStatusOf(p.name)] });
+
 export function weekDto({ month, q = '', group = '' }: { month: string; q?: string; group?: string }): WeekDTO | null {
   if (month !== MOCK_MONTH) return null;
   const items = pendingInbox();
@@ -284,6 +289,7 @@ export function weekDto({ month, q = '', group = '' }: { month: string; q?: stri
     const { joinedMonth: _omit, ...who } = personDto(person); // lưới tuần không mang joinedMonth (chỉ hồ sơ có)
     return {
       ...who,
+      ...placeOf(person),
       days: cells,
       totals: { workDays: person.period.worked, lateMinutes: person.sums.late, otHours: person.sums.ot },
       needsAction: cells.filter(c => c.kind === 'todo').length
@@ -308,7 +314,8 @@ export function weekDto({ month, q = '', group = '' }: { month: string; q?: stri
         when: item.when,
         days: item.days,
         age: item.age,
-        date: item.days[0]
+        date: item.days[0],
+        ...placeOf(p)
       };
     })
     .sort((a, b) => a.date.localeCompare(b.date));

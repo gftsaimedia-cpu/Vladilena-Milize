@@ -31,13 +31,23 @@ export type DayCellDTO = {
   halfShift?: 'FIRST' | 'SECOND' | null;
 };
 
+export type StaffStatusDTO = 'working' | 'probation' | 'on_leave' | 'resigned';
+const PS_OF: Record<StaffStatusDTO, PersonStatus> = { working: 'ok', probation: 'try', on_leave: 'off', resigned: 'out' };
+/** Trạng thái hiện trên màn từ trạng thái của BE; thiếu thì coi là đang làm chính thức. */
+export const personStatusFrom = (s?: StaffStatusDTO): PersonStatus | undefined => (s ? PS_OF[s] : undefined);
+/** Tên phòng ban hiện trên màn: BE trả departmentName (null = chưa xếp phòng, hiện "—"); phản hồi cũ không có thì lấy `group`. */
+export const deptNameOf = (p: { departmentName?: string | null; group?: string }): string =>
+  p.departmentName === undefined ? (p.group ?? '') : (p.departmentName ?? '—');
+
 export type PersonDTO = {
   username: string;
   name: string;
   initials: string;
   group: string;
-  /** Trạng thái nhân sự (tài liệu yêu cầu BE 06/11); BE chưa trả thì coi là đang làm chính thức. */
-  staffStatus?: PersonStatus;
+  /** Phòng ban và trạng thái nhân sự do BE tính; phản hồi cũ không có thì coi là đang làm chính thức, phòng theo `group`. */
+  departmentId?: number | null;
+  departmentName?: string | null;
+  staffStatus?: StaffStatusDTO;
   title: string | null;
   code: string;
   startDate: string | null;
@@ -65,6 +75,9 @@ export type PendingDTO = {
   days: string[];
   age: string;
   date: string;
+  departmentId?: number | null;
+  departmentName?: string | null;
+  staffStatus?: StaffStatusDTO;
 };
 export type DayHeadDTO = { iso: string; dow: string; dm: string; scheduled: boolean; today: boolean; monday: boolean; periodStart: boolean };
 export type WeekDTO = {
@@ -272,8 +285,8 @@ export function attendanceFromWeek(dto: WeekDTO, inbox: InboxItem[]): Attendance
     groups: dto.groups,
     rows: dto.rows.map(r => ({
       person: personRef(r),
-      dept: r.group,
-      ps: r.staffStatus,
+      dept: deptNameOf(r),
+      ps: personStatusFrom(r.staffStatus),
       cells: r.days.map(cellFrom),
       totals: r.totals,
       workText: num(r.totals.workDays),
@@ -282,7 +295,8 @@ export function attendanceFromWeek(dto: WeekDTO, inbox: InboxItem[]): Attendance
     // Việc chờ không mang phòng ban / trạng thái riêng: lấy theo dòng của cùng người (BE trả việc của đúng những người đã lọc).
     pending: dto.pending.map(p => {
       const row = dto.rows.find(r => r.username === p.username);
-      return { item: itemFrom(p, inbox), person: personRef(p), date: p.date, dept: row?.group ?? '', ps: row?.staffStatus };
+      const who = p.departmentName !== undefined || p.staffStatus ? p : row;
+      return { item: itemFrom(p, inbox), person: personRef(p), date: p.date, dept: who ? deptNameOf(who) : '', ps: personStatusFrom(who?.staffStatus) };
     }),
     total: dto.total,
     matched: dto.matched
