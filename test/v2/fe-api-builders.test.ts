@@ -150,6 +150,12 @@ describe('Việc chờ duyệt từ /requests', () => {
 
 import { payrollScreenFromPayslips } from '../../web/src/builders/api/payroll';
 
+// totals do BE cộng sẵn (GET /payroll/:month); builder chỉ ánh xạ, không cộng.
+const TOTALS = {
+  baseSalaryActual: 8_384_615, kpiActualPay: 1_000_000, allowance: 500_000, otPay: 300_000, lateDeduction: 50_000,
+  gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82
+};
+
 describe('Bảng lương từ /payroll/:month', () => {
   const details = (over: Record<string, unknown> = {}) => ({
     employeeId: 'u-nam', username: 'nam', fullName: 'Lê Hoàng Nam', positionLevelText: 'NV bậc 2', standardWorkdays: 26,
@@ -164,13 +170,14 @@ describe('Bảng lương từ /payroll/:month', () => {
   });
 
   it('is empty when the month has no payslip', () => {
-    assert.deepEqual(payrollScreenFromPayslips([], '2026-10'), { month: '2026-10', empty: true });
+    assert.deepEqual(payrollScreenFromPayslips([], '2026-10', TOTALS), { month: '2026-10', empty: true });
   });
 
   it('maps lines, counts and totals', () => {
     const screen: any = payrollScreenFromPayslips(
       [record(), record({ id: 2, username: 'ha', status: 'final', gross: 1_000_000, insurance: 0, tax: 0, advance: 0, net: 1_000_000 }, { username: 'ha', fullName: 'Nguyễn Thu Hà', kpiApplicable: false })],
-      '2026-10'
+      '2026-10',
+      TOTALS
     );
     assert.equal(screen.empty, false);
     assert.equal(screen.range, '01–31/10');
@@ -182,10 +189,13 @@ describe('Bảng lương từ /payroll/:month', () => {
     assert.deepEqual(nam.kpiMissing, ['Người dùng', 'Tự đánh giá']);
     assert.deepEqual(screen.lines.find((l: any) => l.id === 'ha').kpiMissing, []);
     assert.equal(screen.lines.find((l: any) => l.id === 'ha').status, 'done');
-    const decided: any = payrollScreenFromPayslips([record({ status: 'approved' }), record({ id: 3, username: 'x', status: 'rejected' }, { username: 'x' })], '2026-10');
+    const decided: any = payrollScreenFromPayslips([record({ status: 'approved' }), record({ id: 3, username: 'x', status: 'rejected' }, { username: 'x' })], '2026-10', TOTALS);
     assert.deepEqual(decided.lines.map((l: any) => l.status).sort(), ['done', 'rejected']);
     assert.deepEqual(screen.counts, { all: 2, draft: 1, pending: 0, done: 1, rejected: 0 });
-    assert.deepEqual(screen.totals, { gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82 });
+    assert.deepEqual(screen.totals, {
+      gross: 10_134_615, insurance: 840_000, tax: 0, advance: 1_000_000, deductions: 1_840_000, net: 8_294_615, netShare: 82,
+      workPay: 8_384_615, kpiPay: 1_000_000, allowance: 500_000, ot: 300_000, lateCut: 50_000
+    });
   });
 });
 
@@ -224,7 +234,12 @@ describe('Thanh kỳ lương từ /system/periods', () => {
 import { payslipFromRecord } from '../../web/src/builders/api/payroll';
 
 describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
-  const line = (date: string, shiftCode: string, workHours = 8) => ({ date, shiftCode, workHours });
+  // Dải ngày do BE quyết (details.calendar): 02/11 và 03/11 đi làm, 04/11 phép, 05/11 không lương, Chủ nhật nghỉ tuần, 06/11 trở đi chưa tới.
+  const calendar = Array.from({ length: 30 }, (_, i) => {
+    const date = `2026-11-${String(i + 1).padStart(2, '0')}`;
+    const kind = i === 0 ? 'rest' : i < 3 ? 'work' : i === 3 ? 'leave' : i === 4 ? 'unpaid' : 'future';
+    return { date, kind };
+  });
   const rec = {
     id: 9, username: 'nam', status: 'draft', gross: 9_000_000, insurance: 840_000, tax: 10_000, advance: 0, net: 8_150_000,
     details: {
@@ -238,19 +253,19 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
       kpiTotalScorePct: 64.4, kpiProposedAmount: 2_000_000, kpiMaxSalary: 3_000_000, kpiActualPay: 1_288_000,
       grossIncome: 9_000_000, taxExemptIncome: 0, taxableIncome: 8_000_000, insuranceDeduction: 840_000, incomeAfterInsurance: 8_160_000,
       personalIncomeTax: 10_000, advanceDeduction: 0, netIncome: 8_150_000, dependants: 1, remainingAnnualLeaveDays: 11,
-      dailyLines: [line('2026-11-02', 'NORMAL'), line('2026-11-03', 'FLEX'), line('2026-11-04', 'LEAVE', 0), line('2026-11-05', 'UNPAID', 0)]
+      workPay: 923_077 + 307_692, lateMinutes: 0, calendar
     }
   };
 
   it('maps the money and the KPI from the stored payslip', () => {
-    const s: any = payslipFromRecord(rec as any, '2026-11-05');
+    const s: any = payslipFromRecord(rec as any);
     assert.equal(s.id, 'nam');
     assert.equal(s.name, 'Lê Hoàng Nam');
     assert.equal(s.contract, 'Chính thức');
     assert.equal(s.status, 'draft');
     assert.deepEqual(s.days, { work: 3, leave: 1, isat: 0, pending: 0, unpaid: 1, standard: 26 });
     assert.deepEqual(s.ot, { hours: [2, 0, 0], pay: 138_462 });
-    assert.deepEqual(s.late, { minutes: [], hours: 0.5, cut: 19_231 });
+    assert.deepEqual(s.late, { minutes: 0, hours: 0.5, cut: 19_231 });
     assert.deepEqual(s.allowances.map((a: any) => [a.label, a.rule, a.actual]).slice(0, 2), [['Chuyên cần', 500_000, 0], ['Đi lại', 300_000, 300_000]]);
     assert.deepEqual(s.kpi.scores, { wework: 80, user: null, peer: 70, manager: 90, self: 60 });
     assert.equal(s.kpi.proposal, 2_000_000);
@@ -262,7 +277,7 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
   });
 
   it('builds one calendar cell per day of the month', () => {
-    const s: any = payslipFromRecord(rec as any, '2026-11-05');
+    const s: any = payslipFromRecord(rec as any);
     assert.equal(s.calendar.length, 30);
     assert.deepEqual(s.calendar.slice(0, 7), ['sunday', 'work', 'work', 'leave', 'unpaid', 'future', 'future']);
   });

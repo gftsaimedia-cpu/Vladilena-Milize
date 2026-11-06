@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Inject, Param, Put, Query, UseFilters } from '@nestjs/common';
+import { standardWorkdaysForWeek } from './domain/work-week';
 import {
   ApiExceptionFilter,
   BadRequestError,
@@ -65,7 +66,11 @@ export class SettingsController {
   @RequireCap('config.read')
   @Get('work-weeks/:username')
   async getWorkWeek(@Param('username') username: string, @Query('month') month: unknown): Promise<unknown> {
-    return this.run(() => this.service.getWorkWeek(username, month));
+    return this.run(async () => ({
+      ...(await this.service.getWorkWeek(username, month)),
+      // Công chuẩn theo số ngày làm mỗi tuần, để hộp chọn ngày hiện công chuẩn trước khi lưu mà không tự tính.
+      standardByDays: Object.fromEntries([1, 2, 3, 4, 5, 6].map(n => [n, standardWorkdaysForWeek(n)]))
+    }));
   }
 
   @RequireCap('config.write')

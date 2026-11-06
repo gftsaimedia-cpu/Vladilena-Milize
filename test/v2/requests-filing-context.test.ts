@@ -20,7 +20,11 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     assert.equal(context.today, '2026-11-04');
     assert.deepEqual(context.window, { from: '2026-11-04', to: '2026-12-31' });
     assert.equal(context.days.length, 58);
-    assert.deepEqual(context.days[0], {
+    const { leaveCounted, shiftChangeable, otHours, ...first } = context.days[0];
+    assert.equal(leaveCounted, true);
+    assert.equal(shiftChangeable, true);
+    assert.deepEqual(otHours, first.hours); // tháng 11 chưa có OT: còn đủ 40 giờ nên không bỏ khung nào
+    assert.deepEqual(first, {
       date: '2026-11-04',
       workday: true,
       shift: { start: '08:00', end: '17:00' },
@@ -100,7 +104,8 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
       from: '2026-11-01',
       to: '2026-11-15',
       windowEnd: '2026-11-17',
-      ordersThisMonth: 1
+      ordersThisMonth: 1,
+      ratePct: 80
     });
   });
 
@@ -164,8 +169,8 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     await seed(ctx, leaveRequest('2026-11-13', '2026-11-13', 'PENDING'));
     const context = await ctx.service.requestContext('nv01');
     assert.deepEqual(context.months, [
-      { month: '2026-11', closed: false, otMinutes: 120, otCapMinutes: 2400, hasOvertime: true, hasMakeupLeave: false },
-      { month: '2026-12', closed: false, otMinutes: 0, otCapMinutes: 2400, hasOvertime: false, hasMakeupLeave: false }
+      { month: '2026-11', closed: false, otMinutes: 120, otCapMinutes: 2400, otLeftMinutes: 2280, hasOvertime: true, hasMakeupLeave: false },
+      { month: '2026-12', closed: false, otMinutes: 0, otCapMinutes: 2400, otLeftMinutes: 2400, hasOvertime: false, hasMakeupLeave: false }
     ]);
     // Tháng 11 đã có OT nhưng tháng 12 còn trống.
     assert.deepEqual(kindOf(context, 'leave-with-makeup'), { kind: 'leave-with-makeup', enabled: true });
@@ -176,6 +181,26 @@ describe('Ngữ cảnh form đơn của nhân viên (spec 2.1)', () => {
     await seed(ctx, leaveRequest('2026-11-14', '2026-11-14', 'APPROVED'));
     const approved = (await ctx.service.requestContext('nv01')).days.find(d => d.date === '2026-11-14')!;
     assert.deepEqual(approved.claim, { status: 'LEAVE', pending: false });
+  });
+
+  it('choices, rules and day flags are decided by the server', async () => {
+    await seed(ctx, leaveRequest('2026-11-13', '2026-11-13', 'PENDING'));
+    const context = await ctx.service.requestContext('nv01');
+    assert.deepEqual(context.rules, { makeupMinutesPerLeaveDay: 480, dayCapMinutes: 720, monthOtCapMinutes: 2400 });
+    const { choices } = context;
+    // Ngày 13/11 đang bị đơn nghỉ giữ: không là "Từ ngày" và chặn "Đến ngày" của 12/11.
+    assert.equal(choices.leave.starts.includes('2026-11-13'), false);
+    assert.equal(choices.leave.starts.includes('2026-11-12'), true);
+    assert.deepEqual(choices.leave.ends['2026-11-12'].map(e => e.date), ['2026-11-12']);
+    const [a] = choices.leave.ends['2026-11-09'];
+    assert.deepEqual(a, { date: '2026-11-09', daysCount: 1, annualLeaveLeftAfter: 10 });
+    const two = choices['leave-with-makeup'].ends['2026-11-09'].find(e => e.date === '2026-11-10')!;
+    assert.deepEqual(two, { date: '2026-11-10', daysCount: 2, makeupMinutesRequired: 960 });
+    assert.equal(choices['leave-with-makeup'].slotDates['2026-11-10'][0], '2026-11-11');
+    assert.equal(choices.overtime.dates.includes('2026-11-13'), false);
+    assert.equal(choices.overtime.dates.includes('2026-11-12'), true);
+    assert.equal(context.days.find(d => d.date === '2026-11-08')!.leaveCounted, false);
+    assert.equal(context.days.find(d => d.date === '2026-11-13')!.shiftChangeable, false);
   });
 
   it('closed month', async () => {

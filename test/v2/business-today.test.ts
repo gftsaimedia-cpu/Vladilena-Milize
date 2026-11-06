@@ -40,6 +40,10 @@ class FakeAttendanceRepository extends AttendanceRepository {
     super({} as any);
   }
 
+  override async findEmployment(): Promise<{ startDate: string | null; resignedOn: string | null } | null> {
+    return null;
+  }
+
   override async saveSchedule(schedule: WorkSchedule): Promise<void> {
     this.schedules.set(`${schedule.employeeId}:${schedule.workDate}`, schedule);
   }

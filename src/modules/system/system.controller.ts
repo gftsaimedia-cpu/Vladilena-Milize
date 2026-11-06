@@ -1,5 +1,5 @@
 import { Controller, Get, Put, Param, Body, UseFilters, Inject } from '@nestjs/common';
-import { ApiExceptionFilter, CurrentUser, UserSession, Public, RequireCap } from '../../common';
+import { ApiExceptionFilter, BadRequestError, CurrentUser, UserSession, Public, RequireCap } from '../../common';
 import { SystemService } from './system.service';
 
 @Controller('api')
@@ -33,6 +33,10 @@ export class SystemController {
     @Body() body: { value: string },
     @CurrentUser() user: UserSession
   ): Promise<unknown> {
+    // Cột value_json NOT NULL: thiếu value (hay null) thì 400 (không để rơi thành 500).
+    if (body?.value === undefined || body.value === null) {
+      throw new BadRequestError('Giá trị cấu hình (value) không được để trống', { code: 'BAD_SETTING_INPUT' });
+    }
     await this.service.setSetting(key, body.value, user.username);
     return { ok: true, key, value: body.value };
   }

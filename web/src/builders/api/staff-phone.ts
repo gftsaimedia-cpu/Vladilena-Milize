@@ -26,6 +26,7 @@ export type MeDay = { date: string; kind: CellKind; leave?: MeLeave; in: string 
 export type MeRange = { from: string; to: string };
 export type MeMonth = {
   month: string;
+  today: string; // ngày hôm nay theo máy chủ
   periodState?: 'open' | 'locked';
   range?: MeRange;
   totals: { workDays: number; standardDays: number; lateCount: number; paidLeaveDays: number };
@@ -33,6 +34,7 @@ export type MeMonth = {
 };
 export type MeToday = {
   date: string;
+  now: string; // giờ Việt Nam của máy chủ 'HH:mm'
   shift: { type: string; start: string; end: string } | null;
   punches: { in: string | null; out: string | null };
   workedMinutes: number;
@@ -308,7 +310,8 @@ export function homeViewOf(t: MeToday, profile: MeProfile, income: MeIncome | nu
   const start = t.shift?.start ?? profile.shift.startTime;
   const end = t.shift?.end ?? profile.shift.endTime;
   const checkIn = t.punches.in ?? '';
-  const workedMin = checkIn ? Math.max(0, toMin(t.punches.out ?? now) - toMin(checkIn)) : 0;
+  // Đã ra ca: số phút làm do BE tính. Đang trong ca: chạy theo giờ máy chủ (`now`) để thanh giờ nhích.
+  const workedMin = !checkIn ? 0 : t.punches.out ? t.workedMinutes : Math.max(0, toMin(now) - toMin(checkIn));
   const days = t.week;
   return {
     greeting: greetingOf(now),
@@ -387,8 +390,8 @@ export function incomeViewOf(inc: MeIncome): IncomeView {
     net: vnd(p.netIncome),
     review: official ? 'Admin đã duyệt phiếu' : 'Số tạm tính, có thể đổi tới khi Admin duyệt',
     gross: vnd(p.grossIncome),
-    // BE tạm tính hiện trả bảo hiểm/thuế = 0 (luật 05/11/2026); khi BE trả số thì tính đủ như board.
-    deduction: vnd((p.insuranceDeduction || 0) + (p.personalIncomeTax || 0) + (p.advanceDeduction || 0)),
+    // BE cộng sẵn khấu trừ (bảo hiểm + thuế + tạm ứng); bản tạm tính chưa trừ bảo hiểm và thuế nên chỉ có tạm ứng.
+    deduction: vnd(p.deductionTotal || 0),
     kpi: {
       title: `KPI tháng ${Number(inc.month.slice(5, 7))}`,
       parts: '5 phần',

@@ -167,6 +167,12 @@ describe('MeController', () => {
     }
   });
 
+  it('today carries the server date and Vietnam time, so screens never read the browser clock', async () => {
+    const t = (await controller().ctl.today(req())) as any;
+    assert.match(t.date, /^\d{4}-\d{2}-\d{2}$/);
+    assert.match(t.now, /^([01]\d|2[0-3]):[0-5]\d$/);
+  });
+
   it('today lists reminders', async () => {
     const reminders = [{ date: '2026-10-27', remindedAt: '2026-11-04T01:00:00.000Z' }];
     const ok = controller({ expl: fake({ reminders: () => reminders }) });

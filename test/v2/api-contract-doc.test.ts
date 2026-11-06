@@ -73,3 +73,45 @@ test('mọi route v2 trong docs/api/v2-contract.md đều có ở BE', () => {
   const extra = [...docRoutes()].filter((r) => !code.has(r) && !DOC_ONLY_ALLOWED.has(r)).sort();
   assert.deepEqual(extra, [], `Route trong doc nhưng BE không có:\n  ${extra.join('\n  ')}`);
 });
+
+// Mã trả về của POST: Nest mặc định 201, chỉ route có @HttpCode(n) mới khác. Doc phải ghi đúng mã đó ở "Response NNN".
+function postStatusInCode(): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const file of controllerFiles(MODULES_DIR)) {
+    const src = readFileSync(file, 'utf8');
+    const prefix = /@Controller\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/.exec(src);
+    const base = prefix ? (prefix[1] ?? prefix[2] ?? '') : '';
+    const lines = src.split('\n');
+    lines.forEach((line, i) => {
+      const m = /@Post\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/.exec(line);
+      if (!m) return;
+      const full = '/' + [base, m[1] ?? m[2] ?? ''].map((s) => s.replace(/^\/+|\/+$/g, '')).filter(Boolean).join('/');
+      if (!full.startsWith('/api/v2/')) return;
+      // Decorator của cùng handler đứng sát @Post (trước hoặc sau) cho tới dòng khai báo hàm.
+      let code = 201;
+      for (let j = i - 3; j <= i + 4 && j < lines.length; j++) {
+        const h = /@HttpCode\((\d+)\)/.exec(lines[j] ?? '');
+        if (h) code = Number(h[1]);
+        if (j > i && /\basync\b|\)\s*[:{]/.test(lines[j] ?? '')) break;
+      }
+      out.set(normalize(full), code);
+    });
+  }
+  return out;
+}
+
+test('mỗi mục POST trong doc có "Response NNN" khớp mã BE thật (201, trừ route có @HttpCode)', () => {
+  const codes = postStatusInCode();
+  const text = readFileSync(DOC_PATH, 'utf8');
+  const sections = text.split(/\n(?=#{3,4} )/);
+  const wrong: string[] = [];
+  for (const section of sections) {
+    const head = /^#{3,4} `POST (\/api\/v2\/[^\s`]*)`/.exec(section);
+    if (!head) continue;
+    const expected = codes.get(normalize(head[1]));
+    if (expected === undefined) continue;
+    const found = /\*\*Response (\d{3})/.exec(section);
+    if (found && Number(found[1]) !== expected) wrong.push(`POST ${head[1]}: doc ghi ${found[1]}, BE trả ${expected}`);
+  }
+  assert.deepEqual(wrong, [], `Mã Response trong doc lệch BE:\n  ${wrong.join('\n  ')}`);
+});

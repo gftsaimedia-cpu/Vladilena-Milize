@@ -19,17 +19,16 @@ import {
   makeupCountLine,
   makeupNeedLine,
   otHoursLine,
-  otLeftMinutes,
   otMonthLine,
   shiftChangeDates,
   shiftChangeSummary,
   slotDates,
-  slotHourOptions,
   startDates,
   startHours,
   type ContextDay,
   type RequestContext
 } from '../../web/src/builders/api/staff-requests';
+import { filingChoices, leaveCounted, overtimeHours, shiftChangeable } from '../../src/modules/requests/domain';
 
 // Ngữ cảnh dựng tay (không dùng mock): ca HC 08–17, làm thứ Hai – thứ Bảy, 10/11 → 06/12/2026.
 // 11/11 và 18/11 đang bị đơn nghỉ giữ. 15, 22, 29/11 và 06/12 là Chủ nhật.
@@ -47,7 +46,7 @@ const SUNDAY_HOURS = Array.from({ length: 16 }, (_, i) => 6 + i).map(start => ({
 }));
 const isoAdd = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
-function dayOf(date: string): ContextDay {
+function dayOf(date: string): Omit<ContextDay, 'leaveCounted' | 'shiftChangeable' | 'otHours'> {
   const sunday = new Date(`${date}T00:00:00Z`).getUTCDay() === 0;
   return {
     date,
@@ -63,10 +62,11 @@ type Over = {
   months?: Partial<RequestContext['months'][number]>[];
   claims?: Record<string, ContextDay['claim']>;
   explanationDays?: RequestContext['explanationDays'];
+  left?: number | null;
 };
 
 function context(over: Over = {}): RequestContext {
-  const days = Array.from({ length: 27 }, (_, i) => dayOf(isoAdd('2026-11-10', i)));
+  const days: any[] = Array.from({ length: 27 }, (_, i) => dayOf(isoAdd('2026-11-10', i)));
   for (const d of days)
     if (d.date === '2026-11-11' || d.date === '2026-11-18') Object.assign(d, { claim: { status: 'LEAVE', pending: true }, hours: [] });
   for (const d of days) if (over.claims && d.date in over.claims) d.claim = over.claims[d.date];
@@ -74,18 +74,32 @@ function context(over: Over = {}): RequestContext {
     { month: '2026-11', closed: false, otMinutes: 540, otCapMinutes: 2400, hasOvertime: false, hasMakeupLeave: false },
     { month: '2026-12', closed: false, otMinutes: 0, otCapMinutes: 2400, hasOvertime: false, hasMakeupLeave: false }
   ];
+  const months = base
+    .map((m, i) => ({ ...m, ...(over.months?.[i] ?? {}) }))
+    .map(m => ({ ...m, otLeftMinutes: Math.max(0, m.otCapMinutes - m.otMinutes) }));
+  // Phần BE tính (choices, cờ ngày, otHours): dựng bằng đúng hàm của BE rồi đưa cho builder của FE tra cứu.
+  const left = over.left === undefined ? 11 : over.left;
+  const choices = filingChoices({ days, months, annualLeaveLeft: left });
+  const monthOf = (date: string) => months.find(m => m.month === date.slice(0, 7));
   return {
     today: '2026-11-10',
     window: { from: '2026-11-10', to: '2026-12-06' },
     kinds: [],
-    months: base.map((m, i) => ({ ...m, ...(over.months?.[i] ?? {}) })),
+    months,
     leaveTypes: [{ code: 'ANNUAL', label: 'Phép năm' }],
-    annualLeaveLeft: 11,
+    annualLeaveLeft: left,
     shiftFrames: [],
-    days,
+    days: days.map(d => ({
+      ...d,
+      leaveCounted: leaveCounted(d),
+      shiftChangeable: shiftChangeable(d),
+      otHours: overtimeHours(d, monthOf(d.date))
+    })),
     explanationDays: over.explanationDays ?? [],
-    advance: null
-  };
+    advance: null,
+    choices,
+    rules: { makeupMinutesPerLeaveDay: 480, dayCapMinutes: 720, monthOtCapMinutes: 2400 }
+  } as RequestContext;
 }
 const dayAt = (ctx: RequestContext, date: string) => ctx.days.find(d => d.date === date)!;
 
@@ -219,79 +233,50 @@ describe('Tạo yêu cầu: ngày chọn được', () => {
 });
 
 describe('Tạo yêu cầu: giờ chọn được', () => {
-  it('endHours with a 60-minute cap keeps only ends of 60 minutes or less', () => {
-    assert.deepEqual(endHours(dayAt(context(), '2026-11-13'), 18, { capMinutes: 60 }), [{ end: 19, minutes: 60 }]);
-  });
-
-  it('startHours drops starts inside a taken window, endHours drops ends that would overlap it', () => {
-    const sunday = dayAt(context(), '2026-11-22');
-    const starts = startHours(sunday, { taken: [{ start: 10, end: 12 }] });
-    assert.ok(starts.includes(9) && starts.includes(12));
-    assert.ok(!starts.includes(10) && !starts.includes(11));
-    assert.deepEqual(endHours(sunday, 8, { taken: [{ start: 10, end: 12 }] }).map(e => e.end), [9, 10]);
-  });
-
-  it('slots already taken on a shift day use up its hours', () => {
+  it('start and end hours are looked up in the hours table of the day, as BE sent them', () => {
     const day = dayAt(context(), '2026-11-13');
-    // Trần 12 giờ trừ 8 giờ ca còn 4 giờ: sau 18–20 vẫn còn 06–07 và 20–22 (spec 2.1, như BE).
-    assert.deepEqual(startHours(day, { taken: [{ start: 18, end: 20 }] }), [6, 20, 21]);
-    assert.deepEqual(startHours(day, { taken: [{ start: 18, end: 22 }] }), []);
+    assert.deepEqual(startHours(day.hours), [6, 18, 19, 20, 21]);
+    assert.deepEqual(endHours(day.hours, 18), [
+      { end: 19, minutes: 60 }, { end: 20, minutes: 120 }, { end: 21, minutes: 180 }, { end: 22, minutes: 240 }
+    ]);
+    assert.deepEqual(endHours(day.hours, 12), []);
   });
 
-  it('OT minutes left in a month', () => {
-    assert.equal(otLeftMinutes(context(), '2026-11'), 1860);
-    assert.equal(otLeftMinutes(context({ months: [{ otMinutes: 2400 }] }), '2026-11'), 0);
-    assert.equal(otLeftMinutes(context(), '2027-01'), 0);
+  it('OT hours come from otHours: BE drops windows longer than the minutes left in the month', () => {
+    const day = dayAt(context({ months: [{ otMinutes: 2340 }] }), '2026-11-13'); // còn 60 phút
+    assert.deepEqual(startHours(day.otHours), [6, 18, 19, 20, 21]);
+    assert.deepEqual(endHours(day.otHours, 18), [{ end: 19, minutes: 60 }]);
+    assert.deepEqual(dayAt(context({ months: [{ otMinutes: 2400 }] }), '2026-11-13').otHours, []);
+    assert.deepEqual(dayAt(context({ months: [{ hasMakeupLeave: true }] }), '2026-11-13').otHours, []);
   });
 
-  it('makeup counter: two leave days need 960 minutes', () => {
+  it('OT minutes left are a field of the month', () => {
+    assert.equal(context().months[0].otLeftMinutes, 1860);
+    assert.equal(context({ months: [{ otMinutes: 2400 }] }).months[0].otLeftMinutes, 0);
+  });
+
+  it('makeup counter: BE asks 960 minutes for two leave days, planned sums the BE minutes of each slot', () => {
     const slots = [
       { date: '2026-11-22', startTime: '08:00', endTime: '12:00' },
       { date: '', startTime: '', endTime: '' }
     ];
     assert.deepEqual(makeupCounter(context(), '2026-11-13', '2026-11-14', slots), { planned: 240, required: 960 });
+    assert.deepEqual(makeupCounter(context(), '2026-11-13', '', slots), { planned: 240, required: 0 });
   });
 
-  it('slot hour options: other rows on the same day keep their hours, and no more than still needed is offered', () => {
-    const ctx = context();
-    const slots = [
-      { date: '2026-11-22', startTime: '08:00', endTime: '12:00' },
-      { date: '2026-11-22', startTime: '', endTime: '' }
-    ];
-    const opts = slotHourOptions(ctx, '2026-11-13', '2026-11-13', slots, 1);
-    assert.deepEqual(opts, { taken: [{ start: 8, end: 12 }], capMinutes: 240 });
-    const sunday = dayAt(ctx, '2026-11-22');
-    for (const h of [8, 9, 10, 11]) assert.ok(!startHours(sunday, opts).includes(h), String(h));
-    assert.deepEqual(endHours(sunday, 12, opts).map(e => e.end), [13, 14, 15, 16]);
-    // Dòng ở ngày khác không giữ giờ của ngày này, nhưng vẫn trừ vào số giờ còn thiếu.
-    const other = slotHourOptions(ctx, '2026-11-13', '2026-11-13', [slots[0], { date: '2026-11-29', startTime: '', endTime: '' }], 1);
-    assert.deepEqual(other, { taken: [], capMinutes: 240 });
-  });
-
-  it('fitSlots drops values that are no longer valid, later rows first', () => {
-    // Nghỉ 13–14/11: cần 16 giờ bù.
-    const fitted = fitSlots(context(), '2026-11-13', '2026-11-14', [
+  it('fitSlots drops what is not in the BE tables, and does not apply any budget rule itself', () => {
+    const fitted = fitSlots(context(), '2026-11-14', [
       { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
-      { date: '2026-11-29', startTime: '08:00', endTime: '20:00' }, // 12 giờ, chỉ còn thiếu 8: bỏ giờ kết thúc
+      { date: '2026-11-29', startTime: '08:00', endTime: '20:00' }, // 12 giờ nằm trong bảng giờ: giữ, BE sẽ kiểm khi xem trước
       { date: '2026-11-12', startTime: '18:00', endTime: '19:00' }, // trước ngày nghỉ cuối: bỏ cả dòng
       { date: '2026-11-22', startTime: '18:00', endTime: '23:00' } // giờ kết thúc không có trong hours
     ]);
     assert.deepEqual(fitted, [
       { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
-      { date: '2026-11-29', startTime: '08:00', endTime: '' },
+      { date: '2026-11-29', startTime: '08:00', endTime: '20:00' },
       { date: '', startTime: '', endTime: '' },
       { date: '2026-11-22', startTime: '18:00', endTime: '' }
     ]);
-    // Nghỉ 13/11: 8 giờ đã đủ ở dòng đầu, dòng sau không còn giờ bắt đầu nào.
-    assert.deepEqual(
-      fitSlots(context(), '2026-11-13', '2026-11-13', [
-        { date: '2026-11-22', startTime: '08:00', endTime: '16:00' },
-        { date: '2026-11-29', startTime: '08:00', endTime: '12:00' }
-      ])[1],
-      { date: '2026-11-29', startTime: '', endTime: '' }
-    );
-    const ok = [{ date: '2026-11-22', startTime: '08:00', endTime: '12:00' }];
-    assert.deepEqual(fitSlots(context(), '2026-11-13', '2026-11-13', ok), ok);
   });
 });
 
@@ -321,7 +306,7 @@ describe('Tạo yêu cầu: chữ của Nghỉ có làm bù, Làm thêm giờ, �
     assert.equal(otHoursLine(day, 6, 7), '1 giờ làm thêm, trước ca 08–17');
     assert.equal(otHoursLine(dayAt(context(), '2026-11-15'), 8, 12), '4 giờ làm thêm');
     // Số phút lấy từ hours (BE đã trừ giờ nghỉ), không tự cộng giờ đồng hồ.
-    const rest = { ...dayAt(context(), '2026-11-15'), hours: [{ start: 6, ends: [{ end: 11, minutes: 270 }] }] };
+    const rest = { ...dayAt(context(), '2026-11-15'), otHours: [{ start: 6, ends: [{ end: 11, minutes: 270 }] }] };
     assert.equal(otHoursLine(rest, 6, 11), '4,5 giờ làm thêm');
   });
 
@@ -346,10 +331,10 @@ describe('Tạo yêu cầu: chữ', () => {
     const isatSat = context({ claims: { '2026-11-14': { status: 'ISAT', pending: false } } });
     assert.equal(leaveBalance(isatSat, 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 11 ngày, sau đơn này còn 9');
     assert.equal(leaveBalance(context(), 'UNPAID', '2026-11-13', '2026-11-16'), '');
-    assert.equal(leaveBalance({ ...context(), annualLeaveLeft: null }, 'ANNUAL', '2026-11-13', '2026-11-16'), '');
+    assert.equal(leaveBalance(context({ left: null }), 'ANNUAL', '2026-11-13', '2026-11-16'), '');
     assert.equal(leaveBalance(context(), 'ANNUAL', '2026-11-13', ''), '');
     // Xin quá số còn lại: không ghi số âm; xem trước từ chối và nói vì sao.
-    assert.equal(leaveBalance({ ...context(), annualLeaveLeft: 2 }, 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 2 ngày');
+    assert.equal(leaveBalance(context({ left: 2 }), 'ANNUAL', '2026-11-13', '2026-11-16'), 'Phép năm còn 2 ngày');
   });
 
   it('case text', () => {
@@ -368,7 +353,7 @@ describe('Tạo yêu cầu: chữ', () => {
   });
 
   it('advance lines', () => {
-    assert.deepEqual(advanceLines({ month: '2026-10', amount: 2215385, workDays: 12, from: '2026-10-01', to: '2026-10-15' }), [
+    assert.deepEqual(advanceLines({ month: '2026-10', amount: 2215385, workDays: 12, from: '2026-10-01', to: '2026-10-15', windowEnd: '2026-10-17', ordersThisMonth: 1, ratePct: 80 }), [
       'Số tiền được ứng: 2.215.385 ₫',
       '80% lương ngày công 01–15/10 · 12 ngày'
     ]);

@@ -24,7 +24,7 @@ const saving = ref(false);
 
 const months = computed(() => monthOptions(props.week.minMonth, 6));
 const picked = computed(() => [...ticked.value].sort((a, b) => a - b));
-const workdays = computed(() => (mode.value === 'own' ? standardWorkdays(picked.value.length) : props.week.typeStandardWorkdays));
+const workdays = computed(() => (mode.value === 'own' ? standardWorkdays(props.week, picked.value.length) : props.week.typeStandardWorkdays));
 const noDay = computed(() => mode.value === 'own' && !picked.value.length);
 // Chỉ đổi tháng không tính là thay đổi: so cách đặt và các ngày với tuần đã tải.
 const unchanged = computed(() => {

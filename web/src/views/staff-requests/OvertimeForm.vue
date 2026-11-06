@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // J15 · Làm thêm giờ (spec staff-requests 4.4, brief FE mục 4): Ngày, Từ – Đến (giờ tròn), lý do.
-// "Ngày" chỉ gồm ngày còn giờ trống, thuộc tháng chưa có Nghỉ có làm bù và chưa đủ 40 giờ (builder startDates). "Từ" là giờ bắt
-// đầu còn ít nhất một giờ kết thúc, "Đến" là các giờ kết thúc của giờ bắt đầu đã chọn; cả hai lọc theo số phút OT còn lại của
-// tháng (startHours / endHours với otLeftMinutes). Đổi ngày thì giữ giờ còn hợp lệ; "Đến" không còn hợp lệ thì về giờ kết thúc
-// đầu tiên (board J15).
+// "Ngày" do BE đưa (choices.overtime: ngày còn giờ trống, tháng chưa có Nghỉ có làm bù và chưa đủ 40 giờ). "Từ" và "Đến" lấy từ
+// `otHours` của ngày (BE đã bỏ khung vượt số phút OT còn lại của tháng). Đổi ngày thì giữ giờ còn trong bảng; "Đến" không còn
+// thì về giờ kết thúc đầu tiên (board J15).
 // Hộp tóm tắt nằm giữa hai ô giờ và Lý do: số giờ của khung đang chọn và số giờ OT đã đăng ký trong tháng (builder).
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
 import { computed, ref, useId, watch } from 'vue';
@@ -11,7 +10,6 @@ import {
   dateLabel,
   endHours,
   otHoursLine,
-  otLeftMinutes,
   otMonthLine,
   startDates,
   startHours
@@ -35,10 +33,9 @@ const month = computed(() => otDate.value.slice(0, 7));
 
 const dates = computed(() => startDates(props.ctx, 'overtime'));
 const day = computed(() => props.ctx.days.find(d => d.date === otDate.value) ?? null);
-const opts = computed(() => ({ capMinutes: otLeftMinutes(props.ctx, month.value) }));
-const starts = computed(() => (day.value ? startHours(day.value, opts.value).map(hh) : []));
+const starts = computed(() => (day.value ? startHours(day.value.otHours).map(hh) : []));
 const ends = computed(() =>
-  day.value && startTime.value ? endHours(day.value, hourOf(startTime.value), opts.value).map(e => hh(e.end)) : []
+  day.value && startTime.value ? endHours(day.value.otHours, hourOf(startTime.value)).map(e => hh(e.end)) : []
 );
 const lines = computed(() =>
   day.value

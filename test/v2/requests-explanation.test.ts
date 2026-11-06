@@ -131,8 +131,8 @@ describe('Đơn giải trình (§6.5, spec 3.3)', () => {
 
   it('a day with nothing to explain, or not a workday, is refused', async () => {
     await assert.rejects(expl({ workDate: '2026-11-04' }), { message: 'Ngày 04/11 không có gì cần giải trình' });
-    await assert.rejects(expl({ workDate: '2026-11-01' }), { message: 'Ngày 01/11 không phải ngày làm' });
-    await assert.rejects(expl({ workDate: '2026-10-31' }), { message: 'Ngày 31/10 không phải ngày làm' }); // trước ngày vào làm
+    await assert.rejects(expl({ workDate: '2026-11-01' }), { message: 'Ngày 01/11/2026 nằm ngoài thời gian làm việc (vào làm từ 02/11/2026)' });
+    await assert.rejects(expl({ workDate: '2026-10-31' }), { message: 'Ngày 31/10/2026 nằm ngoài thời gian làm việc (vào làm từ 02/11/2026)' }); // trước ngày vào làm
   });
 
   it('stores cases in catalogue order', async () => {

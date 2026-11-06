@@ -54,8 +54,9 @@ test('October payroll shows the board figures', async ({ page }) => {
   await expect(row(page, 'Lê Hoàng Nam')).toContainText('14.278.183');
   await expect(row(page, 'Đỗ Mai Linh')).toContainText('−125.000');
   await expect(row(page, 'Bùi Quốc Huy').locator('[title="Thiếu điểm Tự đánh giá, tính 0"]')).toContainText('1.481.200');
-  await expect(table(page).locator('tfoot')).toContainText('Tổng 10 phiếu đang hiện');
-  await expect(table(page).locator('tfoot')).toContainText('171.959.432');
+  // Dòng tổng là tổng cả kỳ do BE cộng sẵn (không cộng các dòng đang hiện).
+  await expect(table(page).locator('tfoot')).toContainText('Tổng cả kỳ');
+  await expect(table(page).locator('tfoot')).toContainText('2.110.759.432');
   await expect(page.getByText('Thiếu điểm KPI, cột thiếu tính 0 điểm')).toBeVisible();
   await expect(page.getByText('Hiển thị 1–10 trong 128 phiếu')).toBeVisible();
   expect(calls).toEqual([]);
@@ -300,7 +301,8 @@ test('clicking a name opens that payslip', async ({ page }) => {
   await expect(line(d, /^Tổng điểm KPI/)).toContainText('66,14%');
   await expect(line(d, /^Lương KPI \(đề xuất/)).toContainText('2.000.000');
   await expect(line(d, /^Lương KPI \(đề xuất/)).toContainText('1.322.800');
-  await expect(line(d, /^Giờ và tiền bị trừ/)).toContainText('Đi muộn 12 phút, không quá 15 phút nên không trừ');
+  // BE chỉ ghi phút muộn quá ân hạn: 12 phút nằm trong ân hạn nên không có dòng phụ.
+  await expect(line(d, /^Giờ và tiền bị trừ/)).not.toContainText('Đi muộn');
   await expect(line(d, /^Thuế TNCN/)).toContainText('Lũy tiến · 0 người phụ thuộc');
   await expect(line(d, /^Thực nhận/)).toContainText('14.278.183 ₫');
   await expect(d).toContainText('11 ngày');
@@ -498,8 +500,8 @@ test('score inputs drop junk and cap at 100', async ({ page }) => {
   await page.goto(`${URL10}&phieu=GFT-0142`);
   const d = slip(page, 'Lê Hoàng Nam');
   const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
-  // Dấu thập phân cắt tại đó: "72,5" thành 72, không thành 725 rồi kẹp 100.
-  for (const [typed, shown] of [['abc', ''], ['150', '100'], ['1a5', '15'], ['007', '7'], ['72,5', '72'], ['72.5', '72'], ['.5', '']]) {
+  // Luật điểm của BE: tối đa 2 chữ số thập phân ("," hay "." đều là dấu), trên 100 thành 100.
+  for (const [typed, shown] of [['abc', ''], ['150', '100'], ['1a5', '15'], ['007', '7'], ['72,5', '72,5'], ['72.5', '72,5'], ['72,555', '72,55'], ['100,5', '100'], ['.5', '']]) {
     await self.fill(typed);
     await expect(self).toHaveValue(shown);
   }
@@ -507,23 +509,26 @@ test('score inputs drop junk and cap at 100', async ({ page }) => {
   await expect(d.getByText('Thiếu điểm Tự đánh giá')).toBeVisible();
 });
 
-test('typing a decimal key by key stops at the point instead of becoming 725', async ({ page }) => {
+test('typing a decimal key by key keeps up to two decimals instead of becoming 725', async ({ page }) => {
   await page.goto(`${URL10}&phieu=GFT-0142`);
   const d = slip(page, 'Lê Hoàng Nam');
   const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
   for (const typed of ['72,5', '72.5']) {
     await self.fill('');
     await self.pressSequentially(typed);
-    await expect(self).toHaveValue('72');
-    await expect(line(d, /^Tổng điểm KPI/)).toContainText('65,96%');
+    await expect(self).toHaveValue('72,5');
+    await expect(line(d, /^Tổng điểm KPI/)).toContainText('65,99%');
   }
-  // Xoá một ký tự thì gõ tiếp được: "7" rồi "3" thành 73.
+  // Xoá dần: "72," rồi "72" rồi "7"; gõ tiếp "3" thành 73.
+  await self.press('Backspace');
+  await self.press('Backspace');
+  await expect(self).toHaveValue('72');
   await self.press('Backspace');
   await expect(self).toHaveValue('7');
   await self.pressSequentially('3');
   await expect(self).toHaveValue('73');
   await expect(line(d, /^Tổng điểm KPI/)).toContainText('66,02%');
-  // Dán / điền cả chuỗi vẫn cắt tại dấu; gõ liền "725" không dấu vẫn kẹp 100.
+  // Gõ liền "725" không dấu vẫn kẹp 100.
   await self.fill('');
   await self.pressSequentially('725');
   await expect(self).toHaveValue('100');
@@ -961,11 +966,11 @@ test('after a typed decimal point, selecting all and retyping replaces the value
   const self = score(d, 'Tự đánh giá', 'Lê Hoàng Nam');
   await self.fill('');
   await self.pressSequentially('72,');
-  await expect(self).toHaveValue('72');
+  await expect(self).toHaveValue('72,');
   await page.keyboard.press('Control+A');
   await page.keyboard.type('80');
   await expect(self).toHaveValue('80');
-  // Con trỏ không ở cuối ô thì gõ cũng thoát khỏi trạng thái "đã qua dấu".
+  // Con trỏ không ở cuối ô: gõ vào đầu "72," thành "172," và kẹp 100.
   await self.fill('');
   await self.pressSequentially('72,');
   await page.keyboard.press('Home');
@@ -982,14 +987,14 @@ test('the payroll board pages through the rows, 10 a page by default', async ({ 
   await expect(page.getByRole('button', { name: 'Trang sau' })).toBeDisabled();
 });
 
-test('paging keeps the filters, resets to page 1 when they change, and totals the page on view', async ({ page }) => {
+test('paging keeps the filters, resets to page 1 when they change, and keeps the whole-period totals', async ({ page }) => {
   await page.goto(`${URL10}&dong=3`);
   const next = page.getByRole('button', { name: 'Trang sau' });
   const prev = page.getByRole('button', { name: 'Trang trước' });
   await expect(rows(page)).toHaveCount(3);
   await expect(page.getByText('Hiển thị 1–3 trong 128 phiếu')).toBeVisible();
   await expect(prev).toBeDisabled();
-  await expect(table(page).locator('tfoot')).toContainText('Tổng 3 phiếu đang hiện');
+  await expect(table(page).locator('tfoot')).toContainText('Tổng cả kỳ');
   await next.click();
   await expect(page.getByText('Hiển thị 4–6 trong 128 phiếu')).toBeVisible();
   await expect(rows(page).first()).toContainText('Phạm Ngọc Anh');
@@ -1010,4 +1015,17 @@ test('paging keeps the filters, resets to page 1 when they change, and totals th
   // Gõ tìm cũng về trang 1.
   await page.getByLabel('Tìm theo tên', { exact: true }).fill('a');
   await expect(prev).toBeDisabled();
+});
+
+
+test('late minutes and the grace come from the payslip, not from the view', async ({ page }) => {
+  await page.goto(URL10);
+  await openSlip(page, 'Đỗ Mai Linh');
+  const d = slip(page, 'Đỗ Mai Linh');
+  await expect(line(d, /^Giờ và tiền bị trừ/)).toContainText('Đi muộn 99 phút, mỗi lần muộn không quá 15 phút thì không trừ');
+  await expect(d.getByText('Đi muộn', { exact: true }).locator('xpath=following-sibling::dd')).toContainText('99');
+  // Nhãn tỉ lệ từ rates của phiếu.
+  await expect(line(d, /^Bảo hiểm bắt buộc/)).toContainText('Bảo hiểm bắt buộc 10,5%');
+  await expect(line(d, /^Bảo hiểm bắt buộc/)).toContainText('BHXH 8% · BHTN 1% · BHYT 1,5%');
+  await expect(line(d, /^OT ×1,5 · ×2 · ×3/)).toBeVisible();
 });

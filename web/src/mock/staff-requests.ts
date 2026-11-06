@@ -3,19 +3,23 @@
 // Hôm nay là MOCK_TODAY (28/10/2026); riêng request-context dời được bằng ?homnay=YYYY-MM-DD (spec 4.8).
 // Ngày công tháng 10 đọc từ mock/staff-phone. Đơn tạo trong phiên nằm trong bộ nhớ, tải lại trang thì về như cũ;
 // ngày đơn giữ, khung OT, khung bù đều suy ra từ các đơn chưa huỷ, nên huỷ đơn là trả lại hết.
+import { caseText, dayList } from '@/builders/api/staff-requests';
 import {
   approvedIsat,
-  caseText,
-  dayList,
+  buildChoices,
   endDates,
   endHours,
+  leaveCountedOf,
   leaveDates,
   makeupCounter,
+  otHoursOf,
   otLeftMinutes,
   pendingIsat,
+  shiftChangeableOf,
   slotDates,
-  startDates
-} from '@/builders/api/staff-requests';
+  startDates,
+  type EngineCtx
+} from './staff-requests-engine';
 import { vnd } from '@/utils/format';
 import { MOCK_NOW, MOCK_TODAY } from './clock';
 import {
@@ -231,7 +235,7 @@ function hoursOf(shift: ContextDay['shift'], windows: Window[]): HourSlot[] {
   return slots;
 }
 
-function contextDay(date: string): ContextDay {
+function contextDay(date: string): EngineCtx['days'][number] {
   const claim = claimOn(date);
   const shift = shiftOn(date);
   const off = claim?.status === 'LEAVE' || claim?.status === 'LEAVE_WITH_MAKEUP';
@@ -242,11 +246,14 @@ function monthOfContext(month: string): ContextMonth {
   const seed = MONTH_SEED[month] ?? { otMinutes: 0, hasOvertime: false };
   const entries = live().filter(e => e.month === month);
   const ot = entries.filter(e => e.kind === 'overtime');
+  const otMinutes =
+    seed.otMinutes + ot.reduce((sum, e) => sum + e.windows.reduce((s, w) => s + (w.end - w.start) * 60, 0), 0);
   return {
     month,
     closed: month < FIRST_OPEN_MONTH,
-    otMinutes: seed.otMinutes + ot.reduce((sum, e) => sum + e.windows.reduce((s, w) => s + (w.end - w.start) * 60, 0), 0),
+    otMinutes,
     otCapMinutes: OT_CAP_MINUTES,
+    otLeftMinutes: Math.max(0, OT_CAP_MINUTES - otMinutes),
     hasOvertime: seed.hasOvertime || ot.length > 0,
     hasMakeupLeave: entries.some(e => e.kind === 'leave-with-makeup')
   };
@@ -325,7 +332,7 @@ function advanceQuote(month: string): AdvanceInfo {
   const to = `${month}-15`;
   let workDays = 0;
   for (let d = from; d <= to; d = addDays(d, 1)) if (dayRecord(d)?.in) workDays++;
-  return { month, amount: Math.round((0.8 * workDays * BASE_SALARY) / STANDARD_DAYS), workDays, from, to, windowEnd: `${month}-17`, ordersThisMonth: 1 };
+  return { month, amount: Math.round((0.8 * workDays * BASE_SALARY) / STANDARD_DAYS), workDays, from, to, windowEnd: `${month}-17`, ordersThisMonth: 1, ratePct: 80 };
 }
 
 // Vì sao hôm nay chưa nộp được tạm ứng: ngoài ngày 16–17, tháng đã có đơn, hay chưa có ngày công 01–15.
@@ -348,11 +355,11 @@ function advanceState(today: string): AdvanceState {
 export function requestContext(): RequestContext {
   const today = mockRequestToday();
   const to = lastOfNextMonth(today);
-  const days: ContextDay[] = [];
+  const days: EngineCtx['days'] = [];
   for (let d = today; d <= to; d = addDays(d, 1)) days.push(contextDay(d));
   const explanationDays = explanationDaysOf(today);
   const adv = advanceState(today);
-  const ctx: RequestContext = {
+  const raw: EngineCtx = {
     today,
     window: { from: today, to },
     kinds: [],
@@ -365,8 +372,8 @@ export function requestContext(): RequestContext {
     advance: adv.advance
   };
   const open = (kind: RequestKind, reason: string) =>
-    startDates(ctx, kind).length > 0 ? { enabled: true } : { enabled: false, reason };
-  ctx.kinds = [
+    startDates(raw, kind).length > 0 ? { enabled: true } : { enabled: false, reason };
+  raw.kinds = [
     { kind: 'leave', enabled: true },
     { kind: 'leave-with-makeup', ...open('leave-with-makeup', 'Không còn ngày đăng ký được') },
     { kind: 'overtime', ...open('overtime', 'Không còn ngày đăng ký được') },
@@ -374,7 +381,17 @@ export function requestContext(): RequestContext {
     { kind: 'explanation', ...open('explanation', 'Không có ngày cần giải trình') },
     { kind: 'advance', ...(adv.block ? { enabled: false, reason: adv.reason } : { enabled: true }) }
   ];
-  return ctx;
+  return {
+    ...raw,
+    days: days.map(d => ({
+      ...d,
+      leaveCounted: leaveCountedOf(d),
+      shiftChangeable: shiftChangeableOf(d),
+      otHours: otHoursOf(raw, d)
+    })),
+    choices: buildChoices(raw),
+    rules: { makeupMinutesPerLeaveDay: 480, dayCapMinutes: 720, monthOtCapMinutes: 2400 }
+  };
 }
 
 // ---------- Xem trước: chỉ các luật FE cần để bật Gửi (spec 4.8) ----------

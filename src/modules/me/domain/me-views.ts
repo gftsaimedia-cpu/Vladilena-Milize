@@ -53,6 +53,9 @@ const dow = (iso: string) => new Date(`${iso}T00:00:00Z`).getUTCDay();
 /** Ngày hôm nay 'YYYY-MM-DD' theo giờ Việt Nam (UTC+7). */
 export const vnToday = (now: Date = new Date()) => new Date(now.getTime() + VN_OFFSET_MS).toISOString().slice(0, 10);
 
+/** Giờ hiện tại 'HH:mm' theo giờ Việt Nam (UTC+7). */
+export const vnTime = (now: Date = new Date()) => new Date(now.getTime() + VN_OFFSET_MS).toISOString().slice(11, 16);
+
 /** Bảy ngày thứ Hai → Chủ nhật của tuần chứa `date`. */
 export function weekOf(date: string): string[] {
   const monday = addDays(date, -((dow(date) + 6) % 7));

@@ -3,7 +3,9 @@
 // trường mới (loại, bậc, giờ vào/ra, OT theo hệ số, lương ngày) để ô đó trống hay "—", không báo lỗi.
 // Không có nguồn ở v2 nên không in: Vắng, Chờ giải trình, Làm bù (ô tổng hợp in "—"), cột Làm bù và Ghi chú.
 import type { A4Day, A4Group, A4Line, A4Sheet, DayMark } from '../../mock/payslip-a4';
-import { KPI_LABELS, KPI_WEIGHTS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
+import { KPI_LABELS, employeeTypeLabel, employmentStatusLabel } from '../../constants/labels';
+import { num } from '../../utils/format';
+import type { SlipRates } from '../../mock/payroll';
 import type { KpiPart } from '../../mock/payroll-calc';
 import { statusOf } from './payroll';
 
@@ -81,6 +83,7 @@ export type A4DetailDTO = {
   advanceDeduction: number;
   netIncome: number;
   remainingAnnualLeaveDays?: number | null;
+  rates?: SlipRates; // tỉ lệ BE áp cho kỳ; thiếu ở phiếu lưu trước khi BE thêm: không in tỉ lệ
   dailyLines?: DailyLineDTO[];
 };
 
@@ -121,10 +124,13 @@ function dayOf(l: DailyLineDTO): A4Day {
 // Nhóm OT: ba dòng theo hệ số; phiếu cũ chưa tách theo hệ số thì một dòng bằng tổng OT đã lưu (để trang 2 vẫn cộng đúng).
 function otLines(d: A4DetailDTO): A4Line[] {
   if (d.ot15Pay == null) return [{ label: 'Làm thêm giờ', qty: { n: d.totalOtHours, unit: 'giờ' }, actual: d.otPayTotal }];
+  // Hệ số lấy từ cài đặt BE áp cho kỳ; phiếu cũ chưa có thì nhãn không ghi hệ số.
+  const m = d.rates?.otMultipliers;
+  const tag = (rate?: number) => (rate == null ? '' : ` (×${num(rate)})`);
   return [
-    { label: 'OT ngày thường (×1,5)', qty: { n: d.ot15Hours, unit: 'giờ' }, actual: d.ot15Pay },
-    { label: 'OT ngày cuối tuần (×2)', qty: { n: d.ot20Hours, unit: 'giờ' }, actual: d.ot20Pay ?? 0 },
-    { label: 'OT ngày lễ (×3)', qty: { n: d.ot30Hours, unit: 'giờ' }, actual: d.ot30Pay ?? 0 }
+    { label: `OT ngày thường${tag(m?.weekday)}`, qty: { n: d.ot15Hours, unit: 'giờ' }, actual: d.ot15Pay },
+    { label: `OT ngày cuối tuần${tag(m?.weekend)}`, qty: { n: d.ot20Hours, unit: 'giờ' }, actual: d.ot20Pay ?? 0 },
+    { label: `OT ngày lễ${tag(m?.holiday)}`, qty: { n: d.ot30Hours, unit: 'giờ' }, actual: d.ot30Pay ?? 0 }
   ];
 }
 
@@ -134,7 +140,7 @@ function groupsOf(d: A4DetailDTO): A4Group[] {
     ? [
         {
           title: 'Lương KPI',
-          kpi: parts.map(p => ({ label: KPI_LABELS[p], weight: KPI_WEIGHTS[p], score: d.kpiScores?.[p] ?? null })),
+          kpi: parts.map(p => ({ label: KPI_LABELS[p], weight: d.rates?.kpiWeights?.[p] ?? null, score: d.kpiScores?.[p] ?? null })),
           lines: [
             {
               label: 'Lương KPI',
@@ -242,6 +248,7 @@ export function sheetFromRecord(r: A4RecordDTO): A4Sheet {
     totals: totalsOf(d),
     net: d.netIncome ?? r.net,
     leaveLeft: d.remainingAnnualLeaveDays ?? null,
+    otRates: d.rates?.otMultipliers ?? null,
     slipStatus: statusOf(r.status)
   };
 }

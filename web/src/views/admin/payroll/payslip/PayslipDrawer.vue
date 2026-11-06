@@ -214,7 +214,13 @@ watch([() => props.hasPrev, () => props.hasNext], async ([prev, next]) => {
     <SlipAttendance :slip="slip" :month="month" />
     <SlipSummary :slip="view" :month="month">
       <template #kpi>
-        <SlipKpi :key="slip.id" :scores="view.kpi.scores" :name="slip.name" :readonly="finalized" @update="update" @save="save" />
+        <SlipKpi
+          :key="slip.id"
+          :scores="view.kpi.scores"
+          :weights="slip.rates?.kpiWeights ?? null"
+          :name="slip.name"
+          :readonly="finalized"
+          @update="update" @save="save" />
         <p v-if="finalized" class="pd-note" role="note">Điểm KPI chỉ xem: kỳ lương đã phê duyệt.</p>
       </template>
       <template #history><SlipHistory :key="slip.id" :history="view.kpi.history" /></template>

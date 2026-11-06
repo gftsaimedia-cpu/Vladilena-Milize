@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
+import { NotFoundError } from '../../common/exceptions/http.exception';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import { KYSELY_DB, type DB } from '../../database';
 import type { LeaveType } from '../requests/domain/leave-types';
@@ -133,7 +134,7 @@ export class AttendanceDaysRepository {
       .select(['uuid', 'type', 'start_date', 'resigned_on', 'shift_type', 'shift_start_time', 'shift_end_time'])
       .where('uuid', '=', employeeId)
       .executeTakeFirst();
-    if (!staff || !staff.uuid) throw new Error(`Không tìm thấy nhân sự ${employeeId}`);
+    if (!staff || !staff.uuid) throw new NotFoundError(`Không tìm thấy nhân sự ${employeeId}`, { code: 'EMPLOYEE_NOT_FOUND' });
 
     const shiftType = shiftTypeOf(staff.shift_type);
     const employee: EmployeeFacts = {
@@ -408,6 +409,18 @@ export class AttendanceDaysRepository {
       if (status === undefined || (status === 'PENDING' && date <= today)) needed.push(date);
     }
     return needed;
+  }
+
+  /** Các tháng 'YYYY-MM' có kỳ lương đã rời `open` (chốt công trở đi) trong [from, to]: không ghi thêm dòng ngày vào đó. */
+  async frozenMonths(from: string, to: string): Promise<Set<string>> {
+    const rows = await this.qb
+      .selectFrom('payroll_periods')
+      .select('month')
+      .where('status', '<>', 'open')
+      .where('month', '>=', from.slice(0, 7))
+      .where('month', '<=', to.slice(0, 7))
+      .execute();
+    return new Set(rows.map(row => row.month));
   }
 
   /** Các dòng ngày của một nhân sự trong [from, to] (gồm cả hai đầu), theo `work_date` tăng. */

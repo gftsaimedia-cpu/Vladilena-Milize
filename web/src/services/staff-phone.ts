@@ -32,10 +32,6 @@ import type { LatLng } from '@/builders/api/check-in';
 import { ApiError, api, qs } from './http';
 import * as session from './session';
 
-const VN_MS = 7 * 3600000;
-const vnNow = () => new Date(Date.now() + VN_MS).toISOString();
-const today = () => vnNow().slice(0, 10);
-const nowTime = () => vnNow().slice(11, 16);
 const shiftLineOf = (p: MeProfile) =>
   `${p.shift.type === 'NORMAL' ? 'HC' : p.shift.type} ${p.shift.startTime}–${p.shift.endTime}`;
 
@@ -47,7 +43,7 @@ export async function getHome(): Promise<HomeView> {
     api.get('/me/income').catch(() => null),
     api.get('/me/requests')
   ]);
-  return homeViewOf(t, profile, income, reqs.items || [], nowTime());
+  return homeViewOf(t, profile, income, reqs.items || [], t.now);
 }
 
 // recent: số dòng "Gần đây" (điện thoại 5, máy tính 7). month 'YYYY-MM'; không có thì không gửi, máy chủ lấy tháng hiện tại
@@ -55,7 +51,7 @@ export async function getHome(): Promise<HomeView> {
 export async function getAttendance(recent = 5, month?: string | null): Promise<AttendanceView> {
   if (__MOCK__) return respond(attendanceView(recent));
   const [m, profile] = await Promise.all([api.get(`/me/attendance${qs({ month })}`), api.get('/me/profile')]);
-  return attendanceViewOf(m, shiftLineOf(profile), today(), recent);
+  return attendanceViewOf(m, shiftLineOf(profile), m.today, recent);
 }
 
 // null khi ngày không có ca, chưa tới, hoặc chuỗi ngày sai
@@ -63,7 +59,7 @@ export async function getDay(date: string): Promise<DayDetail | null> {
   if (__MOCK__) return respond(dayDetail(date));
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return null;
   const [day, profile] = await Promise.all([api.get(`/me/attendance/${date}`), api.get('/me/profile')]);
-  return dayDetailOf(day, { start: profile.shift.startTime, end: profile.shift.endTime }, today(), nowTime());
+  return dayDetailOf(day, { start: profile.shift.startTime, end: profile.shift.endTime }, day.today, day.now);
 }
 
 export async function getRequests(): Promise<RequestsView> {

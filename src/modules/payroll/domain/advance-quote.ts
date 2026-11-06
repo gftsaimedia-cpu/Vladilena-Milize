@@ -1,7 +1,8 @@
 import type { DailyAttendanceLineProps } from './employee-payslip';
 
 /** Tạm ứng bằng 80% lương các ngày công 01–15 của tháng. */
-const ADVANCE_RATE = 0.8;
+export const ADVANCE_RATE_PCT = 80;
+const ADVANCE_RATE = ADVANCE_RATE_PCT / 100;
 
 const PAID_SHIFTS: ReadonlySet<string> = new Set(['NORMAL', 'FLEX', 'NIGHT']);
 

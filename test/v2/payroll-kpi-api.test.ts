@@ -330,14 +330,17 @@ describe('PayrollController KPI and calculation errors', () => {
     });
   });
 
-  it('hands the stored payslip records through unchanged', async () => {
+  it('hands the stored payslip records through unchanged, with the period totals', async () => {
     const record = { id: 1, runId: 7, username: 'a', status: 'draft', net: 9_377_693, warnings: [], details: {} };
     const controller = controllerWith({
       listPayslips: async () => [record],
       getPayslip: async (_month: string, employeeId: string) => (employeeId === 'a' ? record : null)
     });
 
-    assert.deepEqual(await controller.listPayslips('2026-10'), { month: '2026-10', items: [record] });
+    const listed: any = await controller.listPayslips('2026-10');
+    assert.equal(listed.month, '2026-10');
+    assert.deepEqual(listed.items, [record]);
+    assert.equal(listed.totals.count, 1);
     assert.deepEqual(await controller.getPayslip('2026-10', 'a'), { month: '2026-10', payslip: record });
     await assert.rejects(controller.getPayslip('2026-10', 'zz'), (err: unknown) => {
       assert.ok(err instanceof NotFoundError);

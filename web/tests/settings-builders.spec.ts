@@ -48,7 +48,9 @@ test('bracket and zone lines', () => {
     .toEqual(['Bán kính 150 m → 200 m, áp dụng ngay']);
 });
 test('work week texts and standard workdays (D5)', () => {
-  expect([1, 2, 3, 4, 5, 6].map(standardWorkdays)).toEqual([4, 9, 13, 17, 22, 26]);
+  // Bảng công chuẩn do BE trả (standardByDays); builder chỉ tra bảng.
+  const table = workWeekOf('x', '2026-10');
+  expect([1, 2, 3, 4, 5, 6].map(n => standardWorkdays(table, n))).toEqual([4, 9, 13, 17, 22, 26]);
   expect([weekdaysText([1, 2, 3, 4, 5, 6]), weekdaysText([1, 3, 5]), weekdaysText([1, 2, 3, 5, 6])]).toEqual(['T2–T7', 'T2, T4, T6', 'T2–T4, T6, T7']);
   const type = workWeekOf('x', '2026-10');
   expect(workWeekLine(type)).toBe('T2–T7 · công chuẩn 26 · theo loại nhân sự');

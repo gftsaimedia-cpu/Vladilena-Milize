@@ -89,7 +89,7 @@ describe('App nhân viên từ /me', () => {
     const v = incomeViewOf({
       month: '2026-11',
       state: 'estimate',
-      payslip: { ...slip, insuranceDeduction: 0, personalIncomeTax: 0, advanceDeduction: 500_000, netIncome: 15_038_183 }
+      payslip: { ...slip, insuranceDeduction: 0, personalIncomeTax: 0, advanceDeduction: 500_000, deductionTotal: 500_000, netIncome: 15_038_183 }
     } as any);
     assert.equal(v.state, 'Tạm tính');
     assert.equal(v.label, 'Tháng 11/2026');
@@ -107,7 +107,7 @@ describe('App nhân viên từ /me', () => {
     const v = incomeViewOf({
       month: '2026-10',
       state: 'official',
-      payslip: { ...slip, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0, netIncome: 14_278_183 }
+      payslip: { ...slip, insuranceDeduction: 1_260_000, personalIncomeTax: 0, advanceDeduction: 0, deductionTotal: 1_260_000, netIncome: 14_278_183 }
     } as any);
     assert.equal(v.state, 'Chính thức');
     assert.equal(v.deduction, '1.260.000');

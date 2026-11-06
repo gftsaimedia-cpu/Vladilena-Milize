@@ -5,6 +5,7 @@ import type {
   ContextDay,
   ExplanationCase,
   HourEnd,
+  HourSlot,
   MakeupSlot,
   PreviewResult,
   RequestContext,
@@ -27,13 +28,6 @@ export type {
   RequestKind
 } from '../../mock/staff-requests-types';
 
-/** Khung giờ tròn [start, end), tính bằng giờ: { start: 18, end: 20 } là 18–20h. */
-export type HourWindow = { start: number; end: number };
-export type HourOptions = { taken?: HourWindow[]; capMinutes?: number };
-
-/** Mỗi ngày nghỉ của Nghỉ có làm bù nợ 8 giờ bù. */
-export const MAKEUP_MINUTES_PER_DAY = 480;
-
 const DOW_SHORT = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const monthOf = (iso: string) => iso.slice(0, 7);
@@ -42,63 +36,23 @@ const hourOf = (hhmm: string) => Number(hhmm.slice(0, 2));
 /** '2026-11-13' → 'T6 13/11' */
 export const dateLabel = (iso: string) => `${DOW_SHORT[new Date(`${iso}T00:00:00Z`).getUTCDay()]} ${ddmm(iso)}`;
 
-const held = (d: ContextDay) => d.claim?.status === 'LEAVE' || d.claim?.status === 'LEAVE_WITH_MAKEUP';
-/** Thứ Bảy có iSAT được duyệt: đơn nghỉ theo khoảng bỏ ngày này kèm cảnh báo (BE planClaims). */
-export const approvedIsat = (d: ContextDay) => d.claim?.status === 'ISAT' && !d.claim.pending;
-/** Thứ Bảy có iSAT chờ duyệt: BE chặn cả đơn (DAY_CONFLICT). */
-export const pendingIsat = (d: ContextDay) => d.claim?.status === 'ISAT' && d.claim.pending;
-/** Ngày chọn được làm ngày nghỉ: ngày làm, không bị đơn nghỉ giữ, không có iSAT. */
-export const countsAsLeave = (d: ContextDay) => d.workday && !held(d) && d.claim?.status !== 'ISAT';
-const monthInfo = (ctx: RequestContext, month: string) => ctx.months.find(m => m.month === month);
-// Ngày thuộc tháng đã chốt (hoặc tháng không có trong months) không bao giờ là lựa chọn.
-const openDays = (ctx: RequestContext) => ctx.days.filter(d => monthInfo(ctx, monthOf(d.date))?.closed === false);
-// Sau ngày `date` còn ít nhất một ngày cùng tháng có giờ trống để bù.
-const roomAfter = (ctx: RequestContext, date: string) =>
-  openDays(ctx).some(d => d.date > date && monthOf(d.date) === monthOf(date) && d.hours.length > 0);
+// Mọi lựa chọn ngày, số ngày, số phút bù, giờ OT còn lại đều do BE tính (request-context: choices, days, months, rules).
+// Các hàm dưới chỉ tra cứu và ghép chữ; luật nghiệp vụ (ngày chọn được, trần 12 giờ, trần OT, 480 phút bù, khung chồng
+// nhau) do BE kiểm khi xem trước và khi gửi.
 
-// Ruling (progress.md): ngày Đổi ca bỏ ngày đã có đơn đổi ca khác hay iSAT chờ duyệt, và khoảng phải có ít nhất một ngày đổi
-// được: hẹp hơn "mọi ngày trong window" của spec 4.4, theo brief FE và luật chỉ đưa lựa chọn hợp lệ. Nếu sai, form đưa ít ngày
-// hơn BE nhận (hôm nay BE từ chối đúng các khoảng này, day-status.ts:110).
-// Ngày chặn khoảng Đổi ca: đã có đơn đổi ca (chờ duyệt hay đã duyệt) hoặc Thứ Bảy có iSAT chờ duyệt.
-const blocksShiftChange = (d: ContextDay) => d.claim?.status === 'SHIFT_CHANGE' || pendingIsat(d);
-// Ngày đổi được ca: ngày làm chưa bị đơn nào giữ (như summary.dates của xem trước). Ngày nghỉ, iSAT được duyệt nằm trong
-// khoảng thì giữ nguyên.
-const changeable = (d: ContextDay) => d.workday && !d.claim;
-// "Đến ngày" của Đổi ca khi `from[0]` là "Từ ngày": dừng trước ngày chặn kế tiếp; `[from[0]..e]` phải có một ngày đổi được.
-function shiftChangeEnds(from: ContextDay[]): string[] {
-  const out: string[] = [];
-  let changes = false;
-  for (const d of from) {
-    if (blocksShiftChange(d)) break;
-    changes ||= changeable(d);
-    if (changes) out.push(d.date);
-  }
-  return out;
-}
-
-/** Phút OT còn đăng ký được trong tháng (40 giờ trừ phần đã có); tháng không có trong months là 0. */
-export function otLeftMinutes(ctx: RequestContext, month: string): number {
-  const m = monthInfo(ctx, month);
-  return m ? Math.max(0, m.otCapMinutes - m.otMinutes) : 0;
-}
+type RangeKind = 'leave' | 'leave-with-makeup' | 'shift-change';
+const rangeChoice = (ctx: RequestContext, kind: RangeKind, start: string, end: string) =>
+  ctx.choices[kind].ends[start]?.find(e => e.date === end);
 
 /** "Từ ngày" (hoặc ngày duy nhất) chọn được của từng loại, tăng dần; Giải trình theo thứ tự explanationDays. */
 export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
-  const days = openDays(ctx);
   switch (kind) {
     case 'leave':
-      return days.filter(countsAsLeave).map(d => d.date);
     case 'leave-with-makeup':
-      return days
-        .filter(d => countsAsLeave(d) && !monthInfo(ctx, monthOf(d.date))!.hasOvertime && roomAfter(ctx, d.date))
-        .map(d => d.date);
-    case 'overtime':
-      return days
-        .filter(d => !monthInfo(ctx, monthOf(d.date))!.hasMakeupLeave)
-        .filter(d => startHours(d, { capMinutes: otLeftMinutes(ctx, monthOf(d.date)) }).length > 0)
-        .map(d => d.date);
     case 'shift-change':
-      return days.filter((_, i) => shiftChangeEnds(days.slice(i)).length > 0).map(d => d.date);
+      return ctx.choices[kind].starts;
+    case 'overtime':
+      return ctx.choices.overtime.dates;
     case 'explanation':
       return ctx.explanationDays.map(d => d.date);
     default:
@@ -106,25 +60,10 @@ export function startDates(ctx: RequestContext, kind: RequestKind): string[] {
   }
 }
 
-/**
- * "Đến ngày" chọn được khi "Từ ngày" là `start` (rỗng khi `start` không chọn được hoặc loại chỉ có một ngày).
- * Đơn nghỉ: ngày làm từ `start`, dừng trước ngày kế tiếp bị đơn nghỉ giữ hoặc có iSAT chờ duyệt; Thứ Bảy có iSAT được
- * duyệt nằm giữa khoảng thì được, nhưng không là "Đến ngày". Nghỉ có làm bù: thêm cùng tháng và sau đó còn ngày để bù.
- * Đổi ca: các ngày từ `start`, dừng trước ngày kế tiếp đã có đơn đổi ca khác hay iSAT chờ duyệt; ngày `e` được khi
- * `[start..e]` có ít nhất một ngày làm chưa bị đơn nào giữ (Chủ nhật, ngày nghỉ, iSAT được duyệt nằm trong khoảng thì được).
- */
+/** "Đến ngày" chọn được khi "Từ ngày" là `start` (rỗng khi `start` không chọn được hoặc loại chỉ có một ngày). */
 export function endDates(ctx: RequestContext, kind: RequestKind, start: string): string[] {
-  if (!start || !startDates(ctx, kind).includes(start)) return [];
-  const days = openDays(ctx).filter(d => d.date >= start);
-  if (kind === 'shift-change') return shiftChangeEnds(days);
-  if (kind !== 'leave' && kind !== 'leave-with-makeup') return [];
-  const out: string[] = [];
-  for (const d of days) {
-    if (held(d) || pendingIsat(d)) break;
-    if (kind === 'leave-with-makeup' && (monthOf(d.date) !== monthOf(start) || !roomAfter(ctx, d.date))) break;
-    if (countsAsLeave(d)) out.push(d.date);
-  }
-  return out;
+  if (kind !== 'leave' && kind !== 'leave-with-makeup' && kind !== 'shift-change') return [];
+  return (ctx.choices[kind].ends[start] ?? []).map(e => e.date);
 }
 
 /** Giữ "Đến ngày" khi còn hợp lệ với "Từ ngày" mới, không thì đặt lại về lựa chọn đầu (chính "Từ ngày"). */
@@ -133,110 +72,58 @@ export function fitEnd(ctx: RequestContext, kind: RequestKind, start: string, en
   return ends.includes(end) ? end : (ends[0] ?? '');
 }
 
-/** Ngày bù chọn được: sau ngày nghỉ cuối, cùng tháng, còn giờ trống. */
+/** Ngày bù chọn được theo ngày nghỉ cuối (BE: sau đó, cùng tháng, còn giờ trống). */
 export function slotDates(ctx: RequestContext, leaveEnd: string): string[] {
-  if (!leaveEnd) return [];
-  return openDays(ctx)
-    .filter(d => d.date > leaveEnd && monthOf(d.date) === monthOf(leaveEnd) && d.hours.length > 0)
-    .map(d => d.date);
+  return ctx.choices['leave-with-makeup'].slotDates[leaveEnd] ?? [];
 }
 
-const overlaps = (start: number, end: number, w: HourWindow) => start < w.end && end > w.start;
-const minutesIn = (day: ContextDay, w: HourWindow) =>
-  day.hours.find(h => h.start === w.start)?.ends.find(e => e.end === w.end)?.minutes ?? (w.end - w.start) * 60;
+/** Giờ bắt đầu chọn được của một bảng giờ (ngày bù: `hours`; OT: `otHours`). */
+export const startHours = (hours: HourSlot[]): number[] => hours.map(h => h.start);
+/** Giờ kết thúc chọn được khi giờ bắt đầu là `start`. */
+export const endHours = (hours: HourSlot[], start: number): HourEnd[] => hours.find(h => h.start === start)?.ends ?? [];
 
-// Số phút còn xếp được trong ngày. Khung dài nhất trong `hours` là phần còn lại của trần 12 giờ một ngày, nên các khung
-// đã chọn ở dòng khác cùng ngày (`taken`) trừ vào đó; `capMinutes` (giờ OT còn lại, giờ bù còn thiếu) chặn thêm.
-// Khung dài nhất có thể bị cách xếp giờ trống trong ngày giới hạn chứ không phải trần 12 giờ (vd. ca 10–19: khung dài nhất
-// 06–09 là 3 giờ, trần còn 4). Khi đó số phút cho dòng thứ hai chặt hơn của BE, nhưng không bao giờ lỏng hơn, nên không đưa
-// ra khung không hợp lệ.
-function budget(day: ContextDay, opts: HourOptions): number {
-  let cap = opts.capMinutes ?? Infinity;
-  const taken = opts.taken ?? [];
-  if (taken.length) {
-    const longest = Math.max(0, ...day.hours.flatMap(h => h.ends.map(e => e.minutes)));
-    cap = Math.min(cap, longest - taken.reduce((sum, w) => sum + minutesIn(day, w), 0));
-  }
-  return cap;
-}
+const minutesIn = (hours: HourSlot[], start: number, end: number) =>
+  hours.find(h => h.start === start)?.ends.find(e => e.end === end)?.minutes ?? 0;
 
-/** "Đến" chọn được khi "Từ" là `start`: không chồng khung đã chọn, không quá số phút còn lại. */
-export function endHours(day: ContextDay, start: number, opts: HourOptions = {}): HourEnd[] {
-  const slot = day.hours.find(h => h.start === start);
-  const taken = opts.taken ?? [];
-  if (!slot || taken.some(w => start >= w.start && start < w.end)) return [];
-  const cap = budget(day, opts);
-  return slot.ends.filter(e => e.minutes <= cap && !taken.some(w => overlaps(start, e.end, w)));
-}
+// Ngày của khoảng mà đơn giữ, theo cờ BE đặt trên từng ngày.
+const keptDates = (ctx: RequestContext, start: string, end: string, flag: 'leaveCounted' | 'shiftChangeable') =>
+  start && end ? ctx.days.filter(d => d.date >= start && d.date <= end && d[flag]).map(d => d.date) : [];
+export const leaveDates = (ctx: RequestContext, start: string, end: string) => keptDates(ctx, start, end, 'leaveCounted');
+export const shiftChangeDates = (ctx: RequestContext, start: string, end: string) =>
+  keptDates(ctx, start, end, 'shiftChangeable');
 
-/** "Từ" chọn được: giờ bắt đầu còn ít nhất một giờ kết thúc hợp lệ. */
-export function startHours(day: ContextDay, opts: HourOptions = {}): number[] {
-  return day.hours.filter(h => endHours(day, h.start, opts).length > 0).map(h => h.start);
-}
-
-// Ngày nghỉ thật của một khoảng: ngày làm, bỏ Thứ Bảy đã có iSAT được duyệt (spec 2.2).
-export function leaveDates(ctx: RequestContext, start: string, end: string): string[] {
-  if (!start || !end) return [];
-  return ctx.days
-    .filter(d => d.date >= start && d.date <= end && d.workday && !approvedIsat(d))
-    .map(d => d.date);
-}
-
-/** Bộ đếm "Đã xếp x / 8 giờ", tính bằng phút. Dòng chưa điền đủ tính 0. */
+/**
+ * Bộ đếm "Đã xếp x / y giờ", tính bằng phút: `required` là số phút BE đòi cho khoảng nghỉ; `planned` cộng số phút BE ghi
+ * trong bảng giờ của từng ngày bù. Dòng chưa điền đủ tính 0.
+ */
 export function makeupCounter(
   ctx: RequestContext,
   startDate: string,
   endDate: string,
   slots: MakeupSlot[]
 ): { planned: number; required: number } {
-  const required = leaveDates(ctx, startDate, endDate).length * MAKEUP_MINUTES_PER_DAY;
+  const required = rangeChoice(ctx, 'leave-with-makeup', startDate, endDate)?.makeupMinutesRequired ?? 0;
   const planned = slots.reduce((sum, s) => {
     if (!s.date || !s.startTime || !s.endTime) return sum;
-    const w = { start: hourOf(s.startTime), end: hourOf(s.endTime) };
     const day = ctx.days.find(d => d.date === s.date);
-    return sum + (day ? minutesIn(day, w) : (w.end - w.start) * 60);
+    return sum + (day ? minutesIn(day.hours, hourOf(s.startTime), hourOf(s.endTime)) : 0);
   }, 0);
   return { planned, required };
 }
 
 /**
- * Giờ chọn được của dòng khung bù thứ `index` (spec 4.4): khung của các dòng khác cùng ngày đã chiếm giờ của chúng, và không
- * xếp quá số giờ còn thiếu sau các dòng khác. Dùng với startHours / endHours của ngày bù đã chọn.
+ * Bỏ giá trị không còn có trong bảng giờ của BE sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
+ * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó.
  */
-export function slotHourOptions(
-  ctx: RequestContext,
-  startDate: string,
-  endDate: string,
-  slots: MakeupSlot[],
-  index: number
-): Required<HourOptions> {
-  const others = slots.filter((_, j) => j !== index);
-  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
-  const date = slots[index]?.date;
-  const taken = others
-    .filter(o => date && o.date === date && o.startTime && o.endTime)
-    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
-  return { taken, capMinutes: Math.max(0, required - planned) };
-}
-
-/**
- * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
- * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
- * mỗi dòng so với các dòng trước nó, nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
- */
-export function fitSlots(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
+export function fitSlots(ctx: RequestContext, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
   const dates = slotDates(ctx, endDate);
-  const out: MakeupSlot[] = [];
-  for (const s of slots) {
+  return slots.map(s => {
     const date = dates.includes(s.date) ? s.date : '';
-    const day = ctx.days.find(d => d.date === date);
-    const opts = slotHourOptions(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
-    const startOk = !!day && !!s.startTime && startHours(day, opts).includes(hourOf(s.startTime));
-    const endOk =
-      startOk && !!s.endTime && endHours(day!, hourOf(s.startTime), opts).some(e => e.end === hourOf(s.endTime));
-    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
-  }
-  return out;
+    const hours = ctx.days.find(d => d.date === date)?.hours ?? [];
+    const startOk = !!s.startTime && startHours(hours).includes(hourOf(s.startTime));
+    const endOk = startOk && !!s.endTime && endHours(hours, hourOf(s.startTime)).some(e => e.end === hourOf(s.endTime));
+    return { date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' };
+  });
 }
 
 // 120 → '2', 270 → '4,5' (giờ, dấu phẩy thập phân).
@@ -256,7 +143,7 @@ export function makeupNeedLine(ctx: RequestContext, startDate: string, endDate: 
 
 /** Giờ OT đã đăng ký của tháng (đơn chờ duyệt và đã duyệt) trên trần: 'Đã đăng ký tháng 10: 9 / 40 giờ'. */
 export function otMonthLine(ctx: RequestContext, month: string): string {
-  const m = monthInfo(ctx, month);
+  const m = ctx.months.find(x => x.month === month);
   return m ? `Đã đăng ký tháng ${Number(month.slice(5, 7))}: ${hoursText(m.otMinutes)} / ${hoursText(m.otCapMinutes)} giờ` : '';
 }
 
@@ -265,7 +152,7 @@ export function otMonthLine(ctx: RequestContext, month: string): string {
  * Ngày không có ca chỉ ghi số giờ.
  */
 export function otHoursLine(day: ContextDay, start: number, end: number): string {
-  const text = `${hoursText(minutesIn(day, { start, end }))} giờ làm thêm`;
+  const text = `${hoursText(minutesIn(day.otHours, start, end))} giờ làm thêm`;
   if (!day.shift) return text;
   const from = hourOf(day.shift.start);
   const to = hourOf(day.shift.end);
@@ -278,16 +165,11 @@ const FRAME_NAME: Record<string, string> = { NORMAL: 'Normal', FLEX: 'Flex', NIG
 export const frameLabel = (type: string, start: string, end: string) =>
   [FRAME_NAME[type] ?? type, `${start.slice(0, 2)}–${end.slice(0, 2)}`].filter(Boolean).join(' ');
 
-/** Ngày sẽ đổi ca của một khoảng: ngày làm không bị đơn nào giữ; ngày nghỉ, iSAT trong khoảng giữ nguyên (spec 2.2). */
-export function shiftChangeDates(ctx: RequestContext, start: string, end: string): string[] {
-  if (!start || !end) return [];
-  return ctx.days.filter(d => d.date >= start && d.date <= end && d.workday && !d.claim).map(d => d.date);
-}
-
 /** Tóm tắt Đổi ca (board J16): '5 ngày đổi sang Flex 06–15: 02, 03, 05, 06 và 07/11'. Rỗng khi khoảng không có ngày đổi. */
 export function shiftChangeSummary(ctx: RequestContext, start: string, end: string, frame: string): string {
   const dates = shiftChangeDates(ctx, start, end);
-  return dates.length ? `${dates.length} ngày đổi sang ${frame}: ${dayList(dates)}` : '';
+  const count = rangeChoice(ctx, 'shift-change', start, end)?.daysCount ?? 0;
+  return count ? `${count} ngày đổi sang ${frame}: ${dayList(dates)}` : '';
 }
 
 // ['2026-11-13', '2026-11-14', '2026-11-16'] → '13, 14 và 16/11'; khác tháng ghi tháng sau ngày cuối của tháng đó.
@@ -299,7 +181,8 @@ export function dayList(dates: string[]): string {
 /** Dòng tóm tắt do máy đếm: '3 ngày làm việc: 13, 14 và 16/11'. Rỗng khi khoảng không có ngày làm. */
 export function leaveSummary(ctx: RequestContext, start: string, end: string): string {
   const dates = leaveDates(ctx, start, end);
-  return dates.length ? `${dates.length} ngày làm việc: ${dayList(dates)}` : '';
+  const count = rangeChoice(ctx, 'leave', start, end)?.daysCount ?? rangeChoice(ctx, 'leave-with-makeup', start, end)?.daysCount ?? 0;
+  return count ? `${count} ngày làm việc: ${dayList(dates)}` : '';
 }
 
 /** Mã hình thức nghỉ trừ vào số ngày phép năm còn lại (spec 2.1 leaveTypes). */
@@ -312,8 +195,8 @@ export const ANNUAL_LEAVE = 'ANNUAL';
  */
 export function leaveBalance(ctx: RequestContext, leaveType: string, start: string, end: string): string {
   const left = ctx.annualLeaveLeft;
-  if (leaveType !== ANNUAL_LEAVE || left === null || !start || !end) return '';
-  const after = left - leaveDates(ctx, start, end).length;
+  const after = rangeChoice(ctx, 'leave', start, end)?.annualLeaveLeftAfter;
+  if (leaveType !== ANNUAL_LEAVE || left === null || after === undefined || after === null) return '';
   return after < 0 ? `Phép năm còn ${left} ngày` : `Phép năm còn ${left} ngày, sau đơn này còn ${after}`;
 }
 
@@ -346,7 +229,7 @@ export function caseDetail(day: { checkIn: string | null; checkOut: string | nul
 export function advanceLines(advance: AdvanceInfo): [string, string] {
   return [
     `Số tiền được ứng: ${vnd(advance.amount)} ₫`,
-    `80% lương ngày công ${advance.from.slice(8, 10)}–${ddmm(advance.to)} · ${advance.workDays} ngày`
+    `${advance.ratePct}% lương ngày công ${advance.from.slice(8, 10)}–${ddmm(advance.to)} · ${advance.workDays} ngày`
   ];
 }
 

@@ -9,6 +9,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from '../../common';
+import { isValidDateText } from '../../common/date-text';
 import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
@@ -20,7 +21,7 @@ import { payDateOf, SettingsReader, TypeWeekMissingError, type WorkWeek } from '
 import { PeriodsService } from '../periods';
 import { createdBody, dayConflictHttp } from '../requests/request-http';
 import type { RequestStatus } from '../requests/domain';
-import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, weekOf } from './domain';
+import { daySummaryOf, estimateIncomeOf, monthOf, monthRangeOf, stepsOf, vnToday, vnTime, weekOf } from './domain';
 
 // Nhóm "của tôi": mọi route chỉ cần phiên; danh tính luôn là req.user. Không route nào đọc employeeId / username của
 // client — trường lạ trong body hay query bị bỏ qua. Bảng công dùng uuid, đơn từ và phiếu lương dùng tên đăng nhập.
@@ -154,6 +155,8 @@ export class MeController {
     const alert = days.filter(d => d.kind === 'todo' && d.date < date && d.explanationStatus !== 'pending').pop() ?? null;
     return {
       date,
+      /** Giờ Việt Nam của máy chủ (HH:mm): màn hiện "bây giờ" từ đây, không đọc đồng hồ máy. */
+      now: vnTime(),
       // Ngày không có ca (nghỉ, lễ, ngoài tuần làm) thì ca là null, không phải một đối tượng toàn null.
       shift: ts?.shiftType ? { type: ts.shiftType, start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       punches: { in: days.find(d => d.date === date)?.in ?? null, out: days.find(d => d.date === date)?.out ?? null },
@@ -201,20 +204,22 @@ export class MeController {
       this.weekOrNull(me.uuid, m),
     ]);
     const view = monthOf(rows as any, m, vnToday(), period?.status ?? null, workWeek?.weekdays);
-    return { ...view, totals: workWeek ? { ...view.totals, standardDays: workWeek.standardWorkdays } : view.totals, range };
+    return { ...view, today: vnToday(), totals: workWeek ? { ...view.totals, standardDays: workWeek.standardWorkdays } : view.totals, range };
   }
 
   @Authenticated()
   @Get('attendance/:date')
   async attendanceDay(@Req() req: Request, @Param('date') date: string): Promise<unknown> {
     const me = who(req);
-    if (!DATE.test(date || '')) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
+    if (!DATE.test(date || '') || !isValidDateText(date)) throw new BadRequestError('Ngày không hợp lệ (định dạng YYYY-MM-DD)', { code: 'INVALID_DATE' });
     // Cài đặt chỉ có từ 2000-01 (tháng gieo), hỏi tuần làm trước đó sẽ thành lỗi 500.
     if (date < '2000-01-01') throw new BadRequestError('Ngày phải từ 01/01/2000 trở đi', { code: 'INVALID_DATE' });
     const [ts, workWeek] = await Promise.all([this.attendance.getTimesheet(me.uuid, date), this.weekOrNull(me.uuid, date.slice(0, 7))]);
     // Phần giải trình lỗi thì ngày công vẫn mở được, chỉ thiếu thông tin giải trình.
     const explained = await this.explanations.dayView(me.username, date).catch(() => ({ explanation: null, due: null }));
     return {
+      today: vnToday(),
+      now: vnTime(),
       ...daySummaryOf((ts ?? undefined) as any, date, vnToday(), workWeek?.weekdays),
       shift: ts?.shiftType ? { start: ts.shiftStartTime, end: ts.shiftEndTime } : null,
       ...explained,
@@ -289,17 +294,19 @@ export class MeController {
   @Patch('requests/:id/cancel')
   async cancelRequest(@Req() req: Request, @Param('id', RequestIdPipe) id: string, @Body() body: { reason?: string }): Promise<unknown> {
     const me = who(req);
-    // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
-    const existing = await this.requests.getById(id);
-    if (!existing || (existing.employeeId !== me.username && existing.employeeId !== me.uuid)) {
-      throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
-    }
     try {
       const request = await this.requests.cancelRequest(id, me.username, body?.reason);
       return { updated: true, request };
     } catch (err: any) {
       if (err instanceof HttpError) throw err;
       if (/not found/i.test(err?.message || '')) throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      // Đơn của người khác trả 404 như GET /me/requests/:id, không lộ rằng đơn đó tồn tại (hợp đồng API §3.4).
+      const existing = await Promise.resolve()
+        .then(() => this.requests.getById(id))
+        .catch(() => null);
+      if (existing?.employeeId && existing.employeeId !== me.username && existing.employeeId !== me.uuid) {
+        throw new NotFoundError('Không tìm thấy yêu cầu', { code: 'REQUEST_NOT_FOUND' });
+      }
       throw new ConflictError(err?.message || 'Không huỷ được đơn này', { code: 'REQUEST_NOT_CANCELLABLE' });
     }
   }

@@ -3,6 +3,7 @@ import type { Kysely, Selectable } from 'kysely';
 import { DEFAULT_SHIFT } from '../../common/shift-catalog';
 import { KYSELY_DB, type DB } from '../../database';
 import { PunchEvent, DailyTimesheet, WorkSchedule } from './domain';
+import { isValidDateText } from '../../common/date-text';
 
 export interface TimesheetFilter {
   employeeId?: string;
@@ -61,6 +62,14 @@ export class AttendanceRepository {
   async findIdentity(employeeId: string): Promise<{ username: string; name: string } | null> {
     const row = await this.qb.selectFrom('staff').select(['username', 'name']).where('uuid', '=', employeeId).executeTakeFirst();
     return row ? { username: row.username, name: row.name } : null;
+  }
+
+  /** Ngày vào làm / nghỉ việc ('YYYY-MM-DD' hoặc null) của nhân sự theo uuid; null nếu không có người đó. */
+  async findEmployment(employeeId: string): Promise<{ startDate: string | null; resignedOn: string | null } | null> {
+    const row = await this.qb.selectFrom('staff').select(['start_date', 'resigned_on']).where('uuid', '=', employeeId).executeTakeFirst();
+    if (!row) return null;
+    const text = (v: string | null) => (v && isValidDateText(v.trim()) ? v.trim() : null);
+    return { startDate: text(row.start_date), resignedOn: text(row.resigned_on) };
   }
 
   /** Bản chạy mọi truy vấn trên `trx` (giao dịch đang mở của người gọi) thay vì pool. */

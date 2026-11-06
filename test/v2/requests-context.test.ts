@@ -349,6 +349,7 @@ test('findStaffContext reads the type version in effect', async () => {
     leaveBalance: 0,
     leaveBalanceOn: null,
     startDate: '2026-10-15',
+    resignedOn: null,
     benefits: { ot: true, makeup: true, leaveAccount: false },
     regularDows: [1, 2, 3, 4, 5, 6]
   });
@@ -370,6 +371,7 @@ test('findStaffContext without a type version has no days and no benefits; unkno
     leaveBalance: 2.5,
     leaveBalanceOn: '2026-11-01',
     startDate: null, // start_date sai dạng thì coi như không ghi
+    resignedOn: null,
     benefits: { ot: false, makeup: false, leaveAccount: false },
     regularDows: null
   });

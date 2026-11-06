@@ -57,7 +57,7 @@ const details = (over: Record<string, unknown> = {}) => ({
   netIncome: 6937593,
   dependants: 0,
   remainingAnnualLeaveDays: 4,
-  dailyLines: [],
+  workPay: 6250000,
   ...over
 });
 const record = (over: Record<string, unknown> = {}, d: Record<string, unknown> = {}) => ({
@@ -67,7 +67,13 @@ const record = (over: Record<string, unknown> = {}, d: Record<string, unknown> =
   ...over
 });
 const slip = (over: Record<string, unknown> = {}, d: Record<string, unknown> = {}) =>
-  payslipFromRecord(record(over, d) as any, '2026-11-05');
+  payslipFromRecord(record(over, d) as any);
+
+// totals của GET /payroll/:month: BE cộng sẵn cả kỳ.
+const TOTALS = {
+  baseSalaryActual: 6250000, kpiActualPay: 1000000, allowance: 500000, otPay: 0, lateDeduction: 41563,
+  gross: 7708437, insurance: 0, tax: 770844, advance: 0, deductions: 770844, net: 6937593, netShare: 90
+};
 
 test('BUG-payroll-6: position type and level come from the payslip, not "NV · Bậc 0"', () => {
   expect([slip().kind, slip().level]).toEqual(['NV', 2]);
@@ -101,7 +107,7 @@ test('BUG-payroll-9: the reason typed when rejecting comes back on the slip', ()
 
 test('BUG-payroll-7: the late cut is a positive amount, so the table and drawer print one minus sign', () => {
   expect(slip().late.cut).toBe(41563);
-  const screen = payrollScreenFromPayslips([record() as any], '2026-10');
+  const screen = payrollScreenFromPayslips([record() as any], '2026-10', TOTALS);
   if (screen.empty) throw new Error('bảng rỗng');
   expect(screen.lines[0].lateCut).toBe(41563);
   expect(slip({}, { lateEarlyDeductionAmount: 0 }).late.cut).toBe(0);
@@ -110,4 +116,43 @@ test('BUG-payroll-7: the late cut is a positive amount, so the table and drawer 
 test('BUG-payroll-8: a tts payslip says KPI does not apply', () => {
   expect(slip().kpiApplicable).toBe(true);
   expect(slip({}, { employeeType: 'tts', kpiApplicable: false }).kpiApplicable).toBe(false);
+});
+
+test('the board totals are the BE totals, not summed from the lines', () => {
+  const screen = payrollScreenFromPayslips([record() as any, record({ username: 'x', gross: 1, net: 1 }) as any], '2026-10', {
+    ...TOTALS, gross: 999, net: 888, netShare: 7, deductions: 111
+  });
+  if (screen.empty) throw new Error('bảng rỗng');
+  expect(screen.totals).toEqual({
+    gross: 999, insurance: 0, tax: 770844, advance: 0, deductions: 111, net: 888, netShare: 7,
+    workPay: 6250000, kpiPay: 1000000, allowance: 500000, ot: 0, lateCut: 41563
+  });
+});
+
+test('rates, late minutes, settlement, holiday and workPay come from the payslip', () => {
+  const rates = {
+    kpiWeights: { wework: 50, user: 20, peer: 15, manager: 10, self: 5 },
+    insurancePct: { bhxh: 9, bhyt: 2, bhtn: 1, total: 12 },
+    otMultipliers: { weekday: 1.8, weekend: 2, holiday: 3 },
+    lateGraceMinutes: 10
+  };
+  const s = slip({}, {
+    rates, lateMinutes: 40, workPay: 7000000, leaveSettlementPay: 100000, holidayPay: 269231, holidayPaidDays: 1,
+    paidLeaveDays: 2, paidLeavePay: 538462,
+    calendar: [{ date: '2026-10-01', kind: 'work' }, { date: '2026-10-04', kind: 'rest' }, { date: '2026-10-30', kind: 'future' }, { date: '2026-10-02', kind: 'isat' }]
+  });
+  expect(s.rates).toEqual(rates);
+  expect(s.late.minutes).toBe(40);
+  expect(s.calc.workPay).toBe(7000000);
+  expect(s.settlementPay).toBe(100000);
+  expect(s.holiday).toEqual({ days: 1, pay: 269231 });
+  expect([s.days.leave, s.leavePay]).toEqual([2, 538462]);
+  // Dải ngày là loại BE gán; FE không so với ngày máy.
+  expect(s.calendar).toEqual(['work', 'sunday', 'future', 'isat']);
+});
+
+test('a payslip saved before BE returned rates, late minutes or a calendar shows none of them', () => {
+  const s = slip();
+  expect([s.rates, s.late.minutes, s.calendar]).toEqual([null, 0, []]);
+  expect(s.calc.workPay).toBe(6250000);
 });

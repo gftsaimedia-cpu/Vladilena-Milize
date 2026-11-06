@@ -19,7 +19,7 @@ const stats = computed(() => [
   { label: 'Phép · iSAT', value: `${d.value.leave} · ${d.value.isat}`, unit: '' },
   { label: 'Chờ giải trình', value: String(d.value.pending), unit: '' },
   { label: 'Làm thêm', value: num(sum(props.slip.ot.hours)), unit: ' giờ' },
-  { label: 'Đi muộn', value: String(sum(props.slip.late.minutes)), unit: ' phút' }
+  { label: 'Đi muộn', value: String(props.slip.late.minutes), unit: ' phút' }
 ]);
 const KIND_CLASS: Record<DayKind, string> = {
   work: 'work',
