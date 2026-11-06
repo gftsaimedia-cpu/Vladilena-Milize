@@ -48,6 +48,8 @@ export function dayRow(
     countsAsWorkday: present && payUnits === 1,
     countsAsDayOff: DAY_OFF_KINDS.has(status),
     makeupMinutes: 0,
+    // The credit follows the minutes unless a test sets it (an approved late arrival credits the whole window, FP6).
+    makeupCreditMinutes: over.makeupCreditMinutes ?? over.makeupMinutes ?? 0,
     dayStatus: present ? 'VALID' : 'PLANNED',
     checkInStatus: present ? 'VALID' : 'PENDING',
     checkOutStatus: present ? 'VALID' : 'PENDING',
@@ -113,6 +115,7 @@ export function payslipLine(
     countsAsWorkday: kind === 'PRESENT' && payUnits === 1,
     countsAsDayOff: DAY_OFF_KINDS.has(kind),
     makeupMinutes: 0,
+    makeupCreditMinutes: over.makeupCreditMinutes ?? over.makeupMinutes ?? 0,
     makeupPay: 0,
     ...over
   };

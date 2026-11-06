@@ -113,6 +113,7 @@ export class AttendanceDaysRepository {
               counts_as_workday: eb.ref('excluded.counts_as_workday'),
               counts_as_day_off: eb.ref('excluded.counts_as_day_off'),
               makeup_minutes: eb.ref('excluded.makeup_minutes'),
+              makeup_credit_minutes: eb.ref('excluded.makeup_credit_minutes'),
               updated_at: now
             }))
             .where('timesheet_entries.is_locked', '=', false)
@@ -464,6 +465,7 @@ export class AttendanceDaysRepository {
       countsAsWorkday: row.counts_as_workday,
       countsAsDayOff: row.counts_as_day_off,
       makeupMinutes: Number(row.makeup_minutes),
+      makeupCreditMinutes: Number(row.makeup_credit_minutes),
       dayStatus: row.day_status as DayStatus,
       checkInStatus: row.check_in_status as CheckInStatus,
       checkOutStatus: row.check_out_status as CheckOutStatus,
@@ -504,6 +506,7 @@ function valuesOf(day: AttendanceDay, now: Date) {
     counts_as_workday: day.countsAsWorkday,
     counts_as_day_off: day.countsAsDayOff,
     makeup_minutes: day.makeupMinutes,
+    makeup_credit_minutes: day.makeupCreditMinutes,
     created_at: now,
     updated_at: now
   };

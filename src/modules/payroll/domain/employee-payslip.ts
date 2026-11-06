@@ -45,6 +45,9 @@ export interface DailyAttendanceLineProps {
   countsAsWorkday: boolean;
   countsAsDayOff: boolean; // a day off for the attendance allowance
   makeupMinutes: number; // minutes worked inside the approved makeup windows of the day (L14)
+  // Minutes credited against the leave-with-makeup debt (L16): makeupMinutes, or the whole window when a late arrival at it
+  // was explained and approved. Only the chuyên cần shortfall reads it; pay reads makeupMinutes.
+  makeupCreditMinutes: number;
   makeupPay: number; // makeupMinutes / 60 x hourly rate, display only
 }
 
@@ -348,6 +351,7 @@ export class EmployeePayslip {
     let dayOffCount = 0;
     let makeupLeaveCount = 0;
     let makeupMinutes = 0;
+    let makeupCreditMinutes = 0;
     let deductionMinutes = 0;
     let flexHours = 0; // Σ min(8, shift hours) of the flex work days (shift hours = workHours - makeup, D13)
     let nightBreakHours = 0; // Σ the exact night break pay of the night work days, in hours of pay
@@ -376,6 +380,7 @@ export class EmployeePayslip {
       else if (line.kind === 'LEAVE_UNPAID') unpaidLeaveCount++;
       else if (line.kind === 'LEAVE_MAKEUP') makeupLeaveCount++;
       makeupMinutes += line.makeupMinutes;
+      makeupCreditMinutes += line.makeupCreditMinutes;
       deductionMinutes += line.deductionMinutes;
     }
 
@@ -424,9 +429,10 @@ export class EmployeePayslip {
 
     // Actual values. The allowances follow the work days. The days off for the attendance allowance are the lines that
     // count as one (leave, absence) plus the leave-with-makeup days the month's makeup minutes leave short (L15, L16).
-    // D10: the windows still ahead count as worked here, and only here (makeupPay above reads the real minutes).
+    // D10: the windows still ahead count as worked here, and only here (makeupPay above reads the real minutes). The
+    // minutes made up are the credited ones: a late arrival explained and approved credits the whole window (L16, FP6).
     const absenceDays =
-      dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupMinutes + (props.plannedMakeupMinutes ?? 0));
+      dayOffCount + makeupShortfallDays(makeupLeaveCount, makeupCreditMinutes + (props.plannedMakeupMinutes ?? 0));
     const keepsDiligence = absenceDays < (props.diligenceLostFromDays ?? 5);
     // rate x base x work days / std
     this.attendanceAllowanceActual =

@@ -102,6 +102,8 @@ export interface AttendanceDay {
   countsAsWorkday: boolean;
   countsAsDayOff: boolean;
   makeupMinutes: number;
+  /** Phút ghi nhận bù cho nợ nghỉ có bù (L16); bằng `makeupMinutes`, trừ khi vào trễ ở khung bù đã được giải trình duyệt. */
+  makeupCreditMinutes: number;
   // Cột cũ, ghi cho khớp (spec 6).
   dayStatus: DayStatus;
   checkInStatus: CheckInStatus;
@@ -203,6 +205,7 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     countsAsWorkday: false,
     countsAsDayOff: false,
     makeupMinutes: 0,
+    makeupCreditMinutes: 0,
     dayStatus: 'PLANNED',
     checkInStatus: 'PENDING',
     checkOutStatus: 'PENDING'
@@ -238,26 +241,45 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     };
   };
 
-  /** Phút có mặt trùng khung bù; thiếu một bên thì dùng giờ ghi trong giải trình đã duyệt (R9). */
-  const makeupMinutesOf = (shift: ShiftFacts | null): number => {
-    if (src.makeupWindows.length === 0) return 0;
+  /**
+   * Phút có mặt trùng khung bù (`makeupMinutes`, trả lương theo số này); thiếu một bên thì dùng giờ ghi trong giải trình
+   * đã duyệt (R9). Phút ghi nhận bù (`credit`, chỉ để xét nợ nghỉ có bù) bằng số trên, trừ khi giải trình của ngày đã
+   * DUYỆT và dòng có ca `LATE_CHECK_IN` chỉ để biết (đo so với khung, không phải so với ca): khi đó khung bù mà người đó
+   * vào trễ được ghi nhận từ giờ bắt đầu khung (người dùng chốt 06/11). Vào trễ so với ca không bao giờ nới ghi nhận.
+   */
+  const makeupOf = (
+    shift: ShiftFacts | null,
+    cases: readonly DetectedCase[]
+  ): { minutes: number; credit: number } => {
+    if (src.makeupWindows.length === 0) return { minutes: 0, credit: 0 };
     const approvedTimes = explanation?.status === 'APPROVED' ? explanation : null;
     const from =
       checkIn ?? (approvedTimes?.checkIn ? vnInstant(date, approvedTimes.checkIn) : null);
     const to =
       checkOut ??
       (approvedTimes?.checkOut ? explainedInstant(date, approvedTimes.checkOut, from) : null);
-    if (!from || !to || to <= from) return 0;
+    if (!from || !to || to <= from) return { minutes: 0, credit: 0 };
     const spans = windowSpans(
       date,
       shift,
       src.makeupWindows.map(w => ({ kind: 'MAKEUP' as const, start: w.start, end: w.end }))
     );
-    return spans.reduce((sum, span) => {
-      const lo = Math.max(from.getTime(), span.start.getTime());
-      const hi = Math.min(to.getTime(), span.end.getTime());
-      return sum + (hi > lo ? Math.floor((hi - lo) / MINUTE_MS) : 0);
-    }, 0);
+    const lateAtWindow =
+      approvedTimes !== null && cases.some(c => c.code === 'LATE_CHECK_IN' && !c.affectsPay);
+    let minutes = 0;
+    let credit = 0;
+    for (const span of spans) {
+      const overlap = (lo: number): number => {
+        const hi = Math.min(to.getTime(), span.end.getTime());
+        return hi > lo ? Math.floor((hi - lo) / MINUTE_MS) : 0;
+      };
+      const present = overlap(Math.max(from.getTime(), span.start.getTime()));
+      // Chỉ khung mà người đó đến giữa chừng mới được nới; khung đã hết trước giờ vào không có gì để ghi nhận.
+      const arrivedInside = from.getTime() > span.start.getTime() && from.getTime() < span.end.getTime();
+      minutes += present;
+      credit += lateAtWindow && arrivedInside ? overlap(span.start.getTime()) : present;
+    }
+    return { minutes, credit };
   };
 
   const finish = (): AttendanceDay => {
@@ -305,7 +327,9 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
     row.status = 'EXTRA';
     const { result } = detect(null);
     row.cases = result.cases;
-    row.makeupMinutes = makeupMinutesOf(null);
+    const makeup = makeupOf(null, row.cases);
+    row.makeupMinutes = makeup.minutes;
+    row.makeupCreditMinutes = makeup.credit;
     return finish();
   }
 
@@ -329,7 +353,9 @@ export function buildDay(employeeId: string, src: DaySources): AttendanceDay {
   }
 
   row.status = 'PRESENT';
-  row.makeupMinutes = makeupMinutesOf(shift);
+  const makeup = makeupOf(shift, result.cases);
+  row.makeupMinutes = makeup.minutes;
+  row.makeupCreditMinutes = makeup.credit;
   const payAffecting = result.cases.some(c => c.affectsPay);
   if (!payAffecting) {
     row.payUnits = 1;

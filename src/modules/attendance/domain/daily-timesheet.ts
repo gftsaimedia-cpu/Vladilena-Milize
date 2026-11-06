@@ -20,6 +20,7 @@ export interface DayRowProps {
   countsAsWorkday?: boolean;
   countsAsDayOff?: boolean;
   makeupMinutes?: number;
+  makeupCreditMinutes?: number;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -93,6 +94,7 @@ export interface DailyTimesheetRow {
   counts_as_workday?: boolean;
   counts_as_day_off?: boolean;
   makeup_minutes?: number;
+  makeup_credit_minutes?: number;
 }
 
 export interface DailyTimesheetDTO {
@@ -121,6 +123,7 @@ export interface DailyTimesheetDTO {
   countsAsWorkday: boolean;
   countsAsDayOff: boolean;
   makeupMinutes: number;
+  makeupCreditMinutes: number;
 }
 
 export class DailyTimesheet {
@@ -149,6 +152,7 @@ export class DailyTimesheet {
   readonly countsAsWorkday: boolean;
   readonly countsAsDayOff: boolean;
   readonly makeupMinutes: number;
+  readonly makeupCreditMinutes: number;
 
   constructor(props: DailyTimesheetProps) {
     if (!props || typeof props !== 'object') {
@@ -260,6 +264,7 @@ export class DailyTimesheet {
     this.countsAsWorkday = props.countsAsWorkday ?? false;
     this.countsAsDayOff = props.countsAsDayOff ?? false;
     this.makeupMinutes = props.makeupMinutes ?? 0;
+    this.makeupCreditMinutes = props.makeupCreditMinutes ?? this.makeupMinutes;
   }
 
   static create(props: CreateDailyTimesheetProps): DailyTimesheet {
@@ -319,7 +324,8 @@ export class DailyTimesheet {
       deductionMinutes: this.deductionMinutes,
       countsAsWorkday: this.countsAsWorkday,
       countsAsDayOff: this.countsAsDayOff,
-      makeupMinutes: this.makeupMinutes
+      makeupMinutes: this.makeupMinutes,
+      makeupCreditMinutes: this.makeupCreditMinutes
     });
   }
 
@@ -353,7 +359,8 @@ export class DailyTimesheet {
       deduction_minutes: this.deductionMinutes,
       counts_as_workday: this.countsAsWorkday,
       counts_as_day_off: this.countsAsDayOff,
-      makeup_minutes: this.makeupMinutes
+      makeup_minutes: this.makeupMinutes,
+      makeup_credit_minutes: this.makeupCreditMinutes
     };
   }
 
@@ -395,7 +402,8 @@ export class DailyTimesheet {
       deductionMinutes: Number(row.deduction_minutes ?? 0),
       countsAsWorkday: Boolean(row.counts_as_workday),
       countsAsDayOff: Boolean(row.counts_as_day_off),
-      makeupMinutes: Number(row.makeup_minutes ?? 0)
+      makeupMinutes: Number(row.makeup_minutes ?? 0),
+      makeupCreditMinutes: Number(row.makeup_credit_minutes ?? row.makeup_minutes ?? 0)
     });
   }
 
@@ -425,7 +433,8 @@ export class DailyTimesheet {
       deductionMinutes: this.deductionMinutes,
       countsAsWorkday: this.countsAsWorkday,
       countsAsDayOff: this.countsAsDayOff,
-      makeupMinutes: this.makeupMinutes
+      makeupMinutes: this.makeupMinutes,
+      makeupCreditMinutes: this.makeupCreditMinutes
     };
   }
 }

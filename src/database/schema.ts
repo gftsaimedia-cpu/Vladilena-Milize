@@ -475,6 +475,7 @@ export interface TimesheetEntriesTable {
   counts_as_workday: Generated<boolean>;
   counts_as_day_off: Generated<boolean>;
   makeup_minutes: Generated<number>;
+  makeup_credit_minutes: Generated<number>;
   created_at: Date;
   updated_at: Date;
 }
