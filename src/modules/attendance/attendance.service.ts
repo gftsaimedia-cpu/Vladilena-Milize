@@ -1,5 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable, Inject, Optional } from '@nestjs/common';
 import { TransactionCoordinator, type DatabaseTransaction } from '../../database';
+import { AuditLog } from '../audit/audit-log';
 import { PeriodGate } from '../periods/period-gate';
 import { BadRequestError, assertEmployed } from '../../common';
 import { businessDateText, businessTimeText } from '../../common/business-date';
@@ -57,6 +59,8 @@ export class AttendanceService {
     @Optional() @Inject(PeriodGate) private readonly periodGate?: Pick<PeriodGate, 'hold'>,
     // Phát sự kiện realtime sau khi commit; thiếu thì không phát.
     @Optional() @Inject(RealtimeBus) private readonly bus?: RealtimeBus,
+    // Nhật ký punch.correct (Admin chấm hộ); Nest luôn tiêm (AuditModule toàn cục), test dựng tay không có thì không ghi.
+    @Optional() @Inject(AuditLog) private readonly audit?: Pick<AuditLog, 'append'>,
   ) {}
 
   /** Phát sự kiện sau commit. Lỗi ở đây (tra tên, bus) chỉ ghi log, không làm hỏng request chấm công/tính lại. */
@@ -103,8 +107,12 @@ export class AttendanceService {
    * Ghi nhận sự kiện chấm công rồi để AttendanceDaysService dựng lại dòng ngày (T1).
    * Mọi bước chạy trong một giao dịch, dưới khoá của nhân sự (cùng khoá với Đơn từ).
    * Có cài đặt thì kiểm ngày làm (chỉ lần vào) rồi vùng chấm công (khi `checkZone`) trước khi lưu lần chấm.
+   * `actor` (route Admin chấm hộ) thì ghi nhật ký `punch.correct` cuối giao dịch; nhân viên tự chấm không truyền nên không ghi.
    */
-  async recordPunch(input: RecordPunchInput, options: { checkZone?: boolean } = {}): Promise<RecordPunchResult> {
+  async recordPunch(
+    input: RecordPunchInput,
+    options: { checkZone?: boolean; actor?: string } = {},
+  ): Promise<RecordPunchResult> {
     if (!input.employeeId) {
       throw new Error('Mã nhân viên (employeeId) không được để trống');
     }
@@ -217,6 +225,30 @@ export class AttendanceService {
       const timesheet = await repo.findTimesheet(input.employeeId, workDate);
       if (!timesheet) {
         throw new Error(`Không đọc lại được bảng công ngày ${workDate} sau khi chấm công`);
+      }
+
+      // 7. Admin chấm hộ: nhật ký là câu ghi cuối của giao dịch (ghi lỗi thì lần chấm và dòng ngày cùng huỷ).
+      if (trx && this.audit && options.actor) {
+        const hhmm = (d: Date | null | undefined) => (d ? businessTimeText(d) : null);
+        const who = await repo.findIdentity(input.employeeId);
+        await this.audit.append(trx, {
+          actor: options.actor,
+          action: 'punch.correct',
+          entityKind: 'attendance-day',
+          entityId: workDate,
+          subject: who?.username ?? null,
+          subjectUuid: input.employeeId,
+          month: workDate.slice(0, 7),
+          before: { in: hhmm(existing?.actualCheckIn), out: hhmm(existing?.actualCheckOut) },
+          after: {
+            in: hhmm(timesheet.actualCheckIn),
+            out: hhmm(timesheet.actualCheckOut),
+            added: `${input.type} ${businessTimeText(punchedAt)}`,
+          },
+          reason: input.note?.trim() || null,
+          sensitivity: 'normal',
+          requestId: randomUUID(),
+        });
       }
 
       return {
