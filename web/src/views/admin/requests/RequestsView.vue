@@ -8,6 +8,10 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { toast } from '@/components/shell/toast';
+import BulkButton from '@/components/select-mode/BulkButton.vue';
+import ResultLine from '@/components/select-mode/ResultLine.vue';
+import SelectBar from '@/components/select-mode/SelectBar.vue';
+import { useSelectMode } from '@/components/select-mode/useSelectMode';
 import StaffScopeFilter from '@/components/staff-scope/StaffScopeFilter.vue';
 import { deptOptions, matchScope, useMineDepts, type StaffPst } from '@/components/staff-scope/staffScope';
 import Icon from '@/components/ui/Icon.vue';
@@ -156,6 +160,38 @@ async function onDecide(d: { verb: 'approve' | 'reject'; note?: string }) {
   await decide(r, d.verb, d.note);
   if (route.query.tuchoi !== undefined) setQuery({ tuchoi: undefined });
 }
+
+// ---------- Duyệt nhiều đơn (board Q5) ----------
+// Chỉ đơn chờ đang hiện chọn được; Từ chối vẫn làm ở từng đơn vì cần ghi lý do. Đếm và gửi đi chỉ các đơn chờ đang hiện.
+const sel = useSelectMode<'approve'>();
+const result = ref('');
+const approving = ref(false);
+const pendShown = computed(() => shown.value.filter(r => r.status === 'pend').map(r => r.id));
+const chosen = computed(() => sel.pickedIn(pendShown.value));
+function startBulk() {
+  result.value = '';
+  sel.enter('approve');
+}
+async function runBulk() {
+  const ids = chosen.value;
+  if (!ids.length || approving.value) return;
+  approving.value = true;
+  let done = 0;
+  let gone = 0;
+  try {
+    for (const id of ids) {
+      if (await shell.decide(id, 'approve')) done += 1;
+      else gone += 1;
+    }
+    result.value = gone ? `Đã duyệt ${done} đơn. ${gone} đơn đã được xử lý trước đó.` : `Đã duyệt ${done} đơn.`;
+    sel.quit();
+  } catch (e) {
+    // Lỗi của máy chủ đã hiện nguyên văn; báo thêm số đơn đã duyệt trước khi lỗi, giữ chế độ chọn để làm tiếp.
+    if (done) toast.error(`Đã duyệt ${done} đơn, rồi dừng vì lỗi: ${(e as Error).message}`);
+  } finally {
+    approving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -212,15 +248,34 @@ async function onDecide(d: { verb: 'approve' | 'reject'; note?: string }) {
               <Icon name="search" :size="16" />
               <input v-model="q" type="search" placeholder="Lọc theo tên…" aria-label="Lọc theo tên" />
             </label>
+            <BulkButton v-if="!sel.mode.value && pendShown.length" icon="check" @click="startBulk">Duyệt nhiều đơn</BulkButton>
           </div>
+          <SelectBar
+            v-if="sel.mode.value"
+            title="Duyệt nhiều đơn"
+            :count="chosen.length"
+            :total="pendShown.length"
+            unit="đơn"
+            note="Từ chối vẫn làm ở từng đơn vì cần ghi lý do"
+            :go-label="approving ? 'Đang duyệt…' : chosen.length ? `Duyệt ${chosen.length} đơn` : 'Chọn ít nhất 1 đơn'"
+            :go-disabled="!chosen.length || approving"
+            @quit="sel.quit()"
+            @run="runBulk"
+          />
+          <ResultLine v-else :text="result" />
           <ReqTable
             v-if="shown.length"
             :rows="shown"
             :open-id="openId"
             :busy-id="busyId"
+            :selecting="!!sel.mode.value"
+            :picked="sel.picked.value"
+            :all-state="sel.stateOf(pendShown)"
             @open="open($event)"
             @reject="open($event, true)"
             @approve="approveRow"
+            @toggle="sel.toggle"
+            @toggle-all="sel.toggleAll(pendShown)"
           />
           <p v-else class="rq-none">Không có yêu cầu nào khớp bộ lọc.</p>
         </div>

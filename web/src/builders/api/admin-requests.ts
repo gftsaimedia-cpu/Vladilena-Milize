@@ -90,7 +90,8 @@ export function rowFromInbox(item: InboxItem, kind: ReqKind, sentAt: string, sta
     sentAt,
     head: item.head,
     sub: item.sub,
-    facts: item.facts
+    // Giờ gửi đã có ở dòng người gửi của ngăn chi tiết: bỏ dòng "Gửi lúc" của chuông cho khỏi lặp.
+    facts: item.facts.filter(([label]) => label !== 'Gửi lúc')
   };
 }
 

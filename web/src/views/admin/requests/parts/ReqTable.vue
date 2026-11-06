@@ -1,10 +1,29 @@
 <script setup lang="ts">
 // Bảng đơn của tab Yêu cầu (board Q1): mỗi ô một giá trị. Tên người và nút Xem mở ngăn chi tiết; đơn chờ có Từ chối
 // (mở ngăn với ô ghi lý do) và Duyệt ngay trên dòng. Bảng rộng tối thiểu 860px, khung ngoài cuộn ngang khi màn hẹp.
+// Chế độ chọn (board Q5): cột ô chọn hiện ở đầu, chỉ đơn chờ chọn được (đơn đã xử lý mờ, ô khoá); nút trên dòng ẩn.
+import SelectCheck from '@/components/select-mode/SelectCheck.vue';
+import type { CheckState } from '@/components/select-mode/useSelectMode';
 import { KIND_LABEL, STATUS_DOT, STATUS_LABEL, type ReqRow } from '@/builders/api/admin-requests';
 
-defineProps<{ rows: ReqRow[]; openId: string; busyId: string | null }>();
-const emit = defineEmits<{ open: [row: ReqRow]; reject: [row: ReqRow]; approve: [row: ReqRow] }>();
+withDefaults(
+  defineProps<{
+    rows: ReqRow[];
+    openId: string;
+    busyId: string | null;
+    selecting?: boolean;
+    picked?: Set<string>;
+    allState?: CheckState;
+  }>(),
+  { selecting: false, picked: () => new Set<string>(), allState: 'false' }
+);
+const emit = defineEmits<{
+  open: [row: ReqRow];
+  reject: [row: ReqRow];
+  approve: [row: ReqRow];
+  toggle: [id: string];
+  'toggle-all': [];
+}>();
 </script>
 
 <template>
@@ -12,16 +31,36 @@ const emit = defineEmits<{ open: [row: ReqRow]; reject: [row: ReqRow]; approve: 
     <table class="rq-tbl" aria-label="Yêu cầu">
       <thead>
         <tr>
-          <th scope="col">Nhân viên</th>
-          <th scope="col">Loại</th>
-          <th scope="col">Ngày</th>
+          <th v-if="selecting" scope="col" class="c-ck">
+            <SelectCheck :state="allState" label="Chọn tất cả đơn chờ duyệt đang hiện" @toggle="emit('toggle-all')" />
+          </th>
+          <th scope="col" class="c-who">Nhân viên</th>
+          <th scope="col" class="c-kind">Loại</th>
+          <th scope="col" class="c-date">Ngày</th>
           <th scope="col">Nội dung</th>
-          <th scope="col">Trạng thái</th>
-          <th scope="col" class="rq-act">Thao tác</th>
+          <th scope="col" class="c-st">Trạng thái</th>
+          <th scope="col" class="c-act rq-act">Thao tác</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="r in rows" :key="r.id" :class="{ on: r.id === openId }" :data-req="r.id">
+        <tr
+          v-for="r in rows"
+          :key="r.id"
+          :class="{
+            on: r.id === openId || (selecting && picked.has(r.id)),
+            off: selecting && r.status !== 'pend'
+          }"
+          :data-req="r.id"
+        >
+          <td v-if="selecting" class="c-ck">
+            <SelectCheck
+              :state="picked.has(r.id) ? 'true' : 'false'"
+              :label="`Chọn đơn của ${r.name}`"
+              :disabled="r.status !== 'pend'"
+              why="Đơn đã xử lý, không chọn được"
+              @toggle="emit('toggle', r.id)"
+            />
+          </td>
           <td>
             <button type="button" class="rq-who" :aria-label="`Xem yêu cầu của ${r.name}`" @click="emit('open', r)">
               <span class="rq-av" aria-hidden="true">{{ r.initials }}</span>
@@ -35,7 +74,8 @@ const emit = defineEmits<{ open: [row: ReqRow]; reject: [row: ReqRow]; approve: 
             <span class="rq-st"><span class="rq-dot" :style="{ background: STATUS_DOT[r.status] }" />{{ STATUS_LABEL[r.status] }}</span>
           </td>
           <td class="rq-act">
-            <template v-if="r.status === 'pend'">
+            <template v-if="selecting" />
+            <template v-else-if="r.status === 'pend'">
               <button
                 type="button"
                 class="rq-sb2"
@@ -102,24 +142,32 @@ const emit = defineEmits<{ open: [row: ReqRow]; reject: [row: ReqRow]; approve: 
 .rq-tbl td:last-child {
   padding-right: 20px;
 }
-/* Cột: Nhân viên, Loại 128, Ngày 96, Nội dung, Trạng thái 116, Thao tác 176 (board). */
-.rq-tbl th:nth-child(1) {
-  width: 32%;
+/* Cột (board): ô chọn, Nhân viên, Loại 128, Ngày 96, Nội dung (phần còn lại), Trạng thái 116, Thao tác 176; độ rộng gồm đệm ô. */
+.rq-tbl th.c-ck {
+  width: 44px;
 }
-.rq-tbl th:nth-child(2) {
-  width: 140px;
+.rq-tbl th.c-who {
+  width: 212px;
 }
-.rq-tbl th:nth-child(3) {
-  width: 108px;
+.rq-tbl th.c-kind {
+  width: 124px;
 }
-.rq-tbl th:nth-child(5) {
-  width: 128px;
+.rq-tbl th.c-date {
+  width: 92px;
 }
-.rq-tbl th:nth-child(6) {
-  width: 196px;
+.rq-tbl th.c-st {
+  width: 120px;
+}
+.rq-tbl th.c-act {
+  width: 172px;
+  text-align: right;
 }
 .rq-tbl tr.on td {
   background: var(--gold-pale);
+}
+/* Chế độ chọn: đơn đã xử lý mờ (ô chọn vẫn đọc được lý do khoá qua title). */
+.rq-tbl tr.off td {
+  opacity: 0.45;
 }
 .rq-who {
   max-width: 100%;

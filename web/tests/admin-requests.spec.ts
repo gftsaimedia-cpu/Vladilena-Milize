@@ -135,3 +135,46 @@ test('/admin/yeu-cau/moi-thang vẫn chuyển về Tổng quan', async ({ page }
   await page.goto('/admin/yeu-cau/moi-thang?thang=2026-10');
   await expect(page).toHaveURL('/admin/tong-quan?thang=2026-10');
 });
+
+// Q5 (06/11): chế độ chọn chỉ cho đơn đang chờ; Từ chối không làm hàng loạt vì mỗi đơn cần lý do.
+test('duyệt nhiều đơn: chỉ đơn chờ chọn được, nút Duyệt/Từ chối trên dòng ẩn, chạy xong báo "Đã duyệt N đơn."', async ({ page }) => {
+  await page.goto(URL);
+  const bulk = page.getByRole('button', { name: 'Duyệt nhiều đơn' });
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  // Bộ lọc không còn đơn chờ thì không có nút.
+  await tile(page, 'Đã duyệt').click();
+  await expect(rows(page)).toHaveCount(5);
+  await expect(bulk).toHaveCount(0);
+  await tile(page, 'Tất cả').click();
+
+  await bulk.click();
+  const bar = page.getByRole('toolbar', { name: 'Duyệt nhiều đơn cho nhiều đơn' });
+  await expect(bar).toContainText('Đã chọn 0 / 11 đơn');
+  await expect(bar).toContainText('Từ chối vẫn làm ở từng đơn vì cần ghi lý do');
+  await expect(bar.getByRole('button', { name: 'Chọn ít nhất 1 đơn' })).toBeDisabled();
+  await expect(bulk).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Duyệt yêu cầu của / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /^Từ chối yêu cầu của / })).toHaveCount(0);
+  const locked = page.getByRole('checkbox', { name: 'Chọn đơn của Hoàng Thị Mai' });
+  await expect(locked).toBeDisabled();
+  await expect(locked).toHaveAttribute('title', 'Đơn đã xử lý, không chọn được');
+
+  await kind(page, 'Giải trình').click();
+  const all = page.getByRole('checkbox', { name: 'Chọn tất cả đơn chờ duyệt đang hiện' });
+  await all.click();
+  await expect(bar).toContainText('Đã chọn 4 / 4 đơn');
+  await page.getByRole('checkbox', { name: 'Chọn đơn của Đỗ Mai Linh' }).click();
+  await expect(bar).toContainText('Đã chọn 3 / 4 đơn');
+  await expect(all).toHaveAttribute('aria-checked', 'mixed');
+  await bar.getByRole('button', { name: 'Duyệt 3 đơn' }).click();
+
+  await expect(page.getByRole('status').filter({ hasText: 'Đã duyệt 3 đơn.' })).toBeVisible();
+  await expect(bar).toHaveCount(0);
+  await expect(page.getByRole('checkbox')).toHaveCount(0);
+  await kind(page, 'Tất cả loại').click();
+  await expect(tile(page, 'Chờ duyệt')).toContainText('8');
+  await expect(tile(page, 'Đã duyệt')).toContainText('8');
+  await expect(rowOf(page, 'Đỗ Mai Linh')).toContainText('Chờ duyệt');
+  await expect(bell(page)).toHaveAccessibleName('Thông báo, 10 việc cần xử lý');
+  await expect(navLink(page)).toHaveText(/8$/);
+});
