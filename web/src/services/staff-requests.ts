@@ -10,6 +10,7 @@ import {
   requestContext
 } from '@/mock/staff-requests';
 import type { PreviewResult, Refusal, RequestContext, RequestDraft, RequestKind } from '@/mock/staff-requests-types';
+import { planMakeupMock, type MakeupPlan, type MakeupSlotInput } from '@/mock/makeup-plan';
 import { staffRequestsClient } from '@/builders/api/staff-requests';
 import { ApiError, api } from './http';
 
@@ -34,6 +35,12 @@ export async function getRequestContext(): Promise<RequestContext> {
 export async function previewRequest<K extends RequestKind>(kind: K, draft: RequestDraft[K]): Promise<PreviewResult<K>> {
   if (__MOCK__) return respond(previewMock(kind, draft));
   return real.previewRequest(kind, draft);
+}
+
+/** Kế hoạch bù của form Nghỉ có làm bù: BE tính số phút, chỉnh các dòng và đưa giờ chọn được (POST /me/requests/leave-with-makeup/plan). */
+export async function planMakeup(startDate: string, endDate: string, slots: MakeupSlotInput[]): Promise<MakeupPlan> {
+  if (__MOCK__) return respond(planMakeupMock(requestContext(), startDate, endDate, slots));
+  return api.post('/me/requests/leave-with-makeup/plan', { startDate, endDate, slots });
 }
 
 export async function createRequest<K extends RequestKind>(kind: K, draft: RequestDraft[K]): Promise<{ id: string }> {

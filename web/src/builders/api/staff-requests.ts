@@ -38,9 +38,8 @@ const hourOf = (hhmm: string) => Number(hhmm.slice(0, 2));
 /** '2026-11-13' → 'T6 13/11' */
 export const dateLabel = (iso: string) => `${DOW_SHORT[new Date(`${iso}T00:00:00Z`).getUTCDay()]} ${ddmm(iso)}`;
 
-// Mọi lựa chọn ngày, số ngày, số phút bù, giờ OT còn lại đều do BE tính (request-context: choices, days, months, rules).
-// Các hàm dưới tra cứu và ghép chữ. Riêng các dòng khung bù đang điền (chỉ form biết) thì slotHours bỏ giờ mà dòng khác đã
-// chiếm hay vượt số giờ còn thiếu, để form chỉ đưa lựa chọn hợp lệ; BE vẫn kiểm lại khi xem trước và khi gửi.
+// Mọi lựa chọn ngày, số ngày, số phút bù, giờ OT còn lại đều do BE tính (request-context: choices, days, months, rules; kế hoạch
+// bù của form Nghỉ có làm bù: POST /me/requests/leave-with-makeup/plan). Các hàm dưới tra cứu và ghép chữ.
 
 type RangeKind = 'leave' | 'leave-with-makeup' | 'shift-change';
 const rangeChoice = (ctx: RequestContext, kind: RangeKind, start: string, end: string) =>
@@ -96,85 +95,17 @@ export const leaveDates = (ctx: RequestContext, start: string, end: string) => k
 export const shiftChangeDates = (ctx: RequestContext, start: string, end: string) =>
   keptDates(ctx, start, end, 'shiftChangeable');
 
-/**
- * Bộ đếm "Đã xếp x / y giờ", tính bằng phút: `required` là số phút BE đòi cho khoảng nghỉ; `planned` cộng số phút BE ghi
- * trong bảng giờ của từng ngày bù. Dòng chưa điền đủ tính 0.
- */
-export function makeupCounter(
-  ctx: RequestContext,
-  startDate: string,
-  endDate: string,
-  slots: MakeupSlot[]
-): { planned: number; required: number } {
-  const required = rangeChoice(ctx, 'leave-with-makeup', startDate, endDate)?.makeupMinutesRequired ?? 0;
-  const planned = slots.reduce((sum, s) => {
-    if (!s.date || !s.startTime || !s.endTime) return sum;
-    const day = ctx.days.find(d => d.date === s.date);
-    return sum + (day ? minutesIn(day.hours, hourOf(s.startTime), hourOf(s.endTime)) : 0);
-  }, 0);
-  return { planned, required };
-}
-
-type HourWindow = { start: number; end: number };
-const overlaps = (start: number, end: number, w: HourWindow) => start < w.end && end > w.start;
-
-/**
- * Bảng giờ của dòng khung bù thứ `index` (spec 4.4, form chỉ đưa lựa chọn hợp lệ): bảng `hours` BE đưa cho ngày bù của
- * dòng, bỏ giờ mà dòng khác cùng ngày đã chiếm, và không quá số phút còn thiếu sau các dòng khác. Các dòng khác cùng ngày
- * cũng trừ vào phần còn lại của trần 12 giờ một ngày: khung dài nhất trong `hours` là phần đó (BE), nên phút của chúng trừ
- * vào khung dài nhất. Khung dài nhất có thể bị cách xếp giờ trống giới hạn chứ không phải trần (vd. ca 10–19: dài nhất
- * 06–09 là 3 giờ, trần còn 4); khi đó dòng thứ hai chặt hơn BE nhưng không bao giờ lỏng hơn. BE vẫn kiểm khi xem trước.
- */
-export function slotHours(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[], index: number): HourSlot[] {
-  const slot = slots[index];
-  const day = slot?.date ? ctx.days.find(d => d.date === slot.date) : undefined;
-  if (!day) return [];
-  const others = slots.filter((_, j) => j !== index);
-  const { planned, required } = makeupCounter(ctx, startDate, endDate, others);
-  const taken: HourWindow[] = others
-    .filter(o => o.date === slot.date && o.startTime && o.endTime)
-    .map(o => ({ start: hourOf(o.startTime), end: hourOf(o.endTime) }));
-  let cap = Math.max(0, required - planned);
-  if (taken.length) {
-    const longest = Math.max(0, ...day.hours.flatMap(h => h.ends.map(e => e.minutes)));
-    cap = Math.min(cap, longest - taken.reduce((sum, w) => sum + minutesIn(day.hours, w.start, w.end), 0));
-  }
-  return day.hours
-    .filter(h => !taken.some(w => h.start >= w.start && h.start < w.end))
-    .map(h => ({ start: h.start, ends: h.ends.filter(e => e.minutes <= cap && !taken.some(w => overlaps(h.start, e.end, w))) }))
-    .filter(h => h.ends.length > 0);
-}
-
-/**
- * Bỏ giá trị không còn hợp lệ của các dòng khung bù sau khi đổi ngày nghỉ hay tải lại request-context: ngày bù không còn chọn
- * được thì bỏ cả dòng, giờ bắt đầu không còn thì bỏ hai ô giờ, giờ kết thúc không còn thì bỏ ô đó. Xét lần lượt từ dòng đầu,
- * mỗi dòng so với các dòng trước nó (slotHours), nên dòng sau mất giá trị trước. Dòng còn hợp lệ giữ nguyên.
- */
-export function fitSlots(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): MakeupSlot[] {
-  const dates = slotDates(ctx, endDate);
-  const out: MakeupSlot[] = [];
-  for (const s of slots) {
-    const date = dates.includes(s.date) ? s.date : '';
-    const hours = slotHours(ctx, startDate, endDate, [...out, { date, startTime: '', endTime: '' }], out.length);
-    const startOk = !!s.startTime && startHours(hours).includes(hourOf(s.startTime));
-    const endOk = startOk && !!s.endTime && endHours(hours, hourOf(s.startTime)).some(e => e.end === hourOf(s.endTime));
-    out.push({ date, startTime: startOk ? s.startTime : '', endTime: endOk ? s.endTime : '' });
-  }
-  return out;
-}
-
 // 120 → '2', 270 → '4,5' (giờ, dấu phẩy thập phân).
 const hoursText = (minutes: number) => String(Math.round((minutes / 60) * 10) / 10).replace('.', ',');
 
-/** Bộ đếm của Nghỉ có làm bù: 'Đã xếp 4 / 8 giờ'. */
-export function makeupCountLine(ctx: RequestContext, startDate: string, endDate: string, slots: MakeupSlot[]): string {
-  const { planned, required } = makeupCounter(ctx, startDate, endDate, slots);
-  return `Đã xếp ${hoursText(planned)} / ${hoursText(required)} giờ`;
+/** Bộ đếm của Nghỉ có làm bù: 'Đã xếp 4 / 8 giờ' (số phút do BE tính, ở đây chỉ ghép chữ). */
+export function makeupCountLine(plannedMinutes: number, requiredMinutes: number): string {
+  return `Đã xếp ${hoursText(plannedMinutes)} / ${hoursText(requiredMinutes)} giờ`;
 }
 
 /** Dòng phụ của tóm tắt Nghỉ có làm bù (board J14): 'Cần bù 8 giờ, sau ngày nghỉ cuối và trong tháng 11'. */
-export function makeupNeedLine(ctx: RequestContext, startDate: string, endDate: string): string {
-  const { required } = makeupCounter(ctx, startDate, endDate, []);
+export function makeupNeedLine(requiredMinutes: number, endDate: string): string {
+  const required = requiredMinutes;
   return required ? `Cần bù ${hoursText(required)} giờ, sau ngày nghỉ cuối và trong tháng ${Number(endDate.slice(5, 7))}` : '';
 }
 

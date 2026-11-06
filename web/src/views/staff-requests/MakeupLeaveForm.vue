@@ -1,30 +1,28 @@
 <script setup lang="ts">
 // J14 · Nghỉ có làm bù (spec staff-requests 4.4, brief FE mục 3): Từ ngày – Đến ngày, các dòng khung bù, lý do.
 // Ngày nghỉ do BE đưa (request-context choices: tháng chưa có OT, "Đến ngày" cùng tháng, sau đó còn ngày để bù).
-// Chọn xong ngày nghỉ thì hiện "Khung bù": mỗi dòng là ngày bù (BE: slotDates), giờ bắt đầu và giờ kết thúc lấy từ bảng giờ
-// `hours` của BE, bỏ giờ mà dòng khác cùng ngày đã chiếm và không quá số giờ còn thiếu (slotHours: form chỉ đưa lựa chọn hợp
-// lệ, BE vẫn kiểm khi xem trước). Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn trong bảng giờ, không thì lấy giờ xa
-// nhất (board J14). Đổi ngày nghỉ hay tải lại request-context thì bỏ giá trị không còn hợp lệ (fitSlots).
-// Bộ đếm "Đã xếp x / y giờ" ở đầu khung bù (y do BE đòi); hộp tóm tắt giữa hai ô ngày và khung bù như board.
+// Chọn xong ngày nghỉ thì hiện "Khung bù": mỗi dòng là ngày bù, giờ bắt đầu và giờ kết thúc. BE tính hết (POST
+// /me/requests/leave-with-makeup/plan): số phút đã xếp / cần bù, chỉnh lại các dòng không còn hợp lệ và đưa giờ chọn được của
+// từng dòng (bỏ giờ dòng khác cùng ngày đã chiếm, không quá số giờ còn thiếu). Form chỉ gửi các dòng đang điền, hiện kết quả và
+// xếp hàng các thao tác để không chồng lượt gọi. Đổi giờ bắt đầu thì giờ kết thúc giữ nguyên nếu còn hợp lệ, không thì lấy giờ xa
+// nhất (board J14). Bộ đếm "Đã xếp x / y giờ" ở đầu khung bù; hộp tóm tắt giữa hai ô ngày và khung bù như board.
 // Bản nháp chỉ gồm các dòng đủ ba ô.
 // Hợp đồng form như LeaveForm: nhận ctx, ngay, preview; phát `draft` đủ trường hoặc null, ngay trong watcher (không chờ).
 import { computed, nextTick, ref, useId, watch } from 'vue';
+import { toast } from '@/components/shell/toast';
 import {
   dateLabel,
   endDates,
-  endHours,
   fitEnd,
-  fitSlots,
   leaveSummary,
   makeupCountLine,
-  makeupCounter,
   makeupNeedLine,
   slotDates,
-  slotHours,
-  startDates,
-  startHours
+  startDates
 } from '@/builders/api/staff-requests';
+import type { MakeupPlan } from '@/mock/makeup-plan';
 import type { MakeupDraft, MakeupSlot, PreviewResult, RequestContext } from '@/mock/staff-requests-types';
+import { planMakeup } from '@/services/staff-requests';
 import PhIcon from '@/views/staff-phone/components/PhIcon.vue';
 import RequestSummary from './RequestSummary.vue';
 
@@ -45,59 +43,81 @@ const keys = ref<number[]>([]); // khoá ổn định của từng dòng (bỏ d
 let nextKey = 0;
 const empty = (): MakeupSlot => ({ date: '', startTime: '', endTime: '' });
 
-const hh = (h: number) => `${String(h).padStart(2, '0')}:00`;
-const hourOf = (t: string) => Number(t.slice(0, 2));
-
 const starts = computed(() => startDates(props.ctx, KIND));
 const ends = computed(() => endDates(props.ctx, KIND, startDate.value));
 const ranged = computed(() => !!startDate.value && !!endDate.value);
 const slotDays = computed(() => slotDates(props.ctx, endDate.value));
-const counter = computed(() => makeupCounter(props.ctx, startDate.value, endDate.value, slots.value));
-// Thêm dòng chỉ khi còn thiếu giờ bù (form chỉ đưa thao tác hợp lệ).
-const canAdd = computed(() => ranged.value && counter.value.planned < counter.value.required);
-const countLine = computed(() => makeupCountLine(props.ctx, startDate.value, endDate.value, slots.value));
+
+// Kế hoạch mới nhất BE trả (null: chưa có). Mọi thao tác đi qua `queue` để chạy lần lượt trên trạng thái mới nhất.
+const plan = ref<MakeupPlan | null>(null);
+let queue: Promise<unknown> = Promise.resolve();
+let epoch = 0; // đổi ngày nghỉ thì lượt cũ về muộn bị bỏ
+const required = computed(() => plan.value?.requiredMinutes ?? 0);
+const planned = computed(() => plan.value?.plannedMinutes ?? 0);
+// Thêm dòng chỉ khi BE nói còn thiếu giờ bù (form chỉ đưa thao tác hợp lệ).
+const canAdd = computed(() => ranged.value && !!plan.value?.canAdd);
+const countLine = computed(() => makeupCountLine(planned.value, required.value));
 const lines = computed(() =>
-  ranged.value
-    ? [leaveSummary(props.ctx, startDate.value, endDate.value), makeupNeedLine(props.ctx, startDate.value, endDate.value)]
-    : []
+  ranged.value ? [leaveSummary(props.ctx, startDate.value, endDate.value), makeupNeedLine(required.value, endDate.value)] : []
+);
+const rows = computed(() =>
+  slots.value.map((s, i) => ({
+    ...s,
+    key: keys.value[i],
+    n: i + 1,
+    starts: plan.value?.slots[i]?.startOptions ?? [],
+    ends: plan.value?.slots[i]?.endOptions ?? []
+  }))
 );
 
-// Lựa chọn giờ của từng dòng: các dòng khác giữ giờ của chúng, và không quá số giờ còn thiếu.
-function hoursFor(list: MakeupSlot[], i: number) {
-  const s = list[i];
-  const hours = slotHours(props.ctx, startDate.value, endDate.value, list, i);
-  return {
-    starts: startHours(hours).map(hh),
-    ends: s.startTime ? endHours(hours, hourOf(s.startTime)).map(e => hh(e.end)) : []
-  };
+const toSlots = (p: MakeupPlan): MakeupSlot[] => p.slots.map(({ date, startTime, endTime }) => ({ date, startTime, endTime }));
+// Hỏi BE về danh sách dòng `list`, áp kết quả (các dòng đã chỉnh) nếu chưa đổi ngày nghỉ trong lúc chờ.
+async function ask(list: MakeupSlot[]): Promise<MakeupPlan | null> {
+  const mine = epoch;
+  try {
+    const p = await planMakeup(startDate.value, endDate.value, list);
+    if (mine !== epoch) return null;
+    plan.value = p;
+    slots.value = toSlots(p);
+    return p;
+  } catch (e) {
+    toast.error((e as Error).message);
+    return null;
+  }
 }
-const rows = computed(() => slots.value.map((s, i) => ({ ...s, key: keys.value[i], n: i + 1, ...hoursFor(slots.value, i) })));
+const enqueue = (job: () => Promise<unknown>) => (queue = queue.then(job, job));
 
-// Ngày nghỉ hay request-context đổi: bỏ lựa chọn không còn hợp lệ. Có ngày nghỉ mà chưa có dòng nào thì mở sẵn một dòng.
+// Ngày nghỉ hay request-context đổi: BE chỉnh lại các dòng. Có ngày nghỉ mà chưa có dòng nào thì mở sẵn một dòng.
 function fitAll() {
   if (!starts.value.includes(startDate.value)) startDate.value = '';
   endDate.value = startDate.value ? fitEnd(props.ctx, KIND, startDate.value, endDate.value) : '';
+  epoch++;
   if (!endDate.value) {
     slots.value = [];
     keys.value = [];
+    plan.value = null;
     return;
   }
   if (!slots.value.length) {
     slots.value = [empty()];
     keys.value = [nextKey++];
   }
-  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, slots.value);
+  enqueue(() => ask(slots.value));
 }
 watch([startDate, endDate, () => props.ctx], fitAll);
 
 const valueOf = (e: Event) => (e.target as HTMLSelectElement).value;
 function setRow(i: number, patch: Partial<MakeupSlot>) {
-  const next = slots.value.map((s, j) => (j === i ? { ...s, ...patch } : s));
-  if ('startTime' in patch) {
-    const ends = hoursFor(next, i).ends;
-    if (!ends.includes(next[i].endTime)) next[i] = { ...next[i], endTime: ends[ends.length - 1] ?? '' };
-  }
-  slots.value = fitSlots(props.ctx, startDate.value, endDate.value, next);
+  enqueue(async () => {
+    const next = slots.value.map((s, j) => (j === i ? { ...s, ...patch } : s));
+    let p = await ask(next);
+    // Đổi giờ bắt đầu mà giờ kết thúc không còn hợp lệ thì lấy giờ xa nhất.
+    const row = p?.slots[i];
+    if (p && 'startTime' in patch && row?.startTime && !row.endTime && row.endOptions.length) {
+      const again = toSlots(p).map((s, j) => (j === i ? { ...s, endTime: row.endOptions[row.endOptions.length - 1] } : s));
+      p = await ask(again);
+    }
+  });
 }
 
 const root = ref<HTMLElement | null>(null);
@@ -105,18 +125,15 @@ async function addRow() {
   if (!canAdd.value) return;
   slots.value = [...slots.value, empty()];
   keys.value = [...keys.value, nextKey++];
+  await enqueue(() => ask(slots.value));
   await nextTick();
   const selects = root.value?.querySelectorAll<HTMLElement>('.nr-slot select[aria-label^="Ngày bù"]');
   selects?.[selects.length - 1]?.focus();
 }
 async function removeRow(i: number) {
   keys.value = keys.value.filter((_, j) => j !== i);
-  slots.value = fitSlots(
-    props.ctx,
-    startDate.value,
-    endDate.value,
-    slots.value.filter((_, j) => j !== i)
-  );
+  slots.value = slots.value.filter((_, j) => j !== i);
+  await enqueue(() => ask(slots.value));
   await nextTick();
   const add = root.value?.querySelector<HTMLButtonElement>('.nr-b2');
   (add && !add.disabled ? add : root.value?.querySelector<HTMLElement>('.nr-slot select'))?.focus();
@@ -136,7 +153,7 @@ const draft = computed<MakeupDraft | null>(() =>
 watch(draft, d => emit('draft', d), { immediate: true });
 // Dưới nút Gửi khoá (board J14, chỉ hiện khi chưa gửi được): nói cần xếp đủ bao nhiêu giờ (BE đòi).
 watch(
-  () => (ranged.value ? `Xếp đủ ${counter.value.required / 60} giờ bù thì mới gửi được` : ''),
+  () => (ranged.value && required.value ? `Xếp đủ ${required.value / 60} giờ bù thì mới gửi được` : ''),
   t => emit('hint', t),
   { immediate: true }
 );

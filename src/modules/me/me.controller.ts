@@ -11,6 +11,7 @@ import {
 } from '../../common';
 import { isValidDateText } from '../../common/date-text';
 import { checkPunchLocation } from '../settings/domain/attendance-zone';
+import { planMakeup } from '../requests/domain/makeup-plan';
 import { RequestIdPipe } from '../requests/request-id.pipe';
 import { PunchRefusedError } from '../attendance/attendance.errors';
 import { AttendanceService } from '../attendance/attendance.service';
@@ -308,6 +309,27 @@ export class MeController {
     const me = who(req);
     try {
       return await this.requests.requestContext(me.username);
+    } catch (err) {
+      asBadRequest(err, 'BAD_REQUEST');
+    }
+  }
+
+  // Kế hoạch bù của form Nghỉ có làm bù: BE tính phút đã xếp / cần bù, chỉnh các dòng và đưa giờ chọn được; không ghi gì.
+  @Authenticated()
+  @HttpCode(200)
+  @Post('requests/leave-with-makeup/plan')
+  async makeupPlan(
+    @Req() req: Request,
+    @Body() body: { startDate?: unknown; endDate?: unknown; slots?: unknown }
+  ): Promise<unknown> {
+    const me = who(req);
+    const text = (v: unknown): string => (typeof v === 'string' ? v : '');
+    const raw = Array.isArray(body?.slots) ? body.slots : [];
+    if (raw.length > 20) throw new BadRequestError('Quá nhiều dòng làm bù', { code: 'BAD_REQUEST' });
+    const slots = raw.map((s: any) => ({ date: text(s?.date), startTime: text(s?.startTime), endTime: text(s?.endTime) }));
+    try {
+      const ctx = await this.requests.requestContext(me.username);
+      return planMakeup(ctx, text(body?.startDate), text(body?.endDate), slots);
     } catch (err) {
       asBadRequest(err, 'BAD_REQUEST');
     }
