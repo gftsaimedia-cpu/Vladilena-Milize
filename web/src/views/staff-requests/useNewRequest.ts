@@ -172,6 +172,7 @@ export function useNewRequest() {
   return {
     ctx,
     loadError,
+    retryContext: loadContext,
     kind,
     ngay,
     pick,

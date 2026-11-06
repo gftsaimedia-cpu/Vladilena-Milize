@@ -7,7 +7,7 @@ import { makeupShortfallDays } from './makeup-shortfall';
 import { moneyOf, type MoneyOptions } from './money';
 import { OT_MULTIPLIERS, type OtRates } from './overtime-pay';
 import { calculatePersonalIncomeTax, TaxMethod, type TaxRules } from './personal-income-tax';
-import { PayrollWarning } from './payroll-warning';
+import { PayrollWarning, negativeNetWarning } from './payroll-warning';
 
 /**
  * Payroll V2 - GFT Payslip Aggregate Root & Daily Attendance Line Item
@@ -554,6 +554,7 @@ export class EmployeePayslip {
     this.remainingAnnualLeaveDays = props.remainingAnnualLeaveDays ?? null;
 
     this.warnings = [...(props.warnings ?? [])];
+    if (this.netIncome < 0 && !this.warnings.some(w => w.code === 'NEGATIVE_NET')) this.warnings.push(negativeNetWarning(this.netIncome));
   }
 
   toSummary(): EmployeePayslipSummaryDTO {

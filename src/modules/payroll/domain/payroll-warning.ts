@@ -3,7 +3,10 @@ export type KpiWarningCode = 'KPI_PROPOSAL_MISSING' | 'KPI_SCORE_MISSING' | 'KPI
 /** A day whose pay-affecting case is not approved yet (spec 8.1): explanation pending, never filed, or rejected. */
 export type ExplanationWarningCode = 'EXPLANATION_PENDING' | 'EXPLANATION_MISSING' | 'EXPLANATION_REJECTED';
 
-export type PayrollWarningCode = KpiWarningCode | ExplanationWarningCode;
+/** Cảnh báo về số tiền cuối phiếu. Không đổi số tiền: chỉ để Admin thấy và tự quyết (spec chưa nói gì về thực lĩnh âm). */
+export type NetWarningCode = 'NEGATIVE_NET';
+
+export type PayrollWarningCode = KpiWarningCode | ExplanationWarningCode | NetWarningCode;
 
 export interface PayrollWarning {
   code: PayrollWarningCode;
@@ -33,4 +36,13 @@ const EXPLANATION_TEXT: Record<ExplanationWarningCode, string> = {
 export function explanationWarning(code: ExplanationWarningCode, date: string): PayrollWarning {
   const [, month, day] = date.split('-');
   return { code, message: `${day}/${month} ${EXPLANATION_TEXT[code]}`, fields: [date] };
+}
+
+/** Thực lĩnh âm (ví dụ 0 ngày công nhưng bảo hiểm tính trên lương hợp đồng). Giữ nguyên số, chỉ báo cho Admin. */
+export function negativeNetWarning(net: number): PayrollWarning {
+  return {
+    code: 'NEGATIVE_NET',
+    message: `Thực lĩnh âm (${net.toLocaleString('vi-VN')} đ): các khoản trừ lớn hơn thu nhập của kỳ. Kiểm tra bảo hiểm, tạm ứng và ngày công.`,
+    fields: ['netIncome']
+  };
 }

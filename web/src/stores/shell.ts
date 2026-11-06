@@ -8,7 +8,7 @@ import { resolveRequest, type DecisionVerb } from '@/services/admin-main';
 import { getShell, type ShellMe } from '@/services/shell';
 
 export const useShellStore = defineStore('shell', {
-  state: () => ({ me: {} as ShellMe, bell: 0, requests: 0, version: 0, seen: {} as Record<string, true> }),
+  state: () => ({ me: {} as ShellMe, bell: 0 as number | null, requests: 0, version: 0, seen: {} as Record<string, true> }),
   actions: {
     async load() {
       const res = await getShell();

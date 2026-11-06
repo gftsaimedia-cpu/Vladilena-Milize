@@ -269,11 +269,13 @@ export class OverviewService {
     const forgot = pending.filter(p => p.action === 'remind').length;
     const countGroup = (g: InboxGroup) => items.filter(i => i.group === g).length;
     const present = todayCells.filter(isPresent).length;
+    // Cùng nghĩa với `kpis.notCheckedIn` của Tổng quan: chỉ người đang phải đi làm hôm nay mà chưa có giờ vào (ngày nghỉ, nghỉ phép, ngoài hợp đồng không tính).
+    const notCheckedIn = todayCells.filter(c => c.base === 'nocheck').length;
     const avgLate = lateToday.length ? Math.round(lateToday.reduce((n, c) => n + c.lateMinutes, 0) / lateToday.length) : 0;
     const otTotal = round1([...ot.values()].reduce((n, h) => n + h, 0));
     const tiles = [
       { key: 'todo', label: 'Cần xử lý', value: pending.length, note: `${forgot} chưa giải trình · ${pending.length - forgot} yêu cầu chờ duyệt` },
-      { key: 'present', label: 'Có mặt hôm nay', value: present, of: all.length, note: `${all.length - present} người chưa Check-in` },
+      { key: 'present', label: 'Có mặt hôm nay', value: present, of: all.length, note: `${notCheckedIn} người chưa Check-in` },
       { key: 'late', label: 'Đi muộn hôm nay', value: lateToday.length, note: avgLate ? `trung bình ${avgLate} phút` : '' },
       { key: 'leave', label: 'Nghỉ có phép', value: todayCells.filter(c => c.base === 'leave').length, note: `${countGroup('leave')} đơn chờ duyệt` },
       { key: 'absent', label: 'Vắng không phép', value: all.reduce((n, r) => n + r.absentDays, 0), note: `trong tháng ${Number(month.slice(5, 7))}` },

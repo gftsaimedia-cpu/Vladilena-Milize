@@ -3,9 +3,11 @@
 // loại đó ở tháng này (phụ cấp, lương KPI, iDorm) và một dòng loại yêu cầu được gửi. Gõ hoặc tick ngay trong ô, bấm
 // Lưu để chọn tháng áp dụng và xem lại các ô sẽ đổi. Ca đêm của Nhân viên chọn theo từng người, không sửa ở đây.
 // Địa chỉ: /admin/cai-dat/che-do[/chuyen-trach | /nhan-vien].
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { computed, nextTick, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { toast } from '@/components/shell/toast';
+import PageLoadError from '@/components/shell/PageLoadError.vue';
 import { useLoad } from '@/composables/useLoad';
 import { mergeStale } from '@/builders/api/benefits';
 import { getBenefits, saveBenefits } from '@/services/admin-settings';
@@ -20,7 +22,7 @@ import { useDraft } from './lib/useDraft';
 import { isStale } from './positions/useSnapshots';
 
 const route = useRoute();
-const { data } = useLoad(() => getBenefits());
+const { data, error, reload } = useLoad(() => getBenefits());
 const form = useDraft(() => data.value);
 const { draft } = form;
 const confirming = ref(false);
@@ -82,7 +84,8 @@ async function onConfirm(month?, reason?) {
       </template>
     </template>
 
-    <section v-if="draft && current" class="card">
+    <PageLoadError v-if="error" what="chế độ theo loại" :error="error" @retry="reload" />
+    <section v-else-if="draft && current" class="card">
       <div class="tabs in">
         <RouterLink
           v-for="t in draft.types"
@@ -102,7 +105,7 @@ async function onConfirm(month?, reason?) {
         <h3>Phụ cấp và lương KPI</h3>
         <span>Mức của {{ current.name }}</span>
       </div>
-      <table class="tbl ql">
+      <ScrollX label="Quyền lợi theo loại"><table class="tbl ql">
         <thead>
           <tr>
             <th v-for="c in draft.columns" :key="c.key" class="c">{{ c.label }}</th>
@@ -129,13 +132,13 @@ async function onConfirm(month?, reason?) {
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></ScrollX>
 
       <div class="sh" style="padding-top: 24px">
         <h3>Được gửi yêu cầu</h3>
         <span>Loại yêu cầu {{ current.name }} được gửi trên app nhân viên</span>
       </div>
-      <table class="tbl ql">
+      <ScrollX label="Quyền lợi theo loại"><table class="tbl ql">
         <thead>
           <tr>
             <th v-for="r in draft.requests" :key="r.key" class="c">{{ r.label }}</th>
@@ -148,7 +151,7 @@ async function onConfirm(month?, reason?) {
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></ScrollX>
 
       <SaveBar
         save-label="Lưu"

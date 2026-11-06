@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Cài đặt › Lịch, ca & chấm công: lịch năm (ngày lễ, ngày trả lương), 6 ca cố định chỉ xem, ngày trả lương và vùng chấm công.
 // ?hop=them-ngay-le mở hộp thêm ngày lễ.
+import ScrollX from '@/components/ui/ScrollX.vue';
 import { computed, ref, watch, type Ref } from 'vue';
 import { toast } from '@/components/shell/toast';
 import Icon from '@/components/ui/Icon.vue';
@@ -318,7 +319,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
           <span v-if="shifts" class="cap">{{ shifts.length }} ca cố định</span>
         </div>
         <LoadFail v-if="shiftsError" what="ca làm" @retry="reloadShifts" />
-        <table v-else-if="shifts" class="tbl ca">
+        <ScrollX v-else-if="shifts" label="Các ca làm"><table class="tbl ca">
           <colgroup>
             <col />
             <col style="width: 96px" />
@@ -349,7 +350,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
               </td>
             </tr>
           </tbody>
-        </table>
+        </table></ScrollX>
       </section>
     </div>
 
@@ -623,7 +624,7 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .zn-body {
   display: grid;
-  grid-template-columns: 376px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 376px) minmax(0, 1fr);
   gap: 24px;
   padding: 0 24px 16px;
   align-items: start;
@@ -692,5 +693,15 @@ const nextDay = (s?) => s.endTime < s.startTime;
 }
 .zn .foot .btn {
   margin-left: 0;
+}
+/* Hẹp (điện thoại): các thẻ hai cột xếp dọc, chú giải năm xuống dòng. Đặt cuối để thắng luật hai cột ở trên. */
+@media (max-width: 900px) {
+  .row2,
+  .zn-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .card-h :deep(.lgd) {
+    flex-wrap: wrap;
+  }
 }
 </style>

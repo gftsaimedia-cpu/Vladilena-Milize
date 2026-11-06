@@ -28,7 +28,7 @@ const props = defineProps<{
   hasPrev: boolean;
   hasNext: boolean;
   save: (id: string, part: KpiPart, value: number | null) => Promise<void>;
-  decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<void>;
+  decide: (id: string, decision: 'approve' | 'reject', note?: string) => Promise<boolean | void>;
 }>();
 const emit = defineEmits<{ close: []; prev: []; next: [] }>();
 
@@ -138,8 +138,8 @@ async function decideNow(decision: 'approve' | 'reject', note?: string) {
   const id = props.slip.id;
   try {
     await flush();
-    await props.decide(id, decision, note);
-    if (props.slip.id === id) {
+    const ok = await props.decide(id, decision, note);
+    if (ok !== false && props.slip.id === id) {
       asking.value = false;
       reason.value = '';
     }
