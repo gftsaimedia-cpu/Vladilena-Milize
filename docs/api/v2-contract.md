@@ -308,11 +308,12 @@ Tài liệu này đặc tả toàn bộ giao diện API của hệ thống Backe
     "deductionMinutes": 0,
     "countsAsWorkday": false,
     "countsAsDayOff": false,
-    "makeupMinutes": 0
+    "makeupMinutes": 0,
+    "makeupCreditMinutes": 0
   }
   ```
 - **`status`** (loại ngày) có 11 giá trị: `OUTSIDE` (ngoài thời gian làm việc), `HOLIDAY` (lễ trên ngày làm), `ISAT` (iSAT đã duyệt), `LEAVE_PAID` (nghỉ có lương), `LEAVE_UNPAID` (nghỉ không lương hoặc BHXH), `LEAVE_MAKEUP` (nghỉ có làm bù), `REST` (ngoài tuần làm việc, không OT/bù), `EXTRA` (ngoài tuần làm việc, có khung OT hoặc bù đã duyệt), `PENDING` (ngày làm chưa tới mốc xét), `PRESENT` (có chấm công, hoặc có giải trình được duyệt), `ABSENT` (ngày làm đã xét, không có lần chấm).
-- **Trường mới của dòng ngày**: `leaveType` (6 mã loại nghỉ, `null` khi không phải ngày `LEAVE_*`), `sourceRequestId` (đơn nghỉ / nghỉ có bù / iSAT của ngày), `cases` (các trường hợp cần giải trình `[{ code, minutes, affectsPay }]`, rỗng khi đúng giờ), `explanationStatus` (`NONE` | `PENDING` | `APPROVED` | `REJECTED`), `explanationRequestId`, `payUnits` (0 hoặc 1), `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes`.
+- **Trường mới của dòng ngày**: `leaveType` (6 mã loại nghỉ, `null` khi không phải ngày `LEAVE_*`), `sourceRequestId` (đơn nghỉ / nghỉ có bù / iSAT của ngày), `cases` (các trường hợp cần giải trình `[{ code, minutes, affectsPay }]`, rỗng khi đúng giờ), `explanationStatus` (`NONE` | `PENDING` | `APPROVED` | `REJECTED`), `explanationRequestId`, `payUnits` (0 hoặc 1), `deductionMinutes`, `countsAsWorkday`, `countsAsDayOff`, `makeupMinutes` (phút có mặt trong khung bù, trả tiền theo số này), `makeupCreditMinutes` (phút ghi nhận bù cho nợ nghỉ có bù: bằng `makeupMinutes`, trừ khi vào trễ ở khung bù đã được giải trình duyệt thì ghi nhận đủ khung; ví dụ vào 18:30 khung 18:00–22:00 → 210 / 240).
 - **Có thể `null`**: `shiftType`, `shiftStartTime`, `shiftEndTime`, `shiftAllowancePct` rỗng trên ngày không có ca (`OUTSIDE`, `REST`, `EXTRA`, ngày lễ...). `metrics.workUnits` bằng `payUnits`; `metrics.otHours` luôn 0 (OT đo ở phiếu lương).
 - `dayStatus`, `checkInStatus`, `checkOutStatus` là cột cũ, ghi cho khớp với `status` để FE cũ vẫn đọc được.
 
@@ -1548,6 +1549,7 @@ Mọi endpoint dưới đây nhận `:month` dạng `YYYY-MM`; sai định dạn
   | `dailyLines[].inOutText` | **Đổi nghĩa**: dòng ca `NORMAL`, `FLEX`, `NIGHT` là `${checkIn ?? '—'}–${checkOut ?? '—'}`, ví dụ `08:12–17:05`, `08:12–—`. Trước đây ghi cứng `08:00–17:00` hoặc `22:00–06:00`. Dòng nghỉ giữ chữ cũ: `Hưởng lương ngày` (`LEAVE`, `ISAT`), `Không tính lương` (`UNPAID`) |
   | `dailyLines[].shiftLabel` | Nhãn ca do BE dựng: `Normal`, `Flex +20%`, `Night +40%` (phần trăm theo cấu hình, hiện đúng số lẻ nếu có), `Nghỉ phép`, `iSAT`, `Không lương`. FE hiển thị nguyên chữ này |
   | `dailyLines[].otHours`, `dailyLines[].otPay` | **Đổi nghĩa**: giờ OT và tiền OT thật của dòng ngày (trước đây luôn 0). Cách tính ở "Tiền OT" bên dưới |
+  | `dailyLines[].makeupCreditMinutes` | **Mới (06/11)**: phút ghi nhận bù cho nợ nghỉ có bù (L16), bằng `makeupMinutes` trừ khi vào trễ ở khung bù đã được giải trình duyệt thì ghi nhận đủ khung (vào 18:30 khung 18:00–22:00: `makeupMinutes` 210, `makeupCreditMinutes` 240). Chỉ chuyên cần đọc số này; tiền bù (`makeupPay`) luôn tính từ `makeupMinutes` |
   | `dailyLines[].deductionMinutes` | **Mới (06/11)**: phút bị trừ đúng của ngày (`deductionHours` là số hiện, 2 chữ số lẻ). Tiền trừ của phiếu và tạm ứng tính từ số này |
   | `dailyLines[].dailyTotal` | **Đổi nghĩa**: `daySalary` + `flexAllowancePay` + `nightAllowancePay` + `offPaidPay` + `otPay` + `makeupPay` − `deductionAmount` (nay có `otPay` và `makeupPay`). Chỉ để hiển thị: tiền của phiếu không cộng các dòng này (mỗi khoản là một công thức, làm tròn một lần) |
   | `dailyLines[].dayOfWeekText` | **Đổi nghĩa**: thứ thật của `date` theo lịch Việt Nam, cho mọi loại dòng: `Thứ 2` … `Thứ 7`, `Chủ nhật`. Ví dụ `2026-10-01` là `Thứ 5`, `2026-10-04` là `Chủ nhật`. Trước đây là chuỗi cố định `Thứ 2 - Thứ 6` hoặc `Thứ 7` |

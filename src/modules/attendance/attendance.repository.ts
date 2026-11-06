@@ -50,7 +50,8 @@ function timesheetFromEntry(row: TimesheetEntry): DailyTimesheet {
     deduction_minutes: row.deduction_minutes,
     counts_as_workday: row.counts_as_workday,
     counts_as_day_off: row.counts_as_day_off,
-    makeup_minutes: row.makeup_minutes
+    makeup_minutes: row.makeup_minutes,
+    makeup_credit_minutes: row.makeup_credit_minutes
   });
 }
 

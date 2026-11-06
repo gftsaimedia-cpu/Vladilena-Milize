@@ -605,6 +605,7 @@ export class PayrollService {
         countsAsWorkday: row.countsAsWorkday,
         countsAsDayOff: row.countsAsDayOff,
         makeupMinutes: row.makeupMinutes,
+        makeupCreditMinutes: row.makeupCreditMinutes,
         makeupPay
       });
 
