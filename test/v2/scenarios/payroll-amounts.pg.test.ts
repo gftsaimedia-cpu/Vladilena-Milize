@@ -61,6 +61,9 @@ describe('phiếu lương: số tiền', { skip: !enabled }, () => {
     assert.equal(items.length, 3);
     for (const s of items) {
       assert.equal(s.net, s.gross - s.insurance - s.tax - s.advance, s.username);
+      // Thực lĩnh âm giữ nguyên số, nhưng phiếu phải mang cảnh báo NEGATIVE_NET để Admin thấy (và ngược lại).
+      const flagged = (s.warnings ?? []).some((w: any) => w.code === 'NEGATIVE_NET');
+      assert.equal(flagged, s.net < 0, `${s.username} net ${s.net}`);
       for (const k of ['gross', 'insurance', 'tax', 'advance']) assert.ok(s[k] >= 0, `${s.username}.${k} = ${s[k]}`);
       const d = s.details;
       assert.ok(d.actualWorkDays >= 0 && d.totalOtHours >= 0 && d.lateMinutes >= 0 && d.lateEarlyHours >= 0, s.username);

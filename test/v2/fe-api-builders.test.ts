@@ -256,6 +256,22 @@ describe('Phiếu lương chi tiết từ /payroll/:month/:username', () => {
     }
   };
 
+  it('shows only the warning messages the backend attached to the payslip', () => {
+    const none: any = payslipFromRecord(rec as any);
+    assert.deepEqual(none.warnings, []);
+    const withWarnings: any = payslipFromRecord({
+      ...rec,
+      warnings: [
+        { code: 'NEGATIVE_NET', message: 'Thực lĩnh âm (-630.000 đ): các khoản trừ lớn hơn thu nhập của kỳ.' },
+        { code: 'KPI_SCORE_MISSING', message: 'Thiếu điểm KPI; cột thiếu tính 0 điểm.' }
+      ]
+    } as any);
+    assert.deepEqual(withWarnings.warnings, [
+      'Thực lĩnh âm (-630.000 đ): các khoản trừ lớn hơn thu nhập của kỳ.',
+      'Thiếu điểm KPI; cột thiếu tính 0 điểm.'
+    ]);
+  });
+
   it('maps the money and the KPI from the stored payslip', () => {
     const s: any = payslipFromRecord(rec as any);
     assert.equal(s.id, 'nam');

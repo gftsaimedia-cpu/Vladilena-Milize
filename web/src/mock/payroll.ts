@@ -37,6 +37,8 @@ export type Payslip = Omit<SlipInput, 'allowances'> & {
   status: PayrollStatus;
   // Lý do Admin ghi khi từ chối phiếu (không bắt buộc); null khi không có hay phiếu đã duyệt.
   decisionNote?: string | null;
+  // Câu cảnh báo BE gắn vào phiếu; mock không có thì để trống.
+  warnings?: string[];
   days: { work: number; leave: number; isat: number; pending: number; unpaid: number; standard: number };
   calendar: DayKind[];
   pendingDates: string[];

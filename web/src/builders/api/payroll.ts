@@ -16,6 +16,8 @@ export type PayslipRecordDTO = {
   net: number;
   // Lý do Admin ghi khi duyệt / từ chối (null khi không có), người và lúc quyết định.
   note?: string | null;
+  // Cờ cảnh báo BE gắn vào phiếu (KPI thiếu, giải trình chưa xong, thực lĩnh âm…): FE chỉ in `message`.
+  warnings?: { code: string; message: string }[];
   decidedBy?: string | null;
   decidedAt?: string | null;
   details: {
@@ -200,6 +202,7 @@ export function payslipFromRecord(r: PayslipRecordDTO & { details: PayslipDetail
     note: `Công chuẩn: ${d.standardWorkdays} ngày`,
     status: line.status,
     decisionNote: r.note ?? null,
+    warnings: (r.warnings ?? []).map(w => w.message),
     base: d.baseSalaryPolicy,
     dependants: d.dependants,
     days: {
