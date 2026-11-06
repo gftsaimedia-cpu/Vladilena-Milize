@@ -955,6 +955,9 @@ Mọi route chỉ cần phiên đăng nhập; danh tính luôn là người đan
 - **`GET /api/v2/requests/explanations-due`**: mọi ngày cần giải trình của mọi nhân sự đang làm, mới nhất trước. Trả `{ "items": [{ "employeeId", "name", "date", "cases", "needs", "remindedAt", "checkIn", "checkOut" }] }`. Ngày của tháng đã chốt công hay đã tính lương vẫn có; ngày của tháng mà kỳ lương đã phê duyệt hay đã trả lương thì không.
 - **`POST /api/v2/requests/explanations-due/remind`**: body `{ "employeeId", "date" }`; người nhắc lấy từ phiên Admin. Trả `{ "reminded": true, "remindedAt": "<ISO>" }`. Nhắc lại thì ghi đè lần trước. Ngày không còn cần giải trình thì `400 BAD_REQUEST` với lý do cụ thể, ví dụ `Ngày 02/11 đã có đơn giải trình`, `Ngày 02/11 không có gì cần giải trình`, `Ngày 02/11 không phải ngày làm`. Kỳ lương của tháng đã phê duyệt hay đã trả lương thì `409 PERIOD_LOCKED` (`Kỳ lương tháng 10/2026 đã phê duyệt`, kèm `month`, `status`); tháng đã chốt công hay đã tính lương vẫn nhắc được.
 - Cả hai khai báo trước `GET /api/v2/requests/:id`.
+- **`POST /api/v2/requests/explanations-due/remind-many`**: body `{ "items": [{ "employeeId", "date" }] }` (1–200 phần tử, không trùng). Trả `200 { "done": [{ "employeeId", "date", "remindedAt" }], "failed": [{ "id", "date", "code", "message" }] }`; mỗi phần tử theo luật của `remind`. Danh sách sai thì `400 INVALID_IDS`. `GET explanations-due` nhận thêm `staffStatus`, `departmentId`, `q` và mỗi dòng có khối `employee`.
+- **`POST /api/v2/requests/review-many`**: body `{ "ids": [...], "decision": "APPROVE" }` (1–200 mã, không trùng); chỉ duyệt, `REJECT` thì `400 BULK_REJECT_NOT_ALLOWED`. Duyệt tuần tự, mỗi đơn một giao dịch; phiếu lương tính lại một lần cho mỗi (người, tháng) sau cả lô. Trả `200 { "done": [request], "failed": [{ "id", "code", "message" }], "recalculated": [{ "employeeId", "month", "ok", "error"? }] }`.
+- Cả hai route khai báo trước `GET /api/v2/requests/:id`.
 
 #### `POST /api/v2/requests/explanation` (Đơn giải trình)
 - **Mục đích**: Giải trình một ngày công có giờ chấm bất thường (vào muộn, ra sớm, thiếu giờ vào/ra…). Một ngày chỉ một đơn.
@@ -2030,3 +2033,10 @@ Lỗi chung:
   - `attendance.changed`: Admin tính lại một ngày công (`POST /api/v2/attendance/recalculate` với `workDate`). `data` là `{"type":"attendance.changed","username":"nv1","workDate":"2026-11-03"}`. Tính lại cả tháng (`month`) không phát sự kiện.
 - **Kết nối lại**: SSE không phát lại sự kiện đã lỡ. Mỗi lần nối (hoặc nối lại sau khi rớt, `EventSource` tự thử lại sau `retry` = 3 giây) client phải tải lại dữ liệu đang hiển thị (bảng chấm công hôm nay) rồi mới áp sự kiện mới. Nên coi `ready` là tín hiệu "tải lại". Phiên hết hạn thì nối lại trả `401`: dừng thử và đưa về màn đăng nhập.
 - **Mở rộng**: sự kiện đi qua `RealtimeBus` nên sau này đổi sang WebSocket hay PostgreSQL LISTEN/NOTIFY (nhiều instance) không đổi định dạng khung ở trên. Loại sự kiện mới chỉ được thêm, FE phải bỏ qua loại chưa biết.
+
+### 3.13. Departments Module (Phòng ban)
+- **`GET /api/v2/departments`** (quyền `config.read`): `{ "items": [{ "id", "name", "sort", "staffCount" }] }`.
+- **`POST /api/v2/departments`** (quyền `config.write`): body `{ "name" }`; tên trùng thì `409 DEPARTMENT_NAME_TAKEN`.
+- **`PUT /api/v2/departments/:id`** (quyền `config.write`): đổi tên; không có phòng thì `404`.
+- **`DELETE /api/v2/departments/:id`** (quyền `config.write`): còn nhân sự đang làm thì `409 DEPARTMENT_NOT_EMPTY`; nhân sự đã thôi việc được bỏ phòng.
+- Bộ lọc chung `staffStatus` (`all|mine|working|on_leave|resigned|probation`), `departmentId` (số hoặc `none`), `q` dùng cho `GET /payroll/:month`, `GET /requests`, `GET /requests/explanations-due`; giá trị sai thì `400 INVALID_FILTER`.
